@@ -1,61 +1,35 @@
 use super::*;
 
+const RESOLVER: &str = "@rules_dx//php:lock";
+
 pub(super) fn plan(
     workspace: &Path,
     set: &ResolvedSet,
-    request: &Selection,
+    _request: &Selection,
     offline: bool,
     frozen: bool,
     head: &dx_process::BazelHead,
     _closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
-    match request {
-        Selection::Full => Ok(BackendPlan::Noop),
-        Selection::Packages(packages) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let mut command = vec!["update"];
-            command.extend(packages.iter().map(String::as_str));
-            command.extend(["--with-all-dependencies", "--no-install"]);
-            let mut runs = vec![Run {
-                argv: composer_argv(
-                    workspace,
-                    set,
-                    head,
-                    "@rules_dx//php/private/tools:composer",
-                    &command,
-                )?,
-                env: composer_env(),
-            }];
-            let digests = set
-                .locks
-                .iter()
-                .find(|lock| lock.ends_with(".json"))
-                .and_then(|lock| Path::new(lock).file_name())
-                .and_then(|name| name.to_str());
-            if let Some(digests) = digests {
-                runs.push(Run {
-                    argv: composer_argv(
-                        workspace,
-                        set,
-                        head,
-                        "@rules_dx//php/private/tools/digests:refresh_digests",
-                        &["composer.lock", digests],
-                    )?,
-                    env: composer_env(),
-                });
-            }
-            Ok(BackendPlan::Sequence(runs))
-        }
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
     }
+    if frozen {
+        return Err(BackendError::FrozenLocked {
+            set: set.name.clone(),
+        });
+    }
+    let dir = workspace.join(&set.dir);
+    Ok(BackendPlan::Run {
+        argv: bazel(
+            head,
+            "run",
+            &[RESOLVER, "--", "--dir", &dir.to_string_lossy()],
+        ),
+        env: Vec::new(),
+    })
 }
 
 pub(super) fn check(

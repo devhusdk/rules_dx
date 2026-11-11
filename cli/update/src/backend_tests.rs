@@ -404,46 +404,27 @@ fn composer_update(
     )
 }
 
-const COMPOSER_LOCKS: [&str; 2] = ["php/composer.lock", "php/composer.digests.json"];
+const COMPOSER_LOCKS: [&str; 2] = ["php/composer.lock.json", "php/composer.lock"];
 
 #[test]
-fn composer_update_runs_composer_then_the_digest_refresh() {
+fn composer_update_runs_the_lock_step() {
     let set = composer_set(&COMPOSER_LOCKS);
-    let BackendPlan::Sequence(runs) = composer_update(&set, false, false).expect("plan") else {
-        panic!("expected a sequence");
+    let BackendPlan::Run { argv, .. } = plan_configured(
+        ws(),
+        &set,
+        &Selection::Full,
+        false,
+        false,
+        &no_head(),
+        &UvClosure::default(),
+    )
+    .expect("plan") else {
+        panic!("expected a run");
     };
-    assert_eq!(runs.len(), 2);
     assert_eq!(
-        runs[0].argv[runs[0].argv.len() - 6..],
-        [
-            "@rules_dx//php/private/tools:composer",
-            "--",
-            "update",
-            "psr/log",
-            "--with-all-dependencies",
-            "--no-install",
-        ]
+        argv[argv.len() - 5..].join(" "),
+        format!("run @rules_dx//php:lock -- --dir {}", ws().join("php").display())
     );
-    assert_eq!(runs[0].env[0].0, "COMPOSER_HOME");
-    assert_eq!(runs[0].env[1].0, "COMPOSER_CACHE_DIR");
-    assert_eq!(
-        runs[1].argv[runs[1].argv.len() - 4..],
-        [
-            "@rules_dx//php/private/tools/digests:refresh_digests",
-            "--",
-            "composer.lock",
-            "composer.digests.json"
-        ]
-    );
-}
-
-#[test]
-fn composer_update_without_digests_runs_only_composer() {
-    let set = composer_set(&["php/composer.lock"]);
-    let BackendPlan::Sequence(runs) = composer_update(&set, false, false).expect("plan") else {
-        panic!("expected a sequence");
-    };
-    assert_eq!(runs.len(), 1);
 }
 
 #[test]

@@ -1446,11 +1446,10 @@ register_toolchains("@dx_php_toolchains//:all")
 
 composer = use_extension("//php:extensions.bzl", "composer", dev_dependency = True)
 composer.lock(
-    name = "php_composer_fixture",
-    digests = "//php/tests/fixtures/composer:composer.digests.json",
-    lock = "//php/tests/fixtures/composer:composer.lock",
+    name = "composer_php.tests.fixtures.composer",
+    lock = "//php/tests/fixtures/composer:composer.lock.json",
 )
-use_repo(composer, php_fixture_vendor = "php_composer_fixture")
+use_repo(composer, php_fixture_vendor = "composer_php.tests.fixtures.composer")
 
 haskell = use_extension("//haskell:extensions.bzl", "haskell")
 use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "rules_haskell")
@@ -2198,6 +2197,7 @@ crate.from_cargo(
         "//swift/private/lock:Cargo.toml",
         "//zig/private/lock:Cargo.toml",
         "//d/private/lock:Cargo.toml",
+        "//php/private/lock:Cargo.toml",
         "//cli/families:Cargo.toml",
         "//cli/module_bazel:Cargo.toml",
         "//tools/testing:Cargo.toml",

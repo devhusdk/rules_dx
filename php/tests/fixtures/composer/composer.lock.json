@@ -1,0 +1,113 @@
+{
+  "ecosystem": "composer",
+  "inputs": {
+    "composer.json": "b3415918a679062fa65716bc683860a0b4dfd73dd5a01bf7b48cfd1497521276",
+    "composer.lock": "433c28c18abaa5036a646d93f1015ef08686383cef2531524db059714c1a754e"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "a3c397252b6c1c15e60ad6fae927d61edbf4059f3473080bb1b3b40deabf80d2",
+          "strip_prefix": "php-fig-http-factory-2b4765f",
+          "type": "zip",
+          "urls": [
+            "https://api.github.com/repos/php-fig/http-factory/zipball/2b4765fddfe3b508ac62f829e852b1501d3f6e8a"
+          ]
+        }
+      ],
+      "deps": [
+        "psr/http-message"
+      ],
+      "extra": {
+        "composer_manifest": {
+          "autoload": {
+            "psr-4": {
+              "Psr\\Http\\Message\\": "src/"
+            }
+          },
+          "name": "psr/http-factory",
+          "require": {
+            "php": ">=7.1",
+            "psr/http-message": "^1.0 || ^2.0"
+          },
+          "type": "library",
+          "version": "1.1.0",
+          "version_normalized": "1.1.0.0"
+        }
+      },
+      "name": "psr/http-factory",
+      "provides": [
+        "Psr\\Http\\Message"
+      ],
+      "version": "1.1.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "d561d2c36e2e3c0ee8b54e0e9652b3bfa13cd763e5e6f93400969001f3a7968d",
+          "strip_prefix": "php-fig-http-message-402d35b",
+          "type": "zip",
+          "urls": [
+            "https://api.github.com/repos/php-fig/http-message/zipball/402d35bcb92c70c026d1a6a9883f06b2ead23d71"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "composer_manifest": {
+          "autoload": {
+            "psr-4": {
+              "Psr\\Http\\Message\\": "src/"
+            }
+          },
+          "name": "psr/http-message",
+          "require": {
+            "php": "^7.2 || ^8.0"
+          },
+          "type": "library",
+          "version": "2.0",
+          "version_normalized": "2.0.0.0"
+        }
+      },
+      "name": "psr/http-message",
+      "provides": [
+        "Psr\\Http\\Message"
+      ],
+      "version": "2.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "284796ef0bf256f751e424a1f14763bc459cfe9fada8a0eb5eb3d2762587be0e",
+          "strip_prefix": "symfony-deprecation-contracts-feb1edf",
+          "type": "zip",
+          "urls": [
+            "https://api.github.com/repos/symfony/deprecation-contracts/zipball/feb1edf4e546af3b85c5caebe8359a20db230ca3"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "composer_manifest": {
+          "autoload": {
+            "files": [
+              "function.php"
+            ]
+          },
+          "name": "symfony/deprecation-contracts",
+          "require": {
+            "php": ">=8.1"
+          },
+          "type": "library",
+          "version": "v3.8.1",
+          "version_normalized": "3.8.1.0"
+        }
+      },
+      "name": "symfony/deprecation-contracts",
+      "provides": [],
+      "version": "v3.8.1"
+    }
+  ],
+  "schema": 1
+}

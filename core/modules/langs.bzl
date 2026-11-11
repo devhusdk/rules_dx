@@ -2112,11 +2112,11 @@ LANGS = json.decode("""{
           "ecosystem": "composer",
           "extension": "@rules_dx//php:extensions.bzl",
           "hub": "composer",
-          "imports": "name",
-          "lock": "composer.lock",
+          "imports": "provides",
+          "lock": "composer.lock.json",
           "manifest": "composer.json",
-          "resolver": null,
-          "state": null,
+          "resolver": "@rules_dx//php:lock",
+          "state": "composer.lock",
           "tag": "lock"
         }
       ]

@@ -664,7 +664,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!out.contains("vuln/GHSA"), "{out}");
     }
 
-    const COMPOSER_MODULE: &str = "composer = use_extension(\"@rules_dx//php:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//apps/php:composer.lock\", digests = \"//apps/php:composer.digests.json\")\n";
+    const COMPOSER_MODULE: &str = "composer = use_extension(\"@rules_dx//php:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//apps/php:vendor.lock.json\")\n";
 
     const COMPOSER_LOCK: &str = r#"{"packages": [{"name": "psr/http-message", "version": "v2.0", "dist": {"reference": "402d35bc"}}], "packages-dev": []}"#;
 
@@ -681,10 +681,7 @@ source = { registry = "https://pypi.org/simple" }
     fn consumer_composer_set_reads_its_composer_lock_and_the_packagist_snapshot() {
         let harness = consumer_harness("composer-vuln", COMPOSER_MODULE, false);
         harness.write_source("apps/php/composer.lock", COMPOSER_LOCK);
-        harness.write_source(
-            "apps/php/composer.digests.json",
-            r#"{"packages": {"psr/http-message": {"reference": "402d35bc", "sha256": "00"}}}"#,
-        );
+        harness.write_source("apps/php/vendor.lock.json", "{}");
         write_advisory(&harness, "packagist", COMPOSER_ADVISORY);
         let runner = clean_runner();
         let (code, out, err) =

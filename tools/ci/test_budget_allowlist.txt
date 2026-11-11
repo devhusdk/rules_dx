@@ -580,12 +580,9 @@ perl/tests/fixtures/perl-app/report/BUILD.bazel no-size 1
 perl/tests/negative/BUILD.bazel no-size 3
 perl/tests/runtime/BUILD.bazel no-size 2
 php/private/BUILD.bazel no-size 1
-php/private/composer/BUILD.bazel no-size 1
-php/private/composer/lock_tests.bzl no-size 1
 php/private/coverage/BUILD.bazel no-size 1
 php/private/toolchain/BUILD.bazel no-size 2
 php/private/toolchain/metadata_tests.bzl no-size 1
-php/private/tools/digests/BUILD.bazel no-size 1
 php/tests/bench/BUILD.bazel no-size 2
 php/tests/fixtures/composer/BUILD.bazel no-size 3
 php/tests/fixtures/hello/BUILD.bazel no-size 4

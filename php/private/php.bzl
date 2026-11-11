@@ -299,52 +299,33 @@ php_autoload_tree = rule(
 
 def _php_composer_package_impl(ctx):
     deps = [dep[PhpInfo] for dep in ctx.attr.deps]
+    manifest = ctx.actions.declare_file(ctx.label.name + ".installed.json")
+    ctx.actions.write(manifest, ctx.attr.manifest_json + "\n")
     package = struct(
         name = ctx.attr.package,
         version = ctx.attr.version,
-        manifest = ctx.file.manifest,
+        manifest = manifest,
         root = ctx.label.workspace_root + ("/" + ctx.label.package if ctx.label.package else ""),
     )
     return [
         PhpInfo(
             autoload_files = depset(transitive = [info.autoload_files for info in deps]),
-            package_files = depset(ctx.files.srcs + [ctx.file.manifest], transitive = [info.package_files for info in deps]),
+            package_files = depset(ctx.files.srcs + [manifest], transitive = [info.package_files for info in deps]),
             packages = depset([package], transitive = [info.packages for info in deps]),
             transitive_srcs = depset(transitive = [info.transitive_srcs for info in deps]),
         ),
-        DefaultInfo(files = depset([ctx.file.manifest])),
+        DefaultInfo(files = depset([manifest])),
     ]
 
 php_composer_package = rule(
     implementation = _php_composer_package_impl,
-    doc = "One Composer package fetched from composer.lock. Its files stay out of the classmap; Composer autoloads them from installed.json.",
+    doc = "One Composer package fetched from the lock. Its files stay out of the classmap; Composer autoloads them from installed.json.",
     attrs = {
         "deps": attr.label_list(providers = [PhpInfo], doc = "The packages this package requires."),
-        "manifest": attr.label(mandatory = True, allow_single_file = [".json"], doc = "The filtered composer.lock entry staged into vendor/composer/installed.json."),
+        "manifest_json": attr.string(mandatory = True, doc = "The lock entry staged into vendor/composer/installed.json, as JSON."),
         "package": attr.string(mandatory = True, doc = "The Composer package name, vendor/name."),
         "srcs": attr.label_list(allow_files = True, doc = "Every file of the package."),
         "version": attr.string(mandatory = True, doc = "The locked package version."),
-    },
-    provides = [PhpInfo],
-)
-
-def _php_composer_group_impl(ctx):
-    deps = [dep[PhpInfo] for dep in ctx.attr.deps]
-    return [
-        PhpInfo(
-            autoload_files = depset(transitive = [info.autoload_files for info in deps]),
-            package_files = depset(transitive = [info.package_files for info in deps]),
-            packages = depset(transitive = [info.packages for info in deps]),
-            transitive_srcs = depset(transitive = [info.transitive_srcs for info in deps]),
-        ),
-        DefaultInfo(),
-    ]
-
-php_composer_group = rule(
-    implementation = _php_composer_group_impl,
-    doc = "Several Composer packages under one label.",
-    attrs = {
-        "deps": attr.label_list(providers = [PhpInfo], doc = "The packages in the group."),
     },
     provides = [PhpInfo],
 )

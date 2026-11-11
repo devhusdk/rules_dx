@@ -1,5 +1,11 @@
 [
   {
+    "ecosystem": "composer",
+    "hub": "composer",
+    "lock": "composer.lock.json",
+    "manifest": "composer.json"
+  },
+  {
     "ecosystem": "dub",
     "hub": "dub",
     "lock": "dub.lock.json",

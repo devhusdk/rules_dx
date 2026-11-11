@@ -1,0 +1,71 @@
+{
+  "ecosystem": "composer",
+  "inputs": {
+    "composer.json": "569ca07dbed2322ea3841ccbb98719420f7f732c90ab75d6f8aca2802a20f8a5",
+    "composer.lock": "13c1a132a82854c68b111e117866baf6bd2d66b88ffbe49a7190f1664efcd3bd"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "44e963b278d5e212dc5621eac78348f8c61c70a87f1391843767b987ed414186",
+          "strip_prefix": "php-fig-http-factory-aaaaaaa",
+          "type": "zip",
+          "urls": [
+            "https://example.com/zipball/factory.zip"
+          ]
+        }
+      ],
+      "deps": [
+        "psr/http-message"
+      ],
+      "extra": {
+        "composer_manifest": {
+          "autoload": {
+            "psr-4": {
+              "Psr\\Http\\Message\\": "src/"
+            }
+          },
+          "name": "psr/http-factory",
+          "require": {
+            "php": ">=7.1",
+            "psr/http-message": "^1.0 || ^2.0"
+          },
+          "type": "library",
+          "version": "1.1.0",
+          "version_normalized": "1.1.0.0"
+        }
+      },
+      "name": "psr/http-factory",
+      "provides": [
+        "Psr\\Http\\Message"
+      ],
+      "version": "1.1.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "102303b7af71530d779a7504398bf7cfac56a5cd0505976b1471f94a139f0563",
+          "strip_prefix": "php-fig-http-message-bbbbbbb",
+          "type": "zip",
+          "urls": [
+            "https://example.com/zipball/message.zip"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "composer_manifest": {
+          "name": "psr/http-message",
+          "type": "library",
+          "version": "2.0",
+          "version_normalized": "2.0.0.0"
+        }
+      },
+      "name": "psr/http-message",
+      "provides": [],
+      "version": "2.0"
+    }
+  ],
+  "schema": 1
+}

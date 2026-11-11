@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use dx_ecosystems::Ecosystem;
+
 use crate::toml_util::{toml_bool, toml_string};
 use crate::{DepInfo, DepcheckError};
 
@@ -83,9 +85,17 @@ pub fn parse_jvm_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckE
     Ok(pkgs)
 }
 
-const MAVEN_LOCK_LABEL: &str = "\"//third_party/jvm:maven_install.json\"";
+fn maven_lock_label() -> String {
+    let lock = Ecosystem::Maven
+        .registry_names()
+        .into_iter()
+        .find(|name| name.ends_with(".json"))
+        .unwrap_or_default();
+    format!("\"//third_party/jvm:{lock}\"")
+}
 
 fn maven_install_artifacts(text: &str) -> Option<&str> {
+    let label = maven_lock_label();
     let mut rest = text;
     while let Some(at) = rest.find("maven.install(") {
         let body = &rest[at + "maven.install(".len()..];
@@ -105,7 +115,7 @@ fn maven_install_artifacts(text: &str) -> Option<&str> {
             }
         }
         let call = &body[..end];
-        if call.contains(MAVEN_LOCK_LABEL) {
+        if call.contains(&label) {
             let list = &call[call.find("artifacts")?..];
             let open = list.find('[')?;
             let close = open + list[open..].find(']')?;

@@ -3,6 +3,8 @@ use std::path::Path;
 
 use crate::{DepInfo, DepcheckError};
 
+use dx_ecosystems::Ecosystem;
+
 use super::put;
 
 /// Package identity SwiftPM derives from a URL or name: the last path component without
@@ -106,7 +108,7 @@ fn package_spec(args: &str) -> Result<String, DepcheckError> {
     Ok("*".to_owned())
 }
 
-/// Reads a `Package.swift`: remote `.package(url:)` entries and the `.product(name:package:)`
+/// Reads a SwiftPM manifest: remote `.package(url:)` entries and the `.product(name:package:)`
 /// entries of the targets. A dependency is keyed by the module name its product is imported
 /// as; a package no target takes a product from is keyed by its identity. Path packages are
 /// local and skipped.
@@ -176,7 +178,7 @@ pub fn parse_swift_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, De
     Ok(deps)
 }
 
-/// Maps every pinned package identity of a `Package.resolved` (format 1 to 3) to its version,
+/// Maps every pinned package identity of a SwiftPM resolved file (format 1 to 3) to its version,
 /// or to its branch or revision when it has none.
 pub fn parse_swift_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
@@ -210,7 +212,7 @@ pub fn module_candidates(lock: &Path, package: &str) -> Vec<String> {
     let manifest = lock.parent().map(|dir| {
         dir.join(".build/checkouts")
             .join(package)
-            .join("Package.swift")
+            .join(Ecosystem::SwiftPm.manifest_name())
     });
     let text = manifest
         .and_then(|path| std::fs::read_to_string(path).ok())

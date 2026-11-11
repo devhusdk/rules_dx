@@ -5,7 +5,7 @@ use crate::{DepInfo, DepcheckError};
 
 use super::put;
 
-/// Reads a `cpanfile`: `requires`, `recommends`, `suggests`, `test_requires`,
+/// Reads a cpan manifest: `requires`, `recommends`, `suggests`, `test_requires`,
 /// `build_requires` and `configure_requires`, also inside `on 'phase' => sub { ... }`.
 pub fn parse_perl_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
@@ -78,7 +78,7 @@ fn perl_spec(version: &str) -> String {
     }
 }
 
-/// Maps every module a `cpanfile.snapshot` distribution provides to its version.
+/// Maps every module a cpan snapshot distribution provides to its version.
 pub fn parse_perl_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let mut modules = BTreeMap::new();

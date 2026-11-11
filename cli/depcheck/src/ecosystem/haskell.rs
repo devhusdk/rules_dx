@@ -109,7 +109,7 @@ fn haskell_spec(range: &str) -> String {
     parts.join(", ")
 }
 
-/// Reads the pinned packages of `cabal.project.freeze` (`any.text ==2.0.2`) or
+/// Reads the pinned packages of the cabal freeze file (`any.text ==2.0.2`) or
 /// `stack.yaml.lock` (`hackage: text-2.0.2@sha256:...`).
 pub fn parse_haskell_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;

@@ -25,11 +25,11 @@ fn constraint(value: &yaml_serde::Value) -> String {
     }
 }
 
-/// `dependencies` and `dev_dependencies` of a pubspec.yaml.
+/// `dependencies` and `dev_dependencies` of a pubspec manifest.
 pub fn parse_dart_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let root: yaml_serde::Value = yaml_serde::from_str(&text)
-        .map_err(|error| manifest_error(format!("invalid pubspec.yaml: {error}")))?;
+        .map_err(|error| manifest_error(format!("invalid pubspec manifest: {error}")))?;
     let mut deps = BTreeMap::new();
     for (section, category) in [("dependencies", "prod"), ("dev_dependencies", "dev")] {
         let table = match root.get(section) {
@@ -63,11 +63,11 @@ pub fn parse_dart_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
 fn lock_entries(path: &Path) -> Result<Vec<(String, String, String)>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let root: yaml_serde::Value = yaml_serde::from_str(&text)
-        .map_err(|error| DepcheckError::LockParse(format!("invalid pubspec.lock: {error}")))?;
+        .map_err(|error| DepcheckError::LockParse(format!("invalid pub lock: {error}")))?;
     let packages = root
         .get("packages")
         .and_then(yaml_serde::Value::as_mapping)
-        .ok_or_else(|| DepcheckError::LockParse("pubspec.lock has no packages".to_owned()))?;
+        .ok_or_else(|| DepcheckError::LockParse("pub lock has no packages".to_owned()))?;
     let mut out = Vec::new();
     for (name, detail) in packages {
         let field = |key: &str| {
@@ -79,7 +79,7 @@ fn lock_entries(path: &Path) -> Result<Vec<(String, String, String)>, DepcheckEr
         };
         let Some(name) = name.as_str() else {
             return Err(DepcheckError::LockParse(
-                "pubspec.lock package name is not a string".to_owned(),
+                "pub lock package name is not a string".to_owned(),
             ));
         };
         out.push((normalize_lower(name), field("version"), field("source")));
@@ -87,7 +87,7 @@ fn lock_entries(path: &Path) -> Result<Vec<(String, String, String)>, DepcheckEr
     Ok(out)
 }
 
-/// `packages.<name>.version` of a pubspec.lock, SDK packages included.
+/// `packages.<name>.version` of a pub lock, SDK packages included.
 pub fn parse_dart_lock(path: &Path) -> Result<LockVersions, DepcheckError> {
     let mut pkgs = LockVersions::new();
     for (name, version, _) in lock_entries(path)? {

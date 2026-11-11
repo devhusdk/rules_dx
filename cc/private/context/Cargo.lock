@@ -6765,6 +6765,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "zig_lock"
+version = "0.0.0"
+dependencies = [
+ "flate2",
+ "serde_json",
+ "tar",
+ "tempfile",
+ "zip",
+]
+
+[[package]]
 name = "zip"
 version = "9.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -891,18 +891,18 @@ fn rehash_set(name: &str, ecosystem: Ecosystem, manifest: &str, lock: &str) -> R
 }
 
 #[test]
-fn zig_and_fpm_updates_run_the_rehash_target() {
+fn zig_runs_the_lock_step_and_fpm_runs_the_rehash_target() {
     let dir = dx_test_scratch::scratch("rehash_backend");
     dx_test_scratch::write(
         dir.path(),
         "native/BUILD.bazel",
-        "zig_digests(name = \"digests\")\nfpm_lock(name = \"lock\")\n",
+        "fpm_lock(name = \"lock\")\n",
     );
     let zig = rehash_set(
         "zig",
         Ecosystem::Zig,
         "native/build.zig.zon",
-        "native/zig.digests.json",
+        "native/zig.lock.json",
     );
     let fpm = rehash_set("fpm", Ecosystem::Fpm, "native/fpm.toml", "native/fpm.lock");
     let run = |set: &ResolvedSet, request: &Selection, offline: bool| {
@@ -919,12 +919,18 @@ fn zig_and_fpm_updates_run_the_rehash_target() {
     let BackendPlan::Run { argv, .. } = run(&zig, &Selection::Full, false).expect("plan") else {
         panic!("expected a run");
     };
-    assert_eq!(argv[argv.len() - 2..].join(" "), "run //native:digests");
+    assert_eq!(
+        argv[argv.len() - 5..].join(" "),
+        format!(
+            "run @rules_dx//zig:lock -- --dir {}",
+            dir.path().join("native").display()
+        )
+    );
     let named = Selection::Packages(vec!["xxhash".to_owned()]);
-    let BackendPlan::Run { argv, .. } = run(&zig, &named, false).expect("plan") else {
-        panic!("expected a run");
-    };
-    assert_eq!(argv[argv.len() - 3..].join(" "), "//native:digests -- xxhash");
+    assert!(matches!(
+        run(&zig, &named, false),
+        Err(BackendError::Unsupported { .. })
+    ));
     let BackendPlan::Run { argv, .. } = run(&fpm, &named, false).expect("plan") else {
         panic!("expected a run");
     };
@@ -1097,7 +1103,12 @@ fn swift_check_resolves_in_a_copy_and_compares() {
         && arg.ends_with(&format!("sh '{}' check", dir_arg("app")))));
     assert_eq!(
         argv[argv.len() - 4..],
-        ["@rules_dx//swift/private/tools:swift", "--", "package", "resolve"]
+        [
+            "@rules_dx//swift/private/tools:swift",
+            "--",
+            "package",
+            "resolve"
+        ]
     );
     for (request, offline) in [
         (Selection::Full, true),

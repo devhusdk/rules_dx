@@ -42,36 +42,20 @@ installed.
 
 ## Packages
 
-The `.dependencies` of a `build.zig.zon` become one hub of `zig_library` targets. Bazel fetches each archive through its repository cache; Zig never runs at fetch time. Only `http(s)` archive URLs (`.tar.gz`, `.tgz`, `.tar.xz`, `.tar.zst`, `.zip`) are supported; `git+` URLs and path dependencies are not.
+The `.dependencies` of a `build.zig.zon` become one hub of `zig_library` targets from `zig.lock.json`. Bazel fetches each archive through its repository cache; Zig never runs at fetch time. Only `https` archive URLs (`.tar.gz`, `.tgz`, `.zip`) are supported; `git+` URLs and path dependencies are not.
 
 ```python
-zig_deps = use_extension("@rules_dx//zig:extensions.bzl", "zig")
-zig_deps.lock(
+zig_hub = use_extension("@rules_dx//zig:extensions.bzl", "zig")
+zig_hub.lock(
     name = "zig_packages",
-    digests = "//:zig.digests.json",
-    lock = "//:build.zig.zon",
+    lock = "//:zig.lock.json",
 )
-use_repo(zig_deps, "zig_packages")
+use_repo(zig_hub, "zig_packages")
 ```
 
-A package is `@zig_packages//<name>`, imported by that name. Its root module is the first existing of `src/<name>.zig`, `src/root.zig`, `<name>.zig`, `src/main.zig`, `root.zig`, `main.zig`. Its own `build.zig.zon` dependencies that the hub holds become deps. `@zig_packages//:all_packages` groups every package.
+A package is `@zig_packages//<name>`, imported by that name. Its root module is the first existing of `src/<name>.zig`, `src/root.zig`, `<name>.zig`, `src/main.zig`, `root.zig`, `main.zig`. Its own `build.zig.zon` dependencies become deps and must be listed in the root `build.zig.zon` with the same `.hash`.
 
-The `.hash` of a dependency is not the archive digest, so `zig.digests.json` pins the archives:
-
-```json
-{
-  "packages": {
-    "xxhash": {
-      "hash": "<the .hash in build.zig.zon>",
-      "sha256": "<sha256 of the archive at .url>"
-    }
-  }
-}
-```
-
-A package without a matching entry fails the fetch and prints the entry to commit.
-
-`zig_digests(name)` from `@rules_dx//zig:defs.bzl` next to `build.zig.zon` is the target `dx update` runs. It downloads each archive dependency and rewrites `zig.digests.json`; `dx update <set>:<package>` re-hashes one package.
+`bazel run @rules_dx//zig:lock -- --dir <absolute directory of build.zig.zon>` downloads each archive and writes `zig.lock.json` beside it; `dx update` runs it. A second run with unchanged inputs downloads nothing.
 
 ## Benchmarks
 

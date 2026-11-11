@@ -4,5 +4,11 @@
     "hub": "swiftpkg",
     "lock": "swiftpm.lock.json",
     "manifest": "Package.swift"
+  },
+  {
+    "ecosystem": "zig",
+    "hub": "zig",
+    "lock": "zig.lock.json",
+    "manifest": "build.zig.zon"
   }
 ]

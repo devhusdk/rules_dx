@@ -2,7 +2,6 @@ digests-file d/tests/fixtures/d-app/dub.digests.json
 digests-file d/tests/fixtures/dub/dub.digests.json
 digests-file lua/tests/luarocks/luarocks.digests.json
 digests-file php/tests/fixtures/composer/composer.digests.json
-digests-file zig/tests/fixtures/zig-deps/zig.digests.json
 name cli/adopt/src/build_output.rs Cargo.lock
 name cli/adopt/src/build_output.rs Cargo.toml
 name cli/adopt/src/build_output.rs Gemfile.lock
@@ -304,7 +303,6 @@ name cli/update/src/backend/luarocks.rs luarocks.lock
 name cli/update/src/backend/nuget.rs paket.lock
 name cli/update/src/backend/pub_dev.rs pubspec.lock
 name cli/update/src/backend/swiftpm.rs Package.resolved
-name cli/update/src/backend/zig.rs build.zig.zon
 name cli/update/src/discover/cabal.rs cabal.project.freeze
 name cli/update/src/discover/composer.rs composer.json
 name cli/update/src/discover/composer.rs composer.lock
@@ -482,10 +480,6 @@ name tools/testing/hermetic/maven_pin.rs maven_install.json
 name tools/testing/nested/src/lib.rs maven_install.json
 name tools/testing/nested_bazel.bzl maven_install.json
 name typescript/private/quality/tsc.bzl tsconfig.json
-name zig/private/deps/extensions.bzl build.zig.zon
-name zig/private/deps/lock.bzl build.zig.zon
-name zig/private/deps/repos.bzl build.zig.zon
-name zig/private/tools/digests.bzl build.zig.zon
 parser ansible/private/lock.bzl
 parser d/private/dub/lock.bzl
 parser elixir/private/mix_lock.bzl
@@ -495,7 +489,6 @@ parser fortran/private/tools/fpm_lock.bzl
 parser lua/luarocks/lock.bzl
 parser php/private/composer/lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
-parser zig/private/deps/lock.bzl
 registry cabal
 registry cpan
 registry fpm
@@ -517,7 +510,6 @@ tag-attr lua/luarocks/extensions.bzl digests
 tag-attr php/private/composer/extensions.bzl digests
 tag-attr terraform/extensions.bzl sha256
 tag-attr terraform/extensions.bzl version
-tag-attr zig/private/deps/extensions.bzl digests
 tag-use MODULE.bazel composer.lock.digests
 tag-use MODULE.bazel dub.lock.digests
 tag-use MODULE.bazel luarocks.lock.digests
@@ -526,4 +518,3 @@ tag-use MODULE.bazel ruby.toolchain.portable_ruby_checksums
 tag-use MODULE.bazel ruby.toolchain.version
 tag-use MODULE.bazel terraform.provider.sha256
 tag-use MODULE.bazel terraform.provider.version
-tag-use MODULE.bazel zig.lock.digests

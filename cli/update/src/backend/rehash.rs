@@ -1,6 +1,6 @@
 use super::*;
 
-/// Runs the zig_digests or fpm_lock target next to the set, which re-hashes the archives the set pins.
+/// Runs the fpm_lock target next to the set, which re-hashes the archives the set pins.
 pub(super) fn plan(
     rule: &'static str,
     reason: &'static str,

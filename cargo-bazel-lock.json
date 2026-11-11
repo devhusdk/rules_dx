@@ -1,5 +1,5 @@
 {
-  "checksum": "e870785ba00a64f408e4cbea87a9e17fcb72241dfad92aacd2d6664215335bfa",
+  "checksum": "bdfe922616204c810be69e72b08b8c0dd929dad5904ed57f5ee4a6b5acb69e9a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -31068,6 +31068,51 @@
       ],
       "version": "0.0.0"
     },
+    "zig_lock 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "tar 0.4.46",
+            "target": "tar"
+          },
+          {
+            "id": "zip 9.1.2",
+            "target": "zip"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "zig_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "zig_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "zig_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "zip 9.1.2": {
       "common_attrs": {
         "crate_features": [
@@ -31467,6 +31512,7 @@
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",
     "typescript_scoped_fixture 0.0.0": "typescript/tests/fixtures/typescript_scoped_fixture",
     "wasi_testing 0.0.0": "wasi/private/wasi_testing",
-    "zig_extract 0.0.0": "tools/docs/zig/zig_extract"
+    "zig_extract 0.0.0": "tools/docs/zig/zig_extract",
+    "zig_lock 0.0.0": "zig/private/zig_lock"
   }
 }

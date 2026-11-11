@@ -1,21 +1,7 @@
-load("@rules_py//py:defs.bzl", "py_unittest_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":zig_tool.bzl", "zig_lib_marker", "zig_tool")
 
 package(default_visibility = ["//visibility:public"])
-
-exports_files([
-    "digests.bzl",
-    "digests.py",
-])
-
-py_unittest_test(
-    name = "digests_unit_test",
-    srcs = [
-        "digests.py",
-        "digests_test.py",
-    ],
-)
 
 zig_tool(name = "zig")
 
@@ -25,7 +11,6 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
-        "digests.bzl",
         "zig_tool.bzl",
     ],
     tags = ["corpus"],

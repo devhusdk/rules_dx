@@ -290,7 +290,6 @@ pub struct FpmLock<'a> {
 pub struct ZigLock<'a> {
     pub name: &'a str,
     pub lock: &'a str,
-    pub digests: &'a str,
     pub line: usize,
 }
 
@@ -1122,7 +1121,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `zig.lock` tag of the rules_dx zig deps extension in source order.
+    /// Every `zig.lock` tag of the rules_dx zig extension in source order.
     pub fn zig_locks(&self) -> Result<Vec<ZigLock<'_>>, ModuleError> {
         const TAG: &str = "zig.lock";
         let own = self.tags_of("//zig:extensions.bzl".to_owned(), "zig", "lock");
@@ -1132,7 +1131,6 @@ impl ModuleFile {
                 Ok(ZigLock {
                     name: required(call, TAG, "name")?,
                     lock: required(call, TAG, "lock")?,
-                    digests: required(call, TAG, "digests")?,
                     line: call.line,
                 })
             })

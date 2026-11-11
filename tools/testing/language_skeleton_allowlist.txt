@@ -755,8 +755,6 @@ test-location typescript/private/ide/BUILD.bazel
 test-location vue/tests/BUILD.bazel
 test-location wasi/private/testing/BUILD.bazel
 test-location zig/private/BUILD.bazel
-test-location zig/private/deps/BUILD.bazel
-test-location zig/private/deps/lock_tests.bzl
 test-location zig/tests/BUILD.bazel
 title ansible/lang.json
 title api_spec/lang.json

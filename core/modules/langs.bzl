@@ -3092,11 +3092,11 @@ LANGS = json.decode("""{
         {
           "ecosystem": "zig",
           "extension": "@rules_dx//zig:extensions.bzl",
-          "hub": "zig_deps",
-          "imports": "name",
-          "lock": "build.zig.zon",
+          "hub": "zig",
+          "imports": "provides",
+          "lock": "zig.lock.json",
           "manifest": "build.zig.zon",
-          "resolver": null,
+          "resolver": "@rules_dx//zig:lock",
           "state": null,
           "tag": "lock"
         }

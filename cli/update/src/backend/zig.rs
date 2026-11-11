@@ -1,5 +1,7 @@
 use super::*;
 
+const RESOLVER: &str = "@rules_dx//zig:lock";
+
 pub(super) fn plan(
     workspace: &Path,
     set: &ResolvedSet,
@@ -8,14 +10,29 @@ pub(super) fn plan(
     frozen: bool,
     head: &dx_process::BazelHead,
 ) -> Result<BackendPlan, BackendError> {
-    rehash::plan(
-        "zig_digests",
-        "add a zig_digests next to build.zig.zon; it rewrites zig.digests.json from the archives",
-        workspace,
-        set,
-        request,
-        offline,
-        frozen,
-        head,
-    )
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
+    }
+    if frozen {
+        return Err(BackendError::FrozenLocked {
+            set: set.name.clone(),
+        });
+    }
+    if matches!(request, Selection::Packages(_)) {
+        return Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "the zig lock step resolves every package of the set; update the whole set",
+        });
+    }
+    let dir = workspace.join(&set.dir);
+    Ok(BackendPlan::Run {
+        argv: bazel(
+            head,
+            "run",
+            &[RESOLVER, "--", "--dir", &dir.to_string_lossy()],
+        ),
+        env: Vec::new(),
+    })
 }

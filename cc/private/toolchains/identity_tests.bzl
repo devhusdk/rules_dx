@@ -215,7 +215,10 @@ def cc_toolchain_identity_tests(name):
     starlark_test(
         name = name + "_msvc_arm64",
         mode = "analysis",
-        subjects = [":identity_under_test_msvc_arm64"],
+        subjects = select({
+            "@platforms//os:windows": [":identity_under_test_msvc_arm64"],
+            "//conditions:default": [],
+        }),
         expected_observations = EXPECTED_MSVC_ARM64_IDENTITY_OBSERVATIONS,
         target_compatible_with = ["@platforms//os:windows"],
     )

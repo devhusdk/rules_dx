@@ -7,11 +7,18 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
-_GCC_ONLY = [
+_LINUX = [
     "@platforms//os:linux",
 ] + select({
     "@platforms//cpu:arm64": [],
     "@platforms//cpu:x86_64": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
+_LINUX_MACOS = select({
+    "//cc/private/toolchains:linux_arm64": [],
+    "//cc/private/toolchains:linux_x86_64": [],
+    "//cc/private/toolchains:macos_arm64": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
@@ -20,7 +27,7 @@ cc_test(
     srcs = ["sanitize_test.cc"],
     local_defines = ["DX_EXPECT_ASAN"],
     tags = ["manual"],
-    target_compatible_with = _GCC_ONLY,
+    target_compatible_with = _LINUX_MACOS,
 )
 
 cc_test(
@@ -29,14 +36,14 @@ cc_test(
     env = {"ASAN_OPTIONS": "detect_leaks=0"},
     local_defines = ["DX_EXPECT_ASAN"],
     tags = ["manual"],
-    target_compatible_with = _GCC_ONLY,
+    target_compatible_with = _LINUX_MACOS,
 )
 
 cc_gcc_asan_env_tests(
     name = "asan_default_env_tests",
     expect = "verify_asan_link_order=0",
     target = ":asan_test",
-    target_compatible_with = _GCC_ONLY,
+    target_compatible_with = _LINUX,
 )
 
 cc_gcc_asan_env_tests(
@@ -44,7 +51,7 @@ cc_gcc_asan_env_tests(
     expect = "detect_leaks=0",
     expect_llvm = "detect_leaks=0",
     target = ":asan_env_override_test",
-    target_compatible_with = _GCC_ONLY,
+    target_compatible_with = _LINUX,
 )
 
 cc_test(
@@ -53,7 +60,7 @@ cc_test(
     copts = ["-fno-sanitize-recover=undefined"],
     local_defines = ["DX_EXPECT_UBSAN"],
     tags = ["manual"],
-    target_compatible_with = _GCC_ONLY,
+    target_compatible_with = _LINUX_MACOS,
 )
 
 cc_test(
@@ -61,7 +68,7 @@ cc_test(
     srcs = ["tsan_test.cc"],
     linkopts = ["-pthread"],
     tags = ["manual"],
-    target_compatible_with = _GCC_ONLY,
+    target_compatible_with = _LINUX_MACOS,
 )
 
 real_source_target(

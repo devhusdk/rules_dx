@@ -232,10 +232,12 @@ cc_toolchain_test(
     compiler = "llvm",
     llvm_sanitizers = ["asan"],
     tags = ["no-coverage"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
+    target_compatible_with = select({
+        ":linux_arm64": [],
+        ":linux_x86_64": [],
+        ":macos_arm64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
     test = "//cc/tests/fixtures/sanitize:asan_test",
 )
 
@@ -244,10 +246,12 @@ cc_toolchain_test(
     compiler = "llvm",
     llvm_sanitizers = ["ubsan"],
     tags = ["no-coverage"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
+    target_compatible_with = select({
+        ":linux_arm64": [],
+        ":linux_x86_64": [],
+        ":macos_arm64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
     test = "//cc/tests/fixtures/sanitize:ubsan_test",
 )
 
@@ -256,10 +260,12 @@ cc_toolchain_test(
     compiler = "llvm",
     llvm_sanitizers = ["tsan"],
     tags = ["no-coverage"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
+    target_compatible_with = select({
+        ":linux_arm64": [],
+        ":linux_x86_64": [],
+        ":macos_arm64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
     test = "//cc/tests/fixtures/sanitize:tsan_test",
 )
 
@@ -622,6 +628,22 @@ config_setting(
     name = "linux_arm64",
     constraint_values = [
         "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+)
+
+config_setting(
+    name = "linux_x86_64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+config_setting(
+    name = "macos_arm64",
+    constraint_values = [
+        "@platforms//os:macos",
         "@platforms//cpu:arm64",
     ],
 )

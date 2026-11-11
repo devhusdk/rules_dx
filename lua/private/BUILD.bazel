@@ -153,6 +153,7 @@ real_source_target(
         "defs.bzl",
         "lua.bzl",
         "providers.bzl",
+        "luals.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

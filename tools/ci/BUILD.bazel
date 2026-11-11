@@ -742,7 +742,7 @@ rust_test(
         "//helm/private:corpus_starlark",
         "//java/private:corpus_starlark",
         "//java/private/ide:corpus_starlark",
-        "//java/private/toolchains:corpus_starlark",
+        "//java/private/toolchain:corpus_starlark",
         "//javascript/private:corpus_starlark",
         "//javascript/private/quality:corpus_starlark",
         "//javascript/tests:corpus_starlark",

@@ -68,7 +68,7 @@ const PACKAGES: &[&str] = &[
     "helm/private",
     "java/private",
     "java/private/ide",
-    "java/private/toolchains",
+    "java/private/toolchain",
     "javascript/private",
     "javascript/private/quality",
     "julia/private",

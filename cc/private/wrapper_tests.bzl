@@ -66,7 +66,11 @@ def _coverage_env_impl(ctx):
             asserts.false(env, key in run_env, key + " set without coverage")
     return analysistest.end(env)
 
-_COVERAGE = coverage_env_tests(_coverage_env_impl)
+# mirrors coverage:windows in .bazelrc
+_COVERAGE = coverage_env_tests(
+    _coverage_env_impl,
+    features = ["-coverage", "-gcc_coverage_map_format"],
+)
 _coverage_env_on_test = _COVERAGE.on
 _coverage_env_off_test = _COVERAGE.off
 

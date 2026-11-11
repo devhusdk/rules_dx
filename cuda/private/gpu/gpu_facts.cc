@@ -102,6 +102,10 @@ std::string CallError(const char *call, const char *name, int status) {
   return out + "cudaError " + std::to_string(status);
 }
 
+int LinkedRuntime(bool read_ok, int reported, int linked) {
+  return read_ok && reported > 0 ? reported : linked;
+}
+
 std::string DeclaredError(const Declared &declared) {
   int major = 0;
   int minor = 0;

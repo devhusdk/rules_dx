@@ -270,5 +270,25 @@ TEST(CallError, FallsBackForAnEmptyName) {
             "cudaDriverGetVersion: cudaError 3");
 }
 
+TEST(LinkedRuntime, KeepsAReportedVersion) {
+  EXPECT_EQ(LinkedRuntime(true, 13040, 13020), 13040);
+}
+
+TEST(LinkedRuntime, FallsBackWhenTheReadFails) {
+  EXPECT_EQ(LinkedRuntime(false, 0, 13040), 13040);
+  EXPECT_EQ(LinkedRuntime(true, 0, 13040), 13040);
+}
+
+TEST(FactsJson, WritesTheLinkedRuntimeWithoutADriver) {
+  Probe probe;
+  probe.runtime = 13040;
+  probe.driver = 0;
+  probe.error = "cudaGetDeviceCount: cudaErrorInsufficientDriver";
+  std::string json = FactsJson(probe, Saxpy(), Classify(probe, Saxpy()));
+  EXPECT_NE(json.find("\"status\":\"unavailable\""), std::string::npos);
+  EXPECT_NE(json.find("\"driver\":null,\"runtime\":\"13.4\""),
+            std::string::npos);
+}
+
 } // namespace
 } // namespace dx_gpu

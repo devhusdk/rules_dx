@@ -9,11 +9,12 @@ def swift_windows_toolchain(name, cpu):
     """Declares the Swift toolchain for one Windows cpu."""
     repo = "@dx_swift_windows_" + cpu
     root = Label(repo + "//:.swift-version").workspace_root
+    runtime = (root + "/runtime/usr/bin").replace("/", "\\")
 
     swift_toolchain(
         name = "swift_toolchain_windows_" + cpu,
         arch = cpu,
-        env = {"PATH": (root + "/runtime/usr/bin").replace("/", "\\")},
+        env = {"PATH": runtime, "Path": runtime},
         os = "windows",
         parsed_version = _VERSION,
         sdkroot = root + "/platform/Developer/SDKs/Windows.sdk",

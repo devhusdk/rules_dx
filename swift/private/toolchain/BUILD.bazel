@@ -29,6 +29,7 @@ exports_files([
     "extract_windows.ps1",
     "pins.json",
     "repos.bzl",
+    "windows.bzl",
 ])
 
 # The shared libraries a Swift test binary loads that the sysroot ships, so it runs without host libraries.

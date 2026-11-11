@@ -9,6 +9,7 @@ package(
 
 typescript_binary(
     name = "app",
+    size = "small",
     testonly = True,
     srcs = ["main.ts"],
     declaration = True,
@@ -19,6 +20,7 @@ typescript_binary(
 
 typecheck_gate_test(
     name = "app_gate",
+    size = "small",
     target = "app",
 )
 

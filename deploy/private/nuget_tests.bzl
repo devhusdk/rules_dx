@@ -5,9 +5,10 @@ load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":api_compat.bzl", "api_compat_error")
 load(":validate_nuget.bzl", "NUGET_DEFAULT_REGISTRY_URL", "nuget_id_error", "nuget_nupkg_error", "nuget_registry_url_error", "nuget_version_error")
 
-def nuget_unit_tests(name):
+def nuget_unit_tests(name, size = "small"):
     starlark_test(
         name = name,
+        size = size,
         mode = "unit",
         checks = [
             expect_equal(

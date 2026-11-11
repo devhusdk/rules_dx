@@ -1,6 +1,7 @@
-load("@rules_dx//qt:defs.bzl", "qt_cc_binary")
+load("@rules_dx//qt:defs.bzl", "qt_cc_test")
 
-qt_cc_binary(
+qt_cc_test(
     name = "consumer",
+    size = "small",
     srcs = ["main.cc"],
 )

@@ -57,6 +57,7 @@ js_library(
         name = "%s_exit_test" % case,
         file1 = "%s.exit.expected" % case,
         file2 = ":%s_exit_report" % case,
+        size = "small",
     )
     for case in ["tier", "loose"]
 ]
@@ -66,6 +67,7 @@ js_library(
         name = "mixed_%s_exit_test" % checker,
         file1 = "mixed.exit.expected",
         file2 = ":mixed_%s_exit_report" % checker,
+        size = "small",
     )
     for checker in ["vue", "mdx"]
 ]
@@ -90,6 +92,7 @@ bad.vue(4,28): error TS2345: Argument of type 'string' is not assignable to para
 """,
     expected = "mixed.stdout.expected",
     report = ":mixed_vue_stdout_report",
+    size = "small",
 )
 
 tsc_stdout_test(
@@ -100,6 +103,7 @@ page.mdx(7,20): error TS2345: Argument of type 'string' is not assignable to par
 """,
     expected = "mixed.stdout.expected",
     report = ":mixed_mdx_stdout_report",
+    size = "small",
 )
 
 real_source_target(

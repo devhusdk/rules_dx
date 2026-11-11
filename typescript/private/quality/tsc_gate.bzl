@@ -26,7 +26,7 @@ tsc_gate = rule(
     implementation = _tsc_gate_impl,
     doc = "Builds only when tsc --noEmit over project exits 0.",
     attrs = {
-        "project": attr.label(aspects = [tsc_aspect], mandatory = True),
+        "project": attr.label(aspects = [tsc_aspect], mandatory = True, doc = "The ts_project target to typecheck."),
         "_gate": attr.label(
             default = "//typescript/private/quality:tsc_gate",
             executable = True,

@@ -45,7 +45,7 @@ fn binary_holds_device_code_and_links_cublas_without_libcudart() {
     let major = std::env::var("DX_CUDA_MAJOR").unwrap();
     for soname in [format!("libcublas.so.{major}"), format!("libcublasLt.so.{major}")] {
         assert!(
-            needed.iter().any(|lib| lib == soname),
+            needed.iter().any(|lib| *lib == soname),
             "{soname} must be linked from the pinned component: {needed:?}"
         );
     }

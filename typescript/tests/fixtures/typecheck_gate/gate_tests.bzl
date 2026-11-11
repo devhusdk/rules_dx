@@ -16,11 +16,11 @@ _reads_exit_test = analysistest.make(
     attrs = {"project": attr.string(mandatory = True)},
 )
 
-def typecheck_gate_test(name, target):
+def typecheck_gate_test(name, target, size = "small"):
     """Asserts the gate of `target`, declared earlier in this package, reads its tsc exit status and the stock typecheck test is manual."""
     _reads_exit_test(
         name = name + "_exit_test",
-        size = "small",
+        size = size,
         target_under_test = ":" + target + "_typecheck",
         project = target + "_ts",
     )
@@ -29,6 +29,7 @@ def typecheck_gate_test(name, target):
         fail("typecheck_gate_test: %s_ts_typecheck_test is not declared" % target)
     starlark_test(
         name = name + "_manual_test",
+        size = size,
         mode = "unit",
         checks = [expect_equal("stock typecheck test is manual", "manual" in rule.get("tags", []), True)],
     )

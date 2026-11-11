@@ -21,14 +21,14 @@ tsc_report = rule(
     },
 )
 
-def tsc_stdout_test(name, report, expected, diagnostics = ""):
+def tsc_stdout_test(name, report, expected, diagnostics = "", size = "small"):
     """Declares the stdout check of one tsc report: a diff against the empty expected file, or one line per expected diagnostic without its path."""
     if diagnostics == "":
         diff_test(
             name = name,
             file1 = expected,
             file2 = report,
-            size = "small",
+            size = size,
             testonly = True,
         )
         return
@@ -36,7 +36,7 @@ def tsc_stdout_test(name, report, expected, diagnostics = ""):
         name = name,
         file_checks = {report: diagnostics},
         mode = "execution",
-        size = "small",
+        size = size,
         testonly = True,
     )
 
@@ -68,6 +68,7 @@ def tsc_framework_cases(library_rule, ext, deps = [], diagnostics = {}):
                     report = ":%s_stdout_report" % case,
                     expected = "%s.stdout.expected" % case,
                     diagnostics = diagnostics.get(case, ""),
+                    size = "small",
                 )
             else:
                 diff_test(

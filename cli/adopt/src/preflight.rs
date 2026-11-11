@@ -54,6 +54,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("aspect_rules_js", "3.6.0"),
     ("aspect_rules_ts", "3.10.1"),
     ("aspect_rules_jest", "0.26.0"),
+    ("rules_nodejs", "6.7.7"),
 ];
 
 /// What kind of finding it is; one plan section each.

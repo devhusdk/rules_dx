@@ -15,10 +15,11 @@ def _checks():
         expect_contains("stub accepts every argument", stub, 'def npm_link_all_packages(name = "node_modules", **kwargs):'),
     ]
 
-def dev_hub_tests(name):
+def dev_hub_tests(name, size):
     """Declares the dev hub shim test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

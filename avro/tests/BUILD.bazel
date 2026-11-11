@@ -154,6 +154,7 @@ avro_codegen_shard(
 
 codegen_shard_argv_test(
     name = "shapes_java_shard_argv_test",
+    size = "small",
     expected = [
         "--producer",
         "//avro/tests:shapes_java_shard",

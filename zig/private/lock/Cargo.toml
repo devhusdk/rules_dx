@@ -18,6 +18,8 @@ path = "tests/resolve_test.rs"
 
 [dependencies]
 flate2 = { version = "1", default-features = false, features = ["zlib"] }
+lzma-rs = "0.3"
+ruzstd = "0.9"
 serde_json = "1"
 tar = "0.4"
 zip = { version = "9", default-features = false, features = [

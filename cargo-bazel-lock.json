@@ -1,5 +1,5 @@
 {
-  "checksum": "bdfe922616204c810be69e72b08b8c0dd929dad5904ed57f5ee4a6b5acb69e9a",
+  "checksum": "ab5132838e7772ab9918d6a280fe36e8ae81781302b08d0b4477d1810c25e015",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -15856,6 +15856,44 @@
       ],
       "version": "0.0.0"
     },
+    "lzma-rs 0.3.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "byteorder 1.5.0",
+            "target": "byteorder"
+          },
+          {
+            "id": "crc 3.4.0",
+            "target": "crc"
+          }
+        ],
+        "edition": "2018"
+      },
+      "library_target_name": "lzma_rs",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "lzma-rs",
+      "package_url": "https://github.com/gendx/lzma-rs",
+      "repository": {
+        "Http": {
+          "sha256": "297e814c836ae64db86b36cf2a557ba54368d03f6afcd7d947c266692f71115e",
+          "url": "https://static.crates.io/crates/lzma-rs/0.3.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "lzma_rs",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.3.0"
+    },
     "matchers 0.2.0": {
       "common_attrs": {
         "deps": [
@@ -31076,6 +31114,14 @@
             "target": "flate2"
           },
           {
+            "id": "lzma-rs 0.3.0",
+            "target": "lzma_rs"
+          },
+          {
+            "id": "ruzstd 0.9.1",
+            "target": "ruzstd"
+          },
+          {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
           },
@@ -31292,6 +31338,7 @@
     "lcov 0.8.2",
     "libc 0.2.189",
     "line-index 0.1.2",
+    "lzma-rs 0.3.0",
     "md-5 0.10.6",
     "mvn_version 0.1.0",
     "nodejs-semver 7.0.0",

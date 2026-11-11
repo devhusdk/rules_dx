@@ -865,6 +865,11 @@ oci_deploy(
   once per platform; `oci_deploy` takes one `platform` of it, and
   `<name>_load` loads the image of the first platform.
 
+The image targets are incompatible with a Windows target platform, so a
+wildcard build on Windows skips them. Issue #11758 tracks Linux-target Rust and
+cc toolchains on a Windows exec platform and the rules_oci Windows descriptor
+bug.
+
 The `oci_deploy` dry run prints the image size in bytes.
 
 # oci_deploy

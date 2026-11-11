@@ -29,9 +29,17 @@ def uncovered_families():
     return sorted([f for f in WRAPPER_OWNERS if WRAPPER_OWNERS[f] == "other"])
 
 def _is_owner_label(owner):
-    if owner.startswith("@rules_dx"):
-        owner = "//" + owner.split("//", 1)[-1]
-    return owner.startswith("//") and owner.endswith(":defs.bzl")
+    if owner.startswith("@rules_dx//"):
+        owner = owner[len("@rules_dx"):]
+    if not owner.startswith("//") or not owner.endswith(":defs.bzl"):
+        return False
+    package = owner[len("//"):-len(":defs.bzl")]
+    if package == "core/quality":
+        return True
+    segments = package.split("/")
+    if not segments[0] or "@" in package:
+        return False
+    return len(segments) == 1 or (len(segments) == 2 and segments[1] == "private")
 
 def wrapper_schema_error():
     """Validates the wrapper-ownership schema."""
@@ -40,7 +48,7 @@ def wrapper_schema_error():
             return "wrapper owners: non-canonical family '" + str(family) + "'"
         owner = WRAPPER_OWNERS[family]
         if owner != "other" and not _is_owner_label(owner):
-            return "wrapper owners: family '" + family + "' owner '" + str(owner) + "' must be a //<lang>:defs.bzl, //<lang>/private:defs.bzl, //.../rules:defs.bzl or @rules_dx//<lang>:defs.bzl or @rules_dx_<family>//.../rules:defs.bzl label or \"other\""
+            return "wrapper owners: family '" + family + "' owner '" + str(owner) + "' must be a //<lang>:defs.bzl, //<lang>/private:defs.bzl, //core/quality:defs.bzl or @rules_dx// form of these label or \"other\""
     for family in _taxonomy_families():
         if family not in WRAPPER_OWNERS:
             return "wrapper owners: taxonomy family '" + family + "' has no owner or uncovered verdict"
@@ -88,6 +96,19 @@ def wrapper_unit_tests(name):
                 "every owner is a wrapper label or the explicit other verdict",
                 _malformed_owners(),
                 [],
+            ),
+            expect_equal(
+                "owner label forms",
+                [_is_owner_label(o) for o in [
+                    "//cc:defs.bzl",
+                    "@rules_dx//csharp:defs.bzl",
+                    "//core/quality:defs.bzl",
+                    "//go/private:defs.bzl",
+                    "//cuda/rules:defs.bzl",
+                    "@rules_dx_cuda//rules:defs.bzl",
+                    "//a/b:defs.bzl",
+                ]],
+                [True, True, True, True, False, False, False],
             ),
             expect_equal(
                 "owned plus uncovered queries match the owner registry",

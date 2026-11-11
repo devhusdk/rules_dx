@@ -50,3 +50,16 @@ fn entry_points_are_listed_in_the_consumer_surface() {
         );
     }
 }
+
+#[test]
+fn no_tracked_rules_defs_bzl() {
+    let offenders: Vec<String> = dx_testing::source_paths()
+        .iter()
+        .filter(|path| path.as_str() == "rules/defs.bzl" || path.ends_with("/rules/defs.bzl"))
+        .cloned()
+        .collect();
+    assert!(
+        offenders.is_empty(),
+        "tracked rules/defs.bzl: {offenders:?}"
+    );
+}

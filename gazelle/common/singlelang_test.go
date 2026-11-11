@@ -32,7 +32,7 @@ func dotSpec() SingleLangSpec {
 		LanguageName:   dotLanguage,
 		LibraryKind:    dotKind,
 		Kinds:          map[string]rule.KindInfo{dotKind: LibraryKindInfo()},
-		DefsPackage:    "dot/rules:defs.bzl",
+		DefsPackage:    "dot:defs.bzl",
 		ImportAttr:     "srcs",
 		Identity:       func(name string) string { return strings.TrimSuffix(path.Base(name), ".dot") },
 		IsImportSource: func(name string) bool { return HasExt(name, []string{".dot"}) },
@@ -244,14 +244,14 @@ func TestLanguageMetadata(t *testing.T) {
 		}
 		return ""
 	})
-	if len(loads) != 1 || loads[0].Name != "@renamed_dx//dot/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != dotKind {
+	if len(loads) != 1 || loads[0].Name != "@renamed_dx//dot:defs.bzl" || strings.Join(loads[0].Symbols, ",") != dotKind {
 		t.Errorf("apparent loads = %+v", loads)
 	}
-	if defaults := l.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//dot/rules:defs.bzl" {
+	if defaults := l.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//dot:defs.bzl" {
 		t.Errorf("default loads = %+v", defaults)
 	}
 	defaultApparent := l.ApparentLoads(func(string) string { return "" })
-	if defaultApparent[0].Name != "@rules_dx//dot/rules:defs.bzl" {
+	if defaultApparent[0].Name != "@rules_dx//dot:defs.bzl" {
 		t.Errorf("default apparent loads = %+v", defaultApparent)
 	}
 }
@@ -860,7 +860,7 @@ func TestResolveLookupsOrder(t *testing.T) {
 func TestOptInFieldsSplitLoadsAndIndexExtraKinds(t *testing.T) {
 	spec := dotSpec()
 	spec.ExtraKinds = []string{"dot_extra", "dot_gpu"}
-	spec.KindDefs = map[string]string{"dot_gpu": "gpu/rules:defs.bzl"}
+	spec.KindDefs = map[string]string{"dot_gpu": "gpu:defs.bzl"}
 	spec.IndexKinds = []string{"dot_gpu"}
 	spec.IsIndexSource = func(name string) bool { return strings.HasSuffix(name, ".gdot") }
 	spec.Directives = []string{"dot_custom"}
@@ -876,8 +876,8 @@ func TestOptInFieldsSplitLoadsAndIndexExtraKinds(t *testing.T) {
 	l := NewSingleLang(spec)
 
 	loads := l.Loads()
-	if len(loads) != 2 || loads[0].Name != "@rules_dx//dot/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "dot_library,dot_extra" ||
-		loads[1].Name != "@rules_dx//gpu/rules:defs.bzl" || strings.Join(loads[1].Symbols, ",") != "dot_gpu" {
+	if len(loads) != 2 || loads[0].Name != "@rules_dx//dot:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "dot_library,dot_extra" ||
+		loads[1].Name != "@rules_dx//gpu:defs.bzl" || strings.Join(loads[1].Symbols, ",") != "dot_gpu" {
 		t.Errorf("loads = %+v", loads)
 	}
 	if got := strings.Join(l.KnownDirectives(), ","); got != "dx_ignore_import,dot_custom" {
@@ -1685,7 +1685,7 @@ func TestApparentLoadsCoreAndFamilyKinds(t *testing.T) {
 	names := map[string]string{"rules_dx": "dx", "rules_dx_dot": "dxdot"}
 	got := NewSingleLang(spec).ApparentLoads(func(m string) string { return names[m] })
 	want := []rule.LoadInfo{
-		{Name: "@dx//dot/rules:defs.bzl", Symbols: []string{"dot_library", "dot_binary"}},
+		{Name: "@dx//dot:defs.bzl", Symbols: []string{"dot_library", "dot_binary"}},
 		{Name: "@dxdot//rules:defs.bzl", Symbols: []string{"dot_family"}},
 	}
 	if !reflect.DeepEqual(got, want) {

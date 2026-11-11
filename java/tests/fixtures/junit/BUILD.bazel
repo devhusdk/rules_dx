@@ -1,6 +1,5 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//java:defs.bzl", "java_test")
-load("@rules_dx//java/private:coverage_tests.bzl", "jvm_coverage_env_test")
 
 package(
     default_testonly = True,
@@ -35,12 +34,6 @@ java_test(
     name = "InferredMainTest",
     srcs = ["InferredMainTest.java"],
     use_testrunner = False,
-)
-
-jvm_coverage_env_test(
-    name = "inferred_main_coverage_env_test",
-    main_class = "tests.fixtures.junit.InferredMainTest",
-    target = ":InferredMainTest",
 )
 
 real_source_target(

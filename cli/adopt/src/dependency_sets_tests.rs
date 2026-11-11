@@ -139,7 +139,7 @@ fn go_deps_files_become_the_go_set() {
 
 #[test]
 fn opam_packages_become_opam_sets() {
-    let module = "ocaml = use_extension(\"//ocaml:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"app_opam\", lock = \"//ocaml/app:app.opam.locked\")\n";
+    let module = "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"app_opam\", lock = \"//ocaml/app:app.opam.locked\")\n";
     let registry = found(module, &[]);
     let set = registry.find("app_opam").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::Opam);

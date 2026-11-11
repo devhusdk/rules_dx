@@ -87649,7 +87649,7 @@
     }
   },
   "facts": {
-    "//ocaml:extensions.bzl%ocaml": {
+    "//ocaml:extensions.bzl%opam": {
       "691408b00730fcedbd3e30ccdb42c388a83fd304/afl-persistent.1.4": {
         "integrity": "sha512-aLd59n0+TiX2S0z+kCoYO5dxWOR2q9lpHmWmWwIgWV3oAqf9s6xHPFN54S4uGkzZbMX1HkB8cviSvbh9s2TdLA==",
         "needs": [],

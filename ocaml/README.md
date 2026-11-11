@@ -191,18 +191,18 @@ findings report the same workspace path.
 
 ## Opam packages
 
-`ocaml.lock(name, lock)` reads the pinned versions from the `depends:` list
+`opam.lock(name, lock)` reads the pinned versions from the `depends:` list
 of a `.opam.locked` file and creates a hub with one alias per package. Sources
 and sha256 digests (sha512 when an opam file has no sha256) come from the opam-repository snapshot pinned in
 `ocaml/private/toolchain/pins.json`; nothing runs opam. Compiler and `base-*` packages
 and `dune` come from the toolchain and get no alias. A package without an
-`ocaml.annotation` is a dune package: it is built with `dx_dune_library` and
+`opam.annotation` is a dune package: it is built with `dx_dune_library` and
 `//ocaml:dune` (dune 3.24.2 from `ocaml/private/toolchain/pins.json`), and its
 library is the package name with `-` and `.` as `_`. Set
-`ocaml.annotation(package, library = ...)` for another library name. A dune
+`opam.annotation(package, library = ...)` for another library name. A dune
 package that depends on another non-toolchain package fails until dune package
 dependencies are supported. A package that is not built with dune needs
-`ocaml.annotation(package, build_file, strip_prefix)`.
+`opam.annotation(package, build_file, strip_prefix)`.
 
 `@dx_ocaml_toolchains//:unix` and `:str` are the compiler's own `unix` and
 `str` libraries, for `deps` of modules and of packages built by hand.
@@ -222,16 +222,16 @@ in `@rules_dx//ocaml/packages`; `{hub}` in them becomes the hub name.
 
 ```python
 # MODULE.bazel
-ocaml = use_extension("@rules_dx//ocaml:extensions.bzl", "ocaml")
-ocaml.lock(name = "ocaml_fuzz", lock = "//:ocaml_fuzz.opam.locked")
-ocaml.annotation(
+opam = use_extension("@rules_dx//ocaml:extensions.bzl", "opam")
+opam.lock(name = "ocaml_fuzz", lock = "//:ocaml_fuzz.opam.locked")
+opam.annotation(
     package = "afl-persistent",
     build_file = "@rules_dx//ocaml/packages:afl-persistent.BUILD.bazel",
     strip_prefix = "ocaml-afl-persistent-1.4",
 )
-ocaml.annotation(package = "cmdliner", build_file = "@rules_dx//ocaml/packages:cmdliner.BUILD.bazel")
-ocaml.annotation(package = "crowbar", build_file = "@rules_dx//ocaml/packages:crowbar.BUILD.bazel")
-use_repo(ocaml, "ocaml_fuzz")
+opam.annotation(package = "cmdliner", build_file = "@rules_dx//ocaml/packages:cmdliner.BUILD.bazel")
+opam.annotation(package = "crowbar", build_file = "@rules_dx//ocaml/packages:crowbar.BUILD.bazel")
+use_repo(opam, "ocaml_fuzz")
 
 # BUILD.bazel
 ocaml_fuzz_test(

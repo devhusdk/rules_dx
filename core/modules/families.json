@@ -427,6 +427,7 @@
         "//haskell:extensions.bzl%cabal",
         "//haskell:extensions.bzl%haskell",
         "//ocaml:extensions.bzl%ocaml",
+        "//ocaml:extensions.bzl%opam",
         "//swift:extensions.bzl%swift_host",
         "//swift:extensions.bzl%swift_windows",
         "//cuda:extensions.bzl%cuda_license",

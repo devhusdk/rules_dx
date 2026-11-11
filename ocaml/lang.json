@@ -13,6 +13,21 @@
     "*.opam"
   ],
   "lockfiles": [],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "opam",
+        "manifest": "*.opam",
+        "lock": "*.opam.locked",
+        "state": null,
+        "extension": "@rules_dx//ocaml:extensions.bzl",
+        "tag": "lock",
+        "hub": "opam",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "topiary",
     "zanuda"

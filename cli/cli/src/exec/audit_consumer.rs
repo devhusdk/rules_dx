@@ -691,7 +691,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(out.contains("apps/php/composer.lock"), "{out}");
     }
 
-    const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"ocaml_app\", lock = \"//apps/ml:ocaml_app.opam.locked\")\n";
+    const OPAM_MODULE: &str = "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"ocaml_app\", lock = \"//apps/ml:ocaml_app.opam.locked\")\n";
 
     const OPAM_ADVISORY: &str = r#"[{
         "id": "OSV-OPAM-0001",

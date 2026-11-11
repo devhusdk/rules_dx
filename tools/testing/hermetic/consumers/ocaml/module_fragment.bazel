@@ -2,13 +2,16 @@ bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
 ocaml = use_extension("@my_dx//ocaml:extensions.bzl", "ocaml")
-ocaml.lock(
+use_repo(ocaml, "dx_ocaml_toolchains", "rules_ocaml")
+
+opam = use_extension("@my_dx//ocaml:extensions.bzl", "opam")
+opam.lock(
     name = "ocaml_app",
     lock = "//ocaml/tests/fixtures/ocaml-app:ocaml_app.opam.locked",
 )
-ocaml.annotation(
+opam.annotation(
     package = "astring",
     build_file = "//ocaml/tests/fixtures/ocaml-app:astring.BUILD.bazel",
     strip_prefix = "astring-0.8.5",
 )
-use_repo(ocaml, "dx_ocaml_toolchains", "ocaml_app", "rules_ocaml")
+use_repo(opam, "ocaml_app")

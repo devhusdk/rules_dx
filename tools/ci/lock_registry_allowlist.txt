@@ -427,7 +427,6 @@ name julia/lang.json Manifest.toml
 name julia/lang.json Project.toml
 name julia/private/quality/julia.bzl Project.toml
 name kotlin/lang.json maven_install.json
-name ocaml/lang.json *.opam
 name ocaml/lang.json dune-project
 name ocaml/private/dune.bzl dune-project
 name ocaml/private/quality/repos.bzl dune-project
@@ -461,7 +460,6 @@ registry cpan
 registry go
 registry julia
 registry maven
-registry opam
 registry powershell
 resolve-doc csharp/README.md 1
 resolve-doc elixir/README.md 1

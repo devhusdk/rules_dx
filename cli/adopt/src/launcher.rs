@@ -489,8 +489,11 @@ if not exist "%DX_MODULE%" goto bazel
 findstr /r /c:"module_name *= *.rules_dx." "%DX_MODULE%" >nul && goto bazel
 set "DX_N=0"
 set "VERSION="
-for /f tokens^=4^ delims^=^" %%V in ('findstr /r /c:"^bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)[ ]*$" "%DX_MODULE%"') do (set /a DX_N+=1 >nul & set "VERSION=%%V")
+set "DX_TAIL="
+for /f tokens^=4^,5^ delims^=^" %%V in ('findstr /b /r /c:"bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)" "%DX_MODULE%"') do (set /a DX_N+=1 >nul & set "VERSION=%%V" & set "DX_TAIL=%%W")
 if not "%DX_N%"=="1" goto bazel
+set DX_TAIL | findstr /r /x "DX_TAIL=)[ ]*" >nul
+if errorlevel 1 goto bazel
 set VERSION | findstr /r /x "VERSION=[0-9A-Za-z+-][0-9A-Za-z.+-]*" >nul
 if errorlevel 1 goto bazel
 set "DX_CACHE=%USERPROFILE%\.cache\dx"
@@ -788,8 +791,9 @@ mod tests {
     #[test]
     fn cmd_module_pattern_has_a_single_anchor() {
         let script = cmd();
-        assert!(script.contains("/c:\"^bazel_dep("), "{script}");
+        assert!(script.contains("findstr /b /r /c:\"bazel_dep("), "{script}");
         assert!(!script.contains("\"^^"), "{script}");
+        assert!(!script.contains(")[ ]*$"), "{script}");
     }
 
     #[test]
@@ -2152,6 +2156,31 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
             assert_eq!(fx.downloads(), 0);
         }
 
+        fn assert_module_runs_direct(name: &str, text: &str) {
+            let fx = Fixture::new(name, true, None);
+            fx.set_module(text);
+            let (code, out, err) = fx.run(&["/c", "echo", "ran"]);
+            assert_eq!(code, Some(0), "{out}{err}");
+            assert!(out.contains("ran"), "{out}{err}");
+            assert!(fx.bazel_log().is_empty(), "{}", fx.bazel_log());
+        }
+
+        #[test]
+        fn a_module_dep_with_lf_endings_runs_direct() {
+            assert_module_runs_direct(
+                "dx-launcher-cmd-modulelf-",
+                "module(name = \"c\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\n",
+            );
+        }
+
+        #[test]
+        fn a_module_dep_without_a_final_newline_runs_direct() {
+            assert_module_runs_direct(
+                "dx-launcher-cmd-modulenonl-",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")",
+            );
+        }
+
         #[test]
         fn modules_the_launcher_cannot_read_run_through_bazel() {
             for (i, text) in [
@@ -2160,6 +2189,8 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3\", repo_name = \"dx\")\r\n",
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\r\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\r\n",
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3&x\")\r\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\") # pinned\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nlocal_path_override(module_name = \"rules_dx\", path = \"x\")\n",
             ]
             .into_iter()
             .enumerate()

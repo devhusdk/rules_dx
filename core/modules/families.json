@@ -559,7 +559,7 @@
         "//gazelle/zig"
       ],
       "repo_rules": [
-        "//android:repos.bzl%android_ndk_toolchain_repo",
+        "//android:extensions.bzl%android_ndk_toolchain_repo",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_jar",

@@ -1,4 +1,4 @@
-load("//android/platforms:defs.bzl", "api_floor")
+load("//android/private/platforms:defs.bzl", "api_floor")
 load(":repos.bzl", "abi_errors", "app_id_errors")
 
 def rust_android_apk_errors(apk_name, app_id, abis, api_level, version_code):

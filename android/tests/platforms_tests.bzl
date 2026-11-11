@@ -1,8 +1,8 @@
 """Android native tuple and configuration coverage."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":defs.bzl", "api_floor", "clang_target", "constraint_list", "cpu_for", "effective_api_level", "ndk_prebuilt_dir", "platform_label", "rust_triples", "sysroot_api_dir", "triple_for")
-load(":validate.bzl", "android_cxx_runtime_errors", "android_default_library_config", "android_library_config_errors", "android_ndk_revision_errors", "android_tuple_errors", "android_tuples")
+load("//android/private/platforms:defs.bzl", "api_floor", "clang_target", "constraint_list", "cpu_for", "effective_api_level", "ndk_prebuilt_dir", "platform_label", "rust_triples", "sysroot_api_dir", "triple_for")
+load("//android/private/platforms:validate.bzl", "android_cxx_runtime_errors", "android_default_library_config", "android_library_config_errors", "android_ndk_revision_errors", "android_tuple_errors", "android_tuples")
 
 def _config(**kwargs):
     base = android_default_library_config("device")
@@ -28,7 +28,7 @@ def _platform_checks():
         [str(Label("@platforms//os:android")), str(Label("@platforms//cpu:x86_64"))],
     ))
     checks.append(expect_equal("unknown constraints are empty", constraint_list("watch"), []))
-    checks.append(expect_equal("device label", platform_label("device"), str(Label("//android/platforms:android_device"))))
+    checks.append(expect_equal("device label", platform_label("device"), str(Label("//android:android_device"))))
     checks.append(expect_equal("rust triples", rust_triples(), ["aarch64-linux-android", "x86_64-linux-android"]))
     checks.append(expect_equal("api floor", api_floor(), 31))
     checks.append(expect_equal("zero api means the floor", effective_api_level(0), 31))
@@ -85,13 +85,14 @@ def _platform_checks():
     ))
     checks.append(expect_true("floor matches the sdk pin", api_floor() == 31))
     checks.append(expect_false("device and emulator share no triple", triple_for("device") == triple_for("emulator")))
-    checks.append(expect_contains("device label names the package", platform_label("device"), "//android/platforms:"))
+    checks.append(expect_contains("device label names the package", platform_label("device"), "//android:"))
     return checks
 
-def android_platform_tests(name):
+def android_platform_tests(name, size = "small"):
     """Declares the Android native tuple inventory pin test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _platform_checks(),
     )

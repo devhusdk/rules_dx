@@ -27,7 +27,7 @@ def constraint_list(name):
 
 def platform_label(name):
     """Returns the platform label for one tuple name."""
-    return str(Label("//android/platforms:android_" + name))
+    return str(Label("//android:android_" + name))
 
 def rust_triples():
     """Returns the Rust target triples covering every tuple."""

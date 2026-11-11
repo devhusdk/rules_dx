@@ -44,7 +44,7 @@ x86_64 with NDK r27 targeting API 31.
 
 ## Native platforms
 
-`@rules_dx//android/platforms` names the two qualified tuples: `device`
+`@rules_dx//android` names the two qualified tuples: `device`
 (`aarch64-linux-android`) and `emulator` (`x86_64-linux-android`) at API
 floor 31. Build one mixed Rust and C library for both tuples with
 `android_native_library` from `@rules_dx//android:defs.bzl`:
@@ -101,8 +101,8 @@ rust_android_apk(
 The package links one `lib/<abi>/lib<name>_bin.so` per ABI from the
 static native deps and signs the APK with the debug key. Builds never
 use a release key. Build `:app_apk` for the installable `app_apk.apk`;
-it builds for the platform labels in `platforms`, `@rules_dx//android/platforms:arm64-v8a` and
-`@rules_dx//android/platforms:x86_64` by default, and any other label fails. Do not set it with `select()`. The
+it builds for the platform labels in `platforms`, `@rules_dx//android:arm64-v8a` and
+`@rules_dx//android:x86_64` by default, and any other label fails. Do not set it with `select()`. The
 native deps need `alwayslink = True` so `ANativeActivity_onCreate` stays
 exported, and `-landroid -llog` as link options when they use the NDK
 APIs. The default manifest launches a `NativeActivity` loading that
@@ -204,7 +204,7 @@ load("@rules_dx//android:defs.bzl", "android_check")
 android_check(
     name = "aab_check",
     package = ":app_apk_aab_file",
-    platforms = ["@rules_dx//android/platforms:arm64-v8a", "@rules_dx//android/platforms:x86_64"],
+    platforms = ["@rules_dx//android:arm64-v8a", "@rules_dx//android:x86_64"],
     resources = ["string/app_name"],
 )
 ```

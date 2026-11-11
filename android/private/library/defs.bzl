@@ -7,13 +7,13 @@ load("//cc:defs.bzl", "cc_binary", "cc_library")
 load("//rust:defs.bzl", "rust_static_library")
 load("//rust/private:edition.bzl", "RUST_EDITION")
 load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
-load("//android/platforms:defs.bzl", "effective_api_level", "platform_label")
-load("//android/platforms:validate.bzl", "android_tuple_errors", "android_tuples")
+load("//android/private/platforms:defs.bzl", "effective_api_level", "platform_label")
+load("//android/private/platforms:validate.bzl", "android_tuple_errors", "android_tuples")
 load(":kwargs.bzl", "android_split_native_kwargs")
 
 _ANDROID_PLATFORMS = {name: platform_label(name) for name in android_tuples()}
 
-_API_LEVEL_SETTING = str(Label("//android/platforms:api_level"))
+_API_LEVEL_SETTING = str(Label("//android:api_level"))
 
 def _android_transition_impl(_settings, attr):
     if attr.tuple not in _ANDROID_PLATFORMS:

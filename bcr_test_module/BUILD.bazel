@@ -10,7 +10,7 @@ sh_test(
 resolved_cc_toolchain(
     name = "android_device_cc",
     expected = "ndk-device-android",
-    platform = "@rules_dx//android/platforms:android_device",
+    platform = "@rules_dx//android:android_device",
 )
 
 filegroup(

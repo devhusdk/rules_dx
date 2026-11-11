@@ -618,7 +618,7 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
             "github-actions:actions/checkout",
             "3d3d42e5aac5ba805825da76410c181273ba90b1",
         ),
-        ("pins:ruby/private/toolchain/pins.json", "3.4.1"),
+        ("pins:ruby/pins.json", "3.4.1"),
     ];
     assert_eq!(
         cases.len() + 7,

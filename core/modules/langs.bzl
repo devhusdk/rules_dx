@@ -1833,7 +1833,7 @@ LANGS = json.decode("""{
     ],
     "name": "lua",
     "pins": [
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",
@@ -2279,7 +2279,7 @@ LANGS = json.decode("""{
     ],
     "name": "powershell",
     "pins": [
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",
@@ -2540,7 +2540,7 @@ LANGS = json.decode("""{
     ],
     "name": "ruby",
     "pins": [
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",

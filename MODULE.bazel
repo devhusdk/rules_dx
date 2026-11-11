@@ -705,7 +705,7 @@ dx_pins.pin(
     name = "dx_sorbet",
     aliases = {"windows_arm64": "windows_x86_64"},
     build = "//ruby/private:sorbet.BUILD.bazel",
-    pins = "//ruby/private/toolchain:pins.json",
+    pins = "//ruby:pins.json",
 )
 dx_pins.pin(
     name = "dx_coreutils",
@@ -717,14 +717,14 @@ dx_pins.pin(
     name = "dx_powershell_toolchains",
     build = "//powershell/private:pwsh.BUILD.bazel",
     compatible_with = "target",
-    pins = "//powershell/private/toolchain:pins.json",
+    pins = "//powershell:pins.json",
     toolchain_type = "@rules_powershell//powershell:toolchain_type",
 )
 dx_pins.pin(
     name = "dx_luals",
     aliases = {"windows_arm64": "windows_x86_64"},
     build = "//lua/private:luals.BUILD.bazel",
-    pins = "//lua/private/toolchain:pins.json",
+    pins = "//lua:pins.json",
 )
 dx_pins.pin(
     name = "dx_patchelf",
@@ -770,7 +770,7 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_lua_coverage",
-    pins = "//lua/private/coverage:pins.json",
+    pins = "//lua:pins.json",
 )
 dx_pins.data(
     name = "dx_qt_sdk",
@@ -778,7 +778,7 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_ruby_coverage",
-    pins = "//ruby/private/coverage:pins.json",
+    pins = "//ruby:pins.json",
 )
 dx_pins.data(
     name = "dx_ocaml",

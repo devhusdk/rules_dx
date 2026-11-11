@@ -40,7 +40,7 @@
     "windows_x86_64"
   ],
   "pins": [
-    "private/toolchain/pins.json"
+    "pins.json"
   ],
   "entry_points": [
     "powershell_library",

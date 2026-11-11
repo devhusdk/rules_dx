@@ -1,4 +1,4 @@
-# gazelle:ignore
+# gazelle:dx_ignore_import fsharp Layouts
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//fsharp:defs.bzl", "fsharp_library", "fsharp_test")
 

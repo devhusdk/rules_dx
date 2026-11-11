@@ -198,6 +198,14 @@ fn json_states_no_name_the_registry_states() {
             continue;
         };
         assert_ne!(row.manifest, hub.manifest, "{} repeats its manifest", row.name);
+        if hub.lock.is_none() {
+            assert_ne!(
+                row.lockfiles,
+                Some(Vec::new()),
+                "{} repeats its absent lock",
+                row.name
+            );
+        }
         if let Some(lock) = &hub.lock {
             assert_ne!(
                 row.lockfiles,

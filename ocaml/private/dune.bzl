@@ -59,11 +59,9 @@ def _env(ctx, tree):
         path = ":".join([_abs(drivers[0].dirname), _abs(compiler.dirname), _abs(applets.path)]),
         macos = macos,
         link_env = link_env,
+        lld = True,
     )
     env["DX_OCAML_AS_DROP_DEBUG_PREFIX_MAP"] = "1"
-    if not macos:
-        env["CONDA_OCAML_MKEXE"] += " -fuse-ld=lld"
-        env["CONDA_OCAML_MKDLL"] += " -fuse-ld=lld"
     return struct(
         env = env,
         inputs = depset(tree + drivers + [ctx.executable._cc_driver], transitive = [cc.all_files, applets.files]),

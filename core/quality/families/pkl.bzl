@@ -1,8 +1,7 @@
 """Pkl real quality aspects."""
 
 load("//core/quality:family_hooks.bzl", "default_files_hook")
-load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
-load("//core/quality/tools/jvm:jar_lsp_tool.bzl", "PklLspToolInfo")
+load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
 TOOLS = {
     "pkl": {
@@ -11,24 +10,12 @@ TOOLS = {
         "resources": "medium",
         "shard": "pkl",
     },
-    "pkl_lsp": {
-        "attr": attr.label(default = "//core/quality/tools/jvm:pkl_lsp", cfg = "exec", executable = True),
-        "extra": "runfiles",
-        "kind": "executable",
-        "resources": "heavy",
-        "shard": "pkl",
-    },
 }
 
 SHARD_SPECS = {
     "real_pkl_format": {
         "capability": "format",
         "doc": "Additive Pkl format family aspect (pkl format).",
-        "shard": "pkl",
-    },
-    "real_pkl_lint": {
-        "capability": "lint",
-        "doc": "Additive Pkl lint family aspect (pkl-lsp diagnostics through lsp_check).",
         "shard": "pkl",
     },
     "real_pkl_typecheck": {
@@ -40,19 +27,9 @@ SHARD_SPECS = {
 
 _FILES_HOOK = default_files_hook(["pkl"], except_capability = "format")
 
-def _pkl_hook(target, ctx, resolved, capability, what, shared):
-    context = _FILES_HOOK(target, ctx, resolved, capability, what, shared)
-    if capability != "lint":
-        return context
-    bundle = ctx.attr._pkl_lsp[PklLspToolInfo]
-    return real_context(
-        resolve_pairs = context.resolve_pairs,
-        options = {"path_tools": [("java", bundle.java), ("pkl-lsp.jar", bundle.jar)]},
-    )
-
 HOOK_ORDER = ["pkl"]
 
-HOOKS = {"pkl": _pkl_hook}
+HOOKS = {"pkl": _FILES_HOOK}
 
 _CFG = real_config(
     tools = TOOLS,
@@ -64,5 +41,3 @@ _CFG = real_config(
 real_pkl_format_aspect = real_make_aspect(_CFG, "real_pkl_format")
 
 real_pkl_typecheck_aspect = real_make_aspect(_CFG, "real_pkl_typecheck")
-
-real_pkl_lint_aspect = real_make_aspect(_CFG, "real_pkl_lint")

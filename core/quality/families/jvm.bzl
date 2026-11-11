@@ -48,6 +48,13 @@ TOOLS = {
         "resources": "heavy",
         "shard": "jvm",
     },
+    "pkl_lsp": {
+        "attr": attr.label(default = "//core/quality/tools/jvm:pkl_lsp", cfg = "exec", executable = True),
+        "extra": "runfiles",
+        "kind": "executable",
+        "resources": "heavy",
+        "shard": "pkl",
+    },
     "scalac": {
         "capabilities": ["typecheck"],
         "kind": "upstream",
@@ -103,6 +110,11 @@ SHARD_SPECS = {
         "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets, kotlinc over rules_kotlin targets, scalac over Scala 2.13 rules_scala targets).",
         "requires": [jvm_check_aspect],
         "shard": "jvm",
+    },
+    "real_pkl_lint": {
+        "capability": "lint",
+        "doc": "Additive Pkl lint family aspect (pkl-lsp diagnostics through lsp_check).",
+        "shard": "pkl",
     },
     "real_scala_format": {
         "capability": "format",
@@ -239,6 +251,8 @@ real_jvm_format_aspect = real_make_aspect(_CFG, "real_jvm_format")
 real_jvm_lint_aspect = real_make_aspect(_CFG, "real_jvm_lint")
 
 real_jvm_typecheck_aspect = real_make_aspect(_CFG, "real_jvm_typecheck")
+
+real_pkl_lint_aspect = real_make_aspect(_CFG, "real_pkl_lint")
 
 real_scala_format_aspect = real_make_aspect(_CFG, "real_scala_format")
 

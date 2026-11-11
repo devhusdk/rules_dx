@@ -2296,7 +2296,7 @@ crate.from_cargo(
         "x86_64-unknown-nixos-gnu",
     ],
 )
-use_repo(crate, crates = "dx_crates")
+use_repo(crate, "dx_crates__anyhow-1.0.104", crates = "dx_crates")
 
 # Cargo-built quality tools, kept out of the root hub so its lock does not churn.
 crate.annotation(
@@ -2320,7 +2320,7 @@ crate.from_cargo(
         "x86_64-unknown-linux-gnu",
     ],
 )
-use_repo(crate, "dx_quality_crates")
+use_repo(crate, "dx_quality_crates", "dx_quality_crates__anyhow-1.0.104")
 
 crate.from_cargo(
     name = "dx_thrift_crates",
@@ -2334,7 +2334,7 @@ crate.from_cargo(
         "x86_64-unknown-linux-gnu",
     ],
 )
-use_repo(crate, "dx_thrift_crates")
+use_repo(crate, "dx_thrift_crates", "dx_thrift_crates__libc-0.2.191")
 
 _fixture_repo = use_repo_rule("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
 

@@ -116,6 +116,24 @@ build_script_hub_env_test(
     target_under_test = "@dx_rust_fixture_crates__alloca-0.4.0//:build_script_build",
 )
 
+build_script_hub_env_test(
+    name = "dx_crates_build_script_env_test",
+    size = "small",
+    target_under_test = "@dx_crates__anyhow-1.0.104//:build_script_build",
+)
+
+build_script_hub_env_test(
+    name = "quality_build_script_env_test",
+    size = "small",
+    target_under_test = "@dx_quality_crates__anyhow-1.0.104//:build_script_build",
+)
+
+build_script_hub_env_test(
+    name = "thrift_build_script_env_test",
+    size = "small",
+    target_under_test = "@dx_thrift_crates__libc-0.2.191//:build_script_build",
+)
+
 build_script_host_env_test(
     name = "native_cc_build_script_host_env_test",
     size = "small",

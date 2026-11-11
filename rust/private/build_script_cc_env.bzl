@@ -105,7 +105,7 @@ def _tools(cc_toolchain, feature_configuration):
         "AR": cc_common.get_tool_for_action(
             feature_configuration = feature_configuration,
             action_name = ACTION_NAMES.cpp_link_static_library,
-        ) or cc_toolchain.ar_executable,
+        ) or cc_toolchain.ar_executable or "",
         "CC": cc_common.get_tool_for_action(
             feature_configuration = feature_configuration,
             action_name = ACTION_NAMES.c_compile,
@@ -115,7 +115,7 @@ def _tools(cc_toolchain, feature_configuration):
             action_name = ACTION_NAMES.cpp_compile,
         ),
     }
-    return {k: v if "libtool" in v else _pwd_tool(v) for k, v in tools.items()}
+    return {k: v if not v or "libtool" in v else _pwd_tool(v) for k, v in tools.items()}
 
 def _compile_flags(cc_toolchain, feature_configuration, action_name):
     return _pwd_flags(cc_common.get_memory_inefficient_command_line(

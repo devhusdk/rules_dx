@@ -1,0 +1,89 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//erlang:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_escript_archive", "erlang_eunit_test", "erlang_test_app", "erlc_opts")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+erlang_app(
+    app_description = "Conformance greeting.",
+    app_name = "hello",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_test_app(
+    app_name = "hello",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_escript_archive(
+    name = "hello",
+    app = ":erlang_app",
+    headers = [
+        "shebang",
+        "{emu_args, \"-escript main hello\"}",
+    ],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlc_opts(
+    name = "test_erlc_opts",
+    values = DEFAULT_TEST_ERLC_OPTS,
+)
+
+erlang_bytecode(
+    name = "pass_modules",
+    srcs = ["test/greet_tests.erl"],
+    outs = ["test/greet_tests.beam"],
+    erlc_opts = ":test_erlc_opts",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = [":test_erlang_app"],
+)
+
+erlang_bytecode(
+    name = "fail_modules",
+    srcs = ["test/hello_tests.erl"],
+    outs = ["test/hello_tests.beam"],
+    erlc_opts = ":test_erlc_opts",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = [":test_erlang_app"],
+)
+
+erlang_eunit_test(
+    name = "pass_subject_test",
+    size = "small",
+    compiled_suites = [":pass_modules"],
+    target = ":test_erlang_app",
+    target_compatible_with = subject_compatible_with() + ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_eunit_test(
+    name = "fail_subject_test",
+    size = "small",
+    compiled_suites = [":fail_modules"],
+    target = ":test_erlang_app",
+    target_compatible_with = subject_compatible_with() + ERLANG_COMPATIBLE_WITH,
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":hello",
+    covered_source = "greet.erl",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "erlang",
+    passing_test = ":pass_subject_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

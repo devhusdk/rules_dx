@@ -108,16 +108,17 @@ def _assert_no_host_flags(env, action):
         asserts.equals(env, "", action.env.get(name), "{} is not empty when HOST == TARGET".format(name))
 
 def _provisioned(path):
+    path = path.replace("\\", "/")
     return path.startswith("external/") or path.startswith("${pwd}/external/") or "dx_msvc" in path
 
 def _msvc_impl(ctx):
     env = analysistest.begin(ctx)
     action = _run_action(env)
-    inputs = {f.path: True for f in action.inputs.to_list()}
+    inputs = {f.path.lower(): True for f in action.inputs.to_list()}
     for name, tool in [("CC", "cl.exe"), ("CXX", "cl.exe"), ("AR", "lib.exe"), ("TARGET_CC", "cl.exe"), ("TARGET_CXX", "cl.exe"), ("TARGET_AR", "lib.exe")]:
         value = _relative(action.env.get(name, ""))
         asserts.true(env, value.lower().endswith(tool), "{} is not {}: {}".format(name, tool, value))
-        asserts.true(env, value in inputs, "{} is not a declared input: {}".format(name, value))
+        asserts.true(env, value.lower() in inputs, "{} is not a declared input: {}; inputs named {}: {}".format(name, value, tool, [p for p in inputs if p.endswith("/" + tool)]))
     include = action.env.get("INCLUDE", "")
     asserts.true(env, include != "", "INCLUDE is not set")
     for part in include.split(";"):

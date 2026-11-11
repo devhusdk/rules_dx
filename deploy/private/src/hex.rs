@@ -5,6 +5,7 @@ use crate::run::{
     exit_text, placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use dx_ecosystems::Ecosystem;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -25,7 +26,7 @@ const HEX_FAILURE_LINES: usize = 40;
 /// Returns the manifest file name that marks the package root for one tool.
 fn hex_manifest(tool: &str) -> Result<&'static str, String> {
     match tool {
-        "mix" => Ok("mix.exs"),
+        "mix" => Ok(Ecosystem::Hex.manifest_name()),
         "rebar3" => Ok("rebar.config"),
         _ => Err(format!(
             "hex_deploy: unknown tool {tool:?}: want mix or rebar3"
@@ -49,7 +50,7 @@ fn first_quoted(text: &str) -> Option<&str> {
     Some(&rest[..rest.find('"')?])
 }
 
-/// Returns the version declared in a mix.exs, `@version "x"` first, then `version: "x"`.
+/// Returns the version declared in a Hex manifest, `@version "x"` first, then `version: "x"`.
 pub fn mix_version(text: &str) -> Option<String> {
     let line_with = |prefix: &str| {
         text.lines()
@@ -77,8 +78,9 @@ fn hex_version_refusal(
     version: &str,
 ) -> Result<String, String> {
     let (file, found) = if tool == "mix" {
-        let text = std::fs::read_to_string(staging.join("mix.exs")).unwrap_or_default();
-        ("mix.exs".to_owned(), mix_version(&text))
+        let file = Ecosystem::Hex.manifest_name();
+        let text = std::fs::read_to_string(staging.join(file)).unwrap_or_default();
+        (file.to_owned(), mix_version(&text))
     } else {
         let Some((_, rel)) = mapped.iter().find(|(_, rel)| rel.ends_with(".app.src")) else {
             return Err("hex_deploy: package has no .app.src file; refusing".to_owned());
@@ -327,7 +329,7 @@ mod tests {
         let scratch = scratch_dir();
         let root = scratch.path().join("in");
         let files = vec![
-            write(&root, "mix.exs", "version: \"1.0.0\",\n"),
+            write(&root, Ecosystem::Hex.manifest_name(), "version: \"1.0.0\",\n"),
             write(&root, "lib/demo.ex", ""),
         ];
         let staging = scratch.path().join("staging");
@@ -341,7 +343,10 @@ mod tests {
         );
         let error = hex_stage_checked(&files, &staging, "mix", "2.0.0").expect_err("mismatch");
         assert!(
-            error.contains("mix.exs declares version 1.0.0, BUILD declares 2.0.0"),
+            error.contains(&format!(
+                "{} declares version 1.0.0, BUILD declares 2.0.0",
+                Ecosystem::Hex.manifest_name()
+            )),
             "{error}"
         );
 

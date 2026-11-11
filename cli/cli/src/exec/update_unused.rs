@@ -350,7 +350,7 @@ fn lock_file_name(set: &ResolvedSet) -> &'static str {
     let locks = set.ecosystem.lockfiles();
     let wanted = match (set.ecosystem, hex_backend(set)) {
         (Ecosystem::Hex, Some(HexBackend::Rebar3)) => dx_adopt::dependency_sets::REBAR_LOCK,
-        (Ecosystem::Hex, _) => dx_adopt::dependency_sets::MIX_LOCK,
+        (Ecosystem::Hex, _) => dx_adopt::dependency_sets::mix_lock(),
         _ => return locks.first().map_or("", String::as_str),
     };
     locks

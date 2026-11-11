@@ -415,7 +415,7 @@ pub(super) fn collect(
                     .iter()
                     .filter(|lock| {
                         lock.rsplit('/').next()
-                            == Some(dx_adopt::dependency_sets::PACKAGE_RESOLVED)
+                            == Some(dx_adopt::dependency_sets::package_resolved())
                     })
                     .cloned()
                     .collect();

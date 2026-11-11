@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use dx_adopt::dependency_sets::{CARGO_LOCK, Ecosystem};
+use dx_adopt::dependency_sets::{Ecosystem, cargo_lock};
 use dx_audit::advisory_prep::{PrepError, PreparedSnapshot, yanked_snapshot};
 use dx_update::discover::cargo::{DEFAULT_BASE, index_path, yanked_versions};
 use dx_update::discover::pypi::{DEFAULT_BASE as PYPI_BASE, yanked_releases};
@@ -145,7 +145,7 @@ fn locked_registry_crates(
 
 fn cargo_locks(workspace: &Path) -> Result<BTreeSet<String>, PrepError> {
     let mut locks: BTreeSet<String> = dx_audit::backend::vuln_locks("cargo").into_iter().collect();
-    locks.extend(set_locks(workspace, Ecosystem::Cargo, CARGO_LOCK)?);
+    locks.extend(set_locks(workspace, Ecosystem::Cargo, cargo_lock())?);
     locks.retain(|rel| workspace.join(rel).is_file());
     Ok(locks)
 }

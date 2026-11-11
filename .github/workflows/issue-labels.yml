@@ -73,6 +73,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+      - name: Build the blocker reference parser
+        run: bazel build --noshow_progress //tools/ci/producers:producers_bin
       - name: Check that blocked issues name a blocker, and unblock closed ones
         env:
           GH_TOKEN: ${{ github.token }}
@@ -80,6 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           marker='<!-- blocked-on-missing -->'
+          producers="$(bazel info bazel-bin)/tools/ci/producers/producers_bin"
           for n in $(gh issue list --label blocked --state open --limit 1000 --json number --jq '.[].number'); do
             body=$(gh issue view "$n" --json body --jq .body)
             line=$(printf '%s\n' "$body" | tr -d '\r' | grep -m1 -i '^Blocked on:' || true)
@@ -92,7 +96,7 @@ jobs:
               fi
               continue
             fi
-            refs=$(printf '%s\n' "$line" | tools/ci/blocker_refs.sh "$GH_REPO")
+            refs=$(printf '%s\n' "$line" | "$producers" --blocker-refs "$GH_REPO")
             [ -n "$refs" ] || continue
             done_all=true
             written=

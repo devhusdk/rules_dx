@@ -5,6 +5,7 @@ package(default_visibility = ["//visibility:public"])
 
 scala_toolchain(
     name = "semanticdb_impl",
+    dependency_mode = "transitive",
     dependency_tracking_method = "ast",
     enable_semanticdb = True,
     scalacopts = [
@@ -12,6 +13,7 @@ scala_toolchain(
         "-Wconf:cat=unused:info",
     ],
     semanticdb_bundle_in_jar = True,
+    strict_deps_mode = "off",
     unused_dependency_checker_mode = "warn",
     use_argument_file_in_runner = True,
 )

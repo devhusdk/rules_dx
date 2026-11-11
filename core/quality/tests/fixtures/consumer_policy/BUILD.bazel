@@ -40,6 +40,10 @@ workspace_policy(
             "//conditions:default": ["//core/quality/tiers/pmd:standard"],
         }) +
         select({
+            "//config:config_profile_strict": ["//core/quality/tiers/scalafix:strict"],
+            "//conditions:default": ["//core/quality/tiers/scalafix:standard"],
+        }) +
+        select({
             "//config:config_profile_strict": ["//core/quality/tiers/roslyn:strict"],
             "//conditions:default": ["//core/quality/tiers/roslyn:standard"],
         }) +

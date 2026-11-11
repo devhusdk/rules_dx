@@ -1,3 +1,5 @@
+# gazelle:exclude src
+# gazelle:ignore
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
 load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_bench")

@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":hub_tests.bzl", "php_hub_tests")
 

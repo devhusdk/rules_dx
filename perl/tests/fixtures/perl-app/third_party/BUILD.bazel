@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@rules_perl//perl/cpan:cpan_compiler.bzl", "cpan_compiler")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 

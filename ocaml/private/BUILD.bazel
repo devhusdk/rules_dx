@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal", "fake_file", "label_string")
 load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")

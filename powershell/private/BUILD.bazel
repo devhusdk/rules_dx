@@ -1,7 +1,11 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//powershell:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//powershell:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "defs.bzl",

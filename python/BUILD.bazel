@@ -1,3 +1,4 @@
+# gazelle:ignore
 exports_files([
     "defs.bzl",
     "extensions.bzl",

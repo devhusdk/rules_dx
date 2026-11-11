@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "fake_file", "label_string")
 load("//core:rlocation.bzl", "runfiles_path")

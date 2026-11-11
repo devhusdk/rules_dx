@@ -3,9 +3,10 @@
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
-load("//core/quality:family_hooks.bzl", "stage", "without")
+load("//core/quality:family_hooks.bzl", "default_files_hook", "stage", "without")
 load("//core/quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
+load("//core/quality/tools/jvm:jar_lsp_tool.bzl", "PklLspToolInfo")
 
 TOOLS = {
     "detekt": {
@@ -47,6 +48,13 @@ TOOLS = {
         "kind": "executable",
         "resources": "heavy",
         "shard": "jvm",
+    },
+    "pkl_lsp": {
+        "attr": attr.label(default = "//core/quality/tools/jvm:pkl_lsp", cfg = "exec", executable = True),
+        "extra": "runfiles",
+        "kind": "executable",
+        "resources": "heavy",
+        "shard": "pkl",
     },
     "scalac": {
         "capabilities": ["typecheck"],
@@ -103,6 +111,11 @@ SHARD_SPECS = {
         "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets, kotlinc over rules_kotlin targets, scalac over Scala 2.13 rules_scala targets).",
         "requires": [jvm_check_aspect],
         "shard": "jvm",
+    },
+    "real_pkl_lint": {
+        "capability": "lint",
+        "doc": "Additive Pkl lint family aspect (pkl-lsp diagnostics through lsp_check).",
+        "shard": "pkl",
     },
     "real_scala_format": {
         "capability": "format",
@@ -217,7 +230,17 @@ def _jvm_check_hook(tool):
 
     return _hook
 
-HOOK_ORDER = ["spotbugs", "scalafix", "javac", "kotlinc", "scalac"]
+_PKL_FILES_HOOK = default_files_hook(["pkl"])
+
+def _pkl_lsp_hook(target, ctx, resolved, capability, what, shared):
+    context = _PKL_FILES_HOOK(target, ctx, resolved, capability, what, shared)
+    bundle = ctx.attr._pkl_lsp[PklLspToolInfo]
+    return real_context(
+        resolve_pairs = context.resolve_pairs,
+        options = {"path_tools": [("java", bundle.java), ("pkl-lsp.jar", bundle.jar)]},
+    )
+
+HOOK_ORDER = ["spotbugs", "scalafix", "javac", "kotlinc", "scalac", "pkl_lsp"]
 
 HOOKS = {
     "spotbugs": _spotbugs_hook,
@@ -225,6 +248,7 @@ HOOKS = {
     "javac": _jvm_check_hook("javac"),
     "kotlinc": _jvm_check_hook("kotlinc"),
     "scalac": _jvm_check_hook("scalac"),
+    "pkl_lsp": _pkl_lsp_hook,
 }
 
 _CFG = real_config(
@@ -239,6 +263,8 @@ real_jvm_format_aspect = real_make_aspect(_CFG, "real_jvm_format")
 real_jvm_lint_aspect = real_make_aspect(_CFG, "real_jvm_lint")
 
 real_jvm_typecheck_aspect = real_make_aspect(_CFG, "real_jvm_typecheck")
+
+real_pkl_lint_aspect = real_make_aspect(_CFG, "real_pkl_lint")
 
 real_scala_format_aspect = real_make_aspect(_CFG, "real_scala_format")
 

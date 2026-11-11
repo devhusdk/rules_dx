@@ -1475,7 +1475,8 @@ LANGS = json.decode("""{
           "real_jvm_format_aspect"
         ],
         "lint": [
-          "real_jvm_lint_aspect"
+          "real_jvm_lint_aspect",
+          "real_pkl_lint_aspect"
         ],
         "typecheck": [
           "real_jvm_typecheck_aspect"

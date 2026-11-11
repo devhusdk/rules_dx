@@ -15,7 +15,6 @@ REAL_ASPECT_LABELS = {
         "core/quality:families/jsonnet.bzl%real_jsonnet_lint_aspect",
         "core/quality:families/typst.bzl%real_typst_lint_aspect",
         "core/quality:families/xml.bzl%real_xml_lint_aspect",
-        "core/quality:families/pkl.bzl%real_pkl_lint_aspect",
         "core/quality:families/latex.bzl%real_latex_lint_aspect",
     ],
     "typecheck": [

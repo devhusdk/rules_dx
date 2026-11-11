@@ -9,7 +9,7 @@ load("//core/quality:families/beam.bzl", _real_beam_format_probe_aspect = "real_
 load("//core/quality:families/cc.bzl", _real_cc_format_aspect = "real_cc_format_aspect", _real_cc_format_probe_aspect = "real_cc_format_probe_aspect", _real_cc_lint_aspect = "real_cc_lint_aspect", _real_cc_lint_probe_aspect = "real_cc_lint_probe_aspect", _real_cc_typecheck_aspect = "real_cc_typecheck_aspect", _real_cc_typecheck_probe_aspect = "real_cc_typecheck_probe_aspect")
 load("//core/quality:families/dotnet.bzl", _real_dotnet_format_aspect = "real_dotnet_format_aspect", _real_dotnet_format_probe_aspect = "real_dotnet_format_probe_aspect", _real_dotnet_lint_aspect = "real_dotnet_lint_aspect", _real_dotnet_lint_probe_aspect = "real_dotnet_lint_probe_aspect", _real_dotnet_typecheck_aspect = "real_dotnet_typecheck_aspect", _real_dotnet_typecheck_probe_aspect = "real_dotnet_typecheck_probe_aspect")
 load("//core/quality:families/generation.bzl", _real_avro_lint_aspect = "real_avro_lint_aspect", _real_avro_typecheck_aspect = "real_avro_typecheck_aspect", _real_capnp_lint_aspect = "real_capnp_lint_aspect", _real_capnp_typecheck_aspect = "real_capnp_typecheck_aspect", _real_flatbuffers_lint_aspect = "real_flatbuffers_lint_aspect", _real_flatbuffers_typecheck_aspect = "real_flatbuffers_typecheck_aspect", _real_generation_format_probe_aspect = "real_generation_format_probe_aspect", _real_generation_lint_probe_aspect = "real_generation_lint_probe_aspect", _real_generation_typecheck_probe_aspect = "real_generation_typecheck_probe_aspect", _real_protobuf_format_aspect = "real_protobuf_format_aspect", _real_protobuf_lint_aspect = "real_protobuf_lint_aspect", _real_protobuf_typecheck_aspect = "real_protobuf_typecheck_aspect", _real_thrift_lint_aspect = "real_thrift_lint_aspect", _real_thrift_typecheck_aspect = "real_thrift_typecheck_aspect")
-load("//core/quality:families/jvm.bzl", _real_jvm_format_aspect = "real_jvm_format_aspect", _real_jvm_format_probe_aspect = "real_jvm_format_probe_aspect", _real_jvm_lint_aspect = "real_jvm_lint_aspect", _real_jvm_lint_probe_aspect = "real_jvm_lint_probe_aspect", _real_jvm_typecheck_aspect = "real_jvm_typecheck_aspect", _real_jvm_typecheck_probe_aspect = "real_jvm_typecheck_probe_aspect", _real_scala_format_aspect = "real_scala_format_aspect", _real_scala_lint_aspect = "real_scala_lint_aspect")
+load("//core/quality:families/jvm.bzl", _real_jvm_format_aspect = "real_jvm_format_aspect", _real_jvm_format_probe_aspect = "real_jvm_format_probe_aspect", _real_jvm_lint_aspect = "real_jvm_lint_aspect", _real_jvm_lint_probe_aspect = "real_jvm_lint_probe_aspect", _real_jvm_typecheck_aspect = "real_jvm_typecheck_aspect", _real_jvm_typecheck_probe_aspect = "real_jvm_typecheck_probe_aspect", _real_pkl_lint_aspect = "real_pkl_lint_aspect", _real_scala_format_aspect = "real_scala_format_aspect", _real_scala_lint_aspect = "real_scala_lint_aspect")
 load("//d/private/quality:d.bzl", _real_d_format_aspect = "real_d_format_aspect", _real_d_format_probe_aspect = "real_d_format_probe_aspect", _real_d_lint_aspect = "real_d_lint_aspect", _real_d_lint_probe_aspect = "real_d_lint_probe_aspect", _real_d_typecheck_aspect = "real_d_typecheck_aspect", _real_d_typecheck_probe_aspect = "real_d_typecheck_probe_aspect")
 load("//dart/private/quality:dart.bzl", _real_dart_format_aspect = "real_dart_format_aspect", _real_dart_format_probe_aspect = "real_dart_format_probe_aspect", _real_dart_lint_aspect = "real_dart_lint_aspect", _real_dart_lint_probe_aspect = "real_dart_lint_probe_aspect", _real_dart_typecheck_aspect = "real_dart_typecheck_aspect", _real_dart_typecheck_probe_aspect = "real_dart_typecheck_probe_aspect")
 load("//dockerfile/private/quality:dockerfile.bzl", _real_dockerfile_lint_aspect = "real_dockerfile_lint_aspect")
@@ -80,7 +80,7 @@ load("//core/quality:families/typst.bzl", _real_typst_format_aspect = "real_typs
 load("//core/quality:families/xml.bzl", _real_xml_lint_aspect = "real_xml_lint_aspect", _XML_SHARD_SPECS = "SHARD_SPECS", _XML_TOOLS = "TOOLS")
 load("//core/quality:families/yaml.bzl", _real_yaml_format_aspect = "real_yaml_format_aspect", _real_yaml_lint_aspect = "real_yaml_lint_aspect", _YAML_SHARD_SPECS = "SHARD_SPECS", _YAML_TOOLS = "TOOLS")
 load("//core/quality:families/cue.bzl", _real_cue_format_aspect = "real_cue_format_aspect", _real_cue_typecheck_aspect = "real_cue_typecheck_aspect", _CUE_HOOKS = "HOOKS", _CUE_SHARD_SPECS = "SHARD_SPECS", _CUE_TOOLS = "TOOLS")
-load("//core/quality:families/pkl.bzl", _real_pkl_format_aspect = "real_pkl_format_aspect", _real_pkl_lint_aspect = "real_pkl_lint_aspect", _real_pkl_typecheck_aspect = "real_pkl_typecheck_aspect", _PKL_HOOKS = "HOOKS", _PKL_SHARD_SPECS = "SHARD_SPECS", _PKL_TOOLS = "TOOLS")
+load("//core/quality:families/pkl.bzl", _real_pkl_format_aspect = "real_pkl_format_aspect", _real_pkl_typecheck_aspect = "real_pkl_typecheck_aspect", _PKL_HOOKS = "HOOKS", _PKL_SHARD_SPECS = "SHARD_SPECS", _PKL_TOOLS = "TOOLS")
 load("//core/quality:families/jsonnet.bzl", _real_jsonnet_format_aspect = "real_jsonnet_format_aspect", _real_jsonnet_lint_aspect = "real_jsonnet_lint_aspect", _JSONNET_HOOKS = "HOOKS", _JSONNET_SHARD_SPECS = "SHARD_SPECS", _JSONNET_TOOLS = "TOOLS")
 load("//rego/private/quality:rego.bzl", _REGO_HOOKS = "HOOKS", _REGO_SHARD_SPECS = "SHARD_SPECS", _REGO_TOOLS = "TOOLS")
 load("//bicep/private/quality:bicep.bzl", _BICEP_HOOKS = "HOOKS", _BICEP_SHARD_SPECS = "SHARD_SPECS", _BICEP_TOOLS = "TOOLS")
@@ -204,6 +204,8 @@ real_jvm_lint_probe_aspect = _real_jvm_lint_probe_aspect
 real_jvm_typecheck_aspect = _real_jvm_typecheck_aspect
 
 real_jvm_typecheck_probe_aspect = _real_jvm_typecheck_probe_aspect
+
+real_pkl_lint_aspect = _real_pkl_lint_aspect
 
 real_scala_format_aspect = _real_scala_format_aspect
 
@@ -662,8 +664,6 @@ real_cue_format_aspect = _real_cue_format_aspect
 real_cue_typecheck_aspect = _real_cue_typecheck_aspect
 
 real_pkl_format_aspect = _real_pkl_format_aspect
-
-real_pkl_lint_aspect = _real_pkl_lint_aspect
 
 real_pkl_typecheck_aspect = _real_pkl_typecheck_aspect
 

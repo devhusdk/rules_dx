@@ -1,3 +1,4 @@
+use dx_release_tools::presubmit::{host_run_flags, host_targets};
 use dx_release_tools::render_bcr_source_for_digest;
 
 fn template(name: &str) -> String {
@@ -60,6 +61,54 @@ fn presubmit_covers_five_platforms_and_the_dx_commands() {
     ] {
         assert!(text.contains(want), "presubmit.yml lacks {want}");
     }
+}
+
+const LINUX: &[&str] = &["debian11", "ubuntu2204"];
+const MACOS: &[&str] = &["macos_arm64"];
+
+fn count(targets: &[(String, String)], target: &str) -> usize {
+    targets.iter().filter(|(_, t)| t == target).count()
+}
+
+#[test]
+fn presubmit_linux_host_builds_qt_once_and_skips_apple() {
+    let targets = host_targets(&template("presubmit.yml"), LINUX);
+    assert_eq!(count(&targets, "//qt_hello"), 1);
+    assert_eq!(count(&targets, "//:macos_arm64_cc"), 0);
+}
+
+#[test]
+fn presubmit_macos_host_builds_apple_and_skips_qt() {
+    let targets = host_targets(&template("presubmit.yml"), MACOS);
+    assert_eq!(count(&targets, "//:macos_arm64_cc"), 1);
+    assert_eq!(count(&targets, "//qt_hello"), 0);
+}
+
+#[test]
+fn presubmit_every_host_gets_the_shared_targets() {
+    for host in [LINUX, MACOS, &["windows"], &["ubuntu2204_arm64"]] {
+        let targets = host_targets(&template("presubmit.yml"), host);
+        assert_eq!(count(&targets, "//:hello_test"), 1);
+        assert_eq!(count(&targets, "//:android_device_cc"), 1);
+    }
+}
+
+#[test]
+fn presubmit_unknown_host_gets_only_matrix_tasks() {
+    let targets = host_targets(&template("presubmit.yml"), &[]);
+    assert_eq!(count(&targets, "//qt_hello"), 0);
+    assert_eq!(count(&targets, "//:hello_test"), 1);
+}
+
+#[test]
+fn presubmit_run_flags_belong_to_the_run_task() {
+    let text = template("presubmit.yml");
+    assert_eq!(host_run_flags(&text, LINUX), ["--", "--help"]);
+    assert!(
+        host_targets(&text, LINUX)
+            .iter()
+            .any(|pair| pair == &("run".to_owned(), "@rules_dx//:dx".to_owned()))
+    );
 }
 
 #[test]

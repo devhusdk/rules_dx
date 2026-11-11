@@ -13,7 +13,7 @@ def svelte_library(name, srcs, visibility = None, **kwargs):
 
 def svelte_build(name, srcs, config, node_modules, package_json = None, public = None, ssr_entry = None, deps = None, visibility = None, **kwargs):
     """Builds one Vite Svelte app into a bundled web app tree and an optional SSR tree."""
-    dx_framework_build(name, "svelte_build", "Svelte", ["vite", "@sveltejs/vite-plugin-svelte", "svelte"], srcs, config, node_modules, package_json = package_json, public = public, ssr_entry = ssr_entry, deps = deps, visibility = visibility, keep_entry_path = True, **kwargs)
+    dx_framework_build(name, "svelte_build", "Svelte", ["vite", "@sveltejs/vite-plugin-svelte", "svelte"], srcs, config, node_modules, package_json = package_json, public = public, ssr_entry = ssr_entry, deps = deps, visibility = visibility, **kwargs)
 
 def svelte_test(name, *, srcs, node_modules, data = None, **kwargs):
     """Runs jest over Svelte components, compiled by the linked svelte. Coverage maps back to the .svelte sources."""

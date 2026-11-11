@@ -16,7 +16,7 @@ diff --git a/private/ct.bzl b/private/ct.bzl
  )
  
  def sanitize_sname(s):
-@@ -226,7 +227,7 @@ fi
+@@ -226,12 +227,14 @@ fi
          output = ctx.actions.declare_file(ctx.label.name + ".bat")
          script = """@echo off
  SETLOCAL EnableDelayedExpansion
@@ -25,7 +25,33 @@ diff --git a/private/ct.bzl b/private/ct.bzl
  if defined TEST_SHARD_STATUS_FILE type nul > !TEST_SHARD_STATUS_FILE!
  
  set logdir={log_dir}
-@@ -282,7 +283,8 @@ exit /b %CT_RUN_ERRORLEVEL%
+ set logdir=%logdir:/=\\%
+-subst {drive_letter}: %logdir%
++set CT_LOGDRIVE=
++for %%D in ({drive_letter} B H I J K L M N O P Q R S T U V W X Y Z) do if not defined CT_LOGDRIVE (subst %%D: "%logdir%" >nul 2>&1 && set "CT_LOGDRIVE=%%D")
++if not defined CT_LOGDRIVE (echo no free drive letter for the ct log directory 1>&2 & exit /b 1)
+ 
+ REM TEST_SRCDIR is provided by bazel but with unix directory separators
+ set ERL_LIBS=%TEST_SRCDIR%/%TEST_WORKSPACE%/{erl_libs_path}
+@@ -267,7 +270,7 @@ set FILTER=-suite {suite_name}
+ 
+ if NOT [{package}] == [] cd {package}
+ 
+-if not exist "{drive_letter}:" mkdir {drive_letter}:
++if not exist "%CT_LOGDRIVE%:" mkdir %CT_LOGDRIVE%:
+ 
+ echo on
+ "{erlang_home}\\bin\\ct_run" ^
+@@ -275,14 +278,15 @@ echo on
+     -noinput ^
+     %FILTER% ^
+     -dir test {pa_args} ^
+-    -logdir {drive_letter}:{node_args} {extra_args}
++    -logdir %CT_LOGDRIVE%:{node_args} {extra_args}
+ set CT_RUN_ERRORLEVEL=%ERRORLEVEL%
+-subst {drive_letter}: /d
++subst %CT_LOGDRIVE%: /d
+ exit /b %CT_RUN_ERRORLEVEL%
  :skip_test
  """.format(
              package = package,

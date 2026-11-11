@@ -747,6 +747,21 @@
             "real_jvm_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "maven",
+            "extension": "@rules_dx//java:extensions.bzl",
+            "hub": "maven",
+            "imports": "provides",
+            "lock": "maven_install.json",
+            "manifest": "MODULE.bazel",
+            "resolver": null,
+            "state": null,
+            "tag": "install"
+          }
+        ]
       }
     },
     {

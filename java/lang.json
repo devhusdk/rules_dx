@@ -14,6 +14,21 @@
   "lockfiles": [
     "maven_install.json"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "maven",
+        "manifest": "MODULE.bazel",
+        "lock": "maven_install.json",
+        "state": null,
+        "extension": "@rules_dx//java:extensions.bzl",
+        "tag": "install",
+        "hub": "maven",
+        "resolver": null,
+        "imports": "provides"
+      }
+    ]
+  },
   "tools": [
     "google_java_format",
     "javac",

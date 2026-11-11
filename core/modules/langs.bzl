@@ -1483,6 +1483,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "maven",
+          "extension": "@rules_dx//java:extensions.bzl",
+          "hub": "maven",
+          "imports": "provides",
+          "lock": "maven_install.json",
+          "manifest": "MODULE.bazel",
+          "resolver": null,
+          "state": null,
+          "tag": "install"
+        }
+      ]
+    },
     "title": "Java",
     "tools": [
       "google_java_format",

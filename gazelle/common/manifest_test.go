@@ -967,3 +967,17 @@ func TestEmitFailedCarriesKindImportAndFix(t *testing.T) {
 		t.Errorf("error = %+v, want kind, import and fix carried", got)
 	}
 }
+
+func TestTakeAncestorOwnedSortsDedupesAndEmpties(t *testing.T) {
+	NoticeAncestorOwned("b", "//:r")
+	NoticeAncestorOwned("a", "//:r")
+	NoticeAncestorOwned("b", "//:r")
+	got := TakeAncestorOwned()
+	want := []AncestorOwnedNotice{{Package: "a", Rule: "//:r"}, {Package: "b", Rule: "//:r"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("TakeAncestorOwned() = %v, want %v", got, want)
+	}
+	if again := TakeAncestorOwned(); len(again) != 0 {
+		t.Fatalf("second TakeAncestorOwned() = %v, want empty", again)
+	}
+}

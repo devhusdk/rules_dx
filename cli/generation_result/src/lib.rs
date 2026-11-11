@@ -9,7 +9,8 @@
 )]
 
 use proto::{
-    FileResult, GenerationManifest, IgnoredImport, Mode, Modification, Scope, file_result,
+    AncestorOwned, FileResult, GenerationManifest, IgnoredImport, Mode, Modification, Scope,
+    file_result,
 };
 pub use result_proto::dx::generation::v1 as proto;
 
@@ -83,6 +84,14 @@ pub enum Error {
     IgnoredOrder { index: usize },
     #[error("duplicate ignored import at index {index}")]
     DuplicateIgnoredImport { index: usize },
+    #[error("empty package at ancestor_owned[{index}]: want a non-empty package")]
+    EmptyAncestorPackage { index: usize },
+    #[error("empty rule at ancestor_owned[{index}]: want a non-empty rule")]
+    EmptyAncestorRule { index: usize },
+    #[error("unordered ancestor_owned at index {index}")]
+    AncestorOrder { index: usize },
+    #[error("duplicate ancestor_owned at index {index}")]
+    DuplicateAncestor { index: usize },
     #[error("empty language at error[{index}]: want a non-empty language")]
     EmptyErrorLanguage { index: usize },
     #[error("empty message at error[{index}]: want a non-empty message")]
@@ -397,6 +406,31 @@ fn validate_errors(manifest: &GenerationManifest) -> Result<(), Error> {
     Ok(())
 }
 
+fn validate_ancestor_owned(items: &[AncestorOwned]) -> Result<(), Error> {
+    let mut previous: Option<(&str, &str)> = None;
+    for (index, item) in items.iter().enumerate() {
+        if item.package.is_empty() {
+            return Err(Error::EmptyAncestorPackage { index });
+        }
+        check_path(&format!("ancestor_owned[{index}]"), &item.package)?;
+        if item.rule.is_empty() {
+            return Err(Error::EmptyAncestorRule { index });
+        }
+        let key = (item.package.as_str(), item.rule.as_str());
+        match dx_path::proto_validate::check_sorted_next(previous.as_ref(), &key) {
+            Ok(()) => {}
+            Err(dx_path::proto_validate::OrderViolation::Duplicate) => {
+                return Err(Error::DuplicateAncestor { index });
+            }
+            Err(dx_path::proto_validate::OrderViolation::Unsorted) => {
+                return Err(Error::AncestorOrder { index });
+            }
+        }
+        previous = Some(key);
+    }
+    Ok(())
+}
+
 pub fn validate(manifest: &GenerationManifest) -> Result<(), Error> {
     let mode = Mode::try_from(manifest.mode).map_err(|_| Error::InvalidMode {
         found: manifest.mode,
@@ -424,7 +458,8 @@ pub fn validate(manifest: &GenerationManifest) -> Result<(), Error> {
             }
         })?;
     }
-    validate_ignored(&manifest.ignored_imports, manifest.scopes.len())
+    validate_ignored(&manifest.ignored_imports, manifest.scopes.len())?;
+    validate_ancestor_owned(&manifest.ancestor_owned)
 }
 
 pub fn encode_validated(manifest: &GenerationManifest) -> Result<Vec<u8>, Error> {
@@ -477,6 +512,7 @@ mod tests {
                 scope_index: 0,
             }],
             errors: Vec::new(),
+            ancestor_owned: Vec::new(),
         }
     }
 
@@ -540,6 +576,37 @@ mod tests {
             |m| m.files = files,
             Error::ErrorsWithFiles,
         );
+    }
+
+    #[test]
+    fn ancestor_owned_validated() {
+        let item = |package: &str, rule: &str| AncestorOwned {
+            package: package.into(),
+            rule: rule.into(),
+        };
+        assert_error(
+            sample(Mode::Check),
+            |m| m.ancestor_owned = vec![item("", "//:r")],
+            Error::EmptyAncestorPackage { index: 0 },
+        );
+        assert_error(
+            sample(Mode::Check),
+            |m| m.ancestor_owned = vec![item("a", "")],
+            Error::EmptyAncestorRule { index: 0 },
+        );
+        assert_error(
+            sample(Mode::Check),
+            |m| m.ancestor_owned = vec![item("b", "//:r"), item("a", "//:r")],
+            Error::AncestorOrder { index: 1 },
+        );
+        assert_error(
+            sample(Mode::Check),
+            |m| m.ancestor_owned = vec![item("a", "//:r"), item("a", "//:r")],
+            Error::DuplicateAncestor { index: 1 },
+        );
+        let mut ok = sample(Mode::Check);
+        ok.ancestor_owned = vec![item("a", "//:r"), item("b", "//:r")];
+        assert_eq!(validate(&ok), Ok(()));
     }
 
     #[test]

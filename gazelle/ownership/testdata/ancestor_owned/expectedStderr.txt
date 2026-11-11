@@ -1,1 +1,0 @@
-{"event":"notice","code":"ancestor_owned","package":"//fixtures","rule":"//:handwritten"}

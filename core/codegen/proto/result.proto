@@ -60,6 +60,15 @@ message IgnoredImport {
   uint32 scope_index = 4;
 }
 
+// A package in which no BUILD file is created because a rule in an ancestor
+// package already lists files under it.
+message AncestorOwned {
+  // Workspace-relative directory of the skipped package.
+  string package = 1;
+  // Label of the ancestor rule, such as "//tests:mixed".
+  string rule = 2;
+}
+
 // One generation failure reported by a language extension.
 message GenerationError {
   string language = 1;
@@ -84,4 +93,5 @@ message GenerationManifest {
   repeated FileResult files = 3;
   repeated IgnoredImport ignored_imports = 4;
   repeated GenerationError errors = 5;
+  repeated AncestorOwned ancestor_owned = 6;
 }

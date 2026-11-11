@@ -5,6 +5,7 @@ use generation_result::{
     proto::{GenerationManifest, Mode, WriteOutcome},
 };
 
+pub const ANCESTOR_OWNED_CODE: &str = "ancestor_owned";
 pub const IGNORED_IMPORT_CODE: &str = "ignored_import";
 pub const IGNORED_IMPORT_LEVEL: &str = "warning";
 pub const IGNORED_IMPORT_MESSAGE: &str =
@@ -200,7 +201,8 @@ pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error
             failure_code,
         });
     }
-    let mut notices = Vec::with_capacity(manifest.ignored_imports.len());
+    let mut notices =
+        Vec::with_capacity(manifest.ignored_imports.len() + manifest.ancestor_owned.len());
     for ignored in &manifest.ignored_imports {
         notices.push(NoticeEvent {
             severity: IGNORED_IMPORT_LEVEL.to_owned(),
@@ -212,6 +214,17 @@ pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error
             language: Some(ignored.language.clone()),
             import: Some(ignored.import.clone()),
         });
+    }
+    for owned in &manifest.ancestor_owned {
+        let mut notice = NoticeEvent::info(
+            ANCESTOR_OWNED_CODE,
+            format!(
+                "No BUILD file created in //{}: {} lists files under it",
+                owned.package, owned.rule
+            ),
+        );
+        notice.path = Some(owned.package.clone());
+        notices.push(notice);
     }
     let errors = manifest
         .errors
@@ -266,6 +279,10 @@ pub fn text_lines(projected: &ProjectedManifest) -> Vec<String> {
         }
     }
     for notice in &projected.notices {
+        if notice.code == ANCESTOR_OWNED_CODE {
+            lines.push(notice.message.clone());
+            continue;
+        }
         let path = notice.path.as_deref().unwrap_or("");
         let language = notice.language.as_deref().unwrap_or("");
         let import = notice.import.as_deref().unwrap_or("");
@@ -369,6 +386,7 @@ mod tests {
             )],
             ignored_imports: vec![ignored("pkg/a.rs", "rust", "optional")],
             errors: vec![],
+            ancestor_owned: vec![],
         }
     }
 
@@ -388,6 +406,7 @@ mod tests {
             ],
             ignored_imports: vec![ignored("pkg/a.rs", "rust", "optional")],
             errors: vec![],
+            ancestor_owned: vec![],
         }
     }
 
@@ -533,6 +552,7 @@ mod tests {
             files: vec![],
             ignored_imports: vec![],
             errors: vec![],
+            ancestor_owned: vec![],
         };
         let projected = project(&manifest).unwrap();
         assert!(projected.files.is_empty());
@@ -568,6 +588,7 @@ mod tests {
             files: vec![create_file("e/BUILD.bazel", b"", WriteOutcome::Applied, "")],
             ignored_imports: vec![],
             errors: vec![],
+            ancestor_owned: vec![],
         };
         let projected = project(&manifest).unwrap();
         assert_eq!(projected.files[0].candidate, "");
@@ -600,6 +621,7 @@ mod tests {
             )],
             ignored_imports: vec![],
             errors: vec![],
+            ancestor_owned: vec![],
         };
         let success = project(&success_manifest).unwrap();
         assert_eq!(success.exit_code(0), 0);
@@ -611,6 +633,7 @@ mod tests {
             files: vec![],
             ignored_imports: vec![],
             errors: vec![],
+            ancestor_owned: vec![],
         };
         let check_empty = project(&check_empty_manifest).unwrap();
         assert_eq!(check_empty.exit_code(0), 0);
@@ -677,6 +700,27 @@ mod tests {
                 "the boundary rejects what projection trusts"
             );
         }
+    }
+
+    #[test]
+    fn project_turns_ancestor_owned_into_notices() {
+        let mut manifest = check_manifest();
+        manifest.ignored_imports.clear();
+        manifest.ancestor_owned = vec![generation_result::proto::AncestorOwned {
+            package: "fixtures".into(),
+            rule: "//:handwritten".into(),
+        }];
+        let projected = project(&manifest).unwrap();
+        assert_eq!(projected.notices.len(), 1);
+        let notice = &projected.notices[0];
+        assert!(notice_event(notice).is_ok());
+        assert_eq!(notice.code, ANCESTOR_OWNED_CODE);
+        assert_eq!(notice.severity, "info");
+        assert_eq!(notice.path.as_deref(), Some("fixtures"));
+        assert_eq!(
+            text_lines(&projected).last().map(String::as_str),
+            Some("No BUILD file created in //fixtures: //:handwritten lists files under it")
+        );
     }
 
     #[test]

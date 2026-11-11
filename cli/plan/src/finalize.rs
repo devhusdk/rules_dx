@@ -1,6 +1,6 @@
 use generation_result::proto::{
-    Edit, FileResult, Fix, GenerationError, GenerationManifest, IgnoredImport, Mode, Modification,
-    Scope, WriteOutcome, file_result,
+    AncestorOwned, Edit, FileResult, Fix, GenerationError, GenerationManifest, IgnoredImport, Mode,
+    Modification, Scope, WriteOutcome, file_result,
 };
 use serde::Deserialize;
 use std::path::Path;
@@ -84,7 +84,16 @@ struct IntendedPayload {
     #[serde(default)]
     ignored_imports: Vec<IntendedIgnored>,
     #[serde(default)]
+    ancestor_owned: Vec<IntendedAncestorOwned>,
+    #[serde(default)]
     errors: Vec<IntendedError>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct IntendedAncestorOwned {
+    package: String,
+    rule: String,
 }
 
 #[derive(Deserialize)]
@@ -332,6 +341,15 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
         })
         .collect();
 
+    let ancestor_owned = payload
+        .ancestor_owned
+        .into_iter()
+        .map(|item| AncestorOwned {
+            package: item.package,
+            rule: item.rule,
+        })
+        .collect();
+
     let mut errors: Vec<GenerationError> = payload
         .errors
         .into_iter()
@@ -362,6 +380,7 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
         files,
         ignored_imports,
         errors,
+        ancestor_owned,
     };
     generation_result::validate(&manifest).map_err(FinalizeError::Invalid)?;
     Ok(Finalized { manifest, gazelle })

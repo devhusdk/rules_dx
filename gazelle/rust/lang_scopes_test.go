@@ -323,11 +323,11 @@ func TestGenerateCargoBuildScript(t *testing.T) {
 	writeFixture(t, root, "source/lib.rs", "use serde_json::Value;\npub fn value() -> Value {\n    Value::Null\n}\n")
 	writeFixture(t, root, "build/script.rs", "use cc::Build;\nfn main() {\n    let _ = Build::new();\n}\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          root,
 		RegularFiles: []string{"Cargo.toml", "source/lib.rs", "build/script.rs"},
-	})
+	}))
 	if len(l.errors) != 0 {
 		t.Fatalf("script generation errors = %v", l.errors)
 	}
@@ -364,7 +364,7 @@ func TestGenerateCargoBuildScript(t *testing.T) {
 	writeFixture(t, badRoot, "Cargo.toml", "[package]\nname = \"bad\"\nbuild = \"build.rs\"\n[dependencies]\nserde_json = \"1\"\n")
 	writeFixture(t, badRoot, "build.rs", "use serde_json::Value;\nfn main() {\n    let _ = Value::Null;\n}\n")
 	bad := &rustLang{}
-	bad.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: badRoot}, Dir: badRoot, RegularFiles: []string{"Cargo.toml", "build.rs"}})
+	bad.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: badRoot}, Dir: badRoot, RegularFiles: []string{"Cargo.toml", "build.rs"}}))
 	if len(bad.errors) != 1 || !strings.Contains(bad.errors[0].Message, "build-dependencies") {
 		t.Errorf("build scope errors = %v", bad.errors)
 	}
@@ -381,11 +381,11 @@ func TestBuildScriptUserAttrsPreserved(t *testing.T) {
 	writeFixture(t, root, "source/lib.rs", "pub fn value() {}\n")
 	writeFixture(t, root, "build/script.rs", "fn main() {}\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          root,
 		RegularFiles: []string{"Cargo.toml", "source/lib.rs", "build/script.rs"},
-	})
+	}))
 	if len(l.errors) != 0 {
 		t.Fatalf("script generation errors = %v", l.errors)
 	}
@@ -474,7 +474,7 @@ func TestGenerateCargoSliceFailures(t *testing.T) {
 				writeFixture(t, root, name, content)
 			}
 			l := &rustLang{}
-			l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+			l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 			if len(l.errors) == 0 || !strings.Contains(strings.Join(common.Messages(l.errors), "\n"), tc.want) {
 				t.Errorf("errors = %v, want %q", l.errors, tc.want)
 			}
@@ -489,7 +489,7 @@ func TestGenerateCargoExampleScopes(t *testing.T) {
 	writeFixture(t, root, "helpers/src/lib.rs", "")
 	writeFixture(t, root, "examples/demo.rs", "use helper::thing;\nfn main() {}\n#[test]\nfn demo_runs() {}\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 	if len(l.errors) != 0 {
 		t.Fatalf("example generation errors = %v", l.errors)
 	}

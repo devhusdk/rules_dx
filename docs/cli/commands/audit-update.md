@@ -468,7 +468,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `fpm.lock` of `@rules_dx//fortran:extensions.bzl` | `name` | `fpm.toml` beside the lock | `lock` |
 | `luarocks.lock` of `@rules_dx//lua:extensions.bzl` | `name` | `lock` | |
 | `zig_deps.lock` of `@rules_dx//zig:extensions.bzl` | `name` | `build.zig.zon` beside `lock` | `digests` |
-| `cpan.install` of `@rules_perl//perl/cpan:extensions.bzl` | `name` | `cpanfile` beside the lock | `cpanfile.snapshot` and the `lock` JSON |
+| `cpan.install` of `@rules_dx//perl:extensions.bzl` or `@rules_perl//perl/cpan:extensions.bzl` | `name` | `cpanfile` beside the lock | `cpanfile.snapshot` and the `lock` JSON |
 | `pub.from_lock` of `@rules_dart//dart/pub:extensions.bzl`, `flutter.pub` of rules_flutter | `name` | `pubspec.yaml` beside the lock | `pubspec.lock` |
 | `julia.from_manifest` of `@rules_dx//julia:extensions.bzl` or `pkg.from_manifest` of `@rules_julia//julia/pkg:extensions.bzl` | `name` | `Project.toml` beside the lockfile | `Manifest.toml` and `Manifest.bazel.json` beside the lockfile |
 | rules_dotnet `paket` extension | `nuget` | `paket.dependencies` | `paket.lock`, `paket.<group>.bzl` |
@@ -668,7 +668,7 @@ paket = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "mai
 ### cpan
 
 ```starlark
-cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
+cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
 cpan.install(
     name = "perl_app_cpan",
     lock = "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot.lock.json",

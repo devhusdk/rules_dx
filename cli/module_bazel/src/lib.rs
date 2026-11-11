@@ -1077,6 +1077,7 @@ impl ModuleFile {
     pub fn cpan_installs(&self) -> Result<Vec<CpanInstall<'_>>, ModuleError> {
         const TAG: &str = "cpan.install";
         self.tags(PERL_MODULE, "perl/cpan:extensions.bzl", "cpan", "install")
+            .chain(self.dx_tags("perl", "cpan", "install"))
             .map(|call| {
                 Ok(CpanInstall {
                     name: required(call, TAG, "name")?,

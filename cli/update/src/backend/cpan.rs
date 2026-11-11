@@ -25,7 +25,7 @@ pub(super) fn plan(
             let Some(compiler) = dependency_sets::cpan_compiler_label(workspace, set) else {
                 return Err(BackendError::Unsupported {
                     set: set.name.clone(),
-                    reason: "add a cpan_compiler next to the cpanfile; it keeps cpanfile.snapshot.lock.json in step with cpanfile.snapshot",
+                    reason: "add a cpan_compiler next to the cpanfile; it keeps the lock JSON in step with cpanfile.snapshot",
                 });
             };
             let mut command = vec!["update"];

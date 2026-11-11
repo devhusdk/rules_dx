@@ -89,10 +89,6 @@ msix build_test *
 msix coverage_test *
 msix fail_test *
 msix pass_test *
-ocaml build_test *
-ocaml coverage_test *
-ocaml fail_test *
-ocaml pass_test *
 php coverage_test macos_arm64
 php coverage_test windows_arm64
 php coverage_test windows_x86_64

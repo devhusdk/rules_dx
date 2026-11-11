@@ -1,0 +1,74 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//ocaml:defs.bzl", "OCAML_COMPATIBLE_WITH", "ocaml_binary", "ocaml_module", "ocaml_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+ocaml_module(
+    name = "greet",
+    struct = "greet.ml",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+)
+
+ocaml_module(
+    name = "hello_main",
+    struct = "hello.ml",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+    deps = [":greet"],
+)
+
+ocaml_binary(
+    name = "hello",
+    main = ":hello_main",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+)
+
+ocaml_module(
+    name = "pass_main",
+    struct = "pass_test.ml",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+    deps = [":greet"],
+)
+
+ocaml_module(
+    name = "fail_main",
+    struct = "fail_test.ml",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+    deps = [":greet"],
+)
+
+ocaml_test(
+    name = "pass_subject_test",
+    size = "small",
+    main = ":pass_main",
+    target_compatible_with = subject_compatible_with() + OCAML_COMPATIBLE_WITH,
+)
+
+ocaml_test(
+    name = "fail_subject_test",
+    size = "small",
+    main = ":fail_main",
+    target_compatible_with = subject_compatible_with() + OCAML_COMPATIBLE_WITH,
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":hello",
+    covered_source = "greet.ml",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "ocaml",
+    passing_test = ":pass_subject_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

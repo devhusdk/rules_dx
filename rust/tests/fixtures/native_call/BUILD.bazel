@@ -349,7 +349,6 @@ rust_msvc_crt_tests(
 
 mixed_crt_actions(
     name = "native_mixed_crt",
-    tags = ["manual"],
 )
 
 rust_binary(
@@ -358,7 +357,6 @@ rust_binary(
     crate_root = "src/main.rs",
     edition = "2021",
     link_deps = [":native_mixed_crt"],
-    tags = ["manual"],
     testonly = True,
     deps = [":native_call"],
 )

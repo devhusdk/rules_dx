@@ -465,7 +465,6 @@ private-names php/private/toolchain/pcov.BUILD
 private-names powershell/private/toolchain/pwsh.build
 private-names ruby/private/toolchain/sorbet.build
 private-names rust/private/quality/tools/selene.BUILD.bazel
-private-names rust/private/toolchains
 private-names swift/private/toolchain/swift_format.build
 private-names thrift/private/testdata
 provider-name capnproto/defs.bzl
@@ -672,8 +671,8 @@ test-location rust/private/bench_report/BUILD.bazel
 test-location rust/private/ide/BUILD.bazel
 test-location rust/private/quality/tools/progenitor/BUILD.bazel
 test-location rust/private/quality/tools/topiary/BUILD.bazel
-test-location rust/private/toolchains/BUILD.bazel
-test-location rust/private/toolchains/identity_tests.bzl
+test-location rust/private/toolchain/BUILD.bazel
+test-location rust/private/toolchain/identity_tests.bzl
 test-location rust/private/wrapper_tests.bzl
 test-location scala/private/BUILD.bazel
 test-location scala/tests/BUILD.bazel

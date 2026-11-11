@@ -6,7 +6,7 @@ load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
 load("//core/quality:pipeline.bzl", "real_request_stage")
 load("//core/quality:support.bzl", "SUPPORT_PLATFORMS")
 load("//core/quality/private:native_config_impl.bzl", "native_config_scratch_rel", "staged_config_rel", "tier_base_dirs")
-load("//rust/private/toolchains:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
+load("//rust/private/toolchain:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 def _single_file(target):
     files = target[DefaultInfo].files.to_list()

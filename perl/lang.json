@@ -14,6 +14,21 @@
   "lockfiles": [
     "cpanfile.snapshot"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "cpan",
+        "manifest": "cpanfile",
+        "lock": "cpanfile.snapshot.lock.json",
+        "state": "cpanfile.snapshot",
+        "extension": "@rules_dx//perl:extensions.bzl",
+        "tag": "install",
+        "hub": "cpan",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "perlcritic",
     "perltidy"

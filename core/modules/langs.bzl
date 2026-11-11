@@ -2143,6 +2143,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "cpan",
+          "extension": "@rules_dx//perl:extensions.bzl",
+          "hub": "cpan",
+          "imports": "name",
+          "lock": "cpanfile.snapshot.lock.json",
+          "manifest": "cpanfile",
+          "resolver": null,
+          "state": "cpanfile.snapshot",
+          "tag": "install"
+        }
+      ]
+    },
     "title": "Perl",
     "tools": [
       "perlcritic",

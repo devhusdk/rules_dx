@@ -11,6 +11,17 @@ rules_perl registers the toolchains, so there is no toolchain setup in
 Run `dx init --apply demo-app` and add sources. The language is wired when
 its sources appear.
 
+## Packages
+
+```python
+cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
+cpan.install(
+    name = "app_cpan",
+    lock = "//:cpanfile.snapshot.lock.json",
+)
+use_repo(cpan, "app_cpan")
+```
+
 ## Rules
 
 Load the rules from `@rules_dx//perl:defs.bzl`. They wrap rules_perl

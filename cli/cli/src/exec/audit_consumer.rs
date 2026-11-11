@@ -1160,7 +1160,7 @@ source = { registry = "https://pypi.org/simple" }
         }
     }
 
-    const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"perl_app_cpan\", lock = \"//perl/third_party:cpanfile.snapshot.lock.json\")\n";
+    const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"perl_app_cpan\", lock = \"//perl/third_party:cpan.lock.json\")\n";
 
     const CPANSA: &str = "{\"Mojolicious\":{\"distribution\":\"Mojolicious\",\"advisories\":[{\"id\":\"CPANSA-Mojolicious-2018-03\",\"affected_versions\":[\">=7.0,<7.58\"],\"fixed_versions\":[\">=7.58\"],\"severity\":\"high\"}]}}";
 
@@ -1175,7 +1175,7 @@ source = { registry = "https://pypi.org/simple" }
             ),
         );
         harness.write_source(
-            "perl/third_party/cpanfile.snapshot.lock.json",
+            "perl/third_party/cpan.lock.json",
             &format!("{{\"Mojolicious\":{{\"strip_prefix\":\"{release}\"}}}}\n"),
         );
         let prepared = dx_audit::advisory_prep::cpan_snapshot(

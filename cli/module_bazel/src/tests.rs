@@ -1257,7 +1257,7 @@ fn swift_packages_follow_the_swift_deps_extension() {
 }
 
 #[test]
-fn cpan_installs_follow_the_rules_perl_extension() {
+fn cpan_installs_follow_the_rules_perl_and_rules_dx_extensions() {
     let file = parse(
         "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"tools\", lock = \"//perl:cpanfile.snapshot.lock.json\")\nother = use_extension(\"//perl:extensions.bzl\", \"cpan\")\nother.install(name = \"dev\", lock = \"//x:l.json\")\n",
     );
@@ -1267,7 +1267,13 @@ fn cpan_installs_follow_the_rules_perl_extension() {
         .iter()
         .map(|install| (install.name, install.lock))
         .collect();
-    assert_eq!(found, [("tools", "//perl:cpanfile.snapshot.lock.json")]);
+    assert_eq!(
+        found,
+        [
+            ("tools", "//perl:cpanfile.snapshot.lock.json"),
+            ("dev", "//x:l.json"),
+        ]
+    );
 }
 
 #[test]

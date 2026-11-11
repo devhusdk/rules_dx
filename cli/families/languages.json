@@ -1123,6 +1123,21 @@
             "real_perl_lint_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "cpan",
+            "extension": "@rules_dx//perl:extensions.bzl",
+            "hub": "cpan",
+            "imports": "name",
+            "lock": "cpanfile.snapshot.lock.json",
+            "manifest": "cpanfile",
+            "resolver": null,
+            "state": "cpanfile.snapshot",
+            "tag": "install"
+          }
+        ]
       }
     },
     {

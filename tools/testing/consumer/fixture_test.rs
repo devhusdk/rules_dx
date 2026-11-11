@@ -61,8 +61,11 @@ fn init(root: &Path) -> dx_testing::Run {
     std::fs::create_dir_all(&home).unwrap_or_else(|error| panic!("{home:?}: {error}"));
     let home = dx_testing::path_text(&home);
     let dx = dx_testing::env_file("DX_BIN");
+    let bin = root.with_file_name("bin");
+    dx_testing::fake_generate_bazel_path(&bin, &dx_testing::env_file("DX_FAKE_GENERATE"));
+    let bin = dx_testing::path_text(&bin);
     let envs = [
-        ("PATH", "/dx_no_path"),
+        ("PATH", bin.as_str()),
         ("HOME", home.as_str()),
         ("USERPROFILE", home.as_str()),
     ];

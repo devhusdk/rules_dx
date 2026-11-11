@@ -4,6 +4,7 @@ load("//rust:defs.bzl", "rust_test")
 
 CONSUMER_FIXTURES = [
     "csharp",
+    "cuda",
     "d",
     "elixir",
     "erlang",
@@ -38,10 +39,12 @@ def consumer_fixture_tests(name, size):
             data = [
                 "pending.txt",
                 "//cli/cli:dx",
+                "//cli/cli/tests/fake_generate",
                 "@dx_test_tags_sources//:consumer.json",
             ],
             env = {
                 "DX_BIN": "$(rootpath //cli/cli:dx)",
+                "DX_FAKE_GENERATE": "$(rootpath //cli/cli/tests/fake_generate)",
                 "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
                 "DX_CONSUMER_LANG": lang,
                 "DX_CONSUMER_PENDING": "$(rootpath pending.txt)",

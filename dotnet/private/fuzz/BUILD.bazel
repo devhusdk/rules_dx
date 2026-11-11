@@ -46,4 +46,5 @@ real_source_target(
         "labels.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
 )

@@ -392,9 +392,9 @@ fn every_quality_bzl_exists_and_feeds_families_test() {
     let families: Value =
         serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
             .expect("families.json");
-    let build = std::fs::read_to_string(root.join("core/modules/BUILD.bazel")).expect("BUILD.bazel");
+    let build = std::fs::read_to_string(root.join("core/modules/tests/BUILD.bazel")).expect("BUILD.bazel");
     let start = build.find("name = \"families_test\"").expect("families_test");
-    let end = build.find("name = \"lang_json_test\"").expect("lang_json_test");
+    let end = start + build[start..].find("\n)\n").expect("end of families_test");
     let data = &build[start..end];
     let mut problems = Vec::new();
     for dir in language_dirs(&root, &families) {
@@ -411,7 +411,7 @@ fn every_quality_bzl_exists_and_feeds_families_test() {
         let data_label = format!("\"//{package}:{file}\"");
         if !data.contains(&data_label) {
             problems.push(format!(
-                "{}: {data_label} is not in families_test data in core/modules/BUILD.bazel",
+                "{}: {data_label} is not in families_test data in core/modules/tests/BUILD.bazel",
                 dir.display()
             ));
         }

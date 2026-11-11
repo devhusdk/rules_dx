@@ -42,6 +42,7 @@ fixture thrift
 fixture typescript
 fixture vue
 init csharp
+init cuda
 init d
 init elixir
 init erlang
@@ -54,6 +55,7 @@ init lua
 init ocaml
 init perl
 init php
+init qt
 init rego
 init ruby
 init rust

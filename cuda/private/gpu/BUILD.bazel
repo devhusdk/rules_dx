@@ -27,6 +27,13 @@ cc_library(
 )
 
 cc_library(
+    name = "gpu_guard",
+    srcs = ["gpu_guard.cc"],
+    hdrs = ["gpu_guard.h"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+cc_library(
     name = "gpu_check",
     testonly = True,
     hdrs = ["gpu_check.h"],
@@ -44,5 +51,6 @@ cuda_library(
         ":gpu_check",
         ":gpu_device",
         ":gpu_facts",
+        ":gpu_guard",
     ],
 )

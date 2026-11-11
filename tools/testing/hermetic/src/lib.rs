@@ -2920,6 +2920,27 @@ fn run_all(
         ],
         expect: Expect::Pass,
     })?;
+    let refetch_log = root.join("refetch.log");
+    session.run(Probe {
+        name: "no_refetch".to_owned(),
+        net: Net::Denied,
+        home: &clean_home,
+        output_root: &warm,
+        repos: &repos,
+        command: "build",
+        targets: patterns.clone(),
+        extra: vec![format!(
+            "--experimental_workspace_rules_log_file={}",
+            refetch_log.display()
+        )],
+        expect: Expect::Pass,
+    })?;
+    let refetched = dx_nested::record::contexts(&std::fs::read(&refetch_log).unwrap_or_default());
+    if !refetched.is_empty() {
+        return Err(format!(
+            "a restarted server refetched repositories: {refetched:?}"
+        ));
+    }
     if !coverage.is_empty() {
         session.run(Probe {
             name: "coverage".to_owned(),

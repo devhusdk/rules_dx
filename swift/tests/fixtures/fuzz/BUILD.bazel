@@ -64,4 +64,5 @@ swift_library(
     name = "fuzz",
     testonly = True,
     srcs = ["parse.swift"],
+    module_name = "fuzz",
 )

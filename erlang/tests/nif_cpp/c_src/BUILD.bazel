@@ -1,5 +1,6 @@
 load("@rules_dx//cc:defs.bzl", "cc_library")
 
+# gazelle:resolve cc erl_nif.h @dx_erlang_toolchains//:erl_nif
 # gazelle:dx_rust_corpus false
 
 exports_files(
@@ -13,11 +14,11 @@ exports_files(
 cc_library(
     name = "c_src",
     testonly = True,
-    linkstatic = True,
     srcs = [
         "dx_cpp_a_nif.cc",
         "dx_cpp_b_nif.cc",
     ],
+    linkstatic = True,
     visibility = ["//visibility:public"],
-    deps = ["@dx_erlang_toolchains//:erl_nif"],
+    deps = ["@dx_erlang_toolchains//:erl_nif"],  # keep
 )

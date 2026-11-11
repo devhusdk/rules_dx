@@ -1068,11 +1068,23 @@ fn swift_check_resolves_in_a_copy_and_compares() {
         &UvClosure::default(),
     )
     .expect("plan");
-    let CheckPlan::Run { argv, .. } = plan else {
-        panic!("expected a run");
+    let CheckPlan::Sequence(runs) = plan else {
+        panic!("expected a sequence");
     };
+    assert_eq!(runs.len(), 2);
+    let argv = &runs[0].argv;
     assert!(argv.iter().any(|arg| arg.starts_with("--run_under=sh -c")
         && arg.ends_with(&format!("sh '{}' check", dir_arg("app")))));
+    assert_eq!(
+        runs[1].argv[runs[1].argv.len() - 5..],
+        [
+            "@rules_dx//swift/private/tools/lock",
+            "--",
+            "--dir",
+            dir_arg("app").as_str(),
+            "--check"
+        ]
+    );
     assert_eq!(
         argv[argv.len() - 4..],
         [
@@ -1103,10 +1115,21 @@ fn swift_check_resolves_in_a_copy_and_compares() {
 
 #[test]
 fn swift_update_names_identities_and_refuses_frozen_and_offline() {
-    let Ok(BackendPlan::Run { argv, .. }) = swift_update(&["github.com/vapor/Vapor"], false, false)
+    let Ok(BackendPlan::Sequence(runs)) = swift_update(&["github.com/vapor/Vapor"], false, false)
     else {
-        panic!("expected a run");
+        panic!("expected a sequence");
     };
+    assert_eq!(runs.len(), 2);
+    assert_eq!(
+        runs[1].argv[runs[1].argv.len() - 4..],
+        [
+            "@rules_dx//swift/private/tools/lock",
+            "--",
+            "--dir",
+            dir_arg("app").as_str()
+        ]
+    );
+    let argv = &runs[0].argv;
     assert!(
         argv.iter()
             .any(|arg| arg.ends_with(&format!("sh '{}' apply", dir_arg("app"))))

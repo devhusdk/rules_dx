@@ -190,6 +190,7 @@ ocaml runfiles_test *
 perl cross_test *
 perl lock_test *
 perl runfiles_test *
+php coverage_test windows_x86_64
 php cross_test *
 php lock_test *
 php runfiles_test *

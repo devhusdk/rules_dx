@@ -7,7 +7,6 @@ fixture apple
 fixture asciidoc
 fixture astro
 fixture avro
-fixture bicep
 fixture cc
 fixture cloudformation
 fixture cmake

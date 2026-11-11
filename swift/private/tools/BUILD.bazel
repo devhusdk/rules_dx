@@ -72,6 +72,11 @@ alias(
 sh_binary(
     name = "swift",
     srcs = ["@dx_swift_host//:swift"],
+    target_compatible_with = select({
+        "@platforms//os:linux": [],
+        "@platforms//os:macos": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
 )
 
 real_source_target(

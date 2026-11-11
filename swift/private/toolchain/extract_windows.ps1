@@ -335,10 +335,26 @@ $runtimeSxS = Join-Path $runtimeBin "SxS"
 $toolDirs = @($toolBin)
 $libexec = Join-Path $Out "toolchain\usr\libexec\swift"
 if (Test-Path -LiteralPath $libexec) { $toolDirs += @($libexec) + @(Get-ChildItem -LiteralPath $libexec -Recurse -Directory | ForEach-Object { $_.FullName }) }
+$toolDirs = @($toolDirs | Where-Object { (Test-Path -LiteralPath $_) -and (Get-ChildItem -LiteralPath $_ -File -Filter "*.exe" | Select-Object -First 1) })
+$identities = @{}
+foreach ($toolDir in $toolDirs) {
+    foreach ($tool in (Get-ChildItem -LiteralPath $toolDir -File -Filter "*.exe")) {
+        $text = [System.Text.Encoding]::Latin1.GetString([System.IO.File]::ReadAllBytes($tool.FullName))
+        foreach ($match in [regex]::Matches($text, '<dependentAssembly>\s*<assemblyIdentity\s([^>]*?)/?>')) {
+            $attributes = @{}
+            foreach ($attribute in [regex]::Matches($match.Groups[1].Value, '(\w+)\s*=\s*"([^"]*)"')) { $attributes[$attribute.Groups[1].Value] = $attribute.Groups[2].Value }
+            $assembly = $attributes["name"]
+            if (-not $assembly -or $assembly.StartsWith("Microsoft.")) { continue }
+            if (-not $identities.ContainsKey($assembly)) {
+                [Console]::Out.WriteLine("extract_windows: $($tool.Name) depends on SxS assembly $($match.Groups[1].Value)")
+                $identities[$assembly] = $attributes
+            }
+        }
+    }
+}
+if (Test-Path -LiteralPath $runtimeSxS) { Get-ChildItem -LiteralPath $runtimeSxS -File | ForEach-Object { [Console]::Out.WriteLine("extract_windows: runtime SxS file $($_.Name)") } }
 $runtimeDlls = @(Get-ChildItem -LiteralPath $runtimeBin -File -Filter "*.dll")
 foreach ($toolDir in $toolDirs) {
-    if (-not (Test-Path -LiteralPath $toolDir)) { continue }
-    if (-not (Get-ChildItem -LiteralPath $toolDir -File -Filter "*.exe" | Select-Object -First 1)) { continue }
     foreach ($dll in $runtimeDlls) {
         $assembly = $dll.BaseName
         if (Test-Path -LiteralPath (Join-Path $toolDir $dll.Name)) { continue }
@@ -346,15 +362,21 @@ foreach ($toolDir in $toolDirs) {
         New-Item -ItemType Directory -Force -Path $assemblyDir | Out-Null
         Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $assemblyDir "$assembly.dll")
         $assemblyManifest = Join-Path $runtimeSxS "$assembly.manifest"
-        if (Test-Path -LiteralPath $assemblyManifest) { Copy-Item -LiteralPath $assemblyManifest -Destination (Join-Path $assemblyDir "$assembly.manifest") }    }
+        if (Test-Path -LiteralPath $assemblyManifest) {
+            Copy-Item -LiteralPath $assemblyManifest -Destination (Join-Path $assemblyDir "$assembly.manifest")
+        } elseif ($identities.ContainsKey($assembly)) {
+            $identity = $identities[$assembly]
+            $attributes = (@("type", "name", "version", "processorArchitecture", "publicKeyToken") | Where-Object { $identity.ContainsKey($_) } | ForEach-Object { "$_=`"$($identity[$_])`"" }) -join " "
+            $manifest = "<?xml version=`"1.0`" encoding=`"UTF-8`" standalone=`"yes`"?>`r`n<assembly xmlns=`"urn:schemas-microsoft-com:asm.v1`" manifestVersion=`"1.0`">`r`n  <assemblyIdentity $attributes/>`r`n  <file name=`"$assembly.dll`"/>`r`n</assembly>`r`n"
+            [System.IO.File]::WriteAllText((Join-Path $assemblyDir "$assembly.manifest"), $manifest, (New-Object System.Text.UTF8Encoding $false))
+        }
+    }
 }
-foreach ($tool in (Get-ChildItem -LiteralPath $toolBin -File -Filter "*.exe")) {
-    $text = [System.Text.Encoding]::Latin1.GetString([System.IO.File]::ReadAllBytes($tool.FullName))
-    foreach ($match in [regex]::Matches($text, '<dependentAssembly>.*?name="([^"]+)"', [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
-        $assembly = $match.Groups[1].Value
-        if ($assembly.StartsWith("Microsoft.")) { continue }
-        if ((Test-Path -LiteralPath (Join-Path $toolBin "$assembly\$assembly.dll")) -or (Test-Path -LiteralPath (Join-Path $toolBin "$assembly.dll"))) { continue }
-        Fail "swiftc SxS assembly $assembly is missing (wanted by $($tool.Name))"
+foreach ($assembly in $identities.Keys) {
+    foreach ($toolDir in $toolDirs) {
+        $staged = Join-Path $toolDir "$assembly\$assembly.dll"
+        if (-not ((Test-Path -LiteralPath $staged) -or (Test-Path -LiteralPath (Join-Path $toolDir "$assembly.dll")))) { Fail "swiftc SxS assembly $assembly is missing from $toolDir" }
+        if (Test-Path -LiteralPath (Join-Path $toolDir "$assembly\$assembly.manifest")) { [Console]::Out.WriteLine("extract_windows: staged $staged with manifest") } else { [Console]::Out.WriteLine("extract_windows: staged $staged without manifest") }
     }
 }
 

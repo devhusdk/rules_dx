@@ -5,15 +5,23 @@ load("//core/quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
 
 _HELM_RELEASE_NAME_MAX = 53
 
-def _dns_label_error(what, value, max_len, limit_note = ""):
+def _label_ok(label):
+    if len(label) == 0 or label[0] == "-" or label[-1] == "-":
+        return False
+    for c in label.elems():
+        if c not in "abcdefghijklmnopqrstuvwxyz0123456789-":
+            return False
+    return True
+
+def _dns_label_error(what, value, max_len, limit_note = "", dotted = False):
     if len(value) > max_len:
         return what + " '" + value + "' must be at most " + str(max_len) + " characters" + limit_note
-    ok = len(value) > 0 and value[0] != "-" and value[-1] != "-"
-    for c in value.elems():
-        if c not in "abcdefghijklmnopqrstuvwxyz0123456789-":
-            ok = False
-    if not ok:
-        return what + " '" + value + "' must be a DNS-1123 label"
+    labels = value.split(".") if dotted else [value]
+    for label in labels:
+        if not _label_ok(label):
+            if dotted:
+                return what + " '" + value + "' must be dot-separated DNS-1123 labels"
+            return what + " '" + value + "' must be a DNS-1123 label"
     return ""
 
 def _join(package, rel):
@@ -23,7 +31,7 @@ def _helm_chart_impl(ctx):
     who = "helm_chart " + str(ctx.label) + ": "
     package = ctx.label.package
     for error in [
-        _dns_label_error("release_name", ctx.attr.release_name, _HELM_RELEASE_NAME_MAX, " (Helm limit)"),
+        _dns_label_error("release_name", ctx.attr.release_name, _HELM_RELEASE_NAME_MAX, " (Helm limit)", True),
         _dns_label_error("namespace", ctx.attr.namespace, 63),
     ]:
         if error != "":

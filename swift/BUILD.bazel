@@ -9,5 +9,5 @@ exports_files([
 
 alias(
     name = "lock",
-    actual = "//swift/private/lock",
+    actual = "//swift/private/tools/lock",
 )

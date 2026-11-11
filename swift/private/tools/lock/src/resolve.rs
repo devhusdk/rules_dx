@@ -452,6 +452,7 @@ impl Resolver for Swift<'_> {
                     urls: vec![entry.pin.url.clone()],
                     sha256: entry.sha256.clone(),
                     strip_prefix: entry.pin.strip_prefix.clone(),
+                    kind: String::new(),
                     platform: String::new(),
                 }],
                 deps,

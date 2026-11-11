@@ -65,7 +65,7 @@ fn lock(dir: &std::path::Path, archives: &Archives) -> Result<Outcome, Error> {
     let spec = Swift::spec(hub);
     let swift = dx_testing::env_file("SWIFT");
     let resolver = Swift::new(swift, &spec, archives);
-    run(&spec, &Args { dir: dir.to_owned(), check: false }, &resolver, &NoFetch)
+    run(&spec, &Args { dir: dir.to_owned(), check: false, upgrade: Vec::new() }, &resolver, &NoFetch)
 }
 
 #[test]
@@ -79,7 +79,7 @@ fn a_pinned_package_writes_the_golden_lock() {
     );
     let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
     let actual = dir.path().join(hub.lock.as_deref().expect("lock"));
-    dx_testing::snapshot_diff(&dx_testing::env_file("GOLDEN"), &actual, Some("swift/private/lock/testdata/golden.lock.json"))
+    dx_testing::snapshot_diff(&dx_testing::env_file("GOLDEN"), &actual, Some("swift/private/tools/lock/testdata/golden.lock.json"))
         .expect("the lock matches the golden");
 }
 
@@ -103,7 +103,7 @@ fn a_manifest_with_no_state_file_writes_the_golden_state_and_lock() {
     let state = std::fs::read_to_string(dir.path().join(hub.state.as_deref().expect("state"))).expect("state");
     assert_eq!(state, self::state("mini", "https://github.com/example/mini"));
     let actual = dir.path().join(hub.lock.as_deref().expect("lock"));
-    dx_testing::snapshot_diff(&dx_testing::env_file("GOLDEN"), &actual, Some("swift/private/lock/testdata/golden.lock.json"))
+    dx_testing::snapshot_diff(&dx_testing::env_file("GOLDEN"), &actual, Some("swift/private/tools/lock/testdata/golden.lock.json"))
         .expect("the lock matches the golden");
 }
 
@@ -162,7 +162,7 @@ fn a_package_with_dependencies_fails() {
     let spec = Swift::spec(hub);
     let download = Fixed(bytes);
     let resolver = Swift::new(dx_testing::env_file("SWIFT"), &spec, &download);
-    let error = run(&spec, &Args { dir: dir.path().to_owned(), check: false }, &resolver, &NoFetch).expect_err("refused");
+    let error = run(&spec, &Args { dir: dir.path().to_owned(), check: false, upgrade: Vec::new() }, &resolver, &NoFetch).expect_err("refused");
     assert!(error.to_string().contains("declares dependencies"), "{error}");
 }
 
@@ -228,7 +228,7 @@ fn a_c_target_and_a_two_target_product_write_the_golden_lock() {
     dx_testing::snapshot_diff(
         &dx_testing::env_file("GOLDEN_MULTI"),
         &actual,
-        Some("swift/private/lock/testdata/multi.lock.json"),
+        Some("swift/private/tools/lock/testdata/multi.lock.json"),
     )
     .expect("the lock matches the golden");
 }

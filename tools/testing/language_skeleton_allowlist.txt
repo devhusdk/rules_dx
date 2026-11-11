@@ -532,7 +532,6 @@ test-location qt/private/rust/BUILD.bazel
 test-location qt/private/sdk/BUILD.bazel
 test-location rego/private/launcher/BUILD.bazel
 test-location rego/private/launcher/src/opa_tests.rs
-test-location ruby/private/BUILD.bazel
 test-location ruby/private/ide/BUILD.bazel
 test-location rust/private/bench_report/BUILD.bazel
 test-location rust/private/ide/BUILD.bazel

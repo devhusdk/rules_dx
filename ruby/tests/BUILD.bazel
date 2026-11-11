@@ -21,7 +21,10 @@ ruby_crlf_tests(
     size = "small",
 )
 
-ruby_wrapper_contract_tests(name = "wrapper_contract_tests")
+ruby_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    size = "small",
+)
 
 real_source_target(
     name = "corpus_starlark",

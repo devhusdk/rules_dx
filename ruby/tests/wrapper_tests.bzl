@@ -12,7 +12,7 @@ _GEMS_ROOT = "../+ruby_coverage+dx_ruby_coverage_gems"
 def _entries(root):
     return [root + "/" + gem_dir(g) + "/lib/" + g.entry for g in RUBY_COVERAGE_GEMS]
 
-def ruby_wrapper_contract_tests(name):
+def ruby_wrapper_contract_tests(name, **kwargs):
     """Instantiates Ruby wrapper contract tests."""
     dx_wrapper_contract_tests(
         name,
@@ -34,6 +34,7 @@ def ruby_wrapper_contract_tests(name):
                 ["simplecov-0.22.0", "simplecov-lcov-0.9.0", "docile-1.4.1", "simplecov-html-0.13.2", "simplecov_json_formatter-0.1.4"],
             ),
         ],
+        **kwargs
     )
 
 def _coverage_env_impl(ctx):

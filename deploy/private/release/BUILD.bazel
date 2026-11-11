@@ -19,6 +19,8 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     "bcr.bzl",
     "bcr_tests.bzl",
+    "consumer/consumer.BUILD.bazel",
+    "consumer/lib.rs",
     "cosign_pins.bzl",
     "inventory.bzl",
     "inventory_tests.bzl",

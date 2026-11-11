@@ -127,9 +127,13 @@ rust_test(
         "//:MODULE.bazel",
         "//:package.json",
         "//core/coreutils:applets",
+        "//deploy/private/release:consumer/consumer.BUILD.bazel",
+        "//deploy/private/release:consumer/lib.rs",
         "@dx_tools//:shellcheck",
     ],
     env = {
+        "DX_CONSUMER_LIB": "$(rootpath //deploy/private/release:consumer/lib.rs)",
+        "DX_CONSUMER_TEMPLATE": "$(rootpath //deploy/private/release:consumer/consumer.BUILD.bazel)",
         "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
         "DX_PYTHON": "$(rootpath :python_interpreter)",
         "DX_SHELLCHECK": "$(rootpath @dx_tools//:shellcheck)",

@@ -314,12 +314,36 @@ fi
 pins="$root/$DX_PINS"
 module="$root/MODULE.bazel"
 [ -f "$module" ] || via_bazel "no MODULE.bazel" "$@"
-if grep -Eq 'module_name *= *"rules_dx"' "$module"; then
+own=
+deps=0
+VERSION=
+while IFS= read -r line || [ -n "$line" ]; do
+  t=${line%"${line##*[![:space:]]}"}
+  case $t in
+    'bazel_dep(name = "rules_dx", version = "'*'")')
+      v=${t#'bazel_dep(name = "rules_dx", version = "'}
+      v=${v%'")'}
+      case $v in
+        *'"'*) ;;
+        *)
+          deps=$((deps + 1))
+          VERSION=$v
+          ;;
+      esac
+      ;;
+  esac
+  case $line in
+    *module_name*)
+      case $(printf %s "$line" | tr -d ' ') in
+        *'module_name="rules_dx"'*) own=1 ;;
+      esac
+      ;;
+  esac
+done < "$module"
+if [ -n "$own" ]; then
   via_bazel "MODULE.bazel is rules_dx itself" "$@"
 fi
-dep='^bazel_dep\(name = "rules_dx", version = "[^"]*"\)[[:space:]]*$'
-[ "$(grep -Ec "$dep" "$module" || true)" = 1 ] || via_bazel "MODULE.bazel needs exactly one plain rules_dx bazel_dep" "$@"
-VERSION=$(grep -E "$dep" "$module" | sed 's/^.*version = "\([^"]*\)".*$/\1/')
+[ "$deps" = 1 ] || via_bazel "MODULE.bazel needs exactly one plain rules_dx bazel_dep" "$@"
 case "$VERSION" in
   "" | .* | *[!0-9A-Za-z.+-]*) via_bazel "cannot read the rules_dx version in MODULE.bazel" "$@" ;;
 esac
@@ -732,7 +756,7 @@ mod tests {
         let msys = sh
             .find("\n    export MSYS2_ARG_CONV_EXCL\n")
             .expect("msys export");
-        let pin = sh.find("\nVERSION=$(grep").expect("pin check");
+        let pin = sh.find("\ndeps=0\n").expect("pin check");
         let handoff = sh.find("exec \"$here/tools/dx\"").expect("handoff");
         assert!(os < msys && msys < handoff && handoff < pin);
     }
@@ -1212,7 +1236,6 @@ mod tests {
                     &tools,
                     &[
                         "dirname", "tr", "mkdir", "cut", "chmod", "mv", "rm", "rmdir", "cp",
-                        "grep", "sed",
                     ],
                 )
                 .expect("link tools");
@@ -1602,6 +1625,8 @@ mod tests {
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3\", repo_name = \"dx\")\n",
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\n",
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3&x\")\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2\\\"3\")\n",
+                "  bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\n",
             ]
             .into_iter()
             .enumerate()
@@ -1611,6 +1636,15 @@ mod tests {
                 fx.assert_via_bazel(&["check", "//..."]);
                 assert_eq!(fx.downloads(), 0, "{text}");
             }
+        }
+
+        #[test]
+        fn a_module_dep_without_a_final_newline_runs_direct() {
+            let fx = Fixture::new("dx-launcher-modulenonl-", true, None);
+            fx.set_module("bazel_dep(name = \"rules_dx\", version = \"1.2.3\")");
+            let (code, out, err) = fx.run(&["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert!(fx.bazel_calls().is_empty());
         }
 
         #[test]

@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "COREUTILS_APPLETS", "applet_file_name", "coreutils_applet_probe")
+load(":defs.bzl", "COREUTILS_APPLETS", "applet_file_name", "coreutils_applet_probe", "coreutils_applets")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -12,6 +12,10 @@ exports_files([
 ])
 
 toolchain_type(name = "toolchain_type")
+
+coreutils_applets(
+    name = "applets",
+)
 
 coreutils_applet_probe(
     name = "applet_probe",

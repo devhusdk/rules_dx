@@ -136,8 +136,10 @@ rust_test(
     data = [
         ":dx_shim_bin",
         ":fake_dx",
+        "//core/coreutils:applets",
     ],
     env = {
+        "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
         "DX_FAKE_BIN": "$(rootpath :fake_dx)",
         "DX_SHIM_BIN": "$(rootpath :dx_shim_bin)",
     },
@@ -148,6 +150,7 @@ rust_test(
     ) + [
         ":dx_shim",
         "//cli/adopt:dx_adopt",
+        "//tools/testing:dx_testing",
     ],
 )
 

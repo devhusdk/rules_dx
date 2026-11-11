@@ -1,0 +1,9 @@
+load("@rules_dx//dockerfile:defs.bzl", "dockerfile_library")
+
+# dx: written once, yours to edit
+
+dockerfile_library(
+    name = "dockerfile",
+    srcs = ["Dockerfile"],
+    visibility = ["//visibility:public"],
+)

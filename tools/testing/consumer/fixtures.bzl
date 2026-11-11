@@ -11,6 +11,7 @@ CONSUMER_FIXTURES = [
     "cuda",
     "d",
     "dart",
+    "dockerfile",
     "elixir",
     "erlang",
     "flatbuffers",

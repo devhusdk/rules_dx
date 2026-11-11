@@ -35,6 +35,10 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude apple/tests/fixtures
 # gazelle:exclude cuda/private/gpu
 # gazelle:exclude cuda/tests/fixtures
+# gazelle:exclude ansible/tests/fixtures
+# gazelle:exclude cloudformation/tests/fixtures
+# gazelle:exclude rst/tests/fixtures
+# gazelle:exclude sql/tests/fixtures
 # gazelle:exclude haskell/tests/fixtures/bench/bench_src
 # gazelle:exclude haskell/private/coverage/src
 # gazelle:exclude haskell/tests/fixtures/stack/src

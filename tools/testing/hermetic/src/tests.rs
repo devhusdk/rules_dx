@@ -914,6 +914,7 @@ fn fixture_session() -> Session {
         isolation: Isolation::default(),
         probes: Vec::new(),
         bash: Some(PathBuf::from("/msys/bash.exe")),
+        applets: PathBuf::from("/q/applets"),
     }
 }
 
@@ -1125,7 +1126,7 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
             "/usr/bin/env",
             "-i",
             "HOME=/q/home",
-            format!("PATH={ACTION_PATH}").as_str(),
+            "PATH=/q/applets",
             "BAZELISK_HOME=/q/bazelisk",
             "XDG_CACHE_HOME=/q/cold_cache",
         ]
@@ -2022,13 +2023,13 @@ fn windows_leak_package_uses_powershell_and_keeps_the_markers() {
 #[test]
 fn action_path_is_system_only() {
     if cfg!(windows) {
-        let path = action_path(Some(r"D:\Win"), Some(Path::new(r"C:\q\shims")));
+        let path = action_path(Some(r"D:\Win"), Some(Path::new(r"C:\q\shims")), Path::new(""));
         assert_eq!(
             path,
             r"D:\Win\System32;D:\Win;D:\Win\System32\WindowsPowerShell\v1.0;C:\q\shims"
         );
     } else {
-        assert_eq!(action_path(None, None), ACTION_PATH);
+        assert_eq!(action_path(None, None, Path::new("/q/applets")), "/q/applets");
     }
     assert_eq!(SHIM_NAME.ends_with(".cmd"), cfg!(windows));
 }

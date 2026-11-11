@@ -404,7 +404,7 @@ tools/testing/hermetic/consumers/rust_wasi/custom_runtime.sh shebang 1
 tools/testing/hermetic/consumers/zig/apps/catalog.BUILD.bazel genrule 1
 tools/testing/hermetic/isolation_test.rs host-path 1
 tools/testing/hermetic/src/lib.rs genrule 2
-tools/testing/hermetic/src/lib.rs host-path 13
+tools/testing/hermetic/src/lib.rs host-path 12
 tools/testing/hermetic/src/lib.rs shebang 2
 tools/testing/hermetic/src/tests.rs host-path 10
 tools/testing/hermetic/src/tests.rs shebang 2

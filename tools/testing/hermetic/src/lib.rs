@@ -169,8 +169,6 @@ pub const HOME_CONFIG: &[&str] = &[
     ".rustup",
 ];
 
-pub const ACTION_PATH: &str = "/usr/bin:/bin";
-
 #[cfg(unix)]
 pub const SHIM: &str = "#!/bin/sh\necho \"dx-hermetic: undeclared ambient tool $0\" >&2\nexit 97\n";
 
@@ -185,11 +183,15 @@ pub const SHIM_NAME: &str = if cfg!(windows) {
     "ambient-tool"
 };
 
-/// The PATH of every action: system directories only, plus the shim directory on Windows.
+/// The PATH of every action: the pinned coreutils applet directory on Unix, system directories only plus the shim directory on Windows.
 /// Bazel starts `cmd_ps` genrules as a bare `powershell.exe`, so its directory is listed too.
-pub fn action_path(system_root: Option<&str>, shim_dir: Option<&Path>) -> String {
+pub fn action_path(
+    system_root: Option<&str>,
+    shim_dir: Option<&Path>,
+    applets: &Path,
+) -> String {
     if !cfg!(windows) {
-        return ACTION_PATH.to_owned();
+        return applets.display().to_string();
     }
     let root = system_root.unwrap_or(r"C:\Windows");
     let mut dirs = vec![
@@ -1216,6 +1218,8 @@ pub struct Session {
     pub probes: Vec<Value>,
     /// The MSYS bash the Windows Bazel runs genrules with.
     pub bash: Option<PathBuf>,
+    /// The absolute pinned coreutils applet directory; empty on Windows.
+    pub applets: PathBuf,
 }
 
 impl Session {
@@ -1236,6 +1240,7 @@ impl Session {
         action_path(
             std::env::var("SystemRoot").ok().as_deref(),
             Some(&self.root.join("bin").join("shims")),
+            &self.applets,
         )
     }
 
@@ -1327,7 +1332,7 @@ impl Session {
             "/usr/bin/env".to_owned(),
             "-i".to_owned(),
             format!("HOME={}", probe.home.display()),
-            format!("PATH={ACTION_PATH}"),
+            format!("PATH={}", self.applets.display()),
             format!("BAZELISK_HOME={}", self.bazelisk_home.display()),
             format!("XDG_CACHE_HOME={}", cache_home(probe.output_root).display()),
             "/bin/sh".to_owned(),
@@ -1435,7 +1440,7 @@ impl Session {
             "/usr/bin/env".to_owned(),
             "-i".to_owned(),
             format!("HOME={}", home.display()),
-            format!("PATH={}:{ACTION_PATH}", bin.display()),
+            format!("PATH={}:{}", bin.display(), self.applets.display()),
             format!("BAZELISK_HOME={}", self.bazelisk_home.display()),
             format!("XDG_CACHE_HOME={}", cache_home(output_root).display()),
             "/bin/sh".to_owned(),
@@ -2650,7 +2655,18 @@ fn run_all(
     if cfg!(windows) {
         write(&shim_dir.join(format!("{ambient}.cmd")), SHIM)?;
     }
-    let path = action_path(std::env::var("SystemRoot").ok().as_deref(), Some(&shim_dir));
+    let applets = if cfg!(windows) {
+        PathBuf::new()
+    } else {
+        let files = dx_testing::env_files("DX_COREUTILS");
+        let dir = files.first().and_then(|file| file.parent()).ok_or("DX_COREUTILS is empty")?;
+        std::path::absolute(dir).map_err(|error| format!("applet directory: {error}"))?
+    };
+    let path = action_path(
+        std::env::var("SystemRoot").ok().as_deref(),
+        Some(&shim_dir),
+        &applets,
+    );
     let bash = if cfg!(windows) {
         let drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_owned());
         let program_files =
@@ -2725,6 +2741,7 @@ fn run_all(
         isolation,
         probes: Vec::new(),
         bash,
+        applets,
     });
     let clean_home = root.join("home");
     let planted_home = root.join("home-planted");

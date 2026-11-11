@@ -1,6 +1,5 @@
-# gazelle:ignore
-load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_test")
 
 APPS = ["//lua/tests/fixtures/lua-app:__subpackages__"]
 
@@ -15,6 +14,7 @@ exports_files(
 
 lua_binary(
     name = "units",
+    testonly = True,
     data = ["//lua/tests/fixtures/lua-app/catalog:units"],
     env = {"UNITS": "$(rlocationpath //lua/tests/fixtures/lua-app/catalog:units)"},
     main = "main.lua",
@@ -26,6 +26,9 @@ lua_binary(
 
 lua_test(
     name = "exit_codes_test",
+    size = "small",
+    testonly = True,
+    srcs = ["exit_codes_test.lua"],
     args = ["$(rlocationpath :units)"],
     data = [":units"],
     env = {"UNITS": "_main/lua/tests/fixtures/lua-app/catalog/units.tsv"},
@@ -34,6 +37,8 @@ lua_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],    visibility = ["//:__pkg__"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
 )

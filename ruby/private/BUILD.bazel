@@ -1,9 +1,13 @@
-# gazelle:ignore
+load("@rules_dx//ruby:defs.bzl", "ruby_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 # gazelle:dx_ignore_import ruby benchmark/ips
 
-package(default_visibility = ["//ruby:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//ruby:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "bench_main.rb",
@@ -16,6 +20,12 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "sorbet.BUILD.bazel",
     ],
     tags = ["corpus"],
+)
+
+ruby_library(
+    name = "private",
+    srcs = ["bench_main.rb"],
 )

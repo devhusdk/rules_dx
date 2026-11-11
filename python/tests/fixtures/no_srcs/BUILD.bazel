@@ -1,7 +1,6 @@
-# gazelle:ignore
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//python:defs.bzl", "python_library")
-load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(
     default_testonly = True,
@@ -10,10 +9,12 @@ package(
 
 python_library(
     name = "impl",
+    testonly = True,
     srcs = ["impl.py"],
     imports = ["."],
 )
 
+# keep
 python_library(
     name = "api",
     deps = [":impl"],

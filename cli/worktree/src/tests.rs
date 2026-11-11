@@ -1462,6 +1462,28 @@ fn bazel_links_do_not_make_a_slot_dirty_and_survive_reuse() {
     assert!(!second.path.join("junk.txt").exists(), "junk cleaned");
 }
 
+#[cfg(unix)]
+#[test]
+fn reuse_cleans_read_only_untracked_trees() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    ops::release(&pool, &host, &me, &first.path, false).expect("release");
+    let locked = first.path.join("scratch_d").join("o3");
+    std::fs::create_dir_all(&locked).expect("scratch");
+    std::fs::write(locked.join("out.txt"), "x").expect("output");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o555)).expect("read-only");
+    let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("reuse");
+    assert_eq!(second.slot, first.slot);
+    assert!(
+        !second.path.join("scratch_d").exists(),
+        "read-only tree cleaned"
+    );
+}
+
 #[test]
 fn an_untracked_bazel_named_file_makes_a_slot_dirty() {
     let fixture = Fixture::new();

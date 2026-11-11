@@ -866,6 +866,22 @@ pub(crate) fn lease_locked(
     })
 }
 
+/// Removes untracked and ignored files from a slot, including read-only trees.
+fn clean_slot(path: &Path) -> Result<(), WorktreeError> {
+    const CLEAN: [&str; 4] = ["clean", "-ffdxq", "-e", "/bazel-*"];
+    if git::run(path, &CLEAN).is_ok() {
+        return Ok(());
+    }
+    let listing = git::run(path, &["ls-files", "-z", "--others", "--directory"])?;
+    for entry in listing.split('\0').filter(|entry| !entry.is_empty()) {
+        if !entry.starts_with("bazel-") {
+            dx_process::make_writable(&path.join(entry.trim_end_matches('/')));
+        }
+    }
+    git::run(path, &CLEAN)?;
+    Ok(())
+}
+
 /// Refuses a lease on a full disk, first dropping the output bases of `reuse`, the free slot being reused, as a last resort.
 fn make_room(
     pool: &Pool,
@@ -950,7 +966,7 @@ fn switch_slot(
             ],
         );
         git::run(&path, &["reset", "--hard", "--quiet"])?;
-        git::run(&path, &["clean", "-ffdxq", "-e", "/bazel-*"])?;
+        clean_slot(&path)?;
     }
     match start {
         Start::Create(base) => git::run(

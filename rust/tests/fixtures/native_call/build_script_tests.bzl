@@ -426,18 +426,19 @@ def _static_archive_link_impl(ctx):
 
 _static_archive_link_test = analysistest.make(_static_archive_link_impl)
 
-def rust_static_archive_link_test(name, target):
+def rust_static_archive_link_test(name, target, **kwargs):
     """Asserts the Rust link step links the native static archive by path, not by name, on Linux.
 
     Args:
         name: Name of the test.
         target: A rust_test or rust_binary that links native_c_upstream.
+        **kwargs: Forwarded to the test.
     """
     _static_archive_link_test(
         name = name,
-        size = "small",
         target_compatible_with = ["@platforms//os:linux"],
         target_under_test = target,
+        **kwargs
     )
 
 def rust_link_compiler_tests(name, target):

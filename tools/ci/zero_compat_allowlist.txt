@@ -74,8 +74,8 @@ core/quality/runner/src/real_tools.rs compat-word 1
 core/quality/testdata/fake_format_main.rs compat-word 2
 core/quality/tools/asciidoctor/BUILD.bazel alias 1
 cuda/tests/cell_tests.bzl compat-word 10
-d/private/toolchain/metadata_tests.bzl compat-word 2
 d/private/toolchain/pins.bzl compat-word 1
+d/tests/toolchain_tests.bzl compat-word 2
 dart/private/providers.bzl reexport 1
 dart/private/pub.bzl reexport 1
 deploy/private/BUILD.bazel compat-word 14
@@ -139,8 +139,8 @@ powershell/BUILD.bazel alias 2
 powershell/private/quality/BUILD.bazel alias 1
 qt/BUILD.bazel alias 1
 qt/private/sdk/linux_arm64.bzl compat-word 3
-qt/tests/toolchain_tests.bzl compat-word 1
 qt/tests/qt_test.rs compat-word 1
+qt/tests/toolchain_tests.bzl compat-word 1
 rust/private/edition.bzl reexport 1
 rust/private/quality/rust_tools.bzl compat-word 1
 rust/private/quality/tools/BUILD.bazel alias 2

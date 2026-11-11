@@ -254,11 +254,13 @@ rust_link_compiler_tests(
 
 rust_static_archive_link_test(
     name = "native_call_bin_static_archive_link_test",
+    size = "small",
     target = ":native_call_bin_upstream",
 )
 
 rust_static_archive_link_test(
     name = "native_call_test_static_archive_link_test",
+    size = "small",
     target = ":native_call_test_upstream",
 )
 

@@ -1,0 +1,56 @@
+# gazelle:ignore
+load("//dart:defs.bzl", "DART_COMPATIBLE_WITH", "dart_binary", "dart_library", "dart_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+dart_library(
+    name = "conformance",
+    package_name = "conformance",
+    srcs = ["lib/greet.dart"],
+    target_compatible_with = DART_COMPATIBLE_WITH,
+)
+
+dart_binary(
+    name = "hello",
+    main = "main.dart",
+    target_compatible_with = DART_COMPATIBLE_WITH,
+    deps = [":conformance"],
+)
+
+dart_test(
+    name = "pass_subject_test",
+    size = "small",
+    main = "pass_test.dart",
+    target_compatible_with = subject_compatible_with() + DART_COMPATIBLE_WITH,
+    deps = [
+        ":conformance",
+        "@dx_dart_deps//:test",
+    ],
+)
+
+dart_test(
+    name = "fail_subject_test",
+    size = "small",
+    main = "fail_test.dart",
+    target_compatible_with = subject_compatible_with() + DART_COMPATIBLE_WITH,
+    deps = [
+        ":conformance",
+        "@dx_dart_deps//:test",
+    ],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "greet.dart",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "dart",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

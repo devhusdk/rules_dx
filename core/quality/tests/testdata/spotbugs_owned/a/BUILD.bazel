@@ -4,5 +4,5 @@ java_library(
     name = "lib",
     srcs = ["Shape.java"],
     tags = ["manual"],
-    visibility = ["//core/quality/testdata/spotbugs_owned:__pkg__"],
+    visibility = ["//core/quality/tests/testdata/spotbugs_owned:__pkg__"],
 )

@@ -34,8 +34,8 @@ java_library(
     srcs = ["Collide.java"],
     tags = ["manual"],
     deps = [
-        "//core/quality/testdata/spotbugs_owned/a:lib",
-        "//core/quality/testdata/spotbugs_owned/b:lib",
+        "//core/quality/tests/testdata/spotbugs_owned/a:lib",
+        "//core/quality/tests/testdata/spotbugs_owned/b:lib",
     ],
 )
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-dir=core/quality/testdata/scalafix_aux
+dir=core/quality/tests/testdata/scalafix_aux
 check() {
   result="$dir/$1-real-lint-scala.pb"
   grep -aq "$dir/$2" "$result" || { echo "$1: $2 result missing"; exit 1; }

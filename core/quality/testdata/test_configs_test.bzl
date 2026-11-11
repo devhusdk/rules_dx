@@ -2,8 +2,8 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("//core/quality:consumer_policy_tests.bzl", "CONSUMER_POLICY_CONFIGS")
-load("//core/quality/testdata/scalafix_aux:results.bzl", "SCALAFIX_CONFIG")
-load("//core/quality/testdata/spotbugs_owned:results.bzl", "SPOTBUGS_CONFIG")
+load("//core/quality/tests/testdata/scalafix_aux:results.bzl", "SCALAFIX_CONFIG")
+load("//core/quality/tests/testdata/spotbugs_owned:results.bzl", "SPOTBUGS_CONFIG")
 load(":real_result_cases.bzl", "REAL_RESULT_CASES")
 load(":test_configs.bzl", "MAX_TEST_CONFIGS", "TEST_CONFIGS", "TEST_CONFIG_SETTINGS")
 load(":tool_override_tests.bzl", "TOOL_OVERRIDE_CONFIGS")

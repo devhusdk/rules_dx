@@ -1,0 +1,39 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+load("//rust:defs.bzl", "rust_test")
+
+package(default_visibility = ["//visibility:private"])
+
+java_binary(
+    name = "scalac",
+    testonly = True,
+    main_class = "scala.tools.nsc.Main",
+    runtime_deps = ["@rules_scala//scala/private/toolchain_deps:scala_compile_classpath"],
+)
+
+rust_test(
+    name = "compile_test",
+    srcs = ["//tools/testing:gazelle_compile_test.rs"],
+    data = [
+        "//gazelle/scala:testdata/compile_external/WORKSPACE",
+        ":scalac",
+        "//gazelle/scala:generation_testdata",
+        "@dx_gazelle//:gazelle",
+        "@maven//:org_scala_lang_modules_scala_xml_2_13",
+        "@maven//:org_scalactic_scalactic_2_13",
+    ],
+    env = {
+        "DX_CLASSPATH": "",
+        "DX_COMPILER": "$(rootpath :scalac)",
+        "DX_DEPS": " ".join([
+            "@maven//:org_scala_lang_modules_scala_xml_2_13=$(rootpath @maven//:org_scala_lang_modules_scala_xml_2_13)",
+            "@maven//:org_scalactic_scalactic_2_13=$(rootpath @maven//:org_scalactic_scalactic_2_13)",
+        ]),
+        "DX_EXTENSION": "scala",
+        "DX_FIXTURE": "$(rootpath //gazelle/scala:testdata/compile_external/WORKSPACE)",
+        "DX_GAZELLE": "$(rootpath @dx_gazelle//:gazelle)",
+        "DX_LANGUAGE": "scala",
+        "DX_UNRESOLVED_HINT": "add a local library, a Maven lock artifact, or a # gazelle:resolve mapping on the qualified import or its package",
+    },
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
+)

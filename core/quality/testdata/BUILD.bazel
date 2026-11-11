@@ -3,7 +3,6 @@ load("@rules_rust//rust:defs.bzl", upstream_rust_binary = "rust_binary", upstrea
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc:defs.bzl", dx_cc_library = "cc_library")
-load("//dart:defs.bzl", "dart_config")
 load("//java:defs.bzl", "java_library")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -71,12 +70,6 @@ exports_files(
         "biome_profiles/standard/biome.json",
         "biome_profiles/strict/biome.json",
         "buildifier_cfg/.buildifier.json",
-        "dart_cfg/analysis_options.yaml",
-        "dart_cfg/bad_analysis_options.yaml",
-        "dart_cfg/lints/lib/recommended.yaml",
-        "dart_cfg/lints_options.yaml",
-        "dart_cfg/lints_package_config.json",
-        "dart_cfg/package_config.json",
         "runner_matrix_tests.bzl",
         "ruff.toml",
         "stylelint_cfg/standard.stylelintrc.json",
@@ -1401,12 +1394,6 @@ dart_subject(
     tags = ["manual"],
     testonly = True,
     target = "//dart/tests/runtime:greet",
-)
-
-dart_config(
-    name = "dart_lints_config",
-    src = "dart_cfg/lints_options.yaml",
-    deps = ["@dx_dart_deps//:lints"],
 )
 
 julia_subject(

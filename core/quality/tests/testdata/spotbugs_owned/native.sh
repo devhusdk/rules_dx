@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 spotbugs=core/quality/tools/jvm/spotbugs
-app=$(ls core/quality/testdata/spotbugs_owned/*app*.jar | grep -v -e '-hjar' -e header | head -n1)
-dep=$(ls core/quality/testdata/spotbugs_owned/*dep*.jar | grep -v -e '-hjar' -e header | head -n1)
+app=$(ls core/quality/tests/testdata/spotbugs_owned/*app*.jar | grep -v -e '-hjar' -e header | head -n1)
+dep=$(ls core/quality/tests/testdata/spotbugs_owned/*dep*.jar | grep -v -e '-hjar' -e header | head -n1)
 out=$(mktemp -d)
 sep=:
 case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) sep=';' ;; esac

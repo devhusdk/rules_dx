@@ -181,8 +181,8 @@ core/quality/testdata/coverage_sources/BUILD.bazel no-size 7
 core/quality/testdata/real_aspect_tests.bzl no-size 4
 core/quality/testdata/real_result_cases.bzl no-size 1
 core/quality/testdata/real_typecheck_tests.bzl no-size 1
-core/quality/testdata/scalafix_aux/BUILD.bazel no-size 2
-core/quality/testdata/spotbugs_owned/BUILD.bazel no-size 4
+core/quality/tests/testdata/scalafix_aux/BUILD.bazel no-size 2
+core/quality/tests/testdata/spotbugs_owned/BUILD.bazel no-size 4
 core/quality/testdata/upstream_ownership.bzl no-size 1
 core/quality/tests/BUILD.bazel no-size 3
 core/quality/tests/fixtures/prose-docs/BUILD.bazel no-size 1

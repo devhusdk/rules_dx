@@ -16,6 +16,15 @@ exports_files([
     "kwargs.bzl",
 ])
 
+exports_files(
+    [
+        "afl-persistent.BUILD.bazel",
+        "cmdliner.BUILD.bazel",
+        "crowbar.BUILD.bazel",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     extra_checks = [
@@ -321,6 +330,9 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "afl-persistent.BUILD.bazel",
+        "cmdliner.BUILD.bazel",
+        "crowbar.BUILD.bazel",
         "defs.bzl",
         "dune.bzl",
         "kwargs.bzl",

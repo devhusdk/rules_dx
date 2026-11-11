@@ -50,7 +50,7 @@ swift_fuzz_test(
 ```
 
 `swift_bench` builds a `swift_binary` that times a loop with `dxBench` from
-`//swift/bench` and writes `dx-bench.json` for `dx bench`. It needs no
+`//swift/private/bench` and writes `dx-bench.json` for `dx bench`. It needs no
 package-benchmark download. The sources need a `main.swift` for top-level code.
 
 ```python

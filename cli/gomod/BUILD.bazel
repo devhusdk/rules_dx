@@ -33,7 +33,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_gomod",
         normal = True,
-    ),
+    ) + ["//cli/families:dx_families"],
 )
 
 rust_test(
@@ -55,7 +55,7 @@ rust_test(
         package_name = "cli/dx_gomod",
         normal = True,
         normal_dev = True,
-    ),
+    ) + ["//cli/families:dx_families"],
 )
 
 exports_files(

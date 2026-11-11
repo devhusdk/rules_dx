@@ -20,7 +20,7 @@ pub(super) fn plan(
         }
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: GO_WHOLE_GRAPH,
+            reason: go_whole_graph(),
         }),
     }
 }
@@ -37,7 +37,7 @@ pub(super) fn check(
         Selection::Full => Ok(CheckPlan::Staged(go_staged(set, head, offline)?)),
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: GO_WHOLE_GRAPH,
+            reason: go_whole_graph(),
         }),
     }
 }

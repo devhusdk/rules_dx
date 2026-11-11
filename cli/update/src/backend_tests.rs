@@ -2459,7 +2459,7 @@ fn configured_go_requires_network_and_refuses_packages() {
     let packages = Selection::Packages(vec!["github.com/google/go-cmp".to_owned()]);
     let want = BackendError::Unsupported {
         set: "gomods".to_owned(),
-        reason: GO_WHOLE_GRAPH,
+        reason: go_whole_graph(),
     };
     assert_eq!(
         plan_configured(ws(), &set, &packages, false, false, &head, &closure),

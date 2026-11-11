@@ -1,20 +1,16 @@
 load("@rules_dx//swift:defs.bzl", "swift_library", "swift_test")
 
+# dx: written once, yours to edit
+
 swift_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["Greet.swift"],
-    module_name = "Greet",
+    module_name = "my_project",
     visibility = ["//visibility:public"],
 )
 
 swift_test(
-    name = "consumer_test",
-    size = "small",
+    name = "greet_tests",
     srcs = ["GreetTests.swift"],
-    target_compatible_with = select({
-        "@platforms//os:linux": [],
-        "@platforms//os:macos": [],
-        "//conditions:default": ["@platforms//:incompatible"],
-    }),
-    deps = [":consumer"],
+    deps = [":my_project"],
 )

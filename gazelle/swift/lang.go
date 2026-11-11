@@ -52,7 +52,7 @@ func (l *swiftLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []reso
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
-	return common.GenerateSingleDir(args, kinds, common.SingleDirSpec{
+	res := common.GenerateSingleDir(args, kinds, common.SingleDirSpec{
 		LanguageName: languageName,
 		LibraryKind:  LibraryKind,
 		IsSource: func(file string) bool {
@@ -71,6 +71,12 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 			Name:     func(src string) (string, error) { return common.SnakeName(src, SupportedExts) },
 		},
 	}, rep)
+	for _, r := range res.Gen {
+		if r.Kind() == LibraryKind && r.AttrString("module_name") == "" {
+			r.SetAttr("module_name", ModuleName(r.Name()))
+		}
+	}
+	return res
 }
 
 func init() { common.RegisterLanguage(NewLanguage) }

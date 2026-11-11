@@ -16,3 +16,10 @@ func IsTestSource(name string) bool {
 }
 
 func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir) }
+
+func ModuleName(target string) string {
+	if target != "" && target[0] >= '0' && target[0] <= '9' {
+		return "_" + target
+	}
+	return target
+}

@@ -254,5 +254,21 @@ TEST(StatusName, NamesEveryStatus) {
   EXPECT_STREQ(StatusName(Status::kUnsupported), "unsupported");
 }
 
+TEST(CallError, NamesTheCall) {
+  EXPECT_EQ(CallError("cudaGetDeviceCount", "cudaErrorNoDevice", 100),
+            "cudaGetDeviceCount: cudaErrorNoDevice");
+}
+
+TEST(CallError, FallsBackToTheCodeForANullName) {
+  EXPECT_EQ(CallError("cudaGetDeviceCount", nullptr, 35),
+            "cudaGetDeviceCount: cudaError 35");
+  EXPECT_EQ(CallError(nullptr, nullptr, 35), ": cudaError 35");
+}
+
+TEST(CallError, FallsBackForAnEmptyName) {
+  EXPECT_EQ(CallError("cudaDriverGetVersion", "", 3),
+            "cudaDriverGetVersion: cudaError 3");
+}
+
 } // namespace
 } // namespace dx_gpu

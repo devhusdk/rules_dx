@@ -93,6 +93,15 @@ std::string CudaVersion(int encoded) {
          std::to_string((encoded % 1000) / 10);
 }
 
+std::string CallError(const char *call, const char *name, int status) {
+  std::string out = call != nullptr ? call : "";
+  out += ": ";
+  if (name != nullptr && name[0] != '\0') {
+    return out + name;
+  }
+  return out + "cudaError " + std::to_string(status);
+}
+
 std::string DeclaredError(const Declared &declared) {
   int major = 0;
   int minor = 0;

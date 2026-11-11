@@ -198,8 +198,7 @@ TOOL_BUILDS = {
     "dx_d_libdparse": _LIBDPARSE_BUILD,
 }
 
-# Source roots of each tool repository. The D sources they hold are the corpus
-# gazelle/d parses to catch grammar regressions.
+# Source roots of each tool repository, parsed by gazelle/d as its corpus.
 TOOL_SRC_ROOTS = {
     "dx_d_containers": ["src"],
     "dx_d_dcd": ["dsymbol/src"],

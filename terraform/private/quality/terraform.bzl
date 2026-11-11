@@ -50,8 +50,7 @@ def _terraform_hook(target, ctx, resolved, capability, what, shared):
     if capability != "typecheck":
         return real_context()
 
-    # Local module sources of deps are staged next to the owned files; the providers
-    # are offline mirrors whose roots reach the runner as -plugin-dir values.
+    # Providers are offline mirrors passed as -plugin-dir values.
     pairs = default_files_hook(["tf", "json", "hcl"])(target, ctx, resolved, capability, what, shared).resolve_pairs
     mirror_roots = {}
     provider_files = []

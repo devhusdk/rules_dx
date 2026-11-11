@@ -69,6 +69,9 @@ func TakeAncestorOwned() []AncestorOwnedNotice {
 	out := ancestorNotices
 	ancestorNotices = nil
 	ancestorMu.Unlock()
+	if out == nil {
+		out = []AncestorOwnedNotice{}
+	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Package != out[j].Package {
 			return out[i].Package < out[j].Package

@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use dx_adopt::dependency_sets::Ecosystem;
 use dx_module_bazel::{Call, ModuleFile, Value};
 
 use super::rule_graph::apparent_repo_matches;
@@ -33,12 +34,12 @@ pub(crate) struct Hub {
     pub(crate) pip: bool,
     /// A `maven.install` hub; `cargo_lockfile` then holds `lock_file`.
     pub(crate) maven: bool,
-    /// A `go_deps.from_file` hub: `cargo_lockfile` is its go.mod, `lockfile` its go.sum.
+    /// A `go_deps.from_file` hub: `cargo_lockfile` is its go manifest, `lockfile` its go lock.
     pub(crate) go: bool,
     /// The `pnpm_lock` of an `npm.npm_translate_lock` hub, which has no Cargo
     /// lock (`cargo_lockfile` is empty).
     pub(crate) pnpm_lockfile: Option<String>,
-    /// A `ruby.bundle_fetch` repo; `cargo_lockfile` then holds its Gemfile.lock.
+    /// A `ruby.bundle_fetch` repo; `cargo_lockfile` then holds its ruby lock.
     pub(crate) gems: bool,
 }
 
@@ -49,11 +50,11 @@ pub(crate) enum LockKind {
     CrateBazelLock(Vec<String>),
     Pip(Vec<String>),
     Maven(Vec<String>),
-    /// A go.mod or go.sum named by `go_deps.from_file`.
+    /// A go manifest or go lock named by `go_deps.from_file`.
     Go(Vec<String>),
     Pnpm(Vec<String>),
-    /// A Gemfile.lock named by `ruby.bundle_fetch`.
-    Gemfile(Vec<String>),
+    /// A ruby lock named by `ruby.bundle_fetch`.
+    Ruby(Vec<String>),
     Unknown,
 }
 
@@ -66,7 +67,7 @@ impl LockKind {
             | LockKind::Maven(hubs)
             | LockKind::Go(hubs)
             | LockKind::Pnpm(hubs)
-            | LockKind::Gemfile(hubs) => hubs,
+            | LockKind::Ruby(hubs) => hubs,
             LockKind::Unknown => &[],
         }
     }
@@ -100,7 +101,7 @@ impl LockKind {
             LockKind::CrateBazelLock(_) => changed_crates_from_bazel_lock(base, head),
             LockKind::Go(_) => Err(dx_error::DxError::failure("use changed_go".to_owned())),
             LockKind::Pnpm(_) => changed_npm_packages(base, head),
-            LockKind::Gemfile(_) => changed_gems(base, head),
+            LockKind::Ruby(_) => changed_gems(base, head),
             LockKind::Unknown => Err(dx_error::DxError::failure("unknown lock format".to_owned())),
         }
     }
@@ -283,7 +284,7 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxErro
     Ok(hubs)
 }
 
-/// `go_deps.from_file` calls with a literal go.mod label; anything computed is
+/// `go_deps.from_file` calls with a literal go manifest label; anything computed is
 /// skipped, which leaves its files as workspace inputs.
 fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
     let mut bindings: BTreeSet<&str> = BTreeSet::new();
@@ -295,9 +296,7 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
             Some("go") => bzl.is_some_and(|bzl| bzl.ends_with("//go:extensions.bzl")),
             _ => false,
         };
-        if hub_extension
-            && let Some(binding) = &call.binding
-        {
+        if hub_extension && let Some(binding) = &call.binding {
             bindings.insert(binding);
         }
     }
@@ -316,13 +315,14 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
         else {
             continue;
         };
-        let dir = go_mod.strip_suffix("go.mod").unwrap_or("");
-        if dir.len() + "go.mod".len() != go_mod.len() {
+        let manifest = Ecosystem::Go.manifest_name();
+        let dir = go_mod.strip_suffix(manifest).unwrap_or("");
+        if dir.len() + manifest.len() != go_mod.len() {
             continue;
         }
         hubs.push(Hub {
             name: "go_deps".to_owned(),
-            lockfile: Some(format!("{dir}go.sum")),
+            lockfile: Some(format!("{dir}{}", Ecosystem::Go.lockfiles()[0])),
             cargo_lockfile: go_mod,
             pip: false,
             maven: false,
@@ -344,14 +344,14 @@ pub(crate) fn go_repo_name(module: &str) -> String {
     names.join("_").replace(['-', '.'], "_")
 }
 
-/// The Gazelle repositories of the modules a go.mod or go.sum edit changes, or
+/// The Gazelle repositories of the modules a go manifest or go lock edit changes, or
 /// an error when the edit is more than requirement or checksum lines.
 pub(crate) fn changed_go(
     path: &str,
     base: &str,
     head: &str,
 ) -> Result<LockChange, dx_error::DxError> {
-    let sum = path.ends_with("go.sum");
+    let sum = path.ends_with(Ecosystem::Go.lockfiles()[0].as_str());
     let parse = |text: &str| {
         let mut modules: BTreeSet<(String, String)> = BTreeSet::new();
         let mut other: BTreeSet<String> = BTreeSet::new();
@@ -375,9 +375,10 @@ pub(crate) fn changed_go(
     let (base_modules, base_other) = parse(base);
     let (head_modules, head_other) = parse(head);
     if base_other != head_other {
-        return Err(dx_error::DxError::failure(
-            "go.mod changed beyond its requirements".to_owned(),
-        ));
+        return Err(dx_error::DxError::failure(format!(
+            "{} changed beyond its requirements",
+            Ecosystem::Go.manifest_name()
+        )));
     }
     let go_repos = base_modules
         .symmetric_difference(&head_modules)
@@ -968,7 +969,7 @@ fn maven_artifacts(text: &str) -> Result<BTreeMap<String, String>, dx_error::DxE
 }
 
 /// Artifacts added, removed or changed (version or checksum) between two
-/// `maven_install.json` files, by underscore name.
+/// maven lock files, by underscore name.
 pub(crate) fn changed_maven_artifacts(
     base: &str,
     head: &str,
@@ -1020,7 +1021,7 @@ pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
         .map(|hub| hub.name.clone())
         .collect();
     if !gems.is_empty() {
-        return LockKind::Gemfile(gems);
+        return LockKind::Ruby(gems);
     }
     let maven: Vec<String> = hubs
         .iter()
@@ -1076,7 +1077,7 @@ pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
     LockKind::Unknown
 }
 
-/// The `ruby.bundle_fetch` repos with the Gemfile.lock each one reads.
+/// The `ruby.bundle_fetch` repos with the ruby lock each one reads.
 pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError> {
     let module = ModuleFile::parse(module_text)
         .map_err(|error| dx_error::DxError::failure(error.to_string()))?;
@@ -1141,7 +1142,7 @@ pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError>
     Ok(hubs)
 }
 
-/// The Gemfile.lock diff as crate-style name/version changes.
+/// The ruby lock diff as crate-style name/version changes.
 fn changed_gems(base: &str, head: &str) -> Result<LockChange, dx_error::DxError> {
     let gems = |text: &str| -> Result<BTreeSet<(String, String)>, dx_error::DxError> {
         Ok(dx_audit::locks::parse_gemfile_lock(text)?
@@ -1301,23 +1302,40 @@ pub(crate) fn npm_seeds<'a>(
 
 #[cfg(test)]
 mod tests {
+    use dx_adopt::dependency_sets::Ecosystem;
+
+    fn lock_of(ecosystem: Ecosystem) -> &'static str {
+        ecosystem.lockfiles()[0].as_str()
+    }
+
+    fn manifest_of(ecosystem: Ecosystem) -> &'static str {
+        ecosystem.manifest_name()
+    }
+
     use super::*;
 
-    const MODULE: &str = r#"
+    fn module() -> String {
+        format!(
+            r#"
 module(name = "demo")
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(
-    cargo_lockfile = "//:Cargo.lock",
+    cargo_lockfile = "//:{}",
     lockfile = "//:cargo-bazel-lock.json",
-    manifests = ["//:Cargo.toml"],
+    manifests = ["//:{}"],
 )
 crate.from_cargo(
     name = "tools",
-    cargo_lockfile = "//tools/rust:Cargo.lock",
+    cargo_lockfile = "//tools/rust:{}",
 )
 go = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
-"#;
+"#,
+            lock_of(Ecosystem::Cargo),
+            manifest_of(Ecosystem::Cargo),
+            lock_of(Ecosystem::Cargo)
+        )
+    }
 
     const REGISTRY: &str = "registry+https://github.com/rust-lang/crates.io-index";
 
@@ -1371,13 +1389,22 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
 
     #[test]
     fn gem_hubs_and_changed_gems() {
-        let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"bundle\", gemfile_lock = \"//third_party/ruby:Gemfile.lock\")\n";
+        let module = &format!(
+            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"bundle\", gemfile_lock = \"//third_party/ruby:{}\")\n",
+            lock_of(Ecosystem::Ruby)
+        );
         let hubs = gem_hubs(module).expect("hubs");
         assert_eq!(
-            classify("third_party/ruby/Gemfile.lock", &hubs),
-            LockKind::Gemfile(vec!["bundle".to_owned()])
+            classify(
+                &format!("third_party/ruby/{}", lock_of(Ecosystem::Ruby)),
+                &hubs
+            ),
+            LockKind::Ruby(vec!["bundle".to_owned()])
         );
-        assert_eq!(classify("Cargo.lock", &hubs), LockKind::Unknown);
+        assert_eq!(
+            classify(lock_of(Ecosystem::Cargo), &hubs),
+            LockKind::Unknown
+        );
         let lock = |rake: &str| {
             format!(
                 "GEM\n  remote: https://rubygems.org/\n  specs:\n    rake ({rake})\n    racc (1.8.1)\n\nPLATFORMS\n  ruby\n"
@@ -1395,13 +1422,13 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
 
     #[test]
     fn crate_hubs_read_literal_from_cargo_calls() {
-        let hubs = crate_hubs(MODULE).expect("hubs");
+        let hubs = crate_hubs(&module()).expect("hubs");
         assert_eq!(
             hubs,
             [
                 Hub {
                     name: "crates".to_owned(),
-                    cargo_lockfile: "Cargo.lock".to_owned(),
+                    cargo_lockfile: format!("{}", lock_of(Ecosystem::Cargo)),
                     lockfile: Some("cargo-bazel-lock.json".to_owned()),
                     pip: false,
                     maven: false,
@@ -1411,7 +1438,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                 },
                 Hub {
                     name: "tools".to_owned(),
-                    cargo_lockfile: "tools/rust/Cargo.lock".to_owned(),
+                    cargo_lockfile: format!("tools/rust/{}", lock_of(Ecosystem::Cargo)),
                     lockfile: None,
                     pip: false,
                     maven: false,
@@ -1422,46 +1449,81 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             ]
         );
         assert_eq!(crate_hubs("module(name = \"x\")\n"), Ok(Vec::new()));
-        let computed = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = NAME, cargo_lockfile = \"//:Cargo.lock\")\n";
+        let computed = &format!(
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = NAME, cargo_lockfile = \"//:{}\")\n",
+            lock_of(Ecosystem::Cargo)
+        );
         assert!(crate_hubs(computed).is_err());
-        let other_repo = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"@other//:Cargo.lock\")\n";
+        let other_repo = &format!(
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"@other//:{}\")\n",
+            lock_of(Ecosystem::Cargo)
+        );
         assert!(crate_hubs(other_repo).is_err());
         assert!(crate_hubs("crate.from_cargo(\n").is_err());
     }
 
     #[test]
     fn go_hub_extension_files_classify() {
-        let module = "go = use_extension(\"@rules_dx//go:extensions.bzl\", \"go\")\ngo.from_file(go_mod = \"//third_party/go:go.mod\")\n";
+        let module = &format!(
+            "go = use_extension(\"@rules_dx//go:extensions.bzl\", \"go\")\ngo.from_file(go_mod = \"//third_party/go:{}\")\n",
+            manifest_of(Ecosystem::Go)
+        );
         let hubs = crate_hubs(module).expect("hubs");
         let kind = LockKind::Go(vec!["go_deps".to_owned()]);
-        assert_eq!(classify("third_party/go/go.mod", &hubs), kind);
-        assert_eq!(classify("third_party/go/go.sum", &hubs), kind);
+        assert_eq!(
+            classify(
+                &format!("third_party/go/{}", manifest_of(Ecosystem::Go)),
+                &hubs
+            ),
+            kind
+        );
+        assert_eq!(
+            classify(&format!("third_party/go/{}", lock_of(Ecosystem::Go)), &hubs),
+            kind
+        );
     }
 
     #[test]
     fn go_deps_files_classify_and_diff_to_repos() {
-        let module = "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n";
+        let module = &format!(
+            "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:{}\")\n",
+            manifest_of(Ecosystem::Go)
+        );
         let hubs = crate_hubs(module).expect("hubs");
         let kind = LockKind::Go(vec!["go_deps".to_owned()]);
-        assert_eq!(classify("third_party/go/go.mod", &hubs), kind);
-        assert_eq!(classify("third_party/go/go.sum", &hubs), kind);
-        assert_eq!(classify("go.sum", &hubs), LockKind::Unknown);
+        assert_eq!(
+            classify(
+                &format!("third_party/go/{}", manifest_of(Ecosystem::Go)),
+                &hubs
+            ),
+            kind
+        );
+        assert_eq!(
+            classify(&format!("third_party/go/{}", lock_of(Ecosystem::Go)), &hubs),
+            kind
+        );
+        assert_eq!(classify(lock_of(Ecosystem::Go), &hubs), LockKind::Unknown);
         assert_eq!(
             go_repo_name("github.com/Foo-Bar/baz.v2"),
             "com_github_foo_bar_baz_v2"
         );
         let base = "module x\n\ngo 1.22\n\nrequire (\n\tgithub.com/a/b v1.0.0\n\tgolang.org/x/net v0.1.0 // indirect\n)\n";
         let head = base.replace("v1.0.0", "v1.1.0");
-        let change = changed_go("go.mod", base, &head).expect("go.mod");
+        let change =
+            changed_go(manifest_of(Ecosystem::Go), base, &head).expect(manifest_of(Ecosystem::Go));
         assert_eq!(
             change.go_repos,
             BTreeSet::from(["com_github_a_b".to_owned()])
         );
         let toolchain = base.replace("go 1.22", "go 1.23");
-        assert!(changed_go("go.mod", base, &toolchain).is_err());
-        let sum = "github.com/a/b v1.0.0 h1:x\ngithub.com/a/b v1.0.0/go.mod h1:y\ngolang.org/x/net v0.1.0 h1:z\n";
+        assert!(changed_go(manifest_of(Ecosystem::Go), base, &toolchain).is_err());
+        let sum = &format!(
+            "github.com/a/b v1.0.0 h1:x\ngithub.com/a/b v1.0.0/{} h1:y\ngolang.org/x/net v0.1.0 h1:z\n",
+            manifest_of(Ecosystem::Go)
+        );
         let sum_head = sum.replace("h1:x", "h1:w");
-        let change = changed_go("go.sum", sum, &sum_head).expect("go.sum");
+        let change =
+            changed_go(lock_of(Ecosystem::Go), sum, &sum_head).expect(lock_of(Ecosystem::Go));
         assert_eq!(
             change.go_repos,
             BTreeSet::from(["com_github_a_b".to_owned()])
@@ -1478,9 +1540,9 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
 
     #[test]
     fn classify_names_the_hubs_of_each_lock() {
-        let hubs = crate_hubs(MODULE).expect("hubs");
+        let hubs = crate_hubs(&module()).expect("hubs");
         assert_eq!(
-            classify("Cargo.lock", &hubs),
+            classify(lock_of(Ecosystem::Cargo), &hubs),
             LockKind::Cargo(vec!["crates".to_owned()])
         );
         assert_eq!(
@@ -1488,7 +1550,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             LockKind::CrateBazelLock(vec!["crates".to_owned()])
         );
         assert_eq!(
-            classify("tools/rust/Cargo.lock", &hubs),
+            classify(&format!("tools/rust/{}", lock_of(Ecosystem::Cargo)), &hubs),
             LockKind::Cargo(vec!["tools".to_owned()])
         );
         assert_eq!(classify("other.lock", &hubs), LockKind::Unknown);
@@ -1716,10 +1778,15 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         );
     }
 
-    const NPM_MODULE: &str = r#"
+    fn npm_module() -> String {
+        format!(
+            r#"
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
-npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:pnpm-lock.yaml")
-"#;
+npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:{}")
+"#,
+            lock_of(Ecosystem::Npm)
+        )
+    }
 
     fn pnpm_lock(packages: &[(&str, &str)], settings: &str) -> String {
         let mut out = format!("lockfileVersion: '9.0'\n\nsettings:\n  {settings}\n\npackages:\n");
@@ -1733,7 +1800,7 @@ npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:pnpm-lock.yaml")
 
     #[test]
     fn rules_dx_hub_extensions_are_read_like_the_upstream_ones() {
-        let upstream = format!("{MODULE}{NPM_MODULE}");
+        let upstream = format!("{}{}", module(), npm_module());
         let dx = upstream
             .replace(
                 "use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")",
@@ -1749,18 +1816,26 @@ npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:pnpm-lock.yaml")
         assert!(!hubs.is_empty());
         assert_eq!(hubs, crate_hubs(&upstream).expect("hubs"));
         assert!(is_crate_extension("//rust:extensions.bzl", "cargo"));
-        assert!(!is_crate_extension("@rules_rust//rust:extensions.bzl", "rust"));
+        assert!(!is_crate_extension(
+            "@rules_rust//rust:extensions.bzl",
+            "rust"
+        ));
     }
 
     #[test]
     fn npm_translate_lock_hubs_classify_pnpm_locks() {
-        let hubs = crate_hubs(NPM_MODULE).expect("hubs");
+        let hubs = crate_hubs(&npm_module()).expect("hubs");
         assert_eq!(
-            classify("web/pnpm-lock.yaml", &hubs),
+            classify(&format!("web/{}", lock_of(Ecosystem::Npm)), &hubs),
             LockKind::Pnpm(vec!["npm".to_owned()])
         );
-        assert_eq!(classify("pnpm-lock.yaml", &hubs), LockKind::Unknown);
-        assert!(crate_hubs(&NPM_MODULE.replace("\"//web:pnpm-lock.yaml\"", "LOCK")).is_err());
+        assert_eq!(classify(lock_of(Ecosystem::Npm), &hubs), LockKind::Unknown);
+        assert!(
+            crate_hubs(
+                &npm_module().replace(&format!("\"//web:{}\"", lock_of(Ecosystem::Npm)), "LOCK")
+            )
+            .is_err()
+        );
     }
 
     #[test]

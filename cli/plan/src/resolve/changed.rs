@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::lock_inputs::{self, Hub, LockChange, LockKind};
 use super::module_inputs;
 use super::{PackageCache, QueryRunner, ResolveError, RuleGraph};
+use dx_adopt::dependency_sets::Ecosystem;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WidenedScope {
@@ -446,16 +447,18 @@ fn is_lock_input(path: &str, hubs: &[Hub]) -> bool {
         || lock_inputs::classify(path, hubs) != LockKind::Unknown
 }
 
-const FALLBACK_INPUTS: &[&str] = &[
-    "pnpm-lock.yaml",
-    "package-lock.json",
-    "go.mod",
-    "go.sum",
-    "go.work",
-    "go.work.sum",
-    "maven_install.json",
-    "requirements_lock.txt",
-];
+fn fallback_inputs() -> [&'static str; 8] {
+    [
+        Ecosystem::Npm.lockfiles()[0].as_str(),
+        "package-lock.json",
+        Ecosystem::Go.manifest_name(),
+        Ecosystem::Go.lockfiles()[0].as_str(),
+        "go.work",
+        "go.work.sum",
+        Ecosystem::Maven.lockfiles()[0].as_str(),
+        "requirements_lock.txt",
+    ]
+}
 
 struct ModuleInputPaths {
     paths: BTreeSet<String>,
@@ -465,7 +468,7 @@ struct ModuleInputPaths {
 impl ModuleInputPaths {
     fn contains(&self, path: &str) -> bool {
         self.paths.contains(path)
-            || (self.fallback && FALLBACK_INPUTS.contains(&file_name_of(path)))
+            || (self.fallback && fallback_inputs().contains(&file_name_of(path)))
     }
 }
 
@@ -507,10 +510,13 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
             if is_crate_lock_input(&file.extension, &file.tag) {
                 continue;
             }
-            let sibling = match file_name_of(&file.path) {
-                "go.mod" => Some("go.sum"),
-                "go.work" => Some("go.work.sum"),
-                _ => None,
+            let name = file_name_of(&file.path);
+            let sibling = if name == Ecosystem::Go.manifest_name() {
+                Some(Ecosystem::Go.lockfiles()[0].as_str())
+            } else if name == "go.work" {
+                Some("go.work.sum")
+            } else {
+                None
             };
             if let Some(sibling) = sibling {
                 let dir = &file.path[..file.path.len() - file_name_of(&file.path).len()];
@@ -1198,6 +1204,16 @@ pub fn resolve_affected(
 
 #[cfg(test)]
 mod tests {
+    use dx_adopt::dependency_sets::Ecosystem;
+
+    fn lock_of(ecosystem: Ecosystem) -> &'static str {
+        ecosystem.lockfiles()[0].as_str()
+    }
+
+    fn manifest_of(ecosystem: Ecosystem) -> &'static str {
+        ecosystem.manifest_name()
+    }
+
     use super::*;
     use crate::resolve::{FakeQuery, NeverQuery, QueryFailure, QueryResult, resolve};
     use dx_test_scratch::write;
@@ -1536,7 +1552,7 @@ mod tests {
             "MODULE.bazel",
             "MODULE.bazel.lock",
             "deps/go.MODULE.bazel",
-            "Cargo.lock",
+            lock_of(Ecosystem::Cargo),
             ".bazelrc",
             ".bazelrc.user",
             ".bazeliskrc",
@@ -1693,19 +1709,28 @@ mod tests {
         write(
             workspace,
             "MODULE.bazel",
-            concat!(
-                "module(name = \"demo\")\n",
-                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n",
-                "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:pnpm-lock.yaml\")\n",
-                "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\n",
-                "go_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n",
-                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n",
-                "maven.install(lock_file = \"//third_party/jvm:maven_install.json\")\n",
-                "pip = use_extension(\"@rules_python//python/extensions:pip.bzl\", \"pip\")\n",
-                "pip.parse(hub_name = \"pypi\", requirements_lock = \"//:requirements_lock.txt\")\n",
-                "pip.parse(hub_name = \"pypi\", requirements_by_platform = {\"//py:requirements_linux.txt\": \"linux_*\"})\n",
-                "include(\"//deps:go.MODULE.bazel\")\n",
-            ),
+            &[
+                "module(name = \"demo\")\n".to_owned(),
+                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n".to_owned(),
+                format!(
+                    "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:{}\")\n",
+                    lock_of(Ecosystem::Npm)
+                ),
+                "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\n".to_owned(),
+                format!(
+                    "go_deps.from_file(go_mod = \"//third_party/go:{}\")\n",
+                    manifest_of(Ecosystem::Go)
+                ),
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n".to_owned(),
+                format!(
+                    "maven.install(lock_file = \"//third_party/jvm:{}\")\n",
+                    lock_of(Ecosystem::Maven)
+                ),
+                "pip = use_extension(\"@rules_python//python/extensions:pip.bzl\", \"pip\")\n".to_owned(),
+                "pip.parse(hub_name = \"pypi\", requirements_lock = \"//:requirements_lock.txt\")\n".to_owned(),
+                "pip.parse(hub_name = \"pypi\", requirements_by_platform = {\"//py:requirements_linux.txt\": \"linux_*\"})\n".to_owned(),
+                "include(\"//deps:go.MODULE.bazel\")\n".to_owned(),
+            ].concat(),
         );
         write(
             workspace,
@@ -1741,20 +1766,31 @@ mod tests {
         write(
             workspace,
             "MODULE.bazel",
-            "module(name = \"demo\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:Cargo.lock\", manifests = [\"//a:Cargo.toml\"])\n",
+            &format!(
+                "module(name = \"demo\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:{}\", manifests = [\"//a:{}\"])\n",
+                lock_of(Ecosystem::Cargo),
+                manifest_of(Ecosystem::Cargo)
+            ),
         );
-        write(workspace, "a/Cargo.toml", "[package]\n");
+        write(
+            workspace,
+            &format!("a/{}", manifest_of(Ecosystem::Cargo)),
+            "[package]\n",
+        );
         write(workspace, "b/package-lock.json", "{}\n");
         for (changed, owner) in [
-            ("a/Cargo.toml", "//a:lib"),
-            ("b/package-lock.json", "//b:lib"),
+            (format!("a/{}", manifest_of(Ecosystem::Cargo)), "//a:lib"),
+            ("b/package-lock.json".to_owned(), "//b:lib"),
         ] {
             let query = FakeQuery::new(vec![graph(&[
-                ("//a:lib", &["//a:Cargo.toml"]),
+                (
+                    "//a:lib",
+                    &[&format!("//a:{}", manifest_of(Ecosystem::Cargo))],
+                ),
                 ("//b:lib", &["//b:package-lock.json"]),
             ])]);
             let selection = resolve_affected(
-                &[change(changed, dx_adopt::ChangeKind::Modified)],
+                &[change(&changed, dx_adopt::ChangeKind::Modified)],
                 workspace,
                 &query,
                 &[],
@@ -1776,19 +1812,28 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-changed-fallback-inputs-");
         let workspace = scratch.path();
         write(workspace, "web/BUILD.bazel", "");
-        write(workspace, "web/pnpm-lock.yaml", "x\n");
-        widens_as_workspace_input(workspace, "web/pnpm-lock.yaml");
+        write(
+            workspace,
+            &format!("web/{}", lock_of(Ecosystem::Npm)),
+            "x\n",
+        );
+        widens_as_workspace_input(workspace, &format!("web/{}", lock_of(Ecosystem::Npm)));
         write(
             workspace,
             "MODULE.bazel",
             "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(pnpm_lock = LOCK)\n",
         );
-        widens_as_workspace_input(workspace, "web/pnpm-lock.yaml");
+        widens_as_workspace_input(workspace, &format!("web/{}", lock_of(Ecosystem::Npm)));
         write(workspace, "MODULE.bazel", "module(name = \n");
-        widens_as_workspace_input(workspace, "web/pnpm-lock.yaml");
+        widens_as_workspace_input(workspace, &format!("web/{}", lock_of(Ecosystem::Npm)));
     }
 
-    const CRATE_MODULE: &str = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    cargo_lockfile = \"//:Cargo.lock\",\n    lockfile = \"//:cargo-bazel-lock.json\",\n)\n";
+    fn crate_module() -> String {
+        format!(
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    cargo_lockfile = \"//:{}\",\n    lockfile = \"//:cargo-bazel-lock.json\",\n)\n",
+            lock_of(Ecosystem::Cargo)
+        )
+    }
 
     fn cargo_lock(serde: &str) -> String {
         format!(
@@ -1806,7 +1851,7 @@ mod tests {
             "include(\"//deps:rust.MODULE.bazel\")\n",
         );
         write(workspace, "deps/BUILD.bazel", "");
-        write(workspace, "deps/rust.MODULE.bazel", CRATE_MODULE);
+        write(workspace, "deps/rust.MODULE.bazel", &crate_module());
         let (hubs, _) = module_inputs_of(workspace);
         assert_ne!(
             lock_inputs::classify("cargo-bazel-lock.json", &hubs),
@@ -1827,7 +1872,10 @@ mod tests {
         write(
             workspace,
             "deps/rust.MODULE.bazel",
-            "crate.from_cargo(cargo_lockfile = \"//:Cargo.lock\", lockfile = \"//:cargo-bazel-lock.json\")\n",
+            &format!(
+                "crate.from_cargo(cargo_lockfile = \"//:{}\", lockfile = \"//:cargo-bazel-lock.json\")\n",
+                lock_of(Ecosystem::Cargo)
+            ),
         );
         let (hubs, _) = module_inputs_of(workspace);
         assert_eq!(
@@ -1839,10 +1887,10 @@ mod tests {
     fn crate_workspace(prefix: &str) -> tempfile::TempDir {
         let scratch = dx_test_scratch::scratch(prefix);
         let workspace = scratch.path();
-        write(workspace, "MODULE.bazel", CRATE_MODULE);
+        write(workspace, "MODULE.bazel", &crate_module());
         write(workspace, "a/BUILD.bazel", "");
         write(workspace, "b/BUILD.bazel", "");
-        write(workspace, "Cargo.lock", &cargo_lock("1.0.2"));
+        write(workspace, lock_of(Ecosystem::Cargo), &cargo_lock("1.0.2"));
         scratch
     }
 
@@ -1867,7 +1915,10 @@ mod tests {
         let workspace = scratch.path();
         let query = FakeQuery::new(vec![FakeQuery::ok(&cargo_lock("1.0.1")), crate_graph()]);
         let selection = resolve_affected(
-            &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
+            &[change(
+                lock_of(Ecosystem::Cargo),
+                dx_adopt::ChangeKind::Modified,
+            )],
             workspace,
             &query,
             &[],
@@ -1883,7 +1934,7 @@ mod tests {
             selection.widened,
             [WidenedScope {
                 scope: "rdeps(//..., @crates//:serde)".to_owned(),
-                reason: "changed crates in Cargo.lock".to_owned(),
+                reason: format!("changed crates in {}", lock_of(Ecosystem::Cargo)),
                 repos: strings(&["@crates//:serde"]),
             }]
         );
@@ -1891,7 +1942,14 @@ mod tests {
         assert_eq!(graph.affected(&selection.targets), ["//a:lib", "//a:t"]);
         let calls = query.calls();
         assert_eq!(calls.len(), 2);
-        assert_eq!(calls[0].0, strings(&["git", "show", "base:./Cargo.lock"]));
+        assert_eq!(
+            calls[0].0,
+            strings(&[
+                "git",
+                "show",
+                &format!("base:./{}", lock_of(Ecosystem::Cargo))
+            ])
+        );
     }
 
     struct Update {
@@ -2262,7 +2320,10 @@ mod tests {
             ]),
         ]);
         let selection = resolve_affected(
-            &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
+            &[change(
+                lock_of(Ecosystem::Cargo),
+                dx_adopt::ChangeKind::Modified,
+            )],
             workspace,
             &query,
             &[],
@@ -2275,12 +2336,15 @@ mod tests {
             [
                 WidenedScope {
                     scope: "//...".to_owned(),
-                    reason: "changed crates in Cargo.lock reach toolchain //tc:prost".to_owned(),
+                    reason: format!(
+                        "changed crates in {} reach toolchain //tc:prost",
+                        lock_of(Ecosystem::Cargo)
+                    ),
                     repos: Vec::new(),
                 },
                 WidenedScope {
                     scope: "rdeps(//..., @crates//:serde)".to_owned(),
-                    reason: "changed crates in Cargo.lock".to_owned(),
+                    reason: format!("changed crates in {}", lock_of(Ecosystem::Cargo)),
                     repos: strings(&["@crates//:serde"]),
                 },
             ]
@@ -2294,10 +2358,15 @@ mod tests {
         write(
             workspace,
             "MODULE.bazel",
-            concat!(
-                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n",
-                "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:pnpm-lock.yaml\")\n",
-            ),
+            &[
+                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n"
+                    .to_owned(),
+                format!(
+                    "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:{}\")\n",
+                    lock_of(Ecosystem::Npm)
+                ),
+            ]
+            .concat(),
         );
         write(workspace, "BUILD.bazel", "");
         let lock = |lodash: &str| {
@@ -2305,7 +2374,7 @@ mod tests {
                 "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.0.0:\n    resolution: {{integrity: sha512-a}}\n\n  lodash@{lodash}:\n    resolution: {{integrity: sha512-b}}\n"
             )
         };
-        write(workspace, "pnpm-lock.yaml", &lock("4.1.0"));
+        write(workspace, lock_of(Ecosystem::Npm), &lock("4.1.0"));
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&lock("4.0.0")),
             graph(&[
@@ -2314,7 +2383,10 @@ mod tests {
             ]),
         ]);
         let selection = resolve_affected(
-            &[change("pnpm-lock.yaml", dx_adopt::ChangeKind::Modified)],
+            &[change(
+                lock_of(Ecosystem::Npm),
+                dx_adopt::ChangeKind::Modified,
+            )],
             workspace,
             &query,
             &[],
@@ -2330,7 +2402,7 @@ mod tests {
             selection.widened,
             [WidenedScope {
                 scope: "rdeps(//..., @npm//lodash)".to_owned(),
-                reason: "changed crates in pnpm-lock.yaml".to_owned(),
+                reason: format!("changed crates in {}", lock_of(Ecosystem::Npm)),
                 repos: strings(&["@npm//lodash"]),
             }]
         );
@@ -2345,7 +2417,10 @@ mod tests {
             graph(&[("//b:lib", &["@@rules_rust++crate+crates//:itoa"])]),
         ]);
         let selection = resolve_affected(
-            &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
+            &[change(
+                lock_of(Ecosystem::Cargo),
+                dx_adopt::ChangeKind::Modified,
+            )],
             workspace,
             &query,
             &[],
@@ -2358,7 +2433,7 @@ mod tests {
             selection.widened,
             [WidenedScope {
                 scope: "rdeps(//..., @crates//:serde)".to_owned(),
-                reason: "changed crates in Cargo.lock".to_owned(),
+                reason: format!("changed crates in {}", lock_of(Ecosystem::Cargo)),
                 repos: strings(&["@crates//:serde"]),
             }]
         );
@@ -2427,23 +2502,31 @@ mod tests {
     fn added_deleted_or_unparsable_cargo_lock_widens() {
         let scratch = crate_workspace("dx-changed-added-lock-");
         let workspace = scratch.path();
-        let modified = [change("Cargo.lock", dx_adopt::ChangeKind::Modified)];
-        let added = FakeQuery::new(vec![FakeQuery::failed(
-            "fatal: path 'Cargo.lock' exists on disk, but not in 'base'\n",
-        )]);
+        let modified = [change(
+            lock_of(Ecosystem::Cargo),
+            dx_adopt::ChangeKind::Modified,
+        )];
+        let added = FakeQuery::new(vec![FakeQuery::failed(&format!(
+            "fatal: path '{}' exists on disk, but not in 'base'\n",
+            lock_of(Ecosystem::Cargo)
+        ))]);
         let selection =
             resolve_affected(&modified, workspace, &added, &[], &[], base()).expect("added widens");
         assert_eq!(selection.targets, strings(&["//..."]));
-        assert_eq!(selection.widened[0].reason, "workspace input Cargo.lock");
+        assert_eq!(
+            selection.widened[0].reason,
+            format!("workspace input {}", lock_of(Ecosystem::Cargo))
+        );
 
         let unparsable = FakeQuery::new(vec![FakeQuery::ok("not toml [[[")]);
         let selection = resolve_affected(&modified, workspace, &unparsable, &[], &[], base())
             .expect("unparsable widens");
         assert_eq!(selection.targets, strings(&["//..."]));
         assert!(
-            selection.widened[0]
-                .reason
-                .starts_with("cannot read Cargo.lock: invalid lock"),
+            selection.widened[0].reason.starts_with(&format!(
+                "cannot read {}: invalid lock",
+                lock_of(Ecosystem::Cargo)
+            )),
             "{:?}",
             selection.widened
         );
@@ -2453,16 +2536,25 @@ mod tests {
             resolve_affected(&modified, workspace, &broken, &[], &[], base()).expect("git widens");
         assert_eq!(
             selection.widened[0].reason,
-            "cannot read Cargo.lock: git show failed: fatal: bad object base"
+            format!(
+                "cannot read {}: git show failed: fatal: bad object base",
+                lock_of(Ecosystem::Cargo)
+            )
         );
 
         let selection = resolve_affected(&modified, workspace, &NeverQuery, &[], &[], None)
             .expect("no base widens");
-        assert_eq!(selection.widened[0].reason, "workspace input Cargo.lock");
+        assert_eq!(
+            selection.widened[0].reason,
+            format!("workspace input {}", lock_of(Ecosystem::Cargo))
+        );
 
-        std::fs::remove_file(workspace.join("Cargo.lock")).expect("remove");
+        std::fs::remove_file(workspace.join(lock_of(Ecosystem::Cargo))).expect("remove");
         let selection = resolve_affected(
-            &[change("Cargo.lock", dx_adopt::ChangeKind::Deleted)],
+            &[change(
+                lock_of(Ecosystem::Cargo),
+                dx_adopt::ChangeKind::Deleted,
+            )],
             workspace,
             &NeverQuery,
             &[],
@@ -2471,7 +2563,10 @@ mod tests {
         )
         .expect("deleted widens");
         assert_eq!(selection.targets, strings(&["//..."]));
-        assert_eq!(selection.widened[0].reason, "workspace input Cargo.lock");
+        assert_eq!(
+            selection.widened[0].reason,
+            format!("workspace input {}", lock_of(Ecosystem::Cargo))
+        );
     }
 
     #[test]
@@ -2482,13 +2577,16 @@ mod tests {
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&cargo_lock("1.0.1")),
             graph(&[
-                ("//:vendor", &["//:Cargo.lock"]),
+                ("//:vendor", &[&format!("//:{}", lock_of(Ecosystem::Cargo))]),
                 ("//a:lib", &["@@rules_rust++crate+crates//:serde"]),
                 ("//b:lib", &["//b:b.rs"]),
             ]),
         ]);
         let selection = resolve_affected(
-            &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
+            &[change(
+                lock_of(Ecosystem::Cargo),
+                dx_adopt::ChangeKind::Modified,
+            )],
             workspace,
             &query,
             &[],

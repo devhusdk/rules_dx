@@ -7,6 +7,7 @@ load("@rules_flutter//flutter:defs.bzl", _flutter_application = "flutter_applica
 load("@rules_flutter//flutter:ios.bzl", _flutter_ios_app = "flutter_ios_app")
 load("@rules_flutter//flutter:providers.bzl", "FlutterApplicationInfo", "FlutterInfo")
 load("@rules_flutter//flutter:web.bzl", _flutter_web_app = "flutter_web_app", _flutter_web_bundle = "flutter_web_bundle")
+load("//apple/private/ios:cell.bzl", "APPLE_BUILD_HOST")
 load("//dart:defs.bzl", "DART_QUALITY_TOOLS", "DART_SOURCE_SPECS")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:platform_support.bzl", "compatible_with")
@@ -179,10 +180,10 @@ def flutter_android_app(name, application, package_name, android_abi = "arm64", 
     )
 
 def flutter_ios_app(name, application, bundle_id, **kwargs):
-    """Thin wrapper over flutter_ios_app. Reads runner files from ios/Runner/ in the calling package and builds only for iOS."""
+    """Thin wrapper over flutter_ios_app. Reads runner files from ios/Runner/ in the calling package, builds only for iOS and only on a macOS host."""
     _flutter_ios_app(
         name = name,
         application = application,
         bundle_id = bundle_id,
-        **dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH)
+        **dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH + APPLE_BUILD_HOST)
     )

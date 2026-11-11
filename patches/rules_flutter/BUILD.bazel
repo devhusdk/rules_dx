@@ -4,6 +4,7 @@ exports_files([
     "engine_labels.patch",
     "flutter_3_47_9.patch",
     "hermetic_pub.patch",
+    "ios_target_compatible_with.patch",
     "lock_extension.patch",
     "registrant_javacopts.patch",
     "required_checksums.patch",

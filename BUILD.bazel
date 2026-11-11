@@ -159,6 +159,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude bicep/tests/consumer
 # gazelle:exclude ansible/tests/consumer
 # gazelle:exclude dockerfile/tests/consumer
+# gazelle:exclude asciidoc/tests/consumer
 # gazelle:exclude qt/tests/consumer
 # gazelle:exclude go/tests/fixtures/no_srcs
 # gazelle:exclude javascript/tests/fixtures/web_app

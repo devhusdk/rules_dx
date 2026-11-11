@@ -1,0 +1,9 @@
+load("@rules_dx//asciidoc:defs.bzl", "asciidoc_library")
+
+# dx: written once, yours to edit
+
+asciidoc_library(
+    name = "asciidoc",
+    srcs = ["index.adoc"],
+    visibility = ["//visibility:public"],
+)

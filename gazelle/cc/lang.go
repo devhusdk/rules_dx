@@ -37,6 +37,8 @@ var ccKinds = map[string]rule.KindInfo{
 
 const archsDirective = "dx_cuda_archs"
 
+var defaultCudaArchs = []string{"sm_89"}
+
 func configureCuda(c *config.Config, rel string, f *rule.File, rep common.Reporter) {
 	if f == nil {
 		return

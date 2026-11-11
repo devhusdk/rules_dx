@@ -165,6 +165,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude astro/tests/consumer
 # gazelle:exclude mdx/tests/consumer
 # gazelle:exclude javascript/tests/consumer
+# gazelle:exclude typescript/tests/consumer
 # gazelle:exclude rst/tests/consumer
 # gazelle:exclude sql/tests/consumer
 # gazelle:exclude cloudformation/tests/consumer

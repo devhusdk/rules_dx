@@ -21,6 +21,7 @@ filegroup(
 )
 
 exports_files([
+    "actions/assert-no-secret/scan.cjs",
     "actionlint.yaml",
     "review-paths.txt",
     "rulesets/main.json",

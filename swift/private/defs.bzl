@@ -151,8 +151,8 @@ def swift_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts 
     binary_kwargs = {
         "srcs": srcs,
         "copts": ["-sanitize=fuzzer,address"] + (copts or []),
-        "linkopts": ["-fsanitize=address"] + (linkopts or []),
-        "deps": kwargs.pop("deps", []) + [Label("//swift/private/toolchain:libfuzzer")],
+        "linkopts": linkopts or [],
+        "deps": kwargs.pop("deps", []) + [Label("//swift/private/toolchain:libfuzzer"), Label("//swift/private/toolchain:asan_runtime")],
         "features": kwargs.pop("features", []) + ["swift.no_entry_point_rename"],
         "target_compatible_with": ["@platforms//os:linux"],
     }

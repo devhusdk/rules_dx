@@ -30,12 +30,16 @@ def _find(files, suffix):
             return f
     fail("the OCaml install tree has no " + suffix)
 
-def _sysroot(files):
+def sdk_root(files):
+    """Returns the path of the C toolchain's sysroot directory in `files`."""
+    for f in files:
+        if f.basename == "sysroot":
+            return f.path
     for f in files:
         head, found, _ = f.path.partition("/sysroot/")
         if found:
             return head + "/sysroot"
-    fail("the C toolchain has no sysroot directory")
+    fail("the C toolchain has no sysroot directory (expected @macos_sdk//sysroot in cc.all_files)")
 
 def _env(ctx, tree):
     cc = find_cc_toolchain(ctx)
@@ -69,7 +73,7 @@ def _env(ctx, tree):
         lld = True,
     )
     if macos:
-        env["SDKROOT"] = _abs(_sysroot(cc.all_files.to_list()))
+        env["SDKROOT"] = _abs(sdk_root(cc.all_files.to_list()))
     env["DX_OCAML_AS_DROP_DEBUG_PREFIX_MAP"] = "1"
     return struct(
         env = env,

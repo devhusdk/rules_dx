@@ -24,8 +24,16 @@ workspace_policy(
             "//conditions:default": ["//core/quality/tiers/buildifier:standard"],
         }) +
         select({
+            "//config:config_profile_strict": ["//core/quality/tiers/credo:strict"],
+            "//conditions:default": ["//core/quality/tiers/credo:standard"],
+        }) +
+        select({
             "//config:config_profile_strict": ["//core/quality/tiers/detekt:strict"],
             "//conditions:default": ["//core/quality/tiers/detekt:standard"],
+        }) +
+        select({
+            "//config:config_profile_strict": ["//core/quality/tiers/elvis:strict"],
+            "//conditions:default": ["//core/quality/tiers/elvis:standard"],
         }) +
         select({
             "//config:config_profile_strict": ["//core/quality/tiers/pmd:strict"],

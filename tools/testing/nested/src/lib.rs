@@ -1573,11 +1573,11 @@ impl Case {
         );
     }
 
-    /// Stops the server, reruns `args` with the workspace rules log, and fails with the repository rules that ran.
-    pub fn assert_no_refetch(&self, args: &[&str]) {
+    /// Stops the server, reruns `args` with the workspace rules log at `log` under `TEST_TMPDIR`, and returns the repository rules that ran.
+    pub fn refetched_after_restart(&self, args: &[&str], log: &str) -> Vec<String> {
         self.shutdown_server();
         let tmpdir = PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
-        let log = tmpdir.join("refetch.log");
+        let log = tmpdir.join(log);
         let _ = std::fs::remove_file(&log);
         let flag = format!("--experimental_workspace_rules_log_file={}", log.display());
         let mut full = args.to_vec();
@@ -1585,7 +1585,12 @@ impl Case {
         let run = self.bazel(&full);
         assert!(run.status.success(), "{}", run.combined());
         let bytes = std::fs::read(&log).unwrap_or_default();
-        let contexts = record::contexts(&bytes);
+        record::contexts(&bytes)
+    }
+
+    /// Stops the server, reruns `args`, and fails with the repository rules that ran.
+    pub fn assert_no_refetch(&self, args: &[&str]) {
+        let contexts = self.refetched_after_restart(args, "refetch.log");
         assert!(
             contexts.is_empty(),
             "a restarted server refetched repositories: {contexts:?}"

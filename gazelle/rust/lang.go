@@ -201,7 +201,7 @@ func (*rustLang) Name() string { return languageName }
 func (*rustLang) Kinds() map[string]rule.KindInfo { return rustKinds }
 
 func (*rustLang) Loads() []rule.LoadInfo {
-	return rustLoads("rules_dx", "crates", "rules_rust")
+	return rustLoads("rules_dx", "crates")
 }
 
 func (l *rustLang) ApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
@@ -213,17 +213,13 @@ func (l *rustLang) ApparentLoads(moduleToApparentName func(string) string) []rul
 	if cratesName == "" {
 		cratesName = "crates"
 	}
-	rulesRustName := moduleToApparentName("rules_rust")
-	if rulesRustName == "" {
-		rulesRustName = "rules_rust"
-	}
-	return rustLoads(repoName, cratesName, rulesRustName)
+	return rustLoads(repoName, cratesName)
 }
 
-func rustLoads(rulesRepo, cratesRepo, rulesRustRepo string) []rule.LoadInfo {
+func rustLoads(rulesRepo, cratesRepo string) []rule.LoadInfo {
 	return []rule.LoadInfo{
 		{Name: "@" + rulesRepo + "//rust:defs.bzl", Symbols: []string{binaryKind, libraryKind, testKind, benchmarkKind, procMacroKind, sharedKind, staticKind}},
-		{Name: "@" + rulesRustRepo + "//cargo:defs.bzl", Symbols: []string{scriptKind}},
+		{Name: "@" + rulesRepo + "//rust:defs.bzl", Symbols: []string{scriptKind}},
 		{Name: "@" + cratesRepo + "//:crates.bzl", Symbols: []string{"aliases", "all_crate_deps"}},
 		corpusLoads(rulesRepo),
 	}

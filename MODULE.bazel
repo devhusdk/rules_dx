@@ -52,6 +52,7 @@ single_version_override(
 )
 
 # floor: equals tested; patched (#5905)
+# The override is root-only and feeds the dev-only custom_gcc; cc/private/toolchains/gcc_repo vendors the patched rule for consumers (#11413).
 bazel_dep(name = "gcc_toolchain", version = "0.13.0")
 single_version_override(
     module_name = "gcc_toolchain",

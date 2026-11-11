@@ -40,6 +40,19 @@ def _host_env_impl(ctx):
 
 build_script_host_env_test = analysistest.make(_host_env_impl)
 
+def _hub_env_impl(ctx):
+    env = analysistest.begin(ctx)
+    action = _run_action(env)
+    inputs = {f.path: True for f in action.inputs.to_list()}
+    for name in ["HOST_CC", "TARGET_CC"]:
+        value = _relative(action.env.get(name, ""))
+        asserts.true(env, value != "", "{} is not set".format(name))
+        asserts.true(env, value in inputs, "{} is not a declared input: {}".format(name, value))
+    _assert_no_target_flags(env, action)
+    return analysistest.end(env)
+
+build_script_hub_env_test = analysistest.make(_hub_env_impl)
+
 _COMPILER = str(Label("@rules_dx//cc:compiler"))
 _LINKER_PREFERENCE = str(Label("@rules_rust//rust/settings:toolchain_linker_preference"))
 
@@ -61,8 +74,9 @@ def _gcc_impl(ctx):
         asserts.true(env, ctx.attr.gcc in value, "{} is not the pinned GCC: {}".format(name, value))
         asserts.false(env, "_cross" in value, "{} is a cross GCC: {}".format(name, value))
         asserts.true(env, value in inputs, "{} is not a declared input: {}".format(name, value))
-    for name in ["HOST_CFLAGS", "HOST_CXXFLAGS", "TARGET_CFLAGS", "TARGET_CXXFLAGS"]:
+    for name in ["HOST_CFLAGS", "HOST_CXXFLAGS"]:
         asserts.true(env, name in action.env, "{} is not set".format(name))
+    _assert_no_target_flags(env, action)
     for name, value in action.env.items():
         if name in ["CC", "CXX", "AR"]:
             continue
@@ -82,24 +96,29 @@ def _llvm_impl(ctx):
     return analysistest.end(env)
 
 _UNDEF_ISO_STDIO = "/U_CRT_STDIO_ISO_WIDE_SPECIFIERS"
-_C_FLAGS = ["CFLAGS", "TARGET_CFLAGS"]
-_CXX_FLAGS = ["CXXFLAGS", "TARGET_CXXFLAGS"]
+_C_FLAGS = ["CFLAGS"]
+_CXX_FLAGS = ["CXXFLAGS"]
+
+def _assert_no_target_flags(env, action):
+    for name in ["TARGET_CFLAGS", "TARGET_CXXFLAGS"]:
+        asserts.false(env, name in action.env, "{} is set, so cc-rs adds CFLAGS twice: {}".format(name, action.env.get(name)))
 
 def _assert_no_host_flags(env, action):
     for name in ["HOST_CFLAGS", "HOST_CXXFLAGS"]:
         asserts.equals(env, "", action.env.get(name), "{} is not empty when HOST == TARGET".format(name))
 
 def _provisioned(path):
+    path = path.replace("\\", "/")
     return path.startswith("external/") or path.startswith("${pwd}/external/") or "dx_msvc" in path
 
 def _msvc_impl(ctx):
     env = analysistest.begin(ctx)
     action = _run_action(env)
-    inputs = {f.path: True for f in action.inputs.to_list()}
+    inputs = {f.path.lower(): True for f in action.inputs.to_list()}
     for name, tool in [("CC", "cl.exe"), ("CXX", "cl.exe"), ("AR", "lib.exe"), ("TARGET_CC", "cl.exe"), ("TARGET_CXX", "cl.exe"), ("TARGET_AR", "lib.exe")]:
         value = _relative(action.env.get(name, ""))
         asserts.true(env, value.lower().endswith(tool), "{} is not {}: {}".format(name, tool, value))
-        asserts.true(env, value in inputs, "{} is not a declared input: {}".format(name, value))
+        asserts.true(env, value.lower() in inputs, "{} is not a declared input: {}; inputs named {}: {}".format(name, value, tool, [p for p in inputs if p.endswith("/" + tool)]))
     include = action.env.get("INCLUDE", "")
     asserts.true(env, include != "", "INCLUDE is not set")
     for part in include.split(";"):
@@ -238,9 +257,7 @@ def _cross_gcc_impl(ctx):
     for name in ["HOST_CFLAGS", "HOST_CXXFLAGS"]:
         value = action.env.get(name, "")
         asserts.false(env, "aarch64_cross" in value, "{} has target GCC paths: {}".format(name, value))
-    for name in ["TARGET_CFLAGS", "TARGET_CXXFLAGS"]:
-        value = action.env.get(name, "")
-        asserts.false(env, "dx_gcc_linux_x86_64" in value, "{} has exec GCC paths: {}".format(name, value))
+    _assert_no_target_flags(env, action)
     for name, value in action.env.items():
         for part in value.split(" "):
             asserts.false(env, part.startswith("/usr") or part.startswith("-L/usr"), "host path in {}: {}".format(name, value))

@@ -1,5 +1,5 @@
 {
-  "checksum": "993c98150a03e5d0c571bb6be6dcbc4da8c0b1737244f1d851334b4b7d58b459",
+  "checksum": "dd8da4b210850f3757c9b908f286d7cb0e597ce4382a7cd7b47090ac9e3a53ca",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -516,11 +516,25 @@
     },
     "ahash 0.8.12": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "version_check 0.9.5",
             "target": "version_check"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -636,7 +650,22 @@
       "version": "1.1.5"
     },
     "allocative 0.3.6": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "default",
@@ -1076,7 +1105,22 @@
       "version": "3.0.11"
     },
     "anyhow 1.0.104": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "default",
@@ -1329,7 +1373,22 @@
       "version": "0.7.8"
     },
     "assert_cmd 2.2.2": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "deps": {
           "common": [
@@ -1480,7 +1539,22 @@
       "version": "0.5.3"
     },
     "atomic-polyfill 1.0.3": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "deps": [
           {
@@ -2131,7 +2205,16 @@
       "build_script_attrs": {
         "build_script_env": {
           "common": {
-            "CFLAGS_aarch64_apple_darwin": "-fno-profile-instr-generate -fno-coverage-mapping"
+            "CFLAGS": "$(DX_BS_CFLAGS)",
+            "CFLAGS_aarch64_apple_darwin": "-fno-profile-instr-generate -fno-coverage-mapping",
+            "HOST_AR": "$(DX_BS_HOST_AR)",
+            "HOST_CC": "$(DX_BS_HOST_CC)",
+            "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+            "HOST_CXX": "$(DX_BS_HOST_CXX)",
+            "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+            "TARGET_AR": "$(DX_BS_TARGET_AR)",
+            "TARGET_CC": "$(DX_BS_TARGET_CC)",
+            "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
           },
           "selects": {
             "aarch64-pc-windows-msvc": {
@@ -2155,6 +2238,9 @@
             "id": "rayon-core 1.13.0",
             "target": "rayon_core"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ],
         "tools": {
           "common": [],
@@ -4658,7 +4744,22 @@
       "version": "2.5.0"
     },
     "crc24 0.1.6": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2015",
         "extra_deps": [
@@ -4696,7 +4797,22 @@
       "version": "0.1.6"
     },
     "crc32fast 1.5.2": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "default",
@@ -4774,7 +4890,22 @@
       "version": "1.2.0"
     },
     "crossbeam-deque 0.8.8": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "default",
@@ -4827,7 +4958,22 @@
       "version": "0.8.8"
     },
     "crossbeam-epoch 0.9.21": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "alloc",
@@ -4876,7 +5022,22 @@
       "version": "0.9.21"
     },
     "crossbeam-utils 0.8.23": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "default",
@@ -5198,11 +5359,25 @@
     },
     "curve25519-dalek 4.1.3": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "rustc_version 0.4.1",
             "target": "rustc_version"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -10169,7 +10344,22 @@
       "version": "1.0.2"
     },
     "erased-serde 0.4.10": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "alloc",
@@ -11379,11 +11569,25 @@
     },
     "generic-array 0.14.7": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "version_check 0.9.5",
             "target": "version_check"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -11491,7 +11695,22 @@
       "version": "0.2.17"
     },
     "getrandom 0.3.4": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": {
           "common": [
@@ -11619,7 +11838,22 @@
       "version": "0.3.4"
     },
     "getrandom 0.4.3": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": {
           "common": [
@@ -12175,11 +12409,25 @@
     },
     "heapless 0.7.17": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "rustc_version 0.4.1",
             "target": "rustc_version"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -12584,7 +12832,22 @@
       "version": "0.1.5"
     },
     "httparse 1.10.1": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": {
           "common": [],
@@ -12948,11 +13211,25 @@
     },
     "iana-time-zone-haiku 0.1.2": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "cc 1.11.0",
             "target": "cc"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -13157,7 +13434,22 @@
       "version": "2.3.0"
     },
     "icu_normalizer_data 2.3.0": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2024",
         "extra_deps": [
@@ -13258,7 +13550,22 @@
       "version": "2.3.0"
     },
     "icu_properties_data 2.3.0": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2024",
         "extra_deps": [
@@ -13714,7 +14021,22 @@
       "version": "0.11.5"
     },
     "inotify-sys 0.1.8": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "deps": [
           {
@@ -14072,11 +14394,25 @@
     },
     "jni 0.22.4": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "walkdir 2.5.0",
             "target": "walkdir"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -14159,11 +14495,25 @@
     },
     "jni-macros 0.22.4": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "rustc_version 0.4.1",
             "target": "rustc_version"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -14575,7 +14925,22 @@
       "version": "0.60.2"
     },
     "jsonschema-value 0.60.2": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "default",
@@ -15133,7 +15498,22 @@
       "version": "0.8.2"
     },
     "libc 0.2.189": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": {
           "common": [
@@ -15183,7 +15563,22 @@
       "version": "0.2.189"
     },
     "libm 0.2.16": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "arch",
@@ -15255,7 +15650,17 @@
     "libz-sys 1.1.31": {
       "build_script_attrs": {
         "build_script_env": {
-          "common": {},
+          "common": {
+            "CFLAGS": "$(DX_BS_CFLAGS)",
+            "HOST_AR": "$(DX_BS_HOST_AR)",
+            "HOST_CC": "$(DX_BS_HOST_CC)",
+            "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+            "HOST_CXX": "$(DX_BS_HOST_CXX)",
+            "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+            "TARGET_AR": "$(DX_BS_TARGET_AR)",
+            "TARGET_CC": "$(DX_BS_TARGET_CC)",
+            "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+          },
           "selects": {
             "aarch64-pc-windows-msvc": {
               "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:msvc_lib)",
@@ -15282,6 +15687,9 @@
           }
         ],
         "links": "z",
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ],
         "tools": {
           "common": [],
           "selects": {
@@ -15371,13 +15779,27 @@
     },
     "link-cplusplus 1.0.12": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "cc 1.11.0",
             "target": "cc"
           }
         ],
-        "links": "cplusplus"
+        "links": "cplusplus",
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
       },
       "common_attrs": {
         "crate_features": [
@@ -15702,11 +16124,25 @@
     },
     "logos-codegen 0.15.1": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "rustc_version 0.4.1",
             "target": "rustc_version"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -16338,11 +16774,25 @@
     },
     "nix 0.31.3": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "cfg_aliases 0.2.2",
             "target": "cfg_aliases"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -16909,7 +17359,22 @@
       "version": "0.4.8"
     },
     "num-bigint-dig 0.8.6": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "default",
@@ -17194,11 +17659,25 @@
     },
     "num-traits 0.2.19": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "autocfg 1.5.1",
             "target": "autocfg"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -17427,7 +17906,22 @@
       "version": "0.3.2"
     },
     "object 0.36.7": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "archive",
@@ -18258,7 +18752,22 @@
       "version": "0.12.5"
     },
     "parking_lot_core 0.9.12": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "deps": {
           "common": [
@@ -19368,7 +19877,21 @@
     },
     "prettyplease 0.2.37": {
       "build_script_attrs": {
-        "links": "prettyplease02"
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "links": "prettyplease02",
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
       },
       "common_attrs": {
         "deps": [
@@ -19453,7 +19976,22 @@
       "version": "0.13.6"
     },
     "proc-macro2 1.0.107": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "default",
@@ -19679,7 +20217,22 @@
       "version": "0.0.0"
     },
     "pulldown-cmark 0.13.5": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "deps": [
           {
@@ -20334,7 +20887,22 @@
       "version": "1.1.0"
     },
     "quote 1.0.47": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "default",
@@ -20441,7 +21009,22 @@
       "version": "6.0.0"
     },
     "radium 0.7.0": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2018",
         "extra_deps": [
@@ -20862,7 +21445,21 @@
     },
     "rayon-core 1.13.0": {
       "build_script_attrs": {
-        "links": "rayon-core"
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "links": "rayon-core",
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
       },
       "common_attrs": {
         "deps": [
@@ -20946,7 +21543,22 @@
       "version": "0.5.18"
     },
     "ref-cast 1.0.27": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [
@@ -21580,7 +22192,17 @@
     "ring 0.17.14": {
       "build_script_attrs": {
         "build_script_env": {
-          "common": {},
+          "common": {
+            "CFLAGS": "$(DX_BS_CFLAGS)",
+            "HOST_AR": "$(DX_BS_HOST_AR)",
+            "HOST_CC": "$(DX_BS_HOST_CC)",
+            "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+            "HOST_CXX": "$(DX_BS_HOST_CXX)",
+            "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+            "TARGET_AR": "$(DX_BS_TARGET_AR)",
+            "TARGET_CC": "$(DX_BS_TARGET_CC)",
+            "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+          },
           "selects": {
             "aarch64-pc-windows-msvc": {
               "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:msvc_lib)",
@@ -21599,6 +22221,9 @@
           }
         ],
         "links": "ring_core_0_17_14_",
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ],
         "tools": {
           "common": [],
           "selects": {
@@ -22003,7 +22628,22 @@
       "version": "0.61.0"
     },
     "rustix 1.1.4": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "alloc",
@@ -22115,11 +22755,25 @@
     },
     "rustls 0.23.46": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "link_deps": [
           {
             "id": "ring 0.17.14",
             "target": "ring"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -22479,7 +23133,22 @@
       "version": "0.103.16"
     },
     "rustversion 1.0.23": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2018",
         "extra_deps": [
@@ -23026,7 +23695,22 @@
       "version": "1.2.0"
     },
     "scratch 1.0.9": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2015",
         "extra_deps": [
@@ -23306,7 +23990,22 @@
       "version": "0.3.6"
     },
     "serde 1.0.229": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "alloc",
@@ -23366,6 +24065,17 @@
     },
     "serde-sarif 0.8.0": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "deps": [
           {
             "id": "anyhow 1.0.104",
@@ -23395,6 +24105,9 @@
             "id": "syn 2.0.119",
             "target": "syn"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -23465,7 +24178,22 @@
       "version": "0.8.0"
     },
     "serde_core 1.0.229": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "alloc",
@@ -23610,7 +24338,22 @@
       "version": "0.30.0"
     },
     "serde_json 1.0.151": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "alloc",
@@ -24953,7 +25696,22 @@
       "version": "1.2.1"
     },
     "starlark_map 0.14.2": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "default"
@@ -25646,7 +26404,22 @@
       "version": "0.0.0"
     },
     "syn 1.0.109": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "clone-impls",
@@ -26309,7 +27082,22 @@
       "version": "1.1.1"
     },
     "thiserror 1.0.69": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [
@@ -26354,7 +27142,22 @@
       "version": "1.0.69"
     },
     "thiserror 2.0.20": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "default",
@@ -27784,7 +28587,22 @@
       "version": "0.13.0"
     },
     "typeid 1.0.3": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2018",
         "extra_deps": [
@@ -27966,7 +28784,22 @@
       "version": "2.9.0"
     },
     "unicode-general-category 1.1.0": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2018",
         "extra_deps": [
@@ -28678,7 +29511,22 @@
       "version": "0.8.0"
     },
     "valuable 0.1.1": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [
@@ -29049,6 +29897,17 @@
     },
     "wasm-bindgen 0.2.130": {
       "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
         "link_deps": [
           {
             "id": "wasm-bindgen-shared 0.2.130",
@@ -29061,6 +29920,9 @@
             "id": "rustversion 1.0.23",
             "target": "rustversion"
           }
+        ],
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -29265,7 +30127,21 @@
     },
     "wasm-bindgen-shared 0.2.130": {
       "build_script_attrs": {
-        "links": "wasm_bindgen"
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "links": "wasm_bindgen",
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
       },
       "common_attrs": {
         "deps": [
@@ -30051,7 +30927,22 @@
       "version": "0.52.6"
     },
     "windows_aarch64_gnullvm 0.52.6": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [
@@ -30090,7 +30981,22 @@
       "version": "0.52.6"
     },
     "windows_aarch64_msvc 0.52.6": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [
@@ -30129,7 +31035,22 @@
       "version": "0.52.6"
     },
     "windows_i686_gnu 0.52.6": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [
@@ -30168,7 +31089,22 @@
       "version": "0.52.6"
     },
     "windows_i686_gnullvm 0.52.6": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [
@@ -30207,7 +31143,22 @@
       "version": "0.52.6"
     },
     "windows_i686_msvc 0.52.6": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [
@@ -30246,7 +31197,22 @@
       "version": "0.52.6"
     },
     "windows_x86_64_gnu 0.52.6": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [
@@ -30285,7 +31251,22 @@
       "version": "0.52.6"
     },
     "windows_x86_64_gnullvm 0.52.6": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [
@@ -30324,7 +31305,22 @@
       "version": "0.52.6"
     },
     "windows_x86_64_msvc 0.52.6": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [
@@ -30399,7 +31395,22 @@
       "version": "1.0.4"
     },
     "wit-bindgen 0.57.1": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2024",
         "extra_deps": [
@@ -30789,7 +31800,22 @@
       "version": "0.8.3"
     },
     "zerocopy 0.8.57": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "crate_features": [
           "simd"
@@ -31386,7 +32412,22 @@
       "version": "0.6.8"
     },
     "zmij 1.0.23": {
-      "build_script_attrs": {},
+      "build_script_attrs": {
+        "build_script_env": {
+          "CFLAGS": "$(DX_BS_CFLAGS)",
+          "HOST_AR": "$(DX_BS_HOST_AR)",
+          "HOST_CC": "$(DX_BS_HOST_CC)",
+          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+          "HOST_CXX": "$(DX_BS_HOST_CXX)",
+          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+          "TARGET_AR": "$(DX_BS_TARGET_AR)",
+          "TARGET_CC": "$(DX_BS_TARGET_CC)",
+          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+        },
+        "toolchains": [
+          "@@//rust/private:build_script_cc_env"
+        ]
+      },
       "common_attrs": {
         "edition": "2021",
         "extra_deps": [

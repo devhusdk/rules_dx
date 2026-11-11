@@ -13,7 +13,6 @@ single_version_override(
         "//patches/rules_rust:clippy_metadata_inputs.patch",
         "//patches/rules_rust:pipelined_rmeta_path.patch",
         "//patches/rules_rust:crate_universe_root_lookup.patch",
-        "//patches/rules_rust:exec_cc_toolchain_env.patch",
         "//patches/rules_rust:msvc_pdb_output.patch",
         "//patches/rules_rust:rust_lld_msvc_libpath.patch",
         "//patches/rules_rust:static_archive_link_arg.patch",
@@ -1983,6 +1982,21 @@ use_repo(
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.annotation(
     build_script_env = {
+        "CFLAGS": "$(DX_BS_CFLAGS)",
+        "HOST_AR": "$(DX_BS_HOST_AR)",
+        "HOST_CC": "$(DX_BS_HOST_CC)",
+        "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+        "HOST_CXX": "$(DX_BS_HOST_CXX)",
+        "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+        "TARGET_AR": "$(DX_BS_TARGET_AR)",
+        "TARGET_CC": "$(DX_BS_TARGET_CC)",
+        "TARGET_CXX": "$(DX_BS_TARGET_CXX)",
+    },
+    build_script_toolchains = ["//rust/private:build_script_cc_env"],
+    crate = "*",
+)
+crate.annotation(
+    build_script_env = {
         "CFLAGS_aarch64_apple_darwin": "-fno-profile-instr-generate -fno-coverage-mapping",
     },
     crate = "blake3",
@@ -2282,7 +2296,7 @@ crate.from_cargo(
         "x86_64-unknown-nixos-gnu",
     ],
 )
-use_repo(crate, crates = "dx_crates")
+use_repo(crate, "dx_crates__anyhow-1.0.104", crates = "dx_crates")
 
 # Cargo-built quality tools, kept out of the root hub so its lock does not churn.
 crate.annotation(
@@ -2306,7 +2320,7 @@ crate.from_cargo(
         "x86_64-unknown-linux-gnu",
     ],
 )
-use_repo(crate, "dx_quality_crates")
+use_repo(crate, "dx_quality_crates", "dx_quality_crates__anyhow-1.0.104")
 
 crate.from_cargo(
     name = "dx_thrift_crates",
@@ -2320,7 +2334,7 @@ crate.from_cargo(
         "x86_64-unknown-linux-gnu",
     ],
 )
-use_repo(crate, "dx_thrift_crates")
+use_repo(crate, "dx_thrift_crates", "dx_thrift_crates__libc-0.2.191")
 
 _fixture_repo = use_repo_rule("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
 
@@ -2364,7 +2378,11 @@ crate_fixtures.from_cargo(
         "x86_64-unknown-nixos-gnu",
     ],
 )
-use_repo(crate_fixtures, "dx_rust_fixture_crates")
+use_repo(
+    crate_fixtures,
+    "dx_rust_fixture_crates",
+    "dx_rust_fixture_crates__alloca-0.4.0",
+)
 
 _fixture_repo(
     name = "dx_docs_consumer",

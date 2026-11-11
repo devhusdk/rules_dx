@@ -143,6 +143,23 @@ fn init_in_an_existing_module() {
 }
 
 #[test]
+fn init_keeps_existing_module_and_bazelrc_stanzas() {
+    let (_guard, root, home) = setup("adopt-stanzas");
+    let module = "module(name = \"app\")\n\nbazel_dep(name = \"rules_cc\", version = \"0.1.1\")\n\ncc_deps = use_extension(\"@rules_cc//cc:extensions.bzl\", \"cc_deps\")\n";
+    let bazelrc = "build --jobs=7\ncommon --enable_bzlmod\n";
+    write(&root.join("MODULE.bazel"), module);
+    write(&root.join("BUILD.bazel"), "");
+    write(&root.join(".bazelrc"), bazelrc);
+    init(&root, &home);
+    assert_eq!(read(&root.join("MODULE.bazel")), module);
+    let after = read(&root.join(".bazelrc"));
+    assert!(after.starts_with(bazelrc), "{after}");
+    let before = snapshot(&root);
+    init(&root, &home);
+    assert_eq!(before, snapshot(&root));
+}
+
+#[test]
 fn upgrade_moves_an_older_pin_to_this_dx() {
     let (_guard, root, home) = setup("adopt-upgrade");
     init(&root, &home);

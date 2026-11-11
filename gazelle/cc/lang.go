@@ -1,6 +1,7 @@
 package cc
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/devhusdk/rules_dx/gazelle/common"
@@ -114,6 +115,33 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	return res
 }
 
+func qtLibraryAttrs(r *rule.Rule, contents map[string][]byte) error {
+	modules, err := QtModules(contents)
+	if err != nil {
+		return err
+	}
+	if !slices.Equal(modules, []string{"core"}) {
+		r.SetAttr("modules", modules)
+	}
+	var hdrs, moc []string
+	for _, h := range r.AttrStrings("hdrs") {
+		if DefinesQtMeta(contents[h]) {
+			moc = append(moc, h)
+		} else {
+			hdrs = append(hdrs, h)
+		}
+	}
+	if len(moc) > 0 {
+		r.SetAttr("moc_hdrs", moc)
+		if len(hdrs) > 0 {
+			r.SetAttr("hdrs", hdrs)
+		} else {
+			r.DelAttr("hdrs")
+		}
+	}
+	return nil
+}
+
 func generateCc(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	return common.GenerateSingleDir(args, kinds, common.SingleDirSpec{
 		LanguageName: languageName,
@@ -144,6 +172,9 @@ func generateCc(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep 
 			}
 			if usesQt(contents) {
 				r.SetKind(QtLibraryKind)
+				if err := qtLibraryAttrs(r, contents); err != nil {
+					return err
+				}
 			}
 			return nil
 		},
@@ -157,6 +188,15 @@ func generateCc(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep 
 				}
 				r := rule.NewRule(kind, name)
 				r.SetAttr("srcs", []string{src})
+				if kind == QtTestKind {
+					modules, err := QtModules(map[string][]byte{src: content})
+					if err != nil {
+						return nil, err
+					}
+					if !slices.Equal(modules, []string{"core", "test"}) {
+						r.SetAttr("modules", modules)
+					}
+				}
 				return r, nil
 			},
 			IsSource: func(name string) bool { return IsSource(name) && IsTestSource(name) },

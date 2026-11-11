@@ -10,3 +10,6 @@ stays unchanged.
 
 The `flip` directory holds `cc_library` and `cc_test` over Qt sources and ends with
 only `qt_cc_library` and `qt_cc_test`.
+
+The `modules` directory includes `<QtWidgets/QWidget>` and holds a `Q_OBJECT` header,
+so the library gets `modules = ["core", "widgets"]` and the header moves to `moc_hdrs`.

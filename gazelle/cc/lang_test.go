@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -492,5 +493,34 @@ func TestGenerateBareQtHeaderKeepsCcKinds(t *testing.T) {
 	}, []string{"demo.cc", "demo_test.cc"})
 	if len(result.Gen) != 2 || result.Gen[0].Kind() != LibraryKind || result.Gen[1].Kind() != TestKind {
 		t.Fatalf("kinds = %v, want cc_library and cc_test", result.Gen)
+	}
+}
+
+func TestGenerateQtModulesAndMocHdrs(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/demo.cc":      "#include \"w.h\"\n#include <QtWidgets/QWidget>\n",
+		"pkg/demo/w.h":          "class W { Q_OBJECT };\n",
+		"pkg/demo/p.h":          "// Q_OBJECT\n",
+		"pkg/demo/demo_test.cc": "#include <QtCore/QString>\nint main() { return 0; }\n",
+	}, []string{"demo.cc", "w.h", "p.h", "demo_test.cc"})
+	lib := result.Gen[0]
+	if got := lib.AttrStrings("modules"); !slices.Equal(got, []string{"core", "widgets"}) {
+		t.Errorf("modules = %v", got)
+	}
+	if got := lib.AttrStrings("moc_hdrs"); !slices.Equal(got, []string{"w.h"}) {
+		t.Errorf("moc_hdrs = %v", got)
+	}
+	if got := lib.AttrStrings("hdrs"); !slices.Equal(got, []string{"p.h"}) {
+		t.Errorf("hdrs = %v", got)
+	}
+}
+
+func TestQtModules(t *testing.T) {
+	got, err := QtModules(map[string][]byte{"a.cc": []byte("#include <QtTest/QTest>\n#include <QtQuickTest/x>\n#include <QtQuickTest/y>\n")})
+	if err != nil || !slices.Equal(got, []string{"core", "quick_test", "test"}) {
+		t.Errorf("QtModules = %v, %v", got, err)
+	}
+	if _, err := QtModules(map[string][]byte{"a.cc": []byte("#include <QtSql/QSqlDatabase>\n")}); err == nil || !strings.Contains(err.Error(), "QtSql/QSqlDatabase") {
+		t.Errorf("unmapped include error = %v", err)
 	}
 }

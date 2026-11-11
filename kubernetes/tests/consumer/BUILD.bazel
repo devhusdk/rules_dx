@@ -1,0 +1,9 @@
+load("@rules_dx//kubernetes:defs.bzl", "kubernetes_library")
+
+# dx: written once, yours to edit
+
+kubernetes_library(
+    name = "kubernetes",
+    srcs = ["app.yaml"],
+    visibility = ["//visibility:public"],
+)

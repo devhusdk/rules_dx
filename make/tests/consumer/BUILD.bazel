@@ -1,0 +1,9 @@
+load("@rules_dx//make:defs.bzl", "make_library")
+
+# dx: written once, yours to edit
+
+make_library(
+    name = "make",
+    srcs = ["Makefile"],
+    visibility = ["//visibility:public"],
+)

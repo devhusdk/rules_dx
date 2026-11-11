@@ -1,0 +1,7 @@
+load("@rules_dx//api_spec:defs.bzl", "api_spec_library")
+
+api_spec_library(
+    name = "api_spec",
+    srcs = ["api.yaml"],
+    visibility = ["//visibility:public"],
+)

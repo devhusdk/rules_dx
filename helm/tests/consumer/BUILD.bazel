@@ -1,0 +1,9 @@
+load("@rules_dx//helm:defs.bzl", "helm_chart")
+
+# dx: written once, yours to edit
+
+helm_chart(
+    name = "helm",
+    srcs = ["Chart.yaml"],
+    visibility = ["//visibility:public"],
+)

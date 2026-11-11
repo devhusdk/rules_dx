@@ -1,0 +1,10 @@
+load("@rules_dx//make:defs.bzl", "make_library")
+
+make_library(
+    name = "make",
+    srcs = [
+        "Makefile",
+        "vars.mk",
+    ],
+    visibility = ["//visibility:public"],
+)

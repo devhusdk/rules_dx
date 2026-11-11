@@ -328,37 +328,9 @@ fn composer_locks_become_composer_sets() {
     );
 }
 
-fn dub_workspace(digest_version: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-dub-");
-    let root = scratch.path();
-    std::fs::create_dir_all(root.join("d")).expect("dir");
-    std::fs::write(
-        root.join("d/dub.selections.json"),
-        "{\"fileVersion\":1,\"versions\":{\"semver\":\"0.8.0\"}}",
-    )
-    .expect("selections");
-    std::fs::write(
-        root.join("d/dub.digests.json"),
-        format!("{{\"packages\":{{\"semver\":{{\"version\":\"{digest_version}\"}}}}}}"),
-    )
-    .expect("digests");
-    let set = ResolvedSet {
-        name: "dub".to_owned(),
-        ecosystem: Ecosystem::Dub,
-        dir: "d".to_owned(),
-        manifests: vec!["d/dub.json".to_owned()],
-        locks: vec![
-            "d/dub.selections.json".to_owned(),
-            "d/dub.digests.json".to_owned(),
-        ],
-        repository: None,
-    };
-    (scratch, set)
-}
-
 #[test]
 fn dub_locks_become_dub_sets() {
-    let module = "dub = use_extension(\"@rules_dx//d:extensions.bzl\", \"dub\")\ndub.lock(name = \"dub_deps\", lock = \"//d:dub.selections.json\", digests = \"//d:dub.digests.json\")\n";
+    let module = "dub = use_extension(\"@rules_dx//d:extensions.bzl\", \"dub\")\ndub.lock(name = \"dub_deps\", lock = \"//d:dub.lock.json\")\n";
     let read = |path: &str| match path {
         "d/dub.sdl" => Ok(String::new()),
         _ => Err("none".to_owned()),
@@ -369,7 +341,7 @@ fn dub_locks_become_dub_sets() {
     let set = registry.find("dub_deps").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::Dub);
     assert_eq!(set.manifests, ["d/dub.sdl"]);
-    assert_eq!(set.locks, ["d/dub.selections.json", "d/dub.digests.json"]);
+    assert_eq!(set.locks, ["d/dub.lock.json", "d/dub.selections.json"]);
 }
 
 #[test]
@@ -431,22 +403,6 @@ fn zig_locks_become_zig_sets() {
     assert_eq!(set.manifests, ["app/build.zig.zon"]);
     assert_eq!(set.locks, ["app/zig.lock.json"]);
     assert_eq!(Ecosystem::parse("zig"), Some(Ecosystem::Zig));
-}
-
-#[test]
-fn dub_layout_accepts_matching_digests() {
-    let (scratch, set) = dub_workspace("0.8.0");
-    assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
-}
-
-#[test]
-fn dub_layout_rejects_a_stale_digest() {
-    let (scratch, set) = dub_workspace("0.7.0");
-    let message = check_backend_settings(scratch.path(), &set)
-        .expect_err("stale")
-        .to_string();
-    assert!(message.contains("semver"), "{message}");
-    assert!(message.contains("0.7.0"), "{message}");
 }
 
 #[test]

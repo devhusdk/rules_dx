@@ -1,5 +1,11 @@
 [
   {
+    "ecosystem": "dub",
+    "hub": "dub",
+    "lock": "dub.lock.json",
+    "manifest": "dub.json"
+  },
+  {
     "ecosystem": "swiftpm",
     "hub": "swiftpkg",
     "lock": "swiftpm.lock.json",

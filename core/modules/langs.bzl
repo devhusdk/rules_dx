@@ -667,11 +667,11 @@ LANGS = json.decode("""{
           "ecosystem": "dub",
           "extension": "@rules_dx//d:extensions.bzl",
           "hub": "dub",
-          "imports": "name",
-          "lock": "dub.selections.json",
+          "imports": "provides",
+          "lock": "dub.lock.json",
           "manifest": "dub.json",
-          "resolver": null,
-          "state": null,
+          "resolver": "@rules_dx//d:lock",
+          "state": "dub.selections.json",
           "tag": "lock"
         }
       ]

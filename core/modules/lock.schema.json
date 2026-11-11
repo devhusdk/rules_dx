@@ -77,6 +77,16 @@
       "additionalProperties": false,
       "properties": {
         "zig_main": {"type": "string", "minLength": 1},
+        "d_library": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["imports", "srcs"],
+          "properties": {
+            "imports": {"$ref": "#/$defs/strings"},
+            "srcs": {"$ref": "#/$defs/strings"},
+            "string_imports": {"$ref": "#/$defs/strings"}
+          }
+        },
         "swift_products": {
           "type": "object",
           "additionalProperties": {

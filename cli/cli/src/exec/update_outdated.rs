@@ -1461,6 +1461,6 @@ fn outdated_hint(ecosystem: Ecosystem) -> String {
         Ecosystem::LuaRocks => {
             "edit luarocks.lock, then regenerate luarocks.digests.json".to_owned()
         }
-        _ => "edit dub.json, run dub upgrade, then refresh dub.digests.json".to_owned(),
+        _ => "edit dub.json, then run dx update".to_owned(),
     }
 }

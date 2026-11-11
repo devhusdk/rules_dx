@@ -19,13 +19,13 @@
       {
         "ecosystem": "dub",
         "manifest": "dub.json",
-        "lock": "dub.selections.json",
-        "state": null,
+        "lock": "dub.lock.json",
+        "state": "dub.selections.json",
         "extension": "@rules_dx//d:extensions.bzl",
         "tag": "lock",
         "hub": "dub",
-        "resolver": null,
-        "imports": "name"
+        "resolver": "@rules_dx//d:lock",
+        "imports": "provides"
       }
     ]
   },

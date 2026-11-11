@@ -1,0 +1,37 @@
+{
+  "ecosystem": "dub",
+  "inputs": {
+    "dub.json": "76ca16860c872867a955da3c82399443f8870322835a5fb2445e3350b88c91aa",
+    "dub.selections.json": "bf528260f5960cca37d36fbc57f06b5b263af48afe9d620c17accb80d5de65c7"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "ffb78e740db5ab36c216c349ec36548a91c66fd1b69b980c1fd3e912ce8ae73b",
+          "strip_prefix": "silly-v1.1.1-9c7743d73b7dae6c7ec841fe719d0a04a99096b9",
+          "urls": [
+            "https://code.dlang.org/packages/silly/1.1.1.zip"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "d_library": {
+          "imports": [
+            "."
+          ],
+          "srcs": [
+            "silly.d"
+          ]
+        }
+      },
+      "name": "silly",
+      "provides": [
+        "silly"
+      ],
+      "version": "1.1.1"
+    }
+  ],
+  "schema": 1
+}

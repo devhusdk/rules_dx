@@ -1,0 +1,6 @@
+{
+	"name": "dub-fixture",
+	"dependencies": {
+		"silly": "1.1.1"
+	}
+}

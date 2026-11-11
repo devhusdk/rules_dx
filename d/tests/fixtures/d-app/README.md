@@ -19,8 +19,8 @@ semver orders
 
 - `source/` holds `app.d` with `main`. `base/` and `cli/` hold the libraries.
 - `source/base/banner.txt` is read at compile time with `import("banner.txt")`.
-- `dub.selections.json` and `dub.digests.json` pin `semver`. The root
-  `MODULE.bazel` maps its hub to `@d_app_deps`.
+- `dub.selections.json` and `dub.lock.json` pin `semver`. The root
+  `MODULE.bazel` maps its hub to `@dub_d.tests.fixtures.d-app`.
 - `BUILD.bazel` files come from `dx generate`. The `d_test` targets and the
   `target_compatible_with` lines are written by hand.
 - `diagnostics/` compiles broken sources with the pinned LDC and checks the

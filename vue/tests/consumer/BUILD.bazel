@@ -1,0 +1,9 @@
+load("@rules_dx//vue:defs.bzl", "vue_library")
+
+# dx: written once, yours to edit
+
+vue_library(
+    name = "greeting",
+    srcs = ["greeting.vue"],
+    visibility = ["//visibility:public"],
+)

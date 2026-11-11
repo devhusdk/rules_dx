@@ -45,6 +45,7 @@ CONSUMER_FIXTURES = [
     "swift",
     "thrift",
     "typescript",
+    "vue",
     "zig",
 ]
 

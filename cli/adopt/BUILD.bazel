@@ -126,9 +126,11 @@ rust_test(
         "//:.bazelversion",
         "//:MODULE.bazel",
         "//:package.json",
+        "//core/coreutils:applets",
         "@dx_tools//:shellcheck",
     ],
     env = {
+        "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
         "DX_PYTHON": "$(rootpath :python_interpreter)",
         "DX_SHELLCHECK": "$(rootpath @dx_tools//:shellcheck)",
     },

@@ -8,8 +8,7 @@
 
 namespace {
 
-void Describe(EXCEPTION_POINTERS *info, char *out, size_t size) {
-  void *address = info->ExceptionRecord->ExceptionAddress;
+void Frame(void *address, char *out, size_t size) {
   char module[MAX_PATH] = "unknown";
   unsigned long long offset = 0;
   HMODULE handle = nullptr;
@@ -22,9 +21,22 @@ void Describe(EXCEPTION_POINTERS *info, char *out, size_t size) {
     offset = reinterpret_cast<unsigned long long>(address) -
              reinterpret_cast<unsigned long long>(handle);
   }
-  std::snprintf(out, size,
-                "gpu-fault: code=0x%08lX module=%s offset=0x%llX address=%p\n",
-                info->ExceptionRecord->ExceptionCode, module, offset, address);
+  std::snprintf(out, size, "module=%s offset=0x%llX address=%p", module, offset,
+                address);
+}
+
+void Describe(EXCEPTION_POINTERS *info, char *out, size_t size) {
+  char frame[MAX_PATH + 96];
+  Frame(info->ExceptionRecord->ExceptionAddress, frame, sizeof(frame));
+  int n = std::snprintf(out, size, "gpu-fault: code=0x%08lX %s\n",
+                        info->ExceptionRecord->ExceptionCode, frame);
+  void *stack[24];
+  USHORT count = CaptureStackBackTrace(0, 24, stack, nullptr);
+  for (USHORT i = 0; i < count && n > 0 && static_cast<size_t>(n) < size; i++) {
+    Frame(stack[i], frame, sizeof(frame));
+    n += std::snprintf(out + n, size - n, "gpu-fault: frame %u %s\n",
+                       static_cast<unsigned>(i), frame);
+  }
 }
 
 void WriteReport(const char *text) {
@@ -50,7 +62,7 @@ void WriteReport(const char *text) {
 
 LONG CALLBACK OnFault(EXCEPTION_POINTERS *info) {
   if (info->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
-    char text[2 * MAX_PATH];
+    static char text[24 * (MAX_PATH + 128)];
     Describe(info, text, sizeof(text));
     WriteReport(text);
   }

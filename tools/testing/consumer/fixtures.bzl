@@ -4,6 +4,7 @@ load("//dx:generate.bzl", "GENERATE_EXCLUDES")
 load("//rust:defs.bzl", "rust_test")
 
 CONSUMER_FIXTURES = [
+    "capnproto",
     "csharp",
     "cuda",
     "d",

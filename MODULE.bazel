@@ -2207,7 +2207,7 @@ crate.from_cargo(
         "//swift/private/lock:Cargo.toml",
         "//zig/private/tools/lock:Cargo.toml",
         "//d/private/lock:Cargo.toml",
-        "//php/private/lock:Cargo.toml",
+        "//php/private/tools/lock:Cargo.toml",
         "//lua/private/tools/lock:Cargo.toml",
         "//cli/families:Cargo.toml",
         "//cli/module_bazel:Cargo.toml",

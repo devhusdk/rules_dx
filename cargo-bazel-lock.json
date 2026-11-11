@@ -1,5 +1,5 @@
 {
-  "checksum": "760940c7dfb5fa55769441aee7e21b5b3aca0d939e4d003626167f26258402bc",
+  "checksum": "b077cd7cea7b287e44871cd428a482182c8cf6f7540e3b0ee6c3f044cfeb6a7b",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -31632,13 +31632,13 @@
     "jvm_docs_tests 0.0.0": "tools/docs/jvm_docs_tests",
     "kotlin_app_cli_fixture 0.0.0": "kotlin/tests/fixtures/kotlin-app/kotlin_app_cli_fixture",
     "lua_extract 0.0.0": "tools/docs/lua/lua_extract",
-    "lua_lock 0.0.0": "lua/private/lua_lock",
+    "lua_lock 0.0.0": "lua/private/tools/lua_lock",
     "modules_tests 0.0.0": "core/modules_tests",
     "ocaml_extract 0.0.0": "tools/docs/ocaml/ocaml_extract",
     "openapi_codegen_preflight 0.0.0": "api_spec/private/openapi_codegen_preflight",
     "perl_extract 0.0.0": "tools/docs/perl/perl_extract",
     "php_extract 0.0.0": "tools/docs/php/php_extract",
-    "php_lock 0.0.0": "php/private/php_lock",
+    "php_lock 0.0.0": "php/private/tools/php_lock",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",
     "process_probe 0.0.0": "tools/testing/process_probe",
     "protobuf_extract 0.0.0": "tools/docs/protobuf/protobuf_extract",

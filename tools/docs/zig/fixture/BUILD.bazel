@@ -5,6 +5,7 @@ load("//zig:defs.bzl", "zig_library")
 
 package(default_visibility = VIS_TOOLS)
 
+# keep
 zig_library(
     name = "geometry",
     srcs = ["geometry/shapes.zig"],
@@ -12,6 +13,7 @@ zig_library(
     deps = [":units"],
 )
 
+# keep
 zig_library(
     name = "units",
     main = "units/units.zig",

@@ -11,6 +11,7 @@ _NATIVE = select({
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
+# keep
 swift_library(
     name = "shapes",
     srcs = [

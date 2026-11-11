@@ -29,12 +29,24 @@ build_test(
 
 starlark_test(
     name = "metadata",
-    mode = "unit",
     checks = [
-        expect_equal("applets are sorted and unique", COREUTILS_APPLETS, sorted({applet: True for applet in COREUTILS_APPLETS}.keys())),
-        expect_equal("unix applet name", applet_file_name("dirname", "coreutils"), "dirname"),
-        expect_equal("windows applet name", applet_file_name("dirname", "coreutils.exe"), "dirname.exe"),
+        expect_equal(
+            "applets are sorted and unique",
+            COREUTILS_APPLETS,
+            sorted({applet: True for applet in COREUTILS_APPLETS}.keys()),
+        ),
+        expect_equal(
+            "unix applet name",
+            applet_file_name("dirname", "coreutils"),
+            "dirname",
+        ),
+        expect_equal(
+            "windows applet name",
+            applet_file_name("dirname", "coreutils.exe"),
+            "dirname.exe",
+        ),
     ],
+    mode = "unit",
 )
 
 real_source_target(

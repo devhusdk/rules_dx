@@ -60,8 +60,8 @@ rust_test(
     crate_name = "column_units_test",
     crate_root = "column_units_test.rs",
     data = [
-        "//javascript/private/quality/bin:eslint",
         "//core/quality/tools/jvm:pmd",
+        "//javascript/private/quality/bin:eslint",
     ],
     env = {
         "DX_ESLINT": "$(rootpath //javascript/private/quality/bin:eslint)",

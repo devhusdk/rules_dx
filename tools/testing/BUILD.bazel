@@ -1,8 +1,8 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
-load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
 load(":child_runfiles.bzl", "child_runfiles")
 load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV")
 load(":test.bzl", "testing_rust_test")
@@ -67,11 +67,11 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_testing",
     compile_data = [
         "exec_log_fixtures/first.log.zst",
         "exec_log_fixtures/second.log.zst",
     ],
+    crate = ":dx_testing",
     data = [
         ":process_probe_child",
         "//:.bazelversion",
@@ -283,6 +283,7 @@ nested_bazel_test(
         normal = True,
         normal_dev = True,
     ),
+    cache = "harness",
     crate_name = "nested_bazel_harness_test",
     crate_root = "nested_bazel_harness_test.rs",
     data = [
@@ -290,7 +291,6 @@ nested_bazel_test(
         "//:.bazelversion",
     ] + _HARNESS_CONSUMER_DATA,
     env = {"DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)"},
-    cache = "harness",
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
@@ -303,6 +303,7 @@ nested_bazel_test(
     ],
 )
 
+# keep
 rust_binary(
     name = "nested_cache_update",
     testonly = True,

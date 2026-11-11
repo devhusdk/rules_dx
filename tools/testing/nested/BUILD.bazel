@@ -35,6 +35,7 @@ rust_library(
     ],
 )
 
+# keep
 rust_binary(
     name = "nested_probe",
     testonly = True,
@@ -52,8 +53,8 @@ rust_test(
     ),
     crate = ":dx_nested",
     data = [
-        "//:.bazelrc",
         ":nested_probe",
+        "//:.bazelrc",
         "//tools/testing:nested_bazel_shim",
     ],
     env = {

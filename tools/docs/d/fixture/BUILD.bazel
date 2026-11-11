@@ -1,10 +1,11 @@
-load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_library")
 load("//tools/docs/d:defs.bzl", "d_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
 
+# keep
 d_library(
     name = "geometry",
     srcs = ["geometry/shapes.d"],

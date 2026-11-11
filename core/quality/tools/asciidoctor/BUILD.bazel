@@ -1,5 +1,13 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
 alias(
     name = "asciidoctor",
     actual = "//javascript/private/quality/bin:asciidoctor",
     visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

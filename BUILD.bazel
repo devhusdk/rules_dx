@@ -261,6 +261,7 @@ filegroup(
         "//core:module_srcs",
         "//core/coreutils:module_srcs",
         "//core/modules:module_srcs",
+        "//core/patchelf:module_srcs",
         "//core/quality:module_srcs",
         "//core/quality/private:module_srcs",
         "//d/private/quality:module_srcs",

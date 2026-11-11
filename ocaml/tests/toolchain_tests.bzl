@@ -2,10 +2,10 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load(":ocaml.bzl", "COMPILERS", "NATIVE_CC_TOOLS", "TOOLS", "native_cc_env", "toolchain_fields")
-load(":opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url")
-load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
-load(":repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build", "placeholder_files", "relative_prefix")
+load("//ocaml/private/toolchain:ocaml.bzl", "COMPILERS", "NATIVE_CC_TOOLS", "TOOLS", "native_cc_env", "toolchain_fields")
+load("//ocaml/private/toolchain:opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url")
+load("//ocaml/private/toolchain:pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
+load("//ocaml/private/toolchain:repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build", "placeholder_files", "relative_prefix")
 
 _LOCK = """opam-version: "2.0"
 name: "app"
@@ -133,10 +133,11 @@ def _checks():
         expect_equal("toolchain fields gain extras", toolchain_fields(struct(a = 1), {"b": 2}), {"a": 1, "b": 2}),
     ]
 
-def ocaml_metadata_tests(name):
+def ocaml_metadata_tests(name, size):
     """Declares the OCaml toolchain metadata test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

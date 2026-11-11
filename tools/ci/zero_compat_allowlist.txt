@@ -139,7 +139,7 @@ powershell/BUILD.bazel alias 2
 powershell/private/quality/BUILD.bazel alias 1
 qt/BUILD.bazel alias 1
 qt/private/sdk/linux_arm64.bzl compat-word 3
-qt/private/sdk/metadata_tests.bzl compat-word 1
+qt/tests/toolchain_tests.bzl compat-word 1
 qt/tests/qt_test.rs compat-word 1
 rust/private/edition.bzl reexport 1
 rust/private/quality/rust_tools.bzl compat-word 1

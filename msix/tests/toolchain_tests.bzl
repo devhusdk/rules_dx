@@ -1,10 +1,10 @@
 """MSIX pin, license and identity-rule coverage."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "compatible_with", "publisher_cn")
-load(":validate.bzl", "msix_alias_errors", "msix_application_errors", "msix_identity_errors", "msix_named_version_errors", "msix_publisher_errors", "msix_version_errors")
-load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "SUPPORTED_CELLS", "TOOL_ARCHES")
-load(":repos.bzl", "UNACCEPTED", "hub_build")
+load("//msix/private:defs.bzl", "compatible_with", "publisher_cn")
+load("//msix/private:validate.bzl", "msix_alias_errors", "msix_application_errors", "msix_identity_errors", "msix_named_version_errors", "msix_publisher_errors", "msix_version_errors")
+load("//msix/private:pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "SUPPORTED_CELLS", "TOOL_ARCHES")
+load("//msix/private:repos.bzl", "UNACCEPTED", "hub_build")
 
 def _checks():
     accepted = hub_build(True)
@@ -53,10 +53,11 @@ def _checks():
         expect_true("alias with a path", len(msix_alias_errors("bin\\contoso.exe")) == 1),
     ]
 
-def msix_metadata_tests(name):
+def msix_metadata_tests(name, size):
     """Declares the MSIX metadata test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

@@ -2,11 +2,11 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//qt/private/platforms:libc.bzl", "glibc_at_least")
-load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
-load(":layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
-load(":layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
+load("//qt/private/sdk:layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
+load("//qt/private/sdk:layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
+load("//qt/private/sdk:layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
 load(
-    ":pins.bzl",
+    "//qt/private/sdk:pins.bzl",
     "CELLS",
     "DEFAULT_MODULES",
     "EXTRACTORS",
@@ -20,7 +20,7 @@ load(
     "RUNTIME_REPOSITORIES",
 )
 load(
-    ":repos.bzl",
+    "//qt/private/sdk:repos.bzl",
     "HUB_NAME",
     "canonical_id_for",
     "cell_build",
@@ -44,7 +44,7 @@ load(
     "runtime_url_for",
     "url_for",
 )
-load(":tool.bzl", "qt_tool_descriptor")
+load("//qt/private/sdk:tool.bzl", "qt_tool_descriptor")
 
 def _request(**kwargs):
     base = default_request()
@@ -554,10 +554,11 @@ def _build_checks():
         expect_true("closure links libgcc_s", '"lib/libgcc_s.so.1"' in full),
     ]
 
-def qt_metadata_tests(name):
+def qt_metadata_tests(name, size):
     """Declares the Qt SDK metadata test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _pin_checks() + _seam_checks() + _url_checks() + _request_checks() + _build_checks() + _hardening_checks() + _consumer_checks(),
     )

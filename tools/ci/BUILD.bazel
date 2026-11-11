@@ -1143,6 +1143,7 @@ rust_test(
         "//lua/private/toolchain:corpus_starlark",
         "//ocaml/private/quality:corpus_starlark",
         "//ocaml/private/toolchain:corpus_starlark",
+        "//ocaml/tests:corpus_starlark",
         "//php/private/lock:corpus_starlark",
         "//php/private/toolchain:corpus_starlark",
         "//php/private/tools/lock:corpus_starlark",

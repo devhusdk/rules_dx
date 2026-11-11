@@ -214,6 +214,26 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude vue/tests/app
 # gazelle:exclude vue/tests/fixtures/hello
 # gazelle:exclude vue/tests/typecheck
+# gazelle:exclude .github/actions/assert-no-secret
+# gazelle:exclude .github/actions/remote-cache-helper
+# gazelle:exclude asciidoc/tests/fixtures
+# gazelle:exclude bicep/tests/fixtures
+# gazelle:exclude dockerfile/tests/fixtures
+# gazelle:exclude erlang/tests/fixtures/erlang-app/checksum/c_src
+# gazelle:exclude haskell/private/coverage/fixture
+# gazelle:exclude haskell/tests/fixtures/bench/src
+# gazelle:exclude java/tests/fixtures/hello/src/test/java/hello
+# gazelle:exclude lua/private/bench
+# gazelle:exclude lua/tests/analysis/a
+# gazelle:exclude lua/tests/analysis/b
+# gazelle:exclude lua/tests/runtime/pkg
+# gazelle:exclude php/tests/fixtures/hello/bin
+# gazelle:exclude tools/docs/d/fixture/geometry
+# gazelle:exclude tools/docs/haskell/fixture/src
+# gazelle:exclude tools/docs/javascript/fixture/src
+# gazelle:exclude tools/docs/swift/fixture/src
+# gazelle:exclude tools/docs/zig/fixture/geometry
+# gazelle:exclude tools/docs/zig/fixture/units
 
 package(default_visibility = ["//:__subpackages__"])
 

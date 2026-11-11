@@ -2,6 +2,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//ansible:defs.bzl", "ansible_library")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":layout_tests.bzl", "layout_unit_tests")
 load(":library_tests.bzl", "mixed_split_test", "plain_yaml_test")
 load(":lock_tests.bzl", "lock_unit_tests")
 
@@ -43,6 +44,8 @@ failure_test(
     target = ":bad_playbook",
 )
 
+layout_unit_tests(name = "layout_unit")
+
 lock_unit_tests(name = "lock_unit")
 
 sh_test(
@@ -57,6 +60,8 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
+        "layout_corpus.bzl",
+        "layout_tests.bzl",
         "library_tests.bzl",
         "lock_tests.bzl",
     ],

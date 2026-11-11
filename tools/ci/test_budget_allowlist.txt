@@ -8,10 +8,9 @@ android/tests/fixtures/adopt-android/native/BUILD.bazel no-size 2
 android/tests/fixtures/consumer_android/BUILD.bazel no-size 2
 android/tests/fixtures/native_lib/BUILD.bazel no-size 3
 android/tests/fixtures/rust_apk/BUILD.bazel no-size 26
-ansible/private/BUILD.bazel no-size 1
-ansible/private/layout_tests.bzl no-size 1
 ansible/private/tools/BUILD.bazel no-size 1
-ansible/tests/BUILD.bazel no-size 2
+ansible/tests/BUILD.bazel no-size 3
+ansible/tests/layout_tests.bzl no-size 1
 ansible/tests/lock_tests.bzl no-size 1
 api_spec/private/codegen/BUILD.bazel no-size 1
 api_spec/tests/BUILD.bazel no-size 13
@@ -550,10 +549,9 @@ powershell/tests/fixtures/adopt-powershell/greet/BUILD.bazel no-size 1
 powershell/tests/fixtures/adopt-powershell/solo/BUILD.bazel no-size 1
 powershell/tests/fixtures/hello/BUILD.bazel no-size 1
 powershell/tests/fixtures/pester/BUILD.bazel no-size 2
-python/private/BUILD.bazel no-size 2
+python/private/BUILD.bazel no-size 1
 python/private/ide/BUILD.bazel no-size 1
-python/private/runtime_tests.bzl no-size 1
-python/tests/BUILD.bazel no-size 3
+python/tests/BUILD.bazel no-size 4
 python/tests/analysis/BUILD.bazel no-size 4
 python/tests/fixtures/adopt-python/app/BUILD.bazel no-size 1
 python/tests/fixtures/adopt-python/solo/BUILD.bazel no-size 2
@@ -567,6 +565,7 @@ python/tests/fixtures/no_srcs/BUILD.bazel no-size 1
 python/tests/fixtures/python-service/ledger/cli/BUILD.bazel no-size 3
 python/tests/fixtures/python-service/ledger/core/BUILD.bazel no-size 2
 python/tests/fixtures/python-service/ledger/service/BUILD.bazel no-size 1
+python/tests/runtime_tests.bzl no-size 1
 python/tests/sdist_native/BUILD.bazel no-size 5
 python/tests/sdist_native/msvc/BUILD.bazel no-size 1
 qt/private/BUILD.bazel no-size 1
@@ -582,7 +581,6 @@ qt/tests/tags/BUILD.bazel no-size 2
 rego/private/launcher/BUILD.bazel no-size 1
 rego/tests/BUILD.bazel no-size 4
 rst/tests/BUILD.bazel no-size 1
-ruby/private/BUILD.bazel no-size 1
 ruby/private/coverage/extensions.bzl no-size 1
 ruby/private/ide/BUILD.bazel no-size 1
 ruby/tests/fixtures/adopt-ruby/greet/BUILD.bazel no-size 1

@@ -1,4 +1,3 @@
-load("//ansible/private:layout_tests.bzl", "layout_unit_tests")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = [
@@ -8,11 +7,10 @@ package(default_visibility = [
 
 exports_files([
     "defs.bzl",
+    "layout.bzl",
     "lock.bzl",
     "update.bzl",
 ])
-
-layout_unit_tests(name = "layout_unit")
 
 real_source_target(
     name = "corpus_starlark",
@@ -20,8 +18,6 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "layout.bzl",
-        "layout_corpus.bzl",
-        "layout_tests.bzl",
         "lock.bzl",
         "update.bzl",
     ],

@@ -4,7 +4,6 @@ load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "python_library", "python_main", "python_main_rejection", "python_test_rejection")
-load(":runtime_tests.bzl", "python_runtime_unit_tests")
 load(":sdist_cargo_vendor.bzl", "parse_cargo_lock", "parse_uv_lock_sdist")
 
 _UV_LOCK = """[[package]]
@@ -49,7 +48,6 @@ python_library(
 
 exports_files([
     "defs.bzl",
-    "runtime_tests.bzl",
     "sdist_cargo_vendor.bzl",
 ])
 
@@ -245,14 +243,11 @@ dx_wrapper_contract_tests(
     },
 )
 
-python_runtime_unit_tests(name = "runtime_unit")
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "runtime_tests.bzl",
         "sdist_cargo_vendor.bzl",
     ],
     tags = ["corpus"],

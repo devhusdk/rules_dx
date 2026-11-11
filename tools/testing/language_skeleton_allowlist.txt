@@ -445,8 +445,6 @@ test-location android/private/library/defs_tests.bzl
 test-location android/private/packaging/BUILD.bazel
 test-location android/private/packaging/rotation_tests.bzl
 test-location android/private/sdk/BUILD.bazel
-test-location ansible/private/BUILD.bazel
-test-location ansible/private/layout_tests.bzl
 test-location api_spec/private/codegen/BUILD.bazel
 test-location appimage/private/packer/BUILD.bazel
 test-location apple/private/bundle/cell_tests.bzl
@@ -527,18 +525,14 @@ test-location php/private/BenchTest.php
 test-location php/private/coverage/BUILD.bazel
 test-location powershell/private/BUILD.bazel
 test-location powershell/private/ide/BUILD.bazel
-test-location powershell/private/wrapper_tests.bzl
 test-location python/private/BUILD.bazel
 test-location python/private/ide/BUILD.bazel
-test-location python/private/runtime_tests.bzl
 test-location qt/private/BUILD.bazel
 test-location qt/private/rust/BUILD.bazel
 test-location qt/private/sdk/BUILD.bazel
 test-location rego/private/launcher/BUILD.bazel
 test-location rego/private/launcher/src/opa_tests.rs
-test-location ruby/private/BUILD.bazel
 test-location ruby/private/ide/BUILD.bazel
-test-location ruby/private/wrapper_tests.bzl
 test-location rust/private/bench_report/BUILD.bazel
 test-location rust/private/ide/BUILD.bazel
 test-location rust/private/quality/tools/progenitor/BUILD.bazel

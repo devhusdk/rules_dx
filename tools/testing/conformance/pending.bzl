@@ -175,8 +175,5 @@ vue build_test *
 vue coverage_test *
 vue fail_test *
 vue pass_test *
-zig build_test *
 zig coverage_test *
-zig fail_test *
-zig pass_test *
 """

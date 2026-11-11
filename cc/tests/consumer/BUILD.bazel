@@ -1,15 +1,16 @@
 load("@rules_dx//cc:defs.bzl", "cc_library", "cc_test")
 
-cc_test(
-    name = "greet_test",
-    srcs = ["greet_test.cc"],
-    copts = ["-std=c++17"],
-    deps = [":consumer"],
-)
+# dx: written once, yours to edit
 
 cc_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["greet.cc"],
     hdrs = ["greet.h"],
     visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "greet_test",
+    srcs = ["greet_test.cc"],
+    deps = [":my_project"],
 )

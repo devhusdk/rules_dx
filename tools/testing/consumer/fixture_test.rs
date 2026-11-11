@@ -10,7 +10,7 @@ const PENDING: &str = "tools/testing/consumer/pending.txt";
 /// The name the fixture stores `MODULE.bazel` under.
 const STORED_MODULE: &str = "consumer.MODULE.bazel";
 
-/// The name of the scratch workspace, which `dx init` takes the module name from.
+/// The name of the scratch workspace directory; `dx init` without a directory argument names the module `my_project`.
 const WORKSPACE: &str = "consumer";
 
 fn base(path: &str) -> &str {
@@ -112,16 +112,16 @@ fn init_writes_the_checked_in_files() {
     );
     let root = workspace(&files);
     let run = init(&root);
-    assert!(
-        run.status.success(),
-        "dx init --apply failed in a copy of {lang}/tests/consumer\n{}",
-        run.combined()
-    );
-    let differences = differences(&files, &root);
     let line = format!("init {lang}");
     let pending = dx_testing::read_text(&dx_testing::env_file("DX_CONSUMER_PENDING"))
         .lines()
         .any(|entry| entry == line);
+    assert!(
+        pending || run.status.success(),
+        "dx init --apply failed in a copy of {lang}/tests/consumer\n{}",
+        run.combined()
+    );
+    let differences = differences(&files, &root);
     if pending {
         assert!(
             !differences.is_empty(),

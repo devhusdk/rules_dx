@@ -11,16 +11,11 @@ fixture kubernetes
 fixture make
 fixture msix
 fixture terraform
-init d
 init elixir
 init erlang
-init fsharp
 init haskell
-init javascript
-init julia
 init ocaml
 init rego
-init typescript
 override archive_override lua
 override archive_override rules_flutter
 override archive_override rules_py

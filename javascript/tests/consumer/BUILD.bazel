@@ -1,4 +1,16 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_dx//javascript:defs.bzl", "javascript_binary", "javascript_library")
+
+# dx: written once, yours to edit
+
+npm_link_all_packages(name = "node_modules")
+
+js_library(
+    name = "package_json",
+    srcs = ["package.json"],
+    visibility = ["//visibility:public"],
+)
 
 javascript_library(
     name = "greet",
@@ -6,8 +18,15 @@ javascript_library(
     visibility = ["//visibility:public"],
 )
 
+javascript_library(
+    name = "main",
+    srcs = ["main.js"],
+    visibility = ["//visibility:public"],
+    deps = [":greet"],
+)
+
 javascript_binary(
-    name = "consumer",
-    data = [":greet"],
+    name = "main_bin",
+    data = [":main"],
     main = "main.js",
 )

@@ -1,18 +1,16 @@
 load("@rules_dx//fsharp:defs.bzl", "fsharp_library", "fsharp_test")
 
+# dx: written once, yours to edit
+
 fsharp_library(
-    name = "consumer",
+    name = "my_project",
+    # do not sort: F# compile order, dependencies first
     srcs = ["Greet.fs"],
-    deps = ["@paket.main//fsharp.core"],
     visibility = ["//visibility:public"],
 )
 
 fsharp_test(
-    name = "consumer_test",
-    size = "small",
+    name = "greet_test",
     srcs = ["GreetTest.fs"],
-    deps = [
-        ":consumer",
-        "@paket.main//fsharp.core",
-    ],
+    deps = [":my_project"],
 )

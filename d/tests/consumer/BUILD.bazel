@@ -1,14 +1,20 @@
 load("@rules_dx//d:defs.bzl", "d_library", "d_test")
 
+# dx: written once, yours to edit
+
 d_library(
-    name = "consumer",
-    srcs = ["greet.d"],
+    name = "my_project",
+    srcs = [
+        "greet.d",
+        "greet_test.d",
+    ],
     visibility = ["//visibility:public"],
 )
 
 d_test(
-    name = "consumer_test",
-    size = "small",
-    srcs = ["greet_test.d"],
-    deps = [":consumer"],
+    name = "my_project_test",
+    srcs = [
+        "greet.d",
+        "greet_test.d",
+    ],
 )

@@ -62,6 +62,18 @@ swift_tools(
 
 _SEVEN_ZIP = "_7zip"
 
+_NO_HOST_TOOLS = {
+    "PATH": None,
+    "Path": None,
+    "PSModulePath": None,
+    "SystemRoot": None,
+    "SYSTEMROOT": None,
+    "windir": None,
+    "WINDIR": None,
+    "POWERSHELL_TELEMETRY_OPTOUT": "1",
+    "POWERSHELL_UPDATECHECK": "Off",
+}
+
 def _swift_windows_impl(repository_ctx):
     cell = repository_ctx.attr.cell
     version = repository_ctx.attr.version
@@ -112,6 +124,7 @@ def _swift_windows_impl(repository_ctx):
             "-SevenZip",
             repository_ctx.path(_SEVEN_ZIP + "/full/7z.exe"),
         ],
+        environment = _NO_HOST_TOOLS,
         timeout = 3600,
     )
     if result.return_code != 0:

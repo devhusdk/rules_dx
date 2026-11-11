@@ -1,0 +1,288 @@
+diff --git a/flutter/private/flutter_android_engine_repo.bzl b/flutter/private/flutter_android_engine_repo.bzl
+--- a/flutter/private/flutter_android_engine_repo.bzl
++++ b/flutter/private/flutter_android_engine_repo.bzl
+@@ -12,6 +12,7 @@
+ 
+ load(":artifact_urls.bzl", "android_engine_artifact_path", "engine_artifact_url")
+ load(":constants.bzl", "ANDROID_ABI_FOR_ARCH")
++load(":required_sha256.bzl", "required_sha256")
+ 
+ def _flutter_android_engine_repo_impl(repository_ctx):
+     engine_revision = repository_ctx.attr.engine_revision
+@@ -20,14 +21,14 @@
+     # Release engine (AOT) at the repo root.
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, android_engine_artifact_path(android_arch, "release")),
+-        sha256 = repository_ctx.attr.release_sha256,
++        sha256 = required_sha256(repository_ctx.attr.release_sha256, "Android release engine"),
+     )
+ 
+     # Debug engine (JIT) under debug/ — its flutter.jar would otherwise collide
+     # with the release one at the repo root.
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, android_engine_artifact_path(android_arch, "debug")),
+-        sha256 = repository_ctx.attr.debug_sha256,
++        sha256 = required_sha256(repository_ctx.attr.debug_sha256, "Android debug engine"),
+         output = "debug",
+     )
+ 
+diff --git a/flutter/private/flutter_cross_repo.bzl b/flutter/private/flutter_cross_repo.bzl
+--- a/flutter/private/flutter_cross_repo.bzl
++++ b/flutter/private/flutter_cross_repo.bzl
+@@ -9,6 +9,7 @@
+ """
+ 
+ load(":artifact_urls.bzl", "engine_artifact_url", "gen_snapshot_cross_artifact_path")
++load(":required_sha256.bzl", "required_sha256")
+ load(":engine_helpers.bzl", "dart_binary_name", "dartaotruntime_binary_name", "gen_snapshot_host_platform", "platform_to_arch", "platform_to_os")
+ 
+ def _flutter_cross_compilation_repo_impl(repository_ctx):
+@@ -28,7 +29,7 @@
+         artifact_path = gen_snapshot_cross_artifact_path(target_platform, "release", artifact_host)
+         repository_ctx.download_and_extract(
+             url = engine_artifact_url(engine_revision, artifact_path),
+-            sha256 = repository_ctx.attr.gen_snapshot_sha256 if repository_ctx.attr.gen_snapshot_sha256 else "",
++            sha256 = required_sha256(repository_ctx.attr.gen_snapshot_sha256, artifact_path),
+         )
+         gen_snapshot_label = ":gen_snapshot"
+ 
+diff --git a/flutter/private/flutter_desktop_engine_repo.bzl b/flutter/private/flutter_desktop_engine_repo.bzl
+--- a/flutter/private/flutter_desktop_engine_repo.bzl
++++ b/flutter/private/flutter_desktop_engine_repo.bzl
+@@ -8,6 +8,7 @@
+ """
+ 
+ load(":artifact_urls.bzl", "desktop_engine_artifact_path", "engine_artifact_url")
++load(":required_sha256.bzl", "required_sha256")
+ load(":engine_helpers.bzl", "engine_filegroup_for_os", "extract_macos_inner_framework")
+ 
+ def _flutter_desktop_engine_repo_impl(repository_ctx):
+@@ -22,7 +23,7 @@
+ 
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, artifact_path),
+-        sha256 = repository_ctx.attr.sha256 if repository_ctx.attr.sha256 else "",
++        sha256 = required_sha256(repository_ctx.attr.sha256, artifact_path),
+         output = "engine",
+     )
+ 
+diff --git a/flutter/private/flutter_ios_engine_repo.bzl b/flutter/private/flutter_ios_engine_repo.bzl
+--- a/flutter/private/flutter_ios_engine_repo.bzl
++++ b/flutter/private/flutter_ios_engine_repo.bzl
+@@ -11,6 +11,7 @@
+ """
+ 
+ load(":artifact_urls.bzl", "engine_artifact_url", "ios_engine_artifact_path")
++load(":required_sha256.bzl", "required_sha256")
+ 
+ def _flutter_ios_engine_repo_impl(repository_ctx):
+     engine_revision = repository_ctx.attr.engine_revision
+@@ -19,14 +20,14 @@
+     # carries the iOS gen_snapshot used by the macos->ios cross-compile toolchain.
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, ios_engine_artifact_path("release")),
+-        sha256 = repository_ctx.attr.release_sha256,
++        sha256 = required_sha256(repository_ctx.attr.release_sha256, "iOS release engine"),
+     )
+ 
+     # Debug engine (JIT, simulator) under debug/ — its Flutter.xcframework would
+     # otherwise collide with the release one at the repo root.
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, ios_engine_artifact_path("debug")),
+-        sha256 = repository_ctx.attr.debug_sha256,
++        sha256 = required_sha256(repository_ctx.attr.debug_sha256, "iOS debug engine"),
+         output = "debug",
+     )
+ 
+diff --git a/flutter/private/flutter_profile_repo.bzl b/flutter/private/flutter_profile_repo.bzl
+--- a/flutter/private/flutter_profile_repo.bzl
++++ b/flutter/private/flutter_profile_repo.bzl
+@@ -9,13 +9,14 @@
+ """
+ 
+ load(":artifact_urls.bzl", "engine_artifact_url")
++load(":required_sha256.bzl", "required_sha256")
+ load(":engine_helpers.bzl", "extract_macos_inner_framework")
+ 
+ def _flutter_profile_repo_impl(repository_ctx):
+     for path, output in repository_ctx.attr.downloads.items():
+         repository_ctx.download_and_extract(
+             url = engine_artifact_url(repository_ctx.attr.engine_revision, path),
+-            sha256 = repository_ctx.attr.sha256s.get(path, ""),
++            sha256 = required_sha256(repository_ctx.attr.sha256s.get(path, ""), path),
+             output = output,
+         )
+     for base_dir in repository_ctx.attr.macos_framework_dirs:
+diff --git a/flutter/private/flutter_sky_engine_repo.bzl b/flutter/private/flutter_sky_engine_repo.bzl
+--- a/flutter/private/flutter_sky_engine_repo.bzl
++++ b/flutter/private/flutter_sky_engine_repo.bzl
+@@ -34,6 +34,7 @@
+ """
+ 
+ load(":artifact_urls.bzl", "engine_artifact_url")
++load(":required_sha256.bzl", "required_sha256")
+ 
+ _ROOT_BUILD_TEMPLATE = """# Generated by flutter_sky_engine_repo.bzl
+ 
+@@ -74,7 +75,7 @@
+     # use `stripPrefix`: stripping would silently drop it.)
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(repository_ctx.attr.engine_revision, "sky_engine.zip"),
+-        sha256 = repository_ctx.attr.sha256,
++        sha256 = required_sha256(repository_ctx.attr.sha256, "sky_engine.zip"),
+     )
+ 
+     # The Bazel package has to sit at `sky_engine/`, not at the repository
+diff --git a/flutter/private/flutter_web_sdk_repo.bzl b/flutter/private/flutter_web_sdk_repo.bzl
+--- a/flutter/private/flutter_web_sdk_repo.bzl
++++ b/flutter/private/flutter_web_sdk_repo.bzl
+@@ -9,6 +9,7 @@
+ """
+ 
+ load(":artifact_urls.bzl", "dart_sdk_artifact_path", "engine_artifact_url")
++load(":required_sha256.bzl", "required_sha256")
+ 
+ def _detect_host_platform(repository_ctx):
+     """Detect the host platform string (e.g. 'darwin-arm64', 'linux-x64')."""
+@@ -38,7 +39,7 @@
+ 
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, "flutter-web-sdk.zip"),
+-        sha256 = repository_ctx.attr.sha256 if repository_ctx.attr.sha256 else "",
++        sha256 = required_sha256(repository_ctx.attr.sha256, "flutter-web-sdk.zip"),
+         output = "web-sdk",
+     )
+ 
+@@ -49,7 +50,7 @@
+     dart_sdk_zip = dart_sdk_artifact_path(host_platform)
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, dart_sdk_zip),
+-        sha256 = "",
++        sha256 = required_sha256(repository_ctx.attr.dart_sdk_sha256s.get(dart_sdk_zip, ""), dart_sdk_zip),
+         stripPrefix = "dart-sdk",
+         output = "dart-sdk",
+     )
+@@ -76,5 +77,6 @@
+     attrs = {
+         "engine_revision": attr.string(mandatory = True),
+         "sha256": attr.string(doc = "Expected SHA-256 of flutter-web-sdk.zip."),
++        "dart_sdk_sha256s": attr.string_dict(doc = "Dart SDK archive path → expected SHA-256."),
+     },
+ )
+diff --git a/flutter/private/required_sha256.bzl b/flutter/private/required_sha256.bzl
+--- a/flutter/private/required_sha256.bzl
++++ b/flutter/private/required_sha256.bzl
+@@ -0,0 +1,6 @@
++"""Rejects an engine artifact that has no sha256."""
++
++def required_sha256(sha256, what):
++    if not sha256:
++        fail("rules_flutter: no sha256 for %s" % what)
++    return sha256
+diff --git a/flutter/repositories.bzl b/flutter/repositories.bzl
+--- a/flutter/repositories.bzl
++++ b/flutter/repositories.bzl
+@@ -20,6 +20,7 @@
+ load("//flutter/private:flutter_web_sdk_repo.bzl", "flutter_web_sdk_repo")
+ load("//flutter/private:libraries_spec.bzl", "flutter_libraries_spec")
+ load("//flutter/private:toolchains_repo.bzl", "CROSS_COMPILATION_PAIRS", "DESKTOP_CROSS_PAIRS", "HOST_PLATFORMS", "flutter_toolchains_repo")
++load("//flutter/private:required_sha256.bzl", "required_sha256")
+ load("//flutter/private:versions.bzl", "ARTIFACT_CHECKSUMS", "FLUTTER_VERSIONS", "LINUX_SYSROOT_CHECKSUMS", "flutter_source_sha256")
+ 
+ # The profile engine's repository: its flutter.jar, and the stripped copy
+@@ -49,7 +50,7 @@
+     dart_sdk_path = dart_sdk_artifact_path(platform)
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, dart_sdk_path),
+-        sha256 = checksums.get(dart_sdk_path, ""),
++        sha256 = required_sha256(checksums.get(dart_sdk_path, ""), dart_sdk_path),
+         stripPrefix = "dart-sdk",
+         output = "dart-sdk",
+     )
+@@ -60,7 +61,7 @@
+     host_tools_path = host_artifacts_path(platform)
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, host_tools_path),
+-        sha256 = checksums.get(host_tools_path, ""),
++        sha256 = required_sha256(checksums.get(host_tools_path, ""), host_tools_path),
+         output = "host-tools",
+     )
+ 
+@@ -74,21 +75,21 @@
+         release_tools_path = host_artifacts_path(platform, mode = "release")
+         repository_ctx.download_and_extract(
+             url = engine_artifact_url(engine_revision, release_tools_path),
+-            sha256 = checksums.get(release_tools_path, ""),
++            sha256 = required_sha256(checksums.get(release_tools_path, ""), release_tools_path),
+             output = "host-tools-release",
+         )
+ 
+     # 4. Download the patched SDK (debug platform kernel dills).
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, "flutter_patched_sdk.zip"),
+-        sha256 = checksums.get("flutter_patched_sdk.zip", ""),
++        sha256 = required_sha256(checksums.get("flutter_patched_sdk.zip", ""), "flutter_patched_sdk.zip"),
+         output = "patched-sdk",
+     )
+ 
+     # 5. Download the product patched SDK (release platform kernel dills).
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, "flutter_patched_sdk_product.zip"),
+-        sha256 = checksums.get("flutter_patched_sdk_product.zip", ""),
++        sha256 = required_sha256(checksums.get("flutter_patched_sdk_product.zip", ""), "flutter_patched_sdk_product.zip"),
+         output = "patched-sdk-product",
+     )
+ 
+@@ -106,7 +107,7 @@
+     if engine_release_path:
+         repository_ctx.download_and_extract(
+             url = engine_artifact_url(engine_revision, engine_release_path),
+-            sha256 = checksums.get(engine_release_path, ""),
++            sha256 = required_sha256(checksums.get(engine_release_path, ""), engine_release_path),
+             output = "engine",
+         )
+ 
+@@ -122,7 +123,7 @@
+         if engine_debug_path:
+             repository_ctx.download_and_extract(
+                 url = engine_artifact_url(engine_revision, engine_debug_path),
+-                sha256 = checksums.get(engine_debug_path, ""),
++                sha256 = required_sha256(checksums.get(engine_debug_path, ""), engine_debug_path),
+                 output = "engine-debug",
+             )
+ 
+@@ -138,7 +139,7 @@
+         cpp_wrapper_path = "{platform}/flutter-cpp-client-wrapper.zip".format(platform = platform)
+         repository_ctx.download_and_extract(
+             url = engine_artifact_url(engine_revision, cpp_wrapper_path),
+-            sha256 = checksums.get(cpp_wrapper_path, ""),
++            sha256 = required_sha256(checksums.get(cpp_wrapper_path, ""), cpp_wrapper_path),
+             output = "cpp-client-wrapper",
+         )
+ 
+@@ -146,7 +147,7 @@
+     font_subset_path = "{platform}/font-subset.zip".format(platform = platform)
+     repository_ctx.download_and_extract(
+         url = engine_artifact_url(engine_revision, font_subset_path),
+-        sha256 = checksums.get(font_subset_path, ""),
++        sha256 = required_sha256(checksums.get(font_subset_path, ""), font_subset_path),
+         output = "font-subset-tools",
+     )
+ 
+@@ -154,7 +155,7 @@
+     material_fonts_url = meta.material_fonts_url
+     repository_ctx.download_and_extract(
+         url = "https://storage.googleapis.com/" + material_fonts_url,
+-        sha256 = checksums.get("material_fonts.zip", ""),
++        sha256 = required_sha256(checksums.get("material_fonts.zip", ""), "material_fonts.zip"),
+         output = "material-fonts",
+     )
+ 
+@@ -547,6 +548,7 @@
+         name = name + "_web_sdk",
+         engine_revision = meta.engine_revision,
+         sha256 = checksums.get("flutter-web-sdk.zip", ""),
++        dart_sdk_sha256s = {path: sha for path, sha in checksums.items() if path.startswith("dart-sdk-")},
+     )
+ 
+     # sky_engine (lazy — only fetched when Flutter code is analyzed). Nothing

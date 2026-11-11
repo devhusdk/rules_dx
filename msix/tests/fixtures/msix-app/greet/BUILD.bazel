@@ -24,6 +24,7 @@ cc_library(
 cc_shared_library(
     name = "greet_dll",
     shared_lib_name = "greet.dll",
+    testonly = True,
     target_compatible_with = ["@platforms//os:windows"],
     deps = [":greet"],
 )

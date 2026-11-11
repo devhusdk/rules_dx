@@ -1,0 +1,47 @@
+# gazelle:ignore
+load("//perl:defs.bzl", "perl_binary", "perl_library", "perl_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+perl_library(
+    name = "conformance",
+    srcs = ["lib/Greet.pm"],
+)
+
+perl_binary(
+    name = "hello",
+    srcs = ["main.pl"],
+    deps = [":conformance"],
+)
+
+perl_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["t/pass_test.t"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+perl_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["t/fail_test.t"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "lib/Greet.pm",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "perl",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

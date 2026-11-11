@@ -131,10 +131,7 @@ ocaml build_test *
 ocaml coverage_test *
 ocaml fail_test *
 ocaml pass_test *
-perl build_test *
 perl coverage_test *
-perl fail_test *
-perl pass_test *
 php build_test *
 php coverage_test *
 php fail_test *

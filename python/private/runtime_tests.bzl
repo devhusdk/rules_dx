@@ -5,11 +5,11 @@ load("//core/modules:python.bzl", _MOD_ASPECT_PY = "RULES_PY_VERSION", _MOD_PY_H
 load("//core/modules:versions.bzl", _ASPECT_PY = "RULES_PY_VERSION", _PY = "PYTHON_VERSION", _RULES_PY = "RULES_PYTHON_VERSION")
 
 _UV_PROJECTS_BLOCK = """UV_PROJECTS = [
-    "//core/quality/tools/python:pyproject.toml",
+    "//core/quality/tools/python:" + LOCK_REGISTRY["uv"]["manifest"],
 ]"""
 
 _UV_LOCKS_BLOCK = """UV_LOCKS = [
-    "//core/quality/tools/python:uv.lock",
+    "//core/quality/tools/python:" + LOCK_REGISTRY["uv"]["lock"],
 ]"""
 
 def python_runtime_unit_tests(name):

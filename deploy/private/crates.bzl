@@ -1,9 +1,12 @@
 """Local-first crates.io publisher for dx deploy."""
 
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_crates.bzl", "crates_name_error", "crates_version_error")
+
+_MANIFEST = LOCK_REGISTRY["cargo"]["manifest"]
 
 def _crates_config_impl(ctx):
     """Writes the deploy config for one crates.io deployment."""
@@ -17,16 +20,16 @@ def _crates_config_impl(ctx):
 
     crate_dir = ""
     if ctx.attr.api_baseline == "git" and ctx.attr.api_compat != "off":
-        manifests = [f for f in crate_files if f.basename == "Cargo.toml"]
+        manifests = [f for f in crate_files if f.basename == _MANIFEST]
         if len(manifests) == 0:
-            fail("crates_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a Cargo.toml in crate " +
+            fail("crates_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a " + _MANIFEST + " in crate " +
                  str(ctx.attr.crate.label))
         manifest = manifests[0]
         if not manifest.is_source:
-            fail("crates_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a checked-in Cargo.toml, " +
+            fail("crates_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a checked-in " + _MANIFEST + ", " +
                  "but " + manifest.short_path + " is generated; use api_baseline = \"registry\"")
         if manifest.owner.workspace_name != "":
-            fail("crates_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a Cargo.toml in this " +
+            fail("crates_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a " + _MANIFEST + " in this " +
                  "repository, but " + manifest.short_path + " comes from an external repository")
         crate_dir = manifest.short_path.rpartition("/")[0]
 
@@ -69,7 +72,7 @@ _crates_config = rule(
 )
 
 def crates_deploy(name, crate, package = "", version = "", build_mode = "release", api_compat = "fail", api_baseline = "registry", sbom = None, size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
-    """Publishes staged crate sources as a local-first crates.io deployment. api_compat and api_baseline work as described under "Public API compatibility" in the README; the tool is cargo-semver-checks, and the git baseline needs a checked-in, standalone Cargo.toml."""
+    """Publishes staged crate sources as a local-first crates.io deployment. api_compat and api_baseline work as described under "Public API compatibility" in the README; the tool is cargo-semver-checks, and the git baseline needs a checked-in, standalone crate manifest."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, crates_name_error, crates_version_error)
 

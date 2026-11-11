@@ -78,16 +78,15 @@ An import resolves to `@dub//<package>` when its first segment is the name of a 
 
 ## DUB packages
 
-Packages come from a `dub.selections.json` that DUB wrote. Bazel fetches each
-package from `code.dlang.org` through its repository cache; DUB never runs at
-fetch time and nothing is resolved.
+`dx update` runs `bazel run @rules_dx//d:lock -- --dir <set directory>`. It reads `dub.json`,
+resolves exact versions from the `code.dlang.org` API, downloads each archive and writes
+`dub.lock.json` and the state file `dub.selections.json`. Unchanged packages are kept without a download.
 
 ```starlark
 dub = use_extension("@rules_dx//d:extensions.bzl", "dub")
 dub.lock(
     name = "dub_packages",
-    digests = "//:dub.digests.json",
-    lock = "//:dub.selections.json",
+    lock = "//:dub.lock.json",
 )
 use_repo(dub, "dub_packages")
 ```
@@ -96,29 +95,13 @@ Use `dev_dependency = True` on `use_extension` when the hub is only for developm
 
 Each package is the label `@dub_packages//<name>`, for example
 `@dub_packages//silly`; put it in the `deps` of a `d_library`, `d_binary` or
-`d_test`. The package's own `dependencies` that appear in the selections become
-deps. `sourcePaths`, `sourceFiles`, `importPaths` and `stringImportPaths` of its `dub.json` set
-the sources and imports; without `sourcePaths` the `source` or `src` directory is
-used, and without `stringImportPaths` the `views` directory is used if it exists.
-`@dub_packages//:all_packages` groups every package.
+`d_test`. The package's own `dependencies` become deps. `sourcePaths`, `sourceFiles`,
+`importPaths` and `stringImportPaths` of its `dub.json` set the sources and imports; without
+`sourcePaths` the `source` or `src` directory is used, and without `stringImportPaths` the
+`views` directory is used if it exists.
 
-Only plain versions are supported: a `path` or `repository` selection fails, and
-so does a package that has a `dub.sdl` instead of a `dub.json`.
-
-`dub.digests.json` pins the archives:
-
-```json
-{
-  "packages": {
-    "silly": {
-      "version": "1.1.1",
-      "sha256": "<sha256 of https://code.dlang.org/packages/silly/1.1.1.zip>"
-    }
-  }
-}
-```
-
-A package without a matching entry fails the fetch and prints the entry to commit.
+Only registry versions are supported: a `path` or `repository` dependency fails, and so does a
+package that has a `dub.sdl` instead of a `dub.json`.
 
 ## Platforms
 

@@ -297,8 +297,7 @@ pub struct ZigLock<'a> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DubLock<'a> {
     pub name: &'a str,
-    pub selections: &'a str,
-    pub digests: &'a str,
+    pub lock: &'a str,
     pub line: usize,
 }
 
@@ -1113,8 +1112,7 @@ impl ModuleFile {
             .map(|call| {
                 Ok(DubLock {
                     name: required(call, TAG, "name")?,
-                    selections: required(call, TAG, "lock")?,
-                    digests: required(call, TAG, "digests")?,
+                    lock: required(call, TAG, "lock")?,
                     line: call.line,
                 })
             })

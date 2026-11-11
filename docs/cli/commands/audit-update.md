@@ -464,7 +464,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `go_deps.from_file` with `go_mod` | `go` | `go_mod` | `go.sum` beside it |
 | `ruby.bundle_fetch` | `name`, default `bundle` | `gemfile` | `gemfile_lock` |
 | `composer.lock` of `@rules_dx//php:extensions.bzl` | `name` | `composer.json` beside the lock | `lock`, `digests` |
-| `dub.lock` of `@rules_dx//d:extensions.bzl` | `name` | `dub.json` or `dub.sdl` beside `lock` | `lock`, `digests` |
+| `dub.lock` of `@rules_dx//d:extensions.bzl` | `name` | `dub.json` beside `lock` | `lock` |
 | `fortran.fpm` of `@rules_dx//fortran:extensions.bzl` | `name` | `fpm.toml` beside the lock | `lock` |
 | `luarocks.lock` of `@rules_dx//lua:extensions.bzl` | `name` | `lock` | `digests` |
 | `zig_deps.lock` of `@rules_dx//zig:extensions.bzl` | `name` | `build.zig.zon` beside `lock` | `digests` |
@@ -551,15 +551,13 @@ composer.lock(
 dub = use_extension("@rules_dx//d:extensions.bzl", "dub")
 dub.lock(
     name = "dub_deps",
-    digests = "//d:dub.digests.json",
-    lock = "//d:dub.selections.json",
+    lock = "//d:dub.lock.json",
 )
 ```
 
-- `dub.json` or `dub.sdl` must sit beside `dub.selections.json`.
-- A dub set is pinned: the D toolchain ships no `dub`, so `dx update` does not resolve packages. `dx update --outdated` compares each selection of `dub.selections.json` with the newest release from the `code.dlang.org` API (`/api/packages/<name>/latest`); branch pins such as `~master` are skipped, and no apply command is printed. Edit the manifest, run `dub upgrade` and refresh `dub.digests.json` by hand.
+- `dub.json` must sit beside `dub.lock.json`.
+- A dub set: `dx update` runs `bazel run @rules_dx//d:lock -- --dir <set directory>`, which resolves `dub.json` against `code.dlang.org`, downloads each archive and rewrites `dub.lock.json` and `dub.selections.json`. `<set>:<package>` is refused. `dx update --outdated` compares each selection of `dub.selections.json` with the newest release from the `code.dlang.org` API (`/api/packages/<name>/latest`); branch pins such as `~master` are skipped, and no apply command is printed.
 - `dx security` and `dx license` list the packages of `dub.selections.json`. OSV and the GitHub Advisory Database have no DUB ecosystem, so there is no advisory source.
-- The layout check fails when `dub.digests.json` names other versions than `dub.selections.json`.
 
 ### fpm
 

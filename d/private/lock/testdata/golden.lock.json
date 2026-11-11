@@ -1,0 +1,71 @@
+{
+  "ecosystem": "dub",
+  "inputs": {
+    "dub.json": "e7ab88bcc8e90c9c981c1b6c7d69fa6ab4d23e9e2509287068f88eeb57adfd59",
+    "dub.selections.json": "f90cd084305e74f6f294517f31ee8d33f2b441370d60a81b51db37edc10753ac"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "9b57e98c88966a9db72ed103c2e6b900f214dac485e12c2a6a8885e2cf4ec1d1",
+          "strip_prefix": "base-0.2.3",
+          "urls": [
+            "https://code.dlang.org/packages/base/0.2.3.zip"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "d_library": {
+          "imports": [
+            "lib"
+          ],
+          "srcs": [
+            "lib/**/*.d",
+            "lib/**/*.di"
+          ],
+          "string_imports": [
+            "views"
+          ]
+        }
+      },
+      "name": "base",
+      "provides": [
+        "base"
+      ],
+      "version": "0.2.3"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "a178859d1d122ddb6936d63baf63dc37f2a54284487ac0d3aba665220d8e9fb0",
+          "strip_prefix": "silly-1.1.1",
+          "urls": [
+            "https://code.dlang.org/packages/silly/1.1.1.zip"
+          ]
+        }
+      ],
+      "deps": [
+        "base"
+      ],
+      "extra": {
+        "d_library": {
+          "imports": [
+            "source"
+          ],
+          "srcs": [
+            "source/**/*.d",
+            "source/**/*.di"
+          ]
+        }
+      },
+      "name": "silly",
+      "provides": [
+        "silly"
+      ],
+      "version": "1.1.1"
+    }
+  ],
+  "schema": 1
+}

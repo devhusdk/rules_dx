@@ -41,7 +41,7 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - `ruby` (ruby): `Gemfile`; `Gemfile.lock`; `gems`.
 - `composer` (php): `composer.json`; `composer.lock`; `composer`.
 - `luarocks` (lua): `*.rockspec`; none; `rocks`.
-- `dub` (d): `dub.json`; `dub.selections.json`; `dub`.
+- `dub` (d): `dub.json`; `dub.lock.json`, state `dub.selections.json`; resolver `@rules_dx//d:lock`; imports `provides`; `dub`.
 - `zig` (zig): `build.zig.zon`; none; `zig`.
 - `hex` (elixir, erlang): `mix.exs`, else `rebar.config`; `mix.lock`, else `rebar.lock`; `hex`.
 - `cpan` (perl): `cpanfile`; `cpanfile.snapshot`; `cpan`.

@@ -238,8 +238,6 @@ cuda/tests/fixtures/cuda-app/checks/BUILD.bazel no-size 2
 cuda/tests/fixtures/cuda-app/gpu/BUILD.bazel no-size 1
 cuda/tests/fixtures/executable/BUILD.bazel no-size 3
 d/private/BUILD.bazel no-size 1
-d/private/dub/BUILD.bazel no-size 1
-d/private/dub/lock_tests.bzl no-size 1
 d/private/toolchain/BUILD.bazel no-size 1
 d/private/toolchain/metadata_tests.bzl no-size 1
 d/tests/fixtures/bench/BUILD.bazel no-size 3

@@ -8,6 +8,7 @@ mod cabal;
 mod cargo;
 mod composer;
 mod cpan;
+mod dub;
 mod fpm;
 mod go;
 mod hex;
@@ -687,6 +688,7 @@ pub fn plan_configured(
         "luarocks" => luarocks::plan(workspace, set, request, offline, frozen, head, closure),
         "ansible" => ansible::plan(workspace, set, request, offline, frozen, head, closure),
         "fpm" => fpm::plan(workspace, set, request, offline, frozen, head),
+        "dub" => dub::plan(workspace, set, request, offline, frozen, head),
         "zig" => zig::plan(workspace, set, request, offline, frozen, head),
         _ => pinned::plan(set, request),
     }

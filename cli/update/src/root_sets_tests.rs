@@ -7,9 +7,9 @@ const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extensio
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
 const EXPECTED_NAMES: &[&str] = &[
-    "d_app_dub",
     "dart_apitool_deps",
-    "dub_fixture",
+    "dub_d.tests.fixtures.d-app",
+    "dub_d.tests.fixtures.dub",
     "dx_ansible_test_collections",
     "dx_benchee",
     "dx_crates",

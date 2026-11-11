@@ -40,8 +40,6 @@ pub const FPM_MANIFEST: &str = "fpm.toml";
 
 pub const DUB_SELECTIONS: &str = "dub.selections.json";
 
-pub const DUB_DIGESTS: &str = "dub.digests.json";
-
 pub const ZIG_ZON: &str = "build.zig.zon";
 
 const DUB_MANIFESTS: [&str; 2] = ["dub.json", "dub.sdl"];
@@ -227,14 +225,6 @@ pub enum DependencySetsError {
         "dependency set {name:?} has a stale {lock}: {detail}; regenerate the digests for composer.lock"
     )]
     StaleComposerLock {
-        name: String,
-        lock: String,
-        detail: String,
-    },
-    #[error(
-        "dependency set {name:?} has a stale {lock}: {detail}; regenerate dub.digests.json for dub.selections.json"
-    )]
-    StaleDubLock {
         name: String,
         lock: String,
         detail: String,
@@ -444,8 +434,8 @@ pub fn discover(
             )?);
         }
         for dub in module.dub_locks().map_err(hub)? {
-            let selections = path(dub.selections)?;
-            let dir = manifest_dir(std::slice::from_ref(&selections));
+            let lock = path(dub.lock)?;
+            let dir = manifest_dir(std::slice::from_ref(&lock));
             let manifest = DUB_MANIFESTS
                 .iter()
                 .map(|file| in_dir(&dir, file))
@@ -455,7 +445,7 @@ pub fn discover(
                 dub.name,
                 Ecosystem::Dub,
                 vec![manifest],
-                vec![selections, path(dub.digests)?],
+                vec![lock, in_dir(&dir, DUB_SELECTIONS)],
             )?);
         }
         for zig in module.zig_locks().map_err(hub)? {
@@ -1246,7 +1236,6 @@ pub fn check_backend_settings(
         },
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Composer => check_composer_layout(workspace, set),
-        Ecosystem::Dub => check_dub_layout(workspace, set),
         Ecosystem::Opam => check_opam_layout(set),
         Ecosystem::Ansible => check_ansible_layout(set),
         Ecosystem::Cabal => check_cabal_layout(workspace, set),
@@ -1461,58 +1450,6 @@ fn check_julia_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
             &bazel,
             format!("it has {extra}, which {manifest} lacks"),
         ));
-    }
-    Ok(())
-}
-
-/// A dub set keeps `dub.digests.json` on the versions of `dub.selections.json`.
-fn check_dub_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    check_pinned_lock(set, DUB_SELECTIONS)?;
-    let digests = in_dir(&set.dir, DUB_DIGESTS);
-    if !set.locks.contains(&digests) {
-        return Err(DependencySetsError::MissingPinnedLock {
-            name: set.name.clone(),
-            path: digests,
-            ecosystem: set.ecosystem.name(),
-        });
-    }
-    let stale = |detail: String| DependencySetsError::StaleDubLock {
-        name: set.name.clone(),
-        lock: digests.clone(),
-        detail,
-    };
-    let read = |file: &str| -> Result<serde_json::Value, DependencySetsError> {
-        let text = std::fs::read_to_string(workspace.join(file))
-            .map_err(|error| stale(format!("cannot read {file}: {error}")))?;
-        serde_json::from_str(&text).map_err(|error| stale(format!("cannot parse {file}: {error}")))
-    };
-    let selections = in_dir(&set.dir, DUB_SELECTIONS);
-    let selected = read(&selections)?;
-    let digested = read(&digests)?;
-    let Some(versions) = selected
-        .get("versions")
-        .and_then(serde_json::Value::as_object)
-    else {
-        return Ok(());
-    };
-    for (name, version) in versions {
-        let Some(version) = version.as_str() else {
-            continue;
-        };
-        let have = digested
-            .get("packages")
-            .and_then(|packages| packages.get(name))
-            .and_then(|entry| entry.get("version"))
-            .and_then(serde_json::Value::as_str);
-        match have {
-            None => return Err(stale(format!("it has no digest for {name}"))),
-            Some(have) if have != version => {
-                return Err(stale(format!(
-                    "its version of {name} is {have}, but {selections} has {version}"
-                )));
-            }
-            Some(_) => {}
-        }
     }
     Ok(())
 }

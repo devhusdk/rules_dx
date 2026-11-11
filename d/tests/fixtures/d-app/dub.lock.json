@@ -1,0 +1,39 @@
+{
+  "ecosystem": "dub",
+  "inputs": {
+    "dub.json": "c1d97e0d95ea46d37d91c2a02616dc9713c28dffb2e456860c09261721074a16",
+    "dub.selections.json": "d0b9f97734808fc7b8321d532ff5e9b24a84f5ab5b6db843a92eead66b343174"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "144c8c9c0e308a4e226baeebcb6e0b335ab3b92d9a868bead5d61db4029b7e43",
+          "strip_prefix": "semver-0.8.0",
+          "urls": [
+            "https://code.dlang.org/packages/semver/0.8.0.zip"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "d_library": {
+          "imports": [
+            "source"
+          ],
+          "srcs": [
+            "source/**/*.d",
+            "source/**/*.di"
+          ]
+        }
+      },
+      "name": "semver",
+      "provides": [
+        "mvs",
+        "semver"
+      ],
+      "version": "0.8.0"
+    }
+  ],
+  "schema": 1
+}

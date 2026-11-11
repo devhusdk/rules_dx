@@ -3,7 +3,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_GENERATION_QUALITY")
 
-package(default_visibility = VIS_CLI_DEPLOY_GENERATION_QUALITY + ["//swift/private/lock:__pkg__", "//zig/private/lock:__pkg__"])
+package(default_visibility = VIS_CLI_DEPLOY_GENERATION_QUALITY + ["//swift/private/lock:__pkg__", "//zig/private/lock:__pkg__", "//d/private/lock:__pkg__"])
 
 exports_files([
     "src/lib.rs",

@@ -1,0 +1,99 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load(":hub_tests.bzl", "dub_hub_tests")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//visibility:private"])
+
+rust_library(
+    name = "dub_lock_lib",
+    srcs = ["src/resolve.rs"],
+    aliases = aliases(
+        package_name = "d/private/dub_lock",
+        normal = True,
+    ),
+    crate_name = "dub_lock",
+    crate_root = "src/resolve.rs",
+    deps = all_crate_deps(
+        package_name = "d/private/dub_lock",
+        normal = True,
+    ) + [
+        "//cli/digest:dx_digest",
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+    ],
+)
+
+rust_binary(
+    name = "lock",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "d/private/dub_lock",
+        normal = True,
+    ),
+    crate_name = "dub_lock_bin",
+    crate_root = "src/main.rs",
+    visibility = ["//d:__pkg__"],
+    deps = all_crate_deps(
+        package_name = "d/private/dub_lock",
+        normal = True,
+    ) + [
+        ":dub_lock_lib",
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+    ],
+)
+
+dub_hub_tests(name = "hub", size = "small")
+
+rust_test(
+    name = "resolve_test",
+    size = "small",
+    srcs = ["tests/resolve_test.rs"],
+    aliases = aliases(
+        package_name = "d/private/dub_lock",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "resolve_test",
+    crate_root = "tests/resolve_test.rs",
+    data = [
+        "testdata/base-0.2.3.zip",
+        "testdata/golden.lock.json",
+        "testdata/silly-1.1.1.zip",
+    ],
+    env = {
+        "BASE": "$(rootpath testdata/base-0.2.3.zip)",
+        "GOLDEN": "$(rootpath testdata/golden.lock.json)",
+        "SILLY": "$(rootpath testdata/silly-1.1.1.zip)",
+    },
+    tags = ["block-network"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = all_crate_deps(
+        package_name = "d/private/dub_lock",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dub_lock_lib",
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel", "hub.bzl", "hub_tests.bzl"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml", "hub.bzl"],
+    visibility = ["//visibility:public"],
+)

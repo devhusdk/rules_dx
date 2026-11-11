@@ -1,5 +1,5 @@
 {
-  "checksum": "ab5132838e7772ab9918d6a280fe36e8ae81781302b08d0b4477d1810c25e015",
+  "checksum": "a148d683711bf8a92cf1f38d552ace2f8a8f517e2774dad4ad87960a17a069fc",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7195,6 +7195,43 @@
         }
       ],
       "version": "0.6.3"
+    },
+    "dub_lock 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "zip 9.1.2",
+            "target": "zip"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dub_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dub_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dub_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "dupe 0.9.1": {
       "common_attrs": {
@@ -31448,6 +31485,7 @@
     "documentation_ir 0.0.0": "tools/docs/ir/documentation_ir",
     "dotnet_docs_tests 0.0.0": "tools/docs/dotnet_docs_tests",
     "dotnet_extract 0.0.0": "tools/docs/dotnet/dotnet_extract",
+    "dub_lock 0.0.0": "d/private/dub_lock",
     "dx_adopt 0.0.0": "cli/dx_adopt",
     "dx_advisory_prep 0.0.0": "cli/dx_advisory_prep",
     "dx_apply 0.0.0": "cli/dx_apply",

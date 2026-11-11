@@ -1116,7 +1116,7 @@ rust_test(
         "//core/quality/artifacts/acquire_test:corpus_starlark",
         "//core/quality/artifacts/hub_test:corpus_starlark",
         "//cuda/private/toolchain:corpus_starlark",
-        "//d/private/dub:corpus_starlark",
+        "//d/private/lock:corpus_starlark",
         "//d/private/toolchain:corpus_starlark",
         "//dart:corpus_starlark",
         "//deploy/private/release:corpus_starlark",

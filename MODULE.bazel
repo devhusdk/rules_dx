@@ -1498,19 +1498,17 @@ register_toolchains("@dx_d_toolchains//:all")
 
 dub = use_extension("//d:extensions.bzl", "dub", dev_dependency = True)
 dub.lock(
-    name = "dub_fixture",
-    digests = "//d/tests/fixtures/dub:dub.digests.json",
-    lock = "//d/tests/fixtures/dub:dub.selections.json",
+    name = "dub_d.tests.fixtures.d-app",
+    lock = "//d/tests/fixtures/d-app:dub.lock.json",
 )
 dub.lock(
-    name = "d_app_dub",
-    digests = "//d/tests/fixtures/d-app:dub.digests.json",
-    lock = "//d/tests/fixtures/d-app:dub.selections.json",
+    name = "dub_d.tests.fixtures.dub",
+    lock = "//d/tests/fixtures/dub:dub.lock.json",
 )
 use_repo(
     dub,
-    "dub_fixture",
-    d_app_deps = "d_app_dub",
+    "dub_d.tests.fixtures.d-app",
+    "dub_d.tests.fixtures.dub",
 )
 
 # floor: equals tested
@@ -2195,6 +2193,7 @@ crate.from_cargo(
         "//cli/lock:Cargo.toml",
         "//swift/private/lock:Cargo.toml",
         "//zig/private/lock:Cargo.toml",
+        "//d/private/lock:Cargo.toml",
         "//cli/families:Cargo.toml",
         "//cli/module_bazel:Cargo.toml",
         "//tools/testing:Cargo.toml",

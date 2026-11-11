@@ -4,3 +4,8 @@ exports_files([
     "extensions.bzl",
     "lang.json",
 ])
+
+alias(
+    name = "lock",
+    actual = "//d/private/lock",
+)

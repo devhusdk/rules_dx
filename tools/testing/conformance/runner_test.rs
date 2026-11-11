@@ -3,7 +3,22 @@ fn subject_matches_mode() {
     let mode = std::env::var("DX_CONFORMANCE_MODE").expect("DX_CONFORMANCE_MODE must be set");
     let key = std::env::var("DX_CONFORMANCE_SUBJECT").expect("DX_CONFORMANCE_SUBJECT must be set");
     let text = std::env::var("DX_CONFORMANCE_TEXT").unwrap_or_default();
-    let subject = dx_testing::rlocation(&key).expect("subject must resolve from runfiles");
+    let mut subject = None;
+    let mut subject_env = Vec::new();
+    for entry in key.split(' ').filter(|entry| !entry.is_empty()) {
+        let path = dx_testing::rlocation(entry).expect("subject must resolve from runfiles");
+        if entry.ends_with(".env") {
+            let text = std::fs::read_to_string(&path).expect("subject env must be readable");
+            for line in text.lines() {
+                if let Some((name, value)) = line.split_once('=') {
+                    subject_env.push((name.to_owned(), value.to_owned()));
+                }
+            }
+        } else {
+            subject = Some(path);
+        }
+    }
+    let subject = subject.expect("subject must list an executable");
     let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
     let srcdir = std::env::var("TEST_SRCDIR").unwrap_or_default();
     let runfiles = std::env::var("RUNFILES_DIR").unwrap_or_else(|_| srcdir.clone());
@@ -26,6 +41,9 @@ fn subject_matches_mode() {
         envs.push(("COVERAGE", "1"));
         envs.push(("COVERAGE_DIR", raw_s.as_str()));
         envs.push(("COVERAGE_OUTPUT_FILE", out_s.as_str()));
+    }
+    for (name, value) in &subject_env {
+        envs.push((name.as_str(), value.as_str()));
     }
     let run = dx_testing::run(&subject, &[], &envs).expect("subject must execute");
     match mode.as_str() {

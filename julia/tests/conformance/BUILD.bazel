@@ -1,0 +1,47 @@
+load("//julia:defs.bzl", "julia_binary", "julia_library", "julia_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+julia_library(
+    name = "Greet",
+    srcs = ["src/Greet.jl"],
+    data = ["Project.toml"],
+)
+
+julia_binary(
+    name = "hello",
+    srcs = ["main.jl"],
+    deps = [":Greet"],
+)
+
+julia_test(
+    name = "pass_subject_test",
+    srcs = ["pass_test.jl"],
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":Greet"],
+)
+
+julia_test(
+    name = "fail_subject_test",
+    srcs = ["fail_test.jl"],
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":Greet"],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "Greet.jl",
+    expected = "hello world",
+    failing_case = "failing case",
+    failing_test = ":fail_subject_test",
+    lang = "julia",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

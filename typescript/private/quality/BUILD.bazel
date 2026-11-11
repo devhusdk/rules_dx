@@ -1,9 +1,10 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_test")
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
+    "tsc_gate.mjs",
     "tsc.bzl",
     "tsc_gate.bzl",
     "tsc_report.bzl",
@@ -12,13 +13,6 @@ exports_files([
 js_binary(
     name = "tsc_gate",
     entry_point = "tsc_gate.mjs",
-)
-
-js_test(
-    name = "tsc_gate_test",
-    size = "small",
-    data = ["tsc_gate.mjs"],
-    entry_point = "tsc_gate_test.mjs",
 )
 
 real_source_target(

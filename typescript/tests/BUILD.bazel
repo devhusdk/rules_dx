@@ -1,4 +1,5 @@
 # gazelle:ignore
+load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//javascript:defs.bzl", "javascript_test")
 load("//typescript/private/playwright:closure.bzl", "CLOSURE_DIR")
@@ -68,9 +69,20 @@ javascript_test(
     target_compatible_with = ["@platforms//os:linux"],
 )
 
+js_test(
+    name = "tsc_gate_test",
+    size = "small",
+    data = ["//typescript/private/quality:tsc_gate.mjs"],
+    entry_point = "tsc_gate_test.mjs",
+    env = {"DX_TSC_GATE": "$(rlocationpath //typescript/private/quality:tsc_gate.mjs)"},
+    no_copy_to_bin = ["//typescript/private/quality:tsc_gate.mjs"],
+)
+
 test_suite(
     name = "fixture_tests",
     tests = [
+        "//typescript/tests/fixtures/root_dir/app:app_gate_exit_test",
+        "//typescript/tests/fixtures/root_dir/app:app_gate_manual_test",
         "//typescript/tests/fixtures/declarations:main_bin_typecheck_test",
         "//typescript/tests/fixtures/declarations:main_output_test",
         "//typescript/tests/fixtures/hello:hello_output_test",

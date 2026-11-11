@@ -1,0 +1,4 @@
+{application, my_project, [
+    {description, "A consumer starter."},
+    {vsn, "1.0.0"}
+]}.

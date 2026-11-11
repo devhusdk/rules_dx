@@ -463,7 +463,7 @@ failure_test(
 
 failure_test(
     name = "consumer_runtime_clash_fails",
-    expected_failure_substring = "duplicate member 'consumer_app' from runtime",
+    expected_failure_substring = "duplicate member 'consumer_app",
     target = ":consumer_runtime_clash_stage",
 )
 

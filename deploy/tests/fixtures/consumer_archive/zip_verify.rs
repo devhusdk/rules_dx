@@ -23,11 +23,18 @@ fn archive_lists_extracts_and_hashes_in_process() {
         checksum.split_whitespace().next(),
         Some(dx_digest::sha256_hex(&bytes).as_str())
     );
-    let app = var("DX_ARCHIVE_APP");
+    let bare = var("DX_ARCHIVE_APP");
+    let app = format!("{bare}{}", std::env::consts::EXE_SUFFIX);
     let runtime = var("DX_ARCHIVE_RUNTIME");
     let mut want: Vec<String> = var("DX_ARCHIVE_MEMBERS")
         .split(',')
-        .map(str::to_owned)
+        .map(|member| {
+            if member == bare {
+                app.clone()
+            } else {
+                member.to_owned()
+            }
+        })
         .collect();
     want.sort();
     let listed = dx_deploy_tools::archive_listing(&archive).expect("listing");

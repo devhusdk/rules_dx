@@ -151,9 +151,10 @@ mod tests {
         assert_eq!(workspace_dir_of(None), None);
         assert_eq!(workspace_dir_of(Some(OsString::new())), None);
         assert_eq!(workspace_dir_of(Some(OsString::from("rel"))), None);
+        let absolute = std::env::temp_dir();
         assert_eq!(
-            workspace_dir_of(Some(OsString::from("/ws"))),
-            Some(PathBuf::from("/ws"))
+            workspace_dir_of(Some(absolute.clone().into_os_string())),
+            Some(absolute)
         );
     }
 

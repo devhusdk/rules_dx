@@ -323,8 +323,13 @@ fn signing_dry_run_matches_shell() {
         out.contains("signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:")
     );
     assert!(out.contains(&format!("trust root: {SIGNING_TRUST_ROOT}")));
-    assert!(out.contains("cosign sign-blob --yes --bundle /out/a.bin.bundle /tmp/a.bin"));
-    assert!(out.contains("gh attestation create /tmp/a.bin --bundle /out/a.bin.bundle"));
+    let bundle = outdir.join("a.bin.bundle").to_string_lossy().into_owned();
+    assert!(out.contains(&format!(
+        "cosign sign-blob --yes --bundle {bundle} /tmp/a.bin"
+    )));
+    assert!(out.contains(&format!(
+        "gh attestation create /tmp/a.bin --bundle {bundle}"
+    )));
     assert!(out.contains("cosign verify-blob"));
     assert!(out.contains("cosign: v9.8.7 "));
     assert!(out.contains(SIGNING_BUNDLE_MEDIA_TYPE));

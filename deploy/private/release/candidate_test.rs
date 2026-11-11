@@ -542,10 +542,13 @@ fn registry_stage_passes_bcr_check_and_keeps_deps() {
         std::fs::read(&archive).expect("archive")
     );
     let config = std::fs::read_to_string(registry.join("bazel_registry.json")).expect("config");
-    assert!(
-        config.contains(&format!("file://{}/mirror/", registry.display())),
-        "{config}"
-    );
+    let spelled = registry.to_string_lossy().replace('\\', "/");
+    let base = if spelled.starts_with('/') {
+        format!("file://{spelled}")
+    } else {
+        format!("file:///{spelled}")
+    };
+    assert!(config.contains(&format!("{base}/mirror/")), "{config}");
     let metadata =
         std::fs::read_to_string(registry.join("modules/rules_dx/metadata.json")).expect("meta");
     assert!(metadata.contains("\"1.2.3-rc1\""), "{metadata}");

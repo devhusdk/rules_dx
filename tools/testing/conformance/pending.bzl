@@ -158,10 +158,7 @@ svelte build_test *
 svelte coverage_test *
 svelte fail_test *
 svelte pass_test *
-swift build_test *
 swift coverage_test *
-swift fail_test *
-swift pass_test *
 terraform build_test *
 terraform coverage_test *
 terraform fail_test *

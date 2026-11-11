@@ -1,0 +1,47 @@
+load("//swift:defs.bzl", "swift_binary", "swift_library", "swift_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+swift_library(
+    name = "conformance",
+    srcs = ["Greet.swift"],
+    module_name = "Conformance",
+)
+
+swift_binary(
+    name = "hello",
+    srcs = ["main.swift"],
+    deps = [":conformance"],
+)
+
+swift_test(
+    name = "pass_subject_test",
+    srcs = ["PassTest.swift"],
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+swift_test(
+    name = "fail_subject_test",
+    srcs = ["FailTest.swift"],
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "Greet.swift",
+    expected = "hello world",
+    failing_case = "failingCase",
+    failing_test = ":fail_subject_test",
+    lang = "swift",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

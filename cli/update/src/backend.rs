@@ -791,7 +791,7 @@ fn go_staged(
     let sum = set
         .locks
         .iter()
-        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::GO_SUM))
+        .find(|lock| lock.rsplit('/').next() == Some(dx_adopt::lock_hubs::lock_of("go")))
         .cloned()
         .ok_or_else(|| BackendError::Unsupported {
             set: set.name.clone(),

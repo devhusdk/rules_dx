@@ -37,6 +37,14 @@ pub fn manifest_of(ecosystem: &str) -> &'static str {
     &registry(ecosystem).manifest
 }
 
+/// The state file name of the `setup.hubs` entry of `ecosystem`.
+pub fn state_of(ecosystem: &str) -> &'static str {
+    registry(ecosystem)
+        .state
+        .as_deref()
+        .unwrap_or_else(|| panic!("setup.hubs entry {ecosystem} has no state"))
+}
+
 fn hub_of(ecosystem: &str) -> Result<&'static Hub, AdoptError> {
     dx_families::hub(ecosystem)
         .ok_or_else(|| refuse(format!("no setup.hubs entry for {ecosystem}")))

@@ -111,10 +111,7 @@ kubernetes build_test *
 kubernetes coverage_test *
 kubernetes fail_test *
 kubernetes pass_test *
-lua build_test *
 lua coverage_test *
-lua fail_test *
-lua pass_test *
 make build_test *
 make coverage_test *
 make fail_test *

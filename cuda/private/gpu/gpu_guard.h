@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+void dx_gpu_install_fault_handler(void);
 unsigned long dx_gpu_guarded(void (*func)(void *), void *ctx);
 
 #ifdef __cplusplus

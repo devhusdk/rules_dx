@@ -106,6 +106,7 @@ extern "C" bool dx_gpu_check(const char* name, const float* want,
 }
 
 int main() {
+  dx_gpu_install_fault_handler();
   dx_gpu::Declared declared{Env("DX_GPU_MIN_CC"), Env("DX_GPU_MIN_DRIVER"),
                             Env("DX_GPU_RUNTIME"),
                             dx_gpu_device_compute_capability(),

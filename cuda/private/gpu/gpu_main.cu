@@ -26,7 +26,8 @@ bool Failed(cudaError_t status, const char* call, dx_gpu::Probe* probe) {
   if (status == cudaSuccess) {
     return false;
   }
-  probe->error = std::string(call) + ": " + cudaGetErrorName(status);
+  probe->error = dx_gpu::CallError(call, cudaGetErrorName(status),
+                                   static_cast<int>(status));
   return true;
 }
 

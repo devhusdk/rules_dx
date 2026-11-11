@@ -57,6 +57,8 @@ Check Compare(const char *name, const float *want, const float *got, int n,
 
 std::string CudaVersion(int encoded);
 
+std::string CallError(const char *call, const char *name, int status);
+
 std::string FactsJson(const Probe &probe, const Declared &declared,
                       const Verdict &verdict);
 

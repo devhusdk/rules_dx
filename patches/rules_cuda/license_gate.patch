@@ -1,0 +1,93 @@
+diff --git a/cuda/extensions.bzl b/cuda/extensions.bzl
+--- a/cuda/extensions.bzl
++++ b/cuda/extensions.bzl
+@@ -80,6 +80,26 @@
+     ),
+ })
+ 
++cuda_license_tag = tag_class(attrs = {
++    "accept": attr.string_list(mandatory = True, doc = "License names to accept: cuda-eula."),
++})
++
++_LICENSE = "cuda-eula"
++
++def cuda_license_error(modules):
++    """Returns the error for an unaccepted CUDA Toolkit EULA, or an empty string when the root module accepts it."""
++    names = []
++    for module in modules:
++        if module.is_root:
++            for tag in module.tags.license:
++                names.extend(tag.accept)
++    for name in names:
++        if name != _LICENSE:
++            fail("dx_cuda: unknown license '" + name + "'; the only one is '" + _LICENSE + "'")
++    if _LICENSE in names:
++        return ""
++    return "dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add cuda.license(accept = [\"cuda-eula\"]) to the root MODULE.bazel"
++
+ def _find_modules(module_ctx):
+     root = None
+     our_module = None
+@@ -124,7 +144,7 @@
+             return False
+     return True
+ 
+-def _register_redist_components(module_ctx, attr, component_entries):
++def _register_redist_components(module_ctx, attr, component_entries, license_error):
+     url, json_object = redist_json_helper.get(module_ctx, attr)
+     redist_ver = redist_json_helper.get_redist_version(module_ctx, attr, json_object)
+ 
+@@ -139,6 +159,7 @@
+             component_repo_name = repo_name + "_" + platform.replace("-", "_") + "_" + redist_ver.replace(".", "_")
+             component_attr["name"] = component_repo_name
+             component_attr["toolkit_version"] = redist_ver
++            component_attr["license_error"] = license_error
+ 
+             dedupe_key = (spec["component_name"], platform, redist_ver)
+             existing_entry = component_entries.get(dedupe_key)
+@@ -181,14 +202,15 @@
+         redist_jsons = rules_cuda.tags.redist_json
+         toolkits = rules_cuda.tags.toolkit
+ 
++    license_error = cuda_license_error(module_ctx.modules)
+     for component in components:
+-        cuda_component(**_module_tag_to_dict(component))
++        cuda_component(license_error = license_error, **_module_tag_to_dict(component))
+ 
+     components_mapping = None
+     redist_versions = []
+     component_entries = {}
+     for redist_json in redist_jsons:
+-        redist_version = _register_redist_components(module_ctx, redist_json, component_entries)
++        redist_version = _register_redist_components(module_ctx, redist_json, component_entries, license_error)
+         if redist_version not in redist_versions:
+             redist_versions.append(redist_version)
+ 
+@@ -316,6 +338,7 @@
+     implementation = _impl,
+     tag_classes = {
+         "component": cuda_component_tag,
++        "license": cuda_license_tag,
+         "redist_json": cuda_redist_json_tag,
+         "toolkit": cuda_toolkit_tag,
+     },
+diff --git a/cuda/private/repositories.bzl b/cuda/private/repositories.bzl
+--- a/cuda/private/repositories.bzl
++++ b/cuda/private/repositories.bzl
+@@ -405,6 +405,8 @@
+     repository_ctx.file("nvvm/include/__PATCHED_FOR_CLANG__", notice)
+ 
+ def _cuda_component_impl(repository_ctx):
++    if repository_ctx.attr.license_error:
++        fail(repository_ctx.attr.license_error)
+     component_name = None
+     if repository_ctx.attr.component_name:
+         component_name = repository_ctx.attr.component_name
+@@ -482,6 +484,7 @@
+ cuda_component = repository_rule(
+     implementation = _cuda_component_impl,
+     attrs = {
++        "license_error": attr.string(doc = "Fails the fetch with this message when set."),
+         "component_name": attr.string(doc = "Short name of the component defined in registry."),
+         "descriptive_name": attr.string(doc = "Official name of a component or simply the component name."),
+         "integrity": attr.string(

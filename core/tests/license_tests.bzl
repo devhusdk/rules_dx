@@ -19,11 +19,6 @@ def _checks():
             unaccepted("dx_msix", "Windows SDK Build Tools license", "https://aka.ms/WinSDKLicenseURL", "msix_tools", "windows-sdk-buildtools"),
             "dx_msix: the Windows SDK Build Tools license (https://aka.ms/WinSDKLicenseURL) is not accepted; add msix_tools.license(accept = [\"windows-sdk-buildtools\"]) to the root MODULE.bazel",
         ),
-        expect_equal(
-            "cuda message",
-            unaccepted("dx_cuda", "CUDA Toolkit EULA", "https://docs.nvidia.com/cuda/eula/index.html", "cuda_license", "cuda-eula"),
-            "dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add cuda_license.license(accept = [\"cuda-eula\"]) to the root MODULE.bazel",
-        ),
     ]
 
 def license_tests(name):

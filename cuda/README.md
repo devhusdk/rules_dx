@@ -12,17 +12,15 @@ The CUDA rules load from `@rules_dx//cuda:defs.bzl`. rules_dx declares the
 pinned toolkit and the nvcc toolchain. Add this to the root `MODULE.bazel`:
 
 ```python
-cuda_license = use_extension("@rules_dx//cuda:extensions.bzl", "cuda_license")
-cuda_license.license(accept = ["cuda-eula"])
+cuda.license(accept = ["cuda-eula"])
 ```
 
 ## License
 
 The CUDA Toolkit is licensed under the
 [NVIDIA CUDA EULA](https://docs.nvidia.com/cuda/eula/index.html).
-`cuda_license.license(accept = ["cuda-eula"])` accepts it for this build.
-Only the root module's tag counts. Without it, every CUDA target fails
-analysis. `cuda-eula` is the only license name.
+`cuda.license(accept = ["cuda-eula"])` accepts it for this build.
+Only the root module's tag counts. Without it, fetching the CUDA redistributables fails. `cuda-eula` is the only license name.
 
 Accepting the license here does not grant you one. You still need your own from NVIDIA.
 
@@ -77,7 +75,7 @@ The accepted `sm_` and `compute_` values are the ones nvcc 13.4 supports:
 
 rules_dx declares the pinned nvcc toolchain; a consumer adds no
 `register_toolchains` line. The one tag a consumer adds is
-`cuda_license.license(accept = ["cuda-eula"])`.
+`cuda.license(accept = ["cuda-eula"])`.
 
 ## Platforms
 
@@ -94,7 +92,7 @@ failing. rules_dx patches rules_cuda 0.4.0-beta1 for the windows-arm64 toolkit
 
 | Message | Fix |
 | --- | --- |
-| `dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add cuda_license.license(accept = ["cuda-eula"]) to the root MODULE.bazel` | Add the license tag to the root `MODULE.bazel`. |
+| `dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add cuda.license(accept = ["cuda-eula"]) to the root MODULE.bazel` | Add the license tag to the root `MODULE.bazel`. |
 | `dx_cuda: unknown license '<name>'; the only one is 'cuda-eula'` | Accept `cuda-eula`. |
 | `dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = ["sm_89"]` | Set `cuda_archs`. |
 | `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |
@@ -111,7 +109,7 @@ The pinned stanza declares cuBLAS 13.8.0.4, cuFFT 12.4.0.43 and cuRAND
 redistributable manifest. Bazel fetches an archive only when a target uses it
 (cuBLAS 877 MB, cuFFT 249 MB, cuRAND 87 MB).
 
-Depend on the license-gated labels:
+Depend on the pinned labels:
 
 ```python
 cuda_library(
@@ -122,9 +120,8 @@ cuda_library(
 )
 ```
 
-These targets fail unless the NVIDIA EULA is accepted and the files come from
-the pinned redistributable. Never depend on `@cuda//:cublas`, which skips both
-checks, or on `@cuda//:cuda_headers` or `@cuda//:cuda_all_files`, which fetch
+These targets fail unless the files come from the pinned redistributable. Never depend on `@cuda//:cublas`, which skips the
+check, or on `@cuda//:cuda_headers` or `@cuda//:cuda_all_files`, which fetch
 every component. The `cufft` and `curand` targets are tagged `manual`.
 
 If your stanza has no `cuda_cublas` tag, building these targets fails with

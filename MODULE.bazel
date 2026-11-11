@@ -163,7 +163,7 @@ _foreign_cc_tools.pkgconfig(
     mode = "noop",
 )
 
-# floor: equals tested; 0.4.0-beta1 carries the device link include fix; patched to read CCCL from CUDA 13.3+ manifests (#5975; upstream bazel-contrib/rules_cuda#523, drop in #8365) to pass the dynamic CRT flag to nvcc -dlink (#4704) and to support windows-arm64 toolkits (#5969; upstream bazel-contrib/rules_cuda#528)
+# floor: equals tested; 0.4.0-beta1 carries the device link include fix; patched to read CCCL from CUDA 13.3+ manifests (#5975; upstream bazel-contrib/rules_cuda#523, drop in #8365) to pass the dynamic CRT flag to nvcc -dlink (#4704), to support windows-arm64 toolkits (#5969; upstream bazel-contrib/rules_cuda#528) and to fail every redist fetch until the root module accepts the CUDA EULA (#11638)
 bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")
 single_version_override(
     module_name = "rules_cuda",
@@ -173,6 +173,7 @@ single_version_override(
         "//patches/rules_cuda:msvc_dlink_crt.patch",
         "//patches/rules_cuda:redist_cccl_key.patch",
         "//patches/rules_cuda:windows_arm64.patch",
+        "//patches/rules_cuda:license_gate.patch",
     ],
     version = "0.4.0-beta1",
 )
@@ -1275,6 +1276,9 @@ use_repo(cpan, perl_cpan = "perl_app_cpan")
 
 cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
 use_repo(cuda, "cuda")
+
+cuda_dev = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain", dev_dependency = True)
+cuda_dev.license(accept = ["cuda-eula"])
 
 cuda.redist_json(
     name = "cuda_redist",
@@ -3052,12 +3056,6 @@ use_repo(msvc, "dx_msvc")
 
 msvc_dev = use_extension("//cc:extensions.bzl", "msvc", dev_dependency = True)
 msvc_dev.license(accept = ["visual-studio-build-tools"])
-
-cuda_license = use_extension("//cuda:extensions.bzl", "cuda_license")
-use_repo(cuda_license, "dx_cuda_license")
-
-cuda_license_dev = use_extension("//cuda:extensions.bzl", "cuda_license", dev_dependency = True)
-cuda_license_dev.license(accept = ["cuda-eula"])
 
 qt_sdk = use_extension("//qt:extensions.bzl", "qt_sdk")
 use_repo(qt_sdk, "dx_qt")

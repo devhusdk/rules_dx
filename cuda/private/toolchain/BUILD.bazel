@@ -27,8 +27,6 @@ cell_settings(
 
 exports_files([
     "check.bzl",
-    "repos.bzl",
-    "extensions.bzl",
     "pins.json",
     "settings.bzl",
     "transition.bzl",
@@ -69,9 +67,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "check.bzl",
-        "repos.bzl",
-        "extensions.bzl",
-        "settings.bzl",
+                "settings.bzl",
         "transition.bzl",
     ],
     tags = ["corpus"],

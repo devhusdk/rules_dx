@@ -484,7 +484,7 @@ SDK and toolchain extensions:
 
 - `@rules_dx//android:extensions.bzl`: Android SDK and NDK toolchain.
 - `@rules_dx//apple/private/ios:simulator.bzl`: iOS simulator.
-- `@rules_dx//cuda:extensions.bzl`: CUDA license acceptance.
+- `@rules_dx//cuda:extensions.bzl`: CUDA toolchain.
 - `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.
 - `@rules_dx//powershell:extensions.bzl`: PowerShell Gallery modules.
 - `@rules_dx//msix:extensions.bzl`: MSIX tools.

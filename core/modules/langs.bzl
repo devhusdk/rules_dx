@@ -1716,7 +1716,7 @@ LANGS = json.decode("""{
     ],
     "family": "core",
     "lockfiles": [
-      "Manifest.toml"
+      "Manifest.bazel.json"
     ],
     "manifests": [
       "Project.toml"

@@ -12,7 +12,7 @@
     "Project.toml"
   ],
   "lockfiles": [
-    "Manifest.toml"
+    "Manifest.bazel.json"
   ],
   "setup": {
     "hubs": [

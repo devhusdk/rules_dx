@@ -888,7 +888,11 @@ mod tests {
         let root = scratch.path();
         std::fs::write(root.join("MODULE.bazel"), "module(name = \"app\")\n").expect("write");
         std::fs::write(root.join("pnpm-lock.yaml"), "").expect("write");
-        std::fs::write(root.join("package.json"), "{}").expect("write");
+        std::fs::write(
+            root.join("package.json"),
+            "{\"dependencies\":{\"left-pad\":\"1.3.0\"}}",
+        )
+        .expect("write");
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
         assert_eq!(code, 0, "{err}");
         let module = std::fs::read_to_string(root.join("MODULE.bazel")).expect("read");

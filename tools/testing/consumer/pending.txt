@@ -15,7 +15,6 @@ init ansible
 init cloudformation
 init csharp
 init d
-init dart
 init elixir
 init erlang
 init fsharp

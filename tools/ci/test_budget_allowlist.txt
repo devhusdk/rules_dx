@@ -295,8 +295,6 @@ deploy/tests/fixtures/pub_package/BUILD.bazel no-size 1
 deploy/tests/runfiles/BUILD.bazel no-size 1
 dockerfile/tests/BUILD.bazel no-size 1
 docs/BUILD.bazel no-size 1
-elixir/private/toolchain/BUILD.bazel no-size 1
-elixir/private/toolchain/metadata_tests.bzl no-size 1
 elixir/tests/BUILD.bazel no-size 1
 elixir/tests/fixtures/bench/BUILD.bazel no-size 2
 elixir/tests/fixtures/elixir-app/catalog/BUILD.bazel no-size 1
@@ -310,9 +308,7 @@ env/private/defs_tests.bzl no-size 5
 env/private/env_shard/BUILD.bazel no-size 1
 env/private/plan_tests.bzl no-size 2
 erlang/private/BUILD.bazel no-size 2
-erlang/private/toolchain/BUILD.bazel no-size 4
-erlang/private/toolchain/cells_tests.bzl no-size 1
-erlang/private/toolchain/metadata_tests.bzl no-size 1
+erlang/private/toolchain/BUILD.bazel no-size 2
 erlang/tests/fixtures/bench/BUILD.bazel no-size 2
 erlang/tests/fixtures/erlang-app/checksum/BUILD.bazel no-size 1
 erlang/tests/fixtures/erlang-app/cli/BUILD.bazel no-size 1
@@ -509,8 +505,6 @@ kotlin/tests/fixtures/no_srcs/BUILD.bazel no-size 3
 kubernetes/tests/BUILD.bazel no-size 3
 lua/private/BUILD.bazel no-size 1
 lua/private/runtime/BUILD.bazel no-size 1
-lua/private/toolchain/BUILD.bazel no-size 1
-lua/private/toolchain/metadata_tests.bzl no-size 1
 lua/tests/analysis/BUILD.bazel no-size 2
 lua/tests/bench/BUILD.bazel no-size 2
 lua/tests/fixtures/lua-app/catalog/BUILD.bazel no-size 1
@@ -553,8 +547,6 @@ perl/tests/negative/BUILD.bazel no-size 3
 perl/tests/runtime/BUILD.bazel no-size 2
 php/private/BUILD.bazel no-size 1
 php/private/coverage/BUILD.bazel no-size 1
-php/private/toolchain/BUILD.bazel no-size 2
-php/private/toolchain/metadata_tests.bzl no-size 1
 php/tests/bench/BUILD.bazel no-size 2
 php/tests/fixtures/hello/BUILD.bazel no-size 1
 php/tests/negative/BUILD.bazel no-size 3

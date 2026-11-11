@@ -483,15 +483,11 @@ test-location d/private/toolchain/BUILD.bazel
 test-location d/private/toolchain/metadata_tests.bzl
 test-location d/private/wrapper_tests.bzl
 test-location dart/private/BUILD.bazel
-test-location elixir/private/toolchain/BUILD.bazel
-test-location elixir/private/toolchain/metadata_tests.bzl
 test-location env/private/defs_tests.bzl
 test-location env/private/env_shard/BUILD.bazel
 test-location env/private/plan_tests.bzl
 test-location env/tests/BUILD.bazel
 test-location erlang/private/toolchain/BUILD.bazel
-test-location erlang/private/toolchain/cells_tests.bzl
-test-location erlang/private/toolchain/metadata_tests.bzl
 test-location flutter/tests/BUILD.bazel
 test-location fortran/private/BUILD.bazel
 test-location fortran/private/toolchain/BUILD.bazel
@@ -526,8 +522,6 @@ test-location kotlin/tests/BUILD.bazel
 test-location lua/private/BUILD.bazel
 test-location lua/private/runtime/BUILD.bazel
 test-location lua/private/runtime/launcher_test.lua
-test-location lua/private/toolchain/BUILD.bazel
-test-location lua/private/toolchain/metadata_tests.bzl
 test-location ocaml/private/BUILD.bazel
 test-location ocaml/private/coverage/BUILD.bazel
 test-location ocaml/private/coverage/collect_test.sh
@@ -538,8 +532,6 @@ test-location ocaml/private/wrapper_tests.bzl
 test-location php/private/BUILD.bazel
 test-location php/private/BenchTest.php
 test-location php/private/coverage/BUILD.bazel
-test-location php/private/toolchain/BUILD.bazel
-test-location php/private/toolchain/metadata_tests.bzl
 test-location powershell/private/BUILD.bazel
 test-location powershell/private/ide/BUILD.bazel
 test-location powershell/private/toolchain/BUILD.bazel

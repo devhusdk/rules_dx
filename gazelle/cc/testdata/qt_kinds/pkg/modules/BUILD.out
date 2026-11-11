@@ -1,0 +1,13 @@
+load("@rules_dx//qt:defs.bzl", "qt_cc_library")
+
+qt_cc_library(
+    name = "modules",
+    srcs = ["widget.cc"],
+    hdrs = ["plain.h"],
+    moc_hdrs = ["widget.h"],
+    modules = [
+        "core",
+        "widgets",
+    ],
+    visibility = ["//visibility:public"],
+)

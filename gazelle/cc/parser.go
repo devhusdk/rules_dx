@@ -1,6 +1,7 @@
 package cc
 
 import (
+	"fmt"
 	"path"
 	"regexp"
 	"sort"
@@ -152,6 +153,53 @@ var qtHeaderRe = regexp.MustCompile(`^Qt[A-Z][A-Za-z]*$`)
 func IsQtInclude(p string) bool {
 	first, _, _ := strings.Cut(p, "/")
 	return qtHeaderRe.MatchString(first)
+}
+
+var qtModuleTargets = map[string]string{
+	"QtCore":      "core",
+	"QtGui":       "gui",
+	"QtWidgets":   "widgets",
+	"QtNetwork":   "network",
+	"QtTest":      "test",
+	"QtQml":       "qml",
+	"QtQuick":     "quick",
+	"QtQuickTest": "quick_test",
+}
+
+// QtModules returns the sorted module targets of the Qt includes in contents, always with core.
+func QtModules(contents map[string][]byte) ([]string, error) {
+	set := map[string]bool{"core": true}
+	names := make([]string, 0, len(contents))
+	for name := range contents {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		for _, inc := range ParseSystemIncludes(contents[name]) {
+			if !IsQtInclude(inc.Path) {
+				continue
+			}
+			first, _, _ := strings.Cut(inc.Path, "/")
+			target, ok := qtModuleTargets[first]
+			if !ok {
+				return nil, fmt.Errorf("%s: include <%s> has no Qt module mapping", name, inc.Path)
+			}
+			set[target] = true
+		}
+	}
+	modules := make([]string, 0, len(set))
+	for m := range set {
+		modules = append(modules, m)
+	}
+	sort.Strings(modules)
+	return modules, nil
+}
+
+var qtMetaRe = regexp.MustCompile(`\b(Q_OBJECT|Q_GADGET)\b`)
+
+// DefinesQtMeta reports whether unmasked code contains Q_OBJECT or Q_GADGET.
+func DefinesQtMeta(content []byte) bool {
+	return qtMetaRe.Match(lex(content).code)
 }
 
 func usesQt(contents map[string][]byte) bool {

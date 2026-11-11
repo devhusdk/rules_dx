@@ -190,17 +190,28 @@ fn dx(case: &Case, command: &str, args: &[&str]) -> Run {
     )
 }
 
+/// Names the step about to run on the uncaptured stderr, so a test killed mid-step shows it.
+fn stage(name: &str) {
+    use std::io::Write;
+    let _ = writeln!(std::io::stderr(), "candidate_consumer_test: {name}");
+}
+
 fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
 
 /// Consumes the archive through the registry and checks what Bazel fetched.
 fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integrity: &str) {
+    stage("stage registry");
     let registry = stage_registry(candidate, archive);
+    stage("nested case");
     let case = consumer(candidate, archive, &registry);
 
+    stage("bazel build");
     ok(&case.bazel(&["build", "//..."]), "build");
+    stage("bazel test");
     ok(&case.bazel(&["test", "//..."]), "test");
+    stage("bazel mod");
 
     let explain = case.bazel(&["mod", "explain", "rules_dx"]);
     ok(&explain, "mod explain");
@@ -226,6 +237,7 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
         assert!(shown.contains(&want), "show_repo lacks {want:?}: {shown}");
     }
 
+    stage("bazel info");
     let base = case.bazel(&["info", "output_base"]);
     ok(&base, "info output_base");
     let fetched = Path::new(base.stdout.trim()).join("external/rules_dx+/MODULE.bazel");
@@ -236,6 +248,7 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
         "the fetched MODULE.bazel is not the staged registry file"
     );
 
+    stage("dx check");
     let policy = "--@my_dx//config:workspace=//:policy";
     ok(&dx(&case, "check", &["//...", "--", policy]), "dx check");
 
@@ -306,8 +319,11 @@ fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
     let root = rules_dx_source();
     let scratch =
         mkscratch("candidate-snapshot").unwrap_or_else(|error| panic!("scratch: {error}"));
+    stage("repo state");
     let before = repo_state(&root, &scratch);
+    stage("snapshot commit");
     let (git_dir, sha) = snapshot_commit(&root, &scratch);
+    stage("repo state");
     assert_eq!(
         repo_state(&root, &scratch),
         before,
@@ -316,11 +332,14 @@ fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
 
     let candidate = Candidate::new(VERSION, &sha).unwrap_or_else(|error| panic!("{error}"));
     let archive = scratch.join("rules_dx.tar.gz");
+    stage("build source archive");
     let built = build_source_archive(&git_dir, &candidate, &archive, None)
         .unwrap_or_else(|error| panic!("{error}"));
+    stage("check source archive");
     source_archive_error(&archive, &git_dir, &candidate, None)
         .unwrap_or_else(|error| panic!("{error}"));
 
     assert_registry_consumer(&candidate, &archive, &built.integrity);
+    stage("repo state");
     assert_eq!(repo_state(&root, &scratch), before, "the test touched the checkout");
 }

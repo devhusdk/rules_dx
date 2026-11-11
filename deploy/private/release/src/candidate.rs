@@ -1,11 +1,12 @@
 //! Release candidate identity, source archive, local registry and tag checks.
 
 use std::collections::BTreeMap;
-use std::io::{self, BufRead, Read, Write};
+use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
 
-use dx_process::capture::{self, Captured, DEFAULT_TIMEOUT, RunError, run_captured};
+use dx_process::capture::{
+    self, Captured, DEFAULT_TIMEOUT, RunError, run_captured, run_captured_with_input,
+};
 
 use crate::{
     BCR_WANT_MODULE, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_error,
@@ -213,41 +214,20 @@ fn git_pipe<T>(
     repo: &Path,
     args: &[&str],
     input: Vec<u8>,
-    read: impl FnOnce(io::BufReader<std::process::ChildStdout>) -> Result<T, String>,
+    read: impl FnOnce(&[u8]) -> Result<T, String>,
 ) -> Result<T, String> {
     let command = format!("git {}", args.join(" "));
-    let mut child = capture::git(repo)
-        .args(args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+    let mut cmd = capture::git(repo);
+    cmd.args(args);
+    let output = run_captured_with_input(&mut cmd, Some(&input), DEFAULT_TIMEOUT)
         .map_err(|error| format!("candidate: {command} failed: {error}"))?;
-    let mut stdin = child
-        .stdin
-        .take()
-        .ok_or_else(|| format!("candidate: {command} has no stdin"))?;
-    let writer = std::thread::spawn(move || stdin.write_all(&input));
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| format!("candidate: {command} has no stdout"))?;
-    let value = read(io::BufReader::new(stdout));
-    let written = writer.join();
-    let output = child
-        .wait_with_output()
-        .map_err(|error| format!("candidate: {command} failed: {error}"))?;
-    let value = value?;
-    if !output.status.success() {
+    if !output.success() {
         return Err(format!(
             "candidate: {command} failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
+            output.stderr_text().trim()
         ));
     }
-    match written {
-        Ok(Ok(())) => Ok(value),
-        _ => Err(format!("candidate: {command} closed its input early")),
-    }
+    read(&output.stdout)
 }
 
 fn filtered_paths(
@@ -265,13 +245,7 @@ fn filtered_paths(
     args.extend_from_slice(&READ_CONFIG);
     args.extend_from_slice(&["check-attr", "-z", "--stdin"]);
     args.extend_from_slice(&FILTER_ATTRS);
-    let raw = git_pipe(repo, &args, input, |mut reader| {
-        let mut raw = Vec::new();
-        reader
-            .read_to_end(&mut raw)
-            .map_err(|error| format!("candidate: git check-attr output: {error}"))?;
-        Ok(raw)
-    })?;
+    let raw = git_pipe(repo, &args, input, |stdout| Ok(stdout.to_vec()))?;
     let fields: Vec<&[u8]> = raw.split(|byte| *byte == 0).collect();
     let mut flagged = std::collections::BTreeSet::new();
     for record in fields.chunks(3).filter(|record| record.len() == 3) {
@@ -294,7 +268,7 @@ fn cat_blobs(repo: &Path, commit: &str, entries: &[(String, u32)]) -> Result<Vec
         repo,
         &["cat-file", "--batch"],
         input.into_bytes(),
-        |reader| read_batch(reader, commit, entries),
+        |stdout| read_batch(stdout, commit, entries),
     )?;
     let flagged = filtered_paths(repo, commit, entries)?;
     let source = format!("--attr-source={commit}");
@@ -306,13 +280,7 @@ fn cat_blobs(repo: &Path, commit: &str, entries: &[(String, u32)]) -> Result<Vec
         let mut args = vec![source.as_str()];
         args.extend_from_slice(&READ_CONFIG);
         args.extend_from_slice(&["cat-file", "--filters", &object]);
-        *blob = git_pipe(repo, &args, Vec::new(), |mut reader| {
-            let mut data = Vec::new();
-            reader
-                .read_to_end(&mut data)
-                .map_err(|error| format!("candidate: git cat-file --filters {object}: {error}"))?;
-            Ok(data)
-        })?;
+        *blob = git_pipe(repo, &args, Vec::new(), |stdout| Ok(stdout.to_vec()))?;
     }
     Ok(blobs)
 }

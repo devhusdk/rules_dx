@@ -15,7 +15,12 @@ def _coverage_env_impl(ctx):
         asserts.false(env, "DX_D_COVERAGE_UPSTREAM" in run_env, "launcher env set without coverage")
     return analysistest.end(env)
 
-_COVERAGE = coverage_env_tests(_coverage_env_impl, attrs = {"upstream": attr.string()})
+# mirrors coverage:windows in .bazelrc
+_COVERAGE = coverage_env_tests(
+    _coverage_env_impl,
+    attrs = {"upstream": attr.string()},
+    features = ["-coverage", "-gcc_coverage_map_format"],
+)
 _cov_on_test = _COVERAGE.on
 _cov_off_test = _COVERAGE.off
 

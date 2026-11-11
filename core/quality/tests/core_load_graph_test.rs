@@ -28,11 +28,6 @@ const LANGUAGE_HELPERS: &[&str] = &[
 /// Directories outside `core/quality/` whose `.bzl` files are roots.
 const CORE_DIRS: &[&str] = &["core", "core/codegen", "core/modules"];
 
-/// Core files outside `core/quality/` that load a language rule set; this list only shrinks.
-const PENDING_CORE_FILES: &[&str] = &[
-    "core/native_coverage.bzl", // #10085
-];
-
 /// Packages of core tool defaults that load a language rule set; this list only shrinks.
 const PENDING_TOOL_PACKAGES: &[&str] = &[
     "core/quality/tools/python",     // #10545
@@ -196,9 +191,7 @@ fn roots(source: &Path) -> Vec<String> {
         roots.extend(
             bzl_files(&source.join(dir), dir)
                 .into_iter()
-                .filter(|path| {
-                    !path.ends_with("_tests.bzl") && !PENDING_CORE_FILES.contains(&path.as_str())
-                }),
+                .filter(|path| !path.ends_with("_tests.bzl")),
         );
     }
     roots.extend(
@@ -269,21 +262,6 @@ fn language_helpers_exist() {
         assert!(
             source.join(format!("core/quality/{helper}.bzl")).is_file(),
             "core/quality/{helper}.bzl is gone; drop it from LANGUAGE_HELPERS"
-        );
-    }
-}
-
-#[test]
-fn pending_core_files_still_offend() {
-    let source = dx_testing::source_snapshot();
-    for path in PENDING_CORE_FILES {
-        let found = dx_adopt::external_repos(&source, &[(*path).to_owned()]).expect("load graph");
-        assert!(
-            found
-                .values()
-                .flatten()
-                .any(|repo| !ALLOWED_REPOS.contains(&repo.as_str())),
-            "{path} reaches no language rule set; drop it from PENDING_CORE_FILES"
         );
     }
 }

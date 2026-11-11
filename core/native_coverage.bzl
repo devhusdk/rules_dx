@@ -1,11 +1,18 @@
 """Native (C/C++/LLVM) coverage collection for wrapper rules."""
 
-load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load(":wrapper.bzl", "DxDataCoverageInfo", "dx_collect_cc_coverage_attr")
+
+_CC_TOOLCHAIN_TYPE = "@bazel_tools//tools/cpp:toolchain_type"
 
 def dx_native_coverage_toolchains():
     """Returns the toolchains native coverage needs to find llvm tools in the cc toolchain."""
-    return use_cc_toolchain(mandatory = False)
+    return [config_common.toolchain_type(_CC_TOOLCHAIN_TYPE, mandatory = False)]
+
+def _cc_toolchain(ctx):
+    info = ctx.toolchains[_CC_TOOLCHAIN_TYPE] if _CC_TOOLCHAIN_TYPE in ctx.toolchains else None
+    if info == None:
+        return None
+    return info.cc if hasattr(info, "cc") else info
 
 def dx_toolchain_tool(cc_toolchain, basename):
     """Returns the cc toolchain file named basename (with optional .exe), or None."""
@@ -31,7 +38,6 @@ def dx_native_coverage_attrs():
             allow_files = True,
             cfg = config.exec(exec_group = "test"),
         ),
-        "_cc_toolchain": attr.label(default = Label("@rules_cc//cc:current_cc_toolchain")),
     }
 
 def dx_gcov_tool(cc_toolchain):
@@ -45,7 +51,7 @@ def dx_gcov_tool(cc_toolchain):
 def dx_native_test_coverage(ctx, upstream, gcov = False, llvm_cov = None, llvm_profdata = None):
     """Returns coverage providers that collect native LLVM or gcov coverage."""
     collector = ctx.executable._collect_cc_coverage
-    cc_toolchain = find_cc_toolchain(ctx, mandatory = False)
+    cc_toolchain = _cc_toolchain(ctx)
     gcov_tool = None
     if gcov:
         gcov_tool = dx_gcov_tool(cc_toolchain)

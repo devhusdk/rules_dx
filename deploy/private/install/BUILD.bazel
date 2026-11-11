@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("//deploy/private/release:cosign_pins.bzl", "COSIGN_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//deploy/private/release:cosign_pins.bzl", "COSIGN_VERSION")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -86,8 +86,8 @@ rust_test(
         normal_dev = True,
     ) + [
         ":dx_install_tools",
-        "//deploy/private/release:dx_release_tools",
         "//cli/test_scratch:dx_test_scratch",
+        "//deploy/private/release:dx_release_tools",
         "//tools/testing:dx_testing",
     ],
 )

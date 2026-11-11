@@ -5,8 +5,8 @@ load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_python//python:packaging.bzl", "py_wheel_rule")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//core:failure_test.bzl", "failure_test")
-load("//java:defs.bzl", "java_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//java:defs.bzl", "java_library")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load(":api_compat_tests.bzl", "api_compat_unit_tests")
 load(":archive.bzl", "archive_deploy")
@@ -62,7 +62,11 @@ load(":rubygems_tests.bzl", "rubygems_unit_tests")
 load(":standard_attrs_tests.bzl", "PROBE_COMPATIBLE", "PROBE_TAG", "PROBE_VISIBILITY", "standard_attrs_unit_tests")
 load(":validate_tests.bzl", "validate_unit_tests")
 
-package(default_visibility = ["//deploy:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//deploy:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "api_compat.bzl",
@@ -489,8 +493,8 @@ rust_binary(
 
 dx_deployment(
     name = "deploy_default",
-    visibility = ["//visibility:public"],
     deploy = ":deploy_program",
+    visibility = ["//visibility:public"],
 )
 
 dx_deployment(
@@ -638,8 +642,8 @@ failure_test(
 
 sh_binary(
     name = "resources_demo_processor",
-    visibility = ["//visibility:public"],
     srcs = ["resources_demo/process.sh"],
+    visibility = ["//visibility:public"],
 )
 
 genrule(
@@ -650,16 +654,15 @@ genrule(
 
 dx_resources(
     name = "resources_demo_plain",
-    visibility = ["//visibility:public"],
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
         ":resources_demo_generated": "generated/sprite.bin",
     },
+    visibility = ["//visibility:public"],
 )
 
 dx_resources(
     name = "resources_demo_processed",
-    visibility = ["//visibility:public"],
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
         ":resources_demo_generated": "generated/sprite.bin",
@@ -667,6 +670,7 @@ dx_resources(
     processor = ":resources_demo_processor",
     processor_args = ["--demo-stamp"],
     target_compatible_with = ["@platforms//os:linux"],
+    visibility = ["//visibility:public"],
 )
 
 resources_unit_tests(name = "resources_unit")
@@ -941,13 +945,16 @@ test_suite(
         ":cloudflare_program_closure",
         ":cloudflare_unit",
         ":conan_analysis",
+        ":conan_demo_verify",
         ":conan_unit",
         ":config_runfiles",
         ":consumer_archive_unit",
         ":cpan_analysis",
+        ":cpan_demo_verify",
         ":cpan_unit",
         ":crates_analysis",
         ":crates_config_content",
+        ":crates_demo_verify",
         ":crates_unit",
         ":deploy_analysis",
         ":deploy_app_analysis",
@@ -966,10 +973,12 @@ test_suite(
         ":github_unit",
         ":hackage_alias_analysis",
         ":hackage_analysis",
+        ":hackage_demo_verify",
         ":hackage_unit",
         ":helm_demo_verify",
         ":helm_unit",
         ":hex_analysis",
+        ":hex_demo_verify",
         ":hex_unit",
         ":homebrew_analysis",
         ":homebrew_demo_verify",
@@ -979,17 +988,19 @@ test_suite(
         ":linux_package_unit",
         ":luarocks_alias_analysis",
         ":luarocks_analysis",
+        ":luarocks_demo_verify",
         ":luarocks_unit",
         ":maven_analysis",
+        ":maven_demo_verify",
         ":maven_unit",
         ":npm_alias_analysis",
         ":npm_analysis",
+        ":npm_demo_verify",
         ":npm_unit",
-        ":opam_analysis",
-        ":opam_unit",
         ":nuget_alias_analysis",
         ":nuget_analysis",
         ":nuget_config_content",
+        ":nuget_demo_verify",
         ":nuget_unit",
         ":oci_analysis",
         ":oci_demo_layout_verify",
@@ -997,8 +1008,13 @@ test_suite(
         ":oci_layout_analysis",
         ":oci_unit",
         ":octopus_analysis",
+        ":octopus_demo_verify",
         ":octopus_unit",
+        ":opam_analysis",
+        ":opam_demo_verify",
+        ":opam_unit",
         ":packagist_analysis",
+        ":packagist_demo_verify",
         ":packagist_unit",
         ":pub_analysis",
         ":pub_config_content",
@@ -1023,18 +1039,6 @@ test_suite(
         ":rubygems_analysis",
         ":rubygems_unit",
         ":rubygems_verify",
-        ":crates_demo_verify",
-        ":hex_demo_verify",
-        ":maven_demo_verify",
-        ":npm_demo_verify",
-        ":nuget_demo_verify",
-        ":octopus_demo_verify",
-        ":conan_demo_verify",
-        ":cpan_demo_verify",
-        ":hackage_demo_verify",
-        ":luarocks_demo_verify",
-        ":opam_demo_verify",
-        ":packagist_demo_verify",
         ":validate_unit",
     ],
 )
@@ -1612,9 +1616,9 @@ sh_binary(
 
 site_dir(
     name = "cloudflare_demo_site",
-    visibility = ["//visibility:public"],
     srcs = glob(["cloudflare_demo/site/**"]),
     strip = "deploy/private/cloudflare_demo/site",
+    visibility = ["//visibility:public"],
 )
 
 cloudflare_pages_deploy(
@@ -2397,6 +2401,8 @@ real_source_target(
         "packagist_tests.bzl",
         "sbom.bzl",
         "standard_attrs_tests.bzl",
+        "image_providers.bzl",
+        "image_quality.bzl",
     ],
     tags = ["corpus"],
 )

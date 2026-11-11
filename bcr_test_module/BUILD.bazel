@@ -1,6 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load(":toolchain.bzl", "resolved_cc_toolchain")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":toolchain.bzl", "resolved_cc_toolchain")
 
 sh_test(
     name = "hello_test",

@@ -25,8 +25,8 @@ rust_library(
         normal = True,
     ) + [
         "//cli/path:dx_path",
-        "//env/private/proto:plan_proto_rs",
         "//cli/shard_writer:dx_shard_writer",
+        "//env/private/proto:plan_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
@@ -34,10 +34,17 @@ rust_library(
 rust_binary(
     name = "env_shard_writer",
     srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "env/private/env_shard",
+        normal = True,
+    ),
     crate_name = "env_shard_writer",
     crate_root = "src/main.rs",
     visibility = ["//visibility:public"],
-    deps = [":env_shard"],
+    deps = all_crate_deps(
+        package_name = "env/private/env_shard",
+        normal = True,
+    ) + [":env_shard"],
 )
 
 rust_test(
@@ -53,6 +60,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/shard_writer:dx_shard_writer",
         "//env/private/proto:plan_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],

@@ -5,6 +5,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "symbols.bzl",
+        "libfuzzer_dotnet.BUILD.bazel",
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],

@@ -1,3 +1,5 @@
+# gazelle:ignore
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -46,6 +48,7 @@ rust_test(
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "greet.rs",
     expected = "hello world",
@@ -53,5 +56,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "rust",
     passing_test = ":pass_subject_test",
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

@@ -25,3 +25,9 @@ bcr_test_module:
       bazel: ${{ bazel }}
       test_targets:
         - "//:hello_test"
+    build_android_toolchain:
+      name: Build android toolchain check
+      platform: ${{ platform }}
+      bazel: ${{ bazel }}
+      build_targets:
+        - "//:android_device_cc"

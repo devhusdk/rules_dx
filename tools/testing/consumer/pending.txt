@@ -1,6 +1,5 @@
 dev-repo cuda_redistrib_json core/modules/versions_tests.bzl
 dev-repo custom_gcc_x86_64 cc/private/toolchains/external/BUILD.bazel
-dev-repo dx_android_ndk_linux_x86_64 android/private/sdk/metadata_tests.bzl
 dev-repo dx_consumer_completion cli/entrypoint/BUILD.bazel
 dev-repo dx_consumer_entry cli/entrypoint/BUILD.bazel
 dev-repo dx_consumer_scaffold cli/entrypoint/BUILD.bazel

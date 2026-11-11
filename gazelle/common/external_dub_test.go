@@ -7,8 +7,7 @@ import (
 
 func TestDubExternalLookup(t *testing.T) {
 	cfg, root := externalConfig(t)
-	dotFile(t, root, "dub.json", `{"name": "app", "dependencies": {"vibe-d": "~>0.9", "silly": "~>1.1", "unpinned": "*", "mixed:sub": "*"}}`)
-	dotFile(t, root, "dub.selections.json", `{"fileVersion": 1, "versions": {"vibe-d": "0.9.5", "silly": "1.1.1", "mixed": "1.0.0"}}`)
+	dotFile(t, root, "dub.lock.json", `{"ecosystem": "dub", "packages": [{"name": "vibe-d", "provides": ["vibe_d.core"]}, {"name": "silly", "provides": ["silly"]}, {"name": "mixed", "provides": ["mixed.sub"]}]}`)
 	if errs := ConfigureExternal(cfg, "", nil); errs != nil {
 		t.Fatal(errs)
 	}
@@ -17,7 +16,6 @@ func TestDubExternalLookup(t *testing.T) {
 		"vibe_d.core.log":      "@dub//vibe-d",
 		"mixed.sub.thing":      "@dub//mixed",
 		"std.stdio":            "",
-		"unpinned.x":           "",
 		"unknown_package.core": "",
 	} {
 		got, _ := ExternalLabels(cfg, "dub", module)
@@ -25,10 +23,7 @@ func TestDubExternalLookup(t *testing.T) {
 			t.Errorf("%s = %q, want %q", module, labelStrings(got), want)
 		}
 	}
-	if _, hint := ExternalLabels(cfg, "dub", "unpinned.x"); !strings.Contains(hint, "dub upgrade") {
-		t.Errorf("hint = %q", hint)
-	}
-	if _, hint := ExternalLabels(cfg, "dub", "other.x"); !strings.Contains(hint, "no dependency in dub.json is named other") {
+	if _, hint := ExternalLabels(cfg, "dub", "other.x"); !strings.Contains(hint, "no package in dub.lock.json provides other.x") {
 		t.Errorf("hint = %q", hint)
 	}
 }

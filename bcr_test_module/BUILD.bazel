@@ -9,17 +9,8 @@ sh_test(
 
 resolved_cc_toolchain(
     name = "android_device_cc",
+    expected = "ndk-device-android",
     platform = "@rules_dx//android/platforms:android_device",
-)
-
-sh_test(
-    name = "android_ndk_toolchain_test",
-    srcs = ["toolchain_test.sh"],
-    args = [
-        "$(rootpath :android_device_cc)",
-        "ndk-device-android",
-    ],
-    data = [":android_device_cc"],
 )
 
 filegroup(
@@ -30,7 +21,6 @@ filegroup(
         "MODULE.bazel",
         "hello_test.sh",
         "toolchain.bzl",
-        "toolchain_test.sh",
     ],
     visibility = ["//deploy/private/release/tests:__pkg__"],
 )

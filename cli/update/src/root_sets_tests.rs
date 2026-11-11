@@ -17,8 +17,6 @@ const EXPECTED_NAMES: &[&str] = &[
     "dx_dart_deps",
     "dx_dart_padded_archive",
     "dx_dokka",
-    "dx_flutter_app_deps",
-    "dx_flutter_deps",
     "dx_js_node_app",
     "dx_julia_coverage",
     "dx_julia_docs",
@@ -59,7 +57,6 @@ const EXPECTED_NAMES: &[&str] = &[
     "ocaml_fuzz",
     "perl_app_cpan",
     "rules_android_maven",
-    "swiftpm",
     "zig_zig.tests.fixtures.zig-deps",
 ];
 

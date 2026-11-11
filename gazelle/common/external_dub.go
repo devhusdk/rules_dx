@@ -2,13 +2,8 @@ package common
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
-
-	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
 // DubProject is the part of a dub.json that generation reads.
@@ -59,55 +54,4 @@ func (p *DubProject) Roots(dir string) []string {
 		}
 	}
 	return nil
-}
-
-// dubManifest holds the direct dependencies of a dub.json and the versions
-// dub.selections.json pins.
-type dubManifest struct {
-	deps   []string
-	pinned map[string]bool
-}
-
-func parseDubManifest(content, sibling []byte, _ string) (externalManifest, error) {
-	project, err := ParseDubProject(content)
-	if err != nil {
-		return nil, err
-	}
-	m := &dubManifest{pinned: map[string]bool{}}
-	for dep := range project.Dependencies {
-		base, _, _ := strings.Cut(dep, ":")
-		m.deps = append(m.deps, base)
-	}
-	sort.Strings(m.deps)
-	if sibling != nil {
-		var selections struct {
-			Versions map[string]json.RawMessage `json:"versions"`
-		}
-		if err := json.Unmarshal(StripBOM(sibling), &selections); err != nil {
-			return nil, fmt.Errorf("dub.selections.json: %v", err)
-		}
-		for name, raw := range selections.Versions {
-			var version string
-			if json.Unmarshal(raw, &version) == nil {
-				m.pinned[name] = true
-			}
-		}
-	}
-	return m, nil
-}
-
-// Lookup resolves a module to the hub target of the dependency whose name is
-// the module's first segment, with - read as _.
-func (m *dubManifest) Lookup(repo, module string) ([]label.Label, string) {
-	first, _, _ := strings.Cut(module, ".")
-	for _, dep := range m.deps {
-		if dep != first && strings.ReplaceAll(dep, "-", "_") != first {
-			continue
-		}
-		if !m.pinned[dep] {
-			return nil, "package " + dep + " is not pinned in dub.selections.json; run dub upgrade"
-		}
-		return []label.Label{{Repo: repo, Pkg: dep, Name: dep}}, ""
-	}
-	return nil, "no dependency in dub.json is named " + first
 }

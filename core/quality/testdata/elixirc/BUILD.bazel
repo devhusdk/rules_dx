@@ -7,4 +7,5 @@ elixir_app(
     app_name = "dx_elixirc_unused",
     app_version = "1.0.0",
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+    warnings_as_errors = False,
 )

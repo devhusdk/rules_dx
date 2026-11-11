@@ -4,9 +4,20 @@ defmodule DxBench do
   @doc "Runs Benchee on the jobs and writes dx-bench.json to the test outputs directory."
   def run(jobs, opts \\ []) when is_map(jobs) do
     defaults = [time: 1, warmup: 0.2, formatters: [], print: [benchmarking: false, configuration: false, fast_warning: false]]
-    suite = Benchee.run(jobs, Keyword.merge(defaults, opts))
+    suite =
+      defaults
+      |> Keyword.merge(opts)
+      |> Benchee.init()
+      |> add_jobs(jobs)
+      |> Benchee.collect()
+      |> Benchee.statistics()
+      |> Benchee.relative_statistics()
     write(suite.scenarios)
     suite
+  end
+
+  defp add_jobs(suite, jobs) do
+    Enum.reduce(jobs, suite, fn {name, fun}, acc -> Benchee.benchmark(acc, name, fun) end)
   end
 
   def results(scenarios) do

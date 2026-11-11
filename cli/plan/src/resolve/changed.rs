@@ -2443,7 +2443,7 @@ mod tests {
         assert!(
             selection.widened[0]
                 .reason
-                .starts_with("cannot read Cargo.lock: invalid Cargo.lock"),
+                .starts_with("cannot read Cargo.lock: invalid lock"),
             "{:?}",
             selection.widened
         );

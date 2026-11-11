@@ -60,7 +60,7 @@ fn pnpm_key_style(value: &yaml_serde::Value) -> Result<PnpmKeyStyle, DxError> {
     };
     let invalid = || {
         DxError::failure(format!(
-            "invalid pnpm-lock.yaml: unsupported lockfileVersion {version:?}"
+            "invalid lock: unsupported lockfileVersion {version:?}"
         ))
     };
     let major = if let Some(text) = version.as_str() {
@@ -91,7 +91,7 @@ fn resolve_pnpm_key(
 ) -> Result<(String, String), DxError> {
     let unresolved = || {
         DxError::failure(format!(
-            "invalid pnpm-lock.yaml: cannot resolve package key `{key}`"
+            "invalid lock: cannot resolve package key `{key}`"
         ))
     };
     let detail_str = |field: &str| {
@@ -137,7 +137,7 @@ fn pnpm_packages_from_value(
             Some(key) if !key.is_empty() => key.to_owned(),
             _ => {
                 return Err(DxError::failure(format!(
-                    "invalid pnpm-lock.yaml: unusable package key {key_value:?}"
+                    "invalid lock: unusable package key {key_value:?}"
                 )));
             }
         };
@@ -197,7 +197,7 @@ pub fn parse_pnpm_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
             continue;
         }
         let value: yaml_serde::Value = yaml_serde::from_str(&document)
-            .map_err(|error| DxError::failure(format!("invalid pnpm-lock.yaml: {error}")))?;
+            .map_err(|error| DxError::failure(format!("invalid lock: {error}")))?;
         if value.is_null() {
             continue;
         }
@@ -206,7 +206,7 @@ pub fn parse_pnpm_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
             let style = pnpm_key_style(&value)?;
             pnpm_packages_from_value(&value, style, &mut out)?;
         } else if value.as_mapping().is_none() {
-            return Err(DxError::failure("invalid pnpm-lock.yaml: missing packages"));
+            return Err(DxError::failure("invalid lock: missing packages"));
         }
     }
     if !parsed_any {
@@ -219,7 +219,7 @@ pub fn parse_pnpm_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
             && !packages.is_null()
             && packages.as_mapping().is_none()
         {
-            return Err(DxError::failure("invalid pnpm-lock.yaml: missing packages"));
+            return Err(DxError::failure("invalid lock: missing packages"));
         }
     }
     out.sort_by(|a, b| (&a.name, &a.version, a.is_git).cmp(&(&b.name, &b.version, b.is_git)));

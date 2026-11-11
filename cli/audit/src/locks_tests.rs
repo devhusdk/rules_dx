@@ -1643,7 +1643,7 @@ fn cpanfile_snapshot_rejects_a_distribution_without_a_version() {
             .expect_err("no version");
         assert_eq!(
             error.message(),
-            format!("invalid cpanfile.snapshot distribution: {entry}")
+            format!("invalid lock distribution: {entry}")
         );
     }
 }

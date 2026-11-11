@@ -63,7 +63,7 @@ pub fn parse_gemfile_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     }
     if !saw_section {
         return Err(DxError::failure(
-            "invalid Gemfile.lock: missing GEM section",
+            "invalid lock: missing GEM section",
         ));
     }
     out.sort_by(|a, b| (&a.name, &a.version, &a.platform).cmp(&(&b.name, &b.version, &b.platform)));

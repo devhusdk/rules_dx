@@ -92,11 +92,11 @@ fn read_string(chars: &[char], quote: usize, name: &str) -> Result<(String, usiz
     )))
 }
 
-/// Reads the `{:hex, :name, "version", ...}` entries of a mix.lock; git and path entries are skipped.
+/// Reads the `{:hex, :name, "version", ...}` entries of a lock; git and path entries are skipped.
 pub fn parse_mix_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
-    let tokens = tokenize(text, "mix.lock")?;
+    let tokens = tokenize(text, "lock")?;
     if !text.trim_start().starts_with("%{") {
-        return Err(DxError::failure("invalid mix.lock: expected a map"));
+        return Err(DxError::failure("invalid lock: expected a map"));
     }
     let mut out = Vec::new();
     for window in tokens.windows(4) {

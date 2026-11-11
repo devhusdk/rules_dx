@@ -6,7 +6,7 @@ load("//core:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 def _swift_host_impl(repository_ctx):
     host = host_cell(repository_ctx)
     if host.startswith("macos"):
-        script = 'exec xcrun swift "$@"'
+        script = 'exec /usr/bin/xcrun swift "$@"'
     else:
         arch = "aarch64" if host.endswith("arm64") else "x86_64"
         swift = repository_ctx.path(Label("@dx_swift_linux_{}//:usr/bin/swift".format(arch)))

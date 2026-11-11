@@ -16,8 +16,6 @@ qt_sdk = use_extension("@rules_dx//qt:extensions.bzl", "qt_sdk")
 qt_sdk.configure(
     modules = ["qtdeclarative"],
 )
-
-use_repo(qt_sdk, "dx_qt")
 ```
 
 `configure` takes:

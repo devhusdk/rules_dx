@@ -689,7 +689,10 @@ mod tests {
         let mut harness = Harness::new(name);
         harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
         harness.write_source("pnpm-lock.yaml", "");
-        harness.write_source("package.json", "{}");
+        harness.write_source(
+            "package.json",
+            "{\"dependencies\":{\"left-pad\":\"1.3.0\"}}",
+        );
         harness.intended = Some(intended_witness(mode, true, "", ""));
         harness
     }

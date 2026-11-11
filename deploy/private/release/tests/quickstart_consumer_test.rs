@@ -191,7 +191,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
     let source = rules_dx_source();
     let presubmit = read_text(&source.join(".bcr/presubmit.yml"));
     let case = nested::case("quickstart_bcr");
-    for name in ["BUILD.bazel", "MODULE.bazel", "hello_test.sh"] {
+    for name in ["BUILD.bazel", "MODULE.bazel", "hello_test.sh", "toolchain.bzl"] {
         let text = read_text(&source.join("bcr_test_module").join(name));
         write_text(&case.root().join(name), &text);
     }

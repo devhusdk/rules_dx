@@ -72,6 +72,13 @@ def _ocaml_impl(mctx):
         strip_prefix = DUNE.strip_prefix,
         urls = DUNE.urls,
     )
+    pinned_archive(
+        name = "dx_opam_repository",
+        files = {"BUILD.bazel": 'exports_files(["repo"])'},
+        sha256 = OPAM_REPOSITORY.sha256,
+        strip_prefix = OPAM_REPOSITORY.strip_prefix,
+        urls = OPAM_REPOSITORY.urls,
+    )
     return mctx.extension_metadata(reproducible = True)
 
 ocaml = module_extension(

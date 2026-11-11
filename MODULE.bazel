@@ -1384,7 +1384,7 @@ register_toolchains(
 bazel_dep(name = "rules_batch", version = "0.1.1")
 
 ocaml = use_extension("//ocaml:extensions.bzl", "ocaml")
-use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "rules_ocaml")
+use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "dx_opam_repository", "rules_ocaml")
 
 opam_dev = use_extension("//ocaml:extensions.bzl", "opam", dev_dependency = True)
 opam_dev.lock(
@@ -2539,14 +2539,6 @@ _http_file(
     dev_dependency = True,
     sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
     urls = ["https://developer.download.nvidia.com/compute/cuda/redist/redistrib_13.4.2.json"],
-)
-
-_http_archive(
-    name = "dx_opam_repository",
-    build_file_content = 'exports_files(["repo"])',
-    sha256 = "f6c38ba5a0ef7facfedaf046358b722e63ae9d1a1aa7ebc773a17ecb5752473a",
-    strip_prefix = "opam-repository-691408b00730fcedbd3e30ccdb42c388a83fd304",
-    urls = ["https://github.com/ocaml/opam-repository/archive/691408b00730fcedbd3e30ccdb42c388a83fd304.tar.gz"],
 )
 
 _http_archive(

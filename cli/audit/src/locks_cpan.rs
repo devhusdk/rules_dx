@@ -16,7 +16,7 @@ pub fn parse_cpanfile_snapshot(text: &str) -> Result<Vec<LockedPackage>, DxError
         if in_distributions && indent_of(raw) == 2 {
             let (name, version) = split_distribution(raw.trim()).ok_or_else(|| {
                 DxError::failure(format!(
-                    "invalid cpanfile.snapshot distribution: {}",
+                    "invalid lock distribution: {}",
                     raw.trim()
                 ))
             })?;
@@ -25,7 +25,7 @@ pub fn parse_cpanfile_snapshot(text: &str) -> Result<Vec<LockedPackage>, DxError
     }
     if out.is_empty() {
         return Err(DxError::failure(
-            "invalid cpanfile.snapshot: missing DISTRIBUTIONS entries",
+            "invalid lock: missing DISTRIBUTIONS entries",
         ));
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));

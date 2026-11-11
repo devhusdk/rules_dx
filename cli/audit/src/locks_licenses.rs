@@ -62,7 +62,7 @@ pub fn cargo_licenses(cargo_bazel_text: &str, packages: &[LockedPackage]) -> Vec
         .collect()
 }
 
-/// Returns the `package.license` a Cargo.toml declares, if any.
+/// Returns the `package.license` a manifest declares, if any.
 pub fn cargo_manifest_license(cargo_toml: &str) -> Option<String> {
     let table: toml::Table = toml::from_str(cargo_toml).ok()?;
     let license = table.get("package")?.get("license")?.as_str()?.trim();

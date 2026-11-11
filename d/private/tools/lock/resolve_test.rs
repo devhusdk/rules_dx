@@ -52,6 +52,7 @@ fn lock(dir: &std::path::Path, registry: &Registry) -> Result<Outcome, Error> {
         &Args {
             dir: dir.to_owned(),
             check: false,
+            upgrade: Vec::new(),
         },
         &Dub::new(&spec, registry),
         &NoFetch,
@@ -68,7 +69,7 @@ fn registry_fixtures_write_the_golden_lock() {
     dx_testing::snapshot_diff(
         &dx_testing::env_file("GOLDEN"),
         &actual,
-        Some("d/private/lock/testdata/golden.lock.json"),
+        Some("d/private/tools/lock/testdata/golden.lock.json"),
     )
     .expect("the lock matches the golden");
     let state = std::fs::read_to_string(dir.path().join("dub.selections.json")).expect("state");

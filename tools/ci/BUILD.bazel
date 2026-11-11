@@ -1120,6 +1120,8 @@ rust_test(
         "//cuda/private/toolchain:corpus_starlark",
         "//d/private/lock:corpus_starlark",
         "//d/private/toolchain:corpus_starlark",
+        "//d/private/tools/lock:corpus_starlark",
+        "//d/tests:corpus_starlark",
         "//dart:corpus_starlark",
         "//deploy/private/release:corpus_starlark",
         "//deploy/tests/fixtures/consumer_archive:corpus_starlark",

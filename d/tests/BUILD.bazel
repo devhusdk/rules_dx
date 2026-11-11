@@ -1,7 +1,18 @@
 # gazelle:ignore
 
+load("//core/quality:fixtures.bzl", "real_source_target")
+load(":hub_tests.bzl", "dub_hub_tests")
+
 test_suite(
     name = "fixture_tests",
     testonly = True,
     tests = ["//d/tests/fixtures/cc_interop:cc_interop_output_test"],
+)
+
+dub_hub_tests(name = "hub", size = "small")
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel", "hub_tests.bzl"],
+    tags = ["corpus"],
 )

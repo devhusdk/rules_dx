@@ -41,6 +41,7 @@ CONSUMER_FIXTURES = [
     "rust",
     "scala",
     "sql",
+    "svelte",
     "swift",
     "thrift",
     "typescript",

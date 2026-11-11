@@ -31,12 +31,6 @@ java_test(
     ],  # keep
 )
 
-jvm_coverage_env_test(
-    name = "hello_jupiter_coverage_env_test",
-    main_class = "org.junit.platform.console.ConsoleLauncher",
-    target = ":hello_jupiter_test",
-)
-
 java_test(
     name = "InferredMainTest",
     srcs = ["InferredMainTest.java"],

@@ -24,20 +24,24 @@ java_test(
     name = "pass_subject_test",
     size = "small",
     srcs = ["PassTest.java"],
-    main_class = "conformance.PassTest",
     target_compatible_with = subject_compatible_with(),
-    use_testrunner = False,
-    deps = [":conformance"],
+    test_class = "conformance.PassTest",
+    deps = [
+        ":conformance",
+        "@maven//:junit_junit",
+    ],
 )
 
 java_test(
     name = "fail_subject_test",
     size = "small",
     srcs = ["FailTest.java"],
-    main_class = "conformance.FailTest",
     target_compatible_with = subject_compatible_with(),
-    use_testrunner = False,
-    deps = [":conformance"],
+    test_class = "conformance.FailTest",
+    deps = [
+        ":conformance",
+        "@maven//:junit_junit",
+    ],
 )
 
 dx_conformance_suite(

@@ -887,9 +887,11 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-init-lock-hubs-");
         let root = scratch.path();
         std::fs::write(root.join("MODULE.bazel"), "module(name = \"app\")\n").expect("write");
-        std::fs::write(root.join("pnpm-lock.yaml"), "").expect("write");
+        let npm = dx_adopt::dependency_sets::Ecosystem::Npm;
+        let lock = npm.lockfiles()[0].as_str();
+        std::fs::write(root.join(lock), "").expect("write");
         std::fs::write(
-            root.join("package.json"),
+            root.join(npm.manifest_name()),
             "{\"dependencies\":{\"left-pad\":\"1.3.0\"}}",
         )
         .expect("write");
@@ -897,7 +899,7 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         let module = std::fs::read_to_string(root.join("MODULE.bazel")).expect("read");
         assert!(
-            module.contains("pnpm_lock = \"//:pnpm-lock.yaml\""),
+            module.contains(&format!("pnpm_lock = \"//:{lock}\"")),
             "{module}"
         );
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);

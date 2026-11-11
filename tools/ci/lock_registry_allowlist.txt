@@ -2,8 +2,6 @@ name cli/adopt/src/dependency_sets.rs mix.lock
 name cli/adopt/src/dependency_sets.rs package.json
 name cli/adopt/src/dependency_sets.rs paket.dependencies
 name cli/adopt/src/dependency_sets.rs pyproject.toml
-name cli/cli/src/adopt/init_files.rs package.json
-name cli/cli/src/adopt/init_files.rs pnpm-lock.yaml
 name cli/cli/src/exec/audit_live.rs Cargo.lock
 name cli/cli/src/exec/audit_live.rs Cargo.toml
 name cli/cli/src/exec/audit_live.rs PSGallery.lock.json
@@ -59,7 +57,6 @@ name cli/gomod/src/lib.rs go.mod
 name cli/gomod/src/lib.rs go.sum
 name cli/ide/src/lib.rs uv.lock
 name cli/ide/src/python.rs uv.lock
-name cli/path/src/workspace.rs uv.lock
 name cli/plan/src/resolve/changed.rs Cargo.lock
 name cli/plan/src/resolve/changed.rs Cargo.toml
 name cli/plan/src/resolve/changed.rs go.mod

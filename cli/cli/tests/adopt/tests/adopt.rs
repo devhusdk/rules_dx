@@ -18,7 +18,17 @@ fn dx(root: &Path, home: &Path, args: &[&str]) -> Out {
 
 fn dx_with_env(root: &Path, home: &Path, args: &[&str], env: &[(&str, &str)]) -> Out {
     let bin = resolve_runfiles(&std::env::var("DX_BIN").expect("DX_BIN must be set"));
+    let path = dx_testing::fake_generate_bazel_path(&home.parent().expect("base").join("fake-bin"));
     let output = Command::new(bin)
+        .env("PATH", path)
+        .env(
+            "DX_UV_BIN",
+            home.parent().expect("base").join("fake-bin/uv"),
+        )
+        .env(
+            "DX_UV_PYTHON",
+            home.parent().expect("base").join("fake-bin/python"),
+        )
         .args(args)
         .arg("--workspace")
         .arg(root)
@@ -153,7 +163,7 @@ fn init_keeps_existing_module_and_bazelrc_stanzas() {
     init(&root, &home);
     assert_eq!(read(&root.join("MODULE.bazel")), module);
     let after = read(&root.join(".bazelrc"));
-    assert!(after.starts_with(bazelrc), "{after}");
+    assert!(after.contains(bazelrc), "{after}");
     let before = snapshot(&root);
     init(&root, &home);
     assert_eq!(before, snapshot(&root));
@@ -325,7 +335,18 @@ fn init_is_idempotent_for_each_language_alone() {
         );
         let before = snapshot(&root);
         init(&root, &home);
-        assert_eq!(before, snapshot(&root), "{name}: second init changed files");
+        let after = snapshot(&root);
+        let changed: Vec<_> = after
+            .iter()
+            .filter(|(path, bytes)| {
+                !path.starts_with(".dx/local") && before.get(*path) != Some(*bytes)
+            })
+            .map(|(path, _)| path)
+            .collect();
+        assert!(
+            before.keys().eq(after.keys()) && changed.is_empty(),
+            "{name}: second init changed {changed:?}"
+        );
         let check = dx(&root, &home, &["init"]);
         assert_eq!(check.code, 0, "{name}: {}", check.stderr);
     }

@@ -95,7 +95,10 @@ fn block(text: &str) -> String {
 
 fn init(root: &Path, env: &Env) {
     let dx = env_path("DX_BIN");
-    let out = run_with(
+    let path = dx_testing::fake_generate_bazel_path(&env.base.join("fake-bin"));
+    let python = env.base.join("fake-bin/python").display().to_string();
+    let uv = env.base.join("fake-bin/uv").display().to_string();
+    let out = run_env(
         dx.to_str().expect("utf8"),
         &[
             "init",
@@ -107,6 +110,11 @@ fn init(root: &Path, env: &Env) {
         root,
         env,
         "",
+        &[
+            ("PATH", path.as_str()),
+            ("DX_UV_BIN", uv.as_str()),
+            ("DX_UV_PYTHON", python.as_str()),
+        ],
     );
     assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
 }

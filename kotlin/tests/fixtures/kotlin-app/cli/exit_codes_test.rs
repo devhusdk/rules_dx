@@ -1,12 +1,8 @@
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
-fn path(var: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var(var).expect("path env is set"))
-}
-
 fn grades(args: &[&str], working_dir: Option<&PathBuf>) -> Output {
-    let mut command = Command::new(path("GRADES_BIN"));
+    let mut command = Command::new(dx_testing::env_file("GRADES_BIN"));
     command.args(args);
     command.env_remove("BUILD_WORKING_DIRECTORY");
     command.env_remove("GRADES_FILE");
@@ -57,7 +53,7 @@ fn malformed_files_exit_3_with_their_reason() {
         ("GRADES_NOT_JSON", "grade file is not valid JSON"),
     ];
     for (var, reason) in cases {
-        let file = path(var);
+        let file = dx_testing::env_file(var);
         let run = grades(
             &["--file", file.to_str().expect("utf-8 path"), "list"],
             None,
@@ -76,7 +72,7 @@ fn bundled_grades_are_found_from_any_directory() {
 
 #[test]
 fn relative_file_resolves_against_the_invoking_directory() {
-    let json = path("GRADES_JSON");
+    let json = dx_testing::env_file("GRADES_JSON");
     let dir = json.parent().expect("parent").to_path_buf();
     let run = grades(&["--file", "grades.json", "letters"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));

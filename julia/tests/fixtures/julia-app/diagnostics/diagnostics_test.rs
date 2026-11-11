@@ -1,9 +1,5 @@
 use std::path::{Path, PathBuf};
 
-fn file(var: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var(var).unwrap_or_else(|_| panic!("{var} is set")))
-}
-
 fn julia_bin() -> PathBuf {
     let file = dx_testing::resolve_runfiles(
         &std::env::var("DX_JULIA_PATH_FILE").expect("DX_JULIA_PATH_FILE is set"),
@@ -37,7 +33,7 @@ fn julia(home: &Path, args: &[&str]) -> dx_testing::Run {
 
 fn run_file(name: &str, var: &str) -> dx_testing::Run {
     let home = scratch(name);
-    let path = file(var).to_string_lossy().into_owned();
+    let path = dx_testing::env_file(var).to_string_lossy().into_owned();
     let run = julia(&home, &["--startup-file=no", "--color=no", path.as_str()]);
     assert!(
         !home.join(".julia").exists(),
@@ -50,7 +46,7 @@ fn run_file(name: &str, var: &str) -> dx_testing::Run {
 fn format_check(paths: &[String]) -> dx_testing::Run {
     let mut args = vec!["--check"];
     args.extend(paths.iter().map(String::as_str));
-    dx_testing::run(&file("DX_FORMAT"), &args, &[]).expect("julia_format runs")
+    dx_testing::run(&dx_testing::env_file("DX_FORMAT"), &args, &[]).expect("julia_format runs")
 }
 
 #[test]
@@ -91,7 +87,9 @@ fn missing_dependency_is_reported() {
 
 #[test]
 fn unformatted_source_fails_the_format_check() {
-    let path = file("DX_UNFORMATTED").to_string_lossy().into_owned();
+    let path = dx_testing::env_file("DX_UNFORMATTED")
+        .to_string_lossy()
+        .into_owned();
     let run = format_check(std::slice::from_ref(&path));
     assert_eq!(run.status.code(), Some(1), "{}", run.combined());
     assert_eq!(run.stdout.trim(), path);

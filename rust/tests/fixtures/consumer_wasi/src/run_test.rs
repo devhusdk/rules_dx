@@ -2,11 +2,6 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::Output;
 
-fn path(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn run(args: &[&str], env: &[(&str, &str)], preopens: &[(&str, &str)]) -> Output {
     assert_eq!(std::env::var("DX_WASI_HOSTILE").as_deref(), Ok("1"));
     let input = std::env::var("DX_WASI_INPUT").expect("DX_WASI_INPUT must be set");
@@ -20,8 +15,8 @@ fn run(args: &[&str], env: &[(&str, &str)], preopens: &[(&str, &str)]) -> Output
         .map(|(guest, _)| (guest.to_string(), PathBuf::from(&input)))
         .collect();
     wasi_run::run(
-        &path("DX_WASI_RUNTIME"),
-        &path("DX_WASI_MODULE"),
+        &dx_testing::env_file("DX_WASI_RUNTIME"),
+        &dx_testing::env_file("DX_WASI_MODULE"),
         &args,
         &env,
         &preopens,

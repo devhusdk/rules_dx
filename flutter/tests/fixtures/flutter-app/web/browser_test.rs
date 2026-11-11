@@ -4,7 +4,7 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 
-use dx_site_browser::{wait_for, Browser};
+use dx_site_browser::{Browser, wait_for};
 
 fn copy_tree(source: &Path, dest: &Path) {
     std::fs::create_dir_all(dest).expect("create dest");
@@ -73,11 +73,6 @@ fn serve(root: PathBuf) -> u16 {
     port
 }
 
-fn runfile(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn semantics_present(label: &str) -> String {
     format!(
         "return Array.from(document.querySelectorAll('flt-semantics')).some(function (node) {{ \
@@ -96,7 +91,8 @@ fn relocated_bundle_counts_offline() {
     copy_tree(&dx_testing::resolve_runfiles(bundle), &relocated);
     let port = serve(relocated);
     let profile = dx_testing::mkscratch("firefox-profile").expect("browser profile");
-    let mut browser = Browser::start(&runfile("DX_FIREFOX"), &profile).expect("start Firefox");
+    let mut browser =
+        Browser::start(&dx_testing::env_file("DX_FIREFOX"), &profile).expect("start Firefox");
     browser
         .navigate(&format!("http://127.0.0.1:{port}/"))
         .expect("load the app");

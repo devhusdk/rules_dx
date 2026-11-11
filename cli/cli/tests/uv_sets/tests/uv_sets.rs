@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use dx_test_scratch::{TempDir, scratch};
 use dx_testing::http::{Reply, RequestLog, requests, serve};
-use dx_testing::{Run, resolve_runfiles, run};
+use dx_testing::{Run, run};
 
 const MODULE: &str = r#"module(name = "consumer")
 
@@ -89,8 +89,7 @@ impl Index {
 }
 
 fn runfile(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    let path = resolve_runfiles(&rel);
+    let path = dx_testing::env_file(var);
     std::fs::canonicalize(&path).unwrap_or_else(|error| panic!("{var} {path:?}: {error}"))
 }
 
@@ -215,8 +214,7 @@ impl Consumer {
 }
 
 fn dx() -> PathBuf {
-    let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
-    resolve_runfiles(&rel)
+    dx_testing::env_file("DX_BIN")
 }
 
 fn assert_code(run: &Run, code: i32) {

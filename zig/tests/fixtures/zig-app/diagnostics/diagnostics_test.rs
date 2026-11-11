@@ -1,14 +1,12 @@
 use std::path::PathBuf;
 
-fn file(var: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var(var).unwrap_or_else(|_| panic!("{var} is set")))
-}
-
 fn zig(args: &[&str]) -> dx_testing::Run {
     let tmp = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set"));
     let local = tmp.join("zig-local-cache");
     let global = tmp.join("zig-global-cache");
-    let lib = file("DX_ZIG_STD").to_string_lossy().into_owned();
+    let lib = dx_testing::env_file("DX_ZIG_STD")
+        .to_string_lossy()
+        .into_owned();
     let env = [
         ("ZIG_LIB_DIR", lib),
         ("ZIG_LOCAL_CACHE_DIR", local.to_string_lossy().into_owned()),
@@ -18,11 +16,11 @@ fn zig(args: &[&str]) -> dx_testing::Run {
         ),
     ];
     let env: Vec<(&str, &str)> = env.iter().map(|(k, v)| (*k, v.as_str())).collect();
-    dx_testing::run(&file("DX_ZIG"), args, &env).expect("zig runs")
+    dx_testing::run(&dx_testing::env_file("DX_ZIG"), args, &env).expect("zig runs")
 }
 
 fn check(var: &str) -> dx_testing::Run {
-    let path = file(var).to_string_lossy().into_owned();
+    let path = dx_testing::env_file(var).to_string_lossy().into_owned();
     zig(&["test", "--color", "off", "-fno-emit-bin", path.as_str()])
 }
 
@@ -76,7 +74,9 @@ fn unused_local_is_an_error() {
 
 #[test]
 fn unformatted_source_fails_the_format_check() {
-    let path = file("DX_UNFORMATTED").to_string_lossy().into_owned();
+    let path = dx_testing::env_file("DX_UNFORMATTED")
+        .to_string_lossy()
+        .into_owned();
     let run = fmt_check(std::slice::from_ref(&path));
     assert_eq!(run.status.code(), Some(1), "{}", run.combined());
     assert_eq!(run.stdout.trim(), path);

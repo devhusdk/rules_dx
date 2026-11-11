@@ -921,20 +921,13 @@ mod tests {
         scratch.close().expect("close");
     }
 
-    fn toolchain_tool(var: &str) -> PathBuf {
-        let rel = std::env::var(var).unwrap_or_else(|_| {
-            panic!("`{var}` must name the toolchain binary (set by quality_adapter_test)")
-        });
-        dx_testing::resolve_runfiles(&rel)
-    }
-
     #[test]
     fn pinned_node_starts_and_sees_pinned_temp() {
         let scratch = Scratch::create(&std::env::temp_dir()).expect("scratch");
         let root = scratch.root().to_owned();
         let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
         let env = hermetic_env(&root, &[], &ambient);
-        let node = toolchain_tool("DX_TEST_NODE");
+        let node = dx_testing::env_file("DX_TEST_NODE");
         let version = vec![node.clone().into_os_string(), OsString::from("--version")];
         let started = spawn(&version, &root, &env).expect("node starts");
         assert_eq!(started.code, Some(0));
@@ -962,7 +955,7 @@ mod tests {
         let root = scratch.root().to_owned();
         let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
         let env = hermetic_env(&root, &[], &ambient);
-        let python = toolchain_tool("DX_TEST_PYTHON");
+        let python = dx_testing::env_file("DX_TEST_PYTHON");
         let version = vec![python.clone().into_os_string(), OsString::from("--version")];
         let started = spawn(&version, &root, &env).expect("python starts");
         assert_eq!(started.code, Some(0));

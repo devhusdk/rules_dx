@@ -1,10 +1,6 @@
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
-fn path(var: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var(var).expect("path env is set"))
-}
-
 fn scratch() -> PathBuf {
     PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set"))
 }
@@ -18,7 +14,7 @@ fn isolated(binary: PathBuf) -> PathBuf {
 }
 
 fn pantry(args: &[&str], working_dir: Option<&PathBuf>, runfiles: bool) -> Output {
-    let binary = path("PANTRY_BIN");
+    let binary = dx_testing::env_file("PANTRY_BIN");
     let mut command = Command::new(if runfiles { binary } else { isolated(binary) });
     command.args(args).current_dir(scratch());
     command.env_remove("BUILD_WORKING_DIRECTORY");
@@ -43,7 +39,7 @@ fn stderr(run: &Output) -> String {
 
 #[test]
 fn malformed_menu_exits_4() {
-    let bad = path("PANTRY_BAD_MENU");
+    let bad = dx_testing::env_file("PANTRY_BAD_MENU");
     let run = pantry(&[bad.to_str().expect("utf-8 path")], None, true);
     assert_eq!(run.status.code(), Some(4));
     assert!(
@@ -75,7 +71,7 @@ fn packaged_menu_is_found_from_any_directory() {
 
 #[test]
 fn relative_menu_resolves_against_the_invoking_directory() {
-    let menu = path("PANTRY_MENU");
+    let menu = dx_testing::env_file("PANTRY_MENU");
     let dir = menu.parent().expect("parent").to_path_buf();
     let run = pantry(&["menu.csv"], Some(&dir), true);
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));

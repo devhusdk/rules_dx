@@ -1,12 +1,8 @@
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
-fn path(var: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var(var).expect("path env is set"))
-}
-
 fn stock(args: &[&str], cwd: &PathBuf, working_dir: Option<&PathBuf>) -> Output {
-    let mut command = Command::new(path("STOCK_BIN"));
+    let mut command = Command::new(dx_testing::env_file("STOCK_BIN"));
     command.args(args).current_dir(cwd);
     command.env_remove("BUILD_WORKING_DIRECTORY");
     command.env_remove("STOCK_FILE");
@@ -51,7 +47,7 @@ fn missing_stock_file_exits_3() {
 
 #[test]
 fn malformed_stock_file_exits_3() {
-    let bad = path("STOCK_WRONG_TYPE");
+    let bad = dx_testing::env_file("STOCK_WRONG_TYPE");
     let run = stock(
         &["--file", bad.to_str().expect("utf-8 path"), "list"],
         &scratch(),
@@ -70,7 +66,7 @@ fn packaged_stock_is_found_from_any_directory() {
 
 #[test]
 fn relative_file_resolves_against_the_invoking_directory() {
-    let json = path("STOCK_JSON");
+    let json = dx_testing::env_file("STOCK_JSON");
     let dir = json.parent().expect("parent").to_path_buf();
     let run = stock(&["--file", "stock.json", "total"], &scratch(), Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));

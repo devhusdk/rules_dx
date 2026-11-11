@@ -1,15 +1,9 @@
-use std::path::PathBuf;
-
-fn file(var: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var(var).unwrap_or_else(|_| panic!("{var} is set")))
-}
-
 fn ldc(args: &[&str], source: &str) -> dx_testing::Run {
-    let source = file(source);
+    let source = dx_testing::env_file(source);
     let source = source.to_string_lossy();
     let mut all = args.to_vec();
     all.push(source.as_ref());
-    dx_testing::run(&file("DX_LDC"), &all, &[]).expect("ldc runs")
+    dx_testing::run(&dx_testing::env_file("DX_LDC"), &all, &[]).expect("ldc runs")
 }
 
 #[test]

@@ -12,9 +12,11 @@ rust_test(
     data = [
         "//:MODULE.bazel",
         "//cli/cli:dx",
+        "//cli/cli/tests/fake_generate",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FAKE_GENERATE": "$(rootpath //cli/cli/tests/fake_generate)",
         "DX_MODULE": "$(rootpath //:MODULE.bazel)",
         "RUST_TEST_THREADS": "1",
     },

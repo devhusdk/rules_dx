@@ -95,7 +95,10 @@ fn block(text: &str) -> String {
 
 fn init(root: &Path, env: &Env) {
     let dx = env_path("DX_BIN");
-    let path = dx_testing::fake_generate_bazel_path(&env.base.join("fake-bin"));
+    let path = dx_testing::fake_generate_bazel_path(
+        &env.base.join("fake-bin"),
+        &dx_testing::env_file("DX_FAKE_GENERATE"),
+    );
     let python = env.base.join("fake-bin/python").display().to_string();
     let uv = env.base.join("fake-bin/uv").display().to_string();
     let out = run_env(

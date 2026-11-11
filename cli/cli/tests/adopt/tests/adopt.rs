@@ -18,7 +18,10 @@ fn dx(root: &Path, home: &Path, args: &[&str]) -> Out {
 
 fn dx_with_env(root: &Path, home: &Path, args: &[&str], env: &[(&str, &str)]) -> Out {
     let bin = resolve_runfiles(&std::env::var("DX_BIN").expect("DX_BIN must be set"));
-    let path = dx_testing::fake_generate_bazel_path(&home.parent().expect("base").join("fake-bin"));
+    let path = dx_testing::fake_generate_bazel_path(
+        &home.parent().expect("base").join("fake-bin"),
+        &dx_testing::env_file("DX_FAKE_GENERATE"),
+    );
     let output = Command::new(bin)
         .env("PATH", path)
         .env(

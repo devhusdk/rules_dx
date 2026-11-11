@@ -29,7 +29,6 @@ def versions_contract_tests(name):
     for platform in _GO_SDK_SDKS:
         for pin in _GO_SDK_SDKS[platform]:
             go_archive_pins.append(pin)
-    cuda_pins = _redist_pins(_cuda_qualified_cells())
     root_cuda_pins = _redist_pins(_cuda_qualified_cells(), multiline = True)
     redist_prefix = "https://developer.download.nvidia.com/compute/cuda/redist/"
     cuda_manifest_blocks = [
@@ -57,10 +56,6 @@ def versions_contract_tests(name):
         ["pnpm_lock = \"" + lock + "\"," for lock in _NPM_LOCKS],
     )
     npm_dev_block = "use_repo(\n    npm_dev,\n" + "".join(["    \"" + hub + "\",\n" for hub in _NPM_DEV_HUBS])
-    cuda_stanza = "\n".join([
-        "name = \"rules_cuda\", version = \"" + _RULES_CUDA_VERSION + "\"",
-        "nvcc_version = \"" + _CUDA_VERSION + "\"",
-    ] + cuda_pins)
     starlark_test(
         name = name,
         mode = "execution",
@@ -94,8 +89,8 @@ def versions_contract_tests(name):
         },
         file_checks = {
             "//:.bazelrc": "common --check_direct_dependencies=error",
-            "//cuda:README.md": cuda_stanza,
-            "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": cuda_stanza,
+            "//cuda:README.md": "rules_cuda " + _RULES_CUDA_VERSION,
+            "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": "bazel_dep(name = \"rules_cuda\", version = \"" + _RULES_CUDA_VERSION + "\")",
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",
             "//javascript/private/quality:package.json": "\"typedoc\": \"" + _TYPEDOC_VERSION + "\",\n    \"typescript\": \"" + _TYPESCRIPT_VERSION + "\",",
             "//javascript/private/quality:pnpm-lock.yaml": "  vue-component-meta@" + _VUE_COMPONENT_META_VERSION + ":\n",

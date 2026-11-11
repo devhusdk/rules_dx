@@ -456,7 +456,6 @@ private-names cc/private/context/tests
 private-names cc/private/testdata
 private-names cc/private/toolchains
 private-names fortran/private/toolchain/flang_rt.BUILD.bazel
-private-names java/private/toolchains
 private-names javascript/private/quality/bin/testdata
 private-names lua/private/quality/testdata
 private-names lua/private/toolchain/luals.build
@@ -506,7 +505,7 @@ readme-headings typescript/README.md
 readme-headings zig/README.md
 register-label cc/private/toolchains
 register-label core/quality
-register-label java/private/toolchains
+register-label java/private/toolchain
 register-label kotlin/private/toolchain
 register-label lua/private/toolchain
 register-label msix/private/toolchain

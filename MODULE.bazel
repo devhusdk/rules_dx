@@ -430,7 +430,7 @@ scala_deps.scala()
 scala_deps.scalatest()
 
 register_toolchains(
-    "//java/private/toolchains:all",
+    "//java/private/toolchain:all",
     "//kotlin/private/toolchain:unused_deps",
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",

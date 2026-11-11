@@ -409,7 +409,17 @@ pub(super) fn collect(
             }
             Ecosystem::SwiftPm => {
                 registries.insert(name.to_owned(), Registry::SwiftUrl);
-                let texts = read_texts(workspace, name, &target.set.locks, &mut read_errors);
+                let resolved: Vec<String> = target
+                    .set
+                    .locks
+                    .iter()
+                    .filter(|lock| {
+                        lock.rsplit('/').next()
+                            == Some(dx_adopt::dependency_sets::PACKAGE_RESOLVED)
+                    })
+                    .cloned()
+                    .collect();
+                let texts = read_texts(workspace, name, &resolved, &mut read_errors);
                 merge(
                     &mut found,
                     swiftpm::outdated(

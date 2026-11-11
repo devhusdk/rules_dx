@@ -375,15 +375,15 @@ fn zig_locks_become_zig_sets() {
 }
 
 #[test]
-fn swift_from_package_tags_become_swiftpm_sets() {
-    let module = "swift_deps = use_extension(\"@rules_swift_package_manager//:extensions.bzl\", \"swift_deps\")\nswift_deps.from_package(resolved = \"//app:Package.resolved\", swift = \"//app:Package.swift\")\n";
+fn swiftpm_lock_tags_become_swiftpm_sets() {
+    let module = "swiftpm = use_extension(\"@rules_dx//swift:extensions.bzl\", \"swiftpm\")\nswiftpm.lock(name = \"swiftpm\", lock = \"//app:swiftpm.lock.json\")\n";
     let registry = discover(module, &|_: &str| Err("none".to_owned()))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("swiftpm").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::SwiftPm);
     assert_eq!(set.manifests, ["app/Package.swift"]);
-    assert_eq!(set.locks, ["app/Package.resolved"]);
+    assert_eq!(set.locks, ["app/Package.resolved", "app/swiftpm.lock.json"]);
 }
 
 #[test]

@@ -2176,7 +2176,7 @@ fn consumer_cargo_wrong_manifest_name_exits_two() {
     assert!(runner.calls.borrow().is_empty());
 }
 
-const SWIFT_MODULE: &str = "swift_deps = use_extension(\"@rules_swift_package_manager//:extensions.bzl\", \"swift_deps\")\nswift_deps.from_package(resolved = \"//apps/swift:Package.resolved\", swift = \"//apps/swift:Package.swift\")\n";
+const SWIFT_MODULE: &str = "swiftpm = use_extension(\"@rules_dx//swift:extensions.bzl\", \"swiftpm\")\nswiftpm.lock(name = \"swiftpm\", lock = \"//apps/swift:swiftpm.lock.json\")\n";
 const SWIFT_MANIFEST: &str = "apps/swift/Package.swift";
 
 fn swift_harness(name: &str) -> Harness {
@@ -2185,6 +2185,7 @@ fn swift_harness(name: &str) -> Harness {
         SWIFT_MANIFEST,
         "import PackageDescription\nlet package = Package(name: \"app\", dependencies: [\n    .package(url: \"https://github.com/apple/swift-argument-parser\", exact: \"1.8.2\"),\n    .package(url: \"https://github.com/apple/swift-log.git\", branch: \"main\"),\n], targets: [])\n",
     );
+    harness.write_source("apps/swift/swiftpm.lock.json", "{}");
     harness.write_source(
         "apps/swift/Package.resolved",
         "{\"pins\":[],\"version\":3}\n",

@@ -1,37 +1,134 @@
 [
   {
+    "ecosystem": "cabal",
+    "hub": "hackage",
+    "imports": "name",
+    "lock": "haskell_deps.json",
+    "manifest": "cabal.project"
+  },
+  {
+    "ecosystem": "cargo",
+    "hub": "crates",
+    "imports": "name",
+    "lock": "Cargo.lock",
+    "manifest": "Cargo.toml"
+  },
+  {
     "ecosystem": "composer",
     "hub": "composer",
+    "imports": "provides",
     "lock": "composer.lock.json",
     "manifest": "composer.json"
   },
   {
+    "ecosystem": "cpan",
+    "hub": "cpan",
+    "imports": "name",
+    "lock": "cpanfile.snapshot.lock.json",
+    "manifest": "cpanfile"
+  },
+  {
     "ecosystem": "dub",
     "hub": "dub",
+    "imports": "provides",
     "lock": "dub.lock.json",
     "manifest": "dub.json"
   },
   {
+    "ecosystem": "fpm",
+    "hub": "fpm",
+    "imports": "name",
+    "lock": "fpm.lock.toml",
+    "manifest": "fpm.toml"
+  },
+  {
+    "ecosystem": "go",
+    "hub": "*",
+    "imports": "name",
+    "lock": "go.sum",
+    "manifest": "go.mod"
+  },
+  {
+    "ecosystem": "hex",
+    "hub": "hex",
+    "imports": "name",
+    "lock": "mix.lock",
+    "manifest": "mix.exs"
+  },
+  {
+    "ecosystem": "julia",
+    "hub": "julia",
+    "imports": "name",
+    "lock": "Manifest.bazel.json",
+    "manifest": "Project.toml"
+  },
+  {
     "ecosystem": "luarocks",
     "hub": "rocks",
+    "imports": "provides",
     "lock": "luarocks.lock.json",
     "manifest": "*.rockspec"
   },
   {
     "ecosystem": "maven",
     "hub": "maven",
+    "imports": "provides",
     "lock": "maven_install.json",
     "manifest": "MODULE.bazel"
   },
   {
+    "ecosystem": "npm",
+    "hub": "npm",
+    "imports": "name",
+    "lock": "pnpm-lock.yaml",
+    "manifest": "package.json"
+  },
+  {
+    "ecosystem": "opam",
+    "hub": "opam",
+    "imports": "name",
+    "lock": "*.opam.locked",
+    "manifest": "*.opam"
+  },
+  {
+    "ecosystem": "powershell",
+    "hub": "psgallery",
+    "imports": "name",
+    "lock": "PSGallery.lock.json",
+    "manifest": "PSGallery.requirements.psd1"
+  },
+  {
+    "ecosystem": "pub",
+    "hub": "pub_deps",
+    "imports": "name",
+    "lock": "pubspec.lock",
+    "manifest": "pubspec.yaml"
+  },
+  {
+    "ecosystem": "ruby",
+    "hub": "bundle",
+    "imports": "name",
+    "lock": "Gemfile.lock",
+    "manifest": "Gemfile"
+  },
+  {
     "ecosystem": "swiftpm",
     "hub": "swiftpkg",
+    "imports": "provides",
     "lock": "swiftpm.lock.json",
     "manifest": "Package.swift"
   },
   {
+    "ecosystem": "uv",
+    "hub": "pypi",
+    "imports": "name",
+    "lock": "uv.lock",
+    "manifest": "pyproject.toml"
+  },
+  {
     "ecosystem": "zig",
     "hub": "zig",
+    "imports": "provides",
     "lock": "zig.lock.json",
     "manifest": "build.zig.zon"
   }

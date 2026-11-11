@@ -28,7 +28,6 @@ fixture python
 fixture rst
 fixture sql
 fixture svelte
-fixture swift
 fixture terraform
 fixture thrift
 fixture typescript

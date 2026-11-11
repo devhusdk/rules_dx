@@ -150,6 +150,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude csharp/tests/consumer
 # gazelle:exclude fsharp/tests/consumer
 # gazelle:exclude dart/tests/consumer
+# gazelle:exclude swift/tests/consumer
 # gazelle:exclude rego/tests/consumer
 # gazelle:exclude qt/tests/consumer
 # gazelle:exclude go/tests/fixtures/no_srcs

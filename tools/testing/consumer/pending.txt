@@ -49,7 +49,6 @@ init rego
 init ruby
 init rust
 init scala
-init thrift
 init zig
 override archive_override lua
 override archive_override rules_flutter

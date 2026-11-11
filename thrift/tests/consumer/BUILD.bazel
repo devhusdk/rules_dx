@@ -1,5 +1,7 @@
 load("@rules_dx//thrift:defs.bzl", "thrift_library")
 
+# dx: written once, yours to edit
+
 thrift_library(
     name = "consumer",
     srcs = ["hello.thrift"],

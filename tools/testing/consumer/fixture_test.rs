@@ -75,7 +75,7 @@ fn init(root: &Path) -> dx_testing::Run {
         ("USERPROFILE", home.as_str()),
     ];
     let mut command = dx_testing::command_for(&dx, &envs).unwrap_or_else(|error| panic!("{dx:?}: {error}"));
-    command.current_dir(root).args(["init", "--apply", "--workspace"]).arg(root);
+    command.current_dir(root).args(["init", WORKSPACE, "--apply", "--workspace"]).arg(root.with_file_name(""));
     dx_testing::run_command(&mut command, Duration::from_secs(60))
         .unwrap_or_else(|error| panic!("dx init --apply: {error}"))
 }

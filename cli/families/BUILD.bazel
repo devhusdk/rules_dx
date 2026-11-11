@@ -3,7 +3,13 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS")
 
-package(default_visibility = VIS_CLI_TOOLS + ["//swift/private/tools/lock:__pkg__", "//zig/private/tools/lock:__pkg__", "//d/private/tools/lock:__pkg__", "//php/private/tools/lock:__pkg__", "//lua/private/tools/lock:__pkg__"])
+package(default_visibility = VIS_CLI_TOOLS + [
+    "//d/private/tools/lock:__pkg__",
+    "//lua/private/tools/lock:__pkg__",
+    "//php/private/tools/lock:__pkg__",
+    "//swift/private/tools/lock:__pkg__",
+    "//zig/private/tools/lock:__pkg__",
+])
 
 real_source_target(
     name = "corpus_starlark",

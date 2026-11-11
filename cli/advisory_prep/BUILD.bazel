@@ -71,6 +71,7 @@ rust_test(
         "//cli/audit:dx_audit",
         "//cli/digest:dx_digest",
         "//cli/update:dx_update",
+        "@crates//:serde",
     ],
 )
 
@@ -133,5 +134,6 @@ rust_library(
         "//cli/audit:dx_audit",
         "//cli/digest:dx_digest",
         "//cli/update:dx_update",
+        "@crates//:serde",
     ],
 )

@@ -22,9 +22,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_shim",
         normal = True,
-    ) + [
-        "//cli/error:dx_error",
-    ],
+    ) + ["//cli/error:dx_error"],
 )
 
 rust_binary(

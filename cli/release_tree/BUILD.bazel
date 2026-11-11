@@ -9,6 +9,7 @@ rust_binary(
         "src/main.rs",
         "src/tree.rs",
     ],
+    crate_name = "release_tree",
     crate_root = "src/main.rs",
 )
 

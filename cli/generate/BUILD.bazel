@@ -46,8 +46,8 @@ rust_library(
         "//cli/dx_config",
         "//cli/error:dx_error",
         "//cli/merge:dx_merge",
-        "//cli/path:dx_path",
         "//cli/module_bazel:dx_module_bazel",
+        "//cli/path:dx_path",
         "//tools/bazelrc:dx_preset",
     ],
 )
@@ -74,10 +74,10 @@ rust_test(
     crate_name = "dx_generate",
     crate_root = "src/lib.rs",
     data = [
+        "//core/quality/tests/fixtures/generated_policy:BUILD.bazel",
         "//gazelle/python:dx_generate_fixpoint_testdata",
         "//gazelle/python:testdata/dx_generate_existing_exports/WORKSPACE",
         "//gazelle/python:testdata/dx_generate_standard/WORKSPACE",
-        "//core/quality/tests/fixtures/generated_policy:BUILD.bazel",
         "@dx_tools//:buildifier",
     ],
     env = {
@@ -96,9 +96,9 @@ rust_test(
         "//cli/dx_config",
         "//cli/error:dx_error",
         "//cli/merge:dx_merge",
+        "//cli/module_bazel:dx_module_bazel",
         "//cli/path:dx_path",
         "//cli/test_scratch:dx_test_scratch",
-        "//cli/module_bazel:dx_module_bazel",
         "//tools/bazelrc:dx_preset",
     ],
 )

@@ -102,6 +102,7 @@ rust_test(
         "//cli/ecosystems:languages.json",
         "//cli/families:languages.json",
         "//core/quality/testdata:all_languages.bzl",
+        "//docs:support-matrix.md",
         "//gazelle/common:lock_registry.json",
     ],
     deps = all_crate_deps(

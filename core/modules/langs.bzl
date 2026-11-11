@@ -626,9 +626,18 @@ LANGS = json.decode("""{
     "pins": [
       "private/toolchain/pins.json"
     ],
-    "platforms": [],
+    "platforms": [
+      "linux_arm64",
+      "linux_x86_64",
+      "windows_arm64",
+      "windows_x86_64"
+    ],
     "title": "CUDA",
-    "tools": []
+    "tools": [
+      "clang_format",
+      "clang_tidy",
+      "nvcc_syntax"
+    ]
   },
   "d": {
     "depcheck": "d",
@@ -714,7 +723,9 @@ LANGS = json.decode("""{
       ]
     },
     "title": "D",
-    "tools": []
+    "tools": [
+      "ldc"
+    ]
   },
   "dart": {
     "depcheck": "dart",
@@ -1178,7 +1189,10 @@ LANGS = json.decode("""{
       "pins.json"
     ],
     "platforms": [
-      "linux_x86_64"
+      "linux_arm64",
+      "linux_x86_64",
+      "macos_arm64",
+      "windows_x86_64"
     ],
     "quality": {
       "aspects": {
@@ -1396,7 +1410,8 @@ LANGS = json.decode("""{
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
-      "macos_arm64"
+      "macos_arm64",
+      "windows_x86_64"
     ],
     "quality": {
       "aspects": {
@@ -2075,8 +2090,7 @@ LANGS = json.decode("""{
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
-      "macos_arm64",
-      "windows_x86_64"
+      "macos_arm64"
     ],
     "quality": {
       "aspects": {
@@ -2487,7 +2501,13 @@ LANGS = json.decode("""{
     "pins": [
       "pins.json"
     ],
-    "platforms": [],
+    "platforms": [
+      "linux_arm64",
+      "linux_x86_64",
+      "macos_arm64",
+      "windows_arm64",
+      "windows_x86_64"
+    ],
     "quality": {
       "bzl": "core/quality:families/cc.bzl",
       "file_extensions": [
@@ -2495,7 +2515,10 @@ LANGS = json.decode("""{
       ]
     },
     "title": "qt",
-    "tools": []
+    "tools": [
+      "qmlformat",
+      "qmllint"
+    ]
   },
   "rego": {
     "ecosystems": [],
@@ -2667,7 +2690,7 @@ LANGS = json.decode("""{
       "rust_shared_library",
       "rust_static_library",
       "rust_fuzz_test",
-      "cargo_build_script"
+      "rust_build_script"
     ],
     "family": "core",
     "lockfiles": [

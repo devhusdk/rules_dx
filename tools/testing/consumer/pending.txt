@@ -12,7 +12,6 @@ fixture make
 fixture msix
 fixture python
 fixture terraform
-fixture vue
 init csharp
 init cuda
 init d

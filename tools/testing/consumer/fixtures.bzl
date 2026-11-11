@@ -34,6 +34,7 @@ CONSUMER_FIXTURES = [
     "perl",
     "php",
     "powershell",
+    "python",
     "qt",
     "rego",
     "ruby",

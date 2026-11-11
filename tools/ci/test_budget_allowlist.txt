@@ -592,7 +592,6 @@ python/private/ide/BUILD.bazel no-size 1
 python/private/runtime_tests.bzl no-size 1
 python/tests/BUILD.bazel no-size 3
 python/tests/analysis/BUILD.bazel no-size 4
-python/tests/consumer/BUILD.bazel no-size 1
 python/tests/fixtures/adopt-python/app/BUILD.bazel no-size 1
 python/tests/fixtures/adopt-python/solo/BUILD.bazel no-size 2
 python/tests/fixtures/adopt-python/tests/BUILD.bazel no-size 1

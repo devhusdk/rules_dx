@@ -61,10 +61,6 @@ dotnet build_test *
 dotnet coverage_test *
 dotnet fail_test *
 dotnet pass_test *
-elixir build_test *
-elixir coverage_test *
-elixir fail_test *
-elixir pass_test *
 erlang build_test *
 erlang coverage_test *
 erlang fail_test *

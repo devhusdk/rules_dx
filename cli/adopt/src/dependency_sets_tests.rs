@@ -346,7 +346,7 @@ fn dub_locks_become_dub_sets() {
 
 #[test]
 fn fpm_locks_become_fpm_sets() {
-    let module = "fortran = use_extension(\"@rules_dx//fortran:extensions.bzl\", \"fortran\")\nfortran.fpm(name = \"fpm_deps\", lock = \"//f:fpm.lock\")\n";
+    let module = "fpm = use_extension(\"@rules_dx//fortran:extensions.bzl\", \"fpm\")\nfpm.lock(name = \"fpm_deps\", lock = \"//f:fpm.lock\")\n";
     let read = |_: &str| Err("none".to_owned());
     let registry = discover(module, &read)
         .expect("discovers")

@@ -27,6 +27,7 @@ name cli/adopt/src/dependency_sets.rs cpanfile
 name cli/adopt/src/dependency_sets.rs cpanfile.snapshot
 name cli/adopt/src/dependency_sets.rs dub.json
 name cli/adopt/src/dependency_sets.rs dub.selections.json
+name cli/adopt/src/dependency_sets.rs fpm.lock
 name cli/adopt/src/dependency_sets.rs fpm.toml
 name cli/adopt/src/dependency_sets.rs go.mod
 name cli/adopt/src/dependency_sets.rs go.sum
@@ -71,6 +72,7 @@ name cli/audit/src/locks_cargo.rs Cargo.lock
 name cli/audit/src/locks_composer.rs composer.lock
 name cli/audit/src/locks_cpan.rs cpanfile.snapshot
 name cli/audit/src/locks_dub.rs dub.selections.json
+name cli/audit/src/locks_fpm.rs fpm.lock
 name cli/audit/src/locks_hex.rs mix.lock
 name cli/audit/src/locks_julia.rs Manifest.toml
 name cli/audit/src/locks_licenses.rs Cargo.toml
@@ -190,6 +192,7 @@ name cli/depcheck/src/ecosystem/dart.rs pubspec.lock
 name cli/depcheck/src/ecosystem/dart.rs pubspec.yaml
 name cli/depcheck/src/ecosystem/dlang.rs dub.json
 name cli/depcheck/src/ecosystem/dlang.rs dub.selections.json
+name cli/depcheck/src/ecosystem/fortran.rs fpm.lock
 name cli/depcheck/src/ecosystem/fortran.rs fpm.toml
 name cli/depcheck/src/ecosystem/haskell.rs cabal.project.freeze
 name cli/depcheck/src/ecosystem/julia.rs Manifest.toml
@@ -245,6 +248,7 @@ name cli/depcheck/src/usage.rs cpanfile
 name cli/depcheck/src/usage.rs cpanfile.snapshot
 name cli/depcheck/src/usage.rs dub.json
 name cli/depcheck/src/usage.rs dub.selections.json
+name cli/depcheck/src/usage.rs fpm.lock
 name cli/depcheck/src/usage.rs fpm.toml
 name cli/depcheck/src/usage.rs go.mod
 name cli/depcheck/src/usage.rs go.sum
@@ -267,6 +271,7 @@ name cli/gomod/src/lib.rs go.sum
 name cli/ide/src/lib.rs uv.lock
 name cli/ide/src/python.rs uv.lock
 name cli/module_bazel/src/lib.rs composer.lock
+name cli/module_bazel/src/lib.rs fpm.lock
 name cli/module_bazel/src/lib.rs luarocks.lock
 name cli/path/src/workspace.rs uv.lock
 name cli/plan/src/resolve/changed.rs Cargo.lock
@@ -298,6 +303,7 @@ name cli/update/src/backend/cabal.rs haskell_deps.json
 name cli/update/src/backend/composer.rs composer.lock
 name cli/update/src/backend/cpan.rs cpanfile
 name cli/update/src/backend/cpan.rs cpanfile.snapshot
+name cli/update/src/backend/fpm.rs fpm.lock
 name cli/update/src/backend/hex.rs mix.lock
 name cli/update/src/backend/julia.rs Manifest.toml
 name cli/update/src/backend/luarocks.rs luarocks.lock
@@ -401,7 +407,10 @@ name elixir/private/toolchain/extensions.bzl mix.lock
 name elixir/private/toolchain/repos.bzl mix.lock
 name erlang/lang.json mix.exs
 name erlang/lang.json mix.lock
-name fortran/lang.json fpm.toml
+name fortran/private/fpm_lock.bzl fpm.lock
+name fortran/private/toolchain/extensions.bzl fpm.lock
+name fortran/private/toolchain/repos.bzl fpm.lock
+name fortran/private/tools/fpm_lock.bzl fpm.lock
 name fsharp/lang.json paket.dependencies
 name fsharp/lang.json paket.lock
 name gazelle/common/external.go dub.json
@@ -470,6 +479,7 @@ name tools/docs/dart/defs.bzl pubspec.yaml
 name tools/docs/javascript/aspect.bzl tsconfig.json
 name tools/docs/support_matrix/languages.bzl build.zig.zon
 name tools/docs/support_matrix/languages.bzl cabal.project.freeze
+name tools/docs/support_matrix/languages.bzl fpm.lock
 name tools/docs/support_matrix/languages.bzl mix.lock
 name tools/testing/hermetic/maven_pin.rs maven_install.json
 name tools/testing/nested/src/lib.rs maven_install.json
@@ -484,7 +494,6 @@ parser lua/luarocks/lock.bzl
 parser php/private/composer/lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
 registry cpan
-registry fpm
 registry go
 registry hex
 registry julia

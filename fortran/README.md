@@ -132,7 +132,7 @@ targets are incompatible and skipped.
 
 ## Locked packages
 
-`fortran.fpm(name, lock)` in `MODULE.bazel` reads an `fpm.lock` and declares
+`fpm.lock(name, lock)` in `MODULE.bazel` reads an `fpm.lock` and declares
 one pinned archive per `[dependencies.<name>]` table, plus a hub repository
 named `name` with one `fortran_library` alias per package. Each table needs
 `version`, `url` and `sha256`, and may set `strip_prefix` and

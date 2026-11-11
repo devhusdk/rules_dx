@@ -564,6 +564,21 @@
             "real_fortran_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "fpm",
+            "extension": "@rules_dx//fortran:extensions.bzl",
+            "hub": "fpm",
+            "imports": "name",
+            "lock": "fpm.lock",
+            "manifest": "fpm.toml",
+            "resolver": null,
+            "state": null,
+            "tag": "lock"
+          }
+        ]
       }
     },
     {

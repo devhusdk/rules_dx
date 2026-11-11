@@ -12,6 +12,21 @@
     "fpm.toml"
   ],
   "lockfiles": [],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "fpm",
+        "manifest": "fpm.toml",
+        "lock": "fpm.lock",
+        "state": null,
+        "extension": "@rules_dx//fortran:extensions.bzl",
+        "tag": "lock",
+        "hub": "fpm",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "ffmt",
     "fortitude"

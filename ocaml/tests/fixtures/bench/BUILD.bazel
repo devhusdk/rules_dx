@@ -1,9 +1,8 @@
-# gazelle:ignore
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//ocaml:defs.bzl", "OCAML_COMPATIBLE_WITH", "ocaml_bench")
 load("//ocaml/private:wrapper_tests.bzl", "ocaml_native_launcher_test")
-load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(
     default_testonly = True,
@@ -23,19 +22,19 @@ ocaml_native_launcher_test(
 
 sh_test(
     name = "sum_bench_run_test",
+    timeout = "short",
     srcs = ["run_test.sh"],
     args = ["$(rootpath :sum_bench)"],
     data = [":sum_bench"],
     target_compatible_with = OCAML_COMPATIBLE_WITH,
-    timeout = "short",
 )
 
 ocaml_bench(
     name = "sized_bench",
     size = "large",
+    timeout = "long",
     main = "sum_bench.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
-    timeout = "long",
 )
 
 dx_runner_attr_test(

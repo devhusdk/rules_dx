@@ -1,4 +1,4 @@
-# gazelle:ignore
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_julia//julia/pkg:julia_pkg_resolve.bzl", "julia_pkg_resolve")
 load("@rules_julia//julia/pkg:julia_pkg_resolve_test.bzl", "julia_pkg_resolve_test")
 load("//julia/private:defs.bzl", "JULIA_COMPATIBLE_WITH")
@@ -23,4 +23,19 @@ julia_pkg_resolve_test(
     name = "resolve_test",
     resolver = ":resolve",
     target_compatible_with = JULIA_COMPATIBLE_WITH,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = [
+        "Manifest.toml",
+        "Project.toml",
+    ],
 )

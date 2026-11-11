@@ -1,9 +1,9 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
 # gazelle:exclude src
-# gazelle:ignore
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
-load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_bench")
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_bench", "haskell_deps_resolve", "haskell_deps_resolve_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -36,6 +36,7 @@ haskell_bench(
 
 sh_test(
     name = "sum_bench_run_test",
+    timeout = "short",
     srcs = ["run_test.sh"],
     args = ["$(rootpath :sum_bench_bin)"],
     data = [
@@ -43,16 +44,21 @@ sh_test(
         "//haskell/private:bench_run.sh",
     ],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    timeout = "short",
 )
 
 haskell_bench(
     name = "sized_bench",
-    srcs = ["bench_src/Sum.hs"],
     size = "large",
     timeout = "long",
-    args = ["--stdev", "100"],
-    tags = ["dx-bench", "extra"],
+    srcs = ["bench_src/Sum.hs"],
+    args = [
+        "--stdev",
+        "100",
+    ],
+    tags = [
+        "dx-bench",
+        "extra",
+    ],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         "@dx_haskell_toolchains//:base",
@@ -63,10 +69,24 @@ haskell_bench(
 dx_runner_attr_test(
     name = "sized_bench_attrs",
     expected = {
-        "args": ["$(rootpath :sized_bench_bin)", "--stdev", "100"],
+        "args": [
+            "$(rootpath :sized_bench_bin)",
+            "--stdev",
+            "100",
+        ],
         "size": "large",
-        "tags": ["dx-bench", "extra"],
+        "tags": [
+            "dx-bench",
+            "extra",
+        ],
         "timeout": "long",
     },
     runner = "sized_bench",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

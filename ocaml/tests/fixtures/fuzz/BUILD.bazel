@@ -1,7 +1,6 @@
-# gazelle:ignore
-load("//ocaml:defs.bzl", "ocaml_fuzz_test")
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//ocaml:defs.bzl", "ocaml_fuzz_test")
 
 package(
     default_testonly = True,
@@ -22,22 +21,26 @@ ocaml_fuzz_test(
         "-r",
         "200",
     ],
+    main = "reverse_fuzz.ml",
     opts = [
         "-w",
         "-40-42",
     ],
-    main = "reverse_fuzz.ml",
     deps = ["@ocaml_fuzz//:crowbar"],
 )
 
 dx_runner_attr_test(
     name = "reverse_fuzz_test_run_attrs",
-    expected = {"args": ["crowbar", "$(rootpath :reverse_fuzz_test)"]},
+    expected = {"args": [
+        "crowbar",
+        "$(rootpath :reverse_fuzz_test)",
+    ]},
     runner = "reverse_fuzz_test_run",
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

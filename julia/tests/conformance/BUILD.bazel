@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//julia:defs.bzl", "julia_binary", "julia_library", "julia_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -8,6 +9,7 @@ package(
 
 julia_library(
     name = "Greet",
+    testonly = True,
     srcs = ["src/Greet.jl"],
     data = ["Project.toml"],
 )
@@ -20,22 +22,23 @@ julia_binary(
 
 julia_test(
     name = "pass_subject_test",
-    srcs = ["pass_test.jl"],
     size = "small",
+    srcs = ["pass_test.jl"],
     target_compatible_with = subject_compatible_with(),
     deps = [":Greet"],
 )
 
 julia_test(
     name = "fail_subject_test",
-    srcs = ["fail_test.jl"],
     size = "small",
+    srcs = ["fail_test.jl"],
     target_compatible_with = subject_compatible_with(),
     deps = [":Greet"],
 )
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "Greet.jl",
     expected = "hello world",
@@ -43,5 +46,18 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "julia",
     passing_test = ":pass_subject_test",
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Project.toml"],
 )

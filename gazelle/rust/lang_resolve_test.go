@@ -2,6 +2,7 @@ package rust
 
 import (
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -1019,5 +1020,16 @@ func TestDepsMergeKeepsHandCrateDepsCall(t *testing.T) {
 	}
 	if again := src.Merge(merged); bzl.FormatString(again) != bzl.FormatString(merged) {
 		t.Errorf("merge not idempotent")
+	}
+}
+
+func TestWithoutExcludedDropsUnlistedSubdirs(t *testing.T) {
+	files := []string{"pkg/src/lib.rs", "pkg/tests/fake.rs", "pkg/main.rs"}
+	got := withoutExcluded(files, language.GenerateArgs{Rel: "pkg", Subdirs: []string{"src"}})
+	if want := []string{"pkg/src/lib.rs", "pkg/main.rs"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("withoutExcluded = %v, want %v", got, want)
+	}
+	if got := withoutExcluded(files, language.GenerateArgs{Rel: "pkg"}); !reflect.DeepEqual(got, files) {
+		t.Fatalf("nil Subdirs = %v, want %v", got, files)
 	}
 }

@@ -1,3 +1,4 @@
+# gazelle:exclude tests
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
@@ -19,6 +20,7 @@ rust_binary(
     deps = [":capture_lib"],
 )
 
+# keep
 rust_binary(
     name = "fake_tool",
     testonly = True,

@@ -253,6 +253,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 		l.fail(common.InPackage(args.Rel), "rust: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
+	files = withoutExcluded(files, args)
 	for _, name := range args.RegularFiles {
 		if name == "Cargo.toml" {
 			return l.generateCargo(args, files)
@@ -630,4 +631,26 @@ const cratesHubDirective = "dx_rust_crates_hub"
 
 func validCratesHub(repo string) bool {
 	return repo != "" && !strings.ContainsAny(repo, "@/: \t")
+}
+
+// withoutExcluded drops files under subdirectories that gazelle:exclude
+// removed from the walk.
+func withoutExcluded(files []string, args language.GenerateArgs) []string {
+	if args.Subdirs == nil {
+		return files
+	}
+	subdirs := make(map[string]bool, len(args.Subdirs))
+	for _, name := range args.Subdirs {
+		subdirs[name] = true
+	}
+	kept := files[:0:0]
+	for _, name := range files {
+		local := strings.TrimPrefix(strings.TrimPrefix(name, args.Rel), "/")
+		first, _, nested := strings.Cut(local, "/")
+		if nested && !subdirs[first] {
+			continue
+		}
+		kept = append(kept, name)
+	}
+	return kept
 }

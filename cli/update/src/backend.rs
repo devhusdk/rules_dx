@@ -833,7 +833,7 @@ fn hex_staged(
     let lock = set
         .locks
         .iter()
-        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::MIX_LOCK))
+        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::mix_lock()))
         .cloned()
         .ok_or_else(|| BackendError::Unsupported {
             set: set.name.clone(),

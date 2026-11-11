@@ -380,8 +380,8 @@ fn parse_locked_for_configured(
             Some(dx_adopt::dependency_sets::PAKET_LOCK),
         )),
         dx_adopt::dependency_sets::Ecosystem::Cargo => Some((
-            dx_adopt::dependency_sets::CARGO_LOCK,
-            Some(dx_adopt::dependency_sets::CARGO_LOCK),
+            dx_adopt::dependency_sets::cargo_lock(),
+            Some(dx_adopt::dependency_sets::cargo_lock()),
         )),
         _ => None,
     };
@@ -409,14 +409,16 @@ fn parse_locked_for_configured(
             },
             dx_adopt::dependency_sets::Ecosystem::Ruby => dx_audit::locks::parse_gemfile_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Cpan => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::CPANFILE_SNAPSHOT) => {
+                Some(name) if name == dx_adopt::dependency_sets::cpanfile_snapshot() => {
                     dx_audit::locks::parse_cpanfile_snapshot(text)
                 }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Hex => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::MIX_LOCK) => dx_audit::locks::parse_mix_lock(text),
+                Some(name) if name == dx_adopt::dependency_sets::mix_lock() => {
+                    dx_audit::locks::parse_mix_lock(text)
+                }
                 Some(dx_adopt::dependency_sets::REBAR_LOCK) => {
                     dx_audit::locks::parse_rebar_lock(text)
                 }
@@ -431,7 +433,7 @@ fn parse_locked_for_configured(
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Julia => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::JULIA_MANIFEST) => {
+                Some(name) if name == dx_adopt::dependency_sets::julia_manifest() => {
                     dx_audit::locks::parse_julia_manifest(text)
                 }
                 _ => Ok(Vec::new()),
@@ -443,7 +445,7 @@ fn parse_locked_for_configured(
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Cabal => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::CABAL_FREEZE) => {
+                Some(name) if name == dx_adopt::dependency_sets::cabal_freeze() => {
                     dx_audit::locks::parse_cabal_freeze(text)
                 }
                 Some(dx_adopt::dependency_sets::STACK_LOCK) => {
@@ -453,7 +455,7 @@ fn parse_locked_for_configured(
             },
             dx_adopt::dependency_sets::Ecosystem::Opam => dx_audit::locks::parse_opam_locked(text),
             dx_adopt::dependency_sets::Ecosystem::SwiftPm => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::PACKAGE_RESOLVED) => {
+                Some(name) if name == dx_adopt::dependency_sets::package_resolved() => {
                     dx_audit::locks::parse_package_resolved(text)
                 }
                 _ => Ok(Vec::new()),
@@ -483,7 +485,7 @@ fn parse_locked_for_configured(
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Cargo => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::CARGO_LOCK) => {
+                Some(name) if name == dx_adopt::dependency_sets::cargo_lock() => {
                     dx_audit::locks::parse_cargo_lock(text)
                 }
                 _ => Ok(Vec::new()),

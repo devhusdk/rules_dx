@@ -7,17 +7,25 @@ pub use dx_ecosystems::{Ecosystem, SUPPORTED_ECOSYSTEMS};
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
-pub const CARGO_LOCK: &str = "Cargo.lock";
+pub fn cargo_lock() -> &'static str {
+    lock_of("cargo")
+}
 
-pub const CPANFILE_SNAPSHOT: &str = "cpanfile.snapshot";
+pub fn cpanfile_snapshot() -> &'static str {
+    state_of("cpan")
+}
 
-pub const MIX_LOCK: &str = "mix.lock";
+pub fn mix_lock() -> &'static str {
+    lock_of("hex")
+}
 
 pub const REBAR_CONFIG: &str = "rebar.config";
 
 pub const REBAR_LOCK: &str = "rebar.lock";
 
-pub const JULIA_MANIFEST: &str = "Manifest.toml";
+pub fn julia_manifest() -> &'static str {
+    state_of("julia")
+}
 
 /// The dub state file name.
 pub fn dub_selections() -> &'static str {
@@ -39,15 +47,17 @@ pub fn composer_lock() -> &'static str {
     state_of("composer")
 }
 
-pub const PACKAGE_RESOLVED: &str = "Package.resolved";
+pub fn package_resolved() -> &'static str {
+    state_of("swiftpm")
+}
 
-pub const CABAL_FREEZE: &str = "cabal.project.freeze";
+pub fn cabal_freeze() -> &'static str {
+    state_of("cabal")
+}
 
 pub const STACK_LOCK: &str = "stack.yaml.lock";
 
 pub const PAKET_LOCK: &str = "paket.lock";
-
-pub const PSGALLERY_LOCK: &str = "PSGallery.lock.json";
 
 pub const YARN_LOCK: &str = "yarn.lock";
 
@@ -358,7 +368,7 @@ pub fn discover(
                 cpan.name,
                 Ecosystem::Cpan,
                 vec![in_dir(&dir, manifest_of("cpan"))],
-                vec![in_dir(&dir, CPANFILE_SNAPSHOT), lock],
+                vec![in_dir(&dir, cpanfile_snapshot()), lock],
             )?);
         }
         for pub_lock in module.pub_locks().map_err(hub)? {
@@ -376,7 +386,7 @@ pub fn discover(
                 mix.name,
                 Ecosystem::Hex,
                 vec![in_dir(&dir, manifest_of("hex"))],
-                vec![in_dir(&dir, MIX_LOCK)],
+                vec![in_dir(&dir, mix_lock())],
             )?);
         }
         for rebar in module.rebar_locks().map_err(hub)? {
@@ -400,7 +410,10 @@ pub fn discover(
         }
         for fpm in module.fpm_locks().map_err(hub)? {
             let lock = path(fpm.lock)?;
-            let manifest = in_dir(&manifest_dir(std::slice::from_ref(&lock)), manifest_of("fpm"));
+            let manifest = in_dir(
+                &manifest_dir(std::slice::from_ref(&lock)),
+                manifest_of("fpm"),
+            );
             sets.push(hub_set(
                 fpm.name,
                 Ecosystem::Fpm,
@@ -455,7 +468,7 @@ pub fn discover(
         for haskell in module.haskell_packages().map_err(hub)? {
             let deps = path(haskell.lock)?;
             let dir = manifest_dir(std::slice::from_ref(&deps));
-            let mut locks = vec![in_dir(&dir, CABAL_FREEZE), deps];
+            let mut locks = vec![in_dir(&dir, cabal_freeze()), deps];
             let stack = in_dir(&dir, STACK_LOCK);
             if read(&stack).is_ok() {
                 locks.push(stack);
@@ -490,7 +503,7 @@ pub fn discover(
                 Ecosystem::Julia,
                 vec![in_dir(&dir, manifest_of("julia"))],
                 vec![
-                    in_dir(&dir, JULIA_MANIFEST),
+                    in_dir(&dir, julia_manifest()),
                     in_dir(&dir, lock_of("julia")),
                 ],
             )?);
@@ -501,7 +514,7 @@ pub fn discover(
                 swift.name,
                 Ecosystem::SwiftPm,
                 vec![beside(&lock, manifest_of("swiftpm"))],
-                vec![beside(&lock, PACKAGE_RESOLVED), lock],
+                vec![beside(&lock, package_resolved()), lock],
             )?);
         }
         let mut groups = BTreeSet::new();
@@ -1199,7 +1212,7 @@ pub fn check_backend_settings(
         Ecosystem::Cpan => check_cpan_layout(workspace, set),
         Ecosystem::Hex => match hex_backend(set) {
             Some(_) => Ok(()),
-            None => check_pinned_lock(set, MIX_LOCK),
+            None => check_pinned_lock(set, mix_lock()),
         },
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Composer => check_composer_layout(set),
@@ -1207,7 +1220,7 @@ pub fn check_backend_settings(
         Ecosystem::Ansible => check_ansible_layout(set),
         Ecosystem::Cabal => check_cabal_layout(workspace, set),
         Ecosystem::Cargo => {
-            check_pinned_lock(set, CARGO_LOCK)?;
+            check_pinned_lock(set, cargo_lock())?;
             check_cargo_hub(workspace, set).map(|_| ())
         }
         Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
@@ -1220,9 +1233,9 @@ pub fn check_backend_settings(
     }
 }
 
-/// A cabal set keeps `cabal.project.freeze` and `haskell_deps.json` on the same versions.
+/// A cabal set keeps its state file and its json lock on the same versions.
 fn check_cabal_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    check_pinned_lock(set, CABAL_FREEZE)?;
+    check_pinned_lock(set, cabal_freeze())?;
     let Some(sidecar) = set.locks.iter().find(|lock| lock.ends_with(".json")) else {
         return Ok(());
     };
@@ -1231,7 +1244,7 @@ fn check_cabal_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
         lock: sidecar.clone(),
         detail,
     };
-    let freeze = in_dir(&set.dir, CABAL_FREEZE);
+    let freeze = in_dir(&set.dir, cabal_freeze());
     let read = |file: &str| {
         std::fs::read_to_string(workspace.join(file))
             .map_err(|error| stale(format!("cannot read {file}: {error}")))
@@ -1268,7 +1281,7 @@ fn check_cabal_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
     Ok(())
 }
 
-/// The `.json` lock `cpan.install` reads, beside `cpanfile.snapshot`.
+/// The `.json` lock `cpan.install` reads, beside the cpan state file.
 fn cpan_json_lock(set: &ResolvedSet) -> Option<&String> {
     set.locks.iter().find(|lock| lock.ends_with(".json"))
 }
@@ -1310,7 +1323,7 @@ pub fn target_label_in(workspace: &Path, dir: &str, rule: &str) -> Option<String
 }
 
 fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    check_pinned_lock(set, CPANFILE_SNAPSHOT)?;
+    check_pinned_lock(set, cpanfile_snapshot())?;
     let Some(lock) = cpan_json_lock(set) else {
         return Ok(());
     };
@@ -1319,7 +1332,7 @@ fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
         lock: lock.clone(),
         detail,
     };
-    let snapshot = in_dir(&set.dir, CPANFILE_SNAPSHOT);
+    let snapshot = in_dir(&set.dir, cpanfile_snapshot());
     let snapshot_text = std::fs::read_to_string(workspace.join(&snapshot))
         .map_err(|error| stale(format!("cannot read {snapshot}: {error}")))?;
     let lock_text = std::fs::read_to_string(workspace.join(lock))
@@ -1357,9 +1370,9 @@ fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
 }
 
 fn check_julia_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    check_pinned_lock(set, JULIA_MANIFEST)?;
+    check_pinned_lock(set, julia_manifest())?;
     check_pinned_lock(set, lock_of("julia"))?;
-    let manifest = in_dir(&set.dir, JULIA_MANIFEST);
+    let manifest = in_dir(&set.dir, julia_manifest());
     let bazel = in_dir(&set.dir, lock_of("julia"));
     let stale = |lock: &str, detail: String| DependencySetsError::StaleJuliaLock {
         name: set.name.clone(),
@@ -1494,11 +1507,11 @@ fn check_cargo_hub(workspace: &Path, set: &ResolvedSet) -> Result<String, Depend
     let label = hub.cargo_lockfile.ok_or_else(|| {
         unsupported("the crate.from_cargo tag needs a literal cargo_lockfile".to_owned())
     })?;
-    let cargo_lock = dx_module_bazel::label_path(label).map_err(unsupported)?;
-    if cargo_lock != in_dir(&set.dir, CARGO_LOCK) {
+    let declared = dx_module_bazel::label_path(label).map_err(unsupported)?;
+    if declared != in_dir(&set.dir, cargo_lock()) {
         return Err(unsupported(format!(
-            "cargo_lockfile {label} is not the set's {} (want {cargo_lock})",
-            in_dir(&set.dir, CARGO_LOCK)
+            "cargo_lockfile {label} is not the set's {} (want {declared})",
+            in_dir(&set.dir, cargo_lock())
         )));
     }
     if let Some(label) = hub.lockfile {
@@ -1820,10 +1833,10 @@ pub enum HexBackend {
     Rebar3,
 }
 
-/// Picks the backend from the locks beside the manifest: mix.lock for mix, rebar.lock for rebar3.
+/// Picks the backend from the locks beside the manifest.
 pub fn hex_backend(set: &ResolvedSet) -> Option<HexBackend> {
     [
-        (MIX_LOCK, HexBackend::Mix),
+        (mix_lock(), HexBackend::Mix),
         (REBAR_LOCK, HexBackend::Rebar3),
     ]
     .into_iter()

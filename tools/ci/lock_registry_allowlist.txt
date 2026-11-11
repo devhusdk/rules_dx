@@ -1,10 +1,3 @@
-name cli/adopt/src/dependency_sets.rs Cargo.lock
-name cli/adopt/src/dependency_sets.rs Manifest.toml
-name cli/adopt/src/dependency_sets.rs PSGallery.lock.json
-name cli/adopt/src/dependency_sets.rs Package.resolved
-name cli/adopt/src/dependency_sets.rs cabal.project.freeze
-name cli/adopt/src/dependency_sets.rs cpanfile.snapshot
-name cli/adopt/src/dependency_sets.rs haskell_deps.json
 name cli/adopt/src/dependency_sets.rs mix.lock
 name cli/adopt/src/dependency_sets.rs package.json
 name cli/adopt/src/dependency_sets.rs paket.dependencies

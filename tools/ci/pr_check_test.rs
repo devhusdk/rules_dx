@@ -179,6 +179,23 @@ fn job_stays_inside_the_time_budget() {
 }
 
 #[test]
+fn affected_tests_run_after_an_earlier_step_fails() {
+    let analysis = job(WORKFLOW, "analysis");
+    let steps = analysis["steps"].as_array().expect("steps");
+    let step = steps
+        .iter()
+        .find(|s| s["name"].as_str() == Some("affected tests"))
+        .expect("affected tests step");
+    let condition = step["if"].as_str().expect("if");
+    assert!(condition.contains("!cancelled()"), "{condition}");
+    assert!(
+        condition.contains("github.event_name == 'pull_request'"),
+        "{condition}"
+    );
+    assert!(!condition.contains("always()"), "{condition}");
+}
+
+#[test]
 fn workflow_runs_on_pull_requests() {
     let on = triggers(WORKFLOW);
     assert!(

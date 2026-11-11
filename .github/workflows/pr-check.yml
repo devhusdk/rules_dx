@@ -59,7 +59,7 @@ jobs:
           # shellcheck disable=SC2086
           tools/ci/pr_check.sh cli $BAZEL_CONFIG $BB_ARGS
       - name: affected tests
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         shell: bash
         timeout-minutes: 18
         run: |

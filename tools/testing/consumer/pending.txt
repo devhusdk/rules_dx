@@ -52,7 +52,6 @@ fixture flatbuffers
 fixture flutter
 fixture fortran
 fixture fsharp
-fixture haskell
 fixture helm
 fixture javascript
 fixture kubernetes
@@ -76,6 +75,7 @@ init d
 init elixir
 init erlang
 init go
+init haskell
 init java
 init julia
 init kotlin

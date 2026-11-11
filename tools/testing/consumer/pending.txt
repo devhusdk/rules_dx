@@ -23,7 +23,6 @@ fixture kubernetes
 fixture make
 fixture mdx
 fixture msix
-fixture powershell
 fixture python
 fixture rst
 fixture sql

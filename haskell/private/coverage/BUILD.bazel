@@ -1,9 +1,9 @@
-# gazelle:exclude fixture
-# gazelle:ignore
-load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":coverage_tests.bzl", "dx_haskell_coverage_tests")
+
+# gazelle:exclude fixture
+load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+load(":coverage_tests.bzl", "dx_haskell_coverage_tests")
 
 package(default_visibility = VIS_TOOLS)
 
@@ -29,6 +29,7 @@ haskell_binary(
     ],
 )
 
+# keep
 haskell_library(
     name = "greeter",
     testonly = True,

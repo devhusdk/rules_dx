@@ -1,4 +1,4 @@
-import Greet
+import my_project
 import XCTest
 
 final class GreetTests: XCTestCase {

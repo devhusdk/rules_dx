@@ -27,3 +27,11 @@ func TestIsTestSource(t *testing.T) {
 		t.Error("IsTestSource classifies wrongly")
 	}
 }
+
+func TestModuleName(t *testing.T) {
+	for in, want := range map[string]string{"greeter": "greeter", "9lives": "_9lives"} {
+		if got := ModuleName(in); got != want {
+			t.Errorf("ModuleName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

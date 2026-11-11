@@ -33,7 +33,6 @@ init rst
 init ruby
 init scala
 init sql
-init swift
 init typescript
 override archive_override lua
 override archive_override rules_flutter

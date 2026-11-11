@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//swift:defs.bzl", "swift_library")
 
 package(

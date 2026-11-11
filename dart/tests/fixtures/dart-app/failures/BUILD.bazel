@@ -1,5 +1,5 @@
-load("@rules_dx//dart:defs.bzl", "dart_binary")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//dart:defs.bzl", "dart_binary")
 
 package(default_visibility = ["//dart/tests/fixtures/dart-app:__subpackages__"])
 
@@ -25,6 +25,7 @@ dart_binary(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [

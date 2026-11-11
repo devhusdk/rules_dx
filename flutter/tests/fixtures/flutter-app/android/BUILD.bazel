@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start")
 load("@rules_dx//flutter:defs.bzl", "FLUTTER_COMPATIBLE_WITH", "flutter_android_app")

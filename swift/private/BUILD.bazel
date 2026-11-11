@@ -1,6 +1,10 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//swift:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//swift:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "defs.bzl",
@@ -10,9 +14,9 @@ exports_files([
 
 config_setting(
     name = "coverage_linux",
-    visibility = ["//visibility:public"],
     constraint_values = ["@platforms//os:linux"],
     values = {"collect_code_coverage": "true"},
+    visibility = ["//visibility:public"],
 )
 
 real_source_target(

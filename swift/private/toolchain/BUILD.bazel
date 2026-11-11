@@ -1,5 +1,5 @@
-load("//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":toolchain.bzl", "SWIFT_LINUX_CPUS", "swift_linux_toolchain")
 load(":windows.bzl", "swift_windows_toolchain")
 
@@ -128,13 +128,13 @@ filegroup(
 # the pinned LLVM's libFuzzer is built for libc++.
 cc_library(
     name = "libfuzzer",
+    testonly = True,
     srcs = select({
         "//swift/private/platforms:is_linux_aarch64": ["@dx_swift_linux_aarch64//:usr/lib/clang/21/lib/linux/libclang_rt.fuzzer-aarch64.a"],
         "//swift/private/platforms:is_linux_x86_64": ["@dx_swift_linux_x86_64//:usr/lib/clang/21/lib/linux/libclang_rt.fuzzer-x86_64.a"],
         "//conditions:default": [],
     }),
     target_compatible_with = ["@platforms//os:linux"],
-    testonly = True,
 )
 
 # The profile runtime of the Swift archive, which reads the raw profile layout swiftc emits.

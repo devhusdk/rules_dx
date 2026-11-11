@@ -1,5 +1,5 @@
-load("@rules_dx//dart:defs.bzl", "DART_COMPATIBLE_WITH", "dart_library")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//dart:defs.bzl", "DART_COMPATIBLE_WITH", "dart_library")
 
 _PUBLIC = ["//visibility:public"]
 
@@ -35,6 +35,8 @@ dart_library(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],    visibility = ["//:__pkg__"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
 )

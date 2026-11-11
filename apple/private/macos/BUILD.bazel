@@ -1,10 +1,10 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_apple//apple:macos.bzl", "macos_bundle", "macos_framework")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
-load("//core:failure_test.bzl", "failure_test")
-load("//core/quality:fixtures.bzl", "real_source_target")
 load("//apple/private/bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
 load("//apple/private/signing:defs.bzl", "apple_macos_sign")
+load("//core:failure_test.bzl", "failure_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":app.bzl", "apple_macos_app")
 load(":app_tests.bzl", "apple_macos_app_tests")
 

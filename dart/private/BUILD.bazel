@@ -7,7 +7,11 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "DART_SOURCE_SPECS", "dart_root_package_name")
 load(":platforms.bzl", "DART_PLATFORMS")
 
-package(default_visibility = ["//dart:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//dart:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 unsupported_value("unsupported")
 
@@ -39,7 +43,11 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "binary main candidates",
-            dx_main_candidates("tool", ".dart", ["bin"]),
+            dx_main_candidates(
+                "tool",
+                ".dart",
+                ["bin"],
+            ),
             [
                 "tool.dart",
                 "bin/tool.dart",
@@ -47,7 +55,11 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "test main candidates",
-            dx_main_candidates("x/greet_test", ".dart", ["test"]),
+            dx_main_candidates(
+                "x/greet_test",
+                ".dart",
+                ["test"],
+            ),
             [
                 "greet_test.dart",
                 "test/greet_test.dart",
@@ -116,8 +128,8 @@ dx_wrapper_contract_tests(
 
 selects.config_setting_group(
     name = "rules_dart_platform",
-    visibility = ["//visibility:public"],
     match_any = [":" + name for name in DART_PLATFORMS],
+    visibility = ["//visibility:public"],
 )
 
 real_source_target(
@@ -128,6 +140,7 @@ real_source_target(
         "platforms.bzl",
         "providers.bzl",
         "pub.bzl",
+        "dart_config.bzl",
     ],
     tags = ["corpus"],
 )

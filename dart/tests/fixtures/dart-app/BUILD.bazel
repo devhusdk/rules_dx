@@ -1,5 +1,5 @@
-load("@rules_dx//dart:defs.bzl", "dart_config")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//dart:defs.bzl", "dart_config")
 
 _PUBLIC = ["//visibility:public"]
 
@@ -21,12 +21,14 @@ dart_config(
 
 real_source_target(
     name = "corpus_markdown",
+    testonly = True,
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 

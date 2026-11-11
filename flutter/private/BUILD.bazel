@@ -3,7 +3,11 @@ load("//core:cells.bzl", "unsupported_value")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":platforms.bzl", "FLUTTER_PLATFORMS")
 
-package(default_visibility = ["//flutter:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//flutter:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 unsupported_value("unsupported")
 
@@ -27,8 +31,8 @@ exports_files([
 
 selects.config_setting_group(
     name = "rules_flutter_platform",
-    visibility = ["//visibility:public"],
     match_any = [":" + name for name in FLUTTER_PLATFORMS],
+    visibility = ["//visibility:public"],
 )
 
 real_source_target(

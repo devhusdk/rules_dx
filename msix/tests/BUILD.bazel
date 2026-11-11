@@ -1,11 +1,11 @@
 load("//cc:defs.bzl", "cc_binary")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//msix:defs.bzl", "msix_package", "msix_sign")
 load("//msix/private:repos.bzl", "UNACCEPTED")
 load("//msix/private:toolchain.bzl", "msix_toolchain")
 load("//powershell:defs.bzl", "powershell_test")
-load("//core/quality:fixtures.bzl", "real_source_target")
-load(":cell_tests.bzl", "arch_on_arm64_test", "arch_on_x64_test", "arm64_action_test", "attribute_failure_test", "data_paths_test", "no_windows_exec_test", "sign_build_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
 load("//tools/testing:stub_target.bzl", "stub_target")
+load(":cell_tests.bzl", "arch_on_arm64_test", "arch_on_x64_test", "arm64_action_test", "attribute_failure_test", "data_paths_test", "no_windows_exec_test", "sign_build_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
 load(":transition.bzl", "msix_variant")
 
 # gazelle:exclude argv_signtool.c
@@ -29,40 +29,40 @@ cc_binary(
 
 stub_target(
     name = "fake_makeappx",
-    content = "MZ",
     out = "fake_makeappx.exe",
+    content = "MZ",
 )
 
 stub_target(
     name = "cell_exe",
-    content = "MZ",
     out = "cell.exe",
+    content = "MZ",
     data = [":cell_dll"],
 )
 
 stub_target(
     name = "cell_dll",
-    content = "MZ",
     out = "cell.dll",
+    content = "MZ",
 )
 
 stub_target(
     name = "other_dll",
-    content = "MZ",
     out = "other/cell.dll",
+    content = "MZ",
 )
 
 stub_target(
     name = "dll_exe",
-    content = "MZ",
     out = "dll.exe",
+    content = "MZ",
     data = [":other_dll"],
 )
 
 stub_target(
     name = "cell_txt",
-    content = "MZ",
     out = "cell.txt",
+    content = "MZ",
 )
 
 msix_toolchain(
@@ -139,8 +139,8 @@ msix_package(
 
 msix_sign(
     name = "cell_sign",
-    package = ":cell",
     env = {"DX_EXTRA": "1"},
+    package = ":cell",
     tags = ["manual"],
 )
 

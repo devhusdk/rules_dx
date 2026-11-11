@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 # gazelle:resolve kotlin com.google.gson @maven//:com_google_code_gson_gson

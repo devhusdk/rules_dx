@@ -1,0 +1,9 @@
+load("@rules_dx//svelte:defs.bzl", "svelte_library")
+
+# dx: written once, yours to edit
+
+svelte_library(
+    name = "greeting",
+    srcs = ["greeting.svelte"],
+    visibility = ["//visibility:public"],
+)

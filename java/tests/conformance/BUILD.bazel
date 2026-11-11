@@ -1,0 +1,51 @@
+load("//java:defs.bzl", "java_binary", "java_library", "java_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+java_library(
+    name = "conformance",
+    srcs = ["Greet.java"],
+)
+
+java_binary(
+    name = "hello",
+    srcs = ["Main.java"],
+    main_class = "conformance.Main",
+    deps = [":conformance"],
+)
+
+java_test(
+    name = "pass_subject_test",
+    srcs = ["PassTest.java"],
+    main_class = "conformance.PassTest",
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    use_testrunner = False,
+    deps = [":conformance"],
+)
+
+java_test(
+    name = "fail_subject_test",
+    srcs = ["FailTest.java"],
+    main_class = "conformance.FailTest",
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    use_testrunner = False,
+    deps = [":conformance"],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "Greet.java",
+    expected = "hello world",
+    failing_case = "failingCase",
+    failing_test = ":fail_subject_test",
+    lang = "java",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

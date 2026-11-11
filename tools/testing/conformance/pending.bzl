@@ -105,10 +105,7 @@ helm build_test *
 helm coverage_test *
 helm fail_test *
 helm pass_test *
-java build_test *
 java coverage_test *
-java fail_test *
-java pass_test *
 javascript build_test *
 javascript coverage_test *
 javascript fail_test *

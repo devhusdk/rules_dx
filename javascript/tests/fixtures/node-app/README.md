@@ -25,4 +25,4 @@ Tests use both runners. `registry_test` and `cli_test` run Jest. `plain_test` ru
 
 Sources use the repo Biome settings. `format_test` checks every source and config file against the pinned Biome. `diagnostics_test` runs `tsc` and Biome on files with a syntax error, a type error, an inferred export under `isolatedDeclarations`, an import of a package that is not installed, a lint finding in `.ts` and `.js`, and bad formatting, and expects each to fail.
 
-`bazel coverage //javascript/tests/fixtures/node-app/...` writes LCOV for the Jest tests: `registry.js`, `build_info.js` and `cli.js`. `coverage_test` checks each report names those files with executed lines. `plain_test` runs `node:test` and reports none.
+`bazel coverage //javascript/tests/fixtures/node-app/...` writes LCOV for the Jest tests: `registry.js`, `build_info.js` and `cli.js`. `plain_test` runs `node:test` and reports none.

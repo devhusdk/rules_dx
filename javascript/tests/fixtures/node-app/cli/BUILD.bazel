@@ -76,22 +76,6 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-rust_test(
-    name = "coverage_test",
-    srcs = ["coverage_test.rs"],
-    data = [
-        ":cli_test",
-        "//:package_json",
-        "//javascript/tests/fixtures/node-app/registry:registry_test",
-    ],
-    env = {
-        "CLI_TEST": "$(rootpath :cli_test)",
-        "REGISTRY_TEST": "$(rootpath //javascript/tests/fixtures/node-app/registry:registry_test)",
-    },
-    tags = ["no-remote-exec"],
-    deps = ["//tools/testing:dx_testing"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],

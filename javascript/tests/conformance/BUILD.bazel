@@ -1,0 +1,69 @@
+load("//javascript:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+javascript_library(
+    name = "conformance",
+    srcs = ["greet.js"],
+)
+
+javascript_library(
+    name = "jest_config",
+    srcs = ["jest.config.cjs"],
+)
+
+javascript_binary(
+    name = "hello",
+    srcs = ["main.js"],
+    data = [
+        ":conformance",
+        "//:package_json",
+    ],
+    main = "main.js",
+)
+
+javascript_test(
+    name = "pass_subject_test",
+    srcs = ["pass_test.js"],
+    config = "jest.config.cjs",
+    data = [
+        ":conformance",
+        ":jest_config",
+    ],
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+)
+
+javascript_test(
+    name = "fail_subject_test",
+    srcs = ["fail_test.js"],
+    config = "jest.config.cjs",
+    data = [
+        ":conformance",
+        ":jest_config",
+    ],
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "greet.js",
+    expected = "hello world",
+    failing_case = "failing case",
+    failing_test = ":fail_subject_test",
+    lang = "javascript",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

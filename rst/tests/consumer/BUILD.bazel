@@ -1,0 +1,9 @@
+load("@rules_dx//rst:defs.bzl", "rst_library")
+
+# dx: written once, yours to edit
+
+rst_library(
+    name = "guide",
+    srcs = ["guide.rst"],
+    visibility = ["//visibility:public"],
+)

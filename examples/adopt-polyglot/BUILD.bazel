@@ -68,8 +68,10 @@ rust_test(
         ":sources",
         "//:module_srcs",
         "//cli/cli:dx",
+        "//core/coreutils:applets",
     ] + NESTED_BAZEL_DATA,
     env = {
+        "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
     } | NESTED_BAZEL_NETWORK_ENV,

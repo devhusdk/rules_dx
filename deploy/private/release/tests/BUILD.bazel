@@ -30,6 +30,7 @@ rust_test(
         "//:module_srcs",
         "//bcr_test_module:files",
         "//cli/cli:dx",
+        "//core/coreutils:applets",
         "//core/modules:core_budget.json",
         "//deploy:module_srcs",
         "//patches/gomod-parser:glued_comment.patch",
@@ -43,6 +44,7 @@ rust_test(
         "//patches/rules_py:venv_bin_files.patch",
     ] + NESTED_BAZEL_DATA,
     env = {
+        "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "DX_CORE_BUDGET": "$(rootpath //core/modules:core_budget.json)",
         "RUST_TEST_THREADS": "1",

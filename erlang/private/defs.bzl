@@ -81,7 +81,9 @@ def otp_launch_descriptor(root, tool, archive_key = None, windows = False, versi
     lines = ["program=" + root + "/bin/" + tool + (".exe" if windows else "")]
     if archive_key:
         lines.append("path=" + archive_key)
-    if not windows:
+    if windows:
+        lines.append("env_default=PATH\t/dx_no_path")
+    else:
         if version_key:
             lines.append("env_dir=ERL_ROOTDIR\t" + version_key)
         lines.append("env_default=HOME\t/tmp")

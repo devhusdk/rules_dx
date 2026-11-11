@@ -561,10 +561,11 @@ fn elvis(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Ru
         .collect::<Result<Vec<&Path>, RunnerError>>()?;
     let relative_names: Vec<String> = relative
         .iter()
-        .map(|path| path.to_string_lossy().into_owned())
+        .map(|path| path.to_string_lossy().replace('\\', "/"))
         .collect();
     let relative_strs: Vec<&str> = relative_names.iter().map(String::as_str).collect();
-    let invocation = commands::elvis_check(&tool.binary, &relative, config);
+    let relative_args: Vec<&Path> = relative_strs.iter().map(Path::new).collect();
+    let invocation = commands::elvis_check(&tool.binary, &relative_args, config);
     let out = backend.run(tool_id, tool, &invocation, scratch)?;
     let mut findings = parsed(
         tool_id,

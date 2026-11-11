@@ -1,7 +1,13 @@
 #!/bin/sh
 set -eu
-files=$1
-shift
+files=
+while [ $# -gt 0 ]; do
+  case $1 in
+    +* | -*) break ;;
+  esac
+  files="$files $1"
+  shift
+done
 for want in "$@"; do
   text=${want#?}
   found=0

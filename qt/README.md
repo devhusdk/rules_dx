@@ -4,6 +4,13 @@ Acquire a pinned Qt 6.11.3 SDK and its runtime closure without system
 packages. Nothing is fetched until a target needs it.
 
 ```python
+bazel_dep(name = "rules_dx", version = "0.0.0")
+```
+
+Nothing else is needed. To narrow or mirror the SDK, the root module calls
+`configure`:
+
+```python
 qt_sdk = use_extension("@rules_dx//qt:extensions.bzl", "qt_sdk")
 
 qt_sdk.configure(
@@ -22,9 +29,8 @@ use_repo(qt_sdk, "dx_qt")
 - `runtime_mirror`: an https mirror of `vault.almalinux.org`, with its
   `9.6/` and `10.1/` `BaseOS/` and `AppStream/` trees.
 
-`configure` is optional. Tags from several modules add their `modules`; a
-`mirror` or `runtime_mirror` is set by one tag only. Without a tag the
-default modules are fetched.
+`configure` is optional, root-module only, and called at most once. Without
+it every module is fetched.
 
 ## Your own cell
 

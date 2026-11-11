@@ -346,6 +346,15 @@ def default_request():
         version = QT_VERSION,
     )
 
+def implicit_request():
+    """Returns the request a build with no qt_sdk.configure() makes."""
+    return struct(
+        mirror = "",
+        modules = sorted(MODULES.keys()),
+        runtime_mirror = "",
+        version = QT_VERSION,
+    )
+
 def request_errors(request):
     """Returns one error string per rejected field of one acquisition request."""
     errors = []

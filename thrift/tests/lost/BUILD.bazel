@@ -1,0 +1,27 @@
+# gazelle:ignore
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//thrift:defs.bzl", "thrift_library", "thrift_rust_library")
+
+package(default_visibility = ["//thrift:__subpackages__"])
+
+exports_files(["hidden.thrift"])
+
+thrift_library(
+    name = "lost",
+    srcs = ["lost.thrift"],
+    tags = ["manual"],
+)
+
+thrift_rust_library(
+    name = "lost_rs",
+    library = ":lost",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

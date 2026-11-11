@@ -289,6 +289,24 @@ jobs:
         with:
           platform: ${{ matrix.platform }}
           manifest-from: evidence
+  determinism:
+    name: determinism (two cold builds, exec logs compared)
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Build twice and compare the execution logs
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" //appimage/... //cli/archive/...
   gcc-cross-build:
     name: gcc-cross-build (linux_x86_64 -> linux_arm64 fixtures)
     timeout-minutes: 45
@@ -814,6 +832,7 @@ jobs:
         coverage-cells,
         dogfood,
         docs,
+        determinism,
         devcontainer-check,
         gate,
         gcc-cross-build,
@@ -836,6 +855,7 @@ jobs:
           NEEDS_COVERAGE_CELLS: ${{ needs.coverage-cells.result }}
           NEEDS_DOGFOOD: ${{ needs.dogfood.result }}
           NEEDS_DOCS: ${{ needs.docs.result }}
+          NEEDS_DETERMINISM: ${{ needs.determinism.result }}
           NEEDS_DEVCONTAINER_CHECK: ${{ needs.devcontainer-check.result }}
           NEEDS_GATE: ${{ needs.gate.result }}
           NEEDS_GCC_CROSS_BUILD: ${{ needs.gcc-cross-build.result }}
@@ -852,7 +872,7 @@ jobs:
         run: |
           set -eu
           export LC_ALL=C
-          required=(coverage-cells dogfood docs devcontainer-check gate gcc-cross-build gcc-cross-run-arm64 hermetic hermetic-arm64 hermetic-macos hermetic-windows msix-install network preflight starter-consumer workflow-check)
+          required=(coverage-cells dogfood docs determinism devcontainer-check gate gcc-cross-build gcc-cross-run-arm64 hermetic hermetic-arm64 hermetic-macos hermetic-windows msix-install network preflight starter-consumer workflow-check)
           failing=()
           for name in "${required[@]}"; do
             var="NEEDS_${name^^}"

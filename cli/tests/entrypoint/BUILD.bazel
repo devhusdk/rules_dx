@@ -8,7 +8,7 @@ rust_test(
     name = "consumer_dx_entry",
     srcs = ["entrypoint_test.rs"],
     aliases = aliases(
-        package_name = "cli/cli_entrypoint_tests",
+        package_name = "cli/tests/cli_entrypoint_tests",
         normal = True,
         normal_dev = True,
     ),
@@ -103,7 +103,7 @@ rust_test(
     name = "consumer_dx_completion",
     srcs = ["completion_test.rs"],
     aliases = aliases(
-        package_name = "cli/cli_entrypoint_tests",
+        package_name = "cli/tests/cli_entrypoint_tests",
         normal = True,
         normal_dev = True,
     ),
@@ -129,7 +129,7 @@ rust_test(
     name = "consumer_surface",
     srcs = ["surface_test.rs"],
     aliases = aliases(
-        package_name = "cli/cli_entrypoint_tests",
+        package_name = "cli/tests/cli_entrypoint_tests",
         normal = True,
         normal_dev = True,
     ),
@@ -153,7 +153,7 @@ rust_test(
     name = "fixture_version",
     srcs = ["version_test.rs"],
     aliases = aliases(
-        package_name = "cli/cli_entrypoint_tests",
+        package_name = "cli/tests/cli_entrypoint_tests",
         normal = True,
         normal_dev = True,
     ),

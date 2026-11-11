@@ -1,5 +1,5 @@
 {
-  "checksum": "7e4b47eed26cc90df03601943e78856f89d1ea7feba437aedfc440713ebce979",
+  "checksum": "1b77ab0a9d87adf61c93296b100d629745a5f68aaaedaa86512d4d6673d6f292",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -31533,7 +31533,7 @@
     "ci_producers 0.0.0": "tools/ci/ci_producers",
     "ci_tests 0.0.0": "tools/ci_tests",
     "ci_workflow 0.0.0": "tools/ci/ci_workflow",
-    "cli_entrypoint_tests 0.0.0": "cli/cli_entrypoint_tests",
+    "cli_entrypoint_tests 0.0.0": "cli/tests/cli_entrypoint_tests",
     "codegen_shard 0.0.0": "cli/codegen_shard",
     "collect_native 0.0.0": "tools/coverage/collect_native",
     "component_extract 0.0.0": "tools/docs/components/component_extract",

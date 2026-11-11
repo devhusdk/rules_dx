@@ -583,7 +583,7 @@ LANGS = json.decode("""{
           "lock": null,
           "manifest": "paket.dependencies",
           "resolver": null,
-          "state": null,
+          "state": "paket.lock",
           "tag": null
         }
       ]

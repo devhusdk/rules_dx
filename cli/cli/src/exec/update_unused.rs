@@ -826,7 +826,7 @@ mod tests {
         );
         let mut resolved = [target("nuget", Ecosystem::Nuget, "dn/paket.dependencies")];
         resolved[0].set.locks = vec![
-            "dn/paket.lock".to_owned(),
+            format!("dn/{}", dx_adopt::lock_hubs::state_of("nuget")),
             "dn/deps/paket.main.bzl".to_owned(),
         ];
         assert_eq!(

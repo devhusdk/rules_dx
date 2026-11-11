@@ -57,7 +57,9 @@ pub fn cabal_freeze() -> &'static str {
 
 pub const STACK_LOCK: &str = "stack.yaml.lock";
 
-pub const PAKET_LOCK: &str = "paket.lock";
+pub fn paket_lock() -> &'static str {
+    state_of("nuget")
+}
 
 pub const YARN_LOCK: &str = "yarn.lock";
 
@@ -524,7 +526,7 @@ pub fn discover(
         if let Some(first) = groups.first() {
             let folder = manifest_dir(std::slice::from_ref(first));
             let parent = manifest_dir(std::slice::from_ref(&folder));
-            let mut locks = vec![in_dir(&parent, PAKET_LOCK)];
+            let mut locks = vec![in_dir(&parent, paket_lock())];
             locks.extend(groups);
             sets.push(hub_set(
                 "nuget",
@@ -1668,12 +1670,12 @@ fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
         name: set.name.clone(),
         detail,
     };
-    check_pinned_lock(set, PAKET_LOCK)?;
+    check_pinned_lock(set, paket_lock())?;
     let mut folders = BTreeSet::new();
     let mut groups = 0;
     for lock in &set.locks {
         let (folder, file) = lock.rsplit_once('/').unwrap_or((".", lock));
-        if file == PAKET_LOCK {
+        if file == paket_lock() {
             continue;
         }
         let group = file
@@ -1681,7 +1683,8 @@ fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
             .and_then(|rest| rest.strip_suffix(".bzl"))
             .ok_or_else(|| {
                 unsupported(format!(
-                    "lock {lock} is neither paket.lock nor a generated paket.<group>.bzl file"
+                    "lock {lock} is neither {} nor a generated paket.<group>.bzl file",
+                    paket_lock()
                 ))
             })?;
         if group.is_empty() {
@@ -1714,7 +1717,9 @@ fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
                 let rest = rest.trim();
                 if !(rest.starts_with("http://") || rest.starts_with("https://")) {
                     return Err(unsupported(format!(
-                        "{manifest} source {rest:?} is not http(s); staging copies only paket.dependencies and paket.lock"
+                        "{manifest} source {rest:?} is not http(s); staging copies only {} and {}",
+                        manifest_of("nuget"),
+                        paket_lock()
                     )));
                 }
             }

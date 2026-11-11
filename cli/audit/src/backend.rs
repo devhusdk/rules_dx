@@ -95,7 +95,10 @@ pub fn plan_secrets(
 fn lock_name(ecosystem: &str) -> String {
     let hub = dx_families::hub(ecosystem)
         .unwrap_or_else(|| panic!("no setup.hubs entry for {ecosystem}"));
-    hub.lock.clone().unwrap_or_else(|| hub.manifest.clone())
+    hub.lock
+        .clone()
+        .or_else(|| hub.state.clone())
+        .unwrap_or_else(|| hub.manifest.clone())
 }
 
 fn go_manifest() -> String {
@@ -126,7 +129,7 @@ pub fn vuln_locks(set: &str) -> Vec<String> {
         "npm-adopt-polyglot" => vec![under("examples/adopt-polyglot", "npm")],
         "npm-tools" => vec![under("javascript/private/quality", "npm")],
         "maven" => vec![under("third_party/jvm", "maven")],
-        "nuget" => vec!["third_party/dotnet/paket.lock".to_owned()],
+        "nuget" => vec![format!("third_party/dotnet/{}", lock_name("nuget"))],
         "powershell" => vec![under("third_party/powershell", "powershell")],
         "go" => vec![format!("third_party/go/{}", go_manifest())],
         "ruby" | "rubygems" => vec![
@@ -285,7 +288,10 @@ mod tests {
             vuln_locks("maven"),
             [format!("third_party/jvm/{}", lock_name("maven"))]
         );
-        assert_eq!(vuln_locks("nuget"), ["third_party/dotnet/paket.lock"]);
+        assert_eq!(
+            vuln_locks("nuget"),
+            [format!("third_party/dotnet/{}", lock_name("nuget"))]
+        );
         assert_eq!(
             vuln_locks("go"),
             [format!("third_party/go/{}", go_manifest())]

@@ -2113,7 +2113,7 @@ fn configured_nuget_requires_network_and_refuses_packages() {
     let packages = Selection::Packages(vec!["Newtonsoft.Json".to_owned()]);
     let unsupported = Err(BackendError::Unsupported {
         set: "dotnet".to_owned(),
-        reason: NUGET_PINS_EXACT,
+        reason: nuget_pins_exact(),
     });
     assert_eq!(
         plan_configured(ws(), &set, &packages, false, false, &head, &closure),
@@ -2123,7 +2123,7 @@ fn configured_nuget_requires_network_and_refuses_packages() {
         check_configured(ws(), &set, &packages, false, false, &head, &closure),
         Err(BackendError::Unsupported {
             set: "dotnet".to_owned(),
-            reason: NUGET_PINS_EXACT,
+            reason: nuget_pins_exact(),
         })
     );
 }

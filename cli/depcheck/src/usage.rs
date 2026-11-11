@@ -181,8 +181,6 @@ fn skip_names() -> BTreeSet<&'static str> {
         "go.sum",
         "jvm_deps.toml",
         "maven_install.json",
-        "paket.dependencies",
-        "paket.lock",
         "cc_deps.toml",
         "cc_lock.json",
         "Gemfile",
@@ -214,6 +212,7 @@ fn skip_names() -> BTreeSet<&'static str> {
             Ecosystem::Dub,
             Ecosystem::Zig,
             Ecosystem::LuaRocks,
+            Ecosystem::Nuget,
         ]
         .into_iter()
         .flat_map(Ecosystem::registry_names),

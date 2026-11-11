@@ -723,9 +723,18 @@ pub fn check_configured(
     }
 }
 
-const NUGET_PINS_EXACT: &str = "nuget pins are exact in paket.lock; edit paket.dependencies, run `paket update`, then `dx update <set>`";
+fn nuget_pins_exact() -> &'static str {
+    static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    TEXT.get_or_init(|| {
+        format!(
+            "nuget pins are exact in {}; edit {}, run `paket update`, then `dx update <set>`",
+            dx_adopt::lock_hubs::state_of("nuget"),
+            dx_adopt::lock_hubs::manifest_of("nuget")
+        )
+    })
+}
 
-/// Plans `paket2bazel` on a staged copy of paket.dependencies and paket.lock.
+/// Plans `paket2bazel` on a staged copy of the paket manifest and lock.
 fn nuget_staged(
     set: &ResolvedSet,
     head: &dx_process::BazelHead,
@@ -746,11 +755,11 @@ fn nuget_staged(
     let lock = set
         .locks
         .iter()
-        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::PAKET_LOCK))
+        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::paket_lock()))
         .cloned()
         .ok_or_else(|| BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "a nuget set must list paket.lock in locks",
+            reason: "a nuget set must list its paket lock in locks",
         })?;
     let mut inputs = set.manifests.clone();
     inputs.push(lock.clone());

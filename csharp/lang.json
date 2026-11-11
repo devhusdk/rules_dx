@@ -20,7 +20,7 @@
         "ecosystem": "nuget",
         "manifest": "paket.dependencies",
         "lock": null,
-        "state": null,
+        "state": "paket.lock",
         "extension": "@rules_dx//csharp:extensions.bzl",
         "tag": null,
         "hub": "nuget",

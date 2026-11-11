@@ -376,8 +376,8 @@ fn parse_locked_for_configured(
     let expected = match set.ecosystem {
         dx_adopt::dependency_sets::Ecosystem::Maven => Some(("a maven .json lock", None)),
         dx_adopt::dependency_sets::Ecosystem::Nuget => Some((
-            dx_adopt::dependency_sets::PAKET_LOCK,
-            Some(dx_adopt::dependency_sets::PAKET_LOCK),
+            dx_adopt::dependency_sets::paket_lock(),
+            Some(dx_adopt::dependency_sets::paket_lock()),
         )),
         dx_adopt::dependency_sets::Ecosystem::Cargo => Some((
             dx_adopt::dependency_sets::cargo_lock(),
@@ -479,7 +479,7 @@ fn parse_locked_for_configured(
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Nuget => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::PAKET_LOCK) => {
+                Some(name) if name == dx_adopt::dependency_sets::paket_lock() => {
                     dx_audit::locks::parse_paket_lock(text)
                 }
                 _ => Ok(Vec::new()),

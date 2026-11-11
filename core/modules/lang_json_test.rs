@@ -1,62 +1,19 @@
-//! Every language dir named in families.json has a lang.json that satisfies lang.schema.json.
+//! Every language dir with a lang.json satisfies a lang.json that satisfies lang.schema.json.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-const NON_LANGUAGE: [&str; 31] = [
-    "appimage",
-    "bcr_test_module",
-    "bundle",
-    "ci",
-    "cli",
-    "components",
-    "config",
-    "core",
-    "containers",
-    "deploy",
-    "docs",
-    "dx",
-    "env",
-    "examples",
-    "families",
-    "gazelle",
-    "ios",
-    "macos",
-    "packaging",
-    "patches",
-    "platforms",
-    "provisioning",
-    "rules",
-    "sdk",
-    "signing",
-    "testing",
-    "tests",
-    "third_party",
-    "toolchain",
-    "toolchains",
-    "tools",
-];
+const NON_LANGUAGE: [&str; 2] = ["appimage", "env"];
 
-fn language_dirs(root: &Path, families: &Value) -> BTreeSet<PathBuf> {
+fn language_dirs(root: &Path) -> BTreeSet<PathBuf> {
     let mut dirs = BTreeSet::new();
-    for family in families["families"].as_object().expect("families").values() {
-        let base = family["path"].as_str();
-        for dir in family["dirs"].as_array().expect("dirs") {
-            let dir = dir.as_str().expect("dir");
-            if NON_LANGUAGE.contains(&dir) {
-                continue;
-            }
-            if let Some(base) = base {
-                let nested = PathBuf::from(base).join(dir);
-                if root.join(&nested).is_dir() {
-                    dirs.insert(nested);
-                }
-            }
-            if root.join(dir).is_dir() {
-                dirs.insert(PathBuf::from(dir));
-            }
+    for entry in std::fs::read_dir(root).expect("read root") {
+        let path = entry.expect("entry").path();
+        let name = path.file_name().expect("name").to_str().expect("utf8");
+        if path.join("lang.json").is_file() && !NON_LANGUAGE.contains(&name) {
+            dirs.insert(PathBuf::from(name));
         }
     }
     dirs
@@ -162,13 +119,10 @@ fn problems(root: &Path, dir: &Path, schema: &Value) -> Vec<String> {
 #[test]
 fn every_language_dir_has_a_valid_lang_json() {
     let root = dx_testing::rules_dx_source();
-    let families: Value =
-        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-            .expect("families.json");
     let schema: Value =
         serde_json::from_str(&dx_testing::read_runfiles("core/modules/lang.schema.json"))
             .expect("lang.schema.json");
-    let dirs = language_dirs(&root, &families);
+    let dirs = language_dirs(&root);
     assert!(dirs.len() > 40, "found only {} language dirs", dirs.len());
     let found: Vec<String> = dirs
         .iter()
@@ -248,12 +202,9 @@ fn schema_rejects_a_hub_missing_any_key() {
 #[test]
 fn every_hub_names_an_extension_its_own_language_exports() {
     let root = dx_testing::rules_dx_source();
-    let families: Value =
-        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-            .expect("families.json");
     let mut hubs = 0;
     let mut found = Vec::new();
-    for dir in language_dirs(&root, &families) {
+    for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         for hub in manifest["setup"]["hubs"].as_array().into_iter().flatten() {
@@ -280,9 +231,6 @@ fn every_hub_names_an_extension_its_own_language_exports() {
 #[test]
 fn ecosystems_are_dx_ids_and_every_id_is_used() {
     let root = dx_testing::rules_dx_source();
-    let families: Value =
-        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-            .expect("families.json");
     let table: Value =
         serde_json::from_str(&dx_testing::read_runfiles("cli/ecosystems/ecosystems.json"))
             .expect("ecosystems.json");
@@ -294,7 +242,7 @@ fn ecosystems_are_dx_ids_and_every_id_is_used() {
         .collect();
     let mut used = BTreeSet::new();
     let mut unknown = Vec::new();
-    for dir in language_dirs(&root, &families) {
+    for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         for id in manifest["ecosystems"].as_array().expect("ecosystems") {
@@ -316,10 +264,8 @@ fn ecosystems_are_dx_ids_and_every_id_is_used() {
 #[test]
 fn languages_json_lists_every_depcheck_language() {
     let root = dx_testing::rules_dx_source();
-    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-        .expect("families.json");
     let mut rows = Vec::new();
-    for dir in language_dirs(&root, &families) {
+    for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         if manifest["depcheck"].is_null() {
@@ -351,10 +297,8 @@ fn languages_json_lists_every_depcheck_language() {
 #[test]
 fn families_languages_json_lists_every_quality_docs_and_setup_entry() {
     let root = dx_testing::rules_dx_source();
-    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-        .expect("families.json");
     let mut rows = Vec::new();
-    for dir in language_dirs(&root, &families) {
+    for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         let mut row = serde_json::Map::new();
@@ -387,17 +331,10 @@ fn bzl_label_path(label: &str) -> String {
 }
 
 #[test]
-fn every_quality_bzl_exists_and_feeds_families_test() {
+fn every_quality_bzl_exists() {
     let root = dx_testing::rules_dx_source();
-    let families: Value =
-        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-            .expect("families.json");
-    let build = std::fs::read_to_string(root.join("core/modules/tests/BUILD.bazel")).expect("BUILD.bazel");
-    let start = build.find("name = \"families_test\"").expect("families_test");
-    let end = start + build[start..].find("\n)\n").expect("end of families_test");
-    let data = &build[start..end];
     let mut problems = Vec::new();
-    for dir in language_dirs(&root, &families) {
+    for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         let Some(label) = manifest["quality"]["bzl"].as_str() else {
@@ -407,14 +344,6 @@ fn every_quality_bzl_exists_and_feeds_families_test() {
         if !root.join(&path).is_file() {
             problems.push(format!("{}: {path} does not exist", dir.display()));
         }
-        let (package, file) = label.split_once(':').expect("label");
-        let data_label = format!("\"//{package}:{file}\"");
-        if !data.contains(&data_label) {
-            problems.push(format!(
-                "{}: {data_label} is not in families_test data in core/modules/tests/BUILD.bazel",
-                dir.display()
-            ));
-        }
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
@@ -422,10 +351,8 @@ fn every_quality_bzl_exists_and_feeds_families_test() {
 #[test]
 fn langs_bzl_is_generated_from_every_lang_json() {
     let root = dx_testing::rules_dx_source();
-    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-        .expect("families.json");
     let mut langs = serde_json::Map::new();
-    for dir in language_dirs(&root, &families) {
+    for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let mut manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         manifest.as_object_mut().expect("object").remove("$schema");
@@ -483,21 +410,11 @@ fn loaded_names(text: &str) -> BTreeSet<(String, String)> {
 #[test]
 fn every_lang_json_aspect_is_loaded_from_its_bzl() {
     let root = dx_testing::rules_dx_source();
-    let families: Value =
-        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-            .expect("families.json");
-    let listed: BTreeSet<&str> = families["families"]
-        .as_object()
-        .expect("families")
-        .values()
-        .flat_map(|family| family["aspects"].as_array().expect("aspects").iter())
-        .map(|name| name.as_str().expect("aspect"))
-        .collect();
     let loaded = loaded_names(&dx_testing::read_runfiles(
         "core/quality/testdata/all_languages.bzl",
     ));
     let mut problems = Vec::new();
-    for dir in language_dirs(&root, &families) {
+    for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         for (label, name) in lang_aspects(&manifest) {
@@ -505,12 +422,6 @@ fn every_lang_json_aspect_is_loaded_from_its_bzl() {
             if !loaded.contains(&(format!("{package}:{file}"), name.clone())) {
                 problems.push(format!(
                     "{}: {name} is not loaded from //{package}:{file} in core/quality/testdata/all_languages.bzl",
-                    dir.display()
-                ));
-            }
-            if !listed.contains(name.as_str()) {
-                problems.push(format!(
-                    "{}: {name} is not in any families.json aspects list",
                     dir.display()
                 ));
             }
@@ -524,9 +435,9 @@ const LOADS_END: &str = "# END GENERATED LANG ASPECT LOADS\n";
 const EXPORTS_BEGIN: &str = "# BEGIN GENERATED LANG ASPECT EXPORTS\n";
 const EXPORTS_END: &str = "# END GENERATED LANG ASPECT EXPORTS\n";
 
-fn every_lang_aspect(root: &Path, families: &Value) -> BTreeSet<(String, String)> {
+fn every_lang_aspect(root: &Path) -> BTreeSet<(String, String)> {
     let mut found = BTreeSet::new();
-    for dir in language_dirs(root, families) {
+    for dir in language_dirs(root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         found.extend(lang_aspects(&manifest));
@@ -543,9 +454,7 @@ fn splice(text: &str, begin: &str, end: &str, body: &str) -> String {
 #[test]
 fn aspect_registration_is_generated_from_every_lang_json() {
     let root = dx_testing::rules_dx_source();
-    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-        .expect("families.json");
-    let aspects = every_lang_aspect(&root, &families);
+    let aspects = every_lang_aspect(&root);
     let mut by_label: std::collections::BTreeMap<&str, Vec<&str>> = std::collections::BTreeMap::new();
     for (label, name) in &aspects {
         by_label.entry(label).or_default().push(name);
@@ -574,42 +483,10 @@ fn aspect_registration_is_generated_from_every_lang_json() {
     .expect("all_languages.bzl aspect registration is generated from every lang.json");
 }
 
-#[test]
-fn families_aspects_named_for_a_language_are_in_its_lang_json() {
-    let root = dx_testing::rules_dx_source();
-    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-        .expect("families.json");
-    let listed: BTreeSet<&str> = families["families"]
-        .as_object()
-        .expect("families")
-        .values()
-        .flat_map(|family| family["aspects"].as_array().expect("aspects").iter())
-        .map(|name| name.as_str().expect("aspect"))
-        .collect();
-    let mut problems = Vec::new();
-    for dir in language_dirs(&root, &families) {
-        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
-        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
-        let own: BTreeSet<String> = lang_aspects(&manifest).into_iter().map(|(_, n)| n).collect();
-        let prefix = format!("real_{}_", manifest["name"].as_str().expect("name"));
-        for name in listed.iter().filter(|name| name.starts_with(&prefix)) {
-            if !own.contains(*name) {
-                problems.push(format!(
-                    "{}: families.json lists {name} but lang.json does not",
-                    dir.display()
-                ));
-            }
-        }
-    }
-    assert!(problems.is_empty(), "{}", problems.join("\n"));
-}
-
 fn lock_registry_entries() -> Vec<Value> {
     let root = dx_testing::rules_dx_source();
-    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-        .expect("families.json");
     let mut entries = std::collections::BTreeMap::new();
-    for dir in language_dirs(&root, &families) {
+    for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         for hub in manifest["setup"]["hubs"].as_array().into_iter().flatten() {

@@ -27,7 +27,7 @@ Read `docs/design/layout.md` before you add or move a language.
 bazel run //tools/new_language -- <lang> [title]
 ```
 
-It creates `<lang>/` with `defs.bzl`, `extensions.bzl`, `BUILD.bazel`, `lang.json`, `pins.json`, `private/` and `tests/`, and adds the directory to `core/modules/families.json`. Fill in `lang.json`, then run `bazel run //tools/docs/support_matrix:update`.
+It creates `<lang>/` with `defs.bzl`, `extensions.bzl`, `BUILD.bazel`, `lang.json`, `pins.json`, `private/` and `tests/`. Fill in `lang.json`, then run `bazel run //tools/docs/support_matrix:update`.
 
 ## Remote cache
 

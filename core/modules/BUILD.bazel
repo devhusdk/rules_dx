@@ -94,7 +94,6 @@ rust_test(
     crate_name = "lang_json_test",
     crate_root = "lang_json_test.rs",
     data = [
-        "families.json",
         "lang.schema.json",
         "langs.bzl",
         "lock_registry.bzl",
@@ -173,7 +172,6 @@ exports_files([
     "cuda.bzl",
     "rust.bzl",
     "python.bzl",
-    "families.json",
     "langs.bzl",
     "lock.schema.json",
     "lock_registry.bzl",

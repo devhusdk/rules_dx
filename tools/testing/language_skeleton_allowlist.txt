@@ -4,9 +4,6 @@ entries android/platforms
 entries android/repos.bzl
 entries apple/platforms
 entries cuda/components
-entries ocaml/bench
-entries ocaml/packages
-entries swift/bench
 entry-points ansible/lang.json
 entry-points api_spec/lang.json
 entry-points appimage/lang.json

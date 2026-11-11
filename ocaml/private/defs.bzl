@@ -361,7 +361,7 @@ def ocaml_bench(name, *, main = None, deps = None, visibility = None, tags = Non
         name = name + "_bin",
         testonly = True,
         struct = main,
-        deps = (deps or []) + [Label("//ocaml/bench:dx_bench")],
+        deps = (deps or []) + [Label("//ocaml/private/bench:dx_bench")],
         tags = tags,
         visibility = ["//visibility:private"],
         **build

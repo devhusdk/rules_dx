@@ -218,7 +218,7 @@ The target is tagged `dx-fuzz` and takes the `ocaml_test` size and
 timeout. `<name>_run` runs `-s <seed> -r 500` rounds with fresh seeds until
 `--time` is up; a failing seed is written to `crash-<hash>` and replays with
 `--repro`. Opam sets crowbar, cmdliner and afl-persistent with the BUILD files
-in `@rules_dx//ocaml/packages`; `{hub}` in them becomes the hub name.
+in `@rules_dx//ocaml/private`; `{hub}` in them becomes the hub name.
 
 ```python
 # MODULE.bazel
@@ -226,11 +226,11 @@ opam = use_extension("@rules_dx//ocaml:extensions.bzl", "opam")
 opam.lock(name = "ocaml_fuzz", lock = "//:ocaml_fuzz.opam.locked")
 opam.annotation(
     package = "afl-persistent",
-    build_file = "@rules_dx//ocaml/packages:afl-persistent.BUILD.bazel",
+    build_file = "@rules_dx//ocaml/private:afl-persistent.BUILD.bazel",
     strip_prefix = "ocaml-afl-persistent-1.4",
 )
-opam.annotation(package = "cmdliner", build_file = "@rules_dx//ocaml/packages:cmdliner.BUILD.bazel")
-opam.annotation(package = "crowbar", build_file = "@rules_dx//ocaml/packages:crowbar.BUILD.bazel")
+opam.annotation(package = "cmdliner", build_file = "@rules_dx//ocaml/private:cmdliner.BUILD.bazel")
+opam.annotation(package = "crowbar", build_file = "@rules_dx//ocaml/private:crowbar.BUILD.bazel")
 use_repo(opam, "ocaml_fuzz")
 
 # BUILD.bazel
@@ -245,7 +245,7 @@ ocaml_fuzz_test(
 
 `ocaml_bench(name, main, deps)` builds the module `main` and runs it as the
 `dx-bench` test `dx bench` runs. `main` calls `Dx_bench.run` from
-`//ocaml/bench:dx_bench` with a list of named jobs. Each job runs once to warm
+`//ocaml/private/bench:dx_bench` with a list of named jobs. Each job runs once to warm
 up, then in 10 timed samples of `iterations` calls (default 1000), and the
 results go to `$TEST_UNDECLARED_OUTPUTS_DIR/dx-bench.json` in ns/iter.
 

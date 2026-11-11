@@ -1357,16 +1357,16 @@ opam_dev.lock(
     lock = "//ocaml/tests/fixtures/fuzz:ocaml_fuzz.opam.locked",
 )
 opam_dev.annotation(
-    build_file = "//ocaml/packages:afl-persistent.BUILD.bazel",
+    build_file = "//ocaml/private:afl-persistent.BUILD.bazel",
     package = "afl-persistent",
     strip_prefix = "ocaml-afl-persistent-1.4",
 )
 opam_dev.annotation(
-    build_file = "//ocaml/packages:cmdliner.BUILD.bazel",
+    build_file = "//ocaml/private:cmdliner.BUILD.bazel",
     package = "cmdliner",
 )
 opam_dev.annotation(
-    build_file = "//ocaml/packages:crowbar.BUILD.bazel",
+    build_file = "//ocaml/private:crowbar.BUILD.bazel",
     package = "crowbar",
 )
 use_repo(opam_dev, "ocaml_app", "ocaml_fuzz")

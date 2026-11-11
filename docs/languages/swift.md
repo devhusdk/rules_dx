@@ -64,7 +64,7 @@ A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz
 swift_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs)
 ```
 
-A swift_binary timing loop run by `dx bench`; it links `//swift/bench` to write dx-bench.json.
+A swift_binary timing loop run by `dx bench`; it links `//swift/private/bench` to write dx-bench.json.
 
 ## API docs
 

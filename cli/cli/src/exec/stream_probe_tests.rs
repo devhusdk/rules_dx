@@ -507,20 +507,7 @@ enum Sender {
     Kill,
     GroupKill,
     BuildGroup,
-    #[cfg(target_os = "linux")]
     Unattributed,
-}
-
-#[cfg(target_os = "linux")]
-fn senders() -> Vec<Sender> {
-    vec![
-        Sender::Tty,
-        Sender::Kill,
-        Sender::GroupKill,
-        Sender::BuildGroup,
-        #[cfg(target_os = "linux")]
-        Sender::Unattributed,
-    ]
 }
 
 #[cfg(target_os = "linux")]
@@ -533,63 +520,90 @@ fn queue_unattributed(pid: i32, signo: i32) {
 }
 
 #[cfg(target_os = "linux")]
-#[test]
-fn a_terminal_child_gets_each_sigint_once() {
-    for sender in senders() {
-        let pty = open_pty();
-        let mut run = Run::launch(
-            "dx-stream-tty-",
-            &["build", "//..."],
-            &|dir| {
-                format!(
-                    "--detached-descendant --descendant-count-sigint={} --descendant-sleep-ms=30000 --sleep-ms=30000",
-                    dir.join("sigint").display()
-                )
-            },
-            Some(&pty),
-        );
-        let build = run.build_pid();
-        let log = run.dir().join("sigint");
-        wait_for_file(&mut run, &log);
-        let build_pgid = assert_foreground_build(&run, &pty, build);
-        match sender {
-            Sender::Tty => (&pty.master).write_all(b"\x03").expect("ctrl-c"),
-            Sender::Kill => {
-                run.signal(libc::SIGINT);
-            }
-            Sender::GroupKill => unsafe {
-                libc::kill(-(run.child.id() as i32), libc::SIGINT);
-            },
-            Sender::BuildGroup => unsafe {
-                libc::kill(-build_pgid, libc::SIGINT);
-            },
-            #[cfg(target_os = "linux")]
-            Sender::Unattributed => queue_unattributed(run.child.id() as i32, libc::SIGINT),
+fn a_terminal_child_gets_sigint_once(sender: Sender) {
+    let pty = open_pty();
+    let mut run = Run::launch(
+        "dx-stream-tty-",
+        &["build", "//..."],
+        &|dir| {
+            format!(
+                "--detached-descendant --descendant-count-sigint={} --descendant-sleep-ms=30000 --sleep-ms=30000",
+                dir.join("sigint").display()
+            )
+        },
+        Some(&pty),
+    );
+    let build = run.build_pid();
+    let log = run.dir().join("sigint");
+    wait_for_file(&mut run, &log);
+    let build_pgid = assert_foreground_build(&run, &pty, build);
+    match sender {
+        Sender::Tty => (&pty.master).write_all(b"\x03").expect("ctrl-c"),
+        Sender::Kill => {
+            run.signal(libc::SIGINT);
         }
-        let expected = b"I";
-        let status = run.exit();
-        let counted = fs::read(&log).expect("sigint log");
-        unsafe {
-            libc::kill(-build_pgid, libc::SIGKILL);
-        }
-        assert!(
-            wait_until_gone(build_pgid, Duration::from_secs(5)),
-            "{sender:?}: the terminal group survived SIGKILL"
-        );
-        assert_eq!(
-            status.signal(),
-            Some(libc::SIGINT),
-            "{sender:?}: {status:?}\n{}",
-            run.context()
-        );
-        assert_eq!(
-            counted,
-            expected,
-            "{sender:?}: wrong SIGINT count\n{}",
-            run.context()
-        );
-        assert_eq!(run_dirs(&run), Vec::<PathBuf>::new(), "{sender:?}");
+        Sender::GroupKill => unsafe {
+            libc::kill(-(run.child.id() as i32), libc::SIGINT);
+        },
+        Sender::BuildGroup => unsafe {
+            libc::kill(-build_pgid, libc::SIGINT);
+        },
+        #[cfg(target_os = "linux")]
+        Sender::Unattributed => queue_unattributed(run.child.id() as i32, libc::SIGINT),
     }
+    let expected = b"I";
+    let status = run.exit();
+    let counted = fs::read(&log).expect("sigint log");
+    unsafe {
+        libc::kill(-build_pgid, libc::SIGKILL);
+    }
+    assert!(
+        wait_until_gone(build_pgid, Duration::from_secs(5)),
+        "{sender:?}: the terminal group survived SIGKILL"
+    );
+    assert_eq!(
+        status.signal(),
+        Some(libc::SIGINT),
+        "{sender:?}: {status:?}\n{}",
+        run.context()
+    );
+    assert_eq!(
+        counted,
+        expected,
+        "{sender:?}: wrong SIGINT count\n{}",
+        run.context()
+    );
+    assert_eq!(run_dirs(&run), Vec::<PathBuf>::new(), "{sender:?}");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_terminal_child_gets_sigint_once_from_tty() {
+    a_terminal_child_gets_sigint_once(Sender::Tty);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_terminal_child_gets_sigint_once_from_kill() {
+    a_terminal_child_gets_sigint_once(Sender::Kill);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_terminal_child_gets_sigint_once_from_group_kill() {
+    a_terminal_child_gets_sigint_once(Sender::GroupKill);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_terminal_child_gets_sigint_once_from_build_group() {
+    a_terminal_child_gets_sigint_once(Sender::BuildGroup);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_terminal_child_gets_sigint_once_from_unattributed() {
+    a_terminal_child_gets_sigint_once(Sender::Unattributed);
 }
 
 #[cfg(target_os = "linux")]

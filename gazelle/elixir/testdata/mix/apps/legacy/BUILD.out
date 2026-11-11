@@ -11,6 +11,7 @@ elixir_app(
 
 elixir_test(
     name = "legacy_test",
+    size = "small",
     srcs = [
         "test/a_test.exs",
         "test/b_test.exs",

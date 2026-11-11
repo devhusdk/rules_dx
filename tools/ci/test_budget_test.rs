@@ -279,9 +279,10 @@ fn scan_file(path: &str, source: &str) -> FileScan {
     scan
 }
 
-/// Whether `callee` is a binary macro, which takes no size even when it declares a test inside.
-fn binary(callee: &str) -> bool {
-    callee.split('_').any(|word| word == "binary") && !callee.split('_').any(|word| word == "test")
+/// Whether `callee` takes no size: a binary macro, which may declare a test inside, or the test build of an app.
+fn unsized_macro(callee: &str) -> bool {
+    callee == "erlang_test_app"
+        || callee.split('_').any(|word| word == "binary") && !callee.split('_').any(|word| word == "test")
 }
 
 /// Budget hits across `files`, keyed by path and kind.
@@ -293,7 +294,7 @@ fn budget(files: &BTreeMap<String, FileScan>) -> Counts {
             *counts.entry((path.clone(), kind)).or_default() += 1;
         };
         for call in &scan.calls {
-            if call.callee == SUITE || binary(&call.callee) || !is_test(&tests, &call.callee) {
+            if call.callee == SUITE || unsized_macro(&call.callee) || !is_test(&tests, &call.callee) {
                 continue;
             }
             match &call.size {

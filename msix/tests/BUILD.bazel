@@ -405,24 +405,28 @@ arm64_action_test(
 
 msix_variant(
     name = "pe_x64",
+    testonly = True,
     src = "//msix/tests/fixtures/msix-app/app:dxmsix",
     platform = "@llvm//platforms:windows_x86_64",
 )
 
 msix_variant(
     name = "greet_x64",
+    testonly = True,
     src = "//msix/tests/fixtures/msix-app/greet:greet_dll",
     platform = "@llvm//platforms:windows_x86_64",
 )
 
 msix_variant(
     name = "pe_arm64",
+    testonly = True,
     src = "//msix/tests/fixtures/msix-app/app:dxmsix",
     platform = "@llvm//platforms:windows_aarch64",
 )
 
 msix_variant(
     name = "greet_arm64",
+    testonly = True,
     src = "//msix/tests/fixtures/msix-app/greet:greet_dll",
     platform = "@llvm//platforms:windows_aarch64",
 )
@@ -454,6 +458,7 @@ powershell_test(
 
 msix_variant(
     name = "app_arm64",
+    testonly = True,
     src = "//msix/tests/fixtures/msix-app/app",
     platform = "//msix:windows_arm64",
     target_compatible_with = _WINDOWS,
@@ -461,6 +466,7 @@ msix_variant(
 
 msix_variant(
     name = "app_x64",
+    testonly = True,
     src = "//msix/tests/fixtures/msix-app/app",
     platform = "//msix:windows_x86_64",
     target_compatible_with = _WINDOWS,
@@ -468,6 +474,7 @@ msix_variant(
 
 msix_variant(
     name = "app_probe",
+    testonly = True,
     src = "//msix/tests/fixtures/msix-app/app",
     copts = ["-DDX_CONSUMER_PROBE"],
     platform = "//msix:windows_x86_64",

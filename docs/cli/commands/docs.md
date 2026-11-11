@@ -47,7 +47,9 @@ Output: text prints `Running docs build for <scope> (mdBook render)`. With
 events and `command_finished`. A failure adds one `error`. `--diff` and
 `--report` are usage errors.
 
-| Exit code | Meaning |
+## Exit codes
+
+| Code | Meaning |
 | --- | --- |
 | `0` | Success. |
 | `1` | Launch, signal or preview failure, such as no single site tree, a missing `index.html` or a port in use. |

@@ -140,7 +140,9 @@ optional `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, `entries`,
 `servers`, `servers_rss_bytes`, `disk_cache_bytes` and, with `--disk`,
 `disk_bytes`.
 
-| Exit code | Meaning |
+## Exit codes
+
+| Code | Meaning |
 | --- | --- |
 | `0` | Success. |
 | `1` | Operational failure: branch checked out elsewhere, dirty or unpushed slot on `release`, `slot_busy`, `lease_changed`, `no_home`, `disk_full`, `path` finds no checkout, `prune` found work without `--apply`, or a `hook` failure. |

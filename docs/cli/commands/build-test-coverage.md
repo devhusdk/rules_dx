@@ -8,7 +8,6 @@ dx test --affected
 dx test //pkg/... -- --test_filter=case_name
 dx coverage --min-coverage 80 --report lcov=lcov.info //pkg/...
 dx run //app:bin -- --port=8080
-dx deploy --apply //app:deploy
 ```
 
 ## `dx build`
@@ -144,12 +143,8 @@ Builds the runnable targets, then runs them in order. Args after `--` go to the 
 - With no scope, dx runs the only executable target under `//...`. If there are several it fails with `pass one of: ...` (up to 10 shown).
 - Labels and patterns run in order. A file or directory scope must match exactly one runnable target.
 - The first app that exits nonzero stops the rest.
-- `--apply` is a usage error. Works with `CI=true`.
+- Publishing is `dx deploy` only: an apply flag is a usage error. Works with `CI=true`.
 - Output: `--output text|json`. No reports. Text prints `dx: <label> exited <code>`.
-
-## `dx deploy`
-
-`dx deploy` has its own page: [Deploy](deploy.md).
 
 ## Signals
 

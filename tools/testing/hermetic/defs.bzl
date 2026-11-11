@@ -173,14 +173,17 @@ def hermetic_qualification(
         srcs = ["//tools/testing/hermetic:qualification_test.rs"],
         data = [":" + name + "_manifest"] + select({
             "@platforms//os:windows": ["//tools/testing/hermetic:appcontainer_run"],
-            "//conditions:default": [],
+            "//conditions:default": ["//core/coreutils:applets"],
         }),
         env = select({
             "@platforms//os:windows": {
                 "DX_HERMETIC_APPCONTAINER": "$(rlocationpath //tools/testing/hermetic:appcontainer_run)",
                 "DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name,
             },
-            "//conditions:default": {"DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name},
+            "//conditions:default": {
+                "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
+                "DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name,
+            },
         }),
         tags = QUALIFICATION_TAGS + ["hermetic-consumer", "resources:nested_bazel:1"],
         target_compatible_with = compatible_with,

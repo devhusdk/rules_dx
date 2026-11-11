@@ -1,5 +1,3 @@
-dev-proxy-tags dart/extensions.bzl
-dev-proxy-tags python/extensions.bzl
 entry-points ansible/lang.json
 entry-points api_spec/lang.json
 entry-points appimage/lang.json

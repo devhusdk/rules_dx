@@ -78,16 +78,16 @@ func TestOwns(t *testing.T) {
 		r.SetAttr("srcs", srcs)
 		return r
 	}
-	if !Owns(mk(AppKind, "erlang_app", "src/a.erl", "src/a.hrl")) {
+	if !Owns(mk(AppKind, "erlang_app", "src/a.erl", "src/a.hrl"), "demo") {
 		t.Error("generated app should be owned")
 	}
-	if Owns(mk(AppKind, "erlang_app", "src/a.erl", "other.erl")) {
+	if Owns(mk(AppKind, "erlang_app", "src/a.erl", "other.erl"), "demo") {
 		t.Error("foreign source should not be owned")
 	}
-	if Owns(mk(AppKind, "", "src/a.erl")) {
+	if Owns(mk(AppKind, "", "src/a.erl"), "demo") {
 		t.Error("unnamed rule should not be owned")
 	}
-	if !Owns(mk(NifKind, "n", "c_src/a.c")) {
+	if !Owns(mk(NifKind, "n", "c_src/a.c"), "demo") {
 		t.Error("generated nif should be owned")
 	}
 	for _, c := range []struct {
@@ -100,8 +100,9 @@ func TestOwns(t *testing.T) {
 		{OptsKind, "erlc_opts", false},
 		{EunitKind, "demo_test", true},
 		{EunitKind, "eunit", false},
+		{EunitKind, "integration_test", false},
 	} {
-		if got := Owns(rule.NewRule(c.kind, c.name)); got != c.want {
+		if got := Owns(rule.NewRule(c.kind, c.name), "demo"); got != c.want {
 			t.Errorf("Owns(%s %q) = %v, want %v", c.kind, c.name, got, c.want)
 		}
 	}

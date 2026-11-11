@@ -82,7 +82,7 @@ func IsNifHeader(src string) bool {
 
 // Owns reports whether generation could have produced r, so a stale r may be
 // removed. The generator asks only in directories that hold an Erlang app.
-func Owns(r *rule.Rule) bool {
+func Owns(r *rule.Rule, app string) bool {
 	if r.Name() == "" {
 		return false
 	}
@@ -92,7 +92,7 @@ func Owns(r *rule.Rule) bool {
 	case OptsKind:
 		return r.Name() == TestOptsTarget
 	case EunitKind:
-		return strings.HasSuffix(r.Name(), "_test")
+		return r.Name() == app+"_test"
 	case BytecodeKind:
 		return r.Name() == TestModules
 	}

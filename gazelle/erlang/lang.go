@@ -196,7 +196,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		return fail("%v", err)
 	}
 	if !slices.ContainsFunc(erls, IsErlSource) {
-		return common.MergeStaleOwned(args.File, language.GenerateResult{}, kinds, Owns)
+		return common.MergeStaleOwned(args.File, language.GenerateResult{}, kinds, func(r *rule.Rule) bool { return Owns(r, meta.Name) })
 	}
 	name := AppTarget
 	if args.File != nil {
@@ -308,7 +308,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 			result.Imports = append(result.Imports, common.WrapImportSet(nil))
 		}
 	}
-	return common.MergeStaleOwned(args.File, result, kinds, Owns)
+	return common.MergeStaleOwned(args.File, result, kinds, func(r *rule.Rule) bool { return Owns(r, meta.Name) })
 }
 
 var testErlcOpts = []string{"+deterministic", "+debug_info", "+warn_export_vars", "+warn_shadow_vars", "+warn_obsolete_guard", "-DTEST=1"}

@@ -371,7 +371,19 @@ impl<'a> Php<'a> {
     }
 
     /// The packages the roots need, each at the newest release every requirement allows.
-    fn select(&self, roots: &BTreeMap<String, String>) -> Result<BTreeMap<String, Chosen>, Error> {
+    fn select(
+        &self,
+        roots: &BTreeMap<String, String>,
+        old: Option<&Lock>,
+    ) -> Result<BTreeMap<String, Chosen>, Error> {
+        let kept: BTreeMap<&str, Version> = old
+            .map(|lock| {
+                lock.packages
+                    .iter()
+                    .filter_map(|package| Some((package.name.as_str(), parse_version(&package.version)?)))
+                    .collect()
+            })
+            .unwrap_or_default();
         let mut cache = BTreeMap::new();
         let mut chosen: BTreeMap<String, Chosen> = BTreeMap::new();
         for _ in 0..64 {
@@ -399,9 +411,11 @@ impl<'a> Php<'a> {
             let mut next: BTreeMap<String, Chosen> = BTreeMap::new();
             for (name, constraints) in &wanted {
                 self.versions(name, &mut cache)?;
+                let allowed = |version: &Version| constraints.iter().all(|(_, c)| c.allows(*version));
                 let (version, entry) = cache[name]
                     .iter()
-                    .find(|(version, _)| constraints.iter().all(|(_, c)| c.allows(*version)))
+                    .find(|(version, _)| kept.get(name.as_str()) == Some(version) && allowed(version))
+                    .or_else(|| cache[name].iter().find(|(version, _)| allowed(version)))
                     .ok_or_else(|| {
                         Error::new(format!(
                             "{name}: no stable release satisfies {}",
@@ -559,8 +573,29 @@ impl Resolver for Php<'_> {
         for (name, constraint) in read_requires(&document, "require-dev") {
             roots.entry(name).or_insert(constraint);
         }
-        let chosen = self.select(&roots)?;
-        let mut provided: BTreeMap<String, String> = BTreeMap::new();
+        let chosen = self.select(&roots, old)?;
+        for (name, package) in &chosen {
+            if package.entry.get("type").and_then(Value::as_str) == Some("composer-plugin") {
+                return Err(Error::new(format!("{name} is a composer-plugin package")));
+            }
+        }
+        let stability = document
+            .get("minimum-stability")
+            .and_then(Value::as_str)
+            .unwrap_or("stable");
+        if stability != "stable" {
+            return Err(Error::new(format!(
+                "minimum-stability {stability:?} is not supported; only stable releases lock"
+            )));
+        }
+        let platform = |key: &str| -> Value {
+            let required: Map<String, Value> = read_requires(&document, key)
+                .into_iter()
+                .filter(|(name, _)| is_platform(name))
+                .map(|(name, constraint)| (name, Value::String(constraint)))
+                .collect();
+            if required.is_empty() { json!([]) } else { Value::Object(required) }
+        };        let mut provided: BTreeMap<String, String> = BTreeMap::new();
         for (name, package) in &chosen {
             for key in ["replace", "provide"] {
                 for virtual_name in string_map(&package.entry, key).into_keys() {
@@ -642,12 +677,12 @@ impl Resolver for Php<'_> {
             "packages": locked,
             "packages-dev": locked_dev,
             "aliases": [],
-            "minimum-stability": "stable",
+            "minimum-stability": stability,
             "stability-flags": [],
-            "prefer-stable": false,
+            "prefer-stable": document.get("prefer-stable").and_then(Value::as_bool).unwrap_or(false),
             "prefer-lowest": false,
-            "platform": [],
-            "platform-dev": [],
+            "platform": platform("require"),
+            "platform-dev": platform("require-dev"),
             "plugin-api-version": "2.6.0",
         });
         std::fs::write(scratch.set().join(&self.state), to_php_json(&state))

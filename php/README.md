@@ -100,9 +100,9 @@ build. A target stages its packages under
 the PSR-4, PSR-0, classmap and `files` autoload. A class whose package is not in
 `deps` still fails with `Class "..." not found`. Package files are not linted.
 
-The lock step picks the newest stable release each requirement allows, records
+The lock step keeps the locked version of a package while its requirements allow it and otherwise picks the newest stable release they allow. `dx update <set>:<package>` resolves that package afresh. It records
 the archive sha256 and the PSR-4 namespaces of every package, and reuses
-unchanged packages without downloading them. Branch constraints are refused.
+unchanged packages without downloading them. Branch constraints and a `minimum-stability` other than `stable` are refused.
 
 Refused: `composer-plugin` packages, packages without a zip dist
 (source-only), and `ext-*` requirements the pinned PHP lacks. Scripts never

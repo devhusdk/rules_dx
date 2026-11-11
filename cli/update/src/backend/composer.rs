@@ -5,7 +5,7 @@ const RESOLVER: &str = "@rules_dx//php:lock";
 pub(super) fn plan(
     workspace: &Path,
     set: &ResolvedSet,
-    _request: &Selection,
+    request: &Selection,
     offline: bool,
     frozen: bool,
     head: &dx_process::BazelHead,
@@ -22,12 +22,15 @@ pub(super) fn plan(
         });
     }
     let dir = workspace.join(&set.dir);
+    let dir = dir.to_string_lossy();
+    let mut args = vec![RESOLVER, "--", "--dir", &dir];
+    if let Selection::Packages(packages) = request {
+        for package in packages {
+            args.extend(["--upgrade", package]);
+        }
+    }
     Ok(BackendPlan::Run {
-        argv: bazel(
-            head,
-            "run",
-            &[RESOLVER, "--", "--dir", &dir.to_string_lossy()],
-        ),
+        argv: bazel(head, "run", &args),
         env: Vec::new(),
     })
 }

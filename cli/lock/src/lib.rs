@@ -89,29 +89,35 @@ pub struct Args {
     pub dir: PathBuf,
     /// Whether to compare only.
     pub check: bool,
+    /// The packages to resolve afresh instead of keeping their locked version.
+    pub upgrade: Vec<String>,
 }
 
 /// The flags, one line each.
 pub const USAGE: &str = "\
 --dir <path>  the absolute directory of the dependency set
---check       compare only; exit 1 when the lock is stale";
+--check       compare only; exit 1 when the lock is stale
+--upgrade <name>  resolve this package afresh; repeatable";
 
 impl Args {
-    /// Parses `--dir <path>` and `--check`.
+    /// Parses `--dir <path>`, `--check` and `--upgrade <name>`.
     ///
     /// # Errors
     /// Fails on an unknown flag and on a missing or relative `--dir`.
     pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Self, Error> {
         let mut dir = None;
         let mut check = false;
+        let mut upgrade = Vec::new();
         let mut args = args.into_iter();
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "--check" => check = true,
                 "--dir" => dir = args.next(),
-                other => match other.strip_prefix("--dir=") {
-                    Some(value) => dir = Some(value.to_owned()),
-                    None => return Err(Error::new(format!("unknown argument {other}\n{USAGE}"))),
+                "--upgrade" => upgrade.extend(args.next()),
+                other => match (other.strip_prefix("--dir="), other.strip_prefix("--upgrade=")) {
+                    (Some(value), _) => dir = Some(value.to_owned()),
+                    (_, Some(value)) => upgrade.push(value.to_owned()),
+                    _ => return Err(Error::new(format!("unknown argument {other}\n{USAGE}"))),
                 },
             }
         }
@@ -119,7 +125,7 @@ impl Args {
         if !dir.is_absolute() {
             return Err(Error::new(format!("--dir {} is not absolute\n{USAGE}", dir.display())));
         }
-        Ok(Self { dir, check })
+        Ok(Self { dir, check, upgrade })
     }
 }
 
@@ -235,7 +241,9 @@ pub fn run(spec: &Spec, args: &Args, resolver: &dyn Resolver, fetch: &dyn Fetch)
         .as_deref()
         .and_then(|text| Lock::from_json(text).ok())
         .filter(|lock| lock.ecosystem == spec.ecosystem);
-    if old.as_ref().is_some_and(|lock| inputs.digests(dir).is_ok_and(|now| now == lock.inputs)) {
+    if args.upgrade.is_empty()
+        && old.as_ref().is_some_and(|lock| inputs.digests(dir).is_ok_and(|now| now == lock.inputs))
+    {
         return Ok(Outcome::Fresh);
     }
     if args.check {
@@ -246,11 +254,20 @@ pub fn run(spec: &Spec, args: &Args, resolver: &dyn Resolver, fetch: &dyn Fetch)
         std::fs::write(scratch.set().join(name), read(&dir.join(name))?)
             .map_err(|error| Error::new(format!("{name}: {error}")))?;
     }
+    let seed = old.as_ref().map(|lock| Lock {
+        packages: lock
+            .packages
+            .iter()
+            .filter(|package| !args.upgrade.contains(&package.name))
+            .cloned()
+            .collect(),
+        ..lock.clone()
+    });
     let mut lock = Lock {
         schema: SCHEMA,
         ecosystem: spec.ecosystem.clone(),
         inputs: BTreeMap::new(),
-        packages: resolver.resolve(&scratch, old.as_ref())?.packages,
+        packages: resolver.resolve(&scratch, seed.as_ref())?.packages,
     };
     lock.normalize();
     let problems = lock.shape_problems();

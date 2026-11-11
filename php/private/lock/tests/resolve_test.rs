@@ -66,7 +66,7 @@ fn lock(dir: &std::path::Path, remote: &Remote) -> Result<Outcome, Error> {
     let spec = Php::spec(hub);
     run(
         &spec,
-        &Args { dir: dir.to_owned(), check: false },
+        &Args { dir: dir.to_owned(), check: false, upgrade: Vec::new() },
         &Php::new(&spec, remote),
         &NoFetch,
     )
@@ -111,4 +111,11 @@ fn a_branch_constraint_names_the_requirement() {
     let dir = set(&MANIFEST.replace("^1.1", "dev-main"));
     let error = lock(dir.path(), &Remote(RefCell::default())).expect_err("unsupported");
     assert!(error.to_string().contains("psr/http-factory"), "{error}");
+}
+
+#[test]
+fn a_dev_minimum_stability_is_refused() {
+    let dir = set(&MANIFEST.replacen('{', "{\n    \"minimum-stability\": \"dev\",", 1));
+    let error = lock(dir.path(), &Remote(RefCell::default())).expect_err("unsupported");
+    assert!(error.to_string().contains("minimum-stability"), "{error}");
 }

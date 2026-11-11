@@ -428,6 +428,21 @@ fn composer_update_runs_the_lock_step() {
 }
 
 #[test]
+fn composer_update_upgrades_only_the_requested_packages() {
+    let set = composer_set(&COMPOSER_LOCKS);
+    let BackendPlan::Run { argv, .. } = composer_update(&set, false, false).expect("plan") else {
+        panic!("expected a run");
+    };
+    assert_eq!(
+        argv[argv.len() - 7..].join(" "),
+        format!(
+            "run @rules_dx//php:lock -- --dir {} --upgrade psr/log",
+            ws().join("php").display()
+        )
+    );
+}
+
+#[test]
 fn composer_update_refuses_frozen_and_offline() {
     let set = composer_set(&COMPOSER_LOCKS);
     assert!(matches!(

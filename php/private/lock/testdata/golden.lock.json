@@ -2,7 +2,7 @@
   "ecosystem": "composer",
   "inputs": {
     "composer.json": "569ca07dbed2322ea3841ccbb98719420f7f732c90ab75d6f8aca2802a20f8a5",
-    "composer.lock": "13c1a132a82854c68b111e117866baf6bd2d66b88ffbe49a7190f1664efcd3bd"
+    "composer.lock": "502b2a63edaad45f174fb7106b430921c146ede36da64b14c53e61e6a23e1ef1"
   },
   "packages": [
     {

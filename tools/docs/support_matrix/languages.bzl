@@ -453,7 +453,7 @@ LANGUAGES = [
         coverage = ["flutter_tester"],
         unsupported = "//flutter/private:unsupported",
         not_applicable = {
-            "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
+            "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
         },
     ),
     _language(

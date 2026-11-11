@@ -3,7 +3,7 @@
 Pinned versions:
 
 - rules_flutter 0.0.8
-- Flutter 3.47.8
+- Flutter 3.47.9
 
 The fixture in `flutter/tests/runtime` builds a Flutter web app and runs one widget test. It needs no host Flutter, Dart, or Android SDK. It runs on Linux only.
 

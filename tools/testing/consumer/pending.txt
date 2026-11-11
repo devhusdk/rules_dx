@@ -29,7 +29,6 @@ fixture capnproto
 fixture cc
 fixture cloudformation
 fixture cmake
-fixture csharp
 fixture dart
 fixture dockerfile
 fixture env
@@ -53,6 +52,7 @@ fixture terraform
 fixture thrift
 fixture typescript
 fixture vue
+init csharp
 init d
 init elixir
 init erlang

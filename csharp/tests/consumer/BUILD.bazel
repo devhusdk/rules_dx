@@ -1,0 +1,14 @@
+load("@rules_dx//csharp:defs.bzl", "csharp_library", "csharp_test")
+
+csharp_library(
+    name = "consumer",
+    srcs = ["Greet.cs"],
+    visibility = ["//visibility:public"],
+)
+
+csharp_test(
+    name = "consumer_test",
+    size = "small",
+    srcs = ["GreetTest.cs"],
+    deps = [":consumer"],
+)

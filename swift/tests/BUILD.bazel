@@ -1,6 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//powershell:defs.bzl", "powershell_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//powershell:defs.bzl", "powershell_test")
 load("//swift/private/toolchain:tests.bzl", "swift_host_test", "swift_windows_extract_test")
 load(":hub_tests.bzl", "swift_hub_tests")
 

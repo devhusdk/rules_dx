@@ -87,18 +87,26 @@ pub fn run(args: &[String]) -> u8 {
                 developer_dir: None,
                 runner: &System,
             };
-            report(run_macos::PREFIX, run_macos::run(&tools, rest, &process_env))
+            report(
+                run_macos::PREFIX,
+                run_macos::run(&tools, rest, &process_env),
+            )
         }
         "probe" => {
             let tools = Tools {
                 developer_dir: process_env("DEVELOPER_DIR").map(PathBuf::from),
                 runner: &System,
             };
-            report(probe::PREFIX, probe::run(&tools, &probe::executor(), rest, &process_env))
+            report(
+                probe::PREFIX,
+                probe::run(&tools, &probe::executor(), rest, &process_env),
+            )
         }
         _ => report(
             "dx-apple-ops",
-            Err(util::usage("usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|probe> ...")),
+            Err(util::usage(
+                "usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|probe> ...",
+            )),
         ),
     }
 }

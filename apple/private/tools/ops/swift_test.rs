@@ -46,5 +46,9 @@ fn swift_reports_a_missing_xcrun() {
     });
     let failure = run(&tools(&fake), &args(&[])).unwrap_err();
     assert_eq!(failure.code, 127);
-    assert!(failure.message.starts_with(&format!("cannot start {XCRUN}")));
+    assert!(
+        failure
+            .message
+            .starts_with(&format!("cannot start {XCRUN}"))
+    );
 }

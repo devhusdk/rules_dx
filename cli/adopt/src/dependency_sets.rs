@@ -1,23 +1,15 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+use crate::lock_hubs::{lock_of, manifest_of};
+
 pub use dx_ecosystems::{Ecosystem, SUPPORTED_ECOSYSTEMS};
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
 pub const CARGO_LOCK: &str = "Cargo.lock";
 
-pub const GEMFILE_LOCK: &str = "Gemfile.lock";
-
-pub const GO_MOD: &str = "go.mod";
-
-pub const GO_SUM: &str = "go.sum";
-
-pub const CPANFILE: &str = "cpanfile";
-
 pub const CPANFILE_SNAPSHOT: &str = "cpanfile.snapshot";
-
-pub const MIX_EXS: &str = "mix.exs";
 
 pub const MIX_LOCK: &str = "mix.lock";
 
@@ -25,35 +17,17 @@ pub const REBAR_CONFIG: &str = "rebar.config";
 
 pub const REBAR_LOCK: &str = "rebar.lock";
 
-pub const PUBSPEC_YAML: &str = "pubspec.yaml";
-
-pub const PUBSPEC_LOCK: &str = "pubspec.lock";
-
-pub const PROJECT_TOML: &str = "Project.toml";
-
 pub const JULIA_MANIFEST: &str = "Manifest.toml";
 
-pub const JULIA_BAZEL_MANIFEST: &str = "Manifest.bazel.json";
-
-pub const FPM_MANIFEST: &str = "fpm.toml";
-
 pub const DUB_SELECTIONS: &str = "dub.selections.json";
-
-pub const ZIG_ZON: &str = "build.zig.zon";
 
 const DUB_MANIFESTS: [&str; 2] = ["dub.json", "dub.sdl"];
 
 pub const LUAROCKS_LOCK: &str = "luarocks.lock.json";
 
-pub const COMPOSER_JSON: &str = "composer.json";
-
 pub const COMPOSER_LOCK: &str = "composer.lock";
 
-pub const PACKAGE_SWIFT: &str = "Package.swift";
-
 pub const PACKAGE_RESOLVED: &str = "Package.resolved";
-
-pub const CABAL_PROJECT: &str = "cabal.project";
 
 pub const CABAL_FREEZE: &str = "cabal.project.freeze";
 
@@ -62,8 +36,6 @@ pub const STACK_LOCK: &str = "stack.yaml.lock";
 pub const PAKET_LOCK: &str = "paket.lock";
 
 pub const PSGALLERY_LOCK: &str = "PSGallery.lock.json";
-
-pub const PNPM_LOCK: &str = "pnpm-lock.yaml";
 
 pub const YARN_LOCK: &str = "yarn.lock";
 
@@ -205,7 +177,7 @@ pub enum DependencySetsError {
         ecosystem: &'static str,
     },
     #[error(
-        "dependency set {name:?} has a stale {lock}: {detail}; regenerate Manifest.toml and Manifest.bazel.json together"
+        "dependency set {name:?} has a stale {lock}: {detail}; regenerate the Julia state and lock together"
     )]
     StaleJuliaLock {
         name: String,
@@ -213,7 +185,7 @@ pub enum DependencySetsError {
         detail: String,
     },
     #[error(
-        "dependency set {name:?} has a stale {lock}: {detail}; run the cpan_compiler next to the cpanfile"
+        "dependency set {name:?} has a stale {lock}: {detail}; run the cpan_compiler next to the manifest"
     )]
     StaleCpanLock {
         name: String,
@@ -221,7 +193,7 @@ pub enum DependencySetsError {
         detail: String,
     },
     #[error(
-        "dependency set {name:?} has a stale {lock}: {detail}; run the haskell_deps_resolve target next to cabal.project"
+        "dependency set {name:?} has a stale {lock}: {detail}; run the haskell_deps_resolve target next to the manifest"
     )]
     StaleCabalLock {
         name: String,
@@ -356,7 +328,7 @@ pub fn discover(
         }
         for go in module.go_deps_files().map_err(hub)? {
             let manifest = path(go.go_mod)?;
-            let lock = beside(&manifest, GO_SUM);
+            let lock = beside(&manifest, lock_of("go"));
             sets.push(hub_set("go", Ecosystem::Go, vec![manifest], vec![lock])?);
         }
         for bundle in module.bundle_fetches().map_err(hub)? {
@@ -373,7 +345,7 @@ pub fn discover(
             sets.push(hub_set(
                 cpan.name,
                 Ecosystem::Cpan,
-                vec![in_dir(&dir, CPANFILE)],
+                vec![in_dir(&dir, manifest_of("cpan"))],
                 vec![in_dir(&dir, CPANFILE_SNAPSHOT), lock],
             )?);
         }
@@ -382,8 +354,8 @@ pub fn discover(
             sets.push(hub_set(
                 pub_lock.name,
                 Ecosystem::Pub,
-                vec![in_dir(&dir, PUBSPEC_YAML)],
-                vec![in_dir(&dir, PUBSPEC_LOCK)],
+                vec![in_dir(&dir, manifest_of("pub"))],
+                vec![in_dir(&dir, lock_of("pub"))],
             )?);
         }
         for mix in module.mix_locks().map_err(hub)? {
@@ -391,7 +363,7 @@ pub fn discover(
             sets.push(hub_set(
                 mix.name,
                 Ecosystem::Hex,
-                vec![in_dir(&dir, MIX_EXS)],
+                vec![in_dir(&dir, manifest_of("hex"))],
                 vec![in_dir(&dir, MIX_LOCK)],
             )?);
         }
@@ -410,13 +382,13 @@ pub fn discover(
             sets.push(hub_set(
                 composer.name,
                 Ecosystem::Composer,
-                vec![in_dir(&dir, COMPOSER_JSON)],
+                vec![in_dir(&dir, manifest_of("composer"))],
                 vec![lock, in_dir(&dir, COMPOSER_LOCK)],
             )?);
         }
         for fpm in module.fpm_locks().map_err(hub)? {
             let lock = path(fpm.lock)?;
-            let manifest = in_dir(&manifest_dir(std::slice::from_ref(&lock)), FPM_MANIFEST);
+            let manifest = in_dir(&manifest_dir(std::slice::from_ref(&lock)), manifest_of("fpm"));
             sets.push(hub_set(
                 fpm.name,
                 Ecosystem::Fpm,
@@ -445,7 +417,7 @@ pub fn discover(
             sets.push(hub_set(
                 zig.name,
                 Ecosystem::Zig,
-                vec![in_dir(&dir, ZIG_ZON)],
+                vec![in_dir(&dir, manifest_of("zig"))],
                 vec![lock],
             )?);
         }
@@ -480,7 +452,7 @@ pub fn discover(
             sets.push(hub_set(
                 haskell.name,
                 Ecosystem::Cabal,
-                vec![in_dir(&dir, CABAL_PROJECT)],
+                vec![in_dir(&dir, manifest_of("cabal"))],
                 locks,
             )?);
         }
@@ -505,10 +477,10 @@ pub fn discover(
             sets.push(hub_set(
                 julia.name,
                 Ecosystem::Julia,
-                vec![in_dir(&dir, PROJECT_TOML)],
+                vec![in_dir(&dir, manifest_of("julia"))],
                 vec![
                     in_dir(&dir, JULIA_MANIFEST),
-                    in_dir(&dir, JULIA_BAZEL_MANIFEST),
+                    in_dir(&dir, lock_of("julia")),
                 ],
             )?);
         }
@@ -517,7 +489,7 @@ pub fn discover(
             sets.push(hub_set(
                 swift.name,
                 Ecosystem::SwiftPm,
-                vec![beside(&lock, "Package.swift")],
+                vec![beside(&lock, manifest_of("swiftpm"))],
                 vec![beside(&lock, PACKAGE_RESOLVED), lock],
             )?);
         }
@@ -1375,9 +1347,9 @@ fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
 
 fn check_julia_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     check_pinned_lock(set, JULIA_MANIFEST)?;
-    check_pinned_lock(set, JULIA_BAZEL_MANIFEST)?;
+    check_pinned_lock(set, lock_of("julia"))?;
     let manifest = in_dir(&set.dir, JULIA_MANIFEST);
-    let bazel = in_dir(&set.dir, JULIA_BAZEL_MANIFEST);
+    let bazel = in_dir(&set.dir, lock_of("julia"));
     let stale = |lock: &str, detail: String| DependencySetsError::StaleJuliaLock {
         name: set.name.clone(),
         lock: lock.to_owned(),
@@ -1733,16 +1705,16 @@ fn check_go_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependency
         name: set.name.clone(),
         detail,
     };
-    check_pinned_lock(set, GO_SUM)?;
-    let sum = in_dir(&set.dir, GO_SUM);
+    check_pinned_lock(set, lock_of("go"))?;
+    let sum = in_dir(&set.dir, lock_of("go"));
     if set.locks.len() != 1 || set.locks[0] != sum {
         return Err(unsupported(format!(
-            "locks must list exactly {sum} (the run writes go.sum only)"
+            "locks must list exactly {sum} (the run writes the lock only)"
         )));
     }
     let [manifest] = set.manifests.as_slice() else {
         return Err(unsupported(
-            "a go set needs exactly one go.mod manifest".to_owned(),
+            "a go set needs exactly one go manifest".to_owned(),
         ));
     };
     let text = std::fs::read_to_string(workspace.join(manifest))
@@ -1752,7 +1724,7 @@ fn check_go_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependency
     for replacement in &parsed.replace {
         if let dx_gomod::GoReplacementTarget::FilePath(path) = &replacement.target {
             return Err(unsupported(format!(
-                "{manifest} replaces {} with local path {path}; staging copies only go.mod and go.sum",
+                "{manifest} replaces {} with local path {path}; staging copies only the manifest and the lock",
                 replacement.module
             )));
         }
@@ -1821,7 +1793,7 @@ pub enum NpmBackend {
 /// Picks the backend from the locks beside the manifest; pnpm wins over yarn over npm.
 pub fn npm_backend(set: &ResolvedSet) -> Option<NpmBackend> {
     [
-        (PNPM_LOCK, NpmBackend::Pnpm),
+        (lock_of("npm"), NpmBackend::Pnpm),
         (YARN_LOCK, NpmBackend::Yarn),
         (NPM_LOCK, NpmBackend::Npm),
     ]
@@ -1849,7 +1821,7 @@ pub fn hex_backend(set: &ResolvedSet) -> Option<HexBackend> {
 }
 
 fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    let lock = in_dir(&set.dir, PNPM_LOCK);
+    let lock = in_dir(&set.dir, lock_of("npm"));
     let unsupported = |detail: String| DependencySetsError::UnsupportedNpmLayout {
         name: set.name.clone(),
         dir: set.dir.clone(),

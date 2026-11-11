@@ -107,6 +107,52 @@ pub fn isolate_git<'a>(cmd: &'a mut Command, sandbox: &Path) -> &'a mut Command 
     cmd
 }
 
+/// The longest one `git` call may run.
+const GIT_DEADLINE: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// Like `Command::output`, but kills the child and errors once `limit` passes.
+fn output_within(
+    cmd: &mut Command,
+    limit: std::time::Duration,
+) -> Result<std::process::Output, String> {
+    use std::io::Read;
+    use std::process::Stdio;
+    let mut child = cmd
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|err| format!("did not start: {err}"))?;
+    fn drain<R: Read + Send + 'static>(stream: Option<R>) -> std::thread::JoinHandle<Vec<u8>> {
+        std::thread::spawn(move || {
+            let mut bytes = Vec::new();
+            if let Some(mut stream) = stream {
+                let _ = stream.read_to_end(&mut bytes);
+            }
+            bytes
+        })
+    }
+    let stdout = drain(child.stdout.take());
+    let stderr = drain(child.stderr.take());
+    let start = std::time::Instant::now();
+    let status = loop {
+        match child.try_wait().map_err(|err| err.to_string())? {
+            Some(status) => break status,
+            None if start.elapsed() >= limit => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!("did not finish within {}s and was killed", limit.as_secs()));
+            }
+            None => std::thread::sleep(std::time::Duration::from_millis(50)),
+        }
+    };
+    Ok(std::process::Output {
+        status,
+        stdout: stdout.join().unwrap_or_default(),
+        stderr: stderr.join().unwrap_or_default(),
+    })
+}
+
 /// Runs git in `root` with a fixed test identity, signing off, and the isolation of `isolate_git`
 /// rooted at `sandbox`. Panics with the args and stderr on failure. Returns trimmed stdout.
 pub fn git(root: &Path, sandbox: &Path, args: &[&str]) -> String {
@@ -124,9 +170,8 @@ pub fn git(root: &Path, sandbox: &Path, args: &[&str]) -> String {
         "tag.gpgsign=false",
     ])
     .args(args);
-    let output = cmd
-        .output()
-        .unwrap_or_else(|err| panic!("git {args:?} did not start: {err}"));
+    let output = output_within(&mut cmd, GIT_DEADLINE)
+        .unwrap_or_else(|err| panic!("git {args:?} in {root:?}: {err}"));
     assert!(
         output.status.success(),
         "git {args:?} failed: {}",

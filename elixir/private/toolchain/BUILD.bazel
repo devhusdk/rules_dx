@@ -1,17 +1,14 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":metadata_tests.bzl", "elixir_metadata_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "elixir.bzl",
     "extensions.bzl",
-    "metadata_tests.bzl",
     "pins.bzl",
     "repos.bzl",
 ])
 
-elixir_metadata_tests(name = "metadata")
 
 real_source_target(
     name = "corpus_starlark",
@@ -19,7 +16,6 @@ real_source_target(
         "BUILD.bazel",
         "elixir.bzl",
         "extensions.bzl",
-        "metadata_tests.bzl",
         "pins.bzl",
         "repos.bzl",
     ],

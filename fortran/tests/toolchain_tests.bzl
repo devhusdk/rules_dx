@@ -3,9 +3,9 @@
 load("@rules_fortran//fortran/private:providers.bzl", "FortranToolchainInfo")
 load("//fortran/private:fpm_lock.bzl", "fpm_lock_packages")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
-load(":pins.bzl", "FLANG_RT_PREFIX", "FLANG_VERSION", "FORTRAN_CELLS")
-load(":repos.bzl", "DROPPED_PATHS", "FLANG_RT_TREES", "flang_major", "flang_rt_build", "fpm_build", "fpm_hub_build", "hub_build")
-load(":toolchain.bzl", "toolchain_fields")
+load("//fortran/private/toolchain:pins.bzl", "FLANG_RT_PREFIX", "FLANG_VERSION", "FORTRAN_CELLS")
+load("//fortran/private/toolchain:repos.bzl", "DROPPED_PATHS", "FLANG_RT_TREES", "flang_major", "flang_rt_build", "fpm_build", "fpm_hub_build", "hub_build")
+load("//fortran/private/toolchain:toolchain.bzl", "toolchain_fields")
 
 _FPM_LOCK = """# comment
 [dependencies.stdlib]
@@ -46,10 +46,11 @@ def _checks():
         expect_equal("toolchain fields match the upstream provider", sorted(fields.keys()), sorted(dir(FortranToolchainInfo(**fields)))),
     ]
 
-def fortran_metadata_tests(name):
+def fortran_metadata_tests(name, size):
     """Declares the Fortran toolchain metadata test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

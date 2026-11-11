@@ -1,8 +1,9 @@
-"""Erlang toolchain pin and launcher tests."""
+"""Erlang toolchain pin, launcher and cell tests."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "TOOL_SOURCES", "WINDOWS_DROPPED_PATHS")
-load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "is_windows_cell", "nif_compatible_cases", "nif_header_cases", "nif_include_dir", "rebar_build", "rebar_hub_build", "rebar_requirements")
+load("//erlang/private/toolchain:cells.bzl", "cell_cases", "cell_setting", "unknown_cells")
+load("//erlang/private/toolchain:pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "TOOL_SOURCES", "WINDOWS_DROPPED_PATHS")
+load("//erlang/private/toolchain:repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "is_windows_cell", "nif_compatible_cases", "nif_header_cases", "nif_include_dir", "rebar_build", "rebar_hub_build", "rebar_requirements")
 
 _SOURCE = """#!/bin/sh
 ROOTDIR=%FINAL_ROOTDIR%
@@ -83,10 +84,33 @@ def _checks():
         expect_false("prefix is not enough", dropped_application("wxwidgets-1.0")),
     ]
 
-def erlang_metadata_tests(name):
+def erlang_metadata_tests(name, size):
     """Declares the Erlang toolchain metadata test."""
     starlark_test(
         name = name,
         mode = "load",
         checks = _checks(),
+        size = size,
+    )
+
+_DEFAULT = "//conditions:default"
+
+def _cell_checks():
+    cases = cell_cases(CELLS.keys())
+    return [
+        expect_equal("one case per cell", sorted([str(key) for key in cases if key != _DEFAULT]), sorted([str(cell_setting(cell)) for cell in CELLS])),
+        expect_equal("pinned cells allow the target", [cases[key] for key in cases if key != _DEFAULT], [[] for _ in CELLS]),
+        expect_equal("other cells are incompatible", [str(label) for label in cases[_DEFAULT]], [str(Label("@platforms//:incompatible")), str(Label("//erlang/private/toolchain:unsupported"))]),
+        expect_equal("settings live in the toolchain package", str(cell_setting("linux_arm64")), str(Label("//erlang/private/toolchain:cell_linux_arm64"))),
+        expect_equal("unknown cells are reported", unknown_cells(["linux_x86_64", "linux_riscv64"]), ["linux_riscv64"]),
+        expect_equal("no cells is always incompatible", list(cell_cases([]).keys()), [_DEFAULT]),
+    ]
+
+def erlang_cell_tests(name, size):
+    """Declares the OTP cell setting test."""
+    starlark_test(
+        name = name,
+        mode = "load",
+        checks = _cell_checks(),
+        size = size,
     )

@@ -3,8 +3,8 @@
 load("//elixir/private/tools:launcher.bzl", "MIX_FORMAT_ENV", "elixir_descriptor")
 load("//erlang/private/toolchain:pins.bzl", "CELLS", "OTP_VERSION")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "starlark_test")
-load(":pins.bzl", "CREDO_PACKAGES", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR")
-load(":repos.bzl", "CREDO_REWRITES", "DROPPED_PATHS", "credo_build", "credo_rewrites", "elixir_bat", "elixir_script", "hub_build", "mix_build", "mix_hub_build")
+load("//elixir/private/toolchain:pins.bzl", "CREDO_PACKAGES", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR")
+load("//elixir/private/toolchain:repos.bzl", "CREDO_REWRITES", "DROPPED_PATHS", "credo_build", "credo_rewrites", "elixir_bat", "elixir_script", "hub_build", "mix_build", "mix_hub_build")
 
 _BAT_SOURCE = """if x (
   echo "%ERTS_BIN%erl.exe" %ELIXIR_ERL_OPTIONS% %*
@@ -122,10 +122,11 @@ def _checks():
         expect_contains("launcher converts the script path on msys", script, '[ "$OSTYPE" = "msys" ]; then SCRIPT_PATH'),
     ] + _credo_checks() + _launcher_checks()
 
-def elixir_metadata_tests(name):
+def elixir_metadata_tests(name, size):
     """Declares the Elixir toolchain metadata test."""
     starlark_test(
         name = name,
         mode = "load",
         checks = _checks(),
+        size = size,
     )

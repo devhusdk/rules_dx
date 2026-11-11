@@ -1,0 +1,30 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load(":toolchain_tests.bzl", "ruby_crlf_tests", "ruby_metadata_tests", "ruby_toolchain_contract_tests")
+
+package(default_visibility = ["//visibility:private"])
+
+ruby_toolchain_contract_tests(
+    name = "toolchain_contract_tests",
+    size = "small",
+)
+
+ruby_metadata_tests(
+    name = "metadata",
+    size = "small",
+)
+
+ruby_crlf_tests(
+    name = "crlf",
+    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "toolchain_tests.bzl",
+    ],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)

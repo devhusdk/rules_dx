@@ -7,9 +7,9 @@ load("//core:cells.bzl", "cell_cases", "cell_setting")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//php:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/private:php.bzl", "lit", "rf", "write_launcher")
-load(":php.bzl", "TOOLCHAIN_TYPE")
-load(":cells.bzl", "PHP_CELLS")
-load(":repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
+load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
+load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
+load("//php/private/toolchain:repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
 
 _PHP = PINS["dx_php"]
 
@@ -52,12 +52,13 @@ def _checks():
         expect_contains("the macos exec toolchain matches the exec platform", hub, "exec_compatible_with = [\"@platforms//os:macos\", \"@platforms//cpu:aarch64\"],\n    toolchain = \"@dx_php_macos_arm64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/private/toolchain:exec_toolchain_type")) + "\","),
     ]
 
-def php_metadata_tests(name):
+def php_metadata_tests(name, size):
     """Declares the PHP toolchain metadata test."""
     starlark_test(
         name = name,
         mode = "load",
         checks = _checks(),
+        size = size,
     )
 
 REQUIRED_MODULES = ["Phar", "ctype", "dom", "hash", "iconv", "json", "libxml", "mbstring", "simplexml", "tokenizer", "xml", "xmlwriter"]

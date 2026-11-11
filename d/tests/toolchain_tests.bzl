@@ -2,9 +2,9 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load(":pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_VERSION", "TOOL_SOURCES")
-load(":ldmd2.bzl", "ldmd2_descriptor")
-load(":repos.bzl", "DROPPED_PATHS", "LDC_BUILD", "TOOL_BUILDS", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
+load("//d/private/toolchain:pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_VERSION", "TOOL_SOURCES")
+load("//d/private/toolchain:ldmd2.bzl", "ldmd2_descriptor")
+load("//d/private/toolchain:repos.bzl", "DROPPED_PATHS", "LDC_BUILD", "TOOL_BUILDS", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
 
 def _checks():
     linux = LDC_CELLS["linux_x86_64"]
@@ -65,10 +65,11 @@ def _checks():
         expect_equal("one libdparse source", len([name for name in TOOL_SOURCES if "libdparse" in name]), 1),
     ]
 
-def d_metadata_tests(name):
+def d_metadata_tests(name, size):
     """Declares the D toolchain metadata test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

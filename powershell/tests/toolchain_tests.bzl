@@ -13,10 +13,11 @@ def _checks():
         expect_contains("hub names each platform repo", hub, "@" + cell_repo("dx_powershell_toolchains", "linux_x86_64") + "//:toolchain"),
     ]
 
-def powershell_metadata_tests(name):
+def powershell_metadata_tests(name, size):
     """Declares the PowerShell toolchain metadata test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

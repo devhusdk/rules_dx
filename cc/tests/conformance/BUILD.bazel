@@ -23,6 +23,7 @@ cc_test(
     name = "pass_subject_test",
     size = "small",
     srcs = ["pass_test.cc"],
+    linkstatic = True,
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
 )

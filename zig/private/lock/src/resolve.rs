@@ -226,7 +226,7 @@ impl<'a> Zig<'a> {
         let url = &dependency.url;
         let kind = archive_kind(url).ok_or_else(|| {
             failed(format!(
-                "{url} is not supported; supported archives are .tar.gz, .tgz and .zip"
+                "{url} is not supported; supported archives are .tar.gz, .tgz, .tar.xz, .tar.zst and .zip"
             ))
         })?;
         let bytes = self
@@ -287,6 +287,8 @@ const MEMBER_LIMIT: u64 = 8 << 20;
 #[derive(Clone, Copy)]
 enum Kind {
     TarGz,
+    TarXz,
+    TarZst,
     Zip,
 }
 
@@ -294,6 +296,10 @@ fn archive_kind(url: &str) -> Option<Kind> {
     let path = url.split(['?', '#']).next().unwrap_or(url);
     if path.ends_with(".tar.gz") || path.ends_with(".tgz") {
         Some(Kind::TarGz)
+    } else if path.ends_with(".tar.xz") {
+        Some(Kind::TarXz)
+    } else if path.ends_with(".tar.zst") {
+        Some(Kind::TarZst)
     } else if path.ends_with(".zip") {
         Some(Kind::Zip)
     } else {
@@ -325,23 +331,41 @@ impl Members {
     }
 }
 
+fn tar_members(
+    source: impl Read,
+    wanted: &[String],
+    members: &mut Members,
+) -> Result<(), String> {
+    let mut archive = tar::Archive::new(source);
+    for entry in archive.entries().map_err(|error| error.to_string())? {
+        let mut entry = entry.map_err(|error| error.to_string())?;
+        if !entry.header().entry_type().is_file() {
+            continue;
+        }
+        let name = String::from_utf8(entry.path_bytes().into_owned())
+            .map_err(|_| "a member name is not UTF-8".to_owned())?;
+        members.add(&name, wanted, &mut entry)?;
+    }
+    Ok(())
+}
+
 fn read_members(bytes: &[u8], kind: Kind, wanted: &[String]) -> Result<Members, String> {
     let mut members = Members {
         names: BTreeSet::new(),
         files: BTreeMap::new(),
     };
     match kind {
-        Kind::TarGz => {
-            let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(bytes));
-            for entry in archive.entries().map_err(|error| error.to_string())? {
-                let mut entry = entry.map_err(|error| error.to_string())?;
-                if !entry.header().entry_type().is_file() {
-                    continue;
-                }
-                let name = String::from_utf8(entry.path_bytes().into_owned())
-                    .map_err(|_| "a member name is not UTF-8".to_owned())?;
-                members.add(&name, wanted, &mut entry)?;
-            }
+        Kind::TarGz => tar_members(flate2::read::GzDecoder::new(bytes), wanted, &mut members)?,
+        Kind::TarXz => {
+            let mut tar = Vec::new();
+            lzma_rs::xz_decompress(&mut std::io::Cursor::new(bytes), &mut tar)
+                .map_err(|error| error.to_string())?;
+            tar_members(tar.as_slice(), wanted, &mut members)?;
+        }
+        Kind::TarZst => {
+            let decoder = ruzstd::decoding::StreamingDecoder::new(bytes)
+                .map_err(|error| error.to_string())?;
+            tar_members(decoder, wanted, &mut members)?;
         }
         Kind::Zip => {
             let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))

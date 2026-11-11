@@ -1,6 +1,6 @@
 # gazelle:dx_rust_corpus false
 
-load("//cc:defs.bzl", "cc_library", "cc_test")
+load("//cc:defs.bzl", "cc_library")
 load("//cuda/private:defs.bzl", "CUDA_TARGET", "cuda_library")
 load("//cuda/private/toolchain:check.bzl", "cuda_gpu_device")
 
@@ -35,16 +35,5 @@ cuda_library(
     deps = [
         ":gpu_device",
         ":gpu_facts",
-    ],
-)
-
-cc_test(
-    name = "gpu_facts_test",
-    srcs = ["gpu_facts_test.cc"],
-    copts = ["-std=c++17"],
-    target_compatible_with = CUDA_TARGET,
-    deps = [
-        ":gpu_facts",
-        "@googletest//:gtest_main",
     ],
 )

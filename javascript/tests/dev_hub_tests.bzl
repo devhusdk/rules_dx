@@ -1,7 +1,7 @@
 """Unit tests for the dev hub shim generator."""
 
 load("//core:defs.bzl", "expect_contains", "expect_true", "starlark_test")
-load(":dev_hub.bzl", "dev_hub_defs")
+load("//javascript/private:dev_hub.bzl", "dev_hub_defs")
 
 visibility(["//..."])
 

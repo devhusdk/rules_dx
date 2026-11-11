@@ -1,5 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("//cc:defs.bzl", "cc_test")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/modules:cuda.bzl", "CUDA_VERSION")
@@ -456,4 +457,16 @@ real_source_target(
     testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+cc_test(
+    name = "gpu_facts_test",
+    testonly = True,
+    srcs = ["gpu_facts_test.cc"],
+    copts = ["-std=c++17"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [
+        "//cuda/private/testing:gpu_facts",
+        "@googletest//:gtest_main",
+    ],
 )

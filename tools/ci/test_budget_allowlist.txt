@@ -132,7 +132,6 @@ config/BUILD.bazel no-size 4
 config/settings_tests.bzl no-size 4
 core/codegen/BUILD.bazel no-size 4
 core/codegen/codegen_tests.bzl no-size 2
-core/conformance.bzl no-size 2
 core/coreutils/BUILD.bazel no-size 2
 core/fuzz.bzl no-size 1
 core/fuzz_bench_tests.bzl no-size 1
@@ -501,7 +500,6 @@ julia/tests/fixtures/julia-app/cli/BUILD.bazel no-size 2
 julia/tests/fixtures/julia-app/diagnostics/BUILD.bazel no-size 1
 julia/tests/fixtures/julia-app/stats/BUILD.bazel no-size 1
 julia/tests/fixtures/julia-app/third_party/BUILD.bazel no-size 1
-julia/tests/wrapper_tests.bzl no-size 1
 kotlin/private/BUILD.bazel no-size 1
 kotlin/tests/fixtures/adopt-kotlin/greet/BUILD.bazel no-size 1
 kotlin/tests/fixtures/adopt-kotlin/solo/BUILD.bazel no-size 1
@@ -567,7 +565,6 @@ perl/tests/fixtures/perl-app/inventory/BUILD.bazel no-size 2
 perl/tests/fixtures/perl-app/report/BUILD.bazel no-size 1
 perl/tests/negative/BUILD.bazel no-size 3
 perl/tests/runtime/BUILD.bazel no-size 2
-perl/tests/wrapper_tests.bzl no-size 1
 php/private/BUILD.bazel no-size 1
 php/private/coverage/BUILD.bazel no-size 1
 php/private/toolchain/BUILD.bazel no-size 2

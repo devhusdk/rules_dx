@@ -52,6 +52,7 @@ func NewLanguage() language.Language {
 		IsImportSource: func(src string) bool { return strings.HasSuffix(src, ".ex") },
 		QualifiedIDs:   definedModules,
 		IsStdLib:       IsStdLib,
+		External:       "hex",
 		Candidates:     Candidates,
 		UnresolvedHint: UnresolvedHint,
 		Generate:       generateRules,

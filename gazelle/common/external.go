@@ -65,6 +65,16 @@ var externalParsers = map[string]externalParser{
 		DefaultRepo: registryEntry("pub").Hub,
 		Parse:       parsePubLockManifest,
 	},
+	"cpan": {
+		Discover:    registryEntry("cpan").Lock,
+		DefaultRepo: registryEntry("cpan").Hub,
+		Parse:       parseCpanLockManifest,
+	},
+	"hex": {
+		Discover:    registryEntry("hex").Lock,
+		DefaultRepo: registryEntry("hex").Hub,
+		Parse:       parseHexLockManifest,
+	},
 	"npm": {
 		Discover: registryEntry("npm").Manifest,
 		Below:    npmBelow,

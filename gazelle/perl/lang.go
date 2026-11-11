@@ -41,6 +41,7 @@ func NewLanguage() language.Language {
 		ImportAttr:     "srcs",
 		IsImportSource: isSupported,
 		IsStdLib:       IsStdLib,
+		External:       "cpan",
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
 		Generate: func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 			return generateRules(args, kinds, rep, l.excludes)

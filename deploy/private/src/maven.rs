@@ -1662,7 +1662,7 @@ pub(crate) mod tests {
         };
         let java = java
             .split_whitespace()
-            .find(|path| path.ends_with("/bin/java"))
+            .find(|path| path.ends_with("/bin/java") || path.ends_with("/bin/java.exe"))
             .expect("the runtime lists bin/java");
         let java = resolve_runfile(java).expect("java");
         let japicmp = resolve("JAPICMP_JAR");

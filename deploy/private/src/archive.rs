@@ -1351,7 +1351,7 @@ mod tests {
         for (name, mode, data) in entries {
             let mut options = zip::write::SimpleFileOptions::default();
             if let Some(mode) = mode {
-                options = options.unix_permissions(*mode);
+                options = options.unix_permissions(*mode).system(zip::System::Unix);
             }
             writer.start_file(*name, options).expect("start");
             writer.write_all(data).expect("data");

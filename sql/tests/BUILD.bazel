@@ -1,6 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//sql:defs.bzl", "sql_library")
 load("//core:failure_test.bzl", "failure_test")
+load("//sql:defs.bzl", "sql_library")
 load(":library_tests.bzl", "owns_sql_class_test")
 
 sql_library(

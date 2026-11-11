@@ -1,3 +1,4 @@
+# gazelle:ignore
 # gazelle:exclude *.cjs
 # gazelle:exclude *.mjs
 

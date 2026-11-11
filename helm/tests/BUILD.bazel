@@ -1,6 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//helm:defs.bzl", "helm_chart")
 load("//core:failure_test.bzl", "failure_test")
+load("//helm:defs.bzl", "helm_chart")
 load(":library_tests.bzl", "chart_provider_test", "owns_helm_class_test")
 
 helm_chart(
@@ -10,9 +10,9 @@ helm_chart(
         "templates/cm.yaml",
         "values.yaml",
     ],
-    subcharts = ["charts/dep-1.0.0.tgz"],
     namespace = "prod",
     release_name = "demo",
+    subcharts = ["charts/dep-1.0.0.tgz"],
     values = ["values-prod.yaml"],
 )
 

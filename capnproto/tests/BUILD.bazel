@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//capnproto:defs.bzl", "capnp_cc_library", "capnp_codegen_shard", "capnp_java_library", "capnp_rust_library")
 load("//cc:defs.bzl", "cc_test")
 load("//core:failure_test.bzl", "failure_test")

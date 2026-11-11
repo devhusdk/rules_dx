@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rst:defs.bzl", "rst_library")
 load("//core:failure_test.bzl", "failure_test")

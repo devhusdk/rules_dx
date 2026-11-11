@@ -1,7 +1,14 @@
 diff -ruN a/toolchain/args/windows/msvc/BUILD.bazel b/toolchain/args/windows/msvc/BUILD.bazel
---- a/toolchain/args/windows/msvc/BUILD.bazel	2026-11-11 15:26:41.608639526 +0100
-+++ b/toolchain/args/windows/msvc/BUILD.bazel	2026-11-11 15:27:10.454409587 +0100
-@@ -257,6 +257,102 @@
+--- a/toolchain/args/windows/msvc/BUILD.bazel	2026-11-11 15:46:57.199528428 +0100
++++ b/toolchain/args/windows/msvc/BUILD.bazel	2026-11-11 15:47:11.126102905 +0100
+@@ -1,5 +1,6 @@
+ load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
+ load("@rules_cc//cc/toolchains/impl:documented_api.bzl", "cc_args_list")
++load(":search_path.bzl", "search_path")
+ 
+ package(default_visibility = ["//toolchain/args/windows:__pkg__"])
+ 
+@@ -257,6 +258,96 @@
      },
  )
  
@@ -11,10 +18,9 @@ diff -ruN a/toolchain/args/windows/msvc/BUILD.bazel b/toolchain/args/windows/msv
 +    values = {"features": "static_link_msvcrt"},
 +)
 +
-+cc_args(
-+    name = "dynamic_crt_link_lib_env",
-+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
-+    data = [
++search_path(
++    name = "dynamic_crt_link_lib_path",
++    directories = [
 +        "//runtimes/msvc:winsdk_ucrt_lib",
 +        "//runtimes/msvc:winsdk_um_lib",
 +        "//runtimes/msvc:msvc_common_support_libraries",
@@ -22,41 +28,38 @@ diff -ruN a/toolchain/args/windows/msvc/BUILD.bazel b/toolchain/args/windows/msv
 +        "//runtimes/msvc:msvc_dynamic_runtime_libraries",
 +        "//runtimes/cxxstdlib:library_search_directory",
 +    ],
-+    env = {"LIB": "{winsdk_ucrt_lib};{winsdk_um_lib};{common};{com};{crt};{cxxstdlib}"},
-+    format = {
-+        "winsdk_ucrt_lib": "//runtimes/msvc:winsdk_ucrt_lib",
-+        "winsdk_um_lib": "//runtimes/msvc:winsdk_um_lib",
-+        "common": "//runtimes/msvc:msvc_common_support_libraries",
-+        "com": "//runtimes/msvc:msvc_com_support_libraries",
-+        "crt": "//runtimes/msvc:msvc_dynamic_runtime_libraries",
-+        "cxxstdlib": "//runtimes/cxxstdlib:library_search_directory",
-+    },
++)
++
++cc_args(
++    name = "dynamic_crt_link_lib_env",
++    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
++    data = [":dynamic_crt_link_lib_path"],
++    env = {"LIB": "{lib}"},
++    format = {"lib": ":dynamic_crt_link_lib_path"},
++)
++
++search_path(
++    name = "dynamic_crt_hosted_link_lib_path",
++    directories = [
++        "//runtimes/msvc:winsdk_ucrt_lib",
++        "//runtimes/msvc:winsdk_um_lib",
++        "//runtimes/msvc:msvc_common_support_libraries",
++        "//runtimes/msvc:msvc_com_support_libraries",
++        "//runtimes/msvc:msvc_dynamic_runtime_libraries",
++    ],
 +)
 +
 +cc_args(
 +    name = "dynamic_crt_hosted_link_lib_env",
 +    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
-+    data = [
-+        "//runtimes/msvc:winsdk_ucrt_lib",
-+        "//runtimes/msvc:winsdk_um_lib",
-+        "//runtimes/msvc:msvc_common_support_libraries",
-+        "//runtimes/msvc:msvc_com_support_libraries",
-+        "//runtimes/msvc:msvc_dynamic_runtime_libraries",
-+    ],
-+    env = {"LIB": "{winsdk_ucrt_lib};{winsdk_um_lib};{common};{com};{crt}"},
-+    format = {
-+        "winsdk_ucrt_lib": "//runtimes/msvc:winsdk_ucrt_lib",
-+        "winsdk_um_lib": "//runtimes/msvc:winsdk_um_lib",
-+        "common": "//runtimes/msvc:msvc_common_support_libraries",
-+        "com": "//runtimes/msvc:msvc_com_support_libraries",
-+        "crt": "//runtimes/msvc:msvc_dynamic_runtime_libraries",
-+    },
++    data = [":dynamic_crt_hosted_link_lib_path"],
++    env = {"LIB": "{lib}"},
++    format = {"lib": ":dynamic_crt_hosted_link_lib_path"},
 +)
 +
-+cc_args(
-+    name = "static_crt_link_lib_env",
-+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
-+    data = [
++search_path(
++    name = "static_crt_link_lib_path",
++    directories = [
 +        "//runtimes/msvc:winsdk_ucrt_lib",
 +        "//runtimes/msvc:winsdk_um_lib",
 +        "//runtimes/msvc:msvc_common_support_libraries",
@@ -64,35 +67,33 @@ diff -ruN a/toolchain/args/windows/msvc/BUILD.bazel b/toolchain/args/windows/msv
 +        "//runtimes/msvc:msvc_static_runtime_libraries",
 +        "//runtimes/cxxstdlib:library_search_directory",
 +    ],
-+    env = {"LIB": "{winsdk_ucrt_lib};{winsdk_um_lib};{common};{com};{crt};{cxxstdlib}"},
-+    format = {
-+        "winsdk_ucrt_lib": "//runtimes/msvc:winsdk_ucrt_lib",
-+        "winsdk_um_lib": "//runtimes/msvc:winsdk_um_lib",
-+        "common": "//runtimes/msvc:msvc_common_support_libraries",
-+        "com": "//runtimes/msvc:msvc_com_support_libraries",
-+        "crt": "//runtimes/msvc:msvc_static_runtime_libraries",
-+        "cxxstdlib": "//runtimes/cxxstdlib:library_search_directory",
-+    },
 +)
 +
 +cc_args(
-+    name = "static_crt_hosted_link_lib_env",
++    name = "static_crt_link_lib_env",
 +    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
-+    data = [
++    data = [":static_crt_link_lib_path"],
++    env = {"LIB": "{lib}"},
++    format = {"lib": ":static_crt_link_lib_path"},
++)
++
++search_path(
++    name = "static_crt_hosted_link_lib_path",
++    directories = [
 +        "//runtimes/msvc:winsdk_ucrt_lib",
 +        "//runtimes/msvc:winsdk_um_lib",
 +        "//runtimes/msvc:msvc_common_support_libraries",
 +        "//runtimes/msvc:msvc_com_support_libraries",
 +        "//runtimes/msvc:msvc_static_runtime_libraries",
 +    ],
-+    env = {"LIB": "{winsdk_ucrt_lib};{winsdk_um_lib};{common};{com};{crt}"},
-+    format = {
-+        "winsdk_ucrt_lib": "//runtimes/msvc:winsdk_ucrt_lib",
-+        "winsdk_um_lib": "//runtimes/msvc:winsdk_um_lib",
-+        "common": "//runtimes/msvc:msvc_common_support_libraries",
-+        "com": "//runtimes/msvc:msvc_com_support_libraries",
-+        "crt": "//runtimes/msvc:msvc_static_runtime_libraries",
-+    },
++)
++
++cc_args(
++    name = "static_crt_hosted_link_lib_env",
++    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
++    data = [":static_crt_hosted_link_lib_path"],
++    env = {"LIB": "{lib}"},
++    format = {"lib": ":static_crt_hosted_link_lib_path"},
 +)
 +
 +cc_args(
@@ -104,7 +105,7 @@ diff -ruN a/toolchain/args/windows/msvc/BUILD.bazel b/toolchain/args/windows/msv
  cc_args(
      name = "sdk_library_case_overlay",
      actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
-@@ -304,6 +400,11 @@
+@@ -304,6 +395,11 @@
          # consume the C++ standard library.
          "//toolchain:runtimes_stage1_hosted": [],
          "//conditions:default": ["//toolchain/args:clang_cl_static_libcxx_default_lib"],
@@ -116,7 +117,7 @@ diff -ruN a/toolchain/args/windows/msvc/BUILD.bazel b/toolchain/args/windows/msv
      }),
      visibility = ["//visibility:public"],
  )
-@@ -311,7 +412,7 @@
+@@ -311,7 +407,7 @@
  cc_args_list(
      name = "normalized_default_libs_for_runtime",
      args = select({
@@ -125,9 +126,39 @@ diff -ruN a/toolchain/args/windows/msvc/BUILD.bazel b/toolchain/args/windows/msv
          "//conditions:default": [":normalized_default_libs"],
      }),
      visibility = ["//visibility:public"],
+diff -ruN a/toolchain/args/windows/msvc/search_path.bzl b/toolchain/args/windows/msvc/search_path.bzl
+--- a/toolchain/args/windows/msvc/search_path.bzl	1970-01-01 01:00:00.000000000 +0100
++++ b/toolchain/args/windows/msvc/search_path.bzl	2026-11-11 15:47:02.188471263 +0100
+@@ -0,0 +1,26 @@
++"""Joins library directories into one search path value for cc_args format."""
++
++load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
++load("@bazel_skylib//rules/directory:providers.bzl", "DirectoryInfo")
++
++def _directory_path(target):
++    if DirectoryInfo in target:
++        return target[DirectoryInfo].path
++    files = target[DefaultInfo].files.to_list()
++    if len(files) != 1:
++        fail("%s should be either a directory or a single file." % target.label)
++    return files[0].path
++
++def _search_path_impl(ctx):
++    return [
++        DefaultInfo(files = depset(transitive = [d[DefaultInfo].files for d in ctx.attr.directories])),
++        BuildSettingInfo(value = ctx.attr.separator.join([_directory_path(d) for d in ctx.attr.directories])),
++    ]
++
++search_path = rule(
++    implementation = _search_path_impl,
++    attrs = {
++        "directories": attr.label_list(mandatory = True),
++        "separator": attr.string(default = ";"),
++    },
++)
 diff -ruN a/toolchain/bootstrap/declare_toolchains.bzl b/toolchain/bootstrap/declare_toolchains.bzl
---- a/toolchain/bootstrap/declare_toolchains.bzl	2026-11-11 15:26:41.603259016 +0100
-+++ b/toolchain/bootstrap/declare_toolchains.bzl	2026-11-11 15:26:55.986544660 +0100
+--- a/toolchain/bootstrap/declare_toolchains.bzl	2026-11-11 15:46:57.202021852 +0100
++++ b/toolchain/bootstrap/declare_toolchains.bzl	2026-11-11 15:46:57.206313893 +0100
 @@ -295,11 +295,6 @@
              "@rules_cc//cc/toolchains/capabilities:supports_dynamic_linker",
              "@rules_cc//cc/toolchains/capabilities:supports_interface_shared_libraries",
@@ -141,8 +172,8 @@ diff -ruN a/toolchain/bootstrap/declare_toolchains.bzl b/toolchain/bootstrap/dec
      )
  
 diff -ruN a/toolchain/llvm/llvm.bzl b/toolchain/llvm/llvm.bzl
---- a/toolchain/llvm/llvm.bzl	2026-11-11 15:26:41.597457048 +0100
-+++ b/toolchain/llvm/llvm.bzl	2026-11-11 15:26:55.986488716 +0100
+--- a/toolchain/llvm/llvm.bzl	2026-11-11 15:46:57.204223236 +0100
++++ b/toolchain/llvm/llvm.bzl	2026-11-11 15:46:57.206350351 +0100
 @@ -325,11 +325,6 @@
              "@rules_cc//cc/toolchains/capabilities:supports_dynamic_linker",
              "@rules_cc//cc/toolchains/capabilities:supports_interface_shared_libraries",

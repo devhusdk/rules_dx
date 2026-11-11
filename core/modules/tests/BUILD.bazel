@@ -4,10 +4,11 @@ load(":cuda_redistrib_tests.bzl", "cuda_redistrib_tests")
 
 package(default_visibility = ["//visibility:public"])
 
-cuda_redistrib_tests(name = "cuda_redistrib")
+cuda_redistrib_tests(name = "cuda_redistrib", size = "small")
 
 rust_test(
     name = "loaders_test",
+    size = "small",
     srcs = ["loaders_test.rs"],
     aliases = aliases(
         package_name = "core/modules_tests",
@@ -38,6 +39,7 @@ rust_test(
 
 rust_test(
     name = "families_test",
+    size = "small",
     srcs = ["families_test.rs"],
     aliases = aliases(
         package_name = "core/modules_tests",

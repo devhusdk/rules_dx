@@ -32,7 +32,7 @@ apple/private/provisioning/BUILD.bazel no-size 23
 apple/private/provisioning/metadata_tests.bzl no-size 1
 apple/private/signing/BUILD.bazel no-size 3
 apple/private/signing/signing_tests.bzl no-size 1
-apple/tests/BUILD.bazel no-size 7
+apple/tests/BUILD.bazel no-size 4
 apple/tests/fixtures/macos_bundle/BUILD.bazel no-size 1
 apple/tests/fixtures/macos_ledger/BUILD.bazel no-size 1
 apple/tests/fixtures/shared_core/BUILD.bazel no-size 1
@@ -140,16 +140,16 @@ core/conformance.bzl no-size 2
 core/coreutils/BUILD.bazel no-size 2
 core/fuzz.bzl no-size 1
 core/fuzz_bench_tests.bzl no-size 1
-core/modules/BUILD.bazel no-size 9
+core/modules/BUILD.bazel no-size 7
 core/modules/versions_tests.bzl no-size 1
-core/quality/BUILD.bazel no-size 35
+core/quality/BUILD.bazel no-size 34
 core/quality/adapter/BUILD.bazel no-size 1
 core/quality/artifacts/BUILD.bazel no-size 4
 core/quality/artifacts/acquire_test/BUILD.bazel no-size 1
-core/quality/artifacts/tests/hub/BUILD.bazel no-size 1
-core/quality/artifacts/tests/hub/selection.bzl no-size 2
 core/quality/artifacts/metadata_tests.bzl no-size 1
 core/quality/artifacts/platforms_tests.bzl no-size 1
+core/quality/artifacts/tests/hub/BUILD.bazel no-size 1
+core/quality/artifacts/tests/hub/selection.bzl no-size 2
 core/quality/artifacts/update_test/BUILD.bazel no-size 1
 core/quality/capture/BUILD.bazel no-size 1
 core/quality/compile_check_tests.bzl no-size 1
@@ -179,12 +179,12 @@ core/quality/testdata/coverage_sources/BUILD.bazel no-size 7
 core/quality/testdata/real_aspect_tests.bzl no-size 4
 core/quality/testdata/real_result_cases.bzl no-size 1
 core/quality/testdata/real_typecheck_tests.bzl no-size 1
-core/quality/tests/testdata/scalafix_aux/BUILD.bazel no-size 2
-core/quality/tests/testdata/spotbugs_owned/BUILD.bazel no-size 4
 core/quality/testdata/upstream_ownership.bzl no-size 1
 core/quality/tests/BUILD.bazel no-size 3
 core/quality/tests/fixtures/prose-docs/BUILD.bazel no-size 1
 core/quality/tests/json_schema/BUILD.bazel no-size 2
+core/quality/tests/testdata/scalafix_aux/BUILD.bazel no-size 2
+core/quality/tests/testdata/spotbugs_owned/BUILD.bazel no-size 4
 core/quality/tiers/BUILD.bazel no-size 1
 core/quality/tools/jvm/BUILD.bazel no-size 1
 core/quality/tools/jvm/javac_check/BUILD.bazel no-size 1
@@ -213,7 +213,6 @@ core/tests/platform_tests.bzl no-size 1
 core/tests/repo_tests.bzl no-size 1
 core/tests/seven_zip_tests.bzl no-size 1
 core/tests/thin_compare.bzl no-size 4
-core/tests/toolchain_tests.bzl no-size 1
 core/tests/warnings_tests.bzl no-size 4
 core/tests/wrapper_forward_fixture.bzl no-size 4
 core/tests/wrapper_tests.bzl no-size 5
@@ -279,7 +278,6 @@ deploy/private/luarocks_tests.bzl no-size 1
 deploy/private/maven_tests.bzl no-size 1
 deploy/private/native_runtime_tests.bzl no-size 1
 deploy/private/npm_tests.bzl no-size 1
-deploy/private/nuget_tests.bzl no-size 1
 deploy/private/oci_tests.bzl no-size 1
 deploy/private/octopus_tests.bzl no-size 1
 deploy/private/offline/BUILD.bazel no-size 3
@@ -392,7 +390,7 @@ gazelle/flatbuffers/BUILD.bazel no-size 2
 gazelle/fsharp/BUILD.bazel no-size 2
 gazelle/go/BUILD.bazel no-size 2
 gazelle/haskell/BUILD.bazel no-size 2
-gazelle/java/BUILD.bazel no-size 3
+gazelle/java/BUILD.bazel no-size 2
 gazelle/javascript/BUILD.bazel no-size 2
 gazelle/julia/BUILD.bazel no-size 3
 gazelle/kotlin/BUILD.bazel no-size 3
@@ -411,7 +409,7 @@ gazelle/protobuf/tests/roundtrip/grpc_app/BUILD.bazel no-size 1
 gazelle/python/BUILD.bazel no-size 2
 gazelle/ruby/BUILD.bazel no-size 3
 gazelle/rust/BUILD.bazel no-size 4
-gazelle/scala/BUILD.bazel no-size 3
+gazelle/scala/BUILD.bazel no-size 2
 gazelle/svelte/BUILD.bazel no-size 2
 gazelle/swift/BUILD.bazel no-size 2
 gazelle/thrift/BUILD.bazel no-size 2
@@ -478,8 +476,7 @@ java/tests/fixtures/java-app/diagnostics/BUILD.bazel no-size 2
 java/tests/fixtures/junit/BUILD.bazel no-size 4
 java/tests/fixtures/no_srcs/BUILD.bazel no-size 3
 java/tests/fixtures/testonly_binary/BUILD.bazel no-size 1
-javascript/private/BUILD.bazel no-size 2
-javascript/tests/dev_hub_tests.bzl no-size 1
+javascript/private/BUILD.bazel no-size 1
 javascript/private/ide/BUILD.bazel no-size 1
 javascript/private/quality/launcher/BUILD.bazel no-size 1
 javascript/private/wrapper_tests.bzl no-size 1
@@ -579,7 +576,7 @@ php/private/coverage/BUILD.bazel no-size 1
 php/private/toolchain/BUILD.bazel no-size 2
 php/private/toolchain/metadata_tests.bzl no-size 1
 php/tests/bench/BUILD.bazel no-size 2
-php/tests/fixtures/composer/BUILD.bazel no-size 3
+php/tests/fixtures/composer/BUILD.bazel no-size 2
 php/tests/fixtures/hello/BUILD.bazel no-size 4
 php/tests/negative/BUILD.bazel no-size 3
 powershell/private/BUILD.bazel no-size 1
@@ -622,7 +619,7 @@ qt/tests/fixtures/qt-tasks/app/BUILD.bazel no-size 4
 qt/tests/rules_tests.bzl no-size 20
 qt/tests/tags/BUILD.bazel no-size 3
 rego/private/launcher/BUILD.bazel no-size 1
-rego/tests/BUILD.bazel no-size 5
+rego/tests/BUILD.bazel no-size 4
 rst/tests/BUILD.bazel no-size 1
 ruby/private/BUILD.bazel no-size 2
 ruby/private/coverage/extensions.bzl no-size 1

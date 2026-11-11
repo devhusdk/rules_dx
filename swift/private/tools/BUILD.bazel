@@ -39,6 +39,7 @@ native_binary(
     name = "swift_format_macos",
     src = "@dx_swift_format_macos_arm64//:bin/swift-format",
     out = "swift_format_macos_bin",
+    target_compatible_with = ["@platforms//cpu:aarch64", "@platforms//os:macos"],
 )
 
 alias(

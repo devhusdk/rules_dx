@@ -350,8 +350,8 @@ def typescript_binary_forward_kwargs(data, kwargs):
         run_kwargs["data"] = list(data)
     return dx_binary_forward_kwargs(run_kwargs)
 
-def typescript_binary(name, *, srcs = None, main = None, deps = None, data = None, tsconfig = None, transpiler = None, declaration = None, visibility = None, **kwargs):
-    """Minimal wrapper over js_binary for TypeScript sources: compiles srcs with a private ts_project and runs the compiled main. main defaults to the only src."""
+def typescript_binary(name, *, srcs = None, main = None, deps = None, data = None, tsconfig = None, transpiler = None, declaration = None, size = "small", visibility = None, **kwargs):
+    """Minimal wrapper over js_binary for TypeScript sources: compiles srcs with a private ts_project and runs the compiled main. main defaults to the only src. size is the size of the typecheck test."""
     kwargs = dx_without_warnings_attr(kwargs)
     srcs = list(srcs or [])
     rejection = typescript_binary_kwargs_rejection(kwargs)
@@ -364,7 +364,7 @@ def typescript_binary(name, *, srcs = None, main = None, deps = None, data = Non
     if rejection != None:
         fail(rejection)
     entry = typescript_binary_main(srcs, main)
-    _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, None, kwargs, testonly = kwargs.get("testonly", None))
+    _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, None, kwargs, testonly = kwargs.get("testonly", None), size = size)
     upstream_kwargs = typescript_binary_upstream_kwargs(name, entry, deps, data, kwargs)
     _js_binary(
         name = name + "_upstream",
@@ -384,8 +384,8 @@ def typescript_test_rejection(runner, node_modules, main, kwargs):
     """Returns the rejection for bad typescript_test arguments, or None."""
     return node_test_runner_rejection("typescript_test", runner, node_modules, main, kwargs)
 
-def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs, testonly = True):
-    """Declares the private ts_project for one TypeScript test or binary."""
+def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs, testonly = True, size = "small"):
+    """Declares the private ts_project for one TypeScript test or binary; size is the size of its typecheck test."""
     ts_kwargs = {}
     if deps != None:
         ts_kwargs["deps"] = list(deps)
@@ -419,7 +419,7 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
             targets = [":" + name + "_typecheck"],
             tags = upstream_tags(user_tags),
             testonly = testonly,
-            size = "small",
+            size = size,
         )
 
 def typescript_test(name, *, srcs = None, main = None, runner = "jest", node_modules = None, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):

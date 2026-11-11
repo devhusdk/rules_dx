@@ -78,6 +78,8 @@ def java_test(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_test. test_class is inferred from the name and srcs when unset; the dx test runner runs unless use_testrunner = False. -Xlint:all is on; warnings are errors unless warnings_as_errors is False."""
     upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_warnings_as_errors(kwargs), "test_class")
     main_class = java_test_main_class(name, srcs, native.package_name(), kwargs, DX_JVM_TEST_RUNNER)
+    if kwargs.get("use_testrunner") == False and main_class != None:
+        upstream_kwargs = dict(upstream_kwargs, main_class = main_class)
     dx_wrap_test(
         name,
         _java_test,

@@ -50,10 +50,11 @@ def _checks():
 """),
     ] + hub_checks(full + "\n" + minimal, "//t:type", 2, forbidden = ["@other"])
 
-def toolchain_tests(name):
+def toolchain_tests(name, size = "small"):
     """Declares the shared toolchain factory test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

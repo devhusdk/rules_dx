@@ -3,7 +3,7 @@ load(":dev_hub_tests.bzl", "dev_hub_tests")
 
 package(default_visibility = ["//visibility:private"])
 
-dev_hub_tests(name = "dev_hub_test")
+dev_hub_tests(name = "dev_hub_test", size = "small")
 
 real_source_target(
     name = "corpus_starlark",

@@ -12,6 +12,7 @@ java_binary(
 
 rust_test(
     name = "compile_test",
+    size = "small",
     srcs = ["//tools/testing:gazelle_compile_test.rs"],
     data = [
         "//gazelle/java:testdata/compile_external/WORKSPACE",

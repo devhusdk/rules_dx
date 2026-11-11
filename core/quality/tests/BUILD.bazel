@@ -15,6 +15,7 @@ _LINUX_X86_64 = [
 
 rust_test(
     name = "qt_adapter_test",
+    size = "small",
     testonly = True,
     srcs = ["qt_adapter_test.rs"],
     aliases = aliases(

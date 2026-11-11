@@ -1,41 +1,48 @@
 diff -ruN a/http_pkg_archive.bzl b/http_pkg_archive.bzl
 --- a/http_pkg_archive.bzl
 +++ b/http_pkg_archive.bzl
-@@ -1,6 +1,33 @@
+@@ -1,6 +1,40 @@
  load("@bazel_lib//lib:repo_utils.bzl", "repo_utils")
  load("@bazel_tools//tools/build_defs/repo:utils.bzl", "get_auth")
  
++def _flatten_framework(rctx, fw):
++    current = fw.get_child("Versions", "Current")
++    if not current.exists or current.realpath == current:
++        return
++    real = current.realpath
++    for child in fw.readdir():
++        if child.basename != "Versions" and child.realpath != child:
++            rctx.delete(child)
++    for child in real.readdir():
++        rctx.rename(child, fw.get_child(child.basename))
++    rctx.delete(fw.get_child("Versions"))
++
 +def _resolve_file_symlinks(rctx, root):
 +    pending = [rctx.path(root)]
-+    current_versions = []
 +    for _ in range(1000000):
 +        if not pending:
 +            break
-+        for entry in pending.pop().readdir():
++        directory = pending.pop()
++        if directory.basename.endswith(".framework"):
++            _flatten_framework(rctx, directory)
++        for entry in directory.readdir():
 +            if not entry.exists:
 +                rctx.delete(entry)
 +                continue
 +            real = entry.realpath
 +            if real != entry:
 +                if real.is_dir:
-+                    if entry.basename == "Current" and entry.dirname.basename == "Versions":
-+                        current_versions.append(entry)
-+                    elif entry.dirname.get_child("Versions", "Current").exists:
-+                        rctx.delete(entry)
-+                        rctx.symlink(real, entry)
 +                    continue
 +                content = rctx.read(real)
 +                rctx.delete(entry)
 +                rctx.file(entry, content)
 +            elif entry.is_dir:
 +                pending.append(entry)
-+    for entry in current_versions:
-+        rctx.delete(entry)
 +
  def _http_pkg_archive_impl(rctx):
      rctx.download(
          url = rctx.attr.urls,
-@@ -34,6 +61,8 @@
+@@ -34,6 +68,8 @@
  
      rctx.delete(".downloaded.pkg")
  

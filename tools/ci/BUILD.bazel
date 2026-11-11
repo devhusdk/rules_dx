@@ -1581,14 +1581,14 @@ rust_test(
     data = [
         "lock_registry_allowlist.txt",
         "@dx_test_tags_sources//:files.json",
-        "@dx_test_tags_sources//:lock_scan.cjson",
+        "@dx_test_tags_sources//:lock_scan.json",
         "@dx_test_tags_sources//:paths.json",
         "@dx_test_tags_sources//:rust.json",
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
-        "DX_LOCK_SCAN_JSON": "$(rlocationpath @dx_test_tags_sources//:lock_scan.cjson)",
+        "DX_LOCK_SCAN_JSON": "$(rlocationpath @dx_test_tags_sources//:lock_scan.json)",
         "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:paths.json)",
         "DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:rust.json)",
         "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",

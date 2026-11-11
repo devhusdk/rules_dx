@@ -1,4 +1,6 @@
+load("//core/modules:versions.bzl", "RUBY_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":toolchain_tests.bzl", "ruby_crlf_tests", "ruby_metadata_tests", "ruby_toolchain_contract_tests")
 load(":wrapper_tests.bzl", "ruby_wrapper_contract_tests")
 
@@ -24,6 +26,14 @@ ruby_crlf_tests(
 ruby_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     size = "small",
+)
+
+ide_acquisition_test(
+    name = "ide_acquisition_test",
+    size = "small",
+    binary = "@ruby//:ruby",
+    expected = RUBY_VERSION,
+    version_args = ["--version"],
 )
 
 real_source_target(

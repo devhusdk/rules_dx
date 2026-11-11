@@ -1,8 +1,10 @@
 # gazelle:ignore
-load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_test")
+load("//core/modules:python.bzl", "PYTHON_VERSION")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//python:defs.bzl", "python_test")
 load("//rust:defs.bzl", "rust_test")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":runtime_tests.bzl", "python_runtime_unit_tests")
 load(":soabi_tests.bzl", "soabi_test")
 
@@ -58,6 +60,14 @@ rust_test(
     data = ["//cli/cli:dx"],
     env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},
     deps = ["//tools/testing:dx_testing"],
+)
+
+ide_acquisition_test(
+    name = "ide_acquisition_test",
+    size = "small",
+    binary = "//python/private/ide:python_tool",
+    expected = PYTHON_VERSION,
+    version_args = ["--version"],
 )
 
 real_source_target(

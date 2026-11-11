@@ -537,12 +537,10 @@ php/tests/bench/BUILD.bazel no-size 2
 php/tests/fixtures/hello/BUILD.bazel no-size 1
 php/tests/negative/BUILD.bazel no-size 3
 powershell/private/BUILD.bazel no-size 1
-powershell/private/ide/BUILD.bazel no-size 1
 powershell/tests/fixtures/adopt-powershell/greet/BUILD.bazel no-size 1
 powershell/tests/fixtures/hello/BUILD.bazel no-size 1
 powershell/tests/fixtures/pester/BUILD.bazel no-size 2
 python/private/BUILD.bazel no-size 1
-python/private/ide/BUILD.bazel no-size 1
 python/tests/BUILD.bazel no-size 4
 python/tests/analysis/BUILD.bazel no-size 4
 python/tests/fixtures/adopt-python/app/BUILD.bazel no-size 1
@@ -574,7 +572,6 @@ rego/private/launcher/BUILD.bazel no-size 1
 rego/tests/BUILD.bazel no-size 4
 rst/tests/BUILD.bazel no-size 1
 ruby/private/coverage/extensions.bzl no-size 1
-ruby/private/ide/BUILD.bazel no-size 1
 ruby/tests/fixtures/adopt-ruby/solo/BUILD.bazel no-size 1
 ruby/tests/fixtures/bench/BUILD.bazel no-size 2
 ruby/tests/fixtures/hello/BUILD.bazel no-size 5

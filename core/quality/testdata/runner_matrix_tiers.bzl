@@ -120,7 +120,7 @@ def _lint_cases(tier):
             "//dart/private/tools:dart",
             "//core/quality/tiers/dart:%s.yaml" % tier,
             toolfile_tools = ["dart", "dart"],
-            toolfile_srcs = ["//core/quality/tiers/dart:%s.yaml" % tier, ":dart_cfg/package_config.json"],
+            toolfile_srcs = ["//core/quality/tiers/dart:%s.yaml" % tier, "//core/quality/tests/testdata:dart_cfg/package_config.json"],
             toolfile_rels = ["analysis_options.yaml", ".dart_tool/package_config.json"],
             windows_arm64 = False,
         ),

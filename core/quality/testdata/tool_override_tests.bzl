@@ -1130,7 +1130,7 @@ def tool_override_suite(name):
     dart_config_deps_test(
         name = "dart_config_deps",
         size = "small",
-        target_under_test = ":dart_lints_config",
+        target_under_test = "//core/quality/tests/testdata:dart_lints_config",
     )
     tests.append(":dart_config_deps")
     native.test_suite(name = name, tests = tests)

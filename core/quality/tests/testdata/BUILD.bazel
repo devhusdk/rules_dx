@@ -1,0 +1,22 @@
+load("//dart:defs.bzl", "dart_config")
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files(
+    [
+        "dart_cfg/analysis_options.yaml",
+        "dart_cfg/bad_analysis_options.yaml",
+        "dart_cfg/lints/lib/recommended.yaml",
+        "dart_cfg/lints_options.yaml",
+        "dart_cfg/lints_package_config.json",
+        "dart_cfg/package_config.json",
+    ],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+dart_config(
+    name = "dart_lints_config",
+    src = "dart_cfg/lints_options.yaml",
+    visibility = ["//core/quality/testdata:__pkg__"],
+    deps = ["@dx_dart_deps//:lints"],
+)

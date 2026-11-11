@@ -1,10 +1,4 @@
 dev-repo custom_gcc_x86_64 cc/private/toolchains/external/BUILD.bazel
-dev-repo dx_dart_deps core/quality/testdata/BUILD.bazel
-dev-repo maven core/quality/testdata/runner_matrix_scala_dotnet.bzl
-dev-repo maven core/quality/testdata/scalafix_aux/BUILD.bazel
-dev-repo maven core/quality/testdata/spotbugs_owned/BUILD.bazel
-dev-repo maven gazelle/java/BUILD.bazel
-dev-repo maven gazelle/scala/BUILD.bazel
 fixture android
 fixture ansible
 fixture api_spec

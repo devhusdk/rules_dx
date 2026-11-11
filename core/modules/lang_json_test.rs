@@ -614,7 +614,7 @@ fn gazelle_lock_registry_is_generated_from_every_lang_json() {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         for hub in manifest["setup"]["hubs"].as_array().into_iter().flatten() {
-            if hub["imports"] != "provides" || hub["lock"].is_null() {
+            if hub["lock"].is_null() {
                 continue;
             }
             let ecosystem = hub["ecosystem"].as_str().expect("ecosystem").to_owned();
@@ -625,6 +625,7 @@ fn gazelle_lock_registry_is_generated_from_every_lang_json() {
                     "manifest": hub["manifest"],
                     "lock": hub["lock"],
                     "hub": hub["hub"],
+                    "imports": hub["imports"],
                 }),
             );
         }

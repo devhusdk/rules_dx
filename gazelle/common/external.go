@@ -47,29 +47,29 @@ type externalManifest interface {
 
 var externalParsers = map[string]externalParser{
 	"go": {
-		Discover: "go.mod",
+		Discover: registryEntry("go").Manifest,
 		Parse:    parseGoModManifest,
 	},
 	"maven": {
-		Discover:    "maven_install.json",
-		DefaultRepo: "maven",
+		Discover:    registryEntry("maven").Lock,
+		DefaultRepo: registryEntry("maven").Hub,
 		Parse:       parseMavenManifest,
 	},
 	"python": {
-		Discover:    "uv.lock",
-		DefaultRepo: "pypi",
+		Discover:    registryEntry("uv").Lock,
+		DefaultRepo: registryEntry("uv").Hub,
 		Parse:       parseUVLockManifest,
 	},
 	"pub": {
-		Discover:    "pubspec.lock",
-		DefaultRepo: "pub_deps",
+		Discover:    registryEntry("pub").Lock,
+		DefaultRepo: registryEntry("pub").Hub,
 		Parse:       parsePubLockManifest,
 	},
 	"npm": {
-		Discover: "package.json",
+		Discover: registryEntry("npm").Manifest,
 		Below:    npmBelow,
-		Place:     placeNpmManifest,
-		Parse:     parseNpmManifest,
+		Place:    placeNpmManifest,
+		Parse:    parseNpmManifest,
 	},
 }
 

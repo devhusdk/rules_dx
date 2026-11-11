@@ -19,15 +19,40 @@ type lockRegistryEntry struct {
 	Manifest  string `json:"manifest"`
 	Lock      string `json:"lock"`
 	Hub       string `json:"hub"`
+	Imports   string `json:"imports"`
+}
+
+var registryEntries = func() map[string]lockRegistryEntry {
+	var list []lockRegistryEntry
+	if err := json.Unmarshal(lockRegistryJSON, &list); err != nil {
+		panic("lock_registry.json: " + err.Error())
+	}
+	entries := map[string]lockRegistryEntry{}
+	for _, e := range list {
+		entries[e.Ecosystem] = e
+	}
+	return entries
+}()
+
+// registryEntry returns the registry entry of an ecosystem.
+func registryEntry(ecosystem string) lockRegistryEntry {
+	e, ok := registryEntries[ecosystem]
+	if !ok {
+		panic("lock_registry.json: no entry for " + ecosystem)
+	}
+	return e
 }
 
 // lockRegistry lists every ecosystem whose imports resolve through the
 // provides of its lock.
 var lockRegistry = func() []lockRegistryEntry {
 	var entries []lockRegistryEntry
-	if err := json.Unmarshal(lockRegistryJSON, &entries); err != nil {
-		panic("lock_registry.json: " + err.Error())
+	for _, e := range registryEntries {
+		if e.Imports == "provides" {
+			entries = append(entries, e)
+		}
 	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Ecosystem < entries[j].Ecosystem })
 	return entries
 }()
 

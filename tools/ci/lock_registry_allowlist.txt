@@ -400,7 +400,6 @@ name elixir/private/toolchain/extensions.bzl mix.lock
 name elixir/private/toolchain/repos.bzl mix.lock
 name erlang/lang.json mix.exs
 name erlang/lang.json mix.lock
-name fortran/lang.json fpm.toml
 name fsharp/lang.json paket.dependencies
 name fsharp/lang.json paket.lock
 name gazelle/common/external.go dub.json
@@ -478,7 +477,6 @@ parser fortran/private/tools/fpm_lock.bzl
 parser lua/luarocks/lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
 registry cpan
-registry fpm
 registry go
 registry hex
 registry julia

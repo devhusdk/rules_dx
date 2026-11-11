@@ -276,7 +276,7 @@ pub struct LuaRocksLock<'a> {
     pub line: usize,
 }
 
-/// One `fortran.fpm` tag of the rules_dx Fortran extension.
+/// One `fpm.lock` tag of the rules_dx Fortran extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FpmLock<'a> {
     pub name: &'a str,
@@ -1085,11 +1085,11 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `fortran.fpm` tag of the rules_dx Fortran extension in source order.
+    /// Every `fpm.lock` tag of the rules_dx Fortran extension in source order.
     pub fn fpm_locks(&self) -> Result<Vec<FpmLock<'_>>, ModuleError> {
-        const TAG: &str = "fortran.fpm";
-        let own = self.tags_of("//fortran:extensions.bzl".to_owned(), "fortran", "fpm");
-        self.tags(RUBY_MODULE, "fortran:extensions.bzl", "fortran", "fpm")
+        const TAG: &str = "fpm.lock";
+        let own = self.tags_of("//fortran:extensions.bzl".to_owned(), "fpm", "lock");
+        self.tags(RUBY_MODULE, "fortran:extensions.bzl", "fpm", "lock")
             .chain(own)
             .map(|call| {
                 Ok(FpmLock {

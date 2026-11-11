@@ -1140,6 +1140,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "fpm",
+          "extension": "@rules_dx//fortran:extensions.bzl",
+          "hub": "fpm",
+          "imports": "name",
+          "lock": "fpm.lock.toml",
+          "manifest": "fpm.toml",
+          "resolver": null,
+          "state": null,
+          "tag": "lock"
+        }
+      ]
+    },
     "title": "Fortran",
     "tools": [
       "ffmt",

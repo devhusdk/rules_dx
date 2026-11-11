@@ -5,7 +5,7 @@ use dx_error::DxError;
 
 use crate::DepcheckError;
 use crate::consistency::reported;
-use dx_ecosystems::Language;
+use dx_ecosystems::{Ecosystem, Language};
 
 fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
     let mut out = Vec::new();
@@ -203,7 +203,6 @@ fn skip_names() -> BTreeSet<&'static str> {
         "mix.lock",
         "rebar.lock",
         "fpm.toml",
-        "fpm.lock",
         "dub.json",
         "dub.sdl",
         "dub.selections.json",
@@ -215,6 +214,7 @@ fn skip_names() -> BTreeSet<&'static str> {
         "opam.locked",
     ]
     .into_iter()
+    .chain(Ecosystem::Fpm.lockfiles().iter().map(String::as_str))
     .collect()
 }
 

@@ -34,7 +34,6 @@ pub const PROJECT_TOML: &str = "Project.toml";
 pub const JULIA_MANIFEST: &str = "Manifest.toml";
 
 pub const JULIA_BAZEL_MANIFEST: &str = "Manifest.bazel.json";
-pub const FPM_LOCK: &str = "fpm.lock";
 
 pub const FPM_MANIFEST: &str = "fpm.toml";
 

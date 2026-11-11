@@ -465,7 +465,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `ruby.bundle_fetch` | `name`, default `bundle` | `gemfile` | `gemfile_lock` |
 | `composer.lock` of `@rules_dx//php:extensions.bzl` | `name` | `composer.json` beside the lock | `lock` |
 | `dub.lock` of `@rules_dx//d:extensions.bzl` | `name` | `dub.json` beside `lock` | `lock` |
-| `fortran.fpm` of `@rules_dx//fortran:extensions.bzl` | `name` | `fpm.toml` beside the lock | `lock` |
+| `fpm.lock` of `@rules_dx//fortran:extensions.bzl` | `name` | `fpm.toml` beside the lock | `lock` |
 | `luarocks.lock` of `@rules_dx//lua:extensions.bzl` | `name` | `lock` | `digests` |
 | `zig_deps.lock` of `@rules_dx//zig:extensions.bzl` | `name` | `build.zig.zon` beside `lock` | `digests` |
 | `cpan.install` of `@rules_perl//perl/cpan:extensions.bzl` | `name` | `cpanfile` beside the lock | `cpanfile.snapshot` and the `lock` JSON |
@@ -561,16 +561,16 @@ dub.lock(
 ### fpm
 
 ```starlark
-fortran = use_extension("@rules_dx//fortran:extensions.bzl", "fortran")
-fortran.fpm(
+fpm = use_extension("@rules_dx//fortran:extensions.bzl", "fpm")
+fpm.lock(
     name = "fpm_deps",
-    lock = "//f:fpm.lock",
+    lock = "//f:fpm.lock.toml",
 )
 ```
 
-- `fpm.toml` must sit beside `fpm.lock`.
-- An fpm set: `dx update` runs the `fpm_lock` target next to `fpm.lock`, which re-hashes each package archive and rewrites its `sha256`; `<set>:<package>` re-hashes one. It does not move versions, and `dx update --outdated` checks no registry. Without the target it refuses.
-- `dx security` and `dx license` list the packages of `fpm.lock`. OSV and the GitHub Advisory Database have no fpm ecosystem, so there is no advisory source.
+- `fpm.toml` must sit beside `fpm.lock.toml`.
+- An fpm set: `dx update` runs the `fpm_lock` target next to `fpm.lock.toml`, which re-hashes each package archive and rewrites its `sha256`; `<set>:<package>` re-hashes one. It does not move versions, and `dx update --outdated` checks no registry. Without the target it refuses.
+- `dx security` and `dx license` list the packages of `fpm.lock.toml`. OSV and the GitHub Advisory Database have no fpm ecosystem, so there is no advisory source.
 
 ### zig
 

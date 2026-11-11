@@ -38,18 +38,26 @@ def _fortran_impl(mctx):
         )
     flang_rt_repo(name = FLANG_RT_NAME, build_file = Label("//fortran/private/toolchain:flang_rt.BUILD.bazel"))
     hub_repo(name = HUB_NAME, files = hub_build())
-    for module in mctx.modules:
-        for tag in module.tags.fpm:
-            _declare_fpm(mctx, tag)
     return mctx.extension_metadata(reproducible = True)
 
 
 fortran = module_extension(
     implementation = _fortran_impl,
     doc = "Creates rules_fortran, the pinned Flang compilers, flang-rt and the toolchain hub.",
+)
+
+def _fpm_impl(mctx):
+    for module in mctx.modules:
+        for tag in module.tags.lock:
+            _declare_fpm(mctx, tag)
+    return mctx.extension_metadata(reproducible = True)
+
+fpm = module_extension(
+    implementation = _fpm_impl,
+    doc = "Declares a pinned archive per package of an fpm.lock and a hub repo with one fortran_library alias per package.",
     tag_classes = {
-        "fpm": tag_class(
-            doc = "Declares a pinned archive per package of an fpm.lock and a hub repo with one fortran_library alias per package.",
+        "lock": tag_class(
+            doc = "An fpm.lock to read.",
             attrs = {
                 "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The fpm.lock to read."),
                 "name": attr.string(mandatory = True, doc = "Hub repository name; package repos are named <name>_<package>."),

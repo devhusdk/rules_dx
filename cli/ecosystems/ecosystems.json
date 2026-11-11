@@ -355,7 +355,7 @@
       "audit": true,
       "advisory_family": null,
       "uses_repository": false,
-      "lockfiles": ["fpm.lock"],
+      "lockfiles": ["fpm.lock.toml"],
       "osv_source": null,
       "license_audit": false,
       "lock_required": true,

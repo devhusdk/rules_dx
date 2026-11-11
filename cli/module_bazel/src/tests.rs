@@ -1203,7 +1203,7 @@ fn composer_locks_follow_the_rules_dx_extension() {
 #[test]
 fn fpm_locks_follow_the_rules_dx_extension() {
     let file = parse(
-        "fortran = use_extension(\"@rules_dx//fortran:extensions.bzl\", \"fortran\")\nfortran.fpm(name = \"fpm_deps\", lock = \"//f:fpm.lock\")\nother = use_extension(\"//f:repos.bzl\", \"fortran\")\nother.fpm(name = \"x\", lock = \"//x:fpm.lock\")\n",
+        "fpm = use_extension(\"@rules_dx//fortran:extensions.bzl\", \"fpm\")\nfpm.lock(name = \"fpm_deps\", lock = \"//f:fpm.lock\")\nother = use_extension(\"//f:repos.bzl\", \"fpm\")\nother.lock(name = \"x\", lock = \"//x:fpm.lock\")\n",
     );
     let found: Vec<_> = file
         .fpm_locks()

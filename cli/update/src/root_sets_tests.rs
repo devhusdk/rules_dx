@@ -57,6 +57,7 @@ const EXPECTED_NAMES: &[&str] = &[
     "ocaml_fuzz",
     "perl_app_cpan",
     "rules_android_maven",
+    "swiftpkg",
     "zig_zig.tests.fixtures.zig-deps",
 ];
 

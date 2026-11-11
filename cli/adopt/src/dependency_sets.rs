@@ -512,21 +512,13 @@ pub fn discover(
                 ],
             )?);
         }
-        for (index, swift) in module
-            .swift_packages()
-            .map_err(hub)?
-            .into_iter()
-            .enumerate()
-        {
-            let name = match index {
-                0 => "swiftpm".to_owned(),
-                _ => format!("swiftpm-{}", index + 1),
-            };
+        for swift in module.swiftpm_locks().map_err(hub)? {
+            let lock = path(swift.lock)?;
             sets.push(hub_set(
-                &name,
+                swift.name,
                 Ecosystem::SwiftPm,
-                vec![path(swift.swift)?],
-                vec![path(swift.resolved)?],
+                vec![beside(&lock, "Package.swift")],
+                vec![beside(&lock, PACKAGE_RESOLVED), lock],
             )?);
         }
         let mut groups = BTreeSet::new();

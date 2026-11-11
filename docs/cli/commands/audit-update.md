@@ -595,7 +595,7 @@ An opam set is discovered from a `<name>.opam` file with a `<name>.opam.locked` 
 
 ### swiftpm
 
-A swiftpm set comes from a `from_package` tag of `swift_deps` in `MODULE.bazel`, with its `Package.swift` and `Package.resolved`. The first set is `swiftpm`, the next `swiftpm-2`.
+A swiftpm set comes from a `swiftpm.lock` tag in `MODULE.bazel` and is named after it. Its manifest is `Package.swift` beside the lock file, and its locks are `Package.resolved` and the lock file.
 
 - `dx update <set>` resolves `Package.swift` with the managed Swift in a copy and compares the result with `Package.resolved`.
 - `dx update --apply <set>:<package> <version>` edits the `from:` or `exact:` version of the package, named by the last segment of its URL, then runs `swift package update <package>`. A package that is not declared, or pinned by `branch:` or `revision:`, is refused.

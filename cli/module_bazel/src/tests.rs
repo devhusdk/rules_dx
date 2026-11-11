@@ -1243,17 +1243,23 @@ fn luarocks_locks_follow_the_rules_dx_extension() {
 }
 
 #[test]
-fn swift_packages_follow_the_swift_deps_extension() {
+fn swiftpm_locks_follow_the_rules_dx_extension() {
     let file = parse(
-        "swift_deps = use_extension(\"@rules_swift_package_manager//:extensions.bzl\", \"swift_deps\")\nswift_deps.from_package(resolved = \"//app:Package.resolved\", swift = \"//app:Package.swift\")\nother = use_extension(\"//x:extensions.bzl\", \"swift_deps\")\nother.from_package(resolved = \"//y:Package.resolved\", swift = \"//y:Package.swift\")\n",
+        "swiftpm = use_extension(\"@rules_dx//swift:extensions.bzl\", \"swiftpm\")\nswiftpm.lock(name = \"swiftpm\", lock = \"//app:swiftpm.lock.json\")\nown = use_extension(\"//swift:extensions.bzl\", \"swiftpm\")\nown.lock(name = \"own\", lock = \"//y:swiftpm.lock.json\")\nother = use_extension(\"//x:extensions.bzl\", \"swiftpm\")\nother.lock(name = \"z\", lock = \"//z:l.json\")\n",
     );
     let found: Vec<_> = file
-        .swift_packages()
-        .expect("packages")
+        .swiftpm_locks()
+        .expect("locks")
         .iter()
-        .map(|package| (package.swift, package.resolved))
+        .map(|entry| (entry.name, entry.lock))
         .collect();
-    assert_eq!(found, [("//app:Package.swift", "//app:Package.resolved")]);
+    assert_eq!(
+        found,
+        [
+            ("swiftpm", "//app:swiftpm.lock.json"),
+            ("own", "//y:swiftpm.lock.json")
+        ]
+    );
 }
 
 #[test]

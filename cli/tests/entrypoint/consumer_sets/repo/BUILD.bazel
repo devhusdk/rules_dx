@@ -35,6 +35,7 @@ genrule(
         "sets_ok/perl/cpanfile.snapshot.lock.json",
         "sets_ok/apps/swift/Package.swift",
         "sets_ok/apps/swift/Package.resolved",
+        "sets_ok/apps/swift/swiftpm.lock.json",
         "sets_ok/apps/php/composer.json",
         "sets_ok/apps/php/composer.lock",
         "sets_ok/apps/php/composer.lock.json",
@@ -73,8 +74,8 @@ crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(name = "crates", cargo_lockfile = "//apps/rs:Cargo.lock", manifests = ["//apps/rs:Cargo.toml"])
 cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
 cpan.install(name = "cpan_deps", lock = "//perl:cpanfile.snapshot.lock.json")
-swift_deps = use_extension("@rules_swift_package_manager//:extensions.bzl", "swift_deps")
-swift_deps.from_package(resolved = "//apps/swift:Package.resolved", swift = "//apps/swift:Package.swift")
+swiftpm = use_extension("@rules_dx//swift:extensions.bzl", "swiftpm")
+swiftpm.lock(name = "swiftpm", lock = "//apps/swift:swiftpm.lock.json")
 composer = use_extension("@rules_dx//php:extensions.bzl", "composer")
 composer.lock(name = "vendor", lock = "//apps/php:composer.lock.json")
 luarocks = use_extension("@rules_dx//lua:extensions.bzl", "luarocks")
@@ -92,6 +93,7 @@ EOF
 echo '{"Text-CSV": {"strip_prefix": "Text-CSV-2.06"}}' > "$(location sets_ok/perl/cpanfile.snapshot.lock.json)"
 echo 'import PackageDescription' > "$(location sets_ok/apps/swift/Package.swift)"
 echo '{"pins": [], "version": 3}' > "$(location sets_ok/apps/swift/Package.resolved)"
+echo '{}' > "$(location sets_ok/apps/swift/swiftpm.lock.json)"
 echo '{"require": {"psr/log": "^1.1"}}' > "$(location sets_ok/apps/php/composer.json)"
 echo '{"packages": [], "packages-dev": []}' > "$(location sets_ok/apps/php/composer.lock)"
 echo '{}' > "$(location sets_ok/apps/php/composer.lock.json)"

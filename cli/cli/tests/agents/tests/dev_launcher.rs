@@ -492,6 +492,11 @@ mod sh {
 
         /// Makes the first `times` runs of bazel `op` ("build" or "query") exit with `code`.
         fn crash(&self, op: &str, code: i32, times: usize) {
+            self.crash_printing(op, code, times, "");
+        }
+
+        /// Like `crash`, but each crashing run first prints `partial` without a newline.
+        fn crash_printing(&self, op: &str, code: i32, times: usize, partial: &str) {
             let stub = self.base.join("stub/bazel");
             let real = self.base.join("stub/bazel.real");
             if !real.exists() {
@@ -507,9 +512,10 @@ mod sh {
             dx_testing::executable_script(
                 &stub,
                 &format!(
-                    "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    {op})\n      n=$(cat '{left}')\n      if [ \"$n\" -gt 0 ]; then\n        echo $((n - 1)) > '{left}'\n        {log}exit {code}\n      fi\n      ;;\n  esac\ndone\nexec '{real}' \"$@\"\n",
+                    "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    {op})\n      n=$(cat '{left}')\n      if [ \"$n\" -gt 0 ]; then\n        echo $((n - 1)) > '{left}'\n        {log}printf '%s' '{partial}'\n        exit {code}\n      fi\n      ;;\n  esac\ndone\nexec '{real}' \"$@\"\n",
                     left = left.display(),
                     real = real.display(),
+                    partial = partial,
                 ),
             );
         }
@@ -928,6 +934,43 @@ mod sh {
         assert!(!err.contains("crashed"), "{err}");
         assert_eq!(repo.builds(), 1, "a compile error is not tried again");
         assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG"]);
+    }
+
+    #[test]
+    fn a_retried_query_drops_the_failed_attempts_partial_output() {
+        let repo = source_repo("dx-launcher-query-partial-");
+        repo.crash_printing("query", 37, 1, "//cli/cli/b.r");
+        repo.run_ok();
+        assert_eq!(repo.inputs(), "//:BUILD.bazel\n//cli/cli:BUILD.bazel\n");
+    }
+
+    #[test]
+    fn the_launcher_sweeps_temp_files_of_dead_pids_and_keeps_live_ones() {
+        let repo = source_repo("dx-launcher-dead-pid-");
+        let dir = state(&repo.root());
+        std::fs::create_dir_all(&dir).expect("state dir");
+        let dead = ["dx", "built", "inputs", "query"].map(|p| format!("{p}.999999"));
+        for name in &dead {
+            std::fs::write(dir.join(name), "").expect("dead temp");
+        }
+        let live = format!("dx.{}", std::process::id());
+        std::fs::write(dir.join(&live), "").expect("live temp");
+        repo.run_ok();
+        for name in &dead {
+            assert!(!dir.join(name).exists(), "{name} belongs to a dead pid");
+        }
+        assert!(dir.join(&live).exists(), "{live} belongs to a live pid");
+    }
+
+    #[test]
+    fn source_launcher_runs_from_a_path_with_a_backslash() {
+        let repo = source_repo_in("dx-launcher-backslash-", "my\\bx");
+        repo.run_ok();
+        repo.run_ok();
+        assert_eq!(repo.builds(), 1);
+        repo.touch_build_file();
+        repo.run_ok();
+        assert_eq!(repo.builds(), 2);
     }
 
     #[test]

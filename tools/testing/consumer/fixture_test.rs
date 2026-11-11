@@ -64,7 +64,12 @@ fn init(root: &Path) -> dx_testing::Run {
     let bin = root.with_file_name("bin");
     dx_testing::fake_generate_bazel_path(&bin, &dx_testing::env_file("DX_FAKE_GENERATE"));
     let bin = dx_testing::path_text(&bin);
+    let gazelle = dx_testing::resolve_runfiles(&dx_testing::env_text("DX_GAZELLE_BIN"));
+    let gazelle = dx_testing::path_text(&gazelle);
+    let gazelle_args = dx_testing::env_text("DX_FAKE_GAZELLE_ARGS");
     let envs = [
+        ("DX_FAKE_GAZELLE", gazelle.as_str()),
+        ("DX_FAKE_GAZELLE_ARGS", gazelle_args.as_str()),
         ("PATH", bin.as_str()),
         ("HOME", home.as_str()),
         ("USERPROFILE", home.as_str()),

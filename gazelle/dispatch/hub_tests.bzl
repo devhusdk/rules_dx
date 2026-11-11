@@ -67,7 +67,7 @@ def _checks():
         expect_contains("other platforms fail", full, '"//conditions:default": ":unsupported",'),
         expect_contains("the failure names the remedies", full, "dx_gazelle.asset(name, url, sha256, os, cpu)"),
         expect_contains("the failure names from_source", full, "dx_gazelle.from_source(), which requires a Go toolchain"),
-        expect_contains("the alias keeps its visibility", full, '    visibility = [\n        "@rules_dx//dx:__pkg__",\n        "@rules_dx//gazelle:__subpackages__",\n    ],\n)'),
+        expect_contains("the alias keeps its visibility", full, '    visibility = [\n        "@rules_dx//dx:__pkg__",\n        "@rules_dx//gazelle:__subpackages__",\n        "@rules_dx//tools/testing/consumer:__pkg__",\n    ],\n)'),
         expect_false("a fully pinned hub names no @gazelle", "@gazelle//" in full),
         expect_false("a fully pinned hub names no rules_go", "rules_go" in full),
         expect_false("a fully pinned hub builds no source gazelle", "gazelle_binary" in full),

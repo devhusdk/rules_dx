@@ -1,7 +1,7 @@
 """The ocaml module extension."""
 
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
-load(":opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url")
+load(":opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url", "pick_annotation")
 load(":pins.bzl", "DUNE", "OCAML_CELLS", "OPAM_REPOSITORY", "OPAM_REPOSITORY_COMMIT", "RULES_OCAML")
 load(":repos.bzl", "DIST_PREFIX", "DROPPED_PATHS", "DUNE_BUILD", "HUB_NAME", "dist_repo", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build")
 
@@ -27,7 +27,7 @@ def _declare_packages(mctx, tag, locked, annotations, facts):
         if is_toolchain_package(package):
             continue
         fact = facts[_fact_key(package, version)]
-        annotation = annotations.get(package)
+        annotation = pick_annotation(package, annotations)
         if annotation and annotation.build_file:
             build_file = mctx.read(annotation.build_file).replace("{hub}", tag.name)
         else:

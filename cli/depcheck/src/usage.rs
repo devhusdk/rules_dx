@@ -171,52 +171,18 @@ fn source_suffixes() -> BTreeSet<&'static str> {
 
 fn skip_names() -> BTreeSet<&'static str> {
     [
-        "Cargo.toml",
-        "Cargo.lock",
-        "pyproject.toml",
-        "uv.lock",
-        "package.json",
-        "pnpm-lock.yaml",
-        "go.mod",
-        "go.sum",
         "jvm_deps.toml",
-        "maven_install.json",
         "cc_deps.toml",
         "cc_lock.json",
-        "Gemfile",
-        "Gemfile.lock",
-        "cpanfile",
-        "cpanfile.snapshot",
         "build.zig.zon.lock",
-        "Project.toml",
         "JuliaProject.toml",
-        "Manifest.toml",
         "JuliaManifest.toml",
-        "pubspec.yaml",
-        "pubspec.lock",
-        "mix.exs",
-        "mix.lock",
         "rebar.lock",
-        "fpm.toml",
-        "cabal.project.freeze",
         "stack.yaml.lock",
-        "Package.swift",
-        "Package.resolved",
         "opam.locked",
     ]
     .into_iter()
-    .chain(Ecosystem::Fpm.lockfiles().iter().map(String::as_str))
-    .chain(
-        [
-            Ecosystem::Composer,
-            Ecosystem::Dub,
-            Ecosystem::Zig,
-            Ecosystem::LuaRocks,
-            Ecosystem::Nuget,
-        ]
-        .into_iter()
-        .flat_map(Ecosystem::registry_names),
-    )
+    .chain(Ecosystem::ALL.into_iter().flat_map(Ecosystem::registry_names))
     .collect()
 }
 

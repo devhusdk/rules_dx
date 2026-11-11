@@ -353,31 +353,6 @@ rust_test(
 )
 
 rust_test(
-    name = "consumer_reports_test",
-    srcs = ["consumer_reports_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "consumer_reports_test",
-    crate_root = "consumer_reports_test.rs",
-    data = [
-        "//.github:workflows/reusable-consumer.yml",
-        "//docs:github-ci.md",
-    ],
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//tools/ci/ci_workflow",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
-rust_test(
     name = "secret_flags_test",
     srcs = ["secret_flags_test.rs"],
     aliases = aliases(
@@ -492,78 +467,6 @@ rust_test(
 )
 
 rust_test(
-    name = "dx_update_workflow_test",
-    srcs = ["dx_update_workflow_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "dx_update_workflow_test",
-    crate_root = "dx_update_workflow_test.rs",
-    data = ["//.github:workflows/dx-update.yml"],
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//tools/ci/ci_workflow",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
-rust_test(
-    name = "release_workflow_test",
-    srcs = ["release_workflow_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "release_workflow_test",
-    crate_root = "release_workflow_test.rs",
-    data = [
-        "//.github:workflows/reusable-release.yml",
-        "//deploy/private:gate_sources",
-    ],
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//tools/ci/ci_workflow",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
-rust_test(
-    name = "pr_check_test",
-    srcs = ["pr_check_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "pr_check_test",
-    crate_root = "pr_check_test.rs",
-    data = [
-        "pr_check.sh",
-        "//.github:workflows/ci.yml",
-        "//.github:workflows/pr-check.yml",
-    ],
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//tools/ci/ci_workflow",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rust_test(
     name = "blocker_refs_test",
     srcs = ["blocker_refs_test.rs"],
     aliases = aliases(
@@ -621,28 +524,6 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + ["//tools/testing:dx_testing"],
-)
-
-rust_test(
-    name = "consumer_inputs_test",
-    srcs = ["consumer_inputs_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "consumer_inputs_test",
-    crate_root = "consumer_inputs_test.rs",
-    data = ["//.github:workflows/reusable-consumer.yml"],
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/ci/ci_workflow",
-        "@crates//:serde_json",
-    ],
 )
 
 rust_test(
@@ -909,33 +790,6 @@ rust_test(
     ) + [
         "//tools/testing:dx_testing",
         "@crates//:starlark_syntax",
-    ],
-)
-
-rust_test(
-    name = "release_cells_runners_test",
-    srcs = ["release_cells_runners_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "release_cells_runners_test",
-    crate_root = "release_cells_runners_test.rs",
-    data = [
-        "//.github:workflows/release-cells.yml",
-        "//deploy/private/release:release_matrix",
-    ],
-    env = {"DX_RELEASE_MATRIX": "$(rootpath //deploy/private/release:release_matrix)"},
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//tools/ci/ci_workflow",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -1719,5 +1573,49 @@ rust_test(
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
+    ],
+)
+
+rust_test(
+    name = "workflow_files_test",
+    srcs = [
+        "consumer_inputs_test.rs",
+        "consumer_reports_test.rs",
+        "dx_update_workflow_test.rs",
+        "pr_check_test.rs",
+        "release_cells_runners_test.rs",
+        "release_workflow_test.rs",
+        "workflow_files_test.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "workflow_files_test",
+    crate_root = "workflow_files_test.rs",
+    data = [
+        "pr_check.sh",
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/dx-update.yml",
+        "//.github:workflows/pr-check.yml",
+        "//.github:workflows/release-cells.yml",
+        "//.github:workflows/reusable-consumer.yml",
+        "//.github:workflows/reusable-release.yml",
+        "//deploy/private:gate_sources",
+        "//deploy/private/release:release_matrix",
+        "//docs:github-ci.md",
+    ],
+    env = {"DX_RELEASE_MATRIX": "$(rootpath //deploy/private/release:release_matrix)"},
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
     ],
 )

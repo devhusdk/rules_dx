@@ -5,14 +5,20 @@ use crate::api_compat::{
     latest_published, previous_git_tag, workspace_dir,
 };
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    exit_text, placeholder_refusal, resolve_version, run_publish, scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
+    placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use dx_ecosystems::Ecosystem;
 use std::io;
 use std::path::Path;
 
-/// Maps crate input files to package-relative paths under the Cargo.toml directory.
+/// The file name of the manifest.
+fn manifest_name() -> &'static str {
+    Ecosystem::Cargo.manifest_name()
+}
+
+/// Maps crate input files to package-relative paths under the manifest directory.
 pub fn crates_package_paths(
     crate_files: &[std::path::PathBuf],
 ) -> io::Result<Vec<(std::path::PathBuf, String)>> {
@@ -22,7 +28,7 @@ pub fn crates_package_paths(
             "crates vendor: need at least one crate source file",
         ));
     }
-    package_relative_paths(crate_files, "Cargo.toml", "crates vendor")
+    package_relative_paths(crate_files, manifest_name(), "crates vendor")
 }
 
 /// Builds one crates vendor tree.
@@ -116,9 +122,12 @@ fn crates_publish_staged(
 ) -> Result<(), String> {
     let mapped = crates_package_paths(files).map_err(|error| format!("crates_deploy: {error}"))?;
     crates_stage(&mapped, staging).map_err(|error| format!("crates_deploy: {error}"))?;
-    let manifest = staging.join("Cargo.toml");
+    let manifest = staging.join(manifest_name());
     if !manifest.is_file() {
-        return Err("crates_deploy: staged crate is missing Cargo.toml; refusing".to_owned());
+        return Err(format!(
+            "crates_deploy: staged crate is missing {}; refusing",
+            manifest_name()
+        ));
     }
     let text = std::fs::read_to_string(&manifest).unwrap_or_default();
     manifest_version(&text, crate_name, version)?;
@@ -137,7 +146,10 @@ fn cargo_publish(program: &Path, manifest: &Path, token: &str) -> Result<(), Str
     if output.success() {
         return Ok(());
     }
-    let mut message = format!("crates_deploy: cargo publish failed with {}", exit_text(&output));
+    let mut message = format!(
+        "crates_deploy: cargo publish failed with {}",
+        exit_text(&output)
+    );
     for line in cargo_failure_lines(&output.stderr, token) {
         message.push_str("\ncargo: ");
         message.push_str(&line);
@@ -192,25 +204,29 @@ fn manifest_version(text: &str, crate_name: &str, version: &str) -> Result<Strin
     let (name, found) = manifest_identity(text);
     if name.as_deref() != Some(crate_name) {
         return Err(format!(
-            "crates_deploy: Cargo.toml is {}, target is {crate_name}; refusing",
+            "crates_deploy: {} is {}, target is {crate_name}; refusing",
+            manifest_name(),
             name.unwrap_or_else(|| "(not a plain value)".to_owned())
         ));
     }
-    resolve_version("crates_deploy", "Cargo.toml", found.as_deref(), version)
+    resolve_version("crates_deploy", manifest_name(), found.as_deref(), version)
 }
 
-/// Reads the version to publish from the crate's Cargo.toml.
+/// Reads the version to publish from the crate's manifest.
 fn crates_version(
     files: &[std::path::PathBuf],
     crate_name: &str,
     version: &str,
 ) -> Result<String, String> {
     let mapped = crates_package_paths(files).map_err(|error| format!("crates_deploy: {error}"))?;
-    let Some((manifest, _)) = mapped.iter().find(|(_, rel)| rel == "Cargo.toml") else {
-        return Err("crates_deploy: crate has no Cargo.toml; refusing".to_owned());
+    let Some((manifest, _)) = mapped.iter().find(|(_, rel)| rel == manifest_name()) else {
+        return Err(format!(
+            "crates_deploy: crate has no {}; refusing",
+            manifest_name()
+        ));
     };
     let text = std::fs::read_to_string(manifest)
-        .map_err(|error| format!("crates_deploy: cannot read Cargo.toml: {error}"))?;
+        .map_err(|error| format!("crates_deploy: cannot read {}: {error}", manifest_name()))?;
     manifest_version(&text, crate_name, version)
 }
 
@@ -241,7 +257,7 @@ fn crates_package_check(
         tempfile_stage_dir("crates-check-").map_err(|error| format!("crates_deploy: {error}"))?;
     let checked = crates_stage(mapped, &staging)
         .map_err(|error| format!("crates_deploy: {error}"))
-        .and_then(|()| cargo_package_list(program, &staging.join("Cargo.toml")));
+        .and_then(|()| cargo_package_list(program, &staging.join(manifest_name())));
     let _ = std::fs::remove_dir_all(&staging);
     checked
 }
@@ -322,12 +338,13 @@ fn crates_api_check(
         };
         let dest = tempfile_stage_dir("crates-api-base-")
             .map_err(|error| format!("crates_deploy: {error}"))?;
-        match export_git_dir(&workspace_dir(), crate_dir, &tag, &dest, "Cargo.toml") {
+        match export_git_dir(&workspace_dir(), crate_dir, &tag, &dest, manifest_name()) {
             Ok(true) => {}
             Ok(false) => {
                 let _ = std::fs::remove_dir_all(&dest);
                 return Ok(Outcome::Skipped(format!(
-                    "no Cargo.toml at {crate_dir} in {tag}"
+                    "no {} at {crate_dir} in {tag}",
+                    manifest_name()
                 )));
             }
             Err(error) => {
@@ -369,7 +386,7 @@ fn crates_api_check(
                 &[],
             );
             cmd.args(["semver-checks", "check-release", "--manifest-path"])
-                .arg(staging.join("Cargo.toml"))
+                .arg(staging.join(manifest_name()))
                 .args(&baseline_args);
             run_publish(&mut cmd).map_err(|error| format!("crates_deploy: {error}"))
         });
@@ -596,7 +613,7 @@ mod tests {
         );
         assert_eq!(manifest_version(ok, "demo", ""), Ok("1.2.3".to_owned()));
         let wrong_name = manifest_version(ok, "other", "").expect_err("name refused");
-        assert!(wrong_name.contains("Cargo.toml is demo, target is other"));
+        assert!(wrong_name.contains(&format!("{} is demo, target is other", manifest_name())));
         let mismatch = manifest_version(ok, "demo", "2.0.0").expect_err("version refused");
         assert!(mismatch.contains("declares version 1.2.3, BUILD declares 2.0.0"));
         let workspace = "[package]\nname = \"demo\"\nversion.workspace = true\n";
@@ -607,7 +624,7 @@ mod tests {
     #[test]
     fn crates_vendor_builds_checksums() {
         let scratch = scratch_dir();
-        let manifest = scratch.path().join("Cargo.toml");
+        let manifest = scratch.path().join(manifest_name());
         std::fs::write(
             &manifest,
             b"[package]\nname = \"crates_demo\"\nversion = \"0.0.0\"\n",
@@ -638,7 +655,7 @@ mod tests {
         assert!(checksum.ends_with('\n'));
         let parsed: serde_json::Value = serde_json::from_str(&checksum).expect("checksum parses");
         let want_files = serde_json::json!({
-            "Cargo.toml": pairs["Cargo.toml"],
+            manifest_name(): pairs[manifest_name()],
             "lib.rs": pairs["lib.rs"],
         });
         assert_eq!(parsed["files"], want_files);
@@ -657,8 +674,8 @@ mod tests {
         let index: serde_json::Value = serde_json::from_str(&index).expect("index parses");
         assert_eq!(index["name"], "crates_demo");
         assert_eq!(index["version"], "0.0.0");
-        assert_eq!(index["files"][0]["name"], "Cargo.toml");
-        assert_eq!(index["files"][0]["sha256"], pairs["Cargo.toml"].as_str());
+        assert_eq!(index["files"][0]["name"], manifest_name());
+        assert_eq!(index["files"][0]["sha256"], pairs[manifest_name()].as_str());
         assert!(crates_build_vendor(&[], &outdir, "crates_demo", "0.0.0").is_err());
     }
 
@@ -683,7 +700,7 @@ mod tests {
     fn crates_publish_staged_failure_is_reported_for_caller_cleanup() {
         let scratch = scratch_dir();
         let staging = scratch.path().join("crates-publish-x");
-        let missing = vec![scratch.path().join("missing/Cargo.toml")];
+        let missing = vec![scratch.path().join(format!("missing/{}", manifest_name()))];
         let error = crates_publish_staged(
             Path::new("cargo"),
             &missing,
@@ -700,7 +717,7 @@ mod tests {
         vec![
             write_crate_file(
                 root,
-                "Cargo.toml",
+                manifest_name(),
                 "[package]\nname = \"crates_demo\"\nversion = \"0.0.0\"\nedition = \"2021\"\n",
             ),
             write_crate_file(root, "src/lib.rs", "pub mod parser;\npub mod lexer;\n"),
@@ -720,7 +737,7 @@ mod tests {
             house.join("registry/crates_demo/0.0.0"),
         ] {
             for rel in [
-                "Cargo.toml",
+                manifest_name(),
                 "src/lib.rs",
                 "src/parser/mod.rs",
                 "src/lexer/mod.rs",
@@ -742,7 +759,7 @@ mod tests {
         let files = vec![
             write_crate_file(
                 &root,
-                "Cargo.toml",
+                manifest_name(),
                 "[package]\nname = \"crates_demo\"\nversion = \"0.0.0\"\n[lib]\npath = \"custom/entry.rs\"\n",
             ),
             write_crate_file(&root, "custom/entry.rs", "pub fn hello() {}\n"),
@@ -757,7 +774,7 @@ mod tests {
     fn crates_package_paths_reject_collisions_and_escapes() {
         let scratch = scratch_dir();
         let root = scratch.path().join("in");
-        let manifest = write_crate_file(&root, "Cargo.toml", "[package]\n");
+        let manifest = write_crate_file(&root, manifest_name(), "[package]\n");
         let outside = write_crate_file(scratch.path(), "other/lib.rs", "");
         let error = crates_package_paths(&[manifest.clone(), outside]).expect_err("outside");
         assert!(
@@ -784,10 +801,15 @@ mod tests {
         );
         let error = crates_package_paths(&[write_crate_file(&root, "lib.rs", "")])
             .expect_err("no manifest");
-        assert!(error.to_string().contains("no Cargo.toml"), "{error}");
+        assert!(
+            error
+                .to_string()
+                .contains(&format!("no {}", manifest_name())),
+            "{error}"
+        );
         let error = crates_package_paths(&[
-            write_crate_file(&root, "a/Cargo.toml", ""),
-            write_crate_file(&root, "b/Cargo.toml", ""),
+            write_crate_file(&root, &format!("a/{}", manifest_name()), ""),
+            write_crate_file(&root, &format!("b/{}", manifest_name()), ""),
         ])
         .expect_err("ambiguous");
         assert!(
@@ -814,7 +836,7 @@ mod tests {
             &fake,
             "#!/bin/sh\necho 'error: crate version 0.0.0 is already uploaded' >&2\necho \"token $CARGO_REGISTRY_TOKEN\" >&2\nexit 101\n",
         );
-        let message = cargo_publish(&fake, &scratch.path().join("Cargo.toml"), "s3cret")
+        let message = cargo_publish(&fake, &scratch.path().join(manifest_name()), "s3cret")
             .expect_err("publish fails");
         assert!(
             message.contains("cargo publish failed with exit status: 101"),
@@ -868,7 +890,7 @@ mod tests {
         let consumer = scratch.path().join("consumer");
         write_crate_file(
             &consumer,
-            "Cargo.toml",
+            manifest_name(),
             "[package]\nname = \"consumer\"\nversion = \"0.0.0\"\nedition = \"2021\"\n[dependencies]\ncrates_demo = \"0.0.0\"\n",
         );
         write_crate_file(
@@ -909,7 +931,11 @@ mod tests {
         let scratch = scratch_dir();
         let repo = scratch.path().join("repo");
         std::fs::create_dir_all(&repo).expect("repo dir");
-        write_crate_file(&repo, "pkg/Cargo.toml", "[package]\nname = \"pkg\"\n");
+        write_crate_file(
+            &repo,
+            &format!("pkg/{}", manifest_name()),
+            "[package]\nname = \"pkg\"\n",
+        );
         write_crate_file(&repo, "pkg/src/lib.rs", "pub fn hello() {}\n");
         for args in [
             &["init", "-q"][..],
@@ -927,8 +953,9 @@ mod tests {
         std::fs::write(
             &fake,
             format!(
-                "#!/bin/sh\necho \"$@\" > {}\nwhile [ $# -gt 0 ]; do if [ \"$1\" = --baseline-root ]; then cp \"$2/Cargo.toml\" {}; fi; shift; done\necho '--- failure pub_function_missing: pub fn removed or renamed ---'\nexit 1\n",
+                "#!/bin/sh\necho \"$@\" > {}\nwhile [ $# -gt 0 ]; do if [ \"$1\" = --baseline-root ]; then cp \"$2/{}\" {}; fi; shift; done\necho '--- failure pub_function_missing: pub fn removed or renamed ---'\nexit 1\n",
                 args_log.display(),
+                manifest_name(),
                 exported.display()
             ),
         )
@@ -1000,7 +1027,7 @@ mod tests {
         let scratch = scratch_dir();
         let repo = scratch.path().join("repo");
         let manifest = "[package]\nname = \"pkg\"\nversion = \"1.2.0\"\nedition = \"2021\"\n";
-        write_crate_file(&repo, "pkg/Cargo.toml", manifest);
+        write_crate_file(&repo, &format!("pkg/{}", manifest_name()), manifest);
         write_crate_file(&repo, "pkg/src/lib.rs", "pub fn hello() {}\n");
         for args in [
             &["init", "-q"][..],
@@ -1012,7 +1039,7 @@ mod tests {
         }
         let current = scratch.path().join("in/pkg");
         let files = vec![
-            write_crate_file(&current, "Cargo.toml", manifest),
+            write_crate_file(&current, manifest_name(), manifest),
             write_crate_file(&current, "src/lib.rs", "\n"),
         ];
         let mapped = crates_package_paths(&files).expect("paths");

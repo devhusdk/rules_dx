@@ -6,18 +6,24 @@ use crate::api_compat::{
 };
 use crate::archive::*;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, print_redacted,
-    exit_text, run_publish, scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
+    print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use dx_ecosystems::Ecosystem;
 use std::io;
 use std::path::Path;
 
-/// Maps npm input files to package-relative paths under the package.json directory.
+/// The file name of the manifest.
+fn manifest_name() -> &'static str {
+    Ecosystem::Npm.manifest_name()
+}
+
+/// Maps npm input files to package-relative paths under the manifest directory.
 pub fn npm_package_paths(
     srcs: &[std::path::PathBuf],
 ) -> io::Result<Vec<(std::path::PathBuf, String)>> {
-    package_relative_paths(srcs, "package.json", "npm pack")
+    package_relative_paths(srcs, manifest_name(), "npm pack")
 }
 
 /// Creates one deterministic npm pack.
@@ -442,10 +448,10 @@ fn api_breaking(published: &str, staged: &str) -> Vec<String> {
 
 /// Returns the version and the `types` entry of an extracted package.
 fn package_version_and_types(package_dir: &Path) -> Result<(String, Option<String>), String> {
-    let body = std::fs::read_to_string(package_dir.join("package.json"))
-        .map_err(|error| format!("package.json: {error}"))?;
+    let body = std::fs::read_to_string(package_dir.join(manifest_name()))
+        .map_err(|error| format!("{}: {error}", manifest_name()))?;
     let json: serde_json::Value =
-        serde_json::from_str(&body).map_err(|error| format!("package.json: {error}"))?;
+        serde_json::from_str(&body).map_err(|error| format!("{}: {error}", manifest_name()))?;
     let version = json["version"].as_str().unwrap_or("").to_owned();
     let types = json["types"]
         .as_str()
@@ -777,7 +783,11 @@ mod tests {
             format!("{{\"name\":\"pkg\",\"version\":\"{version}\",\"types\":\"./index.d.ts\"}}");
         archive_tree(
             &[
-                ("package/package.json", manifest.as_bytes(), 0o644),
+                (
+                    &format!("package/{}", manifest_name()),
+                    manifest.as_bytes(),
+                    0o644,
+                ),
                 ("package/index.d.ts", index.as_bytes(), 0o644),
             ],
             dst,
@@ -843,7 +853,7 @@ mod tests {
     #[test]
     fn npm_pack_and_verify_round_trip() {
         let scratch = scratch_dir();
-        let src = scratch.path().join("package.json");
+        let src = scratch.path().join(manifest_name());
         std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"0.0.0\"}\n")
             .expect("write src");
         let tgz = scratch.path().join("npm_demo.tgz");
@@ -865,7 +875,7 @@ mod tests {
         assert_eq!(tag, "latest");
         assert_eq!(registry, "https://registry.npmjs.org");
         let members = npm_tar_members(&tgz).expect("members");
-        assert_eq!(members, vec!["package/package.json".to_owned()]);
+        assert_eq!(members, vec![format!("package/{}", manifest_name())]);
         assert_eq!(
             npm_npmrc_line("registry.npmjs.org", "tok"),
             "//registry.npmjs.org/:_authToken=tok\n"
@@ -876,7 +886,7 @@ mod tests {
             serde_json::from_str::<serde_json::Value>(&body).expect("feed parses"),
             serde_json::json!({
                 "access": "public",
-                "files": ["package/package.json"],
+                "files": [&format!("package/{}", manifest_name())],
                 "name": "npm-demo",
                 "provenance": "required",
                 "registry": "https://registry.npmjs.org",
@@ -890,7 +900,7 @@ mod tests {
     #[test]
     fn npm_tar_members_rejects_a_bad_header_checksum() {
         let scratch = scratch_dir();
-        let src = scratch.path().join("package.json");
+        let src = scratch.path().join(manifest_name());
         std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"0.0.0\"}\n")
             .expect("write src");
         let good = scratch.path().join("good.tgz");
@@ -921,7 +931,7 @@ mod tests {
         vec![
             write_crate_file(
                 root,
-                "package.json",
+                manifest_name(),
                 "{\"name\": \"npm-nested\", \"version\": \"1.0.0\", \"main\": \"dist/index.js\", \"types\": \"dist/index.d.ts\", \"exports\": {\".\": \"./dist/index.js\", \"./util\": \"./dist/util/index.js\"}, \"bin\": {\"npm-nested\": \"bin/cli.js\"}}\n",
             ),
             write_crate_file(
@@ -967,7 +977,7 @@ mod tests {
                 "package/dist/index.d.ts".to_owned(),
                 "package/dist/index.js".to_owned(),
                 "package/dist/util/index.js".to_owned(),
-                "package/package.json".to_owned(),
+                format!("package/{}", manifest_name()),
             ]
         );
     }
@@ -1018,7 +1028,7 @@ mod tests {
     fn npm_package_paths_reject_collisions_and_escapes() {
         let scratch = scratch_dir();
         let root = scratch.path().join("in");
-        let manifest = write_crate_file(&root, "package.json", "{}");
+        let manifest = write_crate_file(&root, manifest_name(), "{}");
         let outside = write_crate_file(scratch.path(), "other/index.js", "");
         let error = npm_package_paths(&[manifest.clone(), outside]).expect_err("outside");
         assert!(
@@ -1043,10 +1053,15 @@ mod tests {
             "{error}"
         );
         let error = npm_package_paths(&[root.join("index.js")]).expect_err("no manifest");
-        assert!(error.to_string().contains("no package.json"), "{error}");
+        assert!(
+            error
+                .to_string()
+                .contains(&format!("no {}", manifest_name())),
+            "{error}"
+        );
         let error = npm_package_paths(&[
-            write_crate_file(&root, "a/package.json", "{}"),
-            write_crate_file(&root, "b/package.json", "{}"),
+            write_crate_file(&root, &format!("a/{}", manifest_name()), "{}"),
+            write_crate_file(&root, &format!("b/{}", manifest_name()), "{}"),
         ])
         .expect_err("ambiguous");
         assert!(
@@ -1073,7 +1088,7 @@ mod tests {
         let consumer = scratch.path().join("consumer");
         write_crate_file(
             &consumer,
-            "package.json",
+            manifest_name(),
             "{\"name\": \"consumer\", \"version\": \"0.0.0\", \"private\": true}\n",
         );
         let install = std::process::Command::new("npm")
@@ -1290,7 +1305,7 @@ mod tests {
     #[test]
     fn npm_pack_rejects_restricted_unscoped_before_writing() {
         let scratch = scratch_dir();
-        let src = scratch.path().join("package.json");
+        let src = scratch.path().join(manifest_name());
         std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"0.0.0\"}\n").expect("write");
         let tgz = scratch.path().join("out.tgz");
         let feed = scratch.path().join("out.feed.json");
@@ -1315,7 +1330,7 @@ mod tests {
     #[test]
     fn npm_verify_pack_reports_restricted_access() {
         let scratch = scratch_dir();
-        let src = scratch.path().join("package.json");
+        let src = scratch.path().join(manifest_name());
         std::fs::write(
             &src,
             b"{\"name\": \"@s/npm-demo\", \"version\": \"0.0.0\"}\n",
@@ -1373,7 +1388,7 @@ mod tests {
         let pkg = scratch.path().join("pkg");
         std::fs::create_dir_all(&pkg).expect("pkg");
         std::fs::write(
-            pkg.join("package.json"),
+            pkg.join(manifest_name()),
             b"{\"name\": \"@s/npm-demo\", \"version\": \"0.0.0\"}\n",
         )
         .expect("write");
@@ -1387,7 +1402,7 @@ mod tests {
             "none",
             &tgz,
             &feed,
-            &[pkg.join("package.json")],
+            &[pkg.join(manifest_name())],
         )
         .expect("pack");
         let run = |args: Vec<std::ffi::OsString>| {
@@ -1436,7 +1451,7 @@ mod tests {
         let scratch = scratch_dir();
         let src = scratch.path().join("[id].js");
         std::fs::write(&src, b"module.exports = 1;\n").expect("write src");
-        let manifest = scratch.path().join("package.json");
+        let manifest = scratch.path().join(manifest_name());
         std::fs::write(
             &manifest,
             b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n",
@@ -1458,7 +1473,13 @@ mod tests {
         let (name, _, _, _, _) = npm_verify_pack(&tgz, &feed).expect("verify");
         assert_eq!(name, "npm-demo");
         let members = npm_tar_members(&tgz).expect("members");
-        assert_eq!(members, ["package/[id].js", "package/package.json"]);
+        assert_eq!(
+            members,
+            [
+                "package/[id].js",
+                format!("package/{}", manifest_name()).as_str()
+            ]
+        );
 
         let body = std::fs::read_to_string(&feed).expect("read feed");
         let reordered = scratch.path().join("reordered.feed.json");
@@ -1477,7 +1498,7 @@ mod tests {
     #[test]
     fn npm_verify_and_pack_report_feed_problems() {
         let scratch = scratch_dir();
-        let src = scratch.path().join("package.json");
+        let src = scratch.path().join(manifest_name());
         std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n")
             .expect("write src");
         let tgz = scratch.path().join("npm_demo.tgz");
@@ -1514,7 +1535,10 @@ mod tests {
         let wrong_members = scratch.path().join("wrong_members.feed.json");
         std::fs::write(
             &wrong_members,
-            body.replace("package/package.json", "package/absent.json"),
+            body.replace(
+                &format!("package/{}", manifest_name()),
+                "package/absent.json",
+            ),
         )
         .expect("write feed");
         let error = npm_verify_pack(&tgz, &wrong_members).expect_err("member mismatch");
@@ -1524,7 +1548,7 @@ mod tests {
     #[test]
     fn npm_pack_main_packs_and_reports_failures() {
         let scratch = scratch_dir();
-        let src = scratch.path().join("package.json");
+        let src = scratch.path().join(manifest_name());
         std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n")
             .expect("write src");
         let tgz = scratch.path().join("npm_demo.tgz");
@@ -1558,7 +1582,7 @@ mod tests {
     fn stage_npm_demo(root: &Path, provenance: &str) -> std::path::PathBuf {
         let runfiles = root.join("runfiles");
         std::fs::create_dir_all(&runfiles).expect("runfiles");
-        let src = runfiles.join("package.json");
+        let src = runfiles.join(manifest_name());
         std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n")
             .expect("write src");
         let bracketed = runfiles.join("[id].js");
@@ -1635,7 +1659,7 @@ mod tests {
     #[test]
     fn npm_create_pack_refuses_unsupported_provenance_before_writing() {
         let scratch = scratch_dir();
-        let src = scratch.path().join("package.json");
+        let src = scratch.path().join(manifest_name());
         std::fs::write(&src, b"{\"name\": \"x\", \"version\": \"1.0.0\"}\n").expect("write");
         let tgz = scratch.path().join("x.tgz");
         let feed = scratch.path().join("x.feed.json");
@@ -1765,7 +1789,10 @@ mod tests {
         let npm = fake_npm(scratch.path(), 0);
         for token in ["tok\nregistry=https://evil.invalid/", "tok en", "tok\r"] {
             assert_eq!(npm_run_publish(&npm, "registry.npmjs.org", token, &[]), 1);
-            assert!(!scratch.path().join("args.txt").exists(), "{token:?} ran npm");
+            assert!(
+                !scratch.path().join("args.txt").exists(),
+                "{token:?} ran npm"
+            );
         }
     }
 
@@ -1867,7 +1894,7 @@ mod tests {
                 ("/npm-demo/-/npm-demo-0.9.0.tgz".to_owned(), tarball),
             ]
         });
-        let manifest = runfiles.join("package.json");
+        let manifest = runfiles.join(manifest_name());
         std::fs::write(
             &manifest,
             b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\", \"types\": \"./index.d.ts\"}\n",
@@ -1924,7 +1951,10 @@ mod tests {
         );
         assert_eq!(code, 1);
         assert!(marker.exists(), "the live run skipped the check");
-        assert!(!bin.join("args.txt").exists(), "npm ran after a breaking change");
+        assert!(
+            !bin.join("args.txt").exists(),
+            "npm ran after a breaking change"
+        );
         std::fs::remove_dir_all(&outdir).expect("cleanup");
     }
 

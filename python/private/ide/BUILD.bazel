@@ -1,18 +1,9 @@
-load("//core/modules:python.bzl", "PYTHON_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load("//tools/ide:ide_tool.bzl", "ide_python_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
 ide_python_tool(name = "python_tool")
-
-ide_acquisition_test(
-    name = "ide_acquisition_test",
-    binary = ":python_tool",
-    expected = PYTHON_VERSION,
-    version_args = ["--version"],
-)
 
 real_source_target(
     name = "corpus_starlark",

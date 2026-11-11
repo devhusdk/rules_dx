@@ -513,6 +513,11 @@ XCFramework has no slice for the cell, or the slice binary misses the
 arch, is built for another platform, or needs a newer iOS than the app
 `deployment`.
 
+## Toolchain
+
+rules_dx registers the Xcode C/C++ toolchain; a consumer adds no
+`register_toolchains` line and no Apple-specific tag.
+
 ## macOS apps
 
 Build one macOS application bundle over a Rust static library. The

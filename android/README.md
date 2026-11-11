@@ -71,7 +71,7 @@ configuration. `compatible_with`, `deprecation`, `exec_compatible_with`,
 `testonly` reach every generated target. `crate_features`, `rustc_flags`, `copts`, and `linkopts` reach the
 underlying Rust and C actions; build scripts stay on the host toolchain.
 
-## NDK toolchain
+## Toolchain
 
 `rules_dx` registers the NDK clang toolchains for both tuples; a consumer
 adds no `register_toolchains` line. The NDK comes from the `android_sdk`

@@ -18,5 +18,6 @@ pub_deploy(
 
 deploy_analysis_test(
     name = "pub_fixture_analysis",
+    artifacts = ["//deploy/tests/fixtures/pub_package:package"],
     subject = "dx_pub_fixture",
 )

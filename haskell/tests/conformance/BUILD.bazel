@@ -1,0 +1,68 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+haskell_library(
+    name = "greet",
+    testonly = True,
+    srcs = ["src/Greet.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = ["@dx_haskell_toolchains//:base"],
+)
+
+haskell_binary(
+    name = "hello",
+    testonly = True,
+    srcs = ["src/Main.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":greet",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+haskell_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["test/PassTest.hs"],
+    target_compatible_with = subject_compatible_with() + HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":greet",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+haskell_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["test/FailTest.hs"],
+    target_compatible_with = subject_compatible_with() + HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":greet",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":hello",
+    covered_source = "Greet.hs",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "haskell",
+    passing_test = ":pass_subject_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -811,7 +811,10 @@ dx_pins.archive(
     name = "dx_rules_flutter_pub",
     dropped = ["MODULE.bazel"],
     key = "rules_flutter",
-    patches = ["//patches/rules_flutter:hermetic_pub.patch"],
+    patches = [
+        "//patches/rules_flutter:engine_labels.patch",
+        "//patches/rules_flutter:hermetic_pub.patch",
+    ],
     pins = "//flutter/private:pins.json",
 )
 dx_pins.archive(
@@ -1079,22 +1082,27 @@ archive_override(
 
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
 flutter.toolchain(flutter_version = "3.47.8")
-use_repo(flutter, "flutter_dev_root", "flutter_toolchains", "flutter_web_sdk")
+use_repo(
+    flutter,
+    "flutter_android_engine_arm64",
+    "flutter_android_engine_arm64_profile",
+    "flutter_android_engine_x64",
+    "flutter_android_engine_x64_profile",
+    "flutter_dev_root",
+    "flutter_toolchains",
+    "flutter_web_sdk",
+)
 
-flutter_dev = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter", dev_dependency = True)
 flutter_pub = use_extension("//flutter:extensions.bzl", "pub", dev_dependency = True)
 flutter_pub.pub(
     name = "dx_flutter_app_deps",
-    flutter_version = "3.47.8",
     lock = "//flutter/tests/fixtures/flutter-app:pubspec.lock",
 )
 flutter_pub.pub(
     name = "dx_flutter_deps",
-    flutter_version = "3.47.8",
     lock = "//flutter/tests/runtime:pubspec.lock",
 )
 use_repo(flutter_pub, "dx_flutter_app_deps", "dx_flutter_deps")
-use_repo(flutter_dev, "flutter_android_engine_arm64", "flutter_android_engine_x64", "flutter_ios_engine")
 
 # floor: equals tested
 bazel_dep(name = "tar.bzl", version = "0.10.9")

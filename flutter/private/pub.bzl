@@ -7,13 +7,14 @@ load("@dx_rules_flutter_pub//flutter/private:pub_lock_sdks.bzl", "parse_lock_sdk
 load("@dx_rules_flutter_pub//flutter/private:versions.bzl", "flutter_source_sha256")
 load("@rules_dart//dart/ext:registry.bzl", "curated_code_assets")
 load("@rules_dart//dart/pub:yaml_parser.bzl", "parse_pubspec_lock")
+load("//core/modules:versions.bzl", "FLUTTER_SDK_VERSION")
 
 _SDK_PACKAGES = ["flutter", "flutter_test", "flutter_driver", "flutter_localizations", "flutter_web_plugins"]
 
 _pub_tag = tag_class(attrs = {
     "flutter_version": attr.string(
         doc = "Flutter SDK version the lock resolves against.",
-        mandatory = True,
+        default = "",
     ),
     "ignore_hooks": attr.string_list(
         doc = "Pub packages whose hook/build.dart is never reached.",
@@ -37,13 +38,14 @@ def _pub_impl(mctx):
     return mctx.extension_metadata(reproducible = True)
 
 def _hub(mctx, tag):
+    flutter_version = tag.flutter_version or FLUTTER_SDK_VERSION
     lock_content = mctx.read(tag.lock)
     constraint = parse_lock_sdk_constraints(lock_content).get("flutter", "")
-    if constraint and version_below_lower_bound(tag.flutter_version, constraint):
+    if constraint and version_below_lower_bound(flutter_version, constraint):
         fail("{lock} requires flutter {constraint}, and flutter_version is {version}".format(
             lock = str(tag.lock),
             constraint = constraint,
-            version = tag.flutter_version,
+            version = flutter_version,
         ))
     hosted = {}
     sdk = []
@@ -73,12 +75,12 @@ def _hub(mctx, tag):
             code_assets = curated_code_assets(name, version),
             ignore_hook = name in ignore_hooks,
         )
-    source_sha256 = flutter_source_sha256(tag.flutter_version)
+    source_sha256 = flutter_source_sha256(flutter_version)
     for name in sdk:
         flutter_sdk_package(
             name = tag.name + "__" + name,
             package_name = name,
-            flutter_version = tag.flutter_version,
+            flutter_version = flutter_version,
             sha256 = source_sha256,
             hub_name = tag.name,
             lock_packages = names,

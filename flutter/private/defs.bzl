@@ -2,7 +2,7 @@
 
 load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("@rules_dart//dart:utils.bzl", "dart_analyzable_info_with_package", "derive_lib_root")
-load("@rules_flutter//flutter:android.bzl", _flutter_android_app = "flutter_android_app")
+load("@dx_rules_flutter_pub//flutter:android.bzl", _flutter_android_app = "flutter_android_app")
 load("@rules_flutter//flutter:defs.bzl", _flutter_application = "flutter_application", _flutter_gen_l10n = "flutter_gen_l10n", _flutter_library = "flutter_library", _flutter_test = "flutter_test")
 load("@rules_flutter//flutter:ios.bzl", _flutter_ios_app = "flutter_ios_app")
 load("@rules_flutter//flutter:providers.bzl", "FlutterApplicationInfo", "FlutterInfo")

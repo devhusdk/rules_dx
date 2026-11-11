@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
-load("//dotnet:symbols.bzl", "fsharp_compile_defines")
+load("//dotnet/private:symbols.bzl", "fsharp_compile_defines")
 load("//core/quality:family_hooks.bzl", "stage")
 load("//core/quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")

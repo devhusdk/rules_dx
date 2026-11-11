@@ -1,0 +1,6 @@
+load("//core/tests:toolchain_tests.bzl", "toolchain_tests")
+load("//deploy/private:nuget_tests.bzl", "nuget_unit_tests")
+
+toolchain_tests(name = "toolchain")
+
+nuget_unit_tests(name = "nuget_unit")

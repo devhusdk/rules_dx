@@ -68,7 +68,7 @@ dx_sharpfuzz_aspect = aspect(
     attr_aspects = ["deps", "upstream"],
     attrs = {
         "_instrument": attr.label(
-            default = Label("@rules_dx//dotnet/fuzz:instrument"),
+            default = Label("@rules_dx//dotnet/private/fuzz:instrument"),
             executable = True,
             cfg = "exec",
         ),
@@ -127,7 +127,7 @@ def sharpfuzz_fuzz(name, binary, srcs, deps, visibility, tags, kwargs):
         name,
         binary,
         engine = "dotnet",
-        fuzz = Label("@rules_dx//dotnet/fuzz:libfuzzer_dotnet"),
+        fuzz = Label("@rules_dx//dotnet/private/fuzz:libfuzzer_dotnet"),
         harness = ":" + name,
         srcs = srcs,
         deps = instrumented + SHARPFUZZ,

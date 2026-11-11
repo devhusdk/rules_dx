@@ -33,15 +33,8 @@ bazel build //:simulator_probe \
 ```
 
 Use `macos_arm64` with `--macos_minimum_os` for `macosx`. For the
-`macosx` cell, register the Xcode C/C++ toolchain ahead of other C/C++
-toolchains in your `MODULE.bazel`:
-
-```python
-apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
-use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
-
-register_toolchains("@local_config_apple_cc_toolchains//:all")
-```
+`macosx` cell, `rules_dx` registers the Xcode C/C++ toolchain; your
+`MODULE.bazel` needs no `register_toolchains` line.
 
 The probe writes `bazel-bin/<package>/<name>.txt` with the executor's real
 identities: route, endpoint, host, arch, macOS version and build, Xcode

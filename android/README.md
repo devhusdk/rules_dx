@@ -37,8 +37,7 @@ other than 31 to 34 fails with an error naming the allowed values.
 
 The `dx_android_sdk` hub exposes `ndk`, `zipalign`, `apksigner_jar`,
 `bundletool_jar`, `android_jar`, `adb` and `emulator`. Targets for packages
-that were not requested are empty. Without a `configure` tag only the hub
-exists. Pass `mirror` to override the download host.
+that were not requested are empty. Without a `configure` tag the defaults apply. Pass `mirror` to override the download host.
 
 The qualified host is Linux
 x86_64 with NDK r27 targeting API 31.
@@ -74,22 +73,11 @@ underlying Rust and C actions; build scripts stay on the host toolchain.
 
 ## NDK toolchain
 
-`android_ndk_toolchain_repo` from `@rules_dx//android:repos.bzl` defines
-NDK clang toolchains for both tuples from the pinned NDK download:
-
-```python
-_android_ndk_toolchain_repo = use_repo_rule("@rules_dx//android:repos.bzl", "android_ndk_toolchain_repo")
-
-_android_ndk_toolchain_repo(
-    name = "android_ndk_toolchain",
-    api_level = 31,
-    cxx_runtime = "static",
-)
-```
-
-Register `@android_ndk_toolchain//:ndk_cc_toolchain_device` and
-`@android_ndk_toolchain//:ndk_cc_toolchain_emulator`. The NDK comes from
-the `android_sdk` extension's pinned download on Linux x86_64.
+`rules_dx` registers the NDK clang toolchains for both tuples; a consumer
+adds no `register_toolchains` line. The NDK comes from the `android_sdk`
+extension's pinned download on Linux x86_64 and is fetched only after
+`android_sdk.license(accept = ["android-sdk-license"])` is in the root
+module. `android_sdk.configure` is the one optional tag.
 
 ## Application packaging
 

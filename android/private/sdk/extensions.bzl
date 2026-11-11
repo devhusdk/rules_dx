@@ -3,7 +3,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:license.bzl", "license_tag", "root_accepts")
 load("//core:repo.bzl", "hub_repo")
-load(":repos.bzl", "APP_SDK_FILES_NAME", "APP_SDK_HUB_NAME", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "DEFAULT_MIRROR", "EMULATOR_ARTIFACTS", "HUB_NAME", "NDK_ARTIFACTS", "PLATFORM_ARTIFACTS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "android_app_sdk_hub_repo", "android_app_sdk_repo", "android_build_tools_repo", "android_emulator_repo", "android_ndk_repo", "android_platform_repo", "android_platform_tools_repo", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "bundletool_url", "canonical_id_for", "hub_build", "package_repositories", "request_errors", "sdk_level", "url_for")
+load(":repos.bzl", "APP_SDK_FILES_NAME", "APP_SDK_HUB_NAME", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "DEFAULT_MIRROR", "EMULATOR_ARTIFACTS", "HUB_NAME", "NDK_ARTIFACTS", "PLATFORM_ARTIFACTS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "android_app_sdk_hub_repo", "android_app_sdk_repo", "android_build_tools_repo", "android_emulator_repo", "android_ndk_repo", "android_platform_repo", "android_platform_tools_repo", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "bundletool_url", "canonical_id_for", "default_request", "hub_build", "license_errors", "package_repositories", "request_errors", "sdk_level", "url_for")
 
 def _configure_tag(request, accept_licenses):
     return struct(
@@ -14,7 +14,7 @@ def _configure_tag(request, accept_licenses):
         mirror = request.mirror,
     )
 
-def _declare(rule, name, artifact, kind, mirror):
+def _declare(rule, name, artifact, kind, mirror, license_error):
     """Declares one pinned archive repository."""
     url = url_for(artifact, mirror)
     rule(
@@ -23,11 +23,12 @@ def _declare(rule, name, artifact, kind, mirror):
         archive = artifact.archive,
         canonical_id = canonical_id_for(url, kind),
         directory = artifact.directory,
+        license_error = license_error,
         sha256 = artifact.sha256,
         url = url,
     )
 
-def _declare_app_sdk(request):
+def _declare_app_sdk(request, license_error):
     """Declares the @androidsdk replacement rules_android's SDK template builds on."""
     dirs = {}
     mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
@@ -37,6 +38,7 @@ def _declare_app_sdk(request):
     android_app_sdk_repo(
         name = APP_SDK_FILES_NAME,
         dirs = dirs,
+        license_error = license_error,
         substitutions = app_sdk_substitutions(request),
     )
     android_app_sdk_hub_repo(
@@ -70,26 +72,26 @@ def _android_sdk_impl(module_ctx):
             requests.append(_configure_tag(tag, accepted))
     if len(requests) > 1:
         fail("android_sdk: configure the Android SDK once")
-    repos = {}
-    if len(requests) == 1:
-        request = requests[0]
-        failures = request_errors(request)
-        if len(failures) > 0:
-            fail("android_sdk: " + "; ".join(failures))
-        repos = package_repositories(request)
-        if request.enabled:
-            mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
-            for platform in sorted(repos["ndk"].keys()):
-                _declare(android_ndk_repo, repos["ndk"][platform], NDK_ARTIFACTS[platform], "ndk", mirror)
-            for platform in sorted(repos["build_tools"].keys()):
-                _declare(android_build_tools_repo, repos["build_tools"][platform], BUILD_TOOLS_ARTIFACTS[platform], "build-tools", mirror)
-            for level in sorted(repos["platform"].keys()):
-                _declare(android_platform_repo, repos["platform"][level], PLATFORM_ARTIFACTS[level], "platform", mirror)
-            for host in sorted(repos.get("platform_tools", {}).keys()):
-                _declare(android_platform_tools_repo, repos["platform_tools"][host], PLATFORM_TOOLS_ARTIFACTS[host], "platform-tools", mirror)
-            for host in sorted(repos.get("emulator", {}).keys()):
-                _declare(android_emulator_repo, repos["emulator"][host], EMULATOR_ARTIFACTS[host], "emulator", mirror)
-    _declare_app_sdk(requests[0] if len(requests) == 1 else struct(enabled = False, mirror = "", api_level = 0))
+    request = requests[0] if len(requests) == 1 else _configure_tag(default_request(), accepted)
+    license_error = "; ".join(license_errors(request))
+    request = _configure_tag(request, default_request().accept_licenses)
+    failures = request_errors(request)
+    if len(failures) > 0:
+        fail("android_sdk: " + "; ".join(failures))
+    repos = package_repositories(request)
+    if request.enabled:
+        mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
+        for platform in sorted(repos["ndk"].keys()):
+            _declare(android_ndk_repo, repos["ndk"][platform], NDK_ARTIFACTS[platform], "ndk", mirror, license_error)
+        for platform in sorted(repos["build_tools"].keys()):
+            _declare(android_build_tools_repo, repos["build_tools"][platform], BUILD_TOOLS_ARTIFACTS[platform], "build-tools", mirror, license_error)
+        for level in sorted(repos["platform"].keys()):
+            _declare(android_platform_repo, repos["platform"][level], PLATFORM_ARTIFACTS[level], "platform", mirror, license_error)
+        for host in sorted(repos.get("platform_tools", {}).keys()):
+            _declare(android_platform_tools_repo, repos["platform_tools"][host], PLATFORM_TOOLS_ARTIFACTS[host], "platform-tools", mirror, license_error)
+        for host in sorted(repos.get("emulator", {}).keys()):
+            _declare(android_emulator_repo, repos["emulator"][host], EMULATOR_ARTIFACTS[host], "emulator", mirror, license_error)
+    _declare_app_sdk(request, license_error)
     platform_repos = repos.get("platform", {})
     hub_repo(
         name = HUB_NAME,

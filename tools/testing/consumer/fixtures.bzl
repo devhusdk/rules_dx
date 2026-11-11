@@ -17,6 +17,7 @@ CONSUMER_FIXTURES = [
     "perl",
     "qt",
     "php",
+    "rego",
     "ruby",
     "rust",
     "scala",

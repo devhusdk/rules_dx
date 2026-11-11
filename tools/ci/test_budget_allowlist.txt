@@ -460,7 +460,6 @@ java/tests/fixtures/java-app/diagnostics/BUILD.bazel no-size 2
 java/tests/fixtures/junit/BUILD.bazel no-size 4
 java/tests/fixtures/no_srcs/BUILD.bazel no-size 3
 java/tests/fixtures/testonly_binary/BUILD.bazel no-size 1
-javascript/private/ide/BUILD.bazel no-size 1
 javascript/private/quality/launcher/BUILD.bazel no-size 1
 javascript/tests/BUILD.bazel no-size 1
 javascript/tests/fixtures/adopt-js-ts/app/BUILD.bazel no-size 2
@@ -477,7 +476,6 @@ javascript/tests/fixtures/skip_tags/BUILD.bazel no-size 4
 javascript/tests/fixtures/web_app/BUILD.bazel no-size 14
 javascript/tests/typecheck/BUILD.bazel no-size 1
 javascript/tests/wrapper_tests.bzl no-size 1
-julia/private/coverage/BUILD.bazel no-size 1
 julia/private/tools/BUILD.bazel no-size 2
 julia/private/tools/docs/BUILD.bazel no-size 1
 julia/private/tools/jet/BUILD.bazel no-size 2

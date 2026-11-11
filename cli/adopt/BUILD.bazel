@@ -48,6 +48,7 @@ rust_library(
     visibility = VIS_CLI + [
         "//core/modules:__pkg__",
         "//core/quality:__pkg__",
+        "//core/quality/tests:__pkg__",
         "//tools/ci/fill_pins:__pkg__",
         "//tools/docs/support_matrix:__pkg__",
         "//tools/testing:__pkg__",

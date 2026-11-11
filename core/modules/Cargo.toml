@@ -13,7 +13,7 @@ path = "consumer_deps_test.rs"
 
 [[test]]
 name = "loaders_test"
-path = "loaders_test.rs"
+path = "tests/loaders_test.rs"
 
 [[test]]
 name = "oci_pins_test"
@@ -21,7 +21,7 @@ path = "oci_pins_test.rs"
 
 [[test]]
 name = "families_test"
-path = "families_test.rs"
+path = "tests/families_test.rs"
 
 [[test]]
 name = "lang_json_test"

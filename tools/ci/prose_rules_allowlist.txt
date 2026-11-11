@@ -13,7 +13,7 @@ cli/process/src/runner_tests.rs issue-number 1
 cli/worktree/src/ops.rs issue-number 1
 core/modules/consumer_deps_test.rs issue-number 1
 core/quality/adapter/src/parsers/cmakelint.rs issue-number 1
-core/quality/core_load_graph_test.rs issue-number 4
+core/quality/tests/core_load_graph_test.rs issue-number 4
 core/quality/curated_defaults.bzl issue-number 2
 core/quality/jvm_classpath_policy_test.rs issue-number 1
 core/quality/policy.bzl link-chain 1

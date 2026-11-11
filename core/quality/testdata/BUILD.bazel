@@ -92,6 +92,7 @@ exports_files(
         "//core/quality:__subpackages__",
         "//tools/ci:__pkg__",
         "//core/modules:__pkg__",
+        "//core/modules/tests:__pkg__",
     ],
 )
 

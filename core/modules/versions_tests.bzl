@@ -30,12 +30,6 @@ def versions_contract_tests(name):
         for pin in _GO_SDK_SDKS[platform]:
             go_archive_pins.append(pin)
     root_cuda_pins = _redist_pins(_cuda_qualified_cells(), multiline = True)
-    redist_prefix = "https://developer.download.nvidia.com/compute/cuda/redist/"
-    cuda_manifest_blocks = [
-        "            \"relative_path\": \"" + pin.url.removeprefix(redist_prefix) + "\",\n            \"sha256\": \"" + pin.sha256 + "\","
-        for cell in _CUDA_CELLS.values()
-        for pin in cell.components.values()
-    ]
     cuda_pin_urls_match_platform = [
         ("/" + cell.rules_cuda_platform + "/") in pin.url
         for cell in _CUDA_CELLS.values()
@@ -78,7 +72,6 @@ def versions_contract_tests(name):
             expect_equal("cuda redist sha is sha256", len(_CUDA_REDIST_SHA256), 64),
         ],
         file_blocks = {
-            "@cuda_redistrib_json//file": cuda_manifest_blocks,
             "//:MODULE.bazel": [npm_dev_block, "    version = \"" + _RUBY_VERSION + "\",\n"] + gem_pins + portable_ruby_pins + [
                 "    sha256 = \"" + _CUDA_REDIST_SHA256 + "\",\n    urls = [\"" + _CUDA_REDIST_URL + "\"],",
             ],

@@ -44,7 +44,10 @@ go_test(
     srcs = ["lang_test.go"],
     embed = [":ocaml"],
     pure = "on",
-    deps = ["@gazelle//language"],
+    deps = [
+        "@gazelle//language",
+        "@gazelle//v2/rule",
+    ],
 )
 
 real_source_target(

@@ -1,7 +1,6 @@
-# gazelle:ignore
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
-load("@rules_dx//perl:defs.bzl", "perl_bench", "perl_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//perl:defs.bzl", "perl_bench", "perl_test")
 
 package(
     default_testonly = True,
@@ -21,6 +20,7 @@ perl_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

@@ -1,6 +1,5 @@
-# gazelle:ignore
-load("@rules_perl//perl/cpan:cpan_compiler.bzl", "cpan_compiler")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_perl//perl/cpan:cpan_compiler.bzl", "cpan_compiler")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -23,6 +22,7 @@ cpan_compiler(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

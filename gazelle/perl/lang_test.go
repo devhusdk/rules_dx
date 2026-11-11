@@ -186,3 +186,16 @@ func TestGenerateMissingTestDirectoryIsClean(t *testing.T) {
 		t.Errorf("gen = %d failed = %v, want one rule", len(result.Gen), l.Failed())
 	}
 }
+
+func TestGenerateKeepsHandwrittenTestsWithoutSources(t *testing.T) {
+	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte(`perl_test(name = "bench_report_test", srcs = ["sum_bench.pl"])`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	writeFixture(t, root, map[string]string{"pkg/sum_bench.pl": "x\n"})
+	result := NewLanguage().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg"), Rel: "pkg", File: file, RegularFiles: []string{"sum_bench.pl"}})
+	if len(result.Empty) != 0 {
+		t.Errorf("empty = %v, want none", result.Empty)
+	}
+}

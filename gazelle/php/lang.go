@@ -123,7 +123,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		return language.GenerateResult{}
 	}
 	if len(srcs) == 0 && len(tests) == 0 {
-		return common.MergeStale(args.File, language.GenerateResult{}, kinds)
+		return common.MergeStaleOwned(args.File, language.GenerateResult{}, kinds, ownsStale(args, ""))
 	}
 	libName, err := common.PackageTargetName(args)
 	if args.Rel != "" {
@@ -178,18 +178,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 			r.SetAttr("testonly", true)
 		}
 	}
-	owns := func(r *rule.Rule) bool {
-		if r.Name() == libName {
-			return true
-		}
-		for _, src := range r.AttrStrings("srcs") {
-			if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(src))); err == nil {
-				return false
-			}
-		}
-		return true
-	}
-	return common.MergeStaleOwned(args.File, result, kinds, owns)
+	return common.MergeStaleOwned(args.File, result, kinds, ownsStale(args, libName))
 }
 
 // autoloadFiles maps each php_library of the BUILD file to its autoload_files.
@@ -206,6 +195,22 @@ func autoloadFiles(args language.GenerateArgs) map[string][]string {
 		}
 	}
 	return out
+}
+
+// ownsStale reports whether generation could have produced r: it is the
+// library, or none of its srcs exist in the directory.
+func ownsStale(args language.GenerateArgs, libName string) func(*rule.Rule) bool {
+	return func(r *rule.Rule) bool {
+		if r.Name() == libName {
+			return true
+		}
+		for _, src := range r.AttrStrings("srcs") {
+			if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(src))); err == nil {
+				return false
+			}
+		}
+		return true
+	}
 }
 
 func importsOf(args language.GenerateArgs, files []string, isTest bool, rep common.Reporter) []string {

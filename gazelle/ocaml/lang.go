@@ -2,6 +2,7 @@ package ocaml
 
 import (
 	"path"
+	"slices"
 	"sort"
 	"strings"
 
@@ -64,7 +65,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	var impls []string
 	for _, f := range args.RegularFiles {
 		present[f] = true
-		if strings.HasSuffix(f, ".ml") {
+		if strings.HasSuffix(f, ".ml") && !sourceClaimed(args, f) {
 			impls = append(impls, f)
 		}
 	}
@@ -87,8 +88,50 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, nil)
 	}
-	owns := func(r *rule.Rule) bool { return !present[r.AttrString("struct")] }
+	outs := producedFiles(args)
+	owns := func(r *rule.Rule) bool {
+		structFile := r.AttrString("struct")
+		return !strings.ContainsAny(structFile, ":/@") && !present[structFile] && !outs[structFile]
+	}
 	return common.MergeStaleOwned(args.File, result, kinds, owns)
+}
+
+// sourceClaimed reports whether a rule of another kind already names file in
+// main, srcs or struct.
+func sourceClaimed(args language.GenerateArgs, file string) bool {
+	for _, r := range existingRules(args) {
+		if r.Kind() == ModuleKind {
+			continue
+		}
+		for _, attr := range []string{"main", "srcs", "struct"} {
+			if r.AttrString(attr) == file || slices.Contains(r.AttrStrings(attr), file) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// producedFiles collects the out and outs of every rule in the directory.
+func producedFiles(args language.GenerateArgs) map[string]bool {
+	outs := make(map[string]bool)
+	for _, r := range existingRules(args) {
+		if out := r.AttrString("out"); out != "" {
+			outs[out] = true
+		}
+		for _, o := range r.AttrStrings("outs") {
+			outs[o] = true
+		}
+	}
+	return outs
+}
+
+func existingRules(args language.GenerateArgs) []*rule.Rule {
+	var rules []*rule.Rule
+	if args.File != nil {
+		rules = append(rules, args.File.Rules...)
+	}
+	return append(rules, args.OtherGen...)
 }
 
 func init() { common.RegisterLanguage(NewLanguage) }

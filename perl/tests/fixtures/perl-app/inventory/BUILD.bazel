@@ -1,6 +1,5 @@
-# gazelle:ignore
-load("@rules_dx//perl:defs.bzl", "perl_library", "perl_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//perl:defs.bzl", "perl_library", "perl_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -16,6 +15,7 @@ APPS = ["//perl/tests/fixtures/perl-app:__subpackages__"]
 
 perl_library(
     name = "inventory",
+    testonly = True,
     srcs = [
         "lib/Inventory/Item.pm",
         "lib/Inventory/Ledger.pm",
@@ -25,18 +25,21 @@ perl_library(
 
 perl_test(
     name = "item_test",
+    testonly = True,
     srcs = ["t/item.t"],
     deps = [":inventory"],
 )
 
 perl_test(
     name = "ledger_test",
+    testonly = True,
     srcs = ["t/ledger.t"],
     deps = [":inventory"],
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

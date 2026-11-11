@@ -27,6 +27,16 @@ config_setting(
 )
 
 config_setting(
+    name = "clang_cl",
+    constraint_values = [
+        "@llvm//constraints/windows/abi:msvc",
+        "@platforms//os:windows",
+    ],
+    flag_values = {"//cc:compiler": "llvm"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
     name = "msvc_opt",
     constraint_values = [
         "@llvm//constraints/windows/abi:msvc",

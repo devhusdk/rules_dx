@@ -385,6 +385,7 @@ def _link_windows_impl(ctx):
     for d in lib_dirs:
         asserts.true(env, d in libpaths, "LIB dir is not a -LIBPATH: of the Rust link: {}".format(d))
     default_libs = [arg[len("-DEFAULTLIB:"):].lower() for arg in link_args if arg.startswith("-DEFAULTLIB:")]
+    asserts.true(env, "libc++.lib" in default_libs, "libc++.lib is not a default lib of the Rust link: {}".format(link_args))
     for crt in ["libcmt.lib", "msvcrt.lib"]:
         asserts.false(env, crt in default_libs, "the cc toolchain CRT reached the Rust link, rustc picks it: {}".format(link_args))
     for part in action.argv:

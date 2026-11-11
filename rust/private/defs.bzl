@@ -32,6 +32,8 @@ _UNWIND = Label("//rust/private:unwind")
 _BUILD_SCRIPT_CC_ENV = Label("//rust/private:build_script_cc_env")
 _MSVC = Label("//rust/private:msvc")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
+_CLANG_CL = Label("//rust/private:clang_cl")
+CLANG_CL_LINK_FLAGS = ["-Clink-arg=-DEFAULTLIB:libc++.lib"]
 _MSVC_OPT = Label("//rust/private:msvc_opt")
 
 _MSVC_LINK = Label("//rust/private/tools/msvc_paths:msvc_link")
@@ -110,6 +112,9 @@ def _libstdcxx_upstream(kwargs, link):
     if link:
         out["rustc_flags"] = (out.get("rustc_flags") or []) + select({
             _MSVC: MSVC_LINK_FLAGS,
+            "//conditions:default": [],
+        }) + select({
+            _CLANG_CL: CLANG_CL_LINK_FLAGS,
             "//conditions:default": [],
         }) + select({
             _MSVC_OPT: MSVC_OPT_LINK_FLAGS,

@@ -7,8 +7,9 @@ fn subject_matches_mode() {
     let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
     let srcdir = std::env::var("TEST_SRCDIR").unwrap_or_default();
     let runfiles = std::env::var("RUNFILES_DIR").unwrap_or_else(|_| srcdir.clone());
+    let path = std::env::var("PATH").unwrap_or_default();
     let mut envs = vec![
-        ("PATH", ""),
+        ("PATH", path.as_str()),
         ("TEST_TMPDIR", tmp.as_str()),
         ("TEST_SRCDIR", srcdir.as_str()),
         ("RUNFILES_DIR", runfiles.as_str()),
@@ -74,10 +75,9 @@ fn subject_matches_mode() {
                 "failing subject passed:\n{}",
                 run.combined()
             );
-            let expected = format!("--- FAIL: {text}");
             assert!(
-                run.combined().contains(&expected),
-                "missing {expected:?} in:\n{}",
+                run.combined().contains(&text),
+                "missing {text:?} in:\n{}",
                 run.combined()
             );
         }

@@ -663,7 +663,16 @@ fn publish_one(
 mod tests {
     #![cfg(unix)]
     use super::*;
+    use dx_adopt::dependency_sets::Ecosystem;
     use dx_update::discover::{Candidate, Registry};
+
+    fn manifest_of(ecosystem: Ecosystem) -> &'static str {
+        ecosystem.manifest_name()
+    }
+
+    fn lock_of(ecosystem: Ecosystem) -> &'static str {
+        ecosystem.lockfiles()[0].as_str()
+    }
 
     struct Fixture {
         _dir: tempfile::TempDir,
@@ -696,7 +705,7 @@ mod tests {
             &["init", "-q", "--bare", "-b", "main", "origin.git"],
         );
         dx_test_scratch::git(&work, &work, &["init", "-q", "-b", "main"]);
-        std::fs::write(work.join("Cargo.lock"), "a\n").expect("write");
+        std::fs::write(work.join(lock_of(Ecosystem::Cargo)), "a\n").expect("write");
         dx_test_scratch::git(&work, &work, &["add", "-A"]);
         dx_test_scratch::git(&work, &work, &["commit", "-q", "-m", "init"]);
         dx_test_scratch::git(
@@ -795,7 +804,7 @@ mod tests {
                 return Err(DxError::failure(format!("{} failed", words[0])));
             }
             if words.contains(&"--apply".to_owned()) && words.len() >= 3 {
-                std::fs::write(work.join("Cargo.lock"), "a\nb\n")
+                std::fs::write(work.join(lock_of(Ecosystem::Cargo)), "a\nb\n")
                     .map_err(|e| DxError::from_io(e.to_string(), &e))?;
             }
             Ok(())
@@ -805,8 +814,11 @@ mod tests {
     fn editing_version(work: PathBuf) -> impl FnMut(&[String]) -> Result<(), DxError> {
         move |words: &[String]| {
             if words.len() == 4 && words[3] == "--apply" {
-                std::fs::write(work.join("Cargo.lock"), format!("a\n{}\n", words[2]))
-                    .map_err(|e| DxError::from_io(e.to_string(), &e))?;
+                std::fs::write(
+                    work.join(lock_of(Ecosystem::Cargo)),
+                    format!("a\n{}\n", words[2]),
+                )
+                .map_err(|e| DxError::from_io(e.to_string(), &e))?;
             }
             Ok(())
         }
@@ -822,7 +834,7 @@ mod tests {
             &plans(),
             &scope(),
             &rules(),
-            &["Cargo.lock".to_owned()],
+            &[lock_of(Ecosystem::Cargo).to_owned()],
             &mut step,
         )
         .expect("publish");
@@ -830,7 +842,7 @@ mod tests {
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert!(argv.contains("pr create --base main --head dx-update/cargo"));
         assert!(argv.contains("cargo:serde 1.0.0 -> 2.0.0"));
-        assert!(argv.contains("| Cargo.lock | 1 | 0 |"));
+        assert!(argv.contains(&format!("| {} | 1 | 0 |", lock_of(Ecosystem::Cargo))));
         let pushed = dx_test_scratch::git(
             &fx.origin,
             &fx.origin,
@@ -1047,7 +1059,7 @@ mod tests {
         let mut step = move |words: &[String]| {
             let applying = words.contains(&"--apply".to_owned()) && words.len() >= 3;
             if applying && words[1].starts_with("github-actions") {
-                std::fs::write(work.join("Cargo.lock"), "a\nb\n")
+                std::fs::write(work.join(lock_of(Ecosystem::Cargo)), "a\nb\n")
                     .map_err(|e| DxError::from_io(e.to_string(), &e))?;
             }
             Ok(())
@@ -1113,7 +1125,7 @@ mod tests {
     #[test]
     fn a_dirty_tree_is_refused() {
         let fx = fixture("[]");
-        std::fs::write(fx.work.join("Cargo.lock"), "dirty\n").expect("write");
+        std::fs::write(fx.work.join(lock_of(Ecosystem::Cargo)), "dirty\n").expect("write");
         let mut step = editing(fx.work.clone(), None);
         let got = publish(
             &fx.work,
@@ -1270,12 +1282,19 @@ mod tests {
         let root = &harness.workspace;
         std::fs::write(
             root.join("MODULE.bazel"),
-            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//:Cargo.lock\", lockfile = \"//:cargo-bazel-lock.json\", manifests = [\"//:Cargo.toml\"])\nuse_repo(crate, \"crates\")\n",
+            format!(
+                "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//:{}\", lockfile = \"//:cargo-bazel-lock.json\", manifests = [\"//:{}\"])\nuse_repo(crate, \"crates\")\n",
+                lock_of(Ecosystem::Cargo),
+                manifest_of(Ecosystem::Cargo)
+            ),
         )
         .expect("module");
-        std::fs::write(root.join("Cargo.toml"), "[dependencies]\nserde = \"1\"\n")
-            .expect("manifest");
-        std::fs::write(root.join("Cargo.lock"), "a\n").expect("lock");
+        std::fs::write(
+            root.join(manifest_of(Ecosystem::Cargo)),
+            "[dependencies]\nserde = \"1\"\n",
+        )
+        .expect("manifest");
+        std::fs::write(root.join(lock_of(Ecosystem::Cargo)), "a\n").expect("lock");
         let registry = harness.temp.join("registry");
         let dir = registry.join("index.crates.io/se/rd");
         std::fs::create_dir_all(&dir).expect("mkdir");
@@ -1431,14 +1450,15 @@ mod tests {
 
     #[test]
     fn run_groups_go_sets() {
+        let go_mod = manifest_of(Ecosystem::Go);
+        let module = format!(
+            "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//:{go_mod}\")\n"
+        );
         let (code, out, argv) = run_pr_with(
             &[
+                ("MODULE.bazel", module.as_str()),
                 (
-                    "MODULE.bazel",
-                    "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//:go.mod\")\n",
-                ),
-                (
-                    "go.mod",
+                    go_mod,
                     "module m\n\ngo 1.22\n\nrequire example.com/x v1.0.0\n",
                 ),
             ],
@@ -1453,14 +1473,16 @@ mod tests {
 
     #[test]
     fn run_plans_ruby_sets() {
+        let gemfile = manifest_of(Ecosystem::Ruby);
+        let gemfile_lock = lock_of(Ecosystem::Ruby);
+        let module = format!(
+            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//:{gemfile}\", gemfile_lock = \"//:{gemfile_lock}\")\n"
+        );
         let (code, out, argv) = run_pr_with(
             &[
-                (
-                    "MODULE.bazel",
-                    "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//:Gemfile\", gemfile_lock = \"//:Gemfile.lock\")\n",
-                ),
-                ("Gemfile", "gem 'rake', '1.0'\n"),
-                ("Gemfile.lock", "a\n"),
+                ("MODULE.bazel", module.as_str()),
+                (gemfile, "gem 'rake', '1.0'\n"),
+                (gemfile_lock, "a\n"),
             ],
             &[(
                 "rubygems.org/api/v1/versions/rake.json",

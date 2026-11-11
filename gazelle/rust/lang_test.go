@@ -508,7 +508,7 @@ func TestLanguageMetadata(t *testing.T) {
 	})
 	if got := missingLoads(loads, map[string]string{
 		binaryKind:           "@renamed_dx//rust:defs.bzl",
-		scriptKind:           "@rules_rust//cargo:defs.bzl",
+		scriptKind:           "@renamed_dx//rust:defs.bzl",
 		"all_crate_deps":     "@renamed_crates//:crates.bzl",
 		"real_source_target": "@renamed_dx//core/quality:fixtures.bzl",
 	}); len(got) != 0 {

@@ -107,7 +107,9 @@ func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 // without its own BUILD file belong to the library, so those directories
 // generate nothing. php_binary targets stay hand-written, and files a
 // hand-written rule lists in srcs or a library lists in autoload_files stay
-// out of its srcs.
+// out of its srcs. An existing php_library whose srcs are all directory
+// sources keeps its name and srcs, and the directory library gets only the
+// sources no such library lists.
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter, excludes []string) language.GenerateResult {
 	if ownedByAncestor(args) {
 		return language.GenerateResult{}
@@ -134,7 +136,11 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
 		return language.GenerateResult{}
 	}
+	splits, srcs := librarySplits(args, libName, srcs)
 	var claimants []common.Claimant
+	for _, split := range splits {
+		claimants = append(claimants, common.Claimant{Name: split.name, Source: args.Rel, Kind: LibraryKind})
+	}
 	if len(srcs) > 0 {
 		claimants = append(claimants, common.Claimant{Name: libName, Source: args.Rel, Kind: LibraryKind})
 	}
@@ -168,6 +174,9 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapImportSet(importsOf(args, append(append([]string{}, files...), extra...), kind == TestKind, rep)))
 	}
+	for _, split := range splits {
+		add(LibraryKind, split.name, split.srcs, autoload[split.name])
+	}
 	if len(srcs) > 0 {
 		add(LibraryKind, libName, srcs, autoload[libName])
 	}
@@ -183,6 +192,63 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		}
 	}
 	return common.MergeStaleOwned(args.File, result, kinds, ownsStale(args, libName))
+}
+
+type librarySplit struct {
+	name string
+	srcs []string
+}
+
+// librarySplits returns the php_library rules of the BUILD file, other than
+// libName, whose srcs are all in candidates and share no file with an earlier
+// split, and the candidates no split lists.
+func librarySplits(args language.GenerateArgs, libName string, candidates []string) ([]librarySplit, []string) {
+	if args.File == nil {
+		return nil, candidates
+	}
+	free := make(map[string]bool, len(candidates))
+	for _, src := range candidates {
+		free[src] = true
+	}
+	var splits []librarySplit
+	for _, r := range args.File.Rules {
+		if r.Kind() != LibraryKind || r.Name() == libName {
+			continue
+		}
+		listed := r.AttrStrings("srcs")
+		if len(listed) == 0 {
+			continue
+		}
+		srcs := make([]string, 0, len(listed))
+		seen := make(map[string]bool, len(listed))
+		taken := true
+		for _, src := range listed {
+			src = path.Clean(src)
+			if !free[src] {
+				taken = false
+				break
+			}
+			if !seen[src] {
+				seen[src] = true
+				srcs = append(srcs, src)
+			}
+		}
+		if !taken {
+			continue
+		}
+		for _, src := range srcs {
+			delete(free, src)
+		}
+		sort.Strings(srcs)
+		splits = append(splits, librarySplit{name: r.Name(), srcs: srcs})
+	}
+	rest := make([]string, 0, len(free))
+	for _, src := range candidates {
+		if free[src] {
+			rest = append(rest, src)
+		}
+	}
+	return splits, rest
 }
 
 // autoloadFiles maps each php_library of the BUILD file to its autoload_files.
@@ -220,11 +286,14 @@ func handwrittenSources(args language.GenerateArgs) map[string]bool {
 }
 
 // ownsStale reports whether generation could have produced r: it is the
-// library, or none of its srcs exist in the directory.
+// library, or it lists srcs and none of them exist in the directory.
 func ownsStale(args language.GenerateArgs, libName string) func(*rule.Rule) bool {
 	return func(r *rule.Rule) bool {
 		if r.Name() == libName {
 			return true
+		}
+		if len(r.AttrStrings("srcs")) == 0 {
+			return false
 		}
 		for _, src := range r.AttrStrings("srcs") {
 			if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(src))); err == nil {

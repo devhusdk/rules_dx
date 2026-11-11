@@ -1,0 +1,20 @@
+load("@rules_dx//php:defs.bzl", "php_binary", "php_library")
+
+php_library(
+    name = "format",
+    srcs = ["src/Split/Format/Upper.php"],
+    visibility = ["//visibility:public"],
+)
+
+php_library(
+    name = "greeter",
+    srcs = ["src/Split/Greeter.php"],
+    visibility = ["//visibility:public"],
+    deps = [":format"],
+)
+
+php_binary(
+    name = "pkg",
+    main = "bin/pkg.php",
+    deps = [":greeter"],
+)

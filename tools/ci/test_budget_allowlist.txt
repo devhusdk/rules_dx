@@ -573,7 +573,7 @@ php/private/toolchain/BUILD.bazel no-size 2
 php/private/toolchain/metadata_tests.bzl no-size 1
 php/tests/bench/BUILD.bazel no-size 2
 php/tests/fixtures/composer/BUILD.bazel no-size 2
-php/tests/fixtures/hello/BUILD.bazel no-size 4
+php/tests/fixtures/hello/BUILD.bazel no-size 1
 php/tests/negative/BUILD.bazel no-size 3
 powershell/private/BUILD.bazel no-size 1
 powershell/private/ide/BUILD.bazel no-size 1

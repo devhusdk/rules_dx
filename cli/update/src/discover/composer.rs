@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://repo.packagist.org";
 
-/// Checks each direct require of the composer manifests against its locked version.
+/// Checks each direct require of the manifest files against its locked version.
 ///
 /// `locks` are the lock texts of the same set; a package that is not locked is skipped.
 pub fn outdated(

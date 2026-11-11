@@ -76,7 +76,7 @@ pub fn outdated(
     found
 }
 
-/// Reads the `any.<name> ==<version>` entries of a cabal.project.freeze.
+/// Reads the `any.<name> ==<version>` entries of a cabal freeze file.
 fn frozen(text: &str) -> Vec<(String, String)> {
     let mut constraints = String::new();
     let mut inside = false;

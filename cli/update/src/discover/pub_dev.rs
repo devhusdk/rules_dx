@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://pub.dev";
 
-/// Checks each direct hosted package of the pubspec.lock files against the API at `base`.
+/// Checks each direct hosted package of the lock files against the API at `base`.
 pub fn outdated(
     set: &str,
     lockfiles: &[String],

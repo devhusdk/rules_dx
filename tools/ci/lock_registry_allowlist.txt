@@ -14,17 +14,6 @@ name cli/update/src/backend/cpan.rs cpanfile.snapshot
 name cli/update/src/backend/julia.rs Manifest.toml
 name cli/update/src/backend/pub_dev.rs pubspec.lock
 name cli/update/src/backend/swiftpm.rs Package.resolved
-name cli/update/src/discover/cabal.rs cabal.project.freeze
-name cli/update/src/discover/cpan.rs cpanfile
-name cli/update/src/discover/go.rs go.mod
-name cli/update/src/discover/julia.rs Manifest.toml
-name cli/update/src/discover/julia.rs Project.toml
-name cli/update/src/discover/npm.rs package.json
-name cli/update/src/discover/nuget.rs paket.dependencies
-name cli/update/src/discover/pub_dev.rs pubspec.lock
-name cli/update/src/discover/pypi.rs pyproject.toml
-name cli/update/src/discover/ruby.rs Gemfile
-name cli/update/src/discover/swiftpm.rs Package.resolved
 name cli/update/src/edit/add.rs Gemfile
 name cli/update/src/edit/add.rs Package.swift
 name cli/update/src/edit/add.rs Project.toml

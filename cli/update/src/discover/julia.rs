@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://raw.githubusercontent.com/JuliaRegistries/General/master";
 
-/// Checks each `[deps]` package of the Project.toml files, as locked in the Manifest.toml files.
+/// Checks each `[deps]` package of the manifest files, as locked in the lock files.
 pub fn outdated(
     set: &str,
     projects: &[String],

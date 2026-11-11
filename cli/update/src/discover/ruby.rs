@@ -1,4 +1,4 @@
-//! Lists gems whose newest release on rubygems.org is newer than the version in the Gemfile.
+//! Lists gems whose newest release on rubygems.org is newer than the version in the manifest.
 
 use dx_error::DxError;
 
@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://rubygems.org";
 
-/// Checks each versioned `gem` line of the Gemfiles against the API at `base`.
+/// Checks each versioned `gem` line of the manifests against the API at `base`.
 pub fn outdated(
     set: &str,
     gemfiles: &[String],

@@ -36,6 +36,7 @@ rust_test(
         "bcr_newest.json",
         ":consumer_deps_json",
         "//:MODULE.bazel",
+        "//:MODULE.bazel.lock",
         "//third_party/go:go.sum",
         "//tools/testing/hermetic:module_fragments",
     ],

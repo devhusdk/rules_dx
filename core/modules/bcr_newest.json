@@ -10,6 +10,8 @@
   "bazel_skylib": "1.9.2",
   "c-ares": "1.34.9.bcr.1",
   "elfutils": "0.195",
+  "envoy_api": "0.0.0-20260901-005c18a.bcr.1",
+  "fmt": "12.2.0.bcr.1",
   "gazelle": "0.54.0",
   "gcc_toolchain": "0.13.0",
   "google_benchmark": "1.10.0",

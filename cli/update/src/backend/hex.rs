@@ -75,7 +75,7 @@ pub(super) fn check(
         )?)),
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "mix deps.get checks the whole mix.lock; select the set without a package",
+            reason: hex_whole_lock(),
         }),
     }
 }

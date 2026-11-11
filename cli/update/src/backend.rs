@@ -778,6 +778,26 @@ fn nuget_staged(
     })
 }
 
+fn hex_lock_missing() -> &'static str {
+    static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    TEXT.get_or_init(|| {
+        format!(
+            "a hex set must list {} in locks; rebar.lock sets are not refreshed",
+            dx_adopt::lock_hubs::lock_of("hex")
+        )
+    })
+}
+
+fn hex_whole_lock() -> &'static str {
+    static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    TEXT.get_or_init(|| {
+        format!(
+            "mix deps.get checks the whole {}; select the set without a package",
+            dx_adopt::lock_hubs::lock_of("hex")
+        )
+    })
+}
+
 fn go_sum_missing() -> &'static str {
     static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     TEXT.get_or_init(|| {
@@ -838,7 +858,7 @@ fn is_rebar(set: &ResolvedSet) -> bool {
     dependency_sets::hex_backend(set) == Some(dependency_sets::HexBackend::Rebar3)
 }
 
-/// Plans a mix deps command on a staged copy of mix.exs and mix.lock, with the pinned Elixir
+/// Plans a mix deps command on a staged copy of the hex manifest and lock, with the pinned Elixir
 /// and empty mix and hex homes.
 fn hex_staged(
     set: &ResolvedSet,
@@ -863,7 +883,7 @@ fn hex_staged(
         .cloned()
         .ok_or_else(|| BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "a hex set must list mix.lock in locks; rebar.lock sets are not refreshed",
+            reason: hex_lock_missing(),
         })?;
     let mut inputs = set.manifests.clone();
     inputs.push(lock.clone());

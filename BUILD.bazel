@@ -162,6 +162,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude asciidoc/tests/consumer
 # gazelle:exclude avro/tests/consumer
 # gazelle:exclude astro/tests/consumer
+# gazelle:exclude mdx/tests/consumer
 # gazelle:exclude cloudformation/tests/consumer
 # gazelle:exclude cmake/tests/consumer
 # gazelle:exclude cc/tests/consumer

@@ -1,0 +1,9 @@
+load("@rules_dx//mdx:defs.bzl", "mdx_library")
+
+# dx: written once, yours to edit
+
+mdx_library(
+    name = "greeting",
+    srcs = ["greeting.mdx"],
+    visibility = ["//visibility:public"],
+)

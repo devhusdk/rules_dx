@@ -28,6 +28,7 @@ CONSUMER_FIXTURES = [
     "julia",
     "kotlin",
     "lua",
+    "mdx",
     "ocaml",
     "perl",
     "php",

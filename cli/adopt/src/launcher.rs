@@ -1226,6 +1226,13 @@ mod tests {
         const UNAME_LINUX: &str =
             "#!/bin/sh\ncase \"$1\" in\n  -s) echo Linux ;;\n  -m) echo x86_64 ;;\nesac\n";
 
+        fn applet_dir() -> std::path::PathBuf {
+            dx_testing::env_files("DX_COREUTILS")[0]
+                .parent()
+                .expect("applet directory")
+                .to_path_buf()
+        }
+
         struct Fixture {
             _guard: Box<dyn std::any::Any>,
             base: std::path::PathBuf,
@@ -1238,18 +1245,6 @@ mod tests {
                 std::fs::create_dir_all(root.join(".dx")).expect("dx dir");
                 std::fs::create_dir_all(dir.path().join("stub")).expect("stub dir");
                 std::fs::create_dir_all(dir.path().join("home")).expect("home");
-                let tools = dir.path().join("tools");
-                let missing = dx_test_scratch::link_host_tools(
-                    &tools,
-                    &[
-                        "dirname", "tr", "mkdir", "cut", "chmod", "mv", "rm", "rmdir", "cp",
-                    ],
-                )
-                .expect("link tools");
-                assert!(missing.is_empty(), "host lacks tools: {missing:?}");
-                let hashers = dx_test_scratch::link_host_tools(&tools, &["sha256sum", "shasum"])
-                    .expect("link hashers");
-                assert!(hashers.len() < 2, "host has no sha256sum or shasum");
                 let payload = dir.path().join("payload");
                 std::fs::write(&payload, PAYLOAD).expect("payload");
                 let sha = sha_of(&payload);
@@ -1328,7 +1323,7 @@ mod tests {
                             format!(
                                 "{}:{}",
                                 base.join("stub").display(),
-                                base.join("tools").display()
+                                applet_dir().display()
                             ),
                         )
                         .env("HOME", base.join("home"))

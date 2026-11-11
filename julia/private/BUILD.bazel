@@ -1,10 +1,6 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("//core:cells.bzl", "unsupported_value")
-load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
-load("//core:entry.bzl", "dx_entry_quality_srcs")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "JULIA_QUALITY_TOOLS", "JULIA_SOURCE_EXTS", "JULIA_SOURCE_SPECS")
 load(":platforms.bzl", "JULIA_PLATFORMS")
 
 package(default_visibility = [
@@ -17,67 +13,8 @@ unsupported_value("unsupported")
 
 exports_files([
     "defs.bzl",
-    "precompile_tests.bzl",
     "platforms.bzl",
-    "wrapper_tests.bzl",
 ])
-
-dx_wrapper_contract_tests(
-    name = "wrapper_contract_tests",
-    extra_checks = [
-        expect_equal(
-            "wrappers carry julia_format",
-            sorted(JULIA_QUALITY_TOOLS.keys()),
-            ["julia_format"],
-        ),
-        expect_equal(
-            "one julia class owns every source",
-            JULIA_SOURCE_SPECS,
-            [("julia", "jl")],
-        ),
-        expect_equal(
-            "wrappers accept only Julia sources",
-            JULIA_SOURCE_EXTS,
-            [".jl"],
-        ),
-        expect_equal(
-            "main leads the owned sources",
-            dx_entry_quality_srcs(
-                "main.jl",
-                ["util.jl"],
-            ),
-            [
-                "main.jl",
-                "util.jl",
-            ],
-        ),
-        expect_equal(
-            "main listed in srcs is owned once",
-            dx_entry_quality_srcs(
-                "main.jl",
-                [
-                    "main.jl",
-                    "util.jl",
-                ],
-            ),
-            [
-                "main.jl",
-                "util.jl",
-            ],
-        ),
-        expect_equal(
-            "no main and no srcs owns nothing",
-            dx_entry_quality_srcs(None, None),
-            [],
-        ),
-        expect_equal(
-            "windows arm64 has no Julia build",
-            [name for name, (os, cpu) in JULIA_PLATFORMS.items() if os == "windows" and cpu == "arm64"],
-            [],
-        ),
-    ],
-    file_classes = ["julia"],
-)
 
 [
     config_setting(
@@ -102,8 +39,6 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "platforms.bzl",
-        "precompile_tests.bzl",
-        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )

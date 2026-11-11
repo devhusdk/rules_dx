@@ -1,0 +1,23 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load(":wrapper_tests.bzl", "julia_wrapper_contract_tests")
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files([
+    "precompile_tests.bzl",
+    "wrapper_tests.bzl",
+])
+
+julia_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "precompile_tests.bzl",
+        "wrapper_tests.bzl",
+    ],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)

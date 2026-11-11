@@ -488,12 +488,12 @@ javascript/tests/fixtures/skip_tags/BUILD.bazel no-size 4
 javascript/tests/fixtures/web_app/BUILD.bazel no-size 14
 javascript/tests/typecheck/BUILD.bazel no-size 1
 javascript/tests/wrapper_tests.bzl no-size 1
-julia/private/BUILD.bazel no-size 1
 julia/private/coverage/BUILD.bazel no-size 1
 julia/private/tools/BUILD.bazel no-size 2
 julia/private/tools/docs/BUILD.bazel no-size 1
 julia/private/tools/jet/BUILD.bazel no-size 2
 julia/private/tools/lint/BUILD.bazel no-size 2
+julia/tests/BUILD.bazel no-size 1
 julia/tests/fixtures/bench/BUILD.bazel no-size 3
 julia/tests/fixtures/hello/BUILD.bazel no-size 8
 julia/tests/fixtures/julia-app/archive/BUILD.bazel no-size 1
@@ -501,6 +501,7 @@ julia/tests/fixtures/julia-app/cli/BUILD.bazel no-size 2
 julia/tests/fixtures/julia-app/diagnostics/BUILD.bazel no-size 1
 julia/tests/fixtures/julia-app/stats/BUILD.bazel no-size 1
 julia/tests/fixtures/julia-app/third_party/BUILD.bazel no-size 1
+julia/tests/wrapper_tests.bzl no-size 1
 kotlin/private/BUILD.bazel no-size 1
 kotlin/tests/fixtures/adopt-kotlin/greet/BUILD.bazel no-size 1
 kotlin/tests/fixtures/adopt-kotlin/solo/BUILD.bazel no-size 1
@@ -557,8 +558,8 @@ ocaml/tests/runtime/BUILD.bazel no-size 4
 patches/BUILD.bazel no-size 1
 patches/windows_support/BUILD.bazel no-size 1
 patches/windows_support/source_directory_headers_test.bzl no-size 1
-perl/private/BUILD.bazel no-size 1
 perl/private/tools/BUILD.bazel no-size 2
+perl/tests/BUILD.bazel no-size 1
 perl/tests/bench/BUILD.bazel no-size 3
 perl/tests/coverage/BUILD.bazel no-size 2
 perl/tests/fixtures/perl-app/cli/BUILD.bazel no-size 1
@@ -566,6 +567,7 @@ perl/tests/fixtures/perl-app/inventory/BUILD.bazel no-size 2
 perl/tests/fixtures/perl-app/report/BUILD.bazel no-size 1
 perl/tests/negative/BUILD.bazel no-size 3
 perl/tests/runtime/BUILD.bazel no-size 2
+perl/tests/wrapper_tests.bzl no-size 1
 php/private/BUILD.bazel no-size 1
 php/private/coverage/BUILD.bazel no-size 1
 php/private/toolchain/BUILD.bazel no-size 2

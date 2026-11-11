@@ -72,6 +72,14 @@ def _ocaml_impl(mctx):
         strip_prefix = DUNE.strip_prefix,
         urls = DUNE.urls,
     )
+    return mctx.extension_metadata(reproducible = True)
+
+ocaml = module_extension(
+    implementation = _ocaml_impl,
+    doc = "Creates rules_ocaml, the pinned OCaml compilers and the toolchain hub.",
+)
+
+def _opam_impl(mctx):
     tags = [tag for module in mctx.modules for tag in module.tags.lock]
     locks = [parse_depends(mctx.read(tag.lock)) for tag in tags]
     wanted = {}
@@ -95,9 +103,9 @@ def _ocaml_impl(mctx):
         _declare_packages(mctx, tag, locked, annotations, facts)
     return mctx.extension_metadata(reproducible = True, facts = facts)
 
-ocaml = module_extension(
-    implementation = _ocaml_impl,
-    doc = "Creates rules_ocaml, the pinned OCaml compilers, the toolchain hub and opam package hubs.",
+opam = module_extension(
+    implementation = _opam_impl,
+    doc = "Creates opam package hubs.",
     tag_classes = {
         "annotation": tag_class(
             doc = "Adjusts how one opam package is built; without a build_file it is built with dune.",

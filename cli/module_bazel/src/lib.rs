@@ -316,7 +316,7 @@ pub struct BicepRegistryModule<'a> {
     pub line: usize,
 }
 
-/// One `ocaml.lock` tag.
+/// One `opam.lock` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OpamPackages<'a> {
     pub name: &'a str,
@@ -1178,18 +1178,18 @@ impl ModuleFile {
         .collect()
     }
 
-    /// Every `ocaml.lock` tag of this repository's OCaml extension in source order.
+    /// Every `opam.lock` tag of this repository's opam extension in source order.
     pub fn opam_packages(&self) -> Result<Vec<OpamPackages<'_>>, ModuleError> {
-        const TAG: &str = "ocaml.lock";
+        const TAG: &str = "opam.lock";
         let own = self.tags_of(
             "//ocaml:extensions.bzl".to_owned(),
-            "ocaml",
+            "opam",
             "lock",
         );
         self.tags(
             RUBY_MODULE,
             "ocaml:extensions.bzl",
-            "ocaml",
+            "opam",
             "lock",
         )
         .chain(own)

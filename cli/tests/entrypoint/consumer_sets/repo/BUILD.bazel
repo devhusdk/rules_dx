@@ -79,8 +79,8 @@ composer = use_extension("@rules_dx//php:extensions.bzl", "composer")
 composer.lock(name = "vendor", lock = "//apps/php:composer.lock.json")
 luarocks = use_extension("@rules_dx//lua:extensions.bzl", "luarocks")
 luarocks.lock(name = "rocks", lock = "//apps/lua:luarocks.lock.json")
-ocaml = use_extension("@rules_dx//ocaml:extensions.bzl", "ocaml")
-ocaml.lock(name = "ocaml_app", lock = "//apps/ml:ocaml_app.opam.locked")
+opam = use_extension("@rules_dx//ocaml:extensions.bzl", "opam")
+opam.lock(name = "ocaml_app", lock = "//apps/ml:ocaml_app.opam.locked")
 EOF
 echo "requires 'Text::CSV', '== 2.06';" > "$(location sets_ok/perl/cpanfile)"
 cat > "$(location sets_ok/perl/cpanfile.snapshot)" <<'EOF'

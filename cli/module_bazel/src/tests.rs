@@ -1259,7 +1259,7 @@ fn cpan_installs_follow_the_rules_perl_extension() {
 #[test]
 fn opam_packages_follow_the_ocaml_extension() {
     let file = parse(
-        "ocaml = use_extension(\"//ocaml:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"app\", lock = \"//app:app.opam.locked\")\nocaml.annotation(package = \"x\", build_file = \"//x:BUILD\")\n",
+        "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"app\", lock = \"//app:app.opam.locked\")\nopam.annotation(package = \"x\", build_file = \"//x:BUILD\")\n",
     );
     let found: Vec<_> = file
         .opam_packages()

@@ -2016,6 +2016,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "opam",
+          "extension": "@rules_dx//ocaml:extensions.bzl",
+          "hub": "opam",
+          "imports": "name",
+          "lock": "*.opam.locked",
+          "manifest": "*.opam",
+          "resolver": null,
+          "state": null,
+          "tag": "lock"
+        }
+      ]
+    },
     "title": "OCaml",
     "tools": [
       "topiary",

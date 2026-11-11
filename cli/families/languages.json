@@ -1026,6 +1026,21 @@
             "real_ocaml_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "opam",
+            "extension": "@rules_dx//ocaml:extensions.bzl",
+            "hub": "opam",
+            "imports": "name",
+            "lock": "*.opam.locked",
+            "manifest": "*.opam",
+            "resolver": null,
+            "state": null,
+            "tag": "lock"
+          }
+        ]
       }
     },
     {

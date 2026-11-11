@@ -2377,7 +2377,7 @@ fn consumer_cpan_refusals_launch_nothing() {
     assert_eq!(cpan_bytes(&harness), before);
 }
 
-const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
+const CABAL_MODULE: &str = "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
 const CABAL_FILES: [&str; 4] = [
     "hs/cabal.project",
     "hs/cabal.project.freeze",

@@ -644,6 +644,21 @@
             "real_haskell_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "cabal",
+            "extension": "@rules_dx//haskell:extensions.bzl",
+            "hub": "hackage",
+            "imports": "name",
+            "lock": "haskell_deps.json",
+            "manifest": "cabal.project",
+            "resolver": null,
+            "state": "cabal.project.freeze",
+            "tag": "lock"
+          }
+        ]
       }
     },
     {

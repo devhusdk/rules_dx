@@ -14,6 +14,21 @@
   "lockfiles": [
     "cabal.project.freeze"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "cabal",
+        "manifest": "cabal.project",
+        "lock": "haskell_deps.json",
+        "state": "cabal.project.freeze",
+        "extension": "@rules_dx//haskell:extensions.bzl",
+        "tag": "lock",
+        "hub": "hackage",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "hlint",
     "ormolu",

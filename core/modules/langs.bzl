@@ -1323,6 +1323,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "cabal",
+          "extension": "@rules_dx//haskell:extensions.bzl",
+          "hub": "hackage",
+          "imports": "name",
+          "lock": "haskell_deps.json",
+          "manifest": "cabal.project",
+          "resolver": null,
+          "state": "cabal.project.freeze",
+          "tag": "lock"
+        }
+      ]
+    },
     "title": "Haskell",
     "tools": [
       "hlint",

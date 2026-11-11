@@ -1287,7 +1287,7 @@ fn opam_packages_follow_the_ocaml_extension() {
 #[test]
 fn haskell_packages_follow_the_haskell_extension() {
     let file = parse(
-        "haskell = use_extension(\"//haskell:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//app:haskell_deps.json\")\n",
+        "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//app:haskell_deps.json\")\n",
     );
     let found: Vec<_> = file
         .haskell_packages()

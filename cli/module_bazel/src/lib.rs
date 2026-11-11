@@ -334,7 +334,7 @@ pub struct SwiftPackage<'a> {
     pub line: usize,
 }
 
-/// One `haskell.lock` tag.
+/// One `cabal.lock` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HaskellPackages<'a> {
     pub name: &'a str,
@@ -1207,18 +1207,18 @@ impl ModuleFile {
         .collect()
     }
 
-    /// Every `haskell.lock` tag of this repository's Haskell extension in source order.
+    /// Every `cabal.lock` tag of this repository's Haskell extension in source order.
     pub fn haskell_packages(&self) -> Result<Vec<HaskellPackages<'_>>, ModuleError> {
-        const TAG: &str = "haskell.lock";
+        const TAG: &str = "cabal.lock";
         let own = self.tags_of(
             "//haskell:extensions.bzl".to_owned(),
-            "haskell",
+            "cabal",
             "lock",
         );
         self.tags(
             RUBY_MODULE,
             "haskell:extensions.bzl",
-            "haskell",
+            "cabal",
             "lock",
         )
         .chain(own)

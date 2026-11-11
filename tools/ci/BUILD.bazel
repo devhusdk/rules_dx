@@ -93,6 +93,83 @@ rust_test(
     ],
 )
 
+config_setting(
+    name = "linux_x86_64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "macos_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:macos",
+    ],
+)
+
+config_setting(
+    name = "windows_x86_64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+)
+
+config_setting(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:windows",
+    ],
+)
+
+alias(
+    name = "jq",
+    actual = select({
+        ":linux_arm64": "@dx_jq_linux_arm64//file",
+        ":linux_x86_64": "@dx_jq_linux_x86_64//file",
+        ":macos_arm64": "@dx_jq_macos_arm64//file",
+        ":windows_arm64": "@dx_jq_windows_arm64//file",
+        ":windows_x86_64": "@dx_jq_windows_x86_64//file",
+    }),
+)
+
+rust_test(
+    name = "lock_merge_test",
+    srcs = ["lock_merge_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "lock_merge_test",
+    crate_root = "lock_merge_test.rs",
+    data = [
+        ":jq",
+        "lock_merge.sh",
+    ],
+    env = {"DX_JQ": "$(rootpath :jq)"},
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
 rust_test(
     name = "evidence_inputs_test",
     srcs = [

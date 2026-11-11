@@ -22,7 +22,7 @@ fn dep_info(raw: &str, spec: &str, category: &str, optional: bool) -> DepInfo {
     }
 }
 
-/// The body of `def deps do ... end` in a `mix.exs`.
+/// The body of `def deps do ... end` in a mix manifest.
 fn mix_deps_block(text: &str) -> Option<String> {
     let head = regex::Regex::new(r"(?m)^\s*defp?\s+deps(?:\(\s*\))?\s+do\b").ok()?;
     let start = head.find(text)?.end();
@@ -73,7 +73,7 @@ pub fn parse_elixir_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
     Ok(deps)
 }
 
-/// `mix.lock` entries as `name -> version`; git and path entries carry no version.
+/// mix lock entries as `name -> version`; git and path entries carry no version.
 pub fn parse_mix_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let hex_re = regex::Regex::new(r#"^\s*"([^"]+)":\s*\{:hex,\s*:[^,\s]+,\s*"([^"]+)""#)

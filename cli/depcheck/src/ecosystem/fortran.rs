@@ -5,7 +5,7 @@ use crate::{DepInfo, DepcheckError};
 
 use super::{normalize_lower, put};
 
-/// Reads `[dependencies]` and `[dev-dependencies]` of an `fpm.toml`.
+/// Reads `[dependencies]` and `[dev-dependencies]` of an fpm manifest.
 pub fn parse_fortran_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let data = crate::toml_util::parse_toml_file(path)?;
     let mut deps = BTreeMap::new();

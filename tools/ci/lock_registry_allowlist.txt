@@ -446,8 +446,6 @@ parser erlang/private/rebar_lock.bzl
 parser fortran/private/fpm_lock.bzl
 parser fortran/private/tools/fpm_lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
-registry cpan
-registry julia
 resolve-doc csharp/README.md 1
 resolve-doc elixir/README.md 1
 resolve-doc lua/README.md 1

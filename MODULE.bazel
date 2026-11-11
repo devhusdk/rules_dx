@@ -1053,7 +1053,6 @@ use_repo(
 swift = use_extension("@rules_swift//swift:extensions.bzl", "swift")
 swift.toolchain(
     name = "dx_swift",
-    env = {"LD_LIBRARY_PATH": "{sysroot}/host_libs"},
     platform_sha256 = {
         "ubuntu22.04": "c3081b1817117c66e4764d2a148357d997200048922c778b0f08c795833ae06d",
         "ubuntu22.04-aarch64": "2f56ac2f5aa647beb85b27b637f0ba9653413ee26894570ca33434ec041d92cc",

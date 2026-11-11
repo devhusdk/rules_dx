@@ -116,15 +116,12 @@ def swift_binary(name, *, srcs = None, visibility = None, platforms = None, **kw
 def _swift_runtime_kwargs(kwargs, platforms):
     """Returns the forwarder kwargs that ship the sysroot's shared libraries with a swift_test and point the loader at them, so no host library is needed."""
     env = dict(kwargs.get("env", {}))
-    env.setdefault("LD_LIBRARY_PATH", "")
     out = {"platforms": platforms if platforms != None else swift_linux_platforms()}
     out["data"] = dx_append_flags(kwargs, "data", [Label("//swift/private/toolchain:runtime_libs")] + select({
         Label("//swift/private/platforms:is_windows_x86_64"): [SWIFT_WINDOWS_RUNTIME_DLLS],
         "//conditions:default": [],
     }))["data"]
     out["env"] = select({
-        Label("//swift/private/platforms:is_linux_aarch64"): dict(env, LD_LIBRARY_PATH = "../bazel_linux_packages++apt+dx_swift_sysroot_linux_aarch64/host_libs"),
-        Label("//swift/private/platforms:is_linux_x86_64"): dict(env, LD_LIBRARY_PATH = "../bazel_linux_packages++apt+dx_swift_sysroot_linux_x86_64/host_libs"),
         Label("//swift/private/platforms:is_windows_x86_64"): dict(env, PATH = SWIFT_WINDOWS_RUNTIME_PATH),
         "//conditions:default": env,
     })

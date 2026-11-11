@@ -1,7 +1,9 @@
 load("@rules_dx//flatbuffers:defs.bzl", "flatbuffers_library")
 
+# dx: written once, yours to edit
+
 flatbuffers_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["hello.fbs"],
     visibility = ["//visibility:public"],
 )

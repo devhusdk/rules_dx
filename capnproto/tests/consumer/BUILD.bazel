@@ -1,7 +1,9 @@
 load("@rules_dx//capnproto:defs.bzl", "capnp_library")
 
+# dx: written once, yours to edit
+
 capnp_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["hello.capnp"],
     visibility = ["//visibility:public"],
 )

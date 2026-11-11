@@ -1,5 +1,7 @@
 load("@rules_dx//python:defs.bzl", "python_library")
 
+# dx: written once, yours to edit
+
 python_library(
     name = "greet",
     srcs = ["greet.py"],

@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
 load("//tools/docs/beam:path_tests.bzl", "beam_shard_path_test")
@@ -16,6 +17,11 @@ erlang_doc_shard(
     name = "geometry_docs",
     app = ":geometry",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+build_test(
+    name = "shard_build_test",
+    targets = [":geometry_docs"],
 )
 
 beam_shard_path_test(

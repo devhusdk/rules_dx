@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_dx//core:fuzz.bzl", "dx_fuzz_binary")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
@@ -10,6 +9,7 @@ _SUPPORTED = select({
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
+# keep
 rust_binary(
     name = "instrument",
     srcs = ["instrument/main.rs"],
@@ -20,6 +20,7 @@ rust_binary(
 
 cc_binary(
     name = "libfuzzer_dotnet_bin",
+    testonly = True,
     srcs = ["@dx_libfuzzer_dotnet//:libfuzzer-dotnet.cc"],
     copts = ["-fsanitize=fuzzer"],
     linkopts = ["-fsanitize=fuzzer"],
@@ -28,15 +29,14 @@ cc_binary(
         "//conditions:default": True,
     }),
     target_compatible_with = _SUPPORTED,
-    testonly = True,
     visibility = ["//visibility:private"],
 )
 
 dx_fuzz_binary(
     name = "libfuzzer_dotnet",
+    testonly = True,
     binary = ":libfuzzer_dotnet_bin",
     target_compatible_with = _SUPPORTED,
-    testonly = True,
     visibility = ["//visibility:public"],
 )
 

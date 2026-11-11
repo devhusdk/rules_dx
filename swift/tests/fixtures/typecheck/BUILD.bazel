@@ -1,4 +1,4 @@
-# gazelle:ignore
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//swift:defs.bzl", "swift_library")
 
 package(
@@ -8,6 +8,7 @@ package(
 
 # `dx typecheck` reports no finding for :clean and one error at broken.swift:2:22 for :broken.
 # :broken cannot compile, so it stays out of wildcard builds.
+# keep
 swift_library(
     name = "clean",
     srcs = ["clean.swift"],
@@ -15,9 +16,17 @@ swift_library(
     tags = ["manual"],
 )
 
+# keep
 swift_library(
     name = "broken",
     srcs = ["broken.swift"],
     module_name = "Broken",
     tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

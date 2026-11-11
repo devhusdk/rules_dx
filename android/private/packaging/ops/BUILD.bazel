@@ -1,9 +1,9 @@
-# gazelle:ignore
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library")
 
 package(default_visibility = ["//android:__subpackages__"])
 
+# keep
 rust_library(
     name = "ops",
     srcs = [
@@ -19,6 +19,7 @@ rust_library(
     deps = ["@crates//:zip"],
 )
 
+# keep
 rust_binary(
     name = "android_ops",
     srcs = ["src/main.rs"],

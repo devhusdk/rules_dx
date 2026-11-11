@@ -248,7 +248,7 @@ func (*SingleLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 
 func (l *SingleLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	l.generated.Add(args.Rel)
-	result := l.spec.Generate(args, l.spec.Kinds, l)
+	result := dropKept(args.File, l.spec.Generate(args, l.spec.Kinds, l))
 	if ShouldSetVisibility(args) {
 		for _, r := range result.Gen {
 			if (r.Kind() == l.spec.LibraryKind || slices.Contains(l.spec.IndexKinds, r.Kind())) && r.Attr("visibility") == nil {
@@ -352,4 +352,44 @@ func HasExt(name string, exts []string) bool {
 		}
 	}
 	return false
+}
+
+// dropKept removes generated rules whose srcs a rule marked "# keep" already
+// lists, with their imports.
+func dropKept(file *rule.File, result language.GenerateResult) language.GenerateResult {
+	if file == nil {
+		return result
+	}
+	kept := make(map[string]bool)
+	for _, r := range file.Rules {
+		if r.ShouldKeep() {
+			for _, src := range r.AttrStrings("srcs") {
+				kept[strings.TrimPrefix(src, ":")] = true
+			}
+		}
+	}
+	if len(kept) == 0 {
+		return result
+	}
+	var gen []*rule.Rule
+	var imports []interface{}
+	for i, r := range result.Gen {
+		srcs := r.AttrStrings("srcs")
+		covered := len(srcs) > 0
+		for _, src := range srcs {
+			covered = covered && kept[src]
+		}
+		if covered {
+			continue
+		}
+		gen = append(gen, r)
+		if i < len(result.Imports) {
+			imports = append(imports, result.Imports[i])
+		}
+	}
+	result.Gen = gen
+	if result.Imports != nil {
+		result.Imports = imports
+	}
+	return result
 }

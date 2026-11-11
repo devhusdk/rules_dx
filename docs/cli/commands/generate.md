@@ -147,7 +147,7 @@ use_repo(pip, "pypi")
 
 ## Generated targets by language
 
-Gazelle sets these attributes only when the rule lacks them. Set one yourself to keep your value. Gazelle never removes them.
+Gazelle sets these attributes only when the rule lacks them. Set one yourself to keep your value. Gazelle never removes them. A rule marked `# keep` owns the sources in its `srcs`; Gazelle generates no rule for them.
 
 - Java and Kotlin: each `*Test.java` or `*Test.kt` gets its own test named in snake case, such as `greet_test`. A handwritten rule that lists a test source in `srcs` owns it. Mark a dependency no import gives with `# keep`.
 - Java and Kotlin: an `android.*` or `dalvik.*` import selects `java_android_library` or `kotlin_android_library` from `@rules_dx//android:defs.bzl`. Gazelle also sets `custom_package` and `tags = ["manual"]`. It never derives resources, the `R` class, or manifests.

@@ -2265,6 +2265,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "powershell",
+          "extension": "@rules_dx//powershell:extensions.bzl",
+          "hub": "psgallery",
+          "imports": "name",
+          "lock": "PSGallery.lock.json",
+          "manifest": "PSGallery.requirements.psd1",
+          "resolver": null,
+          "state": null,
+          "tag": "lock"
+        }
+      ]
+    },
     "title": "PowerShell",
     "tools": [
       "psscriptanalyzer"

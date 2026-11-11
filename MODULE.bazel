@@ -2726,26 +2726,12 @@ _http_jar(
     urls = ["https://repo1.maven.org/maven2/org/ow2/asm/asm/9.0/asm-9.0.jar"],
 )
 
-_psgallery_module = use_repo_rule("//powershell:extensions.bzl", "psgallery_module")
-
-_psgallery_module(
-    name = "psgallery_pester",
-    module = "Pester",
-    sha256 = "4a27904c6814a5fbe4758f8e49861f6a1994aee77b71165a5c43c0371ba6c580",
-    urls = [
-        "https://www.powershellgallery.com/api/v2/package/Pester/5.7.1",
-    ],
+powershell = use_extension("//powershell:extensions.bzl", "powershell")
+powershell.lock(
+    name = "psgallery",
+    lock = "//third_party/powershell:PSGallery.lock.json",
 )
-
-_psgallery_module(
-    name = "psgallery_psscriptanalyzer",
-    module = "PSScriptAnalyzer",
-    sha256 = "14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60",
-    urls = [
-        "https://github.com/PowerShell/PSScriptAnalyzer/releases/download/1.25.0/PSScriptAnalyzer.1.25.0.nupkg",
-        "https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/1.25.0",
-    ],
-)
+use_repo(powershell, "psgallery")
 
 dx_tools = use_extension("//core/quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(

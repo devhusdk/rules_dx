@@ -57,22 +57,29 @@ powershell_test(
 
 ## Gallery modules
 
-Pin each PowerShell Gallery module to a package URL and its digest. Nothing
-runs `Install-Module`.
+List each PowerShell Gallery module with its digest in `PSGallery.lock.json`.
+Nothing runs `Install-Module`.
 
-```python
-psgallery_module = use_repo_rule("@rules_dx//powershell:extensions.bzl", "psgallery_module")
-
-psgallery_module(
-    name = "psgallery_pester",
-    module = "Pester",
-    sha256 = "4a27904c6814a5fbe4758f8e49861f6a1994aee77b71165a5c43c0371ba6c580",
-    urls = ["https://www.powershellgallery.com/api/v2/package/Pester/5.7.1"],
-)
+```json
+{
+  "source": "https://www.powershellgallery.com/api/v2",
+  "modules": {
+    "Pester": {
+      "version": "5.7.1",
+      "sha256": "4a27904c6814a5fbe4758f8e49861f6a1994aee77b71165a5c43c0371ba6c580"
+    }
+  }
+}
 ```
 
-Depend on `@psgallery_pester//:pester`. The target name is the lowercased
-module name. A wrong digest fails the fetch.
+```python
+powershell = use_extension("@rules_dx//powershell:extensions.bzl", "powershell")
+powershell.lock(name = "psgallery", lock = "//:PSGallery.lock.json")
+use_repo(powershell, "psgallery")
+```
+
+Depend on `@psgallery//:pester`. The target name is the lowercased module
+name. A wrong digest fails the fetch.
 
 ## Pester
 

@@ -1244,10 +1244,12 @@ rust_test(
     crate_root = "test_budget_test.rs",
     data = [
         "test_budget_allowlist.txt",
+        "//.github:workflows/ci.yml",
         "//tools/testing:nested_smoke.txt",
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
+        "CI_WORKFLOW": "$(rlocationpath //.github:workflows/ci.yml)",
         "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
         "NESTED_LIST": "$(rlocationpath //tools/testing:nested_smoke.txt)",
         "TEST_BUDGET_ALLOWLIST": "$(rlocationpath test_budget_allowlist.txt)",

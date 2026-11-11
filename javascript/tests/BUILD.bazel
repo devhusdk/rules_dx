@@ -1,4 +1,6 @@
+load("//core/modules:versions.bzl", "NODE_VERSION_PREFIX")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":dev_hub_tests.bzl", "dev_hub_tests")
 load(":wrapper_tests.bzl", "javascript_wrapper_contract_tests")
 
@@ -11,6 +13,14 @@ javascript_wrapper_contract_tests(name = "wrapper_contract_tests")
 dev_hub_tests(
     name = "dev_hub_test",
     size = "small",
+)
+
+ide_acquisition_test(
+    name = "ide_acquisition_test",
+    binary = "//javascript/private/ide:node_tool",
+    expected = NODE_VERSION_PREFIX,
+    size = "small",
+    version_args = ["--version"],
 )
 
 real_source_target(

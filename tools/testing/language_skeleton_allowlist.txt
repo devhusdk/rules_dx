@@ -505,13 +505,11 @@ test-location java/private/coverage_tests.bzl
 test-location java/private/ide/BUILD.bazel
 test-location java/private/jmh_tests.bzl
 test-location java/tests/BUILD.bazel
-test-location javascript/private/ide/BUILD.bazel
 test-location javascript/private/quality/bin/BUILD.bazel
 test-location javascript/private/quality/bin/graphql_eslint_config_test.mjs
 test-location javascript/private/quality/bin/mdx_tsc_test.mjs
 test-location javascript/private/quality/launcher/BUILD.bazel
 test-location javascript/private/quality/launcher/src/lib_tests.rs
-test-location julia/private/coverage/BUILD.bazel
 test-location kotlin/private/BUILD.bazel
 test-location kotlin/tests/BUILD.bazel
 test-location lua/private/BUILD.bazel

@@ -163,12 +163,12 @@ func TestMultiplyOperatorIsNotComment(t *testing.T) {
 }
 
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"System.Collections.Generic", "System.Text", "System", "System.IO", "FSharp.Collections", "Microsoft.FSharp.Core"} {
+	for _, imp := range []string{"System.Collections.Generic", "System.Text", "System", "System.IO", "FSharp.Collections", "Microsoft.FSharp.Core", "BenchmarkDotNet.Attributes", "BenchmarkDotNet.Running"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"Acme.Widget", "Widget", "Microsoft.Extensions.Logging", "System.CommandLine", "FSharp.Compiler.Text", "FSharp.Data.Runtime"} {
+	for _, imp := range []string{"Acme.Widget", "Widget", "Microsoft.Extensions.Logging", "System.CommandLine", "FSharp.Compiler.Text", "FSharp.Data.Runtime", "BenchmarkDotNet", "BenchmarkDotNet.Other"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}

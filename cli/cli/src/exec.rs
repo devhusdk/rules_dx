@@ -313,7 +313,7 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         return affected::execute_affected(invocation, env);
     }
     match invocation.command {
-        Command::Init if invocation.applies() => init_then_generate(invocation, env),
+        Command::Init if invocation.applies() && !invocation.no_generate => init_then_generate(invocation, env),
         Command::Init
         | Command::Upgrade
         | Command::Status

@@ -301,6 +301,21 @@ fn init_and_completion_run_without_a_workspace() {
     assert!(out.contains("wrote demo/MODULE.bazel\n"), "{out}");
     assert!(root.join("demo/MODULE.bazel").is_file());
     assert!(root.join("demo/.dx/pins").is_file());
+    let (code, out, err) = run_dx(
+        root,
+        &[
+            "init",
+            "--workspace",
+            start.as_ref(),
+            "--apply",
+            "--no-generate",
+            "bare",
+        ],
+        &[("PATH", path.as_ref())],
+    );
+    assert_eq!(code, Some(0), "--no-generate stops after the scaffold: {err}");
+    assert!(!err.contains("Running generate"), "{err}");
+    assert!(out.contains("wrote bare/MODULE.bazel\n"), "{out}");
     let (code, out, err) = run_dx(root, &["completion", "bash"], &[]);
     assert_eq!(code, Some(0), "completion works outside a workspace: {err}");
     assert!(out.contains("COMPLETE"), "{out}");

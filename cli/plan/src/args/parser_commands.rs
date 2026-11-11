@@ -1321,6 +1321,15 @@ fn max_findings_needs_json_output() {
 }
 
 #[test]
+fn no_generate_is_an_init_flag() {
+    let init = parse(&strings(&["init", "--apply", "--no-generate"])).unwrap();
+    assert!(init.no_generate);
+    let plain = parse(&strings(&["init", "--apply"])).unwrap();
+    assert!(!plain.no_generate);
+    assert!(parse(&strings(&["build", "--no-generate"])).is_err());
+}
+
+#[test]
 fn value_flags_accept_a_space_or_equals() {
     for (space, equals) in [
         (

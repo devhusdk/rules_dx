@@ -55,7 +55,7 @@ use_repo(zig_hub, "zig_packages")
 
 A package is `@zig_packages//<name>`, imported by that name. Its root module is the first existing of `src/<name>.zig`, `src/root.zig`, `<name>.zig`, `src/main.zig`, `root.zig`, `main.zig`. Its own `build.zig.zon` dependencies become deps and must be listed in the root `build.zig.zon` with the same `.hash`.
 
-`bazel run @rules_dx//zig:lock -- --dir <absolute directory of build.zig.zon>` downloads each archive and writes `zig.lock.json` beside it; `dx update` runs it. A second run with unchanged inputs downloads nothing.
+`bazel run @rules_dx//zig/private/tools/lock -- --dir <absolute directory of build.zig.zon>` downloads each archive and writes `zig.lock.json` beside it; `dx update` runs it. A second run with unchanged inputs downloads nothing.
 
 ## Benchmarks
 

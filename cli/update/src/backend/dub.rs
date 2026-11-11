@@ -1,6 +1,6 @@
 use super::*;
 
-const RESOLVER: &str = "@rules_dx//d:lock";
+const RESOLVER: &str = "@rules_dx//d/private/tools/lock";
 
 pub(super) fn plan(
     workspace: &Path,

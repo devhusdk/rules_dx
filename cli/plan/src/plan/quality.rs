@@ -798,7 +798,7 @@ mod tests {
                 Command::Lint,
                 &resolved(&["//pkg:lib"]),
                 &[],
-                "/tmp/bep.json",
+                "bep.json",
                 &[],
                 Selection {
                     online,

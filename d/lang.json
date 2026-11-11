@@ -24,7 +24,7 @@
         "extension": "@rules_dx//d:extensions.bzl",
         "tag": "lock",
         "hub": "dub",
-        "resolver": "@rules_dx//d:lock",
+        "resolver": "@rules_dx//d/private/tools/lock",
         "imports": "provides"
       }
     ]

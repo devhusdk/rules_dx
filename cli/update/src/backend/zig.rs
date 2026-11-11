@@ -1,6 +1,6 @@
 use super::*;
 
-const RESOLVER: &str = "@rules_dx//zig:lock";
+const RESOLVER: &str = "@rules_dx//zig/private/tools/lock";
 
 pub(super) fn plan(
     workspace: &Path,

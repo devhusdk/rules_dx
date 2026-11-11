@@ -24,7 +24,7 @@
         "extension": "@rules_dx//php:extensions.bzl",
         "tag": "lock",
         "hub": "composer",
-        "resolver": "@rules_dx//php:lock",
+        "resolver": "@rules_dx//php/private/tools/lock",
         "imports": "provides"
       }
     ]

@@ -309,7 +309,7 @@ pub fn shim_main() -> i32 {
     }
     let mut command = Command::new(&program);
     command.args(&args);
-    run_shim(command, &program)
+    run_launcher(command, &program)
 }
 
 /// Writes the rc file of one call from a `.record` sidecar: the rc path, then the log directory.
@@ -332,7 +332,7 @@ fn write_record_rc(record: &str) -> Result<(), String> {
 }
 
 #[cfg(unix)]
-fn run_shim(mut command: Command, program: &std::ffi::OsStr) -> i32 {
+fn run_launcher(mut command: Command, program: &std::ffi::OsStr) -> i32 {
     use std::os::unix::process::CommandExt;
     let error = command.exec();
     eprintln!(
@@ -343,7 +343,7 @@ fn run_shim(mut command: Command, program: &std::ffi::OsStr) -> i32 {
 }
 
 #[cfg(not(unix))]
-fn run_shim(mut command: Command, program: &std::ffi::OsStr) -> i32 {
+fn run_launcher(mut command: Command, program: &std::ffi::OsStr) -> i32 {
     // No kill-on-close job here: the Bazel server must outlive each client command.
     match command.status() {
         Ok(status) => status.code().unwrap_or(1),
@@ -1007,14 +1007,14 @@ impl Server {
         }
         write(&downloader, DOWNLOADER)?;
         write(&rc, &bazelrc(&server.config, &downloader, &repository_cache))?;
-        let shim = server.config.shim.clone().ok_or_else(|| {
+        let launcher = server.config.shim.clone().ok_or_else(|| {
             format!(
                 "{SHIM_ENV} is not set; nested Bazel needs the native shim (add NESTED_BAZEL_DATA and NESTED_BAZEL_ENV)"
             )
         })?;
         let wrapper = server.wrapper();
         let argv = wrapper_argv(&server.config, &server.user_root(), &rc);
-        install_shim(&shim, &wrapper)?;
+        install_shim(&launcher, &wrapper)?;
         write(&wrapper.with_extension("args"), &shim_args(&argv)?)?;
         if server.config.record.is_some() {
             let logs = server.home.join(RECORD_LOGS);
@@ -1145,10 +1145,10 @@ const REAP_ENV: &str = "DX_NESTED_REAP";
 
 /// Starts a detached shim that sweeps the slot's workspaces once `owner` is gone, however it died.
 #[cfg(unix)]
-fn spawn_reaper(shim: &Path, owner: u32, home: &Path) -> Option<Child> {
+fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
     use std::os::unix::process::CommandExt;
     let workspaces = home.join(WORKSPACES);
-    Command::new(shim)
+    Command::new(launcher)
         .env(REAP_ENV, owner.to_string())
         .arg(&workspaces)
         .stdin(std::process::Stdio::null())
@@ -1160,7 +1160,7 @@ fn spawn_reaper(shim: &Path, owner: u32, home: &Path) -> Option<Child> {
 }
 
 #[cfg(not(unix))]
-fn spawn_reaper(_shim: &Path, _owner: u32, _home: &Path) -> Option<Child> {
+fn spawn_reaper(_launcher: &Path, _owner: u32, _home: &Path) -> Option<Child> {
     None
 }
 
@@ -2333,13 +2333,13 @@ mod tests {
         let dir = scratch("nested-front-");
         let (bazel, _) = recorder(dir.path());
         let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("slot");
-        let shim = dir.path().join("shim");
+        let front = dir.path().join("shim");
         let command = server
-            .command_with_front(&probe(), &[("PATH", "/custom")], &[&shim])
+            .command_with_front(&probe(), &[("PATH", "/custom")], &[&front])
             .expect("command");
         let run = capture(command, "env", false);
         let wrapper_dir = server.home().join("bin");
-        let want = format!("PATH={}:{}:/custom", shim.display(), wrapper_dir.display());
+        let want = format!("PATH={}:{}:/custom", front.display(), wrapper_dir.display());
         assert!(
             run.stdout.lines().any(|line| line == want),
             "{}",

@@ -34,7 +34,7 @@ rust_binary(
     crate_root = "src/main.rs",
     data = ["@dx_swift_host//:swift"],
     env = {"SWIFT": "$(rlocationpath @dx_swift_host//:swift)"},
-    visibility = ["//swift:__pkg__"],
+    visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "swift/private/tools/swift_lock",
         normal = True,

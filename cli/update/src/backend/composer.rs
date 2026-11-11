@@ -1,6 +1,6 @@
 use super::*;
 
-const RESOLVER: &str = "@rules_dx//php:lock";
+const RESOLVER: &str = "@rules_dx//php/private/tools/lock";
 
 pub(super) fn plan(
     workspace: &Path,

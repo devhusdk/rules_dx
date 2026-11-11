@@ -32,7 +32,7 @@ rust_binary(
     ),
     crate_name = "dub_lock_bin",
     crate_root = "src/main.rs",
-    visibility = ["//d:__pkg__"],
+    visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "d/private/tools/dub_lock",
         normal = True,

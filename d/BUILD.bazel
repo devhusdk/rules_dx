@@ -5,8 +5,3 @@ exports_files([
     "lang.json",
     "pins.json",
 ])
-
-alias(
-    name = "lock",
-    actual = "//d/private/tools/lock",
-)

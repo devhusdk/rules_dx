@@ -4,8 +4,3 @@ exports_files([
     "extensions.bzl",
     "lang.json",
 ])
-
-alias(
-    name = "lock",
-    actual = "//zig/private/tools/lock",
-)

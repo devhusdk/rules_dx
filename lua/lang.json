@@ -22,7 +22,7 @@
         "extension": "@rules_dx//lua:extensions.bzl",
         "tag": "lock",
         "hub": "rocks",
-        "resolver": "@rules_dx//lua:lock",
+        "resolver": "@rules_dx//lua/private/tools/lock",
         "imports": "provides"
       }
     ]

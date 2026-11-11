@@ -24,7 +24,7 @@
         "extension": "@rules_dx//swift:extensions.bzl",
         "tag": "lock",
         "hub": "swiftpkg",
-        "resolver": "@rules_dx//swift:lock",
+        "resolver": "@rules_dx//swift/private/tools/lock",
         "imports": "provides"
       }
     ]

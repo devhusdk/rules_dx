@@ -74,7 +74,7 @@ PSR-4 layout is not required.
 
 ## Composer packages
 
-Packages come from `composer.lock.json`, which `bazel run @rules_dx//php:lock -- --dir <dir>`
+Packages come from `composer.lock.json`, which `bazel run @rules_dx//php/private/tools/lock -- --dir <dir>`
 writes beside `composer.json` from the Packagist API. It also writes the
 `composer.lock` that Composer reads. Bazel fetches every package through its
 repository cache; Composer never runs at fetch time.

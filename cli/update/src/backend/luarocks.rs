@@ -1,6 +1,6 @@
 use super::*;
 
-const RESOLVER: &str = "@rules_dx//lua:lock";
+const RESOLVER: &str = "@rules_dx//lua/private/tools/lock";
 
 pub(super) fn plan(
     workspace: &Path,

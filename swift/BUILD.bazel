@@ -6,8 +6,3 @@ exports_files([
     "extensions.bzl",
     "lang.json",
 ])
-
-alias(
-    name = "lock",
-    actual = "//swift/private/tools/lock",
-)

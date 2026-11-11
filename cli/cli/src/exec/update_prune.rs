@@ -92,29 +92,31 @@ mod tests {
     fn removes_a_crate_and_the_last_npm_entry() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
+        let cargo = dx_ecosystems::Ecosystem::Cargo.manifest_name();
+        let npm = dx_ecosystems::Ecosystem::Npm.manifest_name();
         std::fs::write(
-            root.join("Cargo.toml"),
+            root.join(cargo),
             "[dependencies]\nserde = \"1\"\nregex = \"1\"\n\n[dependencies.big]\nversion = \"1\"\n",
         )
         .unwrap();
         std::fs::write(
-            root.join("package.json"),
+            root.join(npm),
             "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\",\n    \"left-pad\": \"1.0.0\"\n  }\n}\n",
         )
         .unwrap();
         let found = [
-            item("regex", "Cargo.toml", 3),
-            item("big", "Cargo.toml", 5),
-            item("left-pad", "package.json", 4),
+            item("regex", cargo, 3),
+            item("big", cargo, 5),
+            item("left-pad", npm, 4),
         ];
         let removed = prune(root, &found).unwrap();
         assert_eq!(removed.len(), 2);
         assert_eq!(
-            std::fs::read_to_string(root.join("Cargo.toml")).unwrap(),
+            std::fs::read_to_string(root.join(cargo)).unwrap(),
             "[dependencies]\nserde = \"1\"\n\n[dependencies.big]\nversion = \"1\"\n"
         );
         assert_eq!(
-            std::fs::read_to_string(root.join("package.json")).unwrap(),
+            std::fs::read_to_string(root.join(npm)).unwrap(),
             "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\"\n  }\n}\n"
         );
     }

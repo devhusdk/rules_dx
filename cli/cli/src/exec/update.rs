@@ -698,10 +698,12 @@ mod tests {
     fn workspace(manifest: &str, source: &str) -> (tempfile::TempDir, Registry) {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("web")).unwrap();
-        std::fs::write(dir.path().join("web/package.json"), manifest).unwrap();
+        let manifest_path = format!("web/{}", Ecosystem::Npm.manifest_name());
+        let lock_path = format!("web/{}", Ecosystem::Npm.lockfiles()[0]);
+        std::fs::write(dir.path().join(&manifest_path), manifest).unwrap();
         std::fs::write(dir.path().join("web/index.js"), source).unwrap();
         std::fs::write(
-            dir.path().join("web/pnpm-lock.yaml"),
+            dir.path().join(&lock_path),
             "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.3.0:\n    resolution: {integrity: sha512-x}\n\n  react@18.0.0:\n    resolution: {integrity: sha512-y}\n",
         )
         .unwrap();
@@ -709,8 +711,8 @@ mod tests {
             sets: vec![DependencySet {
                 name: "npm".to_owned(),
                 ecosystem: Ecosystem::Npm,
-                manifests: vec!["web/package.json".to_owned()],
-                locks: vec!["web/pnpm-lock.yaml".to_owned()],
+                manifests: vec![manifest_path],
+                locks: vec![lock_path],
                 scopes: Vec::new(),
                 repository: None,
             }],
@@ -766,7 +768,7 @@ mod tests {
             "{\n  \"dependencies\": {\n    \"left-pad\": \"1.3.0\",\n    \"react\": \"18.0.0\"\n  }\n}\n",
             "import React from 'react';\n",
         );
-        let manifest = dir.path().join("web/package.json");
+        let manifest = dir.path().join(format!("web/{}", Ecosystem::Npm.manifest_name()));
         std::fs::set_permissions(&manifest, std::fs::Permissions::from_mode(0o444)).unwrap();
         if std::fs::OpenOptions::new()
             .write(true)

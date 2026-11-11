@@ -9,6 +9,7 @@ CONSUMER_FIXTURES = [
     "go",
     "java",
     "julia",
+    "kotlin",
     "lua",
     "perl",
     "php",

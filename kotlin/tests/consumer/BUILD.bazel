@@ -1,0 +1,15 @@
+load("@rules_dx//kotlin:defs.bzl", "kotlin_library", "kotlin_test")
+
+kotlin_library(
+    name = "consumer",
+    srcs = ["Greet.kt"],
+    visibility = ["//visibility:public"],
+)
+
+kotlin_test(
+    name = "consumer_test",
+    size = "small",
+    srcs = ["GreetTest.kt"],
+    main_class = "consumer.GreetTestKt",
+    deps = [":consumer"],
+)

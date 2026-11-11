@@ -60,7 +60,6 @@ fixture fsharp
 fixture haskell
 fixture helm
 fixture javascript
-fixture kotlin
 fixture kubernetes
 fixture make
 fixture mdx
@@ -85,6 +84,7 @@ init erlang
 init go
 init java
 init julia
+init kotlin
 init lua
 init perl
 init php

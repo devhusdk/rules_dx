@@ -183,6 +183,7 @@ def rust_android_apk(
         **kwargs):
     """Packages one APK and one unsigned App Bundle from native CcInfo deps with a Rust entry point."""
     tags = tags or []
+    testonly = kwargs.get("testonly", False)
     inner = ":" + name + "_bin"
     abis = abis_for_platforms(platforms)
     package = custom_package if custom_package != "" else app_id
@@ -195,6 +196,7 @@ def rust_android_apk(
         app_id = app_id,
         version_code = version_code,
         tags = ["manual"],
+        testonly = testonly,
         visibility = ["//visibility:private"],
     )
     if manifest == None:
@@ -209,12 +211,14 @@ def rust_android_apk(
             version_code = version_code,
             version_name = version_name,
             tags = ["manual"],
+        testonly = testonly,
             visibility = ["//visibility:private"],
         )
     _apk_file(
         name = name + "_file",
         src = ":" + name,
         tags = ["manual"],
+        testonly = testonly,
         visibility = visibility,
     )
     _apk_file(
@@ -222,6 +226,7 @@ def rust_android_apk(
         src = ":" + name,
         unsigned = True,
         tags = ["manual"],
+        testonly = testonly,
         visibility = visibility,
     )
     plain = not _has_select([abis, app_id, api_level, version_code])
@@ -232,6 +237,7 @@ def rust_android_apk(
         custom_package = package,
         manifest_values = dict(kwargs.get("manifest_values", {}), applicationId = app_id),
         tags = ["manual"],
+        testonly = testonly,
         visibility = ["//visibility:private"],
     )
     _aab_file(
@@ -240,9 +246,9 @@ def rust_android_apk(
         src = None if invalid else ":" + name + "_bundle",
         validation = ":" + name + "_validation",
         tags = ["manual"],
+        testonly = testonly,
         visibility = visibility,
     )
-    testonly = kwargs.get("testonly", False)
     android_binary(
         name = name + "_bin",
         assets = assets,

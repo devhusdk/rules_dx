@@ -5,6 +5,7 @@ fn subject_matches_mode() {
     let text = std::env::var("DX_CONFORMANCE_TEXT").unwrap_or_default();
     let mut subject = None;
     let mut subject_env = Vec::new();
+    let mut subject_key = String::new();
     for entry in key.split(' ').filter(|entry| !entry.is_empty()) {
         let path = dx_testing::rlocation(entry).expect("subject must resolve from runfiles");
         if entry.ends_with(".env") {
@@ -16,10 +17,12 @@ fn subject_matches_mode() {
             }
         } else {
             subject = Some(path);
+            subject_key = entry.to_owned();
         }
     }
     let subject = subject.expect("subject must list an executable");
     let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let subject = stage(&subject, &subject_key, std::path::Path::new(&tmp));
     let srcdir = std::env::var("TEST_SRCDIR").unwrap_or_default();
     let runfiles = std::env::var("RUNFILES_DIR").unwrap_or_else(|_| srcdir.clone());
     let path = std::env::var("PATH").unwrap_or_default();
@@ -127,4 +130,38 @@ fn hits(report: &str, source: &str) -> u64 {
         }
     }
     total
+}
+
+fn with_suffix(path: &std::path::Path, suffix: &str) -> std::path::PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(suffix);
+    name.into()
+}
+
+fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::path::PathBuf {
+    let beside = with_suffix(subject, ".runfiles");
+    if beside.exists() || with_suffix(subject, ".runfiles_manifest").exists() {
+        return subject.to_path_buf();
+    }
+    let dir = tmp.join("subject");
+    std::fs::create_dir_all(&dir).expect("stage dir must be creatable");
+    let staged = dir.join(subject.file_name().expect("subject must have a name"));
+    let descriptor = dx_testing::rlocation(&format!("{key}.launch"))
+        .or_else(|_| dx_testing::rlocation(&format!("{key}_upstream.launch")));
+    if let Ok(descriptor) = descriptor {
+        std::fs::copy(&descriptor, with_suffix(&staged, ".launch")).expect("descriptor must copy");
+    }
+    std::fs::copy(subject, &staged).expect("subject must copy");
+    if let Ok(tree) = std::env::var("RUNFILES_DIR") {
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&tree, with_suffix(&staged, ".runfiles"))
+            .expect("runfiles must link");
+        #[cfg(not(unix))]
+        let _ = tree;
+    }
+    if let Ok(manifest) = std::env::var("RUNFILES_MANIFEST_FILE") {
+        std::fs::copy(&manifest, with_suffix(&staged, ".runfiles_manifest"))
+            .expect("manifest must copy");
+    }
+    staged
 }

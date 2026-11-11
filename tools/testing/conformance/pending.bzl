@@ -129,10 +129,7 @@ ocaml coverage_test *
 ocaml fail_test *
 ocaml pass_test *
 perl coverage_test *
-php build_test *
 php coverage_test *
-php fail_test *
-php pass_test *
 powershell build_test *
 powershell coverage_test *
 powershell fail_test *

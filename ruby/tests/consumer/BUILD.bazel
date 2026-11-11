@@ -1,14 +1,15 @@
 load("@rules_dx//ruby:defs.bzl", "ruby_library", "ruby_test")
 
+# dx: written once, yours to edit
+
 ruby_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["greet.rb"],
     visibility = ["//visibility:public"],
 )
 
 ruby_test(
-    name = "consumer_test",
-    size = "small",
+    name = "greet_test",
     srcs = ["greet_test.rb"],
-    deps = [":consumer"],
+    deps = [":my_project"],
 )

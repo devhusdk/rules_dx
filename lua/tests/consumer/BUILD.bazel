@@ -1,16 +1,16 @@
 load("@rules_dx//lua:defs.bzl", "lua_library", "lua_test")
 
+# dx: written once, yours to edit
+
 lua_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["hello.lua"],
-    strip_import_prefix = "/lua/tests/consumer",
     visibility = ["//visibility:public"],
 )
 
 lua_test(
-    name = "consumer_test",
+    name = "hello_test",
     srcs = ["hello_test.lua"],
     main = "hello_test.lua",
-    size = "small",
-    deps = [":consumer"],
+    deps = [":my_project"],
 )

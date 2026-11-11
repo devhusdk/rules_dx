@@ -1,15 +1,16 @@
 load("@rules_dx//kotlin:defs.bzl", "kotlin_library", "kotlin_test")
 
+# dx: written once, yours to edit
+
 kotlin_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["Greet.kt"],
     visibility = ["//visibility:public"],
 )
 
 kotlin_test(
-    name = "consumer_test",
-    size = "small",
+    name = "greet_test",
     srcs = ["GreetTest.kt"],
-    main_class = "consumer.GreetTestKt",
-    deps = [":consumer"],
+    test_class = "consumer.GreetTest",
+    deps = [":my_project"],
 )

@@ -1,15 +1,16 @@
 load("@rules_dx//java:defs.bzl", "java_library", "java_test")
 
+# dx: written once, yours to edit
+
 java_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["Greet.java"],
     visibility = ["//visibility:public"],
 )
 
 java_test(
-    name = "consumer_test",
-    size = "small",
+    name = "greet_test",
     srcs = ["GreetTest.java"],
     test_class = "consumer.GreetTest",
-    deps = [":consumer"],
+    deps = [":my_project"],
 )

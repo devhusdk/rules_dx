@@ -388,6 +388,30 @@ def rust_link_windows_test(name, target):
         target_under_test = target,
     )
 
+def _static_archive_link_impl(ctx):
+    env = analysistest.begin(ctx)
+    _, link_args = _link_args(_rustc_action(env))
+    asserts.false(env, "-lnative_c_upstream" in link_args, "native_c_upstream is linked by name: {}".format(link_args))
+    archives = [arg for arg in link_args if arg.endswith("/libnative_c_upstream.a") or arg.endswith("/libnative_c_upstream.pic.a")]
+    asserts.true(env, len(archives) > 0, "native_c_upstream archive is not linked by path: {}".format(link_args))
+    return analysistest.end(env)
+
+_static_archive_link_test = analysistest.make(_static_archive_link_impl)
+
+def rust_static_archive_link_test(name, target):
+    """Asserts the Rust link step links the native static archive by path, not by name, on Linux.
+
+    Args:
+        name: Name of the test.
+        target: A rust_test or rust_binary that links native_c_upstream.
+    """
+    _static_archive_link_test(
+        name = name,
+        size = "small",
+        target_compatible_with = ["@platforms//os:linux"],
+        target_under_test = target,
+    )
+
 def rust_link_compiler_tests(name, target):
     """Asserts the Rust link step uses the pinned GCC under gcc and not under llvm.
 

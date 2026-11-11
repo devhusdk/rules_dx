@@ -42,8 +42,11 @@ def toolchain_fields(info, extra):
 
 NATIVE_CC_TOOLS = ["ar", "as", "cc", "ld", "mkdll", "mkexe", "ranlib"]
 
-def native_cc_env(cc, assembler, linker, archiver, path, macos = False, lib = None, link_env = {}):
-    """Returns the CONDA_OCAML_* variables that point ocamlopt at the given C tools, and its PATH."""
+def native_cc_env(cc, assembler, linker, archiver, path, macos = False, lib = None, link_env = {}, lld = False):
+    """Returns the CONDA_OCAML_* variables that point ocamlopt at the given C tools, and its PATH.
+
+    With `lld`, executables and shared objects link through the toolchain's lld.
+    """
     env = dict(link_env)
     env.update({
         "CONDA_OCAML_AR": archiver,
@@ -59,6 +62,9 @@ def native_cc_env(cc, assembler, linker, archiver, path, macos = False, lib = No
         env["CONDA_OCAML_MKDLL"] = linker + " -shared -undefined dynamic_lookup"
         if "libtool" in archiver:
             env["DX_OCAML_LIBTOOL"] = archiver
+    if lld:
+        env["CONDA_OCAML_MKEXE"] += " -fuse-ld=lld"
+        env["CONDA_OCAML_MKDLL"] += " -fuse-ld=lld"
     return env
 
 def cc_drivers(ctx):

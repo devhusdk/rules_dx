@@ -39,7 +39,7 @@ fn init_adopts_an_existing_python_tree() {
     assert_eq!(checked.status.code(), Some(1), "{checked:?}");
     assert!(String::from_utf8_lossy(&checked.stderr).contains("init drift"));
     assert!(!dir.join(".dx/pins").exists());
-    let applied = invoke(&["init", "--apply"]);
+    let applied = invoke(&["init", "--apply", "--no-generate"]);
     assert_eq!(applied.status.code(), Some(0), "{applied:?}");
     for file in [".dx/pins", ".bazelignore", ".github/workflows/ci.yml"] {
         assert!(dir.join(file).is_file(), "{file} missing");

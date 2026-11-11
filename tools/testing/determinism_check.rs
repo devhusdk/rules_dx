@@ -36,7 +36,14 @@ fn kinds_query(names: &[String]) -> String {
 fn kind_targets(bazel: &str, workspace: &Path) -> Result<Vec<String>, String> {
     let names = entry_points(workspace)?;
     let output = Command::new(bazel)
-        .args(["query", "--output=label", "--noshow_progress", &kinds_query(&names)])
+        .args([
+            "query",
+            "--lockfile_mode=error",
+            "--skip_incompatible_explicit_targets",
+            "--output=label",
+            "--noshow_progress",
+            &kinds_query(&names),
+        ])
         .current_dir(workspace)
         .output()
         .map_err(|e| format!("{bazel}: {e}"))?;
@@ -60,6 +67,7 @@ fn build_argv(bazel: &str, out: &Path, name: &str, patterns: &[String]) -> Vec<S
         format!("--output_base={out}/{name}/base"),
         "build".to_owned(),
         "--lockfile_mode=error".to_owned(),
+        "--skip_incompatible_explicit_targets".to_owned(),
         "--disk_cache=".to_owned(),
         "--remote_cache=".to_owned(),
         "--remote_executor=".to_owned(),
@@ -194,6 +202,7 @@ mod tests {
                 "--output_base=/o/first/base",
                 "build",
                 "--lockfile_mode=error",
+                "--skip_incompatible_explicit_targets",
                 "--disk_cache=",
                 "--remote_cache=",
                 "--remote_executor=",

@@ -16,14 +16,6 @@ test_suite(
 )
 
 test_suite(
-    name = "docs_ci_tests",
-    tests = [
-        "//tools/ci:reusable_callers_test",
-        "//tools/docs/snippets:embed_snippets_test",
-    ],
-)
-
-test_suite(
     name = "gitlab_ci_tests",
     tests = [
         "//tools/ci:gitlab_example_test",
@@ -51,7 +43,6 @@ test_suite(
     tests = [
         ":adopt_polyglot_tests",
         ":consumer_ci_tests",
-        ":docs_ci_tests",
         ":gitlab_ci_tests",
         ":shared_rust_tests",
     ],

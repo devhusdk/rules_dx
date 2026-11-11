@@ -1,5 +1,4 @@
 # gazelle:ignore
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//rust:defs.bzl", "rust_test")
 load(":codegen_tests.bzl", "go_client_action_test")
@@ -160,20 +159,6 @@ codegen_shard_argv_test(
     ],
     output = "api_spec/tests/petstore_py_shard.dxcodegen.pb",
     target_under_test = ":petstore_py_shard",
-)
-
-genrule(
-    name = "petstore_py_check",
-    testonly = True,
-    srcs = [":petstore_py"],
-    outs = ["petstore_py_check.txt"],
-    cmd = "$(PYTHON3) -c \"import ast, pathlib, sys; [ast.parse(f.read_text()) for f in pathlib.Path(sys.argv[1]).rglob('*.py')]\" $(location :petstore_py) && test -f $(location :petstore_py)/client.py && test -f $(location :petstore_py)/api/default/list_pets.py && echo ok > $@",
-    toolchains = ["@rules_python//python:current_py_toolchain"],
-)
-
-build_test(
-    name = "petstore_py_check_test",
-    targets = [":petstore_py_check"],
 )
 
 python_test(

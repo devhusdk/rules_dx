@@ -69,10 +69,6 @@ fortran build_test *
 fortran coverage_test *
 fortran fail_test *
 fortran pass_test *
-fsharp build_test *
-fsharp coverage_test *
-fsharp fail_test *
-fsharp pass_test *
 helm build_test *
 helm coverage_test *
 helm fail_test *

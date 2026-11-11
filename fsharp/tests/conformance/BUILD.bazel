@@ -1,0 +1,64 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//fsharp:defs.bzl", "fsharp_binary", "fsharp_library", "fsharp_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+fsharp_library(
+    name = "greet",
+    srcs = ["Greet.fs"],
+    deps = ["@paket.main//fsharp.core"],
+)
+
+fsharp_binary(
+    name = "hello",
+    srcs = ["Hello.fs"],
+    deps = [
+        ":greet",
+        "@paket.main//fsharp.core",
+    ],
+)
+
+fsharp_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["PassTest.fs"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [
+        ":greet",
+        "@paket.main//fsharp.core",
+    ],
+)
+
+fsharp_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["FailTest.fs"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [
+        ":greet",
+        "@paket.main//fsharp.core",
+    ],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":hello",
+    covered_source = "Greet.fs",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "fsharp",
+    passing_test = ":pass_subject_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

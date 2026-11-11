@@ -59,6 +59,10 @@ cc_library(
         "flang/include/flang/Decimal/**/*.h",
         "flang/include/flang/Runtime/**/*.h",
     ]) + ["flang/include/flang/ISO_Fortran_binding.h"],
+    copts = [
+        "-U__FLOAT128__",
+        "-U__SIZEOF_FLOAT128__",
+    ],
     cxxopts = [
         "-fno-exceptions",
         "-fno-rtti",

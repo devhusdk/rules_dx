@@ -2,7 +2,6 @@
   "ecosystems": [
     {
       "name": "uv",
-      "manifest": "pyproject.toml",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "uv",
@@ -13,14 +12,12 @@
       "audit": true,
       "advisory_family": "pypi",
       "uses_repository": false,
-      "lockfiles": ["uv.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip",
       "license_audit": false,
       "lock_required": false
     },
     {
       "name": "npm",
-      "manifest": "package.json",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "npm",
@@ -56,7 +53,6 @@
     },
     {
       "name": "ruby",
-      "manifest": "Gemfile",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "pinned",
@@ -67,14 +63,12 @@
       "audit": true,
       "advisory_family": "rubygems",
       "uses_repository": false,
-      "lockfiles": ["Gemfile.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip",
       "license_audit": true,
       "lock_required": true
     },
     {
       "name": "powershell",
-      "manifest": "PSGallery.requirements.psd1",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "pinned",
@@ -85,14 +79,12 @@
       "audit": true,
       "advisory_family": null,
       "uses_repository": false,
-      "lockfiles": ["PSGallery.lock.json"],
       "osv_source": null,
       "license_audit": true,
       "lock_required": true
     },
     {
       "name": "cargo",
-      "manifest": "Cargo.toml",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "cargo",
@@ -103,14 +95,12 @@
       "audit": true,
       "advisory_family": "cargo",
       "uses_repository": true,
-      "lockfiles": ["Cargo.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip",
       "license_audit": true,
       "lock_required": false
     },
     {
       "name": "maven",
-      "manifest": "MODULE.bazel",
       "alt_manifests": [],
       "shared_manifest": true,
       "plan_backend": "maven",
@@ -128,7 +118,6 @@
     },
     {
       "name": "nuget",
-      "manifest": "paket.dependencies",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "nuget",
@@ -146,7 +135,6 @@
     },
     {
       "name": "go",
-      "manifest": "go.mod",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "go",
@@ -157,14 +145,12 @@
       "audit": true,
       "advisory_family": "go",
       "uses_repository": false,
-      "lockfiles": ["go.sum"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip",
       "license_audit": true,
       "lock_required": false
     },
     {
       "name": "cpan",
-      "manifest": "cpanfile",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "cpan",
@@ -182,7 +168,6 @@
     },
     {
       "name": "pub",
-      "manifest": "pubspec.yaml",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "pub_dev",
@@ -193,14 +178,12 @@
       "audit": true,
       "advisory_family": "pub",
       "uses_repository": false,
-      "lockfiles": ["pubspec.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Pub/all.zip",
       "license_audit": false,
       "lock_required": true
     },
     {
       "name": "julia",
-      "manifest": "Project.toml",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "julia",
@@ -218,7 +201,6 @@
     },
     {
       "name": "hex",
-      "manifest": "mix.exs",
       "alt_manifests": ["rebar.config"],
       "shared_manifest": false,
       "plan_backend": "hex",
@@ -236,7 +218,6 @@
     },
     {
       "name": "composer",
-      "manifest": "composer.json",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "composer",
@@ -272,7 +253,6 @@
     },
     {
       "name": "swiftpm",
-      "manifest": "Package.swift",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "swiftpm",
@@ -290,7 +270,6 @@
     },
     {
       "name": "cabal",
-      "manifest": "cabal.project",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "cabal",
@@ -308,7 +287,6 @@
     },
     {
       "name": "dub",
-      "manifest": "dub.json",
       "alt_manifests": ["dub.sdl"],
       "shared_manifest": false,
       "plan_backend": "dub",
@@ -319,14 +297,12 @@
       "audit": true,
       "advisory_family": null,
       "uses_repository": false,
-      "lockfiles": ["dub.lock.json"],
       "osv_source": null,
       "license_audit": false,
       "lock_required": true
     },
     {
       "name": "fpm",
-      "manifest": "fpm.toml",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "fpm",
@@ -337,14 +313,12 @@
       "audit": true,
       "advisory_family": null,
       "uses_repository": false,
-      "lockfiles": ["fpm.lock.toml"],
       "osv_source": null,
       "license_audit": false,
       "lock_required": true
     },
     {
       "name": "zig",
-      "manifest": "build.zig.zon",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "zig",
@@ -355,14 +329,12 @@
       "audit": true,
       "advisory_family": null,
       "uses_repository": false,
-      "lockfiles": ["zig.lock.json"],
       "osv_source": null,
       "license_audit": false,
       "lock_required": true
     },
     {
       "name": "luarocks",
-      "manifest": "*.rockspec",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "luarocks",
@@ -373,14 +345,12 @@
       "audit": true,
       "advisory_family": null,
       "uses_repository": false,
-      "lockfiles": ["luarocks.lock.json"],
       "osv_source": null,
       "license_audit": true,
       "lock_required": true
     },
     {
       "name": "ansible",
-      "manifest": "MODULE.bazel",
       "alt_manifests": [],
       "shared_manifest": true,
       "plan_backend": "ansible",
@@ -398,7 +368,6 @@
     },
     {
       "name": "bicep",
-      "manifest": "MODULE.bazel",
       "alt_manifests": [],
       "shared_manifest": true,
       "plan_backend": "pinned",

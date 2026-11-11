@@ -158,6 +158,7 @@ impl Language {
 #[serde(deny_unknown_fields)]
 struct Row {
     name: String,
+    #[serde(default)]
     manifest: String,
     alt_manifests: Vec<String>,
     shared_manifest: bool,
@@ -169,10 +170,12 @@ struct Row {
     audit: bool,
     advisory_family: Option<String>,
     uses_repository: bool,
-    lockfiles: Vec<String>,
+    lockfiles: Option<Vec<String>>,
     osv_source: Option<String>,
     license_audit: bool,
     lock_required: bool,
+    #[serde(skip)]
+    locks: Vec<String>,
     #[serde(skip)]
     id: Option<Ecosystem>,
 }
@@ -188,6 +191,15 @@ fn parse_rows(text: &str) -> Result<Vec<Row>, serde_json::Error> {
     for row in &mut rows {
         let name = serde_json::Value::String(row.name.clone());
         row.id = Some(serde_json::from_value(name)?);
+        let hub = dx_families::hub(&row.name);
+        if row.manifest.is_empty() {
+            row.manifest = hub.map(|hub| hub.manifest.clone()).unwrap_or_default();
+        }
+        row.locks = match (&row.lockfiles, hub) {
+            (Some(names), _) => names.clone(),
+            (None, Some(hub)) => hub.lock.iter().cloned().collect(),
+            (None, None) => Vec::new(),
+        };
     }
     Ok(rows)
 }
@@ -322,7 +334,7 @@ impl Ecosystem {
 
     /// Lists the lock file names of this ecosystem, preferred backend first.
     pub fn lockfiles(self) -> &'static [String] {
-        self.row().map_or(&[], |row| row.lockfiles.as_slice())
+        self.row().map_or(&[], |row| row.locks.as_slice())
     }
 
     /// Names the OSV archive URL of this ecosystem's advisories.

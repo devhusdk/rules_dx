@@ -1,7 +1,7 @@
 """The checks on the composer hub BUILD file."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
-load(":hub.bzl", "build_file")
+load("//php/private/lock:hub.bzl", "build_file")
 
 _WITH_DEPS = build_file({
     "deps": ["psr/http-message", "symfony/deprecation-contracts"],

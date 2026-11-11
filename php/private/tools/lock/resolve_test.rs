@@ -85,13 +85,13 @@ fn a_manifest_writes_the_golden_lock_and_state() {
     dx_testing::snapshot_diff(
         &dx_testing::env_file("GOLDEN"),
         &dir.path().join("composer.lock.json"),
-        Some("php/private/lock/testdata/golden.lock.json"),
+        Some("php/private/tools/lock/testdata/golden.lock.json"),
     )
     .expect("the lock matches the golden");
     dx_testing::snapshot_diff(
         &dx_testing::env_file("GOLDEN_STATE"),
         &dir.path().join("composer.lock"),
-        Some("php/private/lock/testdata/golden.composer.lock"),
+        Some("php/private/tools/lock/testdata/golden.composer.lock"),
     )
     .expect("the state matches the golden");
 }

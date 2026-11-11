@@ -75,6 +75,7 @@ type IntendedManifest struct {
 	Scopes         []IntendedScope         `json:"scopes"`
 	Files          []IntendedFile          `json:"files"`
 	IgnoredImports []IntendedIgnoredImport `json:"ignored_imports"`
+	AncestorOwned  []AncestorOwnedNotice   `json:"ancestor_owned"`
 	Errors         []IntendedError         `json:"errors,omitempty"`
 }
 
@@ -207,6 +208,7 @@ func (r *ManifestRecorder) Emit(ignores []IgnoredImport) error {
 		Scopes:         []IntendedScope{},
 		Files:          []IntendedFile{},
 		IgnoredImports: []IntendedIgnoredImport{},
+		AncestorOwned:  TakeAncestorOwned(),
 	}
 	for _, scope := range r.Scopes {
 		manifest.Scopes = append(manifest.Scopes, IntendedScope{
@@ -298,6 +300,7 @@ func (r *ManifestRecorder) EmitFailed(errs []GenerationError) error {
 		Scopes:         []IntendedScope{},
 		Files:          []IntendedFile{},
 		IgnoredImports: []IntendedIgnoredImport{},
+		AncestorOwned:  []AncestorOwnedNotice{},
 	}
 	for _, scope := range r.Scopes {
 		manifest.Scopes = append(manifest.Scopes, IntendedScope{Value: scope.Element})

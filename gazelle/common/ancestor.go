@@ -2,10 +2,12 @@ package common
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
+	"sync"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -40,8 +42,38 @@ func AncestorOwner(c *config.Config, rel string) (string, bool) {
 	return "", false
 }
 
-// NoticeAncestorOwned reports on stderr that no BUILD file is created in rel
-// because the ancestor rule owns files under it.
+// AncestorOwnedNotice records that no BUILD file is created in Package
+// because Rule owns files under it.
+type AncestorOwnedNotice struct {
+	Package string `json:"package"`
+	Rule    string `json:"rule"`
+}
+
+var (
+	ancestorMu      sync.Mutex
+	ancestorNotices []AncestorOwnedNotice
+)
+
+// NoticeAncestorOwned records that no BUILD file is created in rel because
+// the ancestor rule owns files under it.
 func NoticeAncestorOwned(rel, owner string) {
-	fmt.Fprintf(os.Stderr, "{\"event\":\"notice\",\"code\":\"ancestor_owned\",\"package\":%q,\"rule\":%q}\n", "//"+rel, owner)
+	ancestorMu.Lock()
+	defer ancestorMu.Unlock()
+	ancestorNotices = append(ancestorNotices, AncestorOwnedNotice{Package: rel, Rule: owner})
+}
+
+// TakeAncestorOwned returns the recorded notices sorted by package and rule,
+// without duplicates, and empties the record.
+func TakeAncestorOwned() []AncestorOwnedNotice {
+	ancestorMu.Lock()
+	out := ancestorNotices
+	ancestorNotices = nil
+	ancestorMu.Unlock()
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Package != out[j].Package {
+			return out[i].Package < out[j].Package
+		}
+		return out[i].Rule < out[j].Rule
+	})
+	return slices.Compact(out)
 }

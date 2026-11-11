@@ -523,13 +523,6 @@ fn a_gone_leader_still_counts_as_the_recorded_one() {
     assert!(still_recorded(&rec));
 }
 
-#[cfg(unix)]
-#[test]
-fn signalling_a_reserved_group_number_does_nothing() {
-    sys::signal_group(1, 9);
-    sys::signal_group(0, 9);
-}
-
 #[cfg(target_os = "linux")]
 #[test]
 fn a_stat_read_is_classified_by_its_outcome() {

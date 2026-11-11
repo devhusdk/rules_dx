@@ -287,6 +287,8 @@ pub struct Invocation {
     pub agents: Vec<crate::args::Agent>,
     /// `dx init --ci`: the CI provider to write a workflow for; `None` detects it.
     pub ci: Option<crate::args::Ci>,
+    /// `dx init --no-generate`: the apply stops after the scaffold.
+    pub no_generate: bool,
     pub to: Option<String>,
     pub here: bool,
     pub affected: bool,
@@ -737,6 +739,7 @@ mod tests {
             app_args: Vec::new(),
             agents: Vec::new(),
             ci: None,
+            no_generate: false,
             to: None,
             here: true,
             affected: false,

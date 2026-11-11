@@ -647,13 +647,19 @@ fn the_consumer_materializes_from_dx_init() {
     let manifest = runfiles_manifest();
     let dir = tempfile::tempdir().unwrap();
     let workspace = dir.path().join(&manifest.workspace_dir);
-    materialize(&manifest, &workspace, Path::new("/rules dx source"), "cc").unwrap();
+    let source = dir.path().join("rules dx source");
+    let patches = source.join("patches/rules_py");
+    std::fs::create_dir_all(&patches).unwrap();
+    for patch in dx_nested::compose::RULES_PY_PATCHES {
+        std::fs::write(patches.join(format!("{patch}.patch")), "").unwrap();
+    }
+    materialize(&manifest, &workspace, &source, "cc").unwrap();
     let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap();
     for needle in [
         "module(name = \"hermetic_consumer\")",
         "bazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = ",
         "bazel_dep(name = \"googletest\", version = \"1.18.0\")",
-        "path = \"/rules dx source\",",
+        format!("path = \"{}\",", source.display()).as_str(),
     ] {
         assert!(
             module.contains(needle),

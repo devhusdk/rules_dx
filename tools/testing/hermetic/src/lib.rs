@@ -2187,7 +2187,7 @@ fn run_init(manifest: &Manifest, workspace: &Path) -> Result<(), String> {
     let workspace_text = workspace.to_string_lossy().into_owned();
     let init = dx_testing::run(
         &manifest.dx,
-        &["init", "--apply", "--workspace", &workspace_text],
+        &["init", "--apply", "--no-generate", "--workspace", &workspace_text],
         &[],
     )
     .map_err(|err| format!("cannot run dx init: {err}"))?;

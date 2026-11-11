@@ -132,6 +132,7 @@ pub(crate) struct Flags {
     pub(crate) release: bool,
     pub(crate) agents: Vec<Agent>,
     pub(crate) ci: Option<Ci>,
+    pub(crate) no_generate: bool,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
     pub(crate) affected: bool,
@@ -492,6 +493,14 @@ flag_group! {
     CiFlag, {
         #[arg(long, value_enum, value_name = "PROVIDER", overrides_with = "ci")]
         ci: Option<Ci>,
+    }
+}
+
+flag_group! {
+    /// Skips the generate that `dx init --apply` ends with.
+    NoGenerateFlag, {
+        #[arg(long = "no-generate")]
+        no_generate: bool,
     }
 }
 
@@ -1156,6 +1165,7 @@ command_args! {
         apply: ApplyFlag,
         agents: AgentsFlag,
         ci: CiFlag,
+        no_generate: NoGenerateFlag,
     };
     /// The flags `dx upgrade` accepts.
     Upgrade => 17, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: ToFlag, };

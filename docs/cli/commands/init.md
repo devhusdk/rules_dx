@@ -23,7 +23,7 @@ tools/dx init
 ## `dx init`
 
 ```text
-dx init [--apply] [--agents <list>] [--ci <provider>] [dir]
+dx init [--apply] [--agents <list>] [--ci <provider>] [--no-generate] [dir]
 ```
 
 Starts a new workspace or adopts `dx` into an existing tree. Checks by
@@ -45,6 +45,7 @@ sources appear.
 | `--apply` | Scaffold instead of only checking. |
 | `--agents <list>` | Agent tools whose files init adds: `claude`, `codex`, `gemini`, `copilot`. |
 | `--ci <provider>` | CI provider whose workflow init writes: `github`, `gitlab`, `none`. |
+| `--no-generate` | With `--apply`, stop after the writes and skip `dx generate`. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 
@@ -94,7 +95,7 @@ rust-analyzer at the `rules_rust` discover and flycheck launchers that `dx sync`
 `.dx/local/ide/rust_analyzer/`. Discover and flycheck use separate Bazel output bases under `.dx/local/ide/`, and the file
 watcher and search exclude `bazel-*` and `.dx/local/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).
-Flags: `--apply`, `--agents <list>`, `--ci github|gitlab|none`.
+Flags: `--apply`, `--agents <list>`, `--ci github|gitlab|none`, `--no-generate`.
 Scopes: optional single directory, created by `--apply` when missing.
 
 Output: text only. Check mode looks for every file init writes.
@@ -120,7 +121,7 @@ that already exists and is kept, it prints `dx: <path> (absent-only, left untouc
 stderr. `--quiet` hides the stdout lines. The stderr lines still print. When a
 write fails, apply still lists the files it already wrote, then the
 `init_failed` error. Closing stdout early does not stop the writes.
-When the writes succeed, `--apply` then runs `dx generate --apply` over the directory, which writes every `BUILD.bazel` and every missing lockfile. Its output and exit code follow `dx generate`. It does not run when a write fails.
+When the writes succeed, `--apply` then runs `dx generate --apply` over the directory, which writes every `BUILD.bazel` and every missing lockfile. Its output and exit code follow `dx generate`. It does not run when a write fails or with `--no-generate`.
 
 Output: `--output text|json`. JSON covers the check only; see Init plan below.
 

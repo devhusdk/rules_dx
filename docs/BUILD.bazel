@@ -143,7 +143,6 @@ real_source_target(
         "languages/thrift.md",
         "languages/typescript.md",
         "languages/vue.md",
-        "languages/wasi.md",
         "languages/zig.md",
     ],
     tags = ["corpus"],

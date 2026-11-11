@@ -64,6 +64,7 @@ rust_test(
 
 ide_acquisition_test(
     name = "ide_acquisition_test",
+    size = "small",
     binary = "//python/private/ide:python_tool",
     expected = PYTHON_VERSION,
     version_args = ["--version"],

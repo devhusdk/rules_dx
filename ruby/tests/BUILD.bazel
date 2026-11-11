@@ -30,6 +30,7 @@ ruby_wrapper_contract_tests(
 
 ide_acquisition_test(
     name = "ide_acquisition_test",
+    size = "small",
     binary = "@ruby//:ruby",
     expected = RUBY_VERSION,
     version_args = ["--version"],

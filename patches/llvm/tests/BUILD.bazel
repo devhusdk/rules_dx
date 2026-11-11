@@ -1,0 +1,57 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+sh_test(
+    name = "libunwind_copy_test",
+    size = "small",
+    srcs = ["libunwind_copy_test.sh"],
+    args = ["$(rootpath @llvm-project//libunwind:libunwind.static.gnu_link_name)"],
+    data = ["@llvm-project//libunwind:libunwind.static.gnu_link_name"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+sh_test(
+    name = "msvc_source_directories_test",
+    size = "small",
+    srcs = ["msvc_source_directories_test.sh"],
+    args = ["$(rootpath @llvm//runtimes/msvc:BUILD.bazel)"],
+    data = ["@llvm//runtimes/msvc:BUILD.bazel"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+platform_transition_filegroup(
+    name = "aarch64_builtins",
+    srcs = ["@llvm-project//compiler-rt:clang_rt.builtins.static"],
+    target_compatible_with = ["@platforms//os:linux"],
+    target_platform = "@llvm//platforms:linux_aarch64",
+)
+
+sh_test(
+    name = "lse_atomic_sources_test",
+    size = "small",
+    srcs = ["lse_atomic_sources_test.sh"],
+    args = ["$(rootpath :aarch64_builtins)"],
+    data = [":aarch64_builtins"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+sh_test(
+    name = "macos_sdk_symlinks_test",
+    size = "small",
+    srcs = ["macos_sdk_symlinks_test.sh"],
+    args = ["$(rootpath @macos_sdk//sysroot)"],
+    data = ["@macos_sdk//sysroot"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+test_suite(
+    name = "stage0_features_test",
+    tests = ["@llvm//tests/stage0_features:stage0_features_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

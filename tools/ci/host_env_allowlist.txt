@@ -286,11 +286,11 @@ ocaml/tests/fixtures/bench/run_test.sh shebang 1
 ocaml/tests/fixtures/ocaml-app/cli/BUILD.bazel sh-rule 1
 ocaml/tests/fixtures/ocaml-app/cli/exit_codes.sh shebang 1
 patches/BUILD.bazel genrule 1
-patches/llvm/BUILD.bazel sh-rule 4
-patches/llvm/libunwind_copy_test.sh shebang 1
-patches/llvm/lse_atomic_sources_test.sh shebang 1
-patches/llvm/macos_sdk_symlinks_test.sh shebang 1
-patches/llvm/msvc_source_directories_test.sh shebang 1
+patches/llvm/tests/BUILD.bazel sh-rule 4
+patches/llvm/tests/libunwind_copy_test.sh shebang 1
+patches/llvm/tests/lse_atomic_sources_test.sh shebang 1
+patches/llvm/tests/macos_sdk_symlinks_test.sh shebang 1
+patches/llvm/tests/msvc_source_directories_test.sh shebang 1
 perl/private/tools/BUILD.bazel sh-rule 2
 perl/private/tools/cpansa_dump_smoke_test.sh host-path 1
 perl/private/tools/cpansa_dump_smoke_test.sh shebang 1

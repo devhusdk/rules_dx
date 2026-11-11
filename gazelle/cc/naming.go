@@ -18,6 +18,10 @@ var SupportedCudaHdrExts = []string{".cuh"}
 
 const LibraryKind = "cc_library"
 
+const QtLibraryKind = "qt_cc_library"
+
+const QtTestKind = "qt_cc_test"
+
 const CudaKind = "cuda_library"
 
 // TestKind is the rule generated for each *_test C/C++ source.

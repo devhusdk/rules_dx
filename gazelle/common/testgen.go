@@ -1,6 +1,7 @@
 package common
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
@@ -11,6 +12,8 @@ import (
 type TestSpec struct {
 	// Kind is the generated test rule kind, for example java_test.
 	Kind string
+	// AltKinds are the other kinds Make may return.
+	AltKinds []string
 	// IsSource reports whether a directory file is a test source.
 	IsSource func(name string) bool
 	// Name gives the target name for a test source.
@@ -31,6 +34,10 @@ func (t *TestSpec) makeRule(name, src string, content []byte) (*rule.Rule, error
 	return r, nil
 }
 
+func (t *TestSpec) generatedKind(kind string) bool {
+	return kind == t.Kind || slices.Contains(t.AltKinds, kind)
+}
+
 func isTestKind(t *TestSpec, kind string) bool {
 	return kind == t.Kind || strings.HasSuffix(kind, "_test")
 }
@@ -42,7 +49,7 @@ func isLocalTestSrc(src string) bool {
 // generatedTest reports whether r is exactly the rule generation gives for
 // its single local source.
 func (t *TestSpec) generatedTest(r *rule.Rule) bool {
-	if r.Kind() != t.Kind {
+	if !t.generatedKind(r.Kind()) {
 		return false
 	}
 	srcs := r.AttrStrings("srcs")
@@ -97,7 +104,7 @@ func ownsGeneratedTest(t *TestSpec) func(*rule.Rule) bool {
 		return nil
 	}
 	return func(r *rule.Rule) bool {
-		if r.Kind() != t.Kind {
+		if !t.generatedKind(r.Kind()) {
 			return true
 		}
 		return t.generatedTest(r)

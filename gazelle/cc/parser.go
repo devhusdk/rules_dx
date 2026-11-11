@@ -146,6 +146,25 @@ func ParseSystemIncludes(content []byte) []SystemInclude {
 	return lex(content).systems
 }
 
+var qtHeaderRe = regexp.MustCompile(`^Qt[A-Z][A-Za-z]*$`)
+
+// IsQtInclude reports whether a system include path starts with a Qt module directory.
+func IsQtInclude(p string) bool {
+	first, _, _ := strings.Cut(p, "/")
+	return qtHeaderRe.MatchString(first)
+}
+
+func usesQt(contents map[string][]byte) bool {
+	for _, content := range contents {
+		for _, inc := range ParseSystemIncludes(content) {
+			if IsQtInclude(inc.Path) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 var entryRe = regexp.MustCompile(`(^|[^A-Za-z0-9_])(ANativeActivity_onCreate|JNI_OnLoad|Java_[A-Za-z0-9_]+)\s*\(([^()]*)\)\s*\{`)
 
 // DefinesAndroidEntry reports whether content defines a native activity or JNI entry point.

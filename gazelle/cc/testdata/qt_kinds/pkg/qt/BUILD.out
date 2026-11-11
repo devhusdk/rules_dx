@@ -1,0 +1,13 @@
+load("@rules_dx//qt:defs.bzl", "qt_cc_library", "qt_cc_test")
+
+qt_cc_library(
+    name = "qt",
+    srcs = ["widget.cc"],
+    visibility = ["//visibility:public"],
+)
+
+qt_cc_test(
+    name = "widget_test",
+    srcs = ["widget_test.cc"],
+    deps = [":qt"],
+)

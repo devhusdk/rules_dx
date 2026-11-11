@@ -12,8 +12,8 @@ import (
 
 const languageName = "cc"
 
-var ccKinds = map[string]rule.KindInfo{
-	LibraryKind: rule.KindInfo{
+func libraryKindInfo() rule.KindInfo {
+	return rule.KindInfo{
 		MatchAttrs:    []string{"srcs", "hdrs"},
 		NonEmptyAttrs: map[string]bool{"srcs": true, "hdrs": true},
 		MergeableAttrs: map[string]bool{
@@ -22,8 +22,14 @@ var ccKinds = map[string]rule.KindInfo{
 			"deps": true,
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
-	},
-	TestKind: common.TestKindInfo(),
+	}
+}
+
+var ccKinds = map[string]rule.KindInfo{
+	LibraryKind:   libraryKindInfo(),
+	QtLibraryKind: libraryKindInfo(),
+	TestKind:      common.TestKindInfo(),
+	QtTestKind:    common.TestKindInfo(),
 	CudaKind: rule.KindInfo{
 		NonEmptyAttrs: map[string]bool{"srcs": true, "hdrs": true},
 		MergeableAttrs: map[string]bool{
@@ -62,9 +68,13 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		Kinds:          ccKinds,
 		DefsPackage:    "cc:defs.bzl",
-		ExtraKinds:     []string{CudaKind, TestKind},
-		KindDefs:       map[string]string{CudaKind: "@rules_dx//cuda:defs.bzl"},
-		IndexKinds:     []string{CudaKind},
+		ExtraKinds:     []string{CudaKind, TestKind, QtLibraryKind, QtTestKind},
+		KindDefs: map[string]string{
+			CudaKind:      "@rules_dx//cuda:defs.bzl",
+			QtLibraryKind: "@rules_dx//qt:defs.bzl",
+			QtTestKind:    "@rules_dx//qt:defs.bzl",
+		},
+		IndexKinds:     []string{CudaKind, QtLibraryKind},
 		Directives:     []string{archsDirective},
 		ConfigureExt:   configureCuda,
 		ImportAttr:     "hdrs",
@@ -128,9 +138,27 @@ func generateCc(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep 
 			}
 			return r
 		},
-		Extend: androidAttrs,
+		Extend: func(r *rule.Rule, files []string, contents map[string][]byte) error {
+			if err := androidAttrs(r, files, contents); err != nil {
+				return err
+			}
+			if usesQt(contents) {
+				r.SetKind(QtLibraryKind)
+			}
+			return nil
+		},
 		Tests: &common.TestSpec{
 			Kind:     TestKind,
+			AltKinds: []string{QtTestKind},
+			Make: func(name, src string, content []byte) (*rule.Rule, error) {
+				kind := TestKind
+				if usesQt(map[string][]byte{src: content}) {
+					kind = QtTestKind
+				}
+				r := rule.NewRule(kind, name)
+				r.SetAttr("srcs", []string{src})
+				return r, nil
+			},
 			IsSource: func(name string) bool { return IsSource(name) && IsTestSource(name) },
 			Name:     func(src string) (string, error) { return common.SnakeName(src, SupportedSrcExts) },
 		},

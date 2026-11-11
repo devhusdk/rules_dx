@@ -1,7 +1,7 @@
 load("@rules_dx//qt:defs.bzl", "qt_cc_test")
 
 qt_cc_test(
-    name = "consumer",
+    name = "my_project_test",
     size = "small",
-    srcs = ["main.cc"],
+    srcs = ["my_project_test.cc"],
 )

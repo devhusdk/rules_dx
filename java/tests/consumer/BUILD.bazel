@@ -1,0 +1,15 @@
+load("@rules_dx//java:defs.bzl", "java_library", "java_test")
+
+java_library(
+    name = "consumer",
+    srcs = ["Greet.java"],
+    visibility = ["//visibility:public"],
+)
+
+java_test(
+    name = "consumer_test",
+    size = "small",
+    srcs = ["GreetTest.java"],
+    test_class = "consumer.GreetTest",
+    deps = [":consumer"],
+)

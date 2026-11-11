@@ -20,6 +20,7 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
+        "@crates//:serde_json",
     ],
 )
 
@@ -54,16 +55,6 @@ rust_test(
     ),
     crate_name = "resolve_test",
     crate_root = "resolve_test.rs",
-    deps = all_crate_deps(
-        package_name = "zig/private/tools/zig_lock",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        ":zig_lock_lib",
-        "//cli/families:dx_families",
-        "//cli/lock:dx_lock",
-        "//tools/testing:dx_testing",
-    ],
     data = [
         "testdata/base.zip",
         "testdata/golden.lock.json",
@@ -80,6 +71,16 @@ rust_test(
     },
     tags = ["block-network"],
     target_compatible_with = ["@platforms//os:linux"],
+    deps = all_crate_deps(
+        package_name = "zig/private/tools/zig_lock",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":zig_lock_lib",
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 real_source_target(

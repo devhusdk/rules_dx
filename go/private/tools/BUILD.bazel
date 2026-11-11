@@ -1,5 +1,13 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
 alias(
     name = "go",
     actual = "@rules_go//go",
     visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

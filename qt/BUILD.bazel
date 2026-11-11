@@ -1,5 +1,5 @@
-load("//qt/private/sdk:repos.bzl", "qualified_cells")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//qt/private/sdk:repos.bzl", "qualified_cells")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -15,8 +15,8 @@ filegroup(
         "defs.bzl",
         "extensions.bzl",
         "//:module_srcs",
-        "//qt/private/platforms:module_srcs",
         "//qt/private:module_srcs",
+        "//qt/private/platforms:module_srcs",
         "//qt/private/rust:module_srcs",
         "//qt/private/sdk:module_srcs",
     ],
@@ -84,7 +84,11 @@ platform(
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "extensions.bzl",
+    ],
     tags = ["corpus"],
 )
 

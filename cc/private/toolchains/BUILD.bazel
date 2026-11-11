@@ -2,8 +2,8 @@ load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//cc/private:wrapper_tests.bzl", "cc_gcov_coverage_env_test")
 load("//cc/private/toolchains/msvc:toolchains.bzl", "msvc_toolchains")
-load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
 load(":gcc_unsupported_tests.bzl", "gcc_unsupported_tests")
 load(":identity_subject.bzl", "cc_toolchain_identity_subject")
 load(":identity_tests.bzl", "cc_toolchain_identity_tests")
@@ -531,8 +531,8 @@ test_suite(
         ":identity_gcc_arm64_native",
         ":identity_msvc",
         ":llvm_asan_test",
-        ":llvm_ubsan_test",
         ":llvm_tsan_test",
+        ":llvm_ubsan_test",
         ":msvc_arm64_c_test",
         ":msvc_arm64_hello_c_test",
         ":msvc_arm64_hello_test",
@@ -546,11 +546,6 @@ test_suite(
         ":msvc_shared_opt_test",
         ":msvc_shared_test",
         ":msvc_static_crt_test",
-        "//cc/tests/fixtures/hello:toolchain_action_tests",
-        "//cc/tests/fixtures/msvc_shared:toolchain_action_tests",
-        "//cc/tests/gcc_cross:cross_arm64_test",
-        "//cc/tests/gcc_linux_x86_64:all",
-        "//cc/tests/msvc_x86_64:all",
         "//cc/private/toolchains/msvc:msvc_arm64_arm64_toolchain",
         "//cc/private/toolchains/msvc:msvc_layout",
         "//cc/private/toolchains/msvc:msvc_layout_arm64",
@@ -559,6 +554,11 @@ test_suite(
         "//cc/private/toolchains/msvc:msvc_unsupported",
         "//cc/private/toolchains/msvc:msvc_x64_arm64_toolchain",
         "//cc/private/toolchains/msvc:msvc_x64_x64_toolchain",
+        "//cc/tests/fixtures/hello:toolchain_action_tests",
+        "//cc/tests/fixtures/msvc_shared:toolchain_action_tests",
+        "//cc/tests/gcc_cross:cross_arm64_test",
+        "//cc/tests/gcc_linux_x86_64:all",
+        "//cc/tests/msvc_x86_64:all",
         "//tools/coverage/collect:gcov_native_test",
     ],
 )
@@ -576,6 +576,7 @@ real_source_target(
         "select.bzl",
         "unavailable.bzl",
         "gcc_unsupported_tests.bzl",
+        "runtime_libs.bzl",
     ],
     tags = ["corpus"],
 )

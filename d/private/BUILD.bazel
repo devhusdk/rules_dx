@@ -1,11 +1,15 @@
-load("//d/private/toolchain:pins.bzl", "LDC_CELLS")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//d/private/toolchain:pins.bzl", "LDC_CELLS")
 load(":defs.bzl", "D_CELLS", "D_COVERAGE_COLLECTOR", "d_quality_srcs")
 load(":kwargs.bzl", "d_kwargs")
 
-package(default_visibility = ["//d:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//d:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "defs.bzl",
@@ -14,8 +18,8 @@ exports_files([
 
 config_setting(
     name = "coverage",
-    visibility = ["//visibility:public"],
     values = {"collect_code_coverage": "true"},
+    visibility = ["//visibility:public"],
 )
 
 dx_wrapper_contract_tests(

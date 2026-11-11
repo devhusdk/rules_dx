@@ -1,13 +1,17 @@
 load("//cc:defs.bzl", "CC_COVERAGE_INPUTS")
-load("//cuda/private/toolchain:transition.bzl", "cuda_host_settings")
-load("//cuda/private/toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "component_markers", "gpu_device_errors", "gpu_device_source", "gpu_requirement_errors", "toolkit_errors")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal", "expect_true")
 load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//cuda/private/toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "component_markers", "gpu_device_errors", "gpu_device_source", "gpu_requirement_errors", "toolkit_errors")
+load("//cuda/private/toolchain:transition.bzl", "cuda_host_settings")
 load(":defs.bzl", "CUDA_TARGET", "cuda_gpu_env", "cuda_split_srcs", "cuda_target_compatible_with")
 
-package(default_visibility = ["//cuda:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//cuda:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "components.bzl",
@@ -28,12 +32,31 @@ dx_wrapper_contract_tests(
     extra_checks = [
         expect_equal(
             "nvcc compile adds llvm coverage maps under coverage",
-            cuda_host_settings(dict(zip(CC_COVERAGE_INPUTS, [[], True, "", ""])))["//command_line_option:features"],
-            ["llvm_coverage_map_format", "-gcc_coverage_map_format"],
+            cuda_host_settings(dict(zip(
+                CC_COVERAGE_INPUTS,
+                [
+                    [],
+                    True,
+                    "",
+                    "",
+                ],
+            )))["//command_line_option:features"],
+            [
+                "llvm_coverage_map_format",
+                "-gcc_coverage_map_format",
+            ],
         ),
         expect_equal(
             "nvcc compile keeps features without coverage",
-            cuda_host_settings(dict(zip(CC_COVERAGE_INPUTS, [["a"], False, "", ""])))["//command_line_option:features"],
+            cuda_host_settings(dict(zip(
+                CC_COVERAGE_INPUTS,
+                [
+                    ["a"],
+                    False,
+                    "",
+                    "",
+                ],
+            )))["//command_line_option:features"],
             ["a"],
         ),
         expect_equal(

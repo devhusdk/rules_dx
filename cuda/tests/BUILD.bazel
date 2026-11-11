@@ -161,9 +161,9 @@ with_gpu_device(
 [
     gpu_test_declared_test(
         name = name + "_declared_test",
+        size = "small",
         min_compute_capability = min_compute_capability,
         min_driver = "13.0",
-        size = "small",
         target_compatible_with = CUDA_TARGET,
         target_under_test = target,
     )
@@ -428,10 +428,10 @@ real_source_target(
 
 cc_test(
     name = "gpu_facts_test",
+    size = "small",
     testonly = True,
     srcs = ["gpu_facts_test.cc"],
     copts = ["-std=c++17"],
-    size = "small",
     target_compatible_with = CUDA_TARGET,
     deps = [
         "//cuda/private/gpu:gpu_facts",

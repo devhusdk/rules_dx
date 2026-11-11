@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//cuda/private:defs.bzl", "CUDA_TARGET", "cuda_component_library")
 
 exports_files([
@@ -61,4 +62,20 @@ cuda_component_library(
     tags = ["manual"],
     target_compatible_with = CUDA_TARGET,
     visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "extensions.bzl",
+    ],
+    tags = ["corpus"],
 )

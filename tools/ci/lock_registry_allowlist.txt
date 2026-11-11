@@ -55,10 +55,6 @@ name cli/cli/src/exec/generate.rs package.json
 name cli/cli/src/exec/generate.rs pnpm-lock.yaml
 name cli/cli/src/exec/generate.rs pyproject.toml
 name cli/cli/src/exec/generate.rs uv.lock
-name cli/cli/src/exec/update_add_missing.rs Cargo.lock
-name cli/cli/src/exec/update_add_missing.rs Cargo.toml
-name cli/cli/src/exec/update_add_missing.rs package.json
-name cli/cli/src/exec/update_add_missing.rs pnpm-lock.yaml
 name cli/cli/src/exec/update_pr.rs Cargo.lock
 name cli/cli/src/exec/update_pr.rs Cargo.toml
 name cli/cli/src/exec/update_pr.rs Gemfile

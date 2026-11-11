@@ -234,22 +234,33 @@ mod tests {
 
     #[test]
     fn a_package_directory_matches_the_manifest_beside_its_build_file() {
-        let manifests = vec!["a/Cargo.toml".to_owned(), "b/Cargo.toml".to_owned()];
-        assert_eq!(manifest_for(&manifests, "b").unwrap(), "b/Cargo.toml");
+        let cargo = Ecosystem::Cargo.manifest_name();
+        let manifests = vec![format!("a/{cargo}"), format!("b/{cargo}")];
+        assert_eq!(
+            manifest_for(&manifests, "b").unwrap(),
+            format!("b/{cargo}").as_str()
+        );
         assert_eq!(
             manifest_for(&manifests, "b/src/lib.rs").unwrap(),
-            "b/Cargo.toml"
+            format!("b/{cargo}").as_str()
         );
-        assert_eq!(manifest_for(&manifests, "ab").unwrap(), "a/Cargo.toml");
+        assert_eq!(
+            manifest_for(&manifests, "ab").unwrap(),
+            format!("a/{cargo}").as_str()
+        );
     }
 
     #[test]
     fn declares_the_latest_stable_version_of_each_missing_package() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
+        let cargo = Ecosystem::Cargo.manifest_name();
+        let cargo_lock = Ecosystem::Cargo.lockfiles()[0].as_str();
+        let npm_manifest = Ecosystem::Npm.manifest_name();
+        let npm_lock = Ecosystem::Npm.lockfiles()[0].as_str();
         write(
             root,
-            "rs/Cargo.toml",
+            &format!("rs/{cargo}"),
             "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\n",
         );
         write(
@@ -259,12 +270,12 @@ mod tests {
         );
         write(
             root,
-            "rs/Cargo.lock",
+            &format!("rs/{cargo_lock}"),
             "[[package]]\nname = \"regex\"\nversion = \"1.5.0\"\nsource = \"registry+https://x\"\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.0\"\nsource = \"registry+https://x\"\n",
         );
         write(
             root,
-            "web/package.json",
+            &format!("web/{npm_manifest}"),
             "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\"\n  }\n}\n",
         );
         write(
@@ -274,16 +285,21 @@ mod tests {
         );
         write(
             root,
-            "web/pnpm-lock.yaml",
+            &format!("web/{npm_lock}"),
             "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.3.0:\n    resolution: {integrity: sha512-x}\n\n  react@18.0.0:\n    resolution: {integrity: sha512-y}\n",
         );
         let resolved = [
-            target("crates", Ecosystem::Cargo, "rs/Cargo.toml", "rs/Cargo.lock"),
+            target(
+                "crates",
+                Ecosystem::Cargo,
+                &format!("rs/{cargo}"),
+                &format!("rs/{cargo_lock}"),
+            ),
             target(
                 "npm",
                 Ecosystem::Npm,
-                "web/package.json",
-                "web/pnpm-lock.yaml",
+                &format!("web/{npm_manifest}"),
+                &format!("web/{npm_lock}"),
             ),
         ];
         let added = add_missing(root, &resolved, &registry, &NoQuery, &[]).expect("added");
@@ -292,9 +308,9 @@ mod tests {
             .map(|a| format!("{} {} {}", a.set, a.name, a.version))
             .collect();
         assert_eq!(names, ["crates regex 1.5.0", "npm left-pad 1.3.0"]);
-        let cargo = std::fs::read_to_string(root.join("rs/Cargo.toml")).unwrap();
+        let cargo = std::fs::read_to_string(root.join(&format!("rs/{cargo}"))).unwrap();
         assert!(cargo.contains("regex = \"1.5.0\""), "{cargo}");
-        let npm = std::fs::read_to_string(root.join("web/package.json")).unwrap();
+        let npm = std::fs::read_to_string(root.join(&format!("web/{npm_manifest}"))).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
         assert!(update_unused::find_missing(root, &resolved, &NoQuery, &[]).is_empty());
         assert!(
@@ -308,16 +324,18 @@ mod tests {
     fn a_named_package_is_declared_at_its_latest_version_unless_it_already_is() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
+        let npm_manifest = Ecosystem::Npm.manifest_name();
+        let npm_lock = Ecosystem::Npm.lockfiles()[0].as_str();
         write(
             root,
-            "web/package.json",
+            &format!("web/{npm_manifest}"),
             "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\"\n  }\n}\n",
         );
         let mut resolved = [target(
             "npm",
             Ecosystem::Npm,
-            "web/package.json",
-            "web/pnpm-lock.yaml",
+            &format!("web/{npm_manifest}"),
+            &format!("web/{npm_lock}"),
         )];
         resolved[0].request = Selection::Packages(vec!["left-pad".to_owned(), "react".to_owned()]);
         let no_network = |url: &str| -> Result<String, DxError> {
@@ -333,7 +351,7 @@ mod tests {
             .map(|a| format!("{} {}", a.name, a.version))
             .collect();
         assert_eq!(names, ["left-pad 1.3.0"]);
-        let npm = std::fs::read_to_string(root.join("web/package.json")).unwrap();
+        let npm = std::fs::read_to_string(root.join(&format!("web/{npm_manifest}"))).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
         assert!(npm.contains("\"react\": \"18.0.0\""), "{npm}");
     }
@@ -342,9 +360,11 @@ mod tests {
     fn a_failed_lookup_is_reported_and_the_others_are_still_written() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
+        let npm_manifest = Ecosystem::Npm.manifest_name();
+        let npm_lock = Ecosystem::Npm.lockfiles()[0].as_str();
         write(
             root,
-            "web/package.json",
+            &format!("web/{npm_manifest}"),
             "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\"\n  }\n}\n",
         );
         write(
@@ -354,18 +374,18 @@ mod tests {
         );
         write(
             root,
-            "web/pnpm-lock.yaml",
+            &format!("web/{npm_lock}"),
             "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.3.0:\n    resolution: {integrity: sha512-x}\n\n  zzz@1.0.0:\n    resolution: {integrity: sha512-y}\n",
         );
         let resolved = [target(
             "npm",
             Ecosystem::Npm,
-            "web/package.json",
-            "web/pnpm-lock.yaml",
+            &format!("web/{npm_manifest}"),
+            &format!("web/{npm_lock}"),
         )];
         let error = add_missing(root, &resolved, &registry, &NoQuery, &[]).expect_err("zzz fails");
         assert!(error.message().contains("npm:zzz"), "{error}");
-        let npm = std::fs::read_to_string(root.join("web/package.json")).unwrap();
+        let npm = std::fs::read_to_string(root.join(&format!("web/{npm_manifest}"))).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
     }
 }

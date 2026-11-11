@@ -9,7 +9,6 @@ fixture avro
 fixture cc
 fixture cloudformation
 fixture cmake
-fixture dockerfile
 fixture env
 fixture flutter
 fixture fortran

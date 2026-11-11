@@ -1415,13 +1415,7 @@ mod sh {
         let repo = source_repo("dx-launcher-no-text-tools-");
         let log = repo.base.join("text-tools.log");
         for tool in ["awk", "dirname", "find", "grep", "sed", "tr", "xargs"] {
-            repo.fake(
-                tool,
-                &format!(
-                    "echo {tool} >> '{}'\nexit 1",
-                    log.display()
-                ),
-            );
+            repo.fake(tool, &format!("echo {tool} >> '{}'\nexit 1", log.display()));
         }
         repo.run_ok();
         repo.touch_build_file();

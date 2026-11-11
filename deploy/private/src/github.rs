@@ -3,8 +3,8 @@
 use crate::api_compat::{ApiCompatMode, Baseline, Outcome, conclude};
 use crate::archive::*;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, exit_text, placeholder_refusal, run_publish,
-    scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, exit_text, placeholder_refusal,
+    run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -557,15 +557,20 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn breaking_go_api_change_stops_a_live_release_before_gh_runs() {
-        if env_test_in_child("github::tests::breaking_go_api_change_stops_a_live_release_before_gh_runs")
-        {
+        if env_test_in_child(
+            "github::tests::breaking_go_api_change_stops_a_live_release_before_gh_runs",
+        ) {
             return;
         }
         let scratch = scratch_dir();
         let repo = scratch.path().join("repo");
         let runfiles = scratch.path().join("runfiles");
         let bin = scratch.path().join("bin");
-        write_crate_file(&repo, dx_ecosystems::Ecosystem::Go.manifest_name(), "module example.com/lib\n\ngo 1.22\n");
+        write_crate_file(
+            &repo,
+            dx_ecosystems::Ecosystem::Go.manifest_name(),
+            "module example.com/lib\n\ngo 1.22\n",
+        );
         write_crate_file(&repo, "lib.go", "package lib\n");
         for dir in [&runfiles, &bin] {
             std::fs::create_dir_all(dir).expect("dir");

@@ -13,8 +13,8 @@ use crate::api_compat::{
 };
 use crate::http;
 use crate::run::{
-    OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal, resolve_version, run_publish,
-    scrubbed_command,
+    OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal, resolve_version,
+    run_publish, scrubbed_command,
 };
 use crate::{DeployRun, copy_verified, deploy_build_mode, tempfile_stage_dir, zip_archive};
 
@@ -598,10 +598,7 @@ pub struct MavenLive {
 }
 
 /// Checks every live-upload refusal and returns the upload settings.
-pub fn maven_live_gate(
-    env: &dyn Fn(&str) -> String,
-    version: &str,
-) -> Result<MavenLive, String> {
+pub fn maven_live_gate(env: &dyn Fn(&str) -> String, version: &str) -> Result<MavenLive, String> {
     if let Some(error) = placeholder_refusal("maven_deploy", version) {
         return Err(error);
     }
@@ -904,7 +901,9 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
             &bundle,
         ) {
             Ok(id) => {
-                println!("maven_deploy: uploaded {name} to {MAVEN_PUBLISHER_URL} as deployment {id}");
+                println!(
+                    "maven_deploy: uploaded {name} to {MAVEN_PUBLISHER_URL} as deployment {id}"
+                );
                 println!(
                     "maven_deploy: not published yet; validate and publish the deployment in the Central Portal"
                 );
@@ -1025,8 +1024,7 @@ pub(crate) mod tests {
     #[test]
     fn maven_live_gate_refuses_placeholder_versions() {
         for version in ["0.0.0", "v0.0.0", "0.0.0-dryrun", "v0.0.0-dryrun"] {
-            let error = gate_error(&APPROVED, version)
-                .expect("placeholder refused");
+            let error = gate_error(&APPROVED, version).expect("placeholder refused");
             assert!(error.contains("set a real version"), "{error}");
             assert!(error.contains(version), "{error}");
         }

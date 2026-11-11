@@ -534,7 +534,9 @@ mod tests {
             "rules_dx 1.2.3 via git_override https://example.test/dx@abc123"
         );
         let failing = |label: &str| -> Result<String, DxError> {
-            Err(DxError::infra(format!("cannot read included {label}: gone")))
+            Err(DxError::infra(format!(
+                "cannot read included {label}: gone"
+            )))
         };
         let error = parse_module_dependency("include(\"//:dx.MODULE.bazel\")\n", &failing)
             .expect_err("fails");

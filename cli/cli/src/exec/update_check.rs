@@ -16,7 +16,10 @@ fn update_without_dependency_sets_reports_none() {
 #[test]
 fn update_names_a_manifest_without_a_lock() {
     let harness = Harness::new("update-unlocked");
-    harness.write_source(dx_ecosystems::Ecosystem::Cargo.manifest_name(), "[package]\nname = \"app\"\n");
+    harness.write_source(
+        dx_ecosystems::Ecosystem::Cargo.manifest_name(),
+        "[package]\nname = \"app\"\n",
+    );
     let (code, _, err) = harness.run(&["update"]);
     assert_eq!(code, 2, "{err}");
     assert!(

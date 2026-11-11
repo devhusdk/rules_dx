@@ -128,9 +128,7 @@ pub fn parse_psgallery_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
             .unwrap_or("")
             .trim();
         if name.is_empty() || version.is_empty() {
-            return Err(DxError::failure(
-                "invalid lock: module without a version",
-            ));
+            return Err(DxError::failure("invalid lock: module without a version"));
         }
         out.push(LockedPackage::new("powershell", name, version));
     }

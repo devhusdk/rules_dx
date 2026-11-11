@@ -837,9 +837,15 @@ fn consumer_go_set_widens_require_and_refreshes_go_sum_in_a_scratch_dir() {
     #[allow(clippy::disallowed_methods)]
     let mut head = dx_process::startup_argv(&[]);
     head.extend(
-        ["run", "--config=dx_build_dev", "@rules_dx//go/private/tools:go", "--", "-C"]
-            .iter()
-            .map(|word| (*word).to_owned()),
+        [
+            "run",
+            "--config=dx_build_dev",
+            "@rules_dx//go/private/tools:go",
+            "--",
+            "-C",
+        ]
+        .iter()
+        .map(|word| (*word).to_owned()),
     );
     assert_eq!(argv[..=at], head[..], "{argv:?}");
     assert_eq!(argv[at + 2..], ["mod", "download", "all"], "{argv:?}");

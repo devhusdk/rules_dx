@@ -960,17 +960,8 @@ impl ModuleFile {
     /// Every `hex.lock` tag of rules_dx or this repository's `//elixir:extensions.bzl`.
     pub fn mix_locks(&self) -> Result<Vec<MixLock<'_>>, ModuleError> {
         const TAG: &str = "hex.lock";
-        let external = self.tags(
-            RUBY_MODULE,
-            "elixir:extensions.bzl",
-            "hex",
-            "lock",
-        );
-        let own = self.tags_of(
-            "//elixir:extensions.bzl".to_owned(),
-            "hex",
-            "lock",
-        );
+        let external = self.tags(RUBY_MODULE, "elixir:extensions.bzl", "hex", "lock");
+        let own = self.tags_of("//elixir:extensions.bzl".to_owned(), "hex", "lock");
         external
             .chain(own)
             .map(|call| {
@@ -1004,33 +995,28 @@ impl ModuleFile {
     pub fn composer_locks(&self) -> Result<Vec<ComposerLock<'_>>, ModuleError> {
         const TAG: &str = "php:extensions.bzl composer lock";
         self.tags(RUBY_MODULE, "php:extensions.bzl", "composer", "lock")
-        .map(|call| {
-            Ok(ComposerLock {
-                name: required(call, TAG, "name")?,
-                lock: required(call, TAG, "lock")?,
-                line: call.line,
+            .map(|call| {
+                Ok(ComposerLock {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
+                    line: call.line,
+                })
             })
-        })
-        .collect()
+            .collect()
     }
 
     /// Every `luarocks.lock` tag of the rules_dx luarocks extension in source order.
     pub fn luarocks_locks(&self) -> Result<Vec<LuaRocksLock<'_>>, ModuleError> {
         const TAG: &str = "luarocks.lock";
-        self.tags(
-            RUBY_MODULE,
-            "lua:extensions.bzl",
-            "luarocks",
-            "lock",
-        )
-        .map(|call| {
-            Ok(LuaRocksLock {
-                name: required(call, TAG, "name")?,
-                lock: required(call, TAG, "lock")?,
-                line: call.line,
+        self.tags(RUBY_MODULE, "lua:extensions.bzl", "luarocks", "lock")
+            .map(|call| {
+                Ok(LuaRocksLock {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
+                    line: call.line,
+                })
             })
-        })
-        .collect()
+            .collect()
     }
 
     /// Every `from_manifest` tag of the rules_julia `pkg` extension in source order.
@@ -1180,51 +1166,33 @@ impl ModuleFile {
     /// Every `opam.lock` tag of this repository's opam extension in source order.
     pub fn opam_packages(&self) -> Result<Vec<OpamPackages<'_>>, ModuleError> {
         const TAG: &str = "opam.lock";
-        let own = self.tags_of(
-            "//ocaml:extensions.bzl".to_owned(),
-            "opam",
-            "lock",
-        );
-        self.tags(
-            RUBY_MODULE,
-            "ocaml:extensions.bzl",
-            "opam",
-            "lock",
-        )
-        .chain(own)
-        .map(|call| {
-            Ok(OpamPackages {
-                name: required(call, TAG, "name")?,
-                lock: required(call, TAG, "lock")?,
-                line: call.line,
+        let own = self.tags_of("//ocaml:extensions.bzl".to_owned(), "opam", "lock");
+        self.tags(RUBY_MODULE, "ocaml:extensions.bzl", "opam", "lock")
+            .chain(own)
+            .map(|call| {
+                Ok(OpamPackages {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
+                    line: call.line,
+                })
             })
-        })
-        .collect()
+            .collect()
     }
 
     /// Every `cabal.lock` tag of this repository's Haskell extension in source order.
     pub fn haskell_packages(&self) -> Result<Vec<HaskellPackages<'_>>, ModuleError> {
         const TAG: &str = "cabal.lock";
-        let own = self.tags_of(
-            "//haskell:extensions.bzl".to_owned(),
-            "cabal",
-            "lock",
-        );
-        self.tags(
-            RUBY_MODULE,
-            "haskell:extensions.bzl",
-            "cabal",
-            "lock",
-        )
-        .chain(own)
-        .map(|call| {
-            Ok(HaskellPackages {
-                name: required(call, TAG, "name")?,
-                lock: required(call, TAG, "lock")?,
-                line: call.line,
+        let own = self.tags_of("//haskell:extensions.bzl".to_owned(), "cabal", "lock");
+        self.tags(RUBY_MODULE, "haskell:extensions.bzl", "cabal", "lock")
+            .chain(own)
+            .map(|call| {
+                Ok(HaskellPackages {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
+                    line: call.line,
+                })
             })
-        })
-        .collect()
+            .collect()
     }
 
     /// The main-repository .bzl labels of `use_extension` calls that load paket groups:
@@ -1422,7 +1390,6 @@ impl ModuleFile {
         }
         Ok(out)
     }
-
 
     /// The source with Maven coordinate `coordinate` appended to the `artifacts` list of the
     /// one rules_jvm_external `maven.install` tag that feeds the default `@maven` repository.

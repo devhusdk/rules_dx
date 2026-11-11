@@ -1098,7 +1098,9 @@ mod tests {
         write(
             root,
             "deps/go.MODULE.bazel",
-            &format!("go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \":{go_manifest}\")\n"),
+            &format!(
+                "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \":{go_manifest}\")\n"
+            ),
         );
         let mut expected = vec![
             "deps/go.MODULE.bazel".to_owned(),

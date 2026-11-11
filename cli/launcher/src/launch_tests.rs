@@ -127,19 +127,30 @@ fn finds_the_exe_runfiles_for_an_extensionless_argv0() {
 fn names_the_runfiles_keys_of_the_descriptor() {
     assert_eq!(
         descriptor_keys(Path::new("bazel-out/k8-fastbuild-exec/bin/pkg/tools/app")),
-        ["_main/pkg/tools/app.launch", "_main/pkg/tools/app_upstream.launch"]
+        [
+            "_main/pkg/tools/app.launch",
+            "_main/pkg/tools/app_upstream.launch"
+        ]
     );
     assert_eq!(
-        descriptor_keys(Path::new("/root/bazel-out/cfg/bin/external/repo+/pkg/app.exe")),
+        descriptor_keys(Path::new(
+            "/root/bazel-out/cfg/bin/external/repo+/pkg/app.exe"
+        )),
         ["repo+/pkg/app.launch", "repo+/pkg/app_upstream.launch"]
     );
     assert_eq!(
         descriptor_keys(Path::new("bazel-out/cfg/bin/pkg/app.run")),
-        ["_main/pkg/app.run.launch", "_main/pkg/app.run_upstream.launch"]
+        [
+            "_main/pkg/app.run.launch",
+            "_main/pkg/app.run_upstream.launch"
+        ]
     );
     assert_eq!(
         descriptor_keys(Path::new("bazel-out/cfg/bin/pkg/app.run.EXE")),
-        ["_main/pkg/app.run.launch", "_main/pkg/app.run_upstream.launch"]
+        [
+            "_main/pkg/app.run.launch",
+            "_main/pkg/app.run_upstream.launch"
+        ]
     );
     assert!(descriptor_keys(Path::new("out/pkg/app")).is_empty());
     assert!(descriptor_keys(Path::new("bazel-out/cfg/bin")).is_empty());
@@ -249,7 +260,10 @@ fn plans_from_a_manifest_with_a_tree_artifact() {
     );
     let planned = plan(&resolver, &parse(GOOD).unwrap(), &|_| None).unwrap();
     assert_eq!(planned.program, store.join("php"));
-    assert_eq!(slashed(&planned.args), slashed(&expected_args(&store, false)));
+    assert_eq!(
+        slashed(&planned.args),
+        slashed(&expected_args(&store, false))
+    );
 }
 
 #[test]
@@ -373,7 +387,9 @@ fn command_forwards_non_utf8_arguments() {
 
 #[test]
 fn parses_env_dir_and_env_default_lines() {
-    let parsed = parse("program=x\nenv_dir=ERL_ROOTDIR\t_main/otp/bin/erl\nenv_default=HOME\t/tmp\n").unwrap();
+    let parsed =
+        parse("program=x\nenv_dir=ERL_ROOTDIR\t_main/otp/bin/erl\nenv_default=HOME\t/tmp\n")
+            .unwrap();
     assert_eq!(
         parsed.env_dir,
         [("ERL_ROOTDIR".to_owned(), "_main/otp/bin/erl".to_owned())]
@@ -431,11 +447,17 @@ fn a_fail_descriptor_prints_its_message_and_exits_2_without_runfiles() {
     let dir = scratch("fail");
     std::fs::write(dir.join("stub.launch"), "fail=tool is unavailable here\n").unwrap();
     assert_eq!(
-        parse("fail=tool is unavailable here\n").unwrap().fail.as_deref(),
+        parse("fail=tool is unavailable here\n")
+            .unwrap()
+            .fail
+            .as_deref(),
         Some("tool is unavailable here")
     );
     assert_eq!(run(&dir.join("stub"), &[]).unwrap(), 2);
-    assert_eq!(run(&dir.join("stub.exe"), &["--version".into()]).unwrap(), 2);
+    assert_eq!(
+        run(&dir.join("stub.exe"), &["--version".into()]).unwrap(),
+        2
+    );
 }
 
 #[test]
@@ -451,7 +473,11 @@ fn copy_lines_write_runfiles_below_the_workspace() {
     assert_eq!(descriptor.program, "");
     let workspace = dir.join("workspace");
     std::fs::create_dir_all(workspace.join("pkg/data")).unwrap();
-    std::fs::write(workspace.join("pkg/data/a.json"), "stale and longer than the new text\n").unwrap();
+    std::fs::write(
+        workspace.join("pkg/data/a.json"),
+        "stale and longer than the new text\n",
+    )
+    .unwrap();
     let resolver = Resolver::for_tree(&tree).unwrap();
     copy_into(&resolver, &descriptor.copy, &workspace).unwrap();
     assert_eq!(

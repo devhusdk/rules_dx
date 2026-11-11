@@ -235,11 +235,7 @@ fn opam_live_pull_request(
     if let Some(sha) = existing {
         put["sha"] = serde_json::Value::String(sha);
     }
-    github.call(
-        "PUT",
-        &format!("/repos/{fork}/contents/{path}"),
-        Some(put),
-    )?;
+    github.call("PUT", &format!("/repos/{fork}/contents/{path}"), Some(put))?;
     let head = format!("{owner}:{branch}");
     match github.call(
         "POST",

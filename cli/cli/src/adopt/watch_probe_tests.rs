@@ -101,7 +101,11 @@ impl Probe {
         for (key, value) in fake {
             if *key == "FAKE_BAZEL_TOUCH" {
                 for path in value.split_whitespace() {
-                    let parent = workspace.join(path).parent().expect("touch parent").to_owned();
+                    let parent = workspace
+                        .join(path)
+                        .parent()
+                        .expect("touch parent")
+                        .to_owned();
                     fs::create_dir_all(parent).expect("touch dir");
                 }
             }
@@ -517,7 +521,10 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
     let mut probe = Probe::start(
         "dx-watch-probe-run-",
         &["watch", "run", "//app:bin", "--", "--help"],
-        &[("FAKE_BAZEL_SLEEP_MS", "30000"), ("FAKE_BAZEL_BUILD_SLEEP_MS", "0")],
+        &[
+            ("FAKE_BAZEL_SLEEP_MS", "30000"),
+            ("FAKE_BAZEL_BUILD_SLEEP_MS", "0"),
+        ],
     );
     probe.until("the app", |probe| probe.count("child ") == 2);
     for round in 2..=3 {

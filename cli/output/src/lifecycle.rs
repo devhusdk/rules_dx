@@ -215,10 +215,7 @@ pub fn status_event(check: &StatusEvent) -> Result<Value, OutputError> {
     nonempty("hint", &check.hint)?;
     let mut map = base("status");
     map.insert("name".to_owned(), Value::String(check.name.clone()));
-    map.insert(
-        "severity".to_owned(),
-        Value::String(check.severity.clone()),
-    );
+    map.insert("severity".to_owned(), Value::String(check.severity.clone()));
     map.insert("detail".to_owned(), Value::String(check.detail.clone()));
     map.insert("hint".to_owned(), Value::String(check.hint.clone()));
     Ok(Value::Object(map))
@@ -279,7 +276,10 @@ pub fn family_tools_event(entry: &FamilyToolsEvent) -> Result<Value, OutputError
     nonempty("capability", &entry.capability)?;
     let mut map = base("tools");
     map.insert("family".to_owned(), Value::String(entry.family.clone()));
-    map.insert("capability".to_owned(), Value::String(entry.capability.clone()));
+    map.insert(
+        "capability".to_owned(),
+        Value::String(entry.capability.clone()),
+    );
     map.insert(
         "tools".to_owned(),
         Value::Array(entry.tools.iter().cloned().map(Value::String).collect()),
@@ -706,7 +706,10 @@ pub fn generation_error_event(
 ) -> Result<Value, OutputError> {
     let mut map = error_map(code, message, path, None, phase)?;
     if !detail.language.is_empty() {
-        map.insert("language".to_owned(), Value::String(detail.language.to_owned()));
+        map.insert(
+            "language".to_owned(),
+            Value::String(detail.language.to_owned()),
+        );
     }
     if let Some(kind) = detail.kind {
         map.insert("kind".to_owned(), Value::String(kind.to_owned()));
@@ -1402,16 +1405,27 @@ mod tests {
             import: Some("x"),
             fix: Some(("app/BUILD.bazel", "# gazelle:dx_ignore_import py x")),
         };
-        let event =
-            generation_error_event("generation_failed", "m", Some("app"), Some("execute"), &detail)
-                .expect("error");
+        let event = generation_error_event(
+            "generation_failed",
+            "m",
+            Some("app"),
+            Some("execute"),
+            &detail,
+        )
+        .expect("error");
         assert_eq!(event["language"], "py");
         assert_eq!(event["kind"], "unresolved_import");
         assert_eq!(event["import"], "x");
         assert_eq!(event["fix"]["file"], "app/BUILD.bazel");
         assert_eq!(event["fix"]["directive"], "# gazelle:dx_ignore_import py x");
-        let bare = generation_error_event("generation_failed", "m", None, None, &GenerationDetail::default())
-            .expect("error");
+        let bare = generation_error_event(
+            "generation_failed",
+            "m",
+            None,
+            None,
+            &GenerationDetail::default(),
+        )
+        .expect("error");
         assert!(bare.get("kind").is_none() && bare.get("fix").is_none());
     }
 

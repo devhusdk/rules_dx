@@ -768,7 +768,9 @@ mod tests {
             "{\n  \"dependencies\": {\n    \"left-pad\": \"1.3.0\",\n    \"react\": \"18.0.0\"\n  }\n}\n",
             "import React from 'react';\n",
         );
-        let manifest = dir.path().join(format!("web/{}", Ecosystem::Npm.manifest_name()));
+        let manifest = dir
+            .path()
+            .join(format!("web/{}", Ecosystem::Npm.manifest_name()));
         std::fs::set_permissions(&manifest, std::fs::Permissions::from_mode(0o444)).unwrap();
         if std::fs::OpenOptions::new()
             .write(true)

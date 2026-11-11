@@ -930,7 +930,10 @@ fn collect_records_counts_one_file_reported_by_two_targets_once() {
 #[test]
 fn renamed_repo_qualifies_labels() {
     assert_eq!(repository_target("dx"), "@dx//dx:codegen");
-    assert_eq!(aspect_label("dx"), "@dx//core/codegen:codegen.bzl%dx_codegen_plan_aspect");
+    assert_eq!(
+        aspect_label("dx"),
+        "@dx//core/codegen:codegen.bzl%dx_codegen_plan_aspect"
+    );
 }
 
 #[test]
@@ -947,8 +950,14 @@ fn sources_sidecars_merge_sorted_and_stay_out_of_the_generated_artifacts() {
         declared: true,
         incomplete: false,
         artifacts: vec![
-            sidecar("bazel-out/api/a.dxcodegen.src", "api/b.proto\napi/BUILD.bazel\n"),
-            sidecar("bazel-out/api/b.dxcodegen.src", "api/b.proto\n\napi/a.proto\n"),
+            sidecar(
+                "bazel-out/api/a.dxcodegen.src",
+                "api/b.proto\napi/BUILD.bazel\n",
+            ),
+            sidecar(
+                "bazel-out/api/b.dxcodegen.src",
+                "api/b.proto\n\napi/a.proto\n",
+            ),
         ],
     }];
     assert_eq!(

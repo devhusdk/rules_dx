@@ -332,20 +332,18 @@ impl RcPolicy {
                     default,
                 )
             };
-        let disk_cache_gc =
-            disk_cache.is_some() && !rc_sets_disk_cache_gc(&lines);
+        let disk_cache_gc = disk_cache.is_some() && !rc_sets_disk_cache_gc(&lines);
         let slot_idle_secs = slot_idle_secs.filter(|secs| *secs > 0 && !ci);
-        let gc_idle_delay_secs =
-            if ci || sections::any_line_sets(&lines, &[GC_IDLE_DELAY_FLAG]) {
-                None
-            } else {
-                let rc_idle = rc_min_max_idle_secs(&lines);
-                let idle = match (rc_idle, slot_idle_secs) {
-                    (Some(rc), Some(slot)) => Some(rc.min(slot)),
-                    (rc, slot) => rc.or(slot),
-                };
-                idle.and_then(gc_idle_delay_for)
+        let gc_idle_delay_secs = if ci || sections::any_line_sets(&lines, &[GC_IDLE_DELAY_FLAG]) {
+            None
+        } else {
+            let rc_idle = rc_min_max_idle_secs(&lines);
+            let idle = match (rc_idle, slot_idle_secs) {
+                (Some(rc), Some(slot)) => Some(rc.min(slot)),
+                (rc, slot) => rc.or(slot),
             };
+            idle.and_then(gc_idle_delay_for)
+        };
         RcPolicy {
             read_user_rc: true,
             disk_cache,
@@ -544,7 +542,10 @@ fn home_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
 }
 
 /// The system rc file: under `ProgramData` on Windows, else `/etc`.
-pub(crate) fn system_rc(env_get: &dyn Fn(&str) -> Option<String>, windows: bool) -> Option<PathBuf> {
+pub(crate) fn system_rc(
+    env_get: &dyn Fn(&str) -> Option<String>,
+    windows: bool,
+) -> Option<PathBuf> {
     if windows {
         env_get("ProgramData")
             .filter(|value| !value.is_empty())

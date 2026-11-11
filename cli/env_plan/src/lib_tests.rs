@@ -185,7 +185,11 @@ fn collect_records_preserves_exec_paths() {
                 shard_bytes(
                     "//env:rust",
                     "rust",
-                    vec![("runtime", "stable-x86_64", "env/private/env_shard/src/lib.rs")],
+                    vec![(
+                        "runtime",
+                        "stable-x86_64",
+                        "env/private/env_shard/src/lib.rs",
+                    )],
                 ),
             ),
             (

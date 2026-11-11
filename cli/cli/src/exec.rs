@@ -4,7 +4,6 @@ mod auto_sync;
 mod bazel_hint;
 mod bench;
 mod breaking_base;
-mod link_check;
 mod build_failures;
 mod changed_coverage;
 mod clean;
@@ -29,6 +28,7 @@ mod guidance;
 #[cfg(test)]
 mod help_launcher_tests;
 pub(crate) mod ide_refresh;
+mod link_check;
 mod managed;
 mod managed_codegen;
 mod managed_env;
@@ -313,7 +313,9 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         return affected::execute_affected(invocation, env);
     }
     match invocation.command {
-        Command::Init if invocation.applies() && !invocation.no_generate => init_then_generate(invocation, env),
+        Command::Init if invocation.applies() && !invocation.no_generate => {
+            init_then_generate(invocation, env)
+        }
         Command::Init
         | Command::Upgrade
         | Command::Status

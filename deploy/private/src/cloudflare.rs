@@ -1221,7 +1221,10 @@ exit 7
     #[test]
     fn main_live_without_token_refuses() {
         let (code, out, err, uploaded) = run_gated(
-            &[("DX_DEPLOY_LIVE", "1"), ("CLOUDFLARE_PUBLISH_APPROVED", "1")],
+            &[
+                ("DX_DEPLOY_LIVE", "1"),
+                ("CLOUDFLARE_PUBLISH_APPROVED", "1"),
+            ],
             &SITE,
         );
         assert_eq!(code, 1);

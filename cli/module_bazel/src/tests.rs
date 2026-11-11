@@ -449,7 +449,8 @@ fn nested_includes_load_in_order() {
 #[test]
 fn an_included_parse_error_names_the_label_and_the_root_does_not() {
     let read = |_: &str| -> Result<String, String> { Ok("bazel_dep(".to_owned()) };
-    let error = load_with_includes("include(\"//:a.MODULE.bazel\")\n", &read).expect_err("fails")
+    let error = load_with_includes("include(\"//:a.MODULE.bazel\")\n", &read)
+        .expect_err("fails")
         .to_string();
     assert!(error.starts_with("//:a.MODULE.bazel: "), "{error}");
     let root = load_with_includes("bazel_dep(", &read)
@@ -461,10 +462,9 @@ fn an_included_parse_error_names_the_label_and_the_root_does_not() {
 #[test]
 fn repeated_and_repo_includes_fail_before_reading() {
     let read = |label: &str| -> Result<String, String> { panic!("read {label}") };
-    let error =
-        load_with_includes("include(\"@//:deps.MODULE.bazel\")\n", &read)
-            .expect_err("fails")
-            .to_string();
+    let error = load_with_includes("include(\"@//:deps.MODULE.bazel\")\n", &read)
+        .expect_err("fails")
+        .to_string();
     assert!(
         error.contains("include @//:deps.MODULE.bazel is not a //package:file label")
             && error.contains("MODULE.bazel line 1"),
@@ -1461,7 +1461,13 @@ fn insert_extension_block_refuses_a_binding_bound_to_another_extension() {
     let before = "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n";
     let file = ModuleFile::parse(before).expect("parse");
     let err = file
-        .insert_extension_block("npm", "@rules_dx//javascript:extensions.bzl", "npm", &[], &["npm"])
+        .insert_extension_block(
+            "npm",
+            "@rules_dx//javascript:extensions.bzl",
+            "npm",
+            &[],
+            &["npm"],
+        )
         .expect_err("binding taken");
     assert!(matches!(err, ModuleError::NoInsertPoint { .. }), "{err:?}");
 }

@@ -994,10 +994,7 @@ fn write_workspace_locks(dir: &Path, stale_cargo: bool) {
         &dir.join("go.sum"),
         "github.com/google/go-cmp v0.5.0 h1:abc=\ngithub.com/google/go-cmp v0.5.0/go.mod h1:def=\n",
     );
-    write_file(
-        &dir.join("MODULE.bazel"),
-        MODULE_JUNIT,
-    );
+    write_file(&dir.join("MODULE.bazel"), MODULE_JUNIT);
     write_file(
         &dir.join("maven_install.json"),
         "{\"artifacts\": {\"junit:junit\": {\"version\": \"4.13.2\"}}}",
@@ -1088,7 +1085,10 @@ fn maven_artifacts_list_rejects_empty() {
 #[test]
 fn maven_artifacts_list_rejects_missing_install() {
     let dir = tempfile::tempdir().expect("scratch");
-    write_file(&dir.path().join("MODULE.bazel"), "bazel_dep(name = \"x\")\n");
+    write_file(
+        &dir.path().join("MODULE.bazel"),
+        "bazel_dep(name = \"x\")\n",
+    );
     assert!(parse_maven_artifacts_list(&dir.path().join("MODULE.bazel")).is_err());
 }
 
@@ -3340,7 +3340,8 @@ fn lua_manifest_reads_tables_and_skips_lua() {
 
 #[test]
 fn lua_lock_drops_the_rock_revision() {
-    let lock = parse_lua_lock(&testdata_root().join("lua/mixed/luarocks.lock.json")).expect("parse");
+    let lock =
+        parse_lua_lock(&testdata_root().join("lua/mixed/luarocks.lock.json")).expect("parse");
     assert_eq!(lock["luasocket"], "3.1.0");
     assert_eq!(lock["lua-cjson"], "2.1.0");
 }

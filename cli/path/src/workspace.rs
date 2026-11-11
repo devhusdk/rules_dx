@@ -282,7 +282,8 @@ mod tests {
     #[test]
     fn target_missing_root_is_not_found() {
         let dir = tempfile::tempdir().unwrap();
-        let error = resolve_target_in_workspace(&dir.path().join("gone"), "target.lock").unwrap_err();
+        let error =
+            resolve_target_in_workspace(&dir.path().join("gone"), "target.lock").unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
     }
 

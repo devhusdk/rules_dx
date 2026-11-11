@@ -254,7 +254,11 @@ fn expand_text_lists(texts: &[PathBuf]) -> std::io::Result<Vec<PathBuf>> {
         match text.to_str().and_then(|text| text.strip_prefix('@')) {
             Some(list) => {
                 let body = std::fs::read_to_string(list)?;
-                out.extend(body.lines().filter(|line| !line.is_empty()).map(PathBuf::from));
+                out.extend(
+                    body.lines()
+                        .filter(|line| !line.is_empty())
+                        .map(PathBuf::from),
+                );
             }
             None => out.push(text.clone()),
         }

@@ -2,9 +2,9 @@ use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
 pub fn parse_cargo_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
-    let lockfile: cargo_lock::Lockfile = text.parse().map_err(|error: cargo_lock::Error| {
-        DxError::failure(format!("invalid lock: {error}"))
-    })?;
+    let lockfile: cargo_lock::Lockfile = text
+        .parse()
+        .map_err(|error: cargo_lock::Error| DxError::failure(format!("invalid lock: {error}")))?;
     if lockfile.packages.is_empty() {
         return Err(DxError::failure("invalid lock: missing [[package]]"));
     }
@@ -48,9 +48,9 @@ pub struct CargoLockEntry {
 }
 
 pub fn cargo_lock_graph(text: &str) -> Result<Vec<CargoLockEntry>, DxError> {
-    let lockfile: cargo_lock::Lockfile = text.parse().map_err(|error: cargo_lock::Error| {
-        DxError::failure(format!("invalid lock: {error}"))
-    })?;
+    let lockfile: cargo_lock::Lockfile = text
+        .parse()
+        .map_err(|error: cargo_lock::Error| DxError::failure(format!("invalid lock: {error}")))?;
     if lockfile.packages.is_empty() {
         return Err(DxError::failure("invalid lock: missing [[package]]"));
     }

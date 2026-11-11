@@ -180,7 +180,11 @@ fn dx(case: &Case, command: &str, args: &[&str]) -> Run {
     let home = mkscratch("candidate-home").unwrap_or_else(|error| panic!("scratch: {error}"));
     let home = home.to_string_lossy().into_owned();
     let applets = dx_testing::env_files("DX_COREUTILS");
-    let path = applets[0].parent().expect("applet directory").to_string_lossy().into_owned();
+    let path = applets[0]
+        .parent()
+        .expect("applet directory")
+        .to_string_lossy()
+        .into_owned();
     let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
     argv.extend_from_slice(args);
     case.run(
@@ -339,5 +343,9 @@ fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
 
     assert_registry_consumer(&candidate, &archive, &built.integrity);
     stage("repo state");
-    assert_eq!(repo_state(&root, &scratch), before, "the test touched the checkout");
+    assert_eq!(
+        repo_state(&root, &scratch),
+        before,
+        "the test touched the checkout"
+    );
 }

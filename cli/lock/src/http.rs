@@ -43,7 +43,11 @@ impl HttpFetch {
     /// # Errors
     /// Fails when the request fails or the status is not 200.
     pub fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
-        let mut response = self.0.get(url).call().map_err(|error| Error::new(error.to_string()))?;
+        let mut response = self
+            .0
+            .get(url)
+            .call()
+            .map_err(|error| Error::new(error.to_string()))?;
         let status = response.status().as_u16();
         if status != 200 {
             return Err(Error::new(format!("HTTP {status}")));
@@ -81,7 +85,10 @@ mod tests {
             while !request.ends_with(b"\r\n\r\n") && stream.read(&mut byte).expect("read") == 1 {
                 request.push(byte[0]);
             }
-            let head = format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+            let head = format!(
+                "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
             stream.write_all(head.as_bytes()).expect("head");
             stream.write_all(body.as_bytes()).expect("body");
         });
@@ -91,7 +98,10 @@ mod tests {
     #[test]
     fn a_download_returns_the_sha256_of_its_bytes() {
         let url = serve("200 OK", "alpha");
-        assert_eq!(HttpFetch(agent(false)).sha256(&url), Ok(dx_digest::sha256_hex(b"alpha")));
+        assert_eq!(
+            HttpFetch(agent(false)).sha256(&url),
+            Ok(dx_digest::sha256_hex(b"alpha"))
+        );
     }
 
     #[test]
@@ -103,12 +113,20 @@ mod tests {
     #[test]
     fn a_missing_archive_names_the_status() {
         let url = serve("404 Not Found", "gone");
-        assert_eq!(HttpFetch(agent(false)).sha256(&url), Err(Error::new("HTTP 404")));
+        assert_eq!(
+            HttpFetch(agent(false)).sha256(&url),
+            Err(Error::new("HTTP 404"))
+        );
     }
 
     #[test]
     fn a_plain_http_url_is_refused() {
-        let error = HttpFetch::new().sha256("http://127.0.0.1:9/archive").expect_err("refused");
-        assert!(error.to_string().to_lowercase().contains("https"), "{error}");
+        let error = HttpFetch::new()
+            .sha256("http://127.0.0.1:9/archive")
+            .expect_err("refused");
+        assert!(
+            error.to_string().to_lowercase().contains("https"),
+            "{error}"
+        );
     }
 }

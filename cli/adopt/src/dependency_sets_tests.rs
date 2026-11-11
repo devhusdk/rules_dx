@@ -294,10 +294,7 @@ fn composer_locks_become_composer_sets() {
     let set = registry.find("vendor").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::Composer);
     assert_eq!(set.manifests, ["php/composer.json"]);
-    assert_eq!(
-        set.locks,
-        ["php/composer.lock.json", "php/composer.lock"]
-    );
+    assert_eq!(set.locks, ["php/composer.lock.json", "php/composer.lock"]);
 }
 
 #[test]

@@ -1,8 +1,8 @@
 //! Conan publisher: recipe identity checks, local staging, `conan create` and `conan upload`.
 
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    exit_text, placeholder_refusal, print_redacted, resolve_version, run_publish, scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
+    placeholder_refusal, print_redacted, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::path::{Path, PathBuf};
@@ -52,8 +52,9 @@ fn recipe_version(text: &str, package: &str, version: &str) -> Result<String, St
     match recipe_string(text, "version") {
         Some(declared) => resolve_version("conan_deploy", "conanfile.py", Some(declared), version),
         None if !version.is_empty() => Ok(version.to_owned()),
-        None => Err("conan_deploy: conanfile.py declares no plain version and BUILD sets none"
-            .to_owned()),
+        None => Err(
+            "conan_deploy: conanfile.py declares no plain version and BUILD sets none".to_owned(),
+        ),
     }
 }
 
@@ -114,9 +115,7 @@ fn conan_publish(
     let steps: [&[&str]; 4] = [
         &["profile", "detect", "--force"],
         &["remote", "add", "--force", spec.remote, spec.remote_url],
-        &[
-            "create", ".", "--name", spec.package, "--version", version,
-        ],
+        &["create", ".", "--name", spec.package, "--version", version],
         &["upload", &reference, "-r", spec.remote, "--confirm"],
     ];
     for args in steps {
@@ -186,7 +185,8 @@ fn conan_deploy_checked(
             return Err(error);
         }
         let secrets = CONAN_GATE.authorize(env_or_empty)?;
-        let conan = run.resolve(spec.conan_rloc)
+        let conan = run
+            .resolve(spec.conan_rloc)
             .ok_or_else(|| "conan_deploy: no conan executable".to_owned())?;
         conan_publish(
             &conan,
@@ -244,7 +244,10 @@ mod tests {
                 .contains("declares version 1.2.0, BUILD declares 2.0.0")
         );
         let bare = "class Demo(ConanFile):\n    pass\n";
-        assert_eq!(recipe_version(bare, "demo", "3.0.0"), Ok("3.0.0".to_owned()));
+        assert_eq!(
+            recipe_version(bare, "demo", "3.0.0"),
+            Ok("3.0.0".to_owned())
+        );
         assert!(recipe_version(bare, "demo", "").is_err());
     }
 
@@ -319,13 +322,27 @@ mod tests {
             remote_url: "https://conan.invalid",
             conan_rloc: "",
         };
-        let secrets = [("CONAN_LOGIN_USERNAME", "user"), ("CONAN_PASSWORD", "fake-token")];
-        conan_publish(&conan, &scratch.path().join("staging"), &spec, "1.2.0", &secrets)
-            .expect("publish");
+        let secrets = [
+            ("CONAN_LOGIN_USERNAME", "user"),
+            ("CONAN_PASSWORD", "fake-token"),
+        ];
+        conan_publish(
+            &conan,
+            &scratch.path().join("staging"),
+            &spec,
+            "1.2.0",
+            &secrets,
+        )
+        .expect("publish");
         let seen = std::fs::read_to_string(&log).expect("log");
         assert_eq!(
             seen.lines().collect::<Vec<_>>(),
-            ["profile:none", "remote:none", "create:none", "upload:fake-token"]
+            [
+                "profile:none",
+                "remote:none",
+                "create:none",
+                "upload:fake-token"
+            ]
         );
     }
 }

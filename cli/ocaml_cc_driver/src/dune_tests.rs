@@ -128,7 +128,10 @@ fn copy_tree_follows_links_and_writes_over_read_only_files() {
 
 #[test]
 fn inherited_sdkroot_keeps_its_expanded_root() {
-    let vars = [("SDKROOT".to_owned(), "$ROOT/external/macos_sdk/sysroot".to_owned())];
+    let vars = [(
+        "SDKROOT".to_owned(),
+        "$ROOT/external/macos_sdk/sysroot".to_owned(),
+    )];
     let env = expand_root(vars.into_iter(), Path::new("/exec"));
     assert_eq!(
         env.get("SDKROOT").map(String::as_str),

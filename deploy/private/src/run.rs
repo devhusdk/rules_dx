@@ -399,8 +399,14 @@ mod tests {
 
     #[test]
     fn resolve_version_reads_the_manifest_and_checks_the_declared_one() {
-        assert_eq!(resolve_version("t", "f", Some("1.2.3"), ""), Ok("1.2.3".to_owned()));
-        assert_eq!(resolve_version("t", "f", Some("1.2.3"), "1.2.3"), Ok("1.2.3".to_owned()));
+        assert_eq!(
+            resolve_version("t", "f", Some("1.2.3"), ""),
+            Ok("1.2.3".to_owned())
+        );
+        assert_eq!(
+            resolve_version("t", "f", Some("1.2.3"), "1.2.3"),
+            Ok("1.2.3".to_owned())
+        );
         assert_eq!(
             resolve_version("t", "f", Some("1.2.3"), "9.9.9").expect_err("mismatch"),
             "t: f declares version 1.2.3, BUILD declares 9.9.9; refusing"

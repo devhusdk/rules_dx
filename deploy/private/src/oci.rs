@@ -4,8 +4,7 @@ use crate::archive::*;
 use crate::oci_scan::{OciChecks, ScanMode, run_trivy, scan_and_report};
 use crate::registry;
 use crate::run::{
-    DeployRun, OwnerGate, deploy_build_mode, env_or_empty, placeholder_refusal,
-    tree_bytes,
+    DeployRun, OwnerGate, deploy_build_mode, env_or_empty, placeholder_refusal, tree_bytes,
 };
 use std::io::{self, Read, Write};
 use std::path::Path;

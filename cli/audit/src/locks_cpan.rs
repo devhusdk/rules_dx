@@ -15,10 +15,7 @@ pub fn parse_cpanfile_snapshot(text: &str) -> Result<Vec<LockedPackage>, DxError
         }
         if in_distributions && indent_of(raw) == 2 {
             let (name, version) = split_distribution(raw.trim()).ok_or_else(|| {
-                DxError::failure(format!(
-                    "invalid lock distribution: {}",
-                    raw.trim()
-                ))
+                DxError::failure(format!("invalid lock distribution: {}", raw.trim()))
             })?;
             out.push(LockedPackage::new("cpan", name, version));
         }

@@ -16,11 +16,7 @@ pub fn parse_dub_selections(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         let version = entry
             .as_str()
             .or_else(|| entry.get("version").and_then(serde_json::Value::as_str))
-            .ok_or_else(|| {
-                DxError::failure(format!(
-                    "invalid lock: no version for {name}"
-                ))
-            })?;
+            .ok_or_else(|| DxError::failure(format!("invalid lock: no version for {name}")))?;
         out.push(LockedPackage::new(DUB_SET, name, version));
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));

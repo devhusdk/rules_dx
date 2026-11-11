@@ -11,14 +11,13 @@
 mod api_compat;
 mod archive;
 mod cloudflare;
+mod conan;
 mod config;
+mod cpan;
 mod crates;
 mod github;
 mod go_api;
-mod conan;
-mod cpan;
 mod hackage;
-mod opam;
 mod helm;
 mod hex;
 mod homebrew;
@@ -31,6 +30,7 @@ mod nuget;
 mod oci;
 mod oci_scan;
 mod octopus;
+mod opam;
 mod packagist;
 mod pub_dev;
 mod pypi;
@@ -44,13 +44,12 @@ pub(crate) mod test_support;
 pub use api_compat::*;
 pub use archive::*;
 pub use cloudflare::*;
+pub use conan::*;
 pub use config::*;
+pub use cpan::*;
 pub use crates::*;
 pub use github::*;
-pub use conan::*;
-pub use cpan::*;
 pub use hackage::*;
-pub use opam::*;
 pub use helm::*;
 pub use hex::*;
 pub use homebrew::*;
@@ -62,6 +61,7 @@ pub use nuget::*;
 pub use oci::*;
 pub use oci_scan::{OciChecks, ScanMode};
 pub use octopus::*;
+pub use opam::*;
 pub use packagist::*;
 pub use pub_dev::*;
 pub use pypi::*;
@@ -72,8 +72,8 @@ pub use stage::*;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dx_ecosystems::Ecosystem;
     use crate::test_support::*;
+    use dx_ecosystems::Ecosystem;
     use std::io;
     use std::path::Path;
 
@@ -446,7 +446,10 @@ mod tests {
             || {
                 assert_eq!(
                     crates_main(
-                        &[Ecosystem::Cargo.manifest_name().to_owned(), "lib.rs".to_owned()],
+                        &[
+                            Ecosystem::Cargo.manifest_name().to_owned(),
+                            "lib.rs".to_owned()
+                        ],
                         "crates_demo",
                         "1.0.0",
                         &argv
@@ -484,7 +487,11 @@ mod tests {
         let scratch = scratch_dir();
         let repo = scratch.path().join("repo");
         let runfiles = scratch.path().join("runfiles");
-        write_crate_file(&repo, Ecosystem::Cargo.manifest_name(), "[package]\nname = \"demo\"\nversion = \"1.2.0\"\n");
+        write_crate_file(
+            &repo,
+            Ecosystem::Cargo.manifest_name(),
+            "[package]\nname = \"demo\"\nversion = \"1.2.0\"\n",
+        );
         std::fs::create_dir_all(&runfiles).expect("runfiles");
         for args in [
             &["init", "-q"][..],
@@ -494,7 +501,8 @@ mod tests {
         ] {
             dx_test_scratch::git(&repo, &repo, args);
         }
-        let wheel = zip_archive(&[("demo-1.3.0.dist-info/RECORD", &b""[..], 0o644)]).expect("wheel");
+        let wheel =
+            zip_archive(&[("demo-1.3.0.dist-info/RECORD", &b""[..], 0o644)]).expect("wheel");
         std::fs::write(runfiles.join("demo-1.3.0-py3-none-any.whl"), wheel).expect("wheel");
         std::fs::write(
             runfiles.join(Ecosystem::Cargo.manifest_name()),
@@ -504,7 +512,10 @@ mod tests {
         std::fs::write(runfiles.join("lib.rs"), "\n").expect("lib");
         let marker = |name: &str| scratch.path().join(name);
         for (tool, output) in [
-            ("griffe", "src/pkg/__init__.py:1: pkg.hello: Public object was removed"),
+            (
+                "griffe",
+                "src/pkg/__init__.py:1: pkg.hello: Public object was removed",
+            ),
             ("semver", "--- failure pub_fn_missing: pub fn removed ---"),
         ] {
             let fake = runfiles.join(tool);
@@ -558,7 +569,10 @@ mod tests {
                 };
                 assert_eq!(
                     crates_main_checked(
-                        &[Ecosystem::Cargo.manifest_name().to_owned(), "lib.rs".to_owned()],
+                        &[
+                            Ecosystem::Cargo.manifest_name().to_owned(),
+                            "lib.rs".to_owned()
+                        ],
                         "demo",
                         "1.3.0",
                         &crates,
@@ -566,7 +580,10 @@ mod tests {
                     ),
                     1
                 );
-                assert!(marker("semver").exists(), "crates live run skipped the check");
+                assert!(
+                    marker("semver").exists(),
+                    "crates live run skipped the check"
+                );
             },
         );
     }
@@ -693,7 +710,10 @@ mod tests {
                 );
                 assert_eq!(
                     crates_main(
-                        &[Ecosystem::Cargo.manifest_name().to_owned(), "lib.rs".to_owned()],
+                        &[
+                            Ecosystem::Cargo.manifest_name().to_owned(),
+                            "lib.rs".to_owned()
+                        ],
                         "crates_demo",
                         "1.0.0",
                         &argv

@@ -88,6 +88,12 @@ fn crowbar_repro_reads_the_seed_file() {
 #[test]
 fn crowbar_takes_no_fuzz_flags_of_its_own() {
     let options = parse_options(&[]).expect("options");
-    let args = fuzz_args(Engine::Crowbar, "", &options, Path::new("/w"), Path::new("/c"));
+    let args = fuzz_args(
+        Engine::Crowbar,
+        "",
+        &options,
+        Path::new("/w"),
+        Path::new("/c"),
+    );
     assert!(args.is_empty());
 }

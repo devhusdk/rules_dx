@@ -16,9 +16,7 @@ pub fn parse_package_resolved(text: &str) -> Result<Vec<LockedPackage>, DxError>
             )));
         }
         None => {
-            return Err(DxError::failure(
-                "invalid lock: missing version",
-            ));
+            return Err(DxError::failure("invalid lock: missing version"));
         }
     }
     let pins = root

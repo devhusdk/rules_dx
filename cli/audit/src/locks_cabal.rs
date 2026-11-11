@@ -19,9 +19,7 @@ pub fn parse_cabal_freeze(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         constraints.push('\n');
     }
     if !text.lines().any(|line| line.starts_with("constraints:")) {
-        return Err(DxError::failure(
-            "invalid lock: missing constraints",
-        ));
+        return Err(DxError::failure("invalid lock: missing constraints"));
     }
     let mut out = Vec::new();
     for entry in constraints.split(',') {

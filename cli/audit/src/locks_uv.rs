@@ -23,9 +23,7 @@ pub fn parse_uv_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let mut out = Vec::new();
     for entry in packages {
         let Some(table) = entry.as_table() else {
-            return Err(DxError::failure(
-                "invalid lock: [[package]] is not a table",
-            ));
+            return Err(DxError::failure("invalid lock: [[package]] is not a table"));
         };
         let name = table
             .get("name")

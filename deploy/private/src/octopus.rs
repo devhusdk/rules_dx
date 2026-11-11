@@ -166,7 +166,10 @@ fn octo_run(octo: &Path, args: &[OsString], api_key: &str, step: &str) -> bool {
         }
         Ok(out) => {
             print_redacted(&out, api_key);
-            eprintln!("octopus_deploy: octo {step} failed with {}", exit_text(&out));
+            eprintln!(
+                "octopus_deploy: octo {step} failed with {}",
+                exit_text(&out)
+            );
             false
         }
         Err(error) => {
@@ -311,7 +314,12 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
             eprintln!("octopus_deploy: 'octo' CLI not found on PATH");
             return 1;
         };
-        return octopus_live_publish(&octo, &package, &drop_spec, secrets.get("OCTOPUS_API_TOKEN"));
+        return octopus_live_publish(
+            &octo,
+            &package,
+            &drop_spec,
+            secrets.get("OCTOPUS_API_TOKEN"),
+        );
     }
     match octopus_build_drop(&package, outdir, &drop_spec) {
         Ok(drop) => {
@@ -351,7 +359,10 @@ mod tests {
     fn live_refusal_wants_a_real_version_and_an_https_server() {
         let ok = "https://octopus.example.com";
         assert_eq!(octopus_live_refusal("1.2.3", ok), None);
-        assert_eq!(octopus_live_refusal("1.2.3", "https://o.example:8443/api"), None);
+        assert_eq!(
+            octopus_live_refusal("1.2.3", "https://o.example:8443/api"),
+            None
+        );
         for version in ["0.0.0", "v0.0.0", "0.0.0-dryrun"] {
             let refusal = octopus_live_refusal(version, ok).expect("placeholder version");
             assert!(refusal.contains("placeholder version"), "{refusal}");
@@ -369,7 +380,10 @@ mod tests {
             "https://o.example/\n--apiKey",
         ] {
             let refusal = octopus_live_refusal("1.2.3", server).expect("bad server");
-            assert!(refusal.contains("needs an https server URL"), "{server}: {refusal}");
+            assert!(
+                refusal.contains("needs an https server URL"),
+                "{server}: {refusal}"
+            );
             assert!(!refusal.contains('\n'), "{refusal:?}");
         }
         let refusal =

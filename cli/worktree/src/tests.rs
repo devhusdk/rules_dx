@@ -1393,7 +1393,12 @@ fn add_keeps_free_slots_with_unpushed_commits_above_the_limit() {
     assert!(pool.record(a.slot).is_some_and(|r| !r.held));
     host.max_slots.store(1, Ordering::SeqCst);
     let listing = ops::list(&pool, &host, true).expect("list");
-    assert!(listing.rows.iter().all(|row| row.slot != Some(a.slot) || !row.prunable));
+    assert!(
+        listing
+            .rows
+            .iter()
+            .all(|row| row.slot != Some(a.slot) || !row.prunable)
+    );
     ops::add(&pool, &host, &me, &create("feature/c")).expect("c");
     assert!(a.path.exists(), "the free slot with unpushed work stays");
     assert!(pool.record(a.slot).is_some());

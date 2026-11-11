@@ -193,12 +193,18 @@ fn backend_columns_name_a_module_or_pinned() {
 
 #[test]
 fn json_states_no_name_the_registry_states() {
-    let raw = serde_json::from_str::<Table>(TABLE).expect("table").ecosystems;
+    let raw = serde_json::from_str::<Table>(TABLE)
+        .expect("table")
+        .ecosystems;
     for row in raw {
         let Some(hub) = dx_families::hub(&row.name) else {
             continue;
         };
-        assert_ne!(row.manifest, hub.manifest, "{} repeats its manifest", row.name);
+        assert_ne!(
+            row.manifest, hub.manifest,
+            "{} repeats its manifest",
+            row.name
+        );
         if hub.lock.is_none() {
             assert_ne!(
                 row.lockfiles,

@@ -76,7 +76,14 @@ fn yaml_scalar(text: &str) -> Value {
     let quoted = text.len() >= 2
         && (text.starts_with('"') && text.ends_with('"')
             || text.starts_with('\'') && text.ends_with('\''));
-    Value::String(if quoted { &text[1..text.len() - 1] } else { text }.to_owned())
+    Value::String(
+        if quoted {
+            &text[1..text.len() - 1]
+        } else {
+            text
+        }
+        .to_owned(),
+    )
 }
 
 /// Nested `key: value` mappings of a yaml file; lists and flow values stay plain text.

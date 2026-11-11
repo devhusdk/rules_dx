@@ -34,7 +34,8 @@ pub fn dub_selections() -> &'static str {
 
 /// The dub manifest names, preferred first.
 fn dub_manifests() -> impl Iterator<Item = &'static str> {
-    std::iter::once(manifest_of("dub")).chain(Ecosystem::Dub.alt_manifests().iter().map(String::as_str))
+    std::iter::once(manifest_of("dub"))
+        .chain(Ecosystem::Dub.alt_manifests().iter().map(String::as_str))
 }
 
 /// The luarocks lock file name.

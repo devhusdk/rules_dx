@@ -19,7 +19,9 @@ fn closure(index: &Value, roots: &[String]) -> Result<BTreeSet<String>, String> 
     let mut found = BTreeSet::new();
     let mut pending = roots.to_vec();
     while let Some(name) = pending.pop() {
-        let entry = index["packages"].get(&name).ok_or(format!("{name} is not in the registry"))?;
+        let entry = index["packages"]
+            .get(&name)
+            .ok_or(format!("{name} is not in the registry"))?;
         if found.insert(name) {
             pending.extend(names(&entry["deps"]));
         }
@@ -33,7 +35,10 @@ fn scratch_dir(variable: &str, cwd: &Path) -> Result<PathBuf, String> {
     if dir.is_dir() && dir.parent() == cwd.parent() {
         Ok(dir)
     } else {
-        Err(format!("{variable} is {}, outside the scratch directory", dir.display()))
+        Err(format!(
+            "{variable} is {}, outside the scratch directory",
+            dir.display()
+        ))
     }
 }
 
@@ -44,7 +49,8 @@ fn resolve(index_path: &str) -> Result<String, String> {
         scratch_dir(variable, &cwd)?;
     }
     let read = |path: &Path| -> Result<Value, String> {
-        let text = std::fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
+        let text = std::fs::read_to_string(path)
+            .map_err(|error| format!("{}: {error}", path.display()))?;
         serde_json::from_str(&text).map_err(|error| format!("{}: {error}", path.display()))
     };
     let index = read(Path::new(index_path))?;
@@ -72,7 +78,12 @@ fn resolve(index_path: &str) -> Result<String, String> {
     }
     let state: String = packages
         .iter()
-        .map(|(name, package)| format!("{name} {}\n", package["version"].as_str().unwrap_or_default()))
+        .map(|(name, package)| {
+            format!(
+                "{name} {}\n",
+                package["version"].as_str().unwrap_or_default()
+            )
+        })
         .collect();
     std::fs::write(cwd.join("fixture.state"), state).map_err(|error| error.to_string())?;
     let listed: Vec<&Value> = packages.values().rev().collect();

@@ -48,7 +48,9 @@ pub enum VersionError {
     InvalidGit { set: &'static str, version: String },
     #[error("invalid digest {version:?} for set {set}: expected sha256: followed by 64 hex digits")]
     InvalidDigest { set: &'static str, version: String },
-    #[error("invalid release version {version:?} for set {set}: expected digits, letters, '.', '-', '_' or '+' starting with a digit")]
+    #[error(
+        "invalid release version {version:?} for set {set}: expected digits, letters, '.', '-', '_' or '+' starting with a digit"
+    )]
     InvalidRelease { set: &'static str, version: String },
 }
 

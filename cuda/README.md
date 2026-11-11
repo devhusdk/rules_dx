@@ -8,27 +8,10 @@ install and no GPU.
 
 ## Setup
 
-The CUDA rules load from `@rules_dx//cuda:defs.bzl`. Add this to the root
-`MODULE.bazel`. rules_cuda reads these tags
-from the root module only, so a dependency cannot declare them for you.
+The CUDA rules load from `@rules_dx//cuda:defs.bzl`. rules_dx declares the
+pinned toolkit and the nvcc toolchain. Add this to the root `MODULE.bazel`:
 
 ```python
-bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")
-
-cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
-cuda.redist_json(
-    name = "cuda_redist",
-    components = ["cccl", "crt", "cublas", "cudart", "cufft", "curand", "nvcc", "nvvm"],
-    platforms = ["linux-x86_64", "linux-sbsa", "windows-x86_64", "windows-arm64"],
-    sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
-    version = "13.4.2",
-)
-cuda.toolkit(
-    name = "cuda",
-    nvcc_version = "13.4",
-)
-use_repo(cuda, "cuda")
-
 cuda_license = use_extension("@rules_dx//cuda:extensions.bzl", "cuda_license")
 cuda_license.license(accept = ["cuda-eula"])
 ```
@@ -110,7 +93,7 @@ failing. rules_dx patches rules_cuda 0.4.0-beta1 for the windows-arm64 toolkit
 | `dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = ["sm_89"]` | Set `cuda_archs`. |
 | `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |
 | `dx_cuda: @rules_cuda//cuda:compiler is '<compiler>'; dx CUDA targets compile with nvcc only` | Remove the `@rules_cuda//cuda:compiler` setting. |
-| `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); declare the cuda.redist_json and cuda.toolkit tags from the dx CUDA README` | Add the `cuda.redist_json` and `cuda.toolkit` tags from Setup. |
+| `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); declare the cuda.redist_json and cuda.toolkit tags from the dx CUDA README` | Remove your own `cuda.redist_json` and `cuda.toolkit` tags; rules_dx declares them. |
 | `dx_cuda: the CUDA toolkit is <version>; dx CUDA targets need 13.4` | Use the versions from Setup. |
 | `dx_cuda: no nvcc toolchain for this target; dx CUDA targets build for linux_x86_64, linux_arm64, windows_x86_64, windows_arm64` | Build for one of the listed platforms. |
 | nvcc fails with `unsupported clang version!` | Move the stanza before `register_toolchains("@llvm//toolchain:all")`. |

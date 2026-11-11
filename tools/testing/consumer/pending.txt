@@ -49,7 +49,6 @@ fixture cc
 fixture cloudformation
 fixture cmake
 fixture csharp
-fixture cuda
 fixture dart
 fixture dockerfile
 fixture env

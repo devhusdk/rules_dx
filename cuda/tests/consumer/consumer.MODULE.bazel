@@ -1,0 +1,7 @@
+# dx: yours; dx adds its missing lines
+module(name = "consumer")
+
+bazel_dep(name = "rules_dx", version = "0.0.0")
+
+cuda_license = use_extension("@rules_dx//cuda:extensions.bzl", "cuda_license")
+cuda_license.license(accept = ["cuda-eula"])

@@ -34,7 +34,6 @@ init qt
 init rego
 init rst
 init ruby
-init rust
 init scala
 init sql
 init swift

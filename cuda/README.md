@@ -159,7 +159,7 @@ bazel test //:saxpy_gpu_test --test_output=streamed
 ```
 
 The test source implements `int dx_gpu_test_main(void)` from
-`testing/gpu_test.h`. Run the kernels there, compute a CPU
+`dx/gpu_check.h`. Run the kernels there, compute a CPU
 reference, and record each comparison with
 `dx_gpu_check(name, want, got, n, abs_tol, rel_tol)`. Pass `got = NULL`
 when a kernel launch fails. Return 0.

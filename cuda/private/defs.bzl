@@ -261,7 +261,7 @@ def cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = 
         name,
         srcs,
         cuda_archs,
-        list(deps or []) + [Label("//cuda/private/testing:gpu_main")],
+        list(deps or []) + [Label("//cuda/private/gpu:gpu_main")],
         hdrs,
         visibility,
         user_tags + [tag for tag in _GPU_TAGS if tag not in user_tags],

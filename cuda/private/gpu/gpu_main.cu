@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-#include "cuda/private/testing/gpu_device.h"
-#include "cuda/private/testing/gpu_facts.h"
-#include "cuda/private/testing/gpu_test.h"
+#include "cuda/private/gpu/gpu_device.h"
+#include "cuda/private/gpu/gpu_facts.h"
+#include "dx/gpu_check.h"
 
 namespace {
 

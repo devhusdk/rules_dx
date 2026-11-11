@@ -455,7 +455,6 @@ private-names capnproto/private/testdata
 private-names cc/private/context/tests
 private-names cc/private/testdata
 private-names cc/private/toolchains
-private-names cuda/private/testing
 private-names fortran/private/toolchain/flang_rt.BUILD.bazel
 private-names java/private/toolchains
 private-names javascript/private/quality/bin/testdata
@@ -565,7 +564,6 @@ test-location csharp/private/BUILD.bazel
 test-location csharp/private/ide/BUILD.bazel
 test-location csharp/tests/BUILD.bazel
 test-location cuda/private/BUILD.bazel
-test-location cuda/private/testing/gpu_test.h
 test-location d/private/BUILD.bazel
 test-location d/private/toolchain/BUILD.bazel
 test-location d/private/toolchain/metadata_tests.bzl

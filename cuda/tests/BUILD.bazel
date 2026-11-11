@@ -144,7 +144,7 @@ cuda_binary(
         "sm_120",
     ],
     deps = [
-        "//cuda/private/testing:gpu_main",
+        "//cuda/private/gpu:gpu_main",
         "//cuda/tests/fixtures/saxpy",
     ],
 )
@@ -467,7 +467,7 @@ cc_test(
     size = "small",
     target_compatible_with = CUDA_TARGET,
     deps = [
-        "//cuda/private/testing:gpu_facts",
+        "//cuda/private/gpu:gpu_facts",
         "@googletest//:gtest_main",
     ],
 )

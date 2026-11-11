@@ -173,9 +173,18 @@ pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
         plan.uv()?;
         plan.npm()?;
         plan.pub_()?;
-        plan.go()
+        plan.go()?;
+        for ecosystem in LOCK_TAG_ECOSYSTEMS {
+            plan.lock_tag(ecosystem)?;
+        }
+        Ok(())
     })
 }
+
+/// The ecosystems whose `setup.hubs` tag takes a `name` and a root `lock` label.
+const LOCK_TAG_ECOSYSTEMS: [&str; 9] = [
+    "composer", "luarocks", "dub", "zig", "swiftpm", "hex", "cabal", "opam", "cpan",
+];
 
 fn plan_with(
     root: &Path,
@@ -551,6 +560,48 @@ impl Planner<'_> {
         self.add(go, &tags, &[])
     }
 
+    /// The root file matching `pattern`, which is a file name or `*<suffix>`.
+    fn root_file(&self, pattern: &str) -> Option<String> {
+        let Some(suffix) = pattern.strip_prefix('*') else {
+            return self.exists(pattern).then(|| pattern.to_owned());
+        };
+        let mut names: Vec<String> = std::fs::read_dir(self.root)
+            .ok()?
+            .flatten()
+            .filter(|entry| entry.file_type().is_ok_and(|t| t.is_file()))
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.ends_with(suffix) && name != suffix)
+            .collect();
+        names.sort();
+        names.into_iter().next()
+    }
+
+    fn lock_tag(&mut self, ecosystem: &str) -> Result<(), AdoptError> {
+        let eco = hub_of(ecosystem)?;
+        let (Some(lock_pattern), Some(tag_name)) = (eco.lock.as_deref(), eco.tag.as_deref()) else {
+            return Ok(());
+        };
+        let (Some(lock), Some(_)) = (self.root_file(lock_pattern), self.root_file(&eco.manifest))
+        else {
+            return Ok(());
+        };
+        if self
+            .files
+            .iter()
+            .any(|file| !file.hub_bindings(&eco.extension, &eco.ecosystem).is_empty())
+        {
+            return Ok(());
+        }
+        let tags = vec![tag(
+            tag_name,
+            vec![
+                ("name", string(&eco.hub)),
+                ("lock", string(&root_label(&lock))),
+            ],
+        )];
+        self.add(eco, &tags, &[eco.hub.as_str()])
+    }
+
     fn pnpm(&mut self) -> Result<(), AdoptError> {
         let pnpm = hub_of("pnpm")?;
         if self.files.iter().any(|file| binds_name(file, pnpm)) {
@@ -784,6 +835,43 @@ mod tests {
             text.contains(&format!("pub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:{}\",\n)\nuse_repo(pub, \"pub_deps\")\n", lock_of("pub"))),
             "{text}"
         );
+    }
+
+    #[test]
+    fn lock_tag_ecosystems_get_a_hub_each() {
+        for ecosystem in LOCK_TAG_ECOSYSTEMS {
+            let eco = hub_of(ecosystem).expect("hub");
+            let lock = eco.lock.as_deref().expect("lock").replace('*', "app");
+            let manifest = eco.manifest.replace('*', "app");
+            let hubs = plan(&[(lock.as_str(), ""), (manifest.as_str(), "")]);
+            let text = new_text(&hubs);
+            let tag = eco.tag.as_deref().expect("tag");
+            assert!(
+                text.contains(&format!(
+                    "{}.{tag}(\n    name = \"{}\",\n    lock = \"//:{lock}\",\n)\nuse_repo({}, \"{}\")\n",
+                    eco.ecosystem, eco.hub, eco.ecosystem, eco.hub
+                )),
+                "{ecosystem}: {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_wired_lock_tag_ecosystem_is_left_alone() {
+        let dir = scratch("lock_hubs");
+        let module = format!(
+            "{MODULE}hex = use_extension(\"@rules_dx//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//:mix.lock\")\nuse_repo(hex, \"deps\")\n"
+        );
+        write(dir.path(), MODULE_FILE, &module);
+        write(dir.path(), lock_of("hex"), "");
+        write(dir.path(), manifest_of("hex"), "");
+        assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
+    }
+
+    #[test]
+    fn a_lock_tag_lock_without_its_manifest_is_ignored() {
+        let hubs = plan(&[(lock_of("hex"), "")]);
+        assert_eq!(hubs.edit, None);
     }
 
     #[test]

@@ -12,6 +12,7 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
         workspace_dir: "ws".to_owned(),
         patterns: vec!["//...".to_owned()],
         failures: Vec::new(),
+        fetch_fails: false,
         coverage: Vec::new(),
         covered: Vec::new(),
         generate: false,
@@ -2276,4 +2277,46 @@ fn lock_differs_reports_a_different_lock() {
 #[test]
 fn lock_differs_ignores_crlf() {
     assert!(!lock_differs("a\r\nb\r\n", "a\nb\n"));
+}
+
+fn fetch_fails_fixture() -> (Manifest, Value) {
+    let mut json = probe_manifest_json();
+    json["fetch_fails"] = json!(true);
+    json["coverage"] = json!([]);
+    json["covered"] = json!([]);
+    let manifest = parse_manifest(&json.to_string(), Path::new("/")).unwrap();
+    let probes: Vec<Value> = manifest
+        .failures
+        .iter()
+        .map(|(label, marker)| {
+            probe_record(
+                &failure_probe_name(label),
+                "fail",
+                marker,
+                "denied",
+                &["build", "--", label],
+            )
+        })
+        .collect();
+    let mut evidence = good_evidence();
+    evidence["qualification"] = json!(manifest.label);
+    evidence["languages"] = json!(manifest.languages);
+    evidence["probes"] = json!(probes);
+    evidence["downloads"] = json!([]);
+    (manifest, evidence)
+}
+
+#[test]
+fn fetch_fails_needs_only_the_failure_probes() {
+    let (manifest, evidence) = fetch_fails_fixture();
+    assert!(manifest.fetch_fails);
+    verify_evidence(&evidence, "abc123", &manifest).unwrap();
+}
+
+#[test]
+fn fetch_fails_rejects_a_download() {
+    let (manifest, mut evidence) = fetch_fails_fixture();
+    evidence["downloads"] = json!([["https://example.com/a.tar.xz", "00"]]);
+    let err = verify_evidence(&evidence, "abc123", &manifest).unwrap_err();
+    assert!(err.contains("downloaded"), "{err}");
 }

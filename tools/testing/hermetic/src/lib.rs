@@ -408,6 +408,7 @@ pub struct Manifest {
     pub workspace_dir: String,
     pub patterns: Vec<String>,
     pub failures: Vec<(String, String)>,
+    pub fetch_fails: bool,
     pub coverage: Vec<String>,
     pub covered: Vec<String>,
     pub generate: bool,
@@ -610,6 +611,7 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         workspace_dir: checked_dest(&string(&value, "workspace_dir")?)?,
         patterns,
         failures,
+        fetch_fails: value["fetch_fails"].as_bool().unwrap_or(false),
         coverage,
         covered,
         generate: value["generate"].as_bool().unwrap_or(false),
@@ -1836,6 +1838,12 @@ fn check_lint(recorded: &Value, want: &[(String, u64)]) -> Result<(), String> {
 
 fn required_probes<'a>(manifest: &'a Manifest, os: &str) -> Vec<(String, &'a str, &'a str, Net)> {
     let mut required: Vec<(String, &str, &str, Net)> = Vec::new();
+    if manifest.fetch_fails {
+        for (label, marker) in &manifest.failures {
+            required.push((failure_probe_name(label), "fail", marker, Net::Denied));
+        }
+        return required;
+    }
     if manifest.generate {
         required.push(("dx_generate".to_owned(), "pass", "", Net::Allowed));
     }
@@ -1953,6 +1961,15 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
     }
     if !manifest.lint_findings.is_empty() {
         check_lint(&evidence["lint"], &manifest.lint_findings)?;
+    }
+    if manifest.fetch_fails {
+        if evidence["downloads"] != json!([]) {
+            return Err(format!(
+                "a consumer that fails at fetch downloaded {}",
+                evidence["downloads"]
+            ));
+        }
+        return Ok(());
     }
     let artifacts = evidence["artifacts"]
         .as_array()
@@ -2802,6 +2819,29 @@ fn run_all(
     let coverage = session.manifest.coverage.clone();
     let failures = session.manifest.failures.clone();
     let leak = |name: &str| vec![format!("//{LEAKS_PACKAGE}:{name}")];
+    if session.manifest.fetch_fails {
+        let download_log = root.join("downloads.log");
+        for (label, marker) in failures {
+            session.run(Probe {
+                name: failure_probe_name(&label),
+                net: Net::Denied,
+                home: &clean_home,
+                output_root: &cold,
+                repos: &repos,
+                command: "build",
+                targets: vec![label],
+                extra: vec![format!(
+                    "--experimental_workspace_rules_log_file={}",
+                    download_log.display()
+                )],
+                expect: Expect::Fail(marker),
+            })?;
+        }
+        let downloaded =
+            dx_nested::record::downloads(&std::fs::read(&download_log).unwrap_or_default());
+        evidence["downloads"] = json!(downloaded);
+        return Ok(());
+    }
     if session.manifest.generate {
         session.run_dx(DxRun {
             name: "dx_generate",

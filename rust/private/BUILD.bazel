@@ -1,5 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_import")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":build_script_cc_env.bzl", "build_script_cc_env")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -48,6 +49,11 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+build_script_cc_env(
+    name = "build_script_cc_env",
+    visibility = ["//visibility:public"],
+)
+
 cc_import(
     name = "unwind",
     static_library = "@llvm//runtimes/libunwind:libunwind.static",
@@ -55,6 +61,7 @@ cc_import(
 )
 
 exports_files([
+    "build_script_cc_env.bzl",
     "defs.bzl",
     "selene.BUILD.bazel",
 ])
@@ -72,6 +79,7 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "build_script_cc_env.bzl",
         "defs.bzl",
         "edition.bzl",
         "pdb.bzl",

@@ -1,6 +1,7 @@
 """Minimal Rust wrappers."""
 
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
+load("@rules_rust//cargo:defs.bzl", _cargo_build_script = "cargo_build_script")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test")
 load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
@@ -12,6 +13,7 @@ load("//core:resources.bzl", "dx_test_resource_tags")
 load("//core:wrapper.bzl", "dx_warnings_flags", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs", "dx_without_warnings_attr")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "RUST")
+load(":build_script_cc_env.bzl", "BUILD_SCRIPT_CC_ENV")
 load(":edition.bzl", "RUST_EDITION")
 load(":pdb.bzl", "REPRODUCIBLE_PDB_LINK_FLAGS")
 
@@ -27,6 +29,7 @@ _LIBSTDCXX = Label("//rust/private:libstdcxx")
 _LIBSTDCXX_READY = Label("//rust/private:libstdcxx_ready")
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 _UNWIND = Label("//rust/private:unwind")
+_BUILD_SCRIPT_CC_ENV = Label("//rust/private:build_script_cc_env")
 _MSVC = Label("//rust/private:msvc")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
 _MSVC_OPT = Label("//rust/private:msvc_opt")
@@ -212,6 +215,33 @@ _rust_forward_test = dx_executable_forward_rule(
     coverage_providers = dx_native_test_coverage,
     toolchains = dx_native_coverage_toolchains(),
 )
+
+def cargo_build_script(name, build_script_env = None, toolchains = None, use_cc_toolchain = None, **kwargs):
+    """`cargo_build_script` whose build script gets `HOST_*` and `TARGET_*` cc tools and flags from rules_dx.
+
+    Args:
+        name: Name of the target.
+        build_script_env: Environment of the build script; its keys win, except `CFLAGS`, which is appended.
+        toolchains: Toolchains whose make variables `build_script_env` may use.
+        use_cc_toolchain: As in rules_rust; `0` or `False` leaves the cc environment alone.
+        **kwargs: Passed to rules_rust `cargo_build_script`.
+    """
+    env = dict(build_script_env or {})
+    toolchains = list(toolchains or [])
+    if use_cc_toolchain not in [0, False]:
+        user = env
+        env = dict(BUILD_SCRIPT_CC_ENV)
+        env.update(user)
+        if "CFLAGS" in user:
+            env["CFLAGS"] = BUILD_SCRIPT_CC_ENV["CFLAGS"] + " " + user["CFLAGS"]
+        toolchains.append(_BUILD_SCRIPT_CC_ENV)
+    _cargo_build_script(
+        name = name,
+        build_script_env = env,
+        toolchains = toolchains,
+        use_cc_toolchain = use_cc_toolchain,
+        **kwargs
+    )
 
 def rust_library(
         name,

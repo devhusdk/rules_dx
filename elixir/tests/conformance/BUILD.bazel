@@ -1,0 +1,78 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_app", "elixir_test", "escript_archive", "escript_headers")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+elixir_app(
+    name = "greet_app",
+    testonly = True,
+    srcs = ["lib/greet.ex"],
+    app_description = "Conformance greeting.",
+    app_name = "greet",
+    app_version = "1.0.0",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
+elixir_app(
+    name = "hello_app",
+    testonly = True,
+    srcs = ["lib/hello.ex"],
+    app_description = "Conformance entry point.",
+    app_name = "hello",
+    app_version = "1.0.0",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+    deps = [":greet_app"],
+)
+
+escript_archive(
+    name = "hello",
+    testonly = True,
+    app = ":hello_app",
+    headers = escript_headers("Hello"),
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
+elixir_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = [
+        "pass_test.exs",
+        "test_helper.exs",
+    ],
+    target_compatible_with = subject_compatible_with() + ELIXIR_COMPATIBLE_WITH,
+    deps = [":greet_app"],
+)
+
+elixir_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = [
+        "fail_test.exs",
+        "test_helper.exs",
+    ],
+    target_compatible_with = subject_compatible_with() + ELIXIR_COMPATIBLE_WITH,
+    deps = [":greet_app"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":hello",
+    covered_source = "greet.ex",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "elixir",
+    passing_test = ":pass_subject_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

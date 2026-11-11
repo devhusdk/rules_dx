@@ -259,7 +259,10 @@ def _cross_llvm_impl(ctx):
     return analysistest.end(env)
 
 _CROSS = {"//command_line_option:platforms": str(Label("@rules_dx//appimage:linux_arm64"))}
-_cross_gcc_test = analysistest.make(_cross_gcc_impl, config_settings = dict(_CROSS, **{_COMPILER: "gcc"}))
+_cross_gcc_test = analysistest.make(_cross_gcc_impl, config_settings = dict(_CROSS, **{
+    _COMPILER: "gcc",
+    "//command_line_option:experimental_propagate_custom_flag": [_COMPILER],
+}))
 _cross_llvm_test = analysistest.make(_cross_llvm_impl, config_settings = dict(_CROSS, **{_COMPILER: "llvm"}))
 
 def cross_build_script_identity_tests(name, target):

@@ -1,0 +1,8 @@
+load("@rules_dx//rego:defs.bzl", "rego_library")
+
+rego_library(
+    name = "app",
+    srcs = ["main.rego"],
+    visibility = ["//visibility:public"],
+    deps = ["//authz"],
+)

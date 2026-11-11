@@ -1,0 +1,7 @@
+load("@rules_dx//rego:defs.bzl", "rego_library")
+
+rego_library(
+    name = "authz",
+    srcs = ["rules.rego"],
+    visibility = ["//visibility:public"],
+)

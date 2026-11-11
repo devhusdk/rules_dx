@@ -475,6 +475,7 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		"capnproto":   "add a capnp_library that owns that file or an exact # gazelle:resolve capnproto mapping",
 		"flatbuffers": "add a flatbuffers_library that owns that file or an exact # gazelle:resolve flatbuffers mapping",
 		"thrift":      "add a thrift_library that owns that file or an exact # gazelle:resolve thrift mapping",
+		"rego":        "add a rego_library that declares that package or an exact # gazelle:resolve rego mapping",
 		"ruby":        oneSource,
 		"scala":       jvm,
 		"svelte":      oneSourceRelative,

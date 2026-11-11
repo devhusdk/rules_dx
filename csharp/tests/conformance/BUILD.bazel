@@ -1,0 +1,54 @@
+load("//csharp:defs.bzl", "csharp_binary", "csharp_library", "csharp_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+csharp_library(
+    name = "greet",
+    srcs = ["Greet.cs"],
+)
+
+csharp_binary(
+    name = "hello",
+    srcs = ["Hello.cs"],
+    deps = [":greet"],
+)
+
+csharp_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["PassTest.cs"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [":greet"],
+)
+
+csharp_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["FailTest.cs"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [":greet"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":hello",
+    covered_source = "Greet.cs",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "csharp",
+    passing_test = ":pass_subject_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

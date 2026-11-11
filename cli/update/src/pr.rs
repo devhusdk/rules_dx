@@ -164,6 +164,15 @@ pub fn lock_numstat(text: &str, locks: &[String]) -> Vec<(String, u64, u64)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_adopt::dependency_sets::Ecosystem;
+
+    fn cargo_lock() -> &'static str {
+        Ecosystem::Cargo.lockfiles()[0].as_str()
+    }
+
+    fn resolved() -> &'static str {
+        Ecosystem::SwiftPm.lockfiles()[0].as_str()
+    }
 
     fn sets(names: &[&str]) -> Vec<String> {
         names.iter().map(|name| (*name).to_owned()).collect()
@@ -222,11 +231,11 @@ mod tests {
     #[test]
     fn body_lists_packages_and_lock_changes() {
         let got = plan(&items()[..1]);
-        let text = body(&got[0], &[("Cargo.lock".into(), 4, 2)]);
+        let text = body(&got[0], &[(cargo_lock().into(), 4, 2)]);
         assert!(text.contains(
             "- cargo:serde 1.0.0 -> 2.0.0 (https://crates.io/crates/serde, age unknown)"
         ));
-        assert!(text.contains("| Cargo.lock | 4 | 2 |"));
+        assert!(text.contains(&format!("| {} | 4 | 2 |", cargo_lock())));
         assert!(!body(&got[0], &[]).contains("Lock file"));
     }
 
@@ -261,15 +270,16 @@ mod tests {
 
     #[test]
     fn numstat_keeps_the_locks_sets_own() {
-        let text = "4\t2\tCargo.lock\n10\t1\tsrc/main.rs\n-\t-\timg.lock\n\
-            3\t0\tweb/package-lock.json\n2\t1\tios/Package.resolved\n";
-        let owned = sets(&["Cargo.lock", "ios/Package.resolved"]);
+        let (cargo, swift) = (cargo_lock(), format!("ios/{}", resolved()));
+        let text = format!(
+            "4\t2\t{cargo}\n10\t1\tsrc/main.rs\n-\t-\timg.lock\n\
+            3\t0\tweb/package-lock.json\n2\t1\t{swift}\n"
+        );
+        let text = text.as_str();
+        let owned = sets(&[cargo, swift.as_str()]);
         assert_eq!(
             lock_numstat(text, &owned),
-            vec![
-                ("Cargo.lock".to_owned(), 4, 2),
-                ("ios/Package.resolved".to_owned(), 2, 1)
-            ]
+            vec![(cargo.to_owned(), 4, 2), (swift.clone(), 2, 1)]
         );
         assert!(lock_numstat(text, &[]).is_empty());
     }

@@ -169,6 +169,7 @@ fn main() -> std::process::ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_ecosystems::Ecosystem;
     use dx_error::ErrorKind;
 
     const ECOSYSTEMS: [&str; 26] = [
@@ -258,11 +259,14 @@ mod tests {
     #[test]
     fn consistency_dispatch_reports_a_missing_manifest_instead_of_a_usage_error() {
         let err = run_from([
-            "depcheck",
-            "consistency",
-            "--ecosystem=rust",
-            "--manifest=/nonexistent/Cargo.toml",
-            "--lock=/nonexistent/Cargo.lock",
+            "depcheck".to_owned(),
+            "consistency".to_owned(),
+            "--ecosystem=rust".to_owned(),
+            format!(
+                "--manifest=/nonexistent/{}",
+                Ecosystem::Cargo.manifest_name()
+            ),
+            format!("--lock=/nonexistent/{}", Ecosystem::Cargo.lockfiles()[0]),
         ])
         .expect_err("missing manifest");
         assert_eq!(err.kind(), ErrorKind::Usage);
@@ -277,14 +281,14 @@ mod tests {
     #[test]
     fn a_consistent_pair_prints_the_ok_line_and_exits_zero() {
         let dir = tempfile::tempdir().expect("scratch");
-        let manifest = dir.path().join("Cargo.toml");
+        let manifest = dir.path().join(Ecosystem::Cargo.manifest_name());
         std::fs::write(
             &manifest,
             "[package]\nname = \"hello\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\n\
              [dependencies]\nanyhow = \"1\"\n",
         )
         .expect("manifest");
-        let lock = dir.path().join("Cargo.lock");
+        let lock = dir.path().join(Ecosystem::Cargo.lockfiles()[0].as_str());
         std::fs::write(
             &lock,
             "version = 4\n\n[[package]]\nname = \"hello\"\nversion = \"0.0.0\"\n\n\

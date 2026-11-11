@@ -43,42 +43,21 @@ pub fn usage() -> &'static str {
 
 /// Parses argv into inputs, or returns the rejection text.
 pub fn parse_args(args: &[String]) -> Result<Options, String> {
-    let mut options = Options::default();
-    let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
-        let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
-        };
-        if value.is_empty() {
-            return Err(format!("{flag} must not be empty"));
-        }
-        let slot = match flag {
-            "--html" => {
-                options.html.push(value.clone());
-                index += 2;
-                continue;
-            }
-            "--package" => &mut options.package,
-            "--config" => &mut options.config,
-            "--out" => &mut options.out,
-            _ => return Err(format!("unknown argument '{flag}'")),
-        };
-        if !slot.is_empty() {
-            return Err(format!("{flag} given more than once"));
-        }
-        *slot = value.clone();
-        index += 2;
-    }
-    if options.html.is_empty() {
+    let mut flags =
+        documentation_ir::tool::flags(args, &["--html", "--package", "--config", "--out"])?;
+    let package = flags.one("--package")?;
+    let config = flags.optional("--config")?.unwrap_or_default();
+    let out = flags.one("--out")?;
+    let html = flags.many("--html");
+    if html.is_empty() {
         return Err("--html is required".to_owned());
     }
-    for (flag, value) in [("--package", &options.package), ("--out", &options.out)] {
-        if value.is_empty() {
-            return Err(format!("{flag} is required"));
-        }
-    }
-    Ok(options)
+    Ok(Options {
+        html,
+        package,
+        config,
+        out,
+    })
 }
 
 /// Reads, converts, validates and writes one shard, returning the failure text on error.
@@ -89,9 +68,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     }
     pages.sort_by(|a, b| a.0.cmp(&b.0));
     let shard = convert(&pages, &options.package, &options.config)?;
-    let bytes = documentation_ir::encode_shard(&shard)
-        .map_err(|error| format!("cannot encode IR: {error:?}"))?;
-    fs::write(&options.out, bytes).map_err(|error| format!("cannot write {}: {error}", options.out))
+    documentation_ir::tool::write_shard(&options.out, &shard)
 }
 
 /// Reads every page below `root`, keyed by its directory relative to `root`.
@@ -100,7 +77,8 @@ fn collect(root: &Path, relative: &Path, pages: &mut Vec<(String, String)>) -> R
     let entries = fs::read_dir(&directory)
         .map_err(|error| format!("cannot read {}: {error}", directory.display()))?;
     for entry in entries {
-        let entry = entry.map_err(|error| format!("cannot read {}: {error}", directory.display()))?;
+        let entry =
+            entry.map_err(|error| format!("cannot read {}: {error}", directory.display()))?;
         let name = entry.file_name().to_string_lossy().into_owned();
         let path = relative.join(&name);
         let kind = entry
@@ -184,7 +162,9 @@ fn keyword(label: &str) -> &'static str {
 fn page_names(key: &str) -> Result<(Vec<String>, &'static str), String> {
     let mut segments: Vec<&str> = key.split('/').filter(|s| !s.is_empty()).collect();
     if segments.len() < 2 {
-        return Err(format!("odoc page '{key}' is not below a package directory"));
+        return Err(format!(
+            "odoc page '{key}' is not below a package directory"
+        ));
     }
     segments.remove(0);
     let mut names = Vec::new();
@@ -263,11 +243,7 @@ fn qualified(path: &str) -> String {
 }
 
 /// Converts the pages (directory key, JSON text) of one odoc package into a validated shard.
-pub fn convert(
-    pages: &[(String, String)],
-    package: &str,
-    config: &str,
-) -> Result<DocIr, String> {
+pub fn convert(pages: &[(String, String)], package: &str, config: &str) -> Result<DocIr, String> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(format!("invalid package '{package}'"));
     }

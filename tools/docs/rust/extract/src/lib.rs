@@ -46,36 +46,17 @@ pub fn usage() -> &'static str {
 
 /// Parses argv into inputs, or returns the rejection text.
 pub fn parse(args: &[String]) -> Result<Options, String> {
-    let mut options = Options::default();
-    let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
-        let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
-        };
-        let slot = match flag {
-            "--json" => &mut options.json,
-            "--package" => &mut options.package,
-            "--crate" => &mut options.krate,
-            "--srcs-file" => &mut options.srcs_file,
-            "--out" => &mut options.out,
-            _ => return Err(format!("unknown argument '{flag}'")),
-        };
-        *slot = value.clone();
-        index += 2;
-    }
-    for (flag, value) in [
-        ("--json", &options.json),
-        ("--package", &options.package),
-        ("--crate", &options.krate),
-        ("--srcs-file", &options.srcs_file),
-        ("--out", &options.out),
-    ] {
-        if value.is_empty() {
-            return Err(format!("{flag} is required"));
-        }
-    }
-    Ok(options)
+    let mut flags = documentation_ir::tool::flags(
+        args,
+        &["--json", "--package", "--crate", "--srcs-file", "--out"],
+    )?;
+    Ok(Options {
+        json: flags.one("--json")?,
+        package: flags.one("--package")?,
+        krate: flags.one("--crate")?,
+        srcs_file: flags.one("--srcs-file")?,
+        out: flags.one("--out")?,
+    })
 }
 
 /// Parses the tab-separated srcs file into crate sources.

@@ -51,45 +51,24 @@ pub fn usage() -> &'static str {
 
 /// Parses argv into inputs, or returns the rejection text.
 pub fn parse(args: &[String]) -> Result<Options, String> {
-    let mut values: BTreeMap<&str, &str> = BTreeMap::new();
-    let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
-        if ![
+    let mut flags = documentation_ir::tool::flags(
+        args,
+        &[
             "--graphs",
             "--sources",
             "--module",
             "--out",
             "--package",
             "--config",
-        ]
-        .contains(&flag)
-        {
-            return Err(format!("unknown argument '{flag}'"));
-        }
-        let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
-        };
-        if values.insert(flag, value.as_str()).is_some() {
-            return Err(format!("{flag} given more than once"));
-        }
-        index += 2;
-    }
-    let one = |name: &str| match values.get(name) {
-        Some(value) if !value.is_empty() => Ok((*value).to_owned()),
-        Some(_) => Err(format!("{name} must not be empty")),
-        None => Err(format!("{name} is required")),
-    };
+        ],
+    )?;
     Ok(Options {
-        graphs: one("--graphs")?,
-        sources: one("--sources")?,
-        module: one("--module")?,
-        out: one("--out")?,
-        package: one("--package")?,
-        config: values
-            .get("--config")
-            .map(|value| (*value).to_owned())
-            .unwrap_or_default(),
+        graphs: flags.one("--graphs")?,
+        sources: flags.one("--sources")?,
+        module: flags.one("--module")?,
+        out: flags.one("--out")?,
+        package: flags.one("--package")?,
+        config: flags.optional("--config")?.unwrap_or_default(),
     })
 }
 
@@ -135,9 +114,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         &options.package,
         &options.config,
     )?;
-    let bytes = documentation_ir::encode_shard(&shard)
-        .map_err(|error| format!("cannot encode IR: {error:?}"))?;
-    fs::write(&options.out, bytes).map_err(|error| format!("cannot write {}: {error}", options.out))
+    documentation_ir::tool::write_shard(&options.out, &shard)
 }
 
 /// Reads every `<module>@<Other>.symbols.json` of `dir` as (Other, text), ordered by name.

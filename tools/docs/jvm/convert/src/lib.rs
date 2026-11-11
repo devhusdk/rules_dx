@@ -51,46 +51,25 @@ pub fn usage() -> &'static str {
 
 /// Parses argv into inputs, or returns the rejection text.
 pub fn parse(args: &[String]) -> Result<Options, String> {
-    let mut options = Options::default();
-    let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
-        let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
-        };
-        if value.is_empty() {
-            return Err(format!("{flag} must not be empty"));
-        }
-        if flag == "--dep-shard" {
-            options.dep_shards.push(value.clone());
-            index += 2;
-            continue;
-        }
-        let slot = match flag {
-            "--json" => &mut options.json,
-            "--language" => &mut options.language,
-            "--package" => &mut options.package,
-            "--srcs-manifest" => &mut options.srcs_manifest,
-            "--out" => &mut options.out,
-            _ => return Err(format!("unknown argument '{flag}'")),
-        };
-        if !slot.is_empty() {
-            return Err(format!("{flag} given more than once"));
-        }
-        *slot = value.clone();
-        index += 2;
-    }
-    for (flag, value) in [
-        ("--json", &options.json),
-        ("--language", &options.language),
-        ("--package", &options.package),
-        ("--srcs-manifest", &options.srcs_manifest),
-        ("--out", &options.out),
-    ] {
-        if value.is_empty() {
-            return Err(format!("{flag} is required"));
-        }
-    }
+    let mut flags = documentation_ir::tool::flags(
+        args,
+        &[
+            "--json",
+            "--language",
+            "--package",
+            "--srcs-manifest",
+            "--dep-shard",
+            "--out",
+        ],
+    )?;
+    let options = Options {
+        json: flags.one("--json")?,
+        language: flags.one("--language")?,
+        package: flags.one("--package")?,
+        srcs_manifest: flags.one("--srcs-manifest")?,
+        dep_shards: flags.many("--dep-shard"),
+        out: flags.one("--out")?,
+    };
     if !LANGUAGES.contains(&options.language.as_str()) {
         return Err(format!(
             "--language '{}' is not supported",

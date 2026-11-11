@@ -36,44 +36,25 @@ pub fn usage() -> &'static str {
 
 /// Parses argv into inputs, or returns the rejection text.
 pub fn parse(args: &[String]) -> Result<Options, String> {
-    let mut options = Options::default();
-    let mut seen: Vec<&str> = Vec::new();
-    let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
-        let slot = match flag {
-            "--api" => &mut options.api,
-            "--language" => &mut options.language,
-            "--package" => &mut options.package,
-            "--srcs-file" => &mut options.srcs_file,
-            "--config" => &mut options.config,
-            "--out" => &mut options.out,
-            _ => return Err(format!("unknown argument '{flag}'")),
-        };
-        let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
-        };
-        if seen.contains(&flag) {
-            return Err(format!("{flag} given more than once"));
-        }
-        seen.push(flag);
-        *slot = value.clone();
-        index += 2;
-    }
-    for (flag, value) in [
-        ("--api", &options.api),
-        ("--language", &options.language),
-        ("--package", &options.package),
-        ("--srcs-file", &options.srcs_file),
-        ("--out", &options.out),
-    ] {
-        if !seen.contains(&flag) {
-            return Err(format!("{flag} is required"));
-        }
-        if value.is_empty() {
-            return Err(format!("{flag} must not be empty"));
-        }
-    }
+    let mut flags = documentation_ir::tool::flags(
+        args,
+        &[
+            "--api",
+            "--language",
+            "--package",
+            "--srcs-file",
+            "--config",
+            "--out",
+        ],
+    )?;
+    let options = Options {
+        api: flags.one("--api")?,
+        language: flags.one("--language")?,
+        package: flags.one("--package")?,
+        srcs_file: flags.one("--srcs-file")?,
+        config: flags.optional("--config")?.unwrap_or_default(),
+        out: flags.one("--out")?,
+    };
     if options.language != "csharp" && options.language != "fsharp" {
         return Err(format!(
             "--language must be csharp or fsharp, got '{}'",
@@ -98,9 +79,7 @@ pub fn run(options: &Options) -> Result<(), String> {
             sources: parse_sources(&srcs)?,
         },
     )?;
-    let bytes = documentation_ir::encode_shard(&shard)
-        .map_err(|error| format!("cannot encode IR: {error:?}"))?;
-    fs::write(&options.out, bytes).map_err(|error| format!("cannot write {}: {error}", options.out))
+    documentation_ir::tool::write_shard(&options.out, &shard)
 }
 
 #[cfg(test)]

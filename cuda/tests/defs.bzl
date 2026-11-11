@@ -50,10 +50,10 @@ _compile_aspect = aspect(
     attr_aspects = ["upstream"],
 )
 
-def _assert_host_compiler(env, argv, allow_unsupported):
+def _assert_host_compiler(env, argv, allow_unsupported, host_compiler):
     if allow_unsupported:
         ccbin = argv[argv.index("-ccbin") + 1] if "-ccbin" in argv else ""
-        asserts.true(env, "llvm" in ccbin, "-ccbin must come from the llvm module, got " + ccbin)
+        asserts.true(env, host_compiler in ccbin, "-ccbin must come from the " + host_compiler + " module, got " + ccbin)
     asserts.equals(env, allow_unsupported, "--allow-unsupported-compiler" in argv, "--allow-unsupported-compiler in argv")
 
 def _hermetic_impl(ctx):
@@ -63,7 +63,7 @@ def _hermetic_impl(ctx):
     for executable, argv in commands:
         asserts.true(env, in_component(executable, "nvcc") and executable.endswith("nvcc/bin/nvcc"), "nvcc must come from the cuda_nvcc component, got " + executable)
         asserts.true(env, "-ccbin" in argv, "nvcc must get -ccbin")
-        _assert_host_compiler(env, argv, ctx.attr.allow_unsupported)
+        _assert_host_compiler(env, argv, ctx.attr.allow_unsupported, ctx.attr.host_compiler)
         for arg in argv:
             for part in arg.replace("=", " ").replace(",", " ").split(" "):
                 asserts.false(env, part.startswith("/usr") or part.startswith("-I/usr") or part.startswith("-isystem/usr"), "argument reads the host system: " + arg)
@@ -72,7 +72,7 @@ def _hermetic_impl(ctx):
 hermetic_toolchain_test = analysistest.make(
     _hermetic_impl,
     doc = "Asserts nvcc, its host compiler and its include paths are all pinned repositories.",
-    attrs = {"allow_unsupported": attr.bool(default = True)},
+    attrs = {"allow_unsupported": attr.bool(default = True), "host_compiler": attr.string(default = "llvm")},
     extra_target_under_test_aspects = [_compile_aspect],
 )
 
@@ -118,7 +118,7 @@ def _device_link_impl(ctx):
     asserts.true(env, len(links) > 0, "expected at least one CudaDeviceLink action")
     for argv, inputs in links:
         asserts.true(env, "-ccbin" in argv, "device link must get -ccbin")
-        _assert_host_compiler(env, argv, ctx.attr.allow_unsupported)
+        _assert_host_compiler(env, argv, ctx.attr.allow_unsupported, ctx.attr.host_compiler)
         asserts.true(env, any(["cuda_crt" in arg for arg in argv]), "device link must get the cuda_crt include path")
         for arg in argv:
             for part in arg.replace("=", " ").replace(",", " ").split(" "):
@@ -129,14 +129,14 @@ def _device_link_impl(ctx):
 device_link_hermetic_test = analysistest.make(
     _device_link_impl,
     doc = "Asserts the device link gets its host compiler and crt headers from pinned repositories.",
-    attrs = {"allow_unsupported": attr.bool(default = True)},
+    attrs = {"allow_unsupported": attr.bool(default = True), "host_compiler": attr.string(default = "llvm")},
     extra_target_under_test_aspects = [_link_aspect],
 )
 
 gcc_hermetic_toolchain_test = analysistest.make(
     _hermetic_impl,
     doc = "Asserts nvcc under the gcc toolchain does not get --allow-unsupported-compiler.",
-    attrs = {"allow_unsupported": attr.bool(default = False)},
+    attrs = {"allow_unsupported": attr.bool(default = False), "host_compiler": attr.string(default = "llvm")},
     config_settings = {str(Label("//cc:compiler")): "gcc"},
     extra_target_under_test_aspects = [_compile_aspect],
 )
@@ -144,7 +144,7 @@ gcc_hermetic_toolchain_test = analysistest.make(
 gcc_device_link_hermetic_test = analysistest.make(
     _device_link_impl,
     doc = "Asserts the device link under the gcc toolchain does not get --allow-unsupported-compiler.",
-    attrs = {"allow_unsupported": attr.bool(default = False)},
+    attrs = {"allow_unsupported": attr.bool(default = False), "host_compiler": attr.string(default = "llvm")},
     config_settings = {str(Label("//cc:compiler")): "gcc"},
     extra_target_under_test_aspects = [_link_aspect],
 )

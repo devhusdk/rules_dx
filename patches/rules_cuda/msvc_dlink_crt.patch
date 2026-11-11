@@ -1,5 +1,14 @@
 --- a/cuda/private/toolchain_configs/nvcc_msvc.bzl
 +++ b/cuda/private/toolchain_configs/nvcc_msvc.bzl
+@@ -80,7 +80,7 @@
+         enabled = True,
+         flag_sets = [
+             flag_set(
+-                actions = [ACTION_NAMES.cuda_compile],
++                actions = [ACTION_NAMES.cuda_compile, ACTION_NAMES.device_link],
+                 flag_groups = [flag_group(flags = ["-ccbin", "%{host_compiler}"])],
+             ),
+         ],
 @@ -501,7 +501,7 @@
          name = "static_link_msvcrt_debug",
          flag_sets = [

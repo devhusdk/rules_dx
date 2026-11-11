@@ -163,7 +163,7 @@ _foreign_cc_tools.pkgconfig(
     mode = "noop",
 )
 
-# floor: equals tested; 0.4.0-beta1 carries the device link include fix; patched to read CCCL from CUDA 13.3+ manifests (#5975; upstream bazel-contrib/rules_cuda#523, drop in #8365) to pass the dynamic CRT flag to nvcc -dlink (#4704), to support windows-arm64 toolkits (#5969; upstream bazel-contrib/rules_cuda#528) and to fail every redist fetch until the root module accepts the CUDA EULA (#11638)
+# floor: equals tested; 0.4.0-beta1 carries the device link include fix; patched to read CCCL from CUDA 13.3+ manifests (#5975; upstream bazel-contrib/rules_cuda#523, drop in #8365) to pass the dynamic CRT flag and -ccbin to nvcc -dlink (#4704, #10975), to support windows-arm64 toolkits (#5969; upstream bazel-contrib/rules_cuda#528) and to fail every redist fetch until the root module accepts the CUDA EULA (#11638)
 bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")
 single_version_override(
     module_name = "rules_cuda",

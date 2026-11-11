@@ -91,6 +91,7 @@ def swift_windows_extract_test(name):
             "//swift/private/toolchain:extract_windows.ps1": "\n".join([
                 "& $SevenZip x -y -bd",
                 "Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $assemblyDir \"$assembly.dll\")",
+                "Fail \"conflicting file $destination from $($msi.Name)\"",
             ]),
             "//swift/private/toolchain:repos.bzl": "\n".join([
                 "repository_ctx.path(_SEVEN_ZIP + \"/full/7z.exe\")",

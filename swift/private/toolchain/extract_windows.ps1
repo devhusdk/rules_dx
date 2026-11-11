@@ -169,6 +169,12 @@ function Resolve-Directory($directories, $redirects, $resolved, $key, $depth) {
     return $path
 }
 
+function Get-Sha256($path) {
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [System.IO.File]::OpenRead($path)
+    try { [System.BitConverter]::ToString($sha.ComputeHash($stream)) } finally { $stream.Dispose(); $sha.Dispose() }
+}
+
 function Expand-Msi($msi, $target, $scratch) {
     $database = Join-Path $scratch "database"
     Expand-Archive7 $msi.FullName $database
@@ -202,7 +208,17 @@ function Expand-Msi($msi, $target, $scratch) {
         if (-not $components.ContainsKey($row.Component_)) { Fail "file $($row.File) of $($msi.Name) names the unknown component $($row.Component_)" }
         $directory = Join-Path $target (Resolve-Directory $directories $redirects $resolved $components[$row.Component_] 0)
         $null = [System.IO.Directory]::CreateDirectory($directory)
-        [System.IO.File]::Move($sources[$row.File], (Join-Path $directory (Get-LongName $row.FileName)))
+        $destination = Join-Path $directory (Get-LongName $row.FileName)
+        if (Test-Path -LiteralPath $destination) {
+            $existing = New-Object System.IO.FileInfo $destination
+            $incoming = New-Object System.IO.FileInfo $sources[$row.File]
+            if ($existing.Length -eq $incoming.Length -and (Get-Sha256 $existing.FullName) -eq (Get-Sha256 $incoming.FullName)) {
+                [System.IO.File]::Delete($incoming.FullName)
+                continue
+            }
+            Fail "conflicting file $destination from $($msi.Name)"
+        }
+        [System.IO.File]::Move($sources[$row.File], $destination)
     }
 }
 
@@ -291,12 +307,11 @@ if (-not $msis) { Fail "the bundle holds no MSI packages" }
 $trees = Join-Path $Work "trees"
 $index = 0
 foreach ($msi in $msis) {
-    if ($msi.BaseName -match "android|noasserts") { continue }
+    if ($msi.BaseName -match "android|noasserts|^dbg\.|^ide\.") { continue }
     $index++
-    $target = Join-Path $trees ("{0:D2}" -f $index)
     $scratch = Join-Path $Work ("msi{0:D2}" -f $index)
-    New-Item -ItemType Directory -Force -Path $target | Out-Null
-    Expand-Msi $msi $target $scratch
+    New-Item -ItemType Directory -Force -Path $trees | Out-Null
+    Expand-Msi $msi $trees $scratch
     Remove-Item -LiteralPath $scratch -Recurse -Force
     Remove-Item -LiteralPath $msi.FullName -Force
 }
@@ -377,7 +392,7 @@ foreach ($assembly in $identities.Keys) {
     }
 }
 
-foreach ($required in @("toolchain\usr\bin\swiftc.exe", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr")) {
+foreach ($required in @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\llbuildSwift.dll", "toolchain\usr\bin\_InternalSwiftScan.dll", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr")) {
     if (-not (Test-Path -LiteralPath (Join-Path $Out $required))) { Fail "$required is missing from the extracted layout" }
 }
 

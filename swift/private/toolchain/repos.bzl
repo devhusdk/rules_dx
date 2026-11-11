@@ -52,7 +52,23 @@ _SWIFT_WINDOWS_BUILD = """load("@rules_swift//swift/toolchains:swift_tools.bzl",
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files([".swift-version"])
+exports_files([
+    ".swift-version",
+    "toolchain/usr/bin/swiftc.exe",
+])
+
+filegroup(
+    name = "toolchain_files",
+    srcs = glob(
+        [
+            "toolchain/**",
+            "runtime/**",
+            "platform/**",
+        ],
+        exclude = ["**/*.pdb"],
+        allow_empty = True,
+    ),
+)
 
 filegroup(
     name = "runtime_dlls",

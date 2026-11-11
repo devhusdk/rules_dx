@@ -9,8 +9,7 @@
   "depcheck": "ts",
   "semver": true,
   "manifests": [
-    "package.json",
-    "tsconfig.json"
+    "package.json"
   ],
   "lockfiles": [
     "pnpm-lock.yaml"

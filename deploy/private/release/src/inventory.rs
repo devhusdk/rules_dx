@@ -4,6 +4,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use dx_ecosystems::Ecosystem;
 use serde::Deserialize;
 
 use crate::runtimes::{self, ShippedRuntime};
@@ -158,12 +159,15 @@ fn approved(policy: &dx_audit::license_policy::LicensePolicy, finding: &JoinedCr
         .any(|exception| dx_audit::license_policy::license_exception_covers(exception, &finding))
 }
 
-/// The license a crate outside the root crate universe declares in its own Cargo.toml.
+/// The license a crate outside the root crate universe declares in its own manifest.
 fn manifest_license(krate: &ShippedCrate) -> Result<String, String> {
     let missing = || {
         format!(
-            "inventory: {}@{} ({}) is not in cargo-bazel-lock.json and its Cargo.toml declares no license",
-            krate.name, krate.version, krate.label
+            "inventory: {}@{} ({}) is not in cargo-bazel-lock.json and its {} declares no license",
+            krate.name,
+            krate.version,
+            krate.label,
+            Ecosystem::Cargo.manifest_name()
         )
     };
     let path = krate.manifest.as_ref().ok_or_else(missing)?;
@@ -511,10 +515,14 @@ mod tests {
     #[test]
     fn join_fails_closed() {
         let dir = tempfile::tempdir().expect("tempdir");
+        let missing_license = format!(
+            "inventory: missing@9.9.9 (@crates//:missing) is not in cargo-bazel-lock.json and its {} declares no license",
+            Ecosystem::Cargo.manifest_name()
+        );
         let cases = [
             (
                 shipped("missing", "9.9.9", vec![]),
-                "inventory: missing@9.9.9 (@crates//:missing) is not in cargo-bazel-lock.json and its Cargo.toml declares no license",
+                missing_license.as_str(),
             ),
             (
                 shipped("nolicense", "0.1.0", vec![]),
@@ -569,6 +577,7 @@ mod tests {
 
     #[test]
     fn crates_outside_the_lockfile_read_their_cargo_toml() {
+        let manifest = Ecosystem::Cargo.manifest_name();
         let dir = tempfile::tempdir().expect("tempdir");
         let mut krate = shipped(
             "bytes",
@@ -577,18 +586,18 @@ mod tests {
         );
         krate.manifest = Some(text(
             dir.path(),
-            "b/Cargo.toml",
+            &format!("b/{manifest}"),
             "[package]\nname = \"bytes\"\nlicense = \"MIT\"\n",
         ));
         let joined = join(&[krate.clone()], LOCK, "").expect("joins");
         assert_eq!(joined[0].license, "MIT");
 
-        krate.manifest = Some(text(dir.path(), "c/Cargo.toml", "[package]\n"));
+        krate.manifest = Some(text(dir.path(), &format!("c/{manifest}"), "[package]\n"));
         assert_eq!(
             join(&[krate.clone()], LOCK, ""),
-            Err("inventory: bytes@1.7.1 (@crates//:bytes) is not in cargo-bazel-lock.json and its Cargo.toml declares no license".to_owned())
+            Err(format!("inventory: bytes@1.7.1 (@crates//:bytes) is not in cargo-bazel-lock.json and its {manifest} declares no license"))
         );
-        krate.manifest = Some(dir.path().join("absent/Cargo.toml"));
+        krate.manifest = Some(dir.path().join("absent").join(manifest));
         assert!(
             join(&[krate], LOCK, "")
                 .expect_err("unreadable")

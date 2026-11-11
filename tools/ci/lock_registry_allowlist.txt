@@ -183,8 +183,6 @@ name core/quality/tools/python_bundle/bundle.bzl pyproject.toml
 name d/private/toolchain/pins.bzl package.json
 name dart/private/quality/dart.bzl pubspec.yaml
 name deploy/private/github.bzl go.mod
-name deploy/private/release/src/inventory.rs Cargo.toml
-name deploy/private/release/src/tool.rs go.mod
 name deploy/private/sbom.bzl go.mod
 name deploy/private/sbom.bzl maven_install.json
 name deploy/private/sbom.bzl uv.lock

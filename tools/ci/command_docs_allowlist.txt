@@ -63,15 +63,6 @@ generate.md unknown-flag --format
 generate.md unknown-flag --no-emit-project
 generate.md unknown-flag --no-hashes
 generate.md unknown-flag --report
-init.md missing-exit-code 0
-init.md missing-exit-code 1
-init.md missing-exit-code 2
-init.md undocumented-flag --bazel-startup-option
-init.md undocumented-flag --build-slots
-init.md undocumented-flag --build-slots-wait
-init.md undocumented-flag --color
-init.md undocumented-flag --verbose
-init.md undocumented-flag --workspace
 init.md unknown-flag --cached
 init.md unknown-flag --files
 init.md unknown-flag --jobs
@@ -83,7 +74,6 @@ quality.md unknown-flag --aspects
 quality.md unknown-flag --bazelrc
 quality.md unknown-flag --conform
 quality.md unknown-flag --features
-quality.md unknown-flag --offline
 quality.md unknown-flag -c
 scope-defaults.md unknown-flag --unshallow
 status.md undocumented-flag --bazel-startup-option

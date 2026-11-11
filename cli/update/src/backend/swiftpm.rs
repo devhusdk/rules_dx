@@ -1,5 +1,7 @@
 use super::*;
 
+const LOCK: &str = "@rules_dx//swift/private/tools/lock";
+
 pub(super) fn plan(
     workspace: &Path,
     set: &ResolvedSet,
@@ -25,10 +27,17 @@ pub(super) fn plan(
             if let Selection::Packages(packages) = selection {
                 command.extend(packages.iter().map(|name| swift_identity(name)));
             }
-            Ok(BackendPlan::Run {
-                argv: swift_argv(workspace, set, head, true, &command)?,
-                env: Vec::new(),
-            })
+            let dir = set_dir(workspace, set)?;
+            Ok(BackendPlan::Sequence(vec![
+                Run {
+                    argv: swift_argv(workspace, set, head, true, &command)?,
+                    env: Vec::new(),
+                },
+                Run {
+                    argv: bazel(head, "run", &[LOCK, "--", "--dir", &dir]),
+                    env: Vec::new(),
+                },
+            ]))
         }
     }
 }
@@ -48,16 +57,23 @@ pub(super) fn check(
                     set: set.name.clone(),
                 });
             }
-            Ok(CheckPlan::Run {
-                argv: swift_argv(
-                    workspace,
-                    set,
-                    head,
-                    false,
-                    &strings(&["package", "resolve"]),
-                )?,
-                env: Vec::new(),
-            })
+            let dir = set_dir(workspace, set)?;
+            Ok(CheckPlan::Sequence(vec![
+                Run {
+                    argv: swift_argv(
+                        workspace,
+                        set,
+                        head,
+                        false,
+                        &strings(&["package", "resolve"]),
+                    )?,
+                    env: Vec::new(),
+                },
+                Run {
+                    argv: bazel(head, "run", &[LOCK, "--", "--dir", &dir, "--check"]),
+                    env: Vec::new(),
+                },
+            ]))
         }
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),

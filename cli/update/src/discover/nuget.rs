@@ -1,4 +1,4 @@
-//! Lists NuGet packages whose newest stable version on nuget.org is newer than the paket.dependencies requirement.
+//! Lists NuGet packages whose newest stable version on nuget.org is newer than the manifest requirement.
 
 use dx_error::DxError;
 
@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://api.nuget.org/v3-flatcontainer";
 
-/// Checks each `nuget` line of the paket.dependencies files against the feed at `base`.
+/// Checks each `nuget` line of the manifest files against the feed at `base`.
 pub fn outdated(
     set: &str,
     files: &[String],

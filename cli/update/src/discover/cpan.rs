@@ -1,4 +1,4 @@
-//! Lists modules whose newest release on MetaCPAN is newer than the version in the cpanfile.
+//! Lists modules whose newest release on MetaCPAN is newer than the version in the manifest.
 
 use dx_error::DxError;
 
@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://fastapi.metacpan.org";
 
-/// Checks each versioned `requires` line of the cpanfiles against the API at `base`.
+/// Checks each versioned `requires` line of the manifests against the API at `base`.
 pub fn outdated(
     set: &str,
     cpanfiles: &[String],

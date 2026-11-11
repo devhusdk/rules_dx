@@ -1,4 +1,4 @@
-//! Lists Go modules whose newest release on the module proxy is newer than the go.mod requirement.
+//! Lists Go modules whose newest release on the module proxy is newer than the manifest requirement.
 
 use dx_error::DxError;
 
@@ -7,7 +7,7 @@ use semver::Version;
 
 pub const DEFAULT_BASE: &str = "https://proxy.golang.org";
 
-/// Checks each direct requirement of the go.mod files against the proxy at `base`.
+/// Checks each direct requirement of the manifest files against the proxy at `base`.
 pub fn outdated(
     set: &str,
     go_mods: &[String],

@@ -21,7 +21,7 @@ const SKIPPED_PREFIXES: [&str; 9] = [
     "http",
 ];
 
-/// Checks each registry dependency of the package.json files against the registry at `base`.
+/// Checks each registry dependency of the manifest files against the registry at `base`.
 pub fn outdated(
     set: &str,
     manifests: &[String],

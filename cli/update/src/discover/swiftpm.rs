@@ -1,4 +1,4 @@
-//! Lists Swift packages whose newest semver tag on GitHub is newer than the Package.resolved pin.
+//! Lists Swift packages whose newest semver tag on GitHub is newer than the lock pin.
 
 use super::{Candidate, Fetch, Findings, LookupError, github_repo, wanted};
 use semver::Version;
@@ -6,7 +6,7 @@ use serde_json::Value;
 
 pub const DEFAULT_BASE: &str = "https://api.github.com";
 
-/// Checks each versioned pin of the Package.resolved files against the tags API at `base`.
+/// Checks each versioned pin of the lock files against the tags API at `base`.
 /// Pins outside GitHub are skipped.
 pub fn outdated(
     set: &str,

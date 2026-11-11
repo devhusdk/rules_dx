@@ -11,7 +11,7 @@ use toml_edit::{DocumentMut, Item};
 
 pub const DEFAULT_BASE: &str = "https://pypi.org/pypi";
 
-/// Checks each registry requirement of the pyproject.toml files against PyPI at `base`.
+/// Checks each registry requirement of the manifest files against PyPI at `base`.
 pub fn outdated(
     set: &str,
     manifests: &[String],

@@ -22,6 +22,18 @@ const KINDS: [&str; 9] = [
 /// Text that names a host directory wherever it stands.
 const HOST_DIRS: [&str; 4] = ["/usr/bin", "/usr/local/bin", "$PATH", "${PATH}"];
 
+/// Lowercase text that names the Windows system directory wherever it stands.
+const WINDOWS_DIRS: [&str; 8] = [
+    ":/windows",
+    ":\\windows",
+    "/system32",
+    "\\system32",
+    "%systemroot%",
+    "%windir%",
+    "$env:systemroot",
+    "$env:windir",
+];
+
 /// The one file that names the Xcode tools by absolute path.
 const XCODE_FILE: &str = "apple/private/tools/ops/src/xcode.rs";
 
@@ -55,6 +67,12 @@ fn host_path(text: &str) -> bool {
         || text
             .split([':', '=', ' ', '"', '\''])
             .any(|part| part == "/bin")
+}
+
+/// Whether `text` names the Windows system directory.
+fn windows_dir(text: &str) -> bool {
+    let text = text.to_ascii_lowercase();
+    WINDOWS_DIRS.iter().any(|dir| text.contains(dir))
 }
 
 /// Whether `text` reads the host home directory.
@@ -95,7 +113,7 @@ fn scan_starlark(path: &str, source: &str, counts: &mut Counts) {
     let module = parse(path, source);
     for expr in exprs(module.statement()) {
         if let Some(text) = string(expr) {
-            if host_path(text) {
+            if host_path(text) || windows_dir(text) {
                 hit(counts, path, "host-path");
             }
             if text == "HOME" || home(text) {
@@ -159,6 +177,9 @@ fn scan_lines(path: &str, source: &str, counts: &mut Counts) {
             continue;
         }
         text_kinds(line, |kind| hit(counts, path, kind));
+        if windows_dir(line) && !host_path(line) {
+            hit(counts, path, "host-path");
+        }
         if home(line) {
             hit(counts, path, "home");
         }
@@ -229,6 +250,30 @@ def _impl(ctx):
     assert_eq!(
         scan_all(&[("pkg/defs.bzl", bzl)]),
         lines(&[("pkg/defs.bzl", "host-path", 5)]),
+    );
+}
+
+#[test]
+fn windows_system_directories_on_a_path_count() {
+    let bzl = r#"
+def _impl(ctx):
+    ctx.actions.run(env = {"PATH": "C:/Windows/System32;C:/Windows"})
+    ctx.actions.run(env = {"PATH": r"C:\WINDOWS\system32"})
+    ctx.actions.run(env = {"SYSTEMROOT": "%SystemRoot%"})
+    ctx.actions.run(env = {"OS": "Windows", "DIR": "System32", "PLATFORM": "windows_x86_64"})
+"#;
+    let sh = "PATH=\"$env:windir\"\n";
+    let rust = "const DIR: &str = \"C:/Windows/System32\";\n";
+    assert_eq!(
+        scan_all(&[
+            ("pkg/defs.bzl", bzl),
+            ("pkg/run.sh", sh),
+            ("pkg/src/lib.rs", rust),
+        ]),
+        lines(&[
+            ("pkg/defs.bzl", "host-path", 3),
+            ("pkg/run.sh", "host-path", 1)
+        ]),
     );
 }
 

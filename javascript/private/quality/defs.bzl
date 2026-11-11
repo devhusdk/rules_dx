@@ -1,7 +1,7 @@
 r"""Platform-correct launchers for the generated JavaScript tool binaries.
 
 `rules_nodejs` writes its Windows launcher as a batch file that hands the tool's script to
-`C:/WINDOWS/system32/bash.exe`. That is WSL's bash, which cannot read a `C:/...` path, so
+the `bash.exe` in the Windows system directory. That is WSL's bash, which cannot read a `C:/...` path, so
 every runfile lookup inside the script fails on a Windows host. Git's `sh` reads those paths
 and ships with every Windows image that has a toolchain, and this repository already relies
 on it for `starlark_test`.

@@ -7,7 +7,6 @@ exports_files([
     "crate_universe_root_lookup.patch",
     "exec_scope_universal.patch",
     "msvc_pdb_output.patch",
-    "rust_lld_msvc_libpath.patch",
     "pipelined_rmeta_path.patch",
     "static_archive_link_arg.patch",
 ])

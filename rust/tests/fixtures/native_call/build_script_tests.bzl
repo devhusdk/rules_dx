@@ -376,6 +376,14 @@ def _link_windows_impl(ctx):
         for d in dirs:
             asserts.true(env, d.startswith("external/"), "Windows SDK lib dir is outside the execroot: {}".format(d))
             asserts.true(env, [p for p in inputs if p.startswith(d + "/")] != [], "Windows SDK lib dir is not an action input: {}".format(d))
+    lib = action.env.get("LIB", "")
+    asserts.false(env, "__hermetic_llvm_empty_lib__" in lib, "LIB is the empty marker: {}".format(lib))
+    lib_dirs = lib.split(";")
+    for suffix in ["/um/x64", "/ucrt/x64"]:
+        asserts.true(env, [d for d in lib_dirs if d.endswith(suffix)] != [], "no Windows SDK {} lib dir in LIB: {}".format(suffix, lib))
+    asserts.true(env, len(lib_dirs) >= 5, "LIB lacks the MSVC CRT and support lib dirs: {}".format(lib))
+    for d in lib_dirs:
+        asserts.true(env, d in libpaths, "LIB dir is not a -LIBPATH: of the Rust link: {}".format(d))
     default_libs = [arg[len("-DEFAULTLIB:"):].lower() for arg in link_args if arg.startswith("-DEFAULTLIB:")]
     asserts.true(env, "libc++.lib" in default_libs, "libc++.lib is not a default lib of the Rust link: {}".format(link_args))
     for crt in ["libcmt.lib", "msvcrt.lib"]:

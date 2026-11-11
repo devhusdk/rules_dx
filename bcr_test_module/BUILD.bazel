@@ -13,6 +13,12 @@ resolved_cc_toolchain(
     platform = "@rules_dx//android:android_device",
 )
 
+resolved_cc_toolchain(
+    name = "macos_arm64_cc",
+    expected = "darwin_arm64",
+    platform = "@rules_dx//apple:macos_arm64",
+)
+
 filegroup(
     name = "files",
     testonly = True,

@@ -13,8 +13,6 @@ fixture msix
 fixture terraform
 init elixir
 init erlang
-init haskell
-init ocaml
 init rego
 override archive_override lua
 override archive_override rules_flutter

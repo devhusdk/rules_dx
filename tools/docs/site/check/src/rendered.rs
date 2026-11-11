@@ -256,6 +256,33 @@ pub fn is_fragment(route: &str) -> bool {
     matches!(route, "toc.html" | "print.html" | "404.html")
 }
 
+/// Resolves one logical asset path such as `css/general.css` to the single exact or
+/// `<stem>-<hex>.<ext>` file under `root`.
+pub fn asset(root: &Path, logical: &str) -> Result<PathBuf, String> {
+    let (dir, name) = logical.rsplit_once('/').unwrap_or(("", logical));
+    let (stem, ext) = name.split_once('.').unwrap_or((name, ""));
+    let dir = root.join(dir);
+    let mut found: Vec<PathBuf> = Vec::new();
+    for entry in fs::read_dir(&dir).map_err(|_| format!("rendered site has no {logical}"))? {
+        let Ok(entry) = entry else { continue };
+        let file = entry.file_name().to_string_lossy().into_owned();
+        let hashed = file
+            .strip_prefix(stem)
+            .and_then(|rest| rest.strip_prefix('-'))
+            .and_then(|rest| rest.strip_suffix(ext))
+            .and_then(|rest| rest.strip_suffix('.'))
+            .is_some_and(|hash| !hash.is_empty() && hash.bytes().all(|b| b.is_ascii_hexdigit()));
+        if (file == name || hashed) && entry.path().is_file() {
+            found.push(entry.path());
+        }
+    }
+    match found.len() {
+        0 => Err(format!("rendered site has no {logical}")),
+        1 => Ok(found.remove(0)),
+        _ => Err(format!("rendered site has several {logical} files")),
+    }
+}
+
 /// Returns the diagnostics for one rendered site, or an empty string when it holds.
 pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> String {
     let root = rendered.root.as_path();
@@ -271,22 +298,22 @@ pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> String {
     if !root.join("index.html").is_file() {
         return "rendered site has no index.html at its root".to_string();
     }
-    if !root.join("searchindex.js").is_file() {
-        return "rendered site has no searchindex.js".to_string();
-    }
-    if !root.join("css/general.css").is_file() {
-        return "rendered site has no stylesheet".to_string();
-    }
-    if !root.join("book.js").is_file() {
-        return "rendered site has no book.js navigation script".to_string();
+    let search_index = match asset(root, "searchindex.js") {
+        Ok(path) => path,
+        Err(error) => return error,
+    };
+    for logical in ["css/general.css", "book.js"] {
+        if let Err(error) = asset(root, logical) {
+            return error;
+        }
     }
     if !root.join("print.html").is_file() {
         return "rendered site has no print.html".to_string();
     }
 
-    let search = fs::read_to_string(root.join("searchindex.js")).unwrap_or_default();
+    let search = fs::read_to_string(search_index).unwrap_or_default();
     if !search.contains("window.search") {
-        return "searchindex.js holds no search object".to_string();
+        return "the search index holds no search object".to_string();
     }
 
     let mut errors: Vec<String> = Vec::new();
@@ -326,7 +353,7 @@ pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> String {
                 }
                 name
             };
-            if anchor.is_empty() || anchor == "top" || anchor == "searchbar" {
+            if anchor.is_empty() || anchor == "top" || anchor == "mdbook-searchbar" {
                 continue;
             }
             let found = ids.get(&name);
@@ -366,10 +393,10 @@ pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> String {
         .find(|page| page.route == "index.html")
         .cloned()
         .unwrap_or_default();
-    if !index.ids.iter().any(|id| id == "search-toggle") {
+    if !index.ids.iter().any(|id| id == "mdbook-search-toggle") {
         errors.push("index.html has no search toggle".to_string());
     }
-    if !index.ids.iter().any(|id| id == "sidebar-toggle") {
+    if !index.ids.iter().any(|id| id == "mdbook-sidebar-toggle") {
         errors.push("index.html has no sidebar toggle".to_string());
     }
     if rendered.landing {

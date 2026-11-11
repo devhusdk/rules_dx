@@ -1,5 +1,6 @@
 //! Smoke-tests one served docs site against the staged artifact bytes.
 
+use dx_site_check::rendered::asset;
 use std::path::Path;
 use std::thread;
 use std::time::Duration;
@@ -14,7 +15,6 @@ const READINESS_ATTEMPTS: u32 = 10;
 const READINESS_PAUSE: Duration = Duration::from_secs(3);
 const PROBE_TIMEOUT: u64 = 15;
 const DESKTOP: (u64, u64) = (1280, 900);
-const IDENTITY_ROUTES: [&str; 2] = ["index.html", "searchindex.js"];
 const REPRESENTATIVE_ROUTES: [&str; 4] = [
     "docs/cli/commands/docs.html",
     "docs/github-ci.html",
@@ -89,13 +89,20 @@ fn waits_for(browser: &mut Browser, base: &str) -> bool {
     false
 }
 
+fn asset_route(staged: &Path, logical: &str) -> String {
+    let path = asset(staged, logical).unwrap_or_else(|error| panic!("{error}"));
+    let relative = path.strip_prefix(staged).expect("asset under the site");
+    relative.to_string_lossy().into_owned()
+}
+
 fn smoke(browser: &mut Browser, base: &str, staged: &Path) {
     assert!(
         waits_for(browser, base),
         "the site at {base} answered no HTTP 200 within {READINESS_ATTEMPTS} attempts"
     );
 
-    for route in IDENTITY_ROUTES {
+    let identity_routes = ["index.html".to_string(), asset_route(staged, "searchindex.js")];
+    for route in &identity_routes {
         let url = format!("{base}{route}");
         let served = fetch(browser, &url);
         assert_eq!(served.status, 200, "{url} served status {}", served.status);
@@ -107,7 +114,7 @@ fn smoke(browser: &mut Browser, base: &str, staged: &Path) {
         );
     }
 
-    let css_url = format!("{base}css/general.css");
+    let css_url = format!("{base}{}", asset_route(staged, "css/general.css"));
     let css = fetch(browser, &css_url);
     assert_eq!(css.status, 200, "{css_url} served status {}", css.status);
     assert!(
@@ -137,7 +144,7 @@ fn smoke(browser: &mut Browser, base: &str, staged: &Path) {
     );
     assert!(
         browser
-            .count("return document.querySelectorAll('#sidebar a').length")
+            .count("return document.querySelectorAll('#mdbook-sidebar a').length")
             .expect("sidebar links")
             > 0,
         "the sidebar at {base} lists no page"
@@ -153,7 +160,7 @@ fn smoke(browser: &mut Browser, base: &str, staged: &Path) {
 
     search_query(browser, "scope");
     let hit = browser
-        .text("return document.querySelector('#searchresults a').href")
+        .text("return document.querySelector('#mdbook-searchresults a').href")
         .expect("the first search hit");
     browser
         .navigate(&hit)

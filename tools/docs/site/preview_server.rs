@@ -52,7 +52,7 @@ pub fn search_query(browser: &mut Browser, term: &str) {
     assert!(
         wait_for(
             browser,
-            "return document.querySelectorAll('#searchresults li').length > 0",
+            "return document.querySelectorAll('#mdbook-searchresults li').length > 0",
             30
         )
         .unwrap_or_else(|error| panic!("poll the search results: {error}")),

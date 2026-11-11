@@ -1,5 +1,6 @@
 //! Asserts the rendered user site is a real multi-page documentation website.
 
+use dx_site_check::rendered::asset;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -84,6 +85,12 @@ fn check_rendered(root: &Path, extra: &[&str]) -> Run {
 fn read(root: &Path, route: &str) -> String {
     std::fs::read_to_string(root.join(route))
         .unwrap_or_else(|error| panic!("read {}: {error}", route))
+}
+
+fn read_asset(root: &Path, logical: &str) -> String {
+    let path = asset(root, logical).unwrap_or_else(|error| panic!("{error}"));
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
 fn every_html(root: &Path) -> Vec<String> {
@@ -236,7 +243,7 @@ fn no_agent_instructions_or_demo_api_are_published() {
 #[test]
 fn the_site_carries_its_own_styles_scripts_and_fonts() {
     let root = site(USER_SITE);
-    for asset in [
+    for logical in [
         "css/general.css",
         "css/chrome.css",
         "css/variables.css",
@@ -250,11 +257,13 @@ fn the_site_carries_its_own_styles_scripts_and_fonts() {
         "clipboard.min.js",
         "fonts/fonts.css",
         "favicon.svg",
-        "print.html",
-        "404.html",
-        ".nojekyll",
     ] {
-        assert!(root.join(asset).is_file(), "missing asset {asset}");
+        if let Err(error) = asset(&root, logical) {
+            panic!("{error}");
+        }
+    }
+    for exact in ["print.html", "404.html", ".nojekyll"] {
+        assert!(root.join(exact).is_file(), "missing asset {exact}");
     }
     assert!(
         std::fs::read_dir(root.join("fonts"))
@@ -268,7 +277,7 @@ fn the_site_carries_its_own_styles_scripts_and_fonts() {
 #[test]
 fn the_search_index_names_every_rendered_page() {
     let root = site(USER_SITE);
-    let index = read(&root, "searchindex.js");
+    let index = read_asset(&root, "searchindex.js");
     assert!(
         index.contains("window.search"),
         "the search index must define the mdBook search object"
@@ -383,21 +392,21 @@ fn the_landing_page_renders_search_and_keyboard_navigation() {
     let root = site(USER_SITE);
     let index = read(&root, "index.html");
     for id in [
-        "search-toggle",
-        "sidebar",
-        "sidebar-toggle",
-        "sidebar-toggle-anchor",
-        "menu-bar",
-        "searchbar",
-        "theme-toggle",
+        "mdbook-search-toggle",
+        "mdbook-sidebar",
+        "mdbook-sidebar-toggle",
+        "mdbook-sidebar-toggle-anchor",
+        "mdbook-menu-bar",
+        "mdbook-searchbar",
+        "mdbook-theme-toggle",
     ] {
         assert!(index.contains(&format!("id=\"{id}\"")), "no {id} control");
     }
-    let chrome = read(&root, "css/chrome.css");
+    let chrome = read_asset(&root, "css/chrome.css");
     for selector in [
-        "#searchbar:focus",
-        "#sidebar-toggle-anchor:checked ~ .page-wrapper",
-        "#sidebar-toggle-anchor:not(:checked) ~ .sidebar",
+        "#mdbook-searchbar:focus",
+        "#mdbook-sidebar-toggle-anchor:checked ~ .page-wrapper",
+        "#mdbook-sidebar-toggle-anchor:not(:checked) ~ .sidebar",
         "sidebar-visible",
     ] {
         assert!(
@@ -562,7 +571,7 @@ fn a_ruby_api_page_renders_its_signature_docs_source_and_relations() {
             "the non-public method {hidden} was published"
         );
     }
-    let index = read(&root, "searchindex.js");
+    let index = read_asset(&root, "searchindex.js");
     let mut urls = BTreeSet::new();
     for (start, _) in index.match_indices("\"api/ruby/") {
         let rest = &index[start + 1..];
@@ -630,7 +639,7 @@ fn a_java_api_page_renders_its_signature_docs_source_and_relations() {
             "the non-public member {hidden} was published"
         );
     }
-    let index = read(&root, "searchindex.js");
+    let index = read_asset(&root, "searchindex.js");
     let mut urls = BTreeSet::new();
     for (start, _) in index.match_indices("\"api/java/") {
         let rest = &index[start + 1..];
@@ -701,7 +710,7 @@ fn a_user_api_page_renders_its_signature_docs_and_source() {
 #[test]
 fn every_api_url_in_the_search_index_is_a_page() {
     let root = site(USER_SITE);
-    let index = read(&root, "searchindex.js");
+    let index = read_asset(&root, "searchindex.js");
     let mut urls = BTreeSet::new();
     for (start, _) in index.match_indices("\"api/") {
         let rest = &index[start + 1..];
@@ -785,8 +794,8 @@ fn a_site_that_demotes_its_navigation_widgets_is_refused() {
     std::fs::write(
         scratch.join("index.html"),
         index
-            .replace("id=\"search-toggle\"", "class=\"gone\"")
-            .replace("id=\"sidebar-toggle\"", "class=\"gone\""),
+            .replace("id=\"mdbook-search-toggle\"", "class=\"gone\"")
+            .replace("id=\"mdbook-sidebar-toggle\"", "class=\"gone\""),
     )
     .expect("write index");
     check_rendered(&scratch, &["--landing"]).expect_refusal("has no search toggle");
@@ -797,8 +806,8 @@ fn a_site_without_its_stylesheet_is_refused() {
     let scratch_tmp = dx_test_scratch::scratch("rendered-missing-css");
     let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
-    std::fs::remove_file(scratch.join("css/general.css")).expect("remove the stylesheet");
-    check_rendered(&scratch, &["--landing"]).expect_refusal("has no stylesheet");
+    std::fs::remove_file(asset(&scratch, "css/general.css").expect("find the stylesheet")).expect("remove the stylesheet");
+    check_rendered(&scratch, &["--landing"]).expect_refusal("has no css/general.css");
 }
 
 #[test]
@@ -853,15 +862,13 @@ fn copy_readonly(from: &Path, to: &Path) {
         }
         write_copy(&from.join(&route), &target);
     }
-    for asset in ["css", "js", "fonts", "book.js", "searchindex.js"] {
-        let source = from.join(asset);
-        if !source.exists() {
-            continue;
-        }
+    for entry in std::fs::read_dir(from).expect("read site root").flatten() {
+        let source = entry.path();
+        let name = entry.file_name();
         if source.is_dir() {
-            copy_dir(&source, &to.join(asset));
-        } else {
-            write_copy(&source, &to.join(asset));
+            copy_dir(&source, &to.join(&name));
+        } else if source.extension().is_none_or(|ext| ext != "html") {
+            write_copy(&source, &to.join(&name));
         }
     }
     for page in ["print.html", "404.html", "toc.html"] {
@@ -930,7 +937,7 @@ fn a_powershell_api_page_renders_every_parameter_set_docs_and_source() {
         ],
         "only exported functions get pages"
     );
-    let index = read(&root, "searchindex.js");
+    let index = read_asset(&root, "searchindex.js");
     assert!(
         index.contains("api/powershell/Ledger/Add-LedgerEntry.html"),
         "the search index never names the PowerShell page"

@@ -48,8 +48,8 @@ const HOME: &str = r##"<!DOCTYPE html>
 <body>
 <nav id="sidebar"></nav>
 <a href="#" id="sidebar-toggle-anchor"></a>
-<a href="#" id="sidebar-toggle" class="sidebar-toggle"></a>
-<a href="#searchbar" id="search-toggle" class="search-toggle"></a>
+<a href="#" id="mdbook-sidebar-toggle" class="sidebar-toggle"></a>
+<a href="#mdbook-searchbar" id="mdbook-search-toggle" class="search-toggle"></a>
 <main>
 <h1 id="rules_dx"><a class="header" href="#rules_dx">rules_dx</a></h1>
 <ul><li><a href="page.html">Page</a></li></ul>
@@ -147,7 +147,7 @@ fn a_missing_asset_fails() {
     fs::remove_file(dir.join("book.js")).expect("remove the navigation script");
     let report = check_rendered(&rendered(dir), &[]);
     assert!(
-        report.contains("has no book.js navigation script"),
+        report.contains("has no book.js"),
         "{report}"
     );
     let _ = fs::remove_dir_all(dir);
@@ -341,8 +341,8 @@ fn a_landing_page_without_navigation_widgets_fails() {
         "index.html",
         &HOME
             .replace("id=\"sidebar-toggle-anchor\"", "class=\"gone\"")
-            .replace("id=\"sidebar-toggle\"", "class=\"gone\"")
-            .replace("id=\"search-toggle\"", "class=\"gone\""),
+            .replace("id=\"mdbook-sidebar-toggle\"", "class=\"gone\"")
+            .replace("id=\"mdbook-search-toggle\"", "class=\"gone\""),
     );
     let report = check_rendered(&rendered(dir), &[]);
     assert!(
@@ -386,7 +386,7 @@ fn an_empty_search_object_fails() {
     let dir = guard.path();
     write(dir, "searchindex.js", "var search = 1;\n");
     let report = check_rendered(&rendered(dir), &[]);
-    assert_eq!(report, "searchindex.js holds no search object");
+    assert_eq!(report, "the search index holds no search object");
     let _ = fs::remove_dir_all(dir);
 }
 
@@ -431,4 +431,24 @@ fn relative_targets_resolve_against_their_page() {
     assert_eq!(resolve("docs/cli/index.html", "../a.html"), "docs/a.html");
     assert_eq!(resolve("docs/index.html", "../../a.html"), "a.html");
     assert_eq!(resolve("docs/index.html", "./a.html"), "docs/a.html");
+}
+
+#[test]
+fn a_hashed_search_index_is_found() {
+    let guard = site("rendered-hashed-index");
+    let dir = guard.path();
+    fs::rename(dir.join("searchindex.js"), dir.join("searchindex-c0036e0f.js"))
+        .expect("hash the search index");
+    assert_eq!(check_rendered(&rendered(dir), &[]), "");
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn several_search_indexes_fail() {
+    let guard = site("rendered-two-indexes");
+    let dir = guard.path();
+    write(dir, "searchindex-c0036e0f.js", "window.search = {};\n");
+    let report = check_rendered(&rendered(dir), &[]);
+    assert_eq!(report, "rendered site has several searchindex.js files");
+    let _ = fs::remove_dir_all(dir);
 }

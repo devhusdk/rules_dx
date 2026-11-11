@@ -435,7 +435,8 @@
         "//cuda:extensions.bzl%cuda_license",
         "@rules_cuda//cuda:extensions.bzl%toolchain",
         "//android:extensions.bzl%android_sdk",
-        "@rules_android//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension"
+        "@rules_android//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension",
+        "//qt:extensions.bzl%qt_sdk"
       ],
       "file_extensions": [
         ".adoc",
@@ -558,6 +559,7 @@
         "//gazelle/zig"
       ],
       "repo_rules": [
+        "//android:repos.bzl%android_ndk_toolchain_repo",
         "//powershell:extensions.bzl%psgallery_module",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
@@ -574,10 +576,16 @@
         "//cc/private/toolchains:msvc_windows_x86_64",
         "//cc/private/toolchains:msvc_windows_x86_64_to_arm64",
         "//core/quality:busybox_sh_linux_x86_64",
+        "//java/private/toolchains:all",
+        "//kotlin/private/toolchain:unused_deps",
         "//lua/private/toolchain:all",
         "//msix/private/toolchains:all",
+        "//scala/private/toolchain:semanticdb",
+        "//scala/private/toolchain:semanticdb_scala3",
         "//swift/private/toolchain:all",
         "//tools/platforms:protoc_windows_arm64",
+        "@android_ndk_toolchain//:ndk_cc_toolchain_device",
+        "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
         "@dotnet_toolchains//:all",
         "@dx_coreutils//:all",
         "@dx_d_toolchains//:all",
@@ -590,6 +598,7 @@
         "@dx_php_toolchains//:all",
         "@dx_powershell_toolchains//:all",
         "@llvm//toolchain:all",
+        "@local_config_apple_cc_toolchains//:all",
         "@python_interpreters//:all",
         "@ruby_toolchains//:all",
         "@rust_toolchains//:all"

@@ -1,5 +1,5 @@
 {
-  "checksum": "1b77ab0a9d87adf61c93296b100d629745a5f68aaaedaa86512d4d6673d6f292",
+  "checksum": "760940c7dfb5fa55769441aee7e21b5b3aca0d939e4d003626167f26258402bc",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -31674,6 +31674,6 @@
     "typescript_scoped_fixture 0.0.0": "typescript/tests/fixtures/typescript_scoped_fixture",
     "wasi_testing 0.0.0": "tools/testing/wasi_testing",
     "zig_extract 0.0.0": "tools/docs/zig/zig_extract",
-    "zig_lock 0.0.0": "zig/private/zig_lock"
+    "zig_lock 0.0.0": "zig/private/tools/zig_lock"
   }
 }

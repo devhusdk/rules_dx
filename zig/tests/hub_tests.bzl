@@ -1,7 +1,7 @@
 """The checks on the zig hub BUILD file."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
-load(":hub.bzl", "build_file")
+load("//zig/private/lock:hub.bzl", "build_file")
 
 _WITH_DEPS = build_file({
     "deps": ["xxhash", "known"],

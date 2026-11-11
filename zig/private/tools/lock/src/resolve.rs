@@ -474,6 +474,7 @@ impl Resolver for Zig<'_> {
                     sha256: described.sha256,
                     strip_prefix: described.strip_prefix,
                     platform: String::new(),
+                    kind: String::new(),
                 }],
                 deps: described.deps,
                 provides: vec![described.dependency.name.clone()],

@@ -1,0 +1,5 @@
+load(":hub_tests.bzl", "zig_hub_tests")
+
+package(default_visibility = ["//visibility:private"])
+
+zig_hub_tests(name = "hub", size = "small")

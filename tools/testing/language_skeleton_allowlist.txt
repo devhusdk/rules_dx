@@ -163,7 +163,6 @@ fixture-hello typescript/tests/consumer
 fixture-hello vue/tests/conformance/BUILD.bazel
 fixture-hello vue/tests/consumer
 fixture-hello zig/tests/conformance/BUILD.bazel
-fixture-hello zig/tests/consumer
 fixture-name android/tests/fixtures/adopt-android
 fixture-name ansible/tests/fixtures/site.yml
 fixture-name api_spec/tests/refs
@@ -722,7 +721,6 @@ test-location typescript/private/BUILD.bazel
 test-location typescript/private/ide/BUILD.bazel
 test-location vue/tests/BUILD.bazel
 test-location zig/private/BUILD.bazel
-test-location zig/tests/BUILD.bazel
 title ansible/lang.json
 title api_spec/lang.json
 title appimage/lang.json

@@ -7,5 +7,5 @@ exports_files([
 
 alias(
     name = "lock",
-    actual = "//zig/private/lock",
+    actual = "//zig/private/tools/lock",
 )

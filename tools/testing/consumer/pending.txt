@@ -17,7 +17,6 @@ dev-repo dx_test_tags_sources cli/entrypoint/BUILD.bazel
 dev-repo dx_test_tags_sources core/modules/BUILD.bazel
 dev-repo dx_test_tags_sources core/quality/BUILD.bazel
 dev-repo googletest cuda/private/testing/BUILD.bazel
-dev-repo llvm-project patches/llvm/BUILD.bazel
 dev-repo maven core/quality/testdata/runner_matrix_scala_dotnet.bzl
 dev-repo maven core/quality/testdata/scalafix_aux/BUILD.bazel
 dev-repo maven core/quality/testdata/spotbugs_owned/BUILD.bazel

@@ -85,7 +85,7 @@ single_version_override(
     version = "0.8.26",
 )
 
-# dev only: libunwind_copy_test reads the patched libunwind.a (#7781)
+# dev only: //patches/llvm/tests:libunwind_copy_test reads the patched libunwind.a (#7781)
 _llvm_runtimes = use_extension("@llvm//extensions:llvm.bzl", "llvm", dev_dependency = True)
 use_repo(_llvm_runtimes, "llvm-project")
 

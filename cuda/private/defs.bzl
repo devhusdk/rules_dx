@@ -200,6 +200,11 @@ def _cuda_executable(cc_rule, name, srcs, cuda_archs, deps, hdrs, visibility, ta
         testonly = kwargs.get("testonly", None),
         visibility = ["//visibility:private"],
     )
+    if not host:
+        kwargs["linkopts"] = kwargs.get("linkopts", []) + select({
+            "@platforms//os:windows": ["/IGNORE:4001"],
+            "//conditions:default": [],
+        })
     cc_rule(
         name = name,
         srcs = host,

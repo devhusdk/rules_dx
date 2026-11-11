@@ -1,0 +1,48 @@
+# gazelle:ignore
+load("//lua:defs.bzl", "lua_binary", "lua_library", "lua_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+lua_library(
+    name = "conformance",
+    srcs = ["greet.lua"],
+    strip_import_prefix = "/lua/tests/conformance",
+)
+
+lua_binary(
+    name = "hello",
+    main = "main.lua",
+    deps = [":conformance"],
+)
+
+lua_test(
+    name = "pass_subject_test",
+    size = "small",
+    main = "pass_test.lua",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+lua_test(
+    name = "fail_subject_test",
+    size = "small",
+    main = "fail_test.lua",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "greet.lua",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "lua",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

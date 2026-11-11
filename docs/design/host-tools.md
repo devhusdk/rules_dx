@@ -4,7 +4,7 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 
 ## PATH
 
-- An action or test never puts a host directory on `PATH`. `/usr/bin`, `/bin`, `/usr/local/bin` and the inherited `$PATH` are host directories.
+- An action or test never puts a host directory on `PATH`. `/usr/bin`, `/bin`, `/usr/local/bin`, the inherited `$PATH` and the Windows system root (`C:\Windows`, `System32`, `%SystemRoot%`) are host directories.
 - `PATH` holds only directories of declared inputs.
 - Xcode and the Apple SDK cannot be redistributed. `apple/private/tools/ops/src/xcode.rs` is the one file that names `/usr/bin/xcrun`, `/usr/bin/codesign`, `/usr/bin/security`, `/usr/bin/plutil` and `/usr/bin/ditto`; `//tools/ci:host_env_test` skips exactly those strings there. `DEVELOPER_DIR` comes from the configured `xcode_version`, never from `PATH`.
 - An action that needs no program from `PATH` sets `PATH=/dx_no_path`.
@@ -62,7 +62,7 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 - Each converted rule has a test that fails when a host directory returns to its `PATH`.
 - `//core/coreutils:applet_probe_test` runs one applet by name with only the applet directory on `PATH`.
 - `//tools/ci:host_env_test` parses every `BUILD`, `.bzl` and repository `*.BUILD` file and scans Rust, shell, template and rc files. Its kinds:
-  - `host-path`: `/usr/bin`, `/bin`, `/usr/local/bin`, `$PATH` or `${PATH}` in a string or line.
+  - `host-path`: `/usr/bin`, `/bin`, `/usr/local/bin`, `$PATH` or `${PATH}` in a string or line. In Starlark, shell, template and rc files also `:/windows`, `:\windows`, `/system32`, `\system32`, `%systemroot%`, `%windir%`, `$env:systemroot` or `$env:windir` in any case. Rust is not covered for these yet (#11745).
   - `home`: the string `HOME` in Starlark, `$HOME` or `${HOME}` in Starlark, shell and templates.
   - `env-inherit`: an `env_inherit` argument or key.
   - `default-shell-env`: `use_default_shell_env` set to anything but `False`, or passed as a key.

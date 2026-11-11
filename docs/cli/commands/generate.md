@@ -54,7 +54,7 @@ Add the package to the manifest (`Cargo.toml`, `pyproject.toml`, or `package.jso
 dx generate --apply
 ```
 
-When the root `Cargo.lock`, `uv.lock`, `pnpm-lock.yaml`, or `pubspec.lock` has its manifest beside it and `MODULE.bazel` has no stanza for it, `dx generate --apply` adds one: a `crates`, `pypi`, `npm`, or `pub_deps` hub plus its `bazel_dep`. A stanza you wrote is left alone. Without `--apply`, dx says what it would add and exits `1`. Each wiring step is also a `notice` in JSON, with code `wiring`, `wiring_pending`, or `wiring_failed`. List Cargo workspace members written as globs in `manifests` yourself.
+When the root `Cargo.lock`, `uv.lock`, `pnpm-lock.yaml`, `pubspec.lock`, `composer.lock.json`, `luarocks.lock.json`, `dub.lock.json`, `zig.lock.json`, `swiftpm.lock.json`, `mix.lock`, `haskell_deps.json`, `*.opam.locked`, or `cpanfile.snapshot.lock.json` has its manifest beside it and `MODULE.bazel` has no stanza for it, `dx generate --apply` adds one: a `crates`, `pypi`, `npm`, `pub_deps`, `composer`, `rocks`, `dub`, `zig`, `swiftpkg`, `hex`, `hackage`, `opam`, or `cpan` hub plus its `bazel_dep`. A stanza you wrote is left alone. Without `--apply`, dx says what it would add and exits `1`. Each wiring step is also a `notice` in JSON, with code `wiring`, `wiring_pending`, or `wiring_failed`. List Cargo workspace members written as globs in `manifests` yourself.
 
 ## The `.dx` tree
 

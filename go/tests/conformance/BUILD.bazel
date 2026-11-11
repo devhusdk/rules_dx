@@ -38,6 +38,7 @@ go_test(
 dx_conformance_suite(
     name = "",
     binary = ":hello",
+    covered_source = "greet.go",
     expected = "hello world",
     failing_case = "TestFailingCase",
     failing_test = ":fail_subject_test",

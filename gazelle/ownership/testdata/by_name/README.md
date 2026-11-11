@@ -1,1 +1,1 @@
-Owns Dockerfile, CMake, Bicep and AsciiDoc files by name.
+Owns Dockerfile, CMake, Bicep, AsciiDoc, reStructuredText and SQL files by name.

@@ -1,0 +1,7 @@
+load("@rules_dx//sql:defs.bzl", "sql_library")
+
+sql_library(
+    name = "sql",
+    srcs = ["query.sql"],
+    visibility = ["//visibility:public"],
+)

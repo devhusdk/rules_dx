@@ -48,6 +48,8 @@ var families = []family{
 	{"asciidoc_library", "asciidoc", "asciidoc:defs.bzl", isAsciiDoc, nil},
 	{"ansible_library", "ansible", "ansible:defs.bzl", isYAML, isAnsiblePlaybook},
 	{"cloudformation_library", "cloudformation", "cloudformation:defs.bzl", isYAML, isCloudFormation},
+	{"rst_library", "rst", "rst:defs.bzl", isRst, nil},
+	{"sql_library", "sql", "sql:defs.bzl", isSQL, nil},
 }
 
 // isDockerfile matches the names is_dockerfile_name in core/quality/sources.bzl accepts.
@@ -78,6 +80,14 @@ func isBicep(name string) bool {
 
 func isAsciiDoc(name string) bool {
 	return strings.HasSuffix(name, ".adoc") || strings.HasSuffix(name, ".asciidoc")
+}
+
+func isRst(name string) bool {
+	return strings.HasSuffix(name, ".rst") || strings.HasSuffix(name, ".rest")
+}
+
+func isSQL(name string) bool {
+	return strings.HasSuffix(name, ".sql")
 }
 
 func isYAML(name string) bool {

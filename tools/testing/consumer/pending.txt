@@ -29,10 +29,8 @@ init ocaml
 init perl
 init php
 init rego
-init rst
 init ruby
 init scala
-init sql
 init typescript
 override archive_override lua
 override archive_override rules_flutter

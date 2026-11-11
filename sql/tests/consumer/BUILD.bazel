@@ -3,7 +3,7 @@ load("@rules_dx//sql:defs.bzl", "sql_library")
 # dx: written once, yours to edit
 
 sql_library(
-    name = "query",
+    name = "sql",
     srcs = ["query.sql"],
     visibility = ["//visibility:public"],
 )

@@ -1,0 +1,7 @@
+load("@rules_dx//rst:defs.bzl", "rst_library")
+
+rst_library(
+    name = "rst",
+    srcs = ["guide.rst"],
+    visibility = ["//visibility:public"],
+)

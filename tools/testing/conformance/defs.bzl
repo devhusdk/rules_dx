@@ -43,10 +43,13 @@ def _subject_impl(ctx):
     environment = subject[RunEnvironmentInfo].environment if RunEnvironmentInfo in subject else {}
     env_file = ctx.actions.declare_file(ctx.label.name + ".env")
     ctx.actions.write(env_file, "".join(["%s=%s\n" % (k, environment[k]) for k in sorted(environment)]))
+    instrumented = subject[InstrumentedFilesInfo].instrumented_files.to_list() if InstrumentedFilesInfo in subject else []
+    manifest = ctx.actions.declare_file(ctx.label.name + ".coverage_manifest")
+    ctx.actions.write(manifest, "".join([f.path + "\n" for f in instrumented]))
     metadata = subject[InstrumentedFilesInfo].metadata_files if InstrumentedFilesInfo in subject else depset()
     return [DefaultInfo(
-        files = depset([executable, env_file]),
-        runfiles = subject[DefaultInfo].default_runfiles.merge(ctx.runfiles(files = [env_file], transitive_files = metadata)),
+        files = depset([executable, env_file, manifest]),
+        runfiles = subject[DefaultInfo].default_runfiles.merge(ctx.runfiles(files = [env_file, manifest], transitive_files = metadata)),
     )]
 
 def _subject_rule(subject_cfg, extra_attrs, doc):

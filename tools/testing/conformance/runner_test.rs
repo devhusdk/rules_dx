@@ -6,9 +6,12 @@ fn subject_matches_mode() {
     let mut subject = None;
     let mut subject_env = Vec::new();
     let mut subject_key = String::new();
+    let mut manifest = String::new();
     for entry in key.split(' ').filter(|entry| !entry.is_empty()) {
         let path = dx_testing::rlocation(entry).expect("subject must resolve from runfiles");
-        if entry.ends_with(".env") {
+        if entry.ends_with(".coverage_manifest") {
+            manifest = path.to_string_lossy().into_owned();
+        } else if entry.ends_with(".env") {
             let text = std::fs::read_to_string(&path).expect("subject env must be readable");
             for line in text.lines() {
                 if let Some((name, value)) = line.split_once('=') {
@@ -44,6 +47,9 @@ fn subject_matches_mode() {
         envs.push(("COVERAGE", "1"));
         envs.push(("COVERAGE_DIR", raw_s.as_str()));
         envs.push(("COVERAGE_OUTPUT_FILE", out_s.as_str()));
+        envs.push(("COVERAGE_MANIFEST", manifest.as_str()));
+        envs.push(("ROOT", runfiles.as_str()));
+        envs.push(("TEST_WORKSPACE", "_main"));
     }
     let subject_env: Vec<(String, String)> = subject_env
         .into_iter()
@@ -69,8 +75,6 @@ fn subject_matches_mode() {
         .to_owned();
     if mode == "coverage" && native {
         envs.push(("LLVM_PROFILE_FILE", profile.as_str()));
-        envs.push(("ROOT", runfiles.as_str()));
-        envs.push(("TEST_WORKSPACE", "_main"));
         envs.push(("TEST_BINARY", binary.as_str()));
     }
     let run = dx_testing::run(&subject, &[], &envs).expect("subject must execute");

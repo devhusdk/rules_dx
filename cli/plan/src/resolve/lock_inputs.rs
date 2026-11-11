@@ -290,8 +290,12 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
     for call in module.calls_named("use_extension") {
         let bzl = literal(call, "extension_bzl_file", Some(0)).ok().flatten();
         let name = literal(call, "extension_name", Some(1)).ok().flatten();
-        if bzl.is_some_and(|bzl| bzl.ends_with("extensions.bzl"))
-            && name.as_deref() == Some("go_deps")
+        let hub_extension = match name.as_deref() {
+            Some("go_deps") => bzl.is_some_and(|bzl| bzl.ends_with("extensions.bzl")),
+            Some("go") => bzl.is_some_and(|bzl| bzl.ends_with("//go:extensions.bzl")),
+            _ => false,
+        };
+        if hub_extension
             && let Some(binding) = &call.binding
         {
             bindings.insert(binding);
@@ -1423,6 +1427,15 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         let other_repo = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"@other//:Cargo.lock\")\n";
         assert!(crate_hubs(other_repo).is_err());
         assert!(crate_hubs("crate.from_cargo(\n").is_err());
+    }
+
+    #[test]
+    fn go_hub_extension_files_classify() {
+        let module = "go = use_extension(\"@rules_dx//go:extensions.bzl\", \"go\")\ngo.from_file(go_mod = \"//third_party/go:go.mod\")\n";
+        let hubs = crate_hubs(module).expect("hubs");
+        let kind = LockKind::Go(vec!["go_deps".to_owned()]);
+        assert_eq!(classify("third_party/go/go.mod", &hubs), kind);
+        assert_eq!(classify("third_party/go/go.sum", &hubs), kind);
     }
 
     #[test]

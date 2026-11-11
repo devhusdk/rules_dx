@@ -901,11 +901,14 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every gazelle `go_deps.from_file` tag that names a `go_mod`, in source order.
+    /// Every gazelle `go_deps.from_file` or rules_dx `go.from_file` tag that names a `go_mod`, in source order.
     pub fn go_deps_files(&self) -> Result<Vec<GoModFile<'_>>, ModuleError> {
         const TAG: &str = "go_deps.from_file";
         let mut out = Vec::new();
-        for call in self.tags(GAZELLE_MODULE, ":extensions.bzl", "go_deps", "from_file") {
+        let calls = self
+            .tags(GAZELLE_MODULE, ":extensions.bzl", "go_deps", "from_file")
+            .chain(self.dx_tags("go", "go", "from_file"));
+        for call in calls {
             if let Some(go_mod) = literal(call, TAG, "go_mod")? {
                 out.push(GoModFile {
                     go_mod,

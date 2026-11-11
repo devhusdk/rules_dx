@@ -594,7 +594,6 @@ rust/private/quality/tools/progenitor/BUILD.bazel no-size 1
 rust/private/quality/tools/topiary/BUILD.bazel no-size 1
 rust/private/toolchain/BUILD.bazel no-size 1
 rust/private/toolchain/identity_tests.bzl no-size 2
-rust/private/wrapper_tests.bzl no-size 1
 rust/tests/fixtures/adopt-rust/crates/api/BUILD.bazel no-size 4
 rust/tests/fixtures/adopt-rust/solo/BUILD.bazel no-size 1
 rust/tests/fixtures/bench/BUILD.bazel no-size 3

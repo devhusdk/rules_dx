@@ -358,7 +358,7 @@ pub(super) fn collect(
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with("composer.lock"))
+                    .filter(|lock| lock.ends_with(dependency_sets::composer_lock()))
                     .cloned()
                     .collect();
                 merge(
@@ -475,7 +475,7 @@ pub(super) fn collect(
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with("dub.selections.json"))
+                    .filter(|lock| lock.ends_with(dependency_sets::dub_selections()))
                     .cloned()
                     .collect();
                 merge(
@@ -496,7 +496,7 @@ pub(super) fn collect(
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with(dependency_sets::LUAROCKS_LOCK))
+                    .filter(|lock| lock.ends_with(dependency_sets::luarocks_lock()))
                     .cloned()
                     .collect();
                 let mut pins = Vec::new();
@@ -507,7 +507,7 @@ pub(super) fn collect(
                         }
                         Err(reason) => read_errors.push(dx_update::discover::LookupError {
                             set: name.to_owned(),
-                            package: dependency_sets::LUAROCKS_LOCK.to_owned(),
+                            package: dependency_sets::luarocks_lock().to_owned(),
                             reason: reason.message().to_owned(),
                         }),
                     }
@@ -1471,6 +1471,6 @@ fn outdated_hint(ecosystem: Ecosystem) -> String {
         Ecosystem::LuaRocks => {
             "edit the dependencies in the rockspec, then run dx update".to_owned()
         }
-        _ => "edit dub.json, then run dx update".to_owned(),
+        _ => "edit the dub manifest, then run dx update".to_owned(),
     }
 }

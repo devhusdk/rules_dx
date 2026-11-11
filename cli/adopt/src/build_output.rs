@@ -6,13 +6,13 @@ use std::process::Command;
 use crate::git_changes::{
     ChangeKind, DEFAULT_BRANCH_CANDIDATES, dedupe_changes, parse_name_status_nul,
 };
-use crate::lock_hubs::{lock_of, manifest_of};
+use crate::lock_hubs::{lock_of, manifest_of, state_of};
 
 /// Largest file a change may add without being listed in `[large_files] allow` of dx.toml.
 pub const MAX_FILE_BYTES: u64 = 1_048_576;
 
 /// Lock files are generated and often large, so the size limit skips them.
-const LOCK_FILES: [&str; 11] = [
+const LOCK_FILES: [&str; 10] = [
     "MODULE.bazel.lock",
     "cargo-bazel-lock.json",
     "poetry.lock",
@@ -23,10 +23,11 @@ const LOCK_FILES: [&str; 11] = [
     "yarn.lock",
     "bun.lock",
     "gradle.lockfile",
-    "composer.lock",
 ];
 
 const REGISTRY_LOCKS: [&str; 6] = ["cargo", "uv", "npm", "go", "maven", "ruby"];
+
+const REGISTRY_STATES: [&str; 1] = ["composer"];
 
 /// Directory names that always hold build output.
 pub const BUILD_OUTPUT_DIRS: [&str; 4] = ["target", "node_modules", "__pycache__", ".gradle"];
@@ -128,6 +129,7 @@ fn allowed(root: &Path) -> Vec<String> {
 fn is_lock_file(path: &str) -> bool {
     let name = path.rsplit('/').next().unwrap_or(path);
     LOCK_FILES.contains(&name) || REGISTRY_LOCKS.iter().any(|eco| lock_of(eco) == name)
+        || REGISTRY_STATES.iter().any(|eco| state_of(eco) == name)
 }
 
 fn is_allowed(allow: &[String], path: &str) -> bool {

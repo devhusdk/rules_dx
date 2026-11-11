@@ -680,7 +680,7 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_composer_set_reads_its_composer_lock_and_the_packagist_snapshot() {
         let harness = consumer_harness("composer-vuln", COMPOSER_MODULE, false);
-        harness.write_source("apps/php/composer.lock", COMPOSER_LOCK);
+        harness.write_source(&format!("apps/php/{}", dx_adopt::dependency_sets::composer_lock()), COMPOSER_LOCK);
         harness.write_source("apps/php/vendor.lock.json", "{}");
         write_advisory(&harness, "packagist", COMPOSER_ADVISORY);
         let runner = clean_runner();
@@ -688,7 +688,10 @@ source = { registry = "https://pypi.org/simple" }
             run_with(&["security", "--output=json", "vendor"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("vuln/GHSA-psr-0001"), "{out}");
-        assert!(out.contains("apps/php/composer.lock"), "{out}");
+        assert!(
+            out.contains(&format!("apps/php/{}", dx_adopt::dependency_sets::composer_lock())),
+            "{out}"
+        );
     }
 
     const OPAM_MODULE: &str = "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"ocaml_app\", lock = \"//apps/ml:ocaml_app.opam.locked\")\n";

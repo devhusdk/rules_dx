@@ -45,7 +45,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/docs/swift/swift_extract",
         normal = True,
-    ) + [":dx_docs_swift_extract"],
+    ) + [
+        ":dx_docs_swift_extract",
+        "//tools/docs/ir/ir:documentation_ir",
+    ],
 )
 
 rust_test(

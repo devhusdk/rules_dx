@@ -55,59 +55,32 @@ pub fn usage() -> &'static str {
 
 /// Parses argv into inputs, or returns the rejection text.
 pub fn parse(args: &[String]) -> Result<Options, String> {
-    let mut options = Options::default();
-    let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
-        let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
+    let mut flags = documentation_ir::tool::flags(
+        args,
+        &["--src", "--generated", "--descriptor", "--package", "--out"],
+    )?;
+    let mut options = Options {
+        descriptor: flags.one("--descriptor")?,
+        package: flags.one("--package")?,
+        out: flags.one("--out")?,
+        ..Options::default()
+    };
+    for value in flags.many("--src") {
+        let Some((name, path)) = value.split_once('=') else {
+            return Err(format!("--src '{value}' is not PROTO=PATH"));
         };
-        if value.is_empty() {
-            return Err(format!("{flag} must not be empty"));
+        if name.is_empty() || path.is_empty() {
+            return Err(format!("--src '{value}' is not PROTO=PATH"));
         }
-        match flag {
-            "--src" => {
-                let Some((name, path)) = value.split_once('=') else {
-                    return Err(format!("--src '{value}' is not PROTO=PATH"));
-                };
-                if name.is_empty() || path.is_empty() {
-                    return Err(format!("--src '{value}' is not PROTO=PATH"));
-                }
-                if options
-                    .srcs
-                    .insert(name.to_owned(), path.to_owned())
-                    .is_some()
-                {
-                    return Err(format!("--src given twice for '{name}'"));
-                }
-            }
-            "--generated" => {
-                options.generated.insert(value.clone());
-            }
-            "--descriptor" | "--package" | "--out" => {
-                let slot = match flag {
-                    "--descriptor" => &mut options.descriptor,
-                    "--package" => &mut options.package,
-                    _ => &mut options.out,
-                };
-                if !slot.is_empty() {
-                    return Err(format!("{flag} given more than once"));
-                }
-                *slot = value.clone();
-            }
-            _ => return Err(format!("unknown argument '{flag}'")),
-        }
-        index += 2;
-    }
-    for (flag, value) in [
-        ("--descriptor", &options.descriptor),
-        ("--package", &options.package),
-        ("--out", &options.out),
-    ] {
-        if value.is_empty() {
-            return Err(format!("{flag} is required"));
+        if options
+            .srcs
+            .insert(name.to_owned(), path.to_owned())
+            .is_some()
+        {
+            return Err(format!("--src given twice for '{name}'"));
         }
     }
+    options.generated.extend(flags.many("--generated"));
     Ok(options)
 }
 
@@ -116,9 +89,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     let bytes = fs::read(&options.descriptor)
         .map_err(|error| format!("cannot read {}: {error}", options.descriptor))?;
     let shard = convert(&bytes, options)?;
-    let bytes = documentation_ir::encode_shard(&shard)
-        .map_err(|error| format!("cannot encode IR: {error:?}"))?;
-    fs::write(&options.out, bytes).map_err(|error| format!("cannot write {}: {error}", options.out))
+    documentation_ir::tool::write_shard(&options.out, &shard)
 }
 
 /// Strips the comment markers' shared leading space and trailing blank space.

@@ -41,42 +41,15 @@ pub fn usage() -> &'static str {
 
 /// Parses argv into inputs, or returns the rejection text.
 pub fn parse(args: &[String]) -> Result<Options, String> {
-    let mut options = Options::default();
-    let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
-        let slot = match flag {
-            "--json" => &mut options.json,
-            "--package" => &mut options.package,
-            "--root" => &mut options.root,
-            "--srcs" => &mut options.srcs,
-            "--out" => &mut options.out,
-            _ => return Err(format!("unknown argument '{flag}'")),
-        };
-        let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
-        };
-        if !slot.is_empty() {
-            return Err(format!("{flag} given more than once"));
-        }
-        if value.is_empty() {
-            return Err(format!("{flag} must not be empty"));
-        }
-        *slot = value.clone();
-        index += 2;
-    }
-    for (flag, value) in [
-        ("--json", &options.json),
-        ("--package", &options.package),
-        ("--root", &options.root),
-        ("--srcs", &options.srcs),
-        ("--out", &options.out),
-    ] {
-        if value.is_empty() {
-            return Err(format!("{flag} is required"));
-        }
-    }
-    Ok(options)
+    let mut flags =
+        documentation_ir::tool::flags(args, &["--json", "--package", "--root", "--srcs", "--out"])?;
+    Ok(Options {
+        json: flags.one("--json")?,
+        package: flags.one("--package")?,
+        root: flags.one("--root")?,
+        srcs: flags.one("--srcs")?,
+        out: flags.one("--out")?,
+    })
 }
 
 /// Reads, converts, validates and writes one shard, returning the failure text on error.
@@ -94,9 +67,7 @@ pub fn run(options: &Options) -> Result<(), String> {
             .cloned()
             .ok_or_else(|| format!("source '{staged}' is not in the srcs manifest"))
     })?;
-    let bytes = documentation_ir::encode_shard(&shard)
-        .map_err(|error| format!("cannot encode IR: {error:?}"))?;
-    fs::write(&options.out, bytes).map_err(|error| format!("cannot write {}: {error}", options.out))
+    documentation_ir::tool::write_shard(&options.out, &shard)
 }
 
 /// Joins the staged root and a griffe file path, which uses backslashes on Windows.

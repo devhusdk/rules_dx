@@ -52,40 +52,31 @@ fn pair(flag: &str, value: &str) -> Result<(String, String), String> {
 
 /// Parses argv into inputs, or returns the rejection text.
 pub fn parse(args: &[String]) -> Result<Options, String> {
-    let mut options = Options::default();
-    let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
-        let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
-        };
-        if value.is_empty() {
-            return Err(format!("{flag} must not be empty"));
-        }
-        match flag {
-            "--schema" => options.schemas.push(pair(flag, value)?),
-            "--schema-dir" => options.schema_dirs.push(pair(flag, value)?),
-            "--generated" => options.generated.push(value.clone()),
-            "--package" | "--out" => {
-                let slot = if flag == "--package" {
-                    &mut options.package
-                } else {
-                    &mut options.out
-                };
-                if !slot.is_empty() {
-                    return Err(format!("{flag} given more than once"));
-                }
-                *slot = value.clone();
-            }
-            _ => return Err(format!("unknown argument '{flag}'")),
-        }
-        index += 2;
-    }
-    for (flag, value) in [("--package", &options.package), ("--out", &options.out)] {
-        if value.is_empty() {
-            return Err(format!("{flag} is required"));
-        }
-    }
+    let mut flags = documentation_ir::tool::flags(
+        args,
+        &[
+            "--schema",
+            "--schema-dir",
+            "--generated",
+            "--package",
+            "--out",
+        ],
+    )?;
+    let options = Options {
+        package: flags.one("--package")?,
+        out: flags.one("--out")?,
+        schemas: flags
+            .many("--schema")
+            .iter()
+            .map(|value| pair("--schema", value))
+            .collect::<Result<_, _>>()?,
+        schema_dirs: flags
+            .many("--schema-dir")
+            .iter()
+            .map(|value| pair("--schema-dir", value))
+            .collect::<Result<_, _>>()?,
+        generated: flags.many("--generated"),
+    };
     if options.schemas.is_empty() && options.schema_dirs.is_empty() {
         return Err("at least one --schema or --schema-dir is required".to_owned());
     }
@@ -105,7 +96,10 @@ pub fn run(options: &Options) -> Result<(), String> {
             .map_err(|error| format!("cannot read {dir}: {error}"))?
             .filter_map(Result::ok)
             .map(|entry| entry.path())
-            .filter(|path| path.extension().is_some_and(|ext| ext == "avsc" || ext == "avpr"))
+            .filter(|path| {
+                path.extension()
+                    .is_some_and(|ext| ext == "avsc" || ext == "avpr")
+            })
             .collect();
         files.sort();
         for path in files {
@@ -260,7 +254,8 @@ impl Builder<'_> {
         };
         // A type imported by several files appears in each; keep the copy that has docs.
         match self.symbols.get(&id) {
-            Some(existing) if !existing.doc_markdown.is_empty() || symbol.doc_markdown.is_empty() => {}
+            Some(existing)
+                if !existing.doc_markdown.is_empty() || symbol.doc_markdown.is_empty() => {}
             _ => {
                 self.symbols.insert(id, symbol);
             }
@@ -327,7 +322,11 @@ impl Builder<'_> {
             if let Some(default) = field.get("default") {
                 signature.push_str(&format!(" = {default}"));
             }
-            let field_line = if line == 0 { 0 } else { self.find_line(name, line) };
+            let field_line = if line == 0 {
+                0
+            } else {
+                self.find_line(name, line)
+            };
             self.push(
                 self.id_of(&namespace, &simple, Some(name)),
                 format!("{}.{name}", full_name(&namespace, &simple)),
@@ -424,7 +423,12 @@ impl Builder<'_> {
             Vec::new(),
             None,
         );
-        for ty in value.get("types").and_then(Value::as_array).into_iter().flatten() {
+        for ty in value
+            .get("types")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
             self.walk(ty, &namespace);
         }
         let messages = value.get("messages").and_then(Value::as_object);
@@ -476,7 +480,12 @@ impl Builder<'_> {
                     doc: String::new(),
                 }),
             );
-            for ty in message.get("request").and_then(Value::as_array).into_iter().flatten() {
+            for ty in message
+                .get("request")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
                 self.walk(ty.get("type").unwrap_or(&Value::Null), &namespace);
             }
         }
@@ -484,10 +493,7 @@ impl Builder<'_> {
 }
 
 /// Converts schema texts, each with the source it documents and its file name, into one shard.
-pub fn convert(
-    inputs: &[(String, String, String)],
-    options: &Options,
-) -> Result<DocIr, String> {
+pub fn convert(inputs: &[(String, String, String)], options: &Options) -> Result<DocIr, String> {
     let package = options.package.as_str();
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(format!("invalid package '{package}'"));

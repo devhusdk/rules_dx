@@ -49,7 +49,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/docs/components/component_extract",
         normal = True,
-    ) + [":dx_docs_component_extract"],
+    ) + [
+        ":dx_docs_component_extract",
+        "//tools/docs/ir/ir:documentation_ir",
+    ],
 )
 
 rust_test(

@@ -13,22 +13,13 @@
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.iter().any(|a| a == "-h" || a == "--help") {
-        println!("{}", dx_docs_rust_extract::usage());
-        return ExitCode::SUCCESS;
-    }
-    let options = match dx_docs_rust_extract::parse(&args) {
-        Ok(options) => options,
-        Err(detail) => {
-            eprintln!("rust_extract: {detail}\n{}", dx_docs_rust_extract::usage());
-            return ExitCode::from(2);
-        }
-    };
-    let error = dx_docs_rust_extract::run(&options);
-    if error.is_empty() {
-        return ExitCode::SUCCESS;
-    }
-    eprintln!("docs_rust: {error}");
-    ExitCode::FAILURE
+    documentation_ir::tool::main(
+        "docs_rust",
+        dx_docs_rust_extract::usage(),
+        dx_docs_rust_extract::parse,
+        |options| match dx_docs_rust_extract::run(options) {
+            error if error.is_empty() => Ok(()),
+            error => Err(error),
+        },
+    )
 }

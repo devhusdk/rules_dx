@@ -51,7 +51,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/docs/dotnet/dotnet_extract",
         normal = True,
-    ) + [":dx_docs_dotnet_extract"],
+    ) + [
+        ":dx_docs_dotnet_extract",
+        "//tools/docs/ir/ir:documentation_ir",
+    ],
 )
 
 rust_test(

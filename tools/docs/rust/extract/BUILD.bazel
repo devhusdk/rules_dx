@@ -42,7 +42,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/docs/rust/rust_extract",
         normal = True,
-    ) + [":dx_docs_rust_extract"],
+    ) + [
+        ":dx_docs_rust_extract",
+        "//tools/docs/ir/ir:documentation_ir",
+    ],
 )
 
 rust_test(

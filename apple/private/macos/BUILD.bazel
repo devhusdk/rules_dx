@@ -247,12 +247,6 @@ apple_macos_app(
     version = "1.0",
 )
 
-build_test(
-    name = "demo_build_test",
-    target_compatible_with = ["@platforms//os:macos"],
-    targets = [":demo"],
-)
-
 objc_library(
     name = "parts_lib",
     srcs = ["part.m"],

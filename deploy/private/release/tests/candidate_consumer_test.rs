@@ -253,7 +253,7 @@ fn assert_gcc_consumer(case: &Case) {
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
             .unwrap_or_else(|error| panic!("chmod {path:?}: {error}"));
     }
-    let path = format!("PATH={}:/usr/bin:/bin", shim.display());
+    let path = format!("PATH={}", shim.display());
     let repo_env = format!("--repo_env={path}");
     let action_env = format!("--action_env={path}");
     let flags = [

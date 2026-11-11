@@ -87,7 +87,8 @@ impl GoModFile {
 
 /// Reads a Go manifest, failing on syntax the Go toolchain rejects.
 pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
-    let parsed = GoMod::from_str(text).map_err(|detail| format!("invalid {}: {detail}", manifest()))?;
+    let parsed =
+        GoMod::from_str(text).map_err(|detail| format!("invalid {}: {detail}", manifest()))?;
     let mut markers = requirement_markers(text);
     let require = parsed
         .require
@@ -115,7 +116,11 @@ pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
                     manifest(),
                     entry.module
                 ),
-                None => format!("invalid {}: multiple replacements for {}", manifest(), entry.module),
+                None => format!(
+                    "invalid {}: multiple replacements for {}",
+                    manifest(),
+                    entry.module
+                ),
             });
         }
     }

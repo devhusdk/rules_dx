@@ -1722,3 +1722,28 @@ func TestDropKeptRemovesGeneratedRuleOverKeptSrcs(t *testing.T) {
 		t.Fatalf("Imports = %v, want [y]", got.Imports)
 	}
 }
+
+func TestGenerateSingleFileSweepsOnlyOwnedRules(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "kept.dot", "")
+	dotFile(t, root, "other.dot", "")
+	build := "dot_library(name = \"hand\", srcs = [\"kept.dot\"])\ndot_library(name = \"gone\", srcs = [\"deleted.dot\"])\n"
+	file, err := rule.LoadData(filepath.Join(root, "BUILD.bazel"), "", []byte(build))
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, File: file, RegularFiles: []string{"other.dot"}}
+	result := GenerateSingleFile(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, SingleFileSpec{
+		LanguageName: dotLanguage, LibraryKind: dotKind, IsSource: isDot2, OwnsByName: true,
+		TargetName:   func(name string) (string, error) { return strings.TrimSuffix(name, ".dot"), nil },
+		ParseImports: func([]byte, string) []ImportRef { return nil },
+		Wrap:         WrapRefImportSet,
+	}, newDotLang())
+	var empty []string
+	for _, r := range result.Empty {
+		empty = append(empty, r.Name())
+	}
+	if !slices.Equal(empty, []string{"gone"}) {
+		t.Errorf("Empty = %v, want [gone]", empty)
+	}
+}

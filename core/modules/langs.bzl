@@ -29,7 +29,8 @@ LANGS = json.decode("""{
       "ansible"
     ],
     "entry_points": [
-      "ansible_library"
+      "ansible_library",
+      "ansible_lock"
     ],
     "family": "core",
     "lockfiles": [],
@@ -71,7 +72,7 @@ LANGS = json.decode("""{
         }
       ]
     },
-    "title": "ansible",
+    "title": "Ansible",
     "tools": [
       "ansible_lint",
       "yamlfmt"
@@ -89,7 +90,12 @@ LANGS = json.decode("""{
     },
     "ecosystems": [],
     "entry_points": [
-      "api_spec_library"
+      "api_spec_library",
+      "openapi_go_client",
+      "openapi_python_client",
+      "openapi_rust_client",
+      "openapi_typescript_client",
+      "openapi_codegen_shard"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -131,7 +137,7 @@ LANGS = json.decode("""{
         ]
       }
     },
-    "title": "api_spec",
+    "title": "OpenAPI and AsyncAPI",
     "tools": [
       "prettier",
       "redocly"
@@ -180,7 +186,7 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
-    "title": "asciidoc",
+    "title": "AsciiDoc",
     "tools": [
       "lychee",
       "vale"
@@ -242,7 +248,10 @@ LANGS = json.decode("""{
     },
     "ecosystems": [],
     "entry_points": [
-      "avro_library"
+      "avro_library",
+      "avro_cc_library",
+      "avro_java_library",
+      "avro_codegen_shard"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -328,7 +337,7 @@ LANGS = json.decode("""{
         }
       ]
     },
-    "title": "bicep",
+    "title": "Bicep",
     "tools": [
       "bicep",
       "trivy_config"
@@ -337,7 +346,11 @@ LANGS = json.decode("""{
   "capnproto": {
     "ecosystems": [],
     "entry_points": [
-      "capnp_library"
+      "capnp_library",
+      "capnp_cc_library",
+      "capnp_java_library",
+      "capnp_rust_library",
+      "capnp_codegen_shard"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -367,7 +380,7 @@ LANGS = json.decode("""{
         ".capnp"
       ]
     },
-    "title": "capnproto",
+    "title": "Cap'n Proto",
     "tools": []
   },
   "cc": {
@@ -407,7 +420,8 @@ LANGS = json.decode("""{
     "manifests": [],
     "name": "cc",
     "pins": [
-      "private/toolchains/pins.bzl"
+      "private/toolchains/pins.bzl",
+      "private/toolchains/pins.json"
     ],
     "platforms": [
       "linux_arm64",
@@ -496,7 +510,7 @@ LANGS = json.decode("""{
         ".json"
       ]
     },
-    "title": "cloudformation",
+    "title": "CloudFormation",
     "tools": [
       "cfn_lint",
       "prettier",
@@ -537,7 +551,7 @@ LANGS = json.decode("""{
         ".cmake"
       ]
     },
-    "title": "cmake",
+    "title": "CMake",
     "tools": [
       "cmakelint",
       "gersemi"
@@ -609,7 +623,9 @@ LANGS = json.decode("""{
     "lockfiles": [],
     "manifests": [],
     "name": "cuda",
-    "pins": [],
+    "pins": [
+      "private/toolchain/pins.json"
+    ],
     "platforms": [],
     "title": "CUDA",
     "tools": []
@@ -721,7 +737,8 @@ LANGS = json.decode("""{
       "dart_js_binary",
       "dart_wasm_binary",
       "dart_test",
-      "dart_bench"
+      "dart_bench",
+      "dart_config"
     ],
     "family": "core",
     "lockfiles": [
@@ -816,7 +833,7 @@ LANGS = json.decode("""{
       "every_workspace": true,
       "file_extensions": []
     },
-    "title": "dockerfile",
+    "title": "Dockerfile",
     "tools": [
       "hadolint",
       "prettier"
@@ -836,7 +853,9 @@ LANGS = json.decode("""{
     "ecosystems": [
       "nuget"
     ],
-    "entry_points": [],
+    "entry_points": [
+      "nuget_repo"
+    ],
     "family": "core",
     "lockfiles": [
       "paket.lock"
@@ -1056,7 +1075,12 @@ LANGS = json.decode("""{
   "flatbuffers": {
     "ecosystems": [],
     "entry_points": [
-      "flatbuffers_library"
+      "flatbuffers_library",
+      "flatbuffers_cc_library",
+      "flatbuffers_java_library",
+      "flatbuffers_rust_library",
+      "flatbuffers_conform_test",
+      "flatbuffers_codegen_shard"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -1086,7 +1110,7 @@ LANGS = json.decode("""{
         ".fbs"
       ]
     },
-    "title": "flatbuffers",
+    "title": "FlatBuffers",
     "tools": [
       "flatc"
     ]
@@ -1113,7 +1137,9 @@ LANGS = json.decode("""{
       "pubspec.yaml"
     ],
     "name": "flutter",
-    "pins": [],
+    "pins": [
+      "private/pins.json"
+    ],
     "platforms": [],
     "title": "Flutter",
     "tools": []
@@ -1139,7 +1165,8 @@ LANGS = json.decode("""{
     "entry_points": [
       "fortran_library",
       "fortran_binary",
-      "fortran_test"
+      "fortran_test",
+      "fpm_lock"
     ],
     "family": "core",
     "lockfiles": [],
@@ -1351,7 +1378,9 @@ LANGS = json.decode("""{
       "haskell_library",
       "haskell_binary",
       "haskell_test",
-      "haskell_bench"
+      "haskell_bench",
+      "haskell_deps_resolve",
+      "haskell_deps_resolve_test"
     ],
     "family": "core",
     "lockfiles": [
@@ -1439,7 +1468,7 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
-    "title": "helm",
+    "title": "Helm",
     "tools": [
       "helm",
       "prettier",
@@ -1560,7 +1589,9 @@ LANGS = json.decode("""{
       "javascript_binary",
       "javascript_test",
       "javascript_bench",
-      "javascript_fuzz_test"
+      "javascript_fuzz_test",
+      "javascript_web_app",
+      "javascript_web_bundle"
     ],
     "family": "core",
     "lockfiles": [
@@ -1813,7 +1844,7 @@ LANGS = json.decode("""{
         ".yml"
       ]
     },
-    "title": "kubernetes",
+    "title": "Kubernetes",
     "tools": [
       "kubeconform",
       "trivy_config",
@@ -1837,7 +1868,8 @@ LANGS = json.decode("""{
     "entry_points": [
       "lua_library",
       "lua_binary",
-      "lua_test"
+      "lua_test",
+      "lua_bench"
     ],
     "family": "core",
     "lockfiles": [],
@@ -1933,7 +1965,7 @@ LANGS = json.decode("""{
         ".mk"
       ]
     },
-    "title": "make",
+    "title": "Make",
     "tools": [
       "checkmake",
       "mbake"
@@ -2445,7 +2477,8 @@ LANGS = json.decode("""{
       "qt_cc_binary",
       "qt_cc_test",
       "qt_rust_cc_library",
-      "qt_bundle"
+      "qt_bundle",
+      "qt_rust_library"
     ],
     "family": "core",
     "lockfiles": [],
@@ -2493,7 +2526,7 @@ LANGS = json.decode("""{
         ".rego"
       ]
     },
-    "title": "rego",
+    "title": "Rego",
     "tools": [
       "opa",
       "regal"
@@ -2516,7 +2549,7 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
-    "title": "rst",
+    "title": "reStructuredText",
     "tools": [
       "docstrfmt",
       "lychee",
@@ -2633,7 +2666,8 @@ LANGS = json.decode("""{
       "rust_proc_macro",
       "rust_shared_library",
       "rust_static_library",
-      "rust_fuzz_test"
+      "rust_fuzz_test",
+      "cargo_build_script"
     ],
     "family": "core",
     "lockfiles": [
@@ -2790,7 +2824,7 @@ LANGS = json.decode("""{
         ".sql"
       ]
     },
-    "title": "sql",
+    "title": "SQL",
     "tools": [
       "sqlfluff"
     ]
@@ -2869,7 +2903,9 @@ LANGS = json.decode("""{
       "Package.swift"
     ],
     "name": "swift",
-    "pins": [],
+    "pins": [
+      "private/toolchain/pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -2928,7 +2964,8 @@ LANGS = json.decode("""{
   "terraform": {
     "ecosystems": [],
     "entry_points": [
-      "terraform_library"
+      "terraform_library",
+      "terraform_provider"
     ],
     "family": "core",
     "lockfiles": [
@@ -2964,7 +3001,7 @@ LANGS = json.decode("""{
         ".tfvars"
       ]
     },
-    "title": "terraform",
+    "title": "Terraform",
     "tools": [
       "terraform",
       "tflint",
@@ -2974,7 +3011,11 @@ LANGS = json.decode("""{
   "thrift": {
     "ecosystems": [],
     "entry_points": [
-      "thrift_library"
+      "thrift_library",
+      "thrift_cc_library",
+      "thrift_java_library",
+      "thrift_rust_library",
+      "thrift_codegen_shard"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -3004,7 +3045,7 @@ LANGS = json.decode("""{
         ".thrift"
       ]
     },
-    "title": "thrift",
+    "title": "Thrift",
     "tools": [
       "thrift"
     ]

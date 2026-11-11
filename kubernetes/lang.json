@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "kubernetes",
-  "title": "kubernetes",
+  "title": "Kubernetes",
   "family": "core",
   "ecosystems": [],
   "manifests": [],

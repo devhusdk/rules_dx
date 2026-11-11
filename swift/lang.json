@@ -38,7 +38,9 @@
     "linux_x86_64",
     "macos_arm64"
   ],
-  "pins": [],
+  "pins": [
+    "private/toolchain/pins.json"
+  ],
   "entry_points": [
     "swift_interop_hint",
     "swift_library",

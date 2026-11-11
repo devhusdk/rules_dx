@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "api_spec",
-  "title": "api_spec",
+  "title": "OpenAPI and AsyncAPI",
   "family": "generation",
   "ecosystems": [],
   "manifests": [],
@@ -19,7 +19,12 @@
   ],
   "pins": [],
   "entry_points": [
-    "api_spec_library"
+    "api_spec_library",
+    "openapi_go_client",
+    "openapi_python_client",
+    "openapi_rust_client",
+    "openapi_typescript_client",
+    "openapi_codegen_shard"
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",

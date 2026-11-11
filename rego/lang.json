@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "rego",
-  "title": "rego",
+  "title": "Rego",
   "family": "core",
   "ecosystems": [],
   "manifests": [],

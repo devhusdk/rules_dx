@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "terraform",
-  "title": "terraform",
+  "title": "Terraform",
   "family": "core",
   "ecosystems": [],
   "manifests": [
@@ -24,7 +24,8 @@
   ],
   "pins": [],
   "entry_points": [
-    "terraform_library"
+    "terraform_library",
+    "terraform_provider"
   ],
   "quality": {
     "bzl": "terraform/private/quality:terraform.bzl",

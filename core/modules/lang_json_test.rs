@@ -550,3 +550,86 @@ fn starlark_lock_registry_is_generated_from_every_lang_json() {
     dx_testing::snapshot_diff(&expected, &actual, Some("core/modules/lock_registry.bzl"))
         .expect("core/modules/lock_registry.bzl is generated from every lang.json");
 }
+
+fn exported_names(defs: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    for line in defs.lines() {
+        let name = match line.strip_prefix("def ") {
+            Some(rest) => rest.split('(').next().unwrap_or(""),
+            None => line.split_once(" = ").map_or("", |(name, _)| name),
+        };
+        let valid = name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
+        if valid && name.starts_with(|c: char| c.is_ascii_lowercase()) {
+            names.insert(name.to_owned());
+        }
+    }
+    names
+}
+
+fn pin_files(dir: &Path, base: &Path, found: &mut BTreeSet<String>) {
+    for entry in std::fs::read_dir(dir).expect("read dir") {
+        let path = entry.expect("entry").path();
+        if path.is_dir() {
+            pin_files(&path, base, found);
+        } else if path.file_name().is_some_and(|name| name == "pins.json") {
+            let relative = path.strip_prefix(base).expect("under base");
+            found.insert(relative.to_string_lossy().replace('\\', "/"));
+        }
+    }
+}
+
+#[test]
+fn entry_points_list_every_rule_defs_bzl_exports() {
+    let root = dx_testing::rules_dx_source();
+    let mut problems = Vec::new();
+    for dir in language_dirs(&root) {
+        let Ok(defs) = std::fs::read_to_string(root.join(&dir).join("defs.bzl")) else {
+            continue;
+        };
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        let listed: BTreeSet<&str> = manifest["entry_points"]
+            .as_array()
+            .expect("entry_points")
+            .iter()
+            .filter_map(Value::as_str)
+            .collect();
+        for name in exported_names(&defs) {
+            if !listed.contains(name.as_str()) {
+                problems.push(format!("{}: entry_points lacks {name}", dir.display()));
+            }
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn exported_names_reads_defs_and_assignments() {
+    let names = exported_names("def a_rule(x):\n    pass\nb_rule = rule()\nInfo = provider()\nCONST = 1\ndef _private():\n");
+    assert_eq!(names.into_iter().collect::<Vec<_>>(), ["a_rule", "b_rule"]);
+}
+
+#[test]
+fn pins_list_every_pins_json_under_the_language_dir() {
+    let root = dx_testing::rules_dx_source();
+    let mut problems = Vec::new();
+    for dir in language_dirs(&root) {
+        let base = root.join(&dir);
+        let mut files = BTreeSet::new();
+        pin_files(&base, &base, &mut files);
+        let text = std::fs::read_to_string(base.join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        let listed: BTreeSet<&str> = manifest["pins"]
+            .as_array()
+            .expect("pins")
+            .iter()
+            .filter_map(Value::as_str)
+            .collect();
+        for file in &files {
+            if !listed.contains(file.as_str()) {
+                problems.push(format!("{}: pins lacks {file}", dir.display()));
+            }
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}

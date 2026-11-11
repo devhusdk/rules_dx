@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "capnproto",
-  "title": "capnproto",
+  "title": "Cap'n Proto",
   "family": "generation",
   "ecosystems": [],
   "manifests": [],
@@ -18,7 +18,11 @@
     "pins.json"
   ],
   "entry_points": [
-    "capnp_library"
+    "capnp_library",
+    "capnp_cc_library",
+    "capnp_java_library",
+    "capnp_rust_library",
+    "capnp_codegen_shard"
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",

@@ -50,6 +50,22 @@ haskell_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs)
 
 A haskell_binary of tasty-bench benchmarks plus a `<name>` runner that writes dx-bench.json for `dx bench`.
 
+### `haskell_deps_resolve`
+
+```python
+haskell_deps_resolve(name, srcs, target = "all", stack_lock = "", **kwargs)
+```
+
+Writes cabal.project.freeze and haskell_deps.json next to the cabal project in this package.
+
+### `haskell_deps_resolve_test`
+
+```python
+haskell_deps_resolve_test(name, srcs, freeze = "cabal.project.freeze", sidecar = "haskell_deps.json", **kwargs)
+```
+
+Fails when the freeze file or the sidecar is stale against the cabal project.
+
 ## API docs
 
 Tool: `haddock`.

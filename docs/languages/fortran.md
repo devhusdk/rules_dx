@@ -42,6 +42,14 @@ fortran_test(name, *, srcs = None, visibility = None, **kwargs)
 
 Compiles Fortran sources with rules_fortran and links them with cc_test.
 
+### `fpm_lock`
+
+```python
+fpm_lock(name, lock, **kwargs)
+```
+
+Re-hashes the archives of fpm.lock.
+
 ## API docs
 
 Tool: `ford`.

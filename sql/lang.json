@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "sql",
-  "title": "sql",
+  "title": "SQL",
   "family": "core",
   "ecosystems": [],
   "manifests": [],

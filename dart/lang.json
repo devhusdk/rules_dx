@@ -48,7 +48,8 @@
     "dart_js_binary",
     "dart_wasm_binary",
     "dart_test",
-    "dart_bench"
+    "dart_bench",
+    "dart_config"
   ],
   "quality": {
     "bzl": "dart/private/quality:dart.bzl",

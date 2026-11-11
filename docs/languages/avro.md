@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//avro:defs.bzl`:
 
 ```python
-load("@rules_dx//avro:defs.bzl", "avro_library")
+load("@rules_dx//avro:defs.bzl", "avro_library", "avro_cc_library", "avro_java_library")
 ```
 
 ## Rules
@@ -26,6 +26,34 @@ Owns Apache Avro schemas for dx lint.
 | --- | --- | --- | --- |
 | `srcs` | `label_list` | no | Avro schema files of this package. |
 | `deps` | `label_list` | no | avro_library targets whose schemas these import. |
+
+### `avro_cc_library`
+
+One C++ header with every type of the avro_library deps and their imports, and the runtime.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | avro_library targets to generate C++ for. |
+| `namespace` | `string` | no | C++ namespace passed to avrogencpp. |
+| `_avro_union` | `label` | no |  |
+| `_avrogencpp` | `label` | no |  |
+| `_runtime` | `label` | no |  |
+
+### `avro_java_library`
+
+Java classes for the schemas of avro_library deps and their imports, compiled once.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | avro_library targets to generate Java for. |
+| `_avro_union` | `label` | no |  |
+| `_avro_tools` | `label` | no |  |
+| `_runtime` | `label` | no |  |
+| `_zipper` | `label` | no |  |
+
+### `avro_codegen_shard`
+
+No documentation.
 
 ## API docs
 

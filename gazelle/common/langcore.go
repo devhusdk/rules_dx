@@ -92,7 +92,7 @@ func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) erro
 			continue
 		}
 		c := claims[0]
-		if have != c.Kind {
+		if have != c.Kind && !slices.Contains(c.Kinds, have) {
 			buildFile := ""
 			if !fromOther[name] && file != nil {
 				buildFile = fileBuildPath(file)
@@ -467,10 +467,15 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	}
 	var claimants []Claimant
 	if hasLib {
-		claimants = append(claimants, Claimant{Name: lib.name, Source: args.Rel, Kind: lib.kind})
+		libKinds := []string{spec.LibraryKind}
+		if spec.Variant != nil {
+			libKinds = append(libKinds, spec.Variant.Kind)
+		}
+		claimants = append(claimants, Claimant{Name: lib.name, Source: args.Rel, Kind: lib.kind, Kinds: libKinds})
 	}
 	for _, p := range plans {
-		claimants = append(claimants, Claimant{Name: p.name, Source: path.Join(args.Rel, p.src), Kind: p.rule.Kind()})
+		testKinds := append([]string{spec.Tests.Kind}, spec.Tests.AltKinds...)
+		claimants = append(claimants, Claimant{Name: p.name, Source: path.Join(args.Rel, p.src), Kind: p.rule.Kind(), Kinds: testKinds})
 	}
 	if err := CheckClaims(args.File, args.OtherGen, claimants); err != nil {
 		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
@@ -511,6 +516,19 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		byName := owns
 		owns = func(r *rule.Rule) bool {
 			return testOwns(r) && (byName == nil || byName(r))
+		}
+	}
+	if owns != nil {
+		claimed := make(map[string]string, len(claimants))
+		for _, c := range claimants {
+			claimed[c.Name] = c.Kind
+		}
+		inner := owns
+		owns = func(r *rule.Rule) bool {
+			if kind, ok := claimed[r.Name()]; ok && kind != r.Kind() {
+				return true
+			}
+			return inner(r)
 		}
 	}
 	return MergeStaleOwned(args.File, result, kinds, owns)

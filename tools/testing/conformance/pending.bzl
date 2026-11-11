@@ -106,10 +106,6 @@ helm coverage_test *
 helm fail_test *
 helm pass_test *
 java coverage_test *
-javascript build_test *
-javascript coverage_test *
-javascript fail_test *
-javascript pass_test *
 julia build_test *
 julia coverage_test *
 julia fail_test *

@@ -3,7 +3,6 @@
 load("//rust:defs.bzl", "rust_test")
 
 CONSUMER_FIXTURES = [
-    "cuda",
     "d",
     "elixir",
     "erlang",

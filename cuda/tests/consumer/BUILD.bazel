@@ -1,7 +1,0 @@
-load("@rules_dx//cuda:defs.bzl", "cuda_binary")
-
-cuda_binary(
-    name = "consumer",
-    srcs = ["main.cu"],
-    cuda_archs = ["sm_89"],
-)

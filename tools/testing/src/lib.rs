@@ -535,34 +535,17 @@ pub fn executable_script(path: &Path, body: &str) {
     assert!(status.success(), "write {}: {status}", path.display());
 }
 
-/// Writes a `bazel` into `dir` that answers a `dx generate` run with a clean, complete
-/// result manifest and fills the lock files `dx generate` seeds, plus a `uv` and
-/// `python` for `DX_UV_BIN` and `DX_UV_PYTHON`; returns a PATH with `dir` first.
+/// Links `tool`, the fake generate binary, into `dir` as `bazel`, `uv` and `python`
+/// for a `dx generate` run, which answers with a clean, complete result manifest and
+/// fills the lock files `dx generate` seeds; returns a PATH with `dir` first.
 #[cfg(unix)]
-pub fn fake_generate_bazel_path(dir: &Path) -> String {
+pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
     std::fs::create_dir_all(dir).expect("fake bazel dir");
-    executable_script(
-        &dir.join("bazel"),
-        r#"#!/bin/sh
-if [ -n "$DX_GENERATE_INTENDED" ]; then
-  printf '{"mode":"%s","result":"clean","scopes":[{"value":"//...","results_complete":true}],"files":[],"ignored_imports":[]}' "${DX_GENERATE_MODE:-default}" > "$DX_GENERATE_INTENDED"
-fi
-[ -n "$CARGO_BAZEL_REPIN" ] && printf '# lock
-' > Cargo.lock
-case " $* " in
-  *pnpm*) printf 'lockfileVersion: 9
-' > pnpm-lock.yaml ;;
-  *" uv "*|*uv_lock*|*/uv*) printf 'version = 1
-' > uv.lock ;;
-esac
-exit 0
-"#,
-    );
-    executable_script(&dir.join("python"), "#!/bin/sh\nexit 0\n");
-    executable_script(
-        &dir.join("uv"),
-        "#!/bin/sh\ncase \"$1\" in --version) echo 'uv 0.13.7' ;; lock) [ -s uv.lock ] || printf 'version = 1\\n' > uv.lock ;; esac\nexit 0\n",
-    );
+    for name in ["bazel", "uv", "python"] {
+        let link = dir.join(name);
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink(tool, &link).expect("link fake generate tool");
+    }
     format!(
         "{}:{}",
         dir.display(),

@@ -391,15 +391,12 @@ name elixir/private/mix_lock.bzl mix.lock
 name elixir/private/toolchain/extensions.bzl mix.lock
 name elixir/private/toolchain/repos.bzl mix.lock
 name fsharp/lang.json paket.lock
-name gazelle/common/external.go dub.json
-name gazelle/common/external.go dub.selections.json
 name gazelle/common/external.go go.mod
 name gazelle/common/external.go maven_install.json
 name gazelle/common/external.go package.json
 name gazelle/common/external.go pubspec.lock
 name gazelle/common/external.go uv.lock
 name gazelle/common/external_dub.go dub.json
-name gazelle/common/external_dub.go dub.selections.json
 name gazelle/common/external_npm.go pnpm-lock.yaml
 name gazelle/common/npmproject.go package.json
 name gazelle/common/npmproject.go tsconfig.json

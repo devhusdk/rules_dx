@@ -1,0 +1,14 @@
+load("//rust:defs.bzl", "rust_binary")
+
+package(default_testonly = True)
+
+rust_binary(
+    name = "fake_generate",
+    srcs = ["main.rs"],
+    crate_name = "fake_generate",
+    crate_root = "main.rs",
+    visibility = [
+        "//cli/cli/tests/adopt:__pkg__",
+        "//cli/cli/tests/agents:__pkg__",
+    ],
+)

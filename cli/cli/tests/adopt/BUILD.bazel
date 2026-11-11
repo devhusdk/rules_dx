@@ -12,6 +12,7 @@ rust_test(
     data = [
         "golden/fresh_init_dx.txt",
         "//cli/cli:dx",
+        "//cli/cli/tests/fake_generate",
         "//examples/adopt-polyglot:Cargo.lock",
         "//examples/adopt-polyglot:Cargo.toml",
         "//examples/adopt-polyglot:package.json",
@@ -21,6 +22,7 @@ rust_test(
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FAKE_GENERATE": "$(rootpath //cli/cli/tests/fake_generate)",
         "DX_FRESH_INIT_GOLDEN": "$(rootpath golden/fresh_init_dx.txt)",
         "DX_POLYGLOT_CARGO_LOCK": "$(rootpath //examples/adopt-polyglot:Cargo.lock)",
         "DX_POLYGLOT_CARGO_TOML": "$(rootpath //examples/adopt-polyglot:Cargo.toml)",

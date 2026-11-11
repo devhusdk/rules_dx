@@ -112,6 +112,9 @@ common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host
 # On Windows, prefer the MSVC-ABI host for actions and keep the plain host as a fallback.
 common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@rules_dx//tools/platforms:host
 
+# On Windows, turn off C++ coverage instrumentation.
+coverage:windows --features=-coverage
+
 # Run Java targets on the downloaded JDK 21, not a host JDK.
 build --java_runtime_version=remotejdk_21
 

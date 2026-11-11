@@ -106,7 +106,7 @@ const RUNFILES_FLAGS: [Flag; 1] = [(
     "On Windows, build runfiles trees only for actions that run.",
 )];
 
-const WINDOWS_FLAGS: [Flag; 4] = [
+const WINDOWS_FLAGS: [Flag; 5] = [
     (
         "build:windows --enable_runfiles",
         "On Windows, give tests a runfiles directory instead of only a manifest.",
@@ -122,6 +122,10 @@ const WINDOWS_FLAGS: [Flag; 4] = [
     (
         "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@rules_dx//tools/platforms:host",
         "On Windows, prefer the MSVC-ABI host for actions and keep the plain host as a fallback.",
+    ),
+    (
+        "coverage:windows --features=-coverage",
+        "On Windows, turn off C++ coverage instrumentation.",
     ),
 ];
 
@@ -775,6 +779,7 @@ mod tests {
                 "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
                 "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
                 "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@rules_dx//tools/platforms:host",
+                "coverage:windows --features=-coverage",
                 "build --java_runtime_version=remotejdk_21",
                 "build --tool_java_runtime_version=remotejdk_21",
                 "build --tool_java_language_version=17",
@@ -889,8 +894,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 55);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 55);
+        assert_eq!(total, 56);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 56);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -982,7 +987,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 55);
+        assert_eq!(flags.len(), 56);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

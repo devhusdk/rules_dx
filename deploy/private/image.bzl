@@ -188,6 +188,11 @@ _jars_for_platform = rule(
     },
 )
 
+_NOT_WINDOWS = select({
+    "@platforms//os:windows": ["@platforms//:incompatible"],
+    "//conditions:default": [],
+})
+
 def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx//deploy:linux_amd64"], tags = None, main = None, main_class = None, runtime = False, structure_tests = [], visibility = None, testonly = None):
     """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy; structure_tests lists container-structure-test configs that dx typecheck runs against each image with the tar driver."""
     if not main and type(binary) == "string":
@@ -266,6 +271,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
             env = env,
             tags = tags or [],
             tars = layers,
+            target_compatible_with = _NOT_WINDOWS,
             testonly = testonly,
             visibility = visibility if single else None,
         )
@@ -275,6 +281,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
             image = image,
             structure_tests = structure_tests,
             tags = tags,
+            target_compatible_with = _NOT_WINDOWS,
             testonly = testonly,
         )
         images.append(image)
@@ -284,6 +291,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
         image = images[0],
         repo_tags = [name + ":latest"],
         tags = tags or [],
+        target_compatible_with = _NOT_WINDOWS,
         testonly = testonly,
         visibility = visibility,
     )
@@ -295,6 +303,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
         name = name,
         images = images,
         tags = tags or [],
+        target_compatible_with = _NOT_WINDOWS,
         testonly = testonly,
         visibility = visibility,
     )

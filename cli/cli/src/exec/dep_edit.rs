@@ -26,9 +26,9 @@ pub(crate) struct DepEdit<'a> {
     pub(crate) verb: &'a EditVerb,
     pub(crate) target: &'a dx_update::edit::DepTarget,
     pub(crate) selector: &'a str,
-    /// The edit itself, e.g. "widened cargo:anyhow to 1.2.3 in Cargo.toml".
+    /// The edit itself, e.g. "widened cargo:anyhow to 1.2.3 in the manifest".
     pub(crate) edited: String,
-    /// Where the edit stays when the refresh fails, e.g. "widen kept in Cargo.toml".
+    /// Where the edit stays when the refresh fails, e.g. "widen kept in the manifest".
     pub(crate) kept: String,
 }
 
@@ -157,26 +157,7 @@ pub(crate) fn configured_set(
                     &format!(
                         "{} needs {} in set {}",
                         verb.command,
-                        match kind {
-                            dx_update::edit::ConfiguredKind::Bazel => "exactly one MODULE.bazel",
-                            dx_update::edit::ConfiguredKind::Npm => "exactly one package.json",
-                            dx_update::edit::ConfiguredKind::Uv => "exactly one pyproject.toml",
-                            dx_update::edit::ConfiguredKind::Cargo => "at least one Cargo.toml",
-                            dx_update::edit::ConfiguredKind::Maven => "exactly one MODULE.bazel",
-                            dx_update::edit::ConfiguredKind::Nuget =>
-                                "exactly one paket.dependencies",
-                            dx_update::edit::ConfiguredKind::Go => "exactly one go.mod",
-                            dx_update::edit::ConfiguredKind::Ruby => "exactly one Gemfile",
-                            dx_update::edit::ConfiguredKind::Cpan => "exactly one cpanfile",
-                            dx_update::edit::ConfiguredKind::Pub => "exactly one pubspec.yaml",
-                            dx_update::edit::ConfiguredKind::Hex => "exactly one mix.exs",
-                            dx_update::edit::ConfiguredKind::Julia => "exactly one Project.toml",
-                            dx_update::edit::ConfiguredKind::Composer =>
-                                "exactly one composer manifest",
-                            dx_update::edit::ConfiguredKind::Cabal => "exactly one .cabal file",
-                            dx_update::edit::ConfiguredKind::SwiftPm => "exactly one Package.swift",
-                            dx_update::edit::ConfiguredKind::Opam => "exactly one .opam file",
-                        },
+                        manifest_need(set.ecosystem, kind),
                         set.name
                     ),
                 ));
@@ -505,7 +486,7 @@ pub(crate) fn write_and_refresh(
                 request.target_manifest(),
                 kept,
             );
-            finish(result, refreshed("go.sum regenerated"))
+            finish(result, refreshed("go lock regenerated"))
         }
         RefreshPlan::Backend(dx_update::backend::BackendPlan::Run { argv, env }) => {
             let result = launch_refresh(
@@ -535,7 +516,7 @@ pub(crate) fn write_and_refresh(
         }
         RefreshPlan::InDir(run) => {
             let lock_name = if request.is_configured_ruby() {
-                "Gemfile.lock"
+                dx_adopt::dependency_sets::Ecosystem::Ruby.lockfiles()[0].as_str()
             } else {
                 "MODULE.bazel.lock"
             };
@@ -563,7 +544,7 @@ pub(crate) fn write_and_refresh(
 
 /// Refreshes a go set's lock through the staged runner `dx update` uses.
 ///
-/// Nothing but the declared lock is written; when go fails or edits go.mod the widen stays
+/// Nothing but the declared lock is written; when go fails or edits the manifest the widen stays
 /// and the message names the manual next step.
 fn refresh_staged(
     run: &dx_update::backend::StagedRun,
@@ -844,6 +825,23 @@ enum RefreshPlan {
     InDir(dx_update::backend::DirRun),
 }
 
+/// Names the manifests a configured set must have.
+fn manifest_need(
+    ecosystem: dx_adopt::dependency_sets::Ecosystem,
+    kind: dx_update::edit::ConfiguredKind,
+) -> String {
+    use dx_adopt::dependency_sets::Ecosystem;
+    use dx_update::edit::ConfiguredKind;
+    match kind {
+        ConfiguredKind::Cargo => format!("at least one {}", ecosystem.manifest_name()),
+        ConfiguredKind::Maven => format!("exactly one {}", Ecosystem::Bazel.manifest_name()),
+        ConfiguredKind::Composer => "exactly one composer manifest".to_owned(),
+        ConfiguredKind::Cabal => "exactly one .cabal file".to_owned(),
+        ConfiguredKind::Opam => "exactly one .opam file".to_owned(),
+        _ => format!("exactly one {}", ecosystem.manifest_name()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -893,8 +891,8 @@ mod tests {
             verb: &VERB,
             target,
             selector: "cargo:anyhow",
-            edited: "widened cargo:anyhow to 1.2.3 in Cargo.toml".to_owned(),
-            kept: "widen kept in Cargo.toml".to_owned(),
+            edited: "widened cargo:anyhow to 1.2.3 in the manifest".to_owned(),
+            kept: "widen kept in the manifest".to_owned(),
         }
     }
 
@@ -908,7 +906,7 @@ mod tests {
             &json_invocation(),
             &mut out,
             &mut err,
-            "Cargo.toml",
+            "manifest",
             &DxError::failure(""),
         );
         assert_eq!(code, dx_process::operational_code());
@@ -934,7 +932,7 @@ mod tests {
             &json_invocation(),
             &mut BrokenPipe,
             &mut err,
-            "Cargo.toml",
+            "manifest",
             &DxError::failure("failed to refresh cargo:anyhow"),
         );
         assert_eq!(code, dx_process::broken_pipe_code());

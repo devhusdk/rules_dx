@@ -1,4 +1,4 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_test")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@dx_npm_tools//javascript/private/quality:@bufbuild/protoc-gen-es/package_json.bzl", protoc_gen_es_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@microsoft/api-extractor/package_json.bzl", api_extractor_bin = "bin")
@@ -11,6 +11,18 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//javascript/private/quality:defs.bzl", "js_tool")
 
 package(default_visibility = ["//:__subpackages__"])
+
+js_library(
+    name = "graphql_eslint_mjs",
+    srcs = ["graphql_eslint.mjs"],
+    visibility = ["//javascript/tests:__pkg__"],
+)
+
+js_library(
+    name = "mdx_tsc_mjs",
+    srcs = ["mdx_tsc.mjs"],
+    visibility = ["//javascript/tests:__pkg__"],
+)
 
 js_binary(
     name = "eslint_generated",
@@ -42,13 +54,6 @@ js_binary(
         "//javascript/private/quality:node_modules/graphql",
     ],
     entry_point = "graphql_eslint.mjs",
-)
-
-js_test(
-    name = "graphql_eslint_config_test",
-    size = "small",
-    data = ["graphql_eslint.mjs"],
-    entry_point = "graphql_eslint_config_test.mjs",
 )
 
 js_binary(
@@ -94,21 +99,6 @@ js_binary(
     ],
     entry_point = "svelte_tsc.mjs",
     visibility = ["//visibility:public"],
-)
-
-js_test(
-    name = "mdx_tsc_test",
-    size = "small",
-    data = [
-        "mdx_tsc.mjs",
-        "//javascript/private/quality:node_modules/@mdx-js/language-service",
-        "//javascript/private/quality:node_modules/@mdx-js/mdx",
-        "//javascript/private/quality:node_modules/@volar/typescript",
-        "//javascript/private/quality:node_modules/remark-frontmatter",
-        "//javascript/private/quality:node_modules/remark-gfm",
-        "//javascript/private/quality:node_modules/typescript",
-    ],
-    entry_point = "mdx_tsc_test.mjs",
 )
 
 copy_file(

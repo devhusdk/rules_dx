@@ -1,5 +1,7 @@
 load("//core/modules:versions.bzl", "NODE_VERSION_PREFIX")
+load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":dev_hub_tests.bzl", "dev_hub_tests")
 load(":wrapper_tests.bzl", "javascript_wrapper_contract_tests")
@@ -21,6 +23,37 @@ ide_acquisition_test(
     expected = NODE_VERSION_PREFIX,
     size = "small",
     version_args = ["--version"],
+)
+
+js_test(
+    name = "graphql_eslint_config_test",
+    size = "small",
+    data = ["//javascript/private/quality/bin:graphql_eslint_mjs"],
+    entry_point = "graphql_eslint_config_test.mjs",
+)
+
+js_test(
+    name = "mdx_tsc_test",
+    size = "small",
+    data = [
+        "//javascript/private/quality/bin:mdx_tsc_mjs",
+            "//javascript/private/quality:node_modules/@mdx-js/language-service",
+        "//javascript/private/quality:node_modules/@mdx-js/mdx",
+        "//javascript/private/quality:node_modules/@volar/typescript",
+        "//javascript/private/quality:node_modules/remark-frontmatter",
+        "//javascript/private/quality:node_modules/remark-gfm",
+        "//javascript/private/quality:node_modules/typescript",
+    ],
+    entry_point = "mdx_tsc_test.mjs",
+)
+
+rust_test(
+    name = "js_launcher_test",
+    size = "small",
+    srcs = ["js_launcher_test.rs"],
+    data = ["//javascript/private/quality/launcher:js_launcher"],
+    env = {"DX_JS_LAUNCHER": "$(rootpath //javascript/private/quality/launcher:js_launcher)"},
+    deps = ["//javascript/private/quality/launcher:dx_js_launcher"],
 )
 
 real_source_target(

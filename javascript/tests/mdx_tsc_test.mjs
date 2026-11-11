@@ -7,7 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const tool = path.join(here, "mdx_tsc.mjs");
+const tool = path.join(here, "../private/quality/bin/mdx_tsc.mjs");
 
 const sources = {
   "bad.mdx": "import { missing } from \"./lib\";\n\nexport const bad = double(\"x\");\n\n# Bad\n\n<div title={double(\"y\")}>text</div>\n",

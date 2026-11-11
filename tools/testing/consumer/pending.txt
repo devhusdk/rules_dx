@@ -10,7 +10,6 @@ fixture helm
 fixture kubernetes
 fixture make
 fixture msix
-fixture python
 fixture terraform
 init csharp
 init cuda

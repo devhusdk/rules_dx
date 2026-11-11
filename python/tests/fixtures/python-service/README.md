@@ -25,5 +25,5 @@ Coverage instrumentation and runfiles contents are checked in `//python/tests/an
 Refresh the lock with `uv lock --directory python/tests/fixtures/python-service`.
 
 ```sh
-bazel test //python/tests/consumer:python_init_adopt_test
+bazel test //python/tests:python_init_adopt_test
 ```

@@ -1,22 +1,13 @@
 """Analysis tests for the MSIX cells, toolchain states and attribute checks."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-
-def _failure_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, ctx.attr.expected)
-    return analysistest.end(env)
+load("//core:failure_test.bzl", "failure_test_rule")
 
 def _failure_test(platform, extra_toolchains = []):
     settings = {"//command_line_option:platforms": str(Label(platform))}
     if extra_toolchains:
         settings["//command_line_option:extra_toolchains"] = [str(Label(t)) for t in extra_toolchains]
-    return analysistest.make(
-        _failure_impl,
-        expect_failure = True,
-        attrs = {"expected": attr.string(mandatory = True)},
-        config_settings = settings,
-    )
+    return failure_test_rule(settings)
 
 def _spec(env):
     """Returns the DxMsix action and its decoded request."""

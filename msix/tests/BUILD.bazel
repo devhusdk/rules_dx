@@ -275,33 +275,33 @@ msix_package(
 
 unsupported_cell_test(
     name = "x86_cell_fails",
-    expected = "target platform is unsupported",
+    expected_failure_substring = "target platform is unsupported",
     target_under_test = ":cell",
 )
 
 no_windows_exec_test(
     name = "no_windows_exec_fails",
-    expected = "packaging needs a windows_x86_64 or windows_arm64 execution platform",
+    expected_failure_substring = "packaging needs a windows_x86_64 or windows_arm64 execution platform",
     target_compatible_with = _LINUX,
     target_under_test = ":cell",
 )
 
 unaccepted_license_test(
     name = "unaccepted_license_fails",
-    expected = "license (https://aka.ms/WinSDKLicenseURL) is not accepted",
+    expected_failure_substring = "license (https://aka.ms/WinSDKLicenseURL) is not accepted",
     target_under_test = ":cell",
 )
 
 no_windows_exec_test(
     name = "signtool_no_windows_exec_fails",
-    expected = "signing needs a windows_x86_64 or windows_arm64 execution platform",
+    expected_failure_substring = "signing needs a windows_x86_64 or windows_arm64 execution platform",
     target_compatible_with = _LINUX,
     target_under_test = "//msix/private:signtool",
 )
 
 unaccepted_license_test(
     name = "signtool_unaccepted_license_fails",
-    expected = "license (https://aka.ms/WinSDKLicenseURL) is not accepted",
+    expected_failure_substring = "license (https://aka.ms/WinSDKLicenseURL) is not accepted",
     target_under_test = "//msix/private:signtool",
 )
 
@@ -312,55 +312,55 @@ sign_build_test(
 
 attribute_failure_test(
     name = "bad_version_fails",
-    expected = "version '1.0.0' must have four parts",
+    expected_failure_substring = "version '1.0.0' must have four parts",
     target_under_test = ":bad_version",
 )
 
 attribute_failure_test(
     name = "bad_min_version_fails",
-    expected = "min_version '10.0' must have four parts",
+    expected_failure_substring = "min_version '10.0' must have four parts",
     target_under_test = ":bad_min_version",
 )
 
 attribute_failure_test(
     name = "bad_max_version_fails",
-    expected = "max_version_tested '10.0.<.0' parts must be numbers",
+    expected_failure_substring = "max_version_tested '10.0.<.0' parts must be numbers",
     target_under_test = ":bad_max_version",
 )
 
 attribute_failure_test(
     name = "bad_publisher_fails",
-    expected = "publisher 'Dx Cell' must be a distinguished name",
+    expected_failure_substring = "publisher 'Dx Cell' must be a distinguished name",
     target_under_test = ":bad_publisher",
 )
 
 attribute_failure_test(
     name = "bad_lib_fails",
-    expected = "tests:cell_txt has no .dll",
+    expected_failure_substring = "tests:cell_txt has no .dll",
     target_under_test = ":bad_lib",
 )
 
 attribute_failure_test(
     name = "clash_fails",
-    expected = "both map to licenses/NOTICE.txt",
+    expected_failure_substring = "both map to licenses/NOTICE.txt",
     target_under_test = ":clash",
 )
 
 attribute_failure_test(
     name = "dll_clash_fails",
-    expected = "tests:other_dll both provide cell.dll",
+    expected_failure_substring = "tests:other_dll both provide cell.dll",
     target_under_test = ":dll_clash",
 )
 
 attribute_failure_test(
     name = "dll_clash_names_lib_fails",
-    expected = "tests:cell_dll and runfiles ",
+    expected_failure_substring = "tests:cell_dll and runfiles ",
     target_under_test = ":dll_clash",
 )
 
 attribute_failure_test(
     name = "dll_libs_clash_fails",
-    expected = "tests:other_dll and libs ",
+    expected_failure_substring = "tests:other_dll and libs ",
     target_under_test = ":dll_libs_clash",
 )
 

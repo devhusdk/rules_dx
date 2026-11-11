@@ -14,7 +14,9 @@
   ],
   "tools": [],
   "platforms": [],
-  "pins": [],
+  "pins": [
+    "pins.json"
+  ],
   "entry_points": [],
   "quality": {
     "bzl": "core/quality:families/dotnet.bzl",

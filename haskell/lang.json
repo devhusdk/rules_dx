@@ -40,8 +40,7 @@
     "macos_arm64"
   ],
   "pins": [
-    "private/toolchain/pins.bzl",
-    "private/toolchain/pins.json"
+    "pins.json"
   ],
   "entry_points": [
     "haskell_library",

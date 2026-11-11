@@ -32,7 +32,7 @@
   "tools": [],
   "platforms": [],
   "pins": [
-    "private/toolchain/pins.json"
+    "pins.json"
   ],
   "entry_points": [
     "d_library",

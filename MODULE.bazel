@@ -745,7 +745,7 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_d",
-    pins = "//d/private/toolchain:pins.json",
+    pins = "//d:pins.json",
 )
 dx_pins.data(
     name = "dx_elixir",
@@ -757,7 +757,7 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_fortran",
-    pins = "//fortran/private/toolchain:pins.json",
+    pins = "//fortran:pins.json",
 )
 dx_pins.pin(
     name = "dx_swift_format_macos_arm64",
@@ -766,7 +766,7 @@ dx_pins.pin(
 )
 dx_pins.data(
     name = "dx_haskell",
-    pins = "//haskell/private/toolchain:pins.json",
+    pins = "//haskell:pins.json",
 )
 dx_pins.data(
     name = "dx_lua_coverage",
@@ -774,7 +774,7 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_qt_sdk",
-    pins = "//qt/private/sdk:pins.json",
+    pins = "//qt:pins.json",
 )
 dx_pins.data(
     name = "dx_ruby_coverage",
@@ -782,7 +782,7 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_ocaml",
-    pins = "//ocaml/private/toolchain:pins.json",
+    pins = "//ocaml:pins.json",
 )
 dx_pins.data(
     name = "dx_msix",

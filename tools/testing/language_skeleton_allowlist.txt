@@ -413,12 +413,6 @@ name-prefix erlang/defs.bzl
 name-prefix fortran/defs.bzl
 name-prefix ocaml/defs.bzl
 pins cc/lang.json
-pins d/lang.json
-pins dotnet/lang.json
-pins fortran/lang.json
-pins haskell/lang.json
-pins ocaml/lang.json
-pins qt/lang.json
 platforms-option android/private/library/defs.bzl
 platforms-option apple/private/bundle/cell_tests.bzl
 platforms-option apple/private/ios/defs.bzl

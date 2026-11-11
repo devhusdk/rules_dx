@@ -12,7 +12,6 @@ exports_files([
     "metadata_tests.bzl",
     "ocaml.bzl",
     "pins.bzl",
-    "pins.json",
     "repos.bzl",
 ])
 

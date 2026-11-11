@@ -3,7 +3,10 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["README.md"])
+exports_files([
+    "README.md",
+    "pins.json",
+])
 
 filegroup(
     name = "module_srcs",

@@ -9,7 +9,7 @@
   "tools": [],
   "platforms": [],
   "pins": [
-    "private/sdk/pins.bzl"
+    "pins.json"
   ],
   "entry_points": [
     "qt_frameworks",

@@ -29,7 +29,7 @@ pub enum ConfiguredKind {
     Cargo,
     /// A maven set; only its own `maven.install` is edited.
     Maven,
-    /// A nuget set; `paket.dependencies` is edited and `paket.lock` is not re-resolved.
+    /// A nuget set; the paket manifest is edited and its lock is not re-resolved.
     Nuget,
     /// A go set; only the `require` line of its go.mod is edited, then go.sum is refreshed.
     Go,
@@ -253,7 +253,8 @@ impl DepTarget {
                 .and_then(|manifest| manifest.rsplit_once('/'))
                 .map_or(".", |(dir, _)| dir);
             format!(
-                "paket.lock is not re-resolved: run `paket update` in {dir}, then `dx update {}`",
+                "{} is not re-resolved: run `paket update` in {dir}, then `dx update {}`",
+                dx_adopt::lock_hubs::state_of("nuget"),
                 set.name
             )
         })

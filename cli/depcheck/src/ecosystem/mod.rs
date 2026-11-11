@@ -59,7 +59,7 @@ pub fn normalize_snake(name: &str) -> String {
     name.to_lowercase().replace('-', "_")
 }
 
-/// Parses a paren-style lock (`paket.lock`, `Gemfile.lock`): every 4-space
+/// Parses a paren-style lock (a paket or bundler lock): every 4-space
 /// indented `name (version)` line, keyed by `normalize_lower`.
 pub fn parse_paren_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;

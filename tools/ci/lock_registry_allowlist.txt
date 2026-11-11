@@ -1,9 +1,7 @@
 name cli/adopt/src/dependency_sets.rs mix.lock
 name cli/adopt/src/dependency_sets.rs package.json
 name cli/adopt/src/dependency_sets.rs paket.dependencies
-name cli/adopt/src/dependency_sets.rs paket.lock
 name cli/adopt/src/dependency_sets.rs pyproject.toml
-name cli/audit/src/backend.rs paket.lock
 name cli/cli/src/adopt/init_files.rs package.json
 name cli/cli/src/adopt/init_files.rs pnpm-lock.yaml
 name cli/cli/src/exec.rs maven_install.json
@@ -31,7 +29,6 @@ name cli/cli/src/exec/audit_consumer.rs mix.exs
 name cli/cli/src/exec/audit_consumer.rs mix.lock
 name cli/cli/src/exec/audit_consumer.rs package.json
 name cli/cli/src/exec/audit_consumer.rs paket.dependencies
-name cli/cli/src/exec/audit_consumer.rs paket.lock
 name cli/cli/src/exec/audit_consumer.rs pnpm-lock.yaml
 name cli/cli/src/exec/audit_consumer.rs pubspec.lock
 name cli/cli/src/exec/audit_consumer.rs pubspec.yaml
@@ -43,7 +40,6 @@ name cli/cli/src/exec/audit_live.rs PSGallery.lock.json
 name cli/cli/src/exec/audit_live.rs go.mod
 name cli/cli/src/exec/audit_live.rs maven_install.json
 name cli/cli/src/exec/audit_live.rs package.json
-name cli/cli/src/exec/audit_live.rs paket.lock
 name cli/cli/src/exec/audit_live.rs pnpm-lock.yaml
 name cli/cli/src/exec/audit_reports.rs Cargo.lock
 name cli/cli/src/exec/audit_reports.rs go.mod
@@ -62,7 +58,6 @@ name cli/cli/src/exec/dep_edit.rs go.sum
 name cli/cli/src/exec/dep_edit.rs mix.exs
 name cli/cli/src/exec/dep_edit.rs package.json
 name cli/cli/src/exec/dep_edit.rs paket.dependencies
-name cli/cli/src/exec/dep_edit.rs paket.lock
 name cli/cli/src/exec/dep_edit.rs pubspec.yaml
 name cli/cli/src/exec/dep_edit.rs pyproject.toml
 name cli/cli/src/exec/generate.rs Cargo.lock
@@ -95,7 +90,6 @@ name cli/cli/src/exec/update_unused.rs Cargo.toml
 name cli/cli/src/exec/update_unused.rs go.mod
 name cli/cli/src/exec/update_unused.rs package.json
 name cli/cli/src/exec/update_unused.rs paket.dependencies
-name cli/cli/src/exec/update_unused.rs paket.lock
 name cli/cli/src/exec/update_unused.rs pyproject.toml
 name cli/cli/src/exec/update_unused.rs uv.lock
 name cli/cli/src/exec/update_version_add.rs go.sum
@@ -108,8 +102,6 @@ name cli/depcheck/src/ecosystem/haskell.rs cabal.project.freeze
 name cli/depcheck/src/ecosystem/julia.rs Manifest.toml
 name cli/depcheck/src/ecosystem/julia.rs Project.toml
 name cli/depcheck/src/ecosystem/jvm.rs maven_install.json
-name cli/depcheck/src/ecosystem/mod.rs Gemfile.lock
-name cli/depcheck/src/ecosystem/mod.rs paket.lock
 name cli/depcheck/src/ecosystem/perl.rs cpanfile
 name cli/depcheck/src/ecosystem/perl.rs cpanfile.snapshot
 name cli/depcheck/src/ecosystem/swift.rs Package.resolved
@@ -152,8 +144,6 @@ name cli/depcheck/src/usage.rs maven_install.json
 name cli/depcheck/src/usage.rs mix.exs
 name cli/depcheck/src/usage.rs mix.lock
 name cli/depcheck/src/usage.rs package.json
-name cli/depcheck/src/usage.rs paket.dependencies
-name cli/depcheck/src/usage.rs paket.lock
 name cli/depcheck/src/usage.rs pnpm-lock.yaml
 name cli/depcheck/src/usage.rs pubspec.lock
 name cli/depcheck/src/usage.rs pubspec.yaml
@@ -188,7 +178,6 @@ name cli/update/src/backend.rs go.sum
 name cli/update/src/backend.rs mix.exs
 name cli/update/src/backend.rs mix.lock
 name cli/update/src/backend.rs paket.dependencies
-name cli/update/src/backend.rs paket.lock
 name cli/update/src/backend/cabal.rs cabal.project
 name cli/update/src/backend/cabal.rs cabal.project.freeze
 name cli/update/src/backend/cabal.rs haskell_deps.json
@@ -196,7 +185,6 @@ name cli/update/src/backend/cpan.rs cpanfile
 name cli/update/src/backend/cpan.rs cpanfile.snapshot
 name cli/update/src/backend/hex.rs mix.lock
 name cli/update/src/backend/julia.rs Manifest.toml
-name cli/update/src/backend/nuget.rs paket.lock
 name cli/update/src/backend/pub_dev.rs pubspec.lock
 name cli/update/src/backend/swiftpm.rs Package.resolved
 name cli/update/src/discover/cabal.rs cabal.project.freeze
@@ -224,8 +212,6 @@ name cli/update/src/edit/request.rs cpanfile
 name cli/update/src/edit/request.rs go.mod
 name cli/update/src/edit/request.rs go.sum
 name cli/update/src/edit/request.rs mix.exs
-name cli/update/src/edit/request.rs paket.dependencies
-name cli/update/src/edit/request.rs paket.lock
 name cli/update/src/edit/request.rs pubspec.yaml
 name cli/update/src/edit/request_plans.rs Cargo.toml
 name cli/update/src/edit/request_plans.rs Gemfile
@@ -252,7 +238,6 @@ name core/quality/adapter/src/parsers/tsc.rs tsconfig.json
 name core/quality/dart_context.bzl pubspec.yaml
 name core/quality/fixtures.bzl go.mod
 name core/quality/tools/python_bundle/bundle.bzl pyproject.toml
-name csharp/lang.json paket.lock
 name d/private/toolchain/pins.bzl package.json
 name dart/private/quality/dart.bzl pubspec.yaml
 name deploy/private/crates.bzl Cargo.toml
@@ -272,11 +257,9 @@ name deploy/private/src/hex.rs mix.exs
 name deploy/private/src/lib.rs Cargo.toml
 name deploy/private/src/npm.rs package.json
 name deploy/private/src/pub_dev.rs pubspec.yaml
-name dotnet/lang.json paket.lock
 name elixir/private/mix_lock.bzl mix.lock
 name elixir/private/toolchain/extensions.bzl mix.lock
 name elixir/private/toolchain/repos.bzl mix.lock
-name fsharp/lang.json paket.lock
 name gazelle/common/external_dub.go dub.json
 name gazelle/common/external_npm.go pnpm-lock.yaml
 name gazelle/common/npmproject.go package.json

@@ -808,7 +808,7 @@ fn refresh_plan(
             );
             return Some((name, plan.map(RefreshPlan::InDir)));
         }
-        // Nothing re-resolves paket.lock, so a nuget update never plans a refresh.
+        // Nothing re-resolves the paket lock, so a nuget update never plans a refresh.
         dx_update::edit::ConfiguredKind::Nuget => return None,
         dx_update::edit::ConfiguredKind::Uv => (
             dx_adopt::dependency_sets::Selection::Full,

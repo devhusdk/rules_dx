@@ -1073,7 +1073,7 @@ source = { registry = "https://pypi.org/simple" }
             "source https://api.nuget.org/v3/index.json\nnuget Example.Lib\n",
         );
         harness.write_source(
-            "dn/paket.lock",
+            &format!("dn/{}", dx_adopt::lock_hubs::state_of("nuget")),
             "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    Example.Lib (1.1)\n",
         );
         harness.write_source("dn/deps/paket.main.bzl", "main\n");
@@ -1088,7 +1088,10 @@ source = { registry = "https://pypi.org/simple" }
         let (code, out, err) = run_with(&["security", "--output=json", "nuget"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("GHSA-nuget-0001"), "{out}");
-        assert!(out.contains("dn/paket.lock"), "{out}");
+        assert!(
+            out.contains(&format!("dn/{}", dx_adopt::lock_hubs::state_of("nuget"))),
+            "{out}"
+        );
     }
 
     #[test]

@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//csharp:defs.bzl", "csharp_library", "csharp_test")
 
@@ -12,16 +11,18 @@ csharp_test(
     deps = [
         ":solo",
         "@paket.main//xunit.v3.assert",
-    ],
+    ],  # keep
 )
 
 csharp_library(
     name = "solo",
+    testonly = True,
     srcs = ["Pure.cs"],
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

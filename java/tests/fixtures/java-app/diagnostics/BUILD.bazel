@@ -1,5 +1,5 @@
-# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//java:defs.bzl", "java_library")
 load("@rules_dx//tools/testing:test_macros.bzl", "dx_diagnostics_test", "dx_format_test")
 load("@rules_java//java:defs.bzl", "java_binary")
 
@@ -14,7 +14,6 @@ java_binary(
 
 dx_diagnostics_test(
     name = "diagnostics_test",
-    language = "java",
     data = [
         "Clean.java",
         "RawType.java",
@@ -55,6 +54,7 @@ dx_diagnostics_test(
         "DX_TYPE": "$(rootpath TypeError.java)",
         "DX_WARNING": "$(rootpath RawType.java)",
     },
+    language = "java",
 )
 
 dx_format_test(
@@ -82,9 +82,23 @@ dx_format_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [
         "//:__pkg__",
+    ],
+)
+
+java_library(
+    name = "diagnostics",
+    testonly = True,
+    srcs = [
+        "Clean.java",
+        "RawType.java",
+        "SyntaxError.java",
+        "TypeError.java",
+        "Unformatted.java",
+        "UnusedImport.java",
     ],
 )

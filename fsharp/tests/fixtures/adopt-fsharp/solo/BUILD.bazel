@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//fsharp:defs.bzl", "fsharp_library", "fsharp_test")
 
@@ -10,17 +9,19 @@ fsharp_test(
     deps = [
         ":solo",
         "@paket.main//fsharp.core",
-    ],
+    ],  # keep
 )
 
 fsharp_library(
     name = "solo",
+    testonly = True,
     srcs = ["Pure.fs"],
     deps = ["@paket.main//fsharp.core"],  # keep
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

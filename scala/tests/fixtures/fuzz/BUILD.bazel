@@ -1,6 +1,5 @@
-# gazelle:ignore
-load("@rules_dx//scala:defs.bzl", "scala_fuzz_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//scala:defs.bzl", "scala_fuzz_test", "scala_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(
@@ -15,6 +14,7 @@ scala_fuzz_test(
 
 sh_test(
     name = "parse_fuzz_run_test",
+    timeout = "short",
     srcs = ["//java/tests/fixtures/fuzz:run_test.sh"],
     args = [
         "$(rlocationpath @rules_dx//cli/fuzz_run:fuzz_run)",
@@ -23,14 +23,20 @@ sh_test(
     ],
     data = [
         ":parse_fuzz",
-        "@rules_dx//cli/fuzz_run:fuzz_run",
+        "@rules_dx//cli/fuzz_run",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    timeout = "short",
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+scala_library(
+    name = "fuzz",
+    testonly = True,
+    srcs = ["ParseFuzz.scala"],
 )

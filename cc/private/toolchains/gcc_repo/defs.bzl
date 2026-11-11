@@ -528,6 +528,7 @@ def _render_tool_paths(rctx, path_prefix, binary_prefix):
             rctx.attr._wrapper_sh_template,
             substitutions = {
                 "__PATH__": path_env,
+                "__SHELL__": "/bin/bash",
                 "__binary__": tool_path,
             },
             executable = True,

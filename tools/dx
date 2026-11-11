@@ -10,7 +10,11 @@ is_ci() {
   esac
   return 1
 }
-root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+case $0 in
+*/*) self_dir=${0%/*} ;;
+*) self_dir=. ;;
+esac
+root=$(CDPATH='' cd -- "${self_dir:-/}/.." && pwd)
 os=
 exe=
 case "$(uname -s)" in
@@ -30,7 +34,13 @@ if [ "$os" = linux ] && [ -z "${MALLOC_ARENA_MAX+x}" ]; then
   esac
 fi
 source_checkout() {
-  [ -f "$1/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$1/MODULE.bazel" 2>/dev/null
+  [ -f "$1/cli/cli/BUILD.bazel" ] && [ -f "$1/MODULE.bazel" ] || return 1
+  while IFS= read -r sc_line || [ -n "$sc_line" ]; do
+    case $sc_line in
+    '    name = "rules_dx",'*) return 0 ;;
+    esac
+  done <"$1/MODULE.bazel" 2>/dev/null
+  return 1
 }
 execroot_marker() {
   _p=${1%/*}
@@ -73,17 +83,129 @@ if [ "${1:-}" = worktree ]; then
     ;;
   esac
 fi
+# Sets rc_u to $1 without one pair of matching outer quotes.
+rc_unq() {
+  rc_u=$1
+  case $1 in
+  \"*\" | \'*\') rc_u=${1#?} rc_u=${rc_u%?} ;;
+  esac
+}
+# Scans one bazelrc file and the files it imports. Prints cache and returns 0 when a disk cache option is set; prints gc
+# when only a disk cache gc option is set. Always run it in a command substitution: it sets -f and its variables are
+# not restored.
+rc_scan() {
+  set -f
+  rs_file=$1
+  rs_depth=$2
+  if [ -z "$rs_file" ] || [ "$rs_depth" -gt 16 ]; then return 1; fi
+  case "$rc_seen" in
+  *"
+$rs_file
+"*) return 1 ;;
+  esac
+  rc_seen="$rc_seen$rs_file
+"
+  [ -r "$rs_file" ] || return 1
+  rs_cr=$(printf '\r')
+  rs_ws=" 	$rs_cr"
+  rs_tok='%workspace%'
+  rs_gc=
+  while IFS= read -r rs_line || [ -n "$rs_line" ]; do
+    case $rs_line in
+    *[!$rs_ws]*) ;;
+    *) continue ;;
+    esac
+    rs_line=${rs_line#"${rs_line%%[!$rs_ws]*}"}
+    rs_line=${rs_line%"${rs_line##*[!$rs_ws]}"}
+    case $rs_line in
+    '#'*) continue ;;
+    esac
+    rs_first=${rs_line%%[$rs_ws]*}
+    rs_rest=${rs_line#"$rs_first"}
+    rs_rest=${rs_rest#"${rs_rest%%[!$rs_ws]*}"}
+    rc_unq "$rs_first"
+    case $rc_u in
+    import | try-import)
+      rc_unq "$rs_rest"
+      rs_t=$rc_u
+      rs_r=
+      while :; do
+        case $rs_t in
+        *"$rs_tok"*) rs_r=$rs_r${rs_t%%"$rs_tok"*}$root rs_t=${rs_t#*"$rs_tok"} ;;
+        *) break ;;
+        esac
+      done
+      rs_t=$rs_r$rs_t
+      case $rs_t in
+      /* | [A-Za-z]:*) ;;
+      *) rs_t=$root/$rs_t ;;
+      esac
+      rs_sub=$(rc_scan "$rs_t" "$((rs_depth + 1))") || true
+      case $rs_sub in
+      *cache*)
+        echo cache
+        return 0
+        ;;
+      *gc*) rs_gc=1 ;;
+      esac
+      continue
+      ;;
+    esac
+    for rs_w in $rs_line; do
+      rc_unq "$rs_w"
+      rs_t=$rc_u
+      while :; do
+        case $rs_t in
+        \"* | \'*) rs_t=${rs_t#?} ;;
+        *) break ;;
+        esac
+      done
+      case $rs_t in
+      --disk_cache* | --nodisk_cache*)
+        echo cache
+        return 0
+        ;;
+      --experimental_disk_cache_gc_max_size | --experimental_disk_cache_gc_max_size=* | --experimental_disk_cache_gc_max_age | --experimental_disk_cache_gc_max_age=*) rs_gc=1 ;;
+      esac
+    done
+  done <"$rs_file"
+  [ -z "$rs_gc" ] || echo gc
+  return 1
+}
+rc_scan_all() {
+  rc_seen='
+'
+  rsa_gc=
+  for rsa_f in "$@"; do
+    rsa_o=$(rc_scan "$rsa_f" 0) || true
+    case $rsa_o in
+    *cache*)
+      echo cache
+      return 0
+      ;;
+    *gc*) rsa_gc=1 ;;
+    esac
+  done
+  if [ -n "$rsa_gc" ]; then echo gc; else echo none; fi
+}
 tag_state() {
   { printf '%s\n%s\n' 'Signature: 8a477f597d28d172789f06886806bc55' '# Rebuildable copy of dx kept by tools/dx; see https://bford.info/cachedir/' >"$state/CACHEDIR.TAG.$$" && mv -f "$state/CACHEDIR.TAG.$$" "$state/CACHEDIR.TAG"; } 2>/dev/null || rm -f "$state/CACHEDIR.TAG.$$"
 }
 stale() {
   [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0
-  # shellcheck disable=SC2016 # the sh -c script takes its arguments from xargs
-  newer=$(cd "$root" && {
-    sed -e 's|^//||' -e 's|^:||' -e 's|:|/|' "$state/inputs"
-    printf '%s\n' .bazelrc .bazelversion user.bazelrc .dx/bazelrc/correctness.bazelrc .dx/bazelrc/performance.bazelrc .dx/bazelrc/resources.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json
-  } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print' "$state/built" 2>/dev/null) || true
-  [ -n "$newer" ]
+  while IFS= read -r st_p || [ -n "$st_p" ]; do
+    st_p=${st_p#//}
+    st_p=${st_p#:}
+    case $st_p in
+    *:*) st_p=${st_p%%:*}/${st_p#*:} ;;
+    esac
+    [ -n "$st_p" ] || continue
+    [ "$root/$st_p" -nt "$state/built" ] && return 0
+  done <"$state/inputs"
+  for st_p in .bazelrc .bazelversion user.bazelrc .dx/bazelrc/correctness.bazelrc .dx/bazelrc/performance.bazelrc .dx/bazelrc/resources.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json; do
+    [ "$root/$st_p" -nt "$state/built" ] && return 0
+  done
+  return 1
 }
 # Keep in sync with DX_SYNC in tools/dx.cmd: a copy is current when size and mtime match bin's, and cp -p keeps the
 # mtime, so a copy made by either launcher counts for the other. The copy is never written in place; on Windows the
@@ -183,53 +305,7 @@ if stale; then
   home=${HOME:-${USERPROFILE:-}}
   sysrc=/etc/bazel.bazelrc
   [ "$os" != windows ] || sysrc=${ProgramData:+$ProgramData/bazel.bazelrc}
-  [ -n "$rc" ] || [ -z "$cache" ] || found=$(root="$root" awk '
-    function trim(t) {
-      sub(/^[ \t\r]+/, "", t)
-      sub(/[ \t\r]+$/, "", t)
-      return t
-    }
-    function unq(t, a) {
-      a = substr(t, 1, 1)
-      if (length(t) > 1 && (a == "\"" || a == "\047") && substr(t, length(t)) == a) return substr(t, 2, length(t) - 2)
-      return t
-    }
-    function scan(f, d, line, w, n, i, t, r) {
-      if (f == "" || d > 16 || (f in seen)) return 0
-      seen[f] = 1
-      while ((getline line < f) > 0) {
-        line = trim(line)
-        if (substr(line, 1, 1) == "#") continue
-        n = split(line, w)
-        t = unq(w[1])
-        if (t == "import" || t == "try-import") {
-          t = unq(trim(substr(line, length(t) + 1)))
-          r = ""
-          while ((i = index(t, "%workspace%")) > 0) {
-            r = r substr(t, 1, i - 1) root
-            t = substr(t, i + 11)
-          }
-          t = r t
-          if (t !~ /^\// && t !~ /^[A-Za-z]:/) t = root "/" t
-          if (scan(t, d + 1)) return 1
-          continue
-        }
-        for (i = 1; i <= n; i++) {
-          t = unq(w[i])
-          while (substr(t, 1, 1) == "\"" || substr(t, 1, 1) == "\047") t = substr(t, 2)
-          if (t ~ /^--(no)?disk_cache/) return 1
-          if (t ~ /^--experimental_disk_cache_gc_max_(size|age)(=|$)/) gc = 1
-        }
-      }
-      close(f)
-      return 0
-    }
-    BEGIN {
-      root = ENVIRON["root"]
-      for (i = 1; i < ARGC; i++) if (scan(ARGV[i], 0)) { print "cache"; exit }
-      print (gc ? "gc" : "none")
-    }
-  ' "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2>/dev/null) || found=
+  [ -n "$rc" ] || [ -z "$cache" ] || found=$(rc_scan_all "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2>/dev/null) || found=
   if [ -z "$rc" ] && ! is_ci && [ -n "$cache" ] && [ "${found:-}" != cache ]; then
     dc="--disk_cache=$cache/dx/disk-cache"
     [ "$os" != windows ] || dc="--disk_cache=$(cygpath -w "$cache/dx/disk-cache")"
@@ -262,7 +338,13 @@ if stale; then
   fi
   sync_copy || true
   if retry_crash query_inputs; then
-    tr -d '\r' <"$state/query.$$" | grep '^//' >"$state/inputs.$$" || true
+    : >"$state/inputs.$$"
+    while IFS= read -r q_line || [ -n "$q_line" ]; do
+      q_line=${q_line%"$(printf '\r')"}
+      case $q_line in
+      //*) printf '%s\n' "$q_line" >>"$state/inputs.$$" ;;
+      esac
+    done <"$state/query.$$"
     rm -f "$state/query.$$"
     mv "$state/inputs.$$" "$state/inputs"
     mv "$state/built.$$" "$state/built"

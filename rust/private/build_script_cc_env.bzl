@@ -160,7 +160,7 @@ def _build_script_cc_env_impl(ctx):
 
 build_script_cc_env = rule(
     implementation = _build_script_cc_env_impl,
-    doc = "Publishes `DX_BS_*` make variables with the target and exec cc tools and flags for `cargo_build_script`.",
+    doc = "Publishes `DX_BS_*` make variables with the target and exec cc tools and flags for `rust_build_script`.",
     attrs = {
         "_exec_cc_toolchain": attr.label(
             default = Label("@rules_cc//cc:current_cc_toolchain"),

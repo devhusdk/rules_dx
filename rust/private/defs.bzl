@@ -221,8 +221,8 @@ _rust_forward_test = dx_executable_forward_rule(
     toolchains = dx_native_coverage_toolchains(),
 )
 
-def cargo_build_script(name, build_script_env = None, toolchains = None, use_cc_toolchain = None, **kwargs):
-    """`cargo_build_script` whose build script gets `HOST_*` and `TARGET_*` cc tools and flags from rules_dx.
+def rust_build_script(name, build_script_env = None, toolchains = None, use_cc_toolchain = None, **kwargs):
+    """`rust_build_script`, a `cargo_build_script` whose build script gets `HOST_*` and `TARGET_*` cc tools and flags from rules_dx.
 
     Args:
         name: Name of the target.

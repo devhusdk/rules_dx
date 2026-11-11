@@ -204,7 +204,7 @@ def build_script_compiler_tests(name, target):
 
     Args:
         name: Name of the test suite.
-        target: A cargo_build_script that uses the cc toolchain.
+        target: A rust_build_script that uses the cc toolchain.
     """
     tests = []
     for compiler, rule in [("gcc", _gcc_test), ("llvm", _llvm_test)]:
@@ -287,7 +287,7 @@ def cross_build_script_identity_tests(name, target):
 
     Args:
         name: Name of the test suite.
-        target: A cargo_build_script that uses the cc toolchain.
+        target: A rust_build_script that uses the cc toolchain.
     """
     tests = []
     for compiler, rule in [("gcc", _cross_gcc_test), ("llvm", _cross_llvm_test)]:
@@ -306,7 +306,7 @@ def build_script_msvc_test(name, target):
 
     Args:
         name: Name of the test.
-        target: A cargo_build_script that uses the cc toolchain.
+        target: A rust_build_script that uses the cc toolchain.
     """
     _msvc_test(
         name = name,
@@ -551,7 +551,7 @@ def build_script_msvc_coverage_test(name, target):
 
     Args:
         name: Name of the test.
-        target: A cargo_build_script that uses the cc toolchain.
+        target: A rust_build_script that uses the cc toolchain.
     """
     _msvc_coverage_test(
         name = name,
@@ -577,7 +577,7 @@ def build_script_absolute_tool_test(name, target):
 
     Args:
         name: Name of the test.
-        target: A cargo_build_script that uses the cc toolchain.
+        target: A rust_build_script that uses the cc toolchain.
     """
     _absolute_tool_test(
         name = name,

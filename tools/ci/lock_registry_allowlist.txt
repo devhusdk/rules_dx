@@ -213,9 +213,6 @@ name deploy/private/release/src/tool.rs go.mod
 name deploy/private/sbom.bzl go.mod
 name deploy/private/sbom.bzl maven_install.json
 name deploy/private/sbom.bzl uv.lock
-name deploy/private/src/api_compat.rs Cargo.toml
-name deploy/private/src/api_compat.rs pubspec.yaml
-name deploy/private/src/lib.rs Cargo.toml
 name elixir/private/mix_lock.bzl mix.lock
 name elixir/private/toolchain/extensions.bzl mix.lock
 name elixir/private/toolchain/repos.bzl mix.lock

@@ -309,6 +309,7 @@ pub fn export_git_dir(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_ecosystems::Ecosystem;
 
     #[test]
     fn bump_follows_semver() {
@@ -469,36 +470,36 @@ mod tests {
         let repo = root.join("repo");
         std::fs::create_dir_all(repo.join("pkg/src")).expect("dirs");
         std::fs::create_dir_all(repo.join("other")).expect("dirs");
-        std::fs::write(repo.join("pkg/Cargo.toml"), "[package]\n").expect("write");
+        std::fs::write(repo.join("pkg").join(Ecosystem::Cargo.manifest_name()), "[package]\n").expect("write");
         std::fs::write(repo.join("pkg/src/lib.rs"), "pub fn a() {}\n").expect("write");
         std::fs::write(repo.join("other/x.txt"), "x").expect("write");
-        std::fs::write(repo.join("other/pubspec.yaml"), "name: x\n").expect("write");
+        std::fs::write(repo.join("other").join(Ecosystem::Pub.manifest_name()), "name: x\n").expect("write");
         dx_test_scratch::git(&repo, &repo, &["init", "-q"]);
         dx_test_scratch::git(&repo, &repo, &["add", "."]);
         dx_test_scratch::git(&repo, &repo, &["commit", "-q", "-m", "x"]);
         dx_test_scratch::git(&repo, &repo, &["tag", "v1.0.0"]);
         let dest = root.join("dest");
         assert_eq!(
-            export_git_dir(&repo, "pkg", "v1.0.0", &dest, "Cargo.toml"),
+            export_git_dir(&repo, "pkg", "v1.0.0", &dest, Ecosystem::Cargo.manifest_name()),
             Ok(true)
         );
         assert_eq!(
             std::fs::read_to_string(dest.join("src/lib.rs")).expect("lib"),
             "pub fn a() {}\n"
         );
-        assert!(dest.join("Cargo.toml").exists());
+        assert!(dest.join(Ecosystem::Cargo.manifest_name()).exists());
         assert!(!dest.join("other").exists() && !dest.join("x.txt").exists());
         let missing = root.join("missing");
         assert_eq!(
-            export_git_dir(&repo, "other", "v1.0.0", &missing, "Cargo.toml"),
+            export_git_dir(&repo, "other", "v1.0.0", &missing, Ecosystem::Cargo.manifest_name()),
             Ok(false)
         );
         assert_eq!(
-            export_git_dir(&repo, "other", "v1.0.0", &root.join("pub"), "pubspec.yaml"),
+            export_git_dir(&repo, "other", "v1.0.0", &root.join("pub"), Ecosystem::Pub.manifest_name()),
             Ok(true)
         );
         assert_eq!(
-            export_git_dir(&repo, "nope", "v1.0.0", &missing, "Cargo.toml"),
+            export_git_dir(&repo, "nope", "v1.0.0", &missing, Ecosystem::Cargo.manifest_name()),
             Ok(false)
         );
         let status = dx_process::capture::run_checked(

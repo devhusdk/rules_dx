@@ -9,7 +9,6 @@ exports_files([
     "BUILD.bazel",
     "metadata_tests.bzl",
     "pins.bzl",
-    "luals.build",
     "pins.json",
     "extensions.bzl",
     "toolchain.bzl",

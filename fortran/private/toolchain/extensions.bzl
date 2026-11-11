@@ -36,7 +36,7 @@ def _fortran_impl(mctx):
             strip_prefix = FORTRAN_CELLS[cell].strip_prefix,
             urls = FORTRAN_CELLS[cell].urls,
         )
-    flang_rt_repo(name = FLANG_RT_NAME, build_file = Label("//fortran/private/toolchain:flang_rt.BUILD.bazel"))
+    flang_rt_repo(name = FLANG_RT_NAME, build_file = Label("//fortran/private:flang_rt.BUILD.bazel"))
     hub_repo(name = HUB_NAME, files = hub_build())
     return mctx.extension_metadata(reproducible = True)
 

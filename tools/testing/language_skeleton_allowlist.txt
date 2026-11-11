@@ -455,17 +455,11 @@ private-names capnproto/private/testdata
 private-names cc/private/context/tests
 private-names cc/private/testdata
 private-names cc/private/toolchains
-private-names fortran/private/toolchain/flang_rt.BUILD.bazel
 private-names javascript/private/quality/bin/testdata
 private-names lua/private/quality/testdata
-private-names lua/private/toolchain/luals.build
 private-names ocaml/private/quality/testdata
 private-names perl/private/tools/testdata
-private-names php/private/toolchain/pcov.BUILD
-private-names powershell/private/toolchain/pwsh.build
-private-names ruby/private/toolchain/sorbet.build
 private-names rust/private/quality/tools/selene.BUILD.bazel
-private-names swift/private/toolchain/swift_format.build
 private-names thrift/private/testdata
 provider-name capnproto/defs.bzl
 provider-name dart/defs.bzl

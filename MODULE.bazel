@@ -704,7 +704,7 @@ dx_pins = use_extension("//core:extensions.bzl", "dx_pins")
 dx_pins.pin(
     name = "dx_sorbet",
     aliases = {"windows_arm64": "windows_x86_64"},
-    build = "//ruby/private/toolchain:sorbet.build",
+    build = "//ruby/private:sorbet.BUILD.bazel",
     pins = "//ruby/private/toolchain:pins.json",
 )
 dx_pins.pin(
@@ -715,7 +715,7 @@ dx_pins.pin(
 )
 dx_pins.pin(
     name = "dx_powershell_toolchains",
-    build = "//powershell/private/toolchain:pwsh.build",
+    build = "//powershell/private:pwsh.BUILD.bazel",
     compatible_with = "target",
     pins = "//powershell/private/toolchain:pins.json",
     toolchain_type = "@rules_powershell//powershell:toolchain_type",
@@ -723,7 +723,7 @@ dx_pins.pin(
 dx_pins.pin(
     name = "dx_luals",
     aliases = {"windows_arm64": "windows_x86_64"},
-    build = "//lua/private/toolchain:luals.build",
+    build = "//lua/private:luals.BUILD.bazel",
     pins = "//lua/private/toolchain:pins.json",
 )
 dx_pins.pin(
@@ -761,7 +761,7 @@ dx_pins.data(
 )
 dx_pins.pin(
     name = "dx_swift_format_macos_arm64",
-    build = "//swift/private/toolchain:swift_format.build",
+    build = "//swift/private:swift_format.BUILD.bazel",
     pins = "//swift/private/toolchain:pins.json",
 )
 dx_pins.data(

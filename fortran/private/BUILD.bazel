@@ -9,6 +9,7 @@ package(default_visibility = ["//fortran:__subpackages__", "//tools/ci:__pkg__",
 
 exports_files([
     "defs.bzl",
+    "flang_rt.BUILD.bazel",
     "fpm_lock.bzl",
     "kwargs.bzl",
 ])

@@ -23,7 +23,7 @@ fn rows_are_complete_and_unique() {
         );
         assert!(seen.insert(row.name.as_str()), "duplicate {}", row.name);
         assert!(
-            !row.lock_required || !row.lockfiles.is_empty(),
+            !row.lock_required || !row.locks.is_empty(),
             "{} requires a lock it does not name",
             row.name
         );
@@ -86,7 +86,7 @@ fn false_flags_report_pinned() {
 fn lock_and_source_columns_match_the_audit_column() {
     for row in rows() {
         assert!(
-            row.lockfiles
+            row.locks
                 .iter()
                 .all(|name| !name.is_empty() && !name.contains('/'))
         );
@@ -188,4 +188,23 @@ fn backend_columns_name_a_module_or_pinned() {
     }
     assert!(Ecosystem::Maven.graph_only() && Ecosystem::Nuget.graph_only());
     assert!(!Ecosystem::Cargo.graph_only());
+}
+
+#[test]
+fn json_states_no_name_the_registry_states() {
+    let raw = serde_json::from_str::<Table>(TABLE).expect("table").ecosystems;
+    for row in raw {
+        let Some(hub) = dx_families::hub(&row.name) else {
+            continue;
+        };
+        assert_ne!(row.manifest, hub.manifest, "{} repeats its manifest", row.name);
+        if let Some(lock) = &hub.lock {
+            assert_ne!(
+                row.lockfiles,
+                Some(vec![lock.clone()]),
+                "{} repeats its lock",
+                row.name
+            );
+        }
+    }
 }

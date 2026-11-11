@@ -24,7 +24,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_ecosystems",
         normal = True,
-    ),
+    ) + ["//cli/families:dx_families"],
 )
 
 rust_test(
@@ -44,7 +44,7 @@ rust_test(
         package_name = "cli/dx_ecosystems",
         normal = True,
         normal_dev = True,
-    ),
+    ) + ["//cli/families:dx_families"],
 )
 
 real_source_target(

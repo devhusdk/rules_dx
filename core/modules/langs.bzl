@@ -3056,21 +3056,6 @@ LANGS = json.decode("""{
       ]
     },
     "semver": true,
-    "setup": {
-      "hubs": [
-        {
-          "ecosystem": "typescript",
-          "extension": "@rules_dx//typescript:extensions.bzl",
-          "hub": "npm_typescript",
-          "imports": "name",
-          "lock": null,
-          "manifest": "tsconfig.json",
-          "resolver": null,
-          "state": null,
-          "tag": null
-        }
-      ]
-    },
     "title": "TypeScript",
     "tools": [
       "biome",

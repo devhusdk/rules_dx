@@ -1,11 +1,8 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
-load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_dx//typescript:defs.bzl", "typescript_binary", "typescript_library")
 
 # dx: written once, yours to edit
-
-npm_link_all_packages(name = "node_modules")
 
 js_library(
     name = "package_json",

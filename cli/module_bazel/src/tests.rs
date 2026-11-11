@@ -1469,7 +1469,7 @@ fn build_files_parse_with_load_statements() {
 #[test]
 fn mix_locks_follow_the_elixir_mix_tag() {
     let file = parse(
-        "elixir = use_extension(\"//elixir:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//app:mix.lock\")\nother = use_extension(\"//other:repos.bzl\", \"elixir\")\nother.mix(name = \"x\", lock = \"//x:mix.lock\")\n",
+        "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//app:mix.lock\")\nother = use_extension(\"//other:repos.bzl\", \"elixir\")\nother.mix(name = \"x\", lock = \"//x:mix.lock\")\n",
     );
     let found: Vec<_> = file
         .mix_locks()

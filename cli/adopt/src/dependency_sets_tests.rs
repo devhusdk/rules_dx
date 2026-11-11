@@ -448,7 +448,7 @@ fn pub_locks_become_pub_sets() {
 
 #[test]
 fn elixir_mix_tags_become_hex_sets() {
-    let module = "elixir = use_extension(\"//elixir:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+    let module = "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
     let registry = discover(module, &|_: &str| Err("none".to_owned()))
         .expect("discovers")
         .expect("registry");

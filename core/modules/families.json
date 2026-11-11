@@ -381,6 +381,7 @@
         "//deploy/private/pins:extensions.bzl%semver_checks",
         "//dotnet:extensions.bzl%dotnet",
         "//elixir:extensions.bzl%elixir",
+        "//elixir:extensions.bzl%hex",
         "//erlang:extensions.bzl%erlang",
         "//fortran:extensions.bzl%fortran",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",

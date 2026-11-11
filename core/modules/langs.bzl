@@ -930,6 +930,21 @@ LANGS = json.decode("""{
       ]
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "hex",
+          "extension": "@rules_dx//elixir:extensions.bzl",
+          "hub": "hex",
+          "imports": "name",
+          "lock": "mix.lock",
+          "manifest": "mix.exs",
+          "resolver": null,
+          "state": null,
+          "tag": "lock"
+        }
+      ]
+    },
     "title": "Elixir",
     "tools": [
       "credo",

@@ -3,16 +3,38 @@
 load("//core:host.bzl", "host_cell")
 load("//core:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 
+SWIFT_HOST_WINDOWS_STUB = 'echo "dx_swift_host: no host swift on Windows; run the swift resolver and dx update on Linux or macOS" >&2\nexit 1'
+
+def swift_host_labels(host):
+    """Returns the toolchain labels the host `swift` command runs, keyed by role.
+
+    Args:
+        host: The host cell, such as `linux_x86_64`.
+
+    Returns:
+        A dict with `linker`, `swift` and `sysroot` labels, or `{}` when the host uses no managed toolchain.
+    """
+    if host.startswith("macos") or host.startswith("windows"):
+        return {}
+    arch = "aarch64" if host.endswith("arm64") else "x86_64"
+    return {
+        "linker": "@dx_swift_linux_{}//:usr/bin/ld.lld".format(arch),
+        "swift": "@dx_swift_linux_{}//:usr/bin/swift".format(arch),
+        "sysroot": "@dx_swift_sysroot_linux_{}//:REPO.bazel".format(arch),
+    }
+
 def _swift_host_impl(repository_ctx):
     host = host_cell(repository_ctx)
     if host.startswith("macos"):
         script = 'exec /usr/bin/xcrun swift "$@"'
+    elif host.startswith("windows"):
+        script = SWIFT_HOST_WINDOWS_STUB
     else:
-        arch = "aarch64" if host.endswith("arm64") else "x86_64"
-        swift = repository_ctx.path(Label("@dx_swift_linux_{}//:usr/bin/swift".format(arch)))
-        sysroot = repository_ctx.path(Label("@dx_swift_sysroot_linux_{}//:REPO.bazel".format(arch))).dirname
+        labels = swift_host_labels(host)
+        swift = repository_ctx.path(Label(labels["swift"]))
+        sysroot = repository_ctx.path(Label(labels["sysroot"])).dirname
         host_libs = sysroot.get_child("host_libs")
-        repository_ctx.symlink(repository_ctx.path(Label("@dx_swift_linux_{}//:usr/bin/ld.lld".format(arch))), "linker/ld")
+        repository_ctx.symlink(repository_ctx.path(Label(labels["linker"])), "linker/ld")
         script = 'COMPILER_PATH="{linker}" LD_LIBRARY_PATH="{host_libs}${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}" exec "{swift}" "$@"'.format(
             host_libs = host_libs,
             linker = repository_ctx.path("linker"),
@@ -23,7 +45,7 @@ def _swift_host_impl(repository_ctx):
 
 swift_host_repo = repository_rule(
     implementation = _swift_host_impl,
-    doc = "A `swift` command that runs the managed toolchain on Linux and the Xcode one on macOS.",
+    doc = "A `swift` command that runs the managed toolchain on Linux and the Xcode one on macOS, and fails on Windows.",
 )
 
 _SWIFT_WINDOWS_BUILD = """load("@rules_swift//swift/toolchains:swift_tools.bzl", "swift_tools")

@@ -1,13 +1,15 @@
-load("//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//cc:defs.bzl", "cc_library", "cc_test")
 
-real_source_target(
-    name = "corpus_starlark",
-    testonly = True,
-    starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],
+cc_test(
+    name = "greet_test",
+    srcs = ["greet_test.cc"],
+    copts = ["-std=c++17"],
+    deps = [":consumer"],
 )
 
-exports_files(
-    ["BUILD.bazel"],
-    visibility = ["//tools/docs/support_matrix:__pkg__"],
+cc_library(
+    name = "consumer",
+    srcs = ["greet.cc"],
+    hdrs = ["greet.h"],
+    visibility = ["//visibility:public"],
 )

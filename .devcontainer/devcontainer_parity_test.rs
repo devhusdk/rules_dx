@@ -10,7 +10,9 @@ fn devcontainer_parity() {
     let expected = data("DX_DEVCONTAINER_EXPECTED");
     let dx = data("DX_DX_BIN");
 
-    let scratch = dx_testing::mkscratch("devcontainer-parity-").expect("scratch");
+    let scratch_guard = dx_test_scratch::scratch("devcontainer-parity-");
+
+    let scratch = scratch_guard.path();
     std::fs::write(scratch.join("MODULE.bazel"), b"").expect("write module");
     let init = dx_testing::run(
         &dx,

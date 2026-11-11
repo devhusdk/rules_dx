@@ -32,16 +32,17 @@ fn spawn_guard() -> std::sync::MutexGuard<'static, ()> {
     SPAWN_LOCK.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-fn relocate(source: &Path, dir: &str) -> PathBuf {
+fn relocate(source: &Path, dir: &str) -> (impl Drop + use<>, PathBuf) {
     use std::os::unix::fs::PermissionsExt;
     let _guard = spawn_guard();
-    let scratch = dx_testing::mkscratch("appimage").expect("scratch");
+    let scratch_guard = dx_test_scratch::scratch("appimage");
+    let scratch = scratch_guard.path();
     let moved = scratch.join(dir);
     std::fs::create_dir_all(&moved).expect("create directory");
     let target = moved.join("moved.AppImage");
     std::fs::copy(source, &target).expect("copy image");
     std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755)).expect("chmod");
-    target
+    (scratch_guard, target)
 }
 
 fn run_image(image: &Path, args: &[&str]) -> dx_testing::Run {
@@ -102,7 +103,7 @@ fn highest_glibc(bytes: &[u8]) -> String {
 
 #[test]
 fn relocated_image_runs_without_fuse_or_host_libraries() {
-    let image = relocate(&built(".AppImage"), "reloc dir");
+    let (_image_scratch, image) = relocate(&built(".AppImage"), "reloc dir");
     let run = run_image(&image, &[]);
     assert!(run.status.success(), "run failed: {}", run.combined());
     let lines: Vec<&str> = run.stdout.lines().collect();
@@ -118,7 +119,7 @@ fn relocated_image_runs_without_fuse_or_host_libraries() {
 
 #[test]
 fn contents_match_the_machine_readable_identity() {
-    let image = relocate(&built(".AppImage"), "inspect");
+    let (_image_scratch, image) = relocate(&built(".AppImage"), "inspect");
     let root = extract(&image);
     let identity = identity();
     let files = identity["files"].as_object().expect("files object");
@@ -161,7 +162,7 @@ fn contents_match_the_machine_readable_identity() {
 
 #[test]
 fn loader_and_libc_identity_come_from_the_packaged_bytes() {
-    let image = relocate(&built(".AppImage"), "libc");
+    let (_image_scratch, image) = relocate(&built(".AppImage"), "libc");
     let root = extract(&image);
     let bytes = std::fs::read(root.join("usr/bin/dxhello")).expect("packaged binary");
     let identity = identity();
@@ -209,7 +210,8 @@ fn image_starts_with_the_pinned_runtime() {
 
 #[test]
 fn missing_resource_fails_clearly() {
-    let image = relocate(&from("DX_APPIMAGE_NORESOURCE", ".AppImage"), "noresource");
+    let (_image_scratch, image) =
+        relocate(&from("DX_APPIMAGE_NORESOURCE", ".AppImage"), "noresource");
     let run = run_image(&image, &[]);
     assert_eq!(run.status.code(), Some(3), "{}", run.combined());
     assert!(
@@ -221,7 +223,7 @@ fn missing_resource_fails_clearly() {
 
 #[test]
 fn missing_library_fails_in_the_loader() {
-    let image = relocate(&from("DX_APPIMAGE_NOLIB", ".AppImage"), "nolib");
+    let (_image_scratch, image) = relocate(&from("DX_APPIMAGE_NOLIB", ".AppImage"), "nolib");
     let run = run_image(&image, &[]);
     assert!(!run.status.success());
     assert!(run.stderr.contains("libgreet_shared.so"), "{}", run.stderr);
@@ -235,12 +237,12 @@ fn truncated_and_corrupted_packages_fail() {
         .len() as usize;
     let bytes = std::fs::read(&source).expect("image");
 
-    let truncated = relocate(&source, "truncated");
+    let (_truncated_scratch, truncated) = relocate(&source, "truncated");
     std::fs::write(&truncated, &bytes[..bytes.len() / 2]).expect("truncate");
     let run = run_image(&truncated, &[]);
     assert!(!run.status.success(), "truncated image ran: {}", run.stdout);
 
-    let corrupted = relocate(&source, "corrupted");
+    let (_corrupted_scratch, corrupted) = relocate(&source, "corrupted");
     let mut damaged = bytes.clone();
     for byte in &mut damaged[runtime_len..runtime_len + 4096] {
         *byte = 0xff;

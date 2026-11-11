@@ -6,7 +6,8 @@ fn binary() -> std::path::PathBuf {
 
 #[test]
 fn a_host_without_a_visible_gpu_fails_as_unavailable() {
-    let outputs = dx_testing::mkscratch("gpu-outputs").unwrap();
+    let outputs_guard = dx_test_scratch::scratch("gpu-outputs");
+    let outputs = outputs_guard.path();
     let outputs_dir = outputs.to_str().unwrap();
     let run = dx_testing::run(
         &binary(),
@@ -43,7 +44,8 @@ fn a_host_without_a_visible_gpu_fails_as_unavailable() {
 
 #[test]
 fn missing_declarations_fail_before_any_cuda_call() {
-    let outputs = dx_testing::mkscratch("gpu-declared").unwrap();
+    let outputs_guard = dx_test_scratch::scratch("gpu-declared");
+    let outputs = outputs_guard.path();
     let run = dx_testing::run(
         &binary(),
         &[],
@@ -69,7 +71,8 @@ fn missing_declarations_fail_before_any_cuda_call() {
 fn an_undeclared_device_fails_before_any_cuda_call() {
     let undeclared =
         dx_testing::resolve_runfiles(&std::env::var("DX_GPU_TEST_UNDECLARED").unwrap());
-    let outputs = dx_testing::mkscratch("gpu-undeclared").unwrap();
+    let outputs_guard = dx_test_scratch::scratch("gpu-undeclared");
+    let outputs = outputs_guard.path();
     let run = dx_testing::run(
         &undeclared,
         &[],

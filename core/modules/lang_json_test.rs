@@ -286,7 +286,8 @@ fn languages_json_lists_every_depcheck_language() {
     let text = serde_json::to_string_pretty(&serde_json::json!({"languages": rows}))
         .expect("serializes")
         + "\n";
-    let scratch = dx_testing::mkscratch("languages_json").expect("scratch");
+    let scratch_guard = dx_test_scratch::scratch("languages_json");
+    let scratch = scratch_guard.path();
     let actual = scratch.join("languages.json");
     dx_testing::write_text(&actual, &text);
     let expected = dx_testing::resolve_runfiles("cli/ecosystems/languages.json");
@@ -317,7 +318,8 @@ fn families_languages_json_lists_every_quality_docs_and_setup_entry() {
     let text = serde_json::to_string_pretty(&serde_json::json!({"languages": rows}))
         .expect("serializes")
         + "\n";
-    let scratch = dx_testing::mkscratch("families_languages_json").expect("scratch");
+    let scratch_guard = dx_test_scratch::scratch("families_languages_json");
+    let scratch = scratch_guard.path();
     let actual = scratch.join("languages.json");
     dx_testing::write_text(&actual, &text);
     let expected = dx_testing::resolve_runfiles("cli/families/languages.json");
@@ -364,7 +366,8 @@ fn langs_bzl_is_generated_from_every_lang_json() {
     let text = format!(
         "\"\"\"Generated from every <lang>/lang.json by //core/modules:lang_json_test; refresh with UPDATE_EXPECT=1.\"\"\"\n\nLANGS = json.decode(\"\"\"{body}\"\"\")\n"
     );
-    let scratch = dx_testing::mkscratch("langs_bzl").expect("scratch");
+    let scratch_guard = dx_test_scratch::scratch("langs_bzl");
+    let scratch = scratch_guard.path();
     let actual = scratch.join("langs.bzl");
     dx_testing::write_text(&actual, &text);
     let expected = dx_testing::resolve_runfiles("core/modules/langs.bzl");
@@ -471,7 +474,8 @@ fn aspect_registration_is_generated_from_every_lang_json() {
     let current = dx_testing::read_runfiles("core/quality/testdata/all_languages.bzl");
     let text = splice(&current, LOADS_BEGIN, LOADS_END, &loads);
     let text = splice(&text, EXPORTS_BEGIN, EXPORTS_END, &exports);
-    let scratch = dx_testing::mkscratch("all_languages_bzl").expect("scratch");
+    let scratch_guard = dx_test_scratch::scratch("all_languages_bzl");
+    let scratch = scratch_guard.path();
     let actual = scratch.join("all_languages.bzl");
     dx_testing::write_text(&actual, &text);
     let expected = dx_testing::resolve_runfiles("core/quality/testdata/all_languages.bzl");
@@ -517,7 +521,8 @@ fn gazelle_lock_registry_is_generated_from_every_lang_json() {
         entry.as_object_mut().expect("object").remove("state");
     }
     let text = serde_json::to_string_pretty(&entries).expect("serializes") + "\n";
-    let scratch = dx_testing::mkscratch("gazelle_lock_registry").expect("scratch");
+    let scratch_guard = dx_test_scratch::scratch("gazelle_lock_registry");
+    let scratch = scratch_guard.path();
     let actual = scratch.join("lock_registry.json");
     dx_testing::write_text(&actual, &text);
     let expected = dx_testing::resolve_runfiles("gazelle/common/lock_registry.json");
@@ -543,7 +548,8 @@ fn starlark_lock_registry_is_generated_from_every_lang_json() {
         text.push_str("    },\n");
     }
     text.push_str("}\n");
-    let scratch = dx_testing::mkscratch("starlark_lock_registry").expect("scratch");
+    let scratch_guard = dx_test_scratch::scratch("starlark_lock_registry");
+    let scratch = scratch_guard.path();
     let actual = scratch.join("lock_registry.bzl");
     dx_testing::write_text(&actual, &text);
     let expected = dx_testing::resolve_runfiles("core/modules/lock_registry.bzl");

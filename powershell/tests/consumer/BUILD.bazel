@@ -1,17 +1,17 @@
 load("@rules_dx//powershell:defs.bzl", "powershell_library", "powershell_test")
 
+# dx: written once, yours to edit
+
 powershell_library(
     name = "consumer",
     srcs = [
         "Greet.psd1",
         "Greet.psm1",
     ],
-    visibility = ["//visibility:public"],
 )
 
 powershell_test(
-    name = "consumer_test",
-    size = "small",
-    srcs = ["HelloTest.ps1"],
+    name = "hello_test",
+    srcs = ["Hello.Tests.ps1"],
     deps = [":consumer"],
 )

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use dx_testing::{Run, mkscratch, resolve_runfiles, run};
+use dx_testing::{Run, mkscratch, run};
 
 const FAKE_XCRUN: &str = r#"#!/bin/sh
 printf '%s\n' "$*" >>"$FAKE_LOG"
@@ -51,10 +51,6 @@ impl Fake {
     fn log(&self) -> String {
         std::fs::read_to_string(self.root.join("log.txt")).unwrap_or_default()
     }
-}
-
-fn script(var: &str) -> PathBuf {
-    resolve_runfiles(&std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a script")))
 }
 
 fn fails(ran: &Run, code: i32, stderr: &str) {
@@ -117,7 +113,7 @@ fn check_kind(
     args.extend_from_slice(&[kind[1], "16.4.0.16F6", "18.5"]);
     args.extend_from_slice(inputs);
     let ran = run(
-        &script("DX_LIBRARY_CHECK"),
+        &dx_testing::env_file("DX_LIBRARY_CHECK"),
         &args,
         &[
             ("DX_APPLE_TOOL_PATH", path.as_str()),

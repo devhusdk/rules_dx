@@ -16,11 +16,6 @@ summary tasks=5 done=1 open=4 assets=1
 asset notes.txt bytes=41 adler32:3d6a0e9d
 ";
 
-fn artifact(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} names a release artifact"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn stage(prefix: &str, artifact: &Path, name: &str) -> (PathBuf, PathBuf) {
     let dir = dx_testing::mkscratch(prefix).expect("scratch dir");
     let target = dir.join(name);
@@ -44,7 +39,11 @@ fn serial() -> MutexGuard<'static, ()> {
 #[test]
 fn optimized_native_release_runs_relocated() {
     let _serial = serial();
-    let (bin, dir) = stage("tasks-release", &artifact("DX_TASKS_RELEASE"), "tasks");
+    let (bin, dir) = stage(
+        "tasks-release",
+        &dx_testing::env_file("DX_TASKS_RELEASE"),
+        "tasks",
+    );
     let notes = format!("--asset={}", dir.join("notes.txt").display());
     let board = dir.join("board.txt");
     let result = dx_testing::run(
@@ -67,14 +66,14 @@ fn optimized_wasi_release_runs_relocated_under_wasmtime() {
     let _serial = serial();
     let (module, dir) = stage(
         "tasks-wasi-release",
-        &artifact("DX_TASKS_WASI_RELEASE"),
+        &dx_testing::env_file("DX_TASKS_WASI_RELEASE"),
         "tasks.wasm",
     );
     let bytes = std::fs::read(&module).expect("read the module");
     assert_eq!(&bytes[..4], b"\0asm", "release module is not Wasm");
     let preopen = format!("{}::/data", dir.display());
     let result = dx_testing::run(
-        &artifact("DX_WASMTIME"),
+        &dx_testing::env_file("DX_WASMTIME"),
         &[
             "run",
             "--dir",
@@ -97,11 +96,11 @@ fn wasi_module_without_a_preopen_reports_unreadable() {
     let _serial = serial();
     let (module, _dir) = stage(
         "tasks-wasi-capability",
-        &artifact("DX_TASKS_WASI_RELEASE"),
+        &dx_testing::env_file("DX_TASKS_WASI_RELEASE"),
         "tasks.wasm",
     );
     let result = dx_testing::run(
-        &artifact("DX_WASMTIME"),
+        &dx_testing::env_file("DX_WASMTIME"),
         &[
             "run",
             module.to_str().expect("utf8 path"),

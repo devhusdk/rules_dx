@@ -1,10 +1,6 @@
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
-fn path(var: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var(var).expect("path env is set"))
-}
-
 fn registry_at(bin: &PathBuf, args: &[&str], working_dir: Option<&PathBuf>) -> Output {
     let mut command = Command::new(bin);
     command.args(args);
@@ -34,7 +30,7 @@ fn registry_bin() -> PathBuf {
         .map(|cwd| cwd.join(&rel))
         .ok()
         .filter(|candidate| candidate.exists())
-        .unwrap_or_else(|| path("REGISTRY_BIN"))
+        .unwrap_or_else(|| dx_testing::env_file("REGISTRY_BIN"))
 }
 
 fn registry(args: &[&str], working_dir: Option<&PathBuf>) -> Output {
@@ -116,7 +112,7 @@ fn malformed_files_exit_3_with_their_reason() {
         ("REGISTRY_NOT_JSON", "registry file is not valid JSON"),
     ];
     for (var, reason) in cases {
-        let file = path(var);
+        let file = dx_testing::env_file(var);
         let run = registry(
             &["--file", file.to_str().expect("utf-8 path"), "list"],
             None,
@@ -142,7 +138,7 @@ fn packaged_registry_is_found_from_any_directory() {
 
 #[test]
 fn relative_file_resolves_against_the_invoking_directory() {
-    let json = path("REGISTRY_JSON");
+    let json = dx_testing::env_file("REGISTRY_JSON");
     let dir = json.parent().expect("parent").to_path_buf();
     let run = registry(&["--file", "packages.json", "latest", "core"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
@@ -196,8 +192,7 @@ fn staged_symlink_runs_the_same_entry() {
     let dir = scratch("staged");
     let link = dir.join("registry-link");
     let _ = std::fs::remove_file(&link);
-    std::os::unix::fs::symlink(registry_bin(), &link)
-        .expect("symlink");
+    std::os::unix::fs::symlink(registry_bin(), &link).expect("symlink");
     let run = registry_at(&link, &["where"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
     assert!(

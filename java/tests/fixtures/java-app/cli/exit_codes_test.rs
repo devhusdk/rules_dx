@@ -1,12 +1,8 @@
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
-fn path(var: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var(var).expect("path env is set"))
-}
-
 fn invoice(args: &[&str], working_dir: Option<&PathBuf>) -> Output {
-    let mut command = Command::new(path("INVOICE_BIN"));
+    let mut command = Command::new(dx_testing::env_file("INVOICE_BIN"));
     command.args(args);
     command.env_remove("BUILD_WORKING_DIRECTORY");
     command.env_remove("INVOICE_FILE");
@@ -61,7 +57,7 @@ fn malformed_files_exit_3_with_their_reason() {
         ("INVOICE_NOT_JSON", "invoice file is not valid JSON"),
     ];
     for (var, reason) in cases {
-        let file = path(var);
+        let file = dx_testing::env_file(var);
         let run = invoice(
             &["--file", file.to_str().expect("utf-8 path"), "list"],
             None,
@@ -80,7 +76,7 @@ fn bundled_invoices_are_found_from_any_directory() {
 
 #[test]
 fn relative_file_resolves_against_the_invoking_directory() {
-    let json = path("INVOICE_JSON");
+    let json = dx_testing::env_file("INVOICE_JSON");
     let dir = json.parent().expect("parent").to_path_buf();
     let run = invoice(&["--file", "invoices.json", "customers"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));

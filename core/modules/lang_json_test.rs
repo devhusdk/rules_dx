@@ -604,8 +604,7 @@ fn families_aspects_named_for_a_language_are_in_its_lang_json() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
-#[test]
-fn gazelle_lock_registry_is_generated_from_every_lang_json() {
+fn lock_registry_entries() -> Vec<Value> {
     let root = dx_testing::rules_dx_source();
     let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
         .expect("families.json");
@@ -630,12 +629,37 @@ fn gazelle_lock_registry_is_generated_from_every_lang_json() {
             );
         }
     }
-    let list: Vec<Value> = entries.into_values().collect();
-    let text = serde_json::to_string_pretty(&list).expect("serializes") + "\n";
+    entries.into_values().collect()
+}
+
+#[test]
+fn gazelle_lock_registry_is_generated_from_every_lang_json() {
+    let text = serde_json::to_string_pretty(&lock_registry_entries()).expect("serializes") + "\n";
     let scratch = dx_testing::mkscratch("gazelle_lock_registry").expect("scratch");
     let actual = scratch.join("lock_registry.json");
     dx_testing::write_text(&actual, &text);
     let expected = dx_testing::resolve_runfiles("gazelle/common/lock_registry.json");
     dx_testing::snapshot_diff(&expected, &actual, Some("gazelle/common/lock_registry.json"))
         .expect("gazelle/common/lock_registry.json is generated from every lang.json");
+}
+
+#[test]
+fn starlark_lock_registry_is_generated_from_every_lang_json() {
+    let mut text = String::from(
+        "\"\"\"Generated from every <lang>/lang.json setup.hubs entry with a lock.\"\"\"\n\nLOCK_REGISTRY = {\n",
+    );
+    for entry in lock_registry_entries() {
+        text.push_str(&format!("    {}: {{\n", entry["ecosystem"]));
+        for key in ["hub", "imports", "lock", "manifest"] {
+            text.push_str(&format!("        \"{key}\": {},\n", entry[key]));
+        }
+        text.push_str("    },\n");
+    }
+    text.push_str("}\n");
+    let scratch = dx_testing::mkscratch("starlark_lock_registry").expect("scratch");
+    let actual = scratch.join("lock_registry.bzl");
+    dx_testing::write_text(&actual, &text);
+    let expected = dx_testing::resolve_runfiles("core/modules/lock_registry.bzl");
+    dx_testing::snapshot_diff(&expected, &actual, Some("core/modules/lock_registry.bzl"))
+        .expect("core/modules/lock_registry.bzl is generated from every lang.json");
 }

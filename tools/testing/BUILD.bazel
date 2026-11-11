@@ -312,7 +312,10 @@ rust_binary(
     srcs = ["determinism_check.rs"],
     crate_name = "determinism_check",
     crate_root = "determinism_check.rs",
-    deps = [":dx_testing"],
+    deps = [
+        ":dx_testing",
+        "@crates//:serde_json",
+    ],
 )
 
 # keep

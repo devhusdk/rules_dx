@@ -1,4 +1,5 @@
 //! Builds the given patterns twice in fresh output bases and fails when the exec logs differ.
+//! With `--kinds` the patterns come from the `entry_points` of every `<lang>/lang.json`.
 
 use dx_testing::exec_log;
 use std::path::{Path, PathBuf};
@@ -6,6 +7,51 @@ use std::process::Command;
 use std::time::Instant;
 
 const ALLOWLIST: &str = "tools/ci/determinism_allowlist.txt";
+
+fn entry_points(workspace: &Path) -> Result<Vec<String>, String> {
+    let mut names = std::collections::BTreeSet::new();
+    let dirs = std::fs::read_dir(workspace).map_err(|e| format!("{}: {e}", workspace.display()))?;
+    for dir in dirs {
+        let path = dir.map_err(|e| e.to_string())?.path().join("lang.json");
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let json: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+        let list = json["entry_points"]
+            .as_array()
+            .ok_or_else(|| format!("{}: entry_points is not a list", path.display()))?;
+        names.extend(list.iter().filter_map(|n| n.as_str().map(str::to_owned)));
+    }
+    Ok(names.into_iter().collect())
+}
+
+fn kinds_query(names: &[String]) -> String {
+    format!(
+        "kind('^({})$', //...) except attr(tags, manual, //...)",
+        names.join("|")
+    )
+}
+
+fn kind_targets(bazel: &str, workspace: &Path) -> Result<Vec<String>, String> {
+    let names = entry_points(workspace)?;
+    let output = Command::new(bazel)
+        .args(["query", "--output=label", "--noshow_progress", &kinds_query(&names)])
+        .current_dir(workspace)
+        .output()
+        .map_err(|e| format!("{bazel}: {e}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "bazel query exited with {}: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::to_owned)
+        .collect())
+}
 
 fn build_argv(bazel: &str, out: &Path, name: &str, patterns: &[String]) -> Vec<String> {
     let out = out.display();
@@ -64,22 +110,27 @@ fn main() -> Result<(), String> {
     let mut bazel = None;
     let mut out = None;
     let mut patterns = Vec::new();
+    let mut kinds = false;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--bazel" => bazel = args.next(),
             "--out" => out = args.next().map(PathBuf::from),
+            "--kinds" => kinds = true,
             _ => patterns.push(arg),
         }
     }
     let bazel = bazel.ok_or("--bazel is required")?;
     let out = out.ok_or("--out is required")?;
-    if patterns.is_empty() {
-        return Err("at least one pattern is required".to_owned());
-    }
     let workspace = PathBuf::from(
         std::env::var("BUILD_WORKSPACE_DIRECTORY").map_err(|_| "run with `bazel run`")?,
     );
+    if kinds {
+        patterns.extend(kind_targets(&bazel, &workspace)?);
+    }
+    if patterns.is_empty() {
+        return Err("at least one pattern or --kinds is required".to_owned());
+    }
     for name in ["first", "second"] {
         build(&bazel, &out, name, &patterns, &workspace)?;
     }
@@ -108,6 +159,30 @@ mod tests {
     const FIRST: &[u8] = include_bytes!("exec_log_fixtures/first.log.zst");
     const SECOND: &[u8] = include_bytes!("exec_log_fixtures/second.log.zst");
     const STAMPED: &str = "//:stamped Genrule bazel-out/k8-fastbuild/bin/stamped.txt";
+
+    #[test]
+    fn the_kinds_query_joins_the_names_and_skips_manual_targets() {
+        let names = ["a_rule".to_owned(), "b_rule".to_owned()];
+        assert_eq!(
+            kinds_query(&names),
+            "kind('^(a_rule|b_rule)$', //...) except attr(tags, manual, //...)"
+        );
+    }
+
+    #[test]
+    fn the_entry_points_are_read_from_each_lang_json() {
+        let dir = std::env::temp_dir().join(format!("determinism_kinds_{}", std::process::id()));
+        for (lang, names) in [("x", "[\"b\", \"a\"]"), ("y", "[\"a\", \"c\"]")] {
+            std::fs::create_dir_all(dir.join(lang)).unwrap();
+            std::fs::write(
+                dir.join(lang).join("lang.json"),
+                format!("{{\"entry_points\": {names}}}"),
+            )
+            .unwrap();
+        }
+        assert_eq!(entry_points(&dir).unwrap(), ["a", "b", "c"]);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn the_build_argv_is_exact() {

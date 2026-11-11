@@ -6,6 +6,8 @@ exports_files([
     "sysroot_host_libs.patch",
     "target_runtime_root.patch",
     "toolchain_sysroot_env.patch",
+    "windows_absolute_sdk.patch",
+    "windows_unknown_vendor.patch",
 ])
 
 real_source_target(

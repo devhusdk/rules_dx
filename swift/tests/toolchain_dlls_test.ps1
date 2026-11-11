@@ -19,8 +19,10 @@ foreach ($path in @($objdump, $runtimeBin, $system32)) {
 function Get-Imports([string]$Path) {
     $lines = & $objdump -p $Path
     if ($LASTEXITCODE -ne 0) { throw "llvm-objdump -p $Path exited $LASTEXITCODE" }
+    $imports = $false
     foreach ($line in $lines) {
-        if ($line -match '^\s*DLL Name:\s*(\S+)') { $Matches[1] }
+        if ($line -match '^\S') { $imports = $line -match '^The Import Tables:' }
+        if ($imports -and $line -match '^\s*DLL Name:\s*(\S+)') { $Matches[1] }
     }
 }
 

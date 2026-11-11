@@ -1,0 +1,30 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//android:defs.bzl", "rust_android_apk")
+load("//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "app_jni",
+    testonly = True,
+    srcs = ["activity.c"],
+    target_compatible_with = ["@platforms//os:android"],
+    alwayslink = True,
+)
+
+rust_android_apk(
+    name = "app_apk",
+    testonly = True,
+    app_id = "com.example.dxtestonly",
+    visibility = ["//visibility:private"],
+    deps = [":app_jni"],
+)
+
+build_test(
+    name = "testonly_targets_analyze",
+    size = "small",
+    testonly = True,
+    targets = [
+        ":app_apk_file",
+        ":app_apk_unsigned_file",
+        ":app_apk_aab_file",
+    ],
+)

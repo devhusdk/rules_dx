@@ -106,10 +106,6 @@ helm coverage_test *
 helm fail_test *
 helm pass_test *
 java coverage_test *
-julia build_test *
-julia coverage_test *
-julia fail_test *
-julia pass_test *
 kotlin build_test *
 kotlin coverage_test *
 kotlin fail_test *

@@ -38,9 +38,12 @@ _coverage_transition = transition(
 def _subject_impl(ctx):
     subject = ctx.attr.subject[0]
     executable = subject[DefaultInfo].files_to_run.executable
+    environment = subject[RunEnvironmentInfo].environment if RunEnvironmentInfo in subject else {}
+    env_file = ctx.actions.declare_file(ctx.label.name + ".env")
+    ctx.actions.write(env_file, "".join(["%s=%s\n" % (k, environment[k]) for k in sorted(environment)]))
     return [DefaultInfo(
-        files = depset([executable]),
-        runfiles = subject[DefaultInfo].default_runfiles,
+        files = depset([executable, env_file]),
+        runfiles = subject[DefaultInfo].default_runfiles.merge(ctx.runfiles(files = [env_file])),
     )]
 
 def _subject_rule(subject_cfg, extra_attrs, doc):
@@ -53,7 +56,7 @@ def _subject_rule(subject_cfg, extra_attrs, doc):
 dx_conformance_subject = _subject_rule(
     subject_transition,
     {},
-    "Forwards the executable and runfiles of a subject built with the subject flag on.",
+    "Forwards the executable, runfiles and run environment of a subject built with the subject flag on.",
 )
 
 _coverage_subject = _subject_rule(
@@ -258,7 +261,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
             deps = [Label("//tools/testing:dx_testing")],
             env = {
                 "DX_CONFORMANCE_MODE": mode,
-                "DX_CONFORMANCE_SUBJECT": "$(rlocationpath %s)" % subject,
+                "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths %s)" % subject,
                 "DX_CONFORMANCE_TEXT": text,
             },
             size = size,

@@ -12,6 +12,12 @@
     "manifest": "dub.json"
   },
   {
+    "ecosystem": "luarocks",
+    "hub": "rocks",
+    "lock": "luarocks.lock.json",
+    "manifest": "*.rockspec"
+  },
+  {
     "ecosystem": "swiftpm",
     "hub": "swiftpkg",
     "lock": "swiftpm.lock.json",

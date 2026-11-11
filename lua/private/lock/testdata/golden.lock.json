@@ -1,0 +1,57 @@
+{
+  "ecosystem": "luarocks",
+  "inputs": {
+    "app.rockspec": "756f73398d24f9ef0435d2b376f3fe8acc7a09eab66b04c0a560ed16a81b5230"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000023",
+          "strip_prefix": "leaf-1.2",
+          "urls": [
+            "https://example.com/leaf-1.2.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "lua_modules": {
+          "leaf": "leaf.lua"
+        }
+      },
+      "name": "leaf",
+      "provides": [
+        "leaf"
+      ],
+      "version": "1.2-0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "000000000000000000000000000000000000000000000000000000000000003c",
+          "strip_prefix": "mid-2.1",
+          "urls": [
+            "https://github.com/example/mid/archive/refs/tags/v2.1.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "leaf"
+      ],
+      "extra": {
+        "lua_modules": {
+          "mid": "src/mid.lua",
+          "mid.util": "src/mid/util.lua"
+        }
+      },
+      "name": "mid",
+      "provides": [
+        "mid",
+        "mid.util"
+      ],
+      "version": "2.1-1"
+    }
+  ],
+  "schema": 1
+}

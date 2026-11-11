@@ -50,18 +50,20 @@ pub fn parse_lua_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
     Ok(deps)
 }
 
-/// Reads a `luarocks.lock`: `["name"] = "version-revision"` pairs. The rock revision is dropped.
+/// Reads a `luarocks.lock.json`: the name and version of each package. The rock revision is dropped.
 pub fn parse_lua_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
-    let text = strip_comments(&text);
-    let pair_re = regex::Regex::new(r#"\[\s*["']([^"']+)["']\s*\]\s*=\s*["']([^"']+)["']"#)
-        .map_err(DepcheckError::LockRegex)?;
+    let json: serde_json::Value = serde_json::from_str(&text).map_err(|error| {
+        DepcheckError::LockIo(std::io::Error::new(std::io::ErrorKind::InvalidData, error))
+    })?;
     let mut rocks = BTreeMap::new();
-    for pair in pair_re.captures_iter(&text) {
-        let version = pair[2]
-            .rsplit_once('-')
-            .map_or(&pair[2], |(version, _)| version);
-        rocks.insert(pair[1].to_owned(), version.to_owned());
+    for package in json["packages"].as_array().into_iter().flatten() {
+        let (Some(name), Some(full)) = (package["name"].as_str(), package["version"].as_str())
+        else {
+            continue;
+        };
+        let version = full.rsplit_once('-').map_or(full, |(version, _)| version);
+        rocks.insert(name.to_owned(), version.to_owned());
     }
     Ok(rocks)
 }

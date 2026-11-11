@@ -272,7 +272,6 @@ pub struct ComposerLock<'a> {
 pub struct LuaRocksLock<'a> {
     pub name: &'a str,
     pub lock: &'a str,
-    pub digests: &'a str,
     pub line: usize,
 }
 
@@ -1026,7 +1025,6 @@ impl ModuleFile {
             Ok(LuaRocksLock {
                 name: required(call, TAG, "name")?,
                 lock: required(call, TAG, "lock")?,
-                digests: required(call, TAG, "digests")?,
                 line: call.line,
             })
         })

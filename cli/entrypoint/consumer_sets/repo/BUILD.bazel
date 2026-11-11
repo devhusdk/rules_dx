@@ -38,8 +38,7 @@ genrule(
         "sets_ok/apps/php/composer.json",
         "sets_ok/apps/php/composer.lock",
         "sets_ok/apps/php/composer.lock.json",
-        "sets_ok/apps/lua/luarocks.lock",
-        "sets_ok/apps/lua/luarocks.digests.json",
+        "sets_ok/apps/lua/luarocks.lock.json",
         "sets_ok/license.toml",
         "sets_ok/apps/ml/ocaml_app.opam",
         "sets_ok/apps/ml/ocaml_app.opam.locked",
@@ -79,7 +78,7 @@ swift_deps.from_package(resolved = "//apps/swift:Package.resolved", swift = "//a
 composer = use_extension("@rules_dx//php:extensions.bzl", "composer")
 composer.lock(name = "vendor", lock = "//apps/php:composer.lock.json")
 luarocks = use_extension("@rules_dx//lua:extensions.bzl", "luarocks")
-luarocks.lock(name = "rocks", lock = "//apps/lua:luarocks.lock", digests = "//apps/lua:luarocks.digests.json")
+luarocks.lock(name = "rocks", lock = "//apps/lua:luarocks.lock.json")
 ocaml = use_extension("@rules_dx//ocaml:extensions.bzl", "ocaml")
 ocaml.lock(name = "ocaml_app", lock = "//apps/ml:ocaml_app.opam.locked")
 EOF
@@ -96,13 +95,7 @@ echo '{"pins": [], "version": 3}' > "$(location sets_ok/apps/swift/Package.resol
 echo '{"require": {"psr/log": "^1.1"}}' > "$(location sets_ok/apps/php/composer.json)"
 echo '{"packages": [], "packages-dev": []}' > "$(location sets_ok/apps/php/composer.lock)"
 echo '{}' > "$(location sets_ok/apps/php/composer.lock.json)"
-printf 'return {
-   dependencies = {
-      inspect = "3.1.3-0",
-   },
-}
-' > "$(location sets_ok/apps/lua/luarocks.lock)"
-echo '{"packages": {}}' > "$(location sets_ok/apps/lua/luarocks.digests.json)"
+echo '{"schema": 1, "ecosystem": "luarocks", "packages": [{"name": "inspect", "version": "3.1.3-0"}]}' > "$(location sets_ok/apps/lua/luarocks.lock.json)"
 cat > "$(location sets_ok/license.toml)" <<'EOF'
 schema_version = 1
 

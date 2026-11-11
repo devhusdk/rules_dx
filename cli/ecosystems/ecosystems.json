@@ -382,7 +382,7 @@
     },
     {
       "name": "luarocks",
-      "manifest": "luarocks.lock",
+      "manifest": "*.rockspec",
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "luarocks",
@@ -393,11 +393,11 @@
       "audit": true,
       "advisory_family": null,
       "uses_repository": false,
-      "lockfiles": ["luarocks.lock"],
+      "lockfiles": ["luarocks.lock.json"],
       "osv_source": null,
       "license_audit": true,
       "lock_required": true,
-      "pinned_reason": "dx checks no LuaRocks pins; run `dx update` to move them and rewrite luarocks.digests.json"
+      "pinned_reason": "dx checks no LuaRocks pins; run `dx update` to resolve them"
     },
     {
       "name": "ansible",

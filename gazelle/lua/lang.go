@@ -43,6 +43,7 @@ func NewLanguage() language.Language {
 		ImportAttr:     "srcs",
 		IsImportSource: isSupported,
 		IsStdLib:       IsStdLib,
+		External:       "luarocks",
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
 		Generate:       generateRules,
 	})}

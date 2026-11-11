@@ -90,53 +90,29 @@ lua_binary(
 
 ## Packages
 
-The `luarocks` module extension turns a `luarocks.lock` into one repository per
-rock and a hub. Only pure-Lua rocks with the `builtin` build type are
+The `luarocks` module extension turns a `luarocks.lock.json` into a hub with one
+`lua_library` per rock. Only pure-Lua rocks with the `builtin` build type are
 supported.
 
 ```python
 luarocks = use_extension("@rules_dx//lua:extensions.bzl", "luarocks")
 luarocks.lock(
     name = "rocks",
-    digests = "//third_party/lua:luarocks.digests.json",
-    lock = "//third_party/lua:luarocks.lock",
+    lock = "//third_party/lua:luarocks.lock.json",
 )
 use_repo(luarocks, "rocks")
 ```
 
-Depend on `@rocks//inspect`. `luarocks.lock` is the file `luarocks --pin` writes.
-`luarocks.digests.json` sits next to it and lists every locked rock:
+Depend on `@rocks//inspect`. `bazel run @rules_dx//lua:lock -- --dir third_party/lua`
+resolves the `dependencies` of the `*.rockspec` in that directory from
+`https://luarocks.org/manifest-5.5.json` and writes `luarocks.lock.json` with each
+rock's modules and archive sha256. Unchanged rocks are kept. `dx update` runs it.
 
-```json
-{
-  "packages": {
-    "inspect": {
-      "deps": [],
-      "modules": {"inspect": "inspect.lua"},
-      "source": {
-        "sha256": "<sha256>",
-        "strip_prefix": "inspect.lua-3.1.3",
-        "urls": ["https://github.com/kikito/inspect.lua/archive/v3.1.3.tar.gz"]
-      },
-      "version": "3.1.3-0"
-    }
-  }
-}
-```
+`dx security` and `dx license` read `luarocks.lock.json`. `dx security` reports the set as uncovered because OSV has no LuaRocks ecosystem; accept it with `--accept uncovered:<set>`.
 
-`modules` maps each module name to its file in the source. An empty `sha256`
-fails the fetch and prints the digest to commit. A module named `x.init` is
-rejected; list it as `x`.
-
-`dx security` and `dx license` read `luarocks.lock`. `dx security` reports the set as uncovered because OSV has no LuaRocks ecosystem; accept it with `--accept uncovered:<set>`.
-
-Add `luarocks_lock(name = "lock")` from `@rules_dx//lua/luarocks:defs.bzl` next to
-the lock. `dx update` runs it: it moves the named rocks (all of them for a full
-update) to their newest release in `luarocks.lock`, then rewrites
-`luarocks.digests.json` from the rockspecs and the downloaded sources.
-`dx update --outdated` lists newer releases from `https://luarocks.org/manifest-5.5.json`.
 Only `build.type = "builtin"` rocks with Lua modules are accepted. A `git+` source
-must be a GitHub URL with a `tag`.
+must be a GitHub URL with a `tag`. A module file must end in the module's path, such
+as `src/a/b.lua` for `a.b`.
 
 Alternatively, pin a pure-Lua package with `http_archive` and
 a `build_file` that declares a `lua_library`:

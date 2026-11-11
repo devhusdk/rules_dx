@@ -1736,47 +1736,52 @@ fn composer_lock_lists_both_arrays_and_skips_branches() {
 }
 
 #[test]
-fn luarocks_lock_reads_bare_and_bracketed_keys() {
-    let text = "-- generated\nreturn {\n   dependencies = {\n      inspect = \"3.1.3-0\",\n      [\"lua-cjson\"] = '2.1.0.10-1';\n      [\"a.b\"] = \"1.0-1\",\n   },\n   extra = { x = \"1\" },\n}\n";
-    let packages = parse_luarocks_lock(text).expect("parses");
-    let found: Vec<_> = packages
+fn luarocks_lock_reads_the_packages() {
+    let text = r#"{"schema":1,"ecosystem":"luarocks","packages":[
+        {"name":"lua-cjson","version":"2.1.0.10-1"},
+        {"name":"inspect","version":"3.1.3-0"}]}"#;
+    let found: Vec<_> = parse_luarocks_lock(text)
+        .expect("parses")
         .iter()
         .map(|package| {
             (
-                package.set.as_str(),
-                package.name.as_str(),
-                package.version.as_str(),
+                package.set.clone(),
+                package.name.clone(),
+                package.version.clone(),
             )
         })
         .collect();
     assert_eq!(
         found,
         [
-            ("luarocks", "a.b", "1.0-1"),
-            ("luarocks", "inspect", "3.1.3-0"),
-            ("luarocks", "lua-cjson", "2.1.0.10-1"),
+            (
+                "luarocks".to_owned(),
+                "inspect".to_owned(),
+                "3.1.3-0".to_owned()
+            ),
+            (
+                "luarocks".to_owned(),
+                "lua-cjson".to_owned(),
+                "2.1.0.10-1".to_owned()
+            ),
         ]
     );
-    let tabs = "return {\n\tdependencies = {\n\t\tinspect = \"3.1.3-0\"\n\t}\n}";
-    assert_eq!(parse_luarocks_lock(tabs).expect("parses").len(), 1);
 }
 
 #[test]
-fn luarocks_lock_accepts_an_empty_table_and_rejects_malformed_input() {
+fn luarocks_lock_accepts_no_packages_and_rejects_malformed_input() {
     assert!(
-        parse_luarocks_lock("return { dependencies = {} }")
+        parse_luarocks_lock(r#"{"packages":[]}"#)
             .expect("parses")
             .is_empty()
     );
     for bad in [
         "",
-        "{ dependencies = {} }",
-        "return { }",
-        "return { dependencies = { inspect = } }",
-        "return { dependencies = { inspect = \"1-0\" }",
-        "return { dependencies = { [inspect] = \"1-0\" } }",
-        "return { dependencies = { inspect = \"1-0 } }",
-        "return { dependencies = \"x\" }",
+        "[",
+        "{}",
+        r#"{"packages":{}}"#,
+        r#"{"packages":[{"name":"inspect"}]}"#,
+        r#"{"packages":[{"name":"","version":"1-0"}]}"#,
     ] {
         assert!(parse_luarocks_lock(bad).is_err(), "{bad}");
     }

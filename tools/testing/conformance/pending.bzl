@@ -103,7 +103,6 @@ kubernetes build_test *
 kubernetes coverage_test *
 kubernetes fail_test *
 kubernetes pass_test *
-lua coverage_test *
 make build_test *
 make coverage_test *
 make fail_test *
@@ -140,7 +139,6 @@ rst build_test *
 rst coverage_test *
 rst fail_test *
 rst pass_test *
-ruby coverage_test *
 sql build_test *
 sql coverage_test *
 sql fail_test *

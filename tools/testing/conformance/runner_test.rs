@@ -144,6 +144,11 @@ fn subject_matches_mode() {
                 hits(&report, &source) > 0,
                 "no covered lines in {text}:\n{report}"
             );
+            let missed = misses(&report, &source);
+            assert!(
+                missed.is_empty(),
+                "lines {missed:?} of {text} never ran:\n{report}"
+            );
         }
         "fail" => {
             assert!(
@@ -182,6 +187,26 @@ fn sources(report: &str) -> Vec<&str> {
         .lines()
         .filter_map(|line| line.strip_prefix("SF:"))
         .collect()
+}
+
+fn misses(report: &str, source: &str) -> Vec<String> {
+    let mut inside = false;
+    let mut missed = Vec::new();
+    for line in report.lines() {
+        if let Some(name) = line.strip_prefix("SF:") {
+            inside = name.ends_with(source);
+        } else if inside {
+            if let Some(count) = line.strip_prefix("DA:") {
+                let mut fields = count.split(',');
+                let number = fields.next().unwrap_or_default();
+                let hit = fields.next().and_then(|hit| hit.parse::<u64>().ok());
+                if hit.unwrap_or(0) == 0 {
+                    missed.push(number.to_owned());
+                }
+            }
+        }
+    }
+    missed
 }
 
 fn hits(report: &str, source: &str) -> u64 {
@@ -223,16 +248,33 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
         std::fs::copy(&descriptor, with_suffix(&staged, ".launch")).expect("descriptor must copy");
     }
     std::fs::copy(subject, &staged).expect("subject must copy");
-    if let Ok(tree) = std::env::var("RUNFILES_DIR") {
-        #[cfg(unix)]
-        {
-            std::os::unix::fs::symlink(&tree, with_suffix(&staged, ".runfiles"))
-                .expect("runfiles must link");
-            std::os::unix::fs::symlink(&tree, with_suffix(&staged, "_upstream.runfiles"))
-                .expect("upstream runfiles must link");
+    let name = staged
+        .file_name()
+        .and_then(|name| name.to_str())
+        .expect("staged subject must have a name")
+        .to_owned();
+    if let Some(Ok(siblings)) = subject.parent().map(std::fs::read_dir) {
+        for sibling in siblings.flatten() {
+            let file = sibling.file_name();
+            let Some(file) = file.to_str() else { continue };
+            if file.starts_with(&format!("{name}.")) {
+                std::fs::copy(sibling.path(), dir.join(file)).expect("sibling must copy");
+            }
         }
-        #[cfg(not(unix))]
-        let _ = tree;
+    }
+    #[cfg(unix)]
+    if let Ok(tree) = std::env::var("RUNFILES_DIR") {
+        for suffix in [".runfiles", "_upstream.runfiles"] {
+            let mirror = with_suffix(&staged, suffix);
+            std::fs::create_dir_all(&mirror).expect("runfiles mirror must be creatable");
+            for entry in std::fs::read_dir(&tree)
+                .expect("runfiles must be readable")
+                .flatten()
+            {
+                std::os::unix::fs::symlink(entry.path(), mirror.join(entry.file_name()))
+                    .expect("runfiles entry must link");
+            }
+        }
     }
     if let Ok(manifest) = std::env::var("RUNFILES_MANIFEST_FILE") {
         std::fs::copy(&manifest, with_suffix(&staged, ".runfiles_manifest"))

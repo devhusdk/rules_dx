@@ -257,3 +257,16 @@ func TestResolveReportsVendorImportWithHint(t *testing.T) {
 		t.Errorf("errors = %v, want one unresolved Vendor\\Lib\\Thing with a resolve hint", errs)
 	}
 }
+
+func TestGenerateKeepsHandwrittenTestsWithoutSources(t *testing.T) {
+	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte(`php_test(name = "bench_report_test", srcs = ["bench.php"])`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	writeFixture(t, root, map[string]string{"pkg/bench.php": "x\n"})
+	result := NewLanguage().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg"), Rel: "pkg", File: file, RegularFiles: []string{"bench.php"}})
+	if len(result.Empty) != 0 {
+		t.Errorf("empty = %v, want none", result.Empty)
+	}
+}

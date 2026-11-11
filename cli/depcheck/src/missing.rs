@@ -29,7 +29,7 @@ fn go_files(root: &Path) -> Vec<PathBuf> {
                     ".git" | "node_modules" | "vendor" | "testdata"
                 ) || name.starts_with("bazel-")
                     || name.starts_with('.')
-                    || path.join("go.mod").is_file();
+                    || path.join(Ecosystem::Go.manifest_name()).is_file();
                 if !skipped {
                     stack.push(path);
                 }
@@ -209,26 +209,26 @@ pub fn find_missing(
     candidates.sort();
     candidates.dedup();
     let nested = match eco {
-        Language::Rust => "Cargo.toml",
-        Language::Python => "pyproject.toml",
-        Language::Ruby => "Gemfile",
-        Language::Perl => "cpanfile",
+        Language::Rust => Ecosystem::Cargo.manifest_name(),
+        Language::Python => Ecosystem::Uv.manifest_name(),
+        Language::Ruby => Ecosystem::Ruby.manifest_name(),
+        Language::Perl => Ecosystem::Cpan.manifest_name(),
         Language::Zig => Ecosystem::Zig.manifest_name(),
-        Language::Julia => "Project.toml",
-        Language::Dart => "pubspec.yaml",
+        Language::Julia => Ecosystem::Julia.manifest_name(),
+        Language::Dart => Ecosystem::Pub.manifest_name(),
         Language::Php => Ecosystem::Composer.manifest_name(),
-        Language::Elixir => "mix.exs",
+        Language::Elixir => Ecosystem::Hex.manifest_name(),
         Language::Erlang => "rebar.config",
-        Language::Fortran => "fpm.toml",
+        Language::Fortran => Ecosystem::Fpm.manifest_name(),
         Language::D => Ecosystem::Dub.manifest_name(),
         Language::Haskell => "package.cabal",
-        Language::Swift => "Package.swift",
+        Language::Swift => Ecosystem::SwiftPm.manifest_name(),
         Language::Lua => Ecosystem::LuaRocks
             .lockfiles()
             .first()
             .map_or("", String::as_str),
         Language::Ocaml => "dune-project",
-        _ => "package.json",
+        _ => Ecosystem::Npm.manifest_name(),
     };
     let found = crate::usage::find_first_imports(eco, sources, nested, &candidates)?;
     Ok(found
@@ -241,6 +241,14 @@ pub fn find_missing(
 mod tests {
     use super::*;
 
+    fn manifest(eco: Ecosystem) -> &'static str {
+        eco.manifest_name()
+    }
+
+    fn lock(eco: Ecosystem) -> &'static str {
+        eco.lockfiles()[0].as_str()
+    }
+
     fn write(dir: &Path, rel: &str, text: &str) {
         let path = dir.join(rel);
         std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
@@ -252,7 +260,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         write(
             dir.path(),
-            "go.mod",
+            manifest(Ecosystem::Go),
             "module example.com/app\n\ngo 1.22\n\nrequire github.com/a/b v1.0.0\n",
         );
         write(
@@ -260,13 +268,17 @@ mod tests {
             "main.go",
             "package main\n\nimport (\n\t\"fmt\"\n\t\"example.com/app/util\"\n\tx \"github.com/a/b/sub\"\n\t\"github.com/c/d\"\n)\n\nimport \"github.com/e/f\"\n",
         );
-        write(dir.path(), "nested/go.mod", "module example.com/nested\n");
+        write(
+            dir.path(),
+            &format!("nested/{}", manifest(Ecosystem::Go)),
+            "module example.com/nested\n",
+        );
         write(
             dir.path(),
             "nested/n.go",
             "package n\nimport \"github.com/g/h\"\n",
         );
-        let manifest = dir.path().join("go.mod");
+        let manifest = dir.path().join(manifest(Ecosystem::Go));
         let found = find_missing_go(&manifest, dir.path(), &[]).expect("find missing");
         let got: Vec<(&str, usize)> = found.iter().map(|m| (m.name.as_str(), m.line)).collect();
         assert_eq!(got, vec![("github.com/c/d", 7), ("github.com/e/f", 10)]);
@@ -295,81 +307,90 @@ mod tests {
 
     #[test]
     fn rust_transitive_crate_is_missing_but_local_mod_is_not() {
-        let lock = "version = 3\n\n[[package]]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.0\"\nsource = \"registry+https://x\"\n\n[[package]]\nname = \"itoa\"\nversion = \"1.0.0\"\nsource = \"registry+https://x\"\n\n[[package]]\nname = \"time\"\nversion = \"0.3.0\"\nsource = \"registry+https://x\"\n";
+        let text = "version = 3\n\n[[package]]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.0\"\nsource = \"registry+https://x\"\n\n[[package]]\nname = \"itoa\"\nversion = \"1.0.0\"\nsource = \"registry+https://x\"\n\n[[package]]\nname = \"time\"\nversion = \"0.3.0\"\nsource = \"registry+https://x\"\n";
         let got = eco_case(
             Language::Rust,
             &[
                 (
-                    "Cargo.toml",
+                    manifest(Ecosystem::Cargo),
                     "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1\"\n",
                 ),
-                ("Cargo.lock", lock),
+                (lock(Ecosystem::Cargo), text),
                 (
                     "src/lib.rs",
                     "mod time;\nuse serde::Serialize;\n\nfn f() {\n    itoa::Buffer::new();\n}\n",
                 ),
-                ("member/Cargo.toml", "[package]\nname = \"m\"\n"),
+                (
+                    &format!("member/{}", manifest(Ecosystem::Cargo)),
+                    "[package]\nname = \"m\"\n",
+                ),
                 ("member/src/lib.rs", "use time::Duration;\n"),
             ],
-            "Cargo.toml",
-            "Cargo.lock",
+            manifest(Ecosystem::Cargo),
+            lock(Ecosystem::Cargo),
         );
         assert_eq!(got, vec!["itoa@src/lib.rs:5"]);
     }
 
     #[test]
     fn npm_transitive_package_is_missing() {
-        let lock = "lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      react:\n        specifier: ^18\n        version: 18.0.0\npackages:\n  react@18.0.0:\n    resolution: {integrity: x}\n  lodash@4.0.0:\n    resolution: {integrity: x}\nsnapshots:\n  react@18.0.0: {}\n  lodash@4.0.0: {}\n";
+        let text = "lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      react:\n        specifier: ^18\n        version: 18.0.0\npackages:\n  react@18.0.0:\n    resolution: {integrity: x}\n  lodash@4.0.0:\n    resolution: {integrity: x}\nsnapshots:\n  react@18.0.0: {}\n  lodash@4.0.0: {}\n";
         let got = eco_case(
             Language::Js,
             &[
-                ("package.json", "{\"dependencies\": {\"react\": \"^18\"}}"),
-                ("pnpm-lock.yaml", lock),
+                (
+                    manifest(Ecosystem::Npm),
+                    "{\"dependencies\": {\"react\": \"^18\"}}",
+                ),
+                (lock(Ecosystem::Npm), text),
                 (
                     "src/a.js",
                     "import React from 'react';\nconst l = require('lodash/fp');\n",
                 ),
             ],
-            "package.json",
-            "pnpm-lock.yaml",
+            manifest(Ecosystem::Npm),
+            lock(Ecosystem::Npm),
         );
         assert_eq!(got, vec!["lodash@src/a.js:2"]);
     }
 
     #[test]
     fn uv_transitive_package_is_missing() {
-        let lock = "version = 1\n\n[[package]]\nname = \"app\"\nversion = \"0.1.0\"\nsource = { editable = \".\" }\n\n[[package]]\nname = \"requests\"\nversion = \"2.0.0\"\nsource = { registry = \"https://pypi.org/simple\" }\n\n[[package]]\nname = \"urllib3\"\nversion = \"2.0.0\"\nsource = { registry = \"https://pypi.org/simple\" }\n";
+        let text = "version = 1\n\n[[package]]\nname = \"app\"\nversion = \"0.1.0\"\nsource = { editable = \".\" }\n\n[[package]]\nname = \"requests\"\nversion = \"2.0.0\"\nsource = { registry = \"https://pypi.org/simple\" }\n\n[[package]]\nname = \"urllib3\"\nversion = \"2.0.0\"\nsource = { registry = \"https://pypi.org/simple\" }\n";
         let got = eco_case(
             Language::Python,
             &[
                 (
-                    "pyproject.toml",
+                    manifest(Ecosystem::Uv),
                     "[project]\nname = \"app\"\nversion = \"0.1.0\"\ndependencies = [\"requests>=2\"]\n",
                 ),
-                ("uv.lock", lock),
+                (lock(Ecosystem::Uv), text),
                 (
                     "app/main.py",
                     "import requests\nimport app\n\nfrom urllib3 import PoolManager\n",
                 ),
             ],
-            "pyproject.toml",
-            "uv.lock",
+            manifest(Ecosystem::Uv),
+            lock(Ecosystem::Uv),
         );
         assert_eq!(got, vec!["urllib3@app/main.py:4"]);
     }
 
     #[test]
     fn ruby_transitive_gem_is_missing() {
-        let lock = "GEM\n  remote: https://rubygems.org/\n  specs:\n    rack (3.0.0)\n    sinatra (3.0.0)\n      rack (~> 3)\n";
+        let text = "GEM\n  remote: https://rubygems.org/\n  specs:\n    rack (3.0.0)\n    sinatra (3.0.0)\n      rack (~> 3)\n";
         let got = eco_case(
             Language::Ruby,
             &[
-                ("Gemfile", "source 'https://rubygems.org'\ngem 'sinatra'\n"),
-                ("Gemfile.lock", lock),
+                (
+                    manifest(Ecosystem::Ruby),
+                    "source 'https://rubygems.org'\ngem 'sinatra'\n",
+                ),
+                (lock(Ecosystem::Ruby), text),
                 ("app.rb", "require 'sinatra'\nrequire 'rack/utils'\n"),
             ],
-            "Gemfile",
-            "Gemfile.lock",
+            manifest(Ecosystem::Ruby),
+            lock(Ecosystem::Ruby),
         );
         assert_eq!(got, vec!["rack@app.rb:2"]);
     }

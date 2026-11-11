@@ -346,7 +346,7 @@ fn dub_locks_become_dub_sets() {
 
 #[test]
 fn fpm_locks_become_fpm_sets() {
-    let module = "fpm = use_extension(\"@rules_dx//fortran:extensions.bzl\", \"fpm\")\nfpm.lock(name = \"fpm_deps\", lock = \"//f:fpm.lock\")\n";
+    let module = "fpm = use_extension(\"@rules_dx//fortran:extensions.bzl\", \"fpm\")\nfpm.lock(name = \"fpm_deps\", lock = \"//f:fpm.lock.toml\")\n";
     let read = |_: &str| Err("none".to_owned());
     let registry = discover(module, &read)
         .expect("discovers")
@@ -354,7 +354,7 @@ fn fpm_locks_become_fpm_sets() {
     let set = registry.find("fpm_deps").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::Fpm);
     assert_eq!(set.manifests, ["f/fpm.toml"]);
-    assert_eq!(set.locks, ["f/fpm.lock"]);
+    assert_eq!(set.locks, ["f/fpm.lock.toml"]);
 }
 
 #[test]

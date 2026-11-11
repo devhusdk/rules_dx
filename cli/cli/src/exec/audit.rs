@@ -422,10 +422,7 @@ fn parse_locked_for_configured(
                 }
                 _ => Ok(Vec::new()),
             },
-            dx_adopt::dependency_sets::Ecosystem::Fpm => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::FPM_LOCK) => dx_audit::locks::parse_fpm_lock(text),
-                _ => Ok(Vec::new()),
-            },
+            dx_adopt::dependency_sets::Ecosystem::Fpm => dx_audit::locks::parse_fpm_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Zig => Ok(Vec::new()),
             dx_adopt::dependency_sets::Ecosystem::Dub => match rel.rsplit('/').next() {
                 Some(dx_adopt::dependency_sets::DUB_SELECTIONS) => {

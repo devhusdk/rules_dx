@@ -1147,7 +1147,7 @@ LANGS = json.decode("""{
           "extension": "@rules_dx//fortran:extensions.bzl",
           "hub": "fpm",
           "imports": "name",
-          "lock": "fpm.lock",
+          "lock": "fpm.lock.toml",
           "manifest": "fpm.toml",
           "resolver": null,
           "state": null,

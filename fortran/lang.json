@@ -17,7 +17,7 @@
       {
         "ecosystem": "fpm",
         "manifest": "fpm.toml",
-        "lock": "fpm.lock",
+        "lock": "fpm.lock.toml",
         "state": null,
         "extension": "@rules_dx//fortran:extensions.bzl",
         "tag": "lock",

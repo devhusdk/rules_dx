@@ -4,7 +4,7 @@ load("@rules_py//py:defs.bzl", "py_binary")
 
 _SCRIPT = Label("//fortran/private/tools:refresh.py")
 
-def fpm_lock(name, lock = "fpm.lock", **kwargs):
+def fpm_lock(name, lock, **kwargs):
     """Re-hashes the archives of fpm.lock."""
     package = native.package_name()
     prefix = package + "/" if package else ""

@@ -74,7 +74,7 @@ fn locked_names(ecosystem: Ecosystem, lock: &str, text: &str) -> Vec<(String, St
 fn fpm_lock_packages_are_audited() {
     let text = "[dependencies.alpha]\nversion = \"0.1.0\"\n";
     assert_eq!(
-        locked_names(Ecosystem::Fpm, "native/fpm.lock", text),
+        locked_names(Ecosystem::Fpm, "native/fpm.lock.toml", text),
         [("alpha".to_owned(), "0.1.0".to_owned())]
     );
 }

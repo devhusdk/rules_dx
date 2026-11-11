@@ -565,13 +565,13 @@ dub.lock(
 fpm = use_extension("@rules_dx//fortran:extensions.bzl", "fpm")
 fpm.lock(
     name = "fpm_deps",
-    lock = "//f:fpm.lock",
+    lock = "//f:fpm.lock.toml",
 )
 ```
 
-- `fpm.toml` must sit beside `fpm.lock`.
-- An fpm set: `dx update` runs the `fpm_lock` target next to `fpm.lock`, which re-hashes each package archive and rewrites its `sha256`; `<set>:<package>` re-hashes one. It does not move versions, and `dx update --outdated` checks no registry. Without the target it refuses.
-- `dx security` and `dx license` list the packages of `fpm.lock`. OSV and the GitHub Advisory Database have no fpm ecosystem, so there is no advisory source.
+- `fpm.toml` must sit beside `fpm.lock.toml`.
+- An fpm set: `dx update` runs the `fpm_lock` target next to `fpm.lock.toml`, which re-hashes each package archive and rewrites its `sha256`; `<set>:<package>` re-hashes one. It does not move versions, and `dx update --outdated` checks no registry. Without the target it refuses.
+- `dx security` and `dx license` list the packages of `fpm.lock.toml`. OSV and the GitHub Advisory Database have no fpm ecosystem, so there is no advisory source.
 
 ### zig
 

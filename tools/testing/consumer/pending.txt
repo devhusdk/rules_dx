@@ -11,8 +11,6 @@ fixture kubernetes
 fixture make
 fixture msix
 fixture terraform
-init ansible
-init cloudformation
 init d
 init elixir
 init erlang

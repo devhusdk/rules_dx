@@ -105,7 +105,7 @@ const PACKAGES: &[&str] = &[
     "ruby/private",
     "ruby/private/quality",
     "rust/private",
-    "rust/private/toolchains",
+    "rust/private/toolchain",
     "scala/private",
     "scala/private/toolchain",
     "sql/private",

@@ -5,7 +5,7 @@ load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
 load("//core:canonical.bzl", "strip_canonical")
 load("//core:defs.bzl", "DxSubjectInfo")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
-load("//rust/private/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE")
+load("//rust/private/toolchain:bindings.bzl", "RUST_TOOLCHAIN_TYPE")
 
 def _label_text(label):
     return strip_canonical(str(label))

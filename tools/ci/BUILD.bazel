@@ -782,7 +782,7 @@ rust_test(
         "//ruby/private/quality:corpus_starlark",
         "//rust/private:corpus_starlark",
         "//rust/private/quality:corpus_starlark",
-        "//rust/private/toolchains:corpus_starlark",
+        "//rust/private/toolchain:corpus_starlark",
         "//rust/tests/fixtures/wasi_guest:corpus_starlark",
         "//scala/private:corpus_starlark",
         "//scala/private/toolchain:corpus_starlark",

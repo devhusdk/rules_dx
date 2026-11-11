@@ -1,18 +1,18 @@
 load("@rules_dx//rust:defs.bzl", "rust_library", "rust_test")
 
 rust_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["src/lib.rs"],
-    crate_name = "consumer",
+    crate_name = "my_project",
     crate_root = "src/lib.rs",
     visibility = ["//visibility:public"],
 )
 
 rust_test(
-    name = "consumer_test",
+    name = "my_project_test",
     srcs = ["src/lib.rs"],
     size = "small",
-    coverage_lib = ":consumer",
-    crate_name = "consumer",
+    coverage_lib = ":my_project",
+    crate_name = "my_project",
     crate_root = "src/lib.rs",
 )

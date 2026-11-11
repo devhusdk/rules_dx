@@ -264,6 +264,9 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 	}
 
 	roots := DiscoverCrateRoots(args.Rel, files)
+	if args.Rel == "" && args.Config != nil {
+		roots.RootName = args.Config.RepoName
+	}
 	if !roots.HasRoots() {
 		return l.finish(args, language.GenerateResult{})
 	}

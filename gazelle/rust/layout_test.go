@@ -128,10 +128,21 @@ func TestShapeUnitTestNoSyntaxNoTarget(t *testing.T) {
 	}
 }
 
-func TestShapeRootDirNeedsCargo(t *testing.T) {
+func TestShapeRootUsesModuleName(t *testing.T) {
+	roots := CrateRoots{Dir: "", RootName: "my_project", LibRoot: "src/lib.rs"}
+	shape, err := ShapeCrate(roots, true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shape.Name != "my_project" || shape.LibTarget != "my_project" || !shape.LibUnitTest {
+		t.Errorf("unexpected shape: %+v", shape)
+	}
+}
+
+func TestShapeRootWithoutModuleNameFails(t *testing.T) {
 	roots := CrateRoots{Dir: "", LibRoot: "src/lib.rs"}
 	if _, err := ShapeCrate(roots, false, false); err == nil {
-		t.Error("workspace root must not get a source-only fallback name")
+		t.Error("workspace root without a module name must fail")
 	}
 }
 

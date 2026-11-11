@@ -11,6 +11,7 @@ import (
 
 type CrateRoots struct {
 	Dir       string
+	RootName  string
 	LibRoot   string
 	BinRoot   string
 	TestRoots []string
@@ -68,11 +69,15 @@ func ShapeCrate(roots CrateRoots, libUnitTest, binUnitTest bool) (*CrateShape, e
 		return &CrateShape{Dir: roots.Dir}, nil
 	}
 	base := roots.Dir
+	nameSource := path.Base(base)
 	if base == "" || base == "." {
-		return nil, fmt.Errorf("rust: crate directory %q has no source-only fallback name; an authoritative Cargo package name is required", roots.Dir)
+		nameSource = roots.RootName
 	}
-	name, err := common.Normalize(path.Base(base))
+	name, err := common.Normalize(nameSource)
 	if err != nil {
+		if base == "" || base == "." {
+			return nil, fmt.Errorf("rust: crate at the workspace root has no usable name; set module(name) in MODULE.bazel or add Cargo.toml: %w", err)
+		}
 		return nil, fmt.Errorf("rust: crate directory %q: %w", roots.Dir, err)
 	}
 	shape := &CrateShape{Dir: roots.Dir, Name: name}

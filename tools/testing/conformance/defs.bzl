@@ -108,7 +108,8 @@ def _entries(lang, labels, not_applicable):
     pending = _pending().get(lang, {})
     for test in TESTS:
         skipped = _skipped(lang, test, not_applicable)
-        for platform in LANGS[lang]["platforms"]:
+        # until #11196: empty platforms lists one `*` row
+        for platform in LANGS[lang]["platforms"] or ["*"]:
             reason = ""
             if "" in skipped:
                 status = "n/a"

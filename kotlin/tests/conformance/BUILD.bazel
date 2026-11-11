@@ -1,0 +1,49 @@
+load("//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+kotlin_library(
+    name = "conformance",
+    srcs = ["Greet.kt"],
+)
+
+kotlin_binary(
+    name = "hello",
+    srcs = ["Main.kt"],
+    main_class = "conformance.MainKt",
+    deps = [":conformance"],
+)
+
+kotlin_test(
+    name = "pass_subject_test",
+    srcs = ["PassTest.kt"],
+    main_class = "conformance.PassTestKt",
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+kotlin_test(
+    name = "fail_subject_test",
+    srcs = ["FailTest.kt"],
+    main_class = "conformance.FailTestKt",
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "Greet.kt",
+    expected = "hello world",
+    failing_case = "failingCase",
+    failing_test = ":fail_subject_test",
+    lang = "kotlin",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

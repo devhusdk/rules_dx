@@ -106,10 +106,7 @@ helm coverage_test *
 helm fail_test *
 helm pass_test *
 java coverage_test *
-kotlin build_test *
 kotlin coverage_test *
-kotlin fail_test *
-kotlin pass_test *
 kubernetes build_test *
 kubernetes coverage_test *
 kubernetes fail_test *

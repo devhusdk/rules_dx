@@ -4,7 +4,7 @@ load("//core/modules:langs.bzl", "LANGS")
 load("//rust:defs.bzl", "rust_test")
 load(":pending.bzl", "PENDING")
 
-TESTS = ["build_test", "fail_test", "pass_test"]
+TESTS = ["build_test", "coverage_test", "fail_test", "pass_test"]
 
 _FLAG = Label("//tools/testing/conformance:subject")
 _PLATFORM_SETTINGS = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]
@@ -18,6 +18,23 @@ subject_transition = transition(
     outputs = [str(_FLAG)],
 )
 
+def _coverage_transition_impl(_settings, attr):
+    return {
+        "//command_line_option:collect_code_coverage": True,
+        "//command_line_option:instrumentation_filter": attr.instrumentation_filter,
+        str(_FLAG): True,
+    }
+
+_coverage_transition = transition(
+    implementation = _coverage_transition_impl,
+    inputs = [],
+    outputs = [
+        "//command_line_option:collect_code_coverage",
+        "//command_line_option:instrumentation_filter",
+        str(_FLAG),
+    ],
+)
+
 def _subject_impl(ctx):
     subject = ctx.attr.subject[0]
     executable = subject[DefaultInfo].files_to_run.executable
@@ -26,12 +43,23 @@ def _subject_impl(ctx):
         runfiles = subject[DefaultInfo].default_runfiles,
     )]
 
-dx_conformance_subject = rule(
-    implementation = _subject_impl,
+def _subject_rule(subject_cfg, extra_attrs, doc):
     attrs = {
-        "subject": attr.label(cfg = subject_transition, executable = True, mandatory = True),
-    },
-    doc = "Forwards the executable and runfiles of a subject built with the subject flag on.",
+        "subject": attr.label(cfg = subject_cfg, executable = True, mandatory = True),
+    }
+    attrs.update(extra_attrs)
+    return rule(implementation = _subject_impl, attrs = attrs, doc = doc)
+
+dx_conformance_subject = _subject_rule(
+    subject_transition,
+    {},
+    "Forwards the executable and runfiles of a subject built with the subject flag on.",
+)
+
+_coverage_subject = _subject_rule(
+    _coverage_transition,
+    {"instrumentation_filter": attr.string(mandatory = True)},
+    "Forwards a subject built with the subject flag and code coverage on.",
 )
 
 def subject_compatible_with():
@@ -169,8 +197,8 @@ dx_conformance_manifest = rule(
     doc = "Writes one JSON with the entries of every language and the platforms of each.",
 )
 
-def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, not_applicable = {}, size = "small", **kwargs):
-    """Declares build_test, pass_test and fail_test for one language.
+def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, not_applicable = {}, size = "small", **kwargs):
+    """Declares build_test, coverage_test, pass_test and fail_test for one language.
 
     Args:
       name: Prefix of the declared targets; empty for the bare test names.
@@ -180,6 +208,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
       passing_test: Test target that passes; built under the subject transition.
       failing_test: Test target that fails with failing_case; built under the subject transition.
       failing_case: Case name the failing test must report.
+      covered_source: File name whose lines passing_test must cover; empty only when coverage_test is not applicable.
       not_applicable: Maps a test, or test:platform, to the reason it does not apply.
       size: Size of the declared tests.
       **kwargs: Forwarded to the declared tests.
@@ -188,6 +217,8 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
         fail("unknown lang %r" % lang)
     if _all_pending(lang):
         fail("%s: every test is pending on every platform; remove the `*` lines" % lang)
+    if not covered_source and "coverage_test" not in not_applicable:
+        fail("%s: covered_source is required unless coverage_test is not applicable" % lang)
     prefix = name + "_" if name else ""
     dx_conformance_subject(
         name = prefix + "pass_subject",
@@ -201,8 +232,16 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
         testonly = True,
         visibility = ["//visibility:private"],
     )
+    _coverage_subject(
+        name = prefix + "coverage_subject",
+        subject = passing_test,
+        instrumentation_filter = "^//%s[/:]" % native.package_name(),
+        testonly = True,
+        visibility = ["//visibility:private"],
+    )
     runs = {
         "build_test": (binary, "build", expected),
+        "coverage_test": (":" + prefix + "coverage_subject", "coverage", covered_source),
         "pass_test": (":" + prefix + "pass_subject", "pass", ""),
         "fail_test": (":" + prefix + "fail_subject", "fail", failing_case),
     }

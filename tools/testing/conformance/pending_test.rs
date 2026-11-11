@@ -2,7 +2,7 @@
 
 use serde_json::Value;
 
-const TESTS: [&str; 3] = ["build_test", "fail_test", "pass_test"];
+const TESTS: [&str; 4] = ["build_test", "coverage_test", "fail_test", "pass_test"];
 
 fn read(var: &str) -> String {
     let key = std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set"));
@@ -77,6 +77,8 @@ mod unit {
             "entries": [
                 {"lang": "go", "capability": "pass_test", "platform": "linux_x86_64", "status": "pending"},
                 {"lang": "go", "capability": "pass_test", "platform": "macos_arm64", "status": "run"},
+                {"lang": "go", "capability": "coverage_test", "platform": "linux_x86_64", "status": "pending"},
+                {"lang": "go", "capability": "coverage_test", "platform": "macos_arm64", "status": "pending"},
                 {"lang": "go", "capability": "fail_test", "platform": "linux_x86_64", "status": "n/a"},
                 {"lang": "go", "capability": "fail_test", "platform": "macos_arm64", "status": "n/a"},
                 {"lang": "qt", "capability": "build_test", "platform": "*", "status": "pending"},
@@ -91,6 +93,11 @@ mod unit {
     #[test]
     fn valid_lines_pass() {
         assert_eq!(problems("\ngo pass_test linux_x86_64\n", &manifest()).len(), 0);
+    }
+
+    #[test]
+    fn coverage_test_line_passes() {
+        assert_eq!(problems("\ngo coverage_test *\n", &manifest()).len(), 0);
     }
 
     #[test]

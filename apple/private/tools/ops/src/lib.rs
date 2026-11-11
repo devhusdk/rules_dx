@@ -1,3 +1,12 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
 //! The Apple operations: simulators, test simulators, running a macOS app, export, signing and notarization.
 
 #![cfg_attr(

@@ -1,3 +1,12 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
 //! `diff -u OLD NEW`: the unified diff of two files, for tools that exec `diff` from PATH.
 
 #![cfg_attr(

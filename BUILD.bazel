@@ -380,31 +380,8 @@ real_source_target(
         "CONTRIBUTING.md",
         "README.md",
         "SECURITY.md",
-        "//android:README.md",
-        "//apple:README.md",
-        "//cuda:README.md",
-        "//d:README.md",
-        "//fortran:README.md",
-        "//go:README.md",
-        "//java:README.md",
-        "//javascript:README.md",
-        "//kotlin:README.md",
-        "//lua:README.md",
-        "//ocaml:README.md",
-        "//perl:README.md",
-        "//php:README.md",
-        "//patches:README.md",
-        "//powershell:README.md",
-        "//python:README.md",
-        "//julia:README.md",
-        "//rust:README.md",
-        "//scala:README.md",
-        "//swift:README.md",
-        "//typescript:README.md",
-        "//zig:README.md",
         "CLAUDE.md",
         "RELEASING.md",
-        "//flutter:README.md",
     ],
     tags = ["corpus"],
 )
@@ -466,13 +443,11 @@ real_source_target(
     ],
 )
 
-
 real_source_target(
     name = "dotfile_toml",
     tags = ["corpus"],
     toml_srcs = [".gitleaks.toml"],
 )
-
 
 # dx:begin exports
 exports_files(

@@ -19,6 +19,7 @@ mod deploy;
 pub mod inventory;
 pub mod ledger;
 pub mod modules;
+pub mod presubmit;
 mod provenance;
 mod publish;
 pub mod runtimes;

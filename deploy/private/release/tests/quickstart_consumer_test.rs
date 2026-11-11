@@ -2,6 +2,7 @@
 
 use dx_nested::compose::{rules_dx_override, rules_py_override};
 use dx_nested::{self as nested, Case, footprint};
+use dx_release_tools::presubmit;
 use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
 
 fn ok(run: &Run, what: &str) {
@@ -35,23 +36,6 @@ fn quickstart_files(readme: &str) -> Vec<(String, String)> {
         }
     }
     files
-}
-
-/// The quoted items of the list under `key` in every task of presubmit.yml.
-fn presubmit_list(presubmit: &str, key: &str) -> Vec<String> {
-    let mut items = Vec::new();
-    let mut listing = false;
-    for line in presubmit.lines() {
-        let trimmed = line.trim();
-        if let Some(item) = trimmed.strip_prefix("- ") {
-            if listing {
-                items.push(item.trim_matches('"').to_owned());
-            }
-        } else {
-            listing = trimmed == format!("{key}:");
-        }
-    }
-    items
 }
 
 fn footprint_of(case: &Case) -> footprint::Footprint {
@@ -220,16 +204,13 @@ fn bcr_test_module_runs_its_presubmit_targets() {
         &(read_text(&module) + &rules_dx_override(&source) + &rules_py_override()),
     );
 
-    let flags = presubmit_list(&presubmit, "run_flags");
-    for target in presubmit_list(&presubmit, "run_targets") {
-        let mut args = vec!["run", target.as_str()];
-        args.extend(flags.iter().map(String::as_str));
+    let host = presubmit::host_platforms();
+    let flags = presubmit::host_run_flags(&presubmit, host);
+    for (verb, target) in presubmit::host_targets(&presubmit, host) {
+        let mut args = vec![verb.as_str(), target.as_str()];
+        if verb == "run" {
+            args.extend(flags.iter().map(String::as_str));
+        }
         run_in(&case, &args, &target);
-    }
-    for target in presubmit_list(&presubmit, "test_targets") {
-        run_in(&case, &["test", target.as_str()], &target);
-    }
-    for target in presubmit_list(&presubmit, "build_targets") {
-        run_in(&case, &["build", target.as_str()], &target);
     }
 }

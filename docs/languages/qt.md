@@ -84,7 +84,8 @@ Declares a Rust crate with CXX-Qt bridges and the Qt C++ library they generate.
 
 ## Tools
 
-None.
+- `qmlformat`
+- `qmllint`
 
 ## Ecosystems
 
@@ -100,4 +101,8 @@ None.
 
 ## Platforms
 
-None.
+- Linux arm64
+- Linux x86_64
+- macOS arm64
+- Windows arm64
+- Windows x86_64

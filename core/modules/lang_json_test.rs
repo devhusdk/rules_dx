@@ -633,3 +633,66 @@ fn pins_list_every_pins_json_under_the_language_dir() {
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
+
+const PLATFORM_DRIFT: [&str; 7] = ["android", "apple", "flutter", "make", "msix", "php", "ruby"];
+
+const PLATFORMS: [&str; 5] =
+    ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"];
+
+fn unsupported_platforms(cell: &str) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    for part in cell.split("; ") {
+        let name = part.split(": ").next().unwrap_or("");
+        for id in name.split(", ") {
+            let id = id.trim_matches('`');
+            if PLATFORMS.contains(&id) {
+                out.insert(id.to_owned());
+            }
+        }
+    }
+    out
+}
+
+#[test]
+fn lang_json_platforms_equal_the_support_matrix() {
+    let root = dx_testing::rules_dx_source();
+    let matrix = std::fs::read_to_string(dx_testing::resolve_runfiles("docs/support-matrix.md"))
+        .expect("support-matrix.md");
+    let mut rows = std::collections::BTreeMap::new();
+    let mut in_table = false;
+    for line in matrix.lines() {
+        if line == "## Languages" || line == "## Targets" {
+            in_table = true;
+        } else if line.starts_with("## ") {
+            in_table = false;
+        } else if in_table && line.starts_with("| ") && !line.starts_with("| ---") {
+            let cells: Vec<&str> = line.trim_matches('|').split(" | ").map(str::trim).collect();
+            rows.insert(cells[0].to_lowercase(), unsupported_platforms(cells[1]));
+        }
+    }
+    let mut drift = Vec::new();
+    for dir in language_dirs(&root) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        let title = manifest["title"].as_str().expect("title").to_lowercase();
+        let Some(unsupported) = rows.get(&title) else { continue };
+        let want: BTreeSet<String> = PLATFORMS
+            .iter()
+            .filter(|p| !unsupported.contains(**p))
+            .map(|p| (*p).to_owned())
+            .collect();
+        let have: BTreeSet<String> = manifest["platforms"]
+            .as_array()
+            .expect("platforms")
+            .iter()
+            .map(|p| p.as_str().expect("platform").to_owned())
+            .collect();
+        let known = PLATFORM_DRIFT.contains(&manifest["name"].as_str().expect("name"));
+        if known && want == have {
+            drift.push(format!("{}: no longer drifts; remove it from PLATFORM_DRIFT", dir.display()));
+        } else if !known && want != have {
+            drift.push(format!("{}: lang.json {have:?}, support matrix {want:?}", dir.display()));
+        }
+    }
+    assert!(drift.is_empty(), "lang.json platforms differ from docs/support-matrix.md:\n{}", drift.join("\n"));
+}

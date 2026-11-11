@@ -6,8 +6,17 @@
   "ecosystems": [],
   "manifests": [],
   "lockfiles": [],
-  "tools": [],
-  "platforms": [],
+  "tools": [
+    "clang_format",
+    "clang_tidy",
+    "nvcc_syntax"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
   "pins": [
     "private/toolchain/pins.json"
   ],

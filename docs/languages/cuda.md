@@ -93,7 +93,9 @@ Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Tools
 
-None.
+- `clang_format`
+- `clang_tidy`
+- `nvcc_syntax`
 
 ## Ecosystems
 
@@ -109,4 +111,7 @@ None.
 
 ## Platforms
 
-None.
+- Linux arm64
+- Linux x86_64
+- Windows arm64
+- Windows x86_64

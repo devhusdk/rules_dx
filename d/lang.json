@@ -29,7 +29,9 @@
       }
     ]
   },
-  "tools": [],
+  "tools": [
+    "ldc"
+  ],
   "platforms": [
     "linux_arm64",
     "linux_x86_64",

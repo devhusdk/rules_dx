@@ -51,7 +51,6 @@ fixture mdx
 fixture msix
 fixture powershell
 fixture python
-fixture rego
 fixture rst
 fixture sql
 fixture svelte
@@ -72,6 +71,7 @@ init lua
 init ocaml
 init perl
 init php
+init rego
 init ruby
 init rust
 init scala

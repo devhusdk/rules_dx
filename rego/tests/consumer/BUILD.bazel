@@ -1,0 +1,14 @@
+load("@rules_dx//rego:defs.bzl", "rego_library", "rego_test")
+
+rego_library(
+    name = "consumer",
+    srcs = ["greet.rego"],
+    visibility = ["//visibility:public"],
+)
+
+rego_test(
+    name = "consumer_test",
+    size = "small",
+    srcs = ["greet_test.rego"],
+    deps = [":consumer"],
+)

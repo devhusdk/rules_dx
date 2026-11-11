@@ -17,8 +17,6 @@ android/tests/fixtures/rust_apk/inspect_aab.sh shebang 1
 android/tests/fixtures/rust_apk/inspect_apk.sh shebang 1
 android/tests/fixtures/rust_apk/sign_aab_test.sh shebang 1
 android/tests/fixtures/rust_apk/sign_test.sh shebang 1
-ansible/tests/BUILD.bazel sh-rule 1
-ansible/tests/collections_hub_test.sh shebang 1
 api_spec/private/codegen.bzl home 1
 appimage/private/packer/src/lib.rs shebang 2
 appimage/tests/BUILD.bazel sh-rule 1

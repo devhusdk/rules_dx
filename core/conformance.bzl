@@ -256,13 +256,19 @@ def dx_wrapper_contract_tests(name, file_classes = None, extra_checks = None, in
         expected_observations = dx_wrapper_forward_observations(native.package_name(), name, kinds, known_gaps),
     )
 
-def coverage_env_tests(impl, attrs = {}):
-    """Returns struct(on, off): two analysis test rules sharing `impl`."""
+def coverage_env_tests(impl, attrs = {}, features = []):
+    """Returns struct(on, off): two analysis test rules sharing `impl`.
+
+    A non-empty `features` sets `--features` in the `on` config only.
+    """
+    on_settings = {"//command_line_option:collect_code_coverage": True}
+    if features:
+        on_settings["//command_line_option:features"] = features
     return struct(
         on = analysistest.make(
             impl,
             attrs = dict(attrs, coverage = attr.bool(default = True)),
-            config_settings = {"//command_line_option:collect_code_coverage": True},
+            config_settings = on_settings,
         ),
         off = analysistest.make(
             impl,

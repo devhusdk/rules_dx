@@ -121,7 +121,12 @@ def _coverage_env_impl(ctx):
     asserts.equals(env, native, len([m for m in metadata if m.endswith("runtime_objects_list.txt")]) > 0)
     return analysistest.end(env)
 
-_COVERAGE = coverage_env_tests(_coverage_env_impl, attrs = {"apps_dirs": attr.string(), "native": attr.bool(), "source": attr.string()})
+# mirrors coverage:windows in .bazelrc
+_COVERAGE = coverage_env_tests(
+    _coverage_env_impl,
+    attrs = {"apps_dirs": attr.string(), "native": attr.bool(), "source": attr.string()},
+    features = ["-coverage", "-gcc_coverage_map_format"],
+)
 _coverage_env_on_test = _COVERAGE.on
 _coverage_env_off_test = _COVERAGE.off
 

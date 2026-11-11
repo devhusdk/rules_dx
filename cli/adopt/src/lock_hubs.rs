@@ -25,7 +25,8 @@ fn registry(ecosystem: &str) -> &'static Hub {
     dx_families::hub(ecosystem).unwrap_or_else(|| panic!("no setup.hubs entry for {ecosystem}"))
 }
 
-fn lock_of(ecosystem: &str) -> &'static str {
+/// The lock file name of the `setup.hubs` entry of `ecosystem`.
+pub fn lock_of(ecosystem: &str) -> &'static str {
     registry(ecosystem)
         .lock
         .as_deref()

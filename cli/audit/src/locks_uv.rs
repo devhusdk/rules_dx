@@ -8,23 +8,23 @@ pub const UV_SET: &str = "uv";
 pub fn parse_uv_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let root: toml::Table = text
         .parse()
-        .map_err(|error: toml::de::Error| DxError::failure(format!("invalid uv.lock: {error}")))?;
+        .map_err(|error: toml::de::Error| DxError::failure(format!("invalid lock: {error}")))?;
     if root
         .get("version")
         .and_then(toml::Value::as_integer)
         .is_none()
     {
-        return Err(DxError::failure("invalid uv.lock: missing version"));
+        return Err(DxError::failure("invalid lock: missing version"));
     }
     let Some(packages) = root.get("package").and_then(toml::Value::as_array) else {
-        return Err(DxError::failure("invalid uv.lock: missing [[package]]"));
+        return Err(DxError::failure("invalid lock: missing [[package]]"));
     };
     let members = workspace_members(&root);
     let mut out = Vec::new();
     for entry in packages {
         let Some(table) = entry.as_table() else {
             return Err(DxError::failure(
-                "invalid uv.lock: [[package]] is not a table",
+                "invalid lock: [[package]] is not a table",
             ));
         };
         let name = table
@@ -32,7 +32,7 @@ pub fn parse_uv_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
             .and_then(toml::Value::as_str)
             .map(str::trim)
             .filter(|name| !name.is_empty())
-            .ok_or_else(|| DxError::failure("invalid uv.lock: package without a name"))?
+            .ok_or_else(|| DxError::failure("invalid lock: package without a name"))?
             .to_owned();
         let version = table
             .get("version")
@@ -44,7 +44,7 @@ pub fn parse_uv_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
             .get("source")
             .and_then(toml::Value::as_table)
             .ok_or_else(|| {
-                DxError::failure(format!("invalid uv.lock: package {name} has no source"))
+                DxError::failure(format!("invalid lock: package {name} has no source"))
             })?;
         let kind = classify(source, &name, &members)?;
         let (is_git, is_private) = match kind {
@@ -91,7 +91,7 @@ fn classify(source: &toml::Table, name: &str, members: &[String]) -> Result<Sour
     if let Some(registry) = source.get("registry") {
         let Some(url) = registry.as_str() else {
             return Err(DxError::failure(format!(
-                "invalid uv.lock: package {name} has a bad registry"
+                "invalid lock: package {name} has a bad registry"
             )));
         };
         return Ok(if is_pypi(url) {
@@ -119,7 +119,7 @@ fn classify(source: &toml::Table, name: &str, members: &[String]) -> Result<Sour
         }
     }
     Err(DxError::failure(format!(
-        "invalid uv.lock: package {name} has an unknown source"
+        "invalid lock: package {name} has an unknown source"
     )))
 }
 

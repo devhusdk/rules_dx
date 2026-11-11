@@ -46,7 +46,6 @@ powershell_test(
     deps = ["@rules_powershell//powershell/runfiles"],
 )
 
-# The Swift toolchain binaries load nothing from the host except glibc.
 [
     sh_test(
         name = "toolchain_libs_test_" + cpu,

@@ -4,22 +4,6 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cuda//cuda/private:providers.bzl", "CudaToolkitInfo")
 load("//core/modules:cuda.bzl", "CUDA_ARCHS", "CUDA_CELLS", "CUDA_REDIST_VERSION", "CUDA_VERSION", "cuda_qualified_cells")
 
-CudaLicenseInfo = provider(
-    doc = "Whether the CUDA Toolkit EULA is accepted.",
-    fields = {"error": "Why the toolkit is unusable. Empty when accepted."},
-)
-
-def _license_impl(ctx):
-    return [CudaLicenseInfo(error = ctx.attr.error)]
-
-cuda_license = rule(
-    implementation = _license_impl,
-    doc = "Records the CUDA Toolkit EULA state.",
-    attrs = {
-        "error": attr.string(doc = "Why the toolkit is unusable. Empty when accepted."),
-    },
-)
-
 _TOOLCHAIN_TYPE = "@rules_cuda//cuda:toolchain_type"
 
 def arch_errors(archs):
@@ -172,9 +156,6 @@ def component_errors(name, paths):
     return []
 
 def _check_impl(ctx):
-    license = ctx.attr.license[CudaLicenseInfo]
-    if license.error:
-        fail(license.error)
     errors = compiler_errors(ctx.attr._compiler[BuildSettingInfo].value) + arch_errors(ctx.attr.archs)
     if errors:
         fail("\n".join(errors))
@@ -182,14 +163,9 @@ def _check_impl(ctx):
 
 cuda_check = rule(
     implementation = _check_impl,
-    doc = "Fails analysis when a dx CUDA target uses an unsupported arch, compiler or license state.",
+    doc = "Fails analysis when a dx CUDA target uses an unsupported arch or compiler.",
     attrs = {
         "archs": attr.string_list(doc = "Arch specs of the checked target."),
-        "license": attr.label(
-            doc = "CUDA Toolkit EULA state.",
-            default = "@dx_cuda_license//:license",
-            providers = [CudaLicenseInfo],
-        ),
         "_compiler": attr.label(default = "@rules_cuda//cuda:compiler"),
     },
 )

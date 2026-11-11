@@ -1,7 +1,7 @@
-"""License-gated CUDA library components (cuBLAS, cuFFT, cuRAND)."""
+"""Pinned CUDA library components (cuBLAS, cuFFT, cuRAND)."""
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//cuda/private/toolchain:check.bzl", "CudaLicenseInfo", "component_errors")
+load("//cuda/private/toolchain:check.bzl", "component_errors")
 load("//core:wrapper.bzl", "dx_preserved_providers")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
@@ -16,9 +16,6 @@ def _library_paths(cc_info):
     return paths
 
 def _impl(ctx):
-    license = ctx.attr.license[CudaLicenseInfo]
-    if license.error:
-        fail(license.error)
     upstream = ctx.attr.component
     providers = dx_preserved_providers(upstream, [(CcInfo, "CcInfo"), (DefaultInfo, "DefaultInfo")], "cuda_component_library")
     errors = component_errors(ctx.attr.component_name, _library_paths(providers[0]))
@@ -30,7 +27,7 @@ def _impl(ctx):
 
 cuda_component_library = rule(
     implementation = _impl,
-    doc = "Forwards one pinned CUDA library component after the EULA gate and the pin check.",
+    doc = "Forwards one pinned CUDA library component after the pin check.",
     attrs = {
         "component": attr.label(
             doc = "The rules_cuda component target, for example @cuda//:cublas.",
@@ -38,11 +35,6 @@ cuda_component_library = rule(
             providers = [CcInfo],
         ),
         "component_name": attr.string(doc = "rules_cuda short name of the component.", mandatory = True),
-        "license": attr.label(
-            doc = "CUDA Toolkit EULA state.",
-            default = "@dx_cuda_license//:license",
-            providers = [CudaLicenseInfo],
-        ),
     },
     provides = [CcInfo, QualitySourcesInfo],
 )

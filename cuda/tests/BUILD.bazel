@@ -6,11 +6,11 @@ load("//core:failure_test.bzl", "failure_test")
 load("//core/modules:cuda.bzl", "CUDA_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cuda:defs.bzl", "CUDA_TARGET", "cuda_binary", "cuda_component_library", "cuda_gpu_env", "cuda_library", "cuda_test")
-load("//cuda/private/toolchain:check.bzl", "cuda_check", "cuda_gpu_check", "cuda_license")
-load("//cuda/private/toolchain:repos.bzl", "UNACCEPTED")
+load("//cuda/private/toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load(":cell_tests.bzl", "cuda_cell_tests")
+load(":license_gate_tests.bzl", "cuda_license_gate_tests")
 load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "gpu_test_declared_test", "hermetic_toolchain_test", "with_clang_compiler", "with_gpu_device")
 
 # gazelle:lang rust,dx_dispatch
@@ -336,46 +336,10 @@ failure_test(
     target_compatible_with = CUDA_TARGET,
 )
 
-cuda_license(
-    name = "unaccepted_license",
-    error = UNACCEPTED,
-)
-
-cuda_check(
-    name = "license_unaccepted",
-    archs = ["sm_89"],
-    license = ":unaccepted_license",
-    tags = ["manual"],
-    target_compatible_with = CUDA_TARGET,
-)
-
-failure_test(
-    name = "license_unaccepted_failure_test",
-    expected_failure_substring = UNACCEPTED,
-    target = ":license_unaccepted",
-    target_compatible_with = CUDA_TARGET,
-)
-
 cc_library(
     name = "local_component",
     srcs = ["local_component.cc"],
     tags = ["manual"],
-)
-
-cuda_component_library(
-    name = "component_license_unaccepted",
-    component = ":local_component",
-    component_name = "cublas",
-    license = ":unaccepted_license",
-    tags = ["manual"],
-    target_compatible_with = CUDA_TARGET,
-)
-
-failure_test(
-    name = "component_license_unaccepted_failure_test",
-    expected_failure_substring = UNACCEPTED,
-    target = ":component_license_unaccepted",
-    target_compatible_with = CUDA_TARGET,
 )
 
 cuda_component_library(
@@ -440,12 +404,15 @@ real_source_target(
         "BUILD.bazel",
         "cell_tests.bzl",
         "defs.bzl",
+        "license_gate_tests.bzl",
     ],
     tags = ["corpus"],
     visibility = ["//cuda:__pkg__"],
 )
 
 cuda_cell_tests(name = "cell_tests")
+
+cuda_license_gate_tests(name = "license_gate")
 
 exports_files(
     ["BUILD.bazel"],

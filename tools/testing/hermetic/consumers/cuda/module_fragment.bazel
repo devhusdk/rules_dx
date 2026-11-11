@@ -2,6 +2,7 @@ bazel_dep(name = "llvm", version = "0.8.26")
 bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
+cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
+
 # The CUDA Toolkit is licensed under the NVIDIA EULA: https://docs.nvidia.com/cuda/eula/index.html
-cuda_license = use_extension("@rules_dx//cuda:extensions.bzl", "cuda_license")
-cuda_license.license(accept = ["cuda-eula"])
+cuda.license(accept = ["cuda-eula"])

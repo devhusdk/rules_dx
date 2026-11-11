@@ -432,7 +432,6 @@
         "//powershell:extensions.bzl%powershell",
         "//swift:extensions.bzl%swift_host",
         "//swift:extensions.bzl%swift_windows",
-        "//cuda:extensions.bzl%cuda_license",
         "@rules_cuda//cuda:extensions.bzl%toolchain",
         "//android:extensions.bzl%android_sdk",
         "@rules_android//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension",

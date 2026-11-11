@@ -65,7 +65,7 @@ def _data(path, name):
     return path == "docs/cli/commands/README.md" or (path.startswith("docs/languages/") and name.endswith(".md"))
 
 def _code(path, name):
-    if name.endswith((".rs", ".sh", ".tpl")):
+    if name.endswith((".rs", ".sh", ".tpl", ".bat", ".cmd", ".ps1")):
         return True
     return path == ".bazelrc" or (path.startswith(".dx/bazelrc/") and name.endswith(".bazelrc"))
 
@@ -95,7 +95,7 @@ def _lock_scan(path, name):
     return name.endswith(("module_fragment.bazel", "MODULE.bazel.fixture"))
 
 def _test_tags_sources_impl(rctx):
-    """Writes consumer.json, every file under a language tests/consumer directory, prose.json, every .md file, all_rust.json, every .rs file, and all_paths.json, every path, and lock_scan.json, the non-test Go files and the module fragment and fixture files, besides sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, code.json, the same for Rust, shell, template and rc files, and paths.json, every path under a language directory."""
+    """Writes consumer.json, every file under a language tests/consumer directory, prose.json, every .md file, all_rust.json, every .rs file, and all_paths.json, every path, and lock_scan.json, the non-test Go files and the module fragment and fixture files, besides sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, code.json, the same for Rust, shell, template, Windows script and rc files, and paths.json, every path under a language directory."""
     root = rctx.path(Label("//:MODULE.bazel")).dirname
 
     def readdir(path):

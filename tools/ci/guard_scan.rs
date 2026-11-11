@@ -17,7 +17,7 @@ const GUARDS: [&str; 4] = [
 const STARLARK: [&str; 3] = ["BUILD.bazel", ".BUILD", ".bzl"];
 
 /// Endings of the other scanned files.
-const CODE: [&str; 4] = [".rs", ".sh", ".tpl", ".bazelrc"];
+const CODE: [&str; 7] = [".rs", ".sh", ".tpl", ".bazelrc", ".bat", ".cmd", ".ps1"];
 
 /// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 2000;

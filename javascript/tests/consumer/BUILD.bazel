@@ -26,3 +26,8 @@ javascript_binary(
     data = [":main"],
     main = "main.js",
 )
+
+filegroup(
+    name = "env_node",
+    srcs = ["@rules_dx//env:node"],
+)

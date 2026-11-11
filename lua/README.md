@@ -197,7 +197,7 @@ the output paths are always set by dx. Linux x86_64 only.
 pinned Lua over the library's own sources and writes a DocIr shard. LDoc needs
 the C module LuaFileSystem, so rules_dx builds LuaFileSystem 1.9.0 from a
 sha256-pinned source with the hermetic C toolchain and links it into the Lua
-that runs LDoc. Penlight 1.14.0 is pinned the same way. Document modules with
+that runs LDoc. Penlight 1.15.0 is pinned the same way. Document modules with
 `@module` and functions with LDoc tags; local functions are left out.
 
 ## Coverage

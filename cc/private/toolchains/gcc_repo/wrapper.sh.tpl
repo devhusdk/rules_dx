@@ -1,4 +1,4 @@
-#!/bin/bash
+#!__SHELL__
 
 # Copyright (c) Joby Aviation 2022
 # Original authors: Thulio Ferraz Assis (thulio@aspect.dev), Aspect.dev

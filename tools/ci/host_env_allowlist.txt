@@ -20,7 +20,6 @@ android/tests/fixtures/rust_apk/sign_test.sh shebang 1
 ansible/tests/BUILD.bazel sh-rule 1
 ansible/tests/collections_hub_test.sh shebang 1
 api_spec/private/codegen.bzl home 1
-api_spec/tests/BUILD.bazel genrule 1
 appimage/private/packer/src/lib.rs shebang 2
 appimage/tests/BUILD.bazel sh-rule 1
 appimage/tests/fixtures/any.sh shebang 1
@@ -88,7 +87,6 @@ cli/cli/tests/uv_sets/tests/uv_sets.rs shebang 2
 cli/env/src/lib_tests.rs shebang 2
 cli/ide/src/go.rs shebang 1
 cli/launcher/src/launch_tests.rs shebang 3
-cli/ocaml_cc_driver/src/dune.rs host-path 2
 cli/process/src/bazel_sh.rs host-path 1
 cli/process/src/bazel_sh_tests.rs host-path 7
 cli/process/src/runner_tests.rs shebang 1
@@ -311,7 +309,6 @@ rust/tests/fixtures/shared-rust-checks/check_lifecycle.sh shebang 1
 rust/tests/fixtures/shared-rust-checks/inspect_apk.sh shebang 1
 rust/tests/fixtures/wasm_bindgen/BUILD.bazel genrule 1
 scala/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
-swift/private/toolchain/repos.bzl host-path 1
 swift/private/toolchain/repos.bzl shebang 1
 swift/private/tools/BUILD.bazel sh-rule 1
 swift/private/tools/swift_tool.bzl host-path 2

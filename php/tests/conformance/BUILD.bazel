@@ -1,0 +1,47 @@
+# gazelle:ignore
+load("//php:defs.bzl", "php_binary", "php_library", "php_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+php_library(
+    name = "conformance",
+    srcs = ["src/Conformance/Greet.php"],
+)
+
+php_binary(
+    name = "hello",
+    main = "bin/main.php",
+    deps = [":conformance"],
+)
+
+php_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["test/PassTest.php"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+php_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["test/FailTest.php"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "src/Conformance/Greet.php",
+    expected = "hello world",
+    failing_case = "testCase",
+    failing_test = ":fail_subject_test",
+    lang = "php",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

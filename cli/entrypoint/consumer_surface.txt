@@ -12,6 +12,7 @@ cloudformation:defs.bzl
 cmake:defs.bzl
 core:defs.bzl
 csharp:defs.bzl
+csharp:extensions.bzl
 d:defs.bzl
 dart:defs.bzl
 dart:extensions.bzl

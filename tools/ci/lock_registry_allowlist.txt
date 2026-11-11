@@ -359,7 +359,6 @@ name core/quality/adapter/src/parsers/tsc.rs tsconfig.json
 name core/quality/dart_context.bzl pubspec.yaml
 name core/quality/fixtures.bzl go.mod
 name core/quality/tools/python_bundle/bundle.bzl pyproject.toml
-name csharp/lang.json paket.dependencies
 name csharp/lang.json paket.lock
 name d/private/toolchain/pins.bzl dub.json
 name d/private/toolchain/pins.bzl dub.selections.json
@@ -387,7 +386,6 @@ name deploy/private/src/npm.rs package.json
 name deploy/private/src/packagist.rs composer.json
 name deploy/private/src/pub_dev.rs pubspec.yaml
 name deploy/private/validate_packagist.bzl composer.json
-name dotnet/lang.json paket.dependencies
 name dotnet/lang.json paket.lock
 name elixir/lang.json mix.exs
 name elixir/lang.json mix.lock
@@ -396,7 +394,6 @@ name elixir/private/toolchain/extensions.bzl mix.lock
 name elixir/private/toolchain/repos.bzl mix.lock
 name erlang/lang.json mix.exs
 name erlang/lang.json mix.lock
-name fsharp/lang.json paket.dependencies
 name fsharp/lang.json paket.lock
 name gazelle/common/external.go dub.json
 name gazelle/common/external.go dub.selections.json
@@ -472,7 +469,6 @@ registry go
 registry hex
 registry julia
 registry maven
-registry nuget
 registry opam
 registry powershell
 resolve-doc csharp/README.md 1

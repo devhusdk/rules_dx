@@ -22,6 +22,7 @@ filegroup(
 
 exports_files([
     "actions/assert-no-secret/scan.cjs",
+    "actions/remote-cache-helper/helper.cjs",
     "actionlint.yaml",
     "review-paths.txt",
     "rulesets/main.json",

@@ -1251,6 +1251,22 @@ mod tests {
     }
 
     #[test]
+    fn fresh_init_dir_writes_bazelrc_imports_only_and_a_second_apply_changes_nothing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-dir-twice-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["init", "--apply", "demo"]);
+        assert_eq!(run(&inv, &root).0, 0);
+        let rc = std::fs::read_to_string(root.join("demo/.bazelrc")).expect("bazelrc");
+        assert!(rc.contains("try-import %workspace%/.dx/bazelrc/"), "{rc}");
+        assert!(!rc.contains("--registry"), "{rc}");
+        let before = tree(&root);
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(!out.contains("wrote "), "{out}");
+        assert_eq!(tree(&root), before);
+    }
+
+    #[test]
     fn apply_rewrites_a_stale_ci_pin_and_editor_key_in_place() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-stale-pin-");
         let root = scratch.path().to_path_buf();

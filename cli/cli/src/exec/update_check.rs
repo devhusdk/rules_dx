@@ -66,19 +66,6 @@ fn backend_error_codes_match_the_shared_constants() {
 }
 
 #[test]
-fn frozen_locked_code_is_stable_single_source() {
-    assert_eq!(crate::exec::common::CODE_FROZEN_LOCKED, "frozen_locked");
-}
-
-#[test]
-fn offline_required_code_is_stable_single_source() {
-    assert_eq!(
-        crate::exec::common::CODE_OFFLINE_REQUIRED,
-        "offline_required"
-    );
-}
-
-#[test]
 fn backend_and_runner_statuses_keep_their_wording() {
     use dx_process::ChildStatus;
     use dx_update::backend::BackendError as E;

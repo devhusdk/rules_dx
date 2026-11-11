@@ -116,7 +116,7 @@ apple_macos_app(
     srcs = ["main.m"],
     bundle_id = "com.example.ledger",
     deployment = "14.0",
-    platform = "//apple/platforms:macos_x86_64",
+    platform = "//apple:macos_x86_64",
     tags = ["manual"],
     version = "1.0",
 )

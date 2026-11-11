@@ -26,7 +26,6 @@ const PACKAGES: &[&str] = &[
     "android/private/toolchain",
     "api_spec/private",
     "appimage",
-    "apple/platforms",
     "apple/private/bundle",
     "apple/private/ios",
     "apple/private/macos",

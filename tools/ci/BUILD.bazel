@@ -674,7 +674,6 @@ rust_test(
         "//ansible/private/quality:corpus_starlark",
         "//api_spec/private:corpus_starlark",
         "//appimage:corpus_starlark",
-        "//apple/platforms:corpus_starlark",
         "//apple/private/bundle:corpus_starlark",
         "//apple/private/ios:corpus_starlark",
         "//apple/private/macos:corpus_starlark",

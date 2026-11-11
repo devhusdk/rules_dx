@@ -12,7 +12,7 @@ cuda_library(
         "sm_120",
     ],
     # The license-gated pinned component, never @cuda//:cublas.
-    deps = ["//cuda/components:cublas"],
+    deps = ["//cuda:cublas"],
 )
 
 cc_binary(

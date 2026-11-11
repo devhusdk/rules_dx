@@ -603,7 +603,6 @@ test-location cc/private/ide/BUILD.bazel
 test-location cc/private/toolchains/BUILD.bazel
 test-location cc/private/toolchains/action_tests.bzl
 test-location cc/private/toolchains/external/BUILD.bazel
-test-location cc/private/toolchains/external/custom_gcc_tests.bzl
 test-location cc/private/toolchains/gcc_unsupported_tests.bzl
 test-location cc/private/toolchains/identity_tests.bzl
 test-location cc/private/toolchains/msvc/BUILD.bazel

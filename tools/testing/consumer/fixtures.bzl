@@ -19,6 +19,7 @@ CONSUMER_FIXTURES = [
     "php",
     "ruby",
     "rust",
+    "scala",
     "zig",
 ]
 

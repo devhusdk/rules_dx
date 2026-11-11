@@ -1,0 +1,15 @@
+load("@rules_dx//scala:defs.bzl", "scala_library", "scala_test")
+
+scala_library(
+    name = "consumer",
+    srcs = ["Greet.scala"],
+    visibility = ["//visibility:public"],
+)
+
+scala_test(
+    name = "consumer_test",
+    size = "small",
+    srcs = ["GreetTest.scala"],
+    main_class = "consumer.GreetTest",
+    deps = [":consumer"],
+)

@@ -33,8 +33,8 @@ rust_binary(
     ),
     crate_name = "swift_lock_bin",
     crate_root = "src/main.rs",
-    data = ["@dx_swift_host//:swift"],
-    env = {"SWIFT": "$(rlocationpath @dx_swift_host//:swift)"},
+    data = ["//swift/private/tools:swift"],
+    env = {"SWIFT": "$(rlocationpath //swift/private/tools:swift)"},
     target_compatible_with = select({
         "@platforms//os:linux": [],
         "@platforms//os:macos": [],
@@ -67,14 +67,14 @@ rust_test(
         "testdata/mini.tar.gz",
         "testdata/multi.lock.json",
         "testdata/multi.tar.gz",
-        "@dx_swift_host//:swift",
+        "//swift/private/tools:swift",
     ],
     env = {
         "ARCHIVE": "$(rootpath testdata/mini.tar.gz)",
         "ARCHIVE_MULTI": "$(rootpath testdata/multi.tar.gz)",
         "GOLDEN": "$(rootpath testdata/golden.lock.json)",
         "GOLDEN_MULTI": "$(rootpath testdata/multi.lock.json)",
-        "SWIFT": "$(rootpath @dx_swift_host//:swift)",
+        "SWIFT": "$(rootpath //swift/private/tools:swift)",
     },
     tags = ["block-network"],
     target_compatible_with = select({

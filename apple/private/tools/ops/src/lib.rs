@@ -17,6 +17,7 @@ pub mod probe;
 pub mod run_macos;
 pub mod signing;
 pub mod simctl;
+pub mod swift;
 pub mod test_sim;
 pub mod util;
 pub mod xcode;
@@ -53,6 +54,16 @@ pub fn run(args: &[String]) -> u8 {
                 simctl::run(&tools, rest, &process_env)
             }),
         ),
+        "swift" => report(
+            swift::PREFIX,
+            xcode::for_launcher(&process_env).and_then(|developer_dir| {
+                let tools = Tools {
+                    developer_dir: Some(developer_dir),
+                    runner: &System,
+                };
+                swift::run(&tools, rest)
+            }),
+        ),
         "export" | "codesign" | "notarize" => report(
             match name {
                 "export" => export::PREFIX,
@@ -87,7 +98,7 @@ pub fn run(args: &[String]) -> u8 {
         }
         _ => report(
             "dx-apple-ops",
-            Err(util::usage("usage: apple_ops <simctl|run-macos-app|export|codesign|notarize|probe> ...")),
+            Err(util::usage("usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|probe> ...")),
         ),
     }
 }

@@ -3,7 +3,7 @@
 load("//core:host.bzl", "host_cell")
 load("//core:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 
-SWIFT_HOST_WINDOWS_STUB = 'echo "dx_swift_host: no host swift on Windows; run the swift resolver and dx update on Linux or macOS" >&2\nexit 1'
+SWIFT_HOST_STUB = 'echo "dx_swift_host: only Linux has a host swift here; on macOS run //swift/private/tools:swift" >&2\nexit 1'
 
 def swift_host_labels(host):
     """Returns the toolchain labels the host `swift` command runs, keyed by role.
@@ -25,10 +25,8 @@ def swift_host_labels(host):
 
 def _swift_host_impl(repository_ctx):
     host = host_cell(repository_ctx)
-    if host.startswith("macos"):
-        script = 'exec /usr/bin/xcrun swift "$@"'
-    elif host.startswith("windows"):
-        script = SWIFT_HOST_WINDOWS_STUB
+    if host.startswith("macos") or host.startswith("windows"):
+        script = SWIFT_HOST_STUB
     else:
         labels = swift_host_labels(host)
         swift = repository_ctx.path(Label(labels["swift"]))
@@ -45,7 +43,7 @@ def _swift_host_impl(repository_ctx):
 
 swift_host_repo = repository_rule(
     implementation = _swift_host_impl,
-    doc = "A `swift` command that runs the managed toolchain on Linux and the Xcode one on macOS, and fails on Windows.",
+    doc = "A `swift` command that runs the managed toolchain on Linux and fails elsewhere.",
 )
 
 _SWIFT_WINDOWS_BUILD = """load("@rules_swift//swift/toolchains:swift_tools.bzl", "swift_tools")
@@ -56,6 +54,11 @@ exports_files([
     ".swift-version",
     "toolchain/usr/bin/swiftc.exe",
 ])
+
+alias(
+    name = "swiftc",
+    actual = "toolchain/usr/bin/swiftc.exe",
+)
 
 filegroup(
     name = "toolchain_files",

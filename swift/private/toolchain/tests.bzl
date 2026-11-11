@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@dx_pins_data//:pins.bzl", "PINS")
 load("@rules_swift//swift:providers.bzl", "SwiftToolchainInfo")
 load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load(":repos.bzl", "SWIFT_HOST_WINDOWS_STUB", "swift_host_labels")
+load(":repos.bzl", "SWIFT_HOST_STUB", "swift_host_labels")
 
 def _link_flags(cc_info):
     return [
@@ -126,6 +126,6 @@ def swift_host_test(name, size):
             expect_equal("macos_arm64 names no toolchain", swift_host_labels("macos_arm64"), {}),
             expect_equal("linux_arm64 swift", swift_host_labels("linux_arm64")["swift"], "@dx_swift_linux_aarch64//:usr/bin/swift"),
             expect_equal("linux_x86_64 sysroot", swift_host_labels("linux_x86_64")["sysroot"], "@dx_swift_sysroot_linux_x86_64//:REPO.bazel"),
-            expect_true("stub fails", "exit 1" in SWIFT_HOST_WINDOWS_STUB),
+            expect_true("stub fails", "exit 1" in SWIFT_HOST_STUB),
         ],
     )

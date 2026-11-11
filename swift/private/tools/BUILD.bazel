@@ -4,6 +4,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load(":swift_tool.bzl", "swift_format_tool")
 load(":swift_tool_tests.bzl", "swift_format_copy_test")
+load(":xcode_swift.bzl", "swift_xcode_launcher")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -70,13 +71,22 @@ alias(
     ]
 ]
 
+swift_xcode_launcher(
+    name = "swift_macos",
+    target_compatible_with = ["@platforms//os:macos"],
+)
+
 sh_binary(
-    name = "swift",
+    name = "swift_linux",
     srcs = ["@dx_swift_host//:swift"],
-    target_compatible_with = select({
-        "@platforms//os:linux": [],
-        "@platforms//os:macos": [],
-        "//conditions:default": ["@platforms//:incompatible"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+alias(
+    name = "swift",
+    actual = select({
+        "@platforms//os:macos": ":swift_macos",
+        "//conditions:default": ":swift_linux",
     }),
 )
 
@@ -86,6 +96,7 @@ real_source_target(
         "BUILD.bazel",
         "swift_tool.bzl",
         "swift_tool_tests.bzl",
+        "xcode_swift.bzl",
     ],
     tags = ["corpus"],
 )

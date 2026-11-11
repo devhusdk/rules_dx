@@ -28,10 +28,10 @@ powershell_test(
     size = "small",
     srcs = ["toolchain_dlls_test.ps1"],
     data = [
-        "@dx_swift_windows_x86_64//:toolchain/usr/bin/swiftc.exe",
+        "@dx_swift_windows_x86_64//:swiftc",
         "@dx_swift_windows_x86_64//:toolchain_files",
     ],
-    env = {"DX_SWIFTC": "$(rlocationpath @dx_swift_windows_x86_64//:toolchain/usr/bin/swiftc.exe)"},
+    env = {"DX_SWIFTC": "$(rlocationpath @dx_swift_windows_x86_64//:swiftc)"},
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",

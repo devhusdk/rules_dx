@@ -16,7 +16,8 @@ fn main() -> ExitCode {
     });
     let swift = runfiles
         .zip(std::env::var_os("SWIFT"))
-        .and_then(|(runfiles, path)| std::fs::canonicalize(std::path::Path::new(&runfiles).join(path)).ok());
+        .and_then(|(runfiles, path)| std::path::absolute(std::path::Path::new(&runfiles).join(path)).ok())
+        .filter(|path| path.is_file());
     let Some(swift) = swift else {
         eprintln!("the swift command is not in the runfiles");
         return ExitCode::from(2);

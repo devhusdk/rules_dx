@@ -396,6 +396,16 @@ cc_toolchain_test(
 )
 
 cc_toolchain_test(
+    name = "msvc_gpu_guard_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":gpu_guard_test",
+)
+
+cc_toolchain_test(
     name = "msvc_rdc_device_link_hermetic_test",
     compiler = "msvc",
     target_compatible_with = [
@@ -453,6 +463,17 @@ cc_test(
     target_compatible_with = CUDA_TARGET,
     deps = [
         "//cuda/private/gpu:gpu_facts",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "gpu_guard_test",
+    size = "small",
+    srcs = ["gpu_guard_test.cc"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [
+        "//cuda/private/gpu:gpu_guard",
         "@googletest//:gtest_main",
     ],
 )

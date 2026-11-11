@@ -7,6 +7,7 @@
 
 #include "cuda/private/gpu/gpu_device.h"
 #include "cuda/private/gpu/gpu_facts.h"
+#include "cuda/private/gpu/gpu_guard.h"
 #include "dx/gpu_check.h"
 
 namespace {
@@ -29,14 +30,44 @@ bool Failed(cudaError_t status, const char* call, dx_gpu::Probe* probe) {
   return true;
 }
 
+struct Versions {
+  const char* call;
+  cudaError_t status;
+  int runtime;
+  int driver;
+  int device_count;
+};
+
+void ReadVersions(void* ctx) {
+  Versions* v = static_cast<Versions*>(ctx);
+  v->call = "cudaRuntimeGetVersion";
+  v->status = cudaRuntimeGetVersion(&v->runtime);
+  if (v->status != cudaSuccess) {
+    return;
+  }
+  v->call = "cudaDriverGetVersion";
+  v->status = cudaDriverGetVersion(&v->driver);
+  if (v->status != cudaSuccess) {
+    return;
+  }
+  v->call = "cudaGetDeviceCount";
+  v->status = cudaGetDeviceCount(&v->device_count);
+}
+
 void ProbeDevice(dx_gpu::Probe* probe) {
-  if (Failed(cudaRuntimeGetVersion(&probe->runtime), "cudaRuntimeGetVersion",
-             probe) ||
-      Failed(cudaDriverGetVersion(&probe->driver), "cudaDriverGetVersion",
-             probe) ||
-      Failed(cudaGetDeviceCount(&probe->device_count), "cudaGetDeviceCount",
-             probe) ||
-      probe->device_count <= 0) {
+  Versions v{"", cudaSuccess, probe->runtime, probe->driver,
+             probe->device_count};
+  unsigned long code = dx_gpu_guarded(&ReadVersions, &v);
+  if (code != 0) {
+    char raised[96];
+    std::snprintf(raised, sizeof(raised), "%s: raised 0x%08lX", v.call, code);
+    probe->error = raised;
+    return;
+  }
+  probe->runtime = v.runtime;
+  probe->driver = v.driver;
+  probe->device_count = v.device_count;
+  if (Failed(v.status, v.call, probe) || probe->device_count <= 0) {
     return;
   }
   cudaDeviceProp props;

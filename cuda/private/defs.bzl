@@ -69,8 +69,6 @@ _ALLOW_UNSUPPORTED_COMPILER = select({
     "//conditions:default": ["nvcc_allow_unsupported_compiler"],
 })
 
-# The host link uses the static CRT; nvcc objects default to /MD, which clashes with
-# cudadevrt.lib in rdc links (LNK4098).
 _STATIC_MSVCRT = select({
     Label("@platforms//os:windows"): ["static_link_msvcrt_no_debug", "static_link_msvcrt_debug"],
     "//conditions:default": [],

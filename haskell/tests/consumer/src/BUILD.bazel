@@ -1,0 +1,7 @@
+load("@rules_dx//haskell:defs.bzl", "haskell_library")
+
+haskell_library(
+    name = "src",
+    srcs = ["Greet.hs"],
+    visibility = ["//visibility:public"],
+)

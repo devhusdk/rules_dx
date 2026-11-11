@@ -1,0 +1,9 @@
+load("@rules_dx//cmake:defs.bzl", "cmake_library")
+
+# dx: written once, yours to edit
+
+cmake_library(
+    name = "cmake",
+    srcs = ["CMakeLists.txt"],
+    visibility = ["//visibility:public"],
+)

@@ -11,6 +11,7 @@ CONSUMER_FIXTURES = [
     "bicep",
     "capnproto",
     "cloudformation",
+    "cmake",
     "csharp",
     "cuda",
     "d",

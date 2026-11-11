@@ -305,9 +305,9 @@ deploy/tests/runfiles/BUILD.bazel no-size 1
 dockerfile/tests/BUILD.bazel no-size 1
 docs/BUILD.bazel no-size 1
 dotnet/private/fuzz/BUILD.bazel no-size 1
-elixir/private/BUILD.bazel no-size 1
 elixir/private/toolchain/BUILD.bazel no-size 1
 elixir/private/toolchain/metadata_tests.bzl no-size 1
+elixir/tests/BUILD.bazel no-size 1
 elixir/tests/fixtures/bench/BUILD.bazel no-size 2
 elixir/tests/fixtures/elixir-app/catalog/BUILD.bazel no-size 1
 elixir/tests/fixtures/elixir-app/cli/BUILD.bazel no-size 1
@@ -472,10 +472,9 @@ java/tests/fixtures/java-app/diagnostics/BUILD.bazel no-size 2
 java/tests/fixtures/junit/BUILD.bazel no-size 4
 java/tests/fixtures/no_srcs/BUILD.bazel no-size 3
 java/tests/fixtures/testonly_binary/BUILD.bazel no-size 1
-javascript/private/BUILD.bazel no-size 1
 javascript/private/ide/BUILD.bazel no-size 1
 javascript/private/quality/launcher/BUILD.bazel no-size 1
-javascript/private/wrapper_tests.bzl no-size 1
+javascript/tests/BUILD.bazel no-size 1
 javascript/tests/fixtures/adopt-js-ts/app/BUILD.bazel no-size 2
 javascript/tests/fixtures/adopt-js-ts/web/BUILD.bazel no-size 2
 javascript/tests/fixtures/args/BUILD.bazel no-size 1
@@ -489,6 +488,7 @@ javascript/tests/fixtures/node-app/registry/BUILD.bazel no-size 2
 javascript/tests/fixtures/skip_tags/BUILD.bazel no-size 4
 javascript/tests/fixtures/web_app/BUILD.bazel no-size 14
 javascript/tests/typecheck/BUILD.bazel no-size 1
+javascript/tests/wrapper_tests.bzl no-size 1
 julia/private/BUILD.bazel no-size 1
 julia/private/coverage/BUILD.bazel no-size 1
 julia/private/tools/BUILD.bazel no-size 2

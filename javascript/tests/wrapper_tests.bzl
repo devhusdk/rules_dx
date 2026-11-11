@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
-load(":defs.bzl", "javascript_binary_upstream_data", "javascript_test_rejection")
+load("//javascript/private:defs.bzl", "javascript_binary_upstream_data", "javascript_test_rejection")
 load("//core:node_test.bzl", "NODE_JEST_WINDOWS_ARGS", "node_jest_upstream_attrs", "node_test_env", "node_test_upstream_data", "node_test_wrap_args")
 
 visibility(["//..."])
@@ -130,8 +130,8 @@ def javascript_wrapper_contract_tests(name):
             ),
             expect_equal(
                 "relative and absolute spellings of one manifest are not added twice",
-                node_test_upstream_data(["a.js", "//javascript/private:package_json"], ":package_json", native.package_relative_label),
-                ["a.js", "//javascript/private:package_json"],
+                node_test_upstream_data(["a.js", "//javascript/tests:package_json"], ":package_json", native.package_relative_label),
+                ["a.js", "//javascript/tests:package_json"],
             ),
             expect_equal(
                 "missing env gains the filter channel",
@@ -180,12 +180,12 @@ def javascript_wrapper_contract_tests(name):
             ),
             expect_equal(
                 "label only in tools is an error naming tools",
-                dx_args_label_error("t", ["$(location //javascript/private:d)"], [":a.js"], {"deps": [], "tools": [":d"]}),
-                "t: args names //javascript/private:d, which is only in tools; add it to data",
+                dx_args_label_error("t", ["$(location //javascript/tests:d)"], [":a.js"], {"deps": [], "tools": [":d"]}),
+                "t: args names //javascript/tests:d, which is only in tools; add it to data",
             ),
             expect_equal(
                 "label also in data is accepted",
-                dx_args_label_error("t", ["$(rootpath :d)"], [":a.js", "//javascript/private:d"], {"deps": [":d"]}),
+                dx_args_label_error("t", ["$(rootpath :d)"], [":a.js", "//javascript/tests:d"], {"deps": [":d"]}),
                 None,
             ),
             expect_equal(

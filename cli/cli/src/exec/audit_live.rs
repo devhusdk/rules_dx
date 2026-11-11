@@ -1,4 +1,5 @@
 use super::super::test_support::*;
+use dx_adopt::dependency_sets::Ecosystem;
 use dx_process::{ChildStatus, Runner};
 use std::cell::RefCell;
 use std::io;
@@ -115,7 +116,17 @@ pub(super) fn run_with(
     run_on(argv, runner, TEST_AUDIT_TODAY, setup)
 }
 
-const HUBS_MODULE: &str = r#"
+pub(super) fn lock_of(ecosystem: Ecosystem) -> &'static str {
+    ecosystem.lockfiles()[0].as_str()
+}
+
+pub(super) fn manifest_of(ecosystem: Ecosystem) -> &'static str {
+    ecosystem.manifest_name()
+}
+
+fn hubs_module() -> String {
+    format!(
+        r#"
 bazel_dep(name = "rules_rust", version = "0.75.0")
 bazel_dep(name = "gazelle", version = "0.54.0")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
@@ -125,32 +136,39 @@ bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(
     name = "cargo",
-    cargo_lockfile = "//cc/private/context:Cargo.lock",
+    cargo_lockfile = "//cc/private/context:{cargo_lock}",
     lockfile = "//:cargo-bazel-lock.json",
-    manifests = ["//cc/private/context:Cargo.toml"],
+    manifests = ["//cc/private/context:{cargo_manifest}"],
 )
 
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     name = "maven",
-    lock_file = "//third_party/jvm:maven_install.json",
+    lock_file = "//third_party/jvm:{maven_lock}",
 )
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
-npm.npm_translate_lock(name = "npm", pnpm_lock = "//:pnpm-lock.yaml")
-npm.npm_translate_lock(name = "npm-adopt", pnpm_lock = "//javascript/tests/fixtures/adopt-js-ts:pnpm-lock.yaml")
-npm.npm_translate_lock(name = "npm-adopt-polyglot", pnpm_lock = "//examples/adopt-polyglot:pnpm-lock.yaml")
-npm.npm_translate_lock(name = "npm-tools", pnpm_lock = "//javascript/private/quality:pnpm-lock.yaml")
+npm.npm_translate_lock(name = "npm", pnpm_lock = "//:{npm_lock}")
+npm.npm_translate_lock(name = "npm-adopt", pnpm_lock = "//javascript/tests/fixtures/adopt-js-ts:{npm_lock}")
+npm.npm_translate_lock(name = "npm-adopt-polyglot", pnpm_lock = "//examples/adopt-polyglot:{npm_lock}")
+npm.npm_translate_lock(name = "npm-tools", pnpm_lock = "//javascript/private/quality:{npm_lock}")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
-go_deps.from_file(go_mod = "//third_party/go:go.mod")
+go_deps.from_file(go_mod = "//third_party/go:{go_mod}")
 
 paket = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")
-"#;
+"#,
+        cargo_lock = lock_of(Ecosystem::Cargo),
+        cargo_manifest = manifest_of(Ecosystem::Cargo),
+        maven_lock = lock_of(Ecosystem::Maven),
+        npm_lock = lock_of(Ecosystem::Npm),
+        go_mod = manifest_of(Ecosystem::Go),
+    )
+}
 
 /// Declares the hubs the audit tests read their locks through.
 pub(super) fn write_hubs(harness: &Harness) {
-    harness.write_source("MODULE.bazel", HUBS_MODULE);
+    harness.write_source("MODULE.bazel", &hubs_module());
 }
 
 fn run_on(
@@ -198,7 +216,7 @@ pub(super) fn write_all_lock_families(harness: &Harness) {
     write_nuget_lock(harness);
     write_go_mod(harness);
     harness.write_source(
-        "third_party/powershell/PSGallery.lock.json",
+        &format!("third_party/powershell/{}", lock_of(Ecosystem::PowerShell)),
         "{\n  \"modules\": {}\n}\n",
     );
 }
@@ -217,7 +235,7 @@ pub(super) fn write_cargo_license_set(harness: &Harness) {
 pub(super) fn write_cargo_lock(harness: &Harness) {
     harness.write_source("cargo-bazel-lock.json", r#"{"packages": {}}"#);
     harness.write_source(
-        "cc/private/context/Cargo.lock",
+        &format!("cc/private/context/{}", lock_of(Ecosystem::Cargo)),
         "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
     );
 }
@@ -225,7 +243,7 @@ pub(super) fn write_cargo_lock(harness: &Harness) {
 fn write_empty_cargo_lock(harness: &Harness) {
     harness.write_source("cargo-bazel-lock.json", r#"{"packages": {}}"#);
     harness.write_source(
-        "cc/private/context/Cargo.lock",
+        &format!("cc/private/context/{}", lock_of(Ecosystem::Cargo)),
         "[[package]]\nname = \"demo\"\nversion = \"0.1.0\"\n",
     );
 }
@@ -238,13 +256,19 @@ pub(super) fn write_cargo_license_lock(harness: &Harness) {
 }
 
 pub(super) fn write_maven_lock(harness: &Harness) {
-    harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
+    harness.write_source(
+        &format!("third_party/jvm/{}", lock_of(Ecosystem::Maven)),
+        r#"{"artifacts": {}}"#,
+    );
 }
 
 pub(super) fn write_nuget_lock(harness: &Harness) {
     harness.write_source("third_party/dotnet/deps/paket.main.bzl", "");
     harness.write_source(
-        &format!("third_party/dotnet/{}", dx_adopt::lock_hubs::state_of("nuget")),
+        &format!(
+            "third_party/dotnet/{}",
+            dx_adopt::lock_hubs::state_of("nuget")
+        ),
         "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
     );
 }
@@ -265,23 +289,26 @@ pub(super) fn write_cargo_inventory_licenses(harness: &Harness) {
 
 pub(super) fn write_go_mod(harness: &Harness) {
     harness.write_source(
-        "third_party/go/go.mod",
+        &format!("third_party/go/{}", manifest_of(Ecosystem::Go)),
         "module rules_dx/third_party/go\n\ngo 1.24.12\n\nrequire (\n\tgithub.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52 // indirect\n\tgithub.com/google/go-cmp v0.6.0\n\tgithub.com/pmezard/go-difflib v1.0.0\n)\n",
     );
 }
 
 const NPM_LOCK: &str = "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
 
-const NPM_FAMILY_LOCKS: [&str; 3] = [
-    "javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml",
-    "examples/adopt-polyglot/pnpm-lock.yaml",
-    "javascript/private/quality/pnpm-lock.yaml",
-];
+fn npm_family_locks() -> [String; 3] {
+    let lock = lock_of(Ecosystem::Npm);
+    [
+        format!("javascript/tests/fixtures/adopt-js-ts/{lock}"),
+        format!("examples/adopt-polyglot/{lock}"),
+        format!("javascript/private/quality/{lock}"),
+    ]
+}
 
 pub(super) fn write_npm_locks(harness: &Harness) {
-    harness.write_source("pnpm-lock.yaml", NPM_LOCK);
-    for rel in NPM_FAMILY_LOCKS {
-        harness.write_source(rel, NPM_LOCK);
+    harness.write_source(lock_of(Ecosystem::Npm), NPM_LOCK);
+    for rel in npm_family_locks() {
+        harness.write_source(&rel, NPM_LOCK);
     }
 }
 
@@ -641,7 +668,7 @@ pub(super) fn audit_live_vuln_findings_fail_and_git_is_incomplete() {
     let (code, _out, err) = run_with(&["security"], &runner, &|harness| {
         harness.write_source("cargo-bazel-lock.json", r#"{"packages": {}}"#);
         harness.write_source(
-            "cc/private/context/Cargo.lock",
+            &format!("cc/private/context/{}", lock_of(Ecosystem::Cargo)),
             "[[package]]\nname = \"git-dep\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/example/git-dep#abc123\"\n",
         );
         write_npm_locks(harness);
@@ -661,7 +688,7 @@ pub(super) fn audit_live_npm_pnpm_git_resolution_is_incomplete() {
     let (code, _out, err) = run_with(&["security"], &runner, &|harness| {
         write_cargo_lock(harness);
         harness.write_source(
-            "pnpm-lock.yaml",
+            lock_of(Ecosystem::Npm),
             "lockfileVersion: '9.0'\npackages:\n  'git-dep@github:user/repo#abc123':\n    resolution: {repo: 'https://github.com/user/repo.git', commit: abc123}\n",
         );
         write_maven_lock(harness);
@@ -699,15 +726,18 @@ pub(super) fn audit_live_npm_family_locks_are_assessed_against_the_shared_npm_sn
     for (scope, rel) in [
         (
             "javascript/tests/fixtures/adopt-js-ts/app",
-            "javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml",
+            &format!(
+                "javascript/tests/fixtures/adopt-js-ts/{}",
+                lock_of(Ecosystem::Npm)
+            ),
         ),
         (
             "examples/adopt-polyglot/frontend",
-            "examples/adopt-polyglot/pnpm-lock.yaml",
+            &format!("examples/adopt-polyglot/{}", lock_of(Ecosystem::Npm)),
         ),
         (
-            "javascript/private/quality/package.json",
-            "javascript/private/quality/pnpm-lock.yaml",
+            &format!("javascript/private/quality/{}", manifest_of(Ecosystem::Npm)),
+            &format!("javascript/private/quality/{}", lock_of(Ecosystem::Npm)),
         ),
     ] {
         let runner = AuditRunner::clean();
@@ -1114,7 +1144,7 @@ fn audit_live_license_names_uncovered_dependency_sets() {
 
 fn write_junit_exception(harness: &Harness) {
     harness.write_source(
-        "third_party/jvm/maven_install.json",
+        &format!("third_party/jvm/{}", lock_of(Ecosystem::Maven)),
         r#"{"artifacts": {"junit:junit": {"version": "4.13.2"}}}"#,
     );
     harness.write_source(
@@ -1143,7 +1173,7 @@ pub(super) fn audit_live_license_exception_expiry_follows_the_pinned_date() {
 pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
-        harness.write_source("pnpm-lock.yaml", "packages:\n  react@18.2.0: {}\n");
+        harness.write_source(lock_of(Ecosystem::Npm), "packages:\n  react@18.2.0: {}\n");
         write_empty_cargo_lock(harness);
         harness.write_source(
                 "license.toml",
@@ -1158,7 +1188,7 @@ pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
 pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
-        harness.write_source("pnpm-lock.yaml", "packages:\n  react@18.2.0: {}\n");
+        harness.write_source(lock_of(Ecosystem::Npm), "packages:\n  react@18.2.0: {}\n");
         write_empty_cargo_lock(harness);
         harness.write_source(
                 "license.toml",
@@ -1170,7 +1200,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
 
     let runner = AuditRunner::clean();
     let (code, _out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
-        harness.write_source("pnpm-lock.yaml", "packages:\n  react@18.2.0: {}\n");
+        harness.write_source(lock_of(Ecosystem::Npm), "packages:\n  react@18.2.0: {}\n");
         write_empty_cargo_lock(harness);
         write_mit_licenses(harness);
     });
@@ -1208,7 +1238,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license", "//third_party/go:go"], &runner, &|harness| {
         harness.write_source(
-            "third_party/go/go.mod",
+            &format!("third_party/go/{}", manifest_of(Ecosystem::Go)),
             "module example.com/root\n\ngo 1.24.12\n\nrequire example.com/hello v1.0.0\n",
         );
         harness.write_source(
@@ -1222,7 +1252,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let runner = AuditRunner::clean();
     let (code, _out, err) = run_with(&["license", "//third_party/go:go"], &runner, &|harness| {
         harness.write_source(
-            "third_party/go/go.mod",
+            &format!("third_party/go/{}", manifest_of(Ecosystem::Go)),
             "module example.com/root\n\ngo 1.24.12\n\nrequire example.com/hello v1.0.0\n",
         );
         harness.write_source(

@@ -324,7 +324,6 @@ swift/tests/toolchain_libs_test.sh host-path 1
 swift/tests/toolchain_libs_test.sh shebang 1
 thrift/private/compiler.BUILD.bazel genrule 1
 tools/BUILD.bazel genrule 1
-tools/BUILD.bazel sh-rule 1
 tools/bazelisk/wrapper/bazel.ps1 host-path 1
 tools/bazelisk/wrapper_test.rs host-path 2
 tools/buildbuddy-credential-helper.sh shebang 1
@@ -352,8 +351,6 @@ tools/docs/site/browser/src/lib_tests.rs shebang 1
 tools/docs/site/public_rust_crates_guard.sh shebang 1
 tools/docs/site/site.bzl run-shell 1
 tools/docs/tiers/tiers.bzl genrule 1
-tools/dx_launcher_test.sh host-path 1
-tools/dx_launcher_test.sh shebang 1
 tools/repin_all/tests/workspace_cwd_test.rs shebang 1
 tools/testing/BUILD.bazel env-inherit 1
 tools/testing/hermetic/appcontainer/args.rs host-path 2

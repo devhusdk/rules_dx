@@ -50,7 +50,7 @@ pub fn parse_lua_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
     Ok(deps)
 }
 
-/// Reads a `luarocks.lock.json`: the name and version of each package. The rock revision is dropped.
+/// Reads a lock: the name and version of each package. The rock revision is dropped.
 pub fn parse_lua_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let json: serde_json::Value = serde_json::from_str(&text).map_err(|error| {

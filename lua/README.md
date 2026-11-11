@@ -149,8 +149,7 @@ calls, found with a Lua parser.
 - `lua_binary` targets stay hand-written. Sources a hand-written `lua_binary`
   lists in `main` or `srcs` are left out of the generated library.
 - Standard library modules and `runfiles` need no dep.
-- A third-party module needs one mapping, for example
-  `# gazelle:resolve lua inspect @lua_app_inspect//:inspect`.
+- A third-party module is resolved from the lock's `provides`; no directive.
 - `require` inside `pcall` or `xpcall` is optional and is skipped. So are
   dynamic names, an aliased `require` (`local r = require`) and text in
   comments or strings.

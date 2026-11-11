@@ -216,3 +216,12 @@ fn json_states_no_name_the_registry_states() {
         }
     }
 }
+
+#[test]
+fn registry_names_merge_manifest_lock_and_state() {
+    assert_eq!(
+        Ecosystem::Composer.registry_names(),
+        ["composer.json", "composer.lock", "composer.lock.json"]
+    );
+    assert_eq!(Ecosystem::LuaRocks.registry_names(), ["luarocks.lock.json"]);
+}

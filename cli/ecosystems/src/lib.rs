@@ -352,6 +352,22 @@ impl Ecosystem {
         self.row().map_or(&[], |row| row.alt_manifests.as_slice())
     }
 
+    /// Lists every file name this ecosystem reads or writes: manifests, locks and hub state.
+    /// Empty names and glob patterns are left out.
+    pub fn registry_names(self) -> Vec<&'static str> {
+        let hub = dx_families::hub(self.name());
+        let mut names: Vec<&'static str> = std::iter::once(self.manifest_name())
+            .chain(self.alt_manifests().iter().map(String::as_str))
+            .chain(self.lockfiles().iter().map(String::as_str))
+            .chain(hub.and_then(|hub| hub.lock.as_deref()))
+            .chain(hub.and_then(|hub| hub.state.as_deref()))
+            .filter(|name| !name.is_empty() && !name.contains('*'))
+            .collect();
+        names.sort_unstable();
+        names.dedup();
+        names
+    }
+
     /// Tells whether this ecosystem's manifest is a file other ecosystems write too.
     pub fn shared_manifest(self) -> bool {
         self.row().is_some_and(|row| row.shared_manifest)

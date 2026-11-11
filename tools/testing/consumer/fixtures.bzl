@@ -8,6 +8,7 @@ CONSUMER_FIXTURES = [
     "d",
     "elixir",
     "erlang",
+    "fsharp",
     "go",
     "haskell",
     "java",

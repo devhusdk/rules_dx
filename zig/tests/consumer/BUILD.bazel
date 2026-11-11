@@ -1,14 +1,15 @@
 load("@rules_dx//zig:defs.bzl", "zig_library", "zig_test")
 
+# dx: written once, yours to edit
+
 zig_library(
-    name = "consumer",
+    name = "my_project",
     main = "greet.zig",
     visibility = ["//visibility:public"],
 )
 
 zig_test(
-    name = "consumer_test",
-    size = "small",
+    name = "greet_test",
     main = "greet_test.zig",
-    deps = [":consumer"],
+    deps = [":my_project"],
 )

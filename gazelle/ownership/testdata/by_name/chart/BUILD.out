@@ -1,0 +1,7 @@
+load("@rules_dx//helm:defs.bzl", "helm_chart")
+
+helm_chart(
+    name = "helm",
+    srcs = ["Chart.yaml"],
+    visibility = ["//visibility:public"],
+)

@@ -39,6 +39,7 @@ deploy/tests/fixtures/consumer_archive/repo
 javascript/tests/fixtures/web_app/repo
 # dx init output, read through consumer.json.
 ansible/tests/consumer
+api_spec/tests/consumer
 asciidoc/tests/consumer
 astro/tests/consumer
 avro/tests/consumer
@@ -58,11 +59,14 @@ flatbuffers/tests/consumer
 fsharp/tests/consumer
 go/tests/consumer
 haskell/tests/consumer
+helm/tests/consumer
 java/tests/consumer
 javascript/tests/consumer
 julia/tests/consumer
 kotlin/tests/consumer
+kubernetes/tests/consumer
 lua/tests/consumer
+make/tests/consumer
 mdx/tests/consumer
 ocaml/tests/consumer
 perl/tests/consumer
@@ -71,13 +75,14 @@ powershell/tests/consumer
 python/tests/consumer
 qt/tests/consumer
 rego/tests/consumer
-ruby/tests/consumer
 rst/tests/consumer
+ruby/tests/consumer
 rust/tests/consumer
 scala/tests/consumer
 sql/tests/consumer
 svelte/tests/consumer
 swift/tests/consumer
+terraform/tests/consumer
 thrift/tests/consumer
 typescript/tests/consumer
 vue/tests/consumer

@@ -1,16 +1,11 @@
 dev-repo custom_gcc_x86_64 cc/private/toolchains/external/BUILD.bazel
 fixture android
-fixture api_spec
 fixture appimage
 fixture apple
 fixture env
 fixture flutter
 fixture fortran
-fixture helm
-fixture kubernetes
-fixture make
 fixture msix
-fixture terraform
 override archive_override lua
 override archive_override rules_flutter
 override archive_override rules_py

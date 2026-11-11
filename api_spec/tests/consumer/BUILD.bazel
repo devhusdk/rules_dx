@@ -1,0 +1,9 @@
+load("@rules_dx//api_spec:defs.bzl", "api_spec_library")
+
+# dx: written once, yours to edit
+
+api_spec_library(
+    name = "api_spec",
+    srcs = ["openapi.yaml"],
+    visibility = ["//visibility:public"],
+)

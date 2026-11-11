@@ -39,6 +39,9 @@ const sniffBytes = 4096
 var (
 	ansiblePlaybook = regexp.MustCompile(`(?m)^(?:- +hosts:|  hosts:)`)
 	cfnTemplate     = regexp.MustCompile(`(?m)^(?:AWSTemplateFormatVersion|Resources):`)
+	apiSpecRoot     = regexp.MustCompile(`(?m)^(?:openapi|asyncapi):`)
+	k8sAPIVersion   = regexp.MustCompile(`(?m)^apiVersion:`)
+	k8sKind         = regexp.MustCompile(`(?m)^kind:`)
 )
 
 var families = []family{
@@ -50,6 +53,11 @@ var families = []family{
 	{"cloudformation_library", "cloudformation", "cloudformation:defs.bzl", isYAML, isCloudFormation},
 	{"rst_library", "rst", "rst:defs.bzl", isRst, nil},
 	{"sql_library", "sql", "sql:defs.bzl", isSQL, nil},
+	{"make_library", "make", "make:defs.bzl", isMake, nil},
+	{"terraform_library", "terraform", "terraform:defs.bzl", isTerraform, nil},
+	{"kubernetes_library", "kubernetes", "kubernetes:defs.bzl", isYAML, isKubernetes},
+	{"api_spec_library", "api_spec", "api_spec:defs.bzl", isYAML, isAPISpec},
+	{"helm_chart", "helm", "helm:defs.bzl", isHelmChart, nil},
 }
 
 // isDockerfile matches the names is_dockerfile_name in core/quality/sources.bzl accepts.
@@ -90,11 +98,27 @@ func isSQL(name string) bool {
 	return strings.HasSuffix(name, ".sql")
 }
 
+func isMake(name string) bool {
+	return name == "Makefile" || name == "makefile" || name == "GNUmakefile" || strings.HasSuffix(name, ".mk")
+}
+
+func isTerraform(name string) bool {
+	return strings.HasSuffix(name, ".tf")
+}
+
+func isHelmChart(name string) bool {
+	return name == "Chart.yaml"
+}
+
 func isYAML(name string) bool {
 	return strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".yaml")
 }
 
 func isAnsiblePlaybook(head []byte) bool { return ansiblePlaybook.Match(head) }
+
+func isKubernetes(head []byte) bool { return k8sAPIVersion.Match(head) && k8sKind.Match(head) }
+
+func isAPISpec(head []byte) bool { return apiSpecRoot.Match(head) }
 
 func isCloudFormation(head []byte) bool { return cfnTemplate.Match(head) }
 

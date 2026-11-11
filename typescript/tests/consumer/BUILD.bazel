@@ -1,18 +1,11 @@
-load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@rules_dx//javascript:defs.bzl", "javascript_library")
 load("@rules_dx//typescript:defs.bzl", "typescript_binary", "typescript_library")
 
 # dx: written once, yours to edit
 
-js_library(
+javascript_library(
     name = "package_json",
     srcs = ["package.json"],
-    visibility = ["//visibility:public"],
-)
-
-ts_config(
-    name = "tsconfig",
-    src = "tsconfig.json",
     visibility = ["//visibility:public"],
 )
 
@@ -20,7 +13,7 @@ typescript_library(
     name = "greet",
     srcs = ["greet.ts"],
     declaration = True,
-    tsconfig = ":tsconfig",
+    tsconfig = "tsconfig.json",
     visibility = ["//visibility:public"],
 )
 
@@ -28,6 +21,6 @@ typescript_binary(
     name = "main_bin",
     srcs = ["main.ts"],
     main = "main.ts",
-    tsconfig = ":tsconfig",
+    tsconfig = "tsconfig.json",
     deps = [":greet"],
 )

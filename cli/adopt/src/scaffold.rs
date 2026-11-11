@@ -1342,6 +1342,39 @@ mod tests {
     }
 
     #[test]
+    fn staged_release_consumer_is_a_generate_fixed_point() {
+        let template_path = std::env::var("DX_CONSUMER_TEMPLATE").expect("template path");
+        let lib_path = std::env::var("DX_CONSUMER_LIB").expect("lib path");
+        let template = std::fs::read_to_string(template_path).expect("template");
+        let scratch = dx_test_scratch::scratch("dx-adopt-consumer-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("src")).expect("src dir");
+        std::fs::write(root.join("BUILD.bazel"), &template).expect("root build");
+        std::fs::copy(lib_path, root.join("src/lib.rs")).expect("lib");
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "module(name = \"dx_release_consumer\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+        )
+        .expect("module");
+        let files = super::plan_init_files_at(root, "dx_release_consumer", None).expect("plan");
+        super::apply_scaffold(root, &files, &mut super::Applied::default()).expect("apply");
+        assert_eq!(
+            std::fs::read_to_string(root.join("BUILD.bazel")).expect("build"),
+            template,
+            "init rewrote the root BUILD.bazel"
+        );
+        let planned = dx_generate::plan(root, &mut crate::detected_families).expect("generate");
+        if let Some(build) = planned.get("BUILD.bazel") {
+            assert_eq!(
+                String::from_utf8_lossy(build),
+                template,
+                "generate would rewrite the root BUILD.bazel"
+            );
+        }
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn init_keeps_an_existing_root_build() {
         assert!(root_builds(&[("BUILD", "")]).is_empty());
         assert!(root_builds(&[("BUILD.bazel", "")]).is_empty());

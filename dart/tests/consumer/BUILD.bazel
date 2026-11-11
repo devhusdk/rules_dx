@@ -2,14 +2,12 @@ load("@rules_dx//dart:defs.bzl", "dart_library", "dart_test")
 
 dart_library(
     name = "consumer",
-    srcs = ["lib/greet.dart"],
     package_name = "consumer",
-    visibility = ["//visibility:public"],
+    srcs = ["lib/greet.dart"],
 )
 
 dart_test(
-    name = "consumer_test",
-    size = "small",
+    name = "greet_test",
     main = "test/greet_test.dart",
     deps = [":consumer"],
 )

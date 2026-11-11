@@ -1,0 +1,3 @@
+name: consumer
+environment:
+  sdk: ^3.5.0

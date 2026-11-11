@@ -65,7 +65,6 @@ fixture-hello cloudformation/tests/conformance/BUILD.bazel
 fixture-hello cmake/tests/conformance/BUILD.bazel
 fixture-hello csharp/tests/conformance/BUILD.bazel
 fixture-hello cuda/tests/conformance/BUILD.bazel
-fixture-hello dart/tests/conformance/BUILD.bazel
 fixture-hello dockerfile/tests/conformance/BUILD.bazel
 fixture-hello dotnet/tests/conformance/BUILD.bazel
 fixture-hello elixir/tests/conformance/BUILD.bazel
@@ -500,12 +499,9 @@ test-location env/private/defs_tests.bzl
 test-location env/private/env_shard/BUILD.bazel
 test-location env/private/plan_tests.bzl
 test-location env/tests/BUILD.bazel
-test-location erlang/private/BUILD.bazel
 test-location erlang/private/toolchain/BUILD.bazel
 test-location erlang/private/toolchain/cells_tests.bzl
 test-location erlang/private/toolchain/metadata_tests.bzl
-test-location erlang/private/wrapper_tests.bzl
-test-location erlang/tests/BUILD.bazel
 test-location flutter/tests/BUILD.bazel
 test-location fortran/private/BUILD.bazel
 test-location fortran/private/toolchain/BUILD.bazel

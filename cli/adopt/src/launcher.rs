@@ -1907,11 +1907,10 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 let payload = base.join("payload");
                 std::fs::copy(format!("{system}\\System32\\cmd.exe"), &payload).expect("payload");
                 let real = sha_of(&payload);
-                std::fs::write(base.join("sidecar"), format!("{real}  dx\r\n")).expect("sha");
                 let want = sha.map_or(real, str::to_owned);
                 let guid = "@echo off\r\nif defined DX_PART goto download\r\nif defined STUB_NO_GUID exit /b 0\r\n\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" %*\r\nexit /b\r\n:download\r\necho %DX_PART%>\"%STUB_LOG%\\%DX_TAG%\"\r\n";
                 let download = if ps_ok {
-                    "copy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\ncopy /y \"%STUB_SIDECAR%\" \"%DX_PART%.sha\" >nul\r\nexit /b 0\r\n"
+                    "copy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\nexit /b 0\r\n"
                 } else {
                     "echo partial>\"%DX_PART%\"\r\nexit /b 9009\r\n"
                 };
@@ -1978,7 +1977,6 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                     .env("STUB_LOG", base.join("calls"))
                     .env("STUB_BAZEL", base.join("bazel.log"))
                     .env("STUB_PAYLOAD", base.join("payload"))
-                    .env("STUB_SIDECAR", base.join("sidecar"))
                     .env_remove("DX_PART")
                     .env_remove("STUB_NO_GUID");
                 cmd

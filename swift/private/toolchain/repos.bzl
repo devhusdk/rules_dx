@@ -147,7 +147,6 @@ def _swift_windows_impl(repository_ctx):
             repository_ctx.path(_SEVEN_ZIP + "/full/7z.exe"),
         ],
         environment = _NO_HOST_TOOLS,
-        quiet = False,
         timeout = 3600,
     )
     if result.return_code != 0:

@@ -346,15 +346,12 @@ foreach ($toolDir in $toolDirs) {
             $assembly = $attributes["name"]
             if (-not $assembly -or $assembly.StartsWith("Microsoft.")) { continue }
             if ($tool.Name -eq "swiftc.exe" -or -not $identities.ContainsKey($assembly)) {
-                [Console]::Out.WriteLine("extract_windows: $($tool.Name) depends on SxS assembly $($match.Groups[1].Value)")
                 if (-not $identities.ContainsKey($assembly)) { $identities[$assembly] = $attributes }
             }
         }
     }
 }
-if (Test-Path -LiteralPath $runtimeSxS) { Get-ChildItem -LiteralPath $runtimeSxS -File | ForEach-Object { [Console]::Out.WriteLine("extract_windows: runtime SxS file $($_.Name)") } }
 $runtimeDlls = @(Get-ChildItem -LiteralPath $runtimeBin -File -Filter "*.dll")
-[Console]::Out.WriteLine("extract_windows: runtime DLLs $(($runtimeDlls | ForEach-Object { $_.Name }) -join ' ')")
 foreach ($toolDir in $toolDirs) {
     foreach ($dll in $runtimeDlls) {
         $assembly = $dll.BaseName
@@ -377,7 +374,6 @@ foreach ($assembly in $identities.Keys) {
     foreach ($toolDir in $toolDirs) {
         $staged = Join-Path $toolDir "$assembly\$assembly.dll"
         if (-not ((Test-Path -LiteralPath $staged) -or (Test-Path -LiteralPath (Join-Path $toolDir "$assembly.dll")))) { Fail "swiftc SxS assembly $assembly is missing from $toolDir" }
-        if (Test-Path -LiteralPath (Join-Path $toolDir "$assembly\$assembly.manifest")) { [Console]::Out.WriteLine("extract_windows: staged $staged with manifest") } else { [Console]::Out.WriteLine("extract_windows: staged $staged without manifest") }
     }
 }
 

@@ -386,6 +386,14 @@ elixir_subject = rule(
     },
 )
 
+def _stem(path):
+    """Returns the executable file name without a Windows .exe or .bat suffix."""
+    name = path.split("/")[-1]
+    for suffix in (".exe", ".bat"):
+        if name.endswith(suffix):
+            return name[:-len(suffix)]
+    return name
+
 def _subject_under_test(env):
     """Unwraps the possibly transitioned target under test."""
     dep = env.ctx.attr.target_under_test
@@ -474,7 +482,7 @@ def _perlcritic_default_impl(ctx):
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
     asserts.equals(env, "", fields["perlcritic"])
-    asserts.true(env, fields["wrapper"].endswith("/perlcritic") or fields["wrapper"].endswith("/perlcritic.exe"), "want perlcritic, got " + fields["wrapper"])
+    asserts.true(env, _stem(fields["wrapper"]) == "perlcritic", "want perlcritic, got " + fields["wrapper"])
     asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
     return analysistest.end(env)
 
@@ -484,7 +492,7 @@ def _perlcritic_wired_impl(ctx):
     """Asserts the flag wires perlcritic and a lint stage result."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.true(env, fields["perlcritic"].endswith("/perlcritic") or fields["perlcritic"].endswith("/perlcritic.exe"), "want perlcritic, got " + fields["perlcritic"])
+    asserts.true(env, _stem(fields["perlcritic"]) == "perlcritic", "want perlcritic, got " + fields["perlcritic"])
     asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
     return analysistest.end(env)
 
@@ -514,7 +522,7 @@ def _perltidy_default_impl(ctx):
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
     asserts.equals(env, "", fields["perltidy"])
-    asserts.true(env, fields["wrapper"].endswith("bin_perltidy") or fields["wrapper"].endswith("bin_perltidy.exe"), "want perltidy, got " + fields["wrapper"])
+    asserts.true(env, _stem(fields["wrapper"]).endswith("bin_perltidy"), "want perltidy, got " + fields["wrapper"])
     asserts.true(env, fields["results"] != "", "want a format stage result for the Perl target")
     return analysistest.end(env)
 
@@ -524,7 +532,7 @@ def _perltidy_wired_impl(ctx):
     """Asserts the flag wires perltidy and a format stage result."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.true(env, fields["perltidy"].endswith("/perltidy") or fields["perltidy"].endswith("/perltidy.exe") or fields["perltidy"].endswith("bin_perltidy"), "want perltidy, got " + fields["perltidy"])
+    asserts.true(env, _stem(fields["perltidy"]).endswith("perltidy"), "want perltidy, got " + fields["perltidy"])
     asserts.true(env, fields["results"] != "", "want a format stage result for the Perl target")
     return analysistest.end(env)
 
@@ -630,7 +638,7 @@ def _dart_default_impl(ctx):
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
     asserts.equals(env, "", fields["dart"])
-    asserts.equals(env, "dart", fields["wrapper"].split("/")[-1])
+    asserts.equals(env, "dart", _stem(fields["wrapper"]))
     asserts.true(env, fields["results"] != "", "want a format stage result for the dart target")
     return analysistest.end(env)
 
@@ -640,7 +648,7 @@ def _dart_wired_impl(ctx):
     """Asserts the flag wires the dart binary and a format stage result."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.equals(env, "dart", fields["dart"].split("/")[-1])
+    asserts.equals(env, "dart", _stem(fields["dart"]))
     asserts.true(env, fields["results"] != "", "want a format stage result for the dart target")
     return analysistest.end(env)
 
@@ -705,7 +713,7 @@ def _erlfmt_wired_impl(ctx):
     """Asserts the flag wires the erlfmt escript and a format stage result."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.true(env, fields["erlfmt"].endswith("/erlfmt"), "want the erlfmt escript, got " + fields["erlfmt"])
+    asserts.true(env, _stem(fields["erlfmt"]) == "erlfmt", "want the erlfmt escript, got " + fields["erlfmt"])
     asserts.true(env, fields["results"] != "", "want a format stage result for the erlang target")
     return analysistest.end(env)
 
@@ -755,7 +763,7 @@ def _credo_wired_impl(ctx):
     """Asserts the flag wires the credo launcher and a lint stage result."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.true(env, fields["credo"].endswith("/credo"), "want the credo launcher, got " + fields["credo"])
+    asserts.true(env, _stem(fields["credo"]) == "credo", "want the credo launcher, got " + fields["credo"])
     asserts.true(env, fields["results"] != "", "want a lint stage result for the elixir target")
     return analysistest.end(env)
 
@@ -784,7 +792,7 @@ def _elvis_wired_impl(ctx):
     """Asserts the flag wires the elvis escript and a lint stage result."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.true(env, fields["elvis"].endswith("/elvis"), "want the elvis escript, got " + fields["elvis"])
+    asserts.true(env, _stem(fields["elvis"]) == "elvis", "want the elvis escript, got " + fields["elvis"])
     asserts.true(env, fields["results"] != "", "want a lint stage result for the erlang target")
     return analysistest.end(env)
 
@@ -813,7 +821,7 @@ def _mix_format_wired_impl(ctx):
     """Asserts the flag wires the mix format launcher and a format stage result."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.true(env, fields["mix_format"].endswith("/mix_format"), "want the mix format launcher, got " + fields["mix_format"])
+    asserts.true(env, _stem(fields["mix_format"]) == "mix_format", "want the mix format launcher, got " + fields["mix_format"])
     asserts.true(env, fields["results"] != "", "want a format stage result for the elixir target")
     return analysistest.end(env)
 

@@ -50,6 +50,7 @@ Usage: process_probe [options]
                                 holding PATH; wait until it is held
   --descendant-gate=PATH        end the descendant's sleep early once PATH exists
   --raise-signal=N              die by signal N (unix only)
+  --descendant-count-sigint=PATH  the descendant appends one byte to PATH per SIGINT (unix only)
   --count-sigint=PATH           append one byte to PATH per SIGINT instead of dying (unix only)
   --ctrl-c-console=PID          send Ctrl-C to the console of process PID, then exit (windows only)
   --ignore-console-ctrl         ignore console Ctrl-C in this probe and its descendant (windows only)
@@ -122,6 +123,7 @@ struct Plan {
     descendant_gate: Option<String>,
     raise_signal: Option<i32>,
     count_sigint: Option<String>,
+    descendant_count_sigint: Option<String>,
     require_foreground: bool,
     ctrl_c_console: Option<u32>,
     ignore_console_ctrl: bool,
@@ -156,6 +158,7 @@ const VALUE_FLAGS: &[&str] = &[
     "--descendant-gate",
     "--raise-signal",
     "--count-sigint",
+    "--descendant-count-sigint",
     "--ctrl-c-console",
 ];
 
@@ -291,6 +294,12 @@ fn parse(args: &[String]) -> Result<Plan, String> {
             }
             "--ctrl-c-console" => plan.ctrl_c_console = Some(count(value, flag)?),
             "--raise-signal" => plan.raise_signal = Some(count(value, flag)?),
+            "--descendant-count-sigint" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.descendant_count_sigint = Some(value.to_owned());
+            }
             "--count-sigint" => {
                 if value.is_empty() {
                     return Err(format!("{flag} needs a path"));
@@ -368,6 +377,9 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
     }
     if let Some(gate) = &plan.descendant_gate {
         args.push(format!("--gate={gate}"));
+    }
+    if let Some(log) = &plan.descendant_count_sigint {
+        args.push(format!("--count-sigint={log}"));
     }
     if plan.ignore_console_ctrl {
         args.push("--ignore-console-ctrl".to_owned());

@@ -542,9 +542,8 @@ fn a_terminal_child_gets_each_sigint_once() {
             &["build", "//..."],
             &|dir| {
                 format!(
-                    "--count-sigint={} --gate={} --sleep-ms=30000",
-                    dir.join("sigint").display(),
-                    dir.join("gate").display()
+                    "--detached-descendant --descendant-count-sigint={} --descendant-sleep-ms=30000 --sleep-ms=30000",
+                    dir.join("sigint").display()
                 )
             },
             Some(&pty),
@@ -568,18 +567,14 @@ fn a_terminal_child_gets_each_sigint_once() {
             Sender::Unattributed => queue_unattributed(run.child.id() as i32, libc::SIGINT),
         }
         let expected = b"I";
-        let deadline = Instant::now() + Duration::from_secs(5);
-        while fs::read(&log).map_or(0, |bytes| bytes.len()) < expected.len()
-            && Instant::now() < deadline
-        {
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        std::thread::sleep(Duration::from_millis(100));
-        fs::write(run.dir().join("gate"), b"").expect("open the gate");
         let status = run.exit();
+        let counted = fs::read(&log).expect("sigint log");
+        unsafe {
+            libc::kill(-build_pgid, libc::SIGKILL);
+        }
         assert!(
             wait_until_gone(build_pgid, Duration::from_secs(5)),
-            "{sender:?}: the terminal group outlived dx"
+            "{sender:?}: the terminal group survived SIGKILL"
         );
         assert_eq!(
             status.signal(),
@@ -588,7 +583,7 @@ fn a_terminal_child_gets_each_sigint_once() {
             run.context()
         );
         assert_eq!(
-            fs::read(&log).expect("sigint log"),
+            counted,
             expected,
             "{sender:?}: wrong SIGINT count\n{}",
             run.context()

@@ -29,10 +29,11 @@ _REBAR_LOCK = """%% comment
 def _glob(patterns, exclude = [], **_kwargs):
     return [",".join(patterns) + "!" + ",".join(exclude)]
 
-def erlang_wrapper_contract_tests(name):
+def erlang_wrapper_contract_tests(name, size):
     """Instantiates Erlang wrapper contract tests."""
     dx_wrapper_contract_tests(
         name,
+        size = size,
         file_classes = ["erlang"],
         extra_checks = [
             expect_equal("windows tree tests set the otp home from runfiles", windows_tree_home_commands("+erlang+dx_otp_windows_x86_64"), 'set "RULES_ERLANG_HOME=%TEST_SRCDIR%/+erlang+dx_otp_windows_x86_64"\nset "RULES_ERLANG_HOME=%RULES_ERLANG_HOME:/=\\%"\n'),
@@ -198,6 +199,6 @@ def _plt_needs_input_impl(ctx):
 
 _plt_needs_input_test = analysistest.make(_plt_needs_input_impl, expect_failure = True)
 
-def dialyzer_plt_needs_input_test(name, target):
+def dialyzer_plt_needs_input_test(name, target, size):
     """Asserts a dialyzer_plt with neither apps nor beams fails analysis."""
-    _plt_needs_input_test(name = name, size = "small", target_under_test = target)
+    _plt_needs_input_test(name = name, size = size, target_under_test = target)

@@ -13,7 +13,7 @@ _BAT_SOURCE = """if x (
 )
 """
 
-_SOURCE = """#!/bin/sh
+_SOURCE = "#" + """!/bin/sh
 if [ "$OSTYPE" = "cygwin" ]; then SCRIPT_PATH=$(cygpath -m "$SCRIPT_PATH"); fi
 set -- "$ERTS_BIN$ERL_EXEC" -noshell -pa "$SCRIPT_PATH"/../lib/elixir/ebin $ELIXIR_ERL_OPTIONS $ERL "$@"
 """

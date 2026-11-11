@@ -20,6 +20,7 @@ Each language owns one top-level directory.
 <lang>/BUILD.bazel       toolchain_type and public config flags
 <lang>/lang.json         manifest
 <lang>/pins.json         tool pins
+<lang>/README.md         guide
 <lang>/private/          rules, toolchains, aspects, quality, coverage, tools
 <lang>/tests/            tests
 ```

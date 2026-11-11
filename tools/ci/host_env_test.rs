@@ -19,8 +19,14 @@ const KINDS: [&str; 9] = [
     "shebang",
 ];
 
-/// Text that names a host directory wherever it stands.
-const HOST_DIRS: [&str; 4] = ["/usr/bin", "/usr/local/bin", "$PATH", "${PATH}"];
+/// Host directories that count only where a path starts.
+const ROOTED_DIRS: [&str; 2] = ["/usr/bin", "/usr/local/bin"];
+
+/// Text that names the search path wherever it stands.
+const PATH_VARS: [&str; 2] = ["$PATH", "${PATH}"];
+
+/// Characters that may stand right before the start of a path.
+const PATH_STARTS: [char; 6] = [' ', '"', '\'', ':', '=', ';'];
 
 /// Lowercase text that names the Windows system directory wherever it stands.
 const WINDOWS_DIRS: [&str; 8] = [
@@ -63,7 +69,15 @@ const PASSTHROUGH: [&str; 3] = ["--action_env=", "--host_action_env=", "--test_e
 
 /// Whether `text` puts a host directory on a path.
 fn host_path(text: &str) -> bool {
-    HOST_DIRS.iter().any(|dir| text.contains(dir))
+    PATH_VARS.iter().any(|var| text.contains(var))
+        || ROOTED_DIRS.iter().any(|dir| {
+            text.match_indices(dir).any(|(at, _)| {
+                text[..at]
+                    .chars()
+                    .next_back()
+                    .is_none_or(|c| c == '(' || PATH_STARTS.contains(&c))
+            })
+        })
         || text
             .split([':', '=', ' ', '"', '\''])
             .any(|part| part == "/bin")
@@ -254,6 +268,15 @@ def _impl(ctx):
 }
 
 #[test]
+fn repository_relative_host_directories_do_not_count() {
+    assert!(!host_path("toolchain/usr/bin/swiftc.exe"));
+    assert!(!host_path("@r//:toolchain/usr/bin/x"));
+    assert!(host_path("exec /usr/bin/xcrun"));
+    assert!(host_path("PATH=/usr/bin"));
+    assert!(host_path("/usr/bin/env"));
+}
+
+#[test]
 fn windows_system_directories_on_a_path_count() {
     let bzl = r#"
 def _impl(ctx):
@@ -414,11 +437,9 @@ _PYTHON = "#!/usr/bin/env python3\n"
             ("pkg/tool.sh", "#!/usr/bin/env python3\n"),
         ]),
         lines(&[
-            ("pkg/defs.bzl", "host-path", 2),
             ("pkg/defs.bzl", "shebang", 1),
             ("pkg/run.sh", "shebang", 1),
             ("pkg/src/lib.rs", "shebang", 1),
-            ("pkg/tool.sh", "host-path", 1),
         ]),
     );
 }

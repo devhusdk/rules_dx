@@ -313,7 +313,7 @@ deploy/tests/fixtures/pub_package/BUILD.bazel no-size 1
 deploy/tests/runfiles/BUILD.bazel no-size 1
 dockerfile/tests/BUILD.bazel no-size 1
 docs/BUILD.bazel no-size 1
-dotnet/fuzz/BUILD.bazel no-size 1
+dotnet/private/fuzz/BUILD.bazel no-size 1
 elixir/private/BUILD.bazel no-size 1
 elixir/private/toolchain/BUILD.bazel no-size 1
 elixir/private/toolchain/metadata_tests.bzl no-size 1

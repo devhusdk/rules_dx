@@ -464,7 +464,7 @@ single_version_override(
     version = "3.7.2",
 )
 
-dotnet = use_extension("//dotnet:rules_dotnet.bzl", "dotnet")
+dotnet = use_extension("//dotnet:extensions.bzl", "dotnet")
 dotnet.toolchain(dotnet_version = "10.0.403")
 dotnet.toolchain(
     name = "dotnet_apphost",
@@ -816,7 +816,7 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "dx_libfuzzer_dotnet",
-    build = "//dotnet:libfuzzer_dotnet.build",
+    build = "//dotnet/private:libfuzzer_dotnet.BUILD.bazel",
     key = "libfuzzer_dotnet",
     patches = ["//patches/libfuzzer_dotnet:macos_section.patch"],
     pins = "//dotnet:pins.json",

@@ -7243,10 +7243,10 @@
         }
       }
     },
-    "//dotnet:rules_dotnet.bzl%dotnet": {
+    "//dotnet:extensions.bzl%dotnet": {
       "general": {
         "bzlTransitiveDigest": "TY3p2T9O4wQEDjKHmm6jRocuy7/SL/AKyW61FJOC3kE=",
-        "usagesDigest": "lksutUrDL3EO6rE8orKbr4Vipe1ryfb4+qFi7dT7JbU=",
+        "usagesDigest": "BXREC0LKejTlmD82iDKM7punCJko63UudIsb0LKyCTw=",
         "recordedInputs": [
           "REPO_MAPPING:,rules_dotnet +dx_pins+rules_dotnet"
         ],

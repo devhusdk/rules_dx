@@ -720,6 +720,8 @@ rust_test(
         "//dockerfile/private:corpus_starlark",
         "//dockerfile/private/quality:corpus_starlark",
         "//dotnet:corpus_starlark",
+        "//dotnet/private:corpus_starlark",
+        "//dotnet/private/fuzz:corpus_starlark",
         "//elixir/bench:corpus_starlark",
         "//elixir/private:corpus_starlark",
         "//elixir/private/toolchain:corpus_starlark",

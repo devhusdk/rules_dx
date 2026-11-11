@@ -379,7 +379,7 @@
         "//deploy/private/pins:extensions.bzl%japicmp",
         "//deploy/private/pins:extensions.bzl%opam",
         "//deploy/private/pins:extensions.bzl%semver_checks",
-        "//dotnet:rules_dotnet.bzl%dotnet",
+        "//dotnet:extensions.bzl%dotnet",
         "//elixir:extensions.bzl%elixir",
         "//erlang:extensions.bzl%erlang",
         "//fortran:extensions.bzl%fortran",

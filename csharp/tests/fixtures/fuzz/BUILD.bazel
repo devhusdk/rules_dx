@@ -1,6 +1,6 @@
 # gazelle:ignore
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
-load("@rules_dx//dotnet/fuzz:labels.bzl", "LIBFUZZER_DOTNET")
+load("@rules_dx//dotnet/private/fuzz:labels.bzl", "LIBFUZZER_DOTNET")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//csharp/private:sharpfuzz_check.bzl", "dx_sharpfuzz_transitive_test")
@@ -26,13 +26,13 @@ sh_test(
     name = "parse_fuzz_run_test",
     srcs = ["run_test.sh"],
     args = [
-        "$(rootpath @rules_dx//dotnet/fuzz:libfuzzer_dotnet)",
+        "$(rootpath @rules_dx//dotnet/private/fuzz:libfuzzer_dotnet)",
         "$(rootpath :parse_fuzz)",
         "$(rootpath @rules_dx//cli/fuzz_run:fuzz_run)",
     ],
     data = [
         ":parse_fuzz",
-        "@rules_dx//dotnet/fuzz:libfuzzer_dotnet",
+        "@rules_dx//dotnet/private/fuzz:libfuzzer_dotnet",
         "@rules_dx//cli/fuzz_run:fuzz_run",
     ],
     target_compatible_with = select({
@@ -59,13 +59,13 @@ sh_test(
     name = "transitive_fuzz_run_test",
     srcs = ["run_test.sh"],
     args = [
-        "$(rootpath @rules_dx//dotnet/fuzz:libfuzzer_dotnet)",
+        "$(rootpath @rules_dx//dotnet/private/fuzz:libfuzzer_dotnet)",
         "$(rootpath :transitive_fuzz)",
         "$(rootpath @rules_dx//cli/fuzz_run:fuzz_run)",
     ],
     data = [
         ":transitive_fuzz",
-        "@rules_dx//dotnet/fuzz:libfuzzer_dotnet",
+        "@rules_dx//dotnet/private/fuzz:libfuzzer_dotnet",
         "@rules_dx//cli/fuzz_run:fuzz_run",
     ],
     target_compatible_with = select({

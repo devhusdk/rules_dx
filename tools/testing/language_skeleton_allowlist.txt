@@ -7,12 +7,6 @@ entries capnproto/dynamic_cstddef.patch
 entries capnproto/java.BUILD.bazel
 entries capnproto/rust.BUILD.bazel
 entries cuda/components
-entries dotnet/fuzz
-entries dotnet/libfuzzer_dotnet.build
-entries dotnet/private
-entries dotnet/rules_dotnet.bzl
-entries dotnet/symbols.bzl
-entries dotnet/tests
 entries elixir/bench
 entries erlang/bench
 entries flatbuffers/bitflags.BUILD.bazel
@@ -65,7 +59,6 @@ extension-label cli/prebuilt/extension.bzl
 extension-label core/quality/artifacts/extension.bzl
 extension-label deploy/private/pins/extensions.bzl
 extension-label deploy/private/release/extensions.bzl
-extension-label dotnet/rules_dotnet.bzl
 extension-label gazelle/dispatch/extension.bzl
 extension-label javascript/private/dev_hub.bzl
 extension-label ruby/private/coverage/extensions.bzl
@@ -110,6 +103,7 @@ fixture-hello dart/tests/conformance/BUILD.bazel
 fixture-hello dart/tests/consumer
 fixture-hello dockerfile/tests/conformance/BUILD.bazel
 fixture-hello dockerfile/tests/consumer
+fixture-hello dotnet/tests/conformance/BUILD.bazel
 fixture-hello elixir/tests/conformance/BUILD.bazel
 fixture-hello elixir/tests/consumer
 fixture-hello env/tests/conformance/BUILD.bazel

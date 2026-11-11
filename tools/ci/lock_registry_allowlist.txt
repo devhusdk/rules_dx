@@ -29,7 +29,7 @@ name cli/adopt/src/dependency_sets.rs fpm.toml
 name cli/adopt/src/dependency_sets.rs go.mod
 name cli/adopt/src/dependency_sets.rs go.sum
 name cli/adopt/src/dependency_sets.rs haskell_deps.json
-name cli/adopt/src/dependency_sets.rs luarocks.lock
+name cli/adopt/src/dependency_sets.rs luarocks.lock.json
 name cli/adopt/src/dependency_sets.rs mix.exs
 name cli/adopt/src/dependency_sets.rs mix.lock
 name cli/adopt/src/dependency_sets.rs package.json
@@ -72,7 +72,7 @@ name cli/audit/src/locks_dub.rs dub.selections.json
 name cli/audit/src/locks_hex.rs mix.lock
 name cli/audit/src/locks_julia.rs Manifest.toml
 name cli/audit/src/locks_licenses.rs Cargo.toml
-name cli/audit/src/locks_luarocks.rs luarocks.lock
+name cli/audit/src/locks_luarocks.rs luarocks.lock.json
 name cli/audit/src/locks_pnpm.rs pnpm-lock.yaml
 name cli/audit/src/locks_pub.rs pubspec.lock
 name cli/audit/src/locks_ruby.rs Gemfile.lock
@@ -164,7 +164,6 @@ name cli/cli/src/exec/update_outdated.rs cabal.project.freeze
 name cli/cli/src/exec/update_outdated.rs composer.lock
 name cli/cli/src/exec/update_outdated.rs dub.json
 name cli/cli/src/exec/update_outdated.rs dub.selections.json
-name cli/cli/src/exec/update_outdated.rs luarocks.lock
 name cli/cli/src/exec/update_outdated.rs package.json
 name cli/cli/src/exec/update_pr.rs Cargo.lock
 name cli/cli/src/exec/update_pr.rs Cargo.toml
@@ -193,7 +192,7 @@ name cli/depcheck/src/ecosystem/haskell.rs cabal.project.freeze
 name cli/depcheck/src/ecosystem/julia.rs Manifest.toml
 name cli/depcheck/src/ecosystem/julia.rs Project.toml
 name cli/depcheck/src/ecosystem/jvm.rs maven_install.json
-name cli/depcheck/src/ecosystem/lua.rs luarocks.lock
+name cli/depcheck/src/ecosystem/lua.rs luarocks.lock.json
 name cli/depcheck/src/ecosystem/mod.rs Gemfile.lock
 name cli/depcheck/src/ecosystem/mod.rs paket.lock
 name cli/depcheck/src/ecosystem/perl.rs cpanfile
@@ -218,7 +217,7 @@ name cli/depcheck/src/missing.rs dub.json
 name cli/depcheck/src/missing.rs dune-project
 name cli/depcheck/src/missing.rs fpm.toml
 name cli/depcheck/src/missing.rs go.mod
-name cli/depcheck/src/missing.rs luarocks.lock
+name cli/depcheck/src/missing.rs luarocks.lock.json
 name cli/depcheck/src/missing.rs mix.exs
 name cli/depcheck/src/missing.rs package.json
 name cli/depcheck/src/missing.rs pnpm-lock.yaml
@@ -246,7 +245,7 @@ name cli/depcheck/src/usage.rs dub.selections.json
 name cli/depcheck/src/usage.rs fpm.toml
 name cli/depcheck/src/usage.rs go.mod
 name cli/depcheck/src/usage.rs go.sum
-name cli/depcheck/src/usage.rs luarocks.lock
+name cli/depcheck/src/usage.rs luarocks.lock.json
 name cli/depcheck/src/usage.rs maven_install.json
 name cli/depcheck/src/usage.rs mix.exs
 name cli/depcheck/src/usage.rs mix.lock
@@ -265,7 +264,6 @@ name cli/gomod/src/lib.rs go.sum
 name cli/ide/src/lib.rs uv.lock
 name cli/ide/src/python.rs uv.lock
 name cli/module_bazel/src/lib.rs composer.lock
-name cli/module_bazel/src/lib.rs luarocks.lock
 name cli/path/src/workspace.rs uv.lock
 name cli/plan/src/resolve/changed.rs Cargo.lock
 name cli/plan/src/resolve/changed.rs Cargo.toml
@@ -298,7 +296,6 @@ name cli/update/src/backend/cpan.rs cpanfile
 name cli/update/src/backend/cpan.rs cpanfile.snapshot
 name cli/update/src/backend/hex.rs mix.lock
 name cli/update/src/backend/julia.rs Manifest.toml
-name cli/update/src/backend/luarocks.rs luarocks.lock
 name cli/update/src/backend/nuget.rs paket.lock
 name cli/update/src/backend/pub_dev.rs pubspec.lock
 name cli/update/src/backend/swiftpm.rs Package.resolved

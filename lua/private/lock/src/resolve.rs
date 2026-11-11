@@ -546,6 +546,7 @@ impl Resolver for Lua<'_> {
                         sha256: String::new(),
                         strip_prefix: described.strip_prefix,
                         platform: String::new(),
+                        kind: String::new(),
                     }],
                     deps,
                     provides,

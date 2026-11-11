@@ -45,6 +45,7 @@ fn lock(dir: &std::path::Path, site: &Site) -> Result<Outcome, Error> {
         &Args {
             dir: dir.to_owned(),
             check: false,
+            upgrade: Vec::new(),
         },
         &Lua::new(&spec, BASE, site),
         &Digests,

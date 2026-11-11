@@ -28,7 +28,7 @@ const (
 	procMacroKind = "rust_proc_macro"
 	sharedKind    = "rust_shared_library"
 	staticKind    = "rust_static_library"
-	scriptKind    = "cargo_build_script"
+	scriptKind    = "rust_build_script"
 )
 
 var rustKinds = map[string]rule.KindInfo{

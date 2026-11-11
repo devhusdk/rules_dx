@@ -2,7 +2,7 @@
 
 load(
     "//rust/private:defs.bzl",
-    _cargo_build_script = "cargo_build_script",
+    _rust_build_script = "rust_build_script",
     _rust_library = "rust_library",
     _rust_binary = "rust_binary",
     _rust_test = "rust_test",
@@ -13,7 +13,7 @@ load(
     _rust_fuzz_test = "rust_fuzz_test",
 )
 
-cargo_build_script = _cargo_build_script
+rust_build_script = _rust_build_script
 rust_library = _rust_library
 rust_binary = _rust_binary
 rust_test = _rust_test

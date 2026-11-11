@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://code.dlang.org";
 
-/// Checks each package of the dub.selections.json files against the API at `base`.
+/// Checks each package of the dub selections files against the API at `base`.
 pub fn outdated(
     set: &str,
     selections: &[String],
@@ -23,7 +23,7 @@ pub fn outdated(
             Err(reason) => {
                 found.errors.push(LookupError {
                     set: set.to_owned(),
-                    package: "dub.selections.json".to_owned(),
+                    package: "selections file".to_owned(),
                     reason: reason.to_string(),
                 });
                 continue;
@@ -67,10 +67,10 @@ pub fn outdated(
 /// The `(name, version)` pairs of released versions; branch pins such as `~master` are skipped.
 fn pinned(text: &str) -> Result<Vec<(String, String)>, DxError> {
     let root: serde_json::Value = serde_json::from_str(text)
-        .map_err(|e| DxError::failure(format!("invalid dub.selections.json: {e}")))?;
+        .map_err(|e| DxError::failure(format!("invalid dub selections file: {e}")))?;
     let versions = root["versions"]
         .as_object()
-        .ok_or_else(|| DxError::failure("invalid dub.selections.json: missing versions"))?;
+        .ok_or_else(|| DxError::failure("invalid dub selections file: missing versions"))?;
     Ok(versions
         .iter()
         .filter_map(|(name, entry)| {

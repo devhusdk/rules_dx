@@ -497,7 +497,7 @@ fn composer_check_refuses_a_package_selection() {
         &UvClosure::default(),
     )
     .expect_err("refused");
-    assert!(error.to_string().contains("whole composer.lock"));
+    assert!(error.to_string().contains("whole lock"));
 }
 
 fn cpan_set() -> ResolvedSet {

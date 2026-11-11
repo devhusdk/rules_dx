@@ -213,7 +213,6 @@ name cli/update/src/backend.rs paket.lock
 name cli/update/src/backend/cabal.rs cabal.project
 name cli/update/src/backend/cabal.rs cabal.project.freeze
 name cli/update/src/backend/cabal.rs haskell_deps.json
-name cli/update/src/backend/composer.rs composer.lock
 name cli/update/src/backend/cpan.rs cpanfile
 name cli/update/src/backend/cpan.rs cpanfile.snapshot
 name cli/update/src/backend/hex.rs mix.lock
@@ -222,10 +221,7 @@ name cli/update/src/backend/nuget.rs paket.lock
 name cli/update/src/backend/pub_dev.rs pubspec.lock
 name cli/update/src/backend/swiftpm.rs Package.resolved
 name cli/update/src/discover/cabal.rs cabal.project.freeze
-name cli/update/src/discover/composer.rs composer.json
-name cli/update/src/discover/composer.rs composer.lock
 name cli/update/src/discover/cpan.rs cpanfile
-name cli/update/src/discover/dub.rs dub.selections.json
 name cli/update/src/discover/go.rs go.mod
 name cli/update/src/discover/hex.rs mix.lock
 name cli/update/src/discover/julia.rs Manifest.toml
@@ -239,15 +235,12 @@ name cli/update/src/discover/swiftpm.rs Package.resolved
 name cli/update/src/edit/add.rs Gemfile
 name cli/update/src/edit/add.rs Package.swift
 name cli/update/src/edit/add.rs Project.toml
-name cli/update/src/edit/add.rs composer.json
 name cli/update/src/edit/add.rs cpanfile
 name cli/update/src/edit/add.rs mix.exs
 name cli/update/src/edit/add.rs pubspec.yaml
 name cli/update/src/edit/request.rs Gemfile
 name cli/update/src/edit/request.rs Package.swift
 name cli/update/src/edit/request.rs Project.toml
-name cli/update/src/edit/request.rs composer.json
-name cli/update/src/edit/request.rs composer.lock
 name cli/update/src/edit/request.rs cpanfile
 name cli/update/src/edit/request.rs go.mod
 name cli/update/src/edit/request.rs go.sum
@@ -258,7 +251,6 @@ name cli/update/src/edit/request.rs pubspec.yaml
 name cli/update/src/edit/request_plans.rs Cargo.toml
 name cli/update/src/edit/request_plans.rs Gemfile
 name cli/update/src/edit/request_plans.rs Project.toml
-name cli/update/src/edit/request_plans.rs composer.json
 name cli/update/src/edit/request_plans.rs cpanfile
 name cli/update/src/edit/request_plans.rs mix.exs
 name cli/update/src/edit/request_plans.rs package.json

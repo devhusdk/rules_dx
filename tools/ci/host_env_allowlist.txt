@@ -56,7 +56,8 @@ cc/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 cc/tests/fixtures/fuzz/run_test.sh shebang 1
 cc/tests/foreign_cmake_cross.rs host-path 2
 cc/tests/foreign_cmake_log.rs host-path 4
-cli/adopt/src/launcher.rs host-path 1
+cc/tests/msvc_x86_64/archive_test.rs host-path 2
+cli/adopt/src/launcher.rs host-path 5
 cli/adopt/src/launcher.rs shebang 30
 cli/adopt/src/scaffold.rs host-path 1
 cli/adopt/src/scaffold.rs shebang 1
@@ -71,7 +72,7 @@ cli/cli/src/adopt/status.rs shebang 1
 cli/cli/src/adopt/status_tools.rs shebang 1
 cli/cli/src/adopt/upgrade.rs shebang 1
 cli/cli/src/adopt/watch_probe_tests.rs shebang 1
-cli/cli/src/adopt/watch_relaunch_tests.rs host-path 2
+cli/cli/src/adopt/watch_relaunch_tests.rs host-path 4
 cli/cli/src/adopt/wiring.rs shebang 1
 cli/cli/src/exec/build_failure_launcher_tests.rs shebang 2
 cli/cli/src/exec/build_slots_launcher_tests.rs shebang 1
@@ -81,16 +82,21 @@ cli/cli/src/exec/test_case_launcher_tests.rs shebang 1
 cli/cli/src/exec/update_pr.rs shebang 2
 cli/cli/src/multicall.rs host-path 1
 cli/cli/tests/adopt/tests/adopt.rs shebang 1
+cli/cli/tests/agents/tests/dev_launcher.rs host-path 9
 cli/cli/tests/agents/tests/dev_launcher.rs shebang 16
 cli/cli/tests/uv_sets/tests/uv_sets.rs shebang 2
 cli/env/src/lib_tests.rs shebang 2
 cli/ide/src/go.rs shebang 1
 cli/launcher/src/launch_tests.rs shebang 3
 cli/ocaml_cc_driver/src/dune.rs host-path 2
+cli/process/src/bazel_sh.rs host-path 1
+cli/process/src/bazel_sh_tests.rs host-path 7
 cli/process/src/runner_tests.rs shebang 1
 cli/process/src/stderr_tail.rs host-path 1
 cli/setup/src/prune/live.rs host-path 1
+cli/shim/tests/e2e.rs host-path 2
 cli/shim/tests/e2e.rs shebang 1
+cli/shim/tests/interop.rs host-path 3
 cli/worktree/src/host.rs host-path 1
 cli/worktree/src/pool.rs host-path 3
 cli/worktree/src/tests.rs host-path 3
@@ -98,6 +104,7 @@ core/conformance.bzl env-inherit 2
 core/conformance.bzl home 2
 core/node_test.bzl env-inherit 1
 core/quality/BUILD.bazel sh-rule 2
+core/quality/adapter/src/exec.rs host-path 9
 core/quality/buildifier_config_test.sh shebang 1
 core/quality/compile_check_exec.sh shebang 1
 core/quality/compile_check_exec_test.sh shebang 1
@@ -108,6 +115,7 @@ core/quality/elixirc_script_tests.bzl host-path 2
 core/quality/nvcc_syntax_tests.bzl host-path 2
 core/quality/runner/src/entry.rs host-path 2
 core/quality/runner/src/lib_determinism.rs host-path 3
+core/quality/runner/src/real.rs host-path 4
 core/quality/runner/src/real.rs shebang 4
 core/quality/suite_membership.bzl sh-rule 1
 core/quality/suite_membership_test.sh shebang 1
@@ -175,6 +183,7 @@ deploy/private/release/src/release_lib_tests.rs shebang 2
 deploy/private/release/tests/candidate_consumer_test.rs shebang 1
 deploy/private/resources_demo/process.sh shebang 1
 deploy/private/src/archive.rs shebang 4
+deploy/private/src/cloudflare.rs host-path 1
 deploy/private/src/cloudflare.rs shebang 1
 deploy/private/src/conan.rs shebang 1
 deploy/private/src/crates.rs shebang 4
@@ -195,6 +204,7 @@ deploy/private/src/octopus.rs shebang 1
 deploy/private/src/pub_dev.rs shebang 4
 deploy/private/src/pypi.rs shebang 2
 deploy/private/src/rubygems.rs shebang 1
+deploy/private/src/run.rs host-path 2
 deploy/private/src/run.rs shebang 1
 deploy/private/src/stage.rs shebang 1
 deploy/private/validate_linux_package.bzl host-path 1
@@ -316,11 +326,14 @@ swift/tests/fixtures/hello/macho_test.sh shebang 1
 swift/tests/fixtures/swift-app/ledger/cli/BUILD.bazel sh-rule 2
 swift/tests/fixtures/swift-app/ledger/cli/relocate_test.sh shebang 1
 swift/tests/fixtures/swift-app/ledger/cli/usage_test.sh shebang 1
+swift/tests/toolchain_dlls_test.ps1 host-path 1
 swift/tests/toolchain_libs_test.sh host-path 1
 swift/tests/toolchain_libs_test.sh shebang 1
 thrift/private/compiler.BUILD.bazel genrule 1
 tools/BUILD.bazel genrule 1
 tools/BUILD.bazel sh-rule 1
+tools/bazelisk/wrapper/bazel.ps1 host-path 1
+tools/bazelisk/wrapper_test.rs host-path 2
 tools/buildbuddy-credential-helper.sh shebang 1
 tools/ci/advisory_launch_test.rs shebang 1
 tools/ci/blocker_refs.sh shebang 1
@@ -350,6 +363,7 @@ tools/dx_launcher_test.sh host-path 1
 tools/dx_launcher_test.sh shebang 1
 tools/repin_all/tests/workspace_cwd_test.rs shebang 1
 tools/testing/BUILD.bazel env-inherit 1
+tools/testing/hermetic/appcontainer/args.rs host-path 2
 tools/testing/hermetic/consumers/cpp_rust/apps/c_store.BUILD.bazel genrule 1
 tools/testing/hermetic/consumers/cpp_rust/apps/cpp_core.BUILD.bazel genrule 1
 tools/testing/hermetic/consumers/cpp_rust/apps/java_billing.BUILD.bazel genrule 1
@@ -371,9 +385,9 @@ tools/testing/hermetic/consumers/rust_wasi/custom_runtime.sh shebang 1
 tools/testing/hermetic/consumers/zig/apps/catalog.BUILD.bazel genrule 1
 tools/testing/hermetic/isolation_test.rs host-path 1
 tools/testing/hermetic/src/lib.rs genrule 2
-tools/testing/hermetic/src/lib.rs host-path 12
+tools/testing/hermetic/src/lib.rs host-path 20
 tools/testing/hermetic/src/lib.rs shebang 2
-tools/testing/hermetic/src/tests.rs host-path 6
+tools/testing/hermetic/src/tests.rs host-path 7
 tools/testing/hermetic/src/tests.rs shebang 2
 tools/testing/language_skeleton_test.rs sh-rule 1
 tools/testing/nested/src/lib.rs host-path 2

@@ -40,6 +40,9 @@ const WINDOWS_DIRS: [&str; 8] = [
     "$env:windir",
 ];
 
+/// Rust string tokens that name the Windows system directory.
+const WINDOWS_TOKENS: [&str; 3] = ["SystemRoot", "windir", "System32"];
+
 /// The one file that names the Xcode tools by absolute path.
 const XCODE_FILE: &str = "apple/private/tools/ops/src/xcode.rs";
 
@@ -177,6 +180,9 @@ fn scan_rust(path: &str, source: &str, counts: &mut Counts) {
             continue;
         }
         text_kinds(&text, |kind| hit(counts, path, kind));
+        if WINDOWS_TOKENS.contains(&text.as_str()) {
+            hit(counts, path, "host-path");
+        }
         if shebang(&text) {
             hit(counts, path, "shebang");
         }
@@ -296,6 +302,47 @@ def _impl(ctx):
         lines(&[
             ("pkg/defs.bzl", "host-path", 3),
             ("pkg/run.sh", "host-path", 1)
+        ]),
+    );
+}
+
+#[test]
+fn rust_tokens_naming_the_system_root_count() {
+    let rust = r#"
+fn path() -> PathBuf {
+    let root = std::env::var_os("SystemRoot");
+    let dir = std::env::var("windir");
+    Path::new(&root).join("System32")
+}
+"#;
+    assert_eq!(
+        scan_all(&[("pkg/src/lib.rs", rust)]),
+        lines(&[("pkg/src/lib.rs", "host-path", 3)]),
+    );
+}
+
+#[test]
+fn rust_path_test_data_naming_windows_does_not_count() {
+    let rust = r#"
+const A: &str = "C:/Windows/Temp";
+const B: &str = "C:\\Windows\\System32\\cmd.exe";
+const C: &str = "systemroot";
+const D: &str = "SystemRoot=C:";
+"#;
+    assert_eq!(scan_all(&[("pkg/src/lib.rs", rust)]), lines(&[]));
+}
+
+#[test]
+fn windows_scripts_naming_the_system_root_count() {
+    let bat = "set PATH=%SystemRoot%\\System32\nrem %windir%\n";
+    let cmd = "set PATH=C:\\Windows\\System32\n";
+    let ps1 = "$env:PATH = \"$env:SystemRoot\\System32\"\nWrite-Host ok\n";
+    assert_eq!(
+        scan_all(&[("pkg/a.bat", bat), ("pkg/b.cmd", cmd), ("pkg/c.ps1", ps1)]),
+        lines(&[
+            ("pkg/a.bat", "host-path", 2),
+            ("pkg/b.cmd", "host-path", 1),
+            ("pkg/c.ps1", "host-path", 1),
         ]),
     );
 }

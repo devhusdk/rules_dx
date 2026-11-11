@@ -1371,6 +1371,12 @@ mod tests {
                 "generate would rewrite the root BUILD.bazel"
             );
         }
+        assert!(
+            crate::unlocked_manifests(root).is_empty(),
+            "generate would seed a lock file"
+        );
+        let hubs = crate::plan_lock_hubs(root).expect("lock hubs");
+        assert!(hubs.edit.is_none(), "generate would wire lock labels");
         scratch.close().expect("cleanup");
     }
 

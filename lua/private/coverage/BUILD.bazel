@@ -8,7 +8,6 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "pins.bzl",
-    "pins.json",
 ])
 
 config_setting(

@@ -1,5 +1,19 @@
 {
   "archives": {
+    "benchmark-ips": {
+      "sha256": "07a1a9f3c6105ecaf68c174fc3fbcddd71a0e9ada6236ae03093a0dcfd812d59",
+      "urls": [
+        "https://rubygems.org/downloads/benchmark-ips-2.15.1.gem"
+      ],
+      "version": "2.15.1"
+    },
+    "docile": {
+      "sha256": "96159be799bfa73cdb721b840e9802126e4e03dfc26863db73647204c727f21e",
+      "urls": [
+        "https://rubygems.org/downloads/docile-1.4.1.gem"
+      ],
+      "version": "1.4.1"
+    },
     "rules_ruby": {
       "sha256": "c92c2102ead9f051b7bb19ed7075cc5c4617cdd20b313b5b2f598f9f45b3e315",
       "strip_prefix": "rules_ruby-0.29.0",
@@ -7,6 +21,73 @@
         "https://github.com/bazel-contrib/rules_ruby/releases/download/v0.29.0/rules_ruby-v0.29.0.tar.gz"
       ],
       "version": "0.29.0"
+    },
+    "simplecov": {
+      "sha256": "fe2622c7834ff23b98066bb0a854284b2729a569ac659f82621fc22ef36213a5",
+      "urls": [
+        "https://rubygems.org/downloads/simplecov-0.22.0.gem"
+      ],
+      "version": "0.22.0"
+    },
+    "simplecov-html": {
+      "sha256": "bd0b8e54e7c2d7685927e8d6286466359b6f16b18cb0df47b508e8d73c777246",
+      "urls": [
+        "https://rubygems.org/downloads/simplecov-html-0.13.2.gem"
+      ],
+      "version": "0.13.2"
+    },
+    "simplecov-lcov": {
+      "sha256": "7a77a31e200a595ed4b0249493056efd0c920601f53d2ef135ca34ee796346cd",
+      "urls": [
+        "https://rubygems.org/downloads/simplecov-lcov-0.9.0.gem"
+      ],
+      "version": "0.9.0"
+    },
+    "simplecov_json_formatter": {
+      "sha256": "529418fbe8de1713ac2b2d612aa3daa56d316975d307244399fa4838c601b428",
+      "urls": [
+        "https://rubygems.org/downloads/simplecov_json_formatter-0.1.4.gem"
+      ],
+      "version": "0.1.4"
     }
-  }
+  },
+  "cells": {
+    "linux_arm64": {
+      "binary": "libexec/sorbet",
+      "sha256": "c11209b61e1637483a0f8c8c77aa743cde464e78b82765e4b4b99177dced70c1",
+      "type": "gem",
+      "urls": [
+        "https://rubygems.org/downloads/sorbet-static-0.6.13650-aarch64-linux.gem"
+      ]
+    },
+    "linux_x86_64": {
+      "binary": "libexec/sorbet",
+      "sha256": "5ca09d834d0c6cc916a92f65c22013e58e0d6ec56b3d68381f60e3dea30958ea",
+      "type": "gem",
+      "urls": [
+        "https://rubygems.org/downloads/sorbet-static-0.6.13650-x86_64-linux.gem"
+      ]
+    },
+    "macos_arm64": {
+      "binary": "libexec/sorbet",
+      "sha256": "bd0d9e60f4acf2fd3c919d3129e6ef4a5da33eb05c84c2388f965f925d90b621",
+      "type": "gem",
+      "urls": [
+        "https://rubygems.org/downloads/sorbet-static-0.6.13650-universal-darwin.gem"
+      ]
+    },
+    "macos_x86_64": {
+      "binary": "libexec/sorbet",
+      "sha256": "bd0d9e60f4acf2fd3c919d3129e6ef4a5da33eb05c84c2388f965f925d90b621",
+      "type": "gem",
+      "urls": [
+        "https://rubygems.org/downloads/sorbet-static-0.6.13650-universal-darwin.gem"
+      ]
+    },
+    "windows_x86_64": {
+      "binary": "libexec/sorbet",
+      "stub": "#!/bin/sh\necho \"sorbet has no Windows build: the Ruby type check is not available on Windows\" >&2\nexit 2\n"
+    }
+  },
+  "version": "0.6.13650"
 }

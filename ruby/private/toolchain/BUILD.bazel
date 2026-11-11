@@ -6,7 +6,6 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "BUILD.bazel",
     "metadata_tests.bzl",
-    "pins.json",
 ])
 
 ruby_metadata_tests(name = "metadata")

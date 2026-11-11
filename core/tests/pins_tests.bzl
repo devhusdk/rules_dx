@@ -26,7 +26,7 @@ def _checks():
     for name, pins in DATA.items():
         cell_entries = pins.get("cells", {}).values()
         entries = cell_entries + pins.get("archives", {}).values() + pins.get("hex", {}).values()
-        entries = [entry for entry in entries if "components" not in entry]
+        entries = [entry for entry in entries if "components" not in entry and "stub" not in entry]
         for cell in cell_entries:
             entries += cell.get("components", {}).values()
         archives = [entry for entry in entries if "urls" in entry]

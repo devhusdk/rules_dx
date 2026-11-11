@@ -1233,10 +1233,10 @@ mod tests {
         let list = |words: &[&str]| words.iter().map(|w| (*w).to_owned()).collect::<Vec<_>>();
         let (all, _) = split_builtin(&[]);
         assert!(all.selects_all_pins());
-        let (one, rest) = split_builtin(&list(&["pins:ruby/private/toolchain/pins.json"]));
+        let (one, rest) = split_builtin(&list(&["pins:ruby/pins.json"]));
         assert_eq!(
             one.pins,
-            Some(vec!["ruby/private/toolchain/pins.json".to_owned()])
+            Some(vec!["ruby/pins.json".to_owned()])
         );
         assert!(!one.selects_all_pins() && rest.is_empty());
         let (whole, _) = split_builtin(&list(&["pins:a/pins.json", "pins"]));

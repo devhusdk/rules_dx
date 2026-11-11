@@ -1,0 +1,9 @@
+load("@rules_dx//bicep:defs.bzl", "bicep_library")
+
+# dx: written once, yours to edit
+
+bicep_library(
+    name = "bicep",
+    srcs = ["main.bicep"],
+    visibility = ["//visibility:public"],
+)

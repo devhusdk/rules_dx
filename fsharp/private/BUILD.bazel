@@ -4,7 +4,7 @@ load("@rules_dx//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("@rules_dx//core:defs.bzl", "expect_equal")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//dotnet/private:symbols.bzl", "fsharp_compile_defines")
-load(":kwargs.bzl", "fsharp_tfm_with_defaults")
+load(":kwargs.bzl", "FSHARP_CORE", "fsharp_tfm_with_defaults", "fsharp_with_core")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -45,6 +45,29 @@ dx_wrapper_contract_tests(
             "other kwargs survive",
             fsharp_tfm_with_defaults({"deps": [":hello_lib"]})["deps"],
             [":hello_lib"],
+        ),
+        expect_equal(
+            "empty deps gains core",
+            [str(d) for d in fsharp_with_core({})["deps"]],
+            [str(FSHARP_CORE)],
+        ),
+        expect_equal(
+            "existing core is not duplicated",
+            fsharp_with_core({"deps": ["@paket.main//fsharp.core"]})["deps"],
+            ["@paket.main//fsharp.core"],
+        ),
+        expect_equal(
+            "select deps are left alone",
+            type(fsharp_with_core({"deps": select({"//conditions:default": []})})["deps"]),
+            "select",
+        ),
+        expect_equal(
+            "other deps keep order before core",
+            [str(d) for d in fsharp_with_core({"deps": [":x"]})["deps"]],
+            [
+                ":x",
+                str(FSHARP_CORE),
+            ],
         ),
         expect_equal(
             "defines gain tfm symbols",

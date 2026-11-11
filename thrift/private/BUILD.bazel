@@ -5,6 +5,7 @@ package(default_visibility = ["//thrift:__subpackages__", "//tools/ci:__pkg__", 
 
 exports_files([
     "codegen.bzl",
+    "compiler.BUILD.bazel",
     "defs.bzl",
     "defs_tests.bzl",
 ])

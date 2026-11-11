@@ -184,6 +184,6 @@ def elixir_bench(name, *, srcs, tags = None, deps = None, **kwargs):
         name = name,
         srcs = srcs,
         tags = merge_tags(tags, "dx-bench"),
-        deps = (deps or []) + [Label("//elixir/bench:dx_bench")],
+        deps = (deps or []) + [Label("//elixir/private/bench:dx_bench")],
         **with_default_size(kwargs)
     )

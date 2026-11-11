@@ -342,7 +342,7 @@ swift/tests/fixtures/swift-app/ledger/cli/relocate_test.sh shebang 1
 swift/tests/fixtures/swift-app/ledger/cli/usage_test.sh shebang 1
 swift/tests/toolchain_libs_test.sh host-path 2
 swift/tests/toolchain_libs_test.sh shebang 1
-thrift/compiler.BUILD.bazel genrule 1
+thrift/private/compiler.BUILD.bazel genrule 1
 tools/BUILD.bazel genrule 1
 tools/BUILD.bazel sh-rule 1
 tools/buildbuddy-credential-helper.sh shebang 1

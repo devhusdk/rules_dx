@@ -1298,7 +1298,7 @@ use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "d
 elixir = use_extension("//elixir:extensions.bzl", "elixir")
 elixir.lock(
     name = "dx_benchee",
-    lock = "//elixir/bench:mix.lock",
+    lock = "//elixir/private/bench:mix.lock",
 )
 use_repo(elixir, "dx_benchee", "dx_credo", "dx_elixir", "dx_elixir_toolchains", "rules_elixir")
 
@@ -2589,18 +2589,18 @@ dx_source_archives.archive(
 )
 dx_source_archives.archive(
     name = "dx_flatbuffers_rust",
-    build_file = "//flatbuffers:rust_runtime.BUILD.bazel",
+    build_file = "//flatbuffers/private:rust_runtime.BUILD.bazel",
     pins = "//flatbuffers:pins.json",
 )
 dx_source_archives.archive(
     name = "dx_flatbuffers_java",
-    build_file = "//flatbuffers:java_runtime.BUILD.bazel",
+    build_file = "//flatbuffers/private:java_runtime.BUILD.bazel",
     pins = "//flatbuffers:pins.json",
 )
 dx_source_archives.archive(
     name = "dx_flatbuffers_bitflags",
     archive_type = "tar.gz",
-    build_file = "//flatbuffers:bitflags.BUILD.bazel",
+    build_file = "//flatbuffers/private:bitflags.BUILD.bazel",
     pins = "//flatbuffers:pins.json",
 )
 dx_source_archives.archive(
@@ -2609,22 +2609,22 @@ dx_source_archives.archive(
     patch_cmds = [
         "sed -i.bak 's#@capnp-cpp//#//#g' src/capnp/BUILD.bazel src/capnp/cc_capnp_library.bzl src/capnp/compat/BUILD.bazel",
     ],
-    patches = ["//capnproto:dynamic_cstddef.patch"],
+    patches = ["//patches/capnproto:dynamic_cstddef.patch"],
     pins = "//capnproto:pins.json",
 )
 dx_source_archives.archive(
     name = "dx_capnproto_rust",
-    build_file = "//capnproto:rust.BUILD.bazel",
+    build_file = "//capnproto/private:rust.BUILD.bazel",
     pins = "//capnproto:pins.json",
 )
 dx_source_archives.archive(
     name = "dx_capnproto_java",
-    build_file = "//capnproto:java.BUILD.bazel",
+    build_file = "//capnproto/private:java.BUILD.bazel",
     pins = "//capnproto:pins.json",
 )
 dx_source_archives.archive(
     name = "dx_thrift",
-    build_file = "//thrift:compiler.BUILD.bazel",
+    build_file = "//thrift/private:compiler.BUILD.bazel",
     pins = "//thrift:pins.json",
 )
 use_repo(

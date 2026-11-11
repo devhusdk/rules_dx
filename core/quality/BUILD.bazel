@@ -824,8 +824,12 @@ real_source_target(
 )
 
 _CLIPPY_POLICY_CRATE_ROOTS = [
+    "//android/private/packaging/ops:src/lib.rs",
+    "//android/private/packaging/ops:src/main.rs",
     "//appimage/private/packer:src/lib.rs",
     "//appimage/private/packer:src/main.rs",
+    "//apple/private/tools/ops:src/lib.rs",
+    "//apple/private/tools/ops:src/main.rs",
     "//cc/private/context:src/lib.rs",
     "//cli/adopt:src/lib.rs",
     "//cli/advisory_prep:src/lib.rs",
@@ -898,6 +902,9 @@ _CLIPPY_POLICY_CRATE_ROOTS = [
     "//core/quality/result:src/lib.rs",
     "//core/quality/runner:src/lib.rs",
     "//core/quality/runner:src/main.rs",
+    "//core/quality/tools/diff:src/lib.rs",
+    "//core/quality/tools/diff:src/main.rs",
+    "//d/private/tools/lock:src/main.rs",
     "//deploy/private/install:src/lib.rs",
     "//deploy/private/install:src/main.rs",
     "//deploy/private/offline/bootstrap:src/lib.rs",
@@ -928,12 +935,15 @@ _CLIPPY_POLICY_CRATE_ROOTS = [
     "//env/private/stubs:src/bin_tool.rs",
     "//javascript/private/quality/launcher:src/lib.rs",
     "//javascript/private/quality/launcher:src/main.rs",
+    "//lua/private/tools/lock:src/main.rs",
     "//php/private/coverage:src/main.rs",
+    "//php/private/tools/lock:src/main.rs",
     "//qt/private/rust:src/main.rs",
     "//rego/private/launcher:src/main.rs",
     "//rust/private/bench_report:src/main.rs",
     "//rust/private/quality/tools:src/lib.rs",
     "//rust/private/tools/msvc_paths:src/lib.rs",
+    "//swift/private/tools/lock:src/main.rs",
     "//thrift/private/crates:src/lib.rs",
     "//tools/bazelrc:src/lib.rs",
     "//tools/ci/ci_workflow:src/lib.rs",
@@ -1022,6 +1032,7 @@ _CLIPPY_POLICY_CRATE_ROOTS = [
     "//tools/testing/nested:src/lib.rs",
     "//tools/testing/process_probe:src/main.rs",
     "//tools/testing:src/lib.rs",
+    "//zig/private/tools/lock:src/main.rs",
 ]
 
 rust_test(

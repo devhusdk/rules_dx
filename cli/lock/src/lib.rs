@@ -1,3 +1,12 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
 //! The lock step of a dx class ecosystem and the only writer of `<ecosystem>.lock.json`.
 
 mod http;

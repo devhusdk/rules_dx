@@ -96,3 +96,10 @@ exports_files(
     ["Cargo.toml"],
     visibility = ["//visibility:public"],
 )
+
+exports_files(
+    [
+        "src/main.rs",
+    ],
+    visibility = ["//visibility:public"],
+)

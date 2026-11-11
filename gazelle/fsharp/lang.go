@@ -34,6 +34,8 @@ func NewLanguage() language.Language {
 		Exts:           SupportedExts,
 		TestSuffixes:   []string{"Test"},
 		ClassIDs:       true,
+		PackageIDs:     true,
+		Candidates:     namespaceCandidates,
 		ParsePackage:   ParsePackage,
 		DefinesMain:    DefinesMain,
 		ParseImports:   ParseImports,

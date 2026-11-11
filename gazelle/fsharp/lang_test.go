@@ -133,8 +133,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		t.Errorf("library srcs = %q, want Demo.fs,Helper.fs", got)
 	}
 	got, _ := common.UnwrapImportSet(result.Imports[0])
-	if strings.Join(got, ",") != "Widget" {
-		t.Errorf("library imports = %+v, want [Widget]", got)
+	if strings.Join(got, ",") != "Acme.Widget" {
+		t.Errorf("library imports = %+v, want [Acme.Widget]", got)
 	}
 }
 
@@ -668,5 +668,34 @@ func TestGenerateOpenTypeOrder(t *testing.T) {
 	})
 	if got != "Math.fs,Demo.fs" {
 		t.Errorf("library srcs = %q, want Math.fs,Demo.fs", got)
+	}
+}
+
+func TestResolveNamespaceOpen(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Core.fs"), []byte("namespace Acme.Layouts\n\ntype Core = class end\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	l := newLang()
+	index := resolve.NewRuleIndex(func(r *rule.Rule, _ string) resolve.Resolver {
+		if _, ok := l.Kinds()[r.Kind()]; ok {
+			return l
+		}
+		return nil
+	})
+	lib := rule.NewRule(LibraryKind, "layouts")
+	lib.SetAttr("srcs", []string{"Core.fs"})
+	index.AddRule(config.New(), lib, rule.EmptyFile(filepath.Join(dir, "BUILD.bazel"), "lib"))
+	index.Finish()
+	cfg := resolverConfig(t, nil)
+	for _, open := range []string{"Acme.Layouts", "Acme.Layouts.Missing", "Acme.Layouts.Core"} {
+		r := rule.NewRule(TestKind, "app_test")
+		l.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{open}), label.New("", "app", "app_test"))
+		if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib:layouts" {
+			t.Errorf("open %s deps = %q, want //lib:layouts", open, got)
+		}
+	}
+	if l.Failed() {
+		t.Errorf("unexpected failure: %v", takeErrors(l))
 	}
 }

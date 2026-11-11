@@ -101,11 +101,28 @@ var (
 func ParseImports(content []byte) []string {
 	set := make(map[string]struct{})
 	for _, dotted := range openPaths(content) {
-		if id := normalizeImport(dotted); id != "" {
-			set[id] = struct{}{}
+		if dotted = strings.TrimSpace(dotted); dotted != "" {
+			set[dotted] = struct{}{}
 		}
 	}
 	return sortedKeys(set)
+}
+
+// namespaceCandidates lists the shorter prefixes of a dotted open path, longest
+// first, then its last segment.
+func namespaceCandidates(name string) []string {
+	if IsStdLib(name) {
+		return nil
+	}
+	parts := strings.Split(name, ".")
+	var out []string
+	for i := len(parts) - 1; i >= 1; i-- {
+		out = append(out, strings.Join(parts[:i], "."))
+	}
+	if len(parts) > 1 {
+		out = append(out, parts[len(parts)-1])
+	}
+	return out
 }
 
 // ParseOpenPaths returns the dotted paths of non-stdlib open declarations.

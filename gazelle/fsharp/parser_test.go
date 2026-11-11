@@ -7,7 +7,7 @@ import (
 
 func TestParseImportsSingleType(t *testing.T) {
 	got := ParseImports([]byte("namespace Demo\n\nopen Acme.Widget\nopen System.Collections.Generic\n"))
-	want := []string{"System.Collections.Generic", "Widget"}
+	want := []string{"Acme.Widget", "System.Collections.Generic"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -23,7 +23,7 @@ func TestParseImportsCommentsAndStringsInert(t *testing.T) {
 
 func TestParseImportsDedupedSorted(t *testing.T) {
 	got := ParseImports([]byte("namespace Demo\n\nopen Acme.Zeta\nopen Acme.Alpha\nopen Acme.Zeta\n"))
-	want := []string{"Alpha", "Zeta"}
+	want := []string{"Acme.Alpha", "Acme.Zeta"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -44,7 +44,7 @@ func TestParseImportsMultiLineLiteralsInert(t *testing.T) {
 
 func TestParseImportsKeepsCodeAfterMultiLineLiteral(t *testing.T) {
 	got := ParseImports([]byte("module Demo\n\nlet s = \"\"\"\nopen Ghost.Phantom\n\"\"\"\nlet run () = ()\n\nopen Acme.Widget\n"))
-	want := []string{"Widget"}
+	want := []string{"Acme.Widget"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -154,7 +154,7 @@ func TestDefinesMain(t *testing.T) {
 func TestMultiplyOperatorIsNotComment(t *testing.T) {
 	src := []byte("module App\nlet product xs = List.fold (*) 1 xs\nopen Acme.Core\n[<EntryPoint>]\nlet main _ = 0\n")
 	got := ParseImports(src)
-	if !reflect.DeepEqual(got, []string{"Core"}) {
+	if !reflect.DeepEqual(got, []string{"Acme.Core"}) {
 		t.Errorf("ParseImports = %v, want [Core]", got)
 	}
 	if !DefinesMain(src) {
@@ -195,7 +195,7 @@ func TestLiteralAndTruncatedSourceRemainInert(t *testing.T) {
 func TestParseImportsTypeVariablesAndPrimes(t *testing.T) {
 	source := "namespace Demo\n\nlet f (x: 'a) = x\nlet g<'T> (y: 'T) = y\nlet x' = 1\nlet z'' = 2\nlet c = '\"'\nopen Acme.Widget\n"
 	got := ParseImports([]byte(source))
-	want := []string{"Widget"}
+	want := []string{"Acme.Widget"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -225,7 +225,7 @@ func TestTopModuleNameRec(t *testing.T) {
 
 func TestParseImportsOpenType(t *testing.T) {
 	got := ParseImports([]byte("namespace Demo\n\nopen type Acme.Core.Math\nopen type System.Math\nopen System.Text\n"))
-	want := []string{"Math", "System.Text"}
+	want := []string{"Acme.Core.Math", "System.Math", "System.Text"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}

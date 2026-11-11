@@ -74,7 +74,7 @@ func TestGenerateCargoLibraryVisibility(t *testing.T) {
 	writeFixture(t, root, "src/lib.rs", "")
 	writeFixture(t, root, "src/main.rs", "fn main() {}\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 	if len(l.errors) != 0 {
 		t.Fatalf("generation errors = %v", l.errors)
 	}
@@ -95,7 +95,7 @@ func TestGenerateCargoLibraryVisibility(t *testing.T) {
 	pkg.SetAttr("default_visibility", []string{"//visibility:public"})
 	f.Rules = append(f.Rules, pkg)
 	owned := &rustLang{}
-	kept := owned.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f})
+	kept := owned.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f}))
 	if len(owned.errors) != 0 {
 		t.Fatalf("generation errors = %v", owned.errors)
 	}
@@ -127,11 +127,11 @@ func TestSourceFilesBoundaries(t *testing.T) {
 func TestGenerateEmptyNoRootAndSourceError(t *testing.T) {
 	l := &rustLang{}
 	root := t.TempDir()
-	if result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root}); len(result.Gen) != 0 {
+	if result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root})); len(result.Gen) != 0 {
 		t.Errorf("empty generation = %+v", result)
 	}
 	writeFixture(t, root, "src/helper.rs", "")
-	if result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root}); len(result.Gen) != 0 {
+	if result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root})); len(result.Gen) != 0 {
 		t.Errorf("no-root generation = %+v", result)
 	}
 	missing := filepath.Join(root, "gone")
@@ -139,7 +139,7 @@ func TestGenerateEmptyNoRootAndSourceError(t *testing.T) {
 		t.Error("missing source directory accepted")
 	}
 	failed := &rustLang{}
-	failed.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: missing, Rel: "gone"})
+	failed.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: missing, Rel: "gone"}))
 	if len(failed.errors) != 1 {
 		t.Errorf("GenerateRules source error = %v", failed.errors)
 	}
@@ -151,7 +151,7 @@ func TestGenerateEmptyNoRootAndSourceError(t *testing.T) {
 	bad := t.TempDir()
 	writeFixture(t, bad, "src/lib.rs", "mod missing;\n")
 	broken := &rustLang{}
-	broken.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: bad}, Dir: bad})
+	broken.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: bad}, Dir: bad}))
 	if len(broken.errors) != 1 || !strings.Contains(broken.errors[0].Message, "orphan module") {
 		t.Errorf("source parse errors = %v", broken.errors)
 	}
@@ -162,7 +162,7 @@ func TestGenerateCargoImplicitFailure(t *testing.T) {
 	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"app\"\n")
 	writeFixture(t, root, "tests/---.rs", "")
 	l := &rustLang{}
-	l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "empty target name") {
 		t.Errorf("implicit target errors = %v", l.errors)
 	}
@@ -174,7 +174,7 @@ func TestGenerateExistingNameCollisions(t *testing.T) {
 	f := rule.EmptyFile("BUILD.bazel", "crates/demo")
 	f.Rules = append(f.Rules, rule.NewRule("filegroup", "demo"))
 	l := &rustLang{}
-	l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo", File: f})
+	l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo", File: f}))
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "existing filegroup") {
 		t.Errorf("source collision errors = %v", l.errors)
 	}
@@ -185,7 +185,7 @@ func TestGenerateExistingNameCollisions(t *testing.T) {
 	cargoFile := rule.EmptyFile("BUILD.bazel", "")
 	cargoFile.Rules = append(cargoFile.Rules, rule.NewRule("filegroup", "app"))
 	cargo := &rustLang{}
-	cargo.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: cargoRoot}, Dir: cargoRoot, RegularFiles: []string{"Cargo.toml"}, File: cargoFile})
+	cargo.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: cargoRoot}, Dir: cargoRoot, RegularFiles: []string{"Cargo.toml"}, File: cargoFile}))
 	if len(cargo.errors) != 1 || !strings.Contains(cargo.errors[0].Message, "existing filegroup") {
 		t.Errorf("Cargo collision errors = %v", cargo.errors)
 	}
@@ -1029,7 +1029,12 @@ func TestWithoutExcludedDropsUnlistedSubdirs(t *testing.T) {
 	if want := []string{"pkg/src/lib.rs", "pkg/main.rs"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("withoutExcluded = %v, want %v", got, want)
 	}
-	if got := withoutExcluded(files, language.GenerateArgs{Rel: "pkg"}); !reflect.DeepEqual(got, files) {
-		t.Fatalf("nil Subdirs = %v, want %v", got, files)
+	want := []string{"pkg/main.rs"}
+	if got := withoutExcluded(files, language.GenerateArgs{Rel: "pkg"}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("nil Subdirs = %v, want %v", got, want)
+	}
+	onlyExcluded := []string{"pkg/tests/fake.rs", "pkg/lib.rs"}
+	if got := withoutExcluded(onlyExcluded, language.GenerateArgs{Rel: "pkg", Subdirs: []string{}}); !reflect.DeepEqual(got, []string{"pkg/lib.rs"}) {
+		t.Fatalf("only excluded subdir = %v", got)
 	}
 }

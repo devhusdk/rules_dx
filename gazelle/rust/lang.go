@@ -636,9 +636,6 @@ func validCratesHub(repo string) bool {
 // withoutExcluded drops files under subdirectories that gazelle:exclude
 // removed from the walk.
 func withoutExcluded(files []string, args language.GenerateArgs) []string {
-	if args.Subdirs == nil {
-		return files
-	}
 	subdirs := make(map[string]bool, len(args.Subdirs))
 	for _, name := range args.Subdirs {
 		subdirs[name] = true

@@ -36,11 +36,11 @@ func generateFixture(t *testing.T, files map[string]string) language.GenerateRes
 		writeFixture(t, root, name, content)
 	}
 	dir := filepath.Join(root, "crates", "demo")
-	return NewLanguage().GenerateRules(language.GenerateArgs{
+	return NewLanguage().GenerateRules(withSubdirs(language.GenerateArgs{
 		Config: &config.Config{RepoRoot: root},
 		Dir:    dir,
 		Rel:    "crates/demo",
-	})
+	}))
 }
 
 func TestGenerateSourceOnlyCrate(t *testing.T) {
@@ -115,7 +115,7 @@ func TestGenerateSourceOnlyFailures(t *testing.T) {
 			writeFixture(t, root, name, content)
 		}
 		l := &rustLang{}
-		l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo"})
+		l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo"}))
 		if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, tc.want) {
 			t.Errorf("files %v errors = %v, want %q", tc.files, l.errors, tc.want)
 		}
@@ -128,7 +128,7 @@ func TestGenerateSourceOnlySharedTestModules(t *testing.T) {
 	writeFixture(t, root, "crates/demo/tests/b.rs", "mod common;\n#[test]\nfn t() {}\n")
 	writeFixture(t, root, "crates/demo/tests/common/mod.rs", "pub fn helper() {}\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo"})
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo"}))
 	if len(l.errors) != 0 {
 		t.Fatalf("errors = %v", l.errors)
 	}
@@ -154,12 +154,12 @@ func TestGenerateStaleRules(t *testing.T) {
 		rule.NewRule(libraryKind, "old"),
 		rule.NewRule("filegroup", "keep"),
 	)
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
+	result := NewLanguage().GenerateRules(withSubdirs(language.GenerateArgs{
 		Config: &config.Config{RepoRoot: t.TempDir()},
 		Dir:    t.TempDir(),
 		Rel:    "crates/demo",
 		File:   f,
-	})
+	}))
 	if len(result.Empty) != 1 || result.Empty[0].Kind() != libraryKind || result.Empty[0].Name() != "old" {
 		t.Fatalf("empty rules = %v", result.Empty)
 	}
@@ -174,12 +174,12 @@ func TestGenerateAdoptsHandwrittenNames(t *testing.T) {
 	unit := rule.NewRule(testKind, "tool_unit")
 	unit.SetAttr("crate", ":tool")
 	f.Rules = append(f.Rules, bin, unit)
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
+	result := NewLanguage().GenerateRules(withSubdirs(language.GenerateArgs{
 		Config: &config.Config{RepoRoot: root},
 		Dir:    filepath.Join(root, "crates", "demo"),
 		Rel:    "crates/demo",
 		File:   f,
-	})
+	}))
 	if len(result.Gen) < 2 {
 		t.Fatalf("generated %d rules, want at least 2", len(result.Gen))
 	}
@@ -205,12 +205,12 @@ func TestGenerateMigratesUnitTestShape(t *testing.T) {
 		f := rule.EmptyFile("BUILD.bazel", "crates/demo")
 		f.Rules = append(f.Rules, existing...)
 		l := &rustLang{}
-		result := l.GenerateRules(language.GenerateArgs{
+		result := l.GenerateRules(withSubdirs(language.GenerateArgs{
 			Config: &config.Config{RepoRoot: root},
 			Dir:    filepath.Join(root, "crates", "demo"),
 			Rel:    "crates/demo",
 			File:   f,
-		})
+		}))
 		if len(l.errors) != 0 {
 			t.Fatalf("errors = %v", l.errors)
 		}
@@ -317,7 +317,7 @@ func TestGenerateCargoSplitsTestOnlyModules(t *testing.T) {
 	writeFixture(t, root, "src/main.rs", "#[cfg(test)] mod main_tests;\nfn main() {}\n")
 	writeFixture(t, root, "src/main_tests.rs", "#[test]\nfn t() {}\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 	if len(l.errors) != 0 {
 		t.Fatalf("generation errors = %v", l.errors)
 	}
@@ -376,7 +376,7 @@ func TestGenerateCargoProcMacroKeepsCrateWrapper(t *testing.T) {
 	writeFixture(t, root, "src/lib.rs", "#[cfg(test)] mod tests;\n")
 	writeFixture(t, root, "src/tests.rs", "#[test]\nfn t() {}\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 	if len(l.errors) != 0 {
 		t.Fatalf("generation errors = %v", l.errors)
 	}
@@ -429,7 +429,7 @@ func TestLifecycleWritesNoManifest(t *testing.T) {
 	t.Setenv(common.EnvGenerateMode, "default")
 	l := &rustLang{}
 	l.Before(context.Background())
-	l.GenerateRules(language.GenerateArgs{Config: config.New(), Dir: t.TempDir(), Rel: ""})
+	l.GenerateRules(withSubdirs(language.GenerateArgs{Config: config.New(), Dir: t.TempDir(), Rel: ""}))
 	l.AfterResolvingDeps(context.Background())
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		t.Fatalf("rust wrote the intended manifest (stat err = %v)", err)
@@ -595,7 +595,7 @@ func TestGenerateCargoCratesHub(t *testing.T) {
 		l := &rustLang{}
 		l.Before(context.Background())
 		l.Configure(cfg, "", &rule.File{Directives: []rule.Directive{{Key: cratesHubDirective, Value: "hub"}}})
-		return l, l.GenerateRules(language.GenerateArgs{Config: cfg, Dir: root, File: file, RegularFiles: []string{"Cargo.toml"}})
+		return l, l.GenerateRules(withSubdirs(language.GenerateArgs{Config: cfg, Dir: root, File: file, RegularFiles: []string{"Cargo.toml"}}))
 	}
 	symbols := func(f *rule.File) map[string]string {
 		got := map[string]string{}
@@ -638,11 +638,11 @@ func TestGenerateCargoOmitsDefaultEdition(t *testing.T) {
 	writeFixture(t, root, "src/main.rs", "fn main() {}\n")
 	writeFixture(t, root, "tests/it.rs", "#[test] fn t() {}\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          root,
 		RegularFiles: []string{"Cargo.toml"},
-	})
+	}))
 	if len(l.errors) != 0 {
 		t.Fatalf("errors = %v", l.errors)
 	}
@@ -675,12 +675,12 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	writeFixture(t, root, "crates/app/Cargo.toml", "[package]\nname = \"app\"\nedition = \"2021\"\n[dependencies]\nserde_json = \"1\"\n[dev-dependencies]\ntempfile = \"3\"\n[lib]\npath = \"src/lib.rs\"\n")
 	writeFixture(t, root, "crates/app/src/lib.rs", "use serde_json::Value;\n#[cfg(test)] use tempfile::tempdir;\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root, Exts: map[string]interface{}{languageName: &rustConfig{corpus: true}}},
 		Dir:          filepath.Join(root, "crates/app"),
 		Rel:          "crates/app",
 		RegularFiles: []string{"Cargo.toml"},
-	})
+	}))
 	if len(l.errors) != 0 || len(result.Gen) != 4 {
 		t.Fatalf("cargo generation errors=%v result=%+v", l.errors, result)
 	}
@@ -694,7 +694,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	badRoot := t.TempDir()
 	writeFixture(t, badRoot, "Cargo.toml", "[package]\nname = \"bad\"\n[[test]]\nname = \"missing\"\npath = \"tests/missing.rs\"\n")
 	bad := &rustLang{}
-	bad.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: badRoot}, Dir: badRoot, RegularFiles: []string{"Cargo.toml"}})
+	bad.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: badRoot}, Dir: badRoot, RegularFiles: []string{"Cargo.toml"}}))
 	if len(bad.errors) != 1 || !strings.Contains(bad.errors[0].Message, "does not exist") {
 		t.Errorf("missing target errors = %v", bad.errors)
 	}
@@ -702,7 +702,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	malformed := t.TempDir()
 	writeFixture(t, malformed, "Cargo.toml", "[package]\nname = nope\n")
 	broken := &rustLang{}
-	broken.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: malformed}, Dir: malformed, RegularFiles: []string{"Cargo.toml"}})
+	broken.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: malformed}, Dir: malformed, RegularFiles: []string{"Cargo.toml"}}))
 	if len(broken.errors) != 1 || !strings.Contains(broken.errors[0].Message, "Cargo.toml:2:") {
 		t.Errorf("manifest errors = %v", broken.errors)
 	}
@@ -716,7 +716,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	missingRoot := t.TempDir()
 	writeFixture(t, missingRoot, "Cargo.toml", "[package]\nname = \"app\"\n[[test]]\nname = \"missing\"\npath = \"tests/missing.rs\"\n")
 	missing := &rustLang{}
-	missing.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: missingRoot}, Dir: missingRoot, RegularFiles: []string{"Cargo.toml"}})
+	missing.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: missingRoot}, Dir: missingRoot, RegularFiles: []string{"Cargo.toml"}}))
 	if len(missing.errors) != 1 || !strings.Contains(missing.errors[0].Message, "does not exist") {
 		t.Errorf("missing root errors = %v", missing.errors)
 	}
@@ -762,7 +762,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	writeFixture(t, selfRoot, "Cargo.toml", "[workspace]\n[workspace.dependencies]\nserde = \"1\"\n[package]\nname = \"app\"\n[dependencies]\nserde.workspace = true\n")
 	writeFixture(t, selfRoot, "src/lib.rs", "use serde::Serialize;\n")
 	selfLang := &rustLang{}
-	selfResult := selfLang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: selfRoot}, Dir: selfRoot, RegularFiles: []string{"Cargo.toml", "src/lib.rs"}})
+	selfResult := selfLang.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: selfRoot}, Dir: selfRoot, RegularFiles: []string{"Cargo.toml", "src/lib.rs"}}))
 	if len(selfLang.errors) != 0 || len(selfResult.Gen) == 0 {
 		t.Fatalf("self root errors = %v result = %+v", selfLang.errors, selfResult)
 	}
@@ -776,7 +776,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	writeFixture(t, override, "crates/app/Cargo.toml", "[package]\nname = \"app\"\nworkspace = \"../../other\"\nversion.workspace = true\nedition.workspace = true\n[dependencies]\nserde.workspace = true\n[lib]\npath = \"src/lib.rs\"\n")
 	writeFixture(t, override, "crates/app/src/lib.rs", "use serde::Serialize;\n")
 	overrideLang := &rustLang{}
-	overrideResult := overrideLang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: override}, Dir: filepath.Join(override, "crates/app"), Rel: "crates/app", RegularFiles: []string{"Cargo.toml"}})
+	overrideResult := overrideLang.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: override}, Dir: filepath.Join(override, "crates/app"), Rel: "crates/app", RegularFiles: []string{"Cargo.toml"}}))
 	if len(overrideLang.errors) != 0 || len(overrideResult.Gen) == 0 || overrideResult.Gen[0].AttrString("edition") != "2018" {
 		t.Errorf("package.workspace override errors = %v rules = %+v", overrideLang.errors, overrideResult.Gen)
 	}
@@ -861,7 +861,7 @@ func TestGenerateCargoOwnershipAndImportFailures(t *testing.T) {
 			writeFixture(t, root, name, content)
 		}
 		l := &rustLang{}
-		l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+		l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 		if len(l.errors) == 0 || !strings.Contains(strings.Join(common.Messages(l.errors), "\n"), tc.want) {
 			t.Errorf("errors = %v, want %q", l.errors, tc.want)
 		}
@@ -876,7 +876,7 @@ func TestGenerateCargoSharedTestModules(t *testing.T) {
 	writeFixture(t, root, "tests/common/mod.rs", "")
 	writeFixture(t, root, "examples/demo.rs", "#[path = \"../tests/common/mod.rs\"] mod common;\nfn main() {}\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 	if len(l.errors) != 0 {
 		t.Fatalf("errors = %v", l.errors)
 	}
@@ -901,7 +901,7 @@ func TestGenerateCargoCustomHarness(t *testing.T) {
 	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"app\"\n[[test]]\nname = \"custom\"\npath = \"tests/custom.rs\"\nharness = false\n")
 	writeFixture(t, root, "tests/custom.rs", "fn main() {}\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 	if len(l.errors) != 0 || len(result.Gen) != 1 || result.Gen[0].Attr("use_libtest_harness") == nil {
 		t.Errorf("custom harness generation errors=%v result=%+v", l.errors, result.Gen)
 	}
@@ -913,7 +913,7 @@ func TestGenerateCargoLibBinTakeover(t *testing.T) {
 	writeFixture(t, root, "src/lib.rs", "#[test]\nfn probe() {}\n")
 	writeFixture(t, root, "src/main.rs", "fn main() {}\n#[test]\nfn bint() {}\n")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 	if len(l.errors) != 0 {
 		t.Fatalf("generation errors = %v", l.errors)
 	}
@@ -951,7 +951,7 @@ func TestGenerateCargoTestLinksSiblingAndMirror(t *testing.T) {
 	writeFixture(t, root, "src/lib.rs", "#[test]\nfn probe() {}\n")
 	writeFixture(t, root, "tests/smoke.rs", "")
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 	if len(l.errors) != 0 {
 		t.Fatalf("generation errors = %v", l.errors)
 	}
@@ -1025,7 +1025,7 @@ func TestAdoptedLibraryRenamesSiblingDep(t *testing.T) {
 	hand.SetAttr("crate_root", "src/lib.rs")
 	f.Rules = append(f.Rules, hand)
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f})
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f}))
 	if len(l.errors) != 0 {
 		t.Fatalf("generation errors = %v", l.errors)
 	}
@@ -1055,7 +1055,7 @@ func TestCoverageLibFollowsAdoptedLibrary(t *testing.T) {
 		f.Rules = append(f.Rules, hand)
 		f.Rules = append(f.Rules, existing...)
 		l := &rustLang{}
-		result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root, KindMap: kindMap}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f})
+		result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root, KindMap: kindMap}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f}))
 		if len(l.errors) != 0 {
 			t.Fatalf("generation errors = %v", l.errors)
 		}
@@ -1092,7 +1092,7 @@ func TestAdoptedBuildScriptRenamesScriptDep(t *testing.T) {
 	hand.SetAttr("crate_root", "build.rs")
 	f.Rules = append(f.Rules, hand)
 	l := &rustLang{}
-	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f})
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f}))
 	if len(l.errors) != 0 {
 		t.Fatalf("generation errors = %v", l.errors)
 	}
@@ -1197,4 +1197,17 @@ func TestCorpusKeepsExistingTagsAndCollectsNamedBuildFiles(t *testing.T) {
 	if sl := got["corpus_starlark"]; sl == nil || !slices.Contains(sl.AttrStrings("starlark_srcs"), "x.BUILD.bazel") {
 		t.Errorf("corpus_starlark = %+v, want x.BUILD.bazel", sl)
 	}
+}
+
+func withSubdirs(args language.GenerateArgs) language.GenerateArgs {
+	entries, err := os.ReadDir(args.Dir)
+	if err != nil {
+		return args
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			args.Subdirs = append(args.Subdirs, entry.Name())
+		}
+	}
+	return args
 }

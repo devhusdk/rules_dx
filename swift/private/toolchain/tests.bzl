@@ -91,6 +91,8 @@ def swift_windows_extract_test(name):
             "//swift/private/toolchain:repos.bzl": "\n".join([
                 "repository_ctx.path(_SEVEN_ZIP + \"/full/7z.exe\")",
                 "environment = _NO_HOST_TOOLS,",
+                "\"PATH\": None,",
+                "\"Path\": None,",
                 "\"SystemRoot\": None,",
             ]),
         },

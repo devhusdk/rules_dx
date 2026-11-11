@@ -35,11 +35,13 @@ rust_test(
     crate_root = "tests/dev_launcher.rs",
     data = [
         "//:MODULE.bazel",
+        "//core/coreutils:applets",
         "//tools:dx",
         "//tools:dx.cmd",
         "//tools/testing/process_probe",
     ],
     env = {
+        "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
         "DX_LAUNCHER_CMD": "$(rootpath //tools:dx.cmd)",
         "DX_LAUNCHER_SH": "$(rootpath //tools:dx)",
         "DX_MODULE": "$(rootpath //:MODULE.bazel)",

@@ -405,13 +405,18 @@ mod sh {
 
         fn command_in(&self, cwd: &Path, args: &[&str]) -> Command {
             let base = &self.base;
+            let applets = dx_testing::env_files("DX_COREUTILS");
             let mut cmd = Command::new(self.root.join("tools/dx"));
             cmd.args(args)
                 .current_dir(cwd)
                 .env_clear()
                 .env(
                     "PATH",
-                    format!("{}:/usr/bin:/bin", base.join("stub").display()),
+                    format!(
+                        "{}:{}",
+                        base.join("stub").display(),
+                        applets[0].parent().expect("applet directory").display()
+                    ),
                 )
                 .env("HOME", base.join("home"))
                 .env("STUB_LOG", base.join("calls"))
@@ -1363,24 +1368,23 @@ mod sh {
     }
 
     #[test]
-    fn source_launcher_detects_a_newer_input_with_a_posix_only_find() {
-        let repo = source_repo("dx-launcher-posix-find-");
+    fn source_launcher_calls_no_host_text_tools() {
+        let repo = source_repo("dx-launcher-no-text-tools-");
+        let log = repo.base.join("text-tools.log");
+        for tool in ["awk", "dirname", "find", "grep", "sed", "tr", "xargs"] {
+            repo.fake(
+                tool,
+                &format!(
+                    "echo {tool} >> '{}'\nexit 1",
+                    log.display()
+                ),
+            );
+        }
         repo.run_ok();
-        repo.fake(
-            "find",
-            r#"for arg in "$@"; do
-  case "$arg" in
-    -quit|-maxdepth|-mindepth|-print0|-printf|-newer?*) echo "find: unsupported $arg" >&2; exit 1 ;;
-  esac
-done
-if [ -x /usr/bin/find ]; then exec /usr/bin/find "$@"; fi
-exec /bin/find "$@""#,
-        );
-        repo.run_ok();
-        assert_eq!(repo.builds(), 1);
         repo.touch_build_file();
         repo.run_ok();
         assert_eq!(repo.builds(), 2);
+        assert!(!log.exists(), "{:?}", std::fs::read_to_string(&log));
     }
 
     #[test]
@@ -1408,12 +1412,6 @@ exec /bin/find "$@""#,
 
     #[test]
     fn source_launcher_reports_a_missing_bazel() {
-        if ["/usr/bin/bazel", "/bin/bazel"]
-            .iter()
-            .any(|p| Path::new(p).exists())
-        {
-            return;
-        }
         let repo = source_repo("dx-launcher-no-bazel-");
         std::fs::remove_file(repo.base.join("stub/bazel")).expect("remove stub");
         let (code, _, err) = repo.run_in(&repo.root(), &["status"]);

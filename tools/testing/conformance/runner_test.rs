@@ -46,7 +46,6 @@ fn subject_matches_mode() {
         envs.push(("COVERAGE_DIR", raw_s.as_str()));
         envs.push(("COVERAGE_OUTPUT_FILE", out_s.as_str()));
         envs.push(("COVERAGE_MANIFEST", manifest.as_str()));
-        envs.push(("ROOT", runfiles.as_str()));
         envs.push(("TEST_WORKSPACE", "_main"));
     }
     let subject_env: Vec<(String, String)> = subject_env
@@ -66,6 +65,17 @@ fn subject_matches_mode() {
     let native = subject_env
         .iter()
         .any(|(name, _)| name == "CC_CODE_COVERAGE_SCRIPT");
+    let source_root = if native {
+        runfiles.clone()
+    } else {
+        std::path::Path::new(&runfiles)
+            .join("_main")
+            .to_string_lossy()
+            .into_owned()
+    };
+    if mode == "coverage" {
+        envs.push(("ROOT", source_root.as_str()));
+    }
     let profile = raw.join("%h-%p-%m.profraw").to_string_lossy().into_owned();
     let binary = subject_key
         .split_once('/')

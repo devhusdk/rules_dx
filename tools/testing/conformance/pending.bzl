@@ -61,10 +61,6 @@ dotnet build_test *
 dotnet coverage_test *
 dotnet fail_test *
 dotnet pass_test *
-erlang build_test *
-erlang coverage_test *
-erlang fail_test *
-erlang pass_test *
 flatbuffers build_test *
 flatbuffers coverage_test *
 flatbuffers fail_test *

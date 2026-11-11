@@ -794,11 +794,6 @@ fn current_uid() -> Option<u32> {
     Some(unsafe { libc::getuid() })
 }
 
-#[cfg(not(unix))]
-fn current_uid() -> Option<u32> {
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

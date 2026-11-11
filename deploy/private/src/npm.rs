@@ -771,6 +771,7 @@ mod tests {
     use super::*;
     use crate::test_support::*;
 
+    #[cfg(unix)]
     fn types_package(version: &str, index: &str, dst: &Path) {
         let manifest =
             format!("{{\"name\":\"pkg\",\"version\":\"{version}\",\"types\":\"./index.d.ts\"}}");

@@ -292,6 +292,7 @@ mod tests {
         assert_eq!(launch(Some("1")), 1);
     }
 
+    #[cfg(unix)]
     #[test]
     fn credentials_reach_only_the_upload_step() {
         use std::os::unix::fs::PermissionsExt;

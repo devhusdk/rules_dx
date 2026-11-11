@@ -6,6 +6,7 @@ use std::path::Path;
 static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Serves the files `files(origin)` lists by path on a loopback port; anything else is 404.
+#[cfg(unix)]
 pub(crate) fn static_registry(files: impl FnOnce(&str) -> Vec<(String, Vec<u8>)>) -> String {
     use std::io::{Read as _, Write as _};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");

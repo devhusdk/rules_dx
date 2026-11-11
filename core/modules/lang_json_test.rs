@@ -640,7 +640,7 @@ fn pins_list_every_pins_json_under_the_language_dir() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
-const PLATFORM_DRIFT: [&str; 7] = ["android", "apple", "flutter", "make", "msix", "php", "ruby"];
+const PLATFORM_DRIFT: [&str; 5] = ["android", "apple", "make", "msix", "ruby"];
 
 const PLATFORMS: [&str; 5] =
     ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"];
@@ -701,4 +701,25 @@ fn lang_json_platforms_equal_the_support_matrix() {
         }
     }
     assert!(drift.is_empty(), "lang.json platforms differ from docs/support-matrix.md:\n{}", drift.join("\n"));
+}
+
+const EMPTY_PLATFORMS: [&str; 5] = ["android", "apple", "appimage", "env", "rego"];
+
+#[test]
+fn lang_json_platforms_are_not_empty() {
+    let root = dx_testing::rules_dx_source();
+    let mut empty = Vec::new();
+    for dir in language_dirs(&root) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        let name = manifest["name"].as_str().expect("name");
+        let none = manifest["platforms"].as_array().expect("platforms").is_empty();
+        let known = EMPTY_PLATFORMS.contains(&name);
+        if none && !known {
+            empty.push(format!("{name}: platforms is empty"));
+        } else if !none && known {
+            empty.push(format!("{name}: platforms is set; remove it from EMPTY_PLATFORMS"));
+        }
+    }
+    assert!(empty.is_empty(), "{}", empty.join("\n"));
 }

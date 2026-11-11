@@ -1043,6 +1043,7 @@ impl ModuleFile {
             "pkg",
             "from_manifest",
         )
+        .chain(self.dx_tags("julia", "julia", "from_manifest"))
         .map(|call| {
             Ok(JuliaManifest {
                 name: required(call, TAG, "name")?,

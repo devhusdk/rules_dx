@@ -26,7 +26,7 @@ pub(super) fn plan(
             else {
                 return Err(BackendError::Unsupported {
                     set: set.name.clone(),
-                    reason: "add a julia_pkg_resolve next to Manifest.bazel.json; it keeps Manifest.bazel.json in step with Manifest.toml",
+                    reason: "add a julia_pkg_resolve next to the lock JSON; it keeps the lock JSON in step with Manifest.toml",
                 });
             };
             let dir = set_dir(workspace, set)?;
@@ -72,7 +72,7 @@ pub(super) fn check(
             else {
                 return Err(BackendError::Unsupported {
                     set: set.name.clone(),
-                    reason: "add a julia_pkg_resolve_test next to Manifest.bazel.json; dx checks the set by running it",
+                    reason: "add a julia_pkg_resolve_test next to the lock JSON; dx checks the set by running it",
                 });
             };
             Ok(CheckPlan::Run {

@@ -889,6 +889,21 @@
             "real_julia_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "julia",
+            "extension": "@rules_dx//julia:extensions.bzl",
+            "hub": "julia",
+            "imports": "name",
+            "lock": "Manifest.bazel.json",
+            "manifest": "Project.toml",
+            "resolver": null,
+            "state": "Manifest.toml",
+            "tag": "from_manifest"
+          }
+        ]
       }
     },
     {

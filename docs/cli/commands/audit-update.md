@@ -470,7 +470,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `zig_deps.lock` of `@rules_dx//zig:extensions.bzl` | `name` | `build.zig.zon` beside `lock` | `digests` |
 | `cpan.install` of `@rules_perl//perl/cpan:extensions.bzl` | `name` | `cpanfile` beside the lock | `cpanfile.snapshot` and the `lock` JSON |
 | `pub.from_lock` of `@rules_dart//dart/pub:extensions.bzl`, `flutter.pub` of rules_flutter | `name` | `pubspec.yaml` beside the lock | `pubspec.lock` |
-| `julia_pkg.from_manifest` of `@rules_julia//julia/pkg:extensions.bzl` | `name` | `Project.toml` beside the lockfile | `Manifest.toml` and `Manifest.bazel.json` beside the lockfile |
+| `julia.from_manifest` of `@rules_dx//julia:extensions.bzl` or `pkg.from_manifest` of `@rules_julia//julia/pkg:extensions.bzl` | `name` | `Project.toml` beside the lockfile | `Manifest.toml` and `Manifest.bazel.json` beside the lockfile |
 | rules_dotnet `paket` extension | `nuget` | `paket.dependencies` | `paket.lock`, `paket.<group>.bzl` |
 
 A `julia` set: `update --outdated` compares the `[deps]` packages of `Project.toml`, as locked in `Manifest.toml`, with the General registry, and `dx update <set>:<Package> <version>` edits the `[compat]` entry (see the julia section). `security` reads the versioned packages of `Manifest.toml` (format 2.0, stdlibs skipped) and matches them against the `Julia` advisories, and the layout check needs both locks to name the same versions. A `luarocks` set is pinned: `security` lists the rocks of `luarocks.lock.json` and reports the set as uncovered, and `update` runs `bazel run @rules_dx//lua:lock -- --dir <set directory>`, which resolves the `dependencies` of the `*.rockspec` from luarocks.org and rewrites `luarocks.lock.json`. A `pub` set is pinned the same way: `security` reads the hosted packages of `pubspec.lock` and matches them against the `Pub` advisories. A `cpan` set is checked with `carton install --deployment`; `update --outdated` compares the `requires` modules of `cpanfile` with the latest release on MetaCPAN, and `security` reads the distributions of `cpanfile.snapshot` and matches them against the CPANSA advisories (see the `cpan` section). `dx update <set>:<Module> --apply` runs `carton update <Module>` and then `bazel run` of the `cpan_compiler` whose `lockfile` is the lock JSON, with `--incremental`, so both files change together; without such a compiler in the lock's `BUILD.bazel` it refuses. The layout check fails when the distributions of the lock JSON differ from those of `cpanfile.snapshot`. A `uv.project` at the workspace root is named `<hub_name>`. A set's scopes are the directories of its manifests and locks, except `MODULE.bazel`. A path that names a manifest or lock, such as `//:cargo-bazel-lock.json`, selects only its owner. The scope `.` owns the root package: `//:x` and `//:` select sets scoped `.`; `//pkg:x` and `//pkg/...` never do. Overlapping scopes select every owner.
@@ -519,8 +519,8 @@ ruby.bundle_fetch(
 ### julia
 
 ```starlark
-julia_pkg = use_extension("@rules_julia//julia/pkg:extensions.bzl", "julia_pkg")
-julia_pkg.from_manifest(
+julia = use_extension("@rules_dx//julia:extensions.bzl", "julia")
+julia.from_manifest(
     name = "julia_app_pkgs",
     lockfile = "//julia/app:Manifest.bazel.json",
 )

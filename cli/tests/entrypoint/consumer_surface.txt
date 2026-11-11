@@ -38,6 +38,7 @@ java:extensions.bzl
 javascript:defs.bzl
 javascript/private/quality:js.bzl
 julia:defs.bzl
+julia:extensions.bzl
 kotlin:defs.bzl
 kubernetes:defs.bzl
 cli/web_server:server.bzl

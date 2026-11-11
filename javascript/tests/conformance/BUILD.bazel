@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//javascript:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 

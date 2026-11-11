@@ -1,6 +1,24 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
 exports_files([
     "defs.bzl",
     "extensions.bzl",
     "README.md",
     "lang.json",
 ])
+
+real_source_target(
+    name = "corpus_markdown",
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "extensions.bzl",
+    ],
+    tags = ["corpus"],
+)

@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//bicep:defs.bzl", "bicep_library", "bicep_registry_module")
 load("//core:failure_test.bzl", "failure_test")

@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("//javascript:defs.bzl", "javascript_library")
 load("//astro:defs.bzl", "astro_build")

@@ -97,6 +97,7 @@ rust_test(
         "families.json",
         "lang.schema.json",
         "langs.bzl",
+        "lock_registry.bzl",
         "//:MODULE.bazel",
         "//cli/ecosystems:ecosystems.json",
         "//cli/ecosystems:languages.json",
@@ -175,6 +176,7 @@ exports_files([
     "families.json",
     "langs.bzl",
     "lock.schema.json",
+    "lock_registry.bzl",
     "python_budget.json",
     "versions.bzl",
 ])
@@ -186,6 +188,7 @@ real_source_target(
         "consumer_deps.bzl",
         "cuda.bzl",
         "langs.bzl",
+        "lock_registry.bzl",
         "//core/quality/testdata:all_languages.bzl",
         "python.bzl",
         "rust.bzl",

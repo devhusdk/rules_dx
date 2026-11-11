@@ -4,6 +4,7 @@ For rules_dx's own release archives. Not a consumer API.
 """
 
 load("@rules_rust//rust:defs.bzl", "rust_common")
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("//deploy/private:native_runtime.bzl", "NativeRuntimeInfo")
 
 ShippedCratesInfo = provider(
@@ -77,7 +78,7 @@ def _shipped_crates_aspect_impl(target, ctx):
         manifests = [
             f
             for f in getattr(ctx.rule.files, "compile_data", [])
-            if f.owner.package == "" and f.owner.name == "Cargo.toml"
+            if f.owner.package == "" and f.owner.name == LOCK_REGISTRY["cargo"]["manifest"]
         ]
         direct.append(struct(
             crate = crate,

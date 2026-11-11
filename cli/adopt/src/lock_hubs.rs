@@ -122,6 +122,28 @@ pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
     out
 }
 
+/// True when the `package.json` at `path` lists a package in a dependency table.
+fn declares_dependency(path: &Path) -> bool {
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return false;
+    };
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return false;
+    };
+    [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "peerDependencies",
+    ]
+    .iter()
+    .any(|table| {
+        json.get(table)
+            .and_then(|deps| deps.as_object())
+            .is_some_and(|deps| !deps.is_empty())
+    })
+}
+
 fn wants_pnpm_lock(root: &Path) -> bool {
     let Ok(text) = std::fs::read_to_string(root.join(manifest_of("npm"))) else {
         return false;
@@ -133,7 +155,9 @@ fn wants_pnpm_lock(root: &Path) -> bool {
     let other_lock = ["package-lock.json", "yarn.lock", lock_of("npm")]
         .iter()
         .any(|lock| root.join(lock).exists());
-    (declared || root.join("pnpm-workspace.yaml").is_file()) && !other_lock
+    let workspace = root.join("pnpm-workspace.yaml").is_file();
+    let depends = declares_dependency(&root.join(manifest_of("npm")));
+    ((declared && depends) || workspace) && !other_lock
 }
 
 /// Plans the `pnpm` extension and `@pnpm` repo that `bazel run @pnpm//:pnpm` needs.
@@ -148,8 +172,7 @@ pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
         plan.cargo()?;
         plan.uv()?;
         plan.npm()?;
-        plan.pub_()?;
-        plan.typescript()
+        plan.pub_()
     })
 }
 
@@ -317,9 +340,7 @@ impl Planner<'_> {
         let mut pending = vec![String::new()];
         while let Some(dir) = pending.pop() {
             let path = self.root.join(&dir);
-            if !dir.is_empty()
-                && (path.join(MODULE_FILE).is_file() || excluded.contains(&dir))
-            {
+            if !dir.is_empty() && (path.join(MODULE_FILE).is_file() || excluded.contains(&dir)) {
                 continue;
             }
             if let Some(build) = ["BUILD.bazel", "BUILD"]
@@ -421,7 +442,11 @@ impl Planner<'_> {
 
     fn npm(&mut self) -> Result<(), AdoptError> {
         let npm = hub_of("npm")?;
-        let dirs = self.lock_dirs(lock_of("npm"), manifest_of("npm"));
+        let dirs: Vec<String> = self
+            .lock_dirs(lock_of("npm"), manifest_of("npm"))
+            .into_iter()
+            .filter(|dir| declares_dependency(&self.root.join(dir).join(manifest_of("npm"))))
+            .collect();
         if dirs.is_empty() {
             return Ok(());
         }
@@ -509,19 +534,6 @@ impl Planner<'_> {
             return Ok(());
         }
         self.add(pnpm, &[], &[pnpm.hub.as_str()])
-    }
-
-    fn typescript(&mut self) -> Result<(), AdoptError> {
-        let ts = hub_of("typescript")?;
-        let wanted = self.exists(&ts.manifest)
-            || self
-                .lock_dirs(lock_of("npm"), manifest_of("npm"))
-                .iter()
-                .any(|dir| self.exists(&format!("{dir}/{}", ts.manifest)));
-        if !wanted || self.files.iter().any(|file| binds_name(file, ts)) {
-            return Ok(());
-        }
-        self.add(ts, &[], &[ts.hub.as_str()])
     }
 
     fn add(&mut self, eco: &Hub, tags: &[NewTag], hubs: &[&str]) -> Result<(), AdoptError> {
@@ -693,11 +705,9 @@ mod tests {
 
     fn t(template: &str) -> &'static str {
         let mut text = template.to_owned();
-        for eco in ["cargo", "npm", "uv", "typescript"] {
+        for eco in ["cargo", "npm", "uv"] {
             text = text.replace(&format!("{{{eco}:manifest}}"), manifest_of(eco));
-            if eco != "typescript" {
-                text = text.replace(&format!("{{{eco}:lock}}"), lock_of(eco));
-            }
+            text = text.replace(&format!("{{{eco}:lock}}"), lock_of(eco));
         }
         Box::leak(text.into_boxed_str())
     }
@@ -786,7 +796,10 @@ mod tests {
     fn a_nested_module_keeps_its_own_locks() {
         let hubs = plan(&[
             ("sub/MODULE.bazel", ""),
-            (t("sub/{npm:manifest}"), "{}"),
+            (
+                t("sub/{npm:manifest}"),
+                "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+            ),
             (t("sub/{npm:lock}"), ""),
             (t("sub/{cargo:manifest}"), ""),
             (t("sub/{cargo:lock}"), ""),
@@ -835,7 +848,8 @@ mod tests {
 
     #[test]
     fn only_pnpm_packages_without_a_lock_are_unlocked() {
-        let pnpm = "{\"packageManager\": \"pnpm@9.1.0\"}";
+        let pnpm =
+            "{\"packageManager\": \"pnpm@9.1.0\", \"dependencies\": {\"left-pad\": \"1.3.0\"}}";
         assert_eq!(
             unlocked(&[(t("{npm:manifest}"), pnpm)]),
             [t("{npm:manifest}")]
@@ -845,6 +859,9 @@ mod tests {
             [t("{npm:manifest}")]
         );
         assert!(unlocked(&[(t("{npm:manifest}"), "{}")]).is_empty());
+        assert!(
+            unlocked(&[(t("{npm:manifest}"), "{\"packageManager\": \"pnpm@9.1.0\"}")]).is_empty()
+        );
         assert!(unlocked(&[(t("{npm:manifest}"), "{\"packageManager\": \"yarn@4\"}")]).is_empty());
         for lock in [t("{npm:lock}"), "package-lock.json", "yarn.lock"] {
             assert!(
@@ -896,7 +913,13 @@ mod tests {
 
     #[test]
     fn pnpm_lock_gets_an_npm_hub() {
-        let hubs = plan(&[(t("{npm:lock}"), ""), (t("{npm:manifest}"), "{}")]);
+        let hubs = plan(&[
+            (t("{npm:lock}"), ""),
+            (
+                t("{npm:manifest}"),
+                "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+            ),
+        ]);
         let text = new_text(&hubs);
         assert!(
             !text.contains("bazel_dep(name = \"aspect_rules_js\""),
@@ -909,61 +932,9 @@ mod tests {
     }
 
     #[test]
-    fn tsconfig_gets_the_typescript_hub() {
-        let hubs = plan(&[
-            (t("{npm:lock}"), ""),
-            (t("{npm:manifest}"), "{}"),
-            (t("{typescript:manifest}"), "{}"),
-        ]);
-        let text = new_text(&hubs);
-        assert!(
-            !text.contains("bazel_dep(name = \"aspect_rules_ts\""),
-            "{text}"
-        );
-        assert!(
-            text.contains("typescript = use_extension(\"@rules_dx//typescript:extensions.bzl\", \"typescript\")\nuse_repo(typescript, \"npm_typescript\")\n"),
-            "{text}"
-        );
-        assert!(
-            text.ends_with("use_repo(typescript, \"npm_typescript\")\n"),
-            "{text}"
-        );
-    }
-
-    #[test]
-    fn no_tsconfig_means_no_typescript_hub() {
+    fn a_pnpm_lock_without_a_dependency_gets_no_hub() {
         let hubs = plan(&[(t("{npm:lock}"), ""), (t("{npm:manifest}"), "{}")]);
-        assert!(!new_text(&hubs).contains("npm_typescript"));
-    }
-
-    #[test]
-    fn a_second_typescript_run_plans_nothing() {
-        let dir = scratch("lock_hubs_ts_twice");
-        write(dir.path(), MODULE_FILE, MODULE);
-        write(dir.path(), t("{typescript:manifest}"), "{}");
-        write(dir.path(), t("{npm:lock}"), "");
-        write(dir.path(), t("{npm:manifest}"), "{}");
-        let first = plan_lock_hubs(dir.path()).expect("plan");
-        assert!(new_text(&first).contains("npm_typescript"));
-        write(dir.path(), MODULE_FILE, new_text(&first));
-        assert_eq!(
-            plan_lock_hubs(dir.path()).expect("plan"),
-            LockHubs::default()
-        );
-    }
-
-    #[test]
-    fn a_hand_written_typescript_stanza_is_left_alone() {
-        let module = format!(
-            "{MODULE}\nts = use_extension(\"@aspect_rules_ts//ts:extensions.bzl\", \"typescript\")\nts.deps(version = \"5.0.0\")\nuse_repo(ts, \"npm_typescript\")\n"
-        );
-        let dir = scratch("lock_hubs_ts_manual");
-        write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), t("{typescript:manifest}"), "{}");
-        assert_eq!(
-            plan_lock_hubs(dir.path()).expect("plan"),
-            LockHubs::default()
-        );
+        assert_eq!(hubs, LockHubs::default());
     }
 
     #[test]
@@ -983,7 +954,11 @@ mod tests {
         let dir = scratch("lock_hubs_manual");
         write(dir.path(), MODULE_FILE, &module);
         write(dir.path(), t("{npm:lock}"), "");
-        write(dir.path(), t("{npm:manifest}"), "{}");
+        write(
+            dir.path(),
+            t("{npm:manifest}"),
+            "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+        );
         assert_eq!(
             plan_lock_hubs(dir.path()).expect("plan"),
             LockHubs::default()
@@ -999,7 +974,11 @@ mod tests {
         write(dir.path(), t("{uv:lock}"), "");
         write(dir.path(), t("{uv:manifest}"), "");
         write(dir.path(), t("{npm:lock}"), "");
-        write(dir.path(), t("{npm:manifest}"), "{}");
+        write(
+            dir.path(),
+            t("{npm:manifest}"),
+            "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+        );
         let first = plan_lock_hubs(dir.path()).expect("plan");
         write(dir.path(), MODULE_FILE, new_text(&first));
         assert_eq!(
@@ -1016,7 +995,11 @@ mod tests {
         let dir = scratch("lock_hubs_aspect_npm");
         write(dir.path(), MODULE_FILE, &module);
         write(dir.path(), t("web/{npm:lock}"), "");
-        write(dir.path(), t("web/{npm:manifest}"), "{}");
+        write(
+            dir.path(),
+            t("web/{npm:manifest}"),
+            "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+        );
         let first = plan_lock_hubs(dir.path()).expect("plan");
         let text = new_text(&first);
         assert!(text.contains("dx_npm = use_extension("), "{text}");
@@ -1033,7 +1016,10 @@ mod tests {
         let hubs = plan(&[
             ("BUILD.bazel", "# gazelle:exclude web\n"),
             (t("web/{npm:lock}"), ""),
-            (t("web/{npm:manifest}"), "{}"),
+            (
+                t("web/{npm:manifest}"),
+                "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+            ),
         ]);
         assert_eq!(hubs, LockHubs::default());
     }
@@ -1041,9 +1027,15 @@ mod tests {
     #[test]
     fn a_nested_exclude_resolves_from_its_package() {
         let hubs = plan(&[
-            ("a/BUILD.bazel", "# gazelle:exclude web\n# gazelle:exclude *\n"),
+            (
+                "a/BUILD.bazel",
+                "# gazelle:exclude web\n# gazelle:exclude *\n",
+            ),
             (t("a/web/{npm:lock}"), ""),
-            (t("a/web/{npm:manifest}"), "{}"),
+            (
+                t("a/web/{npm:manifest}"),
+                "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+            ),
         ]);
         assert_eq!(hubs, LockHubs::default());
     }
@@ -1075,11 +1067,20 @@ mod tests {
             (t("svc/{uv:lock}"), ""),
             (t("svc/{uv:manifest}"), ""),
             (t("web/app/{npm:lock}"), ""),
-            (t("web/app/{npm:manifest}"), "{}"),
+            (
+                t("web/app/{npm:manifest}"),
+                "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+            ),
             (t("{npm:lock}"), ""),
-            (t("{npm:manifest}"), "{}"),
+            (
+                t("{npm:manifest}"),
+                "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+            ),
             (t("node_modules/x/{npm:lock}"), ""),
-            (t("node_modules/x/{npm:manifest}"), "{}"),
+            (
+                t("node_modules/x/{npm:manifest}"),
+                "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+            ),
         ]);
         let text = new_text(&hubs);
         assert!(text.contains(t("lock = \"//svc:{uv:lock}\"")), "{text}");
@@ -1118,9 +1119,15 @@ mod tests {
             (t("a/testdata/{uv:lock}"), ""),
             (t("a/testdata/{uv:manifest}"), ""),
             (t("fixtures/x/{npm:lock}"), ""),
-            (t("fixtures/x/{npm:manifest}"), "{}"),
+            (
+                t("fixtures/x/{npm:manifest}"),
+                "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+            ),
             (t("examples/app/{npm:lock}"), ""),
-            (t("examples/app/{npm:manifest}"), "{}"),
+            (
+                t("examples/app/{npm:manifest}"),
+                "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+            ),
         ]);
         assert_eq!(hubs, LockHubs::default());
     }

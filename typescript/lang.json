@@ -15,21 +15,6 @@
   "lockfiles": [
     "pnpm-lock.yaml"
   ],
-  "setup": {
-    "hubs": [
-      {
-        "ecosystem": "typescript",
-        "manifest": "tsconfig.json",
-        "lock": null,
-        "state": null,
-        "extension": "@rules_dx//typescript:extensions.bzl",
-        "tag": null,
-        "hub": "npm_typescript",
-        "resolver": null,
-        "imports": "name"
-      }
-    ]
-  },
   "tools": [
     "biome",
     "eslint"

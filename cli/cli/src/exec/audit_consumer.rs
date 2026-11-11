@@ -891,7 +891,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!out.contains("vuln/GHSA"), "{out}");
     }
 
-    const SWIFT_MODULE: &str = "swiftpm = use_extension(\"@rules_dx//swift:extensions.bzl\", \"swiftpm\")\nswiftpm.lock(name = \"swiftpm\", lock = \"//apps/swift:swiftpm.lock.json\")\n";
+    const SWIFT_MODULE: &str = "swiftpm = use_extension(\"@rules_dx//swift:extensions.bzl\", \"swiftpm\")\nswiftpm.lock(name = \"swiftpm\", lock = \"//apps/swift:deps.lock.json\")\n";
 
     const SWIFT_ADVISORY: &str = r#"[{
         "id": "GHSA-swift-0001",
@@ -908,7 +908,7 @@ source = { registry = "https://pypi.org/simple" }
             "apps/swift/Package.swift",
             "// swift-tools-version: 6.0\nimport PackageDescription\nlet package = Package(name: \"app\", dependencies: [.package(url: \"https://github.com/apple/swift-argument-parser\", exact: \"1.8.2\")], targets: [])\n",
         );
-        harness.write_source("apps/swift/swiftpm.lock.json", "{}");
+        harness.write_source("apps/swift/deps.lock.json", "{}");
         harness.write_source(
             "apps/swift/Package.resolved",
             &format!(

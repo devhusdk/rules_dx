@@ -376,6 +376,7 @@ impl UpdateRequest {
         })
     }
 
+    #[cfg(test)]
     pub fn parse_configured(
         set_name: &str,
         manifest: &str,

@@ -230,6 +230,7 @@ pub fn ruby_assess(scope: &str, version: &str, platform: Option<&str>) -> Versio
     VersionScope::Affected
 }
 
+#[cfg(test)]
 pub fn ruby_in_scope(scope: &str, version: &str) -> bool {
     let (bare, platform) = split_gem_lock_version(version.trim());
     ruby_assess(scope, bare, platform) == VersionScope::Affected

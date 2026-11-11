@@ -269,6 +269,7 @@ pub fn identity_bytes(snapshot: &AdvisorySnapshot) -> Result<Vec<u8>, PrepError>
 }
 
 /// The bounded download that fetches one snapshot archive.
+#[cfg(test)]
 pub fn fetch_plan(
     url: &str,
     destination: &Path,

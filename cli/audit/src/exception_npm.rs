@@ -1,6 +1,7 @@
 use crate::vuln::{VersionScope, any_scope};
 use nodejs_semver::{Range, Version};
 
+#[cfg(test)]
 pub fn npm_in_scope(scope: &str, version: &str) -> bool {
     npm_assess(scope, version) == VersionScope::Affected
 }

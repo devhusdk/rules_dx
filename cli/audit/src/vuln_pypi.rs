@@ -72,6 +72,7 @@ pub fn pypi_assess(scope: &str, version: &str) -> VersionScope {
     }
 }
 
+#[cfg(test)]
 pub fn pypi_in_scope(scope: &str, version: &str) -> bool {
     pypi_assess(scope, version) == VersionScope::Affected
 }

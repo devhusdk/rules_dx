@@ -565,11 +565,12 @@ mod tests {
             let argv = vec!["security"];
             let name = format!("exec-deferred-{}", argv[0]);
             let harness = Harness::new(&name);
+            let lock = dx_ecosystems::Ecosystem::Maven.lockfiles()[0].as_str();
             harness.write_source(
                 "MODULE.bazel",
-                "bazel_dep(name = \"rules_jvm_external\", version = \"7.1\")\nmaven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party/jvm:maven_install.json\")\n",
+                &format!("bazel_dep(name = \"rules_jvm_external\", version = \"7.1\")\nmaven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party/jvm:{lock}\")\n"),
             );
-            harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
+            harness.write_source(&format!("third_party/jvm/{lock}"), r#"{"artifacts": {}}"#);
             harness
                 .query
                 .outputs

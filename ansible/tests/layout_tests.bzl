@@ -1,7 +1,7 @@
 """Unit tests for the Ansible layout classifier."""
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load(":layout.bzl", "ansible_layout_class", "ansible_layout_kind")
+load("//ansible/private:layout.bzl", "ansible_layout_class", "ansible_layout_kind")
 load(":layout_corpus.bzl", "LAYOUT_CORPUS")
 
 def layout_unit_tests(name):

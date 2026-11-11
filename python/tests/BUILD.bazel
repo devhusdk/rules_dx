@@ -3,6 +3,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_test")
 load("//python:defs.bzl", "python_test")
 load("//rust:defs.bzl", "rust_test")
+load(":runtime_tests.bzl", "python_runtime_unit_tests")
 load(":soabi_tests.bzl", "soabi_test")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -48,6 +49,8 @@ cc_toolchain_test(
     ]
 ]
 
+python_runtime_unit_tests(name = "runtime_unit")
+
 rust_test(
     name = "python_init_adopt_test",
     size = "small",
@@ -62,6 +65,7 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
+        "runtime_tests.bzl",
         "soabi_tests.bzl",
     ],
     tags = ["corpus"],

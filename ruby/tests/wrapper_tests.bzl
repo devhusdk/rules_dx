@@ -5,7 +5,7 @@ load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests"
 load("//core:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_infer_main", "dx_main_candidates")
 load("//ruby/private/coverage:pins.bzl", "RUBY_COVERAGE_GEMS", "gem_dir")
-load(":defs.bzl", "ruby_coverage_lib_dirs")
+load("//ruby/private:defs.bzl", "ruby_coverage_lib_dirs")
 
 _GEMS_ROOT = "../+ruby_coverage+dx_ruby_coverage_gems"
 

@@ -8,7 +8,7 @@ const ADD_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
     noun: "add",
     notice_code: CODE_ADD_DECLARED,
     failure_code: CODE_UPDATE_WIDEN_FAILED,
-    noop_note: "pinned module lock; no-op success; go.sum is not refreshed",
+    noop_note: "pinned module lock; no-op success; the sum file is not refreshed",
 };
 
 pub(super) struct Io<'a> {

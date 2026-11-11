@@ -389,7 +389,7 @@ pub(super) fn collect(
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with("cabal.project.freeze"))
+                    .filter(|lock| lock.ends_with(Ecosystem::Cabal.lockfiles()[0].as_str()))
                     .cloned()
                     .collect();
                 if freezes.is_empty() {
@@ -453,7 +453,7 @@ pub(super) fn collect(
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with("Manifest.toml"))
+                    .filter(|lock| lock.ends_with(Ecosystem::Julia.lockfiles()[0].as_str()))
                     .cloned()
                     .collect();
                 merge(
@@ -632,7 +632,7 @@ pub(super) fn registry_for(
     registries.get(&candidate.set).copied()
 }
 
-/// The `.cabal` files next to each `cabal.project`.
+/// The `.cabal` files next to each cabal project file.
 pub(super) fn cabal_files(workspace: &Path, projects: &[String]) -> Vec<String> {
     let mut files = Vec::new();
     for project in projects {
@@ -1073,7 +1073,8 @@ fn stack_lock_errors(set: &str, locks: &[String]) -> Vec<dx_update::discover::Lo
             set: set.to_owned(),
             package: lock.clone(),
             reason: format!(
-                "dx does not run stack; resolve {lock} with haskell_deps_resolve(stack_lock = ...) to write cabal.project.freeze"
+                "dx does not run stack; resolve {lock} with haskell_deps_resolve(stack_lock = ...) to write {}",
+                Ecosystem::Cabal.lockfiles()[0]
             ),
         })
         .collect()
@@ -1100,7 +1101,7 @@ mod tests {
     fn stack_lock_without_freeze_is_refused() {
         let locks = vec![
             "app/stack.yaml.lock".to_owned(),
-            "cabal.project.freeze".to_owned(),
+            Ecosystem::Cabal.lockfiles()[0].clone(),
         ];
         let errors = stack_lock_errors("hackage", &locks);
         assert_eq!(errors.len(), 1);
@@ -1155,12 +1156,13 @@ mod tests {
     #[test]
     fn a_missing_manifest_is_a_lookup_error() {
         let dir = tempfile::tempdir().unwrap();
+        let gone = format!("gone/{}", Ecosystem::Npm.manifest_name());
         let target = dependency_sets::ResolvedTarget {
             set: dependency_sets::ResolvedSet {
                 name: "web".into(),
                 ecosystem: Ecosystem::Npm,
                 dir: ".".into(),
-                manifests: vec!["gone/package.json".into()],
+                manifests: vec![gone.clone()],
                 locks: Vec::new(),
                 repository: None,
             },
@@ -1176,7 +1178,7 @@ mod tests {
         assert!(collected.found.candidates.is_empty());
         assert_eq!(collected.found.errors.len(), 1);
         assert_eq!(collected.found.errors[0].set, "web");
-        assert_eq!(collected.found.errors[0].package, "gone/package.json");
+        assert_eq!(collected.found.errors[0].package, gone);
     }
 
     #[test]

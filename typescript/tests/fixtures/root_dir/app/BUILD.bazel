@@ -1,6 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//typescript:defs.bzl", "typescript_binary")
-load("//typescript/tests/typecheck_gate:gate_tests.bzl", "typecheck_gate_test")
+load("//typescript/tests/fixtures/typecheck_gate:gate_tests.bzl", "typecheck_gate_test")
 
 package(
     default_testonly = True,

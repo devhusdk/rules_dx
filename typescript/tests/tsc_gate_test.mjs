@@ -4,9 +4,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 
-const tool = path.join(path.dirname(fileURLToPath(import.meta.url)), "tsc_gate.mjs");
+const tool = path.join(process.env.JS_BINARY__RUNFILES, process.env.DX_TSC_GATE);
 
 function run(statuses) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tsc-gate-"));

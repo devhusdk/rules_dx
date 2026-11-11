@@ -138,6 +138,43 @@ cc_library(
     target_compatible_with = ["@platforms//os:linux"],
 )
 
+# The Swift archive's AddressSanitizer runtime; the pinned LLVM toolchain ships none.
+cc_library(
+    name = "asan_archives",
+    testonly = True,
+    srcs = select({
+        "//swift/private/platforms:is_linux_aarch64": [
+            "libc_single_threaded.c",
+            "@dx_swift_linux_aarch64//:usr/lib/clang/21/lib/linux/libclang_rt.asan_static-aarch64.a",
+            "@dx_swift_linux_aarch64//:usr/lib/clang/21/lib/linux/libclang_rt.asan-aarch64.a",
+        ],
+        "//swift/private/platforms:is_linux_x86_64": [
+            "libc_single_threaded.c",
+            "@dx_swift_linux_x86_64//:usr/lib/clang/21/lib/linux/libclang_rt.asan_static-x86_64.a",
+            "@dx_swift_linux_x86_64//:usr/lib/clang/21/lib/linux/libclang_rt.asan-x86_64.a",
+        ],
+        "//conditions:default": [],
+    }),
+    linkopts = [
+        "-Wl,--export-dynamic",
+        "-ldl",
+        "-lpthread",
+        "-lrt",
+        "-lm",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+cc_library(
+    name = "asan_runtime",
+    testonly = True,
+    deps = select({
+        "@llvm//config:asan_enabled": [],
+        "//conditions:default": [":asan_archives"],
+    }),
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
 # The profile runtime of the Swift archive, which reads the raw profile layout swiftc emits.
 # A swift_test links it under bazel coverage in place of the pinned cc toolchain's.
 cc_library(

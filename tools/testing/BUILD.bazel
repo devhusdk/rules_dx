@@ -284,6 +284,7 @@ nested_bazel_test(
         normal_dev = True,
     ),
     cache = "harness",
+    cache_locks = "//tools/testing/nested_cache:harness_locks",
     crate_name = "nested_bazel_harness_test",
     crate_root = "nested_bazel_harness_test.rs",
     data = [

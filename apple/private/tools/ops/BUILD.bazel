@@ -51,32 +51,133 @@ rust_binary(
     deps = [":ops"],
 )
 
-[
-    rust_test(
-        name = name + "_test",
-        size = "small",
-        srcs = [
-            name + "_test.rs",
-            "fake.rs",
-        ],
-        crate_root = name + "_test.rs",
-        deps = [
-            ":ops",
-            "//cli/test_scratch:dx_test_scratch",
-            "@crates//:zip",
-        ],
-    )
-    for name in [
-        "codesign",
-        "export",
-        "notarize",
-        "probe",
-        "run_macos",
-        "simctl",
-        "test_sim",
-        "xcode",
-    ]
-]
+# keep
+rust_test(
+    name = "codesign_test",
+    size = "small",
+    srcs = [
+        "codesign_test.rs",
+        "fake.rs",
+    ],
+    crate_root = "codesign_test.rs",
+    deps = [
+        ":ops",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:zip",
+    ],
+)
+
+# keep
+rust_test(
+    name = "export_test",
+    size = "small",
+    srcs = [
+        "export_test.rs",
+        "fake.rs",
+    ],
+    crate_root = "export_test.rs",
+    deps = [
+        ":ops",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:zip",
+    ],
+)
+
+# keep
+rust_test(
+    name = "notarize_test",
+    size = "small",
+    srcs = [
+        "notarize_test.rs",
+        "fake.rs",
+    ],
+    crate_root = "notarize_test.rs",
+    deps = [
+        ":ops",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:zip",
+    ],
+)
+
+# keep
+rust_test(
+    name = "probe_test",
+    size = "small",
+    srcs = [
+        "probe_test.rs",
+        "fake.rs",
+    ],
+    crate_root = "probe_test.rs",
+    deps = [
+        ":ops",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:zip",
+    ],
+)
+
+# keep
+rust_test(
+    name = "run_macos_test",
+    size = "small",
+    srcs = [
+        "run_macos_test.rs",
+        "fake.rs",
+    ],
+    crate_root = "run_macos_test.rs",
+    deps = [
+        ":ops",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:zip",
+    ],
+)
+
+# keep
+rust_test(
+    name = "simctl_test",
+    size = "small",
+    srcs = [
+        "simctl_test.rs",
+        "fake.rs",
+    ],
+    crate_root = "simctl_test.rs",
+    deps = [
+        ":ops",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:zip",
+    ],
+)
+
+# keep
+rust_test(
+    name = "test_sim_test",
+    size = "small",
+    srcs = [
+        "test_sim_test.rs",
+        "fake.rs",
+    ],
+    crate_root = "test_sim_test.rs",
+    deps = [
+        ":ops",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:zip",
+    ],
+)
+
+# keep
+rust_test(
+    name = "xcode_test",
+    size = "small",
+    srcs = [
+        "xcode_test.rs",
+        "fake.rs",
+    ],
+    crate_root = "xcode_test.rs",
+    deps = [
+        ":ops",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:zip",
+    ],
+)
 
 real_source_target(
     name = "corpus_starlark",

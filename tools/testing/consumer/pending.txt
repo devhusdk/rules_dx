@@ -12,8 +12,6 @@ fixture kubernetes
 fixture make
 fixture msix
 fixture python
-fixture rst
-fixture sql
 fixture svelte
 fixture terraform
 fixture typescript

@@ -1,0 +1,23 @@
+load("@rules_dx//ocaml:defs.bzl", "OCAML_COMPATIBLE_WITH", "ocaml_module", "ocaml_test")
+
+ocaml_module(
+    name = "greet",
+    struct = "src/greet.ml",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+    visibility = ["//visibility:public"],
+)
+
+ocaml_module(
+    name = "greet_test_main",
+    testonly = True,
+    struct = "test/greet_test.ml",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+    deps = [":greet"],
+)
+
+ocaml_test(
+    name = "consumer_test",
+    size = "small",
+    main = ":greet_test_main",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+)

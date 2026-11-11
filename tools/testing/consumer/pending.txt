@@ -57,7 +57,6 @@ fixture kubernetes
 fixture make
 fixture mdx
 fixture msix
-fixture ocaml
 fixture powershell
 fixture python
 fixture rego
@@ -79,6 +78,7 @@ init java
 init julia
 init kotlin
 init lua
+init ocaml
 init perl
 init php
 init ruby

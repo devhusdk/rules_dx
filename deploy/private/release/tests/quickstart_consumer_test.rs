@@ -222,4 +222,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
     for target in presubmit_list(&presubmit, "test_targets") {
         run_in(&case, &["test", target.as_str()], &target);
     }
+    for target in presubmit_list(&presubmit, "build_targets") {
+        run_in(&case, &["build", target.as_str()], &target);
+    }
 }

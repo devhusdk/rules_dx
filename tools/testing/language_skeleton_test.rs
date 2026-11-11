@@ -88,8 +88,8 @@ const EXECUTABLE: [&str; 4] = ["_binary", "_test", "_bench", "_fuzz_test"];
 const WRAPPER: &str = "core/wrapper.bzl";
 const WRAPS: [&str; 2] = ["dx_wrap_binary", "dx_wrap_test"];
 
-/// Tags a development usage of a language extension may call.
-const DEV_TAGS: [&str; 4] = ["annotation", "license", "lock", "provider"];
+/// Tags that declare a development hub or test dependencies.
+const DEV_TAGS: [&str; 6] = ["annotation", "crates", "from_lock", "license", "lock", "provider"];
 
 /// The option only `core/platform.bzl` names.
 const PLATFORMS_OPTION: &str = "//command_line_option:platforms";
@@ -1788,6 +1788,18 @@ fn dev_proxy_tags_rejects_a_toolchain_tag_on_a_development_usage() {
         );
     });
     assert_eq!(found, ["dev-proxy-tags toy/extensions.bzl"]);
+}
+
+#[test]
+fn dev_proxy_tags_accepts_test_dependency_tags() {
+    let found = broken("dev-proxy-tags", |files| {
+        append(
+            files,
+            "MODULE.bazel",
+            "toy_dev.from_lock(name = \"x\")\ntoy_dev.crates(name = \"y\")\n",
+        );
+    });
+    assert!(found.is_empty());
 }
 
 #[test]

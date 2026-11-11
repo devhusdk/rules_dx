@@ -111,7 +111,6 @@
       "audit": true,
       "advisory_family": "maven",
       "uses_repository": true,
-      "lockfiles": [],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Maven/all.zip",
       "license_audit": true,
       "lock_required": false

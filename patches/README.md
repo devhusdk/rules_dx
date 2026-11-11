@@ -25,6 +25,7 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `rules_julia` | 0.8.0 | `package_annotation_version.patch` | Package annotations are looked up by `name@version` before `name`. Consumer fix: #11418 |
 | `rules_dart` | 0.8.1 | `coverage.patch` | `dart_test` writes LCOV under `bazel coverage`: the test launcher passes `--coverage` to `package:test` and converts the report. Consumer fix: #11417 |
 | `rules_dart` | 0.8.1 | `external_pkgsrcs.patch` | Sources of packages from an external repository are staged into `.pkgsrcs`, which `copy_to_directory` otherwise drops. Consumer fix: #11417 |
+| `rules_flutter` | 0.0.8 | `lock_extension.patch` | Root only. The `flutter` extension is not reproducible, so a lockfile written on one host does not pin another |
 | `rules_flutter` | 0.0.8 | `registrant_javacopts.patch` | The Android plugin registrant compiles without `-Xlint:all` warnings about source 8. Consumer fix: #11417 |
 | `rules_flutter` | 0.0.8 | `required_checksums.patch` | A Flutter engine download without a sha256 fails the fetch, including the Dart SDK of the web SDK repo. Consumer fix: #11417 |
 | `rules_flutter` | 0.0.8 | `flutter_3_47_9.patch` | Root only. `FLUTTER_VERSIONS` and `ARTIFACT_CHECKSUMS` list Flutter 3.47.9, which no rules_flutter release has yet |

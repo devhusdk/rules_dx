@@ -70,8 +70,7 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 		archs, _ = args.Config.Exts[archsDirective].([]string)
 	}
 	if len(archs) == 0 {
-		rep.Fail(common.InPackage(args.Rel), "cc: %s: .cu/.cuh files need # gazelle:%s <arch>...", args.Rel, archsDirective)
-		return language.GenerateResult{}
+		archs = defaultCudaArchs
 	}
 
 	seen := map[string]bool{}

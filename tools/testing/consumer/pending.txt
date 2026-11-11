@@ -14,7 +14,6 @@ fixture terraform
 init ansible
 init cloudformation
 init csharp
-init cuda
 init d
 init dart
 init elixir

@@ -308,12 +308,14 @@ func TestCudaGenerateOwnedByDirectory(t *testing.T) {
 	}
 }
 
-func TestCudaMissingDirectiveRefuses(t *testing.T) {
-	lang, res := cudaFixture(t, "", nil, map[string]string{"k.cu": "\n"})
-	if len(res.Gen) != 0 {
+func TestCudaMissingDirectiveUsesDefault(t *testing.T) {
+	_, res := cudaFixture(t, "", nil, map[string]string{"k.cu": "\n"})
+	if len(res.Gen) != 1 {
 		t.Fatalf("gen = %+v", res.Gen)
 	}
-	wantRefusal(t, refusal(t, lang), "cc: pkg/demo: .cu/.cuh files need # gazelle:dx_cuda_archs <arch>...")
+	if got := strings.Join(res.Gen[0].AttrStrings("cuda_archs"), "|"); got != "sm_89" {
+		t.Errorf("cuda_archs = %q", got)
+	}
 }
 
 func TestCudaMainRefuses(t *testing.T) {

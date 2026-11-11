@@ -122,7 +122,6 @@ ocaml build_test *
 ocaml coverage_test *
 ocaml fail_test *
 ocaml pass_test *
-perl coverage_test *
 php coverage_test macos_arm64
 php coverage_test windows_arm64
 php coverage_test windows_x86_64
@@ -153,7 +152,6 @@ svelte build_test *
 svelte coverage_test *
 svelte fail_test *
 svelte pass_test *
-swift coverage_test *
 terraform build_test *
 terraform coverage_test *
 terraform fail_test *
@@ -170,5 +168,4 @@ vue build_test *
 vue coverage_test *
 vue fail_test *
 vue pass_test *
-zig coverage_test *
 """

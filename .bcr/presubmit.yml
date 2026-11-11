@@ -31,3 +31,21 @@ bcr_test_module:
       bazel: ${{ bazel }}
       build_targets:
         - "//:android_device_cc"
+    build_qt_hello_debian11:
+      name: Build Qt hello
+      platform: debian11
+      bazel: ${{ bazel }}
+      build_targets:
+        - "//qt_hello"
+    build_qt_hello_ubuntu2204:
+      name: Build Qt hello
+      platform: ubuntu2204
+      bazel: ${{ bazel }}
+      build_targets:
+        - "//qt_hello"
+    build_qt_hello_ubuntu2204_arm64:
+      name: Build Qt hello
+      platform: ubuntu2204_arm64
+      bazel: ${{ bazel }}
+      build_targets:
+        - "//qt_hello"

@@ -1,0 +1,17 @@
+load("@rules_dx//qt:defs.bzl", "qt_cc_binary")
+
+qt_cc_binary(
+    name = "qt_hello",
+    srcs = ["qt_hello.cc"],
+    modules = ["core"],
+)
+
+filegroup(
+    name = "files",
+    testonly = True,
+    srcs = [
+        "BUILD.bazel",
+        "qt_hello.cc",
+    ],
+    visibility = ["//deploy/private/release/tests:__pkg__"],
+)

@@ -313,11 +313,31 @@ impl Planner<'_> {
     /// Directories under the root (as `""` or `a/b`) holding `lock` next to `manifest`.
     fn lock_dirs(&self, lock: &str, manifest: &str) -> Vec<String> {
         let mut found = Vec::new();
+        let mut excluded: std::collections::HashSet<String> = std::collections::HashSet::new();
         let mut pending = vec![String::new()];
         while let Some(dir) = pending.pop() {
             let path = self.root.join(&dir);
-            if !dir.is_empty() && path.join(MODULE_FILE).is_file() {
+            if !dir.is_empty()
+                && (path.join(MODULE_FILE).is_file() || excluded.contains(&dir))
+            {
                 continue;
+            }
+            if let Some(build) = ["BUILD.bazel", "BUILD"]
+                .iter()
+                .find_map(|name| std::fs::read_to_string(path.join(name)).ok())
+            {
+                for line in build.lines() {
+                    let Some(rest) = line.trim().strip_prefix("# gazelle:exclude") else {
+                        continue;
+                    };
+                    if let Some(target) = rest.split_whitespace().next() {
+                        excluded.insert(if dir.is_empty() {
+                            target.to_owned()
+                        } else {
+                            format!("{dir}/{target}")
+                        });
+                    }
+                }
             }
             if path.join(lock).is_file() && path.join(manifest).is_file() {
                 found.push(dir.clone());
@@ -506,11 +526,29 @@ impl Planner<'_> {
 
     fn add(&mut self, eco: &Hub, tags: &[NewTag], hubs: &[&str]) -> Result<(), AdoptError> {
         let file = ModuleFile::parse(&self.text).map_err(refuse)?;
-        let binding = file
+        let binding = match file
             .extension_bindings(&eco.extension, &eco.ecosystem)
             .first()
-            .map_or(eco.ecosystem.as_str(), |(name, _)| *name)
-            .to_owned();
+        {
+            Some((name, _)) => (*name).to_owned(),
+            None => {
+                let taken: Vec<&str> = file
+                    .calls_named("use_extension")
+                    .filter_map(|call| call.binding.as_deref())
+                    .collect();
+                if taken.contains(&eco.ecosystem.as_str()) {
+                    (1..)
+                        .map(|n| match n {
+                            1 => format!("dx_{}", eco.ecosystem),
+                            n => format!("dx_{}_{n}", eco.ecosystem),
+                        })
+                        .find(|name| !taken.contains(&name.as_str()))
+                        .unwrap_or_default()
+                } else {
+                    eco.ecosystem.clone()
+                }
+            }
+        };
         self.text = file
             .insert_extension_block(&binding, &eco.extension, &eco.ecosystem, tags, hubs)
             .map_err(refuse)?;
@@ -968,6 +1006,46 @@ mod tests {
             plan_lock_hubs(dir.path()).expect("plan"),
             LockHubs::default()
         );
+    }
+
+    #[test]
+    fn a_nested_lock_beside_an_aspect_npm_binding_gets_its_own_binding() {
+        let module = format!(
+            "{MODULE}\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n"
+        );
+        let dir = scratch("lock_hubs_aspect_npm");
+        write(dir.path(), MODULE_FILE, &module);
+        write(dir.path(), t("web/{npm:lock}"), "");
+        write(dir.path(), t("web/{npm:manifest}"), "{}");
+        let first = plan_lock_hubs(dir.path()).expect("plan");
+        let text = new_text(&first);
+        assert!(text.contains("dx_npm = use_extension("), "{text}");
+        ModuleFile::parse(text).expect("re-parses");
+        write(dir.path(), MODULE_FILE, text);
+        assert_eq!(
+            plan_lock_hubs(dir.path()).expect("plan"),
+            LockHubs::default()
+        );
+    }
+
+    #[test]
+    fn an_excluded_folder_is_not_planned() {
+        let hubs = plan(&[
+            ("BUILD.bazel", "# gazelle:exclude web\n"),
+            (t("web/{npm:lock}"), ""),
+            (t("web/{npm:manifest}"), "{}"),
+        ]);
+        assert_eq!(hubs, LockHubs::default());
+    }
+
+    #[test]
+    fn a_nested_exclude_resolves_from_its_package() {
+        let hubs = plan(&[
+            ("a/BUILD.bazel", "# gazelle:exclude web\n# gazelle:exclude *\n"),
+            (t("a/web/{npm:lock}"), ""),
+            (t("a/web/{npm:manifest}"), "{}"),
+        ]);
+        assert_eq!(hubs, LockHubs::default());
     }
 
     #[test]

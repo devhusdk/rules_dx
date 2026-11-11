@@ -1457,6 +1457,16 @@ fn insert_extension_block_reuses_a_binding_and_skips_imported_repos() {
 }
 
 #[test]
+fn insert_extension_block_refuses_a_binding_bound_to_another_extension() {
+    let before = "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n";
+    let file = ModuleFile::parse(before).expect("parse");
+    let err = file
+        .insert_extension_block("npm", "@rules_dx//javascript:extensions.bzl", "npm", &[], &["npm"])
+        .expect_err("binding taken");
+    assert!(matches!(err, ModuleError::NoInsertPoint { .. }), "{err:?}");
+}
+
+#[test]
 fn insert_extension_block_follows_crlf() {
     let file = ModuleFile::parse("module(name = \"m\")\r\n").expect("parse");
     let out = file

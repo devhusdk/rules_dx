@@ -1369,6 +1369,15 @@ impl ModuleFile {
             .extension_bindings(bzl, ext)
             .iter()
             .any(|(name, _)| *name == binding);
+        if !bound
+            && self
+                .calls_named("use_extension")
+                .any(|call| call.binding.as_deref() == Some(binding))
+        {
+            return Err(ModuleError::NoInsertPoint {
+                reason: format!("{binding} is already bound to another extension"),
+            });
+        }
         let imported = self.use_repos(binding);
         let missing: Vec<&str> = repos
             .iter()

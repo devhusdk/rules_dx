@@ -1,5 +1,6 @@
 use crate::dune::*;
 use std::fs;
+use std::path::Path;
 
 fn args(list: &[&str]) -> Vec<String> {
     list.iter().map(|s| (*s).to_owned()).collect()
@@ -123,4 +124,14 @@ fn copy_tree_follows_links_and_writes_over_read_only_files() {
     #[cfg(unix)]
     assert!(fs::symlink_metadata(dst.join("link")).unwrap().is_file());
     fs::remove_dir_all(&base).unwrap();
+}
+
+#[test]
+fn inherited_sdkroot_keeps_its_expanded_root() {
+    let vars = [("SDKROOT".to_owned(), "$ROOT/external/macos_sdk/sysroot".to_owned())];
+    let env = expand_root(vars.into_iter(), Path::new("/exec"));
+    assert_eq!(
+        env.get("SDKROOT").map(String::as_str),
+        Some("/exec/external/macos_sdk/sysroot")
+    );
 }

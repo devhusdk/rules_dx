@@ -1,4 +1,4 @@
-//! Creates the directory for a new language and registers it in families.json.
+//! Creates the directory for a new language.
 
 #![cfg_attr(
     not(test),
@@ -81,46 +81,6 @@ fn files(name: &str, title: &str) -> Vec<(String, String)> {
     ]
 }
 
-fn register(families: &str, name: &str) -> Result<String, String> {
-    let lines: Vec<&str> = families.lines().collect();
-    let core = lines
-        .iter()
-        .position(|line| line.trim() == "\"core\": {")
-        .ok_or("families.json has no core family")?;
-    let open = lines[core..]
-        .iter()
-        .position(|line| line.trim() == "\"dirs\": [")
-        .map(|offset| core + offset)
-        .ok_or("core family has no dirs")?;
-    let close = lines[open..]
-        .iter()
-        .position(|line| line.trim_start().starts_with(']'))
-        .map(|offset| open + offset)
-        .ok_or("core dirs is not closed")?;
-    let mut dirs: Vec<String> = lines[open + 1..close]
-        .iter()
-        .map(|line| line.trim().trim_end_matches(',').trim_matches('"').to_owned())
-        .collect();
-    if dirs.iter().any(|dir| dir == name) {
-        return Err(format!("{name} is already in families.json"));
-    }
-    dirs.push(name.to_owned());
-    dirs.sort();
-    let indent = &lines[open + 1][..lines[open + 1].len() - lines[open + 1].trim_start().len()];
-    let body: Vec<String> = dirs
-        .iter()
-        .enumerate()
-        .map(|(index, dir)| {
-            let comma = if index + 1 < dirs.len() { "," } else { "" };
-            format!("{indent}\"{dir}\"{comma}")
-        })
-        .collect();
-    let mut out: Vec<String> = lines[..=open].iter().map(|l| (*l).to_owned()).collect();
-    out.extend(body);
-    out.extend(lines[close..].iter().map(|l| (*l).to_owned()));
-    Ok(out.join("\n") + "\n")
-}
-
 fn scaffold(root: &Path, name: &str, title: &str) -> Result<Vec<String>, String> {
     if !valid_name(name) {
         return Err(format!("{name}: use lowercase letters, digits and _"));
@@ -129,10 +89,6 @@ fn scaffold(root: &Path, name: &str, title: &str) -> Result<Vec<String>, String>
     if dir.exists() {
         return Err(format!("{name}: already exists"));
     }
-    let families_path = root.join("core/modules/families.json");
-    let families = fs::read_to_string(&families_path)
-        .map_err(|error| format!("{}: {error}", families_path.display()))?;
-    let updated = register(&families, name)?;
     let mut written = Vec::new();
     for (relative, content) in files(name, title) {
         let path = dir.join(&relative);
@@ -142,9 +98,6 @@ fn scaffold(root: &Path, name: &str, title: &str) -> Result<Vec<String>, String>
         fs::write(&path, content).map_err(|error| format!("{}: {error}", path.display()))?;
         written.push(format!("{name}/{relative}"));
     }
-    fs::write(&families_path, updated)
-        .map_err(|error| format!("{}: {error}", families_path.display()))?;
-    written.push("core/modules/families.json".to_owned());
     Ok(written)
 }
 
@@ -178,18 +131,15 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
 
-    const FAMILIES: &str = "{\n  \"families\": {\n    \"core\": {\n      \"dirs\": [\n        \"ansible\",\n        \"zig\"\n      ],\n      \"x\": []\n    }\n  }\n}\n";
-
     fn scratch(tag: &str) -> std::path::PathBuf {
         let root = std::env::temp_dir().join(format!("new_language_{tag}_{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("core/modules")).expect("modules");
-        fs::write(root.join("core/modules/families.json"), FAMILIES).expect("families");
+        fs::create_dir_all(&root).expect("root");
         root
     }
 
     #[test]
-    fn creates_the_layout_and_registers_the_dir() {
+    fn creates_the_layout() {
         let root = scratch("ok");
         let written = scaffold(&root, "mylang", "MyLang").expect("scaffold");
         for path in [
@@ -204,9 +154,7 @@ mod tests {
         ] {
             assert!(root.join("mylang").join(path).is_file(), "{path}");
         }
-        assert!(written.contains(&"core/modules/families.json".to_owned()));
-        let families = fs::read_to_string(root.join("core/modules/families.json")).expect("read");
-        assert!(families.contains("\"ansible\",\n        \"mylang\",\n        \"zig\"\n"));
+        assert!(written.contains(&"mylang/lang.json".to_owned()));
         let lang = fs::read_to_string(root.join("mylang/lang.json")).expect("lang");
         assert!(lang.contains("\"name\": \"mylang\""));
         assert!(lang.contains("\"title\": \"MyLang\""));

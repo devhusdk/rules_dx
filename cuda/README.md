@@ -73,6 +73,12 @@ to nvcc.
 The accepted `sm_` and `compute_` values are the ones nvcc 13.4 supports:
 75, 80, 86, 87, 89, 90, 100, 103, 120 and 121.
 
+## Toolchain
+
+rules_dx declares the pinned nvcc toolchain; a consumer adds no
+`register_toolchains` line. The one tag a consumer adds is
+`cuda_license.license(accept = ["cuda-eula"])`.
+
 ## Platforms
 
 Linux x86_64 and Linux arm64 (sbsa) are qualified. CUDA targets are incompatible on other platforms,

@@ -399,6 +399,12 @@ The launchers set `LD_LIBRARY_PATH` to the pinned closure and drop
 and `QT_QPA_PLATFORM_PLUGIN_PATH`. Only glibc comes from the host: 2.34 or
 newer on x86_64, 2.39 or newer on arm64.
 
+## Toolchain
+
+rules_dx declares the Qt SDK and registers its toolchains; a consumer adds no
+`register_toolchains` line. The one tag a consumer may add is
+`qt_sdk.configure`.
+
 ## Platforms
 
 | Cell | Status |

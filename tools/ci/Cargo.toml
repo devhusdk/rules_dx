@@ -50,14 +50,6 @@ name = "config_consistency_test"
 path = "config_consistency_test.rs"
 
 [[test]]
-name = "consumer_inputs_test"
-path = "consumer_inputs_test.rs"
-
-[[test]]
-name = "consumer_reports_test"
-path = "consumer_reports_test.rs"
-
-[[test]]
 name = "coverage_cells_test"
 path = "coverage_cells_test.rs"
 
@@ -68,10 +60,6 @@ path = "crate_platform_pins_test.rs"
 [[test]]
 name = "docs_scope_test"
 path = "docs_scope_test.rs"
-
-[[test]]
-name = "dx_update_workflow_test"
-path = "dx_update_workflow_test.rs"
 
 [[test]]
 name = "evidence_inputs_test"
@@ -118,24 +106,12 @@ name = "lock_registry_test"
 path = "lock_registry_test.rs"
 
 [[test]]
-name = "pr_check_test"
-path = "pr_check_test.rs"
-
-[[test]]
 name = "prose_rules_test"
 path = "prose_rules_test.rs"
 
 [[test]]
 name = "release_assets_test"
 path = "release_assets_test.rs"
-
-[[test]]
-name = "release_cells_runners_test"
-path = "release_cells_runners_test.rs"
-
-[[test]]
-name = "release_workflow_test"
-path = "release_workflow_test.rs"
 
 [[test]]
 name = "repo_rule_refetch_test"
@@ -200,3 +176,7 @@ path = "upgrade_e2e_test.rs"
 [[test]]
 name = "zero_compat_test"
 path = "zero_compat_test.rs"
+
+[[test]]
+name = "workflow_files_test"
+path = "workflow_files_test.rs"

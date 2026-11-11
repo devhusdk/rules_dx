@@ -82,7 +82,7 @@ fn license_policy_read_failures_and_empty_default_are_explicit() {
 
 fn write_demo_license(harness: &Harness, license: &str) {
     harness.write_source(
-        "cc/private/context/Cargo.lock",
+        &format!("cc/private/context/{}", dx_ecosystems::Ecosystem::Cargo.lockfiles()[0]),
         "[[package]]\nname = \"demo\"\nversion = \"1.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
     );
     harness.write_source(
@@ -319,12 +319,21 @@ fn license_exceptions_only_approve_matching_current_findings() {
         &AuditRunner::clean(),
         &|h| {
             h.write_source("cargo-bazel-lock.json", "{}");
-            h.write_source("cc/private/context/Cargo.lock", "{");
+            h.write_source(
+                &format!(
+                    "cc/private/context/{}",
+                    dx_ecosystems::Ecosystem::Cargo.lockfiles()[0]
+                ),
+                "{",
+            );
         },
     );
     assert_eq!(code, 1, "{out}{err}");
     assert!(
-        err.contains("could not parse cc/private/context/Cargo.lock"),
+        err.contains(&format!(
+            "could not parse cc/private/context/{}",
+            dx_ecosystems::Ecosystem::Cargo.lockfiles()[0]
+        )),
         "{err}"
     );
 }
@@ -701,7 +710,7 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
     let harness = Harness::new("audit-lock-paths");
     write_hubs(&harness);
     harness.write_source(
-        "pnpm-lock.yaml",
+        &dx_ecosystems::Ecosystem::Npm.lockfiles()[0],
         "lockfileVersion: '9.0'\n\npackages:\n\n  'pnpmonly@1.0.0':\n    resolution: {integrity: sha512-abc}\n",
     );
     harness.write_source(
@@ -726,7 +735,7 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
         let by_package = sarif_paths(&harness, report, driver);
         assert_eq!(
             by_package.get("pnpmonly").map(String::as_str),
-            Some("pnpm-lock.yaml"),
+            Some(&dx_ecosystems::Ecosystem::Npm.lockfiles()[0][..]),
             "{command}: {by_package:?}"
         );
     }
@@ -812,7 +821,13 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     let events = json_events(&out);
     let vuln = finding(&events, "vuln");
     assert_eq!(vuln["rule"], serde_json::json!("vuln/GHSA-go-test-0001"));
-    assert_eq!(vuln["path"], serde_json::json!("third_party/go/go.mod"));
+    assert_eq!(
+        vuln["path"],
+        serde_json::json!(format!(
+            "third_party/go/{}",
+            dx_ecosystems::Ecosystem::Go.manifest_name()
+        ))
+    );
     let message = vuln["message"].as_str().expect("message");
     assert!(
         message.contains("github.com/google/go-cmp@v0.6.0"),
@@ -845,7 +860,10 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     assert_eq!(license["rule"], serde_json::json!("license/AGPL-3.0-only"));
     assert_eq!(
         license["path"],
-        serde_json::json!("cc/private/context/Cargo.lock")
+        serde_json::json!(format!(
+            "cc/private/context/{}",
+            dx_ecosystems::Ecosystem::Cargo.lockfiles()[0]
+        ))
     );
     let message = license["message"].as_str().expect("message");
     assert!(
@@ -874,7 +892,13 @@ fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
         .lines()
         .find(|line| line.contains("GHSA-go-test-0001"))
         .unwrap_or_else(|| panic!("no vuln line: {out}"));
-    assert!(line.starts_with("third_party/go/go.mod: error: "), "{line}");
+    assert!(
+        line.starts_with(&format!(
+            "third_party/go/{}: error: ",
+            dx_ecosystems::Ecosystem::Go.manifest_name()
+        )),
+        "{line}"
+    );
     assert!(line.contains("github.com/google/go-cmp@v0.6.0"), "{line}");
     assert!(line.contains("fixed in v0.7.0"), "{line}");
     assert!(line.ends_with("[vuln/GHSA-go-test-0001]"), "{line}");
@@ -891,7 +915,10 @@ fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
         .find(|line| line.contains("AGPL-3.0-only"))
         .unwrap_or_else(|| panic!("no license line: {err}"));
     assert!(
-        line.starts_with("cc/private/context/Cargo.lock: error: demo@1.0.0 license AGPL-3.0-only"),
+        line.starts_with(&format!(
+            "cc/private/context/{}: error: demo@1.0.0 license AGPL-3.0-only",
+            dx_ecosystems::Ecosystem::Cargo.lockfiles()[0]
+        )),
         "{line}"
     );
 }
@@ -1173,17 +1200,26 @@ fn audit_errors_stay_typed_with_stable_display() {
         "no owning dependency set for \"cc/tests/fixtures/adopt-cpp/solo:solo\"; audited sets: cargo, go, npm"
     );
     let read = AuditError::Read {
-        rel: "pnpm-lock.yaml".to_owned(),
+        rel: dx_ecosystems::Ecosystem::Npm.lockfiles()[0].clone(),
         error: std::io::Error::new(std::io::ErrorKind::NotFound, "boom"),
     };
-    assert_eq!(read.to_string(), "could not read pnpm-lock.yaml: boom");
+    assert_eq!(
+        read.to_string(),
+        format!(
+            "could not read {}: boom",
+            dx_ecosystems::Ecosystem::Npm.lockfiles()[0]
+        )
+    );
     assert!(read.source().is_some());
     assert_eq!(
         AuditError::NotUtf8 {
-            rel: "pnpm-lock.yaml".to_owned(),
+            rel: dx_ecosystems::Ecosystem::Npm.lockfiles()[0].clone(),
         }
         .to_string(),
-        "could not read pnpm-lock.yaml: not valid UTF-8"
+        format!(
+            "could not read {}: not valid UTF-8",
+            dx_ecosystems::Ecosystem::Npm.lockfiles()[0]
+        )
     );
     assert_eq!(
         AuditError::AdvisoryUnsupported {
@@ -1210,18 +1246,24 @@ fn audit_errors_stay_typed_with_stable_display() {
     );
     assert_eq!(
         AuditError::LockMissing {
-            rel: "pnpm-lock.yaml".to_owned(),
+            rel: dx_ecosystems::Ecosystem::Npm.lockfiles()[0].clone(),
         }
         .to_string(),
-        "could not read pnpm-lock.yaml: no such file"
+        format!(
+            "could not read {}: no such file",
+            dx_ecosystems::Ecosystem::Npm.lockfiles()[0]
+        )
     );
     assert_eq!(
         AuditError::LockParse {
-            rel: "pnpm-lock.yaml".to_owned(),
+            rel: dx_ecosystems::Ecosystem::Npm.lockfiles()[0].clone(),
             detail: "boom".to_owned(),
         }
         .to_string(),
-        "could not parse pnpm-lock.yaml: boom"
+        format!(
+            "could not parse {}: boom",
+            dx_ecosystems::Ecosystem::Npm.lockfiles()[0]
+        )
     );
     let security = AuditError::SecurityInvalid(dx_audit::exception::SecurityProblem::InvalidToml {
         message: "schema_version is missing".to_owned(),
@@ -1236,7 +1278,7 @@ fn audit_errors_stay_typed_with_stable_display() {
     assert!(matches!(missing, AuditError::AdvisoryPinMissing { .. }));
     assert!(missing.to_string().contains("advisory_pin_missing"));
     let lock_missing = AuditError::LockMissing {
-        rel: "Cargo.lock".to_owned(),
+        rel: dx_ecosystems::Ecosystem::Cargo.lockfiles()[0].clone(),
     };
     assert_eq!(
         missing.code(),

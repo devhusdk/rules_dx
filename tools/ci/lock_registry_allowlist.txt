@@ -37,9 +37,6 @@ name cli/cli/src/exec/audit_live.rs go.mod
 name cli/cli/src/exec/audit_live.rs maven_install.json
 name cli/cli/src/exec/audit_live.rs package.json
 name cli/cli/src/exec/audit_live.rs pnpm-lock.yaml
-name cli/cli/src/exec/audit_reports.rs Cargo.lock
-name cli/cli/src/exec/audit_reports.rs go.mod
-name cli/cli/src/exec/audit_reports.rs pnpm-lock.yaml
 name cli/cli/src/exec/dep_edit.rs Cargo.toml
 name cli/cli/src/exec/dep_edit.rs Gemfile
 name cli/cli/src/exec/dep_edit.rs Gemfile.lock

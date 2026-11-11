@@ -646,7 +646,13 @@ LANGS = json.decode("""{
     "pins": [
       "pins.json"
     ],
-    "platforms": [],
+    "platforms": [
+      "linux_arm64",
+      "linux_x86_64",
+      "macos_arm64",
+      "windows_arm64",
+      "windows_x86_64"
+    ],
     "quality": {
       "aspects": {
         "format": [

@@ -1,0 +1,49 @@
+# gazelle:ignore
+load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_binary", "d_library", "d_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+d_library(
+    name = "conformance",
+    srcs = ["greet.d"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+)
+
+d_binary(
+    name = "hello",
+    srcs = ["main.d"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+    deps = [":conformance"],
+)
+
+d_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["pass_test.d"],
+    target_compatible_with = subject_compatible_with() + D_COMPATIBLE_WITH,
+    deps = [":conformance"],
+)
+
+d_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["fail_test.d"],
+    target_compatible_with = subject_compatible_with() + D_COMPATIBLE_WITH,
+    deps = [":conformance"],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "greet.d",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "d",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

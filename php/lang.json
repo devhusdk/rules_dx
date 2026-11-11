@@ -19,13 +19,13 @@
       {
         "ecosystem": "composer",
         "manifest": "composer.json",
-        "lock": "composer.lock",
-        "state": null,
+        "lock": "composer.lock.json",
+        "state": "composer.lock",
         "extension": "@rules_dx//php:extensions.bzl",
         "tag": "lock",
         "hub": "composer",
-        "resolver": null,
-        "imports": "name"
+        "resolver": "@rules_dx//php:lock",
+        "imports": "provides"
       }
     ]
   },

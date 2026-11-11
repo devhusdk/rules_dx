@@ -96,7 +96,7 @@ fn set() -> tempfile::TempDir {
 }
 
 fn args(dir: &Path, check: bool) -> Args {
-    Args { dir: dir.to_owned(), check }
+    Args { dir: dir.to_owned(), check, upgrade: Vec::new() }
 }
 
 fn registry() -> Registry {
@@ -318,10 +318,10 @@ fn a_manifest_pattern_takes_every_matching_file() {
 fn the_flags_are_dir_and_check() {
     let parse = |args: &[&str]| Args::parse(args.iter().map(|arg| (*arg).to_owned()));
     let root = if cfg!(windows) { "C:\\set" } else { "/set" };
-    assert_eq!(parse(&["--dir", root]), Ok(Args { dir: PathBuf::from(root), check: false }));
+    assert_eq!(parse(&["--dir", root]), Ok(Args { dir: PathBuf::from(root), check: false, upgrade: Vec::new() }));
     assert_eq!(
         parse(&["--check", &format!("--dir={root}")]),
-        Ok(Args { dir: PathBuf::from(root), check: true })
+        Ok(Args { dir: PathBuf::from(root), check: true, upgrade: Vec::new() })
     );
     for (args, want) in [
         (vec!["--check"], "--dir is missing"),
@@ -386,4 +386,12 @@ fn the_schema_accepts_swift_extra() {
         "swift_targets": {"A": {"deps": [], "module": "A", "path": "Sources/A", "product_deps": ["b:B"], "srcs": ["Sources/A/a.swift"]}},
     });
     assert_eq!(schema_errors(&lock), Vec::<String>::new());
+}
+
+#[test]
+fn upgrade_flags_collect_package_names() {
+    let root = if cfg!(windows) { "C:\\set" } else { "/set" };
+    let parse = |args: &[&str]| Args::parse(args.iter().map(|arg| (*arg).to_owned()));
+    let args = parse(&["--dir", root, "--upgrade", "a/b", "--upgrade=c/d"]).expect("args");
+    assert_eq!(args.upgrade, ["a/b", "c/d"]);
 }

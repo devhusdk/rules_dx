@@ -264,7 +264,6 @@ pub struct JuliaManifest<'a> {
 pub struct ComposerLock<'a> {
     pub name: &'a str,
     pub lock: &'a str,
-    pub digests: &'a str,
     pub line: usize,
 }
 
@@ -1008,7 +1007,6 @@ impl ModuleFile {
             Ok(ComposerLock {
                 name: required(call, TAG, "name")?,
                 lock: required(call, TAG, "lock")?,
-                digests: required(call, TAG, "digests")?,
                 line: call.line,
             })
         })

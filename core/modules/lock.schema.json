@@ -66,6 +66,7 @@
         },
         "sha256": {"$ref": "#/$defs/sha256"},
         "strip_prefix": {"type": "string", "minLength": 1},
+        "type": {"enum": ["zip", "tar", "tar.gz"]},
         "platform": {
           "enum": ["linux_arm64", "linux_x86_64", "macos_arm64", "macos_x86_64", "windows_arm64", "windows_x86_64"]
         }

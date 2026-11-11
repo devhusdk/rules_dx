@@ -1189,22 +1189,15 @@ fn julia_manifests_follow_the_rules_julia_pkg_extension() {
 #[test]
 fn composer_locks_follow_the_rules_dx_extension() {
     let file = parse(
-        "composer = use_extension(\"@rules_dx//php:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//php:composer.lock\", digests = \"//php:composer.digests.json\")\nother = use_extension(\"//php:extensions.bzl\", \"composer\")\nother.lock(name = \"x\", lock = \"//x:composer.lock\", digests = \"//x:d.json\")\n",
+        "composer = use_extension(\"@rules_dx//php:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//php:composer.lock.json\")\nother = use_extension(\"//php:extensions.bzl\", \"composer\")\nother.lock(name = \"x\", lock = \"//x:composer.lock.json\")\n",
     );
     let found: Vec<_> = file
         .composer_locks()
         .expect("locks")
         .iter()
-        .map(|entry| (entry.name, entry.lock, entry.digests))
+        .map(|entry| (entry.name, entry.lock))
         .collect();
-    assert_eq!(
-        found,
-        [(
-            "vendor",
-            "//php:composer.lock",
-            "//php:composer.digests.json"
-        )]
-    );
+    assert_eq!(found, [("vendor", "//php:composer.lock.json")]);
 }
 
 #[test]

@@ -1,194 +1,202 @@
 {
     "_readme": [
         "This file locks the dependencies of your project to a known state",
-        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "Read more about it at https:\/\/getcomposer.org\/doc\/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
+    "aliases": [],
     "content-hash": "e235a31720785e78237a8a72a5a66cae",
+    "minimum-stability": "stable",
     "packages": [
         {
-            "name": "psr/http-factory",
-            "version": "1.1.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/php-fig/http-factory.git",
-                "reference": "2b4765fddfe3b508ac62f829e852b1501d3f6e8a"
+            "authors": [
+                {
+                    "homepage": "https:\/\/www.php-fig.org\/",
+                    "name": "PHP-FIG"
+                }
+            ],
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Http\\Message\\": "src\/"
+                }
             },
+            "description": "PSR-17: Common interfaces for PSR-7 HTTP message factories",
             "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/php-fig/http-factory/zipball/2b4765fddfe3b508ac62f829e852b1501d3f6e8a",
                 "reference": "2b4765fddfe3b508ac62f829e852b1501d3f6e8a",
-                "shasum": ""
+                "shasum": "",
+                "type": "zip",
+                "url": "https:\/\/api.github.com\/repos\/php-fig\/http-factory\/zipball\/2b4765fddfe3b508ac62f829e852b1501d3f6e8a"
             },
-            "require": {
-                "php": ">=7.1",
-                "psr/http-message": "^1.0 || ^2.0"
-            },
-            "type": "library",
             "extra": {
                 "branch-alias": {
                     "dev-master": "1.0.x-dev"
                 }
             },
-            "autoload": {
-                "psr-4": {
-                    "Psr\\Http\\Message\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
+            "funding": [],
+            "homepage": "",
+            "keywords": [
+                "http",
+                "response",
+                "message",
+                "request",
+                "factory",
+                "psr",
+                "psr-7",
+                "psr-17"
+            ],
             "license": [
                 "MIT"
             ],
-            "authors": [
-                {
-                    "name": "PHP-FIG",
-                    "homepage": "https://www.php-fig.org/"
-                }
-            ],
-            "description": "PSR-17: Common interfaces for PSR-7 HTTP message factories",
-            "keywords": [
-                "factory",
-                "http",
-                "message",
-                "psr",
-                "psr-17",
-                "psr-7",
-                "request",
-                "response"
-            ],
-            "support": {
-                "source": "https://github.com/php-fig/http-factory"
+            "name": "psr\/http-factory",
+            "published-time": "2024-05-10T07:32:19+00:00",
+            "require": {
+                "php": ">=7.1",
+                "psr\/http-message": "^1.0 || ^2.0"
             },
-            "time": "2024-04-15T12:06:14+00:00"
+            "source": {
+                "reference": "2b4765fddfe3b508ac62f829e852b1501d3f6e8a",
+                "type": "git",
+                "url": "https:\/\/github.com\/php-fig\/http-factory.git"
+            },
+            "support": {
+                "source": "https:\/\/github.com\/php-fig\/http-factory"
+            },
+            "time": "2024-04-15T12:06:14+00:00",
+            "type": "library",
+            "version": "1.1.0"
         },
         {
-            "name": "psr/http-message",
-            "version": "2.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/php-fig/http-message.git",
-                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71"
+            "authors": [
+                {
+                    "homepage": "https:\/\/www.php-fig.org\/",
+                    "name": "PHP-FIG"
+                }
+            ],
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Http\\Message\\": "src\/"
+                }
             },
+            "description": "Common interface for HTTP messages",
             "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/php-fig/http-message/zipball/402d35bcb92c70c026d1a6a9883f06b2ead23d71",
                 "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71",
-                "shasum": ""
+                "shasum": "",
+                "type": "zip",
+                "url": "https:\/\/api.github.com\/repos\/php-fig\/http-message\/zipball\/402d35bcb92c70c026d1a6a9883f06b2ead23d71"
             },
-            "require": {
-                "php": "^7.2 || ^8.0"
-            },
-            "type": "library",
             "extra": {
                 "branch-alias": {
                     "dev-master": "2.0.x-dev"
                 }
             },
-            "autoload": {
-                "psr-4": {
-                    "Psr\\Http\\Message\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
+            "funding": [],
+            "homepage": "https:\/\/github.com\/php-fig\/http-message",
+            "keywords": [
+                "http",
+                "response",
+                "request",
+                "psr",
+                "psr-7",
+                "http-message"
+            ],
             "license": [
                 "MIT"
             ],
-            "authors": [
-                {
-                    "name": "PHP-FIG",
-                    "homepage": "https://www.php-fig.org/"
-                }
-            ],
-            "description": "Common interface for HTTP messages",
-            "homepage": "https://github.com/php-fig/http-message",
-            "keywords": [
-                "http",
-                "http-message",
-                "psr",
-                "psr-7",
-                "request",
-                "response"
-            ],
-            "support": {
-                "source": "https://github.com/php-fig/http-message/tree/2.0"
+            "name": "psr\/http-message",
+            "published-time": "2023-04-04T09:55:35+00:00",
+            "require": {
+                "php": "^7.2 || ^8.0"
             },
-            "time": "2023-04-04T09:54:51+00:00"
+            "source": {
+                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71",
+                "type": "git",
+                "url": "https:\/\/github.com\/php-fig\/http-message.git"
+            },
+            "support": {
+                "source": "https:\/\/github.com\/php-fig\/http-message\/tree\/2.0"
+            },
+            "time": "2023-04-04T09:54:51+00:00",
+            "type": "library",
+            "version": "2.0"
         },
         {
-            "name": "symfony/deprecation-contracts",
-            "version": "v3.6.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/symfony/deprecation-contracts.git",
-                "reference": "63afe740e99a13ba87ec199bb07bbdee937a5b62"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/symfony/deprecation-contracts/zipball/63afe740e99a13ba87ec199bb07bbdee937a5b62",
-                "reference": "63afe740e99a13ba87ec199bb07bbdee937a5b62",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=8.1"
-            },
-            "type": "library",
-            "extra": {
-                "thanks": {
-                    "url": "https://github.com/symfony/contracts",
-                    "name": "symfony/contracts"
+            "authors": [
+                {
+                    "email": "p@tchwork.com",
+                    "name": "Nicolas Grekas"
                 },
-                "branch-alias": {
-                    "dev-main": "3.6-dev"
+                {
+                    "homepage": "https:\/\/symfony.com\/contributors",
+                    "name": "Symfony Community"
                 }
-            },
+            ],
             "autoload": {
                 "files": [
                     "function.php"
                 ]
             },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Nicolas Grekas",
-                    "email": "p@tchwork.com"
-                },
-                {
-                    "name": "Symfony Community",
-                    "homepage": "https://symfony.com/contributors"
-                }
-            ],
             "description": "A generic function and convention to trigger deprecation notices",
-            "homepage": "https://symfony.com",
-            "support": {
-                "source": "https://github.com/symfony/deprecation-contracts/tree/v3.6.0"
+            "dist": {
+                "reference": "feb1edf4e546af3b85c5caebe8359a20db230ca3",
+                "shasum": "",
+                "type": "zip",
+                "url": "https:\/\/api.github.com\/repos\/symfony\/deprecation-contracts\/zipball\/feb1edf4e546af3b85c5caebe8359a20db230ca3"
+            },
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "3.8-dev"
+                },
+                "thanks": {
+                    "name": "symfony\/contracts",
+                    "url": "https:\/\/github.com\/symfony\/contracts"
+                }
             },
             "funding": [
                 {
-                    "url": "https://symfony.com/sponsor",
-                    "type": "custom"
+                    "type": "custom",
+                    "url": "https:\/\/symfony.com\/sponsor"
                 },
                 {
-                    "url": "https://github.com/fabpot",
-                    "type": "github"
+                    "type": "github",
+                    "url": "https:\/\/github.com\/fabpot"
                 },
                 {
-                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
-                    "type": "tidelift"
+                    "type": "github",
+                    "url": "https:\/\/github.com\/nicolas-grekas"
+                },
+                {
+                    "type": "tidelift",
+                    "url": "https:\/\/tidelift.com\/funding\/github\/packagist\/symfony\/symfony"
                 }
             ],
-            "time": "2024-09-25T14:21:43+00:00"
+            "homepage": "https:\/\/symfony.com",
+            "keywords": [],
+            "license": [
+                "MIT"
+            ],
+            "name": "symfony\/deprecation-contracts",
+            "published-time": "2026-11-04T11:25:34+00:00",
+            "require": {
+                "php": ">=8.1"
+            },
+            "source": {
+                "reference": "feb1edf4e546af3b85c5caebe8359a20db230ca3",
+                "type": "git",
+                "url": "https:\/\/github.com\/symfony\/deprecation-contracts.git"
+            },
+            "support": {
+                "source": "https:\/\/github.com\/symfony\/deprecation-contracts\/tree\/v3.8.1"
+            },
+            "time": "2026-09-16T14:15:10+00:00",
+            "type": "library",
+            "version": "v3.8.1"
         }
     ],
     "packages-dev": [],
-    "aliases": [],
-    "minimum-stability": "stable",
-    "stability-flags": {},
-    "prefer-stable": false,
+    "platform": [],
+    "platform-dev": [],
+    "plugin-api-version": "2.6.0",
     "prefer-lowest": false,
-    "platform": {},
-    "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "prefer-stable": false,
+    "stability-flags": []
 }

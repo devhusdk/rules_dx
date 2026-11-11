@@ -285,37 +285,9 @@ fn cpan_layout_rejects_a_stale_lock_json() {
     assert!(message.contains("run the cpan_compiler"), "{message}");
 }
 
-fn composer_workspace(digest_reference: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-composer-");
-    let root = scratch.path();
-    std::fs::create_dir_all(root.join("php")).expect("dir");
-    std::fs::write(
-        root.join("php/composer.lock"),
-        "{\"packages\":[{\"name\":\"psr/log\",\"version\":\"3.0.0\",\"dist\":{\"reference\":\"aaa\"}}],\"packages-dev\":[]}",
-    )
-    .expect("lock");
-    std::fs::write(
-        root.join("php/composer.digests.json"),
-        format!("{{\"packages\":{{\"psr/log\":{{\"reference\":\"{digest_reference}\"}}}}}}"),
-    )
-    .expect("digests");
-    let set = ResolvedSet {
-        name: "php".to_owned(),
-        ecosystem: Ecosystem::Composer,
-        dir: "php".to_owned(),
-        manifests: vec!["php/composer.json".to_owned()],
-        locks: vec![
-            "php/composer.lock".to_owned(),
-            "php/composer.digests.json".to_owned(),
-        ],
-        repository: None,
-    };
-    (scratch, set)
-}
-
 #[test]
 fn composer_locks_become_composer_sets() {
-    let module = "composer = use_extension(\"@rules_dx//php:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//php:composer.lock\", digests = \"//php:composer.digests.json\")\n";
+    let module = "composer = use_extension(\"@rules_dx//php:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//php:composer.lock.json\")\n";
     let registry = discover(module, &|_: &str| Err("none".to_owned()))
         .expect("discovers")
         .expect("registry");
@@ -324,7 +296,7 @@ fn composer_locks_become_composer_sets() {
     assert_eq!(set.manifests, ["php/composer.json"]);
     assert_eq!(
         set.locks,
-        ["php/composer.lock", "php/composer.digests.json"]
+        ["php/composer.lock.json", "php/composer.lock"]
     );
 }
 
@@ -403,21 +375,6 @@ fn zig_locks_become_zig_sets() {
     assert_eq!(set.manifests, ["app/build.zig.zon"]);
     assert_eq!(set.locks, ["app/zig.lock.json"]);
     assert_eq!(Ecosystem::parse("zig"), Some(Ecosystem::Zig));
-}
-
-#[test]
-fn composer_layout_accepts_matching_digests() {
-    let (scratch, set) = composer_workspace("aaa");
-    assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
-}
-
-#[test]
-fn composer_layout_rejects_a_stale_digest() {
-    let (scratch, set) = composer_workspace("bbb");
-    let error = check_backend_settings(scratch.path(), &set).expect_err("stale");
-    let message = error.to_string();
-    assert!(message.contains("psr/log"), "{message}");
-    assert!(message.contains("aaa"), "{message}");
 }
 
 #[test]

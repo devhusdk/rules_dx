@@ -222,14 +222,6 @@ pub enum DependencySetsError {
         detail: String,
     },
     #[error(
-        "dependency set {name:?} has a stale {lock}: {detail}; regenerate the digests for composer.lock"
-    )]
-    StaleComposerLock {
-        name: String,
-        lock: String,
-        detail: String,
-    },
-    #[error(
         "dependency set {name:?} has a stale {lock}: {detail}; run the haskell_deps_resolve target next to cabal.project"
     )]
     StaleCabalLock {
@@ -420,7 +412,7 @@ pub fn discover(
                 composer.name,
                 Ecosystem::Composer,
                 vec![in_dir(&dir, COMPOSER_JSON)],
-                vec![lock, path(composer.digests)?],
+                vec![lock, in_dir(&dir, COMPOSER_LOCK)],
             )?);
         }
         for fpm in module.fpm_locks().map_err(hub)? {
@@ -1235,7 +1227,7 @@ pub fn check_backend_settings(
             None => check_pinned_lock(set, MIX_LOCK),
         },
         Ecosystem::Julia => check_julia_layout(workspace, set),
-        Ecosystem::Composer => check_composer_layout(workspace, set),
+        Ecosystem::Composer => check_composer_layout(set),
         Ecosystem::Opam => check_opam_layout(set),
         Ecosystem::Ansible => check_ansible_layout(set),
         Ecosystem::Cabal => check_cabal_layout(workspace, set),
@@ -1454,53 +1446,8 @@ fn check_julia_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
     Ok(())
 }
 
-fn check_composer_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    check_pinned_lock(set, COMPOSER_LOCK)?;
-    let Some(digests) = set.locks.iter().find(|lock| lock.ends_with(".json")) else {
-        return Ok(());
-    };
-    let stale = |detail: String| DependencySetsError::StaleComposerLock {
-        name: set.name.clone(),
-        lock: digests.clone(),
-        detail,
-    };
-    let lock = in_dir(&set.dir, COMPOSER_LOCK);
-    let read = |file: &str| -> Result<serde_json::Value, DependencySetsError> {
-        let text = std::fs::read_to_string(workspace.join(file))
-            .map_err(|error| stale(format!("cannot read {file}: {error}")))?;
-        serde_json::from_str(&text).map_err(|error| stale(format!("cannot parse {file}: {error}")))
-    };
-    let lock_json = read(&lock)?;
-    let digests_json = read(digests)?;
-    for key in ["packages", "packages-dev"] {
-        let Some(entries) = lock_json.get(key).and_then(serde_json::Value::as_array) else {
-            continue;
-        };
-        for entry in entries {
-            let Some(name) = entry.get("name").and_then(serde_json::Value::as_str) else {
-                continue;
-            };
-            let wanted = entry
-                .get("dist")
-                .and_then(|dist| dist.get("reference"))
-                .and_then(serde_json::Value::as_str);
-            let have = digests_json
-                .get("packages")
-                .and_then(|packages| packages.get(name))
-                .and_then(|digest| digest.get("reference"))
-                .and_then(serde_json::Value::as_str);
-            match (wanted, have) {
-                (_, None) => return Err(stale(format!("it has no digest for {name}"))),
-                (Some(wanted), Some(have)) if wanted != have => {
-                    return Err(stale(format!(
-                        "its reference for {name} is {have}, but {lock} has {wanted}"
-                    )));
-                }
-                _ => {}
-            }
-        }
-    }
-    Ok(())
+fn check_composer_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    check_pinned_lock(set, COMPOSER_LOCK)
 }
 
 /// The name `@<name>` resolves the set's crate_universe hub by in the root module.

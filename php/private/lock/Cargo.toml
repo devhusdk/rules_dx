@@ -1,0 +1,27 @@
+[package]
+license = "Apache-2.0"
+name = "php_lock"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "php_lock"
+path = "src/resolve.rs"
+
+[[bin]]
+name = "php_lock_bin"
+path = "src/main.rs"
+
+[[test]]
+name = "resolve_test"
+path = "tests/resolve_test.rs"
+
+[dependencies]
+md-5 = "0.10"
+serde_json = "1"
+zip = { version = "9", default-features = false, features = [
+  "deflate-flate2-zlib",
+] }
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,5 +1,4 @@
 digests-file lua/tests/luarocks/luarocks.digests.json
-digests-file php/tests/fixtures/composer/composer.digests.json
 name cli/adopt/src/build_output.rs Cargo.lock
 name cli/adopt/src/build_output.rs Cargo.toml
 name cli/adopt/src/build_output.rs Gemfile.lock
@@ -454,10 +453,6 @@ name ocaml/private/quality/repos.bzl dune-project
 name ocaml/private/toolchain/repos.bzl dune-project
 name perl/lang.json cpanfile
 name perl/lang.json cpanfile.snapshot
-name php/private/composer/extensions.bzl composer.lock
-name php/private/composer/lock.bzl composer.lock
-name php/private/composer/repos.bzl composer.lock
-name php/private/php.bzl composer.lock
 name powershell/lang.json PSGallery.lock.json
 name powershell/lang.json PSGallery.requirements.psd1
 name python/private/sdist_cargo_vendor.bzl Cargo.lock
@@ -481,7 +476,6 @@ parser erlang/private/rebar_lock.bzl
 parser fortran/private/fpm_lock.bzl
 parser fortran/private/tools/fpm_lock.bzl
 parser lua/luarocks/lock.bzl
-parser php/private/composer/lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
 registry cpan
 registry fpm
@@ -499,10 +493,8 @@ resolve-doc perl/README.md 1
 resolve-doc php/README.md 1
 tag-attr bicep/extensions.bzl digest
 tag-attr lua/luarocks/extensions.bzl digests
-tag-attr php/private/composer/extensions.bzl digests
 tag-attr terraform/extensions.bzl sha256
 tag-attr terraform/extensions.bzl version
-tag-use MODULE.bazel composer.lock.digests
 tag-use MODULE.bazel luarocks.lock.digests
 tag-use MODULE.bazel ruby.bundle_fetch.gem_checksums
 tag-use MODULE.bazel ruby.toolchain.portable_ruby_checksums

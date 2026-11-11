@@ -700,8 +700,6 @@ test-location perl/private/wrapper_tests.bzl
 test-location perl/tests/BUILD.bazel
 test-location php/private/BUILD.bazel
 test-location php/private/BenchTest.php
-test-location php/private/composer/BUILD.bazel
-test-location php/private/composer/lock_tests.bzl
 test-location php/private/coverage/BUILD.bazel
 test-location php/private/toolchain/BUILD.bazel
 test-location php/private/toolchain/metadata_tests.bzl

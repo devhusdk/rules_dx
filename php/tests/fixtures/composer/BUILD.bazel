@@ -1,6 +1,5 @@
 # gazelle:exclude bin
 # gazelle:ignore
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//php:defs.bzl", "PHP_COMPATIBLE_WITH", "php_binary", "php_library", "php_test")
 load("@rules_dx//php/private:php.bzl", "php_autoload_tree")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
@@ -8,9 +7,9 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
-    "composer.digests.json",
     "composer.json",
     "composer.lock",
+    "composer.lock.json",
 ])
 
 php_library(
@@ -71,14 +70,6 @@ php_test(
     )
     for copy in ("a", "b")
 ]
-
-build_test(
-    name = "groups_test",
-    targets = [
-        "@php_fixture_vendor//:all_packages",
-        "@php_fixture_vendor//:dev_packages",
-    ],
-)
 
 real_source_target(
     name = "corpus_starlark",

@@ -73,6 +73,9 @@ pub struct Archive {
     /// The platform the archive is for; empty means every platform.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub platform: String,
+    /// The archive type when the URL does not end in its suffix.
+    #[serde(default, rename = "type", skip_serializing_if = "String::is_empty")]
+    pub kind: String,
 }
 
 /// What a resolver returns: the closure, with a digest only where its registry states one.

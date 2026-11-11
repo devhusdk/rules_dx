@@ -463,7 +463,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `uv.project` | `<hub_name>-<pyproject directory name>` | `pyproject` | `lock` |
 | `go_deps.from_file` with `go_mod` | `go` | `go_mod` | `go.sum` beside it |
 | `ruby.bundle_fetch` | `name`, default `bundle` | `gemfile` | `gemfile_lock` |
-| `composer.lock` of `@rules_dx//php:extensions.bzl` | `name` | `composer.json` beside the lock | `lock`, `digests` |
+| `composer.lock` of `@rules_dx//php:extensions.bzl` | `name` | `composer.json` beside the lock | `lock` |
 | `dub.lock` of `@rules_dx//d:extensions.bzl` | `name` | `dub.json` beside `lock` | `lock` |
 | `fortran.fpm` of `@rules_dx//fortran:extensions.bzl` | `name` | `fpm.toml` beside the lock | `lock` |
 | `luarocks.lock` of `@rules_dx//lua:extensions.bzl` | `name` | `lock` | `digests` |
@@ -536,13 +536,12 @@ julia_pkg.from_manifest(
 composer = use_extension("@rules_dx//php:extensions.bzl", "composer")
 composer.lock(
     name = "php_deps",
-    digests = "//apps/php:composer.digests.json",
-    lock = "//apps/php:composer.lock",
+    lock = "//apps/php:composer.lock.json",
 )
 ```
 
-- `composer.json` must sit beside `composer.lock`.
-- `dx update <set>:<vendor/name> <version>` edits the constraint in `composer.json`, runs `composer update` and refreshes `composer.digests.json`.
+- `composer.json` must sit beside `composer.lock.json`.
+- `dx update <set>:<vendor/name> <version>` edits the constraint in `composer.json` and runs the `@rules_dx//php:lock` step, which rewrites `composer.lock.json` and `composer.lock`.
 - `dx security` matches `composer.lock` against `.dx/local/advisory/packagist.json`.
 
 ### dub

@@ -74,16 +74,16 @@ PSR-4 layout is not required.
 
 ## Composer packages
 
-Packages come from a `composer.lock` that Composer wrote. Bazel fetches every
-package through its repository cache; Composer never runs at fetch time and
-no resolver runs.
+Packages come from `composer.lock.json`, which `bazel run @rules_dx//php:lock -- --dir <dir>`
+writes beside `composer.json` from the Packagist API. It also writes the
+`composer.lock` that Composer reads. Bazel fetches every package through its
+repository cache; Composer never runs at fetch time.
 
 ```starlark
 composer = use_extension("@rules_dx//php:extensions.bzl", "composer")
 composer.lock(
     name = "vendor",
-    digests = "//:composer.digests.json",
-    lock = "//:composer.lock",
+    lock = "//:composer.lock.json",
 )
 use_repo(composer, "vendor")
 ```
@@ -94,36 +94,17 @@ Each package is the label `@vendor//<vendor>/<name>`, for example
 `@vendor//psr/http-factory`; put it in the `deps` of a `php_library`,
 `php_binary` or `php_test`. Its `require`, `replace` and `provide` entries
 become deps, so a requirement that matches no package in the lock fails the
-build. `@vendor//:all_packages` and `@vendor//:dev_packages` group the
-`packages` and `packages-dev` entries. A target stages its packages under
+build. A target stages its packages under
 `vendor/<name>/` and writes their lock entries into
 `vendor/composer/installed.json`; the same `composer dump-autoload` then builds
 the PSR-4, PSR-0, classmap and `files` autoload. A class whose package is not in
 `deps` still fails with `Class "..." not found`. Package files are not linted.
 
-`composer.digests.json` pins the archives, because GitHub dists have an empty
-`shasum` in the lock:
+The lock step keeps the locked version of a package while its requirements allow it and otherwise picks the newest stable release they allow. `dx update <set>:<package>` resolves that package afresh. It records
+the archive sha256 and the PSR-4 namespaces of every package, and reuses
+unchanged packages without downloading them. Branch constraints and a `minimum-stability` other than `stable` are refused.
 
-```json
-{
-  "packages": {
-    "psr/log": {
-      "reference": "<dist reference of composer.lock>",
-      "sha256": "<archive sha256>",
-      "urls": ["https://mirror.example/psr-log.zip"]
-    }
-  }
-}
-```
-
-`urls` is optional; those URLs are tried before the lock mirrors and
-`dist.url`. GitHub keeps the files of a commit stable but not the zip bytes,
-so mirror archives you depend on. After `composer update` a digest whose
-`reference` no longer matches the lock fails with "re-pin". A missing or stale
-digest downloads the archive without a checksum, then fails and prints the
-entry to commit; review it in the diff.
-
-Refused: `composer-plugin` packages, packages without a zip or tar dist
+Refused: `composer-plugin` packages, packages without a zip dist
 (source-only), and `ext-*` requirements the pinned PHP lacks. Scripts never
 run. Do not depend on `phpunit/phpunit` from the lock; `php_test` uses the
 pinned PHPUnit phar.

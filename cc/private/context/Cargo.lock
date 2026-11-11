@@ -4156,6 +4156,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "php_lock"
+version = "0.0.0"
+dependencies = [
+ "md-5",
+ "serde_json",
+ "tempfile",
+ "zip",
+]
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"

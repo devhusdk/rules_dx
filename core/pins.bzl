@@ -92,6 +92,7 @@ def _lock_repo_impl(rctx):
                 sha256 = archive["sha256"],
                 output = name,
                 strip_prefix = archive.get("strip_prefix", ""),
+                type = archive.get("type", ""),
             )
         rctx.file(name + "/BUILD.bazel", rctx.attr.builds[name])
     rctx.file("BUILD.bazel", "")

@@ -1131,7 +1131,7 @@ rust_test(
         "//lua/private/toolchain:corpus_starlark",
         "//ocaml/private/quality:corpus_starlark",
         "//ocaml/private/toolchain:corpus_starlark",
-        "//php/private/composer:corpus_starlark",
+        "//php/private/lock:corpus_starlark",
         "//php/private/toolchain:corpus_starlark",
         "//powershell/private/toolchain:corpus_starlark",
         "//qt/private/sdk:corpus_starlark",

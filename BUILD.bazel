@@ -26,6 +26,9 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude go/tests/fixtures/gotype
 # gazelle:exclude go/private/tools/modfmt
 # gazelle:exclude tools/docs/components/fixture
+# gazelle:exclude core/quality/tiers/gopls
+# gazelle:exclude tools/docs/lua
+# gazelle:exclude bcr_test_module/qt_hello
 # gazelle:exclude d/tests/fixtures
 # gazelle:exclude android/tests
 # gazelle:exclude cli/cli/tests/fake_generate

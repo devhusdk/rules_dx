@@ -28,7 +28,7 @@ func manifestConfig() *config.Config {
 
 func manifestLoads() func(func(string) string) []rule.LoadInfo {
 	return func(func(string) string) []rule.LoadInfo {
-		return []rule.LoadInfo{{Name: "@rules_dx//dot/rules:defs.bzl", Symbols: []string{dotKind}}}
+		return []rule.LoadInfo{{Name: "@rules_dx//dot:defs.bzl", Symbols: []string{dotKind}}}
 	}
 }
 
@@ -433,7 +433,7 @@ func TestWitnessCreatesAWholeBuildFile(t *testing.T) {
 	if !strings.Contains(content, `name = "demo"`) || !strings.Contains(content, `name = "native"`) {
 		t.Errorf("create content must carry both rules, got:\n%s", content)
 	}
-	if !strings.Contains(content, `load("@rules_dx//dot/rules:defs.bzl", "dot_library"`) {
+	if !strings.Contains(content, `load("@rules_dx//dot:defs.bzl", "dot_library"`) {
 		t.Errorf("create content must carry the apparent load, got:\n%s", content)
 	}
 
@@ -454,7 +454,7 @@ func TestWitnessEditsAnExistingBuildFile(t *testing.T) {
 	for _, prefix := range recorderPrefixes {
 		t.Run(prefix, func(t *testing.T) {
 			rec := manifestRecorder(t, prefix)
-			old := "load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\n\ndot_library(\n    name = \"demo\",\n)\n"
+			old := "load(\"@rules_dx//dot:defs.bzl\", \"dot_library\")\n\ndot_library(\n    name = \"demo\",\n)\n"
 			f := mustLoadData(t, "/repo/pkg/BUILD.bazel", "pkg", old)
 			rule.NewRule(dotKind, "extra").Insert(f)
 			rec.Record(
@@ -489,7 +489,7 @@ func TestWitnessKeepsCRLFFiles(t *testing.T) {
 	for _, prefix := range recorderPrefixes {
 		t.Run(prefix, func(t *testing.T) {
 			rec := manifestRecorder(t, prefix)
-			steady := stableContent(t, rec, "/repo/steady/BUILD.bazel", "steady", "load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\n\ndot_library(\n    name = \"demo\",\n)\n")
+			steady := stableContent(t, rec, "/repo/steady/BUILD.bazel", "steady", "load(\"@rules_dx//dot:defs.bzl\", \"dot_library\")\n\ndot_library(\n    name = \"demo\",\n)\n")
 			crlfSteady := strings.ReplaceAll(steady, "\n", "\r\n")
 			f := mustLoadData(t, "/repo/steady/BUILD.bazel", "steady", crlfSteady)
 			rec.Record(
@@ -500,7 +500,7 @@ func TestWitnessKeepsCRLFFiles(t *testing.T) {
 				t.Fatalf("Witness on a CRLF file without changes changed = %v, err = %v, file = %+v", changed, err, got)
 			}
 
-			old := "load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\r\n\r\ndot_library(\r\n    name = \"demo\",\r\n)\r\n"
+			old := "load(\"@rules_dx//dot:defs.bzl\", \"dot_library\")\r\n\r\ndot_library(\r\n    name = \"demo\",\r\n)\r\n"
 			f = mustLoadData(t, "/repo/pkg/BUILD.bazel", "pkg", old)
 			rule.NewRule(dotKind, "extra").Insert(f)
 			rec.Record(
@@ -570,11 +570,11 @@ func TestEmitWritesOneManifest(t *testing.T) {
 			rec.OutPath = out
 			rec.Mode = "check"
 			cfg := manifestConfig()
-			old := "load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\n\ndot_library(\n    name = \"demo\",\n)\n"
+			old := "load(\"@rules_dx//dot:defs.bzl\", \"dot_library\")\n\ndot_library(\n    name = \"demo\",\n)\n"
 			changed := mustLoadData(t, "/repo/pkg/BUILD.bazel", "pkg", old)
 			rule.NewRule(dotKind, "extra").Insert(changed)
 			steady := mustLoadData(t, "/repo/steady/BUILD.bazel", "steady",
-				stableContent(t, rec, "/repo/steady/BUILD.bazel", "steady", "load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\n"))
+				stableContent(t, rec, "/repo/steady/BUILD.bazel", "steady", "load(\"@rules_dx//dot:defs.bzl\", \"dot_library\")\n"))
 			rec.Record(language.GenerateArgs{Rel: "pkg", Dir: "/repo/pkg", File: changed, Config: cfg}, language.GenerateResult{})
 			rec.Record(language.GenerateArgs{Rel: "steady", Dir: "/repo/steady", File: steady, Config: cfg}, language.GenerateResult{})
 			rec.Record(
@@ -646,7 +646,7 @@ func TestEmitReportsCleanWhenNothingChanged(t *testing.T) {
 	rec.Mode = "check"
 	cfg := manifestConfig()
 	steady := mustLoadData(t, "/repo/steady/BUILD.bazel", "steady",
-		stableContent(t, rec, "/repo/steady/BUILD.bazel", "steady", "load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\n"))
+		stableContent(t, rec, "/repo/steady/BUILD.bazel", "steady", "load(\"@rules_dx//dot:defs.bzl\", \"dot_library\")\n"))
 	rec.Record(language.GenerateArgs{Rel: "steady", Dir: "/repo/steady", File: steady, Config: cfg}, language.GenerateResult{})
 	if err := rec.Emit(nil); err != nil {
 		t.Fatalf("Emit: %v", err)
@@ -668,10 +668,10 @@ func TestEmitMatchesFinalizeGolden(t *testing.T) {
 	}
 	cfg := manifestConfig()
 	changed := mustLoadData(t, "/repo/a/pkg/BUILD.bazel", "a/pkg",
-		"load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\n\nfilegroup(\n    name = \"keep\",\n)\n")
+		"load(\"@rules_dx//dot:defs.bzl\", \"dot_library\")\n\nfilegroup(\n    name = \"keep\",\n)\n")
 	rule.NewRule("filegroup", "extra").Insert(changed)
 	steady := mustLoadData(t, "/repo/steady/BUILD.bazel", "steady",
-		stableContent(t, rec, "/repo/steady/BUILD.bazel", "steady", "load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\n\ndot_library(\n    name = \"steady\",\n)\n"))
+		stableContent(t, rec, "/repo/steady/BUILD.bazel", "steady", "load(\"@rules_dx//dot:defs.bzl\", \"dot_library\")\n\ndot_library(\n    name = \"steady\",\n)\n"))
 	rec.Record(language.GenerateArgs{Rel: "a/pkg", Dir: "/repo/a/pkg", File: changed, Config: cfg}, language.GenerateResult{})
 	rec.Record(language.GenerateArgs{Rel: "steady", Dir: "/repo/steady", File: steady, Config: cfg}, language.GenerateResult{})
 	rec.Record(

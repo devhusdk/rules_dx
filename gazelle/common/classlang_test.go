@@ -45,7 +45,7 @@ func clsSpec() ClassLangSpec {
 		LanguageName:   clsLanguage,
 		LibraryKind:    clsKind,
 		MainRule:       "cls_binary",
-		DefsPackage:    "cls/rules:defs.bzl",
+		DefsPackage:    "cls:defs.bzl",
 		UnresolvedHint: "add a local cls_library",
 		Exts:           []string{".cls"},
 		TestSuffixes:   []string{"Test"},
@@ -105,7 +105,7 @@ func TestClassLangMetadata(t *testing.T) {
 		t.Fatalf("kinds = %v", l.Kinds())
 	}
 	loads := l.Loads()
-	if len(loads) != 1 || loads[0].Name != "@rules_dx//cls/rules:defs.bzl" || !reflect.DeepEqual(loads[0].Symbols, []string{clsKind}) {
+	if len(loads) != 1 || loads[0].Name != "@rules_dx//cls:defs.bzl" || !reflect.DeepEqual(loads[0].Symbols, []string{clsKind}) {
 		t.Fatalf("loads = %+v", loads)
 	}
 }
@@ -260,7 +260,7 @@ const clsAndroidKind = "cls_android_library"
 func clsAndroidSpec() ClassLangSpec {
 	spec := clsSpec()
 	v := AndroidVariant(clsAndroidKind)
-	v.DefsPackage = "cls/rules:defs.bzl"
+	v.DefsPackage = "cls:defs.bzl"
 	spec.Variant = v
 	return spec
 }
@@ -359,7 +359,7 @@ func TestAndroidVariantLoads(t *testing.T) {
 		got = append(got, load.Name+":"+strings.Join(load.Symbols, ","))
 	}
 	slices.Sort(got)
-	want := []string{"@rules_dx//cls/rules:defs.bzl:cls_library,cls_android_library"}
+	want := []string{"@rules_dx//cls:defs.bzl:cls_library,cls_android_library"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("loads = %v", got)
 	}

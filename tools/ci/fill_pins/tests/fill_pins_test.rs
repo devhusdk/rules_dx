@@ -332,3 +332,21 @@ fn check_uses_the_repo_in_the_expected_pins() {
     .unwrap_err();
     assert!(error.contains("differs from the attested"), "{error}");
 }
+
+#[test]
+fn bump_scan_action_rewrites_every_reference() {
+    let old = "a".repeat(40);
+    let new = "b".repeat(40);
+    let text = format!(
+        "uses: {REPO}/.github/actions/assert-no-secret@{old}\nuses: {REPO}/.github/actions/other@{old}\nuses: {REPO}/.github/actions/assert-no-secret@{old}\n"
+    );
+    let (out, count) = fill_pins::bump_scan_action(&text, REPO, &new).unwrap();
+    assert_eq!(count, 2);
+    assert_eq!(
+        out,
+        format!(
+            "uses: {REPO}/.github/actions/assert-no-secret@{new}\nuses: {REPO}/.github/actions/other@{old}\nuses: {REPO}/.github/actions/assert-no-secret@{new}\n"
+        )
+    );
+    assert!(fill_pins::bump_scan_action(&text, REPO, "main").is_err());
+}

@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
 
-use dx_nested::compose::compose_module;
+use dx_nested::compose::{compose_module, write_rules_py_patches};
 use serde_json::{Value, json};
 
 /// Returns the lowercase hex SHA-256 digest of `data`.
@@ -2221,6 +2221,7 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         }
         _ => module,
     };
+    write_rules_py_patches(workspace, source)?;
     write(&workspace.join("MODULE.bazel"), &module)?;
     copy(&manifest.bazelversion, &workspace.join(".bazelversion"))
 }

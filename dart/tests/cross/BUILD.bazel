@@ -1,22 +1,13 @@
-load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//dart:defs.bzl", "DART_COMPATIBLE_WITH")
-load("@rules_dx//rust:defs.bzl", "rust_test")
+load("@rules_dx//tools/testing:test_macros.bzl", "cross_binary_test")
 
-platform_transition_filegroup(
-    name = "greet_arm64",
-    srcs = ["//dart/tests/runtime:greet_bin"],
-    target_compatible_with = DART_COMPATIBLE_WITH,
-    target_platform = "@rules_dx//tools/platforms:linux_arm64",
-)
-
-rust_test(
+cross_binary_test(
     name = "cross_arm64_test",
-    srcs = ["cross_arm64_test.rs"],
-    data = [":greet_arm64"],
-    env = {"GREET_ARM64": "$(rootpath :greet_arm64)"},
+    binary = "//dart/tests/runtime:greet_bin",
+    machine = "aarch64",
+    platform = "@rules_dx//tools/platforms:linux_arm64",
     target_compatible_with = DART_COMPATIBLE_WITH,
-    deps = ["@rules_dx//tools/testing:dx_testing"],
 )
 
 real_source_target(

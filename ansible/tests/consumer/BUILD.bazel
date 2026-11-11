@@ -1,0 +1,9 @@
+load("@rules_dx//ansible:defs.bzl", "ansible_library")
+
+# dx: written once, yours to edit
+
+ansible_library(
+    name = "ansible",
+    srcs = ["site.yml"],
+    visibility = ["//visibility:public"],
+)

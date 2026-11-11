@@ -68,23 +68,32 @@ func (l *luaLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolv
 	return specs
 }
 
+// benchKind is the handwritten bench macro, which generation never emits.
+const benchKind = "lua_bench"
+
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
-// claimedByBinary lists the sources handwritten lua_binary rules own through
-// main or srcs; generation leaves them out of the library.
+// claimedByBinary lists the sources handwritten lua_binary and lua_bench rules
+// own through main or srcs, or through their name for a lua_bench without
+// either; generation leaves them out of the library.
 func claimedByBinary(f *rule.File) map[string]bool {
 	claimed := make(map[string]bool)
 	if f == nil {
 		return claimed
 	}
 	for _, r := range f.Rules {
-		if r.Kind() != BinaryKind {
+		if r.Kind() != BinaryKind && r.Kind() != benchKind {
 			continue
 		}
-		if main := r.AttrString("main"); main != "" {
+		main := r.AttrString("main")
+		srcs := r.AttrStrings("srcs")
+		if main == "" && len(srcs) == 0 && r.Kind() == benchKind {
+			main = r.Name() + ".lua"
+		}
+		if main != "" {
 			claimed[main] = true
 		}
-		for _, src := range r.AttrStrings("srcs") {
+		for _, src := range srcs {
 			claimed[src] = true
 		}
 	}

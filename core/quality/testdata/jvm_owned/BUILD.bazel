@@ -84,6 +84,7 @@ scala_library(
 scala_library(
     name = "scala_missing_dep",
     srcs = ["ScalaMissingDep.scala"],
+    tags = ["manual"],
     unused_dependency_checker_mode = "off",
     deps = [":sc_wrapper"],
 )

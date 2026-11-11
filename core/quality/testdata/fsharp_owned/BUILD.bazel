@@ -33,5 +33,6 @@ fsharp_library(
     name = "dirty",
     testonly = True,
     srcs = ["Dirty.fs"],
+    tags = ["manual"],
     deps = ["@paket.main//fsharp.core"],
 )

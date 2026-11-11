@@ -77,6 +77,7 @@ cc_library(
     name = "windows_param_file",
     visibility = ["//core/quality:__pkg__"],
     srcs = ["clean.c"],
+    tags = ["manual"],
 )
 
 cc_library(

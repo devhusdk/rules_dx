@@ -27,6 +27,7 @@ rust_library(
     name = "dirty",
     srcs = ["dirty.rs"],
     edition = "2021",
+    tags = ["manual"],
 )
 
 rust_library(

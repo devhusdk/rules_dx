@@ -25,7 +25,41 @@ owns_helm_class_test(
 chart_provider_test(
     name = "chart_provider_test",
     size = "small",
+    expected_release_name = "demo",
     target_under_test = ":app",
+)
+
+helm_chart(
+    name = "dotted_release",
+    srcs = [
+        "Chart.yaml",
+        "templates/cm.yaml",
+        "values.yaml",
+    ],
+    namespace = "prod",
+    release_name = "my.app",
+    subcharts = ["charts/dep-1.0.0.tgz"],
+    values = ["values-prod.yaml"],
+)
+
+chart_provider_test(
+    name = "dotted_release_provider_test",
+    size = "small",
+    expected_release_name = "my.app",
+    target_under_test = ":dotted_release",
+)
+
+helm_chart(
+    name = "empty_label_release",
+    srcs = ["Chart.yaml"],
+    release_name = "a..b",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "empty_label_release_fails",
+    expected_failure_substring = "release_name 'a..b' must be dot-separated DNS-1123 labels",
+    target = ":empty_label_release",
 )
 
 helm_chart(
@@ -49,7 +83,7 @@ helm_chart(
 
 failure_test(
     name = "bad_release_fails",
-    expected_failure_substring = "release_name 'Bad_Name' must be a DNS-1123 label",
+    expected_failure_substring = "release_name 'Bad_Name' must be dot-separated DNS-1123 labels",
     target = ":bad_release",
 )
 

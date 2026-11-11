@@ -61,7 +61,7 @@ def _hermetic_impl(ctx):
     commands = analysistest.target_under_test(env)[CudaCompileInfo].commands
     asserts.true(env, len(commands) > 0, "expected at least one CudaCompile action")
     for executable, argv in commands:
-        asserts.true(env, in_component(executable, "nvcc") and executable.endswith("nvcc/bin/nvcc"), "nvcc must come from the cuda_nvcc component, got " + executable)
+        asserts.true(env, in_component(executable, "nvcc") and executable.removesuffix(".exe").endswith("nvcc/bin/nvcc"), "nvcc must come from the cuda_nvcc component, got " + executable)
         asserts.true(env, "-ccbin" in argv, "nvcc must get -ccbin")
         _assert_host_compiler(env, argv, ctx.attr.allow_unsupported, ctx.attr.host_compiler)
         for arg in argv:

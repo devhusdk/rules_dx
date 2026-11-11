@@ -297,3 +297,36 @@ fn init_leaves_polyglot_locks_untouched_and_is_idempotent() {
     let check = dx(&root, &home, &["init"]);
     assert_eq!(check.code, 0, "{}", check.stderr);
 }
+
+#[test]
+fn init_is_idempotent_for_each_language_alone() {
+    let cases: [(&str, &str); 3] = [
+        (
+            "Cargo.toml",
+            "[package]\nname = \"app\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+        ),
+        (
+            "package.json",
+            "{\n  \"name\": \"app\",\n  \"version\": \"0.1.0\",\n  \"private\": true\n}\n",
+        ),
+        (
+            "pyproject.toml",
+            "[project]\nname = \"app\"\nversion = \"0.1.0\"\nrequires-python = \">=3.12\"\n",
+        ),
+    ];
+    for (name, text) in cases {
+        let (_guard, root, home) = setup(&format!("adopt-lang-{}", name.replace('.', "-")));
+        write(&root.join(name), text);
+        init(&root, &home);
+        assert_eq!(read(&root.join(name)), text, "init changed {name}");
+        assert!(
+            root.join("MODULE.bazel").is_file(),
+            "{name}: no MODULE.bazel"
+        );
+        let before = snapshot(&root);
+        init(&root, &home);
+        assert_eq!(before, snapshot(&root), "{name}: second init changed files");
+        let check = dx(&root, &home, &["init"]);
+        assert_eq!(check.code, 0, "{name}: {}", check.stderr);
+    }
+}

@@ -39,7 +39,7 @@ erlang_bytecode(
 )
 
 erlang_eunit_test(
-    name = "consumer_test",
+    name = "my_project_test",
     size = "small",
     compiled_suites = [":test_modules"],
     target = ":test_erlang_app",

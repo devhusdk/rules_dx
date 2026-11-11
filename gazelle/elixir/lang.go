@@ -234,6 +234,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		}
 		r := rule.NewRule(TestKind, testName)
 		r.SetAttr("srcs", tests)
+		r.SetAttr("size", "small")
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapImportSet(imports))
 	}

@@ -10,6 +10,7 @@ elixir_app(
 
 elixir_test(
     name = "hello_test",
+    size = "small",
     srcs = [
         "test/hello_test.exs",
         "test/test_helper.exs",

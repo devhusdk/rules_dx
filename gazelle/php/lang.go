@@ -106,13 +106,14 @@ func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 // php_test per *Test.php under tests or test. Sources in src below a directory
 // without its own BUILD file belong to the library, so those directories
 // generate nothing. php_binary targets stay hand-written, and files a
-// library lists in autoload_files stay out of its srcs.
+// hand-written rule lists in srcs or a library lists in autoload_files stay
+// out of its srcs.
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter, excludes []string) language.GenerateResult {
 	if ownedByAncestor(args) {
 		return language.GenerateResult{}
 	}
 	autoload := autoloadFiles(args)
-	srcs, err := librarySources(args, excludes, autoload)
+	srcs, err := librarySources(args, excludes, autoload, handwrittenSources(args))
 	if err != nil {
 		rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
 		return language.GenerateResult{}
@@ -197,6 +198,24 @@ func autoloadFiles(args language.GenerateArgs) map[string][]string {
 	return out
 }
 
+// handwrittenSources lists the srcs of rules that are neither php_library nor
+// php_test, such as php_binary and php_bench.
+func handwrittenSources(args language.GenerateArgs) map[string]bool {
+	out := make(map[string]bool)
+	if args.File == nil {
+		return out
+	}
+	for _, r := range args.File.Rules {
+		if r.Kind() == LibraryKind || r.Kind() == TestKind {
+			continue
+		}
+		for _, src := range r.AttrStrings("srcs") {
+			out[path.Clean(src)] = true
+		}
+	}
+	return out
+}
+
 // ownsStale reports whether generation could have produced r: it is the
 // library, or none of its srcs exist in the directory.
 func ownsStale(args language.GenerateArgs, libName string) func(*rule.Rule) bool {
@@ -240,8 +259,11 @@ func importsOf(args language.GenerateArgs, files []string, isTest bool, rep comm
 // librarySources lists the package-relative .php files the library owns: the
 // directory's own sources plus every source under src that no nested package
 // or exclude claims. Tests and autoload_files are left out.
-func librarySources(args language.GenerateArgs, excludes []string, autoload map[string][]string) ([]string, error) {
+func librarySources(args language.GenerateArgs, excludes []string, autoload map[string][]string, handwritten map[string]bool) ([]string, error) {
 	skip := make(map[string]bool)
+	for f := range handwritten {
+		skip[f] = true
+	}
 	for _, files := range autoload {
 		for _, f := range files {
 			skip[path.Clean(f)] = true

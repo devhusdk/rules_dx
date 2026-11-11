@@ -270,3 +270,16 @@ func TestGenerateKeepsHandwrittenTestsWithoutSources(t *testing.T) {
 		t.Errorf("empty = %v, want none", result.Empty)
 	}
 }
+
+func TestGenerateSkipsSourcesOfHandwrittenRules(t *testing.T) {
+	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte(`php_bench(name = "sum_bench", srcs = ["SumBench.php"])`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	writeFixture(t, root, map[string]string{"pkg/SumBench.php": "<?php\n"})
+	result := NewLanguage().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg"), Rel: "pkg", File: file, RegularFiles: []string{"SumBench.php"}})
+	if len(result.Gen) != 0 {
+		t.Errorf("generated %v, want none", result.Gen)
+	}
+}

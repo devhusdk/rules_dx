@@ -7,7 +7,31 @@ fn write(path: &str, text: &str) {
     std::fs::write(path, text).expect("write file");
 }
 
+/// Runs the gazelle binary named by `DX_FAKE_GAZELLE` for a `dx:generate` or `dx:generate_check` argument; false when it does not apply.
+fn gazelle(args: &[String]) -> bool {
+    let Some(bin) = std::env::var("DX_FAKE_GAZELLE").ok().filter(|v| !v.is_empty()) else {
+        return false;
+    };
+    let Some(target) = args.iter().find(|a| a.ends_with("dx:generate") || a.ends_with("dx:generate_check")) else {
+        return false;
+    };
+    let cwd = std::env::current_dir().expect("current dir");
+    let mut command = std::process::Command::new(bin);
+    command.arg(format!("-repo_root={}", cwd.display()));
+    let excludes = std::env::var("DX_FAKE_GAZELLE_ARGS").unwrap_or_default();
+    command.args(excludes.split(' ').filter(|a| !a.is_empty()));
+    if target.ends_with("dx:generate_check") {
+        command.arg("-mode=diff");
+    }
+    if let Some(split) = args.iter().position(|a| a == "--") {
+        command.args(&args[split + 1..]);
+    }
+    let status = command.status().expect("run gazelle");
+    std::process::exit(status.code().unwrap_or(1));
+}
+
 fn bazel(args: &[String]) {
+    gazelle(args);
     if let Ok(intended) = std::env::var("DX_GENERATE_INTENDED") {
         if !intended.is_empty() {
             let mode = std::env::var("DX_GENERATE_MODE").unwrap_or_else(|_| "default".into());

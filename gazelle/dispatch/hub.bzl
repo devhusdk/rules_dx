@@ -7,6 +7,7 @@ DISPATCH = Label("//gazelle/dispatch")
 _VISIBILITY = """    visibility = [
         "@rules_dx//dx:__pkg__",
         "@rules_dx//gazelle:__subpackages__",
+        "@rules_dx//tools/testing/consumer:__pkg__",
     ],
 """
 

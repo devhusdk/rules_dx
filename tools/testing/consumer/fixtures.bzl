@@ -1,5 +1,6 @@
 """The consumer fixtures and the test of each."""
 
+load("//dx:generate.bzl", "GENERATE_EXCLUDES")
 load("//rust:defs.bzl", "rust_test")
 
 CONSUMER_FIXTURES = [
@@ -43,11 +44,14 @@ def consumer_fixture_tests(name, size):
                 "pending.txt",
                 "//cli/cli:dx",
                 "//cli/cli/tests/fake_generate",
+                "@dx_gazelle//:gazelle",
                 "@dx_test_tags_sources//:consumer.json",
             ],
             env = {
                 "DX_BIN": "$(rootpath //cli/cli:dx)",
                 "DX_FAKE_GENERATE": "$(rootpath //cli/cli/tests/fake_generate)",
+                "DX_GAZELLE_BIN": "$(rootpath @dx_gazelle//:gazelle)",
+                "DX_FAKE_GAZELLE_ARGS": " ".join(GENERATE_EXCLUDES),
                 "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
                 "DX_CONSUMER_LANG": lang,
                 "DX_CONSUMER_PENDING": "$(rootpath pending.txt)",

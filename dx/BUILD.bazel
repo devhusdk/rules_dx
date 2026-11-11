@@ -1,14 +1,9 @@
 load("@gazelle//:def.bzl", "gazelle")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":generate.bzl", "GENERATE_EXCLUDES")
 load("//tools/visibility:visibility.bzl", "VIS_DX_COMMANDS", "VIS_DX_ROOTS")
 
 package(default_visibility = ["//visibility:private"])
-
-# dx's own config tree and installed packages are never generated.
-GENERATE_EXCLUDES = [
-    "-exclude=.dx",
-    "-exclude=**/node_modules",
-]
 
 gazelle(
     name = "generate",
@@ -46,6 +41,9 @@ filegroup(
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "generate.bzl",
+    ],
     tags = ["corpus"],
 )

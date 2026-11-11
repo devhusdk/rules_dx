@@ -1215,9 +1215,61 @@ fn blocked_download(offline: bool, run: &Run) -> Option<String> {
     ))
 }
 
+/// The longest one captured command may run.
+const CALL_DEADLINE: Duration = Duration::from_secs(300);
+
+/// Like `Command::output`, but kills the child and returns an error naming the command and its output so far once `limit` passes.
+fn output_within(command: &mut Command, limit: Duration) -> Result<std::process::Output, String> {
+    use std::io::Read;
+    use std::process::Stdio;
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| error.to_string())?;
+    fn drain<R: Read + Send + 'static>(stream: Option<R>) -> std::thread::JoinHandle<Vec<u8>> {
+        std::thread::spawn(move || {
+            let mut bytes = Vec::new();
+            if let Some(mut stream) = stream {
+                let _ = stream.read_to_end(&mut bytes);
+            }
+            bytes
+        })
+    }
+    let stdout = drain(child.stdout.take());
+    let stderr = drain(child.stderr.take());
+    let start = std::time::Instant::now();
+    let status = loop {
+        match child.try_wait().map_err(|error| error.to_string())? {
+            Some(status) => break status,
+            None if start.elapsed() >= limit => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let tail = |bytes: Vec<u8>| {
+                    let text = String::from_utf8_lossy(&bytes).into_owned();
+                    let keep = text.len().saturating_sub(4000);
+                    text[text.ceil_char_boundary(keep)..].to_string()
+                };
+                let out = tail(stdout.join().unwrap_or_default());
+                let err = tail(stderr.join().unwrap_or_default());
+                return Err(format!(
+                    "{command:?} did not finish within {}s and was killed\nstdout (tail):\n{out}\nstderr (tail):\n{err}",
+                    limit.as_secs()
+                ));
+            }
+            None => std::thread::sleep(Duration::from_millis(100)),
+        }
+    };
+    Ok(std::process::Output {
+        status,
+        stdout: stdout.join().unwrap_or_default(),
+        stderr: stderr.join().unwrap_or_default(),
+    })
+}
+
 fn capture(mut command: Command, what: &str, offline: bool) -> Run {
-    let output = command
-        .output()
+    let output = output_within(&mut command, CALL_DEADLINE)
         .unwrap_or_else(|error| panic!("run {what}: {error}"));
     let run = Run {
         status: output.status,

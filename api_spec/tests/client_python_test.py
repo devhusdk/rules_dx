@@ -6,7 +6,7 @@ import httpx
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from petstore_py.api.default import get_pet
+from petstore_py.api.default import get_pet, list_pets
 from petstore_py.client import Client
 
 
@@ -26,6 +26,9 @@ class ClientPythonTest(unittest.TestCase):
         self.assertEqual(pet.id, 7)
         self.assertEqual(pet.name, "Rex")
         self.assertEqual(pet.tag, "dog")
+
+    def test_list_pets_operation_is_generated(self):
+        self.assertTrue(callable(list_pets.sync))
 
 
 if __name__ == "__main__":

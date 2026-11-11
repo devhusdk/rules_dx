@@ -11,6 +11,7 @@ use dx_plan::plan::{
 };
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::resolve_for_generate;
+use dx_adopt::dependency_sets::Ecosystem;
 use std::io::Write;
 use std::path::Path;
 
@@ -64,14 +65,14 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
                 env.err,
                 format!("would create {lock}; run dx generate --apply"),
             );
-        } else if *manifest == "Cargo.toml" {
+        } else if *manifest == manifest_of(Ecosystem::Cargo) {
             match std::fs::write(workspace.join(lock), "") {
                 Ok(()) => seeded_cargo = true,
                 Err(error) => {
                     wiring.failed(env.err, format!("{lock} not created: {error}"));
                 }
             }
-        } else if *manifest == "package.json" {
+        } else if *manifest == manifest_of(Ecosystem::Npm) {
             seed_pnpm_lock(request, env, &mut wiring);
         } else {
             seed_uv_lock(request, env, &mut wiring);
@@ -164,11 +165,21 @@ fn wire_maven_locks(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut W
 }
 
 fn lock_for(manifest: &str) -> &'static str {
-    match manifest {
-        "Cargo.toml" => "Cargo.lock",
-        "package.json" => "pnpm-lock.yaml",
-        _ => "uv.lock",
+    if manifest == manifest_of(Ecosystem::Cargo) {
+        lock_of(Ecosystem::Cargo)
+    } else if manifest == manifest_of(Ecosystem::Npm) {
+        lock_of(Ecosystem::Npm)
+    } else {
+        lock_of(Ecosystem::Uv)
     }
+}
+
+fn manifest_of(ecosystem: Ecosystem) -> &'static str {
+    ecosystem.manifest_name()
+}
+
+fn lock_of(ecosystem: Ecosystem) -> &'static str {
+    ecosystem.lockfiles()[0].as_str()
 }
 
 fn has_root_build(workspace: &Path) -> bool {
@@ -184,10 +195,10 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wirin
         &request.bazel_startup_options,
         false,
     );
-    let argv = match dx_update::backend::uv_lock_argv("uv.lock", ".", &closure, false, false) {
+    let argv = match dx_update::backend::uv_lock_argv(lock_of(Ecosystem::Uv), ".", &closure, false, false) {
         Ok(argv) => argv,
         Err(error) => {
-            wiring.failed(env.err, format!("uv.lock not created: {error}"));
+            wiring.failed(env.err, format!("{} not created: {error}", lock_of(Ecosystem::Uv)));
             return;
         }
     };
@@ -200,7 +211,7 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wirin
         env.workspace,
         env.err,
         wiring,
-        "uv.lock",
+        lock_of(Ecosystem::Uv),
         "uv lock",
         env.runner.run_hermetic(&argv, env.workspace, &pairs),
     );
@@ -221,7 +232,7 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wir
     let Some(dir) = env.workspace.to_str() else {
         wiring.failed(
             env.err,
-            "pnpm-lock.yaml not created: non-UTF-8 path".to_owned(),
+            format!("{} not created: non-UTF-8 path", lock_of(Ecosystem::Npm)),
         );
         return;
     };
@@ -232,13 +243,13 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wir
         env.workspace,
         env.err,
         wiring,
-        "pnpm-lock.yaml",
+        lock_of(Ecosystem::Npm),
         "pnpm install",
         env.runner.run(&argv, env.workspace, &[]),
     );
 }
 
-/// Fills the empty `Cargo.lock` with the crate_universe repin `dx update` runs.
+/// Fills the empty cargo lock with the crate_universe repin `dx update` runs.
 fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let argv = dx_update::backend::configured_fetch_argv(&request.bazel_head(), "crates", false);
     let vars = dx_update::backend::cargo_env("workspace", "crates");
@@ -250,7 +261,7 @@ fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wi
         env.workspace,
         env.err,
         wiring,
-        "Cargo.lock",
+        lock_of(Ecosystem::Cargo),
         "bazel fetch",
         env.runner.run(&argv, env.workspace, &pairs),
     );
@@ -688,9 +699,9 @@ mod tests {
     fn lock_workspace(name: &str, mode: &str) -> Harness {
         let mut harness = Harness::new(name);
         harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
-        harness.write_source("pnpm-lock.yaml", "");
+        harness.write_source(lock_of(Ecosystem::Npm), "");
         harness.write_source(
-            "package.json",
+            manifest_of(Ecosystem::Npm),
             "{\"dependencies\":{\"left-pad\":\"1.3.0\"}}",
         );
         harness.intended = Some(intended_witness(mode, true, "", ""));
@@ -704,7 +715,7 @@ mod tests {
         assert_eq!(code, 0, "{out}{err}");
         let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert!(
-            module.contains("pnpm_lock = \"//:pnpm-lock.yaml\""),
+            module.contains(&format!("pnpm_lock = \"//:{}\"", lock_of(Ecosystem::Npm))),
             "{module}"
         );
     }
@@ -723,7 +734,7 @@ mod tests {
         let mut harness = Harness::new(name);
         harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
         harness.write_source("BUILD.bazel", "");
-        harness.write_source("Cargo.toml", "[package]\nname = \"app\"\n");
+        harness.write_source(manifest_of(Ecosystem::Cargo), "[package]\nname = \"app\"\n");
         harness.intended = Some(intended_witness(mode, true, "", ""));
         harness
     }
@@ -735,7 +746,7 @@ mod tests {
         assert_eq!(code, 1, "{out}{err}");
         let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert!(
-            module.contains("cargo_lockfile = \"//:Cargo.lock\""),
+            module.contains(&format!("cargo_lockfile = \"//:{}\"", lock_of(Ecosystem::Cargo))),
             "{module}"
         );
         let builds = harness.build_argv.borrow();
@@ -748,9 +759,10 @@ mod tests {
         assert!(env.contains(&("CARGO_BAZEL_REPIN".to_owned(), "workspace".to_owned())));
         assert!(env.contains(&("CARGO_BAZEL_REPIN_ONLY".to_owned(), "crates".to_owned())));
         assert!(
-            err.contains(
-                "dx: Cargo.lock is still empty after bazel fetch; run dx generate --apply again"
-            ),
+            err.contains(&format!(
+                "dx: {} is still empty after bazel fetch; run dx generate --apply again",
+                lock_of(Ecosystem::Cargo)
+            )),
             "{err}"
         );
         assert!(!err.contains("dx init"), "{err}");
@@ -759,9 +771,10 @@ mod tests {
     #[test]
     fn generate_apply_wires_and_pins_a_maven_lock() {
         let mut harness = Harness::new("generate-maven-lock");
+        let maven = lock_of(Ecosystem::Maven);
         harness.write_source(
             "MODULE.bazel",
-            "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"com.google.guava:guava:33.4.0-jre\"],\n    lock_file = \"//third_party:maven_install.json\",\n)\nuse_repo(maven, \"maven\")\n",
+            &format!("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"com.google.guava:guava:33.4.0-jre\"],\n    lock_file = \"//third_party:{maven}\",\n)\nuse_repo(maven, \"maven\")\n"),
         );
         harness.write_source("BUILD.bazel", "");
         harness.intended = Some(intended_witness("default", true, "", ""));
@@ -770,13 +783,13 @@ mod tests {
         let read = |rel: &str| std::fs::read_to_string(harness.workspace.join(rel)).expect(rel);
         assert_eq!(
             read("third_party/BUILD.bazel"),
-            "exports_files([\"maven_install.json\"])\n"
+            format!("exports_files([\"{maven}\"])\n")
         );
         assert_eq!(
             read("BUILD.bazel"),
-            "# gazelle:dx_external maven third_party/maven_install.json maven\n"
+            format!("# gazelle:dx_external maven third_party/{maven} maven\n")
         );
-        assert_eq!(read("third_party/maven_install.json"), "");
+        assert_eq!(read(&format!("third_party/{maven}")), "");
         let builds = harness.build_argv.borrow();
         let pin = builds
             .iter()
@@ -788,7 +801,7 @@ mod tests {
                 .contains(&("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned()))
         );
         assert!(
-            err.contains("dx: third_party/maven_install.json is still empty after the Maven pin"),
+            err.contains(&format!("dx: third_party/{maven} is still empty after the Maven pin")),
             "{err}"
         );
     }
@@ -799,14 +812,17 @@ mod tests {
         let (code, out, err) = harness.run(&["generate"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            err.contains("dx: would create Cargo.lock; run dx generate --apply"),
+            err.contains(&format!(
+                "dx: would create {}; run dx generate --apply",
+                lock_of(Ecosystem::Cargo)
+            )),
             "{err}"
         );
-        assert!(!harness.workspace.join("Cargo.lock").exists());
+        assert!(!harness.workspace.join(lock_of(Ecosystem::Cargo)).exists());
         let (code, out, _) = harness.run(&["generate", "--output=json"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("\"code\":\"wiring_pending\""), "{out}");
-        assert!(out.contains("would create Cargo.lock"), "{out}");
+        assert!(out.contains(&format!("would create {}", lock_of(Ecosystem::Cargo))), "{out}");
         assert!(
             !harness
                 .build_argv
@@ -820,14 +836,14 @@ mod tests {
     fn generate_leaves_a_full_cargo_lock_alone_and_asks_for_a_root_build() {
         let mut harness = Harness::new("generate-seed-full");
         harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
-        harness.write_source("Cargo.toml", "[package]\nname = \"app\"\n");
-        harness.write_source("Cargo.lock", "version = 4\n");
+        harness.write_source(manifest_of(Ecosystem::Cargo), "[package]\nname = \"app\"\n");
+        harness.write_source(lock_of(Ecosystem::Cargo), "version = 4\n");
         harness.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(err.contains("run dx init --apply"), "{err}");
-        assert!(!err.contains("Cargo.lock not written"), "{err}");
-        let lock = std::fs::read_to_string(harness.workspace.join("Cargo.lock")).expect("read");
+        assert!(!err.contains(&format!("{} not written", lock_of(Ecosystem::Cargo))), "{err}");
+        let lock = std::fs::read_to_string(harness.workspace.join(lock_of(Ecosystem::Cargo))).expect("read");
         assert_eq!(lock, "version = 4\n");
     }
 
@@ -835,12 +851,12 @@ mod tests {
     fn generate_reports_a_uv_lock_it_cannot_create() {
         let mut harness = Harness::new("generate-seed-uv");
         harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
-        harness.write_source("pyproject.toml", "[project]\nname = \"app\"\n");
+        harness.write_source(manifest_of(Ecosystem::Uv), "[project]\nname = \"app\"\n");
         harness.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("dx: uv.lock not created:"), "{err}");
-        assert!(!harness.workspace.join("uv.lock").exists());
+        assert!(err.contains(&format!("dx: {} not created:", lock_of(Ecosystem::Uv))), "{err}");
+        assert!(!harness.workspace.join(lock_of(Ecosystem::Uv)).exists());
     }
 
     #[test]

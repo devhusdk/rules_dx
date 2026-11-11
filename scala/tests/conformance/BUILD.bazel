@@ -1,0 +1,49 @@
+load("//scala:defs.bzl", "scala_binary", "scala_library", "scala_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+scala_library(
+    name = "conformance",
+    srcs = ["Greet.scala"],
+)
+
+scala_binary(
+    name = "hello",
+    srcs = ["Main.scala"],
+    main_class = "conformance.Main",
+    deps = [":conformance"],
+)
+
+scala_test(
+    name = "pass_subject_test",
+    srcs = ["PassTest.scala"],
+    main_class = "conformance.PassTest",
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+scala_test(
+    name = "fail_subject_test",
+    srcs = ["FailTest.scala"],
+    main_class = "conformance.FailTest",
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "Greet.scala",
+    expected = "hello world",
+    failing_case = "failingCase",
+    failing_test = ":fail_subject_test",
+    lang = "scala",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

@@ -149,10 +149,7 @@ rst fail_test *
 rst pass_test *
 ruby coverage_test *
 rust coverage_test *
-scala build_test *
 scala coverage_test *
-scala fail_test *
-scala pass_test *
 sql build_test *
 sql coverage_test *
 sql fail_test *

@@ -65,6 +65,7 @@ real_source_target(
         "testdata/entries/README.md",
         "testdata/merge/README.md",
         "testdata/module_per_file/README.md",
+        "testdata/namespace_open/README.md",
         "testdata/nested_module/README.md",
         "testdata/order/README.md",
         "testdata/signature/README.md",

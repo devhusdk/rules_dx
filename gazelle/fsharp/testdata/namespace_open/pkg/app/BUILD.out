@@ -1,0 +1,8 @@
+load("@rules_dx//fsharp:defs.bzl", "fsharp_test")
+
+fsharp_test(
+    name = "price_test",
+    size = "small",
+    srcs = ["PriceTest.fs"],
+    deps = ["//pkg/core"],
+)

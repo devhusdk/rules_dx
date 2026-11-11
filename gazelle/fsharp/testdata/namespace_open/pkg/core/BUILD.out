@@ -1,0 +1,8 @@
+load("@rules_dx//fsharp:defs.bzl", "fsharp_library")
+
+fsharp_library(
+    name = "core",
+    # do not sort: F# compile order, dependencies first
+    srcs = ["Price.fs"],
+    visibility = ["//visibility:public"],
+)

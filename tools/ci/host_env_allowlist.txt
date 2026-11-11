@@ -95,7 +95,6 @@ cli/process/src/runner_tests.rs shebang 1
 cli/process/src/stderr_tail.rs host-path 1
 cli/setup/src/prune/live.rs host-path 1
 cli/shim/tests/e2e.rs shebang 1
-cli/shim/tests/interop.rs host-path 1
 cli/test_scratch/src/lib.rs host-path 2
 cli/worktree/src/host.rs host-path 1
 cli/worktree/src/pool.rs host-path 3

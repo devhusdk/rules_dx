@@ -73,3 +73,17 @@ coreutils_applet_probe = rule(
     doc = "Runs the pinned `touch` applet by name with only the applet directory on PATH.",
     toolchains = [COREUTILS_TOOLCHAIN_TYPE],
 )
+
+def _coreutils_applets_impl(ctx):
+    tools = coreutils(ctx)
+    applets = [f for f in tools.files.to_list() if f != tools.binary]
+    return [DefaultInfo(
+        files = depset(applets),
+        runfiles = ctx.runfiles(transitive_files = tools.files),
+    )]
+
+coreutils_applets = rule(
+    implementation = _coreutils_applets_impl,
+    doc = "The applet links of the resolved coreutils, with the multicall binary in runfiles.",
+    toolchains = [COREUTILS_TOOLCHAIN_TYPE],
+)

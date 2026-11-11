@@ -76,7 +76,8 @@ fn tools_dx(workspace: &Path, env: &[(&str, &Path)]) -> std::process::Output {
     } else {
         let mut command = Command::new("/bin/sh");
         command.arg(workspace.join("tools/dx")).arg("hello");
-        command.env("PATH", "/usr/bin:/bin");
+        let applets = dx_testing::env_files("DX_COREUTILS");
+        command.env("PATH", applets[0].parent().expect("applet directory"));
         command
     };
     command

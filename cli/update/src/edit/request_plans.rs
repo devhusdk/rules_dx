@@ -463,7 +463,7 @@ pub(super) fn plan_gemfile(
     Ok(edited)
 }
 
-/// Rewrites the constraint of a package in the `require` or `require-dev` of a composer.json.
+/// Rewrites the constraint of a package in the `require` or `require-dev` of a composer manifest.
 ///
 /// The operator stays; only a single constraint such as `^1.2` or `~1.2.3` is rewritten.
 pub(super) fn plan_composer_json(

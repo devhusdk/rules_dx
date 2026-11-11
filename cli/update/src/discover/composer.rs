@@ -1,4 +1,4 @@
-//! Lists Composer packages whose newest stable release on Packagist is newer than composer.lock.
+//! Lists Composer packages whose newest stable release on Packagist is newer than the lock.
 
 use dx_error::DxError;
 
@@ -8,9 +8,9 @@ use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://repo.packagist.org";
 
-/// Checks each direct require of the composer.json files against its locked version.
+/// Checks each direct require of the composer manifests against its locked version.
 ///
-/// `locks` are the composer.lock texts of the same set; a package that is not locked is skipped.
+/// `locks` are the lock texts of the same set; a package that is not locked is skipped.
 pub fn outdated(
     set: &str,
     manifests: &[String],

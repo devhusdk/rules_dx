@@ -56,7 +56,7 @@ pub(super) fn check(
         }),
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "composer validates the whole composer.lock; select the set without a package",
+            reason: "composer validates the whole lock; select the set without a package",
         }),
     }
 }

@@ -159,7 +159,7 @@ impl AddRequest {
             }),
             UpdateSet::Composer => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
-                hint: "edit composer.json and run `composer update`",
+                hint: "edit the composer manifest and run `composer update`",
             }),
             UpdateSet::SwiftPm => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),

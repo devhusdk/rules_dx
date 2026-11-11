@@ -43,7 +43,7 @@ pub enum ConfiguredKind {
     Cabal,
     /// A julia set; only the package's `[compat]` entry in Project.toml is edited.
     Julia,
-    /// A composer set; only the constraint in composer.json is edited, then composer.lock is refreshed.
+    /// A composer set; only the constraint in the composer manifest is edited, then the lock is refreshed.
     Composer,
     /// A swiftpm set; only the package's `from:` or `exact:` version in Package.swift is edited.
     SwiftPm,

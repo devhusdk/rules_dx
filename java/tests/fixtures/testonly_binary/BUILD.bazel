@@ -1,9 +1,10 @@
-# gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//java:defs.bzl", "java_binary", "java_library")
 
 package(default_visibility = ["//:__subpackages__"])
 
+# keep
 java_library(
     name = "lib",
     testonly = True,
@@ -21,4 +22,11 @@ java_binary(
 build_test(
     name = "testonly_binary_build_test",
     targets = [":testonly_main"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

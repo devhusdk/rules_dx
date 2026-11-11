@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//core/quality:native_config.bzl", "roslyn_config")
 load("@rules_dx//rust:defs.bzl", "rust_test")
@@ -30,6 +29,7 @@ roslyn_config(
     src = "@rules_dx//core/quality/tiers/roslyn:strict.globalconfig",
 )
 
+# keep
 csharp_library(
     name = "standard",
     testonly = True,
@@ -38,6 +38,7 @@ csharp_library(
     aspect_hints = [":standard_config"],
 )
 
+# keep
 csharp_library(
     name = "strict",
     testonly = True,

@@ -1,4 +1,4 @@
-# gazelle:ignore
+# gazelle:exclude Short.fs
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 

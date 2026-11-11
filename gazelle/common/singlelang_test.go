@@ -1701,3 +1701,24 @@ func TestApparentLoadsFallBackToModuleName(t *testing.T) {
 		t.Fatalf("got %v", got)
 	}
 }
+
+func TestDropKeptRemovesGeneratedRuleOverKeptSrcs(t *testing.T) {
+	file, err := rule.LoadData("BUILD.bazel", "", []byte("# keep\ndot_library(\n    name = \"lib\",\n    srcs = [\"a.dot\"],\n)\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	covered := rule.NewRule(dotKind, "pkg")
+	covered.SetAttr("srcs", []string{"a.dot"})
+	other := rule.NewRule(dotKind, "other")
+	other.SetAttr("srcs", []string{"a.dot", "b.dot"})
+	got := dropKept(file, language.GenerateResult{
+		Gen:     []*rule.Rule{covered, other},
+		Imports: []interface{}{"x", "y"},
+	})
+	if len(got.Gen) != 1 || got.Gen[0].Name() != "other" {
+		t.Fatalf("Gen = %v, want only other", got.Gen)
+	}
+	if len(got.Imports) != 1 || got.Imports[0] != "y" {
+		t.Fatalf("Imports = %v, want [y]", got.Imports)
+	}
+}

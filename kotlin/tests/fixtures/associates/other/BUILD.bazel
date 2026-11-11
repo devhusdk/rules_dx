@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//kotlin:defs.bzl", "kotlin_library")
 load("@rules_dx//kotlin/tests/fixtures/associates:associates_tests.bzl", "kotlin_friend_path_test")
@@ -8,6 +7,7 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
+# keep
 kotlin_library(
     name = "user",
     srcs = ["OtherUser.kt"],

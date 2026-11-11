@@ -1,6 +1,5 @@
-# gazelle:ignore
-load("//dart:defs.bzl", "dart_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//dart:defs.bzl", "dart_library")
 
 # gazelle:dx_external pub dart/private/bench/pubspec.lock dx_dart_bench_deps
 
@@ -11,10 +10,11 @@ exports_files([
     "pubspec.yaml",
 ])
 
+# keep
 dart_library(
     name = "bench",
-    srcs = ["lib/dx_bench.dart"],
     package_name = "dx_bench",
+    srcs = ["lib/dx_bench.dart"],
     deps = ["@dx_dart_bench_deps//:benchmark_harness"],
 )
 

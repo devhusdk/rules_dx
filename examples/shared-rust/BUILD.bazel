@@ -187,7 +187,7 @@ rust_test(
         "BOARD": "$(rootpath assets/board.txt)",
         "NOTES": "$(rootpath assets/notes.txt)",
         "TASKS_WASM": "$(rootpath :tasks_wasi)",
-        "WASMTIME": "$(rootpath //wasi:wasmtime)",
+        "WASMTIME": "$(rootpath //tools/testing/wasi:wasmtime)",
     },
     tags = ["block-network"],
     deps = ["//tools/testing/wasi:wasi_run"],
@@ -275,7 +275,7 @@ rust_test(
     env = {
         "DX_TASKS_RELEASE": "$(rootpath :tasks_release)",
         "DX_TASKS_WASI_RELEASE": "$(rootpath :tasks_wasi_release)",
-        "DX_WASMTIME": "$(rootpath //wasi:wasmtime)",
+        "DX_WASMTIME": "$(rootpath //tools/testing/wasi:wasmtime)",
     },
     tags = [
         "block-network",

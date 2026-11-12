@@ -208,6 +208,16 @@ mod tests {
     }
 
     #[test]
+    fn dart_format_matches_a_forward_slash_syntax_error_to_a_backslash_file() {
+        let files = [r"D:\w\bad.dart"];
+        let out = b"Formatted 0 files (0 changed) in 0.00 seconds.\n";
+        let err = b"line 2, column 1 of d:/w/bad.dart: Expected an identifier.\n";
+        let findings = parse_dart_format(out, err, Some(65), &files).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, r"D:\w\bad.dart");
+    }
+
+    #[test]
     fn dart_format_fails_closed_when_exit_and_output_disagree() {
         let files = &FILES[..2];
         assert!(parse_dart_format(DIRTY.as_bytes(), b"", Some(0), files).is_err());

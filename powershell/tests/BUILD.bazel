@@ -5,8 +5,6 @@ load(":toolchain_tests.bzl", "powershell_metadata_tests")
 
 package(default_visibility = ["//visibility:private"])
 
-exports_files(["defs_tests.bzl"])
-
 powershell_metadata_tests(
     name = "metadata",
     size = "small",
@@ -25,7 +23,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "toolchain_tests.bzl",
-        "defs_tests.bzl",
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],

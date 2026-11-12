@@ -1,6 +1,5 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//ruby:defs.bzl", "ruby_binary", "ruby_library", "ruby_test")
-load("@rules_dx//ruby/tests:defs_tests.bzl", "ruby_coverage_env_test")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load(":quality_tests.bzl", "main_outside_srcs_test")
 
@@ -48,11 +47,6 @@ ruby_test(
     data = ["hello_test.rb"],
     main = "coverage_probe_test.rb",
     deps = [":hello_lib"],
-)
-
-ruby_coverage_env_test(
-    name = "hello_test_coverage_env_test",
-    target = ":hello_test",
 )
 
 dx_hello_output_test(

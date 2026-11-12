@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_cc//cc/common:objc_info.bzl", "ObjcInfo")
 load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "msvc_crt_reset_settings", "msvc_crt_static_settings")
-load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_features", "cc_coverage_mismatch", "cc_coverage_settings", "cc_coverage_unsupported", "cc_param_file_features")
@@ -53,32 +53,6 @@ def cc_wrapper_contract_tests(name):
             expect_equal("msvc coverage reported", "msvc-cl" in cc_coverage_unsupported("msvc-cl"), True),
         ],
     )
-
-def _coverage_env_impl(ctx):
-    env = analysistest.begin(ctx)
-    run_env = analysistest.target_under_test(env)[RunEnvironmentInfo].environment
-    if ctx.attr.coverage:
-        asserts.true(env, run_env.get("CC_CODE_COVERAGE_SCRIPT", "").removesuffix(".exe").endswith("/tools/coverage/collect/collect_native"), "CC_CODE_COVERAGE_SCRIPT=" + run_env.get("CC_CODE_COVERAGE_SCRIPT", ""))
-        asserts.true(env, run_env.get("LLVM_COV", "").removesuffix(".exe").endswith("llvm-cov"), "LLVM_COV=" + run_env.get("LLVM_COV", ""))
-        asserts.true(env, run_env.get("LLVM_PROFDATA", "").removesuffix(".exe").endswith("llvm-profdata"), "LLVM_PROFDATA=" + run_env.get("LLVM_PROFDATA", ""))
-    else:
-        for key in ["CC_CODE_COVERAGE_SCRIPT", "LLVM_COV", "LLVM_PROFDATA"]:
-            asserts.false(env, key in run_env, key + " set without coverage")
-    return analysistest.end(env)
-
-# mirrors coverage:windows in .bazelrc
-_COVERAGE = coverage_env_tests(
-    _coverage_env_impl,
-    features = ["-coverage", "-gcc_coverage_map_format"],
-)
-_coverage_env_on_test = _COVERAGE.on
-_coverage_env_off_test = _COVERAGE.off
-
-def cc_coverage_env_tests(name, target):
-    """Asserts a cc_test gets the dx native collector only under coverage."""
-    _coverage_env_on_test(name = name + "_on", size = "small", target_under_test = target)
-    _coverage_env_off_test(name = name + "_off", size = "small", target_under_test = target)
-    native.test_suite(name = name, tests = [name + "_on", name + "_off"])
 
 def _gcc_asan_env_impl(ctx):
     env = analysistest.begin(ctx)

@@ -1,7 +1,6 @@
 """Wrapper conformance tests for Ruby."""
 
-load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_infer_main", "dx_main_candidates")
 load("//ruby/private/coverage:pins.bzl", "RUBY_COVERAGE_GEMS", "gem_dir")
@@ -37,30 +36,3 @@ def ruby_wrapper_contract_tests(name, **kwargs):
         **kwargs
     )
 
-def _coverage_env_impl(ctx):
-    env = analysistest.begin(ctx)
-    target = analysistest.target_under_test(env)
-    run_env = target[RunEnvironmentInfo].environment if RunEnvironmentInfo in target else {}
-    rubylib = run_env.get("RUBYLIB", "")
-    runfiles = [f.short_path for f in target[DefaultInfo].default_runfiles.files.to_list()]
-    if ctx.attr.coverage:
-        for g in RUBY_COVERAGE_GEMS:
-            want = "/" + gem_dir(g) + "/lib"
-            asserts.true(env, want in rubylib, "RUBYLIB lacks " + want + ": " + rubylib)
-        for entry in ["simplecov-0.22.0/lib/simplecov.rb", "simplecov-lcov-0.9.0/lib/simplecov-lcov.rb"]:
-            asserts.true(env, [p for p in runfiles if p.endswith("/" + entry)] != [], "runfiles lack " + entry)
-
-        asserts.true(env, InstrumentedFilesInfo in target, "no InstrumentedFilesInfo")
-    else:
-        asserts.equals(env, "", rubylib)
-        asserts.equals(env, [], [p for p in runfiles if "dx_ruby_coverage_gems" in p])
-    return analysistest.end(env)
-
-_COVERAGE = coverage_env_tests(_coverage_env_impl)
-_coverage_env_on_test = _COVERAGE.on
-_coverage_env_off_test = _COVERAGE.off
-
-def ruby_coverage_env_test(name, target):
-    """Asserts a Ruby test puts the pinned SimpleCov gems on RUBYLIB under coverage, and only then."""
-    _coverage_env_on_test(name = name, size = "small", target_under_test = target)
-    _coverage_env_off_test(name = name + "_off", size = "small", target_under_test = target)

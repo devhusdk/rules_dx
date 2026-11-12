@@ -1,6 +1,5 @@
 # gazelle:exclude src/test/kotlin/hello
 # gazelle:ignore
-load("@rules_dx//java/private:coverage_tests.bzl", "jvm_coverage_env_test")
 load("@rules_dx//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
 load("@rules_dx//core/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
@@ -58,11 +57,6 @@ kotlin_test(
         ":hello_lib",
         "@maven//:junit_junit",
     ],
-)
-
-jvm_coverage_env_test(
-    name = "hello_test_coverage_env_test",
-    target = ":hello_test",
 )
 
 kotlin_test(

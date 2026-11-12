@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
-use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
+use dx_module_bazel::{ModuleError, ModuleFile, Value, compare_module_versions};
 
 /// Modules released together whose floors must move together.
 const SAME_FLOOR: &[&[&str]] = &[&["rules_rust", "rules_rust_wasm_bindgen"]];
@@ -94,6 +94,7 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
             .any(|call| call.str("module_name") == Some(name.as_str()));
         match module.override_version(name) {
             Err(_) if archived => {}
+            Err(ModuleError::OverrideNotFound { .. }) if floor == tested => {}
             Ok(version) if &version.value == tested => {}
             Ok(version) => problems.push(format!(
                 "single_version_override {name:?} is {} but its tested version is {tested}",
@@ -322,6 +323,13 @@ fn a_matching_fixture_passes() {
         ),
         Vec::<String>::new()
     );
+}
+
+#[test]
+fn a_dep_at_its_tested_version_needs_no_override() {
+    let table = fixture_table(&[("demo", "1.2.0", "1.2.0")]);
+    let bare = "# floor: equals tested\nbazel_dep(name = \"demo\", version = \"1.2.0\")\n";
+    assert_eq!(violations(bare, &table), Vec::<String>::new());
 }
 
 #[test]

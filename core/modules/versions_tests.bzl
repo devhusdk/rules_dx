@@ -55,10 +55,15 @@ def versions_contract_tests(name):
             expect_equal("cuda redist version extends the toolkit version", _CUDA_REDIST_VERSION.startswith(_CUDA_VERSION + "."), True),
             expect_equal("cuda pin urls sit under their cell platform", cuda_pin_urls_match_platform, [True] * len(cuda_pin_urls_match_platform)),
             expect_equal("cuda redist sha is sha256", len(_CUDA_REDIST_SHA256), 64),
+            expect_equal("cuda redist url names the redist version", _CUDA_REDIST_URL.endswith("redistrib_" + _CUDA_REDIST_VERSION + ".json"), True),
+            expect_equal("swift linux pins.json follows canonical", _PINS["dx_swift_format_macos_arm64"]["swift_linux"]["version"], _SWIFT_VERSION),
+            expect_equal("swift windows pins.json follows canonical", _PINS["dx_swift_format_macos_arm64"]["swift_windows"]["version"], _SWIFT_VERSION),
         ],
         file_blocks = {
-            "//:MODULE.bazel": [npm_dev_block, "    version = \"" + _RUBY_VERSION + "\",\n"] + [
-                "    sha256 = \"" + _CUDA_REDIST_SHA256 + "\",\n    urls = [\"" + _CUDA_REDIST_URL + "\"],",
+            "//:MODULE.bazel": [
+                npm_dev_block,
+                "    version = \"" + _RUBY_VERSION + "\",\n",
+                "dx_pins.archive(\n    name = \"cuda_redistrib_json\",\n    key = \"redist_manifest\",\n    pins = \"//cuda:pins.json\",\n)",
             ],
             "//tools/bazelrc:src/lib.rs": [
                 "\"build --java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\",",
@@ -70,7 +75,6 @@ def versions_contract_tests(name):
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",
             "//javascript/private/quality:package.json": "\"typedoc\": \"" + _TYPEDOC_VERSION + "\",\n    \"typescript\": \"" + _TYPESCRIPT_VERSION + "\",",
             "//javascript/private/quality:pnpm-lock.yaml": "  vue-component-meta@" + _VUE_COMPONENT_META_VERSION + ":\n",
-            "//rust:README.md": "rustfmt_version = \"" + _RUSTFMT_VERSION + "\",\n    versions = [\"" + _RUST_VERSION + "\"],",
             "//:rustfmt.toml": "edition = \"" + _RUST_EDITION + "\"",
             "//third_party/dotnet:paket.lock": "Google.Protobuf (3." + _PROTOBUF_VERSION + ")",
             "//third_party/go:go.mod": "go " + _GO_LANGUAGE_FLOOR,
@@ -98,7 +102,6 @@ def versions_contract_tests(name):
                                "name = \"rules_jvm_external\", version = \"" + _RULES_JVM_EXTERNAL_VERSION + "\"\n" +
                                "name = \"rules_zig\", version = \"" + _RULES_ZIG_VERSION + "\"\n" +
                                "name = \"rules_swift\", version = \"" + _RULES_SWIFT_VERSION + "\"\n" +
-                               "swift_version = \"" + _SWIFT_VERSION + "\"\n" +
                                "name = \"rules_dart\", version = \"" + _RULES_DART_VERSION + "\"\n" +
                                "dart.toolchain(dart_version = \"" + _DART_SDK_VERSION + "\")\n" +
                                "flutter.toolchain(flutter_version = \"" + _FLUTTER_SDK_VERSION + "\")\n" +

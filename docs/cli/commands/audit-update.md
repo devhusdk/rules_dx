@@ -56,7 +56,7 @@ Adopt fixtures under `tests/fixtures/adopt-*` select their own `-adopt` set. `//
 - Sets with snapshots: `cargo`, `go`, `maven`, `npm`, `npm-adopt`, `npm-adopt-polyglot`, `npm-tools`, `nuget`. The `npm-*` sets share the `npm` snapshot. Configured `uv` sets use `pypi`, `ruby` sets use `rubygems`.
 - Sets without a snapshot print `no advisory coverage for <sets>`.
 - A version dx cannot parse marks the package unassessed with `unsupported version syntax`, and the run exits `1`.
-- npm reads `pnpm-lock.yaml` (`lockfileVersion` 5.x, 6.0, 9.0), `package-lock.json` and `yarn.lock`. Each finding names its lockfile.
+- npm reads `pnpm-lock.yaml` (`lockfileVersion` 9.0), `package-lock.json` (`lockfileVersion` 3) and `yarn.lock`. Each finding names its lockfile.
 
 Each snapshot is one line in `.dx/pins`, next to the dx release lines, which dx's launchers ignore:
 

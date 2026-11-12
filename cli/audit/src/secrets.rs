@@ -70,9 +70,8 @@ pub fn ignored_path_patterns(paths: &[String]) -> Vec<String> {
 /// Builds the gitleaks config for a scan: the user's config (or the dx base
 /// when there is none) plus one paths-only allowlist for `patterns`. The
 /// `[extend] path` becomes `base`, which must be absolute because gitleaks
-/// resolves it from the working directory. A legacy `[allowlist]` moves into
-/// `[[allowlists]]`, because gitleaks rejects both at once. Every allowlist
-/// needs a description.
+/// resolves it from the working directory. Only `[[allowlists]]` is read; a
+/// `[allowlist]` table is an error. Every allowlist needs a description.
 pub fn scoped_config(
     user: Option<&str>,
     patterns: &[String],
@@ -107,16 +106,12 @@ pub fn scoped_config(
                 other.type_str()
             )));
         }
-        None => match table.remove("allowlist") {
-            Some(legacy @ toml::Value::Table(_)) => vec![legacy],
-            Some(other) => {
-                return Err(DxError::failure(format!(
-                    "invalid {CONFIG_FILE_NAME}: allowlist must be a table, got {}",
-                    other.type_str()
-                )));
-            }
-            None => Vec::new(),
-        },
+        None if table.contains_key("allowlist") => {
+            return Err(DxError::failure(format!(
+                "invalid {CONFIG_FILE_NAME}: [allowlist] is not supported; use [[allowlists]]"
+            )));
+        }
+        None => Vec::new(),
     };
     if let Some(text) = user {
         require_descriptions(text, &allowlists)?;
@@ -290,27 +285,38 @@ mod tests {
     }
 
     #[test]
-    fn scoped_config_migrates_a_legacy_allowlist() {
+    fn scoped_config_rejects_the_allowlist_table() {
+        let user = r#"
+[extend]
+path = ".dx/config/gitleaks/base.toml"
+
+[allowlist]
+description = "fixtures"
+regexes = ['''example''']
+"#;
+        let error = scoped_config(Some(user), &["^x$".to_owned()], BASE).expect_err("rejected");
+        assert!(error.to_string().contains("use [[allowlists]]"), "{error}");
+    }
+
+    #[test]
+    fn scoped_config_reads_the_allowlists_array() {
         let user = r#"
 title = "mine"
 [extend]
 path = ".dx/config/gitleaks/base.toml"
 
-[allowlist]
+[[allowlists]]
 description = "fixtures"
 regexTarget = "line"
 regexes = ['''example''']
 paths = ['''docs/.*\.md''']
 "#;
         let config = table(&scoped_config(Some(user), &["^x$".to_owned()], BASE).expect("config"));
-        assert!(!config.contains_key("allowlist"));
         assert_eq!(config["title"].as_str(), Some("mine"));
         let entries = allowlists(&config);
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0]["description"].as_str(), Some("fixtures"));
-        assert_eq!(entries[0]["regexTarget"].as_str(), Some("line"));
         assert_eq!(entries[0]["regexes"][0].as_str(), Some("example"));
-        assert_eq!(entries[0]["paths"][0].as_str(), Some(r"docs/.*\.md"));
         assert_eq!(ignored_entry_paths(&entries[1]), vec!["^x$"]);
     }
 

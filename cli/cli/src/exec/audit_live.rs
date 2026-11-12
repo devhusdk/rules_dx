@@ -1173,7 +1173,7 @@ pub(super) fn audit_live_license_exception_expiry_follows_the_pinned_date() {
 pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
-        harness.write_source(lock_of(Ecosystem::Npm), "packages:\n  react@18.2.0: {}\n");
+        harness.write_source(lock_of(Ecosystem::Npm), "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n");
         write_empty_cargo_lock(harness);
         harness.write_source(
                 "license.toml",
@@ -1188,7 +1188,7 @@ pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
 pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
-        harness.write_source(lock_of(Ecosystem::Npm), "packages:\n  react@18.2.0: {}\n");
+        harness.write_source(lock_of(Ecosystem::Npm), "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n");
         write_empty_cargo_lock(harness);
         harness.write_source(
                 "license.toml",
@@ -1200,7 +1200,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
 
     let runner = AuditRunner::clean();
     let (code, _out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
-        harness.write_source(lock_of(Ecosystem::Npm), "packages:\n  react@18.2.0: {}\n");
+        harness.write_source(lock_of(Ecosystem::Npm), "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n");
         write_empty_cargo_lock(harness);
         write_mit_licenses(harness);
     });
@@ -1373,7 +1373,7 @@ fn real_gitleaks_skips_git_ignored_paths_but_scans_tracked_and_untracked_files()
         if own_config {
             harness.write_source(
                 ".gitleaks.toml",
-                "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[allowlist]\ndescription = \"fixtures\"\nregexes = [\"never-matches-anything\"]\n",
+                "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[[allowlists]]\ndescription = \"fixtures\"\nregexes = [\"never-matches-anything\"]\n",
             );
         }
         dx_test_scratch::git(root, root, &["add", ".gitignore"]);

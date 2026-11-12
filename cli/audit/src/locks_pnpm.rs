@@ -45,50 +45,37 @@ fn pnpm_resolution_is_git(resolution: &yaml_serde::Value) -> bool {
     false
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum PnpmKeyStyle {
-    /// lockfileVersion 5.x: `/name/version_peers`.
-    V5,
-    /// lockfileVersion 6 and later, or no version: `name@version(peers)`, with a `/` prefix before 9.
-    Modern,
-}
+const PNPM_LOCKFILE_MAJOR: u64 = 9;
 
-fn pnpm_key_style(value: &yaml_serde::Value) -> Result<PnpmKeyStyle, DxError> {
-    let version = match value.get("lockfileVersion") {
-        None | Some(yaml_serde::Value::Null) => return Ok(PnpmKeyStyle::Modern),
-        Some(version) => version,
-    };
-    let invalid = || {
+fn check_pnpm_lockfile_version(value: &yaml_serde::Value) -> Result<(), DxError> {
+    let unsupported = |found: String| {
         DxError::failure(format!(
-            "invalid lock: unsupported lockfileVersion {version:?}"
+            "invalid lock: unsupported pnpm lockfileVersion {found}; dx reads lockfileVersion {PNPM_LOCKFILE_MAJOR}.0"
         ))
+    };
+    let version = match value.get("lockfileVersion") {
+        None | Some(yaml_serde::Value::Null) => return Err(unsupported("(missing)".to_owned())),
+        Some(version) => version,
     };
     let major = if let Some(text) = version.as_str() {
         text.trim()
             .split('.')
             .next()
             .and_then(|major| major.parse::<u64>().ok())
-            .ok_or_else(invalid)?
-    } else if let Some(number) = version.as_f64() {
-        if !number.is_finite() || number < 0.0 {
-            return Err(invalid());
-        }
-        number.floor() as u64
     } else {
-        return Err(invalid());
+        version
+            .as_f64()
+            .filter(|number| number.is_finite() && *number >= 0.0)
+            .map(|number| number.floor() as u64)
     };
-    Ok(if major < 6 {
-        PnpmKeyStyle::V5
+    if major == Some(PNPM_LOCKFILE_MAJOR) {
+        Ok(())
     } else {
-        PnpmKeyStyle::Modern
-    })
+        Err(unsupported(format!("{version:?}")))
+    }
 }
 
-fn resolve_pnpm_key(
-    key: &str,
-    detail: &yaml_serde::Value,
-    style: PnpmKeyStyle,
-) -> Result<(String, String), DxError> {
+fn resolve_pnpm_key(key: &str, detail: &yaml_serde::Value) -> Result<(String, String), DxError> {
     let unresolved =
         || DxError::failure(format!("invalid lock: cannot resolve package key `{key}`"));
     let detail_str = |field: &str| {
@@ -100,17 +87,7 @@ fn resolve_pnpm_key(
             .map(str::to_owned)
     };
     let detail_identity = || Some((detail_str("name")?, detail_str("version")?));
-    let resolved = match style {
-        PnpmKeyStyle::V5 => match key.strip_prefix('/') {
-            Some(rest) => detail_identity().or_else(|| split_pnpm_v5_key(rest)),
-            None => detail_identity(),
-        },
-        PnpmKeyStyle::Modern => match key.strip_prefix('/') {
-            Some(rest) => detail_identity().or_else(|| split_pnpm_key(rest)),
-            None => split_pnpm_key(key).or_else(detail_identity),
-        },
-    };
-    match resolved {
+    match split_pnpm_key(key).or_else(detail_identity) {
         Some((name, version)) if !name.is_empty() && !version.is_empty() => Ok((name, version)),
         _ => Err(unresolved()),
     }
@@ -118,7 +95,6 @@ fn resolve_pnpm_key(
 
 fn pnpm_packages_from_value(
     value: &yaml_serde::Value,
-    style: PnpmKeyStyle,
     out: &mut Vec<LockedPackage>,
 ) -> Result<(), DxError> {
     let packages = match value.get("packages") {
@@ -141,7 +117,7 @@ fn pnpm_packages_from_value(
         if key.contains("link:") || key.contains("file:") {
             continue;
         }
-        let (name, version) = resolve_pnpm_key(&key, detail, style)?;
+        let (name, version) = resolve_pnpm_key(&key, detail)?;
         if version.starts_with("link:") || version.starts_with("file:") {
             continue;
         }
@@ -200,8 +176,8 @@ pub fn parse_pnpm_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         }
         parsed_any = true;
         if value.get("packages").is_some() {
-            let style = pnpm_key_style(&value)?;
-            pnpm_packages_from_value(&value, style, &mut out)?;
+            check_pnpm_lockfile_version(&value)?;
+            pnpm_packages_from_value(&value, &mut out)?;
         } else if value.as_mapping().is_none() {
             return Err(DxError::failure("invalid lock: missing packages"));
         }
@@ -383,31 +359,6 @@ pub fn parse_yarn_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     out.sort_by(|a, b| (&a.name, &a.version, a.is_git).cmp(&(&b.name, &b.version, b.is_git)));
     out.dedup_by(|b, a| a.name == b.name && a.version == b.version && a.is_git == b.is_git);
     Ok(out)
-}
-
-/// Splits a lockfileVersion 5 key after its leading `/`: `name/version_peers`, `@scope/name/version_peers`.
-pub(crate) fn split_pnpm_v5_key(rest: &str) -> Option<(String, String)> {
-    let rest = rest.trim();
-    let mut parts = rest.splitn(if rest.starts_with('@') { 3 } else { 2 }, '/');
-    let name = if rest.starts_with('@') {
-        let scope = parts.next()?;
-        let pkg = parts.next()?;
-        format!("{scope}/{pkg}")
-    } else {
-        parts.next()?.to_owned()
-    };
-    let tail = parts.next()?;
-    let version = tail.split('_').next().unwrap_or("").trim();
-    if name.is_empty()
-        || name == "@"
-        || name.ends_with('/')
-        || name.starts_with("@/")
-        || version.is_empty()
-        || version.contains('/')
-    {
-        return None;
-    }
-    Some((name, version.to_owned()))
 }
 
 fn scoped_pnpm_re() -> Option<&'static Regex> {

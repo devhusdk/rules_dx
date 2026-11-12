@@ -138,7 +138,7 @@ struct ProbeRunner {
     code: Option<i32>,
     signal: Option<i32>,
     spawn_error: bool,
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
     seen: Rc<RefCell<(Vec<String>, Vec<(String, String)>)>>,
     free: Option<u64>,
     probed: RefCell<Vec<PathBuf>>,
@@ -1056,7 +1056,10 @@ fn write_report_file_reports_unwritable_destinations() {
     std::fs::set_permissions(&locked, permissions).expect("readonly");
     let result = write_report_file(dir.path(), "locked/out.sarif", "{}\n");
     let mut permissions = std::fs::metadata(&locked).expect("metadata").permissions();
-    #[allow(clippy::permissions_set_readonly_false)]
+    #[expect(
+        clippy::permissions_set_readonly_false,
+        reason = "the test restores write access"
+    )]
     permissions.set_readonly(false);
     std::fs::set_permissions(&locked, permissions).expect("writable");
     let err = result.expect_err("unwritable");

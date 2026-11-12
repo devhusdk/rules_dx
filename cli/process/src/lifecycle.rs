@@ -45,7 +45,7 @@ pub enum Descendants {
 /// The job members a Detachable stop kills: those on dx's console, except dx itself.
 /// `None` means the attached members cannot be told apart (no member list, or dx has no
 /// console), so a forced stop falls back to ending the whole job, detached server included.
-#[cfg_attr(not(windows), allow(dead_code))]
+#[cfg(any(windows, test))]
 fn attached_targets(own: u32, members: Option<&[u32]>, console: &[u32]) -> Option<Vec<u32>> {
     let members = members?;
     if console.is_empty() {
@@ -689,7 +689,13 @@ pub(crate) fn run_streamed_in(
             // LCOV_EXCL_START - reason: try_wait failing on a live child cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             Err(err) => {
                 backend::force_stream(&mut child, target);
-                #[allow(clippy::drop_non_drop)]
+                #[cfg_attr(
+                    windows,
+                    expect(
+                        clippy::drop_non_drop,
+                        reason = "the Windows terminal job owns nothing"
+                    )
+                )]
                 drop(job);
                 return Err(err);
             } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -752,7 +758,10 @@ pub(crate) fn run_streamed_in(
     drop(forwarding);
     drop(lease);
     // Only the Windows tree owns a job; the drop order matters there.
-    #[allow(clippy::drop_non_drop)]
+    #[cfg_attr(
+        not(windows),
+        expect(clippy::drop_non_drop, reason = "only the Windows tree owns a job")
+    )]
     drop(tree);
     drop(held);
     Ok(match (stopped, waited) {

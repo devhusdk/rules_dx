@@ -73,7 +73,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     }
     if invocation.clean_bazel || invocation.expunge {
-        #[allow(clippy::disallowed_methods)] // clean takes no build settings
+        #[expect(clippy::disallowed_methods, reason = "clean takes no build settings")]
         let mut argv = dx_process::startup_argv(&invocation.bazel_startup_options);
         argv.push("clean".to_owned());
         if invocation.expunge {

@@ -926,7 +926,10 @@ fn make_room(
     ))
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input"
+)]
 fn switch_slot(
     pool: &Pool,
     host: &dyn Host,

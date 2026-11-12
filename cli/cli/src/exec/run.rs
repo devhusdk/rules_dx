@@ -522,7 +522,7 @@ mod tests {
         }
     }
 
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
     fn run_under_gate(
         name: &str,
         words: &[&str],

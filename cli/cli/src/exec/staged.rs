@@ -52,7 +52,10 @@ fn remove_tree(dir: &std::path::Path) {
             };
             if meta.is_dir() {
                 let mut permissions = meta.permissions();
-                #[allow(clippy::permissions_set_readonly_false)]
+                #[expect(
+                    clippy::permissions_set_readonly_false,
+                    reason = "the directory must be writable to be removed"
+                )]
                 permissions.set_readonly(false);
                 #[cfg(unix)]
                 {

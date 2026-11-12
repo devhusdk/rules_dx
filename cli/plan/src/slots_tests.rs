@@ -829,7 +829,7 @@ fn cgroup_limit_reads_v1_and_v2() {
 
 #[derive(Default)]
 struct EnvRecorder {
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
     seen: RefCell<Vec<(&'static str, Vec<(String, String)>)>>,
 }
 

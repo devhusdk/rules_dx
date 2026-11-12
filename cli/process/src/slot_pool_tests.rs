@@ -52,7 +52,10 @@ fn a_read_only_slot_file_still_takes_a_shared_lock() {
     let reserve = hold_reserve(scratch.path(), 0..1);
     assert_eq!((reserve.held.len(), reserve.busy.len()), (1, 0));
     drop(reserve);
-    #[allow(clippy::permissions_set_readonly_false)]
+    #[expect(
+        clippy::permissions_set_readonly_false,
+        reason = "the test restores write access"
+    )]
     permissions.set_readonly(false);
     std::fs::set_permissions(&path, permissions).expect("writable again");
 }
@@ -188,7 +191,10 @@ fn a_read_only_slot_file_locks_exclusive_and_reports_contention() {
     assert!(matches!(lock_slot(&path, true), Ok(None)));
     drop(first);
     assert!(matches!(lock_slot(&path, true), Ok(Some(_))));
-    #[allow(clippy::permissions_set_readonly_false)]
+    #[expect(
+        clippy::permissions_set_readonly_false,
+        reason = "the test restores write access"
+    )]
     permissions.set_readonly(false);
     std::fs::set_permissions(&path, permissions).expect("writable again");
 }

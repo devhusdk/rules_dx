@@ -394,7 +394,6 @@ pub(super) fn push(tools: &Tools, root: &Path, branch: &str) -> Result<bool, DxE
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn publish(
     root: &Path,
     tools: &Tools,

@@ -29,7 +29,6 @@ def tools_gen(name):
 
 _CONFIG_HEADER = """// Generated from core/quality/tools.bzl. Run `bazel run //core/quality:update_tools` to refresh it.
 
-#[allow(dead_code)]
 pub struct ToolConfig {
     pub id: &'static str,
     pub suffixes: &'static [&'static str],

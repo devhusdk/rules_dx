@@ -250,6 +250,5 @@ pub fn run_checked_with(
 }
 
 #[cfg(test)]
-#[allow(clippy::disallowed_methods)]
 #[path = "capture_tests.rs"]
 mod capture_tests;

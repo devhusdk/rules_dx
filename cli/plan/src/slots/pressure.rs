@@ -40,23 +40,28 @@ impl HostPressure {
 
 impl Pressure for HostPressure {
     fn high(&self) -> Option<bool> {
-        #[cfg(target_os = "linux")]
-        {
-            let psi = std::fs::read_to_string("/proc/pressure/memory").ok();
-            let meminfo = || std::fs::read_to_string("/proc/meminfo").ok();
-            return judge(psi.as_deref(), meminfo().as_deref(), self.low_available);
-        }
-        #[cfg(target_os = "macos")]
-        {
-            let _ = self.low_available;
-            return macos_level().and_then(judge_level);
-        }
-        #[allow(unreachable_code)]
-        {
-            let _ = self.low_available;
-            None
-        }
+        host_high(self.low_available)
     }
+}
+
+/// Whether the host's memory is under pressure, from PSI with a meminfo fallback.
+#[cfg(target_os = "linux")]
+fn host_high(low_available: u64) -> Option<bool> {
+    let psi = std::fs::read_to_string("/proc/pressure/memory").ok();
+    let meminfo = || std::fs::read_to_string("/proc/meminfo").ok();
+    judge(psi.as_deref(), meminfo().as_deref(), low_available)
+}
+
+/// Whether the host's memory is under pressure, from the kernel's pressure level.
+#[cfg(target_os = "macos")]
+fn host_high(_low_available: u64) -> Option<bool> {
+    macos_level().and_then(judge_level)
+}
+
+/// No pressure signal on this host.
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+fn host_high(_low_available: u64) -> Option<bool> {
+    None
 }
 
 /// The kernel's memory pressure level, from `kern.memorystatus_vm_pressure_level`.
@@ -79,7 +84,7 @@ fn macos_level() -> Option<i32> {
 }
 
 /// Judges a macOS pressure level: 1 is normal, 2 is warn, 4 is critical. Other values have no signal.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#[cfg(any(target_os = "macos", test))]
 pub fn judge_level(level: i32) -> Option<bool> {
     match level {
         1 => Some(false),

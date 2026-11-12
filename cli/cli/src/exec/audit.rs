@@ -825,7 +825,10 @@ fn scoped_secrets_config(
     Ok(path.to_string_lossy().into_owned())
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input"
+)]
 fn run_secrets(
     workspace: &Path,
     runner: &dyn dx_process::Runner,

@@ -14,7 +14,7 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
-#[allow(clippy::large_enum_variant)]
+#[expect(clippy::large_enum_variant, reason = "clap parses one command per run")]
 enum Command {
     Consistency {
         #[arg(long, value_parser = dx_depcheck::language_named)]

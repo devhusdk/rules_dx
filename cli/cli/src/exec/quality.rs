@@ -190,7 +190,10 @@ enum ProbeStop {
 ///
 /// The probe is a real build, so its action counts go into `actions` and into `probe_counts`
 /// before its event file is removed.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input"
+)]
 fn probe_shards(
     request: &QualityRequest,
     resolved: &dx_plan::resolve::ResolvedScope,
@@ -503,7 +506,10 @@ fn run_quality_request(
             }
         }
     };
-    #[allow(clippy::disallowed_methods)] // dump_repo_mapping takes no build settings
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "dump_repo_mapping takes no build settings"
+    )]
     let repo_mapping = || {
         let mut argv = dx_process::startup_argv(&request.bazel_startup_options);
         argv.extend(["mod", "dump_repo_mapping", ""].map(str::to_owned));

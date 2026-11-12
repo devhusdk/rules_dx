@@ -332,8 +332,10 @@ fn build_policy(
 #[derive(Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct LicensesFile {
-    // Checked by `parse_file` before the rest of the file.
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "`parse_file` checks it before the rest of the file"
+    )]
     schema_version: u32,
     #[serde(default)]
     policy: PolicyFile,

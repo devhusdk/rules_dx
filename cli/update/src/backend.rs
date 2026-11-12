@@ -624,7 +624,10 @@ pub fn plan_configured_bazel_lock(
         });
     }
     // A nested workspace must not inherit the root's startup options.
-    #[allow(clippy::disallowed_methods)]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the argv carries no build settings"
+    )]
     let mut argv = dx_process::startup_argv(&strings(&["--max_idle_secs=15"]));
     argv.push("mod".to_owned());
     argv.extend(tail);

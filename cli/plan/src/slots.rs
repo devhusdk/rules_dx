@@ -1177,7 +1177,7 @@ impl std::fmt::Debug for Clock {
 
 /// Stops idle Bazel servers outside the kept workspaces until about `target` bytes are freed; returns how many stopped.
 #[derive(Clone)]
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity, reason = "the type is spelled out once")]
 struct Reaper(Arc<dyn Fn(&[PathBuf], u64) -> usize + Send + Sync>);
 
 impl std::fmt::Debug for Reaper {
@@ -1676,7 +1676,10 @@ trait Warm {
 
 impl Warmth {
     /// The full command a ping runs: launcher, startup options, then a lock-free `info`.
-    #[allow(clippy::disallowed_methods)]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the argv carries no build settings"
+    )]
     fn ping_argv(&self) -> Vec<String> {
         let mut argv = dx_process::startup_argv(&self.startup_options);
         argv.extend(["--noblock_for_lock", "info", "server_pid"].map(str::to_owned));
@@ -1708,7 +1711,6 @@ impl Warm for Warmth {
         SystemHost.process_alive(pid)
     }
 
-    #[allow(clippy::disallowed_methods)] // info takes no build settings
     fn ping(&self) -> Option<Child> {
         let argv = self.ping_argv();
         let (program, args) = argv.split_first()?;

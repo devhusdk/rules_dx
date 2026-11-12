@@ -45,6 +45,7 @@ base64 = "0.22"
 flate2 = { version = "1", default-features = false, features = ["zlib"] }
 md-5 = "0.10"
 pgp = { version = "0.21", default-features = false }
+percent-encoding = "2"
 quick-xml = "0.41"
 rand = "0.8"
 ruzstd = "0.9"

@@ -6,6 +6,7 @@ use super::{Candidate, Fetch, Findings, LookupError};
 use crate::edit::gha::{
     parse_workflow_pins, resolve_sha_from_commit_response, split_pin, version_numbers as numbers,
 };
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -168,6 +169,8 @@ fn judge(
     }
 }
 
+const UNRESERVED: &AsciiSet = &NON_ALPHANUMERIC.remove(b'-').remove(b'.').remove(b'_').remove(b'~');
+
 const NO_RELEASE: &str = "no GitHub release";
 
 /// Resolves a tag or branch of `package` to its commit SHA.
@@ -177,14 +180,7 @@ pub fn commit_sha(
     base: &str,
     fetch: &dyn Fetch,
 ) -> Result<String, DxError> {
-    let mut encoded = String::new();
-    for byte in tag.bytes() {
-        if byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-') {
-            encoded.push(char::from(byte));
-        } else {
-            encoded.push_str(&format!("%{byte:02X}"));
-        }
-    }
+    let encoded = utf8_percent_encode(tag, UNRESERVED);
     let body = fetch.get(&format!("{base}/repos/{package}/commits/{encoded}"))?;
     resolve_sha_from_commit_response(&body).map_err(|error| DxError::failure(error.to_string()))
 }

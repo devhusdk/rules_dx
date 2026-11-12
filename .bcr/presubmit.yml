@@ -55,3 +55,9 @@ bcr_test_module:
       bazel: ${{ bazel }}
       build_targets:
         - "//qt_hello"
+    build_main_in_dep:
+      name: Build cc_binary with main in a dependency
+      platform: ${{ platform }}
+      bazel: ${{ bazel }}
+      build_targets:
+        - "//main_in_dep"

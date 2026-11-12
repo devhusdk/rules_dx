@@ -179,6 +179,8 @@ fn bcr_test_module_runs_its_presubmit_targets() {
         "BUILD.bazel",
         "MODULE.bazel",
         "hello_test.sh",
+        "main_in_dep/BUILD.bazel",
+        "main_in_dep/main.cc",
         "qt_hello/BUILD.bazel",
         "qt_hello/qt_hello.cc",
         "toolchain.bzl",

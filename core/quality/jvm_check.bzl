@@ -7,6 +7,7 @@ load("@rules_kotlin//kotlin/internal:defs.bzl", "KspPluginInfo", "KtCompilerPlug
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions", "kotlinc_options_to_flags")
 load("@rules_scala//scala:providers.bzl", "DepsInfo", "ScalaInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
+load("//core/quality:sources.bzl", "single_target")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
 _SCALA_TOOLCHAIN_TYPE = "@rules_scala//scala:toolchain_type"
@@ -40,9 +41,6 @@ JvmCheckInfo = provider(
 
 # Flags the Bazel javac toolchain passes to JavaBuilder that plain javac rejects or that run ErrorProne.
 _JAVABUILDER_ONLY_PREFIXES = ["-Xep", "-Xplugin:ErrorProne", "--should-stop=", "-XDshould-stop"]
-
-def _first(value):
-    return value[0] if type(value) == "list" else value
 
 def javac_options(tokens):
     """Drops the toolchain flags that plain javac cannot take."""
@@ -327,7 +325,7 @@ def _scalac_check(target, ctx, attrs):
 def _jvm_check_impl(target, ctx):
     attrs = ctx.rule.attr
     if hasattr(attrs, "upstream"):
-        upstream = _first(attrs.upstream)
+        upstream = single_target(attrs.upstream)
         if JvmCheckInfo not in upstream:
             return []
         return [upstream[JvmCheckInfo]]

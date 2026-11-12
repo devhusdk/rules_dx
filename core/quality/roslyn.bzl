@@ -7,6 +7,7 @@ load("//core/quality:policy.bzl", "QualityPolicyInfo")
 load("//core/quality/private:native_config_impl.bzl", "bound_config_targets")
 load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo")
+load("//core/quality:sources.bzl", "single_target")
 
 _TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
 
@@ -22,9 +23,6 @@ RoslynInfo = provider(
 
 def _is_csharp_compilation(attrs):
     return hasattr(attrs, "additionalfiles") and hasattr(attrs, "analyzer_configs") and hasattr(attrs, "_targeting_pack")
-
-def _first(value):
-    return value[0] if type(value) == "list" else value
 
 def tfm_sort_key(tfm):
     """Orders target frameworks by version, so net8.0 sorts before net10.0."""
@@ -76,7 +74,7 @@ def _roslyn_impl(target, ctx):
     if not _is_csharp_compilation(attrs):
         if not hasattr(attrs, "upstream"):
             return []
-        upstream = _first(attrs.upstream)
+        upstream = single_target(attrs.upstream)
         if RoslynInfo not in upstream:
             return []
         variants = getattr(attrs, "dx_tfm_variants", None) or []
@@ -102,7 +100,7 @@ def _roslyn_impl(target, ctx):
     (refs, _, analyzers, analyzers_csharp, _, _, compile_data, framework_files, _) = collect_compile_info(
         assembly_name,
         attrs.deps,
-        _first(attrs._targeting_pack),
+        single_target(attrs._targeting_pack),
         exports,
         toolchain.strict_deps[BuildSettingInfo].value,
     )

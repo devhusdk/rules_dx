@@ -10,6 +10,7 @@ load("//android/private/platforms:defs.bzl", "api_floor")
 load("//android/private/sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
 load(":repos.bzl", "ABI_PLATFORMS", "abi_errors", "abi_platforms", "app_id_errors", "manifest_lib_name")
 load(":validate.bzl", "android_aab_check_errors", "android_apk_manifest_errors", "android_apk_set_errors", "android_release_sign_errors", "rust_android_apk_errors")
+load("//core/quality:sources.bzl", "single_target")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")
 
@@ -387,7 +388,7 @@ _apk_file = rule(
 def _aab_file_impl(ctx):
     if ctx.attr.src == None or (type(ctx.attr.src) == "list" and len(ctx.attr.src) == 0):
         fail("android_aab_file: no app bundle; the package declaration was rejected")
-    src = ctx.attr.src[0] if type(ctx.attr.src) == "list" else ctx.attr.src
+    src = single_target(ctx.attr.src)
     if AndroidBundleInfo not in src:
         fail("android_aab_file: '" + str(src.label) + "' provides no app bundle")
     return [DefaultInfo(files = depset([src[AndroidBundleInfo].unsigned_aab]))]

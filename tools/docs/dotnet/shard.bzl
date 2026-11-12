@@ -5,6 +5,7 @@ load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo",
 load("//dotnet/private:symbols.bzl", "fsharp_compile_defines")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//core/quality:sources.bzl", "single_target")
 
 DotnetDocsInfo = provider(
     doc = "The compile facts of one rules_dotnet library that its API docs are read from.",
@@ -25,13 +26,10 @@ DotnetDocsInfo = provider(
     },
 )
 
-def _one(value):
-    return value[0] if type(value) == "list" else value
-
 def _collect_impl(target, ctx):
     attr = ctx.rule.attr
     if hasattr(attr, "upstream"):
-        upstream = _one(attr.upstream)
+        upstream = single_target(attr.upstream)
         return [upstream[DotnetDocsInfo]] if DotnetDocsInfo in upstream else []
     if DotnetAssemblyCompileInfo not in target or not hasattr(attr, "defines") or not hasattr(attr, "_targeting_pack"):
         return []
@@ -42,7 +40,7 @@ def _collect_impl(target, ctx):
         xmls = target[DotnetAssemblyRuntimeInfo].xml_docs
         xml_docs = xmls[0] if xmls else None
     framework = {}
-    for pack in _one(attr._targeting_pack)[DotnetTargetingPackInfo].assembly_compile_infos:
+    for pack in single_target(attr._targeting_pack)[DotnetTargetingPackInfo].assembly_compile_infos:
         for ref in pack.refs:
             framework[ref.basename] = ref
     deps = {}

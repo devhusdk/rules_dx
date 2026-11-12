@@ -4,6 +4,7 @@ load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@aspect_rules_ts//ts/private:options.bzl", "OptionsInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
+load("//core/quality:sources.bzl", "single_target")
 
 TscInfo = provider(
     doc = "Output of one non-failing tsc run over a TypeScript project.",
@@ -24,9 +25,6 @@ def bin_relative(ctx, file):
     if not file.path.startswith(prefix):
         fail("tsc: " + file.path + " is not under " + prefix)
     return file.path[len(prefix):]
-
-def _first(value):
-    return value[0] if type(value) == "list" else value
 
 def _is_ts_project(attrs):
     return hasattr(attrs, "tsc") and hasattr(attrs, "_options") and hasattr(attrs, "tsconfig")
@@ -132,7 +130,7 @@ def _tsc_impl(target, ctx):
     if not _is_ts_project(attrs):
         if not hasattr(attrs, "upstream"):
             return []
-        upstream = _first(attrs.upstream)
+        upstream = single_target(attrs.upstream)
         if TscInfo not in upstream:
             return []
         return [upstream[TscInfo]]

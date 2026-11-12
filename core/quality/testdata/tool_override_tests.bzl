@@ -30,7 +30,7 @@ load(
     "real_zig_lint_aspect",
 )
 load("//core/quality/testdata:config_subject.bzl", "config_subject_rule")
-load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "single_target")
 
 _TOOL_FLAG = "//config:tool_ruff"
 _ALTERNATE_SHORT = "core/quality/testdata/alternate_ruff_bin"
@@ -396,8 +396,7 @@ def _stem(path):
 
 def _subject_under_test(env):
     """Unwraps the possibly transitioned target under test."""
-    dep = env.ctx.attr.target_under_test
-    return dep[0] if type(dep) == "list" else dep
+    return single_target(env.ctx.attr.target_under_test)
 
 def _default_impl(ctx):
     """Asserts the managed ruff stays selected without the override flag."""

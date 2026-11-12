@@ -10,6 +10,7 @@ load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_libr
 load("//android/private/platforms:defs.bzl", "effective_api_level", "platform_label")
 load("//android/private/platforms:validate.bzl", "android_tuple_errors", "android_tuples")
 load(":kwargs.bzl", "android_split_native_kwargs")
+load("//core/quality:sources.bzl", "single_target")
 
 _ANDROID_PLATFORMS = {name: platform_label(name) for name in android_tuples()}
 
@@ -33,7 +34,7 @@ def _android_library_proxy_impl(ctx):
     failures = android_tuple_errors(ctx.attr.tuple, ctx.attr.api_level)
     if len(failures) > 0:
         fail("; ".join(failures))
-    link = ctx.attr.link[0] if type(ctx.attr.link) == "list" else ctx.attr.link
+    link = single_target(ctx.attr.link)
     libraries = [file for file in link[DefaultInfo].files.to_list() if file.extension == "so"]
     if len(libraries) != 1:
         fail("android_native_library: '" + str(link.label) + "' built " + str(len(libraries)) +

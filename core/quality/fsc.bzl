@@ -4,6 +4,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols", "is_core_framework", "is_standard_framework")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:roslyn.bzl", "tfm_sort_key")
+load("//core/quality:sources.bzl", "single_target")
 
 _TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
 
@@ -22,9 +23,6 @@ FscUnsupportedInfo = provider(
     doc = "Marks an F# target on a platform where the fsc typecheck is unavailable.",
     fields = {"reason": "string: why fsc cannot run for this target."},
 )
-
-def _first(value):
-    return value[0] if type(value) == "list" else value
 
 def _merged_fsc(infos):
     by_tfm = {}
@@ -61,7 +59,7 @@ def _fsc_impl(target, ctx):
     if ctx.rule.kind not in _FSHARP_KINDS:
         if not hasattr(attrs, "upstream"):
             return []
-        upstream = _first(attrs.upstream)
+        upstream = single_target(attrs.upstream)
         if FscInfo not in upstream:
             return []
         variants = getattr(attrs, "dx_tfm_variants", None) or []
@@ -86,7 +84,7 @@ def _fsc_impl(target, ctx):
     (refs, _, _, _, _, _, compile_data, framework_files, _) = collect_compile_info(
         assembly_name,
         attrs.deps,
-        _first(attrs._targeting_pack),
+        single_target(attrs._targeting_pack),
         getattr(attrs, "exports", []),
         toolchain.strict_deps[BuildSettingInfo].value,
     )

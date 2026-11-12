@@ -212,3 +212,7 @@ def check_direct_sources(direct_sources, what):
             if type(f) != "File":
                 fail("QualitySourcesInfo (" + what + "): class '" + class_id +
                      "' holds a non-File member: " + type(f))
+
+def single_target(value):
+    """Returns the one target of an attribute that a transition may wrap in a list."""
+    return value[0] if type(value) == "list" else value

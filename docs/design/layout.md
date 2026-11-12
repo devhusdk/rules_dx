@@ -28,7 +28,7 @@ Each language owns one top-level directory.
 - `defs.bzl` is the only file users load.
 - `extensions.bzl` holds the public module extensions.
 - `private/` holds everything else. Users never load from it.
-- `tests/` holds the language tests and fixtures.
+- `tests/` holds the language tests and fixtures. Starlark test suites and `testdata/` live there, instantiated from `tests/BUILD.bazel`, not in `private/`.
 - New language code goes in `<lang>/`.
 
 ## Labels

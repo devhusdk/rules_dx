@@ -965,7 +965,7 @@ LANGS = json.decode("""{
           "real_elixir_lint_aspect"
         ]
       },
-      "bzl": "core/quality:families/beam.bzl",
+      "bzl": "erlang/private/quality:beam.bzl",
       "file_extensions": [
         ".ex",
         ".exs"
@@ -1053,7 +1053,7 @@ LANGS = json.decode("""{
           "real_erlang_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/beam.bzl",
+      "bzl": "erlang/private/quality:beam.bzl",
       "file_extensions": [
         ".erl",
         ".hrl"

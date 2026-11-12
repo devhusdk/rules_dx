@@ -350,6 +350,47 @@ fn every_quality_bzl_exists() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
+fn tools_files(dir: &Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    entries
+        .map(|entry| entry.expect("entry").file_name().to_str().expect("utf8").to_owned())
+        .filter(|name| name.ends_with("_tools.bzl"))
+        .collect()
+}
+
+#[test]
+fn every_tools_bzl_is_loaded_by_quality_tools() {
+    let root = dx_testing::rules_dx_source();
+    let tools = std::fs::read_to_string(root.join("core/quality/tools.bzl")).expect("tools.bzl");
+    let mut expected = BTreeSet::new();
+    for dir in language_dirs(&root) {
+        for file in tools_files(&root.join(&dir).join("private/quality")) {
+            expected.insert(format!("//{}/private/quality:{file}", dir.display()));
+        }
+    }
+    for file in tools_files(&root.join("core/quality/families")) {
+        expected.insert(format!("//core/quality:families/{file}"));
+    }
+    let loaded: BTreeSet<String> = tools
+        .lines()
+        .filter_map(|line| line.strip_prefix("load(\""))
+        .filter_map(|rest| rest.split('"').next())
+        .map(str::to_owned)
+        .collect();
+    let problems: Vec<String> = expected
+        .difference(&loaded)
+        .map(|label| format!("core/quality/tools.bzl does not load {label}"))
+        .chain(
+            loaded
+                .difference(&expected)
+                .map(|label| format!("core/quality/tools.bzl loads unknown {label}")),
+        )
+        .collect();
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
 #[test]
 fn langs_bzl_is_generated_from_every_lang_json() {
     let root = dx_testing::rules_dx_source();

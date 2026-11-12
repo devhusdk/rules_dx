@@ -106,6 +106,11 @@ def clang_syntax_unit_tests(name):
                 ["cc", "-fsyntax-only", "a.c"],
             ),
             expect_equal(
+                "clang-cl drops dependency-file flags",
+                _rewrite(["clang-cl.exe", "/nologo", "-MF", "a.d", "-MT", "a.obj", "/clang:-MF", "/clang:a.d", "/clang:-MD", "-MMD", "/c", "a.c"], "a.c", _CLANG_CL).argv,
+                ["clang-cl.exe", "/nologo", _CLANG_CL.syntax_only, "a.c", "/diagnostics:column"],
+            ),
+            expect_equal(
                 "MSVC with two /c is rejected",
                 _rewrite(["cl.exe", "/c", "/c", "a.c"], "a.c", _CL).error != "",
                 True,

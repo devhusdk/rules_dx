@@ -39,6 +39,10 @@ _DROP_WITH_VALUE = ["-o", "-MF", "-MT", "-MQ", "--serialize-diagnostics"]
 _GCC_ONLY = ["-fno-canonical-system-headers", "-fcanonical-system-headers", "-fno-diagnostics-show-caret", "-fdiagnostics-color=never"]
 _MSVC_DROP_PREFIXES = ["Fo", "Fd", "Fe", "Fa", "Fp", "Fi", "showIncludes", "sourceDependencies"]
 
+_MSVC_DEP_FLAGS = ["-MMD", "-MG", "-MP", "/clang:-MD", "/clang:-MMD", "/clang:-MG", "/clang:-MP"]
+_MSVC_DEP_WITH_VALUE = ["-MF", "-MT", "-MQ", "/clang:-MF", "/clang:-MT", "/clang:-MQ"]
+_MSVC_DEP_VALUE_PREFIXES = ("-MF", "-MT", "-MQ", "/clang:-MF", "/clang:-MT", "/clang:-MQ")
+
 def _msvc_dropped(arg):
     return len(arg) > 1 and arg[0] in "/-" and arg[1:].startswith(tuple(_MSVC_DROP_PREFIXES))
 
@@ -56,8 +60,10 @@ def _msvc_syntax_argv(argv, src, identity):
         if arg in ["/c", "-c"]:
             compiles += 1
             out.append(identity.syntax_only)
-        elif arg in ["/sourceDependencies", "-sourceDependencies"]:
+        elif arg in ["/sourceDependencies", "-sourceDependencies"] + _MSVC_DEP_WITH_VALUE:
             skip = True
+        elif arg in _MSVC_DEP_FLAGS or arg.startswith(_MSVC_DEP_VALUE_PREFIXES):
+            continue
         elif _msvc_dropped(arg):
             continue
         else:

@@ -65,14 +65,14 @@ pub fn run(args: &[String]) -> u8 {
                 simctl::run(&tools, rest, &process_env)
             }),
         ),
-        "swift" => report(
+        "swift" | "llvm-cov" | "llvm-profdata" => report(
             swift::PREFIX,
             xcode::for_launcher(&process_env).and_then(|developer_dir| {
                 let tools = Tools {
                     developer_dir: Some(developer_dir),
                     runner: &System,
                 };
-                swift::run(&tools, rest)
+                swift::run(&tools, name, rest)
             }),
         ),
         "export" | "codesign" | "notarize" => report(

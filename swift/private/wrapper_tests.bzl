@@ -37,15 +37,16 @@ def _coverage_impl(ctx):
     asserts.true(env, script.removesuffix(".exe").endswith("/tools/coverage/collect/collect_native"), "CC_CODE_COVERAGE_SCRIPT=" + script)
     for key, tool in [("LLVM_COV", "llvm-cov"), ("LLVM_PROFDATA", "llvm-profdata")]:
         value = run_env.get(key, "")
-        asserts.true(env, value.removesuffix(".exe").endswith(tool), key + "=" + value)
-        if ctx.attr.swift_tools:
-            asserts.true(env, "dx_swift" in value, key + " is not the Swift toolchain tool: " + value)
+        if ctx.attr.tools_from:
+            asserts.true(env, ctx.attr.tools_from in value, key + " is not from " + ctx.attr.tools_from + ": " + value)
+        else:
+            asserts.true(env, value.removesuffix(".exe").endswith(tool), key + "=" + value)
     asserts.equals(env, "test_binary", run_env.get("DX_COVERAGE_CLANG_OBJECTS"))
     return analysistest.end(env)
 
 _coverage_test = analysistest.make(
     _coverage_impl,
-    attrs = {"swift_tools": attr.bool(doc = "Whether the coverage tools must come from the Swift toolchain.")},
+    attrs = {"tools_from": attr.string(doc = "A substring the coverage tool paths must contain.")},
     config_settings = {
         "//command_line_option:collect_code_coverage": True,
         "//command_line_option:experimental_generate_llvm_lcov": True,
@@ -58,9 +59,10 @@ def swift_test_coverage_test(name, target_under_test, **kwargs):
         name = name,
         size = "small",
         target_under_test = target_under_test,
-        swift_tools = select({
-            "@platforms//os:linux": True,
-            "//conditions:default": False,
+        tools_from = select({
+            "@platforms//os:linux": "dx_swift",
+            "@platforms//os:macos": "_macos",
+            "//conditions:default": "",
         }),
         **kwargs
     )

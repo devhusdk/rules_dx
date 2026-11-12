@@ -1,3 +1,4 @@
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
 use dx_testing::serde_json::Value;
@@ -7,11 +8,6 @@ const RUN_ENV: [(&str, &str); 3] = [
     ("LD_LIBRARY_PATH", ""),
     ("PATH", ""),
 ];
-
-fn env_path(variable: &str) -> PathBuf {
-    let rel = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must be set"));
-    dx_testing::resolve_runfiles(&rel)
-}
 
 fn built(suffix: &str) -> PathBuf {
     from("DX_APPIMAGE_FILES", suffix)
@@ -180,7 +176,7 @@ fn loader_and_libc_identity_come_from_the_packaged_bytes() {
 
 #[test]
 fn image_starts_with_the_pinned_runtime() {
-    let runtime = std::fs::read(env_path("DX_APPIMAGE_RUNTIME")).expect("runtime");
+    let runtime = std::fs::read(env_file("DX_APPIMAGE_RUNTIME")).expect("runtime");
     let image = std::fs::read(built(".AppImage")).expect("image");
     assert!(
         image.len() >= runtime.len(),
@@ -201,7 +197,7 @@ fn image_starts_with_the_pinned_runtime() {
     assert_eq!(
         identity["runtime"]["sha256"].as_str(),
         Some(
-            dx_testing::sha256_file(&env_path("DX_APPIMAGE_RUNTIME"))
+            dx_testing::sha256_file(&env_file("DX_APPIMAGE_RUNTIME"))
                 .expect("hash runtime")
                 .as_str()
         )
@@ -232,7 +228,7 @@ fn missing_library_fails_in_the_loader() {
 #[test]
 fn truncated_and_corrupted_packages_fail() {
     let source = built(".AppImage");
-    let runtime_len = std::fs::metadata(env_path("DX_APPIMAGE_RUNTIME"))
+    let runtime_len = std::fs::metadata(env_file("DX_APPIMAGE_RUNTIME"))
         .expect("runtime metadata")
         .len() as usize;
     let bytes = std::fs::read(&source).expect("image");

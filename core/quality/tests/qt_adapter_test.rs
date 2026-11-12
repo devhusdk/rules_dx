@@ -1,13 +1,9 @@
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
 use dx_testing::serde_json::Value;
 use quality_adapter::commands::{Invocation, qmlformat_check, qmlformat_fix, qmllint_check};
 use quality_adapter::parsers::{QmllintView, parse_qmlformat, parse_qmllint};
-
-fn path(variable: &str) -> PathBuf {
-    let rel = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must be set"));
-    dx_testing::resolve_runfiles(&rel)
-}
 
 fn run(invocation: &Invocation) -> dx_testing::Run {
     let argv: Vec<&str> = invocation
@@ -20,17 +16,17 @@ fn run(invocation: &Invocation) -> dx_testing::Run {
 
 #[test]
 fn qmllint_output_parses_through_the_adapter() {
-    let sample = path("DX_QMLLINT_FIXTURE");
+    let sample = env_file("DX_QMLLINT_FIXTURE");
     let name = sample.to_str().expect("utf-8 path");
     let out = run(&qmllint_check(
-        &path("DX_QMLLINT"),
+        &env_file("DX_QMLLINT"),
         &[sample.as_path()],
         &[],
         false,
     ));
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
     let report: Value = dx_testing::serde_json::from_str(&out.stdout).expect("JSON report");
-    let pinned = dx_testing::read_json(&path("DX_QMLLINT_FIXTURE_DIRTY")).expect("fixture");
+    let pinned = dx_testing::read_json(&env_file("DX_QMLLINT_FIXTURE_DIRTY")).expect("fixture");
     assert_eq!(report["revision"], pinned["revision"]);
     assert_eq!(
         report["files"][0]["warnings"],
@@ -53,11 +49,11 @@ fn qmllint_output_parses_through_the_adapter() {
 
 #[test]
 fn qmlformat_output_parses_through_the_adapter() {
-    let sample = path("DX_QMLFORMAT_FIXTURE");
+    let sample = env_file("DX_QMLFORMAT_FIXTURE");
     let name = sample.to_str().expect("utf-8 path");
     let input = std::fs::read(&sample).expect("sample");
     let out = run(&qmlformat_check(
-        &path("DX_QMLFORMAT"),
+        &env_file("DX_QMLFORMAT"),
         &[sample.as_path()],
         None,
     ));
@@ -71,7 +67,7 @@ fn qmlformat_output_parses_through_the_adapter() {
     let formatted = dir.join("Formatted.qml");
     std::fs::write(&formatted, &out.stdout).expect("write formatted source");
     let again = run(&qmlformat_check(
-        &path("DX_QMLFORMAT"),
+        &env_file("DX_QMLFORMAT"),
         &[formatted.as_path()],
         None,
     ));
@@ -98,7 +94,7 @@ fn scratch_file(name: &str, content: &str) -> (dx_test_scratch::TempDir, PathBuf
 
 fn findings(file: &Path) -> Result<usize, quality_adapter::parsers::ParseError> {
     let input = std::fs::read(file).expect("source");
-    let out = run(&qmlformat_check(&path("DX_QMLFORMAT"), &[file], None));
+    let out = run(&qmlformat_check(&env_file("DX_QMLFORMAT"), &[file], None));
     parse_qmlformat(
         out.stdout.as_bytes(),
         out.status.code(),
@@ -119,7 +115,7 @@ fn qmlformat_check_leaves_the_source_untouched() {
 fn qmlformat_fix_then_check_round_trips_to_clean() {
     let (_file_dir, file) = scratch_file("RoundTrip.qml", DIRTY);
     let fixed = run(&qmlformat_fix(
-        &path("DX_QMLFORMAT"),
+        &env_file("DX_QMLFORMAT"),
         &[file.as_path()],
         None,
     ));
@@ -138,7 +134,7 @@ fn qmlformat_clean_source_has_no_findings() {
 fn qmlformat_malformed_source_is_an_error_not_clean() {
     let (_file_dir, file) = scratch_file("Malformed.qml", MALFORMED);
     let out = run(&qmlformat_check(
-        &path("DX_QMLFORMAT"),
+        &env_file("DX_QMLFORMAT"),
         &[file.as_path()],
         None,
     ));
@@ -158,7 +154,7 @@ fn qmlformat_ini_next_to_the_source_changes_the_formatting() {
     .expect("write config");
     assert_eq!(findings(&file).expect("parsed"), 1);
     let out = run(&qmlformat_check(
-        &path("DX_QMLFORMAT"),
+        &env_file("DX_QMLFORMAT"),
         &[file.as_path()],
         None,
     ));
@@ -190,7 +186,7 @@ fn view(
     Result<Vec<quality_adapter::parsers::FileFinding>, quality_adapter::parsers::ParseError>,
 ) {
     let out = run(&qmllint_check(
-        &path("DX_QMLLINT"),
+        &env_file("DX_QMLLINT"),
         files,
         import_dirs,
         use_settings,
@@ -305,7 +301,7 @@ fn qmllint_ignores_the_host_import_path_variable() {
     std::fs::write(module.join("Bar.qml"), "import QtQuick\nItem {}\n").expect("Bar.qml");
     let user = dir.join("Use.qml");
     std::fs::write(&user, "import QtQuick\nimport Foo\nBar {}\n").expect("Use.qml");
-    let invocation = qmllint_check(&path("DX_QMLLINT"), &[user.as_path()], &[], false);
+    let invocation = qmllint_check(&env_file("DX_QMLLINT"), &[user.as_path()], &[], false);
     let argv: Vec<&str> = invocation
         .argv
         .iter()
@@ -361,7 +357,7 @@ fn qmllint_columns_count_utf16_units() {
 #[test]
 fn qmllint_severity_flags_decide_the_exit_code() {
     let (_file_dir, file) = scratch_file("Severity.qml", UNQUALIFIED);
-    let invocation = qmllint_check(&path("DX_QMLLINT"), &[file.as_path()], &[], false);
+    let invocation = qmllint_check(&env_file("DX_QMLLINT"), &[file.as_path()], &[], false);
     let mut argv: Vec<String> = invocation
         .argv
         .iter()

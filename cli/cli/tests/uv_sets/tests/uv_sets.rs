@@ -1,3 +1,4 @@
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
 use dx_test_scratch::{TempDir, scratch};
@@ -89,7 +90,7 @@ impl Index {
 }
 
 fn runfile(var: &str) -> PathBuf {
-    let path = dx_testing::env_file(var);
+    let path = env_file(var);
     std::fs::canonicalize(&path).unwrap_or_else(|error| panic!("{var} {path:?}: {error}"))
 }
 
@@ -205,16 +206,12 @@ impl Consumer {
             ("UV_OFFLINE", "1"),
             ("PATH", path.as_str()),
         ];
-        run(&dx(), &argv, &envs).unwrap_or_else(|error| panic!("run dx: {error}"))
+        run(&env_file("DX_BIN"), &argv, &envs).unwrap_or_else(|error| panic!("run dx: {error}"))
     }
 
     fn ambient_uv_ran(&self) -> bool {
         self.ambient.join("ambient-uv-ran").exists()
     }
-}
-
-fn dx() -> PathBuf {
-    dx_testing::env_file("DX_BIN")
 }
 
 fn assert_code(run: &Run, code: i32) {

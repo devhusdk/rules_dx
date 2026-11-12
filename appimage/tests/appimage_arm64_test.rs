@@ -1,3 +1,4 @@
+use dx_testing::env_file;
 use std::path::PathBuf;
 
 use dx_testing::serde_json::Value;
@@ -13,11 +14,6 @@ fn built(suffix: &str) -> PathBuf {
     dx_testing::resolve_runfiles(rel)
 }
 
-fn runtime_path() -> PathBuf {
-    let rel = std::env::var("DX_APPIMAGE_ARM64_RUNTIME").expect("runtime variable");
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn identity() -> Value {
     dx_testing::read_json(&built(".identity.json")).expect("identity json")
 }
@@ -29,7 +25,7 @@ fn machine(bytes: &[u8]) -> u16 {
 
 #[test]
 fn image_is_the_pinned_aarch64_runtime_plus_a_squashfs() {
-    let runtime = std::fs::read(runtime_path()).expect("runtime");
+    let runtime = std::fs::read(env_file("DX_APPIMAGE_ARM64_RUNTIME")).expect("runtime");
     let image = std::fs::read(built(".AppImage")).expect("image");
     assert_eq!(machine(&image), ELF_MACHINE_AARCH64);
     assert_eq!(machine(&runtime), ELF_MACHINE_AARCH64);
@@ -61,7 +57,7 @@ fn identity_names_the_aarch64_cell_and_the_target_bytes() {
     assert_eq!(
         identity["runtime"]["sha256"].as_str(),
         Some(
-            dx_testing::sha256_file(&runtime_path())
+            dx_testing::sha256_file(&env_file("DX_APPIMAGE_ARM64_RUNTIME"))
                 .expect("hash runtime")
                 .as_str()
         )

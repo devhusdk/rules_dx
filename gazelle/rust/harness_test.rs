@@ -1,10 +1,5 @@
 use std::path::{Path, PathBuf};
 
-fn gazelle_bin() -> PathBuf {
-    let rel = std::env::var("DX_GAZELLE_BIN").expect("DX_GAZELLE_BIN must name the gazelle binary");
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn workspace(prefix: &str) -> PathBuf {
     dx_testing::mkscratch(prefix).expect("scratch workspace")
 }
@@ -19,7 +14,7 @@ fn write(root: &Path, rel: &str, text: &str) -> PathBuf {
 }
 
 fn run_gazelle(root: &Path, extra_env: &[(&str, &str)]) -> dx_testing::Run {
-    let bin = gazelle_bin();
+    let bin = dx_testing::env_file("DX_GAZELLE_BIN");
     let repo = format!("-repo_root={}", root.display());
     std::process::Command::new(&bin)
         .args([repo.as_str()])

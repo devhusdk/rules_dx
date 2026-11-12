@@ -1,8 +1,5 @@
+use dx_testing::env_file;
 use dx_testing::fatbin;
-
-fn binary() -> std::path::PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var("DX_GPU_TEST").unwrap())
-}
 
 #[test]
 fn a_host_without_a_visible_gpu_fails_as_unavailable() {
@@ -10,7 +7,7 @@ fn a_host_without_a_visible_gpu_fails_as_unavailable() {
     let outputs = outputs_guard.path();
     let outputs_dir = outputs.to_str().unwrap();
     let run = dx_testing::run(
-        &binary(),
+        &env_file("DX_GPU_TEST"),
         &[],
         &[
             ("CUDA_VISIBLE_DEVICES", ""),
@@ -47,7 +44,7 @@ fn missing_declarations_fail_before_any_cuda_call() {
     let outputs_guard = dx_test_scratch::scratch("gpu-declared");
     let outputs = outputs_guard.path();
     let run = dx_testing::run(
-        &binary(),
+        &env_file("DX_GPU_TEST"),
         &[],
         &[
             ("DX_GPU_MIN_CC", ""),
@@ -93,7 +90,7 @@ fn an_undeclared_device_fails_before_any_cuda_call() {
 
 #[test]
 fn the_probe_links_the_static_runtime() {
-    let bytes = std::fs::read(binary()).unwrap();
+    let bytes = std::fs::read(env_file("DX_GPU_TEST")).unwrap();
     let needed = fatbin::needed_libraries(&bytes).unwrap();
     assert!(!needed.is_empty(), "the binary links libc dynamically");
     assert!(

@@ -15,7 +15,9 @@ pub mod exec_log;
 pub mod fatbin;
 pub mod http;
 
-pub use dx_binfmt::{inspect as image_inspect, machine as image_machine, machines as image_machines};
+pub use dx_binfmt::{
+    inspect as image_inspect, machine as image_machine, machines as image_machines,
+};
 
 pub use serde_json;
 
@@ -512,9 +514,7 @@ pub fn preset_rc() -> String {
 
 /// Names the Bazel-built process probe from the runfiles of the calling test.
 pub fn process_probe() -> PathBuf {
-    let rel = std::env::var("DX_PROCESS_PROBE")
-        .unwrap_or_else(|_| panic!("DX_PROCESS_PROBE must name the process probe"));
-    resolve_runfiles(&rel)
+    env_file("DX_PROCESS_PROBE")
 }
 
 /// Reports whether a live process still holds the alive lock at `lock`.

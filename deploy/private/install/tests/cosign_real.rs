@@ -1,3 +1,4 @@
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 use std::process::Output;
 
@@ -5,15 +6,11 @@ const IDENTITY: &str = "https://github.com/dx-test/release.yml@refs/heads/main";
 const ISSUER: &str = "https://token.actions.githubusercontent.com";
 
 fn cosign() -> String {
-    let rel = std::env::var("DX_COSIGN_BIN").expect("DX_COSIGN_BIN names the pinned cosign");
-    dx_testing::resolve_runfiles(&rel)
-        .to_string_lossy()
-        .into_owned()
+    dx_testing::path_text(&env_file("DX_COSIGN_BIN"))
 }
 
 fn fixture(name: &str) -> PathBuf {
-    let rel = std::env::var("DX_COSIGN_FIXTURES").expect("DX_COSIGN_FIXTURES names ca.pem");
-    let anchor = dx_testing::resolve_runfiles(&rel);
+    let anchor = env_file("DX_COSIGN_FIXTURES");
     anchor.parent().expect("fixture dir").join(name)
 }
 

@@ -1,5 +1,6 @@
 //! Serves a rendered docs site over loopback for the Firefox-driven site tests.
 
+use dx_testing::env_file;
 use std::path::PathBuf;
 
 use dx_docs_serve::{Handle, Site};
@@ -29,15 +30,13 @@ impl Server {
 }
 
 pub fn firefox_binary() -> PathBuf {
-    let rel = std::env::var(FIREFOX).expect("DX_FIREFOX must name the acquired browser binary");
-    let path = dx_testing::resolve_runfiles(&rel);
+    let path = env_file(FIREFOX);
     assert!(path.is_file(), "not a file: {}", path.display());
     path
 }
 
 pub fn user_site() -> PathBuf {
-    let rel = std::env::var(USER_SITE).expect("DX_USER_SITE must name the rendered site");
-    let path = dx_testing::resolve_runfiles(&rel);
+    let path = env_file(USER_SITE);
     assert!(path.is_dir(), "not a directory: {}", path.display());
     path
 }

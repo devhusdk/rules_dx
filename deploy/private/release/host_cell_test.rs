@@ -1,18 +1,14 @@
+use dx_testing::env_file;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use dx_release_tools::cell::{Cell, parse_matrix};
 
-fn data(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn host_cell() -> (Cell, PathBuf) {
-    let matrix = std::fs::read_to_string(data("DX_RELEASE_MATRIX")).expect("release matrix");
+    let matrix = std::fs::read_to_string(env_file("DX_RELEASE_MATRIX")).expect("release matrix");
     let cells = parse_matrix(&matrix).expect("release-matrix/v1");
     assert_eq!(cells.len(), 5, "{cells:?}");
-    let archive = data("DX_HOST_CELL");
+    let archive = env_file("DX_HOST_CELL");
     let base = archive
         .file_name()
         .and_then(|name| name.to_str())
@@ -77,7 +73,7 @@ fn host_cell_notice_lists_shipped_crates_only() {
 
 #[test]
 fn consumer_template_ships_every_staged_file() {
-    let template = data("DX_CONSUMER_TEMPLATE");
+    let template = env_file("DX_CONSUMER_TEMPLATE");
     let template = template.parent().expect("template dir");
     for (source, _) in dx_release_tools::cell::CONSUMER_FILES {
         assert!(template.join(source).is_file(), "{source}");
@@ -89,7 +85,7 @@ fn consumer_template_ships_every_staged_file() {
 
 #[test]
 fn consumer_template_matches_the_gazelle_fixture() {
-    let template = data("DX_CONSUMER_TEMPLATE");
+    let template = env_file("DX_CONSUMER_TEMPLATE");
     let template = template.parent().expect("template dir");
     let read = |path: &std::path::Path| std::fs::read(path).expect("read");
     for (source, dest) in dx_release_tools::cell::CONSUMER_FILES {
@@ -103,7 +99,7 @@ fn consumer_template_matches_the_gazelle_fixture() {
             other => panic!("no fixture for staged file {other}"),
         };
         for (env, name) in fixtures {
-            assert_eq!(staged, read(&data(env)), "{name}");
+            assert_eq!(staged, read(&env_file(env)), "{name}");
         }
     }
 }

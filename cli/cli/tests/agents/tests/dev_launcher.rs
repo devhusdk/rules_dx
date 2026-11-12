@@ -1,24 +1,20 @@
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
 use dx_process::WORKFLOW_STARTUP_OPTS;
-use dx_testing::resolve_runfiles;
 
 fn state(root: &Path) -> PathBuf {
     dx_path::state::launcher_dir(root)
 }
 
-fn launcher_path(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"));
-    resolve_runfiles(&rel)
-}
 #[test]
 fn dev_launchers_keep_their_structure() {
     // Behaviour (build, query, repin retry, hook hand-off, copy sync, signals)
     // is covered by the fake-bazel tests in `sh` and `cmd` below. Only the
     // shape that those tests cannot see is pinned here.
     let startup = WORKFLOW_STARTUP_OPTS.join(" ");
-    let sh = std::fs::read_to_string(launcher_path("DX_LAUNCHER_SH")).expect("tools/dx");
-    let cmd = std::fs::read_to_string(launcher_path("DX_LAUNCHER_CMD"))
+    let sh = std::fs::read_to_string(env_file("DX_LAUNCHER_SH")).expect("tools/dx");
+    let cmd = std::fs::read_to_string(env_file("DX_LAUNCHER_CMD"))
         .expect("tools/dx.cmd")
         .replace("\r\n", "\n")
         .replace('\n', "\r\n");
@@ -355,12 +351,12 @@ mod sh {
         std::fs::create_dir_all(root.join("cli/cli")).expect("cli dir");
         std::fs::create_dir_all(root.join(".dx/bazelrc")).expect("bazelrc dir");
         std::fs::create_dir_all(root.join("tools")).expect("tools dir");
-        std::fs::copy(launcher_path("DX_MODULE"), root.join("MODULE.bazel")).expect("module");
+        std::fs::copy(env_file("DX_MODULE"), root.join("MODULE.bazel")).expect("module");
         std::fs::write(root.join("cli/cli/BUILD.bazel"), "").expect("build file");
         std::fs::write(root.join("BUILD.bazel"), "").expect("root build file");
         std::fs::write(root.join(".dx/bazelrc/resources.bazelrc"), "").expect("preset");
         let launcher = root.join("tools/dx");
-        let text = std::fs::read_to_string(launcher_path("DX_LAUNCHER_SH")).expect("launcher");
+        let text = std::fs::read_to_string(env_file("DX_LAUNCHER_SH")).expect("launcher");
         dx_testing::executable_script(&launcher, &text);
     }
 
@@ -1520,7 +1516,7 @@ mod cmd {
         .expect("module");
         std::fs::write(root.join("cli/cli/BUILD.bazel"), "").expect("build file");
         std::fs::write(root.join(".dx/bazelrc/resources.bazelrc"), "").expect("preset");
-        let text = std::fs::read_to_string(launcher_path("DX_LAUNCHER_CMD")).expect("launcher");
+        let text = std::fs::read_to_string(env_file("DX_LAUNCHER_CMD")).expect("launcher");
         std::fs::write(
             root.join("tools/dx.cmd"),
             text.replace("\r\n", "\n").replace('\n', "\r\n"),

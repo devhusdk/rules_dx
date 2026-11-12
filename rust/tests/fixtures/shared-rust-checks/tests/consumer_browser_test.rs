@@ -6,7 +6,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
-use dx_site_browser::{wait_for, Browser};
+use dx_site_browser::{Browser, wait_for};
 
 const CONSUMER_SERVE: &str = "DX_SHARED_CONSUMER_SERVE";
 const FIREFOX: &str = "DX_FIREFOX";
@@ -66,8 +66,7 @@ impl Drop for Server {
 }
 
 fn firefox_binary() -> PathBuf {
-    let rel = std::env::var(FIREFOX).expect("DX_FIREFOX must name the acquired browser binary");
-    let path = dx_testing::resolve_runfiles(&rel);
+    let path = dx_testing::env_file(FIREFOX);
     assert!(path.is_file(), "not a file: {}", path.display());
     path
 }

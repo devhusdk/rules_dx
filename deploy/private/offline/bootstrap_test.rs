@@ -1,3 +1,4 @@
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -63,16 +64,6 @@ fn scratch() -> PathBuf {
     dx_testing::mkscratch("dx-bootstrap").unwrap_or_else(|error| panic!("test scratch: {error}"))
 }
 
-fn script() -> PathBuf {
-    let rel = std::env::var("DX_BOOTSTRAP").expect("DX_BOOTSTRAP must name the bootstrap");
-    dx_testing::resolve_runfiles(&rel)
-}
-
-fn source() -> PathBuf {
-    let rel = std::env::var("DX_BOOTSTRAP_SRC").expect("DX_BOOTSTRAP_SRC must name the source");
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn read(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
@@ -89,7 +80,7 @@ fn write(path: &Path, text: &str) {
 
 /// Returns the advisory sets the bootstrap accepts, read from its own constant.
 fn accepted_sets() -> Vec<String> {
-    read(&source())
+    read(&env_file("DX_BOOTSTRAP_SRC"))
         .lines()
         .find(|line| line.contains("ADVISORY_SETS: [&str;"))
         .and_then(|line| line.rsplit_once('[').map(|(_, rest)| rest))
@@ -182,7 +173,7 @@ fn bundle(name: &str) -> Bundle {
 }
 
 fn bootstrap_offline(args: &[String], cwd: &Path) -> Run {
-    let output = Command::new(script())
+    let output = Command::new(env_file("DX_BOOTSTRAP"))
         .args(args)
         .current_dir(cwd)
         .output()
@@ -536,7 +527,7 @@ fn offline_bundle_knows_every_host_launcher() {
         .map(str::to_owned)
         .collect();
     in_bzl.sort();
-    let mut in_rust: Vec<String> = read(&source())
+    let mut in_rust: Vec<String> = read(&env_file("DX_BOOTSTRAP_SRC"))
         .split("Some(\"")
         .skip(1)
         .filter_map(|rest| rest.split('"').next())

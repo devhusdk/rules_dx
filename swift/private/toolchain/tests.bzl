@@ -51,6 +51,50 @@ def swift_cross_runtime_test(name, exec_cpu, target_cpu, **kwargs):
         **kwargs
     )
 
+def _tool_inputs_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "SwiftCompile"]
+    asserts.true(env, len(actions) > 0, "no SwiftCompile action")
+    for action in actions:
+        inputs = [file.path for file in action.inputs.to_list()]
+        for suffix in ctx.attr.expected:
+            asserts.true(env, [path for path in inputs if path.endswith(ctx.attr.root + "/" + suffix)], "SwiftCompile does not take " + suffix + " as an input")
+    return analysistest.end(env)
+
+_tool_inputs_test = analysistest.make(
+    _tool_inputs_impl,
+    attrs = {
+        "expected": attr.string_list(mandatory = True, doc = "Paths under the Swift archive root that every SwiftCompile action takes as inputs."),
+        "root": attr.string(mandatory = True, doc = "The root of the Swift archive the tools run from."),
+    },
+)
+
+def swift_tool_inputs_test(name, cpu, target_under_test, **kwargs):
+    """Asserts SwiftCompile takes the driver and the libraries the tools load through their runpath as inputs.
+
+    Args:
+        name: The test name.
+        cpu: The Linux cpu the Swift tools run on.
+        target_under_test: A swift_library built on that cpu.
+        **kwargs: Passed to the test.
+    """
+    _tool_inputs_test(
+        name = name,
+        size = "small",
+        expected = [
+            "usr/bin/swift-driver",
+            "usr/bin/swift-frontend",
+            "usr/lib/swift/host/compiler/lib_CompilerSwiftSyntax.so",
+            "usr/lib/swift/linux/libswiftCore.so",
+            "usr/lib/swift/linux/libuuid.so.1",
+            "usr/lib/swift/linux/libsqlite3.so.0",
+        ],
+        root = Label("@dx_swift_linux_%s//:files" % cpu).workspace_root,
+        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:" + cpu],
+        target_under_test = target_under_test,
+        **kwargs
+    )
+
 _HEX = "0123456789abcdef"
 _WINDOWS_CELLS = ["windows_arm64", "windows_x86_64"]
 

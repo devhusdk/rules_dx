@@ -29,6 +29,7 @@ filegroup(
         [
             "usr/lib/swift/**",
             "usr/bin/swift",
+            "usr/bin/swift-driver",
             "usr/bin/swift-frontend",
         ],
     ),

@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "sbom_demo"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "greeter"
+path = "greeter.rs"
+
+[[bin]]
+name = "app"
+path = "app.rs"

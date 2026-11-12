@@ -1,5 +1,5 @@
 {
-  "checksum": "59e4fb5b872e0bc9d420eff57b4354b08229fa6f62b0802d7f40cd7f1dbabc83",
+  "checksum": "2c3f4b140fc7dae3e38251e0a89c01e1ff8bcfa22116b6564c1a98be2c78f167",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -13862,6 +13862,19 @@
       ],
       "version": "0.4.34"
     },
+    "image_demo 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "image_demo",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "indexmap 2.14.2": {
       "common_attrs": {
         "crate_features": [
@@ -23411,6 +23424,27 @@
       ],
       "version": "0.2.2"
     },
+    "sbom_demo 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "greeter",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "sbom_demo",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "greeter",
+            "crate_root": "greeter.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "schannel 0.1.30": {
       "common_attrs": {
         "deps": [
@@ -32650,6 +32684,7 @@
     "haskell_extract 0.0.0": "tools/docs/haskell/haskell_extract",
     "hermetic 0.0.0": "tools/testing/hermetic",
     "ide_tests 0.0.0": "tools/ide_tests",
+    "image_demo 0.0.0": "deploy/private/image_demo",
     "java_app_cli_fixture 0.0.0": "java/tests/fixtures/java-app/java_app_cli_fixture",
     "julia_extract 0.0.0": "tools/docs/julia/julia_extract",
     "julia_jet 0.0.0": "julia/private/tools/julia_jet",
@@ -32687,6 +32722,7 @@
     "ruby_docs_tests 0.0.0": "tools/docs/ruby_docs_tests",
     "ruby_extract 0.0.0": "tools/docs/ruby/ruby_extract",
     "rust_extract 0.0.0": "tools/docs/rust/rust_extract",
+    "sbom_demo 0.0.0": "deploy/private/sbom_demo",
     "site_aggregate 0.0.0": "tools/docs/site/site_aggregate",
     "site_browser 0.0.0": "tools/docs/site/site_browser",
     "site_build 0.0.0": "tools/docs/site/site_build",

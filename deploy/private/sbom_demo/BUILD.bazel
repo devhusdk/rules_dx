@@ -1,3 +1,4 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core:defs.bzl", "starlark_test")
 load("//deploy/private:github.bzl", "github_deploy")
 load("//deploy/private:oci.bzl", "oci_deploy")
@@ -109,3 +110,9 @@ aspect_field transitive_count=0""",
 )
 
 plain_file_sbom_tests(name = "plain_file_sbom_test")
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

@@ -317,11 +317,13 @@ pub fn discover(
             let Some(lock) = install.lock_file else {
                 continue;
             };
+            let lock = path(lock)?;
+            let manifest = beside(&lock, manifest_of("maven"));
             sets.push(hub_set(
                 install.name,
                 Ecosystem::Maven,
-                vec![MODULE_BAZEL.to_owned()],
-                vec![path(lock)?],
+                vec![manifest],
+                vec![lock],
             )?);
         }
         for npm in module.npm_translate_locks().map_err(hub)? {

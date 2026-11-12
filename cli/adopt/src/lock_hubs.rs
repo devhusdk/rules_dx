@@ -182,6 +182,7 @@ pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
         plan.npm()?;
         plan.pub_()?;
         plan.go()?;
+        plan.maven()?;
         for ecosystem in LOCK_TAG_ECOSYSTEMS {
             plan.lock_tag(ecosystem)?;
         }
@@ -610,6 +611,41 @@ impl Planner<'_> {
         self.add(eco, &tags, &[eco.hub.as_str()])
     }
 
+    fn maven(&mut self) -> Result<(), AdoptError> {
+        let maven = hub_of("maven")?;
+        let (Some(lock_name), Some(tag_name)) = (maven.lock.as_deref(), maven.tag.as_deref())
+        else {
+            return Ok(());
+        };
+        if !self.exists(&maven.manifest) || !self.exists(lock_name) {
+            return Ok(());
+        }
+        if self
+            .files
+            .iter()
+            .any(|file| !file.hub_bindings(&maven.extension, &maven.ecosystem).is_empty())
+        {
+            return Ok(());
+        }
+        let tags = vec![
+            tag(
+                tag_name,
+                vec![
+                    ("name", string(&maven.hub)),
+                    ("libs_versions_toml", string(&root_label(&maven.manifest))),
+                ],
+            ),
+            tag(
+                "install",
+                vec![
+                    ("name", string(&maven.hub)),
+                    ("lock_file", string(&root_label(lock_name))),
+                ],
+            ),
+        ];
+        self.add(maven, &tags, &[maven.hub.as_str()])
+    }
+
     fn pnpm(&mut self) -> Result<(), AdoptError> {
         let pnpm = hub_of("pnpm")?;
         if self.files.iter().any(|file| binds_name(file, pnpm)) {
@@ -862,6 +898,24 @@ mod tests {
                 "{ecosystem}: {text}"
             );
         }
+    }
+
+    #[test]
+    fn maven_manifest_and_lock_get_a_from_toml_hub_with_no_coordinate() {
+        let hubs = plan(&[
+            (manifest_of("maven"), "[libraries]\nguava = \"com.google.guava:guava:33.4.0-jre\"\n"),
+            (lock_of("maven"), "{}"),
+        ]);
+        let text = new_text(&hubs);
+        assert!(
+            text.contains(&format!(
+                "maven.from_toml(\n    name = \"maven\",\n    libs_versions_toml = \"//:{}\",\n)\nmaven.install(\n    name = \"maven\",\n    lock_file = \"//:{}\",\n)\nuse_repo(maven, \"maven\")\n",
+                manifest_of("maven"),
+                lock_of("maven")
+            )),
+            "{text}"
+        );
+        assert!(!text.contains("guava"), "{text}");
     }
 
     #[test]

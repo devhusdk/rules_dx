@@ -725,7 +725,6 @@ typescript/tests/fixtures/scoped/BUILD.bazel no-size 1
 typescript/tests/tags/BUILD.bazel no-size 1
 typescript/tests/typecheck_profiles/BUILD.bazel no-size 1
 vue/tests/app/BUILD.bazel no-size 4
-vue/tests/fixtures/hello/BUILD.bazel no-size 1
 zig/private/BUILD.bazel no-size 1
 zig/tests/fixtures/bench/BUILD.bazel no-size 3
 zig/tests/fixtures/bench/BUILD.bazel size-large 1

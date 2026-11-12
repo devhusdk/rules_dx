@@ -6,6 +6,16 @@
   "ecosystems": [],
   "manifests": [],
   "lockfiles": [],
+  "setup": {
+    "licenses": [
+      {
+        "id": "android-sdk-license",
+        "platforms": [
+          "linux_x86_64"
+        ]
+      }
+    ]
+  },
   "tools": [],
   "platforms": [
     "linux_arm64",

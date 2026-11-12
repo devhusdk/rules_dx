@@ -11,8 +11,10 @@ use_repo(flutter_pub, "dx_flutter_app_deps")
 bazel_dep(name = "rules_android", version = "0.8.1")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["android-sdk-license"])
+
 android_sdk = use_extension("@rules_dx//android:extensions.bzl", "android_sdk")
-android_sdk.configure(accept_licenses = ["android-sdk-license"])
 use_repo(android_sdk, "dx_android_sdk", "dx_androidsdk")
 
 android_sdk_repository = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")

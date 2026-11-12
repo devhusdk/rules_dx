@@ -6,6 +6,17 @@
   "ecosystems": [],
   "manifests": [],
   "lockfiles": [],
+  "setup": {
+    "licenses": [
+      {
+        "id": "windows-sdk-buildtools",
+        "platforms": [
+          "windows_arm64",
+          "windows_x86_64"
+        ]
+      }
+    ]
+  },
   "tools": [],
   "platforms": [
     "windows_arm64",

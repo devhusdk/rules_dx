@@ -6,7 +6,6 @@ try-import %workspace%/.dx/bazelrc/resources.bazelrc
 # Keep -no-coverage and also skip languages with no coverage collector yet.
 coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector
 
-test:retry --flaky_test_attempts=3
 common --local_resources=nested_bazel=2
 test --test_env=DX_NESTED_BAZEL_HEAP
 test --test_env=BAZELISK_BASE_URL
@@ -35,7 +34,6 @@ build:windows --host_per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__
 
 build --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings
 build --@rules_rust//rust/settings:clippy.toml=//tools/workspace:clippy.toml
-common:apple_family --extra_toolchains=@local_config_apple_cc_toolchains//:all
 build:linux --@rules_rust//rust/settings:pipelined_compilation=true
 build:linux --linkopt=-Wno-unused-command-line-argument
 build:linux --host_linkopt=-Wno-unused-command-line-argument
@@ -88,10 +86,6 @@ common:rbe --remote_default_exec_properties=container-image=docker://gcr.io/flam
 common:rbe --remote_default_exec_properties=dockerUser=nobody
 common:rbe --remote_local_fallback
 common:rbe --strategy=TestRunner=remote,sandboxed,local
-
-# Compilation modes for evidence.yml, which only accepts --config flags.
-build:cc_dbg --compilation_mode=dbg
-build:cc_opt --compilation_mode=opt
 
 # iOS simulator builds run debug code for arm64 simulators.
 build:ios_sim --compilation_mode=dbg

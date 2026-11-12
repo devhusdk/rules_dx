@@ -1,7 +1,8 @@
 diff --git a/swift/toolchains/swift_toolchain.bzl b/swift/toolchains/swift_toolchain.bzl
+index 0734fd9..b1168ee 100644
 --- a/swift/toolchains/swift_toolchain.bzl
 +++ b/swift/toolchains/swift_toolchain.bzl
-@@ -320,6 +320,23 @@
+@@ -322,6 +322,27 @@ def _all_action_configs(os, arch, target_triple, sdkroot, xctest_version, additi
                      ),
                  )
  
@@ -18,6 +19,10 @@ diff --git a/swift/toolchains/swift_toolchain.bzl b/swift/toolchains/swift_toolc
 +                        paths.join(sdkroot, "..", "..", "Library", "Testing-{}".format(xctest_version), "usr", "lib", "swift", os),
 +                        format = "-I%s",
 +                    ),
++                    add_arg(
++                        paths.join(sdkroot, "..", "..", "Library", "Testing-{}".format(xctest_version), "usr", "lib", "swift", os, arch),
++                        format = "-I%s",
++                    ),
 +                ],
 +            ),
 +        )
@@ -25,7 +30,7 @@ diff --git a/swift/toolchains/swift_toolchain.bzl b/swift/toolchains/swift_toolc
      action_configs.extend(all_actions_action_configs())
      action_configs.extend(
          compile_action_configs(
-@@ -368,6 +385,7 @@
+@@ -370,6 +391,7 @@ def _swift_windows_linkopts_cc_info(
      linkopts = [
          "-LIBPATH:{}".format(platform_lib_dir),
          "-LIBPATH:{}".format(paths.join(sdkroot, "..", "..", "Library", "XCTest-{}".format(xctest_version), "usr", "lib", "swift", "windows", arch)),

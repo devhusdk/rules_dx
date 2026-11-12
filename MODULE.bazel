@@ -425,6 +425,8 @@ single_version_override(
 bazel_dep(name = "rules_scala", version = "7.4.1")
 single_version_override(
     module_name = "rules_scala",
+    patch_strip = 1,
+    patches = ["//patches/rules_scala:manifest_only_wrapper.patch"],
     version = "7.4.1",
 )
 

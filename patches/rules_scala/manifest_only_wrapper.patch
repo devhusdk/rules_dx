@@ -1,0 +1,56 @@
+diff --git a/java_stub_template/file/file.txt b/java_stub_template/file/file.txt
+--- a/java_stub_template/file/file.txt
++++ b/java_stub_template/file/file.txt
+@@ -139,6 +139,8 @@ if [[ "$self" != /* ]]; then
+   self="$PWD/$self"
+ fi
+ 
++RUNFILES_MANIFEST_FROM_ENV="${RUNFILES_MANIFEST_FILE:-}"
++
+ if [[ "$SINGLEJAR" != 1 || "%needs_runfiles%" == 1 ]]; then
+   if [[ -z "$JAVA_RUNFILES" ]]; then
+     while true; do
+@@ -171,6 +173,10 @@ if [[ "$SINGLEJAR" != 1 || "%needs_runfiles%" == 1 ]]; then
+   fi
+ fi
+ 
++if [[ -n "$JAVA_RUNFILES" ]]; then
++  export TEST_SRCDIR=${TEST_SRCDIR:-$JAVA_RUNFILES}
++fi
++
+ # If we are running on Windows, we need a windows style runfiles path for constructing CLASSPATH
+ if is_windows; then
+   JAVA_RUNFILES=$(cygpath --windows "$JAVA_RUNFILES")
+@@ -228,6 +234,16 @@ else
+   function md5func() { md5sum $@ | awk '{print $1}' ; }
+ fi
+ 
++function runfile_path() {
++  if [[ -n "$TEST_SRCDIR" && -e "$TEST_SRCDIR/$1" ]]; then
++    echo "$TEST_SRCDIR/$1"
++  elif [[ -f "$RUNFILES_MANIFEST_FROM_ENV" ]]; then
++    sed -e 's/\r$//' "$RUNFILES_MANIFEST_FROM_ENV" | awk -v key="$1" '$1 == key { sub(/^[^ ]* /, ""); print; exit }'
++  else
++    echo "$TEST_SRCDIR/$1"
++  fi
++}
++
+ # Set JAVABIN to the path to the JVM launcher.
+ %javabin%
+ 
+diff --git a/scala/private/phases/phase_write_executable.bzl b/scala/private/phases/phase_write_executable.bzl
+--- a/scala/private/phases/phase_write_executable.bzl
++++ b/scala/private/phases/phase_write_executable.bzl
+@@ -134,10 +134,8 @@ def _write_executable_non_windows(ctx, executable, rjars, main_class, jvm_flags,
+         [ctx.expand_location(f, ctx.attr.data) for f in jvm_flags],
+     )
+ 
+-    javabin = "export REAL_EXTERNAL_JAVA_BIN=${JAVABIN};JAVABIN=${JAVABIN:-%s/%s}" % (
+-        runfiles_root(ctx),
+-        wrapper.short_path,
+-    )
++    wrapper_key = wrapper.short_path[3:] if wrapper.short_path.startswith("../") else "%s/%s" % (ctx.workspace_name, wrapper.short_path)
++    javabin = "export REAL_EXTERNAL_JAVA_BIN=${JAVABIN};JAVABIN=${JAVABIN:-$(runfile_path %s)}" % wrapper_key
+ 
+     scala_toolchain = ctx.toolchains["//scala:toolchain_type"]
+ 

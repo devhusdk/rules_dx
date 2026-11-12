@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":resolved_toolchain.bzl", "resolved_cc_toolchain")
 
 # gazelle:lang rust,dx_dispatch
 
@@ -120,7 +121,10 @@ rust_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "resolved_toolchain.bzl",
+    ],
     tags = ["corpus"],
 )
 
@@ -142,5 +146,15 @@ test_suite(
         "//cc/tests/fixtures/no_srcs:app_sources_test",
         "//cc/tests/fixtures/no_srcs:x_test",
         "//cc/tests/fixtures/strict_generation:strict_test",
+    ],
+)
+
+resolved_cc_toolchain(
+    name = "macos_arm64_cc",
+    testonly = True,
+    expected = "darwin_arm64",
+    target_compatible_with = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:macos",
     ],
 )

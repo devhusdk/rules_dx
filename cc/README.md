@@ -113,6 +113,10 @@ msvc.license(accept = ["visual-studio-build-tools"])
 
 Any other host or target platform fails with a message that names the supported pair. There is no clang-cl fallback.
 
+## macOS
+
+On a macOS host, Apple targets including `macos_*` resolve the Xcode toolchain; `@llvm` with the pinned `@macos_sdk` serves macOS targets only from Linux and Windows hosts.
+
 ## Benchmarks
 
 `cc_bench` links Google Benchmark's `benchmark_main` into a private `<name>_bin` and declares `<name>` as the `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.

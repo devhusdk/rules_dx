@@ -367,8 +367,6 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
       - name: Run the opted-in requires-network consumer tests
-        env:
-          REPO_CACHE_PATH: ${{ steps.setup.outputs.repository-cache-root }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
@@ -376,7 +374,7 @@ jobs:
           test -n "$targets"
           echo "$targets" > "$RUNNER_TEMP/network-targets"
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${REPO_CACHE_PATH}" "$@" $targets
+          bazel test --noshow_progress --test_output=errors --test_timeout=2400 --flaky_test_attempts=2 "$@" $targets
       - name: Write job summary
         if: always()
         env:
@@ -438,7 +436,6 @@ jobs:
           fi
       - name: Run this shard of the starter consumer tests
         env:
-          REPO_CACHE_PATH: ${{ steps.setup.outputs.repository-cache-root }}
           SHARD: ${{ matrix.shard }}
           SHARDS: "4"
           NO_STARTER_ISSUE: ${{ matrix.no-starter-issue }}
@@ -458,7 +455,7 @@ jobs:
           fi
           targets="$(tr '\r\n' '  ' < "$RUNNER_TEMP/starter-targets")"
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${REPO_CACHE_PATH}" "$@" $targets && test_status=0 || test_status=$?
+          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets --test_timeout=2400 --flaky_test_attempts=2 "$@" $targets && test_status=0 || test_status=$?
           testlogs="$PWD/bazel-testlogs"
           ran=0
           : > "$RUNNER_TEMP/starter-ran"

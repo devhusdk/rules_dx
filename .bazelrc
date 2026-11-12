@@ -8,8 +8,6 @@ coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector
 
 common --local_resources=nested_bazel=2
 test --test_env=DX_NESTED_BAZEL_HEAP
-test --test_env=BAZELISK_BASE_URL
-test --test_env=BAZELISK_HOME
 test:nested_record --test_env=DX_NESTED_BAZEL_NETWORK=1
 common --registry=https://bcr.bazel.build
 

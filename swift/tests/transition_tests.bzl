@@ -1,7 +1,7 @@
 """Tests for the Swift wrapper transition settings."""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
-load(":transition.bzl", "swift_transition_settings")
+load("//swift/private/platforms:transition.bzl", "swift_transition_settings")
 
 _APPLE = "@@+x+local_config_apple_cc_toolchains//:all"
 _LINUX_X86_64 = ["@platforms//cpu:x86_64", "@platforms//os:linux"]

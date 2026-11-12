@@ -15,7 +15,7 @@ def _qt_cell_json_impl(ctx):
 
 qt_cell_json = rule(
     implementation = _qt_cell_json_impl,
-    doc = "Writes the JSON spec of one pinned Qt cell for qt_sdk.cell.",
+    doc = "Writes the JSON spec of one pinned Qt cell for qt.cell.",
     attrs = {
         "cell": attr.string(doc = "Pinned cell to export.", mandatory = True),
     },

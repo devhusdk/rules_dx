@@ -338,7 +338,7 @@ def resolve_modules(modules):
     return sorted(resolved.keys())
 
 def default_request():
-    """Returns the request a bare qt_sdk.configure() makes."""
+    """Returns the request a bare qt.configure() makes."""
     return struct(
         mirror = "",
         modules = list(DEFAULT_MODULES),
@@ -347,7 +347,7 @@ def default_request():
     )
 
 def implicit_request():
-    """Returns the request a build with no qt_sdk.configure() makes."""
+    """Returns the request a build with no qt.configure() makes."""
     return struct(
         mirror = "",
         modules = sorted(MODULES.keys()),
@@ -359,15 +359,15 @@ def request_errors(request):
     """Returns one error string per rejected field of one acquisition request."""
     errors = []
     if request.version != QT_VERSION:
-        errors.append("qt_sdk: version '" + request.version + "' is not pinned; want " + QT_VERSION)
+        errors.append("qt: version '" + request.version + "' is not pinned; want " + QT_VERSION)
     if len(request.modules) == 0:
-        errors.append("qt_sdk: request at least one module")
+        errors.append("qt: request at least one module")
     for name in request.modules:
         if name not in MODULES:
-            errors.append("qt_sdk: unknown module '" + name + "'; want one of " + ", ".join(sorted(MODULES.keys())))
+            errors.append("qt: unknown module '" + name + "'; want one of " + ", ".join(sorted(MODULES.keys())))
     for field, value in [("mirror", request.mirror), ("runtime_mirror", request.runtime_mirror)]:
         if value != "" and not value.startswith("https://"):
-            errors.append("qt_sdk: " + field + " '" + value + "' must use https")
+            errors.append("qt: " + field + " '" + value + "' must use https")
     return errors
 
 def cell_spec(entry):
@@ -490,7 +490,7 @@ def _is_cell_name(value):
     return True
 
 def consumer_cells(tags):
-    """Returns the consumer cells decoded from qt_sdk.cell tags, and one error string per rejected tag."""
+    """Returns the consumer cells decoded from qt.cell tags, and one error string per rejected tag."""
     cells = {}
     errors = []
     seen = {}
@@ -743,7 +743,7 @@ def cell_build(cell, modules, rules_cc, unsupported, needs, cells = CELLS, tool 
         for target in MODULES[module].targets:
             if target in enabled:
                 continue
-            lines.extend(_unsupported(target, "enable module '" + module + "' in qt_sdk.configure(modules = ...)"))
+            lines.extend(_unsupported(target, "enable module '" + module + "' in qt.configure(modules = ...)"))
     for name in sorted(_LIBRARIES.keys()):
         if _LIBRARIES[name].module in modules:
             lines.extend(_library(name, _LIBRARIES[name], layout, entry.runtime != None))
@@ -791,14 +791,14 @@ def _extract(ctx, extractor, archive, output, links = False):
         command.append("-snld20")
     result = ctx.execute(command + [str(archive)])
     if result.return_code != 0:
-        fail("qt_sdk: cannot extract '" + str(archive) + "': " + result.stdout + result.stderr)
+        fail("qt: cannot extract '" + str(archive) + "': " + result.stdout + result.stderr)
 
 def _move_real(ctx, source, destination):
     path = ctx.path(source)
     if not path.exists:
-        fail("qt_sdk: '" + source + "' is missing from the pinned payload")
+        fail("qt: '" + source + "' is missing from the pinned payload")
     if ctx.path(destination).exists:
-        fail("qt_sdk: '" + destination + "' is provided twice")
+        fail("qt: '" + destination + "' is provided twice")
     ctx.rename(path.realpath, destination)
 
 def _acquire_rpm(ctx, extractor, package, cells):
@@ -855,10 +855,10 @@ def _normalize_frameworks(ctx):
 def _check_module(ctx, name):
     path = ctx.path("modules/" + name + ".json")
     if not path.exists:
-        fail("qt_sdk: the pinned archives carry no modules/" + name + ".json")
+        fail("qt: the pinned archives carry no modules/" + name + ".json")
     version = json.decode(ctx.read(path)).get("version", "")
     if version != QT_VERSION:
-        fail("qt_sdk: modules/" + name + ".json is version '" + version + "', want " + QT_VERSION)
+        fail("qt: modules/" + name + ".json is version '" + version + "', want " + QT_VERSION)
 
 def _cell_table(ctx):
     if ctx.attr.entry == "":
@@ -866,7 +866,7 @@ def _cell_table(ctx):
     data = json.decode(ctx.attr.entry)
     entry, errors = cell_from_json(ctx.attr.cell, data["spec"], data["constraints"], LAYOUTS[data["layout"]])
     if len(errors) > 0:
-        fail("qt_sdk: " + "; ".join(errors))
+        fail("qt: " + "; ".join(errors))
     return effective_cells({ctx.attr.cell: entry})
 
 def _place_font(ctx):
@@ -884,10 +884,10 @@ def _qt_cell_repo_impl(ctx):
     cells = _cell_table(ctx)
     errors = pin_errors(cells)
     if len(errors) > 0:
-        fail("qt_sdk: " + "; ".join(errors))
+        fail("qt: " + "; ".join(errors))
     host = host_key(ctx.os.name, ctx.os.arch)
     if host not in EXTRACTORS:
-        fail("qt_sdk: the pinned extractor runs on " + ", ".join(sorted(EXTRACTORS.keys())) + " hosts only, not " + ctx.os.name + " " + ctx.os.arch)
+        fail("qt: the pinned extractor runs on " + ", ".join(sorted(EXTRACTORS.keys())) + " hosts only, not " + ctx.os.name + " " + ctx.os.arch)
     extractor = EXTRACTORS[host]
     entry = cells[ctx.attr.cell]
     layout = entry.layout
@@ -917,7 +917,7 @@ def _qt_cell_repo_impl(ctx):
     _check_module(ctx, "Core")
     for module in ctx.attr.modules:
         if not ctx.path("sbom/" + module + "-" + QT_VERSION + ".spdx.json").exists:
-            fail("qt_sdk: the pinned archives carry no sbom/" + module + "-" + QT_VERSION + ".spdx.json")
+            fail("qt: the pinned archives carry no sbom/" + module + "-" + QT_VERSION + ".spdx.json")
     if "qtdeclarative" in ctx.attr.modules:
         _check_module(ctx, "Qml")
     if "qttools" in ctx.attr.modules:

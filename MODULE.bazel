@@ -3078,8 +3078,8 @@ use_repo(windows_sdk_ext, "windows_sdk")
 msvc = use_extension("//cc:extensions.bzl", "msvc")
 use_repo(msvc, "dx_msvc")
 
-qt_sdk = use_extension("//qt:extensions.bzl", "qt_sdk")
-use_repo(qt_sdk, "dx_qt")
+qt = use_extension("//qt:extensions.bzl", "qt")
+use_repo(qt, "dx_qt")
 
 rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")
 use_repo(rules_kotlin_extensions, "btapi_impl", "com_github_google_ksp", "com_github_jetbrains_kotlin", "com_github_jetbrains_kotlin_git", "com_github_pinterest_ktlint", "jarjar", "kotlin_build_tools_api", "kotlinx_coroutines_core_jvm", "kotlinx_serialization_core_jvm", "kotlinx_serialization_json", "kotlinx_serialization_json_jvm")

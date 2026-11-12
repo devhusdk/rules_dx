@@ -28,11 +28,11 @@ exports_files([
 
 starlark_test(
     name = "hub_load_test",
-    expected_observations = """subject +qt_sdk+dx_qt//:linux_x86_64
+    expected_observations = """subject +qt+dx_qt//:linux_x86_64
 aspect_field aspect_seen=True
 aspect_field field_count=0
 aspect_field has_subject=False
-aspect_field subject_label=+qt_sdk+dx_qt//:linux_x86_64
+aspect_field subject_label=+qt+dx_qt//:linux_x86_64
 aspect_field transitive_count=0
 """,
     mode = "analysis",

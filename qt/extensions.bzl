@@ -1,5 +1,5 @@
 """Public Qt module extensions."""
 
-load("//qt/private/sdk:extensions.bzl", _qt_sdk = "qt_sdk")
+load("//qt/private/sdk:extensions.bzl", _qt = "qt")
 
-qt_sdk = _qt_sdk
+qt = _qt

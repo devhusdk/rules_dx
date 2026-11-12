@@ -11,9 +11,9 @@ Nothing else is needed. To narrow or mirror the SDK, the root module calls
 `configure`:
 
 ```python
-qt_sdk = use_extension("@rules_dx//qt:extensions.bzl", "qt_sdk")
+qt = use_extension("@rules_dx//qt:extensions.bzl", "qt")
 
-qt_sdk.configure(
+qt.configure(
     modules = ["qtdeclarative"],
 )
 ```
@@ -103,10 +103,10 @@ binary overrides these paths.
 ### Your own cell
 
 A cell is one platform's Qt archives and runtime closure. Declare your own
-with `qt_sdk.cell` in the root module:
+with `qt.cell` in the root module:
 
 ```python
-qt_sdk.cell(
+qt.cell(
     name = "custom_x86_64",
     constraints = [
         "@platforms//os:linux",
@@ -318,7 +318,7 @@ newer on x86_64, 2.39 or newer on arm64.
 
 rules_dx declares the Qt SDK and registers its toolchains; a consumer adds no
 `register_toolchains` line. The one tag a consumer may add is
-`qt_sdk.configure`.
+`qt.configure`.
 
 ## Platforms
 

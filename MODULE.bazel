@@ -898,6 +898,7 @@ dx_pins.archive(
     dropped = ["MODULE.bazel"],
     key = "rules_flutter",
     patches = [
+        "//patches/rules_flutter:registrant_javacopts.patch",
         "//patches/rules_flutter:engine_labels.patch",
         "//patches/rules_flutter:hermetic_pub.patch",
         "//patches/rules_flutter:flutter_3_47_9.patch",

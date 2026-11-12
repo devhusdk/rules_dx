@@ -65,6 +65,13 @@
       "urls": [
         "https://conda.anaconda.org/conda-forge/linux-64/php-8.5.12-h2a25e86_0.conda"
       ]
+    },
+    "macos_arm64": {
+      "inner": "pkg-php-8.5.12-h825bc69_0.tar.zst",
+      "sha256": "9a830aa21b5957ddb38e559478bdf096210ce43322c5ffd7a6c5be2c72edbfe0",
+      "urls": [
+        "https://conda.anaconda.org/conda-forge/osx-arm64/php-8.5.12-h825bc69_0.conda"
+      ]
     }
   },
   "pcov": {

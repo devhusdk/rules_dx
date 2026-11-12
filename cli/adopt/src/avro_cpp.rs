@@ -1,20 +1,30 @@
-//! Plans the `MODULE.bazel` lines that `avro_cc_library` needs: the `avro-cpp` dependency and the
-//! `override_repo` that binds `dx_avro_cpp` to it. A line that is already there is left alone,
-//! so a second run plans nothing.
+//! Plans the files and `MODULE.bazel` lines `avro_cc_library` needs.
 
 use std::path::Path;
 
-use dx_module_bazel::{ModuleFile, Value};
+use dx_module_bazel::{Call, ModuleFile, Value};
 
 use crate::AdoptError;
-use crate::lock_hubs::LockHubs;
 use crate::module_pin::ModuleEdit;
 
 const MODULE_FILE: &str = "MODULE.bazel";
 const MODULE_NAME: &str = "avro-cpp";
+const FMT_MODULE: &str = "fmt";
 const EXTENSION_BZL: &str = "@rules_dx//avro:extensions.bzl";
 const EXTENSION: &str = "avro_cc";
 const REPO: &str = "dx_avro_cpp";
+const PATCH_DIR: &str = "third_party/rules_dx/avro-cpp";
+const PATCH_LABEL: &str = "//third_party/rules_dx/avro-cpp:iterator.patch";
+const PATCH: &str = include_str!("../../../patches/avro-cpp/iterator.patch");
+const PATCH_BUILD: &str = "exports_files([\"iterator.patch\"])\n";
+
+/// The edits `dx generate --apply` writes for `avro_cc_library`, BUILD and patch before
+/// `MODULE.bazel`.
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct AvroCpp {
+    pub edits: Vec<ModuleEdit>,
+    pub notes: Vec<String>,
+}
 
 fn refuse(detail: impl std::fmt::Display) -> AdoptError {
     AdoptError::ModulePin {
@@ -31,10 +41,13 @@ fn uses_avro_cc(root: &Path) -> bool {
             continue;
         }
         for name in ["BUILD.bazel", "BUILD"] {
-            if std::fs::read_to_string(dir.join(name)).is_ok_and(|text| {
-                text.lines()
-                    .any(|line| line.trim_start().starts_with("avro_cc_library("))
-            }) {
+            let Ok(text) = std::fs::read_to_string(dir.join(name)) else {
+                continue;
+            };
+            if ModuleFile::parse_build(&text)
+                .ok()
+                .is_some_and(|file| file.calls_named("avro_cc_library").next().is_some())
+            {
                 return true;
             }
         }
@@ -62,16 +75,95 @@ fn overrides(file: &ModuleFile, binding: &str) -> bool {
     })
 }
 
-/// Plans the `avro-cpp` dependency and `override_repo` for a root that has `avro_cc_library`.
-/// Writes nothing.
-pub fn plan_avro_cpp(root: &Path) -> Result<LockHubs, AdoptError> {
+/// The `*_override` call for module `name`.
+fn module_override<'a>(file: &'a ModuleFile, name: &str) -> Option<&'a Call> {
+    file.calls()
+        .iter()
+        .find(|call| call.name.ends_with("_override") && call.str("module_name") == Some(name))
+}
+
+fn append(out: &mut String, block: &str) {
+    let eol = if out.contains("\r\n") { "\r\n" } else { "\n" };
+    if !out.ends_with('\n') {
+        out.push_str(eol);
+    }
+    if !out.trim().is_empty() {
+        out.push_str(eol);
+    }
+    out.push_str(&block.replace('\n', eol));
+}
+
+/// Plans a file under `root` holding `want`, unless it already does.
+fn file_edit(root: &Path, path: String, want: &str) -> Option<ModuleEdit> {
+    let old = std::fs::read_to_string(root.join(&path)).unwrap_or_default();
+    (old != want).then(|| ModuleEdit {
+        path,
+        old,
+        new: want.to_owned(),
+    })
+}
+
+/// Plans the patched avro-cpp and the fmt `single_version_override`s, and the patch they name.
+fn plan_overrides(
+    root: &Path,
+    out: &mut String,
+    edits: &mut Vec<ModuleEdit>,
+) -> Result<(), AdoptError> {
+    let file = ModuleFile::parse(out).map_err(refuse)?;
+    if module_override(&file, MODULE_NAME).is_none() {
+        append(
+            out,
+            &format!(
+                "single_version_override(\n    module_name = \"{MODULE_NAME}\",\n    patch_strip = 1,\n    patches = [\"{PATCH_LABEL}\"],\n    version = \"{}\",\n)\n",
+                dx_versions::AVRO_CPP_VERSION
+            ),
+        );
+    }
+    if module_override(&file, FMT_MODULE).is_none() {
+        append(
+            out,
+            &format!(
+                "single_version_override(\n    module_name = \"{FMT_MODULE}\",\n    version = \"{}\",\n)\n",
+                dx_versions::FMT_VERSION
+            ),
+        );
+    }
+    let file = ModuleFile::parse(out).map_err(refuse)?;
+    let patched = module_override(&file, MODULE_NAME)
+        .is_some_and(|call| call.str_list("patches").contains(&PATCH_LABEL));
+    if patched {
+        edits.extend(file_edit(
+            root,
+            format!("{PATCH_DIR}/BUILD.bazel"),
+            PATCH_BUILD,
+        ));
+        edits.extend(file_edit(
+            root,
+            format!("{PATCH_DIR}/iterator.patch"),
+            PATCH,
+        ));
+    }
+    Ok(())
+}
+
+/// Whether `file` declares `module(name = "rules_dx")`.
+fn is_rules_dx(file: &ModuleFile) -> bool {
+    file.calls_named("module")
+        .any(|call| call.str("name") == Some("rules_dx"))
+}
+
+/// Plans what a root that has `avro_cc_library` needs. Writes nothing.
+pub fn plan_avro_cpp(root: &Path) -> Result<AvroCpp, AdoptError> {
     let Ok(text) = std::fs::read_to_string(root.join(MODULE_FILE)) else {
-        return Ok(LockHubs::default());
+        return Ok(AvroCpp::default());
     };
     if !uses_avro_cc(root) {
-        return Ok(LockHubs::default());
+        return Ok(AvroCpp::default());
     }
     let mut file = ModuleFile::parse(&text).map_err(refuse)?;
+    if is_rules_dx(&file) {
+        return Ok(AvroCpp::default());
+    }
     let mut out = text.clone();
     if file.bazel_dep(MODULE_NAME).is_err() {
         out = file
@@ -82,31 +174,30 @@ pub fn plan_avro_cpp(root: &Path) -> Result<LockHubs, AdoptError> {
     let existing = file.extension_bindings(EXTENSION_BZL, EXTENSION);
     let bound = existing.first().map(|(name, _)| (*name).to_owned());
     if !bound.as_deref().is_some_and(|name| overrides(&file, name)) {
-        let eol = if out.contains("\r\n") { "\r\n" } else { "\n" };
         let binding = bound.clone().unwrap_or_else(|| EXTENSION.to_owned());
-        if !out.ends_with('\n') {
-            out.push_str(eol);
-        }
-        if !out.trim().is_empty() {
-            out.push_str(eol);
-        }
+        let mut block = String::new();
         if bound.is_none() {
-            out.push_str(&format!(
-                "{binding} = use_extension(\"{EXTENSION_BZL}\", \"{EXTENSION}\"){eol}"
+            block.push_str(&format!(
+                "{binding} = use_extension(\"{EXTENSION_BZL}\", \"{EXTENSION}\")\n"
             ));
         }
-        out.push_str(&format!(
-            "override_repo({binding}, {REPO} = \"{MODULE_NAME}\"){eol}"
+        block.push_str(&format!(
+            "override_repo({binding}, {REPO} = \"{MODULE_NAME}\")\n"
         ));
-        ModuleFile::parse(&out).map_err(refuse)?;
+        append(&mut out, &block);
     }
-    let edit = (out != text).then(|| ModuleEdit {
-        path: MODULE_FILE.to_owned(),
-        old: text,
-        new: out,
-    });
-    Ok(LockHubs {
-        edit,
+    let mut edits = Vec::new();
+    plan_overrides(root, &mut out, &mut edits)?;
+    ModuleFile::parse(&out).map_err(refuse)?;
+    if out != text {
+        edits.push(ModuleEdit {
+            path: MODULE_FILE.to_owned(),
+            old: text,
+            new: out,
+        });
+    }
+    Ok(AvroCpp {
+        edits,
         notes: Vec::new(),
     })
 }
@@ -120,21 +211,60 @@ mod tests {
         "module(name = \"app\")\n\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n";
     const BUILD: &str = "avro_cc_library(\n    name = \"user_cc\",\n)\n";
 
-    fn apply(dir: &Path, edit: &ModuleEdit) {
-        write(dir, MODULE_FILE, &edit.new);
+    fn overrides_block() -> String {
+        format!(
+            "\nsingle_version_override(\n    module_name = \"avro-cpp\",\n    patch_strip = 1,\n    patches = [\"//third_party/rules_dx/avro-cpp:iterator.patch\"],\n    version = \"{}\",\n)\n\nsingle_version_override(\n    module_name = \"fmt\",\n    version = \"{}\",\n)\n",
+            dx_versions::AVRO_CPP_VERSION,
+            dx_versions::FMT_VERSION
+        )
+    }
+
+    fn paths(plan: &AvroCpp) -> Vec<&str> {
+        plan.edits.iter().map(|edit| edit.path.as_str()).collect()
+    }
+
+    fn module_edit(plan: &AvroCpp) -> &ModuleEdit {
+        plan.edits
+            .iter()
+            .find(|edit| edit.path == MODULE_FILE)
+            .expect("MODULE.bazel edit")
+    }
+
+    fn apply(dir: &Path, plan: &AvroCpp) {
+        for edit in &plan.edits {
+            write(dir, &edit.path, &edit.new);
+        }
+    }
+
+    fn fires(build_path: &str, build: &str) -> bool {
+        let dir = scratch("avro_cpp_fires");
+        write(dir.path(), MODULE_FILE, MODULE);
+        write(dir.path(), build_path, build);
+        !plan_avro_cpp(dir.path()).expect("plan").edits.is_empty()
     }
 
     #[test]
-    fn adds_the_dependency_and_override_the_first_time() {
+    fn adds_the_dependency_overrides_and_patch_the_first_time() {
         let dir = scratch("avro_cpp_first");
         write(dir.path(), MODULE_FILE, MODULE);
         write(dir.path(), "svc/BUILD.bazel", BUILD);
-        let edit = plan_avro_cpp(dir.path()).expect("plan").edit.expect("edit");
-        let want = format!(
-            "{MODULE}bazel_dep(name = \"avro-cpp\", version = \"{}\")\n\navro_cc = use_extension(\"@rules_dx//avro:extensions.bzl\", \"avro_cc\")\noverride_repo(avro_cc, dx_avro_cpp = \"avro-cpp\")\n",
-            dx_versions::AVRO_CPP_VERSION
+        let plan = plan_avro_cpp(dir.path()).expect("plan");
+        assert_eq!(
+            paths(&plan),
+            [
+                "third_party/rules_dx/avro-cpp/BUILD.bazel",
+                "third_party/rules_dx/avro-cpp/iterator.patch",
+                MODULE_FILE,
+            ]
         );
-        assert_eq!(edit.new, want);
+        assert_eq!(plan.edits[0].new, "exports_files([\"iterator.patch\"])\n");
+        assert_eq!(plan.edits[1].new, PATCH);
+        let want = format!(
+            "{MODULE}bazel_dep(name = \"avro-cpp\", version = \"{}\")\n\navro_cc = use_extension(\"@rules_dx//avro:extensions.bzl\", \"avro_cc\")\noverride_repo(avro_cc, dx_avro_cpp = \"avro-cpp\")\n{}",
+            dx_versions::AVRO_CPP_VERSION,
+            overrides_block()
+        );
+        assert_eq!(module_edit(&plan).new, want);
     }
 
     #[test]
@@ -142,9 +272,9 @@ mod tests {
         let dir = scratch("avro_cpp_again");
         write(dir.path(), MODULE_FILE, MODULE);
         write(dir.path(), "svc/BUILD.bazel", BUILD);
-        let edit = plan_avro_cpp(dir.path()).expect("plan").edit.expect("edit");
-        apply(dir.path(), &edit);
-        assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), LockHubs::default());
+        let plan = plan_avro_cpp(dir.path()).expect("plan");
+        apply(dir.path(), &plan);
+        assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
     }
 
     #[test]
@@ -155,11 +285,81 @@ mod tests {
         );
         write(dir.path(), MODULE_FILE, &module);
         write(dir.path(), "BUILD.bazel", BUILD);
-        let edit = plan_avro_cpp(dir.path()).expect("plan").edit.expect("edit");
+        let plan = plan_avro_cpp(dir.path()).expect("plan");
         assert_eq!(
-            edit.new,
-            format!("{module}\noverride_repo(x, dx_avro_cpp = \"avro-cpp\")\n")
+            module_edit(&plan).new,
+            format!(
+                "{module}\noverride_repo(x, dx_avro_cpp = \"avro-cpp\")\n{}",
+                overrides_block()
+            )
         );
+    }
+
+    #[test]
+    fn keeps_an_override_the_user_wrote_and_writes_no_patch() {
+        let dir = scratch("avro_cpp_archive");
+        let module = format!(
+            "{MODULE}archive_override(\n    module_name = \"avro-cpp\",\n    urls = [\"https://example.com/avro.tar.gz\"],\n)\n"
+        );
+        write(dir.path(), MODULE_FILE, &module);
+        write(dir.path(), "BUILD.bazel", BUILD);
+        let plan = plan_avro_cpp(dir.path()).expect("plan");
+        assert_eq!(paths(&plan), [MODULE_FILE]);
+        let new = &module_edit(&plan).new;
+        assert_eq!(new.matches("module_name = \"avro-cpp\"").count(), 1);
+        assert!(new.contains("module_name = \"fmt\""));
+    }
+
+    #[test]
+    fn rewrites_a_stale_patch() {
+        let dir = scratch("avro_cpp_stale");
+        write(dir.path(), MODULE_FILE, MODULE);
+        write(dir.path(), "BUILD.bazel", BUILD);
+        let plan = plan_avro_cpp(dir.path()).expect("plan");
+        apply(dir.path(), &plan);
+        write(
+            dir.path(),
+            "third_party/rules_dx/avro-cpp/iterator.patch",
+            "old\n",
+        );
+        let plan = plan_avro_cpp(dir.path()).expect("plan");
+        assert_eq!(
+            paths(&plan),
+            ["third_party/rules_dx/avro-cpp/iterator.patch"]
+        );
+        assert_eq!(plan.edits[0].old, "old\n");
+        assert_eq!(plan.edits[0].new, PATCH);
+    }
+
+    #[test]
+    fn fires_for_a_nested_package() {
+        assert!(fires("a/b/c/BUILD.bazel", BUILD));
+    }
+
+    #[test]
+    fn fires_for_spaced_and_same_line_calls() {
+        assert!(fires("BUILD.bazel", "avro_cc_library (name = \"u\")\n"));
+        assert!(fires(
+            "BUILD",
+            "load(\"@rules_dx//avro:defs.bzl\", \"avro_cc_library\"); avro_cc_library(name = \"u\")\n"
+        ));
+    }
+
+    #[test]
+    fn plans_nothing_for_a_nested_module() {
+        let dir = scratch("avro_cpp_nested_module");
+        write(dir.path(), MODULE_FILE, MODULE);
+        write(dir.path(), "sub/MODULE.bazel", "module(name = \"sub\")\n");
+        write(dir.path(), "sub/BUILD.bazel", BUILD);
+        assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
+    }
+
+    #[test]
+    fn plans_nothing_in_rules_dx() {
+        let dir = scratch("avro_cpp_rules_dx");
+        write(dir.path(), MODULE_FILE, "module(name = \"rules_dx\")\n");
+        write(dir.path(), "BUILD.bazel", BUILD);
+        assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
     }
 
     #[test]
@@ -167,6 +367,6 @@ mod tests {
         let dir = scratch("avro_cpp_none");
         write(dir.path(), MODULE_FILE, MODULE);
         write(dir.path(), "BUILD.bazel", "avro_library(name = \"u\")\n");
-        assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), LockHubs::default());
+        assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
     }
 }

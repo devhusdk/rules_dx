@@ -94,20 +94,42 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
         "stanzas for the lock files at the root",
         hubs,
     );
-    wire(
-        workspace,
-        apply,
-        env.err,
-        &mut wiring,
-        "avro-cpp",
-        "the avro-cpp dependency and override_repo",
-        dx_adopt::plan_avro_cpp(workspace).map(|plan| (plan.notes, plan.edit)),
-    );
+    wire_avro_cpp(workspace, apply, env.err, &mut wiring);
     if seeded_cargo {
         fill_cargo_lock(request, env, &mut wiring);
     }
     wire_maven_locks(request, env, &mut wiring);
     wiring
+}
+
+/// Creates the files and `MODULE.bazel` lines `avro_cc_library` needs.
+fn wire_avro_cpp(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mut Wiring) {
+    let plan = match dx_adopt::plan_avro_cpp(workspace) {
+        Ok(plan) => plan,
+        Err(error) => {
+            wiring.failed(err, format!("avro-cpp not wired: {error}"));
+            return;
+        }
+    };
+    for note in &plan.notes {
+        wiring.info(err, note.clone());
+    }
+    for edit in &plan.edits {
+        if !apply {
+            wiring.pending(
+                err,
+                format!(
+                    "{} would gain what avro_cc_library needs; run dx generate --apply",
+                    edit.path
+                ),
+            );
+        } else if let Err(error) = dx_adopt::write_edit_or_create(workspace, edit) {
+            wiring.failed(err, format!("avro-cpp not wired: {error}"));
+            return;
+        } else {
+            wiring.info(err, format!("wrote {}", edit.path));
+        }
+    }
 }
 
 /// Creates what each root Maven lock needs: its package's `BUILD.bazel`, the root

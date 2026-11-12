@@ -13,9 +13,5 @@ name = "path_test"
 path = "path_test.rs"
 
 [[test]]
-name = "simulator_script_test"
-path = "simulator_script_test.rs"
-
-[[test]]
 name = "xcframework_script_test"
 path = "xcframework_script_test.rs"

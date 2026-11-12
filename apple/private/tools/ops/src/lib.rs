@@ -21,6 +21,7 @@
 
 pub mod codesign;
 pub mod export;
+pub mod library_check;
 pub mod notarize;
 pub mod probe;
 pub mod run_macos;
@@ -111,10 +112,20 @@ pub fn run(args: &[String]) -> u8 {
                 probe::run(&tools, &probe::executor(), rest, &process_env),
             )
         }
+        "library-check" => {
+            let tools = Tools {
+                developer_dir: process_env("DEVELOPER_DIR").map(PathBuf::from),
+                runner: &System,
+            };
+            report(
+                rest.first().map_or("library-check", String::as_str),
+                library_check::run(&tools, rest),
+            )
+        }
         _ => report(
             "dx-apple-ops",
             Err(util::usage(
-                "usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|probe> ...",
+                "usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|probe|library-check> ...",
             )),
         ),
     }

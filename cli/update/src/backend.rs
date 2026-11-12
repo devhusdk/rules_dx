@@ -189,8 +189,8 @@ impl StagedRun {
         if self.tool != StagedTool::Paket2Bazel {
             return bytes;
         }
-        const FROM: &[u8] = b"load(\"@rules_dotnet//dotnet:defs.bzl\"";
-        const TO: &[u8] = b"load(\"@rules_dx//dotnet:defs.bzl\"";
+        const FROM: &[u8] = b"load(\"@rules_dotnet//dotnet:defs.bzl\", \"nuget_repo\")";
+        const TO: &[u8] = b"load(\"@rules_dx//dotnet:extensions.bzl\", nuget_repo = \"dotnet_nuget_repo\")";
         let mut out = Vec::with_capacity(bytes.len());
         let mut rest = bytes.as_slice();
         while let Some(at) = rest.windows(FROM.len()).position(|w| w == FROM) {

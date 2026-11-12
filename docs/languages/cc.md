@@ -13,18 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//cc:defs.bzl`:
 
 ```python
-load("@rules_dx//cc:defs.bzl", "cc_coverage_settings", "cc_library", "objc_library")
+load("@rules_dx//cc:defs.bzl", "cc_library", "cc_objc_library", "cc_binary")
 ```
 
 ## Rules
-
-### `cc_coverage_settings`
-
-```python
-cc_coverage_settings(settings)
-```
-
-Returns the features setting a transition over CC_COVERAGE_INPUTS gives C and C++ code built for coverage.
 
 ### `cc_library`
 
@@ -34,10 +26,10 @@ cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs)
 
 Minimal wrapper over cc_library. On macOS it builds no dylib unless linkstatic is set.
 
-### `objc_library`
+### `cc_objc_library`
 
 ```python
-objc_library(name, visibility = None, **kwargs)
+cc_objc_library(name, visibility = None, **kwargs)
 ```
 
 The upstream objc_library under the caller's name, so rules_apple and rules_swift see it unchanged.

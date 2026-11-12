@@ -229,11 +229,11 @@ def packages_hub_build(group, packages):
 
 def dune_package_build(package, library, dune, rule, deps = [], hub = ""):
     """Returns the BUILD file that builds one dune package of an opam archive."""
-    return """load("{rule}", "dx_dune_library")
+    return """load("{rule}", "ocaml_dune_library")
 
 package(default_visibility = ["//visibility:public"])
 
-dx_dune_library(
+ocaml_dune_library(
     name = "{package}",
     srcs = glob(["**"], exclude = ["**/BUILD", "**/BUILD.bazel"]),
     deps = {deps},

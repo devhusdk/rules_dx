@@ -33,28 +33,28 @@ def abi_errors(abis):
     errors = []
     for abi in abis:
         if abi not in KNOWN_ABIS:
-            errors.append("rust_android_apk: abi '" + abi + "' is unknown: want " + ", ".join(KNOWN_ABIS))
+            errors.append("android_rust_apk: abi '" + abi + "' is unknown: want " + ", ".join(KNOWN_ABIS))
     if len(abis) != len(dict([(abi, True) for abi in abis])):
-        errors.append("rust_android_apk: platforms holds duplicates")
+        errors.append("android_rust_apk: platforms holds duplicates")
     return errors
 
 def app_id_errors(app_id):
     """Returns one error string when the application ID is not a dotted Java package."""
     parts = app_id.split(".")
     if len(parts) < 2:
-        return ["rust_android_apk: app_id '" + app_id + "' needs at least two dot-separated parts"]
+        return ["android_rust_apk: app_id '" + app_id + "' needs at least two dot-separated parts"]
     errors = []
     for part in parts:
         if part == "":
-            errors.append("rust_android_apk: app_id '" + app_id + "' holds an empty part")
+            errors.append("android_rust_apk: app_id '" + app_id + "' holds an empty part")
             continue
         first = part[0]
         if not (first.isalpha() or first == "_"):
-            errors.append("rust_android_apk: app_id part '" + part + "' must start with a letter")
+            errors.append("android_rust_apk: app_id part '" + part + "' must start with a letter")
         for index in range(len(part)):
             character = part[index]
             if not (character.isalnum() or character == "_"):
-                errors.append("rust_android_apk: app_id part '" + part + "' holds '" + character + "'")
+                errors.append("android_rust_apk: app_id part '" + part + "' holds '" + character + "'")
                 break
     return errors
 

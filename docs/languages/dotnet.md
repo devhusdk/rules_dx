@@ -10,17 +10,9 @@ Add `rules_dx` to `MODULE.bazel`:
 bazel_dep(name = "rules_dx", version = "<version>")
 ```
 
-Load the rules from `@rules_dx//dotnet:defs.bzl`:
-
-```python
-load("@rules_dx//dotnet:defs.bzl", "nuget_repo")
-```
-
 ## Rules
 
-### `nuget_repo`
-
-No documentation.
+None.
 
 ## Tools
 

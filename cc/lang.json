@@ -25,9 +25,8 @@
     "private/toolchains/pins.json"
   ],
   "entry_points": [
-    "cc_coverage_settings",
     "cc_library",
-    "objc_library",
+    "cc_objc_library",
     "cc_binary",
     "cc_test",
     "cc_fuzz_test",

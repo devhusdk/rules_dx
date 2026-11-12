@@ -3,7 +3,7 @@
 load("//dart/private:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//core/quality:dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_external_root", "dart_merge_packages", "dart_package_entries", "dart_pubspec_stubs")
 load("//core/quality:family_hooks.bzl", "stage")
-load("//dart/private:dart_config.bzl", "DxDartConfigInfo")
+load("//dart/private:dart_config.bzl", "DartConfigInfo")
 load("//core/quality/private:native_config_impl.bzl", "bound_config_targets")
 load("//core/quality:policy.bzl", "QualityPolicyInfo")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
@@ -69,10 +69,10 @@ def _dart_hook(target, ctx, _resolved, capability, what, _shared):
     config_files = []
     if capability != "format":
         dart_config = bound_config_targets(ctx.rule.attr, ctx.attr._policy[QualityPolicyInfo].configs, what).get("dart")
-        if dart_config and DxDartConfigInfo in dart_config:
-            config_packages.extend(dart_config[DxDartConfigInfo].packages.to_list())
-            config_files.extend(dart_config[DxDartConfigInfo].srcs.to_list())
-            config_files.extend(dart_config[DxDartConfigInfo].resources.to_list())
+        if dart_config and DartConfigInfo in dart_config:
+            config_packages.extend(dart_config[DartConfigInfo].packages.to_list())
+            config_files.extend(dart_config[DartConfigInfo].srcs.to_list())
+            config_files.extend(dart_config[DartConfigInfo].resources.to_list())
     (package_config, dart_options, stubs) = _dart_context(target, ctx, what, capability, config_packages)
 
     pairs = []

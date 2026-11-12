@@ -82,13 +82,13 @@ module. `android_sdk.configure` is the one optional tag.
 
 ## Application packaging
 
-`rust_android_apk` from `@rules_dx//android:defs.bzl` builds one installable
+`android_rust_apk` from `@rules_dx//android:defs.bzl` builds one installable
 APK from static native deps through the qualified upstream backend (`rules_android` 0.8.1):
 
 ```python
-load("@rules_dx//android:defs.bzl", "rust_android_apk")
+load("@rules_dx//android:defs.bzl", "android_rust_apk")
 
-rust_android_apk(
+android_rust_apk(
     name = "app_apk",
     app_id = "com.example.app",
     deps = [":app_jni"],
@@ -116,7 +116,7 @@ the library with `System.loadLibrary("<name>_bin")`. A custom
 ABIs, empty ABI sets, malformed app IDs, downgraded API levels,
 non-positive version codes, and empty launch activities fail at
 analysis, as do adb launchers without a serial.
-`java_android_library` and `kotlin_android_library` re-export
+`android_java_library` and `android_kotlin_library` re-export
 rules_android `android_library` and rules_kotlin `kt_android_library`
 from `@rules_dx//android:defs.bzl`. `dx generate` emits them for Java and
 Kotlin sources that import the Android SDK.
@@ -189,7 +189,7 @@ package with a generated test key and verify it.
 
 ## App Bundles
 
-`rust_android_apk` also declares `:<name>_aab_file`. It builds the
+`android_rust_apk` also declares `:<name>_aab_file`. It builds the
 unsigned App Bundle `<name>_bundle_unsigned.aab` from the same
 `android_binary`, so the bundle keeps the app ID, version, API floor,
 ABIs, resources, assets and native library of the APK. For the fixture,
@@ -394,7 +394,7 @@ whole scenario from the repository root and writes logs, `logcat-default.txt`,
 
 ## Backend decision
 
-Packaging stays on the upstream backend: `rust_android_apk` composes
+Packaging stays on the upstream backend: `android_rust_apk` composes
 `android_binary` from `rules_android` 0.8.1, so manifest merge,
 resources, native ABI placement, DEX, and signing come from the
 upstream rules plus the installed SDK.

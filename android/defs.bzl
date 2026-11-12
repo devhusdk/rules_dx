@@ -8,13 +8,13 @@ load(
     _android_apk_set = "android_apk_set",
     _android_check = "android_check",
     _android_sign = "android_sign",
-    _rust_android_apk = "rust_android_apk",
+    _android_rust_apk = "android_rust_apk",
 )
 load(
     "//android/private/library:defs.bzl",
     _android_native_library = "android_native_library",
-    _java_android_library = "java_android_library",
-    _kotlin_android_library = "kotlin_android_library",
+    _android_java_library = "android_java_library",
+    _android_kotlin_library = "android_kotlin_library",
 )
 
 android_adb_install = _android_adb_install
@@ -24,6 +24,6 @@ android_apk_set = _android_apk_set
 android_check = _android_check
 android_native_library = _android_native_library
 android_sign = _android_sign
-java_android_library = _java_android_library
-kotlin_android_library = _kotlin_android_library
-rust_android_apk = _rust_android_apk
+android_java_library = _android_java_library
+android_kotlin_library = _android_kotlin_library
+android_rust_apk = _android_rust_apk

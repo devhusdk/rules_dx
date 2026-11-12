@@ -9,8 +9,8 @@ pub(super) fn plan(
     head: &dx_process::BazelHead,
 ) -> Result<BackendPlan, BackendError> {
     rehash::plan(
-        "fpm_lock",
-        "add an fpm_lock next to fpm.lock; it rewrites the sha256 pins from the archives",
+        "fortran_fpm_lock",
+        "add a fortran_fpm_lock next to fpm.lock; it rewrites the sha256 pins from the archives",
         workspace,
         set,
         request,

@@ -4,10 +4,10 @@ LANGS = json.decode("""{
   "android": {
     "ecosystems": [],
     "entry_points": [
-      "java_android_library",
-      "kotlin_android_library",
+      "android_java_library",
+      "android_kotlin_library",
       "android_native_library",
-      "rust_android_apk",
+      "android_rust_apk",
       "android_apk_set",
       "android_check",
       "android_sign",
@@ -406,9 +406,8 @@ LANGS = json.decode("""{
     },
     "ecosystems": [],
     "entry_points": [
-      "cc_coverage_settings",
       "cc_library",
-      "objc_library",
+      "cc_objc_library",
       "cc_binary",
       "cc_test",
       "cc_fuzz_test",
@@ -863,9 +862,7 @@ LANGS = json.decode("""{
     "ecosystems": [
       "nuget"
     ],
-    "entry_points": [
-      "nuget_repo"
-    ],
+    "entry_points": [],
     "family": "core",
     "lockfiles": [
       "paket.lock"
@@ -1181,7 +1178,7 @@ LANGS = json.decode("""{
       "fortran_library",
       "fortran_binary",
       "fortran_test",
-      "fpm_lock"
+      "fortran_fpm_lock"
     ],
     "family": "core",
     "lockfiles": [],
@@ -1791,7 +1788,6 @@ LANGS = json.decode("""{
       "maven"
     ],
     "entry_points": [
-      "kotlin_warnings_as_errors_opts",
       "kotlin_library",
       "kotlin_binary",
       "kotlin_test",
@@ -2071,7 +2067,7 @@ LANGS = json.decode("""{
       "opam"
     ],
     "entry_points": [
-      "ocamllex",
+      "ocaml_lex",
       "ocaml_module",
       "ocaml_signature",
       "ocaml_library",
@@ -2079,7 +2075,7 @@ LANGS = json.decode("""{
       "ocaml_test",
       "ocaml_fuzz_test",
       "ocaml_bench",
-      "dx_dune_library"
+      "ocaml_dune_library"
     ],
     "family": "core",
     "lockfiles": [],

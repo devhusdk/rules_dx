@@ -6,7 +6,7 @@ load("//rust:defs.bzl", "rust_static_library", "rust_test")
 load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check", "android_sign", "rust_android_apk")
+load("//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check", "android_sign", "android_rust_apk")
 load(":starlark_platforms.bzl", "starlark_platforms")
 
 package(
@@ -37,7 +37,7 @@ cc_library(
     alwayslink = True,
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "app_apk",
     testonly = True,
     app_id = "com.example.dxrustapk",
@@ -49,7 +49,7 @@ rust_android_apk(
     deps = [":app_jni"],
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "arm_apk",
     testonly = True,
     app_id = "com.example.dxrustapk",
@@ -138,7 +138,7 @@ android_adb_log(
     serial = "emulator-5554",
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "custom_apk",
     testonly = True,
     api_level = 33,

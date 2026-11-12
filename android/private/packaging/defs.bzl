@@ -163,7 +163,7 @@ def abis_for_platforms(platforms):
     labels = [str(native.package_relative_label(platform)) for platform in platforms]
     return [by_label.get(label, label) for label in labels]
 
-def rust_android_apk(
+def android_rust_apk(
         name,
         app_id,
         deps,

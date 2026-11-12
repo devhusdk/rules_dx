@@ -23,9 +23,7 @@
   "pins": [
     "pins.json"
   ],
-  "entry_points": [
-    "nuget_repo"
-  ],
+  "entry_points": [],
   "quality": {
     "bzl": "core/quality:families/dotnet.bzl",
     "file_extensions": [

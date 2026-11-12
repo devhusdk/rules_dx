@@ -1,6 +1,6 @@
 // Managed environment marker schema.
 //
-// Binary contract between the staged `environment_tree` outputs and the
+// Binary contract between the staged `env_tree` outputs and the
 // `//dx:env` bootstrap installer. The marker is the installed tree's proof
 // of provenance: it binds the exact installed tool set to the installer
 // that wrote it, so replacement can tell managed state from foreign state

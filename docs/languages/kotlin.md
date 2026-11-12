@@ -13,14 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//kotlin:defs.bzl`:
 
 ```python
-load("@rules_dx//kotlin:defs.bzl", "kotlin_warnings_as_errors_opts", "kotlin_library", "kotlin_binary")
+load("@rules_dx//kotlin:defs.bzl", "kotlin_library", "kotlin_binary", "kotlin_test")
 ```
 
 ## Rules
-
-### `kotlin_warnings_as_errors_opts`
-
-No documentation.
 
 ### `kotlin_library`
 

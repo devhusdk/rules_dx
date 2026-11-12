@@ -2,7 +2,7 @@
 
 load(
     "//capnproto/private:providers.bzl",
-    _CapnpInfo = "CapnpInfo",
+    _CapnpInfo = "CapnprotoInfo",
 )
 load(
     "//capnproto/private:defs.bzl",
@@ -16,7 +16,7 @@ load(
     _capnp_codegen_shard = "capnp_codegen_shard",
 )
 
-CapnpInfo = _CapnpInfo
+CapnprotoInfo = _CapnpInfo
 capnp_cc_library = _capnp_cc_library
 capnp_codegen_shard = _capnp_codegen_shard
 capnp_java_library = _capnp_java_library

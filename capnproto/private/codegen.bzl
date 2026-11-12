@@ -2,7 +2,7 @@
 
 capnp and the C++ runtime come from the archive pinned in //capnproto:pins.bzl;
 the Rust crates (capnp, capnpc) and capnpc-java with its Java runtime come from
-the other archives pinned there. Every action reads only the declared import closure of CapnpInfo: the closure is
+the other archives pinned there. Every action reads only the declared import closure of CapnprotoInfo: the closure is
 staged as symlinks under a private root and compiled with --no-standard-import,
 so an import outside the declared deps fails with or without a sandbox.
 
@@ -23,7 +23,7 @@ load("//core/codegen:codegen.bzl", "codegen_shard_rule", "codegen_srcjar", "code
 load("//core:defs.bzl", "display_label")
 load("//core:stage.bzl", "stage_closure")
 load("//core:wrapper.bzl", "dx_quality_sources")
-load(":providers.bzl", "CapnpInfo")
+load(":providers.bzl", "CapnprotoInfo")
 
 CAPNP_GENERATED_SRCS_GROUP = "capnp_generated_srcs"
 
@@ -69,7 +69,7 @@ CapnpCcAspectInfo = provider(
 )
 
 def _cc_aspect_impl(target, ctx):
-    info = target[CapnpInfo]
+    info = target[CapnprotoInfo]
     name = target.label.name
     pkg = target.label.package
     stage = stage_closure(ctx, "_capnp_cc_stage/" + name, info.transitive_imports.to_list(), "capnp")
@@ -151,7 +151,7 @@ _cc_aspect = aspect(
         _PRIVATE_ATTRS,
         _runtime = attr.label(default = Label("@dx_capnproto//src/capnp:capnp_runtime"), providers = [CcInfo]),
     ) | CC_TOOLCHAIN_ATTRS,
-    required_providers = [CapnpInfo],
+    required_providers = [CapnprotoInfo],
     provides = [CapnpCcAspectInfo],
     fragments = ["cpp"],
     toolchains = use_cc_toolchain(),
@@ -177,7 +177,7 @@ capnp_cc_library = rule(
     doc = "C++ code and runtime for capnp_library schemas. Each library is generated and compiled once, by its own aspect.",
     attrs = {
         "deps": attr.label_list(
-            providers = [CapnpInfo],
+            providers = [CapnprotoInfo],
             aspects = [_cc_aspect],
             doc = "capnp_library targets to generate C++ for.",
         ),
@@ -197,7 +197,7 @@ CapnpJavaAspectInfo = provider(
 _JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
 
 def _java_aspect_impl(target, ctx):
-    info = target[CapnpInfo]
+    info = target[CapnprotoInfo]
     name = target.label.name
     dep_infos = [dep[CapnpJavaAspectInfo].java_info for dep in ctx.rule.attr.deps]
     runtime = ctx.attr._runtime[JavaInfo]
@@ -242,7 +242,7 @@ _java_aspect = aspect(
         "_runtime": attr.label(default = Label("//capnproto:runtime_java"), providers = [JavaInfo]),
         "_zipper": attr.label(default = Label("@bazel_tools//tools/zip:zipper"), executable = True, cfg = "exec"),
     }),
-    required_providers = [CapnpInfo],
+    required_providers = [CapnprotoInfo],
     provides = [CapnpJavaAspectInfo],
     toolchains = [_JAVA_TOOLCHAIN],
     fragments = ["java"],
@@ -265,7 +265,7 @@ capnp_java_library = rule(
     doc = "Java classes and runtime for capnp_library schemas. Each library is generated and compiled once, by its own aspect. Every schema needs the $Java.package annotation from /capnp/java.capnp.",
     attrs = {
         "deps": attr.label_list(
-            providers = [CapnpInfo],
+            providers = [CapnprotoInfo],
             aspects = [_java_aspect],
             doc = "capnp_library targets to generate Java for.",
         ),
@@ -290,7 +290,7 @@ def _module_name(path):
     return stem[:-len(".capnp")].replace("-", "_") + "_capnp"
 
 def _rust_srcs_impl(ctx):
-    info = ctx.attr.library[CapnpInfo]
+    info = ctx.attr.library[CapnprotoInfo]
     crates = {dep[CapnpRustCrateInfo].library: dep[CapnpRustCrateInfo] for dep in ctx.attr.crate_deps}
     for direct in info.direct_deps:
         if direct.label not in crates:
@@ -361,7 +361,7 @@ _capnp_rust_srcs = rule(
         ),
         "crate_name": attr.string(mandatory = True),
         "library": attr.label(
-            providers = [CapnpInfo],
+            providers = [CapnprotoInfo],
             mandatory = True,
             doc = "capnp_library whose schemas the crate owns.",
         ),

@@ -285,7 +285,7 @@ fn require_file(path: &Path, message: &str) -> Result<(), String> {
     if path.is_file() {
         Ok(())
     } else {
-        Err(format!("dx_dune_library: {} {message}", path.display()))
+        Err(format!("ocaml_dune_library: {} {message}", path.display()))
     }
 }
 
@@ -368,7 +368,7 @@ pub fn execute(request: &Request) -> Result<(), String> {
                 }
                 None if built.is_file() => {
                     return Err(format!(
-                        "dx_dune_library: {} holds C stubs; set stubs = True to link them",
+                        "ocaml_dune_library: {} holds C stubs; set stubs = True to link them",
                         built.display()
                     ));
                 }

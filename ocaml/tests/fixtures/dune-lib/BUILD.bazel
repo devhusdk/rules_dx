@@ -1,10 +1,10 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//ocaml:defs.bzl", "dx_dune_library", "ocaml_module", "ocaml_test")
+load("//ocaml:defs.bzl", "ocaml_dune_library", "ocaml_module", "ocaml_test")
 load("//ocaml/tests/native:defs.bzl", "sys_cell_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-dx_dune_library(
+ocaml_dune_library(
     name = "greet",
     srcs = glob([
         "src/*",
@@ -16,7 +16,7 @@ dx_dune_library(
     workspace = "dune-project",
 )
 
-dx_dune_library(
+ocaml_dune_library(
     name = "farewell",
     srcs = glob([
         "src/*",

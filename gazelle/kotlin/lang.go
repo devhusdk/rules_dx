@@ -32,7 +32,7 @@ func NewLanguage() language.Language {
 		ParseImports:   ParseImports,
 		IsStdLib:       IsStdLib,
 		Candidates:     common.JVMCandidates,
-		Variant:        common.AndroidVariant("kotlin_android_library"),
+		Variant:        common.AndroidVariant("android_kotlin_library"),
 		External:       "maven",
 		Tests: &common.TestSpec{
 			Kind:       TestKind,

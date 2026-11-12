@@ -1,6 +1,6 @@
 "GENERATED"
 
-load("@rules_dx//dotnet:defs.bzl", "nuget_repo")
+load("@rules_dx//dotnet:extensions.bzl", nuget_repo = "dotnet_nuget_repo")
 
 def main():
     "main"

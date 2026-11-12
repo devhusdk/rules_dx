@@ -264,14 +264,14 @@ dx rule that wraps it.
 
 | Upstream load | Upstream rule | dx load | dx rule |
 | --- | --- | --- | --- |
-| `@rules_android//rules:rules.bzl` | `android_library` | `@rules_dx//android:defs.bzl` | `java_android_library` |
-| `@rules_kotlin//kotlin:android.bzl` | `kt_android_library` | `@rules_dx//android:defs.bzl` | `kotlin_android_library` |
+| `@rules_android//rules:rules.bzl` | `android_library` | `@rules_dx//android:defs.bzl` | `android_java_library` |
+| `@rules_kotlin//kotlin:android.bzl` | `kt_android_library` | `@rules_dx//android:defs.bzl` | `android_kotlin_library` |
 | `@rules_apple//apple:ios.bzl` | `ios_application` | `@rules_dx//apple:defs.bzl` | `apple_ios_app` |
 | `@rules_apple//apple:ios.bzl` | `ios_unit_test` | `@rules_dx//apple:defs.bzl` | `apple_ios_app_test` |
 | `@rules_apple//apple:apple.bzl` | `apple_xcframework` | `@rules_dx//apple:defs.bzl` | `apple_ios_xcframework` |
 | `@rules_apple//apple:macos.bzl` | `macos_application` | `@rules_dx//apple:defs.bzl` | `apple_macos_app` |
 | `@rules_cc//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` | `@rules_dx//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` |
-| `@rules_cc//cc:objc_library.bzl` | `objc_library` | `@rules_dx//cc:defs.bzl` | `objc_library` |
+| `@rules_cc//cc:objc_library.bzl` | `objc_library` | `@rules_dx//cc:defs.bzl` | `cc_objc_library` |
 | `@rules_dotnet//dotnet:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` | `@rules_dx//csharp:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` |
 | `@rules_cuda//cuda:defs.bzl` | `cuda_library`, `cuda_objects` | `@rules_dx//cuda:defs.bzl` | `cuda_library`, `cuda_objects` |
 | `@rules_d//d:defs.bzl` | `d_binary`, `d_library`, `d_test` | `@rules_dx//d:defs.bzl` | `d_binary`, `d_library`, `d_test` |
@@ -313,7 +313,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//android:defs.bzl` | `android_check` |
 |  |  | `@rules_dx//android:defs.bzl` | `android_native_library` |
 |  |  | `@rules_dx//android:defs.bzl` | `android_sign` |
-|  |  | `@rules_dx//android:defs.bzl` | `rust_android_apk` |
+|  |  | `@rules_dx//android:defs.bzl` | `android_rust_apk` |
 |  |  | `@rules_dx//ansible:defs.bzl` | `ansible_library` |
 |  |  | `@rules_dx//ansible:defs.bzl` | `ansible_lock` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_library` |
@@ -374,11 +374,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx//elixir:defs.bzl` | `elixir_bench` |
 |  |  | `@rules_dx//elixir:defs.bzl` | `escript_archive` |
 |  |  | `@rules_dx//elixir:defs.bzl` | `escript_headers` |
-|  |  | `@rules_dx//env:defs.bzl` | `EnvironmentInfo` |
-|  |  | `@rules_dx//env:defs.bzl` | `environment_config` |
-|  |  | `@rules_dx//env:defs.bzl` | `environment_metadata` |
-|  |  | `@rules_dx//env:defs.bzl` | `environment_tool` |
-|  |  | `@rules_dx//env:defs.bzl` | `environment_tree` |
+|  |  | `@rules_dx//env:defs.bzl` | `EnvInfo` |
+|  |  | `@rules_dx//env:defs.bzl` | `env_config` |
+|  |  | `@rules_dx//env:defs.bzl` | `env_metadata` |
+|  |  | `@rules_dx//env:defs.bzl` | `env_tool` |
+|  |  | `@rules_dx//env:defs.bzl` | `env_tree` |
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_bench` |
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_nif` |
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_release` |
@@ -401,7 +401,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//fortran:defs.bzl` | `fortran_binary` |
 |  |  | `@rules_dx//fortran:defs.bzl` | `fortran_library` |
 |  |  | `@rules_dx//fortran:defs.bzl` | `fortran_test` |
-|  |  | `@rules_dx//fortran:defs.bzl` | `fpm_lock` |
+|  |  | `@rules_dx//fortran:defs.bzl` | `fortran_fpm_lock` |
 |  |  | `@rules_dx//fsharp:defs.bzl` | `fsharp_bench` |
 |  |  | `@rules_dx//fsharp:defs.bzl` | `fsharp_fuzz_test` |
 |  |  | `@rules_dx//go:defs.bzl` | `go_bench` |
@@ -435,7 +435,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//mdx:defs.bzl` | `mdx_test` |
 |  |  | `@rules_dx//msix:defs.bzl` | `msix_package` |
 |  |  | `@rules_dx//msix:defs.bzl` | `msix_sign` |
-|  |  | `@rules_dx//ocaml:defs.bzl` | `dx_dune_library` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_dune_library` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_bench` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_binary` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_fuzz_test` |
@@ -443,7 +443,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_module` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_signature` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_test` |
-|  |  | `@rules_dx//ocaml:defs.bzl` | `ocamllex` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_lex` |
 |  |  | `@rules_dx//perl:defs.bzl` | `perl_bench` |
 |  |  | `@rules_dx//php:defs.bzl` | `php_bench` |
 |  |  | `@rules_dx//php:defs.bzl` | `php_binary` |

@@ -13,16 +13,12 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//env:defs.bzl`:
 
 ```python
-load("@rules_dx//env:defs.bzl", "EnvironmentInfo", "environment_config", "environment_metadata")
+load("@rules_dx//env:defs.bzl", "env_config", "env_metadata", "env_tool")
 ```
 
 ## Rules
 
-### `EnvironmentInfo`
-
-No documentation.
-
-### `environment_config`
+### `env_config`
 
 Collects environment tools and rejects host-name collisions.
 
@@ -30,7 +26,7 @@ Collects environment tools and rejects host-name collisions.
 | --- | --- | --- | --- |
 | `tools` | `label_list` | no | Environment tool targets collected into one config. |
 
-### `environment_metadata`
+### `env_metadata`
 
 Writes the metadata JSON of one environment.
 
@@ -39,7 +35,7 @@ Writes the metadata JSON of one environment.
 | `config` | `label` | yes | Environment config whose tools are written as metadata. |
 | `windows` | `bool` | no | Whether to render host file names for Windows. |
 
-### `environment_tool`
+### `env_tool`
 
 One tool that dx sync puts on PATH under its names.
 
@@ -49,7 +45,7 @@ One tool that dx sync puts on PATH under its names.
 | `bin_name` | `string` | yes | Command name the tool is exposed under on PATH. |
 | `executable` | `label` | yes | Executable target or file linked into the environment under its names. |
 
-### `environment_tree`
+### `env_tree`
 
 Builds the bin directory of tool links for one environment.
 

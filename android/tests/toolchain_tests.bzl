@@ -28,33 +28,33 @@ def _packaging_checks():
     checks.append(expect_equal(
         "unknown abi errors",
         abi_errors(["mips"]),
-        ["rust_android_apk: abi 'mips' is unknown: want arm64-v8a, x86_64"],
+        ["android_rust_apk: abi 'mips' is unknown: want arm64-v8a, x86_64"],
     ))
     checks.append(expect_equal(
         "duplicate abi errors",
         abi_errors(["arm64-v8a", "arm64-v8a"]),
-        ["rust_android_apk: platforms holds duplicates"],
+        ["android_rust_apk: platforms holds duplicates"],
     ))
     checks.append(expect_equal("valid app id errors", app_id_errors("com.example.app"), []))
     checks.append(expect_equal(
         "short app id errors",
         app_id_errors("app"),
-        ["rust_android_apk: app_id 'app' needs at least two dot-separated parts"],
+        ["android_rust_apk: app_id 'app' needs at least two dot-separated parts"],
     ))
     checks.append(expect_equal(
         "empty part app id errors",
         app_id_errors("com..app"),
-        ["rust_android_apk: app_id 'com..app' holds an empty part"],
+        ["android_rust_apk: app_id 'com..app' holds an empty part"],
     ))
     checks.append(expect_equal(
         "leading digit app id errors",
         app_id_errors("com.1example.app"),
-        ["rust_android_apk: app_id part '1example' must start with a letter"],
+        ["android_rust_apk: app_id part '1example' must start with a letter"],
     ))
     checks.append(expect_equal(
         "dash app id errors",
         app_id_errors("com.exa-mple.app"),
-        ["rust_android_apk: app_id part 'exa-mple' holds '-'"],
+        ["android_rust_apk: app_id part 'exa-mple' holds '-'"],
     ))
     checks.append(expect_equal("local sdk request", sdk_request_errors("/sdk", ["android-sdk-license"]), []))
     checks.append(expect_equal(

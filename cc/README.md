@@ -1,9 +1,9 @@
 # C/C++ rules
 
-`defs.bzl` wraps `cc_library`, `cc_binary`, `cc_test` and `objc_library`.
+`defs.bzl` wraps `cc_library`, `cc_binary`, `cc_test` and `cc_objc_library`.
 
 ```starlark
-load("@rules_dx//cc:defs.bzl", "cc_binary", "cc_library", "cc_test", "objc_library")
+load("@rules_dx//cc:defs.bzl", "cc_binary", "cc_library", "cc_test", "cc_objc_library")
 
 cc_library(
     name = "greet",
@@ -24,7 +24,7 @@ cc_test(
 )
 ```
 
-`objc_library` is the upstream rule under your name, with no forwarder. rules_apple resources and frameworks, and rules_swift `module_name`, behave exactly as upstream. Quality ownership of `srcs`, `non_arc_srcs` and `hdrs` comes from the target's paths.
+`cc_objc_library` is the upstream rule under your name, with no forwarder. rules_apple resources and frameworks, and rules_swift `module_name`, behave exactly as upstream. Quality ownership of `srcs`, `non_arc_srcs` and `hdrs` comes from the target's paths.
 
 ## CMake dependencies
 

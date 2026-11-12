@@ -1,7 +1,7 @@
 # gazelle:ignore
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//env/private:defs.bzl", "environment_config", "environment_metadata", "environment_tool", "environment_tree")
+load("//env/private:defs.bzl", "env_config", "env_metadata", "env_tool", "env_tree")
 load("//env/private:defs_tests.bzl", "env_config_analysis_tests", "env_default_config_analysis_tests", "env_default_tree_analysis_tests", "env_defs_unit_tests", "env_tree_analysis_tests")
 load("//env/private:plan.bzl", "dx_env_shard", "env_plan_subject", "rust_env_shard")
 load("//env/private:plan_tests.bzl", "env_plan_analysis_tests", "env_plan_defs_unit_tests", "env_shard_argv_test")
@@ -18,20 +18,20 @@ alias(
     actual = "//env/private/stubs:tool_sh",
 )
 
-environment_tool(
+env_tool(
     name = "tool_alpha",
     aliases = ["a"],
     bin_name = "alpha",
     executable = ":tool_sh",
 )
 
-environment_tool(
+env_tool(
     name = "tool_beta",
     bin_name = "beta",
     executable = ":tool_sh",
 )
 
-environment_tool(
+env_tool(
     name = "tool_dup_bin",
     aliases = ["alpha"],
     bin_name = "alpha",
@@ -45,7 +45,7 @@ failure_test(
     target = ":tool_dup_bin",
 )
 
-environment_tool(
+env_tool(
     name = "tool_dup_alias",
     aliases = [
         "a",
@@ -62,7 +62,7 @@ failure_test(
     target = ":tool_dup_alias",
 )
 
-environment_tool(
+env_tool(
     name = "tool_dup_case",
     aliases = ["Alpha"],
     bin_name = "alpha",
@@ -76,12 +76,12 @@ failure_test(
     target = ":tool_dup_case",
 )
 
-environment_config(
+env_config(
     name = "config_inner",
     tools = [":tool_beta"],
 )
 
-environment_config(
+env_config(
     name = "config_under_test",
     tools = [
         ":config_inner",
@@ -89,12 +89,12 @@ environment_config(
     ],
 )
 
-environment_metadata(
+env_metadata(
     name = "posix_metadata",
     config = ":config_under_test",
 )
 
-environment_metadata(
+env_metadata(
     name = "windows_metadata",
     config = ":config_under_test",
     windows = True,
@@ -104,7 +104,7 @@ env_defs_unit_tests(name = "env_defs_unit")
 
 env_config_analysis_tests(name = "env_config_analysis")
 
-environment_tree(
+env_tree(
     name = "tree_under_test",
     config = ":config_under_test",
 )
@@ -184,31 +184,31 @@ alias(
     actual = "//env/private/stubs:doctor",
 )
 
-environment_tool(
+env_tool(
     name = "doctor_tool",
     bin_name = "doctor",
     executable = ":doctor",
 )
 
-environment_tool(
+env_tool(
     name = "dx_tool",
     bin_name = "dx",
     executable = "@dx_prebuilt//:dx",
 )
 
-environment_tool(
+env_tool(
     name = "quality_markdown_tool",
     bin_name = "quality_markdown",
     executable = "@dx_prebuilt//:quality_markdown",
 )
 
-environment_tool(
+env_tool(
     name = "biome_tool",
     bin_name = "biome",
     executable = "@dx_tools//:biome",
 )
 
-environment_tool(
+env_tool(
     name = "clangd_tool",
     bin_name = "clangd",
     executable = "@llvm//tools:clangd",
@@ -256,25 +256,25 @@ alias(
     }),
 )
 
-environment_tool(
+env_tool(
     name = "node_tool",
     bin_name = "node",
     executable = ":node",
 )
 
-environment_tool(
+env_tool(
     name = "ruff_tool",
     bin_name = "ruff",
     executable = "@dx_tools//:ruff",
 )
 
-environment_tool(
+env_tool(
     name = "shellcheck_tool",
     bin_name = "shellcheck",
     executable = "@dx_tools//:shellcheck",
 )
 
-environment_config(
+env_config(
     name = "default_config",
     tools = [
         ":biome_tool",
@@ -288,7 +288,7 @@ environment_config(
     ],
 )
 
-environment_tree(
+env_tree(
     name = "default_tree",
     config = ":default_config",
 )

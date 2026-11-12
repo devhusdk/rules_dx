@@ -3,7 +3,7 @@
 load("//dart/private:providers.bzl", "DartInfo")
 load("//core/quality:native_config.bzl", "native_config_impl")
 
-DxDartConfigInfo = provider(
+DartConfigInfo = provider(
     doc = "Dart packages a dart_config pulls in for the analyzer.",
     fields = {
         "packages": "depset[DartPackageInfo]: packages of the config deps.",
@@ -15,7 +15,7 @@ DxDartConfigInfo = provider(
 def _dart_config_impl(ctx):
     result = native_config_impl(ctx)
     infos = [dep[DartInfo] for dep in ctx.attr.deps]
-    return result + [DxDartConfigInfo(
+    return result + [DartConfigInfo(
         packages = depset(transitive = [i.transitive_packages for i in infos]),
         resources = depset(transitive = [i.transitive_resources for i in infos]),
         srcs = depset(transitive = [i.transitive_srcs for i in infos]),

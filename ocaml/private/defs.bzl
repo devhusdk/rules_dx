@@ -38,7 +38,7 @@ load(":providers.bzl", "OCamlCmtInfo", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opt
 OCAML_COMPATIBLE_WITH = _OCAML_COMPATIBLE_WITH
 
 # Re-exported unchanged: BUILD files need it to generate lexers.
-ocamllex = _ocamllex
+ocaml_lex = _ocamllex
 
 OCAML_TOOLCHAIN_FLAG = "@rules_ocaml//toolchain"
 

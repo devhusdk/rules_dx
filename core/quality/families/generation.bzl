@@ -2,7 +2,7 @@
 
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("//avro/private:providers.bzl", "AvroInfo")
-load("//capnproto/private:providers.bzl", "CapnpInfo")
+load("//capnproto/private:providers.bzl", "CapnprotoInfo")
 load("//flatbuffers:defs.bzl", "FlatBuffersInfo")
 load("//core/quality:family_hooks.bzl", "upstream_files")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
@@ -109,7 +109,7 @@ SHARD_SPECS = {
 }
 
 def _capnp_closure(target):
-    return [(i.path, i.file) for i in target[CapnpInfo].transitive_imports.to_list()]
+    return [(i.path, i.file) for i in target[CapnprotoInfo].transitive_imports.to_list()]
 
 def _flatc_closure(target):
     staged = []
@@ -133,7 +133,7 @@ def _thrift_closure(target):
 # tool fails when two different Files claim one staged path, because the
 # compiler would see a different file than the one declared.
 _CLOSURE_STAGING = {
-    "capnp": (CapnpInfo, _capnp_closure, True),
+    "capnp": (CapnprotoInfo, _capnp_closure, True),
     "flatc": (FlatBuffersInfo, _flatc_closure, False),
     "thrift": (ThriftInfo, _thrift_closure, True),
     "avro_tools": (AvroInfo, _avro_closure, True),

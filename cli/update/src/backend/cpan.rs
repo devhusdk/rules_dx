@@ -25,7 +25,7 @@ pub(super) fn plan(
             let Some(compiler) = dependency_sets::cpan_compiler_label(workspace, set) else {
                 return Err(BackendError::Unsupported {
                     set: set.name.clone(),
-                    reason: "add a cpan_compiler next to the cpanfile; it keeps the lock JSON in step with cpanfile.snapshot",
+                    reason: "add a cpan_compiler next to the manifest; it keeps the lock JSON in step with the carton snapshot",
                 });
             };
             let mut command = vec!["update"];
@@ -66,7 +66,7 @@ pub(super) fn check(
         }
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "carton checks the whole cpanfile.snapshot; select the set without a package",
+            reason: "carton checks the whole snapshot; select the set without a package",
         }),
     }
 }

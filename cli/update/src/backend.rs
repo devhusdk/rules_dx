@@ -107,7 +107,7 @@ impl StagedRun {
                 argv.push("--dependencies-file".to_owned());
                 argv.push(
                     scratch
-                        .join("paket.dependencies")
+                        .join(dx_adopt::lock_hubs::manifest_of("nuget"))
                         .to_string_lossy()
                         .into_owned(),
                 );
@@ -505,7 +505,7 @@ const MAVEN_ONE_PACKAGE: &str =
     "maven pins are exact in MODULE.bazel; select the set without a package";
 
 const CARGO_CHECK_SELECTIVE: &str =
-    "crate_universe checks the whole Cargo.lock; select the set without a package";
+    "crate_universe checks the whole lock file; select the set without a package";
 const CARGO_ONE_PACKAGE: &str = "crate_universe repins one crate per run; select one package per cargo set, or the set without a package";
 const CARGO_RESERVED: &str =
     "crate_universe reads this crate name as a repin mode; select the set without a package";
@@ -638,7 +638,7 @@ pub fn plan_configured_bazel_lock(
 
 /// The `bundle lock --update <gem> --conservative` run that refreshes a ruby set's lock.
 ///
-/// It runs the pinned toolchain Ruby through Bazel in the Gemfile's directory, never a
+/// It runs the pinned toolchain Ruby through Bazel in the manifest's directory, never a
 /// host Ruby, and touches only that gem and what it needs.
 pub fn plan_ruby_lock(
     set: &ResolvedSet,
@@ -1080,8 +1080,8 @@ fn composer_env() -> Vec<(String, String)> {
     ]
 }
 
-/// Runs the script in a temp copy of the set directory, then compares or copies back `Package.resolved`.
-const SWIFT_SCRIPT: &str = r#"dir=$1; apply=$2; shift 2; tmp=$(mktemp -d) || exit 1; cp -R "$dir"/. "$tmp"; (cd "$tmp" && "$@"); code=$?; if [ $code -eq 0 ] && ! cmp -s "$tmp/Package.resolved" "$dir/Package.resolved"; then if [ "$apply" = apply ]; then cp "$tmp/Package.resolved" "$dir/Package.resolved"; code=$?; else echo "Package.resolved is out of date; run dx update" >&2; code=1; fi; fi; rm -rf "$tmp"; exit $code"#;
+/// Runs the script in a temp copy of the set directory, then compares or copies back the state file `$state`.
+const SWIFT_SCRIPT: &str = r#"dir=$1; apply=$2; shift 2; tmp=$(mktemp -d) || exit 1; cp -R "$dir"/. "$tmp"; (cd "$tmp" && "$@"); code=$?; if [ $code -eq 0 ] && ! cmp -s "$tmp/$state" "$dir/$state"; then if [ "$apply" = apply ]; then cp "$tmp/$state" "$dir/$state"; code=$?; else echo "$state is out of date; run dx update" >&2; code=1; fi; fi; rm -rf "$tmp"; exit $code"#;
 
 /// The SwiftPM identity of a package named by host and path: the lowercase last segment.
 fn swift_identity(name: &str) -> String {
@@ -1099,7 +1099,8 @@ fn swift_argv(
     let dir = set_dir(workspace, set)?;
     let mode = if apply { "apply" } else { "check" };
     let under = format!(
-        "--run_under=sh -c '{SWIFT_SCRIPT}' sh '{}' {mode}",
+        "--run_under=sh -c 'state={}; {SWIFT_SCRIPT}' sh '{}' {mode}",
+        dx_adopt::lock_hubs::state_of("swiftpm"),
         dir.replace('\'', "'\\''")
     );
     let mut argv = bazel(

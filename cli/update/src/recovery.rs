@@ -152,15 +152,17 @@ pub fn plan(
 mod tests {
     use super::super::outcome::{ReportedOutcome, ReportedStatus, UpdateReport};
     use super::*;
+    use dx_adopt::lock_hubs::lock_of;
+
+    fn cargo_lock() -> String {
+        format!("rust/tests/fixtures/hello/{}", lock_of("cargo"))
+    }
 
     fn builtin_locks() -> BTreeMap<String, Vec<String>> {
         BTreeMap::from([
-            (
-                "cargo".to_owned(),
-                vec!["rust/tests/fixtures/hello/Cargo.lock".to_owned()],
-            ),
-            ("maven".to_owned(), vec!["maven_install.json".to_owned()]),
-            ("npm".to_owned(), vec!["pnpm-lock.yaml".to_owned()]),
+            ("cargo".to_owned(), vec![cargo_lock()]),
+            ("maven".to_owned(), vec![lock_of("maven").to_owned()]),
+            ("npm".to_owned(), vec![lock_of("npm").to_owned()]),
         ])
     }
 
@@ -202,14 +204,11 @@ mod tests {
             .expect("failed report plans recovery");
         assert_eq!(plan.retry_sets, vec!["maven".to_owned()]);
         assert_eq!(plan.retry_command, "dx update --apply maven");
-        assert!(plan.restore_paths.contains(&"pnpm-lock.yaml".to_owned()));
-        assert!(
-            plan.restore_paths
-                .contains(&"rust/tests/fixtures/hello/Cargo.lock".to_owned())
-        );
+        assert!(plan.restore_paths.contains(&lock_of("npm").to_owned()));
+        assert!(plan.restore_paths.contains(&cargo_lock()));
         let restore = plan.restore_command.expect("kept successes restore");
         assert!(restore.starts_with("git checkout -- "));
-        assert!(restore.contains("pnpm-lock.yaml"));
+        assert!(restore.contains(lock_of("npm")));
         assert!(plan.message.contains("dx update --apply maven"));
         assert!(plan.message.contains("idempotent"));
     }
@@ -306,11 +305,12 @@ mod tests {
             ],
             overall_failure: true,
         };
-        let locks = BTreeMap::from([("uv".to_owned(), vec!["apps/frontend/uv.lock".to_owned()])]);
+        let uv_lock = format!("apps/frontend/{}", lock_of("uv"));
+        let locks = BTreeMap::from([("uv".to_owned(), vec![uv_lock.clone()])]);
         let plan = plan(&report, RetryMode::Apply, &locks).expect("recovery");
         assert_eq!(
-            plan.restore_command.as_deref(),
-            Some("git checkout -- apps/frontend/uv.lock")
+            plan.restore_command,
+            Some(format!("git checkout -- {uv_lock}"))
         );
         assert!(!plan.message.contains("python/tests/fixtures"));
     }

@@ -54,7 +54,7 @@ pub(super) fn check(
         }
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "dart pub get checks the whole pubspec.lock; select the set without a package",
+            reason: "dart pub get checks the whole lock file; select the set without a package",
         }),
     }
 }

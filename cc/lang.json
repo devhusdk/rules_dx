@@ -21,7 +21,6 @@
     "windows_x86_64"
   ],
   "pins": [
-    "private/toolchains/pins.bzl",
     "private/toolchains/pins.json"
   ],
   "entry_points": [
@@ -30,7 +29,8 @@
     "cc_binary",
     "cc_test",
     "cc_fuzz_test",
-    "cc_bench"
+    "cc_bench",
+    "cc_coverage_settings"
   ],
   "quality": {
     "bzl": "core/quality:families/cc.bzl",

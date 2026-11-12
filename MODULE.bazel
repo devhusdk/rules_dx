@@ -775,8 +775,29 @@ dx_pins.data(
     name = "dx_haskell",
     pins = "//haskell:pins.json",
 )
-dx_pins.data(
-    name = "dx_lua_coverage",
+dx_pins.archive(
+    name = "dx_ldoc",
+    build = "//lua/private:ldoc.BUILD.bazel",
+    pins = "//lua:pins.json",
+)
+dx_pins.archive(
+    name = "dx_luacov",
+    build = "//lua/private:luacov.BUILD.bazel",
+    pins = "//lua:pins.json",
+)
+dx_pins.archive(
+    name = "dx_luacov_reporter_lcov",
+    build = "//lua/private:luacov_reporter_lcov.BUILD.bazel",
+    pins = "//lua:pins.json",
+)
+dx_pins.archive(
+    name = "dx_luafilesystem",
+    build = "//lua/private:luafilesystem.BUILD.bazel",
+    pins = "//lua:pins.json",
+)
+dx_pins.archive(
+    name = "dx_penlight",
+    build = "//lua/private:penlight.BUILD.bazel",
     pins = "//lua:pins.json",
 )
 dx_pins.data(
@@ -893,9 +914,14 @@ use_repo(
     "dx_coreutils__macos_x86_64",
     "dx_coreutils__windows_arm64",
     "dx_coreutils__windows_x86_64",
+    "dx_ldoc",
     "dx_libfuzzer_dotnet",
+    "dx_luacov",
+    "dx_luacov_reporter_lcov",
+    "dx_luafilesystem",
     "dx_luals",
     "dx_patchelf",
+    "dx_penlight",
     "dx_pins_data",
     "dx_powershell_toolchains",
     "dx_powershell_toolchains__linux_arm64",
@@ -1414,9 +1440,6 @@ archive_override(
         "https://www.lua.org/ftp/lua-5.5.0.tar.gz",
     ],
 )
-
-lua_tools = use_extension("//lua:extensions.bzl", "lua")
-use_repo(lua_tools, "dx_luacov", "dx_luacov_reporter_lcov", "dx_ldoc", "dx_luafilesystem", "dx_penlight")
 
 register_toolchains("//lua/private/toolchain:all")
 

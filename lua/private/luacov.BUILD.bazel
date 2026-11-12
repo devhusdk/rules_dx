@@ -1,0 +1,6 @@
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "sources",
+    srcs = glob(["src/**/*.lua"], exclude = ["**/spec/**", "**/html/**", "**/reporter/html.lua"]),
+)

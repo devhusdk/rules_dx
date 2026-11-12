@@ -8,6 +8,7 @@ load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
+load("//core:platform.bzl", "platforms_transition")
 load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings", "msvc_crt_static_flag")
 load("//core:resources.bzl", "dx_test_resource_tags")
 load("//core:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_upstream_tags", "dx_warnings_flags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
@@ -53,8 +54,6 @@ _WASIP1_PLATFORM = Label("@rules_rust//rust/platform:wasip1")
 
 _WASM32_PLATFORM = Label("@rules_rust//rust/platform:wasm32")
 
-_PLATFORMS = "//command_line_option:platforms"
-
 def _cpp_runtime_transition_impl(settings, attr):
     """Turns off static C++ runtime linking on libstdc++ platforms."""
     features = settings["//command_line_option:features"]
@@ -71,20 +70,17 @@ _cpp_runtime_transition = transition(
     outputs = ["//command_line_option:features", MSVC_CRT_FROM_RUST],
 )
 
-def _rust_binary_transition_impl(settings, attr):
-    """Turns off static C++ runtime linking, and targets WASI when asked."""
+def _rust_binary_settings(settings, attr, _platforms):
+    """Turns off static C++ runtime linking, and coverage when targeting WASI."""
     out = _cpp_runtime_transition_impl(settings, attr)
-    out[_PLATFORMS] = settings[_PLATFORMS]
-    out[_COVERAGE] = settings[_COVERAGE]
-    if attr.wasm == "wasi":
-        out[_PLATFORMS] = [str(_WASIP1_PLATFORM)]
-        out[_COVERAGE] = False
+    out[_COVERAGE] = settings[_COVERAGE] and attr.wasm != "wasi"
     return out
 
-_rust_binary_transition = transition(
-    implementation = _rust_binary_transition_impl,
-    inputs = ["//command_line_option:features", _EXTRA_RUSTC_FLAG, MSVC_CRT_FROM_RUST, _PLATFORMS, _COVERAGE],
-    outputs = ["//command_line_option:features", MSVC_CRT_FROM_RUST, _PLATFORMS, _COVERAGE],
+_rust_binary_transition = platforms_transition(
+    _rust_binary_settings,
+    inputs = ["//command_line_option:features", _EXTRA_RUSTC_FLAG, MSVC_CRT_FROM_RUST, _COVERAGE],
+    outputs = ["//command_line_option:features", MSVC_CRT_FROM_RUST, _COVERAGE],
+    platforms = lambda attr: [str(_WASIP1_PLATFORM)] if attr.wasm == "wasi" else [],
 )
 
 _LIBSTDCXX_ATTRS = {
@@ -507,14 +503,13 @@ _rust_wasm_input = rule(
     },
 )
 
-def _wasm32_transition_impl(_settings, _attr):
-    """Targets wasm32 without coverage on one dependency edge."""
-    return {_PLATFORMS: [str(_WASM32_PLATFORM)], _COVERAGE: False}
+def _no_coverage_settings(_settings, _attr, _platforms):
+    return {_COVERAGE: False}
 
-_wasm32_transition = transition(
-    implementation = _wasm32_transition_impl,
-    inputs = [],
-    outputs = [_PLATFORMS, _COVERAGE],
+_wasm32_transition = platforms_transition(
+    _no_coverage_settings,
+    outputs = [_COVERAGE],
+    platforms = lambda _attr: [str(_WASM32_PLATFORM)],
 )
 
 def _rust_browser_forward_impl(ctx):
@@ -660,18 +655,18 @@ _EXTRA_EXEC = "//command_line_option:extra_execution_platforms"
 
 _HOST_PLATFORM = Label("@platforms//host")
 
-def _wasi_test_transition_impl(settings, _attr):
-    """Targets WASI preview 1 without coverage on one dependency edge."""
+def _wasi_test_settings(settings, _attr, _platforms):
+    """Turns off coverage and adds the host and WASI execution platforms."""
     return {
-        _PLATFORMS: [str(_WASIP1_PLATFORM)],
         _COVERAGE: False,
         _EXTRA_EXEC: settings[_EXTRA_EXEC] + [str(_HOST_PLATFORM), str(_WASIP1_PLATFORM)],
     }
 
-_wasi_test_transition = transition(
-    implementation = _wasi_test_transition_impl,
+_wasi_test_transition = platforms_transition(
+    _wasi_test_settings,
     inputs = [_EXTRA_EXEC],
-    outputs = [_PLATFORMS, _COVERAGE, _EXTRA_EXEC],
+    outputs = [_COVERAGE, _EXTRA_EXEC],
+    platforms = lambda _attr: [str(_WASIP1_PLATFORM)],
 )
 
 def _rust_wasi_run_test_impl(ctx):

@@ -1,9 +1,8 @@
-"""Builds Swift targets for the Swift Linux platform."""
+"""Execution platforms and toolchains Swift targets build with."""
 
 load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
-load("//core:platform.bzl", "prepend_toolchains", "single_platform_error")
+load("//core:platform.bzl", "prepend_toolchains")
 
-_PLATFORMS = "//command_line_option:platforms"
 _EXEC = "//command_line_option:extra_execution_platforms"
 _TOOLCHAINS = "//command_line_option:extra_toolchains"
 
@@ -22,44 +21,33 @@ def swift_exec_platform(platform, host_constraints):
     cpu = "aarch64" if "@platforms//cpu:aarch64" in host_constraints else "x86_64"
     return str(Label("//swift/private/platforms:exec_linux_" + cpu))
 
-def swift_transition_settings(settings, attr, host_constraints = HOST_CONSTRAINTS):
-    """Returns the settings Swift targets build with.
+def swift_platform_settings(settings, attr, platforms, host_constraints = HOST_CONSTRAINTS):
+    """Returns the execution platforms and toolchains Swift targets build with.
 
     Args:
         settings: The incoming command line option values.
         attr: The attributes of the rule being configured.
+        platforms: The one target platform, or [] for the command-line platform.
         host_constraints: The constraint labels of the host.
 
     Returns:
-        The new platforms, execution platforms and toolchains.
+        The new execution platforms and toolchains.
     """
     toolchains = prepend_toolchains(attr._swift_extra_toolchains, settings[_TOOLCHAINS])
-    if len(attr.platforms) == 0:
-        return {_PLATFORMS: settings[_PLATFORMS], _EXEC: settings[_EXEC], _TOOLCHAINS: toolchains}
-    error = single_platform_error("swift", attr.platforms)
-    if error:
-        fail(error)
-    platform = str(attr.platforms[0])
-    exec_platform = swift_exec_platform(platform, host_constraints)
+    if len(platforms) == 0:
+        return {_EXEC: settings[_EXEC], _TOOLCHAINS: toolchains}
+    exec_platform = swift_exec_platform(platforms[0], host_constraints)
     return {
-        _PLATFORMS: [platform],
         _EXEC: [exec_platform] + [str(p) for p in settings[_EXEC] if str(p) != exec_platform],
         _TOOLCHAINS: toolchains,
     }
 
-def _impl(settings, attr):
-    return swift_transition_settings(settings, attr)
-
-swift_linux_transition = transition(
-    implementation = _impl,
-    inputs = [_EXEC, _PLATFORMS, _TOOLCHAINS],
-    outputs = [_PLATFORMS, _EXEC, _TOOLCHAINS],
-)
+SWIFT_PLATFORM_SETTINGS = [_EXEC, _TOOLCHAINS]
 
 def swift_linux_platforms():
     """Returns the Linux platform for the current target cpu, or no platform elsewhere."""
     return select({
-        Label("//swift/private/platforms:is_linux_aarch64"): [Label("//swift/private/platforms:exec_linux_aarch64")],
-        Label("//swift/private/platforms:is_linux_x86_64"): [Label("//swift/private/platforms:exec_linux_x86_64")],
+        Label("//swift/private/platforms:is_linux_aarch64"): [str(Label("//swift/private/platforms:exec_linux_aarch64"))],
+        Label("//swift/private/platforms:is_linux_x86_64"): [str(Label("//swift/private/platforms:exec_linux_x86_64"))],
         "//conditions:default": [],
     })

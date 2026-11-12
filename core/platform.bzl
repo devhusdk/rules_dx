@@ -8,17 +8,55 @@ DxPlatformInfo = provider(
     },
 )
 
-def _platform_transition_impl(settings, attr):
-    """Builds the probe for attr.platform, or for the current platform when it is unset."""
-    if attr.platform == None:
-        return {"//command_line_option:platforms": settings["//command_line_option:platforms"]}
-    return {"//command_line_option:platforms": [str(attr.platform)]}
+_PLATFORMS = "//command_line_option:platforms"
 
-platform_transition = transition(
-    implementation = _platform_transition_impl,
-    inputs = ["//command_line_option:platforms"],
-    outputs = ["//command_line_option:platforms"],
-)
+def _attr_platforms(attr):
+    """Returns attr.platforms as strings, or [] when the rule has none."""
+    return [str(p) for p in (getattr(attr, "platforms", None) or [])]
+
+def _no_settings(_settings, _attr, _platforms):
+    return {}
+
+def _with_platforms(settings, platforms):
+    out = dict(settings)
+    out[_PLATFORMS] = platforms
+    return out
+
+def platforms_transition(implementation = _no_settings, inputs = [], outputs = [], platforms = _attr_platforms, single = ""):
+    """Returns the transition that builds for a platforms list, one configuration per platform.
+
+    Args:
+        implementation: Called as implementation(settings, attr, platforms) with the one platform of a
+            configuration, or [] for the command-line platform. Returns the other settings it changes.
+        inputs: The settings implementation reads.
+        outputs: The settings implementation returns.
+        platforms: Called as platforms(attr). Returns the platform label strings. Empty keeps the
+            command-line platform.
+        single: The rule name. When set, more than one platform fails with single_platform_error.
+
+    Returns:
+        A transition that splits when platforms holds more than one label.
+    """
+
+    def _impl(settings, attr):
+        chosen = platforms(attr)
+        if not chosen:
+            return _with_platforms(implementation(settings, attr, []), settings[_PLATFORMS])
+        if single:
+            error = single_platform_error(single, chosen)
+            if error:
+                fail(error)
+        if len(chosen) == 1:
+            return _with_platforms(implementation(settings, attr, chosen), chosen)
+        return {p: _with_platforms(implementation(settings, attr, [p]), [p]) for p in chosen}
+
+    return transition(
+        implementation = _impl,
+        inputs = [_PLATFORMS] + [s for s in inputs if s != _PLATFORMS],
+        outputs = [_PLATFORMS] + [s for s in outputs if s != _PLATFORMS],
+    )
+
+platform_transition = platforms_transition(platforms = lambda attr: [str(attr.platform)] if attr.platform else [])
 
 def _platform_probe_impl(ctx):
     """Reports the os and cpu of the target platform."""

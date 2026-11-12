@@ -19,7 +19,7 @@ load(":lock_hub_tests.bzl", "lock_hub_tests")
 load(":no_coverage_tests.bzl", "no_coverage_tests")
 load(":packaging_tests.bzl", "packaging_unit_tests")
 load(":pins_tests.bzl", "pins_tests")
-load(":platform_tests.bzl", "platform_probe_tests")
+load(":platform_tests.bzl", "platform_probe_tests", "platforms_transition_tests")
 load(":repo_tests.bzl", "repo_unit_tests")
 load(":seven_zip_tests.bzl", "seven_zip_tests")
 load(":subject.bzl", "example_subject")
@@ -123,6 +123,8 @@ aspect_subject_tests(name = "aspect_subject_analysis")
 config_subject_tests(name = "config_subject_analysis")
 
 platform_probe_tests(name = "platform_probe_analysis")
+
+platforms_transition_tests(name = "platforms_transition_analysis")
 
 fixture_execution_tests(name = "fixture_execution")
 

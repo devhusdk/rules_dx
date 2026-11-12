@@ -140,7 +140,10 @@ fn dialyzer(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>,
     let plt_refs: Vec<&Path> = plts.iter().map(PathBuf::as_path).collect();
     let beam_refs: Vec<&Path> = beams.iter().map(PathBuf::as_path).collect();
     let name_refs: Vec<&str> = pairs.iter().map(|(rel, _)| rel.as_str()).collect();
-    let invocation = commands::dialyzer_check(&tool.binary, &code_dirs, &plt_refs, &beam_refs);
+    let input_list = scratch.root().join("dx-dialyzer/beams.txt");
+    std::fs::write(&input_list, commands::dialyzer_input_list(&beam_refs))
+        .map_err(|err| execution(tool_id, format!("write dialyzer input list: {err}")))?;
+    let invocation = commands::dialyzer_check(&tool.binary, &code_dirs, &plt_refs, &input_list);
     let out = backend.run(tool_id, tool, &invocation, scratch)?;
     let mut findings = parsed(
         tool_id,

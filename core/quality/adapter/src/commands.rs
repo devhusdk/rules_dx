@@ -1184,12 +1184,13 @@ pub fn spotbugs_check(
 }
 
 /// `dialyzer` over compiled beams against pre-built PLTs. The PLT is trusted as is
-/// (`--no_check_plt`), and every beam, owned or auxiliary, is analysed.
+/// (`--no_check_plt`), and every beam listed in `input_list`, owned or auxiliary, is
+/// analysed.
 pub fn dialyzer_check(
     binary: &Path,
     code_dirs: &[&Path],
     plts: &[&Path],
-    beams: &[&Path],
+    input_list: &Path,
 ) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
     for dir in code_dirs {
@@ -1201,12 +1202,20 @@ pub fn dialyzer_check(
         argv.extend(plts.iter().map(|p| p.as_os_str().to_owned()));
     }
     argv.extend(DIALYZER_ARGS.iter().map(OsString::from));
-    argv.push(OsString::from("--"));
-    argv.extend(beams.iter().map(|b| b.as_os_str().to_owned()));
+    argv.push(OsString::from("--input_list_file"));
+    argv.push(input_list.as_os_str().to_owned());
     Invocation {
         argv,
         cwd_rel: String::new(),
     }
+}
+
+/// The `--input_list_file` contents for `dialyzer_check`: one beam path per line.
+pub fn dialyzer_input_list(beams: &[&Path]) -> String {
+    beams
+        .iter()
+        .map(|beam| format!("{}\n", beam.display()))
+        .collect()
 }
 
 /// `phpcs` over the owned sources, JSON on stdout. `standard` is a ruleset file or a bundled

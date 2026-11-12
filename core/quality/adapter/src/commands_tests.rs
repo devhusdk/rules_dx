@@ -3201,12 +3201,12 @@ fn helm_is_a_single_transport_tool() {
 }
 
 #[test]
-fn dialyzer_check_orders_plts_before_options_and_beams_after_the_separator() {
+fn dialyzer_check_orders_plts_before_options_and_reads_beams_from_the_input_list() {
     let invocation = dialyzer_check(
         Path::new(BIN),
         &[Path::new("/s/pa")],
         &[Path::new("/s/core.plt"), Path::new("/s/ext.plt")],
-        &[Path::new("/s/a.beam"), Path::new("/s/b.beam")],
+        Path::new("/s/beams.txt"),
     );
     assert_eq!(
         argv_strings(&invocation),
@@ -3222,14 +3222,23 @@ fn dialyzer_check_orders_plts_before_options_and_beams_after_the_separator() {
             "--error_location",
             "column",
             "--fullpath",
-            "--",
-            "/s/a.beam",
-            "/s/b.beam"
+            "--input_list_file",
+            "/s/beams.txt"
         ]
     );
-    let bare = dialyzer_check(Path::new(BIN), &[], &[], &[Path::new("/s/a.beam")]);
+    let bare = dialyzer_check(Path::new(BIN), &[], &[], Path::new("/s/beams.txt"));
     assert!(!argv_strings(&bare).contains(&"--plts".to_owned()));
     assert!(!argv_strings(&bare).contains(&"-pa".to_owned()));
+    assert!(!argv_strings(&bare).contains(&"--".to_owned()));
+}
+
+#[test]
+fn dialyzer_input_list_puts_one_beam_per_line_in_order() {
+    assert_eq!(
+        dialyzer_input_list(&[Path::new("/s/b.beam"), Path::new("/s/a.beam")]),
+        "/s/b.beam\n/s/a.beam\n"
+    );
+    assert_eq!(dialyzer_input_list(&[]), "");
 }
 
 #[test]

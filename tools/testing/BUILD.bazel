@@ -380,6 +380,7 @@ rust_test(
 
 rust_test(
     name = "preflight_smoke_test",
+    size = "small",
     srcs = ["preflight_smoke_test.rs"],
     aliases = aliases(
         package_name = "tools/dx_testing",

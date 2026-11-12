@@ -21,9 +21,10 @@ aspect_field transitive_count=0"""
 
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
-def toolchain_identity_tests(name):
+def toolchain_identity_tests(name, size = "small"):
     starlark_test(
         name = name + "_binding",
+        size = size,
         mode = "load",
         checks = [
             expect_equal(
@@ -40,6 +41,7 @@ def toolchain_identity_tests(name):
     )
     starlark_test(
         name = name,
+        size = size,
         mode = "analysis",
         subjects = ["//rust/private/toolchain:identity_under_test"],
         expected_observations = EXPECTED_IDENTITY_OBSERVATIONS,

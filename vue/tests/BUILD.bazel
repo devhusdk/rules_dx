@@ -2,6 +2,7 @@ load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
+    size = "small",
     known_gaps = {"test": {
         "upstream_instrumented": "False",
         "wrapper_instrumented": "False",

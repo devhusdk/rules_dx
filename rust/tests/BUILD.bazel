@@ -18,6 +18,12 @@ real_source_target(
     tags = ["corpus"],
 )
 
-toolchain_identity_tests(name = "identity")
+toolchain_identity_tests(
+    name = "identity",
+    size = "small",
+)
 
-cross_link_tests(name = "cross_link")
+cross_link_tests(
+    name = "cross_link",
+    size = "small",
+)

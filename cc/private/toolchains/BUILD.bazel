@@ -497,6 +497,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_arm64_c_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",
@@ -507,6 +508,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_arm64_pe_machine_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",
@@ -526,6 +528,7 @@ gcov_tool(
 
 cc_gcov_coverage_env_test(
     name = "gcc_coverage_env_test",
+    size = "small",
     target = "//cc/tests/fixtures/hello:hello_c_test",
 )
 

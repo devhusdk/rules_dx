@@ -75,6 +75,7 @@ rust_library(
 
 rust_test(
     name = "hermetic_unit_test",
+    size = "small",
     srcs = [
         "src/lib.rs",
         "src/tests.rs",
@@ -133,6 +134,7 @@ rust_binary(
 
 rust_test(
     name = "consumer_repos_test",
+    size = "small",
     srcs = ["consumer_repos_test.rs"],
     aliases = aliases(
         package_name = "tools/testing/hermetic",

@@ -67,6 +67,7 @@ def clang_syntax_analysis_tests(name):
     )
     failure_test(
         name = name + "_tidy_without_config",
+        size = "small",
         target = name + "_tidy_without_config_subject",
         expected_failure_substring = "has no clang_tidy config",
     )

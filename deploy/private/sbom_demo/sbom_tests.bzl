@@ -16,6 +16,7 @@ def plain_file_sbom_tests(name):
     )
     failure_test(
         name = name,
+        size = "small",
         target = ":" + name + "_target",
         expected_failure_substring = "is misplaced here",
     )

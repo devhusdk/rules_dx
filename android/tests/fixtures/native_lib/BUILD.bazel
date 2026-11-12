@@ -80,6 +80,7 @@ rust_test(
 
 rust_test(
     name = "native_lib_arch_test",
+    size = "small",
     srcs = ["arch_test.rs"],
     crate_name = "native_lib_arch_test",
     crate_root = "arch_test.rs",

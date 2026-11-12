@@ -237,7 +237,6 @@ rust_test(
 
 rust_test(
     name = "dx_cli_test",
-    timeout = "long",
     srcs = [
         "src/adopt.rs",
         "src/adopt/agents.rs",

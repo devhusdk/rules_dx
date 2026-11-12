@@ -1522,6 +1522,7 @@ rust_library(
 
 rust_test(
     name = "fake_format_test",
+    size = "small",
     crate = ":fake_format",
 )
 
@@ -1537,6 +1538,7 @@ real_source_target(
 
 rust_test(
     name = "scalafmt_errors_test",
+    size = "small",
     srcs = ["scalafmt_errors_test.rs"],
     data = [
         "scalafmt_bad_cfg/.scalafmt.conf",

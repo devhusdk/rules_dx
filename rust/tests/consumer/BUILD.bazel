@@ -12,5 +12,6 @@ rust_library(
 
 rust_test(
     name = "my_project_test",
+    size = "small",
     crate = ":my_project",
 )

@@ -95,6 +95,7 @@ sh_test(
 
 dx_hello_output_test(
     name = "hello_output_test",
+    size = "small",
     binary = ":hello",
     expected = "Hello, swift!",
 )

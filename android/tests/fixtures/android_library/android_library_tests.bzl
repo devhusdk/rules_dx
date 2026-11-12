@@ -26,11 +26,11 @@ _providers_test = analysistest.make(
     },
 )
 
-def android_library_providers_test(name, library, kotlin):
+def android_library_providers_test(name, library, kotlin, size = "small"):
     """Asserts the Android library `library` of this package returns its JVM and Android providers."""
     _providers_test(
         name = name,
-        size = "small",
+        size = size,
         target_under_test = ":" + library,
         kotlin = kotlin,
     )

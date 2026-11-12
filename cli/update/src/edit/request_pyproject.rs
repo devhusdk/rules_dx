@@ -1,14 +1,13 @@
-//! Widening one PEP 508 requirement in a `pyproject.toml`.
+//! Widening one PEP 508 requirement in a uv manifest.
 
 use super::EditError;
 use crate::edit::version::WidenVersion;
+use dx_adopt::lock_hubs::manifest_of;
 use toml_edit::{Array, DocumentMut, Item, Value};
-
-const MANIFEST: &str = "pyproject.toml";
 
 fn unsupported(reason: impl Into<String>) -> EditError {
     EditError::UnsupportedManifest {
-        manifest: MANIFEST.to_owned(),
+        manifest: manifest_of("uv").to_owned(),
         reason: reason.into(),
     }
 }
@@ -145,7 +144,7 @@ pub(crate) fn plan_pyproject_toml(
     }
     match hits.len() {
         0 => Err(EditError::NotFound {
-            manifest: MANIFEST.to_owned(),
+            manifest: manifest_of("uv").to_owned(),
             package: package.to_owned(),
         }),
         1 => {
@@ -171,7 +170,7 @@ pub(crate) fn plan_pyproject_toml(
             Ok(doc.to_string())
         }
         count => Err(EditError::Ambiguous {
-            manifest: MANIFEST.to_owned(),
+            manifest: manifest_of("uv").to_owned(),
             package: package.to_owned(),
             count,
         }),

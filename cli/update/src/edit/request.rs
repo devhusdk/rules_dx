@@ -31,25 +31,25 @@ pub enum ConfiguredKind {
     Maven,
     /// A nuget set; the paket manifest is edited and its lock is not re-resolved.
     Nuget,
-    /// A go set; only the `require` line of its go.mod is edited, then go.sum is refreshed.
+    /// A go set; only the `require` line of its manifest is edited, then its lock is refreshed.
     Go,
-    /// A ruby set; only the gem's line in the Gemfile is edited, then `bundle lock` runs.
+    /// A ruby set; only the gem's line in the manifest is edited, then `bundle lock` runs.
     Ruby,
-    /// A cpan set; only the module's `requires` line in the cpanfile is edited.
+    /// A cpan set; only the module's `requires` line in the manifest is edited.
     Cpan,
-    /// A pub set; only the package's constraint in pubspec.yaml is edited.
+    /// A pub set; only the package's constraint in the manifest is edited.
     Pub,
     /// A cabal set; only the package's bound in the `.cabal` file is edited.
     Cabal,
-    /// A julia set; only the package's `[compat]` entry in Project.toml is edited.
+    /// A julia set; only the package's `[compat]` entry in the manifest is edited.
     Julia,
     /// A composer set; only the constraint in the composer manifest is edited, then the lock is refreshed.
     Composer,
-    /// A swiftpm set; only the package's `from:` or `exact:` version in Package.swift is edited.
+    /// A swiftpm set; only the package's `from:` or `exact:` version in the manifest is edited.
     SwiftPm,
     /// An opam set; only the package's constraint in `depends:` of the `.opam` file is edited.
     Opam,
-    /// A hex set; only the requirement in the `deps` of mix.exs is edited.
+    /// A hex set; only the requirement in the `deps` of the manifest is edited.
     Hex,
 }
 

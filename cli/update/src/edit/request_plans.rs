@@ -1,4 +1,5 @@
 use super::*;
+use dx_adopt::lock_hubs::manifest_of;
 use dx_error::DxError;
 
 pub(super) fn plan_bazelversion(
@@ -172,13 +173,13 @@ pub(super) fn plan_package_json(
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
             return Err(EditError::UnsupportedManifest {
-                manifest: "package.json".to_owned(),
+                manifest: manifest_of("npm").to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
         }
     };
     let unsupported = |reason: String| EditError::UnsupportedManifest {
-        manifest: "package.json".to_owned(),
+        manifest: manifest_of("npm").to_owned(),
         reason,
     };
     let root: serde_json::Value = serde_json::from_str(content)
@@ -218,7 +219,7 @@ pub(super) fn plan_package_json(
     }
     match spans.len() {
         0 => Err(EditError::NotFound {
-            manifest: "package.json".to_owned(),
+            manifest: manifest_of("npm").to_owned(),
             package: package.to_owned(),
         }),
         1 => {
@@ -236,7 +237,7 @@ pub(super) fn plan_package_json(
             ))
         }
         count => Err(EditError::Ambiguous {
-            manifest: "package.json".to_owned(),
+            manifest: manifest_of("npm").to_owned(),
             package: package.to_owned(),
             count,
         }),
@@ -258,7 +259,7 @@ pub(crate) struct JsonScan<'a> {
 impl JsonScan<'_> {
     fn bad() -> EditError {
         EditError::UnsupportedManifest {
-            manifest: "package.json".to_owned(),
+            manifest: manifest_of("npm").to_owned(),
             reason: "manifest is not valid JSON".to_owned(),
         }
     }
@@ -393,7 +394,7 @@ pub(super) fn plan_go_mod(
     })
 }
 
-/// Rewrites the version on the one `gem "<package>"` line of a Gemfile, keeping its operator.
+/// Rewrites the version on the one `gem "<package>"` line of a ruby manifest, keeping its operator.
 ///
 /// Only a single literal requirement is rewritten; other lines are returned untouched.
 pub(super) fn plan_gemfile(
@@ -581,7 +582,7 @@ fn literals<'a>(line: &'a str, keyword: &str) -> Vec<Literal<'a>> {
     }
 }
 
-/// Rewrites the version of the one `requires '<Module>', '<op> <version>'` line of a cpanfile.
+/// Rewrites the version of the one `requires '<Module>', '<op> <version>'` line of a cpan manifest.
 pub(super) fn plan_cpanfile(
     manifest: &str,
     content: &str,
@@ -735,7 +736,7 @@ fn next_major(version: &str) -> Option<String> {
 }
 
 /// Rewrites the constraint of one scalar `package: <constraint>` entry in the
-/// `dependencies` or `dev_dependencies` of a pubspec.yaml, keeping its `^` or range form.
+/// `dependencies` or `dev_dependencies` of a pub manifest, keeping its `^` or range form.
 pub(super) fn plan_pubspec(
     manifest: &str,
     content: &str,
@@ -923,7 +924,7 @@ fn swift_string_after<'a>(call: &'a str, label: &str) -> Option<(&'a str, usize,
     Some((&call[open..open + len], open, len))
 }
 
-/// Rewrites the requirement of the one `{:package, "<op> x.y.z"}` tuple in a mix.exs,
+/// Rewrites the requirement of the one `{:package, "<op> x.y.z"}` tuple in a hex manifest,
 /// keeping its operator.
 pub(super) fn plan_mix_exs(
     manifest: &str,
@@ -990,7 +991,7 @@ pub(super) fn plan_mix_exs(
     Ok(edited)
 }
 
-/// Sets the `[compat]` entry of a package declared in the `[deps]` of a Project.toml,
+/// Sets the `[compat]` entry of a package declared in the `[deps]` of a julia manifest,
 /// keeping a leading `=` or `~` and adding the entry when it is absent.
 pub(super) fn plan_julia_project(
     manifest: &str,
@@ -1010,7 +1011,7 @@ pub(super) fn plan_julia_project(
     };
     let mut doc: toml_edit::DocumentMut = content
         .parse()
-        .map_err(|e| unsupported(&format!("invalid Project.toml: {e}")))?;
+        .map_err(|e| unsupported(&format!("invalid {}: {e}", manifest_of("julia"))))?;
     let declared = doc
         .get("deps")
         .and_then(toml_edit::Item::as_table_like)
@@ -1422,8 +1423,8 @@ pub(super) fn is_target_shape(text: &str) -> bool {
     text == "..."
         || text == "MODULE.bazel"
         || text == ".bazelversion"
-        || text == "package.json"
-        || text == "Cargo.toml"
+        || text == manifest_of("npm")
+        || text == manifest_of("cargo")
 }
 
 const BAZEL_CHARSET: &str = "bazel modules use [A-Za-z0-9_.-] only (or .bazelversion)";

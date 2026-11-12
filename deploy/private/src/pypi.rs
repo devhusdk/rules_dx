@@ -1233,14 +1233,14 @@ mod tests {
     #[test]
     fn pypi_mint_endpoint_names_audience() {
         assert_eq!(
-            pypi_mint_endpoint("https://upload.pypi.org/legacy/"),
+            pypi_mint_endpoint("https://upload.pypi.org/"),
             Some(("pypi", "https://pypi.org/_/oidc/mint-token".to_owned()))
         );
         assert_eq!(
-            pypi_mint_endpoint("https://test.pypi.org/legacy/").map(|(audience, _)| audience),
+            pypi_mint_endpoint("https://test.pypi.org/").map(|(audience, _)| audience),
             Some("testpypi")
         );
-        assert_eq!(pypi_mint_endpoint("https://example.org/legacy/"), None);
+        assert_eq!(pypi_mint_endpoint("https://example.org/"), None);
     }
 
     #[test]

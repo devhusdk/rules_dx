@@ -4,11 +4,10 @@
 --config
 --copt
 --credential_helper
+--downloader_config
 --experimental_override_platform_cpu_name
---experimental_remote_cache_eviction_retries
 --experimental_remote_downloader
 --experimental_remote_downloader_local_fallback
---experimental_repository_downloader_retries
 --experimental_strict_java_deps
 --extra_toolchains
 --features
@@ -34,6 +33,7 @@
 --remote_timeout
 --repo_env
 --//ruby/private/quality:rubocop
+--@rules_dx//config:clippy_flag
 --@rules_rust//cargo/settings:cargo_toml_env_vars
 --@rules_rust//cargo/settings:use_default_shell_env
 --@rules_rust//rust/settings:clippy.toml

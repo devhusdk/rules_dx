@@ -410,7 +410,7 @@ single_version_override(
     patch_strip = 1,
     patches = [
         "//patches/rules_android:bundle_keystore_properties.patch",
-        "//patches/rules_android:java8_legacy_dex_runfiles.patch",
+        "//patches/rules_android:java8_dex_runfiles.patch",
     ],
     version = "0.8.1",
 )

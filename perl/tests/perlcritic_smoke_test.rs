@@ -1,4 +1,4 @@
-//! The perlcritic shim passes a clean file, reports RequireUseStrict on a dirty one and ignores a
+//! The perlcritic wrapper passes a clean file, reports RequireUseStrict on a dirty one and ignores a
 //! .perlcriticrc in the working directory under --noprofile.
 
 use std::path::Path;

@@ -371,6 +371,7 @@ REAL_RESULT_CASES = [
         "class": "haskell",
         "contains": [],
         "absent": ["is unused"],
+        "windows_x86_64": True,
     },
     {
         "name": "real_result_weeder_dirty",
@@ -381,6 +382,7 @@ REAL_RESULT_CASES = [
         "class": "haskell",
         "contains": ["unused is unused"],
         "absent": [],
+        "windows_x86_64": True,
     },
     _nvcc_case("clean", ["nvcc_syntax/clean.cu"], ["__host__", "undefined", "declared but never"]),
     _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),

@@ -1,6 +1,6 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//powershell:defs.bzl", "powershell_test")
+load("//rust:defs.bzl", "rust_test")
 load("//swift/private/toolchain:tests.bzl", "swift_toolchain_hub_test", "swift_windows_extract_test")
 load(":host_swift_tests.bzl", "swift_host_descriptor_test")
 load(":hub_tests.bzl", "swift_hub_tests")
@@ -54,23 +54,23 @@ powershell_test(
 )
 
 [
-    sh_test(
+    rust_test(
         name = "toolchain_libs_test_" + cpu,
-        srcs = ["toolchain_libs_test.sh"],
-        args = [
-            "$(rootpath @dx_swift_linux_%s//:usr/bin/llvm-objdump)" % cpu,
-            "$(rootpath @dx_swift_libs_linux_%s//:host_libs/libz.so.1)" % cpu,
-        ],
+        size = "small",
+        srcs = ["toolchain_libs_test.rs"],
         data = [
             "@dx_swift_linux_%s//:files" % cpu,
             "@dx_swift_linux_%s//:usr/bin/llvm-objdump" % cpu,
             "@dx_swift_libs_linux_%s//:host_libs" % cpu,
             "@dx_swift_libs_linux_%s//:host_libs/libz.so.1" % cpu,
         ],
+        env = {"LLVM_OBJDUMP": "$(rootpath @dx_swift_linux_%s//:usr/bin/llvm-objdump)" % cpu},
+        tags = ["no-coverage"],
         target_compatible_with = [
             "@platforms//os:linux",
             "@platforms//cpu:" + cpu,
         ],
+        deps = ["//tools/testing:dx_testing"],
     )
     for cpu in [
         "aarch64",

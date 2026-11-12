@@ -212,3 +212,25 @@ jobs:
             echo "::endgroup::"
             published+=("$label")
           done
+      - name: Collect release asset checksums
+        id: checksums
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release-assets"
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/releases" \
+            --jq ".[] | select(.tag_name == \"${GITHUB_REF_NAME}\") | .assets[] | \"\(.id)\t\(.name)\"" |
+            while IFS=$'\t' read -r id name; do
+              gh api -H "Accept: application/octet-stream" "repos/${GITHUB_REPOSITORY}/releases/assets/${id}" \
+                > "$RUNNER_TEMP/release-assets/${name}"
+            done
+          (cd "$RUNNER_TEMP/release-assets" && find . -maxdepth 1 -type f ! -name '*.sigstore.json' -printf '%P\n' | sort | xargs -r sha256sum > ../release-checksums.txt)
+          echo "file=$RUNNER_TEMP/release-checksums.txt" >> "$GITHUB_OUTPUT"
+          echo "count=$(wc -l < "$RUNNER_TEMP/release-checksums.txt")" >> "$GITHUB_OUTPUT"
+      - name: Attest release assets
+        if: ${{ steps.checksums.outputs.count != '0' }}
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: ${{ steps.checksums.outputs.file }}

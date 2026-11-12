@@ -165,6 +165,7 @@ exports_files([
     "src/registry.rs",
     "src/rubygems.rs",
     "src/run.rs",
+    "src/signing.rs",
     "src/stage.rs",
     "src/test_support.rs",
     "validate.bzl",
@@ -234,6 +235,7 @@ rust_library(
         "src/registry.rs",
         "src/rubygems.rs",
         "src/run.rs",
+        "src/signing.rs",
         "src/stage.rs",
     ],
     aliases = aliases(
@@ -375,6 +377,7 @@ rust_test(
         "src/registry.rs",
         "src/rubygems.rs",
         "src/run.rs",
+        "src/signing.rs",
         "src/stage.rs",
         "src/test_support.rs",
     ],

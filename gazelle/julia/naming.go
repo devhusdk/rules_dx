@@ -5,7 +5,8 @@ import (
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 
-	"github.com/devhusdk/rules_dx/gazelle/common")
+	"github.com/devhusdk/rules_dx/gazelle/common"
+)
 
 const (
 	LibraryKind  = "julia_library"

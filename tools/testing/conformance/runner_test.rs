@@ -8,6 +8,10 @@ fn subject_matches_mode() {
         assert_image(&key, &text);
         return;
     }
+    if ["lint", "lint_error", "format", "format_error"].contains(&mode.as_str()) {
+        conformance_quality::check(&mode, &key, &text);
+        return;
+    }
     let mut subject = None;
     let mut subject_env = Vec::new();
     let mut subject_key = String::new();

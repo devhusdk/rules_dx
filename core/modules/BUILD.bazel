@@ -104,6 +104,7 @@ rust_test(
         "//core/quality/testdata:all_languages.bzl",
         "//docs:support-matrix.md",
         "//gazelle/common:lock_registry.json",
+        "//tools/testing/conformance:quality.bzl",
     ],
     deps = all_crate_deps(
         package_name = "core/modules_tests",

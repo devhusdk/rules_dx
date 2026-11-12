@@ -17,6 +17,7 @@ rust_library(
     ),
     crate_name = "quality_result",
     crate_root = "src/lib.rs",
+    visibility = VIS_QUALITY_CLI + ["//tools/testing/conformance:__pkg__"],
     deps = all_crate_deps(
         package_name = "core/quality/quality_result",
         normal = True,

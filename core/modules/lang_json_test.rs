@@ -760,3 +760,82 @@ fn lang_json_platforms_are_not_empty_and_unsupported_names_only_missing_platform
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
+
+fn conformance_quality_bzl(root: &Path) -> String {
+    let mut loads: std::collections::BTreeMap<(String, String), BTreeSet<String>> =
+        std::collections::BTreeMap::new();
+    let mut subjects = Vec::new();
+    for dir in language_dirs(root) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        let quality = &manifest["quality"];
+        let lang = dir.to_str().expect("utf8").to_owned();
+        let mut kinds = Vec::new();
+        for kind in ["format", "lint"] {
+            let Some(names) = quality["aspects"][kind].as_array() else {
+                continue;
+            };
+            let names: Vec<String> = names
+                .iter()
+                .map(|n| n.as_str().expect("aspect").to_owned())
+                .collect();
+            let (package, file) = quality["bzl"]
+                .as_str()
+                .expect("bzl")
+                .split_once(':')
+                .expect("label");
+            loads
+                .entry((package.to_owned(), file.to_owned()))
+                .or_default()
+                .extend(names.iter().cloned());
+            kinds.push((kind, names));
+        }
+        if !kinds.is_empty() {
+            subjects.push((lang, kinds));
+        }
+    }
+    loads
+        .entry(("core/quality/testdata".to_owned(), "config_subject.bzl".to_owned()))
+        .or_default()
+        .insert("config_subject_rule".to_owned());
+    let mut text = String::from(
+        "\"\"\"Generated from the lint and format entries of every <lang>/lang.json quality.aspects.\"\"\"\n\n",
+    );
+    for ((package, file), names) in &loads {
+        let names: Vec<String> = names.iter().map(|n| format!("\"{n}\"")).collect();
+        text.push_str(&format!("load(\"//{package}:{file}\", {})\n", names.join(", ")));
+    }
+    for (lang, kinds) in &subjects {
+        for (kind, names) in kinds {
+            text.push_str(&format!(
+                "\n{lang}_{kind}_subject = config_subject_rule([{}], [OutputGroupInfo])\n",
+                names.join(", ")
+            ));
+        }
+    }
+    text.push_str("\nQUALITY_SUBJECTS = {\n");
+    for (lang, kinds) in &subjects {
+        text.push_str(&format!("    \"{lang}\": {{\n"));
+        for (kind, _) in kinds {
+            text.push_str(&format!("        \"{kind}\": {lang}_{kind}_subject,\n"));
+        }
+        text.push_str("    },\n");
+    }
+    text.push_str("}\n");
+    text
+}
+
+#[test]
+fn conformance_quality_subjects_are_generated_from_every_lang_json() {
+    let text = conformance_quality_bzl(&dx_testing::rules_dx_source());
+    let scratch_guard = dx_test_scratch::scratch("conformance_quality_bzl");
+    let actual = scratch_guard.path().join("quality.bzl");
+    dx_testing::write_text(&actual, &text);
+    let expected = dx_testing::resolve_runfiles("tools/testing/conformance/quality.bzl");
+    dx_testing::snapshot_diff(
+        &expected,
+        &actual,
+        Some("tools/testing/conformance/quality.bzl"),
+    )
+    .expect("tools/testing/conformance/quality.bzl is generated from every lang.json");
+}

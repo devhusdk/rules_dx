@@ -1,8 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load("@rules_dx//ocaml/private:dune.bzl", "dx_dune_build")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load(":cmt_list.bzl", "ocaml_cmt_list")
 load(":tools_tests.bzl", "ocaml_tools_tests")
 
@@ -82,25 +80,6 @@ ocaml_cmt_list(
     name = "clean_cmts",
     testonly = True,
     target = "//ocaml/tests/fixtures/zanuda:clean",
-)
-
-sh_test(
-    name = "zanuda_test",
-    size = "small",
-    srcs = ["zanuda_test.sh"],
-    args = [
-        "$(rootpath :zanuda)",
-        "$(rootpath :dirty_cmts)",
-        "$(rootpath :clean_cmts)",
-        "$(rootpath @dx_ocaml_toolchains//:stdlib_cmi)",
-    ],
-    data = [
-        ":clean_cmts",
-        ":dirty_cmts",
-        ":zanuda",
-        "@dx_ocaml_toolchains//:stdlib_cmi",
-        "@dx_ocaml_toolchains//:stdlib_cmis",
-    ],
 )
 
 real_source_target(

@@ -232,8 +232,6 @@ ocaml/private/coverage/BUILD.bazel sh-rule 3
 ocaml/private/coverage/collect.sh shebang 1
 ocaml/private/coverage/collect_test.sh shebang 1
 ocaml/private/coverage/collect_test_upstream.sh shebang 1
-ocaml/private/quality/BUILD.bazel sh-rule 1
-ocaml/private/quality/zanuda_test.sh shebang 1
 ocaml/private/tools/BUILD.bazel sh-rule 1
 ocaml/private/tools/opam.sh shebang 1
 ocaml/tests/fixtures/bench/BUILD.bazel sh-rule 1

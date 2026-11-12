@@ -282,11 +282,13 @@ fn expected_image(platform: &str) -> (&'static str, &'static str) {
         "linux" => "elf",
         "macos" => "macho",
         "windows" => "pe",
+        "wasi" | "none" => "wasm",
         _ => panic!("unknown platform {platform}"),
     };
     let machine = match cpu {
         "arm64" => "aarch64",
         "x86_64" => "x86_64",
+        "wasm32" => "wasm32",
         _ => panic!("unknown platform {platform}"),
     };
     (format, machine)
@@ -321,6 +323,8 @@ fn expected_image_names_format_and_machine() {
     assert_eq!(expected_image("linux_arm64"), ("elf", "aarch64"));
     assert_eq!(expected_image("macos_arm64"), ("macho", "aarch64"));
     assert_eq!(expected_image("windows_x86_64"), ("pe", "x86_64"));
+    assert_eq!(expected_image("wasi_wasm32"), ("wasm", "wasm32"));
+    assert_eq!(expected_image("none_wasm32"), ("wasm", "wasm32"));
 }
 
 fn failure_line(pattern: &str, case: &str) -> String {

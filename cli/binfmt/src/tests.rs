@@ -322,6 +322,20 @@ fn inspect_rejects_other_files() {
     assert!(inspect(&[]).is_err());
     let truncated = elf(elf::EM_X86_64, None, &["libc.so.6"]);
     assert!(inspect(&truncated[..100]).is_err());
+    assert!(inspect(b"\0asm\x02\0\0\0").is_err());
+}
+
+#[test]
+fn wasm_reads_the_module_header() {
+    let module = b"\0asm\x01\0\0\0\x00\x04\x03dx\x00";
+    let images = inspect(module).expect("inspect");
+    assert_eq!(images.len(), 1);
+    assert_eq!(images[0].format.name(), "wasm");
+    assert_eq!(images[0].machine, "wasm32");
+    assert_eq!(images[0].abi, Abi::Static);
+    assert!(images[0].needed.is_empty());
+    assert_eq!(machine(module).as_deref(), Some("wasm32"));
+    assert_eq!(machine(&module[..4]), None);
 }
 
 #[test]

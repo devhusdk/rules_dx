@@ -1,0 +1,33 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+sh_test(
+    name = "warnings_as_errors_test",
+    size = "small",
+    srcs = ["warnings_test.sh"],
+    args = [
+        "$(rootpath //swift/private/tools:swift)",
+        "$(rootpath warn.swift.fixture)",
+    ],
+    data = [
+        "warn.swift.fixture",
+        "//swift/private/tools:swift",
+    ],
+    target_compatible_with = select({
+        "@platforms//os:linux": [],
+        "@platforms//os:macos": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -37,16 +37,9 @@ Start a project with `dx init --apply demo` and add sources.
 
 The `.dependencies` of a `build.zig.zon` become one hub of `zig_library` targets from `zig.lock.json`. Bazel fetches each archive through its repository cache; Zig never runs at fetch time. Only `https` archive URLs (`.tar.gz`, `.tgz`, `.zip`) are supported; `git+` URLs and path dependencies are not.
 
-```python
-zig_hub = use_extension("@rules_dx//zig:extensions.bzl", "zig")
-zig_hub.lock(
-    name = "zig_packages",
-    lock = "//:zig.lock.json",
-)
-use_repo(zig_hub, "zig_packages")
-```
+With `zig.lock.json` beside the root `build.zig.zon`, `dx generate --apply` adds the `zig.lock` stanza for the `@zig` hub to `MODULE.bazel`.
 
-A package is `@zig_packages//<name>`, imported by that name. Its root module is the first existing of `src/<name>.zig`, `src/root.zig`, `<name>.zig`, `src/main.zig`, `root.zig`, `main.zig`. Its own `build.zig.zon` dependencies become deps and must be listed in the root `build.zig.zon` with the same `.hash`.
+A package is `@zig//<name>`, imported by that name. Its root module is the first existing of `src/<name>.zig`, `src/root.zig`, `<name>.zig`, `src/main.zig`, `root.zig`, `main.zig`. Its own `build.zig.zon` dependencies become deps and must be listed in the root `build.zig.zon` with the same `.hash`.
 
 `bazel run @rules_dx//zig/private/tools/lock -- --dir <absolute directory of build.zig.zon>` downloads each archive and writes `zig.lock.json` beside it; `dx update` runs it. A second run with unchanged inputs downloads nothing.
 

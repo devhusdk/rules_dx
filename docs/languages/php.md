@@ -144,19 +144,10 @@ writes beside `composer.json` from the Packagist API. It also writes the
 `composer.lock` that Composer reads. Bazel fetches every package through its
 repository cache; Composer never runs at fetch time.
 
-```starlark
-composer = use_extension("@rules_dx//php:extensions.bzl", "composer")
-composer.lock(
-    name = "vendor",
-    lock = "//:composer.lock.json",
-)
-use_repo(composer, "vendor")
-```
+With `composer.lock.json` beside the root `composer.json`, `dx generate --apply` adds the `composer.lock` stanza for the `@composer` hub to `MODULE.bazel`.
 
-Use `dev_dependency = True` on `use_extension` when the hub is only for development.
-
-Each package is the label `@vendor//<vendor>/<name>`, for example
-`@vendor//psr/http-factory`; put it in the `deps` of a `php_library`,
+Each package is the label `@composer//<vendor>/<name>`, for example
+`@composer//psr/http-factory`; put it in the `deps` of a `php_library`,
 `php_binary` or `php_test`. Its `require`, `replace` and `provide` entries
 become deps, so a requirement that matches no package in the lock fails the
 build. A target stages its packages under
@@ -221,10 +212,12 @@ Dependencies are scanned, not run. See `docs/cli/commands/quality.md`.
 
 ## Coverage
 
-On Linux, `dx coverage` runs `php_test` with PCOV and writes LCOV. The pinned
-Linux PHP is the glibc `gnu-bulk` build, which can load extensions; PCOV is built
-from source against the conda-forge PHP headers. macOS and Windows run the tests
-without collecting coverage.
+On Linux and Windows, `dx coverage` runs `php_test` with PCOV and writes LCOV. The
+pinned Linux PHP is the glibc `gnu-bulk` build, which can load extensions; PCOV is
+built from source against the conda-forge PHP headers. On Windows, coverage runs on
+the official windows.php.net NTS build with the prebuilt `php_pcov.dll` and the
+MSVC runtime from `@msvc_runtime`; every other Windows action uses the static
+`spc-max` build. macOS runs the tests without collecting coverage.
 
 ## License
 

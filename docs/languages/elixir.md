@@ -141,17 +141,9 @@ The build file declares the package as an `elixir_app` with
 
 #### From mix.lock
 
-The `mix` tag reads a `mix.lock` and declares one `hex_package` per entry,
-named `<name>_<package>`, with the last checksum as `sha256`. The hub repo
-`<name>` has one alias per package.
+With `mix.lock` beside the root `mix.exs`, `dx generate --apply` adds the `hex.lock` stanza for the `@hex` hub to `MODULE.bazel`. It declares one `hex_package` per entry, with the last checksum as `sha256`, and the hub has one alias per package.
 
-```python
-hex = use_extension("@rules_dx//elixir:extensions.bzl", "hex")
-hex.lock(name = "hex_deps", lock = "//:mix.lock")
-use_repo(hex, "hex_deps")
-```
-
-Depend on `@hex_deps//:jason`. Each package is an `elixir_app` with its
+Depend on `@hex//:jason`. Each package is an `elixir_app` with its
 required Hex dependencies; optional ones are skipped. An entry that is not
 from `hexpm` (`:git`, `:path`) fails with a message naming it. Erlang
 `rebar.lock` is not read yet.
@@ -161,10 +153,8 @@ from `hexpm` (`:git`, `:path`) fails with a message naming it. Erlang
 rules_dx is not released yet. Install starts with the first BCR release.
 
 1. Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`.
-2. Run `bazel run @rules_dx//:dx -- generate --apply`.
-3. Add the `hex.lock` tag for your `mix.lock` (see above).
-4. Run `dx generate --apply` again. A module resolves to the `mix.lock` package named after it (`Jason` is `jason`, `Phoenix.LiveView` is `phoenix_live_view`).
-5. Run `bazel test //...`.
+2. Run `bazel run @rules_dx//:dx -- generate --apply`. A module resolves to the `mix.lock` package named after it (`Jason` is `jason`, `Phoenix.LiveView` is `phoenix_live_view`).
+3. Run `bazel test //...`.
 
 Each directory with a `mix.exs` gets one `elixir_app` from `lib/**/*.ex` and
 one `elixir_test` from `test/**/*_test.exs` and `test/test_helper.exs`. An

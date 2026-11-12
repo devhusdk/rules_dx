@@ -174,17 +174,13 @@ timeout. `<name>_run` runs `-s <seed> -r 500` rounds with fresh seeds until
 `--repro`. Opam builds crowbar, cmdliner and afl-persistent itself. An `opam.annotation`
 for one of them replaces the whole default, including `strip_prefix`.
 
-```python
-# MODULE.bazel
-opam = use_extension("@rules_dx//ocaml:extensions.bzl", "opam")
-opam.lock(name = "ocaml_fuzz", lock = "//:ocaml_fuzz.opam.locked")
-use_repo(opam, "ocaml_fuzz")
+With `<name>.opam.locked` beside the root `<name>.opam`, `dx generate --apply` adds the `opam.lock` stanza for the `@opam` hub to `MODULE.bazel`.
 
-# BUILD.bazel
+```python
 ocaml_fuzz_test(
     name = "reverse_fuzz_test",
     main = "reverse_fuzz.ml",
-    deps = ["@ocaml_fuzz//:crowbar"],
+    deps = ["@opam//:crowbar"],
 )
 ```
 

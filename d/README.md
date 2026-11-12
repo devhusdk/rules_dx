@@ -12,19 +12,10 @@ no setup in `MODULE.bazel`. Linking uses the hermetic LLVM C++ toolchain.
 resolves exact versions from the `code.dlang.org` API, downloads each archive and writes
 `dub.lock.json` and the state file `dub.selections.json`. Unchanged packages are kept without a download.
 
-```starlark
-dub = use_extension("@rules_dx//d:extensions.bzl", "dub")
-dub.lock(
-    name = "dub_packages",
-    lock = "//:dub.lock.json",
-)
-use_repo(dub, "dub_packages")
-```
+With `dub.lock.json` beside the root `dub.json`, `dx generate --apply` adds the `dub.lock` stanza for the `@dub` hub to `MODULE.bazel`.
 
-Use `dev_dependency = True` on `use_extension` when the hub is only for development.
-
-Each package is the label `@dub_packages//<name>`, for example
-`@dub_packages//silly`; put it in the `deps` of a `d_library`, `d_binary` or
+Each package is the label `@dub//<name>`, for example
+`@dub//silly`; put it in the `deps` of a `d_library`, `d_binary` or
 `d_test`. The package's own `dependencies` become deps. `sourcePaths`, `sourceFiles`,
 `importPaths` and `stringImportPaths` of its `dub.json` set the sources and imports; without
 `sourcePaths` the `source` or `src` directory is used, and without `stringImportPaths` the

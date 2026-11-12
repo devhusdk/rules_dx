@@ -10,17 +10,7 @@ rules_perl registers the toolchains, so there is no toolchain setup in
 
 ### Packages
 
-Declare a hub with the `cpan` extension. Its lock, `cpan.lock.json`, pins
-each distribution of `cpanfile.snapshot` to a URL and a sha256.
-
-```python
-cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
-cpan.lock(
-    name = "cpan",
-    lock = "//third_party/perl:cpan.lock.json",
-)
-use_repo(cpan, "cpan")
-```
+The lock, `cpan.lock.json`, pins each distribution of `cpanfile.snapshot` to a URL and a sha256. With `cpan.lock.json` beside the root `cpanfile`, `dx generate --apply` adds the `cpan.lock` stanza for the `@cpan` hub to `MODULE.bazel`.
 
 Depend on `@cpan//Text-CSV` for one distribution, and on
 `@cpan//Perl-Tidy:bin_perltidy` for a script under its `bin/` or `script/`.

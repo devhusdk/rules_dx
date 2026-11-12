@@ -138,13 +138,7 @@ The resolve runs on Linux and macOS. It uses the host `cc` where the pinned GHC 
 
 ### Building Hackage packages
 
-The `cabal.lock` tag turns a `haskell_deps.json` into a hub repository:
-
-```starlark
-cabal = use_extension("@rules_dx//haskell:extensions.bzl", "cabal")
-cabal.lock(name = "hackage", lock = "//third_party:haskell_deps.json")
-use_repo(cabal, "hackage")
-```
+With `haskell_deps.json` beside the root `cabal.project`, `dx generate --apply` adds the `cabal.lock` stanza for the `@hackage` hub to `MODULE.bazel`.
 
 Each Hackage package becomes one repository fetched from its sdist with the sidecar sha256 and the pinned `.cabal` revision, built with `haskell_cabal_library` and `haskell_cabal_binary`. Nothing is resolved at fetch time. The hub has `@hackage//:<package>` for libraries and `@hackage//:<package>-exe-<name>` for executables. Haddock is off for these packages.
 

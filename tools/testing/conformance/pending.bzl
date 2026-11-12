@@ -97,7 +97,6 @@ dotnet runfiles_test *
 elixir cross_test *
 elixir lock_test *
 elixir runfiles_test *
-erlang coverage_test windows_arm64
 erlang cross_test *
 erlang lock_test *
 erlang runfiles_test *

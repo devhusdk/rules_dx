@@ -1,35 +1,18 @@
 """Fortran toolchain pin and acquisition tests."""
 
 load("@rules_fortran//fortran/private:providers.bzl", "FortranToolchainInfo")
-load("//fortran/private:fpm_lock.bzl", "fpm_lock_packages")
+load("//fortran/private/lock:hub.bzl", fpm_build_file = "build_file")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//fortran/private/toolchain:pins.bzl", "FLANG_RT_PREFIX", "FLANG_VERSION", "FORTRAN_CELLS")
-load("//fortran/private/toolchain:repos.bzl", "DROPPED_PATHS", "FLANG_RT_TREES", "flang_major", "flang_rt_build", "fpm_build", "fpm_hub_build", "hub_build")
+load("//fortran/private/toolchain:repos.bzl", "DROPPED_PATHS", "FLANG_RT_TREES", "flang_major", "flang_rt_build", "hub_build")
 load("//fortran/private/toolchain:toolchain.bzl", "toolchain_fields")
 
-_FPM_LOCK = """# comment
-[dependencies.stdlib]
-version = "0.7.0" # pinned
-url = "https://example.com/stdlib.tar.gz"
-sha256 = "AAAA"
-strip_prefix = "stdlib-0.7.0"
-
-[dependencies.app]
-version = "1.0.0"
-url = "https://example.com/app.tar.gz"
-sha256 = "bbbb"
-dependencies = ["stdlib"]
-"""
-
 def _checks():
-    fpm = fpm_lock_packages(_FPM_LOCK)
     linux = FORTRAN_CELLS["linux_x86_64"]
     fields = toolchain_fields("flang", "ar", depset(), "rt")
     root = hub_build()["BUILD.bazel"]
     return [
-        expect_equal("fpm.lock tables become pins", [(p["name"], p["version"], p["sha256"], p["strip_prefix"], p["deps"]) for p in fpm], [("stdlib", "0.7.0", "aaaa", "stdlib-0.7.0", []), ("app", "1.0.0", "bbbb", "", ["stdlib"])]),
-        expect_contains("fpm packages link their locked dependencies", fpm_build(fpm[1], "hub"), '["@hub_stdlib//:stdlib"]'),
-        expect_contains("the fpm hub aliases every package", fpm_hub_build(fpm, "hub"), 'actual = "@hub_app//:app"'),
+        expect_contains("fpm packages link their locked dependencies", fpm_build_file({"deps": ["stdlib"], "name": "app"}), '["//stdlib"]'),
         expect_true("hub root loads nothing", "load(" not in root),
         expect_true("hub root names no rules_fortran", "@rules_fortran" not in root),
         expect_contains("hub root uses the rules_fortran type", root, "//fortran:toolchain_type"),

@@ -893,71 +893,59 @@ fn dub_runs_the_lock_step_for_the_whole_set() {
 }
 
 #[test]
-fn zig_runs_the_lock_step_and_fpm_runs_the_rehash_target() {
-    let dir = dx_test_scratch::scratch("rehash_backend");
-    dx_test_scratch::write(
-        dir.path(),
-        "native/BUILD.bazel",
-        "fortran_fpm_lock(name = \"lock\")\n",
-    );
-    let zig = rehash_set(
-        "zig",
-        Ecosystem::Zig,
-        "native/build.zig.zon",
-        "native/zig.lock.json",
-    );
-    let fpm = rehash_set(
-        "fpm",
-        Ecosystem::Fpm,
-        "native/fpm.toml",
-        "native/fpm.lock.toml",
-    );
-    let run = |set: &ResolvedSet, request: &Selection, offline: bool| {
-        plan_configured(
-            dir.path(),
-            set,
-            request,
-            offline,
-            false,
-            &no_head(),
-            &UvClosure::default(),
-        )
-    };
-    let BackendPlan::Run { argv, .. } = run(&zig, &Selection::Full, false).expect("plan") else {
-        panic!("expected a run");
-    };
-    assert_eq!(
-        argv[argv.len() - 5..].join(" "),
-        format!(
-            "run @rules_dx//zig/private/tools/lock -- --dir {}",
-            dir.path().join("native").display()
-        )
-    );
+fn zig_and_fpm_run_their_lock_steps() {
+    let dir = dx_test_scratch::scratch("lock_step_backend");
     let named = Selection::Packages(vec!["xxhash".to_owned()]);
-    assert!(matches!(
-        run(&zig, &named, false),
-        Err(BackendError::Unsupported { .. })
-    ));
-    let BackendPlan::Run { argv, .. } = run(&fpm, &named, false).expect("plan") else {
-        panic!("expected a run");
-    };
-    assert_eq!(argv[argv.len() - 3..].join(" "), "//native:lock -- xxhash");
-    assert!(matches!(
-        run(&fpm, &Selection::Full, true),
-        Err(BackendError::OfflineRequired { .. })
-    ));
-    let bare = dx_test_scratch::scratch("rehash_backend_bare");
-    let error = plan_configured(
-        bare.path(),
-        &fpm,
-        &Selection::Full,
-        false,
-        false,
-        &no_head(),
-        &UvClosure::default(),
-    )
-    .expect_err("refused");
-    assert!(error.to_string().contains("add a fortran_fpm_lock"));
+    for (set, resolver) in [
+        (
+            rehash_set(
+                "zig",
+                Ecosystem::Zig,
+                "native/build.zig.zon",
+                "native/zig.lock.json",
+            ),
+            "@rules_dx//zig/private/tools/lock",
+        ),
+        (
+            rehash_set(
+                "fpm",
+                Ecosystem::Fpm,
+                "native/fpm.toml",
+                "native/fpm.lock.json",
+            ),
+            "@rules_dx//fortran/private/tools/lock",
+        ),
+    ] {
+        let run = |request: &Selection, offline: bool| {
+            plan_configured(
+                dir.path(),
+                &set,
+                request,
+                offline,
+                false,
+                &no_head(),
+                &UvClosure::default(),
+            )
+        };
+        let BackendPlan::Run { argv, .. } = run(&Selection::Full, false).expect("plan") else {
+            panic!("expected a run");
+        };
+        assert_eq!(
+            argv[argv.len() - 5..].join(" "),
+            format!(
+                "run {resolver} -- --dir {}",
+                dir.path().join("native").display()
+            )
+        );
+        assert!(matches!(
+            run(&named, false),
+            Err(BackendError::Unsupported { .. })
+        ));
+        assert!(matches!(
+            run(&Selection::Full, true),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+    }
 }
 
 fn cabal_set() -> ResolvedSet {

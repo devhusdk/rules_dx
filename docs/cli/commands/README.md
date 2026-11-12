@@ -389,7 +389,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//flutter:defs.bzl` | `flutter_web_app` |
 |  |  | `@rules_dx//flutter:defs.bzl` | `flutter_web_bundle` |
 |  |  | `@rules_dx//fortran:defs.bzl` | `fortran_binary` |
-|  |  | `@rules_dx//fortran:defs.bzl` | `fortran_fpm_lock` |
 |  |  | `@rules_dx//fortran:defs.bzl` | `fortran_library` |
 |  |  | `@rules_dx//fortran:defs.bzl` | `fortran_test` |
 |  |  | `@rules_dx//fsharp:defs.bzl` | `fsharp_bench` |

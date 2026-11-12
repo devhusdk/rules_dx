@@ -748,7 +748,7 @@ fn lock_name(eco: Language) -> &'static str {
         Language::Php => "composer.lock",
         Language::Elixir => "mix.lock",
         Language::Erlang => "rebar.lock",
-        Language::Fortran => "fpm.lock.toml",
+        Language::Fortran => "fpm.lock.json",
         Language::Lua => "luarocks.lock.json",
         Language::D => "dub.selections.json",
         Language::Haskell => "cabal.project.freeze",

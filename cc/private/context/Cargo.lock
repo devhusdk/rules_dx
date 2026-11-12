@@ -2464,6 +2464,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fpm_lock"
+version = "0.0.0"
+dependencies = [
+ "flate2",
+ "tar",
+ "tempfile",
+ "toml",
+]
+
+[[package]]
 name = "fraction"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

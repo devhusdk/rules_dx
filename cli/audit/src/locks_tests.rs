@@ -1382,14 +1382,15 @@ fn package_lock_skips_workspace_link_sources() {
 
 #[test]
 fn fpm_lock_lists_dependency_versions() {
-    let text = "[dependencies.zeta]\nversion = \"1.2.0\"\nurl = \"https://x/z.tar.gz\"\nsha256 = \"ab\"\n\n[dependencies.alpha]\nversion = \"0.1.0\"\n";
+    let text = r#"{"schema": 1, "packages": [{"name": "zeta", "version": "v1.2.0"}, {"name": "alpha", "version": "v0.1.0"}]}"#;
     let packages = parse_fpm_lock(text).expect("parses");
     let pairs: Vec<_> = packages
         .iter()
         .map(|p| (p.set.as_str(), p.name.as_str(), p.version.as_str()))
         .collect();
-    assert_eq!(pairs, [("fpm", "alpha", "0.1.0"), ("fpm", "zeta", "1.2.0")]);
-    assert!(parse_fpm_lock("[dependencies.a]\nurl = \"u\"\n").is_err());
+    assert_eq!(pairs, [("fpm", "alpha", "v0.1.0"), ("fpm", "zeta", "v1.2.0")]);
+    assert!(parse_fpm_lock(r#"{"packages": [{"name": "a"}]}"#).is_err());
+    assert!(parse_fpm_lock("[dependencies.a]\nversion = \"1\"\n").is_err());
 }
 
 #[test]

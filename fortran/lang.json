@@ -11,19 +11,21 @@
   "manifests": [
     "fpm.toml"
   ],
-  "lockfiles": [],
+  "lockfiles": [
+    "fpm.lock.json"
+  ],
   "setup": {
     "hubs": [
       {
         "ecosystem": "fpm",
         "manifest": "fpm.toml",
-        "lock": "fpm.lock.toml",
+        "lock": "fpm.lock.json",
         "state": null,
         "extension": "@rules_dx//fortran:extensions.bzl",
         "tag": "lock",
         "hub": "fpm",
-        "resolver": null,
-        "imports": "name"
+        "resolver": "@rules_dx//fortran/private/tools/lock",
+        "imports": "provides"
       }
     ]
   },
@@ -45,8 +47,7 @@
   "entry_points": [
     "fortran_library",
     "fortran_binary",
-    "fortran_test",
-    "fortran_fpm_lock"
+    "fortran_test"
   ],
   "quality": {
     "bzl": "fortran/private/quality:fortran.bzl",

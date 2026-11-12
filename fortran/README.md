@@ -21,13 +21,15 @@ without any dependency.
 
 ### Locked packages
 
-`fpm.lock(name, lock)` in `MODULE.bazel` reads an `fpm.lock.toml` and declares
-one pinned archive per `[dependencies.<name>]` table, plus a hub repository
-named `name` with one `fortran_library` alias per package. Each table needs
-`version`, `url` and `sha256`, and may set `strip_prefix` and
-`dependencies`, a list of other locked packages. Each package compiles the
-Fortran sources under its `src` tree. `dx security` and `dx license` list the
-locked packages. `fortran_fpm_lock(name)` from `@rules_dx//fortran:defs.bzl` next to `fpm.lock.toml` is the target `dx update` runs; it downloads each archive and rewrites its `sha256`, and `dx update <set>:<package>` re-hashes one package.
+`fpm.lock(name, lock)` in `MODULE.bazel` reads an `fpm.lock.json` and creates
+the hub repository `name` with one `fortran_library` per locked package, at
+`@<name>//<package>`. Each package compiles the Fortran sources under its `src`
+tree and depends on the packages its own `fpm.toml` lists. `dx update` runs
+`@rules_dx//fortran/private/tools/lock`, which reads the git dependencies of the
+`fpm.toml` beside the lock and of every archive they name, and writes
+`fpm.lock.json`. Each dependency needs a `https://github.com/<owner>/<repo>` git
+URL pinned with `tag` or `rev`; path dependencies are skipped. `dx security` and
+`dx license` list the locked packages.
 
 ## Quality
 

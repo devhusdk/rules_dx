@@ -6,6 +6,7 @@ import sys
 _OVERRIDE = re.compile(r"\n[a-z_]+_override\((.*?)\n\)", re.S)
 _DEP = re.compile(r'bazel_dep\(name = "([^"]+)", version = "([^"]+)"')
 _PATCH = re.compile(r'"//patches/[^:"]+:([^"]+\.patch)"')
+_LABEL = re.compile(r'"(?:@rules_dx)?//patches/([^:"]+):([^"]+\.patch)"')
 
 
 def overrides(module_text):
@@ -49,6 +50,16 @@ def render(module_text, readme_text):
         for patch in patches:
             if patch not in listed.get(module, ()):
                 raise SystemExit("patches/README.md: %s does not list %s, which MODULE.bazel applies" % (module, patch))
+    sections = {}
+    for block in readme_text.split("\n## ")[1:]:
+        heading, _, body = block.partition("\n")
+        for name in re.findall(r"[\w-]+", heading):
+            sections[name] = sections.get(name, "") + body
+    for directory, patch in sorted(set(_LABEL.findall(module_text))):
+        if patch in known.get(directory, (None, ()))[1]:
+            continue
+        if "`%s`" % patch not in sections.get(directory, ""):
+            raise SystemExit("patches/README.md: no section for %s names %s, which MODULE.bazel applies" % (directory, patch))
     return "\n".join(out)
 
 

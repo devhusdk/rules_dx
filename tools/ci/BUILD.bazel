@@ -11,6 +11,8 @@ filegroup(
     srcs = glob(["aggregate_fixtures/**"]),
 )
 
+exports_files(["pins.json"])
+
 filegroup(
     name = "ci_gate_fixtures",
     srcs = glob(["ci_gate_fixtures/**"]),

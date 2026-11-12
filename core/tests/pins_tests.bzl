@@ -2,6 +2,7 @@
 
 load("@dx_pins_data//:pins.bzl", "ARCHIVES", "DATA", "PINS")
 load("//core:defs.bzl", "expect_true", "starlark_test")
+load("//core:repo.bzl", "ARCHIVE_TYPES")
 load("//core:toolchain.bzl", "pin_checks")
 
 def _archive(pin):
@@ -42,7 +43,15 @@ def _checks():
             expect_true(name + " digest is sha256", len(pin["sha256"]) == 64),
             expect_true(name + " urls are https", len(pin["urls"]) > 0 and all([url.startswith("https://") for url in pin["urls"]])),
             expect_true(name + " url names the version", pin["version"] in pin["urls"][0]),
+            expect_true(name + " type is file, jar or an archive type", pin.get("type", "") in ["", "file", "jar"] + ARCHIVE_TYPES),
+            expect_true(name + " path is only set on a file", pin.get("type", "") == "file" or "path" not in pin),
+            expect_true(name + " executable is only set on a file", pin.get("type", "") == "file" or "executable" not in pin),
         ]
+    checks += [
+        expect_true("file entries are read", any([pin.get("type") == "file" and pin.get("executable", False) for pin in ARCHIVES.values()])),
+        expect_true("jar entries are read", any([pin.get("type") == "jar" for pin in ARCHIVES.values()])),
+        expect_true("archive types are read", any([pin.get("type") in ARCHIVE_TYPES for pin in ARCHIVES.values()])),
+    ]
     return checks
 
 def pins_tests(name):

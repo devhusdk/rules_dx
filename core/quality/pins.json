@@ -1,0 +1,24 @@
+{
+  "archives": {
+    "dx_busybox_sh": {
+      "version": "1.35.0",
+      "type": "file",
+      "path": "sh",
+      "executable": true,
+      "sha256": "6e123e7f3202a8c1e9b1f94d8941580a25135382b99e8d3e34fb858bba311348",
+      "urls": [
+        "https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox"
+      ]
+    },
+    "dx_busybox_sh_windows": {
+      "version": "FRP-6354-g5f09fb446",
+      "type": "file",
+      "path": "sh.exe",
+      "executable": true,
+      "sha256": "95343c871869cc0ab57ecec26b2f9af0370eb9c954f7e5ddd017163e4e0d09a0",
+      "urls": [
+        "https://frippery.org/files/busybox/busybox-w64-FRP-6354-g5f09fb446.exe"
+      ]
+    }
+  }
+}

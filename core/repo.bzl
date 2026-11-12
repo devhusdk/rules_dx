@@ -1,5 +1,7 @@
 """Shared repository rules that write rendered files and fetch pinned archives."""
 
+ARCHIVE_TYPES = ["zip", "war", "aar", "tar", "tar.gz", "tgz", "tar.xz", "txz", "tar.zst", "tzst", "tar.bz2", "tbz", "ar", "deb", "7z"]
+
 def _write_files(rctx):
     rctx.file("REPO.bazel", "")
     for path, content in rctx.attr.files.items():

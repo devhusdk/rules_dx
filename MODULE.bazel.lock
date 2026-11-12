@@ -460,7 +460,7 @@
   "moduleExtensions": {
     "//cuda:extensions.bzl%cuda": {
       "general": {
-        "bzlTransitiveDigest": "tsdS+SFD+4o9Bv3+neFhAA+SCkmNdqE4TbsXEDOqo6k=",
+        "bzlTransitiveDigest": "tk2tSndqyO2Cpoxe2mgBU8DJIW6iOOTMuEGWkdOxBjs=",
         "usagesDigest": "FHWEtbYnc8LMI0uiG18BmjaIzcYlbKrXT7HsEP84OGE=",
         "recordedInputs": [
           "REPO_MAPPING:,dx_pins_data +dx_pins+dx_pins_data",

@@ -7,7 +7,10 @@ load("//tools/visibility:visibility.bzl", "VIS_PUBLIC", "VIS_TOOLS", "VIS_TOOLS_
 package(default_visibility = VIS_TOOLS)
 
 exports_files(
-    ["kcov.BUILD"],
+    [
+        "kcov.BUILD",
+        "pins.json",
+    ],
     visibility = VIS_TOOLS,
 )
 

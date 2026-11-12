@@ -2120,7 +2120,10 @@ fn buf_breaking_fake(
     };
     assert!(Path::new(&argv[at + 1]).is_absolute(), "{argv:?}");
     let base = std::fs::read_to_string(&argv[at + 1])?;
-    let head_path = PathBuf::from(argv.last().expect("root")).join("hello/v1/hello.proto");
+    let head_path = PathBuf::from(argv.last().expect("root"))
+        .join("hello")
+        .join("v1")
+        .join("hello.proto");
     let head = std::fs::read_to_string(&head_path)?;
     if !base.contains("string name = 2;") || head.contains("name") {
         return Ok(clean);
@@ -6838,11 +6841,14 @@ fn sorbet_report(
     let paths = &text[separator + 1..];
     let owned = paths
         .iter()
-        .find(|path| path.ends_with("lib/bad.rb"))
+        .find(|path| path.replace('\\', "/").ends_with("lib/bad.rb"))
         .expect("owned source");
     let dep = paths
         .iter()
-        .find(|path| path.contains("dx-sorbet/dep/") && path.ends_with("dep.rb"))
+        .find(|path| {
+            let path = path.replace('\\', "/");
+            path.contains("dx-sorbet/dep/") && path.ends_with("dep.rb")
+        })
         .expect("staged dependency");
     let body = format!(
         "{owned}:3: Method `g` does not exist on `A` https://srb.help/7003\n     3 |A.new.g\n\n{dep}:1: dep https://srb.help/5002\n     1 |x\n\nErrors: 2\n"

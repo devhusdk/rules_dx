@@ -528,7 +528,7 @@ fn hlint_behavior(
     assert_eq!(argv[1], OsString::from("--json"));
     let config = argv[2].to_string_lossy().into_owned();
     assert!(
-        config.starts_with("--hint=") && config.ends_with("cfg/hlint.yaml"),
+        config.starts_with("--hint=") && config.replace('\\', "/").ends_with("cfg/hlint.yaml"),
         "{config}"
     );
     assert_eq!(argv[3], OsString::from("--"));

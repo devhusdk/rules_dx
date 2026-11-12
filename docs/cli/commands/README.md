@@ -338,7 +338,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//astro:defs.bzl` | `astro_library` |
 |  |  | `@rules_dx//astro:defs.bzl` | `astro_test` |
 |  |  | `@rules_dx//avro:defs.bzl` | `avro_cc_library` |
-|  |  | `@rules_dx//avro:defs.bzl` | `avro_codegen_shard` |
 |  |  | `@rules_dx//avro:defs.bzl` | `avro_java_library` |
 |  |  | `@rules_dx//avro:defs.bzl` | `avro_library` |
 |  |  | `@rules_dx//bicep:defs.bzl` | `bicep_library` |

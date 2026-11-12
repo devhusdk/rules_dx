@@ -69,7 +69,7 @@ Each pair has a library rule and a shard rule. The shard rule binds a plan entry
 | flatbuffers | `flatbuffers_cc_library`, `flatbuffers_rust_library`, `flatbuffers_java_library` in `@rules_dx//flatbuffers:defs.bzl` | `flatbuffers_codegen_shard` |
 | capnp | `capnp_cc_library`, `capnp_rust_library`, `capnp_java_library` in `@rules_dx//capnproto:defs.bzl` | `capnp_codegen_shard` |
 | thrift | `thrift_cc_library`, `thrift_rust_library`, `thrift_java_library` in `@rules_dx//thrift:defs.bzl` | `thrift_codegen_shard` |
-| avro | `avro_cc_library`, `avro_java_library` in `@rules_dx//avro:defs.bzl` | `avro_codegen_shard` |
+| avro | `avro_cc_library`, `avro_java_library` in `@rules_dx//avro:defs.bzl` | none, the library rule carries the plan |
 
 ```starlark
 load("@rules_dx//core/codegen:codegen.bzl", "prost_codegen_shard")

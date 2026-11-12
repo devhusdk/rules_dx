@@ -33,9 +33,12 @@ pub const REPOSITORY_TARGET: &str = "dx:codegen";
 /// Rule class suffix shared by every codegen shard rule.
 pub const SHARD_KIND_SUFFIX: &str = "codegen_shard";
 
-/// Reports whether a rule class is a codegen shard rule.
+/// Library rules that return their own codegen plan.
+pub const LIBRARY_KINDS: &[&str] = &["avro_cc_library", "avro_java_library"];
+
+/// Reports whether a rule class contributes a codegen plan.
 pub fn is_shard_kind(rule_class: &str) -> bool {
-    rule_class.ends_with(SHARD_KIND_SUFFIX)
+    rule_class.ends_with(SHARD_KIND_SUFFIX) || LIBRARY_KINDS.contains(&rule_class)
 }
 
 pub fn quote_label(label: &str) -> String {

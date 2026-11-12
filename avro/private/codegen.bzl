@@ -4,12 +4,10 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
-load("//core/codegen:codegen.bzl", "codegen_shard_rule", "codegen_srcjar")
+load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_srcjar")
 load("//core:defs.bzl", "display_label")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "AvroInfo")
-
-AVRO_GENERATED_SRCS_GROUP = "avro_generated_srcs"
 
 def _union(ctx, schemas, union):
     args = ctx.actions.args()
@@ -58,8 +56,7 @@ def _cc_library_impl(ctx):
         DefaultInfo(files = depset(headers)),
         cc_info,
         dx_quality_sources([], [], str(ctx.label)),
-        OutputGroupInfo(**{AVRO_GENERATED_SRCS_GROUP: depset(headers)}),
-    ]
+    ] + codegen_library_providers(ctx, "avro", "cpp", header, ctx.attr.namespace)
 
 avro_cc_library = rule(
     implementation = _cc_library_impl,
@@ -70,7 +67,7 @@ avro_cc_library = rule(
         "_avro_union": attr.label(default = Label("//avro/private/tools/avro_union"), executable = True, cfg = "exec"),
         "_avrogencpp": attr.label(default = Label("@dx_avro_cpp//:avrogencpp"), executable = True, cfg = "exec"),
         "_runtime": attr.label(default = Label("@dx_avro_cpp//:avro_cpp"), providers = [CcInfo]),
-    },
+    } | CODEGEN_LIBRARY_ATTRS,
     provides = [CcInfo],
 )
 
@@ -105,8 +102,7 @@ def _java_library_impl(ctx):
         DefaultInfo(files = depset([srcjar])),
         java_common.merge([java_info, runtime]),
         dx_quality_sources([], [], str(ctx.label)),
-        OutputGroupInfo(**{AVRO_GENERATED_SRCS_GROUP: depset([srcjar])}),
-    ]
+    ] + codegen_library_providers(ctx, "avro", "java", srcjar)
 
 avro_java_library = rule(
     implementation = _java_library_impl,
@@ -117,18 +113,8 @@ avro_java_library = rule(
         "_avro_tools": attr.label(default = Label("//config:tool_avro"), executable = True, cfg = "exec"),
         "_runtime": attr.label(default = Label("//core/quality/tools/jvm:avro_tools_import"), providers = [JavaInfo]),
         "_zipper": attr.label(default = Label("@bazel_tools//tools/zip:zipper"), executable = True, cfg = "exec"),
-    },
+    } | CODEGEN_LIBRARY_ATTRS,
     provides = [JavaInfo],
     toolchains = [_JAVA_TOOLCHAIN],
     fragments = ["java"],
-)
-
-avro_codegen_shard = codegen_shard_rule(
-    "avro_codegen_shard",
-    "avro",
-    AVRO_GENERATED_SRCS_GROUP,
-    "want an avro_cc_library or avro_java_library",
-    "cpp or java.",
-    "Declares codegen plan entries for the headers and srcjars avro generates.",
-    "avro_cc_library or avro_java_library whose outputs the entries bind.",
 )

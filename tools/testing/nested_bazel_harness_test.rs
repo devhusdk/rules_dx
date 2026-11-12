@@ -4,14 +4,11 @@ use std::time::{Duration, Instant};
 
 use dx_nested as nested;
 use dx_testing::{read_runfiles, resolve_runfiles, run};
-#[cfg(target_os = "linux")]
 use {dx_nested::Case, dx_testing::rlocation};
 
-#[cfg(target_os = "linux")]
 /// The facts key rules_py's `python_interpreters` extension stores its SHA256SUMS under.
 const PYTHON_FACTS: &str = "@@rules_py+//py:extensions.bzl%python_interpreters";
 
-#[cfg(target_os = "linux")]
 /// Starts the harness consumer with its checked-in lock.
 fn locked_consumer(name: &str) -> (Case, String) {
     let case = nested::harness_consumer(name);
@@ -24,7 +21,6 @@ fn locked_consumer(name: &str) -> (Case, String) {
     (case, lock)
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn seeded_consumer_resolves_python_interpreters_offline() {
     let (case, lock) = locked_consumer("seed");
@@ -63,7 +59,6 @@ fn swift_extension_resolves_without_patched_rules_swift() {
     );
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn a_server_restart_refetches_no_repository() {
     if nested::recording() {
@@ -75,7 +70,6 @@ fn a_server_restart_refetches_no_repository() {
     case.assert_no_refetch(nested::HARNESS_QUERY);
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn a_changed_repo_env_refetches_the_probe() {
     if nested::recording() {
@@ -120,7 +114,6 @@ probe = repository_rule(implementation = _impl, environ = ["DX_REFETCH_PROBE"])
     case.assert_no_refetch(&second);
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn a_download_outside_the_cache_sets_fails_with_its_url() {
     if nested::recording() {
@@ -170,7 +163,6 @@ fn nested_commands_see_no_host_path_and_a_home_under_the_test_tmpdir() {
     assert!(std::path::Path::new(home).starts_with(&tmpdir), "{home}");
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn nested_bazel_runs_the_pinned_binary_without_bazelisk() {
     let key = std::env::var(nested::PINNED_ENV)

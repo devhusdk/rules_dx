@@ -82,6 +82,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - The downloader config blocks every host, `bcr.bazel.build` included.
 - A missing entry fails the test with the URL.
 - `bazel run //tools/testing:nested_cache_update -- <test label>` runs the tests online with `DX_NESTED_BAZEL_NETWORK=1`. In that record mode the test writes `<set>.txt` and `<set>.MODULE.bazel.lock` to its undeclared outputs, and the tool copies them to `tools/testing/nested_cache`.
+- Other hosts record through evidence.yml with `flags=--config=nested_record`; `harness.txt` is the union of the host records.
 - The test calls `case.use_lock("<set>")` where it needs the checked-in lock; in record mode that call removes the lock and registers the workspace.
 - `bazel run //tools/testing:nested_cache_update -- --from <dir>...` merges the records of several hosts. Each `<dir>` holds `<set>.txt` and `<set>.MODULE.bazel.lock`: an unpacked evidence artifact's `test.outputs/nested_cache` or the local testlogs. The tool unions the lists by URL, fails when one URL has two sha256 values, fails when the locks differ, and writes the result to `tools/testing/nested_cache`.
 - A full re-record runs on linux_x86_64, macos_arm64 and windows_x86_64 through `evidence.yml` with `flags=--config=nested_record`, then merges the three artifacts with `--from`.

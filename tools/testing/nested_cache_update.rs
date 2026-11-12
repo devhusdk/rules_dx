@@ -110,7 +110,7 @@ fn main() {
         .map(|label| split_label(label).unwrap_or_else(|| fail(&format!("{label} is not a //package:name label"))))
         .collect();
     let test_command = format!(
-        "bazel test {} --test_env=DX_NESTED_BAZEL_NETWORK=1 --nocache_test_results --nozip_undeclared_test_outputs --test_tag_filters= --build_tag_filters=",
+        "bazel test {} --config=nested_record --nocache_test_results --nozip_undeclared_test_outputs --test_tag_filters= --build_tag_filters=",
         labels.join(" ")
     );
     let target = workspace.join(DIR);

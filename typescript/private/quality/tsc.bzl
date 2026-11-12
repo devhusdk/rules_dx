@@ -4,7 +4,7 @@ load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@aspect_rules_ts//ts/private:options.bzl", "OptionsInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
-load("//core/quality:sources.bzl", "single_target")
+load("//core/quality:sources.bzl", "forwarded_upstream")
 
 TscInfo = provider(
     doc = "Output of one non-failing tsc run over a TypeScript project.",
@@ -128,10 +128,8 @@ def _tsc_impl(target, ctx):
     if ctx.rule.kind == "js_library" and JsInfo in target:
         return _tsc_js_impl(target, ctx)
     if not _is_ts_project(attrs):
-        if not hasattr(attrs, "upstream"):
-            return []
-        upstream = single_target(attrs.upstream)
-        if TscInfo not in upstream:
+        upstream = forwarded_upstream(attrs, TscInfo)
+        if upstream == None:
             return []
         return [upstream[TscInfo]]
     if OutputGroupInfo not in target or not hasattr(target[OutputGroupInfo], "_action_inputs"):

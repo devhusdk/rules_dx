@@ -2,7 +2,7 @@
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
-load("//core/quality:sources.bzl", "single_target")
+load("//core/quality:sources.bzl", "forwarded_upstream")
 
 NvccSyntaxInfo = provider(
     doc = "Front-end-only replays of the CudaCompile actions of one CUDA target.",
@@ -104,10 +104,8 @@ def _nvcc_syntax_impl(target, ctx):
     attrs = ctx.rule.attr
     actions = _compile_actions(target)
     if len(actions) == 0:
-        if not hasattr(attrs, "upstream"):
-            return []
-        upstream = single_target(attrs.upstream)
-        if NvccSyntaxInfo not in upstream:
+        upstream = forwarded_upstream(attrs, NvccSyntaxInfo)
+        if upstream == None:
             return []
         info = upstream[NvccSyntaxInfo]
         return [info, OutputGroupInfo(nvcc_syntax = depset(info.diagnostics + info.statuses))]

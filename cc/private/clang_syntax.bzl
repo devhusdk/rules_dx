@@ -10,7 +10,7 @@ load("//cc/private/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_
 load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets")
 load("//core/quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_source")
 load("//core/quality:policy.bzl", "QualityPolicyInfo")
-load("//core/quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS", "single_target")
+load("//core/quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS", "forwarded_upstream")
 
 ClangSyntaxInfo = provider(
     doc = "Syntax-only replays of the compile actions of one C/C++/Objective-C target.",
@@ -261,10 +261,8 @@ def _clang_syntax_impl(target, ctx):
     attrs = ctx.rule.attr
     actions = _compile_actions(target)
     if len(actions) == 0:
-        if not hasattr(attrs, "upstream"):
-            return []
-        upstream = single_target(attrs.upstream)
-        if ClangSyntaxInfo not in upstream:
+        upstream = forwarded_upstream(attrs, ClangSyntaxInfo)
+        if upstream == None:
             return []
         info = upstream[ClangSyntaxInfo]
         return [info, OutputGroupInfo(clang_syntax = depset(info.diagnostics + info.statuses + info.drivers), clang_tidy = depset(info.tidy_diagnostics))]

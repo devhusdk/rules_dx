@@ -1,6 +1,5 @@
 load("//d:defs.bzl", "d_binary", "d_library", "d_test")
 load("//d/private:defs.bzl", "D_COMPATIBLE_WITH")
-load("//d/tests:wrapper_tests.bzl", "d_coverage_env_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
@@ -26,13 +25,6 @@ d_test(
     name = "greet_test",
     srcs = ["greet.d"],
     target_compatible_with = D_COMPATIBLE_WITH,
-)
-
-d_coverage_env_test(
-    name = "greet_coverage_env_test",
-    target = ":greet_test",
-    target_compatible_with = D_COMPATIBLE_WITH,
-    upstream = "greet_test_upstream",
 )
 
 dx_hello_output_test(

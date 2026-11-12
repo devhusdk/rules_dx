@@ -4,11 +4,6 @@ load("//rust:defs.bzl", "rust_test")
 
 package(default_visibility = ["//flutter/tests/fixtures/flutter-app:__subpackages__"])
 
-exports_files(
-    ["BUILD.bazel"],
-    visibility = ["//tools/docs/support_matrix:__pkg__"],
-)
-
 rust_test(
     name = "browser_test",
     srcs = ["browser_test.rs"],

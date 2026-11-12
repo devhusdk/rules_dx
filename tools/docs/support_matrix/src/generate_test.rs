@@ -1,4 +1,4 @@
-//! Generates the matrix from the real facts. A `ci_tests` label the reader does not understand fails here, and so does a committed page that is out of date.
+//! Generates the matrix from the real facts. A label the reader does not understand fails here, and so does a committed page that is out of date.
 
 use support_matrix::runfiles_source::RunfilesSource;
 use support_matrix::{
@@ -11,12 +11,12 @@ fn generated() -> (String, RunfilesSource) {
     let facts = source
         .read("tools/docs/support_matrix/facts.json")
         .expect("facts");
-    let matrix = generate(&facts, &source).expect("generator understands every ci_tests label");
+    let matrix = generate(&facts, &source).expect("generator understands every label");
     (matrix, source)
 }
 
 #[test]
-fn every_ci_test_label_is_understood() {
+fn every_label_is_understood() {
     generated();
 }
 

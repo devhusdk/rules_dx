@@ -21,6 +21,74 @@ fn rows_in<'a>(facts: &'a Facts, section: &str) -> Vec<&'a Row> {
         .collect()
 }
 
+fn lang_supports(facts: &Facts, row: &Row, platform: &str) -> bool {
+    facts
+        .conformance
+        .platforms
+        .get(&row.name)
+        .is_none_or(|ids| ids.is_empty() || ids.iter().any(|id| id == platform))
+}
+
+const SUITE_TESTS: [&str; 6] = [
+    "build_test",
+    "pass_test",
+    "fail_test",
+    "coverage_test",
+    "cross_test",
+    "lock_test",
+];
+
+/// The platforms a suite test runs on, its `n/a` reason, or `pending`.
+fn suite_cell(facts: &Facts, row: &Row, test: &str) -> String {
+    let entries: Vec<_> = facts
+        .conformance
+        .entries
+        .iter()
+        .filter(|e| e.lang == row.name && e.capability == test)
+        .collect();
+    if entries.is_empty() {
+        return "pending".to_owned();
+    }
+    let ids = |status: &str| -> Vec<String> {
+        entries
+            .iter()
+            .filter(|e| e.status == status)
+            .map(|e| format!("`{}`", e.platform))
+            .collect()
+    };
+    let mut parts = Vec::new();
+    let run = ids("run");
+    if run.len() == entries.len() {
+        let every = entries.iter().any(|e| e.platform == "*")
+            || facts
+                .platforms
+                .iter()
+                .all(|p| entries.iter().any(|e| e.platform == p.id));
+        return if every { "all".to_owned() } else { run.join(", ") };
+    }
+    if !run.is_empty() {
+        parts.push(run.join(", "));
+    }
+    let mut reasons: Vec<&str> = entries
+        .iter()
+        .filter(|e| e.status == "n/a")
+        .map(|e| e.reason.as_str())
+        .collect();
+    reasons.dedup();
+    for reason in reasons {
+        parts.push(format!("n/a: {reason}"));
+    }
+    let pending = ids("pending");
+    if !pending.is_empty() {
+        parts.push(if run.is_empty() && entries.iter().all(|e| e.status != "n/a") {
+            "pending".to_owned()
+        } else {
+            format!("pending on {}", pending.join(", "))
+        });
+    }
+    parts.join("; ")
+}
+
 fn unsupported_cell(
     facts: &Facts,
     platforms: &BTreeMap<String, RowPlatforms>,
@@ -33,6 +101,10 @@ fn unsupported_cell(
     for platform in &facts.platforms {
         let reason = match declared.and_then(|d| d.get(&platform.id)) {
             Some(reason) => reason.clone(),
+            None if row.section == "languages" && lang_supports(facts, row, &platform.id) => {
+                continue;
+            }
+            None if row.section == "languages" => "not in lang.json platforms".to_owned(),
             None if tested.build.contains(&platform.id) => continue,
             None => "not tested yet".to_owned(),
         };
@@ -86,10 +158,17 @@ fn language_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> 
                 macro_cell(&facts.bench),
                 macro_cell(&facts.fuzz),
             ]
+            .into_iter()
+            .chain(SUITE_TESTS.iter().map(|test| suite_cell(facts, row, test)))
+            .collect()
         })
         .collect();
+    let header: Vec<&str> = ["Language", "Not supported on", "Dependencies", "Bench", "Fuzz"]
+        .into_iter()
+        .chain(SUITE_TESTS)
+        .collect();
     table(
-        &["Language", "Not supported on", "Dependencies", "Bench", "Fuzz"],
+        &header,
         &rows,
     )
 }
@@ -221,27 +300,6 @@ fn doc_cell(row: &Row) -> String {
     }
 }
 
-/// Names the collector that writes the row's LCOV with its note, or `no` with the reason it has none.
-fn coverage_cell(row: &Row) -> String {
-    match &row.coverage {
-        None => "n/a".to_owned(),
-        Some(coverage) if coverage.collectors.is_empty() => format!("no: {}", coverage.reason),
-        Some(coverage) => {
-            let collectors = coverage
-                .collectors
-                .iter()
-                .map(|collector| format!("`{collector}`"))
-                .collect::<Vec<_>>()
-                .join(", ");
-            if coverage.reason.is_empty() {
-                collectors
-            } else {
-                format!("{collectors} ({})", coverage.reason)
-            }
-        }
-    }
-}
-
 /// Names the unused-code tools of the row, or `no` when it has none yet.
 fn dead_code_cell(row: &Row) -> String {
     match &row.dead_code {
@@ -274,7 +332,6 @@ fn quality_table(facts: &Facts) -> String {
                 quality_cell(facts, row, "format"),
                 quality_cell(facts, row, "typecheck"),
                 doc_cell(row),
-                coverage_cell(row),
                 dead_code_cell(row),
             ]
         })
@@ -286,7 +343,6 @@ fn quality_table(facts: &Facts) -> String {
             "Format",
             "Typecheck",
             "API docs",
-            "Coverage",
             "Dead code",
         ],
         &rows,
@@ -307,8 +363,7 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
          and its lint, format, typecheck, and API doc tools.\n\n",
     );
     out.push_str(
-        "Everything builds and tests on every platform it supports. \
-         `none` means all five platforms are supported. \
+        "`none` means all five platforms are supported. \
          `macos_x86_64` is not supported.\n\n",
     );
     out.push_str("`n/a` means the capability does not apply to that language or format.\n\n");
@@ -317,6 +372,9 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
         "Do not edit this page. Run `{UPDATE_COMMAND}` to refresh it.\n\n"
     ));
     out.push_str("## Languages\n\n");
+    out.push_str(
+        "Each suite column names the platforms the conformance test runs on, `n/a` with its reason, or `pending`.\n\n",
+    );
     out.push_str(&language_table(facts, platforms));
     out.push_str("\n## Targets\n\n");
     out.push_str(&build_table(facts, platforms, "targets", "Target"));
@@ -330,7 +388,6 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     out.push_str(
         "Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and the tool that builds its API docs. \
          A tool runs on every platform its row supports unless a note says otherwise. \
-         Coverage names the collector that writes the LCOV for the row's tests, or `no` with the reason it has none. \
          Dead code names the tool and rule that report unused code, `no` when none runs yet, or `none` when the language has no such tool.\n\n",
     );
     out.push_str(&quality_table(facts));
@@ -393,16 +450,22 @@ mod tests {
       ],
       "sections": ["languages", "targets", "compilers", "formats"],
       "bench": {"go": "go_bench"},
+      "conformance": {
+        "platforms": {"go": ["linux_x86_64"]},
+        "entries": [
+          {"lang": "go", "capability": "build_test", "platform": "linux_x86_64", "status": "run", "reason": ""},
+          {"lang": "go", "capability": "pass_test", "platform": "linux_x86_64", "status": "pending", "reason": "pending"},
+          {"lang": "go", "capability": "lock_test", "platform": "linux_x86_64", "status": "n/a", "reason": "no lockfile"}
+        ]
+      },
       "rows": [
         {"name": "go", "title": "Go", "section": "languages", "families": ["go"],
-         "coverage": {"collectors": ["go cover"], "reason": ""},
          "dead_code": [],
          "ci_tests": [], "consumer_tests": [], "workflows": []},
         {"name": "cc_llvm", "title": "LLVM", "section": "compilers", "families": [],
          "identity": {"driver": "gnu", "coverage": ""},
          "ci_tests": [], "consumer_tests": [], "workflows": []},
         {"name": "yaml", "title": "YAML", "section": "formats", "families": ["yaml"],
-         "coverage": {"collectors": [], "reason": "no collector"},
          "ci_tests": [], "consumer_tests": [], "workflows": []}
       ],
       "quality": {"go": {"lint": ["govet"], "format": ["gofumpt"], "typecheck": []},
@@ -444,16 +507,16 @@ mod tests {
         assert_eq!(page, render(&facts, &platforms));
         assert!(page.is_ascii());
         assert!(
-            page.contains("| Go | `macos_arm64`: not tested yet | none | `go_bench` | n/a |\n"),
+            page.contains("| Go | `macos_arm64`: not in lang.json platforms | none | `go_bench` | n/a | `linux_x86_64` | pending | pending | pending | pending | n/a: no lockfile |\n"),
             "{page}"
         );
         assert!(
-            page.contains("| Go | `govet` | `gofumpt` | no | n/a | `go cover` | no |\n"),
+            page.contains("| Go | `govet` | `gofumpt` | no | n/a | no |\n"),
             "{page}"
         );
         assert!(
             page.contains(
-                "| YAML | `yamllint` (not on `macos_arm64`: no build) | no | n/a | n/a | no: no collector | n/a |\n"
+                "| YAML | `yamllint` (not on `macos_arm64`: no build) | no | n/a | n/a | n/a |\n"
             ),
             "{page}"
         );
@@ -475,16 +538,6 @@ mod tests {
         assert!(
             out.contains("| `hex_deploy` | not available |\n| `nuget_deploy` | `Microsoft.DotNet.ApiCompat` |\n"),
             "{out}"
-        );
-    }
-
-    #[test]
-    fn appends_the_coverage_note_to_the_collector() {
-        let mut facts = parse_facts(FACTS).expect("facts");
-        facts.rows[0].coverage.as_mut().expect("coverage").reason = "runs on Linux only".to_owned();
-        assert_eq!(
-            coverage_cell(&facts.rows[0]),
-            "`go cover` (runs on Linux only)"
         );
     }
 

@@ -53,8 +53,3 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],    visibility = ["//:__pkg__"],
 )
-
-exports_files(
-    ["BUILD.bazel"],
-    visibility = ["@rules_dx//tools/docs/support_matrix:__pkg__"],
-)

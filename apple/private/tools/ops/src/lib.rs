@@ -30,6 +30,7 @@ pub mod simctl;
 pub mod swift;
 pub mod test_sim;
 pub mod util;
+pub mod xcframework_check;
 pub mod xcode;
 
 use std::path::PathBuf;
@@ -119,10 +120,20 @@ pub fn run(args: &[String]) -> u8 {
             };
             report(app_check::PREFIX, app_check::run(&tools, rest))
         }
+        "xcframework-check" => {
+            let tools = Tools {
+                developer_dir: process_env("DEVELOPER_DIR").map(PathBuf::from),
+                runner: &System,
+            };
+            report(
+                xcframework_check::PREFIX,
+                xcframework_check::run(&tools, rest),
+            )
+        }
         _ => report(
             "dx-apple-ops",
             Err(util::usage(
-                "usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|library-check|macos-app-check> ...",
+                "usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|library-check|macos-app-check|xcframework-check> ...",
             )),
         ),
     }

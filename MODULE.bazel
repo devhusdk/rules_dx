@@ -735,7 +735,7 @@ dx_pins.pin(
 )
 dx_pins.data(
     name = "dx_cc_gcc",
-    pins = "//cc/private/toolchains:pins.json",
+    pins = "//cc:pins.json",
 )
 dx_pins.data(
     name = "dx_deploy",

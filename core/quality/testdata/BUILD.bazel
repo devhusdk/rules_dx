@@ -1780,6 +1780,7 @@ test_suite(
         ":real_shard_probe",
         ":real_typecheck_presence",
         ":scalafmt_errors_test",
+        ":scalafmt_errors_test_upstream",
         ":upstream_cc_no_context_test",
         ":upstream_ownership_presence",
     ],

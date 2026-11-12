@@ -778,7 +778,9 @@ test_suite(
     name = "scripts",
     tests = [
         ":buildifier_config_test",
+        ":buildifier_config_test_upstream",
         ":compile_check_exec_test",
+        ":compile_check_exec_test_upstream",
         ":suite_membership_test",
         ":unavailable_rows_test",
         ":unavailable_rows_test_upstream",

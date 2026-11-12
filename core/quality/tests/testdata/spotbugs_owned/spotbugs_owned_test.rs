@@ -23,7 +23,7 @@ fn findings_stay_with_their_owner() {
     );
     assert!(has(&app, b"Clean.java"), "app result missing");
     assert!(has(&dep, b"SF_DEAD_STORE_DUE_TO_SWITCH_FALLTHROUGH"), "multiline finding missing");
-    let placed = b"SF_DEAD_STORE_DUE_TO_SWITCH_FALLTHROUGH*/core/quality/tests/testdata/spotbugs_owned/Dirty.java0\xdb\x028\xdb\x02";
+    let placed = b"SF_DEAD_STORE_DUE_TO_SWITCH_FALLTHROUGH*5core/quality/tests/testdata/spotbugs_owned/Dirty.java0\xdb\x028\xdb\x02";
     assert!(has(&dep, placed), "multiline finding not placed");
     assert!(has(&result("app_test"), b"CleanTest.java"), "test result missing");
     assert!(has(&result("implicit_test"), b"ImplicitTest.java"), "implicit junit test result missing");

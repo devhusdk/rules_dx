@@ -1215,13 +1215,11 @@ quality_family(
 
 quality_family(
     name = "tool_override_zig_family",
-    disabled = [
-        "audit",
-        "typecheck",
-    ],
+    disabled = ["audit"],
     family_id = "zig",
     format = ["zig_fmt"],
     lint = ["zig_ast_check"],
+    typecheck = ["zig"],
 )
 
 quality_family(

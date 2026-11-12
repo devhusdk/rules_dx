@@ -742,7 +742,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_zig_ast_check_clean",
         "target": "//core/quality/testdata/zig_owned:clean",
-        "config": "zig_owned",
+        "config": "shared",
         "tool": "zig_ast_check",
         "capability": "lint",
         "class": "zig",
@@ -752,7 +752,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_zig_ast_check_dirty",
         "target": "//core/quality/testdata/zig_owned:dirty",
-        "config": "zig_owned",
+        "config": "shared",
         "tool": "zig_ast_check",
         "capability": "lint",
         "class": "zig",
@@ -762,7 +762,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_zig_typecheck_clean",
         "target": "//core/quality/testdata/zig_owned:clean_bin",
-        "config": "zig_owned",
+        "config": "shared",
         "tool": "zig",
         "capability": "typecheck",
         "class": "zig",
@@ -772,7 +772,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_zig_typecheck_dirty",
         "target": "//core/quality/testdata/zig_owned:dirty_bin",
-        "config": "zig_owned",
+        "config": "shared",
         "tool": "zig",
         "capability": "typecheck",
         "class": "zig",

@@ -37,6 +37,7 @@ def _erlang_impl(mctx):
             Label("//patches/rules_erlang:02_tcw_tags.patch"),
             Label("//patches/rules_erlang:03_auto_sname.patch"),
             Label("//patches/rules_erlang:04_otp_tree.patch"),
+            Label("//patches/rules_erlang:05_windows_eunit_cover.patch"),
         ],
         sha256 = RULES_ERLANG_SHA256,
         strip_prefix = "rules_erlang-" + RULES_ERLANG_COMMIT,

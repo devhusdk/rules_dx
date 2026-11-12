@@ -9,28 +9,24 @@ pub(super) fn plan(
     head: &dx_process::BazelHead,
     _closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
-    match request {
-        request => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let mut command = vec!["pub", "upgrade"];
-            if let Selection::Packages(packages) = request {
-                command.extend(packages.iter().map(String::as_str));
-            }
-            Ok(BackendPlan::Run {
-                argv: pub_argv(workspace, set, head, &command)?,
-                env: pub_env(),
-            })
-        }
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
     }
+    if frozen {
+        return Err(BackendError::FrozenLocked {
+            set: set.name.clone(),
+        });
+    }
+    let mut command = vec!["pub", "upgrade"];
+    if let Selection::Packages(packages) = request {
+        command.extend(packages.iter().map(String::as_str));
+    }
+    Ok(BackendPlan::Run {
+        argv: pub_argv(workspace, set, head, &command)?,
+        env: pub_env(),
+    })
 }
 
 pub(super) fn check(

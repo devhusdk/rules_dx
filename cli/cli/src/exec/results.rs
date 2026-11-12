@@ -194,8 +194,7 @@ impl Collected {
     /// Drops findings, changes and conflicts for paths outside `filter`; pathless findings stay.
     pub(crate) fn keep_paths(&mut self, filter: &[String]) {
         let wanted = |path: &str| path_in_filter(path, filter);
-        let wanted_event =
-            |event: &DiagnosticEvent| event.path.as_deref().is_none_or(|path| wanted(path));
+        let wanted_event = |event: &DiagnosticEvent| event.path.as_deref().is_none_or(wanted);
         self.initial.retain(wanted_event);
         self.terminal.retain(wanted_event);
         self.changes.retain(|change| wanted(&change.path));

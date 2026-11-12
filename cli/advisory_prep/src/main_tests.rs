@@ -190,7 +190,7 @@ fn the_help_names_every_flag_and_the_exit_codes() {
 #[test]
 fn an_unknown_flag_is_refused() {
     let error = Cli::try_parse_from(["advisory_prep", "--fetch"]).expect_err("refuses");
-    assert_eq!(error.use_stderr(), true);
+    assert!(error.use_stderr());
     assert!(error.to_string().contains("--fetch"), "{error}");
     let error = Cli::try_parse_from(["advisory_prep", "--retries", "many"]).expect_err("refuses");
     assert!(error.to_string().contains("many"), "{error}");

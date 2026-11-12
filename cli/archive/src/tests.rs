@@ -1,6 +1,9 @@
 use super::*;
 use std::path::PathBuf;
 
+type RawMember<'a> = (&'a str, &'a [u8], u32);
+type BuildArchive = fn(&Path, &[RawMember<'_>]);
+
 fn scratch() -> tempfile::TempDir {
     tempfile::Builder::new()
         .prefix("dx-archive-")
@@ -47,7 +50,7 @@ const MEMBERS: &[(&str, &[u8], u32)] = &[
     ("lib/x.dll", b"dll", 0o644),
 ];
 
-fn round_trip(format: Format, build: fn(&Path, &[(&str, &[u8], u32)])) {
+fn round_trip(format: Format, build: BuildArchive) {
     let dir = scratch();
     let archive = dir.path().join(format!("dx{}", format.suffix()));
     build(&archive, MEMBERS);

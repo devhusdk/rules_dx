@@ -388,10 +388,10 @@ pub(crate) mod consumer_setup {
                     }
                 }
                 "use_extension" => {
-                    if let [label, tag, ..] = call.positional.as_slice() {
-                        if let (Some(label), Some(tag)) = (literal(label), literal(tag)) {
-                            setup.extensions.push((label, tag));
-                        }
+                    if let [label, tag, ..] = call.positional.as_slice()
+                        && let (Some(label), Some(tag)) = (literal(label), literal(tag))
+                    {
+                        setup.extensions.push((label, tag));
                     }
                 }
                 "use_repo" => {

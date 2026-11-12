@@ -97,7 +97,7 @@ pub(crate) fn filter_build_mode_configs(
         if let Some(value) = value
             && is_dx_build_mode_config(&value)
         {
-            return Err(dx_process::conflicting_option("config".to_owned()));
+            return Err(dx_process::conflicting_option("config"));
         }
         for offset in 0..consumed {
             kept.push(options[index + offset].clone());

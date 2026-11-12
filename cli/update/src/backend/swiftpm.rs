@@ -11,35 +11,31 @@ pub(super) fn plan(
     head: &dx_process::BazelHead,
     _closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
-    match request {
-        selection => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let mut command = vec!["package".to_owned(), "update".to_owned()];
-            if let Selection::Packages(packages) = selection {
-                command.extend(packages.iter().map(|name| swift_identity(name)));
-            }
-            let dir = set_dir(workspace, set)?;
-            Ok(BackendPlan::Sequence(vec![
-                Run {
-                    argv: swift_argv(workspace, set, head, true, &command)?,
-                    env: Vec::new(),
-                },
-                Run {
-                    argv: bazel(head, "run", &[LOCK, "--", "--dir", &dir]),
-                    env: Vec::new(),
-                },
-            ]))
-        }
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
     }
+    if frozen {
+        return Err(BackendError::FrozenLocked {
+            set: set.name.clone(),
+        });
+    }
+    let mut command = vec!["package".to_owned(), "update".to_owned()];
+    if let Selection::Packages(packages) = request {
+        command.extend(packages.iter().map(|name| swift_identity(name)));
+    }
+    let dir = set_dir(workspace, set)?;
+    Ok(BackendPlan::Sequence(vec![
+        Run {
+            argv: swift_argv(workspace, set, head, true, &command)?,
+            env: Vec::new(),
+        },
+        Run {
+            argv: bazel(head, "run", &[LOCK, "--", "--dir", &dir]),
+            env: Vec::new(),
+        },
+    ]))
 }
 
 pub(super) fn check(

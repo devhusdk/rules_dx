@@ -555,7 +555,7 @@ fn rendered_bazel_files_pass_buildifier() {
     let Ok(buildifier) = std::env::var("DX_BUILDIFIER") else {
         panic!("DX_BUILDIFIER names the pinned buildifier");
     };
-    let mut cases = vec![
+    let mut cases = [
         inputs(
             None,
             &["python", "rust", "js"],

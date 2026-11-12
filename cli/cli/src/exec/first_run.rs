@@ -140,9 +140,8 @@ pub fn first_run_notice(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
-    #![cfg(unix)]
     use super::*;
     use dx_output::OutputMode;
     use std::collections::BTreeMap;

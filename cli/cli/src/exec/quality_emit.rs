@@ -342,7 +342,7 @@ mod tests {
         let (kept, omitted) = cap_per_tool(records, 50);
         assert_eq!(kept.len(), 53);
         assert_eq!(omitted.get("ruff"), Some(&70));
-        assert!(omitted.get("clippy").is_none());
+        assert!(!omitted.contains_key("clippy"));
     }
 
     #[test]

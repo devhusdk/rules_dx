@@ -66,19 +66,19 @@ impl Runner for AuditRunner {
         );
         if let Some(sarif) = &self.sarif {
             for (index, arg) in argv.iter().enumerate() {
-                if arg == "--report-path" {
-                    if let Some(path) = argv.get(index + 1) {
-                        let _ = std::fs::write(path, sarif.as_bytes());
-                    }
+                if arg == "--report-path"
+                    && let Some(path) = argv.get(index + 1)
+                {
+                    let _ = std::fs::write(path, sarif.as_bytes());
                 }
             }
         }
         if let Some(report) = &self.trivy_report {
             for (index, arg) in argv.iter().enumerate() {
-                if arg == "--output" {
-                    if let Some(path) = argv.get(index + 1) {
-                        let _ = std::fs::write(path, report.as_bytes());
-                    }
+                if arg == "--output"
+                    && let Some(path) = argv.get(index + 1)
+                {
+                    let _ = std::fs::write(path, report.as_bytes());
                 }
             }
         }
@@ -1173,7 +1173,10 @@ pub(super) fn audit_live_license_exception_expiry_follows_the_pinned_date() {
 pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
-        harness.write_source(lock_of(Ecosystem::Npm), "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n");
+        harness.write_source(
+            lock_of(Ecosystem::Npm),
+            "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n",
+        );
         write_empty_cargo_lock(harness);
         harness.write_source(
                 "license.toml",
@@ -1188,7 +1191,10 @@ pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
 pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
-        harness.write_source(lock_of(Ecosystem::Npm), "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n");
+        harness.write_source(
+            lock_of(Ecosystem::Npm),
+            "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n",
+        );
         write_empty_cargo_lock(harness);
         harness.write_source(
                 "license.toml",
@@ -1200,7 +1206,10 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
 
     let runner = AuditRunner::clean();
     let (code, _out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
-        harness.write_source(lock_of(Ecosystem::Npm), "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n");
+        harness.write_source(
+            lock_of(Ecosystem::Npm),
+            "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n",
+        );
         write_empty_cargo_lock(harness);
         write_mit_licenses(harness);
     });

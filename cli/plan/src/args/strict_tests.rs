@@ -130,7 +130,7 @@ fn strict_bad_values_fail_with_contract_shapes() {
 fn strict_typo_suggestions_come_from_the_same_grammar() {
     for (words, needle) in [
         (vec!["lintt"], "subcommands exist"),
-        (vec!["lint", "--ouptut=json"], "--output"),
+        (vec!["lint", "--outpt=json"], "--output"),
     ] {
         assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[needle]);
     }

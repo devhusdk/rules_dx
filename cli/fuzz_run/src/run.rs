@@ -153,12 +153,10 @@ fn random_seed() -> i64 {
     (hasher.finish() >> 1) as i64
 }
 
+type Spawn<'a> = dyn Fn(Vec<String>, Option<&Path>) -> Result<i32, Failure> + 'a;
+
 /// Runs Crowbar rounds with fresh seeds until the time is up; a failing seed is written to `crashes`.
-fn crowbar_rounds(
-    spawn: &dyn Fn(Vec<String>, Option<&Path>) -> Result<i32, Failure>,
-    options: &Options,
-    crashes: &Path,
-) -> Result<i32, Failure> {
+fn crowbar_rounds(spawn: &Spawn<'_>, options: &Options, crashes: &Path) -> Result<i32, Failure> {
     let seconds: u64 = options.seconds.parse().map_err(|_| usage())?;
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
     loop {
@@ -287,13 +285,13 @@ fn execute(
     let spawn = |args: Vec<String>, cwd: Option<&Path>| -> Result<i32, Failure> {
         let mut command = Command::new(bin);
         command.args(args);
-        if engine == Engine::Dotnet && std::env::var_os("RUNFILES_DIR").is_none() {
-            if let Some(parent) = std::env::current_dir()
+        if engine == Engine::Dotnet
+            && std::env::var_os("RUNFILES_DIR").is_none()
+            && let Some(parent) = std::env::current_dir()
                 .ok()
                 .and_then(|cwd| cwd.parent().map(Path::to_path_buf))
-            {
-                command.env("RUNFILES_DIR", parent);
-            }
+        {
+            command.env("RUNFILES_DIR", parent);
         }
         if let Some(cwd) = cwd {
             command.current_dir(cwd);

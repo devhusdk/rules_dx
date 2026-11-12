@@ -659,9 +659,8 @@ fn publish_one(
     Ok(format!("opened {}{note}", created.trim()))
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
-    #![cfg(unix)]
     use super::*;
     use dx_adopt::dependency_sets::Ecosystem;
     use dx_update::discover::{Candidate, Registry};

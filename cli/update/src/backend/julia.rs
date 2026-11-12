@@ -9,47 +9,42 @@ pub(super) fn plan(
     head: &dx_process::BazelHead,
     _closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
-    match request {
-        request => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let Some(resolve) =
-                dependency_sets::julia_target_label(workspace, set, "julia_pkg_resolve")
-            else {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: "add a julia_pkg_resolve next to the lock JSON; it keeps the lock JSON in step with the Pkg manifest",
-                });
-            };
-            let dir = set_dir(workspace, set)?;
-            let mut update = vec![
-                "@rules_dx//julia/private/tools:pkg_update",
-                "--",
-                dir.as_str(),
-            ];
-            if let Selection::Packages(packages) = request {
-                update.extend(packages.iter().map(String::as_str));
-            }
-            Ok(BackendPlan::Sequence(vec![
-                Run {
-                    argv: bazel(head, "run", &update),
-                    env: julia_env(),
-                },
-                Run {
-                    argv: bazel(head, "run", &[resolve.as_str()]),
-                    env: julia_env(),
-                },
-            ]))
-        }
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
     }
+    if frozen {
+        return Err(BackendError::FrozenLocked {
+            set: set.name.clone(),
+        });
+    }
+    let Some(resolve) = dependency_sets::julia_target_label(workspace, set, "julia_pkg_resolve")
+    else {
+        return Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "add a julia_pkg_resolve next to the lock JSON; it keeps the lock JSON in step with the Pkg manifest",
+        });
+    };
+    let dir = set_dir(workspace, set)?;
+    let mut update = vec![
+        "@rules_dx//julia/private/tools:pkg_update",
+        "--",
+        dir.as_str(),
+    ];
+    if let Selection::Packages(packages) = request {
+        update.extend(packages.iter().map(String::as_str));
+    }
+    Ok(BackendPlan::Sequence(vec![
+        Run {
+            argv: bazel(head, "run", &update),
+            env: julia_env(),
+        },
+        Run {
+            argv: bazel(head, "run", &[resolve.as_str()]),
+            env: julia_env(),
+        },
+    ]))
 }
 
 pub(super) fn check(

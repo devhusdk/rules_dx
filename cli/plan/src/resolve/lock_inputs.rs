@@ -1428,7 +1428,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             [
                 Hub {
                     name: "crates".to_owned(),
-                    cargo_lockfile: format!("{}", lock_of(Ecosystem::Cargo)),
+                    cargo_lockfile: lock_of(Ecosystem::Cargo).to_string(),
                     lockfile: Some("cargo-bazel-lock.json".to_owned()),
                     pip: false,
                     maven: false,
@@ -1509,8 +1509,8 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         );
         let base = "module x\n\ngo 1.22\n\nrequire (\n\tgithub.com/a/b v1.0.0\n\tgolang.org/x/net v0.1.0 // indirect\n)\n";
         let head = base.replace("v1.0.0", "v1.1.0");
-        let change =
-            changed_go(manifest_of(Ecosystem::Go), base, &head).expect(manifest_of(Ecosystem::Go));
+        let change = changed_go(manifest_of(Ecosystem::Go), base, &head)
+            .unwrap_or_else(|_| panic!("{}", manifest_of(Ecosystem::Go)));
         assert_eq!(
             change.go_repos,
             BTreeSet::from(["com_github_a_b".to_owned()])
@@ -1522,8 +1522,8 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             manifest_of(Ecosystem::Go)
         );
         let sum_head = sum.replace("h1:x", "h1:w");
-        let change =
-            changed_go(lock_of(Ecosystem::Go), sum, &sum_head).expect(lock_of(Ecosystem::Go));
+        let change = changed_go(lock_of(Ecosystem::Go), sum, &sum_head)
+            .unwrap_or_else(|_| panic!("{}", lock_of(Ecosystem::Go)));
         assert_eq!(
             change.go_repos,
             BTreeSet::from(["com_github_a_b".to_owned()])

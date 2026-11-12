@@ -171,8 +171,8 @@ fn pick(
         for edit in tools {
             check_known(family, &edit[1..])?;
             picked.retain(|tool| *tool != edit[1..]);
-            if edit.starts_with('+') {
-                picked.push(edit[1..].to_owned());
+            if let Some(added) = edit.strip_prefix('+') {
+                picked.push(added.to_owned());
             }
         }
         picked

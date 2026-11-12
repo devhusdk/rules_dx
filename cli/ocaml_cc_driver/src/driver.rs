@@ -46,19 +46,19 @@ pub fn plan(
     env: &dyn Fn(&str) -> Option<String>,
     args: Vec<OsString>,
 ) -> Result<Plan, String> {
-    if tool == "ar" {
-        if let Some(libtool) = set(env, "DX_OCAML_LIBTOOL") {
-            let mut rest = args.into_iter().skip(1);
-            let out = rest
-                .next()
-                .ok_or_else(|| format!("{PREFIX}ar: want MODE OUT OBJECTS..."))?;
-            let mut planned = vec![OsString::from("-static"), OsString::from("-o"), out];
-            planned.extend(rest);
-            return Ok(Plan {
-                program: libtool,
-                args: planned,
-            });
-        }
+    if tool == "ar"
+        && let Some(libtool) = set(env, "DX_OCAML_LIBTOOL")
+    {
+        let mut rest = args.into_iter().skip(1);
+        let out = rest
+            .next()
+            .ok_or_else(|| format!("{PREFIX}ar: want MODE OUT OBJECTS..."))?;
+        let mut planned = vec![OsString::from("-static"), OsString::from("-o"), out];
+        planned.extend(rest);
+        return Ok(Plan {
+            program: libtool,
+            args: planned,
+        });
     }
     let variable = format!("CONDA_OCAML_{}", tool.to_uppercase());
     let value =
@@ -66,10 +66,10 @@ pub fn plan(
     let mut words = value.split_whitespace().map(OsString::from);
     let program = words.next().unwrap_or_default();
     let mut planned: Vec<OsString> = words.collect();
-    if LINKING.contains(&tool) {
-        if let Some(lib) = set(env, "DX_OCAML_LIB") {
-            planned.push(OsString::from(format!("-L{lib}")));
-        }
+    if LINKING.contains(&tool)
+        && let Some(lib) = set(env, "DX_OCAML_LIB")
+    {
+        planned.push(OsString::from(format!("-L{lib}")));
     }
     if tool == "as" && set(env, "DX_OCAML_AS_DROP_DEBUG_PREFIX_MAP").is_some() {
         let mut args = args.into_iter();

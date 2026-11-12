@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
 load("//cc:defs.bzl", "cc_binary")
-load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//deploy:defs.bzl", "consumer_archive")
 load("//rust:defs.bzl", "rust_test")
@@ -25,7 +25,7 @@ consumer_archive(
     min_runtime = "glibc-2.28",
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
     platform = "//tools/platforms:linux_arm64",
-    runtime = ["//cc/private/toolchains:gcc_linux_glibc"],
+    runtime = ["//cc/private/toolchain:gcc_linux_glibc"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:arm64",
@@ -53,8 +53,8 @@ consumer_archive(
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
     platform = "//tools/platforms:linux_arm64",
     runtime = [
-        "//cc/private/toolchains:gcc_linux_glibc",
-        "//cc/private/toolchains:gcc_linux_libstdcxx",
+        "//cc/private/toolchain:gcc_linux_glibc",
+        "//cc/private/toolchain:gcc_linux_libstdcxx",
     ],
     target_compatible_with = [
         "@platforms//os:linux",

@@ -16,9 +16,9 @@ _LINUX = [
 })
 
 _LINUX_MACOS = select({
-    "//cc/private/toolchains:linux_arm64": [],
-    "//cc/private/toolchains:linux_x86_64": [],
-    "//cc/private/toolchains:macos_arm64": [],
+    "//cc/private/toolchain:linux_arm64": [],
+    "//cc/private/toolchain:linux_x86_64": [],
+    "//cc/private/toolchain:macos_arm64": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })
 

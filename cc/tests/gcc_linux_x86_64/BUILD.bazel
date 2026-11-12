@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("//cc:defs.bzl", "cc_binary")
-load("//cc/private/toolchains:pins.bzl", "GCC_VERSION")
-load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_files")
+load("//cc/private/toolchain:pins.bzl", "GCC_VERSION")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary", "cc_toolchain_files")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//deploy:defs.bzl", "consumer_archive")
 load("//rust:defs.bzl", "rust_test")
@@ -41,7 +41,7 @@ consumer_archive(
     min_runtime = "glibc-2.28",
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
     platform = "//tools/platforms:linux_x86_64",
-    runtime = ["//cc/private/toolchains:gcc_linux_glibc"],
+    runtime = ["//cc/private/toolchain:gcc_linux_glibc"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -69,8 +69,8 @@ consumer_archive(
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
     platform = "//tools/platforms:linux_x86_64",
     runtime = [
-        "//cc/private/toolchains:gcc_linux_glibc",
-        "//cc/private/toolchains:gcc_linux_libstdcxx",
+        "//cc/private/toolchain:gcc_linux_glibc",
+        "//cc/private/toolchain:gcc_linux_libstdcxx",
     ],
     target_compatible_with = [
         "@platforms//os:linux",
@@ -168,12 +168,12 @@ rust_test(
     crate_root = "artifacts_test.rs",
     data = [
         ":gcc_x86_64",
-        "//cc/private/toolchains:pins.bzl",
+        "//cc/private/toolchain:pins.bzl",
     ],
     env = {
         "GCC_VERSION": GCC_VERSION,
         "GCC_X86_64": "$(rootpaths :gcc_x86_64)",
-        "PINS": "$(rootpath //cc/private/toolchains:pins.bzl)",
+        "PINS": "$(rootpath //cc/private/toolchain:pins.bzl)",
     },
     target_compatible_with = [
         "@platforms//os:linux",

@@ -621,22 +621,22 @@ use_repo(osx, "macos_sdk")
 # Gated on the Haskell-only flag, so it must come before the general C toolchains.
 register_toolchains("@dx_haskell_toolchains//:all")
 
-register_toolchains("//cc/private/toolchains:gcc_linux_x86_64")
+register_toolchains("//cc/private/toolchain:gcc_linux_x86_64")
 
-register_toolchains("//cc/private/toolchains:gcc_linux_x86_64_to_arm64")
+register_toolchains("//cc/private/toolchain:gcc_linux_x86_64_to_arm64")
 
-register_toolchains("//cc/private/toolchains:gcc_linux_arm64")
+register_toolchains("//cc/private/toolchain:gcc_linux_arm64")
 
-register_toolchains("//cc/private/toolchains:gcc_unsupported")
+register_toolchains("//cc/private/toolchain:gcc_unsupported")
 
-register_toolchains("//cc/private/toolchains:msvc_windows_x86_64")
+register_toolchains("//cc/private/toolchain:msvc_windows_x86_64")
 
-register_toolchains("//cc/private/toolchains:msvc_windows_x86_64_to_arm64")
+register_toolchains("//cc/private/toolchain:msvc_windows_x86_64_to_arm64")
 
-register_toolchains("//cc/private/toolchains:msvc_windows_arm64")
+register_toolchains("//cc/private/toolchain:msvc_windows_arm64")
 
 # The guard must stay last among the MSVC entries.
-register_toolchains("//cc/private/toolchains:msvc_unsupported")
+register_toolchains("//cc/private/toolchain:msvc_unsupported")
 
 # On a macOS exec the Xcode toolchain wins for Apple targets, including macos_*.
 # @llvm with @macos_sdk serves macOS targets only from Linux and Windows execs.

@@ -251,8 +251,8 @@ consumer_archive(
     resources = [":external_res"],
     runtime = select({
         "@platforms//os:windows": [
-            "//cc/private/toolchains:msvc_vcruntime",
-            "//cc/private/toolchains:windows_ucrt",
+            "//cc/private/toolchain:msvc_vcruntime",
+            "//cc/private/toolchain:windows_ucrt",
         ],
         "//conditions:default": [],
     }),

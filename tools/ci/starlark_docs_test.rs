@@ -36,7 +36,7 @@ const PACKAGES: &[&str] = &[
     "avro/private",
     "bicep/private",
     "cc/private",
-    "cc/private/toolchains",
+    "cc/private/toolchain",
     "cli/roots",
     "cli/tests/entrypoint",
     "cloudformation/private",

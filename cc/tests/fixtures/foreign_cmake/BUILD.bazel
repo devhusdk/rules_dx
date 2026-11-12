@@ -1,6 +1,6 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_dx//cc:defs.bzl", "cc_test")
-load("@rules_dx//cc/private/toolchains:select.bzl", "cc_toolchain_files")
+load("@rules_dx//cc/private/toolchain:select.bzl", "cc_toolchain_files")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
 load(

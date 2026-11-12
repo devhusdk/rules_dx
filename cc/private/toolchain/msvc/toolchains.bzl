@@ -40,7 +40,7 @@ def msvc_toolchains(name):
             name = "{}_windows_{}".format(name, _SUFFIX[cell]),
             exec_compatible_with = ["@platforms//os:windows", _CPU[host]],
             target_compatible_with = ["@platforms//os:windows", _CPU[target]],
-            target_settings = ["//cc/private/toolchains:msvc_selected"],
+            target_settings = ["//cc/private/toolchain:msvc_selected"],
             toolchain = "@dx_msvc//:" + cell_name(host, target),
             toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
         )

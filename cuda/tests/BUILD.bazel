@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//cc:defs.bzl", "cc_test")
-load("//cc/private/toolchains:select.bzl", "cc_toolchain_test")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/modules:cuda.bzl", "CUDA_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -102,7 +102,7 @@ dx_hello_output_test(
 device_link_hermetic_test(
     name = "rdc_device_link_hermetic_test",
     host_compiler = select({
-        "//cc/private/toolchains:msvc_selected": "msvc_runtime",
+        "//cc/private/toolchain:msvc_selected": "msvc_runtime",
         "//conditions:default": "llvm",
     }),
     target_compatible_with = CUDA_COMPATIBLE_WITH,
@@ -286,7 +286,7 @@ dx_hello_output_test(
 hermetic_toolchain_test(
     name = "hermetic_toolchain_test",
     host_compiler = select({
-        "//cc/private/toolchains:msvc_selected": "msvc_runtime",
+        "//cc/private/toolchain:msvc_selected": "msvc_runtime",
         "//conditions:default": "llvm",
     }),
     target_compatible_with = CUDA_COMPATIBLE_WITH,

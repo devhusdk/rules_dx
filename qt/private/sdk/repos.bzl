@@ -1,6 +1,6 @@
 """Opt-in hermetic Qt SDK acquisition."""
 
-load("//cc/private/toolchains:pins.bzl", "VC_REDIST_VERSION")
+load("//cc/private/toolchain:pins.bzl", "VC_REDIST_VERSION")
 load("//core:host.bzl", "host_cell_of")
 load("//core:platform_support.bzl", "cells_support", "lang_cells")
 load("//core:seven_zip.bzl", "seven_zip_fetch")
@@ -895,7 +895,7 @@ def _qt_cell_repo_impl(ctx):
     if layout.os == "windows":
         _place_font(ctx)
         _place_vcruntime(ctx)
-        ctx.file("licenses/msvc-redistributable/NOTICE.txt", ctx.read(Label("//cc/private/toolchains:notices/MSVC_REDISTRIBUTABLE.txt")))
+        ctx.file("licenses/msvc-redistributable/NOTICE.txt", ctx.read(Label("//cc/private/toolchain:notices/MSVC_REDISTRIBUTABLE.txt")))
     if layout.link == "framework":
         _normalize_frameworks(ctx)
     _check_module(ctx, "Core")

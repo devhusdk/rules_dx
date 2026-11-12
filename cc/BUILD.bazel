@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
-load("//cc/private/toolchains:bindings.bzl", "CC_COMPILERS")
+load("//cc/private/toolchain:bindings.bzl", "CC_COMPILERS")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 string_flag(
@@ -11,13 +11,13 @@ string_flag(
 
 alias(
     name = "gcc_linux_glibc",
-    actual = "//cc/private/toolchains:gcc_linux_glibc",
+    actual = "//cc/private/toolchain:gcc_linux_glibc",
     visibility = ["//visibility:public"],
 )
 
 alias(
     name = "gcc_linux_libstdcxx",
-    actual = "//cc/private/toolchains:gcc_linux_libstdcxx",
+    actual = "//cc/private/toolchain:gcc_linux_libstdcxx",
     visibility = ["//visibility:public"],
 )
 

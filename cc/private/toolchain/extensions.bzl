@@ -1,20 +1,20 @@
-"""Module extension for cc/private/toolchains."""
+"""Module extension for cc/private/toolchain."""
 
-load("//cc/private/toolchains/gcc_repo:defs.bzl", "gcc_declare_toolchain")
+load("//cc/private/toolchain/gcc_repo:defs.bzl", "gcc_declare_toolchain")
 load(":pins.bzl", "GCC_GLIBC", "GCC_LINUX_AARCH64", "GCC_LINUX_X86_64", "GCC_LINUX_X86_64_TO_AARCH64", "GCC_VERSION")
 
 
 _LDFLAGS = ["-static-libasan", "-static-libubsan", "-lm"]
 
 
-_EXTRA_ENABLED = [str(Label("//cc/private/toolchains/gcc_features:dx_static_cxx_runtime"))]
+_EXTRA_ENABLED = [str(Label("//cc/private/toolchain/gcc_features:dx_static_cxx_runtime"))]
 
 
 _EXTRA_KNOWN = [
-    str(Label("//cc/private/toolchains/gcc_features:dynamic_libstdcxx")),
-    str(Label("//cc/private/toolchains/gcc_features:static_link_cpp_runtimes")),
-    str(Label("//cc/private/toolchains/gcc_features:static_linking_mode")),
-    str(Label("//cc/private/toolchains/gcc_features:dynamic_linking_mode")),
+    str(Label("//cc/private/toolchain/gcc_features:dynamic_libstdcxx")),
+    str(Label("//cc/private/toolchain/gcc_features:static_link_cpp_runtimes")),
+    str(Label("//cc/private/toolchain/gcc_features:static_linking_mode")),
+    str(Label("//cc/private/toolchain/gcc_features:dynamic_linking_mode")),
 ]
 
 

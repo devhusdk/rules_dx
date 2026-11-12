@@ -1,7 +1,7 @@
 """Writes the support matrix facts JSON from the language list and the quality registry."""
 
-load("//cc/private/toolchains:bindings.bzl", "CC_COMPILERS", "cc_compiler_identity")
-load("//cc/private/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
+load("//cc/private/toolchain:bindings.bzl", "CC_COMPILERS", "cc_compiler_identity")
+load("//cc/private/toolchain:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//core/modules:langs.bzl", "LANGS")
 load("//core/quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//core/quality:parity_tests.bzl", "PARITY_DEFERRED")

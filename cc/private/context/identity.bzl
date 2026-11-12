@@ -1,6 +1,6 @@
 """Rule that writes the selected C++ compiler identity to JSON."""
 
-load("//cc/private/toolchains:bindings.bzl", "cc_toolchain_identity", "cc_toolchain_info", "cc_toolchain_toolchains")
+load("//cc/private/toolchain:bindings.bzl", "cc_toolchain_identity", "cc_toolchain_info", "cc_toolchain_toolchains")
 
 def _cc_context_identity_impl(ctx):
     cc_info = cc_toolchain_info(ctx)

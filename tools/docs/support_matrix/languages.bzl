@@ -1,6 +1,6 @@
 """The language list behind docs/support-matrix.md."""
 
-load("//cc/private/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
+load("//cc/private/toolchain:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//core/modules:langs.bzl", "LANGS")
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("//tools/platforms:defs.bzl", "WINDOWS_MSVC_HOST_CONSTRAINTS")
@@ -77,18 +77,18 @@ ROWS = [
     {
         "ci_tests": [
             "//cc/tests/gcc_linux_arm64:native_arm64_test",
-            "//cc/private/toolchains:gcc_arm64_asan_test",
-            "//cc/private/toolchains:gcc_arm64_dynamic_libstdcxx_test",
-            "//cc/private/toolchains:gcc_arm64_hello_c_test",
-            "//cc/private/toolchains:gcc_arm64_hello_test",
-            "//cc/private/toolchains:gcc_arm64_shared_test",
-            "//cc/private/toolchains:gcc_arm64_ubsan_test",
-            "//cc/private/toolchains:gcc_asan_test",
-            "//cc/private/toolchains:gcc_hello_test",
-            "//cc/private/toolchains:gcc_hello_c_test",
-            "//cc/private/toolchains:gcc_hello_lib_test",
-            "//cc/private/toolchains:gcc_shared_test",
-            "//cc/private/toolchains:gcc_ubsan_test",
+            "//cc/private/toolchain:gcc_arm64_asan_test",
+            "//cc/private/toolchain:gcc_arm64_dynamic_libstdcxx_test",
+            "//cc/private/toolchain:gcc_arm64_hello_c_test",
+            "//cc/private/toolchain:gcc_arm64_hello_test",
+            "//cc/private/toolchain:gcc_arm64_shared_test",
+            "//cc/private/toolchain:gcc_arm64_ubsan_test",
+            "//cc/private/toolchain:gcc_asan_test",
+            "//cc/private/toolchain:gcc_hello_test",
+            "//cc/private/toolchain:gcc_hello_c_test",
+            "//cc/private/toolchain:gcc_hello_lib_test",
+            "//cc/private/toolchain:gcc_shared_test",
+            "//cc/private/toolchain:gcc_ubsan_test",
         ],
         "consumer_tests": ["//tools/testing/hermetic:c_fixture_gcc", "//tools/testing/hermetic:cpp_fixture_gcc"],
         "compiler": "gcc",
@@ -107,17 +107,17 @@ ROWS = [
     },
     {
         "ci_tests": [
-            "//cc/private/toolchains:msvc_arm64_hello_test",
-            "//cc/private/toolchains:msvc_arm64_pe_machine_test",
-            "//cc/private/toolchains:msvc_c_test",
-            "//cc/private/toolchains:msvc_hello_c_test",
-            "//cc/private/toolchains:msvc_hello_lib_test",
-            "//cc/private/toolchains:msvc_hello_test",
-            "//cc/private/toolchains:msvc_shared_dbg_test",
-            "//cc/private/toolchains:msvc_shared_opt_test",
-            "//cc/private/toolchains:msvc_shared_test",
-            "//cc/private/toolchains:msvc_spaced_test",
-            "//cc/private/toolchains:msvc_static_crt_test",
+            "//cc/private/toolchain:msvc_arm64_hello_test",
+            "//cc/private/toolchain:msvc_arm64_pe_machine_test",
+            "//cc/private/toolchain:msvc_c_test",
+            "//cc/private/toolchain:msvc_hello_c_test",
+            "//cc/private/toolchain:msvc_hello_lib_test",
+            "//cc/private/toolchain:msvc_hello_test",
+            "//cc/private/toolchain:msvc_shared_dbg_test",
+            "//cc/private/toolchain:msvc_shared_opt_test",
+            "//cc/private/toolchain:msvc_shared_test",
+            "//cc/private/toolchain:msvc_spaced_test",
+            "//cc/private/toolchain:msvc_static_crt_test",
         ],
         "compiler": "msvc",
         "consumer_tests": ["//tools/testing/hermetic:c_fixture_msvc", "//tools/testing/hermetic:cpp_fixture_msvc"],
@@ -642,12 +642,12 @@ NOT_LANGUAGES = [
 COMPILER_BLOCKERS = {}
 
 # The identity test of each compiler that has one.
-COMPILER_PROBES = {"gcc": "//cc/private/toolchains:identity_gcc", "llvm": "//cc/private/toolchains:identity", "msvc": "//cc/private/toolchains:identity_msvc"}
+COMPILER_PROBES = {"gcc": "//cc/private/toolchain:identity_gcc", "llvm": "//cc/private/toolchain:identity", "msvc": "//cc/private/toolchain:identity_msvc"}
 
 # The identity test of a compiler on a platform where its COMPILER_PROBES test does not run.
 COMPILER_PLATFORM_PROBES = {
-    "gcc": {"linux_arm64": "//cc/private/toolchains:identity_gcc_arm64_native"},
-    "msvc": {"windows_arm64": "//cc/private/toolchains:identity_msvc_arm64_native"},
+    "gcc": {"linux_arm64": "//cc/private/toolchain:identity_gcc_arm64_native"},
+    "msvc": {"windows_arm64": "//cc/private/toolchain:identity_msvc_arm64_native"},
 }
 
 def _build_file(label):

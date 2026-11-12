@@ -2,7 +2,7 @@
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
 load("//qt/private/sdk:pins.bzl", "QT_VERSION")
 load("//qt:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module", "qt_rust_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -149,7 +149,7 @@ _QT_FONTS = select({
 _WINDOWS_CHILDREN = [":" + name + "_child" for name in _WINDOWS_CHILD_TOOLS]
 
 _VCRUNTIME = select({
-    "@platforms//os:windows": ["//cc/private/toolchains:msvc_vcruntime"],
+    "@platforms//os:windows": ["//cc/private/toolchain:msvc_vcruntime"],
     "//conditions:default": [],
 })
 
@@ -206,12 +206,12 @@ rust_test(
             _QT_TEST_ENV,
             DX_QT_CONSOLE_FIXTURE = "$(rootpath :console_fixture_windows_x86_64)",
             DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
-            DX_QT_VCRUNTIME = "$(rootpaths //cc/private/toolchains:msvc_vcruntime)",
+            DX_QT_VCRUNTIME = "$(rootpaths //cc/private/toolchain:msvc_vcruntime)",
         ),
         "@platforms//os:windows": dict(
             _QT_TEST_ENV,
             DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
-            DX_QT_VCRUNTIME = "$(rootpaths //cc/private/toolchains:msvc_vcruntime)",
+            DX_QT_VCRUNTIME = "$(rootpaths //cc/private/toolchain:msvc_vcruntime)",
         ),
         "//conditions:default": dict(
             _QT_TEST_ENV,

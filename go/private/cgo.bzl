@@ -1,6 +1,6 @@
 """Checks that the resolved C++ toolchain can build cgo."""
 
-load("//cc/private/toolchains:bindings.bzl", "cc_compiler_identity")
+load("//cc/private/toolchain:bindings.bzl", "cc_compiler_identity")
 
 def cgo_toolchain_error(compiler, target):
     """Returns why cgo cannot use this compiler, or "" when it can."""

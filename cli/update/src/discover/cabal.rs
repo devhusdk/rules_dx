@@ -2,9 +2,8 @@
 
 use dx_error::DxError;
 
-use super::{Candidate, Fetch, Findings, LookupError, numeric_cmp, wanted};
-use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet};
+use super::{Fetch, Findings, Latest, compare_declared, numeric_cmp};
+use std::collections::BTreeSet;
 
 pub const DEFAULT_BASE: &str = "https://hackage.haskell.org";
 
@@ -25,55 +24,25 @@ pub fn outdated(
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
-    let mut found = Findings::default();
     let declared: BTreeSet<String> = cabal_files
         .iter()
         .flat_map(|text| build_depends(text))
         .map(|depend| depend.name)
         .collect();
-    let mut pinned: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for text in freezes {
-        for (name, version) in frozen(text) {
-            if declared.contains(&name) {
-                let versions = pinned.entry(name).or_default();
-                if !versions.contains(&version) {
-                    versions.push(version);
-                }
-            }
-        }
-    }
-    for (name, versions) in pinned {
-        if !wanted(only, &name) {
-            continue;
-        }
+    let pinned = freezes
+        .iter()
+        .flat_map(|text| frozen(text))
+        .filter(|(name, _)| declared.contains(name));
+    compare_declared(set, pinned, only, numeric_cmp, |name| {
         let url = format!("{base}/package/{name}/preferred");
-        let latest = match fetch.get(&url).and_then(|body| newest(&body)) {
-            Ok(latest) => latest,
-            Err(reason) => {
-                found.errors.push(LookupError {
-                    set: set.to_owned(),
-                    package: name,
-                    reason: reason.to_string(),
-                });
-                continue;
-            }
-        };
-        for current in versions {
-            if numeric_cmp(&latest, &current) == Ordering::Greater {
-                found.candidates.push(Candidate {
-                    set: set.to_owned(),
-                    package: name.clone(),
-                    current,
-                    latest: latest.clone(),
-                    published: None,
-                    prerelease: false,
-                    repo: None,
-                    tags: None,
-                });
-            }
-        }
-    }
-    found
+        let latest = fetch.get(&url).and_then(|body| newest(&body))?;
+        Ok(Some(Latest {
+            version: latest,
+            published: None,
+            prerelease: false,
+            repo: None,
+        }))
+    })
 }
 
 /// Reads the `any.<name> ==<version>` entries of a cabal freeze file.

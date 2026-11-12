@@ -3,9 +3,8 @@
 
 use dx_error::DxError;
 
-use super::{Candidate, Findings, LookupError, wanted};
+use super::{Findings, Latest, compare_declared};
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
 use std::path::Path;
 
 /// Checks each pinned package of the lock files against the snapshot checkout at `snapshot`.
@@ -16,47 +15,16 @@ pub fn outdated(
     prereleases: bool,
     snapshot: &Path,
 ) -> Findings {
-    let mut found = Findings::default();
-    let mut pinned: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for text in locks {
-        for (name, version) in locked(text) {
-            let versions = pinned.entry(name).or_default();
-            if !versions.contains(&version) {
-                versions.push(version);
-            }
-        }
-    }
-    for (name, versions) in pinned {
-        if !wanted(only, &name) {
-            continue;
-        }
-        let newest = match newest(snapshot, &name, prereleases) {
-            Ok(newest) => newest,
-            Err(reason) => {
-                found.errors.push(LookupError {
-                    set: set.to_owned(),
-                    package: name,
-                    reason: reason.to_string(),
-                });
-                continue;
-            }
-        };
-        for current in versions {
-            if version_cmp(&newest, &current) == Ordering::Greater {
-                found.candidates.push(Candidate {
-                    set: set.to_owned(),
-                    package: name.clone(),
-                    current,
-                    latest: newest.clone(),
-                    published: None,
-                    prerelease: is_prerelease(&newest),
-                    repo: None,
-                    tags: None,
-                });
-            }
-        }
-    }
-    found
+    let declared = locks.iter().flat_map(|text| locked(text));
+    compare_declared(set, declared, only, version_cmp, |name| {
+        let latest = newest(snapshot, name, prereleases)?;
+        Ok(Some(Latest {
+            prerelease: is_prerelease(&latest),
+            version: latest,
+            published: None,
+            repo: None,
+        }))
+    })
 }
 
 /// Reads the `depends` entries that pin a version with `= "x"`.

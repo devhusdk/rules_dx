@@ -2,9 +2,8 @@
 
 use dx_error::DxError;
 
-use super::{Candidate, Fetch, Findings, LookupError, numeric_cmp, unquote, wanted};
+use super::{Fetch, Findings, Latest, compare_declared, numeric_cmp, unquote};
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://fastapi.metacpan.org";
 
@@ -17,53 +16,23 @@ pub fn outdated(
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
-    let mut found = Findings::default();
-    let mut declared: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for text in cpanfiles {
-        for line in text.lines() {
-            if let Some((name, current)) = declaration(line) {
-                let versions = declared.entry(name).or_default();
-                if !versions.contains(&current) {
-                    versions.push(current);
-                }
-            }
-        }
-    }
-    for (name, versions) in declared {
-        if !wanted(only, &name) {
-            continue;
-        }
+    let declared = cpanfiles
+        .iter()
+        .flat_map(|text| text.lines())
+        .filter_map(declaration);
+    compare_declared(set, declared, only, version_cmp, |name| {
         let url = format!("{base}/v1/module/{name}?fields=version,date,maturity");
-        let (latest, published, prerelease) = match fetch.get(&url).and_then(|body| newest(&body)) {
-            Ok(latest) => latest,
-            Err(reason) => {
-                found.errors.push(LookupError {
-                    set: set.to_owned(),
-                    package: name,
-                    reason: reason.to_string(),
-                });
-                continue;
-            }
-        };
+        let (latest, published, prerelease) = fetch.get(&url).and_then(|body| newest(&body))?;
         if prerelease && !prereleases {
-            continue;
+            return Ok(None);
         }
-        for current in versions {
-            if version_cmp(&latest, &current) == Ordering::Greater {
-                found.candidates.push(Candidate {
-                    set: set.to_owned(),
-                    package: name.clone(),
-                    current,
-                    latest: latest.clone(),
-                    published: published.clone(),
-                    prerelease,
-                    repo: None,
-                    tags: None,
-                });
-            }
-        }
-    }
-    found
+        Ok(Some(Latest {
+            version: latest,
+            published,
+            prerelease,
+            repo: None,
+        }))
+    })
 }
 
 fn declaration(line: &str) -> Option<(String, String)> {

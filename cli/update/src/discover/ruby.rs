@@ -3,7 +3,7 @@
 use dx_error::DxError;
 
 use super::{
-    Candidate, Fetch, Findings, LookupError, github_repo, numeric_cmp, release_cmp, unquote, wanted,
+    Fetch, Findings, Latest, compare_declared, github_repo, numeric_cmp, release_cmp, unquote,
 };
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -19,55 +19,28 @@ pub fn outdated(
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
-    let mut found = Findings::default();
-    let mut declared: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for text in gemfiles {
-        for line in text.lines() {
-            if let Some((name, current)) = declaration(line) {
-                let versions = declared.entry(name).or_default();
-                if !versions.contains(&current) {
-                    versions.push(current);
-                }
-            }
-        }
-    }
-    for (name, versions) in declared {
-        if !wanted(only, &name) {
-            continue;
-        }
+    let declared = gemfiles
+        .iter()
+        .flat_map(|text| text.lines())
+        .filter_map(declaration);
+    let mut found = compare_declared(set, declared, only, release_cmp, |name| {
         let url = format!("{base}/api/v1/versions/{name}.json");
-        let (latest, published, prerelease) =
-            match fetch.get(&url).and_then(|body| newest(&body, prereleases)) {
-                Ok(latest) => latest,
-                Err(reason) => {
-                    found.errors.push(LookupError {
-                        set: set.to_owned(),
-                        package: name,
-                        reason: reason.to_string(),
-                    });
-                    continue;
-                }
-            };
-        let mut repo = None;
-        let mut looked_up = false;
-        for current in versions {
-            if release_cmp(&latest, &current) == Ordering::Greater {
-                if !looked_up {
-                    looked_up = true;
-                    repo = repository(base, &name, fetch);
-                }
-                found.candidates.push(Candidate {
-                    set: set.to_owned(),
-                    package: name.clone(),
-                    current,
-                    latest: latest.clone(),
-                    published: published.clone(),
-                    prerelease,
-                    repo: repo.clone(),
-                    tags: None,
-                });
-            }
-        }
+        let (latest, published, prerelease) = fetch
+            .get(&url)
+            .and_then(|body| newest(&body, prereleases))?;
+        Ok(Some(Latest {
+            version: latest,
+            published,
+            prerelease,
+            repo: None,
+        }))
+    });
+    let mut repos: BTreeMap<String, Option<String>> = BTreeMap::new();
+    for candidate in &mut found.candidates {
+        candidate.repo = repos
+            .entry(candidate.package.clone())
+            .or_insert_with(|| repository(base, &candidate.package, fetch))
+            .clone();
     }
     found
 }
@@ -133,6 +106,7 @@ pub(crate) fn newest(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::discover::Candidate;
 
     const GEMFILE: &str = "source 'https://rubygems.org'\ngem 'rake'\ngem \"rails\", \"~> 7.0\", \">= 7.0.4\"\ngem 'fresh', '2.0', require: false\ngem 'gone', '1.0'\n  gem 'nokogiri', '>= 1.0'\n";
 

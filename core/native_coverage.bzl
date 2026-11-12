@@ -26,6 +26,7 @@ def dx_toolchain_tool(cc_toolchain, basename):
 def dx_native_coverage_attrs():
     """Returns the attributes native (C/C++/LLVM) coverage collection needs."""
     return dx_collect_cc_coverage_attr(Label("@dx_prebuilt//:collect_native")) | {
+        "_macos": attr.label(default = Label("@platforms//os:macos")),
         "_llvm_cov": attr.label(
             default = Label("@llvm//tools:llvm-cov"),
             executable = True,
@@ -59,8 +60,9 @@ def dx_native_test_coverage(ctx, upstream, gcov = False, llvm_cov = None, llvm_p
         llvm_profdata = None
         metadata = [collector, gcov_tool]
     else:
-        llvm_cov = llvm_cov or dx_toolchain_tool(cc_toolchain, "llvm-cov") or ctx.executable._llvm_cov
-        llvm_profdata = llvm_profdata or dx_toolchain_tool(cc_toolchain, "llvm-profdata") or ctx.executable._llvm_profdata
+        macos = ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo])
+        llvm_cov = llvm_cov or (None if macos else dx_toolchain_tool(cc_toolchain, "llvm-cov")) or ctx.executable._llvm_cov
+        llvm_profdata = llvm_profdata or (None if macos else dx_toolchain_tool(cc_toolchain, "llvm-profdata")) or ctx.executable._llvm_profdata
         metadata = [collector, llvm_cov, llvm_profdata]
     transitive = []
     if DxDataCoverageInfo in upstream:

@@ -421,7 +421,7 @@ pub fn stage_consumer(
     ran(
         runner,
         exe,
-        &["init", "--apply", "--workspace", &workspace],
+        &["init", "--apply", "--no-generate", "--workspace", &workspace],
         &dir,
     )
     .map_err(|error| format!("stage: {error}"))?;

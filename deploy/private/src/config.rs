@@ -41,6 +41,14 @@ pub struct GithubConfig {
     /// Workspace-relative directories of the Go modules to check.
     #[serde(default)]
     pub go_modules: Vec<String>,
+    /// `auto`, `off` or `required`.
+    pub sign: String,
+    #[serde(default)]
+    pub cosign_rloc: String,
+    #[serde(default)]
+    pub cosign_version: String,
+    #[serde(default)]
+    pub cosign_sha256: String,
 }
 
 /// Pins one Homebrew tap formula: the GitHub release config it renders from and the tap.
@@ -421,6 +429,12 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                 go_rloc: &github.go_rloc,
                 modules: &github.go_modules,
             },
+            &crate::github::Signing {
+                mode: &github.sign,
+                cosign_rloc: &github.cosign_rloc,
+                cosign_version: &github.cosign_version,
+                cosign_sha256: &github.cosign_sha256,
+            },
             argv,
         ),
         DeployConfig::HomebrewTap(tap) => crate::homebrew_tap_main(
@@ -729,7 +743,7 @@ mod tests {
     #[test]
     fn a_github_config_round_trips() {
         let config = parse(
-            r#"{"config":{"deploy_name":"demo","tag":"v1.0.0","asset_rlocs":["_main/a","x;y"],"api_compat":"off","api_baseline":"registry"},"kind":"github"}"#,
+            r#"{"config":{"deploy_name":"demo","tag":"v1.0.0","asset_rlocs":["_main/a","x;y"],"api_compat":"off","api_baseline":"registry","sign":"off"},"kind":"github"}"#,
         );
         assert_eq!(
             config,
@@ -744,6 +758,10 @@ mod tests {
                 apidiff_rloc: String::new(),
                 go_rloc: String::new(),
                 go_modules: Vec::new(),
+                sign: "off".to_owned(),
+                cosign_rloc: String::new(),
+                cosign_version: String::new(),
+                cosign_sha256: String::new(),
             }))
         );
     }
@@ -939,7 +957,7 @@ mod tests {
                 "missing field `checksum_rloc`",
             ),
             (
-                r#"{"kind":"github","config":{"deploy_name":"a","tag":"b","asset_rlocs":[],"api_compat":"off","api_baseline":"registry"},"extra":1}"#,
+                r#"{"kind":"github","config":{"deploy_name":"a","tag":"b","asset_rlocs":[],"api_compat":"off","api_baseline":"registry","sign":"off"},"extra":1}"#,
                 "string \"extra\", expected \"kind\" or \"config\"",
             ),
             ("not json", "invalid deploy config"),
@@ -992,7 +1010,7 @@ mod tests {
         let path = dir.path().join("demo.deploy.json");
         std::fs::write(
             &path,
-            r#"{"kind":"github","config":{"deploy_name":"d","tag":"t","asset_rlocs":[],"api_compat":"off","api_baseline":"registry"}}"#,
+            r#"{"kind":"github","config":{"deploy_name":"d","tag":"t","asset_rlocs":[],"api_compat":"off","api_baseline":"registry","sign":"off"}}"#,
         )
         .expect("write config");
         let resolve = |rloc: &str| match rloc {
@@ -1012,7 +1030,7 @@ mod tests {
         let path = dir.path().join("demo.deploy.json");
         std::fs::write(
             &path,
-            r#"{"kind":"github","config":{"deploy_name":"d","tag":"t","asset_rlocs":[],"api_compat":"off","api_baseline":"registry"}}"#,
+            r#"{"kind":"github","config":{"deploy_name":"d","tag":"t","asset_rlocs":[],"api_compat":"off","api_baseline":"registry","sign":"off"}}"#,
         )
         .expect("write config");
         let text = path.to_string_lossy().into_owned();
@@ -1057,6 +1075,10 @@ mod tests {
                 apidiff_rloc: String::new(),
                 go_rloc: String::new(),
                 go_modules: Vec::new(),
+                sign: "off".to_owned(),
+                cosign_rloc: String::new(),
+                cosign_version: String::new(),
+                cosign_sha256: String::new(),
             }),
             DeployConfig::HomebrewTap(HomebrewTapConfig {
                 release_rloc: "a".to_owned(),

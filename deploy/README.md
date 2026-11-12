@@ -502,10 +502,15 @@ github_deploy(
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility). `go_modules` lists
   the workspace-relative module directories to check; empty means the `go.mod` at the root.
+- `sign`: `auto` (default), `off` or `required`. A live run signs each asset with the pinned cosign and uploads
+  `<asset>.sigstore.json` when `COSIGN_KEY` is set or the run has a GitHub OIDC token
+  (`ACTIONS_ID_TOKEN_REQUEST_URL`); `required` fails without either.
 
 Default run stages `<name>-release/` with the assets (none for a notes-only draft) and a `would-run.txt`
 holding their sha256 and the `gh release create` command. Nothing is
 published.
+
+The run prints the identity it would sign with and each `<asset>.sigstore.json` it would upload.
 
 The run also prints each asset's size in the latest published release, read with `gh release view`,
 so a budget can be set from it. Without `gh` or network, it prints why that release is unavailable and still succeeds.

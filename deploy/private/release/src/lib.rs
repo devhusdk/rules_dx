@@ -46,6 +46,11 @@ pub use deploy::{
 pub use ledger::{OpRecord, OpState, ledger_exit, render_ledger};
 pub use tool::release_tool_run;
 
+pub use dx_deploy_tools::signing::{
+    CosignPin, cosign_git_version, sign_argv as signing_sign_argv, signing_version_ok,
+    verify_argv as signing_verify_argv,
+};
+use dx_deploy_tools::signing::{check_pin, sign_one};
 use spdx::SpdxDocument;
 
 fn basename(path: &Path) -> io::Result<String> {
@@ -612,12 +617,6 @@ pub fn bcr_submit_record(subject: &str, result: &str, pr_url: &str) -> OpRecord 
     OpRecord::new("bcr-submit", subject, state, &detail)
 }
 
-pub struct CosignPin<'a> {
-    pub path: &'a str,
-    pub version: &'a str,
-    pub sha256: &'a str,
-}
-
 pub fn render_signing_dry_run(
     identity: &str,
     issuer: &str,
@@ -682,66 +681,11 @@ pub fn signing_run(
     signing_live(identity, issuer, assets, pin, outdir)
 }
 
-pub fn signing_sign_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String> {
-    vec![
-        cosign.to_owned(),
-        "sign-blob".to_owned(),
-        "--yes".to_owned(),
-        "--new-bundle-format".to_owned(),
-        "--bundle".to_owned(),
-        bundle.to_owned(),
-        asset.to_owned(),
-    ]
-}
-
-pub fn signing_verify_argv(
-    cosign: &str,
-    asset: &str,
-    bundle: &str,
-    identity: &str,
-    issuer: &str,
-) -> Vec<String> {
-    vec![
-        cosign.to_owned(),
-        "verify-blob".to_owned(),
-        "--bundle".to_owned(),
-        bundle.to_owned(),
-        "--certificate-identity".to_owned(),
-        identity.to_owned(),
-        "--certificate-oidc-issuer".to_owned(),
-        issuer.to_owned(),
-        asset.to_owned(),
-    ]
-}
-
-pub fn cosign_git_version(version_output: &str) -> Option<&str> {
-    version_output
-        .lines()
-        .find_map(|line| line.trim_start().strip_prefix("GitVersion:"))
-        .map(str::trim)
-}
-
-pub fn signing_version_ok(version_output: &str, want: &str) -> bool {
-    cosign_git_version(version_output) == Some(want)
-}
-
 fn signing_bundle_for(asset: &str, outdir: &Path) -> String {
     outdir
         .join(format!("{}.bundle", basename_of(asset)))
         .to_string_lossy()
         .into_owned()
-}
-
-const SIGN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
-
-/// Runs `argv` with the inherited environment and working directory.
-fn run_output(argv: &[String]) -> Result<dx_process::capture::Captured, String> {
-    let (binary, args) = argv
-        .split_first()
-        .ok_or_else(|| "invocation needs a binary".to_owned())?;
-    let mut command = std::process::Command::new(binary);
-    command.args(args);
-    dx_process::capture::run_captured(&mut command, SIGN_TIMEOUT).map_err(|error| error.to_string())
 }
 
 fn signing_live(
@@ -751,25 +695,7 @@ fn signing_live(
     pin: &CosignPin<'_>,
     outdir: &Path,
 ) -> Result<String, String> {
-    let actual = dx_digest::sha256_file_hex(std::path::Path::new(pin.path))
-        .map_err(|error| format!("signing: cannot hash cosign at {}: {error}", pin.path))?;
-    if actual != pin.sha256 {
-        return Err(format!(
-            "signing: cosign at {} has sha256 {actual}, want {} (pinned per deploy/private/release/cosign_pins.bzl); refusing to sign",
-            pin.path, pin.sha256
-        ));
-    }
-    let version_argv = vec![pin.path.to_owned(), "version".to_owned()];
-    let version_out = run_output(&version_argv)
-        .map_err(|error| format!("signing: cannot run '{} version': {error}", pin.path))?;
-    let version_text = version_out.stdout_text() + &String::from_utf8_lossy(&version_out.stderr);
-    if !version_out.success() || !signing_version_ok(&version_text, pin.version) {
-        return Err(format!(
-            "signing: cosign GitVersion must be {} (pinned per deploy/private/release/cosign_pins.bzl); got: {}",
-            pin.version,
-            cosign_git_version(&version_text).unwrap_or("none")
-        ));
-    }
+    check_pin(pin)?;
     std::fs::create_dir_all(outdir)
         .map_err(|error| format!("signing: cannot create {}: {error}", outdir.display()))?;
     let records = signing_sign_assets(identity, issuer, assets, pin, outdir);
@@ -846,25 +772,8 @@ fn signing_sign_one(
     bundle: &str,
     pin: &CosignPin<'_>,
 ) -> Result<(), String> {
-    let sign_argv = signing_sign_argv(pin.path, asset, bundle);
-    let sign_out = run_output(&sign_argv)
-        .map_err(|error| format!("signing: cannot run '{}': {error}", sign_argv.join(" ")))?;
-    if !sign_out.success() {
-        return Err(format!(
-            "signing: '{}' failed for {asset}; publishing nothing",
-            sign_argv.join(" ")
-        ));
-    }
-    let verify_argv = signing_verify_argv(pin.path, asset, bundle, identity, issuer);
-    let verify_out = run_output(&verify_argv)
-        .map_err(|error| format!("signing: cannot run '{}': {error}", verify_argv.join(" ")))?;
-    if !verify_out.success() {
-        return Err(format!(
-            "signing: '{}' failed for {asset}; bundle rejected, publishing nothing",
-            verify_argv.join(" ")
-        ));
-    }
-    Ok(())
+    let verify = signing_verify_argv(pin.path, asset, bundle, identity, issuer);
+    sign_one(pin, asset, bundle, false, Some(verify))
 }
 
 pub fn render_release_dry_run(tag: &str, approve: &str) -> String {

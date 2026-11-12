@@ -540,7 +540,7 @@ end
         std::fs::write(runfiles.join("t-darwin-arm64.tar.gz"), b"mac").expect("write asset");
         std::fs::write(
             runfiles.join("release.json"),
-            r#"{"kind":"github","config":{"deploy_name":"r","tag":"v1.2.3","asset_rlocs":["t-darwin-arm64.tar.gz"],"api_compat":"off","api_baseline":"registry"}}"#,
+            r#"{"kind":"github","config":{"deploy_name":"r","tag":"v1.2.3","asset_rlocs":["t-darwin-arm64.tar.gz"],"api_compat":"off","api_baseline":"registry","sign":"off"}}"#,
         )
         .expect("write release");
         let bin = scratch.path().join("bin");
@@ -595,7 +595,7 @@ end
         std::fs::write(runfiles.join("t-linux-amd64.tar.gz"), b"lin").expect("write asset");
         std::fs::write(
             runfiles.join("release.json"),
-            r#"{"kind":"github","config":{"deploy_name":"r","tag":"v1.2.3","asset_rlocs":["t-linux-amd64.tar.gz"],"api_compat":"off","api_baseline":"registry"}}"#,
+            r#"{"kind":"github","config":{"deploy_name":"r","tag":"v1.2.3","asset_rlocs":["t-linux-amd64.tar.gz"],"api_compat":"off","api_baseline":"registry","sign":"off"}}"#,
         )
         .expect("write release");
         let outdir = scratch.path().join("out");

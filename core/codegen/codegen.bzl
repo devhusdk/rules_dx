@@ -253,7 +253,10 @@ def _dx_codegen_shard_impl(ctx):
     out = plan_shard_emit(ctx, "codegen", producer, "--language", ctx.attr.language, ctx.attr.entries, DX_CODEGEN_SHARD_SUFFIX, "DxCodegenShard")
     return [
         DefaultInfo(files = depset([out])),
-        DxCodegenPlanInfo(direct = [record], transitive = depset([record])),
+        DxCodegenPlanInfo(
+            direct = [record],
+            transitive = depset([record], transitive = [dep[DxCodegenPlanInfo].transitive for dep in ctx.attr.deps]),
+        ),
         OutputGroupInfo(dx_codegen_plans = depset([out])),
     ]
 
@@ -264,6 +267,7 @@ dx_codegen_shard = rule(
         "deps": attr.label_list(
             doc = "Other codegen shard targets whose plans are collected.",
             default = [],
+            providers = [DxCodegenPlanInfo],
         ),
         "entries": attr.string_list(
             doc = "Pipe separated codegen entries of logical path, root and namespace.",
@@ -296,9 +300,6 @@ def _dx_codegen_plan_aspect_impl(target, ctx):
         DX_CODEGEN_PLAN_OUTPUT_GROUP,
         _CODEGEN_ASPECT_ATTRS,
     )
-    conflict = codegen_conflict_error(inputs.merged_records.to_list())
-    if conflict != "":
-        fail("dx_codegen_plan_aspect on " + display_label(target.label) + ": " + conflict)
     own = []
     if ctx.label.workspace_name == "":
         own.append(ctx.label.package + "/BUILD.bazel" if ctx.label.package else "BUILD.bazel")
@@ -461,6 +462,9 @@ prost_codegen_shard = codegen_shard_rule(
 def _codegen_plan_subject_impl(ctx):
     target = ctx.attr.target
     records = plan_shard_subject_records(target, DxCodegenPlanInfo, DxCodegenPlanCollectedInfo)
+    conflict = codegen_conflict_error(records)
+    if conflict != "":
+        fail("codegen_plan_subject on " + display_label(target.label) + ": " + conflict)
     shard_files = plan_shard_subject_files(target, DX_CODEGEN_PLAN_OUTPUT_GROUP)
     plan = {
         "files": ",".join([f.basename for f in shard_files]),

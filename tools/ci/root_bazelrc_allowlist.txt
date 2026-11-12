@@ -12,7 +12,6 @@
 --experimental_strict_java_deps
 --extra_toolchains
 --features
---flaky_test_attempts
 --host_jvm_args
 --host_linkopt
 --host_per_file_copt

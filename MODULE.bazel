@@ -1374,9 +1374,9 @@ _zig_http_archive(
     name = "zig_app_xxhash",
     build_file = "//zig/tests/fixtures/zig-app:xxhash.BUILD.bazel",
     dev_dependency = True,
-    sha256 = "aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80",
-    strip_prefix = "xxHash-0.8.3",
-    urls = ["https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.3.tar.gz"],
+    sha256 = "5738270935e7c3d38a79b3adf7c9692566ce7895a25f67de43ad52ab504acd32",
+    strip_prefix = "xxHash-0.8.4",
+    urls = ["https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.4.tar.gz"],
 )
 
 _dx_http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
@@ -2602,17 +2602,17 @@ _http_archive(
 _http_archive(
     name = "c_app_cjson",
     build_file = "//cc/tests/fixtures/c-app:cjson.BUILD.bazel",
-    sha256 = "3aa806844a03442c00769b83e99970be70fbef03735ff898f4811dd03b9f5ee5",
-    strip_prefix = "cJSON-1.7.18",
-    urls = ["https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.18.tar.gz"],
+    sha256 = "7fa616e3046edfa7a28a32d5f9eacfd23f92900fe1f8ccd988c1662f30454562",
+    strip_prefix = "cJSON-1.7.19",
+    urls = ["https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.19.tar.gz"],
 )
 
 _http_archive(
     name = "cpp_app_fmt",
     build_file = "//cc/tests/fixtures/cpp-app:fmt.BUILD.bazel",
-    sha256 = "ea7de4299689e12b6dddd392f9896f08fb0777ac7168897a244a6d6085043fea",
-    strip_prefix = "fmt-12.1.0",
-    urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz"],
+    sha256 = "449374d74f31b67796dece454d59b93e6f1538efcce0e9ac78000c98142c139e",
+    strip_prefix = "fmt-12.2.1",
+    urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.2.1.tar.gz"],
 )
 
 dx_source_archives = use_extension("//core:extensions.bzl", "dx_source_archives")

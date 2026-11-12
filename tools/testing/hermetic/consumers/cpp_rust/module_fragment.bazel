@@ -19,17 +19,17 @@ http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "ht
 http_archive(
     name = "c_app_cjson",
     build_file = "//cc/tests/fixtures/c-app/store:cjson.build",
-    sha256 = "3aa806844a03442c00769b83e99970be70fbef03735ff898f4811dd03b9f5ee5",
-    strip_prefix = "cJSON-1.7.18",
-    urls = ["https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.18.tar.gz"],
+    sha256 = "7fa616e3046edfa7a28a32d5f9eacfd23f92900fe1f8ccd988c1662f30454562",
+    strip_prefix = "cJSON-1.7.19",
+    urls = ["https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.19.tar.gz"],
 )
 
 http_archive(
     name = "cpp_app_fmt",
     build_file = "//cc/tests/fixtures/cpp-app/core:fmt.build",
-    sha256 = "ea7de4299689e12b6dddd392f9896f08fb0777ac7168897a244a6d6085043fea",
-    strip_prefix = "fmt-12.1.0",
-    urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz"],
+    sha256 = "449374d74f31b67796dece454d59b93e6f1538efcce0e9ac78000c98142c139e",
+    strip_prefix = "fmt-12.2.1",
+    urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.2.1.tar.gz"],
 )
 
 bazel_dep(name = "rules_jvm_external", version = "7.2")

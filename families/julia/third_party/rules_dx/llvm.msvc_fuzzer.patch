@@ -48,3 +48,14 @@ diff -ruN a/runtimes/BUILD.bazel b/runtimes/BUILD.bazel
          "//config:fuzzer_enabled": {
              "//runtimes/compiler-rt:clang_rt.fuzzer.static": "libclang_rt.fuzzer",
              "//runtimes/compiler-rt:clang_rt.fuzzer_no_main.static": "libclang_rt.fuzzer_no_main",
+diff -ruN a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+--- a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
++++ b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+@@ -928,6 +928,7 @@
+             "@llvm-project//libcxxabi:headers",
+             ":linux_libc_headers",
+         ],
++        ":windows_msvc": [],
+         "@platforms//os:windows": [
+             "@llvm-project//libcxx:headers",
+             "@llvm-project//libcxxabi:headers",

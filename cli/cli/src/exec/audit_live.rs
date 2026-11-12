@@ -1336,9 +1336,7 @@ impl dx_plan::resolve::QueryRunner for RealGit {
 }
 
 fn real_secret_paths(harness: &Harness) -> (Vec<String>, Option<String>) {
-    let tool = dx_testing::resolve_runfiles(
-        &std::env::var("DX_TEST_GITLEAKS").expect("DX_TEST_GITLEAKS names the pinned gitleaks"),
-    );
+    let tool = dx_testing::env_file("DX_TEST_GITLEAKS");
     let tool = std::path::absolute(tool).expect("absolute gitleaks path");
     let runner = RealGitleaks { tool };
     let bazel = super::QueryBazel {

@@ -1,11 +1,11 @@
 use dx_deploy_tools::{archive_extract, archive_listing};
-use dx_testing::{image_machine, resolve_runfiles};
+use dx_testing::{env_file, image_machine};
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
 #[test]
 fn gcc_archive_runs_on_a_clean_environment_without_toolchain_files() {
-    let archive = resolve_runfiles(&std::env::var("ARCHIVE").expect("ARCHIVE"));
+    let archive = env_file("ARCHIVE");
     let mut names: Vec<String> = archive_listing(&archive)
         .expect("list archive")
         .into_iter()

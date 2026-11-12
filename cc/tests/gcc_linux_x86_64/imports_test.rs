@@ -1,8 +1,8 @@
-use dx_testing::{resolve_runfiles};
+use dx_testing::env_file;
 use std::process::Command;
 
 fn archiver(scratch: &std::path::Path, args: &[&str]) -> std::process::Output {
-    let tool = resolve_runfiles(&std::env::var("ARCHIVER").expect("ARCHIVER"));
+    let tool = env_file("ARCHIVER");
     Command::new(tool)
         .arg("--imports")
         .arg(scratch.join("ok"))
@@ -13,7 +13,7 @@ fn archiver(scratch: &std::path::Path, args: &[&str]) -> std::process::Output {
 
 #[test]
 fn missing_libstdcxx_member_fails_the_import_check() {
-    let app = resolve_runfiles(&std::env::var("APP").expect("APP"));
+    let app = env_file("APP");
     let guard = dx_test_scratch::scratch("gcc-imports");
     let scratch = guard.path();
     let member = format!("hello_cxx_gcc={}", app.display());
@@ -29,7 +29,7 @@ fn missing_libstdcxx_member_fails_the_import_check() {
 
 #[test]
 fn provided_libstdcxx_passes_the_import_check() {
-    let app = resolve_runfiles(&std::env::var("APP").expect("APP"));
+    let app = env_file("APP");
     let guard = dx_test_scratch::scratch("gcc-imports-ok");
     let scratch = guard.path();
     let member = format!("hello_cxx_gcc={}", app.display());

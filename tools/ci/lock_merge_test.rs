@@ -1,4 +1,4 @@
-use dx_testing::runfiles_root;
+use dx_testing::env_file;
 use serde_json::{Value, json};
 use std::path::Path;
 use std::process::Command;
@@ -83,7 +83,7 @@ fn merge(locks: &[(String, Value)]) -> Option<Value> {
         .collect();
     write_locks(&inputs, &borrowed);
     let out = dir.path().join("MODULE.bazel.lock");
-    let bin = runfiles_root().join(std::env::var("DX_PRODUCERS_BIN").expect("DX_PRODUCERS_BIN"));
+    let bin = env_file("DX_PRODUCERS_BIN");
     let output = Command::new(bin)
         .arg("--lock-merge")
         .arg(&inputs)

@@ -34,11 +34,11 @@ fn scene(name: &str) -> Scene {
     let ungranted = root.join("ungranted");
     std::fs::create_dir_all(&granted).expect("granted dir");
     std::fs::create_dir_all(&ungranted).expect("ungranted dir");
-    let built = dx_testing::resolve_runfiles(&std::env::var("DX_HERMETIC_WINDOWS_PROBE").unwrap());
+    let built = dx_testing::env_file("DX_HERMETIC_WINDOWS_PROBE");
     let probe = granted.join("probe.exe");
     std::fs::copy(&built, &probe).expect("copy the probe");
     let launcher =
-        dx_testing::resolve_runfiles(&std::env::var("DX_HERMETIC_APPCONTAINER").unwrap());
+        dx_testing::env_file("DX_HERMETIC_APPCONTAINER");
     let isolation = Isolation {
         launcher,
         grants: vec![granted.clone()],

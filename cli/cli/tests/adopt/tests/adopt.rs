@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use dx_test_scratch::{TempDir, scratch};
-use dx_testing::resolve_runfiles;
+use dx_testing::{env_file, resolve_runfiles};
 
 struct Out {
     code: i32,
@@ -17,7 +17,7 @@ fn dx(root: &Path, home: &Path, args: &[&str]) -> Out {
 }
 
 fn dx_with_env(root: &Path, home: &Path, args: &[&str], env: &[(&str, &str)]) -> Out {
-    let bin = resolve_runfiles(&std::env::var("DX_BIN").expect("DX_BIN must be set"));
+    let bin = env_file("DX_BIN");
     let path = dx_testing::fake_generate_bazel_path(
         &home.parent().expect("base").join("fake-bin"),
         &dx_testing::env_file("DX_FAKE_GENERATE"),
@@ -265,9 +265,7 @@ fn fresh_clone_regenerates_dx_on_first_command() {
         let text = std::str::from_utf8(bytes).expect("utf-8");
         actual.push_str(&format!("=== {}\n{text}", path.display()));
     }
-    let golden = resolve_runfiles(
-        &std::env::var("DX_FRESH_INIT_GOLDEN").expect("DX_FRESH_INIT_GOLDEN must be set"),
-    );
+    let golden = env_file("DX_FRESH_INIT_GOLDEN");
     assert!(
         read(&golden) == actual,
         "update cli/cli/tests/adopt/golden/fresh_init_dx.txt to:\n{actual}"

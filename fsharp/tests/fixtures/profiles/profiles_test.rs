@@ -1,7 +1,5 @@
 fn rules(env: &str) -> Vec<String> {
-    let rel = std::env::var(env).unwrap_or_else(|_| panic!("{env} must name a lint output"));
-    let text =
-        std::fs::read_to_string(dx_testing::resolve_runfiles(&rel)).expect("read lint output");
+    let text = std::fs::read_to_string(dx_testing::env_file(env)).expect("read lint output");
     text.lines()
         .map(|line| {
             let record: dx_testing::serde_json::Value = dx_testing::serde_json::from_str(line)

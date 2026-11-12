@@ -518,9 +518,7 @@ fn tools_report_the_pinned_version() {
 
 #[test]
 fn uic_generates_the_form_class() {
-    let form = dx_testing::resolve_runfiles(
-        &std::env::var("DX_QT_FORM").expect("DX_QT_FORM must name a form"),
-    );
+    let form = dx_testing::env_file("DX_QT_FORM");
     let run = dx_testing::run(
         &env_file("DX_UIC"),
         &[form.to_str().expect("utf-8 path")],
@@ -809,10 +807,7 @@ fn elf_needed(path: &Path) -> BTreeSet<String> {
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn pinned_needs(table: &str) -> std::collections::BTreeMap<String, BTreeSet<String>> {
-    let text = std::fs::read_to_string(dx_testing::resolve_runfiles(
-        &std::env::var("DX_QT_NEEDS").expect("DX_QT_NEEDS"),
-    ))
-    .expect("needs tables");
+    let text = std::fs::read_to_string(dx_testing::env_file("DX_QT_NEEDS")).expect("needs tables");
     let tables: std::collections::BTreeMap<
         String,
         std::collections::BTreeMap<String, BTreeSet<String>>,
@@ -835,10 +830,7 @@ fn shared_objects(dir: &Path, found: &mut Vec<PathBuf>) {
 #[cfg(target_os = "linux")]
 #[test]
 fn the_pinned_dependency_tables_match_the_shipped_libraries() {
-    let qmldir = std::fs::canonicalize(dx_testing::resolve_runfiles(
-        &std::env::var("DX_QT_QMLDIR_PATH").expect("DX_QT_QMLDIR_PATH"),
-    ))
-    .expect("qmldir");
+    let qmldir = std::fs::canonicalize(dx_testing::env_file("DX_QT_QMLDIR_PATH")).expect("qmldir");
     let cell = qmldir.ancestors().nth(3).expect("cell root").to_path_buf();
     let mut libraries = std::collections::BTreeMap::new();
     for entry in std::fs::read_dir(cell.join("lib")).expect("lib") {
@@ -932,10 +924,7 @@ fn dylibs(dir: &Path, found: &mut Vec<PathBuf>) {
 #[cfg(target_os = "macos")]
 #[test]
 fn the_pinned_dependency_tables_match_the_shipped_frameworks() {
-    let qmldir = std::fs::canonicalize(dx_testing::resolve_runfiles(
-        &std::env::var("DX_QT_QMLDIR_PATH").expect("DX_QT_QMLDIR_PATH"),
-    ))
-    .expect("qmldir");
+    let qmldir = std::fs::canonicalize(dx_testing::env_file("DX_QT_QMLDIR_PATH")).expect("qmldir");
     let cell = qmldir.ancestors().nth(3).expect("cell root").to_path_buf();
     let mut libraries = std::collections::BTreeMap::new();
     for entry in std::fs::read_dir(cell.join("lib")).expect("lib") {

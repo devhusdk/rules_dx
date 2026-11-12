@@ -1,6 +1,6 @@
 //! Pins the `dart analyze --format=json` contract the quality parser relies on. dart.dev documents
 //! neither the exit codes nor the JSON shape, so an SDK bump that changes them fails here first.
-use dx_testing::resolve_runfiles;
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -32,7 +32,7 @@ impl Project {
 
     /// Runs the analyzer with no HOME, as the quality runner does.
     fn analyze(&self, paths: &[&Path]) -> Output {
-        let bin = resolve_runfiles(&std::env::var("DART").expect("DART"));
+        let bin = env_file("DART");
         Command::new(bin)
             .env_clear()
             .env("DART_SUPPRESS_ANALYTICS", "true")

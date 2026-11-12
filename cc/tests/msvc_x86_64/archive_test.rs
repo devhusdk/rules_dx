@@ -1,10 +1,10 @@
 use dx_deploy_tools::{archive_extract, archive_listing};
-use dx_testing::{resolve_runfiles};
+use dx_testing::env_file;
 use std::process::Command;
 
 #[test]
 fn msvc_archive_ships_the_vc_runtime_and_runs_on_a_clean_path() {
-    let archive = resolve_runfiles(&std::env::var("ARCHIVE").expect("ARCHIVE"));
+    let archive = env_file("ARCHIVE");
     let names: Vec<String> = archive_listing(&archive)
         .expect("list archive")
         .into_iter()

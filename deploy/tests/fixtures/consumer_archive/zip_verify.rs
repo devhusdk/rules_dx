@@ -1,32 +1,23 @@
-use std::path::PathBuf;
-
-fn var(name: &str) -> String {
-    std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"))
-}
-
-fn data(name: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&var(name))
-}
-
 #[test]
 fn archive_lists_extracts_and_hashes_in_process() {
-    let archive = data("DX_ARCHIVE");
-    let suffix = var("DX_ARCHIVE_SUFFIX");
+    let archive = dx_testing::env_file("DX_ARCHIVE");
+    let suffix = dx_testing::env_text("DX_ARCHIVE_SUFFIX");
     assert!(
         archive.to_string_lossy().ends_with(&format!(".{suffix}")),
         "{} must end with .{suffix}",
         archive.display()
     );
-    let checksum = std::fs::read_to_string(data("DX_ARCHIVE_CHECKSUM")).expect("read checksum");
+    let checksum = std::fs::read_to_string(dx_testing::env_file("DX_ARCHIVE_CHECKSUM"))
+        .expect("read checksum");
     let bytes = std::fs::read(&archive).expect("read archive");
     assert_eq!(
         checksum.split_whitespace().next(),
         Some(dx_digest::sha256_hex(&bytes).as_str())
     );
-    let bare = var("DX_ARCHIVE_APP");
+    let bare = dx_testing::env_text("DX_ARCHIVE_APP");
     let app = format!("{bare}{}", std::env::consts::EXE_SUFFIX);
-    let runtime = var("DX_ARCHIVE_RUNTIME");
-    let mut want: Vec<String> = var("DX_ARCHIVE_MEMBERS")
+    let runtime = dx_testing::env_text("DX_ARCHIVE_RUNTIME");
+    let mut want: Vec<String> = dx_testing::env_text("DX_ARCHIVE_MEMBERS")
         .split(',')
         .map(|member| {
             if member == bare {

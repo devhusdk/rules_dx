@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Output;
 
-use dx_testing::{resolve_runfiles, rlocation, rlocation_key};
+use dx_testing::{env_file, env_text, resolve_runfiles, rlocation, rlocation_key};
 
 struct Input {
     key: String,
@@ -9,7 +9,7 @@ struct Input {
 }
 
 fn input(name: &str) -> Input {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
+    let rel = env_text(name);
     Input {
         key: rlocation_key(&rel),
         path: resolve_runfiles(&rel),
@@ -17,7 +17,7 @@ fn input(name: &str) -> Input {
 }
 
 fn program(name: &str) -> PathBuf {
-    input(name).path
+    env_file(name)
 }
 
 fn bytes(path: &Path) -> Vec<u8> {

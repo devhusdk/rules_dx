@@ -81,7 +81,7 @@ def inventory_file_tests(name, app, present, absent, texts_contain = []):
             name = name + "_all_texts",
             srcs = [":" + name + "_inventory_texts"],
             outs = [name + "_all_texts.txt"],
-            cmd = "find $(locations :" + name + "_inventory_texts) -type f | sort | xargs cat > $@",
+            cmd = "find -L $(locations :" + name + "_inventory_texts) -type f | sort | xargs cat > $@",
         )
         file_checks[":" + name + "_all_texts"] = "\n".join(texts_contain)
     starlark_test(

@@ -30,12 +30,20 @@ def _find(files, suffix):
             return f
     fail("the OCaml install tree has no " + suffix)
 
-def _sysroot(files):
+def xcode_env(link_env):
+    """Returns whether the C toolchain's link env already names an Xcode SDK."""
+    return "APPLE_SDK_PLATFORM" in link_env or "SDKROOT" in link_env
+
+def sdk_root(files):
+    """Returns the path of the C toolchain's sysroot directory in `files`."""
+    for f in files:
+        if f.basename == "sysroot":
+            return f.path
     for f in files:
         head, found, _ = f.path.partition("/sysroot/")
         if found:
             return head + "/sysroot"
-    fail("the C toolchain has no sysroot directory")
+    fail("the C toolchain has neither an Xcode SDK env nor the @macos_sdk sysroot")
 
 def _env(ctx, tree):
     cc = find_cc_toolchain(ctx)
@@ -57,6 +65,7 @@ def _env(ctx, tree):
     }
     drivers = cc_drivers(ctx)
     macos = ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo])
+    xcode = macos and xcode_env(link_env)
     applets = coreutils(ctx)
     env = native_cc_env(
         cc = tool(ACTION_NAMES.c_compile),
@@ -66,10 +75,10 @@ def _env(ctx, tree):
         path = ":".join([_abs(drivers[0].dirname), _abs(compiler.dirname), _abs(applets.path)]),
         macos = macos,
         link_env = link_env,
-        lld = True,
+        lld = not xcode,
     )
-    if macos:
-        env["SDKROOT"] = _abs(_sysroot(cc.all_files.to_list()))
+    if macos and not xcode:
+        env["SDKROOT"] = _abs(sdk_root(cc.all_files.to_list()))
     env["DX_OCAML_AS_DROP_DEBUG_PREFIX_MAP"] = "1"
     return struct(
         env = env,

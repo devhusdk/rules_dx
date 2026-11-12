@@ -4,6 +4,7 @@ load("//core:rlocation.bzl", "runfiles_path")
 load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "launcher_descriptor", "owned_sources", "toolchain_choice")
+load(":dune.bzl", "sdk_root", "xcode_env")
 load(":kwargs.bzl", "ocaml_coverage_kwargs", "ocaml_default_module_name", "ocaml_link_kwargs", "ocaml_test_upstream_kwargs", "ocaml_upstream_tags", "ocaml_with_defaults")
 load(":providers.bzl", "STANDARD_WARNING_OPTS", "STRICT_WARNING_OPTS", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
 
@@ -323,6 +324,37 @@ dx_wrapper_contract_tests(
             "external runfiles",
             runfiles_path("_main", "../repo/bin/ocamlrun"),
             "repo/bin/ocamlrun",
+        ),
+        expect_equal(
+            "the SDK root is the sysroot directory artifact",
+            sdk_root([fake_file(
+                path = "external/llvm++osx+macos_sdk/sysroot",
+                basename = "sysroot",
+            )]),
+            "external/llvm++osx+macos_sdk/sysroot",
+        ),
+        expect_equal(
+            "the SDK root is the sysroot component of a file under it",
+            sdk_root([fake_file(
+                path = "x/sysroot/usr/include/a.h",
+                basename = "a.h",
+            )]),
+            "x/sysroot",
+        ),
+        expect_equal(
+            "an Xcode link env names the SDK",
+            xcode_env({"APPLE_SDK_PLATFORM": "MacOSX", "XCODE_VERSION_OVERRIDE": "16.4"}),
+            True,
+        ),
+        expect_equal(
+            "a Command Line Tools link env names the SDK",
+            xcode_env({"SDKROOT": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"}),
+            True,
+        ),
+        expect_equal(
+            "an empty link env names no SDK",
+            xcode_env({}),
+            False,
         ),
         expect_equal(
             "launcher runs bytecode on ocamlrun",

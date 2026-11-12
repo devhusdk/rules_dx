@@ -1,10 +1,13 @@
 """JS-framework library wrappers over js_library."""
 
+load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load(":defs.bzl", "javascript_test")
-load("//core:wrapper.bzl", "dx_language_spec", "dx_library_forward_rule", "dx_wrap")
+load(":defs.bzl", "javascript_forward_test", "javascript_test_rejection")
+load("//core:entry.bzl", "dx_entry_quality_srcs")
+load("//core:node_test.bzl", "node_jest_upstream_attrs", "node_test_wrap_args")
+load("//core:wrapper.bzl", "dx_language_spec", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//cli/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
@@ -36,20 +39,19 @@ def dx_framework_jest_files(transform):
         srcs = [transform],
     )
 
-def dx_framework_test(name, srcs, config, transform, packages, node_modules, data = None, **kwargs):
+def dx_framework_test(name, srcs, config, transform, packages, node_modules, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Runs jest over framework components. `transform` compiles them, `config` builds the jest config from the shared helper, and `packages` are the node_modules packages (the compiler) the transform needs."""
     if "config" in kwargs:
         fail(name + ": config is set by the framework test rule")
-    javascript_test(
-        name = name,
-        srcs = srcs,
-        config = config,
-        data = list(data or []) + [transform, Label("//javascript/private:framework_jest_config")] +
-               [node_modules + "/" + package for package in packages],
-        node_modules = node_modules,
-        node_options = ["--experimental-vm-modules"],
-        **kwargs
-    )
+    rejection = javascript_test_rejection("jest", node_modules, None, kwargs)
+    if rejection != None:
+        fail(rejection)
+    kwargs["config"] = config
+    kwargs["node_options"] = ["--experimental-vm-modules"]
+    upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs)
+    upstream_data = list(srcs) + list(data or []) + [transform, Label("//javascript/private:framework_jest_config")] + [node_modules + "/" + package for package in packages]
+    a = node_test_wrap_args(name, srcs, upstream_data, package_json, upstream_kwargs, env_inherit, kwargs)
+    dx_wrap_test(name, _jest_test, javascript_forward_test, None, visibility = visibility, quality_srcs = dx_entry_quality_srcs(None, srcs), upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)
 
 def _dx_framework_web_app_impl(ctx):
     """Stages one built framework dist tree as a bundled web app."""

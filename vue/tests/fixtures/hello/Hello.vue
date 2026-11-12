@@ -1,0 +1,15 @@
+<template>
+  <div class="hello">{{ message }}</div>
+</template>
+
+<script setup>
+import { helper } from "./helper.js";
+
+const message = helper("world");
+</script>
+
+<style scoped>
+.hello {
+  color: black;
+}
+</style>

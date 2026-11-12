@@ -1,5 +1,20 @@
 # gazelle:ignore
 
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    known_gaps = {"test": {
+        "upstream_instrumented": "False",
+        "wrapper_instrumented": "False",
+    }},
+    file_classes = ["svelte"],
+    wrappers = {
+        "library": "//svelte/tests/fixtures/hello:hello_lib",
+        "test": "//svelte/tests/fixtures/hello:hello_test",
+    },
+)
+
 test_suite(
     name = "fixture_tests",
     testonly = True,

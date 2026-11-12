@@ -1,0 +1,29 @@
+load("//javascript:defs.bzl", "javascript_library")
+load("//vue:defs.bzl", "vue_library", "vue_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+vue_library(
+    name = "hello_lib",
+    srcs = ["Hello.vue"],
+)
+
+javascript_library(
+    name = "helper_lib",
+    srcs = ["helper.js"],
+)
+
+vue_test(
+    name = "hello_test",
+    size = "small",
+    srcs = ["Hello.test.js"],
+    data = [
+        ":Hello.vue",
+        ":helper_lib",
+    ],
+    node_modules = "//:node_modules",
+    package_json = "//:package_json",
+)

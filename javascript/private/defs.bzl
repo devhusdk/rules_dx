@@ -154,6 +154,8 @@ def javascript_binary(name, *, srcs = None, main = None, visibility = None, **kw
 
 _javascript_test = node_test_forward_rule("javascript_*", _JS_EXTS, _DX_JS_SOURCE_SPECS)
 
+javascript_forward_test = _javascript_test
+
 def javascript_test_rejection(runner, node_modules, main, kwargs):
     """Returns the rejection for bad javascript_test arguments, or None."""
     return node_test_runner_rejection("javascript_test", runner, node_modules, main, kwargs)

@@ -49,7 +49,7 @@ Java classes and runtime for flatbuffers_library schemas. Each library is genera
 ### `flatbuffers_rust_library`
 
 ```python
-flatbuffers_rust_library(name, library, crate_name = None, deps = None, root = None, **kwargs)
+flatbuffers_rust_library(name, library, crate_name = None, deps = None, root = None, codegen_path = None, **kwargs)
 ```
 
 Rust crate for one root schema and its include closure.
@@ -64,7 +64,7 @@ Args:
   crate_name: Crate name dependents import; defaults to name.
   deps: Extra Rust dependencies of the crate.
   root: Root schema label; optional when the library owns one schema.
-  codegen_path: Logical path of the generated file in the dx sync projection.
+  codegen_path: Logical directory of the generated files in the dx sync projection.
   **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
     and the like replace the defaults; srcs and deps are added to them.
 

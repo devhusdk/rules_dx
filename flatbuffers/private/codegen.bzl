@@ -17,7 +17,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_rust_library_kwargs", "codegen_srcjar")
+load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_package_file", "codegen_rust_library_kwargs", "codegen_srcjar", "codegen_tree_file")
 load("//core:stage.bzl", "stage_closure")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "FlatBuffersInfo", "resolve_root")
@@ -113,7 +113,7 @@ def _cc_library_impl(ctx):
             stage_roots = depset(transitive = [info.stage_roots for info in aspect_infos]),
             staged = depset(transitive = [info.staged for info in aspect_infos]),
         ),
-    ] + codegen_library_providers(ctx, "flatbuffers", "cpp", own_headers)
+    ] + codegen_library_providers(ctx, "flatbuffers", "cpp", [codegen_tree_file(f) for f in own_headers])
 
 flatbuffers_cc_library = rule(
     implementation = _cc_library_impl,
@@ -208,7 +208,7 @@ def _java_library_impl(ctx):
             stage_roots = depset(transitive = [info.stage_roots for info in aspect_infos]),
             staged = depset(transitive = [info.staged for info in aspect_infos]),
         ),
-    ] + codegen_library_providers(ctx, "flatbuffers", "java", srcjars)
+    ] + codegen_library_providers(ctx, "flatbuffers", "java", [codegen_package_file(f) for f in srcjars])
 
 flatbuffers_java_library = rule(
     implementation = _java_library_impl,
@@ -244,7 +244,7 @@ def _rust_srcs_impl(ctx):
     return [
         DefaultInfo(files = depset([lib, generated])),
         dx_quality_sources([], [], str(ctx.label)),
-    ] + codegen_library_providers(ctx, "flatbuffers", "rust", [generated])
+    ] + codegen_library_providers(ctx, "flatbuffers", "rust", [codegen_tree_file(generated)])
 
 _flatbuffers_rust_srcs = rule(
     implementation = _rust_srcs_impl,
@@ -275,7 +275,7 @@ def flatbuffers_rust_library(name, library, crate_name = None, deps = None, root
       crate_name: Crate name dependents import; defaults to name.
       deps: Extra Rust dependencies of the crate.
       root: Root schema label; optional when the library owns one schema.
-      codegen_path: Logical path of the generated file in the dx sync projection.
+      codegen_path: Logical directory of the generated files in the dx sync projection.
       **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
         and the like replace the defaults; srcs and deps are added to them.
     """

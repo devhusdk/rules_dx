@@ -6,7 +6,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_rust_library_kwargs", "codegen_srcjar")
+load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_package_file", "codegen_rust_library_kwargs", "codegen_srcjar", "codegen_tree_file")
 load("//core:stage.bzl", "stage_closure")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "ThriftInfo")
@@ -104,7 +104,7 @@ def _cc_library_impl(ctx):
         DefaultInfo(files = depset(own)),
         cc_info,
         dx_quality_sources([], [], str(ctx.label)),
-    ] + codegen_library_providers(ctx, "thrift", "cpp", srcjars)
+    ] + codegen_library_providers(ctx, "thrift", "cpp", [codegen_package_file(f) for f in srcjars])
 
 thrift_cc_library = rule(
     implementation = _cc_library_impl,
@@ -188,7 +188,7 @@ def _java_library_impl(ctx):
         DefaultInfo(files = depset(srcjars)),
         java_info,
         dx_quality_sources([], [], str(ctx.label)),
-    ] + codegen_library_providers(ctx, "thrift", "java", srcjars)
+    ] + codegen_library_providers(ctx, "thrift", "java", [codegen_package_file(f) for f in srcjars])
 
 thrift_java_library = rule(
     implementation = _java_library_impl,
@@ -248,7 +248,7 @@ def _rust_srcs_impl(ctx):
     return [
         DefaultInfo(files = depset([lib] + generated)),
         dx_quality_sources([], [], str(ctx.label)),
-    ] + codegen_library_providers(ctx, "thrift", "rust", [lib] + generated)
+    ] + codegen_library_providers(ctx, "thrift", "rust", [codegen_tree_file(f) for f in [lib] + generated])
 
 _thrift_rust_srcs = rule(
     implementation = _rust_srcs_impl,

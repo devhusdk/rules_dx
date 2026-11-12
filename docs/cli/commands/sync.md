@@ -57,7 +57,7 @@ JSON emits `command_started`, an `operation` event, a `selection` event, and `co
 
 The plan admits these generator and language pairs: protobuf/rust, flatbuffers/cpp, flatbuffers/rust, flatbuffers/java, capnp/cpp, capnp/rust, capnp/java, thrift/cpp, thrift/rust, thrift/java, avro/cpp, openapi/typescript, openapi/go, openapi/python, and openapi/rust.
 
-Each library rule except `rust_prost_library` carries its own plan entries. Each generated file lands at `gen/` plus its file name. Set `codegen_path` on the library to move it: the file path when the rule generates one file, else the directory of its files. `rust_prost_library` still needs a `prost_codegen_shard` from `@rules_dx//core/codegen:codegen.bzl`. Select generated sources with `dx sync`.
+Each library rule except `rust_prost_library` carries its own plan entries. Each generated file lands at `gen/` plus its schema path, or its file name for a rule that generates one file. A srcjar lands at `gen/` plus its library package and file name. Set `codegen_path` on the library to replace the `gen` directory. `rust_prost_library` still needs a `prost_codegen_shard` from `@rules_dx//core/codegen:codegen.bzl`. Select generated sources with `dx sync`.
 
 ```starlark
 load("@rules_dx//core/codegen:codegen.bzl", "prost_codegen_shard")

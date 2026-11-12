@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//capnproto:defs.bzl`:
 
 ```python
-load("@rules_dx//capnproto:defs.bzl", "capnproto_cc_library", "capnproto_java_library")
+load("@rules_dx//capnproto:defs.bzl", "capnproto_cc_library", "capnproto_java_library", "capnproto_library")
 ```
 
 ## Rules
@@ -49,7 +49,7 @@ Owns Cap'n Proto schemas for dx lint. Imports resolve only from deps, relative t
 ### `capnproto_rust_library`
 
 ```python
-capnproto_rust_library(name, library, crate_name = None, deps = None, **kwargs)
+capnproto_rust_library(name, library, crate_name = None, deps = None, codegen_path = None, **kwargs)
 ```
 
 Rust crate for one capnproto_library.

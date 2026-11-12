@@ -48,7 +48,7 @@ Java classes and runtime for thrift_library schemas. Each library is generated a
 ### `thrift_rust_library`
 
 ```python
-thrift_rust_library(name, library, crate_name = None, deps = None, **kwargs)
+thrift_rust_library(name, library, crate_name = None, deps = None, codegen_path = None, **kwargs)
 ```
 
 One Rust crate with a module per schema of the library and everything it includes.

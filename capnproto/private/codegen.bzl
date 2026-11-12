@@ -19,7 +19,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_rust_library_kwargs", "codegen_srcjar")
+load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_package_file", "codegen_rust_library_kwargs", "codegen_srcjar", "codegen_tree_file")
 load("//core:defs.bzl", "display_label")
 load("//core:stage.bzl", "stage_closure")
 load("//core:wrapper.bzl", "dx_quality_sources")
@@ -157,7 +157,7 @@ def _cc_library_impl(ctx):
         cc_info,
         # Generated code owns no checked sources; it is not a cc_library to lint.
         dx_quality_sources([], [], str(ctx.label)),
-    ] + codegen_library_providers(ctx, "capnp", "cpp", own)
+    ] + codegen_library_providers(ctx, "capnp", "cpp", [codegen_tree_file(f) for f in own])
 
 capnproto_cc_library = rule(
     implementation = _cc_library_impl,
@@ -243,7 +243,7 @@ def _java_library_impl(ctx):
         DefaultInfo(files = depset(srcjars)),
         java_info,
         dx_quality_sources([], [], str(ctx.label)),
-    ] + codegen_library_providers(ctx, "capnp", "java", srcjars)
+    ] + codegen_library_providers(ctx, "capnp", "java", [codegen_package_file(f) for f in srcjars])
 
 capnproto_java_library = rule(
     implementation = _java_library_impl,
@@ -331,7 +331,7 @@ def _rust_srcs_impl(ctx):
             library = info.label,
             schemas = [src.short_path for src in info.direct_srcs],
         ),
-    ] + codegen_library_providers(ctx, "capnp", "rust", generated)
+    ] + codegen_library_providers(ctx, "capnp", "rust", [codegen_tree_file(f) for f in generated])
 
 _capnp_rust_srcs = rule(
     implementation = _rust_srcs_impl,

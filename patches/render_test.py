@@ -51,6 +51,22 @@ class RenderTest(unittest.TestCase):
         module = MODULE.replace('["//patches/foo:a.patch"]', '["//patches/foo:a.patch", "//patches/foo:b.patch"]')
         self.assertIn("| `foo` | 2.0 | `b.patch` | Consumer fix: #1 |", render.render(module, readme))
 
+    def test_repo_rule_patch_unlisted(self):
+        module = MODULE + 'dx_pins.archive(\n    name = "bar",\n    patches = ["//patches/bar:x.patch"],\n)\n'
+        with self.assertRaises(SystemExit):
+            render.render(module, README)
+
+    def test_repo_rule_patch_listed(self):
+        module = MODULE + 'dx_pins.archive(\n    name = "bar",\n    patches = ["//patches/bar:x.patch"],\n)\n'
+        readme = README + "\n## bar\n\nPatches `x.patch`.\n"
+        self.assertIn("## bar", render.render(module, readme))
+
+    def test_repo_rule_patch_in_other_section(self):
+        module = MODULE + 'dx_pins.archive(\n    name = "bar",\n    patches = ["//patches/bar:x.patch"],\n)\n'
+        readme = README + "\n## baz\n\nPatches `x.patch`.\n"
+        with self.assertRaises(SystemExit):
+            render.render(module, readme)
+
 
 if __name__ == "__main__":
     unittest.main()

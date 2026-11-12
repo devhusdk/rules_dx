@@ -66,9 +66,21 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `rules_go` | 0.65.0 | `lock_extension.patch` | Root only. The `go_sdk` extension is not reproducible, so the lockfile keeps its result per platform |
 | `rules_flutter` | 0.0.8 | `lock_extension.patch` | Root only. The `flutter` extension is not reproducible, so the lockfile keeps its result |
 
-## elvis, rules_d, rules_dotnet, rules_elixir, rules_erlang, rules_fortran, rules_haskell, rules_ocaml, rules_ruby
+## elvis, rules_d, rules_dart, rules_dotnet, rules_elixir, rules_erlang, rules_flutter, rules_fortran, rules_haskell, rules_ocaml, rules_ruby
 
-No action. `rules_dx` applies these patches in its own repository rules.
+No action. `rules_dx` applies these patches in its own repository rules: `hermetic_tar.patch` (rules_dart); `engine_labels.patch`, `hermetic_pub.patch` (rules_flutter); `reproducible.patch`, `fsharp_signature.patch`, `nuget_group_prefix.patch`, `sdk_versions.patch`, `canonical_labels.patch` (rules_dotnet); `reproducible.patch`, `coverage.patch`, `rubyinstaller_archive.patch` (rules_ruby).
+
+## kcov
+
+No action. `MODULE.bazel` patches the kcov v43 archive for `//tools/coverage/kcov`: `aslr.patch` keeps running when ASLR cannot be disabled, `elf_checksum_lock.patch` loads ELF sections before the checksum so elfutils built with locks does not deadlock, and `no_curl.patch` drops the libcurl dependency.
+
+## libfuzzer_dotnet
+
+No action. `macos_section.patch` puts the extra counters of `libfuzzer-dotnet.cc` in `__DATA,__libfuzz_extra` on macOS. It applies to the `dx_libfuzzer_dotnet` archive.
+
+## capnproto
+
+No action. `dynamic_cstddef.patch` applies to the `dx_capnproto` source archive.
 
 ## ring (crate annotation)
 
@@ -77,11 +89,11 @@ No action. `rules_dx` applies these patches in its own repository rules.
 second patch includes the fiat headers from the crate root, because cl.exe
 opens `../../third_party/fiat/...` without collapsing the `..` parts and the
 path passes 260 characters under the build script runfiles. Both are
-applied to rules_dx's own `dx_crates` and are not exported to consumers.
+applied to rules_dx's own `dx_crates` and are not exported to consumers: `clang_cl_aarch64_windows.patch`, `msvc_fiat_include_path.patch`.
 
 ## gomod-parser (crate annotation)
 
 `MODULE.bazel` patches gomod-parser 0.5.3 so a require version followed
-directly by `//` parses (baz-scm/gomod-parser#52). It is applied to
+directly by `//` parses (baz-scm/gomod-parser#52) with `glued_comment.patch`. It is applied to
 rules_dx's own `dx_crates` and needs nothing from consumers. Remove it once a
 gomod-parser release after 0.6.0 carries the fix.

@@ -31,16 +31,14 @@ def _after(argv, flag):
         return argv[argv.index(flag) + 1]
     return ""
 
-_GCC = "dx_gcc_linux_"
-
 def _assert_compiler(env, gcc, value, what):
     if gcc:
-        asserts.true(env, _GCC in value and "_cross" not in value, what + " must come from a native " + _GCC + "* repo, got " + value)
+        asserts.true(env, gcc in value and "_cross" not in value, what + " must come from " + gcc + ", got " + value)
     else:
         asserts.true(env, "llvm" in value and "dx_gcc" not in value, what + " must come from the llvm repo, got " + value)
 
 def _impl(ctx):
-    gcc = ctx.attr.compiler == "gcc"
+    gcc = ctx.attr.gcc if ctx.attr.compiler == "gcc" else ""
     env = analysistest.begin(ctx)
     actions = analysistest.target_under_test(env)[GoCgoActionsInfo].actions
     compiles = [a for a in actions if a[0].startswith("GoCompilePkg")]
@@ -62,7 +60,7 @@ def _impl(ctx):
     for _, argv, _ in links:
         extld = _after(argv, "-extld")
         _assert_compiler(env, gcc, extld, "-extld")
-        asserts.equals(env, gcc, "-l:libstdc++.a" in " ".join(argv).replace(",", " "), "static libstdc++ must be linked only under gcc")
+        asserts.equals(env, gcc != "", "-l:libstdc++.a" in " ".join(argv).replace(",", " "), "static libstdc++ must be linked only under gcc")
     asserts.true(env, linkopt_seen, "clinkopts must reach the link")
     for _, argv, _ in compiles + links:
         for arg in argv:
@@ -74,7 +72,10 @@ def _make(compiler):
     return analysistest.make(
         _impl,
         doc = "Asserts cgo compile and link use the %s toolchain and keep copts and clinkopts." % compiler,
-        attrs = {"compiler": attr.string(default = compiler)},
+        attrs = {
+            "compiler": attr.string(default = compiler),
+            "gcc": attr.string(default = "dx_gcc_linux_x86_64"),
+        },
         extra_target_under_test_aspects = [_aspect],
         config_settings = {str(Label("//cc:compiler")): compiler},
     )
@@ -96,6 +97,10 @@ def cgo_toolchain_tests(name, target_under_test):
     )
     _gcc_test(
         name = name + "_gcc",
+        gcc = select({
+            "@platforms//cpu:arm64": "dx_gcc_linux_aarch64",
+            "//conditions:default": "dx_gcc_linux_x86_64",
+        }),
         target_compatible_with = ["@platforms//os:linux"],
         target_under_test = target_under_test,
     )

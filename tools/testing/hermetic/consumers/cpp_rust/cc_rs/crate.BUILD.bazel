@@ -1,0 +1,17 @@
+load("@rules_dx//rust:defs.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "cc_rs_consumer",
+    srcs = ["src/lib.rs"],
+    crate_name = "cc_rs_consumer",
+    crate_root = "src/lib.rs",
+    deps = [
+        "@crates//:cxx",
+        "@crates//:libz-sys",
+    ],
+)
+
+rust_test(
+    name = "cc_rs_consumer_test",
+    crate = ":cc_rs_consumer",
+)

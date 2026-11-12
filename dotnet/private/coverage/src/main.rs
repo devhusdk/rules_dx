@@ -113,11 +113,6 @@ fn outcome(code: i32) -> Outcome {
     }
 }
 
-fn fail(message: &str) -> ! {
-    eprintln!("dx: {message}");
-    process::exit(1);
-}
-
 fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> io::Result<()> {
     for item in fs::read_dir(dir)? {
         let path = item?.path();
@@ -138,7 +133,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> io::Result<()> {
     Ok(())
 }
 
-fn runfiles_entries() -> (Vec<Entry>, Option<PathBuf>) {
+fn runfiles_entries() -> Result<(Vec<Entry>, Option<PathBuf>), String> {
     let dir = env::var_os("RUNFILES_DIR")
         .or_else(|| env::var_os("TEST_SRCDIR"))
         .map(PathBuf::from);
@@ -152,25 +147,24 @@ fn runfiles_entries() -> (Vec<Entry>, Option<PathBuf>) {
         });
     if let Some(manifest) = manifest {
         let text = fs::read_to_string(&manifest)
-            .unwrap_or_else(|e| fail(&format!("cannot read {}: {e}", manifest.display())));
-        return (plan::parse_manifest(&text), dir);
+            .map_err(|e| format!("cannot read {}: {e}", manifest.display()))?;
+        return Ok((plan::parse_manifest(&text), dir));
     }
     let Some(dir) = dir else {
-        fail("no runfiles: set RUNFILES_DIR or RUNFILES_MANIFEST_FILE");
+        return Err("no runfiles: set RUNFILES_DIR or RUNFILES_MANIFEST_FILE".to_owned());
     };
     let mut entries = Vec::new();
-    walk(&dir, &dir, &mut entries)
-        .unwrap_or_else(|e| fail(&format!("cannot walk {}: {e}", dir.display())));
-    (entries, Some(dir))
+    walk(&dir, &dir, &mut entries).map_err(|e| format!("cannot walk {}: {e}", dir.display()))?;
+    Ok((entries, Some(dir)))
 }
 
-fn resolve(entries: &[Entry], rlocation: &str) -> PathBuf {
+fn resolve(entries: &[Entry], rlocation: &str) -> Result<PathBuf, String> {
     entries
         .iter()
         .find(|e| e.rlocation == rlocation)
         .and_then(|e| e.target.as_ref())
         .map(PathBuf::from)
-        .unwrap_or_else(|| fail(&format!("{rlocation} is not in the runfiles")))
+        .ok_or_else(|| format!("{rlocation} is not in the runfiles"))
 }
 
 #[cfg(unix)]
@@ -240,30 +234,24 @@ fn build_mirror(root: &Path, entries: &[Entry], copies: &BTreeSet<String>) -> io
     )
 }
 
-fn exit_with(status: io::Result<process::ExitStatus>, what: &str) -> ! {
-    match status {
-        Ok(status) => process::exit(status.code().unwrap_or(1)),
-        Err(e) => fail(&format!("cannot run {what}: {e}")),
-    }
-}
-
-fn main() {
+fn run() -> Result<i32, String> {
     let target_args: Vec<String> = env::args().skip(1).collect();
-    let (entries, runfiles_dir) = runfiles_entries();
-    let config_rlocation =
-        env::var("DX_COVERLET_CONFIG").unwrap_or_else(|_| fail("DX_COVERLET_CONFIG is not set"));
-    let config_path = resolve(&entries, &config_rlocation);
+    let (entries, runfiles_dir) = runfiles_entries()?;
+    let config_rlocation = env::var("DX_COVERLET_CONFIG")
+        .map_err(|_| "DX_COVERLET_CONFIG is not set".to_owned())?;
+    let config_path = resolve(&entries, &config_rlocation)?;
     let config_text = fs::read_to_string(&config_path)
-        .unwrap_or_else(|e| fail(&format!("cannot read {}: {e}", config_path.display())));
-    let config = parse_config(&config_text).unwrap_or_else(|e| fail(&e));
+        .map_err(|e| format!("cannot read {}: {e}", config_path.display()))?;
+    let config = parse_config(&config_text)?;
 
     let coverage_dir = env::var_os("COVERAGE_DIR").map(PathBuf::from);
     let Some(coverage_dir) = coverage_dir.filter(|_| !config.instrument.is_empty()) else {
-        let upstream = resolve(&entries, &config.upstream);
-        exit_with(
-            Command::new(&upstream).args(&target_args).status(),
-            &upstream.to_string_lossy(),
-        );
+        let upstream = resolve(&entries, &config.upstream)?;
+        let status = Command::new(&upstream)
+            .args(&target_args)
+            .status()
+            .map_err(|e| format!("cannot run {}: {e}", upstream.display()))?;
+        return Ok(status.code().unwrap_or(1));
     };
 
     let tmp = env::var_os("TEST_TMPDIR")
@@ -274,12 +262,8 @@ fn main() {
     let mut assemblies = config.instrument.clone();
     assemblies.push(config.test_assembly.clone());
     let copies = plan::copy_set(&entries, &assemblies);
-    build_mirror(&root, &entries, &copies).unwrap_or_else(|e| {
-        fail(&format!(
-            "cannot mirror runfiles into {}: {e}",
-            root.display()
-        ))
-    });
+    build_mirror(&root, &entries, &copies)
+        .map_err(|e| format!("cannot mirror runfiles into {}: {e}", root.display()))?;
 
     let in_mirror = |rlocation: &str| root.join(rlocation).to_string_lossy().into_owned();
     let mut include_dirs = BTreeSet::new();
@@ -322,14 +306,14 @@ fn main() {
         .env("TMP", &test_tmp)
         .env("TEMP", &test_tmp)
         .status()
-        .unwrap_or_else(|e| fail(&format!("cannot run coverlet {coverlet}: {e}")));
+        .map_err(|e| format!("cannot run coverlet {coverlet}: {e}"))?;
     let Some(code) = status.code() else {
-        fail("coverlet was killed by a signal");
+        return Err("coverlet was killed by a signal".to_owned());
     };
     let code = match outcome(code) {
         Outcome::CoverletFailed(code) => {
             eprintln!("dx: coverlet failed");
-            process::exit(code);
+            return Ok(code);
         }
         Outcome::TestsFailed(code) => code,
         Outcome::Passed => 0,
@@ -344,13 +328,21 @@ fn main() {
     fs::create_dir_all(&coverage_dir).ok();
     let dat = coverage_dir.join("coverlet.dat");
     fs::write(&dat, normalized)
-        .unwrap_or_else(|e| fail(&format!("cannot write {}: {e}", dat.display())));
+        .map_err(|e| format!("cannot write {}: {e}", dat.display()))?;
     if code == 0 && kept == 0 {
-        fail(&format!(
+        return Err(format!(
             "coverlet wrote no SF: records for {}",
             config.instrument.join(", ")
         ));
     }
+    Ok(code)
+}
+
+fn main() {
+    let code = run().unwrap_or_else(|message| {
+        eprintln!("dx: {message}");
+        1
+    });
     process::exit(code);
 }
 

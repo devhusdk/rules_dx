@@ -252,6 +252,10 @@ mod interrupt {
 
     static PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
 
+    #[expect(
+        clippy::exit,
+        reason = "a console control handler ends the process with the signal exit code"
+    )]
     unsafe extern "system" fn on_ctrl(ctrl_type: u32) -> i32 {
         if let Some(path) = PATH.lock().ok().and_then(|p| p.clone()) {
             let _ = std::fs::remove_file(path);

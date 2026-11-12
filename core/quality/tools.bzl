@@ -5,7 +5,7 @@ and //core/quality:update_tools writes the Rust tool list from it.
 """
 
 load("//ansible/private/quality:ansible_tools.bzl", _ANSIBLE = "TOOLS")
-load("//core/quality:families/beam_tools.bzl", _BEAM = "TOOLS")
+load("//erlang/private/quality:beam_tools.bzl", _BEAM = "TOOLS")
 load("//bicep/private/quality:bicep_tools.bzl", _BICEP = "TOOLS")
 load("//core/quality:families/cc_tools.bzl", _CC = "TOOLS")
 load("//cloudformation/private/quality:cloudformation_tools.bzl", _CLOUDFORMATION = "TOOLS")

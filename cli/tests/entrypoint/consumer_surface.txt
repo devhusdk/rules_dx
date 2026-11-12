@@ -60,7 +60,7 @@ qt:defs.bzl
 core/quality/private:generated_policy.bzl
 ansible/private/quality:ansible.bzl
 core/quality:defs.bzl
-core/quality:families/beam.bzl
+erlang/private/quality:beam.bzl
 bicep/private/quality:bicep.bzl
 core/quality:families/cc.bzl
 cloudformation/private/quality:cloudformation.bzl

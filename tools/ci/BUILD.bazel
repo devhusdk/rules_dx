@@ -700,6 +700,7 @@ rust_test(
         "//env/private:corpus_starlark",
         "//erlang/private:corpus_starlark",
         "//erlang/private/bench:corpus_starlark",
+        "//erlang/private/quality:corpus_starlark",
         "//erlang/private/toolchain:corpus_starlark",
         "//examples/shared-rust:corpus_starlark",
         "//flutter/private:corpus_starlark",

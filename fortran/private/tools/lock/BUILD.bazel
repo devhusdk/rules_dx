@@ -1,8 +1,9 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = VIS_TOOLS_PUBLIC)
 
 rust_library(
     name = "fpm_lock_lib",
@@ -32,7 +33,7 @@ rust_binary(
     ),
     crate_name = "fpm_lock_bin",
     crate_root = "src/main.rs",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
     deps = all_crate_deps(
         package_name = "fortran/private/tools/fpm_lock",
         normal = True,
@@ -92,12 +93,12 @@ real_source_target(
 
 exports_files(
     ["Cargo.toml"],
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
 )
 
 exports_files(
     [
         "src/main.rs",
     ],
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
 )

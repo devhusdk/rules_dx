@@ -1,5 +1,7 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load(":cross_link_tests.bzl", "cross_link_tests")
+load(":rust_clippy_tests.bzl", "rust_clippy_test_suite")
 load(":toolchain_tests.bzl", "toolchain_identity_tests")
 
 exports_files(["cargo-bazel-lock.json"])
@@ -13,6 +15,7 @@ real_source_target(
         "BUILD.bazel",
         "cross_link_tests.bzl",
         "defs_tests.bzl",
+        "rust_clippy_tests.bzl",
         "toolchain_tests.bzl",
     ],
     tags = ["corpus"],
@@ -26,4 +29,22 @@ toolchain_identity_tests(
 cross_link_tests(
     name = "cross_link",
     size = "small",
+)
+
+rust_clippy_test_suite(
+    name = "rust_clippy_tests",
+    size = "small",
+)
+
+build_test(
+    name = "release_tools_build_test",
+    size = "small",
+    targets = [
+        "//rust/private/quality/tools:deadnix",
+        "//rust/private/quality/tools:selene",
+    ],
+    target_compatible_with = select({
+        "//rust/private/quality/tools:windows_arm64": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )

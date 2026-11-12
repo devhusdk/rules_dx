@@ -1,4 +1,4 @@
-# qt
+# Qt
 
 Acquire a pinned Qt 6.11.3 SDK and its runtime closure without system
 packages. Nothing is fetched until a target needs it.

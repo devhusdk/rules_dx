@@ -34,6 +34,7 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `rules_flutter` | 0.0.8 | `ios_target_compatible_with.patch` | `flutter_ios_app` applies its `target_compatible_with` to every target it generates, not only drops it. Consumer fix: #11417 |
 | `rules_swift` | 4.2.2 | `clang_cl_no_split_cold_code.patch` | The exec worker builds with LLVM clang-cl, which rejects the Apple-only `-fno-split-cold-code` (bazelbuild/rules_swift#2005). Consumer fix: #11817 |
 | `rules_swift` | 4.2.2 | `windows_absolute_sdk.patch` | Root only. Windows Swift actions pass `-sdk` through the wrapper as an absolute path |
+| `rules_swift` | 4.2.2 | `windows_swift_testing.patch` | Root only. The Windows toolchain puts the Swift Testing module and import library directories on the compile and link paths |
 | `rules_swift` | 4.2.2 | `windows_unknown_vendor.patch` | Root only. Windows target triples use the `unknown` vendor |
 | `rules_python` | 2.4.6 | `single_import_lib.patch` | `py_extension` on Windows links one CPython import library: the stable ABI one for limited API modules, else the versioned one. It passed both as one linker argument (bazel-contrib/rules_python#4426; drop when a rules_python release has it). Consumer fix: #11418 |
 | `rules_python` | 2.4.6 | `lock_extension.patch` | Root only. The `python` extension is OS and architecture dependent and not reproducible, so a lockfile written on one host does not pin another |

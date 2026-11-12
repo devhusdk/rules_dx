@@ -3,6 +3,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 exports_files([
     "clang_cl_no_split_cold_code.patch",
     "windows_absolute_sdk.patch",
+    "windows_swift_testing.patch",
     "windows_unknown_vendor.patch",
 ])
 

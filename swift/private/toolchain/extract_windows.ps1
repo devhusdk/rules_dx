@@ -342,8 +342,8 @@ $sdk = Find-Dir $trees "Windows.sdk"
 if (-not $sdk) { Fail "no Windows.sdk in the extracted packages" }
 $xctest = Find-Dir $trees "XCTest-*"
 if (-not $xctest) { Fail "no XCTest-* in the extracted packages" }
-$testing = Find-Dir $trees "Testing-*"
-if (-not $testing) { Fail "no Testing-* in the extracted packages" }
+$swiftTesting = Find-Dir $trees "Testing-*"
+if (-not $swiftTesting) { Fail "no Testing-* in the extracted packages" }
 
 $developer = Join-Path $Out "platform\Developer"
 New-Item -ItemType Directory -Force -Path (Join-Path $Out "toolchain"), (Join-Path $Out "runtime"), (Join-Path $developer "SDKs"), (Join-Path $developer "Library") | Out-Null
@@ -357,7 +357,7 @@ if ($runtimeUsr -eq $toolchainUsr) {
 }
 Move-Item -LiteralPath $sdk.FullName -Destination (Join-Path $developer "SDKs\Windows.sdk")
 Move-Item -LiteralPath $xctest.FullName -Destination (Join-Path $developer "Library\XCTest-$XCTestVersion")
-Move-Item -LiteralPath $testing.FullName -Destination (Join-Path $developer "Library\Testing-$XCTestVersion")
+Move-Item -LiteralPath $swiftTesting.FullName -Destination (Join-Path $developer "Library\Testing-$XCTestVersion")
 
 $toolBin = Join-Path $Out "toolchain\usr\bin"
 $runtimeBin = Join-Path $Out "runtime\usr\bin"

@@ -17,12 +17,6 @@ _POSIX = select({
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
-_NATIVE = select({
-    "@platforms//os:linux": [],
-    "@platforms//os:macos": [],
-    "//conditions:default": ["@platforms//:incompatible"],
-})
-
 swift_library(
     name = "greet",
     srcs = ["greet.swift"],
@@ -44,7 +38,6 @@ swift_test(
 swift_test(
     name = "testing",
     srcs = ["greet_testing.swift"],
-    target_compatible_with = _NATIVE,
     deps = [":greet"],
 )
 

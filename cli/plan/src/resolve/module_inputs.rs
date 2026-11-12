@@ -638,7 +638,7 @@ mod tests {
             lock(
                 "",
                 &format!(
-                    ", \"moduleExtensions\": {{\"//qt:extensions.bzl%qt_sdk\": {{\"general\": {{\"bzlTransitiveDigest\": \"{digest}\", \"usagesDigest\": \"{usages}\", \"generatedRepoSpecs\": {{\"sdk\": \"{repo}\"}}}}}}}}"
+                    ", \"moduleExtensions\": {{\"//qt:extensions.bzl%qt\": {{\"general\": {{\"bzlTransitiveDigest\": \"{digest}\", \"usagesDigest\": \"{usages}\", \"generatedRepoSpecs\": {{\"sdk\": \"{repo}\"}}}}}}}}"
                 ),
             )
         };
@@ -649,11 +649,11 @@ mod tests {
         );
         assert_eq!(
             lock_changes(&base, &extension("b", "u", "r2")),
-            Err(lock_changed("//qt:extensions.bzl%qt_sdk"))
+            Err(lock_changed("//qt:extensions.bzl%qt"))
         );
         assert_eq!(
             lock_changes(&lock("", ""), &base),
-            Err(lock_changed("//qt:extensions.bzl%qt_sdk"))
+            Err(lock_changed("//qt:extensions.bzl%qt"))
         );
     }
 

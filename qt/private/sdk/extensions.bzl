@@ -1,4 +1,4 @@
-"""The qt_sdk module extension."""
+"""The qt module extension."""
 
 load("//core:repo.bzl", "hub_repo")
 load(":pins.bzl", "DEFAULT_MODULES", "QT_VERSION")
@@ -18,7 +18,7 @@ def _merge(requests):
             if value == "" or value == getattr(request, field):
                 continue
             if fields[field] not in ["", getattr(request, field), value]:
-                fail("qt_sdk: configure tags set " + field + " to both '" + fields[field] + "' and '" + value + "'")
+                fail("qt: configure tags set " + field + " to both '" + fields[field] + "' and '" + value + "'")
             fields[field] = value
     return struct(
         mirror = fields["mirror"],
@@ -27,15 +27,15 @@ def _merge(requests):
         version = fields["version"],
     )
 
-def _qt_sdk_impl(module_ctx):
+def _qt_impl(module_ctx):
     requests = []
     tags = []
     for module in module_ctx.modules:
         for tag in module.tags.cell:
             if not module.is_root:
-                fail("qt_sdk: cell '" + tag.name + "' comes from module '" + module.name + "'; only the root module may declare cells")
+                fail("qt: cell '" + tag.name + "' comes from module '" + module.name + "'; only the root module may declare cells")
             if not tag.spec.name.endswith(".json"):
-                fail("qt_sdk: cell '" + tag.name + "' spec '" + str(tag.spec) + "' is not a .json file")
+                fail("qt: cell '" + tag.name + "' spec '" + str(tag.spec) + "' is not a .json file")
             tags.append(struct(
                 constraints = [str(label) for label in tag.constraints],
                 layout = tag.layout,
@@ -43,9 +43,9 @@ def _qt_sdk_impl(module_ctx):
                 spec = module_ctx.read(module_ctx.path(tag.spec)),
             ))
         if len(module.tags.configure) > 0 and not module.is_root:
-            fail("qt_sdk: configure comes from module '" + module.name + "'; only the root module may call configure")
+            fail("qt: configure comes from module '" + module.name + "'; only the root module may call configure")
         if len(module.tags.configure) > 1:
-            fail("qt_sdk: call qt_sdk.configure() at most once")
+            fail("qt: call qt.configure() at most once")
         for tag in module.tags.configure:
             requests.append(struct(
                 mirror = tag.mirror,
@@ -61,7 +61,7 @@ def _qt_sdk_impl(module_ctx):
     table = effective_cells(consumer)
     errors = errors + pin_errors(table)
     if len(errors) > 0:
-        fail("qt_sdk: " + "; ".join(errors))
+        fail("qt: " + "; ".join(errors))
     layouts = {tag.name: tag.layout for tag in tags}
     cells = {}
     for cell in qualified_cells(table):
@@ -92,8 +92,8 @@ def _qt_sdk_impl(module_ctx):
     )
     return module_ctx.extension_metadata(reproducible = True)
 
-qt_sdk = module_extension(
-    implementation = _qt_sdk_impl,
+qt = module_extension(
+    implementation = _qt_impl,
     doc = "Acquires the pinned Qt SDK and runtime closure on first use.",
     tag_classes = {
         "configure": tag_class(

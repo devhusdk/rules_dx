@@ -107,7 +107,7 @@ fn the_readme_quickstart_runs_as_written() {
     let source = rules_dx_source();
     let files = quickstart_files(&read_text(&source.join("README.md")));
     let names: Vec<&str> = files.iter().map(|(name, _)| name.as_str()).collect();
-    assert_eq!(names, [".bazelversion", "MODULE.bazel", "BUILD.bazel"]);
+    assert_eq!(names, [".bazelversion", "MODULE.bazel"]);
 
     let case = nested::case("quickstart_readme");
     copy_rules_py_patches(&source, &case);
@@ -122,6 +122,25 @@ fn the_readme_quickstart_runs_as_written() {
         write_text(&case.root().join(name), &text);
     }
 
+    assert!(
+        !case.root().join("BUILD.bazel").exists() && !case.root().join("BUILD").exists(),
+        "the quickstart consumer has no root package"
+    );
+    write_text(
+        &case.root().join("app/BUILD.bazel"),
+        "load(\"@rules_dx//rust:defs.bzl\", \"rust_library\")\n\nrust_library(\n    name = \"app\",\n    srcs = [\"lib.rs\"],\n    crate_root = \"lib.rs\",\n)\n",
+    );
+    write_text(
+        &case.root().join("app/lib.rs"),
+        "//! A Rust target in a consumer with no root package.\n\n/// Returns the answer.\npub fn answer() -> u32 {\n    42\n}\n",
+    );
+    run_in(
+        &case,
+        &["build", "//app"],
+        "build a rust target with no root package",
+    );
+    std::fs::remove_dir_all(case.root().join("app"))
+        .unwrap_or_else(|error| panic!("remove app: {error}"));
     run_in(
         &case,
         &["run", "@rules_dx//:dx", "--", "--help"],

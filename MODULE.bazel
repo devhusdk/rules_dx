@@ -2036,7 +2036,7 @@ use_repo(
 rust_host_tools = use_extension("@rules_rust//rust:extensions.bzl", "rust_host_tools")
 use_repo(rust_host_tools, "rust_host_tools")
 
-crate = use_extension("//rust/private:crate_universe.bzl", "crate")
+crate = use_extension("//rust/private/crate_universe:extensions.bzl", "crate")
 crate.annotation(
     build_script_env = {
         "CFLAGS": "$(DX_BS_CFLAGS)",

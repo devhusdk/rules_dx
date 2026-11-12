@@ -359,6 +359,7 @@ filegroup(
         "//ruby/private/quality:module_srcs",
         "//rust:module_srcs",
         "//rust/private:module_srcs",
+        "//rust/private/crate_universe:module_srcs",
         "//rust/private/quality:module_srcs",
         "//sql/private/quality:module_srcs",
         "//swift/private/quality:module_srcs",

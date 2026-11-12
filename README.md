@@ -6,7 +6,7 @@ Language toolchains come from Bazel. No separate installs.
 
 ## Quickstart
 
-Bazel via Bazelisk is required. In an empty directory, create three files.
+Bazel via Bazelisk is required. In an empty directory, create two files.
 
 `.bazelversion`:
 

@@ -28,7 +28,6 @@ cell_settings(
 
 exports_files([
     "check.bzl",
-    "platforms.bzl",
     "settings.bzl",
     "transition.bzl",
 ])

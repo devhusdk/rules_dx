@@ -161,6 +161,13 @@ dx typecheck -- --@rules_dx//config:tool_phpstan=@rules_dx//php/private/tools:ph
 
 Dependencies are scanned, not run. See `docs/cli/commands/quality.md`.
 
+## Refreshing the PHP pins
+
+1. Download each archive from `dl.static-php.dev`.
+2. Check its SHA-256 against the upstream `.sha256` sidecar.
+3. Run `gh release upload mirror-php-<version> <archive>`.
+4. Update `php/pins.json`: the mirror URL first, the upstream URL second.
+
 ## API docs
 
 `php_doc_shard` (`@rules_dx//tools/docs/php:defs.bzl`) turns the public API of a

@@ -17,6 +17,8 @@ PHP_VERSION = _PHP["version"]
 
 STATIC_PHP = "https://dl.static-php.dev/v3/php-bin/"
 
+MIRROR = "https://github.com/devhusdk/rules_dx/releases/download/mirror-php-" + PHP_VERSION + "/"
+
 def _checks():
     hub = hub_build(PHP_CELLS.keys())
     flavors = {"linux_x86_64": "gnu-bulk", "linux_arm64": "gnu-bulk", "macos_arm64": "common", "windows_x86_64": "spc-max"}
@@ -31,7 +33,7 @@ def _checks():
         expect_equal("pinned cells allow the target", cases.values(), [[] for _ in PHP_CELLS]),
         expect_equal("other platforms are incompatible and unsupported", [str(label) for label in default], [str(Label("@platforms//:incompatible")), str(Label("//php/private/toolchain:unsupported"))]),
         expect_equal("pinned cells are the language cells", sorted(cells.keys()), sorted(PHP_CELLS.keys())),
-        expect_true("cell urls", all([cells[c]["urls"][0].startswith(STATIC_PHP + flavors[c] + "/") for c in PHP_CELLS])),
+        expect_true("cell urls", all([cells[c]["urls"][0].startswith(MIRROR) and cells[c]["urls"][1].startswith(STATIC_PHP + flavors[c] + "/") for c in PHP_CELLS])),
         expect_equal("cell binaries are the interpreters", {c: cells[c]["binary"] for c in cells}, {c: PHP_CELLS[c].interpreter for c in PHP_CELLS}),
         expect_equal("macos constraints", mac.exec_compatible_with, ["@platforms//os:macos", "@platforms//cpu:aarch64"]),
         expect_equal("windows constraints", PHP_CELLS["windows_x86_64"].exec_compatible_with, ["@platforms//os:windows", "@platforms//cpu:x86_64"]),

@@ -5,7 +5,7 @@ mod scan;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use scan::{Counts, Masked, add, calls, is_skipped, is_starlark, masked};
+use scan::{add, calls, is_skipped, is_starlark, masked, Counts, Masked};
 use starlark_syntax as _;
 use yaml_serde as _;
 
@@ -193,6 +193,34 @@ fn pin_pairs(value: &serde_json::Value, key: Option<&str>, out: &mut BTreeSet<St
     }
 }
 
+/// Hosts that rebuild files in place under an unchanged URL.
+const REBUILT_IN_PLACE: [&str; 1] = ["dl.static-php.dev"];
+
+/// The `urls` lists of a pins.json whose first entry is on a `REBUILT_IN_PLACE` host.
+fn rebuilt_in_place(value: &serde_json::Value) -> usize {
+    match value {
+        serde_json::Value::Object(object) => object
+            .iter()
+            .map(|(key, child)| {
+                let first = child
+                    .as_array()
+                    .filter(|_| key == "urls")
+                    .and_then(|urls| urls.first())
+                    .and_then(|url| url.as_str());
+                match first {
+                    Some(url) => usize::from(REBUILT_IN_PLACE.iter().any(|host| {
+                        url.strip_prefix("https://")
+                            .is_some_and(|rest| rest.split('/').next() == Some(host))
+                    })),
+                    None => rebuilt_in_place(child),
+                }
+            })
+            .sum(),
+        serde_json::Value::Array(items) => items.iter().map(rebuilt_in_place).sum(),
+        _ => 0,
+    }
+}
+
 /// The hits in `files`, a `(path, text)` list.
 fn scan_files(files: &[(String, String)]) -> Counts {
     let mut counts = Counts::new();
@@ -242,6 +270,7 @@ fn scan_files(files: &[(String, String)]) -> Counts {
             let value: serde_json::Value =
                 serde_json::from_str(text).unwrap_or_else(|error| panic!("{path}: {error}"));
             pin_pairs(&value, None, &mut pairs);
+            add(&mut counts, path, MUTABLE, rebuilt_in_place(&value));
             if let Some(archives) = value.get("archives").and_then(|v| v.as_object()) {
                 for (module, entry) in archives {
                     let Some(sha256) = entry.get("sha256").and_then(|v| v.as_str()) else {
@@ -463,6 +492,22 @@ fn a_mutable_reference_is_counted() {
     assert_eq!(count("MODULE.bazel"), Some(4), "{found:?}");
     assert_eq!(count(".github/workflows/ci.yml"), Some(3), "{found:?}");
     assert_eq!(count(".bazelrc"), Some(1), "{found:?}");
+}
+
+#[test]
+fn a_rebuilt_in_place_host_first_is_counted() {
+    let pins = |first: &str, second: &str| {
+        format!(
+            "{{\"cells\": {{\"a\": {{\"sha256\": \"{HEX_A}\", \"urls\": [\"{first}\", \"{second}\"]}}}}}}"
+        )
+    };
+    let upstream = "https://dl.static-php.dev/v3/php.tar.gz";
+    let mirror = "https://github.com/devhusdk/rules_dx/releases/download/mirror-php-1/php.tar.gz";
+    assert_eq!(
+        hits(&[("php/pins.json", &pins(upstream, mirror))]),
+        "php/pins.json mutable-ref 1\n"
+    );
+    assert_eq!(hits(&[("php/pins.json", &pins(mirror, upstream))]), "");
 }
 
 #[test]

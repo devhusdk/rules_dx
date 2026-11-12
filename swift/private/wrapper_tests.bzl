@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_swift//swift:providers.bzl", "SwiftInfo")
+load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT")
 load("//swift/private:providers.bzl", "SwiftDocsInfo")
 
 def _library_impl(ctx):
@@ -28,6 +29,34 @@ swift_library_provider_test = analysistest.make(
     attrs = {"srcs": attr.string_list(default = ["greet.swift"], doc = "Basenames of the sources the docs provider must carry.")},
 )
 swift_binary_provider_test = analysistest.make(_binary_impl)
+
+_LinkLibInfo = provider(doc = "LIB values of the CppLink actions under a target.", fields = {"libs": "Depset of LIB strings."})
+
+def _link_lib_aspect_impl(target, ctx):
+    upstream = getattr(ctx.rule.attr, "upstream", None)
+    deps = upstream if type(upstream) == "list" else ([upstream] if upstream != None else [])
+    libs = [action.env.get("LIB", "") for action in target.actions if action.mnemonic == "CppLink" and action.env != None]
+    return [_LinkLibInfo(libs = depset(libs, transitive = [d[_LinkLibInfo].libs for d in deps if _LinkLibInfo in d]))]
+
+_link_lib_aspect = aspect(implementation = _link_lib_aspect_impl, attr_aspects = ["upstream"])
+
+def _dynamic_crt_impl(ctx):
+    env = analysistest.begin(ctx)
+    libs = analysistest.target_under_test(env)[_LinkLibInfo].libs.to_list()
+    asserts.true(env, len(libs) > 0, "no CppLink action with a LIB")
+    for lib in libs:
+        asserts.true(env, "/dynamic" in lib, "LIB=" + lib)
+        asserts.false(env, "/static" in lib, "LIB=" + lib)
+    return analysistest.end(env)
+
+swift_binary_dynamic_crt_test = analysistest.make(
+    _dynamic_crt_impl,
+    extra_target_under_test_aspects = [_link_lib_aspect],
+    config_settings = {
+        "//command_line_option:features": MSVC_STATIC_CRT,
+        str(Label(MSVC_CRT_FROM_RUST)): True,
+    },
+)
 
 def _coverage_impl(ctx):
     env = analysistest.begin(ctx)

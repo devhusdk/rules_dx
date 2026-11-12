@@ -7,7 +7,7 @@ package(default_visibility = ["//visibility:public"])
 
 [
     swift_linux_toolchain(
-        name = "toolchain_%s_%s" % (exec_cpu, target_cpu),
+        name = "swift_toolchain_%s_%s" % (exec_cpu, target_cpu),
         exec_cpu = exec_cpu,
         target_cpu = target_cpu,
     )
@@ -16,16 +16,17 @@ package(default_visibility = ["//visibility:public"])
 ]
 
 swift_windows_toolchain(
-    name = "toolchain_windows_x86_64",
+    name = "swift_toolchain_windows_x86_64",
     cpu = "x86_64",
 )
 
 swift_windows_toolchain(
-    name = "toolchain_windows_aarch64",
+    name = "swift_toolchain_windows_aarch64",
     cpu = "aarch64",
 )
 
 exports_files([
+    "extensions.bzl",
     "extract_windows.ps1",
     "pins.json",
     "repos.bzl",

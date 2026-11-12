@@ -1,4 +1,4 @@
-"""Registers the rules_swift Windows toolchain over the unpacked swift.org installer."""
+"""Declares the rules_swift Windows toolchain over the unpacked swift.org installer."""
 
 load("@rules_swift//swift/toolchains:swift_toolchain.bzl", "swift_toolchain")
 
@@ -12,7 +12,7 @@ def swift_windows_toolchain(name, cpu):
     runtime = (root + "/runtime/usr/bin").replace("/", "\\")
 
     swift_toolchain(
-        name = "swift_toolchain_windows_" + cpu,
+        name = name,
         arch = cpu,
         env = {"PATH": runtime, "Path": runtime},
         os = "windows",
@@ -29,12 +29,4 @@ def swift_windows_toolchain(name, cpu):
             "swift.no_embed_debug_module",
             "swift.module_map_no_private_headers",
         ],
-    )
-
-    native.toolchain(
-        name = name,
-        exec_compatible_with = _WINDOWS + ["@platforms//cpu:" + cpu],
-        target_compatible_with = _WINDOWS + ["@platforms//cpu:" + cpu],
-        toolchain = ":swift_toolchain_windows_" + cpu,
-        toolchain_type = "@rules_swift//toolchains:toolchain_type",
     )

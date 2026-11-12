@@ -4,6 +4,8 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@dx_pins_data//:pins.bzl", "PINS")
 load("@rules_swift//swift:providers.bzl", "SwiftToolchainInfo")
 load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
+load("//core:toolchain.bzl", "hub_checks")
+load(":extensions.bzl", "swift_hub")
 
 def _link_flags(cc_info):
     return [
@@ -150,4 +152,38 @@ def swift_windows_extract_test(name, size):
             ]),
             "//swift/private/toolchain:windows.bzl": "env = {\"PATH\": runtime, \"Path\": runtime},",
         },
+    )
+
+_HUB_ORDER = [
+    "toolchain_aarch64_aarch64",
+    "toolchain_aarch64_x86_64",
+    "toolchain_windows_aarch64",
+    "toolchain_windows_x86_64",
+    "toolchain_x86_64_aarch64",
+    "toolchain_x86_64_x86_64",
+]
+
+def _hub_checks():
+    hub = swift_hub()
+    names = [line.split("\"")[1] for line in hub.splitlines() if line.startswith("    name = ")]
+    return hub_checks(hub, "@rules_swift//toolchains:toolchain_type", len(_HUB_ORDER)) + [
+        expect_equal("hub toolchain order", names, _HUB_ORDER),
+        expect_true("hub names the private swift toolchains", all([
+            "//swift/private/toolchain:swift_" + name + "\"" in hub
+            for name in _HUB_ORDER
+        ])),
+    ]
+
+def swift_toolchain_hub_test(name, size):
+    """Asserts the dx_swift_toolchains hub declares every Swift toolchain in registration order.
+
+    Args:
+        name: The test name.
+        size: The test size.
+    """
+    starlark_test(
+        name = name,
+        size = size,
+        mode = "load",
+        checks = _hub_checks(),
     )

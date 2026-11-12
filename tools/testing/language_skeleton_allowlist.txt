@@ -533,7 +533,6 @@ register-label java/private/toolchain
 register-label kotlin/private/toolchain
 register-label msix/private/toolchain
 register-label scala/private/toolchain
-register-label swift/private/toolchain
 register-label tools/platforms
 test-location android/private/library/BUILD.bazel
 test-location android/private/library/defs_tests.bzl

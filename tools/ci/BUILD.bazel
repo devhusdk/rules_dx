@@ -518,12 +518,17 @@ rust_test(
     data = [
         "review_paths.sh",
         "//.github:review-paths.txt",
+        "//.github:workflows",
     ],
+    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = all_crate_deps(
         package_name = "tools/ci_tests",
         normal = True,
         normal_dev = True,
-    ) + ["//tools/testing:dx_testing"],
+    ) + [
+        "//tools/ci/ci_workflow",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(

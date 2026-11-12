@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use ci_workflow::{document, job, scripts, steps, workflow_call};
-use dx_testing::{read_runfiles, resolve_runfiles};
+use ci_workflow::{document, job, scripts, steps, strings, workflow_call};
+use dx_testing::resolve_runfiles;
 
 const WORKFLOW: &str = ".github/workflows/reusable-release.yml";
 
@@ -193,5 +193,9 @@ fn summary_trap_runs_on_exit() {
 
 #[test]
 fn workflow_text_is_readable() {
-    assert!(read_runfiles(WORKFLOW).contains("rules-dx-release"));
+    assert!(
+        strings(WORKFLOW)
+            .iter()
+            .any(|text| text.contains("rules-dx-release"))
+    );
 }

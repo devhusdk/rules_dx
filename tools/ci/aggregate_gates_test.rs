@@ -377,13 +377,28 @@ fn one_run_per_ref_and_none_cancel() {
 
 #[test]
 fn pull_request_comments_stay_pull_request_only() {
-    let text = read_runfiles(CONSUMER_WORKFLOW);
+    let comments: Vec<Value> = jobs(CONSUMER_WORKFLOW)
+        .iter()
+        .flat_map(|(_, job)| job["steps"].as_array().cloned().unwrap_or_default())
+        .filter(|step| {
+            step["name"]
+                .as_str()
+                .is_some_and(|name| name.starts_with("Publish PR summary comment"))
+        })
+        .collect();
     assert!(
-        text.contains(
-            "github.event_name == 'pull_request' }}\n        env:\n          DX_INVOCATION_ID"
-        ),
-        "the PR comment step must stay gated to pull_request"
+        !comments.is_empty(),
+        "{CONSUMER_WORKFLOW} has no PR comment step"
     );
+    for step in comments {
+        assert!(
+            step["if"]
+                .as_str()
+                .is_some_and(|gate| gate.contains("github.event_name == 'pull_request'")),
+            "the PR comment step must stay gated to pull_request"
+        );
+        assert!(!step["env"]["DX_INVOCATION_ID"].is_null(), "{step}");
+    }
 }
 
 #[test]

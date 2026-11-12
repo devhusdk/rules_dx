@@ -1,4 +1,4 @@
-use ci_workflow::{job, steps};
+use ci_workflow::{job, steps, strings, triggers};
 use dx_testing::read_runfiles;
 
 const CI: &str = ".github/workflows/ci.yml";
@@ -180,13 +180,13 @@ fn job_stays_inside_the_time_budget() {
 
 #[test]
 fn workflow_runs_on_pull_requests() {
-    let body = read_runfiles(WORKFLOW);
+    let on = triggers(WORKFLOW);
     assert!(
-        body.contains("\n  pull_request:\n"),
+        on.get("pull_request").is_some(),
         "{WORKFLOW} needs a pull_request trigger"
     );
     assert!(
-        !body.contains("pull_request_target"),
+        on.get("pull_request_target").is_none(),
         "{WORKFLOW} must not use pull_request_target"
     );
 }
@@ -194,7 +194,11 @@ fn workflow_runs_on_pull_requests() {
 #[test]
 fn consumer_queries_skip_the_private_upstream_copies() {
     for path in [CI, SCRIPT] {
-        let text = read_runfiles(path);
+        let text = if path == CI {
+            strings(CI).join("\n")
+        } else {
+            read_runfiles(path)
+        };
         let mut seen = 0;
         for line in text.lines() {
             for tag in ["starter-consumer", "hermetic-consumer"] {

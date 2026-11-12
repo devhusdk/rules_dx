@@ -1,0 +1,7 @@
+function Get-Greeting {
+    [OutputType([string])]
+    param(
+        [string]$Name = "world"
+    )
+    return "hello $Name"
+}

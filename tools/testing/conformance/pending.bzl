@@ -198,12 +198,8 @@ php coverage_test windows_x86_64
 php cross_test *
 php lock_test *
 php runfiles_test *
-powershell build_test *
-powershell coverage_test *
 powershell cross_test *
-powershell fail_test *
 powershell lock_test *
-powershell pass_test *
 powershell runfiles_test *
 python cross_test *
 python lock_test *

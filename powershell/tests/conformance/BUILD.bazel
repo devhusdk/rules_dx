@@ -1,0 +1,60 @@
+# gazelle:ignore
+load("//powershell:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+powershell_library(
+    name = "conformance",
+    srcs = [
+        "Greet.psd1",
+        "Greet.psm1",
+    ],
+)
+
+powershell_binary(
+    name = "hello",
+    srcs = ["main.ps1"],
+    deps = [":conformance"],
+)
+
+powershell_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["pass_test.ps1"],
+    data = ["pass.Describe.ps1"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [
+        ":conformance",
+        "//powershell:dx_coverage",
+        "//powershell:pester",
+    ],
+)
+
+powershell_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["fail_test.ps1"],
+    data = ["fail.Describe.ps1"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [
+        ":conformance",
+        "//powershell:dx_coverage",
+        "//powershell:pester",
+    ],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":hello",
+    covered_source = "Greet.psm1",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "powershell",
+    passing_test = ":pass_subject_test",
+)

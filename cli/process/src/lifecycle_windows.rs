@@ -454,4 +454,9 @@ impl TerminalJob {
     pub fn tend(&self, _child: i32) {}
 }
 
-pub fn end_owned_descendants(_owned: &mut OwnedChild) {}
+/// Ends what an owned run left in the child's job once the child has exited.
+pub fn end_owned_descendants(owned: &mut OwnedChild) {
+    if owned.job.descendants == Descendants::Owned {
+        owned.job.terminate();
+    }
+}

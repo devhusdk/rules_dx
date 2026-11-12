@@ -121,10 +121,10 @@ def dx_symlink_executable_name(name, upstream_executable):
         return name + basename[dot:]
     return name
 
-def dx_symlink_executable(ctx, target_file):
-    """Symlinks one upstream executable under the forwarder's own name."""
+def dx_symlink_executable(ctx, target_file, directory = ""):
+    """Symlinks one upstream executable under the forwarder's own name, inside directory when set."""
     link = ctx.actions.declare_file(
-        dx_symlink_executable_name(ctx.label.name, target_file),
+        directory + dx_symlink_executable_name(ctx.label.name, target_file),
     )
     ctx.actions.symlink(output = link, target_file = target_file, is_executable = True)
     return link
@@ -133,14 +133,20 @@ def dx_upstream(ctx):
     """Returns the upstream target, unwrapping a transitioned attribute."""
     return single_target(ctx.attr.upstream)
 
-def dx_symlink_default_info(ctx, what, extra_runfiles = None, executable = None):
-    """Builds the executable DefaultInfo symlinking the upstream binary or a replacement executable."""
+def dx_symlink_default_info(ctx, what, extra_runfiles = None, executable = None, sibling_files = []):
+    """Builds the executable DefaultInfo symlinking the upstream binary or a replacement executable, with sibling_files symlinked next to it."""
     upstream = dx_upstream(ctx)[DefaultInfo]
     exe = upstream.files_to_run.executable
     if exe == None:
         fail(what + ": upstream target has no executable: " + str(dx_upstream(ctx).label))
-    link = dx_symlink_executable(ctx, executable if executable != None else exe)
-    runfiles = ctx.runfiles(files = [link] + getattr(ctx.files, "data", [])).merge(upstream.default_runfiles)
+    directory = ctx.label.name + ".siblings/" if sibling_files else ""
+    link = dx_symlink_executable(ctx, executable if executable != None else exe, directory)
+    siblings = []
+    for sibling in sibling_files:
+        copy = ctx.actions.declare_file(directory + sibling.basename)
+        ctx.actions.symlink(output = copy, target_file = sibling)
+        siblings.append(copy)
+    runfiles = ctx.runfiles(files = [link] + siblings + getattr(ctx.files, "data", [])).merge(upstream.default_runfiles)
     for dep in getattr(ctx.attr, "data", []):
         runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
     if extra_runfiles != None:
@@ -355,7 +361,7 @@ def _dx_with_run_environment(ctx, providers):
             out.append(provider)
     return out + [dx_run_environment(ctx, base)]
 
-def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, required_providers = [], upstream_providers = None, what = None, extra_attrs = None, optional_providers = [], runtime = "besteffort", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, validate = None, cfg = None):
+def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, required_providers = [], upstream_providers = None, what = None, extra_attrs = None, optional_providers = [], runtime = "besteffort", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, validate = None, cfg = None, sibling_files = None):
     """Creates the executable or test forwarding rule for one wrapper."""
     what = what if what != None else language.what
     quality_specs = language.quality_specs
@@ -374,7 +380,7 @@ def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, requ
             extra_runfiles = coverage.runfiles if extra_runfiles == None else extra_runfiles.merge(coverage.runfiles)
         coverage_executable = getattr(coverage, "executable", None) if coverage != None else None
         providers = (
-            [dx_symlink_default_info(ctx, what, extra_runfiles, coverage_executable)] +
+            [dx_symlink_default_info(ctx, what, extra_runfiles, coverage_executable, sibling_files(ctx) if sibling_files != None else [])] +
             dx_preserved_providers(upstream, required_providers, what) +
             dx_forwarded_optional(upstream, optional_providers, what) +
             dx_forwarded_quiet(upstream, quiet_providers) +

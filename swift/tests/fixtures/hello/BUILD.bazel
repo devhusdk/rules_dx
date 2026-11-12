@@ -1,7 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//swift:defs.bzl", "swift_binary", "swift_library", "swift_test")
-load("//swift/private:defs.bzl", "SWIFT_WINDOWS_RUNTIME_DLLS", "SWIFT_WINDOWS_RUNTIME_PATH")
 load("//swift/private:wrapper_tests.bzl", "swift_binary_provider_test", "swift_library_provider_test", "swift_test_coverage_test", "swift_warnings_as_errors_tests")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
@@ -33,14 +32,12 @@ swift_library(
 swift_binary(
     name = "hello",
     srcs = ["main.swift"],
-    target_compatible_with = _NATIVE,
     deps = [":greet"],
 )
 
 swift_test(
     name = "xctest",
     srcs = ["greet_xctest.swift"],
-    target_compatible_with = _NATIVE,
     deps = [":greet"],
 )
 
@@ -98,10 +95,7 @@ sh_test(
 dx_hello_output_test(
     name = "hello_output_test",
     binary = ":hello",
-    condition_data = {"//swift/private/platforms:is_windows_x86_64": [SWIFT_WINDOWS_RUNTIME_DLLS]},
-    condition_env = {"//swift/private/platforms:is_windows_x86_64": {"PATH": SWIFT_WINDOWS_RUNTIME_PATH}},
     expected = "Hello, swift!",
-    target_compatible_with = _NATIVE,
 )
 
 real_source_target(

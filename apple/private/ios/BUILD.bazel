@@ -34,7 +34,7 @@ apple_ios_lib(
 failure_test(
     name = "no_platforms_test",
     expected_failure_substring = "apple_ios_lib: platform takes one of",
-    target = ":no_platforms_selection",
+    target = ":no_platforms",
 )
 
 apple_ios_lib(
@@ -46,7 +46,7 @@ apple_ios_lib(
 failure_test(
     name = "bad_platform_test",
     expected_failure_substring = "apple_ios_lib: platform takes one of",
-    target = ":bad_platform_selection",
+    target = ":bad_platform",
 )
 
 apple_ios_lib(
@@ -58,7 +58,7 @@ apple_ios_lib(
 failure_test(
     name = "device_x86_test",
     expected_failure_substring = "apple_ios_lib: platform takes one of",
-    target = ":device_x86_selection",
+    target = ":device_x86",
 )
 
 apple_ios_lib(

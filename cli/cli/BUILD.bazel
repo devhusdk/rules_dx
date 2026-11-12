@@ -163,10 +163,8 @@ rust_binary(
     crate_root = "src/main.rs",
     data = ["//cli/prebuilt:pins.bzl"],
     visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "cli/dx_cli",
-        normal = True,
-    ) + [
+    # keep
+    deps = [
         ":dx_cli",
         "//cli/adopt:dx_adopt",
         "//cli/codegen_shard",
@@ -180,7 +178,11 @@ rust_binary(
         "//core/quality/runner:quality_runner_lib",
         "//env/private/env_shard",
         "//tools/coverage/collect:collect_native_lib",
-    ],
+        "@crates//:tracing",
+    ] + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["@crates//:libc"],
+    }),
 )
 
 # MSVC opt links keep the PDB, remapped against X:\dx so it matches across checkouts.

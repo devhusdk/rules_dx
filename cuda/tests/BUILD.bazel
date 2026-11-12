@@ -6,7 +6,7 @@ load("//core:failure_test.bzl", "failure_test")
 load("//core/modules:cuda.bzl", "CUDA_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cuda:defs.bzl", "cuda_binary", "cuda_component_library", "cuda_gpu_env", "cuda_library", "cuda_test")
-load("//cuda/private:defs.bzl", "CUDA_TARGET")
+load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH")
 load("//cuda/private/toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
@@ -37,7 +37,7 @@ rust_test(
         "DX_CUDA_ARCHIVES": "$(rootpaths //cuda/tests/fixtures/saxpy)",
         "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/saxpy:saxpy_app)",
     },
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -74,7 +74,7 @@ rust_test(
         "DX_CUDA_ARCHIVES": "$(rootpaths //cuda/tests/fixtures/rdc:axpy) $(rootpaths //cuda/tests/fixtures/rdc:axpy_from_objects)",
         "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/rdc:rdc_app)",
     },
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -82,21 +82,21 @@ dx_hello_output_test(
     name = "defines_output_test",
     binary = "//cuda/tests/fixtures/executable:defines_binary",
     expected = "defines ok",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 dx_hello_output_test(
     name = "rdc_output_test",
     binary = "//cuda/tests/fixtures/rdc:rdc_app",
     expected = "rdc n=1024 sum=1048576",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 dx_hello_output_test(
     name = "rdc_objects_output_test",
     binary = "//cuda/tests/fixtures/rdc:rdc_objects_app",
     expected = "rdc n=1024 sum=1048576",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 device_link_hermetic_test(
@@ -105,25 +105,25 @@ device_link_hermetic_test(
         "//cc/private/toolchains:msvc_selected": "msvc_runtime",
         "//conditions:default": "llvm",
     }),
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     target_under_test = "//cuda/tests/fixtures/rdc:axpy",
 )
 
 device_link_hermetic_test(
     name = "rdc_objects_device_link_hermetic_test",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     target_under_test = "//cuda/tests/fixtures/rdc:axpy_from_objects",
 )
 
 gcc_device_link_hermetic_test(
     name = "gcc_rdc_device_link_hermetic_test",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     target_under_test = "//cuda/tests/fixtures/rdc:axpy",
 )
 
 hermetic_toolchain_test(
     name = "rdc_objects_hermetic_test",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     target_under_test = "//cuda/tests/fixtures/rdc:scale_objects",
 )
 
@@ -160,7 +160,7 @@ with_gpu_device(
     compute_capability = "12.0",
     driver = "13.4",
     target = ":saxpy_gpu_probe_undeclared",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 [
@@ -169,7 +169,7 @@ with_gpu_device(
         size = "small",
         min_compute_capability = min_compute_capability,
         min_driver = "13.0",
-        target_compatible_with = CUDA_TARGET,
+        target_compatible_with = CUDA_COMPATIBLE_WITH,
         target_under_test = target,
     )
     for name, target, min_compute_capability in [
@@ -199,7 +199,7 @@ rust_test(
         "DX_GPU_TEST": "$(rootpath :saxpy_gpu_probe)",
         "DX_GPU_TEST_UNDECLARED": "$(rootpath :saxpy_gpu_probe_undeclared)",
     },
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     deps = [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
@@ -218,7 +218,7 @@ failure_test(
     name = "gpu_cc_below_cuda_archs_failure_test",
     expected_failure_substring = "dx_cuda: min_compute_capability 7.5 is below the lowest arch in cuda_archs (8.9)",
     target = ":gpu_cc_below_cuda_archs",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 rust_test(
@@ -241,7 +241,7 @@ rust_test(
         "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/cublas:cublas_app)",
         "DX_CUDA_MAJOR": CUDA_VERSION.split(".")[0],
     },
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -261,18 +261,18 @@ dx_hello_output_test(
     name = "cublas_output_test",
     binary = "//cuda/tests/fixtures/cublas:cublas_app",
     expected = "cublas saxpy n=1024 sum=1048576",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 component_sources_test(
     name = "cublas_component_sources_test",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     target_under_test = "//cuda:cublas",
 )
 
 hermetic_toolchain_test(
     name = "cublas_hermetic_test",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     target_under_test = "//cuda/tests/fixtures/cublas",
 )
 
@@ -280,7 +280,7 @@ dx_hello_output_test(
     name = "saxpy_output_test",
     binary = "//cuda/tests/fixtures/saxpy:saxpy_app",
     expected = "saxpy n=1024 sum=1048576",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 hermetic_toolchain_test(
@@ -289,13 +289,13 @@ hermetic_toolchain_test(
         "//cc/private/toolchains:msvc_selected": "msvc_runtime",
         "//conditions:default": "llvm",
     }),
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     target_under_test = "//cuda/tests/fixtures/saxpy",
 )
 
 gcc_hermetic_toolchain_test(
     name = "gcc_hermetic_toolchain_test",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     target_under_test = "//cuda/tests/fixtures/saxpy",
 )
 
@@ -310,7 +310,7 @@ failure_test(
     name = "missing_cuda_archs_failure_test",
     expected_failure_substring = "dx_cuda: cuda_archs is empty",
     target = ":missing_cuda_archs",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 cuda_library(
@@ -324,28 +324,28 @@ failure_test(
     name = "unsupported_arch_failure_test",
     expected_failure_substring = "dx_cuda: arch 'sm_70' is not supported by nvcc 13.4",
     target = ":unsupported_arch",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 cuda_check(
     name = "clang_check",
     archs = ["sm_89"],
     tags = ["manual"],
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 with_clang_compiler(
     name = "clang_compiler",
     tags = ["manual"],
     target = ":clang_check",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 failure_test(
     name = "clang_compiler_failure_test",
     expected_failure_substring = "dx CUDA targets compile with nvcc only",
     target = ":clang_compiler",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 cc_library(
@@ -359,14 +359,14 @@ cuda_component_library(
     component = ":local_component",
     component_name = "cublas",
     tags = ["manual"],
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 failure_test(
     name = "component_not_pinned_failure_test",
     expected_failure_substring = "dx_cuda: component 'cublas' is not the pinned redistributable",
     target = ":component_not_pinned",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 cc_toolchain_test(
@@ -462,7 +462,7 @@ cc_test(
     testonly = True,
     srcs = ["gpu_facts_test.cc"],
     copts = ["-std=c++17"],
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     deps = [
         "//cuda/private/gpu:gpu_facts",
         "@googletest//:gtest_main",
@@ -473,7 +473,7 @@ cc_test(
     name = "gpu_guard_test",
     size = "small",
     srcs = ["gpu_guard_test.cc"],
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
     deps = [
         "//cuda/private/gpu:gpu_guard",
         "@googletest//:gtest_main",

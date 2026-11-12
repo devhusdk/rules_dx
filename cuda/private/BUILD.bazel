@@ -5,7 +5,7 @@ load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cuda/private/toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "component_markers", "gpu_device_errors", "gpu_device_source", "gpu_requirement_errors", "toolkit_errors")
 load("//cuda/private/toolchain:transition.bzl", "cuda_host_settings")
-load(":defs.bzl", "CUDA_TARGET", "cuda_gpu_env", "cuda_split_srcs", "cuda_target_compatible_with")
+load(":defs.bzl", "CUDA_COMPATIBLE_WITH", "cuda_gpu_env", "cuda_split_srcs", "cuda_target_compatible_with")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -163,8 +163,8 @@ dx_wrapper_contract_tests(
             all([len(c.sha256) == 64 for c in CUDA_CELLS["windows_arm64"].components.values()]),
         ),
         expect_true(
-            "CUDA_TARGET is a select",
-            type(CUDA_TARGET) == "select",
+            "CUDA_COMPATIBLE_WITH is a select",
+            type(CUDA_COMPATIBLE_WITH) == "select",
         ),
         expect_true(
             "no extra is a select",

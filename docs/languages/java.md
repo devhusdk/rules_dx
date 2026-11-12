@@ -42,14 +42,6 @@ java_test(name, *, srcs = None, visibility = None, **kwargs)
 
 Minimal wrapper over java_test. test_class is inferred from the name and srcs when unset; the dx test runner runs unless use_testrunner = False. -Xlint:all is on; warnings are errors unless warnings_as_errors is False.
 
-### `java_jmh_test`
-
-```python
-java_jmh_test(name, *, runtime_deps, **kwargs)
-```
-
-The test target that runs the JMH runner, wrapped like java_test.
-
 ### `java_fuzz_test`
 
 ```python

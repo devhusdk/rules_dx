@@ -5,7 +5,7 @@ load("@rules_dx//core/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_bench", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test")
 load("@rules_dx//rust/private:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")
-load("@rules_dx//rust/tests:wrapper_tests.bzl", "dx_default_crate_name_tests", "dx_lints_forward_tests", "dx_native_coverage_tests", "dx_wrapper_conformance_tests", "dx_wrapper_registry_tests")
+load("@rules_dx//rust/tests:wrapper_tests.bzl", "rust_default_crate_name_tests", "rust_lints_forward_tests", "rust_native_coverage_tests", "rust_wrapper_conformance_tests", "rust_wrapper_registry_tests")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
@@ -53,13 +53,13 @@ rust_library(
     ),
 )
 
-dx_lints_forward_tests(
+rust_lints_forward_tests(
     name = "lints_forward_test",
     expected = True,
     target = ":hello_lints_lib",
 )
 
-dx_lints_forward_tests(
+rust_lints_forward_tests(
     name = "lints_forward_absent_test",
     expected = False,
     target = ":hello_lib",
@@ -176,9 +176,9 @@ dx_wrapper_cc_subject(
     wrapper = ":hello_staticlib",
 )
 
-dx_wrapper_registry_tests(name = "wrapper_registry_tests")
+rust_wrapper_registry_tests(name = "wrapper_registry_tests")
 
-dx_wrapper_conformance_tests(
+rust_wrapper_conformance_tests(
     name = "wrapper_conformance_tests",
     subjects = [
         ":hello_lib_subject",
@@ -229,7 +229,7 @@ rust_test(
     ),
 )
 
-dx_native_coverage_tests(
+rust_native_coverage_tests(
     name = "native_coverage_test",
     objects_list = "cc/tests/fixtures/hello/hello_upstreamruntime_objects_list.txt",
     target = ":native_data_test",
@@ -333,73 +333,73 @@ rust_static_library(
     crate_root = "src/staticlib.rs",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_lib_test",
     expected = "default_lib",
     target = ":default-lib",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_lib_upstream_test",
     expected = "default_lib",
     target = ":default-lib_upstream",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_bin_test",
     expected = "default_bin",
     target = ":default_bin",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_bin_upstream_test",
     expected = "default_bin",
     target = ":default_bin_upstream",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_test_test",
     expected = "default_name_test",
     target = ":default-name-test",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_test_upstream_test",
     expected = "default_name_test",
     target = ":default-name-test_upstream",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_derive_test",
     expected = "default_derive",
     target = ":default-derive",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_derive_upstream_test",
     expected = "default_derive",
     target = ":default-derive_upstream",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_cdylib_test",
     expected = "default_cdylib",
     target = ":default-cdylib",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_cdylib_upstream_test",
     expected = "default_cdylib",
     target = ":default-cdylib_upstream",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_staticlib_test",
     expected = "default_staticlib",
     target = ":default-staticlib",
 )
 
-dx_default_crate_name_tests(
+rust_default_crate_name_tests(
     name = "default_crate_name_staticlib_upstream_test",
     expected = "default_staticlib",
     target = ":default-staticlib_upstream",

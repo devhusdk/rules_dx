@@ -25,6 +25,8 @@ def _checks():
                 checks += pin_checks({cell: cells[cell]}, "sha256:" + pin["sha256"])
         checks += pin_checks({c: v for c, v in cells.items() if "ghcr_scope" not in pins["cells"][c]}, pins["version"])
     for name, pins in DATA.items():
+        if not any([key in pins for key in ["cells", "archives", "hex"]]):
+            continue
         cell_entries = pins.get("cells", {}).values()
         entries = cell_entries + pins.get("archives", {}).values() + pins.get("hex", {}).values()
         entries = [entry for entry in entries if "components" not in entry and "stub" not in entry]

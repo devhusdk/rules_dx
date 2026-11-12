@@ -8,7 +8,6 @@ android/tests/fixtures/adopt-android/native/BUILD.bazel no-size 2
 android/tests/fixtures/consumer_android/BUILD.bazel no-size 2
 android/tests/fixtures/native_lib/BUILD.bazel no-size 3
 android/tests/fixtures/rust_apk/BUILD.bazel no-size 26
-ansible/private/tools/BUILD.bazel no-size 1
 ansible/tests/BUILD.bazel no-size 3
 ansible/tests/layout_tests.bzl no-size 1
 ansible/tests/lock_tests.bzl no-size 1
@@ -322,7 +321,6 @@ flutter/tests/fixtures/flutter-app/web/BUILD.bazel no-size 1
 flutter/tests/negative/BUILD.bazel no-size 2
 flutter/tests/runtime/BUILD.bazel no-size 1
 fortran/private/BUILD.bazel no-size 1
-fortran/private/tools/BUILD.bazel no-size 1
 fortran/tests/fixtures/calc/BUILD.bazel no-size 2
 fortran/tests/negative/BUILD.bazel no-size 3
 fortran/tests/runtime/BUILD.bazel no-size 6

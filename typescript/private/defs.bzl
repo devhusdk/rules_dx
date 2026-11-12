@@ -436,7 +436,7 @@ def typescript_test(name, *, srcs = None, main = None, runner = "jest", node_mod
         upstream_kwargs = {"entry_point": main}
     else:
         upstream = _jest_test
-        upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs)
+        upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs, package_json)
     a = node_test_wrap_args(name, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, upstream_kwargs, env_inherit, kwargs)
     dx_wrap_test(name, upstream, _typescript_test, None, visibility = visibility, quality_srcs = srcs, upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)
 

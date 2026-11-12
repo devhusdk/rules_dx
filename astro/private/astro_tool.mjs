@@ -37,14 +37,33 @@ function scratchConfig(root, config) {
 	};
 }
 
+function materialize(root, out) {
+	const copy = fs.mkdtempSync(path.join(root, ".astro-src-"));
+	const skip = new Set(["node_modules", path.basename(copy), out]);
+	for (const entry of fs.readdirSync(root)) {
+		if (skip.has(entry)) continue;
+		fs.cpSync(path.join(root, entry), path.join(copy, entry), {
+			recursive: true,
+			dereference: true,
+			filter: (source) => path.basename(source) !== "node_modules",
+		});
+	}
+	return copy;
+}
+
 async function build(out, config, ssrEntry) {
 	if (!out) usage("build requires an output directory");
 	const root = process.cwd();
 	const astro = await import(resolveFromCwd("astro"));
-	await astro.build({
-		...scratchConfig(root, config),
-		outDir: path.resolve(root, out),
-	});
+	const src = materialize(root, out);
+	try {
+		await astro.build({
+			...scratchConfig(src, config),
+			outDir: path.resolve(root, out),
+		});
+	} finally {
+		fs.rmSync(src, { recursive: true, force: true });
+	}
 	if (ssrEntry) {
 		if (fs.readdirSync(path.resolve(root, out)).length === 0) {
 			usage(`SSR build produced an empty ${out}`);

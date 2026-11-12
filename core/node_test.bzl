@@ -16,16 +16,29 @@ _JEST_ONLY_KEYS = [
 
 NODE_JEST_WINDOWS_ARGS = ["--coverageProvider=v8"]
 
-def node_jest_upstream_attrs(node_modules, kwargs):
+def node_jest_chdir(package_json, kwargs):
+    """Returns the jest working directory: the package of a main-repository package_json below the root, or None."""
+    if package_json == None or "chdir" in kwargs:
+        return None
+    label = native.package_relative_label(package_json)
+    if label.repo_name != "" or label.package == "":
+        return None
+    return label.package
+
+def node_jest_upstream_attrs(node_modules, kwargs, package_json = None):
     """Returns the jest_test attributes dx sets; pops fixed_args from kwargs."""
     user_args = list(kwargs.pop("fixed_args", None) or [])
-    return {
+    attrs = {
         "node_modules": node_modules,
         "fixed_args": user_args + select({
             Label("@platforms//os:windows"): NODE_JEST_WINDOWS_ARGS,
             "//conditions:default": [],
         }),
     }
+    chdir = node_jest_chdir(package_json, kwargs)
+    if chdir != None:
+        attrs["chdir"] = chdir
+    return attrs
 
 def node_test_runner_rejection(rule, runner, node_modules, main, kwargs):
     """Returns the rejection for a bad runner or runner arguments, or None."""

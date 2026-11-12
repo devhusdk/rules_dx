@@ -1,12 +1,12 @@
 # gazelle:ignore
 load("//cc:defs.bzl", "cc_test")
-load("//flatbuffers/private:conform.bzl", "flatbuffers_conform")
-load("//flatbuffers:defs.bzl", "flatbuffers_cc_library", "flatbuffers_conform_test", "flatbuffers_java_library", "flatbuffers_library", "flatbuffers_rust_library")
+load("//core:failure_test.bzl", "failure_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//flatbuffers:defs.bzl", "flatbuffers_cc_library", "flatbuffers_conform_test", "flatbuffers_java_library", "flatbuffers_library", "flatbuffers_rust_library")
+load("//flatbuffers/private:conform.bzl", "flatbuffers_conform")
 load("//java:defs.bzl", "java_test")
 load("//rust:defs.bzl", "rust_test")
-load("//core/quality:fixtures.bzl", "real_source_target")
-load("//core:failure_test.bzl", "failure_test")
 load(":failure_tests.bzl", "flatbuffers_cc_stage_test", "flatbuffers_java_stage_test", "flatbuffers_stage_args_test", "flatbuffers_undeclared_java_test", "flatbuffers_undeclared_rust_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -290,6 +290,7 @@ rust_test(
         "FLATC": "$(rootpath @dx_flatbuffers//:flatc)",
         "LIBRARY": "$(rootpath //flatbuffers/tests/conform/bad:shape.fbs)",
     },
+    deps = ["//cli/test_scratch:dx_test_scratch"],
 )
 
 real_source_target(

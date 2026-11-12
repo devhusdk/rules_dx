@@ -78,10 +78,10 @@ fn crowbar_runs_five_hundred_cases_from_one_seed() {
 
 #[test]
 fn crowbar_repro_reads_the_seed_file() {
-    let file = std::env::temp_dir().join(format!("dx-crowbar-seed-{}", std::process::id()));
+    let scratch = dx_test_scratch::scratch("dx-crowbar-seed-");
+    let file = scratch.path().join("seed");
     std::fs::write(&file, "123").expect("write");
     let args = repro_args(Engine::Crowbar, "", &file);
-    let _ = std::fs::remove_file(&file);
     assert_eq!(args, strings(&["-s", "123", "-r", "500"]));
 }
 

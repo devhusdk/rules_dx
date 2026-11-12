@@ -2,15 +2,10 @@ use dx_testing::{env_file, resolve_runfiles};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = PathBuf::from(std::env::var("TEST_TMPDIR").unwrap_or_else(|_| "/tmp".into()))
-        .join(format!("julia_lint_{}_{name}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    dir
-}
-
 fn run(dir: &Path, fixture: &str) -> (Output, PathBuf) {
-    let source = resolve_runfiles(&format!("_main/julia/private/tools/lint/testdata/{fixture}"));
+    let source = resolve_runfiles(&format!(
+        "_main/julia/private/tools/lint/testdata/{fixture}"
+    ));
     let file = dir.join(fixture);
     std::fs::copy(&source, &file).unwrap_or_else(|error| panic!("copy: {error}"));
     let report = dir.join("report.json");
@@ -28,8 +23,8 @@ fn run(dir: &Path, fixture: &str) -> (Output, PathBuf) {
 }
 
 fn report_of(fixture: &str) -> String {
-    let dir = scratch(fixture);
-    let (out, report) = run(&dir, fixture);
+    let scratch = dx_test_scratch::scratch("julia-lint");
+    let (out, report) = run(scratch.path(), fixture);
     assert_eq!(
         out.status.code(),
         Some(0),

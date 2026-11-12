@@ -772,7 +772,8 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn bazel_check_reads_the_pin_and_launcher() {
-        let dir = std::env::temp_dir().join(format!("dx-status-bazel-{}", std::process::id()));
+        let scratch = dx_test_scratch::scratch("dx-status-bazel-");
+        let dir = scratch.path().to_path_buf();
         let bin = dir.join("bin");
         std::fs::create_dir_all(&bin).expect("bin");
         std::fs::write(bin.join("bazelisk"), "").expect("launcher");
@@ -797,7 +798,6 @@ node.toolchain(node_version = pinned)
         let unknown = super::bazel_check(&dir, None);
         assert_eq!(unknown.status, "warn");
         assert!(unknown.detail.starts_with("unknown:"), "{}", unknown.detail);
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
@@ -845,7 +845,8 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn module_check_never_hints_the_pin_file_for_a_non_semver_module_version() {
-        let dir = std::env::temp_dir().join(format!("dx-status-modhint-{}", std::process::id()));
+        let scratch = dx_test_scratch::scratch("dx-status-modhint-");
+        let dir = scratch.path().to_path_buf();
         std::fs::create_dir_all(&dir).expect("dir");
         std::fs::write(
             dir.join("MODULE.bazel"),
@@ -855,12 +856,12 @@ node.toolchain(node_version = pinned)
         let check = super::module_check(&dir);
         assert_eq!(check.status, "error");
         assert!(!check.hint.contains(".dx/pins"), "{}", check.hint);
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn module_check_detects_missing_and_mismatched_module() {
-        let dir = std::env::temp_dir().join(format!("dx-status-module-{}", std::process::id()));
+        let scratch = dx_test_scratch::scratch("dx-status-module-");
+        let dir = scratch.path().to_path_buf();
         std::fs::create_dir_all(&dir).expect("dir");
         let missing = super::module_check(&dir);
         assert_eq!(missing.status, "error");
@@ -903,19 +904,12 @@ node.toolchain(node_version = pinned)
         assert!(git.detail.starts_with("unknown:"), "{}", git.detail);
         std::fs::write(dir.join("MODULE.bazel"), "module(name = \"app\")\n").expect("module");
         assert_eq!(super::module_check(&dir).status, "error");
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    fn scratch(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("dx-status-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).expect("dir");
-        dir
     }
 
     #[test]
     fn module_check_reads_an_included_declaration() {
-        let dir = scratch("module-include");
+        let scratch = dx_test_scratch::scratch("dx-status-module-include-");
+        let dir = scratch.path().to_path_buf();
         std::fs::write(
             dir.join("MODULE.bazel"),
             "include(\"//:dx.MODULE.bazel\")\n",
@@ -928,12 +922,12 @@ node.toolchain(node_version = pinned)
         .expect("include");
         let found = super::module_check(&dir);
         assert_eq!(found.status, "ok", "{}", found.detail);
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn module_check_reports_a_broken_module_file() {
-        let dir = scratch("module-broken");
+        let scratch = dx_test_scratch::scratch("dx-status-module-broken-");
+        let dir = scratch.path().to_path_buf();
         std::fs::write(dir.join("MODULE.bazel"), "bazel_dep(name = \"rules_dx\"\n")
             .expect("module");
         let broken = super::module_check(&dir);
@@ -944,12 +938,12 @@ node.toolchain(node_version = pinned)
             "{}",
             broken.detail
         );
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn module_check_reports_a_missing_include() {
-        let dir = scratch("module-missing-include");
+        let scratch = dx_test_scratch::scratch("dx-status-module-missing-include-");
+        let dir = scratch.path().to_path_buf();
         std::fs::write(
             dir.join("MODULE.bazel"),
             "include(\"//:gone.MODULE.bazel\")\n",
@@ -962,12 +956,12 @@ node.toolchain(node_version = pinned)
             "{}",
             missing.detail
         );
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn observed_checks_take_the_observed_tools_check() {
-        let dir = std::env::temp_dir().join(format!("dx-status-observed-{}", std::process::id()));
+        let scratch = dx_test_scratch::scratch("dx-status-observed-");
+        let dir = scratch.path().to_path_buf();
         std::fs::create_dir_all(&dir).expect("dir");
         let tools = StatusCheck {
             name: "tools".to_owned(),
@@ -992,12 +986,12 @@ node.toolchain(node_version = pinned)
             ]
         );
         assert_eq!(checks[6], tools);
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn exec_tools_check_reads_the_host_compilation_mode() {
-        let dir = std::env::temp_dir().join(format!("dx-status-exec-{}", std::process::id()));
+        let scratch = dx_test_scratch::scratch("dx-status-exec-");
+        let dir = scratch.path().to_path_buf();
         std::fs::create_dir_all(&dir).expect("dir");
         let missing = super::exec_tools_check(&dir);
         assert_eq!(missing.status, "warn");
@@ -1032,7 +1026,6 @@ node.toolchain(node_version = pinned)
         );
         std::fs::write(dir.join(".bazelrc"), format!("# {import}\n")).expect("rc");
         assert_eq!(super::exec_tools_check(&dir).status, "warn", "{dir_rel}");
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

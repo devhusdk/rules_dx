@@ -122,7 +122,7 @@ rust_test(
         "@platforms//os:windows": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
-    deps = [],
+    deps = ["//cli/test_scratch:dx_test_scratch"],
 )
 
 real_source_target(

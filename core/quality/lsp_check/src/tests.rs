@@ -102,12 +102,11 @@ fn fake_server(
     (to_server, from_server, handle)
 }
 
-fn temp_file(name: &str, text: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("lsp_check_{}_{name}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("a b.pkl");
+fn temp_file(name: &str, text: &str) -> (dx_test_scratch::TempDir, PathBuf) {
+    let scratch = dx_test_scratch::scratch(&format!("lsp_check_{name}"));
+    let path = scratch.path().join("a b.pkl");
     std::fs::write(&path, text).unwrap();
-    path
+    (scratch, path)
 }
 
 fn note(uri: &str, diagnostics: Value) -> Option<Value> {
@@ -119,7 +118,7 @@ fn note(uri: &str, diagnostics: Value) -> Option<Value> {
 
 #[test]
 fn collects_diagnostics_and_shuts_down() {
-    let file = temp_file("collect", "x = 1\n");
+    let (_scratch, file) = temp_file("collect", "x = 1\n");
     let (writer, reader, handle) = fake_server(
         |uri| {
             note(
@@ -158,14 +157,14 @@ fn collects_diagnostics_and_shuts_down() {
 
 #[test]
 fn clean_file_has_no_diagnostics() {
-    let file = temp_file("clean", "x = 1\n");
+    let (_scratch, file) = temp_file("clean", "x = 1\n");
     let (writer, reader, _handle) = fake_server(|uri| note(uri, json!([])), false);
     assert_eq!(check(reader, writer, &[file], &options()).unwrap(), vec![]);
 }
 
 #[test]
 fn later_publish_replaces_earlier_one() {
-    let file = temp_file("replace", "x = 1\n");
+    let (_scratch, file) = temp_file("replace", "x = 1\n");
     let (writer, reader, _handle) = fake_server(
         |uri| note(uri, json!([{"range": {"start": {}}, "message": "m"}])),
         false,
@@ -176,7 +175,7 @@ fn later_publish_replaces_earlier_one() {
 
 #[test]
 fn silent_server_fails_closed_on_timeout() {
-    let file = temp_file("silent", "x = 1\n");
+    let (_scratch, file) = temp_file("silent", "x = 1\n");
     let (writer, reader, _handle) = fake_server(|_| None, false);
     let mut short = options();
     short.timeout = Duration::from_millis(300);
@@ -186,7 +185,7 @@ fn silent_server_fails_closed_on_timeout() {
 
 #[test]
 fn crashed_server_fails_closed() {
-    let file = temp_file("crash", "x = 1\n");
+    let (_scratch, file) = temp_file("crash", "x = 1\n");
     let (writer, reader, _handle) = fake_server(|_| None, true);
     let error = check(reader, writer, &[file], &options()).unwrap_err();
     assert!(error.contains("closed"), "{error}");

@@ -47,7 +47,10 @@ rust_test(
         package_name = "cli/dx_sbom",
         normal = True,
         normal_dev = True,
-    ) + ["@crates//:serde"],
+    ) + [
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:serde",
+    ],
 )
 
 real_source_target(

@@ -965,12 +965,6 @@ mod tests {
         serde_json::to_vec(&doc).expect("skeleton encodes")
     }
 
-    fn scratch_dir(label: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("dx-ambient-{}-{label}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("scratch dir");
-        dir
-    }
-
     fn valid() -> Manifest {
         parse_manifest(&skeleton(serde_json::json!({})), "skeleton").expect("valid manifest")
     }
@@ -994,7 +988,8 @@ mod tests {
             "skeleton",
         )
         .expect("ambient_files parses");
-        let dir = scratch_dir("plant");
+        let scratch = dx_test_scratch::scratch("dx-ambient-plant");
+        let dir = scratch.path().to_path_buf();
         plant_ambient_files(&dir, &manifest.ambient_files).expect("planted");
         let text = std::fs::read_to_string(dir.join(".shellcheckrc")).expect("rc");
         assert_eq!(text, "disable=all\n");
@@ -1002,7 +997,8 @@ mod tests {
 
     #[test]
     fn ambient_files_reject_keys_that_leave_the_scratch_parent() {
-        let dir = scratch_dir("reject");
+        let scratch = dx_test_scratch::scratch("dx-ambient-reject");
+        let dir = scratch.path().to_path_buf();
         for key in ["/etc/x", "../x", "a/../../x", "C:\\x", "", "\\x"] {
             let files = BTreeMap::from([(key.to_owned(), "x".to_owned())]);
             assert!(
@@ -1095,7 +1091,9 @@ mod tests {
             tree_ancestor(Path::new(
                 "/sandbox/bin/core/quality/testdata/case.runfiles/_main/core/quality/testdata/case"
             )),
-            Some(PathBuf::from("/sandbox/bin/core/quality/testdata/case.runfiles"))
+            Some(PathBuf::from(
+                "/sandbox/bin/core/quality/testdata/case.runfiles"
+            ))
         );
         assert_eq!(tree_ancestor(Path::new("/out/bin/tool")), None);
     }

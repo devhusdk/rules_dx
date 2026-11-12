@@ -3,15 +3,7 @@ use super::{
     pages_error, parse, route_error, run, stage, usage,
 };
 use std::fs;
-use std::path::{Path, PathBuf};
-
-fn scratch(name: &str) -> PathBuf {
-    let dir =
-        std::env::temp_dir().join(format!("dx-site-build-tests-{}-{name}", std::process::id()));
-    let _ = fs::remove_dir_all(&dir);
-    fs::create_dir_all(&dir).expect("a writable scratch directory");
-    dir
-}
+use std::path::Path;
 
 fn write(dir: &Path, name: &str, text: &str) -> String {
     let path = dir.join(name);
@@ -128,7 +120,8 @@ fn readme_pages_get_the_alias_mdbook_own_rewriting_needs() {
 
 #[test]
 fn alias_errors_leave_a_non_readme_page_alone() {
-    let dir = scratch("alias-other");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-alias-other");
+    let dir = scratch.path().to_path_buf();
     let out = dir.join("out");
     fs::create_dir_all(out.join("docs")).expect("a writable output directory");
     fs::write(out.join("docs/MY_README.html"), "kept").expect("a writable page");
@@ -136,7 +129,6 @@ fn alias_errors_leave_a_non_readme_page_alone() {
     assert_eq!(refusal, "");
     let kept = fs::read_to_string(out.join("docs/MY_README.html")).expect("the page");
     assert_eq!(kept, "kept");
-    let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -197,7 +189,8 @@ fn run_rejects_an_unreadable_manifest() {
 
 #[test]
 fn run_rejects_a_manifest_that_names_a_page_twice() {
-    let dir = scratch("duplicate");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-duplicate");
+    let dir = scratch.path().to_path_buf();
     let manifest = write(
         &dir,
         "pages.tsv",
@@ -216,12 +209,12 @@ fn run_rejects_a_manifest_that_names_a_page_twice() {
         refusal,
         "docs_site: route 'docs/README.md' is declared twice"
     );
-    let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]
 fn run_reports_a_missing_mdbook_binary() {
-    let dir = scratch("missing-binary");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-missing-binary");
+    let dir = scratch.path().to_path_buf();
     let guide = write(&dir, "guide.md", "# Guide\n");
     let manifest = write(&dir, "pages.tsv", &format!("docs/guide.md\t{guide}\n"));
     let options = Options {
@@ -234,18 +227,17 @@ fn run_reports_a_missing_mdbook_binary() {
     };
     let refusal = run(&options);
     assert!(refusal.starts_with("cannot run mdbook "), "{refusal}");
-    let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]
 fn alias_errors_name_the_rendered_page_mdbook_never_wrote() {
-    let dir = scratch("alias");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-alias");
+    let dir = scratch.path().to_path_buf();
     let out = dir.join("out");
     fs::create_dir_all(out.join("docs")).expect("a writable output directory");
     let refusal = alias_errors(&[page("docs/README.md", "a.md")], &out);
     assert!(refusal.contains("mdbook rendered no '"), "{refusal}");
     assert!(refusal.contains("index.html"), "{refusal}");
-    let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -283,7 +275,8 @@ fn parse_takes_the_api_tree_and_summary_together() {
 
 #[test]
 fn an_api_tree_routes_every_page_under_api() {
-    let dir = scratch("api-tree");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-api-tree");
+    let dir = scratch.path().to_path_buf();
     let a = write(&dir, "tree/rust/demo/add.md", "# add\n");
     let b = write(&dir, "tree/rust/demo/shapes.Circle.md", "# Circle\n");
     let pages = api_pages(&dir.join("tree")).expect("pages");
@@ -316,7 +309,8 @@ fn an_api_tree_routes_every_page_under_api() {
 
 #[test]
 fn run_rejects_an_api_page_that_collides_with_a_manifest_route() {
-    let dir = scratch("api-collision");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-api-collision");
+    let dir = scratch.path().to_path_buf();
     let page_path = write(&dir, "add.md", "# add\n");
     let manifest = write(
         &dir,
@@ -337,12 +331,12 @@ fn run_rejects_an_api_page_that_collides_with_a_manifest_route() {
         run(&options),
         "docs_site: route 'api/rust/demo/add.md' is declared twice"
     );
-    let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]
 fn stage_appends_the_api_summary_to_a_read_only_summary() {
-    let dir = scratch("read-only-summary");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-read-only-summary");
+    let dir = scratch.path().to_path_buf();
     let summary = write(&dir, "SUMMARY.md", "# Summary");
     let mut readonly = fs::metadata(&summary).expect("a summary").permissions();
     readonly.set_readonly(true);
@@ -359,5 +353,4 @@ fn stage_appends_the_api_summary_to_a_read_only_summary() {
         fs::read_to_string(book.join("src/SUMMARY.md")).expect("a staged summary"),
         "# Summary\n- [API](api.md)\n"
     );
-    let _ = fs::remove_dir_all(&dir);
 }

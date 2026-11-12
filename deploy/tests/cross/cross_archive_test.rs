@@ -20,8 +20,8 @@ fn the_aarch64_deployment_archives_the_aarch64_app_and_runs_on_the_host() {
         "the deployment program must be x86_64, the execution platform"
     );
 
-    let out = std::env::temp_dir().join(format!("dx-cross-release-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&out);
+    let scratch = dx_test_scratch::scratch("dx-cross-release");
+    let out = scratch.path().to_path_buf();
     let config = std::path::absolute(release_file("/cross_release_config.deploy.json"))
         .expect("absolute config path");
     let run = dx_testing::run(

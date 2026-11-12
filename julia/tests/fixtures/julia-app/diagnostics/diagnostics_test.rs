@@ -12,12 +12,6 @@ fn julia_bin() -> PathBuf {
     dx_testing::resolve_runfiles(&key)
 }
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set")).join(name);
-    std::fs::create_dir_all(&dir).expect("scratch dir is created");
-    dir
-}
-
 fn julia(home: &Path, args: &[&str]) -> dx_testing::Run {
     let depot = home.join("depot");
     let env = [
@@ -30,9 +24,10 @@ fn julia(home: &Path, args: &[&str]) -> dx_testing::Run {
 }
 
 fn run_file(name: &str, var: &str) -> dx_testing::Run {
-    let home = scratch(name);
+    let scratch = dx_test_scratch::scratch(name);
+    let home = scratch.path();
     let path = dx_testing::env_file(var).to_string_lossy().into_owned();
-    let run = julia(&home, &["--startup-file=no", "--color=no", path.as_str()]);
+    let run = julia(home, &["--startup-file=no", "--color=no", path.as_str()]);
     assert!(
         !home.join(".julia").exists(),
         "julia created a user depot in {}",

@@ -27,15 +27,6 @@ fn fixture_dir() -> PathBuf {
         .to_path_buf()
 }
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = PathBuf::from(var("TEST_TMPDIR")).join(name);
-    if dir.exists() {
-        std::fs::remove_dir_all(&dir).expect("clear scratch directory");
-    }
-    std::fs::create_dir_all(&dir).expect("create scratch directory");
-    dir
-}
-
 fn copy_tree(from: &Path, to: &Path) {
     for entry in std::fs::read_dir(from).expect("read fixture directory") {
         let entry = entry.expect("fixture entry");
@@ -158,17 +149,20 @@ fn last_segment(name: &str) -> &str {
 }
 
 struct Fixture {
+    _scratch: dx_test_scratch::TempDir,
     root: PathBuf,
     external: BTreeMap<String, Vec<PathBuf>>,
 }
 
 impl Fixture {
     fn generate(name: &str) -> Self {
-        let root = scratch(name);
+        let scratch = dx_test_scratch::scratch(name);
+        let root = scratch.path().to_path_buf();
         copy_tree(&fixture_dir(), &root);
         let run = gazelle(&root);
         assert!(run.status.success(), "{}", run.combined());
         Self {
+            _scratch: scratch,
             root,
             external: external(),
         }
@@ -339,7 +333,8 @@ fn each_removed_mapping_fails_as_unresolved() {
                 .split_whitespace()
                 .nth(1)
                 .expect("resolve names an import");
-            let root = scratch(&format!("unresolved-{checked}"));
+            let scratch = dx_test_scratch::scratch(&format!("unresolved-{checked}"));
+            let root = scratch.path().to_path_buf();
             copy_tree(&fixture_dir(), &root);
             let kept: Vec<&str> = lines
                 .iter()

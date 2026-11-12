@@ -111,16 +111,6 @@ const MH_DSYM: u32 = 0xa;
 const ARM64: u32 = 0x0100_000c;
 const X86_64: u32 = 0x0100_0007;
 
-fn scratch(name: &str) -> PathBuf {
-    let base = std::env::var_os("TEST_TMPDIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    let dir = base.join(name);
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
-}
-
 #[test]
 fn dsym_with_same_uuid_and_arch_pairs() {
     let uuid = [7u8; 16];
@@ -158,7 +148,8 @@ fn dsym_check_rejects_missing_uuid_and_non_macho() {
 
 #[test]
 fn dwarf_file_needs_exactly_one_file_in_the_bundle() {
-    let bundle = scratch("dsym-dwarf-one");
+    let scratch = dx_test_scratch::scratch("dsym-dwarf-one");
+    let bundle = scratch.path().to_path_buf();
     let err = dwarf_file(&bundle).unwrap_err();
     assert!(err.contains("cannot read dSYM"), "{err}");
     let dir = bundle.join("Contents/Resources/DWARF");
@@ -173,7 +164,8 @@ fn dwarf_file_needs_exactly_one_file_in_the_bundle() {
 #[test]
 fn manifest_records_uuid_arch_digest_and_tool() {
     let uuid = [9u8; 16];
-    let root = scratch("dsym-manifest");
+    let scratch = dx_test_scratch::scratch("dsym-manifest");
+    let root = scratch.path();
     let bin = macho(ARM64, MH_EXECUTE, Some(uuid));
     std::fs::write(root.join("app"), &bin).unwrap();
     let bundle = root.join("app.dSYM");

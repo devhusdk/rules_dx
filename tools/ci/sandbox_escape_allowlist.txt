@@ -1,6 +1,5 @@
 .bazelrc exec-requirement 4
 .bazelrc rc-flag 2
-ansible/tests/lock_tests.bzl tmp-path 1
 cli/adopt/src/init_dir.rs tmp-path 1
 cli/adopt/src/watch.rs tmp-path 15
 cli/advisory_prep/src/lib.rs tmp-path 1
@@ -52,7 +51,6 @@ core/quality/runner/src/real_tools.rs tmp-path 2
 core/quality/testdata/fake_format.rs tmp-path 2
 core/quality/tools/python_bundle/bundle.bzl exec-requirement 2
 dart/private/tools/analyze_cli_test.rs tmp-path 1
-dart/private/tools/format_cli_test.rs tmp-path 1
 deploy/private/install/src/lib.rs tmp-path 48
 deploy/private/offline/bootstrap/src/lib_tests.rs tmp-path 4
 deploy/private/release/src/release_lib_tests.rs tmp-path 7
@@ -61,9 +59,6 @@ dotnet/private/coverage/src/lcov.rs tmp-path 1
 dotnet/private/coverage/src/main.rs tmp-path 2
 dotnet/private/coverage/src/plan.rs tmp-path 2
 java/tests/pkl_lsp_smoke_test.rs tmp-path 1
-julia/private/tools/format_cli_test.rs tmp-path 1
-julia/private/tools/jet/jet_cli_test.rs tmp-path 1
-julia/private/tools/lint/lint_cli_test.rs tmp-path 1
 lua/tests/runtime/BUILD.bazel tmp-path 2
 rego/private/launcher/src/opa.rs tmp-path 1
 tools/ci/fill_pins/src/main.rs tmp-path 1

@@ -722,7 +722,12 @@ impl Drop for Planted {
 #[cfg(unix)]
 #[test]
 fn a_planted_file_at_the_old_temp_path_has_no_effect() {
-    let old = std::env::temp_dir().join("dx-advisory-cargo.zip");
+    let probe = tempfile::NamedTempFile::new().expect("probes the temp dir");
+    let old = probe
+        .path()
+        .parent()
+        .expect("temp file has a parent")
+        .join("dx-advisory-cargo.zip");
     let _ = std::fs::remove_file(&old);
     let _guard = Planted(old.clone());
     let (one, _) = two_archives();

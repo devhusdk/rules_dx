@@ -2,13 +2,6 @@ use dx_testing::{env_file, resolve_runfiles};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = PathBuf::from(std::env::var("TEST_TMPDIR").unwrap_or_else(|_| "/tmp".into()))
-        .join(format!("julia_jet_{}_{name}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    dir
-}
-
 fn run(dir: &Path, fixture: &str) -> (Output, PathBuf) {
     let source = resolve_runfiles(&format!("_main/julia/private/tools/jet/testdata/{fixture}"));
     std::fs::copy(&source, dir.join(fixture)).unwrap_or_else(|error| panic!("copy: {error}"));
@@ -32,8 +25,8 @@ fn run(dir: &Path, fixture: &str) -> (Output, PathBuf) {
 
 #[test]
 fn clean_file_gives_an_empty_report() {
-    let dir = scratch("clean");
-    let (out, report) = run(&dir, "clean.jl");
+    let scratch = dx_test_scratch::scratch("julia-jet");
+    let (out, report) = run(scratch.path(), "clean.jl");
     assert_eq!(
         out.status.code(),
         Some(0),
@@ -45,8 +38,8 @@ fn clean_file_gives_an_empty_report() {
 
 #[test]
 fn undefined_global_is_reported_at_its_line() {
-    let dir = scratch("buggy");
-    let (out, report) = run(&dir, "buggy.jl");
+    let scratch = dx_test_scratch::scratch("julia-jet");
+    let (out, report) = run(scratch.path(), "buggy.jl");
     assert_eq!(
         out.status.code(),
         Some(0),

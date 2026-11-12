@@ -66,20 +66,11 @@ fn bad_tier_and_pattern_are_errors() {
 
 #[test]
 fn a_missing_file_is_the_standard_tier() {
-    let dir = tempfile_dir();
+    let scratch = dx_test_scratch::scratch("dx_config_");
+    let dir = scratch.path().to_path_buf();
     assert_eq!(load(&dir).unwrap(), None);
     std::fs::write(dir.join("dx.toml"), "schema_version = 1\n").unwrap();
     assert_eq!(load(&dir).unwrap().unwrap().schema_version, 1);
-    std::fs::remove_dir_all(&dir).unwrap();
-}
-
-fn tempfile_dir() -> std::path::PathBuf {
-    let base = std::env::var_os("TEST_TMPDIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    let dir = base.join(format!("dx_config_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
 }
 
 #[test]

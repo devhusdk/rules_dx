@@ -64,12 +64,6 @@ fn workspace_root() -> PathBuf {
     Path::new(&srcdir).join(workspace)
 }
 
-fn scratch() -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("dx-cc-driver-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("scratch dir");
-    dir
-}
-
 fn compile(
     bin: &str,
     include: &str,
@@ -79,7 +73,8 @@ fn compile(
     flags: &[&str],
 ) -> Compile {
     let root = workspace_root();
-    let object = scratch().join(format!("{tag}.o"));
+    let scratch = dx_test_scratch::scratch("dx-cc-driver");
+    let object = scratch.path().join(format!("{tag}.o"));
     let mut argv: Vec<String> = vec![bin.to_owned()];
     for flag in flags {
         argv.push((*flag).to_owned());

@@ -71,7 +71,8 @@ fn fake_runfiles(dir: &Path) -> PathBuf {
 
 #[test]
 fn stages_from_a_manifest_only_runfiles() {
-    let dir = tempfile_dir("stage");
+    let scratch = dx_test_scratch::scratch("rego_launcher_stage");
+    let dir = scratch.path().to_path_buf();
     let exe = fake_runfiles(&dir);
     let resolver = resolver_for(&exe).unwrap();
     let descriptor = parse(
@@ -90,7 +91,8 @@ fn stages_from_a_manifest_only_runfiles() {
 
 #[test]
 fn names_the_missing_opa() {
-    let dir = tempfile_dir("noopa");
+    let scratch = dx_test_scratch::scratch("rego_launcher_noopa");
+    let dir = scratch.path().to_path_buf();
     let exe = fake_runfiles(&dir);
     std::fs::write(dir.join("desc"), GOOD).unwrap();
     let mut manifest = std::fs::read_to_string(dir.join("tool.runfiles_manifest")).unwrap();
@@ -100,11 +102,4 @@ fn names_the_missing_opa() {
     let text = error.to_string();
     assert!(text.contains("//config:tool_opa"), "{text}");
     assert!(text.contains("_main/opa"), "{text}");
-}
-
-fn tempfile_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("rego_launcher_{name}_{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
 }

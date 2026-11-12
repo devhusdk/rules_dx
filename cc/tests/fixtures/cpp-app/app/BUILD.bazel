@@ -76,7 +76,10 @@ rust_test(
         "PANTRY_BIN": "$(rootpath :pantry)",
         "PANTRY_MENU": "$(rootpath //cc/tests/fixtures/cpp-app/core:menu.csv)",
     },
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 dx_format_test(

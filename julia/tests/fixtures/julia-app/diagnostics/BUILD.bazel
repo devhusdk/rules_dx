@@ -49,7 +49,10 @@ rust_test(
     },
     target_compatible_with = JULIA_COMPATIBLE_WITH,
     toolchains = ["@rules_julia//julia:current_julia_toolchain"],
-    deps = ["@rules_dx//tools/testing:dx_testing"],
+    deps = [
+        "@rules_dx//cli/test_scratch:dx_test_scratch",
+        "@rules_dx//tools/testing:dx_testing",
+    ],
 )
 
 real_source_target(

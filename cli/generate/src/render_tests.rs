@@ -568,7 +568,8 @@ fn rendered_bazel_files_pass_buildifier() {
         ),
     ];
     cases[1].root_build = None;
-    let dir = std::env::temp_dir().join(format!("dx_generate_{}", std::process::id()));
+    let scratch = dx_test_scratch::scratch("dx_generate_");
+    let dir = scratch.path();
     for (index, case) in cases.iter().enumerate() {
         for (path, bytes) in rendered(case) {
             if !path.ends_with(".bazel") {
@@ -590,7 +591,6 @@ fn rendered_bazel_files_pass_buildifier() {
             );
         }
     }
-    let _ = std::fs::remove_dir_all(dir);
 }
 
 #[test]

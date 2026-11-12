@@ -6,14 +6,6 @@ use hermetic::{
     AMBIENT_TOOLS, Isolation, Net, SHIM, TOOL_DIRS, ambient_tools, capture, markers, preflight,
 };
 
-fn scratch() -> PathBuf {
-    let tmp = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set under Bazel"));
-    let root = tmp.join("isolation probe");
-    hermetic::remove_root(&root);
-    std::fs::create_dir_all(&root).expect("scratch root");
-    root
-}
-
 fn inside(isolation: &Isolation, net: Net, script: &str) -> hermetic::Outcome {
     let argv = vec!["/bin/bash".to_owned(), "-c".to_owned(), script.to_owned()];
     capture(isolation.command(net, &argv)).expect("isolated shell starts")
@@ -22,7 +14,9 @@ fn inside(isolation: &Isolation, net: Net, script: &str) -> hermetic::Outcome {
 #[test]
 fn isolation_denies_network_masks_tools_and_config_and_keeps_the_real_user() {
     use std::os::unix::fs::PermissionsExt;
-    let root = scratch();
+    let scratch = dx_test_scratch::scratch("isolation-probe");
+    let root = scratch.path().join("isolation probe");
+    std::fs::create_dir_all(&root).expect("scratch root");
     let shim = root.join("ambient-tool");
     std::fs::write(&shim, SHIM).expect("shim");
     std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755)).expect("shim mode");

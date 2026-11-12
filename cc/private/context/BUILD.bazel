@@ -69,7 +69,10 @@ rust_test(
         package_name = "cc/private/cc_context",
         normal = True,
         normal_dev = True,
-    ) + ["@crates//:serde"],
+    ) + [
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:serde",
+    ],
 )
 
 rust_binary(
@@ -128,7 +131,10 @@ rust_test(
         package_name = "cc/private/cc_context",
         normal = True,
         normal_dev = True,
-    ) + [":cc_context"],
+    ) + [
+        ":cc_context",
+        "//cli/test_scratch:dx_test_scratch",
+    ],
 )
 
 real_source_target(

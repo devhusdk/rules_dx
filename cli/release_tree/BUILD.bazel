@@ -22,6 +22,7 @@ rust_test(
     ],
     crate_name = "release_tree",
     crate_root = "src/main.rs",
+    deps = ["//cli/test_scratch:dx_test_scratch"],
 )
 
 real_source_target(

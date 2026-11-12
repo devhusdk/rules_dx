@@ -960,7 +960,8 @@ fn pinned_var_classifies_values() {
         PinnedVar::classify(Some("relative/x".into())),
         PinnedVar::NotAbsolute
     );
-    let absolute = std::env::temp_dir().join("uv");
+    let scratch = dx_test_scratch::scratch("dx-pinned-var-");
+    let absolute = scratch.path().join("uv");
     assert_eq!(
         PinnedVar::classify(Some(absolute.clone().into())),
         PinnedVar::Path(absolute.clone())
@@ -1166,13 +1167,15 @@ fn free_disk_bytes_defaults_to_unknown() {
 
 #[test]
 fn disk_space_reads_the_disk_holding_a_real_directory() {
-    let space = disk_space(&std::env::temp_dir()).expect("reads the temp dir");
+    let scratch = dx_test_scratch::scratch("dx-disk-space-");
+    let space = disk_space(scratch.path()).expect("reads the temp dir");
     assert!(space.total > 0 && space.free <= space.total, "{space:?}");
 }
 
 #[test]
 fn disk_space_reads_the_nearest_existing_ancestor() {
-    let missing = std::env::temp_dir().join("dx-missing").join("child");
+    let scratch = dx_test_scratch::scratch("dx-disk-space-missing-");
+    let missing = scratch.path().join("dx-missing").join("child");
     assert!(!missing.exists());
     let space = disk_space(&missing).expect("reads the temp dir");
     assert!(space.total > 0 && space.free <= space.total, "{space:?}");
@@ -1527,7 +1530,8 @@ fn make_writable_clears_read_only_entries_but_not_through_links() {
 #[cfg(windows)]
 #[test]
 fn disk_space_of_a_missing_directory_is_none() {
-    let missing = std::env::temp_dir().join("dx-no-such-dir-8104");
+    let scratch = dx_test_scratch::scratch("dx-no-such-dir-");
+    let missing = scratch.path().join("dx-no-such-dir-8104");
     assert_eq!(dir_disk_space(&missing), None);
 }
 
@@ -1545,8 +1549,9 @@ fn an_override_with_a_legacy_marker_is_unsupported() {
 
 #[test]
 fn workspace_start_and_run_output_base_read_the_environment() {
-    let cwd = std::env::temp_dir();
-    assert!(workspace_start(&cwd).is_absolute());
+    let scratch = dx_test_scratch::scratch("dx-workspace-start-");
+    let cwd = scratch.path();
+    assert!(workspace_start(cwd).is_absolute());
     let _ = run_output_base();
 }
 

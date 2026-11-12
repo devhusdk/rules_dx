@@ -195,7 +195,7 @@ rust_test(
         package_name = "deploy/private/dx_symbols",
         normal = True,
         normal_dev = True,
-    ),
+    ) + ["//cli/test_scratch:dx_test_scratch"],
 )
 
 exports_files(

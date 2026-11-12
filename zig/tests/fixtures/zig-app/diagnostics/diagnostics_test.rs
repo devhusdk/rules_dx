@@ -1,7 +1,6 @@
-use std::path::PathBuf;
-
 fn zig(args: &[&str]) -> dx_testing::Run {
-    let tmp = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set"));
+    let scratch = dx_test_scratch::scratch("zig-diagnostics");
+    let tmp = scratch.path();
     let local = tmp.join("zig-local-cache");
     let global = tmp.join("zig-global-cache");
     let lib = dx_testing::env_file("DX_ZIG_STD")

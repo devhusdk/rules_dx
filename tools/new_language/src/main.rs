@@ -66,7 +66,9 @@ fn files(name: &str, title: &str) -> Vec<(String, String)> {
         ),
         (
             "tests/BUILD.bazel".to_owned(),
-            format!("{public}\nfilegroup(\n    name = \"fixtures\",\n    srcs = glob([\"fixtures/**\"], allow_empty = True),\n)\n"),
+            format!(
+                "{public}\nfilegroup(\n    name = \"fixtures\",\n    srcs = glob([\"fixtures/**\"], allow_empty = True),\n)\n"
+            ),
         ),
     ]
 }
@@ -99,7 +101,9 @@ fn main() -> ExitCode {
     };
     let Some(root) = std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty())
     else {
-        eprintln!("new_language: BUILD_WORKSPACE_DIRECTORY is unset; run it with `bazel run //tools/new_language`");
+        eprintln!(
+            "new_language: BUILD_WORKSPACE_DIRECTORY is unset; run it with `bazel run //tools/new_language`"
+        );
         return ExitCode::from(2);
     };
     let title = args.next().unwrap_or_else(|| title_of(&name));
@@ -121,16 +125,10 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
 
-    fn scratch(tag: &str) -> std::path::PathBuf {
-        let root = std::env::temp_dir().join(format!("new_language_{tag}_{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(&root).expect("root");
-        root
-    }
-
     #[test]
     fn creates_the_layout() {
-        let root = scratch("ok");
+        let scratch = dx_test_scratch::scratch("new_language_ok");
+        let root = scratch.path();
         let written = scaffold(&root, "mylang", "MyLang").expect("scaffold");
         for path in [
             "defs.bzl",
@@ -149,17 +147,16 @@ mod tests {
         assert!(lang.contains("\"name\": \"mylang\""));
         assert!(lang.contains("\"title\": \"MyLang\""));
         assert!(lang.contains("\"windows_x86_64\"\n  ]"));
-        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn rejects_bad_and_existing_names() {
-        let root = scratch("bad");
+        let scratch = dx_test_scratch::scratch("new_language_bad");
+        let root = scratch.path();
         assert!(scaffold(&root, "Bad-Name", "x").is_err());
         fs::create_dir_all(root.join("taken")).expect("taken");
         assert!(scaffold(&root, "taken", "x").is_err());
         scaffold(&root, "fresh", "Fresh").expect("first");
         assert!(scaffold(&root, "fresh", "Fresh").is_err());
-        let _ = fs::remove_dir_all(&root);
     }
 }

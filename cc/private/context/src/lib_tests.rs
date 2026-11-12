@@ -26,12 +26,6 @@ fn gnu() -> CompilerIdentity {
     identity("k8-fastbuild", Driver::Gnu)
 }
 
-fn scratch(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("cc-context-{}-{tag}", std::process::id()));
-    fs::create_dir_all(&dir).expect("scratch dir");
-    dir
-}
-
 #[test]
 fn configured_compile_action_keeps_its_own_argv_and_inputs() {
     let text = graph_json(
@@ -79,7 +73,8 @@ fn configured_compile_action_keeps_its_own_argv_and_inputs() {
 
 #[test]
 fn response_file_arguments_are_expanded_in_place() {
-    let root = scratch("configured");
+    let scratch = dx_test_scratch::scratch("configured");
+    let root = scratch.path();
     fs::write(
         root.join("compile.params"),
         "-I \"quoted dir\" -DFLAG=1\n  -DOTHER=2\n",
@@ -106,12 +101,12 @@ fn response_file_arguments_are_expanded_in_place() {
             "pkg/probe.cc".to_string(),
         ]
     );
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn an_unreadable_response_file_fails_closed() {
-    let root = scratch("response_expand");
+    let scratch = dx_test_scratch::scratch("response_expand");
+    let root = scratch.path();
     let text = graph_json(
         &["/usr/bin/gcc", "@absent.params", "-c", "pkg/probe.cc"],
         "probe.cc",
@@ -122,7 +117,6 @@ fn an_unreadable_response_file_fails_closed() {
         .compile_commands(&root, &[gnu()])
         .expect_err("missing response file");
     assert!(matches!(error, Error::ResponseFile { .. }), "{error}");
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
@@ -139,7 +133,8 @@ fn tokenize_response_rejects_an_unterminated_quote() {
 
 #[test]
 fn database_entries_resolve_against_the_execroot() {
-    let root = scratch("response_absent");
+    let scratch = dx_test_scratch::scratch("response_absent");
+    let root = scratch.path();
     let text = graph_json(
         &["/usr/bin/gcc", "-c", "pkg/probe.cc", "-o", "out.o"],
         "probe.cc",
@@ -160,7 +155,6 @@ fn database_entries_resolve_against_the_execroot() {
     assert_eq!(entries[0].directory, root.to_string_lossy());
     assert_eq!(entries[0].file, root.join("pkg/probe.cc").to_string_lossy());
     assert_eq!(entries[0].arguments[0], "/usr/bin/gcc");
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
@@ -172,7 +166,8 @@ fn a_wrapper_target_owns_its_upstream_action() {
 
 #[test]
 fn a_label_without_a_compile_action_fails_closed() {
-    let root = scratch("database");
+    let scratch = dx_test_scratch::scratch("database");
+    let root = scratch.path();
     let text = graph_json(
         &["/usr/bin/gcc", "-c", "pkg/probe.cc"],
         "probe.cc",
@@ -190,12 +185,12 @@ fn a_label_without_a_compile_action_fails_closed() {
             label: "//pkg:absent".to_string()
         }
     );
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn two_configurations_of_one_source_fail_closed() {
-    let root = scratch("no_action");
+    let scratch = dx_test_scratch::scratch("no_action");
+    let root = scratch.path();
     let first = graph_json(
         &["/usr/bin/gcc", "-DDX=1", "-c", "pkg/probe.cc"],
         "probe.cc",
@@ -227,12 +222,12 @@ fn two_configurations_of_one_source_fail_closed() {
             count: 2
         }
     );
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn a_missing_required_source_fails_closed() {
-    let root = scratch("conflict");
+    let scratch = dx_test_scratch::scratch("conflict");
+    let root = scratch.path();
     let text = graph_json(
         &["/usr/bin/gcc", "-c", "pkg/probe.cc"],
         "probe.cc",
@@ -255,12 +250,12 @@ fn a_missing_required_source_fails_closed() {
             input: "pkg/other.cc".to_string()
         }
     );
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn a_relative_execroot_fails_closed() {
-    let root = scratch("missing_source");
+    let scratch = dx_test_scratch::scratch("missing_source");
+    let root = scratch.path();
     let text = graph_json(
         &["/usr/bin/gcc", "-c", "pkg/probe.cc"],
         "probe.cc",
@@ -278,12 +273,12 @@ fn a_relative_execroot_fails_closed() {
             path: "relative".to_string()
         }
     );
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn a_compile_action_without_a_source_flag_fails_closed() {
-    let root = scratch("relative_execroot");
+    let scratch = dx_test_scratch::scratch("relative_execroot");
+    let root = scratch.path();
     let text = graph_json(&["/usr/bin/gcc", "-c"], "probe.cc", "//pkg:probe");
     let graph = AqueryGraph::parse(&text).expect("record decodes");
     let error = graph
@@ -296,12 +291,12 @@ fn a_compile_action_without_a_source_flag_fails_closed() {
             flag: "-c".to_string()
         }
     );
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn policy_validation_fails_closed() {
-    let root = scratch("no_source_flag");
+    let scratch = dx_test_scratch::scratch("no_source_flag");
+    let root = scratch.path();
     let wrong = root.join("clang-tidy.yaml");
     fs::write(&wrong, "Checks: '-*'\n").expect("policy");
     assert_eq!(
@@ -324,12 +319,12 @@ fn policy_validation_fails_closed() {
         read_policy(&absent).expect_err("absent"),
         Error::UnreadablePolicy { .. }
     ));
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn a_bundle_carries_the_database_and_the_bound_policy() {
-    let root = scratch("bundle");
+    let scratch = dx_test_scratch::scratch("bundle");
+    let root = scratch.path();
     let bundle = root.join("bundle");
     let entries = vec![Entry {
         directory: root.to_string_lossy().into_owned(),
@@ -344,7 +339,6 @@ fn a_bundle_carries_the_database_and_the_bound_policy() {
         fs::read_to_string(bundle.join(POLICY_FILE)).expect("policy"),
         "Checks: '-*'\n"
     );
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
@@ -413,7 +407,8 @@ fn rsp_graph(root: &Path, rsp: &str, configuration: &str) -> AqueryGraph {
 
 #[test]
 fn an_unknown_driver_keeps_argv_and_response_files_as_recorded() {
-    let root = scratch("unknown");
+    let scratch = dx_test_scratch::scratch("unknown");
+    let root = scratch.path();
     let graph = rsp_graph(&root, "-DX=1", "k8-fastbuild");
     for identities in [vec![identity("k8-fastbuild", Driver::Unknown)], vec![]] {
         let commands = graph
@@ -424,7 +419,6 @@ fn an_unknown_driver_keeps_argv_and_response_files_as_recorded() {
             strings(&["tool", "--odd", "-c", "pkg/a.cc", "@x.rsp"])
         );
     }
-    fs::remove_dir_all(&root).ok();
 }
 
 fn with_env(graph: &mut AqueryGraph, include: &str, external: &str) {
@@ -439,7 +433,8 @@ fn with_env(graph: &mut AqueryGraph, include: &str, external: &str) {
 
 #[test]
 fn an_msvc_identity_keeps_every_argument_and_adds_the_env_context() {
-    let root = scratch("msvc");
+    let scratch = dx_test_scratch::scratch("msvc");
+    let root = scratch.path();
     let mut graph = rsp_graph(&root, "/DX=1 \"a b\"", "k8-fastbuild");
     with_env(&mut graph, "C:\\sdk\\inc;C:\\crt", "C:\\ext");
     let commands = graph
@@ -461,12 +456,12 @@ fn an_msvc_identity_keeps_every_argument_and_adds_the_env_context() {
             "a b"
         ])
     );
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn an_msvc_action_keeps_its_own_target_flag() {
-    let root = scratch("msvc_target");
+    let scratch = dx_test_scratch::scratch("msvc_target");
+    let root = scratch.path();
     let mut graph = rsp_graph(&root, "--target=aarch64-windows-msvc", "k8-fastbuild");
     with_env(&mut graph, "inc", "");
     let commands = graph
@@ -475,23 +470,23 @@ fn an_msvc_action_keeps_its_own_target_flag() {
     let flags = &commands[0].arguments;
     assert_eq!(flags[1..3], strings(&["/imsvcinc", "/X"]));
     assert_eq!(flags.iter().filter(|a| a.contains("target")).count(), 1);
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn an_msvc_action_without_include_fails_closed() {
-    let root = scratch("msvc_missing");
+    let scratch = dx_test_scratch::scratch("msvc_missing");
+    let root = scratch.path();
     let graph = rsp_graph(&root, "/DX=1", "k8-fastbuild");
     let error = graph
         .compile_commands(&root, &[identity("k8-fastbuild", Driver::Msvc)])
         .expect_err("no INCLUDE");
     assert!(matches!(error, Error::MissingMsvcContext { .. }), "{error}");
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn an_msvc_action_with_argv_imsvc_needs_no_env() {
-    let root = scratch("msvc_argv");
+    let scratch = dx_test_scratch::scratch("msvc_argv");
+    let root = scratch.path();
     let graph = rsp_graph(
         &root,
         "/imsvcC:/inc --target=x86_64-pc-windows-msvc",
@@ -512,12 +507,12 @@ fn an_msvc_action_with_argv_imsvc_needs_no_env() {
         ])
     );
     assert!(!commands[0].arguments.contains(&"/X".to_string()));
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn the_version_probe_resolves_argv0_and_skips_the_flag_for_cl() {
-    let root = scratch("probe");
+    let scratch = dx_test_scratch::scratch("probe");
+    let root = scratch.path();
     let exec = root.join("exec");
     let base = root.join("base");
     fs::create_dir_all(base.join("external/llvm/bin")).expect("llvm dir");
@@ -530,12 +525,12 @@ fn the_version_probe_resolves_argv0_and_skips_the_flag_for_cl() {
     assert!(args.is_empty());
     let (path, _) = version_probe(&exec, &base, "bazel-out/bin/wrapper");
     assert_eq!(path, exec.join("bazel-out/bin/wrapper"));
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn each_configuration_gets_its_own_identity() {
-    let root = scratch("configs");
+    let scratch = dx_test_scratch::scratch("configs");
+    let root = scratch.path();
     let mut graph = rsp_graph(&root, "-DX=1", "arm64-opt");
     with_env(&mut graph, "inc", "");
     let identities = [gnu(), identity("arm64-opt", Driver::Msvc)];
@@ -544,12 +539,12 @@ fn each_configuration_gets_its_own_identity() {
         .expect("commands");
     let found = commands[0].identity.as_ref().expect("identity");
     assert_eq!(found.driver, Driver::Msvc);
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn target_and_exec_actions_each_get_their_identity_and_expand() {
-    let root = scratch("exec");
+    let scratch = dx_test_scratch::scratch("exec");
+    let root = scratch.path();
     fs::write(root.join("x.rsp"), "-DX=1").expect("rsp");
     let action = |target: u32, out: u32, config: u32, source: &str| {
         format!(
@@ -572,12 +567,12 @@ fn target_and_exec_actions_each_get_their_identity_and_expand() {
         assert_eq!(command.arguments.last().map(String::as_str), Some("-DX=1"));
     }
     assert_eq!(clang_tidy_projection(&commands), Ok(()));
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn the_clang_tidy_projection_fails_without_a_known_driver() {
-    let root = scratch("projection");
+    let scratch = dx_test_scratch::scratch("projection");
+    let root = scratch.path();
     let graph = rsp_graph(&root, "-DX=1", "k8-fastbuild");
     let known = graph.compile_commands(&root, &[gnu()]).expect("commands");
     assert_eq!(clang_tidy_projection(&known), Ok(()));
@@ -593,12 +588,12 @@ fn the_clang_tidy_projection_fails_without_a_known_driver() {
         let before = database(&commands, &root, "//pkg:a", &[]);
         assert_eq!(before, database(&commands, &root, "//pkg:a", &[]));
     }
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn identity_files_are_read_and_checked() {
-    let root = scratch("identity-files");
+    let scratch = dx_test_scratch::scratch("identity-files");
+    let root = scratch.path();
     let write = |name: &str, text: &str| {
         let path = root.join(name);
         fs::write(&path, text).expect("identity");
@@ -622,12 +617,12 @@ fn identity_files_are_read_and_checked() {
         read_identities(&[bad]),
         Err(Error::MalformedIdentity { .. })
     ));
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn response_files_decode_boms_and_nest() {
-    let root = scratch("encodings");
+    let scratch = dx_test_scratch::scratch("encodings");
+    let root = scratch.path();
     let mut utf16 = vec![0xFF, 0xFE];
     for unit in "/DA=1 @inner.rsp".encode_utf16() {
         utf16.extend(unit.to_le_bytes());
@@ -638,12 +633,12 @@ fn response_files_decode_boms_and_nest() {
     let expanded = expand_response_files(&args, &root, Quoting::Windows).expect("expands");
     assert_eq!(expanded, strings(&["cl.exe", "/DA=1", "/DB=2", "/Tcfoo.c"]));
     assert_eq!(source_argument("//p:t", &expanded), Ok("foo.c"));
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn a_self_including_response_file_fails() {
-    let root = scratch("cycle");
+    let scratch = dx_test_scratch::scratch("cycle");
+    let root = scratch.path();
     fs::write(root.join("a.rsp"), "@a.rsp").expect("a");
     let error = expand_response_files(&strings(&["gcc", "@a.rsp"]), &root, Quoting::Gnu)
         .expect_err("cycle");
@@ -653,12 +648,12 @@ fn a_self_including_response_file_fails() {
             path: "a.rsp".to_string()
         }
     );
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn an_invalid_utf8_response_file_fails() {
-    let root = scratch("badutf8");
+    let scratch = dx_test_scratch::scratch("badutf8");
+    let root = scratch.path();
     fs::write(root.join("a.rsp"), b"\xFF\xFF\xFF").expect("a");
     let error =
         expand_response_files(&strings(&["gcc", "@a.rsp"]), &root, Quoting::Gnu).expect_err("bad");
@@ -666,7 +661,6 @@ fn an_invalid_utf8_response_file_fails() {
         matches!(error, Error::ResponseFileEncoding { .. }),
         "{error}"
     );
-    fs::remove_dir_all(&root).ok();
 }
 
 fn qualify_graph(arguments: &str, param_files: &str) -> AqueryGraph {
@@ -821,7 +815,8 @@ fn retain_owned_drops_compile_actions_of_other_targets() {
 
 #[test]
 fn qualify_reads_an_unlisted_param_file_from_the_execroot() {
-    let root = scratch("qualify-param");
+    let scratch = dx_test_scratch::scratch("qualify-param");
+    let root = scratch.path();
     fs::write(
         root.join("probe.obj.params"),
         "/c\r\n\"C:\\Program Files\\x y\\a.cc\"\r\n",
@@ -839,7 +834,6 @@ fn qualify_reads_an_unlisted_param_file_from_the_execroot() {
         qualify(&missing, &[command], &root),
         Err(Error::Unqualified { .. })
     ));
-    fs::remove_dir_all(&root).ok();
 }
 
 #[test]

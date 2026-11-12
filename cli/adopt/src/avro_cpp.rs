@@ -10,6 +10,7 @@ use crate::module_pin::ModuleEdit;
 const MODULE_FILE: &str = "MODULE.bazel";
 const MODULE_NAME: &str = "avro-cpp";
 const FMT_MODULE: &str = "fmt";
+const CC_MODULE: &str = "rules_cc";
 const EXTENSION_BZL: &str = "@rules_dx//avro:extensions.bzl";
 const EXTENSION: &str = "avro_cc";
 const REPO: &str = "dx_avro_cpp";
@@ -33,8 +34,16 @@ fn refuse(detail: impl std::fmt::Display) -> AdoptError {
     }
 }
 
-/// Whether a BUILD file under `root` calls `avro_cc_library`.
-fn uses_avro_cc(root: &Path) -> bool {
+/// What the walk of one module root found.
+#[derive(Default)]
+struct Found {
+    avro_cc: bool,
+    schema: bool,
+}
+
+/// Walks `root` up to nested modules for `avro_cc_library` calls and `.avsc` or `.avdl` files.
+fn scan(root: &Path) -> Found {
+    let mut found = Found::default();
     let mut pending = vec![root.to_path_buf()];
     while let Some(dir) = pending.pop() {
         if dir != root && dir.join(MODULE_FILE).is_file() {
@@ -48,7 +57,8 @@ fn uses_avro_cc(root: &Path) -> bool {
                 .ok()
                 .is_some_and(|file| file.calls_named("avro_cc_library").next().is_some())
             {
-                return true;
+                found.avro_cc = true;
+                return found;
             }
         }
         let Ok(entries) = std::fs::read_dir(&dir) else {
@@ -59,12 +69,20 @@ fn uses_avro_cc(root: &Path) -> bool {
             let skip = name.starts_with('.')
                 || name.starts_with("bazel-")
                 || matches!(name.as_str(), "node_modules" | "target");
-            if !skip && entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+            if skip {
+                continue;
+            }
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
+            if kind.is_dir() {
                 pending.push(entry.path());
+            } else if name.ends_with(".avsc") || name.ends_with(".avdl") {
+                found.schema = true;
             }
         }
     }
-    false
+    found
 }
 
 /// Whether an `override_repo` of `binding` already binds `dx_avro_cpp`.
@@ -152,16 +170,21 @@ fn is_rules_dx(file: &ModuleFile) -> bool {
         .any(|call| call.str("name") == Some("rules_dx"))
 }
 
-/// Plans what a root that has `avro_cc_library` needs. Writes nothing.
+/// Plans what a root that has `avro_cc_library`, or Avro schemas Gazelle turns into one,
+/// needs. Writes nothing.
 pub fn plan_avro_cpp(root: &Path) -> Result<AvroCpp, AdoptError> {
     let Ok(text) = std::fs::read_to_string(root.join(MODULE_FILE)) else {
         return Ok(AvroCpp::default());
     };
-    if !uses_avro_cc(root) {
+    let found = scan(root);
+    if !found.avro_cc && !found.schema {
         return Ok(AvroCpp::default());
     }
     let mut file = ModuleFile::parse(&text).map_err(refuse)?;
     if is_rules_dx(&file) {
+        return Ok(AvroCpp::default());
+    }
+    if !found.avro_cc && file.bazel_dep(CC_MODULE).is_err() {
         return Ok(AvroCpp::default());
     }
     let mut out = text.clone();
@@ -351,6 +374,38 @@ mod tests {
         write(dir.path(), MODULE_FILE, MODULE);
         write(dir.path(), "sub/MODULE.bazel", "module(name = \"sub\")\n");
         write(dir.path(), "sub/BUILD.bazel", BUILD);
+        assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
+    }
+
+    #[test]
+    fn fires_for_a_schema_with_rules_cc_and_no_build_file() {
+        let dir = scratch("avro_cpp_schema_rules_cc");
+        let module = format!("{MODULE}bazel_dep(name = \"rules_cc\", version = \"0.2.0\")\n");
+        write(dir.path(), MODULE_FILE, &module);
+        write(dir.path(), "svc/user.avsc", "{\"type\": \"string\"}\n");
+        let plan = plan_avro_cpp(dir.path()).expect("plan");
+        assert!(
+            module_edit(&plan)
+                .new
+                .contains("override_repo(avro_cc, dx_avro_cpp = \"avro-cpp\")")
+        );
+    }
+
+    #[test]
+    fn plans_nothing_for_a_schema_without_rules_cc() {
+        let dir = scratch("avro_cpp_schema_no_rules_cc");
+        write(dir.path(), MODULE_FILE, MODULE);
+        write(dir.path(), "svc/user.avsc", "{\"type\": \"string\"}\n");
+        assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
+    }
+
+    #[test]
+    fn plans_nothing_for_a_schema_in_a_nested_module() {
+        let dir = scratch("avro_cpp_schema_nested_module");
+        let module = format!("{MODULE}bazel_dep(name = \"rules_cc\", version = \"0.2.0\")\n");
+        write(dir.path(), MODULE_FILE, &module);
+        write(dir.path(), "sub/MODULE.bazel", "module(name = \"sub\")\n");
+        write(dir.path(), "sub/user.avdl", "protocol P {}\n");
         assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
     }
 

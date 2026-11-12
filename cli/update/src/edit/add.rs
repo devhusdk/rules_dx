@@ -163,11 +163,11 @@ impl AddRequest {
             }),
             UpdateSet::SwiftPm => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
-                hint: "edit Package.swift and run `swift package resolve`",
+                hint: "edit the swiftpm manifest and run `swift package resolve`",
             }),
             UpdateSet::Pub => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
-                hint: "edit pubspec.yaml and run `dart pub get`",
+                hint: "edit the pub manifest and run `dart pub get`",
             }),
             UpdateSet::Cabal => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
@@ -179,19 +179,19 @@ impl AddRequest {
             }),
             UpdateSet::Hex => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
-                hint: "edit mix.exs and run `mix deps.get`",
+                hint: "edit the hex manifest and run `mix deps.get`",
             }),
             UpdateSet::Julia => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
-                hint: "edit Project.toml and run `julia -e 'using Pkg; Pkg.add(\"Name\")'`",
+                hint: "edit the julia manifest and run `julia -e 'using Pkg; Pkg.add(\"Name\")'`",
             }),
             UpdateSet::Cpan => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
-                hint: "edit the cpanfile and run `carton install`",
+                hint: "edit the cpan manifest and run `carton install`",
             }),
             UpdateSet::Ruby => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
-                hint: "edit the Gemfile and run `bundle lock`",
+                hint: "edit the ruby manifest and run `bundle lock`",
             }),
         }
     }

@@ -220,14 +220,11 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude astro/tests/app
 # gazelle:exclude astro/tests/app_config/configs
 # gazelle:exclude astro/tests/app_config/src
-# gazelle:exclude astro/tests/fixtures/hello
 # gazelle:exclude astro/tests/typecheck
 # gazelle:exclude mdx/tests/app
-# gazelle:exclude mdx/tests/fixtures/hello
 # gazelle:exclude mdx/tests/typecheck
 # gazelle:exclude svelte/tests/app
 # gazelle:exclude svelte/tests/app_errors
-# gazelle:exclude svelte/tests/fixtures/hello
 # gazelle:exclude svelte/tests/typecheck
 # gazelle:exclude typescript/tests/tags
 # gazelle:exclude typescript/tests/fixtures/declarations

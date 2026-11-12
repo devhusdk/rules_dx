@@ -436,7 +436,6 @@ real_source_target(
         "stub_target.bzl",
         "test.bzl",
         "test_macros.bzl",
-        "web_hello.bzl",
     ],
     tags = ["corpus"],
 )

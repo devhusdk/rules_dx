@@ -10,17 +10,7 @@ dx_wrapper_contract_tests(
     }},
     file_classes = ["astro"],
     wrappers = {
-        "library": "//astro/tests/fixtures/hello:hello_lib",
-        "test": "//astro/tests/fixtures/hello:hello_test",
+        "library": "//astro/tests/conformance:conformance",
+        "test": "//astro/tests/conformance:wrapper_test",
     },
-)
-
-test_suite(
-    name = "fixture_tests",
-    testonly = True,
-    tests = [
-        "//astro/tests/fixtures/hello:coverage_test",
-        "//astro/tests/fixtures/hello:hello_aggregate_test",
-        "//astro/tests/fixtures/hello:hello_test",
-    ],
 )

@@ -10,17 +10,7 @@ dx_wrapper_contract_tests(
     }},
     file_classes = ["svelte"],
     wrappers = {
-        "library": "//svelte/tests/fixtures/hello:hello_lib",
-        "test": "//svelte/tests/fixtures/hello:hello_test",
+        "library": "//svelte/tests/conformance:conformance",
+        "test": "//svelte/tests/conformance:wrapper_test",
     },
-)
-
-test_suite(
-    name = "fixture_tests",
-    testonly = True,
-    tests = [
-        "//svelte/tests/fixtures/hello:coverage_test",
-        "//svelte/tests/fixtures/hello:hello_aggregate_test",
-        "//svelte/tests/fixtures/hello:hello_test",
-    ],
 )

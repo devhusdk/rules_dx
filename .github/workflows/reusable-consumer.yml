@@ -754,7 +754,7 @@ jobs:
           fi
           while IFS= read -r label; do
             echo "::group::dx deploy $label (dry run)"
-            tools/dx deploy "$label"
+            bazel run --lockfile_mode=error @rules_dx//:dx -- deploy "$label"
             echo "::endgroup::"
           done < "$RUNNER_TEMP/deployables.txt"
   bench:

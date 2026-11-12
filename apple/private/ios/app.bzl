@@ -314,6 +314,10 @@ _framework_cell = rule(
 
 _IOS_MULTI_CPUS = "//command_line_option:ios_multi_cpus"
 
+_IOS_MINIMUM_OS = "//command_line_option:ios_minimum_os"
+
+_XCODE_VERSION = "//command_line_option:xcode_version"
+
 AppleIosDeviceAppInfo = provider(
     doc = "One ad hoc signed device app ready for an explicit export.",
     fields = {
@@ -373,6 +377,68 @@ _device_app = rule(
             allow_single_file = [".mobileprovision"],
         ),
     },
+)
+
+def _simulator_app_impl(ctx):
+    bundle = ctx.attr.bundle[0] if type(ctx.attr.bundle) == "list" else ctx.attr.bundle
+    source = bundle[DefaultInfo].files_to_run.executable
+    default_info = DefaultInfo(
+        files = bundle[DefaultInfo].files,
+        runfiles = bundle[DefaultInfo].default_runfiles,
+    )
+    if source != None:
+        runner = ctx.actions.declare_file(ctx.label.name)
+        ctx.actions.symlink(output = runner, target_file = source, is_executable = True)
+        default_info = DefaultInfo(
+            files = depset([runner], transitive = [bundle[DefaultInfo].files]),
+            runfiles = ctx.runfiles(files = [runner]).merge(bundle[DefaultInfo].default_runfiles),
+            executable = runner,
+        )
+    providers = [default_info, bundle[AppleBundleInfo]]
+    if OutputGroupInfo in bundle:
+        providers.append(bundle[OutputGroupInfo])
+    return providers
+
+def _simulator_cell_impl(settings, attr):
+    xcode = attr.xcode_version if attr.xcode_version != "" else settings[_XCODE_VERSION]
+    return {
+        _IOS_MULTI_CPUS: [MULTI_CPUS[attr.environment + "/" + attr.arch]],
+        _IOS_MINIMUM_OS: attr.deployment if attr.deployment != "" else settings[_IOS_MINIMUM_OS],
+        _XCODE_VERSION: xcode,
+    }
+
+_simulator_cell_transition = transition(
+    implementation = _simulator_cell_impl,
+    inputs = [_IOS_MINIMUM_OS, _XCODE_VERSION],
+    outputs = [_IOS_MULTI_CPUS, _IOS_MINIMUM_OS, _XCODE_VERSION],
+)
+
+_simulator_app = rule(
+    implementation = _simulator_app_impl,
+    doc = "Builds one simulator app bundle for the declared cell whatever cell flags are set.",
+    attrs = {
+        "arch": attr.string(
+            doc = "Simulator arch of the app cell.",
+            mandatory = True,
+        ),
+        "bundle": attr.label(
+            doc = "The upstream ios_application.",
+            cfg = _simulator_cell_transition,
+            mandatory = True,
+            providers = [AppleBundleInfo],
+        ),
+        "deployment": attr.string(
+            doc = "Minimum iOS version of the app, or empty for the build setting.",
+        ),
+        "environment": attr.string(
+            doc = "Environment of the app cell.",
+            mandatory = True,
+        ),
+        "xcode_version": attr.string(
+            doc = "Xcode version the app build is pinned to, or empty for the build setting.",
+        ),
+    },
+    executable = True,
 )
 
 def apple_ios_app(
@@ -503,7 +569,7 @@ def apple_ios_app(
         )
         return
     ios_application(
-        name = name,
+        name = name + "_bundle",
         bundle_id = bundle_id,
         entitlements = entitlements,
         families = families,
@@ -513,6 +579,18 @@ def apple_ios_app(
         resources = resources,
         version = ":" + name + "_version",
         deps = app_deps,
+        tags = ["manual"],
+        testonly = testonly,
+        target_compatible_with = APPLE_HOSTS,
+        visibility = ["//visibility:private"],
+    )
+    _simulator_app(
+        name = name,
+        arch = arch,
+        bundle = ":" + name + "_bundle",
+        deployment = deployment,
+        environment = environment,
+        xcode_version = xcode_version,
         tags = tags,
         testonly = testonly,
         target_compatible_with = APPLE_HOSTS,

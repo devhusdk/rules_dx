@@ -78,6 +78,9 @@ def _ios_checks():
     checks.append(expect_equal("unknown platform splits to nothing", split_platform("watch/arm64"), ("", "")))
     checks.append(expect_equal("device label names its slice", platform_slice(_IOS_DEVICE), "device/arm64"))
     checks.append(expect_equal("simulator label names its slice", platform_slice(_IOS_SIM), "simulator/arm64"))
+    checks.append(expect_equal("device alias names its slice", platform_slice(Label("//apple:ios_arm64")), "device/arm64"))
+    checks.append(expect_equal("simulator alias names its slice", platform_slice(Label("//apple:ios_sim_arm64")), "simulator/arm64"))
+    checks.append(expect_equal("x86_64 alias names its slice", platform_slice(Label("//apple:ios_x86_64")), "simulator/x86_64"))
     checks.append(expect_equal("macos label has no slice", platform_slice(_MACOS), ""))
     checks.append(expect_equal("supported platform is clean", ios_platform_errors("apple_ios_lib", "device"), []))
     checks.append(expect_equal(

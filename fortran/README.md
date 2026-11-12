@@ -124,7 +124,7 @@ fortitude reads free-form source only.
 | `linux_x86_64` | Qualified |
 | `linux_arm64` | Pinned, not yet qualified |
 | `macos_arm64` | Pinned, not yet qualified |
-| `windows_x86_64` | Pinned (flang-rt Windows port unverified) |
+| `windows_x86_64` | Unsupported |
 | `windows_arm64` | Unsupported |
 
 OpenMP, GPU offload and Wasm are unsupported. On other platforms Fortran

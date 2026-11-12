@@ -38,21 +38,21 @@ FLANG_RT_TREES = [
 
 _FLANG_BUILD = """package(default_visibility = ["//visibility:public"])
 
-exports_files(["bin/flang{exe}", "bin/llvm-ar{exe}"])
+exports_files(["bin/flang", "bin/llvm-ar"])
 
 filegroup(
     name = "flang",
-    srcs = ["bin/flang{exe}"],
+    srcs = ["bin/flang"],
 )
 
 filegroup(
     name = "llvm_ar",
-    srcs = ["bin/llvm-ar{exe}"],
+    srcs = ["bin/llvm-ar"],
 )
 
 filegroup(
     name = "compiler_files",
-    srcs = ["bin/flang{exe}", "bin/flang-{major}{exe}"] + glob(["include/flang/**"]),
+    srcs = ["bin/flang", "bin/flang-{major}"] + glob(["include/flang/**"]),
 )
 """
 
@@ -87,7 +87,7 @@ def flang_rt_build(template, hub):
 
 def flang_build(cell):
     """Returns the BUILD file of one cell's Flang repository."""
-    return _FLANG_BUILD.format(major = flang_major(FLANG_VERSION), exe = getattr(FORTRAN_CELLS[cell], "exe", ""))
+    return _FLANG_BUILD.format(major = flang_major(FLANG_VERSION))
 
 def _flang_rt_impl(rctx):
     archive = "_src/llvm-project.tar.xz"

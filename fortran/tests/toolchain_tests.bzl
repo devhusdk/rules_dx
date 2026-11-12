@@ -34,7 +34,7 @@ def _checks():
         expect_true("hub root names no rules_fortran", "@rules_fortran" not in root),
         expect_contains("hub root uses the rules_fortran type", root, "//fortran:toolchain_type"),
         expect_contains("hub impl holds the loads", hub_build()["impl/BUILD.bazel"], "load("),
-        expect_equal("pinned cells", sorted(FORTRAN_CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
+        expect_equal("pinned cells", sorted(FORTRAN_CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
         expect_contains("flang-rt prefix names the flang version", FLANG_RT_PREFIX, FLANG_VERSION),
         expect_equal("flang-rt major matches flang", flang_major(FLANG_RT_PREFIX.split("-")[-1]), flang_major(FLANG_VERSION)),
         expect_true("flang-rt sources are extracted", "flang-rt" in FLANG_RT_TREES),

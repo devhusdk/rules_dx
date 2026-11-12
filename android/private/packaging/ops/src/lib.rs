@@ -1,23 +1,4 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
 //! The Android packaging operations: adb, APK sets, package checks and release signing.
-
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
 
 pub mod adb;
 pub mod apk_set;

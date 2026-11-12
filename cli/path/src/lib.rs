@@ -1,13 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 //! Path facts and spellings shared across the tool.
 
 pub mod bazel_package;

@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 
+#[expect(clippy::unwrap_used, reason = "tracked in #12395")]
 fn main() {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     let mut out = std::io::stdout().lock();

@@ -1,15 +1,5 @@
 //! One reader for the Go manifest and sum file, shared by every Go dependency tool.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, VecDeque};
 use std::str::FromStr;

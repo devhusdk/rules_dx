@@ -4,16 +4,6 @@
 //! and creation info come from one place. [`reference_errors`] checks the graph rules the JSON
 //! schema cannot express: element ids, dangling relationship ends, and the DESCRIBES root.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};

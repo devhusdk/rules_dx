@@ -98,7 +98,7 @@ dx has no suppression of its own. Use the tool's native inline form:
 | Tool | Form |
 | --- | --- |
 | ruff | `# noqa: <code>` |
-| clippy | `#[allow(clippy::<lint>)]` |
+| clippy | `#[expect(clippy::<lint>, reason = "...")]`; the strict tier denies `#[allow]` |
 | biome | `// biome-ignore <rule>: <reason>` |
 | staticcheck | `//lint:ignore <check> <reason>` |
 | shellcheck | `# shellcheck disable=SC<n>` |
@@ -228,6 +228,8 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 `clang_tidy` runs on the tier base of `config_tier` unless a `clang_tidy_config` is bound.
 
 `standard` and `strict` clang-tidy tiers live in `core/quality/tiers/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a tier is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
+
+`clippy` takes its tier from `core/quality/tiers/clippy/`. Standard runs `clippy::all` with warnings as errors. Strict adds `clippy::pedantic` and denies `unwrap_used`, `expect_used`, `panic`, `unreachable`, `todo`, `unimplemented`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap`, `string_slice`, `fallible_impl_from`, `wildcard_enum_match_arm`, `let_underscore_must_use`, `undocumented_unsafe_blocks`, `allow_attributes_without_reason`, `allow_attributes`, and the rustc lints `unsafe_code`, `unsafe_op_in_unsafe_fn` and `unused_must_use`. `rust_test` targets and `testonly` crates skip `unwrap_used`, `expect_used`, `panic`, `unreachable`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap` and `string_slice`. Mark a needed exception with `#[expect(<lint>, reason = "...")]` on the item.
 
 `kubeconform` runs with `-strict` in the strict tier, so duplicate keys fail; the tier comes from the build, not from `kubernetes_schemas`, which carries only the schemas and `skip_kinds`.
 

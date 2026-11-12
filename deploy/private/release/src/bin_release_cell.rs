@@ -1,13 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use dx_release_tools::cell::{self, CellRecord, Verdict};
 
 /// Returns the exit code and message for one finished `qualify`.

@@ -1,16 +1,6 @@
 //! The error type every dx command returns and the one table that maps it to
 //! a process exit code.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::fmt;
 use std::process::ExitCode;
 

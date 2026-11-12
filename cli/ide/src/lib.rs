@@ -1,13 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 //! Editor support files under `.dx/local/ide/`, refreshed from `dx sync` and `dx upgrade`.
 
 mod cc;

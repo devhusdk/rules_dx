@@ -1,15 +1,5 @@
 //! Runs `opa test` over the Rego files a `rego_test` target stages.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 mod opa;
 #[cfg(test)]
 mod opa_tests;

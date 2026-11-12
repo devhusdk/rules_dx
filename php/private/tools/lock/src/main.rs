@@ -1,12 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
 //! The lock step of the composer ecosystem.
 
 use std::process::ExitCode;

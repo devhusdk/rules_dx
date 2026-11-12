@@ -1,13 +1,4 @@
 //! Runs nested Bazel servers for tests: one server under `TEST_TMPDIR`, hermetic environments and the fake Bazel.
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
 
 pub mod cache;
 pub mod compose;

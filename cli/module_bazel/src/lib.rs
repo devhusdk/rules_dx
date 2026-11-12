@@ -1,15 +1,5 @@
 //! One reader for literal top-level `MODULE.bazel` calls, shared by every MODULE.bazel tool.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 pub mod identity;
 
 use std::collections::BTreeSet;

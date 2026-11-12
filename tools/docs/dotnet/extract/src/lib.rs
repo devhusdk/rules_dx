@@ -1,15 +1,5 @@
 //! Converts the C# and F# API facts of the dotnet drivers into one validated DocIr shard.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 mod convert;
 mod types;
 

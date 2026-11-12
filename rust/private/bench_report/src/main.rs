@@ -1,15 +1,5 @@
 //! Runs a Rust benchmark binary and writes its bencher output as `dx-bench.json`.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::path::PathBuf;
 use std::process::{Command, ExitCode, Stdio};
 

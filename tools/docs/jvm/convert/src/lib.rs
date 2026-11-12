@@ -8,16 +8,6 @@
 //! is named `Name$` in `qualified`, so a class and its companion get distinct ids. Kinds `object`, `trait`, `typealias`, `function` and
 //! `property` are accepted only for the languages that have them.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;

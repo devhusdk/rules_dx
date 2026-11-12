@@ -5,16 +5,6 @@
 //! at the declaration line, and the ddoc `Params:`, `Returns:` and `Examples:` sections fill in
 //! the parameter docs, the return doc and the examples.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use documentation_ir::proto::{
     DocIr, Extension, Param, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };

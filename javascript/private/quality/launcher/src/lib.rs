@@ -1,15 +1,5 @@
 //! Reads a generated JavaScript launcher's own runfiles so a host can run the tool.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};

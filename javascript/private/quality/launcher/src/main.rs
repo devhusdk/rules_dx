@@ -1,15 +1,5 @@
 //! Runs a generated JavaScript tool through the node runtime beside it.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::path::PathBuf;
 use std::process::Command;
 

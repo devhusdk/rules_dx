@@ -1139,6 +1139,41 @@ rust_test(
 )
 
 rust_test(
+    name = "lint_attributes_test",
+    size = "small",
+    srcs = [
+        "guard_scan.rs",
+        "lint_attributes_test.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "lint_attributes_test",
+    crate_root = "lint_attributes_test.rs",
+    data = [
+        "@dx_test_tags_sources//:code.json",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:code.json)",
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)
+
+rust_test(
     name = "host_program_test",
     size = "small",
     srcs = [

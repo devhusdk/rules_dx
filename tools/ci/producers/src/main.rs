@@ -1,16 +1,6 @@
 //! `producers_bin` prints the compiler signatures of each file argument as a JSON object.
 //! `producers_bin --evidence OUT PLATFORM FACTS` appends the compiler evidence lines to OUT.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 mod evidence;
 
 use dx_binfmt::producers;

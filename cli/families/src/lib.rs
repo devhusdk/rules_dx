@@ -1,15 +1,5 @@
 //! The quality and docs aspect files and the dependency hubs of the `<lang>/lang.json` manifests.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 

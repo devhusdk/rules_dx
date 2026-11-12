@@ -1,15 +1,5 @@
 //! Installs Bazel and vendored advisory snapshots from an offline bundle.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

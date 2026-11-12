@@ -1,13 +1,4 @@
 //! Safe extraction of release archives (tar.gz and zip) into a fresh directory.
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
 
 use std::collections::HashSet;
 use std::fs::File;

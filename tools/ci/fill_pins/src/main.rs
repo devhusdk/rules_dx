@@ -2,16 +2,6 @@
 //! fills or, with `--check`, checks `cli/prebuilt/pins.bzl` against a release.
 //! `--manifest` and `--gazelle-manifest` fill from local manifests without downloading or verifying them.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::time::Duration;

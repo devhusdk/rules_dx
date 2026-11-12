@@ -1,15 +1,5 @@
 //! Writes the API pages, index, SUMMARY fragment and search records of one docs site.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

@@ -1,15 +1,5 @@
 //! Converts the `index.json` of `dart doc` into one validated DocIr shard.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::collections::BTreeMap;
 use std::fs;
 

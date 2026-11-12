@@ -1,13 +1,4 @@
 //! Authoritative C/C++ compile context read from a Bazel aquery action record.
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;

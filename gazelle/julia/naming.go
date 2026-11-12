@@ -4,17 +4,20 @@ import (
 	"strings"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+
+	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
 const (
 	LibraryKind  = "julia_library"
 	TestKind     = "julia_test"
-	ProjectFile  = "Project.toml"
 	SrcDir       = "src"
 	TestDir      = "test"
 	TestEntry    = "test/runtests.jl"
 	languageName = "julia"
 )
+
+var ProjectFile = common.ManifestName("julia")
 
 // IsSrc reports whether src is a src/**/*.jl source of the package.
 func IsSrc(src string) bool {

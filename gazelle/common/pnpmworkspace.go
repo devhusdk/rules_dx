@@ -8,10 +8,10 @@ import (
 	"strings"
 )
 
-// IsPnpmWorkspaceMember reports whether rel holds a package.json and is listed as
-// a workspace package by an ancestor directory that holds pnpm-lock.yaml.
+// IsPnpmWorkspaceMember reports whether rel holds a manifest and is listed as
+// a workspace package by an ancestor directory that holds the lock.
 func IsPnpmWorkspaceMember(repoRoot, rel string) bool {
-	if rel == "" || repoRoot == "" || !hasFile(repoRoot, path.Join(rel, "package.json")) {
+	if rel == "" || repoRoot == "" || !hasFile(repoRoot, path.Join(rel, npmManifestFile)) {
 		return false
 	}
 	for dir := path.Dir(rel); ; dir = path.Dir(dir) {
@@ -19,7 +19,7 @@ func IsPnpmWorkspaceMember(repoRoot, rel string) bool {
 			dir = ""
 		}
 		abs := filepath.Join(repoRoot, filepath.FromSlash(dir))
-		if hasFile(repoRoot, path.Join(dir, "pnpm-lock.yaml")) {
+		if hasFile(repoRoot, path.Join(dir, npmLockFile)) {
 			sub := strings.TrimPrefix(strings.TrimPrefix(rel, dir), "/")
 			if matchesWorkspace(workspacePatterns(abs), sub) {
 				return true
@@ -59,7 +59,7 @@ func workspacePatterns(dir string) []string {
 			}
 		}
 	}
-	if data, err := os.ReadFile(filepath.Join(dir, "package.json")); err == nil {
+	if data, err := os.ReadFile(filepath.Join(dir, npmManifestFile)); err == nil {
 		var pkg struct {
 			Workspaces json.RawMessage `json:"workspaces"`
 		}

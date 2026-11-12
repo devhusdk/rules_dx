@@ -14,6 +14,8 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
+var npmManifestFile = common.ManifestName("npm")
+
 const (
 	languageName    = "typescript"
 	libraryKind     = "typescript_library"
@@ -371,7 +373,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 	if common.IsPnpmWorkspaceMember(repoRoot, args.Rel) {
 		pkg := rule.NewRule(packageKind, packageName)
-		pkg.SetAttr("srcs", append([]string{"package.json"}, libraries...))
+		pkg.SetAttr("srcs", append([]string{npmManifestFile}, libraries...))
 		pkg.SetAttr("visibility", []string{"//visibility:public"})
 		result.Gen = append(result.Gen, pkg)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
@@ -472,9 +474,9 @@ func generatedBinary(r *rule.Rule) bool {
 	return len(srcs) == 1 && IsEntryFile(srcs[0]) && ModuleName(srcs[0]) == target
 }
 
-// rootPackageJSONExists reports whether the repo root has a package.json file.
+// rootPackageJSONExists reports whether the repo root has a manifest file.
 func rootPackageJSONExists(repoRoot string) bool {
-	return fileExists(filepath.Join(repoRoot, "package.json"))
+	return fileExists(filepath.Join(repoRoot, npmManifestFile))
 }
 
 func fileExists(name string) bool {

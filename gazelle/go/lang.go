@@ -17,6 +17,8 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
+var goManifestFile = common.ManifestName("go")
+
 const languageName = "go"
 
 var testKindInfo = rule.KindInfo{
@@ -66,7 +68,7 @@ func newLang() *goLang {
 		DefsPackage:    "go:defs.bzl",
 		IsStdLib:       IsStdLib,
 		External:       "go",
-		UnresolvedHint: "add a go_library with that importpath, require its module directly in go.mod, or an exact # gazelle:resolve mapping",
+		UnresolvedHint: "add a go_library with that importpath, require its module directly in " + goManifestFile + ", or an exact # gazelle:resolve mapping",
 		Generate:       generateRules,
 	})}
 }
@@ -322,7 +324,7 @@ func goImportPath(repoRoot, dir string) (string, bool) {
 	cleanDir := filepath.Clean(dir)
 	cleanRoot := filepath.Clean(repoRoot)
 	for cur := cleanDir; ; cur = filepath.Dir(cur) {
-		candidate := filepath.Join(cur, "go.mod")
+		candidate := filepath.Join(cur, goManifestFile)
 		if content, err := os.ReadFile(candidate); err == nil {
 			module := modfile.ModulePath(content)
 			if module == "" {

@@ -13,6 +13,9 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
+var npmManifestFile = common.ManifestName("npm")
+var npmLockFile = common.LockName("npm")
+
 const (
 	languageName    = "javascript"
 	libraryKind     = "javascript_library"
@@ -117,14 +120,14 @@ const npmHubKey = "javascript:npm_hub"
 
 func configureExt(c *config.Config, rel string, f *rule.File, rep common.Reporter) {
 	common.ConfigureTSPathsExt(c, rel, f, rep)
-	if !fileExists(filepath.Join(c.RepoRoot, filepath.FromSlash(rel), "pnpm-lock.yaml")) {
+	if !fileExists(filepath.Join(c.RepoRoot, filepath.FromSlash(rel), npmLockFile)) {
 		return
 	}
 	ours := c.Exts[npmHubKey] == true
 	if _, set := c.KindMap[linkKind]; set && !ours {
 		return
 	}
-	hub := common.NpmHub(c.RepoRoot, path.Join(rel, "pnpm-lock.yaml"))
+	hub := common.NpmHub(c.RepoRoot, path.Join(rel, npmLockFile))
 	if hub == "npm" {
 		if ours {
 			delete(c.KindMap, linkKind)
@@ -158,14 +161,14 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	sort.Strings(sources)
 	var result language.GenerateResult
 	member := args.Config != nil && common.IsPnpmWorkspaceMember(args.Config.RepoRoot, args.Rel)
-	if fileExists(filepath.Join(args.Dir, "pnpm-lock.yaml")) || member {
+	if fileExists(filepath.Join(args.Dir, npmLockFile)) || member {
 		link := rule.NewRule(linkKind, "node_modules")
 		result.Gen = append(result.Gen, link)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
 	}
-	if args.Rel == "" && fileExists(filepath.Join(args.Dir, "package.json")) {
+	if args.Rel == "" && fileExists(filepath.Join(args.Dir, npmManifestFile)) {
 		pj := rule.NewRule(jsLibraryKind, packageJSONName)
-		pj.SetAttr("srcs", []string{"package.json"})
+		pj.SetAttr("srcs", []string{npmManifestFile})
 		pj.SetAttr("visibility", []string{"//visibility:public"})
 		result.Gen = append(result.Gen, pj)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
@@ -272,7 +275,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 // addPackage adds the npm_package a pnpm workspace link resolves to.
 func addPackage(result language.GenerateResult, libraries []string) language.GenerateResult {
 	pkg := rule.NewRule(packageKind, packageName)
-	pkg.SetAttr("srcs", append([]string{"package.json"}, libraries...))
+	pkg.SetAttr("srcs", append([]string{npmManifestFile}, libraries...))
 	pkg.SetAttr("visibility", []string{"//visibility:public"})
 	result.Gen = append(result.Gen, pkg)
 	result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
@@ -314,9 +317,9 @@ func mergeStale(file *rule.File, result language.GenerateResult) language.Genera
 	})
 }
 
-// rootPackageJSONExists reports whether the repo root has a package.json file.
+// rootPackageJSONExists reports whether the repo root has a manifest file.
 func rootPackageJSONExists(repoRoot string) bool {
-	return fileExists(filepath.Join(repoRoot, "package.json"))
+	return fileExists(filepath.Join(repoRoot, npmManifestFile))
 }
 
 func fileExists(name string) bool {

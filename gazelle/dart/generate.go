@@ -13,6 +13,8 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
+var pubManifestFile = common.ManifestName("pub")
+
 func hasBuildFile(dir string) bool {
 	for _, n := range []string{"BUILD", "BUILD.bazel"} {
 		if _, err := os.Stat(filepath.Join(dir, n)); err == nil {
@@ -118,7 +120,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	}
 	hasPubspec := false
 	for _, f := range args.RegularFiles {
-		if f == "pubspec.yaml" {
+		if f == pubManifestFile {
 			hasPubspec = true
 		}
 	}
@@ -140,14 +142,14 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 			return seen
 		})
 	}
-	content, err := common.ReadSource(filepath.Join(args.Dir, "pubspec.yaml"))
+	content, err := common.ReadSource(filepath.Join(args.Dir, pubManifestFile))
 	if err != nil {
-		fail("read pubspec.yaml: %v", err)
+		fail("read %s: %v", pubManifestFile, err)
 		return language.GenerateResult{}
 	}
 	spec, err := ParsePubspec(content)
 	if err != nil {
-		fail("pubspec.yaml: %v", err)
+		fail("%s: %v", pubManifestFile, err)
 		return language.GenerateResult{}
 	}
 	var lib, bin, test []string
@@ -207,7 +209,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 						if isTest {
 							where = "dependencies or dev_dependencies"
 						}
-						fail("%s imports package:%s, which pubspec.yaml does not declare; add it to %s", file, name, where)
+						fail("%s imports package:%s, which %s does not declare; add it to %s", file, name, pubManifestFile, where)
 						continue
 					}
 					if !seenPkg[name] {

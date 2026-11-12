@@ -8,15 +8,17 @@ import (
 	"strings"
 )
 
-// OwningPackageJSON returns the repo-relative path of the package.json nearest
+var npmManifestFile = ManifestName("npm")
+
+// OwningPackageJSON returns the repo-relative path of the manifest nearest
 // to pkg, at or above it, or "" when there is none.
 func OwningPackageJSON(repoRoot, pkg string) string {
 	for dir := pkg; ; dir = path.Dir(dir) {
 		if dir == "." {
 			dir = ""
 		}
-		if hasFile(repoRoot, path.Join(dir, "package.json")) {
-			return path.Join(dir, "package.json")
+		if hasFile(repoRoot, path.Join(dir, npmManifestFile)) {
+			return path.Join(dir, npmManifestFile)
 		}
 		if dir == "" {
 			return ""
@@ -24,12 +26,12 @@ func OwningPackageJSON(repoRoot, pkg string) string {
 	}
 }
 
-// NpmMissingHint tells the user which package.json should declare the
+// NpmMissingHint tells the user which manifest should declare the
 // package a bare import names.
 func NpmMissingHint(repoRoot, pkg, name string) string {
 	owner := OwningPackageJSON(repoRoot, pkg)
 	if owner == "" {
-		owner = "package.json"
+		owner = npmManifestFile
 	}
 	return "add \"" + NpmPackageName(name) + "\" to " + owner + " dependencies"
 }
@@ -49,7 +51,7 @@ func readPackageJSON(repoRoot, rel string) (packageJSON, bool) {
 	return pkg, true
 }
 
-// IsESMPackage reports whether the package.json owning pkg sets "type": "module".
+// IsESMPackage reports whether the manifest owning pkg sets "type": "module".
 func IsESMPackage(repoRoot, pkg string) bool {
 	owner := OwningPackageJSON(repoRoot, pkg)
 	if owner == "" {
@@ -59,10 +61,10 @@ func IsESMPackage(repoRoot, pkg string) bool {
 	return p.Type == "module"
 }
 
-// RootDeclares reports whether the root package.json declares every name in
+// RootDeclares reports whether the root manifest declares every name in
 // dependencies or devDependencies.
 func RootDeclares(repoRoot string, names ...string) bool {
-	p, ok := readPackageJSON(repoRoot, "package.json")
+	p, ok := readPackageJSON(repoRoot, npmManifestFile)
 	if !ok {
 		return false
 	}
@@ -76,13 +78,13 @@ func RootDeclares(repoRoot string, names ...string) bool {
 	return true
 }
 
-// JestPreflight returns the message for a root package.json that cannot run
+// JestPreflight returns the message for a root manifest that cannot run
 // generated jest tests, or "".
 func JestPreflight(repoRoot string) string {
 	if RootDeclares(repoRoot, "jest-cli", "jest-junit") {
 		return ""
 	}
-	return `add "jest-cli" and "jest-junit" to devDependencies in package.json`
+	return `add "jest-cli" and "jest-junit" to devDependencies in ` + npmManifestFile
 }
 
 // NearestTSConfig returns the label of the ts_config target in the nearest

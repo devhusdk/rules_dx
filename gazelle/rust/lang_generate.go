@@ -25,7 +25,7 @@ func (l *rustLang) inheritWorkspace(args language.GenerateArgs, manifestPath str
 		return err
 	}
 	if root == nil {
-		return fmt.Errorf("rust: %s: %s sets workspace = true but no parent Cargo.toml declares [workspace]", manifestPath, subject)
+		return fmt.Errorf("rust: %s: %s sets workspace = true but no parent %s declares [workspace]", manifestPath, subject, cargoManifestFile)
 	}
 	err = manifest.inheritWorkspaceDeps(args.Rel, rootRel, root)
 	if err == nil {
@@ -49,7 +49,7 @@ func (l *rustLang) resolveWorkspaceRoot(repoRoot, rel string, m *cargoManifest) 
 		return l.cargoManifestAt(repoRoot, dir)
 	}
 	if m.workspacePath != "" {
-		manifestPath := path.Join(rel, "Cargo.toml")
+		manifestPath := path.Join(rel, cargoManifestFile)
 		rootRel := path.Clean(path.Join(rel, m.workspacePath))
 		if rootRel == "." {
 			rootRel = ""
@@ -62,7 +62,7 @@ func (l *rustLang) resolveWorkspaceRoot(repoRoot, rel string, m *cargoManifest) 
 			return "", nil, err
 		}
 		if root == nil || !root.workspaceRoot {
-			return "", nil, fmt.Errorf("rust: %s: package.workspace points at %s which declares no [workspace]", manifestPath, path.Join(rootRel, "Cargo.toml"))
+			return "", nil, fmt.Errorf("rust: %s: package.workspace points at %s which declares no [workspace]", manifestPath, path.Join(rootRel, cargoManifestFile))
 		}
 		return rootRel, root, nil
 	}
@@ -90,12 +90,12 @@ func (l *rustLang) cargoManifestAt(repoRoot, rel string) (*cargoManifest, error)
 	if l.workspaceRoots == nil {
 		l.workspaceRoots = make(map[string]*cargoManifest)
 	}
-	content, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel), "Cargo.toml"))
+	content, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel), cargoManifestFile))
 	if err != nil {
 		l.workspaceRoots[rel] = nil
 		return nil, nil
 	}
-	m, err := parseCargoManifest(path.Join(rel, "Cargo.toml"), content)
+	m, err := parseCargoManifest(path.Join(rel, cargoManifestFile), content)
 	if err != nil {
 		return nil, err
 	}
@@ -146,13 +146,13 @@ func (l *rustLang) checkPathDepVersions(args language.GenerateArgs, manifestPath
 				continue
 			}
 			providerRel := providerRelOf(args.Rel, dep.depPath)
-			providerPath := path.Join(providerRel, "Cargo.toml")
+			providerPath := path.Join(providerRel, cargoManifestFile)
 			var provider *cargoManifest
 			if !escapesRepo(providerRel) {
 				provider, _ = l.cargoManifestAt(args.Config.RepoRoot, providerRel)
 			}
 			if provider == nil {
-				return fmt.Errorf("rust: path dependency %q points at %s without a readable Cargo.toml; fix the path", key, providerPath)
+				return fmt.Errorf("rust: path dependency %q points at %s without a readable %s; fix the path", key, providerPath, cargoManifestFile)
 			}
 			provided := provider.version
 			if provider.inheritVersion {
@@ -177,8 +177,8 @@ func (l *rustLang) checkPathDepVersions(args language.GenerateArgs, manifestPath
 }
 
 func (l *rustLang) generateCargo(args language.GenerateArgs, files []string) language.GenerateResult {
-	manifestPath := path.Join(args.Rel, "Cargo.toml")
-	content, err := os.ReadFile(filepath.Join(args.Dir, "Cargo.toml"))
+	manifestPath := path.Join(args.Rel, cargoManifestFile)
+	content, err := os.ReadFile(filepath.Join(args.Dir, cargoManifestFile))
 	if err != nil {
 		l.fail(common.InPackage(args.Rel), "rust: %s: %v", manifestPath, err)
 		return language.GenerateResult{}

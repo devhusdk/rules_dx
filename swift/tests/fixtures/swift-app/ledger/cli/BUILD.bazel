@@ -1,7 +1,7 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//swift:defs.bzl", "swift_binary")
-load("//swift/private:wrapper_tests.bzl", "swift_binary_provider_test")
+load("//swift/private:wrapper_tests.bzl", "swift_binary_dynamic_crt_test", "swift_binary_provider_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
@@ -31,6 +31,16 @@ swift_binary(
 swift_binary_provider_test(
     name = "ledger_providers_test",
     tags = ["block-network"],
+    target_under_test = ":ledger",
+)
+
+swift_binary_dynamic_crt_test(
+    name = "ledger_dynamic_crt_test",
+    tags = ["block-network"],
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
     target_under_test = ":ledger",
 )
 

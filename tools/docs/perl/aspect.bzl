@@ -1,8 +1,8 @@
 """Perl documentation shard aspect."""
 
+load("@rules_perl//perl:defs.bzl", _PerlInfo = "PerlInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/perl:defs.bzl", "perl_shard_action")
-load("@rules_perl//perl:defs.bzl", _PerlInfo = "PerlInfo")
 
 _PERL_TOOLCHAIN = "@rules_perl//perl:exec_toolchain_type"
 

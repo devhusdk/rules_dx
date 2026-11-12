@@ -1,10 +1,10 @@
 """JavaScript documentation shard aspect."""
 
+load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
+load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
 load("//tools/docs/typescript:shard.bzl", "TYPEDOC_JSON_SCHEMA", "typedoc_arguments", "typescript_shard_action")
-load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
-load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 
 _TS_TEST_MARKERS = [".test.", ".spec.", "_test."]
 

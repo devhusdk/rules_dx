@@ -73,7 +73,8 @@ def powershell_shard_action(ctx, files, manifest, package, config, stem, pwsh, s
     args.add("--api", api_json)
     args.add("--out", shard)
     args.add("--package", package)
-    args.add("--config", config)
+    if config:
+        args.add("--config", config)
     ctx.actions.run(
         executable = extract_tool,
         arguments = [args],

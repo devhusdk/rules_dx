@@ -1,8 +1,8 @@
 """Vue, Svelte, Astro and MDX documentation shard aspect."""
 
+load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("//tools/docs/components:shard.bzl", "COMPONENT_LANGUAGES", "component_config", "component_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
-load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 
 def _component_docs_shard(target, ctx):
     if _JsInfo not in target or DocsShardInfo in target:

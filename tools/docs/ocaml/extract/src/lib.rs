@@ -126,10 +126,10 @@ fn split_anchor(id: &str) -> Option<(&'static str, &str)> {
         "val",
     ];
     for label in LABELS {
-        if let Some(name) = id.strip_prefix(label).and_then(|r| r.strip_prefix('-')) {
-            if !name.is_empty() {
-                return Some((label, name));
-            }
+        if let Some(name) = id.strip_prefix(label).and_then(|r| r.strip_prefix('-'))
+            && !name.is_empty()
+        {
+            return Some((label, name));
         }
     }
     None

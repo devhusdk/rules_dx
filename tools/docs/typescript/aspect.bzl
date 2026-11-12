@@ -1,9 +1,9 @@
 """TypeScript documentation shard aspect."""
 
+load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
 load("//tools/docs/typescript:shard.bzl", "TYPEDOC_JSON_SCHEMA", "typedoc_arguments", "typescript_shard_action")
-load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 
 _TS_ENTRY_EXTENSIONS = ["ts", "tsx", "mts", "cts"]
 

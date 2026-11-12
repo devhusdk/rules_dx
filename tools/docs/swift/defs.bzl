@@ -29,7 +29,8 @@ def swift_shard_action(ctx, info, package, config, stem, extract_tool):
     args.add("--sources", manifest)
     args.add("--module", graph.module_name)
     args.add("--package", package)
-    args.add("--config", config)
+    if config:
+        args.add("--config", config)
     args.add("--out", shard)
     ctx.actions.run(
         executable = extract_tool,

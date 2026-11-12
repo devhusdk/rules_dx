@@ -1,8 +1,8 @@
 """Ruby documentation shard aspect."""
 
+load("@rules_ruby//ruby/private:providers.bzl", _RubyFilesInfo = "RubyFilesInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/ruby:defs.bzl", "ruby_shard_action")
-load("@rules_ruby//ruby/private:providers.bzl", _RubyFilesInfo = "RubyFilesInfo")
 
 _RUBY_TOOLCHAIN = "@rules_ruby//ruby:toolchain_type"
 

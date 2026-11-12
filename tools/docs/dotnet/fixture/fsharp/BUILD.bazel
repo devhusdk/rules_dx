@@ -12,9 +12,9 @@ exports_files(
 
 fsharp_library(
     name = "ledger",
-    target_frameworks = ["net10.0"],
     srcs = ["ledger/Ledger.fs"],
     generate_documentation_file = True,
+    target_frameworks = ["net10.0"],
     deps = [
         "//tools/docs/dotnet/fixture/csharp:core",
         "@paket.main//fsharp.core",
@@ -23,10 +23,10 @@ fsharp_library(
 
 fsharp_library(
     name = "ledger_extra",
-    target_frameworks = ["net10.0"],
     srcs = ["ledger/Ledger.fs"],
     defines = ["DX_EXTRA"],
     generate_documentation_file = True,
+    target_frameworks = ["net10.0"],
     deps = [
         "//tools/docs/dotnet/fixture/csharp:core",
         "@paket.main//fsharp.core",
@@ -35,10 +35,10 @@ fsharp_library(
 
 fsharp_library(
     name = "xmldoc_off",
-    target_frameworks = ["net10.0"],
     srcs = ["ledger/Ledger.fs"],
     generate_documentation_file = False,
     tags = ["manual"],
+    target_frameworks = ["net10.0"],
     deps = [
         "//tools/docs/dotnet/fixture/csharp:core",
         "@paket.main//fsharp.core",

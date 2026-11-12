@@ -1,5 +1,5 @@
-load("//flutter:defs.bzl", "flutter_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//flutter:defs.bzl", "flutter_library")
 load("//tools/docs/dart:defs.bzl", "dart_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
@@ -7,8 +7,8 @@ package(default_visibility = VIS_TOOLS)
 
 flutter_library(
     name = "badge",
-    srcs = ["lib/badge.dart"],
     package_name = "dx_docs_badge",
+    srcs = ["lib/badge.dart"],
     deps = ["@dx_flutter_app_deps//:flutter"],
 )
 

@@ -33,7 +33,6 @@ fn write_shard(dir: &Path, ids: &[&str]) {
                 ..Symbol::default()
             })
             .collect(),
-        ..DocIr::default()
     };
     let bytes = encode_shard(&shard).expect("encode");
     std::fs::write(dir.join("shard.ir.pb"), bytes).expect("write");

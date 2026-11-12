@@ -1,8 +1,8 @@
 """Haskell documentation shard aspect."""
 
+load("@rules_haskell//haskell:providers.bzl", _HaskellInfo = "HaskellInfo")
 load("//tools/docs/haskell:defs.bzl", "HASKELL_TOOLCHAIN", "haskell_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
-load("@rules_haskell//haskell:providers.bzl", _HaskellInfo = "HaskellInfo")
 
 def _haskell_docs_shard(target, ctx):
     if _HaskellInfo not in target or DocsShardInfo in target:

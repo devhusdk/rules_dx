@@ -1,8 +1,8 @@
 """Go documentation shard aspect."""
 
+load("@rules_go//go:def.bzl", "GoInfo")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
-load("@rules_go//go:def.bzl", "GoInfo")
 
 def _go_docs_shard(target, ctx):
     if GoInfo not in target or DocsShardInfo in target:

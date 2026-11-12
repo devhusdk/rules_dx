@@ -1,8 +1,8 @@
 """Julia documentation shard aspect."""
 
+load("@rules_julia//julia:julia_info.bzl", _JuliaInfo = "JuliaInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/julia:defs.bzl", "julia_shard_action")
-load("@rules_julia//julia:julia_info.bzl", _JuliaInfo = "JuliaInfo")
 
 def _julia_docs_shard(target, ctx):
     if _JuliaInfo not in target or DocsShardInfo in target:

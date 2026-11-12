@@ -291,7 +291,7 @@ fn parse_requires_every_flag() {
 fn bare_star_is_kept_before_leading_keyword_only_parameters() {
     let keyword = json!({"name": "a", "kind": "keyword-only"});
     let this = json!({"name": "self", "kind": "positional or keyword"});
-    assert_eq!(render_parameters(&[keyword.clone()], false), "*, a");
+    assert_eq!(render_parameters(std::slice::from_ref(&keyword), false), "*, a");
     assert_eq!(render_parameters(&[this, keyword.clone()], true), "*, a");
     let star = json!({"name": "args", "kind": "variadic positional"});
     assert_eq!(render_parameters(&[star, keyword], false), "*args, a");

@@ -2,10 +2,10 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo", "DotnetTargetingPackInfo")
-load("//dotnet/private:symbols.bzl", "fsharp_compile_defines")
 load("//core:resources.bzl", "dx_heavy_resources")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
 load("//core/quality:sources.bzl", "single_target")
+load("//dotnet/private:symbols.bzl", "fsharp_compile_defines")
+load("//tools/docs/ir:shard.bzl", "repo_relative", "srcs_manifest_line")
 
 DotnetDocsInfo = provider(
     doc = "The compile facts of one rules_dotnet library that its API docs are read from.",

@@ -3,7 +3,7 @@ use super::{
     pages_error, parse, route_error, run, stage, usage,
 };
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn scratch(name: &str) -> PathBuf {
     let dir =
@@ -13,7 +13,7 @@ fn scratch(name: &str) -> PathBuf {
     dir
 }
 
-fn write(dir: &PathBuf, name: &str, text: &str) -> String {
+fn write(dir: &Path, name: &str, text: &str) -> String {
     let path = dir.join(name);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("a writable parent");

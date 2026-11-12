@@ -1,8 +1,8 @@
 """Java, Kotlin and Scala documentation shard aspect."""
 
+load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
-load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 
 def _jvm_docs_shard(target, ctx):
     if JavaInfo not in target or DocsShardInfo in target:

@@ -83,7 +83,7 @@ fn expect_failure(dir: &Path, run: &Run, detail: &str) {
 fn the_fixture_json_becomes_a_valid_shard() {
     let dir_tmp = scratch("extract-ok", &fixture_json(), &fixture_srcs());
     let dir = dir_tmp.path();
-    let run = standard(&dir);
+    let run = standard(dir);
     assert_eq!(run.code, 0, "{}", run.stderr);
     assert!(!dir.join("shard.ir.pb.partial").exists());
     let bytes = std::fs::read(dir.join("shard.ir.pb")).expect("read shard");
@@ -114,8 +114,8 @@ fn the_aspect_shard_keeps_the_enabled_features() {
 fn malformed_json_fails_without_a_shard() {
     let dir_tmp = scratch("extract-malformed", "{", &fixture_srcs());
     let dir = dir_tmp.path();
-    let run = standard(&dir);
-    expect_failure(&dir, &run, "docs_rust: malformed rustdoc JSON");
+    let run = standard(dir);
+    expect_failure(dir, &run, "docs_rust: malformed rustdoc JSON");
 }
 
 #[test]
@@ -134,9 +134,9 @@ fn another_format_version_fails_without_a_shard() {
     );
     let dir_tmp = scratch("extract-version", &changed, &fixture_srcs());
     let dir = dir_tmp.path();
-    let run = standard(&dir);
+    let run = standard(dir);
     expect_failure(
-        &dir,
+        dir,
         &run,
         &format!("rustdoc JSON format_version {other} is not the supported {found}"),
     );
@@ -151,9 +151,9 @@ fn a_span_outside_the_crate_sources_fails_without_a_shard() {
         .collect();
     let dir_tmp = scratch("extract-source", &fixture_json(), &srcs);
     let dir = dir_tmp.path();
-    let run = standard(&dir);
+    let run = standard(dir);
     expect_failure(
-        &dir,
+        dir,
         &run,
         "source 'tools/docs/rust/fixture/src/shapes.rs' of",
     );
@@ -168,8 +168,8 @@ fn a_crate_without_public_items_fails_without_a_shard() {
     let empty = format!("{}{}", &json[..start], &json[end..]);
     let dir_tmp = scratch("extract-empty", &empty, &fixture_srcs());
     let dir = dir_tmp.path();
-    let run = standard(&dir);
-    expect_failure(&dir, &run, "crate 'docs_fixture' has no public API");
+    let run = standard(dir);
+    expect_failure(dir, &run, "crate 'docs_fixture' has no public API");
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn a_missing_flag_is_a_usage_error() {
     let dir_tmp = scratch("extract-usage", &fixture_json(), &fixture_srcs());
     let dir = dir_tmp.path();
     let run = extract(
-        &dir,
+        dir,
         &[
             "--package",
             "docs_fixture",
@@ -199,7 +199,7 @@ fn a_nonexistent_json_file_is_a_failure() {
     let dir_tmp = scratch("extract-nojson", &fixture_json(), &fixture_srcs());
     let dir = dir_tmp.path();
     let run = extract(
-        &dir,
+        dir,
         &[
             "--package",
             "docs_fixture",
@@ -213,5 +213,5 @@ fn a_nonexistent_json_file_is_a_failure() {
             "shard.ir.pb",
         ],
     );
-    expect_failure(&dir, &run, "cannot read rustdoc JSON 'missing.json'");
+    expect_failure(dir, &run, "cannot read rustdoc JSON 'missing.json'");
 }

@@ -319,18 +319,18 @@ fn block(node: &Node, blocks: &mut Vec<String>, described: &mut Described) {
                     "return" => described.returns = body,
                     "see" | "note" | "warning" | "attention" | "remark" | "pre" | "post"
                     | "since" | "version" | "author" | "date" | "copyright" | "invariant"
-                    | "par" | "rcs" | "user" | "todo" | "test" | "bug" | "deprecated" => {
-                        if !body.is_empty() {
-                            let label = match child.attr("kind") {
-                                "see" => "See also",
-                                "note" => "Note",
-                                "warning" => "Warning",
-                                "attention" => "Attention",
-                                "deprecated" => "Deprecated",
-                                other => other,
-                            };
-                            blocks.push(format!("**{label}:** {body}"));
-                        }
+                    | "par" | "rcs" | "user" | "todo" | "test" | "bug" | "deprecated"
+                        if !body.is_empty() =>
+                    {
+                        let label = match child.attr("kind") {
+                            "see" => "See also",
+                            "note" => "Note",
+                            "warning" => "Warning",
+                            "attention" => "Attention",
+                            "deprecated" => "Deprecated",
+                            other => other,
+                        };
+                        blocks.push(format!("**{label}:** {body}"));
                     }
                     _ => {}
                 }
@@ -494,7 +494,7 @@ struct Context<'a> {
     config: String,
 }
 
-fn location<'a>(node: &'a Node, context: &Context) -> Option<(String, u64, bool)> {
+fn location(node: &Node, context: &Context) -> Option<(String, u64, bool)> {
     let at = node.first("location")?;
     let file = if at.attr("declfile").is_empty() {
         at.attr("file")

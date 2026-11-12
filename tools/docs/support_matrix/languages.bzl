@@ -2,9 +2,9 @@
 
 load("//apple/private/ios:cell.bzl", APPLE_SUPPORT = "PLATFORM_SUPPORT")
 load("//cc/private/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
-load("//cuda/private/toolchain:settings.bzl", CUDA_SUPPORT = "PLATFORM_SUPPORT")
 load("//core/modules:langs.bzl", "LANGS")
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
+load("//cuda/private/toolchain:settings.bzl", CUDA_SUPPORT = "PLATFORM_SUPPORT")
 load("//d/private:kwargs.bzl", D_SUPPORT = "PLATFORM_SUPPORT")
 load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
 load("//elixir/private:kwargs.bzl", ELIXIR_SUPPORT = "PLATFORM_SUPPORT")
@@ -64,10 +64,6 @@ API_COMPAT_TOOLS = {
     "pypi_deploy": "griffe",
     "rubygems_deploy": "not available",
 }
-
-
-
-
 
 def _hello(lang, repo = ""):
     return [repo + "//" + lang + "/tests/fixtures/hello:hello_test"]
@@ -326,14 +322,14 @@ LANGUAGES = [
         not_applicable = {
             "macos_arm64": "AppImage is a Linux format",
             "windows_x86_64": "AppImage is a Linux format",
-            "windows_arm64": "AppImage is a Linux format"
+            "windows_arm64": "AppImage is a Linux format",
         },
     ),
     _language(
         "apple",
         not_applicable = {
             "windows_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
-            "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS"
+            "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
         },
     ),
     _language(
@@ -361,7 +357,7 @@ LANGUAGES = [
         not_applicable = {
             "macos_arm64": "The GCC backend builds only for Linux",
             "windows_arm64": "The GCC backend builds only for Linux",
-            "windows_x86_64": "The GCC backend builds only for Linux"
+            "windows_x86_64": "The GCC backend builds only for Linux",
         },
     ),
     _language(
@@ -369,7 +365,7 @@ LANGUAGES = [
         not_applicable = {
             "linux_arm64": "Microsoft cl.exe runs only on Windows",
             "linux_x86_64": "Microsoft cl.exe runs only on Windows",
-            "macos_arm64": "Microsoft cl.exe runs only on Windows"
+            "macos_arm64": "Microsoft cl.exe runs only on Windows",
         },
     ),
     _language(
@@ -386,7 +382,7 @@ LANGUAGES = [
         doc = struct(tool = "doxygen", shard = "cuda_doc_shard"),
         dead_code = ["none"],
         not_applicable = {
-            "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS"
+            "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS",
         },
     ),
     _language(
@@ -405,7 +401,7 @@ LANGUAGES = [
         dead_code = ["dart unused_element"],
         unsupported = "//dart/private:unsupported",
         not_applicable = {
-            "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK"
+            "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK",
         },
     ),
     _language(
@@ -429,7 +425,7 @@ LANGUAGES = [
         dead_code = ["dart unused_element"],
         unsupported = "//flutter/private:unsupported",
         not_applicable = {
-            "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
+            "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)",
         },
     ),
     _language(
@@ -438,7 +434,7 @@ LANGUAGES = [
         doc = struct(tool = "ford", shard = "fortran_doc_shard"),
         dead_code = ["fortitude C191 unreachable-statement"],
         not_applicable = {
-            "windows_arm64": "flang-releases v21.1.8 ships no Windows arm64 build"
+            "windows_arm64": "flang-releases v21.1.8 ships no Windows arm64 build",
         },
     ),
     _language(
@@ -465,7 +461,7 @@ LANGUAGES = [
         dead_code = ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
         unsupported = "//haskell/private/toolchain:unsupported",
         not_applicable = {
-            "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist"
+            "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist",
         },
     ),
     _language(
@@ -492,7 +488,7 @@ LANGUAGES = [
         dead_code = ["none"],
         unsupported = "//julia/private:unsupported",
         not_applicable = {
-            "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build"
+            "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build",
         },
     ),
     _language(
@@ -529,7 +525,7 @@ LANGUAGES = [
         dead_code = ["ocamlc warnings 26, 27, 32 to 39"],
         not_applicable = {
             "windows_arm64": "conda-forge ships no win-arm64 OCaml package",
-            "windows_x86_64": "conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2"
+            "windows_x86_64": "conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2",
         },
     ),
     _language(
@@ -539,7 +535,7 @@ LANGUAGES = [
         doc = struct(tool = "pod (perl)", shard = "perl_doc_shard"),
         dead_code = ["perlcritic ProhibitUnusedVariables"],
         not_applicable = {
-            "windows_arm64": "Windows ARM64 perl is not qualified"
+            "windows_arm64": "Windows ARM64 perl is not qualified",
         },
     ),
     _language(
@@ -550,7 +546,7 @@ LANGUAGES = [
         dead_code = ["phpcs Generic.CodeAnalysis.UnusedFunctionParameter"],
         unsupported = "//php/private/toolchain:unsupported",
         not_applicable = {
-            "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build"
+            "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build",
         },
     ),
     _language(
@@ -621,7 +617,7 @@ LANGUAGES = [
         doc = struct(tool = "swift-symbolgraph-extract", shard = "swift_doc_shard"),
         not_applicable = {
             "windows_arm64": "The Swift Windows arm64 toolchain is registered but unverified on Windows ARM",
-            "windows_x86_64": "rules_dx registers no Swift toolchain for Windows"
+            "windows_x86_64": "rules_dx registers no Swift toolchain for Windows",
         },
     ),
     _language(
@@ -697,8 +693,6 @@ COMPILER_PLATFORM_PROBES = {
     "gcc": {"linux_arm64": "//cc/private/toolchains:identity_gcc_arm64_native"},
     "msvc": {"windows_arm64": "//cc/private/toolchains:identity_msvc_arm64_native"},
 }
-
-
 
 def _build_file(label):
     return label.split(":")[0] + ":BUILD.bazel"

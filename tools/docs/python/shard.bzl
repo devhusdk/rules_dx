@@ -1,7 +1,7 @@
 """The Python API reference shard action shared by the rule and the docs aspect."""
 
-load("//core:rlocation.bzl", "rlocation_path")
-load("//tools/docs/ir:shard.bzl", "repo_relative", "srcs_manifest_line")
+load("//core:rlocation.bzl", "repo_relative_path", "rlocation_path")
+load("//tools/docs/ir:shard.bzl", "srcs_manifest_line")
 
 def _import_relative(ctx, file, imports):
     """Returns the path of one file relative to its longest matching import root."""
@@ -9,7 +9,7 @@ def _import_relative(ctx, file, imports):
     for root in imports:
         if path.startswith(root + "/"):
             return path[len(root) + 1:]
-    return repo_relative(file.short_path)
+    return repo_relative_path(file.short_path)
 
 def python_package_name_ok(package):
     """Returns whether the string can name a top-level Python package."""
@@ -48,7 +48,7 @@ def python_shard_action(ctx, info, package, docstyle, stem, driver_tool, extract
         link = ctx.actions.declare_file(stem + ".pyroot/" + rel)
         ctx.actions.symlink(output = link, target_file = src)
         links.append(link)
-        lines.append(srcs_manifest_line(link.path, repo_relative(src.short_path), not src.is_source))
+        lines.append(srcs_manifest_line(link.path, repo_relative_path(src.short_path), not src.is_source))
     if not links:
         return None
     prefix = ctx.bin_dir.path + "/" + (ctx.label.package + "/" if ctx.label.package else "")

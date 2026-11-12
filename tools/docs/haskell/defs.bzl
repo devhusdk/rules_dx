@@ -1,7 +1,8 @@
 """Haskell API reference shards from the pinned GHC bindist's haddock Hoogle text."""
 
 load("@rules_haskell//haskell:providers.bzl", "HaskellInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 HASKELL_TOOLCHAIN = "@rules_haskell//haskell:toolchain"
 
@@ -22,7 +23,7 @@ def haskell_shard_action(ctx, info, package, config, stem, extract_tool):
     toolchain = ctx.toolchains[HASKELL_TOOLCHAIN]
     own = sorted(info.source_files.to_list(), key = lambda f: f.path)
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in own]))
+    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own]))
 
     # The bindist ships no `lib/html`, which haddock lists to find its themes even for
     # `--hoogle`; naming a stylesheet explicitly skips that lookup.

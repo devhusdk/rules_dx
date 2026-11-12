@@ -1,7 +1,8 @@
 """Swift API reference shards from the symbol graphs of the toolchain's swift-symbolgraph-extract."""
 
+load("//core:rlocation.bzl", "repo_relative_path")
 load("//swift/private:providers.bzl", "SwiftDocsInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 def swift_shard_action(ctx, info, package, config, stem, extract_tool):
     """Extracts the DocIr shard of one Swift library from its symbol graph and its own sources.
@@ -22,7 +23,7 @@ def swift_shard_action(ctx, info, package, config, stem, extract_tool):
     graph = info.graphs[0]
     own = sorted(info.srcs, key = lambda f: f.path)
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in own]))
+    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own]))
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     args = ctx.actions.args()
     args.add("--graphs", graph.symbol_graph_dir.path)

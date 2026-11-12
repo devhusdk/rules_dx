@@ -3,9 +3,10 @@
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo", "DotnetTargetingPackInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
+load("//core:rlocation.bzl", "repo_relative_path")
 load("//core/quality:sources.bzl", "single_target")
 load("//dotnet/private:symbols.bzl", "fsharp_compile_defines")
-load("//tools/docs/ir:shard.bzl", "repo_relative", "srcs_manifest_line")
+load("//tools/docs/ir:shard.bzl", "srcs_manifest_line")
 
 DotnetDocsInfo = provider(
     doc = "The compile facts of one rules_dotnet library that its API docs are read from.",
@@ -115,7 +116,7 @@ def dotnet_shard_action(ctx, info, package, stem, driver, extract):
     language = info.language
     label = {"csharp": "C#", "fsharp": "F#"}[language]
     references = [ref for ref in info.dep_refs]
-    lines = [srcs_manifest_line(src.path, repo_relative(src.short_path), not src.is_source) for src in info.srcs]
+    lines = [srcs_manifest_line(src.path, repo_relative_path(src.short_path), not src.is_source) for src in info.srcs]
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join(sorted(lines)))
     context = ctx.actions.declare_file(stem + ".context.json")

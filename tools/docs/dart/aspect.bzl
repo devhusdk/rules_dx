@@ -1,8 +1,9 @@
 """Dart documentation shard aspect."""
 
 load("@rules_dart//dart:providers.bzl", _DartInfo = "DartInfo")
+load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/dart:defs.bzl", "dart_shard_action")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 _DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
 
@@ -13,7 +14,7 @@ def _dart_docs_shard(target, ctx):
         return None
     info = target[_DartInfo]
     root = info.lib_root + "/lib/" if info.lib_root else "lib/"
-    if ctx.toolchains[_DART_TOOLCHAIN] == None or not [f for f in info.srcs if repo_relative(f.short_path).startswith(root) and f.extension == "dart"]:
+    if ctx.toolchains[_DART_TOOLCHAIN] == None or not [f for f in info.srcs if repo_relative_path(f.short_path).startswith(root) and f.extension == "dart"]:
         return None
     return dart_shard_action(ctx, info, info.package_name, "_dx_docs/" + ctx.label.name, ctx.executable._dart_extract).shard
 

@@ -1,9 +1,10 @@
 """PHP API reference shards parsed by the pinned phpDocumentor on the registered PHP toolchain."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
+load("//core:rlocation.bzl", "repo_relative_path")
 load("//php/private:providers.bzl", "PhpInfo")
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 _PhpDirectSrcsInfo = provider(
     doc = "The .php files one PHP library lists in its own srcs.",
@@ -38,7 +39,7 @@ def php_shard_action(ctx, own, package, stem, phar, driver, extract_tool):
     if not own:
         fail("php_doc_shard " + str(ctx.label) + ": lib lists no .php srcs")
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in own])))
+    ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own])))
 
     php = ctx.toolchains[EXEC_TOOLCHAIN_TYPE].php
     php_json = ctx.actions.declare_file(stem + ".php.json")

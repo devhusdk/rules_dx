@@ -1,8 +1,9 @@
 """Lua API reference shards read from doc comments by the pinned LDoc."""
 
 load("@dx_pins_data//:pins.bzl", "ARCHIVES")
+load("//core:rlocation.bzl", "repo_relative_path")
 load("//lua/private:providers.bzl", "LuaInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 def lua_shard_action(ctx, own, package, stem, runner, ldoc, penlight, filter, extract_tool):
     """Runs LDoc and the extractor for one Lua library.
@@ -25,7 +26,7 @@ def lua_shard_action(ctx, own, package, stem, runner, ldoc, penlight, filter, ex
     if not own:
         fail("lua_doc_shard " + str(ctx.label) + ": lib lists no .lua srcs")
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in own]))
+    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own]))
     config = ctx.actions.declare_file(stem + ".config.ld")
     ctx.actions.write(config, "file = {\n" + "".join(["  [[" + f.path + "]],\n" for f in own]) + "}\nignore = true\nformat = 'plain'\n")
 

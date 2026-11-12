@@ -1,8 +1,9 @@
 """C, C++ and CUDA API reference shards parsed from public headers by the pinned Doxygen."""
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/cc:repos.bzl", "UNSUPPORTED_REASON")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 _EXECUTABLES = ["doxygen", "doxygen.exe"]
 
@@ -81,7 +82,7 @@ def cc_shard_action(ctx, language, headers, package, stem, doxygen_files, extrac
     if doxygen == None:
         fail(_where(ctx) + ": " + UNSUPPORTED_REASON)
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in headers])))
+    ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in headers])))
 
     tree = ctx.actions.declare_directory(stem + ".doxygen")
     config = ctx.actions.declare_file(stem + ".Doxyfile")

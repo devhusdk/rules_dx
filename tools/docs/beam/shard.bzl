@@ -1,8 +1,9 @@
 """Shared actions of the Elixir and Erlang API doc shards: the pinned runtime reads the docs, beam_extract writes DocIr."""
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
+load("//core:rlocation.bzl", "repo_relative_path")
 load("//core/coreutils:defs.bzl", "coreutils")
-load("//tools/docs/ir:shard.bzl", "repo_relative", "srcs_manifest_line")
+load("//tools/docs/ir:shard.bzl", "srcs_manifest_line")
 
 OTP_TOOLCHAIN = "@rules_erlang//tools:toolchain_type"
 ELIXIR_TOOLCHAIN = "@rules_elixir//:toolchain_type"
@@ -24,7 +25,7 @@ def beam_dirs(app):
 
 def _manifest(ctx, stem, files):
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in files])))
+    ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in files])))
     return manifest
 
 def beam_shard_action(ctx, language, srcs, dep_beams, package, stem, runner, extract_tool, driver = None):

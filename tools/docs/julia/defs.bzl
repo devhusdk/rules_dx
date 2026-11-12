@@ -1,7 +1,8 @@
 """Julia API reference shards read from docstrings by the pinned Documenter.jl."""
 
 load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 def julia_shard_action(ctx, own, transitive_srcs, module, package, stem, driver, extract_tool):
     """Runs the Documenter driver and the extractor for one Julia library.
@@ -23,7 +24,7 @@ def julia_shard_action(ctx, own, transitive_srcs, module, package, stem, driver,
     if not own:
         fail("julia_doc_shard " + str(ctx.label) + ": lib lists no .jl srcs")
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in own])))
+    ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own])))
     dirs = {}
     for f in transitive_srcs:
         dirs[f.dirname] = True

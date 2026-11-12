@@ -2,7 +2,8 @@
 
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 load("//cli/exec_os:defs.bzl", "ExecOsInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 PROTO_TOOLCHAIN = "@protobuf//bazel/private:proto_toolchain_type"
 
@@ -64,7 +65,7 @@ def protobuf_shard_action(ctx, proto_info, protoc, windows, package, stem, extra
     extract.add("--package", package)
     extract.add("--out", shard)
     for name, src in zip(names, sources):
-        extract.add("--src", name + "=" + repo_relative(src.short_path))
+        extract.add("--src", name + "=" + repo_relative_path(src.short_path))
         if not src.is_source:
             extract.add("--generated", name)
     ctx.actions.run(

@@ -58,3 +58,23 @@ fn compiler_consumer_tests_must_be_nested_qualifications() {
     let error = generate(&facts, &source).expect_err("a non-qualification consumer test");
     assert!(error.contains("hermetic-consumer"), "{error}");
 }
+
+#[test]
+fn a_removed_suite_test_fails_without_a_pending_or_not_applicable_entry() {
+    let source = RunfilesSource::create().expect("runfiles");
+    let facts = source
+        .read("tools/docs/support_matrix/facts.json")
+        .expect("facts");
+    let mut value: serde_json::Value = serde_json::from_str(&facts).expect("facts parse");
+    let entries = value["conformance"]["entries"]
+        .as_array_mut()
+        .expect("conformance entries");
+    let removed = entries
+        .iter()
+        .find(|e| e["status"] == "run" && e["capability"] == "build_test")
+        .expect("a language runs build_test")["lang"]
+        .clone();
+    entries.retain(|e| !(e["lang"] == removed && e["capability"] == "build_test"));
+    let error = generate(&value.to_string(), &source).expect_err("a removed suite test");
+    assert!(error.contains("pending.bzl"), "{error}");
+}

@@ -38,7 +38,7 @@ avro/tests/BUILD.bazel no-size 6
 bcr_test_module/BUILD.bazel no-size 1
 bicep/private/tools/BUILD.bazel no-size 1
 bicep/tests/BUILD.bazel no-size 3
-bicep/tests/library_tests.bzl no-size 1
+bicep/tests/defs_tests.bzl no-size 1
 capnproto/private/tools/capnpc_rust_dx/BUILD.bazel no-size 1
 capnproto/tests/BUILD.bazel no-size 15
 cc/private/BUILD.bazel no-size 3
@@ -447,6 +447,7 @@ java/tests/fixtures/junit/BUILD.bazel no-size 3
 java/tests/fixtures/no_srcs/BUILD.bazel no-size 3
 java/tests/fixtures/testonly_binary/BUILD.bazel no-size 1
 javascript/tests/BUILD.bazel no-size 1
+javascript/tests/defs_tests.bzl no-size 1
 javascript/tests/fixtures/adopt-js-ts/app/BUILD.bazel no-size 2
 javascript/tests/fixtures/adopt-js-ts/web/BUILD.bazel no-size 2
 javascript/tests/fixtures/args/BUILD.bazel no-size 1
@@ -460,7 +461,6 @@ javascript/tests/fixtures/node-app/registry/BUILD.bazel no-size 2
 javascript/tests/fixtures/skip_tags/BUILD.bazel no-size 4
 javascript/tests/fixtures/web_app/BUILD.bazel no-size 14
 javascript/tests/typecheck/BUILD.bazel no-size 1
-javascript/tests/wrapper_tests.bzl no-size 1
 julia/private/tools/BUILD.bazel no-size 2
 julia/private/tools/docs/BUILD.bazel no-size 1
 julia/private/tools/jet/BUILD.bazel no-size 2

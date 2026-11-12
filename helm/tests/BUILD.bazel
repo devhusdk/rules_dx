@@ -1,7 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:failure_test.bzl", "failure_test")
 load("//helm:defs.bzl", "helm_library")
-load(":library_tests.bzl", "chart_provider_test", "owns_helm_class_test")
+load(":defs_tests.bzl", "chart_provider_test", "owns_helm_class_test")
 
 helm_library(
     name = "app",
@@ -196,7 +196,7 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
-        "library_tests.bzl",
+        "defs_tests.bzl",
     ],
     tags = ["corpus"],
 )

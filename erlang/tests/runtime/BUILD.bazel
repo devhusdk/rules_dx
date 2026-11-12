@@ -3,7 +3,7 @@
 load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_ct_suite_test", "erlang_erlc_opts", "erlang_eunit_test", "erlang_test_app")
 load("@rules_dx//erlang/private:defs.bzl", "DEFAULT_TEST_ERLC_OPTS")
 load("@rules_dx//erlang/private/toolchain:pins.bzl", "OTP_VERSION")
-load("@rules_dx//erlang/tests:wrapper_tests.bzl", "erlang_beam_info_test", "erlang_coverage_env_test")
+load("@rules_dx//erlang/tests:defs_tests.bzl", "erlang_beam_info_test", "erlang_coverage_env_test")
 
 exports_files(
     ["src/dx_runtime_probe.erl"],

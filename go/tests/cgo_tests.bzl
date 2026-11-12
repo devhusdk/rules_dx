@@ -1,7 +1,7 @@
 """Tests for the cgo toolchain check."""
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load(":cgo.bzl", "cgo_toolchain_error")
+load("//go/private:cgo.bzl", "cgo_toolchain_error")
 
 _MSG_TAIL = " rules_go would build the package without cgo. Select a gcc or clang toolchain with the GNU ABI, or set cgo = False."
 

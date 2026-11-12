@@ -385,8 +385,6 @@ gazelle/thrift/BUILD.bazel no-size 2
 gazelle/typescript/BUILD.bazel no-size 2
 gazelle/vue/BUILD.bazel no-size 2
 gazelle/zig/BUILD.bazel no-size 2
-go/private/BUILD.bazel no-size 2
-go/private/cgo_tests.bzl no-size 1
 go/private/ide/BUILD.bazel no-size 1
 go/private/quality/gopls_tier/BUILD.bazel no-size 1
 go/private/tools/analysis/cmd/dx_errcheck/BUILD.bazel no-size 1
@@ -395,6 +393,8 @@ go/private/tools/analysis/cmd/dx_staticcheck/BUILD.bazel no-size 1
 go/private/tools/analysis/gotype/BUILD.bazel no-size 1
 go/private/tools/analysis/unit/BUILD.bazel no-size 1
 go/private/tools/modfmt/BUILD.bazel no-size 1
+go/tests/BUILD.bazel no-size 2
+go/tests/cgo_tests.bzl no-size 1
 go/tests/fixtures/adopt-go/greet/BUILD.bazel no-size 1
 go/tests/fixtures/adopt-go/solo/BUILD.bazel no-size 1
 go/tests/fixtures/bench/BUILD.bazel no-size 3
@@ -409,13 +409,12 @@ go/tests/fixtures/hello/BUILD.bazel no-size 2
 go/tests/fixtures/no_srcs/BUILD.bazel no-size 2
 go/tests/fixtures/samepkg/BUILD.bazel no-size 1
 go/tests/fixtures/testonly_binary/BUILD.bazel no-size 1
-haskell/private/BUILD.bazel no-size 2
 haskell/private/coverage/BUILD.bazel no-size 2
-haskell/private/profile_tests.bzl no-size 2
 haskell/private/tools/BUILD.bazel no-size 1
 haskell/private/tools/hlint/BUILD.bazel no-size 2
 haskell/private/tools/ormolu/BUILD.bazel no-size 2
 haskell/private/tools/weeder/BUILD.bazel no-size 2
+haskell/tests/BUILD.bazel no-size 2
 haskell/tests/fixtures/bench/BUILD.bazel no-size 4
 haskell/tests/fixtures/bench/BUILD.bazel size-large 1
 haskell/tests/fixtures/bench/BUILD.bazel timeout-long 1
@@ -425,6 +424,7 @@ haskell/tests/fixtures/haskell_app/stock/BUILD.bazel no-size 1
 haskell/tests/fixtures/haskell_app/third_party/BUILD.bazel no-size 1
 haskell/tests/fixtures/stack/BUILD.bazel no-size 1
 haskell/tests/mingw_cc/BUILD.bazel no-size 1
+haskell/tests/profile_tests.bzl no-size 2
 haskell/tests/runtime/BUILD.bazel no-size 1
 helm/tests/BUILD.bazel no-size 9
 java/private/BUILD.bazel no-size 1
@@ -578,8 +578,7 @@ rust/private/bench_report/BUILD.bazel no-size 1
 rust/private/ide/BUILD.bazel no-size 2
 rust/private/quality/tools/progenitor/BUILD.bazel no-size 1
 rust/private/quality/tools/topiary/BUILD.bazel no-size 1
-rust/private/toolchain/BUILD.bazel no-size 1
-rust/private/toolchain/identity_tests.bzl no-size 2
+rust/tests/BUILD.bazel no-size 1
 rust/tests/fixtures/adopt-rust/crates/api/BUILD.bazel no-size 4
 rust/tests/fixtures/adopt-rust/solo/BUILD.bazel no-size 1
 rust/tests/fixtures/bench/BUILD.bazel no-size 3
@@ -603,6 +602,7 @@ rust/tests/fixtures/shared-rust-checks/BUILD.bazel no-size 6
 rust/tests/fixtures/wasm_bindgen/BUILD.bazel no-size 12
 rust/tests/fixtures/wasm_bindgen/js_parity.bzl no-size 1
 rust/tests/tonic/BUILD.bazel no-size 1
+rust/tests/toolchain_tests.bzl no-size 2
 scala/private/BUILD.bazel no-size 1
 scala/tests/fixtures/adopt-scala/greet/BUILD.bazel no-size 1
 scala/tests/fixtures/adopt-scala/solo/BUILD.bazel no-size 1

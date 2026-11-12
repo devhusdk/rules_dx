@@ -12,14 +12,14 @@ unlike( $perl, qr{\A/(?:usr|bin|opt)/},
     "interpreter is not a host perl: $perl" );
 like(
     $perl,
-    qr{perl_(?:linux|darwin|windows)_(?:amd64|arm64|x86_64)},
+    qr{perl_(?:x86_64|aarch64)_(?:linux|macos|windows)},
     "interpreter comes from the rules_perl toolchain: $perl"
 );
 
 SKIP: {
     skip 'Strawberry perl pins its own version on Windows', 1
       if $^O eq 'MSWin32';
-    like( DxProbe::version(), qr/\A5\.40\./, 'runtime is perl 5.40' );
+    like( DxProbe::version(), qr/\A5\.44\./, 'runtime is perl 5.44' );
 }
 
 my $module = $INC{'DxProbe.pm'};

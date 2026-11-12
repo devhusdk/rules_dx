@@ -23,7 +23,7 @@ filegroup(
 
 filegroup(
     name = "linker_files_{tuple}",
-    srcs = ["{ndk}:clang", "{ndk}:ld_lld", "{ndk}:linker_files_{triple}", ":native_tools"],
+    srcs = ["{ndk}:clang", "{ndk}:ld_lld", "{ndk}:runtime_libs", "{ndk}:linker_files_{triple}", ":native_tools"],
 )
 
 filegroup(

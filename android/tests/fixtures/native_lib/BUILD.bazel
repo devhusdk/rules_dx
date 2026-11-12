@@ -5,6 +5,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//android:defs.bzl", "android_native_library")
+load("//android/tests:ndk_runtime_libs_tests.bzl", "ndk_link_stages_runtime_libs_test")
 
 package(
     default_testonly = True,
@@ -63,6 +64,11 @@ failure_test(
     name = "bad_api_test",
     expected_failure_substring = "api_level 29 is below 31",
     target = ":bad_api_device",
+)
+
+ndk_link_stages_runtime_libs_test(
+    name = "ndk_link_runtime_libs_test",
+    target_under_test = ":native_lib_link_upstream",
 )
 
 rust_test(

@@ -118,7 +118,7 @@ fn write_cabal_config(dir: &PrivateConfigDir, token: &str) -> io::Result<std::pa
     dir.write(
         "config",
         &format!(
-            "hackage-token: {token}\nrepository hackage.haskell.org\n  url: http://hackage.haskell.org/\n"
+            "hackage-token: {token}\nrepository hackage.haskell.org\n  url: https://hackage.haskell.org/\n"
         ),
     )
 }
@@ -278,6 +278,8 @@ mod tests {
         assert_eq!(Path::new(env), config);
         let text = std::fs::read_to_string(&config).unwrap();
         assert!(text.contains(token));
+        assert!(text.contains("url: https://hackage.haskell.org/\n"));
+        assert!(!text.contains("http://"));
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;

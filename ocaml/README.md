@@ -125,7 +125,7 @@ actions are unchanged.
 
 See [ocaml_app](tests/fixtures/ocaml_app/README.md) for a multi-package app with a pinned `Astring` dependency, an ocaml_lex lexer and a C stub that only the native cell builds.
 
-## Formatting and linting
+## Format, lint and typecheck
 
 `dx format` runs `topiary` on `.ml` and `.mli` sources, and `dx lint` runs
 `zanuda`, by default: the default policy selects `format = ["topiary"]` and
@@ -163,7 +163,7 @@ bisect_ppx rewriter as a library) into your ppxlib driver and set
 ### Internal tool: zanuda
 
 `//ocaml/private/quality:zanuda` is the zanuda 2.1.0 linter, built from source
-and wired into `dx lint` (#4621) as the `zanuda` lint tool of the `ocaml` family.
+and wired into `dx lint` as the `zanuda` lint tool of the `ocaml` family.
 The lint aspect reads the typed trees (`.cmt`/`.cmti`) that `ocaml_module` and
 `ocaml_signature` expose through `OCamlCmtInfo`, so a target compiled with
 `-no-bin-annot` fails closed. A source-alias patch makes typed and untyped
@@ -259,15 +259,7 @@ The benchmark always builds native code, whatever the emitter flag says.
 
 ## Platforms
 
-| Cell | Emitter | Status |
-| --- | --- | --- |
-| `linux_x86_64` | bytecode (`vm`) | Qualified |
-| `linux_x86_64` | native (`sys`) | Tested, not yet qualified |
-| `linux_arm64` | any | Not qualified |
-| `macos_x86_64` | any | Not qualified |
-| `macos_arm64` | any | Not qualified |
-| `windows_x86_64` | any | Not applicable (conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2) |
-| `windows_arm64` | n/a | conda-forge ships no win-arm64 OCaml package |
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
 On other platforms OCaml targets fail toolchain resolution.
 

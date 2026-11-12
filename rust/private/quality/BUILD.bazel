@@ -1,4 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":rust_clippy_tests.bzl", "rust_clippy_test_suite")
 
 package(default_visibility = [
     "//core/modules:__pkg__",
@@ -13,12 +14,15 @@ exports_files([
     "rust_tools.bzl",
 ])
 
+rust_clippy_test_suite(name = "rust_clippy_tests")
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "rust.bzl",
         "rust_clippy.bzl",
+        "rust_clippy_tests.bzl",
         "rust_tools.bzl",
     ],
     tags = ["corpus"],

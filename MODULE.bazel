@@ -2434,6 +2434,7 @@ crate.from_cargo(
         "//php/private/tools/lock:Cargo.toml",
         "//ansible/private/tools/lock:Cargo.toml",
         "//powershell/private/tools/lock:Cargo.toml",
+        "//fortran/private/tools/lock:Cargo.toml",
         "//lua/private/tools/lock:Cargo.toml",
         "//cli/families:Cargo.toml",
         "//cli/module_bazel:Cargo.toml",

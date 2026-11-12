@@ -21,7 +21,6 @@ mod opam;
 mod pinned;
 mod powershell;
 mod pub_dev;
-mod rehash;
 mod swiftpm;
 mod uv;
 mod zig;

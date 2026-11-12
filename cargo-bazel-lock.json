@@ -1,5 +1,5 @@
 {
-  "checksum": "dfb2e227fe21b3656d6f66fffb720f83018f2547a68e8a95ad01969d0ff4a3d5",
+  "checksum": "d624520641cbed2ad930e07c38a84f7566191f5d6d167079d19ff9b404d11760",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -11121,6 +11121,47 @@
           "Library": {
             "crate_name": "dx_docs_fortran_extract",
             "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "fpm_lock 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
+          },
+          {
+            "id": "tar 0.4.46",
+            "target": "tar"
+          },
+          {
+            "id": "toml 1.1.6+spec-1.1.0",
+            "target": "toml"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "fpm_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "fpm_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "fpm_lock",
+            "crate_root": "src/resolve.rs"
           }
         }
       ],
@@ -32813,6 +32854,7 @@
     "env_stubs 0.0.0": "env/private/env_stubs",
     "flatbuffers_tests 0.0.0": "flatbuffers/flatbuffers_tests",
     "fortran_extract 0.0.0": "tools/docs/fortran/fortran_extract",
+    "fpm_lock 0.0.0": "fortran/private/tools/fpm_lock",
     "gazelle_rust 0.0.0": "gazelle/gazelle_rust",
     "generation_result 0.0.0": "cli/generation_result",
     "go_docs_tests 0.0.0": "tools/docs/go_docs_tests",

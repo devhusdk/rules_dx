@@ -1,0 +1,45 @@
+{
+  "ecosystem": "fpm",
+  "inputs": {
+    "fpm.toml": "5075fce88440c984c97ed0b1c057f909a2f6061b1c72b1771d003970baf10628"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "fe34ad927e5493b21a15f0106025b23a758a9abfdc6156b615c03b031cab9ad5",
+          "strip_prefix": "FSPARSE-1.2.0",
+          "urls": [
+            "https://github.com/jalvesz/FSPARSE/archive/v1.2.0.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "stdlib"
+      ],
+      "name": "fsparse",
+      "provides": [
+        "fsparse"
+      ],
+      "version": "v1.2.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "e287962e14cca0861f834ffce1cc1f7e9280fce35bf94082b2cf5216f5352101",
+          "strip_prefix": "stdlib-0.7.0",
+          "urls": [
+            "https://github.com/fortran-lang/stdlib/archive/v0.7.0.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "stdlib",
+      "provides": [
+        "stdlib"
+      ],
+      "version": "v0.7.0"
+    }
+  ],
+  "schema": 1
+}

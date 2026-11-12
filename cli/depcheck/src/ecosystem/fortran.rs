@@ -38,18 +38,21 @@ pub fn parse_fortran_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
     Ok(deps)
 }
 
-/// Reads an `fpm.lock`: one `[dependencies.<name>]` table per resolved package, with its `version`.
+/// Reads an fpm lock: the `name` and `version` of each locked package.
 pub fn parse_fortran_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
-    let data: toml::Value = toml::from_str(&text).map_err(DepcheckError::LockToml)?;
+    let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;
     let mut pkgs = BTreeMap::new();
-    for (name, value) in data
-        .get("dependencies")
-        .and_then(|v| v.as_table())
+    for package in data
+        .get("packages")
+        .and_then(|v| v.as_array())
         .into_iter()
         .flatten()
     {
-        let version = value.get("version").and_then(|v| v.as_str()).unwrap_or("0");
+        let Some(name) = package.get("name").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        let version = package.get("version").and_then(|v| v.as_str()).unwrap_or("0");
         pkgs.insert(normalize_lower(name), version.to_owned());
     }
     Ok(pkgs)

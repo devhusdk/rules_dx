@@ -409,7 +409,7 @@ LANGUAGES = [
     ),
     _language(
         "fortran",
-        deps = "the `fpm.lock` tag of the `fpm` extension builds pinned archives from the fpm lock; `dx security` and `dx license` read it, `dx update` re-hashes the archives",
+        deps = "the `fpm.lock` tag of the `fpm` extension builds the locked packages; `dx security` and `dx license` read it, `dx update` runs the fpm lock step",
         doc = struct(tool = "ford", shard = "fortran_doc_shard"),
         dead_code = ["fortitude C191 unreachable-statement"],
     ),

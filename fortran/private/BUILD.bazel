@@ -14,7 +14,6 @@ package(default_visibility = [
 exports_files([
     "defs.bzl",
     "flang_rt.BUILD.bazel",
-    "fpm_lock.bzl",
     "kwargs.bzl",
 ])
 
@@ -150,7 +149,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "fpm_lock.bzl",
         "kwargs.bzl",
         "flang_rt.BUILD.bazel",
     ],

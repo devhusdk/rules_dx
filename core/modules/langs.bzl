@@ -1240,11 +1240,12 @@ LANGS = json.decode("""{
     "entry_points": [
       "fortran_library",
       "fortran_binary",
-      "fortran_test",
-      "fortran_fpm_lock"
+      "fortran_test"
     ],
     "family": "core",
-    "lockfiles": [],
+    "lockfiles": [
+      "fpm.lock.json"
+    ],
     "manifests": [
       "fpm.toml"
     ],
@@ -1296,10 +1297,10 @@ LANGS = json.decode("""{
           "ecosystem": "fpm",
           "extension": "@rules_dx//fortran:extensions.bzl",
           "hub": "fpm",
-          "imports": "name",
-          "lock": "fpm.lock.toml",
+          "imports": "provides",
+          "lock": "fpm.lock.json",
           "manifest": "fpm.toml",
-          "resolver": null,
+          "resolver": "@rules_dx//fortran/private/tools/lock",
           "state": null,
           "tag": "lock"
         }

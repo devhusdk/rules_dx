@@ -45,8 +45,8 @@ LOCK_REGISTRY = {
     },
     "fpm": {
         "hub": "fpm",
-        "imports": "name",
-        "lock": "fpm.lock.toml",
+        "imports": "provides",
+        "lock": "fpm.lock.json",
         "manifest": "fpm.toml",
         "state": None,
     },

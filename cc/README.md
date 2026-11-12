@@ -96,6 +96,8 @@ bazel test --@rules_dx//cc:compiler=gcc --features=asan //pkg:test
 bazel test --@rules_dx//cc:compiler=gcc --features=ubsan //pkg:test
 ```
 
+On a macOS host, `--features=asan`, `ubsan` or `tsan` uses the Xcode toolchain, and the runtimes load from the installed Xcode, so this is not hermetic.
+
 ## MSVC
 
 Select the MSVC toolchain in `.bazelrc`:

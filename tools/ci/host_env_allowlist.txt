@@ -265,9 +265,6 @@ patches/llvm/tests/libunwind_copy_test.sh shebang 1
 patches/llvm/tests/lse_atomic_sources_test.sh shebang 1
 patches/llvm/tests/macos_sdk_symlinks_test.sh shebang 1
 patches/llvm/tests/msvc_source_directories_test.sh shebang 1
-perl/private/tools/BUILD.bazel sh-rule 2
-perl/private/tools/cpansa_dump_smoke_test.sh shebang 1
-perl/private/tools/perlcritic_smoke_test.sh shebang 1
 python/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 python/tests/fixtures/fuzz/run_test.sh shebang 1
 python/tests/fixtures/python-service/ledger/core/BUILD.bazel genrule 1

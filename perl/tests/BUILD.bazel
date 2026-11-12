@@ -1,4 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
 load(":wrapper_tests.bzl", "perl_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:private"])
@@ -6,6 +7,34 @@ package(default_visibility = ["//visibility:private"])
 exports_files(["wrapper_tests.bzl"])
 
 perl_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+rust_test(
+    name = "cpansa_dump_smoke_test",
+    size = "small",
+    srcs = ["cpansa_dump_smoke_test.rs"],
+    data = ["//perl/private/tools:cpansa_dump"],
+    env = {"CPANSA_DUMP": "$(rootpath //perl/private/tools:cpansa_dump)"},
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "perlcritic_smoke_test",
+    size = "small",
+    srcs = ["perlcritic_smoke_test.rs"],
+    data = [
+        "//perl/private/tools:critic/testdata/clean.pl",
+        "//perl/private/tools:critic/testdata/dirty.pl",
+        "//perl/private/tools:perlcritic",
+    ],
+    env = {
+        "CLEAN": "$(rootpath //perl/private/tools:critic/testdata/clean.pl)",
+        "DIRTY": "$(rootpath //perl/private/tools:critic/testdata/dirty.pl)",
+        "PERLCRITIC": "$(rootpath //perl/private/tools:perlcritic)",
+    },
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
+)
 
 real_source_target(
     name = "corpus_starlark",

@@ -22,6 +22,7 @@ cc_binary(
         "-runtime_library_search_directories_workaround",
     ],
     target_compatible_with = ["@platforms//os:windows"],
+    testonly = True,
     deps = ["//msix/tests/fixtures/msix-app/greet"],
 )
 
@@ -35,12 +36,14 @@ msix_package(
     logo = "logo.png",
     notice = ["NOTICE.txt"],
     publisher = "CN=DxMsixExample, O=Dx",
+    testonly = True,
     version = "1.2.3.0",
 )
 
 msix_sign(
     name = "app_sign",
     package = ":app",
+    testonly = True,
 )
 
 real_source_target(

@@ -202,3 +202,21 @@ func TestFilterRemovesDiagnostics(t *testing.T) {
 		t.Fatalf("Filter dropped badfunc: %v", got)
 	}
 }
+
+func TestExternalTestPackageIsSeparatePass(t *testing.T) {
+	dir := t.TempDir()
+	internal := write(t, dir, "a.go", "package p\n\nfunc Bad() {}\n")
+	external := write(t, dir, "a_test.go", "package p_test\n\nfunc BadTest() {}\n")
+	got, raw := runUnit(t, unit.Config{GoFiles: []string{internal, external}})
+	var list []map[string]string
+	if err := json.Unmarshal(got["example.com/p"]["badfunc"], &list); err != nil {
+		t.Fatalf("%s: %v", raw, err)
+	}
+	files := map[string]bool{}
+	for _, d := range list {
+		files[strings.SplitN(d["posn"], ":", 2)[0]] = true
+	}
+	if len(list) != 2 || !files[internal] || !files[external] {
+		t.Fatalf("want one finding in each package, got %s", raw)
+	}
+}

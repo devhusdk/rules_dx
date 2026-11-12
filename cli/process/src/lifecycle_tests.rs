@@ -1614,6 +1614,7 @@ fn windows_has_no_terminal_job_and_no_signals() {
     let job = backend::TerminalJob;
     assert_eq!(job.pgid(), 0);
     assert_eq!(job.take_reported(), None);
+    assert_eq!(job.settle(), Vec::<i32>::new());
     job.tend(1);
     backend::send_kill(1);
     assert!(!backend::tree_alive(1));

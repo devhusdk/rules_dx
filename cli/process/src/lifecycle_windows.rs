@@ -451,6 +451,10 @@ impl TerminalJob {
         None
     }
 
+    pub fn settle(&self) -> Vec<i32> {
+        Vec::new()
+    }
+
     pub fn tend(&self, _child: i32) {}
 }
 

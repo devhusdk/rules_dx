@@ -159,7 +159,7 @@ field thin_env=
 field thin_inherited=
 field thin_label=//cc/tests/fixtures/hello:hello_test_upstream
 field wrapper_env=DX_HELLO_ENV=1
-field wrapper_inherited=HOME
+field wrapper_inherited=
 field wrapper_label=//cc/tests/fixtures/hello:hello_test
 aspect_field aspect_seen=True
 aspect_field field_count=7

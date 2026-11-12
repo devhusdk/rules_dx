@@ -362,7 +362,6 @@ platforms-option cc/private/toolchains/select.bzl
 platforms-option erlang/private/defs.bzl
 platforms-option rust/private/defs.bzl
 platforms-option swift/private/platforms/transition.bzl
-platforms-type qt/private/defs.bzl
 platforms-type swift/private/defs.bzl
 private-names cc/private/context/tests
 private-names cc/private/testdata

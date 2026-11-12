@@ -148,7 +148,7 @@ def _run_environment(ctx, gui):
             environment["FONTCONFIG_PATH"] = _directory(ctx.files.fonts, "fonts.conf")
         elif len([f for f in ctx.files.fonts if f.extension == "ttf"]) > 0:
             environment["QT_QPA_FONTDIR"] = _directory(ctx.files.fonts, "DejaVuSans.ttf")
-        environment["QT_QPA_PLATFORM_PLUGIN_PATH"] = _directory(ctx.files.platforms, "qoffscreen")
+        environment["QT_QPA_PLATFORM_PLUGIN_PATH"] = _directory(ctx.files.platform_plugins, "qoffscreen")
         if ctx.attr._headless:
             environment["QT_QPA_PLATFORM"] = "offscreen"
             environment["QT_QUICK_BACKEND"] = "software"
@@ -167,7 +167,7 @@ def _run_environment(ctx, gui):
 def _qt_executable_forward_impl(ctx):
     upstream = dx_upstream(ctx)
     gui = _links_gui(upstream)
-    extra = ctx.files.qml_imports + ctx.files.plugins + (ctx.files.fonts + ctx.files.platforms if gui else [])
+    extra = ctx.files.qml_imports + ctx.files.plugins + (ctx.files.fonts + ctx.files.platform_plugins if gui else [])
     run_environment = _run_environment(ctx, gui)
     if ctx.configuration.coverage_enabled and hasattr(ctx.attr, "_collect_cc_coverage"):
         toolchain = find_cc_toolchain(ctx, mandatory = False)
@@ -198,7 +198,7 @@ def _qt_executable_forward_impl(ctx):
 
 _EXECUTABLE_ATTRS = dict(_SOURCE_ATTRS, **{
     "fonts": attr.label(allow_files = True, doc = "Pinned fontconfig configuration and fonts for Qt Gui."),
-    "platforms": attr.label(allow_files = True, doc = "Qt platform plugins for Qt Gui."),
+    "platform_plugins": attr.label(allow_files = True, doc = "Qt platform plugins for Qt Gui."),
     "plugins": attr.label_list(allow_files = True, doc = "Qt runtime plugin files put on QT_PLUGIN_PATH."),
     "qml_imports": attr.label(allow_files = True, doc = "Qt QML import tree put on QML_IMPORT_PATH."),
     "upstream": attr.label(mandatory = True, providers = [CcInfo], doc = "Private rules_cc executable."),
@@ -475,7 +475,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
             "moc_hdrs": moc_hdrs,
             "deps": deps,
             "fonts": qt + "//:fonts",
-            "platforms": qt + "//:platforms",
+            "platform_plugins": qt + "//:platforms",
             "plugins": [qt + "//:plugins_" + plugin for plugin in plugins],
             "qml_imports": qt + "//:qml_imports" if _uses_qml(modules) else None,
         },

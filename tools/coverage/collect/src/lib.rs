@@ -142,8 +142,8 @@ fn export(
         }
         return Err(format!("llvm-cov export failed:\n{stderr}"));
     }
-    let report = String::from_utf8(out.stdout)
-        .map_err(|_| "llvm-cov export wrote non-UTF-8".to_owned())?;
+    let report =
+        String::from_utf8(out.stdout).map_err(|_| "llvm-cov export wrote non-UTF-8".to_owned())?;
     let report = collect::rewrite_paths(&report, &ctx.execroot);
     for source in report.lines().filter(|line| line.starts_with("SF:")) {
         debug_log!("{source}");
@@ -172,8 +172,7 @@ fn collect_gcov(ctx: &Context, gcov: &str) -> Result<String, String> {
         };
         let dir = gcda.parent().unwrap_or(&ctx.coverage_dir);
         let copied = gcda.with_extension("gcno");
-        fs::copy(&note, &copied)
-            .map_err(|e| format!("cannot copy {}: {e}", note.display()))?;
+        fs::copy(&note, &copied).map_err(|e| format!("cannot copy {}: {e}", note.display()))?;
         // The toolchain gcov wrapper drops stdout while COVERAGE_DIR is set.
         let out = Command::new(&tool)
             .args(gcov::gcov_args(dir, &gcda))
@@ -230,8 +229,7 @@ fn collect_all() -> Result<(), String> {
         if let Some(kept) =
             collect::preserved_report(&reported, &ctx.coverage_dir).filter(|_| written)
         {
-            fs::copy(&reported, &kept)
-                .map_err(|e| format!("cannot keep the test report: {e}"))?;
+            fs::copy(&reported, &kept).map_err(|e| format!("cannot keep the test report: {e}"))?;
         }
     }
 

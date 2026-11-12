@@ -30,6 +30,7 @@ cc_test(
         "//conditions:default": ["-std=c++17"],
     }),
     deps = [":shapes_cc"],
+    # macOS: capnp compile of kj-async fails, pthread.h not found.
     target_compatible_with = select({
         "@platforms//os:macos": ["@platforms//:incompatible"],
         "//conditions:default": [],
@@ -56,6 +57,7 @@ cc_test(
         ":shapes_cc",
         ":shapes_cc_again",
     ],
+    # macOS: capnp compile of kj-async fails, pthread.h not found.
     target_compatible_with = select({
         "@platforms//os:macos": ["@platforms//:incompatible"],
         "//conditions:default": [],
@@ -182,6 +184,7 @@ java_test(
     test_class = "JavaRoundtripTest",
     use_testrunner = False,
     deps = [":shapes_java"],
+    # macOS: capnp compile of kj-async fails, pthread.h not found.
     target_compatible_with = select({
         "@platforms//os:macos": ["@platforms//:incompatible"],
         "//conditions:default": [],

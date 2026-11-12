@@ -6,7 +6,7 @@ load("//erlang/private/toolchain:pins.bzl", "CELLS", "OTP_UNPORTED_CELLS")
 
 ERLANG_CELLS = sorted([cell for cell in CELLS.keys() if cell not in OTP_UNPORTED_CELLS])
 
-PLATFORM_SUPPORT = cells_support("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH", CELLS, ERLANG_CELLS, "//erlang/private/toolchain")
+PLATFORM_SUPPORT = cells_support("//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH", CELLS, ERLANG_CELLS, "//erlang/private/toolchain")
 
 ERLANG_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 

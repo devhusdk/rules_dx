@@ -1,5 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
+load("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("//tools/docs/elixir:tool.bzl", "elixir_dump_tool")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 

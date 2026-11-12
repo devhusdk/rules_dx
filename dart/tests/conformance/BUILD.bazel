@@ -1,5 +1,6 @@
 # gazelle:ignore
-load("//dart:defs.bzl", "DART_COMPATIBLE_WITH", "dart_binary", "dart_library", "dart_test")
+load("//dart/private:defs.bzl", "DART_COMPATIBLE_WITH")
+load("//dart:defs.bzl", "dart_binary", "dart_library", "dart_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
 package(

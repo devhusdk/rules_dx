@@ -9,4 +9,4 @@ FLUTTER_PLATFORMS = {
     "windows_x86_64": ("windows", "x86_64"),
 }
 
-PLATFORM_SUPPORT = os_cpu_support("//flutter:defs.bzl", "FLUTTER_COMPATIBLE_WITH", FLUTTER_PLATFORMS, [Label("//flutter/private:rules_flutter_platform"), Label("@platforms//os:android"), Label("@platforms//os:ios")], "//flutter/private")
+PLATFORM_SUPPORT = os_cpu_support("//flutter/private:defs.bzl", "FLUTTER_COMPATIBLE_WITH", FLUTTER_PLATFORMS, [Label("//flutter/private:rules_flutter_platform"), Label("@platforms//os:android"), Label("@platforms//os:ios")], "//flutter/private")

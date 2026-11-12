@@ -2,7 +2,6 @@
 
 load(
     "//flutter/private:defs.bzl",
-    _FLUTTER_COMPATIBLE_WITH = "FLUTTER_COMPATIBLE_WITH",
     _flutter_android_app = "flutter_android_app",
     _flutter_application = "flutter_application",
     _flutter_gen_l10n = "flutter_gen_l10n",
@@ -13,7 +12,6 @@ load(
     _flutter_web_bundle = "flutter_web_bundle",
 )
 
-FLUTTER_COMPATIBLE_WITH = _FLUTTER_COMPATIBLE_WITH
 flutter_android_app = _flutter_android_app
 flutter_application = _flutter_application
 flutter_gen_l10n = _flutter_gen_l10n

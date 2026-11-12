@@ -1,6 +1,7 @@
 # gazelle:dx_rust_corpus false
 
-load("@rules_dx//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
+load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
+load("@rules_dx//erlang:defs.bzl", "erlang_app")
 
 erlang_app(
     app_name = "base_dep",

@@ -9,4 +9,4 @@ JULIA_PLATFORMS = {
     "windows_x86_64": ("windows", "x86_64"),
 }
 
-PLATFORM_SUPPORT = os_cpu_support("//julia:defs.bzl", "JULIA_COMPATIBLE_WITH", JULIA_PLATFORMS, [Label("//julia/private:rules_julia_platform")], "//julia/private")
+PLATFORM_SUPPORT = os_cpu_support("//julia/private:defs.bzl", "JULIA_COMPATIBLE_WITH", JULIA_PLATFORMS, [Label("//julia/private:rules_julia_platform")], "//julia/private")

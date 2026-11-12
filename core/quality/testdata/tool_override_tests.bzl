@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:canonical.bzl", "strip_canonical")
 load("//core:defs.bzl", "DxSubjectInfo")
-load("//perl:defs.bzl", "PERL_COMPATIBLE_WITH")
+load("//perl/private:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//dart/private:dart_config.bzl", "DartConfigInfo")
 load(
     "//core/quality/testdata:all_languages.bzl",

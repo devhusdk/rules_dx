@@ -74,6 +74,8 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
             }
         } else if *manifest == manifest_of(Ecosystem::Npm) {
             seed_pnpm_lock(request, env, &mut wiring);
+        } else if let Some(hub) = resolver_hub(manifest) {
+            seed_resolver_lock(request, env, &mut wiring, hub);
         } else {
             seed_uv_lock(request, env, &mut wiring);
         }
@@ -200,9 +202,43 @@ fn lock_for(manifest: &str) -> &'static str {
         lock_of(Ecosystem::Cargo)
     } else if manifest == manifest_of(Ecosystem::Npm) {
         lock_of(Ecosystem::Npm)
+    } else if let Some(lock) = resolver_hub(manifest).and_then(|hub| hub.lock.as_deref()) {
+        lock
     } else {
         lock_of(Ecosystem::Uv)
     }
+}
+
+fn resolver_hub(manifest: &str) -> Option<&'static dx_families::Hub> {
+    dx_adopt::RESOLVER_LOCKS
+        .iter()
+        .filter_map(|ecosystem| dx_families::hub(ecosystem))
+        .find(|hub| hub.manifest == manifest && hub.resolver.is_some())
+}
+
+/// Runs the pinned resolver of `hub` at the root.
+fn seed_resolver_lock(
+    request: &GenerateRequest,
+    env: &mut Env<'_>,
+    wiring: &mut Wiring,
+    hub: &dx_families::Hub,
+) {
+    let (Some(lock), Some(resolver)) = (hub.lock.as_deref(), hub.resolver.as_deref()) else {
+        return;
+    };
+    let Some(dir) = env.workspace.to_str() else {
+        wiring.failed(env.err, format!("{lock} not created: non-UTF-8 path"));
+        return;
+    };
+    let argv = dx_update::backend::resolver_run_argv(&request.bazel_head(), resolver, dir);
+    report_seed(
+        env.workspace,
+        env.err,
+        wiring,
+        lock,
+        &hub.ecosystem,
+        env.runner.run(&argv, env.workspace, &[]),
+    );
 }
 
 fn manifest_of(ecosystem: Ecosystem) -> &'static str {

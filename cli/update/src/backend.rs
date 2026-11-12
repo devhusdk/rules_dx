@@ -568,6 +568,11 @@ pub fn pnpm_run_argv(
     .concat()
 }
 
+/// `bazel run <resolver> -- --dir <dir>`, the pinned resolver that writes a lock beside its manifest.
+pub fn resolver_run_argv(head: &dx_process::BazelHead, resolver: &str, dir: &str) -> Vec<String> {
+    bazel(head, "run", &[resolver, "--", "--dir", dir])
+}
+
 /// A process to run in a directory other than the workspace root.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DirRun {

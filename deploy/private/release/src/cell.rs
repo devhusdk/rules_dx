@@ -287,9 +287,10 @@ fn file_name(path: &Path) -> String {
 }
 
 fn sha256_file(path: &Path) -> Result<(String, u64), String> {
-    let bytes =
-        std::fs::read(path).map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-    Ok((dx_digest::sha256_hex(&bytes), bytes.len() as u64))
+    let read_error = |error: std::io::Error| format!("cannot read {}: {error}", path.display());
+    let digest = dx_digest::sha256_file_hex(path).map_err(read_error)?;
+    let size = std::fs::metadata(path).map_err(read_error)?.len();
+    Ok((digest, size))
 }
 
 fn container_for(os: &str) -> &'static str {

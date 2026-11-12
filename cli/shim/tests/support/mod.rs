@@ -6,7 +6,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use sha2::{Digest, Sha256};
+pub use dx_digest::sha256_hex;
 
 #[derive(Clone)]
 pub enum Reply {
@@ -113,10 +113,6 @@ fn respond_partial(out: &mut TcpStream) -> std::io::Result<()> {
     )?;
     out.write_all(&[0u8; 1024])?;
     out.flush()
-}
-
-pub fn sha256_hex(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
 }
 
 pub fn dead_base() -> String {

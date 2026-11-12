@@ -120,10 +120,6 @@ impl ProjectedManifest {
     }
 }
 
-fn hex_digest(bytes: &[u8]) -> String {
-    dx_digest::to_hex_bytes(bytes)
-}
-
 pub fn manifest_is_check(manifest: &GenerationManifest) -> bool {
     manifest.mode == Mode::Check as i32
 }
@@ -175,7 +171,7 @@ pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error
                 ChangeEvent {
                     path: file.path.clone(),
                     kind: ChangeKind::Modify,
-                    source_digest: Some(hex_digest(text.original_digest)),
+                    source_digest: Some(dx_digest::to_hex_bytes(text.original_digest)),
                     edits: text
                         .edits
                         .iter()

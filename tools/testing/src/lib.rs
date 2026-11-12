@@ -197,9 +197,7 @@ pub fn mkscratch(prefix: &str) -> std::io::Result<PathBuf> {
 }
 
 pub fn sha256_file(path: &Path) -> Result<String, String> {
-    use sha2::{Digest, Sha256};
-    let bytes = std::fs::read(path).map_err(|error| format!("read {}: {error}", path.display()))?;
-    Ok(format!("{:x}", Sha256::digest(&bytes)))
+    dx_digest::sha256_file_hex(path).map_err(|error| format!("read {}: {error}", path.display()))
 }
 
 pub fn read_json(path: &Path) -> Result<serde_json::Value, String> {

@@ -8,6 +8,8 @@ package(default_visibility = VIS_CLI_DEPLOY_GENERATION_QUALITY + [
     "//php/private/tools/lock:__pkg__",
     "//powershell/private/tools/lock:__pkg__",
     "//swift/private/tools/lock:__pkg__",
+    "//tools/testing:__pkg__",
+    "//tools/testing/hermetic:__pkg__",
     "//zig/private/tools/lock:__pkg__",
 ])
 

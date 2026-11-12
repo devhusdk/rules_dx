@@ -16,11 +16,7 @@ use std::time::Instant;
 use dx_nested::compose::{compose_module, write_rules_py_patches};
 use serde_json::{Value, json};
 
-/// Returns the lowercase hex SHA-256 digest of `data`.
-pub fn sha256_hex(data: &[u8]) -> String {
-    use sha2::{Digest as _, Sha256};
-    format!("{:x}", Sha256::digest(data))
-}
+use dx_digest::sha256_hex;
 
 pub const SCHEMA: &str = "dx.hermetic.v1";
 

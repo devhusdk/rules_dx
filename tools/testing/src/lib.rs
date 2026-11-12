@@ -560,16 +560,19 @@ pub fn executable_script(path: &Path, body: &str) {
     assert!(status.success(), "write {}: {status}", path.display());
 }
 
-/// Links `tool`, the fake generate binary, into `dir` as `bazel`, `uv` and `python`
-/// for a `dx generate` run, which answers with a clean, complete result manifest and
-/// fills the lock files `dx generate` seeds; returns a PATH of `dir` alone.
-#[cfg(unix)]
+/// Places `tool`, the fake generate binary, in `dir` as `bazel`, `uv` and `python`
+/// (`.exe` on Windows) for a `dx generate` run, which answers with a clean, complete
+/// result manifest and fills the lock files `dx generate` seeds; returns a PATH of
+/// `dir` alone.
 pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
     std::fs::create_dir_all(dir).expect("fake bazel dir");
     for name in ["bazel", "uv", "python"] {
-        let link = dir.join(name);
-        let _ = std::fs::remove_file(&link);
-        std::os::unix::fs::symlink(tool, &link).expect("link fake generate tool");
+        let target = dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
+        let _ = std::fs::remove_file(&target);
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(tool, &target).expect("link fake generate tool");
+        #[cfg(not(unix))]
+        std::fs::copy(tool, &target).expect("copy fake generate tool");
     }
     dir.display().to_string()
 }
@@ -854,6 +857,19 @@ mod tests {
         let mut handle = std::fs::File::create(&path).expect("create");
         handle.write_all(text.as_bytes()).expect("write");
         path
+    }
+
+    #[test]
+    fn fake_generate_bazel_path_places_the_three_tools() {
+        let dir = scratch("dx-fake-generate");
+        let tool = write(dir.path(), "fake_tool", "x");
+        let bin = dir.path().join("bin");
+        let path = fake_generate_bazel_path(&bin, &tool);
+        assert_eq!(path, bin.display().to_string());
+        for name in ["bazel", "uv", "python"] {
+            let file = bin.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
+            assert!(file.exists(), "{}", file.display());
+        }
     }
 
     #[cfg(unix)]

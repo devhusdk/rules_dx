@@ -38,9 +38,13 @@ _swift_platforms_transition = platforms_transition(
     outputs = SWIFT_PLATFORM_SETTINGS,
     single = "swift",
 )
+_RUNTIME_DLLS_ATTR = {
+    "runtime_dlls": attr.label_list(
+        doc = "The Swift runtime DLLs symlinked next to the executable. Set on windows_x86_64 only.",
+        allow_files = [".dll"],
+    ),
+}
 _WINDOWS_RUNTIME = Label("@dx_swift_windows_x86_64//:runtime_dlls")
-_WINDOWS_RUNTIME_ROOT = "..\\" + _WINDOWS_RUNTIME.workspace_root.removeprefix("external/")
-SWIFT_WINDOWS_RUNTIME_PATH = _WINDOWS_RUNTIME_ROOT + "\\runtime\\usr\\bin;" + _WINDOWS_RUNTIME_ROOT + "\\platform\\Developer\\Library\\XCTest-6.4.2\\usr\\bin64"
 SWIFT_WINDOWS_RUNTIME_DLLS = _WINDOWS_RUNTIME
 SWIFT_COMPATIBLE_WITH = _SWIFT_COMPATIBLE_WITH
 SWIFT_FUZZ_COMPATIBLE_WITH = _SWIFT_FUZZ_COMPATIBLE_WITH
@@ -52,6 +56,14 @@ SWIFT_QUALITY_TOOLS = {
     "swift_lint": Label("//swift/private/tools:swift_format"),
 }
 _EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo]
+
+def _swift_runtime_dlls(ctx):
+    seen = {}
+    for dll in ctx.files.runtime_dlls:
+        if dll.basename in seen:
+            fail("runtime_dlls: {} and {} share the basename {}".format(seen[dll.basename].path, dll.path, dll.basename))
+        seen[dll.basename] = dll
+    return seen.values()
 
 def _swift_docs_providers(ctx, upstream):
     graphs = upstream[SwiftSymbolGraphInfo].direct_symbol_graphs if SwiftSymbolGraphInfo in upstream else []
@@ -75,9 +87,10 @@ _swift_binary_forward = dx_executable_forward_rule(
     _SWIFT,
     kind = "executable",
     provides = _EXEC_PROVIDES,
-    extra_attrs = _PLATFORM_ATTR,
+    extra_attrs = _PLATFORM_ATTR | _RUNTIME_DLLS_ATTR,
     upstream_cfg = _swift_platforms_transition,
     cfg = dx_msvc_crt_reset_transition,
+    sibling_files = _swift_runtime_dlls,
 )
 
 def _swift_test_coverage(ctx, upstream):
@@ -100,7 +113,7 @@ _swift_forward_test = dx_executable_forward_rule(
     _SWIFT,
     kind = "test",
     provides = _EXEC_PROVIDES,
-    extra_attrs = _PLATFORM_ATTR | dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
+    extra_attrs = _PLATFORM_ATTR | _RUNTIME_DLLS_ATTR | dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
         "_swift_llvm_cov": _swift_tool_attr("//swift/private/tools:llvm_cov"),
         "_swift_llvm_profdata": _swift_tool_attr("//swift/private/tools:llvm_profdata"),
     },
@@ -108,6 +121,7 @@ _swift_forward_test = dx_executable_forward_rule(
     coverage_providers = _swift_test_coverage,
     toolchains = dx_native_coverage_toolchains(),
     cfg = dx_msvc_crt_reset_transition,
+    sibling_files = _swift_runtime_dlls,
 )
 
 def swift_kwargs(kwargs):
@@ -126,20 +140,22 @@ def swift_library(name, srcs = None, visibility = None, platforms = None, **kwar
 def swift_binary(name, *, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_binary and builds it for Linux, or with Xcode on macOS."""
     kwargs = swift_kwargs(kwargs)
-    dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = _swift_upstream_kwargs(kwargs), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
+    dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = _swift_upstream_kwargs(kwargs), quality_srcs = srcs or [], extra_forward_kwargs = _swift_forward_kwargs(platforms), **kwargs)
+
+def _swift_forward_kwargs(platforms):
+    """Returns the forwarder kwargs naming the platform and the Swift runtime DLLs."""
+    return {
+        "platforms": platforms if platforms != None else swift_linux_platforms(),
+        "runtime_dlls": select({
+            Label("//swift/private/platforms:is_windows_x86_64"): [SWIFT_WINDOWS_RUNTIME_DLLS],
+            "//conditions:default": [],
+        }),
+    }
 
 def _swift_runtime_kwargs(kwargs, platforms):
-    """Returns the forwarder kwargs that ship the sysroot's shared libraries with a swift_test and point the loader at them, so no host library is needed."""
-    env = dict(kwargs.get("env", {}))
-    out = {"platforms": platforms if platforms != None else swift_linux_platforms()}
-    out["data"] = dx_append_flags(kwargs, "data", [Label("//swift/private/toolchain:runtime_libs")] + select({
-        Label("//swift/private/platforms:is_windows_x86_64"): [SWIFT_WINDOWS_RUNTIME_DLLS],
-        "//conditions:default": [],
-    }))["data"]
-    out["env"] = select({
-        Label("//swift/private/platforms:is_windows_x86_64"): dict(env, PATH = SWIFT_WINDOWS_RUNTIME_PATH),
-        "//conditions:default": env,
-    })
+    """Returns the forwarder kwargs that ship the sysroot's shared libraries with a swift_test, so no host library is needed."""
+    out = _swift_forward_kwargs(platforms)
+    out["data"] = dx_append_flags(kwargs, "data", [Label("//swift/private/toolchain:runtime_libs")])["data"]
     return out
 
 def _swift_coverage_kwargs(kwargs):

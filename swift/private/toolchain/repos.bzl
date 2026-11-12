@@ -223,7 +223,8 @@ filegroup(
     srcs = glob(
         [
             "runtime/usr/bin/*.dll",
-            "platform/**/*.dll",
+            "platform/Developer/Library/XCTest-*/usr/bin64/*.dll",
+            "platform/Developer/Library/Testing-*/usr/bin64/_TestingInterop.dll",
         ],
         allow_empty = True,
     ),

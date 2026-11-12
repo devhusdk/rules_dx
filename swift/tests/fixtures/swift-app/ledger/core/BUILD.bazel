@@ -26,7 +26,6 @@ swift_test(
     name = "xctest",
     srcs = ["ledger_xctest.swift"],
     tags = ["block-network"],
-    target_compatible_with = _NATIVE,
     deps = [":core"],
 )
 

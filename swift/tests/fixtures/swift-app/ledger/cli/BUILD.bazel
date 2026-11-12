@@ -11,12 +11,6 @@ package(
 
 _LINUX = ["@platforms//os:linux"]
 
-_NATIVE = select({
-    "@platforms//os:linux": [],
-    "@platforms//os:macos": [],
-    "//conditions:default": ["@platforms//:incompatible"],
-})
-
 swift_binary(
     name = "ledger",
     testonly = False,
@@ -49,16 +43,17 @@ dx_hello_output_test(
     binary = ":ledger",
     expected = "mode: strict\ntotal: 0\ndigest: 2166136261",
     tags = ["block-network"],
-    target_compatible_with = _NATIVE,
 )
 
 sh_test(
     name = "usage_test",
     srcs = ["usage_test.sh"],
-    args = ["$(location :ledger)"],
+    args = ["$(location :ledger)"] + select({
+        "@platforms//os:windows": ["160"],
+        "//conditions:default": ["64"],
+    }),
     data = [":ledger"],
     tags = ["block-network"],
-    target_compatible_with = _NATIVE,
 )
 
 sh_test(

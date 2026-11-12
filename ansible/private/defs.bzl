@@ -1,6 +1,6 @@
 """Ansible source ownership for dx quality."""
 
-load("//core/quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
+load("//core/quality:sources.bzl", "quality_sources_info")
 load(":layout.bzl", "ansible_layout_class")
 
 def _ansible_library_impl(ctx):
@@ -15,18 +15,12 @@ def _ansible_library_impl(ctx):
             ansible.append(f)
         else:
             yaml.append(f)
-    direct = {}
-    if ansible:
-        direct["ansible"] = depset(ansible)
-    if yaml:
-        direct["yaml"] = depset(yaml)
-    check_direct_sources(direct, str(ctx.label))
     return [
         DefaultInfo(files = depset(
             ctx.files.srcs,
             transitive = [dep[DefaultInfo].files for dep in ctx.attr.deps],
         )),
-        QualitySourcesInfo(direct_sources = direct),
+        quality_sources_info({"ansible": ansible, "yaml": yaml}, str(ctx.label)),
     ]
 
 ansible_library = rule(

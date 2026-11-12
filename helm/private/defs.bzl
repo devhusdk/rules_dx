@@ -1,7 +1,7 @@
 """Helm chart ownership for dx lint."""
 
 load("//helm/private:providers.bzl", "HelmChartInfo")
-load("//core/quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
+load("//core/quality:sources.bzl", "quality_sources_info")
 
 _HELM_RELEASE_NAME_MAX = 53
 
@@ -52,11 +52,9 @@ def _helm_chart_impl(ctx):
     for f in ctx.files.subcharts:
         if f.extension != "tgz" or not f.short_path.startswith(_join(package, "charts/")):
             fail(who + "subchart '" + f.short_path + "' must be a .tgz under " + _join(package, "charts/"))
-    direct_sources = {"helm": depset(ctx.files.srcs + ctx.files.values)}
-    check_direct_sources(direct_sources, str(ctx.label))
     return [
         DefaultInfo(files = depset(ctx.files.srcs + ctx.files.values + ctx.files.subcharts)),
-        QualitySourcesInfo(direct_sources = direct_sources),
+        quality_sources_info({"helm": ctx.files.srcs + ctx.files.values}, str(ctx.label)),
         HelmChartInfo(
             chart_root = package,
             subcharts = ctx.files.subcharts,

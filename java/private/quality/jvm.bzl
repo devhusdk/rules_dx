@@ -102,7 +102,7 @@ SHARD_SPECS = {
                 providers = [JavaInfo],
                 doc = "JaCoCo runtime SpotBugs needs to resolve coverage-instrumented classes.",
             ),
-            "_config_profile": attr.label(default = "//config:config_profile"),
+            "_config_tier": attr.label(default = "//config:config_tier"),
         },
         "shard": "jvm",
     },
@@ -207,7 +207,7 @@ def _spotbugs_hook(target, ctx, resolved, _capability, _what, _shared):
         stage(tool_files, inputs, "dx-spotbugs/owned/" + jar.short_path, jar)
     for index, jar in enumerate(sorted(auxiliary.values(), key = lambda f: f.short_path)):
         stage(tool_files, inputs, "dx-spotbugs/aux/%d-%s" % (index, jar.basename), jar)
-    effort = _SPOTBUGS_EFFORT[ctx.attr._config_profile[BuildSettingInfo].value]
+    effort = _SPOTBUGS_EFFORT[ctx.attr._config_tier[BuildSettingInfo].value]
     options = {"args": [effort]}
     return real_context(tool_files = tool_files, inputs = inputs, options = options)
 

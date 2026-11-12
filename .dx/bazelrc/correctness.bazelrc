@@ -79,7 +79,7 @@ common:ci --nobuild_runfile_links
 
 # Compiler warnings fail the build under the strict profile.
 common --@rules_dx//config:warnings_as_errors=true
-common --@rules_dx//config:config_profile=strict
+common --@rules_dx//config:config_tier=strict
 
 # The workspace policy dx generates from dx.toml.
 common --@rules_dx//config:workspace=//.dx:policy

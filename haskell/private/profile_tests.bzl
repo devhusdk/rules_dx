@@ -1,4 +1,4 @@
-"""Analysis test that the default ghcopts follow //config:config_profile."""
+"""Analysis test that the default ghcopts follow //config:config_tier."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load(":defs.bzl", "DEFAULT_GHCOPTS", "STANDARD_GHCOPTS", "STRICT_GHCOPTS")
@@ -25,16 +25,16 @@ def _standard_impl(ctx):
 
 _strict_test = analysistest.make(
     _strict_impl,
-    config_settings = {str(Label("//config:config_profile")): "strict"},
+    config_settings = {str(Label("//config:config_tier")): "strict"},
 )
 
 _standard_test = analysistest.make(
     _standard_impl,
-    config_settings = {str(Label("//config:config_profile")): "standard"},
+    config_settings = {str(Label("//config:config_tier")): "standard"},
 )
 
 def profile_ghcopts_tests(name):
-    """Declares tests that the default ghcopts select on the profile."""
+    """Declares tests that the default ghcopts select on the tier."""
     _opts(name = name + "_opts", opts = DEFAULT_GHCOPTS, tags = ["manual"])
     _strict_test(name = name + "_strict", target_under_test = ":" + name + "_opts")
     _standard_test(name = name + "_standard", target_under_test = ":" + name + "_opts")

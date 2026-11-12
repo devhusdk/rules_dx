@@ -48,11 +48,11 @@ _TOOL_OVERRIDES = dict(_TOOL_DEFAULTS, **{
     "//config:tool_zig_fmt": "//zig/private/tools:zig",
 })
 
-def _config(policy, compiler = "llvm", profile = "strict", clippy_flags = [], tools = {}):
+def _config(policy, compiler = "llvm", tier = "strict", clippy_flags = [], tools = {}):
     """Returns the full settings of one configuration."""
     settings = {
         "//cc:compiler": compiler,
-        "//config:config_profile": profile,
+        "//config:config_tier": tier,
         "//config:workspace": str(Label(policy)),
         "@rules_rust//rust/settings:clippy_flag": clippy_flags,
         "@rules_rust//rust/settings:clippy_output_diagnostics": True,
@@ -80,12 +80,12 @@ TEST_CONFIGS = {
     "consumer_python_ruff": _config("//core/quality/tests/fixtures/consumer_policy:python_ruff_policy"),
     "consumer_format_off": _config("//core/quality/tests/fixtures/consumer_policy:format_off_policy"),
     "shared": _config(_SHARED),
-    "shared_standard": _config(_SHARED, profile = "standard"),
+    "shared_standard": _config(_SHARED, tier = "standard"),
     "default": _config("//config:default_workspace_policy"),
-    "default_standard": _config("//config:default_workspace_policy", profile = "standard"),
+    "default_standard": _config("//config:default_workspace_policy", tier = "standard"),
     "zig_owned": _config(_ZIG),
     "generated": _config("//core/quality/tests/fixtures/generated_policy:policy"),
-    "strict_generated_standard": _config("//core/quality/tests/fixtures/consumer_policy:strict_generated_policy", profile = "standard"),
+    "strict_generated_standard": _config("//core/quality/tests/fixtures/consumer_policy:strict_generated_policy", tier = "standard"),
     "iac_tiers": _config("//core/quality/testdata/iac_tiers:policy"),
     "objc": _config("//core/quality/testdata/clang_syntax:objc_policy"),
     "prose_dirty": _config("//core/quality/testdata/prose_dirty:policy"),

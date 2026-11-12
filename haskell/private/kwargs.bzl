@@ -13,7 +13,7 @@ STANDARD_GHCOPTS = ["-Wall"]
 STRICT_GHCOPTS = ["-Wall", "-Wcompat", "-Wredundant-constraints", "-Wpartial-fields", "-Widentities"]
 
 DEFAULT_GHCOPTS = select({
-    Label("//config:config_profile_strict"): STRICT_GHCOPTS,
+    Label("//config:config_tier_strict"): STRICT_GHCOPTS,
     "//conditions:default": STANDARD_GHCOPTS,
 })
 

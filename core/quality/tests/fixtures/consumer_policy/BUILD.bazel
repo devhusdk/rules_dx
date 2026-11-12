@@ -20,43 +20,43 @@ exports_files([
 workspace_policy(
     name = "shared_policy",
     configs = select({
-            "//config:config_profile_strict": ["//core/quality/tiers/buildifier:strict"],
+            "//config:config_tier_strict": ["//core/quality/tiers/buildifier:strict"],
             "//conditions:default": ["//core/quality/tiers/buildifier:standard"],
         }) +
         select({
-            "//config:config_profile_strict": ["//core/quality/tiers/credo:strict"],
+            "//config:config_tier_strict": ["//core/quality/tiers/credo:strict"],
             "//conditions:default": ["//core/quality/tiers/credo:standard"],
         }) +
         select({
-            "//config:config_profile_strict": ["//core/quality/tiers/detekt:strict"],
+            "//config:config_tier_strict": ["//core/quality/tiers/detekt:strict"],
             "//conditions:default": ["//core/quality/tiers/detekt:standard"],
         }) +
         select({
-            "//config:config_profile_strict": ["//core/quality/tiers/elvis:strict"],
+            "//config:config_tier_strict": ["//core/quality/tiers/elvis:strict"],
             "//conditions:default": ["//core/quality/tiers/elvis:standard"],
         }) +
         select({
-            "//config:config_profile_strict": ["//core/quality/tiers/pmd:strict"],
+            "//config:config_tier_strict": ["//core/quality/tiers/pmd:strict"],
             "//conditions:default": ["//core/quality/tiers/pmd:standard"],
         }) +
         select({
-            "//config:config_profile_strict": ["//core/quality/tiers/scalafix:strict"],
+            "//config:config_tier_strict": ["//core/quality/tiers/scalafix:strict"],
             "//conditions:default": ["//core/quality/tiers/scalafix:standard"],
         }) +
         select({
-            "//config:config_profile_strict": ["//core/quality/tiers/roslyn:strict"],
+            "//config:config_tier_strict": ["//core/quality/tiers/roslyn:strict"],
             "//conditions:default": ["//core/quality/tiers/roslyn:standard"],
         }) +
         select({
-            "//config:config_profile_strict": ["//core/quality/tiers/sqlfluff:strict"],
+            "//config:config_tier_strict": ["//core/quality/tiers/sqlfluff:strict"],
             "//conditions:default": ["//core/quality/tiers/sqlfluff:standard"],
         }) +
         select({
-            "//config:config_profile_strict": ["//core/quality/tiers/yamllint:strict"],
+            "//config:config_tier_strict": ["//core/quality/tiers/yamllint:strict"],
             "//conditions:default": ["//core/quality/tiers/yamllint:standard"],
         }),
     bases = select({
-        "//config:config_profile_strict": ["//core/quality/tiers/hlint:strict"],
+        "//config:config_tier_strict": ["//core/quality/tiers/hlint:strict"],
         "//conditions:default": ["//core/quality/tiers/hlint:standard"],
     }),
     families = [

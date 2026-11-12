@@ -86,7 +86,7 @@ SHARD_SPECS = {
         "capability": "lint",
         "doc": "Additive C/C++ lint family aspect (clang-tidy).",
         "extra_attrs": {
-            "_config_profile": attr.label(default = "//config:config_profile"),
+            "_config_tier": attr.label(default = "//config:config_tier"),
         },
         "requires": [clang_syntax_aspect, _qml_context_aspect],
         "shard": "cc",

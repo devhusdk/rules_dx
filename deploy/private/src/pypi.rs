@@ -298,9 +298,123 @@ pub fn pypi_build_wheelhouse(
 pub(crate) const PYPI_GATE: OwnerGate = OwnerGate {
     tool: "pypi_deploy",
     action: "upload",
-    credentials: &["PYPI_API_TOKEN"],
+    credentials: &[],
     approved: "PYPI_PUBLISH_APPROVED",
 };
+
+/// Python used for attestation signing and the trusted-publisher token exchange.
+const PYPI_PYTHON: &str = "python3";
+
+/// Env names the signing and token-exchange children keep for the CI identity.
+const PYPI_OIDC_ENV: &[&str] = &[
+    "ACTIONS_ID_TOKEN_REQUEST_URL",
+    "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+    "SIGSTORE_ID_TOKEN",
+    "REQUESTS_CA_BUNDLE",
+    "SSL_CERT_FILE",
+];
+
+/// Fetches the CI identity token and exchanges it for a PyPI upload token.
+const PYPI_MINT_SCRIPT: &str = r#"
+import json, os, sys, urllib.parse, urllib.request
+audience, mint = sys.argv[1], sys.argv[2]
+url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
+url += ("&" if "?" in url else "?") + urllib.parse.urlencode({"audience": audience})
+request = urllib.request.Request(url, headers={"Authorization": "bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]})
+jwt = json.load(urllib.request.urlopen(request))["value"]
+request = urllib.request.Request(mint, json.dumps({"token": jwt}).encode(), {"Content-Type": "application/json"})
+sys.stdout.write(json.load(urllib.request.urlopen(request))["token"])
+"#;
+
+/// True when a trusted-publisher identity is available.
+fn pypi_oidc_present(var: impl Fn(&str) -> String) -> bool {
+    !var("ACTIONS_ID_TOKEN_REQUEST_URL").is_empty()
+        && !var("ACTIONS_ID_TOKEN_REQUEST_TOKEN").is_empty()
+}
+
+/// How a run authenticates: the token variable wins, then trusted publishing.
+#[derive(Debug, PartialEq)]
+enum PypiAuth {
+    Token(String),
+    TrustedPublishing,
+    Missing,
+}
+
+fn pypi_auth(var: impl Fn(&str) -> String) -> PypiAuth {
+    let token = var("PYPI_API_TOKEN");
+    if !token.is_empty() {
+        PypiAuth::Token(token)
+    } else if pypi_oidc_present(&var) {
+        PypiAuth::TrustedPublishing
+    } else {
+        PypiAuth::Missing
+    }
+}
+
+/// Returns the token-exchange audience and mint URL for an upload URL.
+fn pypi_mint_endpoint(registry_url: &str) -> Option<(&'static str, String)> {
+    let rest = registry_url.strip_prefix("https://")?;
+    let host = rest.split('/').next()?;
+    match host {
+        "upload.pypi.org" => Some(("pypi", "https://pypi.org/_/oidc/mint-token".to_owned())),
+        "test.pypi.org" => Some((
+            "testpypi",
+            "https://test.pypi.org/_/oidc/mint-token".to_owned(),
+        )),
+        _ => None,
+    }
+}
+
+/// Exchanges the CI identity token for a short-lived PyPI upload token.
+fn pypi_mint_token(python: &Path, registry_url: &str) -> Result<String, String> {
+    let (audience, mint) = pypi_mint_endpoint(registry_url).ok_or_else(|| {
+        format!("pypi_deploy: trusted publishing is not available for {registry_url}; set PYPI_API_TOKEN")
+    })?;
+    let mut cmd = scrubbed_command(python, &[PUBLISH_CHILD_ENV_KEEP, PYPI_OIDC_ENV], &[]);
+    cmd.args(["-I", "-c", PYPI_MINT_SCRIPT, audience, &mint]);
+    let out = run_publish(&mut cmd).map_err(|error| format!("pypi_deploy: {error}"))?;
+    let token = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+    if out.success() && !token.is_empty() {
+        return Ok(token);
+    }
+    eprint!("{}", pypi_scrub(&out.stderr, &token));
+    Err(format!(
+        "pypi_deploy: token exchange failed with {}",
+        exit_text(&out)
+    ))
+}
+
+/// Signs the staged files; returns the attestation file for each.
+fn pypi_sign(
+    python: &Path,
+    files: &[std::path::PathBuf],
+) -> Result<Vec<std::path::PathBuf>, String> {
+    let mut cmd = scrubbed_command(python, &[PUBLISH_CHILD_ENV_KEEP, PYPI_OIDC_ENV], &[]);
+    cmd.args(["-m", "pypi_attestations", "sign"]).args(files);
+    let out = run_publish(&mut cmd).map_err(|error| format!("pypi_deploy: {error}"))?;
+    if !out.success() {
+        eprint!("{}", pypi_scrub(&out.stderr, ""));
+        return Err(format!(
+            "pypi_deploy: pypi-attestations sign failed with {}",
+            exit_text(&out)
+        ));
+    }
+    let attestations: Vec<std::path::PathBuf> = files
+        .iter()
+        .map(|file| {
+            let mut name = file.as_os_str().to_owned();
+            name.push(".publish.attestation");
+            std::path::PathBuf::from(name)
+        })
+        .collect();
+    match attestations.iter().find(|path| !path.is_file()) {
+        Some(missing) => Err(format!(
+            "pypi_deploy: pypi-attestations wrote no {}",
+            missing.display()
+        )),
+        None => Ok(attestations),
+    }
+}
 
 /// Extra env names twine keeps beyond the publish base list.
 const TWINE_CHILD_ENV_EXTRA: &[&str] = &["REQUESTS_CA_BUNDLE"];
@@ -328,6 +442,7 @@ fn pypi_upload(
     stage: &Path,
     registry_url: &str,
     token: &str,
+    python: Option<&Path>,
 ) -> i32 {
     let (_, version) = match pypi_check_pair(wheel, sdist) {
         Ok(identity) => identity,
@@ -336,18 +451,22 @@ fn pypi_upload(
             return 1;
         }
     };
-    let code = pypi_upload_staged(twine, wheel, sdist, stage, registry_url, token, &version);
+    let code = pypi_upload_staged(
+        twine,
+        (wheel, sdist),
+        stage,
+        (registry_url, token, python),
+        &version,
+    );
     let _ = std::fs::remove_dir_all(stage);
     code
 }
 
 fn pypi_upload_staged(
     twine: &Path,
-    wheel: &Path,
-    sdist: Option<&Path>,
+    (wheel, sdist): (&Path, Option<&Path>),
     stage: &Path,
-    registry_url: &str,
-    token: &str,
+    (registry_url, token, python): (&str, &str, Option<&Path>),
     version: &str,
 ) -> i32 {
     let mut files = Vec::new();
@@ -390,12 +509,23 @@ fn pypi_upload_staged(
             return 1;
         }
     }
+    let attestations = match python.map(|python| pypi_sign(python, &files)) {
+        Some(Ok(paths)) => paths,
+        Some(Err(error)) => {
+            eprintln!("{error}");
+            return 1;
+        }
+        None => Vec::new(),
+    };
     let mut upload = command("upload");
     upload
         .arg("--non-interactive")
         .arg("--repository-url")
         .arg(registry_url)
         .args(&files);
+    if !attestations.is_empty() {
+        upload.arg("--attestations").args(&attestations);
+    }
     let out = match run_publish(&mut upload) {
         Ok(out) => out,
         Err(error) => {
@@ -631,10 +761,25 @@ pub fn pypi_main_checked(
         return 1;
     }
     if PYPI_GATE.requested(env_or_empty) {
-        let secrets = match PYPI_GATE.authorize(env_or_empty) {
-            Ok(secrets) => secrets,
-            Err(error) => {
-                eprintln!("{error}");
+        if let Err(error) = PYPI_GATE.authorize(env_or_empty) {
+            eprintln!("{error}");
+            return 1;
+        }
+        let python = Path::new(PYPI_PYTHON);
+        let (token, attest) = match pypi_auth(env_or_empty) {
+            PypiAuth::Token(token) => (token, pypi_oidc_present(env_or_empty).then_some(python)),
+            PypiAuth::TrustedPublishing => match pypi_mint_token(python, registry_url) {
+                Ok(token) => (token, Some(python)),
+                Err(error) => {
+                    eprintln!("{error}");
+                    return 1;
+                }
+            },
+            PypiAuth::Missing => {
+                eprintln!(
+                    "pypi_deploy: live upload needs PYPI_API_TOKEN or a trusted-publisher identity \
+                     (ACTIONS_ID_TOKEN_REQUEST_URL and ACTIONS_ID_TOKEN_REQUEST_TOKEN); refusing"
+                );
                 return 1;
             }
         };
@@ -644,7 +789,8 @@ pub fn pypi_main_checked(
             sdist.as_deref(),
             &outdir.join(dist_name.to_owned() + "-upload"),
             registry_url,
-            secrets.get("PYPI_API_TOKEN"),
+            &token,
+            attest,
         );
     }
     match pypi_build_wheelhouse(&wheel, sdist.as_deref(), outdir, dist_name) {
@@ -658,6 +804,12 @@ pub fn pypi_main_checked(
                 .unwrap_or_default();
             let build_mode = deploy_build_mode();
             println!("pypi_deploy: staged {dist_name} (build_mode: {build_mode})");
+            let auth = match pypi_auth(env_or_empty) {
+                PypiAuth::Token(_) => "PYPI_API_TOKEN",
+                PypiAuth::TrustedPublishing => "trusted publishing",
+                PypiAuth::Missing => "none",
+            };
+            println!("  auth: {auth}");
             println!("  wheelhouse: {}", house.display());
             println!(
                 "  index: {}",
@@ -984,14 +1136,22 @@ mod tests {
         let stage = dir.join("stage");
         let (wheel, bad) = upload_fixture(dir, "pkg-2.0.tar.gz");
         assert_eq!(
-            pypi_upload(&twine, &wheel, Some(&bad), &stage, "https://u", "tok"),
+            pypi_upload(&twine, &wheel, Some(&bad), &stage, "https://u", "tok", None),
             1
         );
         assert!(!argv.exists());
         let good = dir.join("pkg-1.0.tar.gz");
         std::fs::write(&good, b"s").expect("sdist");
         assert_eq!(
-            pypi_upload(&twine, &wheel, Some(&good), &stage, "https://u", "tok"),
+            pypi_upload(
+                &twine,
+                &wheel,
+                Some(&good),
+                &stage,
+                "https://u",
+                "tok",
+                None
+            ),
             0
         );
         let lines = std::fs::read_to_string(&argv).expect("argv");
@@ -1020,9 +1180,82 @@ mod tests {
         let twine = fake_twine(dir, &body);
         let (wheel, sdist) = upload_fixture(dir, "pkg-1.0.tar.gz");
         let stage = dir.join("stage");
-        let code = pypi_upload(&twine, &wheel, Some(&sdist), &stage, "https://u", "tok");
+        let code = pypi_upload(
+            &twine,
+            &wheel,
+            Some(&sdist),
+            &stage,
+            "https://u",
+            "tok",
+            None,
+        );
         assert_eq!(code, 1);
         assert!(!marker.exists());
+    }
+
+    #[test]
+    fn pypi_auth_prefers_the_token_variable() {
+        fn auth(pairs: &[(&str, &str)]) -> PypiAuth {
+            pypi_auth(|key| {
+                pairs
+                    .iter()
+                    .find(|(name, _)| *name == key)
+                    .map_or(String::new(), |(_, value)| (*value).to_owned())
+            })
+        }
+        let url = ("ACTIONS_ID_TOKEN_REQUEST_URL", "https://ci/token");
+        let request = ("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "t");
+        assert_eq!(auth(&[]), PypiAuth::Missing);
+        assert_eq!(auth(&[url]), PypiAuth::Missing);
+        assert_eq!(auth(&[url, request]), PypiAuth::TrustedPublishing);
+        assert_eq!(
+            auth(&[url, request, ("PYPI_API_TOKEN", "pypi-x")]),
+            PypiAuth::Token("pypi-x".to_owned())
+        );
+    }
+
+    #[test]
+    fn pypi_mint_endpoint_names_audience() {
+        assert_eq!(
+            pypi_mint_endpoint("https://upload.pypi.org/legacy/"),
+            Some(("pypi", "https://pypi.org/_/oidc/mint-token".to_owned()))
+        );
+        assert_eq!(
+            pypi_mint_endpoint("https://test.pypi.org/legacy/").map(|(audience, _)| audience),
+            Some("testpypi")
+        );
+        assert_eq!(pypi_mint_endpoint("https://example.org/legacy/"), None);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn pypi_signed_upload_passes_attestations() {
+        let scratch = scratch_dir();
+        let dir = scratch.path();
+        let argv = dir.join("argv");
+        let twine = fake_twine(dir, &format!("echo \"$@\" >> {}", argv.display()));
+        let python = dir.join("python3");
+        dx_testing::executable_script(
+            &python,
+            "#!/bin/sh\nshift 3\nfor f in \"$@\"; do : > \"$f.publish.attestation\"; done\n",
+        );
+        let (wheel, sdist) = upload_fixture(dir, "pkg-1.0.tar.gz");
+        let stage = dir.join("stage");
+        let code = pypi_upload(
+            &twine,
+            &wheel,
+            Some(&sdist),
+            &stage,
+            "https://u",
+            "tok",
+            Some(&python),
+        );
+        assert_eq!(code, 0);
+        let lines = std::fs::read_to_string(&argv).expect("argv");
+        let upload = lines.lines().nth(1).expect("upload line");
+        let (files, attestations) = upload.split_once(" --attestations ").expect(upload);
+        assert!(!files.contains(".publish.attestation"), "{upload}");
+        assert_eq!(attestations.matches(".publish.attestation").count(), 2);
     }
 
     #[test]

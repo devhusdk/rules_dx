@@ -1029,6 +1029,7 @@ A default run writes into the output directory (see Common behavior):
 
 ```text
 pypi_deploy: staged <name> (build_mode: <build_mode>)
+  auth: <PYPI_API_TOKEN | trusted publishing | none>
   wheelhouse: <path>/<name>-wheelhouse
   index: <path>/<name>-wheelhouse/simple-index/<project>/index.html
 ```
@@ -1037,7 +1038,16 @@ A dry run needs no credentials. `dx deploy --apply` publishes and needs:
 
 - `PYPI_PUBLISH_APPROVED=1`
 - `PYPI_API_TOKEN`: sent to `twine` as the password, with username `__token__`.
-  It never goes on the command line.
+  It never goes on the command line. When it is unset and
+  `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` are set,
+  the run exchanges that identity for an upload token at
+  `https://pypi.org/_/oidc/mint-token` (`https://test.pypi.org/_/oidc/mint-token`
+  for `test.pypi.org`). Any other registry needs `PYPI_API_TOKEN`.
+
+When the identity variables are set, the run first signs the staged files with
+`python3 -m pypi_attestations sign` and passes the `.publish.attestation` files
+to `twine upload --attestations`. `pypi-attestations` must be importable by
+`python3`.
 
 `twine` must be on `PATH`. The run calls `twine upload --non-interactive
 --repository-url <registry_url>` with the wheel and sdist files. It does

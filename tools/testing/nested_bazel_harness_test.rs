@@ -107,12 +107,13 @@ fn a_download_outside_the_cache_sets_fails_with_its_url() {
     let entry = nested::cache::entry(&case.repository_cache(), rules_py);
     let kept = entry.with_extension("kept");
     std::fs::rename(&entry, &kept).expect("hide the rules_py archive");
-    let message = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        case.bazel(nested::HARNESS_QUERY)
-    })) {
-        Ok(run) => panic!("no panic: {}", run.combined()),
-        Err(panic) => panic.downcast_ref::<String>().cloned().unwrap_or_default(),
-    };
+    let mut query = nested::HARNESS_QUERY.to_vec();
+    query.insert(1, "--repo_contents_cache=");
+    let message =
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| case.bazel(&query))) {
+            Ok(run) => panic!("no panic: {}", run.combined()),
+            Err(panic) => panic.downcast_ref::<String>().cloned().unwrap_or_default(),
+        };
     std::fs::rename(&kept, &entry).expect("restore the rules_py archive");
     assert!(
         message.contains("https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"),

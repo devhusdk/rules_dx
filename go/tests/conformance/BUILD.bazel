@@ -3,6 +3,7 @@ load("//go:defs.bzl", "go_binary", "go_library", "go_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 # gazelle:exclude main.go
 # gazelle:exclude runfiles_main.go
+# gazelle:exclude lock_main.go
 
 package(
     default_testonly = True,
@@ -20,6 +21,13 @@ go_binary(
     srcs = ["main.go"],
     importpath = "rules_dx/go/tests/conformance/main",
     deps = [":conformance"],
+)
+
+go_binary(
+    name = "lock_hello",
+    srcs = ["lock_main.go"],
+    importpath = "rules_dx/go/tests/conformance/lock_main",
+    deps = ["@com_github_google_go_cmp//cmp"],
 )
 
 go_test(
@@ -54,6 +62,15 @@ dx_conformance_suite(
     failing_case = "TestFailingCase",
     failing_test = ":fail_subject_test",
     lang = "go",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "go",
+        "expected": "hello lock",
+        "lockfile": "//third_party/go:go.sum",
+        "manifest": "//third_party/go:go.mod",
+        "package": "github.com/google/go-cmp",
+        "stale": "go.stale.sum",
+    },
     passing_test = ":pass_subject_test",
     runfiles = {
         "binary": ":runfiles_hello",

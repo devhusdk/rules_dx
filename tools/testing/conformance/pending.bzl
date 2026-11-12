@@ -131,7 +131,6 @@ fsharp cross_test *
 fsharp lock_test *
 fsharp runfiles_test *
 go cross_test macos_arm64
-go lock_test *
 haskell cross_test *
 haskell lock_test *
 haskell runfiles_test *

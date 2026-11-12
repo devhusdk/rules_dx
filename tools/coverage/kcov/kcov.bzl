@@ -1,5 +1,6 @@
 """Runs a native test under kcov and writes its LCOV report for Bazel coverage."""
 
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 
 def dx_kcov_attrs():
@@ -19,7 +20,7 @@ def dx_kcov_attrs():
         ),
         "_dx_to_lcov": attr.label(
             default = Label("//tools/coverage/kcov:to_lcov_or_none"),
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
     }
 
@@ -38,7 +39,7 @@ def dx_kcov_test_coverage(ctx, upstream, sources, dependency_attributes = ["upst
     ctx.actions.write(manifest, "".join([f.short_path + "\n" for f in sources]))
     exe = upstream[DefaultInfo].files_to_run.executable
     kcov = ctx.attr._dx_kcov[DefaultInfo].files_to_run.executable
-    to_lcov = ctx.attr._dx_to_lcov[DefaultInfo]
+    to_lcov = ctx.attr._dx_to_lcov[0][DefaultInfo]
     env = {}
     inherited = []
     if RunEnvironmentInfo in upstream:

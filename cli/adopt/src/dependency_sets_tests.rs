@@ -243,7 +243,7 @@ fn cpan_workspace(lock: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
     std::fs::write(root.join("perl/cpanfile.snapshot.lock.json"), lock).expect("lock");
     std::fs::write(
         root.join("perl/BUILD.bazel"),
-        "load(\"@rules_perl//perl/cpan:cpan_compiler.bzl\", \"cpan_compiler\")\n\ncpan_compiler(\n    name = \"compiler\",\n    cpanfile = \"cpanfile\",\n    lockfile = \"cpanfile.snapshot.lock.json\",\n)\n",
+        "load(\"@rules_dx//perl:defs.bzl\", \"perl_cpan_compiler\")\n\nperl_cpan_compiler(\n    name = \"compiler\",\n    cpanfile = \"cpanfile\",\n    lockfile = \"cpanfile.snapshot.lock.json\",\n)\n",
     )
     .expect("build");
     let set = ResolvedSet {
@@ -283,7 +283,7 @@ fn cpan_layout_rejects_a_stale_lock_json() {
     let error = check_backend_settings(scratch.path(), &set).expect_err("stale");
     let message = error.to_string();
     assert!(message.contains("Try-Tiny-0.31"), "{message}");
-    assert!(message.contains("run the cpan_compiler"), "{message}");
+    assert!(message.contains("run the perl_cpan_compiler"), "{message}");
 }
 
 #[test]

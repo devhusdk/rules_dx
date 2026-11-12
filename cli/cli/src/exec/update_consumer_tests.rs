@@ -2294,7 +2294,7 @@ fn cpan_harness(name: &str) -> Harness {
     );
     harness.write_source(
         "perl/third_party/BUILD.bazel",
-        "cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n",
+        "perl_cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n",
     );
     harness
 }

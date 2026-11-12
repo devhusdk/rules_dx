@@ -34,7 +34,7 @@ use_repo(cpan, "cpan")
 ```
 
 Depend on `@cpan//:Text-CSV` for one distribution. To make or refresh the
-lock, add a `cpan_compiler` target from
+lock, add a `perl_cpan_compiler` target from
 `@rules_dx//perl:defs.bzl` next to the `cpanfile` and run it.
 A wrong digest fails the fetch.
 

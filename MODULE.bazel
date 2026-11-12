@@ -1910,7 +1910,7 @@ use_repo(
     npm_node_app = "dx_js_node_app",
 )
 
-dx_dev_hub = use_extension("//javascript:extensions.bzl", "dev_hub")
+dx_dev_hub = use_extension("//javascript:extensions.bzl", "javascript_dev_hub")
 dx_dev_hub.link(
     name = "dx_npm_link",
     hub = "dx_npm",
@@ -3136,7 +3136,7 @@ use_repo(yard, "dx_yard")
 doxygen = use_extension("//tools/docs/cc:extensions.bzl", "doxygen", dev_dependency = True)
 use_repo(doxygen, "dx_doxygen")
 
-playwright = use_extension("//typescript:extensions.bzl", "playwright")
+playwright = use_extension("//typescript:extensions.bzl", "typescript_playwright")
 use_repo(
     playwright,
     "dx_playwright_chromium",

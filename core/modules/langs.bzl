@@ -2259,7 +2259,7 @@ LANGS = json.decode("""{
       "perl_binary",
       "perl_test",
       "perl_bench",
-      "cpan_compiler"
+      "perl_cpan_compiler"
     ],
     "family": "core",
     "lockfiles": [

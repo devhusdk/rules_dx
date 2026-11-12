@@ -162,7 +162,7 @@ fn seed_cpan_set(harness: &Harness) {
     );
     harness.write_source(
         "pl/BUILD.bazel",
-        "cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n",
+        "perl_cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n",
     );
 }
 

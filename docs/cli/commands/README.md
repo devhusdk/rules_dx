@@ -431,8 +431,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_module` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_signature` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_test` |
-|  |  | `@rules_dx//perl:defs.bzl` | `cpan_compiler` |
 |  |  | `@rules_dx//perl:defs.bzl` | `perl_bench` |
+|  |  | `@rules_dx//perl:defs.bzl` | `perl_cpan_compiler` |
 |  |  | `@rules_dx//php:defs.bzl` | `php_bench` |
 |  |  | `@rules_dx//php:defs.bzl` | `php_binary` |
 |  |  | `@rules_dx//php:defs.bzl` | `php_library` |

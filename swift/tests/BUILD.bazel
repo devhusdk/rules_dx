@@ -79,3 +79,11 @@ powershell_test(
 ]
 
 transition_test_suite(name = "transition_tests")
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//swift/tests/fixtures/warnings:warnings_as_errors_test",
+    ],
+)

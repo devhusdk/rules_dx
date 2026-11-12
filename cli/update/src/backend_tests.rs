@@ -523,7 +523,7 @@ fn cpan_workspace(build: &str) -> dx_test_scratch::TempDir {
     dir
 }
 
-const COMPILER_BUILD: &str = "cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n";
+const COMPILER_BUILD: &str = "perl_cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n";
 
 fn cpan_update(workspace: &Path, offline: bool, frozen: bool) -> Result<BackendPlan, BackendError> {
     plan_configured(
@@ -571,7 +571,7 @@ fn cpan_update_refuses_without_a_compiler() {
     assert!(
         error
             .to_string()
-            .contains("add a cpan_compiler next to the manifest")
+            .contains("add a perl_cpan_compiler next to the manifest")
     );
 }
 

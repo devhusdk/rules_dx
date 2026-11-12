@@ -50,7 +50,7 @@ perl_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs
 
 A perl_test run by dx bench: scripts call DxBench::run_benchmarks, which times them with core Benchmark and writes dx-bench.json.
 
-### `cpan_compiler`
+### `perl_cpan_compiler`
 
 No documentation.
 
@@ -138,7 +138,7 @@ use_repo(cpan, "cpan")
 ```
 
 Depend on `@cpan//:Text-CSV` for one distribution. To make or refresh the
-lock, add a `cpan_compiler` target from
+lock, add a `perl_cpan_compiler` target from
 `@rules_dx//perl:defs.bzl` next to the `cpanfile` and run it.
 A wrong digest fails the fetch.
 

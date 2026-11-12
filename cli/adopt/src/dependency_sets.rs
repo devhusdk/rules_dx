@@ -210,7 +210,7 @@ pub enum DependencySetsError {
         detail: String,
     },
     #[error(
-        "dependency set {name:?} has a stale {lock}: {detail}; run the cpan_compiler next to the manifest"
+        "dependency set {name:?} has a stale {lock}: {detail}; run the perl_cpan_compiler next to the manifest"
     )]
     StaleCpanLock {
         name: String,
@@ -1297,7 +1297,7 @@ fn cpan_json_lock(set: &ResolvedSet) -> Option<&String> {
     set.locks.iter().find(|lock| lock.ends_with(".json"))
 }
 
-/// The `//pkg:name` of the `cpan_compiler` that writes the set's lock JSON.
+/// The `//pkg:name` of the `perl_cpan_compiler` that writes the set's lock JSON.
 ///
 /// Reads `BUILD.bazel` or `BUILD` in the lock's package; None when no call names the lock.
 pub fn cpan_compiler_label(workspace: &Path, set: &ResolvedSet) -> Option<String> {
@@ -1310,7 +1310,7 @@ pub fn cpan_compiler_label(workspace: &Path, set: &ResolvedSet) -> Option<String
         .iter()
         .find_map(|name| std::fs::read_to_string(workspace.join(package).join(name)).ok())?;
     let build = dx_module_bazel::ModuleFile::parse_build(&text).ok()?;
-    build.calls_named("cpan_compiler").find_map(|call| {
+    build.calls_named("perl_cpan_compiler").find_map(|call| {
         let named = call.str("lockfile")?;
         let named = named.rsplit([':', '/']).next().unwrap_or(named);
         (named == file).then(|| format!("//{package}:{}", call.str("name").unwrap_or_default()))

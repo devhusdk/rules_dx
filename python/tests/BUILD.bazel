@@ -84,3 +84,13 @@ real_source_target(
     tags = ["corpus"],
     visibility = ["//:__pkg__"],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//python/tests/fixtures/entries:helper_test",
+        "//python/tests/fixtures/entries:tool_output_test",
+        "//python/tests/fixtures/entries:tool_test",
+    ],
+)

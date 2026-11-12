@@ -1,4 +1,4 @@
-load("@rules_dx//core:wrapper.bzl", "dx_setdefaults", "dx_warnings_as_errors")
+load("//core:wrapper.bzl", "dx_setdefaults", "dx_warnings_as_errors")
 
 FSHARP_CORE = Label("@paket.main//fsharp.core")
 

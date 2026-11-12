@@ -2,12 +2,12 @@
 
 load("@rules_dotnet//dotnet:defs.bzl", _fsharp_binary = "fsharp_binary", _fsharp_library = "fsharp_library", _fsharp_test = "fsharp_test")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
-load("@rules_dx//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
-load("@rules_dx//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("@rules_dx//core/quality:sources.bzl", "QualitySourcesInfo")
-load("@rules_dx//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
-load("//csharp/private:benchmarkdotnet.bzl", "BENCHMARKDOTNET")
-load("//csharp/private:sharpfuzz.bzl", "sharpfuzz_fuzz")
+load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
+load("//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
+load("//dotnet/private:benchmarkdotnet.bzl", "BENCHMARKDOTNET")
+load("//dotnet/private:sharpfuzz.bzl", "sharpfuzz_fuzz")
 load(":kwargs.bzl", "fsharp_tfm_with_defaults", "fsharp_with_core")
 
 # Set False to tag fsharp tests dx-no-coverage-collector instead of running coverlet.

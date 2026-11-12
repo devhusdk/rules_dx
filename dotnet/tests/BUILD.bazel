@@ -1,4 +1,4 @@
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/tests:toolchain_tests.bzl", "toolchain_tests")
 load("//deploy/private:nuget_tests.bzl", "nuget_unit_tests")
 

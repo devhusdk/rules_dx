@@ -490,22 +490,6 @@ fn help_prints_usage_once_and_exits_zero() {
     assert_eq!(result.stderr, "");
 }
 
-fn copy_tree(from: &Path, to: &Path) {
-    std::fs::create_dir_all(to).unwrap_or_else(|error| panic!("create {}: {error}", to.display()));
-    for entry in std::fs::read_dir(from)
-        .unwrap_or_else(|error| panic!("read {}: {error}", from.display()))
-        .flatten()
-    {
-        let target = to.join(entry.file_name());
-        if entry.path().is_dir() {
-            copy_tree(&entry.path(), &target);
-        } else {
-            std::fs::copy(entry.path(), &target)
-                .unwrap_or_else(|error| panic!("copy {}: {error}", entry.path().display()));
-        }
-    }
-}
-
 #[test]
 fn the_demo_offline_bundle_bootstraps() {
     let rel = std::env::var("DX_OFFLINE_DEMO").expect("DX_OFFLINE_DEMO must name the demo bundle");
@@ -515,7 +499,7 @@ fn the_demo_offline_bundle_bootstraps() {
         .and_then(Path::parent)
         .expect("the demo manifest sits two levels under the bundle");
     let staged = scratch().join("offline_demo");
-    copy_tree(built, &staged);
+    dx_testing::copy_tree(built, &staged);
     let home = scratch();
     let bundle = std::fs::canonicalize(&staged).expect("canonical demo bundle");
     bootstrap(&bundle.to_string_lossy(), &home, &home).expect_ok();

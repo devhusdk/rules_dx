@@ -41,38 +41,10 @@ fn host(name: &str) -> String {
         .to_string()
 }
 
-#[cfg(windows)]
-fn link(target: &Path, link: &Path) -> std::io::Result<()> {
-    std::os::windows::fs::symlink_file(target, link)
-}
-
-#[cfg(not(windows))]
-fn link(target: &Path, link: &Path) -> std::io::Result<()> {
-    std::os::unix::fs::symlink(target, link)
-}
-
 fn is_symlink(path: &Path) -> bool {
     std::fs::symlink_metadata(path)
         .map(|meta| meta.file_type().is_symlink())
         .unwrap_or(false)
-}
-
-fn copy_tree(src: &Path, dst: &Path) {
-    std::fs::create_dir_all(dst).expect("create dst");
-    let entries = std::fs::read_dir(src).expect("read src");
-    for entry in entries {
-        let entry = entry.expect("src entry");
-        let file_type = entry.file_type().expect("file type");
-        let dst_path = dst.join(entry.file_name());
-        if file_type.is_symlink() {
-            let target = std::fs::read_link(entry.path()).expect("read link");
-            link(&target, &dst_path).expect("copy link");
-        } else if file_type.is_dir() {
-            copy_tree(&entry.path(), &dst_path);
-        } else {
-            std::fs::copy(entry.path(), dst_path).expect("copy file");
-        }
-    }
 }
 
 #[test]
@@ -167,7 +139,7 @@ fn env_bootstrap() {
     );
     let alt = scratch.path().join("staged-alt");
     std::fs::create_dir_all(&alt).expect("alt");
-    copy_tree(&staged_bin, &alt.join("bin"));
+    dx_testing::copy_tree(&staged_bin, &alt.join("bin"));
     let mut doc = dx_testing::read_json(&staged).expect("read staged metadata");
     let tools = doc
         .get_mut("tools")

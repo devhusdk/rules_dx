@@ -867,7 +867,7 @@ fn copy_readonly(from: &Path, to: &Path) {
         let source = entry.path();
         let name = entry.file_name();
         if source.is_dir() {
-            copy_dir(&source, &to.join(&name));
+            dx_testing::copy_tree(&source, &to.join(&name));
         } else if source.extension().is_none_or(|ext| ext != "html") {
             write_copy(&source, &to.join(&name));
         }
@@ -883,20 +883,6 @@ fn write_copy(from: &Path, to: &Path) {
     let body =
         std::fs::read(from).unwrap_or_else(|error| panic!("read {}: {error}", from.display()));
     std::fs::write(to, body).unwrap_or_else(|error| panic!("write {}: {error}", to.display()));
-}
-
-fn copy_dir(from: &Path, to: &Path) {
-    std::fs::create_dir_all(to).expect("create dir");
-    let entries = std::fs::read_dir(from).expect("read dir");
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let target = to.join(entry.file_name());
-        if path.is_dir() {
-            copy_dir(&path, &target);
-        } else {
-            write_copy(&path, &target);
-        }
-    }
 }
 
 #[test]

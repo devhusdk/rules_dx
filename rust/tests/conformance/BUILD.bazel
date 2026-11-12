@@ -24,6 +24,14 @@ rust_binary(
     deps = [":conformance"],
 )
 
+rust_binary(
+    name = "lock_hello",
+    srcs = ["lock_main.rs"],
+    crate_root = "lock_main.rs",
+    edition = "2024",
+    deps = ["@dx_rust_fixture_crates//:anyhow"],
+)
+
 rust_test(
     name = "pass_subject_test",
     srcs = ["pass_test.rs"],
@@ -55,6 +63,15 @@ dx_conformance_suite(
     failing_case = "failing_case",
     failing_test = ":fail_subject_test",
     lang = "rust",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "rust",
+        "expected": "hello lock",
+        "lockfile": "//rust/tests/fixtures/hello:Cargo.lock",
+        "manifest": "//rust/tests/fixtures/hello:Cargo.toml",
+        "package": "anyhow",
+        "stale": "Cargo.stale.lock",
+    },
     passing_test = ":pass_subject_test",
 )
 

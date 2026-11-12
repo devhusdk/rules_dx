@@ -2,7 +2,13 @@
 
 use serde_json::Value;
 
-const TESTS: [&str; 4] = ["build_test", "coverage_test", "fail_test", "pass_test"];
+const TESTS: [&str; 5] = [
+    "build_test",
+    "coverage_test",
+    "fail_test",
+    "lock_test",
+    "pass_test",
+];
 
 fn read(var: &str) -> String {
     let key = std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set"));

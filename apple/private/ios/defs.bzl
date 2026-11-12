@@ -3,7 +3,7 @@
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", "rust_static_library")
-load("//apple/private/bundle:defs.bzl", "archives", "check_cell", "display", "resolved_xcode")
+load("//apple/private/bundle:defs.bzl", "EXTRA_TOOLCHAINS_SETTING", "archives", "check_cell", "display", "resolved_xcode", _apple_extra_toolchains = "apple_extra_toolchains")
 load("//apple/private/provisioning:defs.bzl", _deployment_floor = "deployment_floor")
 load("//apple/private/provisioning:validate.bzl", _version_below = "provisioning_version_below")
 load(":cell.bzl", "APPLE_HOSTS", "CELL_ATTRS", "MACH_O_PLATFORMS", "ios_platform", "target_cell")
@@ -11,6 +11,8 @@ load(":validate.bzl", "IOS_PLATFORMS", "ios_config_errors", "ios_sdk_for", "ios_
 load("//core/quality:sources.bzl", "single_target")
 
 DEVICE_ENV = _DEVICE_ENV
+
+apple_extra_toolchains = _apple_extra_toolchains
 
 SIMULATOR_ENV = "simulator"
 
@@ -30,11 +32,14 @@ _MINIMUM_OS_SETTING = "//command_line_option:ios_minimum_os"
 
 _XCODE_SETTING = "//command_line_option:xcode_version"
 
+_EXTRA_TOOLCHAINS_SETTING = EXTRA_TOOLCHAINS_SETTING
+
 CELL_SETTINGS = [
     _PLATFORMS_SETTING,
     _PLATFORM_TYPE_SETTING,
     _MINIMUM_OS_SETTING,
     _XCODE_SETTING,
+    _EXTRA_TOOLCHAINS_SETTING,
 ]
 
 def ios_platforms():
@@ -81,9 +86,11 @@ def cell_settings(settings, environment, arch, deployment, xcode):
     if platform == None:
         return unchanged
     current = settings[_PLATFORMS_SETTING]
+    toolchains = apple_extra_toolchains(settings[_EXTRA_TOOLCHAINS_SETTING])
     if len(current) > 0 and _label(current[0]) in _PLATFORMS.values():
-        return unchanged
+        return dict(unchanged, **{_EXTRA_TOOLCHAINS_SETTING: toolchains})
     changed = dict(unchanged)
+    changed[_EXTRA_TOOLCHAINS_SETTING] = toolchains
     changed[_PLATFORMS_SETTING] = [platform]
     changed[_PLATFORM_TYPE_SETTING] = "ios"
     changed[_MINIMUM_OS_SETTING] = deployment if deployment != "" else _deployment_floor(ios_sdk_for(environment))

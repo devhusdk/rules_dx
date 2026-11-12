@@ -2,12 +2,16 @@
 
 load("@bazel_tools//tools/cpp:toolchain_utils.bzl", "find_cpp_toolchain", "use_cpp_toolchain")
 
+APPLE_SUPPORT_TOOLCHAIN_ID = str(Label("@apple_support//toolchain:toolchain"))
+
 def _platform_impl(settings, attr):
+    if not attr.platform:
+        return {"//command_line_option:platforms": settings["//command_line_option:platforms"]}
     return {"//command_line_option:platforms": [attr.platform]}
 
 _to_platform = transition(
     implementation = _platform_impl,
-    inputs = [],
+    inputs = ["//command_line_option:platforms"],
     outputs = ["//command_line_option:platforms"],
 )
 
@@ -23,7 +27,7 @@ resolved_cc_toolchain = rule(
     implementation = _impl,
     attrs = {
         "expected": attr.string(mandatory = True),
-        "platform": attr.string(mandatory = True),
+        "platform": attr.string(),
     },
     cfg = _to_platform,
     fragments = ["cpp"],

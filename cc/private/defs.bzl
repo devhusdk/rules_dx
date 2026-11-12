@@ -202,14 +202,14 @@ def cc_test(name, *, srcs = None, visibility = None, **kwargs):
     dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, env = gcc_env | caller_env, **kwargs)
 
 def cc_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
-    """A libFuzzer binary with AddressSanitizer, or on Windows linked to a standalone driver, plus a `<name>_run` runner for `dx fuzz`."""
+    """A libFuzzer binary with AddressSanitizer, or without the pinned libFuzzer linked to a standalone driver, plus a `<name>_run` runner for `dx fuzz`."""
     flags = select({
-        Label("@platforms//os:windows"): [],
-        "//conditions:default": ["-fsanitize=fuzzer,address"],
+        Label("@llvm//config:fuzzer_enabled"): ["-fsanitize=fuzzer,address"],
+        "//conditions:default": [],
     })
     driver = select({
-        Label("@platforms//os:windows"): [Label("//cc/private:fuzz_driver")],
-        "//conditions:default": [],
+        Label("@llvm//config:fuzzer_enabled"): [],
+        "//conditions:default": [Label("//cc/private:fuzz_driver")],
     })
     dx_fuzz_test(name, cc_binary, {"srcs": srcs, "deps": driver, "copts": flags + (copts or []), "linkopts": flags + (linkopts or [])}, tags = tags, visibility = visibility, **kwargs)
 

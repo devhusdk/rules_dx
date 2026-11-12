@@ -215,13 +215,13 @@ java/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 java/tests/fixtures/fuzz/run_test.sh shebang 1
 java/tests/fixtures/hello/BUILD.bazel genrule 1
 java/tests/fixtures/java-app/billing/BUILD.bazel genrule 1
+javascript/tests/defs_tests.bzl env-inherit 1
 javascript/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 javascript/tests/fixtures/fuzz/run_test.sh shebang 1
 javascript/tests/fixtures/node-app/registry/BUILD.bazel genrule 1
 javascript/tests/fixtures/web_app/BUILD.bazel genrule 1
 javascript/tests/js_launcher_test.rs host-path 1
 javascript/tests/js_launcher_test.rs shebang 1
-javascript/tests/wrapper_tests.bzl env-inherit 1
 julia/tests/fixtures/julia-app/data/BUILD.bazel genrule 1
 julia/tests/fixtures/julia-app/diagnostics/BUILD.bazel genrule 1
 kotlin/tests/fixtures/fuzz/BUILD.bazel sh-rule 1

@@ -4,11 +4,11 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":dev_hub_tests.bzl", "dev_hub_tests")
-load(":wrapper_tests.bzl", "javascript_wrapper_contract_tests")
+load(":defs_tests.bzl", "javascript_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:private"])
 
-exports_files(["wrapper_tests.bzl"])
+exports_files(["defs_tests.bzl"])
 
 javascript_wrapper_contract_tests(name = "wrapper_contract_tests")
 
@@ -62,7 +62,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "dev_hub_tests.bzl",
-        "wrapper_tests.bzl",
+        "defs_tests.bzl",
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],

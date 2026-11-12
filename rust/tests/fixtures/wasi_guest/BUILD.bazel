@@ -1,6 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
-load("//rust/tests:wrapper_tests.bzl", "rust_wasi_test_tests")
+load("//rust/tests:defs_tests.bzl", "rust_wasi_test_tests")
 
 package(default_visibility = ["//visibility:public"])
 

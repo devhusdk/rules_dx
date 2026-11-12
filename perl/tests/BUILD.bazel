@@ -1,10 +1,10 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
-load(":wrapper_tests.bzl", "perl_wrapper_contract_tests")
+load(":defs_tests.bzl", "perl_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:private"])
 
-exports_files(["wrapper_tests.bzl"])
+exports_files(["defs_tests.bzl"])
 
 perl_wrapper_contract_tests(name = "wrapper_contract_tests")
 
@@ -41,7 +41,7 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
-        "wrapper_tests.bzl",
+        "defs_tests.bzl",
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],

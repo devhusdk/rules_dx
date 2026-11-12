@@ -30,6 +30,7 @@ Each language owns one top-level directory.
 - A module extension is named after its language, such as `qt` or `ocaml`. An extension that serves one sub-feature is named after that feature, such as `cuda_license` or `zig_deps`.
 - `private/` holds everything else. Users never load from it.
 - `tests/` holds the language tests and fixtures. Starlark test suites and `testdata/` live there, instantiated from `tests/BUILD.bazel`, not in `private/`.
+- Starlark suites are named `tests/defs_tests.bzl` for rule and macro analysis tests, `tests/failure_tests.bzl` for expected analysis failures, and `tests/toolchain_tests.bzl` for pin and hub checks.
 - New language code goes in `<lang>/`.
 
 ## Labels

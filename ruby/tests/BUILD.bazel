@@ -2,11 +2,11 @@ load("//core/modules:versions.bzl", "RUBY_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":toolchain_tests.bzl", "ruby_crlf_tests", "ruby_metadata_tests", "ruby_toolchain_contract_tests")
-load(":wrapper_tests.bzl", "ruby_wrapper_contract_tests")
+load(":defs_tests.bzl", "ruby_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:private"])
 
-exports_files(["wrapper_tests.bzl"])
+exports_files(["defs_tests.bzl"])
 
 ruby_toolchain_contract_tests(
     name = "toolchain_contract_tests",
@@ -42,7 +42,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "toolchain_tests.bzl",
-        "wrapper_tests.bzl",
+        "defs_tests.bzl",
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],

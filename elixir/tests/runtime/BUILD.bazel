@@ -3,9 +3,9 @@
 load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_test")
 load("@rules_dx//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("@rules_dx//elixir/private/toolchain:pins.bzl", "ELIXIR_VERSION")
-load("@rules_dx//elixir/tests:wrapper_tests.bzl", "elixir_coverage_env_test")
+load("@rules_dx//elixir/tests:defs_tests.bzl", "elixir_coverage_env_test")
 load("@rules_dx//erlang/private/toolchain:pins.bzl", "OTP_RELEASE")
-load("@rules_dx//erlang/tests:wrapper_tests.bzl", "erlang_beam_info_test")
+load("@rules_dx//erlang/tests:defs_tests.bzl", "erlang_beam_info_test")
 
 elixir_app(
     name = "erlang_app",

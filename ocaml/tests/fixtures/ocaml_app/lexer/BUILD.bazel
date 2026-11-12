@@ -1,6 +1,6 @@
 load("@rules_dx//ocaml:defs.bzl", "ocaml_lex", "ocaml_module", "ocaml_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//ocaml/tests:wrapper_tests.bzl", "ocaml_compile_stages_runtime_libs_test")
+load("//ocaml/tests:defs_tests.bzl", "ocaml_compile_stages_runtime_libs_test")
 
 _PUBLIC = ["//visibility:public"]
 

@@ -8,7 +8,7 @@ load("//core/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//rego:defs.bzl", "rego_library", "rego_test")
 load("//rego/private:defs.bzl", "rego_exec")
 load("//rust:defs.bzl", "rust_test")
-load(":library_tests.bzl", "owns_rego_class_test", "test_descriptor_test", "test_sources_test", "transitive_context_test")
+load(":defs_tests.bzl", "owns_rego_class_test", "test_descriptor_test", "test_sources_test", "transitive_context_test")
 
 rego_library(
     name = "lib",
@@ -130,7 +130,7 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
-        "library_tests.bzl",
+        "defs_tests.bzl",
     ],
     tags = ["corpus"],
 )

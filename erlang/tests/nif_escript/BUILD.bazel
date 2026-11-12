@@ -2,7 +2,7 @@
 
 load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_escript_archive", "erlang_nif")
 load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
-load("@rules_dx//erlang/tests:wrapper_tests.bzl", "erlang_escript_nif_refusal_test")
+load("@rules_dx//erlang/tests:defs_tests.bzl", "erlang_escript_nif_refusal_test")
 
 exports_files(
     glob([

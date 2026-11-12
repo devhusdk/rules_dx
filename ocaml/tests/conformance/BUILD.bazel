@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//ocaml:defs.bzl", "ocaml_binary", "ocaml_module", "ocaml_test")
 load("//ocaml/private:defs.bzl", "OCAML_COMPATIBLE_WITH")
@@ -16,28 +15,28 @@ ocaml_module(
 )
 
 ocaml_module(
-    name = "hello_main",
-    struct = "hello.ml",
+    name = "main",
+    struct = "main.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
     deps = [":greet"],
 )
 
 ocaml_binary(
     name = "hello",
-    main = ":hello_main",
+    main = ":main",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
 )
 
 ocaml_module(
-    name = "pass_main",
-    struct = "pass_test.ml",
+    name = "passing",
+    struct = "passing.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
     deps = [":greet"],
 )
 
 ocaml_module(
-    name = "fail_main",
-    struct = "fail_test.ml",
+    name = "failing",
+    struct = "failing.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
     deps = [":greet"],
 )
@@ -45,14 +44,14 @@ ocaml_module(
 ocaml_test(
     name = "pass_subject_test",
     size = "small",
-    main = ":pass_main",
+    main = ":passing",
     target_compatible_with = subject_compatible_with() + OCAML_COMPATIBLE_WITH,
 )
 
 ocaml_test(
     name = "fail_subject_test",
     size = "small",
-    main = ":fail_main",
+    main = ":failing",
     target_compatible_with = subject_compatible_with() + OCAML_COMPATIBLE_WITH,
 )
 

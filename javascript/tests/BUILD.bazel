@@ -1,13 +1,10 @@
-load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("//core/modules:versions.bzl", "NODE_VERSION_PREFIX")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//javascript:defs.bzl", "javascript_test")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":defs_tests.bzl", "javascript_wrapper_contract_tests")
 load(":dev_hub_tests.bzl", "dev_hub_tests")
-
-# gazelle:exclude graphql_eslint_config_test.mjs
-# gazelle:exclude mdx_tsc_test.mjs
 
 package(default_visibility = ["//visibility:private"])
 
@@ -28,14 +25,15 @@ ide_acquisition_test(
     version_args = ["--version"],
 )
 
-js_test(
+javascript_test(
     name = "graphql_eslint_config_test",
     size = "small",
     data = ["//javascript/private/quality/bin:graphql_eslint_mjs"],
-    entry_point = "graphql_eslint_config_test.mjs",
+    main = "graphql_eslint_config_test.mjs",
+    runner = "node",
 )
 
-js_test(
+javascript_test(
     name = "mdx_tsc_test",
     size = "small",
     data = [
@@ -47,7 +45,8 @@ js_test(
         "//javascript/private/quality:node_modules/typescript",
         "//javascript/private/quality/bin:mdx_tsc_mjs",
     ],
-    entry_point = "mdx_tsc_test.mjs",
+    main = "mdx_tsc_test.mjs",
+    runner = "node",
 )
 
 rust_test(

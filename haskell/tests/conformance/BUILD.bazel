@@ -1,5 +1,3 @@
-# gazelle:ignore
-# gazelle:exclude src
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//haskell:defs.bzl", "haskell_binary", "haskell_library", "haskell_test")
 load("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH")
@@ -11,20 +9,20 @@ package(
 )
 
 haskell_library(
-    name = "greet",
+    name = "conformance",
     testonly = True,
-    srcs = ["src/Greet.hs"],
+    srcs = ["Greet.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@dx_haskell_toolchains//lib:base"],
+    deps = ["@dx_haskell_toolchains//lib:base"],  # keep
 )
 
 haskell_binary(
     name = "hello",
     testonly = True,
-    srcs = ["src/Main.hs"],
+    srcs = ["Main.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
-        ":greet",
+        ":conformance",
         "@dx_haskell_toolchains//lib:base",
     ],
 )
@@ -35,7 +33,7 @@ haskell_test(
     srcs = ["test/PassTest.hs"],
     target_compatible_with = subject_compatible_with() + HASKELL_COMPATIBLE_WITH,
     deps = [
-        ":greet",
+        ":conformance",
         "@dx_haskell_toolchains//lib:base",
     ],
 )
@@ -46,7 +44,7 @@ haskell_test(
     srcs = ["test/FailTest.hs"],
     target_compatible_with = subject_compatible_with() + HASKELL_COMPATIBLE_WITH,
     deps = [
-        ":greet",
+        ":conformance",
         "@dx_haskell_toolchains//lib:base",
     ],
 )

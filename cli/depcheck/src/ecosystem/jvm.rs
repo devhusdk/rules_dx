@@ -126,14 +126,60 @@ fn maven_install_artifacts(text: &str) -> Option<&str> {
     None
 }
 
+/// `group:artifact:version` of every `[libraries]` entry in a version catalog.
+fn catalog_coords(text: &str) -> Result<Vec<String>, DepcheckError> {
+    let data: toml::Value = toml::from_str(text).map_err(DepcheckError::ManifestToml)?;
+    let versions = data.get("versions").and_then(toml::Value::as_table);
+    let Some(libraries) = data.get("libraries").and_then(toml::Value::as_table) else {
+        return Ok(Vec::new());
+    };
+    let mut coords = Vec::new();
+    for entry in libraries.values() {
+        if let Some(coord) = entry.as_str() {
+            coords.push(coord.to_owned());
+            continue;
+        }
+        let module = entry
+            .get("module")
+            .and_then(toml::Value::as_str)
+            .map_or_else(
+                || {
+                    let group = entry.get("group").and_then(toml::Value::as_str)?;
+                    let name = entry.get("name").and_then(toml::Value::as_str)?;
+                    Some(format!("{group}:{name}"))
+                },
+                |module| Some(module.to_owned()),
+            );
+        let version = match entry.get("version") {
+            Some(toml::Value::String(version)) => Some(version.clone()),
+            Some(toml::Value::Table(table)) => table
+                .get("ref")
+                .and_then(toml::Value::as_str)
+                .and_then(|name| versions?.get(name)?.as_str())
+                .map(str::to_owned),
+            _ => None,
+        };
+        if let (Some(module), Some(version)) = (module, version) {
+            coords.push(format!("{module}:{version}"));
+        }
+    }
+    Ok(coords)
+}
+
 pub fn parse_maven_artifacts_list(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
-    let text = maven_install_artifacts(&text).ok_or(DepcheckError::NoMavenCoords)?;
-    let re = regex::Regex::new(r#""([^":\s]+:[^":\s]+:[^":\s]+)""#)
-        .map_err(DepcheckError::ManifestRegex)?;
+    let coords = if path.extension().is_some_and(|ext| ext == "toml") {
+        catalog_coords(&text)?
+    } else {
+        let list = maven_install_artifacts(&text).ok_or(DepcheckError::NoMavenCoords)?;
+        let re = regex::Regex::new(r#""([^":\s]+:[^":\s]+:[^":\s]+)""#)
+            .map_err(DepcheckError::ManifestRegex)?;
+        re.captures_iter(list)
+            .map(|caps| caps[1].to_owned())
+            .collect()
+    };
     let mut deps = BTreeMap::new();
-    for caps in re.captures_iter(text) {
-        let coord = caps[1].to_owned();
+    for coord in coords {
         let mut parts = coord.split(':');
         let (Some(group), Some(artifact), Some(version)) =
             (parts.next(), parts.next(), parts.next())

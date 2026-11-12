@@ -1076,6 +1076,32 @@ fn maven_artifacts_list_parses_coordinates() {
 }
 
 #[test]
+fn maven_artifacts_list_parses_a_version_catalog() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let catalog = dir.path().join("libs.versions.toml");
+    write_file(
+        &catalog,
+        "[versions]\njupiter = \"6.1.3\"\n\n[libraries]\njunit = { module = \"junit:junit\", version = \"4.13.2\" }\napi = { group = \"org.junit.jupiter\", name = \"junit-jupiter-api\", version.ref = \"jupiter\" }\njmh = \"org.openjdk.jmh:jmh-core:1.37\"\n",
+    );
+    let deps = parse_maven_artifacts_list(&catalog).expect("coords");
+    assert_eq!(deps.len(), 3);
+    assert_eq!(deps["junit:junit"].spec, "4.13.2");
+    assert_eq!(deps["org.junit.jupiter:junit-jupiter-api"].spec, "6.1.3");
+    assert_eq!(deps["org.openjdk.jmh:jmh-core"].spec, "1.37");
+}
+
+#[test]
+fn maven_artifacts_list_rejects_a_catalog_without_libraries() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let catalog = dir.path().join("libs.versions.toml");
+    write_file(&catalog, "[versions]\njunit = \"4.13.2\"\n");
+    assert_eq!(
+        parse_maven_artifacts_list(&catalog).map_err(|error| error.to_string()),
+        Err("unreadable manifest: no maven coordinates".to_owned())
+    );
+}
+
+#[test]
 fn maven_artifacts_list_rejects_empty() {
     let dir = tempfile::tempdir().expect("scratch");
     write_file(&dir.path().join("MODULE.bazel"), MODULE_EMPTY);

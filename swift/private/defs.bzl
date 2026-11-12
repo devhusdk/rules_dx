@@ -60,6 +60,8 @@ _EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo]
 def _swift_runtime_dlls(ctx):
     seen = {}
     for dll in ctx.files.runtime_dlls:
+        if dll.basename in seen:
+            fail("runtime_dlls: {} and {} share the basename {}".format(seen[dll.basename].path, dll.path, dll.basename))
         seen[dll.basename] = dll
     return seen.values()
 

@@ -123,7 +123,7 @@ fn go_maven_and_uv_have_their_declared_shape() {
     assert_eq!(set("go").manifests, ["third_party/go/go.mod"]);
     let maven = set("maven");
     assert_eq!(maven.repository.as_deref(), Some("maven"));
-    assert_eq!(maven.manifests, ["MODULE.bazel"]);
+    assert_eq!(maven.manifests, ["third_party/jvm/libs.versions.toml"]);
     assert_eq!(maven.locks, ["third_party/jvm/maven_install.json"]);
     let tools = set("dx_pypi-python");
     assert_eq!(

@@ -26,8 +26,6 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude go/tests/fixtures/gotype
 # gazelle:exclude go/private/tools/modfmt
 # gazelle:exclude tools/docs/components/fixture
-# gazelle:exclude core/quality/tiers/gopls
-# gazelle:exclude tools/docs/lua
 # gazelle:exclude bcr_test_module/qt_hello
 # gazelle:exclude bcr_test_module/main_in_dep
 # gazelle:exclude d/tests/fixtures
@@ -197,13 +195,11 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude javascript/tests/fixtures/web_app
 # gazelle:exclude deploy/private/*.rs
 # gazelle:exclude deploy/private/cloudflare_demo
-# gazelle:exclude deploy/private/image_demo
 # gazelle:exclude deploy/private/native_probe
 # gazelle:exclude deploy/private/npm_demo
 # gazelle:exclude deploy/private/pins
 # gazelle:exclude deploy/private/pypi_probe
 # gazelle:exclude deploy/private/resources_demo
-# gazelle:exclude deploy/private/sbom_demo
 # gazelle:exclude deploy/private/testdata
 # gazelle:exclude deploy/private/typed_probe
 # gazelle:exclude deploy/private/web_demo

@@ -152,7 +152,7 @@ tools/testing/hermetic/isolation_test.rs compat-word 9
 tools/testing/hermetic/src/lib.rs compat-word 27
 tools/testing/hermetic/src/tests.rs compat-word 10
 tools/testing/nested/BUILD.bazel compat-word 3
-tools/testing/nested/src/lib.rs compat-word 79
+tools/testing/nested/src/lib.rs compat-word 77
 tools/testing/nested_bazel.bzl compat-word 5
 tools/testing/nested_bazel_shim.rs compat-word 1
 tools/testing/process_probe/probe_test.rs compat-word 6

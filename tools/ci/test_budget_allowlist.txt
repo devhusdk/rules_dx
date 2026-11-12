@@ -84,7 +84,7 @@ cc/tests/msvc_cross/BUILD.bazel no-size 1
 cc/tests/msvc_x86_64/BUILD.bazel no-size 3
 cc/tests/tags/BUILD.bazel no-size 2
 cli/advisory_prep/BUILD.bazel no-size 2
-cli/cli/BUILD.bazel no-size 3
+cli/cli/BUILD.bazel no-size 2
 cli/cli/tests/adopt/BUILD.bazel no-size 1
 cli/cli/tests/agents/BUILD.bazel no-size 2
 cli/cli/tests/startup_consistency/BUILD.bazel no-size 1

@@ -237,6 +237,7 @@ rust_test(
 
 rust_test(
     name = "dx_cli_test",
+    size = "small",
     srcs = [
         "src/adopt.rs",
         "src/adopt/agents.rs",

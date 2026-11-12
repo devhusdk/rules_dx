@@ -62,6 +62,7 @@ alias(
         actual = select({
             "//swift/private/platforms:is_linux_aarch64": "@dx_swift_linux_aarch64//:usr/bin/llvm-" + tool.replace("_", ""),
             "//swift/private/platforms:is_linux_x86_64": "@dx_swift_linux_x86_64//:usr/bin/llvm-" + tool.replace("_", ""),
+            "@platforms//os:macos": ":llvm_%s_macos" % tool,
             "//conditions:default": "@llvm//tools:llvm-" + tool.replace("_", ""),
         }),
     )
@@ -75,6 +76,18 @@ swift_xcode_launcher(
     name = "swift_macos",
     target_compatible_with = ["@platforms//os:macos"],
 )
+
+[
+    swift_xcode_launcher(
+        name = "%s_macos" % tool.replace("-", "_"),
+        tool = tool,
+        target_compatible_with = ["@platforms//os:macos"],
+    )
+    for tool in [
+        "llvm-cov",
+        "llvm-profdata",
+    ]
+]
 
 swift_host_launcher(
     name = "swift_linux",

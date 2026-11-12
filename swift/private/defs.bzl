@@ -71,7 +71,17 @@ _swift_binary_forward = dx_executable_forward_rule(
 )
 
 def _swift_test_coverage(ctx, upstream):
-    return dx_native_test_coverage(ctx, upstream, llvm_cov = ctx.executable._swift_llvm_cov, llvm_profdata = ctx.executable._swift_llvm_profdata)
+    tool_runfiles = ctx.runfiles().merge_all([
+        ctx.attr._swift_llvm_cov[DefaultInfo].default_runfiles,
+        ctx.attr._swift_llvm_profdata[DefaultInfo].default_runfiles,
+    ])
+    return dx_native_test_coverage(
+        ctx,
+        upstream,
+        llvm_cov = ctx.executable._swift_llvm_cov,
+        llvm_profdata = ctx.executable._swift_llvm_profdata,
+        tool_runfiles = tool_runfiles,
+    )
 
 def _swift_tool_attr(label):
     return attr.label(default = Label(label), executable = True, allow_files = True, cfg = config.exec(exec_group = "test"))

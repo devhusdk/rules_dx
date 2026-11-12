@@ -19,7 +19,7 @@ fn tools(fake: &Fake) -> Tools<'_> {
 #[test]
 fn swift_runs_through_xcrun_with_the_chosen_xcode() {
     let fake = Fake::new(|_| ok(""));
-    let outcome = run(&tools(&fake), &args(&["package", "resolve"]));
+    let outcome = run(&tools(&fake), "swift", &args(&["package", "resolve"]));
     assert_eq!(outcome, Ok(0));
     let calls = fake.calls.borrow();
     assert_eq!(calls.len(), 1);
@@ -32,9 +32,22 @@ fn swift_runs_through_xcrun_with_the_chosen_xcode() {
 }
 
 #[test]
+fn llvm_tools_run_through_xcrun_by_name() {
+    for tool in ["llvm-cov", "llvm-profdata"] {
+        let fake = Fake::new(|_| ok(""));
+        let outcome = run(&tools(&fake), tool, &args(&["merge", "-o", "out"]));
+        assert_eq!(outcome, Ok(0));
+        let calls = fake.calls.borrow();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].program, XCRUN);
+        assert_eq!(calls[0].args, args(&[tool, "merge", "-o", "out"]));
+    }
+}
+
+#[test]
 fn swift_passes_the_exit_code_through() {
     let fake = Fake::new(|_| fail(3, ""));
-    assert_eq!(run(&tools(&fake), &args(&["build"])), Ok(3));
+    assert_eq!(run(&tools(&fake), "swift", &args(&["build"])), Ok(3));
 }
 
 #[test]
@@ -44,7 +57,7 @@ fn swift_reports_a_missing_xcrun() {
         stdout: String::new(),
         stderr: String::new(),
     });
-    let failure = run(&tools(&fake), &args(&[])).unwrap_err();
+    let failure = run(&tools(&fake), "swift", &args(&[])).unwrap_err();
     assert_eq!(failure.code, 127);
     assert!(
         failure

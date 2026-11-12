@@ -1,4 +1,4 @@
-//! `fill_pins_bin <tag> [--check [--filled]] [--dir DIR] [--pins PATH] [--repo OWNER/NAME] [--manifest FILE --gazelle-manifest FILE] [--action-sha SHA [--workflows DIR]]`
+//! `fill_pins_bin <tag> [--check [--filled]] [--dir DIR] [--pins PATH] [--repo OWNER/NAME] [--manifest FILE --gazelle-manifest FILE]`
 //! fills or, with `--check`, checks `cli/prebuilt/pins.bzl` against a release.
 //! `--manifest` and `--gazelle-manifest` fill from local manifests without downloading or verifying them.
 
@@ -20,7 +20,7 @@ use dx_process::capture::run_checked;
 
 const GH_TIMEOUT: Duration = Duration::from_secs(600);
 
-const USAGE: &str = "usage: fill_pins_bin <tag> [--check [--filled]] [--dir DIR] [--pins PATH] [--repo OWNER/NAME] [--manifest FILE --gazelle-manifest FILE] [--action-sha SHA [--workflows DIR]]";
+const USAGE: &str = "usage: fill_pins_bin <tag> [--check [--filled]] [--dir DIR] [--pins PATH] [--repo OWNER/NAME] [--manifest FILE --gazelle-manifest FILE]";
 
 fn main() -> ExitCode {
     match run() {
@@ -48,8 +48,6 @@ fn run() -> Result<String, String> {
     let mut dir = None;
     let mut pins = PathBuf::from("cli/prebuilt/pins.bzl");
     let mut check = false;
-    let mut action_sha = None;
-    let mut workflows = PathBuf::from(".github/workflows");
     while let Some(flag) = args.next() {
         if flag == "--check" {
             check = true;
@@ -64,8 +62,6 @@ fn run() -> Result<String, String> {
             "--dir" => dir = Some(PathBuf::from(value)),
             "--pins" => pins = PathBuf::from(value),
             "--repo" => repo = value,
-            "--action-sha" => action_sha = Some(value),
-            "--workflows" => workflows = PathBuf::from(value),
             "--manifest" => manifest = Some(PathBuf::from(value)),
             "--gazelle-manifest" => gazelle_manifest = Some(PathBuf::from(value)),
             _ => return Err(format!("unknown flag {flag}")),
@@ -79,12 +75,6 @@ fn run() -> Result<String, String> {
     }
     if manifest.is_some() && (check || dir.is_some()) {
         return Err("--manifest cannot be combined with --check or --dir".to_owned());
-    }
-    if let Some(sha) = action_sha {
-        if check || filled || manifest.is_some() || dir.is_some() {
-            return Err("--action-sha cannot be combined with other modes".to_owned());
-        }
-        return bump_workflows(&workflows, &repo, &sha);
     }
     let scratch = std::env::temp_dir().join(format!("dx-fill-pins-{}", std::process::id()));
     let text =
@@ -116,25 +106,6 @@ fn run() -> Result<String, String> {
     };
     let _ = std::fs::remove_dir_all(&scratch);
     message
-}
-
-fn bump_workflows(dir: &Path, repo: &str, sha: &str) -> Result<String, String> {
-    let entries = std::fs::read_dir(dir).map_err(|e| format!("read {}: {e}", dir.display()))?;
-    let mut total = 0;
-    for entry in entries {
-        let path = entry.map_err(|e| format!("read {}: {e}", dir.display()))?.path();
-        if path.extension().is_none_or(|ext| ext != "yml") {
-            continue;
-        }
-        let text = std::fs::read_to_string(&path)
-            .map_err(|e| format!("read {}: {e}", path.display()))?;
-        let (out, count) = fill_pins::bump_scan_action(&text, repo, sha)?;
-        if count > 0 {
-            std::fs::write(&path, out).map_err(|e| format!("write {}: {e}", path.display()))?;
-            total += count;
-        }
-    }
-    Ok(format!("pointed {total} scan action references at {sha}"))
 }
 
 fn download(tag: &str, repo: &str, dir: &Path) -> Result<(), String> {

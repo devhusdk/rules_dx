@@ -19,32 +19,6 @@ pub const MANIFEST: &str = "dx-sha256sums.txt";
 pub const GAZELLE_MANIFEST: &str = "dx-gazelle-sha256sums.txt";
 pub const BUNDLE: &str = "dx-sha256sums.txt.sigstore.json";
 
-pub const SCAN_ACTION: &str = ".github/actions/assert-no-secret";
-
-/// Points every `<repo>/.github/actions/assert-no-secret@<sha>` reference in `text` at `sha`.
-pub fn bump_scan_action(text: &str, repo: &str, sha: &str) -> Result<(String, usize), String> {
-    if sha.len() != 40 || !sha.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
-        return Err(format!("{sha} is not a full lowercase commit sha"));
-    }
-    let prefix = format!("{repo}/{SCAN_ACTION}@");
-    let mut out = String::with_capacity(text.len());
-    let mut rest = text;
-    let mut count = 0;
-    while let Some(at) = rest.find(&prefix) {
-        let end = at + prefix.len();
-        out.push_str(&rest[..end]);
-        out.push_str(sha);
-        let tail = &rest[end..];
-        let old = tail
-            .find(|c: char| !c.is_ascii_alphanumeric())
-            .unwrap_or(tail.len());
-        rest = &tail[old..];
-        count += 1;
-    }
-    out.push_str(rest);
-    Ok((out, count))
-}
-
 /// The gazelle release asset beside each dx release asset.
 pub fn gazelle_assets() -> Vec<String> {
     RELEASE_ASSETS

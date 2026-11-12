@@ -44,7 +44,8 @@ fn archive_lists_extracts_and_hashes_in_process() {
         let expected = if *name == app { 0o755 } else { 0o644 };
         assert_eq!(*mode & 0o7777, expected, "{name}");
     }
-    let scratch = dx_testing::mkscratch("consumer-extract").expect("scratch");
+    let scratch_dir = dx_test_scratch::scratch("consumer-extract");
+    let scratch = scratch_dir.path();
     let dir = scratch.join("dx install \u{e9} \u{fc}");
     let extracted = dx_deploy_tools::archive_extract(&archive, &dir).expect("extract");
     assert_eq!(extracted, listed);

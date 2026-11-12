@@ -5,7 +5,7 @@ use std::path::Path;
 
 use dx_nested::compose::rules_dx_override;
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, read_text, resolve_runfiles, rules_dx_source, write_text, Run};
+use dx_testing::{read_text, resolve_runfiles, rules_dx_source, write_text, Run};
 
 fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
@@ -60,8 +60,8 @@ fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
 fn dx(case: &Case, args: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = case.root().to_string_lossy().into_owned();
-    let home = mkscratch("adopt-polyglot-home").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let home = home.to_string_lossy().into_owned();
+    let scratch = dx_test_scratch::scratch("adopt-polyglot-home");
+    let home = scratch.path().to_string_lossy().into_owned();
     let applets = dx_testing::env_files("DX_COREUTILS");
     let path = applets[0].parent().expect("applet directory").to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![args[0], "--workspace", workspace.as_str()];

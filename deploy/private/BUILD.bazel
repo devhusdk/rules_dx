@@ -695,7 +695,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 filegroup(
@@ -853,7 +856,10 @@ rust_test(
         "block-network",
         "no-coverage",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 helm_unit_tests(name = "helm_unit")
@@ -872,7 +878,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -894,7 +903,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -912,7 +924,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -930,7 +945,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 test_suite(
@@ -1108,7 +1126,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -1128,7 +1149,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 linux_package_unit_tests(name = "linux_package_unit")
@@ -1156,7 +1180,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 genrule(
@@ -1213,7 +1240,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 genrule(
@@ -1427,7 +1457,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = NATIVE_PROBE_COMPATIBLE,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 _WINDOWS_X64 = [
@@ -1483,7 +1516,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = _WINDOWS_X64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 py_wheel_rule(
@@ -1566,7 +1602,10 @@ rust_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -1606,7 +1645,10 @@ rust_test(
         "block-network",
         "no-coverage",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 sh_binary(
@@ -1689,7 +1731,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 cloudflare_unit_tests(name = "cloudflare_unit")
@@ -1855,7 +1900,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 deploy_analysis_test(
@@ -2494,7 +2542,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -2515,7 +2566,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -2536,7 +2590,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -2557,7 +2614,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -2578,7 +2638,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -2599,7 +2662,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -2620,7 +2686,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -2641,7 +2710,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -2662,7 +2734,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -2683,7 +2758,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -2704,7 +2782,10 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -2725,5 +2806,8 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )

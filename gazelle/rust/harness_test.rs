@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-fn workspace(prefix: &str) -> PathBuf {
-    dx_testing::mkscratch(prefix).expect("scratch workspace")
+fn workspace(prefix: &str) -> dx_test_scratch::TempDir {
+    dx_test_scratch::scratch(prefix)
 }
 
 fn write(root: &Path, rel: &str, text: &str) -> PathBuf {
@@ -67,11 +67,12 @@ fn assert_unchanged(path: &Path, before: Option<&[u8]>, what: &str) {
 }
 
 fn failure_case() {
-    let root = workspace("gazelle-failure-");
-    write(&root, "WORKSPACE", "");
-    write(&root, "crate/src/lib.rs", "use missing_crate::Thing;\n");
+    let scratch = workspace("gazelle-failure-");
+    let root = scratch.path();
+    write(root, "WORKSPACE", "");
+    write(root, "crate/src/lib.rs", "use missing_crate::Thing;\n");
 
-    let first = run_gazelle(&root, &[]);
+    let first = run_gazelle(root, &[]);
     assert!(!first.status.success(), "unresolved import must fail");
     assert!(
         first
@@ -91,11 +92,11 @@ fn failure_case() {
     );
 
     write(
-        &root,
+        root,
         "BUILD.bazel",
         "# gazelle:dx_ignore_import rust missing_crate\n",
     );
-    let allowed = run_gazelle(&root, &[]);
+    let allowed = run_gazelle(root, &[]);
     assert!(
         allowed.status.success(),
         "exact inherited ignore must permit generation\n{}",
@@ -106,9 +107,9 @@ fn failure_case() {
         "exact inherited ignore did not permit generation"
     );
 
-    write(&root, "crate/src/lib.rs", "pub fn current() {}\n");
+    write(root, "crate/src/lib.rs", "pub fn current() {}\n");
     std::fs::remove_file(root.join("crate/BUILD.bazel")).expect("remove build");
-    let stale = run_gazelle(&root, &[]);
+    let stale = run_gazelle(root, &[]);
     assert!(
         !stale.status.success()
             && stale
@@ -127,7 +128,7 @@ fn failure_case() {
     std::fs::remove_file(root.join("BUILD.bazel")).expect("remove root build");
     let intended = root.join("intended.json");
     let bad_mode = run_gazelle(
-        &root,
+        root,
         &[
             ("DX_GENERATE_MODE", "print"),
             ("DX_GENERATE_INTENDED", intended.to_string_lossy().as_ref()),
@@ -149,7 +150,7 @@ fn failure_case() {
     assert!(!intended.exists(), "bad mode wrote intended output");
     assert_unchanged(&root.join("crate/BUILD.bazel"), None, "bad mode");
 
-    let good_mode = run_gazelle(&root, &[]);
+    let good_mode = run_gazelle(root, &[]);
     assert!(
         good_mode.status.success(),
         "default mode must pass\n{}",
@@ -162,24 +163,25 @@ fn failure_case() {
 }
 
 fn idempotent_case() {
-    let root = workspace("gazelle-idempotent-");
-    write(&root, "WORKSPACE", "");
+    let scratch = workspace("gazelle-idempotent-");
+    let root = scratch.path();
+    write(root, "WORKSPACE", "");
     write(
-        &root,
+        root,
         "crate/src/lib.rs",
         "pub fn current() {}\n\n#[test]\nfn works() {}\n",
     );
-    write(&root, "crate/src/main.rs", "fn main() {}\n");
-    write(&root, "crate/tests/smoke.rs", "#[test]\nfn smoke() {}\n");
+    write(root, "crate/src/main.rs", "fn main() {}\n");
+    write(root, "crate/tests/smoke.rs", "#[test]\nfn smoke() {}\n");
 
-    let first = run_gazelle(&root, &[]);
+    let first = run_gazelle(root, &[]);
     assert!(
         first.status.success(),
         "first generation must pass\n{}",
         first.combined()
     );
-    let first_builds = generated_builds(&root);
-    let second = run_gazelle(&root, &[]);
+    let first_builds = generated_builds(root);
+    let second = run_gazelle(root, &[]);
     assert!(
         second.status.success(),
         "second generation must pass\n{}",
@@ -187,25 +189,22 @@ fn idempotent_case() {
     );
     assert_eq!(
         first_builds,
-        generated_builds(&root),
+        generated_builds(root),
         "repository generation is not idempotent"
     );
 }
 
 fn native_config_case() {
-    let root = workspace("gazelle-native-");
-    write(&root, "WORKSPACE", "");
-    write(&root, "crate/src/lib.rs", "pub fn current() {}\n");
-    write(&root, "crate/rustfmt.toml", "edition = \"2021\"\n");
-    write(&root, "crate/taplo.toml", "[formatting]\n");
-    write(&root, "crate/.vale.ini", "StylesPath = styles\n");
-    write(
-        &root,
-        "crate/styles/org/Example.yml",
-        "extends: existence\n",
-    );
+    let scratch = workspace("gazelle-native-");
+    let root = scratch.path();
+    write(root, "WORKSPACE", "");
+    write(root, "crate/src/lib.rs", "pub fn current() {}\n");
+    write(root, "crate/rustfmt.toml", "edition = \"2021\"\n");
+    write(root, "crate/taplo.toml", "[formatting]\n");
+    write(root, "crate/.vale.ini", "StylesPath = styles\n");
+    write(root, "crate/styles/org/Example.yml", "extends: existence\n");
 
-    let fresh = run_gazelle(&root, &[]);
+    let fresh = run_gazelle(root, &[]);
     assert!(
         fresh.status.success(),
         "fresh generation must pass\n{}",
@@ -229,7 +228,7 @@ fn native_config_case() {
         .expect("non-binding tool leaked into aspect_hints");
 
     let before = std::fs::read(&build).expect("read build");
-    let rerun = run_gazelle(&root, &[]);
+    let rerun = run_gazelle(root, &[]);
     assert!(
         rerun.status.success(),
         "rerun must pass\n{}",
@@ -242,7 +241,7 @@ fn native_config_case() {
     );
 
     std::fs::remove_file(root.join("crate/rustfmt.toml")).expect("remove config");
-    let pruned = run_gazelle(&root, &[]);
+    let pruned = run_gazelle(root, &[]);
     assert!(
         pruned.status.success(),
         "prune must pass\n{}",
@@ -254,14 +253,14 @@ fn native_config_case() {
     dx_testing::expect_contains(&build, &["name = \"taplo_config\""]).expect("unrelated target");
 
     std::fs::remove_dir_all(root.join("crate")).expect("remove crate");
-    write(&root, "broken/src/lib.rs", "pub fn current() {}\n");
+    write(root, "broken/src/lib.rs", "pub fn current() {}\n");
     let broken = write(
-        &root,
+        root,
         "broken/BUILD.bazel",
         "# gazelle:dx_native_tools rustfmt bogus\n",
     );
     let broken_before = std::fs::read(&broken).expect("read build");
-    let bogus = run_gazelle(&root, &[]);
+    let bogus = run_gazelle(root, &[]);
     assert!(
         !bogus.status.success() && bogus.combined().contains("unknown native tool \"bogus\""),
         "unknown tool did not fail closed\n{}",
@@ -269,11 +268,11 @@ fn native_config_case() {
     );
     assert_unchanged(&broken, Some(&broken_before), "unknown tool");
     write(
-        &root,
+        root,
         "broken/BUILD.bazel",
         "# gazelle:dx_native_tools rustfmt\n",
     );
-    let known = run_gazelle(&root, &[]);
+    let known = run_gazelle(root, &[]);
     assert!(
         known.status.success(),
         "known tool must pass\n{}",
@@ -282,14 +281,14 @@ fn native_config_case() {
     dx_testing::expect_contains(&broken, &["rust_library"]).expect("known tool generation");
 
     std::fs::remove_dir_all(root.join("broken")).expect("remove broken");
-    write(&root, "ambiguous/src/lib.rs", "pub fn current() {}\n");
+    write(root, "ambiguous/src/lib.rs", "pub fn current() {}\n");
     let ambiguous_build = write(
-        &root,
+        root,
         "ambiguous/BUILD.bazel",
         "load(\"@rules_dx//core/quality:native_config.bzl\", \"rustfmt_config\")\n\nrustfmt_config(\n    name = \"rustfmt_cfg\",\n    src = \"custom.toml\",\n)\n\nrustfmt_config(\n    name = \"rustfmt_extra\",\n    src = \"extra.toml\",\n)\n",
     );
     let ambiguous_before = std::fs::read(&ambiguous_build).expect("read build");
-    let ambiguous = run_gazelle(&root, &[]);
+    let ambiguous = run_gazelle(root, &[]);
     assert!(
         !ambiguous.status.success() && ambiguous.combined().contains("2 config targets"),
         "ambiguous configs did not fail closed\n{}",
@@ -301,11 +300,11 @@ fn native_config_case() {
         "ambiguous configs",
     );
     write(
-        &root,
+        root,
         "ambiguous/BUILD.bazel",
         "load(\"@rules_dx//core/quality:native_config.bzl\", \"rustfmt_config\")\n\nrustfmt_config(\n    name = \"rustfmt_cfg\",\n    src = \"custom.toml\",\n)\n",
     );
-    let single = run_gazelle(&root, &[]);
+    let single = run_gazelle(root, &[]);
     assert!(
         single.status.success(),
         "single config must pass\n{}",

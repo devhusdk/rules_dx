@@ -186,9 +186,10 @@ const UNQUALIFIED: &str = "import QtQml\n\nQtObject {\n    property int a: b\n}\
 /// Windows searches the executable's directory before System32 and PATH, so the pinned
 /// MSVC runtime is copied beside a private copy of the executable.
 #[cfg(windows)]
-fn runnable(variable: &str) -> PathBuf {
+fn runnable(variable: &str) -> (Option<dx_test_scratch::TempDir>, PathBuf) {
     let exe = env_file(variable);
-    let dir = dx_testing::mkscratch("qt-exe").expect("scratch directory");
+    let scratch = dx_test_scratch::scratch("qt-exe");
+    let dir = scratch.path();
     let copy = dir.join(exe.file_name().expect("executable name"));
     std::fs::copy(&exe, &copy).expect("copy executable");
     let paths = std::env::var("DX_QT_VCRUNTIME").expect("DX_QT_VCRUNTIME must name files");
@@ -199,19 +200,19 @@ fn runnable(variable: &str) -> PathBuf {
         let source = dx_testing::resolve_runfiles(path);
         std::fs::copy(&source, dir.join(file_name(path))).expect("copy MSVC runtime");
     }
-    copy
+    (Some(scratch), copy)
 }
 
 #[cfg(not(windows))]
-fn runnable(variable: &str) -> PathBuf {
-    env_file(variable)
+fn runnable(variable: &str) -> (Option<dx_test_scratch::TempDir>, PathBuf) {
+    (None, env_file(variable))
 }
 
-fn scratch_file(name: &str, text: &str) -> PathBuf {
-    let dir = dx_testing::mkscratch("qt").expect("scratch directory");
-    let path = dir.join(name);
+fn scratch_file(name: &str, text: &str) -> (dx_test_scratch::TempDir, PathBuf) {
+    let scratch = dx_test_scratch::scratch("qt");
+    let path = scratch.path().join(name);
     std::fs::write(&path, text).expect("write QML source");
-    path
+    (scratch, path)
 }
 
 fn file_name(path: &str) -> &str {
@@ -318,7 +319,7 @@ fn spdx_package(document: &Value, name: &str) -> Value {
 
 #[test]
 fn probe_evaluates_qml_against_only_pinned_libraries() {
-    let probe = runnable("DX_QT_PROBE");
+    let (_scratch, probe) = runnable("DX_QT_PROBE");
     let path = runtime_path();
     let mut envs = vec![("PATH", path.as_str())];
     envs.extend(&HOST_ROUTES[1..]);
@@ -421,7 +422,8 @@ fn run_gui(platform: &str) -> std::io::Result<dx_testing::Run> {
     #[cfg(windows)]
     envs.push(("QT_QPA_FONTDIR", font_dir.as_str()));
     envs.extend(&HOST_ROUTES[2..]);
-    let mut command = dx_testing::command_for(&runnable("DX_QT_GUI"), &envs)?;
+    let (_scratch, gui) = runnable("DX_QT_GUI");
+    let mut command = dx_testing::command_for(&gui, &envs)?;
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -481,8 +483,8 @@ fn qt_cc_test_without_a_console_exits_on_a_missing_platform_plugin() {
         ("QT_QPA_PLATFORM", "xcb"),
         ("QT_QPA_PLATFORM_PLUGIN_PATH", platforms.as_str()),
     ];
-    let mut command =
-        dx_testing::command_for(&runnable("DX_QT_CONSOLE_FIXTURE"), &envs).expect("command");
+    let (_scratch, fixture) = runnable("DX_QT_CONSOLE_FIXTURE");
+    let mut command = dx_testing::command_for(&fixture, &envs).expect("command");
     // DETACHED_PROCESS: the child has no console window, as under Bazel.
     command.creation_flags(0x0000_0008);
     let run = dx_testing::run_command(&mut command, std::time::Duration::from_secs(30))
@@ -542,7 +544,7 @@ fn uic_generates_the_form_class() {
 
 #[test]
 fn qmlformat_rewrites_to_the_qt_layout() {
-    let file = scratch_file("format.qml", UNFORMATTED);
+    let (_scratch, file) = scratch_file("format.qml", UNFORMATTED);
     let run = dx_testing::run(
         &env_file("DX_QMLFORMAT"),
         &[file.to_str().expect("utf-8 path")],
@@ -559,7 +561,7 @@ fn qmlformat_rewrites_to_the_qt_layout() {
 
 #[test]
 fn qmllint_reports_clean_files_as_json() {
-    let file = scratch_file("clean.qml", FORMATTED);
+    let (_scratch, file) = scratch_file("clean.qml", FORMATTED);
     let run = lint(&file, &[]);
     assert_eq!(run.status.code(), Some(0), "{}", run.combined());
     let report: Value = dx_testing::serde_json::from_str(&run.stdout).expect("JSON report");
@@ -570,7 +572,7 @@ fn qmllint_reports_clean_files_as_json() {
 
 #[test]
 fn qmllint_fails_unqualified_access_with_a_located_warning() {
-    let file = scratch_file("dirty.qml", UNQUALIFIED);
+    let (_scratch, file) = scratch_file("dirty.qml", UNQUALIFIED);
     let run = lint(&file, &[]);
     assert_eq!(
         run.status.code(),
@@ -590,7 +592,7 @@ fn qmllint_fails_unqualified_access_with_a_located_warning() {
 #[cfg(not(windows))]
 #[test]
 fn tools_ignore_host_routes_and_load_pinned_plugins() {
-    let file = scratch_file("plugins.qml", UNQUALIFIED);
+    let (_scratch, file) = scratch_file("plugins.qml", UNQUALIFIED);
     let mut envs = vec![LOADER_TRACE];
     envs.extend(HOST_ROUTES);
     let run = lint(&file, &envs);
@@ -748,9 +750,8 @@ fn assert_launcher_refusal(code: Option<i32>, stderr: &str) {
 #[test]
 fn launcher_fails_explicitly_without_the_pinned_runfiles() {
     let launcher = std::fs::canonicalize(env_file("DX_QMLLINT")).expect("launcher");
-    let copy = dx_testing::mkscratch("qt-launcher")
-        .expect("scratch directory")
-        .join("qmllint");
+    let scratch = dx_test_scratch::scratch("qt-launcher");
+    let copy = scratch.path().join("qmllint");
     std::fs::copy(&launcher, &copy).expect("copy launcher");
     let output = run_fresh_copy(&copy);
     assert!(output.stdout.is_empty());

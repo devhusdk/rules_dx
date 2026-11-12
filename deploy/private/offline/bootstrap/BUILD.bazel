@@ -57,6 +57,6 @@ rust_test(
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
-        "//tools/testing:dx_testing",
+        "//cli/test_scratch:dx_test_scratch",
     ],
 )

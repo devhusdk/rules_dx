@@ -82,9 +82,10 @@ fn text(browser: &mut Browser, id: &str) -> String {
 #[test]
 fn independent_consumer_renders_its_own_board_in_a_browser() {
     let server = Server::start();
-    let profile = dx_testing::mkscratch("consumer-profile").expect("a browser profile");
+    let scratch = dx_test_scratch::scratch("consumer-profile");
+    let profile = scratch.path();
     let mut browser =
-        Browser::start(&firefox_binary(), &profile).expect("start Firefox for the consumer");
+        Browser::start(&firefox_binary(), profile).expect("start Firefox for the consumer");
     browser
         .navigate(&server.url("/"))
         .expect("load the consumer");

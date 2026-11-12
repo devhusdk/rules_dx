@@ -405,11 +405,12 @@ mod tests {
 
     #[test]
     fn the_tree_reads_back_what_render_wrote() {
-        let scratch = dx_testing::mkscratch("settle").expect("scratch dir");
+        let guard = dx_test_scratch::scratch("settle");
+        let scratch = guard.path();
         let found = counts(&[("a", "alias", 1)]);
         let file = scratch.join("list.txt");
         dx_testing::write_text(&file, &render(&found, &["alias"]));
-        assert_eq!(tree(&scratch).get("list.txt").map(String::as_str), Some("a alias 1\n"));
+        assert_eq!(tree(scratch).get("list.txt").map(String::as_str), Some("a alias 1\n"));
         let (allowed, _) = parse_allowlist(&dx_testing::read_text(&file), &["alias"]);
         assert!(differences(&found, &allowed).is_empty());
     }

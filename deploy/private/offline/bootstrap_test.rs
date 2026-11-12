@@ -38,7 +38,7 @@ impl Run {
 }
 
 struct Bundle {
-    parent: PathBuf,
+    parent: dx_test_scratch::TempDir,
     path: PathBuf,
 }
 
@@ -48,7 +48,7 @@ impl Bundle {
     }
 
     fn parent(&self) -> &Path {
-        &self.parent
+        self.parent.path()
     }
 
     fn advisory(&self, name: &str) -> PathBuf {
@@ -60,8 +60,8 @@ impl Bundle {
     }
 }
 
-fn scratch() -> PathBuf {
-    dx_testing::mkscratch("dx-bootstrap").unwrap_or_else(|error| panic!("test scratch: {error}"))
+fn scratch() -> dx_test_scratch::TempDir {
+    dx_test_scratch::scratch("dx-bootstrap")
 }
 
 fn read(path: &Path) -> String {
@@ -139,7 +139,7 @@ fn pinned_names() -> Vec<String> {
 
 fn bundle(name: &str) -> Bundle {
     let parent = scratch();
-    let staged = parent.join(name);
+    let staged = parent.path().join(name);
     for launcher in LAUNCHERS {
         write(
             &staged.join("bazelisk").join(launcher),
@@ -267,8 +267,9 @@ fn assert_identity_binds_the_vendored_file(bundle: &Bundle, home: &Path, set: &s
 #[test]
 fn installs_the_host_launcher_and_pins_every_accepted_snapshot() {
     let bundle = bundle("bundle");
-    let home = scratch();
-    run(&bundle, &home).expect_ok();
+    let home_dir = scratch();
+    let home = home_dir.path();
+    run(&bundle, home).expect_ok();
 
     let installed: Vec<PathBuf> = ["bazel", "bazel.exe"]
         .iter()
@@ -308,16 +309,17 @@ fn installs_the_host_launcher_and_pins_every_accepted_snapshot() {
             read(&bundle.advisory(&format!("{set}.json"))),
             "{set} snapshot bytes"
         );
-        assert_identity_binds_the_vendored_file(&bundle, &home, set);
+        assert_identity_binds_the_vendored_file(&bundle, home, set);
     }
 }
 
 #[test]
 fn a_relative_bundle_arg_still_records_an_absolute_file_url() {
     let bundle = bundle("bundle");
-    let home = scratch();
-    bootstrap("bundle", bundle.parent(), &home).expect_ok();
-    assert_identity_binds_the_vendored_file(&bundle, &home, "cargo");
+    let home_dir = scratch();
+    let home = home_dir.path();
+    bootstrap("bundle", bundle.parent(), home).expect_ok();
+    assert_identity_binds_the_vendored_file(&bundle, home, "cargo");
 }
 
 #[test]
@@ -327,7 +329,7 @@ fn a_tampered_snapshot_is_refused() {
         &bundle.advisory("go.json"),
         "{\"advisories\":[{\"tampered\":true}]}\n",
     );
-    run(&bundle, &scratch()).expect_refusal("checksum mismatch for go.json");
+    run(&bundle, scratch().path()).expect_refusal("checksum mismatch for go.json");
 }
 
 #[test]
@@ -338,14 +340,15 @@ fn a_snapshot_the_manifest_omits_is_refused() {
         .filter(|name| name != "npm.json")
         .collect();
     manifest(&bundle.path().join("advisory"), &pinned, true);
-    run(&bundle, &scratch()).expect_refusal("manifest does not pin advisory snapshot: npm.json");
+    run(&bundle, scratch().path())
+        .expect_refusal("manifest does not pin advisory snapshot: npm.json");
 }
 
 #[test]
 fn a_manifest_that_pins_nothing_is_refused() {
     let bundle = bundle("bundle");
     write(&bundle.manifest("advisory"), "# nothing pinned\n");
-    run(&bundle, &scratch()).expect_refusal("manifest names no files");
+    run(&bundle, scratch().path()).expect_refusal("manifest names no files");
 }
 
 #[test]
@@ -362,7 +365,7 @@ fn the_last_manifest_line_is_verified_without_a_trailing_newline() {
         &bundle.advisory(&last),
         "{\"advisories\":[{\"tampered\":true}]}\n",
     );
-    run(&bundle, &scratch()).expect_refusal(&format!("checksum mismatch for {last}"));
+    run(&bundle, scratch().path()).expect_refusal(&format!("checksum mismatch for {last}"));
 }
 
 #[test]
@@ -372,17 +375,18 @@ fn an_unknown_advisory_set_is_refused() {
     let mut names = pinned_names();
     names.push("pypi.json".to_owned());
     manifest(&bundle.path().join("advisory"), &names, true);
-    run(&bundle, &scratch()).expect_refusal("unknown advisory set: pypi");
+    run(&bundle, scratch().path()).expect_refusal("unknown advisory set: pypi");
 }
 
 #[test]
 fn an_old_snapshot_keeps_its_bundle_date() {
     let bundle = bundle("bundle");
-    let home = scratch();
-    let result = run(&bundle, &home);
+    let home_dir = scratch();
+    let home = home_dir.path();
+    let result = run(&bundle, home);
     result.expect_ok();
     for set in accepted_sets() {
-        let meta = identity(&home, &set);
+        let meta = identity(home, &set);
         assert!(
             meta.contains(&format!("\"retrieved_at\": \"{BUNDLE_DATE}\"")),
             "{set} keeps the bundle date: {meta}"
@@ -400,7 +404,7 @@ fn a_snapshot_without_a_bundle_date_is_refused() {
         .filter(|name| name != "go.meta.json")
         .collect();
     manifest(&bundle.path().join("advisory"), &names, true);
-    run(&bundle, &scratch()).expect_refusal(
+    run(&bundle, scratch().path()).expect_refusal(
         "bundle has no recorded date for advisory snapshot: go.json (want advisory/go.meta.json)",
     );
 }
@@ -409,14 +413,14 @@ fn a_snapshot_without_a_bundle_date_is_refused() {
 fn an_unpinned_bundle_identity_is_refused() {
     let bundle = bundle("bundle");
     manifest(&bundle.path().join("advisory"), &snapshot_names(), true);
-    run(&bundle, &scratch())
+    run(&bundle, scratch().path())
         .expect_refusal("manifest does not pin advisory identity: cargo.meta.json");
 }
 
 #[test]
 fn a_bundle_identity_is_not_an_unknown_set() {
     let bundle = bundle("bundle");
-    let result = run(&bundle, &scratch());
+    let result = run(&bundle, scratch().path());
     result.expect_ok();
     assert!(
         !result.stderr.contains("unknown advisory set"),
@@ -429,14 +433,15 @@ fn a_bundle_identity_is_not_an_unknown_set() {
 #[test]
 fn a_bundle_path_with_a_quote_or_backslash_is_recorded_percent_encoded() {
     let bundle = bundle("we\"ird\\bundle");
-    let home = scratch();
-    run(&bundle, &home).expect_ok();
-    let meta = identity(&home, "cargo");
+    let home_dir = scratch();
+    let home = home_dir.path();
+    run(&bundle, home).expect_ok();
+    let meta = identity(home, "cargo");
     let url = recorded_url(&meta);
     assert!(url.contains("%22"), "quote is encoded: {url}");
     assert!(url.contains("%5C"), "backslash is encoded: {url}");
     assert!(!url.contains('\\'), "no raw backslash: {url}");
-    assert_identity_binds_the_vendored_file(&bundle, &home, "cargo");
+    assert_identity_binds_the_vendored_file(&bundle, home, "cargo");
 }
 
 #[test]
@@ -489,19 +494,21 @@ fn the_demo_offline_bundle_bootstraps() {
         .parent()
         .and_then(Path::parent)
         .expect("the demo manifest sits two levels under the bundle");
-    let staged = scratch().join("offline_demo");
+    let staged_root = scratch();
+    let staged = staged_root.path().join("offline_demo");
     dx_testing::copy_tree(built, &staged);
-    let home = scratch();
+    let home_dir = scratch();
+    let home = home_dir.path();
     let bundle = std::fs::canonicalize(&staged).expect("canonical demo bundle");
-    bootstrap(&bundle.to_string_lossy(), &home, &home).expect_ok();
+    bootstrap(&bundle.to_string_lossy(), home, home).expect_ok();
     assert!(
         home.join("workspace/.dx/local/advisory/cargo.json")
             .is_file()
     );
     assert!(
-        identity(&home, "cargo").contains("\"retrieved_at\": \"2026-01-01\""),
+        identity(home, "cargo").contains("\"retrieved_at\": \"2026-01-01\""),
         "the demo bundle records its own date: {}",
-        identity(&home, "cargo")
+        identity(home, "cargo")
     );
     assert!(
         ["bazel", "bazel.exe"]

@@ -46,7 +46,8 @@ fn verify(env: &str, name: &str) {
             tarball.display()
         );
     }
-    let scratch = dx_testing::mkscratch(name).expect("scratch");
+    let scratch_dir = dx_test_scratch::scratch(name);
+    let scratch = scratch_dir.path();
     tar(&[
         "-xzf",
         &tarball_arg,

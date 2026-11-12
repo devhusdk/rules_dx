@@ -53,6 +53,7 @@ rust_library(
         normal = True,
     ) + [
         "//cli/binfmt:dx_binfmt",
+        "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "//tools/bazelrc:dx_preset",
         "@crates//:serde_json",

@@ -600,12 +600,6 @@ fn exit_36_without_a_disk_reading_keeps_the_bazel_exit() {
 }
 
 #[test]
-fn hex_digest_formats_lowercase_hex() {
-    assert_eq!(hex_digest(&[0xabu8; 32]), "ab".repeat(32));
-    assert_eq!(hex_digest(&[0u8; 32]).len(), 64);
-}
-
-#[test]
 fn apply_rejects_overlapping_edits_without_writing() {
     let original = b"abcdef";
     assert!(apply_to_bytes(original, &[(0, 2, "AB".to_owned())]).is_some());
@@ -771,7 +765,7 @@ fn change_event_is_deterministic_and_reconstructs_candidate() {
     assert_eq!(first.path, "src/lib.rs");
     assert_eq!(first.path, second.path);
     assert_eq!(first.source_digest, second.source_digest);
-    assert_eq!(first.source_digest, Some(hex_digest(&digest(original))));
+    assert_eq!(first.source_digest, Some(dx_digest::to_hex(&digest(original))));
     assert_eq!(first.edits.len(), 1);
     assert_eq!(first.edits[0].start, 0);
     assert_eq!(first.edits[0].end, original.len() as u64);

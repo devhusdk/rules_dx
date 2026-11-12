@@ -1,5 +1,5 @@
 {
-  "checksum": "4e15e741fa46e67f7035c644279626b85560b8725613abccf4e7323b47c4048b",
+  "checksum": "f3c325bbb73017f18f50ae0f26063232828355f92b539f1bc4cc158e1c0b92aa",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9429,10 +9429,6 @@
             {
               "id": "serde_json 1.0.151",
               "target": "serde_json"
-            },
-            {
-              "id": "sha2 0.10.9",
-              "target": "sha2"
             }
           ],
           "selects": {
@@ -12511,10 +12507,6 @@
             {
               "id": "serde_json 1.0.151",
               "target": "serde_json"
-            },
-            {
-              "id": "sha2 0.10.9",
-              "target": "sha2"
             }
           ],
           "selects": {

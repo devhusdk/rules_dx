@@ -487,10 +487,6 @@ pub(crate) struct FileChange {
     pub(crate) edits: Vec<(u64, u64, String)>,
 }
 
-pub(crate) fn hex_digest(bytes: &[u8; 32]) -> String {
-    dx_digest::to_hex(bytes)
-}
-
 pub(crate) enum SourceRead {
     Bytes(Vec<u8>),
     Unreadable,
@@ -1139,7 +1135,7 @@ pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {
     ChangeEvent {
         path: change.path.clone(),
         kind: ChangeKind::Modify,
-        source_digest: Some(hex_digest(&change.original_digest)),
+        source_digest: Some(dx_digest::to_hex(&change.original_digest)),
         edits,
     }
 }

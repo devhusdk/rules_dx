@@ -63,6 +63,7 @@ rust_library(
         normal = True,
     ) + [
         "//cli/binfmt:dx_binfmt",
+        "//cli/digest:dx_digest",
         "//cli/lcov:dx_lcov",
         "//cli/process:dx_process",
         "//tools/testing:dx_testing",
@@ -100,6 +101,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/binfmt:dx_binfmt",
+        "//cli/digest:dx_digest",
         "//cli/lcov:dx_lcov",
         "//cli/process:dx_process",
         "//tools/testing:dx_testing",

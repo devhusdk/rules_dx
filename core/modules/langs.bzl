@@ -250,8 +250,7 @@ LANGS = json.decode("""{
     "entry_points": [
       "avro_library",
       "avro_cc_library",
-      "avro_java_library",
-      "avro_codegen_shard"
+      "avro_java_library"
     ],
     "family": "generation",
     "lockfiles": [],

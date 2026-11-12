@@ -1,7 +1,7 @@
 # gazelle:ignore
 # gazelle:dx_ignore_import cc avro/tests/shapes_cc.hh
 # gazelle:dx_ignore_import cc avro/tests/shape_avsc_cc.hh
-load("//avro:defs.bzl", "avro_cc_library", "avro_codegen_shard", "avro_java_library", "avro_library")
+load("//avro:defs.bzl", "avro_cc_library", "avro_java_library", "avro_library")
 load("//cc:defs.bzl", "cc_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java:defs.bzl", "java_test")
@@ -53,48 +53,34 @@ avro_cc_library(
     deps = [":point"],
 )
 
-avro_codegen_shard(
-    name = "point_cc_shard",
-    entries = ["gen/point.hh|gen|dx_avro|avro/tests/_avro_cc/point_cc/avro/tests/point_cc.hh"],
-    language = "cpp",
-    generated = ":point_cc",
-)
-
 codegen_shard_argv_test(
     name = "point_cc_shard_argv_test",
     expected = [
         "--producer",
-        "//avro/tests:point_cc_shard",
+        "//avro/tests:point_cc",
         "--language",
         "cpp",
         "--entry",
-        "gen/point.hh|gen|dx_avro|avro/tests/_avro_cc/point_cc/avro/tests/point_cc.hh",
+        "gen/point_cc.hh|gen|dx_avro|avro/tests/_avro_cc/point_cc/avro/tests/point_cc.hh",
         "--output",
     ],
-    output = "avro/tests/point_cc_shard.dxcodegen.pb",
-    target_under_test = ":point_cc_shard",
-)
-
-avro_codegen_shard(
-    name = "shapes_cc_shard",
-    entries = ["gen/shapes.hh|gen|dx_avro|avro/tests/_avro_cc/shapes_cc/avro/tests/shapes_cc.hh"],
-    language = "cpp",
-    generated = ":shapes_cc",
+    output = "avro/tests/point_cc.dxcodegen.pb",
+    target_under_test = ":point_cc",
 )
 
 codegen_shard_argv_test(
     name = "shapes_cc_shard_argv_test",
     expected = [
         "--producer",
-        "//avro/tests:shapes_cc_shard",
+        "//avro/tests:shapes_cc",
         "--language",
         "cpp",
         "--entry",
-        "gen/shapes.hh|gen|dx_avro|avro/tests/_avro_cc/shapes_cc/avro/tests/shapes_cc.hh",
+        "gen/shapes_cc.hh|gen|dx_avro|avro/tests/_avro_cc/shapes_cc/avro/tests/shapes_cc.hh",
         "--output",
     ],
-    output = "avro/tests/shapes_cc_shard.dxcodegen.pb",
-    target_under_test = ":shapes_cc_shard",
+    output = "avro/tests/shapes_cc.dxcodegen.pb",
+    target_under_test = ":shapes_cc",
 )
 
 avro_library(
@@ -148,27 +134,20 @@ java_test(
     deps = [":shapes_java"],
 )
 
-avro_codegen_shard(
-    name = "shapes_java_shard",
-    entries = ["gen/shapes.srcjar|gen|dx.test|avro/tests/shapes_java.srcjar"],
-    language = "java",
-    generated = ":shapes_java",
-)
-
 codegen_shard_argv_test(
     name = "shapes_java_shard_argv_test",
     size = "small",
     expected = [
         "--producer",
-        "//avro/tests:shapes_java_shard",
+        "//avro/tests:shapes_java",
         "--language",
         "java",
         "--entry",
-        "gen/shapes.srcjar|gen|dx.test|avro/tests/shapes_java.srcjar",
+        "gen/shapes_java.srcjar|gen||avro/tests/shapes_java.srcjar",
         "--output",
     ],
-    output = "avro/tests/shapes_java_shard.dxcodegen.pb",
-    target_under_test = ":shapes_java_shard",
+    output = "avro/tests/shapes_java.dxcodegen.pb",
+    target_under_test = ":shapes_java",
 )
 
 real_source_target(

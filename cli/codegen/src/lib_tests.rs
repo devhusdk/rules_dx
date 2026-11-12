@@ -151,6 +151,8 @@ fn is_shard_kind_matches_shard_rules() {
         "prost_codegen_shard",
         "flatbuffers_codegen_shard",
         "openapi_codegen_shard",
+        "avro_cc_library",
+        "avro_java_library",
     ] {
         assert!(is_shard_kind(kind), "{kind}");
     }

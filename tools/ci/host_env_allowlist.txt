@@ -313,7 +313,6 @@ tools/BUILD.bazel genrule 1
 tools/bazelisk/wrapper/bazel.ps1 host-path 1
 tools/bazelisk/wrapper_test.rs host-path 2
 tools/buildbuddy-credential-helper.sh shebang 1
-tools/ci/advisory_launch_test.rs shebang 1
 tools/ci/blocker_refs.sh shebang 1
 tools/ci/compiler_table.sh shebang 1
 tools/ci/docs_scope_test.rs shebang 1

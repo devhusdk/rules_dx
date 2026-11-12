@@ -402,21 +402,12 @@ rust_test(
     ),
     crate_name = "advisory_launch_test",
     crate_root = "advisory_launch_test.rs",
-    data = [
-        "//.github:workflows/reusable-consumer.yml",
-        "//cli/advisory_prep",
-    ],
-    env = {"DX_ADVISORY_PREP": "$(rootpath //cli/advisory_prep)"},
+    data = ["//.github:workflows/reusable-consumer.yml"],
     deps = all_crate_deps(
         package_name = "tools/ci_tests",
         normal = True,
         normal_dev = True,
-    ) + [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/ci/ci_workflow",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
+    ) + ["//tools/ci/ci_workflow"],
 )
 
 rust_test(

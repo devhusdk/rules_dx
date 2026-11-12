@@ -928,3 +928,48 @@ fn locked_yanked_pypi_versions_are_published_as_their_own_snapshot() {
     assert_eq!(parsed[0].versions, "=1.0");
     assert_eq!(parsed[0].set, "uv");
 }
+
+#[test]
+fn pins_with_an_advisory_line_pin_the_snapshots() {
+    let root = tempfile::tempdir().expect("temp dir");
+    assert!(!advisory_pinned(root.path()));
+    std::fs::create_dir_all(root.path().join(".dx")).expect("dx dir");
+    std::fs::write(root.path().join(".dx/pins"), "tool a b c\n").expect("pins");
+    assert!(!advisory_pinned(root.path()));
+    std::fs::write(
+        root.path().join(".dx/pins"),
+        "tool a b c\nadvisory cargo d e f\n",
+    )
+    .expect("pins");
+    assert!(advisory_pinned(root.path()));
+}
+
+#[test]
+fn trivy_is_needed_for_infrastructure_files_and_oci_deploy_only() {
+    let root = tempfile::tempdir().expect("temp dir");
+    let write = |name: &str, text: &str| {
+        let path = root.path().join(name);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("dir");
+        std::fs::write(path, text).expect("file");
+    };
+    write("src/main.rs", "fn main() {}");
+    write("BUILD.bazel", "load(\"x\", \"y\")");
+    write(".hidden/main.tf", "");
+    write("bazel-out/Dockerfile", "");
+    write("node_modules/p/Dockerfile", "");
+    assert!(!needs_trivy(root.path()).expect("scan"));
+    for (name, text) in [
+        ("infra/main.tf", ""),
+        ("infra/main.bicep", ""),
+        ("app/Dockerfile", ""),
+        ("chart/Chart.yaml", ""),
+        ("deploy/BUILD.bazel", "oci_deploy(name = \"x\")"),
+        ("deploy/defs.bzl", "oci_deploy"),
+    ] {
+        let scratch = tempfile::tempdir().expect("temp dir");
+        let path = scratch.path().join(name);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("dir");
+        std::fs::write(path, text).expect("file");
+        assert!(needs_trivy(scratch.path()).expect("scan"), "{name}");
+    }
+}

@@ -27,6 +27,52 @@ use dx_audit::advisory_prep::{
 
 pub const DEFAULT_OUT: &str = ".dx/local/advisory";
 
+/// True when `.dx/pins` under `workspace` pins advisory snapshots.
+pub fn advisory_pinned(workspace: &Path) -> bool {
+    std::fs::read_to_string(workspace.join(".dx/pins"))
+        .is_ok_and(|pins| pins.lines().any(|line| line.starts_with("advisory ")))
+}
+
+/// True when the workspace holds Terraform, Bicep, Dockerfile or Helm files, or an
+/// `oci_deploy` use in a Bazel file: the inputs the trivy databases serve.
+pub fn needs_trivy(workspace: &Path) -> Result<bool, PrepError> {
+    let mut pending = vec![workspace.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        let unreadable = |error: std::io::Error| PrepError::Usage {
+            detail: format!("could not scan {}: {error}", dir.display()),
+        };
+        for entry in std::fs::read_dir(&dir).map_err(unreadable)? {
+            let entry = entry.map_err(unreadable)?;
+            let kind = entry.file_type().map_err(unreadable)?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let path = entry.path();
+            if kind.is_dir() {
+                if !name.starts_with('.') && !name.starts_with("bazel-") && name != "node_modules" {
+                    pending.push(path);
+                }
+                continue;
+            }
+            if !kind.is_file() {
+                continue;
+            }
+            let extension = path.extension().and_then(|value| value.to_str());
+            if matches!(extension, Some("tf" | "bicep"))
+                || matches!(name.as_str(), "Dockerfile" | "Chart.yaml")
+            {
+                return Ok(true);
+            }
+            let bazel_file =
+                matches!(name.as_str(), "BUILD" | "BUILD.bazel") || extension == Some("bzl");
+            if bazel_file
+                && std::fs::read_to_string(&path).is_ok_and(|text| text.contains("oci_deploy"))
+            {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
 /// How one preparation run reaches and writes its snapshots.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PrepareOptions {

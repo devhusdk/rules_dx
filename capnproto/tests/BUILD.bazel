@@ -198,7 +198,7 @@ failure_test(
 capnp_undeclared_rust_test(
     name = "undeclared_rs_test",
     size = "small",
-    target_under_test = "//capnproto/tests/lost:lost_rs_generated",
+    target_under_test = "//capnproto/tests/fixtures/lost:lost_rs_generated",
 )
 
 real_source_target(

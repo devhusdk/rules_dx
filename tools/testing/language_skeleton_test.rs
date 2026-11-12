@@ -11,7 +11,7 @@ use starlark_syntax::syntax::ast::{
 use starlark_syntax::syntax::{AstModule, Dialect};
 #[cfg(windows)]
 use windows_sys as _;
-use {sha2 as _, tempfile as _};
+use tempfile as _;
 
 /// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/testing/language_skeleton_allowlist.txt";

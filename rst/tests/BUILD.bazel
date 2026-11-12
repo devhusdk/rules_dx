@@ -6,7 +6,7 @@ load(":library_tests.bzl", "owns_rst_class_test")
 
 rst_library(
     name = "docs",
-    srcs = ["fixtures/index.rst", "fixtures/guide.rest"],
+    srcs = ["fixtures/docs/index.rst", "fixtures/docs/guide.rest"],
 )
 
 owns_rst_class_test(
@@ -17,7 +17,7 @@ owns_rst_class_test(
 
 rst_library(
     name = "bad_extension",
-    srcs = ["fixtures/notes.txt"],
+    srcs = ["fixtures/docs/notes.txt"],
     tags = ["manual"],
 )
 

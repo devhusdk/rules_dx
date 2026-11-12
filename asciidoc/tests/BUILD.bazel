@@ -6,7 +6,7 @@ load(":library_tests.bzl", "owns_asciidoc_class_test")
 
 asciidoc_library(
     name = "docs",
-    srcs = ["fixtures/index.adoc", "fixtures/guide.asciidoc"],
+    srcs = ["fixtures/docs/index.adoc", "fixtures/docs/guide.asciidoc"],
 )
 
 owns_asciidoc_class_test(
@@ -17,7 +17,7 @@ owns_asciidoc_class_test(
 
 asciidoc_library(
     name = "bad_extension",
-    srcs = ["fixtures/notes.txt"],
+    srcs = ["fixtures/docs/notes.txt"],
     tags = ["manual"],
 )
 

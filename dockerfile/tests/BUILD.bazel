@@ -5,7 +5,7 @@ load(":library_tests.bzl", "owns_dockerfile_class_test")
 
 dockerfile_library(
     name = "app",
-    srcs = ["fixtures/app.Dockerfile"],
+    srcs = ["fixtures/app/app.Dockerfile"],
 )
 
 owns_dockerfile_class_test(
@@ -16,7 +16,7 @@ owns_dockerfile_class_test(
 
 dockerfile_library(
     name = "bad_name",
-    srcs = ["fixtures/Dockerfile-dev"],
+    srcs = ["fixtures/app/Dockerfile-dev"],
     tags = ["manual"],
 )
 
@@ -43,6 +43,6 @@ exports_files(
 
 dockerfile_library(
     name = "dirty",
-    srcs = ["fixtures/dirty.Dockerfile"],
+    srcs = ["fixtures/app/dirty.Dockerfile"],
     visibility = ["//core/quality/testdata:__pkg__"],
 )

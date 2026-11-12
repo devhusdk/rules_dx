@@ -5,7 +5,7 @@ load(":library_tests.bzl", "owns_sql_class_test")
 
 sql_library(
     name = "docs",
-    srcs = ["fixtures/schema.sql"],
+    srcs = ["fixtures/schema/schema.sql"],
 )
 
 owns_sql_class_test(
@@ -16,7 +16,7 @@ owns_sql_class_test(
 
 sql_library(
     name = "bad_extension",
-    srcs = ["fixtures/notes.txt"],
+    srcs = ["fixtures/schema/notes.txt"],
     tags = ["manual"],
 )
 

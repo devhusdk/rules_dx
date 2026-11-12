@@ -17,9 +17,10 @@ _POSIX = select({
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
-_NATIVE = select({
+_TESTING = select({
     "@platforms//os:linux": [],
     "@platforms//os:macos": [],
+    "@platforms//os:windows": ["@platforms//cpu:x86_64"],
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
@@ -44,7 +45,7 @@ swift_test(
 swift_test(
     name = "testing",
     srcs = ["greet_testing.swift"],
-    target_compatible_with = _NATIVE,
+    target_compatible_with = _TESTING,
     deps = [":greet"],
 )
 

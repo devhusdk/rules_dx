@@ -342,8 +342,17 @@ $sdk = Find-Dir $trees "Windows.sdk"
 if (-not $sdk) { Fail "no Windows.sdk in the extracted packages" }
 $xctest = Find-Dir $trees "XCTest-*"
 if (-not $xctest) { Fail "no XCTest-* in the extracted packages" }
-$testing = Find-Dir $trees "Testing-*"
-if (-not $testing) { Fail "no Testing-* in the extracted packages" }
+$testingModules = @(Get-ChildItem -LiteralPath $trees -Recurse -Directory -Filter "Testing.swiftmodule")
+$testingRoots = @($testingModules | ForEach-Object {
+    $dir = $_.Parent
+    while ($dir -and $dir.Name -notlike "Testing-*") { $dir = $dir.Parent }
+    if ($dir) { $dir.FullName }
+} | Sort-Object -Unique)
+if ($testingRoots.Count -ne 1) {
+    $testingModules | ForEach-Object { [Console]::Error.WriteLine("  found $($_.FullName)") }
+    Fail "expected one Testing-* directory holding Testing.swiftmodule, found $($testingRoots.Count)"
+}
+$swiftTesting = Get-Item -LiteralPath $testingRoots[0]
 
 $developer = Join-Path $Out "platform\Developer"
 New-Item -ItemType Directory -Force -Path (Join-Path $Out "toolchain"), (Join-Path $Out "runtime"), (Join-Path $developer "SDKs"), (Join-Path $developer "Library") | Out-Null
@@ -357,7 +366,7 @@ if ($runtimeUsr -eq $toolchainUsr) {
 }
 Move-Item -LiteralPath $sdk.FullName -Destination (Join-Path $developer "SDKs\Windows.sdk")
 Move-Item -LiteralPath $xctest.FullName -Destination (Join-Path $developer "Library\XCTest-$XCTestVersion")
-Move-Item -LiteralPath $testing.FullName -Destination (Join-Path $developer "Library\Testing-$XCTestVersion")
+Move-Item -LiteralPath $swiftTesting.FullName -Destination (Join-Path $developer "Library\Testing-$XCTestVersion")
 
 $toolBin = Join-Path $Out "toolchain\usr\bin"
 $runtimeBin = Join-Path $Out "runtime\usr\bin"
@@ -407,12 +416,18 @@ foreach ($assembly in $identities.Keys) {
     }
 }
 
-foreach ($required in @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\llbuildSwift.dll", "toolchain\usr\bin\_InternalSwiftScan.dll", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr", "platform\Developer\Library\Testing-$XCTestVersion\usr")) {
+foreach ($required in @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\llbuildSwift.dll", "toolchain\usr\bin\_InternalSwiftScan.dll", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr", "platform\Developer\Library\Testing-$XCTestVersion\usr\lib\swift\windows\Testing.swiftmodule")) {
     if (-not (Test-Path -LiteralPath (Join-Path $Out $required))) { Fail "$required is missing from the extracted layout" }
 }
 
 $machines = @{ "windows_x86_64" = 0x8664; "windows_arm64" = 0xAA64 }
-foreach ($required in @("toolchain\usr\bin\swiftc.exe", "runtime\usr\bin\swiftCore.dll")) {
+$peChecked = @("toolchain\usr\bin\swiftc.exe", "runtime\usr\bin\swiftCore.dll")
+if ($Cell -eq "windows_x86_64") {
+    $testingDll = "platform\Developer\Library\Testing-$XCTestVersion\usr\bin64\Testing.dll"
+    if (-not (Test-Path -LiteralPath (Join-Path $Out $testingDll))) { Fail "$testingDll is missing from the extracted layout" }
+    $peChecked += $testingDll
+}
+foreach ($required in $peChecked) {
     $machine = Get-PeMachine (Join-Path $Out $required)
     if ($machine -ne [int]$machines[$Cell]) { Fail ("$required is PE machine 0x{0:X4}, not the one of $Cell" -f $machine) }
 }

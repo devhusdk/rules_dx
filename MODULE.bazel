@@ -1197,6 +1197,7 @@ single_version_override(
     patches = [
         "//patches/rules_swift:clang_cl_no_split_cold_code.patch",
         "//patches/rules_swift:windows_absolute_sdk.patch",
+        "//patches/rules_swift:windows_swift_testing.patch",
         "//patches/rules_swift:windows_unknown_vendor.patch",
     ],
     version = "4.2.2",

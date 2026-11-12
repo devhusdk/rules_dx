@@ -4,6 +4,7 @@ load("//powershell:defs.bzl", "powershell_test")
 load("//swift/private/toolchain:tests.bzl", "swift_windows_extract_test")
 load(":host_swift_tests.bzl", "swift_host_descriptor_test")
 load(":hub_tests.bzl", "swift_hub_tests")
+load(":transition_tests.bzl", "transition_test_suite")
 
 real_source_target(
     name = "corpus_starlark",
@@ -12,6 +13,7 @@ real_source_target(
         "BUILD.bazel",
         "host_swift_tests.bzl",
         "hub_tests.bzl",
+        "transition_tests.bzl",
     ],
     tags = ["corpus"],
 )
@@ -70,3 +72,5 @@ powershell_test(
         "x86_64",
     ]
 ]
+
+transition_test_suite(name = "transition_tests")

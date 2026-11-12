@@ -1,5 +1,4 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":transition_tests.bzl", "transition_test_suite")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -61,9 +60,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "transition.bzl",
-        "transition_tests.bzl",
     ],
     tags = ["corpus"],
 )
-
-transition_test_suite(name = "transition_tests")

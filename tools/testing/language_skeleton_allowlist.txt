@@ -375,7 +375,6 @@ platforms-option cc/private/toolchains/select.bzl
 platforms-option erlang/private/defs.bzl
 platforms-option rust/private/defs.bzl
 platforms-option swift/private/platforms/transition.bzl
-platforms-option swift/private/platforms/transition_tests.bzl
 platforms-type qt/private/defs.bzl
 platforms-type swift/private/defs.bzl
 private-names cc/private/context/tests
@@ -643,8 +642,6 @@ test-location rust/private/toolchain/BUILD.bazel
 test-location rust/private/toolchain/identity_tests.bzl
 test-location scala/private/BUILD.bazel
 test-location scala/tests/BUILD.bazel
-test-location swift/private/platforms/BUILD.bazel
-test-location swift/private/platforms/transition_tests.bzl
 test-location typescript/private/BUILD.bazel
 test-location typescript/private/ide/BUILD.bazel
 test-location zig/private/BUILD.bazel

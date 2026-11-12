@@ -615,8 +615,7 @@ sql/tests/BUILD.bazel no-size 1
 svelte/tests/app/BUILD.bazel no-size 4
 svelte/tests/app_errors/BUILD.bazel no-size 3
 svelte/tests/fixtures/hello/BUILD.bazel no-size 1
-swift/private/platforms/BUILD.bazel no-size 1
-swift/tests/BUILD.bazel no-size 1
+swift/tests/BUILD.bazel no-size 2
 swift/tests/cross/BUILD.bazel no-size 1
 swift/tests/fixtures/bench/BUILD.bazel no-size 3
 swift/tests/fixtures/bench/BUILD.bazel size-large 1

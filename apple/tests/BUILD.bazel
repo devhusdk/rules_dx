@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
-load(":toolchain_tests.bzl", "apple_ios_tests", "apple_provisioning_tests")
+load(":toolchain_tests.bzl", "apple_ios_tests")
 
 rust_test(
     name = "path_test",
@@ -43,11 +43,6 @@ rust_test(
 
 apple_ios_tests(
     name = "ios_metadata",
-    size = "small",
-)
-
-apple_provisioning_tests(
-    name = "provisioning_metadata",
     size = "small",
 )
 

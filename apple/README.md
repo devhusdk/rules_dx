@@ -1,59 +1,7 @@
 # Apple
 
-Declare one Xcode selection with its execution route, then probe it.
-Loading these rules changes no toolchain.
-
-```python
-load("@rules_dx//apple:defs.bzl", "apple_provisioning", "apple_toolchain_probe")
-
-apple_provisioning(
-    name = "simulator",
-    accept_licenses = ["apple-xcode-license"],
-    deployment = "17.0",
-    host = "macos_arm64",
-    route = "local",
-    sdk = "iphonesimulator",
-    xcode_version = "16.4",
-)
-
-apple_toolchain_probe(
-    name = "simulator_probe",
-    provisioning = ":simulator",
-    target_compatible_with = ["@platforms//os:ios"],
-)
-```
-
-Build it with `--platforms=@rules_dx//apple:ios_sim_arm64`.
-
-Use `macos_arm64` with `--macos_minimum_os` for `macosx`. For the
-`macosx` cell, `rules_dx` registers the Xcode C/C++ toolchain; your
-`MODULE.bazel` needs no `register_toolchains` line.
-
-The probe writes `bazel-bin/<package>/<name>.txt` with the executor's real
-identities: route, endpoint, host, arch, macOS version and build, Xcode
-version and build, `DEVELOPER_DIR`, SDK version, build, and path,
-deployment target, `clang` path, compiler identity, and license state.
-It never reads `credential_file`.
-
-The probe fails instead of substituting anything when:
-
-- no Xcode resolves for the build, as on a Linux host;
-- the declared Xcode differs from the one Bazel resolved;
-- the build targets another SDK or no Apple platform;
-- the deployment target differs from the declared one or exceeds the SDK;
-- no C/C++ toolchain targets the SDK from the executor;
-- the compiler is not Xcode's Apple clang;
-- the action runs on a non-macOS host, the wrong CPU, or macOS below 14.5;
-- the Xcode license is unaccepted on the executor.
-
-Unknown routes, hosts, and SDKs fail instead of falling back.
-
-Use `route = "managed"` with `endpoint` and `credential_file` for a
-preprovisioned macOS remote executor. Point `--xcode_version_config` at
-an `xcode_config` naming the executor's Xcode and register a
-`macos_arm64` execution platform. The managed probe never runs locally: a build with no remote executor
-fails instead of probing the developer's Mac. Credentials travel by file only;
-inline tokens fail. Automatic Xcode acquisition fails.
+Accept the Xcode license once with the `apple-xcode-license` tag. Loading
+these rules changes no toolchain.
 
 ## iOS libraries
 
@@ -88,14 +36,9 @@ platform and minimum OS. Consumers get the archive, `hdrs`, and one
 | `simulator/arm64` | `aarch64-apple-ios-sim` | `iphonesimulator` |
 | `simulator/x86_64` | `x86_64-apple-ios` | `iphonesimulator` |
 
-Add the triples and the Xcode C++ toolchain to `MODULE.bazel`:
+Add the triples to `MODULE.bazel`:
 
 ```python
-apple_cc_configure = use_extension("@xcode_support//crosstool:setup.bzl", "apple_cc_configure_extension")
-use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
-
-register_toolchains("@local_config_apple_cc_toolchains//:all")
-
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2021",
@@ -170,8 +113,7 @@ see [Consume an XCFramework](#consume-an-xcframework). The app needs
 `library`, `frameworks`, `entry`, or a mix. Without `infoplists`, the app gets a
 default `Info.plist`.
 
-Your `MODULE.bazel` needs the Rust simulator triple and the Xcode C/C++
-toolchain:
+Your `MODULE.bazel` needs the Rust simulator triple:
 
 ```python
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
@@ -182,11 +124,6 @@ rust.toolchain(
 use_repo(rust, "rust_toolchains")
 
 register_toolchains("@rust_toolchains//:all")
-
-apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
-use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
-
-register_toolchains("@local_config_apple_cc_toolchains//:all")
 ```
 
 Build and test on a macOS host with Xcode:
@@ -228,18 +165,6 @@ The build fails before linking when:
 module, such as a `swift_library` from `@rules_dx//swift:defs.bzl`.
 `swift_library` keeps `alwayslink` on, so the `@main` module stays
 linked. Name the file something other than `main.swift`.
-
-Your `MODULE.bazel` needs the Apple C++ toolchain registration next to
-`rules_dx`:
-
-```python
-bazel_dep(name = "apple_support", version = "2.12.0")
-
-apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
-use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
-
-register_toolchains("@local_config_apple_cc_toolchains//:all")
-```
 
 Use `swift_binary` and `swift_test` for a macOS-native Swift tool; they
 need no simulator.
@@ -554,8 +479,7 @@ The app needs `srcs`, `library`, or both. `frameworks` takes frameworks
 path under `Contents/PlugIns`. Without `infoplists`, the app gets a default
 `Info.plist`.
 
-Your `MODULE.bazel` needs the Rust macOS triple and the Xcode C/C++
-toolchain:
+Your `MODULE.bazel` needs the Rust macOS triple:
 
 ```python
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
@@ -569,7 +493,7 @@ register_toolchains("@rust_toolchains//:all")
 ```
 
 ```sh
-bazel build //:ledger --macos_cpus=arm64
+bazel build //:ledger
 bazel run //:ledger
 ```
 

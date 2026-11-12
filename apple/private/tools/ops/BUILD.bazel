@@ -13,7 +13,6 @@ rust_library(
         "src/lib.rs",
         "src/library_check.rs",
         "src/notarize.rs",
-        "src/probe.rs",
         "src/run_macos.rs",
         "src/signing.rs",
         "src/simctl.rs",
@@ -135,22 +134,6 @@ rust_test(
         "notarize_test.rs",
     ],
     crate_root = "notarize_test.rs",
-    deps = [
-        ":ops",
-        "//cli/test_scratch:dx_test_scratch",
-        "@crates//:zip",
-    ],
-)
-
-# keep
-rust_test(
-    name = "probe_test",
-    size = "small",
-    srcs = [
-        "fake.rs",
-        "probe_test.rs",
-    ],
-    crate_root = "probe_test.rs",
     deps = [
         ":ops",
         "//cli/test_scratch:dx_test_scratch",

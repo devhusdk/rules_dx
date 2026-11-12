@@ -1,8 +1,8 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//core/quality/tools/jvm:jar_lsp_tool.bzl", "jar_lsp_tool")
-load("//core/quality/tools/jvm:java_runtime_pin.bzl", "pinned_java_runtime")
+load("//java/private/quality/tools:jar_lsp_tool.bzl", "jar_lsp_tool")
+load("//java/private/quality/tools:java_runtime_pin.bzl", "pinned_java_runtime")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 

@@ -1540,7 +1540,7 @@ LANGS = json.decode("""{
           "real_jvm_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/jvm.bzl",
+      "bzl": "java/private/quality:jvm.bzl",
       "file_extensions": [
         ".java"
       ],
@@ -1809,7 +1809,7 @@ LANGS = json.decode("""{
       "windows_x86_64"
     ],
     "quality": {
-      "bzl": "core/quality:families/jvm.bzl",
+      "bzl": "java/private/quality:jvm.bzl",
       "file_extensions": [
         ".kt",
         ".kts"
@@ -2800,7 +2800,7 @@ LANGS = json.decode("""{
           "real_scala_lint_aspect"
         ]
       },
-      "bzl": "core/quality:families/jvm.bzl",
+      "bzl": "java/private/quality:jvm.bzl",
       "file_extensions": [
         ".sc",
         ".scala"

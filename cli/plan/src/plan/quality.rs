@@ -1047,7 +1047,7 @@ mod tests {
                     "@rules_dx//javascript/private/quality:js.bzl%real_js_typecheck_aspect"
                 )
                 && arg.contains(
-                    "@rules_dx//core/quality:families/jvm.bzl%real_jvm_typecheck_aspect"
+                    "@rules_dx//java/private/quality:jvm.bzl%real_jvm_typecheck_aspect"
                 )
                 && arg.contains("@rules_dx//d/private/quality:d.bzl%real_d_typecheck_aspect")
                 && arg.contains(

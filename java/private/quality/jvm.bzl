@@ -6,18 +6,18 @@ load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//core/quality:family_hooks.bzl", "default_files_hook", "stage", "without")
 load("//core/quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
-load("//core/quality/tools/jvm:jar_lsp_tool.bzl", "PklLspToolInfo")
+load("//java/private/quality/tools:jar_lsp_tool.bzl", "PklLspToolInfo")
 
 TOOLS = {
     "detekt": {
-        "attr": attr.label(default = "//core/quality/tools/jvm:detekt", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//java/private/quality/tools:detekt", cfg = "exec", executable = True),
         "capabilities": ["lint"],
         "kind": "executable",
         "resources": "heavy",
         "shard": "jvm",
     },
     "google_java_format": {
-        "attr": attr.label(default = "//core/quality/tools/jvm:google_java_format", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//java/private/quality/tools:google_java_format", cfg = "exec", executable = True),
         "capabilities": ["format"],
         "kind": "executable",
         "resources": "heavy",
@@ -36,21 +36,21 @@ TOOLS = {
         "shard": "jvm",
     },
     "ktfmt": {
-        "attr": attr.label(default = "//core/quality/tools/jvm:ktfmt", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//java/private/quality/tools:ktfmt", cfg = "exec", executable = True),
         "capabilities": ["format"],
         "kind": "executable",
         "resources": "heavy",
         "shard": "jvm",
     },
     "pmd": {
-        "attr": attr.label(default = "//core/quality/tools/jvm:pmd", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//java/private/quality/tools:pmd", cfg = "exec", executable = True),
         "capabilities": ["lint"],
         "kind": "executable",
         "resources": "heavy",
         "shard": "jvm",
     },
     "pkl_lsp": {
-        "attr": attr.label(default = "//core/quality/tools/jvm:pkl_lsp", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//java/private/quality/tools:pkl_lsp", cfg = "exec", executable = True),
         "extra": "runfiles",
         "kind": "executable",
         "resources": "heavy",
@@ -63,7 +63,7 @@ TOOLS = {
         "shard": "jvm",
     },
     "scalafix": {
-        "attr": attr.label(default = "//core/quality/tools/jvm:scalafix", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//java/private/quality/tools:scalafix", cfg = "exec", executable = True),
         "capabilities": ["lint"],
         "kind": "executable",
         "resources": "heavy",
@@ -77,7 +77,7 @@ TOOLS = {
         "shard": "scala",
     },
     "spotbugs": {
-        "attr": attr.label(default = "//core/quality/tools/jvm:spotbugs", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//java/private/quality/tools:spotbugs", cfg = "exec", executable = True),
         "capabilities": ["lint"],
         "kind": "executable",
         "resources": "heavy",

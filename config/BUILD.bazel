@@ -231,7 +231,7 @@ label_flag(
 
 label_flag(
     name = "tool_avro",
-    build_setting_default = "//core/quality/tools/jvm:avro_tools",
+    build_setting_default = "//java/private/quality/tools:avro_tools",
     scope = "universal",
 )
 

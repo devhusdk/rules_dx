@@ -2,7 +2,7 @@
 
 # buildifier: disable=attr-licenses
 SOURCE = {
-    "build_file": "//core/quality/tools/jvm:spotbugs_dist.BUILD",
+    "build_file": "//java/private/quality/tools:spotbugs_dist.BUILD",
     "kind": "archive",
     "licenses": [
         {

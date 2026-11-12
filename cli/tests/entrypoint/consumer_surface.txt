@@ -79,7 +79,7 @@ haskell/private/quality:haskell.bzl
 core/quality:families/html_template.bzl
 core/quality:families/jsonnet.bzl
 julia/private/quality:julia.bzl
-core/quality:families/jvm.bzl
+java/private/quality:jvm.bzl
 kubernetes/private/quality:kubernetes.bzl
 core/quality:families/latex.bzl
 lua/private/quality:lua.bzl

@@ -54,7 +54,7 @@
     "java_bench"
   ],
   "quality": {
-    "bzl": "core/quality:families/jvm.bzl",
+    "bzl": "java/private/quality:jvm.bzl",
     "file_extensions": [
       ".java"
     ],

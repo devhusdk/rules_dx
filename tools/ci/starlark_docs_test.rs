@@ -99,7 +99,7 @@ const PACKAGES: &[&str] = &[
     "core/quality/artifacts",
     "core/quality/artifacts/acquire_test",
     "core/quality/artifacts/tests/hub",
-    "core/quality/tools/jvm",
+    "java/private/quality/tools",
     "rego/private",
     "rst/private",
     "ruby/private",

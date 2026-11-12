@@ -51,7 +51,6 @@ core/quality/runner/src/real_core.rs tmp-path 4
 core/quality/runner/src/real_fixtures.rs tmp-path 2
 core/quality/runner/src/real_tools.rs tmp-path 2
 core/quality/testdata/fake_format.rs tmp-path 2
-core/quality/tools/jvm/pkl_lsp_smoke_test.rs tmp-path 1
 core/quality/tools/python_bundle/bundle.bzl exec-requirement 2
 dart/private/tools/analyze_cli_test.rs tmp-path 1
 dart/private/tools/format_cli_test.rs tmp-path 1
@@ -59,6 +58,7 @@ deploy/private/install/src/lib.rs tmp-path 48
 deploy/private/offline/bootstrap/src/lib_tests.rs tmp-path 4
 deploy/private/release/src/release_lib_tests.rs tmp-path 7
 deploy/private/src/stage.rs tmp-path 2
+java/private/quality/tools/pkl_lsp_smoke_test.rs tmp-path 1
 julia/private/tools/format_cli_test.rs tmp-path 1
 julia/private/tools/jet/jet_cli_test.rs tmp-path 1
 julia/private/tools/lint/lint_cli_test.rs tmp-path 1

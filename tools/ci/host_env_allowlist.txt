@@ -1,4 +1,4 @@
-.bazelrc rc-env-passthrough 3
+.bazelrc rc-env-passthrough 1
 android/tests/fixtures/adopt-android/app/BUILD.bazel sh-rule 1
 android/tests/fixtures/adopt-android/app/inspect_apk.sh shebang 1
 android/tests/fixtures/native_lib/BUILD.bazel default-shell-env 1
@@ -251,7 +251,6 @@ python/tests/fixtures/fuzz/run_test.sh shebang 1
 python/tests/fixtures/python-service/ledger/core/BUILD.bazel genrule 1
 python/tests/sdist_native/msvc/BUILD.bazel genrule 1
 python/tests/sdist_native/msvc/BUILD.bazel shebang 1
-qt/private/defs.bzl env-inherit 1
 qt/tests/fixtures/qt-rust/app/BUILD.bazel sh-rule 1
 qt/tests/fixtures/qt-rust/app/ledger_symbols_test.sh shebang 1
 qt/tests/qt_test.rs host-path 1

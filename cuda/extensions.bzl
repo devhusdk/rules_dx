@@ -73,6 +73,7 @@ def _impl(module_ctx):
         version = version,
         toolchain_repositories = {version: "@" + impl_name},
     )
+    return module_ctx.extension_metadata(reproducible = True)
 
 cuda = module_extension(
     implementation = _impl,

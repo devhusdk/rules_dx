@@ -116,7 +116,7 @@ def _coverage_runtime_impl(rctx):
         if error:
             fail(error)
         rctx.download_and_extract(url = urls, sha256 = sha256, type = "zip")
-    redist = rctx.path(rctx.attr._msvc_runtime).dirname.get_child("sysroot/Contents/VC/Redist/MSVC/{}/x64".format(VC_REDIST_VERSION))
+    redist = rctx.path(rctx.attr._msvc_runtime.same_package_label("BUILD.bazel")).dirname.get_child("sysroot/Contents/VC/Redist/MSVC/{}/x64".format(VC_REDIST_VERSION))
     if redist.exists:
         for directory in redist.readdir():
             for dll in directory.readdir():

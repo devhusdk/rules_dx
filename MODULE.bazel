@@ -1486,7 +1486,18 @@ _dx_http_file(
     urls = ["https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox"],
 )
 
-register_toolchains("//core/quality:busybox_sh_linux_x86_64")
+_dx_http_file(
+    name = "dx_busybox_sh_windows",
+    downloaded_file_path = "sh.exe",
+    executable = True,
+    sha256 = "95343c871869cc0ab57ecec26b2f9af0370eb9c954f7e5ddd017163e4e0d09a0",
+    urls = ["https://frippery.org/files/busybox/busybox-w64-FRP-6354-g5f09fb446.exe"],
+)
+
+register_toolchains(
+    "//core/quality:busybox_sh_linux_x86_64",
+    "//core/quality:busybox_sh_windows_x86_64",
+)
 
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.5.0")

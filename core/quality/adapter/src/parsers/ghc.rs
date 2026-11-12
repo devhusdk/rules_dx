@@ -63,8 +63,13 @@ pub fn parse_ghc(
             }
             continue;
         };
-        let name = path.strip_prefix("./").unwrap_or(path);
-        let Some(file) = files.iter().copied().find(|file| *file == name) else {
+        let name = native_slashes(path);
+        let name = name.strip_prefix("./").unwrap_or(&name);
+        let Some(file) = files
+            .iter()
+            .copied()
+            .find(|file| native_slashes(file) == name)
+        else {
             if severity == ToolSeverity::Error {
                 return Err(ParseError::UnknownFile {
                     tool: TOOL,
@@ -95,6 +100,15 @@ pub fn parse_ghc(
         ));
     }
     Ok(found)
+}
+
+/// The path with each `\` read as `/` on Windows.
+fn native_slashes(path: &str) -> std::borrow::Cow<'_, str> {
+    if cfg!(windows) && path.contains('\\') {
+        std::borrow::Cow::Owned(path.replace('\\', "/"))
+    } else {
+        std::borrow::Cow::Borrowed(path)
+    }
 }
 
 #[cfg(test)]
@@ -188,5 +202,14 @@ mod tests {
     fn ghc_skips_non_json_lines_on_a_clean_run() {
         let found = parse_ghc(b"[1 of 1] Compiling A\n", Some(0), &[FILE]).expect("parsed");
         assert!(found.is_empty());
+    }
+
+    #[test]
+    fn ghc_backslash_separates_only_on_windows() {
+        let text = line("hs\\\\A.hs", "Error", "1", "e");
+        assert_eq!(
+            parse_ghc(text.as_bytes(), Some(1), &[FILE]).is_ok(),
+            cfg!(windows)
+        );
     }
 }

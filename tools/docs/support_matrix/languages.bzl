@@ -222,7 +222,6 @@ ROWS = [
     },
     {
         "ci_tests": [
-            "//apple/private/provisioning:managed_without_xcode_config_test",
             "//apple/tests/fixtures/macos_ledger:ledger_test",
             "//apple/tests/fixtures/swift_app:ledger_app_test",
             "//apple/tests/fixtures/swift_app:ledger_device_ipa_test",

@@ -3,9 +3,17 @@ load("//haskell/private:kwargs.bzl", "HASKELL_COMPATIBLE_WITH")
 
 package(default_visibility = ["//visibility:public"])
 
+filegroup(
+    name = "weeder_unavailable",
+    srcs = [],
+)
+
 alias(
     name = "bin",
-    actual = "@haskell_weeder_hackage//:weeder-exe-weeder",
+    actual = select({
+        "@platforms//os:windows": ":weeder_unavailable",
+        "//conditions:default": "@haskell_weeder_hackage//:weeder-exe-weeder",
+    }),
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
 )
 

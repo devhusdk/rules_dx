@@ -179,6 +179,7 @@ REAL_RESULT_CASES = [
         "class": "haskell",
         "contains": ["core/quality/testdata/haskell_owned/Clean.hs"],
         "absent": ["Defined but not used", "Fatal error"],
+        "windows_x86_64": True,
     },
     {
         "name": "real_result_ghc_dirty",
@@ -189,6 +190,7 @@ REAL_RESULT_CASES = [
         "class": "haskell",
         "contains": ["core/quality/testdata/haskell_owned/Dirty.hs", "GHC-40910", "Defined but not used"],
         "absent": [],
+        "windows_x86_64": True,
     },
     {
         "name": "real_result_ghc_redundant_standard",

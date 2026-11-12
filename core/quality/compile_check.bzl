@@ -308,6 +308,8 @@ _SH_TOOLCHAIN_TYPE = "//core/quality:compile_check_sh_toolchain_type"
 def _compile_check_impl(target, ctx):
     if target.label.repo_name != "":
         return []
+    if ctx.toolchains[_SH_TOOLCHAIN_TYPE] == None:
+        return []
     attrs = ctx.rule.attr
 
     # A ppx module compiles generated code, so a position in it is not a position in the source.
@@ -395,7 +397,7 @@ compile_check_aspect = aspect(
             allow_single_file = True,
         ),
     },
-    toolchains = [_SH_TOOLCHAIN_TYPE],
+    toolchains = [config_common.toolchain_type(_SH_TOOLCHAIN_TYPE, mandatory = False)],
 )
 
 def compile_check_hook(tool):

@@ -1,0 +1,4 @@
+public func warn() -> Int {
+    let unused = 1
+    return 0
+}

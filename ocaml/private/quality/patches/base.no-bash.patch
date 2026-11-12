@@ -1,0 +1,9 @@
+diff --git a/base/src/dune b/base/src/dune
+--- a/base/src/dune
++++ b/base/src/dune
+@@ -48,4 +48,4 @@
+  (targets ocamlopt-flags)
+  (deps)
+  (action
+-  (bash "echo '()' > ocamlopt-flags")))
++  (with-stdout-to ocamlopt-flags (echo "()"))))

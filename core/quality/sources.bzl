@@ -119,10 +119,7 @@ def named_source_class_error(class_id, basename):
     return "'" + basename + "' is not a " + class_id + " file name; accepted names: " + ", ".join(accepted)
 
 def named_source_library(class_id, doc, srcs_doc, name_error = None):
-    """Returns a `<class_id>_library` rule that owns name-matched sources of one class.
-
-    `name_error` maps a basename to an error string or \"\"; it defaults to the class matcher.
-    """
+    """Returns a `<class_id>_library` rule that owns name-matched sources of one class."""
     name = class_id + "_library"
 
     def _impl(ctx):

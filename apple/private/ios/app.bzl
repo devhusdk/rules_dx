@@ -659,10 +659,7 @@ def apple_ios_app_test(
         tags = None,
         visibility = None,
         **kwargs):
-    """Runs XCTest cases inside one app on a declared simulator device and runtime.
-
-    `app` must be an `apple_ios_app` simulator target.
-    """
+    """Runs XCTest cases inside one app on a declared simulator device and runtime."""
     srcs = srcs or []
     deps = deps or []
     tags = tags or []

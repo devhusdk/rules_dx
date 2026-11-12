@@ -127,7 +127,6 @@
       "audit": true,
       "advisory_family": "nuget",
       "uses_repository": false,
-      "lockfiles": ["paket.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/NuGet/all.zip",
       "license_audit": true,
       "lock_required": false

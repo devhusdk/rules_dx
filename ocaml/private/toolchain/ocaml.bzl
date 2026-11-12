@@ -43,10 +43,7 @@ def toolchain_fields(info, extra):
 NATIVE_CC_TOOLS = ["ar", "as", "cc", "ld", "mkdll", "mkexe", "ranlib"]
 
 def native_cc_env(cc, assembler, linker, archiver, path, macos = False, lib = None, link_env = {}, lld = False):
-    """Returns the CONDA_OCAML_* variables that point ocamlopt at the given C tools, and its PATH.
-
-    With `lld`, executables and shared objects link through the toolchain's lld.
-    """
+    """Returns the CONDA_OCAML_* variables that point ocamlopt at the given C tools, and its PATH."""
     env = dict(link_env)
     env.update({
         "CONDA_OCAML_AR": archiver,

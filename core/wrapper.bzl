@@ -700,10 +700,7 @@ def dx_args_label_error(name, args, visible_labels, upstream_only):
     return None
 
 def dx_source_library(language, extensions, noun, tools = {}):
-    """Defines a rule that owns the source files of one language for dx quality.
-
-    `tools` maps a quality tool ID to the label of its executable; the owner then also carries QualityToolsInfo.
-    """
+    """Defines a rule that owns the source files of one language for dx quality."""
 
     def _impl(ctx):
         providers = [

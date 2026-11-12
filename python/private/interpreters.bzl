@@ -56,7 +56,7 @@ toolchain(
 
 _hub = repository_rule(
     implementation = _hub_impl,
-    attrs = {"python_version": attr.string(mandatory = True)},
+    attrs = {"python_version": attr.string(mandatory = True, doc = "Pinned Python version the hub registers toolchains for.")},
 )
 
 def _impl(module_ctx):
@@ -75,6 +75,6 @@ def _impl(module_ctx):
 python = module_extension(
     implementation = _impl,
     tag_classes = {
-        "toolchain": tag_class(attrs = {"python_version": attr.string(mandatory = True)}),
+        "toolchain": tag_class(attrs = {"python_version": attr.string(mandatory = True, doc = "Pinned Python version of the default toolchain.")}),
     },
 )

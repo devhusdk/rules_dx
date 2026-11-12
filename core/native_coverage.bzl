@@ -49,19 +49,7 @@ def dx_gcov_tool(cc_toolchain):
     fail("the gcc toolchain does not ship gcov at " + gcov_path)
 
 def dx_native_test_coverage(ctx, upstream, gcov = False, llvm_cov = None, llvm_profdata = None, tool_runfiles = None):
-    """Returns coverage providers that collect native LLVM or gcov coverage.
-
-    Args:
-      ctx: The rule context.
-      upstream: The wrapped test target.
-      gcov: Collect gcov coverage instead of LLVM coverage.
-      llvm_cov: The llvm-cov File, or None for the toolchain's.
-      llvm_profdata: The llvm-profdata File, or None for the toolchain's.
-      tool_runfiles: Runfiles the coverage tools need at test time, or None.
-
-    Returns:
-      A struct with instrumented, env and runfiles.
-    """
+    """Returns coverage providers that collect native LLVM or gcov coverage."""
     collector = ctx.executable._collect_cc_coverage
     cc_toolchain = _cc_toolchain(ctx)
     gcov_tool = None

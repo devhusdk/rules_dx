@@ -1,5 +1,5 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//java:defs.bzl", "java_library", "java_test")
+load("//rust:defs.bzl", "rust_test")
 load(":results.bzl", "spotbugs_results")
 
 java_library(
@@ -91,9 +91,9 @@ config_setting(
     values = {"collect_code_coverage": "true"},
 )
 
-sh_test(
+rust_test(
     name = "spotbugs_owned_test",
-    srcs = ["check.sh"],
+    srcs = ["spotbugs_owned_test.rs"],
     data = [
         ":app_results",
         ":app_test_results",
@@ -102,21 +102,29 @@ sh_test(
         ":implicit_test_results",
         ":uses_api_results",
     ],
+    tags = ["no-coverage"],
     target_compatible_with = select({
         ":coverage": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
+    deps = ["//tools/testing:dx_testing"],
 )
 
-sh_test(
+rust_test(
     name = "spotbugs_native_test",
-    srcs = ["native.sh"],
-    args = ["$(rootpaths @bazel_tools//tools/jdk:JacocoCoverage)"],
+    srcs = ["spotbugs_native_test.rs"],
     data = [
         ":app",
         ":dep",
         "//java/private/quality/tools:spotbugs",
         "@bazel_tools//tools/jdk:JacocoCoverage",
     ],
+    env = {
+        "APP": "$(rootpaths :app)",
+        "DEP": "$(rootpaths :dep)",
+        "JACOCO": "$(rootpaths @bazel_tools//tools/jdk:JacocoCoverage)",
+        "SPOTBUGS": "$(rootpath //java/private/quality/tools:spotbugs)",
+    },
     tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
 )

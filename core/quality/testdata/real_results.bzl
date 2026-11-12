@@ -1,6 +1,6 @@
 """Runs the real aspect on a target and checks the result file for strings."""
 
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("//core/quality/testdata:config_subject.bzl", "config_results")
 load("//core/quality/testdata:real_aspect_subject.bzl", "REAL_SUBJECT_BY_CLASS")
 load("//core/quality/testdata:real_typecheck_subject.bzl", "real_typecheck_subject")
@@ -10,7 +10,7 @@ def _quote(s):
     return "'" + s.replace("'", "'\\''") + "'"
 
 def check_args(contains, absent):
-    """Returns real_result_check.sh args; quoted because Bazel shell-tokenizes args."""
+    """Returns real_result_check args; quoted because Bazel shell-tokenizes args."""
     return [_quote("+" + s) for s in contains] + [_quote("-" + s) for s in absent]
 
 def real_result_test(name, target, file_class, config, contains = [], absent = [], typecheck_subject = False, target_compatible_with = None, **flags):
@@ -26,9 +26,9 @@ def real_result_test(name, target, file_class, config, contains = [], absent = [
         tags = ["manual"],
         testonly = True,
     )
-    sh_test(
+    native_test(
         name = name,
-        srcs = ["//core/quality/testdata:real_result_check.sh"],
+        src = "//core/quality:real_result_check",
         args = ["$(rootpaths :" + name + "_results)"] + check_args(contains, absent),
         data = [":" + name + "_results"],
         size = "small",

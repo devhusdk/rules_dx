@@ -1,5 +1,6 @@
 """Test that every test of the calling package is in exactly one named suite."""
 
+load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 
 def _label(rule):
@@ -10,12 +11,11 @@ def _normalize(label):
         return _label(label[1:])
     return label
 
-def suite_membership_test(name, sh_test, views = []):
+def suite_membership_test(name, views = []):
     """Declares a test over every rule declared before it in the package.
 
     Args:
       name: Name of the test.
-      sh_test: The sh_test rule, loaded by the calling BUILD file.
       views: Suites that slice tests already owned by another suite. They do not count towards the one-suite rule.
     """
     rules = native.existing_rules()
@@ -47,9 +47,10 @@ def suite_membership_test(name, sh_test, views = []):
         out = name + "_problems.txt",
         content = sorted(problems) + [""],
     )
-    sh_test(
+    native_test(
         name = name,
-        srcs = ["//core/quality:suite_membership_test.sh"],
-        args = ["$(location :%s_problems)" % name],
+        src = "//core/quality:suite_membership_check",
+        args = ["$(rootpath :%s_problems)" % name],
         data = [":%s_problems" % name],
+        testonly = True,
     )

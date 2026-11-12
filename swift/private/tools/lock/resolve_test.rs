@@ -60,10 +60,15 @@ fn set_named(identity: &str, location: &str) -> tempfile::TempDir {
     dir
 }
 
+/// The swift launcher inside this test's runfiles tree, where it finds the toolchain runfiles.
+fn swift() -> std::path::PathBuf {
+    dx_testing::runfiles_root().join(dx_testing::env_text("SWIFT"))
+}
+
 fn lock(dir: &std::path::Path, archives: &Archives) -> Result<Outcome, Error> {
     let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
     let spec = Swift::spec(hub);
-    let swift = dx_testing::env_file("SWIFT");
+    let swift = swift();
     let resolver = Swift::new(swift, &spec, archives);
     run(&spec, &Args { dir: dir.to_owned(), check: false, upgrade: Vec::new() }, &resolver, &NoFetch)
 }
@@ -161,7 +166,7 @@ fn a_package_with_dependencies_fails() {
     let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
     let spec = Swift::spec(hub);
     let download = Fixed(bytes);
-    let resolver = Swift::new(dx_testing::env_file("SWIFT"), &spec, &download);
+    let resolver = Swift::new(swift(), &spec, &download);
     let error = run(&spec, &Args { dir: dir.path().to_owned(), check: false, upgrade: Vec::new() }, &resolver, &NoFetch).expect_err("refused");
     assert!(error.to_string().contains("declares dependencies"), "{error}");
 }

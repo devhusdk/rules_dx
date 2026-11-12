@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
 load("//erlang:defs.bzl", "erlang_app")
+load("//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
 load("//tools/docs/beam:path_tests.bzl", "beam_shard_path_test")
 load("//tools/docs/erlang:defs.bzl", "erlang_doc_shard")
 
@@ -27,8 +27,8 @@ build_test(
 
 beam_shard_path_test(
     name = "shard_path_test",
-    language = "erlang",
     size = "small",
+    language = "erlang",
     target = ":geometry_docs",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )

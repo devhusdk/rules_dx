@@ -17,30 +17,30 @@ exports_files(
 
 csharp_library(
     name = "core",
-    target_frameworks = ["net10.0"],
     srcs = ["core/Currency.cs"],
+    target_frameworks = ["net10.0"],
 )
 
 csharp_library(
     name = "ledger",
-    target_frameworks = ["net10.0"],
     srcs = [
         "ledger/Account.cs",
         "ledger/Nullable.cs",
         "ledger/Types.cs",
     ],
+    target_frameworks = ["net10.0"],
     deps = [":core"],
 )
 
 csharp_library(
     name = "ledger_extra",
-    target_frameworks = ["net10.0"],
     srcs = [
         "ledger/Account.cs",
         "ledger/Nullable.cs",
         "ledger/Types.cs",
     ],
     defines = ["DX_EXTRA"],
+    target_frameworks = ["net10.0"],
     deps = [":core"],
 )
 

@@ -1,7 +1,7 @@
 """PHP documentation shard aspect."""
 
-load("//php/private/toolchain:php.bzl", _PHP_EXEC_TOOLCHAIN = "EXEC_TOOLCHAIN_TYPE")
 load("//php/private:providers.bzl", _PhpInfo = "PhpInfo")
+load("//php/private/toolchain:php.bzl", _PHP_EXEC_TOOLCHAIN = "EXEC_TOOLCHAIN_TYPE")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/php:defs.bzl", "php_shard_action")
 

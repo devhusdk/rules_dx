@@ -1,5 +1,6 @@
 [default]
 locale = "en"
+extend-ignore-re = ["~2E\\w+"]
 
 [default.extend-words]
 PAKET = "PAKET"

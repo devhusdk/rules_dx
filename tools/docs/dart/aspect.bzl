@@ -1,8 +1,8 @@
 """Dart documentation shard aspect."""
 
+load("@rules_dart//dart:providers.bzl", _DartInfo = "DartInfo")
 load("//tools/docs/dart:defs.bzl", "dart_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
-load("@rules_dart//dart:providers.bzl", _DartInfo = "DartInfo")
 
 _DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
 

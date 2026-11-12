@@ -309,10 +309,10 @@ fn tokens(line: &str) -> impl Iterator<Item = &str> {
 /// The name a `data`, `newtype`, `type` or `class` line declares.
 fn declared_name(words: &[&str], is_class: bool) -> Option<String> {
     let mut rest = words;
-    if is_class || words.contains(&"=>") {
-        if let Some(at) = words.iter().position(|w| *w == "=>") {
-            rest = &words[at + 1..];
-        }
+    if (is_class || words.contains(&"=>"))
+        && let Some(at) = words.iter().position(|w| *w == "=>")
+    {
+        rest = &words[at + 1..];
     }
     let word = rest.first()?;
     let word = word.trim_matches(['(', ')']);

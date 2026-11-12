@@ -1,8 +1,8 @@
 """Python documentation shard aspect."""
 
+load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/python:shard.bzl", "python_package_name_ok", "python_shard_action")
-load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 
 def _python_docs_shard(target, ctx):
     if _PyInfo not in target or DocsShardInfo in target:

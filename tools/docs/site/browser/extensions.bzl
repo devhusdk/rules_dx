@@ -3,9 +3,7 @@
 load("//core:repo.bzl", "hub_repo")
 load(":repos.bzl", "ARTIFACTS", "artifact_errors", "firefox_repo", "hub_build", "repository_name", "url_for")
 
-
 _HUB_NAME = "dx_firefox"
-
 
 def _firefox_impl(module_ctx):
     if len(module_ctx.modules) == 0:
@@ -25,7 +23,6 @@ def _firefox_impl(module_ctx):
         )
     hub_repo(name = _HUB_NAME, files = {"BUILD.bazel": hub_build()})
     return module_ctx.extension_metadata(reproducible = True)
-
 
 firefox = module_extension(
     implementation = _firefox_impl,

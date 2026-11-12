@@ -21,6 +21,7 @@ object Main {
 
     /** Entry point; exits 1 and writes no output when the sources cannot be documented. */
     @JvmStatic
+    @Suppress("TooGenericExceptionCaught")
     fun main(args: Array<String>) {
         exitProcess(
             try {
@@ -88,6 +89,7 @@ object Main {
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun generate(
         sources: List<String>,
         classpath: List<File>,

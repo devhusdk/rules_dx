@@ -206,12 +206,12 @@ fn the_tally_shard_uses_literal_exports_and_its_own_config() {
     );
     assert_eq!(add.examples, ["Add-Tally -Name votes -Count 2"]);
     let tally_config = extension(add, "powershell.config").expect("tally config");
-    assert_config(&tally_config, "", "");
+    assert_config(tally_config, "", "");
     let shard = ledger();
     let ledger_config =
         extension(symbol(&shard, "Add-LedgerEntry"), "powershell.config").expect("ledger config");
     assert_config(
-        &ledger_config,
+        ledger_config,
         &format!("{LEDGER_DIR}/Ledger.psd1"),
         "1.4.0",
     );

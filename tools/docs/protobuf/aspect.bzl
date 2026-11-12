@@ -1,14 +1,14 @@
 """Protobuf documentation shard aspect."""
 
+load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 load("//cli/exec_os:defs.bzl", "ExecOsInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/protobuf:defs.bzl", "PROTO_TOOLCHAIN", "protobuf_shard_action")
-load("@protobuf//bazel/common:proto_info.bzl", _ProtoInfo = "ProtoInfo")
 
 def _protobuf_docs_shard(target, ctx):
-    if _ProtoInfo not in target or DocsShardInfo in target:
+    if ProtoInfo not in target or DocsShardInfo in target:
         return None
-    proto_info = target[_ProtoInfo]
+    proto_info = target[ProtoInfo]
     toolchain = ctx.toolchains[PROTO_TOOLCHAIN]
     if not proto_info.direct_sources or toolchain == None:
         return None

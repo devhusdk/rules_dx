@@ -1,8 +1,8 @@
 """Zig documentation shard aspect."""
 
+load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/zig:defs.bzl", "zig_shard_action")
-load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
 
 def _zig_docs_shard(target, ctx):
     if _ZigModuleInfo not in target or DocsShardInfo in target:

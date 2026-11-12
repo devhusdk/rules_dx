@@ -3,7 +3,6 @@
 load("//core:rlocation.bzl", "rlocation_path")
 load("//tools/docs/ir:shard.bzl", "repo_relative", "srcs_manifest_line")
 
-
 def _import_relative(ctx, file, imports):
     """Returns the path of one file relative to its longest matching import root."""
     path = rlocation_path(ctx, file)

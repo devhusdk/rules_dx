@@ -88,10 +88,9 @@ final class Docs {
     DocCommentTree comment = trees.getDocCommentTree(element);
     TreePath path = trees.getPath(element);
     Doc doc = new Doc();
-    ExecutableElement overridden = null;
     Doc inherited = null;
     if (element instanceof ExecutableElement) {
-      overridden = overridden((ExecutableElement) element);
+      ExecutableElement overridden = overridden((ExecutableElement) element);
       if (overridden != null) {
         inherited = of(overridden);
       }

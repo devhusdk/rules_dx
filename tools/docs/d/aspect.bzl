@@ -1,8 +1,8 @@
 """D documentation shard aspect."""
 
+load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
 load("//tools/docs/d:defs.bzl", "D_TOOLCHAIN", "d_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
-load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
 
 def _d_docs_shard(target, ctx):
     if _DInfo not in target or DocsShardInfo in target:

@@ -1,8 +1,8 @@
 """PowerShell documentation shard aspect."""
 
+load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/powershell:defs.bzl", "powershell_shard_action")
-load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 
 def _powershell_docs_shard(target, ctx):
     if _PwshInfo not in target or DocsShardInfo in target:

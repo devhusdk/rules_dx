@@ -1,8 +1,8 @@
 """C, C++ and CUDA documentation shard aspect."""
 
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//tools/docs/cc:defs.bzl", "cc_shard_action", "doxygen_available")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
-load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
 _CC_DOCS_TOOLCHAIN = "@bazel_tools//tools/cpp:toolchain_type"
 

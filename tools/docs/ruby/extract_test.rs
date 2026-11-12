@@ -281,10 +281,10 @@ fn crlf_sources_yield_the_same_shard() {
     assert_eq!(base.symbols.len(), crlf.symbols.len());
     for (before, after) in base.symbols.iter().zip(&crlf.symbols) {
         let mut after = after.clone();
-        if let Some(source) = after.source.as_mut() {
-            if source.file == CRLF_SHAPES {
-                source.file = SHAPES.to_owned();
-            }
+        if let Some(source) = after.source.as_mut()
+            && source.file == CRLF_SHAPES
+        {
+            source.file = SHAPES.to_owned();
         }
         assert_eq!(before, &after, "{}", before.id);
     }

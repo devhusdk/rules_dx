@@ -1,8 +1,8 @@
 """Elixir and Erlang documentation shard aspect."""
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
-load("//tools/docs/beam:shard.bzl", "ELIXIR_DUMP_TOOL", "ELIXIR_TOOLCHAIN", "ESCRIPT_TOOL", "OTP_TOOLCHAIN")
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE")
+load("//tools/docs/beam:shard.bzl", "ELIXIR_DUMP_TOOL", "ELIXIR_TOOLCHAIN", "ESCRIPT_TOOL", "OTP_TOOLCHAIN")
 load("//tools/docs/elixir:defs.bzl", "elixir_shard_action")
 load("//tools/docs/erlang:defs.bzl", "erlang_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")

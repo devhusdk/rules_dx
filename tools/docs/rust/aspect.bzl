@@ -1,8 +1,8 @@
 """Rust documentation shard aspect."""
 
+load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/rust:defs.bzl", "rust_doc_inputs_aspect", "rust_shard_action")
-load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
 
 _RUST_DOCS_TOOLCHAIN = str(Label("@rules_rust//rust:toolchain_type"))
 _CC_DOCS_TOOLCHAIN = "@bazel_tools//tools/cpp:toolchain_type"

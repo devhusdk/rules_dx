@@ -1,7 +1,5 @@
 """TypeScript DocIr shard action shared by the rule and the docs aspect."""
 
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
-
 TYPEDOC_JSON_SCHEMA = "2.0"
 
 def typedoc_arguments(tsconfig, package, json, entry_points, options, base_path = "."):

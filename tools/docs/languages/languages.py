@@ -160,8 +160,8 @@ def parts(match):
 
 def dedent(text):
     lines = text.strip("\n").splitlines()
-    margin = min((len(l) - len(l.lstrip()) for l in lines[1:] if l.strip()), default=0)
-    return "\n".join([lines[0].strip()] + [l[margin:].rstrip() for l in lines[1:]]).strip() if lines else ""
+    margin = min((len(line) - len(line.lstrip()) for line in lines[1:] if line.strip()), default=0)
+    return "\n".join([lines[0].strip()] + [line[margin:].rstrip() for line in lines[1:]]).strip() if lines else ""
 
 
 def attrs_of(call):

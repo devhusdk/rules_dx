@@ -32965,7 +32965,7 @@
     "coverlet_launcher 0.0.0": "dotnet/private/coverlet_launcher",
     "csharp_roslyn_fixture 0.0.0": "csharp/tests/fixtures/csharp_roslyn_fixture",
     "cuda_tests 0.0.0": "cuda/cuda_tests",
-    "d_coverage_launcher 0.0.0": "tools/coverage/d_coverage_launcher",
+    "d_coverage_launcher 0.0.0": "d/private/d_coverage_launcher",
     "d_extract 0.0.0": "tools/docs/d/d_extract",
     "dart_extract 0.0.0": "tools/docs/dart/dart_extract",
     "dart_tools 0.0.0": "dart/private/dart_tools",

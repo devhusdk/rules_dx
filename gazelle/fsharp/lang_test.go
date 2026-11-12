@@ -740,3 +740,20 @@ func TestGenerateSkipsSourceNamedByHandwrittenRule(t *testing.T) {
 		t.Errorf("library srcs = %q, want Demo.fs", got)
 	}
 }
+
+func TestGenerateSkipsSourcesNamedByHandwrittenTest(t *testing.T) {
+	result := generateWithBuild(t, map[string]string{
+		"pkg/demo/Greeter.fs":         "module Greeter\n\nlet greet x = x\n",
+		"pkg/demo/GreeterTest.fs":     "module GreeterTest\n\nlet t = Greeter.greet 1\n",
+		"pkg/demo/XunitEntryPoint.fs": "module XunitEntryPoint\n\n[<EntryPoint>]\nlet main _ = 0\n",
+	}, []string{"Greeter.fs", "GreeterTest.fs", "XunitEntryPoint.fs"}, "fsharp_test(name = \"greeter_test\", srcs = [\"GreeterTest.fs\", \"XunitEntryPoint.fs\"])\n")
+	var libs []string
+	for _, r := range result.Gen {
+		if r.Kind() == LibraryKind {
+			libs = append(libs, strings.Join(r.AttrStrings("srcs"), ","))
+		}
+	}
+	if len(libs) != 1 || libs[0] != "Greeter.fs" {
+		t.Errorf("library srcs = %q, want [Greeter.fs]", libs)
+	}
+}

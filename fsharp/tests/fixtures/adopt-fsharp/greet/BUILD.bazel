@@ -5,6 +5,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 fsharp_test(
     name = "greet_test",
+    size = "small",
     srcs = ["GreetTest.fs"],
     deps = [
         ":greet",

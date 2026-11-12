@@ -108,6 +108,24 @@ func testOwners(file *rule.File, other []*rule.Rule, t *TestSpec, tests []string
 	return owned
 }
 
+// handwrittenTestSources returns the local srcs of the handwritten rules of
+// the generated test kind in file.
+func handwrittenTestSources(file *rule.File, t *TestSpec) map[string]bool {
+	named := make(map[string]bool)
+	if file == nil || t == nil {
+		return named
+	}
+	for _, r := range file.Rules {
+		if !t.generatedKind(r.Kind()) || t.generatedTest(r) {
+			continue
+		}
+		for _, src := range r.AttrStrings("srcs") {
+			named[strings.TrimPrefix(src, ":")] = true
+		}
+	}
+	return named
+}
+
 // ownsGeneratedTest is the stale-sweep guard for generators with a TestSpec:
 // a rule of the test kind is removed only when generation could have produced
 // it, and every other kind keeps the plain sweep.

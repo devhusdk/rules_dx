@@ -431,6 +431,9 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		}
 	}
 	claimed := handwrittenSources(args.File, kinds)
+	for src := range handwrittenTestSources(args.File, spec.Tests) {
+		claimed[src] = true
+	}
 	sources = slices.DeleteFunc(sources, func(name string) bool { return claimed[name] })
 	headers = slices.DeleteFunc(headers, func(name string) bool { return claimed[name] })
 	sort.Strings(sources)

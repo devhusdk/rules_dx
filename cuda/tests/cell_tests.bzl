@@ -1,7 +1,7 @@
 """Analysis tests for which platform and compiler combinations accept CUDA targets."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//cuda:defs.bzl", "CUDA_TARGET")
+load("//cuda/private:defs.bzl", "CUDA_TARGET")
 
 _COMPILER = str(Label("//cc:compiler"))
 _INCOMPATIBLE = [str(Label("@platforms//:incompatible"))]

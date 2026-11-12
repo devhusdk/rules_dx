@@ -1,5 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//fortran:defs.bzl", "FORTRAN_COMPATIBLE_WITH", "fortran_binary", "fortran_library", "fortran_test")
+load("//fortran:defs.bzl", "fortran_binary", "fortran_library", "fortran_test")
+load("//fortran/private:defs.bzl", "FORTRAN_COMPATIBLE_WITH")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
 package(

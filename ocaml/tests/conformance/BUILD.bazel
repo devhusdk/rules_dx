@@ -1,5 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//ocaml:defs.bzl", "OCAML_COMPATIBLE_WITH", "ocaml_binary", "ocaml_module", "ocaml_test")
+load("//ocaml:defs.bzl", "ocaml_binary", "ocaml_module", "ocaml_test")
+load("//ocaml/private:defs.bzl", "OCAML_COMPATIBLE_WITH")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
 package(

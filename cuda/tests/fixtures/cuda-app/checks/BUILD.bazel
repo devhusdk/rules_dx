@@ -1,5 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//cuda:defs.bzl", "CUDA_TARGET")
+load("//cuda/private:defs.bzl", "CUDA_TARGET")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:test_macros.bzl", "CLANG_FORMAT_ARGS", "dx_format_test")
 

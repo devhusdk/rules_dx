@@ -1,4 +1,4 @@
-load("//cc:defs.bzl", "CC_COVERAGE_INPUTS")
+load("//cc/private:defs.bzl", "CC_COVERAGE_INPUTS")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal", "expect_true")
 load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")

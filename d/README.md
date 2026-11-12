@@ -16,25 +16,22 @@ Run `dx init --apply demo-app` and add sources. The language is wired when
 its sources appear.
 
 ```python
-load("@rules_dx//d:defs.bzl", "D_COMPATIBLE_WITH", "d_binary", "d_library", "d_test")
+load("@rules_dx//d:defs.bzl", "d_binary", "d_library", "d_test")
 
 d_library(
     name = "greet",
     srcs = ["greet.d"],
-    target_compatible_with = D_COMPATIBLE_WITH,
 )
 
 d_binary(
     name = "hello",
     srcs = ["main.d"],
-    target_compatible_with = D_COMPATIBLE_WITH,
     deps = [":greet"],
 )
 
 d_test(
     name = "greet_test",
     srcs = ["greet.d"],
-    target_compatible_with = D_COMPATIBLE_WITH,
 )
 ```
 
@@ -50,7 +47,7 @@ d_test(
 - `d_fuzz_test` builds `srcs` with `-fsanitize=fuzzer,address` for `dx fuzz`.
   Define `LLVMFuzzerTestOneInput`, for example with `ldc.libfuzzer`'s
   `DefineTestOneInput`. It adds the `<name>_run` runner.
-- `D_COMPATIBLE_WITH` covers every pinned LDC cell: linux x86_64, linux arm64, macOS arm64,
+- Every D target covers every pinned LDC cell: linux x86_64, linux arm64, macOS arm64,
   Windows x86_64 and Windows arm64. windows_arm64 runs the x64 LDC under emulation. Both Windows
   cells constrain on the `@llvm//constraints/windows/abi:msvc` ABI, because LDC's prebuilt runtime
   is MSVC-ABI.

@@ -1,7 +1,8 @@
 # gazelle:ignore
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_swift//swift:swift_interop_hint.bzl", "swift_interop_hint")
-load("//apple:defs.bzl", "APPLE_HOSTS", "apple_ios_app", "apple_ios_app_test")
+load("//apple:defs.bzl", "apple_ios_app", "apple_ios_app_test")
+load("//apple/private/ios:cell.bzl", "APPLE_HOSTS")
 load("//cc:defs.bzl", "cc_library")
 load("//rust:defs.bzl", "rust_static_library")
 load("//swift:defs.bzl", "swift_library")

@@ -1,5 +1,5 @@
 load("@rules_dx//cc:defs.bzl", "cc_binary", "cc_test")
-load("@rules_dx//cuda:defs.bzl", "CUDA_TARGET", "cuda_library")
+load("@rules_dx//cuda:defs.bzl", "cuda_library")
 
 cuda_library(
     name = "demo-app",
@@ -17,7 +17,6 @@ cuda_library(
 cc_binary(
     name = "demo-app_bin",
     srcs = ["main.cc"],
-    target_compatible_with = CUDA_TARGET,
     deps = [":demo-app"],
 )
 
@@ -25,6 +24,5 @@ cc_binary(
 cc_test(
     name = "demo-app_test",
     srcs = ["scale_test.cc"],
-    target_compatible_with = CUDA_TARGET,
     deps = [":demo-app"],
 )

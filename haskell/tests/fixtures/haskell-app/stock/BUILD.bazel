@@ -1,5 +1,5 @@
 load("@rules_dx//cc:defs.bzl", "cc_library")
-load("@rules_dx//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library", "haskell_test")
+load("@rules_dx//haskell:defs.bzl", "haskell_library", "haskell_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//haskell/tests/fixtures/haskell-app:__subpackages__"])
@@ -21,14 +21,12 @@ genrule(
     srcs = ["VERSION"],
     outs = ["Stock/Version.hs"],
     cmd = "printf 'module Stock.Version (version) where\\n\\nversion :: String\\nversion = \"%s\"\\n' \"$$(tr -d '\\n' < $<)\" > $@",
-    target_compatible_with = HASKELL_COMPATIBLE_WITH,
 )
 
 cc_library(
     name = "checksum",
     srcs = ["cbits/checksum.c"],
     hdrs = ["cbits/checksum.h"],
-    target_compatible_with = HASKELL_COMPATIBLE_WITH,
 )
 
 haskell_library(
@@ -37,7 +35,6 @@ haskell_library(
         "src/Stock.hs",
         ":version_hs",
     ],
-    target_compatible_with = HASKELL_COMPATIBLE_WITH,
     visibility = ["//haskell/tests/fixtures/haskell-app:__subpackages__"],
     deps = [
         ":checksum",
@@ -49,7 +46,6 @@ haskell_library(
 haskell_test(
     name = "stock_test",
     srcs = ["test/StockTest.hs"],
-    target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":stock",
         "@dx_haskell_toolchains//:base",

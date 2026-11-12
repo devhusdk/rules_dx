@@ -15,7 +15,7 @@ MACH_O_PLATFORMS = {
 }
 
 PLATFORM_SUPPORT = platform_support(
-    "//apple:defs.bzl",
+    "//apple/private/ios:cell.bzl",
     "APPLE_HOSTS",
     [["@platforms//os:ios"], ["@platforms//os:macos"]],
     [Label("@platforms//os:ios"), Label("@platforms//os:macos")],

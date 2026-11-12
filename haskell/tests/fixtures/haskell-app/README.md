@@ -39,5 +39,4 @@ BSD-3-Clause. Refresh the pin with
 without declaring the dependency. It is tagged `manual`, and building it fails
 with `Could not find module`.
 
-The example is qualified on `linux_x86_64` only. Targets carry
-`HASKELL_COMPATIBLE_WITH` and are skipped elsewhere.
+The example is qualified on `linux_x86_64` only. Targets are skipped elsewhere.

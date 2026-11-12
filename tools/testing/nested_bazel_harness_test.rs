@@ -45,6 +45,10 @@ fn seeded_consumer_resolves_python_interpreters_offline() {
 #[cfg(target_os = "linux")]
 #[test]
 fn swift_extension_resolves_without_patched_rules_swift() {
+    // #12261
+    if nested::recording() {
+        return;
+    }
     let (case, _) = locked_consumer("swift_linux");
     let run = case.bazel(&[
         "mod",

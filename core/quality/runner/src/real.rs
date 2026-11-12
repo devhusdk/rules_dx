@@ -637,6 +637,10 @@ impl RealBackend {
                 env.push((OsString::from(name), home.clone().into_os_string()));
             }
             if let Some(root) = std::env::var_os("SystemRoot") {
+                // The analysis server spawns child processes, which need PATH set.
+                let system32 = Path::new(&root).join("System32").into_os_string();
+                env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
+                env.push((OsString::from("PATH"), system32));
                 env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("SystemRoot"));
                 env.push((OsString::from("SystemRoot"), root));
             }

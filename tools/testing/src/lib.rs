@@ -15,7 +15,7 @@ pub mod exec_log;
 pub mod fatbin;
 pub mod http;
 
-pub use dx_binfmt::{machine as image_machine, machines as image_machines};
+pub use dx_binfmt::{inspect as image_inspect, machine as image_machine, machines as image_machines};
 
 pub use serde_json;
 

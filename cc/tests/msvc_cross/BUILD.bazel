@@ -1,10 +1,7 @@
-load("@crates//:crates.bzl", "aliases")
 load("@rules_cc//cc:defs.bzl", "cc_shared_library")
 load("//cc:defs.bzl", "cc_binary", "cc_library")
 load("//cc/private/toolchains:action_tests.bzl", "cc_msvc_arm64_action_tests")
-load("//cc/private/toolchains:select.bzl", "cc_toolchain_files")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_test")
 
 package(default_testonly = True)
 
@@ -66,97 +63,10 @@ cc_binary(
     ],
 )
 
-filegroup(
-    name = "objects",
-    srcs = [
-        ":add_c",
-        ":greet_static",
-    ],
-    output_group = "compilation_outputs",
-    tags = ["manual"],
-    target_compatible_with = _WINDOWS,
-)
-
-_ARTIFACTS = [
-    ":add_c",
-    ":app",
-    ":greet_dll",
-    ":greet_static",
-    ":objects",
-]
-
-cc_toolchain_files(
-    name = "arm64",
-    srcs = _ARTIFACTS,
-    compiler = "msvc",
-    platforms = ["//tools/platforms:windows_arm64"],
-    target_compatible_with = [
-        "@platforms//os:windows",
-        "@platforms//cpu:x86_64",
-    ],
-)
-
-cc_toolchain_files(
-    name = "x64",
-    srcs = _ARTIFACTS,
-    compiler = "msvc",
-    platforms = ["//tools/platforms:windows_x86_64"],
-    target_compatible_with = [
-        "@platforms//os:windows",
-        "@platforms//cpu:x86_64",
-    ],
-)
-
 cc_msvc_arm64_action_tests(
     name = "msvc_arm64_action_test",
     compile_target = ":greet_static",
     link_target = ":app",
-)
-
-rust_test(
-    name = "cross_arm64_test",
-    testonly = True,
-    srcs = [
-        "check.rs",
-        "cross_arm64_test.rs",
-    ],
-    aliases = aliases(
-        package_name = "cc/tests/cc_tests_msvc_cross",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "cross_arm64_test",
-    crate_root = "cross_arm64_test.rs",
-    data = [":arm64"],
-    env = {"MSVC_ARM64": "$(rootpaths :arm64)"},
-    target_compatible_with = [
-        "@platforms//os:windows",
-        "@platforms//cpu:x86_64",
-    ],
-    deps = ["//tools/testing:dx_testing"],
-)
-
-rust_test(
-    name = "cross_x64_test",
-    testonly = True,
-    srcs = [
-        "check.rs",
-        "cross_x64_test.rs",
-    ],
-    aliases = aliases(
-        package_name = "cc/tests/cc_tests_msvc_cross",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "cross_x64_test",
-    crate_root = "cross_x64_test.rs",
-    data = [":x64"],
-    env = {"MSVC_X64": "$(rootpaths :x64)"},
-    target_compatible_with = [
-        "@platforms//os:windows",
-        "@platforms//cpu:x86_64",
-    ],
-    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(
@@ -164,11 +74,4 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-)
-
-real_source_target(
-    name = "corpus_toml",
-    testonly = True,
-    tags = ["corpus"],
-    toml_srcs = ["Cargo.toml"],
 )

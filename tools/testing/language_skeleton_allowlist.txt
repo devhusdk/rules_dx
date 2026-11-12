@@ -125,7 +125,6 @@ fixture-name cc/tests/fixtures/cpp-app
 fixture-name cc/tests/gcc_cross
 fixture-name cc/tests/gcc_linux_arm64
 fixture-name cc/tests/gcc_linux_x86_64
-fixture-name cc/tests/llvm_cross
 fixture-name cc/tests/msvc_cross
 fixture-name cc/tests/msvc_x86_64
 fixture-name cc/tests/tags
@@ -139,7 +138,6 @@ fixture-name cuda/tests/fixtures/cuda-app
 fixture-name d/tests/fixtures/d-app
 fixture-name dart/tests/bench
 fixture-name dart/tests/codegen
-fixture-name dart/tests/cross
 fixture-name dart/tests/fixtures/adopt-dart
 fixture-name dart/tests/fixtures/dart-app
 fixture-name dart/tests/negative

@@ -541,7 +541,6 @@ test_suite(
         "//cc/private/toolchains/msvc:msvc_x64_x64_toolchain",
         "//cc/tests/fixtures/hello:toolchain_action_tests",
         "//cc/tests/fixtures/msvc_shared:toolchain_action_tests",
-        "//cc/tests/gcc_cross:cross_arm64_test",
         "//cc/tests/gcc_linux_x86_64:all",
         "//cc/tests/msvc_x86_64:all",
         "//tools/coverage/collect:gcov_native_test",

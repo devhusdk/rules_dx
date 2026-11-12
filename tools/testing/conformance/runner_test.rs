@@ -4,6 +4,10 @@ fn subject_matches_mode() {
     let key = std::env::var("DX_CONFORMANCE_SUBJECT").expect("DX_CONFORMANCE_SUBJECT must be set");
     let text = std::env::var("DX_CONFORMANCE_TEXT").unwrap_or_default();
     let pattern = std::env::var("DX_CONFORMANCE_PATTERN").unwrap_or_else(|_| "{case}".to_owned());
+    if mode == "cross" {
+        assert_image(&key, &text);
+        return;
+    }
     let mut subject = None;
     let mut subject_env = Vec::new();
     let mut subject_key = String::new();
@@ -226,6 +230,55 @@ fn subject_matches_mode() {
         }
         other => panic!("unknown DX_CONFORMANCE_MODE {other}"),
     }
+}
+
+fn expected_image(platform: &str) -> (&'static str, &'static str) {
+    let (os, cpu) = platform
+        .split_once('_')
+        .unwrap_or_else(|| panic!("unknown platform {platform}"));
+    let format = match os {
+        "linux" => "elf",
+        "macos" => "macho",
+        "windows" => "pe",
+        _ => panic!("unknown platform {platform}"),
+    };
+    let machine = match cpu {
+        "arm64" => "aarch64",
+        "x86_64" => "x86_64",
+        _ => panic!("unknown platform {platform}"),
+    };
+    (format, machine)
+}
+
+fn assert_image(key: &str, platform: &str) {
+    let (format, machine) = expected_image(platform);
+    let mut seen = Vec::new();
+    for entry in key.split(' ').filter(|entry| !entry.is_empty()) {
+        let path = dx_testing::rlocation(entry).expect("subject must resolve from runfiles");
+        let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
+        match dx_testing::image_inspect(&bytes) {
+            Ok(images) => {
+                assert!(!images.is_empty(), "{entry}: no image");
+                for image in images {
+                    assert_eq!(
+                        (image.format.name(), image.machine.as_str()),
+                        (format, machine),
+                        "{entry}: format and machine for {platform}"
+                    );
+                }
+                return;
+            }
+            Err(error) => seen.push(format!("{entry}: {error}")),
+        }
+    }
+    panic!("no binary image among the subject files: {seen:?}");
+}
+
+#[test]
+fn expected_image_names_format_and_machine() {
+    assert_eq!(expected_image("linux_arm64"), ("elf", "aarch64"));
+    assert_eq!(expected_image("macos_arm64"), ("macho", "aarch64"));
+    assert_eq!(expected_image("windows_x86_64"), ("pe", "x86_64"));
 }
 
 fn failure_line(pattern: &str, case: &str) -> String {

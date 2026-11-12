@@ -1,5 +1,5 @@
 {
-  "checksum": "dd8da4b210850f3757c9b908f286d7cb0e597ce4382a7cd7b47090ac9e3a53ca",
+  "checksum": "4e7d6e132609c6a8e03a99474e3277f57f33acfb6efba8beba02a298fa4abcea",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3084,19 +3084,6 @@
       "targets": [],
       "version": "0.0.0"
     },
-    "cc_tests_gcc_cross 0.0.0": {
-      "common_attrs": {
-        "edition": "2024"
-      },
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "cc_tests_gcc_cross",
-      "repository": null,
-      "targets": [],
-      "version": "0.0.0"
-    },
     "cc_tests_gcc_linux_arm64 0.0.0": {
       "common_attrs": {
         "edition": "2024"
@@ -3119,32 +3106,6 @@
         "Apache-2.0"
       ],
       "name": "cc_tests_gcc_linux_x86_64",
-      "repository": null,
-      "targets": [],
-      "version": "0.0.0"
-    },
-    "cc_tests_llvm_cross 0.0.0": {
-      "common_attrs": {
-        "edition": "2024"
-      },
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "cc_tests_llvm_cross",
-      "repository": null,
-      "targets": [],
-      "version": "0.0.0"
-    },
-    "cc_tests_msvc_cross 0.0.0": {
-      "common_attrs": {
-        "edition": "2024"
-      },
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "cc_tests_msvc_cross",
       "repository": null,
       "targets": [],
       "version": "0.0.0"
@@ -32559,11 +32520,8 @@
     "cc_context 0.0.0": "cc/private/cc_context",
     "cc_extract 0.0.0": "tools/docs/cc/cc_extract",
     "cc_tests 0.0.0": "cc/cc_tests",
-    "cc_tests_gcc_cross 0.0.0": "cc/tests/cc_tests_gcc_cross",
     "cc_tests_gcc_linux_arm64 0.0.0": "cc/tests/cc_tests_gcc_linux_arm64",
     "cc_tests_gcc_linux_x86_64 0.0.0": "cc/tests/cc_tests_gcc_linux_x86_64",
-    "cc_tests_llvm_cross 0.0.0": "cc/tests/cc_tests_llvm_cross",
-    "cc_tests_msvc_cross 0.0.0": "cc/tests/cc_tests_msvc_cross",
     "cc_tests_msvc_x86_64 0.0.0": "cc/tests/cc_tests_msvc_x86_64",
     "ci_coverage_cells 0.0.0": "tools/ci/ci_coverage_cells",
     "ci_docs_scope 0.0.0": "tools/ci/ci_docs_scope",

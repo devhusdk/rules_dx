@@ -51,6 +51,7 @@ dx_conformance_suite(
     failing_case = "failing_case",
     failing_test = ":fail_subject_test",
     lang = "dart",
+    not_applicable = {"cross_test:windows_x86_64": "dart supports no other windows platform"},
     passing_test = ":pass_subject_test",
     size = "small",
 )

@@ -1,13 +1,11 @@
 # gazelle:dx_rust_corpus false
 
-load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
 load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_erlc_opts")
 load("//erlang/tests/negative:negative_tests.bzl", "erlc_input_test", "erlc_warnings_as_errors_test", "erlc_warnings_flag_off_test")
 
 erlang_app(
     app_name = "needs_dep",
     app_version = "1.0.0",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
     deps = ["//erlang/tests/negative/base_dep:erlang_app"],
 )
 
@@ -25,7 +23,6 @@ erlang_bytecode(
     name = "strict_bytecode",
     srcs = glob(["src/*.erl"]),
     dest = "strict",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
     warnings_as_errors = True,
     deps = ["//erlang/tests/negative/base_dep:erlang_app"],
 )
@@ -50,7 +47,6 @@ erlang_bytecode(
     dest = "bytecode",
     erlc_opts = ":strict_erlc_opts",
     tags = ["manual"],
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
     deps = ["//erlang/tests/negative/base_dep:erlang_app"],
 )
 
@@ -70,7 +66,6 @@ erlang_bytecode(
     dest = "lenient",
     erlc_opts = ":strict_erlc_opts",
     tags = ["manual"],
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
     warnings_as_errors = False,
     deps = ["//erlang/tests/negative/base_dep:erlang_app"],
 )

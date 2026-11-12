@@ -1,6 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_escript_archive", "elixir_escript_headers", "elixir_test")
+load("@rules_dx//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 
 exports_files(
     glob([
@@ -15,7 +15,6 @@ elixir_app(
     app_description = "Command-line client for the stock ledger.",
     app_name = "stockctl",
     app_version = "1.0.0",
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
     deps = ["//elixir/tests/fixtures/elixir_app/stock:erlang_app"],
 )
 
@@ -32,7 +31,6 @@ elixir_test(
         "test/stockctl_test.exs",
         "test/test_helper.exs",
     ],
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
     tools = [":stockctl"],
     deps = [":erlang_app"],
 )

@@ -10,7 +10,6 @@ elixir_app(
     srcs = ["lib/geometry.ex"],
     app_name = "geometry",
     app_version = "1.0.0",
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )
 
 elixir_doc_shard(

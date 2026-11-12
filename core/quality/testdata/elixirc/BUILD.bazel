@@ -1,4 +1,3 @@
-load("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("//elixir:defs.bzl", "elixir_app")
 
 package(default_visibility = ["//core/quality/testdata:__pkg__"])
@@ -7,6 +6,5 @@ elixir_app(
     name = "elixir_unused",
     app_name = "dx_elixirc_unused",
     app_version = "1.0.0",
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
     warnings_as_errors = False,
 )

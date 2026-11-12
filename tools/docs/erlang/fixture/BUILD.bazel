@@ -11,7 +11,6 @@ erlang_app(
     app_description = "Area helpers for simple shapes.",
     app_name = "geometry",
     app_version = "1.0.0",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
 erlang_doc_shard(

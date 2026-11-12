@@ -1,6 +1,5 @@
 # gazelle:dx_rust_corpus false
 
-load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
 load("@rules_dx//erlang:defs.bzl", "erlang_app")
 load("//erlang/tests/negative:negative_tests.bzl", "erlc_input_test")
 
@@ -8,7 +7,6 @@ erlang_app(
     app_name = "needs_dep",
     app_version = "1.0.0",
     tags = ["manual"],
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
 erlc_input_test(

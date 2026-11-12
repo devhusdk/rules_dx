@@ -1,6 +1,5 @@
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
 load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bench", "erlang_test_app")
 
 exports_files(
@@ -15,20 +14,17 @@ erlang_app(
     app_description = "Sums a list two ways.",
     app_name = "sum",
     app_version = "1.0.0",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
 erlang_test_app(
     app_description = "Sums a list two ways.",
     app_name = "sum",
     app_version = "1.0.0",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
 erlang_bench(
     name = "sum_bench_SUITE",
     app_name = "sum",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
 real_source_target(

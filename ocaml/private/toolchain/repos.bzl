@@ -143,6 +143,7 @@ def _install_package(rctx, package):
     rctx.download(url = package.archive.urls, output = "_conda/" + stem + ".conda", sha256 = package.archive.sha256)
     rctx.extract("_conda/" + stem + ".conda", output = "_conda/" + stem, type = "zip")
     rctx.extract("_conda/" + stem + "/pkg-" + stem + ".tar.zst", output = ".")
+    rctx.extract("_conda/" + stem + "/pkg-" + stem + ".tar.zst", output = "_conda/" + stem + "/copy")
     rctx.extract("_conda/" + stem + "/info-" + stem + ".tar.zst", output = "_conda/" + stem + "/info")
     info = "_conda/" + stem + "/info/info/"
     paths = json.decode(rctx.read(info + "paths.json"))["paths"]
@@ -155,6 +156,21 @@ def _install_package(rctx, package):
             continue
         path = entry["_path"]
         rctx.file(path, rctx.read(path).replace(placeholder, relative_prefix(path)), executable = path.startswith("bin/"))
+    root = str(rctx.path("."))
+    for entry in paths:
+        if entry.get("path_type") != "softlink":
+            continue
+        real = str(rctx.path(entry["_path"]).realpath)
+        if not real.startswith(root + "/") or "/_conda/" in real:
+            continue
+        source = "_conda/" + stem + "/copy/" + real[len(root) + 1:]
+        if rctx.path(source).exists and not rctx.path(source).is_dir:
+            rctx.delete(entry["_path"])
+            rctx.rename(source, entry["_path"])
+            rctx.extract("_conda/" + stem + "/pkg-" + stem + ".tar.zst", output = "_conda/" + stem + "/copy")
+    missing = [entry["_path"] for entry in paths if not rctx.path(entry["_path"]).exists]
+    if missing:
+        fail("OCaml package " + package.name + " is missing " + repr(missing) + " after extraction")
     rctx.file(package.license_file, rctx.read(info + "licenses/LICENSE"))
 
 def _dist_impl(rctx):

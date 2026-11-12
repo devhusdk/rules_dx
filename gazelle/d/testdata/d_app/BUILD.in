@@ -1,1 +1,1 @@
-# gazelle:dx_external dub dub.json d_app_deps
+# gazelle:dx_external dub dub.lock.json d_app_deps

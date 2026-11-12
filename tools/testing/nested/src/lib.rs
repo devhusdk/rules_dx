@@ -636,6 +636,9 @@ fn alive_unix(pid: u32) -> bool {
     if !signal::alive(pid) {
         return false;
     }
+    if cfg!(windows) {
+        return true;
+    }
     match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
         Ok(stat) => !stat
             .rsplit_once(')')
@@ -1128,6 +1131,9 @@ fn bazel_command_at(home: &Path, root: &Path, args: &[&str], envs: &[(&str, &str
 /// Names the environment variable that makes the shim watch an owner pid instead of running Bazel.
 const REAP_ENV: &str = "DX_NESTED_REAP";
 
+/// Names the file in the slot home that receives the reaper's stderr.
+const REAPER_LOG: &str = "reaper.log";
+
 /// Starts a detached shim that sweeps the slot's workspaces once `owner` is gone, however it died.
 #[cfg(unix)]
 fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
@@ -1138,7 +1144,7 @@ fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
         .arg(&workspaces)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stderr(reaper_log(home))
         .process_group(0)
         .spawn()
         .ok()
@@ -1155,10 +1161,17 @@ fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
         .arg(&workspaces)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stderr(reaper_log(home))
         .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
         .spawn()
         .ok()
+}
+
+/// Opens the reaper's stderr log in the slot home, truncated on each acquire.
+#[cfg(any(unix, windows))]
+fn reaper_log(home: &Path) -> std::process::Stdio {
+    std::fs::File::create(home.join(REAPER_LOG))
+        .map_or_else(|_| std::process::Stdio::null(), Into::into)
 }
 
 #[cfg(not(any(unix, windows)))]
@@ -1176,8 +1189,19 @@ fn reap(owner: &str, workspaces: &Path) -> i32 {
         std::thread::sleep(Duration::from_secs(1));
     }
     let real = std::fs::canonicalize(workspaces).unwrap_or_else(|_| workspaces.to_path_buf());
-    kill_servers_in_workspaces(workspaces);
-    kill_servers_in_workspaces(&real);
+    eprintln!(
+        "nested bazel reaper: owner {owner} is gone; sweeping {} and {}",
+        workspaces.display(),
+        real.display()
+    );
+    for root in [workspaces, real.as_path()] {
+        let seen = servers_in_workspaces(root);
+        let left = kill_servers_in_workspaces(root);
+        eprintln!(
+            "nested bazel reaper: {}: saw {seen:?}, survivors {left:?}",
+            root.display()
+        );
+    }
     0
 }
 
@@ -2849,11 +2873,29 @@ mod portable_tests {
         });
         let mut reaper = spawn_reaper(&runfile("DX_TEST_NESTED_BAZEL_SHIM"), owner.id(), &home)
             .expect("reaper");
+        let log = || std::fs::read_to_string(home.join(REAPER_LOG)).unwrap_or_default();
         std::thread::sleep(Duration::from_millis(1500));
+        let early = reaper.try_wait();
+        assert!(
+            matches!(early, Ok(None)),
+            "the reaper exited before the owner did: {early:?}\nreaper.log:\n{}",
+            log()
+        );
         assert!(alive(pid));
         owner.kill().expect("kill owner");
         let _ = owner.wait();
-        wait_until("the reaper to stop the stand-in", &|| !alive(pid));
+        let started = Instant::now();
+        while alive(pid) {
+            if started.elapsed() >= Duration::from_secs(30) {
+                panic!(
+                    "timed out waiting for the reaper to stop the stand-in\nreaper: {:?}\nreaper.log:\n{}\nservers_in_workspaces: {:?}",
+                    reaper.try_wait(),
+                    log(),
+                    servers_in_workspaces(&workspaces)
+                );
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
         let _ = stray.wait();
         let _ = reaper.wait();
     }

@@ -57,7 +57,7 @@ def _entry_runfiles(ctx):
     ctx.actions.symlink(output = link, target_file = entries[0])
     return ctx.runfiles(files = [link])
 
-_LUA = dx_language_spec(what = "lua_binary", quality_specs = LUA_SOURCE_SPECS, allow_files = [".lua"])
+_LUA = dx_language_spec(what = "lua_*", quality_specs = LUA_SOURCE_SPECS, allow_files = [".lua"])
 
 _lua_binary_forward = dx_executable_forward_rule(
     _LUA,
@@ -69,7 +69,6 @@ _lua_binary_forward = dx_executable_forward_rule(
 _lua_forward_test = dx_executable_forward_rule(
     _LUA,
     kind = "test",
-    what = "lua_test",
     coverage_runfiles = _entry_runfiles,
     extra_attrs = dx_lcov_merger_attr(),
     runtime = "mandatory",

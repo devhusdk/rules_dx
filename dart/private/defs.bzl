@@ -20,7 +20,7 @@ DART_COMPATIBLE_WITH = compatible_with(DART_SUPPORT)
 
 DART_QUALITY_TOOLS = {"dart": Label("//dart/private/tools:dart")}
 
-_DART = dx_language_spec(what = "dart_library", quality_specs = DART_SOURCE_SPECS, allow_files = DART_SOURCE_EXTS, quality_tools = DART_QUALITY_TOOLS)
+_DART = dx_language_spec(what = "dart_*", quality_specs = DART_SOURCE_SPECS, allow_files = DART_SOURCE_EXTS, quality_tools = DART_QUALITY_TOOLS)
 
 _dart_library_forward = dx_library_forward_rule(
     _DART,
@@ -35,7 +35,6 @@ _dart_binary_forward = dx_executable_forward_rule(
     kind = "executable",
     provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, DartCompileInfo, QualityToolsInfo],
     required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo"), (DartCompileInfo, "DartCompileInfo")],
-    what = "dart_binary",
     upstream_providers = [[DartAnalyzableInfo, DartCompileInfo]],
 )
 
@@ -43,7 +42,6 @@ _dart_web_forward = dx_library_forward_rule(
     _DART,
     provides = [DartAnalyzableInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
     required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
-    what = "dart web binary",
     upstream_providers = [[DartAnalyzableInfo]],
     runtime = "besteffort",
 )
@@ -53,7 +51,6 @@ _dart_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, QualityToolsInfo],
     required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
-    what = "dart_test",
     upstream_providers = [[DartAnalyzableInfo]],
     extra_attrs = dx_lcov_merger_attr(),
 )

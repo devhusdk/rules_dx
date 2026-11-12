@@ -44,7 +44,7 @@ def _beam_info(ctx, upstream):
         objects_lists = depset(transitive = [nif.objects_lists for nif in nifs]),
     ), beam_info(upstream, plts, code)]
 
-_ELIXIR = dx_language_spec(what = "elixir_app", quality_specs = _SPECS, allow_files = _EXTS)
+_ELIXIR = dx_language_spec(what = "elixir_*", quality_specs = _SPECS, allow_files = _EXTS)
 
 _elixir_app_forward = dx_library_forward_rule(
     _ELIXIR,
@@ -107,7 +107,6 @@ _ex_unit_forward_test = dx_executable_forward_rule(
     _ELIXIR,
     kind = "test",
     provides = [DefaultInfo, QualitySourcesInfo],
-    what = "ex_unit_test",
     extra_attrs = dx_lcov_merger_attr() | {
         "apps": attr.label_list(
             doc = "Elixir app targets whose sources feed test coverage.",

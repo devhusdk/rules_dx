@@ -19,7 +19,7 @@ PHP_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 
 PHP_DEFERRED_SKIP_TAGS = ["no-format"]
 
-_PHP = dx_language_spec(what = "php_library", quality_specs = PHP_SOURCE_SPECS, allow_files = PHP_SOURCE_EXTS)
+_PHP = dx_language_spec(what = "php_*", quality_specs = PHP_SOURCE_SPECS, allow_files = PHP_SOURCE_EXTS)
 
 _php_library_forward = dx_library_forward_rule(
     _PHP,
@@ -32,14 +32,12 @@ _php_library_forward = dx_library_forward_rule(
 _php_forward_binary = dx_executable_forward_rule(
     _PHP,
     kind = "executable",
-    what = "php_binary",
     quiet_providers = [_PhpInfo],
 )
 
 _php_forward_test = dx_executable_forward_rule(
     _PHP,
     kind = "test",
-    what = "php_test",
     extra_attrs = dx_lcov_merger_attr(),
 )
 

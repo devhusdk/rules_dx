@@ -28,19 +28,17 @@ _DX_JS_SOURCE_SPECS = [("javascript", ["js", "mjs", "cjs"]), ("jsx", "jsx")]
 
 _DX_JS_LIBRARY_SOURCE_SPECS = _DX_JS_SOURCE_SPECS + [("css", "css"), ("scss", "scss"), ("less", "less"), ("html", "html"), ("graphql", ["graphql", "gql"]), ("json5", "json5"), ("jsonc", "jsonc")]
 
-_JAVASCRIPT_LIBRARY = dx_language_spec(what = "javascript_*", quality_specs = _DX_JS_LIBRARY_SOURCE_SPECS, allow_files = _JS_LIBRARY_EXTS)
+_JAVASCRIPT = dx_language_spec(what = "javascript_*", quality_specs = _DX_JS_LIBRARY_SOURCE_SPECS, allow_files = _JS_LIBRARY_EXTS)
 
 _javascript_library_forward = dx_library_forward_rule(
-    _JAVASCRIPT_LIBRARY,
+    _JAVASCRIPT,
     provides = _DX_JS_LIBRARY_PROVIDES,
     required_providers = [(_JsInfo, "JsInfo")],
     upstream_providers = [[_JsInfo]],
 )
 
-_JAVASCRIPT_EXEC = dx_language_spec(what = "javascript_*", quality_specs = _DX_JS_SOURCE_SPECS, allow_files = _JS_EXTS)
-
 _javascript_binary_forward = dx_executable_forward_rule(
-    _JAVASCRIPT_EXEC,
+    _JAVASCRIPT,
     kind = "executable",
     upstream_providers = [[DefaultInfo]],
 )

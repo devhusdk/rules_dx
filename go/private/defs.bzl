@@ -33,7 +33,7 @@ def _validate_cgo(ctx):
     if err:
         fail(str(ctx.label) + ": " + err)
 
-_GO = dx_language_spec(what = "go_*", quality_specs = _DX_GO_SOURCE_SPECS, allow_files = True)
+_GO = dx_language_spec(what = "go_*", quality_specs = _DX_GO_SOURCE_SPECS, allow_files = True, toolchains = _CGO_TOOLCHAINS, validate = _validate_cgo)
 
 _go_library_forward = dx_library_forward_rule(
     _GO,
@@ -41,8 +41,6 @@ _go_library_forward = dx_library_forward_rule(
     required_providers = [(_GoInfo, "GoInfo"), (_GoArchive, "GoArchive")],
     upstream_providers = [[_GoInfo]],
     extra_attrs = _CGO_ATTRS,
-    toolchains = _CGO_TOOLCHAINS,
-    validate = _validate_cgo,
 )
 
 _go_binary_forward = dx_executable_forward_rule(
@@ -51,8 +49,6 @@ _go_binary_forward = dx_executable_forward_rule(
     upstream_providers = [[_GoArchive]],
     optional_providers = [_GoArchive],
     extra_attrs = _CGO_ATTRS,
-    toolchains = _CGO_TOOLCHAINS,
-    validate = _validate_cgo,
 )
 
 _go_forward_test = dx_executable_forward_rule(
@@ -60,8 +56,6 @@ _go_forward_test = dx_executable_forward_rule(
     kind = "test",
     upstream_providers = [[_GoArchive]],
     extra_attrs = dict(dx_lcov_merger_attr(), **_CGO_ATTRS),
-    toolchains = _CGO_TOOLCHAINS,
-    validate = _validate_cgo,
     optional_providers = [_GoArchive],
     runtime = "mandatory",
 )

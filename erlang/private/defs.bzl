@@ -52,7 +52,7 @@ def _beam_info(ctx, upstream):
         objects_lists = depset(transitive = [nif.objects_lists for nif in nifs]),
     ), beam_info(upstream, [])]
 
-_ERLANG = dx_language_spec(what = "erlang_app", quality_specs = _SPECS, allow_files = _EXTS)
+_ERLANG = dx_language_spec(what = "erlang_*", quality_specs = _SPECS, allow_files = _EXTS)
 
 _erlang_app_forward = dx_library_forward_rule(
     _ERLANG,
@@ -71,7 +71,6 @@ _erlang_bytecode_forward = dx_library_forward_rule(
     _ERLANG,
     provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     required_providers = [],
-    what = "erlang_bytecode",
     upstream_providers = None,
     runtime = "besteffort",
 )
@@ -218,7 +217,6 @@ def _erlang_test_coverage(ctx, upstream):
 _erlang_forward_test = dx_executable_forward_rule(
     _ERLANG,
     kind = "test",
-    what = "erlang test",
     toolchains = dx_native_coverage_toolchains(),
     extra_attrs = dx_lcov_merger_attr() | dx_native_coverage_attrs() | {"apps": attr.label_list(
         doc = "Erlang app targets whose sources feed test coverage.",

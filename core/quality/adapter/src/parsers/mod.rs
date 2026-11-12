@@ -317,17 +317,33 @@ pub fn check_output_size(tool: &'static str, bytes: &[u8]) -> Result<(), ParseEr
     Ok(())
 }
 
-/// Whether two paths are equal, ignoring the case of a leading Windows drive letter.
+/// Whether two paths are equal. Paths that start with a Windows drive letter compare that
+/// letter case-insensitively and treat `\` and `/` as the same separator; other paths compare
+/// exactly.
 pub(super) fn same_drive_path(a: &str, b: &str) -> bool {
-    fn split(path: &str) -> (Option<char>, &str) {
+    fn drive(path: &str) -> Option<(u8, &str)> {
         match path.as_bytes() {
             [letter, b':', ..] if letter.is_ascii_alphabetic() => {
-                (Some(letter.to_ascii_uppercase() as char), &path[1..])
+                Some((letter.to_ascii_uppercase(), &path[2..]))
             }
-            _ => (None, path),
+            _ => None,
         }
     }
-    split(a) == split(b)
+    fn separator(byte: u8) -> u8 {
+        if byte == b'\\' { b'/' } else { byte }
+    }
+    match (drive(a), drive(b)) {
+        (Some((left, a_rest)), Some((right, b_rest))) => {
+            left == right
+                && a_rest.len() == b_rest.len()
+                && a_rest
+                    .bytes()
+                    .zip(b_rest.bytes())
+                    .all(|(x, y)| separator(x) == separator(y))
+        }
+        (None, None) => a == b,
+        _ => false,
+    }
 }
 
 fn known<'a>(tool: &'static str, files: &[&'a str], path: &str) -> Result<&'a str, ParseError> {
@@ -1045,6 +1061,11 @@ mod tests {
         assert_eq!(known("dart", &files, "d:/w/a.dart"), Ok("D:/w/a.dart"));
         assert!(known("dart", &files, "d:/w/b.dart").is_err());
         assert!(known("dart", &["/w/a.dart"], "/W/a.dart").is_err());
+        assert_eq!(
+            known("dart", &[r"D:\w\a.dart"], "d:/w/a.dart"),
+            Ok(r"D:\w\a.dart")
+        );
+        assert!(known("dart", &["/w/a"], "/w\\a").is_err());
     }
 
     #[test]

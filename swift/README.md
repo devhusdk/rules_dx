@@ -91,7 +91,7 @@ swift_bench(
 
 ## Toolchain
 
-The sections below describe the Linux toolchain.
+### Linux
 
 - The compiler is the Swift 6.4.2 Ubuntu 22.04 archive from swift.org.
 - Headers and C libraries come from a locked Ubuntu 22.04 package set.
@@ -99,8 +99,6 @@ The sections below describe the Linux toolchain.
 - C++ resolution stays with `@llvm`.
 
 The build host needs glibc 2.35 or newer.
-
-## Platforms
 
 ### macOS arm64
 
@@ -128,12 +126,15 @@ license accepted must be configured. Binaries link the Swift runtime
 dynamically. Swift binaries and tests always link the dynamic CRT, also as
 `rust_test` data.
 
-On windows_x86_64 Swift targets compile and link, but Swift binaries and
-`swift_test` targets, XCTest and Swift Testing included, do not run there yet
-(#12125).
-
 ### Windows arm64
 
 A Windows arm64 host uses the Swift 6.4.2 `windows10-arm64` installer, pinned by
-sha256 and unpacked the same way. It is registered but unverified, and Swift
-stays unsupported on windows_arm64 until it builds on a Windows ARM runner.
+sha256 and unpacked the same way.
+
+## Platforms
+
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
+
+On windows_x86_64 Swift targets compile and link, but Swift binaries and
+`swift_test` targets, XCTest and Swift Testing included, do not run.
+windows_arm64 is unsupported.

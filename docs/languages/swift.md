@@ -112,41 +112,11 @@ Lockfiles:
 - Linux x86_64
 - macOS arm64
 
-### macOS arm64
-
-On macOS the same rules build with the Xcode installed on the host. Install
-Xcode first; no Swift toolchain is downloaded. Swift targets use the Xcode
-C/C++ toolchain automatically, so `MODULE.bazel` needs no edits. Binaries link
-the system Swift runtime dynamically.
-
-```sh
-dx build //app:hello
-dx test //app:tests
-```
-
-### Windows x86_64
-
-On a Windows x86_64 host the rules build with the Swift 6.4.2 Windows installer
-from swift.org, pinned by sha256. The first Swift build downloads the 2 GB
-installer and unpacks it with the pinned PowerShell and the pinned 7-Zip;
-nothing is installed on the host and no host program runs. The toolchain is the
-`Asserts` one of the installer. The fetch fails unless `swiftc.exe` and
-`swiftCore.dll` are PE images for the host architecture.
-
-Swift targets link with the Windows C/C++ toolchain, so `dx_msvc` with its
-license accepted must be configured. Binaries link the Swift runtime
-dynamically. Swift binaries and tests always link the dynamic CRT, also as
-`rust_test` data.
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
 On windows_x86_64 Swift targets compile and link, but Swift binaries and
-`swift_test` targets, XCTest and Swift Testing included, do not run there yet
-(#12125).
-
-### Windows arm64
-
-A Windows arm64 host uses the Swift 6.4.2 `windows10-arm64` installer, pinned by
-sha256 and unpacked the same way. It is registered but unverified, and Swift
-stays unsupported on windows_arm64 until it builds on a Windows ARM runner.
+`swift_test` targets, XCTest and Swift Testing included, do not run.
+windows_arm64 is unsupported.
 
 ## Quality
 
@@ -202,7 +172,7 @@ swift_bench(
 
 ## Toolchain
 
-The sections below describe the Linux toolchain.
+### Linux
 
 - The compiler is the Swift 6.4.2 Ubuntu 22.04 archive from swift.org.
 - Headers and C libraries come from a locked Ubuntu 22.04 package set.
@@ -210,3 +180,34 @@ The sections below describe the Linux toolchain.
 - C++ resolution stays with `@llvm`.
 
 The build host needs glibc 2.35 or newer.
+
+### macOS arm64
+
+On macOS the same rules build with the Xcode installed on the host. Install
+Xcode first; no Swift toolchain is downloaded. Swift targets use the Xcode
+C/C++ toolchain automatically, so `MODULE.bazel` needs no edits. Binaries link
+the system Swift runtime dynamically.
+
+```sh
+dx build //app:hello
+dx test //app:tests
+```
+
+### Windows x86_64
+
+On a Windows x86_64 host the rules build with the Swift 6.4.2 Windows installer
+from swift.org, pinned by sha256. The first Swift build downloads the 2 GB
+installer and unpacks it with the pinned PowerShell and the pinned 7-Zip;
+nothing is installed on the host and no host program runs. The toolchain is the
+`Asserts` one of the installer. The fetch fails unless `swiftc.exe` and
+`swiftCore.dll` are PE images for the host architecture.
+
+Swift targets link with the Windows C/C++ toolchain, so `dx_msvc` with its
+license accepted must be configured. Binaries link the Swift runtime
+dynamically. Swift binaries and tests always link the dynamic CRT, also as
+`rust_test` data.
+
+### Windows arm64
+
+A Windows arm64 host uses the Swift 6.4.2 `windows10-arm64` installer, pinned by
+sha256 and unpacked the same way.

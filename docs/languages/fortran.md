@@ -111,16 +111,10 @@ None.
 - Linux x86_64
 - macOS arm64
 
-| Cell | Status |
-| --- | --- |
-| `linux_x86_64` | Qualified |
-| `linux_arm64` | Qualified |
-| `macos_arm64` | Qualified |
-| `windows_x86_64` | Unsupported |
-| `windows_arm64` | Unsupported |
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
-OpenMP, GPU offload and Wasm are unsupported. On other platforms Fortran
-targets are incompatible and skipped.
+OpenMP, GPU offload and Wasm are unsupported. On Windows, Fortran targets are
+incompatible and skipped.
 
 ## Dependencies
 

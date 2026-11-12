@@ -102,12 +102,7 @@ Lockfiles:
 - Windows arm64
 - Windows x86_64
 
-| Cell | Format and lint |
-| --- | --- |
-| `linux_x86_64` | Supported |
-| Other cells | Not supported |
-
-The command reference covers `dx generate`. The `fsharp/tests/fixtures/adopt-fsharp` tree shows a full run.
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
 ## Dependencies
 
@@ -138,7 +133,8 @@ read `.fsproj` files. A file comes after every sibling it uses:
 
 A `Name.fsi` signature file goes right before its `Name.fs`. A lone `.fsi` is
 refused. When two files need each other, generation stops and names one edge,
-for example `A.fs -> B.fs (B)`; split the directory or list `srcs` by hand.
+for example `A.fs -> B.fs (B)`; split the directory or list `srcs` by hand. The
+`fsharp/tests/fixtures/adopt-fsharp` tree shows a full run.
 
 ### NuGet packages
 

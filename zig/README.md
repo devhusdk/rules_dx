@@ -122,10 +122,4 @@ installed.
 
 ## Platforms
 
-| Host | Zig SDK | Qualified |
-| --- | --- | --- |
-| Linux x86_64 | yes | yes |
-| Linux arm64 | yes | no |
-| macOS x86_64, arm64 | yes | no |
-| Windows x86_64 | yes | no |
-| Windows arm64 | yes | no |
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).

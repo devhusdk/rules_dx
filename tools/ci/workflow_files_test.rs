@@ -8,5 +8,7 @@ mod dx_update_workflow;
 mod pr_check;
 #[path = "release_cells_runners_test.rs"]
 mod release_cells_runners;
+#[path = "release_tools_workflow_test.rs"]
+mod release_tools_workflow;
 #[path = "release_workflow_test.rs"]
 mod release_workflow;

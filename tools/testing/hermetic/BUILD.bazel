@@ -991,6 +991,19 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "rust_wasm",
+    files = {
+        "consumers/rust_wasm/main.rs": "main.rs",
+        "consumers/rust_wasm/root.BUILD.bazel": "BUILD.bazel",
+    },
+    languages = ["rust"],
+    patterns = [
+        "//:tool_wasi",
+        "//:tool_web",
+    ],
+)
+
+hermetic_qualification(
     name = "adopt_android",
     files = {
         "//android/tests/fixtures/adopt-android/app:BUILD.bazel": "android/tests/fixtures/adopt-android/app/BUILD.bazel",
@@ -1325,6 +1338,7 @@ real_source_target(
         "consumers/qt_rust/root.BUILD.bazel",  # keep
         "consumers/qt_tasks/root.BUILD.bazel",  # keep
         "consumers/rust_wasi/app.BUILD.bazel",  # keep
+        "consumers/rust_wasm/root.BUILD.bazel",  # keep
         "consumers/zig/apps/catalog.BUILD.bazel",  # keep
         "consumers/zig/apps/digest.BUILD.bazel",  # keep
         "defs.bzl",

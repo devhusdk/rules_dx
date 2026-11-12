@@ -1,0 +1,15 @@
+load("@rules_dx//rust:defs.bzl", "rust_binary")
+
+rust_binary(
+    name = "tool_web",
+    srcs = ["main.rs"],
+    crate_root = "main.rs",
+    wasm = "browser",
+)
+
+rust_binary(
+    name = "tool_wasi",
+    srcs = ["main.rs"],
+    crate_root = "main.rs",
+    wasm = "wasi",
+)

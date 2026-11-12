@@ -11,10 +11,11 @@ load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core:msvc_crt.bzl", "dx_msvc_crt_reset_transition")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
+load("//swift/private/platforms:support.bzl", _SWIFT_COMPATIBLE_WITH = "SWIFT_COMPATIBLE_WITH", _SWIFT_FUZZ_COMPATIBLE_WITH = "SWIFT_FUZZ_COMPATIBLE_WITH")
 load("//swift/private/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
 load("//swift/private:providers.bzl", "SwiftDocsInfo")
 
@@ -35,7 +36,8 @@ _WINDOWS_RUNTIME = Label("@dx_swift_windows_x86_64//:runtime_dlls")
 _WINDOWS_RUNTIME_ROOT = "..\\" + _WINDOWS_RUNTIME.workspace_root.removeprefix("external/")
 SWIFT_WINDOWS_RUNTIME_PATH = _WINDOWS_RUNTIME_ROOT + "\\runtime\\usr\\bin;" + _WINDOWS_RUNTIME_ROOT + "\\platform\\Developer\\Library\\XCTest-6.4.2\\usr\\bin64"
 SWIFT_WINDOWS_RUNTIME_DLLS = _WINDOWS_RUNTIME
-SWIFT_FUZZ_COMPATIBLE_WITH = ["@platforms//os:linux"]
+SWIFT_COMPATIBLE_WITH = _SWIFT_COMPATIBLE_WITH
+SWIFT_FUZZ_COMPATIBLE_WITH = _SWIFT_FUZZ_COMPATIBLE_WITH
 _STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]
 _INDEX = ["swift.index_while_building", "swift.disable_system_index", "-swift.index_store_compress"]
 _SPECS = [("swift", "swift")]
@@ -102,16 +104,22 @@ _swift_forward_test = dx_executable_forward_rule(
     cfg = dx_msvc_crt_reset_transition,
 )
 
+def swift_kwargs(kwargs):
+    """Returns kwargs with the Swift platform guard appended."""
+    return dx_language_kwargs(kwargs, [], SWIFT_COMPATIBLE_WITH)
+
 def _swift_upstream_kwargs(kwargs):
     """Returns the swift upstream kwargs with the static, index and warnings-as-errors settings."""
     return dx_append_flags(dx_warnings_flags(kwargs, "copts", ["-warnings-as-errors"]), "features", _STATIC + _INDEX)
 
 def swift_library(name, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_library and builds it for Linux, or with Xcode on macOS."""
+    kwargs = swift_kwargs(kwargs)
     dx_wrap(name, _swift_library, _swift_library_forward, srcs, visibility = visibility, upstream_kwargs = _swift_upstream_kwargs(kwargs), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
 def swift_binary(name, *, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_binary and builds it for Linux, or with Xcode on macOS."""
+    kwargs = swift_kwargs(kwargs)
     dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = _swift_upstream_kwargs(kwargs), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
 def _swift_runtime_kwargs(kwargs, platforms):
@@ -142,6 +150,7 @@ def _swift_coverage_kwargs(kwargs):
 
 def swift_test(name, *, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_test and builds it for Linux, or with Xcode on macOS."""
+    kwargs = swift_kwargs(kwargs)
     dx_wrap_test(name, _swift_test, _swift_forward_test, srcs, visibility = visibility, upstream_kwargs = _swift_coverage_kwargs(kwargs), quality_srcs = srcs or [], extra_forward_kwargs = _swift_runtime_kwargs(kwargs, platforms), **kwargs)
 
 def swift_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):

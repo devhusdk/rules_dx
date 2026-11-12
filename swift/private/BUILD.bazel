@@ -1,5 +1,7 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "swift_kwargs")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -22,6 +24,23 @@ config_setting(
 
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
+    extra_checks = [
+        expect_equal(
+            "swift guard is a select by default",
+            type(swift_kwargs({})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "swift guard stays with a user list",
+            type(swift_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "swift keeps user tags",
+            swift_kwargs({"tags": ["t"]})["tags"],
+            ["t"],
+        ),
+    ],
     file_classes = ["swift"],
     wrappers = {
         "binary": "//swift/tests/fixtures/hello:hello",

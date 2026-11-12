@@ -15,8 +15,6 @@ to a sha256. Make the lock with `dart pub get` on a developer machine, never
 inside an action.
 
 ```python
-bazel_dep(name = "rules_dart", version = "0.8.1")
-
 pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
 pub.from_lock(
     name = "my_pub_deps",

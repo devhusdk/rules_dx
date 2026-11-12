@@ -16,7 +16,7 @@ dart_binary(
     main = "bin/greet.dart",
     deps = [
         ":greet",
-        "@rules_dart//dart/runfiles",
+        "//dart:runfiles",
     ],
 )
 
@@ -26,8 +26,8 @@ dart_test(
     main = "test/greet_test.dart",
     deps = [
         ":greet",
+        "//dart:runfiles",
         "@dx_dart_deps//:test",
-        "@rules_dart//dart/runfiles",
     ],
 )
 
@@ -36,8 +36,8 @@ dart_test(
     data = [":greet_bin"],
     main = "test/launcher_test.dart",
     deps = [
+        "//dart:runfiles",
         "@dx_dart_deps//:test",
-        "@rules_dart//dart/runfiles",
     ],
 )
 

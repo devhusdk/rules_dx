@@ -1,6 +1,7 @@
 """Shared wrapper-forwarder plumbing for language rules."""
 
 load("//core:resources.bzl", "dx_test_resource_tags")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "applet_file_name", "coreutils")
 load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "quality_sources_info", "single_target")
 load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
@@ -122,11 +123,23 @@ def dx_symlink_executable_name(name, upstream_executable):
     return name
 
 def dx_symlink_executable(ctx, target_file, directory = ""):
-    """Symlinks one upstream executable under the forwarder's own name, inside directory when set."""
+    """Symlinks one upstream executable under the forwarder's own name, or copies it into directory when set."""
     link = ctx.actions.declare_file(
         directory + dx_symlink_executable_name(ctx.label.name, target_file),
     )
-    ctx.actions.symlink(output = link, target_file = target_file, is_executable = True)
+    if not directory:
+        ctx.actions.symlink(output = link, target_file = target_file, is_executable = True)
+        return link
+    tools = coreutils(ctx)
+    ctx.actions.run(
+        mnemonic = "DxCopyExecutable",
+        executable = tools.path + "/" + applet_file_name("cp", tools.binary.basename),
+        arguments = [target_file.path, link.path],
+        inputs = [target_file],
+        tools = tools.files,
+        outputs = [link],
+        env = {"PATH": tools.path},
+    )
     return link
 
 def dx_upstream(ctx):
@@ -403,6 +416,9 @@ def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, requ
         attrs.update(dx_run_env_attrs())
     if cfg != None:
         attrs["_allowlist_function_transition"] = attr.label(default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"))
+    toolchains = toolchains if toolchains != None else []
+    if sibling_files != None:
+        toolchains = toolchains + [COREUTILS_TOOLCHAIN_TYPE]
     if kind == "executable":
         return rule(
             implementation = _impl,
@@ -411,7 +427,7 @@ def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, requ
             cfg = cfg,
             provides = provides,
             attrs = attrs,
-            toolchains = toolchains if toolchains != None else [],
+            toolchains = toolchains,
         )
     elif kind == "test":
         return rule(
@@ -419,7 +435,7 @@ def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, requ
             test = True,
             provides = provides,
             attrs = attrs,
-            toolchains = toolchains if toolchains != None else [],
+            toolchains = toolchains,
         )
     else:
         fail("dx_executable_forward_rule: unknown kind '" + kind + "': want \"executable\" or \"test\"")

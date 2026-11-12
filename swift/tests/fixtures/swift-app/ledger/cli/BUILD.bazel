@@ -48,7 +48,10 @@ dx_hello_output_test(
 sh_test(
     name = "usage_test",
     srcs = ["usage_test.sh"],
-    args = ["$(location :ledger)"],
+    args = ["$(location :ledger)"] + select({
+        "@platforms//os:windows": ["160"],
+        "//conditions:default": ["64"],
+    }),
     data = [":ledger"],
     tags = ["block-network"],
 )

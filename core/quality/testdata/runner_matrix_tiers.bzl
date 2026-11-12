@@ -123,7 +123,6 @@ def _lint_cases(tier):
             toolfile_srcs = ["//core/quality/tiers/dart:%s.yaml" % tier, "//core/quality/tests/testdata:dart_cfg/package_config.json"],
             toolfile_rels = ["analysis_options.yaml", ".dart_tool/package_config.json"],
             windows_arm64 = False,
-            # dart analyze hangs in the hermetic Windows launch, see #12159.
             windows_x86_64 = False,
         ),
         _lint_case(

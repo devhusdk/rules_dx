@@ -1,7 +1,7 @@
 """Module extension for swift/private/toolchain."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
-load(":repos.bzl", "swift_windows_repo")
+load(":repos.bzl", "swift_linux_repo", "swift_windows_repo")
 
 
 def _swift_windows_ext_impl(module_ctx):
@@ -22,3 +22,18 @@ def _swift_windows_ext_impl(module_ctx):
 
 
 swift_windows = module_extension(implementation = _swift_windows_ext_impl)
+
+def _swift_linux_ext_impl(module_ctx):
+    pins = PINS["dx_swift_format_macos_arm64"]["swift_linux"]
+    for cpu, cell in [("x86_64", "linux_x86_64"), ("aarch64", "linux_arm64")]:
+        swift_linux_repo(
+            name = "dx_swift_linux_" + cpu,
+            cell = cell,
+            sha256 = pins["cells"][cell]["sha256"],
+            sysroot = Label("@dx_swift_sysroot_linux_%s//:files" % cpu),
+            urls = pins["cells"][cell]["urls"],
+            version = pins["version"],
+        )
+    return module_ctx.extension_metadata(reproducible = True)
+
+swift_linux = module_extension(implementation = _swift_linux_ext_impl)

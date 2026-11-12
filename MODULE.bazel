@@ -979,10 +979,6 @@ single_version_override(
     module_name = "rules_swift",
     patch_strip = 1,
     patches = [
-        "//patches/rules_swift:toolchain_sysroot_env.patch",
-        "//patches/rules_swift:non_root_toolchain.patch",
-        "//patches/rules_swift:sysroot_host_libs.patch",
-        "//patches/rules_swift:target_runtime_root.patch",
         "//patches/rules_swift:clang_cl_no_split_cold_code.patch",
         "//patches/rules_swift:windows_absolute_sdk.patch",
         "//patches/rules_swift:windows_unknown_vendor.patch",
@@ -1050,24 +1046,8 @@ use_repo(
     "dx_swift_sysroot_linux_x86_64",
 )
 
-swift = use_extension("@rules_swift//swift:extensions.bzl", "swift")
-swift.toolchain(
-    name = "dx_swift",
-    platform_sha256 = {
-        "ubuntu22.04": "c3081b1817117c66e4764d2a148357d997200048922c778b0f08c795833ae06d",
-        "ubuntu22.04-aarch64": "2f56ac2f5aa647beb85b27b637f0ba9653413ee26894570ca33434ec041d92cc",
-    },
-    swift_version = "6.4.2",
-    sysroot = {
-        "ubuntu22.04": "@dx_swift_sysroot_linux_x86_64//:files",
-        "ubuntu22.04-aarch64": "@dx_swift_sysroot_linux_aarch64//:files",
-    },
-)
-use_repo(
-    swift,
-    dx_swift_linux_aarch64 = "dx_swift_ubuntu22.04-aarch64",
-    dx_swift_linux_x86_64 = "dx_swift_ubuntu22.04",
-)
+swift_linux = use_extension("//swift:extensions.bzl", "swift_linux")
+use_repo(swift_linux, "dx_swift_linux_aarch64", "dx_swift_linux_x86_64")
 
 register_toolchains("//swift/private/toolchain:all")
 

@@ -53,7 +53,7 @@ _VERSION = "6.4.2"
 SWIFT_LINUX_CPUS = ["aarch64", "x86_64"]
 
 def _swift_cross_toolchain(name, exec_cpu, target_cpu):
-    """Declares the Swift toolchain whose tools run on one Linux cpu and build for another."""
+    """Declares the Swift toolchain whose tools run on one Linux cpu and build for that or another."""
     exec_repo = "@dx_swift_linux_" + exec_cpu
     target_repo = "@dx_swift_linux_" + target_cpu
     exec_sysroot = "@dx_swift_sysroot_linux_" + exec_cpu
@@ -62,12 +62,15 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
     swift_tools(
         name = name + "_tools",
         tags = ["manual"],
-        additional_inputs = [
-            exec_repo + "//:swift_tool_inputs",
-            exec_sysroot + "//:files",
-            target_repo + "//:swift_tool_inputs",
-            target_sysroot + "//:files",
-        ],
+        additional_inputs = {
+            label: True
+            for label in [
+                exec_repo + "//:swift_tool_inputs",
+                exec_sysroot + "//:files",
+                target_repo + "//:swift_tool_inputs",
+                target_sysroot + "//:files",
+            ]
+        }.keys(),
         swift_autolink_extract = exec_repo + "//:usr/bin/swift-autolink-extract",
         swift_driver = exec_repo + "//:usr/bin/swiftc",
         swift_symbolgraph_extract = exec_repo + "//:usr/bin/swift-symbolgraph-extract",
@@ -79,7 +82,6 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
         target_compatible_with = _LINUX,
         arch = target_cpu,
         dynamic_runtime = [target_repo + "//:linux_dynamic_runtime"],
-        env = {"LD_LIBRARY_PATH": Label(exec_sysroot + "//:files").workspace_root + "/host_libs"},
         features = [
             "swift._supports_upcoming_features",
             "swift.no_embed_debug_module",
@@ -126,16 +128,13 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
         ],
     )
 
-    target_native = "@dx_swift_linux_" + target_cpu + "//:swift_toolchain_exec"
+    _swift_cross_toolchain("swift_cross_" + pair, exec_cpu, target_cpu)
     if exec_cpu == target_cpu:
-        upstream = target_native
         resource_dir = None
         runtime = None
     else:
-        upstream = ":swift_cross_" + pair
-        resource_dir = Label(target_native).workspace_root + "/usr/lib/swift"
-        runtime = target_native
-        _swift_cross_toolchain("swift_cross_" + pair, exec_cpu, target_cpu)
+        resource_dir = Label("@dx_swift_linux_" + target_cpu + "//:files").workspace_root + "/usr/lib/swift"
+        runtime = ":swift_cross_" + target_cpu + "_" + target_cpu
 
     _with_link_libs(
         name = "swift_toolchain_" + pair,
@@ -144,7 +143,7 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
         link_libs = ":linux_link_libs_" + pair,
         resource_dir = resource_dir,
         runtime = runtime,
-        toolchain = upstream,
+        toolchain = ":swift_cross_" + pair,
     )
 
     native.toolchain(

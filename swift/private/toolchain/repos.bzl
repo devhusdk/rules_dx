@@ -1,7 +1,87 @@
-"""Repository rule for the Swift Windows toolchain."""
+"""Repository rules for the Swift Linux and Windows toolchains."""
 
 load("//core:host.bzl", "host_cell")
 load("//core:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
+
+_SWIFT_LINUX_BUILD = """package(default_visibility = ["//visibility:public"])
+
+exports_files(
+    [".swift-version"] + glob(
+        [
+            "usr/bin/*",
+            "usr/lib/clang/*/lib/linux/*.a",
+            "usr/lib/swift/linux/*.so*",
+        ],
+    ),
+)
+
+filegroup(
+    name = "files",
+    srcs = glob(
+        include = ["**/*"],
+        exclude = ["BUILD.bazel"],
+    ),
+)
+
+filegroup(
+    name = "swift_tool_inputs",
+    srcs = glob(
+        [
+            "usr/lib/swift/**",
+            "usr/bin/swift",
+            "usr/bin/swift-frontend",
+        ],
+    ),
+)
+
+filegroup(
+    name = "linux_dynamic_runtime",
+    srcs = glob(["usr/lib/swift/linux/*.so*"]),
+)
+
+filegroup(
+    name = "linux_static_runtime",
+    srcs = glob([
+        "usr/lib/swift/linux/*.a",
+        "usr/lib/swift_static/linux/*.a",
+        "usr/lib/swift_static/linux/*.lnk",
+        "usr/lib/swift_static/linux/*/*.o",
+    ]),
+)
+"""
+
+def _swift_linux_impl(repository_ctx):
+    version = repository_ctx.attr.version
+    prefix = "swift-{}-RELEASE-ubuntu22.04{}".format(version, "-aarch64" if repository_ctx.attr.cell == "linux_arm64" else "")
+    repository_ctx.download_and_extract(
+        url = repository_ctx.attr.urls,
+        sha256 = repository_ctx.attr.sha256,
+        stripPrefix = prefix,
+        canonical_id = "swift-linux-" + version + "-" + repository_ctx.attr.cell,
+    )
+    if not repository_ctx.path("usr/bin/llvm-strip").exists:
+        repository_ctx.symlink("usr/bin/llvm-objcopy", "usr/bin/llvm-strip")
+    host_libs = repository_ctx.path(repository_ctx.attr.sysroot.same_package_label("REPO.bazel")).dirname.get_child("host_libs")
+    for lib in host_libs.readdir():
+        repository_ctx.symlink(lib, "usr/lib/swift/linux/" + lib.basename)
+        repository_ctx.symlink(lib, "usr/lib/" + lib.basename)
+    if not repository_ctx.path("usr/bin/ld").exists:
+        repository_ctx.symlink("usr/bin/ld.lld", "usr/bin/ld")
+    repository_ctx.file(".swift-version", version + "\n")
+    repository_ctx.file("BUILD.bazel", _SWIFT_LINUX_BUILD)
+    return repository_ctx.repo_metadata(reproducible = True)
+
+swift_linux_repo = repository_rule(
+    implementation = _swift_linux_impl,
+    attrs = {
+        "cell": attr.string(mandatory = True, values = ["linux_arm64", "linux_x86_64"]),
+        "sha256": attr.string(mandatory = True),
+        "sysroot": attr.label(mandatory = True, doc = "The files of the Ubuntu sysroot whose `host_libs` the tools load."),
+        "urls": attr.string_list(mandatory = True),
+        "version": attr.string(mandatory = True),
+    },
+    doc = "The sha256-pinned swift.org Ubuntu 22.04 toolchain, with the host libraries of its sysroot.",
+)
 
 _SWIFT_WINDOWS_BUILD = """load("@rules_swift//swift/toolchains:swift_tools.bzl", "swift_tools")
 

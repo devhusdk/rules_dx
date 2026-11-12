@@ -1,4 +1,4 @@
-//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk (#5689), a locked consumer resolves rules_dx extensions from its repository cache sets (#2978), and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed, which the probe proves the guard catches.
+//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk (#5689), a locked consumer resolves rules_dx extensions from its repository cache sets (#2978), the rules_dx Swift Linux extension resolves on an unpatched BCR rules_swift (#11415), and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed, which the probe proves the guard catches.
 
 use std::time::{Duration, Instant};
 
@@ -43,6 +43,23 @@ fn seeded_consumer_resolves_python_interpreters_offline() {
     assert!(
         lock["facts"].get(PYTHON_FACTS).is_some(),
         "the consumer lock lost the python_interpreters facts: {lock}"
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn swift_extension_resolves_without_patched_rules_swift() {
+    let (case, _) = locked_consumer("swift_linux");
+    let run = case.bazel(&[
+        "mod",
+        "show_extension",
+        "@rules_dx//swift:extensions.bzl%swift_linux",
+    ]);
+    assert!(run.status.success(), "{}", run.combined());
+    assert!(
+        run.combined().contains("dx_swift_linux_x86_64"),
+        "{}",
+        run.combined()
     );
 }
 

@@ -1,6 +1,6 @@
 --- a/cargo/private/cargo_build_script.bzl
 +++ b/cargo/private/cargo_build_script.bzl
-@@ -503,7 +503,7 @@
+@@ -506,7 +506,7 @@
      # Pull in env vars which may be required for the cc_toolchain to work (e.g. on OSX, the SDK version).
      # We hope that the linker env is sufficient for the whole cc_toolchain.
      if use_cc_toolchain:

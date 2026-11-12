@@ -1,7 +1,7 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//java:defs.bzl", "java_library")
 load("//core/quality:native_config.bzl", "scalafix_config")
 load("//core/quality:policy.bzl", "quality_family")
+load("//rust:defs.bzl", "rust_test")
 load("//scala:defs.bzl", "scala_library", "scala_test")
 load(":results.bzl", "scalafix_results")
 
@@ -96,13 +96,15 @@ scalafix_results(
     target = ":unused3_lib",
 )
 
-sh_test(
+rust_test(
     name = "scalafix_aux_test",
-    srcs = ["check.sh"],
+    srcs = ["scalafix_aux_test.rs"],
     data = [
         ":core_test_results",
         ":unused3_lib_results",
         ":unused_lib_results",
         ":uses_api_results",
     ],
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
 )

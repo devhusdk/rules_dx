@@ -152,7 +152,10 @@ fn split_path<'a>(text: &'a str, files: &[&'a str]) -> Option<(&'a str, &'a str)
         }
         rest
     };
-    let exact = files.iter().copied().find(|file| *file == spelled);
+    let exact = files
+        .iter()
+        .copied()
+        .find(|file| super::same_drive_path(file, spelled));
     let found = exact.or_else(|| {
         let mut hits = files.iter().copied().filter(|file| {
             !tail.is_empty()
@@ -194,6 +197,14 @@ mod tests {
             .expect("parsed")
             .is_empty()
         );
+    }
+
+    #[test]
+    fn dart_format_matches_a_lowercase_drive_letter() {
+        let files = ["D:/w/dirty.dart"];
+        let out = b"Changed d:/w/dirty.dart\nFormatted 1 files (1 changed) in 0.01 seconds.\n";
+        let findings = parse_dart_format(out, b"", Some(1), &files).expect("parsed");
+        assert_eq!(findings[0].file, "D:/w/dirty.dart");
     }
 
     #[test]

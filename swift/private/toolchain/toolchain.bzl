@@ -1,4 +1,4 @@
-"""Registers the rules_swift Linux toolchains, native and cross, with the sysroot's link libraries."""
+"""Declares the rules_swift Linux toolchains, native and cross, with the sysroot's link libraries."""
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
@@ -102,7 +102,7 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
     """Declares the Swift toolchain that runs on one Linux cpu and builds for another or the same.
 
     Args:
-        name: The toolchain name.
+        name: The swift_toolchain name.
         exec_cpu: The cpu the Swift tools run on.
         target_cpu: The cpu the Swift tools build for.
     """
@@ -137,19 +137,11 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
         runtime = ":swift_cross_" + target_cpu + "_" + target_cpu
 
     _with_link_libs(
-        name = "swift_toolchain_" + pair,
+        name = name,
         tags = ["manual"],
         target_compatible_with = _LINUX,
         link_libs = ":linux_link_libs_" + pair,
         resource_dir = resource_dir,
         runtime = runtime,
         toolchain = ":swift_cross_" + pair,
-    )
-
-    native.toolchain(
-        name = name,
-        exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:" + exec_cpu],
-        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:" + target_cpu],
-        toolchain = ":swift_toolchain_" + pair,
-        toolchain_type = "@rules_swift//toolchains:toolchain_type",
     )

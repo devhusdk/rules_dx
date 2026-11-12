@@ -1136,13 +1136,17 @@ use_repo(
     "dx_swift_sysroot_linux_x86_64",
 )
 
-swift_linux = use_extension("//swift:extensions.bzl", "swift_linux")
-use_repo(swift_linux, "dx_swift_linux_aarch64", "dx_swift_linux_x86_64")
+swift = use_extension("//swift:extensions.bzl", "swift")
+use_repo(
+    swift,
+    "dx_swift_linux_aarch64",
+    "dx_swift_linux_x86_64",
+    "dx_swift_toolchains",
+    "dx_swift_windows_aarch64",
+    "dx_swift_windows_x86_64",
+)
 
-register_toolchains("//swift/private/toolchain:all")
-
-swift_windows = use_extension("//swift:extensions.bzl", "swift_windows")
-use_repo(swift_windows, "dx_swift_windows_aarch64", "dx_swift_windows_x86_64")
+register_toolchains("@dx_swift_toolchains//:all")
 
 swiftpm = use_extension("//swift:extensions.bzl", "swiftpm", dev_dependency = True)
 swiftpm.lock(

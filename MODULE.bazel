@@ -1499,7 +1499,10 @@ archive_override(
     ],
 )
 
-register_toolchains("//lua/private/toolchain:all")
+lua = use_extension("//lua:extensions.bzl", "lua")
+use_repo(lua, "dx_lua_toolchains")
+
+register_toolchains("@dx_lua_toolchains//:all")
 
 _lua_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 

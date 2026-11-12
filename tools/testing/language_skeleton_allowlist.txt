@@ -528,15 +528,11 @@ test-location fortran/private/BUILD.bazel
 test-location fsharp/private/BUILD.bazel
 test-location fsharp/private/ide/BUILD.bazel
 test-location fsharp/tests/BUILD.bazel
-test-location go/private/BUILD.bazel
-test-location go/private/cgo_tests.bzl
 test-location go/private/ide/BUILD.bazel
 test-location go/private/quality/gopls_tier/BUILD.bazel
-test-location haskell/private/BUILD.bazel
 test-location haskell/private/coverage/BUILD.bazel
 test-location haskell/private/coverage/coverage_tests.bzl
 test-location haskell/private/coverage/fixture/GreeterTest.hs
-test-location haskell/private/profile_tests.bzl
 test-location java/private/BUILD.bazel
 test-location java/private/coverage_tests.bzl
 test-location java/private/ide/BUILD.bazel
@@ -566,8 +562,6 @@ test-location rust/private/bench_report/BUILD.bazel
 test-location rust/private/ide/BUILD.bazel
 test-location rust/private/quality/tools/progenitor/BUILD.bazel
 test-location rust/private/quality/tools/topiary/BUILD.bazel
-test-location rust/private/toolchain/BUILD.bazel
-test-location rust/private/toolchain/identity_tests.bzl
 test-location scala/private/BUILD.bazel
 test-location scala/tests/BUILD.bazel
 test-location typescript/private/BUILD.bazel

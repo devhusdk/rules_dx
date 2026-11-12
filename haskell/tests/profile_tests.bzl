@@ -1,7 +1,7 @@
 """Analysis test that the default ghcopts follow //config:config_tier."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load(":defs.bzl", "DEFAULT_GHCOPTS", "STANDARD_GHCOPTS", "STRICT_GHCOPTS")
+load("//haskell/private:defs.bzl", "DEFAULT_GHCOPTS", "STANDARD_GHCOPTS", "STRICT_GHCOPTS")
 
 def _opts_impl(ctx):
     return [DefaultInfo(files = depset(), runfiles = ctx.runfiles()), _OptsInfo(opts = ctx.attr.opts)]

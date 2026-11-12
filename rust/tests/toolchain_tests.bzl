@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core/modules:versions.bzl", "RUSTFMT_VERSION")
-load(":bindings.bzl", "RUSTFMT_TOOLCHAIN_TYPE", "RUST_TOOLCHAIN_TYPE")
+load("//rust/private/toolchain:bindings.bzl", "RUSTFMT_TOOLCHAIN_TYPE", "RUST_TOOLCHAIN_TYPE")
 
 _AT = "@"
 
@@ -41,7 +41,7 @@ def toolchain_identity_tests(name):
     starlark_test(
         name = name,
         mode = "analysis",
-        subjects = [":identity_under_test"],
+        subjects = ["//rust/private/toolchain:identity_under_test"],
         expected_observations = EXPECTED_IDENTITY_OBSERVATIONS,
         target_compatible_with = _LINUX_X86_64,
     )

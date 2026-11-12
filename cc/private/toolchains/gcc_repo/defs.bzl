@@ -50,6 +50,24 @@ def _detect_binary_prefix(rctx, target_arch):
         return triple_prefix
     return ""
 
+_GLIBC_LINKER_SCRIPTS = ["sysroot/usr/lib/libc.so", "sysroot/usr/lib/libm.so"]
+
+def _sysroot_relative_linker_scripts(rctx):
+    """Prefixes absolute paths in the glibc linker scripts with the sysroot marker."""
+    for name in _GLIBC_LINKER_SCRIPTS:
+        script = rctx.path(name)
+        if not script.exists:
+            continue
+        content = rctx.read(script)
+        if not content.startswith("/* GNU ld script"):
+            continue
+        rctx.delete(script)
+        rctx.file(
+            name,
+            content.replace(" /lib/", " =/lib/").replace(" /usr/lib/", " =/usr/lib/"),
+            executable = False,
+        )
+
 def _gcc_toolchain_impl(rctx):
     versions = json.decode(rctx.attr.gcc_versions)
     url = versions[rctx.attr.gcc_version][rctx.attr.target_arch]["url"]
@@ -59,6 +77,7 @@ def _gcc_toolchain_impl(rctx):
         sha256 = sha256,
         auth = use_netrc(read_user_netrc(rctx), [url], {}),
     )
+    _sysroot_relative_linker_scripts(rctx)
 
     absolute_toolchain_root = str(rctx.path("."))
     execroot = paths.normalize(paths.join(absolute_toolchain_root, "..", ".."))

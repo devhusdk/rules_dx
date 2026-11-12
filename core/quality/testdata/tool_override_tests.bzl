@@ -43,6 +43,7 @@ def _subject(name, target, config, target_compatible_with = None):
     _override_subject(
         name = name,
         config = config,
+        tags = ["manual"],
         target = target,
         target_compatible_with = target_compatible_with,
         testonly = True,

@@ -85,11 +85,9 @@ cc/tests/fixtures/prebuilt_interop/BUILD.bazel no-size 1
 cc/tests/fixtures/sanitize/BUILD.bazel no-size 6
 cc/tests/fixtures/shared/BUILD.bazel no-size 2
 cc/tests/fixtures/strict_generation/BUILD.bazel no-size 1
-cc/tests/gcc_cross/BUILD.bazel no-size 1
 cc/tests/gcc_linux_arm64/BUILD.bazel no-size 3
 cc/tests/gcc_linux_x86_64/BUILD.bazel no-size 4
-cc/tests/llvm_cross/BUILD.bazel no-size 1
-cc/tests/msvc_cross/BUILD.bazel no-size 3
+cc/tests/msvc_cross/BUILD.bazel no-size 1
 cc/tests/msvc_x86_64/BUILD.bazel no-size 3
 cc/tests/tags/BUILD.bazel no-size 2
 cli/advisory_prep/BUILD.bazel no-size 2
@@ -234,7 +232,6 @@ dart/private/tools/BUILD.bazel no-size 2
 dart/tests/BUILD.bazel no-size 1
 dart/tests/bench/BUILD.bazel no-size 2
 dart/tests/codegen/BUILD.bazel no-size 1
-dart/tests/cross/BUILD.bazel no-size 1
 dart/tests/fixtures/adopt-dart/packages/greet/BUILD.bazel no-size 1
 dart/tests/fixtures/dart-app/cli/BUILD.bazel no-size 1
 dart/tests/fixtures/dart-app/ledger/BUILD.bazel no-size 1
@@ -620,7 +617,7 @@ svelte/tests/app_errors/BUILD.bazel no-size 3
 svelte/tests/fixtures/hello/BUILD.bazel no-size 1
 swift/private/platforms/BUILD.bazel no-size 1
 swift/tests/BUILD.bazel no-size 1
-swift/tests/cross/BUILD.bazel no-size 2
+swift/tests/cross/BUILD.bazel no-size 1
 swift/tests/fixtures/bench/BUILD.bazel no-size 3
 swift/tests/fixtures/bench/BUILD.bazel size-large 1
 swift/tests/fixtures/bench/BUILD.bazel timeout-long 1

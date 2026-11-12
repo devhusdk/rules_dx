@@ -1,13 +1,36 @@
 """Conformance suite: one language's build, pass and fail checks over a fixture."""
 
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("//core/modules:langs.bzl", "LANGS")
 load("//rust:defs.bzl", "rust_test")
 load(":pending.bzl", "PENDING")
 
-TESTS = ["build_test", "coverage_test", "fail_test", "lock_test", "pass_test"]
+TESTS = ["build_test", "coverage_test", "cross_test", "fail_test", "lock_test", "pass_test"]
 
 _FLAG = Label("//tools/testing/conformance:subject")
 _PLATFORM_SETTINGS = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]
+
+# The platform a cross_test builds the fixture binary for, per platform it runs on.
+CROSS_TARGETS = {
+    "linux_arm64": "linux_x86_64",
+    "linux_x86_64": "linux_arm64",
+    "macos_arm64": "linux_arm64",
+    "windows_arm64": "windows_x86_64",
+    "windows_x86_64": "windows_arm64",
+}
+
+def _cross_select(value):
+    branches = {Label("//tools/testing/conformance:" + host): value(target) for host, target in CROSS_TARGETS.items()}
+    branches["//conditions:default"] = value(CROSS_TARGETS["linux_x86_64"])
+    return select(branches)
+
+def _env(mode, subject, text, pattern):
+    return {
+        "DX_CONFORMANCE_MODE": mode,
+        "DX_CONFORMANCE_PATTERN": pattern,
+        "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths %s)" % subject,
+        "DX_CONFORMANCE_TEXT": text,
+    }
 
 def _subject_transition_impl(_settings, _attr):
     return {str(_FLAG): True}
@@ -265,7 +288,7 @@ def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
     )
 
 def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "{case}", lock = {}, not_applicable = {}, size = "small", **kwargs):
-    """Declares build_test, coverage_test, pass_test, fail_test and lock_test for one language.
+    """Declares build_test, coverage_test, cross_test, pass_test, fail_test and lock_test for one language.
 
     Args:
       name: Prefix of the declared targets; empty for the bare test names.
@@ -323,9 +346,18 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
         target_compatible_with = _compatible_with(lang, "coverage_test", not_applicable),
         visibility = ["//visibility:private"],
     )
+    platform_transition_filegroup(
+        name = prefix + "cross_binary",
+        srcs = [binary],
+        target_platform = _cross_select(lambda target: Label("//tools/platforms:" + target)),
+        testonly = True,
+        target_compatible_with = _compatible_with(lang, "cross_test", not_applicable),
+        visibility = ["//visibility:private"],
+    )
     runs = {
         "build_test": (binary, "build", expected),
         "coverage_test": (":" + prefix + "coverage_subject", "coverage", covered_source),
+        "cross_test": (":" + prefix + "cross_binary", "cross", None),
         "pass_test": (":" + prefix + "pass_subject", "pass", ""),
         "fail_test": (":" + prefix + "fail_subject", "fail", failing_case),
     }
@@ -342,12 +374,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
             srcs = [Label("//tools/testing/conformance:runner_test.rs")],
             data = [subject],
             deps = [Label("//tools/testing:dx_testing")],
-            env = {
-                "DX_CONFORMANCE_MODE": mode,
-                "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths %s)" % subject,
-                "DX_CONFORMANCE_TEXT": text,
-                "DX_CONFORMANCE_PATTERN": failing_pattern,
-            },
+            env = _cross_select(lambda target: _env(mode, subject, target, failing_pattern)) if text == None else _env(mode, subject, text, failing_pattern),
             size = size,
             target_compatible_with = _compatible_with(lang, test, not_applicable),
             **kwargs

@@ -1,4 +1,4 @@
-"""Pinned Elixir distribution and rules_elixir identities; the archive data is in pins.json."""
+"""Pinned Elixir distribution identities; the archive data is in pins.json."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 
@@ -18,14 +18,6 @@ ELIXIR_APPLICATIONS = ["eex", "elixir", "ex_unit", "iex", "logger", "mix"]
 
 # Elixir applications in the dialyzer PLT; `elixir` holds the elixir_erl dialyzer loads.
 DIALYZER_PLT_ELIXIR = ["elixir", "logger"]
-
-RULES_ELIXIR_COMMIT = _PINS["archives"]["rules_elixir"]["version"]
-
-RULES_ELIXIR_SHA256 = _PINS["archives"]["rules_elixir"]["sha256"]
-
-RULES_ELIXIR_URLS = _PINS["archives"]["rules_elixir"]["urls"]
-
-RULES_ELIXIR_DROPPED = [".bazelignore", ".bazelrc", ".bazelversion", "MODULE.bazel", "examples", "test"]
 
 # Credo and its dependencies, built from the Hex tarballs.
 CREDO_PACKAGES = {

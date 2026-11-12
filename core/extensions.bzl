@@ -54,6 +54,8 @@ def _dx_pins_impl(mctx):
             archives[tag.name] = pin
             kind = pin.get("type", "")
             files = {"BUILD.bazel": mctx.read(tag.build)} if tag.build else {}
+            for path, label in tag.files.items():
+                files[path] = mctx.read(label)
             download_as = ""
             archive_type = ""
             if kind == "file":
@@ -93,6 +95,7 @@ dx_pins = module_extension(
                 "build": attr.label(allow_single_file = True, doc = "BUILD file written at the repository root."),
                 "crlf": attr.string_list(doc = "Paths rewritten with CRLF line endings after patching."),
                 "dropped": attr.string_list(doc = "Paths deleted after extraction."),
+                "files": attr.string_keyed_label_dict(allow_files = True, doc = "Repository path to a file written after pruning, before patching."),
                 "key": attr.string(doc = "Entry under archives; defaults to name."),
                 "name": attr.string(mandatory = True, doc = "Repository name."),
                 "patches": attr.label_list(doc = "Patches applied in order with strip 1."),

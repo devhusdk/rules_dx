@@ -15,6 +15,8 @@ exports_files([
     "plt_build.escript",
     "providers.bzl",
     "rebar_lock.bzl",
+    "rules_erlang.BUILD.bazel",
+    "rules_erlang_private.BUILD.bazel",
 ])
 
 real_source_target(
@@ -27,6 +29,8 @@ real_source_target(
         "kwargs.bzl",
         "providers.bzl",
         "rebar_lock.bzl",
+        "rules_erlang.BUILD.bazel",
+        "rules_erlang_private.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

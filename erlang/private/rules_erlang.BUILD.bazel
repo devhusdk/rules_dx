@@ -1,0 +1,34 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+
+package(default_visibility = ["//visibility:public"])
+
+config_setting(
+    name = "debug_build",
+    values = {"compilation_mode": "dbg"},
+)
+
+string_flag(
+    name = "erlang_home",
+    build_setting_default = "",
+)
+
+string_flag(
+    name = "erlang_version",
+    build_setting_default = "",
+)
+
+string_flag(
+    name = "ct_logdir",
+    build_setting_default = "",
+)
+
+string_flag(
+    name = "ct_test_windows_logdir_drive_letter",
+    build_setting_default = "b",
+)
+
+exports_files([
+    "LICENSE",
+    "LICENSE-APACHE2",
+    "LICENSE-MPL-RabbitMQ",
+])

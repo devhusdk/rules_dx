@@ -1,4 +1,4 @@
-"""Pinned Erlang/OTP runtime, native closure and rules_erlang identities."""
+"""Pinned Erlang/OTP runtime, native closure and tool source identities."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
@@ -13,12 +13,6 @@ OTP_VERSION = _PINS["version"]
 ERTS_VERSION = _PINS["erts_version"]
 
 OTP_RELEASE = _PINS["otp_release"]
-
-RULES_ERLANG_COMMIT = _ARCHIVES["rules_erlang"]["version"]
-
-RULES_ERLANG_SHA256 = _ARCHIVES["rules_erlang"]["sha256"]
-
-RULES_ERLANG_URLS = _ARCHIVES["rules_erlang"]["urls"]
 
 ERLFMT_VERSION = _ARCHIVES["dx_erlfmt"]["version"]
 

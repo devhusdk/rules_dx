@@ -4,4 +4,5 @@ bazel_dep(name = "rules_shell", version = "0.8.0")
 cuda = use_extension("@rules_dx//cuda:extensions.bzl", "cuda")
 
 # The CUDA Toolkit is licensed under the NVIDIA EULA: https://docs.nvidia.com/cuda/eula/index.html
-cuda.license(accept = ["cuda-eula"])
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["cuda-eula"])

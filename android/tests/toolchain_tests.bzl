@@ -324,7 +324,7 @@ def _android_checks():
         "missing license fails",
         request_errors(_request(accept_licenses = [])),
         [
-            'android_sdk: accept android-sdk-license before acquisition; add android_sdk.license(accept = ["android-sdk-license"]) to the root MODULE.bazel',
+            'android_sdk: accept android-sdk-license before acquisition; add dx_licenses.accept(ids = ["android-sdk-license"]) to the root MODULE.bazel',
         ],
     ))
     checks.append(expect_equal(

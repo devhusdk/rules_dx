@@ -833,7 +833,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "cuda_unaccepted",
-    failures = {"//cuda/tests/fixtures/cuda-app/app:cuda_app": "is not accepted; add cuda.license(accept = [\"cuda-eula\"])"},
+    failures = {"//cuda/tests/fixtures/cuda-app/app:cuda_app": "is not accepted; add dx_licenses.accept(ids = [\"cuda-eula\"])"},
     fetch_fails = True,
     files = {
         "consumers/cuda/consumer.bazelrc": ".bazelrc",

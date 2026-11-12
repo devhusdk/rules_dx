@@ -5,7 +5,7 @@ load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_VERSION", "LICENSE", "LICENSE_UR
 
 HUB_NAME = "dx_msix_tools"
 
-UNACCEPTED = unaccepted("dx_msix", "Windows SDK Build Tools license", LICENSE_URL, "msix_tools", LICENSE)
+UNACCEPTED = unaccepted("dx_msix", "Windows SDK Build Tools license", LICENSE_URL, LICENSE)
 
 _ACCEPTED_ARCH = """
 msix_toolchain(

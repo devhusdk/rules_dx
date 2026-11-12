@@ -1,36 +1,27 @@
-"""Root-only license gate shared by restricted downloads."""
+"""License ids accepted through dx_licenses and the gate every restricted download reads."""
 
-def license_tag(doc):
-    """Returns the license tag class."""
-    return tag_class(
-        doc = doc,
-        attrs = {
-            "accept": attr.string_list(doc = "License names to accept.", mandatory = True),
-        },
-    )
+APPLE_XCODE = "apple-xcode-license"
+ANDROID_SDK = "android-sdk-license"
+CUDA_EULA = "cuda-eula"
+WINDOWS_SDK_BUILDTOOLS = "windows-sdk-buildtools"
+VISUAL_STUDIO_BUILD_TOOLS = "visual-studio-build-tools"
 
-def root_accepts(modules):
-    """Returns the license names accepted by root modules."""
-    names = []
-    for module in modules:
-        if not module.is_root:
-            continue
-        for tag in module.tags.license:
-            names.extend(tag.accept)
-    return names
+LICENSE_IDS = [APPLE_XCODE, ANDROID_SDK, CUDA_EULA, WINDOWS_SDK_BUILDTOOLS, VISUAL_STUDIO_BUILD_TOOLS]
 
-def license_errors(prefix, known, names):
-    """Returns one error per license name that is not the known one."""
-    return [prefix + ": unknown license '" + name + "'; the only one is '" + known + "'" for name in names if name != known]
+ACCEPTED_LABEL = "@dx_licenses//:accepted.json"
 
-def unaccepted(prefix, what, url, extension, name):
+def unknown_ids(ids):
+    """Returns the ids that are not a known license id."""
+    return [name for name in ids if name not in LICENSE_IDS]
+
+def accepted_ids(mctx):
+    """Returns the ids the root module accepted, read from the dx_licenses repo."""
+    return json.decode(mctx.read(Label(ACCEPTED_LABEL)))
+
+def unaccepted(prefix, what, url, name):
     """Returns the error shown when the license is not accepted."""
-    return prefix + ": the " + what + " (" + url + ") is not accepted; add " + extension + ".license(accept = [\"" + name + "\"]) to the root MODULE.bazel"
+    return prefix + ": the " + what + " (" + url + ") is not accepted; add dx_licenses.accept(ids = [\"" + name + "\"]) to the root MODULE.bazel"
 
-def accepted(mctx, prefix, known):
+def accepted(mctx, known):
     """Returns whether the root module accepted the known license."""
-    names = root_accepts(mctx.modules)
-    errors = license_errors(prefix, known, names)
-    if errors:
-        fail("; ".join(errors))
-    return known in names
+    return known in accepted_ids(mctx)

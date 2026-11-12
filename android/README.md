@@ -6,7 +6,8 @@ fetch no Android payload.
 ```python
 android_sdk = use_extension("@rules_dx//android:extensions.bzl", "android_sdk")
 
-android_sdk.license(accept = ["android-sdk-license"])
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["android-sdk-license"])
 android_sdk.configure(
     # api_level = 31,                       # 31-34, default 34
     # extra_packages = ["platform-tools"],  # and/or "emulator"
@@ -76,7 +77,7 @@ underlying Rust and C actions; build scripts stay on the host toolchain.
 `rules_dx` registers the NDK clang toolchains for both tuples; a consumer
 adds no `register_toolchains` line. The NDK comes from the `android_sdk`
 extension's pinned download on Linux x86_64 and is fetched only after
-`android_sdk.license(accept = ["android-sdk-license"])` is in the root
+`dx_licenses.accept(ids = ["android-sdk-license"])` is in the root
 module. `android_sdk.configure` is the one optional tag.
 
 ## Application packaging
@@ -338,7 +339,7 @@ Coursier. A consumer root swaps in the SDK with:
 
 ```python
 android_sdk = use_extension("@rules_dx//android:extensions.bzl", "android_sdk")
-android_sdk.license(accept = ["android-sdk-license"])
+dx_licenses.accept(ids = ["android-sdk-license"])
 android_sdk.configure()
 use_repo(android_sdk, "dx_androidsdk")
 

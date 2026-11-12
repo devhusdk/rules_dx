@@ -8,7 +8,7 @@ HUB_NAME = "dx_msvc"
 LICENSE = "visual-studio-build-tools"
 LICENSE_URL = "https://visualstudio.microsoft.com/license-terms/"
 
-UNACCEPTED = unaccepted("dx_msvc", "Visual Studio Build Tools license", LICENSE_URL, "msvc", LICENSE)
+UNACCEPTED = unaccepted("dx_msvc", "Visual Studio Build Tools license", LICENSE_URL, LICENSE)
 
 def cell_name(host, target):
     """Returns the hub target name for a host and target architecture."""

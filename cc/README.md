@@ -108,7 +108,8 @@ It supports a Windows x86_64 host that targets Windows x86_64. Accept the licens
 
 ```text
 msvc = use_extension("@rules_dx//cc:extensions.bzl", "msvc")
-msvc.license(accept = ["visual-studio-build-tools"])
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["visual-studio-build-tools"])
 ```
 
 Any other host or target platform fails with a message that names the supported pair. There is no clang-cl fallback.

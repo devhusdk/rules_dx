@@ -306,7 +306,7 @@ def license_errors(request):
     quoted = ['"' + name + '"' for name in missing]
     return [
         "android_sdk: accept " + ", ".join(missing) + " before acquisition; " +
-        "add android_sdk.license(accept = [" + ", ".join(quoted) + "]) to the root MODULE.bazel",
+        "add dx_licenses.accept(ids = [" + ", ".join(quoted) + "]) to the root MODULE.bazel",
     ]
 
 def request_errors(request):

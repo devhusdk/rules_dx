@@ -29,7 +29,7 @@ def _checks():
         expect_equal(
             "unaccepted text",
             UNACCEPTED,
-            "dx_msvc: the Visual Studio Build Tools license (https://visualstudio.microsoft.com/license-terms/) is not accepted; add msvc.license(accept = [\"visual-studio-build-tools\"]) to the root MODULE.bazel",
+            "dx_msvc: the Visual Studio Build Tools license (https://visualstudio.microsoft.com/license-terms/) is not accepted; add dx_licenses.accept(ids = [\"visual-studio-build-tools\"]) to the root MODULE.bazel",
         ),
         expect_equal("license name", LICENSE, "visual-studio-build-tools"),
         expect_contains("x64 cell", accepted_hub, 'name = "cc_toolchain_x64_x64",\n    msvc_version = "14.44.35207",\n    sdk_version = "10.0.26100.0",\n    vc_repo = "' + _VC + '",\n    sdk_repo = "' + _SDK + '",\n    files = ' + json.encode(cell_files(_VC, _SDK, "x64", "x64")) + ',\n    exec_cpu = "x64",\n    target_cpu = "x64",'),

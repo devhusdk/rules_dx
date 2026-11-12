@@ -13,14 +13,15 @@ pinned toolkit and the nvcc toolchain. Add this to the root `MODULE.bazel`:
 
 ```python
 cuda = use_extension("@rules_dx//cuda:extensions.bzl", "cuda")
-cuda.license(accept = ["cuda-eula"])
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["cuda-eula"])
 ```
 
 ## License
 
 The CUDA Toolkit is licensed under the
 [NVIDIA CUDA EULA](https://docs.nvidia.com/cuda/eula/index.html).
-`cuda.license(accept = ["cuda-eula"])` accepts it for this build.
+`dx_licenses.accept(ids = ["cuda-eula"])` accepts it for this build.
 Only the root module's tag counts. Without it, fetching the CUDA redistributables fails. `cuda-eula` is the only license name.
 
 Accepting the license here does not grant you one. You still need your own from NVIDIA.
@@ -76,7 +77,7 @@ The accepted `sm_` and `compute_` values are the ones nvcc 13.4 supports:
 
 rules_dx declares the pinned nvcc toolchain; a consumer adds no
 `register_toolchains` line. The one tag a consumer adds is
-`cuda.license(accept = ["cuda-eula"])`.
+`dx_licenses.accept(ids = ["cuda-eula"])`.
 
 ## Platforms
 
@@ -92,7 +93,7 @@ failing.
 
 | Message | Fix |
 | --- | --- |
-| `dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add cuda.license(accept = ["cuda-eula"]) to the root MODULE.bazel` | Add the license tag to the root `MODULE.bazel`. |
+| `dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add dx_licenses.accept(ids = ["cuda-eula"]) to the root MODULE.bazel` | Add the license tag to the root `MODULE.bazel`. |
 | `dx_cuda: unknown license '<name>'; the only one is 'cuda-eula'` | Accept `cuda-eula`. |
 | `dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = ["sm_89"]` | Set `cuda_archs`. |
 | `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |

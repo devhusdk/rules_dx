@@ -84,7 +84,7 @@ A global `dx` shim for PATH is built from `//cli/shim`. It runs the version in
 
 ## C and C++ toolchains
 
-- Microsoft `cl.exe` (`--//cc:compiler=msvc`): the Visual Studio Build Tools come from the hermetic `@dx_msvc` repo, not an installed Visual Studio. The download needs the Visual Studio Build Tools license, accepted with `msvc.license(accept = ["visual-studio-build-tools"])`. See the [support matrix](docs/support-matrix.md).
+- Microsoft `cl.exe` (`--//cc:compiler=msvc`): the Visual Studio Build Tools come from the hermetic `@dx_msvc` repo, not an installed Visual Studio. The download needs the Visual Studio Build Tools license, accepted with `dx_licenses.accept(ids = ["visual-studio-build-tools"])`. See the [support matrix](docs/support-matrix.md).
 - GCC (`--//cc:compiler=gcc`): GCC 16.2.0 on `linux_x86_64` and `linux_arm64`, with no install.
 
 ## Next

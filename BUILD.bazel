@@ -234,7 +234,6 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude typescript/tests/fixtures/proto/stripped
 # gazelle:exclude typescript/tests/fixtures/proto/v1
 # gazelle:exclude vue/tests/app
-# gazelle:exclude vue/tests/fixtures/hello
 # gazelle:exclude vue/tests/typecheck
 # gazelle:exclude .github/actions/assert-no-secret
 # gazelle:exclude .github/actions/remote-cache-helper

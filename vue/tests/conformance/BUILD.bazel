@@ -1,0 +1,57 @@
+# gazelle:ignore
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+load("//vue:defs.bzl", "vue_library", "vue_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+vue_library(
+    name = "conformance",
+    srcs = ["Hello.vue"],
+)
+
+vue_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["pass.test.js"],
+    data = [
+        ":Hello.vue",
+        ":helper.js",
+    ],
+    node_modules = "//:node_modules",
+    package_json = "//:package_json",
+    target_compatible_with = subject_compatible_with(),
+)
+
+vue_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["fail.test.js"],
+    data = [
+        ":Hello.vue",
+        ":helper.js",
+    ],
+    node_modules = "//:node_modules",
+    package_json = "//:package_json",
+    target_compatible_with = subject_compatible_with(),
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":conformance",
+    covered_source = "helper.js",
+    expected = "",
+    failing_case = "failing case",
+    failing_test = ":fail_subject_test",
+    lang = "vue",
+    not_applicable = {
+        "build_test": "vue has no binary rule",
+        "cross_test": "vue has no binary rule",
+        "lock_test": "vue has no binary rule",
+        "runfiles_test": "vue has no binary rule",
+    },
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

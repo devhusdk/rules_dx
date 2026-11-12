@@ -267,13 +267,6 @@ thrift runfiles_test *
 typescript cross_test *
 typescript lock_test *
 typescript runfiles_test *
-vue build_test *
-vue coverage_test *
-vue cross_test *
-vue fail_test *
-vue lock_test *
-vue pass_test *
-vue runfiles_test *
 zig coverage_test windows_x86_64
 zig cross_test macos_arm64
 zig lock_test *

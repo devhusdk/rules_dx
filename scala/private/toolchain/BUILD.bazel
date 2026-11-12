@@ -3,6 +3,16 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
+config_setting(
+    name = "scala_2_13_18",
+    flag_values = {"@rules_scala_config//:scala_version": "2.13.18"},
+)
+
+config_setting(
+    name = "scala_3_3_9",
+    flag_values = {"@rules_scala_config//:scala_version": "3.3.9"},
+)
+
 scala_toolchain(
     name = "semanticdb_impl",
     dependency_mode = "transitive",
@@ -20,7 +30,7 @@ scala_toolchain(
 
 toolchain(
     name = "semanticdb",
-    target_settings = ["@rules_scala_config//:scala_version_2_13_18"],
+    target_settings = [":scala_2_13_18"],
     toolchain = ":semanticdb_impl",
     toolchain_type = "@rules_scala//scala:toolchain_type",
 )
@@ -35,7 +45,7 @@ scala_toolchain(
 
 toolchain(
     name = "semanticdb_scala3",
-    target_settings = ["@rules_scala_config//:scala_version_3_3_9"],
+    target_settings = [":scala_3_3_9"],
     toolchain = ":semanticdb_scala3_impl",
     toolchain_type = "@rules_scala//scala:toolchain_type",
 )

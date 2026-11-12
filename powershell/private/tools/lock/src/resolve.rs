@@ -1,4 +1,4 @@
-//! Resolves the modules a `PSGallery.requirements.psd1` pins to their Gallery packages.
+//! Resolves the modules the PowerShell manifest pins to their Gallery packages.
 
 use dx_lock::{Archive, Error, Lock, Package, Resolution, Resolver, Scratch, Spec};
 

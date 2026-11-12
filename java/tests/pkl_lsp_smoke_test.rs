@@ -8,7 +8,7 @@ fn run(fixture: &str) -> Output {
     std::fs::create_dir_all(&tmp).unwrap_or_else(|error| panic!("mkdir: {error}"));
     let var =
         |name: &str| resolve_runfiles(&std::env::var(name).unwrap_or_else(|_| panic!("{name}")));
-    let file = resolve_runfiles(&format!("_main/java/private/quality/tools/testdata/{fixture}"));
+    let file = resolve_runfiles(&format!("_main/java/tests/{fixture}"));
     Command::new(var("LSP_CHECK"))
         .args(["--language-id", "pkl", "--timeout-ms", "30000", "--"])
         .arg(var("PKL_LSP_JAVA"))

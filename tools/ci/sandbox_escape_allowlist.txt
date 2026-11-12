@@ -60,7 +60,7 @@ deploy/private/src/stage.rs tmp-path 2
 dotnet/private/coverage/src/lcov.rs tmp-path 1
 dotnet/private/coverage/src/main.rs tmp-path 2
 dotnet/private/coverage/src/plan.rs tmp-path 2
-java/private/quality/tools/pkl_lsp_smoke_test.rs tmp-path 1
+java/tests/pkl_lsp_smoke_test.rs tmp-path 1
 julia/private/tools/format_cli_test.rs tmp-path 1
 julia/private/tools/jet/jet_cli_test.rs tmp-path 1
 julia/private/tools/lint/lint_cli_test.rs tmp-path 1

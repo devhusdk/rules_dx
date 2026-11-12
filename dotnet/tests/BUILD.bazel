@@ -1,6 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/tests:toolchain_tests.bzl", "toolchain_tests")
 load("//deploy/private:nuget_tests.bzl", "nuget_unit_tests")
+load("//rust:defs.bzl", "rust_test")
 
 toolchain_tests(
     name = "toolchain",
@@ -10,6 +11,12 @@ toolchain_tests(
 nuget_unit_tests(
     name = "nuget_unit",
     size = "small",
+)
+
+rust_test(
+    name = "coverlet_launcher_bin_test",
+    size = "small",
+    crate = "//dotnet/private/coverage:coverlet_launcher",
 )
 
 real_source_target(

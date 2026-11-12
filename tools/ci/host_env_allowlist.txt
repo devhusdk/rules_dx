@@ -26,8 +26,6 @@ appimage/tests/fixtures/appimage-app/app/run_test.sh shebang 1
 apple/tests/fixtures/swift_app/BUILD.bazel sh-rule 1
 apple/tests/fixtures/swift_app/check_ipa.sh shebang 1
 apple/tests/path_test.rs host-path 3
-bcr_test_module/BUILD.bazel sh-rule 1
-bcr_test_module/hello_test.sh shebang 1
 cc/private/bench_run.sh shebang 1
 cc/private/clang_syntax_tests.bzl host-path 3
 cc/private/context/src/lib_tests.rs host-path 19
@@ -294,7 +292,6 @@ rust/tests/fixtures/shared-rust-checks/inspect_apk.sh shebang 1
 rust/tests/fixtures/wasm_bindgen/BUILD.bazel genrule 1
 scala/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 swift/private/tools/swift_tool.bzl host-path 2
-swift/tests/BUILD.bazel sh-rule 1
 swift/tests/fixtures/bench/BUILD.bazel sh-rule 1
 swift/tests/fixtures/bench/run_test.sh shebang 1
 swift/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
@@ -306,8 +303,6 @@ swift/tests/fixtures/swift-app/ledger/cli/BUILD.bazel sh-rule 2
 swift/tests/fixtures/swift-app/ledger/cli/relocate_test.sh shebang 1
 swift/tests/fixtures/swift-app/ledger/cli/usage_test.sh shebang 1
 swift/tests/toolchain_dlls_test.ps1 host-path 1
-swift/tests/toolchain_libs_test.sh host-path 1
-swift/tests/toolchain_libs_test.sh shebang 1
 thrift/private/compiler.BUILD.bazel genrule 1
 tools/BUILD.bazel genrule 1
 tools/bazelisk/wrapper/bazel.ps1 host-path 1

@@ -1,10 +1,11 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_dx//rust:defs.bzl", "rust_test")
 load(":toolchain.bzl", "resolved_cc_toolchain")
 
-sh_test(
+rust_test(
     name = "hello_test",
-    srcs = ["hello_test.sh"],
+    size = "small",
+    srcs = ["hello_test.rs"],
 )
 
 resolved_cc_toolchain(
@@ -25,7 +26,7 @@ filegroup(
     srcs = [
         "BUILD.bazel",
         "MODULE.bazel",
-        "hello_test.sh",
+        "hello_test.rs",
         "toolchain.bzl",
     ],
     visibility = ["//deploy/private/release/tests:__pkg__"],

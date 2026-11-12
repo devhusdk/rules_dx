@@ -1,6 +1,5 @@
 load("@rules_perl//perl:perl_binary.bzl", "perl_binary")
 load("@rules_perl//perl/cpan:cpan_compiler.bzl", "cpan_compiler")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
@@ -9,6 +8,8 @@ exports_files([
     "cpanfile",
     "cpanfile.snapshot",
     "cpanfile.snapshot.lock.json",
+    "critic/testdata/clean.pl",
+    "critic/testdata/dirty.pl",
 ])
 
 alias(
@@ -31,33 +32,11 @@ perl_binary(
     ],
 )
 
-sh_test(
-    name = "perlcritic_smoke_test",
-    srcs = ["perlcritic_smoke_test.sh"],
-    args = [
-        "$(rootpath :perlcritic)",
-        "$(rootpath critic/testdata/clean.pl)",
-        "$(rootpath critic/testdata/dirty.pl)",
-    ],
-    data = [
-        "critic/testdata/clean.pl",
-        "critic/testdata/dirty.pl",
-        ":perlcritic",
-    ],
-)
-
 perl_binary(
     name = "cpansa_dump",
     srcs = ["cpansa_dump.pl"],
     main = "cpansa_dump.pl",
     deps = ["@dx_perl_cpan//:CPANSA-DB"],
-)
-
-sh_test(
-    name = "cpansa_dump_smoke_test",
-    srcs = ["cpansa_dump_smoke_test.sh"],
-    args = ["$(rootpath :cpansa_dump)"],
-    data = [":cpansa_dump"],
 )
 
 cpan_compiler(

@@ -48,6 +48,18 @@ def msvc_crt_static_flag(arg):
 def _crt_static(argv):
     return any([msvc_crt_static_flag(arg) for arg in argv])
 
+def _swift_static_crt(argv):
+    for i in range(len(argv) - 1):
+        if argv[i] == "-libc" and argv[i + 1] in ["MT", "MTd"]:
+            return True
+    return False
+
+def _dynamic_compile(action):
+    argv = action.argv or []
+    if action.mnemonic == "CppCompile":
+        return any([flag in argv for flag in _DYNAMIC])
+    return action.mnemonic == "SwiftCompile" and not _swift_static_crt(argv)
+
 def _dx_msvc_crt_aspect_impl(target, ctx):
     crt_static = False
     dynamic = []
@@ -64,7 +76,7 @@ def _dx_msvc_crt_aspect_impl(target, ctx):
     for action in target.actions:
         if action.mnemonic == "Rustc" and _crt_static(action.argv or []):
             crt_static = True
-        elif not recorded and action.mnemonic == "CppCompile" and any([flag in (action.argv or []) for flag in _DYNAMIC]):
+        elif not recorded and _dynamic_compile(action):
             dynamic.append(str(target.label))
             recorded = True
     return [DxMsvcCrtInfo(
@@ -75,7 +87,7 @@ def _dx_msvc_crt_aspect_impl(target, ctx):
 dx_msvc_crt_aspect = aspect(
     implementation = _dx_msvc_crt_aspect_impl,
     attr_aspects = ["deps", "link_deps", "crate", "upstream"],
-    doc = "Records +crt-static Rust compiles and /MD C/C++ compiles.",
+    doc = "Records +crt-static Rust compiles, /MD C/C++ compiles and Swift compiles without -libc MT.",
 )
 
 def dx_msvc_crt_validate(ctx):

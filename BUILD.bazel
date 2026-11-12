@@ -214,6 +214,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude core/quality/tools/python
 # gazelle:exclude go/tests/fixtures/staticcheck
 # gazelle:exclude swift/tests/fixtures/hello
+# gazelle:exclude swift/tests/fixtures/rust_link
 # gazelle:exclude d/tests/fixtures/hello
 # gazelle:exclude core/quality/tests/fixtures/strict_preset
 # gazelle:exclude core/quality/tests/fixtures/consumer_policy

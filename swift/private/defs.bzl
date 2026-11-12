@@ -130,7 +130,11 @@ def swift_kwargs(kwargs):
 
 def _swift_upstream_kwargs(kwargs):
     """Returns the swift upstream kwargs with the static, index and warnings-as-errors settings."""
-    return dx_append_flags(dx_warnings_flags(kwargs, "copts", ["-warnings-as-errors"]), "features", _STATIC + _INDEX)
+    out = dx_append_flags(dx_warnings_flags(kwargs, "copts", ["-warnings-as-errors"]), "features", _STATIC + _INDEX)
+    return dx_append_flags(out, "copts", select({
+        Label("//swift/private/platforms:is_windows_x86_64_static_crt"): ["-libc", "MT"],
+        "//conditions:default": [],
+    }))
 
 def swift_library(name, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_library and builds it for Linux, or with Xcode on macOS."""

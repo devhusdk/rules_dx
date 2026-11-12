@@ -1,9 +1,7 @@
-use dx_testing::resolve_runfiles;
+use dx_testing::runfiles_root;
 use serde_json::{Value, json};
 use std::path::Path;
 use std::process::Command;
-
-const SCRIPT: &str = "tools/ci/lock_merge.sh";
 
 const EXTENSION: &str = "@@rules_go+//go:extensions.bzl%go_sdk";
 
@@ -75,7 +73,7 @@ fn fresh_locks() -> Vec<(String, Value)> {
         .collect()
 }
 
-/// Runs lock_merge.sh and returns the merged lock, or None when it fails.
+/// Runs `producers_bin --lock-merge` and returns the merged lock, or None when it fails.
 fn merge(locks: &[(String, Value)]) -> Option<Value> {
     let dir = dx_test_scratch::scratch("lock-merge");
     let inputs = dir.path().join("locks");
@@ -85,14 +83,13 @@ fn merge(locks: &[(String, Value)]) -> Option<Value> {
         .collect();
     write_locks(&inputs, &borrowed);
     let out = dir.path().join("MODULE.bazel.lock");
-    let jq = resolve_runfiles(&std::env::var("DX_JQ").expect("DX_JQ"));
-    let output = Command::new("bash")
-        .env("DX_JQ", jq.to_string_lossy().replace('\\', "/"))
-        .arg(resolve_runfiles(SCRIPT))
-        .arg(inputs.to_string_lossy().replace('\\', "/"))
-        .arg(out.to_string_lossy().replace('\\', "/"))
+    let bin = runfiles_root().join(std::env::var("DX_PRODUCERS_BIN").expect("DX_PRODUCERS_BIN"));
+    let output = Command::new(bin)
+        .arg("--lock-merge")
+        .arg(&inputs)
+        .arg(&out)
         .output()
-        .expect("run lock_merge.sh");
+        .expect("run producers_bin --lock-merge");
     if !output.status.success() {
         return None;
     }
@@ -104,7 +101,7 @@ fn merge(locks: &[(String, Value)]) -> Option<Value> {
 
 #[test]
 fn every_factor_takes_its_own_platform_entry_whole() {
-    let merged = merge(&fresh_locks()).expect("lock_merge.sh merges five fresh locks");
+    let merged = merge(&fresh_locks()).expect("lock-merge merges five fresh locks");
     let entries = &merged["moduleExtensions"][EXTENSION];
     for (_, factor) in PLATFORMS {
         assert_eq!(

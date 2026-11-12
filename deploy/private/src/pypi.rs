@@ -1127,10 +1127,15 @@ mod tests {
     }
 
     #[cfg(unix)]
-    fn fake_twine(dir: &Path, body: &str) -> std::path::PathBuf {
-        let path = dir.join("twine");
+    fn fake_tool(dir: &Path, name: &str, body: &str) -> std::path::PathBuf {
+        let path = dir.join(name);
         dx_testing::executable_script(&path, &format!("#!/bin/sh\n{body}\n"));
         path
+    }
+
+    #[cfg(unix)]
+    fn fake_twine(dir: &Path, body: &str) -> std::path::PathBuf {
+        fake_tool(dir, "twine", body)
     }
 
     #[cfg(unix)]
@@ -1250,10 +1255,10 @@ mod tests {
         let dir = scratch.path();
         let argv = dir.join("argv");
         let twine = fake_twine(dir, &format!("echo \"$@\" >> {}", argv.display()));
-        let signer = dir.join("pypi_attestations");
-        dx_testing::executable_script(
-            &signer,
-            "#!/bin/sh\nshift 1\nfor f in \"$@\"; do : > \"$f.publish.attestation\"; done\n",
+        let signer = fake_tool(
+            dir,
+            "pypi_attestations",
+            "shift 1\nfor f in \"$@\"; do : > \"$f.publish.attestation\"; done",
         );
         let (wheel, sdist) = upload_fixture(dir, "pkg-1.0.tar.gz");
         let stage = dir.join("stage");

@@ -10,6 +10,7 @@ rust_binary(
     testonly = True,
     srcs = [
         "src/evidence.rs",
+        "src/lock_merge.rs",
         "src/main.rs",
     ],
     aliases = aliases(

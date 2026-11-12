@@ -1175,26 +1175,6 @@ use_repo(
 
 dx_pins_dev = use_extension("//core:extensions.bzl", "dx_pins", dev_dependency = True)
 dx_pins_dev.archive(
-    name = "dx_jq_linux_arm64",
-    pins = "//tools/ci:pins.json",
-)
-dx_pins_dev.archive(
-    name = "dx_jq_linux_x86_64",
-    pins = "//tools/ci:pins.json",
-)
-dx_pins_dev.archive(
-    name = "dx_jq_macos_arm64",
-    pins = "//tools/ci:pins.json",
-)
-dx_pins_dev.archive(
-    name = "dx_jq_windows_arm64",
-    pins = "//tools/ci:pins.json",
-)
-dx_pins_dev.archive(
-    name = "dx_jq_windows_x86_64",
-    pins = "//tools/ci:pins.json",
-)
-dx_pins_dev.archive(
     name = "erlang_app_thoas",
     build = "//erlang/tests/fixtures/erlang_app:thoas.BUILD.bazel",
     pins = "//erlang:pins.json",
@@ -1216,11 +1196,6 @@ dx_pins_dev.archive(
 )
 use_repo(
     dx_pins_dev,
-    "dx_jq_linux_arm64",
-    "dx_jq_linux_x86_64",
-    "dx_jq_macos_arm64",
-    "dx_jq_windows_arm64",
-    "dx_jq_windows_x86_64",
     "erlang_app_thoas",
     "foreign_cmake_zlib",
     "lua_app_inspect",

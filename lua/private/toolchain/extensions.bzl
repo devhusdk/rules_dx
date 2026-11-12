@@ -14,6 +14,7 @@ def lua_hub():
 
 def _hub_impl(rctx):
     rctx.file("BUILD.bazel", rctx.attr.build)
+    return rctx.repo_metadata(reproducible = True)
 
 _hub = repository_rule(
     implementation = _hub_impl,

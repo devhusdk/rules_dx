@@ -127,7 +127,7 @@ filegroup(
 def _swift_libs_linux_impl(repository_ctx):
     triple = repository_ctx.attr.triple
     sysroot = repository_ctx.path(repository_ctx.attr.sysroot.same_package_label("REPO.bazel")).dirname
-    patchelf = repository_ctx.path(repository_ctx.attr._patchelf)
+    patchelf = repository_ctx.attr._patchelf
     for lib in _HOST_LIBS:
         candidates = [sysroot.get_child(d).get_child(lib) for d in ["lib/" + triple, "usr/lib/" + triple]]
         found = [c for c in candidates if c.exists]
@@ -169,7 +169,7 @@ def _swift_linux_impl(repository_ctx):
     )
     if not repository_ctx.path("usr/bin/llvm-strip").exists:
         repository_ctx.symlink("usr/bin/llvm-objcopy", "usr/bin/llvm-strip")
-    host_libs = repository_ctx.path(repository_ctx.attr.libs).dirname.get_child("host_libs")
+    host_libs = repository_ctx.path(repository_ctx.attr.libs.same_package_label("BUILD.bazel")).dirname.get_child("host_libs")
     for lib in host_libs.readdir():
         repository_ctx.symlink(lib, "usr/lib/swift/linux/" + lib.basename)
         repository_ctx.symlink(lib, "usr/lib/" + lib.basename)
@@ -183,7 +183,7 @@ swift_linux_repo = repository_rule(
     implementation = _swift_linux_impl,
     attrs = {
         "cell": attr.string(mandatory = True, values = ["linux_arm64", "linux_x86_64"]),
-        "libs": attr.label(mandatory = True, doc = "The BUILD file of the libraries repository whose `host_libs` the tools load."),
+        "libs": attr.label(mandatory = True, doc = "A file of the libraries repository whose `host_libs` the tools load."),
         "sha256": attr.string(mandatory = True),
         "urls": attr.string_list(mandatory = True),
         "version": attr.string(mandatory = True),

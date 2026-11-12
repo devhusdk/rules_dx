@@ -13,6 +13,15 @@ _PLATFORMS = {
 def _repo_name(version, triple):
     return "python_{}_{}".format(version.replace(".", "_"), triple.replace("-", "_"))
 
+_TOOLCHAIN = """
+toolchain(
+    name = "{name}",
+    {constraint_attr} = {constraints},
+    target_settings = {settings},
+    toolchain = "@{repo}//:{target}",
+    toolchain_type = "{toolchain_type}",
+)"""
+
 def _hub_impl(rctx):
     version = rctx.attr.python_version
     lines = [
@@ -36,14 +45,7 @@ def _hub_impl(rctx):
             ("_exec_tools", "runtime", "@rules_py//py/private/toolchain:exec_tools_toolchain_type", False),
         ]:
             constraint_attr = "target_compatible_with" if target_side else "exec_compatible_with"
-            lines.append("""
-toolchain(
-    name = "{name}",
-    {constraint_attr} = {constraints},
-    target_settings = {settings},
-    toolchain = "@{repo}//:{target}",
-    toolchain_type = "{toolchain_type}",
-)""".format(
+            lines.append(_TOOLCHAIN.format(
                 name = repo + suffix,
                 constraint_attr = constraint_attr,
                 constraints = repr(constraints),
@@ -53,6 +55,7 @@ toolchain(
                 toolchain_type = toolchain_type,
             ))
     rctx.file("BUILD.bazel", "\n".join(lines) + "\n")
+    return rctx.repo_metadata(reproducible = True)
 
 _hub = repository_rule(
     implementation = _hub_impl,

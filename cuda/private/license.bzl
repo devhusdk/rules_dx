@@ -1,7 +1,9 @@
 """Repository rule that stands in for a CUDA component until the EULA is accepted."""
 
 def _cuda_unaccepted_impl(repository_ctx):
-    fail(repository_ctx.attr.error)
+    if repository_ctx.attr.error:
+        fail(repository_ctx.attr.error)
+    return repository_ctx.repo_metadata(reproducible = True)
 
 cuda_unaccepted = repository_rule(
     implementation = _cuda_unaccepted_impl,

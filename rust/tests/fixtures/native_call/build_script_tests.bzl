@@ -497,8 +497,10 @@ _CRT_MISMATCH = {"expected_failure_substring": "MSVC CRT mismatch"}
 
 def _mixed_crt_actions_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".txt")
-    ctx.actions.run_shell(outputs = [out], command = "touch " + out.path, arguments = ["/MD"], mnemonic = "CppCompile")
-    ctx.actions.run_shell(outputs = [ctx.actions.declare_file(ctx.label.name + ".rlib")], command = "true", arguments = ["-Ctarget-feature=+crt-static"], mnemonic = "Rustc")
+    tool = ctx.actions.declare_file(ctx.label.name + ".tool")
+    ctx.actions.write(tool, "", is_executable = True)
+    ctx.actions.run(executable = tool, outputs = [out], arguments = ["/MD"], mnemonic = "CppCompile")
+    ctx.actions.run(executable = tool, outputs = [ctx.actions.declare_file(ctx.label.name + ".rlib")], arguments = ["-Ctarget-feature=+crt-static"], mnemonic = "Rustc")
     return [CcInfo(), DefaultInfo(files = depset([out]))]
 
 mixed_crt_actions = rule(

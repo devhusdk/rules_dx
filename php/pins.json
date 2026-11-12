@@ -2,14 +2,14 @@
   "cells": {
     "linux_arm64": {
       "binary": "php",
-      "sha256": "ed2ae18b2c278f6559ff902f9126a59509f56ef5600ba7f34bd69cca2b0ae944",
+      "sha256": "05fcf9779839ffd985ed3b164ebf52c887a54e039f921c7ce848b5271cc00c29",
       "urls": [
         "https://dl.static-php.dev/v3/php-bin/gnu-bulk/php-8.5.12-cli-linux-aarch64.tar.gz"
       ]
     },
     "linux_x86_64": {
       "binary": "php",
-      "sha256": "3c932354edf5b49d70815fb3e6df3c3d30d3a17ecdd7e89778e31aa870c43897",
+      "sha256": "547420ef97cb34a42462c0851ea72b14ef9d53f24cc1ff973a26ef6b6b351445",
       "urls": [
         "https://dl.static-php.dev/v3/php-bin/gnu-bulk/php-8.5.12-cli-linux-x86_64.tar.gz"
       ]

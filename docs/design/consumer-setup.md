@@ -25,6 +25,31 @@ This page fixes what a consumer writes to use rules_dx, and what rules_dx writes
 - The hub tag takes the lockfile label. It takes no version, url or `sha256`.
 - `<lang>/extensions.bzl` holds the hub extension.
 
+## Crate hubs
+
+- `@rules_dx//rust:extensions.bzl` `cargo` is the upstream `crate` extension. rules_dx does not wrap it.
+- A consumer hub that builds crates with a `build.rs` that calls `cc` adds one annotation next to its `cargo.from_cargo` tag:
+
+```starlark
+cargo.annotation(
+    build_script_env = {
+        "CFLAGS": "$(DX_BS_CFLAGS)",
+        "HOST_AR": "$(DX_BS_HOST_AR)",
+        "HOST_CC": "$(DX_BS_HOST_CC)",
+        "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+        "HOST_CXX": "$(DX_BS_HOST_CXX)",
+        "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+        "TARGET_AR": "$(DX_BS_TARGET_AR)",
+        "TARGET_CC": "$(DX_BS_TARGET_CC)",
+        "TARGET_CXX": "$(DX_BS_TARGET_CXX)",
+    },
+    build_script_toolchains = ["@rules_dx//rust/private:build_script_cc_env"],
+    crate = "*",
+)
+```
+
+- `dx init` writes this annotation with every `cargo.from_cargo` hub it writes.
+
 ## Patched dependencies
 
 - A consumer resolves from the Bazel Central Registry only. No version is named `<upstream version>.dx.<n>`.

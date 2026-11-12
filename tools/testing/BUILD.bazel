@@ -314,6 +314,11 @@ rust_binary(
     crate_root = "nested_cache_update.rs",
 )
 
+rust_test(
+    name = "nested_cache_update_test",
+    crate = ":nested_cache_update",
+)
+
 rust_binary(
     name = "starlark_harness",
     testonly = True,

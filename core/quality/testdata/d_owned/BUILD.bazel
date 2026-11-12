@@ -1,9 +1,10 @@
-load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//core/quality:policy.bzl", "quality_family")
 load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_library")
 
 package(default_visibility = [
     "//core/quality:__pkg__",
     "//core/quality/testdata:__pkg__",
+    "//core/quality/tests/fixtures/consumer_policy:__pkg__",
 ])
 
 quality_family(
@@ -15,11 +16,6 @@ quality_family(
     ],
     family_id = "d",
     typecheck = ["ldc"],
-)
-
-workspace_policy(
-    name = "policy",
-    families = [":d_family"],
 )
 
 d_library(

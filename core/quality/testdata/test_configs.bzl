@@ -1,6 +1,6 @@
 """Build settings of every quality test configuration."""
 
-MAX_TEST_CONFIGS = 28
+MAX_TEST_CONFIGS = 25
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 
@@ -66,11 +66,8 @@ def _config(policy, compiler = "llvm", profile = "strict", clippy_flags = [], to
 
 _CC_SYNTAX = "//core/quality/testdata/clang_syntax:cc_syntax_policy"
 _CC_TIDY = "//core/quality/testdata/clang_syntax:cc_tidy_policy"
-_D = "//core/quality/testdata/d_owned:policy"
-_FSHARP = "//core/quality/testdata/fsharp_owned:policy"
 _SHARED = "//core/quality/tests/fixtures/consumer_policy:shared_policy"
 _ZIG = "//core/quality/testdata/zig_owned:policy"
-_RUBY = "//core/quality/testdata/ruby_owned:policy"
 
 TEST_CONFIGS = {
     "cc_syntax": _config(_CC_SYNTAX),
@@ -84,10 +81,7 @@ TEST_CONFIGS = {
     "shared": _config(_SHARED),
     "shared_standard": _config(_SHARED, profile = "standard"),
     "default": _config("//config:default_workspace_policy"),
-    "d_owned": _config(_D),
     "zig_owned": _config(_ZIG),
-    "fsharp_owned": _config(_FSHARP),
-    "ruby_owned": _config(_RUBY),
     "generated": _config("//core/quality/tests/fixtures/generated_policy:policy"),
     "iac_tiers": _config("//core/quality/testdata/iac_tiers:policy"),
     "objc": _config("//core/quality/testdata/clang_syntax:objc_policy"),

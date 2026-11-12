@@ -13,10 +13,11 @@ load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core:msvc_crt.bzl", "dx_msvc_crt_reset_transition")
+load("//core:platform.bzl", "platforms_transition")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/private/platforms:support.bzl", _SWIFT_COMPATIBLE_WITH = "SWIFT_COMPATIBLE_WITH", _SWIFT_FUZZ_COMPATIBLE_WITH = "SWIFT_FUZZ_COMPATIBLE_WITH")
-load("//swift/private/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
+load("//swift/private/platforms:settings.bzl", "SWIFT_PLATFORM_SETTINGS", "swift_linux_platforms", "swift_platform_settings")
 load("//swift/private:providers.bzl", "SwiftDocsInfo")
 
 # Re-exported unchanged: BUILD files use them to expose C modules to Swift and to group libraries.
@@ -24,14 +25,19 @@ swift_interop_hint = _swift_interop_hint
 swift_library_group = _swift_library_group
 
 _PLATFORM_ATTR = {
-    "platforms": attr.label_list(
-        doc = "The one platform to build for. Empty uses the current target platform.",
-        providers = [platform_common.PlatformInfo],
+    "platforms": attr.string_list(
+        doc = "The one platform label to build for. Empty uses the command-line platform.",
     ),
     "_swift_extra_toolchains": attr.string_list(
         default = [str(Label("@local_config_apple_cc_toolchains//:all"))],
     ),
 }
+_swift_platforms_transition = platforms_transition(
+    swift_platform_settings,
+    inputs = SWIFT_PLATFORM_SETTINGS,
+    outputs = SWIFT_PLATFORM_SETTINGS,
+    single = "swift",
+)
 _WINDOWS_RUNTIME = Label("@dx_swift_windows_x86_64//:runtime_dlls")
 _WINDOWS_RUNTIME_ROOT = "..\\" + _WINDOWS_RUNTIME.workspace_root.removeprefix("external/")
 SWIFT_WINDOWS_RUNTIME_PATH = _WINDOWS_RUNTIME_ROOT + "\\runtime\\usr\\bin;" + _WINDOWS_RUNTIME_ROOT + "\\platform\\Developer\\Library\\XCTest-6.4.2\\usr\\bin64"
@@ -62,7 +68,7 @@ _swift_library_forward = dx_library_forward_rule(
     upstream_providers = [[SwiftInfo]],
     extra_attrs = _PLATFORM_ATTR,
     runtime = "besteffort",
-    upstream_cfg = swift_linux_transition,
+    upstream_cfg = _swift_platforms_transition,
 )
 
 _swift_binary_forward = dx_executable_forward_rule(
@@ -70,7 +76,7 @@ _swift_binary_forward = dx_executable_forward_rule(
     kind = "executable",
     provides = _EXEC_PROVIDES,
     extra_attrs = _PLATFORM_ATTR,
-    upstream_cfg = swift_linux_transition,
+    upstream_cfg = _swift_platforms_transition,
     cfg = dx_msvc_crt_reset_transition,
 )
 
@@ -98,7 +104,7 @@ _swift_forward_test = dx_executable_forward_rule(
         "_swift_llvm_cov": _swift_tool_attr("//swift/private/tools:llvm_cov"),
         "_swift_llvm_profdata": _swift_tool_attr("//swift/private/tools:llvm_profdata"),
     },
-    upstream_cfg = swift_linux_transition,
+    upstream_cfg = _swift_platforms_transition,
     coverage_providers = _swift_test_coverage,
     toolchains = dx_native_coverage_toolchains(),
     cfg = dx_msvc_crt_reset_transition,

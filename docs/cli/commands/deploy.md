@@ -10,11 +10,14 @@ NPM_PUBLISH_APPROVED=1 dx deploy --apply //pkg:npm
 
 ```text
 dx deploy [--apply] [--debug|--release] <label> [-- args...]
+dx deploy [--apply] [--debug|--release] --affected [--since <ref>]
 ```
 
 | Flag | What it does |
 | --- | --- |
 | `--apply` | Publish. Sets `DX_DEPLOY_LIVE=1` for the launcher. |
+| `--affected` | Deploy every `dx_deployment` the change reaches, one after another, instead of one label. Takes no label. |
+| `--since <ref>` | With `--affected`, compare against this ref instead of the default branch merge-base. |
 | `--debug` | Compile with the `dx_build_debug` build mode. |
 | `--release` | Compile with the `dx_build_release` build mode. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |

@@ -599,8 +599,8 @@ pub(crate) mod owners {
         Lint, Typecheck, Format, Generate, Deploy, Check, Update, Init, Upgrade, Watch, Worktree,
     ];
     pub(crate) const BUILD_MODE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
-    pub(crate) const AFFECTED_OWNERS: [Command; 10] = [
-        Security, License, Lint, Typecheck, Format, Generate, Build, Test, Coverage, Check,
+    pub(crate) const AFFECTED_OWNERS: [Command; 11] = [
+        Security, License, Lint, Typecheck, Format, Generate, Build, Test, Coverage, Deploy, Check,
     ];
 }
 

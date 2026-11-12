@@ -1,4 +1,4 @@
-cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
+cuda = use_extension("@rules_dx//cuda:extensions.bzl", "cuda")
 # The CUDA Toolkit is licensed under the NVIDIA EULA: https://docs.nvidia.com/cuda/eula/index.html
 # The next line accepts it for this build; remove it to decline (CUDA targets then fail to build).
 cuda.license(accept = ["cuda-eula"])

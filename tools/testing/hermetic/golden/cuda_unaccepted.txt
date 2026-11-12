@@ -13,5 +13,4 @@ file cuda/tests/fixtures/cuda-app/kernels/stencil.cu
 file cuda/tests/fixtures/cuda-app/kernels/vector_add.cu
 failure //cuda/tests/fixtures/cuda-app/app:cuda_app
 bazel_dep llvm
-bazel_dep rules_cuda
 bazel_dep rules_shell

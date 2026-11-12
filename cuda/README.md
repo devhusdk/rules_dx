@@ -81,13 +81,9 @@ rules_dx declares the pinned nvcc toolchain; a consumer adds no
 
 ## Platforms
 
-Linux x86_64 and Linux arm64 (sbsa) are qualified. CUDA targets are incompatible on other platforms,
-so `bazel build //...` skips them.
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
-Windows x86_64 and Windows arm64 (CUDA 13.4.2 redist) are qualified with
-`--//cc:compiler=msvc`: nvcc on Windows only drives `cl.exe`. With the default
-`llvm` compiler CUDA targets are incompatible there, so Windows builds skip them instead of
-failing.
+Windows needs `--//cc:compiler=msvc`: nvcc on Windows only drives `cl.exe`. With the default `llvm` compiler CUDA targets are incompatible there and Windows builds skip them.
 
 ## Errors
 

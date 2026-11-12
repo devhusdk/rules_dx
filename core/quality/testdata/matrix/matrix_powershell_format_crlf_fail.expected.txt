@@ -8,4 +8,4 @@ initial 1
 initial WARNING psscriptanalyzer - matrix/psscriptanalyzer_format_crlf.ps1 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/psscriptanalyzer_format_crlf.ps1 7 24 " {\r\n    Write-Output 1\r\n"
+replacement matrix/psscriptanalyzer_format_crlf.ps1 10 10 "    "

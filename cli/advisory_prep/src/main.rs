@@ -23,7 +23,7 @@ set locks (default the workspace root); --out DIR writes the snapshots (default 
 under it); --date YYYY-MM-DD stamps \
 every sidecar (default today, UTC); --max-time, --connect-timeout, --retries and --retry-delay \
 bound one download (defaults 600, 30, 3 and 5 seconds); --archive FAMILY=PATH converts a local \
-archive instead of fetching it; --cpansa-output FILE reads the cpansa_dump output instead of running the binary; --cpansa-dump BINARY overrides the bundled //perl/private/tools:cpansa_dump (the cpan family has no OSV archive: that binary prints the pinned CPANSA::DB database); --trivy BINARY runs the pinned trivy to download its vulnerability and checks databases into --out/trivy and writes trivy.meta.json (a second run on the same day downloads nothing); --cargo-index URL overrides the crates.io sparse index that supplies the yanked flags of the locked cargo crates (written as cargo-yanked); --pypi-index URL overrides the PyPI JSON API that supplies the yanked flags of the locked uv packages (written as pypi-yanked); --pin DIR also copies each snapshot to DIR/DATE/FAMILY.json and prints one `advisory FAMILY DATE SHA256 URL` line per family for .dx/pins, the URL under --pin-url-base (default the rules_dx-advisory release downloads); --status-file FILE appends status, ecosystems and families \
+archive instead of fetching it; --cpansa-output FILE reads the cpansa_dump output instead of running the binary; --cpansa-dump BINARY overrides the bundled //perl/private/tools:cpansa_dump (the cpan family has no OSV archive: that binary prints the pinned CPANSA::DB database); --trivy BINARY runs the pinned trivy to download its vulnerability and checks databases into --out/trivy and writes trivy.meta.json (a second run on the same day downloads nothing); --cargo-index URL overrides the crates.io sparse index that supplies the yanked flags of the locked cargo crates (written as cargo-yanked); --pypi-index URL overrides the PyPI JSON API that supplies the yanked flags of the locked uv packages (written as pypi-yanked); --pin DIR also copies each snapshot to DIR/DATE/FAMILY.json and prints one `advisory FAMILY DATE SHA256 URL` line per family for .dx/pins, the URL under --pin-url-base (default the rules_dx-advisory release downloads); --ci runs the CI step: it appends retrieved_at to --status-file, writes status=empty and stops when .dx/pins pins advisory snapshots, and otherwise runs the bundled trivy (DX_TRIVY) when the workspace holds Terraform, Bicep, Dockerfile, Helm or oci_deploy inputs, appending trivy=true; --status-file FILE appends status, ecosystems and families \
 as key=value lines (status is empty when no dependency set needs an ecosystem).\n\nExit codes: 0 success, 2 usage error, 1 preparation \
 failure."
 )]
@@ -73,6 +73,9 @@ struct Cli {
     /// Release download base the printed pin URLs point under.
     #[arg(long, value_name = "URL")]
     pin_url_base: Option<String>,
+    /// Run the CI step: skip when snapshots are pinned, pick up the bundled trivy when the workspace needs it.
+    #[arg(long)]
+    ci: bool,
     /// File the status, ecosystem count and families are appended to.
     #[arg(long)]
     status_file: Option<PathBuf>,
@@ -115,7 +118,14 @@ fn run(cli: Cli) -> Result<Vec<String>, PrepError> {
         .pin_url_base
         .clone()
         .unwrap_or_else(|| dx_advisory_prep::PIN_URL_BASE.to_owned());
-    let options = options_from(cli, root.as_deref())?;
+    let ci = cli.ci;
+    let mut options = options_from(cli, root.as_deref())?;
+    if ci {
+        let trivy = bundled_tool("DX_TRIVY");
+        if let Some(lines) = ci_setup(&mut options, status_file.as_deref(), trivy)? {
+            return Ok(lines);
+        }
+    }
     let prepared = prepare(&options)?;
     let pin_lines = match &pin {
         Some(dir) => dx_advisory_prep::write_pins(&options, &prepared, dir, &pin_url_base)?,
@@ -143,13 +153,45 @@ fn run(cli: Cli) -> Result<Vec<String>, PrepError> {
     Ok(lines)
 }
 
+/// Applies the `--ci` steps; `Some` lines mean there is nothing to prepare.
+fn ci_setup(
+    options: &mut PrepareOptions,
+    status_file: Option<&Path>,
+    trivy: Option<PathBuf>,
+) -> Result<Option<Vec<String>>, PrepError> {
+    if let Some(path) = status_file {
+        append_text(path, &format!("retrieved_at={}\n", options.retrieved_at))?;
+    }
+    if dx_advisory_prep::advisory_pinned(&options.workspace) {
+        if let Some(path) = status_file {
+            append_text(path, "status=empty\n")?;
+        }
+        return Ok(Some(vec![
+            "advisory snapshots are pinned: nothing to prepare".to_owned(),
+        ]));
+    }
+    if dx_advisory_prep::needs_trivy(&options.workspace)? {
+        options.trivy = Some(trivy.ok_or_else(|| PrepError::Usage {
+            detail: "--ci needs the bundled trivy (DX_TRIVY and RUNFILES_DIR)".to_owned(),
+        })?);
+        if let Some(path) = status_file {
+            append_text(path, "trivy=true\n")?;
+        }
+    }
+    Ok(None)
+}
+
 fn append_status(path: &std::path::Path, summary: &Summary) -> Result<(), PrepError> {
+    append_text(path, &summary.render())
+}
+
+fn append_text(path: &std::path::Path, text: &str) -> Result<(), PrepError> {
     use std::io::Write;
     std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
-        .and_then(|mut file| file.write_all(summary.render().as_bytes()))
+        .and_then(|mut file| file.write_all(text.as_bytes()))
         .map_err(|error| PrepError::Write {
             path: path.display().to_string(),
             detail: error.to_string(),
@@ -199,15 +241,15 @@ fn options_from(cli: Cli, root: Option<&Path>) -> Result<PrepareOptions, PrepErr
         cpansa_dump: cli
             .cpansa_dump
             .map(|path| anchor(root, path))
-            .or_else(bundled_cpansa_dump),
+            .or_else(|| bundled_tool("DX_CPANSA_DUMP")),
         trivy: cli.trivy.map(|path| anchor(root, path)),
         cargo_index: cli.cargo_index,
         pypi_index: cli.pypi_index,
     })
 }
 
-fn bundled_cpansa_dump() -> Option<PathBuf> {
-    let rlocation = std::env::var_os("DX_CPANSA_DUMP")?;
+fn bundled_tool(variable: &str) -> Option<PathBuf> {
+    let rlocation = std::env::var_os(variable)?;
     let runfiles = std::env::var_os("RUNFILES_DIR")?;
     Some(PathBuf::from(runfiles).join(rlocation))
 }

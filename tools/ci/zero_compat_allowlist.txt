@@ -145,7 +145,6 @@ rust/private/quality/rust_tools.bzl compat-word 1
 rust/private/quality/tools/BUILD.bazel alias 2
 rust/tests/fixtures/cxx_identity/BUILD.bazel alias 1
 rust/tests/fixtures/hello/src/main.rs compat-word 2
-tools/ci/advisory_launch_test.rs compat-word 12
 tools/ci/config_consistency_test.rs compat-word 4
 tools/ci/guards/shared.rs compat-word 4
 tools/coverage/collect/src/main.rs compat-word 2

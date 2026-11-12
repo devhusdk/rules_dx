@@ -43,8 +43,6 @@ javascript/private/quality/launcher/src/main.rs env-path 1
 qt/tests/consumer_identity_test.rs spawn-by-name 1
 qt/tests/qt_test.rs env-path 2
 rust/private/tools/msvc_paths/src/msvc_link.rs env-path 1
-tools/ci/advisory_launch_test.rs env-path 1
-tools/ci/advisory_launch_test.rs spawn-by-name 1
 tools/ci/aggregate_scripts_test.rs env-path 1
 tools/ci/aggregate_scripts_test.rs spawn-by-name 2
 tools/ci/blocker_refs_test.rs spawn-by-name 1

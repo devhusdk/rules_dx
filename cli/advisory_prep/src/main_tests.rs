@@ -179,6 +179,7 @@ fn the_help_names_every_flag_and_the_exit_codes() {
         "--retries",
         "--retry-delay",
         "--archive",
+        "--ci",
         ".dx/local/advisory",
         "BUILD_WORKSPACE_DIRECTORY",
         "Exit codes",
@@ -218,4 +219,88 @@ fn the_status_file_receives_an_empty_status_for_a_dependency_free_workspace() {
         "retrieved_at=2026-09-22\nstatus=empty\necosystems=0\nfamilies=\n"
     );
     assert!(!dir.path().join("snap").exists());
+}
+
+#[test]
+fn ci_with_pinned_snapshots_reports_empty_and_prepares_nothing() {
+    let root = tempfile::tempdir().expect("temp dir");
+    std::fs::create_dir_all(root.path().join(".dx")).expect("dx dir");
+    std::fs::write(
+        root.path().join(".dx/pins"),
+        "advisory cargo 2026-01-01 abc https://example.invalid/x\n",
+    )
+    .expect("pins");
+    let status = root.path().join("out");
+    let lines = run(parse(&[
+        "--ci",
+        "--workspace",
+        root.path().to_str().expect("utf8"),
+        "--status-file",
+        status.to_str().expect("utf8"),
+        "--date",
+        "2026-01-02",
+    ]))
+    .expect("pinned run");
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert_eq!(
+        std::fs::read_to_string(&status).expect("status"),
+        "retrieved_at=2026-01-02\nstatus=empty\n"
+    );
+    assert!(!root.path().join(DEFAULT_OUT).exists());
+}
+
+#[test]
+fn ci_without_locks_or_trivy_inputs_reports_empty() {
+    let root = tempfile::tempdir().expect("temp dir");
+    let status = root.path().join("out");
+    run(parse(&[
+        "--ci",
+        "--workspace",
+        root.path().to_str().expect("utf8"),
+        "--out",
+        root.path().join("snaps").to_str().expect("utf8"),
+        "--status-file",
+        status.to_str().expect("utf8"),
+        "--date",
+        "2026-01-02",
+    ]))
+    .expect("empty run");
+    let text = std::fs::read_to_string(&status).expect("status");
+    assert!(
+        text.starts_with("retrieved_at=2026-01-02\nstatus=empty\n"),
+        "{text}"
+    );
+    assert!(!text.contains("trivy=true"), "{text}");
+}
+
+#[test]
+fn ci_with_trivy_inputs_sets_the_bundled_trivy_and_records_it() {
+    let root = tempfile::tempdir().expect("temp dir");
+    std::fs::create_dir_all(root.path().join(".devcontainer")).expect("dir");
+    std::fs::write(root.path().join(".devcontainer/Dockerfile"), "").expect("file");
+    let status = root.path().join("out");
+    let mut options = options_from(
+        parse(&["--workspace", root.path().to_str().expect("utf8")]),
+        None,
+    )
+    .expect("options");
+    let trivy = root.path().join("bin/trivy");
+    let lines = ci_setup(&mut options, Some(&status), Some(trivy.clone())).expect("setup");
+    assert_eq!(lines, None);
+    assert_eq!(options.trivy, Some(trivy));
+    let text = std::fs::read_to_string(&status).expect("status");
+    assert!(text.ends_with("trivy=true\n"), "{text}");
+}
+
+#[test]
+fn ci_with_trivy_inputs_and_no_bundled_trivy_is_refused() {
+    let root = tempfile::tempdir().expect("temp dir");
+    std::fs::write(root.path().join("main.tf"), "").expect("file");
+    let mut options = options_from(
+        parse(&["--workspace", root.path().to_str().expect("utf8")]),
+        None,
+    )
+    .expect("options");
+    let error = ci_setup(&mut options, None, None).expect_err("refused");
+    assert!(error.to_string().contains("DX_TRIVY"), "{error}");
 }

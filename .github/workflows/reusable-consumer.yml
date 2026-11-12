@@ -837,27 +837,10 @@ jobs:
         id: prepare
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          retrieved_at="$(date -u +%F)"
-          echo "retrieved_at=$retrieved_at" >> "$GITHUB_OUTPUT"
-          if grep -q '^advisory ' .dx/pins 2>/dev/null; then
-            # Pinned snapshots are fetched by sha into the cache; nothing to prepare live.
-            echo "status=empty" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          trivy_args=()
-          if [ -n "$(git ls-files '*.tf' '*.bicep' 'Dockerfile' '*/Dockerfile' '*/Chart.yaml' | head -n 1)" ] ||
-            git grep -q 'oci_deploy' -- '*BUILD' '*BUILD.bazel' '*.bzl'; then
-            bazel build "$@" @rules_dx//cli/advisory_prep:trivy
-            trivy_file="$(bazel cquery "$@" --output=files @rules_dx//cli/advisory_prep:trivy)"
-            trivy_args=(--trivy "$(bazel info execution_root)/$trivy_file")
-            echo "trivy=true" >> "$GITHUB_OUTPUT"
-          fi
-          bazel run "$@" @rules_dx//cli/advisory_prep -- \
+          bazel run --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/advisory_prep -- \
+            --ci \
             --workspace "$GITHUB_WORKSPACE" \
             --out "$GITHUB_WORKSPACE/.dx/local/advisory" \
-            --date "$retrieved_at" \
-            "${trivy_args[@]}" \
             --status-file "$GITHUB_OUTPUT"
       - name: Check the upload holds no secret
         id: scan-advisory

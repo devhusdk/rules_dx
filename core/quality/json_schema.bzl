@@ -1,5 +1,6 @@
 """JSON Schema declarations for the check_jsonschema lint tool."""
 
+load("//core:rlocation.bzl", "external_path")
 load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
 
 JsonSchemaInfo = provider(
@@ -58,12 +59,6 @@ json_schema = rule(
     },
 )
 
-def _staged_path(file):
-    short = file.short_path
-    if short.startswith("../"):
-        short = "external/" + short[3:]
-    return short
-
 def _json_schemas_impl(ctx):
     root = ctx.label.name + ".json_schemas"
     staged = {}
@@ -80,7 +75,7 @@ def _json_schemas_impl(ctx):
                 fail("json_schemas " + str(ctx.label) + ": duplicate url '" + info.url + "'")
             urls[info.url] = True
         for f in info.closure.to_list():
-            path = _staged_path(f)
+            path = external_path(f.short_path)
             if path in staged:
                 if staged[path] != f:
                     fail("json_schemas " + str(ctx.label) + ": duplicate staged path '" + path + "'")
@@ -90,13 +85,13 @@ def _json_schemas_impl(ctx):
             ctx.actions.symlink(output = link, target_file = f)
             links.append(link)
         for resource in info.resources.to_list():
-            entry_path = root + "/" + _staged_path(resource.file)
+            entry_path = root + "/" + external_path(resource.file.short_path)
             if entry_path in resources and resources[entry_path] != resource.url:
                 fail("json_schemas " + str(ctx.label) + ": '" + entry_path + "' is declared with two urls")
             resources[entry_path] = resource.url
         entry = {
             "files": sorted(info.files),
-            "schema": root + "/" + _staged_path(info.schema),
+            "schema": root + "/" + external_path(info.schema.short_path),
         }
         if info.url != "":
             entry["url"] = info.url

@@ -1,10 +1,10 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
+load("//core:rlocation.bzl", "runfiles_path")
 load("//core:wrapper.bzl", "dx_quality_srcs")
 load(
     "//lua/private:lua.bzl",
     "LUA_SOURCE_SPECS",
-    "canonical_rlocation",
     "entry_lines",
     "lua_executable_name",
     "module_name",
@@ -76,12 +76,12 @@ def lua_wrapper_contract_tests(name, **kwargs):
             ),
             expect_equal(
                 "main repository files key under the workspace name",
-                canonical_rlocation("lua/x.lua", "_main"),
+                runfiles_path("_main", "lua/x.lua"),
                 "_main/lua/x.lua",
             ),
             expect_equal(
                 "external files key under their canonical repository",
-                canonical_rlocation("../lua+/src/x.lua", "_main"),
+                runfiles_path("_main", "../lua+/src/x.lua"),
                 "lua+/src/x.lua",
             ),
             expect_equal(

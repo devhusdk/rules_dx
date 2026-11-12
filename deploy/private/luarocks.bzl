@@ -1,6 +1,7 @@
 """Local-first LuaRocks publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
+load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_luarocks.bzl", "luarocks_name_error", "luarocks_rockspec_error", "luarocks_version_error")
 

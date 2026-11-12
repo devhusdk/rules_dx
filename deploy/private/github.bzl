@@ -1,7 +1,8 @@
 """Draft-only GitHub Release publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
+load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_github.bzl", "github_asset_collision_error", "github_notes_error", "github_tag_error")
 

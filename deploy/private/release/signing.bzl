@@ -2,7 +2,8 @@
 
 load("//deploy/private/release:cosign_pins.bzl", "COSIGN_VERSION")
 load("//deploy/private/release:tool.bzl", "RELEASE_DEPLOY_TOOL")
-load("//deploy/private:config.bzl", "deploy_config", "rlocation_path")
+load("//deploy/private:config.bzl", "deploy_config")
+load("//core:rlocation.bzl", "rlocation_path")
 load("//deploy/private:deployment.bzl", "dx_deployment")
 
 SIGNING_TRUST_ROOT = "https://tuf-repo-cdn.sigstore.dev"

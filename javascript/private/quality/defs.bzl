@@ -12,6 +12,7 @@ generated launcher cannot be used at all.
 
 load("@bazel_lib//lib:directory_path.bzl", "DirectoryPathInfo")
 load("//core/quality/artifacts:platforms.bzl", "execution_is_windows")
+load("//core:rlocation.bzl", "runfiles_path")
 
 _NODE_OPTIONS = ["--preserve-symlinks-main"]
 
@@ -39,18 +40,12 @@ def _entry_point_path(entry_point):
         path = files[0].short_path
     return path.replace("/./", "/")
 
-def _key(ctx, path):
-    """Returns the runfiles key naming one short path."""
-    if path.startswith("../"):
-        return path.removeprefix("../")
-    return (ctx.workspace_name + "/" + path).replace("\\", "/")
-
 def _one_key(ctx, files, matches, what):
     """Returns the runfiles key of the single file matching a predicate."""
     found = []
     for f in files:
         if matches(f):
-            key = _key(ctx, f.short_path)
+            key = runfiles_path(ctx.workspace_name, f.short_path)
             if key not in found:
                 found.append(key)
     if len(found) != 1:
@@ -92,7 +87,7 @@ def _js_tool_binary_impl(ctx):
 
     entry = _entry_point_path(ctx.attr.entry_point)
     lines = [
-        "entry=" + _key(ctx, entry),
+        "entry=" + runfiles_path(ctx.workspace_name, entry),
         "node=" + _node_key(ctx, ctx.attr.js_binary),
         "require=" + _patches_key(ctx, ctx.attr.js_binary),
         "wrapper=" + _wrapper_key(ctx, ctx.attr.js_binary),

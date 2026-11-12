@@ -1,6 +1,7 @@
 """Octopus Deploy publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
+load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_octopus.bzl", "OCTOPUS_DEFAULT_REGISTRY_URL", "octopus_channel_error", "octopus_environment_error", "octopus_package_error", "octopus_package_id_error", "octopus_project_error", "octopus_registry_url_error", "octopus_space_error", "octopus_version_error")
 

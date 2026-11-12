@@ -1,7 +1,8 @@
 """BCR submission tooling for rules_dx."""
 
 load("//deploy/private/release:tool.bzl", "RELEASE_DEPLOY_TOOL")
-load("//deploy/private:config.bzl", "deploy_config", "rlocation_path")
+load("//deploy/private:config.bzl", "deploy_config")
+load("//core:rlocation.bzl", "rlocation_path")
 load("//deploy/private:deployment.bzl", "dx_deployment")
 load("//deploy/private:validate.bzl", "genrule_arg")
 

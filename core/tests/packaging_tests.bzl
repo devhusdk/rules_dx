@@ -3,7 +3,7 @@
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core:packaging.bzl", "claim_dest", "data_path")
 load("//core:platform.bzl", "single_platform_error")
-load("//core:rlocation.bzl", "rlocation_path", "runfiles_path")
+load("//core:rlocation.bzl", "external_path", "repo_relative_path", "rlocation_path", "runfiles_path")
 
 def _data_path_checks():
     root = struct(repo_name = "", package = "")
@@ -61,6 +61,11 @@ def _rlocation_checks():
         expect_equal("external repository path", runfiles_path("_main", "../repo+/pkg/x.txt"), "repo+/pkg/x.txt"),
         expect_equal("main repository file", rlocation_path(ctx, struct(short_path = "pkg/x.txt")), "_main/pkg/x.txt"),
         expect_equal("external repository file", rlocation_path(ctx, struct(short_path = "../repo+/pkg/x.txt")), "repo+/pkg/x.txt"),
+        expect_equal("main repository staged path", external_path("pkg/x.txt"), "pkg/x.txt"),
+        expect_equal("external repository staged path", external_path("../repo+/pkg/x.txt"), "external/repo+/pkg/x.txt"),
+        expect_equal("main repository relative path", repo_relative_path("pkg/x.txt"), "pkg/x.txt"),
+        expect_equal("external repository relative path", repo_relative_path("../repo+/pkg/x.txt"), "pkg/x.txt"),
+        expect_equal("external repository root relative path", repo_relative_path("../repo+"), ""),
     ]
 
 def packaging_unit_tests(name):

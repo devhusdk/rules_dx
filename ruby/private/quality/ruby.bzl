@@ -1,7 +1,7 @@
 """Ruby real quality aspects."""
 
 load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
-load("//php/private:php.bzl", "staged_path")
+load("//core:rlocation.bzl", "external_path")
 load("//core/quality:family_hooks.bzl", "stage")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
@@ -49,7 +49,7 @@ def _sorbet_hook(target, _ctx, _resolved, _capability, _what, shared):
         for dep_file in sorted(target[RubyFilesInfo].transitive_srcs.to_list(), key = lambda f: f.path):
             if dep_file.path.endswith((".rb", ".rbi")) and dep_file.path not in owned_paths and dep_file.path not in seen_deps:
                 seen_deps[dep_file.path] = True
-                stage(tool_files, inputs, "dx-sorbet/dep/" + staged_path(dep_file), dep_file)
+                stage(tool_files, inputs, "dx-sorbet/dep/" + external_path(dep_file.short_path), dep_file)
     return real_context(tool_files = tool_files, inputs = inputs)
 
 HOOK_ORDER = ["sorbet"]

@@ -1,6 +1,7 @@
 """Local-first Homebrew tap publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "DxDeployConfigInfo", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "DxDeployConfigInfo", "deploy_config")
+load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_homebrew.bzl", "homebrew_formula_error", "homebrew_repo_error", "homebrew_text_error")
 

@@ -1,6 +1,6 @@
 """PHP real quality aspects."""
 
-load("//php/private:php.bzl", "staged_path")
+load("//core:rlocation.bzl", "external_path")
 load("//php/private:providers.bzl", "PhpInfo")
 load("//core/quality:family_hooks.bzl", "stage", "without")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
@@ -53,11 +53,11 @@ def _phpstan_hook(target, ctx, resolved, _capability, _what, shared):
     for scan_file in sorted(info.transitive_srcs.to_list() + info.autoload_files.to_list(), key = lambda f: f.path):
         if scan_file.path not in owned_paths and scan_file.path not in seen_scan:
             seen_scan[scan_file.path] = True
-            stage(tool_files, inputs, "dx-phpstan/scan/" + staged_path(scan_file), scan_file)
+            stage(tool_files, inputs, "dx-phpstan/scan/" + external_path(scan_file.short_path), scan_file)
     for pkg_file in sorted(info.package_files.to_list(), key = lambda f: f.path):
         if pkg_file.path.endswith(".php") and pkg_file.path not in owned_paths and pkg_file.path not in seen_scan:
             seen_scan[pkg_file.path] = True
-            stage(tool_files, inputs, "dx-phpstan/pkg/" + staged_path(pkg_file), pkg_file)
+            stage(tool_files, inputs, "dx-phpstan/pkg/" + external_path(pkg_file.short_path), pkg_file)
     for f in ctx.files._phpstan_strict_rules:
         stage(tool_files, inputs, "vendor/phpstan/phpstan-strict-rules/" + f.short_path.split("/", 2)[2], f)
     return real_context(tool_files = tool_files, inputs = inputs)

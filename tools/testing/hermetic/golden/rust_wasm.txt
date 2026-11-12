@@ -1,0 +1,5 @@
+language rust
+pattern //:tool_wasi
+pattern //:tool_web
+file BUILD.bazel
+file main.rs

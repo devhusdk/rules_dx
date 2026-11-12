@@ -34,13 +34,13 @@ plain_yaml_test(
 ansible_library(
     name = "bad_playbook",
     srcs = ["fixtures/plain/data.yml"],
-    playbooks = ["fixtures/site.yml"],
+    playbooks = ["fixtures/unlisted/site.yml"],
     tags = ["manual"],
 )
 
 failure_test(
     name = "bad_playbook_fails",
-    expected_failure_substring = "playbooks entry ansible/tests/fixtures/site.yml is not in srcs",
+    expected_failure_substring = "playbooks entry ansible/tests/fixtures/unlisted/site.yml is not in srcs",
     target = ":bad_playbook",
 )
 

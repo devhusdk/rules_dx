@@ -124,7 +124,7 @@ fn contents_match_the_machine_readable_identity() {
         "dxhello.png",
         "usr/bin/dxhello",
         "usr/lib/libgreet_shared.so",
-        "usr/share/dxhello/fixtures/greeting.txt",
+        "usr/share/dxhello/fixtures/dxhello/greeting.txt",
         "usr/share/licenses/dxhello/NOTICE.txt",
     ];
     let mut names: Vec<&str> = files.keys().map(String::as_str).collect();

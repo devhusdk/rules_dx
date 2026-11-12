@@ -97,7 +97,7 @@ fn identity_names_the_aarch64_cell_and_the_target_bytes() {
             "dxhello.png",
             "usr/bin/dxhello",
             "usr/lib/libgreet_shared.so",
-            "usr/share/dxhello/fixtures/greeting.txt",
+            "usr/share/dxhello/fixtures/dxhello/greeting.txt",
             "usr/share/licenses/dxhello/NOTICE.txt",
         ]
     );

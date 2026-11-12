@@ -6,13 +6,13 @@ load(":defs_tests.bzl", "owns_bicep_class_test", "registry_deps_test", "registry
 
 bicep_library(
     name = "lib",
-    srcs = ["fixtures/lib.bicep"],
-    data = ["fixtures/data.json"],
+    srcs = ["fixtures/module/lib.bicep"],
+    data = ["fixtures/module/data.json"],
 )
 
 bicep_library(
     name = "app",
-    srcs = ["fixtures/app.bicep"],
+    srcs = ["fixtures/module/app.bicep"],
     deps = [":lib"],
 )
 
@@ -30,7 +30,7 @@ transitive_context_test(
 
 bicep_library(
     name = "bad_src",
-    srcs = ["fixtures/notes.txt"],
+    srcs = ["fixtures/module/notes.txt"],
     tags = ["manual"],
 )
 
@@ -42,7 +42,7 @@ failure_test(
 
 bicep_library(
     name = "config_in_data",
-    data = ["fixtures/bicepconfig.json"],
+    data = ["fixtures/module/bicepconfig.json"],
     tags = ["manual"],
 )
 
@@ -66,7 +66,7 @@ bicep_registry_module(
 
 bicep_library(
     name = "registry_app",
-    srcs = ["fixtures/registry_app.bicep"],
+    srcs = ["fixtures/module/registry_app.bicep"],
     deps = [":registry_fixture"],
 )
 
@@ -88,6 +88,6 @@ real_source_target(
 
 bicep_library(
     name = "dirty",
-    srcs = ["fixtures/dirty.bicep"],
+    srcs = ["fixtures/module/dirty.bicep"],
     visibility = ["//core/quality/testdata:__pkg__"],
 )

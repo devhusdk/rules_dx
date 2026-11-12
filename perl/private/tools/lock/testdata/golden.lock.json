@@ -1,0 +1,47 @@
+{
+  "ecosystem": "cpan",
+  "inputs": {
+    "cpanfile": "533c16e9077a401210205edb070207aa52c525514cfc7438df5c01a99cf05f72",
+    "cpanfile.snapshot": "fb31a5cf9bf07559028469a20ff7cb04a4949861095a141079ecec67d046f042"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "13ead361c52830fb2021d8d10fbae7c578e69dc01dfe07a7064491a1c2a820ea",
+          "strip_prefix": "Clone-PP-1.09",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/N/NE/NEILB/Clone-PP-1.09.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Clone-PP",
+      "provides": [
+        "Clone::PP"
+      ],
+      "version": "1.09"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "416ddee3be0a94b8058fd624b1c62cb86e241f217c3254b85771c8bd9fa1e48e",
+          "strip_prefix": "Text-CSV-2.06",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "Clone-PP"
+      ],
+      "name": "Text-CSV",
+      "provides": [
+        "Text::CSV",
+        "Text::CSV_PP"
+      ],
+      "version": "2.06"
+    }
+  ],
+  "schema": 1
+}

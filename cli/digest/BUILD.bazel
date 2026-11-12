@@ -7,6 +7,7 @@ package(default_visibility = VIS_CLI_DEPLOY_GENERATION_QUALITY + [
     "//ansible/private/tools/lock:__pkg__",
     "//d/private/tools/lock:__pkg__",
     "//fortran/private/tools/lock:__pkg__",
+    "//perl/private/tools/lock:__pkg__",
     "//php/private/tools/lock:__pkg__",
     "//powershell/private/tools/lock:__pkg__",
     "//swift/private/tools/lock:__pkg__",

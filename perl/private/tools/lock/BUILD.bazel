@@ -1,0 +1,103 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "perl_lock_lib",
+    srcs = ["src/resolve.rs"],
+    aliases = aliases(
+        package_name = "perl/private/tools/perl_lock",
+        normal = True,
+    ),
+    crate_name = "perl_lock",
+    crate_root = "src/resolve.rs",
+    deps = all_crate_deps(
+        package_name = "perl/private/tools/perl_lock",
+        normal = True,
+    ) + [
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+    ],
+)
+
+rust_binary(
+    name = "lock",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "perl/private/tools/perl_lock",
+        normal = True,
+    ),
+    crate_name = "perl_lock_bin",
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "perl/private/tools/perl_lock",
+        normal = True,
+    ) + [
+        ":perl_lock_lib",
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+    ],
+)
+
+rust_test(
+    name = "resolve_test",
+    size = "small",
+    srcs = ["resolve_test.rs"],
+    aliases = aliases(
+        package_name = "perl/private/tools/perl_lock",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "resolve_test",
+    crate_root = "resolve_test.rs",
+    data = [
+        "testdata/golden.lock.json",
+        "testdata/Clone-PP-1.09.tar.gz",
+        "testdata/Text-CSV-2.06.tar.gz",
+    ],
+    env = {
+        "GOLDEN": "$(rootpath testdata/golden.lock.json)",
+        "CLONE_PP": "$(rootpath testdata/Clone-PP-1.09.tar.gz)",
+        "TEXT_CSV": "$(rootpath testdata/Text-CSV-2.06.tar.gz)",
+    },
+    tags = ["block-network"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = all_crate_deps(
+        package_name = "perl/private/tools/perl_lock",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":perl_lock_lib",
+        "//cli/digest:dx_digest",
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    [
+        "src/main.rs",
+    ],
+    visibility = ["//visibility:public"],
+)

@@ -1,7 +1,6 @@
 package common
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -33,16 +32,6 @@ func (m *namedLockManifest) Lookup(repo, name string) ([]label.Label, string) {
 	return nil, fmt.Sprintf("no package in %s provides %s; add it to %s", m.entry.Lock, name, m.entry.Manifest)
 }
 
-// cpanCandidates maps Text::CSV::Foo to Text-CSV-Foo, Text-CSV, Text.
-func cpanCandidates(name string) []string {
-	parts := strings.Split(name, "::")
-	var out []string
-	for n := len(parts); n > 0; n-- {
-		out = append(out, strings.Join(parts[:n], "-"))
-	}
-	return out
-}
-
 var (
 	upperRun   = regexp.MustCompile(`([A-Z]+)([A-Z][a-z])`)
 	lowerUpper = regexp.MustCompile(`([a-z\d])([A-Z])`)
@@ -63,18 +52,6 @@ func hexCandidates(name string) []string {
 		out = append(out, strings.Join(words, "_"))
 	}
 	return out
-}
-
-func parseCpanLockManifest(content []byte, path string) (externalManifest, error) {
-	var lock map[string]json.RawMessage
-	if err := json.Unmarshal(content, &lock); err != nil {
-		return nil, err
-	}
-	m := &namedLockManifest{entry: registryEntry("cpan"), packages: map[string]bool{}, candidates: cpanCandidates}
-	for name := range lock {
-		m.packages[name] = true
-	}
-	return m, nil
 }
 
 var hexLockEntry = regexp.MustCompile(`(?m)^\s*"([^"]+)":\s*\{:hex,`)

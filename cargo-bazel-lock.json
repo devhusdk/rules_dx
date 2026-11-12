@@ -1,5 +1,5 @@
 {
-  "checksum": "d624520641cbed2ad930e07c38a84f7566191f5d6d167079d19ff9b404d11760",
+  "checksum": "8b13a9a5139129db9e1f6a583957bc0e639f07d981afdb45723e41fbba15620a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -19139,6 +19139,33 @@
       ],
       "version": "0.0.0"
     },
+    "perl_lock 0.0.0": {
+      "common_attrs": {
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "perl_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "perl_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "perl_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "pgp 0.21.0": {
       "common_attrs": {
         "deps": [
@@ -32878,6 +32905,7 @@
     "ocaml_extract 0.0.0": "tools/docs/ocaml/ocaml_extract",
     "openapi_codegen_preflight 0.0.0": "api_spec/private/openapi_codegen_preflight",
     "perl_extract 0.0.0": "tools/docs/perl/perl_extract",
+    "perl_lock 0.0.0": "perl/private/tools/perl_lock",
     "php_extract 0.0.0": "tools/docs/php/php_extract",
     "php_lock 0.0.0": "php/private/tools/php_lock",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",

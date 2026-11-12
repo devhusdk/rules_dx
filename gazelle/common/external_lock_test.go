@@ -82,3 +82,23 @@ func TestLockLookupDubModules(t *testing.T) {
 		t.Errorf("hint = %q", hint)
 	}
 }
+
+func TestLockLookupSplitsOnColonOnlyForCpan(t *testing.T) {
+	for _, e := range lockRegistry {
+		t.Run(e.Ecosystem, func(t *testing.T) {
+			cfg, root := externalConfig(t)
+			dotFile(t, root, e.Lock, fmt.Sprintf(`{"ecosystem": %q, "packages": [{"name": "alpha", "provides": ["alpha"]}]}`, e.Ecosystem))
+			if errs := ConfigureExternal(cfg, "", nil); errs != nil {
+				t.Fatal(errs)
+			}
+			want := ""
+			if e.Ecosystem == "cpan" {
+				want = "@" + e.Hub + "//alpha"
+			}
+			got, _ := ExternalLabels(cfg, e.Ecosystem, "alpha::beta")
+			if labelStrings(got) != want {
+				t.Errorf("alpha::beta = %q, want %q", labelStrings(got), want)
+			}
+		})
+	}
+}

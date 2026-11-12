@@ -1,5 +1,7 @@
 use super::*;
 
+const RESOLVER: &str = "@rules_dx//perl/private/tools/lock";
+
 pub(super) fn plan(
     workspace: &Path,
     set: &ResolvedSet,
@@ -22,12 +24,7 @@ pub(super) fn plan(
                     set: set.name.clone(),
                 });
             }
-            let Some(compiler) = dependency_sets::cpan_compiler_label(workspace, set) else {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: "add a perl_cpan_compiler next to the manifest; it keeps the lock JSON in step with the carton snapshot",
-                });
-            };
+            let dir = workspace.join(&set.dir);
             let mut command = vec!["update"];
             command.extend(modules.iter().map(String::as_str));
             Ok(BackendPlan::Sequence(vec![
@@ -36,7 +33,7 @@ pub(super) fn plan(
                     env: carton_env(),
                 },
                 Run {
-                    argv: bazel(head, "run", &[&compiler, "--", "--incremental"]),
+                    argv: bazel(head, "run", &[RESOLVER, "--", "--dir", &dir.to_string_lossy()]),
                     env: carton_env(),
                 },
             ]))

@@ -31,8 +31,8 @@ LOCK_REGISTRY = {
     },
     "cpan": {
         "hub": "cpan",
-        "imports": "name",
-        "lock": "cpanfile.snapshot.lock.json",
+        "imports": "provides",
+        "lock": "cpan.lock.json",
         "manifest": "cpanfile",
         "state": "cpanfile.snapshot",
     },

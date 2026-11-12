@@ -20,11 +20,11 @@ The run prints `24`, `24` and the report `name,units` / `pears,24`. A command
 that fails prints `error: ...` and exits `1`. The `limit` flag selects the
 per-item limit through `select()` on `env`, and the launcher test follows it.
 
-`Text::CSV` 2.06 comes from CPAN through the rules_perl `cpan` extension. Its
-lock is `third_party/cpanfile.snapshot.lock.json`, and every distribution
-carries a sha256. `Text::CSV` runs on its pure-Perl `Text::CSV_PP` backend. To
-change the pin, edit `third_party/cpanfile` and run
-`bazel run //perl/tests/fixtures/perl-app/third_party:compiler`.
+`Text::CSV` 2.06 comes from CPAN through the rules_dx `cpan` extension. Its
+lock is `third_party/cpan.lock.json`, and every distribution carries a
+sha256. `Text::CSV` runs on its pure-Perl `Text::CSV_PP` backend. To change
+the pin, edit `third_party/cpanfile` and `third_party/cpanfile.snapshot`, then
+run `bazel run //perl/private/tools/lock -- --dir perl/tests/fixtures/perl-app/third_party`.
 
 | Platform | Status |
 | --- | --- |

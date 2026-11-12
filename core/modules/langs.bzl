@@ -2306,12 +2306,12 @@ LANGS = json.decode("""{
           "ecosystem": "cpan",
           "extension": "@rules_dx//perl:extensions.bzl",
           "hub": "cpan",
-          "imports": "name",
-          "lock": "cpanfile.snapshot.lock.json",
+          "imports": "provides",
+          "lock": "cpan.lock.json",
           "manifest": "cpanfile",
-          "resolver": null,
+          "resolver": "@rules_dx//perl/private/tools/lock",
           "state": "cpanfile.snapshot",
-          "tag": "install"
+          "tag": "lock"
         }
       ]
     },

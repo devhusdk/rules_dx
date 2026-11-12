@@ -1316,12 +1316,23 @@ source = { registry = "https://pypi.org/simple" }
         }
     }
 
-    const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"perl_app_cpan\", lock = \"//perl/third_party:cpan.lock.json\")\n";
+    fn cpan_lock() -> String {
+        dx_families::hub("cpan")
+            .and_then(|hub| hub.lock.clone())
+            .expect("cpan has a lock")
+    }
+
+    fn cpan_module() -> String {
+        format!(
+            "cpan = use_extension(\"@rules_dx//perl:extensions.bzl\", \"cpan\")\ncpan.lock(name = \"perl_app_cpan\", lock = \"//perl/third_party:{}\")\n",
+            cpan_lock()
+        )
+    }
 
     const CPANSA: &str = "{\"Mojolicious\":{\"distribution\":\"Mojolicious\",\"advisories\":[{\"id\":\"CPANSA-Mojolicious-2018-03\",\"affected_versions\":[\">=7.0,<7.58\"],\"fixed_versions\":[\">=7.58\"],\"severity\":\"high\"}]}}";
 
     fn cpan_harness(name: &str, release: &str) -> Harness {
-        let harness = consumer_harness(name, CPAN_MODULE, false);
+        let harness = consumer_harness(name, &cpan_module(), false);
         harness.write_source(
             &format!("perl/third_party/{}", manifest_of(Ecosystem::Cpan)),
             "requires 'Mojolicious';\n",
@@ -1334,8 +1345,8 @@ source = { registry = "https://pypi.org/simple" }
             ),
         );
         harness.write_source(
-            "perl/third_party/cpan.lock.json",
-            &format!("{{\"Mojolicious\":{{\"strip_prefix\":\"{release}\"}}}}\n"),
+            &format!("perl/third_party/{}", cpan_lock()),
+            &format!("{{\"packages\":[{{\"name\":\"Mojolicious\",\"archives\":[{{\"strip_prefix\":\"{release}\"}}]}}]}}\n"),
         );
         let prepared = dx_audit::advisory_prep::cpan_snapshot(
             CPANSA,

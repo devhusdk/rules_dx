@@ -548,10 +548,7 @@ fn npm_env() -> Vec<(String, String)> {
     ]
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "test helper mirrors the backend argv"
-)]
+#[allow(clippy::disallowed_methods)] // test helper mirrors the backend argv
 fn npm_call(
     harness: &Harness,
     startup: &[String],
@@ -973,10 +970,7 @@ fn cargo_harness(name: &str) -> Harness {
     harness
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "test helper mirrors the backend argv"
-)]
+#[allow(clippy::disallowed_methods)] // test helper mirrors the backend argv
 fn cargo_call(startup: &[String], offline: bool, repository: &str) -> Vec<String> {
     let mut argv = dx_process::startup_argv(startup);
     argv.push("fetch".to_owned());
@@ -1304,10 +1298,7 @@ fn maven_harness(name: &str) -> Harness {
     harness
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "test helper mirrors the backend argv"
-)]
+#[allow(clippy::disallowed_methods)] // test helper mirrors the backend argv
 fn maven_pin_call(repository: &str) -> Vec<String> {
     let mut argv = dx_process::startup_argv(&[]);
     argv.push("run".to_owned());
@@ -1538,10 +1529,7 @@ fn consumer_nuget_check_without_drift_is_current_and_cleans_scratch() {
     let launches = runner.launches.borrow();
     assert_eq!(launches.len(), 1);
     let argv = &launches[0].argv;
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "the argv carries no build settings"
-    )]
+    #[allow(clippy::disallowed_methods)]
     let mut head = dx_process::startup_argv(&[]);
     head.extend(strings_of(&[
         "run",
@@ -1950,10 +1938,7 @@ fn consumer_go_check_runs_go_in_scratch_with_forced_env_and_cleans_up() {
     let launches = runner.launches.borrow();
     assert_eq!(launches.len(), 1);
     let argv = &launches[0].argv;
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "the argv carries no build settings"
-    )]
+    #[allow(clippy::disallowed_methods)]
     let mut head = dx_process::startup_argv(&[]);
     head.extend(strings_of(&[
         "run",
@@ -2271,11 +2256,11 @@ fn consumer_swiftpm_refusals_launch_nothing_and_keep_the_manifest() {
     assert!(runner.launches.borrow().is_empty());
 }
 
-const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"cpan_deps\", lock = \"//perl/third_party:cpanfile.snapshot.lock.json\")\n";
+const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_dx//perl:extensions.bzl\", \"cpan\")\ncpan.lock(name = \"cpan_deps\", lock = \"//perl/third_party:cpan.lock.json\")\n";
 const CPAN_FILES: [&str; 3] = [
     "perl/third_party/cpanfile",
     "perl/third_party/cpanfile.snapshot",
-    "perl/third_party/cpanfile.snapshot.lock.json",
+    "perl/third_party/cpan.lock.json",
 ];
 
 fn cpan_harness(name: &str) -> Harness {
@@ -2289,12 +2274,8 @@ fn cpan_harness(name: &str) -> Harness {
         "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  Text-CSV-2.06\n    pathname: I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz\n",
     );
     harness.write_source(
-        "perl/third_party/cpanfile.snapshot.lock.json",
-        "{\"Text-CSV\":{\"strip_prefix\":\"Text-CSV-2.06\"}}\n",
-    );
-    harness.write_source(
-        "perl/third_party/BUILD.bazel",
-        "perl_cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n",
+        "perl/third_party/cpan.lock.json",
+        "{\"schema\":1,\"ecosystem\":\"cpan\",\"inputs\":{},\"packages\":[{\"name\":\"Text-CSV\",\"version\":\"2.06\",\"archives\":[{\"urls\":[\"https://cpan.metacpan.org/authors/id/I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz\"],\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"strip_prefix\":\"Text-CSV-2.06\"}],\"deps\":[],\"provides\":[\"Text::CSV\"]}]}\n",
     );
     harness
 }
@@ -2344,7 +2325,7 @@ fn consumer_cpan_check_installs_the_snapshot_in_deployment_mode() {
 }
 
 #[test]
-fn consumer_cpan_apply_module_runs_carton_then_the_compiler() {
+fn consumer_cpan_apply_module_runs_carton_then_the_lock_step() {
     let harness = cpan_harness("cpan-apply");
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(
@@ -2365,8 +2346,8 @@ fn consumer_cpan_apply_module_runs_carton_then_the_compiler() {
         ])[..]
     );
     assert_eq!(
-        launches[1].argv[launches[1].argv.len() - 3..],
-        strings_of(&["//perl/third_party:compiler", "--", "--incremental"])[..]
+        launches[1].argv[launches[1].argv.len() - 4..launches[1].argv.len() - 1],
+        strings_of(&["@rules_dx//perl/private/tools/lock", "--", "--dir"])[..]
     );
 }
 

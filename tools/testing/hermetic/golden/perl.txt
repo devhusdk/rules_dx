@@ -15,6 +15,6 @@ file perl/tests/fixtures/perl-app/report/t/report.t
 file perl/tests/fixtures/perl-app/third_party/BUILD.bazel
 file perl/tests/fixtures/perl-app/third_party/cpanfile
 file perl/tests/fixtures/perl-app/third_party/cpanfile.snapshot
-file perl/tests/fixtures/perl-app/third_party/cpanfile.snapshot.lock.json
+file perl/tests/fixtures/perl-app/third_party/cpan.lock.json
 bazel_dep bazel_skylib
 bazel_dep rules_perl

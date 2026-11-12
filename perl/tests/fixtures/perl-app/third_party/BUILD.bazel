@@ -1,5 +1,4 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//perl:defs.bzl", "perl_cpan_compiler")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -8,16 +7,9 @@ exports_files(
         "BUILD.bazel",
         "cpanfile",
         "cpanfile.snapshot",
-        "cpanfile.snapshot.lock.json",
+        "cpan.lock.json",
     ],
     visibility = ["@rules_dx//tools/testing/hermetic:__pkg__"],
-)
-
-perl_cpan_compiler(
-    name = "compiler",
-    cpanfile = "cpanfile",
-    lockfile = "cpanfile.snapshot.lock.json",
-    tags = ["manual"],
 )
 
 real_source_target(

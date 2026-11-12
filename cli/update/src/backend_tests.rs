@@ -511,19 +511,15 @@ fn cpan_set() -> ResolvedSet {
         manifests: vec!["app/cpanfile".to_owned()],
         locks: vec![
             "app/cpanfile.snapshot".to_owned(),
-            "app/cpanfile.snapshot.lock.json".to_owned(),
+            "app/cpan.lock.json".to_owned(),
         ],
         repository: None,
     }
 }
 
-fn cpan_workspace(build: &str) -> dx_test_scratch::TempDir {
-    let dir = dx_test_scratch::scratch("cpan_backend");
-    dx_test_scratch::write(dir.path(), "app/BUILD.bazel", build);
-    dir
+fn cpan_workspace() -> dx_test_scratch::TempDir {
+    dx_test_scratch::scratch("cpan_backend")
 }
-
-const COMPILER_BUILD: &str = "perl_cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n";
 
 fn cpan_update(workspace: &Path, offline: bool, frozen: bool) -> Result<BackendPlan, BackendError> {
     plan_configured(
@@ -538,8 +534,8 @@ fn cpan_update(workspace: &Path, offline: bool, frozen: bool) -> Result<BackendP
 }
 
 #[test]
-fn cpan_update_runs_carton_then_the_compiler() {
-    let dir = cpan_workspace(COMPILER_BUILD);
+fn cpan_update_runs_carton_then_the_lock_step() {
+    let dir = cpan_workspace();
     let BackendPlan::Sequence(runs) = cpan_update(dir.path(), false, false).expect("plan") else {
         panic!("expected a sequence");
     };
@@ -558,26 +554,17 @@ fn cpan_update_runs_carton_then_the_compiler() {
         ]
     );
     assert_eq!(runs[0].env[0].0, "PERL_CARTON_PATH");
+    let step = &runs[1].argv;
     assert_eq!(
-        runs[1].argv[runs[1].argv.len() - 3..],
-        ["//app:compiler", "--", "--incremental"]
+        step[step.len() - 4..step.len() - 1],
+        ["@rules_dx//perl/private/tools/lock", "--", "--dir"]
     );
-}
-
-#[test]
-fn cpan_update_refuses_without_a_compiler() {
-    let dir = cpan_workspace("");
-    let error = cpan_update(dir.path(), false, false).expect_err("refused");
-    assert!(
-        error
-            .to_string()
-            .contains("add a perl_cpan_compiler next to the manifest")
-    );
+    assert!(step[step.len() - 1].ends_with("app"));
 }
 
 #[test]
 fn cpan_update_refuses_frozen_and_offline() {
-    let dir = cpan_workspace(COMPILER_BUILD);
+    let dir = cpan_workspace();
     assert!(matches!(
         cpan_update(dir.path(), true, false),
         Err(BackendError::OfflineRequired { .. })

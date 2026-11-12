@@ -50,7 +50,7 @@ perl_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs
 
 A perl_test run by dx bench: scripts call DxBench::run_benchmarks, which times them with core Benchmark and writes dx-bench.json.
 
-### `perl_cpan_compiler`
+### `cpan_compiler`
 
 No documentation.
 
@@ -114,33 +114,23 @@ Perl. Unix launchers start through a bash script.
 
 ### Packages
 
-```python
-cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
-cpan.install(
-    name = "app_cpan",
-    lock = "//:cpanfile.snapshot.lock.json",
-)
-use_repo(cpan, "app_cpan")
-```
-
-### CPAN dependencies
-
-Declare a hub with the `cpan` extension. Its lock pins each
-distribution to a URL and a sha256.
+Declare a hub with the `cpan` extension. Its lock, `cpan.lock.json`, pins
+each distribution of `cpanfile.snapshot` to a URL and a sha256.
 
 ```python
 cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
-cpan.install(
+cpan.lock(
     name = "cpan",
-    lock = "//third_party/perl:cpanfile.snapshot.lock.json",
+    lock = "//third_party/perl:cpan.lock.json",
 )
 use_repo(cpan, "cpan")
 ```
 
-Depend on `@cpan//:Text-CSV` for one distribution. To make or refresh the
-lock, add a `perl_cpan_compiler` target from
-`@rules_dx//perl:defs.bzl` next to the `cpanfile` and run it.
-A wrong digest fails the fetch.
+Depend on `@cpan//Text-CSV` for one distribution, and on
+`@cpan//Perl-Tidy:bin_perltidy` for a script under its `bin/` or `script/`.
+`bazel run @rules_dx//perl/private/tools/lock -- --dir <set directory>`
+writes the lock from `cpanfile` and `cpanfile.snapshot`. A wrong digest
+fails the fetch.
 
 ## Generate
 
@@ -151,7 +141,7 @@ under `lib/` (`lib/Inventory/Item.pm` is `Inventory::Item`), never by its
 `package` statement. This matches the default `includes` of rules_perl.
 
 - Modules that ship with Perl need no dep.
-- A CPAN module resolves to the distribution in `cpanfile.snapshot.lock.json` that is named after it (`Text::CSV` is `Text-CSV`).
+- A CPAN module resolves to the distribution whose `provides` in `cpan.lock.json` lists it.
 - `perl_binary` targets and `.pl` scripts stay hand-written.
 - Loads inside `eval` are optional and are skipped. Loads in POD, heredocs,
   strings and after `__END__` are ignored.

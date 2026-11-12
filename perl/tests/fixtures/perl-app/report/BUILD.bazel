@@ -22,7 +22,7 @@ perl_library(
     data = ["data/units.csv"],
     visibility = APPS,
     deps = [
-        "@perl_cpan//:Text-CSV",
+        "@perl_cpan//Text-CSV",
         "@rules_perl//perl/runfiles",
     ],
 )
@@ -32,7 +32,7 @@ perl_test(
     srcs = ["t/report.t"],
     deps = [
         ":report",
-        "@perl_cpan//:Text-CSV",
+        "@perl_cpan//Text-CSV",
     ],
 )
 

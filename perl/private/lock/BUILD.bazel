@@ -1,0 +1,19 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:private"])
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "hub.bzl",
+        "package.bzl",
+    ],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+exports_files(
+    ["hub.bzl", "package.bzl"],
+    visibility = ["//visibility:public"],
+)

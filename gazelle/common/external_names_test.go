@@ -12,16 +12,6 @@ func TestNamedLockResolvesImports(t *testing.T) {
 		unknown       string
 	}{
 		{
-			eco:      "cpan",
-			lockText: `{"Text-CSV": {"dependencies": []}, "Moo": {"dependencies": []}}`,
-			imports: map[string]string{
-				"Text::CSV":     "@cpan//:Text-CSV",
-				"Text::CSV::XS": "@cpan//:Text-CSV",
-				"Moo":           "@cpan//:Moo",
-			},
-			unknown: "Missing::Module",
-		},
-		{
 			eco: "hex",
 			lockText: `%{
   "jason": {:hex, :jason, "1.4.4", "aa", [:mix], [], "hexpm", "bb"},

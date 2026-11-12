@@ -210,7 +210,7 @@ pub enum DependencySetsError {
         detail: String,
     },
     #[error(
-        "dependency set {name:?} has a stale {lock}: {detail}; run the perl_cpan_compiler next to the manifest"
+        "dependency set {name:?} has a stale {lock}: {detail}; run the cpan lock step"
     )]
     StaleCpanLock {
         name: String,
@@ -1292,29 +1292,9 @@ fn check_cabal_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
     Ok(())
 }
 
-/// The `.json` lock `cpan.install` reads, beside the cpan state file.
+/// The `.json` lock `cpan.lock` reads, beside the cpan state file.
 fn cpan_json_lock(set: &ResolvedSet) -> Option<&String> {
     set.locks.iter().find(|lock| lock.ends_with(".json"))
-}
-
-/// The `//pkg:name` of the `perl_cpan_compiler` that writes the set's lock JSON.
-///
-/// Reads `BUILD.bazel` or `BUILD` in the lock's package; None when no call names the lock.
-pub fn cpan_compiler_label(workspace: &Path, set: &ResolvedSet) -> Option<String> {
-    let lock = cpan_json_lock(set)?;
-    let (package, file) = match lock.rsplit_once('/') {
-        Some((package, file)) => (package, file),
-        None => ("", lock.as_str()),
-    };
-    let text = ["BUILD.bazel", "BUILD"]
-        .iter()
-        .find_map(|name| std::fs::read_to_string(workspace.join(package).join(name)).ok())?;
-    let build = dx_module_bazel::ModuleFile::parse_build(&text).ok()?;
-    build.calls_named("perl_cpan_compiler").find_map(|call| {
-        let named = call.str("lockfile")?;
-        let named = named.rsplit([':', '/']).next().unwrap_or(named);
-        (named == file).then(|| format!("//{package}:{}", call.str("name").unwrap_or_default()))
-    })
 }
 
 /// The `//pkg:name` of the first `rule` call in the BUILD file of the set's directory.
@@ -1351,14 +1331,12 @@ fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
     let json: serde_json::Value = serde_json::from_str(&lock_text)
         .map_err(|error| stale(format!("cannot parse it: {error}")))?;
     let in_lock: std::collections::BTreeSet<&str> = json
-        .as_object()
-        .map(|entries| {
-            entries
-                .values()
-                .filter_map(|entry| entry.get("strip_prefix")?.as_str())
-                .collect()
-        })
-        .unwrap_or_default();
+        .get("packages")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|package| package.get("archives")?.get(0)?.get("strip_prefix")?.as_str())
+        .collect();
     let mut in_snapshot = std::collections::BTreeSet::new();
     let mut distributions = false;
     for line in snapshot_text.lines() {

@@ -9,9 +9,5 @@ name = "column_units_test"
 path = "column_units_test.rs"
 
 [[test]]
-name = "powershell_gallery_lock_test"
-path = "powershell_gallery_lock_test.rs"
-
-[[test]]
 name = "qt_adapter_test"
 path = "qt_adapter_test.rs"

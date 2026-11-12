@@ -1,5 +1,5 @@
 {
-  "checksum": "4e7d6e132609c6a8e03a99474e3277f57f33acfb6efba8beba02a298fa4abcea",
+  "checksum": "4e15e741fa46e67f7035c644279626b85560b8725613abccf4e7323b47c4048b",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -19666,6 +19666,33 @@
       ],
       "version": "0.0.0"
     },
+    "powershell_lock 0.0.0": {
+      "common_attrs": {
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "powershell_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "powershell_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "powershell_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "ppv-lite86 0.2.21": {
       "common_attrs": {
         "crate_features": [
@@ -32639,6 +32666,7 @@
     "php_extract 0.0.0": "tools/docs/php/php_extract",
     "php_lock 0.0.0": "php/private/tools/php_lock",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",
+    "powershell_lock 0.0.0": "powershell/private/tools/powershell_lock",
     "process_probe 0.0.0": "tools/testing/process_probe",
     "protobuf_extract 0.0.0": "tools/docs/protobuf/protobuf_extract",
     "python_docs_tests 0.0.0": "tools/docs/python_docs_tests",

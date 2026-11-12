@@ -2333,7 +2333,7 @@ LANGS = json.decode("""{
     ],
     "family": "core",
     "lockfiles": [
-      "PSGallery.lock.json"
+      "powershell.lock.json"
     ],
     "manifests": [
       "PSGallery.requirements.psd1"
@@ -2380,10 +2380,10 @@ LANGS = json.decode("""{
           "ecosystem": "powershell",
           "extension": "@rules_dx//powershell:extensions.bzl",
           "hub": "psgallery",
-          "imports": "name",
-          "lock": "PSGallery.lock.json",
+          "imports": "provides",
+          "lock": "powershell.lock.json",
           "manifest": "PSGallery.requirements.psd1",
-          "resolver": null,
+          "resolver": "@rules_dx//powershell/private/tools/lock",
           "state": null,
           "tag": "lock"
         }

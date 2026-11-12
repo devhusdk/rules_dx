@@ -19,6 +19,7 @@ mod npm;
 mod nuget;
 mod opam;
 mod pinned;
+mod powershell;
 mod pub_dev;
 mod rehash;
 mod swiftpm;
@@ -694,6 +695,7 @@ pub fn plan_configured(
         "ansible" => ansible::plan(workspace, set, request, offline, frozen, head, closure),
         "fpm" => fpm::plan(workspace, set, request, offline, frozen, head),
         "dub" => dub::plan(workspace, set, request, offline, frozen, head),
+        "powershell" => powershell::plan(workspace, set, request, offline, frozen, head),
         "zig" => zig::plan(workspace, set, request, offline, frozen, head),
         _ => pinned::plan(set, request),
     }

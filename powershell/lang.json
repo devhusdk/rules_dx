@@ -12,20 +12,20 @@
     "PSGallery.requirements.psd1"
   ],
   "lockfiles": [
-    "PSGallery.lock.json"
+    "powershell.lock.json"
   ],
   "setup": {
     "hubs": [
       {
         "ecosystem": "powershell",
         "manifest": "PSGallery.requirements.psd1",
-        "lock": "PSGallery.lock.json",
+        "lock": "powershell.lock.json",
         "state": null,
         "extension": "@rules_dx//powershell:extensions.bzl",
         "tag": "lock",
         "hub": "psgallery",
-        "resolver": null,
-        "imports": "name"
+        "resolver": "@rules_dx//powershell/private/tools/lock",
+        "imports": "provides"
       }
     ]
   },

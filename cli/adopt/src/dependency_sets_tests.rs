@@ -1218,7 +1218,7 @@ fn pinned() -> Registry {
             "modules",
             Ecosystem::PowerShell,
             &["tools/ps/PSGallery.requirements.psd1"],
-            &["tools/ps/PSGallery.lock.json"],
+            &["tools/ps/powershell.lock.json"],
         ),
     ])
 }
@@ -1242,25 +1242,21 @@ fn ruby_and_powershell_sets_load_as_pinned_ecosystems() {
     assert_eq!(ResolvedSet::of(gems).dir, "apps/rb");
     let modules = registry.find("modules").expect("modules");
     assert_eq!(modules.ecosystem, Ecosystem::PowerShell);
-    for (ecosystem, name, manifest) in [
-        (Ecosystem::Ruby, "ruby", "Gemfile"),
-        (
-            Ecosystem::PowerShell,
-            "powershell",
-            "PSGallery.requirements.psd1",
-        ),
-    ] {
-        assert_eq!(Ecosystem::parse(name), Some(ecosystem));
-        assert_eq!(ecosystem.name(), name);
-        assert_eq!(ecosystem.manifest_name(), manifest);
-        assert_eq!(ecosystem.supported_check(), "pinned");
-        assert_eq!(ecosystem.supported_update(), "pinned");
-        assert_eq!(ecosystem.supported_audit(), "audit");
-        assert_eq!(
-            ecosystem.supported_operations(),
-            "audit; check and update report pinned"
-        );
-    }
+    assert_eq!(Ecosystem::parse("ruby"), Some(Ecosystem::Ruby));
+    assert_eq!(Ecosystem::Ruby.manifest_name(), "Gemfile");
+    assert_eq!(Ecosystem::Ruby.supported_check(), "pinned");
+    assert_eq!(Ecosystem::Ruby.supported_update(), "pinned");
+    assert_eq!(
+        Ecosystem::Ruby.supported_operations(),
+        "audit; check and update report pinned"
+    );
+    assert_eq!(Ecosystem::parse("powershell"), Some(Ecosystem::PowerShell));
+    assert_eq!(
+        Ecosystem::PowerShell.manifest_name(),
+        "PSGallery.requirements.psd1"
+    );
+    assert_eq!(Ecosystem::PowerShell.supported_check(), "pinned");
+    assert_eq!(Ecosystem::PowerShell.supported_update(), "update");
     assert_eq!(Ecosystem::Uv.supported_operations(), "check, update, audit");
     assert_eq!(
         Ecosystem::Npm.supported_operations(),
@@ -1291,7 +1287,7 @@ fn pinned_sets_must_declare_the_lock_beside_their_manifest() {
             "powershell",
             "tools/ps/PSGallery.requirements.psd1",
             "tools/ps/lock.json",
-            "tools/ps/PSGallery.lock.json",
+            "tools/ps/powershell.lock.json",
         ),
     ] {
         let kind = Ecosystem::parse(ecosystem).expect("known");

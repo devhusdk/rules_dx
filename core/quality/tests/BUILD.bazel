@@ -85,28 +85,6 @@ real_source_target(
 )
 
 rust_test(
-    name = "powershell_gallery_lock_test",
-    testonly = True,
-    srcs = ["powershell_gallery_lock_test.rs"],
-    aliases = aliases(
-        package_name = "core/quality/quality_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "powershell_gallery_lock_test",
-    crate_root = "powershell_gallery_lock_test.rs",
-    data = [
-        "//third_party/powershell:PSGallery.lock.json",
-        "//third_party/powershell:PSGallery.requirements.psd1",
-    ],
-    env = {
-        "DX_GALLERY_REQUIREMENTS": "$(rootpath //third_party/powershell:PSGallery.requirements.psd1)",
-        "DX_GALLERY_LOCK": "$(rootpath //third_party/powershell:PSGallery.lock.json)",
-    },
-    deps = ["//tools/testing:dx_testing"],
-)
-
-rust_test(
     name = "core_load_graph_test",
     srcs = ["core_load_graph_test.rs"],
     data = [

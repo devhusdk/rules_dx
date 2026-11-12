@@ -57,29 +57,25 @@ powershell_test(
 
 ## Gallery modules
 
-List each PowerShell Gallery module with its digest in `PSGallery.lock.json`.
-Nothing runs `Install-Module`.
+List each PowerShell Gallery module with its exact version in
+`PSGallery.requirements.psd1`. Nothing runs `Install-Module`.
 
-```json
-{
-  "source": "https://www.powershellgallery.com/api/v2",
-  "modules": {
-    "Pester": {
-      "version": "5.7.1",
-      "sha256": "4a27904c6814a5fbe4758f8e49861f6a1994aee77b71165a5c43c0371ba6c580"
-    }
-  }
+```powershell
+@{
+    Pester = '5.7.1'
 }
 ```
 
+`dx update` runs `bazel run @rules_dx//powershell/private/tools/lock -- --dir <set directory>`,
+which writes `powershell.lock.json` with the digest of each package.
+
 ```python
 powershell = use_extension("@rules_dx//powershell:extensions.bzl", "powershell")
-powershell.lock(name = "psgallery", lock = "//:PSGallery.lock.json")
+powershell.lock(name = "psgallery", lock = "//:powershell.lock.json")
 use_repo(powershell, "psgallery")
 ```
 
-Depend on `@psgallery//:pester`. The target name is the lowercased module
-name. A wrong digest fails the fetch.
+Depend on `@psgallery//Pester`. A wrong digest fails the fetch.
 
 ## Pester
 

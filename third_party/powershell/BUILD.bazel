@@ -3,7 +3,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
-    "PSGallery.lock.json",
+    "powershell.lock.json",
     "PSGallery.requirements.psd1",
 ])
 

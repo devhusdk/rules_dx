@@ -393,10 +393,12 @@ rust_test(
         "//rust/tests/fixtures/consumer_web:src/main.rs",
         "//tools/testing/process_probe",
         "@dx_tools//:gitleaks",
+        "@dx_tools//:lychee",
     ],
     env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe)",
         "DX_TEST_GITLEAKS": "$(rootpath @dx_tools//:gitleaks)",
+        "DX_TEST_LYCHEE": "$(rootpath @dx_tools//:lychee)",
     },
     deps = all_crate_deps(
         package_name = "cli/dx_cli",

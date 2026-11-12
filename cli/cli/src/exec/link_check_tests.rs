@@ -122,3 +122,96 @@ fn run_names_a_malformed_request() {
     let outcome = run(&requests, &roots(), dir.path(), "t", &|_, _| Ok(()));
     assert_eq!(outcome.problems.len(), 1);
 }
+
+fn serve_links() -> String {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buf = [0u8; 4096];
+            let read = stream.read(&mut buf).unwrap_or(0);
+            let head = String::from_utf8_lossy(&buf[..read]);
+            let status = if head.contains(" /ok ") {
+                "200 OK"
+            } else {
+                "404 Not Found"
+            };
+            let _ = stream.write_all(
+                format!("HTTP/1.1 {status}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                    .as_bytes(),
+            );
+        }
+    });
+    base
+}
+
+fn online_request(lychee: &Path) -> Vec<u8> {
+    serde_json::to_vec(&json!({
+        "schema_version": 1,
+        "producer": "//docs:readme",
+        "capability": "lint",
+        "stages": [
+            {"tool": "lychee", "classes": ["markdown"], "sources": ["docs/README.md"]},
+            {"tool": "typos", "classes": ["markdown"], "sources": ["docs/README.md"]},
+        ],
+        "sources": [{"workspace": "docs/README.md", "exec": "docs/README.md"}],
+        "tools": {
+            "lychee": {"binary": lychee.to_string_lossy()},
+            "typos": {"binary": "external/typos+/typos"},
+        },
+    }))
+    .unwrap()
+}
+
+fn broken_links(result: &[u8]) -> Vec<String> {
+    quality_result::decode_validated(result)
+        .expect("valid result")
+        .initial_diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.tool_id == TOOL)
+        .map(|diagnostic| format!("{}: {}", diagnostic.path, diagnostic.message))
+        .collect()
+}
+
+#[test]
+fn online_replay_reports_a_broken_link_on_a_local_server() {
+    let lychee = std::path::absolute(dx_testing::resolve_runfiles(
+        &std::env::var("DX_TEST_LYCHEE").expect("DX_TEST_LYCHEE names the pinned lychee"),
+    ))
+    .expect("absolute lychee path");
+    let base = serve_links();
+    let exec = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(exec.path().join("docs")).unwrap();
+    std::fs::write(
+        exec.path().join("docs/README.md"),
+        format!("# Links\n\n[up]({base}/ok)\n\n[gone]({base}/missing)\n"),
+    )
+    .unwrap();
+    let roots = Roots {
+        output_base: exec.path().join("output_base"),
+        execution_root: exec.path().to_path_buf(),
+    };
+    let scratch = tempfile::tempdir().unwrap();
+    let requests = vec![(
+        "docs/readme-request.json".to_owned(),
+        online_request(&lychee),
+    )];
+    let outcome = run(
+        &requests,
+        &roots,
+        scratch.path(),
+        "e2e",
+        &|request, output| {
+            quality_runner::entry::run_request(request, output, Some("link-check"))
+                .map_err(|error| error.to_string())
+        },
+    );
+    assert!(outcome.problems.is_empty(), "{:?}", outcome.problems);
+    assert_eq!(outcome.results.len(), 1);
+    let found = broken_links(&outcome.results[0]);
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(found[0].starts_with("docs/README.md: "), "{found:?}");
+    assert!(found[0].contains(&format!("{base}/missing")), "{found:?}");
+}

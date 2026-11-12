@@ -71,15 +71,17 @@ pub(crate) fn read_requests(bep: &Path, workspace: &Path) -> Vec<(String, Vec<u8
 }
 
 fn rewrite_entries(doc: &mut Value, key: &str, field: &str, roots: &Roots) {
-    for entry in doc[key].as_array_mut().into_iter().flatten() {
+    let entries = doc.get_mut(key).and_then(Value::as_array_mut);
+    for entry in entries.into_iter().flatten() {
         if let Some(exec) = entry[field].as_str().map(|exec| roots.absolute(exec)) {
             entry[field] = Value::String(exec);
         }
     }
 }
 
-fn rewrite_list(value: &mut Value, roots: &Roots) {
-    for item in value.as_array_mut().into_iter().flatten() {
+fn rewrite_list(tool: &mut Value, key: &str, roots: &Roots) {
+    let items = tool.get_mut(key).and_then(Value::as_array_mut);
+    for item in items.into_iter().flatten() {
         if let Some(exec) = item.as_str().map(|exec| roots.absolute(exec)) {
             *item = Value::String(exec);
         }
@@ -92,8 +94,8 @@ fn rewrite_tool(tool: &mut Value, roots: &Roots) {
     }
     rewrite_entries(tool, "files", "exec", roots);
     rewrite_entries(tool, "path_tools", "binary", roots);
-    rewrite_list(&mut tool["upstream"], roots);
-    rewrite_list(&mut tool["search_paths"], roots);
+    rewrite_list(tool, "upstream", roots);
+    rewrite_list(tool, "search_paths", roots);
 }
 
 /// The lychee stage of one request with absolute exec paths and online mode on,

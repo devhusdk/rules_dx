@@ -20,7 +20,13 @@ LANGS = json.decode("""{
     "manifests": [],
     "name": "android",
     "pins": [],
-    "platforms": [],
+    "platforms": [
+      "linux_arm64",
+      "linux_x86_64",
+      "macos_arm64",
+      "windows_arm64",
+      "windows_x86_64"
+    ],
     "title": "Android",
     "tools": []
   },
@@ -167,7 +173,13 @@ LANGS = json.decode("""{
       "macos_arm64"
     ],
     "title": "Apple",
-    "tools": []
+    "tools": [],
+    "unsupported": {
+      "linux_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
+      "linux_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
+      "windows_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
+      "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS"
+    }
   },
   "asciidoc": {
     "ecosystems": [],
@@ -635,7 +647,10 @@ LANGS = json.decode("""{
       "clang_format",
       "clang_tidy",
       "nvcc_syntax"
-    ]
+    ],
+    "unsupported": {
+      "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS"
+    }
   },
   "d": {
     "depcheck": "d",
@@ -813,7 +828,10 @@ LANGS = json.decode("""{
     "title": "Dart",
     "tools": [
       "dart"
-    ]
+    ],
+    "unsupported": {
+      "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK"
+    }
   },
   "dockerfile": {
     "ecosystems": [],
@@ -1154,7 +1172,10 @@ LANGS = json.decode("""{
       "windows_x86_64"
     ],
     "title": "Flutter",
-    "tools": []
+    "tools": [],
+    "unsupported": {
+      "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
+    }
   },
   "fortran": {
     "depcheck": "fortran",
@@ -1246,7 +1267,10 @@ LANGS = json.decode("""{
     "tools": [
       "ffmt",
       "fortitude"
-    ]
+    ],
+    "unsupported": {
+      "windows_arm64": "flang-releases v21.1.8 ships no Windows arm64 build"
+    }
   },
   "fsharp": {
     "depcheck": "fsharp",
@@ -1462,7 +1486,10 @@ LANGS = json.decode("""{
       "hlint",
       "ormolu",
       "weeder"
-    ]
+    ],
+    "unsupported": {
+      "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist"
+    }
   },
   "helm": {
     "ecosystems": [],
@@ -1773,7 +1800,10 @@ LANGS = json.decode("""{
     "tools": [
       "julia_format",
       "julialint"
-    ]
+    ],
+    "unsupported": {
+      "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build"
+    }
   },
   "kotlin": {
     "depcheck": "kotlin",
@@ -2145,7 +2175,11 @@ LANGS = json.decode("""{
     "tools": [
       "topiary",
       "zanuda"
-    ]
+    ],
+    "unsupported": {
+      "windows_arm64": "conda-forge ships no win-arm64 OCaml package",
+      "windows_x86_64": "conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2"
+    }
   },
   "perl": {
     "depcheck": "perl",
@@ -2226,7 +2260,10 @@ LANGS = json.decode("""{
     "tools": [
       "perlcritic",
       "perltidy"
-    ]
+    ],
+    "unsupported": {
+      "windows_arm64": "Windows ARM64 perl is not qualified"
+    }
   },
   "php": {
     "depcheck": "php",
@@ -2308,7 +2345,10 @@ LANGS = json.decode("""{
       "phpcs",
       "phpstan",
       "prettier"
-    ]
+    ],
+    "unsupported": {
+      "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build"
+    }
   },
   "powershell": {
     "depcheck": "powershell",
@@ -2534,7 +2574,13 @@ LANGS = json.decode("""{
     "manifests": [],
     "name": "rego",
     "pins": [],
-    "platforms": [],
+    "platforms": [
+      "linux_arm64",
+      "linux_x86_64",
+      "macos_arm64",
+      "windows_arm64",
+      "windows_x86_64"
+    ],
     "quality": {
       "aspects": {
         "format": [
@@ -2985,7 +3031,11 @@ LANGS = json.decode("""{
     "tools": [
       "swift_format",
       "swift_lint"
-    ]
+    ],
+    "unsupported": {
+      "windows_arm64": "The Swift Windows arm64 toolchain is registered but unverified on Windows ARM",
+      "windows_x86_64": "rules_dx registers no Swift toolchain for Windows"
+    }
   },
   "terraform": {
     "ecosystems": [],

@@ -39,6 +39,9 @@
     "macos_arm64",
     "windows_x86_64"
   ],
+  "unsupported": {
+    "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build"
+  },
   "pins": [],
   "entry_points": [
     "julia_library",

@@ -2,7 +2,7 @@
 
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
-load("//core:platform_support.bzl", "cells_support", "compatible_with")
+load("//core:platform_support.bzl", "cells_support", "compatible_with", "lang_cells")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
@@ -13,7 +13,7 @@ PhpInfo = _PhpInfo
 
 PHP_SOURCE_SPECS = [("php", ["php"])]
 
-PLATFORM_SUPPORT = cells_support("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH", PHP_CELLS, sorted(PHP_CELLS.keys()), "//php/private/toolchain")
+PLATFORM_SUPPORT = cells_support("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH", PHP_CELLS, lang_cells("php"), "//php/private/toolchain")
 
 PHP_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 

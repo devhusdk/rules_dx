@@ -1,8 +1,17 @@
 """One platform_support value per language, read by the support matrix and the language's compatibility select."""
 
+load("//core/modules:langs.bzl", "LANGS")
 load(":cells.bzl", "cell_setting", "unknown_cells", "unsupported_constraint")
 
 _INCOMPATIBLE = Label("@platforms//:incompatible")
+
+def lang_cells(lang):
+    """Returns the platform ids a language's lang.json lists."""
+    return LANGS[lang]["platforms"]
+
+def lang_platforms(lang):
+    """Returns {id: (os, cpu)} for the platforms a language's lang.json lists."""
+    return {id: tuple(id.split("_", 1)) for id in lang_cells(lang)}
 
 def platform_support(label, symbol, any_of, settings, package = None):
     """Returns the platforms a language's targets accept."""

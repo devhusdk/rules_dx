@@ -39,6 +39,9 @@
     "macos_arm64",
     "windows_x86_64"
   ],
+  "unsupported": {
+    "windows_arm64": "Windows ARM64 perl is not qualified"
+  },
   "pins": [],
   "entry_points": [
     "perl_library",

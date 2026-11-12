@@ -36,6 +36,9 @@
     "linux_x86_64",
     "macos_arm64"
   ],
+  "unsupported": {
+    "windows_arm64": "flang-releases v21.1.8 ships no Windows arm64 build"
+  },
   "pins": [
     "pins.json"
   ],

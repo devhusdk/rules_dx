@@ -37,6 +37,10 @@
     "linux_x86_64",
     "macos_arm64"
   ],
+  "unsupported": {
+    "windows_arm64": "conda-forge ships no win-arm64 OCaml package",
+    "windows_x86_64": "conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2"
+  },
   "pins": [
     "pins.json"
   ],

@@ -681,7 +681,7 @@ fn pins_list_every_pins_json_under_the_language_dir() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
-const PLATFORM_DRIFT: [&str; 2] = ["android", "msix"];
+const PLATFORM_DRIFT: [&str; 1] = ["msix"];
 
 const PLATFORMS: [&str; 5] =
     ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"];
@@ -744,23 +744,24 @@ fn lang_json_platforms_equal_the_support_matrix() {
     assert!(drift.is_empty(), "lang.json platforms differ from docs/support-matrix.md:\n{}", drift.join("\n"));
 }
 
-const EMPTY_PLATFORMS: [&str; 4] = ["android", "appimage", "env", "rego"];
-
 #[test]
-fn lang_json_platforms_are_not_empty() {
+fn lang_json_platforms_are_not_empty_and_unsupported_names_only_missing_platforms() {
     let root = dx_testing::rules_dx_source();
-    let mut empty = Vec::new();
+    let mut problems = Vec::new();
     for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         let name = manifest["name"].as_str().expect("name");
-        let none = manifest["platforms"].as_array().expect("platforms").is_empty();
-        let known = EMPTY_PLATFORMS.contains(&name);
-        if none && !known {
-            empty.push(format!("{name}: platforms is empty"));
-        } else if !none && known {
-            empty.push(format!("{name}: platforms is set; remove it from EMPTY_PLATFORMS"));
+        let platforms = manifest["platforms"].as_array().expect("platforms");
+        if platforms.is_empty() {
+            problems.push(format!("{name}: platforms is empty"));
+        }
+        let Some(unsupported) = manifest.get("unsupported").and_then(Value::as_object) else { continue };
+        for platform in unsupported.keys() {
+            if platforms.iter().any(|p| p.as_str() == Some(platform.as_str())) {
+                problems.push(format!("{name}: {platform} is in both platforms and unsupported"));
+            }
         }
     }
-    assert!(empty.is_empty(), "{}", empty.join("\n"));
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
 }

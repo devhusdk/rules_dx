@@ -1,25 +1,9 @@
 """The language list behind docs/support-matrix.md."""
 
-load("//apple/private/ios:cell.bzl", APPLE_SUPPORT = "PLATFORM_SUPPORT")
 load("//cc/private/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//core/modules:langs.bzl", "LANGS")
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
-load("//cuda/private/toolchain:settings.bzl", CUDA_SUPPORT = "PLATFORM_SUPPORT")
-load("//d/private:kwargs.bzl", D_SUPPORT = "PLATFORM_SUPPORT")
-load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
-load("//elixir/private:kwargs.bzl", ELIXIR_SUPPORT = "PLATFORM_SUPPORT")
-load("//erlang/private:kwargs.bzl", ERLANG_SUPPORT = "PLATFORM_SUPPORT")
-load("//flutter/private:platforms.bzl", FLUTTER_SUPPORT = "PLATFORM_SUPPORT")
-load("//fortran/private:kwargs.bzl", FORTRAN_SUPPORT = "PLATFORM_SUPPORT")
-load("//haskell/private:kwargs.bzl", HASKELL_SUPPORT = "PLATFORM_SUPPORT")
-load("//julia/private:platforms.bzl", JULIA_SUPPORT = "PLATFORM_SUPPORT")
-load("//ocaml/private:kwargs.bzl", OCAML_SUPPORT = "PLATFORM_SUPPORT")
-load("//perl/private:platforms.bzl", PERL_SUPPORT = "PLATFORM_SUPPORT")
-load("//php/private:defs.bzl", PHP_SUPPORT = "PLATFORM_SUPPORT")
-load("//qt/private/sdk:repos.bzl", QT_SUPPORT = "PLATFORM_SUPPORT")
-load("//swift/private/platforms:support.bzl", SWIFT_SUPPORT = "PLATFORM_SUPPORT")
 load("//tools/platforms:defs.bzl", "WINDOWS_MSVC_HOST_CONSTRAINTS")
-load("//tools/testing/hermetic:defs.bzl", HERMETIC_SUPPORT = "PLATFORM_SUPPORT")
 
 PLATFORMS = [
     {"constraints": [], "cpu": "x86_64", "id": "linux_x86_64", "os": "linux"},
@@ -31,24 +15,31 @@ PLATFORMS = [
 
 SECTIONS = ["languages", "targets", "compilers", "formats"]
 
-PLATFORM_SUPPORT = [
-    APPLE_SUPPORT,
-    CUDA_SUPPORT,
-    D_SUPPORT,
-    DART_SUPPORT,
-    ELIXIR_SUPPORT,
-    ERLANG_SUPPORT,
-    FLUTTER_SUPPORT,
-    FORTRAN_SUPPORT,
-    HASKELL_SUPPORT,
-    HERMETIC_SUPPORT,
-    JULIA_SUPPORT,
-    OCAML_SUPPORT,
-    PERL_SUPPORT,
-    PHP_SUPPORT,
-    QT_SUPPORT,
-    SWIFT_SUPPORT,
-]
+COMPATIBLE_WITH = {
+    "apple": "//apple/private/ios:cell.bzl%APPLE_HOSTS",
+    "cuda": "//cuda/private:defs.bzl%CUDA_COMPATIBLE_WITH",
+    "d": "//d/private:defs.bzl%D_COMPATIBLE_WITH",
+    "dart": "//dart/private:defs.bzl%DART_COMPATIBLE_WITH",
+    "elixir": "//elixir/private:defs.bzl%ELIXIR_COMPATIBLE_WITH",
+    "erlang": "//erlang/private:defs.bzl%ERLANG_COMPATIBLE_WITH",
+    "flutter": "//flutter/private:defs.bzl%FLUTTER_COMPATIBLE_WITH",
+    "fortran": "//fortran/private:defs.bzl%FORTRAN_COMPATIBLE_WITH",
+    "haskell": "//haskell/private:defs.bzl%HASKELL_COMPATIBLE_WITH",
+    "julia": "//julia/private:defs.bzl%JULIA_COMPATIBLE_WITH",
+    "ocaml": "//ocaml/private:defs.bzl%OCAML_COMPATIBLE_WITH",
+    "perl": "//perl/private:defs.bzl%PERL_COMPATIBLE_WITH",
+    "php": "//php/private:defs.bzl%PHP_COMPATIBLE_WITH",
+    "qt": "//qt:defs.bzl%QT_COMPATIBLE_WITH",
+    "swift": "//swift/private:defs.bzl%SWIFT_COMPATIBLE_WITH",
+}
+
+def _os_cpu(ids):
+    by_id = {platform["id"]: platform for platform in PLATFORMS}
+    return [["@platforms//os:" + by_id[id]["os"], "@platforms//cpu:" + by_id[id]["cpu"]] for id in ids]
+
+COMPUTED_CONSTRAINTS = {key: _os_cpu(LANGS[lang]["platforms"]) for lang, key in COMPATIBLE_WITH.items()} | {
+    "//tools/testing/hermetic:defs.bzl%HERMETIC_COMPATIBLE_WITH": [["@platforms//os:" + os] for os in sorted({platform["os"]: True for platform in PLATFORMS}.keys())],
+}
 
 # The tool api_compat runs per publishing rule; "not available" where no maintained free API diff tool exists.
 API_COMPAT_TOOLS = {
@@ -328,12 +319,6 @@ LANGUAGES = [
     ),
     _language(
         "apple",
-        not_applicable = {
-            "linux_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
-            "linux_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
-            "windows_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
-            "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
-        },
     ),
     _language(
         "astro",
@@ -384,9 +369,6 @@ LANGUAGES = [
         deps = "none: the CUDA toolkit is a pinned download",
         doc = struct(tool = "doxygen", shard = "cuda_doc_shard"),
         dead_code = ["none"],
-        not_applicable = {
-            "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS",
-        },
     ),
     _language(
         "d",
@@ -403,9 +385,6 @@ LANGUAGES = [
         doc = struct(tool = "dart doc", shard = "dart_doc_shard"),
         dead_code = ["dart unused_element"],
         unsupported = "//dart/private:unsupported",
-        not_applicable = {
-            "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK",
-        },
     ),
     _language(
         "elixir",
@@ -427,18 +406,12 @@ LANGUAGES = [
         doc = struct(tool = "dart doc", shard = "dart_doc_shard"),
         dead_code = ["dart unused_element"],
         unsupported = "//flutter/private:unsupported",
-        not_applicable = {
-            "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)",
-        },
     ),
     _language(
         "fortran",
         deps = "the `fpm.lock` tag of the `fpm` extension builds pinned archives from the fpm lock; `dx security` and `dx license` read it, `dx update` re-hashes the archives",
         doc = struct(tool = "ford", shard = "fortran_doc_shard"),
         dead_code = ["fortitude C191 unreachable-statement"],
-        not_applicable = {
-            "windows_arm64": "flang-releases v21.1.8 ships no Windows arm64 build",
-        },
     ),
     _language(
         "fsharp",
@@ -463,9 +436,6 @@ LANGUAGES = [
         doc = struct(tool = "haddock", shard = "haskell_doc_shard"),
         dead_code = ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
         unsupported = "//haskell/private/toolchain:unsupported",
-        not_applicable = {
-            "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist",
-        },
     ),
     _language(
         "java",
@@ -490,9 +460,6 @@ LANGUAGES = [
         doc = struct(tool = "documenter", shard = "julia_doc_shard"),
         dead_code = ["none"],
         unsupported = "//julia/private:unsupported",
-        not_applicable = {
-            "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build",
-        },
     ),
     _language(
         "kotlin",
@@ -526,10 +493,6 @@ LANGUAGES = [
         deps = "`opam`",
         doc = struct(tool = "odoc", shard = "ocaml_doc_shard"),
         dead_code = ["ocamlc warnings 26, 27, 32 to 39"],
-        not_applicable = {
-            "windows_arm64": "conda-forge ships no win-arm64 OCaml package",
-            "windows_x86_64": "conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2",
-        },
     ),
     _language(
         "perl",
@@ -537,9 +500,6 @@ LANGUAGES = [
         deps = "`cpan`",
         doc = struct(tool = "pod (perl)", shard = "perl_doc_shard"),
         dead_code = ["perlcritic ProhibitUnusedVariables"],
-        not_applicable = {
-            "windows_arm64": "Windows ARM64 perl is not qualified",
-        },
     ),
     _language(
         "php",
@@ -548,9 +508,6 @@ LANGUAGES = [
         doc = struct(tool = "phpdocumentor", shard = "php_doc_shard"),
         dead_code = ["phpcs Generic.CodeAnalysis.UnusedFunctionParameter"],
         unsupported = "//php/private/toolchain:unsupported",
-        not_applicable = {
-            "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build",
-        },
     ),
     _language(
         "powershell",
@@ -618,10 +575,6 @@ LANGUAGES = [
         fuzz = "swift_fuzz_test",
         deps = "`swiftpm`",
         doc = struct(tool = "swift-symbolgraph-extract", shard = "swift_doc_shard"),
-        not_applicable = {
-            "windows_arm64": "The Swift Windows arm64 toolchain is registered but unverified on Windows ARM",
-            "windows_x86_64": "rules_dx registers no Swift toolchain for Windows",
-        },
     ),
     _language(
         "typescript",
@@ -657,7 +610,7 @@ FUZZ = _view("fuzz")
 DEPENDENCIES = _view("deps")
 DEAD_CODE = _view("dead_code")
 UNSUPPORTED_CONSTRAINTS = _view("unsupported")
-PLATFORM_NOT_APPLICABLE = _view("not_applicable")
+PLATFORM_NOT_APPLICABLE = _view("not_applicable") | {name: LANGS[name]["unsupported"] for name in LANGS if "unsupported" in LANGS[name]}
 DOC_TOOLS = {
     lang.name: (None if lang.doc == NO_DOC else {"tool": lang.doc.tool, "shard": lang.doc.shard})
     for lang in LANGUAGES

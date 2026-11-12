@@ -22,6 +22,10 @@ rust_library(
     ],
     crate_name = "dx_apple_ops",
     crate_root = "src/lib.rs",
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
     deps = [
         "@crates//:libc",
         "@crates//:zip",

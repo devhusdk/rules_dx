@@ -90,13 +90,6 @@ rust_build_script(name, build_script_env = None, toolchains = None, use_cc_toolc
 
 `rust_build_script`, a `cargo_build_script` whose build script gets `HOST_*` and `TARGET_*` cc tools and flags from rules_dx.
 
-Args:
-    name: Name of the target.
-    build_script_env: Environment of the build script; its keys win, except `CFLAGS`, which is appended.
-    toolchains: Toolchains whose make variables `build_script_env` may use.
-    use_cc_toolchain: As in rules_rust; `0` or `False` leaves the cc environment alone.
-    **kwargs: Passed to rules_rust `cargo_build_script`.
-
 ## API docs
 
 Tool: `rustdoc`.

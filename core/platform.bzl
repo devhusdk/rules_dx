@@ -23,20 +23,7 @@ def _with_platforms(settings, platforms):
     return out
 
 def platforms_transition(implementation = _no_settings, inputs = [], outputs = [], platforms = _attr_platforms, single = ""):
-    """Returns the transition that builds for a platforms list, one configuration per platform.
-
-    Args:
-        implementation: Called as implementation(settings, attr, platforms) with the one platform of a
-            configuration, or [] for the command-line platform. Returns the other settings it changes.
-        inputs: The settings implementation reads.
-        outputs: The settings implementation returns.
-        platforms: Called as platforms(attr). Returns the platform label strings. Empty keeps the
-            command-line platform.
-        single: The rule name. When set, more than one platform fails with single_platform_error.
-
-    Returns:
-        A transition that splits when platforms holds more than one label.
-    """
+    """Returns the transition that builds for a platforms list, one configuration per platform."""
 
     def _impl(settings, attr):
         chosen = platforms(attr)

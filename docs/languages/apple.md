@@ -34,8 +34,6 @@ apple_ios_app_test(name, app, srcs = None, deployment = "", device_type = "", os
 
 Runs XCTest cases inside one app on a declared simulator device and runtime.
 
-`app` must be an `apple_ios_app` simulator target.
-
 ### `apple_ios_xcframework`
 
 ```python

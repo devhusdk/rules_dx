@@ -259,10 +259,7 @@ def dx_wrapper_contract_tests(name, file_classes = None, extra_checks = None, in
     )
 
 def coverage_env_tests(impl, attrs = {}, features = []):
-    """Returns struct(on, off): two analysis test rules sharing `impl`.
-
-    A non-empty `features` sets `--features` in the `on` config only.
-    """
+    """Returns struct(on, off): two analysis test rules sharing `impl`."""
     on_settings = {"//command_line_option:collect_code_coverage": True}
     if features:
         on_settings["//command_line_option:features"] = features

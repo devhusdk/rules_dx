@@ -15,5 +15,9 @@ def _gcc_runtime_libs_impl(ctx):
 
 gcc_runtime_libs = rule(
     implementation = _gcc_runtime_libs_impl,
-    attrs = {"srcs": attr.label_list(allow_files = True)},
+    doc = "Symlinks libgcc_s.so.1 and libstdc++.so.6 from the lib64 directory of a GCC archive.",
+    attrs = {"srcs": attr.label_list(
+        allow_files = True,
+        doc = "Files of the GCC archive; each runtime library appears once under lib64.",
+    )},
 )

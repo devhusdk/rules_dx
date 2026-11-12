@@ -257,7 +257,39 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     ok(&dx(&case, "check", &["//...", "--", policy]), "dx check");
 
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-    assert_gcc_consumer(&case);
+    {
+        assert_gcc_consumer(&case);
+        assert_swift_consumer(&case);
+    }
+}
+
+/// Builds and tests `swift/tests/consumer` on the unpatched BCR rules_swift.
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+fn assert_swift_consumer(case: &Case) {
+    stage("swift consumer");
+    for file in ["BUILD.bazel", "Greet.swift", "GreetTests.swift"] {
+        let text = dx_testing::read_runfiles(&format!("swift/tests/consumer/{file}"))
+            .replace("@rules_dx//", "@my_dx//");
+        write(&case.root().join("swift").join(file), text.as_bytes());
+    }
+    let module = dx_testing::read_text(&rules_dx_source().join("MODULE.bazel"));
+    let version = module
+        .split("bazel_dep(name = \"rules_swift\", version = \"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .expect("rules_swift version in MODULE.bazel");
+
+    let explain = case.bazel(&["mod", "explain", "rules_swift"]);
+    ok(&explain, "mod explain rules_swift");
+    assert!(
+        explain.stdout.contains(&format!("rules_swift@{version}")),
+        "{}",
+        explain.combined()
+    );
+    ok(
+        &case.bazel(&["test", "//swift:greet_tests", "--test_output=errors"]),
+        "swift test",
+    );
 }
 
 /// Builds with the hermetic GCC toolchain while host compilers on PATH fail.

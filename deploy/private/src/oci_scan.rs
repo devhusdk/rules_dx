@@ -8,7 +8,7 @@ use dx_audit::exception::{load_security, validate_exception};
 use dx_audit::image_scan::{
     ImageFinding, covers, parse_report, severity_list, trivy_args, trivy_cache,
 };
-use dx_audit::profile_base::Tier;
+use dx_audit::tier_base::Tier;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ScanMode {
@@ -50,7 +50,7 @@ impl Default for OciChecks {
 
 /// Drops findings covered by an unexpired `[[exception]]` naming the same advisory and
 /// package, with `versions` either `*` or the installed version, in set `oci` or in a
-/// label pattern that matches `label`. Only the exceptions are used, so the profile does
+/// label pattern that matches `label`. Only the exceptions are used, so the tier does
 /// not matter.
 pub fn apply_exceptions(
     findings: Vec<ImageFinding>,

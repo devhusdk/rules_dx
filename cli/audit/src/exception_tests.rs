@@ -1,5 +1,5 @@
 use super::*;
-use crate::profile_base::Tier;
+use crate::tier_base::Tier;
 
 fn sample() -> RiskException {
     RiskException {
@@ -542,7 +542,7 @@ fn empty_fields_show_as_question_mark() {
 }
 
 #[test]
-fn the_profile_picks_the_base_and_a_root_list_replaces_it() {
+fn the_tier_picks_the_base_and_a_root_list_replaces_it() {
     let standard = load_security(None, Tier::Standard).expect("standard");
     assert_eq!(
         standard.fail_on,

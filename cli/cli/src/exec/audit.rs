@@ -647,8 +647,8 @@ fn package_ref(
     })
 }
 
-/// The tier from the dx.toml `profile`; standard without one.
-fn audit_profile(workspace: &Path) -> Result<dx_audit::profile_base::Tier, DxError> {
+/// The tier from the dx.toml `tier`; standard without one.
+fn audit_tier(workspace: &Path) -> Result<dx_audit::tier_base::Tier, DxError> {
     match dx_config::load(workspace) {
         Ok(config) => Ok(config.and_then(|config| config.tier).unwrap_or_default()),
         Err(problem) => Err(DxError::failure(format!("dx.toml: {problem}"))),
@@ -670,26 +670,26 @@ fn load_license_policy(
 ) -> Result<dx_audit::license_policy::LicensePolicy, AuditError> {
     use dx_audit::license_policy::{PolicyProblem, load_licenses};
     let invalid = |error| AuditError::LicenseInvalid { error };
-    let profile = audit_profile(workspace).map_err(|error| {
+    let tier = audit_tier(workspace).map_err(|error| {
         invalid(PolicyProblem::InvalidLicensesToml {
             message: error.message().to_owned(),
         })
     })?;
     let text = read_policy_text(workspace, "license.toml")?;
-    load_licenses(text.as_deref(), profile).map_err(invalid)
+    load_licenses(text.as_deref(), tier).map_err(invalid)
 }
 
 pub(super) fn load_security_policy(
     workspace: &Path,
 ) -> Result<dx_audit::exception::SecurityPolicy, AuditError> {
     use dx_audit::exception::{SecurityProblem, load_security};
-    let profile = audit_profile(workspace).map_err(|error| {
+    let tier = audit_tier(workspace).map_err(|error| {
         AuditError::SecurityInvalid(SecurityProblem::InvalidToml {
             message: error.message().to_owned(),
         })
     })?;
     let text = read_policy_text(workspace, "security.toml")?;
-    load_security(text.as_deref(), profile).map_err(AuditError::SecurityInvalid)
+    load_security(text.as_deref(), tier).map_err(AuditError::SecurityInvalid)
 }
 
 fn tier_for_roots(

@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::profile_base::{Tier, base_text};
+use crate::tier_base::{Tier, base_text};
 use crate::vuln::{AdvisoryKind, VersionScope};
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, JsonSchema)]
@@ -227,11 +227,11 @@ pub(crate) fn toml_message(text: &str, error: &toml::de::Error, message: String)
     }
 }
 
-/// The policy for `profile`: its embedded base with `text`, the workspace's
+/// The policy for `tier`: its embedded base with `text`, the workspace's
 /// security.toml, merged over it. Missing or blank text means the base alone.
-pub fn load_security(text: Option<&str>, profile: Tier) -> Result<SecurityPolicy, SecurityProblem> {
-    let base_text = base_text("security", profile).ok_or_else(|| SecurityProblem::InvalidToml {
-        message: format!("the {} base is missing", profile.as_str()),
+pub fn load_security(text: Option<&str>, tier: Tier) -> Result<SecurityPolicy, SecurityProblem> {
+    let base_text = base_text("security", tier).ok_or_else(|| SecurityProblem::InvalidToml {
+        message: format!("the {} base is missing", tier.as_str()),
     })?;
     let base = parse_file(base_text)?;
     match text.filter(|text| !text.trim().is_empty()) {

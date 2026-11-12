@@ -1,9 +1,7 @@
 use std::path::{Path, PathBuf};
 
 fn julia_bin() -> PathBuf {
-    let file = dx_testing::resolve_runfiles(
-        &std::env::var("DX_JULIA_PATH_FILE").expect("DX_JULIA_PATH_FILE is set"),
-    );
+    let file = dx_testing::env_file("DX_JULIA_PATH_FILE");
     let key = std::fs::read_to_string(file).expect("julia path file is readable");
     if let Some(dir) = std::env::var_os("RUNFILES_DIR") {
         let direct = PathBuf::from(dir).join(&key);

@@ -177,10 +177,8 @@ fn broken_links(result: &[u8]) -> Vec<String> {
 
 #[test]
 fn online_replay_reports_a_broken_link_on_a_local_server() {
-    let lychee = std::path::absolute(dx_testing::resolve_runfiles(
-        &std::env::var("DX_TEST_LYCHEE").expect("DX_TEST_LYCHEE names the pinned lychee"),
-    ))
-    .expect("absolute lychee path");
+    let lychee =
+        std::path::absolute(dx_testing::env_file("DX_TEST_LYCHEE")).expect("absolute lychee path");
     let base = serve_links();
     let exec = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(exec.path().join("docs")).unwrap();

@@ -1,4 +1,4 @@
-use dx_testing::resolve_runfiles;
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -16,7 +16,7 @@ fn scratch(name: &str, text: &str) -> PathBuf {
 }
 
 fn run(args: &[&str], file: &Path) -> Output {
-    let bin = resolve_runfiles(&std::env::var("DART").expect("DART"));
+    let bin = env_file("DART");
     let home = file.parent().unwrap_or(file).join("home");
     std::fs::create_dir_all(&home).unwrap_or_else(|error| panic!("mkdir: {error}"));
     Command::new(bin)

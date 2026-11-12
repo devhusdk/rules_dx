@@ -1382,7 +1382,7 @@ mod tests {
             std::fs::create_dir_all(target.parent().expect("parent")).expect("mkdir");
             std::fs::write(target, bytes).expect("write generated file");
         }
-        let gazelle = dx_testing::resolve_runfiles(&std::env::var("DX_GAZELLE").expect("gazelle"));
+        let gazelle = dx_testing::env_file("DX_GAZELLE");
         let repo_root = format!("-repo_root={}", root.display());
         let dir = root.to_string_lossy().into_owned();
         let run = dx_testing::run(&gazelle, &[repo_root.as_str(), dir.as_str()], &[])

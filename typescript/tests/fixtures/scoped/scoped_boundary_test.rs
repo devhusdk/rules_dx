@@ -9,16 +9,14 @@ fn stage(dir: &Path) {
         ("DX_SRC_CLEAN", "clean.ts"),
         ("DX_SRC_BAD", "bad.ts"),
     ] {
-        let rel = std::env::var(env).unwrap_or_else(|_| panic!("{env} must be set"));
-        let from = dx_testing::resolve_runfiles(&rel);
+        let from = dx_testing::env_file(env);
         std::fs::copy(&from, dir.join(name))
             .unwrap_or_else(|error| panic!("cannot stage {}: {error}", from.display()));
     }
 }
 
 fn list_files(dir: &Path, config: &str) -> (bool, Vec<String>, String) {
-    let rel = std::env::var("DX_TSC").expect("DX_TSC must name tsc");
-    let tsc = dx_testing::resolve_runfiles(&rel);
+    let tsc = dx_testing::env_file("DX_TSC");
     let project = dir.join(config);
     let run = dx_testing::run(
         &tsc,

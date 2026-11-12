@@ -488,8 +488,7 @@ fn help_prints_usage_once_and_exits_zero() {
 
 #[test]
 fn the_demo_offline_bundle_bootstraps() {
-    let rel = std::env::var("DX_OFFLINE_DEMO").expect("DX_OFFLINE_DEMO must name the demo bundle");
-    let manifest = dx_testing::resolve_runfiles(&rel);
+    let manifest = dx_testing::env_file("DX_OFFLINE_DEMO");
     let built = manifest
         .parent()
         .and_then(Path::parent)
@@ -520,8 +519,7 @@ fn the_demo_offline_bundle_bootstraps() {
 
 #[test]
 fn offline_bundle_knows_every_host_launcher() {
-    let rel = std::env::var("DX_OFFLINE_BZL").expect("DX_OFFLINE_BZL must name offline.bzl");
-    let bzl = read(&dx_testing::resolve_runfiles(&rel));
+    let bzl = read(&dx_testing::env_file("DX_OFFLINE_BZL"));
     let start = bzl
         .find("_LAUNCHERS = [")
         .expect("offline.bzl lists launchers");

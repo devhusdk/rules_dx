@@ -1,4 +1,4 @@
-use dx_testing::resolve_runfiles;
+use dx_testing::{env_file, resolve_runfiles};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -14,7 +14,7 @@ fn run(dir: &Path, fixture: &str) -> (Output, PathBuf) {
     let file = dir.join(fixture);
     std::fs::copy(&source, &file).unwrap_or_else(|error| panic!("copy: {error}"));
     let report = dir.join("report.json");
-    let bin = resolve_runfiles(&std::env::var("JULIA_LINT").expect("JULIA_LINT"));
+    let bin = env_file("JULIA_LINT");
     let out = Command::new(bin)
         .arg("--scratch")
         .arg(dir.join("work"))
@@ -61,7 +61,7 @@ fn columns_count_characters_not_bytes() {
 
 #[test]
 fn missing_arguments_are_a_tool_failure() {
-    let bin = resolve_runfiles(&std::env::var("JULIA_LINT").expect("JULIA_LINT"));
+    let bin = env_file("JULIA_LINT");
     let out = Command::new(bin).output().unwrap();
     assert_eq!(out.status.code(), Some(2));
 }

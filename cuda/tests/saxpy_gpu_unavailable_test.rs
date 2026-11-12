@@ -66,8 +66,7 @@ fn missing_declarations_fail_before_any_cuda_call() {
 
 #[test]
 fn an_undeclared_device_fails_before_any_cuda_call() {
-    let undeclared =
-        dx_testing::resolve_runfiles(&std::env::var("DX_GPU_TEST_UNDECLARED").unwrap());
+    let undeclared = dx_testing::env_file("DX_GPU_TEST_UNDECLARED");
     let outputs_guard = dx_test_scratch::scratch("gpu-undeclared");
     let outputs = outputs_guard.path();
     let run = dx_testing::run(

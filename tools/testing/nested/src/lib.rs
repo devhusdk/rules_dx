@@ -1843,8 +1843,7 @@ impl std::ops::Deref for Case {
 
 #[cfg(test)]
 fn runfile(var: &str) -> PathBuf {
-    let key = std::env::var(var).unwrap_or_else(|_| panic!("{var} is not set"));
-    resolve_runfile(var, &key).unwrap_or_else(|error| panic!("{error}"))
+    std::path::absolute(dx_testing::env_file(var)).unwrap_or_else(|error| panic!("{var}: {error}"))
 }
 
 #[cfg(test)]

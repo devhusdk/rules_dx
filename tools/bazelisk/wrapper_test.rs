@@ -29,9 +29,7 @@ impl Host {
     fn command(&self, path: &[&str], args: &[&str]) -> Command {
         let mut cmd = Command::new(system32().join(r"WindowsPowerShell\v1.0\powershell.exe"));
         cmd.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
-            .arg(dx_testing::resolve_runfiles(
-                &std::env::var("DX_BAZEL_WRAPPER").unwrap(),
-            ))
+            .arg(dx_testing::env_file("DX_BAZEL_WRAPPER"))
             .args(args)
             .env(
                 "PATH",
@@ -44,7 +42,7 @@ impl Host {
             )
             .env(
                 "BAZEL_REAL",
-                dx_testing::resolve_runfiles(&std::env::var("DX_FAKE_BAZEL").unwrap()),
+                dx_testing::env_file("DX_FAKE_BAZEL"),
             )
             .env_remove("BAZEL_SH")
             .env_remove("FAKE_BAZEL_EXIT");

@@ -1,10 +1,10 @@
 use dx_deploy_tools::{archive_extract, archive_listing};
-use dx_testing::{resolve_runfiles};
+use dx_testing::env_file;
 use std::process::Command;
 
 #[test]
 fn dynamic_libstdcxx_app_ships_its_runtime_and_runs_from_the_archive() {
-    let archive = resolve_runfiles(&std::env::var("ARCHIVE").expect("ARCHIVE"));
+    let archive = env_file("ARCHIVE");
     let mut names: Vec<String> = archive_listing(&archive)
         .expect("list archive")
         .into_iter()

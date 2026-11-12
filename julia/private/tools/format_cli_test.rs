@@ -1,4 +1,4 @@
-use dx_testing::resolve_runfiles;
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -16,7 +16,7 @@ fn scratch(name: &str, text: &str) -> PathBuf {
 }
 
 fn run(mode: &str, files: &[&Path]) -> Output {
-    let bin = resolve_runfiles(&std::env::var("JULIA_FORMAT").expect("JULIA_FORMAT"));
+    let bin = env_file("JULIA_FORMAT");
     Command::new(bin)
         .arg(mode)
         .args(files)

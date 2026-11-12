@@ -1,4 +1,4 @@
-use dx_testing::resolve_runfiles;
+use dx_testing::{env_file, resolve_runfiles};
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
@@ -6,15 +6,13 @@ fn run(fixture: &str) -> Output {
     let tmp = PathBuf::from(std::env::var("TEST_TMPDIR").unwrap_or_else(|_| "/tmp".into()))
         .join(format!("home_{fixture}"));
     std::fs::create_dir_all(&tmp).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    let var =
-        |name: &str| resolve_runfiles(&std::env::var(name).unwrap_or_else(|_| panic!("{name}")));
     let file = resolve_runfiles(&format!("_main/java/tests/{fixture}"));
-    Command::new(var("LSP_CHECK"))
+    Command::new(env_file("LSP_CHECK"))
         .args(["--language-id", "pkl", "--timeout-ms", "30000", "--"])
-        .arg(var("PKL_LSP_JAVA"))
+        .arg(env_file("PKL_LSP_JAVA"))
         .arg(format!("-Duser.home={}", tmp.display()))
         .arg("-jar")
-        .arg(var("PKL_LSP_JAR"))
+        .arg(env_file("PKL_LSP_JAR"))
         .arg("--")
         .arg(file)
         .output()

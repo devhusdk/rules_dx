@@ -702,9 +702,7 @@ mod tests {
 
     #[test]
     fn rendered_sh_launcher_passes_shellcheck() {
-        let shellcheck = dx_testing::resolve_runfiles(
-            &std::env::var("DX_SHELLCHECK").expect("DX_SHELLCHECK names the pinned shellcheck"),
-        );
+        let shellcheck = dx_testing::env_file("DX_SHELLCHECK");
         let dir = dx_test_scratch::scratch("launcher-shellcheck");
         let script = dir.path().join("dx");
         std::fs::write(&script, sh()).expect("write launcher");

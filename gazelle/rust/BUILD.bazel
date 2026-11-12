@@ -1,3 +1,5 @@
+# gazelle:ignore
+
 load("@crates//:crates.bzl", "aliases")
 load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")

@@ -114,8 +114,8 @@ None.
 | Cell | Status |
 | --- | --- |
 | `linux_x86_64` | Qualified |
-| `linux_arm64` | Pinned, not yet qualified |
-| `macos_arm64` | Pinned, not yet qualified |
+| `linux_arm64` | Qualified |
+| `macos_arm64` | Qualified |
 | `windows_x86_64` | Unsupported |
 | `windows_arm64` | Unsupported |
 

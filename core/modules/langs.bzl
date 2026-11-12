@@ -2206,7 +2206,8 @@ LANGS = json.decode("""{
       "perl_library",
       "perl_binary",
       "perl_test",
-      "perl_bench"
+      "perl_bench",
+      "cpan_compiler"
     ],
     "family": "core",
     "lockfiles": [
@@ -2471,7 +2472,9 @@ LANGS = json.decode("""{
       "pyproject.toml"
     ],
     "name": "python",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",

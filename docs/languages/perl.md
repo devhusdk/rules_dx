@@ -50,6 +50,10 @@ perl_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs
 
 A perl_test run by dx bench: scripts call DxBench::run_benchmarks, which times them with core Benchmark and writes dx-bench.json.
 
+### `cpan_compiler`
+
+No documentation.
+
 ## API docs
 
 Tool: `pod (perl)`.

@@ -58,7 +58,6 @@ jobs:
           cd "$RUNNER_TEMP/consumer"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern source.json
           echo "9.3.1" > .bazelversion
-          echo "# Empty on purpose." > BUILD.bazel
           echo "common --repo_env=DO_NOT_TRACK=1" > .bazelrc
           {
             echo "bazel_dep(name = \"rules_dx\", version = \"$version\")"

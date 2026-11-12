@@ -1,17 +1,10 @@
 """ansible_library ownership proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//core:owns_class_test.bzl", "owns_class_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
-def _mixed_split_impl(ctx):
-    env = analysistest.begin(ctx)
-    direct = analysistest.target_under_test(env)[QualitySourcesInfo].direct_sources
-    asserts.equals(env, ["ansible", "yaml"], sorted(direct.keys()))
-    asserts.equals(env, ["main.yml"], [f.basename for f in direct["ansible"].to_list()])
-    asserts.equals(env, ["data.yml"], [f.basename for f in direct["yaml"].to_list()])
-    return analysistest.end(env)
-
-mixed_split_test = analysistest.make(_mixed_split_impl)
+mixed_split_test = owns_class_test("ansible", ["main.yml"], others = {"yaml": ["data.yml"]})
 
 def _plain_yaml_impl(ctx):
     env = analysistest.begin(ctx)

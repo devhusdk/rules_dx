@@ -1,22 +1,14 @@
 """helm_library proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//core:owns_class_test.bzl", "owns_class_test")
 load("//helm/private:providers.bzl", "HelmChartInfo")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
-def _owns_helm_class_impl(ctx):
-    env = analysistest.begin(ctx)
-    target = analysistest.target_under_test(env)
-    direct = target[QualitySourcesInfo].direct_sources
-    asserts.equals(env, ["helm"], sorted(direct.keys()))
-    asserts.equals(
-        env,
-        ["Chart.yaml", "cm.yaml", "values-prod.yaml", "values.yaml"],
-        sorted([f.basename for f in direct["helm"].to_list()]),
-    )
-    return analysistest.end(env)
-
-owns_helm_class_test = analysistest.make(_owns_helm_class_impl)
+owns_helm_class_test = owns_class_test(
+    "helm",
+    ["Chart.yaml", "cm.yaml", "values-prod.yaml", "values.yaml"],
+    sort = True,
+)
 
 def _chart_provider_impl(ctx):
     env = analysistest.begin(ctx)

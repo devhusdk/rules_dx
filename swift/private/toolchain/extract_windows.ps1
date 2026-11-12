@@ -342,6 +342,8 @@ $sdk = Find-Dir $trees "Windows.sdk"
 if (-not $sdk) { Fail "no Windows.sdk in the extracted packages" }
 $xctest = Find-Dir $trees "XCTest-*"
 if (-not $xctest) { Fail "no XCTest-* in the extracted packages" }
+$testing = Find-Dir $trees "Testing-*"
+if (-not $testing) { Fail "no Testing-* in the extracted packages" }
 
 $developer = Join-Path $Out "platform\Developer"
 New-Item -ItemType Directory -Force -Path (Join-Path $Out "toolchain"), (Join-Path $Out "runtime"), (Join-Path $developer "SDKs"), (Join-Path $developer "Library") | Out-Null
@@ -355,6 +357,7 @@ if ($runtimeUsr -eq $toolchainUsr) {
 }
 Move-Item -LiteralPath $sdk.FullName -Destination (Join-Path $developer "SDKs\Windows.sdk")
 Move-Item -LiteralPath $xctest.FullName -Destination (Join-Path $developer "Library\XCTest-$XCTestVersion")
+Move-Item -LiteralPath $testing.FullName -Destination (Join-Path $developer "Library\Testing-$XCTestVersion")
 
 $toolBin = Join-Path $Out "toolchain\usr\bin"
 $runtimeBin = Join-Path $Out "runtime\usr\bin"
@@ -404,7 +407,7 @@ foreach ($assembly in $identities.Keys) {
     }
 }
 
-foreach ($required in @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\llbuildSwift.dll", "toolchain\usr\bin\_InternalSwiftScan.dll", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr")) {
+foreach ($required in @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\llbuildSwift.dll", "toolchain\usr\bin\_InternalSwiftScan.dll", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr", "platform\Developer\Library\Testing-$XCTestVersion\usr")) {
     if (-not (Test-Path -LiteralPath (Join-Path $Out $required))) { Fail "$required is missing from the extracted layout" }
 }
 

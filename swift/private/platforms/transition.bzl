@@ -1,7 +1,7 @@
 """Builds Swift targets for the Swift Linux platform."""
 
 load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
-load("//core:platform.bzl", "single_platform_error")
+load("//core:platform.bzl", "prepend_toolchains", "single_platform_error")
 
 _PLATFORMS = "//command_line_option:platforms"
 _EXEC = "//command_line_option:extra_execution_platforms"
@@ -33,10 +33,7 @@ def swift_transition_settings(settings, attr, host_constraints = HOST_CONSTRAINT
     Returns:
         The new platforms, execution platforms and toolchains.
     """
-    toolchains = [str(t) for t in attr._swift_extra_toolchains]
-    for t in settings[_TOOLCHAINS]:
-        if str(t) not in toolchains:
-            toolchains.append(str(t))
+    toolchains = prepend_toolchains(attr._swift_extra_toolchains, settings[_TOOLCHAINS])
     if len(attr.platforms) == 0:
         return {_PLATFORMS: settings[_PLATFORMS], _EXEC: settings[_EXEC], _TOOLCHAINS: toolchains}
     error = single_platform_error("swift", attr.platforms)

@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core:packaging.bzl", "claim_dest", "data_path")
-load("//core:platform.bzl", "single_platform_error")
+load("//core:platform.bzl", "prepend_toolchains", "single_platform_error")
 load("//core:rlocation.bzl", "external_path", "repo_relative_path", "rlocation_path", "runfiles_path")
 
 def _data_path_checks():
@@ -54,6 +54,13 @@ def _single_platform_checks():
         expect_equal("two platforms", single_platform_error("dx_x", ["//p:a", "//p:b"]), "dx_x: platforms takes exactly one platform label, got 2"),
     ]
 
+def _prepend_toolchains_checks():
+    return [
+        expect_equal("order kept, duplicates dropped", prepend_toolchains(["//a:a", "//b:b"], ["//b:b", "//c:c", "//a:a"]), ["//a:a", "//b:b", "//c:c"]),
+        expect_equal("label inputs become strings", prepend_toolchains([Label("//a:a")], [Label("//a:a"), Label("//c:c")]), [str(Label("//a:a")), str(Label("//c:c"))]),
+        expect_equal("empty first", prepend_toolchains([], ["//c:c"]), ["//c:c"]),
+    ]
+
 def _rlocation_checks():
     ctx = struct(workspace_name = "_main")
     return [
@@ -73,5 +80,5 @@ def packaging_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
-        checks = _data_path_checks() + _claim_checks() + _single_platform_checks() + _rlocation_checks(),
+        checks = _data_path_checks() + _claim_checks() + _single_platform_checks() + _prepend_toolchains_checks() + _rlocation_checks(),
     )

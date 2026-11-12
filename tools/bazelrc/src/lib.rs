@@ -356,10 +356,10 @@ fn warnings_flag(repo: &str, on: bool) -> String {
     format!("common --@{repo}//config:warnings_as_errors={on}")
 }
 
-/// The flag that sets `config_profile`, the compiler warning set, from the same profile.
-fn config_profile_flag(repo: &str, strict: bool) -> String {
+/// The flag that sets `config_tier`, the compiler warning set, from the same tier.
+fn config_tier_flag(repo: &str, strict: bool) -> String {
     let name = if strict { "strict" } else { "standard" };
-    format!("common --@{repo}//config:config_profile={name}")
+    format!("common --@{repo}//config:config_tier={name}")
 }
 
 /// The comment above the `warnings_as_errors` line.
@@ -386,7 +386,7 @@ pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bo
         out.push_str(&format!(
             "\n# {WARNINGS_COMMENT}\n{}\n{}\n",
             warnings_flag(repo, on),
-            config_profile_flag(repo, on)
+            config_tier_flag(repo, on)
         ));
     }
     out
@@ -662,7 +662,7 @@ mod tests {
             assert_eq!(layer_warnings_as_errors(&text), Some(on));
             let profile = if on { "strict" } else { "standard" };
             assert!(text.contains(&format!(
-                "common --@my_dx//config:config_profile={profile}\n"
+                "common --@my_dx//config:config_tier={profile}\n"
             )));
             assert!(layer_is_current_with(
                 &text,

@@ -42,7 +42,7 @@ SHARD_SPECS = {
         "capability": "lint",
         "doc": "Additive Kubernetes lint family aspect (kubeconform, helm).",
         "extra_attrs": {
-            "_config_profile": attr.label(default = "//config:config_profile"),
+            "_config_tier": attr.label(default = "//config:config_tier"),
         },
         "shard": "kubernetes",
     },
@@ -68,7 +68,7 @@ def _helm_context(target, ctx, what, tool = "helm"):
 
 def _tier_args(ctx):
     """Returns ["strict"] on the strict tier, which makes kubeconform pass -strict."""
-    return ["strict"] if ctx.attr._config_profile[BuildSettingInfo].value == "strict" else []
+    return ["strict"] if ctx.attr._config_tier[BuildSettingInfo].value == "strict" else []
 
 def _kubeconform_hook(_target, ctx, _resolved, _capability, _what, _shared):
     return real_context(options = {"args": _tier_args(ctx)})

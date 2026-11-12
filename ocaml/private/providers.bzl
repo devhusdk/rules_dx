@@ -29,12 +29,12 @@ STRICT_WARNING_OPTS = ["-w", "+a-4-70", "-alert", "-deprecated"]
 WARNINGS_AS_ERRORS_OPTS = ["-warn-error", "+a-3"]
 
 PROFILE_WARNING_OPTS = select({
-    Label("//config:config_profile_strict"): STRICT_WARNING_OPTS,
+    Label("//config:config_tier_strict"): STRICT_WARNING_OPTS,
     "//conditions:default": STANDARD_WARNING_OPTS,
 })
 
 def profile_warning_opts(opts):
-    """Returns opts with the warning set of the config profile added unless the target sets its own -w."""
+    """Returns opts with the warning set of the config tier added unless the target sets its own -w."""
     if type(opts) == "list" and "-w" in opts:
         return opts
     return opts + PROFILE_WARNING_OPTS

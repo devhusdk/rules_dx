@@ -21,7 +21,7 @@ bool_flag(
 )
 
 string_flag(
-    name = "config_profile",
+    name = "config_tier",
     build_setting_default = "standard",
     values = [
         "standard",
@@ -40,8 +40,8 @@ filegroup(
 )
 
 config_setting(
-    name = "config_profile_strict",
-    flag_values = {":config_profile": "strict"},
+    name = "config_tier_strict",
+    flag_values = {":config_tier": "strict"},
 )
 
 config_setting(

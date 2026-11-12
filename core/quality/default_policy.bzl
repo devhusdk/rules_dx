@@ -6,10 +6,10 @@ load(":policy.bzl", "CAPABILITIES", "quality_family", "workspace_policy")
 
 visibility(["//config/...", "//core/quality/..."])
 
-def _tier_bases(profile):
+def _tier_bases(tier):
     dirs = tier_base_dirs()
     return [
-        Label("//core/quality/tiers/%s:%s" % (dirs[tool], profile))
+        Label("//core/quality/tiers/%s:%s" % (dirs[tool], tier))
         for tool in sorted(dirs.keys())
         if tool not in CONFIG_REQUIRED_TOOLS
     ]
@@ -17,7 +17,7 @@ def _tier_bases(profile):
 def default_workspace_policy(name):
     """Declares one default family per curated entry and the policy that lists them.
 
-    Every tool with a tier base runs on the base of //config:config_profile unless it
+    Every tool with a tier base runs on the base of //config:config_tier unless it
     needs a config only the project can give.
 
     Args:
@@ -38,7 +38,7 @@ def default_workspace_policy(name):
     workspace_policy(
         name = name,
         bases = select({
-            Label("//config:config_profile_strict"): _tier_bases("strict"),
+            Label("//config:config_tier_strict"): _tier_bases("strict"),
             "//conditions:default": _tier_bases("standard"),
         }),
         families = labels,

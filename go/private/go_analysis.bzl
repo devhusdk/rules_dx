@@ -83,7 +83,7 @@ def _bound_config(target, ctx, tool):
 
 def _tool_arguments(target, ctx, tool):
     """Returns the driver arguments and extra inputs for one tool."""
-    profile = ctx.attr._config_profile[BuildSettingInfo].value
+    profile = ctx.attr._config_tier[BuildSettingInfo].value
     info = _bound_config(target, ctx, tool)
     if tool == "staticcheck":
         if info != None:
@@ -170,7 +170,7 @@ go_analysis_aspect = aspect(
             default = "//config:workspace",
             providers = [QualityPolicyInfo],
         ),
-        "_config_profile": attr.label(default = "//config:config_profile"),
+        "_config_tier": attr.label(default = "//config:config_tier"),
         "_errcheck": attr.label(
             default = "//config:tool_errcheck",
             cfg = "exec",

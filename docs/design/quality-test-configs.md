@@ -5,7 +5,7 @@ This page fixes how tests under `core/quality` choose build settings. The test m
 ## Unit of cost
 
 - The unit is the configuration: one distinct set of build setting values below a test.
-- A test adds a configuration when it changes any setting, not only `//config:workspace`. `//config:config_profile`, `//cc:compiler`, the `//config:tool_*` flags, the rules_rust lint flags, `platforms` and `extra_execution_platforms` all count.
+- A test adds a configuration when it changes any setting, not only `//config:workspace`. `//config:config_tier`, `//cc:compiler`, the `//config:tool_*` flags, the rules_rust lint flags, `platforms` and `extra_execution_platforms` all count.
 - Two tests share a configuration only when every setting has the same value and both reach their subject the same way.
 - A policy target that no test selects costs nothing. Policy targets that are the direct subject of a provider test are outside this page.
 
@@ -22,7 +22,7 @@ This page fixes how tests under `core/quality` choose build settings. The test m
 - `core/quality/testdata/config_subject.bzl` defines the only transition for quality tests. It takes a configuration name and writes that entry's settings.
 - The transition has no inputs. It never reads the incoming value of a setting, so a test has the same configuration under every command line.
 - The consumer policy tests, the real result tests and the per-fixture result rules use this transition. No package declares its own transition or its own `_results` rule.
-- Per-test attributes such as `policy`, `compiler`, `config_profile`, `clippy_flags`, `tool_govet` and `tool_dialyzer` do not exist. A case names a configuration.
+- Per-test attributes such as `policy`, `compiler`, `config_tier`, `clippy_flags`, `tool_govet` and `tool_dialyzer` do not exist. A case names a configuration.
 
 ## Analysis tests
 
@@ -40,7 +40,7 @@ This page fixes how tests under `core/quality` choose build settings. The test m
 
 ## Tiers
 
-- A tier is selected by `//config:config_profile`, never by a second policy.
+- A tier is selected by `//config:config_tier`, never by a second policy.
 - The shared policy binds tier configs that select on the profile. `standard` and `strict` cases of every tool share two entries: `shared` and `shared_standard`.
 - No policy name contains `standard` or `strict`.
 

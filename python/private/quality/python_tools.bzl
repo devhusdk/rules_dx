@@ -46,7 +46,7 @@ TOOLS = [
             suffixes = [".toml"],
             files = ["ruff.toml", ".ruff.toml"],
             ext = "toml",
-            extends_syntax = "# Repo settings go here; the extend line picks the profile.\nextend = \"{base}\"\n",
+            extends_syntax = "# Repo settings go here; the extend line picks the tier.\nextend = \"{base}\"\n",
             comment = "#",
             pyproject_table = "ruff",
             references = ["toml:extend"],

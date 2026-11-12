@@ -27,6 +27,7 @@ def _pypi_config_impl(ctx):
         "api_package": ctx.attr.api_package or ctx.attr.dist_name.replace("-", "_"),
         "api_src": ctx.attr.api_src,
         "dist_name": ctx.attr.dist_name,
+        "attestations_rloc": rlocation_path(ctx, ctx.executable._pypi_attestations),
         "registry_url": ctx.attr.registry_url,
         "wheel_rloc": wheel_rloc,
     }
@@ -49,6 +50,7 @@ def _pypi_config_impl(ctx):
         files.append(sdist_file)
 
     runfiles = ctx.runfiles(files = files)
+    runfiles = runfiles.merge(ctx.attr._pypi_attestations[DefaultInfo].default_runfiles)
     if ctx.attr.api_compat != "off":
         runfiles = runfiles.merge(griffe.default_runfiles)
     return deploy_config(ctx, "pypi", values, runfiles)
@@ -65,6 +67,11 @@ _pypi_config = rule(
         ),
         "_griffe": attr.label(
             default = Label("//core/quality/tools/python:griffe_check"),
+            executable = True,
+            cfg = "exec",
+        ),
+        "_pypi_attestations": attr.label(
+            default = Label("//core/quality/tools/python:pypi_attestations"),
             executable = True,
             cfg = "exec",
         ),

@@ -548,6 +548,7 @@ mod tests {
                     package: "pkg",
                     src: "src",
                     griffe_rloc: "griffe",
+                    attestations_rloc: "",
                 };
                 assert_eq!(
                     pypi_main_checked(

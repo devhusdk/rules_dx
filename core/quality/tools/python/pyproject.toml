@@ -19,6 +19,7 @@ dependencies = [
   "cmakelint>=1.4.3",
   "mbake>=1.5.0",
   "openapi-python-client>=0.29.1",
+  "pypi-attestations>=0.0.28",
 ]
 
 [tool.uv]

@@ -17,7 +17,7 @@ use {sha2 as _, tempfile as _};
 const ALLOWLIST: &str = "tools/testing/language_skeleton_allowlist.txt";
 
 /// Every rule id an allowlist line may name.
-const RULES: [&str; 23] = [
+const RULES: [&str; 25] = [
     "defs-reexport",
     "dev-proxy-tags",
     "entries",
@@ -30,10 +30,12 @@ const RULES: [&str; 23] = [
     "fixture-referenced",
     "membership",
     "name-prefix",
+    "outside-lang",
     "pins",
     "platforms-option",
     "platforms-type",
     "private-names",
+    "private-visibility",
     "provider-name",
     "readme-headings",
     "register-dev",
@@ -63,6 +65,9 @@ const REQUIRED_ENTRIES: [&str; 5] = ["BUILD.bazel", "defs.bzl", "lang.json", "pr
 
 /// Directory names `private/` never holds.
 const BANNED_PRIVATE: [&str; 5] = ["fixtures", "testdata", "testing", "tests", "toolchains"];
+
+/// Directories whose children named like a language hold that language's code.
+const OUTSIDE_PARENTS: [&str; 2] = ["core/quality/tools", "tools/coverage"];
 
 /// Directories of `tests/` that are not under `fixtures/`.
 const TEST_DIRS: [&str; 3] = ["conformance", "consumer", "fixtures"];
@@ -761,6 +766,39 @@ fn check_private_names(tree: &Tree, lang: &str, found: &mut Found) {
     }
 }
 
+fn check_outside_lang(tree: &Tree, lang: &str, found: &mut Found) {
+    for parent_dir in OUTSIDE_PARENTS {
+        let prefix = format!("{parent_dir}/{lang}/");
+        if tree.text.keys().any(|path| path.starts_with(&prefix)) {
+            found.add(
+                "outside-lang",
+                &format!("{parent_dir}/{lang}"),
+                format!("language code belongs under {lang}/"),
+            );
+        }
+    }
+}
+
+fn check_private_visibility(tree: &Tree, lang: &str, found: &mut Found) {
+    let private = format!("{lang}/private");
+    for path in tree.under(&private) {
+        if basename(path) != "BUILD.bazel" {
+            continue;
+        }
+        let public = tree
+            .text
+            .get(path)
+            .is_some_and(|text| text.contains("//visibility:public"));
+        if public {
+            found.add(
+                "private-visibility",
+                path,
+                "a private/ target has public visibility",
+            );
+        }
+    }
+}
+
 fn check_public_names(tree: &Tree, lang: &str, manifest: &serde_json::Value, found: &mut Found) {
     let defs = format!("{lang}/defs.bzl");
     let Some(module) = tree.module(&defs) else {
@@ -1219,6 +1257,8 @@ fn lint(tree: &Tree) -> Found {
         let manifest = tree.manifest(lang);
         check_entries(tree, lang, &mut found);
         check_private_names(tree, lang, &mut found);
+        check_outside_lang(tree, lang, &mut found);
+        check_private_visibility(tree, lang, &mut found);
         check_public_names(tree, lang, &manifest, &mut found);
         check_manifest(tree, lang, &manifest, &mut found);
         check_platforms(tree, lang, &mut found);
@@ -1477,6 +1517,33 @@ fn append(files: &mut BTreeMap<String, String>, path: &str, more: &str) {
         .get_mut(path)
         .unwrap_or_else(|| panic!("{path} is a toy file"))
         .push_str(more);
+}
+
+#[test]
+fn outside_lang_rejects_language_code_beside_the_tools() {
+    let found = broken("outside-lang", |files| {
+        put(files, "tools/coverage/toy/BUILD.bazel", "");
+        put(files, "core/quality/tools/toy/BUILD.bazel", "");
+    });
+    assert_eq!(
+        found,
+        [
+            "outside-lang core/quality/tools/toy",
+            "outside-lang tools/coverage/toy"
+        ]
+    );
+}
+
+#[test]
+fn private_visibility_rejects_public_private_targets() {
+    let found = broken("private-visibility", |files| {
+        put(
+            files,
+            "toy/private/BUILD.bazel",
+            "x(visibility = [\"//visibility:public\"])\n",
+        );
+    });
+    assert_eq!(found, ["private-visibility toy/private/BUILD.bazel"]);
 }
 
 #[test]

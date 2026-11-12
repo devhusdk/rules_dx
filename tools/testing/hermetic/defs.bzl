@@ -12,6 +12,9 @@ COMPILER_PRODUCERS = {
     "msvc": "msvc 261." + MSVC_CL_BUILD,
 }
 
+# The PE Rich header entry of cl.exe compiling C.
+MSVC_C_PRODUCER = "msvc 260." + MSVC_CL_BUILD
+
 def _hermetic_manifest_impl(ctx):
     """Writes the consumer manifest and carries every file it names."""
     compiler = ctx.attr.compiler

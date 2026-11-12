@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
@@ -498,6 +499,15 @@ release_cells(
     )],
 )
 
+build_test(
+    name = "runtime_cell_demo_stage_test",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    targets = [":runtime-demo-linux-x86_64_stage"],
+)
+
 filegroup(
     name = "consumer_template",
     srcs = glob(["consumer/**"]),
@@ -545,7 +555,7 @@ sbom_release(
 sbom_file_tests(
     name = "runtime_sbom_demo_lists_runtime",
     spdx = ":runtime_sbom_demo_spdx",
-    want = "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+    want = "39c6c01f30d6b5e3bc7f2e2bed8aebac8bfb8dba43d5359a9ca00f7a26c37419",
 )
 
 notice_bundle(
@@ -690,6 +700,7 @@ test_suite(
         ":release_artifacts_verify",
         ":release_host_cell_test",
         ":release_tool_inventory_test",
+        ":runtime_cell_demo_stage_test",
         ":runtime_cell_notice_lists_runtime",
         ":runtime_inventory_test",
         ":runtime_sbom_demo_lists_runtime",

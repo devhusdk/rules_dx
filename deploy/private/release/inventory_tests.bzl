@@ -93,18 +93,13 @@ def inventory_file_tests(name, app, present, absent, texts_contain = []):
 def inventory_runtime_file_tests(name, app):
     """Checks the runtime records hold the sha256 of the bytes the runtime ships."""
     native.genrule(
-        name = name + "_lib",
-        outs = [name + "_lib.so"],
-        cmd = "echo hello > $@",
-    )
-    native.genrule(
         name = name + "_notice_text",
         outs = [name + "_notice.txt"],
         cmd = "echo runtime notice words > $@",
     )
     dx_native_runtime(
         name = name + "_runtime",
-        srcs = [":" + name + "_lib"],
+        srcs = [name + "_lib.so"],
         notice = ":" + name + "_notice_text",
         redistribution = "app_local",
         source = "fixture",
@@ -121,7 +116,7 @@ def inventory_runtime_file_tests(name, app):
                 "1.2",
                 "app_local",
                 name + "_lib.so",
-                "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+                "39c6c01f30d6b5e3bc7f2e2bed8aebac8bfb8dba43d5359a9ca00f7a26c37419",
                 "runtime notice words",
             ]),
         },

@@ -1,0 +1,22 @@
+load("@rules_dx//cc:defs.bzl", "cc_binary", "cc_library")
+
+cc_library(
+    name = "main_lib",
+    srcs = ["main.cc"],
+    alwayslink = True,
+)
+
+cc_binary(
+    name = "main_in_dep",
+    deps = [":main_lib"],
+)
+
+filegroup(
+    name = "files",
+    testonly = True,
+    srcs = [
+        "BUILD.bazel",
+        "main.cc",
+    ],
+    visibility = ["//deploy/private/release/tests:__pkg__"],
+)

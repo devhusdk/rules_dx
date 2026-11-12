@@ -90,6 +90,7 @@ fn presubmit_every_host_gets_the_shared_targets() {
         let targets = host_targets(&template("presubmit.yml"), host);
         assert_eq!(count(&targets, "//:hello_test"), 1);
         assert_eq!(count(&targets, "//:android_device_cc"), 1);
+        assert_eq!(count(&targets, "//main_in_dep"), 1);
     }
 }
 

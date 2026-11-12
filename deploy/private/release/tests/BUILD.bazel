@@ -29,6 +29,7 @@ rust_test(
         "//.bcr:presubmit.yml",
         "//:module_srcs",
         "//bcr_test_module:files",
+        "//bcr_test_module/main_in_dep:files",
         "//bcr_test_module/qt_hello:files",
         "//cli/cli:dx",
         "//core/coreutils:applets",

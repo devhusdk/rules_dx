@@ -97,11 +97,12 @@ pub fn bundle_name(base: &str) -> String {
     format!("{base}.sigstore.json")
 }
 
-/// The certificate identity regexp the signatures of `repository` must match.
-#[must_use]
-pub fn identity_regexp(repository: &str) -> String {
-    let mut out = String::from("^https://github\\.com/");
-    for c in repository.chars() {
+/// The repository whose reusable workflows sign consumer releases.
+const REUSABLE_WORKFLOW_REPOSITORY: &str = "devhusdk/rules_dx";
+
+fn escape_regexp(text: &str) -> String {
+    let mut out = String::new();
+    for c in text.chars() {
         if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '/' {
             out.push(c);
         } else {
@@ -109,10 +110,21 @@ pub fn identity_regexp(repository: &str) -> String {
             out.push(c);
         }
     }
-    if !repository.is_empty() {
-        out.push('/');
-    }
     out
+}
+
+/// The certificate identity regexp the signatures of `repository` must match: the
+/// repository's own workflows or the reusable workflows of `REUSABLE_WORKFLOW_REPOSITORY`.
+#[must_use]
+pub fn identity_regexp(repository: &str) -> String {
+    let reusable = escape_regexp(REUSABLE_WORKFLOW_REPOSITORY);
+    if repository.is_empty() {
+        return format!("^https://github\\.com/{reusable}/");
+    }
+    format!(
+        "^https://github\\.com/({}|{reusable})/",
+        escape_regexp(repository)
+    )
 }
 
 /// Formats `cosign sign-blob` for one asset.
@@ -357,7 +369,14 @@ mod tests {
     #[test]
     fn bundles_and_identities_are_named() {
         assert_eq!(bundle_name("a.tar.gz"), "a.tar.gz.sigstore.json");
-        assert_eq!(identity_regexp("o/r.x"), "^https://github\\.com/o/r\\.x/");
+        assert_eq!(
+            identity_regexp("o/r.x"),
+            "^https://github\\.com/(o/r\\.x|devhusdk/rules_dx)/"
+        );
+        assert_eq!(
+            identity_regexp(""),
+            "^https://github\\.com/devhusdk/rules_dx/"
+        );
         assert!(SignIdentity::Key.describe().contains("COSIGN_KEY"));
         assert!(
             SignIdentity::Oidc {

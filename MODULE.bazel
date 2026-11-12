@@ -1170,7 +1170,6 @@ ruby.bundle_fetch(
     gemfile = "//third_party/ruby:Gemfile",
     gemfile_lock = "//third_party/ruby:Gemfile.lock",
 )
-
 use_repo(ruby, "bundle", "ruby", "ruby_toolchains")
 
 register_toolchains("@ruby_toolchains//:all")
@@ -1355,7 +1354,6 @@ pub.from_lock(
     lock = "//third_party/dart:pubspec.lock",
     on_version_conflict = "upgrade",
 )
-
 pub.from_lock(
     name = "dx_dart_padded_archive",
     lock = "//dart/tests:padded_archive.pubspec.lock",
@@ -1501,7 +1499,7 @@ use_repo(cuda, "cuda")
 register_toolchains("@cuda//toolchain/...")
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
-use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "dx_rebar3", "dx_erlang_toolchains", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")
+use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlfmt", "dx_erlperf", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "dx_rebar3", "rules_erlang")
 
 elixir = use_extension("//elixir:extensions.bzl", "elixir")
 use_repo(elixir, "dx_credo", "dx_elixir", "dx_elixir_toolchains", "rules_elixir")
@@ -1525,10 +1523,10 @@ _beam_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl
 _beam_http_archive(
     name = "erlang_app_thoas",
     build_file = "//erlang/tests/fixtures/erlang_app:thoas.BUILD.bazel",
+    dev_dependency = True,
     sha256 = "9187a4a283a4cdb0640d9ab84575e2cbe47fe68366fd47ea4a8a983def415207",
     strip_prefix = "thoas-1.2.1",
     urls = ["https://github.com/lpil/thoas/archive/refs/tags/v1.2.1.tar.gz"],
-    dev_dependency = True,
 )
 
 register_toolchains(
@@ -2639,7 +2637,11 @@ register_toolchains(
 
 avro_cc = use_extension("//avro:extensions.bzl", "avro_cc")
 use_repo(avro_cc, "dx_avro_cpp")
-override_repo(avro_cc, dx_avro_cpp = "avro-cpp")
+
+override_repo(
+    avro_cc,
+    dx_avro_cpp = "avro-cpp",
+)
 
 _android_sdk_extension = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")
 

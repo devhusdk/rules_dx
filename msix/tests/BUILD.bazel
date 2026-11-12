@@ -483,6 +483,7 @@ msix_variant(
 
 msix_package(
     name = "app_noresource",
+    testonly = True,
     alias = "dxmsix.exe",
     binary = "//msix/tests/fixtures/msix-app/app:dxmsix",
     identity_name = "DxMsix.NoResource",

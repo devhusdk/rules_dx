@@ -21,7 +21,7 @@
     "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS"
   },
   "pins": [
-    "private/toolchain/pins.json"
+    "pins.json"
   ],
   "entry_points": [
     "cuda_library",

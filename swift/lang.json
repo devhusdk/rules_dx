@@ -43,7 +43,7 @@
     "windows_x86_64": "rules_dx registers no Swift toolchain for Windows"
   },
   "pins": [
-    "private/toolchain/pins.json"
+    "pins.json"
   ],
   "entry_points": [
     "swift_interop_hint",

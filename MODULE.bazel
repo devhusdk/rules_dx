@@ -761,7 +761,7 @@ dx_pins.data(
 dx_pins.pin(
     name = "dx_swift_format_macos_arm64",
     build = "//swift/private:swift_format.BUILD.bazel",
-    pins = "//swift/private/toolchain:pins.json",
+    pins = "//swift:pins.json",
 )
 dx_pins.data(
     name = "dx_haskell",
@@ -818,7 +818,7 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_cuda",
-    pins = "//cuda/private/toolchain:pins.json",
+    pins = "//cuda:pins.json",
 )
 dx_pins.archive(
     name = "dx_jazzer",
@@ -871,7 +871,7 @@ dx_pins.archive(
 dx_pins.archive(
     name = "cuda_redistrib_json",
     key = "redist_manifest",
-    pins = "//cuda/private/toolchain:pins.json",
+    pins = "//cuda:pins.json",
 )
 dx_pins.archive(
     name = "dx_rules_dart_pub",
@@ -889,7 +889,7 @@ dx_pins.archive(
         "//patches/rules_flutter:hermetic_pub.patch",
         "//patches/rules_flutter:flutter_3_47_9.patch",
     ],
-    pins = "//flutter/private:pins.json",
+    pins = "//flutter:pins.json",
 )
 dx_pins.archive(
     name = "dx_libfuzzer_dotnet",

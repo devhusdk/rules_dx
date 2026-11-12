@@ -28,7 +28,6 @@ swift_windows_toolchain(
 exports_files([
     "extensions.bzl",
     "extract_windows.ps1",
-    "pins.json",
     "repos.bzl",
     "windows.bzl",
 ])

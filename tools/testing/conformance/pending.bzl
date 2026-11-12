@@ -230,7 +230,6 @@ rust cross_test windows_arm64
 rust cross_test windows_x86_64
 scala cross_test *
 scala lock_test *
-scala runfiles_test *
 sql build_test *
 sql coverage_test *
 sql cross_test *

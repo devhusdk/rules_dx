@@ -45,8 +45,6 @@ MODULES = {
     ),
 }
 
-DEFAULT_MODULES = ["qtbase"]
-
 RUNTIME_PLUGINS = LINUX_LAYOUT.runtime_plugins
 
 LAYOUTS = {"linux": LINUX_LAYOUT, "macos": MACOS_LAYOUT, "windows": WINDOWS_LAYOUT}

@@ -8,7 +8,6 @@ load(
     ":pins.bzl",
     "CELLS",
     "CLOSURES",
-    "DEFAULT_MODULES",
     "EXTRACTORS",
     "LAYOUTS",
     "LICENSE_TEXTS",
@@ -338,19 +337,9 @@ def resolve_modules(modules):
     return sorted(resolved.keys())
 
 def default_request():
-    """Returns the request a bare qt.configure() makes."""
+    """Returns the request a bare or absent qt.configure() makes."""
     return struct(
         mirror = "",
-        modules = list(DEFAULT_MODULES),
-        runtime_mirror = "",
-        version = QT_VERSION,
-    )
-
-def implicit_request():
-    """Returns the request a build with no qt.configure() makes."""
-    return struct(
-        mirror = "",
-        modules = sorted(MODULES.keys()),
         runtime_mirror = "",
         version = QT_VERSION,
     )
@@ -360,11 +349,6 @@ def request_errors(request):
     errors = []
     if request.version != QT_VERSION:
         errors.append("qt: version '" + request.version + "' is not pinned; want " + QT_VERSION)
-    if len(request.modules) == 0:
-        errors.append("qt: request at least one module")
-    for name in request.modules:
-        if name not in MODULES:
-            errors.append("qt: unknown module '" + name + "'; want one of " + ", ".join(sorted(MODULES.keys())))
     for field, value in [("mirror", request.mirror), ("runtime_mirror", request.runtime_mirror)]:
         if value != "" and not value.startswith("https://"):
             errors.append("qt: " + field + " '" + value + "' must use https")
@@ -743,7 +727,7 @@ def cell_build(cell, modules, rules_cc, unsupported, needs, cells = CELLS, tool 
         for target in MODULES[module].targets:
             if target in enabled:
                 continue
-            lines.extend(_unsupported(target, "enable module '" + module + "' in qt.configure(modules = ...)"))
+            lines.extend(_unsupported(target, "Qt module '" + module + "' is not acquired; name '" + target + "' in the modules attribute of the Qt rule"))
     for name in sorted(_LIBRARIES.keys()):
         if _LIBRARIES[name].module in modules:
             lines.extend(_library(name, _LIBRARIES[name], layout, entry.runtime != None))

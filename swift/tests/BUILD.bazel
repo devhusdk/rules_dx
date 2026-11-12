@@ -24,6 +24,7 @@ real_source_target(
 
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
+    size = "small",
     extra_checks = [
         expect_equal(
             "swift guard is a select by default",

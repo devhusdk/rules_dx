@@ -25,6 +25,10 @@ impl Sink {
         }
     }
 
+    pub(crate) fn writes(&self) -> usize {
+        self.writes
+    }
+
     pub(crate) fn text(&self) -> String {
         String::from_utf8_lossy(&self.bytes).into_owned()
     }

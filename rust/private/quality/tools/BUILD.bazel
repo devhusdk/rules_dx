@@ -96,6 +96,7 @@ dx_unavailable_tool(
 
 build_test(
     name = "release_tools_build_test",
+    size = "small",
     targets = [
         ":deadnix",
         ":selene",

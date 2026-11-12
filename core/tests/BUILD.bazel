@@ -337,6 +337,7 @@ write_file(
 
 cc_test(
     name = "exec_group_forwarder",
+    size = "small",
     srcs = [":exec_group_forwarder_src"],
     exec_group_compatible_with = {
         "test": [":exec_group_universal"],
@@ -351,6 +352,7 @@ cc_test(
 
 starlark_test(
     name = "exec_group_forwarder_analysis",
+    size = "small",
     mode = "analysis",
     subjects = [":exec_group_forwarder"],
 )

@@ -31,12 +31,14 @@ build_test(
 
 android_library_providers_test(
     name = "java_screen_providers_test",
+    size = "small",
     kotlin = False,
     library = "java_screen",
 )
 
 android_library_providers_test(
     name = "kotlin_screen_providers_test",
+    size = "small",
     kotlin = True,
     library = "kotlin_screen",
 )

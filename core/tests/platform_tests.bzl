@@ -45,6 +45,7 @@ def platforms_transition_tests(name):
     )
     starlark_test(
         name = name,
+        size = "small",
         mode = "analysis",
         subjects = [":" + name + "_split_subject", ":" + name + "_one_subject"],
         expected_observations = """subject //core/tests:{n}_one_subject

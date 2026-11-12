@@ -58,6 +58,7 @@ sh_test(
 
 sh_test(
     name = "relocate_test",
+    size = "small",
     srcs = ["relocate_test.sh"],
     args = [
         "$(location @llvm//tools:llvm-readelf)",

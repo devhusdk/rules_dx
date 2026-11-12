@@ -71,18 +71,19 @@ _tool_inputs_test = analysistest.make(
     },
 )
 
-def swift_tool_inputs_test(name, cpu, target_under_test, **kwargs):
+def swift_tool_inputs_test(name, cpu, target_under_test, size = "small", **kwargs):
     """Asserts SwiftCompile takes the driver and the libraries the tools load through their runpath as inputs.
 
     Args:
         name: The test name.
         cpu: The Linux cpu the Swift tools run on.
         target_under_test: A swift_library built on that cpu.
+        size: The test size.
         **kwargs: Passed to the test.
     """
     _tool_inputs_test(
         name = name,
-        size = "small",
+        size = size,
         expected = [
             "usr/bin/swift-driver",
             "usr/bin/swift-frontend",

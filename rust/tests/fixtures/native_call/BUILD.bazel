@@ -416,6 +416,7 @@ _raw_cc_library(
 
 failure_test(
     name = "native_call_rejects_unsupported_extension",
+    size = "small",
     expected_failure_substring = "misplaced here",
     target = ":native_bad_extension",
 )

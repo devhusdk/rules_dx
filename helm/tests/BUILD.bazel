@@ -187,6 +187,7 @@ helm_library(
 
 failure_test(
     name = "foreign_src_fails",
+    size = "small",
     expected_failure_substring = "src 'helm/lang.json' must be under the chart package 'helm/tests'",
     target = ":foreign_src",
 )

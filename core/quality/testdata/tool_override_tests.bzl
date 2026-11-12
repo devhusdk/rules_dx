@@ -814,6 +814,7 @@ def qmllint_flag_tests(name, subject):
     """Instantiates the missing qmllint flag proof."""
     failure_test(
         name = name + "_unset_test",
+        size = "small",
         target = _subject(name + "_unset_test_subject", subject, "shared"),
         expected_failure_substring = "--@rules_dx//config:tool_qmllint",
     )
@@ -825,6 +826,7 @@ def qmlformat_flag_tests(name, subject):
     """Instantiates the missing qmlformat flag proof."""
     failure_test(
         name = name + "_unset_test",
+        size = "small",
         target = _subject(name + "_unset_test_subject", subject, "shared"),
         expected_failure_substring = "--@rules_dx//config:tool_qmlformat",
     )
@@ -846,16 +848,19 @@ def tool_override_tests(name, subject):
     )
     failure_test(
         name = name + "_rejects_pair_test",
+        size = "small",
         target = _subject(name + "_rejects_pair_test_subject", subject, "ruff_pair"),
         expected_failure_substring = "two_ruffs' must produce a single file",
     )
     failure_test(
         name = name + "_rejects_empty_test",
+        size = "small",
         target = _subject(name + "_rejects_empty_test_subject", subject, "ruff_empty"),
         expected_failure_substring = "no_ruff' must produce a single file",
     )
     failure_test(
         name = name + "_rejects_policy_test",
+        size = "small",
         target = _subject(name + "_rejects_policy_test_subject", subject, "ruff_policy"),
         expected_failure_substring = "fixture_policy' must produce a single file",
     )

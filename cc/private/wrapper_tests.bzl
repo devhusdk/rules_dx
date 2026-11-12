@@ -177,11 +177,11 @@ def cc_external_coverage_tests(name, target, **kwargs):
     _coverage_external_icx_test(name = name + "_icx", size = "small", target_under_test = target, **kwargs)
     native.test_suite(name = name, tests = [name + "_gcc", name + "_gcc_flag", name + "_icx"], **kwargs)
 
-def cc_gcov_coverage_env_test(name, target):
+def cc_gcov_coverage_env_test(name, target, size = "small"):
     """Asserts a cc_test under the GCC toolchain gets GCOV and no LLVM coverage tools."""
     _coverage_env_gcc_test(
         name = name,
-        size = "small",
+        size = size,
         target_compatible_with = [
             "@platforms//os:linux",
             "@platforms//cpu:x86_64",

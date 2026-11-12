@@ -84,9 +84,14 @@ fn a_failure_on_the_last_event_keeps_the_applied_selection() {
 
 #[test]
 fn a_failed_selection_line_never_returns_success() {
+    let mut full = Sink::new(Fault::None, 0);
+    assert_eq!(
+        run(&Harness::new("m-text-count"), &["sync", "--output=text"], &mut full),
+        0
+    );
     for (kind, want) in KINDS {
         let mut lost_the_line = false;
-        for from in 1..40 {
+        for from in 1..=full.writes() {
             let h = Harness::new("m-text-fails");
             let mut sink = Sink::new(Fault::WriteFails(kind), from);
             let code = run(&h, &["sync", "--output=text"], &mut sink);

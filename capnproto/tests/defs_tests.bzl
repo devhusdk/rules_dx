@@ -29,5 +29,5 @@ def capnp_library_tests(name):
     capnproto_library(name = name + "_top", srcs = ["fixtures/closure/top.capnp"], deps = [":" + name + "_base"], tags = ["manual"])
     _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top", size = "small")
     capnproto_library(name = name + "_external", srcs = ["//capnproto:std"], tags = ["manual"])
-    failure_test(name = name + "_external_test", target = ":" + name + "_external", expected_failure_substring = "cross-repo capnp schemas are unsupported")
+    failure_test(name = name + "_external_test", size = "small", target = ":" + name + "_external", expected_failure_substring = "cross-repo capnp schemas are unsupported")
     native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_external_test"])

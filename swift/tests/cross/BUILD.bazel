@@ -26,6 +26,7 @@ swift_library(
 [
     swift_tool_inputs_test(
         name = "tool_inputs_%s_test" % cpu,
+        size = "small",
         cpu = cpu,
         target_under_test = ":tool_inputs_upstream",
     )

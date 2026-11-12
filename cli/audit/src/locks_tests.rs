@@ -46,12 +46,12 @@ fn pnpm_git_resolution_forms_are_never_assessed_as_registry_packages() {
         "{repo: 'github:owner/repo'}",
         "{tarball: 'https://codeload.github.com/owner/repo/tar.gz/v1'}",
     ] {
-        let text = format!("packages:\n  demo@1.0.0:\n    resolution: {resolution}\n");
+        let text = format!("lockfileVersion: '9.0'\npackages:\n  demo@1.0.0:\n    resolution: {resolution}\n");
         let packages = parse_pnpm_lock(&text).expect("pnpm");
         assert_eq!(packages.len(), 1);
         assert!(packages[0].is_git, "{resolution}");
     }
-    let packages = parse_pnpm_lock("packages:\n  'local@file:../local': {}\n  'linked@link:../local': {}\n  'registry@1.0.0': {}\n").expect("pnpm");
+    let packages = parse_pnpm_lock("lockfileVersion: '9.0'\npackages:\n  'local@file:../local': {}\n  'linked@link:../local': {}\n  'registry@1.0.0': {}\n").expect("pnpm");
     assert_eq!(packages.len(), 1);
     assert_eq!(packages[0].name, "registry");
     for bad in ["42: {}", "'demo@': {}", "'': {}"] {
@@ -73,72 +73,11 @@ fn pair(name: &str, version: &str) -> (String, String) {
 }
 
 #[test]
-fn pnpm_v6_keys_drop_the_leading_slash() {
-    let text = "lockfileVersion: '6.0'\npackages:\n  /react@18.2.0:\n    resolution: {integrity: sha512-a}\n  /@babel/core@7.0.0:\n    resolution: {integrity: sha512-b}\n  /react-dom@18.2.0(react@18.2.0):\n    resolution: {integrity: sha512-c}\n  /@emotion/react@11.0.0(@types/react@18.0.0)(react@18.2.0):\n    resolution: {integrity: sha512-d}\n";
-    assert_eq!(
-        pnpm_pairs(text),
-        vec![
-            pair("@babel/core", "7.0.0"),
-            pair("@emotion/react", "11.0.0"),
-            pair("react", "18.2.0"),
-            pair("react-dom", "18.2.0"),
-        ]
-    );
-    let lodash = "lockfileVersion: '6.0'\npackages:\n  /lodash@4.17.20:\n    resolution: {integrity: sha512-a}\n";
-    assert_eq!(pnpm_pairs(lodash), vec![pair("lodash", "4.17.20")]);
-}
-
-#[test]
-fn pnpm_v5_keys_split_on_the_last_slash_and_drop_peer_suffixes() {
-    for header in ["lockfileVersion: 5.4", "lockfileVersion: '5.3'"] {
-        let text = format!(
-            "{header}\npackages:\n  /react/18.2.0:\n    resolution: {{integrity: sha512-a}}\n  /@babel/core/7.0.0:\n    resolution: {{integrity: sha512-b}}\n  /react-dom/18.2.0_react@18.2.0:\n    resolution: {{integrity: sha512-c}}\n  /react-dom/18.2.0_react@17.0.0:\n    resolution: {{integrity: sha512-c}}\n  /@emotion/react/11.0.0_@types+react@18.0.0+react@18.2.0:\n    resolution: {{integrity: sha512-d}}\n  /webpack-cli/4.10.0_fzn43tb6bdtdxy2s3aqevve2su:\n    resolution: {{integrity: sha512-e}}\n"
-        );
-        assert_eq!(
-            pnpm_pairs(&text),
-            vec![
-                pair("@babel/core", "7.0.0"),
-                pair("@emotion/react", "11.0.0"),
-                pair("react", "18.2.0"),
-                pair("react-dom", "18.2.0"),
-                pair("webpack-cli", "4.10.0"),
-            ],
-            "{header}"
-        );
-    }
-}
-
-#[test]
-fn pnpm_legacy_git_keys_take_identity_from_the_detail() {
-    for header in ["lockfileVersion: 5.4", "lockfileVersion: '6.0'"] {
-        let text = format!(
-            "{header}\npackages:\n  github.com/owner/repo/abc123:\n    name: repo\n    version: 1.2.3\n    resolution: {{tarball: 'https://codeload.github.com/owner/repo/tar.gz/abc123'}}\n"
-        );
-        let packages = parse_pnpm_lock(&text).expect("parses");
-        assert_eq!(packages.len(), 1, "{header}");
-        assert_eq!(packages[0].name, "repo");
-        assert_eq!(packages[0].version, "1.2.3");
-        assert!(packages[0].is_git);
-    }
-}
-
-#[test]
 fn pnpm_unresolvable_keys_fail_closed_and_name_the_key() {
     for (text, key) in [
+        ("lockfileVersion: '9.0'\npackages:\n  react: {}\n", "react"),
         (
-            "lockfileVersion: '6.0'\npackages:\n  /react: {}\n",
-            "/react",
-        ),
-        (
-            "lockfileVersion: 5.4\npackages:\n  /react/: {}\n",
-            "/react/",
-        ),
-        (
-            "lockfileVersion: 5.4\npackages:\n  /@scope/x: {}\n",
-            "/@scope/x",
-        ),
-        (
-            "lockfileVersion: 5.4\npackages:\n  github.com/o/r/sha: {}\n",
+            "lockfileVersion: '9.0'\npackages:\n  github.com/o/r/sha: {}\n",
             "github.com/o/r/sha",
         ),
     ] {
@@ -149,8 +88,22 @@ fn pnpm_unresolvable_keys_fail_closed_and_name_the_key() {
 }
 
 #[test]
-fn pnpm_multi_document_lock_uses_each_documents_key_style() {
-    let text = "---\nlockfileVersion: 5.4\npackages:\n  /pnpm-bin/1.0.0:\n    resolution: {integrity: sha512-a}\n---\nlockfileVersion: '9.0'\npackages:\n  'react@18.2.0':\n    resolution: {integrity: sha512-b}\n";
+fn pnpm_unsupported_lockfile_versions_name_the_supported_one() {
+    for header in [
+        "lockfileVersion: 5.4",
+        "lockfileVersion: '6.0'",
+        "lockfileVersion: '9.0'\n---\nlockfileVersion: 6.0",
+        "importers: {}",
+    ] {
+        let text = format!("{header}\npackages:\n  react@18.2.0:\n    resolution: {{integrity: sha512-a}}\n");
+        let error = parse_pnpm_lock(&text).expect_err(header);
+        assert!(error.message().contains("lockfileVersion 9.0"), "{error}");
+    }
+}
+
+#[test]
+fn pnpm_multi_document_lock_reads_every_document() {
+    let text = "---\nlockfileVersion: '9.0'\npackages:\n  pnpm-bin@1.0.0:\n    resolution: {integrity: sha512-a}\n---\nlockfileVersion: '9.0'\npackages:\n  'react@18.2.0':\n    resolution: {integrity: sha512-b}\n";
     assert_eq!(
         pnpm_pairs(text),
         vec![pair("pnpm-bin", "1.0.0"), pair("react", "18.2.0")]
@@ -158,31 +111,9 @@ fn pnpm_multi_document_lock_uses_each_documents_key_style() {
 }
 
 #[test]
-fn split_pnpm_v5_key_boundaries() {
-    assert_eq!(
-        split_pnpm_v5_key("react/18.2.0"),
-        Some(pair("react", "18.2.0"))
-    );
-    assert_eq!(
-        split_pnpm_v5_key("@a/b/1.0.0_c@2.0.0"),
-        Some(pair("@a/b", "1.0.0"))
-    );
-    for bad in [
-        "react",
-        "react/",
-        "react/1.0.0/x",
-        "@scope/x",
-        "@scope/x/",
-        "/1.0.0",
-        "react/_abc",
-    ] {
-        assert_eq!(split_pnpm_v5_key(bad), None, "{bad}");
-    }
-}
-
-#[test]
 fn npm_lock_shapes_keep_registry_and_git_entries_but_skip_workspace_links() {
     let packages = parse_package_lock(r#"{
+        "lockfileVersion": 3,
         "packages": {
             "": {"version":"1.0.0"},
             "node_modules/": {},
@@ -194,17 +125,6 @@ fn npm_lock_shapes_keep_registry_and_git_entries_but_skip_workspace_links() {
             "node_modules/local-resolved": {"version":"1.0.0","resolved":"file:../local"},
             "node_modules/@scope/demo": {"version":"1.0.0"},
             "node_modules/git-demo": {"version":"1.0.0","from":"github:owner/repo"}
-        },
-        "dependencies": {
-            " ": {"version":"1.0.0"},
-            "link": {"link":true,"version":"1.0.0"},
-            "missing-version": {},
-            "local": {"version":"file:../local"},
-            "linked": {"version":"link:../local"},
-            "local-resolved": {"version":"1.0.0","resolved":"file:../local"},
-            "@scope/demo": {"version":"1.0.0"},
-            "git-demo": {"version":"1.0.0","from":"github:owner/repo"},
-            "legacy": {"version":"2.0.0","resolved":"https://registry.npmjs.org/legacy/-/legacy-2.0.0.tgz"}
         }
     }"#).expect("npm lock");
     assert_eq!(
@@ -214,8 +134,7 @@ fn npm_lock_shapes_keep_registry_and_git_entries_but_skip_workspace_links() {
             .collect::<Vec<_>>(),
         vec![
             ("@scope/demo", "1.0.0", false),
-            ("git-demo", "1.0.0", true),
-            ("legacy", "2.0.0", false)
+            ("git-demo", "1.0.0", true)
         ]
     );
     assert!(parse_package_lock("[]").is_err());
@@ -245,7 +164,7 @@ fn pnpm_documents_reject_scalars_and_nonmapping_packages() {
     ] {
         assert!(parse_pnpm_lock(invalid).is_err(), "{invalid}");
     }
-    for empty in ["", " \n", "null\n", "---\nnull\n...\n", "packages: null\n"] {
+    for empty in ["", " \n", "null\n", "---\nnull\n...\n", "lockfileVersion: '9.0'\npackages: null\n"] {
         assert!(
             parse_pnpm_lock(empty).expect("empty lock").is_empty(),
             "{empty}"
@@ -462,11 +381,11 @@ fn pnpm_lock_missing_packages_is_empty_and_invalid_fails() {
     let missing = "lockfileVersion: '9.0'\nimporters:\n  .:\n    specifier: 1.0.0\n";
     let packages = parse_pnpm_lock(missing).expect("missing packages is empty");
     assert!(packages.is_empty());
-    let empty_packages = "packages: {}\n";
+    let empty_packages = "lockfileVersion: '9.0'\npackages: {}\n";
     let packages = parse_pnpm_lock(empty_packages).expect("empty packages is empty");
     assert!(packages.is_empty());
-    assert!(parse_pnpm_lock("packages: [unclosed").is_err());
-    assert!(parse_pnpm_lock("packages: ['a', 'b']").is_err());
+    assert!(parse_pnpm_lock("lockfileVersion: '9.0'\npackages: [unclosed").is_err());
+    assert!(parse_pnpm_lock("lockfileVersion: '9.0'\npackages: ['a', 'b']").is_err());
 }
 
 #[test]
@@ -563,24 +482,6 @@ fn package_lock_parses_registry_skips_links_and_flags_git() {
             .iter()
             .all(|entry| entry.reason == crate::vuln::REASON_GIT)
     );
-}
-
-#[test]
-fn package_lock_legacy_dependencies_shape_flags_git() {
-    let text = r#"{"name":"root","lockfileVersion":1,"dependencies":{"react":{"version":"18.2.0","resolved":"https://registry.npmjs.org/react/-/react-18.2.0.tgz"},"git-dep":{"version":"0.0.0","resolved":"git+ssh://git@github.com/user/repo.git#abc123"}}}"#;
-    let packages = parse_package_lock(text).expect("parses");
-    assert!(
-        packages
-            .iter()
-            .any(|package| package.name == "react" && !package.is_git)
-    );
-    let git = packages
-        .iter()
-        .find(|package| package.name == "git-dep")
-        .expect("git entry");
-    assert!(git.is_git);
-    assert!(parse_package_lock("not json").is_err());
-    assert!(parse_package_lock("[1, 2]").is_err());
 }
 
 #[test]
@@ -1018,31 +919,6 @@ fn npm_licenses_read_package_lock_fields_or_unknown() {
 }
 
 #[test]
-fn npm_licenses_read_legacy_dependencies_shape() {
-    let text = r#"{"name":"root","lockfileVersion":1,"dependencies":{"react":{"version":"18.2.0","license":"MIT"},"nolicense":{"version":"2.0.0"}}}"#;
-    let packages = parse_package_lock(text).expect("locks");
-    let licensed = npm_licenses(text, &packages);
-    assert_eq!(
-        licensed
-            .iter()
-            .find(|entry| entry.name == "react")
-            .expect("react")
-            .license,
-        "MIT"
-    );
-    assert_eq!(
-        licensed
-            .iter()
-            .find(|entry| entry.name == "nolicense")
-            .expect("nolicense")
-            .license,
-        "UNKNOWN"
-    );
-    let fallback = npm_licenses("not json", &packages);
-    assert!(fallback.iter().all(|entry| entry.license == "UNKNOWN"));
-}
-
-#[test]
 fn license_extractors_skip_malformed_entries_without_inventing_ids() {
     let cargo_lock = "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n";
     let cargo_packages = parse_cargo_lock(cargo_lock).expect("locks");
@@ -1254,26 +1130,6 @@ fn package_lock_alias_matches_advisory_for_real_package() {
 }
 
 #[test]
-fn package_lock_legacy_alias_uses_registry_identity() {
-    let text = r#"{"lockfileVersion":1,"dependencies":{"safe-name":{"version":"npm:lodash@4.17.20"},"scoped":{"version":"npm:@scope/real@2.0.0","license":"ISC"}}}"#;
-    let packages = parse_package_lock(text).expect("parses");
-    let names: Vec<(&str, &str)> = packages
-        .iter()
-        .map(|p| (p.name.as_str(), p.version.as_str()))
-        .collect();
-    assert_eq!(names, vec![("@scope/real", "2.0.0"), ("lodash", "4.17.20")]);
-    let licensed = npm_licenses(text, &packages);
-    assert_eq!(
-        licensed
-            .iter()
-            .find(|e| e.name == "@scope/real")
-            .expect("real")
-            .license,
-        "ISC"
-    );
-}
-
-#[test]
 fn package_lock_rejects_malformed_identities_and_shapes() {
     for text in [
         r#"{"packages":{"node_modules/a":{"name":"bad name","version":"1.0.0"}}}"#,
@@ -1287,76 +1143,6 @@ fn package_lock_rejects_malformed_identities_and_shapes() {
     ] {
         assert!(parse_package_lock(text).is_err(), "{text}");
     }
-}
-
-#[test]
-fn package_lock_v1_includes_nested_dependencies() {
-    let text = r#"{"lockfileVersion":1,"dependencies":{
-        "parent":{"version":"1.0.0","dependencies":{
-            "lodash":{"version":"4.17.20"},
-            "mid":{"version":"2.0.0","dependencies":{
-                "lodash":{"version":"4.17.21"},
-                "gitdep":{"version":"1.0.0","from":"github:owner/repo"},
-                "local":{"version":"file:../x"}
-            }}
-        }},
-        "lodash":{"version":"4.17.20"},
-        "empty":{"version":"1.0.0","dependencies":{}}
-    }}"#;
-    let packages = parse_package_lock(text).expect("parses");
-    let got: Vec<_> = packages
-        .iter()
-        .map(|p| (p.name.as_str(), p.version.as_str(), p.is_git))
-        .collect();
-    assert_eq!(
-        got,
-        vec![
-            ("empty", "1.0.0", false),
-            ("gitdep", "1.0.0", true),
-            ("lodash", "4.17.20", false),
-            ("lodash", "4.17.21", false),
-            ("mid", "2.0.0", false),
-            ("parent", "1.0.0", false)
-        ]
-    );
-}
-
-#[test]
-fn package_lock_v1_rejects_malformed_and_too_deep_children() {
-    assert!(
-        parse_package_lock(r#"{"dependencies":{"a":{"version":"1.0.0","dependencies":[]}}}"#)
-            .is_err()
-    );
-    assert!(
-        parse_package_lock(r#"{"dependencies":{"a":{"version":"1.0.0","dependencies":{"b":1}}}}"#)
-            .is_err()
-    );
-    assert!(
-        parse_package_lock(
-            r#"{"dependencies":{"a":{"version":"1.0.0","dependencies":{"b":{"version":"npm:@"}}}}}"#
-        )
-        .is_err()
-    );
-    let mut text = String::from(r#"{"dependencies":"#);
-    for _ in 0..70 {
-        text.push_str(r#"{"a":{"version":"1.0.0","dependencies":"#);
-    }
-    text.push_str("{}");
-    for _ in 0..70 {
-        text.push_str("}}");
-    }
-    text.push('}');
-    assert!(parse_package_lock(&text).is_err());
-}
-
-#[test]
-fn package_lock_v1_nested_affected_package_yields_finding() {
-    let packages = parse_package_lock(
-        r#"{"lockfileVersion":1,"dependencies":{"parent":{"version":"1.0.0","dependencies":{"lodash":{"version":"4.17.20"}}}}}"#,
-    )
-    .expect("parses");
-    assert!(packages.iter().any(|p| p.name == "lodash"));
-    assert!(packages.iter().any(|p| p.name == "parent"));
 }
 
 #[test]
@@ -1789,11 +1575,9 @@ fn luarocks_lock_accepts_no_packages_and_rejects_malformed_input() {
 
 #[test]
 fn npm_name_ending_in_git_is_assessed() {
-    let v6 = "lockfileVersion: 6.0\npackages:\n  /simple-git@3.16.0:\n    resolution: {integrity: sha512-abc}\n";
     let v9 = "lockfileVersion: '9.0'\npackages:\n  simple-git@3.16.0:\n    resolution: {integrity: sha512-abc}\n";
     let berry = "__metadata:\n  version: 6\n\n\"simple-git@npm:^3.16.0\":\n  version: 3.16.0\n  resolution: \"simple-git@npm:3.16.0\"\n  checksum: abc\n  languageName: node\n  linkType: hard\n";
     for packages in [
-        parse_pnpm_lock(v6).expect("v6"),
         parse_pnpm_lock(v9).expect("v9"),
         parse_yarn_lock(berry).expect("berry"),
     ] {
@@ -1810,4 +1594,16 @@ fn yarn_berry_git_resolution_is_git() {
     let packages = parse_yarn_lock(text).expect("parses");
     assert_eq!(packages.len(), 1);
     assert!(packages[0].is_git);
+}
+
+#[test]
+fn package_lock_unsupported_lockfile_versions_name_the_supported_one() {
+    for text in [
+        r#"{"lockfileVersion":1,"dependencies":{"react":{"version":"18.2.0"}}}"#,
+        r#"{"lockfileVersion":2,"packages":{}}"#,
+        r#"{"packages":{}}"#,
+    ] {
+        let error = parse_package_lock(text).expect_err(text);
+        assert!(error.message().contains("lockfileVersion 3"), "{error}");
+    }
 }

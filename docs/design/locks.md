@@ -17,6 +17,16 @@ This page fixes how every language locks, fetches and resolves third-party packa
 - `lockfiles` lists only locks of this registry.
 - An ecosystem with no hub extension is not listed in `ecosystems`. A language with an empty `ecosystems` has no set.
 
+## Foreign formats
+
+`dx audit` reads one version of each foreign format. Any other version fails with an error that names the supported one.
+
+| Format | Supported version |
+| --- | --- |
+| `pnpm-lock.yaml` | `lockfileVersion` 9.0 |
+| `package-lock.json` | `lockfileVersion` 3 |
+| `.gitleaks.toml` | `[[allowlists]]`; `[allowlist]` is rejected |
+
 ## Classes
 
 An ecosystem is in the upstream class when all three hold, else the dx class.

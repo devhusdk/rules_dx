@@ -488,7 +488,7 @@ fn ignored_query_argv() -> Vec<String> {
         .collect()
 }
 
-const USER_CONFIG: &str = "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[allowlist]\ndescription = \"fixtures\"\nregexes = [\"example\"]\n";
+const USER_CONFIG: &str = "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[[allowlists]]\ndescription = \"fixtures\"\nregexes = [\"example\"]\n";
 
 #[test]
 fn secrets_scan_skips_git_ignored_paths() {

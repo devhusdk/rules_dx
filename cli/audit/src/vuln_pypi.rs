@@ -48,7 +48,7 @@ pub fn pypi_assess(scope: &str, version: &str) -> VersionScope {
     let mut affected = true;
     for part in scope.split(',') {
         let Some((op, bound)) = clause(part) else {
-            // OSV lists legacy tags such as `v0.1.1d` that are not PEP 440 versions. A locked
+            // OSV lists non-PEP 440 tags such as `v0.1.1d` that are not PEP 440 versions. A locked
             // version always parses, so an exact match against one can never hold.
             if single_exact_clause(scope) {
                 return VersionScope::Unaffected;

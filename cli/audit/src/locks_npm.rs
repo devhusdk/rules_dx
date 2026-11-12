@@ -109,30 +109,6 @@ pub(crate) fn package_lock_identity(
     }
 }
 
-pub(crate) fn legacy_alias_identity(
-    name: &str,
-    version: &str,
-) -> Result<(String, String), DxError> {
-    let Some(spec) = version.strip_prefix("npm:") else {
-        return Ok((name.to_owned(), version.to_owned()));
-    };
-    let split = spec
-        .char_indices()
-        .skip(1)
-        .find(|(_, c)| *c == '@')
-        .map(|(index, _)| index);
-    let (real, real_version) = match split {
-        Some(index) => (&spec[..index], spec[index + 1..].trim()),
-        None => (spec, ""),
-    };
-    if !valid_package_name(real) || real_version.is_empty() {
-        return Err(DxError::failure(format!(
-            "invalid package-lock.json: invalid npm alias {version:?} for {name}"
-        )));
-    }
-    Ok((real.to_owned(), real_version.to_owned()))
-}
-
 fn entry_text(
     detail: &serde_json::Map<String, serde_json::Value>,
     key: &str,
@@ -151,74 +127,18 @@ fn entry_text(
     }
 }
 
-const MAX_LEGACY_DEPTH: usize = 64;
+const PACKAGE_LOCK_VERSION: u64 = 3;
 
-fn collect_legacy(
-    dependencies: &serde_json::Value,
-    depth: usize,
-    out: &mut Vec<LockedPackage>,
+fn check_package_lock_version(
+    object: &serde_json::Map<String, serde_json::Value>,
 ) -> Result<(), DxError> {
-    if depth >= MAX_LEGACY_DEPTH {
-        return Err(DxError::failure(format!(
-            "invalid package-lock.json: dependencies nested deeper than {MAX_LEGACY_DEPTH}"
-        )));
+    match object.get("lockfileVersion").and_then(|v| v.as_u64()) {
+        Some(PACKAGE_LOCK_VERSION) => Ok(()),
+        found => Err(DxError::failure(format!(
+            "invalid package-lock.json: unsupported lockfileVersion {}; dx reads lockfileVersion {PACKAGE_LOCK_VERSION}",
+            found.map_or_else(|| "(missing)".to_owned(), |v| v.to_string())
+        ))),
     }
-    let dependencies = dependencies.as_object().ok_or_else(|| {
-        DxError::failure("invalid package-lock.json: dependencies is not an object")
-    })?;
-    for (name, detail) in dependencies {
-        let name = name.trim();
-        if name.is_empty() {
-            continue;
-        }
-        let detail = detail.as_object().ok_or_else(|| {
-            DxError::failure(format!(
-                "invalid package-lock.json: entry {name} is not an object"
-            ))
-        })?;
-        if let Some(children) = detail.get("dependencies") {
-            collect_legacy(children, depth + 1, out)?;
-        }
-        if detail
-            .get("link")
-            .and_then(|value| value.as_bool())
-            .unwrap_or(false)
-        {
-            continue;
-        }
-        let version = entry_text(detail, "version", name)?;
-        let resolved = entry_text(detail, "resolved", name)?;
-        let from = entry_text(detail, "from", name)?;
-        if version.is_empty() {
-            continue;
-        }
-        if version.starts_with("file:") || version.starts_with("link:") {
-            continue;
-        }
-        if resolved.starts_with("file:") {
-            continue;
-        }
-        let is_git = is_npm_git_reference(&version)
-            || is_npm_git_reference(&resolved)
-            || is_npm_git_reference(&from);
-        let (identity, version) = if is_git {
-            (name.to_owned(), version)
-        } else {
-            legacy_alias_identity(name, &version)?
-        };
-        let location = (identity != name).then(|| name.to_owned());
-        if out.iter().any(|package| {
-            package.name == identity && package.version == version && package.is_git == is_git
-        }) {
-            continue;
-        }
-        out.push(LockedPackage {
-            is_git,
-            location,
-            ..LockedPackage::new("npm", identity, version)
-        });
-    }
-    Ok(())
 }
 
 pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
@@ -227,6 +147,7 @@ pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let object = value
         .as_object()
         .ok_or_else(|| DxError::failure("invalid package-lock.json: expected object"))?;
+    check_package_lock_version(object)?;
     let mut out = Vec::new();
     if let Some(packages) = object.get("packages") {
         let packages = packages.as_object().ok_or_else(|| {
@@ -283,9 +204,6 @@ pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
                 ..LockedPackage::new("npm", name, version)
             });
         }
-    }
-    if let Some(dependencies) = object.get("dependencies") {
-        collect_legacy(dependencies, 0, &mut out)?;
     }
     out.sort_by(|a, b| (&a.name, &a.version, a.is_git).cmp(&(&b.name, &b.version, b.is_git)));
     out.dedup_by(|b, a| a.name == b.name && a.version == b.version && a.is_git == b.is_git);

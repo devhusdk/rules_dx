@@ -4,14 +4,11 @@ use std::time::{Duration, Instant};
 
 use dx_nested as nested;
 use dx_testing::{read_runfiles, resolve_runfiles, run};
-#[cfg(target_os = "linux")]
 use {dx_nested::Case, dx_testing::rlocation};
 
-#[cfg(target_os = "linux")]
 /// The facts key rules_py's `python_interpreters` extension stores its SHA256SUMS under.
 const PYTHON_FACTS: &str = "@@rules_py+//py:extensions.bzl%python_interpreters";
 
-#[cfg(target_os = "linux")]
 /// Starts the harness consumer with its checked-in lock.
 fn locked_consumer(name: &str) -> (Case, String) {
     let case = nested::harness_consumer(name);
@@ -24,7 +21,6 @@ fn locked_consumer(name: &str) -> (Case, String) {
     (case, lock)
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn seeded_consumer_resolves_python_interpreters_offline() {
     let (case, lock) = locked_consumer("seed");
@@ -46,7 +42,6 @@ fn seeded_consumer_resolves_python_interpreters_offline() {
     );
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn a_server_restart_refetches_no_repository() {
     if nested::recording() {
@@ -58,7 +53,6 @@ fn a_server_restart_refetches_no_repository() {
     case.assert_no_refetch(nested::HARNESS_QUERY);
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn a_changed_repo_env_refetches_the_probe() {
     if nested::recording() {
@@ -103,7 +97,6 @@ probe = repository_rule(implementation = _impl, environ = ["DX_REFETCH_PROBE"])
     case.assert_no_refetch(&second);
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn a_download_outside_the_cache_sets_fails_with_its_url() {
     if nested::recording() {
@@ -114,12 +107,13 @@ fn a_download_outside_the_cache_sets_fails_with_its_url() {
     let entry = nested::cache::entry(&case.repository_cache(), rules_py);
     let kept = entry.with_extension("kept");
     std::fs::rename(&entry, &kept).expect("hide the rules_py archive");
-    let message = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        case.bazel(nested::HARNESS_QUERY)
-    })) {
-        Ok(run) => panic!("no panic: {}", run.combined()),
-        Err(panic) => panic.downcast_ref::<String>().cloned().unwrap_or_default(),
-    };
+    let mut query = nested::HARNESS_QUERY.to_vec();
+    query.insert(1, "--repo_contents_cache=");
+    let message =
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| case.bazel(&query))) {
+            Ok(run) => panic!("no panic: {}", run.combined()),
+            Err(panic) => panic.downcast_ref::<String>().cloned().unwrap_or_default(),
+        };
     std::fs::rename(&kept, &entry).expect("restore the rules_py archive");
     assert!(
         message.contains("https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"),
@@ -153,7 +147,6 @@ fn nested_commands_see_no_host_path_and_a_home_under_the_test_tmpdir() {
     assert!(std::path::Path::new(home).starts_with(&tmpdir), "{home}");
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn nested_bazel_runs_the_pinned_binary_without_bazelisk() {
     let key = std::env::var(nested::PINNED_ENV)

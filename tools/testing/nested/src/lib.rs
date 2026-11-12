@@ -321,6 +321,7 @@ fn write_record_rc(record: &str) -> Result<(), String> {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.as_nanos());
+    std::fs::create_dir_all(logs).map_err(|error| format!("cannot create {logs}: {error}"))?;
     let log = Path::new(logs).join(format!("{}-{nanos}.log", std::process::id()));
     write(
         Path::new(rc),
@@ -1879,6 +1880,17 @@ mod tests {
         std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o700))
             .expect("private scratch");
         dir
+    }
+
+    #[test]
+    fn write_record_rc_creates_the_log_directory() {
+        let dir = scratch("nested-record-");
+        let root = dir.path().display();
+        write_record_rc(&format!("{root}/rc\n{root}/missing/logs\n")).expect("record rc");
+        assert!(dir.path().join("missing/logs").is_dir());
+        let rc = std::fs::read_to_string(dir.path().join("rc")).expect("rc");
+        assert!(rc.contains("--experimental_workspace_rules_log_file="), "{rc}");
+        assert!(rc.contains("missing/logs/"), "{rc}");
     }
 
     fn config(root: &Path, bazel: &Path) -> Config {

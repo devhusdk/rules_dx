@@ -88,7 +88,8 @@ fn the_preparation_runs_the_pinned_native_command_once() {
         "@rules_dx//cli/advisory_prep -- \\",
         "--workspace \"$GITHUB_WORKSPACE\"",
         "--out \"$GITHUB_WORKSPACE/.dx/local/advisory\"",
-        "--date \"$retrieved_at\"",
+        "--ci",
+        "--status-file \"$GITHUB_OUTPUT\"",
     ] {
         assert!(
             script.contains(needle),
@@ -153,13 +154,15 @@ fn the_preparation_stamps_every_snapshot_with_the_run_date() {
         "{WORKFLOW} job {PREP} must name one step prepare"
     );
     let script = text_at(&dated[0]["run"], "prepare run");
+    for needle in [PREP_TARGET, "--ci", "--status-file \"$GITHUB_OUTPUT\""] {
+        assert!(
+            script.contains(needle),
+            "{WORKFLOW} job {PREP} step prepare must run {needle} so advisory_prep appends retrieved_at: {script}"
+        );
+    }
     assert!(
-        script.contains("date -u +%F"),
-        "{WORKFLOW} job {PREP} pins one UTC date per run: {script}"
-    );
-    assert!(
-        script.contains("\"retrieved_at=$retrieved_at\" >> \"$GITHUB_OUTPUT\""),
-        "{WORKFLOW} job {PREP} must publish the date it pinned: {script}"
+        !script.contains("--date"),
+        "{WORKFLOW} job {PREP} lets advisory_prep --ci stamp one UTC date per run: {script}"
     );
 }
 

@@ -9,6 +9,27 @@ package(default_visibility = ["//visibility:public"])
 
 """
 
+_COLLECTION_BUILD = """\
+filegroup(
+    name = "{name}",
+    srcs = glob(
+        ["{base}/**"],
+        exclude = [
+            "{base}/tests/**",
+            "{base}/.github/**",
+        ],
+    ),
+)
+
+"""
+
+_COLLECTIONS_BUILD = """\
+filegroup(
+    name = "collections",
+    srcs = [{srcs}],
+)
+"""
+
 def _all_in(text, allowed):
     """Returns True when text is non-empty and only uses allowed characters."""
     if not text:
@@ -81,28 +102,11 @@ def _collections_repo_impl(rctx):
         if mismatch:
             _fail(mismatch)
         manifests[name] = manifest
-        blocks.append("""\
-filegroup(
-    name = "{name}",
-    srcs = glob(
-        ["{base}/**"],
-        exclude = [
-            "{base}/tests/**",
-            "{base}/.github/**",
-        ],
-    ),
-)
-
-""".format(name = name, base = base))
+        blocks.append(_COLLECTION_BUILD.format(name = name, base = base))
     missing = ansible_missing_deps(packages, manifests)
     if missing:
         _fail("\n".join(missing))
-    blocks.append("""\
-filegroup(
-    name = "collections",
-    srcs = [{srcs}],
-)
-""".format(srcs = ", ".join(['":%s"' % package["name"] for package in packages])))
+    blocks.append(_COLLECTIONS_BUILD.format(srcs = ", ".join(['":%s"' % package["name"] for package in packages])))
     rctx.file("BUILD.bazel", "".join(blocks))
     return rctx.repo_metadata(reproducible = True)
 

@@ -48,7 +48,7 @@ JSON emits `command_started` with `mode` `check`, or `default` with `--apply`. I
 
 ## Add a dependency
 
-Add the package to the manifest (`Cargo.toml`, `pyproject.toml`, or `package.json`), then run `dx generate --apply`. `dx update --apply --add-missing` adds a missing dependency. dx writes a missing `Cargo.lock`, `uv.lock`, or `pnpm-lock.yaml` with its pinned tool.
+Add the package to the manifest (`Cargo.toml`, `pyproject.toml`, or `package.json`), then run `dx generate --apply`. [`dx update`](audit-update.md) adds a missing dependency. dx writes a missing `Cargo.lock`, `uv.lock`, or `pnpm-lock.yaml` with its pinned tool.
 
 ```sh
 dx generate --apply

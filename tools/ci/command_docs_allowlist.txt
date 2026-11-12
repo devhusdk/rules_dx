@@ -50,9 +50,6 @@ fuzz.md unknown-flag --time
 fuzz.md unknown-flag -r
 fuzz.md unknown-flag -s
 generate.md unknown-flag --fail-on
-generate.md unknown-flag --format
-generate.md unknown-flag --no-emit-project
-generate.md unknown-flag --no-hashes
 generate.md unknown-flag --report
 init.md unknown-flag --cached
 init.md unknown-flag --files

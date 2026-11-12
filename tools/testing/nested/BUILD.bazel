@@ -19,6 +19,7 @@ rust_library(
         package_name = "tools/testing/dx_nested",
         normal = True,
     ),
+    compile_data = ["//flutter:pins.json"],
     crate_name = "dx_nested",
     crate_root = "src/lib.rs",
     visibility = VIS_TOOLS_PUBLIC,

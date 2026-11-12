@@ -350,8 +350,8 @@ fn flutter_sdk_tree(flutter_dart: &Path, work: &Path) -> Result<std::path::PathB
         }
     }
     let shim = bin.join("flutter");
-    let quoted = dart.display().to_string().replace('\'', "'\\''");
-    std::fs::write(&shim, format!("#!/bin/sh\nexec '{quoted}' pub \"$@\"\n")).map_err(fail)?;
+    let quoted = dx_process::shell::quote(&dart.display().to_string());
+    std::fs::write(&shim, format!("#!/bin/sh\nexec {quoted} pub \"$@\"\n")).map_err(fail)?;
     std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755)).map_err(fail)?;
     Ok(dart)
 }

@@ -126,7 +126,7 @@ impl StagedRun {
                     .position(|arg| arg == "--")
                     .map_or(0, |at| at - 1);
                 let dir = scratch.join("out").to_string_lossy().into_owned();
-                let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
+                let under = format!("--run_under=cd {} &&", dx_process::shell::quote(&dir));
                 argv.insert(target, under);
             }
         }
@@ -1041,7 +1041,7 @@ fn carton_argv(
     command: &[&str],
 ) -> Result<Vec<String>, BackendError> {
     let dir = set_dir(workspace, set)?;
-    let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
+    let under = format!("--run_under=cd {} &&", dx_process::shell::quote(&dir));
     let mut argv = bazel(
         head,
         "run",
@@ -1059,7 +1059,7 @@ fn composer_argv(
     command: &[&str],
 ) -> Result<Vec<String>, BackendError> {
     let dir = set_dir(workspace, set)?;
-    let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
+    let under = format!("--run_under=cd {} &&", dx_process::shell::quote(&dir));
     let mut argv = bazel(head, "run", &[&under, label, "--"]);
     argv.extend(strings(command));
     Ok(argv)
@@ -1099,9 +1099,9 @@ fn swift_argv(
     let dir = set_dir(workspace, set)?;
     let mode = if apply { "apply" } else { "check" };
     let under = format!(
-        "--run_under=sh -c 'state={}; {SWIFT_SCRIPT}' sh '{}' {mode}",
+        "--run_under=sh -c 'state={}; {SWIFT_SCRIPT}' sh {} {mode}",
         dx_adopt::lock_hubs::state_of("swiftpm"),
-        dir.replace('\'', "'\\''")
+        dx_process::shell::quote(&dir)
     );
     let mut argv = bazel(
         head,
@@ -1138,7 +1138,7 @@ fn opam_argv(
     command: &[&str],
 ) -> Result<Vec<String>, BackendError> {
     let dir = set_dir(workspace, set)?;
-    let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
+    let under = format!("--run_under=cd {} &&", dx_process::shell::quote(&dir));
     let mut argv = bazel(
         head,
         "run",
@@ -1175,7 +1175,7 @@ fn pub_argv(
         argv.extend(["--directory".to_owned(), dir]);
         return Ok(argv);
     }
-    let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
+    let under = format!("--run_under=cd {} &&", dx_process::shell::quote(&dir));
     let mut argv = bazel(
         head,
         "run",

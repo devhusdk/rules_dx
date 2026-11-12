@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
@@ -87,10 +87,8 @@ rust_library(
         "//deploy/private:__pkg__",
         "//deploy/private/release:__pkg__",
     ],
-    deps = all_crate_deps(
-        package_name = "cli/dx_audit",
-        normal = True,
-    ) + [
+    # keep
+    deps = [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/dx_config",
@@ -100,8 +98,26 @@ rust_library(
         "//cli/gomod:dx_gomod",
         "//cli/module_bazel:dx_module_bazel",
         "//cli/process:dx_process",
-        "//cli/sbom:dx_sbom",
+        "@crates//:cargo-lock",
+        "@crates//:chrono",
+        "@crates//:flate2",
+        "@crates//:mvn_version",
+        "@crates//:nodejs-semver",
+        "@crates//:osv",
+        "@crates//:pep440_rs",
+        "@crates//:regex",
+        "@crates//:schemars",
+        "@crates//:semver",
         "@crates//:serde",
+        "@crates//:serde-sarif",
+        "@crates//:serde_json",
+        "@crates//:spdx",
+        "@crates//:tar",
+        "@crates//:thiserror",
+        "@crates//:toml",
+        "@crates//:url",
+        "@crates//:yaml_serde",
+        "@crates//:yarn-lock-parser",
     ],
 )
 
@@ -187,11 +203,8 @@ rust_test(
         "//deploy/private:__pkg__",
         "//deploy/private/release:__pkg__",
     ],
-    deps = all_crate_deps(
-        package_name = "cli/dx_audit",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    # keep
+    deps = [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/dx_config",
@@ -201,9 +214,28 @@ rust_test(
         "//cli/gomod:dx_gomod",
         "//cli/module_bazel:dx_module_bazel",
         "//cli/process:dx_process",
-        "//cli/sbom:dx_sbom",
-        "//cli/sbom/schema:dx_sbom_schema",
+        "@crates//:cargo-lock",
+        "@crates//:chrono",
+        "@crates//:flate2",
+        "@crates//:jsonschema",
+        "@crates//:mvn_version",
+        "@crates//:nodejs-semver",
+        "@crates//:osv",
+        "@crates//:pep440_rs",
+        "@crates//:regex",
+        "@crates//:schemars",
+        "@crates//:semver",
         "@crates//:serde",
+        "@crates//:serde-sarif",
+        "@crates//:serde_json",
+        "@crates//:spdx",
+        "@crates//:tar",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
+        "@crates//:toml",
+        "@crates//:url",
+        "@crates//:yaml_serde",
+        "@crates//:yarn-lock-parser",
     ],
 )
 

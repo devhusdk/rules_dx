@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//deploy:defs.bzl", "github_deploy")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
@@ -108,10 +108,8 @@ rust_library(
     compile_data = ["src/exec/unsupported.json"],
     crate_name = "dx_cli",
     crate_root = "src/lib.rs",
-    deps = all_crate_deps(
-        package_name = "cli/dx_cli",
-        normal = True,
-    ) + [
+    # keep
+    deps = [
         "//cli/adopt:dx_adopt",
         "//cli/apply:dx_apply",
         "//cli/archive:dx_archive",
@@ -125,13 +123,10 @@ rust_library(
         "//cli/docs_serve:dx_docs_serve",
         "//cli/dx_config",
         "//cli/ecosystems:dx_ecosystems",
-        "//cli/env:dx_env",
         "//cli/env_plan:dx_env_plan",
         "//cli/error:dx_error",
         "//cli/families:dx_families",
-        "//cli/fingerprint:dx_fingerprint",
         "//cli/generate:dx_generate",
-        "//cli/generation_result",
         "//cli/ide:dx_ide",
         "//cli/lcov:dx_lcov",
         "//cli/merge:dx_merge",
@@ -147,8 +142,15 @@ rust_library(
         "//cli/worktree:dx_worktree",
         "//core/quality/result:quality_result",
         "//core/quality/runner:quality_runner_lib",
+        "@crates//:chrono",
+        "@crates//:clap",
+        "@crates//:flate2",
         "@crates//:serde",
+        "@crates//:serde-sarif",
         "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
+        "@crates//:ureq",
     ],
 )
 
@@ -402,11 +404,8 @@ rust_test(
         "DX_TEST_GITLEAKS": "$(rootpath @dx_tools//:gitleaks)",
         "DX_TEST_LYCHEE": "$(rootpath @dx_tools//:lychee)",
     },
-    deps = all_crate_deps(
-        package_name = "cli/dx_cli",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    # keep
+    deps = [
         "//cli/adopt:dx_adopt",
         "//cli/apply:dx_apply",
         "//cli/archive:dx_archive",
@@ -420,13 +419,10 @@ rust_test(
         "//cli/docs_serve:dx_docs_serve",
         "//cli/dx_config",
         "//cli/ecosystems:dx_ecosystems",
-        "//cli/env:dx_env",
         "//cli/env_plan:dx_env_plan",
         "//cli/error:dx_error",
         "//cli/families:dx_families",
-        "//cli/fingerprint:dx_fingerprint",
         "//cli/generate:dx_generate",
-        "//cli/generation_result",
         "//cli/ide:dx_ide",
         "//cli/lcov:dx_lcov",
         "//cli/merge:dx_merge",
@@ -443,12 +439,24 @@ rust_test(
         "//cli/update:dx_update",
         "//cli/worktree:dx_worktree",
         "//core/quality/result:quality_result",
-        "//core/quality/result/proto:result_proto_rs",
         "//core/quality/runner:quality_runner_lib",
         "//tools/testing:dx_testing",
+        "@crates//:assert_cmd",
+        "@crates//:base64",
+        "@crates//:chrono",
+        "@crates//:clap",
+        "@crates//:flate2",
+        "@crates//:predicates",
         "@crates//:serde",
+        "@crates//:serde-sarif",
         "@crates//:serde_json",
-    ],
+        "@crates//:tempfile",
+        "@crates//:thiserror",
+        "@crates//:ureq",
+    ] + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["@crates//:libc"],
+    }),
 )
 
 exports_files(

@@ -185,7 +185,7 @@ swift_linux_repo = repository_rule(
         "cell": attr.string(mandatory = True, values = ["linux_arm64", "linux_x86_64"]),
         "libs": attr.label(mandatory = True, doc = "The BUILD file of the libraries repository whose `host_libs` the tools load."),
         "sha256": attr.string(mandatory = True),
-                "urls": attr.string_list(mandatory = True),
+        "urls": attr.string_list(mandatory = True),
         "version": attr.string(mandatory = True),
     },
     doc = "The sha256-pinned swift.org Ubuntu 22.04 toolchain, with the host libraries of its sysroot.",

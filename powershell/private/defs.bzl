@@ -2,7 +2,7 @@
 
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo", _pwsh_binary = "pwsh_binary", _pwsh_library = "pwsh_library", _pwsh_test = "pwsh_test")
 load("//core:rlocation.bzl", "rlocation_path")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_POWERSHELL_LIBRARY_PROVIDES = [
@@ -17,26 +17,23 @@ _DX_POWERSHELL_LIBRARY_EXTS = [".ps1", ".psm1", ".psd1"]
 _DX_POWERSHELL_EXEC_SPECS = [("powershell", ["ps1"])]
 _DX_POWERSHELL_EXEC_EXTS = [".ps1"]
 
+_POWERSHELL_LIBRARY = dx_language_spec(what = "pwsh_*", quality_specs = _DX_POWERSHELL_LIBRARY_SPECS, allow_files = _DX_POWERSHELL_LIBRARY_EXTS)
+
 _pwsh_library_forward = dx_library_forward_rule(
+    _POWERSHELL_LIBRARY,
     provides = _DX_POWERSHELL_LIBRARY_PROVIDES,
     required_providers = [(_PwshInfo, "PwshInfo")],
-    quality_specs = _DX_POWERSHELL_LIBRARY_SPECS,
-    what = "pwsh_*",
-    allow_files = _DX_POWERSHELL_LIBRARY_EXTS,
     upstream_providers = [[_PwshInfo]],
     runtime = "besteffort",
 )
 
+_POWERSHELL_EXEC = dx_language_spec(what = "pwsh_*", quality_specs = _DX_POWERSHELL_EXEC_SPECS, allow_files = _DX_POWERSHELL_EXEC_EXTS)
+
 _pwsh_binary_forward = dx_executable_forward_rule(
+    _POWERSHELL_EXEC,
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_POWERSHELL_EXEC_SPECS,
-    what = "pwsh_*",
-    allow_files = _DX_POWERSHELL_EXEC_EXTS,
     upstream_providers = [[_PwshInfo]],
     optional_providers = [_PwshInfo],
-    runtime = "besteffort",
 )
 
 def _workspace_path(file):
@@ -73,16 +70,13 @@ def _pwsh_test_coverage(ctx, upstream):
     )
 
 _pwsh_forward_test = dx_executable_forward_rule(
+    _POWERSHELL_EXEC,
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_POWERSHELL_EXEC_SPECS,
-    what = "pwsh_*",
-    allow_files = _DX_POWERSHELL_EXEC_EXTS,
     upstream_providers = [[_PwshInfo]],
     extra_attrs = dx_lcov_merger_attr(),
     optional_providers = [_PwshInfo],
     coverage_providers = _pwsh_test_coverage,
+    runtime = "mandatory",
 )
 
 def powershell_library(name, srcs = None, visibility = None, **kwargs):

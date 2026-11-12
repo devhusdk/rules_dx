@@ -7,7 +7,7 @@ load("//cli/exec_os:defs.bzl", "ExecOsInfo")
 load("//core:entry.bzl", "dx_entry_quality_srcs")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_PY_LIBRARY_PROVIDES = [
@@ -28,34 +28,32 @@ _DX_PY_BINARY_PROVIDES = [
 _DX_PY_SOURCE_SPECS = [("python", "py"), ("python_stub", "pyi")]
 _DX_PY_SOURCE_EXTS = [".py", ".pyi"]
 
+_PYTHON = dx_language_spec(what = "python_*", quality_specs = _DX_PY_SOURCE_SPECS, allow_files = _DX_PY_SOURCE_EXTS)
+
 _python_library_forward = dx_library_forward_rule(
+    _PYTHON,
     provides = _DX_PY_LIBRARY_PROVIDES,
     required_providers = [(_PyInfo, "PyInfo"), (_PyWheelsInfo, "PyWheelsInfo")],
-    quality_specs = _DX_PY_SOURCE_SPECS,
-    what = "python_*",
-    allow_files = _DX_PY_SOURCE_EXTS,
     upstream_providers = [[_PyInfo]],
 )
 
 _python_binary_forward = dx_executable_forward_rule(
+    _PYTHON,
     kind = "executable",
     provides = _DX_PY_BINARY_PROVIDES,
     required_providers = [(_PyInfo, "PyInfo")],
-    quality_specs = _DX_PY_SOURCE_SPECS,
-    what = "python_*",
-    allow_files = _DX_PY_SOURCE_EXTS,
     upstream_providers = [[_PyInfo]],
+    runtime = "mandatory",
 )
 
 _python_forward_test = dx_executable_forward_rule(
+    _PYTHON,
     kind = "test",
     provides = _DX_PY_BINARY_PROVIDES,
     required_providers = [(_PyInfo, "PyInfo")],
-    quality_specs = _DX_PY_SOURCE_SPECS,
-    what = "python_*",
-    allow_files = _DX_PY_SOURCE_EXTS,
     upstream_providers = [[_PyInfo]],
     extra_attrs = dx_lcov_merger_attr(),
+    runtime = "mandatory",
 )
 
 def _python_main_matches(name, srcs):

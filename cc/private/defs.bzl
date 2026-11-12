@@ -9,7 +9,7 @@ load("//cc/private/toolchains:bindings.bzl", "cc_compiler_identity")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:msvc_crt.bzl", "dx_msvc_crt_aspect", "dx_msvc_crt_reset_transition", "dx_msvc_crt_validate")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_append_flags", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 
@@ -22,12 +22,12 @@ _DX_CC_LIBRARY_PROVIDES = [
 
 _DX_CC_SOURCE_SPECS = [(k, UPSTREAM_CC_CLASS_EXTENSIONS[k]) for k in ("c", "cpp")]
 
+_CC = dx_language_spec(what = "cc_*", quality_specs = _DX_CC_SOURCE_SPECS, allow_files = True)
+
 _cc_library_forward = dx_library_forward_rule(
+    _CC,
     provides = _DX_CC_LIBRARY_PROVIDES,
     required_providers = [(CcInfo, "CcInfo")],
-    quality_specs = _DX_CC_SOURCE_SPECS,
-    what = "cc_*",
-    allow_files = True,
     upstream_providers = [[CcInfo]],
     extra_attrs = {
         "hdrs": attr.label_list(
@@ -39,15 +39,10 @@ _cc_library_forward = dx_library_forward_rule(
 )
 
 _cc_binary_forward = dx_executable_forward_rule(
+    _CC,
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_CC_SOURCE_SPECS,
-    what = "cc_*",
-    allow_files = True,
     upstream_providers = [[CcInfo]],
     optional_providers = [CcInfo],
-    runtime = "besteffort",
     upstream_aspects = [dx_msvc_crt_aspect],
     validate = dx_msvc_crt_validate,
     cfg = dx_msvc_crt_reset_transition,
@@ -129,12 +124,8 @@ def _cc_test_coverage(ctx, upstream):
 CC_COVERAGE_TRANSITION = _cc_coverage_transition
 
 _cc_forward_test = dx_executable_forward_rule(
+    _CC,
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_CC_SOURCE_SPECS,
-    what = "cc_*",
-    allow_files = True,
     upstream_providers = [[CcInfo]],
     extra_attrs = dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
         "_coverage_probe": attr.label(default = "//cc/private:coverage_probe", cfg = _cc_coverage_transition),
@@ -143,6 +134,7 @@ _cc_forward_test = dx_executable_forward_rule(
     upstream_cfg = _cc_coverage_transition,
     coverage_providers = _cc_test_coverage,
     toolchains = dx_native_coverage_toolchains(),
+    runtime = "mandatory",
 )
 
 def _cc_warnings_as_errors(kwargs):

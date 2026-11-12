@@ -4,7 +4,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load(":defs.bzl", "javascript_test")
-load("//core:wrapper.bzl", "dx_library_forward_rule", "dx_wrap")
+load("//core:wrapper.bzl", "dx_language_spec", "dx_library_forward_rule", "dx_wrap")
 load("//cli/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
@@ -13,11 +13,9 @@ visibility(["//..."])
 def dx_framework_forward_rule(language, ext):
     """Creates the forwarding rule for one JS-framework wrapper."""
     return dx_library_forward_rule(
+        dx_language_spec(what = language + "_*", quality_specs = [(language, language)], allow_files = [ext]),
         provides = [_JsInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
         required_providers = [(_JsInfo, "JsInfo")],
-        quality_specs = [(language, language)],
-        what = language + "_*",
-        allow_files = [ext],
         upstream_providers = [[_JsInfo]],
     )
 

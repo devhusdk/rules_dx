@@ -9,7 +9,7 @@ load("//cuda/private/toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//cuda/private/toolchain:settings.bzl", "PLATFORM_SUPPORT")
 load("//cuda/private/toolchain:transition.bzl", "cuda_host_transition")
 load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
+load("//core:wrapper.bzl", "dx_language_spec", "dx_library_forward_rule", "dx_upstream_tags")
 load("//core/modules:cuda.bzl", "CUDA_VERSION")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
@@ -26,7 +26,10 @@ _DX_CUDA_SOURCE_SPECS = [
     ("cpp", ["hh", "hpp", "hxx"]),
 ]
 
+_CUDA = dx_language_spec(what = "cuda_*", quality_specs = _DX_CUDA_SOURCE_SPECS, allow_files = _CUDA_SRCS + _CUDA_HDRS)
+
 _cuda_library_forward = dx_library_forward_rule(
+    _CUDA,
     provides = [
         CcInfo,
         CudaInfo,
@@ -35,9 +38,6 @@ _cuda_library_forward = dx_library_forward_rule(
         QualitySourcesInfo,
     ],
     required_providers = [(CcInfo, "CcInfo"), (CudaInfo, "CudaInfo")],
-    quality_specs = _DX_CUDA_SOURCE_SPECS,
-    what = "cuda_*",
-    allow_files = _CUDA_SRCS + _CUDA_HDRS,
     upstream_providers = [[CcInfo, CudaInfo]],
     extra_attrs = {
         "hdrs": attr.label_list(

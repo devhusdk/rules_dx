@@ -3,7 +3,7 @@
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:platform_support.bzl", "cells_support", "compatible_with")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":php.bzl", "PHP_SOURCE_EXTS", _php_binary = "php_binary", _php_library = "php_library", _php_test = "php_test")
@@ -19,38 +19,28 @@ PHP_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 
 PHP_DEFERRED_SKIP_TAGS = ["no-format"]
 
+_PHP = dx_language_spec(what = "php_library", quality_specs = PHP_SOURCE_SPECS, allow_files = PHP_SOURCE_EXTS)
+
 _php_library_forward = dx_library_forward_rule(
+    _PHP,
     provides = [_PhpInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     required_providers = [(_PhpInfo, "PhpInfo")],
-    quality_specs = PHP_SOURCE_SPECS,
-    what = "php_library",
-    allow_files = PHP_SOURCE_EXTS,
     upstream_providers = [[_PhpInfo]],
     runtime = "besteffort",
 )
 
 _php_forward_binary = dx_executable_forward_rule(
+    _PHP,
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = PHP_SOURCE_SPECS,
     what = "php_binary",
-    allow_files = PHP_SOURCE_EXTS,
-    upstream_providers = None,
     quiet_providers = [_PhpInfo],
-    runtime = "besteffort",
 )
 
 _php_forward_test = dx_executable_forward_rule(
+    _PHP,
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = PHP_SOURCE_SPECS,
     what = "php_test",
-    allow_files = PHP_SOURCE_EXTS,
-    upstream_providers = None,
     extra_attrs = dx_lcov_merger_attr(),
-    runtime = "besteffort",
 )
 
 def php_library(name, srcs = None, visibility = None, **kwargs):

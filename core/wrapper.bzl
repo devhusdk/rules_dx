@@ -275,8 +275,16 @@ def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = No
     else:
         fail("dx wrapper: unknown runtime '" + runtime + "': want \"mandatory\" or \"besteffort\"")
 
-def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None, quality_tools = None, instrument_srcs = False, extra_providers = None, toolchains = None, validate = None, upstream_aspects = None):
+def dx_language_spec(what, quality_specs, allow_files, quality_tools = None):
+    """Returns the struct of facts shared by every forward rule of one language."""
+    return struct(what = what, quality_specs = quality_specs, allow_files = allow_files, quality_tools = quality_tools)
+
+def dx_library_forward_rule(language, provides, required_providers, upstream_providers, what = None, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None, instrument_srcs = False, extra_providers = None, toolchains = None, validate = None, upstream_aspects = None):
     """Creates the public forwarding rule for one library wrapper."""
+    what = what if what != None else language.what
+    quality_specs = language.quality_specs
+    allow_files = language.allow_files
+    quality_tools = language.quality_tools
 
     def _impl(ctx):
         if validate:
@@ -353,8 +361,12 @@ def _dx_with_run_environment(ctx, providers):
             out.append(provider)
     return out + [dx_run_environment(ctx, base)]
 
-def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, quality_tools = None, validate = None, cfg = None):
+def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, required_providers = [], upstream_providers = None, what = None, extra_attrs = None, optional_providers = [], runtime = "besteffort", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, validate = None, cfg = None):
     """Creates the executable or test forwarding rule for one wrapper."""
+    what = what if what != None else language.what
+    quality_specs = language.quality_specs
+    allow_files = language.allow_files
+    quality_tools = language.quality_tools
 
     def _impl(ctx):
         if validate:

@@ -2,7 +2,7 @@
 
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_quality_sources", "dx_upstream", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_quality_sources", "dx_upstream", "dx_wrap_binary", "dx_wrap_test")
 load(
     "//lua/private:lua.bzl",
     "LUA_EXECUTABLE_ATTRS",
@@ -57,27 +57,22 @@ def _entry_runfiles(ctx):
     ctx.actions.symlink(output = link, target_file = entries[0])
     return ctx.runfiles(files = [link])
 
+_LUA = dx_language_spec(what = "lua_binary", quality_specs = LUA_SOURCE_SPECS, allow_files = [".lua"])
+
 _lua_binary_forward = dx_executable_forward_rule(
+    _LUA,
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = LUA_SOURCE_SPECS,
-    what = "lua_binary",
-    allow_files = [".lua"],
-    upstream_providers = None,
     coverage_runfiles = _entry_runfiles,
+    runtime = "mandatory",
 )
 
 _lua_forward_test = dx_executable_forward_rule(
+    _LUA,
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = LUA_SOURCE_SPECS,
     what = "lua_test",
-    allow_files = [".lua"],
-    upstream_providers = None,
     coverage_runfiles = _entry_runfiles,
     extra_attrs = dx_lcov_merger_attr(),
+    runtime = "mandatory",
 )
 
 def lua_library(name, srcs = None, visibility = None, **kwargs):

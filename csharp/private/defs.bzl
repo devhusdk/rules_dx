@@ -3,7 +3,7 @@
 load("@rules_dotnet//dotnet:defs.bzl", _csharp_binary = "csharp_binary", _csharp_library = "csharp_library", _csharp_test = "csharp_test")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
 load("//dotnet/private:benchmarkdotnet.bzl", "BENCHMARKDOTNET")
@@ -44,12 +44,12 @@ _DX_CSHARP_TFM_ATTRS = {
     ),
 }
 
+_CSHARP = dx_language_spec(what = "csharp_*", quality_specs = _DX_CSHARP_SOURCE_SPECS, allow_files = _DX_CSHARP_SOURCE_EXTS)
+
 _csharp_library_forward = dx_library_forward_rule(
+    _CSHARP,
     provides = _DX_CSHARP_LIBRARY_PROVIDES,
     required_providers = [(DotnetAssemblyCompileInfo, "DotnetAssemblyCompileInfo"), (DotnetAssemblyRuntimeInfo, "DotnetAssemblyRuntimeInfo")],
-    quality_specs = _DX_CSHARP_SOURCE_SPECS,
-    what = "csharp_*",
-    allow_files = _DX_CSHARP_SOURCE_EXTS,
     upstream_providers = [[DotnetAssemblyCompileInfo, DotnetAssemblyRuntimeInfo]],
     extra_attrs = _DX_CSHARP_TFM_ATTRS,
     runtime = "besteffort",
@@ -57,29 +57,19 @@ _csharp_library_forward = dx_library_forward_rule(
 )
 
 _csharp_binary_forward = dx_executable_forward_rule(
+    _CSHARP,
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_CSHARP_SOURCE_SPECS,
-    what = "csharp_*",
-    allow_files = _DX_CSHARP_SOURCE_EXTS,
     upstream_providers = [[DotnetAssemblyCompileInfo, DotnetAssemblyRuntimeInfo]],
     extra_attrs = _DX_CSHARP_TFM_ATTRS,
     optional_providers = [DotnetAssemblyCompileInfo, DotnetAssemblyRuntimeInfo],
-    runtime = "besteffort",
 )
 
 _csharp_forward_test = dx_executable_forward_rule(
+    _CSHARP,
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_CSHARP_SOURCE_SPECS,
-    what = "csharp_*",
-    allow_files = _DX_CSHARP_SOURCE_EXTS,
     upstream_providers = [[DotnetAssemblyCompileInfo, DotnetAssemblyRuntimeInfo]],
     extra_attrs = dx_lcov_merger_attr() | dx_dotnet_coverage_attrs() | _DX_CSHARP_TFM_ATTRS,
     optional_providers = [DotnetAssemblyCompileInfo, DotnetAssemblyRuntimeInfo],
-    runtime = "besteffort",
     upstream_aspects = [dx_dotnet_coverage_aspect],
     coverage_providers = dx_dotnet_test_coverage,
 )

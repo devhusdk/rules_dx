@@ -6,7 +6,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/private/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_info")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 load(":cgo.bzl", "cgo_toolchain_error")
 
@@ -33,12 +33,12 @@ def _validate_cgo(ctx):
     if err:
         fail(str(ctx.label) + ": " + err)
 
+_GO = dx_language_spec(what = "go_*", quality_specs = _DX_GO_SOURCE_SPECS, allow_files = True)
+
 _go_library_forward = dx_library_forward_rule(
+    _GO,
     provides = _DX_GO_LIBRARY_PROVIDES,
     required_providers = [(_GoInfo, "GoInfo"), (_GoArchive, "GoArchive")],
-    quality_specs = _DX_GO_SOURCE_SPECS,
-    what = "go_*",
-    allow_files = True,
     upstream_providers = [[_GoInfo]],
     extra_attrs = _CGO_ATTRS,
     toolchains = _CGO_TOOLCHAINS,
@@ -46,32 +46,24 @@ _go_library_forward = dx_library_forward_rule(
 )
 
 _go_binary_forward = dx_executable_forward_rule(
+    _GO,
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_GO_SOURCE_SPECS,
-    what = "go_*",
-    allow_files = True,
     upstream_providers = [[_GoArchive]],
     optional_providers = [_GoArchive],
-    runtime = "besteffort",
     extra_attrs = _CGO_ATTRS,
     toolchains = _CGO_TOOLCHAINS,
     validate = _validate_cgo,
 )
 
 _go_forward_test = dx_executable_forward_rule(
+    _GO,
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_GO_SOURCE_SPECS,
-    what = "go_*",
-    allow_files = True,
     upstream_providers = [[_GoArchive]],
     extra_attrs = dict(dx_lcov_merger_attr(), **_CGO_ATTRS),
     toolchains = _CGO_TOOLCHAINS,
     validate = _validate_cgo,
     optional_providers = [_GoArchive],
+    runtime = "mandatory",
 )
 
 def _warn(kwargs):

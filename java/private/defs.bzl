@@ -5,7 +5,7 @@ load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//java/private:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
 load("//java/private:jazzer.bzl", "jazzer_fuzz", "jazzer_target_class")
 load("//java/private:jmh.bzl", "jmh_bench")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors", "java_test_main_class")
 
@@ -20,34 +20,25 @@ _DX_JAVA_LIBRARY_PROVIDES = [
 
 _DX_JAVA_SOURCE_SPECS = [("java", "java")]
 
+_JAVA = dx_language_spec(what = "java_*", quality_specs = _DX_JAVA_SOURCE_SPECS, allow_files = True)
+
 _java_library_forward = dx_library_forward_rule(
+    _JAVA,
     provides = _DX_JAVA_LIBRARY_PROVIDES,
     required_providers = [(JavaInfo, "JavaInfo")],
-    quality_specs = _DX_JAVA_SOURCE_SPECS,
-    what = "java_*",
-    allow_files = True,
     upstream_providers = [[JavaInfo]],
 )
 
 _java_binary_forward = dx_executable_forward_rule(
+    _JAVA,
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_JAVA_SOURCE_SPECS,
-    what = "java_*",
-    allow_files = True,
     upstream_providers = [[JavaInfo]],
     optional_providers = [JavaInfo],
-    runtime = "besteffort",
 )
 
 _java_forward_test = dx_executable_forward_rule(
+    _JAVA,
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_JAVA_SOURCE_SPECS,
-    what = "java_*",
-    allow_files = True,
     upstream_providers = [[JavaInfo]],
     extra_attrs = dict(
         dx_lcov_merger_attr(),
@@ -55,6 +46,7 @@ _java_forward_test = dx_executable_forward_rule(
     ),
     optional_providers = [JavaInfo],
     coverage_providers = dx_jvm_test_coverage,
+    runtime = "mandatory",
 )
 
 def _java_entry_kwargs_or_fail(name, srcs, kwargs, attr):

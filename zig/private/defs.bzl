@@ -5,7 +5,7 @@ load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_configure_bina
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 
@@ -28,15 +28,14 @@ _DX_ZIG_EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo]
 _DX_ZIG_SOURCE_SPECS = [("zig", "zig")]
 _DX_ZIG_SOURCE_EXTS = [".zig"]
 
+_ZIG = dx_language_spec(what = "zig_*", quality_specs = _DX_ZIG_SOURCE_SPECS, allow_files = _DX_ZIG_SOURCE_EXTS, quality_tools = ZIG_QUALITY_TOOLS)
+
 _zig_library_forward = dx_library_forward_rule(
+    _ZIG,
     provides = _DX_ZIG_LIBRARY_PROVIDES,
     required_providers = [(_ZigModuleInfo, "ZigModuleInfo")],
-    quality_specs = _DX_ZIG_SOURCE_SPECS,
-    what = "zig_*",
-    allow_files = _DX_ZIG_SOURCE_EXTS,
     upstream_providers = [[_ZigModuleInfo]],
     runtime = "besteffort",
-    quality_tools = ZIG_QUALITY_TOOLS,
     instrument_srcs = True,
 )
 
@@ -73,15 +72,9 @@ _kcov_upstream = transition(
 )
 
 _zig_binary_forward = dx_executable_forward_rule(
+    _ZIG,
     kind = "executable",
     provides = _DX_ZIG_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_ZIG_SOURCE_SPECS,
-    what = "zig_*",
-    allow_files = _DX_ZIG_SOURCE_EXTS,
-    upstream_providers = None,
-    runtime = "besteffort",
-    quality_tools = ZIG_QUALITY_TOOLS,
     upstream_cfg = _no_coverage,
 )
 
@@ -92,18 +85,12 @@ def _zig_test_coverage(ctx, upstream):
     return dx_kcov_test_coverage(ctx, upstream, sources, ["upstream", "deps"])
 
 _zig_forward_test = dx_executable_forward_rule(
+    _ZIG,
     kind = "test",
     provides = _DX_ZIG_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_ZIG_SOURCE_SPECS,
-    what = "zig_*",
-    allow_files = _DX_ZIG_SOURCE_EXTS,
-    upstream_providers = None,
     extra_attrs = dx_lcov_merger_attr() | dx_kcov_attrs() | {
         "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
     },
-    runtime = "besteffort",
-    quality_tools = ZIG_QUALITY_TOOLS,
     upstream_cfg = _kcov_upstream,
     coverage_providers = _zig_test_coverage,
 )

@@ -222,7 +222,6 @@ ruby cross_test *
 ruby lock_test *
 ruby runfiles_test *
 rust cross_test macos_arm64
-rust cross_test windows_arm64
 scala cross_test *
 scala lock_test *
 sql build_test *

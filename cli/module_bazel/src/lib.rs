@@ -136,6 +136,7 @@ pub const FLOOR_MARKER: &str = "# floor: ";
 pub enum Arg {
     Str(String),
     List(Vec<String>),
+    Dict(Vec<(String, String)>),
 }
 
 /// A tag to add to an extension, such as `from_cargo` with its keyword arguments.
@@ -153,6 +154,10 @@ impl NewTag {
             match arg {
                 Arg::Str(value) => check_safe(value)?,
                 Arg::List(values) => values.iter().try_for_each(|v| check_safe(v))?,
+                Arg::Dict(entries) => entries.iter().try_for_each(|(k, v)| {
+                    check_safe(k)?;
+                    check_safe(v)
+                })?,
             }
         }
         Ok(())
@@ -172,6 +177,13 @@ impl NewTag {
                         out.push_str(&format!("        \"{value}\",\n"));
                     }
                     out.push_str("    ],\n");
+                }
+                Arg::Dict(entries) => {
+                    out.push_str(&format!("    {key} = {{\n"));
+                    for (k, v) in entries {
+                        out.push_str(&format!("        \"{k}\": \"{v}\",\n"));
+                    }
+                    out.push_str("    },\n");
                 }
             }
         }

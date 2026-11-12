@@ -1436,6 +1436,33 @@ fn insert_extension_block_appends_and_keeps_other_bytes() {
 }
 
 #[test]
+fn insert_extension_block_renders_a_dict_argument() {
+    let file = ModuleFile::parse("").expect("parse");
+    let mut t = tag("annotation", "crate", "*");
+    t.args.push((
+        "env".to_owned(),
+        Arg::Dict(vec![
+            ("A".to_owned(), "$(X)".to_owned()),
+            ("B".to_owned(), "y".to_owned()),
+        ]),
+    ));
+    let out = file
+        .insert_extension_block("npm", NPM_BZL, "npm", &[t], &[])
+        .expect("insert");
+    assert!(
+        out.contains("npm.annotation(\n    crate = \"*\",\n    env = {\n        \"A\": \"$(X)\",\n        \"B\": \"y\",\n    },\n)\n"),
+        "{out}"
+    );
+    let mut bad = tag("annotation", "crate", "*");
+    bad.args
+        .push(("env".to_owned(), Arg::Dict(vec![("A".to_owned(), "\"".to_owned())])));
+    assert!(
+        file.insert_extension_block("npm", NPM_BZL, "npm", &[bad], &[])
+            .is_err()
+    );
+}
+
+#[test]
 fn insert_extension_block_reuses_a_binding_and_skips_imported_repos() {
     let before = format!("npm = use_extension(\"{NPM_BZL}\", \"npm\")\nuse_repo(npm, \"old\")\n");
     let file = ModuleFile::parse(&before).expect("parse");

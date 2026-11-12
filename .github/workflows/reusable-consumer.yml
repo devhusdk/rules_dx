@@ -393,37 +393,9 @@ jobs:
       - name: Check the upload holds no secret
         id: scan-lint
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"lint"') }}
-        shell: bash
-        env:
-          DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/lint
-        run: |
-          needles=()
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            needles+=(-e "$BUILDBUDDY_API_KEY")
-          fi
-          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
-            value="${REMOTE_CACHE_HEADER#*=}"
-            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
-              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
-              exit 1
-            fi
-            needles+=(-e "$value")
-          fi
-          [ "${#needles[@]}" -gt 0 ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          rc=0
-          grep -RFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
-          case "$rc" in
-            0)
-              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
-              exit 1
-              ;;
-            1) ;;
-            *)
-              echo "::error::scan of $DX_UPLOAD_PATH failed"
-              exit 1
-              ;;
-          esac
+        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main
+        with:
+          path: ${{ runner.temp }}/dx-reports/lint
       - name: Upload the lint reports
         if: ${{ always() && steps.scan-lint.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -435,37 +407,9 @@ jobs:
       - name: Check the upload holds no secret
         id: scan-typecheck
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"typecheck"') }}
-        shell: bash
-        env:
-          DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/typecheck
-        run: |
-          needles=()
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            needles+=(-e "$BUILDBUDDY_API_KEY")
-          fi
-          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
-            value="${REMOTE_CACHE_HEADER#*=}"
-            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
-              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
-              exit 1
-            fi
-            needles+=(-e "$value")
-          fi
-          [ "${#needles[@]}" -gt 0 ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          rc=0
-          grep -RFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
-          case "$rc" in
-            0)
-              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
-              exit 1
-              ;;
-            1) ;;
-            *)
-              echo "::error::scan of $DX_UPLOAD_PATH failed"
-              exit 1
-              ;;
-          esac
+        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main
+        with:
+          path: ${{ runner.temp }}/dx-reports/typecheck
       - name: Upload the typecheck reports
         if: ${{ always() && steps.scan-typecheck.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -477,37 +421,9 @@ jobs:
       - name: Check the upload holds no secret
         id: scan-test
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"test"') }}
-        shell: bash
-        env:
-          DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/test
-        run: |
-          needles=()
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            needles+=(-e "$BUILDBUDDY_API_KEY")
-          fi
-          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
-            value="${REMOTE_CACHE_HEADER#*=}"
-            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
-              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
-              exit 1
-            fi
-            needles+=(-e "$value")
-          fi
-          [ "${#needles[@]}" -gt 0 ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          rc=0
-          grep -RFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
-          case "$rc" in
-            0)
-              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
-              exit 1
-              ;;
-            1) ;;
-            *)
-              echo "::error::scan of $DX_UPLOAD_PATH failed"
-              exit 1
-              ;;
-          esac
+        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main
+        with:
+          path: ${{ runner.temp }}/dx-reports/test
       - name: Upload the test reports
         if: ${{ always() && steps.scan-test.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -519,37 +435,9 @@ jobs:
       - name: Check the upload holds no secret
         id: scan-build
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"build"') }}
-        shell: bash
-        env:
-          DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/build
-        run: |
-          needles=()
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            needles+=(-e "$BUILDBUDDY_API_KEY")
-          fi
-          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
-            value="${REMOTE_CACHE_HEADER#*=}"
-            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
-              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
-              exit 1
-            fi
-            needles+=(-e "$value")
-          fi
-          [ "${#needles[@]}" -gt 0 ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          rc=0
-          grep -RFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
-          case "$rc" in
-            0)
-              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
-              exit 1
-              ;;
-            1) ;;
-            *)
-              echo "::error::scan of $DX_UPLOAD_PATH failed"
-              exit 1
-              ;;
-          esac
+        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main
+        with:
+          path: ${{ runner.temp }}/dx-reports/build
       - name: Upload the build reports
         if: ${{ always() && steps.scan-build.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -600,37 +488,9 @@ jobs:
       - name: Check the upload holds no secret
         id: scan-coverage
         if: ${{ always() }}
-        shell: bash
-        env:
-          DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/coverage
-        run: |
-          needles=()
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            needles+=(-e "$BUILDBUDDY_API_KEY")
-          fi
-          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
-            value="${REMOTE_CACHE_HEADER#*=}"
-            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
-              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
-              exit 1
-            fi
-            needles+=(-e "$value")
-          fi
-          [ "${#needles[@]}" -gt 0 ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          rc=0
-          grep -RFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
-          case "$rc" in
-            0)
-              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
-              exit 1
-              ;;
-            1) ;;
-            *)
-              echo "::error::scan of $DX_UPLOAD_PATH failed"
-              exit 1
-              ;;
-          esac
+        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main
+        with:
+          path: ${{ runner.temp }}/dx-reports/coverage
       - name: Upload the coverage reports
         if: ${{ always() && steps.scan-coverage.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -845,37 +705,9 @@ jobs:
       - name: Check the upload holds no secret
         id: scan-advisory
         if: ${{ steps.prepare.outputs.status != 'empty' || steps.prepare.outputs.trivy == 'true' }}
-        shell: bash
-        env:
-          DX_UPLOAD_PATH: .dx/local/advisory
-        run: |
-          needles=()
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            needles+=(-e "$BUILDBUDDY_API_KEY")
-          fi
-          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
-            value="${REMOTE_CACHE_HEADER#*=}"
-            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
-              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
-              exit 1
-            fi
-            needles+=(-e "$value")
-          fi
-          [ "${#needles[@]}" -gt 0 ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          rc=0
-          grep -RFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
-          case "$rc" in
-            0)
-              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
-              exit 1
-              ;;
-            1) ;;
-            *)
-              echo "::error::scan of $DX_UPLOAD_PATH failed"
-              exit 1
-              ;;
-          esac
+        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main
+        with:
+          path: .dx/local/advisory
       - name: Publish the advisory snapshots
         if: ${{ always() && steps.scan-advisory.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1185,37 +1017,9 @@ jobs:
       - name: Check the upload holds no secret
         id: scan-crashes
         if: ${{ failure() }}
-        shell: bash
-        env:
-          DX_UPLOAD_PATH: .dx/local/fuzz
-        run: |
-          needles=()
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            needles+=(-e "$BUILDBUDDY_API_KEY")
-          fi
-          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
-            value="${REMOTE_CACHE_HEADER#*=}"
-            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
-              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
-              exit 1
-            fi
-            needles+=(-e "$value")
-          fi
-          [ "${#needles[@]}" -gt 0 ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          rc=0
-          grep -RFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
-          case "$rc" in
-            0)
-              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
-              exit 1
-              ;;
-            1) ;;
-            *)
-              echo "::error::scan of $DX_UPLOAD_PATH failed"
-              exit 1
-              ;;
-          esac
+        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main
+        with:
+          path: .dx/local/fuzz
       - name: Upload the crashes
         if: ${{ always() && steps.scan-crashes.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1328,37 +1132,9 @@ jobs:
       - name: Check the upload holds no secret
         id: scan-bench
         if: ${{ github.event_name == 'push' && !cancelled() }}
-        shell: bash
-        env:
-          DX_UPLOAD_PATH: .dx/local/bench/last.json
-        run: |
-          needles=()
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            needles+=(-e "$BUILDBUDDY_API_KEY")
-          fi
-          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
-            value="${REMOTE_CACHE_HEADER#*=}"
-            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
-              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
-              exit 1
-            fi
-            needles+=(-e "$value")
-          fi
-          [ "${#needles[@]}" -gt 0 ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          rc=0
-          grep -RFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
-          case "$rc" in
-            0)
-              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
-              exit 1
-              ;;
-            1) ;;
-            *)
-              echo "::error::scan of $DX_UPLOAD_PATH failed"
-              exit 1
-              ;;
-          esac
+        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main
+        with:
+          path: .dx/local/bench/last.json
       - name: Upload the results
         if: ${{ always() && steps.scan-bench.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

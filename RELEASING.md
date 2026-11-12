@@ -12,6 +12,8 @@ Set `X.Y.Z` by hand in these places and merge to `main`. `bazel run //deploy/pri
 - `cli/adopt/src/version.rs`: `MODULE_VERSION`
 - `cli/shim/src/protocol.rs`: `SHIM_VERSION`
 
+It also points every `devhusdk/rules_dx/.github/actions/assert-no-secret@<sha>` reference in `reusable-consumer.yml` and `reusable-docs.yml` at the `--workflow-ref` commit (default `origin/main`) and refreshes `tools/ci/starter_pin.sha256`.
+
 The `source` job in `release.yml` compares the first four with the tag, and the source archive step compares `MODULE.bazel` with it. A mismatch fails with `land the version bump first`.
 
 ## 2. Tag

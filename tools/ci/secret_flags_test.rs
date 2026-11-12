@@ -12,7 +12,7 @@ const INLINE_HELPER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 const SCAN_ACTION: &str = ".github/actions/assert-no-secret/action.yml";
 const LOCAL_HELPER: &str = "tools/buildbuddy-credential-helper.sh";
 const HELPER_STEP: &str = "Configure the remote cache credential helper";
-const INLINE_SCAN_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
+const REMOTE_SCAN: &str = "devhusdk/rules_dx/.github/actions/assert-no-secret";
 const SCAN_STEP: &str = "Check the upload holds no secret";
 
 fn rc_files() -> Vec<(String, String)> {
@@ -118,9 +118,8 @@ fn no_workflow_sets_bb_args_in_env() {
 }
 
 #[test]
-fn inline_helper_and_scan_steps_match_each_other() {
+fn inline_helper_steps_match_each_other() {
     let helper = inline_helper();
-    let scan = inline_scan();
     let mut helpers = 0;
     for path in dx_testing::workflow_files() {
         for (id, steps) in jobs(&parse(&path)) {
@@ -131,11 +130,6 @@ fn inline_helper_and_scan_steps_match_each_other() {
                         step, helper,
                         "{path} job {id} helper differs from {INLINE_HELPER_WORKFLOW}"
                     );
-                }
-                if step["name"] == SCAN_STEP && step["uses"].is_null() {
-                    assert_eq!(step["run"], scan["run"], "{path} job {id} scan differs");
-                    assert_eq!(step["shell"], "bash", "{path} job {id} scan shell");
-                    assert!(step["env"]["DX_UPLOAD_PATH"].is_string(), "{path} job {id}");
                 }
             }
         }
@@ -271,7 +265,12 @@ fn every_upload_follows_a_matching_scan() {
                 };
                 assert_eq!(scanned, expected, "{at} scans another path than it uploads");
                 if scan["uses"].is_string() {
-                    assert_eq!(scan["uses"], "./.github/actions/assert-no-secret", "{at}");
+                    let uses = scan["uses"].as_str().expect("scan uses");
+                    let remote = format!("{REMOTE_SCAN}@");
+                    assert!(
+                        uses == "./.github/actions/assert-no-secret" || uses.starts_with(&remote),
+                        "{at} scan uses {uses}"
+                    );
                     for earlier in &steps[..index] {
                         let sparse = &earlier["with"]["sparse-checkout"];
                         if earlier["uses"]
@@ -310,14 +309,6 @@ fn run_script(dir: &Path, script: &str, env: &[(&str, &str)]) -> (i32, String) {
     (done.status.code().unwrap_or(-1), output)
 }
 
-fn inline_scan() -> Value {
-    jobs(&parse(INLINE_SCAN_WORKFLOW))
-        .into_iter()
-        .flat_map(|(_, steps)| steps)
-        .find(|step| step["name"] == SCAN_STEP && step["uses"].is_null())
-        .unwrap_or_else(|| panic!("{INLINE_SCAN_WORKFLOW} has no inline scan step"))
-}
-
 fn run_node(dir: &Path, env: &[(&str, &str)]) -> (i32, String) {
     let mut command = Command::new(dx_testing::env_file("DX_NODE"));
     command
@@ -335,11 +326,28 @@ fn run_node(dir: &Path, env: &[(&str, &str)]) -> (i32, String) {
 }
 
 fn run_scans(dir: &Path, env: &[(&str, &str)]) -> Vec<(&'static str, i32, String)> {
-    let inline = inline_scan();
-    let script = inline["run"].as_str().expect("scan run");
-    let (code, output) = run_script(dir, script, env);
-    let (node_code, node_output) = run_node(dir, env);
-    vec![("bash", code, output), ("node", node_code, node_output)]
+    let (code, output) = run_node(dir, env);
+    vec![("node", code, output)]
+}
+
+#[test]
+fn remote_scan_references_name_one_sha() {
+    let remote = format!("{REMOTE_SCAN}@");
+    let mut shas = std::collections::BTreeSet::new();
+    for path in dx_testing::workflow_files() {
+        for (_, steps) in jobs(&parse(&path)) {
+            for step in steps {
+                if let Some(sha) = step["uses"].as_str().and_then(|u| u.strip_prefix(&remote)) {
+                    assert!(
+                        sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit()),
+                        "{path} pins {sha}"
+                    );
+                    shas.insert(sha.to_owned());
+                }
+            }
+        }
+    }
+    assert_eq!(shas.len(), 1, "scan action refs name {shas:?}");
 }
 
 fn assert_no_secret_printed(name: &str, output: &str) {

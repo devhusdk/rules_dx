@@ -181,7 +181,8 @@ powershell cross_test *
 powershell lock_test *
 powershell runfiles_test *
 python cross_test *
-python lock_test *
+python lock_test windows_arm64
+python lock_test windows_x86_64
 python runfiles_test *
 qt build_test *
 qt coverage_test *

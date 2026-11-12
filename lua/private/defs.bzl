@@ -1,8 +1,8 @@
 """Lua rules for dx: the core Lua rules plus dx quality source ownership."""
 
-load("//core:entry.bzl", "dx_infer_main", "dx_main_candidates")
+load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags")
-load("//core:wrapper.bzl", "dx_quality_sources", "dx_quality_srcs")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_quality_sources", "dx_upstream", "dx_wrap_binary", "dx_wrap_test")
 load(
     "//lua/private:lua.bzl",
     "LUA_EXECUTABLE_ATTRS",
@@ -26,9 +26,6 @@ def _quality(ctx, files):
 def _library_impl(ctx):
     return lua_library_impl(ctx) + [_quality(ctx, ctx.files.srcs)]
 
-def _executable_impl(ctx):
-    return lua_executable_impl(ctx) + [_quality(ctx, dx_quality_srcs(ctx.file.main, ctx.files.srcs))]
-
 _lua_library = rule(
     implementation = _library_impl,
     doc = "Lua modules other Lua targets can require.",
@@ -38,7 +35,7 @@ _lua_library = rule(
 )
 
 _lua_binary = rule(
-    implementation = _executable_impl,
+    implementation = lua_executable_impl,
     doc = "A Lua program that bazel run starts through the shared launcher.",
     attrs = LUA_EXECUTABLE_ATTRS,
     executable = True,
@@ -46,25 +43,54 @@ _lua_binary = rule(
 )
 
 _lua_test = rule(
-    implementation = _executable_impl,
+    implementation = lua_executable_impl,
     doc = "A Lua test; it passes when main returns or calls os.exit(0).",
     attrs = LUA_TEST_ATTRS,
     test = True,
     toolchains = LUA_TOOLCHAINS,
 )
 
+def _entry_runfiles(ctx):
+    upstream = dx_upstream(ctx)
+    entries = [f for f in upstream[DefaultInfo].files.to_list() if f.basename.endswith(LUA_ENTRY_SUFFIX)]
+    link = ctx.actions.declare_file(ctx.label.name + LUA_ENTRY_SUFFIX)
+    ctx.actions.symlink(output = link, target_file = entries[0])
+    return ctx.runfiles(files = [link])
+
+_lua_binary_forward = dx_executable_forward_rule(
+    kind = "executable",
+    provides = DX_EXEC_PROVIDES,
+    required_providers = [],
+    quality_specs = LUA_SOURCE_SPECS,
+    what = "lua_binary",
+    allow_files = [".lua"],
+    upstream_providers = None,
+    coverage_runfiles = _entry_runfiles,
+)
+
+_lua_forward_test = dx_executable_forward_rule(
+    kind = "test",
+    provides = DX_EXEC_PROVIDES,
+    required_providers = [],
+    quality_specs = LUA_SOURCE_SPECS,
+    what = "lua_test",
+    allow_files = [".lua"],
+    upstream_providers = None,
+    coverage_runfiles = _entry_runfiles,
+    extra_attrs = dx_lcov_merger_attr(),
+)
+
 def lua_library(name, srcs = None, visibility = None, **kwargs):
     """Lua modules other Lua targets can require."""
     _lua_library(name = name, srcs = srcs or [], visibility = visibility, **kwargs)
 
-def lua_binary(name, *, srcs = None, visibility = None, **kwargs):
+def lua_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """A Lua program that bazel run starts through the shared launcher."""
-    _lua_binary(name = name, srcs = srcs or [], visibility = visibility, **kwargs)
+    dx_wrap_binary(name, _lua_binary, _lua_binary_forward, srcs or [], visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
-def lua_test(name, *, srcs = None, visibility = None, **kwargs):
+def lua_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """A Lua test; it passes when main returns or calls os.exit(0)."""
-    kwargs.setdefault("size", "small")
-    _lua_test(name = name, srcs = srcs or [], visibility = visibility, **kwargs)
+    dx_wrap_test(name, _lua_test, _lua_forward_test, srcs or [], visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def lua_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs):
     """A lua_test run by dx bench: main calls require("dx_bench").run({{name, fn}, ...}), which times each function with os.clock and writes dx-bench.json."""

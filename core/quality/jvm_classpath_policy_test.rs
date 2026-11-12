@@ -65,16 +65,16 @@ fn violations(src: &str) -> Vec<(usize, &'static str)> {
 
 fn bzl_sources() -> Vec<(String, String)> {
     let mut out = Vec::new();
-    for sub in ["core/quality", "core/quality/families"] {
+    for sub in ["core/quality", "core/quality/families", "java/private/quality"] {
         let dir = runfiles_root().join(sub);
         for entry in std::fs::read_dir(&dir).expect("readable quality dir") {
             let path = entry.expect("dir entry").path();
             if path.extension().is_some_and(|e| e == "bzl") {
                 let file = name(&path);
-                let file = if sub == "core/quality" {
-                    file
-                } else {
-                    format!("families/{file}")
+                let file = match sub {
+                    "core/quality" => file,
+                    "core/quality/families" => format!("families/{file}"),
+                    _ => format!("java/{file}"),
                 };
                 out.push((file, std::fs::read_to_string(&path).expect("readable bzl")));
             }
@@ -107,8 +107,8 @@ fn jvm_classpaths_are_read_only_through_jvm_aux_jars() {
 fn jvm_aux_jars_helper_exists_and_is_used() {
     let (_, src) = bzl_sources()
         .into_iter()
-        .find(|(f, _)| f == "families/jvm.bzl")
-        .expect("families/jvm.bzl scanned");
+        .find(|(f, _)| f == "java/jvm.bzl")
+        .expect("java/jvm.bzl scanned");
     assert!(
         src.contains("def _jvm_aux_jars("),
         "_jvm_aux_jars helper was removed"
@@ -124,7 +124,7 @@ fn jvm_aux_jars_helper_exists_and_is_used() {
 fn scanned_sources_are_not_empty() {
     let files = bzl_sources();
     assert!(!files.is_empty(), "no .bzl files in runfiles");
-    assert!(files.iter().any(|(f, _)| f == "families/jvm.bzl"));
+    assert!(files.iter().any(|(f, _)| f == "java/jvm.bzl"));
 }
 
 #[test]

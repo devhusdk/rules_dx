@@ -45,7 +45,7 @@ dx_diagnostics_test(
         "@com_github_jetbrains_kotlin//:kotlin-stdlib",
         "@maven//:com_google_code_gson_gson",
         "@maven//:com_google_guava_guava",
-        "@rules_dx//core/quality/tools/jvm:ktfmt",
+        "@rules_dx//java/private/quality/tools:ktfmt",
     ],
     env = {
         "DX_APP_SRCS": " ".join([
@@ -59,7 +59,7 @@ dx_diagnostics_test(
         "DX_GSON": "$(rootpath @maven//:com_google_code_gson_gson)",
         "DX_GUAVA": "$(rootpath @maven//:com_google_guava_guava)",
         "DX_KOTLINC": "$(rootpath :kotlinc)",
-        "DX_KTFMT": "$(rootpath @rules_dx//core/quality/tools/jvm:ktfmt)",
+        "DX_KTFMT": "$(rootpath @rules_dx//java/private/quality/tools:ktfmt)",
         "DX_STDLIB": "$(rootpath @com_github_jetbrains_kotlin//:kotlin-stdlib)",
         "DX_SYNTAX": "$(rootpath SyntaxError.kt)",
         "DX_TYPE": "$(rootpath TypeError.kt)",
@@ -88,7 +88,7 @@ dx_format_test(
         "--set-exit-if-changed",
         "{src}",
     ],
-    tool = "@rules_dx//core/quality/tools/jvm:ktfmt",
+    tool = "@rules_dx//java/private/quality/tools:ktfmt",
 )
 
 real_source_target(

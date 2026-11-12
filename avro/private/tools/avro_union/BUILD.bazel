@@ -7,7 +7,7 @@ java_binary(
     name = "avro_union",
     srcs = ["AvroUnion.java"],
     main_class = "dx.avro.tools.AvroUnion",
-    deps = ["//core/quality/tools/jvm:avro_tools_import"],
+    deps = ["//java/private/quality/tools:avro_tools_import"],
 )
 
 real_source_target(

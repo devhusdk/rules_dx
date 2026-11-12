@@ -748,7 +748,7 @@
             "real_jvm_typecheck_aspect"
           ]
         },
-        "bzl": "core/quality:families/jvm.bzl",
+        "bzl": "java/private/quality:jvm.bzl",
         "file_extensions": [
           ".java"
         ],
@@ -917,7 +917,7 @@
       },
       "name": "kotlin",
       "quality": {
-        "bzl": "core/quality:families/jvm.bzl",
+        "bzl": "java/private/quality:jvm.bzl",
         "file_extensions": [
           ".kt",
           ".kts"
@@ -1457,7 +1457,7 @@
             "real_scala_lint_aspect"
           ]
         },
-        "bzl": "core/quality:families/jvm.bzl",
+        "bzl": "java/private/quality:jvm.bzl",
         "file_extensions": [
           ".sc",
           ".scala"

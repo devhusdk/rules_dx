@@ -1054,7 +1054,7 @@ rust_test(
     data = glob([
         "*.bzl",
         "families/*.bzl",
-    ]),
+    ]) + ["//java/private/quality:jvm.bzl"],
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],
 )

@@ -2211,7 +2211,7 @@ crate.from_cargo(
         "//core/quality/tiers:Cargo.toml",
         "//core/quality/tiers/gopls:Cargo.toml",
         "//core/quality/tests:Cargo.toml",
-        "//core/quality/tools/jvm:Cargo.toml",
+        "//java/private/quality/tools:Cargo.toml",
         "//tools/docs/ir/ir:Cargo.toml",
         "//tools/docs/rust/extract:Cargo.toml",
         "//tools/docs/typescript/extract:Cargo.toml",

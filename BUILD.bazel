@@ -69,10 +69,10 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/dotnet/fixture
 # gazelle:exclude tools/docs/dotnet/fsharp
 # gazelle:exclude tools/docs/jvm/record
-# gazelle:exclude core/quality/tools/jvm/javac_check
+# gazelle:exclude java/private/quality/tools/javac_check
 # gazelle:exclude avro/private/tools/avro_union
-# gazelle:exclude core/quality/tools/jvm/kotlinc_check
-# gazelle:exclude core/quality/tools/jvm/scalac_check
+# gazelle:exclude java/private/quality/tools/kotlinc_check
+# gazelle:exclude java/private/quality/tools/scalac_check
 # gazelle:exclude javascript/private/quality/bin
 # gazelle:exclude tools/docs/powershell/fixture
 # gazelle:exclude tools/docs/go/fixture
@@ -343,6 +343,7 @@ filegroup(
         "//fortran/private/quality:module_srcs",
         "//go/private/quality:module_srcs",
         "//haskell/private/quality:module_srcs",
+        "//java/private/quality:module_srcs",
         "//javascript/private/quality:module_srcs",
         "//julia/private/quality:module_srcs",
         "//kubernetes/private/quality:module_srcs",

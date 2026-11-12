@@ -111,7 +111,7 @@ avro_java_library = rule(
         "deps": attr.label_list(providers = [AvroInfo], doc = "avro_library targets to generate Java for."),
         "_avro_union": attr.label(default = Label("//avro/private/tools/avro_union"), executable = True, cfg = "exec"),
         "_avro_tools": attr.label(default = Label("//config:tool_avro"), executable = True, cfg = "exec"),
-        "_runtime": attr.label(default = Label("//core/quality/tools/jvm:avro_tools_import"), providers = [JavaInfo]),
+        "_runtime": attr.label(default = Label("//java/private/quality/tools:avro_tools_import"), providers = [JavaInfo]),
         "_zipper": attr.label(default = Label("@bazel_tools//tools/zip:zipper"), executable = True, cfg = "exec"),
     } | CODEGEN_LIBRARY_ATTRS,
     provides = [JavaInfo],

@@ -115,7 +115,7 @@ sh_test(
     data = [
         ":app",
         ":dep",
-        "//core/quality/tools/jvm:spotbugs",
+        "//java/private/quality/tools:spotbugs",
         "@bazel_tools//tools/jdk:JacocoCoverage",
     ],
     tags = ["no-coverage"],

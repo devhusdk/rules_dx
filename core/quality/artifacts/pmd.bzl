@@ -2,7 +2,7 @@
 
 # buildifier: disable=attr-licenses
 SOURCE = {
-    "build_file": "//core/quality/tools/jvm:pmd_dist.BUILD",
+    "build_file": "//java/private/quality/tools:pmd_dist.BUILD",
     "kind": "archive",
     "licenses": [
         {

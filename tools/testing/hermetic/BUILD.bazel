@@ -703,7 +703,7 @@ hermetic_qualification(
     module_fragment = "consumers/scala_scalafix/module_fragment.bazel",
     patterns = [
         "//...",
-        "@my_dx//core/quality/tools/jvm:scalafix",
+        "@my_dx//java/private/quality/tools:scalafix",
     ],
 )
 

@@ -140,7 +140,8 @@ pub fn first_run_notice(
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 mod tests {
     use super::*;
     use dx_output::OutputMode;

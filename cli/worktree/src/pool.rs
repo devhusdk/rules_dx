@@ -120,7 +120,7 @@ fn ancestors() -> Vec<(u32, String)> {
 use dx_process::procs::process_table;
 
 /// The ancestors of `own` in `table`, nearest first, at most eight.
-#[cfg(any(windows, test))]
+#[cfg_attr(not(windows), allow(dead_code))]
 fn chain_in(table: &[(u32, u32, String)], own: u32) -> Vec<(u32, String)> {
     let parent_of = |pid: u32| table.iter().find(|(entry, _, _)| *entry == pid);
     let mut chain: Vec<(u32, String)> = Vec::new();
@@ -138,7 +138,7 @@ fn chain_in(table: &[(u32, u32, String)], own: u32) -> Vec<(u32, String)> {
 }
 
 /// The parent pid of `own` in `table`, even if that parent has exited.
-#[cfg(any(windows, test))]
+#[cfg_attr(not(windows), allow(dead_code))]
 fn parent_in(table: &[(u32, u32, String)], own: u32) -> Option<u32> {
     table
         .iter()

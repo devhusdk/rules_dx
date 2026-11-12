@@ -1,13 +1,5 @@
 """Analysis tests that the Dart web binaries own their sources for quality."""
 
-load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("@rules_dx//core/quality:sources.bzl", "QualitySourcesInfo")
+load("@rules_dx//core:owns_class_test.bzl", "owns_class_test")
 
-def _owns_main_impl(ctx):
-    env = analysistest.begin(ctx)
-    direct = analysistest.target_under_test(env)[QualitySourcesInfo].direct_sources
-    asserts.equals(env, ["dart"], sorted(direct.keys()))
-    asserts.equals(env, ["main.dart"], [f.basename for f in direct["dart"].to_list()])
-    return analysistest.end(env)
-
-web_owns_main_test = analysistest.make(_owns_main_impl)
+web_owns_main_test = owns_class_test("dart", ["main.dart"])

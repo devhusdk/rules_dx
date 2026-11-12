@@ -1,8 +1,8 @@
 """MSVC hub repository coverage."""
 
-load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//cc/private/toolchains:unavailable.bzl", "cc_toolchain_unavailable")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//core:failure_test.bzl", "failure_test")
 load(":repos.bzl", "HUB_NAME", "LICENSE", "UNACCEPTED", "cell_files", "hub_build")
 load(":unavailable.bzl", "UNSUPPORTED")
 
@@ -56,13 +56,6 @@ def msvc_repos_tests(name):
         checks = _checks(),
     )
 
-def _unaccepted_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, UNACCEPTED)
-    return analysistest.end(env)
-
-_unaccepted_test = analysistest.make(_unaccepted_impl, expect_failure = True)
-
 def msvc_unavailable_tests(name):
     """Declares the test that an unaccepted MSVC layout fails when used."""
     cc_toolchain_unavailable(
@@ -70,17 +63,11 @@ def msvc_unavailable_tests(name):
         error = UNACCEPTED,
         tags = ["manual"],
     )
-    _unaccepted_test(
+    failure_test(
         name = name,
-        target_under_test = ":" + name + "_target",
+        target = ":" + name + "_target",
+        expected_failure_substring = UNACCEPTED,
     )
-
-def _unsupported_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, UNSUPPORTED)
-    return analysistest.end(env)
-
-_unsupported_test = analysistest.make(_unsupported_impl, expect_failure = True)
 
 def msvc_unsupported_tests(name):
     """Declares the test that the unsupported-platform guard fails when used."""
@@ -89,7 +76,8 @@ def msvc_unsupported_tests(name):
         error = UNSUPPORTED,
         tags = ["manual"],
     )
-    _unsupported_test(
+    failure_test(
         name = name,
-        target_under_test = ":" + name + "_target",
+        target = ":" + name + "_target",
+        expected_failure_substring = UNSUPPORTED,
     )

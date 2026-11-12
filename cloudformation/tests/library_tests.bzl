@@ -1,18 +1,5 @@
 """cloudformation_library proofs."""
 
-load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
+load("//core:owns_class_test.bzl", "owns_class_test")
 
-def _owns_cloudformation_class_impl(ctx):
-    env = analysistest.begin(ctx)
-    target = analysistest.target_under_test(env)
-    direct = target[QualitySourcesInfo].direct_sources
-    asserts.equals(env, ["cloudformation"], sorted(direct.keys()))
-    asserts.equals(
-        env,
-        ["template.yaml"],
-        [f.basename for f in direct["cloudformation"].to_list()],
-    )
-    return analysistest.end(env)
-
-owns_cloudformation_class_test = analysistest.make(_owns_cloudformation_class_impl)
+owns_cloudformation_class_test = owns_class_test("cloudformation", ["template.yaml"])

@@ -1,6 +1,7 @@
 """Analysis tests for thrift_library."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//core:failure_test.bzl", "failure_test")
 load("//thrift/private:defs.bzl", "ThriftInfo", "thrift_library")
 
 def _closure_impl(ctx):
@@ -16,13 +17,6 @@ def _closure_impl(ctx):
 
 _closure_test = analysistest.make(_closure_impl)
 
-def _external_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "cross-repo thrift schemas are unsupported")
-    return analysistest.end(env)
-
-_external_test = analysistest.make(_external_impl, expect_failure = True)
-
 def thrift_library_tests(name):
     """Instantiates the thrift_library analysis tests.
 
@@ -33,5 +27,5 @@ def thrift_library_tests(name):
     thrift_library(name = name + "_top", srcs = ["fixtures/closure/top.thrift"], deps = [":" + name + "_base"], tags = ["manual"])
     _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top", size = "small")
     thrift_library(name = name + "_external", srcs = ["@dx_thrift//:sample_schema"], tags = ["manual"])
-    _external_test(name = name + "_external_test", target_under_test = ":" + name + "_external", size = "small")
+    failure_test(name = name + "_external_test", target = ":" + name + "_external", expected_failure_substring = "cross-repo thrift schemas are unsupported")
     native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_external_test"])

@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_py//uv/private/pep517_whl:cc_layer.bzl", "cc_layer_test_util")
 load("@rules_py//uv/private/pep517_whl:pep517_native_whl.bzl", "pep517_native_whl")
+load("//core:failure_test.bzl", "failure_test_rule")
 
 _MARKER = cc_layer_test_util.execroot_marker
 
@@ -36,11 +37,6 @@ def _runs_cl_impl(ctx):
         asserts.true(env, any([p.endswith("include/pyconfig.h") for p in inputs]), "pyconfig.h is not an input")
     return analysistest.end(env)
 
-def _linux_exec_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "MSVC sdist builds need a Windows execution platform matching the target")
-    return analysistest.end(env)
-
 _WINDOWS_X64 = [str(Label("//tools/platforms:windows_x86_64"))]
 _SETTINGS = {
     "//command_line_option:platforms": _WINDOWS_X64,
@@ -55,7 +51,7 @@ _runs_cl_test = analysistest.make(
     _runs_cl_impl,
     config_settings = _SETTINGS | {"//command_line_option:extra_execution_platforms": _WINDOWS_X64},
 )
-_linux_exec_test = analysistest.make(_linux_exec_impl, expect_failure = True, config_settings = _SETTINGS)
+_linux_exec_test = failure_test_rule(_SETTINGS)
 
 def msvc_sdist_tests(name, sdist, tool):
     """Declares the stub sdist build and its two analysis tests.
@@ -75,5 +71,5 @@ def msvc_sdist_tests(name, sdist, tool):
     )
     tests = [name + "_windows_exec", name + "_linux_exec"]
     _runs_cl_test(name = tests[0], size = "small", testonly = True, target_under_test = ":" + fixture)
-    _linux_exec_test(name = tests[1], size = "small", testonly = True, target_under_test = ":" + fixture)
+    _linux_exec_test(name = tests[1], size = "small", testonly = True, target_under_test = ":" + fixture, expected_failure_substring = "MSVC sdist builds need a Windows execution platform matching the target")
     native.test_suite(name = name, tests = tests, testonly = True)

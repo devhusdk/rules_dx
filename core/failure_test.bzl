@@ -8,12 +8,13 @@ def _starlark_failure_impl(ctx):
     asserts.expect_failure(env, ctx.attr.expected_failure_substring)
     return analysistest.end(env)
 
-def failure_test_rule(config_settings = {}):
-    """Returns an expected-failure analysis test rule that applies `config_settings`."""
+def failure_test_rule(config_settings = {}, extra_target_under_test_aspects = []):
+    """Returns an expected-failure analysis test rule that applies `config_settings` and `extra_target_under_test_aspects`."""
     return analysistest.make(
         _starlark_failure_impl,
         expect_failure = True,
         config_settings = dicts.add({"//command_line_option:collect_code_coverage": False}, config_settings),
+        extra_target_under_test_aspects = extra_target_under_test_aspects,
         attrs = {
             "expected_failure_substring": attr.string(
                 doc = "Substring the expected analysis failure message must contain.",

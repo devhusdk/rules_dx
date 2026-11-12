@@ -1,11 +1,7 @@
 """Analysis tests for the supported and unsupported target cells."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-
-def _unsupported_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "target platform is unsupported")
-    return analysistest.end(env)
+load("//core:failure_test.bzl", "failure_test_rule")
 
 def _action_impl(ctx):
     env = analysistest.begin(ctx)
@@ -52,11 +48,7 @@ dedup_action_test = analysistest.make(
     config_settings = {"//command_line_option:platforms": str(Label("//appimage:linux_x86_64"))},
 )
 
-unsupported_cpu_test = analysistest.make(
-    _unsupported_impl,
-    expect_failure = True,
-    config_settings = {"//command_line_option:platforms": str(Label("//appimage:linux_riscv64"))},
-)
+unsupported_cpu_test = failure_test_rule({"//command_line_option:platforms": str(Label("//appimage:linux_riscv64"))})
 
 arm64_action_test = _make_action_test("//appimage:linux_arm64")
 

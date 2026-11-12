@@ -4,17 +4,9 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//bicep/private:providers.bzl", "BicepInfo")
 load("//bicep/private:registry.bzl", "blob_url", "cache_directory", "fetch_failure", "is_digest", "manifest_url", "module_layer", "registry_errors")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
+load("//core:owns_class_test.bzl", "owns_class_test")
 
-def _owns_bicep_class_impl(ctx):
-    env = analysistest.begin(ctx)
-    target = analysistest.target_under_test(env)
-    direct = target[QualitySourcesInfo].direct_sources
-    asserts.equals(env, ["bicep"], sorted(direct.keys()))
-    asserts.equals(env, ["app.bicep"], [f.basename for f in direct["bicep"].to_list()])
-    return analysistest.end(env)
-
-owns_bicep_class_test = analysistest.make(_owns_bicep_class_impl)
+owns_bicep_class_test = owns_class_test("bicep", ["app.bicep"])
 
 def _transitive_context_impl(ctx):
     env = analysistest.begin(ctx)

@@ -4,6 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//avro/private:defs.bzl", "avro_library")
 load("//avro/private:missing.bzl", "dx_missing_avro_cpp")
 load("//avro/private:providers.bzl", "AvroInfo")
+load("//core:failure_test.bzl", "failure_test")
 
 def _closure_impl(ctx):
     env = analysistest.begin(ctx)
@@ -15,20 +16,6 @@ def _closure_impl(ctx):
 
 _closure_test = analysistest.make(_closure_impl)
 
-def _extension_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "is misplaced here")
-    return analysistest.end(env)
-
-_extension_test = analysistest.make(_extension_impl, expect_failure = True)
-
-def _missing_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "override_repo")
-    return analysistest.end(env)
-
-_missing_test = analysistest.make(_missing_impl, expect_failure = True)
-
 def avro_library_tests(name):
     """Instantiates the avro_library analysis tests.
 
@@ -39,7 +26,7 @@ def avro_library_tests(name):
     avro_library(name = name + "_top", srcs = ["fixtures/closure/top.avdl"], deps = [":" + name + "_base"], tags = ["manual"])
     _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top", size = "small")
     avro_library(name = name + "_wrong", srcs = ["fixtures/closure/wrong.txt"], tags = ["manual"])
-    _extension_test(name = name + "_extension_test", target_under_test = ":" + name + "_wrong", size = "small")
+    failure_test(name = name + "_extension_test", target = ":" + name + "_wrong", expected_failure_substring = "is misplaced here")
     dx_missing_avro_cpp(name = name + "_missing", tags = ["manual"])
-    _missing_test(name = name + "_missing_test", target_under_test = ":" + name + "_missing", size = "small")
+    failure_test(name = name + "_missing_test", target = ":" + name + "_missing", expected_failure_substring = "override_repo")
     native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_extension_test", ":" + name + "_missing_test"])

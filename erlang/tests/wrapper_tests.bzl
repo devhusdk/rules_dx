@@ -5,6 +5,7 @@ load("@rules_erlang//tools:erlang_toolchain.bzl", "windows_tree_home_commands")
 load("//cli/launcher:defs.bzl", "native_launch_descriptor_path")
 load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_contains", "expect_equal")
+load("//core:failure_test.bzl", "failure_test")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//erlang/private:defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor")
 load("//erlang/private:kwargs.bzl", "erlang_app_forward_kwargs", "erlang_bytecode_kwargs", "erlang_erlc_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path")
@@ -159,20 +160,9 @@ def erlang_beam_info_test(name, target, app_name, owned, plts = [], **kwargs):
     """Asserts an app rule exports its compiled beams (or ebin directories) and PLTs in BeamInfo."""
     _beam_info_test(name = name, size = "small", target_under_test = target, app_name = app_name, owned = owned, plts = plts, **kwargs)
 
-def _nif_refusal_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, ctx.attr.message)
-    return analysistest.end(env)
-
-_nif_refusal_test = analysistest.make(
-    _nif_refusal_impl,
-    expect_failure = True,
-    attrs = {"message": attr.string(mandatory = True)},
-)
-
 def erlang_escript_nif_refusal_test(name, target, message, **kwargs):
     """Asserts an erlang_escript_archive that bundles a NIF app fails analysis with `message`."""
-    _nif_refusal_test(name = name, size = "small", target_under_test = target, message = message, **kwargs)
+    failure_test(name = name, target = target, expected_failure_substring = message, **kwargs)
 
 def _release_layout_impl(ctx):
     env = analysistest.begin(ctx)
@@ -192,13 +182,6 @@ def erlang_release_layout_test(name, target, paths, **kwargs):
     """Asserts an erlang_release copies files to the given paths below its tree."""
     _release_layout_test(name = name, size = "small", target_under_test = target, paths = paths, **kwargs)
 
-def _plt_needs_input_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "set apps or beams")
-    return analysistest.end(env)
-
-_plt_needs_input_test = analysistest.make(_plt_needs_input_impl, expect_failure = True)
-
 def dialyzer_plt_needs_input_test(name, target, size):
     """Asserts a dialyzer_plt with neither apps nor beams fails analysis."""
-    _plt_needs_input_test(name = name, size = size, target_under_test = target)
+    failure_test(name = name, size = size, target = target, expected_failure_substring = "set apps or beams")

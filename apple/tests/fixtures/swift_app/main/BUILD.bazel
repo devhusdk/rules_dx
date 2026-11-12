@@ -1,5 +1,5 @@
 # gazelle:ignore
-load("//apple:defs.bzl", "APPLE_HOSTS")
+load("//apple/private/ios:cell.bzl", "APPLE_HOSTS")
 load("//swift:defs.bzl", "swift_library")
 
 swift_library(

@@ -2,7 +2,7 @@ load("//core:platform_support.bzl", "cells_support", "compatible_with")
 load("//core:wrapper.bzl", "dx_language_kwargs", "dx_upstream_tags")
 load("//ocaml/private/toolchain:pins.bzl", "OCAML_CELLS")
 
-PLATFORM_SUPPORT = cells_support("//ocaml:defs.bzl", "OCAML_COMPATIBLE_WITH", OCAML_CELLS, sorted(OCAML_CELLS.keys()), "//ocaml/private/toolchain", unsupported = False)
+PLATFORM_SUPPORT = cells_support("//ocaml/private:defs.bzl", "OCAML_COMPATIBLE_WITH", OCAML_CELLS, sorted(OCAML_CELLS.keys()), "//ocaml/private/toolchain", unsupported = False)
 
 OCAML_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 

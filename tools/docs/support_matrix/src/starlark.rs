@@ -583,7 +583,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("android_check", Constraint::AsWritten),
     (
         "apple_ios_app_test",
-        Constraint::DefaultIfUnset("//apple:defs.bzl", "APPLE_HOSTS"),
+        Constraint::DefaultIfUnset("//apple/private/ios:cell.bzl", "APPLE_HOSTS"),
     ),
     ("cc_test", Constraint::AsWritten),
     ("codegen_shard_argv_test", Constraint::AsWritten),
@@ -591,11 +591,11 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("csharp_test", Constraint::AsWritten),
     (
         "cuda_test",
-        Constraint::Appended("//cuda:defs.bzl", "CUDA_TARGET"),
+        Constraint::Appended("//cuda/private:defs.bzl", "CUDA_TARGET"),
     ),
     (
         "d_test",
-        Constraint::Appended("//d:defs.bzl", "D_COMPATIBLE_WITH"),
+        Constraint::Appended("//d/private:defs.bzl", "D_COMPATIBLE_WITH"),
     ),
     ("dx_hello_output_test", Constraint::AsWritten),
     ("dx_wasi_test_tests", Constraint::AsWritten),
@@ -613,7 +613,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ),
     (
         "fortran_test",
-        Constraint::DefaultIfUnset("//fortran:defs.bzl", "FORTRAN_COMPATIBLE_WITH"),
+        Constraint::DefaultIfUnset("//fortran/private:defs.bzl", "FORTRAN_COMPATIBLE_WITH"),
     ),
     ("failure_test", Constraint::AsWritten),
     (
@@ -624,7 +624,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("go_test", Constraint::AsWritten),
     (
         "haskell_test",
-        Constraint::Appended("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH"),
+        Constraint::Appended("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH"),
     ),
     (
         "hermetic_qualification",
@@ -643,7 +643,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("lua_test", Constraint::AsWritten),
     (
         "ocaml_test",
-        Constraint::DefaultIfUnset("//ocaml:defs.bzl", "OCAML_COMPATIBLE_WITH"),
+        Constraint::DefaultIfUnset("//ocaml/private:defs.bzl", "OCAML_COMPATIBLE_WITH"),
     ),
     (
         "perl_test",
@@ -904,7 +904,7 @@ mod tests {
                     ],
                 ]);
             }
-            if label == "//d:defs.bzl" && symbol == "D_COMPATIBLE_WITH" {
+            if label == "//d/private:defs.bzl" && symbol == "D_COMPATIBLE_WITH" {
                 let cell = |os: &str, cpu: &str, extra: &[&str]| {
                     let mut cell = vec![
                         format!("@platforms//os:{os}"),
@@ -921,7 +921,7 @@ mod tests {
                     cell("windows", "aarch64", &[MSVC]),
                 ]);
             }
-            (label == "//d:defs.bzl" && symbol == "D").then(|| {
+            (label == "//d/private:defs.bzl" && symbol == "D").then(|| {
                 vec![
                     vec!["@platforms//os:linux".to_owned()],
                     vec![
@@ -937,7 +937,7 @@ mod tests {
         let linux_x86_64 = "[\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"]\n".to_owned();
         Files(BTreeMap::from([
             (
-                "//fortran:defs.bzl".to_owned(),
+                "//fortran/private:defs.bzl".to_owned(),
                 format!("FORTRAN_COMPATIBLE_WITH = {linux_x86_64}"),
             ),
             (
@@ -1135,7 +1135,7 @@ mod tests {
     #[test]
     fn reads_a_computed_constant() {
         let found = facts(
-            "load(\"//d:defs.bzl\", \"D\")\n\nrust_test(name = \"t\", target_compatible_with = D)\n",
+            "load(\"//d/private:defs.bzl\", \"D\")\n\nrust_test(name = \"t\", target_compatible_with = D)\n",
             "t",
         )
         .expect("facts");

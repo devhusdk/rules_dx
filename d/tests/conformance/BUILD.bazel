@@ -1,5 +1,6 @@
 # gazelle:ignore
-load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_binary", "d_library", "d_test")
+load("//d:defs.bzl", "d_binary", "d_library", "d_test")
+load("//d/private:defs.bzl", "D_COMPATIBLE_WITH")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
 package(

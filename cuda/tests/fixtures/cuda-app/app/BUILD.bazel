@@ -1,5 +1,4 @@
 load("@rules_dx//cc:defs.bzl", "cc_binary")
-load("@rules_dx//cuda:defs.bzl", "CUDA_TARGET")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
@@ -16,7 +15,6 @@ exports_files([
 cc_binary(
     name = "cuda_app",
     srcs = ["main.cc"],
-    target_compatible_with = CUDA_TARGET,
     deps = ["//cuda/tests/fixtures/cuda-app/kernels"],
 )
 
@@ -26,7 +24,6 @@ sh_test(
     srcs = ["output_test.sh"],
     args = ["$(rootpath :cuda_app)"],
     data = [":cuda_app"],
-    target_compatible_with = CUDA_TARGET,
 )
 
 filegroup(

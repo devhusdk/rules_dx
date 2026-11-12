@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
-load("@rules_dx//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
+load("@rules_dx//haskell:defs.bzl", "haskell_binary", "haskell_library", "haskell_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = [
@@ -42,7 +42,6 @@ haskell_library(
         ":limit_144": ["-DSTOCK_LIMIT=144"],
         "//conditions:default": [],
     }),
-    target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         "//haskell/tests/fixtures/haskell-app/stock",
         "@dx_haskell_toolchains//:base",
@@ -52,7 +51,6 @@ haskell_library(
 haskell_binary(
     name = "stockctl",
     srcs = ["src/Main.hs"],
-    target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":cli",
         "@dx_haskell_toolchains//:base",
@@ -66,7 +64,6 @@ haskell_test(
         ":limit_144": ["144"],
         "//conditions:default": ["60"],
     }),
-    target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":cli",
         "@dx_haskell_toolchains//:base",
@@ -77,7 +74,6 @@ haskell_library(
     name = "report_without_split",
     srcs = ["src/ReportWithoutSplit.hs"],
     tags = ["manual"],
-    target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = ["@dx_haskell_toolchains//:base"],
 )
 

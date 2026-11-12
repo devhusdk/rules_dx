@@ -12,4 +12,4 @@ CUDA_CELL_SETTINGS = {
     for cell in CUDA_CELLS
 }
 
-PLATFORM_SUPPORT = cells_support("//cuda:defs.bzl", "CUDA_TARGET", CUDA_CELLS, cuda_qualified_cells(), "//cuda/private/toolchain", unsupported = False, settings = CUDA_CELL_SETTINGS)
+PLATFORM_SUPPORT = cells_support("//cuda/private:defs.bzl", "CUDA_TARGET", CUDA_CELLS, cuda_qualified_cells(), "//cuda/private/toolchain", unsupported = False, settings = CUDA_CELL_SETTINGS)

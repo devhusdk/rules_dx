@@ -1,7 +1,8 @@
 # gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//rust:defs.bzl", "rust_binary", "rust_static_library")
-load("//apple:defs.bzl", "APPLE_HOSTS", "apple_ios_xcframework")
+load("//apple:defs.bzl", "apple_ios_xcframework")
+load("//apple/private/ios:cell.bzl", "APPLE_HOSTS")
 
 _MACOS_ARM64 = [
     "@platforms//os:macos",

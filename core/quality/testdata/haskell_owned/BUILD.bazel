@@ -1,4 +1,5 @@
-load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library")
+load("//haskell:defs.bzl", "haskell_library")
+load("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH")
 load("//core/quality:policy.bzl", "quality_family")
 
 package(default_visibility = [

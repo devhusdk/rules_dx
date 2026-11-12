@@ -1,5 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library")
+load("//haskell:defs.bzl", "haskell_library")
+load("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH")
 load("//tools/docs/haskell:defs.bzl", "haskell_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 

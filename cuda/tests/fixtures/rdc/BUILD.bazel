@@ -1,5 +1,6 @@
 load("//cc:defs.bzl", "cc_binary")
-load("//cuda:defs.bzl", "CUDA_TARGET", "cuda_library", "cuda_objects")
+load("//cuda:defs.bzl", "cuda_library", "cuda_objects")
+load("//cuda/private:defs.bzl", "CUDA_TARGET")
 
 package(default_visibility = ["//cuda/tests:__subpackages__"])
 

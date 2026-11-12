@@ -1,5 +1,6 @@
 load("//core/quality:policy.bzl", "quality_family")
-load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_library")
+load("//d:defs.bzl", "d_library")
+load("//d/private:defs.bzl", "D_COMPATIBLE_WITH")
 
 package(default_visibility = [
     "//core/quality:__pkg__",

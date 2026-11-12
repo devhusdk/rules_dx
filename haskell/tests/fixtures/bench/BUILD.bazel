@@ -1,7 +1,8 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
-load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_bench", "haskell_deps_resolve", "haskell_deps_resolve_test")
+load("//haskell:defs.bzl", "haskell_bench", "haskell_deps_resolve", "haskell_deps_resolve_test")
+load("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH")
 
 package(default_visibility = ["//visibility:private"])
 

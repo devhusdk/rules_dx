@@ -1,6 +1,7 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
+load("//haskell:defs.bzl", "haskell_binary", "haskell_library", "haskell_test")
+load("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH")
 
 # keep
 cc_library(

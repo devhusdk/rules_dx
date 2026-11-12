@@ -1,0 +1,12 @@
+diff --git a/d/private/rules/cc_toolchain.bzl b/d/private/rules/cc_toolchain.bzl
+--- a/d/private/rules/cc_toolchain.bzl
++++ b/d/private/rules/cc_toolchain.bzl
+@@ -59,7 +59,7 @@
+     feature_configuration = cc_common.configure_features(
+         ctx = ctx,
+         cc_toolchain = cc_toolchain,
+-        unsupported_features = _UNSUPPORTED_FEATURES,
++        unsupported_features = ctx.disabled_features + _UNSUPPORTED_FEATURES,
+     )
+     linker_variables = cc_common.create_link_variables(
+         feature_configuration = feature_configuration,

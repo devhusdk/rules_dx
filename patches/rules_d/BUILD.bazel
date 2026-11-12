@@ -1,6 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "disabled_features.patch",
     "pic_link.patch",
 ])
 

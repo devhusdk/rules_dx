@@ -9,7 +9,7 @@ def _coverage_env_impl(ctx):
     run_env = target[RunEnvironmentInfo].environment if RunEnvironmentInfo in target else {}
     if ctx.attr.coverage:
         upstream = run_env.get("DX_D_COVERAGE_UPSTREAM", "")
-        asserts.true(env, upstream.endswith("/" + ctx.attr.upstream), "upstream is " + upstream)
+        asserts.true(env, upstream.removesuffix(".exe").endswith("/" + ctx.attr.upstream), "upstream is " + upstream)
         asserts.true(env, InstrumentedFilesInfo in target, "no InstrumentedFilesInfo")
     else:
         asserts.false(env, "DX_D_COVERAGE_UPSTREAM" in run_env, "launcher env set without coverage")

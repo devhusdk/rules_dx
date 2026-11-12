@@ -103,6 +103,10 @@ Swift targets link with the Windows C/C++ toolchain, so `dx_msvc` with its
 license accepted must be configured. Binaries link the Swift runtime
 dynamically; `swift_test` puts the runtime DLLs on `PATH`.
 
+Swift Testing (`import Testing`) is not wired on Windows: the module search
+path and `Testing.dll` are not provided, so a `swift_test` that imports
+`Testing` must be incompatible with `@platforms//os:windows`. XCTest works.
+
 ## Windows arm64
 
 A Windows arm64 host uses the Swift 6.4.2 `windows10-arm64` installer, pinned by

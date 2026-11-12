@@ -108,7 +108,6 @@ deploy/private/release/src/spdx.rs digest-outside-pins 3
 deploy/private/src/maven.rs digest-outside-pins 1
 deploy/private/src/maven.rs duplicate-pin 1
 haskell/private/toolchain/pins.bzl digest-outside-pins 4
-lua/private/toolchain/pins.bzl digest-outside-pins 3
 qt/private/sdk/linux_arm64.bzl digest-outside-pins 56
 qt/private/sdk/linux_arm64.bzl duplicate-pin 3
 qt/private/sdk/linux_x86_64.bzl digest-outside-pins 59

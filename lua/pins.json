@@ -1,5 +1,13 @@
 {
   "archives": {
+    "dx_ldoc": {
+      "sha256": "4469cd74c8c7f51d3b9ce802d2239ba2b09d3d3a11273c3a5abdf273a0a53531",
+      "strip_prefix": "ldoc-1.5.0",
+      "urls": [
+        "https://github.com/lunarmodules/LDoc/archive/refs/tags/v1.5.0.tar.gz"
+      ],
+      "version": "1.5.0"
+    },
     "dx_luacov": {
       "sha256": "791a4a93a21b7288b1555cda8b7ad1ee0540ea606bd5dcc1028e76eeaec0e3d3",
       "strip_prefix": "luacov-0.17.0",
@@ -15,6 +23,22 @@
         "https://github.com/daurnimator/luacov-reporter-lcov/archive/refs/tags/v0.2.tar.gz"
       ],
       "version": "0.2"
+    },
+    "dx_luafilesystem": {
+      "sha256": "1142c1876e999b3e28d1c236bf21ffd9b023018e336ac25120fb5373aade1450",
+      "strip_prefix": "luafilesystem-1_9_0",
+      "urls": [
+        "https://github.com/lunarmodules/luafilesystem/archive/refs/tags/v1_9_0.tar.gz"
+      ],
+      "version": "1_9_0"
+    },
+    "dx_penlight": {
+      "sha256": "b7a2c3e65799a649d29e9927a337f99cca2a5fc46367a0ce101435be74e53b39",
+      "strip_prefix": "Penlight-1.15.0",
+      "urls": [
+        "https://github.com/lunarmodules/Penlight/archive/refs/tags/1.15.0.tar.gz"
+      ],
+      "version": "1.15.0"
     }
   },
   "cells": {

@@ -10,6 +10,11 @@ package(default_visibility = [
 
 exports_files([
     "defs.bzl",
+    "ldoc.BUILD.bazel",
+    "luacov.BUILD.bazel",
+    "luacov_reporter_lcov.BUILD.bazel",
+    "luafilesystem.BUILD.bazel",
+    "penlight.BUILD.bazel",
     "lua.bzl",
     "luals.BUILD.bazel",
     "providers.bzl",
@@ -31,6 +36,11 @@ real_source_target(
         "lua.bzl",
         "providers.bzl",
         "luals.BUILD.bazel",
+        "ldoc.BUILD.bazel",
+        "luacov.BUILD.bazel",
+        "luacov_reporter_lcov.BUILD.bazel",
+        "luafilesystem.BUILD.bazel",
+        "penlight.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

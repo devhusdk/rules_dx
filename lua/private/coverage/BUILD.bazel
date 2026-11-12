@@ -7,10 +7,6 @@ load("//lua:defs.bzl", "lua_library")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files([
-    "pins.bzl",
-])
-
 config_setting(
     name = "coverage_on",
     values = {"collect_code_coverage": "true"},
@@ -60,7 +56,6 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
-        "pins.bzl",
     ],
     tags = ["corpus"],
 )

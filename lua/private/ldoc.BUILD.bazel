@@ -1,0 +1,8 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["ldoc.lua"])
+
+filegroup(
+    name = "sources",
+    srcs = glob(["ldoc.lua", "ldoc/**/*.lua"]),
+)

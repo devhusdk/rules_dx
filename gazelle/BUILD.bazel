@@ -1,4 +1,13 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+
 exports_files(
     ["languages.bzl"],
     visibility = ["//gazelle:__subpackages__"],
+)
+
+write_file(
+    name = "subpackages",
+    out = "subpackages.txt",
+    content = subpackages(include = ["**"]),
+    visibility = ["//tools/ci:__pkg__"],
 )

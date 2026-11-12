@@ -1324,6 +1324,28 @@ rust_test(
 )
 
 rust_test(
+    name = "root_bazelrc_allowlist_test",
+    size = "small",
+    srcs = ["root_bazelrc_allowlist_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "root_bazelrc_allowlist_test",
+    crate_root = "root_bazelrc_allowlist_test.rs",
+    data = [
+        "root_bazelrc_allowlist.txt",
+        "//:.bazelrc",
+    ],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + ["//tools/testing:dx_testing"],
+)
+
+rust_test(
     name = "pin_locations_test",
     size = "small",
     srcs = [

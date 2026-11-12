@@ -1377,6 +1377,22 @@ mod tests {
         );
         let hubs = crate::plan_lock_hubs(root).expect("lock hubs");
         assert!(hubs.edit.is_none(), "generate would wire lock labels");
+        for (path, bytes) in &planned {
+            let target = root.join(path);
+            std::fs::create_dir_all(target.parent().expect("parent")).expect("mkdir");
+            std::fs::write(target, bytes).expect("write generated file");
+        }
+        let gazelle = dx_testing::resolve_runfiles(&std::env::var("DX_GAZELLE").expect("gazelle"));
+        let repo_root = format!("-repo_root={}", root.display());
+        let dir = root.to_string_lossy().into_owned();
+        let run = dx_testing::run(&gazelle, &[repo_root.as_str(), dir.as_str()], &[])
+            .expect("gazelle runs");
+        assert!(run.status.success(), "{}", run.combined());
+        assert_eq!(
+            std::fs::read_to_string(root.join("BUILD.bazel")).expect("build"),
+            template,
+            "gazelle rewrote the root BUILD.bazel"
+        );
         scratch.close().expect("cleanup");
     }
 

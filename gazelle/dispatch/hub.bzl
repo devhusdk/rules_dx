@@ -5,6 +5,7 @@ load("//cli/prebuilt:hub.bzl", "KNOWN_CPU", "KNOWN_OS")
 DISPATCH = Label("//gazelle/dispatch")
 
 _VISIBILITY = """    visibility = [
+        "@rules_dx//cli/adopt:__pkg__",
         "@rules_dx//dx:__pkg__",
         "@rules_dx//gazelle:__subpackages__",
         "@rules_dx//tools/testing/consumer:__pkg__",

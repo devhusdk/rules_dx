@@ -2087,6 +2087,7 @@ rust.toolchain(
         "wasm32-wasip1",
         "x86_64-apple-ios",
         "x86_64-linux-android",
+        "x86_64-pc-windows-msvc",
     ],
     rustfmt_version = "1.99.1",
     versions = ["1.99.1"],

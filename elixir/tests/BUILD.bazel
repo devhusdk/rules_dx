@@ -1,6 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":toolchain_tests.bzl", "elixir_metadata_tests")
 load(":defs_tests.bzl", "elixir_wrapper_contract_tests")
+load(":toolchain_tests.bzl", "elixir_metadata_tests")
 
 package(default_visibility = ["//visibility:private"])
 

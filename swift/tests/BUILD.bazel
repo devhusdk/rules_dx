@@ -67,7 +67,10 @@ swift_toolchain_hub_test(
     size = "small",
 )
 
-swift_windows_extract_test(name = "windows_extract_test", size = "small")
+swift_windows_extract_test(
+    name = "windows_extract_test",
+    size = "small",
+)
 
 powershell_test(
     name = "toolchain_dlls_test_x86_64",

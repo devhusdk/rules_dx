@@ -1,7 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//erlang/private:dialyzer.bzl", "dialyzer_plt")
-load(":toolchain_tests.bzl", "erlang_cell_tests", "erlang_metadata_tests")
 load(":defs_tests.bzl", "dialyzer_plt_needs_input_test", "erlang_wrapper_contract_tests")
+load(":toolchain_tests.bzl", "erlang_cell_tests", "erlang_metadata_tests")
 
 package(default_visibility = ["//visibility:private"])
 

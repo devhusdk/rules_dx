@@ -54,9 +54,9 @@ rust_test(
     crate_name = "resolve_test",
     crate_root = "resolve_test.rs",
     data = [
-        "testdata/golden.lock.json",
         "testdata/Clone-PP-1.09.tar.gz",
         "testdata/Text-CSV-2.06.tar.gz",
+        "testdata/golden.lock.json",
     ],
     env = {
         "GOLDEN": "$(rootpath testdata/golden.lock.json)",

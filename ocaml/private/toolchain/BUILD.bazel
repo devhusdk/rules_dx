@@ -13,7 +13,6 @@ exports_files([
     "repos.bzl",
 ])
 
-
 cell_settings(
     name = "cell",
     cells = OCAML_CELLS,

@@ -14,8 +14,8 @@ julia_wrapper_contract_tests(name = "wrapper_contract_tests")
 
 julia_pkg_resolve_test(
     name = "coverage_resolve_test",
-    resolver = "//julia/private/coverage:resolve",
     size = "small",
+    resolver = "//julia/private/coverage:resolve",
     target_compatible_with = JULIA_COMPATIBLE_WITH,
 )
 

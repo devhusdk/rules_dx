@@ -5,6 +5,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 scala_test(
     name = "pure_test",
+    size = "small",
     srcs = ["PureTest.scala"],
     deps = [":solo"],
 )

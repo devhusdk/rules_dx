@@ -2,8 +2,8 @@ load("//ansible:defs.bzl", "ansible_library")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
-load(":layout_tests.bzl", "layout_unit_tests")
 load(":defs_tests.bzl", "mixed_split_test", "plain_yaml_test")
+load(":layout_tests.bzl", "layout_unit_tests")
 load(":lock_tests.bzl", "lock_unit_tests")
 
 ansible_library(

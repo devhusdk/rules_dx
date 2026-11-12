@@ -9,7 +9,6 @@ exports_files([
     "repos.bzl",
 ])
 
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

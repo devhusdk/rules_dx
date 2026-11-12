@@ -328,22 +328,25 @@ dx_wrapper_contract_tests(
         expect_equal(
             "the SDK root is the sysroot directory artifact",
             sdk_root([fake_file(
-                path = "external/llvm++osx+macos_sdk/sysroot",
                 basename = "sysroot",
+                path = "external/llvm++osx+macos_sdk/sysroot",
             )]),
             "external/llvm++osx+macos_sdk/sysroot",
         ),
         expect_equal(
             "the SDK root is the sysroot component of a file under it",
             sdk_root([fake_file(
-                path = "x/sysroot/usr/include/a.h",
                 basename = "a.h",
+                path = "x/sysroot/usr/include/a.h",
             )]),
             "x/sysroot",
         ),
         expect_equal(
             "an Xcode link env names the SDK",
-            xcode_env({"APPLE_SDK_PLATFORM": "MacOSX", "XCODE_VERSION_OVERRIDE": "16.4"}),
+            xcode_env({
+                "APPLE_SDK_PLATFORM": "MacOSX",
+                "XCODE_VERSION_OVERRIDE": "16.4",
+            }),
             True,
         ),
         expect_equal(

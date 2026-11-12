@@ -8,7 +8,7 @@ package(default_visibility = VIS_PUBLIC)
 exports_files([
     "Cargo.toml",
     "src/lib.rs",
-        "src/main.rs",
+    "src/main.rs",
 ])
 
 rust_library(

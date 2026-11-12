@@ -9,6 +9,7 @@ package(
 
 kotlin_test(
     name = "hello_jupiter_test",
+    size = "small",
     srcs = ["HelloJupiterTest.kt"],
     args = [
         "execute",

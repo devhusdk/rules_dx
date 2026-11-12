@@ -681,8 +681,6 @@ fn pins_list_every_pins_json_under_the_language_dir() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
-const PLATFORM_DRIFT: [&str; 1] = ["msix"];
-
 const PLATFORMS: [&str; 5] =
     ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"];
 
@@ -734,10 +732,7 @@ fn lang_json_platforms_equal_the_support_matrix() {
             .iter()
             .map(|p| p.as_str().expect("platform").to_owned())
             .collect();
-        let known = PLATFORM_DRIFT.contains(&manifest["name"].as_str().expect("name"));
-        if known && want == have {
-            drift.push(format!("{}: no longer drifts; remove it from PLATFORM_DRIFT", dir.display()));
-        } else if !known && want != have {
+        if want != have {
             drift.push(format!("{}: lang.json {have:?}, support matrix {want:?}", dir.display()));
         }
     }

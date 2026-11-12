@@ -2141,7 +2141,12 @@ LANGS = json.decode("""{
       ]
     },
     "title": "MSIX",
-    "tools": []
+    "tools": [],
+    "unsupported": {
+      "linux_arm64": "MakeAppx and SignTool from the Windows SDK run only on Windows",
+      "linux_x86_64": "MakeAppx and SignTool from the Windows SDK run only on Windows",
+      "macos_arm64": "MakeAppx and SignTool from the Windows SDK run only on Windows"
+    }
   },
   "ocaml": {
     "depcheck": "ocaml",

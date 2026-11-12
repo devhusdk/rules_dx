@@ -165,7 +165,10 @@ fn every_aggregate_job_needs_every_other_job() {
             if other == id
                 || (workflow == CI_WORKFLOW && other == "scheduled-report")
                 || (workflow == CONSUMER_WORKFLOW
-                    && (other == "advisory-bump" || other == "bench" || other == "fuzz"))
+                    && (other == "advisory-bump"
+                        || other == "bench"
+                        || other == "deploy-dry-run"
+                        || other == "fuzz"))
             {
                 continue;
             }

@@ -48,6 +48,11 @@ on:
         required: false
         default: false
         type: boolean
+      deploy_dry_run:
+        description: "Run dx deploy, the dry run, on every dx_deployment tagged release on Linux x86_64. Pull requests with affected_on_pr dry-run only the deployments the change reaches."
+        required: false
+        default: false
+        type: boolean
       bench_max_regression:
         description: "Percent a benchmark may be slower than the base branch on a pull request before the bench job fails, a whole number from 0 to 100."
         required: false
@@ -702,6 +707,56 @@ jobs:
           path: .dx/local/fuzz/**/crash-*
           if-no-files-found: ignore
           retention-days: 30
+  deploy-dry-run:
+    name: deploy dry run
+    needs: [validate]
+    if: ${{ inputs.deploy_dry_run }}
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+      - name: Dry run the release deployments
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AFFECTED: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr }}
+        run: |
+          set -euo pipefail
+          universe='//...'
+          if [ "$AFFECTED" = "true" ] && git rev-parse --verify -q 'HEAD^2' >/dev/null; then
+            labels=()
+            while IFS= read -r -d '' file; do
+              [ -e "$file" ] || continue
+              dir=$(dirname "$file")
+              while [ "$dir" != . ] && [ ! -e "$dir/BUILD.bazel" ] && [ ! -e "$dir/BUILD" ]; do dir=$(dirname "$dir"); done
+              [ -e "$dir/BUILD.bazel" ] || [ -e "$dir/BUILD" ] || continue
+              [ "$dir" = . ] && rel="$file" || rel="${file#"$dir"/}"
+              labels+=("//${dir#.}:$rel")
+            done < <(git diff -z --name-only HEAD^1 HEAD)
+            if [ ${#labels[@]} -eq 0 ]; then
+              echo "deploy dry run: no affected targets"
+              exit 0
+            fi
+            universe="rdeps(//..., set(${labels[*]}))"
+          fi
+          bazel query --lockfile_mode=error --output=label "attr(tags, \"[\\\\[ ]release[,\\\\]]\", kind(dx_deployment, $universe))" > "$RUNNER_TEMP/deployables.txt"
+          if [ ! -s "$RUNNER_TEMP/deployables.txt" ]; then
+            echo "deploy dry run: no release deployment to check"
+            exit 0
+          fi
+          while IFS= read -r label; do
+            echo "::group::dx deploy $label (dry run)"
+            tools/dx deploy "$label"
+            echo "::endgroup::"
+          done < "$RUNNER_TEMP/deployables.txt"
   bench:
     name: bench
     needs: [validate]

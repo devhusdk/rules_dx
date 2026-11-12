@@ -82,26 +82,6 @@ apple_macos_notarize(name, app, visibility = None)
 
 Declares an explicit launcher that notarizes and staples one signed macOS app.
 
-### `apple_provisioning`
-
-```python
-apple_provisioning(name, route = "", accept_licenses = [], allow_download = False, api_token = "", credential_file = "", deployment = "", endpoint = "", host = "", macos_version = "", sdk = "", xcode_version = "", **kwargs)
-```
-
-Validates one Apple toolchain provisioning selection; nothing builds.
-
-### `apple_toolchain_probe`
-
-Records the executor's real Xcode, SDK, compiler, and macOS identities, failing on any mismatch.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `provisioning` | `label` | yes | The apple_provisioning selection to qualify. |
-| `_ios` | `label` | no |  |
-| `_macos` | `label` | no |  |
-| `_probe` | `label` | no |  |
-| `_simulator` | `label` | no |  |
-
 ### `apple_simulator_boot`
 
 ```python

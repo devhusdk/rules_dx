@@ -154,8 +154,6 @@ LANGS = json.decode("""{
       "apple_macos_app",
       "apple_macos_sign",
       "apple_macos_notarize",
-      "apple_provisioning",
-      "apple_toolchain_probe",
       "apple_simulator_boot",
       "apple_simulator_install",
       "apple_simulator_launch"

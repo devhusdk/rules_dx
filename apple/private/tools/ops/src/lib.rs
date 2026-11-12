@@ -24,7 +24,6 @@ pub mod codesign;
 pub mod export;
 pub mod library_check;
 pub mod notarize;
-pub mod probe;
 pub mod run_macos;
 pub mod signing;
 pub mod simctl;
@@ -103,16 +102,6 @@ pub fn run(args: &[String]) -> u8 {
                 run_macos::run(&tools, rest, &process_env),
             )
         }
-        "probe" => {
-            let tools = Tools {
-                developer_dir: process_env("DEVELOPER_DIR").map(PathBuf::from),
-                runner: &System,
-            };
-            report(
-                probe::PREFIX,
-                probe::run(&tools, &probe::executor(), rest, &process_env),
-            )
-        }
         "library-check" => {
             let tools = Tools {
                 developer_dir: process_env("DEVELOPER_DIR").map(PathBuf::from),
@@ -133,7 +122,7 @@ pub fn run(args: &[String]) -> u8 {
         _ => report(
             "dx-apple-ops",
             Err(util::usage(
-                "usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|probe|library-check|macos-app-check> ...",
+                "usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|library-check|macos-app-check> ...",
             )),
         ),
     }

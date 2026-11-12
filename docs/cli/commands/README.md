@@ -328,11 +328,9 @@ dx rule that wraps it.
 |  |  | `@rules_dx//apple:defs.bzl` | `apple_ios_lib` |
 |  |  | `@rules_dx//apple:defs.bzl` | `apple_macos_notarize` |
 |  |  | `@rules_dx//apple:defs.bzl` | `apple_macos_sign` |
-|  |  | `@rules_dx//apple:defs.bzl` | `apple_provisioning` |
 |  |  | `@rules_dx//apple:defs.bzl` | `apple_simulator_boot` |
 |  |  | `@rules_dx//apple:defs.bzl` | `apple_simulator_install` |
 |  |  | `@rules_dx//apple:defs.bzl` | `apple_simulator_launch` |
-|  |  | `@rules_dx//apple:defs.bzl` | `apple_toolchain_probe` |
 |  |  | `@rules_dx//asciidoc:defs.bzl` | `asciidoc_library` |
 |  |  | `@rules_dx//astro:defs.bzl` | `astro_build` |
 |  |  | `@rules_dx//astro:defs.bzl` | `astro_library` |

@@ -1,4 +1,3 @@
-load("@rules_dx//erlang/private:defs.bzl", "DEFAULT_TEST_ERLC_OPTS")
 load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_escript_archive", "erlang_eunit_test", "erlang_test_app", "erlc_opts")
 
 erlang_app(
@@ -17,7 +16,14 @@ erlang_test_app(
 
 erlc_opts(
     name = "test_erlc_opts",
-    values = DEFAULT_TEST_ERLC_OPTS,
+    values = [
+        "+deterministic",
+        "+debug_info",
+        "+warn_export_vars",
+        "+warn_shadow_vars",
+        "+warn_obsolete_guard",
+        "-DTEST=1",
+    ],
 )
 
 erlang_bytecode(

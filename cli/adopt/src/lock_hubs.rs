@@ -967,7 +967,8 @@ mod tests {
     fn a_wired_lock_tag_ecosystem_is_left_alone() {
         let dir = scratch("lock_hubs");
         let module = format!(
-            "{MODULE}hex = use_extension(\"@rules_dx//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//:mix.lock\")\nuse_repo(hex, \"deps\")\n"
+            "{MODULE}hex = use_extension(\"@rules_dx//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//:{}\")\nuse_repo(hex, \"deps\")\n",
+            lock_of("hex")
         );
         write(dir.path(), MODULE_FILE, &module);
         write(dir.path(), lock_of("hex"), "");

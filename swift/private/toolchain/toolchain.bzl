@@ -66,6 +66,7 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
             label: True
             for label in [
                 exec_repo + "//:swift_tool_inputs",
+                "@dx_swift_libs_linux_" + exec_cpu + "//:host_libs",
                 exec_sysroot + "//:files",
                 target_repo + "//:swift_tool_inputs",
                 target_sysroot + "//:files",
@@ -107,24 +108,23 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
         target_cpu: The cpu the Swift tools build for.
     """
     pair = exec_cpu + "_" + target_cpu
-    sysroot = "@dx_swift_sysroot_linux_" + target_cpu
-    sysroot_root = Label(sysroot + "//:files").workspace_root
+    libs = "@dx_swift_libs_linux_" + target_cpu
 
     cc_library(
         name = "linux_link_libs_" + pair,
         tags = ["manual"],
         target_compatible_with = _LINUX,
         additional_linker_inputs = [
-            sysroot + "//:link_libs/libcurl.so",
-            sysroot + "//:link_libs/libgcc_eh.a",
-            sysroot + "//:link_libs/libxml2.so",
+            libs + "//:link_libs/libcurl.so",
+            libs + "//:link_libs/libgcc_eh.a",
+            libs + "//:link_libs/libxml2.so",
         ],
         linkopts = [
-            "-L" + sysroot_root + "/link_libs",
+            "-L" + Label(libs + "//:host_libs").workspace_root + "/link_libs",
             "-lgcc_eh",
         ],
         srcs = [
-            sysroot + "//:link_libs/libstdc++.a",
+            libs + "//:link_libs/libstdc++.a",
         ],
     )
 

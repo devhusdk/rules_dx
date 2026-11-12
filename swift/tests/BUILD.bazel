@@ -59,13 +59,13 @@ powershell_test(
         srcs = ["toolchain_libs_test.sh"],
         args = [
             "$(rootpath @dx_swift_linux_%s//:usr/bin/llvm-objdump)" % cpu,
-            "$(rootpath @dx_swift_sysroot_linux_%s//:host_libs/libz.so.1)" % cpu,
+            "$(rootpath @dx_swift_libs_linux_%s//:host_libs/libz.so.1)" % cpu,
         ],
         data = [
             "@dx_swift_linux_%s//:files" % cpu,
             "@dx_swift_linux_%s//:usr/bin/llvm-objdump" % cpu,
-            "@dx_swift_sysroot_linux_%s//:files" % cpu,
-            "@dx_swift_sysroot_linux_%s//:host_libs/libz.so.1" % cpu,
+            "@dx_swift_libs_linux_%s//:host_libs" % cpu,
+            "@dx_swift_libs_linux_%s//:host_libs/libz.so.1" % cpu,
         ],
         target_compatible_with = [
             "@platforms//os:linux",

@@ -44,6 +44,7 @@ rust_test(
         "//patches/rules_py:pep517_msvc.patch",
         "//patches/rules_py:py_cc_toolchain_platform.patch",
         "//patches/rules_py:venv_bin_files.patch",
+        "//swift/tests:consumer_srcs",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",

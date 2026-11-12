@@ -75,6 +75,12 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `rules_oci` | 2.3.0 | `descriptor_util.patch` | The Windows `.bat` wrapper takes a name and calls a script outside its own directory by its execroot path. Consumer fix: #11758 |
 | `rules_flutter` | 0.0.8 | `lock_extension.patch` | Root only. The `flutter` extension is not reproducible, so the lockfile keeps its result |
 
+## rules_swift on Linux
+
+`assert_swift_consumer` in
+`deploy/private/release/tests/candidate_consumer_test.rs` builds and tests a
+Swift package on BCR `rules_swift` on Linux x86_64.
+
 ## elvis, rules_d, rules_dart, rules_dotnet, rules_elixir, rules_erlang, rules_flutter, rules_fortran, rules_haskell, rules_ocaml, rules_ruby
 
 No action. `rules_dx` applies these patches in its own repository rules: `pic_link.patch`, `disabled_features.patch` (rules_d); `hermetic_tar.patch` (rules_dart); `engine_labels.patch`, `hermetic_pub.patch` (rules_flutter); `reproducible.patch`, `fsharp_signature.patch`, `nuget_group_prefix.patch`, `sdk_versions.patch`, `canonical_labels.patch` (rules_dotnet); `coverage_wrapper_no_report.patch`, `hermetic_haskell.patch`, `cabal_rules.patch`, `cabal_mingw_transition.patch`, `cc_wrapper_relpath_mount.patch`, `ghc_wrapper_runfiles_env.patch`, `cc_toolchain_config_info.patch`, `cabal_llvm_ar.patch`, `cc_wrapper_darwin_ffi.patch` (rules_haskell); `reproducible.patch`, `coverage.patch`, `rubyinstaller_archive.patch` (rules_ruby).

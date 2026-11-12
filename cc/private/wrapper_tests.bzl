@@ -54,13 +54,16 @@ def cc_wrapper_contract_tests(name):
         ],
     )
 
+def _strip_exe(path):
+    return path[:-len(".exe")] if path.endswith(".exe") else path
+
 def _coverage_env_impl(ctx):
     env = analysistest.begin(ctx)
     run_env = analysistest.target_under_test(env)[RunEnvironmentInfo].environment
     if ctx.attr.coverage:
-        asserts.true(env, run_env.get("CC_CODE_COVERAGE_SCRIPT", "").endswith("/tools/coverage/collect/collect_native"), "CC_CODE_COVERAGE_SCRIPT=" + run_env.get("CC_CODE_COVERAGE_SCRIPT", ""))
-        asserts.true(env, run_env.get("LLVM_COV", "").endswith("llvm-cov"), "LLVM_COV=" + run_env.get("LLVM_COV", ""))
-        asserts.true(env, run_env.get("LLVM_PROFDATA", "").endswith("llvm-profdata"), "LLVM_PROFDATA=" + run_env.get("LLVM_PROFDATA", ""))
+        asserts.true(env, _strip_exe(run_env.get("CC_CODE_COVERAGE_SCRIPT", "")).endswith("/tools/coverage/collect/collect_native"), "CC_CODE_COVERAGE_SCRIPT=" + run_env.get("CC_CODE_COVERAGE_SCRIPT", ""))
+        asserts.true(env, _strip_exe(run_env.get("LLVM_COV", "")).endswith("llvm-cov"), "LLVM_COV=" + run_env.get("LLVM_COV", ""))
+        asserts.true(env, _strip_exe(run_env.get("LLVM_PROFDATA", "")).endswith("llvm-profdata"), "LLVM_PROFDATA=" + run_env.get("LLVM_PROFDATA", ""))
     else:
         for key in ["CC_CODE_COVERAGE_SCRIPT", "LLVM_COV", "LLVM_PROFDATA"]:
             asserts.false(env, key in run_env, key + " set without coverage")

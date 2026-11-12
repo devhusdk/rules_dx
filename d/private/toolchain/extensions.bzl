@@ -19,6 +19,7 @@ def _d_impl(mctx):
         files = {"BUILD.bazel": ROOT_BUILD},
         patches = [
             Label("//patches/rules_d:pic_link.patch"),
+            Label("//patches/rules_d:disabled_features.patch"),
         ],
         sha256 = RULES_D_SHA256,
         strip_prefix = "rules_d-" + RULES_D_VERSION,

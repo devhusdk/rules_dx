@@ -118,13 +118,16 @@ def named_source_class_error(class_id, basename):
     accepted = row["names"] + ["*" + s for s in row["suffixes"]]
     return "'" + basename + "' is not a " + class_id + " file name; accepted names: " + ", ".join(accepted)
 
-def named_source_library(class_id, doc, srcs_doc):
-    """Returns a `<class_id>_library` rule that owns name-matched sources of one class."""
+def named_source_library(class_id, doc, srcs_doc, name_error = None):
+    """Returns a `<class_id>_library` rule that owns name-matched sources of one class.
+
+    `name_error` maps a basename to an error string or \"\"; it defaults to the class matcher.
+    """
     name = class_id + "_library"
 
     def _impl(ctx):
         for f in ctx.files.srcs:
-            error = named_source_class_error(class_id, f.basename)
+            error = name_error(f.basename) if name_error else named_source_class_error(class_id, f.basename)
             if error != "":
                 fail(name + " " + str(ctx.label) + ": " + error)
         direct_sources = {}

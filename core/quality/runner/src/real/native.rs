@@ -1,6 +1,7 @@
 use quality_adapter::parsers::{self, FileFinding};
 
 use super::check::{CheckCall, ToolDef, in_file};
+use super::schema::without_verbatim;
 use super::*;
 
 fn paths<'a>(call: &'a CheckCall<'a>) -> (Vec<&'a Path>, Vec<String>) {
@@ -162,10 +163,12 @@ fn dart(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Run
     }
     // The analyzer prints canonical paths, so check and report the canonical ones.
     let root = std::fs::canonicalize(call.staged.scratch.root())
+        .map(without_verbatim)
         .map_err(|err| execution(tool_id, format!("canonicalize scratch root: {err}")))?;
     let mut files: Vec<(String, PathBuf)> = Vec::with_capacity(call.staged.pairs.len());
     for (workspace, absolute) in &call.staged.pairs {
         let file = std::fs::canonicalize(absolute)
+            .map(without_verbatim)
             .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
         files.push((workspace.clone(), file));
     }

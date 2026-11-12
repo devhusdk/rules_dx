@@ -428,7 +428,7 @@ fn import_path_copy(
 }
 
 /// Drops the `\\?\` prefix from a drive-letter path, which kj rejects; UNC paths stay as they are.
-fn without_verbatim(path: PathBuf) -> PathBuf {
+pub(super) fn without_verbatim(path: PathBuf) -> PathBuf {
     let text = path.to_string_lossy().into_owned();
     let Some(rest) = text.strip_prefix(r"\\?\") else {
         return path;

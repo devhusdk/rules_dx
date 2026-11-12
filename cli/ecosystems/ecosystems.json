@@ -101,7 +101,7 @@
     },
     {
       "name": "maven",
-      "alt_manifests": [],
+      "alt_manifests": ["MODULE.bazel"],
       "shared_manifest": true,
       "plan_backend": "maven",
       "check_backend": "maven",

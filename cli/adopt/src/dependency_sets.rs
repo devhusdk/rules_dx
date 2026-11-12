@@ -313,12 +313,16 @@ pub fn discover(
             }
             sets.push(hub_set(cargo.name, Ecosystem::Cargo, manifests, locks)?);
         }
+        let from_tomls = module.maven_from_tomls();
         for install in module.maven_installs().map_err(hub)? {
             let Some(lock) = install.lock_file else {
                 continue;
             };
             let lock = path(lock)?;
-            let manifest = beside(&lock, manifest_of("maven"));
+            let manifest = match from_tomls.iter().find(|(name, _)| *name == install.name) {
+                Some((_, toml)) => path(toml)?,
+                None => MODULE_BAZEL.to_owned(),
+            };
             sets.push(hub_set(
                 install.name,
                 Ecosystem::Maven,

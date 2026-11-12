@@ -87,10 +87,11 @@ fn cargo_hubs_become_sets_with_the_lock_dir_manifest_first() {
 #[test]
 fn maven_installs_with_a_lock_file_become_sets() {
     let module = format!(
-        "{MAVEN_EXT}maven.install(lock_file = \"//third_party:maven_install.json\")\nmaven.install(name = \"nolock\")\n"
+        "{MAVEN_EXT}maven.from_toml(libs_versions_toml = \"//third_party:libs.versions.toml\")\nmaven.install(lock_file = \"//third_party:maven_install.json\")\nmaven.install(name = \"tool\", artifacts = [\"a:b:1\"], lock_file = \"//tools:tool_install.json\")\nmaven.install(name = \"nolock\")\n"
     );
     let registry = found(&module, &[]);
-    assert_eq!(registry.names(), vec!["maven"]);
+    assert_eq!(registry.names(), vec!["maven", "tool"]);
+    assert_eq!(registry.find("tool").expect("tool").manifests, [MODULE_BAZEL]);
     let set = registry.find("maven").expect("maven");
     assert_eq!(set.ecosystem, Ecosystem::Maven);
     assert_eq!(set.manifests, ["third_party/libs.versions.toml"]);

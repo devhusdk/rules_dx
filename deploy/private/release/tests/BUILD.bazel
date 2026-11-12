@@ -40,6 +40,7 @@ rust_test(
         "//patches/ring:msvc_fiat_include_path.patch",
         "//patches/rules_py:external_repo_pytest_paths.patch",
         "//patches/rules_py:host_interpreter_windows_arm64.patch",
+        "//patches/rules_py:host_libc_glibc.patch",
         "//patches/rules_py:native_sdist_toolchain_flags.patch",
         "//patches/rules_py:pep517_msvc.patch",
         "//patches/rules_py:py_cc_toolchain_platform.patch",

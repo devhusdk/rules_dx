@@ -22,7 +22,6 @@ _CONSTRAINTS = {
     "linux_arm64": ["@platforms//os:linux", "@platforms//cpu:arm64"],
     "linux_x86_64": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
     "macos_arm64": ["@platforms//os:macos", "@platforms//cpu:arm64"],
-    "windows_x86_64": ["@platforms//os:windows", "@platforms//cpu:x86_64"],
 }
 
 FORTRAN_CELLS = {
@@ -31,7 +30,6 @@ FORTRAN_CELLS = {
         sha256 = pin["sha256"],
         strip_prefix = pin["strip_prefix"],
         urls = pin["urls"],
-        **({"exe": ".exe"} if cell.startswith("windows") else {})
     )
     for cell, pin in _PINS["cells"].items()
 }

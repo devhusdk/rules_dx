@@ -625,6 +625,14 @@ impl Drop for Suspended {
 
 /// Reports whether `pid` is a live process.
 pub fn alive(pid: u32) -> bool {
+    #[cfg(windows)]
+    return signal::alive(pid);
+    #[cfg(not(windows))]
+    alive_unix(pid)
+}
+
+#[cfg(not(windows))]
+fn alive_unix(pid: u32) -> bool {
     if !signal::alive(pid) {
         return false;
     }

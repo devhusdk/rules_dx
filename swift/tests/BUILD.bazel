@@ -1,6 +1,9 @@
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//powershell:defs.bzl", "powershell_test")
 load("//rust:defs.bzl", "rust_test")
+load("//swift/private:defs.bzl", "swift_kwargs")
 load("//swift/private/toolchain:tests.bzl", "swift_toolchain_hub_test", "swift_windows_extract_test")
 load(":host_swift_tests.bzl", "swift_host_descriptor_test")
 load(":hub_tests.bzl", "swift_hub_tests")
@@ -14,8 +17,36 @@ real_source_target(
         "host_swift_tests.bzl",
         "hub_tests.bzl",
         "transition_tests.bzl",
+        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
+)
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    extra_checks = [
+        expect_equal(
+            "swift guard is a select by default",
+            type(swift_kwargs({})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "swift guard stays with a user list",
+            type(swift_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "swift keeps user tags",
+            swift_kwargs({"tags": ["t"]})["tags"],
+            ["t"],
+        ),
+    ],
+    file_classes = ["swift"],
+    wrappers = {
+        "binary": "//swift/tests/fixtures/hello:hello",
+        "library": "//swift/tests/fixtures/hello:greet",
+        "test": "//swift/tests/fixtures/hello:xctest",
+    },
 )
 
 swift_hub_tests(

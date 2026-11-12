@@ -1,0 +1,81 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//java:defs.bzl", "java_test")
+load("//rust:defs.bzl", "rust_test")
+
+java_test(
+    name = "javac_check_test",
+    size = "small",
+    srcs = ["JavacCheckTest.java"],
+    main_class = "dx.quality.javac.JavacCheckTest",
+    use_testrunner = False,
+    deps = ["//java/private/quality/tools/javac_check:javac_check_lib"],
+)
+
+java_test(
+    name = "kotlinc_check_test",
+    size = "small",
+    srcs = ["KotlincCheckTest.java"],
+    args = ["$(rlocationpaths //java/private/quality/tools/kotlinc_check:compiler_jars)"],
+    data = ["//java/private/quality/tools/kotlinc_check:compiler_jars"],
+    main_class = "dx.quality.kotlinc.KotlincCheckTest",
+    use_testrunner = False,
+    deps = ["//java/private/quality/tools/kotlinc_check:kotlinc_check_lib"],
+)
+
+java_test(
+    name = "scalac_check_test",
+    size = "small",
+    srcs = ["ScalacCheckTest.java"],
+    args = ["$(rlocationpaths //java/private/quality/tools/scalac_check:compiler_jars)"],
+    data = ["//java/private/quality/tools/scalac_check:compiler_jars"],
+    main_class = "dx.quality.scalac.ScalacCheckTest",
+    use_testrunner = False,
+    deps = ["//java/private/quality/tools/scalac_check:scalac_check_lib"],
+)
+
+java_test(
+    name = "scala3_check_test",
+    size = "small",
+    srcs = ["Scala3CheckTest.java"],
+    args = ["$(rlocationpaths //java/private/quality/tools/scalac_check:scala3_compiler_jars)"],
+    data = ["//java/private/quality/tools/scalac_check:scala3_compiler_jars"],
+    main_class = "dx.quality.scalac.Scala3CheckTest",
+    use_testrunner = False,
+    deps = ["//java/private/quality/tools/scalac_check:scalac_check_lib"],
+)
+
+rust_test(
+    name = "pkl_lsp_smoke_test",
+    size = "small",
+    srcs = ["pkl_lsp_smoke_test.rs"],
+    crate_name = "pkl_lsp_smoke_test",
+    crate_root = "pkl_lsp_smoke_test.rs",
+    data = [
+        "clean.pkl",
+        "unused.pkl",
+        "//core/quality/lsp_check",
+        "//java/private/quality/tools:jdk25",
+        "@jvm_pkl_lsp//file",
+    ],
+    env = {
+        "LSP_CHECK": "$(rootpath //core/quality/lsp_check)",
+        "PKL_LSP_JAR": "$(rootpath @jvm_pkl_lsp//file)",
+        "PKL_LSP_JAVA": "$(JAVA_ROOTPATH)",
+    },
+    toolchains = ["//java/private/quality/tools:jdk25"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

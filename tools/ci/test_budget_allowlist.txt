@@ -284,7 +284,6 @@ deploy/tests/fixtures/pub_package/BUILD.bazel no-size 1
 deploy/tests/runfiles/BUILD.bazel no-size 1
 dockerfile/tests/BUILD.bazel no-size 1
 docs/BUILD.bazel no-size 1
-dotnet/private/coverage/BUILD.bazel no-size 1
 elixir/tests/BUILD.bazel no-size 1
 elixir/tests/fixtures/bench/BUILD.bazel no-size 2
 elixir/tests/fixtures/elixir_app/catalog/BUILD.bazel no-size 1
@@ -429,10 +428,6 @@ helm/tests/BUILD.bazel no-size 9
 java/private/BUILD.bazel no-size 1
 java/private/ide/BUILD.bazel no-size 1
 java/private/jmh_tests.bzl no-size 1
-java/private/quality/tools/BUILD.bazel no-size 1
-java/private/quality/tools/javac_check/BUILD.bazel no-size 1
-java/private/quality/tools/kotlinc_check/BUILD.bazel no-size 1
-java/private/quality/tools/scalac_check/BUILD.bazel no-size 2
 java/tests/fixtures/adopt-java/greet/BUILD.bazel no-size 1
 java/tests/fixtures/adopt-java/solo/BUILD.bazel no-size 1
 java/tests/fixtures/bench/BUILD.bazel no-size 8

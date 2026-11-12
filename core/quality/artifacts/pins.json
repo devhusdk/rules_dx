@@ -2671,7 +2671,7 @@
       "version": "0.9.0"
     },
     "pmd": {
-      "build_file": "//java/private/quality/tools:pmd_dist.BUILD",
+      "build_file": "//java/private:pmd_dist.BUILD.bazel",
       "kind": "archive",
       "licenses": [
         {
@@ -2689,7 +2689,7 @@
       "version": "7.29.0"
     },
     "spotbugs": {
-      "build_file": "//java/private/quality/tools:spotbugs_dist.BUILD",
+      "build_file": "//java/private:spotbugs_dist.BUILD.bazel",
       "kind": "archive",
       "licenses": [
         {

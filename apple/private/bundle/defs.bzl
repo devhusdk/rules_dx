@@ -1,6 +1,7 @@
 """Shared Apple bundle checks for iOS and macOS rules."""
 
 load("//apple/private/provisioning:defs.bzl", "version_matches")
+load("//core:platform.bzl", "prepend_toolchains")
 load("//core:resources.bzl", "dx_heavy_resources")
 
 NO_PATH = "/dx_no_path"
@@ -17,11 +18,7 @@ _APPLE_CC_TOOLCHAINS = str(Label("@local_config_apple_cc_toolchains//:all"))
 
 def apple_extra_toolchains(current):
     """Returns the Xcode C++ toolchains followed by the current extra toolchains."""
-    toolchains = [_APPLE_CC_TOOLCHAINS]
-    for toolchain in current:
-        if str(toolchain) not in toolchains:
-            toolchains.append(str(toolchain))
-    return toolchains
+    return prepend_toolchains([_APPLE_CC_TOOLCHAINS], current)
 
 def display(label):
     """Returns a label as users write it in their own repository."""

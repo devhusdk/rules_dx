@@ -195,7 +195,6 @@ perl cross_test *
 perl lock_test *
 perl runfiles_test *
 php coverage_test macos_arm64
-php coverage_test windows_x86_64
 php cross_test *
 php lock_test *
 php runfiles_test *
@@ -229,7 +228,6 @@ rst runfiles_test *
 ruby cross_test *
 ruby lock_test *
 ruby runfiles_test *
-rust coverage_test windows_x86_64
 rust cross_test macos_arm64
 scala cross_test *
 scala lock_test *

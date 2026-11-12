@@ -1,0 +1,11 @@
+diff -ruN a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+--- a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel	2026-11-12 06:33:33.830116784 +0100
++++ b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel	2026-11-12 06:33:33.837006008 +0100
+@@ -3204,6 +3204,7 @@
+             "@glibc//:gnu_libc_headers",
+         ],
+         "@platforms//os:macos": [],
++        ":windows_msvc": [],
+         "@platforms//os:windows": [
+             "@mingw//:mingw_headers",
+         ],

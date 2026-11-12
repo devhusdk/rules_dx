@@ -69,7 +69,7 @@ def _elixirc_impl(target, ctx):
         )]
 
     toolchain = ctx.toolchains[_TOOLCHAIN]
-    if toolchain == None:
+    if toolchain == None or ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
         return []
 
     # rules_elixir reads its toolchain from ctx.toolchains under its own label.
@@ -130,5 +130,6 @@ elixirc_aspect = aspect(
     implementation = _elixirc_impl,
     doc = "Replays the elixirc compilation of a target and records the compiler warnings.",
     attr_aspects = ["upstream", "beam", "beam_files_dir"],
+    attrs = {"_windows_constraint": attr.label(default = "@platforms//os:windows")},
     toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False), COREUTILS_TOOLCHAIN_TYPE],
 )

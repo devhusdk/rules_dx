@@ -6350,6 +6350,20 @@ fn notebook_outputs_settles_only_the_exact_strip() {
     .expect_err("any other rewrite is refused");
 }
 
+fn dialyzer_listed_beams(text: &[String]) -> Vec<String> {
+    assert!(!text.iter().any(|a| a == "--"), "{text:?}");
+    let flag = text
+        .iter()
+        .position(|a| a == "--input_list_file")
+        .expect("input list flag");
+    assert_eq!(flag + 2, text.len(), "{text:?}");
+    std::fs::read_to_string(&text[flag + 1])
+        .expect("input list written before the spawn")
+        .lines()
+        .map(str::to_owned)
+        .collect()
+}
+
 fn dialyzer_report(
     argv: &[OsString],
     _cwd: &Path,
@@ -6369,8 +6383,7 @@ fn dialyzer_report(
         "{text:?}"
     );
     assert_eq!(text[plts + 3], "--no_check_plt");
-    let sep = text.iter().position(|a| a == "--").expect("separator");
-    let beams = &text[sep + 1..];
+    let beams = dialyzer_listed_beams(&text);
     assert_eq!(beams.len(), 2, "{beams:?}");
     assert!(beams[0].contains("dx-dialyzer/owned/") && beams[0].ends_with("/a.beam"));
     assert!(beams[1].contains("dx-dialyzer/aux/") && beams[1].ends_with("/dep.beam"));
@@ -6418,6 +6431,44 @@ fn dialyzer_orders_plts_keeps_owned_findings_and_maps_basenames() {
     );
 }
 
+fn dialyzer_many_aux_report(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(dialyzer_listed_beams(&text).len(), 602);
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"  Proceeding with analysis... done in 0m0.1s\ndone (passed successfully)\n"
+            .to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn dialyzer_many_aux_beams_fit_one_windows_spawn() {
+    let mut tool = dialyzer_tool();
+    tool.tool_files.extend((0..600).map(|n| {
+        (
+            format!("dx-dialyzer/aux/{n}/{}{n:04}.beam", "m".repeat(55)),
+            b"d".to_vec(),
+        )
+    }));
+    let backend = backend_for("dialyzer", tool, dialyzer_many_aux_report);
+    let findings = backend
+        .diagnose(
+            "dialyzer",
+            "typecheck",
+            &single("lib/src/a.erl", DIALYZER_SRC),
+        )
+        .expect("one spawn analyses every aux beam");
+    assert!(findings.is_empty(), "{findings:?}");
+}
+
 #[test]
 fn dialyzer_shared_basenames_resolve_to_the_first_sorted_path() {
     let backend = backend_for("dialyzer", dialyzer_tool(), dialyzer_report);
@@ -6447,8 +6498,7 @@ fn dialyzer_elixir_report(
         .expect("code path flag");
     assert!(text[pa + 1].ends_with("dx-dialyzer/pa"), "{text:?}");
     assert!(text.iter().any(|a| a == "--fullpath"), "{text:?}");
-    let sep = text.iter().position(|a| a == "--").expect("separator");
-    let beams = &text[sep + 1..];
+    let beams = dialyzer_listed_beams(&text);
     assert_eq!(beams.len(), 2, "{beams:?}");
     assert!(
         beams.iter().all(|b| b.ends_with(".beam")),

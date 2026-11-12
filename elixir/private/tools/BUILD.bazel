@@ -53,24 +53,14 @@ dialyzer_plt(
     target_compatible_with = ELIXIR_DIALYZER_COMPATIBLE_WITH,
 )
 
-filegroup(
-    name = "no_dialyzer",
-)
-
 alias(
     name = "dialyzer_code_if_ported",
-    actual = select({
-        "@platforms//os:windows": ":no_dialyzer",
-        "//conditions:default": ":dialyzer_code",
-    }),
+    actual = ":dialyzer_code",
 )
 
 alias(
     name = "elixir_plt_if_ported",
-    actual = select({
-        "@platforms//os:windows": ":no_dialyzer",
-        "//conditions:default": ":elixir_plt",
-    }),
+    actual = ":elixir_plt",
 )
 
 real_source_target(

@@ -60,7 +60,7 @@ _elixir_app_forward = dx_library_forward_rule(
         ),
         "_dialyzer_plts": attr.label_list(
             default = ["//elixir/private/tools:elixir_plt_if_ported"],
-            doc = "The Elixir standard-library PLT dialyzer checks Elixir beams against; empty where dialyzer is not ported.",
+            doc = "The Elixir standard-library PLT dialyzer checks Elixir beams against.",
         ),
     },
     provides = [_ErlangAppInfo, BeamInfo, ErlangNifInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],

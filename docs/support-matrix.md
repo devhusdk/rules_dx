@@ -88,7 +88,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | `doxygen` | none |
 | D | `typos` | no | `ldc` | `ldc ddoc` | none |
 | Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart doc` | `dart unused_element` |
-| Elixir | `credo`, `typos` | `mix_format` | `dialyzer` (not on `windows_x86_64`: the Elixir dialyzer fixture has not run on Windows; `windows_arm64`: the Elixir dialyzer fixture has not run on Windows), `elixirc` (not on `windows_x86_64`: The elixirc replay needs a POSIX shell; `windows_arm64`: The elixirc replay needs a POSIX shell) | `Code.fetch_docs` | `elixirc unused variable, unused function` |
+| Elixir | `credo`, `typos` | `mix_format` | `dialyzer`, `elixirc` (not on `windows_x86_64`: The elixirc replay needs a POSIX shell; `windows_arm64`: The elixirc replay needs a POSIX shell) | `Code.fetch_docs` | `elixirc unused variable, unused function` |
 | Erlang | `elvis`, `typos` | `erlfmt` | `dialyzer`, `erlc` | `edoc` | `erlc warn_unused_vars, warn_unused_function` |
 | Flutter | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart doc` | `dart unused_element` |
 | Fortran | `fortitude`, `typos` | `ffmt` | `flang` | `ford` | `fortitude C191 unreachable-statement` |

@@ -197,8 +197,6 @@ See `docs/cli/commands/quality.md`.
 
 See the [support matrix](../docs/support-matrix.md).
 
-Dialyzer does not run on Windows.
-
 On other platforms Elixir targets fail toolchain resolution.
 
 ## Coverage

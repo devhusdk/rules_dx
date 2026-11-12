@@ -308,9 +308,10 @@ apple_ios_app(
     version = "1.0",
 )
 
-build_test(
+failure_test(
     name = "no_deployment_test",
-    targets = [":no_deployment_selection"],
+    expected_failure_substring = "srcs needs the native entry point",
+    target = ":no_deployment_selection",
 )
 
 apple_ios_app(
@@ -693,10 +694,9 @@ apple_ios_xcframework(
     version = "1.0",
 )
 
-failure_test(
+build_test(
     name = "no_framework_deployment_test",
-    expected_failure_substring = "apple_framework: deployment names the minimum iOS version",
-    target = ":no_framework_deployment_selection",
+    targets = [":no_framework_deployment_selection"],
 )
 
 apple_ios_xcframework(

@@ -42,13 +42,13 @@ The evidence workflow with `android=true` boots the emulator on a `linux_x86_64`
 
 `:ios_app` wraps `flutter_ios_app` over the native app, and simulator builds need no signing. The runner files in `ios/Runner` are the ones rules_flutter ships. `:ios_boot`, `:ios_install` and `:ios_launch` use the `iPhone 16` simulator, and `:ios_simulator_smoke_test` runs the three in order. The test is manual and tagged `macos-arm64`.
 
-`FLUTTER_COMPATIBLE_WITH` admits the iOS target platform, so `:ios_app` is compatible when built with `--ios_multi_cpus=sim_arm64` on a macOS arm64 host. The simulator runs debug builds only, so build with `-c dbg`.
+`flutter_ios_app` builds the app for the arm64 simulator in debug mode on a macOS arm64 host, with no flag.
 
 ```sh
-bazel build //flutter/tests/fixtures/flutter-app:ios_app --config=ios_sim
-bazel test //flutter/tests/fixtures/flutter-app:ios_simulator_smoke_test --config=ios_sim
+bazel build //flutter/tests/fixtures/flutter-app:ios_app
+bazel test //flutter/tests/fixtures/flutter-app:ios_simulator_smoke_test
 ```
 
-`--config=ios_sim` in `.bazelrc` sets `-c dbg --ios_multi_cpus=sim_arm64`, so evidence.yml can pass it. `:ios_app` builds on the `macos_arm64` runner. The smoke test picks the first available `iPhone 16` by UDID because several runtimes carry one, and sets `DX_SIMCTL_DEVICE`, `DX_SIMCTL_APP` and `DX_SIMCTL_BUNDLE_ID` itself, because a launcher's own `env` only applies under `bazel run`.
+`:ios_app` builds on the `macos_arm64` runner. The smoke test picks the first available `iPhone 16` by UDID because several runtimes carry one, and sets `DX_SIMCTL_DEVICE`, `DX_SIMCTL_APP` and `DX_SIMCTL_BUNDLE_ID` itself, because a launcher's own `env` only applies under `bazel run`.
 
 Passing run 42077852347 (macos_arm64): macOS 15.8.2, Xcode 16.4 (16F6), the first available `iPhone 16` simulator (iOS 18.x runtimes and later are installed on the runner).

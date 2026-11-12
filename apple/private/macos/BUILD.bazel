@@ -74,9 +74,10 @@ apple_macos_app(
     version = "1.0",
 )
 
-build_test(
+failure_test(
     name = "no_deployment_test",
-    targets = [":no_deployment_selection"],
+    expected_failure_substring = "apple_macos_app: arch '' is outside macos: want arm64",
+    target = ":no_deployment_selection",
 )
 
 apple_macos_app(

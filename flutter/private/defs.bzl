@@ -7,6 +7,8 @@ load("@rules_flutter//flutter:defs.bzl", _flutter_application = "flutter_applica
 load("@rules_flutter//flutter:ios.bzl", _flutter_ios_app = "flutter_ios_app")
 load("@rules_flutter//flutter:providers.bzl", "FlutterApplicationInfo", "FlutterInfo")
 load("@rules_flutter//flutter:web.bzl", _flutter_web_app = "flutter_web_app", _flutter_web_bundle = "flutter_web_bundle")
+load("@rules_apple//apple:providers.bzl", "AppleBundleInfo")
+load("//apple/private/bundle:defs.bzl", "EXTRA_TOOLCHAINS_SETTING", "apple_extra_toolchains")
 load("//apple/private/ios:cell.bzl", "APPLE_BUILD_HOST")
 load("//dart/private:defs.bzl", "DART_QUALITY_TOOLS", "DART_SOURCE_SPECS")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
@@ -168,11 +170,74 @@ def flutter_android_app(name, application, package_name, android_abi = "arm64", 
         **app_kwargs
     )
 
+_IOS_MULTI_CPUS = "//command_line_option:ios_multi_cpus"
+
+_COMPILATION_MODE = "//command_line_option:compilation_mode"
+
+def _ios_simulator_impl(settings, _attr):
+    return {
+        EXTRA_TOOLCHAINS_SETTING: apple_extra_toolchains(settings[EXTRA_TOOLCHAINS_SETTING]),
+        _COMPILATION_MODE: "dbg",
+        _IOS_MULTI_CPUS: ["sim_arm64"],
+    }
+
+_ios_simulator_transition = transition(
+    implementation = _ios_simulator_impl,
+    inputs = [EXTRA_TOOLCHAINS_SETTING],
+    outputs = [EXTRA_TOOLCHAINS_SETTING, _COMPILATION_MODE, _IOS_MULTI_CPUS],
+)
+
+def _flutter_ios_simulator_app_impl(ctx):
+    bundle = ctx.attr.bundle[0]
+    source = bundle[DefaultInfo].files_to_run.executable
+    default_info = DefaultInfo(
+        files = bundle[DefaultInfo].files,
+        runfiles = bundle[DefaultInfo].default_runfiles,
+    )
+    if source != None:
+        runner = ctx.actions.declare_file(ctx.label.name)
+        ctx.actions.symlink(output = runner, target_file = source, is_executable = True)
+        default_info = DefaultInfo(
+            files = depset([runner], transitive = [bundle[DefaultInfo].files]),
+            runfiles = ctx.runfiles(files = [runner]).merge(bundle[DefaultInfo].default_runfiles),
+            executable = runner,
+        )
+    providers = [default_info, bundle[AppleBundleInfo]]
+    if OutputGroupInfo in bundle:
+        providers.append(bundle[OutputGroupInfo])
+    return providers
+
+_flutter_ios_simulator_app = rule(
+    implementation = _flutter_ios_simulator_app_impl,
+    doc = "Builds one Flutter iOS app for the arm64 simulator in debug mode whatever cell flags are set.",
+    attrs = {
+        "bundle": attr.label(
+            doc = "The upstream Flutter iOS application.",
+            cfg = _ios_simulator_transition,
+            mandatory = True,
+            providers = [AppleBundleInfo],
+        ),
+    },
+    executable = True,
+)
+
 def flutter_ios_app(name, application, bundle_id, **kwargs):
-    """Thin wrapper over flutter_ios_app. Reads runner files from ios/Runner/ in the calling package, builds only for iOS and only on a macOS host."""
+    """Thin wrapper over flutter_ios_app. Reads runner files from ios/Runner/ in the calling package and builds the arm64 simulator debug app on a macOS host."""
+    visibility = kwargs.pop("visibility", None)
+    tags = kwargs.get("tags") or []
+    testonly = kwargs.get("testonly", False)
     _flutter_ios_app(
-        name = name,
+        name = name + "_bundle",
         application = application,
         bundle_id = bundle_id,
-        **dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH + APPLE_BUILD_HOST)
+        visibility = ["//visibility:private"],
+        **dx_language_kwargs(dict(kwargs, tags = tags + ["manual"]), compatible_with = FLUTTER_COMPATIBLE_WITH + APPLE_BUILD_HOST)
+    )
+    _flutter_ios_simulator_app(
+        name = name,
+        bundle = ":" + name + "_bundle",
+        tags = tags,
+        testonly = testonly,
+        target_compatible_with = APPLE_BUILD_HOST,
+        visibility = visibility,
     )

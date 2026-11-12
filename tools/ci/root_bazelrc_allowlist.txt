@@ -1,6 +1,5 @@
 --build_metadata
 --check_direct_dependencies
---compilation_mode
 --config
 --copt
 --credential_helper
@@ -15,7 +14,6 @@
 --host_linkopt
 --host_per_file_copt
 --incompatible_exclude_starlark_flags_from_exec_config
---ios_multi_cpus
 --javacopt
 --linkopt
 --local_resources

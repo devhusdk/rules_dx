@@ -179,9 +179,7 @@ fn launcher_env(tool_id: &str, binary: &Path) -> Vec<(OsString, OsString)> {
 
 /// A `/bin/sh` shim that sets the launcher's env, then execs its absolute path.
 fn unix_shim(binary: &str, env: &[(String, String)]) -> String {
-    fn quote(text: &str) -> String {
-        format!("'{}'", text.replace('\'', "'\\''"))
-    }
+    use dx_process::shell::quote;
     let mut out = String::from("#!/bin/sh\n");
     for (key, value) in env {
         out.push_str(&format!("{key}={}\nexport {key}\n", quote(value)));

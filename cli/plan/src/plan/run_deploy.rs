@@ -65,27 +65,7 @@ pub fn plan_run(
     )
 }
 
-/// Quotes a word for a POSIX shell unless it is plainly safe.
-pub fn shell_quote(word: &str) -> String {
-    let safe = !word.is_empty()
-        && word
-            .chars()
-            .all(|cell| cell.is_ascii_alphanumeric() || "_@%+=:,./-".contains(cell));
-    if safe {
-        word.to_owned()
-    } else {
-        format!("'{}'", word.replace('\'', "'\\''"))
-    }
-}
-
-/// Joins words into one shell command line, quoting each as needed.
-pub fn shell_join(words: &[String]) -> String {
-    words
-        .iter()
-        .map(|word| shell_quote(word))
-        .collect::<Vec<_>>()
-        .join(" ")
-}
+pub use dx_process::shell::{join as shell_join, word as shell_quote};
 
 pub fn plan_deploy_build(
     label: &str,

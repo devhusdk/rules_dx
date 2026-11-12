@@ -29,6 +29,7 @@ pub mod procs;
 mod procs_tests;
 pub mod rc;
 mod runner;
+pub mod shell;
 pub mod slot_pool;
 mod stderr_tail;
 

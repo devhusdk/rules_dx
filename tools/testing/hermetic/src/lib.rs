@@ -17,6 +17,7 @@ use dx_nested::compose::{compose_module, write_rules_py_patches};
 use serde_json::{Value, json};
 
 use dx_digest::sha256_hex;
+use dx_process::shell::quote as shell_quote;
 
 pub const SCHEMA: &str = "dx.hermetic.v1";
 
@@ -672,11 +673,6 @@ pub fn verdict(expect: &Expect, exit: i32, log: &str) -> Result<(), String> {
 /// Names a core WebAssembly module wasm32, or None for any other file.
 pub fn wasm_machine(head: &[u8]) -> Option<String> {
     (head.len() >= 8 && head[..8] == *b"\0asm\x01\0\0\0").then(|| "wasm32".to_owned())
-}
-
-/// Quotes one word for a POSIX shell.
-pub fn shell_quote(text: &str) -> String {
-    format!("'{}'", text.replace('\'', "'\\''"))
 }
 
 /// Reads the home directory of one user from passwd text.

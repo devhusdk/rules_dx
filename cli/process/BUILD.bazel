@@ -17,6 +17,7 @@ rust_library(
         "src/rc.rs",
         "src/rc_sections.rs",
         "src/runner.rs",
+        "src/shell.rs",
         "src/slot_pool.rs",
         "src/stderr_tail.rs",
     ] + select({
@@ -66,6 +67,8 @@ rust_test(
         "src/rc_tests.rs",
         "src/runner.rs",
         "src/runner_tests.rs",
+        "src/shell.rs",
+        "src/shell_tests.rs",
         "src/slot_pool.rs",
         "src/slot_pool_tests.rs",
         "src/stderr_tail.rs",

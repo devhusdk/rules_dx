@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use dx_process::shell::quote as shell_quote;
 use serde_json::Value;
 
 use super::WorktreeError;
@@ -767,10 +768,6 @@ fn deploy_apply_deny(command: &str) -> String {
     format!(
         "dx: `dx deploy --apply` publishes for real and needs a human or CI. Dry run with `{dry_run}` instead."
     )
-}
-
-fn shell_quote(text: &str) -> String {
-    format!("'{}'", text.replace('\'', "'\\''"))
 }
 
 /// What the Bash guard does with one command.

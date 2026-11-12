@@ -225,12 +225,6 @@ fn wasm_machine_names_core_modules() {
 }
 
 #[test]
-fn shell_quote_survives_spaces_and_quotes() {
-    assert_eq!(shell_quote("/a b/c"), "'/a b/c'");
-    assert_eq!(shell_quote("it's"), "'it'\\''s'");
-}
-
-#[test]
 fn passwd_and_status_name_the_real_user() {
     let passwd = "root:x:0:0:root:/root:/bin/bash\nrunner:x:1001:118::/home/runner:/bin/bash\n";
     assert_eq!(

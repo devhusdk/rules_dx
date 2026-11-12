@@ -43,9 +43,18 @@ impl HttpFetch {
     /// # Errors
     /// Fails when the request fails or the status is not 200.
     pub fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
+        self.accepting(url, "*/*")
+    }
+
+    /// Downloads `url` with the `Accept` header `accept` and returns its bytes.
+    ///
+    /// # Errors
+    /// Fails when the request fails or the status is not 200.
+    pub fn accepting(&self, url: &str, accept: &str) -> Result<Vec<u8>, Error> {
         let mut response = self
             .0
             .get(url)
+            .header("Accept", accept)
             .call()
             .map_err(|error| Error::new(error.to_string()))?;
         let status = response.status().as_u16();

@@ -1,21 +1,6 @@
-load("@rules_py//py:defs.bzl", "py_binary", "py_unittest_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//bicep:__subpackages__"])
-
-py_binary(
-    name = "pin",
-    srcs = ["pin.py"],
-    main = "pin.py",
-)
-
-py_unittest_test(
-    name = "pin_unit_test",
-    srcs = [
-        "pin.py",
-        "pin_test.py",
-    ],
-)
 
 real_source_target(
     name = "corpus_starlark",

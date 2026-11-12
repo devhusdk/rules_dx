@@ -335,16 +335,17 @@ fn luarocks_locks_become_luarocks_sets() {
 
 #[test]
 fn ansible_and_bicep_tags_become_sets() {
-    let module = "ansible = use_extension(\"//ansible:extensions.bzl\", \"ansible\")\nansible.lock(name = \"cols\", lock = \"//play:ansible.lock.json\")\nbicep = use_extension(\"//bicep:extensions.bzl\", \"bicep\")\nbicep.registry_module(name = \"storage\", ref = \"br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0\", digest = \"sha256:abc\")\nbicep.registry_module(name = \"network\", ref = \"br:mcr.microsoft.com/bicep/avm/res/network/virtual-network:0.1.0\", digest = \"sha256:def\")\n";
+    let module = "ansible = use_extension(\"//ansible:extensions.bzl\", \"ansible\")\nansible.lock(name = \"cols\", lock = \"//play:ansible.lock.json\")\nbicep = use_extension(\"//bicep:extensions.bzl\", \"bicep\")\nbicep.lock(name = \"bicep\", lock = \"//infra:bicep.lock.json\")\n";
     let registry = found(module, &[]);
     let cols = registry.find("cols").expect("set");
     assert_eq!(cols.ecosystem, Ecosystem::Ansible);
     assert_eq!(cols.manifests, ["play/requirements.yml"]);
     assert_eq!(cols.locks, ["play/ansible.lock.json"]);
     assert!(check_ansible_layout(&ResolvedSet::of(cols)).is_ok());
-    let storage = registry.find("storage").expect("set");
-    assert_eq!(storage.ecosystem, Ecosystem::Bicep);
-    assert!(storage.locks.is_empty());
+    let bicep = registry.find("bicep").expect("set");
+    assert_eq!(bicep.ecosystem, Ecosystem::Bicep);
+    assert_eq!(bicep.manifests, ["infra/*.bicep"]);
+    assert_eq!(bicep.locks, ["infra/bicep.lock.json"]);
     assert_eq!(Ecosystem::parse("bicep"), Some(Ecosystem::Bicep));
     assert_eq!(Ecosystem::Ansible.supported_update(), "update");
 }

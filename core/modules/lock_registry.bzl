@@ -8,6 +8,13 @@ LOCK_REGISTRY = {
         "manifest": "requirements.yml",
         "state": None,
     },
+    "bicep": {
+        "hub": "bicep",
+        "imports": "provides",
+        "lock": "bicep.lock.json",
+        "manifest": "*.bicep",
+        "state": None,
+    },
     "cabal": {
         "hub": "hackage",
         "imports": "name",

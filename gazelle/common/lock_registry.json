@@ -7,6 +7,13 @@
     "manifest": "requirements.yml"
   },
   {
+    "ecosystem": "bicep",
+    "hub": "bicep",
+    "imports": "provides",
+    "lock": "bicep.lock.json",
+    "manifest": "*.bicep"
+  },
+  {
     "ecosystem": "cabal",
     "hub": "hackage",
     "imports": "name",

@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//bicep/private:providers.bzl", "BicepInfo")
-load("//bicep/private:registry.bzl", "blob_url", "cache_directory", "fetch_failure", "is_digest", "manifest_url", "module_layer", "registry_errors")
+load("//bicep/private:registry.bzl", "blob_url", "cache_directory", "fetch_failure", "is_digest", "manifest_url", "module_layer")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core:owns_class_test.bzl", "owns_class_test")
 
@@ -37,17 +37,8 @@ def _manifest(layers):
     return json.encode({"schemaVersion": 2, "layers": layers})
 
 def registry_unit_tests(name):
-    """Declares unit tests of the registry_module ref and digest checks."""
+    """Declares unit tests of the registry cache layout, URLs and manifest checks."""
     starlark_test(name = name, mode = "unit", checks = [
-        expect_equal("valid", registry_errors(_REF, _DIGEST), []),
-        expect_equal("port in host", registry_errors("br:localhost:5000/m:1", _DIGEST), []),
-        expect_equal("not br", len(registry_errors("ts:x/y:1", _DIGEST)), 1),
-        expect_equal("no tag", len(registry_errors("br:mcr.microsoft.com/m", _DIGEST)), 1),
-        expect_equal("empty tag", len(registry_errors("br:mcr.microsoft.com/m:", _DIGEST)), 1),
-        expect_equal("no prefix", len(registry_errors(_REF, "a" * 64)), 1),
-        expect_equal("short digest", len(registry_errors(_REF, "sha256:abc")), 1),
-        expect_equal("upper digest", len(registry_errors(_REF, "sha256:" + "A" * 64)), 1),
-        expect_equal("both bad", len(registry_errors("x", "y")), 2),
         expect_equal("cache directory", cache_directory(_REF), "br/mcr.microsoft.com/bicep$avm$res$storage$storage-account/0.14.3$"),
         expect_equal("cache directory lowers the host and escapes its port", cache_directory("br:Example.azurecr.io:443/m:1"), "br/example.azurecr.io$443/m/1$"),
         expect_equal("cache directory marks uppercase tag characters", cache_directory("br:mcr.microsoft.com/a/b:V1.Ab"), "br/mcr.microsoft.com/a$b/V1.Ab$9"),

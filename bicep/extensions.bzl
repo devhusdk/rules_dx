@@ -1,31 +1,35 @@
-"""Module extension that downloads Bicep registry modules pinned by manifest digest."""
+"""Module extension that builds one hub of Bicep registry modules per lock tag."""
 
-load("//bicep/private:registry.bzl", "bicep_registry_repo", "registry_errors")
+load("//bicep/private:registry.bzl", "bicep_hub")
+load("//core:pins.bzl", "lock_problems", "lock_tag")
 
-def _impl(ctx):
+def _impl(mctx):
+    direct = []
+    dev = []
     seen = {}
-    for module in ctx.modules:
-        for tag in module.tags.registry_module:
-            errors = registry_errors(tag.ref, tag.digest)
-            if errors:
-                fail("bicep.registry_module %r: %s" % (tag.name, "; ".join(errors)))
-            if tag.name in seen and seen[tag.name] != (tag.ref, tag.digest):
-                fail("bicep.registry_module: conflicting declarations of %r" % tag.name)
-            seen[tag.name] = (tag.ref, tag.digest)
-            bicep_registry_repo(name = tag.name, ref = tag.ref, digest = tag.digest)
-    return ctx.extension_metadata(reproducible = True)
-
-_registry_module = tag_class(
-    doc = "Downloads one br: module into a repository.",
-    attrs = {
-        "digest": attr.string(mandatory = True, doc = "sha256: and 64 hex characters of the module manifest. Print it with `bazel run //bicep/private/tools:pin -- <ref>`."),
-        "name": attr.string(mandatory = True, doc = "Repository name."),
-        "ref": attr.string(mandatory = True, doc = "Module reference, br:HOST/PATH:TAG."),
-    },
-)
+    for module in mctx.modules:
+        for tag in module.tags.lock:
+            if tag.name in seen:
+                fail("bicep hub %r is declared by both %s and %s" % (tag.name, seen[tag.name], module.name))
+            seen[tag.name] = module.name
+            text = mctx.read(tag.lock)
+            problems = lock_problems(json.decode(text))
+            if problems:
+                fail("%s %s" % (tag.lock, "; ".join(problems)))
+            bicep_hub(name = tag.name, lock = text)
+            if module.is_root:
+                if mctx.is_dev_dependency(tag):
+                    dev.append(tag.name)
+                else:
+                    direct.append(tag.name)
+    return mctx.extension_metadata(
+        reproducible = True,
+        root_module_direct_deps = direct,
+        root_module_direct_dev_deps = dev,
+    )
 
 bicep = module_extension(
-    doc = "Downloads Bicep registry modules.",
+    doc = "Builds one hub of Bicep registry modules per lock tag.",
     implementation = _impl,
-    tag_classes = {"registry_module": _registry_module},
+    tag_classes = {"lock": lock_tag},
 )

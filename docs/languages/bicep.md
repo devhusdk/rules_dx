@@ -50,11 +50,11 @@ A restored Bicep registry module and its cache files.
 
 Manifests:
 
-- `MODULE.bazel`
+- `*.bicep`
 
 Lockfiles:
 
-None.
+- `bicep.lock.json`
 
 ## Platforms
 

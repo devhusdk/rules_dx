@@ -25,7 +25,6 @@ name tools/testing/nested_bazel.bzl maven_install.json
 parser elixir/private/mix_lock.bzl
 parser erlang/private/rebar_lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
-tag-attr bicep/extensions.bzl digest
 tag-attr terraform/extensions.bzl sha256
 tag-attr terraform/extensions.bzl version
 tag-use MODULE.bazel ruby.bundle_fetch.gem_checksums

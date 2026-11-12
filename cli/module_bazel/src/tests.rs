@@ -1313,7 +1313,7 @@ fn haskell_packages_follow_the_haskell_extension() {
 #[test]
 fn ansible_and_bicep_tags_follow_their_extensions() {
     let file = parse(
-        "ansible = use_extension(\"//ansible:extensions.bzl\", \"ansible\")\nansible.lock(name = \"cols\", lock = \"//app:lock.json\")\nbicep = use_extension(\"//bicep:extensions.bzl\", \"bicep\")\nbicep.registry_module(name = \"storage\", ref = \"br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0\", digest = \"sha256:abc\")\n",
+        "ansible = use_extension(\"//ansible:extensions.bzl\", \"ansible\")\nansible.lock(name = \"cols\", lock = \"//app:lock.json\")\nbicep = use_extension(\"//bicep:extensions.bzl\", \"bicep\")\nbicep.lock(name = \"bicep\", lock = \"//infra:bicep.lock.json\")\n",
     );
     let collections: Vec<_> = file
         .ansible_collections()
@@ -1322,20 +1322,13 @@ fn ansible_and_bicep_tags_follow_their_extensions() {
         .map(|entry| (entry.name, entry.lock))
         .collect();
     assert_eq!(collections, [("cols", "//app:lock.json")]);
-    let modules: Vec<_> = file
-        .bicep_registry_modules()
-        .expect("modules")
+    let locks: Vec<_> = file
+        .bicep_locks()
+        .expect("locks")
         .iter()
-        .map(|entry| (entry.name, entry.reference, entry.digest))
+        .map(|entry| (entry.name, entry.lock))
         .collect();
-    assert_eq!(
-        modules,
-        [(
-            "storage",
-            "br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0",
-            "sha256:abc"
-        )]
-    );
+    assert_eq!(locks, [("bicep", "//infra:bicep.lock.json")]);
 }
 
 #[test]

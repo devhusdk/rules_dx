@@ -77,6 +77,7 @@
       "minProperties": 1,
       "additionalProperties": false,
       "properties": {
+        "bicep_manifest": {"$ref": "#/$defs/archive"},
         "zig_main": {"type": "string", "minLength": 1},
         "d_library": {
           "type": "object",

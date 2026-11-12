@@ -29,6 +29,7 @@ config_setting(
 
 perl_binary(
     name = "stockctl",
+    testonly = True,
     srcs = ["stockctl.pl"],
     env = select({
         ":gross_limit": {"STOCK_LIMIT": "144"},

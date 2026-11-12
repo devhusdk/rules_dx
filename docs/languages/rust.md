@@ -82,13 +82,13 @@ rust_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, rustc
 
 A libFuzzer binary built with sancov and AddressSanitizer plus a `<name>_run` runner for `dx fuzz`.
 
-### `cargo_build_script`
+### `rust_build_script`
 
 ```python
-cargo_build_script(name, build_script_env = None, toolchains = None, use_cc_toolchain = None, **kwargs)
+rust_build_script(name, build_script_env = None, toolchains = None, use_cc_toolchain = None, **kwargs)
 ```
 
-`cargo_build_script` whose build script gets `HOST_*` and `TARGET_*` cc tools and flags from rules_dx.
+`rust_build_script`, a `cargo_build_script` whose build script gets `HOST_*` and `TARGET_*` cc tools and flags from rules_dx.
 
 Args:
     name: Name of the target.

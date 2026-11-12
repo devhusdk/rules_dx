@@ -64,8 +64,7 @@ filegroup(
 
 _CREDO_ROOT = '"../../../../"'
 
-# Credo reads Mix at compile time and its default files from the working
-# directory; elixirc runs outside Mix, so each site is pinned to a literal.
+# elixirc runs outside Mix, so Credo's Mix and cwd reads are pinned to literals.
 CREDO_REWRITES = {
     "bunt": {
         "lib/bunt.ex": [("@version Mix.Project.config()[:version]", '@version "{version}"')],

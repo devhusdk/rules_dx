@@ -1120,7 +1120,7 @@ mod sh {
         assert_eq!(repo.builds(), 2, "the repo runs its dx in place");
     }
 
-    /// #3171: `worktree release --force` from a slot, with the inputs query
+    /// `worktree release --force` from a slot, with the inputs query
     /// failing, must still reach the slot dx and pass its exit status through.
     #[test]
     fn a_slot_release_runs_the_slot_dx_when_the_inputs_query_fails() {
@@ -1971,7 +1971,7 @@ mod cmd {
         }
     }
 
-    /// #3171: `worktree release --force` from a slot, with the inputs query
+    /// `worktree release --force` from a slot, with the inputs query
     /// failing, must still reach the slot dx and pass its exit status through.
     #[test]
     fn cmd_a_slot_release_runs_the_slot_dx_when_the_inputs_query_fails() {

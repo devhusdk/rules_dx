@@ -273,8 +273,7 @@ def _clang_syntax_impl(target, ctx):
 
     identity = cc_toolchain_identity(ctx)
     xcode_config = ctx.attr._xcode_config[XcodeVersionInfo]
-    # Declared headers are pruned from the compile action inputs (they are rediscovered
-    # from the .d file), so a replay without them cannot find its own includes.
+    # Declared headers are pruned from compile inputs, so the replay needs them back.
     headers = depset()
     if CcInfo in target:
         context = target[CcInfo].compilation_context

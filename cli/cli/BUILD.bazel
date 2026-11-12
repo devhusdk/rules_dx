@@ -183,7 +183,7 @@ rust_binary(
     ],
 )
 
-# MSVC opt links keep the PDB, remapped against X:\dx so it matches across checkouts (#8410).
+# MSVC opt links keep the PDB, remapped against X:\dx so it matches across checkouts.
 filegroup(
     name = "dx_pdb",
     srcs = [":dx"],

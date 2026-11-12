@@ -306,8 +306,7 @@ filegroup(
 )
 {cc}"""
 
-# The bundled mingw clang as a C toolchain. Only the hub's gated toolchain()
-# entries select it. Loads sit at the top of the generated file.
+# The bundled mingw clang as a C toolchain, selected only by the hub's gated toolchains.
 _MINGW_CC_LOADS = """load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
 load("@rules_haskell//haskell:cc_toolchain_config.bzl", "cc_toolchain_config")
 """
@@ -450,8 +449,7 @@ def _drop_import_libs(rctx):
 def _ghc_repo_impl(rctx):
     cell = CELLS[rctx.attr.cell]
     if not cell_matches_host(rctx.attr.cell, rctx.os.name, rctx.os.arch):
-        # The bindist cannot run here, so fetch nothing and run nothing. Targets
-        # stay incompatible, and toolchain resolution picks the host's own cell.
+        # The bindist cannot run here; toolchain resolution picks the host's own cell.
         rctx.file("REPO.bazel", "")
         rctx.file("BUILD.bazel", _UNAVAILABLE_BUILD)
         return rctx.repo_metadata(reproducible = True)

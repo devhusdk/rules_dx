@@ -98,8 +98,7 @@ _ALIAS = """alias(
 )
 """
 
-# Aliases that also resolve on exec platforms without an OCaml cell, to an empty filegroup, so an
-# aspect that lists them as implicit dependencies still analyzes there.
+# Aliases that resolve to an empty filegroup on exec platforms without an OCaml cell.
 EMPTY_DEFAULT_ALIASES = ["stdlib_cmis"]
 
 _NONE = """filegroup(

@@ -7,8 +7,7 @@ load("//rust:defs.bzl", "rust_binary", "rust_test")
 
 package(default_visibility = ["//capnproto:__subpackages__"])
 
-# Generates the Rust crate sources of one capnproto_rust_library from the pinned capnp
-# compiler and the pinned capnpc crate. No crates.io dependency.
+# Generates capnproto_rust_library sources from the pinned capnp and capnpc crate.
 rust_binary(
     name = "capnpc_rust_dx",
     srcs = ["main.rs"],

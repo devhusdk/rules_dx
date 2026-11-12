@@ -189,7 +189,7 @@ enum ProbeStop {
 /// progress goes to stderr. A stop signal or interrupted Bazel ends the run instead.
 ///
 /// The probe is a real build, so its action counts go into `actions` and into `probe_counts`
-/// before its event file is removed (#2394).
+/// before its event file is removed.
 #[allow(clippy::too_many_arguments)]
 fn probe_shards(
     request: &QualityRequest,

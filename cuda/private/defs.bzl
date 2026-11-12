@@ -56,8 +56,7 @@ _cuda_library_forward = dx_library_forward_rule(
     upstream_cfg = cuda_host_transition,
 )
 
-# The upstream library only builds under cuda_host_transition; analyzed on its own (cquery
-# over //...) it would need the dynamic CUDA runtime, so it is incompatible there.
+# Outside cuda_host_transition the upstream library needs the dynamic CUDA runtime.
 _UPSTREAM_ONLY_UNDER_TRANSITION = select({
     Label("//cuda/private/toolchain:static_runtime_enabled"): [],
     "//conditions:default": [Label("@platforms//:incompatible")],

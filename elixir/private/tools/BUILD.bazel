@@ -38,8 +38,7 @@ filegroup(
     target_compatible_with = ELIXIR_DIALYZER_COMPATIBLE_WITH,
 )
 
-# The Elixir standard library on top of the OTP core PLT. Every elixir_app brings it through
-# BeamInfo.plts, after the PLTs of the dialyzer tool.
+# The Elixir standard library PLT on top of the OTP core PLT.
 dialyzer_plt(
     name = "elixir_plt",
     beams = [

@@ -30,9 +30,9 @@ const CORE_DIRS: &[&str] = &["core", "core/codegen", "core/modules"];
 
 /// Packages of core tool defaults that load a language rule set; this list only shrinks.
 const PENDING_TOOL_PACKAGES: &[&str] = &[
-    "core/quality/tools/python",     // #10545
-    "core/quality/tools/nixfmt/bin", // #10565
-    "rust/private/quality/tools",    // #10567
+    "core/quality/tools/python",
+    "core/quality/tools/nixfmt/bin",
+    "rust/private/quality/tools",
 ];
 
 /// Top-level packages `core/` may load from or point labels into.

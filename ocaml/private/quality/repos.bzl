@@ -1,7 +1,6 @@
 """The source repository dune builds OCaml tools from."""
 
-# Directories that only hold tests, docs or benchmarks; dropping them keeps the
-# source filegroup small and free of files Bazel cannot glob.
+# Test, doc and bench directories, dropped from the source filegroup.
 _PRUNED = ["test", "tests", "doc", "docs", "bench", "example", "examples", "review_tests"]
 
 _BUILD = """package(default_visibility = ["//visibility:public"])

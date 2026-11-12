@@ -224,7 +224,6 @@ def _toolchain_platforms():
         "qmllint": [name for name, cell in QT_CELLS.items() if not getattr(cell, "blocker", "")],
     }
 
-# Tools listed in #4665.
 _CONFIG_INFRA_DOC_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "cue", "deadnix", "djlint", "flatc", "gersemi", "gplint", "hadolint", "helm", "helmfmt", "jsonnet_lint", "jsonnetfmt", "keep_sorted", "kubeconform", "latexindent", "nixfmt", "opa", "pkl", "redocly", "regal", "shellcheck", "terraform", "thrift", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint"]
 
 # Records that must name every platform as either supported or unsupported with a reason.
@@ -379,7 +378,7 @@ def support_unit_tests(name):
                 [],
             ),
             expect_equal(
-                "config, infrastructure and document tools claims are proven (#4665)",
+                "config, infrastructure and document tools claims are proven",
                 unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in _CONFIG_INFRA_DOC_TOOLS], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
                 [],
             ),

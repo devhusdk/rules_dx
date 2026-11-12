@@ -267,7 +267,7 @@ impl PrunePlan {
     }
 }
 
-/// How long a stopped or dead holder keeps its slot before another agent may reclaim it (#3044).
+/// How long a stopped or dead holder keeps its slot before another agent may reclaim it.
 pub const STOP_GRACE_SECS: u64 = 30 * 60;
 
 /// Whether the lease holder still runs.

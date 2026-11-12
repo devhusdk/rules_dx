@@ -210,7 +210,7 @@ fn directories_above_a_grant_keep_their_acls() {
     let before = icacls(&scene.root);
     let canon = scene.run(Net::Denied, &["canon", &text(&scene.granted)]);
     assert_eq!(canon.exit, 0, "{}", canon.stderr);
-    // The run user can read what `denies` leaves out, so nothing above the grant is hidden (#8699).
+    // The run user can read what `denies` leaves out, so nothing above the grant is hidden.
     assert_eq!(icacls(&scene.root), before);
 }
 

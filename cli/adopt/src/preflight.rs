@@ -1,4 +1,4 @@
-//! The read-only "init plan" for a foreign `MODULE.bazel` (#3751): what adopting rules_dx
+//! The read-only "init plan" for a foreign `MODULE.bazel`: what adopting rules_dx
 //! would conflict with, found from the declared files. No Bazel runs and nothing is written.
 
 use std::path::Path;

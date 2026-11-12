@@ -130,7 +130,7 @@ def _typecheck_gaps(facts):
             gaps.append(row["name"])
     return gaps
 
-# Rows with a stated reason that do not yet declare an unsupported constraint_value; shrink as #6175 lands them.
+# Rows with a stated reason that do not yet declare an unsupported constraint_value.
 _PENDING_UNSUPPORTED = ["appimage", "apple", "cc_gcc", "cc_msvc", "cuda", "fortran", "ocaml", "perl", "swift"]
 
 def support_matrix_facts_tests(name):

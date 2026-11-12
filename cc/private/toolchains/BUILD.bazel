@@ -621,8 +621,7 @@ exports_files(
     visibility = ["//qt/private/sdk:__pkg__"],
 )
 
-# The glibc and libgcc of the pinned GCC sysroot come from the host OS, and
-# libstdc++ is linked statically, so nothing ships with the app.
+# glibc and libgcc come from the host OS and libstdc++ links statically.
 dx_native_runtime(
     name = "gcc_linux_glibc",
     redistribution = "os_supplied",
@@ -631,10 +630,7 @@ dx_native_runtime(
     visibility = ["//visibility:public"],
 )
 
-# The dynamic_libstdcxx feature links against libstdc++ and libgcc_s, which
-# ship next to the app and are found through its $ORIGIN rpath. They come from
-# the GCC archive of the target CPU; the ARM64 one is the cross repo, which
-# also builds on x86_64.
+# libstdc++ and libgcc_s for dynamic_libstdcxx, shipped next to the app and found via $ORIGIN.
 gcc_runtime_libs(
     name = "gcc_linux_libstdcxx_libs",
     srcs = select({
@@ -684,8 +680,7 @@ config_setting(
     ],
 )
 
-# The distributable Visual C++ runtime ships next to the app. Building it
-# needs the dx_msvc license acceptance.
+# Distributable Visual C++ runtime; building it needs the dx_msvc license acceptance.
 alias(
     name = "msvc_vcruntime",
     actual = "@dx_msvc//:msvc_vcruntime",

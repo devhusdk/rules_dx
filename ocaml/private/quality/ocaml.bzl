@@ -53,9 +53,7 @@ SHARD_SPECS = {
 }
 
 def _zanuda_hook(target, ctx, resolved, _capability, what, _shared):
-    # zanuda reads the typed trees the compile wrote. A target that owns OCaml sources but
-    # carries no OCamlCmtInfo, or one that owns a source with no tree, would otherwise lint
-    # nothing and look clean, so both fail the analysis.
+    # A target with OCaml sources but no typed trees would lint nothing, so it fails analysis.
     if OCamlCmtInfo not in target:
         fail(what + ": zanuda needs OCamlCmtInfo, which only the dx ocaml_module and ocaml_signature rules provide")
     listed = {}

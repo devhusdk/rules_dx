@@ -27,8 +27,7 @@ cc_test(
     deps = [":shapes_cc"],
 )
 
-# The same libraries with the object API: both variants over one shared library
-# must not declare conflicting actions, even in one binary.
+# Both variants over one shared library must not declare conflicting actions.
 flatbuffers_cc_library(
     name = "shapes_cc_obj",
     gen_object_api = True,

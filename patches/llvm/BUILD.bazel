@@ -3,6 +3,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 exports_files([
     "libunwind_copy.patch",
     "clang_cl_crt_default_lib.patch",
+    "clang_cl_profile_no_mingw.patch",
     "unwatched_overlay_inputs.patch",
     "msvc_source_directories.patch",
     "lse_atomic_sources.patch",

@@ -3029,11 +3029,13 @@ fn kubeconform_pins_local_schema_locations() {
     let core = format!(
         "{}/{{{{.ResourceKind}}}}{{{{.KindSuffix}}}}.json",
         config.core_dir.display()
-    );
+    )
+    .replace('\\', "/");
     let crd = format!(
         "{}/{{{{.Group}}}}/{{{{.ResourceKind}}}}_{{{{.ResourceAPIVersion}}}}.json",
         config.crd_dir.display()
-    );
+    )
+    .replace('\\', "/");
     assert_eq!(
         argv_strings(&invocation),
         vec![
@@ -3325,7 +3327,7 @@ fn phpstan_neon_adds_unused_public_only_without_a_consumer_config() {
         &[],
         Some(Path::new("/s/ext")),
     )
-    .replace('\\', "/");
+    .replace("\\\\", "/");
     assert!(
         neon.starts_with("includes:\n    - \"/s/ext/unused-public/config/extension.neon\"\n"),
         "{neon}"

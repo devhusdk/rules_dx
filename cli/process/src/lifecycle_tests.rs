@@ -462,7 +462,6 @@ fn an_owned_run_kills_a_detached_server() {
     assert_released(&lock);
 }
 
-#[cfg(unix)]
 #[test]
 fn an_owned_run_ends_an_attached_descendant_after_a_clean_exit() {
     let scratch = dx_test_scratch::scratch("dx-lifecycle-owned-attached");

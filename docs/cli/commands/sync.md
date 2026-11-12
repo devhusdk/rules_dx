@@ -57,19 +57,7 @@ JSON emits `command_started`, an `operation` event, a `selection` event, and `co
 
 The plan admits these generator and language pairs: protobuf/rust, flatbuffers/cpp, flatbuffers/rust, flatbuffers/java, capnp/cpp, capnp/rust, capnp/java, thrift/cpp, thrift/rust, thrift/java, avro/cpp, openapi/typescript, openapi/go, openapi/python, and openapi/rust.
 
-Each pair has a library rule and a shard rule. The shard rule binds a plan entry, matched by an `EXEC_PATH` suffix, to a generated file. Select generated sources with `dx sync`.
-
-| Pair | Library rule | Shard rule |
-| --- | --- | --- |
-| protobuf/rust | `rust_prost_library` | `prost_codegen_shard` in `@rules_dx//core/codegen:codegen.bzl` |
-| openapi/typescript | `api_spec_typescript_client` in `@rules_dx//api_spec:defs.bzl` | `api_spec_codegen_shard` |
-| openapi/go | `api_spec_go_client` in `@rules_dx//api_spec:defs.bzl` | `api_spec_codegen_shard` |
-| openapi/python | `api_spec_python_client` in `@rules_dx//api_spec:defs.bzl` | `api_spec_codegen_shard` |
-| openapi/rust | `api_spec_rust_client` in `@rules_dx//api_spec:defs.bzl` | `api_spec_codegen_shard` |
-| flatbuffers | `flatbuffers_cc_library`, `flatbuffers_rust_library`, `flatbuffers_java_library` in `@rules_dx//flatbuffers:defs.bzl` | `flatbuffers_codegen_shard` |
-| capnp | `capnproto_cc_library`, `capnproto_rust_library`, `capnproto_java_library` in `@rules_dx//capnproto:defs.bzl` | `capnproto_codegen_shard` |
-| thrift | `thrift_cc_library`, `thrift_rust_library`, `thrift_java_library` in `@rules_dx//thrift:defs.bzl` | `thrift_codegen_shard` |
-| avro | `avro_cc_library`, `avro_java_library` in `@rules_dx//avro:defs.bzl` | none, the library rule carries the plan |
+Each library rule except `rust_prost_library` carries its own plan entries. Each generated file lands at `gen/` plus its file name. Set `codegen_path` on the library to move it: the file path when the rule generates one file, else the directory of its files. `rust_prost_library` still needs a `prost_codegen_shard` from `@rules_dx//core/codegen:codegen.bzl`. Select generated sources with `dx sync`.
 
 ```starlark
 load("@rules_dx//core/codegen:codegen.bzl", "prost_codegen_shard")
@@ -83,13 +71,11 @@ prost_codegen_shard(
 ```
 
 - gRPC for Rust needs no extra rule. `rust_prost_library` emits tonic stubs when the proto has a `service`, because the `rules_rust_prost` default toolchain sets `tonic_plugin` and `tonic_runtime`. Depend on `@rules_rust_prost//private/3rdparty/crates:tonic` and `:tokio` to serve or call it, as in `@rules_dx//rust/tests/tonic:greeter_test`. A custom `rust_prost_toolchain` must set `tonic_plugin`, `tonic_plugin_flag` and `tonic_runtime` together.
-- Every shard binds the target that generated the files with `generated`. Set `language = "rust"` or `language = "java"` on the shard of a Rust or Java library. Bind a Rust shard to the `NAME_generated` target.
-- A Java shard entry is the srcjar of one direct dep.
-- A shard lists the files of the libraries in the `deps` of its library rule only.
-- `capnproto_rust_library`, `thrift_rust_library` and `flatbuffers_rust_library` take `(name, library, crate_name = None, deps = [], **kwargs)`; `deps` are extra Rust crates, and `edition` or `rustc_flags` in `kwargs` replace the defaults. `thrift_rust_library` takes one `thrift_library` and generates its includes too.
+- A Java library plans one srcjar per direct dep. A library plans the files of the libraries in its `deps` only.
+- `capnproto_rust_library`, `thrift_rust_library` and `flatbuffers_rust_library` take `(name, library, crate_name = None, deps = [], codegen_path = None, **kwargs)`; `deps` are extra Rust crates, and `edition` or `rustc_flags` in `kwargs` replace the defaults. `thrift_rust_library` takes one `thrift_library` and generates its includes too.
 - `flatbuffers_cc_library` takes `gen_object_api = True` for the object API. `flatbuffers_rust_library` takes a `root` schema, required when the library owns more than one.
 - `capnproto_rust_library` needs one `capnproto_rust_library` in `deps` for each `capnproto_library` dep. Every schema for `capnproto_java_library` needs the `$Java.package` annotation from `/capnp/java.capnp`. A relative capnp import must stay in the schema's directory. Use an absolute `/pkg/file.capnp` import across packages.
 - `avro_cc_library` takes `namespace`. It needs `bazel_dep(name = "avro-cpp", version = "1.12.0.bcr.1")`, the `single_version_override` entries for avro-cpp and fmt from rules_dx, and `override_repo(use_extension("@rules_dx//avro:extensions.bzl", "avro_cc"), dx_avro_cpp = "avro-cpp")` in the root module. `dx generate --apply` adds all of it. Keep each Avro type in one `.avsc` file or use an `.avdl`. An `.avdl` gives one `<stem>.hh`. Read Java classes with `SpecificDatumReader` using `-Dorg.apache.avro.SERIALIZABLE_PACKAGES=<your.package>`.
-- Thrift C++ output is a directory and has no shard yet. Avro has no Rust codegen.
+- Avro has no Rust codegen.
 - OpenAPI roots must be OpenAPI 3.0, 3.1, or 3.2. A remote `$ref` or an undeclared file `$ref` fails the build. `root` is required when the spec has several roots.
 - capnp and thrift codegen build for Linux x86_64 only.

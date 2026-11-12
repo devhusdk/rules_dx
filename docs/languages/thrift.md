@@ -58,12 +58,9 @@ Args:
   library: thrift_library to generate Rust for.
   crate_name: Crate name dependents import; defaults to name.
   deps: Extra Rust dependencies of the crate.
+  codegen_path: Logical directory of the generated files in the dx sync projection.
   **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
     and the like replace the defaults; srcs and deps are added to them.
-
-### `thrift_codegen_shard`
-
-No documentation.
 
 ## Tools
 

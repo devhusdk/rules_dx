@@ -23,8 +23,7 @@
     "thrift_library",
     "thrift_cc_library",
     "thrift_java_library",
-    "thrift_rust_library",
-    "thrift_codegen_shard"
+    "thrift_rust_library"
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",

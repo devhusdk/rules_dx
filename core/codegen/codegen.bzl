@@ -431,24 +431,34 @@ def codegen_shard_rule(rule_kind, schema_kind, group, want, languages_doc, doc, 
 CODEGEN_LIBRARY_ROOT = "gen"
 
 CODEGEN_LIBRARY_ATTRS = {
-    "codegen_path": attr.string(doc = "Logical path of the single generated file in the dx sync projection, gen/ plus the file name by default."),
+    "codegen_path": attr.string(doc = "Logical path in the dx sync projection: the file path when the rule generates one file, else the directory of the generated files. gen/ plus the file name by default."),
     "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),
 }
 
 def codegen_library_providers(ctx, schema_kind, language, generated, namespace = ""):
-    """Builds the plan providers of a library rule that owns one generated file."""
+    """Builds the plan providers of a library rule from the files it generates."""
     producer = display_label(ctx.label)
     pair_error = codegen_pair_error(schema_kind, language)
     if pair_error != "":
-        fail(ctx.rule.kind + " " + producer + ": " + pair_error)
-    logical = ctx.attr.codegen_path or CODEGEN_LIBRARY_ROOT + "/" + generated.basename
-    entry = codegen_entry(logical, CODEGEN_LIBRARY_ROOT, namespace, generated.short_path)
-    record = _checked_record(producer, language, [entry])
-    spec = "|".join([logical, CODEGEN_LIBRARY_ROOT, namespace, generated.short_path])
-    out = plan_shard_emit(ctx, "codegen", producer, "--language", language, [spec], DX_CODEGEN_SHARD_SUFFIX, "DxCodegenShard")
+        fail("codegen " + producer + ": " + pair_error)
+    files = generated if type(generated) == "list" else [generated]
+    if len(files) == 0:
+        return [DxCodegenPlanInfo(direct = [], transitive = depset()), OutputGroupInfo(dx_codegen_plans = depset())]
+    custom = ctx.attr.codegen_path
+    specs = []
+    entries = []
+    for f in files:
+        if custom and len(files) == 1:
+            logical = custom
+        else:
+            logical = (custom or CODEGEN_LIBRARY_ROOT) + "/" + f.basename
+        entries.append(codegen_entry(logical, CODEGEN_LIBRARY_ROOT, namespace, f.short_path))
+        specs.append("|".join([logical, CODEGEN_LIBRARY_ROOT, namespace, f.short_path]))
+    record = _checked_record(producer, language, entries)
+    out = plan_shard_emit(ctx, "codegen", producer, "--language", language, specs, DX_CODEGEN_SHARD_SUFFIX, "DxCodegenShard")
     return [
         DxCodegenPlanInfo(direct = [record], transitive = depset([record])),
-        OutputGroupInfo(dx_codegen_plans = depset([out, generated])),
+        OutputGroupInfo(dx_codegen_plans = depset([out] + files)),
     ]
 
 def codegen_srcjar(ctx, tree, srcjar_name, mnemonic):

@@ -1,12 +1,10 @@
 """OpenAPI client generation: TypeScript (Redocly generate-client), Go (oapi-codegen), Python (openapi-python-client) and Rust (progenitor)."""
 
-load("//core/codegen:codegen.bzl", "codegen_shard_rule")
+load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers")
 load("//core:defs.bzl", "display_label")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "ApiSpecInfo")
-
-OPENAPI_GENERATED_SRCS_GROUP = "openapi_generated_srcs"
 
 OPENAPI_TYPESCRIPT_FLAGS = [
     "--output-mode=single",
@@ -53,12 +51,11 @@ def _preflight(ctx, info, root):
     )
     return stamp
 
-def _client_providers(ctx, out):
+def _client_providers(ctx, out, language):
     return [
         DefaultInfo(files = depset([out])),
         dx_quality_sources([], [], str(ctx.label)),
-        OutputGroupInfo(**{OPENAPI_GENERATED_SRCS_GROUP: depset([out])}),
-    ]
+    ] + codegen_library_providers(ctx, "openapi", language, out, getattr(ctx.attr, "package", ""))
 
 def _client_impl(ctx):
     info = ctx.attr.spec[ApiSpecInfo]
@@ -76,7 +73,7 @@ def _client_impl(ctx):
         resource_set = dx_heavy_resources,
         progress_message = "redocly generate-client " + root.short_path,
     )
-    return _client_providers(ctx, out)
+    return _client_providers(ctx, out, "typescript")
 
 api_spec_typescript_client = rule(
     implementation = _client_impl,
@@ -88,7 +85,7 @@ api_spec_typescript_client = rule(
         "_config": attr.label(default = Label("//api_spec/private/codegen:redocly.yaml"), allow_single_file = True),
         "_preflight": attr.label(default = Label("//api_spec/private/codegen:preflight"), executable = True, cfg = "exec"),
         "_redocly": attr.label(default = Label("//javascript/private/quality/bin:redocly"), executable = True, cfg = "exec"),
-    },
+    } | CODEGEN_LIBRARY_ATTRS,
 )
 
 def _go_client_impl(ctx):
@@ -108,7 +105,7 @@ def _go_client_impl(ctx):
         mnemonic = "OpenapiGoClient",
         progress_message = "oapi-codegen " + root.short_path,
     )
-    return _client_providers(ctx, out)
+    return _client_providers(ctx, out, "go")
 
 api_spec_go_client = rule(
     implementation = _go_client_impl,
@@ -121,7 +118,7 @@ api_spec_go_client = rule(
         "_driver": attr.label(default = Label("//api_spec/private/codegen:oapi_codegen"), executable = True, cfg = "exec"),
         "_oapi_codegen": attr.label(default = Label("@com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen"), executable = True, cfg = "exec"),
         "_preflight": attr.label(default = Label("//api_spec/private/codegen:preflight"), executable = True, cfg = "exec"),
-    },
+    } | CODEGEN_LIBRARY_ATTRS,
     toolchains = ["@rules_go//go:toolchain"],
 )
 
@@ -147,7 +144,7 @@ def _python_client_impl(ctx):
         mnemonic = "OpenapiPythonClient",
         progress_message = "openapi-python-client " + root.short_path,
     )
-    return _client_providers(ctx, out)
+    return _client_providers(ctx, out, "python")
 
 api_spec_python_client = rule(
     implementation = _python_client_impl,
@@ -159,7 +156,7 @@ api_spec_python_client = rule(
         "_config": attr.label(default = Label("//api_spec/private/codegen:openapi_python_client.yaml"), allow_single_file = True),
         "_generator": attr.label(default = Label("//core/quality/tools/python:openapi_python_client"), executable = True, cfg = "exec"),
         "_preflight": attr.label(default = Label("//api_spec/private/codegen:preflight"), executable = True, cfg = "exec"),
-    },
+    } | CODEGEN_LIBRARY_ATTRS,
 )
 
 def _rust_client_impl(ctx):
@@ -176,7 +173,7 @@ def _rust_client_impl(ctx):
         mnemonic = "OpenapiRustClient",
         progress_message = "progenitor " + root.short_path,
     )
-    return _client_providers(ctx, out)
+    return _client_providers(ctx, out, "rust")
 
 api_spec_rust_client = rule(
     implementation = _rust_client_impl,
@@ -187,15 +184,5 @@ api_spec_rust_client = rule(
         "spec": attr.label(providers = [ApiSpecInfo], mandatory = True, doc = "The api_spec_library to generate from."),
         "_generator": attr.label(default = Label("//rust/private/quality/tools:progenitor_tool"), executable = True, cfg = "exec"),
         "_preflight": attr.label(default = Label("//api_spec/private/codegen:preflight"), executable = True, cfg = "exec"),
-    },
-)
-
-api_spec_codegen_shard = codegen_shard_rule(
-    "api_spec_codegen_shard",
-    "openapi",
-    OPENAPI_GENERATED_SRCS_GROUP,
-    "want an api_spec_typescript_client, api_spec_go_client, api_spec_python_client or api_spec_rust_client",
-    "typescript, go, python or rust.",
-    "Declares codegen plan entries for the file an openapi client rule generates. The file needs one entry with an EXEC_PATH suffix.",
-    "api_spec_typescript_client, api_spec_go_client, api_spec_python_client or api_spec_rust_client whose output the entries bind.",
+    } | CODEGEN_LIBRARY_ATTRS,
 )

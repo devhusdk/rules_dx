@@ -6,12 +6,10 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//core/codegen:codegen.bzl", "codegen_shard_rule", "codegen_srcjar", "codegen_rust_library_kwargs")
+load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_rust_library_kwargs", "codegen_srcjar")
 load("//core:stage.bzl", "stage_closure")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "ThriftInfo")
-
-THRIFT_GENERATED_SRCS_GROUP = "thrift_generated_srcs"
 
 ThriftCcAspectInfo = provider(
     doc = "C++ generated and compiled for one thrift_library closure.",
@@ -104,10 +102,9 @@ def _cc_library_impl(ctx):
     srcjars = [info.srcjar for info in aspect_infos if info.srcjar]
     return [
         DefaultInfo(files = depset(own)),
-        OutputGroupInfo(thrift_generated_srcs = depset(srcjars)),
         cc_info,
         dx_quality_sources([], [], str(ctx.label)),
-    ]
+    ] + codegen_library_providers(ctx, "thrift", "cpp", srcjars)
 
 thrift_cc_library = rule(
     implementation = _cc_library_impl,
@@ -119,7 +116,7 @@ thrift_cc_library = rule(
             doc = "thrift_library targets to generate C++ for.",
         ),
         "_runtime": attr.label(default = Label("@dx_thrift//:cpp_runtime"), providers = [CcInfo]),
-    },
+    } | CODEGEN_LIBRARY_ATTRS,
     provides = [CcInfo],
 )
 
@@ -189,10 +186,9 @@ def _java_library_impl(ctx):
     java_info = java_common.merge([info.java_info for info in aspect_infos] + [ctx.attr._runtime[JavaInfo]])
     return [
         DefaultInfo(files = depset(srcjars)),
-        OutputGroupInfo(thrift_generated_srcs = depset(srcjars)),
         java_info,
         dx_quality_sources([], [], str(ctx.label)),
-    ]
+    ] + codegen_library_providers(ctx, "thrift", "java", srcjars)
 
 thrift_java_library = rule(
     implementation = _java_library_impl,
@@ -204,7 +200,7 @@ thrift_java_library = rule(
             doc = "thrift_library targets to generate Java for.",
         ),
         "_runtime": attr.label(default = Label("@dx_thrift//:java_runtime"), providers = [JavaInfo]),
-    },
+    } | CODEGEN_LIBRARY_ATTRS,
     provides = [JavaInfo],
 )
 
@@ -251,9 +247,8 @@ def _rust_srcs_impl(ctx):
         )
     return [
         DefaultInfo(files = depset([lib] + generated)),
-        OutputGroupInfo(thrift_generated_srcs = depset([lib] + generated)),
         dx_quality_sources([], [], str(ctx.label)),
-    ]
+    ] + codegen_library_providers(ctx, "thrift", "rust", [lib] + generated)
 
 _thrift_rust_srcs = rule(
     implementation = _rust_srcs_impl,
@@ -261,10 +256,10 @@ _thrift_rust_srcs = rule(
     attrs = {
         "deps": attr.label_list(providers = [ThriftInfo], doc = "thrift_library targets to generate Rust for."),
         "_thrift": attr.label(default = Label("@dx_thrift//:thrift_compiler"), executable = True, cfg = "exec"),
-    },
+    } | CODEGEN_LIBRARY_ATTRS,
 )
 
-def thrift_rust_library(name, library, crate_name = None, deps = None, **kwargs):
+def thrift_rust_library(name, library, crate_name = None, deps = None, codegen_path = None, **kwargs):
     """One Rust crate with a module per schema of the library and everything it includes.
 
     Args:
@@ -272,6 +267,7 @@ def thrift_rust_library(name, library, crate_name = None, deps = None, **kwargs)
       library: thrift_library to generate Rust for.
       crate_name: Crate name dependents import; defaults to name.
       deps: Extra Rust dependencies of the crate.
+      codegen_path: Logical directory of the generated files in the dx sync projection.
       **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
         and the like replace the defaults; srcs and deps are added to them.
     """
@@ -280,18 +276,9 @@ def thrift_rust_library(name, library, crate_name = None, deps = None, **kwargs)
     _thrift_rust_srcs(
         name = generated,
         deps = [library],
+        codegen_path = codegen_path,
         tags = kwargs.get("tags"),
         testonly = kwargs.get("testonly"),
         visibility = kwargs.get("visibility"),
     )
     rust_library(**codegen_rust_library_kwargs(name, ":" + generated, crate_name, [Label("@dx_thrift//:rust_runtime")], deps, kwargs))
-
-thrift_codegen_shard = codegen_shard_rule(
-    "thrift_codegen_shard",
-    "thrift",
-    THRIFT_GENERATED_SRCS_GROUP,
-    "want a thrift_cc_library, a thrift_java_library or NAME_generated of a thrift_rust_library",
-    "cpp, rust or java.",
-    "Declares codegen plan entries for the C++, Rust and Java files thrift generates. Every generated file needs one entry with an EXEC_PATH suffix.",
-    "thrift_cc_library, thrift_java_library, or the NAME_generated target of a thrift_rust_library, whose generated files the entries bind.",
-)

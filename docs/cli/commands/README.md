@@ -316,7 +316,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//android:defs.bzl` | `android_sign` |
 |  |  | `@rules_dx//ansible:defs.bzl` | `ansible_library` |
 |  |  | `@rules_dx//ansible:defs.bzl` | `ansible_lock` |
-|  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_codegen_shard` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_go_client` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_library` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_python_client` |
@@ -341,7 +340,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//bicep:defs.bzl` | `bicep_library` |
 |  |  | `@rules_dx//bicep:defs.bzl` | `bicep_registry_module` |
 |  |  | `@rules_dx//capnproto:defs.bzl` | `capnproto_cc_library` |
-|  |  | `@rules_dx//capnproto:defs.bzl` | `capnproto_codegen_shard` |
 |  |  | `@rules_dx//capnproto:defs.bzl` | `capnproto_java_library` |
 |  |  | `@rules_dx//capnproto:defs.bzl` | `capnproto_library` |
 |  |  | `@rules_dx//capnproto:defs.bzl` | `capnproto_rust_library` |
@@ -381,7 +379,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_release` |
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_xrl_yrl` |
 |  |  | `@rules_dx//flatbuffers:defs.bzl` | `flatbuffers_cc_library` |
-|  |  | `@rules_dx//flatbuffers:defs.bzl` | `flatbuffers_codegen_shard` |
 |  |  | `@rules_dx//flatbuffers:defs.bzl` | `flatbuffers_conform_test` |
 |  |  | `@rules_dx//flatbuffers:defs.bzl` | `flatbuffers_java_library` |
 |  |  | `@rules_dx//flatbuffers:defs.bzl` | `flatbuffers_library` |
@@ -483,7 +480,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//terraform:defs.bzl` | `terraform_library` |
 |  |  | `@rules_dx//terraform:defs.bzl` | `terraform_provider` |
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_cc_library` |
-|  |  | `@rules_dx//thrift:defs.bzl` | `thrift_codegen_shard` |
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_java_library` |
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_library` |
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_rust_library` |

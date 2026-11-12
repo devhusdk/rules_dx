@@ -2,7 +2,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//rust:defs.bzl", "rust_test")
 load(":codegen_tests.bzl", "go_client_action_test")
-load("//api_spec:defs.bzl", "api_spec_codegen_shard", "api_spec_go_client", "api_spec_library", "api_spec_python_client", "api_spec_rust_client", "api_spec_typescript_client")
+load("//api_spec:defs.bzl", "api_spec_go_client", "api_spec_library", "api_spec_python_client", "api_spec_rust_client", "api_spec_typescript_client")
 load("//core:defs.bzl", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
@@ -10,7 +10,6 @@ load("//go:defs.bzl", "go_library")
 load("//python:defs.bzl", "python_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//typescript:defs.bzl", "typescript_library", "typescript_test")
-
 
 package(default_visibility = ["//visibility:private"])
 
@@ -26,26 +25,19 @@ api_spec_typescript_client(
     spec = ":spec",
 )
 
-api_spec_codegen_shard(
-    name = "client_shard",
-    generated = ":client",
-    entries = ["gen/shop/client.ts|gen|shop|api_spec/tests/client.ts"],
-    language = "typescript",
-)
-
 codegen_shard_argv_test(
     name = "client_shard_argv_test",
     expected = [
         "--producer",
-        "//api_spec/tests:client_shard",
+        "//api_spec/tests:client",
         "--language",
         "typescript",
         "--entry",
-        "gen/shop/client.ts|gen|shop|api_spec/tests/client.ts",
+        "gen/client.ts|gen||api_spec/tests/client.ts",
         "--output",
     ],
-    output = "api_spec/tests/client_shard.dxcodegen.pb",
-    target_under_test = ":client_shard",
+    output = "api_spec/tests/client.dxcodegen.pb",
+    target_under_test = ":client",
 )
 
 typescript_library(
@@ -104,26 +96,19 @@ go_client_action_test(
     target_under_test = ":petstore_go",
 )
 
-api_spec_codegen_shard(
-    name = "petstore_go_shard",
-    generated = ":petstore_go",
-    entries = ["gen/petstore/petstore.go|gen|petstore|api_spec/tests/petstore.go"],
-    language = "go",
-)
-
 codegen_shard_argv_test(
     name = "petstore_go_shard_argv_test",
     expected = [
         "--producer",
-        "//api_spec/tests:petstore_go_shard",
+        "//api_spec/tests:petstore_go",
         "--language",
         "go",
         "--entry",
-        "gen/petstore/petstore.go|gen|petstore|api_spec/tests/petstore.go",
+        "gen/petstore.go|gen|petstore|api_spec/tests/petstore.go",
         "--output",
     ],
-    output = "api_spec/tests/petstore_go_shard.dxcodegen.pb",
-    target_under_test = ":petstore_go_shard",
+    output = "api_spec/tests/petstore_go.dxcodegen.pb",
+    target_under_test = ":petstore_go",
 )
 
 go_library(
@@ -139,26 +124,19 @@ api_spec_python_client(
     spec = ":petstore",
 )
 
-api_spec_codegen_shard(
-    name = "petstore_py_shard",
-    generated = ":petstore_py",
-    entries = ["gen/petstore|gen|petstore|api_spec/tests/petstore_py"],
-    language = "python",
-)
-
 codegen_shard_argv_test(
     name = "petstore_py_shard_argv_test",
     expected = [
         "--producer",
-        "//api_spec/tests:petstore_py_shard",
+        "//api_spec/tests:petstore_py",
         "--language",
         "python",
         "--entry",
-        "gen/petstore|gen|petstore|api_spec/tests/petstore_py",
+        "gen/petstore_py|gen||api_spec/tests/petstore_py",
         "--output",
     ],
-    output = "api_spec/tests/petstore_py_shard.dxcodegen.pb",
-    target_under_test = ":petstore_py_shard",
+    output = "api_spec/tests/petstore_py.dxcodegen.pb",
+    target_under_test = ":petstore_py",
 )
 
 python_test(
@@ -180,26 +158,19 @@ api_spec_rust_client(
     spec = ":petstore",
 )
 
-api_spec_codegen_shard(
-    name = "petstore_rs_shard",
-    generated = ":petstore_rs",
-    entries = ["gen/petstore/petstore.rs|gen|petstore|api_spec/tests/petstore.rs"],
-    language = "rust",
-)
-
 codegen_shard_argv_test(
     name = "petstore_rs_shard_argv_test",
     expected = [
         "--producer",
-        "//api_spec/tests:petstore_rs_shard",
+        "//api_spec/tests:petstore_rs",
         "--language",
         "rust",
         "--entry",
-        "gen/petstore/petstore.rs|gen|petstore|api_spec/tests/petstore.rs",
+        "gen/petstore.rs|gen||api_spec/tests/petstore.rs",
         "--output",
     ],
-    output = "api_spec/tests/petstore_rs_shard.dxcodegen.pb",
-    target_under_test = ":petstore_rs_shard",
+    output = "api_spec/tests/petstore_rs.dxcodegen.pb",
+    target_under_test = ":petstore_rs",
 )
 
 starlark_test(
@@ -232,39 +203,11 @@ rust_test(
     ),
 )
 
-api_spec_codegen_shard(
-    name = "unmatched_shard",
-    generated = ":client",
-    entries = ["gen/shop/other.ts|gen|shop|api_spec/tests/other.ts"],
-    language = "typescript",
-    tags = ["manual"],
-)
-
-api_spec_codegen_shard(
-    name = "ruby_shard",
-    generated = ":client",
-    entries = ["gen/shop/client.rb|gen|shop|api_spec/tests/client.ts"],
-    language = "ruby",
-    tags = ["manual"],
-)
-
 api_spec_typescript_client(
     name = "wrong_root_client",
     root = "//api_spec/tests/shared:error.yaml",
     spec = ":spec",
     tags = ["manual"],
-)
-
-failure_test(
-    name = "unmatched_entry_test",
-    expected_failure_substring = "matches no openapi_generated_srcs artifact",
-    target = ":unmatched_shard",
-)
-
-failure_test(
-    name = "non_admitted_pair_test",
-    expected_failure_substring = "unsupported codegen pair ('openapi', 'ruby')",
-    target = ":ruby_shard",
 )
 
 failure_test(

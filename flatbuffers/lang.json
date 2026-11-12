@@ -24,8 +24,7 @@
     "flatbuffers_cc_library",
     "flatbuffers_java_library",
     "flatbuffers_rust_library",
-    "flatbuffers_conform_test",
-    "flatbuffers_codegen_shard"
+    "flatbuffers_conform_test"
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",

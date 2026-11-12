@@ -19,7 +19,6 @@
   ],
   "pins": [],
   "entry_points": [
-    "api_spec_codegen_shard",
     "api_spec_go_client",
     "api_spec_library",
     "api_spec_python_client",

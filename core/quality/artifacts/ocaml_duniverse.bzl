@@ -289,6 +289,7 @@ PACKAGES = [
 
 PATCHES = [
     "//ocaml/private/quality:patches/astring.dune.patch",
+    "//ocaml/private/quality:patches/base.no-bash.patch",
     "//ocaml/private/quality:patches/bisect_ppx.1-ppxlib-0.36.patch",
     "//ocaml/private/quality:patches/bisect_ppx.2-function-cases.patch",
     "//ocaml/private/quality:patches/bisect_ppx.3-runtime-no-unix.patch",

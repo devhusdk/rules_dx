@@ -137,4 +137,4 @@ Each Hackage package becomes one repository fetched from its sdist with the side
 
 ## Example
 
-See [haskell-app](tests/fixtures/haskell-app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.
+See [haskell_app](tests/fixtures/haskell_app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.

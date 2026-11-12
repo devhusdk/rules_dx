@@ -74,10 +74,10 @@ erlang_ct_suite_test(
 
 erlang_coverage_env_test(
     name = "nif_coverage_env_test",
-    apps_dirs = "erlang/tests/fixtures/erlang-app",
+    apps_dirs = "erlang/tests/fixtures/erlang_app",
     native = True,
-    source = "erlang/tests/fixtures/erlang-app/checksum/src/kv_checksum.erl",
-    target = "//erlang/tests/fixtures/erlang-app/checksum:eunit",
+    source = "erlang/tests/fixtures/erlang_app/checksum/src/kv_checksum.erl",
+    target = "//erlang/tests/fixtures/erlang_app/checksum:eunit",
 )
 
 erlang_coverage_env_test(

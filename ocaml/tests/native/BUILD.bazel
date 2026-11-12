@@ -22,7 +22,7 @@ cc_test(
     size = "small",
     srcs = ["checksum_c_test.c"],
     linkstatic = True,
-    deps = ["//ocaml/tests/fixtures/ocaml-app/checksum/native:checksum_c"],
+    deps = ["//ocaml/tests/fixtures/ocaml_app/checksum/native:checksum_c"],
 )
 
 ocaml_module(
@@ -69,17 +69,17 @@ sys_cell_test(
 sys_cell_test(
     name = "example_checksum_test",
     size = "small",
-    target = "//ocaml/tests/fixtures/ocaml-app/checksum:checksum_test",
+    target = "//ocaml/tests/fixtures/ocaml_app/checksum:checksum_test",
 )
 
 sys_cell_test(
     name = "example_ledger_test",
     size = "small",
-    target = "//ocaml/tests/fixtures/ocaml-app/ledger:ledger_test",
+    target = "//ocaml/tests/fixtures/ocaml_app/ledger:ledger_test",
 )
 
 sys_cell_test(
     name = "example_lexer_test",
     size = "small",
-    target = "//ocaml/tests/fixtures/ocaml-app/lexer:lexer_test",
+    target = "//ocaml/tests/fixtures/ocaml_app/lexer:lexer_test",
 )

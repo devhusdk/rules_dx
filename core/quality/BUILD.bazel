@@ -296,7 +296,7 @@ consumer_policy_tests(
                 "cli-real-lint-text.pb",
             ],
             "config": "default",
-            "subject": "//haskell/tests/fixtures/haskell-app/cli:cli",
+            "subject": "//haskell/tests/fixtures/haskell_app/cli:cli",
         },
         {
             "case": "default_nix",

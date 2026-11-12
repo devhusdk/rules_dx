@@ -498,6 +498,7 @@ release_cells(
 
 build_test(
     name = "runtime_cell_demo_stage_test",
+    size = "small",
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",

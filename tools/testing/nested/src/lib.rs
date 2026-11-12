@@ -220,7 +220,7 @@ pub fn reset(root: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// The real Bazel followed by every pinned nested startup option; the shim sidecar's contents.
+/// The real Bazel followed by every pinned nested startup option; the sidecar's contents.
 pub fn wrapper_argv(config: &Config, user_root: &Path, rc: &Path) -> Vec<String> {
     vec![
         config.bazel.to_string_lossy().into_owned(),

@@ -28,13 +28,13 @@ pub fn runtime_argv(
     argv
 }
 
-fn stage_preopen(host_rel: &str) -> PathBuf {
+fn stage_preopen(host_rel: &str) -> dx_test_scratch::TempDir {
     let host = dx_testing::resolve_runfiles(host_rel);
     let name = host
         .file_name()
         .expect("a preopened file must have a file name");
-    let stage = dx_testing::mkscratch("wasi-preopen").expect("scratch space must exist");
-    std::fs::copy(&host, stage.join(name)).expect("a preopened file must stage");
+    let stage = dx_test_scratch::scratch("wasi-preopen");
+    std::fs::copy(&host, stage.path().join(name)).expect("a preopened file must stage");
     stage
 }
 
@@ -44,16 +44,21 @@ fn command(
     args: &[String],
     env: &BTreeMap<String, String>,
     preopens: &[(String, PathBuf)],
-) -> Command {
+) -> (Command, Vec<dx_test_scratch::TempDir>) {
     let managed = match std::env::var("DX_WASI_MANAGED_RUNTIME") {
         Ok(rel) => dx_testing::resolve_runfiles(&rel),
         Err(_) => runtime.to_path_buf(),
     };
-    let staged: Vec<(PathBuf, String)> = preopens
+    let stages: Vec<dx_test_scratch::TempDir> = preopens
         .iter()
-        .map(|(guest, host)| (stage_preopen(&host.to_string_lossy()), guest.clone()))
+        .map(|(_, host)| stage_preopen(&host.to_string_lossy()))
         .collect();
-    let cache = dx_testing::mkscratch("wasi-cache").expect("scratch space must exist");
+    let staged: Vec<(PathBuf, String)> = stages
+        .iter()
+        .zip(preopens)
+        .map(|(stage, (guest, _))| (stage.path().to_path_buf(), guest.clone()))
+        .collect();
+    let cache = dx_test_scratch::scratch("wasi-cache");
     let runtime = dx_testing::resolve_runfiles(&runtime.to_string_lossy());
     let module = dx_testing::resolve_runfiles(&module.to_string_lossy());
     let mut command = Command::new(runtime);
@@ -61,13 +66,15 @@ fn command(
         .args(runtime_argv(env, &staged, &module, args))
         .env_clear()
         .env("DX_WASI_MANAGED_RUNTIME", &managed)
-        .env("XDG_CACHE_HOME", &cache);
+        .env("XDG_CACHE_HOME", cache.path());
     for name in RUNFILES_ENV {
         if let Some(value) = std::env::var_os(name) {
             command.env(name, value);
         }
     }
-    command
+    let mut guards = stages;
+    guards.push(cache);
+    (command, guards)
 }
 
 /// Runs one module under the runtime with only the declared args, env and preopens.
@@ -79,9 +86,8 @@ pub fn run(
     env: &BTreeMap<String, String>,
     preopens: &[(String, PathBuf)],
 ) -> Output {
-    command(runtime, module, args, env, preopens)
-        .output()
-        .expect("the WASI runtime must execute")
+    let (mut command, _guards) = command(runtime, module, args, env, preopens);
+    command.output().expect("the WASI runtime must execute")
 }
 
 /// Runs one module like `run`, with inherited stdio, and returns its exit code.
@@ -92,9 +98,8 @@ pub fn run_inherited(
     env: &BTreeMap<String, String>,
     preopens: &[(String, PathBuf)],
 ) -> i32 {
-    let status = command(runtime, module, args, env, preopens)
-        .status()
-        .expect("the WASI runtime must execute");
+    let (mut command, _guards) = command(runtime, module, args, env, preopens);
+    let status = command.status().expect("the WASI runtime must execute");
     status.code().unwrap_or(1)
 }
 

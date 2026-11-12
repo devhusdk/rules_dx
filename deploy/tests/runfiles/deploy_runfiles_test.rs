@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Output;
 
-use dx_testing::{mkscratch, resolve_runfiles, rlocation, rlocation_key};
+use dx_testing::{resolve_runfiles, rlocation, rlocation_key};
 
 struct Input {
     key: String,
@@ -22,10 +22,6 @@ fn program(name: &str) -> PathBuf {
 
 fn bytes(path: &Path) -> Vec<u8> {
     std::fs::read(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
-}
-
-fn scratch(name: &str) -> PathBuf {
-    mkscratch(name).expect("scratch dir")
 }
 
 fn file_name(path: &Path) -> String {
@@ -117,11 +113,13 @@ fn write_manifest(dir: &Path, entries: &[(&str, &Path)]) -> PathBuf {
 
 #[test]
 fn an_archive_launcher_releases_what_its_own_runfiles_name() {
-    let decoy = scratch("decoy");
+    let decoy_dir = dx_test_scratch::scratch("decoy");
+    let decoy = decoy_dir.path();
     for real in archive_inputs() {
-        plant(&decoy, &real.key, b"decoy");
+        plant(decoy, &real.key, b"decoy");
     }
-    let out = scratch("own");
+    let out_dir = dx_test_scratch::scratch("own");
+    let out = out_dir.path();
     let config = config_for("DX_ARCHIVE_PROGRAM");
     let run = dx_testing::run(
         &program("DX_ARCHIVE_PROGRAM"),
@@ -134,27 +132,31 @@ fn an_archive_launcher_releases_what_its_own_runfiles_name() {
     )
     .expect("launcher runs");
     assert!(run.status.success(), "{}", run.combined());
-    assert_released_the_real_archive(&out);
+    assert_released_the_real_archive(out);
 }
 
 #[test]
 fn an_archive_launcher_reads_the_tree_it_is_handed() {
-    let tree = scratch("tree");
+    let tree_dir = dx_test_scratch::scratch("tree");
+    let tree = tree_dir.path();
     for real in archive_inputs() {
-        plant(&tree, &real.key, &bytes(&real.path));
+        plant(tree, &real.key, &bytes(&real.path));
     }
-    let out = scratch("tree-out");
-    let run = launch("DX_ARCHIVE_PROGRAM", &out, &[("RUNFILES_DIR", &tree)]);
+    let out_dir = dx_test_scratch::scratch("tree-out");
+    let out = out_dir.path();
+    let run = launch("DX_ARCHIVE_PROGRAM", out, &[("RUNFILES_DIR", tree)]);
     assert!(run.status.success(), "{}", stderr(&run));
-    assert_released_the_real_archive(&out);
+    assert_released_the_real_archive(out);
 
-    let decoy = scratch("decoy-tree");
+    let decoy_dir = dx_test_scratch::scratch("decoy-tree");
+    let decoy = decoy_dir.path();
     for real in archive_inputs() {
-        plant(&decoy, &real.key, b"decoy");
+        plant(decoy, &real.key, b"decoy");
     }
     let tarball = decoy.join(input("DX_TARBALL").key);
-    let out = scratch("decoy-out");
-    let run = launch("DX_ARCHIVE_PROGRAM", &out, &[("RUNFILES_DIR", &decoy)]);
+    let out_dir = dx_test_scratch::scratch("decoy-out");
+    let out = out_dir.path();
+    let run = launch("DX_ARCHIVE_PROGRAM", out, &[("RUNFILES_DIR", decoy)]);
     assert!(!run.status.success(), "a decoy tree must not release");
     let text = stderr(&run);
     assert!(text.contains("checksum mismatch"), "{text}");
@@ -162,12 +164,13 @@ fn an_archive_launcher_reads_the_tree_it_is_handed() {
         text.contains(&tarball.display().to_string()),
         "the error names the file it read: {text}"
     );
-    assert!(released(&out).is_empty(), "{:?}", released(&out));
+    assert!(released(out).is_empty(), "{:?}", released(out));
 }
 
 #[test]
 fn an_archive_launcher_reads_escaped_manifest_entries() {
-    let root = scratch("escaped");
+    let root_dir = dx_test_scratch::scratch("escaped");
+    let root = root_dir.path();
     let dir = if cfg!(windows) {
         root.join("dir with space")
     } else {
@@ -184,38 +187,41 @@ fn an_archive_launcher_reads_escaped_manifest_entries() {
         .iter()
         .map(|(key, path)| (key.as_str(), path.as_path()))
         .collect();
-    let manifest = write_manifest(&root, &borrowed);
-    let out = scratch("escaped-out");
+    let manifest = write_manifest(root, &borrowed);
+    let out_dir = dx_test_scratch::scratch("escaped-out");
+    let out = out_dir.path();
     let run = launch(
         "DX_ARCHIVE_PROGRAM",
-        &out,
+        out,
         &[("RUNFILES_MANIFEST_FILE", &manifest)],
     );
     assert!(run.status.success(), "{}", stderr(&run));
-    assert_released_the_real_archive(&out);
+    assert_released_the_real_archive(out);
 }
 
 #[test]
 fn an_archive_launcher_names_a_missing_key_and_releases_nothing() {
     let [app, tarball, checksum] = archive_inputs();
-    let root = scratch("missing");
+    let root_dir = dx_test_scratch::scratch("missing");
+    let root = root_dir.path();
     let manifest = write_manifest(
-        &root,
+        root,
         &[
             (app.key.as_str(), app.path.as_path()),
             (tarball.key.as_str(), tarball.path.as_path()),
         ],
     );
-    let out = scratch("missing-out");
+    let out_dir = dx_test_scratch::scratch("missing-out");
+    let out = out_dir.path();
     let run = launch(
         "DX_ARCHIVE_PROGRAM",
-        &out,
+        out,
         &[("RUNFILES_MANIFEST_FILE", &manifest)],
     );
     assert_eq!(run.status.code(), Some(1));
     let text = stderr(&run);
     assert!(text.contains(&checksum.key), "{text}");
-    assert!(released(&out).is_empty(), "{:?}", released(&out));
+    assert!(released(out).is_empty(), "{:?}", released(out));
 }
 
 fn fake_gh(dir: &Path, marker: &Path) {
@@ -241,7 +247,8 @@ fn fake_gh(dir: &Path, marker: &Path) {
 
 #[test]
 fn a_github_launcher_stages_an_external_input_without_publishing() {
-    let root = scratch("github");
+    let root_dir = dx_test_scratch::scratch("github");
+    let root = root_dir.path();
     let marker = root.join("gh-ran");
     let bin = root.join("bin");
     fake_gh(&bin, &marker);
@@ -278,8 +285,9 @@ fn a_github_launcher_stages_an_external_input_without_publishing() {
 fn a_github_launcher_names_a_missing_external_key() {
     let tarball = input("DX_TARBALL");
     let notice = input("DX_NOTICE");
-    let root = scratch("github-missing");
-    let manifest = write_manifest(&root, &[(tarball.key.as_str(), tarball.path.as_path())]);
+    let root_dir = dx_test_scratch::scratch("github-missing");
+    let root = root_dir.path();
+    let manifest = write_manifest(root, &[(tarball.key.as_str(), tarball.path.as_path())]);
     let out = root.join("out");
     let run = launch(
         "DX_GITHUB_PROGRAM",

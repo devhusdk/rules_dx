@@ -224,21 +224,6 @@ fn symlink(destination: &Path, link: &Path, source: &Path) {
     result.unwrap_or_else(|error| panic!("link {}: {error}", source.display()));
 }
 
-static SCRATCH_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
-/// Being removed by #2841; use `dx_test_scratch::scratch`.
-pub fn mkscratch(prefix: &str) -> std::io::Result<PathBuf> {
-    let base = std::env::var("TEST_TMPDIR")
-        .ok()
-        .filter(|dir| !dir.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    let seq = SCRATCH_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let dir = base.join(format!("{prefix}-{}-{seq}", std::process::id()));
-    std::fs::create_dir_all(&dir)?;
-    Ok(dir)
-}
-
 pub fn sha256_file(path: &Path) -> Result<String, String> {
     dx_digest::sha256_file_hex(path).map_err(|error| format!("read {}: {error}", path.display()))
 }
@@ -454,7 +439,7 @@ pub fn rules_dx_source() -> PathBuf {
 pub fn source_snapshot() -> PathBuf {
     static ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
     ROOT.get_or_init(|| {
-        let root = mkscratch("source-snapshot").expect("snapshot scratch dir");
+        let root = dx_test_scratch::scratch("source-snapshot").keep();
         for variable in [
             "DX_SOURCES_JSON",
             "DX_FILES_JSON",
@@ -1270,9 +1255,10 @@ mod tests {
 
     #[test]
     fn scratch_json_and_run_helpers() {
-        let first = mkscratch("dx-helper-").expect("scratch");
-        let second = mkscratch("dx-helper-").expect("scratch");
-        assert_ne!(first, second);
+        let first_scratch = dx_test_scratch::scratch("dx-helper-");
+        let second_scratch = dx_test_scratch::scratch("dx-helper-");
+        let first = first_scratch.path();
+        assert_ne!(first, second_scratch.path());
         let path = first.join("doc.json");
         let value: serde_json::Value =
             serde_json::from_str("{\"tools\": [{\"bin_name\": \"dx\"}]}").expect("parse");

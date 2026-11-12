@@ -116,8 +116,9 @@ fn declarations_are_not_served() {
 #[test]
 fn tree_relocates_to_a_plain_directory() {
     let root = staged("index.html").parent().expect("parent").to_path_buf();
-    let dest = dx_testing::mkscratch("web-app").expect("scratch dir");
-    copy_tree(&root, &dest);
+    let scratch = dx_test_scratch::scratch("web-app");
+    let dest = scratch.path();
+    copy_tree(&root, dest);
     assert!(
         dest.join("index.html").is_file(),
         "relocated index is missing"

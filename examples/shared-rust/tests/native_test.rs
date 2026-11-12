@@ -25,9 +25,10 @@ fn serial() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-fn relocated() -> (PathBuf, PathBuf) {
+fn relocated() -> (dx_test_scratch::TempDir, PathBuf) {
     let rel = std::env::var("DX_TASKS").expect("DX_TASKS names the native binary");
-    let dir = dx_testing::mkscratch("tasks-native").expect("scratch dir");
+    let scratch = dx_test_scratch::scratch("tasks-native");
+    let dir = scratch.path();
     let source = dx_testing::resolve_runfiles(&rel);
     let bin = dir.join(source.file_name().expect("binary file name"));
     std::fs::copy(&source, &bin).expect("relocate the binary");
@@ -35,7 +36,7 @@ fn relocated() -> (PathBuf, PathBuf) {
         let source = dx_testing::resolve_runfiles(&format!("{ASSETS}/{name}"));
         std::fs::copy(source, dir.join(name)).expect("relocate the asset");
     }
-    (bin, dir)
+    (scratch, bin)
 }
 
 fn run(bin: &Path, args: &[&str]) -> dx_testing::Run {
@@ -45,7 +46,8 @@ fn run(bin: &Path, args: &[&str]) -> dx_testing::Run {
 #[test]
 fn relocated_binary_applies_commands_over_packaged_resources() {
     let _serial = serial();
-    let (bin, dir) = relocated();
+    let (scratch, bin) = relocated();
+    let dir = scratch.path();
     let board = dir.join("board.txt");
     let notes = format!("--asset={}", dir.join("notes.txt").display());
     let result = run(
@@ -66,7 +68,8 @@ fn relocated_binary_applies_commands_over_packaged_resources() {
 #[test]
 fn rejected_command_exits_one_with_its_kind() {
     let _serial = serial();
-    let (bin, dir) = relocated();
+    let (scratch, bin) = relocated();
+    let dir = scratch.path();
     let board = dir.join("board.txt");
     let result = run(&bin, &[board.to_str().expect("utf8 path"), "launch 1"]);
     assert_eq!(result.status.code(), Some(1));
@@ -80,7 +83,8 @@ fn rejected_command_exits_one_with_its_kind() {
 #[test]
 fn malformed_or_missing_board_exits_two() {
     let _serial = serial();
-    let (bin, dir) = relocated();
+    let (scratch, bin) = relocated();
+    let dir = scratch.path();
     let broken = dir.join("broken.txt");
     std::fs::write(&broken, "[x] fine\noops\n").expect("write broken board");
     let result = run(&bin, &[broken.to_str().expect("utf8 path")]);

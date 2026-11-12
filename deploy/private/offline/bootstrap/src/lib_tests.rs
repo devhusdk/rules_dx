@@ -7,10 +7,6 @@ use super::{
     manifest_entry, parse_args, pinned, publish_set, recorded_field, run, today_utc, usage,
 };
 
-fn scratch(name: &str) -> PathBuf {
-    dx_testing::mkscratch(name).unwrap_or_else(|error| panic!("test scratch: {error}"))
-}
-
 #[test]
 fn every_host_maps_to_the_launcher_its_bundle_carries() {
     assert_eq!(
@@ -136,11 +132,11 @@ fn a_bundle_dir_that_is_absent_is_refused() {
 
 #[test]
 fn a_bundle_without_the_two_bundle_dirs_is_refused() {
-    let root = scratch("dx-bootstrap-shape-");
+    let root = dx_test_scratch::scratch("dx-bootstrap-shape-");
     let options = Options {
-        bundle: Some(root.to_string_lossy().into_owned()),
-        install_dir: root.join("bin").to_string_lossy().into_owned(),
-        workspace: root.to_string_lossy().into_owned(),
+        bundle: Some(root.path().to_string_lossy().into_owned()),
+        install_dir: root.path().join("bin").to_string_lossy().into_owned(),
+        workspace: root.path().to_string_lossy().into_owned(),
     };
     assert_eq!(
         run(&options, "linux", "x86_64", "2026-01-01"),
@@ -149,7 +145,7 @@ fn a_bundle_without_the_two_bundle_dirs_is_refused() {
             options.bundle.as_deref().unwrap()
         )
     );
-    std::fs::create_dir(root.join("bazelisk")).expect("bazelisk dir");
+    std::fs::create_dir(root.path().join("bazelisk")).expect("bazelisk dir");
     assert_eq!(
         run(&options, "linux", "x86_64", "2026-01-01"),
         format!(
@@ -161,13 +157,13 @@ fn a_bundle_without_the_two_bundle_dirs_is_refused() {
 
 #[test]
 fn an_unsupported_host_is_refused() {
-    let root = scratch("dx-bootstrap-host-");
-    std::fs::create_dir(root.join("bazelisk")).expect("bazelisk dir");
-    std::fs::create_dir(root.join("advisory")).expect("advisory dir");
+    let root = dx_test_scratch::scratch("dx-bootstrap-host-");
+    std::fs::create_dir(root.path().join("bazelisk")).expect("bazelisk dir");
+    std::fs::create_dir(root.path().join("advisory")).expect("advisory dir");
     let options = Options {
-        bundle: Some(root.to_string_lossy().into_owned()),
-        install_dir: root.join("bin").to_string_lossy().into_owned(),
-        workspace: root.to_string_lossy().into_owned(),
+        bundle: Some(root.path().to_string_lossy().into_owned()),
+        install_dir: root.path().join("bin").to_string_lossy().into_owned(),
+        workspace: root.path().to_string_lossy().into_owned(),
     };
     assert_eq!(
         run(&options, "plan9", "risc-v", "2026-01-01"),
@@ -208,8 +204,13 @@ fn pin_advisory(advisory: &Path) {
     std::fs::write(advisory.join("SHA256SUMS"), text).expect("manifest");
 }
 
-fn bundle_with_launcher(name: &str, bytes: &[u8]) -> (PathBuf, Options) {
-    let root = scratch(name);
+fn bundle_with_launcher(name: &str, bytes: &[u8]) -> (dx_test_scratch::TempDir, Options) {
+    let root = dx_test_scratch::scratch(name);
+    let options = stage_bundle(root.path(), bytes);
+    (root, options)
+}
+
+fn stage_bundle(root: &Path, bytes: &[u8]) -> Options {
     let bazelisk = root.join("bazelisk");
     let advisory = root.join("advisory");
     std::fs::create_dir(&bazelisk).expect("bazelisk dir");
@@ -222,12 +223,11 @@ fn bundle_with_launcher(name: &str, bytes: &[u8]) -> (PathBuf, Options) {
     std::fs::write(advisory.join(format!("{set}.json")), b"{}").expect("snapshot");
     write_identity(&advisory, set, "2026-01-01");
     pin_advisory(&advisory);
-    let options = Options {
+    Options {
         bundle: Some(root.to_string_lossy().into_owned()),
         install_dir: root.join("bin").to_string_lossy().into_owned(),
         workspace: root.join("ws").to_string_lossy().into_owned(),
-    };
-    (root, options)
+    }
 }
 
 #[test]
@@ -235,12 +235,13 @@ fn a_non_utf8_launcher_is_installed_byte_for_byte() {
     let bytes = [0x7f, b'E', b'L', b'F', 0xff, 0x80, 0x00, 0xc3, 0x28];
     let (root, options) = bundle_with_launcher("dx-bootstrap-binary-", &bytes);
     assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
-    let installed = std::fs::read(root.join("bin").join("bazel")).expect("installed launcher");
+    let installed =
+        std::fs::read(root.path().join("bin").join("bazel")).expect("installed launcher");
     assert_eq!(installed, bytes);
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mode = std::fs::metadata(root.join("bin").join("bazel"))
+        let mode = std::fs::metadata(root.path().join("bin").join("bazel"))
             .expect("metadata")
             .permissions()
             .mode();
@@ -254,11 +255,11 @@ fn a_read_only_bundle_installs_twice() {
     use std::os::unix::fs::PermissionsExt;
     let (root, options) = bundle_with_launcher("dx-bootstrap-read-only-", b"launcher");
     let asset = host_launcher("linux", "x86_64").expect("launcher");
-    let mut read_only = vec![root.join("bazelisk").join(asset)];
+    let mut read_only = vec![root.path().join("bazelisk").join(asset)];
     read_only.extend(
         ADVISORY_SETS
             .iter()
-            .map(|set| root.join("advisory").join(format!("{set}.json")))
+            .map(|set| root.path().join("advisory").join(format!("{set}.json")))
             .filter(|path| path.exists()),
     );
     for path in &read_only {
@@ -268,6 +269,7 @@ fn a_read_only_bundle_installs_twice() {
     assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
     let set = ADVISORY_SETS[0];
     let snapshot = root
+        .path()
         .join("ws")
         .join(".dx")
         .join("local")
@@ -287,7 +289,7 @@ fn a_read_only_bundle_installs_twice() {
 #[test]
 fn a_launcher_that_cannot_be_copied_is_reported() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-copyfail-", b"\xff\xfe");
-    std::fs::create_dir_all(root.join("bin").join("bazel")).expect("blocking dir");
+    std::fs::create_dir_all(root.path().join("bin").join("bazel")).expect("blocking dir");
     let refusal = run(&options, "linux", "x86_64", "2026-01-01");
     assert!(refusal.starts_with("cannot copy "), "{refusal}");
 }
@@ -361,7 +363,10 @@ fn the_default_install_dir_is_under_home_then_userprofile() {
 
 #[test]
 fn the_identity_url_is_a_file_uri_of_the_bundle() {
-    let (root, mut options) = bundle_with_launcher("dx bootstrap url-", b"launcher");
+    let scratch = dx_test_scratch::scratch("dx-bootstrap-url-");
+    let root = scratch.path().join("dx bootstrap url");
+    std::fs::create_dir(&root).expect("bundle dir");
+    let mut options = stage_bundle(&root, b"launcher");
     options.bundle = Some(root.to_string_lossy().into_owned());
     assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
     let meta = std::fs::read_to_string(root.join("ws/.dx/local/advisory/cargo.meta.json"))
@@ -436,7 +441,7 @@ fn a_plain_date_is_a_real_calendar_day() {
 fn an_old_bundle_date_survives_bootstrap() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-old-date-", b"launcher");
     assert_eq!(run(&options, "linux", "x86_64", "2026-10-24"), "");
-    let meta = std::fs::read_to_string(root.join("ws/.dx/local/advisory/cargo.meta.json"))
+    let meta = std::fs::read_to_string(root.path().join("ws/.dx/local/advisory/cargo.meta.json"))
         .expect("identity");
     assert!(meta.contains("\"retrieved_at\": \"2026-01-01\""), "{meta}");
     assert!(!meta.contains("2026-10-24"), "{meta}");
@@ -445,8 +450,8 @@ fn an_old_bundle_date_survives_bootstrap() {
 #[test]
 fn a_snapshot_without_a_recorded_date_is_refused() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-no-date-", b"launcher");
-    std::fs::remove_file(root.join("advisory/cargo.meta.json")).expect("remove");
-    pin_advisory(&root.join("advisory"));
+    std::fs::remove_file(root.path().join("advisory/cargo.meta.json")).expect("remove");
+    pin_advisory(&root.path().join("advisory"));
     let refusal = run(&options, "linux", "x86_64", "2026-10-24");
     assert_eq!(
         refusal,
@@ -458,7 +463,7 @@ fn a_snapshot_without_a_recorded_date_is_refused() {
 #[test]
 fn an_unpinned_identity_is_refused() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-unpinned-date-", b"launcher");
-    let advisory = root.join("advisory");
+    let advisory = root.path().join("advisory");
     let sum = dx_digest::sha256_file_hex(&advisory.join("cargo.json")).expect("digest");
     std::fs::write(advisory.join("SHA256SUMS"), format!("{sum}  cargo.json\n")).expect("manifest");
     let refusal = run(&options, "linux", "x86_64", "2026-10-24");
@@ -477,7 +482,7 @@ fn a_bad_or_missing_bundle_date_is_refused() {
         "not json",
     ] {
         let (root, options) = bundle_with_launcher("dx-bootstrap-bad-date-", b"launcher");
-        let advisory = root.join("advisory");
+        let advisory = root.path().join("advisory");
         std::fs::write(advisory.join("cargo.meta.json"), body).expect("identity");
         pin_advisory(&advisory);
         assert_eq!(
@@ -491,7 +496,7 @@ fn a_bad_or_missing_bundle_date_is_refused() {
 #[test]
 fn a_bundle_date_after_today_is_refused() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-future-date-", b"launcher");
-    let advisory = root.join("advisory");
+    let advisory = root.path().join("advisory");
     write_identity(&advisory, "cargo", "2026-12-31");
     pin_advisory(&advisory);
     let refusal = run(&options, "linux", "x86_64", "2026-10-24");
@@ -506,7 +511,7 @@ fn a_bundle_date_after_today_is_refused() {
 #[test]
 fn a_sidecar_for_other_bytes_is_refused() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-other-bytes-", b"launcher");
-    let advisory = root.join("advisory");
+    let advisory = root.path().join("advisory");
     let identity = std::fs::read_to_string(advisory.join("cargo.meta.json")).expect("identity");
     let sum = dx_digest::sha256_file_hex(&advisory.join("cargo.json")).expect("digest");
     std::fs::write(
@@ -535,7 +540,7 @@ fn a_sidecar_for_other_bytes_is_refused() {
 #[test]
 fn an_orphan_sidecar_is_refused() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-orphan-", b"launcher");
-    let advisory = root.join("advisory");
+    let advisory = root.path().join("advisory");
     std::fs::copy(
         advisory.join("cargo.meta.json"),
         advisory.join("npm.meta.json"),
@@ -554,12 +559,12 @@ fn failing_write(_target: &Path, _body: &str) -> Result<(), String> {
 
 #[test]
 fn an_interrupted_replace_never_pairs_a_new_snapshot_with_an_old_identity() {
-    let root = scratch("dx-bootstrap-publish-");
-    let populated = root.join("populated");
+    let root = dx_test_scratch::scratch("dx-bootstrap-publish-");
+    let populated = root.path().join("populated");
     std::fs::create_dir_all(&populated).expect("populated");
     std::fs::write(populated.join("cargo.json"), "old").expect("old snapshot");
     std::fs::write(populated.join("cargo.meta.json"), "old identity").expect("old identity");
-    let new = root.join("new.json");
+    let new = root.path().join("new.json");
     std::fs::write(&new, "new").expect("new snapshot");
     let result = publish_set(&new, &populated, "cargo", "meta", failing_write);
     assert_eq!(result, Err("disk full".to_owned()));
@@ -573,7 +578,7 @@ fn an_interrupted_replace_never_pairs_a_new_snapshot_with_an_old_identity() {
 #[test]
 fn an_old_staging_file_from_an_interrupted_install_is_removed() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-stale-", b"launcher");
-    let bin = root.join("bin");
+    let bin = root.path().join("bin");
     std::fs::create_dir_all(&bin).expect("bin dir");
     let stale = bin.join(".bazel.abc.tmp");
     std::fs::write(&stale, b"partial").expect("stale file");

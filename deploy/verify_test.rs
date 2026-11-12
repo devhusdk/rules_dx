@@ -67,7 +67,8 @@ fn archive_case() {
 
 fn homebrew_case() {
     let prog = env_file("DX_HOMEBREW_PROG");
-    let outdir = dx_testing::mkscratch("homebrew-out").expect("scratch outdir");
+    let outdir_dir = dx_test_scratch::scratch("homebrew-out");
+    let outdir = outdir_dir.path();
     let run = run_deploy(
         &prog,
         "DX_HOMEBREW_CONFIG",
@@ -352,7 +353,8 @@ fn resources_case() {
 }
 
 fn helm_case() {
-    let outdir = dx_testing::mkscratch("helm-demo").expect("scratch");
+    let outdir_dir = dx_test_scratch::scratch("helm-demo");
+    let outdir = outdir_dir.path();
     let run = run_deploy(
         &env_file("DX_HELM_PROG"),
         "DX_HELM_CONFIG",
@@ -370,7 +372,8 @@ fn helm_case() {
 }
 
 fn rubygems_case() {
-    let outdir = dx_testing::mkscratch("rubygems-demo").expect("scratch");
+    let outdir_dir = dx_test_scratch::scratch("rubygems-demo");
+    let outdir = outdir_dir.path();
     let run = run_deploy(
         &env_file("DX_RUBYGEMS_PROG"),
         "DX_RUBYGEMS_CONFIG",
@@ -386,7 +389,8 @@ fn rubygems_case() {
 }
 
 fn demo_case() {
-    let outdir = dx_testing::mkscratch("demo-dry-run").expect("scratch");
+    let outdir_dir = dx_test_scratch::scratch("demo-dry-run");
+    let outdir = outdir_dir.path();
     let want = std::env::var("DX_DEMO_WANT").expect("DX_DEMO_WANT must name the output line");
     let run = run_deploy(
         &env_file("DX_DEMO_PROG"),
@@ -400,20 +404,27 @@ fn demo_case() {
     assert!(out.contains(&want), "output missing '{want}'\n{out}");
 }
 
-fn oci_stage(prog: &Path, config_var: &str, name: &str) -> PathBuf {
-    let outdir = dx_testing::mkscratch(name).expect("scratch");
-    let run = run_deploy(prog, config_var, &[outdir.to_string_lossy().as_ref()], &[])
-        .expect("oci deploy must execute");
+fn oci_stage(prog: &Path, config_var: &str, name: &str) -> (dx_test_scratch::TempDir, PathBuf) {
+    let outdir = dx_test_scratch::scratch(name);
+    let run = run_deploy(
+        prog,
+        config_var,
+        &[outdir.path().to_string_lossy().as_ref()],
+        &[],
+    )
+    .expect("oci deploy must execute");
     let out = run.combined();
     assert!(run.status.success(), "oci deploy failed\n{out}");
-    out.lines()
+    let layout = out
+        .lines()
         .find_map(|line| line.strip_prefix("  layout: "))
         .map(PathBuf::from)
-        .unwrap_or_else(|| panic!("no layout line\n{out}"))
+        .unwrap_or_else(|| panic!("no layout line\n{out}"));
+    (outdir, layout)
 }
 
 fn oci_case() {
-    let layout = oci_stage(&env_file("DX_OCI_PROG"), "DX_OCI_CONFIG", "oci-demo");
+    let (_layout_guard, layout) = oci_stage(&env_file("DX_OCI_PROG"), "DX_OCI_CONFIG", "oci-demo");
     let blobs = layout.join("blobs").join("sha256");
     for entry in std::fs::read_dir(&blobs).expect("read blobs") {
         let path = entry.expect("blob entry").path();
@@ -436,7 +447,7 @@ fn oci_case() {
     );
     let manifest = blob(&index["manifests"][0]["digest"]);
     if std::env::var_os("DX_OCI_BASE_PROG").is_some() {
-        let base = oci_stage(
+        let (_base_guard, base) = oci_stage(
             &env_file("DX_OCI_BASE_PROG"),
             "DX_OCI_BASE_CONFIG",
             "oci-demo-base",
@@ -504,13 +515,18 @@ fn stage(
     house_name: &str,
     project: &str,
     target_name: &str,
-) -> PathBuf {
+) -> (dx_test_scratch::TempDir, PathBuf) {
     let prog = env_file(var);
-    let outdir = dx_testing::mkscratch("pypi-out").expect("scratch outdir");
-    let run = run_deploy(&prog, config_var, &[outdir.to_string_lossy().as_ref()], &[])
-        .expect("pypi_deploy program must execute");
+    let outdir = dx_test_scratch::scratch("pypi-out");
+    let run = run_deploy(
+        &prog,
+        config_var,
+        &[outdir.path().to_string_lossy().as_ref()],
+        &[],
+    )
+    .expect("pypi_deploy program must execute");
     assert!(run.status.success(), "{}", run.combined());
-    let house = outdir.join(house_name);
+    let house = outdir.path().join(house_name);
     let index = house.join("simple-index");
     assert!(
         index.join(project).join("index.html").is_file(),
@@ -518,7 +534,7 @@ fn stage(
         run.combined()
     );
     assert!(!index.join(target_name).exists(), "{}", house.display());
-    house
+    (outdir, house)
 }
 
 fn kept_env(command: &mut std::process::Command) {
@@ -539,15 +555,15 @@ fn kept_env(command: &mut std::process::Command) {
     }
 }
 
-fn install_output(url: &str, spelling: &str) -> (std::process::Output, PathBuf) {
+fn install_output(url: &str, spelling: &str) -> (std::process::Output, dx_test_scratch::TempDir) {
     let uv = env_file("DX_PYPI_UV");
     let python = env_file("DX_PYPI_PYTHON");
-    let cache = dx_testing::mkscratch("pypi-uv-cache").expect("scratch cache");
-    let target = dx_testing::mkscratch("pypi-target").expect("scratch target");
+    let cache = dx_test_scratch::scratch("pypi-uv-cache");
+    let target = dx_test_scratch::scratch("pypi-target");
     let mut command = std::process::Command::new(&uv);
     kept_env(&mut command);
     command
-        .env("UV_CACHE_DIR", &cache)
+        .env("UV_CACHE_DIR", cache.path())
         .env("UV_NO_CONFIG", "1")
         .env("UV_PYTHON_DOWNLOADS", "never")
         .args([
@@ -564,13 +580,13 @@ fn install_output(url: &str, spelling: &str) -> (std::process::Output, PathBuf) 
         .arg("--default-index")
         .arg(format!("{url}/simple-index/"))
         .arg("--target")
-        .arg(&target)
+        .arg(target.path())
         .arg(spelling);
     let output = command.output().expect("uv must execute");
     (output, target)
 }
 
-fn install(url: &str, spelling: &str) -> PathBuf {
+fn install(url: &str, spelling: &str) -> dx_test_scratch::TempDir {
     let (output, target) = install_output(url, spelling);
     assert!(
         output.status.success(),
@@ -604,7 +620,7 @@ fn check_module(target: &Path, module: &str, expected: &str) {
 
 fn pypi_case() {
     let wheel = "dx_pypi_probe-1.0-py3-none-any.whl";
-    let house = stage(
+    let (_house_guard, house) = stage(
         "DX_PYPI_PROG",
         "DX_PYPI_CONFIG",
         "dx_pypi_probe-wheelhouse",
@@ -619,8 +635,9 @@ fn pypi_case() {
         "dx--pypi__probe",
         "dx-pypi-probe",
     ] {
-        let target = install(&url, spelling);
-        check_module(&target, "dx_pypi_probe", "dx-pypi-probe ok");
+        let target_dir = install(&url, spelling);
+        let target = target_dir.path();
+        check_module(target, "dx_pypi_probe", "dx-pypi-probe ok");
     }
     let seen = requests(&log);
     assert!(
@@ -643,7 +660,7 @@ fn pypi_case() {
     assert!(index.contains(&format!("#sha256={digest}")), "{index}");
 
     let legacy = "Dx_Pypi.Probe-1.0-py3-none-any.whl";
-    let house = stage(
+    let (_house_guard, house) = stage(
         "DX_PYPI_RENAMED_PROG",
         "DX_PYPI_RENAMED_CONFIG",
         "pypi_probe_release-wheelhouse",
@@ -652,8 +669,9 @@ fn pypi_case() {
     );
     assert!(house.join(legacy).is_file(), "{}", house.display());
     let (url, log) = serve(house);
-    let target = install(&url, "Dx_Pypi.Probe");
-    check_module(&target, "dx_pypi_probe", "dx-pypi-probe ok");
+    let target_dir = install(&url, "Dx_Pypi.Probe");
+    let target = target_dir.path();
+    check_module(target, "dx_pypi_probe", "dx-pypi-probe ok");
     let seen = requests(&log);
     assert!(
         seen.iter()
@@ -662,7 +680,8 @@ fn pypi_case() {
     );
 
     let prog = env_file("DX_PYPI_MISMATCH_PROG");
-    let outdir = dx_testing::mkscratch("pypi-mismatch").expect("scratch outdir");
+    let outdir_dir = dx_test_scratch::scratch("pypi-mismatch");
+    let outdir = outdir_dir.path();
     let run = run_deploy(
         &prog,
         "DX_PYPI_MISMATCH_CONFIG",
@@ -683,7 +702,7 @@ fn pypi_case() {
 }
 
 fn typed_case() {
-    let house = stage(
+    let (_house_guard, house) = stage(
         "DX_TYPED_PROG",
         "DX_TYPED_CONFIG",
         "dx_typed_probe-wheelhouse",
@@ -691,14 +710,15 @@ fn typed_case() {
         "dx_typed_probe",
     );
     let (url, _log) = serve(house);
-    let target = install(&url, "dx_typed_probe");
-    check_module(&target, "dx_ns.typed_probe", "dx-typed-probe hello");
+    let target_dir = install(&url, "dx_typed_probe");
+    let target = target_dir.path();
+    check_module(target, "dx_ns.typed_probe", "dx-typed-probe hello");
     let package = target.join("dx_ns").join("typed_probe");
     assert!(package.join("py.typed").is_file());
     assert!(package.join("__init__.pyi").is_file());
     assert!(!target.join("dx_ns").join("__init__.py").exists());
 
-    let house = stage(
+    let (_house_guard, house) = stage(
         "DX_TYPED_NODATA_PROG",
         "DX_TYPED_NODATA_CONFIG",
         "typed_probe_nodata-wheelhouse",
@@ -706,8 +726,9 @@ fn typed_case() {
         "typed_probe_nodata",
     );
     let (url, _log) = serve(house);
-    let target = install(&url, "dx_typed_probe");
-    let output = run_module(&target, "dx_ns.typed_probe");
+    let target_dir = install(&url, "dx_typed_probe");
+    let target = target_dir.path();
+    let output = run_module(target, "dx_ns.typed_probe");
     assert!(!output.status.success());
     assert!(
         String::from_utf8_lossy(&output.stderr)
@@ -730,17 +751,19 @@ fn probe(python: &Path, code: &str) -> String {
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
 
-fn no_compilers(command: &mut std::process::Command) {
-    if !cfg!(windows) {
-        let empty = dx_testing::mkscratch("pypi-empty-path").expect("scratch empty path");
-        command.env("PATH", empty);
+fn no_compilers(command: &mut std::process::Command) -> Option<dx_test_scratch::TempDir> {
+    if cfg!(windows) {
+        return None;
     }
+    let empty = dx_test_scratch::scratch("pypi-empty-path");
+    command.env("PATH", empty.path());
+    Some(empty)
 }
 
 fn import_from(target: &Path, cwd: &Path) -> std::process::Output {
     let mut command = std::process::Command::new(env_file("DX_PYPI_PYTHON"));
     kept_env(&mut command);
-    no_compilers(&mut command);
+    let _empty = no_compilers(&mut command);
     command.current_dir(cwd).env("PYTHONPATH", target).args([
         "-c",
         "import dx_native_probe; print(dx_native_probe.greet())",
@@ -776,7 +799,7 @@ fn pypi_native_case() {
         ("linux_x86_64", "so")
     };
     let wheel = format!("dx_native_probe-1.0-{version}-{version}-{platform}.whl");
-    let house = stage(
+    let (_house_guard, house) = stage(
         "DX_NATIVE_PROG",
         "DX_NATIVE_CONFIG",
         "dx_native_probe-wheelhouse",
@@ -785,18 +808,19 @@ fn pypi_native_case() {
     );
     assert!(house.join(&wheel).is_file(), "{}", house.display());
     let (url, _log) = serve(house.clone());
-    let target = install(&url, "dx_native_probe");
+    let target_dir = install(&url, "dx_native_probe");
+    let target = target_dir.path();
 
     let mut files = Vec::new();
-    native_files(&target, &mut files);
+    native_files(target, &mut files);
     let ext: Vec<&PathBuf> = files
         .iter()
         .filter(|path| path.extension().is_some_and(|ext| ext == ext_name))
         .collect();
     assert_eq!(ext.len(), 1, "{files:?}");
     assert_eq!(
-        ext[0],
-        &target
+        *ext[0],
+        target
             .join("dx_native_probe")
             .join(format!("_core{suffix}"))
     );
@@ -825,8 +849,9 @@ fn pypi_native_case() {
         }
     }
 
-    let cwd = dx_testing::mkscratch("pypi-native-cwd").expect("scratch cwd");
-    let output = import_from(&target, &cwd);
+    let cwd_dir = dx_test_scratch::scratch("pypi-native-cwd");
+    let cwd = cwd_dir.path();
+    let output = import_from(target, cwd);
     assert!(
         output.status.success(),
         "{}",
@@ -843,8 +868,8 @@ fn pypi_native_case() {
             .and_then(|name| name.to_str())
             .unwrap_or("t")
     ));
-    std::fs::rename(&target, &moved).expect("rename install dir");
-    let output = import_from(&moved, &cwd);
+    std::fs::rename(target, &moved).expect("rename install dir");
+    let output = import_from(&moved, cwd);
     assert!(
         output.status.success(),
         "{}",
@@ -855,7 +880,8 @@ fn pypi_native_case() {
     let digest = dx_testing::sha256_file(&house.join(&wheel)).expect("hash wheel");
     println!("python {version} wheel {wheel} sha256 {digest}");
 
-    let outdir = dx_testing::mkscratch("pypi-wrongabi").expect("scratch outdir");
+    let outdir_dir = dx_test_scratch::scratch("pypi-wrongabi");
+    let outdir = outdir_dir.path();
     let run = run_deploy(
         &env_file("DX_NATIVE_WRONGABI_PROG"),
         "DX_NATIVE_WRONGABI_CONFIG",
@@ -872,7 +898,7 @@ fn pypi_native_case() {
     );
     assert!(run.stderr.contains("built for cp312"), "{}", run.stderr);
 
-    let house = stage(
+    let (_house_guard, house) = stage(
         "DX_NATIVE_NOCORE_PROG",
         "DX_NATIVE_NOCORE_CONFIG",
         "native_probe_nocore-wheelhouse",
@@ -880,13 +906,14 @@ fn pypi_native_case() {
         "native_probe_nocore",
     );
     let (url, _log) = serve(house);
-    let (output, target) = install_output(&url, "dx_native_probe");
+    let (output, target_dir) = install_output(&url, "dx_native_probe");
+    let target = target_dir.path();
     assert!(
         output.status.success(),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let output = import_from(&target, &cwd);
+    let output = import_from(target, cwd);
     assert!(!output.status.success());
     assert!(
         String::from_utf8_lossy(&output.stderr).contains("_core"),
@@ -900,9 +927,8 @@ fn archiver_imports(
     check: &str,
     provides: &[&str],
 ) -> std::process::Output {
-    let out = dx_testing::mkscratch("pypi-imports")
-        .expect("scratch imports")
-        .join("ok");
+    let out_dir = dx_test_scratch::scratch("pypi-imports");
+    let out = out_dir.path().join("ok");
     let mut command = std::process::Command::new(env_file("DX_ARCHIVER"));
     command.arg("--imports").arg(out).args(["--check", check]);
     for name in provides {
@@ -935,7 +961,7 @@ fn pypi_native_msvc_case() {
             .map(|(name, _)| name.clone())
             .expect("wheel must contain the extension")
     };
-    let house = stage(
+    let (_house_guard, house) = stage(
         "DX_MSVC_PROG",
         "DX_MSVC_CONFIG",
         "native_probe_msvc-wheelhouse",
@@ -943,8 +969,9 @@ fn pypi_native_msvc_case() {
         "native_probe_msvc",
     );
     let (url, _log) = serve(house);
-    let target = install(&url, "dx_native_probe");
-    let members = installed_binaries(&target);
+    let target_dir = install(&url, "dx_native_probe");
+    let target = target_dir.path();
+    let members = installed_binaries(target);
     println!("wheel binaries:");
     for (name, path) in &members {
         println!("  {name} {}", path.display());
@@ -987,8 +1014,9 @@ fn pypi_native_msvc_case() {
         "{stderr}"
     );
 
-    let cwd = dx_testing::mkscratch("pypi-native-msvc-cwd").expect("scratch cwd");
-    let output = import_from(&target, &cwd);
+    let cwd_dir = dx_test_scratch::scratch("pypi-native-msvc-cwd");
+    let cwd = cwd_dir.path();
+    let output = import_from(target, cwd);
     assert!(
         output.status.success(),
         "{}",
@@ -1005,8 +1033,8 @@ fn pypi_native_msvc_case() {
             .and_then(|name| name.to_str())
             .unwrap_or("t")
     ));
-    std::fs::rename(&target, &moved).expect("rename install dir");
-    let output = import_from(&moved, &cwd);
+    std::fs::rename(target, &moved).expect("rename install dir");
+    let output = import_from(&moved, cwd);
     assert!(
         output.status.success(),
         "{}",
@@ -1036,13 +1064,13 @@ fn linked_import(target: &Path, code: &str) -> std::process::Output {
         .env_remove("LD_LIBRARY_PATH")
         .env("PYTHONPATH", target)
         .args(["-c", code]);
-    no_compilers(&mut command);
+    let _empty = no_compilers(&mut command);
     command.output().expect("python must execute")
 }
 
 fn pypi_native_linked_case() {
     let call = "from dx_native_probe import _linked; print(_linked.add(2, 3))";
-    let house = stage(
+    let (_house_guard, house) = stage(
         "DX_LINKED_PROG",
         "DX_LINKED_CONFIG",
         "native_probe_linked-wheelhouse",
@@ -1050,7 +1078,8 @@ fn pypi_native_linked_case() {
         "native_probe_linked",
     );
     let (url, _log) = serve(house);
-    let target = install(&url, "dx_native_probe");
+    let target_dir = install(&url, "dx_native_probe");
+    let target = target_dir.path();
     let package = target.join("dx_native_probe");
     let mut found = Vec::new();
     native_files(&package, &mut found);
@@ -1087,7 +1116,7 @@ fn pypi_native_linked_case() {
     }
 
     let moved = target.with_file_name("moved-linked-target");
-    std::fs::rename(&target, &moved).expect("move install dir");
+    std::fs::rename(target, &moved).expect("move install dir");
     let output = linked_import(&moved, call);
     assert!(
         output.status.success(),
@@ -1096,7 +1125,7 @@ fn pypi_native_linked_case() {
     );
     assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "5");
 
-    let house = stage(
+    let (_house_guard, house) = stage(
         "DX_NOLIB_PROG",
         "DX_NOLIB_CONFIG",
         "native_probe_nolib-wheelhouse",
@@ -1104,13 +1133,14 @@ fn pypi_native_linked_case() {
         "native_probe_nolib",
     );
     let (url, _log) = serve(house);
-    let target = install(&url, "dx_native_probe");
+    let target_dir = install(&url, "dx_native_probe");
+    let target = target_dir.path();
     assert!(
         !target
             .join("dx_native_probe/libdx_probe_helper.so")
             .exists()
     );
-    let output = linked_import(&target, call);
+    let output = linked_import(target, call);
     assert!(!output.status.success());
     assert!(
         String::from_utf8_lossy(&output.stderr).contains("libdx_probe_helper.so"),

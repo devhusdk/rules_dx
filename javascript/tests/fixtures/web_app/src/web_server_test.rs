@@ -316,8 +316,8 @@ fn missing_root_fails() {
 
 #[test]
 fn missing_index_fails() {
-    let empty = dx_testing::mkscratch("web-empty").expect("scratch dir");
-    let root = empty.to_string_lossy().into_owned();
+    let empty = dx_test_scratch::scratch("web-empty");
+    let root = empty.path().to_string_lossy().into_owned();
     let (code, stderr) = run_once(SERVE, &[&format!("--root={root}")]);
     assert_eq!(code, Some(2), "a missing index must fail");
     assert!(
@@ -328,7 +328,8 @@ fn missing_index_fails() {
 
 #[test]
 fn missing_wasm_fails() {
-    let broken = dx_testing::mkscratch("web-broken").expect("scratch dir");
+    let scratch = dx_test_scratch::scratch("web-broken");
+    let broken = scratch.path();
     std::fs::write(broken.join("index.html"), "<html></html>").expect("write index");
     std::fs::write(
         broken.join("manifest.json"),
@@ -350,7 +351,8 @@ fn foreign_manifest_is_not_checked() {
         ("pwa", "{\"name\": \"app\", \"start_url\": \"/\"}"),
         ("list", "[]"),
     ] {
-        let app = dx_testing::mkscratch(&format!("web-{name}")).expect("scratch dir");
+        let scratch = dx_test_scratch::scratch(&format!("web-{name}"));
+        let app = scratch.path();
         std::fs::write(app.join("index.html"), "<html></html>").expect("write index");
         std::fs::write(app.join("manifest.json"), text).expect("write manifest");
         let root = app.to_string_lossy().into_owned();

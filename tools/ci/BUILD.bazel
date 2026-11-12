@@ -1482,6 +1482,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -1522,6 +1523,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -1562,6 +1564,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],

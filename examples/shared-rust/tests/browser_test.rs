@@ -133,12 +133,14 @@ fn apply(browser: &mut Browser, command: &str, reply: &str) {
 fn relocated_release_app_renders_and_drives_the_shared_board() {
     let root = dx_testing::resolve_runfiles(&format!("{APP}/index.html"));
     let root = root.parent().expect("app dir").to_path_buf();
-    let relocated = dx_testing::mkscratch("shared-relocated").expect("scratch dir");
-    copy_tree(&root, &relocated);
-    let server = Server::start(&relocated);
-    let profile = dx_testing::mkscratch("firefox-profile").expect("a browser profile");
+    let scratch = dx_test_scratch::scratch("shared-relocated");
+    let relocated = scratch.path();
+    copy_tree(&root, relocated);
+    let server = Server::start(relocated);
+    let profile_scratch = dx_test_scratch::scratch("firefox-profile");
+    let profile = profile_scratch.path();
     let mut browser =
-        Browser::start(&firefox_binary(), &profile).expect("start Firefox for the shared app");
+        Browser::start(&firefox_binary(), profile).expect("start Firefox for the shared app");
     browser.navigate(&server.url("/")).expect("load the app");
     assert!(
         wait_for(

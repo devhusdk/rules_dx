@@ -18,7 +18,8 @@ runtime=default
 
 #[test]
 fn consumer_release_runs_relocated() {
-    let dir = dx_testing::mkscratch("consumer-release").expect("scratch dir");
+    let scratch = dx_test_scratch::scratch("consumer-release");
+    let dir = scratch.path();
     let source = dx_testing::env_file("DX_SHARED_CONSUMER_RELEASE");
     let bin = dir.join(source.file_name().expect("binary file name"));
     std::fs::copy(&source, &bin).expect("relocate");

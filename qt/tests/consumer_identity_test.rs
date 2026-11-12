@@ -13,7 +13,8 @@ fn identity_records_the_os_supplied_runtime() {
     let archives = archives();
     assert_eq!(archives.len(), 3, "{archives:?}");
     let want = std::env::var("DX_QT_RUNTIME_RECORD").expect("DX_QT_RUNTIME_RECORD must be set");
-    let scratch = dx_testing::mkscratch("qt-consumer-identity").expect("scratch");
+    let guard = dx_test_scratch::scratch("qt-consumer-identity");
+    let scratch = guard.path();
     for (index, archive) in archives.iter().enumerate() {
         let dir = scratch.join(index.to_string());
         dx_deploy_tools::archive_extract(archive, &dir).expect("extract");
@@ -62,7 +63,8 @@ fn ledger_runs_from_the_extracted_archive() {
         .into_iter()
         .find(|path| path.to_string_lossy().contains("ledger_release"))
         .expect("ledger_release archive");
-    let scratch = dx_testing::mkscratch("qt-consumer-run").expect("scratch");
+    let guard = dx_test_scratch::scratch("qt-consumer-run");
+    let scratch = guard.path();
     let dir = scratch.join("ledger");
     dx_deploy_tools::archive_extract(&archive, &dir).expect("extract");
     let core = std::env::var("DX_QT_CORE_MEMBER").expect("DX_QT_CORE_MEMBER must be set");
@@ -74,7 +76,7 @@ fn ledger_runs_from_the_extracted_archive() {
     let out = std::process::Command::new(dir.join("ledger"))
         .args(["5", "7"])
         .env_clear()
-        .current_dir(&scratch)
+        .current_dir(scratch)
         .output()
         .expect("run ledger");
     assert!(out.status.success(), "ledger failed: {out:?}");

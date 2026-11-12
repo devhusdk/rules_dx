@@ -276,7 +276,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["@rules_dx//tools/testing:dx_testing"],
+    deps = [
+        "@rules_dx//cli/test_scratch:dx_test_scratch",
+        "@rules_dx//tools/testing:dx_testing",
+    ],
 )
 
 real_source_target(

@@ -230,7 +230,10 @@ rust_test(
         "@dx_qt//:windows_x86_64": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 qt_cc_library(
@@ -543,6 +546,7 @@ qt_cc_test(
         } | ({"DX_QT_TASKS_RECORD": "runtime_runtime " + QT_VERSION + " os_supplied"} if os != "windows" else {}),
         target_compatible_with = ["@platforms//os:" + os, "@platforms//cpu:" + cpu],
         deps = [
+            "//cli/test_scratch:dx_test_scratch",
             "//deploy/private:dx_deploy_tools",
             "//tools/testing:dx_testing",
         ],

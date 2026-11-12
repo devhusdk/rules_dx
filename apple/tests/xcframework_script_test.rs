@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::{Run, mkscratch, resolve_runfiles, run};
+use dx_testing::{Run, resolve_runfiles, run};
 
 const FAKE_UNZIP: &str = r#"#!/bin/sh
 if [ -n "${FAKE_BAD_ZIP:-}" ]; then
@@ -107,6 +107,7 @@ fn library(tree: &Path, identifier: &str, supported: &str, archs: &[(&str, &str)
 }
 
 struct Case {
+    _scratch: dx_test_scratch::TempDir,
     root: PathBuf,
     tree: PathBuf,
     device: PathBuf,
@@ -115,7 +116,8 @@ struct Case {
 
 impl Case {
     fn new(prefix: &str) -> Case {
-        let root = mkscratch(prefix).unwrap_or_else(|error| panic!("scratch: {error}"));
+        let scratch = dx_test_scratch::scratch(prefix);
+        let root = scratch.path().to_path_buf();
         let bin = root.join("bin");
         executable(&bin.join("unzip"), FAKE_UNZIP);
         executable(&bin.join("plutil"), FAKE_PLUTIL);
@@ -131,6 +133,7 @@ impl Case {
         );
         write(&root.join("Share_bundle.xcframework.zip"), ZIP_BYTES);
         Case {
+            _scratch: scratch,
             root,
             tree,
             device,

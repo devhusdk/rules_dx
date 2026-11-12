@@ -69,6 +69,7 @@ rust_test(
     tags = ["no-remote-exec"],
     deps = [
         "//cli/path:dx_path",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )

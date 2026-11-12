@@ -16,8 +16,9 @@ summary tasks=5 done=1 open=4 assets=1
 asset notes.txt bytes=41 adler32:3d6a0e9d
 ";
 
-fn stage(prefix: &str, artifact: &Path, name: &str) -> (PathBuf, PathBuf) {
-    let dir = dx_testing::mkscratch(prefix).expect("scratch dir");
+fn stage(prefix: &str, artifact: &Path, name: &str) -> (dx_test_scratch::TempDir, PathBuf) {
+    let scratch = dx_test_scratch::scratch(prefix);
+    let dir = scratch.path();
     let target = dir.join(name);
     std::fs::copy(artifact, &target).expect("relocate the artifact");
     std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -25,7 +26,7 @@ fn stage(prefix: &str, artifact: &Path, name: &str) -> (PathBuf, PathBuf) {
         let source = dx_testing::resolve_runfiles(&format!("{ASSETS}/{asset}"));
         std::fs::copy(source, dir.join(asset)).expect("relocate the asset");
     }
-    (target, dir)
+    (scratch, target)
 }
 
 static SERIAL: Mutex<()> = Mutex::new(());
@@ -39,11 +40,12 @@ fn serial() -> MutexGuard<'static, ()> {
 #[test]
 fn optimized_native_release_runs_relocated() {
     let _serial = serial();
-    let (bin, dir) = stage(
+    let (scratch, bin) = stage(
         "tasks-release",
         &dx_testing::env_file("DX_TASKS_RELEASE"),
         "tasks",
     );
+    let dir = scratch.path();
     let notes = format!("--asset={}", dir.join("notes.txt").display());
     let board = dir.join("board.txt");
     let result = dx_testing::run(
@@ -64,14 +66,14 @@ fn optimized_native_release_runs_relocated() {
 #[test]
 fn optimized_wasi_release_runs_relocated_under_wasmtime() {
     let _serial = serial();
-    let (module, dir) = stage(
+    let (scratch, module) = stage(
         "tasks-wasi-release",
         &dx_testing::env_file("DX_TASKS_WASI_RELEASE"),
         "tasks.wasm",
     );
     let bytes = std::fs::read(&module).expect("read the module");
     assert_eq!(&bytes[..4], b"\0asm", "release module is not Wasm");
-    let preopen = format!("{}::/data", dir.display());
+    let preopen = format!("{}::/data", scratch.path().display());
     let result = dx_testing::run(
         &dx_testing::env_file("DX_WASMTIME"),
         &[
@@ -94,7 +96,7 @@ fn optimized_wasi_release_runs_relocated_under_wasmtime() {
 #[test]
 fn wasi_module_without_a_preopen_reports_unreadable() {
     let _serial = serial();
-    let (module, _dir) = stage(
+    let (_scratch, module) = stage(
         "tasks-wasi-capability",
         &dx_testing::env_file("DX_TASKS_WASI_RELEASE"),
         "tasks.wasm",

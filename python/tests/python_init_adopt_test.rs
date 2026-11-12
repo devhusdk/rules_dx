@@ -1,8 +1,6 @@
 use std::path::Path;
 use std::process::Command;
 
-use dx_testing::mkscratch;
-
 fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
@@ -16,7 +14,8 @@ fn read(path: &Path) -> String {
 
 #[test]
 fn init_adopts_an_existing_python_tree() {
-    let dir = mkscratch("python-service-adopt").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let scratch = dx_test_scratch::scratch("python-service-adopt");
+    let dir = scratch.path();
     write(
         &dir.join("pyproject.toml"),
         "[project]\nname = \"shop\"\nversion = \"0.1.0\"\n",
@@ -25,7 +24,7 @@ fn init_adopts_an_existing_python_tree() {
     write(&dir.join("app/main.py"), "print(\"hi\")\n");
     let invoke = |args: &[&str]| {
         Command::new(dx_testing::env_file("DX_BIN"))
-            .current_dir(&dir)
+            .current_dir(dir)
             .args(args)
             .output()
             .unwrap_or_else(|error| panic!("run dx: {error}"))

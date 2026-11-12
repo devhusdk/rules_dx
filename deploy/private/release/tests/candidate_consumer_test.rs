@@ -7,7 +7,7 @@ use dx_nested::{self as nested, Case};
 use dx_release_tools::candidate::{
     Candidate, build_source_archive, file_url, source_archive_error, stage_local_registry,
 };
-use dx_testing::{Run, mkscratch, resolve_runfiles, rules_dx_source};
+use dx_testing::{Run, resolve_runfiles, rules_dx_source};
 
 const VERSION: &str = "1.2.3-rc1";
 
@@ -128,10 +128,12 @@ cc_binary(
 )
 "#;
 
-/// Stages a registry for the archive and returns its directory.
-fn stage_registry(candidate: &Candidate, archive: &Path) -> PathBuf {
-    let dir = mkscratch("candidate-registry").unwrap_or_else(|error| panic!("scratch: {error}"));
-    stage_local_registry(&dir, candidate, archive).unwrap_or_else(|error| panic!("{error}"))
+/// Stages a registry for the archive and returns its guard and directory.
+fn stage_registry(candidate: &Candidate, archive: &Path) -> (dx_test_scratch::TempDir, PathBuf) {
+    let dir = dx_test_scratch::scratch("candidate-registry");
+    let registry = stage_local_registry(dir.path(), candidate, archive)
+        .unwrap_or_else(|error| panic!("{error}"));
+    (dir, registry)
 }
 
 /// Writes a consumer that reaches rules_dx only through the staged registry.
@@ -177,8 +179,8 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
 fn dx(case: &Case, command: &str, args: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = case.root().to_string_lossy().into_owned();
-    let home = mkscratch("candidate-home").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let home = home.to_string_lossy().into_owned();
+    let home_dir = dx_test_scratch::scratch("candidate-home");
+    let home = home_dir.path().to_string_lossy().into_owned();
     let applets = dx_testing::env_files("DX_COREUTILS");
     let path = applets[0]
         .parent()
@@ -207,7 +209,7 @@ fn ok(run: &Run, what: &str) {
 /// Consumes the archive through the registry and checks what Bazel fetched.
 fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integrity: &str) {
     stage("stage registry");
-    let registry = stage_registry(candidate, archive);
+    let (_registry_guard, registry) = stage_registry(candidate, archive);
     stage("nested case");
     let case = consumer(candidate, archive, &registry);
 
@@ -263,7 +265,8 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
 fn assert_gcc_consumer(case: &Case) {
     use std::os::unix::fs::PermissionsExt;
 
-    let shim = mkscratch("candidate-gcc-shim").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let gcc_dir = dx_test_scratch::scratch("candidate-gcc-shim");
+    let shim = gcc_dir.path();
     for name in ["gcc", "g++", "cc", "c++"] {
         let path = shim.join(name);
         write(&path, b"#!/bin/sh\nexit 97\n");
@@ -300,7 +303,7 @@ fn assert_gcc_consumer(case: &Case) {
 
         let output = std::process::Command::new(&binary)
             .env_clear()
-            .env("PATH", &shim)
+            .env("PATH", shim)
             .output()
             .unwrap_or_else(|error| panic!("run {binary:?}: {error}"));
         assert!(
@@ -319,15 +322,15 @@ fn assert_gcc_consumer(case: &Case) {
 #[test]
 fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
     let root = rules_dx_source();
-    let scratch =
-        mkscratch("candidate-snapshot").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let scratch_dir = dx_test_scratch::scratch("candidate-snapshot");
+    let scratch = scratch_dir.path();
     stage("repo state");
-    let before = repo_state(&root, &scratch);
+    let before = repo_state(&root, scratch);
     stage("snapshot commit");
-    let (git_dir, sha) = snapshot_commit(&root, &scratch);
+    let (git_dir, sha) = snapshot_commit(&root, scratch);
     stage("repo state");
     assert_eq!(
-        repo_state(&root, &scratch),
+        repo_state(&root, scratch),
         before,
         "the snapshot touched the checkout"
     );
@@ -344,7 +347,7 @@ fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
     assert_registry_consumer(&candidate, &archive, &built.integrity);
     stage("repo state");
     assert_eq!(
-        repo_state(&root, &scratch),
+        repo_state(&root, scratch),
         before,
         "the test touched the checkout"
     );

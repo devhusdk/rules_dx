@@ -1,6 +1,7 @@
 # gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//android:defs.bzl", "android_java_library", "android_kotlin_library")
+load(":android_library_tests.bzl", "android_library_providers_test")
 
 android_java_library(
     name = "java_screen",
@@ -26,4 +27,16 @@ build_test(
         ":java_screen",
         ":kotlin_screen",
     ],
+)
+
+android_library_providers_test(
+    name = "java_screen_providers_test",
+    kotlin = False,
+    library = "java_screen",
+)
+
+android_library_providers_test(
+    name = "kotlin_screen_providers_test",
+    kotlin = True,
+    library = "kotlin_screen",
 )

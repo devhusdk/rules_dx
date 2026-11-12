@@ -156,6 +156,11 @@ var conformanceRows = map[string]conformanceRow{
 			"@rules_dx//cloudformation:defs.bzl": {"cloudformation_library"},
 			"@rules_dx//rst:defs.bzl":            {"rst_library"},
 			"@rules_dx//sql:defs.bzl":            {"sql_library"},
+			"@rules_dx//make:defs.bzl":           {"make_library"},
+			"@rules_dx//terraform:defs.bzl":      {"terraform_library"},
+			"@rules_dx//kubernetes:defs.bzl":     {"kubernetes_library"},
+			"@rules_dx//api_spec:defs.bzl":       {"api_spec_library"},
+			"@rules_dx//helm:defs.bzl":           {"helm_library"},
 		},
 	},
 	"perl": {

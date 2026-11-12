@@ -1,6 +1,6 @@
 # Perl
 
-Build, run and test Perl with the relocatable Perl 5.40 that
+Build, run and test Perl with the relocatable Perl 5.44 that
 [rules_perl](https://github.com/bazel-contrib/rules_perl) pins. Nothing is
 installed on the host and nothing is fetched until a target needs it.
 rules_perl registers the toolchains, so there is no toolchain setup in

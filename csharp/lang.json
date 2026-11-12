@@ -23,7 +23,7 @@
         "state": "paket.lock",
         "extension": "@rules_dx//csharp:extensions.bzl",
         "tag": null,
-        "hub": "nuget",
+        "hub": "paket.main",
         "resolver": null,
         "imports": "name"
       }

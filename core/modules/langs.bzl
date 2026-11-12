@@ -592,7 +592,7 @@ LANGS = json.decode("""{
         {
           "ecosystem": "nuget",
           "extension": "@rules_dx//csharp:extensions.bzl",
-          "hub": "nuget",
+          "hub": "paket.main",
           "imports": "name",
           "lock": "paket.lock",
           "manifest": "paket.dependencies",

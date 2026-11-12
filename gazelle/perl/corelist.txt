@@ -185,6 +185,7 @@ ExtUtils::ParseXS
 ExtUtils::ParseXS::Constants
 ExtUtils::ParseXS::CountLines
 ExtUtils::ParseXS::Eval
+ExtUtils::ParseXS::Node
 ExtUtils::ParseXS::Utilities
 ExtUtils::Typemaps
 ExtUtils::Typemaps::Cmd
@@ -234,6 +235,7 @@ I18N::LangTags::Detect
 I18N::LangTags::List
 I18N::Langinfo
 IO
+IO::Compress
 IO::Compress::Adapter::Bzip2
 IO::Compress::Adapter::Deflate
 IO::Compress::Adapter::Identity
@@ -353,7 +355,6 @@ PerlIO::via::QuotedPrint
 Pod::Checker
 Pod::Escapes
 Pod::Functions
-Pod::Functions::Functions
 Pod::Html
 Pod::Html::Util
 Pod::Man
@@ -407,6 +408,7 @@ Pod::Text::Termcap
 Pod::Usage
 SDBM_File
 Safe
+Scalar::List::Utils
 Scalar::Util
 Search::Dict
 SelectSaver
@@ -519,6 +521,7 @@ Test2::Compare::Set
 Test2::Compare::String
 Test2::Compare::Undef
 Test2::Compare::Wildcard
+Test2::Env
 Test2::Event
 Test2::Event::Bail
 Test2::Event::Diag
@@ -551,6 +554,7 @@ Test2::EventFacet::Render
 Test2::EventFacet::Trace
 Test2::Formatter
 Test2::Formatter::TAP
+Test2::Handle
 Test2::Hub
 Test2::Hub::Interceptor
 Test2::Hub::Interceptor::Terminator
@@ -637,6 +641,7 @@ Test2::Util::Guard
 Test2::Util::HashBase
 Test2::Util::Importer
 Test2::Util::Ref
+Test2::Util::Sig
 Test2::Util::Stash
 Test2::Util::Sub
 Test2::Util::Table
@@ -646,6 +651,9 @@ Test2::Util::Term
 Test2::Util::Times
 Test2::Util::Trace
 Test2::V0
+Test2::V1
+Test2::V1::Base
+Test2::V1::Handle
 Test2::Workflow
 Test2::Workflow::BlockBase
 Test2::Workflow::Build
@@ -655,7 +663,6 @@ Test2::Workflow::Task::Action
 Test2::Workflow::Task::Group
 Test::Builder
 Test::Builder::Formatter
-Test::Builder::IO::Scalar
 Test::Builder::Module
 Test::Builder::Tester
 Test::Builder::Tester::Color
@@ -764,6 +771,7 @@ perlfaq
 re
 sigtrap
 sort
+source::encoding
 stable
 strict
 subs

@@ -34,7 +34,23 @@ pub const REPOSITORY_TARGET: &str = "dx:codegen";
 pub const SHARD_KIND_SUFFIX: &str = "codegen_shard";
 
 /// Library rules that return their own codegen plan.
-pub const LIBRARY_KINDS: &[&str] = &["avro_cc_library", "avro_java_library"];
+pub const LIBRARY_KINDS: &[&str] = &[
+    "api_spec_go_client",
+    "api_spec_python_client",
+    "api_spec_rust_client",
+    "api_spec_typescript_client",
+    "avro_cc_library",
+    "avro_java_library",
+    "capnproto_cc_library",
+    "capnproto_java_library",
+    "_capnp_rust_srcs",
+    "flatbuffers_cc_library",
+    "flatbuffers_java_library",
+    "_flatbuffers_rust_srcs",
+    "thrift_cc_library",
+    "thrift_java_library",
+    "_thrift_rust_srcs",
+];
 
 /// Reports whether a rule class contributes a codegen plan.
 pub fn is_shard_kind(rule_class: &str) -> bool {

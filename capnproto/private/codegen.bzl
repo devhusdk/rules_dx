@@ -19,21 +19,11 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//core/codegen:codegen.bzl", "codegen_shard_rule", "codegen_srcjar", "codegen_rust_library_kwargs")
+load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_package_file", "codegen_rust_library_kwargs", "codegen_srcjar", "codegen_tree_file")
 load("//core:defs.bzl", "display_label")
 load("//core:stage.bzl", "stage_closure")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "CapnprotoInfo")
-
-CAPNP_GENERATED_SRCS_GROUP = "capnp_generated_srcs"
-
-# Languages a capnproto_codegen_shard can bind.
-_LANGUAGES = ("cpp", "rust", "java")
-
-CapnpCodegenInfo = provider(
-    doc = "Which language a capnp codegen target generated.",
-    fields = {"language": "string: cpp, rust or java."},
-)
 
 # The compiler is the pinned source build, never the lint flag.
 _PRIVATE_ATTRS = {
@@ -167,9 +157,7 @@ def _cc_library_impl(ctx):
         cc_info,
         # Generated code owns no checked sources; it is not a cc_library to lint.
         dx_quality_sources([], [], str(ctx.label)),
-        OutputGroupInfo(**{CAPNP_GENERATED_SRCS_GROUP: depset(own)}),
-        CapnpCodegenInfo(language = "cpp"),
-    ]
+    ] + codegen_library_providers(ctx, "capnp", "cpp", [codegen_tree_file(f) for f in own])
 
 capnproto_cc_library = rule(
     implementation = _cc_library_impl,
@@ -181,7 +169,7 @@ capnproto_cc_library = rule(
             doc = "capnproto_library targets to generate C++ for.",
         ),
         "_runtime": attr.label(default = Label("@dx_capnproto//src/capnp:capnp_runtime"), providers = [CcInfo]),
-    },
+    } | CODEGEN_LIBRARY_ATTRS,
     provides = [CcInfo],
 )
 
@@ -255,9 +243,7 @@ def _java_library_impl(ctx):
         DefaultInfo(files = depset(srcjars)),
         java_info,
         dx_quality_sources([], [], str(ctx.label)),
-        OutputGroupInfo(**{CAPNP_GENERATED_SRCS_GROUP: depset(srcjars)}),
-        CapnpCodegenInfo(language = "java"),
-    ]
+    ] + codegen_library_providers(ctx, "capnp", "java", [codegen_package_file(f) for f in srcjars])
 
 capnproto_java_library = rule(
     implementation = _java_library_impl,
@@ -269,7 +255,7 @@ capnproto_java_library = rule(
             doc = "capnproto_library targets to generate Java for.",
         ),
         "_runtime": attr.label(default = Label("//capnproto:runtime_java"), providers = [JavaInfo]),
-    },
+    } | CODEGEN_LIBRARY_ATTRS,
     provides = [JavaInfo],
 )
 
@@ -339,16 +325,13 @@ def _rust_srcs_impl(ctx):
     )
     return [
         DefaultInfo(files = depset([lib] + generated)),
-        # Only the generated *_capnp.rs files are bound; lib.rs is driver scaffolding.
-        OutputGroupInfo(**{CAPNP_GENERATED_SRCS_GROUP: depset(generated)}),
         dx_quality_sources([], [], str(ctx.label)),
-        CapnpCodegenInfo(language = "rust"),
         CapnpRustCrateInfo(
             crate_name = ctx.attr.crate_name,
             library = info.label,
             schemas = [src.short_path for src in info.direct_srcs],
         ),
-    ]
+    ] + codegen_library_providers(ctx, "capnp", "rust", [codegen_tree_file(f) for f in generated])
 
 _capnp_rust_srcs = rule(
     implementation = _rust_srcs_impl,
@@ -364,22 +347,22 @@ _capnp_rust_srcs = rule(
             mandatory = True,
             doc = "capnproto_library whose schemas the crate owns.",
         ),
-    } | _PRIVATE_ATTRS,
+    } | _PRIVATE_ATTRS | CODEGEN_LIBRARY_ATTRS,
 )
 
-def capnproto_rust_library(name, library, crate_name = None, deps = None, **kwargs):
+def capnproto_rust_library(name, library, crate_name = None, deps = None, codegen_path = None, **kwargs):
     """Rust crate for one capnproto_library.
 
     The crate's deps must mirror the library's direct deps: one capnproto_rust_library
     per capnproto_library the schemas import. Imports of a dependency's schemas become
-    ::dep_crate::x_capnp paths. /capnp/schema.capnp maps to the capnp crate. Point
-    capnproto_codegen_shard at NAME_generated.
+    ::dep_crate::x_capnp paths. /capnp/schema.capnp maps to the capnp crate.
 
     Args:
       name: Name of the rust_library.
       library: capnproto_library whose schemas the crate owns.
       crate_name: Crate name dependents import; defaults to name.
       deps: capnproto_rust_library targets of the library's direct capnp deps.
+      codegen_path: Logical directory of the generated files in the dx sync projection.
       **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
         and the like replace the defaults; srcs and deps are added to them.
     """
@@ -391,20 +374,9 @@ def capnproto_rust_library(name, library, crate_name = None, deps = None, **kwar
         library = library,
         crate_name = crate,
         crate_deps = [str(native.package_relative_label(dep)) + "_generated" for dep in deps],
+        codegen_path = codegen_path,
         tags = kwargs.get("tags"),
         testonly = kwargs.get("testonly"),
         visibility = kwargs.get("visibility"),
     )
     rust_library(**codegen_rust_library_kwargs(name, ":" + generated, crate, [Label("//capnproto:runtime_rust")], deps, kwargs))
-
-capnproto_codegen_shard = codegen_shard_rule(
-    "capnproto_codegen_shard",
-    "capnp",
-    CAPNP_GENERATED_SRCS_GROUP,
-    "want a capnproto_cc_library, a capnproto_java_library or a capnproto_rust_library NAME_generated",
-    "cpp, rust or java.",
-    "Declares codegen plan entries for the sources capnp generates. Every generated file needs one entry with an EXEC_PATH suffix.",
-    "capnproto_cc_library, capnproto_java_library, or the NAME_generated target of a capnproto_rust_library, whose generated files the entries bind.",
-    codegen_info = CapnpCodegenInfo,
-    languages = _LANGUAGES,
-)

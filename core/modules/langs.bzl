@@ -106,7 +106,6 @@ LANGS = json.decode("""{
     },
     "ecosystems": [],
     "entry_points": [
-      "api_spec_codegen_shard",
       "api_spec_go_client",
       "api_spec_library",
       "api_spec_python_client",
@@ -378,7 +377,6 @@ LANGS = json.decode("""{
     "ecosystems": [],
     "entry_points": [
       "capnproto_cc_library",
-      "capnproto_codegen_shard",
       "capnproto_java_library",
       "capnproto_library",
       "capnproto_rust_library"
@@ -1148,8 +1146,7 @@ LANGS = json.decode("""{
       "flatbuffers_cc_library",
       "flatbuffers_java_library",
       "flatbuffers_rust_library",
-      "flatbuffers_conform_test",
-      "flatbuffers_codegen_shard"
+      "flatbuffers_conform_test"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -3153,8 +3150,7 @@ LANGS = json.decode("""{
       "thrift_library",
       "thrift_cc_library",
       "thrift_java_library",
-      "thrift_rust_library",
-      "thrift_codegen_shard"
+      "thrift_rust_library"
     ],
     "family": "generation",
     "lockfiles": [],

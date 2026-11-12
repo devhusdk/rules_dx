@@ -6,7 +6,7 @@ load("//cc:defs.bzl", "cc_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java:defs.bzl", "java_test")
 load("//rust:defs.bzl", "rust_test")
-load("//thrift:defs.bzl", "thrift_cc_library", "thrift_codegen_shard", "thrift_java_library", "thrift_rust_library")
+load("//thrift:defs.bzl", "thrift_cc_library", "thrift_java_library", "thrift_rust_library")
 load(":defs_tests.bzl", "thrift_library_tests")
 load(":failure_tests.bzl", "thrift_undeclared_rust_test")
 
@@ -38,31 +38,21 @@ cc_test(
     }),
 )
 
-thrift_codegen_shard(
-    name = "shapes_cc_shard",
-    entries = [
-        "gen/base/common.srcjar|gen|dx|thrift/tests/base/_thrift_cc/base.srcjar",
-        "gen/api/shape.srcjar|gen|dx|thrift/tests/api/_thrift_cc/api.srcjar",
-    ],
-    language = "cpp",
-    generated = ":shapes_cc",
-)
-
 codegen_shard_argv_test(
     name = "shapes_cc_shard_argv_test",
     expected = [
         "--producer",
-        "//thrift/tests:shapes_cc_shard",
+        "//thrift/tests:shapes_cc",
         "--language",
         "cpp",
         "--entry",
-        "gen/base/common.srcjar|gen|dx|thrift/tests/base/_thrift_cc/base.srcjar",
+        "gen/thrift/tests/api/api.srcjar|gen||thrift/tests/api/_thrift_cc/api.srcjar",
         "--entry",
-        "gen/api/shape.srcjar|gen|dx|thrift/tests/api/_thrift_cc/api.srcjar",
+        "gen/thrift/tests/base/base.srcjar|gen||thrift/tests/base/_thrift_cc/base.srcjar",
         "--output",
     ],
-    output = "thrift/tests/shapes_cc_shard.dxcodegen.pb",
-    target_under_test = ":shapes_cc_shard",
+    output = "thrift/tests/shapes_cc.dxcodegen.pb",
+    target_under_test = ":shapes_cc",
 )
 
 thrift_java_library(
@@ -83,31 +73,21 @@ java_test(
     deps = [":shapes_java"],
 )
 
-thrift_codegen_shard(
-    name = "shapes_java_shard",
-    entries = [
-        "gen/base/common.srcjar|gen|dx|thrift/tests/base/_thrift_java/base.srcjar",
-        "gen/api/shape.srcjar|gen|dx|thrift/tests/api/_thrift_java/api.srcjar",
-    ],
-    language = "java",
-    generated = ":shapes_java",
-)
-
 codegen_shard_argv_test(
     name = "shapes_java_shard_argv_test",
     expected = [
         "--producer",
-        "//thrift/tests:shapes_java_shard",
+        "//thrift/tests:shapes_java",
         "--language",
         "java",
         "--entry",
-        "gen/base/common.srcjar|gen|dx|thrift/tests/base/_thrift_java/base.srcjar",
+        "gen/thrift/tests/api/api.srcjar|gen||thrift/tests/api/_thrift_java/api.srcjar",
         "--entry",
-        "gen/api/shape.srcjar|gen|dx|thrift/tests/api/_thrift_java/api.srcjar",
+        "gen/thrift/tests/base/base.srcjar|gen||thrift/tests/base/_thrift_java/base.srcjar",
         "--output",
     ],
-    output = "thrift/tests/shapes_java_shard.dxcodegen.pb",
-    target_under_test = ":shapes_java_shard",
+    output = "thrift/tests/shapes_java.dxcodegen.pb",
+    target_under_test = ":shapes_java",
 )
 
 thrift_rust_library(
@@ -115,34 +95,23 @@ thrift_rust_library(
     library = "//thrift/tests/api",
 )
 
-thrift_codegen_shard(
-    name = "shapes_rs_shard",
-    entries = [
-        "gen/lib.rs|gen|dx|thrift/tests/shapes_rs_generated_thrift_rs/lib.rs",
-        "gen/common.rs|gen|dx|thrift/tests/shapes_rs_generated_thrift_rs/common.rs",
-        "gen/shape.rs|gen|dx|thrift/tests/shapes_rs_generated_thrift_rs/shape.rs",
-    ],
-    language = "rust",
-    generated = ":shapes_rs_generated",
-)
-
 codegen_shard_argv_test(
     name = "shapes_rs_shard_argv_test",
     expected = [
         "--producer",
-        "//thrift/tests:shapes_rs_shard",
+        "//thrift/tests:shapes_rs_generated",
         "--language",
         "rust",
         "--entry",
-        "gen/lib.rs|gen|dx|thrift/tests/shapes_rs_generated_thrift_rs/lib.rs",
+        "gen/lib.rs|gen||thrift/tests/shapes_rs_generated_thrift_rs/lib.rs",
         "--entry",
-        "gen/common.rs|gen|dx|thrift/tests/shapes_rs_generated_thrift_rs/common.rs",
+        "gen/common.rs|gen||thrift/tests/shapes_rs_generated_thrift_rs/common.rs",
         "--entry",
-        "gen/shape.rs|gen|dx|thrift/tests/shapes_rs_generated_thrift_rs/shape.rs",
+        "gen/shape.rs|gen||thrift/tests/shapes_rs_generated_thrift_rs/shape.rs",
         "--output",
     ],
-    output = "thrift/tests/shapes_rs_shard.dxcodegen.pb",
-    target_under_test = ":shapes_rs_shard",
+    output = "thrift/tests/shapes_rs_generated.dxcodegen.pb",
+    target_under_test = ":shapes_rs_generated",
 )
 
 thrift_undeclared_rust_test(

@@ -13,14 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//api_spec:defs.bzl`:
 
 ```python
-load("@rules_dx//api_spec:defs.bzl", "api_spec_codegen_shard", "api_spec_go_client", "api_spec_library")
+load("@rules_dx//api_spec:defs.bzl", "api_spec_go_client", "api_spec_library", "api_spec_python_client")
 ```
 
 ## Rules
-
-### `api_spec_codegen_shard`
-
-No documentation.
 
 ### `api_spec_go_client`
 

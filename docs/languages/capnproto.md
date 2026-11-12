@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//capnproto:defs.bzl`:
 
 ```python
-load("@rules_dx//capnproto:defs.bzl", "capnproto_cc_library", "capnproto_codegen_shard", "capnproto_java_library")
+load("@rules_dx//capnproto:defs.bzl", "capnproto_cc_library", "capnproto_java_library", "capnproto_library")
 ```
 
 ## Rules
@@ -26,10 +26,6 @@ C++ code and runtime for capnproto_library schemas. Each library is generated an
 | --- | --- | --- | --- |
 | `deps` | `label_list` | no | capnproto_library targets to generate C++ for. |
 | `_runtime` | `label` | no |  |
-
-### `capnproto_codegen_shard`
-
-No documentation.
 
 ### `capnproto_java_library`
 
@@ -53,21 +49,21 @@ Owns Cap'n Proto schemas for dx lint. Imports resolve only from deps, relative t
 ### `capnproto_rust_library`
 
 ```python
-capnproto_rust_library(name, library, crate_name = None, deps = None, **kwargs)
+capnproto_rust_library(name, library, crate_name = None, deps = None, codegen_path = None, **kwargs)
 ```
 
 Rust crate for one capnproto_library.
 
 The crate's deps must mirror the library's direct deps: one capnproto_rust_library
 per capnproto_library the schemas import. Imports of a dependency's schemas become
-::dep_crate::x_capnp paths. /capnp/schema.capnp maps to the capnp crate. Point
-capnproto_codegen_shard at NAME_generated.
+::dep_crate::x_capnp paths. /capnp/schema.capnp maps to the capnp crate.
 
 Args:
   name: Name of the rust_library.
   library: capnproto_library whose schemas the crate owns.
   crate_name: Crate name dependents import; defaults to name.
   deps: capnproto_rust_library targets of the library's direct capnp deps.
+  codegen_path: Logical directory of the generated files in the dx sync projection.
   **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
     and the like replace the defaults; srcs and deps are added to them.
 

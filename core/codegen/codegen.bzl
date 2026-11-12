@@ -431,24 +431,46 @@ def codegen_shard_rule(rule_kind, schema_kind, group, want, languages_doc, doc, 
 CODEGEN_LIBRARY_ROOT = "gen"
 
 CODEGEN_LIBRARY_ATTRS = {
-    "codegen_path": attr.string(doc = "Logical path of the single generated file in the dx sync projection, gen/ plus the file name by default."),
+    "codegen_path": attr.string(doc = "Logical directory of the generated files in the dx sync projection, gen by default."),
     "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),
 }
 
+def codegen_library_file(file, path):
+    """Pairs a generated file with its path below the codegen_path directory."""
+    return struct(file = file, path = path)
+
+def codegen_tree_file(file):
+    """Pairs a file with its path below its generator's output directory."""
+    pkg = file.owner.package
+    rest = file.short_path[len(pkg) + 1:] if pkg else file.short_path
+    return codegen_library_file(file, rest.partition("/")[2])
+
+def codegen_package_file(file):
+    """Pairs a file with its owner package and file name."""
+    pkg = file.owner.package
+    return codegen_library_file(file, (pkg + "/" if pkg else "") + file.basename)
+
 def codegen_library_providers(ctx, schema_kind, language, generated, namespace = ""):
-    """Builds the plan providers of a library rule that owns one generated file."""
+    """Builds the plan providers of a library rule from a File or a list of codegen_library_file."""
     producer = display_label(ctx.label)
     pair_error = codegen_pair_error(schema_kind, language)
     if pair_error != "":
-        fail(ctx.rule.kind + " " + producer + ": " + pair_error)
-    logical = ctx.attr.codegen_path or CODEGEN_LIBRARY_ROOT + "/" + generated.basename
-    entry = codegen_entry(logical, CODEGEN_LIBRARY_ROOT, namespace, generated.short_path)
-    record = _checked_record(producer, language, [entry])
-    spec = "|".join([logical, CODEGEN_LIBRARY_ROOT, namespace, generated.short_path])
-    out = plan_shard_emit(ctx, "codegen", producer, "--language", language, [spec], DX_CODEGEN_SHARD_SUFFIX, "DxCodegenShard")
+        fail("codegen " + producer + ": " + pair_error)
+    files = [codegen_library_file(generated, generated.basename)] if type(generated) == "File" else generated
+    if len(files) == 0:
+        return [DxCodegenPlanInfo(direct = [], transitive = depset()), OutputGroupInfo(dx_codegen_plans = depset())]
+    root = ctx.attr.codegen_path or CODEGEN_LIBRARY_ROOT
+    specs = []
+    entries = []
+    for f in files:
+        logical = root + "/" + f.path
+        entries.append(codegen_entry(logical, CODEGEN_LIBRARY_ROOT, namespace, f.file.short_path))
+        specs.append("|".join([logical, CODEGEN_LIBRARY_ROOT, namespace, f.file.short_path]))
+    record = _checked_record(producer, language, entries)
+    out = plan_shard_emit(ctx, "codegen", producer, "--language", language, specs, DX_CODEGEN_SHARD_SUFFIX, "DxCodegenShard")
     return [
         DxCodegenPlanInfo(direct = [record], transitive = depset([record])),
-        OutputGroupInfo(dx_codegen_plans = depset([out, generated])),
+        OutputGroupInfo(dx_codegen_plans = depset([out] + [f.file for f in files])),
     ]
 
 def codegen_srcjar(ctx, tree, srcjar_name, mnemonic):

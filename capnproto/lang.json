@@ -19,7 +19,6 @@
   ],
   "entry_points": [
     "capnproto_cc_library",
-    "capnproto_codegen_shard",
     "capnproto_java_library",
     "capnproto_library",
     "capnproto_rust_library"

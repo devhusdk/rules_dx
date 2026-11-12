@@ -146,13 +146,14 @@ fn frozen_identities_match_starlark() {
 #[test]
 fn is_shard_kind_matches_shard_rules() {
     for kind in [
-        "capnproto_codegen_shard",
         "dx_codegen_shard",
         "prost_codegen_shard",
-        "flatbuffers_codegen_shard",
-        "api_spec_codegen_shard",
         "avro_cc_library",
         "avro_java_library",
+        "api_spec_go_client",
+        "capnproto_cc_library",
+        "_flatbuffers_rust_srcs",
+        "thrift_java_library",
     ] {
         assert!(is_shard_kind(kind), "{kind}");
     }

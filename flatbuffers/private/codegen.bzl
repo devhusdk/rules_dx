@@ -17,17 +17,10 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//core/codegen:codegen.bzl", "codegen_shard_rule", "codegen_srcjar", "codegen_rust_library_kwargs")
+load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_package_file", "codegen_rust_library_kwargs", "codegen_srcjar", "codegen_tree_file")
 load("//core:stage.bzl", "stage_closure")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "FlatBuffersInfo", "resolve_root")
-
-FLATBUFFERS_GENERATED_SRCS_GROUP = "flatbuffers_generated_srcs"
-
-FlatBuffersCodegenInfo = provider(
-    doc = "Which language a flatbuffers codegen target generated.",
-    fields = {"language": "string: cpp, rust or java."},
-)
 
 # The compiler is the pinned source build, never the lint flag.
 _PRIVATE_ATTRS = {
@@ -116,13 +109,11 @@ def _cc_library_impl(ctx):
         cc_info,
         # Generated code owns no checked sources; it is not a cc_library to lint.
         dx_quality_sources([], [], str(ctx.label)),
-        OutputGroupInfo(**{FLATBUFFERS_GENERATED_SRCS_GROUP: depset(own_headers)}),
-        FlatBuffersCodegenInfo(language = "cpp"),
         FlatBuffersCcStageInfo(
             stage_roots = depset(transitive = [info.stage_roots for info in aspect_infos]),
             staged = depset(transitive = [info.staged for info in aspect_infos]),
         ),
-    ]
+    ] + codegen_library_providers(ctx, "flatbuffers", "cpp", [codegen_tree_file(f) for f in own_headers])
 
 flatbuffers_cc_library = rule(
     implementation = _cc_library_impl,
@@ -135,7 +126,7 @@ flatbuffers_cc_library = rule(
         ),
         "gen_object_api": attr.bool(default = False, doc = "Also generate the object API (--gen-object-api)."),
         "_runtime": attr.label(default = Label("@dx_flatbuffers//:runtime_cc"), providers = [CcInfo]),
-    } | _PRIVATE_ATTRS,
+    } | _PRIVATE_ATTRS | CODEGEN_LIBRARY_ATTRS,
     provides = [CcInfo],
 )
 
@@ -213,13 +204,11 @@ def _java_library_impl(ctx):
         DefaultInfo(files = depset(srcjars)),
         java_info,
         dx_quality_sources([], [], str(ctx.label)),
-        OutputGroupInfo(**{FLATBUFFERS_GENERATED_SRCS_GROUP: depset(srcjars)}),
-        FlatBuffersCodegenInfo(language = "java"),
         FlatBuffersJavaStageInfo(
             stage_roots = depset(transitive = [info.stage_roots for info in aspect_infos]),
             staged = depset(transitive = [info.staged for info in aspect_infos]),
         ),
-    ]
+    ] + codegen_library_providers(ctx, "flatbuffers", "java", [codegen_package_file(f) for f in srcjars])
 
 flatbuffers_java_library = rule(
     implementation = _java_library_impl,
@@ -231,7 +220,7 @@ flatbuffers_java_library = rule(
             doc = "flatbuffers_library targets to generate Java for.",
         ),
         "_runtime": attr.label(default = Label("//flatbuffers:runtime_java"), providers = [JavaInfo]),
-    },
+    } | CODEGEN_LIBRARY_ATTRS,
     provides = [JavaInfo],
 )
 
@@ -254,10 +243,8 @@ def _rust_srcs_impl(ctx):
     ctx.actions.write(lib, "pub mod {0}_generated;\npub use {0}_generated::*;\n".format(base))
     return [
         DefaultInfo(files = depset([lib, generated])),
-        OutputGroupInfo(**{FLATBUFFERS_GENERATED_SRCS_GROUP: depset([generated])}),
         dx_quality_sources([], [], str(ctx.label)),
-        FlatBuffersCodegenInfo(language = "rust"),
-    ]
+    ] + codegen_library_providers(ctx, "flatbuffers", "rust", [codegen_tree_file(generated)])
 
 _flatbuffers_rust_srcs = rule(
     implementation = _rust_srcs_impl,
@@ -272,15 +259,15 @@ _flatbuffers_rust_srcs = rule(
             allow_single_file = [".fbs"],
             doc = "Root schema, one of the library's srcs. Optional when the library owns exactly one.",
         ),
-    } | _PRIVATE_ATTRS,
+    } | _PRIVATE_ATTRS | CODEGEN_LIBRARY_ATTRS,
 )
 
-def flatbuffers_rust_library(name, library, crate_name = None, deps = None, root = None, **kwargs):
+def flatbuffers_rust_library(name, library, crate_name = None, deps = None, root = None, codegen_path = None, **kwargs):
     """Rust crate for one root schema and its include closure.
 
     flatc --rust --gen-all emits the whole closure into one file, so the crate
     is per root, not per flatbuffers_library. The runtime comes from the pinned
-    flatbuffers archive. Point flatbuffers_codegen_shard at NAME_generated.
+    flatbuffers archive.
 
     Args:
       name: Name of the rust_library.
@@ -288,6 +275,7 @@ def flatbuffers_rust_library(name, library, crate_name = None, deps = None, root
       crate_name: Crate name dependents import; defaults to name.
       deps: Extra Rust dependencies of the crate.
       root: Root schema label; optional when the library owns one schema.
+      codegen_path: Logical directory of the generated files in the dx sync projection.
       **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
         and the like replace the defaults; srcs and deps are added to them.
     """
@@ -297,20 +285,9 @@ def flatbuffers_rust_library(name, library, crate_name = None, deps = None, root
         name = generated,
         library = library,
         root = root,
+        codegen_path = codegen_path,
         tags = kwargs.get("tags"),
         testonly = kwargs.get("testonly"),
         visibility = kwargs.get("visibility"),
     )
     rust_library(**codegen_rust_library_kwargs(name, ":" + generated, crate_name, [Label("//flatbuffers:runtime_rust")], deps, kwargs))
-
-flatbuffers_codegen_shard = codegen_shard_rule(
-    "flatbuffers_codegen_shard",
-    "flatbuffers",
-    FLATBUFFERS_GENERATED_SRCS_GROUP,
-    "want a flatbuffers_cc_library, a flatbuffers_java_library or a flatbuffers_rust_library NAME_generated",
-    "cpp, rust or java.",
-    "Declares codegen plan entries for the sources flatc generates. Every generated file needs one entry with an EXEC_PATH suffix.",
-    "flatbuffers_cc_library, flatbuffers_java_library, or the NAME_generated target of a flatbuffers_rust_library, whose generated files the entries bind.",
-    codegen_info = FlatBuffersCodegenInfo,
-    languages = ("cpp", "rust", "java"),
-)

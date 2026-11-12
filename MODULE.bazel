@@ -616,7 +616,7 @@ osx.libraries(names = ["libffi"])
 use_repo(osx, "macos_sdk")
 
 # Gated on the Haskell-only flag, so it must come before the general C toolchains.
-register_toolchains("@dx_haskell_toolchains//cc:all")
+register_toolchains("@dx_haskell_toolchains//:all")
 
 register_toolchains("//cc/private/toolchains:gcc_linux_x86_64")
 
@@ -1684,8 +1684,6 @@ cabal_dev.lock(
     lock = "//haskell/tests/fixtures/bench:haskell_deps.json",
 )
 use_repo(cabal_dev, "haskell_app_hackage", "haskell_bench_hackage", "haskell_exe_hackage", "haskell_stack_hackage")
-
-register_toolchains("@dx_haskell_toolchains//toolchains:all")
 
 d = use_extension("//d:extensions.bzl", "d")
 use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_arm64", "dx_d_ldc_linux_x86_64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains")

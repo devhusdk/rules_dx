@@ -44,7 +44,7 @@ haskell_library(
     }),
     deps = [
         "//haskell/tests/fixtures/haskell_app/stock",
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
     ],
 )
 
@@ -53,7 +53,7 @@ haskell_binary(
     srcs = ["src/Main.hs"],
     deps = [
         ":cli",
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
     ],
 )
 
@@ -66,7 +66,7 @@ haskell_test(
     }),
     deps = [
         ":cli",
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
     ],
 )
 
@@ -74,7 +74,7 @@ haskell_library(
     name = "report_without_split",
     srcs = ["src/ReportWithoutSplit.hs"],
     tags = ["manual"],
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["@dx_haskell_toolchains//lib:base"],
 )
 
 real_source_target(

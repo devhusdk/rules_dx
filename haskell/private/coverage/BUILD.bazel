@@ -22,9 +22,9 @@ haskell_binary(
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     visibility = VIS_TOOLS_PUBLIC,
     deps = [
-        "@dx_haskell_toolchains//:base",
-        "@dx_haskell_toolchains//:containers",
-        "@dx_haskell_toolchains//:hpc",
+        "@dx_haskell_toolchains//lib:base",
+        "@dx_haskell_toolchains//lib:containers",
+        "@dx_haskell_toolchains//lib:hpc",
     ],
 )
 
@@ -34,7 +34,7 @@ haskell_library(
     testonly = True,
     srcs = ["fixture/Greeter.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["@dx_haskell_toolchains//lib:base"],
 )
 
 haskell_test(
@@ -43,7 +43,7 @@ haskell_test(
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":greeter",
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
     ],
 )
 

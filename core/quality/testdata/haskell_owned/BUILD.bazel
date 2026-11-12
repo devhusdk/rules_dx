@@ -25,7 +25,7 @@ haskell_library(
     srcs = ["Clean.hs"],
     ghcopts = ["-Wall"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["@dx_haskell_toolchains//lib:base"],
 )
 
 haskell_library(
@@ -33,26 +33,26 @@ haskell_library(
     srcs = ["Dirty.hs"],
     ghcopts = ["-Wall"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["@dx_haskell_toolchains//lib:base"],
 )
 
 haskell_library(
     name = "redundant",
     srcs = ["Redundant.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["@dx_haskell_toolchains//lib:base"],
 )
 
 haskell_library(
     name = "weeds",
     srcs = ["Weeds.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["@dx_haskell_toolchains//lib:base"],
 )
 
 haskell_library(
     name = "rooted",
     srcs = ["Rooted.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["@dx_haskell_toolchains//lib:base"],
 )

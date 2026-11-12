@@ -23,13 +23,13 @@ filegroup(
 
 alias(
     name = "base",
-    actual = "@dx_haskell_toolchains//:base",
+    actual = "@dx_haskell_toolchains//lib:base",
 )
 
 [
     alias(
         name = name,
-        actual = "@dx_haskell_toolchains//:" + name,
+        actual = "@dx_haskell_toolchains//lib:" + name,
     )
     for name in [
         "array",

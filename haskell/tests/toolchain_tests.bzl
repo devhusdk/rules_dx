@@ -1,6 +1,7 @@
 """Haskell toolchain pin and settings tests."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core:toolchain.bzl", "hub_checks")
 load("//haskell/private/toolchain:packages.bzl", "is_sha256", "package_build", "pin_problems")
 load("//haskell/private/toolchain:pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
 load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
@@ -75,21 +76,23 @@ def _cell_checks(name):
         expect_contains(name + " gmp stays an extra library", conf, "extra-libraries: gmp"),
     ]
 
+def _hub_names(hub):
+    return [line.split("\"")[1] for line in hub.splitlines() if line.startswith("    name = ")]
+
 def _checks():
     darwin_rts = drop_host_sdk_dirs(_DARWIN_RTS_CONF)
     settings = ghc_settings(_SETTINGS)
     windows_settings = ghc_settings(_SETTINGS.replace("\"Merge objects command\", \"/usr/bin/ld.gold\"", "\"Merge objects command\", \"\"").replace("\"ar command\", \"/usr/bin/ar\"", "\"ar command\", \"$topdir/../mingw//bin/llvm-ar.exe\"").replace("\"windres command\", \"/bin/false\"", "\"windres command\", \"$topdir/../mingw//bin/llvm-windres.exe\""))
-    checks = [
-        expect_false("toolchain hub loads nothing", "load(" in hub_files()["toolchains/BUILD.bazel"]),
-        expect_false("toolchain hub names no rules_haskell", "@rules_haskell" in hub_files()["toolchains/BUILD.bazel"]),
+    checks = hub_checks(hub_files()["BUILD.bazel"], str(Label("@rules_haskell//haskell:toolchain")), 5, ["@rules_haskell"]) + [
         expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("windows is unblocked", CELLS["windows_x86_64"].blocker, ""),
         expect_true("windows host runs the windows cell", cell_matches_host("windows_x86_64", "windows server 2022", "amd64")),
         expect_false("linux never runs the windows cell", cell_matches_host("windows_x86_64", "linux", "amd64")),
-        expect_true("windows cell gets a hub target", "windows_x86_64" in hub_files()["toolchains/BUILD.bazel"]),
-        expect_equal("windows cell gets one gated cc toolchain", hub_files()["cc/BUILD.bazel"].count("toolchain("), 1),
-        expect_contains("windows cell cc toolchain is gated", hub_files()["cc/BUILD.bazel"], "target_settings = [\"@@//haskell/private/toolchain:ghc_mingw_enabled\"]"),
+        expect_equal("hub files", sorted(hub_files().keys()), ["BUILD.bazel", "lib/BUILD.bazel"]),
+        expect_equal("hub toolchain order", _hub_names(hub_files()["BUILD.bazel"]), ["cc_windows_x86_64", "linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
+        expect_equal("windows cell gets one gated cc toolchain", hub_files()["BUILD.bazel"].count("@bazel_tools//tools/cpp:toolchain_type"), 1),
+        expect_contains("windows cell cc toolchain is gated", hub_files()["BUILD.bazel"], "target_settings = [\"@@//haskell/private/toolchain:ghc_mingw_enabled\"]"),
         expect_true("glibc floor covers the bindist", _version_at_least(GLIBC_FLOOR, "2.28")),
         expect_equal("runtime package names match across cells", [[package.package for package in CELLS[name].runtime] for name in sorted(CELLS) if name.startswith("linux_")], [["libgmp10", "libtinfo6"]] * 2),
         expect_equal("darwin has no runtime closure", CELLS["macos_arm64"].runtime, []),
@@ -112,8 +115,8 @@ def _checks():
         expect_false("a tooldir path is not a host path", host_path("(\"ar command\", \"$tooldir/ar\")")),
         expect_equal("nested import libraries are dropped", dropped_import_libs(["mingw/lib/libz.dll.a", "mingw/lib/libz.a", "mingw/x/y/libc++.dll.a"]), ["mingw/lib/libz.dll.a", "mingw/x/y/libc++.dll.a"]),
         expect_equal("os libraries", os_libraries(), ["Win32", "unix"]),
-        expect_contains("Win32 is compatible on the windows cell", hub_files()["BUILD.bazel"], "name = \"Win32\",\n    target_compatible_with = select({\n        \":windows_x86_64_platform\": [],\n        \"//conditions:default\": [\"@@platforms//:incompatible\"]"),
-        expect_equal("each os library has an arm per qualified cell", hub_files()["BUILD.bazel"].count("_platform\": [],"), 4),
+        expect_contains("Win32 is compatible on the windows cell", hub_files()["lib/BUILD.bazel"], "name = \"Win32\",\n    target_compatible_with = select({\n        \":windows_x86_64_platform\": [],\n        \"//conditions:default\": [\"@@platforms//:incompatible\"]"),
+        expect_equal("each os library has an arm per qualified cell", hub_files()["lib/BUILD.bazel"].count("_platform\": [],"), 4),
         expect_contains("the C compiler comes from the cc toolchain", settings, "(\"C compiler command\", \"" + NO_HOST_TOOL + "\")"),
         expect_contains("merge objects comes from the cc toolchain", settings, "(\"Merge objects command\", \"" + NO_HOST_TOOL + "\")"),
         expect_contains("otool comes from the cc toolchain", settings, "(\"otool command\", \"" + NO_HOST_TOOL + "\")"),

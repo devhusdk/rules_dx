@@ -119,7 +119,7 @@ haskell_test(
     name = "haskell_probe_test",
     srcs = ["haskell_probe.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["@dx_haskell_toolchains//lib:base"],
 )
 
 powershell_test(

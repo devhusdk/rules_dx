@@ -38,7 +38,7 @@ haskell_library(
     visibility = ["//haskell/tests/fixtures/haskell_app:__subpackages__"],
     deps = [
         ":checksum",
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
         "@haskell_app_hackage//:split",
     ],
 )
@@ -48,7 +48,7 @@ haskell_test(
     srcs = ["test/StockTest.hs"],
     deps = [
         ":stock",
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
     ],
 )
 

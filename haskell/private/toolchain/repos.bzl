@@ -6,9 +6,7 @@ load(":pins.bzl", "CELLS", "GHC_VERSION", "RUNTIME_MIRROR", "qualified_cells")
 
 HUB_NAME = "dx_haskell_toolchains"
 
-TOOLCHAINS_PACKAGE = "toolchains"
-
-CC_PACKAGE = "cc"
+LIBRARIES_PACKAGE = "lib"
 
 CLOSURE_DIR = "dx_closure"
 
@@ -460,7 +458,7 @@ ghc_repo = repository_rule(
 )
 
 def hub_files(cells = CELLS):
-    """Returns the hub files: the toolchains, cc toolchains and the root runtime closure aliases.
+    """Returns the hub files: the toolchains and cc toolchains at the root, the runtime closure aliases under lib.
 
     Args:
         cells: The cell table, so tests can unblock a cell.
@@ -493,18 +491,17 @@ def hub_files(cells = CELLS):
         content.append(_OS_LIBRARY.format(name = name, arms = "".join(["        \":{}_platform\": [],\n".format(cell) for cell in compatible]), incompatible = str(Label("@platforms//:incompatible"))))
     cc_toolchains = [
         toolchain_target(
-            name = cell,
+            name = "cc_" + cell,
             exec_compatible_with = cells[cell].exec_compatible_with,
             target_compatible_with = cells[cell].exec_compatible_with,
             target_settings = [str(Label("//haskell/private/toolchain:ghc_mingw_enabled"))],
             toolchain = "@{}//:cc-compiler-mingw64".format(cell_repository_name(cell)),
             toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
         )
-        for cell in qualified_cells(cells)
+        for cell in sorted(qualified_cells(cells))
         if getattr(cells[cell], "mingw_cc", False)
     ]
     return {
-        CC_PACKAGE + "/BUILD.bazel": "package(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(cc_toolchains),
-        "BUILD.bazel": "load(\"@rules_haskell//haskell:defs.bzl\", \"haskell_toolchain_library\")\n\npackage(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(content),
-        TOOLCHAINS_PACKAGE + "/BUILD.bazel": "package(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(toolchains),
+        "BUILD.bazel": "package(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(cc_toolchains + toolchains),
+        LIBRARIES_PACKAGE + "/BUILD.bazel": "load(\"@rules_haskell//haskell:defs.bzl\", \"haskell_toolchain_library\")\n\npackage(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(content),
     }

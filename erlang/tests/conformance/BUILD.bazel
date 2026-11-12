@@ -1,5 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//erlang:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_escript_archive", "erlang_eunit_test", "erlang_test_app", "erlc_opts")
+load("//erlang/private:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH")
+load("//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_escript_archive", "erlang_eunit_test", "erlang_test_app", "erlc_opts")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
 package(

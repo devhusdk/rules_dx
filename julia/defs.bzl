@@ -2,7 +2,6 @@
 
 load(
     "//julia/private:defs.bzl",
-    _JULIA_COMPATIBLE_WITH = "JULIA_COMPATIBLE_WITH",
     _julia_bench = "julia_bench",
     _julia_binary = "julia_binary",
     _julia_library = "julia_library",
@@ -10,7 +9,6 @@ load(
     _julia_test = "julia_test",
 )
 
-JULIA_COMPATIBLE_WITH = _JULIA_COMPATIBLE_WITH
 julia_library = _julia_library
 julia_binary = _julia_binary
 julia_test = _julia_test

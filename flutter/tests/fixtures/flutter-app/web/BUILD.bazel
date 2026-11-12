@@ -1,5 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//flutter:defs.bzl", "FLUTTER_COMPATIBLE_WITH")
+load("//flutter/private:defs.bzl", "FLUTTER_COMPATIBLE_WITH")
 load("//rust:defs.bzl", "rust_test")
 
 package(default_visibility = ["//flutter/tests/fixtures/flutter-app:__subpackages__"])

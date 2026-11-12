@@ -4,7 +4,8 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 # gazelle:dx_external composer //php/tests/fixtures/composer/composer.lock.json php_fixture_vendor
 # gazelle:resolve php Psr\Http\Message\RequestFactoryInterface @php_fixture_vendor//psr/http-factory
 # gazelle:resolve php Psr\Http\Message\RequestInterface @php_fixture_vendor//psr/http-message
-load("@rules_dx//php:defs.bzl", "PHP_COMPATIBLE_WITH", "php_binary", "php_library", "php_test")
+load("@rules_dx//php/private:defs.bzl", "PHP_COMPATIBLE_WITH")
+load("@rules_dx//php:defs.bzl", "php_binary", "php_library", "php_test")
 load("@rules_dx//php/private:php.bzl", "php_autoload_tree")
 
 package(

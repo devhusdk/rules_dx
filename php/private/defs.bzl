@@ -13,7 +13,7 @@ PhpInfo = _PhpInfo
 
 PHP_SOURCE_SPECS = [("php", ["php"])]
 
-PLATFORM_SUPPORT = cells_support("//php:defs.bzl", "PHP_COMPATIBLE_WITH", PHP_CELLS, sorted(PHP_CELLS.keys()), "//php/private/toolchain")
+PLATFORM_SUPPORT = cells_support("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH", PHP_CELLS, sorted(PHP_CELLS.keys()), "//php/private/toolchain")
 
 PHP_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 

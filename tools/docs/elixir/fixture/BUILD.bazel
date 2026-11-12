@@ -1,6 +1,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_app")
+load("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
+load("//elixir:defs.bzl", "elixir_app")
 load("//tools/docs/beam:path_tests.bzl", "beam_shard_path_test")
 load("//tools/docs/elixir:defs.bzl", "elixir_doc_shard")
 

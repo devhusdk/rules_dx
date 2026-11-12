@@ -5,7 +5,7 @@ load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_as_errors")
 
 ELIXIR_CELLS = _ELIXIR_CELLS
 
-PLATFORM_SUPPORT = cells_support("//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH", OTP_CELLS, ELIXIR_CELLS, "//erlang/private/toolchain")
+PLATFORM_SUPPORT = cells_support("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH", OTP_CELLS, ELIXIR_CELLS, "//erlang/private/toolchain")
 
 ELIXIR_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 

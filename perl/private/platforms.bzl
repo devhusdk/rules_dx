@@ -10,4 +10,4 @@ PERL_PLATFORMS = {
     "windows_x86_64": ("windows", "x86_64"),
 }
 
-PLATFORM_SUPPORT = os_cpu_support("//perl:defs.bzl", "PERL_COMPATIBLE_WITH", PERL_PLATFORMS, [Label("//perl/private:rules_perl_platform")], "//perl/private")
+PLATFORM_SUPPORT = os_cpu_support("//perl/private:defs.bzl", "PERL_COMPATIBLE_WITH", PERL_PLATFORMS, [Label("//perl/private:rules_perl_platform")], "//perl/private")

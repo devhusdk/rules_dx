@@ -601,15 +601,15 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("dx_wasi_test_tests", Constraint::AsWritten),
     (
         "erlang_eunit_test",
-        Constraint::Appended("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH"),
+        Constraint::Appended("//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH"),
     ),
     (
         "dart_test",
-        Constraint::Appended("//dart:defs.bzl", "DART_COMPATIBLE_WITH"),
+        Constraint::Appended("//dart/private:defs.bzl", "DART_COMPATIBLE_WITH"),
     ),
     (
         "elixir_test",
-        Constraint::Appended("//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH"),
+        Constraint::Appended("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH"),
     ),
     (
         "fortran_test",
@@ -618,7 +618,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("failure_test", Constraint::AsWritten),
     (
         "flutter_test",
-        Constraint::Appended("//flutter:defs.bzl", "FLUTTER_COMPATIBLE_WITH"),
+        Constraint::Appended("//flutter/private:defs.bzl", "FLUTTER_COMPATIBLE_WITH"),
     ),
     ("fsharp_test", Constraint::AsWritten),
     ("go_test", Constraint::AsWritten),
@@ -637,7 +637,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("javascript_test", Constraint::AsWritten),
     (
         "julia_test",
-        Constraint::Appended("//julia:defs.bzl", "JULIA_COMPATIBLE_WITH"),
+        Constraint::Appended("//julia/private:defs.bzl", "JULIA_COMPATIBLE_WITH"),
     ),
     ("kotlin_test", Constraint::AsWritten),
     ("lua_test", Constraint::AsWritten),
@@ -647,11 +647,11 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ),
     (
         "perl_test",
-        Constraint::Appended("//perl:defs.bzl", "PERL_COMPATIBLE_WITH"),
+        Constraint::Appended("//perl/private:defs.bzl", "PERL_COMPATIBLE_WITH"),
     ),
     (
         "php_test",
-        Constraint::Appended("//php:defs.bzl", "PHP_COMPATIBLE_WITH"),
+        Constraint::Appended("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH"),
     ),
     ("owns_cmake_class_test", Constraint::AsWritten),
     ("owns_dockerfile_class_test", Constraint::AsWritten),
@@ -892,7 +892,7 @@ mod tests {
         }
 
         fn computed(&self, label: &str, symbol: &str) -> Option<Vec<Vec<String>>> {
-            if label == "//perl:defs.bzl" && symbol == "PERL_COMPATIBLE_WITH" {
+            if label == "//perl/private:defs.bzl" && symbol == "PERL_COMPATIBLE_WITH" {
                 return Some(vec![
                     vec![
                         "@platforms//os:linux".to_owned(),
@@ -941,7 +941,7 @@ mod tests {
                 format!("FORTRAN_COMPATIBLE_WITH = {linux_x86_64}"),
             ),
             (
-                "//php:defs.bzl".to_owned(),
+                "//php/private:defs.bzl".to_owned(),
                 format!("PHP_COMPATIBLE_WITH = {linux_x86_64}"),
             ),
             (

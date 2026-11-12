@@ -2,15 +2,13 @@
 
 load("@rules_dart//dart:defs.bzl", _dart_binary = "dart_binary", _dart_codegen = "dart_codegen", _dart_js_binary = "dart_js_binary", _dart_library = "dart_library", _dart_test = "dart_test", _dart_wasm_binary = "dart_wasm_binary")
 load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartCompileInfo", "DartInfo")
-load("//dart/private:dart_config.bzl", _DxDartConfigInfo = "DartConfigInfo", _dart_config = "dart_config")
+load("//dart/private:dart_config.bzl", _dart_config = "dart_config")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:platform_support.bzl", "compatible_with")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
-
-DartConfigInfo = _DxDartConfigInfo
 
 dart_config = _dart_config
 

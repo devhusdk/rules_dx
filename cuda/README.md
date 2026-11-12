@@ -12,7 +12,7 @@ The CUDA rules load from `@rules_dx//cuda:defs.bzl`. rules_dx declares the
 pinned toolkit and the nvcc toolchain. Add this to the root `MODULE.bazel`:
 
 ```python
-cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
+cuda = use_extension("@rules_dx//cuda:extensions.bzl", "cuda")
 cuda.license(accept = ["cuda-eula"])
 ```
 
@@ -86,8 +86,7 @@ so `bazel build //...` skips them.
 Windows x86_64 and Windows arm64 (CUDA 13.4.2 redist) are qualified with
 `--//cc:compiler=msvc`: nvcc on Windows only drives `cl.exe`. With the default
 `llvm` compiler CUDA targets are incompatible there, so Windows builds skip them instead of
-failing. rules_dx patches rules_cuda 0.4.0-beta1 for the windows-arm64 toolkit
-(bazel-contrib/rules_cuda#528).
+failing.
 
 ## Errors
 
@@ -98,7 +97,7 @@ failing. rules_dx patches rules_cuda 0.4.0-beta1 for the windows-arm64 toolkit
 | `dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = ["sm_89"]` | Set `cuda_archs`. |
 | `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |
 | `dx_cuda: @rules_cuda//cuda:compiler is '<compiler>'; dx CUDA targets compile with nvcc only` | Remove the `@rules_cuda//cuda:compiler` setting. |
-| `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); declare the cuda.redist_json and cuda.toolkit tags from the dx CUDA README` | Remove your own `cuda.redist_json` and `cuda.toolkit` tags; rules_dx declares them. |
+| `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); use the cuda extension from @rules_dx//cuda:extensions.bzl and remove your own cuda.redist_json and cuda.toolkit tags` | Remove your own `cuda.redist_json` and `cuda.toolkit` tags and use the `cuda` extension from `@rules_dx//cuda:extensions.bzl`. |
 | `dx_cuda: the CUDA toolkit is <version>; dx CUDA targets need 13.4` | Use the versions from Setup. |
 | `dx_cuda: no nvcc toolchain for this target; dx CUDA targets build for linux_x86_64, linux_arm64, windows_x86_64, windows_arm64` | Build for one of the listed platforms. |
 | nvcc fails with `unsupported clang version!` | Move the stanza before `register_toolchains("@llvm//toolchain:all")`. |
@@ -125,9 +124,7 @@ These targets fail unless the files come from the pinned redistributable. Never 
 check, or on `@cuda//:cuda_headers` or `@cuda//:cuda_all_files`, which fetch
 every component. The `cufft` and `curand` targets are tagged `manual`.
 
-If your stanza has no `cuda_cublas` tag, building these targets fails with
-`no such target @cuda//:cublas`; add the `cuda_cublas` tag to your `cuda` stanza when the tree has `.cu` files. See
-`cuda/tests/fixtures/cublas`.
+See `cuda/tests/fixtures/cublas`.
 
 ## GPU tests
 

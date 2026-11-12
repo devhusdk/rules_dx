@@ -1,6 +1,7 @@
 """Pinned CUDA Toolkit components and the archs the pinned nvcc accepts."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
+load("//cuda/private/toolchain:platforms.bzl", "CUDA_PLATFORMS")
 load(":versions.bzl", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _CUDA_VERSION = "CUDA_VERSION", _RULES_CUDA_VERSION = "RULES_CUDA_VERSION")
 
 CUDA_VERSION = _CUDA_VERSION
@@ -27,28 +28,28 @@ def _components(cell):
 
 CUDA_CELLS = {
     "linux_x86_64": struct(
-        rules_cuda_platform = "linux-x86_64",
+        rules_cuda_platform = CUDA_PLATFORMS["linux_x86_64"],
         blocker = "",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
         components = _components("linux_x86_64"),
     ),
     "linux_arm64": struct(
-        rules_cuda_platform = "linux-sbsa",
+        rules_cuda_platform = CUDA_PLATFORMS["linux_arm64"],
         blocker = "",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
         components = _components("linux_arm64"),
     ),
     "windows_x86_64": struct(
-        rules_cuda_platform = "windows-x86_64",
+        rules_cuda_platform = CUDA_PLATFORMS["windows_x86_64"],
         blocker = "",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
         components = _components("windows_x86_64"),
     ),
     "windows_arm64": struct(
-        rules_cuda_platform = "windows-arm64",
+        rules_cuda_platform = CUDA_PLATFORMS["windows_arm64"],
         blocker = "",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64"],

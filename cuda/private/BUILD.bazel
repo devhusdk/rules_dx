@@ -16,6 +16,7 @@ package(default_visibility = [
 exports_files([
     "components.bzl",
     "defs.bzl",
+    "license.bzl",
 ])
 
 _SAXPY_ARCHS = [

@@ -163,19 +163,13 @@ _foreign_cc_tools.pkgconfig(
     mode = "noop",
 )
 
-# floor: equals tested; 0.4.0-beta1 carries the device link include fix; patched to read CCCL from CUDA 13.3+ manifests (#5975; upstream bazel-contrib/rules_cuda#523, drop in #8365) to pass the dynamic CRT flag and -ccbin to nvcc -dlink (#4704, #10975), to support windows-arm64 toolkits (#5969; upstream bazel-contrib/rules_cuda#528) and to fail every redist fetch until the root module accepts the CUDA EULA (#11638)
-bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")
+# floor: equals tested; patched to pass the dynamic CRT flag and -ccbin to nvcc -dlink (#4704, #10975)
+bazel_dep(name = "rules_cuda", version = "0.4.0")
 single_version_override(
     module_name = "rules_cuda",
     patch_strip = 1,
-    patches = [
-        "//patches/rules_cuda:dx_default_toolkit.patch",
-        "//patches/rules_cuda:msvc_dlink_crt.patch",
-        "//patches/rules_cuda:redist_cccl_key.patch",
-        "//patches/rules_cuda:windows_arm64.patch",
-        "//patches/rules_cuda:license_gate.patch",
-    ],
-    version = "0.4.0-beta1",
+    patches = ["//patches/rules_cuda:msvc_dlink_crt.patch"],
+    version = "0.4.0",
 )
 
 # floor: equals tested; llvm pins the MSVC and Windows SDK payloads we link; patched for host_tools (#4835)
@@ -1291,37 +1285,13 @@ cpan.install(
 )
 use_repo(cpan, perl_cpan = "perl_app_cpan")
 
-cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
+cuda = use_extension("//cuda:extensions.bzl", "cuda")
 use_repo(cuda, "cuda")
 
-cuda_dev = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain", dev_dependency = True)
+cuda_dev = use_extension("//cuda:extensions.bzl", "cuda", dev_dependency = True)
 cuda_dev.license(accept = ["cuda-eula"])
 
-cuda.redist_json(
-    name = "cuda_redist",
-    components = [
-        "cccl",
-        "crt",
-        "cublas",
-        "cudart",
-        "cufft",
-        "curand",
-        "nvcc",
-        "nvvm",
-    ],
-    platforms = [
-        "linux-x86_64",
-        "linux-sbsa",
-        "windows-x86_64",
-        "windows-arm64",
-    ],
-    sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
-    version = "13.4.2",
-)
-cuda.toolkit(
-    name = "cuda",
-    nvcc_version = "13.4",
-)
+register_toolchains("@cuda//toolchain/...")
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
 use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "dx_rebar3", "dx_erlang_toolchains", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")

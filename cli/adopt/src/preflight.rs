@@ -13,7 +13,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_cc", "0.2.28"),
     ("gcc_toolchain", "0.13.0"),
     ("llvm", "0.8.26"),
-    ("rules_cuda", "0.4.0-beta1"),
+    ("rules_cuda", "0.4.0"),
     ("windows_support", "0.4.1"),
     ("google_benchmark", "1.10.0"),
     ("rules_python", "2.4.6"),

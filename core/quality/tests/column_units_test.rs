@@ -1,6 +1,7 @@
 //! Runs pinned tools on lines with an astral emoji and `é` before the finding,
 //! so each parser's column units are checked against what the tool reports.
 
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
 use dx_testing::serde_json::Value;
@@ -8,11 +9,6 @@ use quality_adapter::commands::{self, Invocation};
 use quality_adapter::launch::ResolvedTool;
 use quality_adapter::parsers::{self, FileFinding};
 use quality_adapter::{ColumnEncoding, place_finding};
-
-fn tool(variable: &str) -> PathBuf {
-    let rel = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must be set"));
-    dx_testing::resolve_runfiles(&rel)
-}
 
 struct Run {
     code: Option<i32>,
@@ -141,7 +137,7 @@ fn eslint_columns_are_utf16_units() {
         "eslint.config.mjs",
         "export default [{ rules: { \"no-undef\": \"error\" } }];\n",
     );
-    let launch = ResolvedTool::javascript("eslint", &tool("DX_ESLINT"));
+    let launch = ResolvedTool::javascript("eslint", &env_file("DX_ESLINT"));
     let invocation = commands::eslint_check(&launch, &[file.as_path()], &config).expect("argv");
     let out = run(&invocation, dir);
     let name = file.to_str().expect("utf-8 path");
@@ -167,7 +163,7 @@ fn pmd_sarif_columns_land_after_an_emoji() {
         "ruleset.xml",
         "<?xml version=\"1.0\"?>\n<ruleset name=\"t\" xmlns=\"http://pmd.sourceforge.net/ruleset/2.0.0\">\n  <description>t</description>\n  <rule ref=\"category/java/codestyle.xml/UselessParentheses\"/>\n</ruleset>\n",
     );
-    let invocation = commands::pmd_check(&tool("DX_PMD"), &[file.as_path()], &ruleset);
+    let invocation = commands::pmd_check(&env_file("DX_PMD"), &[file.as_path()], &ruleset);
     let out = run(&invocation, dir);
     let name = file.to_str().expect("utf-8 path");
     let findings = parsers::parse_pmd(out.stdout.as_bytes(), out.code, &[name])

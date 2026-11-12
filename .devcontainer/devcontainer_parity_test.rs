@@ -1,14 +1,9 @@
-use std::path::PathBuf;
-
-fn data(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
-    dx_testing::resolve_runfiles(&rel)
-}
+use dx_testing::env_file;
 
 #[test]
 fn devcontainer_parity() {
-    let expected = data("DX_DEVCONTAINER_EXPECTED");
-    let dx = data("DX_DX_BIN");
+    let expected = env_file("DX_DEVCONTAINER_EXPECTED");
+    let dx = env_file("DX_DX_BIN");
 
     let scratch_guard = dx_test_scratch::scratch("devcontainer-parity-");
 

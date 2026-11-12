@@ -1,15 +1,5 @@
-use std::path::{Path, PathBuf};
-
-fn env_bin() -> PathBuf {
-    let rel = std::env::var("DX_ENV_BIN").expect("DX_ENV_BIN must name the env binary");
-    dx_testing::resolve_runfiles(&rel)
-}
-
-fn staged_metadata() -> PathBuf {
-    let rel = std::env::var("DX_STAGED_METADATA")
-        .expect("DX_STAGED_METADATA must name the staged metadata");
-    dx_testing::resolve_runfiles(&rel)
-}
+use dx_testing::env_file;
+use std::path::Path;
 
 fn install(bin: &Path, root: &Path) -> String {
     let run = dx_testing::run(bin, &["--workspace", root.to_string_lossy().as_ref()], &[])
@@ -23,7 +13,7 @@ fn install(bin: &Path, root: &Path) -> String {
 }
 
 fn host(name: &str) -> String {
-    let doc = dx_testing::read_json(&staged_metadata()).expect("read staged metadata");
+    let doc = dx_testing::read_json(&env_file("DX_STAGED_METADATA")).expect("read staged metadata");
     let tool = doc
         .get("tools")
         .and_then(|tools| tools.as_array())
@@ -50,7 +40,7 @@ fn is_symlink(path: &Path) -> bool {
 #[test]
 fn help_exits_zero_on_stdout() {
     for flag in ["--help", "-h"] {
-        let run = dx_testing::run(&env_bin(), &[flag], &[]).expect("env must execute");
+        let run = dx_testing::run(&env_file("DX_ENV_BIN"), &[flag], &[]).expect("env must execute");
         assert!(run.status.success(), "{flag} must exit zero");
         assert!(run.stdout.contains("usage: env"), "{flag}: {}", run.stdout);
         assert!(!run.stderr.contains("usage"), "{flag}: {}", run.stderr);
@@ -59,7 +49,7 @@ fn help_exits_zero_on_stdout() {
 
 #[test]
 fn env_bootstrap() {
-    let bin = env_bin();
+    let bin = env_file("DX_ENV_BIN");
     let scratch = dx_test_scratch::scratch("env-bootstrap-");
     let root = scratch.path().join("work space");
     std::fs::create_dir_all(&root).expect("work space");
@@ -130,7 +120,7 @@ fn env_bootstrap() {
         "second run was not a noop: {noop}"
     );
 
-    let staged = staged_metadata();
+    let staged = env_file("DX_STAGED_METADATA");
     let staged_bin = staged.parent().expect("tree dir").join("bin");
     assert!(
         staged_bin.is_dir(),
@@ -225,7 +215,7 @@ fn env_bootstrap() {
 
 #[test]
 fn relative_workspace_resolves_against_build_working_directory() {
-    let bin = env_bin();
+    let bin = env_file("DX_ENV_BIN");
     let scratch = dx_test_scratch::scratch("env-relative-");
     let base = scratch.path().join("base");
     std::fs::create_dir_all(base.join("ws")).expect("ws");

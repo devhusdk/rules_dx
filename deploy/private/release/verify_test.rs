@@ -1,14 +1,10 @@
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
 use dx_release_tools::{
     PROVENANCE_BUILDER_RELEASE, bcr_candidate_error, notice_verify_files, sbom_verify_files,
     write_bcr_source_for_archive,
 };
-
-fn data(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
-    dx_testing::resolve_runfiles(&rel)
-}
 
 fn scratch() -> tempfile::TempDir {
     tempfile::Builder::new()
@@ -36,17 +32,17 @@ fn write_bytes(dir: &Path, name: &str, bytes: &[u8]) -> PathBuf {
 
 fn sbom_inputs() -> (PathBuf, PathBuf, PathBuf) {
     (
-        data("DX_SBOM_ARTIFACT"),
-        data("DX_SBOM_SPDX"),
-        data("DX_SBOM_PROVENANCE"),
+        env_file("DX_SBOM_ARTIFACT"),
+        env_file("DX_SBOM_SPDX"),
+        env_file("DX_SBOM_PROVENANCE"),
     )
 }
 
 fn notice_inputs() -> (PathBuf, PathBuf, Vec<PathBuf>) {
     (
-        data("DX_NOTICE"),
-        data("DX_NOTICE_MANIFEST"),
-        vec![data("DX_NOTICE_TEXT_A"), data("DX_NOTICE_TEXT_B")],
+        env_file("DX_NOTICE"),
+        env_file("DX_NOTICE_MANIFEST"),
+        vec![env_file("DX_NOTICE_TEXT_A"), env_file("DX_NOTICE_TEXT_B")],
     )
 }
 

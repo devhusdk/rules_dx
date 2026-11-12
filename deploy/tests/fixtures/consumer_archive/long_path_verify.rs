@@ -2,11 +2,6 @@ use std::path::PathBuf;
 
 const MEMBER: &str = "resources/textures/textures/textures/textures/textures/textures/textures/textures/textures/textures/icon.png";
 
-fn data(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn tar(args: &[&str]) -> dx_testing::Run {
     let out = dx_testing::run(&PathBuf::from("tar"), args, &[]).expect("tar must execute");
     assert!(
@@ -19,7 +14,7 @@ fn tar(args: &[&str]) -> dx_testing::Run {
 
 #[test]
 fn long_resource_path_round_trips_through_standard_tar() {
-    let tarball = data("DX_LONG_TARBALL");
+    let tarball = dx_testing::env_file("DX_LONG_TARBALL");
     let tarball = tarball.to_string_lossy();
     assert_eq!(MEMBER.len(), 108);
     let listed = tar(&["-tzf", tarball.as_ref()]);

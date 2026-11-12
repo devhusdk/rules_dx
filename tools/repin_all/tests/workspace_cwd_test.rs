@@ -3,11 +3,6 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-fn repin_all() -> PathBuf {
-    let rel = std::env::var("DX_REPIN_ALL").expect("DX_REPIN_ALL must be set");
-    dx_testing::resolve_runfiles(&rel)
-}
-
 #[cfg(unix)]
 const DX_KEY: &str = "_main/cli/cli/dx";
 #[cfg(windows)]
@@ -54,7 +49,7 @@ fn setup(scratch: &Path) -> Setup {
 }
 
 fn wrapper(setup: &Setup, args: &[&str]) -> Command {
-    let mut command = Command::new(repin_all());
+    let mut command = Command::new(dx_testing::env_file("DX_REPIN_ALL"));
     command
         .args(args)
         .current_dir(&setup.runfiles)

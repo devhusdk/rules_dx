@@ -998,10 +998,6 @@ pub(crate) mod tests {
         )
     }
 
-    fn runfile(var: &str) -> PathBuf {
-        resolve_runfile(&std::env::var(var).expect(var)).expect("runfile")
-    }
-
     fn gate_env<'a>(vars: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> String + 'a {
         move |key: &str| {
             vars.iter()
@@ -1053,8 +1049,8 @@ pub(crate) mod tests {
     #[test]
     fn maven_bundle_writes_checksums_and_signatures() {
         let scratch = scratch_dir();
-        let jar = runfile("MAVEN_DEMO_JAR");
-        let pom = runfile("MAVEN_DEMO_POM");
+        let jar = dx_testing::env_file("MAVEN_DEMO_JAR");
+        let pom = dx_testing::env_file("MAVEN_DEMO_POM");
         let jar_bytes = std::fs::read(&jar).expect("read jar");
         assert!(jar_bytes.starts_with(b"PK\x03\x04"), "jar is not a zip");
         let (secret, public) = test_key(true);
@@ -1118,9 +1114,11 @@ pub(crate) mod tests {
 
     #[test]
     fn maven_verify_accepts_gnupg_fixture() {
-        let public = std::fs::read_to_string(runfile("MAVEN_GNUPG_PUBKEY")).expect("pubkey");
-        let payload = std::fs::read(runfile("MAVEN_GNUPG_PAYLOAD")).expect("payload");
-        let asc = std::fs::read_to_string(runfile("MAVEN_GNUPG_SIGNATURE")).expect("asc");
+        let public =
+            std::fs::read_to_string(dx_testing::env_file("MAVEN_GNUPG_PUBKEY")).expect("pubkey");
+        let payload = std::fs::read(dx_testing::env_file("MAVEN_GNUPG_PAYLOAD")).expect("payload");
+        let asc =
+            std::fs::read_to_string(dx_testing::env_file("MAVEN_GNUPG_SIGNATURE")).expect("asc");
         maven_verify_detached(&public, &payload, &asc).expect("gnupg signature verifies");
         let mut flipped = payload.clone();
         flipped[0] ^= 1;
@@ -1137,7 +1135,7 @@ pub(crate) mod tests {
             maven_pom_metadata_error(good.as_bytes(), "com.example", "demo", "1.0.0"),
             None
         );
-        let fixture = std::fs::read(runfile("MAVEN_DEMO_POM")).expect("pom fixture");
+        let fixture = std::fs::read(dx_testing::env_file("MAVEN_DEMO_POM")).expect("pom fixture");
         assert_eq!(
             maven_pom_metadata_error(&fixture, "com.example", "maven_demo", "0.0.0"),
             None

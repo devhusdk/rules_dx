@@ -1,12 +1,5 @@
-use std::path::PathBuf;
-
-fn runner() -> PathBuf {
-    let rel = std::env::var("DX_RUNNER_BIN").expect("DX_RUNNER_BIN must name the red runner");
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn run_red() -> String {
-    let out = std::process::Command::new(runner())
+    let out = std::process::Command::new(dx_testing::env_file("DX_RUNNER_BIN"))
         .output()
         .expect("red runner must execute");
     assert!(

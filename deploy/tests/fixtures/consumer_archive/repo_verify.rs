@@ -11,11 +11,6 @@ const MEMBERS: [&str; 4] = [
     "resources/banner.txt",
 ];
 
-fn data(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn tar(args: &[&str]) -> String {
     let out = dx_testing::run(&PathBuf::from("tar"), args, &[]).expect("tar must execute");
     assert!(
@@ -31,7 +26,7 @@ fn read(path: &Path) -> String {
 }
 
 fn verify(env: &str, name: &str) {
-    let tarball = data(env);
+    let tarball = dx_testing::env_file(env);
     let tarball_arg = tarball.to_string_lossy().into_owned();
     let listed = tar(&["-tzf", &tarball_arg]);
     let mut members: Vec<&str> = listed.lines().collect();

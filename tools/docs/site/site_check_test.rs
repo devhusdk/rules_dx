@@ -100,7 +100,7 @@ impl Site {
     }
 
     fn check(&self, args: &[&str]) -> Run {
-        let output = Command::new(script())
+        let output = Command::new(dx_testing::env_file("DX_SITE_CHECK"))
             .args(args)
             .current_dir(&self.root)
             .output()
@@ -123,11 +123,6 @@ impl Site {
             "guide.md",
         ])
     }
-}
-
-fn script() -> PathBuf {
-    let rel = std::env::var("DX_SITE_CHECK").expect("DX_SITE_CHECK must name the checker");
-    dx_testing::resolve_runfiles(&rel)
 }
 
 #[test]

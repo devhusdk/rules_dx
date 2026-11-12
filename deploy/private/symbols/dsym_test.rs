@@ -1,9 +1,5 @@
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
-
-fn data(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
-    dx_testing::resolve_runfiles(&rel)
-}
 
 fn read(path: &Path) -> Vec<u8> {
     std::fs::read(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
@@ -29,7 +25,7 @@ fn known_manifest() -> PathBuf {
 #[test]
 fn symbolizes_known_function_from_the_dsym_alone() {
     let dwarf = dx_symbols::dwarf_file(&known_bundle()).expect("one DWARF file in the dSYM");
-    let nm = dx_testing::run(&data("DX_LLVM_NM"), &[dwarf.to_str().unwrap()], &[]).unwrap();
+    let nm = dx_testing::run(&env_file("DX_LLVM_NM"), &[dwarf.to_str().unwrap()], &[]).unwrap();
     let addr = nm
         .stdout
         .lines()
@@ -44,7 +40,7 @@ fn symbolizes_known_function_from_the_dsym_alone() {
     let obj = format!("--obj={}", dwarf.display());
     let address = format!("0x{addr}");
     let sym = dx_testing::run(
-        &data("DX_LLVM_SYMBOLIZER"),
+        &env_file("DX_LLVM_SYMBOLIZER"),
         &[obj.as_str(), address.as_str()],
         &[],
     )
@@ -61,7 +57,7 @@ fn symbolizes_known_function_from_the_dsym_alone() {
         "{file}"
     );
     assert!(line > 0, "{}", sym.stdout);
-    let source = String::from_utf8(read(&data("DX_KNOWN_SOURCE"))).unwrap();
+    let source = String::from_utf8(read(&env_file("DX_KNOWN_SOURCE"))).unwrap();
     let text = source.lines().nth(line - 1).unwrap_or("");
     assert!(
         text.contains("dx_known_function") || text.contains("x * 7"),
@@ -71,7 +67,7 @@ fn symbolizes_known_function_from_the_dsym_alone() {
 
 #[test]
 fn manifest_matches_the_binary_and_its_dsym() {
-    let binary = data("DX_KNOWN_BINARY");
+    let binary = env_file("DX_KNOWN_BINARY");
     let dwarf = dx_symbols::dwarf_file(&known_bundle()).unwrap();
     let pair = dx_symbols::check_dsym(&read(&binary), &read(&dwarf)).unwrap();
     let json = dx_testing::read_json(&known_manifest()).unwrap();
@@ -96,8 +92,8 @@ fn missing_dsym_fails_and_writes_nothing() {
     let tmp = scratch.path();
     let manifest = tmp.join("manifest.json");
     let missing = tmp.join("missing.dSYM");
-    let dsymutil = data("DX_DSYMUTIL");
-    let binary = data("DX_KNOWN_BINARY");
+    let dsymutil = env_file("DX_DSYMUTIL");
+    let binary = env_file("DX_KNOWN_BINARY");
     let args = [
         "--dsymutil",
         dsymutil.to_str().unwrap(),
@@ -108,7 +104,7 @@ fn missing_dsym_fails_and_writes_nothing() {
         "--manifest",
         manifest.to_str().unwrap(),
     ];
-    let run = dx_testing::run(&data("DX_DSYM"), &args, &[]).unwrap();
+    let run = dx_testing::run(&env_file("DX_DSYM"), &args, &[]).unwrap();
     assert!(!run.status.success());
     assert!(run.stderr.contains("cannot read dSYM"), "{}", run.stderr);
     assert!(!manifest.exists());

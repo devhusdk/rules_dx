@@ -1,10 +1,6 @@
+use dx_testing::env_file;
 use dx_testing::http::{Reply, RequestLog, requests, serve as serve_with};
 use std::path::{Path, PathBuf};
-
-fn data(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
-    dx_testing::resolve_runfiles(&rel)
-}
 
 fn run_deploy(
     prog: &Path,
@@ -12,7 +8,7 @@ fn run_deploy(
     args: &[&str],
     env: &[(&str, &str)],
 ) -> std::io::Result<dx_testing::Run> {
-    let config = data(config_var);
+    let config = env_file(config_var);
     let config = config.to_string_lossy();
     let mut env = env.to_vec();
     env.push(("DX_DEPLOY_CONFIG", config.as_ref()));
@@ -20,8 +16,8 @@ fn run_deploy(
 }
 
 fn archive_case() {
-    let tarball = data("DX_ARCHIVE_TARBALL");
-    let checksum = data("DX_ARCHIVE_CHECKSUM");
+    let tarball = env_file("DX_ARCHIVE_TARBALL");
+    let checksum = env_file("DX_ARCHIVE_CHECKSUM");
     let member =
         std::env::var("DX_ARCHIVE_MEMBER").expect("DX_ARCHIVE_MEMBER must name the member");
 
@@ -70,7 +66,7 @@ fn archive_case() {
 }
 
 fn homebrew_case() {
-    let prog = data("DX_HOMEBREW_PROG");
+    let prog = env_file("DX_HOMEBREW_PROG");
     let outdir = dx_testing::mkscratch("homebrew-out").expect("scratch outdir");
     let run = run_deploy(
         &prog,
@@ -106,7 +102,7 @@ fn homebrew_case() {
         assert!(formula.contains(want), "formula missing {want}\n{formula}");
     }
     for var in ["DX_HOMEBREW_MAC", "DX_HOMEBREW_LINUX"] {
-        let digest = dx_testing::sha256_file(&data(var)).expect("hash asset");
+        let digest = dx_testing::sha256_file(&env_file(var)).expect("hash asset");
         assert!(
             formula.contains(&format!("sha256 \"{digest}\"")),
             "{var} digest {digest} missing\n{formula}"
@@ -115,7 +111,7 @@ fn homebrew_case() {
 }
 
 fn github_case() {
-    let prog = data("DX_GITHUB_PROG");
+    let prog = env_file("DX_GITHUB_PROG");
     let want_tag = std::env::var("DX_GITHUB_TAG").expect("DX_GITHUB_TAG must name the tag");
     let assets = std::env::var("DX_GITHUB_ASSETS").expect("DX_GITHUB_ASSETS must list assets");
 
@@ -166,8 +162,8 @@ fn github_case() {
 }
 
 fn cloudflare_case() {
-    let prog = data("DX_CLOUDFLARE_PROG");
-    let production = data("DX_CLOUDFLARE_PRODUCTION_PROG");
+    let prog = env_file("DX_CLOUDFLARE_PROG");
+    let production = env_file("DX_CLOUDFLARE_PRODUCTION_PROG");
     let token = "dx-test-token-123";
     let env = [
         ("DX_DEPLOY_LIVE", "1"),
@@ -211,7 +207,7 @@ fn cloudflare_case() {
     assert!(out.contains("  intent: production"), "{out}");
     assert!(out.contains("url: https://main.dx-demo.pages.dev"), "{out}");
 
-    let pinned = data("DX_CLOUDFLARE_DEFAULT_PROG");
+    let pinned = env_file("DX_CLOUDFLARE_DEFAULT_PROG");
     let real = run_deploy(
         &pinned,
         "DX_CLOUDFLARE_DEFAULT_CONFIG",
@@ -358,7 +354,7 @@ fn resources_case() {
 fn helm_case() {
     let outdir = dx_testing::mkscratch("helm-demo").expect("scratch");
     let run = run_deploy(
-        &data("DX_HELM_PROG"),
+        &env_file("DX_HELM_PROG"),
         "DX_HELM_CONFIG",
         &[outdir.to_string_lossy().as_ref()],
         &[],
@@ -376,7 +372,7 @@ fn helm_case() {
 fn rubygems_case() {
     let outdir = dx_testing::mkscratch("rubygems-demo").expect("scratch");
     let run = run_deploy(
-        &data("DX_RUBYGEMS_PROG"),
+        &env_file("DX_RUBYGEMS_PROG"),
         "DX_RUBYGEMS_CONFIG",
         &[outdir.to_string_lossy().as_ref()],
         &[("PATH", "/nonexistent")],
@@ -393,7 +389,7 @@ fn demo_case() {
     let outdir = dx_testing::mkscratch("demo-dry-run").expect("scratch");
     let want = std::env::var("DX_DEMO_WANT").expect("DX_DEMO_WANT must name the output line");
     let run = run_deploy(
-        &data("DX_DEMO_PROG"),
+        &env_file("DX_DEMO_PROG"),
         "DX_DEMO_CONFIG",
         &[outdir.to_string_lossy().as_ref()],
         &[],
@@ -417,7 +413,7 @@ fn oci_stage(prog: &Path, config_var: &str, name: &str) -> PathBuf {
 }
 
 fn oci_case() {
-    let layout = oci_stage(&data("DX_OCI_PROG"), "DX_OCI_CONFIG", "oci-demo");
+    let layout = oci_stage(&env_file("DX_OCI_PROG"), "DX_OCI_CONFIG", "oci-demo");
     let blobs = layout.join("blobs").join("sha256");
     for entry in std::fs::read_dir(&blobs).expect("read blobs") {
         let path = entry.expect("blob entry").path();
@@ -441,7 +437,7 @@ fn oci_case() {
     let manifest = blob(&index["manifests"][0]["digest"]);
     if std::env::var_os("DX_OCI_BASE_PROG").is_some() {
         let base = oci_stage(
-            &data("DX_OCI_BASE_PROG"),
+            &env_file("DX_OCI_BASE_PROG"),
             "DX_OCI_BASE_CONFIG",
             "oci-demo-base",
         );
@@ -509,7 +505,7 @@ fn stage(
     project: &str,
     target_name: &str,
 ) -> PathBuf {
-    let prog = data(var);
+    let prog = env_file(var);
     let outdir = dx_testing::mkscratch("pypi-out").expect("scratch outdir");
     let run = run_deploy(&prog, config_var, &[outdir.to_string_lossy().as_ref()], &[])
         .expect("pypi_deploy program must execute");
@@ -544,8 +540,8 @@ fn kept_env(command: &mut std::process::Command) {
 }
 
 fn install_output(url: &str, spelling: &str) -> (std::process::Output, PathBuf) {
-    let uv = data("DX_PYPI_UV");
-    let python = data("DX_PYPI_PYTHON");
+    let uv = env_file("DX_PYPI_UV");
+    let python = env_file("DX_PYPI_PYTHON");
     let cache = dx_testing::mkscratch("pypi-uv-cache").expect("scratch cache");
     let target = dx_testing::mkscratch("pypi-target").expect("scratch target");
     let mut command = std::process::Command::new(&uv);
@@ -586,7 +582,7 @@ fn install(url: &str, spelling: &str) -> PathBuf {
 }
 
 fn run_module(target: &Path, module: &str) -> std::process::Output {
-    let mut command = std::process::Command::new(data("DX_PYPI_PYTHON"));
+    let mut command = std::process::Command::new(env_file("DX_PYPI_PYTHON"));
     kept_env(&mut command);
     command.env("PYTHONPATH", target).args(["-m", module]);
     command.output().expect("python must execute")
@@ -665,7 +661,7 @@ fn pypi_case() {
         "{seen:?}"
     );
 
-    let prog = data("DX_PYPI_MISMATCH_PROG");
+    let prog = env_file("DX_PYPI_MISMATCH_PROG");
     let outdir = dx_testing::mkscratch("pypi-mismatch").expect("scratch outdir");
     let run = run_deploy(
         &prog,
@@ -742,7 +738,7 @@ fn no_compilers(command: &mut std::process::Command) {
 }
 
 fn import_from(target: &Path, cwd: &Path) -> std::process::Output {
-    let mut command = std::process::Command::new(data("DX_PYPI_PYTHON"));
+    let mut command = std::process::Command::new(env_file("DX_PYPI_PYTHON"));
     kept_env(&mut command);
     no_compilers(&mut command);
     command.current_dir(cwd).env("PYTHONPATH", target).args([
@@ -764,7 +760,7 @@ fn native_files(root: &Path, found: &mut Vec<PathBuf>) {
 }
 
 fn pypi_native_case() {
-    let python = data("DX_PYPI_PYTHON");
+    let python = env_file("DX_PYPI_PYTHON");
     let version = probe(
         &python,
         "import sys; print('cp%d%d' % sys.version_info[:2])",
@@ -861,7 +857,7 @@ fn pypi_native_case() {
 
     let outdir = dx_testing::mkscratch("pypi-wrongabi").expect("scratch outdir");
     let run = run_deploy(
-        &data("DX_NATIVE_WRONGABI_PROG"),
+        &env_file("DX_NATIVE_WRONGABI_PROG"),
         "DX_NATIVE_WRONGABI_CONFIG",
         &[outdir.to_string_lossy().as_ref()],
         &[],
@@ -907,7 +903,7 @@ fn archiver_imports(
     let out = dx_testing::mkscratch("pypi-imports")
         .expect("scratch imports")
         .join("ok");
-    let mut command = std::process::Command::new(data("DX_ARCHIVER"));
+    let mut command = std::process::Command::new(env_file("DX_ARCHIVER"));
     command.arg("--imports").arg(out).args(["--check", check]);
     for name in provides {
         command.args(["--provides", name]);
@@ -964,7 +960,7 @@ fn pypi_native_msvc_case() {
     let notice = target.join("dx_native_probe-1.4.dist-info/licenses/msvc_vcruntime");
     assert_eq!(
         std::fs::read(&notice).expect("wheel must ship the runtime notice"),
-        std::fs::read(data("DX_MSVC_NOTICE")).expect("declared notice must be readable"),
+        std::fs::read(env_file("DX_MSVC_NOTICE")).expect("declared notice must be readable"),
     );
     let core = core(&members);
     let output = archiver_imports(&members, &core, &["python3*"]);
@@ -1034,7 +1030,7 @@ fn readelf_output(flag: &str, library: &Path) -> String {
 }
 
 fn linked_import(target: &Path, code: &str) -> std::process::Output {
-    let mut command = std::process::Command::new(data("DX_PYPI_PYTHON"));
+    let mut command = std::process::Command::new(env_file("DX_PYPI_PYTHON"));
     kept_env(&mut command);
     command
         .env_remove("LD_LIBRARY_PATH")
@@ -1072,7 +1068,7 @@ fn pypi_native_linked_case() {
     println!("{}", notice.display());
     assert_eq!(
         std::fs::read(&notice).expect("wheel must ship the helper notice"),
-        std::fs::read(data("DX_LINKED_NOTICE")).expect("declared notice must be readable"),
+        std::fs::read(env_file("DX_LINKED_NOTICE")).expect("declared notice must be readable"),
     );
     let dynamic = readelf_dynamic(ext[0]);
     println!("{dynamic}");
@@ -1178,13 +1174,13 @@ fn linux_package_case() {
         files.sort();
         files
     };
-    let deb = std::fs::read(data("DX_PKG_DEB")).expect("read deb");
+    let deb = std::fs::read(env_file("DX_PKG_DEB")).expect("read deb");
     assert_eq!(deb_files(&deb), want, "deb contents");
 
-    let apk = std::fs::read(data("DX_PKG_APK")).expect("read apk");
+    let apk = std::fs::read(env_file("DX_PKG_APK")).expect("read apk");
     assert_eq!(tar_listing(&apk, "demo.apk.tar"), want, "apk contents");
 
-    let rpm = std::fs::read(data("DX_PKG_RPM")).expect("read rpm");
+    let rpm = std::fs::read(env_file("DX_PKG_RPM")).expect("read rpm");
     assert!(rpm.starts_with(&[0xed, 0xab, 0xee, 0xdb]), "rpm lead magic");
     for path in &want {
         let base = path.rsplit('/').next().unwrap_or(path);

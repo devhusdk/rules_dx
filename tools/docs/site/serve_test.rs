@@ -62,8 +62,7 @@ fn request(port: u16, path: &str) -> Response {
 }
 
 fn site() -> PathBuf {
-    let rel = std::env::var(USER_SITE).expect("DX_USER_SITE must name the rendered site");
-    let path = dx_testing::resolve_runfiles(&rel);
+    let path = dx_testing::env_file(USER_SITE);
     assert!(path.is_dir(), "not a directory: {}", path.display());
     path
 }

@@ -5,12 +5,6 @@ use std::sync::{Mutex, PoisonError};
 /// Serializes copying the harness and spawning it across this test binary's threads.
 static SPAWN_LOCK: Mutex<()> = Mutex::new(());
 
-fn harness() -> PathBuf {
-    let rel = std::env::var("STARLARK_HARNESS_BIN")
-        .unwrap_or_else(|_| panic!("STARLARK_HARNESS_BIN must name the staged harness"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn case_dir(name: &str) -> PathBuf {
     let base = std::env::var_os("TEST_TMPDIR")
         .map(PathBuf::from)
@@ -44,7 +38,7 @@ fn write(path: &Path, bytes: &[u8]) {
 /// one lock across the copy and the spawn keeps every fork in this binary out of that window.
 fn spawn_copy(exe: &Path, cmd: &mut Command) -> Child {
     let _guard = SPAWN_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
-    std::fs::copy(harness(), exe)
+    std::fs::copy(dx_testing::env_file("STARLARK_HARNESS_BIN"), exe)
         .unwrap_or_else(|err| panic!("cannot copy the harness to {}: {err}", exe.display()));
     cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())

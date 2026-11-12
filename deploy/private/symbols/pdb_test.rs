@@ -1,9 +1,5 @@
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
-
-fn data(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
-    dx_testing::resolve_runfiles(&rel)
-}
 
 fn read(path: &Path) -> Vec<u8> {
     std::fs::read(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
@@ -40,7 +36,7 @@ fn symbolizes_known_function_from_the_pdb() {
     let tmp = scratch.path();
     let exe = tmp.join("known.exe");
     let pdb = tmp.join("known.pdb");
-    std::fs::copy(data("DX_KNOWN_BINARY"), &exe).unwrap();
+    std::fs::copy(env_file("DX_KNOWN_BINARY"), &exe).unwrap();
     std::fs::copy(known_pdb(), &pdb).unwrap();
     let run = dx_testing::run(&exe, &[], &[]).unwrap();
     let rva: i64 = run.stdout.lines().nth(1).unwrap().trim().parse().unwrap();
@@ -48,7 +44,7 @@ fn symbolizes_known_function_from_the_pdb() {
     let pdb_arg = format!("--pdb={}", pdb.display());
     let address = format!("0x{rva:x}");
     let sym = dx_testing::run(
-        &data("DX_LLVM_SYMBOLIZER"),
+        &env_file("DX_LLVM_SYMBOLIZER"),
         &[
             obj.as_str(),
             pdb_arg.as_str(),
@@ -66,7 +62,7 @@ fn symbolizes_known_function_from_the_pdb() {
     let file = parts[parts.len() - 3];
     let line: usize = parts[parts.len() - 2].parse().unwrap();
     assert!(file.ends_with("known.c"), "{file}");
-    let source = String::from_utf8(read(&data("DX_KNOWN_SOURCE"))).unwrap();
+    let source = String::from_utf8(read(&env_file("DX_KNOWN_SOURCE"))).unwrap();
     let text = source.lines().nth(line - 1).unwrap_or("");
     assert!(
         text.contains("dx_known_function") || text.contains("x * 7"),
@@ -76,7 +72,7 @@ fn symbolizes_known_function_from_the_pdb() {
 
 #[test]
 fn manifest_matches_the_binary_and_its_pdb() {
-    let binary = data("DX_KNOWN_BINARY");
+    let binary = env_file("DX_KNOWN_BINARY");
     let pe = dx_symbols::pe_codeview(&read(&binary)).unwrap();
     let json = dx_testing::read_json(&known_manifest()).unwrap();
     let guid: String = pe.guid.iter().map(|b| format!("{b:02x}")).collect();
@@ -90,7 +86,7 @@ fn manifest_matches_the_binary_and_its_pdb() {
 
 #[test]
 fn codeview_path_is_a_bare_file_name() {
-    let pe = dx_symbols::pe_codeview(&read(&data("DX_KNOWN_BINARY"))).unwrap();
+    let pe = dx_symbols::pe_codeview(&read(&env_file("DX_KNOWN_BINARY"))).unwrap();
     assert!(
         !pe.path.contains('/') && !pe.path.contains('\\'),
         "{}",
@@ -102,12 +98,12 @@ fn fails_and_writes_nothing(name: &str, pdb: Option<&Path>) {
     let scratch = dx_test_scratch::scratch(name);
     let tmp = scratch.path();
     let manifest = tmp.join("manifest.json");
-    let binary = data("DX_KNOWN_BINARY");
+    let binary = env_file("DX_KNOWN_BINARY");
     let mut args = vec!["--in", str_of(&binary), "--manifest", str_of(&manifest)];
     if let Some(pdb) = pdb {
         args.extend(["--pdb", str_of(pdb)]);
     }
-    let run = dx_testing::run(&data("DX_PDB"), &args, &[]).unwrap();
+    let run = dx_testing::run(&env_file("DX_PDB"), &args, &[]).unwrap();
     assert!(!run.status.success(), "{}", run.stdout);
     assert!(!manifest.exists());
 }

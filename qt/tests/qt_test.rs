@@ -1,3 +1,4 @@
+use dx_testing::env_file;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -182,16 +183,11 @@ const UNQUALIFIED_EXIT: i32 = -1;
 
 const UNQUALIFIED: &str = "import QtQml\n\nQtObject {\n    property int a: b\n}\n";
 
-fn tool(variable: &str) -> PathBuf {
-    let rel = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must name a tool"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 /// Windows searches the executable's directory before System32 and PATH, so the pinned
 /// MSVC runtime is copied beside a private copy of the executable.
 #[cfg(windows)]
 fn runnable(variable: &str) -> PathBuf {
-    let exe = tool(variable);
+    let exe = env_file(variable);
     let dir = dx_testing::mkscratch("qt-exe").expect("scratch directory");
     let copy = dir.join(exe.file_name().expect("executable name"));
     std::fs::copy(&exe, &copy).expect("copy executable");
@@ -208,7 +204,7 @@ fn runnable(variable: &str) -> PathBuf {
 
 #[cfg(not(windows))]
 fn runnable(variable: &str) -> PathBuf {
-    tool(variable)
+    env_file(variable)
 }
 
 fn scratch_file(name: &str, text: &str) -> PathBuf {
@@ -302,8 +298,12 @@ fn loaded(paths: &BTreeSet<String>, name: &str) -> bool {
 
 fn lint(file: &Path, envs: &[(&str, &str)]) -> dx_testing::Run {
     let file = file.to_str().expect("utf-8 path");
-    dx_testing::run(&tool("DX_QMLLINT"), &["-W", "0", "--json", "-", file], envs)
-        .expect("run qmllint")
+    dx_testing::run(
+        &env_file("DX_QMLLINT"),
+        &["-W", "0", "--json", "-", file],
+        envs,
+    )
+    .expect("run qmllint")
 }
 
 fn spdx_package(document: &Value, name: &str) -> Value {
@@ -505,7 +505,7 @@ fn tools_report_the_pinned_version() {
         ("DX_RCC", "rcc"),
         ("DX_UIC", "uic"),
     ] {
-        let run = dx_testing::run(&tool(variable), &["--version"], &[]).expect("run tool");
+        let run = dx_testing::run(&env_file(variable), &["--version"], &[]).expect("run tool");
         assert!(run.status.success(), "{name} failed:\n{}", run.combined());
         assert_eq!(
             run.stdout.replace("\r\n", "\n"),
@@ -519,8 +519,12 @@ fn uic_generates_the_form_class() {
     let form = dx_testing::resolve_runfiles(
         &std::env::var("DX_QT_FORM").expect("DX_QT_FORM must name a form"),
     );
-    let run = dx_testing::run(&tool("DX_UIC"), &[form.to_str().expect("utf-8 path")], &[])
-        .expect("run uic");
+    let run = dx_testing::run(
+        &env_file("DX_UIC"),
+        &[form.to_str().expect("utf-8 path")],
+        &[],
+    )
+    .expect("run uic");
     assert!(run.status.success(), "uic failed:\n{}", run.combined());
     for needle in [
         "class Ui_Dialog",
@@ -540,7 +544,7 @@ fn uic_generates_the_form_class() {
 fn qmlformat_rewrites_to_the_qt_layout() {
     let file = scratch_file("format.qml", UNFORMATTED);
     let run = dx_testing::run(
-        &tool("DX_QMLFORMAT"),
+        &env_file("DX_QMLFORMAT"),
         &[file.to_str().expect("utf-8 path")],
         &[],
     )
@@ -743,7 +747,7 @@ fn assert_launcher_refusal(code: Option<i32>, stderr: &str) {
 
 #[test]
 fn launcher_fails_explicitly_without_the_pinned_runfiles() {
-    let launcher = std::fs::canonicalize(tool("DX_QMLLINT")).expect("launcher");
+    let launcher = std::fs::canonicalize(env_file("DX_QMLLINT")).expect("launcher");
     let copy = dx_testing::mkscratch("qt-launcher")
         .expect("scratch directory")
         .join("qmllint");

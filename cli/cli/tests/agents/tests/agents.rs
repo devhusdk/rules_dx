@@ -1,11 +1,11 @@
 #![cfg(unix)]
 
+use dx_testing::env_file;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use dx_test_scratch::{TempDir, scratch};
-use dx_testing::resolve_runfiles;
 
 struct Out {
     code: i32,
@@ -13,13 +13,8 @@ struct Out {
     stderr: String,
 }
 
-fn env_path(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"));
-    resolve_runfiles(&rel)
-}
-
 fn repo_root() -> PathBuf {
-    env_path("DX_MODULE")
+    env_file("DX_MODULE")
         .canonicalize()
         .expect("MODULE.bazel resolves to the source tree")
         .parent()
@@ -94,10 +89,10 @@ fn block(text: &str) -> String {
 }
 
 fn init(root: &Path, env: &Env) {
-    let dx = env_path("DX_BIN");
+    let dx = env_file("DX_BIN");
     let path = dx_testing::fake_generate_bazel_path(
         &env.base.join("fake-bin"),
-        &dx_testing::env_file("DX_FAKE_GENERATE"),
+        &env_file("DX_FAKE_GENERATE"),
     );
     let python = env.base.join("fake-bin/python").display().to_string();
     let uv = env.base.join("fake-bin/uv").display().to_string();
@@ -189,7 +184,7 @@ fn cache_dx(env: &Env) {
     };
     let dir = env.home.join(".cache/dx/bin/0.0.0");
     std::fs::create_dir_all(&dir).expect("cache dir");
-    std::fs::copy(env_path("DX_BIN"), dir.join(format!("dx-{os}-{arch}"))).expect("cache dx");
+    std::fs::copy(env_file("DX_BIN"), dir.join(format!("dx-{os}-{arch}"))).expect("cache dx");
 }
 
 #[test]
@@ -439,7 +434,7 @@ fn hook_repo(name: &str) -> (TempDir, PathBuf, Env) {
 fn hooks_ignore_bad_defaults_and_bad_input() {
     let (_guard, root, env) = hook_repo("dx-agents-hooks-");
 
-    let dx = env_path("DX_BIN");
+    let dx = env_file("DX_BIN");
     let dx = dx.to_str().expect("utf8");
     let bad = [("DX_OUTPUT", "yaml")];
     let run = |args: &[&str], stdin: &str| run_env(dx, args, &root, &env, stdin, &bad);
@@ -500,7 +495,7 @@ fn hooks_fall_back_to_the_bazel_run_working_directory() {
     let base = root.parent().expect("base");
     let runfiles = base.join("runfiles");
     std::fs::create_dir_all(&runfiles).expect("runfiles");
-    let dx = env_path("DX_BIN");
+    let dx = env_file("DX_BIN");
     let dx = dx.to_str().expect("utf8");
     // `bazel run` sets both variables. Without BUILD_WORKSPACE_DIRECTORY, dx
     // walks up from the runfiles dir and finds the execroot's MODULE.bazel.

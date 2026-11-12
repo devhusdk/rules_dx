@@ -1,12 +1,8 @@
+use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
 fn var(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"))
-}
-
-fn data(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
-    dx_testing::resolve_runfiles(&rel)
 }
 
 fn read_identity(path: &Path) -> Vec<(String, String)> {
@@ -57,8 +53,8 @@ fn host_glibc(stdout: &str) -> (u64, u64) {
 
 #[test]
 fn archive_checksum_matches() {
-    let tarball = data("DX_ARCHIVE_TARBALL");
-    let checksum = data("DX_ARCHIVE_CHECKSUM");
+    let tarball = env_file("DX_ARCHIVE_TARBALL");
+    let checksum = env_file("DX_ARCHIVE_CHECKSUM");
     let text = std::fs::read_to_string(&checksum).expect("read checksum");
     let expected = text.split_whitespace().next().expect("checksum field");
     let hashed = dx_testing::run(
@@ -88,7 +84,7 @@ fn archive_checksum_matches() {
 
 #[test]
 fn archive_marks_only_the_app_executable() {
-    let tarball = data("DX_ARCHIVE_TARBALL");
+    let tarball = env_file("DX_ARCHIVE_TARBALL");
     let listed = dx_testing::run(
         &PathBuf::from("tar"),
         &["-tvzf", tarball.to_string_lossy().as_ref()],
@@ -120,7 +116,7 @@ fn archive_marks_only_the_app_executable() {
 
 #[test]
 fn archive_relocates_and_runs() {
-    let tarball = data("DX_ARCHIVE_TARBALL");
+    let tarball = env_file("DX_ARCHIVE_TARBALL");
     let app_name = var("DX_ARCHIVE_APP");
     let scratch = dx_testing::mkscratch(&app_name).expect("scratch");
     let listed = dx_testing::run(

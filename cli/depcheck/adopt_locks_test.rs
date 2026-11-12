@@ -1,19 +1,9 @@
-use std::path::{Path, PathBuf};
-
-fn depcheck() -> PathBuf {
-    let rel =
-        std::env::var("DX_DEPCHECK_BIN").expect("DX_DEPCHECK_BIN must name the depcheck binary");
-    dx_testing::resolve_runfiles(&rel)
-}
-
-fn data(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a lock input"));
-    dx_testing::resolve_runfiles(&rel)
-}
+use dx_testing::env_file;
+use std::path::Path;
 
 fn check_pair(eco: &str, manifest: &Path, lock: &Path, label: &str) {
     let run = dx_testing::run(
-        &depcheck(),
+        &env_file("DX_DEPCHECK_BIN"),
         &[
             "consistency",
             "--ecosystem",
@@ -37,69 +27,69 @@ fn check_pair(eco: &str, manifest: &Path, lock: &Path, label: &str) {
 fn adopt_locks_consistent() {
     check_pair(
         "js",
-        &data("DX_PRETTIER_FIXTURE_MANIFEST"),
-        &data("DX_PRETTIER_FIXTURE_LOCK"),
+        &env_file("DX_PRETTIER_FIXTURE_MANIFEST"),
+        &env_file("DX_PRETTIER_FIXTURE_LOCK"),
         "prettier lock fixture package.json plus pnpm-lock.yaml",
     );
     check_pair(
         "js",
-        &data("DX_COMPONENT_FIXTURE_MANIFEST"),
-        &data("DX_COMPONENT_FIXTURE_LOCK"),
+        &env_file("DX_COMPONENT_FIXTURE_MANIFEST"),
+        &env_file("DX_COMPONENT_FIXTURE_LOCK"),
         "component docs consumer fixture package.json plus pnpm-lock.yaml",
     );
     check_pair(
         "go",
-        &data("DX_GO_MANIFEST"),
-        &data("DX_GO_LOCK"),
+        &env_file("DX_GO_MANIFEST"),
+        &env_file("DX_GO_LOCK"),
         "adopt-go go.mod plus go.sum",
     );
     check_pair(
         "ruby",
-        &data("DX_RUBY_MANIFEST"),
-        &data("DX_RUBY_LOCK"),
+        &env_file("DX_RUBY_MANIFEST"),
+        &env_file("DX_RUBY_LOCK"),
         "adopt-ruby Gemfile plus Gemfile.lock",
     );
     check_pair(
         "rust",
-        &data("DX_RUST_MANIFEST"),
-        &data("DX_RUST_LOCK"),
+        &env_file("DX_RUST_MANIFEST"),
+        &env_file("DX_RUST_LOCK"),
         "adopt-rust Cargo.toml plus Cargo.lock",
     );
     check_pair(
         "js",
-        &data("DX_JS_MANIFEST"),
-        &data("DX_JS_LOCK"),
+        &env_file("DX_JS_MANIFEST"),
+        &env_file("DX_JS_LOCK"),
         "adopt-js-ts package.json plus pnpm-lock.yaml",
     );
     check_pair(
         "python",
-        &data("DX_PY_MANIFEST"),
-        &data("DX_PY_LOCK"),
+        &env_file("DX_PY_MANIFEST"),
+        &env_file("DX_PY_LOCK"),
         "adopt-python pyproject.toml plus uv.lock",
     );
     check_pair(
         "js",
-        &data("DX_PG_JS_MANIFEST"),
-        &data("DX_PG_JS_LOCK"),
+        &env_file("DX_PG_JS_MANIFEST"),
+        &env_file("DX_PG_JS_LOCK"),
         "adopt-polyglot package.json plus pnpm-lock.yaml",
     );
     check_pair(
         "python",
-        &data("DX_PG_PY_MANIFEST"),
-        &data("DX_PG_PY_LOCK"),
+        &env_file("DX_PG_PY_MANIFEST"),
+        &env_file("DX_PG_PY_LOCK"),
         "adopt-polyglot pyproject.toml plus uv.lock",
     );
     check_pair(
         "rust",
-        &data("DX_PG_RUST_MANIFEST"),
-        &data("DX_PG_RUST_LOCK"),
+        &env_file("DX_PG_RUST_MANIFEST"),
+        &env_file("DX_PG_RUST_LOCK"),
         "adopt-polyglot Cargo.toml plus Cargo.lock",
     );
 
     let scratch_tmp = dx_test_scratch::scratch("adopt-locks-");
     let scratch = scratch_tmp.path().to_path_buf();
-    let go_mod = data("DX_GO_MANIFEST");
-    let go_sum = data("DX_GO_LOCK");
+    let go_mod = env_file("DX_GO_MANIFEST");
+    let go_sum = env_file("DX_GO_LOCK");
     let staged_mod = scratch.join("go.mod");
     let staged_sum = scratch.join("go.sum");
     std::fs::copy(&go_mod, &staged_mod).expect("stage go.mod");
@@ -111,7 +101,7 @@ fn adopt_locks_consistent() {
     );
     std::fs::write(&staged_mod, stale.as_bytes()).expect("write stale go.mod");
     let stale_run = dx_testing::run(
-        &depcheck(),
+        &env_file("DX_DEPCHECK_BIN"),
         &[
             "consistency",
             "--ecosystem",
@@ -131,7 +121,7 @@ fn adopt_locks_consistent() {
 
     let missing = scratch.join("does-not-exist.sum");
     let missing_run = dx_testing::run(
-        &depcheck(),
+        &env_file("DX_DEPCHECK_BIN"),
         &[
             "consistency",
             "--ecosystem",

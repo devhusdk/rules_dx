@@ -26,9 +26,11 @@ ocaml_module(
 ocaml_module(
     name = "dirty",
     struct = "dirty.ml",
+    warnings_as_errors = False,
 )
 
 ocaml_module(
     name = "shadow",
     struct = "shadow.ml",
+    warnings_as_errors = False,
 )

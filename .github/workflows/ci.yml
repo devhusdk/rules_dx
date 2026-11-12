@@ -172,8 +172,14 @@ jobs:
           platform: linux_x86_64
           name: linux_x86_64
           bin-from-bazel-info: "true"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - name: Check the upload holds no secret
+        id: scan-ci-producers-bin
         if: always()
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/ci-producers-bin/producers_bin
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() && steps.scan-ci-producers-bin.outcome == 'success' }}
         with:
           name: ci-producers-bin
           path: ${{ runner.temp }}/ci-producers-bin/producers_bin

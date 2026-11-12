@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":resolved_toolchain.bzl", "resolved_cc_toolchain")
+load(":resolved_toolchain.bzl", "APPLE_SUPPORT_TOOLCHAIN_ID", "resolved_cc_toolchain")
 
 # gazelle:lang rust,dx_dispatch
 
@@ -149,10 +149,11 @@ test_suite(
     ],
 )
 
+# apple_support's rule-based toolchain reports its label as toolchain_id; see #12105.
 resolved_cc_toolchain(
     name = "macos_arm64_cc",
     testonly = True,
-    expected = "darwin_arm64",
+    expected = APPLE_SUPPORT_TOOLCHAIN_ID,
     target_compatible_with = [
         "@platforms//cpu:arm64",
         "@platforms//os:macos",

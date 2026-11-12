@@ -2,6 +2,8 @@
 
 load("@bazel_tools//tools/cpp:toolchain_utils.bzl", "find_cpp_toolchain", "use_cpp_toolchain")
 
+APPLE_SUPPORT_TOOLCHAIN_ID = str(Label("@apple_support//toolchain:toolchain"))
+
 def _impl(ctx):
     toolchain_id = find_cpp_toolchain(ctx).toolchain_id
     if toolchain_id != ctx.attr.expected:

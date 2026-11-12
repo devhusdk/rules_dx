@@ -98,7 +98,7 @@ Manifests:
 
 Lockfiles:
 
-- `Manifest.toml`
+- `Manifest.bazel.json`
 
 ## Platforms
 

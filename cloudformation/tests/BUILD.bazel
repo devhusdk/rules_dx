@@ -4,7 +4,7 @@ load(":library_tests.bzl", "owns_cloudformation_class_test")
 
 cloudformation_library(
     name = "app",
-    srcs = ["fixtures/template.yaml"],
+    srcs = ["fixtures/template/template.yaml"],
 )
 
 owns_cloudformation_class_test(
@@ -25,6 +25,6 @@ real_source_target(
 
 cloudformation_library(
     name = "dirty",
-    srcs = ["fixtures/dirty.yaml"],
+    srcs = ["fixtures/template/dirty.yaml"],
     visibility = ["//core/quality/testdata:__pkg__"],
 )

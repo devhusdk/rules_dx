@@ -12,13 +12,13 @@ load(":library_tests.bzl", "owns_rego_class_test", "test_descriptor_test", "test
 
 rego_library(
     name = "lib",
-    srcs = ["fixtures/lib.rego"],
-    data = ["fixtures/data.json"],
+    srcs = ["fixtures/policy/lib.rego"],
+    data = ["fixtures/policy/data.json"],
 )
 
 rego_library(
     name = "app",
-    srcs = ["fixtures/app.rego"],
+    srcs = ["fixtures/policy/app.rego"],
     deps = [":lib"],
 )
 
@@ -36,7 +36,7 @@ transitive_context_test(
 
 rego_library(
     name = "bad_src",
-    srcs = ["fixtures/notes.txt"],
+    srcs = ["fixtures/policy/notes.txt"],
     tags = ["manual"],
 )
 
@@ -48,21 +48,21 @@ failure_test(
 
 rego_test(
     name = "pass_test",
-    srcs = ["fixtures/app_test.rego"],
-    data = ["fixtures/data.json"],
+    srcs = ["fixtures/policy/app_test.rego"],
+    data = ["fixtures/policy/data.json"],
     deps = [":app"],
 )
 
 rego_exec(
     name = "fail_exec",
     testonly = True,
-    srcs = ["fixtures/fail_test.rego"],
+    srcs = ["fixtures/policy/fail_test.rego"],
 )
 
 rego_exec(
     name = "empty_exec",
     testonly = True,
-    srcs = ["fixtures/empty_test.rego"],
+    srcs = ["fixtures/policy/empty_test.rego"],
 )
 
 test_sources_test(
@@ -137,7 +137,7 @@ real_source_target(
 
 genrule(
     name = "generated_rego",
-    srcs = ["fixtures/lib.rego"],
+    srcs = ["fixtures/policy/lib.rego"],
     outs = ["generated.rego"],
     cmd = "cp $< $@",
 )
@@ -145,7 +145,7 @@ genrule(
 rego_library(
     name = "mixed_srcs",
     srcs = [
-        "fixtures/app.rego",
+        "fixtures/policy/app.rego",
         ":generated_rego",
     ],
 )

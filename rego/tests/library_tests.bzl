@@ -35,9 +35,9 @@ def _test_descriptor_impl(ctx):
     asserts.true(env, manifest.basename.endswith("_rego_test.manifest"))
     actions = [a for a in analysistest.target_actions(env) if a.mnemonic == "FileWrite"]
     content = actions[0].content
-    asserts.true(env, "\trego/tests/fixtures/data.json\n" in content)
-    asserts.true(env, "\trego/tests/fixtures/lib.rego\n" in content)
-    asserts.true(env, "\trego/tests/fixtures/app_test.rego\n" in content)
+    asserts.true(env, "\trego/tests/fixtures/policy/data.json\n" in content)
+    asserts.true(env, "\trego/tests/fixtures/policy/lib.rego\n" in content)
+    asserts.true(env, "\trego/tests/fixtures/policy/app_test.rego\n" in content)
     return analysistest.end(env)
 
 test_descriptor_test = analysistest.make(_test_descriptor_impl)

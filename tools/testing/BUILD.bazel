@@ -25,6 +25,7 @@ exports_files(
         "node_diagnostics_test.rs",
         "stub_target.bzl",
         "test_macros.bzl",
+        "web_app_logo.png",
         "web_hello.bzl",
     ],
     visibility = VIS_TOOLS_PUBLIC,

@@ -4722,7 +4722,9 @@ fn sqlfluff_has_no_delegated_mode() {
     assert!(err.to_string().contains("no delegated mode"), "{err}");
 }
 
-static SQLFLUFF_FORMAT_ARGV: std::sync::Mutex<Vec<Vec<String>>> = std::sync::Mutex::new(Vec::new());
+thread_local! {
+    static SQLFLUFF_FORMAT_ARGV: std::cell::RefCell<Vec<Vec<String>>> = const { std::cell::RefCell::new(Vec::new()) };
+}
 
 /// Records each argv, then behaves as `sqlfluff format` (rewrites `a,b`) or as the lint fake.
 fn sqlfluff_format_fake(
@@ -4735,10 +4737,7 @@ fn sqlfluff_format_fake(
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    SQLFLUFF_FORMAT_ARGV
-        .lock()
-        .expect("lock")
-        .push(args.clone());
+    SQLFLUFF_FORMAT_ARGV.with(|log| log.borrow_mut().push(args.clone()));
     if args[0] != "format" {
         return sqlfluff_fake(argv, cwd, env);
     }
@@ -4764,12 +4763,12 @@ fn sqlfluff_format_check_lints_with_only_the_format_rules() {
         sqlfluff_tool("[sqlfluff]\nexclude_rules = LT01\n"),
         sqlfluff_format_fake,
     );
-    SQLFLUFF_FORMAT_ARGV.lock().expect("lock").clear();
+    SQLFLUFF_FORMAT_ARGV.with(|log| log.borrow_mut().clear());
     let findings = backend
         .diagnose("sqlfluff", "format", &single("db/a.sql", SQL_DIRTY))
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
-    let calls = SQLFLUFF_FORMAT_ARGV.lock().expect("lock").clone();
+    let calls = SQLFLUFF_FORMAT_ARGV.with(|log| log.borrow().clone());
     let argv = calls.last().expect("spawned");
     let at = argv
         .iter()
@@ -4785,8 +4784,10 @@ fn sqlfluff_format_check_lints_with_only_the_format_rules() {
     assert!(clean.is_empty());
 }
 
-static SQLFLUFF_DIALECT_RUNS: std::sync::Mutex<Vec<(String, Vec<String>)>> =
-    std::sync::Mutex::new(Vec::new());
+thread_local! {
+    static SQLFLUFF_DIALECT_RUNS: std::cell::RefCell<Vec<(String, Vec<String>)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
 
 /// Records each run's `--dialect` and file names, and reports every file clean.
 fn sqlfluff_dialect_fake(
@@ -4817,10 +4818,7 @@ fn sqlfluff_dialect_fake(
         .iter()
         .map(|name| name.rsplit('/').next().unwrap_or(name).to_owned())
         .collect();
-    SQLFLUFF_DIALECT_RUNS
-        .lock()
-        .expect("lock")
-        .push((args[at + 1].clone(), files));
+    SQLFLUFF_DIALECT_RUNS.with(|log| log.borrow_mut().push((args[at + 1].clone(), files)));
     Ok(ChildOutput {
         code: Some(0),
         stdout: format!("[{}]", entries.join(",")).into_bytes(),
@@ -4833,7 +4831,7 @@ fn sqlfluff_dialect_comes_from_the_tool_or_the_file_suffix() {
     let mut files = single("db/a.sql", SQL_CLEAN);
     files.insert("db/b.postgresql.sql".to_owned(), SQL_CLEAN.to_owned());
     files.insert("db/c.transactsql.sql".to_owned(), SQL_CLEAN.to_owned());
-    SQLFLUFF_DIALECT_RUNS.lock().expect("lock").clear();
+    SQLFLUFF_DIALECT_RUNS.with(|log| log.borrow_mut().clear());
     backend_for(
         "sqlfluff",
         sqlfluff_tool(SQLFLUFF_CONFIG),
@@ -4841,7 +4839,7 @@ fn sqlfluff_dialect_comes_from_the_tool_or_the_file_suffix() {
     )
     .diagnose("sqlfluff", "lint", &files)
     .expect("diagnosed");
-    let mut runs = SQLFLUFF_DIALECT_RUNS.lock().expect("lock").clone();
+    let mut runs = SQLFLUFF_DIALECT_RUNS.with(|log| log.borrow().clone());
     runs.sort();
     let want = |dialect: &str, file: &str| (dialect.to_owned(), vec![file.to_owned()]);
     assert_eq!(
@@ -4852,7 +4850,7 @@ fn sqlfluff_dialect_comes_from_the_tool_or_the_file_suffix() {
             want("tsql", "c.transactsql.sql"),
         ]
     );
-    SQLFLUFF_DIALECT_RUNS.lock().expect("lock").clear();
+    SQLFLUFF_DIALECT_RUNS.with(|log| log.borrow_mut().clear());
     let tool = RealTool {
         dialect: Some("sparksql".to_owned()),
         ..sqlfluff_tool(SQLFLUFF_CONFIG)
@@ -4860,7 +4858,7 @@ fn sqlfluff_dialect_comes_from_the_tool_or_the_file_suffix() {
     backend_for("sqlfluff", tool, sqlfluff_dialect_fake)
         .diagnose("sqlfluff", "lint", &files)
         .expect("diagnosed");
-    let runs = SQLFLUFF_DIALECT_RUNS.lock().expect("lock").clone();
+    let runs = SQLFLUFF_DIALECT_RUNS.with(|log| log.borrow().clone());
     assert_eq!(runs.len(), 1);
     assert_eq!(runs[0].0, "sparksql");
     assert_eq!(runs[0].1.len(), 3);
@@ -4931,7 +4929,9 @@ fn sqlfluff_format_fix_rewrites_and_lint_fix_stays_check_only() {
     );
 }
 
-static SQLFLUFF_NESTED_ARGV: std::sync::Mutex<Vec<Vec<String>>> = std::sync::Mutex::new(Vec::new());
+thread_local! {
+    static SQLFLUFF_NESTED_ARGV: std::cell::RefCell<Vec<Vec<String>>> = const { std::cell::RefCell::new(Vec::new()) };
+}
 
 fn sqlfluff_nested_fake(
     argv: &[OsString],
@@ -4943,10 +4943,7 @@ fn sqlfluff_nested_fake(
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    SQLFLUFF_NESTED_ARGV
-        .lock()
-        .expect("lock")
-        .push(args.clone());
+    SQLFLUFF_NESTED_ARGV.with(|log| log.borrow_mut().push(args.clone()));
     assert!(args.iter().any(|arg| arg == "--ignore-local-config"));
     if args[0] == "format" {
         return sqlfluff_format_fake(argv, cwd, env);
@@ -4962,18 +4959,18 @@ fn sqlfluff_nested_tool(nested: &str) -> RealTool {
 }
 
 fn nested_config_args(files: &[&str]) -> Vec<Vec<String>> {
-    SQLFLUFF_NESTED_ARGV
-        .lock()
-        .expect("lock")
-        .iter()
-        .filter(|args| {
-            let separator = args.iter().position(|arg| arg == "--").expect("separator");
-            files
-                .iter()
-                .any(|file| args[separator + 1..].iter().any(|arg| arg.ends_with(file)))
-        })
-        .cloned()
-        .collect()
+    SQLFLUFF_NESTED_ARGV.with(|log| {
+        log.borrow()
+            .iter()
+            .filter(|args| {
+                let separator = args.iter().position(|arg| arg == "--").expect("separator");
+                files
+                    .iter()
+                    .any(|file| args[separator + 1..].iter().any(|arg| arg.ends_with(file)))
+            })
+            .cloned()
+            .collect()
+    })
 }
 
 #[test]

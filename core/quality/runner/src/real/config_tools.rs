@@ -683,7 +683,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
     },
 ];
 
-/// The chart root from the helm context the aspect stages for a helm_chart target.
+/// The chart root from the helm context the aspect stages for a helm_library target.
 fn helm_chart_root(tool: &RealTool) -> Option<String> {
     let (_, bytes) = tool
         .tool_files

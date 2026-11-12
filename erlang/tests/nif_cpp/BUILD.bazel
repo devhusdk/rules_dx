@@ -1,7 +1,7 @@
 # gazelle:dx_rust_corpus false
 
 load("@rules_dx//erlang/private:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH")
-load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_eunit_test", "erlang_nif", "erlang_release", "erlang_test_app", "erlc_opts")
+load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_erlc_opts", "erlang_eunit_test", "erlang_nif", "erlang_release", "erlang_test_app")
 load("@rules_dx//erlang/tests:wrapper_tests.bzl", "erlang_release_layout_test")
 
 exports_files(
@@ -57,7 +57,7 @@ erlang_test_app(
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
-erlc_opts(
+erlang_erlc_opts(
     name = "test_erlc_opts",
     values = DEFAULT_TEST_ERLC_OPTS,
 )

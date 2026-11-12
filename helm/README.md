@@ -1,6 +1,6 @@
 # Helm
 
-`helm_chart` (`//helm:defs.bzl`) owns one chart, the package holding `Chart.yaml`, and exposes
+`helm_library` (`//helm:defs.bzl`) owns one chart, the package holding `Chart.yaml`, and exposes
 its files to the quality pipeline as the `helm` class. Every file in `srcs` lives in that package.
 Vendored subchart archives go in `subcharts`.
 

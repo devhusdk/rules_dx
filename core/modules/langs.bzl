@@ -91,11 +91,11 @@ LANGS = json.decode("""{
     "ecosystems": [],
     "entry_points": [
       "api_spec_library",
-      "openapi_go_client",
-      "openapi_python_client",
-      "openapi_rust_client",
-      "openapi_typescript_client",
-      "openapi_codegen_shard"
+      "api_spec_go_client",
+      "api_spec_python_client",
+      "api_spec_rust_client",
+      "api_spec_typescript_client",
+      "api_spec_codegen_shard"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -343,11 +343,11 @@ LANGS = json.decode("""{
   "capnproto": {
     "ecosystems": [],
     "entry_points": [
-      "capnp_library",
-      "capnp_cc_library",
-      "capnp_java_library",
-      "capnp_rust_library",
-      "capnp_codegen_shard"
+      "capnproto_library",
+      "capnproto_cc_library",
+      "capnproto_java_library",
+      "capnproto_rust_library",
+      "capnproto_codegen_shard"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -930,8 +930,8 @@ LANGS = json.decode("""{
       "hex"
     ],
     "entry_points": [
-      "escript_archive",
-      "escript_headers",
+      "elixir_escript_archive",
+      "elixir_escript_headers",
       "elixir_app",
       "elixir_test",
       "elixir_bench"
@@ -1009,7 +1009,7 @@ LANGS = json.decode("""{
       "hex"
     ],
     "entry_points": [
-      "erlc_opts",
+      "erlang_erlc_opts",
       "erlang_xrl_yrl",
       "erlang_nif",
       "erlang_release",
@@ -1190,8 +1190,7 @@ LANGS = json.decode("""{
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
-      "macos_arm64",
-      "windows_x86_64"
+      "macos_arm64"
     ],
     "quality": {
       "aspects": {
@@ -1466,7 +1465,7 @@ LANGS = json.decode("""{
   "helm": {
     "ecosystems": [],
     "entry_points": [
-      "helm_chart"
+      "helm_library"
     ],
     "family": "core",
     "lockfiles": [],
@@ -1519,7 +1518,9 @@ LANGS = json.decode("""{
       "MODULE.bazel"
     ],
     "name": "java",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",

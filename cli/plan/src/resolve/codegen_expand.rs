@@ -109,16 +109,16 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
-            graph_rule_of_kind("//schema:lib", "capnp_library", &["//schema:a.capnp"], &[]),
+            graph_rule_of_kind("//schema:lib", "capnproto_library", &["//schema:a.capnp"], &[]),
             graph_rule_of_kind(
                 "//schema:lib_cc",
-                "capnp_cc_library",
+                "capnproto_cc_library",
                 &["//schema:lib"],
                 &[],
             ),
             graph_rule_of_kind(
                 "//schema:lib_cc_shard",
-                "capnp_codegen_shard",
+                "capnproto_codegen_shard",
                 &["//schema:lib_cc"],
                 &[],
             ),
@@ -138,7 +138,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-rs-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
-            graph_rule_of_kind("//schema:lib", "capnp_library", &["//schema:a.capnp"], &[]),
+            graph_rule_of_kind("//schema:lib", "capnproto_library", &["//schema:a.capnp"], &[]),
             graph_rule_of_kind(
                 "//schema:lib_rs_generated",
                 "_capnp_rust_srcs",
@@ -147,7 +147,7 @@ mod tests {
             ),
             graph_rule_of_kind(
                 "//schema:lib_rs_shard",
-                "capnp_codegen_shard",
+                "capnproto_codegen_shard",
                 &["//schema:lib_rs_generated"],
                 &[],
             ),
@@ -167,16 +167,16 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-java-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
-            graph_rule_of_kind("//schema:lib", "capnp_library", &["//schema:a.capnp"], &[]),
+            graph_rule_of_kind("//schema:lib", "capnproto_library", &["//schema:a.capnp"], &[]),
             graph_rule_of_kind(
                 "//schema:lib_java",
-                "capnp_java_library",
+                "capnproto_java_library",
                 &["//schema:lib"],
                 &[],
             ),
             graph_rule_of_kind(
                 "//schema:lib_java_shard",
-                "capnp_codegen_shard",
+                "capnproto_codegen_shard",
                 &["//schema:lib_java"],
                 &[],
             ),
@@ -238,13 +238,13 @@ mod tests {
             ),
             graph_rule_of_kind(
                 "//shop:client",
-                "openapi_typescript_client",
+                "api_spec_typescript_client",
                 &["//shop:spec"],
                 &[],
             ),
             graph_rule_of_kind(
                 "//shop:client_shard",
-                "openapi_codegen_shard",
+                "api_spec_codegen_shard",
                 &["//shop:client"],
                 &[],
             ),

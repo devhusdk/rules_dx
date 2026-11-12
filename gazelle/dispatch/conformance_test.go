@@ -81,7 +81,7 @@ var conformanceRows = map[string]conformanceRow{
 			"src/demo.erl":     "-module(demo).\n-export([f/0]).\nf() -> true.\n",
 		},
 		kind: "erlang_app", target: "erlang_app", defs: "erlang:defs.bzl",
-		symbols: []string{"erlang_app", "erlang_nif", "erlang_test_app", "erlc_opts", "erlang_bytecode", "erlang_eunit_test"},
+		symbols: []string{"erlang_app", "erlang_nif", "erlang_test_app", "erlang_erlc_opts", "erlang_bytecode", "erlang_eunit_test"},
 		oldSrcs: []string{"src/old.erl"},
 	},
 	"fsharp": {
@@ -190,8 +190,8 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"capnproto": {
 		files: map[string]string{"demo.capnp": "@0xdbb9ad1f14bf0b36;\n"},
-		kind:  "capnp_library", target: "demo", defs: "capnproto:defs.bzl",
-		symbols: []string{"capnp_library", "capnp_cc_library", "capnp_java_library"},
+		kind:  "capnproto_library", target: "demo", defs: "capnproto:defs.bzl",
+		symbols: []string{"capnproto_library", "capnproto_cc_library", "capnproto_java_library"},
 	},
 	"flatbuffers": {
 		files: map[string]string{"demo.fbs": "table Demo {}\n"},

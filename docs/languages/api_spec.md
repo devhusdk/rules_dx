@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//api_spec:defs.bzl`:
 
 ```python
-load("@rules_dx//api_spec:defs.bzl", "api_spec_library", "openapi_go_client", "openapi_python_client")
+load("@rules_dx//api_spec:defs.bzl", "api_spec_go_client", "api_spec_library", "api_spec_python_client")
 ```
 
 ## Rules
@@ -28,7 +28,7 @@ Owns the OpenAPI and AsyncAPI documents of one package for dx quality.
 | `refs` | `label_list` | no | Files the roots reach through relative $ref. |
 | `deps` | `label_list` | no | Spec libraries the roots reach through relative $ref. |
 
-### `openapi_go_client`
+### `api_spec_go_client`
 
 Generates one Go client file (types and client) with oapi-codegen from an OpenAPI root of an api_spec_library.
 
@@ -42,7 +42,7 @@ Generates one Go client file (types and client) with oapi-codegen from an OpenAP
 | `_oapi_codegen` | `label` | no |  |
 | `_preflight` | `label` | no |  |
 
-### `openapi_python_client`
+### `api_spec_python_client`
 
 Generates one Python client package directory with openapi-python-client from an OpenAPI root of an api_spec_library.
 
@@ -55,7 +55,7 @@ Generates one Python client package directory with openapi-python-client from an
 | `_generator` | `label` | no |  |
 | `_preflight` | `label` | no |  |
 
-### `openapi_rust_client`
+### `api_spec_rust_client`
 
 Generates one Rust client file with progenitor from an OpenAPI root of an api_spec_library. The file needs progenitor-client, reqwest, serde and serde_json at compile time.
 
@@ -67,7 +67,7 @@ Generates one Rust client file with progenitor from an OpenAPI root of an api_sp
 | `_generator` | `label` | no |  |
 | `_preflight` | `label` | no |  |
 
-### `openapi_typescript_client`
+### `api_spec_typescript_client`
 
 Generates one self-contained TypeScript client from an OpenAPI root of an api_spec_library.
 
@@ -80,7 +80,7 @@ Generates one self-contained TypeScript client from an OpenAPI root of an api_sp
 | `_preflight` | `label` | no |  |
 | `_redocly` | `label` | no |  |
 
-### `openapi_codegen_shard`
+### `api_spec_codegen_shard`
 
 No documentation.
 

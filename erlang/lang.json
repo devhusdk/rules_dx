@@ -31,7 +31,7 @@
     "pins.json"
   ],
   "entry_points": [
-    "erlc_opts",
+    "erlang_erlc_opts",
     "erlang_xrl_yrl",
     "erlang_nif",
     "erlang_release",

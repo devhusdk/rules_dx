@@ -5,7 +5,7 @@ load("@rules_elixir//:ex_unit_test.bzl", _ex_unit_test = "ex_unit_test")
 load("@rules_erlang//:erlang_app_info.bzl", "flat_deps", _ErlangAppInfo = "ErlangAppInfo")
 load("//erlang/private:beam.bzl", "beam_info")
 load("//core:rlocation.bzl", "runfiles_path")
-load("//erlang/private:defs.bzl", _escript_archive = "erlang_escript_archive")
+load("//erlang/private:defs.bzl", _elixir_escript_archive = "erlang_escript_archive")
 load("//erlang/private:providers.bzl", "BeamInfo", "DialyzerPltInfo", "ErlangNifInfo")
 load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/private/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS")
@@ -25,10 +25,10 @@ ELIXIR_DIALYZER_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ELIXIR_C
 ELIXIR_SOURCE_GLOBS = ["lib/**/*.ex"]
 
 # Re-exported unchanged: BUILD files need it to build escripts.
-escript_archive = _escript_archive
+elixir_escript_archive = _elixir_escript_archive
 
-def escript_headers(module):
-    """Returns escript_archive headers that start one Elixir module in a UTF-8 VM."""
+def elixir_escript_headers(module):
+    """Returns elixir_escript_archive headers that start one Elixir module in a UTF-8 VM."""
     return ["shebang", '{emu_args, "+fnu -kernel standard_io_encoding unicode -escript main Elixir.' + module + '"}']
 
 _SPECS = [("elixir", ["ex", "exs"])]

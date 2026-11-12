@@ -51,22 +51,22 @@ def codegen_defs_unit_tests(name):
                 "",
             ),
             expect_equal(
-                "codegen admits the openapi/typescript pair that openapi_codegen_shard emits (#2311)",
+                "codegen admits the openapi/typescript pair that api_spec_codegen_shard emits (#2311)",
                 codegen_pair_error("openapi", "typescript"),
                 "",
             ),
             expect_equal(
-                "codegen admits the openapi/go pair that openapi_go_client feeds",
+                "codegen admits the openapi/go pair that api_spec_go_client feeds",
                 codegen_pair_error("openapi", "go"),
                 "",
             ),
             expect_equal(
-                "codegen admits the openapi/python pair that openapi_python_client feeds",
+                "codegen admits the openapi/python pair that api_spec_python_client feeds",
                 codegen_pair_error("openapi", "python"),
                 "",
             ),
             expect_equal(
-                "codegen admits the openapi/rust pair that openapi_rust_client feeds",
+                "codegen admits the openapi/rust pair that api_spec_rust_client feeds",
                 codegen_pair_error("openapi", "rust"),
                 "",
             ),

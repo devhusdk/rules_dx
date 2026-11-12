@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
-load("//elixir/private:defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_sources", "escript_headers", "helper_first", "nif_priv")
+load("//elixir/private:defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_sources", "elixir_escript_headers", "helper_first", "nif_priv")
 load("//elixir/private:kwargs.bzl", "elixir_app_kwargs", "elixir_app_mod_entry", "elixir_kwargs")
 load("//elixir/private:hex.bzl", "hex_metadata_entry", "hex_tarball_url")
 load("//elixir/private:mix_lock.bzl", "mix_lock_packages")
@@ -39,7 +39,7 @@ def elixir_wrapper_contract_tests(name):
             expect_equal("app_module becomes the mod entry", elixir_app_kwargs({"app_module": "A"}, [])["app_extra_keys"], "{mod, {'Elixir.A', []}}"),
             expect_equal("app_module keeps other extra keys", elixir_app_kwargs({"app_extra_keys": "{x, 1}", "app_module": "A"}, [])["app_extra_keys"], "{mod, {'Elixir.A', []}},\n{x, 1}"),
             expect_equal("app_module is not passed upstream", "app_module" in elixir_app_kwargs({"app_module": "A"}, []), False),
-            expect_equal("escripts start the Elixir module in a UTF-8 VM", escript_headers("Stockctl"), ["shebang", '{emu_args, "+fnu -kernel standard_io_encoding unicode -escript main Elixir.Stockctl"}']),
+            expect_equal("escripts start the Elixir module in a UTF-8 VM", elixir_escript_headers("Stockctl"), ["shebang", '{emu_args, "+fnu -kernel standard_io_encoding unicode -escript main Elixir.Stockctl"}']),
             expect_equal("test helpers are required first", helper_first(["test/a_test.exs", "test/test_helper.exs", "test/z_test.exs"]), ["test/test_helper.exs", "test/a_test.exs", "test/z_test.exs"]),
             expect_equal("a helper label is required first", helper_first(["//t:a_test.exs", "//t:test_helper.exs"]), ["//t:test_helper.exs", "//t:a_test.exs"]),
             expect_equal("the coverage load has no double quotes", COVER_LOAD.count('"'), 0),

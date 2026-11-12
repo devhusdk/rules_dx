@@ -472,7 +472,7 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		"protobuf":    "add a proto_library that owns that file or an exact # gazelle:resolve protobuf mapping",
 		"python":      oneSource,
 		"avro":        "add an avro_library that owns that file or an exact # gazelle:resolve avro mapping",
-		"capnproto":   "add a capnp_library that owns that file or an exact # gazelle:resolve capnproto mapping",
+		"capnproto":   "add a capnproto_library that owns that file or an exact # gazelle:resolve capnproto mapping",
 		"flatbuffers": "add a flatbuffers_library that owns that file or an exact # gazelle:resolve flatbuffers mapping",
 		"thrift":      "add a thrift_library that owns that file or an exact # gazelle:resolve thrift mapping",
 		"rego":        "add a rego_library that declares that package or an exact # gazelle:resolve rego mapping",

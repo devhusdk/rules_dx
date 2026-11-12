@@ -3,7 +3,7 @@
 load(
     "//erlang/private:defs.bzl",
     _ErlangAppInfo = "ErlangAppInfo",
-    _erlc_opts = "erlc_opts",
+    _erlc_opts = "erlang_erlc_opts",
     _erlang_xrl_yrl = "erlang_xrl_yrl",
     _erlang_nif = "erlang_nif",
     _erlang_release = "erlang_release",
@@ -17,7 +17,7 @@ load(
 )
 
 ErlangAppInfo = _ErlangAppInfo
-erlc_opts = _erlc_opts
+erlang_erlc_opts = _erlc_opts
 erlang_xrl_yrl = _erlang_xrl_yrl
 erlang_nif = _erlang_nif
 erlang_release = _erlang_release

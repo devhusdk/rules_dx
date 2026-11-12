@@ -46,8 +46,8 @@
     "pins.json"
   ],
   "entry_points": [
-    "escript_archive",
-    "escript_headers",
+    "elixir_escript_archive",
+    "elixir_escript_headers",
     "elixir_app",
     "elixir_test",
     "elixir_bench"

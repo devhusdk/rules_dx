@@ -1,6 +1,6 @@
-load("@rules_dx//helm:defs.bzl", "helm_chart")
+load("@rules_dx//helm:defs.bzl", "helm_library")
 
-helm_chart(
+helm_library(
     name = "helm",
     srcs = ["Chart.yaml"],
     visibility = ["//visibility:public"],

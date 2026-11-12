@@ -12,7 +12,7 @@ const (
 	AppKind        = "erlang_app"
 	NifKind        = "erlang_nif"
 	TestAppKind    = "erlang_test_app"
-	OptsKind       = "erlc_opts"
+	OptsKind       = "erlang_erlc_opts"
 	BytecodeKind   = "erlang_bytecode"
 	EunitKind      = "erlang_eunit_test"
 	AppTarget      = "erlang_app"

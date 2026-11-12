@@ -35,7 +35,7 @@ ERLANG_DIALYZER_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ERLANG_C
 DEFAULT_TEST_ERLC_OPTS = _DEFAULT_TEST_ERLC_OPTS
 
 # Re-exported unchanged: BUILD files need it.
-erlc_opts = _erlc_opts
+erlang_erlc_opts = _erlc_opts
 
 erlang_xrl_yrl = _erlang_xrl_yrl
 

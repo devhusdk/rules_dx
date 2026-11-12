@@ -13,12 +13,12 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//erlang:defs.bzl`:
 
 ```python
-load("@rules_dx//erlang:defs.bzl", "erlc_opts", "erlang_xrl_yrl", "erlang_nif")
+load("@rules_dx//erlang:defs.bzl", "erlang_erlc_opts", "erlang_nif", "erlang_xrl_yrl")
 ```
 
 ## Rules
 
-### `erlc_opts`
+### `erlang_erlc_opts`
 
 No documentation.
 

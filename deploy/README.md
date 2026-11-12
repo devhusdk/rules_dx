@@ -1070,7 +1070,7 @@ Exit codes:
 
 # helm_chart_deploy
 
-Packages a `helm_chart` with the pinned `helm` and pushes it to an OCI registry.
+Packages a `helm_library` with the pinned `helm` and pushes it to an OCI registry.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "helm_chart_deploy")
@@ -1082,7 +1082,7 @@ helm_chart_deploy(
 )
 ```
 
-- `chart`: a `helm_chart` target. Its files are copied to a staging directory.
+- `chart`: a `helm_library` target. Its files are copied to a staging directory.
 - `version`: optional; empty publishes `Chart.yaml`'s `version`, a non-empty value
   must equal it.
 - `registry`: host plus optional path (lowercase, no empty segments, as for

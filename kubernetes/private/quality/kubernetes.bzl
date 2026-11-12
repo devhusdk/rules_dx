@@ -49,9 +49,9 @@ SHARD_SPECS = {
 }
 
 def _helm_context(target, ctx, what, tool = "helm"):
-    """Returns the chart context file for one helm_chart target."""
+    """Returns the chart context file for one helm_library target."""
     if HelmChartInfo not in target:
-        fail(what + ": helm needs a helm_chart target")
+        fail(what + ": helm needs a helm_library target")
     chart = target[HelmChartInfo]
     context = ctx.actions.declare_file(target.label.name + "-" + tool + "-context.json")
     ctx.actions.write(

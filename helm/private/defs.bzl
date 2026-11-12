@@ -28,7 +28,7 @@ def _join(package, rel):
     return rel if package == "" else package + "/" + rel
 
 def _helm_chart_impl(ctx):
-    who = "helm_chart " + str(ctx.label) + ": "
+    who = "helm_library " + str(ctx.label) + ": "
     package = ctx.label.package
     for error in [
         _dns_label_error("release_name", ctx.attr.release_name, _HELM_RELEASE_NAME_MAX, " (Helm limit)", True),
@@ -66,7 +66,7 @@ def _helm_chart_impl(ctx):
         ),
     ]
 
-helm_chart = rule(
+helm_library = rule(
     implementation = _helm_chart_impl,
     doc = "Owns one Helm chart, the package holding Chart.yaml, for dx lint.",
     attrs = {

@@ -6,19 +6,19 @@ load(
 )
 load(
     "//capnproto/private:defs.bzl",
-    _capnp_library = "capnp_library",
+    _capnproto_library = "capnproto_library",
 )
 load(
     "//capnproto/private:codegen.bzl",
-    _capnp_cc_library = "capnp_cc_library",
-    _capnp_java_library = "capnp_java_library",
-    _capnp_rust_library = "capnp_rust_library",
-    _capnp_codegen_shard = "capnp_codegen_shard",
+    _capnproto_cc_library = "capnproto_cc_library",
+    _capnproto_java_library = "capnproto_java_library",
+    _capnproto_rust_library = "capnproto_rust_library",
+    _capnproto_codegen_shard = "capnproto_codegen_shard",
 )
 
 CapnprotoInfo = _CapnpInfo
-capnp_cc_library = _capnp_cc_library
-capnp_codegen_shard = _capnp_codegen_shard
-capnp_java_library = _capnp_java_library
-capnp_library = _capnp_library
-capnp_rust_library = _capnp_rust_library
+capnproto_cc_library = _capnproto_cc_library
+capnproto_codegen_shard = _capnproto_codegen_shard
+capnproto_java_library = _capnproto_java_library
+capnproto_library = _capnproto_library
+capnproto_rust_library = _capnproto_rust_library

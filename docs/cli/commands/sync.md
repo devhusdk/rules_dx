@@ -62,12 +62,12 @@ Each pair has a library rule and a shard rule. The shard rule binds a plan entry
 | Pair | Library rule | Shard rule |
 | --- | --- | --- |
 | protobuf/rust | `rust_prost_library` | `prost_codegen_shard` in `@rules_dx//core/codegen:codegen.bzl` |
-| openapi/typescript | `openapi_typescript_client` in `@rules_dx//api_spec:defs.bzl` | `openapi_codegen_shard` |
-| openapi/go | `openapi_go_client` in `@rules_dx//api_spec:defs.bzl` | `openapi_codegen_shard` |
-| openapi/python | `openapi_python_client` in `@rules_dx//api_spec:defs.bzl` | `openapi_codegen_shard` |
-| openapi/rust | `openapi_rust_client` in `@rules_dx//api_spec:defs.bzl` | `openapi_codegen_shard` |
+| openapi/typescript | `api_spec_typescript_client` in `@rules_dx//api_spec:defs.bzl` | `api_spec_codegen_shard` |
+| openapi/go | `api_spec_go_client` in `@rules_dx//api_spec:defs.bzl` | `api_spec_codegen_shard` |
+| openapi/python | `api_spec_python_client` in `@rules_dx//api_spec:defs.bzl` | `api_spec_codegen_shard` |
+| openapi/rust | `api_spec_rust_client` in `@rules_dx//api_spec:defs.bzl` | `api_spec_codegen_shard` |
 | flatbuffers | `flatbuffers_cc_library`, `flatbuffers_rust_library`, `flatbuffers_java_library` in `@rules_dx//flatbuffers:defs.bzl` | `flatbuffers_codegen_shard` |
-| capnp | `capnp_cc_library`, `capnp_rust_library`, `capnp_java_library` in `@rules_dx//capnproto:defs.bzl` | `capnp_codegen_shard` |
+| capnp | `capnproto_cc_library`, `capnproto_rust_library`, `capnproto_java_library` in `@rules_dx//capnproto:defs.bzl` | `capnproto_codegen_shard` |
 | thrift | `thrift_cc_library`, `thrift_rust_library`, `thrift_java_library` in `@rules_dx//thrift:defs.bzl` | `thrift_codegen_shard` |
 | avro | `avro_cc_library`, `avro_java_library` in `@rules_dx//avro:defs.bzl` | none, the library rule carries the plan |
 
@@ -86,9 +86,9 @@ prost_codegen_shard(
 - Every shard binds the target that generated the files with `generated`. Set `language = "rust"` or `language = "java"` on the shard of a Rust or Java library. Bind a Rust shard to the `NAME_generated` target.
 - A Java shard entry is the srcjar of one direct dep.
 - A shard lists the files of the libraries in the `deps` of its library rule only.
-- `capnp_rust_library`, `thrift_rust_library` and `flatbuffers_rust_library` take `(name, library, crate_name = None, deps = [], **kwargs)`; `deps` are extra Rust crates, and `edition` or `rustc_flags` in `kwargs` replace the defaults. `thrift_rust_library` takes one `thrift_library` and generates its includes too.
+- `capnproto_rust_library`, `thrift_rust_library` and `flatbuffers_rust_library` take `(name, library, crate_name = None, deps = [], **kwargs)`; `deps` are extra Rust crates, and `edition` or `rustc_flags` in `kwargs` replace the defaults. `thrift_rust_library` takes one `thrift_library` and generates its includes too.
 - `flatbuffers_cc_library` takes `gen_object_api = True` for the object API. `flatbuffers_rust_library` takes a `root` schema, required when the library owns more than one.
-- `capnp_rust_library` needs one `capnp_rust_library` in `deps` for each `capnp_library` dep. Every schema for `capnp_java_library` needs the `$Java.package` annotation from `/capnp/java.capnp`. A relative capnp import must stay in the schema's directory. Use an absolute `/pkg/file.capnp` import across packages.
+- `capnproto_rust_library` needs one `capnproto_rust_library` in `deps` for each `capnproto_library` dep. Every schema for `capnproto_java_library` needs the `$Java.package` annotation from `/capnp/java.capnp`. A relative capnp import must stay in the schema's directory. Use an absolute `/pkg/file.capnp` import across packages.
 - `avro_cc_library` takes `namespace`. It needs `bazel_dep(name = "avro-cpp", version = "1.12.0.bcr.1")`, the `single_version_override` entries for avro-cpp and fmt from rules_dx, and `override_repo(use_extension("@rules_dx//avro:extensions.bzl", "avro_cc"), dx_avro_cpp = "avro-cpp")` in the root module. `dx generate --apply` adds all of it. Keep each Avro type in one `.avsc` file or use an `.avdl`. An `.avdl` gives one `<stem>.hh`. Read Java classes with `SpecificDatumReader` using `-Dorg.apache.avro.SERIALIZABLE_PACKAGES=<your.package>`.
 - Thrift C++ output is a directory and has no shard yet. Avro has no Rust codegen.
 - OpenAPI roots must be OpenAPI 3.0, 3.1, or 3.2. A remote `$ref` or an undeclared file `$ref` fails the build. `root` is required when the spec has several roots.

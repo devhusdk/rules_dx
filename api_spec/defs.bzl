@@ -7,17 +7,17 @@ load(
 )
 load(
     "//api_spec/private:codegen.bzl",
-    _openapi_typescript_client = "openapi_typescript_client",
-    _openapi_go_client = "openapi_go_client",
-    _openapi_python_client = "openapi_python_client",
-    _openapi_rust_client = "openapi_rust_client",
-    _openapi_codegen_shard = "openapi_codegen_shard",
+    _api_spec_typescript_client = "api_spec_typescript_client",
+    _api_spec_go_client = "api_spec_go_client",
+    _api_spec_python_client = "api_spec_python_client",
+    _api_spec_rust_client = "api_spec_rust_client",
+    _api_spec_codegen_shard = "api_spec_codegen_shard",
 )
 
 ApiSpecInfo = _ApiSpecInfo
 api_spec_library = _api_spec_library
-openapi_codegen_shard = _openapi_codegen_shard
-openapi_go_client = _openapi_go_client
-openapi_python_client = _openapi_python_client
-openapi_rust_client = _openapi_rust_client
-openapi_typescript_client = _openapi_typescript_client
+api_spec_codegen_shard = _api_spec_codegen_shard
+api_spec_go_client = _api_spec_go_client
+api_spec_python_client = _api_spec_python_client
+api_spec_rust_client = _api_spec_rust_client
+api_spec_typescript_client = _api_spec_typescript_client

@@ -1,6 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//erlang/private:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH")
-load("//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_escript_archive", "erlang_eunit_test", "erlang_test_app", "erlc_opts")
+load("//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_erlc_opts", "erlang_escript_archive", "erlang_eunit_test", "erlang_test_app")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
 package(
@@ -31,7 +31,7 @@ erlang_escript_archive(
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
-erlc_opts(
+erlang_erlc_opts(
     name = "test_erlc_opts",
     values = DEFAULT_TEST_ERLC_OPTS,
 )

@@ -1,4 +1,4 @@
-"""helm_chart proofs."""
+"""helm_library proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//helm/private:providers.bzl", "HelmChartInfo")

@@ -21,7 +21,7 @@ Load the rules from `@rules_dx//elixir:defs.bzl`. They wrap
 attributes.
 
 ```python
-load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_test", "escript_archive", "escript_headers")
+load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_escript_archive", "elixir_escript_headers", "elixir_test")
 
 elixir_app(
     name = "erlang_app",
@@ -41,10 +41,10 @@ elixir_test(
     deps = [":erlang_app"],
 )
 
-escript_archive(
+elixir_escript_archive(
     name = "stockctl",
     app = ":erlang_app",
-    headers = escript_headers("Stockctl"),
+    headers = elixir_escript_headers("Stockctl"),
 )
 ```
 
@@ -52,7 +52,7 @@ escript_archive(
 | --- | --- |
 | `elixir_app` | OTP application from `lib/**/*.ex`, compiled with `--warnings-as-errors` |
 | `elixir_test` | ExUnit test; `test_helper.exs` in `srcs` runs first |
-| `escript_archive` | Escript with the app and its deps, runnable with `bazel run` |
+| `elixir_escript_archive` | Escript with the app and its deps, runnable with `bazel run` |
 
 - `elixir_app` is named `erlang_app` unless you pass `name`.
 - `elixir_app(nifs = [...])` takes `erlang_nif` targets, places them in `priv/`, and forwards `ErlangNifInfo`.
@@ -63,9 +63,9 @@ escript_archive(
 - `elixirc_opts` is kept and `--warnings-as-errors` is added. Set
   `warnings_as_errors = False` on a target, or
   `--@rules_dx//config:warnings_as_errors=false`, to turn it off.
-- `escript_headers("Mod")` starts `Mod.main/1` with UTF-8 file names and
+- `elixir_escript_headers("Mod")` starts `Mod.main/1` with UTF-8 file names and
   stdio.
-- An `escript_archive` fails at analysis time when a bundled app ships a NIF; a NIF cannot load from an escript archive.
+- An `elixir_escript_archive` fails at analysis time when a bundled app ships a NIF; a NIF cannot load from an escript archive.
 - A test that runs no tests fails.
 
 ## Benchmarks

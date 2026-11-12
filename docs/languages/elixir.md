@@ -13,26 +13,26 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//elixir:defs.bzl`:
 
 ```python
-load("@rules_dx//elixir:defs.bzl", "escript_archive", "escript_headers", "elixir_app")
+load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_escript_archive", "elixir_escript_headers")
 ```
 
 ## Rules
 
-### `escript_archive`
+### `elixir_escript_archive`
 
 ```python
-escript_archive(name, visibility = None, **kwargs)
+elixir_escript_archive(name, visibility = None, **kwargs)
 ```
 
 Thin wrapper over rules_erlang escript_archive. Runs on the pinned OTP runtime; fails when an app ships NIFs.
 
-### `escript_headers`
+### `elixir_escript_headers`
 
 ```python
-escript_headers(module)
+elixir_escript_headers(module)
 ```
 
-Returns escript_archive headers that start one Elixir module in a UTF-8 VM.
+Returns elixir_escript_archive headers that start one Elixir module in a UTF-8 VM.
 
 ### `elixir_app`
 

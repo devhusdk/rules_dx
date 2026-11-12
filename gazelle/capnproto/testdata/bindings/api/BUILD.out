@@ -1,18 +1,18 @@
-load("@rules_dx//capnproto:defs.bzl", "capnp_cc_library", "capnp_java_library", "capnp_library")
+load("@rules_dx//capnproto:defs.bzl", "capnproto_cc_library", "capnproto_java_library", "capnproto_library")
 
-capnp_library(
+capnproto_library(
     name = "api",
     srcs = ["point.capnp"],
     visibility = ["//visibility:public"],
 )
 
-capnp_cc_library(
+capnproto_cc_library(
     name = "api_cc",
     visibility = ["//visibility:public"],
     deps = [":api"],
 )
 
-capnp_java_library(
+capnproto_java_library(
     name = "api_java",
     visibility = ["//visibility:public"],
     deps = [":api"],

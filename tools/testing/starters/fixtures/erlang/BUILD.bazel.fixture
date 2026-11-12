@@ -1,4 +1,4 @@
-load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_escript_archive", "erlang_eunit_test", "erlang_test_app", "erlc_opts")
+load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_erlc_opts", "erlang_escript_archive", "erlang_eunit_test", "erlang_test_app")
 
 erlang_app(
     name = "demo-app",
@@ -14,7 +14,7 @@ erlang_test_app(
     app_version = "0.1.0",
 )
 
-erlc_opts(
+erlang_erlc_opts(
     name = "test_erlc_opts",
     values = [
         "+deterministic",

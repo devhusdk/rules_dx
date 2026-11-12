@@ -1573,7 +1573,7 @@ crate_no_pipelining_test(
 
 upstream_rust_binary(
     name = "fixture_upstream_rust_bin",
-    srcs = ["fake_format_main.rs"],
+    srcs = ["upstream_bin_main.rs"],
     crate_name = "fixture_upstream_rust_bin",
     edition = "2021",
     deps = [":fixture_upstream_rust"],

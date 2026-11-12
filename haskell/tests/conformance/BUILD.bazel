@@ -56,6 +56,7 @@ dx_conformance_suite(
     covered_source = "Greet.hs",
     expected = "hello world",
     failing_case = "failing_case",
+    failing_pattern = "FAIL {case}",
     failing_test = ":fail_subject_test",
     lang = "haskell",
     passing_test = ":pass_subject_test",

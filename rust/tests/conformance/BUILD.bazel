@@ -70,6 +70,7 @@ dx_conformance_suite(
     covered_source = "greet.rs",
     expected = "hello world",
     failing_case = "failing_case",
+    failing_pattern = "test {case} ... FAILED",
     failing_test = ":fail_subject_test",
     lang = "rust",
     lock = {

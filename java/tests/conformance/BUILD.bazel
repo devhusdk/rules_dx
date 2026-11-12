@@ -59,6 +59,7 @@ dx_conformance_suite(
     covered_source = "Greet.java",
     expected = "hello world",
     failing_case = "failingCase",
+    failing_pattern = "{case}(conformance.FailTest)",
     failing_test = ":fail_subject_test",
     lang = "java",
     passing_test = ":pass_subject_test",

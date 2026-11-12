@@ -52,7 +52,6 @@ dx_conformance_suite(
     covered_source = "greet.go",
     expected = "hello world",
     failing_case = "TestFailingCase",
-    failing_pattern = "--- FAIL: {case}",
     failing_test = ":fail_subject_test",
     lang = "go",
     passing_test = ":pass_subject_test",

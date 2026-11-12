@@ -44,6 +44,7 @@ dx_conformance_suite(
     covered_source = "helper.js",
     expected = "",
     failing_case = "failing case",
+    failing_pattern = "Hello.vue › {case}",
     failing_test = ":fail_subject_test",
     lang = "vue",
     not_applicable = {

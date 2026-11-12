@@ -130,6 +130,24 @@ powershell_library(name = "mixed", srcs = ["Greet.psm1", "helpers.ps1"])
 	}
 }
 
+func TestGenerateKeepsExistingLibraryName(t *testing.T) {
+	file := buildFile(t, `powershell_library(name = "greet_lib", srcs = ["Greet.psd1", "Greet.psm1"])
+
+powershell_binary(name = "greet", srcs = ["Hello.ps1"], deps = [":greet_lib"])
+`)
+	lang := NewLanguage()
+	result := generateArgs(t, lang, "pkg/greet", file, greetPackage)
+	if lang.(*pwshLang).Failed() {
+		t.Fatal("generation failed")
+	}
+	if got, want := names(result), "powershell_library:greet_lib:Greet.psd1+Greet.psm1,powershell_test:greet_test:Greet.Tests.ps1"; got != want {
+		t.Errorf("generated %s, want %s", got, want)
+	}
+	if len(result.Empty) != 0 {
+		t.Errorf("removed %d rules, want none", len(result.Empty))
+	}
+}
+
 func TestGenerateWithoutSourcesRemovesOnlyOwnedRules(t *testing.T) {
 	file := buildFile(t, `powershell_library(name = "greet", srcs = ["Greet.psm1"])
 

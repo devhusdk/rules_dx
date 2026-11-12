@@ -652,9 +652,9 @@ func mainOwners(file *rule.File, kind string) map[string]bool {
 	return owned
 }
 
-// existingLibraryName returns the name of the first kind rule in file whose
+// ExistingLibraryName returns the name of the first kind rule in file whose
 // srcs are non-empty and all in sources.
-func existingLibraryName(file *rule.File, kind string, sources []string) (string, bool) {
+func ExistingLibraryName(file *rule.File, kind string, sources []string) (string, bool) {
 	if file == nil {
 		return "", false
 	}
@@ -794,7 +794,7 @@ func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources,
 		sources = kept
 	}
 	if spec.KeepLibraryName {
-		if kept, ok := existingLibraryName(args.File, spec.LibraryKind, sources); ok {
+		if kept, ok := ExistingLibraryName(args.File, spec.LibraryKind, sources); ok {
 			name = kept
 		}
 	}

@@ -1,13 +1,14 @@
-# gazelle:ignore
-load("//powershell:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//powershell:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
 
 # gazelle:dx_ignore_import powershell Pester
+# gazelle:resolve powershell Greet :greet
 
 package(default_visibility = ["//:__subpackages__"])
 
 powershell_library(
     name = "greet",
+    testonly = True,
     srcs = [
         "Greet.psd1",
         "Greet.psm1",
@@ -16,21 +17,24 @@ powershell_library(
 
 powershell_binary(
     name = "hello",
+    testonly = True,
     srcs = ["Hello.ps1"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [":greet"],
+    deps = [":greet"],  # keep
 )
 
 powershell_test(
     name = "greet_test",
+    size = "small",
     srcs = ["Greet.Tests.ps1"],
     data = ["Greet.Describe.ps1"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [":greet"],
+    deps = [":greet"],  # keep
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

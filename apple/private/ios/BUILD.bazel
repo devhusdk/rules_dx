@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//apple/private/bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
 load("//core:failure_test.bzl", "failure_test")
@@ -286,7 +287,7 @@ apple_ios_app(
 cell_failure_test(
     name = "swift_entry_app_on_device_test",
     config = "device",
-    expected_failure_substring = "app declares simulator/arm64 but this build targets device/arm64; pass --ios_multi_cpus=sim_arm64",
+    expected_failure_substring = "app declares simulator/arm64 but this build targets device/arm64; build the app target, which selects its cell",
     target = ":swift_entry_app_library",
 )
 
@@ -307,10 +308,9 @@ apple_ios_app(
     version = "1.0",
 )
 
-failure_test(
+build_test(
     name = "no_deployment_test",
-    expected_failure_substring = "deployment names the minimum iOS version",
-    target = ":no_deployment_selection",
+    targets = [":no_deployment_selection"],
 )
 
 apple_ios_app(
@@ -401,7 +401,7 @@ cell_failure_test(
 cell_failure_test(
     name = "simulator_app_on_device_test",
     config = "device",
-    expected_failure_substring = "app declares simulator/arm64 but this build targets device/arm64; pass --ios_multi_cpus=sim_arm64",
+    expected_failure_substring = "app declares simulator/arm64 but this build targets device/arm64; build the app target, which selects its cell",
     target = ":simulator_app_library",
 )
 
@@ -451,7 +451,7 @@ apple_ios_app(
 cell_failure_test(
     name = "device_app_on_simulator_test",
     config = "simulator",
-    expected_failure_substring = "app declares device/arm64 but this build targets simulator/arm64; pass --ios_multi_cpus=arm64",
+    expected_failure_substring = "app declares device/arm64 but this build targets simulator/arm64; build the app target, which selects its cell",
     target = ":device_app_library",
 )
 

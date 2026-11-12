@@ -822,6 +822,10 @@ dx_pins.data(
     pins = "//appimage:pins.json",
 )
 dx_pins.data(
+    name = "dx_apple",
+    pins = "//apple:pins.json",
+)
+dx_pins.data(
     name = "dx_cosign",
     pins = "//deploy/private/release:pins.json",
 )

@@ -23,23 +23,6 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-rust_test(
-    name = "xcframework_script_test",
-    testonly = True,
-    srcs = ["xcframework_script_test.rs"],
-    aliases = aliases(
-        package_name = "apple/apple_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "xcframework_script_test",
-    crate_root = "xcframework_script_test.rs",
-    data = ["//apple/private/ios:xcframework_check.sh"],
-    env = {"DX_XCFRAMEWORK_CHECK": "$(rootpath //apple/private/ios:xcframework_check.sh)"},
-    target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
-)
-
 apple_ios_tests(
     name = "ios_metadata",
     size = "small",

@@ -19,6 +19,7 @@ rust_library(
         "src/swift.rs",
         "src/test_sim.rs",
         "src/util.rs",
+        "src/xcframework_check.rs",
         "src/xcode.rs",
     ],
     crate_name = "dx_apple_ops",
@@ -198,6 +199,22 @@ rust_test(
         "test_sim_test.rs",
     ],
     crate_root = "test_sim_test.rs",
+    deps = [
+        ":ops",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:zip",
+    ],
+)
+
+# keep
+rust_test(
+    name = "xcframework_check_test",
+    size = "small",
+    srcs = [
+        "fake.rs",
+        "xcframework_check_test.rs",
+    ],
+    crate_root = "xcframework_check_test.rs",
     deps = [
         ":ops",
         "//cli/test_scratch:dx_test_scratch",

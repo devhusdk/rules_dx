@@ -7,7 +7,3 @@ edition = "2024"
 [[test]]
 name = "path_test"
 path = "path_test.rs"
-
-[[test]]
-name = "xcframework_script_test"
-path = "xcframework_script_test.rs"

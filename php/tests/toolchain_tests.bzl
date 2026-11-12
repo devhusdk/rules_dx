@@ -21,7 +21,7 @@ MIRROR = "https://github.com/devhusdk/rules_dx/releases/download/mirror-php-" + 
 
 def _checks():
     hub = hub_build(PHP_CELLS.keys())
-    flavors = {"linux_x86_64": "gnu-bulk", "linux_arm64": "gnu-bulk", "macos_arm64": "common", "windows_x86_64": "spc-max"}
+    flavors = {"linux_x86_64": "gnu-bulk", "linux_arm64": "gnu-bulk", "macos_arm64": "bulk", "windows_x86_64": "spc-max"}
     mac = PHP_CELLS["macos_arm64"]
     pins = [_PHP["pcov"]] + _PHP["tools"].values()
     cells = _PHP["cells"]

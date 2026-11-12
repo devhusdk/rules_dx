@@ -18,10 +18,10 @@
     },
     "macos_arm64": {
       "binary": "php",
-      "sha256": "cfbb53b904bb29f553c23cb51dfb9ec82bb69adaf9aeb6df8b6da29ea9f03553",
+      "sha256": "929673eb6d6869e28a0bd97e2d4475302a6d3b2e7ad8035a60d551c9f2e37951",
       "urls": [
-        "https://github.com/devhusdk/rules_dx/releases/download/mirror-php-8.5.12/php-8.5.12-cli-macos-aarch64.tar.gz",
-        "https://dl.static-php.dev/v3/php-bin/common/php-8.5.12-cli-macos-aarch64.tar.gz"
+        "https://github.com/devhusdk/rules_dx/releases/download/mirror-php-8.5.12/php-8.5.12-bulk-cli-macos-aarch64.tar.gz",
+        "https://dl.static-php.dev/v3/php-bin/bulk/php-8.5.12-cli-macos-aarch64.tar.gz"
       ]
     },
     "windows_x86_64": {

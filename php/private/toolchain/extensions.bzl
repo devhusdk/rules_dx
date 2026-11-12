@@ -55,6 +55,7 @@ def _php_impl(mctx):
     pinned_archive(
         name = "dx_php_pcov",
         files = {"BUILD.bazel": mctx.read(Label("//php/private:pcov.BUILD.bazel"))},
+        patches = [Label("//php/private:patches/pcov_user_opcode_handlers.patch")],
         required = ["pcov-" + pcov["version"] + "/pcov.c"],
         sha256 = pcov["sha256"],
         urls = pcov["urls"],

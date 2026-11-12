@@ -8,7 +8,7 @@ load(
     _cc_fuzz_test = "cc_fuzz_test",
     _cc_library = "cc_library",
     _cc_test = "cc_test",
-    _objc_library = "objc_library",
+    _cc_objc_library = "cc_objc_library",
 )
 
 cc_bench = _cc_bench
@@ -17,4 +17,4 @@ cc_coverage_settings = _cc_coverage_settings
 cc_fuzz_test = _cc_fuzz_test
 cc_library = _cc_library
 cc_test = _cc_test
-objc_library = _objc_library
+cc_objc_library = _cc_objc_library

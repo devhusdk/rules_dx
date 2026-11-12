@@ -1,4 +1,4 @@
-load("@rules_dx//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "rust_android_apk")
+load("@rules_dx//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_rust_apk")
 load("//cc:defs.bzl", "cc_library", "cc_test")
 load("//deploy:defs.bzl", "archive_deploy")
 load("//javascript:defs.bzl", "javascript_web_app")
@@ -133,7 +133,7 @@ cc_library(
     alwayslink = True,
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "tasks_apk",
     app_id = "com.example.dxsharedtasks",
     assets = [

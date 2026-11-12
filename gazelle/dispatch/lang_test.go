@@ -753,7 +753,7 @@ func androidCheck(t *testing.T, build string, files map[string]string) (*dispatc
 }
 
 func apkBuild(attrs string) string {
-	return "rust_android_apk(\n    name = \"adopt_apk\",\n" + attrs + "    deps = [\":native\"],\n)\n"
+	return "android_rust_apk(\n    name = \"adopt_apk\",\n" + attrs + "    deps = [\":native\"],\n)\n"
 }
 
 func wantAndroidErrors(t *testing.T, l *dispatchLang, want ...string) {

@@ -1,6 +1,6 @@
 """Rewrites the sha256 of each package in fpm.lock from its archive.
 
-Run through the fpm_lock target: bazel run //path:lock -- [package ...]
+Run through the fortran_fpm_lock target: bazel run //path:lock -- [package ...]
 Each named package (all of them when none is named) has its archive downloaded and hashed.
 It needs network access to the archive hosts.
 """
@@ -66,7 +66,7 @@ def main(argv):
     try:
         text = refresh(text, set(args.package), fetch_bytes)
     except (RefreshError, OSError) as error:
-        print("fpm_lock: %s" % error, file=sys.stderr)
+        print("fortran_fpm_lock: %s" % error, file=sys.stderr)
         return 1
     with open(lock, "w", encoding="utf-8") as handle:
         handle.write(text)

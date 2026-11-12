@@ -26,7 +26,7 @@ fn rewrite_generated_points_nuget_repo_at_rules_dx() {
         outputs: Vec::new(),
     };
     let input = b"a\nload(\"@rules_dotnet//dotnet:defs.bzl\", \"nuget_repo\")\nb\n".to_vec();
-    let want = b"a\nload(\"@rules_dx//dotnet:defs.bzl\", \"nuget_repo\")\nb\n".to_vec();
+    let want = b"a\nload(\"@rules_dx//dotnet:extensions.bzl\", nuget_repo = \"dotnet_nuget_repo\")\nb\n".to_vec();
     assert_eq!(run.rewrite_generated(input.clone()), want);
     run.tool = StagedTool::GoModDownload;
     assert_eq!(run.rewrite_generated(input.clone()), input);
@@ -916,7 +916,7 @@ fn zig_runs_the_lock_step_and_fpm_runs_the_rehash_target() {
     dx_test_scratch::write(
         dir.path(),
         "native/BUILD.bazel",
-        "fpm_lock(name = \"lock\")\n",
+        "fortran_fpm_lock(name = \"lock\")\n",
     );
     let zig = rehash_set(
         "zig",
@@ -975,7 +975,7 @@ fn zig_runs_the_lock_step_and_fpm_runs_the_rehash_target() {
         &UvClosure::default(),
     )
     .expect_err("refused");
-    assert!(error.to_string().contains("add an fpm_lock"));
+    assert!(error.to_string().contains("add a fortran_fpm_lock"));
 }
 
 fn cabal_set() -> ResolvedSet {

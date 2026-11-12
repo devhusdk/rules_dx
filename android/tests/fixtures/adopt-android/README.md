@@ -75,6 +75,6 @@ android_ndk_toolchain_repo(
 ```
 
 The app ID, manifest, API level, permission and ABIs belong to your app.
-`rust_android_apk` takes Java `srcs` and your `manifest`. The library is named
+`android_rust_apk` takes Java `srcs` and your `manifest`. The library is named
 `<name>_bin`, so `System.loadLibrary("adopt_apk_bin")` loads it. The APK is
 signed with the debug key. There is no release key and no AAB.

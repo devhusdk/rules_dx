@@ -1,6 +1,6 @@
-load("@rules_dx//android:defs.bzl", "java_android_library")
+load("@rules_dx//android:defs.bzl", "android_java_library")
 
-java_android_library(
+android_java_library(
     name = "ui",
     srcs = ["Screen.java"],
     custom_package = "com.example.ui",

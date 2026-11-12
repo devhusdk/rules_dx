@@ -43,7 +43,7 @@
     "fortran_library",
     "fortran_binary",
     "fortran_test",
-    "fpm_lock"
+    "fortran_fpm_lock"
   ],
   "quality": {
     "bzl": "fortran/private/quality:fortran.bzl",

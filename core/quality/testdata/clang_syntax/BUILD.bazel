@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//cc:defs.bzl", "objc_library")
+load("//cc:defs.bzl", "cc_objc_library")
 load("//core/quality:native_config.bzl", "clang_tidy_config")
 load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
 
@@ -117,14 +117,14 @@ cc_library(
     deps = [":dep"],
 )
 
-objc_library(
+cc_objc_library(
     name = "clean_objc",
     srcs = ["clean.m"],
     tags = ["manual"],
     target_compatible_with = ["@platforms//os:macos"],
 )
 
-objc_library(
+cc_objc_library(
     name = "dirty_objc",
     srcs = ["dirty.m"],
     tags = ["manual"],

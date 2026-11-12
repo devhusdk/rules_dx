@@ -1,8 +1,8 @@
 # gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//android:defs.bzl", "java_android_library", "kotlin_android_library")
+load("//android:defs.bzl", "android_java_library", "android_kotlin_library")
 
-java_android_library(
+android_java_library(
     name = "java_screen",
     testonly = True,
     srcs = ["java/Screen.java"],
@@ -10,7 +10,7 @@ java_android_library(
     visibility = ["//visibility:private"],
 )
 
-kotlin_android_library(
+android_kotlin_library(
     name = "kotlin_screen",
     testonly = True,
     srcs = ["kotlin/Screen.kt"],

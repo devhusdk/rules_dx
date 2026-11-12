@@ -171,7 +171,7 @@ def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):
     effective_hdrs = hdrs if hdrs != None else []
     dx_wrap(name, _cc_library, _cc_library_forward, effective_srcs, visibility = visibility, hdrs = effective_hdrs, extra_forward_kwargs = {"hdrs": effective_hdrs}, **kwargs)
 
-def objc_library(name, visibility = None, **kwargs):
+def cc_objc_library(name, visibility = None, **kwargs):
     """The upstream objc_library under the caller's name, so rules_apple and rules_swift see it unchanged."""
     _objc_library(name = name, visibility = visibility, **kwargs)
 

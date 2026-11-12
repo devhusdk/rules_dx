@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:canonical.bzl", "strip_canonical")
 load("//core:defs.bzl", "DxSubjectInfo")
 load("//perl:defs.bzl", "PERL_COMPATIBLE_WITH")
-load("//dart/private:dart_config.bzl", "DxDartConfigInfo")
+load("//dart/private:dart_config.bzl", "DartConfigInfo")
 load(
     "//core/quality/testdata:all_languages.bzl",
     "real_cc_format_aspect",
@@ -1100,7 +1100,7 @@ def sorbet_flag_tests(name, subject):
 def _dart_config_deps_impl(ctx):
     """Asserts a dart_config carries the lints package and its recommended.yaml."""
     env = analysistest.begin(ctx)
-    info = analysistest.target_under_test(env)[DxDartConfigInfo]
+    info = analysistest.target_under_test(env)[DartConfigInfo]
     names = [pkg.package_name for pkg in info.packages.to_list()]
     asserts.true(env, "lints" in names, "want lints in the config packages, got %s" % names)
     paths = [f.path for f in info.resources.to_list()]

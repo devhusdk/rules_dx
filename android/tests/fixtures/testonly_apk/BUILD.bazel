@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//android:defs.bzl", "rust_android_apk")
+load("//android:defs.bzl", "android_rust_apk")
 load("//cc:defs.bzl", "cc_library")
 
 cc_library(
@@ -10,7 +10,7 @@ cc_library(
     alwayslink = True,
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "app_apk",
     testonly = True,
     app_id = "com.example.dxtestonly",

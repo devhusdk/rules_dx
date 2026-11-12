@@ -2,7 +2,7 @@
 # gazelle:exclude fuzz_driver.cc
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
-load(":defs.bzl", "cc_coverage_probe", "cc_library", "objc_library")
+load(":defs.bzl", "cc_coverage_probe", "cc_library", "cc_objc_library")
 load(":wrapper_tests.bzl", "cc_wrapper_contract_tests", "objc_library_tests")
 
 package(default_visibility = ["//cc:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
@@ -26,7 +26,7 @@ cc_wrapper_contract_tests(name = "wrapper_contract_tests")
 
 clang_syntax_unit_tests(name = "clang_syntax_unit")
 
-objc_library(
+cc_objc_library(
     name = "objc_library_fixture",
     srcs = ["testdata/objc_forward/greeter.m"],
     hdrs = ["testdata/objc_forward/greeter.h"],

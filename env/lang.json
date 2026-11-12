@@ -10,10 +10,9 @@
   "platforms": [],
   "pins": [],
   "entry_points": [
-    "EnvironmentInfo",
-    "environment_config",
-    "environment_metadata",
-    "environment_tool",
-    "environment_tree"
+    "env_config",
+    "env_metadata",
+    "env_tool",
+    "env_tree"
   ]
 }

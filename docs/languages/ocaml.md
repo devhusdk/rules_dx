@@ -13,12 +13,12 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//ocaml:defs.bzl`:
 
 ```python
-load("@rules_dx//ocaml:defs.bzl", "ocamllex", "ocaml_module", "ocaml_signature")
+load("@rules_dx//ocaml:defs.bzl", "ocaml_lex", "ocaml_module", "ocaml_signature")
 ```
 
 ## Rules
 
-### `ocamllex`
+### `ocaml_lex`
 
 No documentation.
 
@@ -78,10 +78,10 @@ ocaml_bench(name, *, main = None, deps = None, visibility = None, tags = None, *
 
 A benchmark `dx bench` runs: `main` calls `Dx_bench.run`, which writes `dx-bench.json`. It is tagged `dx-bench`.
 
-### `dx_dune_library`
+### `ocaml_dune_library`
 
 ```python
-dx_dune_library(name, **kwargs)
+ocaml_dune_library(name, **kwargs)
 ```
 
 Builds a dune library package; the OCaml cells are always appended to target_compatible_with.

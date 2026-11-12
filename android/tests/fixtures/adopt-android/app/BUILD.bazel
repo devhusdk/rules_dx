@@ -3,7 +3,7 @@
 
 load("@rules_dx//java:defs.bzl", "java_library", "java_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_check", "rust_android_apk")
+load("@rules_dx//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_check", "android_rust_apk")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = [
@@ -24,7 +24,7 @@ java_test(
     deps = [":report"],
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "adopt_apk",
     srcs = [
         "src/main/java/org/example/adoptandroid/MainActivity.java",

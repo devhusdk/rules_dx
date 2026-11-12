@@ -1,7 +1,7 @@
 """Runs dune inside Bazel actions with the pinned native OCaml toolchain.
 
 `dx_dune_bootstrap` builds dune from its own sources once; `dx_dune_build`
-builds one executable of a dune workspace and `dx_dune_library` builds one
+builds one executable of a dune workspace and `ocaml_dune_library` builds one
 library package as OCaml providers that `ocaml_module` and `ocaml_test` take in
 `deps`. The actions use only the pinned conda OCaml tree, the resolved C
 toolchain and the pinned coreutils; dune's cache and the
@@ -265,6 +265,6 @@ _dx_dune_library = rule(
     fragments = ["cpp"],
 )
 
-def dx_dune_library(name, **kwargs):
+def ocaml_dune_library(name, **kwargs):
     """Builds a dune library package; the OCaml cells are always appended to target_compatible_with."""
     _dx_dune_library(name = name, **dx_language_kwargs(kwargs, [], OCAML_COMPATIBLE_WITH))

@@ -10,10 +10,10 @@
   "platforms": [],
   "pins": [],
   "entry_points": [
-    "java_android_library",
-    "kotlin_android_library",
+    "android_java_library",
+    "android_kotlin_library",
     "android_native_library",
-    "rust_android_apk",
+    "android_rust_apk",
     "android_apk_set",
     "android_check",
     "android_sign",

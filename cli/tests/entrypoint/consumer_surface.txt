@@ -19,6 +19,7 @@ dart:extensions.bzl
 deploy:defs.bzl
 dockerfile:defs.bzl
 dotnet:defs.bzl
+dotnet:extensions.bzl
 elixir:defs.bzl
 elixir:extensions.bzl
 env:defs.bzl

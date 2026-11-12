@@ -1,6 +1,6 @@
 # gazelle:dx_rust_corpus false
 # gazelle:ignore
-load("//android:defs.bzl", "android_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_sign", "rust_android_apk")
+load("//android:defs.bzl", "android_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_sign", "android_rust_apk")
 load("//cc:defs.bzl", "cc_library")
 load("//rust:defs.bzl", "rust_static_library", "rust_test")
 
@@ -33,7 +33,7 @@ cc_library(
     alwayslink = True,
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "consumer_android_apk",
     platforms = [
         "//android:arm64-v8a",

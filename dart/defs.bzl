@@ -5,7 +5,7 @@ load(
     _DART_COMPATIBLE_WITH = "DART_COMPATIBLE_WITH",
     _DART_QUALITY_TOOLS = "DART_QUALITY_TOOLS",
     _DART_SOURCE_SPECS = "DART_SOURCE_SPECS",
-    _DxDartConfigInfo = "DxDartConfigInfo",
+    _DxDartConfigInfo = "DartConfigInfo",
     _dart_bench = "dart_bench",
     _dart_binary = "dart_binary",
     _dart_codegen = "dart_codegen",
@@ -19,7 +19,7 @@ load(
 DART_COMPATIBLE_WITH = _DART_COMPATIBLE_WITH
 DART_QUALITY_TOOLS = _DART_QUALITY_TOOLS
 DART_SOURCE_SPECS = _DART_SOURCE_SPECS
-DxDartConfigInfo = _DxDartConfigInfo
+DartConfigInfo = _DxDartConfigInfo
 dart_bench = _dart_bench
 dart_binary = _dart_binary
 dart_codegen = _dart_codegen

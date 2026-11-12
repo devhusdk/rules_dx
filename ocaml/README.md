@@ -75,7 +75,7 @@ ocaml_test(
 
 - A module is named after its target, capitalized. A module with an
   `ocaml_signature` in `sig` is named after the `.mli` file.
-- `ocamllex` is re-exported unchanged, because lexers need it to build.
+- `ocaml_lex` is `ocamllex` re-exported, because lexers need it to build.
 - Modules and signatures compile with `-bin-annot` (opt out with
   `-no-bin-annot`) and expose their `.cmt` and `.cmti` files through
   `OCamlCmtInfo` (`@rules_dx//ocaml:defs.bzl`) and the `cmt` and `cmti`
@@ -123,7 +123,7 @@ actions are unchanged.
 
 ## Example
 
-See [ocaml_app](tests/fixtures/ocaml_app/README.md) for a multi-package app with a pinned `Astring` dependency, an ocamllex lexer and a C stub that only the native cell builds.
+See [ocaml_app](tests/fixtures/ocaml_app/README.md) for a multi-package app with a pinned `Astring` dependency, an ocaml_lex lexer and a C stub that only the native cell builds.
 
 ## Formatting and linting
 
@@ -139,13 +139,13 @@ scratch directory. Modules that use a ppx rewriter are not checked.
 
 ### Dune libraries
 
-`dx_dune_library` (`@rules_dx//ocaml:defs.bzl`) runs `dune build -p <package> @install`
+`ocaml_dune_library` (`@rules_dx//ocaml:defs.bzl`) runs `dune build -p <package> @install`
 on a dune workspace and returns the package as rules_ocaml providers, so
 `ocaml_module` and `ocaml_test` take it in `deps`. The package is copied to the
 tree artifact `<name>_ocamlpath/<package>` (a findlib layout); the archive named
 by `library` (`.cma`, or `.cmxa` plus `.a` under the native emitter) is exposed
 as its own file. `dune` is a label, for example `@rules_dx//ocaml:dune`.
-`deps` names other `dx_dune_library` targets; their trees go on `OCAMLPATH`.
+`deps` names other `ocaml_dune_library` targets; their trees go on `OCAMLPATH`.
 A package with `lib<library>_stubs.a` needs `stubs = True`, which links the
 archive natively (the bytecode cell does not support C stubs). See
 `ocaml/tests/fixtures/dune-lib`.
@@ -196,7 +196,7 @@ of a `.opam.locked` file and creates a hub with one alias per package. Sources
 and sha256 digests (sha512 when an opam file has no sha256) come from the opam-repository snapshot pinned in
 `ocaml/pins.json`; nothing runs opam. Compiler and `base-*` packages
 and `dune` come from the toolchain and get no alias. A package without an
-`opam.annotation` is a dune package: it is built with `dx_dune_library` and
+`opam.annotation` is a dune package: it is built with `ocaml_dune_library` and
 `//ocaml:dune` (dune 3.24.2 from `ocaml/pins.json`), and its
 library is the package name with `-` and `.` as `_`. Set
 `opam.annotation(package, library = ...)` for another library name. A dune

@@ -41,7 +41,7 @@
     "pins.json"
   ],
   "entry_points": [
-    "ocamllex",
+    "ocaml_lex",
     "ocaml_module",
     "ocaml_signature",
     "ocaml_library",
@@ -49,7 +49,7 @@
     "ocaml_test",
     "ocaml_fuzz_test",
     "ocaml_bench",
-    "dx_dune_library"
+    "ocaml_dune_library"
   ],
   "quality": {
     "bzl": "ocaml/private/quality:ocaml.bzl",

@@ -138,10 +138,10 @@ def android_native_library(
         **shared
     )
 
-def java_android_library(**kwargs):
+def android_java_library(**kwargs):
     """Android Java library over rules_android android_library."""
     _android_library(**kwargs)
 
-def kotlin_android_library(**kwargs):
+def android_kotlin_library(**kwargs):
     """Android Kotlin library over rules_kotlin kt_android_library."""
     _kt_android_library(**kwargs)

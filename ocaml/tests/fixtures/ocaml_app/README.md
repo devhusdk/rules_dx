@@ -5,7 +5,7 @@ a checksum of the report, and reports bad input with distinct exit codes.
 
 | Package | What it shows |
 | --- | --- |
-| `lexer` | `tokens.mll` goes through `ocamllex` into a module (generated code) |
+| `lexer` | `tokens.mll` goes through `ocaml_lex` into a module (generated code) |
 | `ledger` | A module with an `.mli` that uses the pinned `Astring` library and the lexer |
 | `checksum` | One interface, two implementations chosen by a `select()` on the emitter flag |
 | `checksum/native` | The C-backed implementation, built only in the native cell |

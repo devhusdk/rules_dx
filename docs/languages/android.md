@@ -13,23 +13,23 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//android:defs.bzl`:
 
 ```python
-load("@rules_dx//android:defs.bzl", "java_android_library", "kotlin_android_library", "android_native_library")
+load("@rules_dx//android:defs.bzl", "android_java_library", "android_kotlin_library", "android_native_library")
 ```
 
 ## Rules
 
-### `java_android_library`
+### `android_java_library`
 
 ```python
-java_android_library(**kwargs)
+android_java_library(**kwargs)
 ```
 
 Android Java library over rules_android android_library.
 
-### `kotlin_android_library`
+### `android_kotlin_library`
 
 ```python
-kotlin_android_library(**kwargs)
+android_kotlin_library(**kwargs)
 ```
 
 Android Kotlin library over rules_kotlin kt_android_library.
@@ -42,10 +42,10 @@ android_native_library(name, rust_srcs, c_srcs, hdrs = [], crate_name = None, ed
 
 Builds one mixed Rust and C shared library per Android tuple.
 
-### `rust_android_apk`
+### `android_rust_apk`
 
 ```python
-rust_android_apk(name, app_id, deps, platforms = [Label("//android:arm64-v8a"), Label("//android:x86_64")], activity = "android.app.NativeActivity", api_level = 0, assets = [], assets_dir = "", custom_package = "", manifest = None, permissions = [], resource_files = [], version_code = 1, version_name = "1.0", visibility = None, tags = None, **kwargs)
+android_rust_apk(name, app_id, deps, platforms = [Label("//android:arm64-v8a"), Label("//android:x86_64")], activity = "android.app.NativeActivity", api_level = 0, assets = [], assets_dir = "", custom_package = "", manifest = None, permissions = [], resource_files = [], version_code = 1, version_name = "1.0", visibility = None, tags = None, **kwargs)
 ```
 
 Packages one APK and one unsigned App Bundle from native CcInfo deps with a Rust entry point.

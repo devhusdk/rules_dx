@@ -2,11 +2,11 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//capnproto/private:defs.bzl", "capnp_library", "std_import_path")
-load("//capnproto/private:providers.bzl", "CapnpInfo")
+load("//capnproto/private:providers.bzl", "CapnprotoInfo")
 
 def _closure_impl(ctx):
     env = analysistest.begin(ctx)
-    info = analysistest.target_under_test(env)[CapnpInfo]
+    info = analysistest.target_under_test(env)[CapnprotoInfo]
     paths = sorted([i.path for i in info.transitive_imports.to_list()])
     asserts.equals(env, ["capnproto/tests/fixtures/closure/base.capnp", "capnproto/tests/fixtures/closure/top.capnp"], [p for p in paths if not p.startswith("capnp/")])
     asserts.equals(env, ["capnp/c++.capnp", "capnp/compat/json.capnp", "capnp/java.capnp", "capnp/schema.capnp", "capnp/stream.capnp"], [p for p in paths if p.startswith("capnp/")])

@@ -14,9 +14,9 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
-const androidApkKind = "rust_android_apk"
+const androidApkKind = "android_rust_apk"
 
-// checkAndroid cross-checks custom manifests of rust_android_apk rules against their literal attrs.
+// checkAndroid cross-checks custom manifests of android_rust_apk rules against their literal attrs.
 func checkAndroid(args language.GenerateArgs) []string {
 	if args.File == nil {
 		return nil

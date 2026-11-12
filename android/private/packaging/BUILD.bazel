@@ -3,7 +3,7 @@ load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_java//java:java_import.bzl", "java_import")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check_selection", "android_sign", "rust_android_apk")
+load(":defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check_selection", "android_sign", "android_rust_apk")
 load(":rotation_tests.bzl", "keystore_properties_test")
 
 package(default_visibility = ["//visibility:public"])
@@ -21,7 +21,7 @@ copy_file(
     out = "rotated_second.keystore",
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "rotated",
     app_id = "com.example.rotated",
     debug_signing_keys = [
@@ -51,7 +51,7 @@ java_binary(
     runtime_deps = [":bundletool_jar"],
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "bad_app_id",
     app_id = "app",
     deps = [],
@@ -63,7 +63,7 @@ failure_test(
     target = ":bad_app_id_manifest",
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "bad_abi",
     app_id = "com.example.app",
     platforms = ["//android:mips"],
@@ -82,7 +82,7 @@ failure_test(
     target = ":bad_abi_aab_file",
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "bad_api",
     api_level = 29,
     app_id = "com.example.app",
@@ -95,7 +95,7 @@ failure_test(
     target = ":bad_api_manifest",
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "bad_version",
     app_id = "com.example.app",
     version_code = 0,
@@ -108,14 +108,14 @@ failure_test(
     target = ":bad_version",
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "bad_abis",
     app_id = "com.example.app",
     platforms = [],
     deps = [],
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "bad_dup_abis",
     app_id = "com.example.app",
     platforms = [
@@ -137,7 +137,7 @@ failure_test(
     target = ":bad_abis",
 )
 
-rust_android_apk(
+android_rust_apk(
     name = "bad_activity",
     activity = "",
     app_id = "com.example.app",

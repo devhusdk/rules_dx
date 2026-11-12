@@ -3,7 +3,7 @@
 load("//core:defs.bzl", "DxSubjectInfo", "display_label")
 load(":validate.bzl", "env_collision_error", "env_tool_error")
 
-EnvironmentInfo = provider(
+EnvInfo = provider(
     doc = "Transitively composed bootstrap environment tool records.",
     fields = {
         "runners": "Dict of owner label string to the tool executable's files-to-run object.",
@@ -43,11 +43,11 @@ def env_tree_metadata(records, is_windows):
 def _environment_tool_impl(ctx):
     error = env_tool_error(ctx.attr.bin_name, ctx.attr.aliases)
     if error != "":
-        fail("environment_tool " + str(ctx.label) + ": " + error)
+        fail("env_tool " + str(ctx.label) + ": " + error)
 
     owner = display_label(ctx.label)
     return [
-        EnvironmentInfo(
+        EnvInfo(
             runners = {owner: ctx.attr.executable.files_to_run},
             tools = depset([env_tool_record(owner, ctx.attr.bin_name, ctx.attr.aliases)]),
         ),
@@ -56,7 +56,7 @@ def _environment_tool_impl(ctx):
         ),
     ]
 
-environment_tool = rule(
+env_tool = rule(
     implementation = _environment_tool_impl,
     doc = "One tool that dx sync puts on PATH under its names.",
     attrs = {
@@ -82,19 +82,19 @@ def _environment_config_impl(ctx):
     records = []
     runners = {}
     for tool in ctx.attr.tools:
-        info = tool[EnvironmentInfo]
+        info = tool[EnvInfo]
         records.extend(info.tools.to_list())
         runners.update(info.runners)
     error = env_collision_error(records)
     if error != "":
-        fail("environment_config " + str(ctx.label) + ": " + error)
+        fail("env_config " + str(ctx.label) + ": " + error)
     names = {}
     for record in records:
         names[record.bin_name] = True
         for alias in record.aliases:
             names[alias] = True
     return [
-        EnvironmentInfo(
+        EnvInfo(
             runners = runners,
             tools = depset(records),
         ),
@@ -111,20 +111,20 @@ def _environment_config_impl(ctx):
         }),
     ]
 
-environment_config = rule(
+env_config = rule(
     implementation = _environment_config_impl,
     doc = "Collects environment tools and rejects host-name collisions.",
     attrs = {
         "tools": attr.label_list(
             doc = "Environment tool targets collected into one config.",
             default = [],
-            providers = [DefaultInfo, EnvironmentInfo],
+            providers = [DefaultInfo, EnvInfo],
         ),
     },
 )
 
 def _environment_tree_impl(ctx):
-    info = ctx.attr.config[EnvironmentInfo]
+    info = ctx.attr.config[EnvInfo]
     records = info.tools.to_list()
     is_windows = ctx.target_platform_has_constraint(
         ctx.attr._windows_os[platform_common.ConstraintValueInfo],
@@ -133,8 +133,8 @@ def _environment_tree_impl(ctx):
     host_names = {}
     for record in records:
         if record.owner not in info.runners:
-            fail("environment_tree " + str(ctx.label) + ": no runner for " +
-                 record.owner + ": every record needs its environment_tool executable")
+            fail("env_tree " + str(ctx.label) + ": no runner for " +
+                 record.owner + ": every record needs its env_tool executable")
         executable = info.runners[record.owner].executable
         for name in [record.bin_name] + list(record.aliases):
             host_name = env_host_filename(name, is_windows)
@@ -160,7 +160,7 @@ def _environment_tree_impl(ctx):
         }),
     ]
 
-environment_tree = rule(
+env_tree = rule(
     implementation = _environment_tree_impl,
     doc = "Builds the bin directory of tool links for one environment.",
     attrs = {
@@ -170,25 +170,25 @@ environment_tree = rule(
         "config": attr.label(
             doc = "Environment config whose tools are staged into the tree.",
             mandatory = True,
-            providers = [DefaultInfo, EnvironmentInfo],
+            providers = [DefaultInfo, EnvInfo],
         ),
     },
 )
 
 def _environment_metadata_impl(ctx):
-    info = ctx.attr.config[EnvironmentInfo]
+    info = ctx.attr.config[EnvInfo]
     metadata = ctx.actions.declare_file(ctx.label.name + ".metadata.json")
     ctx.actions.write(metadata, env_tree_metadata(info.tools.to_list(), ctx.attr.windows))
     return [DefaultInfo(files = depset([metadata]))]
 
-environment_metadata = rule(
+env_metadata = rule(
     implementation = _environment_metadata_impl,
     doc = "Writes the metadata JSON of one environment.",
     attrs = {
         "config": attr.label(
             doc = "Environment config whose tools are written as metadata.",
             mandatory = True,
-            providers = [DefaultInfo, EnvironmentInfo],
+            providers = [DefaultInfo, EnvInfo],
         ),
         "windows": attr.bool(
             doc = "Whether to render host file names for Windows.",

@@ -1,7 +1,7 @@
 """Cap'n Proto schema ownership for dx quality."""
 
 load("//core:wrapper.bzl", "dx_quality_sources")
-load(":providers.bzl", "CapnpInfo")
+load(":providers.bzl", "CapnprotoInfo")
 
 _STD_MARKER = "/src/capnp/"
 
@@ -32,17 +32,17 @@ def _capnp_library_impl(ctx):
     std = [struct(path = std_import_path(f.short_path), file = f) for f in ctx.files._std]
     transitive = depset(
         direct,
-        transitive = [dep[CapnpInfo].transitive_srcs for dep in ctx.attr.deps],
+        transitive = [dep[CapnprotoInfo].transitive_srcs for dep in ctx.attr.deps],
     )
     imports = depset(
         own + std,
-        transitive = [dep[CapnpInfo].transitive_imports for dep in ctx.attr.deps],
+        transitive = [dep[CapnprotoInfo].transitive_imports for dep in ctx.attr.deps],
     )
     return [
         DefaultInfo(files = depset(direct)),
-        CapnpInfo(
+        CapnprotoInfo(
             label = str(ctx.label),
-            direct_deps = [dep[CapnpInfo] for dep in ctx.attr.deps],
+            direct_deps = [dep[CapnprotoInfo] for dep in ctx.attr.deps],
             direct_srcs = direct,
             transitive_srcs = transitive,
             transitive_imports = imports,
@@ -55,8 +55,8 @@ capnp_library = rule(
     doc = "Owns Cap'n Proto schemas for dx lint. Imports resolve only from deps, relative to the importing file or from the workspace root, plus the bundled /capnp/*.capnp schemas.",
     attrs = {
         "srcs": attr.label_list(allow_files = [".capnp"], doc = "Cap'n Proto schema files of this package."),
-        "deps": attr.label_list(providers = [CapnpInfo], doc = "capnp_library targets whose schemas these import."),
+        "deps": attr.label_list(providers = [CapnprotoInfo], doc = "capnp_library targets whose schemas these import."),
         "_std": attr.label(default = "//capnproto:std", allow_files = True),
     },
-    provides = [CapnpInfo],
+    provides = [CapnprotoInfo],
 )

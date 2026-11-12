@@ -357,6 +357,7 @@ rust_binary(
     crate_root = "src/main.rs",
     edition = "2021",
     link_deps = [":native_mixed_crt"],
+    tags = ["manual"],
     testonly = True,
     deps = [":native_call"],
 )

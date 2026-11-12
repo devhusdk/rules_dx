@@ -131,6 +131,10 @@ def placeholder_files(paths, mode):
         if entry.get("prefix_placeholder") and entry.get("file_mode", "text") == mode
     ])
 
+def softlink_paths(paths):
+    """Returns the softlink entries of a conda paths.json."""
+    return sorted([entry["_path"] for entry in paths if entry.get("path_type") == "softlink"])
+
 def conda_stem(url):
     """Returns the package file name without its .conda suffix."""
     name = url.split("/")[-1]
@@ -155,6 +159,18 @@ def _install_package(rctx, package):
             continue
         path = entry["_path"]
         rctx.file(path, rctx.read(path).replace(placeholder, relative_prefix(path)), executable = path.startswith("bin/"))
+    root = str(rctx.path("."))
+    for path in softlink_paths(paths):
+        target = rctx.path(path).realpath
+        real = str(target)
+        if not real.startswith(root + "/") or target.is_dir:
+            continue
+        content = rctx.read(real, watch = "no")
+        rctx.delete(path)
+        rctx.file(path, content, executable = path.startswith("bin/"))
+    missing = [entry["_path"] for entry in paths if not rctx.path(entry["_path"]).exists]
+    if missing:
+        fail("OCaml package " + package.name + " is missing " + repr(missing) + " after extraction")
     rctx.file(package.license_file, rctx.read(info + "licenses/LICENSE"))
 
 def _dist_impl(rctx):

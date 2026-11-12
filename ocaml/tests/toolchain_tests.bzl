@@ -5,7 +5,7 @@ load("//core:toolchain.bzl", "hub_checks")
 load("//ocaml/private/toolchain:ocaml.bzl", "COMPILERS", "NATIVE_CC_TOOLS", "TOOLS", "native_cc_env", "toolchain_fields")
 load("//ocaml/private/toolchain:opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url", "pick_annotation")
 load("//ocaml/private/toolchain:pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
-load("//ocaml/private/toolchain:repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build", "placeholder_files", "relative_prefix")
+load("//ocaml/private/toolchain:repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build", "placeholder_files", "relative_prefix", "softlink_paths")
 
 _LOCK = """opam-version: "2.0"
 name: "app"
@@ -113,6 +113,15 @@ def _checks():
                 {"_path": "n"},
             ], "text"),
             ["t"],
+        ),
+        expect_equal(
+            "only softlink entries are materialized",
+            softlink_paths([
+                {"_path": "lib/libzstd.so.1", "path_type": "softlink"},
+                {"_path": "lib/libzstd.so.1.5.7", "path_type": "hardlink"},
+                {"_path": "info"},
+            ]),
+            ["lib/libzstd.so.1"],
         ),
         expect_equal("locked versions are read", parse_depends(_LOCK), {"astring": "0.8.5", "cmdliner": "1.3.0", "dune": "3.16.0", "ocaml": "5.5.2"}),
         expect_equal("a file without depends pins nothing", parse_depends("opam-version: \"2.0\"\n"), {}),

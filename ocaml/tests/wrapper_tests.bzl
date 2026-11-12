@@ -84,3 +84,18 @@ _native_launcher_test = analysistest.make(
 def ocaml_native_launcher_test(name, target_under_test, launcher):
     """Asserts the target resolves the sys emitter: its launcher is a symlink to the native executable, not an ocamlrun script."""
     _native_launcher_test(name = name, size = "small", target_under_test = target_under_test, launcher = launcher)
+
+def _compile_runtime_libs_impl(ctx):
+    env = analysistest.begin(ctx)
+    compiles = [a for a in analysistest.target_actions(env) if a.mnemonic == "CompileOCamlModule"]
+    asserts.true(env, len(compiles) > 0, "no CompileOCamlModule action")
+    for action in compiles:
+        libs = [f.path for f in action.inputs.to_list() if "/lib/libzstd" in f.path]
+        asserts.true(env, len(libs) > 0, "%s does not stage lib/libzstd" % action.outputs.to_list()[0].short_path)
+    return analysistest.end(env)
+
+_compile_runtime_libs_test = analysistest.make(_compile_runtime_libs_impl)
+
+def ocaml_compile_stages_runtime_libs_test(name, target_under_test):
+    """Asserts every compile action of the target stages the shared libraries the compiler loads."""
+    _compile_runtime_libs_test(name = name, size = "small", target_under_test = target_under_test)

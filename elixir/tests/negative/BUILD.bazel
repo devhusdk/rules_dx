@@ -1,7 +1,7 @@
 # gazelle:dx_rust_corpus false
 
-load("@rules_dx//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("@rules_dx//elixir:defs.bzl", "elixir_app")
+load("@rules_dx//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("//elixir/tests/negative:negative_tests.bzl", "elixir_compile_test")
 
 elixir_app(
@@ -10,7 +10,6 @@ elixir_app(
     app_name = "base_dep",
     app_version = "1.0.0",
     tags = ["manual"],
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )
 
 elixir_app(
@@ -19,7 +18,6 @@ elixir_app(
     app_name = "missing_dep",
     app_version = "1.0.0",
     tags = ["manual"],
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )
 
 elixir_app(
@@ -28,7 +26,6 @@ elixir_app(
     app_name = "declared_dep",
     app_version = "1.0.0",
     tags = ["manual"],
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
     deps = [":base_dep"],
 )
 
@@ -38,7 +35,6 @@ elixir_app(
     app_name = "strict",
     app_version = "1.0.0",
     tags = ["manual"],
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
     warnings_as_errors = True,
 )
 

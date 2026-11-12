@@ -1,4 +1,3 @@
-load("//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
 load("//erlang:defs.bzl", "erlang_app")
 
 package(default_visibility = ["//core/quality/testdata:__pkg__"])
@@ -7,6 +6,5 @@ erlang_app(
     name = "erlang_unused",
     app_name = "dx_erlc_unused",
     app_version = "1.0.0",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
     warnings_as_errors = False,
 )

@@ -1,6 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//erlang/private:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH")
 load("//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_erlc_opts", "erlang_escript_archive", "erlang_eunit_test", "erlang_test_app")
+load("//erlang/private:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
 package(
@@ -12,13 +12,11 @@ erlang_app(
     app_description = "Conformance greeting.",
     app_name = "hello",
     app_version = "1.0.0",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
 erlang_test_app(
     app_name = "hello",
     app_version = "1.0.0",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
 erlang_escript_archive(
@@ -28,7 +26,6 @@ erlang_escript_archive(
         "shebang",
         "{emu_args, \"-escript main hello\"}",
     ],
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
 erlang_erlc_opts(
@@ -41,7 +38,6 @@ erlang_bytecode(
     srcs = ["test/greet_tests.erl"],
     outs = ["test/greet_tests.beam"],
     erlc_opts = ":test_erlc_opts",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
     deps = [":test_erlang_app"],
 )
 
@@ -50,7 +46,6 @@ erlang_bytecode(
     srcs = ["test/hello_tests.erl"],
     outs = ["test/hello_tests.beam"],
     erlc_opts = ":test_erlc_opts",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
     deps = [":test_erlang_app"],
 )
 

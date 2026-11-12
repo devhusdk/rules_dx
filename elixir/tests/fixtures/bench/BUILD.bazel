@@ -1,6 +1,5 @@
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("@rules_dx//elixir:defs.bzl", "elixir_bench")
 
 exports_files(
@@ -14,7 +13,6 @@ elixir_bench(
         "sum_bench.exs",
         "test_helper.exs",
     ],
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )
 
 real_source_target(

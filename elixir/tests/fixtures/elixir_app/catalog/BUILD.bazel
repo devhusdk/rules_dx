@@ -1,5 +1,4 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_test")
 
 exports_files(
@@ -34,7 +33,6 @@ elixir_app(
     app_description = "Item parsing and JSON ledgers.",
     app_name = "catalog",
     app_version = "1.0.0",
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
     visibility = APPS,
     deps = ["@elixir_app_deps//:jason"],
 )
@@ -45,7 +43,6 @@ elixir_test(
         "test/catalog_test.exs",
         "test/test_helper.exs",
     ],
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
     deps = [":erlang_app"],
 )
 

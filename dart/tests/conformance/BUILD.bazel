@@ -12,13 +12,11 @@ dart_library(
     name = "conformance",
     package_name = "conformance",
     srcs = ["lib/greet.dart"],
-    target_compatible_with = DART_COMPATIBLE_WITH,
 )
 
 dart_binary(
     name = "hello",
     main = "main.dart",
-    target_compatible_with = DART_COMPATIBLE_WITH,
     deps = [":conformance"],
 )
 

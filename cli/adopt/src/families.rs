@@ -86,16 +86,21 @@ pub fn detected_families(root: &Path) -> BTreeSet<String> {
     found
 }
 
-/// Files recognized by exact name, reported alongside the extensions.
-const NAMED_FILES: &[&str] = &["CMakeLists.txt"];
+/// Whether a `lang.json` `quality.file_names` entry names `name`.
+fn is_named_file(name: &str) -> bool {
+    dx_families::quality_languages()
+        .iter()
+        .any(|language| language.file_names.iter().any(|file| file == name))
+}
 
-/// The lowercased extensions, with their dot, of the files under `root`, plus the names in `NAMED_FILES`.
+/// The lowercased extensions, with their dot, of the files under `root`, plus the exact names
+/// that `is_named_file` accepts.
 pub fn file_extensions(root: &Path) -> BTreeSet<String> {
     source_files(root)
         .iter()
         .filter_map(|path| {
             let name = path.rsplit('/').next()?;
-            if NAMED_FILES.contains(&name) {
+            if is_named_file(name) {
                 return Some(name.to_owned());
             }
             let (stem, ext) = name.rsplit_once('.')?;
@@ -260,6 +265,15 @@ mod tests {
         let extensions = file_extensions(&root);
         assert!(extensions.contains(".java"));
         assert!(!extensions.contains(".go"));
+    }
+
+    #[test]
+    fn lang_json_file_names_are_reported() {
+        let dir = workspace(&["CMakeLists.txt", "sub/Makefile", "README"], true);
+        let extensions = file_extensions(dir.path());
+        assert!(extensions.contains("CMakeLists.txt"));
+        assert!(extensions.contains("Makefile"));
+        assert!(!extensions.contains("README"));
     }
 
     #[test]

@@ -25,9 +25,11 @@
   ],
   "quality": {
     "bzl": "cmake/private/quality:cmake.bzl",
-    "every_workspace": true,
     "file_extensions": [
       ".cmake"
+    ],
+    "file_names": [
+      "CMakeLists.txt"
     ],
     "aspects": {
       "format": [

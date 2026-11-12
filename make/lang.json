@@ -23,9 +23,13 @@
   ],
   "quality": {
     "bzl": "make/private/quality:make.bzl",
-    "every_workspace": true,
     "file_extensions": [
       ".mk"
+    ],
+    "file_names": [
+      "GNUmakefile",
+      "Makefile",
+      "makefile"
     ],
     "aspects": {
       "format": [

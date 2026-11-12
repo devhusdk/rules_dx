@@ -79,7 +79,9 @@ def _macos_coverage_tools_impl(ctx):
     env = analysistest.begin(ctx)
     run_env = analysistest.target_under_test(env)[RunEnvironmentInfo].environment
     for key in ["LLVM_COV", "LLVM_PROFDATA"]:
-        asserts.false(env, "apple_support" in run_env.get(key, ""), key + "=" + run_env.get(key, ""))
+        value = run_env.get(key, "")
+        asserts.true(env, value.endswith(key.lower().replace("_", "-")), key + "=" + value)
+        asserts.false(env, "apple_support" in value, key + "=" + value)
     return analysistest.end(env)
 
 _macos_coverage_tools_test = analysistest.make(

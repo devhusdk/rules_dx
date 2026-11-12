@@ -15,6 +15,12 @@ SIMULATOR_ENV = "simulator"
 
 _PLATFORMS = IOS_PLATFORMS
 
+_ALIASES = {
+    "device/arm64": Label("//apple:ios_arm64"),
+    "simulator/arm64": Label("//apple:ios_sim_arm64"),
+    "simulator/x86_64": Label("//apple:ios_x86_64"),
+}
+
 _PLATFORMS_SETTING = "//command_line_option:platforms"
 
 _PLATFORM_TYPE_SETTING = "//command_line_option:apple_platform_type"
@@ -37,7 +43,7 @@ def ios_platforms():
 def platform_slice(platform):
     """Returns the environment/arch name of an iOS platform Label, or an empty string."""
     for key, label in _PLATFORMS.items():
-        if label == platform:
+        if label == platform or platform == _ALIASES[key]:
             return key
     return ""
 

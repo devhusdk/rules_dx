@@ -23,14 +23,7 @@ apple_toolchain_probe(
 )
 ```
 
-Select the cell with upstream `apple_support` flags:
-
-```sh
-bazel build //:simulator_probe \
-  --platforms=@apple_support//platforms:ios_sim_arm64 \
-  --ios_minimum_os=17.0 \
-  --xcode_version=16.4
-```
+Build it with `--platforms=@rules_dx//apple:ios_sim_arm64`.
 
 Use `macos_arm64` with `--macos_minimum_os` for `macosx`. For the
 `macosx` cell, `rules_dx` registers the Xcode C/C++ toolchain; your
@@ -73,7 +66,7 @@ apple_ios_lib(
     name = "share",
     srcs = ["share.rs"],
     hdrs = ["share_api.h"],
-    platform = "@apple_support//platforms:ios_sim_arm64",
+    platform = "@rules_dx//apple:ios_sim_arm64",
     deployment = "17.0",
     xcode_version = "16.4",
     frameworks = ["Foundation"],
@@ -149,7 +142,7 @@ apple_ios_app(
     name = "ledger_app",
     srcs = ["main.m", "LedgerAppDelegate.m"],
     hdrs = ["LedgerAppDelegate.h"],
-    platform = "@apple_support//platforms:ios_sim_arm64",
+    platform = "@rules_dx//apple:ios_sim_arm64",
     bundle_id = "com.example.ledger",
     version = "1.0",
     deployment = "17.0",
@@ -199,8 +192,8 @@ register_toolchains("@local_config_apple_cc_toolchains//:all")
 Build and test on a macOS host with Xcode:
 
 ```sh
-bazel build //:ledger_app --ios_multi_cpus=sim_arm64
-bazel test //:ledger_app_test --ios_multi_cpus=sim_arm64
+bazel build //:ledger_app
+bazel test //:ledger_app_test
 ```
 
 The build writes `bazel-bin/<package>/<name>.ipa` and
@@ -221,8 +214,8 @@ The build fails before linking when:
 - the library links no static archive or lacks `CcInfo`;
 - an archive misses the cell's arch, is built for another platform
   (`iphoneos`, `macosx`), or needs a newer iOS than `deployment`;
-- a simulator app builds for another cell; pass the `--ios_multi_cpus`
-  value the error names. Device apps select `arm64` themselves;
+- a library builds for another cell than the app declares. Apps select
+  their own cell;
 - no Xcode resolves, as on a Linux host, or Bazel resolved a different
   Xcode than `xcode_version`;
 - `srcs` and `entry` are both empty or both set, `deployment`,
@@ -256,7 +249,7 @@ apple_ios_app(
     name = "ledger_app",
     entry = ":ledger_main",
     library = ":ledger_rust",
-    platform = "@apple_support//platforms:ios_sim_arm64",
+    platform = "@rules_dx//apple:ios_sim_arm64",
     bundle_id = "com.example.ledger",
     version = "1.0",
     deployment = "17.0",
@@ -281,7 +274,7 @@ non-Apple hosts the app targets are incompatible and skip.
 
 ### Device apps
 
-Set `platform = "@apple_support//platforms:ios_arm64"` and
+Set `platform = "@rules_dx//apple:ios_arm64"` and
 `provisioning_profile` to a `.mobileprovision` file:
 
 ```python
@@ -290,7 +283,7 @@ apple_ios_app(
     srcs = ["main.m"],
     bundle_id = "com.example.ledger",
     deployment = "17.0",
-    platform = "@apple_support//platforms:ios_arm64",
+    platform = "@rules_dx//apple:ios_arm64",
     library = ":ledger_rust",
     provisioning_profile = "ledger_dev.mobileprovision",
     version = "1.0",
@@ -421,9 +414,9 @@ apple_ios_xcframework(
     library = ":share_rust",
     resources = ["rates.txt"],
     platforms = [
-        "@apple_support//platforms:ios_arm64",
-        "@apple_support//platforms:ios_sim_arm64",
-        "@apple_support//platforms:ios_x86_64",
+        "@rules_dx//apple:ios_arm64",
+        "@rules_dx//apple:ios_sim_arm64",
+        "@rules_dx//apple:ios_x86_64",
     ],
 )
 ```
@@ -453,7 +446,7 @@ The build writes `bazel-bin/<package>/<name>.xcframework.zip` with
 library identifier, platform, minimum OS, and install name. The archive
 appears only after every check passes.
 
-Each platform is an `@apple_support//platforms` label: `ios_arm64`,
+Each platform is a `@rules_dx//apple` label: `ios_arm64`,
 `ios_sim_arm64`, or `ios_x86_64`. The framework needs `ios_arm64` and at
 least one simulator platform.
 
@@ -494,7 +487,7 @@ apple_dynamic_xcframework_import(
 apple_ios_app(
     name = "till_app",
     srcs = ["main.m"],
-    platform = "@apple_support//platforms:ios_sim_arm64",
+    platform = "@rules_dx//apple:ios_sim_arm64",
     bundle_id = "com.example.till",
     version = "2.0",
     deployment = "17.0",

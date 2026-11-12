@@ -10,6 +10,8 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
+var uvManifestFile = common.ManifestName("uv")
+
 const (
 	ruffKind   = "ruff_config"
 	ruffName   = "ruff_config"
@@ -33,7 +35,7 @@ func ruffFile(dir string) string {
 			return name
 		}
 	}
-	content, err := os.ReadFile(filepath.Join(dir, "pyproject.toml"))
+	content, err := os.ReadFile(filepath.Join(dir, uvManifestFile))
 	if err != nil {
 		return ""
 	}
@@ -44,7 +46,7 @@ func ruffFile(dir string) string {
 		return ""
 	}
 	if _, ok := raw.Tool["ruff"]; ok {
-		return "pyproject.toml"
+		return uvManifestFile
 	}
 	return ""
 }

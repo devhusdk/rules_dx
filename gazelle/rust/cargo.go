@@ -744,7 +744,7 @@ func (m *cargoManifest) inheritWorkspacePackage(rootRel string, root *cargoManif
 			continue
 		}
 		if field.from == "" {
-			return fmt.Errorf("package.%s sets workspace = true but %s has no [workspace.package] %s", field.name, path.Join(rootRel, "Cargo.toml"), field.name)
+			return fmt.Errorf("package.%s sets workspace = true but %s has no [workspace.package] %s", field.name, path.Join(rootRel, cargoManifestFile), field.name)
 		}
 		*field.to = field.from
 	}
@@ -765,7 +765,7 @@ func (m *cargoManifest) inheritWorkspaceDeps(memberRel, rootRel string, root *ca
 			}
 			inherited, ok := root.workspaceDeps[key]
 			if !ok {
-				return fmt.Errorf("dependency %q sets workspace = true but %s has no [workspace.dependencies] entry", dep.label, path.Join(rootRel, "Cargo.toml"))
+				return fmt.Errorf("dependency %q sets workspace = true but %s has no [workspace.dependencies] entry", dep.label, path.Join(rootRel, cargoManifestFile))
 			}
 			dep.external = inherited.external
 			dep.label = inherited.label

@@ -5,17 +5,19 @@ import (
 	"strings"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
-)
+
+	"github.com/devhusdk/rules_dx/gazelle/common")
 
 const (
 	AppKind      = "elixir_app"
 	TestKind     = "elixir_test"
-	MixFile      = "mix.exs"
 	LibDir       = "lib"
 	TestDir      = "test"
 	TestHelper   = "test_helper.exs"
 	languageName = "elixir"
 )
+
+var MixFile = common.ManifestName("hex")
 
 // IsLibSource reports whether src is a lib/**/*.ex source of the app.
 func IsLibSource(src string) bool {
@@ -35,7 +37,7 @@ func isLocal(src string) bool {
 	return src != "" && !strings.ContainsAny(src, ":\\") && !strings.HasPrefix(src, "/") && !strings.Contains("/"+src+"/", "/../")
 }
 
-// Mix holds the literal project facts dx generate reads from mix.exs.
+// Mix holds the literal project facts dx generate reads from the manifest.
 type Mix struct {
 	App      string
 	Version  string
@@ -44,7 +46,7 @@ type Mix struct {
 }
 
 // ParseMix reads app:, version: (a literal or a literal @attribute), mod: and
-// apps_path: from mix.exs. Comments, docs and strings never match, and
+// apps_path: from the manifest. Comments, docs and strings never match, and
 // anything that is not a literal is left empty.
 func ParseMix(content []byte) Mix {
 	toks := lex(string(content))
@@ -94,7 +96,7 @@ func ParseMix(content []byte) Mix {
 }
 
 // Owns reports whether generation could have produced r, so a stale r may be
-// removed. The generator asks only in directories that hold a mix.exs.
+// removed. The generator asks only in directories that hold a manifest.
 func Owns(r *rule.Rule) bool {
 	srcs := r.AttrStrings("srcs")
 	if len(srcs) == 0 {

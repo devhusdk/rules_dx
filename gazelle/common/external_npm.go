@@ -8,6 +8,8 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
+var npmLockFile = LockName("npm")
+
 // npmManifest holds the packages a package manifest declares.
 type npmManifest struct {
 	packages map[string]bool
@@ -18,7 +20,7 @@ type npmManifest struct {
 // npmBelow lets a directory feed npm when it holds a pnpm lock or is a
 // workspace importer of one.
 func npmBelow(root, rel string) bool {
-	return hasFile(root, path.Join(rel, "pnpm-lock.yaml")) || IsPnpmWorkspaceMember(root, rel)
+	return hasFile(root, path.Join(rel, npmLockFile)) || IsPnpmWorkspaceMember(root, rel)
 }
 
 func placeNpmManifest(m externalManifest, rel string) externalManifest {

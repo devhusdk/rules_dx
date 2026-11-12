@@ -19,6 +19,8 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
+var cargoManifestFile = common.ManifestName("cargo")
+
 const (
 	languageName  = "rust"
 	libraryKind   = "rust_library"
@@ -251,7 +253,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 	}
 	files = withoutExcluded(files, args)
 	for _, name := range args.RegularFiles {
-		if name == "Cargo.toml" {
+		if name == cargoManifestFile {
 			return l.generateCargo(args, files)
 		}
 	}

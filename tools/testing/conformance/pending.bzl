@@ -109,6 +109,8 @@ dotnet runfiles_test *
 elixir cross_test *
 elixir lock_test *
 elixir runfiles_test *
+erlang coverage_test windows_arm64
+erlang coverage_test windows_x86_64
 erlang cross_test *
 erlang lock_test *
 erlang runfiles_test *
@@ -193,7 +195,6 @@ perl cross_test *
 perl lock_test *
 perl runfiles_test *
 php coverage_test macos_arm64
-php coverage_test windows_arm64
 php coverage_test windows_x86_64
 php cross_test *
 php lock_test *

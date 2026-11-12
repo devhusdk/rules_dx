@@ -1144,7 +1144,24 @@ fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
         .ok()
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
+    use std::os::windows::process::CommandExt;
+    const DETACHED_PROCESS: u32 = 0x0000_0008;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+    let workspaces = home.join(WORKSPACES);
+    Command::new(launcher)
+        .env(REAP_ENV, owner.to_string())
+        .arg(&workspaces)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
+        .spawn()
+        .ok()
+}
+
+#[cfg(not(any(unix, windows)))]
 fn spawn_reaper(_launcher: &Path, _owner: u32, _home: &Path) -> Option<Child> {
     None
 }
@@ -2799,6 +2816,46 @@ mod portable_tests {
                 "{name} is read by from_parts but the root .bazelrc has no `test --test_env={name}`"
             );
         }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn the_reaper_stops_servers_after_the_owner_is_killed() {
+        let scratch = tempfile::tempdir().expect("tempdir");
+        let home = scratch.path().to_path_buf();
+        let workspaces = home.join(WORKSPACES);
+        std::fs::create_dir_all(&workspaces).expect("mkdir");
+        let flag = format!(
+            "--workspace_directory={}",
+            workspaces.join("consumer").display()
+        );
+        let mut owner = probe_command(&["sleep", "60"]).spawn().expect("owner");
+        let mut stray = probe_command(&["sleep", "60", &flag])
+            .spawn()
+            .expect("stray");
+        let pid = stray.id();
+        let wait_until = |what: &str, done: &dyn Fn() -> bool| {
+            let started = Instant::now();
+            while !done() {
+                assert!(
+                    started.elapsed() < Duration::from_secs(30),
+                    "timed out waiting for {what}"
+                );
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        };
+        wait_until("the stand-in", &|| {
+            servers_in_workspaces(&workspaces).contains(&pid)
+        });
+        let mut reaper = spawn_reaper(&runfile("DX_TEST_NESTED_BAZEL_SHIM"), owner.id(), &home)
+            .expect("reaper");
+        std::thread::sleep(Duration::from_millis(1500));
+        assert!(alive(pid));
+        owner.kill().expect("kill owner");
+        let _ = owner.wait();
+        wait_until("the reaper to stop the stand-in", &|| !alive(pid));
+        let _ = stray.wait();
+        let _ = reaper.wait();
     }
 
     #[cfg(windows)]

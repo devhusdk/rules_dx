@@ -27,6 +27,7 @@ Each language owns one top-level directory.
 
 - `defs.bzl` is the only file users load.
 - `extensions.bzl` holds the public module extensions.
+- A module extension is named after its language, such as `qt` or `ocaml`. An extension that serves one sub-feature is named after that feature, such as `cuda_license` or `zig_deps`.
 - `private/` holds everything else. Users never load from it.
 - `tests/` holds the language tests and fixtures. Starlark test suites and `testdata/` live there, instantiated from `tests/BUILD.bazel`, not in `private/`.
 - New language code goes in `<lang>/`.

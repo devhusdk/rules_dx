@@ -1,0 +1,11 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -87,7 +87,7 @@
+         python_version = python_version,
+         requirements_lock = "//python:requirements.txt",
+     )
+-    for python_version in PYTHON_VERSIONS
++    for python_version in PYTHON_VERSIONS if python_version not in ("3.9", "3.10")
+ ]
+ 
+ use_repo(pip, "pgv_pip_deps")

@@ -62,7 +62,6 @@ const PACKAGES: &[&str] = &[
     "examples/shared-rust",
     "flutter/private",
     "fortran/private",
-    "fortran/private/tools",
     "go/private",
     "haskell/private",
     "helm/private",

@@ -16,7 +16,7 @@ common --registry=https://bcr.bazel.build
 common --incompatible_exclude_starlark_flags_from_exec_config
 common --check_direct_dependencies=error
 common --experimental_repository_downloader_retries=5
-common --downloader_config=%workspace%/tools/workspace/downloader.cfg
+common --downloader_config=tools/workspace/downloader.cfg
 common --experimental_remote_cache_eviction_retries=5
 
 startup:macos --host_jvm_args=-XX:MaxRAMPercentage=50

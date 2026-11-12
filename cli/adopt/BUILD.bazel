@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
@@ -55,10 +55,8 @@ rust_library(
         "//tools/docs/support_matrix:__pkg__",
         "//tools/testing:__pkg__",
     ],
-    deps = all_crate_deps(
-        package_name = "cli/dx_adopt",
-        normal = True,
-    ) + [
+    # keep
+    deps = [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/dx_config",
         "//cli/ecosystems:dx_ecosystems",
@@ -73,7 +71,12 @@ rust_library(
         "//cli/process:dx_process",
         "//core/modules:dx_versions",
         "//tools/bazelrc:dx_preset",
+        "@crates//:notify",
+        "@crates//:notify-debouncer-mini",
+        "@crates//:semver",
         "@crates//:serde_json",
+        "@crates//:thiserror",
+        "@crates//:toml",
     ],
 )
 
@@ -149,11 +152,8 @@ rust_test(
         "//tools/ci:__pkg__",
         "//tools/docs/support_matrix:__pkg__",
     ],
-    deps = all_crate_deps(
-        package_name = "cli/dx_adopt",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    # keep
+    deps = [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/dx_config",
@@ -171,7 +171,12 @@ rust_test(
         "//core/modules:dx_versions",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
+        "@crates//:notify",
+        "@crates//:notify-debouncer-mini",
+        "@crates//:semver",
         "@crates//:serde_json",
+        "@crates//:thiserror",
+        "@crates//:toml",
     ],
 )
 

@@ -115,17 +115,7 @@ fn parse_rust_diagnostics(
                     .find(|span| files.contains(&span.file_name.as_str()))
             })
         else {
-            if diagnostic.spans.is_empty() {
-                skipped.push(diagnostic.message);
-            } else {
-                return Err(ParseError::Shape {
-                    tool,
-                    detail: format!(
-                        "diagnostic outside the checked files: {}",
-                        diagnostic.message
-                    ),
-                });
-            }
+            skipped.push(diagnostic.message);
             continue;
         };
         if span.line_start == 0
@@ -427,7 +417,25 @@ mod tests {
             &span("/other.rs", 1, 1, true),
             "",
         );
-        assert!(parse_clippy(outside.as_bytes(), Some(0), &["/s/x.rs"]).is_err());
+        assert!(
+            parse_clippy(outside.as_bytes(), Some(0), &["/s/x.rs"])
+                .expect("parsed")
+                .is_empty()
+        );
+        let err = parse_clippy(outside.as_bytes(), Some(1), &["/s/x.rs"])
+            .expect_err("unplaced failure");
+        assert!(err.to_string().contains("elsewhere"));
+        let config = diagnostic(
+            "\"`dx_process::startup_argv_with` does not refer to a reachable function\"",
+            "warning",
+            &span("/s/clippy.toml", 10, 3, true),
+            "",
+        );
+        let lint = diagnostic("\"lint\"", "warning", &span("/s/x.rs", 1, 1, true), "");
+        let mixed = format!("{config}\n{lint}");
+        let findings = parse_clippy(mixed.as_bytes(), Some(1), &["/s/x.rs"]).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, "/s/x.rs");
         let zero = diagnostic("\"zero\"", "warning", &span("/s/x.rs", 1, 0, true), "");
         assert!(parse_clippy(zero.as_bytes(), Some(0), &["/s/x.rs"]).is_err());
         let noted = diagnostic("\"noted\"", "note", &span("/s/x.rs", 1, 1, true), "");

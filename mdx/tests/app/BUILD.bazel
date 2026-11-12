@@ -1,13 +1,16 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//javascript:defs.bzl", "javascript_test")
 load("//cli/web_server:server.bzl", "javascript_web_server")
-load("//mdx:defs.bzl", "mdx_build", "mdx_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//javascript:defs.bzl", "javascript_test")
+load("//mdx:defs.bzl", "mdx_build", "mdx_library")
+load("//tools/testing:web_hello.bzl", "dx_web_app_logo")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
+
+dx_web_app_logo()
 
 _DEPS = [
     "//:node_modules/clsx",
@@ -22,7 +25,10 @@ mdx_library(
 
 mdx_build(
     name = "site",
-    srcs = glob(["src/**"]) + ["index.html"],
+    srcs = glob(["src/**"]) + [
+        "index.html",
+        ":logo",
+    ],
     config = "vite.config.mjs",
     node_modules = "//:node_modules",
     package_json = "package.json",

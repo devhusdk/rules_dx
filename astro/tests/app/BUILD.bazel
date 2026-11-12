@@ -1,15 +1,18 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//astro:defs.bzl", "astro_build", "astro_library")
-load("//javascript:defs.bzl", "javascript_test")
 load("//cli/web_server:server.bzl", "javascript_web_server")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//javascript:defs.bzl", "javascript_test")
+load("//tools/testing:web_hello.bzl", "dx_web_app_logo")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-_SRCS = glob(["src/**"])
+_SRCS = glob(["src/**"]) + [":logo"]
+
+dx_web_app_logo()
 
 _DEPS = [
     "//:node_modules/@astrojs/preact",

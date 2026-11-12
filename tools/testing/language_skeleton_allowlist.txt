@@ -497,7 +497,6 @@ register-label cc/private/toolchains
 register-label core/quality
 register-label java/private/toolchain
 register-label kotlin/private/toolchain
-register-label msix/private/toolchain
 register-label scala/private/toolchain
 register-label tools/platforms
 test-location android/private/library/BUILD.bazel

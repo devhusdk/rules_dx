@@ -195,7 +195,7 @@ is, nothing is downloaded and packaging fails with
 `the Windows SDK Build Tools license (https://aka.ms/WinSDKLicenseURL) is not accepted`.
 
 ```python
-msix_tools = use_extension("@rules_dx//msix:extensions.bzl", "msix_tools")
+msix = use_extension("@rules_dx//msix:extensions.bzl", "msix")
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
 dx_licenses.accept(ids = ["windows-sdk-buildtools"])
 ```

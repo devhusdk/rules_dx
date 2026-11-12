@@ -3061,13 +3061,13 @@ _hub_fixture_repo(
     tool = "taplo",
 )
 
-appimage_tools = use_extension("//appimage:extensions.bzl", "appimage_tools")
-use_repo(appimage_tools, "dx_appimage_tools")
+appimage = use_extension("//appimage:extensions.bzl", "appimage")
+use_repo(appimage, "dx_appimage_tools")
 
-msix_tools = use_extension("//msix:extensions.bzl", "msix_tools")
-use_repo(msix_tools, "dx_msix_tools")
+msix = use_extension("//msix:extensions.bzl", "msix")
+use_repo(msix, "dx_msix_toolchains", "dx_msix_tools")
 
-register_toolchains("//msix/private/toolchain:all")
+register_toolchains("@dx_msix_toolchains//:all")
 
 windows_msvc_runtime = use_extension("@windows_support//windows:extensions.bzl", "msvc_runtime")
 use_repo(windows_msvc_runtime, "msvc_runtime")

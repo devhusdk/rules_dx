@@ -7,7 +7,7 @@ mod gcov;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{self, Command, Stdio};
+use std::process::{Command, Stdio};
 
 macro_rules! debug_log {
     ($($arg:tt)*) => {
@@ -35,13 +35,13 @@ impl Context {
         }
     }
 
-    fn test_binary(&self) -> PathBuf {
-        let binary = required("TEST_BINARY");
-        match self.runfiles_dir {
+    fn test_binary(&self) -> Result<PathBuf, String> {
+        let binary = required("TEST_BINARY")?;
+        Ok(match self.runfiles_dir {
             Some(ref rd) => {
-                let in_runfiles = rd.join(required("TEST_WORKSPACE")).join(&binary);
+                let in_runfiles = rd.join(required("TEST_WORKSPACE")?).join(&binary);
                 if in_runfiles.exists() {
-                    return in_runfiles;
+                    return Ok(in_runfiles);
                 }
                 let configuration: PathBuf = rd
                     .strip_prefix(&self.execroot)
@@ -59,17 +59,17 @@ impl Context {
                 let config: PathBuf = rel.components().take(2).collect();
                 self.execroot.join(config).join("bin").join(binary)
             }
-        }
+        })
     }
 
-    fn manifest_objects(&self) -> Vec<PathBuf> {
+    fn manifest_objects(&self) -> Result<Vec<PathBuf>, String> {
         let Ok(manifest) = env::var("COVERAGE_MANIFEST") else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
-        let text = read_text(&collect::resolve(&self.execroot, &manifest));
+        let text = read_text(&collect::resolve(&self.execroot, &manifest))?;
         let mut objects: Vec<PathBuf> = Vec::new();
         for list in collect::runtime_object_lists(&text) {
-            let list_text = read_text(&collect::resolve(&self.execroot, &list));
+            let list_text = read_text(&collect::resolve(&self.execroot, &list))?;
             for line in collect::object_lines(&list_text) {
                 let Some(object) = self.object(&line) else {
                     debug_log!("Skipping missing object {}", line);
@@ -80,7 +80,7 @@ impl Context {
                 }
             }
         }
-        objects
+        Ok(objects)
     }
 
     fn object(&self, line: &str) -> Option<PathBuf> {
@@ -94,18 +94,12 @@ impl Context {
     }
 }
 
-fn required(name: &str) -> String {
-    env::var(name).unwrap_or_else(|_| fail(&format!("{name} is not set")))
+fn required(name: &str) -> Result<String, String> {
+    env::var(name).map_err(|_| format!("{name} is not set"))
 }
 
-fn fail(message: &str) -> ! {
-    eprintln!("dx coverage collector: {message}");
-    process::exit(1);
-}
-
-fn read_text(path: &Path) -> String {
-    fs::read_to_string(path)
-        .unwrap_or_else(|e| fail(&format!("cannot read {}: {e}", path.display())))
+fn read_text(path: &Path) -> Result<String, String> {
+    fs::read_to_string(path).map_err(|e| format!("cannot read {}: {e}", path.display()))
 }
 
 fn merge(profdata: &Path, inputs: &[PathBuf], output: &Path) -> Result<(), String> {
@@ -126,7 +120,12 @@ fn merge(profdata: &Path, inputs: &[PathBuf], output: &Path) -> Result<(), Strin
     }
 }
 
-fn export(ctx: &Context, cov: &Path, objects: &[PathBuf], profile: &Path) -> String {
+fn export(
+    ctx: &Context,
+    cov: &Path,
+    objects: &[PathBuf],
+    profile: &Path,
+) -> Result<String, String> {
     let mut cmd = Command::new(cov);
     cmd.args(collect::export_args(profile, &ctx.execroot, objects))
         .stdout(Stdio::piped())
@@ -134,29 +133,30 @@ fn export(ctx: &Context, cov: &Path, objects: &[PathBuf], profile: &Path) -> Str
     debug_log!("Spawning {:#?}", cmd);
     let out = cmd
         .output()
-        .unwrap_or_else(|e| fail(&format!("cannot run {}: {e}", cov.display())));
+        .map_err(|e| format!("cannot run {}: {e}", cov.display()))?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr);
         if stderr.contains("no coverage data found") {
             eprintln!("dx coverage collector: llvm-cov found no coverage data in {objects:?}");
-            return String::new();
+            return Ok(String::new());
         }
-        fail(&format!("llvm-cov export failed:\n{stderr}"));
+        return Err(format!("llvm-cov export failed:\n{stderr}"));
     }
     let report =
-        String::from_utf8(out.stdout).unwrap_or_else(|_| fail("llvm-cov export wrote non-UTF-8"));
+        String::from_utf8(out.stdout).map_err(|_| "llvm-cov export wrote non-UTF-8".to_owned())?;
     let report = collect::rewrite_paths(&report, &ctx.execroot);
     for source in report.lines().filter(|line| line.starts_with("SF:")) {
         debug_log!("{source}");
     }
-    report
+    Ok(report)
 }
 
 // LCOV_EXCL_START - reason: process orchestration over env and the gcc gcov tool, issue: 5889
-fn collect_gcov(ctx: &Context, gcov: &str) -> String {
-    let manifest = env::var("COVERAGE_MANIFEST")
-        .map(|m| read_text(&collect::resolve(&ctx.execroot, &m)))
-        .unwrap_or_default();
+fn collect_gcov(ctx: &Context, gcov: &str) -> Result<String, String> {
+    let manifest = match env::var("COVERAGE_MANIFEST") {
+        Ok(m) => read_text(&collect::resolve(&ctx.execroot, &m))?,
+        Err(_) => String::new(),
+    };
     let notes = gcov::gcno_by_key(&manifest);
     let mut gcdas = Vec::new();
     gcov::gcda_files(&ctx.coverage_dir, &mut gcdas);
@@ -172,28 +172,26 @@ fn collect_gcov(ctx: &Context, gcov: &str) -> String {
         };
         let dir = gcda.parent().unwrap_or(&ctx.coverage_dir);
         let copied = gcda.with_extension("gcno");
-        fs::copy(&note, &copied)
-            .unwrap_or_else(|e| fail(&format!("cannot copy {}: {e}", note.display())));
+        fs::copy(&note, &copied).map_err(|e| format!("cannot copy {}: {e}", note.display()))?;
         // The toolchain gcov wrapper drops stdout while COVERAGE_DIR is set.
         let out = Command::new(&tool)
             .args(gcov::gcov_args(dir, &gcda))
             .current_dir(&ctx.execroot)
             .env_remove("COVERAGE_DIR")
             .output()
-            .unwrap_or_else(|e| fail(&format!("cannot run {}: {e}", tool.display())));
+            .map_err(|e| format!("cannot run {}: {e}", tool.display()))?;
         if !out.status.success() {
-            fail(&format!(
+            return Err(format!(
                 "gcov failed:\n{}",
                 String::from_utf8_lossy(&out.stderr)
             ));
         }
         if let Some(problem) = gcov::gcov_problem(&String::from_utf8_lossy(&out.stderr)) {
-            fail(&format!("gcov rejected {}: {problem}", gcda.display()));
+            return Err(format!("gcov rejected {}: {problem}", gcda.display()));
         }
-        gcov::add_gcov_json(&mut report, &String::from_utf8_lossy(&out.stdout))
-            .unwrap_or_else(|e| fail(&e));
+        gcov::add_gcov_json(&mut report, &String::from_utf8_lossy(&out.stdout))?;
     }
-    gcov::render(&report)
+    Ok(gcov::render(&report))
 }
 
 // LCOV_EXCL_STOP
@@ -201,8 +199,18 @@ fn collect_gcov(ctx: &Context, gcov: &str) -> String {
 // LCOV_EXCL_START - reason: process orchestration over env and external llvm tools, covered by native_coverage_test, issue: 3460, policy: docs/cli/commands/build-test-coverage.md
 /// Collects coverage for the test that just ran and returns the exit code.
 pub fn run_process(_args: Vec<String>) -> i32 {
-    let coverage_dir = PathBuf::from(required("COVERAGE_DIR"));
-    let execroot = PathBuf::from(required("ROOT"));
+    match collect_all() {
+        Ok(()) => 0,
+        Err(message) => {
+            eprintln!("dx coverage collector: {message}");
+            1
+        }
+    }
+}
+
+fn collect_all() -> Result<(), String> {
+    let coverage_dir = PathBuf::from(required("COVERAGE_DIR")?);
+    let execroot = PathBuf::from(required("ROOT")?);
     let runfiles_dir = env::var("RUNFILES_DIR").ok().map(|d| {
         let p = PathBuf::from(d);
         if p.is_absolute() { p } else { execroot.join(p) }
@@ -221,19 +229,17 @@ pub fn run_process(_args: Vec<String>) -> i32 {
         if let Some(kept) =
             collect::preserved_report(&reported, &ctx.coverage_dir).filter(|_| written)
         {
-            fs::copy(&reported, &kept)
-                .unwrap_or_else(|e| fail(&format!("cannot keep the test report: {e}")));
+            fs::copy(&reported, &kept).map_err(|e| format!("cannot keep the test report: {e}"))?;
         }
     }
 
     if let Ok(gcov) = env::var("GCOV") {
-        let report = collect_gcov(&ctx, &gcov);
-        fs::write(&output, report).unwrap_or_else(|e| fail(&format!("cannot write report: {e}")));
-        return 0;
+        let report = collect_gcov(&ctx, &gcov)?;
+        return fs::write(&output, report).map_err(|e| format!("cannot write report: {e}"));
     }
 
     let mut profraw: Vec<PathBuf> = fs::read_dir(&ctx.coverage_dir)
-        .unwrap_or_else(|e| fail(&format!("cannot list COVERAGE_DIR: {e}")))
+        .map_err(|e| format!("cannot list COVERAGE_DIR: {e}"))?
         .flatten()
         .map(|entry| entry.path())
         .filter(|path| path.extension().is_some_and(|ext| ext == "profraw"))
@@ -244,41 +250,40 @@ pub fn run_process(_args: Vec<String>) -> i32 {
             "dx coverage collector: no .profraw files in {}; writing an empty report",
             ctx.coverage_dir.display()
         );
-        fs::write(&output, "").unwrap_or_else(|e| fail(&format!("cannot write report: {e}")));
-        return 0;
+        return fs::write(&output, "").map_err(|e| format!("cannot write report: {e}"));
     }
 
-    let profdata = ctx.tool(&required("LLVM_PROFDATA"));
-    let cov = ctx.tool(&required("LLVM_COV"));
-    let mut objects = ctx.manifest_objects();
+    let profdata = ctx.tool(&required("LLVM_PROFDATA")?);
+    let cov = ctx.tool(&required("LLVM_COV")?);
+    let mut objects = ctx.manifest_objects()?;
     if env::var("RUST_LLVM_COV").is_ok()
         || env::var("DX_COVERAGE_CLANG_OBJECTS").as_deref() == Ok("test_binary")
     {
-        let binary = ctx.test_binary();
+        let binary = ctx.test_binary()?;
         if !objects.contains(&binary) {
             objects.push(binary);
         }
     }
 
     let merged = ctx.coverage_dir.join("_dx_merged.profdata");
-    merge(&profdata, &profraw, &merged).unwrap_or_else(|stderr| {
-        fail(&format!(
+    merge(&profdata, &profraw, &merged).map_err(|stderr| {
+        format!(
             "llvm-profdata merge failed ({}):\n{stderr}",
             profdata.display()
-        ))
-    });
+        )
+    })?;
     let report = if objects.is_empty() {
         eprintln!(
             "dx coverage collector: no instrumented objects to export; writing an empty report"
         );
         String::new()
     } else {
-        export(&ctx, &cov, &objects, &merged)
+        export(&ctx, &cov, &objects, &merged)?
     };
 
     debug_log!("Writing output to {}", output.display());
-    fs::write(&output, report).unwrap_or_else(|e| fail(&format!("cannot write report: {e}")));
+    fs::write(&output, report).map_err(|e| format!("cannot write report: {e}"))?;
     fs::remove_file(&merged).ok();
-    0
+    Ok(())
 }
 // LCOV_EXCL_STOP

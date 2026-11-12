@@ -39,6 +39,7 @@ build --@rules_rust//rust/settings:clippy.toml=//tools/workspace:clippy.toml
 common --@rules_dx//config:clippy_flag=-Dclippy::unwrap_used
 common --@rules_dx//config:clippy_flag=-Dclippy::expect_used
 common --@rules_dx//config:clippy_flag=-Dclippy::unreachable
+common --@rules_dx//config:clippy_flag=-Dclippy::exit
 common --@rules_dx//config:clippy_flag=-Dclippy::todo
 common --@rules_dx//config:clippy_flag=-Dclippy::unimplemented
 common --@rules_dx//config:clippy_flag=-Dclippy::get_unwrap

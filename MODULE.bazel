@@ -1486,17 +1486,9 @@ register_toolchains("//core/quality:busybox_sh_linux_x86_64")
 
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.5.0")
-
-# BCR lua overlay as a patch (#1375)
-archive_override(
+single_version_override(
     module_name = "lua",
-    integrity = "sha256-V8zDK7vQBcq3W8xSREBSU1r2kXiduiuQFtXFBkDWiz0=",
-    patch_strip = 1,
-    patches = ["//patches/lua:overlay.patch"],
-    strip_prefix = "lua-5.5.0",
-    urls = [
-        "https://www.lua.org/ftp/lua-5.5.0.tar.gz",
-    ],
+    version = "5.5.0",
 )
 
 lua = use_extension("//lua:extensions.bzl", "lua")

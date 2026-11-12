@@ -143,7 +143,6 @@ helm lock_test *
 helm pass_test *
 helm runfiles_test *
 java cross_test *
-java lock_test *
 javascript cross_test *
 javascript lock_test *
 javascript runfiles_test *
@@ -151,8 +150,6 @@ julia cross_test *
 julia lock_test *
 julia runfiles_test *
 kotlin cross_test *
-kotlin lock_test *
-kotlin runfiles_test *
 kubernetes build_test *
 kubernetes coverage_test *
 kubernetes cross_test *

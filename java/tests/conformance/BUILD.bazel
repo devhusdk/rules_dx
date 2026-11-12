@@ -52,6 +52,13 @@ java_binary(
     deps = ["@rules_java//java/runfiles"],
 )
 
+java_binary(
+    name = "lock_hello",
+    srcs = ["LockMain.java"],
+    main_class = "conformance.LockMain",
+    deps = ["@maven//:junit_junit"],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -62,6 +69,15 @@ dx_conformance_suite(
     failing_pattern = "{case}(conformance.FailTest)",
     failing_test = ":fail_subject_test",
     lang = "java",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "java",
+        "expected": "hello lock",
+        "lockfile": "//third_party/jvm:maven_install.json",
+        "manifest": "jvm_deps.toml",
+        "package": "junit:junit",
+        "stale": "maven_install.stale.json",
+    },
     passing_test = ":pass_subject_test",
     runfiles = {
         "binary": ":runfiles_hello",
@@ -75,4 +91,11 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["jvm_deps.toml"],
 )

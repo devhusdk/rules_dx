@@ -38,6 +38,21 @@ kotlin_test(
     deps = [":conformance"],
 )
 
+kotlin_binary(
+    name = "runfiles_hello",
+    srcs = ["RunfilesMain.kt"],
+    data = ["data.txt"],
+    main_class = "conformance.RunfilesMainKt",
+    deps = ["@rules_java//java/runfiles"],
+)
+
+kotlin_binary(
+    name = "lock_hello",
+    srcs = ["LockMain.kt"],
+    main_class = "conformance.LockMainKt",
+    deps = ["@maven//:junit_junit"],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -48,7 +63,21 @@ dx_conformance_suite(
     failing_pattern = "AssertionError: {case}",
     failing_test = ":fail_subject_test",
     lang = "kotlin",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "kotlin",
+        "expected": "hello lock",
+        "lockfile": "//third_party/jvm:maven_install.json",
+        "manifest": "jvm_deps.toml",
+        "package": "junit:junit",
+        "stale": "maven_install.stale.json",
+    },
     passing_test = ":pass_subject_test",
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+    },
 )
 
 real_source_target(
@@ -56,4 +85,11 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["jvm_deps.toml"],
 )

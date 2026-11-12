@@ -2,10 +2,9 @@
 
 use dx_error::DxError;
 
-use super::{Candidate, Fetch, Findings, LookupError, numeric_cmp, release_cmp, wanted};
+use super::{Fetch, Findings, Latest, compare_declared, numeric_cmp, release_cmp};
 use crate::edit::request::plans::paket_tokens;
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://api.nuget.org/v3-flatcontainer";
 
@@ -18,50 +17,22 @@ pub fn outdated(
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
-    let mut found = Findings::default();
-    let mut declared: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for text in files {
-        for line in text.lines() {
-            if let Some((id, current)) = declaration(line) {
-                let versions = declared.entry(id).or_default();
-                if !versions.contains(&current) {
-                    versions.push(current);
-                }
-            }
-        }
-    }
-    for (id, versions) in declared {
-        if !wanted(only, &id) {
-            continue;
-        }
+    let declared = files
+        .iter()
+        .flat_map(|text| text.lines())
+        .filter_map(declaration);
+    compare_declared(set, declared, only, release_cmp, |id| {
         let url = format!("{base}/{}/index.json", id.to_ascii_lowercase());
-        let latest = match fetch.get(&url).and_then(|body| newest(&body, prereleases)) {
-            Ok(latest) => latest,
-            Err(reason) => {
-                found.errors.push(LookupError {
-                    set: set.to_owned(),
-                    package: id,
-                    reason: reason.to_string(),
-                });
-                continue;
-            }
-        };
-        for current in versions {
-            if release_cmp(&latest, &current) == Ordering::Greater {
-                found.candidates.push(Candidate {
-                    set: set.to_owned(),
-                    package: id.clone(),
-                    current,
-                    latest: latest.clone(),
-                    published: None,
-                    prerelease: latest.contains('-'),
-                    repo: None,
-                    tags: None,
-                });
-            }
-        }
-    }
-    found
+        let latest = fetch
+            .get(&url)
+            .and_then(|body| newest(&body, prereleases))?;
+        Ok(Some(Latest {
+            prerelease: latest.contains('-'),
+            version: latest,
+            published: None,
+            repo: None,
+        }))
+    })
 }
 
 fn declaration(line: &str) -> Option<(String, String)> {
@@ -106,6 +77,7 @@ fn newest(body: &str, prereleases: bool) -> Result<String, DxError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::discover::Candidate;
 
     const PAKET: &str = "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json ~> 12.0 >= 11.0.1\nnuget Fresh 2.0.0\nnuget Gone 1.0.0\nnuget Unversioned\ngithub owner/repo\n# nuget Commented 1.0\n";
 

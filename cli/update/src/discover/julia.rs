@@ -2,9 +2,8 @@
 
 use dx_error::DxError;
 
-use super::{Candidate, Fetch, Findings, LookupError, release_cmp, wanted};
+use super::{Fetch, Findings, Latest, compare_declared, release_cmp};
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://raw.githubusercontent.com/JuliaRegistries/General/master";
 
@@ -18,52 +17,24 @@ pub fn outdated(
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
-    let mut found = Findings::default();
     let direct = direct_deps(projects);
-    let mut locked: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for text in manifests {
-        for (name, version) in locked_versions(text) {
-            if direct.contains(&name) {
-                let versions = locked.entry(name).or_default();
-                if !versions.contains(&version) {
-                    versions.push(version);
-                }
-            }
-        }
-    }
-    for (name, versions) in locked {
-        if !wanted(only, &name) {
-            continue;
-        }
+    let declared = manifests
+        .iter()
+        .flat_map(|text| locked_versions(text))
+        .filter(|(name, _)| direct.contains(name));
+    compare_declared(set, declared, only, release_cmp, |name| {
         let first = name.chars().next().unwrap_or('_');
         let url = format!("{base}/{first}/{name}/Versions.toml");
-        let latest = match fetch.get(&url).and_then(|body| newest(&body, prereleases)) {
-            Ok(latest) => latest,
-            Err(reason) => {
-                found.errors.push(LookupError {
-                    set: set.to_owned(),
-                    package: name,
-                    reason: reason.to_string(),
-                });
-                continue;
-            }
-        };
-        for current in versions {
-            if release_cmp(&latest, &current) == Ordering::Greater {
-                found.candidates.push(Candidate {
-                    set: set.to_owned(),
-                    package: name.clone(),
-                    current,
-                    latest: latest.clone(),
-                    published: None,
-                    prerelease: latest.contains('-'),
-                    repo: None,
-                    tags: None,
-                });
-            }
-        }
-    }
-    found
+        let latest = fetch
+            .get(&url)
+            .and_then(|body| newest(&body, prereleases))?;
+        Ok(Some(Latest {
+            prerelease: latest.contains('-'),
+            version: latest,
+            published: None,
+            repo: None,
+        }))
+    })
 }
 
 fn direct_deps(projects: &[String]) -> Vec<String> {

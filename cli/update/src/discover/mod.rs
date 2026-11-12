@@ -108,6 +108,66 @@ pub fn wanted(only: &[String], package: &str) -> bool {
     only.is_empty() || only.iter().any(|name| name == package)
 }
 
+/// The newest release of one package.
+pub(crate) struct Latest {
+    pub version: String,
+    pub published: Option<String>,
+    pub prerelease: bool,
+    pub repo: Option<String>,
+}
+
+/// Reports each declared `(package, version)` whose newest release is greater.
+/// `lookup` returns `Ok(None)` to skip a package without an error.
+pub(crate) fn compare_declared(
+    set: &str,
+    declared: impl IntoIterator<Item = (String, String)>,
+    only: &[String],
+    newer: fn(&str, &str) -> std::cmp::Ordering,
+    mut lookup: impl FnMut(&str) -> Result<Option<Latest>, DxError>,
+) -> Findings {
+    let mut found = Findings::default();
+    let mut packages: std::collections::BTreeMap<String, Vec<String>> =
+        std::collections::BTreeMap::new();
+    for (package, version) in declared {
+        let versions = packages.entry(package).or_default();
+        if !versions.contains(&version) {
+            versions.push(version);
+        }
+    }
+    for (package, versions) in packages {
+        if !wanted(only, &package) {
+            continue;
+        }
+        let latest = match lookup(&package) {
+            Ok(Some(latest)) => latest,
+            Ok(None) => continue,
+            Err(reason) => {
+                found.errors.push(LookupError {
+                    set: set.to_owned(),
+                    package,
+                    reason: reason.to_string(),
+                });
+                continue;
+            }
+        };
+        for current in versions {
+            if newer(&latest.version, &current) == std::cmp::Ordering::Greater {
+                found.candidates.push(Candidate {
+                    set: set.to_owned(),
+                    package: package.clone(),
+                    current,
+                    latest: latest.version.clone(),
+                    published: latest.published.clone(),
+                    prerelease: latest.prerelease,
+                    repo: latest.repo.clone(),
+                    tags: None,
+                });
+            }
+        }
+    }
+    found
+}
+
 /// The registry a set's packages come from.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Registry {
@@ -250,7 +310,9 @@ fn suffix_runs(suffix: &str) -> Vec<SuffixRun> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Registry, github_repo, numeric_cmp, release_cmp};
+    use super::Findings;
+    use super::{Latest, Registry, compare_declared, github_repo, numeric_cmp, release_cmp};
+    use dx_error::DxError;
     use std::cmp::Ordering;
 
     #[test]
@@ -324,5 +386,70 @@ mod tests {
             assert_eq!(release_cmp(older, newer), Ordering::Less, "{older}");
         }
         assert_eq!(release_cmp("1.0.0-rc.1", "1.0.0-rc.1"), Ordering::Equal);
+    }
+
+    fn latest(version: &str) -> Latest {
+        Latest {
+            version: version.to_owned(),
+            published: Some("2024-01-01".to_owned()),
+            prerelease: false,
+            repo: None,
+        }
+    }
+
+    fn pairs(items: &[(&str, &str)]) -> Vec<(String, String)> {
+        items
+            .iter()
+            .map(|(p, v)| ((*p).to_owned(), (*v).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn compare_declared_reports_each_older_version_once() {
+        let declared = pairs(&[("a", "1.0"), ("a", "1.0"), ("a", "2.0"), ("a", "3.0")]);
+        let found = compare_declared("s", declared, &[], release_cmp, |_| Ok(Some(latest("2.0"))));
+        let currents: Vec<_> = found
+            .candidates
+            .iter()
+            .map(|c| c.current.as_str())
+            .collect();
+        assert_eq!(currents, ["1.0"]);
+        assert_eq!(found.candidates[0].latest, "2.0");
+        assert_eq!(found.candidates[0].published.as_deref(), Some("2024-01-01"));
+    }
+
+    #[test]
+    fn compare_declared_skips_unwanted_packages() {
+        let declared = pairs(&[("a", "1.0"), ("b", "1.0")]);
+        let mut looked = Vec::new();
+        let found = compare_declared("s", declared, &["b".to_owned()], release_cmp, |name| {
+            looked.push(name.to_owned());
+            Ok(Some(latest("2.0")))
+        });
+        assert_eq!(looked, ["b"]);
+        assert_eq!(found.candidates.len(), 1);
+    }
+
+    #[test]
+    fn compare_declared_records_failed_lookups_and_continues() {
+        let declared = pairs(&[("a", "1.0"), ("b", "1.0")]);
+        let found = compare_declared("s", declared, &[], release_cmp, |name| {
+            if name == "a" {
+                Err(DxError::failure("boom"))
+            } else {
+                Ok(Some(latest("2.0")))
+            }
+        });
+        assert_eq!(found.errors.len(), 1);
+        assert_eq!(found.errors[0].package, "a");
+        assert_eq!(found.errors[0].reason, "boom");
+        assert_eq!(found.candidates.len(), 1);
+    }
+
+    #[test]
+    fn compare_declared_skips_packages_the_lookup_declines() {
+        let declared = pairs(&[("a", "1.0")]);
+        let found = compare_declared("s", declared, &[], release_cmp, |_| Ok(None));
+        assert_eq!(found, Findings::default());
     }
 }

@@ -2,9 +2,8 @@
 
 use dx_error::DxError;
 
-use super::{Candidate, Fetch, Findings, LookupError, release_cmp, wanted};
+use super::{Fetch, Findings, Latest, compare_declared, release_cmp};
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://pub.dev";
 
@@ -17,49 +16,19 @@ pub fn outdated(
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
-    let mut found = Findings::default();
-    let mut locked: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for text in lockfiles {
-        for (name, version) in direct_hosted(text) {
-            let versions = locked.entry(name).or_default();
-            if !versions.contains(&version) {
-                versions.push(version);
-            }
-        }
-    }
-    for (name, versions) in locked {
-        if !wanted(only, &name) {
-            continue;
-        }
+    let declared = lockfiles.iter().flat_map(|text| direct_hosted(text));
+    compare_declared(set, declared, only, release_cmp, |name| {
         let url = format!("{base}/api/packages/{name}");
-        let (latest, published) = match fetch.get(&url).and_then(|body| newest(&body, prereleases))
-        {
-            Ok(latest) => latest,
-            Err(reason) => {
-                found.errors.push(LookupError {
-                    set: set.to_owned(),
-                    package: name,
-                    reason: reason.to_string(),
-                });
-                continue;
-            }
-        };
-        for current in versions {
-            if release_cmp(&latest, &current) == Ordering::Greater {
-                found.candidates.push(Candidate {
-                    set: set.to_owned(),
-                    package: name.clone(),
-                    current,
-                    latest: latest.clone(),
-                    published: published.clone(),
-                    prerelease: latest.contains('-'),
-                    repo: None,
-                    tags: None,
-                });
-            }
-        }
-    }
-    found
+        let (latest, published) = fetch
+            .get(&url)
+            .and_then(|body| newest(&body, prereleases))?;
+        Ok(Some(Latest {
+            prerelease: latest.contains('-'),
+            version: latest,
+            published,
+            repo: None,
+        }))
+    })
 }
 
 /// Reads `(name, version)` of every direct package with `source: hosted`.

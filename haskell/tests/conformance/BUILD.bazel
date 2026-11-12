@@ -1,3 +1,5 @@
+# gazelle:ignore
+# gazelle:exclude src
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//haskell:defs.bzl", "haskell_binary", "haskell_library", "haskell_test")
 load("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH")

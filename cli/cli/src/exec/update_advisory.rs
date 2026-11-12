@@ -292,7 +292,8 @@ fn open_pull_request(
     built
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 mod tests {
     use super::*;
 

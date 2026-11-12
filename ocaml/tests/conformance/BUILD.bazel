@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//ocaml:defs.bzl", "ocaml_binary", "ocaml_module", "ocaml_test")
 load("//ocaml/private:defs.bzl", "OCAML_COMPATIBLE_WITH")

@@ -2258,8 +2258,7 @@ LANGS = json.decode("""{
       "perl_library",
       "perl_binary",
       "perl_test",
-      "perl_bench",
-      "perl_cpan_compiler"
+      "perl_bench"
     ],
     "family": "core",
     "lockfiles": [

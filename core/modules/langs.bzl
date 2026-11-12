@@ -27,6 +27,16 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "setup": {
+      "licenses": [
+        {
+          "id": "android-sdk-license",
+          "platforms": [
+            "linux_x86_64"
+          ]
+        }
+      ]
+    },
     "title": "Android",
     "tools": []
   },
@@ -172,6 +182,16 @@ LANGS = json.decode("""{
     "platforms": [
       "macos_arm64"
     ],
+    "setup": {
+      "licenses": [
+        {
+          "id": "apple-xcode-license",
+          "platforms": [
+            "macos_arm64"
+          ]
+        }
+      ]
+    },
     "title": "Apple",
     "tools": [],
     "unsupported": {
@@ -481,6 +501,17 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "licenses": [
+        {
+          "id": "visual-studio-build-tools",
+          "platforms": [
+            "windows_arm64",
+            "windows_x86_64"
+          ]
+        }
+      ]
+    },
     "title": "C and C++",
     "tools": [
       "clang_format",
@@ -642,6 +673,19 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "setup": {
+      "licenses": [
+        {
+          "id": "cuda-eula",
+          "platforms": [
+            "linux_arm64",
+            "linux_x86_64",
+            "windows_arm64",
+            "windows_x86_64"
+          ]
+        }
+      ]
+    },
     "title": "CUDA",
     "tools": [
       "clang_format",
@@ -2086,6 +2130,17 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "setup": {
+      "licenses": [
+        {
+          "id": "windows-sdk-buildtools",
+          "platforms": [
+            "windows_arm64",
+            "windows_x86_64"
+          ]
+        }
+      ]
+    },
     "title": "MSIX",
     "tools": []
   },

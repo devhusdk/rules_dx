@@ -1,8 +1,8 @@
 --- a/flutter/android.bzl
 +++ b/flutter/android.bzl
-@@ -53,11 +53,11 @@
- load("@rules_android//android:rules.bzl", _android_binary = "android_binary", _android_library = "android_library")
+@@ -54,11 +54,11 @@
  load("@rules_java//java:java_import.bzl", _java_import = "java_import")
+ load("@rules_kotlin//kotlin:jvm.bzl", _kt_javac_options = "kt_javac_options")
  load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
 -load("//flutter/private:constants.bzl", _ANDROID_ABI_FOR_ARCH = "ANDROID_ABI_FOR_ARCH", _ANDROID_MIN_SDK_VERSION = "ANDROID_MIN_SDK_VERSION", _ANDROID_TARGET_SDK_VERSION = "ANDROID_TARGET_SDK_VERSION")
 -load("//flutter/private:flutter_android_application.bzl", _flutter_android_bundle = "flutter_android_bundle")
@@ -17,7 +17,7 @@
  
  # Re-export constants for user BUILD files.
  ANDROID_MIN_SDK_VERSION = _ANDROID_MIN_SDK_VERSION
-@@ -198,11 +198,11 @@
+@@ -199,11 +199,11 @@
          # The engine with its native libraries stripped, as Gradle packages
          # it (flutter_android_engine_jar.bzl).
          jars = select({

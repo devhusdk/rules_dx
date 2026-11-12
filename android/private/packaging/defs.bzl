@@ -306,7 +306,7 @@ _abi_transition = transition(
 
 def _rust_android_apk_impl(ctx):
     outputs = []
-    binary = ctx.attr.binary[0] if type(ctx.attr.binary) == "list" and ctx.attr.binary else None
+    binary = single_target(ctx.attr.binary) if ctx.attr.binary else None
     if binary:
         for file in binary[DefaultInfo].files.to_list():
             if file.extension != "apk":

@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols", "is_core_framework", "is_standard_framework")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:roslyn.bzl", "tfm_sort_key")
-load("//core/quality:sources.bzl", "single_target")
+load("//core/quality:sources.bzl", "forwarded_upstream", "single_target")
 
 _TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
 
@@ -57,10 +57,8 @@ def fsc_warnon_args(nowarn, compiler_options):
 def _fsc_impl(target, ctx):
     attrs = ctx.rule.attr
     if ctx.rule.kind not in _FSHARP_KINDS:
-        if not hasattr(attrs, "upstream"):
-            return []
-        upstream = single_target(attrs.upstream)
-        if FscInfo not in upstream:
+        upstream = forwarded_upstream(attrs, FscInfo)
+        if upstream == None:
             return []
         variants = getattr(attrs, "dx_tfm_variants", None) or []
         if type(variants) != "list":

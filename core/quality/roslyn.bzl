@@ -7,7 +7,7 @@ load("//core/quality:policy.bzl", "QualityPolicyInfo")
 load("//core/quality/private:native_config_impl.bzl", "bound_config_targets")
 load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo")
-load("//core/quality:sources.bzl", "single_target")
+load("//core/quality:sources.bzl", "forwarded_upstream", "single_target")
 
 _TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
 
@@ -72,10 +72,8 @@ def _bound_config(attrs, ctx, label):
 def _roslyn_impl(target, ctx):
     attrs = ctx.rule.attr
     if not _is_csharp_compilation(attrs):
-        if not hasattr(attrs, "upstream"):
-            return []
-        upstream = single_target(attrs.upstream)
-        if RoslynInfo not in upstream:
+        upstream = forwarded_upstream(attrs, RoslynInfo)
+        if upstream == None:
             return []
         variants = getattr(attrs, "dx_tfm_variants", None) or []
         if type(variants) != "list":

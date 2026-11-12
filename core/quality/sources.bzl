@@ -219,3 +219,10 @@ def check_direct_sources(direct_sources, what):
 def single_target(value):
     """Returns the one target of an attribute that a transition may wrap in a list."""
     return value[0] if type(value) == "list" else value
+
+def forwarded_upstream(attrs, provider):
+    """Returns the `upstream` target of `attrs` when it carries `provider`, else None."""
+    if not hasattr(attrs, "upstream"):
+        return None
+    upstream = single_target(attrs.upstream)
+    return upstream if provider in upstream else None

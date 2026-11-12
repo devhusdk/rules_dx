@@ -23,7 +23,7 @@ PERL_SOURCE_EXTS = [".pl", ".pm", ".t"]
 
 PERL_COMPATIBLE_WITH = compatible_with(PERL_SUPPORT)
 
-_PERL = dx_language_spec(what = "perl_library", quality_specs = PERL_SOURCE_SPECS, allow_files = PERL_SOURCE_EXTS, quality_tools = PERL_QUALITY_TOOLS)
+_PERL = dx_language_spec(what = "perl_*", quality_specs = PERL_SOURCE_SPECS, allow_files = PERL_SOURCE_EXTS, quality_tools = PERL_QUALITY_TOOLS)
 
 _perl_library_forward = dx_library_forward_rule(
     _PERL,
@@ -38,7 +38,6 @@ _perl_binary_forward = dx_executable_forward_rule(
     _PERL,
     kind = "executable",
     provides = _PERL_EXEC_PROVIDES,
-    what = "perl_binary",
 )
 
 def _perl_test_coverage(ctx, upstream):
@@ -70,7 +69,6 @@ _perl_forward_test = dx_executable_forward_rule(
     _PERL,
     kind = "test",
     provides = _PERL_EXEC_PROVIDES,
-    what = "perl_test",
     extra_attrs = dx_lcov_merger_attr() | {
         "deps": attr.label_list(doc = "Perl libraries the target depends on.", providers = [_PerlInfo]),
         "_perl_coverage": attr.label(default = Label("//perl/private/coverage:collector")),

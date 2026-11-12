@@ -27,7 +27,7 @@ _HASKELL = [("haskell", ["hs"])]
 
 _SOURCES = [".hs", ".lhs", ".hsc", ".hs-boot", ".lhs-boot"]
 
-_HASKELL_LANGUAGE = dx_language_spec(what = "haskell_library", quality_specs = _HASKELL, allow_files = _SOURCES)
+_HASKELL_LANGUAGE = dx_language_spec(what = "haskell_*", quality_specs = _HASKELL, allow_files = _SOURCES)
 
 _haskell_library_forward = dx_library_forward_rule(
     _HASKELL_LANGUAGE,
@@ -43,7 +43,6 @@ _haskell_forward_binary = dx_executable_forward_rule(
     _HASKELL_LANGUAGE,
     kind = "executable",
     provides = [DefaultInfo, QualitySourcesInfo],
-    what = "haskell_binary",
     quiet_providers = [_HaskellInfo],
     upstream_cfg = ghc_mingw_transition,
 )
@@ -52,7 +51,6 @@ _haskell_forward_test = dx_executable_forward_rule(
     _HASKELL_LANGUAGE,
     kind = "test",
     provides = [DefaultInfo, QualitySourcesInfo],
-    what = "haskell_test",
     extra_attrs = dx_lcov_merger_attr() | dx_haskell_coverage_attrs(),
     quiet_providers = [_HaskellInfo],
     coverage_providers = dx_haskell_test_coverage,

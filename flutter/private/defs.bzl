@@ -23,7 +23,7 @@ FLUTTER_COMPATIBLE_WITH = compatible_with(FLUTTER_SUPPORT)
 
 FLUTTER_ANDROID_ABIS = ["arm64", "x64"]
 
-_FLUTTER = dx_language_spec(what = "flutter_library", quality_specs = DART_SOURCE_SPECS, allow_files = FLUTTER_SOURCE_EXTS, quality_tools = DART_QUALITY_TOOLS)
+_FLUTTER = dx_language_spec(what = "flutter_*", quality_specs = DART_SOURCE_SPECS, allow_files = FLUTTER_SOURCE_EXTS, quality_tools = DART_QUALITY_TOOLS)
 
 _flutter_library_forward = dx_library_forward_rule(
     _FLUTTER,
@@ -38,7 +38,6 @@ _flutter_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, QualityToolsInfo],
     required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
-    what = "flutter_test",
     upstream_providers = [[DartAnalyzableInfo]],
     extra_attrs = dx_lcov_merger_attr(),
 )
@@ -47,7 +46,6 @@ _flutter_web_forward = dx_library_forward_rule(
     _FLUTTER,
     provides = [DartAnalyzableInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
     required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
-    what = "flutter_web_app",
     upstream_providers = [[DartAnalyzableInfo]],
     runtime = "besteffort",
 )
@@ -71,7 +69,6 @@ _flutter_application_forward = dx_library_forward_rule(
     _FLUTTER,
     provides = [DartAnalyzableInfo, DefaultInfo, FlutterApplicationInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
     required_providers = [(FlutterApplicationInfo, "FlutterApplicationInfo")],
-    what = "flutter_application",
     upstream_providers = [[FlutterApplicationInfo]],
     extra_attrs = {
         "deps": attr.label_list(doc = "Dart libraries the application imports.", providers = [DartInfo]),

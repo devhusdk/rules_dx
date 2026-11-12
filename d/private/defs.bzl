@@ -21,7 +21,7 @@ _SPECS = [("d", "d")]
 
 _EXTS = [".d", ".di"]
 
-_D = dx_language_spec(what = "d_library", quality_specs = _SPECS, allow_files = _EXTS)
+_D = dx_language_spec(what = "d_*", quality_specs = _SPECS, allow_files = _EXTS)
 
 _d_library_forward = dx_library_forward_rule(
     _D,
@@ -36,7 +36,6 @@ _d_binary_forward = dx_executable_forward_rule(
     _D,
     kind = "executable",
     provides = _D_EXEC_PROVIDES,
-    what = "d_binary",
 )
 
 def _d_test_coverage(ctx, upstream):
@@ -66,7 +65,6 @@ _d_forward_test = dx_executable_forward_rule(
     _D,
     kind = "test",
     provides = _D_EXEC_PROVIDES,
-    what = "d_test",
     extra_attrs = dx_lcov_merger_attr() | {
         "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
         "_d_coverage_launcher": attr.label(

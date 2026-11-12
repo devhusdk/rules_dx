@@ -288,20 +288,25 @@ def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = No
     else:
         fail("dx wrapper: unknown runtime '" + runtime + "': want \"mandatory\" or \"besteffort\"")
 
-def dx_language_spec(what, quality_specs, allow_files, quality_tools = None):
+def dx_language_spec(what, quality_specs, allow_files, quality_tools = None, toolchains = [], validate = None):
     """Returns the struct of facts shared by every forward rule of one language."""
-    return struct(what = what, quality_specs = quality_specs, allow_files = allow_files, quality_tools = quality_tools)
+    return struct(what = what, quality_specs = quality_specs, allow_files = allow_files, quality_tools = quality_tools, toolchains = toolchains, validate = validate)
 
-def dx_library_forward_rule(language, provides, required_providers, upstream_providers, what = None, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None, instrument_srcs = False, extra_providers = None, toolchains = None, validate = None, upstream_aspects = None):
+def _dx_validate(language, validate, ctx):
+    if language.validate:
+        language.validate(ctx)
+    if validate:
+        validate(ctx)
+
+def dx_library_forward_rule(language, provides, required_providers, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None, instrument_srcs = False, extra_providers = None, toolchains = [], validate = None, upstream_aspects = None):
     """Creates the public forwarding rule for one library wrapper."""
-    what = what if what != None else language.what
+    what = language.what
     quality_specs = language.quality_specs
     allow_files = language.allow_files
     quality_tools = language.quality_tools
 
     def _impl(ctx):
-        if validate:
-            validate(ctx)
+        _dx_validate(language, validate, ctx)
         upstream = dx_upstream(ctx)
         return (
             dx_preserved_providers(upstream, required_providers, what) +
@@ -326,7 +331,7 @@ def dx_library_forward_rule(language, provides, required_providers, upstream_pro
         doc = "Forwards one " + what + " target with dx quality sources.",
         provides = provides,
         attrs = attrs,
-        toolchains = toolchains if toolchains != None else [],
+        toolchains = language.toolchains + toolchains,
     )
 
 def _dx_coverage_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs, coverage):
@@ -374,16 +379,15 @@ def _dx_with_run_environment(ctx, providers):
             out.append(provider)
     return out + [dx_run_environment(ctx, base)]
 
-def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, required_providers = [], upstream_providers = None, what = None, extra_attrs = None, optional_providers = [], runtime = "besteffort", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, validate = None, cfg = None, sibling_files = None):
+def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, required_providers = [], upstream_providers = None, extra_attrs = None, optional_providers = [], runtime = "besteffort", extra_quality_attrs = None, coverage_runfiles = None, toolchains = [], quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, validate = None, cfg = None, sibling_files = None):
     """Creates the executable or test forwarding rule for one wrapper."""
-    what = what if what != None else language.what
+    what = language.what
     quality_specs = language.quality_specs
     allow_files = language.allow_files
     quality_tools = language.quality_tools
 
     def _impl(ctx):
-        if validate:
-            validate(ctx)
+        _dx_validate(language, validate, ctx)
         upstream = dx_upstream(ctx)
         extra_runfiles = coverage_runfiles(ctx) if coverage_runfiles != None else None
         coverage = None
@@ -416,7 +420,7 @@ def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, requ
         attrs.update(dx_run_env_attrs())
     if cfg != None:
         attrs["_allowlist_function_transition"] = attr.label(default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"))
-    toolchains = toolchains if toolchains != None else []
+    toolchains = language.toolchains + toolchains
     if sibling_files != None:
         toolchains = toolchains + [COREUTILS_TOOLCHAIN_TYPE]
     if kind == "executable":

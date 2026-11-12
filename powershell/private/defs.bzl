@@ -12,25 +12,21 @@ _DX_POWERSHELL_LIBRARY_PROVIDES = [
     QualitySourcesInfo,
 ]
 
-_DX_POWERSHELL_LIBRARY_SPECS = [("powershell", ["ps1", "psm1", "psd1"])]
-_DX_POWERSHELL_LIBRARY_EXTS = [".ps1", ".psm1", ".psd1"]
-_DX_POWERSHELL_EXEC_SPECS = [("powershell", ["ps1"])]
-_DX_POWERSHELL_EXEC_EXTS = [".ps1"]
+_DX_POWERSHELL_SPECS = [("powershell", ["ps1", "psm1", "psd1"])]
+_DX_POWERSHELL_EXTS = [".ps1", ".psm1", ".psd1"]
 
-_POWERSHELL_LIBRARY = dx_language_spec(what = "pwsh_*", quality_specs = _DX_POWERSHELL_LIBRARY_SPECS, allow_files = _DX_POWERSHELL_LIBRARY_EXTS)
+_POWERSHELL = dx_language_spec(what = "pwsh_*", quality_specs = _DX_POWERSHELL_SPECS, allow_files = _DX_POWERSHELL_EXTS)
 
 _pwsh_library_forward = dx_library_forward_rule(
-    _POWERSHELL_LIBRARY,
+    _POWERSHELL,
     provides = _DX_POWERSHELL_LIBRARY_PROVIDES,
     required_providers = [(_PwshInfo, "PwshInfo")],
     upstream_providers = [[_PwshInfo]],
     runtime = "besteffort",
 )
 
-_POWERSHELL_EXEC = dx_language_spec(what = "pwsh_*", quality_specs = _DX_POWERSHELL_EXEC_SPECS, allow_files = _DX_POWERSHELL_EXEC_EXTS)
-
 _pwsh_binary_forward = dx_executable_forward_rule(
-    _POWERSHELL_EXEC,
+    _POWERSHELL,
     kind = "executable",
     upstream_providers = [[_PwshInfo]],
     optional_providers = [_PwshInfo],
@@ -70,7 +66,7 @@ def _pwsh_test_coverage(ctx, upstream):
     )
 
 _pwsh_forward_test = dx_executable_forward_rule(
-    _POWERSHELL_EXEC,
+    _POWERSHELL,
     kind = "test",
     upstream_providers = [[_PwshInfo]],
     extra_attrs = dx_lcov_merger_attr(),

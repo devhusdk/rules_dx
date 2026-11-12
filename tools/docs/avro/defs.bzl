@@ -1,7 +1,8 @@
 """Avro schema reference shards read from the `doc` attribute of the schemas."""
 
 load("//avro/private:providers.bzl", "AvroInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 def avro_shard_action(ctx, srcs, imports, avro_tools, package, stem, extract_tool):
     """Runs avro-tools on each .avdl and the extractor over every schema of one avro_library.
@@ -24,7 +25,7 @@ def avro_shard_action(ctx, srcs, imports, avro_tools, package, stem, extract_too
     extract.add("--package", package)
     inputs = []
     for src in sorted(srcs, key = lambda f: f.path):
-        source = repo_relative(src.short_path)
+        source = repo_relative_path(src.short_path)
         if not src.is_source:
             extract.add("--generated", source)
         if src.extension == "avdl":

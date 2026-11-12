@@ -1,7 +1,8 @@
 """Ruby API reference shards parsed by the pinned YARD on the registered Ruby toolchain."""
 
 load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 _RUBY_TOOLCHAIN = "@rules_ruby//ruby:toolchain_type"
 
@@ -32,7 +33,7 @@ def _where(ctx):
 
 def _manifest(ctx, stem, suffix, files):
     manifest = ctx.actions.declare_file(stem + suffix)
-    lines = [srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in files]
+    lines = [srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in files]
     ctx.actions.write(manifest, "".join(sorted(lines)))
     return manifest
 

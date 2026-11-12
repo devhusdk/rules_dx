@@ -1,7 +1,8 @@
 """The JVM API reference shard action shared by the rules and the docs aspect."""
 
 load("//core:resources.bzl", "dx_heavy_resources")
-load("//tools/docs/ir:shard.bzl", "repo_relative", "srcs_manifest_line")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "srcs_manifest_line")
 
 JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
 KOTLIN_TOOLCHAIN = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
@@ -53,7 +54,7 @@ def jvm_shard_action(ctx, language, java_info, own, package, dep_shards, stem, a
 
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join(sorted([
-        srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source)
+        srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source)
         for f in own
     ])))
     classpath_file = ctx.actions.declare_file(stem + ".classpath.txt")

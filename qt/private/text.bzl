@@ -1,5 +1,7 @@
 """Pure text builders for QML modules, qrc files and package paths."""
 
+load("//core:rlocation.bzl", "repo_relative_path")
+
 _PUNCTUATION = " !\"#$%&'()*+,.:;<=>?@[\\]^`{|}~"
 
 def qt_identifier(label):
@@ -59,9 +61,7 @@ def qt_qrc(prefix, entries):
 
 def qt_package_path(short_path, package):
     """Returns a short path relative to its package, or None outside it."""
-    path = short_path
-    if path.startswith("../"):
-        path = path[3:].partition("/")[2]
+    path = repo_relative_path(short_path)
     if package == "":
         return path
     if not path.startswith(package + "/"):

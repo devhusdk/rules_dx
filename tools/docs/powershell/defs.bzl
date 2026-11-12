@@ -1,6 +1,7 @@
 """PowerShell API reference shards parsed by the pinned pwsh runtime."""
 
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 _SOURCE_EXTENSIONS = [".ps1", ".psm1"]
 
@@ -35,7 +36,7 @@ def powershell_shard_action(ctx, files, manifest, package, config, stem, pwsh, s
     srcs_manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(
         output = srcs_manifest,
-        content = "".join([f.path + "\t" + repo_relative(f.short_path) + "\n" for f in files]),
+        content = "".join([f.path + "\t" + repo_relative_path(f.short_path) + "\n" for f in files]),
     )
     api_json = ctx.actions.declare_file(stem + ".api.json")
     arguments = [
@@ -51,7 +52,7 @@ def powershell_shard_action(ctx, files, manifest, package, config, stem, pwsh, s
     ]
     inputs = files + [srcs_manifest, script]
     if manifest:
-        arguments.extend(["-Manifest", manifest.path, "-ManifestRel", repo_relative(manifest.short_path)])
+        arguments.extend(["-Manifest", manifest.path, "-ManifestRel", repo_relative_path(manifest.short_path)])
         inputs.append(manifest)
     ctx.actions.run(
         executable = pwsh.pwsh,
@@ -88,7 +89,7 @@ def powershell_shard_action(ctx, files, manifest, package, config, stem, pwsh, s
 def _powershell_doc_shard_impl(ctx):
     files = sorted(
         depset(transitive = [src[DefaultInfo].files for src in ctx.attr.srcs]).to_list(),
-        key = lambda f: repo_relative(f.short_path),
+        key = lambda f: repo_relative_path(f.short_path),
     )
     sources = [f for f in files if ("." + f.extension) in _SOURCE_EXTENSIONS]
     if not sources:

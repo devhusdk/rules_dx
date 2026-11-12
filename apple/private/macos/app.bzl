@@ -11,7 +11,7 @@ load("//apple/private/bundle:defs.bzl", "NO_PATH", "adhoc_signing_transition", "
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load("//core:resources.bzl", "dx_heavy_resources")
-load("//core:rlocation.bzl", "rlocation_path")
+load("//core:rlocation.bzl", "repo_relative_path", "rlocation_path")
 load(":validate.bzl", "macos_app_errors")
 
 _CELL = "macos/arm64"
@@ -169,9 +169,7 @@ def _lines(names):
 
 def owner_relative_path(short_path, package):
     """Returns a file path relative to its owning package, as rules_apple places it."""
-    path = short_path
-    if path.startswith("../"):
-        path = path[3:].partition("/")[2]
+    path = repo_relative_path(short_path)
     if package and path.startswith(package + "/"):
         path = path[len(package) + 1:]
     return path

@@ -1,7 +1,8 @@
 """Fortran API reference shards parsed by the pinned FORD on the hermetic Python toolchain."""
 
 load("@rules_fortran//fortran:defs.bzl", "FortranInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 FORTRAN_SOURCE_EXTENSIONS = ["f", "f90", "f95", "f03", "f08", "F", "F90", "F95", "F03", "F08"]
 
@@ -40,7 +41,7 @@ def fortran_shard_action(ctx, own, package, stem, driver_tool, extract_tool):
     lines = []
     staged = {}
     for src in own:
-        rel = repo_relative(src.short_path)
+        rel = repo_relative_path(src.short_path)
         if rel in staged:
             fail("fortran_doc_shard " + str(ctx.label) + ": " + staged[rel].path + " and " + src.path + " both stage as " + rel)
         staged[rel] = src

@@ -1,6 +1,7 @@
 """Perl API reference shards read from POD and package declarations by the pinned perl."""
 
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 _PERL_TOOLCHAIN = "@rules_perl//perl:exec_toolchain_type"
 
@@ -44,7 +45,7 @@ def perl_shard_action(ctx, own, package, stem, driver, extract_tool):
         fail("perl_doc_shard " + str(ctx.label) + ": lib lists no .pm or .pl srcs")
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join([
-        f.path + "\t" + repo_relative(f.short_path) + "\t" + ("0" if f.is_source else "1") + "\n"
+        f.path + "\t" + repo_relative_path(f.short_path) + "\t" + ("0" if f.is_source else "1") + "\n"
         for f in own
     ]))
     pod_json = ctx.actions.declare_file(stem + ".pod.json")

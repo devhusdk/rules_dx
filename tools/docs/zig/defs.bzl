@@ -1,7 +1,8 @@
 """Zig API reference shards from the pinned compiler's own parser (`std.zig.Ast`)."""
 
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", "ZigModuleInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 _ZigDirectSrcsInfo = provider(
     doc = "The .zig files one Zig library lists in its own srcs, main file first.",
@@ -33,7 +34,7 @@ def zig_shard_action(ctx, own, package, config, stem, dump_tool, extract_tool):
       A struct with the DocIr `shard`, the parser `dump` and the `srcs_manifest`.
     """
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in own]))
+    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own]))
 
     dump = ctx.actions.declare_file(stem + ".dump.json")
     args = ctx.actions.args()

@@ -2,7 +2,8 @@
 
 load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("//core:resources.bzl", "dx_heavy_resources")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/typescript:shard.bzl", "TYPEDOC_JSON_SCHEMA", "typedoc_arguments", "typescript_shard_action")
 
 _TS_ENTRY_EXTENSIONS = ["ts", "tsx", "mts", "cts"]
@@ -21,11 +22,11 @@ def _typescript_docs_shard(target, ctx):
         return None
     if ctx.rule.kind.endswith("_test") or OutputGroupInfo not in target or not hasattr(target[OutputGroupInfo], "_action_inputs"):
         return None
-    entry_points = sorted([repo_relative(f.short_path) for f in ctx.rule.files.srcs if _typescript_entry_point(f)])
+    entry_points = sorted([repo_relative_path(f.short_path) for f in ctx.rule.files.srcs if _typescript_entry_point(f)])
     if not entry_points:
         return None
     package = ctx.label.name
-    tsconfig = repo_relative(ctx.rule.file.tsconfig.short_path)
+    tsconfig = repo_relative_path(ctx.rule.file.tsconfig.short_path)
     stem = "_dx_docs/" + ctx.label.name
     typedoc_json = ctx.actions.declare_file(stem + ".typedoc.json")
     arguments = ctx.actions.args()

@@ -3,7 +3,8 @@
 load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/typescript:shard.bzl", "TYPEDOC_JSON_SCHEMA", "typedoc_arguments", "typescript_shard_action")
 
 _TS_TEST_MARKERS = [".test.", ".spec.", "_test."]
@@ -23,10 +24,10 @@ def _javascript_docs_shard(target, ctx):
     tsconfigs = [f for f in js.transitive_sources.to_list() if f.basename == "tsconfig.json" and f.dirname.endswith("/" + package if package else "")]
     if len(tsconfigs) != 1:
         return None
-    entry_points = sorted([repo_relative(f.short_path) for f in srcs if not any([marker in f.basename for marker in _TS_TEST_MARKERS])])
+    entry_points = sorted([repo_relative_path(f.short_path) for f in srcs if not any([marker in f.basename for marker in _TS_TEST_MARKERS])])
     if not entry_points:
         return None
-    tsconfig = repo_relative(tsconfigs[0].short_path)
+    tsconfig = repo_relative_path(tsconfigs[0].short_path)
     stem = "_dx_docs/" + ctx.label.name
     typedoc_json = ctx.actions.declare_file(stem + ".typedoc.json")
     arguments = ctx.actions.args()

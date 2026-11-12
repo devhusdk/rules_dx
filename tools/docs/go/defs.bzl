@@ -1,7 +1,8 @@
 """Go API reference shards built with go/doc from the pinned Go SDK."""
 
 load("@rules_go//go:def.bzl", "GoInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 def go_shard_action(ctx, info, package, stem, driver_tool, extract_tool, goos = "linux", goarch = "amd64", tags = []):
     """Runs the go/doc driver and the extractor for one Go library."""
@@ -11,7 +12,7 @@ def go_shard_action(ctx, info, package, stem, driver_tool, extract_tool, goos = 
     lines = []
     for src in info.srcs:
         if src.extension == "go":
-            lines.append(srcs_manifest_line(src.path, repo_relative(src.short_path), not src.is_source))
+            lines.append(srcs_manifest_line(src.path, repo_relative_path(src.short_path), not src.is_source))
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join(sorted(lines)))
     json = ctx.actions.declare_file(stem + ".godoc.json")

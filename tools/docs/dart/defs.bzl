@@ -1,7 +1,8 @@
 """Dart API reference shards built with the pinned `dart doc`."""
 
 load("@rules_dart//dart:providers.bzl", "DartInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 _DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
 
@@ -38,7 +39,7 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
     roots = sorted(packages.items(), key = lambda item: -len(item[1]))
     staged = []
     for f in sorted(info.transitive_srcs.to_list(), key = lambda f: f.path):
-        rel = repo_relative(f.short_path)
+        rel = repo_relative_path(f.short_path)
         for name, root in roots:
             inner = _within(f.short_path, root)
             if inner == None:

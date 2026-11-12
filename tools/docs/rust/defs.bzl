@@ -4,7 +4,8 @@ load("@rules_rust//rust:defs.bzl", "rust_common")
 load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust//rust/private:rustdoc.bzl", "rustdoc_compile_action")
 load("@rules_rust//rust/private:utils.bzl", "find_toolchain")
-load("//tools/docs/ir:shard.bzl", _repo_relative = "repo_relative", _srcs_manifest_line = "srcs_manifest_line")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", _srcs_manifest_line = "srcs_manifest_line")
 
 _RUSTDOC_FLAGS = ["-Zunstable-options", "--output-format=json"]
 
@@ -16,8 +17,6 @@ RustDocInputsInfo = provider(
     },
 )
 
-repo_relative = _repo_relative
-
 srcs_manifest_line = _srcs_manifest_line
 
 def _rust_doc_inputs_aspect_impl(_target, ctx):
@@ -28,7 +27,7 @@ def _rust_doc_inputs_aspect_impl(_target, ctx):
         return [upstream[RustDocInputsInfo]]
     srcs = getattr(ctx.rule.files, "srcs", [])
     return [RustDocInputsInfo(
-        generated = [repo_relative(f.short_path) for f in srcs if not f.is_source],
+        generated = [repo_relative_path(f.short_path) for f in srcs if not f.is_source],
         crate_features = list(getattr(ctx.rule.attr, "crate_features", [])),
     )]
 
@@ -97,13 +96,13 @@ def rust_shard_action(ctx, target, package, stem = None):
     features = [] if hasattr(ctx.attr, "crate_features") else inputs.crate_features
     lines = []
     for src in crate_info.srcs.to_list():
-        rel = repo_relative(src.short_path)
+        rel = repo_relative_path(src.short_path)
         lines.append(srcs_manifest_line(src.path, rel, rel in generated))
     for dep in crate_info.deps.to_list():
         build_info = getattr(dep, "build_info", None)
         out_dir = getattr(build_info, "out_dir", None) if build_info else None
         if out_dir:
-            lines.append(srcs_manifest_line(out_dir.path + "/", repo_relative(out_dir.short_path) + "/", True))
+            lines.append(srcs_manifest_line(out_dir.path + "/", repo_relative_path(out_dir.short_path) + "/", True))
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join(sorted(lines)))
     rustdoc_dir = ctx.actions.declare_directory(stem + ".rustdoc")

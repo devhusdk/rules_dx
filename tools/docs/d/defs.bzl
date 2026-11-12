@@ -1,7 +1,8 @@
 """D API reference shards from the pinned LDC compiler's ddoc JSON."""
 
 load("@rules_d//d/private:providers.bzl", "DInfo")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//core:rlocation.bzl", "repo_relative_path")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 D_TOOLCHAIN = str(Label("@rules_d//d:toolchain_type"))
 
@@ -38,7 +39,7 @@ def d_shard_action(ctx, info, own, package, config, stem, extract_tool):
     toolchain = ctx.toolchains[D_TOOLCHAIN].d_toolchain_info
     compiler = toolchain.d_compiler[DefaultInfo].files_to_run
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in own]))
+    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own]))
 
     api_json = ctx.actions.declare_file(stem + ".api.json")
     html = ctx.actions.declare_file(stem + ".ddoc.html")

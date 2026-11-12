@@ -272,3 +272,35 @@ fn ci_without_locks_or_trivy_inputs_reports_empty() {
     );
     assert!(!text.contains("trivy=true"), "{text}");
 }
+
+#[test]
+fn ci_with_trivy_inputs_sets_the_bundled_trivy_and_records_it() {
+    let root = tempfile::tempdir().expect("temp dir");
+    std::fs::create_dir_all(root.path().join(".devcontainer")).expect("dir");
+    std::fs::write(root.path().join(".devcontainer/Dockerfile"), "").expect("file");
+    let status = root.path().join("out");
+    let mut options = options_from(
+        parse(&["--workspace", root.path().to_str().expect("utf8")]),
+        None,
+    )
+    .expect("options");
+    let trivy = root.path().join("bin/trivy");
+    let lines = ci_setup(&mut options, Some(&status), Some(trivy.clone())).expect("setup");
+    assert_eq!(lines, None);
+    assert_eq!(options.trivy, Some(trivy));
+    let text = std::fs::read_to_string(&status).expect("status");
+    assert!(text.ends_with("trivy=true\n"), "{text}");
+}
+
+#[test]
+fn ci_with_trivy_inputs_and_no_bundled_trivy_is_refused() {
+    let root = tempfile::tempdir().expect("temp dir");
+    std::fs::write(root.path().join("main.tf"), "").expect("file");
+    let mut options = options_from(
+        parse(&["--workspace", root.path().to_str().expect("utf8")]),
+        None,
+    )
+    .expect("options");
+    let error = ci_setup(&mut options, None, None).expect_err("refused");
+    assert!(error.to_string().contains("DX_TRIVY"), "{error}");
+}

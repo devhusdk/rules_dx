@@ -38,16 +38,19 @@ pub fn advisory_pinned(workspace: &Path) -> bool {
 pub fn needs_trivy(workspace: &Path) -> Result<bool, PrepError> {
     let mut pending = vec![workspace.to_path_buf()];
     while let Some(dir) = pending.pop() {
-        let unreadable = |error: std::io::Error| PrepError::Usage {
-            detail: format!("could not scan {}: {error}", dir.display()),
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
         };
-        for entry in std::fs::read_dir(&dir).map_err(unreadable)? {
-            let entry = entry.map_err(unreadable)?;
-            let kind = entry.file_type().map_err(unreadable)?;
+        for entry in entries.flatten() {
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
             let name = entry.file_name().to_string_lossy().into_owned();
             let path = entry.path();
             if kind.is_dir() {
-                if !name.starts_with('.') && !name.starts_with("bazel-") && name != "node_modules" {
+                if !matches!(name.as_str(), ".git" | ".dx" | "node_modules")
+                    && !name.starts_with("bazel-")
+                {
                     pending.push(path);
                 }
                 continue;

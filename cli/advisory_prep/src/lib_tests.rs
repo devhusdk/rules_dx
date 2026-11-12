@@ -954,7 +954,8 @@ fn trivy_is_needed_for_infrastructure_files_and_oci_deploy_only() {
     };
     write("src/main.rs", "fn main() {}");
     write("BUILD.bazel", "load(\"x\", \"y\")");
-    write(".hidden/main.tf", "");
+    write(".git/main.tf", "");
+    write(".dx/local/Dockerfile", "");
     write("bazel-out/Dockerfile", "");
     write("node_modules/p/Dockerfile", "");
     assert!(!needs_trivy(root.path()).expect("scan"));
@@ -962,6 +963,8 @@ fn trivy_is_needed_for_infrastructure_files_and_oci_deploy_only() {
         ("infra/main.tf", ""),
         ("infra/main.bicep", ""),
         ("app/Dockerfile", ""),
+        (".devcontainer/Dockerfile", ""),
+        (".github/terraform/main.tf", ""),
         ("chart/Chart.yaml", ""),
         ("deploy/BUILD.bazel", "oci_deploy(name = \"x\")"),
         ("deploy/defs.bzl", "oci_deploy"),
@@ -972,4 +975,17 @@ fn trivy_is_needed_for_infrastructure_files_and_oci_deploy_only() {
         std::fs::write(path, text).expect("file");
         assert!(needs_trivy(scratch.path()).expect("scan"), "{name}");
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unreadable_directory_is_skipped_not_fatal() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = tempfile::tempdir().expect("temp dir");
+    let locked = root.path().join("locked");
+    std::fs::create_dir_all(&locked).expect("dir");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).expect("chmod");
+    let result = needs_trivy(root.path());
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    assert!(!result.expect("scan"));
 }

@@ -131,24 +131,9 @@ fn run(cli: Cli) -> Result<Vec<String>, PrepError> {
     let ci = cli.ci;
     let mut options = options_from(cli, root.as_deref())?;
     if ci {
-        if let Some(path) = &status_file {
-            append_text(path, &format!("retrieved_at={}\n", options.retrieved_at))?;
-        }
-        if dx_advisory_prep::advisory_pinned(&options.workspace) {
-            if let Some(path) = &status_file {
-                append_text(path, "status=empty\n")?;
-            }
-            return Ok(vec![
-                "advisory snapshots are pinned: nothing to prepare".to_owned(),
-            ]);
-        }
-        if dx_advisory_prep::needs_trivy(&options.workspace)? {
-            options.trivy = Some(bundled_tool("DX_TRIVY").ok_or_else(|| PrepError::Usage {
-                detail: "--ci needs the bundled trivy (DX_TRIVY and RUNFILES_DIR)".to_owned(),
-            })?);
-            if let Some(path) = &status_file {
-                append_text(path, "trivy=true\n")?;
-            }
+        let trivy = bundled_tool("DX_TRIVY");
+        if let Some(lines) = ci_setup(&mut options, status_file.as_deref(), trivy)? {
+            return Ok(lines);
         }
     }
     let prepared = prepare(&options)?;
@@ -176,6 +161,34 @@ fn run(cli: Cli) -> Result<Vec<String>, PrepError> {
         .collect();
     lines.extend(pin_lines);
     Ok(lines)
+}
+
+/// Applies the `--ci` steps; `Some` lines mean there is nothing to prepare.
+fn ci_setup(
+    options: &mut PrepareOptions,
+    status_file: Option<&Path>,
+    trivy: Option<PathBuf>,
+) -> Result<Option<Vec<String>>, PrepError> {
+    if let Some(path) = status_file {
+        append_text(path, &format!("retrieved_at={}\n", options.retrieved_at))?;
+    }
+    if dx_advisory_prep::advisory_pinned(&options.workspace) {
+        if let Some(path) = status_file {
+            append_text(path, "status=empty\n")?;
+        }
+        return Ok(Some(vec![
+            "advisory snapshots are pinned: nothing to prepare".to_owned(),
+        ]));
+    }
+    if dx_advisory_prep::needs_trivy(&options.workspace)? {
+        options.trivy = Some(trivy.ok_or_else(|| PrepError::Usage {
+            detail: "--ci needs the bundled trivy (DX_TRIVY and RUNFILES_DIR)".to_owned(),
+        })?);
+        if let Some(path) = status_file {
+            append_text(path, "trivy=true\n")?;
+        }
+    }
+    Ok(None)
 }
 
 fn append_status(path: &std::path::Path, summary: &Summary) -> Result<(), PrepError> {

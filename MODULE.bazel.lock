@@ -32095,7 +32095,7 @@
       },
       "os:linux,arch:amd64": {
         "bzlTransitiveDigest": "T84h6d0yQeT/AOyIWS8NagtobEg9RpCrbuzBCaosmdM=",
-        "usagesDigest": "0IkhXqCHOi8oywzyW1F+EaUNNMEOc+E6VITVs+5PXsA=",
+        "usagesDigest": "Tv5VJm8ZgMrPMxwOalhB2fogCGdO6nwd4K/URNTX7q0=",
         "recordedInputs": [
           "REPO_MAPPING:rules_go+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_go+,io_bazel_rules_go rules_go+",
@@ -32119,28 +32119,28 @@
               "goarch": "",
               "sdks": {
                 "darwin_amd64": [
-                  "go1.26.10.darwin-amd64.tar.gz",
-                  "e820ab780c273ae4a340b79d0f3c4313b74ee029aa3874792145d44b9f4f91da"
+                  "go1.27.4.darwin-amd64.tar.gz",
+                  "2b799377704ef12db39bd254995d5c348c9cc8d86562ca817724390e56c38f43"
                 ],
                 "darwin_arm64": [
-                  "go1.26.10.darwin-arm64.tar.gz",
-                  "0b5183492292ada170f9b561a834863808dd02edba599e4ad0e89899330020b3"
+                  "go1.27.4.darwin-arm64.tar.gz",
+                  "91a44a2b8a716600ad94a4f143e156116620db8828086a6e3602291be9bd0bb4"
                 ],
                 "linux_amd64": [
-                  "go1.26.10.linux-amd64.tar.gz",
-                  "ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5"
+                  "go1.27.4.linux-amd64.tar.gz",
+                  "7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840"
                 ],
                 "linux_arm64": [
-                  "go1.26.10.linux-arm64.tar.gz",
-                  "3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797"
+                  "go1.27.4.linux-arm64.tar.gz",
+                  "3392582988a273a87ab5043ee1b2c9c17a2c3c00580bf9326c47a2e0aaaeac92"
                 ],
                 "windows_amd64": [
-                  "go1.26.10.windows-amd64.zip",
-                  "7ecd2d7260e82c59bcbd7f1077a07cee2dea607295b858df67195a1e4e09629b"
+                  "go1.27.4.windows-amd64.zip",
+                  "178ab98950ac69ab25069307dc6ade79f3816e414cce95b4da166a115cde1e7e"
                 ],
                 "windows_arm64": [
-                  "go1.26.10.windows-arm64.zip",
-                  "6831fd8c31091243d5695c8fa3a721c9f4ae2bb36482763e77e57ee01b76489f"
+                  "go1.27.4.windows-arm64.zip",
+                  "9e7a72565792b8ab370b37ac9ac109799237abacb39ff2f541c438b963c0cc64"
                 ]
               },
               "experiments": [],
@@ -32149,7 +32149,7 @@
               "urls": [
                 "https://dl.google.com/go/{}"
               ],
-              "version": "1.26.10",
+              "version": "1.27.4",
               "strip_prefix": "go",
               "experimental_build_compiler_from_source": false
             }
@@ -32161,28 +32161,28 @@
               "goarch": "amd64",
               "sdks": {
                 "darwin_amd64": [
-                  "go1.26.10.darwin-amd64.tar.gz",
-                  "e820ab780c273ae4a340b79d0f3c4313b74ee029aa3874792145d44b9f4f91da"
+                  "go1.27.4.darwin-amd64.tar.gz",
+                  "2b799377704ef12db39bd254995d5c348c9cc8d86562ca817724390e56c38f43"
                 ],
                 "darwin_arm64": [
-                  "go1.26.10.darwin-arm64.tar.gz",
-                  "0b5183492292ada170f9b561a834863808dd02edba599e4ad0e89899330020b3"
+                  "go1.27.4.darwin-arm64.tar.gz",
+                  "91a44a2b8a716600ad94a4f143e156116620db8828086a6e3602291be9bd0bb4"
                 ],
                 "linux_amd64": [
-                  "go1.26.10.linux-amd64.tar.gz",
-                  "ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5"
+                  "go1.27.4.linux-amd64.tar.gz",
+                  "7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840"
                 ],
                 "linux_arm64": [
-                  "go1.26.10.linux-arm64.tar.gz",
-                  "3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797"
+                  "go1.27.4.linux-arm64.tar.gz",
+                  "3392582988a273a87ab5043ee1b2c9c17a2c3c00580bf9326c47a2e0aaaeac92"
                 ],
                 "windows_amd64": [
-                  "go1.26.10.windows-amd64.zip",
-                  "7ecd2d7260e82c59bcbd7f1077a07cee2dea607295b858df67195a1e4e09629b"
+                  "go1.27.4.windows-amd64.zip",
+                  "178ab98950ac69ab25069307dc6ade79f3816e414cce95b4da166a115cde1e7e"
                 ],
                 "windows_arm64": [
-                  "go1.26.10.windows-arm64.zip",
-                  "6831fd8c31091243d5695c8fa3a721c9f4ae2bb36482763e77e57ee01b76489f"
+                  "go1.27.4.windows-arm64.zip",
+                  "9e7a72565792b8ab370b37ac9ac109799237abacb39ff2f541c438b963c0cc64"
                 ]
               },
               "experiments": [],
@@ -32191,7 +32191,7 @@
               "urls": [
                 "https://dl.google.com/go/{}"
               ],
-              "version": "1.26.10",
+              "version": "1.27.4",
               "strip_prefix": "go",
               "experimental_build_compiler_from_source": false
             }
@@ -32203,28 +32203,28 @@
               "goarch": "arm64",
               "sdks": {
                 "darwin_amd64": [
-                  "go1.26.10.darwin-amd64.tar.gz",
-                  "e820ab780c273ae4a340b79d0f3c4313b74ee029aa3874792145d44b9f4f91da"
+                  "go1.27.4.darwin-amd64.tar.gz",
+                  "2b799377704ef12db39bd254995d5c348c9cc8d86562ca817724390e56c38f43"
                 ],
                 "darwin_arm64": [
-                  "go1.26.10.darwin-arm64.tar.gz",
-                  "0b5183492292ada170f9b561a834863808dd02edba599e4ad0e89899330020b3"
+                  "go1.27.4.darwin-arm64.tar.gz",
+                  "91a44a2b8a716600ad94a4f143e156116620db8828086a6e3602291be9bd0bb4"
                 ],
                 "linux_amd64": [
-                  "go1.26.10.linux-amd64.tar.gz",
-                  "ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5"
+                  "go1.27.4.linux-amd64.tar.gz",
+                  "7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840"
                 ],
                 "linux_arm64": [
-                  "go1.26.10.linux-arm64.tar.gz",
-                  "3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797"
+                  "go1.27.4.linux-arm64.tar.gz",
+                  "3392582988a273a87ab5043ee1b2c9c17a2c3c00580bf9326c47a2e0aaaeac92"
                 ],
                 "windows_amd64": [
-                  "go1.26.10.windows-amd64.zip",
-                  "7ecd2d7260e82c59bcbd7f1077a07cee2dea607295b858df67195a1e4e09629b"
+                  "go1.27.4.windows-amd64.zip",
+                  "178ab98950ac69ab25069307dc6ade79f3816e414cce95b4da166a115cde1e7e"
                 ],
                 "windows_arm64": [
-                  "go1.26.10.windows-arm64.zip",
-                  "6831fd8c31091243d5695c8fa3a721c9f4ae2bb36482763e77e57ee01b76489f"
+                  "go1.27.4.windows-arm64.zip",
+                  "9e7a72565792b8ab370b37ac9ac109799237abacb39ff2f541c438b963c0cc64"
                 ]
               },
               "experiments": [],
@@ -32233,7 +32233,7 @@
               "urls": [
                 "https://dl.google.com/go/{}"
               ],
-              "version": "1.26.10",
+              "version": "1.27.4",
               "strip_prefix": "go",
               "experimental_build_compiler_from_source": false
             }
@@ -32245,28 +32245,28 @@
               "goarch": "arm64",
               "sdks": {
                 "darwin_amd64": [
-                  "go1.26.10.darwin-amd64.tar.gz",
-                  "e820ab780c273ae4a340b79d0f3c4313b74ee029aa3874792145d44b9f4f91da"
+                  "go1.27.4.darwin-amd64.tar.gz",
+                  "2b799377704ef12db39bd254995d5c348c9cc8d86562ca817724390e56c38f43"
                 ],
                 "darwin_arm64": [
-                  "go1.26.10.darwin-arm64.tar.gz",
-                  "0b5183492292ada170f9b561a834863808dd02edba599e4ad0e89899330020b3"
+                  "go1.27.4.darwin-arm64.tar.gz",
+                  "91a44a2b8a716600ad94a4f143e156116620db8828086a6e3602291be9bd0bb4"
                 ],
                 "linux_amd64": [
-                  "go1.26.10.linux-amd64.tar.gz",
-                  "ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5"
+                  "go1.27.4.linux-amd64.tar.gz",
+                  "7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840"
                 ],
                 "linux_arm64": [
-                  "go1.26.10.linux-arm64.tar.gz",
-                  "3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797"
+                  "go1.27.4.linux-arm64.tar.gz",
+                  "3392582988a273a87ab5043ee1b2c9c17a2c3c00580bf9326c47a2e0aaaeac92"
                 ],
                 "windows_amd64": [
-                  "go1.26.10.windows-amd64.zip",
-                  "7ecd2d7260e82c59bcbd7f1077a07cee2dea607295b858df67195a1e4e09629b"
+                  "go1.27.4.windows-amd64.zip",
+                  "178ab98950ac69ab25069307dc6ade79f3816e414cce95b4da166a115cde1e7e"
                 ],
                 "windows_arm64": [
-                  "go1.26.10.windows-arm64.zip",
-                  "6831fd8c31091243d5695c8fa3a721c9f4ae2bb36482763e77e57ee01b76489f"
+                  "go1.27.4.windows-arm64.zip",
+                  "9e7a72565792b8ab370b37ac9ac109799237abacb39ff2f541c438b963c0cc64"
                 ]
               },
               "experiments": [],
@@ -32275,7 +32275,7 @@
               "urls": [
                 "https://dl.google.com/go/{}"
               ],
-              "version": "1.26.10",
+              "version": "1.27.4",
               "strip_prefix": "go",
               "experimental_build_compiler_from_source": false
             }
@@ -32287,28 +32287,28 @@
               "goarch": "amd64",
               "sdks": {
                 "darwin_amd64": [
-                  "go1.26.10.darwin-amd64.tar.gz",
-                  "e820ab780c273ae4a340b79d0f3c4313b74ee029aa3874792145d44b9f4f91da"
+                  "go1.27.4.darwin-amd64.tar.gz",
+                  "2b799377704ef12db39bd254995d5c348c9cc8d86562ca817724390e56c38f43"
                 ],
                 "darwin_arm64": [
-                  "go1.26.10.darwin-arm64.tar.gz",
-                  "0b5183492292ada170f9b561a834863808dd02edba599e4ad0e89899330020b3"
+                  "go1.27.4.darwin-arm64.tar.gz",
+                  "91a44a2b8a716600ad94a4f143e156116620db8828086a6e3602291be9bd0bb4"
                 ],
                 "linux_amd64": [
-                  "go1.26.10.linux-amd64.tar.gz",
-                  "ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5"
+                  "go1.27.4.linux-amd64.tar.gz",
+                  "7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840"
                 ],
                 "linux_arm64": [
-                  "go1.26.10.linux-arm64.tar.gz",
-                  "3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797"
+                  "go1.27.4.linux-arm64.tar.gz",
+                  "3392582988a273a87ab5043ee1b2c9c17a2c3c00580bf9326c47a2e0aaaeac92"
                 ],
                 "windows_amd64": [
-                  "go1.26.10.windows-amd64.zip",
-                  "7ecd2d7260e82c59bcbd7f1077a07cee2dea607295b858df67195a1e4e09629b"
+                  "go1.27.4.windows-amd64.zip",
+                  "178ab98950ac69ab25069307dc6ade79f3816e414cce95b4da166a115cde1e7e"
                 ],
                 "windows_arm64": [
-                  "go1.26.10.windows-arm64.zip",
-                  "6831fd8c31091243d5695c8fa3a721c9f4ae2bb36482763e77e57ee01b76489f"
+                  "go1.27.4.windows-arm64.zip",
+                  "9e7a72565792b8ab370b37ac9ac109799237abacb39ff2f541c438b963c0cc64"
                 ]
               },
               "experiments": [],
@@ -32317,7 +32317,7 @@
               "urls": [
                 "https://dl.google.com/go/{}"
               ],
-              "version": "1.26.10",
+              "version": "1.27.4",
               "strip_prefix": "go",
               "experimental_build_compiler_from_source": false
             }
@@ -32329,28 +32329,28 @@
               "goarch": "arm64",
               "sdks": {
                 "darwin_amd64": [
-                  "go1.26.10.darwin-amd64.tar.gz",
-                  "e820ab780c273ae4a340b79d0f3c4313b74ee029aa3874792145d44b9f4f91da"
+                  "go1.27.4.darwin-amd64.tar.gz",
+                  "2b799377704ef12db39bd254995d5c348c9cc8d86562ca817724390e56c38f43"
                 ],
                 "darwin_arm64": [
-                  "go1.26.10.darwin-arm64.tar.gz",
-                  "0b5183492292ada170f9b561a834863808dd02edba599e4ad0e89899330020b3"
+                  "go1.27.4.darwin-arm64.tar.gz",
+                  "91a44a2b8a716600ad94a4f143e156116620db8828086a6e3602291be9bd0bb4"
                 ],
                 "linux_amd64": [
-                  "go1.26.10.linux-amd64.tar.gz",
-                  "ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5"
+                  "go1.27.4.linux-amd64.tar.gz",
+                  "7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840"
                 ],
                 "linux_arm64": [
-                  "go1.26.10.linux-arm64.tar.gz",
-                  "3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797"
+                  "go1.27.4.linux-arm64.tar.gz",
+                  "3392582988a273a87ab5043ee1b2c9c17a2c3c00580bf9326c47a2e0aaaeac92"
                 ],
                 "windows_amd64": [
-                  "go1.26.10.windows-amd64.zip",
-                  "7ecd2d7260e82c59bcbd7f1077a07cee2dea607295b858df67195a1e4e09629b"
+                  "go1.27.4.windows-amd64.zip",
+                  "178ab98950ac69ab25069307dc6ade79f3816e414cce95b4da166a115cde1e7e"
                 ],
                 "windows_arm64": [
-                  "go1.26.10.windows-arm64.zip",
-                  "6831fd8c31091243d5695c8fa3a721c9f4ae2bb36482763e77e57ee01b76489f"
+                  "go1.27.4.windows-arm64.zip",
+                  "9e7a72565792b8ab370b37ac9ac109799237abacb39ff2f541c438b963c0cc64"
                 ]
               },
               "experiments": [],
@@ -32359,7 +32359,7 @@
               "urls": [
                 "https://dl.google.com/go/{}"
               ],
-              "version": "1.26.10",
+              "version": "1.27.4",
               "strip_prefix": "go",
               "experimental_build_compiler_from_source": false
             }
@@ -39002,12 +39002,12 @@
                 "remote"
               ],
               "sdk_versions": [
-                "1.26.10",
-                "1.26.10",
-                "1.26.10",
-                "1.26.10",
-                "1.26.10",
-                "1.26.10",
+                "1.27.4",
+                "1.27.4",
+                "1.27.4",
+                "1.27.4",
+                "1.27.4",
+                "1.27.4",
                 "1.26.7",
                 "1.26.7",
                 "1.26.7",

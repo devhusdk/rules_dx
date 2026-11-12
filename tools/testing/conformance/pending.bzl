@@ -83,12 +83,9 @@ cmake runfiles_test *
 csharp cross_test *
 csharp lock_test *
 csharp runfiles_test *
-cuda build_test *
 cuda coverage_test *
 cuda cross_test *
-cuda fail_test *
 cuda lock_test *
-cuda pass_test *
 cuda runfiles_test *
 d cross_test *
 d lock_test *

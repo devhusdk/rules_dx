@@ -1,0 +1,57 @@
+load("//cuda:defs.bzl", "cuda_binary", "cuda_library", "cuda_test")
+load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+_ARCHS = [
+    "sm_89",
+    "sm_120",
+]
+
+cuda_library(
+    name = "greet",
+    srcs = ["greet.cu"],
+    hdrs = ["greet.h"],
+    cuda_archs = _ARCHS,
+)
+
+cuda_binary(
+    name = "hello",
+    srcs = ["main.cc"],
+    cuda_archs = _ARCHS,
+    deps = [":greet"],
+)
+
+cuda_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["pass_test.cc"],
+    cuda_archs = _ARCHS,
+    target_compatible_with = subject_compatible_with() + CUDA_COMPATIBLE_WITH,
+    deps = [":greet"],
+)
+
+cuda_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["fail_test.cc"],
+    cuda_archs = _ARCHS,
+    target_compatible_with = subject_compatible_with() + CUDA_COMPATIBLE_WITH,
+    deps = [":greet"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":hello",
+    covered_source = "greet.cu",
+    expected = "hello world",
+    failing_case = "failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "cuda",
+    passing_test = ":pass_subject_test",
+)

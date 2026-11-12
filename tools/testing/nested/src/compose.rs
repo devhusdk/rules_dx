@@ -65,8 +65,7 @@ const FLUTTER_PINS: &str = include_str!("../../../../flutter/pins.json");
 
 /// The `sha256-` integrity of a lowercase hex SHA-256.
 fn sha256_integrity(hex: &str) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let bytes: Vec<u8> = (0..hex.len() / 2)
         .map(|at| {
             u8::from_str_radix(&hex[at * 2..at * 2 + 2], 16)

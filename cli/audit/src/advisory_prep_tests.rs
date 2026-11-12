@@ -324,7 +324,7 @@ fn only_the_ecosystems_the_dependency_sets_need_are_prepared() {
         "ruby/tests/fixtures/adopt-ruby/Gemfile.lock",
     ]);
     assert_eq!(families_of(ruby.path()), vec!["rubygems"]);
-    let powershell = workspace_with(&["third_party/powershell/PSGallery.lock.json"]);
+    let powershell = workspace_with(&["third_party/powershell/powershell.lock.json"]);
     assert!(families_of(powershell.path()).is_empty());
     let go = workspace_with(&["third_party/go/go.mod"]);
     assert_eq!(families_of(go.path()), vec!["go"]);

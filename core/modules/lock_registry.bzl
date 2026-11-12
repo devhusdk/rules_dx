@@ -101,8 +101,8 @@ LOCK_REGISTRY = {
     },
     "powershell": {
         "hub": "psgallery",
-        "imports": "name",
-        "lock": "PSGallery.lock.json",
+        "imports": "provides",
+        "lock": "powershell.lock.json",
         "manifest": "PSGallery.requirements.psd1",
         "state": None,
     },

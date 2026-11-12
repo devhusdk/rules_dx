@@ -938,6 +938,7 @@ _CLIPPY_POLICY_CRATE_ROOTS = [
     "//lua/private/tools/lock:src/main.rs",
     "//php/private/coverage:src/main.rs",
     "//php/private/tools/lock:src/main.rs",
+    "//powershell/private/tools/lock:src/main.rs",
     "//qt/private/rust:src/main.rs",
     "//rego/private/launcher:src/main.rs",
     "//rust/private/bench_report:src/main.rs",

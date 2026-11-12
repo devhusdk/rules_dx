@@ -1,0 +1,43 @@
+{
+  "ecosystem": "powershell",
+  "inputs": {
+    "PSGallery.requirements.psd1": "b5cfaefa77271c990a6e78bd29e1620adfb46e48bc651e11c32c0eed4942bbb8"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "65cfd8f0eb30416eef5e1a1236e14c50e100551b55cea71269d233ebedd50d34",
+          "type": "zip",
+          "urls": [
+            "https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/1.25.0"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "PSScriptAnalyzer",
+      "provides": [
+        "PSScriptAnalyzer"
+      ],
+      "version": "1.25.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "e884b342a419ea396a55d7044ec3528a51a76fd79c9fc9fb86fe1de610b45859",
+          "type": "zip",
+          "urls": [
+            "https://www.powershellgallery.com/api/v2/package/Pester/5.7.1"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Pester",
+      "provides": [
+        "Pester"
+      ],
+      "version": "5.7.1"
+    }
+  ],
+  "schema": 1
+}

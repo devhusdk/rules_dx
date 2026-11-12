@@ -115,20 +115,22 @@ pub fn parse_maven_install(text: &str) -> Result<Vec<LockedPackage>, DxError> {
 pub fn parse_psgallery_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let value: serde_json::Value = serde_json::from_str(text)
         .map_err(|error| DxError::failure(format!("invalid lock: {error}")))?;
-    let modules = value
-        .get("modules")
-        .and_then(|value| value.as_object())
-        .ok_or_else(|| DxError::failure("invalid lock: missing modules"))?;
+    let packages = value
+        .get("packages")
+        .and_then(|value| value.as_array())
+        .ok_or_else(|| DxError::failure("invalid lock: missing packages"))?;
     let mut out = Vec::new();
-    for (name, detail) in modules {
-        let name = name.trim();
-        let version = detail
-            .get("version")
-            .and_then(|value| value.as_str())
-            .unwrap_or("")
-            .trim();
+    for package in packages {
+        let field = |key: &str| {
+            package
+                .get(key)
+                .and_then(|value| value.as_str())
+                .unwrap_or("")
+                .trim()
+        };
+        let (name, version) = (field("name"), field("version"));
         if name.is_empty() || version.is_empty() {
-            return Err(DxError::failure("invalid lock: module without a version"));
+            return Err(DxError::failure("invalid lock: package without a version"));
         }
         out.push(LockedPackage::new("powershell", name, version));
     }

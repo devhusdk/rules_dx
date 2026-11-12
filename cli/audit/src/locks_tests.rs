@@ -728,8 +728,8 @@ fn gemfile_lock_missing_gem_section_fails_closed() {
 }
 
 #[test]
-fn psgallery_lock_parses_every_pinned_module_as_a_powershell_package() {
-    let text = "{\n  \"pwsh\": \"7.5.4\",\n  \"modules\": {\n    \"Pester\": {\n      \"version\": \"5.7.1\",\n      \"gallery\": \"https://www.powershellgallery.com/packages/Pester/5.7.1\"\n    },\n    \"PSScriptAnalyzer\": {\n      \"version\": \"1.25.0\",\n      \"notes\": \"exact module route\"\n    }\n  }\n}\n";
+fn psgallery_lock_parses_every_locked_package_as_a_powershell_package() {
+    let text = "{\n  \"schema\": 1,\n  \"packages\": [\n    {\"name\": \"Pester\", \"version\": \"5.7.1\"},\n    {\"name\": \"PSScriptAnalyzer\", \"version\": \"1.25.0\"}\n  ]\n}\n";
     let packages = parse_psgallery_lock(text).expect("parses");
     assert_eq!(
         packages
@@ -746,17 +746,18 @@ fn psgallery_lock_parses_every_pinned_module_as_a_powershell_package() {
 }
 
 #[test]
-fn psgallery_lock_missing_modules_or_versions_fails_closed() {
-    assert!(parse_psgallery_lock("{\"pwsh\": \"7.5.4\"}").is_err());
-    assert!(parse_psgallery_lock("{\"modules\": []}").is_err());
+fn psgallery_lock_missing_packages_or_versions_fails_closed() {
+    assert!(parse_psgallery_lock("{\"schema\": 1}").is_err());
+    assert!(parse_psgallery_lock("{\"packages\": {}}").is_err());
     assert!(parse_psgallery_lock("lockfileVersion: 9").is_err());
     assert!(parse_psgallery_lock("").is_err());
+    assert!(parse_psgallery_lock("{\"packages\": [{\"name\": \"Pester\"}]}").is_err());
     assert!(
-        parse_psgallery_lock("{\"modules\": {\"Pester\": {\"notes\": \"floating\"}}}").is_err()
+        parse_psgallery_lock("{\"packages\": [{\"name\": \"Pester\", \"version\": \"\"}]}")
+            .is_err()
     );
-    assert!(parse_psgallery_lock("{\"modules\": {\"Pester\": {\"version\": \"\"}}}").is_err());
     assert!(
-        parse_psgallery_lock("{\"modules\": {}}")
+        parse_psgallery_lock("{\"packages\": []}")
             .expect("an empty lock is valid")
             .is_empty()
     );

@@ -4,12 +4,12 @@ package(default_visibility = ["//visibility:public"])
 
 alias(
     name = "pester",
-    actual = "@psgallery//:pester",
+    actual = "@psgallery//Pester",
 )
 
 alias(
     name = "psscriptanalyzer",
-    actual = "@psgallery//:psscriptanalyzer",
+    actual = "@psgallery//PSScriptAnalyzer",
 )
 
 real_source_target(

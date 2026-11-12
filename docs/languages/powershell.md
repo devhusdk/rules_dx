@@ -80,7 +80,7 @@ Manifests:
 
 Lockfiles:
 
-- `PSGallery.lock.json`
+- `powershell.lock.json`
 
 ## Platforms
 

@@ -2214,6 +2214,7 @@ crate.from_cargo(
         "//zig/private/tools/lock:Cargo.toml",
         "//d/private/tools/lock:Cargo.toml",
         "//php/private/tools/lock:Cargo.toml",
+        "//powershell/private/tools/lock:Cargo.toml",
         "//lua/private/tools/lock:Cargo.toml",
         "//cli/families:Cargo.toml",
         "//cli/module_bazel:Cargo.toml",
@@ -2749,7 +2750,7 @@ _http_jar(
 powershell = use_extension("//powershell:extensions.bzl", "powershell")
 powershell.lock(
     name = "psgallery",
-    lock = "//third_party/powershell:PSGallery.lock.json",
+    lock = "//third_party/powershell:powershell.lock.json",
 )
 use_repo(powershell, "psgallery")
 

@@ -1494,18 +1494,6 @@ fn pinned_sets() -> Vec<(ResolvedSet, &'static str, &'static str)> {
             "rspec-core",
             "`bundle lock`",
         ),
-        (
-            ResolvedSet {
-                name: "modules".to_owned(),
-                ecosystem: Ecosystem::PowerShell,
-                dir: "tools/ps".to_owned(),
-                manifests: vec!["tools/ps/PSGallery.requirements.psd1".to_owned()],
-                locks: vec!["tools/ps/PSGallery.lock.json".to_owned()],
-                repository: None,
-            },
-            "Pester",
-            "PSGallery.lock.json by hand",
-        ),
     ]
 }
 

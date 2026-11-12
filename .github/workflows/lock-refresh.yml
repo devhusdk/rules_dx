@@ -80,9 +80,8 @@ jobs:
       - name: Merge
         env:
           LOCKS: ${{ runner.temp }}/locks
-        run: |
-          jq -s 'reduce .[1:][] as $f (.[0]; .moduleExtensions *= $f.moduleExtensions | .facts *= $f.facts)' \
-            "$LOCKS"/lock-*/MODULE.bazel.lock > MODULE.bazel.lock
+          DX_JQ: jq
+        run: bash tools/ci/lock_merge.sh "$LOCKS" MODULE.bazel.lock
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: false

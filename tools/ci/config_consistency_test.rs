@@ -1118,6 +1118,15 @@ fn root_extensions_do_not_record_the_host_platform() {
 }
 
 #[test]
+fn lock_refresh_merges_with_lock_merge_sh() {
+    let workflow = read_runfiles(".github/workflows/lock-refresh.yml");
+    assert!(
+        workflow.contains("bash tools/ci/lock_merge.sh \"$LOCKS\" MODULE.bazel.lock"),
+        "lock-refresh.yml must merge the platform locks with tools/ci/lock_merge.sh"
+    );
+}
+
+#[test]
 fn the_network_job_selects_a_tag_the_network_tests_carry() {
     let bzl = read_runfiles("tools/testing/nested_bazel.bzl");
     let line = bzl

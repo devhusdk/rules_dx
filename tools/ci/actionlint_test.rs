@@ -205,14 +205,13 @@ fn platform_runners() -> Vec<String> {
     runners
 }
 
-/// Returns one problem per literal matrix runner in `text` that disagrees with `table`,
+/// Returns one problem per literal matrix runner in `document` that disagrees with `table`,
 /// and how many literal matrix runners it checked.
 fn matrix_runner_problems(
     name: &str,
-    text: &str,
+    document: &serde_json::Value,
     table: &BTreeMap<String, String>,
 ) -> (Vec<String>, usize) {
-    let document = ci_workflow::parse(name, text);
     let mut problems = Vec::new();
     let mut checked = 0;
     let Some(jobs) = document["jobs"].as_object() else {
@@ -255,8 +254,8 @@ fn every_matrix_runner_is_a_platform_runner() {
     let table = platform_table();
     let mut problems = Vec::new();
     let mut checked = 0;
-    for workflow in dx_testing::workflow_files() {
-        let (found, count) = matrix_runner_problems(&workflow, &read_runfiles(&workflow), &table);
+    for (workflow, document) in ci_workflow::all() {
+        let (found, count) = matrix_runner_problems(&workflow, &document, &table);
         problems.extend(found);
         checked += count;
     }
@@ -274,7 +273,8 @@ fn every_matrix_runner_is_a_platform_runner() {
 #[test]
 fn a_retired_matrix_runner_is_caught() {
     let text = "jobs:\n  build:\n    strategy:\n      matrix:\n        include:\n          - platform: macos_arm64\n            runner: macos-13\n          - name: dx-macos-arm64\n            runner: macos-13\n";
-    let (problems, checked) = matrix_runner_problems("retired.yml", text, &platform_table());
+    let document = ci_workflow::parse("retired.yml", text);
+    let (problems, checked) = matrix_runner_problems("retired.yml", &document, &platform_table());
     assert_eq!(checked, 2);
     assert_eq!(problems.len(), 2, "{problems:?}");
     assert!(

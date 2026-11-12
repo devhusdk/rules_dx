@@ -1,4 +1,4 @@
-use ci_workflow::steps;
+use ci_workflow::{steps, strings, triggers};
 use dx_testing::read_runfiles;
 
 const WORKFLOW: &str = ".github/workflows/dx-update.yml";
@@ -104,7 +104,7 @@ fn app_token_comes_before_the_dx_step() {
 
 #[test]
 fn git_pushes_through_gh_without_leaking_the_token() {
-    let body = text();
+    let body = strings(WORKFLOW).join("\n");
     assert!(
         body.contains("gh auth setup-git"),
         "{WORKFLOW} must configure git through gh"
@@ -121,15 +121,18 @@ fn git_pushes_through_gh_without_leaking_the_token() {
 
 #[test]
 fn schedule_and_dispatch_only() {
-    let body = text();
-    assert!(body.contains("schedule:"), "{WORKFLOW} needs a schedule");
-    assert!(
-        body.contains("workflow_dispatch"),
-        "{WORKFLOW} needs workflow_dispatch"
-    );
-    assert!(
-        !body.contains("pull_request:") && !body.contains("pull_request_target"),
-        "{WORKFLOW} must not run on pull requests"
+    let on = triggers(WORKFLOW);
+    let mut names: Vec<&str> = on
+        .as_object()
+        .unwrap_or_else(|| panic!("{WORKFLOW} declares no trigger table"))
+        .keys()
+        .map(String::as_str)
+        .collect();
+    names.sort_unstable();
+    assert_eq!(
+        names,
+        ["schedule", "workflow_dispatch"],
+        "{WORKFLOW} must run on schedule and workflow_dispatch only"
     );
 }
 

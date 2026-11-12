@@ -43,7 +43,6 @@ exports_files([
     "adapters.bzl",
     "applicability.bzl",
     "compile_check_exec.sh",
-    "suite_membership_test.sh",
     "coverage_sources.bzl",
     "dart_context.bzl",
     "execution_requirements.bzl",

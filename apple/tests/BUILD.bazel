@@ -25,27 +25,6 @@ rust_test(
 )
 
 rust_test(
-    name = "simulator_script_test",
-    testonly = True,
-    srcs = ["simulator_script_test.rs"],
-    aliases = aliases(
-        package_name = "apple/apple_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "simulator_script_test",
-    crate_root = "simulator_script_test.rs",
-    data = [
-        "//apple/private/bundle:library_check.sh",
-    ],
-    env = {
-        "DX_LIBRARY_CHECK": "$(rootpath //apple/private/bundle:library_check.sh)",
-    },
-    target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
-)
-
-rust_test(
     name = "xcframework_script_test",
     testonly = True,
     srcs = ["xcframework_script_test.rs"],

@@ -74,6 +74,7 @@ def check_cell(ctx, kind, cell, sdk, mach_o_platform, platform, platform_type, m
     deployment = str(xcode_config.minimum_os_for_platform_type(platform_type))
     report = ctx.actions.declare_file(ctx.label.name + ".txt")
     args = ctx.actions.args()
+    args.add("library-check")
     args.add(kind)
     args.add(report)
     args.add_all([

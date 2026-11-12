@@ -148,8 +148,7 @@ _macos_cell = rule(
         ),
         "_arm64": attr.label(default = "@platforms//cpu:arm64"),
         "_check": attr.label(
-            default = Label("//apple/private/bundle:library_check.sh"),
-            allow_single_file = True,
+            default = Label("//apple/private/tools/ops:apple_ops"),
             cfg = "exec",
             executable = True,
         ),

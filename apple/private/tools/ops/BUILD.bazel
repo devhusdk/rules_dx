@@ -10,6 +10,7 @@ rust_library(
         "src/codesign.rs",
         "src/export.rs",
         "src/lib.rs",
+        "src/library_check.rs",
         "src/notarize.rs",
         "src/probe.rs",
         "src/run_macos.rs",
@@ -85,6 +86,22 @@ rust_test(
         "fake.rs",
     ],
     crate_root = "export_test.rs",
+    deps = [
+        ":ops",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:zip",
+    ],
+)
+
+# keep
+rust_test(
+    name = "library_check_test",
+    size = "small",
+    srcs = [
+        "fake.rs",
+        "library_check_test.rs",
+    ],
+    crate_root = "library_check_test.rs",
     deps = [
         ":ops",
         "//cli/test_scratch:dx_test_scratch",

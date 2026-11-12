@@ -5,7 +5,6 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "cell_tests.bzl",
     "defs.bzl",
-    "library_check.sh",
     "validate.bzl",
 ])
 

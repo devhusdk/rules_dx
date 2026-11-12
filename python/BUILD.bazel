@@ -5,6 +5,7 @@ exports_files([
     "extensions.bzl",
     "README.md",
     "lang.json",
+    "pins.json",
 ])
 
 real_source_target(

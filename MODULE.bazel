@@ -1791,7 +1791,13 @@ use_repo(
     "python_interpreters",
 )
 
-register_toolchains("@python_interpreters//:all")
+dx_python = use_extension("//python:extensions.bzl", "python")
+use_repo(dx_python, "dx_python_toolchains")
+
+register_toolchains(
+    "@dx_python_toolchains//:all",
+    "@python_interpreters//:all",
+)
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.12")

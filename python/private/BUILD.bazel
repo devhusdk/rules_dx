@@ -48,6 +48,7 @@ python_library(
 
 exports_files([
     "defs.bzl",
+    "interpreters.bzl",
     "sdist_cargo_vendor.bzl",
 ])
 
@@ -248,6 +249,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "interpreters.bzl",
         "sdist_cargo_vendor.bzl",
     ],
     tags = ["corpus"],

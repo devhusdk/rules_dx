@@ -1,0 +1,21 @@
+{
+  "archives": {
+    "dx_selene_src": {
+      "version": "0.32.0",
+      "sha256": "cd208a4b3bae38decc9c7bb797c19615caaecf67606b3e593ca60b64d3416cd5",
+      "strip_prefix": "selene-0.32.0",
+      "urls": [
+        "https://github.com/Kampfkarren/selene/archive/refs/tags/0.32.0.tar.gz"
+      ]
+    },
+    "shared_tasks_adler2": {
+      "version": "2.0.1",
+      "type": "tar.gz",
+      "sha256": "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa",
+      "strip_prefix": "adler2-2.0.1",
+      "urls": [
+        "https://static.crates.io/crates/adler2/adler2-2.0.1.crate"
+      ]
+    }
+  }
+}

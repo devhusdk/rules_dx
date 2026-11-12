@@ -1075,9 +1075,51 @@ dx_pins.archive(
     pins = "//deploy/private/pins:pins.json",
     required = ["nfpm.exe"],
 )
+dx_pins.archive(
+    name = "c_app_cjson",
+    build = "//cc/tests/fixtures/c-app:cjson.BUILD.bazel",
+    pins = "//cc:pins.json",
+)
+dx_pins.archive(
+    name = "cpp_app_fmt",
+    build = "//cc/tests/fixtures/cpp-app:fmt.BUILD.bazel",
+    pins = "//cc:pins.json",
+)
+dx_pins.archive(
+    name = "dx_busybox_sh",
+    pins = "//core/quality:pins.json",
+)
+dx_pins.archive(
+    name = "dx_busybox_sh_windows",
+    pins = "//core/quality:pins.json",
+)
+dx_pins.archive(
+    name = "dx_selene_src",
+    build = "//rust/private:selene.BUILD.bazel",
+    pins = "//rust:pins.json",
+)
+dx_pins.archive(
+    name = "kcov",
+    build = "//tools/coverage/kcov:kcov.BUILD",
+    patches = [
+        "//patches/kcov:aslr.patch",
+        "//patches/kcov:elf_checksum_lock.patch",
+        "//patches/kcov:no_curl.patch",
+    ],
+    pins = "//tools/coverage/kcov:pins.json",
+)
+dx_pins.archive(
+    name = "shared_tasks_adler2",
+    build = "//examples/shared-rust:adler2.BUILD.bazel",
+    pins = "//rust:pins.json",
+)
 use_repo(
     dx_pins,
+    "c_app_cjson",
+    "cpp_app_fmt",
     "cuda_redistrib_json",
+    "dx_busybox_sh",
+    "dx_busybox_sh_windows",
     "dx_coreutils",
     "dx_coreutils__linux_arm64",
     "dx_coreutils__linux_x86_64",
@@ -1113,10 +1155,12 @@ use_repo(
     "dx_powershell_toolchains__windows_x86_64",
     "dx_rules_dart_pub",
     "dx_rules_flutter_pub",
+    "dx_selene_src",
     "dx_sorbet",
     "dx_swift_format_macos_arm64",
     "dx_thrift_commons_lang3",
     "dx_thrift_slf4j",
+    "kcov",
     "nfpm_linux_arm64",
     "nfpm_linux_x86_64",
     "nfpm_macos_arm64",
@@ -1126,6 +1170,61 @@ use_repo(
     "rules_haskell",
     "rules_powershell",
     "rules_ruby",
+    "shared_tasks_adler2",
+)
+
+dx_pins_dev = use_extension("//core:extensions.bzl", "dx_pins", dev_dependency = True)
+dx_pins_dev.archive(
+    name = "dx_jq_linux_arm64",
+    pins = "//tools/ci:pins.json",
+)
+dx_pins_dev.archive(
+    name = "dx_jq_linux_x86_64",
+    pins = "//tools/ci:pins.json",
+)
+dx_pins_dev.archive(
+    name = "dx_jq_macos_arm64",
+    pins = "//tools/ci:pins.json",
+)
+dx_pins_dev.archive(
+    name = "dx_jq_windows_arm64",
+    pins = "//tools/ci:pins.json",
+)
+dx_pins_dev.archive(
+    name = "dx_jq_windows_x86_64",
+    pins = "//tools/ci:pins.json",
+)
+dx_pins_dev.archive(
+    name = "erlang_app_thoas",
+    build = "//erlang/tests/fixtures/erlang_app:thoas.BUILD.bazel",
+    pins = "//erlang:pins.json",
+)
+dx_pins_dev.archive(
+    name = "foreign_cmake_zlib",
+    build = "//cc/tests/fixtures/foreign_cmake:zlib.BUILD.bazel",
+    pins = "//cc:pins.json",
+)
+dx_pins_dev.archive(
+    name = "lua_app_inspect",
+    build = "//lua/tests/fixtures/lua-app:inspect.BUILD.bazel",
+    pins = "//lua:pins.json",
+)
+dx_pins_dev.archive(
+    name = "zig_app_xxhash",
+    build = "//zig/tests/fixtures/zig-app:xxhash.BUILD.bazel",
+    pins = "//zig:pins.json",
+)
+use_repo(
+    dx_pins_dev,
+    "dx_jq_linux_arm64",
+    "dx_jq_linux_x86_64",
+    "dx_jq_macos_arm64",
+    "dx_jq_windows_arm64",
+    "dx_jq_windows_x86_64",
+    "erlang_app_thoas",
+    "foreign_cmake_zlib",
+    "lua_app_inspect",
+    "zig_app_xxhash",
 )
 
 ruby = use_extension("//ruby:extensions.bzl", "ruby")
@@ -1522,17 +1621,6 @@ hex_dev.lock(
 )
 use_repo(hex_dev, "elixir_app_deps")
 
-_beam_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-_beam_http_archive(
-    name = "erlang_app_thoas",
-    build_file = "//erlang/tests/fixtures/erlang_app:thoas.BUILD.bazel",
-    dev_dependency = True,
-    sha256 = "9187a4a283a4cdb0640d9ab84575e2cbe47fe68366fd47ea4a8a983def415207",
-    strip_prefix = "thoas-1.2.1",
-    urls = ["https://github.com/lpil/thoas/archive/refs/tags/v1.2.1.tar.gz"],
-)
-
 register_toolchains(
     "@dx_elixir_toolchains//:all",
     "@dx_erlang_toolchains//:all",
@@ -1577,35 +1665,6 @@ zig_hub.lock(
 )
 use_repo(zig_hub, "zig_zig.tests.fixtures.zig-deps")
 
-_zig_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-_zig_http_archive(
-    name = "zig_app_xxhash",
-    build_file = "//zig/tests/fixtures/zig-app:xxhash.BUILD.bazel",
-    dev_dependency = True,
-    sha256 = "5738270935e7c3d38a79b3adf7c9692566ce7895a25f67de43ad52ab504acd32",
-    strip_prefix = "xxHash-0.8.4",
-    urls = ["https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.4.tar.gz"],
-)
-
-_dx_http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
-
-_dx_http_file(
-    name = "dx_busybox_sh",
-    downloaded_file_path = "sh",
-    executable = True,
-    sha256 = "6e123e7f3202a8c1e9b1f94d8941580a25135382b99e8d3e34fb858bba311348",
-    urls = ["https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox"],
-)
-
-_dx_http_file(
-    name = "dx_busybox_sh_windows",
-    downloaded_file_path = "sh.exe",
-    executable = True,
-    sha256 = "95343c871869cc0ab57ecec26b2f9af0370eb9c954f7e5ddd017163e4e0d09a0",
-    urls = ["https://frippery.org/files/busybox/busybox-w64-FRP-6354-g5f09fb446.exe"],
-)
-
 register_toolchains(
     "//core/quality:busybox_sh_linux_x86_64",
     "//core/quality:busybox_sh_windows_x86_64",
@@ -1618,17 +1677,6 @@ lua = use_extension("//lua:extensions.bzl", "lua")
 use_repo(lua, "dx_lua_toolchains")
 
 register_toolchains("@dx_lua_toolchains//:all")
-
-_lua_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-_lua_http_archive(
-    name = "lua_app_inspect",
-    build_file = "//lua/tests/fixtures/lua-app:inspect.BUILD.bazel",
-    dev_dependency = True,
-    sha256 = "43386a613f9916186af4919f36392d8b8dad8c4428a5f8c85ebac80acba71eeb",
-    strip_prefix = "inspect.lua-3.1.3",
-    urls = ["https://github.com/kikito/inspect.lua/archive/refs/tags/v3.1.3.tar.gz"],
-)
 
 luarocks = use_extension("//lua:extensions.bzl", "luarocks", dev_dependency = True)
 luarocks.lock(
@@ -2674,8 +2722,6 @@ _fixture_repo(
     path = "javascript/tests/fixtures/web_app/repo",
 )
 
-_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
 semver_checks = use_extension("//deploy/private/pins:extensions.bzl", "semver_checks")
 use_repo(semver_checks, "cargo_semver_checks_linux_arm64", "cargo_semver_checks_linux_x86_64", "cargo_semver_checks_macos_arm64", "cargo_semver_checks_windows_x86_64")
 
@@ -2714,118 +2760,10 @@ nested_repository_cache.set(
 )
 use_repo(nested_repository_cache, "nested_cache_harness")
 
-_http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
-
-_http_file(
-    name = "dx_jq_linux_x86_64",
-    dev_dependency = True,
-    downloaded_file_path = "jq",
-    executable = True,
-    sha256 = "b1c22172dd303f3be49e935aa56aa48a8b7a46e0bc838b4997d3bb451495870f",
-    urls = ["https://github.com/jqlang/jq/releases/download/jq-1.8.2/jq-linux-amd64"],
-)
-
-_http_file(
-    name = "dx_jq_linux_arm64",
-    dev_dependency = True,
-    downloaded_file_path = "jq",
-    executable = True,
-    sha256 = "8b85c817833814ddca00a144c33705546355afccf0cf39b188f3cdb48b852309",
-    urls = ["https://github.com/jqlang/jq/releases/download/jq-1.8.2/jq-linux-arm64"],
-)
-
-_http_file(
-    name = "dx_jq_macos_arm64",
-    dev_dependency = True,
-    downloaded_file_path = "jq",
-    executable = True,
-    sha256 = "2d75340ba57a4b4b4c8708a21c2dc8e958a48aaa8bba13b27f77f6e4c0eca07e",
-    urls = ["https://github.com/jqlang/jq/releases/download/jq-1.8.2/jq-macos-arm64"],
-)
-
-_http_file(
-    name = "dx_jq_windows_x86_64",
-    dev_dependency = True,
-    downloaded_file_path = "jq.exe",
-    executable = True,
-    sha256 = "a6fc67fedaf9128a3309a1e2ebb8b986aeccf70122ee46d2cb4849e423f0c627",
-    urls = ["https://github.com/jqlang/jq/releases/download/jq-1.8.2/jq-windows-amd64.exe"],
-)
-
-_http_file(
-    name = "dx_jq_windows_arm64",
-    dev_dependency = True,
-    downloaded_file_path = "jq.exe",
-    executable = True,
-    sha256 = "083b5377392bc57cf27052b6d20a2d927770683bca844632901ff38b4b7b0ac7",
-    urls = ["https://github.com/jqlang/jq/releases/download/jq-1.8.2/jq-windows-arm64.exe"],
-)
-
-_http_archive(
-    name = "kcov",
-    build_file = "//tools/coverage/kcov:kcov.BUILD",
-    patch_args = ["-p1"],
-    patches = [
-        "//patches/kcov:aslr.patch",
-        "//patches/kcov:elf_checksum_lock.patch",
-        "//patches/kcov:no_curl.patch",
-    ],
-    sha256 = "4cbba86af11f72de0c7514e09d59c7927ed25df7cebdad087f6d3623213b95bf",
-    strip_prefix = "kcov-43",
-    urls = ["https://github.com/SimonKagstrom/kcov/archive/refs/tags/v43.tar.gz"],
-)
-
-_http_archive(
-    name = "dx_selene_src",
-    build_file = "//rust/private:selene.BUILD.bazel",
-    sha256 = "cd208a4b3bae38decc9c7bb797c19615caaecf67606b3e593ca60b64d3416cd5",
-    strip_prefix = "selene-0.32.0",
-    urls = ["https://github.com/Kampfkarren/selene/archive/refs/tags/0.32.0.tar.gz"],
-)
-
-_http_archive(
-    name = "shared_tasks_adler2",
-    build_file = "//examples/shared-rust:adler2.BUILD.bazel",
-    sha256 = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa",
-    strip_prefix = "adler2-2.0.1",
-    type = "tar.gz",
-    urls = ["https://static.crates.io/crates/adler2/adler2-2.0.1.crate"],
-)
-
 _fixture_repo(
     name = "shared_consumer",
     dev_dependency = True,
     path = "rust/tests/fixtures/shared-rust-checks/repo",
-)
-
-_http_archive(
-    name = "foreign_cmake_zlib",
-    build_file_content = """filegroup(
-    name = "all_srcs",
-    srcs = glob(["**"]),
-    visibility = ["//visibility:public"],
-)
-""",
-    dev_dependency = True,
-    sha256 = "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23",
-    strip_prefix = "zlib-1.3.1",
-    urls = ["https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz"],
-)
-
-_http_archive(
-    name = "c_app_cjson",
-    build_file = "//cc/tests/fixtures/c-app:cjson.BUILD.bazel",
-    sha256 = "7fa616e3046edfa7a28a32d5f9eacfd23f92900fe1f8ccd988c1662f30454562",
-    strip_prefix = "cJSON-1.7.19",
-    urls = ["https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.19.tar.gz"],
-)
-
-_http_archive(
-    name = "cpp_app_fmt",
-    build_file = "//cc/tests/fixtures/cpp-app:fmt.BUILD.bazel",
-    sha256 = "449374d74f31b67796dece454d59b93e6f1538efcce0e9ac78000c98142c139e",
-    strip_prefix = "fmt-12.2.1",
-    urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.2.1.tar.gz"],
 )
 
 dx_source_archives = use_extension("//core:extensions.bzl", "dx_source_archives")

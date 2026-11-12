@@ -42,6 +42,7 @@ exports_files([
     "BUILD.bazel",
     "adapters.bzl",
     "applicability.bzl",
+    "pins.json",
     "compile_check_exec.sh",
     "suite_membership_test.sh",
     "coverage_sources.bzl",

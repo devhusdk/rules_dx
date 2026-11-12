@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -67,7 +68,15 @@ gazelle_generation_test(
 
 rust_test(
     name = "harness_test",
+    testonly = True,
     srcs = ["harness_test.rs"],
+    aliases = aliases(
+        package_name = "gazelle/gazelle_rust",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "harness_test",
+    crate_root = "harness_test.rs",
     data = [
         "@dx_gazelle//:gazelle",
     ],

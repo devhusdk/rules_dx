@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/tests:subject.bzl", "example_subject")
 load("//rust:defs.bzl", "rust_test")
@@ -17,7 +18,15 @@ red_missing_fragment(name = "red_missing_fragment")
 
 rust_test(
     name = "negative_proof_test",
+    testonly = True,
     srcs = ["negative_proof_test.rs"],
+    aliases = aliases(
+        package_name = "core/tests/core_tests_negative",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "negative_proof_test",
+    crate_root = "negative_proof_test.rs",
     data = [
         ":red_failing_checks",
         ":red_failing_checks_manifest",

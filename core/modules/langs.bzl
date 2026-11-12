@@ -622,7 +622,7 @@ LANGS = json.decode("""{
     "manifests": [],
     "name": "cuda",
     "pins": [
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",
@@ -1145,7 +1145,7 @@ LANGS = json.decode("""{
     ],
     "name": "flutter",
     "pins": [
-      "private/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",
@@ -2930,7 +2930,7 @@ LANGS = json.decode("""{
     ],
     "name": "swift",
     "pins": [
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",

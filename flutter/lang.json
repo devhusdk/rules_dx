@@ -20,7 +20,7 @@
     "windows_x86_64"
   ],
   "pins": [
-    "private/pins.json"
+    "pins.json"
   ],
   "entry_points": [
     "flutter_gen_l10n",

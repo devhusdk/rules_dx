@@ -27,7 +27,7 @@ def cuda_component_repo(name, license_error, **kwargs):
         cuda_component(name = name, **kwargs)
 
 def _impl(module_ctx):
-    pins = json.decode(module_ctx.read(Label("//cuda/private/toolchain:pins.json")))
+    pins = json.decode(module_ctx.read(Label("//cuda:pins.json")))
     version = pins["version"]
     version_label = version.replace(".", "_")
     license_error = cuda_license_error(accepted_ids(module_ctx))
@@ -76,5 +76,5 @@ def _impl(module_ctx):
 
 cuda = module_extension(
     implementation = _impl,
-    doc = "Declares the pinned CUDA Toolkit components and the toolkit repo `cuda` from cuda/private/toolchain/pins.json.",
+    doc = "Declares the pinned CUDA Toolkit components and the toolkit repo `cuda` from cuda/pins.json.",
 )

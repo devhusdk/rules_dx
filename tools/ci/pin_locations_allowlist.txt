@@ -97,7 +97,6 @@ core/quality/artifacts/yamlfmt.bzl digest-outside-pins 10
 core/quality/artifacts/zizmor.bzl digest-outside-pins 8
 core/seven_zip.bzl digest-outside-pins 4
 core/toolchain.bzl no-digest 1
-cuda/private/toolchain/pins.json duplicate-pin 1
 deploy/private/BUILD.bazel mutable-ref 2
 deploy/private/image.bzl mutable-ref 1
 deploy/private/npm.bzl mutable-ref 1

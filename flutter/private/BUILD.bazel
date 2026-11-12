@@ -13,7 +13,6 @@ unsupported_value("unsupported")
 
 exports_files([
     "defs.bzl",
-    "pins.json",
     "platforms.bzl",
     "pub.bzl",
 ])

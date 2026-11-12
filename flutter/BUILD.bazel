@@ -17,6 +17,7 @@ exports_files([
     "defs.bzl",
     "extensions.bzl",
     "lang.json",
+    "pins.json",
 ])
 
 real_source_target(

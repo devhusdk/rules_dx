@@ -39,7 +39,7 @@
     "macos_arm64"
   ],
   "pins": [
-    "private/toolchain/pins.json"
+    "pins.json"
   ],
   "entry_points": [
     "swift_interop_hint",

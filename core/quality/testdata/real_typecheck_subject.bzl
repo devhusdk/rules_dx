@@ -9,6 +9,7 @@ load(
     "real_julia_typecheck_aspect",
     "real_lua_typecheck_aspect",
     "real_php_typecheck_aspect",
+    "real_python_typecheck_aspect",
     "real_ruby_typecheck_aspect",
     "real_rust_typecheck_aspect",
     "real_typecheck_aspect",
@@ -44,7 +45,7 @@ real_typecheck_subject = rule(
     implementation = _real_typecheck_subject_impl,
     attrs = {
         "target": attr.label(
-            aspects = [real_typecheck_aspect, real_rust_typecheck_aspect, real_erlang_typecheck_aspect, real_go_typecheck_aspect, real_php_typecheck_aspect, real_julia_typecheck_aspect, real_lua_typecheck_aspect, real_ruby_typecheck_aspect],
+            aspects = [real_typecheck_aspect, real_rust_typecheck_aspect, real_erlang_typecheck_aspect, real_go_typecheck_aspect, real_php_typecheck_aspect, real_python_typecheck_aspect, real_julia_typecheck_aspect, real_lua_typecheck_aspect, real_ruby_typecheck_aspect],
             mandatory = True,
         ),
     },

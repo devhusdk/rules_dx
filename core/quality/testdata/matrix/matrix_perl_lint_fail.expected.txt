@@ -4,10 +4,16 @@ stages 1
 stage perlcritic classes=perl sources=matrix/perlcritic_dirty.pl
 completed_rounds 1
 convergence STABLE
-initial 2
+initial 5
+initial WARNING perlcritic Modules::RequireExplicitPackage matrix/perlcritic_dirty.pl 0 0 fixable=false "Code not contained in explicit package"
 initial WARNING perlcritic TestingAndDebugging::RequireUseStrict matrix/perlcritic_dirty.pl 0 0 fixable=false "Code before strictures are enabled"
+initial WARNING perlcritic TestingAndDebugging::RequireUseWarnings matrix/perlcritic_dirty.pl 0 0 fixable=false "Code before warnings are enabled"
+initial WARNING perlcritic Modules::RequireEndWithOne matrix/perlcritic_dirty.pl 17 17 fixable=false "Module does not end with \"1;\""
 initial WARNING perlcritic Variables::ProhibitUnusedVariables matrix/perlcritic_dirty.pl 17 17 fixable=false "\"$unused\" is declared but not used"
-terminal 2
+terminal 5
+terminal WARNING perlcritic Modules::RequireExplicitPackage matrix/perlcritic_dirty.pl 0 0 fixable=false "Code not contained in explicit package"
 terminal WARNING perlcritic TestingAndDebugging::RequireUseStrict matrix/perlcritic_dirty.pl 0 0 fixable=false "Code before strictures are enabled"
+terminal WARNING perlcritic TestingAndDebugging::RequireUseWarnings matrix/perlcritic_dirty.pl 0 0 fixable=false "Code before warnings are enabled"
+terminal WARNING perlcritic Modules::RequireEndWithOne matrix/perlcritic_dirty.pl 17 17 fixable=false "Module does not end with \"1;\""
 terminal WARNING perlcritic Variables::ProhibitUnusedVariables matrix/perlcritic_dirty.pl 17 17 fixable=false "\"$unused\" is declared but not used"
 replacements 0

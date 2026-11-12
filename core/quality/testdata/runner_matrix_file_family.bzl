@@ -2558,7 +2558,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_perl_lint_pass",
         "generated": {
-            "matrix/perlcritic_clean.pl": "use strict;\nuse warnings;\nprint \"hello\\n\";\n",
+            "matrix/perlcritic_clean.pl": "package main;\nuse strict;\nuse warnings;\nprint \"hello\\n\";\n1;\n",
         },
         "capability": "lint",
         "stages": ["perlcritic;perl;matrix/perlcritic_clean.pl"],
@@ -2846,7 +2846,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_php_lint_fail",
         "generated": {
-            "matrix/phpcs_dirty.php": "<?php\nnamespace Dx\\Math;\nfinal class Calc {\n    public function add($a,$b){ return $a+$b; }\n}\n",
+            "matrix/phpcs_dirty.php": "<?php\nnamespace Dx\\Math;\nfinal class Calc {\n    public function add($a,$b,$c){ return $a+$b; }\n}\n",
         },
         "capability": "lint",
         "stages": ["phpcs;php;matrix/phpcs_dirty.php"],

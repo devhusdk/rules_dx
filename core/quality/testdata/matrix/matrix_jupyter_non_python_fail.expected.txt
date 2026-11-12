@@ -1,1 +1,1 @@
-pipeline failed: tool execution failed for ruff: core/quality/testdata/jupyter/r_kernel.ipynb: notebook language is "R"; ruff checks only Python notebooks
+pipeline failed: tool execution failed for ruff: core/quality/testdata/jupyter/r_kernel.ipynb: notebook language is "R"; ruff checks only Python notebooks (config core/quality/tiers/ruff/standard.toml)

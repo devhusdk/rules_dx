@@ -1,5 +1,5 @@
 {
-  "checksum": "8399a8f3be650b5f26828ccce4aa030e38bd6a1edaaf8aa03af23860a5b6cdb6",
+  "checksum": "bedc43498b78caed719290e8bf192acc9bf6f13c288128f93608c23e03d28cd4",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -32681,7 +32681,7 @@
     "quality_runner 0.0.0": "core/quality/quality_runner",
     "quality_tests 0.0.0": "core/quality/quality_tests",
     "quality_tiers 0.0.0": "core/quality/quality_tiers",
-    "quality_tools_jvm 0.0.0": "core/quality/tools/quality_tools_jvm",
+    "quality_tools_jvm 0.0.0": "java/private/quality/quality_tools_jvm",
     "rego_tests 0.0.0": "rego/rego_tests",
     "repin_all 0.0.0": "tools/repin_all",
     "ruby_docs_tests 0.0.0": "tools/docs/ruby_docs_tests",

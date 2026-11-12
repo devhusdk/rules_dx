@@ -24,7 +24,7 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 | D | none | `dub` (pinned, no advisories) | `d_bench` | `d_fuzz_test` | all | all | all | all | pending | pending |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` | `dart_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`; n/a: dart supports no other windows platform; pending on `macos_arm64` | pending |
 | Elixir | none | `hex` | `elixir_bench` | n/a | all | all | all | all | pending | pending |
-| Erlang | none | `hex` from `mix.lock` or an `erlang.rebar` `rebar.lock` | `erlang_bench` | n/a | all | all | all | all | pending | pending |
+| Erlang | none | `hex` from `mix.lock` or an `erlang.rebar` `rebar.lock` | `erlang_bench` | n/a | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`; pending on `windows_arm64`, `windows_x86_64` | pending | pending |
 | Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) | `pub` | n/a | n/a | pending | pending | pending | pending | pending | pending |
 | Fortran | `windows_x86_64`: not in lang.json platforms; `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | the `fpm.lock` tag of the `fpm` extension builds pinned archives from the fpm lock; `dx security` and `dx license` read it, `dx update` re-hashes the archives | n/a | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | pending | pending |
 | F# | none | `nuget` | `fsharp_bench` | `fsharp_fuzz_test` | all | all | all | all | pending | pending |
@@ -94,7 +94,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Fortran | `fortitude`, `typos` | `ffmt` | `flang` | `ford` | `fortitude C191 unreachable-statement` |
 | F# | `fsharplint`, `typos` | `fantomas` | `fsc` | `fsharp doc driver` | `fsc FS1182 (--warnon:1182)` |
 | Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `staticcheck U1000` |
-| Haskell | `hlint`, `typos`, `weeder` (not on `windows_x86_64`: weeder is built from Hackage and only the linux_x86_64 build is verified; `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist) | `ormolu` | `ghc` | `haddock` | `ghc -Wunused-local-binds, -Wunused-matches (-Wall)` |
+| Haskell | `hlint`, `typos`, `weeder` (not on `windows_x86_64`: weeder.exe crashes with an access violation (#9971); `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist) | `ormolu` | `ghc` | `haddock` | `ghc -Wunused-local-binds, -Wunused-matches (-Wall)` |
 | Java | `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter` |
 | JavaScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `eslint no-unused-vars` |
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | `documenter` | none |

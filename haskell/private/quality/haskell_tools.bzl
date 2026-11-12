@@ -60,7 +60,7 @@ TOOLS = [
                 transport = "single",
                 unsupported = {
                     "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist",
-                    "windows_x86_64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
+                    "windows_x86_64": "weeder.exe crashes with an access violation (#9971)",
                 },
             ),
         ],

@@ -78,3 +78,15 @@ fn since_needs_affected() {
         Err(ArgsError::SinceNeedsAffected)
     ));
 }
+
+#[test]
+fn deploy_takes_affected_and_since_but_no_label() {
+    let invocation = parse(&strings(&["deploy", "--affected", "--since=main"])).expect("parses");
+    assert!(invocation.affected);
+    assert!(invocation.targets.is_empty());
+    assert_eq!(
+        parse(&strings(&["deploy", "--affected", "//a:b"])),
+        Err(ArgsError::ConflictingAffected)
+    );
+    assert!(parse(&strings(&["deploy", "--since=main"])).is_err());
+}

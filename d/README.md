@@ -51,9 +51,8 @@ d_test(
   Windows x86_64 and Windows arm64. windows_arm64 runs the x64 LDC under emulation. Both Windows
   cells constrain on the `@llvm//constraints/windows/abi:msvc` ABI, because LDC's prebuilt runtime
   is MSVC-ABI.
-- On Windows, D stdio uses ISO wide specifiers, matching cc. `//d/private/toolchain:msvc_iso_stdio` defines the
-  stdio functions druntime would otherwise take from `legacy_stdio_definitions.lib`; hermetic-llvm has
-  no legacy mode (hermeticbuild/hermetic-llvm#871). D links the dynamic CRT (`-mscrtlib=msvcrt`).
+- On Windows, D stdio uses ISO wide specifiers, matching cc, and D links the dynamic CRT
+  (`-mscrtlib=msvcrt`).
 
 ## Generate
 
@@ -102,23 +101,9 @@ package that has a `dub.sdl` instead of a `dub.json`.
 
 ## Platforms
 
-| Host | LDC | Qualified |
-| --- | --- | --- |
-| Linux x86_64 | yes | yes |
-| Linux arm64 | yes | yes |
-| macOS arm64 | yes | yes |
-| Windows x86_64 | yes | yes |
-| Windows arm64 | via emulation | yes |
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
-The Windows archives are `.7z` files that use BCJ2, which Bazel cannot unpack, so they are
-extracted with the pinned 7-Zip in `//core:seven_zip.bzl`. LDC has no native Windows
-arm64 compiler: that cell runs the x64 LDC under emulation with the arm64 runtime libraries of the
-LDC addon package, and compiles with `-mtriple=aarch64-windows-msvc`.
-
-The hello D tests (`greet_test`, `hello_output_test`) pass on Windows x86_64 (evidence run
-42057198949) and Windows arm64 (evidence run 42083243205). The hello and d-app tests
-(`app_output_test`, `base_test`, `cli_test`) pass on both Windows hosts in evidence run
-42302173656.
+On Windows arm64 the x64 LDC runs under emulation.
 
 ## Formatting
 

@@ -339,6 +339,12 @@ pub(crate) fn plan(
         .take()
         .map_or_else(|| RuleGraph::load(workspace, runner, startup_options), Ok)?;
     let excludes = exclude::load(workspace)?;
+    if command == Command::Deploy {
+        let mut deployments = graph.deployments(&selection.targets);
+        deployments.retain(|rule| !exclude::covered(&excludes, rule));
+        plan.targets = deployments;
+        return Ok(plan);
+    }
     let mut rules = graph.affected(&selection.targets);
     rules.retain(|rule| !exclude::covered(&excludes, rule));
     let tests = if tests_only(command) || command == Command::Check {
@@ -583,6 +589,32 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     let mut next = invocation.clone();
     next.affected = false;
+    if invocation.command == Command::Deploy {
+        let mut code = 0;
+        for label in &plan.targets {
+            next.targets = vec![label.clone()];
+            let env = Env {
+                workspace,
+                runner,
+                query_runner,
+                temp_dir,
+                pid,
+                nonce,
+                out: &mut *out,
+                err: &mut *err,
+                ci,
+                audit_today,
+                actions,
+                proc_root,
+                edit_commit_json,
+            };
+            let step = execute(&next, env);
+            if code == 0 {
+                code = step;
+            }
+        }
+        return code;
+    }
     next.targets = plan.targets.clone();
     next.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         tests: plan.tests.clone(),
@@ -883,7 +915,7 @@ mod tests {
         let mut every: Vec<String> = Command::value_variants()
             .iter()
             .filter(|command| {
-                **command != Command::Watch
+                !matches!(**command, Command::Watch | Command::Deploy)
                     && dx_plan::args::grammar::accepts_long(**command, "affected")
             })
             .map(|command| command.name().to_owned())

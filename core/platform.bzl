@@ -64,3 +64,11 @@ def single_platform_error(rule, platforms):
     if len(platforms) == 1:
         return ""
     return rule + ": platforms takes exactly one platform label, got " + str(len(platforms))
+
+def prepend_toolchains(first, current):
+    """Returns first followed by each toolchain of current that first does not already hold."""
+    toolchains = [str(t) for t in first]
+    for t in current:
+        if str(t) not in toolchains:
+            toolchains.append(str(t))
+    return toolchains

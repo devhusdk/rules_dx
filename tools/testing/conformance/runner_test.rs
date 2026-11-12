@@ -100,8 +100,9 @@ fn subject_matches_mode() {
             assert_eq!(
                 run.status.code(),
                 Some(0),
-                "unexpected exit code for {}",
-                subject.display()
+                "unexpected exit code for {}:\n{}",
+                subject.display(),
+                run.combined()
             );
             let stdout = run.stdout.replace("\r\n", "\n");
             assert_eq!(stdout.trim_end_matches('\n'), text, "unexpected output");
@@ -338,6 +339,23 @@ fn failure_line_substitutes_case() {
     );
 }
 
+fn launcher_stem(name: &str) -> &str {
+    match name.len().checked_sub(4) {
+        Some(cut) if name.is_char_boundary(cut) && name[cut..].eq_ignore_ascii_case(".exe") => {
+            &name[..cut]
+        }
+        _ => name,
+    }
+}
+
+#[test]
+fn launcher_stem_strips_exe() {
+    assert_eq!(launcher_stem("hello.exe"), "hello");
+    assert_eq!(launcher_stem("hello.EXE"), "hello");
+    assert_eq!(launcher_stem("hello"), "hello");
+    assert_eq!(launcher_stem("a.b/hello"), "a.b/hello");
+}
+
 fn collector_path(value: &str) -> String {
     let rest = if let Some(rest) = value.strip_prefix("external/") {
         rest.to_owned()
@@ -440,22 +458,25 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
     let dir = tmp.join("subject");
     std::fs::create_dir_all(&dir).expect("stage dir must be creatable");
     let staged = dir.join(subject.file_name().expect("subject must have a name"));
+    let key = launcher_stem(key);
     let descriptor = dx_testing::rlocation(&format!("{key}.launch"))
         .or_else(|_| dx_testing::rlocation(&format!("{key}_upstream.launch")));
-    if let Ok(descriptor) = descriptor {
-        std::fs::copy(&descriptor, with_suffix(&staged, ".launch")).expect("descriptor must copy");
-    }
-    std::fs::copy(subject, &staged).expect("subject must copy");
     let name = staged
         .file_name()
         .and_then(|name| name.to_str())
         .expect("staged subject must have a name")
         .to_owned();
+    let stem = launcher_stem(&name).to_owned();
+    if let Ok(descriptor) = descriptor {
+        std::fs::copy(&descriptor, dir.join(format!("{stem}.launch")))
+            .expect("descriptor must copy");
+    }
+    std::fs::copy(subject, &staged).expect("subject must copy");
     if let Some(Ok(siblings)) = subject.parent().map(std::fs::read_dir) {
         for sibling in siblings.flatten() {
             let file = sibling.file_name();
             let Some(file) = file.to_str() else { continue };
-            if file.starts_with(&format!("{name}.")) && !dir.join(file).exists() {
+            if file.starts_with(&format!("{stem}.")) && !dir.join(file).exists() {
                 std::fs::copy(sibling.path(), dir.join(file)).expect("sibling must copy");
             }
         }
@@ -474,9 +495,49 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
             }
         }
     }
-    if let Ok(manifest) = std::env::var("RUNFILES_MANIFEST_FILE") {
+    let manifest = manifest_source(
+        std::env::var("RUNFILES_MANIFEST_FILE").ok(),
+        &std::env::var("RUNFILES_DIR").unwrap_or_default(),
+        &std::env::var("TEST_SRCDIR").unwrap_or_default(),
+    );
+    if let Some(manifest) = manifest {
         std::fs::copy(&manifest, with_suffix(&staged, ".runfiles_manifest"))
             .expect("manifest must copy");
     }
     staged
+}
+
+fn manifest_source(
+    env_manifest: Option<String>,
+    runfiles_dir: &str,
+    srcdir: &str,
+) -> Option<std::path::PathBuf> {
+    let mut candidates: Vec<std::path::PathBuf> =
+        env_manifest.into_iter().map(Into::into).collect();
+    for dir in [runfiles_dir, srcdir] {
+        if !dir.is_empty() {
+            candidates.push(std::path::Path::new(dir).join("MANIFEST"));
+        }
+    }
+    candidates.into_iter().find(|path| path.is_file())
+}
+
+#[test]
+fn manifest_source_falls_back_to_runfiles_dir() {
+    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let tree = std::path::Path::new(&tmp)
+        .join("manifest_source")
+        .join("tree");
+    std::fs::create_dir_all(&tree).expect("tree must be creatable");
+    std::fs::write(tree.join("MANIFEST"), "_main/a /x/a\n").expect("MANIFEST must write");
+    let tree = tree.to_str().expect("tree must be utf-8");
+    let missing = std::path::Path::new(&tmp)
+        .join("manifest_source")
+        .join("missing");
+    let missing = missing.to_str().expect("missing must be utf-8");
+    let expected = Some(std::path::Path::new(tree).join("MANIFEST"));
+    assert_eq!(manifest_source(None, tree, missing), expected);
+    assert_eq!(manifest_source(None, missing, tree), expected);
+    assert_eq!(manifest_source(None, missing, missing), None);
+    assert_eq!(manifest_source(None, "", ""), None);
 }

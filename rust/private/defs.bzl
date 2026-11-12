@@ -30,6 +30,7 @@ _LIBSTDCXX_READY = Label("//rust/private:libstdcxx_ready")
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 _UNWIND = Label("//rust/private:unwind")
 _BUILD_SCRIPT_CC_ENV = Label("//rust/private:build_script_cc_env")
+_NO_COVERAGE_FEATURES = ["-coverage", "-gcc_coverage_map_format", "-llvm_coverage_map_format"]
 _MSVC = Label("//rust/private:msvc")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
 _CLANG_CL = Label("//rust/private:clang_cl")
@@ -236,9 +237,12 @@ def rust_build_script(name, build_script_env = None, toolchains = None, use_cc_t
         if "CFLAGS" in user:
             env["CFLAGS"] = BUILD_SCRIPT_CC_ENV["CFLAGS"] + " " + user["CFLAGS"]
         toolchains.append(_BUILD_SCRIPT_CC_ENV)
+    features = list(kwargs.pop("features", []))
+    features += [f for f in _NO_COVERAGE_FEATURES if f not in features]
     _cargo_build_script(
         name = name,
         build_script_env = env,
+        features = features,
         toolchains = toolchains,
         use_cc_toolchain = use_cc_toolchain,
         **kwargs

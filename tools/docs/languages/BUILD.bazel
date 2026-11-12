@@ -3,6 +3,7 @@ load("@rules_dx//python:defs.bzl", "python_binary", "python_test")
 
 python_binary(
     name = "languages_bin",
+    testonly = True,
     srcs = ["languages.py"],
     data = ["//tools/docs/support_matrix:facts"],
     main = "languages.py",

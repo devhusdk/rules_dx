@@ -417,7 +417,7 @@ LANGS = json.decode("""{
     "manifests": [],
     "name": "cc",
     "pins": [
-      "private/toolchains/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",
@@ -1506,7 +1506,6 @@ LANGS = json.decode("""{
       "java_library",
       "java_binary",
       "java_test",
-      "java_jmh_test",
       "java_fuzz_test",
       "java_bench"
     ],

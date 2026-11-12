@@ -12,6 +12,7 @@ load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:msvc_crt.bzl", "dx_msvc_crt_reset_transition")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/private/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
@@ -68,6 +69,7 @@ _swift_binary_forward = dx_executable_forward_rule(
     provides = _EXEC_PROVIDES,
     extra_attrs = _PLATFORM_ATTR,
     upstream_cfg = swift_linux_transition,
+    cfg = dx_msvc_crt_reset_transition,
 )
 
 def _swift_test_coverage(ctx, upstream):
@@ -97,6 +99,7 @@ _swift_forward_test = dx_executable_forward_rule(
     upstream_cfg = swift_linux_transition,
     coverage_providers = _swift_test_coverage,
     toolchains = dx_native_coverage_toolchains(),
+    cfg = dx_msvc_crt_reset_transition,
 )
 
 def _swift_upstream_kwargs(kwargs):

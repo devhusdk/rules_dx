@@ -1118,7 +1118,12 @@ command_args! {
         bazel_option: BazelOptionFlag,
     };
     /// The flags `dx deploy` accepts.
-    Deploy => 11, AppTail, { own: BuildModeArgs, apply: ApplyFlag, };
+    Deploy => 11, AppTail, {
+        own: BuildModeArgs,
+        apply: ApplyFlag,
+        affected: AffectedFlag,
+        since: SinceFlag,
+    };
     /// The flags `dx check` accepts.
     Check => 12, BazelTail, {
         output: OutputFlag,

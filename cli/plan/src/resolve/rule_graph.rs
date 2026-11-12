@@ -243,6 +243,11 @@ impl RuleGraph {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
     }
 
+    /// The `dx_deployment` rules the scopes reach, keeping manual rules.
+    pub fn deployments(&self, scopes: &[String]) -> Vec<String> {
+        self.reached_of_kind(scopes, |kind| kind == "dx_deployment")
+    }
+
     /// Rules the scopes select that no other selected rule uses through its inputs.
     /// Manual rules count only when a scope names them exactly.
     pub fn top_level(&self, scopes: &[String]) -> Vec<String> {
@@ -533,6 +538,20 @@ mod tests {
                 &[],
             ),
         ])
+    }
+
+    #[test]
+    fn deployments_are_the_dx_deployment_rules_a_seed_reaches() {
+        let graph = graph(&[
+            graph_rule_of_kind("//app:bin", "rust_binary", &["//app:main.rs"], &[]),
+            graph_rule_of_kind("//app:deploy", "dx_deployment", &["//app:bin"], &[]),
+            graph_rule_of_kind("//other:deploy", "dx_deployment", &["//other:x"], &[]),
+        ]);
+        assert_eq!(
+            graph.deployments(&strings(&["//app:main.rs"])),
+            ["//app:deploy"]
+        );
+        assert!(graph.deployments(&[]).is_empty());
     }
 
     #[test]

@@ -15,7 +15,7 @@ load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 cuda_component_library = _cuda_component_library
 
-CUDA_TARGET = compatible_with(PLATFORM_SUPPORT)
+CUDA_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 
 _CUDA_SRCS = [".cu"]
 _CUDA_HDRS = [".cuh", ".h", ".hh", ".hpp", ".hxx"]
@@ -84,8 +84,8 @@ def cuda_target_compatible_with(target_compatible_with):
     """Returns the target constraints of a dx CUDA target."""
     extra = target_compatible_with if target_compatible_with != None else []
     if type(extra) == "select":
-        return extra + CUDA_TARGET
-    return list(extra) + CUDA_TARGET
+        return extra + CUDA_COMPATIBLE_WITH
+    return list(extra) + CUDA_COMPATIBLE_WITH
 
 def cuda_split_srcs(srcs):
     """Splits sources into the nvcc part and the host C/C++ part."""

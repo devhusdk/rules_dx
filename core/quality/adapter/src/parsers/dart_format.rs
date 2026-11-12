@@ -152,7 +152,10 @@ fn split_path<'a>(text: &'a str, files: &[&'a str]) -> Option<(&'a str, &'a str)
         }
         rest
     };
-    let exact = files.iter().copied().find(|file| *file == spelled);
+    let exact = files
+        .iter()
+        .copied()
+        .find(|file| super::same_drive_path(file, spelled));
     let found = exact.or_else(|| {
         let mut hits = files.iter().copied().filter(|file| {
             !tail.is_empty()
@@ -194,6 +197,24 @@ mod tests {
             .expect("parsed")
             .is_empty()
         );
+    }
+
+    #[test]
+    fn dart_format_matches_a_lowercase_drive_letter() {
+        let files = ["D:/w/dirty.dart"];
+        let out = b"Changed d:/w/dirty.dart\nFormatted 1 files (1 changed) in 0.01 seconds.\n";
+        let findings = parse_dart_format(out, b"", Some(1), &files).expect("parsed");
+        assert_eq!(findings[0].file, "D:/w/dirty.dart");
+    }
+
+    #[test]
+    fn dart_format_matches_a_forward_slash_syntax_error_to_a_backslash_file() {
+        let files = [r"D:\w\bad.dart"];
+        let out = b"Formatted 0 files (0 changed) in 0.00 seconds.\n";
+        let err = b"line 2, column 1 of d:/w/bad.dart: Expected an identifier.\n";
+        let findings = parse_dart_format(out, err, Some(65), &files).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, r"D:\w\bad.dart");
     }
 
     #[test]

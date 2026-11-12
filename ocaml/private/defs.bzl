@@ -31,6 +31,7 @@ load("//core:fuzz.bzl", "dx_fuzz_runner")
 load("//core:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
 load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "ocaml_coverage_kwargs", "ocaml_default_module_name", "ocaml_link_kwargs", "ocaml_test_upstream_kwargs", "ocaml_upstream_tags", "ocaml_with_defaults", _OCAML_COMPATIBLE_WITH = "OCAML_COMPATIBLE_WITH")
 load(":providers.bzl", "OCamlCmtInfo", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
@@ -167,7 +168,7 @@ def _coverage_launcher(ctx, upstream, inner, files, native, runtime_runfiles = [
     manifest = ctx.actions.declare_file(ctx.label.name + ".bisect_sources")
     ctx.actions.write(manifest, "".join([f.short_path + "\n" for f in sources]))
     report = ctx.attr._bisect_report[DefaultInfo]
-    to_lcov = ctx.attr._bisect_to_lcov[DefaultInfo]
+    to_lcov = ctx.attr._bisect_to_lcov[0][DefaultInfo]
     env = dict(_run_environment_info(ctx, upstream).environment)
     env.update(native.env)
     env.update({
@@ -196,7 +197,7 @@ def _bytecode_coverage_launcher(ctx, upstream, bytecode):
     descriptor = ctx.actions.declare_file(ctx.label.name + ".run.launch")
     ctx.actions.write(descriptor, launcher_descriptor(runfiles_path(ctx.workspace_name, ocamlrun.short_path), runfiles_path(ctx.workspace_name, bytecode.short_path)))
     ctx.actions.symlink(output = inner, target_file = ctx.executable._exec_launcher, is_executable = True)
-    return _coverage_launcher(ctx, upstream, inner, [inner, descriptor, bytecode, ocamlrun], _native_coverage(ctx, upstream, None), [runtime.default_runfiles, ctx.attr._exec_launcher[DefaultInfo].default_runfiles])
+    return _coverage_launcher(ctx, upstream, inner, [inner, descriptor, bytecode, ocamlrun], _native_coverage(ctx, upstream, None), [runtime.default_runfiles, ctx.attr._exec_launcher[0][DefaultInfo].default_runfiles])
 
 def _launcher_impl(ctx):
     upstream = dx_upstream(ctx)
@@ -255,7 +256,7 @@ def _test_attrs():
     return _launcher_attrs(dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
         "_bisect_collect": attr.label(default = "//ocaml/private/coverage:collect", executable = True, cfg = "target"),
         "_bisect_report": attr.label(default = "//ocaml/private/coverage:report_or_none", cfg = "target"),
-        "_bisect_to_lcov": attr.label(default = "//ocaml/private/coverage:to_lcov_or_none", cfg = "target"),
+        "_bisect_to_lcov": attr.label(default = "//ocaml/private/coverage:to_lcov_or_none", cfg = no_coverage_transition),
         "_macos": attr.label(default = "@platforms//os:macos"),
     })
 

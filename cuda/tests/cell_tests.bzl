@@ -1,12 +1,12 @@
 """Analysis tests for which platform and compiler combinations accept CUDA targets."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//cuda/private:defs.bzl", "CUDA_TARGET")
+load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH")
 
 _COMPILER = str(Label("//cc:compiler"))
 _INCOMPATIBLE = [str(Label("@platforms//:incompatible"))]
 
-_CompatInfo = provider(doc = "The constraints CUDA_TARGET resolved to.", fields = ["labels"])
+_CompatInfo = provider(doc = "The constraints CUDA_COMPATIBLE_WITH resolved to.", fields = ["labels"])
 
 def _probe_impl(ctx):
     return [_CompatInfo(labels = [str(target.label) for target in ctx.attr.compat])]
@@ -38,13 +38,13 @@ _windows_arm64_msvc_test = _make("windows_arm64", "msvc")
 _linux_llvm_test = _make("linux_x86_64", "llvm")
 
 def cuda_cell_tests(name):
-    """Declares a probe carrying CUDA_TARGET and checks it per platform and compiler.
+    """Declares a probe carrying CUDA_COMPATIBLE_WITH and checks it per platform and compiler.
 
     Args:
       name: suite name and prefix of the declared targets.
     """
     probe = name + "_probe"
-    _compat_probe(name = probe, compat = CUDA_TARGET, tags = ["manual"])
+    _compat_probe(name = probe, compat = CUDA_COMPATIBLE_WITH, tags = ["manual"])
     _windows_llvm_test(name = name + "_windows_llvm", target_under_test = ":" + probe, expected = _INCOMPATIBLE, size = "small")
     _windows_msvc_test(name = name + "_windows_msvc", target_under_test = ":" + probe, expected = [], size = "small")
     _windows_arm64_llvm_test(name = name + "_windows_arm64_llvm", target_under_test = ":" + probe, expected = _INCOMPATIBLE, size = "small")

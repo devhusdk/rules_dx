@@ -9,7 +9,7 @@ load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
 load("//rust/private:defs.bzl", "CLANG_CL_LINK_FLAGS", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS")
 
-def dx_wrapper_registry_tests(name):
+def rust_wrapper_registry_tests(name):
     """Instantiates Rust wrapper registry tests."""
     dx_wrapper_contract_tests(
         name,
@@ -231,7 +231,7 @@ aspect_field has_subject=True
 aspect_field subject_label=//rust/tests/fixtures/hello:hello_test_subject
 aspect_field transitive_count=0"""
 
-def dx_wrapper_conformance_tests(name, subjects):
+def rust_wrapper_conformance_tests(name, subjects):
     """Instantiates Rust wrapper conformance tests."""
     starlark_test(
         name = name,
@@ -267,7 +267,7 @@ _native_coverage_test = analysistest.make(
     },
 )
 
-def dx_native_coverage_tests(name, target, objects_list, **kwargs):
+def rust_native_coverage_tests(name, target, objects_list, **kwargs):
     """Asserts a Rust test exposes its native data binary to the dx coverage collector."""
     _native_coverage_test(
         name = name,
@@ -292,7 +292,7 @@ _default_crate_name_test = analysistest.make(
     attrs = {"expected": attr.string(mandatory = True)},
 )
 
-def dx_default_crate_name_tests(name, target, expected):
+def rust_default_crate_name_tests(name, target, expected):
     """Asserts a Rust target defaults its crate name to the rewritten target name."""
     _default_crate_name_test(
         name = name,
@@ -312,7 +312,7 @@ _lints_forward_test = analysistest.make(
     attrs = {"expected": attr.bool(mandatory = True)},
 )
 
-def dx_lints_forward_tests(name, target, expected):
+def rust_lints_forward_tests(name, target, expected):
     """Asserts a dx Rust library exposes LintsInfo exactly when it sets lint_config."""
     _lints_forward_test(
         name = name,
@@ -347,7 +347,7 @@ _test_srcs_split_test = analysistest.make(
     },
 )
 
-def dx_test_srcs_split_tests(name, lib, test, test_src):
+def rust_test_srcs_split_tests(name, lib, test, test_src):
     """Asserts a test_srcs-only file builds only into the unit test."""
     _test_srcs_split_test(
         name = name,
@@ -381,7 +381,7 @@ def _wasi_binary_impl(ctx):
 
 _wasi_binary_test = analysistest.make(_wasi_binary_impl)
 
-def dx_wasi_binary_tests(name, target):
+def rust_wasi_binary_tests(name, target):
     """Asserts a wasm = "wasi" rust_binary outputs one .wasm file."""
     _wasi_binary_test(
         name = name,
@@ -402,7 +402,7 @@ def _wasi_test_impl(ctx):
 
 _wasi_test_test = analysistest.make(_wasi_test_impl)
 
-def dx_wasi_test_tests(name, target, size = "small"):
+def rust_wasi_test_tests(name, target, size = "small"):
     """Asserts a wasm = "wasi" rust_test runs one .wasm module through the shared runner."""
     _wasi_test_test(
         name = name,
@@ -410,7 +410,7 @@ def dx_wasi_test_tests(name, target, size = "small"):
         target_under_test = target,
     )
 
-def dx_browser_cell_tests(name, target):
+def rust_browser_cell_tests(name, target):
     """Asserts a browser test runs the qualified cell's browser over the command line flag."""
     _browser_cell_test(
         name = name,
@@ -433,7 +433,7 @@ def _browser_binary_impl(ctx):
 
 _browser_binary_test = analysistest.make(_browser_binary_impl)
 
-def dx_browser_binary_tests(name, target):
+def rust_browser_binary_tests(name, target):
     """Asserts a wasm = "browser" rust_binary provides the bindgen bundle."""
     _browser_binary_test(
         name = name,
@@ -454,7 +454,7 @@ _msvc_opt_pdb_test = analysistest.make(
     config_settings = {"//command_line_option:compilation_mode": "opt"},
 )
 
-def dx_msvc_opt_pdb_tests(name, target, expected):
+def rust_msvc_opt_pdb_tests(name, target, expected):
     """Asserts an MSVC opt rust_binary declares exactly its own PDB."""
     _msvc_opt_pdb_test(
         name = name,

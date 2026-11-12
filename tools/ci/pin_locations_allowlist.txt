@@ -4,7 +4,7 @@ MODULE.bazel no-digest 1
 android/private/sdk/repos.bzl digest-outside-pins 9
 appimage/private/packer/src/lib.rs digest-outside-pins 1
 appimage/private/packer/src/lib.rs duplicate-pin 1
-cc/private/toolchains/pins.json duplicate-pin 1
+cc/pins.json duplicate-pin 1
 cli/adopt/src/launcher.rs digest-outside-pins 5
 cli/adopt/src/launcher.rs duplicate-pin 2
 cli/adopt/src/scaffold.rs digest-outside-pins 2

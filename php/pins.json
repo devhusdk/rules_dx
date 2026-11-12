@@ -2,29 +2,33 @@
   "cells": {
     "linux_arm64": {
       "binary": "php",
-      "sha256": "ed2ae18b2c278f6559ff902f9126a59509f56ef5600ba7f34bd69cca2b0ae944",
+      "sha256": "05fcf9779839ffd985ed3b164ebf52c887a54e039f921c7ce848b5271cc00c29",
       "urls": [
+        "https://github.com/devhusdk/rules_dx/releases/download/mirror-php-8.5.12/php-8.5.12-cli-linux-aarch64.tar.gz",
         "https://dl.static-php.dev/v3/php-bin/gnu-bulk/php-8.5.12-cli-linux-aarch64.tar.gz"
       ]
     },
     "linux_x86_64": {
       "binary": "php",
-      "sha256": "3c932354edf5b49d70815fb3e6df3c3d30d3a17ecdd7e89778e31aa870c43897",
+      "sha256": "547420ef97cb34a42462c0851ea72b14ef9d53f24cc1ff973a26ef6b6b351445",
       "urls": [
+        "https://github.com/devhusdk/rules_dx/releases/download/mirror-php-8.5.12/php-8.5.12-cli-linux-x86_64.tar.gz",
         "https://dl.static-php.dev/v3/php-bin/gnu-bulk/php-8.5.12-cli-linux-x86_64.tar.gz"
       ]
     },
     "macos_arm64": {
       "binary": "php",
-      "sha256": "1ece01624e45db20444b8ce1f6ab9bf267979b7c8454058c7761304a23487f9d",
+      "sha256": "cfbb53b904bb29f553c23cb51dfb9ec82bb69adaf9aeb6df8b6da29ea9f03553",
       "urls": [
+        "https://github.com/devhusdk/rules_dx/releases/download/mirror-php-8.5.12/php-8.5.12-cli-macos-aarch64.tar.gz",
         "https://dl.static-php.dev/v3/php-bin/common/php-8.5.12-cli-macos-aarch64.tar.gz"
       ]
     },
     "windows_x86_64": {
       "binary": "php.exe",
-      "sha256": "722b336feb6187b0e42c4e499a4731c877aa6a6f555fb886aeeceb30cf84f326",
+      "sha256": "6bad3ea5af5f5025bb33ccf35e80a8ad5f7cbc7b8fd34b6ac7fd238331c29095",
       "urls": [
+        "https://github.com/devhusdk/rules_dx/releases/download/mirror-php-8.5.12/php-8.5.12-cli-win.zip",
         "https://dl.static-php.dev/v3/php-bin/spc-max/php-8.5.12-cli-win.zip"
       ]
     }

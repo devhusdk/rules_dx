@@ -1030,6 +1030,54 @@ fn host_dependent_extensions_are_locked_for_every_ci_platform() {
     }
 }
 
+fn host_platform_inputs(lock: &serde_json::Value) -> Vec<String> {
+    let extensions = lock["moduleExtensions"]
+        .as_object()
+        .expect("MODULE.bazel.lock has moduleExtensions");
+    let mut found = Vec::new();
+    for (extension, entries) in extensions.iter().filter(|(name, _)| name.starts_with("//")) {
+        for (platform, entry) in entries.as_object().into_iter().flatten() {
+            for input in entry["recordedInputs"].as_array().into_iter().flatten() {
+                let input = input.as_str().unwrap_or("");
+                if input.contains("host_platform") {
+                    found.push(format!("{extension} {platform}: {input}"));
+                }
+            }
+        }
+    }
+    found
+}
+
+#[test]
+fn host_platform_inputs_reads_only_root_extensions() {
+    let lock = serde_json::json!({"moduleExtensions": {
+        "//a:extensions.bzl%a": {"general": {"recordedInputs": [
+            "REPO_MAPPING:platforms,host_platform platforms+host_platform+host_platform",
+            "REPO_MAPPING:,rules_cc rules_cc+",
+        ]}},
+        "@@rules_x+//x:extensions.bzl%x": {"general": {"recordedInputs": [
+            "REPO_MAPPING:platforms,host_platform platforms+host_platform+host_platform",
+        ]}},
+    }});
+    assert_eq!(
+        host_platform_inputs(&lock),
+        [
+            "//a:extensions.bzl%a general: REPO_MAPPING:platforms,host_platform platforms+host_platform+host_platform"
+        ]
+    );
+}
+
+#[test]
+fn root_extensions_do_not_record_the_host_platform() {
+    let lock: serde_json::Value = serde_json::from_str(&read_runfiles("MODULE.bazel.lock"))
+        .expect("MODULE.bazel.lock is JSON");
+    let found = host_platform_inputs(&lock);
+    assert!(
+        found.is_empty(),
+        "root extensions load @platforms//host, so their lock digest differs per host: {found:#?}"
+    );
+}
+
 #[test]
 fn the_network_job_selects_a_tag_the_network_tests_carry() {
     let bzl = read_runfiles("tools/testing/nested_bazel.bzl");

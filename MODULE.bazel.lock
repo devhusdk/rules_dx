@@ -8037,16 +8037,12 @@
     },
     "//dotnet:extensions.bzl%dotnet": {
       "general": {
-        "bzlTransitiveDigest": "BS8or2hJetJ6YZQFXaX7sr7FAwWPWYm/xmhJZ8DBHmc=",
+        "bzlTransitiveDigest": "1rlmz1pTXgn+orRm4FX/sUT9iyGrlbACph/ExYgYfnI=",
         "usagesDigest": "BXREC0LKejTlmD82iDKM7punCJko63UudIsb0LKyCTw=",
         "recordedInputs": [
           "REPO_MAPPING:,rules_dotnet +dx_pins+rules_dotnet",
-          "REPO_MAPPING:+dx_pins+rules_dotnet,bazel_lib bazel_lib+",
           "REPO_MAPPING:+dx_pins+rules_dotnet,bazel_skylib bazel_skylib+",
-          "REPO_MAPPING:+dx_pins+rules_dotnet,bazel_tools bazel_tools",
-          "REPO_MAPPING:+dx_pins+rules_dotnet,platforms platforms",
-          "REPO_MAPPING:bazel_lib+,bazel_skylib bazel_skylib+",
-          "REPO_MAPPING:platforms,host_platform platforms+host_platform+host_platform"
+          "REPO_MAPPING:+dx_pins+rules_dotnet,bazel_tools bazel_tools"
         ],
         "generatedRepoSpecs": {
           "dotnet_x86_64-apple-darwin": {

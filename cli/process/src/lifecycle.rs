@@ -729,7 +729,7 @@ pub(crate) fn run_streamed_in(
     if !owned {
         forwarding.clear();
         if let Some(job) = job.take() {
-            record_reported(&job); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            settle_reported(&job); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
     }
     let deadline = Instant::now() + cleanup.drain;
@@ -777,6 +777,14 @@ fn record_reported(job: &backend::TerminalJob) {
     while let Some(signo) = job.take_reported() {
         crate::record_interrupt(signo);
     }
+}
+
+/// Records every stop signal the group got before the child exited, then any still unread.
+fn settle_reported(job: &backend::TerminalJob) {
+    for signo in job.settle() {
+        crate::record_interrupt(signo);
+    }
+    record_reported(job);
 }
 // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 

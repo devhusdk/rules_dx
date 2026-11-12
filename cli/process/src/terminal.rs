@@ -15,6 +15,14 @@ static WATCHER_PARENT: AtomicI32 = AtomicI32::new(0);
 static WATCHER_REPORT: AtomicI32 = AtomicI32::new(-1);
 
 const JOB_STOPS: [i32; 3] = [libc::SIGTSTP, libc::SIGTTIN, libc::SIGTTOU];
+/// Asks the watcher to report its pending stop signals and then [`SETTLED`].
+const SETTLE: i32 = libc::SIGUSR1;
+/// The byte the watcher writes once every earlier stop signal is reported.
+const SETTLED: u8 = 0;
+/// How long [`TerminalJob::settle`] waits for the watcher.
+const SETTLE_WAIT_MS: i32 = 1000;
+/// The signals blocked while the watcher forks.
+const WATCHED: [i32; 4] = [STOP_SIGNALS[0], STOP_SIGNALS[1], STOP_SIGNALS[2], SETTLE];
 const MAX_CLOSE: i32 = 65536;
 
 /// Releases the one-holder guard when the job ends.
@@ -58,7 +66,7 @@ impl TerminalJob {
         WATCHER_PARENT.store(parent, Ordering::SeqCst);
         WATCHER_REPORT.store(write.as_raw_fd(), Ordering::SeqCst);
         let pid = {
-            let _blocked = Blocked::new(&STOP_SIGNALS);
+            let _blocked = Blocked::new(&WATCHED);
             let pid = unsafe { libc::fork() };
             if pid == 0 {
                 // SAFETY: the forked copy runs only async-signal-safe libc
@@ -103,7 +111,33 @@ impl TerminalJob {
                 1,
             )
         };
-        (read == 1).then_some(i32::from(byte))
+        (read == 1 && byte != SETTLED).then_some(i32::from(byte))
+    }
+
+    /// Returns every stop signal the group got before this call, once the watcher confirms it reported them all.
+    pub fn settle(&self) -> Vec<i32> {
+        let mut reported = Vec::new();
+        if unsafe { libc::kill(self.group, SETTLE) } != 0 {
+            return reported;
+        }
+        let fd = self.report.as_raw_fd();
+        loop {
+            let mut ready = libc::pollfd {
+                fd,
+                events: libc::POLLIN,
+                revents: 0,
+            };
+            if unsafe { libc::poll(&mut ready, 1, SETTLE_WAIT_MS) } <= 0 {
+                return reported;
+            }
+            let mut byte = 0u8;
+            let read = unsafe { libc::read(fd, std::ptr::addr_of_mut!(byte).cast(), 1) };
+            match (read, byte) {
+                (1, SETTLED) => return reported,
+                (1, signo) => reported.push(i32::from(signo)),
+                _ => return reported,
+            }
+        }
     }
 
     /// Follows a job-control stop of the child: hands the terminal back,
@@ -257,6 +291,23 @@ extern "C" fn report_signal(signo: libc::c_int, info: *mut libc::siginfo_t, _: *
     unsafe { *errno = saved };
 }
 
+extern "C" fn report_settled(_: libc::c_int, _: *mut libc::siginfo_t, _: *mut libc::c_void) {
+    let errno = crate::errno_slot();
+    let saved = unsafe { *errno };
+    let mut pending: libc::sigset_t = unsafe { std::mem::zeroed() };
+    unsafe {
+        libc::sigemptyset(&mut pending);
+        libc::sigpending(&mut pending);
+        for signo in STOP_SIGNALS {
+            if libc::sigismember(&pending, signo) == 1 {
+                report(signo);
+            }
+        }
+        report(libc::c_int::from(SETTLED));
+        *errno = saved;
+    }
+}
+
 unsafe fn report(signo: libc::c_int) {
     let byte = signo as u8;
     unsafe {
@@ -326,13 +377,19 @@ unsafe fn watch(parent: i32, report: i32) -> ! {
         }
         let mut unblock: libc::sigset_t = std::mem::zeroed();
         libc::sigemptyset(&mut unblock);
-        for signo in STOP_SIGNALS {
-            let mut action: libc::sigaction = std::mem::zeroed();
-            action.sa_sigaction = report_signal as *const () as libc::sighandler_t;
-            action.sa_flags = libc::SA_SIGINFO | libc::SA_RESTART;
-            libc::sigemptyset(&mut action.sa_mask);
-            libc::sigaction(signo, &action, std::ptr::null_mut());
+        for signo in WATCHED {
             libc::sigaddset(&mut unblock, signo);
+        }
+        for signo in WATCHED {
+            let mut action: libc::sigaction = std::mem::zeroed();
+            action.sa_sigaction = if signo == SETTLE {
+                report_settled as *const () as libc::sighandler_t
+            } else {
+                report_signal as *const () as libc::sighandler_t
+            };
+            action.sa_flags = libc::SA_SIGINFO | libc::SA_RESTART;
+            action.sa_mask = unblock;
+            libc::sigaction(signo, &action, std::ptr::null_mut());
         }
         libc::pthread_sigmask(libc::SIG_UNBLOCK, &unblock, std::ptr::null_mut());
         let second = libc::timespec {

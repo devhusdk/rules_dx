@@ -103,3 +103,34 @@ fn the_signal_handler_reports_foreign_signals_and_keeps_errno() {
     assert_eq!((got, i32::from(byte[0])), (1, libc::SIGTERM));
     WATCHER_REPORT.store(-1, Ordering::SeqCst);
 }
+
+#[test]
+fn settling_reports_pending_stop_signals_before_the_settled_byte() {
+    let _lock = STATICS.lock().unwrap();
+    let (read, write) = report_pipe().expect("pipe");
+    WATCHER_REPORT.store(write.as_raw_fd(), Ordering::SeqCst);
+    std::thread::spawn(move || {
+        let blocked = Blocked::new(&[libc::SIGHUP]);
+        unsafe { libc::pthread_kill(libc::pthread_self(), libc::SIGHUP) };
+        unsafe { *crate::errno_slot() = 9 };
+        report_settled(libc::SIGUSR1, std::ptr::null_mut(), std::ptr::null_mut());
+        assert_eq!(unsafe { *crate::errno_slot() }, 9);
+        let mut hup: libc::sigset_t = unsafe { std::mem::zeroed() };
+        let mut taken = 0;
+        unsafe {
+            libc::sigemptyset(&mut hup);
+            libc::sigaddset(&mut hup, libc::SIGHUP);
+            libc::sigwait(&hup, &mut taken);
+        }
+        assert_eq!(taken, libc::SIGHUP);
+        drop(blocked);
+    })
+    .join()
+    .expect("thread");
+    WATCHER_REPORT.store(-1, Ordering::SeqCst);
+    drop(write);
+    let mut bytes = [0u8; 3];
+    let got = unsafe { libc::read(read.as_raw_fd(), bytes.as_mut_ptr().cast(), 3) };
+    assert_eq!(got, 2);
+    assert_eq!(bytes[..2], [libc::SIGHUP as u8, SETTLED]);
+}

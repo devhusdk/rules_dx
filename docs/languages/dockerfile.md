@@ -25,7 +25,7 @@ Owns the Dockerfiles of one package for dx lint (hadolint).
 | Attribute | Type | Required | Description |
 | --- | --- | --- | --- |
 | `srcs` | `label_list` | no | Dockerfiles of this package: Dockerfile, Containerfile, Dockerfile.*, Containerfile.*, *.Dockerfile, *.dockerfile, *.Containerfile or *.containerfile. |
-| `deps` | `label_list` | no | Other Dockerfile libraries this package depends on. |
+| `deps` | `label_list` | no | Other dockerfile libraries this package depends on. |
 
 ## Tools
 

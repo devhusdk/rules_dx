@@ -143,22 +143,9 @@ Lockfiles:
 
 ### Target triples
 
-Add the Wasm triples for browser and WASI builds to your root `MODULE.bazel`:
-
-```python
-bazel_dep(name = "rules_rust", version = "0.75.0")
-
-rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
-rust.toolchain(
-    edition = "2024",
-    extra_target_triples = ["wasm32-unknown-unknown", "wasm32-wasip1"],
-    rustfmt_version = "1.99.1",
-    versions = ["1.99.1"],
-)
-use_repo(rust, "rust_toolchains")
-```
-
-List only the triples you build.
+`bazel_dep(name = "rules_dx")` brings the `wasm32-unknown-unknown` and
+`wasm32-wasip1` toolchains. Browser and WASI builds need no `rust.toolchain`
+call in your `MODULE.bazel`.
 
 ## Bench and fuzz
 

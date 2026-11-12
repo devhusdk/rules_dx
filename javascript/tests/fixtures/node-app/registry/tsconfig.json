@@ -1,10 +1,11 @@
 {
-  "compilerOptions": {
-    "declaration": true,
-    "isolatedDeclarations": true,
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "strict": true,
-    "target": "ES2022"
-  }
+	"compilerOptions": {
+		"declaration": true,
+		"isolatedDeclarations": true,
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"strict": true,
+		"target": "ES2022",
+		"types": []
+	}
 }

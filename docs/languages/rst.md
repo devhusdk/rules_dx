@@ -20,13 +20,7 @@ load("@rules_dx//rst:defs.bzl", "rst_library")
 
 ### `rst_library`
 
-Owns the reStructuredText files of one package for dx quality.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `srcs` | `label_list` | no | reStructuredText files of this package. |
-| `deps` | `label_list` | no | reStructuredText libraries this package depends on. |
-| `_rst2html` | `label` | no |  |
+No documentation.
 
 ## Tools
 

@@ -20,13 +20,7 @@ load("@rules_dx//asciidoc:defs.bzl", "asciidoc_library")
 
 ### `asciidoc_library`
 
-Owns the AsciiDoc files of one package for dx quality.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `srcs` | `label_list` | no | AsciiDoc files of this package. |
-| `deps` | `label_list` | no | AsciiDoc libraries this package depends on. |
-| `_asciidoctor` | `label` | no |  |
+No documentation.
 
 ## Tools
 

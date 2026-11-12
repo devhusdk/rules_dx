@@ -15,6 +15,7 @@ exports_files(
         "BUILD.bazel",
         "compiler_fixture_test.rs",
         "consumers/cuda/module_fragment.bazel",
+        "consumers/cuda_unaccepted/module_fragment.bazel",
         "defs.bzl",
         "manifest_golden_test.rs",
         "qualification_test.rs",
@@ -827,6 +828,30 @@ hermetic_qualification(
         "cuda",
     ],
     module_fragment = "consumers/cuda/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
+    name = "cuda_unaccepted",
+    failures = {"//cuda/tests/fixtures/cuda-app/app:cuda_app": "is not accepted; add cuda.license(accept = [\"cuda-eula\"])"},
+    fetch_fails = True,
+    files = {
+        "consumers/cuda/consumer.bazelrc": ".bazelrc",
+        "//cuda/tests/fixtures/cuda-app/app:BUILD.bazel": "cuda/tests/fixtures/cuda-app/app/BUILD.bazel",
+        "//cuda/tests/fixtures/cuda-app/app:main.cc": "cuda/tests/fixtures/cuda-app/app/main.cc",
+        "//cuda/tests/fixtures/cuda-app/app:output_test.sh": "cuda/tests/fixtures/cuda-app/app/output_test.sh",
+        "//cuda/tests/fixtures/cuda-app/kernels:BUILD.bazel": "cuda/tests/fixtures/cuda-app/kernels/BUILD.bazel",
+        "//cuda/tests/fixtures/cuda-app/kernels:common.cuh": "cuda/tests/fixtures/cuda-app/kernels/common.cuh",
+        "//cuda/tests/fixtures/cuda-app/kernels:kernels.h": "cuda/tests/fixtures/cuda-app/kernels/kernels.h",
+        "//cuda/tests/fixtures/cuda-app/kernels:reduce.cu": "cuda/tests/fixtures/cuda-app/kernels/reduce.cu",
+        "//cuda/tests/fixtures/cuda-app/kernels:stencil.cu": "cuda/tests/fixtures/cuda-app/kernels/stencil.cu",
+        "//cuda/tests/fixtures/cuda-app/kernels:vector_add.cu": "cuda/tests/fixtures/cuda-app/kernels/vector_add.cu",
+    },
+    languages = [
+        "cpp",
+        "cuda",
+    ],
+    module_fragment = "consumers/cuda_unaccepted/module_fragment.bazel",
     patterns = ["//..."],
 )
 

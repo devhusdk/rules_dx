@@ -38,6 +38,10 @@ fn subject_matches_mode() {
         ("TEST_SRCDIR", srcdir.as_str()),
         ("RUNFILES_DIR", runfiles.as_str()),
     ];
+    let manifest_file = std::env::var("RUNFILES_MANIFEST_FILE").unwrap_or_default();
+    if !manifest_file.is_empty() {
+        envs.push(("RUNFILES_MANIFEST_FILE", manifest_file.as_str()));
+    }
     let cov = std::path::Path::new(&tmp).join("cov");
     let raw = cov.join("raw");
     let out = cov.join("coverage.dat");

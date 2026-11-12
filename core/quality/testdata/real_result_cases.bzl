@@ -179,6 +179,7 @@ REAL_RESULT_CASES = [
         "class": "haskell",
         "contains": ["core/quality/testdata/haskell_owned/Clean.hs"],
         "absent": ["Defined but not used", "Fatal error"],
+        "windows_x86_64": True,
     },
     {
         "name": "real_result_ghc_dirty",
@@ -189,6 +190,7 @@ REAL_RESULT_CASES = [
         "class": "haskell",
         "contains": ["core/quality/testdata/haskell_owned/Dirty.hs", "GHC-40910", "Defined but not used"],
         "absent": [],
+        "windows_x86_64": True,
     },
     {
         "name": "real_result_ghc_redundant_standard",
@@ -371,7 +373,6 @@ REAL_RESULT_CASES = [
         "class": "haskell",
         "contains": [],
         "absent": ["is unused"],
-        "windows_x86_64": True,
     },
     {
         "name": "real_result_weeder_dirty",
@@ -382,7 +383,6 @@ REAL_RESULT_CASES = [
         "class": "haskell",
         "contains": ["unused is unused"],
         "absent": [],
-        "windows_x86_64": True,
     },
     _nvcc_case("clean", ["nvcc_syntax/clean.cu"], ["__host__", "undefined", "declared but never"]),
     _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),

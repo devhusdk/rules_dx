@@ -9,7 +9,6 @@ package(default_visibility = [
 
 exports_files([
     "defs.bzl",
-    "extensions.bzl",
     "pack.ps1",
     "pins.bzl",
     "repos.bzl",
@@ -30,7 +29,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "extensions.bzl",
         "pins.bzl",
         "repos.bzl",
         "toolchain.bzl",

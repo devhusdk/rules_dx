@@ -734,7 +734,6 @@ rust_test(
         "//make/private/quality:corpus_starlark",
         "//mdx/private:corpus_starlark",
         "//msix/private:corpus_starlark",
-        "//msix/private/toolchain:corpus_starlark",
         "//msix/tests:corpus_starlark",
         "//ocaml/private:corpus_starlark",
         "//ocaml/private/toolchain:corpus_starlark",

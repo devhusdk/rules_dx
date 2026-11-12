@@ -1,5 +1,5 @@
 """Public MSIX module extensions."""
 
-load("//msix/private:extensions.bzl", _msix_tools = "msix_tools")
+load("//msix/private:repos.bzl", _msix = "msix")
 
-msix_tools = _msix_tools
+msix = _msix

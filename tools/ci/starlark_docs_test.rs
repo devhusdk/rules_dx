@@ -85,7 +85,6 @@ const PACKAGES: &[&str] = &[
     "make/private",
     "mdx/private",
     "msix/private",
-    "msix/private/toolchain",
     "msix/tests",
     "ocaml/private",
     "ocaml/private/toolchain",

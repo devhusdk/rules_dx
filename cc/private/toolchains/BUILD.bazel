@@ -267,6 +267,43 @@ cc_toolchain_test(
     test = "//cc/tests/fixtures/sanitize:tsan_test",
 )
 
+# These run under the Xcode toolchain (see #12105); the llvm_*san tests stay Linux-only.
+cc_toolchain_test(
+    name = "xcode_asan_test",
+    compiler = "llvm",
+    extra_features = ["asan"],
+    tags = ["no-coverage"],
+    target_compatible_with = select({
+        ":macos_arm64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    test = "//cc/tests/fixtures/sanitize:asan_test",
+)
+
+cc_toolchain_test(
+    name = "xcode_ubsan_test",
+    compiler = "llvm",
+    extra_features = ["ubsan"],
+    tags = ["no-coverage"],
+    target_compatible_with = select({
+        ":macos_arm64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    test = "//cc/tests/fixtures/sanitize:ubsan_test",
+)
+
+cc_toolchain_test(
+    name = "xcode_tsan_test",
+    compiler = "llvm",
+    extra_features = ["tsan"],
+    tags = ["no-coverage"],
+    target_compatible_with = select({
+        ":macos_arm64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    test = "//cc/tests/fixtures/sanitize:tsan_test",
+)
+
 cc_toolchain_test(
     name = "gcc_arm64_hello_test",
     compiler = "gcc",
@@ -532,6 +569,9 @@ test_suite(
         ":msvc_shared_opt_test",
         ":msvc_shared_test",
         ":msvc_static_crt_test",
+        ":xcode_asan_test",
+        ":xcode_tsan_test",
+        ":xcode_ubsan_test",
         "//cc/private/toolchains/msvc:msvc_arm64_arm64_toolchain",
         "//cc/private/toolchains/msvc:msvc_layout",
         "//cc/private/toolchains/msvc:msvc_layout_arm64",

@@ -437,8 +437,18 @@ mod tests {
         assert!(
             lint.contains(&"dockerfile/private/quality:dockerfile.bzl%real_dockerfile_lint_aspect")
         );
-        assert!(lint.contains(&"make/private/quality:make.bzl%real_make_lint_aspect"));
+        assert!(!lint.contains(&"make/private/quality:make.bzl%real_make_lint_aspect"));
         assert!(!lint.contains(&"sql/private/quality:sql.bzl%real_sql_lint_aspect"));
+    }
+
+    #[test]
+    fn a_file_name_selects_its_language() {
+        let make = extensions(&["Makefile"]);
+        let lint = aspects_for(Command::Lint, consumer(&make));
+        assert!(lint.contains(&"make/private/quality:make.bzl%real_make_lint_aspect"));
+        let cmake = extensions(&["CMakeLists.txt"]);
+        let format = aspects_for(Command::Format, consumer(&cmake));
+        assert!(format.contains(&"cmake/private/quality:cmake.bzl%real_cmake_format_aspect"));
     }
 
     #[test]

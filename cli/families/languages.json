@@ -257,9 +257,11 @@
           ]
         },
         "bzl": "cmake/private/quality:cmake.bzl",
-        "every_workspace": true,
         "file_extensions": [
           ".cmake"
+        ],
+        "file_names": [
+          "CMakeLists.txt"
         ]
       }
     },
@@ -1010,9 +1012,13 @@
           ]
         },
         "bzl": "make/private/quality:make.bzl",
-        "every_workspace": true,
         "file_extensions": [
           ".mk"
+        ],
+        "file_names": [
+          "GNUmakefile",
+          "Makefile",
+          "makefile"
         ]
       }
     },

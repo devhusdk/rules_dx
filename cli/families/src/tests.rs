@@ -16,6 +16,7 @@ fn quality_entries_merge_by_aspect_file() {
             bzl: "core/quality:families/a.bzl".to_owned(),
             every_workspace: false,
             file_extensions: vec![".x".to_owned(), ".y".to_owned()],
+            file_names: Vec::new(),
             aspects: BTreeMap::from([("lint".to_owned(), vec!["a_lint".to_owned()])]),
             probes: BTreeMap::from([("lint".to_owned(), vec!["a_probe".to_owned()])]),
         }]
@@ -35,6 +36,18 @@ fn every_workspace_entry_is_wanted_without_its_files() {
     assert!(merged[0].wanted(&none));
     assert!(!merged[1].wanted(&none));
     assert!(merged[1].wanted(&y));
+}
+
+#[test]
+fn file_name_entry_is_wanted_by_its_file_name() {
+    let merged = parse_quality(&[
+        r#"{"quality": {"bzl": "a:a.bzl", "file_extensions": [".x"], "file_names": ["Xfile", "Xfile"]}}"#,
+    ])
+    .expect("parse");
+    assert_eq!(merged[0].file_names, vec!["Xfile".to_owned()]);
+    let named = std::collections::BTreeSet::from(["Xfile".to_owned()]);
+    assert!(merged[0].wanted(&named));
+    assert!(!merged[0].wanted(&std::collections::BTreeSet::new()));
 }
 
 #[test]

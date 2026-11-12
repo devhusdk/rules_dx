@@ -544,9 +544,11 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "cmake/private/quality:cmake.bzl",
-      "every_workspace": true,
       "file_extensions": [
         ".cmake"
+      ],
+      "file_names": [
+        "CMakeLists.txt"
       ]
     },
     "title": "CMake",
@@ -1979,9 +1981,13 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "make/private/quality:make.bzl",
-      "every_workspace": true,
       "file_extensions": [
         ".mk"
+      ],
+      "file_names": [
+        "GNUmakefile",
+        "Makefile",
+        "makefile"
       ]
     },
     "title": "Make",

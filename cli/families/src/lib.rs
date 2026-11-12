@@ -24,6 +24,8 @@ pub struct QualityFiles {
     /// Whether every workspace needs the file, whatever files it has.
     pub every_workspace: bool,
     pub file_extensions: Vec<String>,
+    /// Exact file names, like `CMakeLists.txt`.
+    pub file_names: Vec<String>,
     /// Aspect names defined in `bzl`, by command.
     pub aspects: std::collections::BTreeMap<String, Vec<String>>,
     /// Probe aspect names defined in `bzl`, by command.
@@ -31,13 +33,15 @@ pub struct QualityFiles {
 }
 
 impl QualityFiles {
-    /// Whether a workspace with the files of `extensions` needs the aspect file.
+    /// Whether a workspace with the extensions and file names of `extensions` needs the aspect
+    /// file.
     pub fn wanted(&self, extensions: &BTreeSet<String>) -> bool {
         self.every_workspace
             || self
                 .file_extensions
                 .iter()
-                .any(|extension| extensions.contains(extension))
+                .chain(&self.file_names)
+                .any(|mark| extensions.contains(mark))
     }
 
     /// The `bzl%name` labels of the aspects (or probes) of `command`.
@@ -163,6 +167,7 @@ fn merge_quality(manifests: Vec<Manifest>) -> Vec<QualityFiles> {
             entry.bzl = quality.bzl;
             entry.every_workspace |= quality.every_workspace;
             entry.file_extensions.extend(quality.file_extensions);
+            entry.file_names.extend(quality.file_names);
             for (target, source) in [
                 (&mut entry.aspects, quality.aspects),
                 (&mut entry.probes, quality.probes),
@@ -178,6 +183,8 @@ fn merge_quality(manifests: Vec<Manifest>) -> Vec<QualityFiles> {
         .map(|mut files| {
             let extensions: BTreeSet<String> = files.file_extensions.drain(..).collect();
             files.file_extensions = extensions.into_iter().collect();
+            let names: BTreeSet<String> = files.file_names.drain(..).collect();
+            files.file_names = names.into_iter().collect();
             files
         })
         .collect()

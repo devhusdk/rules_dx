@@ -5,7 +5,7 @@ This page fixes how tests under `core/quality` choose build settings. The test m
 ## Unit of cost
 
 - The unit is the configuration: one distinct set of build setting values below a test.
-- A test adds a configuration when it changes any setting, not only `//config:workspace`. `//config:config_tier`, `//cc:compiler`, the `//config:tool_*` flags, the rules_rust lint flags, `platforms` and `extra_execution_platforms` all count.
+- A test adds a configuration when it changes any setting, not only `//config:workspace`. `//config:config_tier`, `//cc:compiler`, the `//config:tool_*` flags, `//config:buf_breaking_against`, the rules_rust lint flags, `platforms` and `extra_execution_platforms` all count.
 - Two tests share a configuration only when every setting has the same value and both reach their subject the same way.
 - A policy target that no test selects costs nothing. Policy targets that are the direct subject of a provider test are outside this page.
 
@@ -48,7 +48,7 @@ This page fixes how tests under `core/quality` choose build settings. The test m
 
 - All tool override proofs share one entry that sets every `//config:tool_*` flag under test at once.
 - The matching default proofs use `shared` and set no flag.
-- A proof that needs a wrong, empty or duplicate tool binding has its own entry. Each such entry changes one flag.
+- A proof that needs a wrong, empty or duplicate tool binding has its own entry. Each such entry changes one flag. `//config:buf_breaking_against` follows the same rule.
 
 ## Compilers and lint flags
 

@@ -12,7 +12,6 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "app.bzl",
-    "app_check.sh",
     "app_tests.bzl",
     "validate.bzl",
 ])

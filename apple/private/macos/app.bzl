@@ -205,6 +205,7 @@ def _macos_app_check_impl(ctx):
     identity = ctx.actions.declare_file(ctx.label.name + ".app.identity.json")
     zipped = ctx.actions.declare_file(ctx.label.name + ".zip")
     args = ctx.actions.args()
+    args.add("macos-app-check")
     args.add(identity)
     args.add(zipped)
     args.add(info.archive)
@@ -281,8 +282,7 @@ _macos_app_check = rule(
         "version": attr.string(doc = "Bundle version string of the app.", mandatory = True),
         "xcode_version": attr.string(doc = "Xcode version the app build is pinned to.", default = ""),
         "_check": attr.label(
-            default = ":app_check.sh",
-            allow_single_file = True,
+            default = Label("//apple/private/tools/ops:apple_ops"),
             cfg = "exec",
             executable = True,
         ),

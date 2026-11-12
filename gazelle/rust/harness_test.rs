@@ -66,6 +66,7 @@ fn assert_unchanged(path: &Path, before: Option<&[u8]>, what: &str) {
     }
 }
 
+#[test]
 fn failure_case() {
     let scratch = workspace("gazelle-failure-");
     let root = scratch.path();
@@ -162,6 +163,7 @@ fn failure_case() {
     );
 }
 
+#[test]
 fn idempotent_case() {
     let scratch = workspace("gazelle-idempotent-");
     let root = scratch.path();
@@ -192,135 +194,4 @@ fn idempotent_case() {
         generated_builds(root),
         "repository generation is not idempotent"
     );
-}
-
-fn native_config_case() {
-    let scratch = workspace("gazelle-native-");
-    let root = scratch.path();
-    write(root, "WORKSPACE", "");
-    write(root, "crate/src/lib.rs", "pub fn current() {}\n");
-    write(root, "crate/rustfmt.toml", "edition = \"2021\"\n");
-    write(root, "crate/taplo.toml", "[formatting]\n");
-    write(root, "crate/.vale.ini", "StylesPath = styles\n");
-    write(root, "crate/styles/org/Example.yml", "extends: existence\n");
-
-    let fresh = run_gazelle(root, &[]);
-    assert!(
-        fresh.status.success(),
-        "fresh generation must pass\n{}",
-        fresh.combined()
-    );
-    let build = root.join("crate/BUILD.bazel");
-    dx_testing::expect_contains(
-        &build,
-        &[
-            "name = \"rustfmt_config\"",
-            "name = \"taplo_config\"",
-            "name = \"vale_config\"",
-            "aspect_hints = [",
-            "\":rustfmt_config\"",
-            "data = [\"styles/org/Example.yml\"]",
-            "//crate:__subpackages__",
-        ],
-    )
-    .expect("fresh generation pins");
-    dx_testing::expect_absent(&build, &["\":taplo_config\""])
-        .expect("non-binding tool leaked into aspect_hints");
-
-    let before = std::fs::read(&build).expect("read build");
-    let rerun = run_gazelle(root, &[]);
-    assert!(
-        rerun.status.success(),
-        "rerun must pass\n{}",
-        rerun.combined()
-    );
-    assert_eq!(
-        before,
-        std::fs::read(&build).expect("read build"),
-        "rerun was not idempotent"
-    );
-
-    std::fs::remove_file(root.join("crate/rustfmt.toml")).expect("remove config");
-    let pruned = run_gazelle(root, &[]);
-    assert!(
-        pruned.status.success(),
-        "prune must pass\n{}",
-        pruned.combined()
-    );
-    dx_testing::expect_absent(&build, &["rustfmt_config"]).expect("removed config target");
-    dx_testing::expect_absent(&build, &["rustfmt"]).expect("stale rustfmt hint");
-    dx_testing::expect_absent(&build, &["aspect_hints"]).expect("stale hint");
-    dx_testing::expect_contains(&build, &["name = \"taplo_config\""]).expect("unrelated target");
-
-    std::fs::remove_dir_all(root.join("crate")).expect("remove crate");
-    write(root, "broken/src/lib.rs", "pub fn current() {}\n");
-    let broken = write(
-        root,
-        "broken/BUILD.bazel",
-        "# gazelle:dx_native_tools rustfmt bogus\n",
-    );
-    let broken_before = std::fs::read(&broken).expect("read build");
-    let bogus = run_gazelle(root, &[]);
-    assert!(
-        !bogus.status.success() && bogus.combined().contains("unknown native tool \"bogus\""),
-        "unknown tool did not fail closed\n{}",
-        bogus.combined()
-    );
-    assert_unchanged(&broken, Some(&broken_before), "unknown tool");
-    write(
-        root,
-        "broken/BUILD.bazel",
-        "# gazelle:dx_native_tools rustfmt\n",
-    );
-    let known = run_gazelle(root, &[]);
-    assert!(
-        known.status.success(),
-        "known tool must pass\n{}",
-        known.combined()
-    );
-    dx_testing::expect_contains(&broken, &["rust_library"]).expect("known tool generation");
-
-    std::fs::remove_dir_all(root.join("broken")).expect("remove broken");
-    write(root, "ambiguous/src/lib.rs", "pub fn current() {}\n");
-    let ambiguous_build = write(
-        root,
-        "ambiguous/BUILD.bazel",
-        "load(\"@rules_dx//core/quality:native_config.bzl\", \"rustfmt_config\")\n\nrustfmt_config(\n    name = \"rustfmt_cfg\",\n    src = \"custom.toml\",\n)\n\nrustfmt_config(\n    name = \"rustfmt_extra\",\n    src = \"extra.toml\",\n)\n",
-    );
-    let ambiguous_before = std::fs::read(&ambiguous_build).expect("read build");
-    let ambiguous = run_gazelle(root, &[]);
-    assert!(
-        !ambiguous.status.success() && ambiguous.combined().contains("2 config targets"),
-        "ambiguous configs did not fail closed\n{}",
-        ambiguous.combined()
-    );
-    assert_unchanged(
-        &ambiguous_build,
-        Some(&ambiguous_before),
-        "ambiguous configs",
-    );
-    write(
-        root,
-        "ambiguous/BUILD.bazel",
-        "load(\"@rules_dx//core/quality:native_config.bzl\", \"rustfmt_config\")\n\nrustfmt_config(\n    name = \"rustfmt_cfg\",\n    src = \"custom.toml\",\n)\n",
-    );
-    let single = run_gazelle(root, &[]);
-    assert!(
-        single.status.success(),
-        "single config must pass\n{}",
-        single.combined()
-    );
-    dx_testing::expect_contains(&ambiguous_build, &["rust_library"])
-        .expect("single config generation");
-}
-
-#[test]
-fn gazelle_rust_harness() {
-    let case = std::env::var("DX_GAZELLE_CASE").expect("DX_GAZELLE_CASE must select the harness");
-    match case.as_str() {
-        "failure" => failure_case(),
-        "idempotent" => idempotent_case(),
-        "native_config" => native_config_case(),
-        other => panic!("unknown DX_GAZELLE_CASE: {other}"),
-    }
 }

@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "gazelle_rust"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "harness_test"
+path = "harness_test.rs"

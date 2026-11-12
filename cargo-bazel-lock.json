@@ -1,5 +1,5 @@
 {
-  "checksum": "2c3f4b140fc7dae3e38251e0a89c01e1ff8bcfa22116b6564c1a98be2c78f167",
+  "checksum": "1fd93ac74d0ee4f85512e1bb2ee30b833f9bd9ee477d2b06e482aa71fb396085",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -4510,6 +4510,19 @@
         }
       ],
       "version": "0.8.7"
+    },
+    "core_tests_negative 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "core_tests_negative",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "coverlet_launcher 0.0.0": {
       "common_attrs": {
@@ -11504,6 +11517,19 @@
         }
       ],
       "version": "0.2.1"
+    },
+    "gazelle_rust 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "gazelle_rust",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "generation_result 0.0.0": {
       "common_attrs": {
@@ -32598,6 +32624,7 @@
     "codegen_shard 0.0.0": "cli/codegen_shard",
     "collect_native 0.0.0": "tools/coverage/collect_native",
     "component_extract 0.0.0": "tools/docs/components/component_extract",
+    "core_tests_negative 0.0.0": "core/tests/core_tests_negative",
     "coverlet_launcher 0.0.0": "dotnet/private/coverlet_launcher",
     "csharp_roslyn_fixture 0.0.0": "csharp/tests/fixtures/csharp_roslyn_fixture",
     "cuda_tests 0.0.0": "cuda/cuda_tests",
@@ -32677,6 +32704,7 @@
     "env_shard 0.0.0": "env/private/env_shard",
     "env_stubs 0.0.0": "env/private/env_stubs",
     "fortran_extract 0.0.0": "tools/docs/fortran/fortran_extract",
+    "gazelle_rust 0.0.0": "gazelle/gazelle_rust",
     "generation_result 0.0.0": "cli/generation_result",
     "go_docs_tests 0.0.0": "tools/docs/go_docs_tests",
     "go_extract 0.0.0": "tools/docs/go/go_extract",

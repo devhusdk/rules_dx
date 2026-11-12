@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "core_tests_negative"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "negative_proof_test"
+path = "negative_proof_test.rs"

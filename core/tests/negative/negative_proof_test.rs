@@ -1,5 +1,7 @@
-fn run_red() -> String {
-    let out = std::process::Command::new(dx_testing::env_file("DX_RUNNER_BIN"))
+fn run_red(runner_var: &str, manifest_var: &str) -> String {
+    let manifest = std::env::var(manifest_var).expect("red runner manifest must be set");
+    let out = std::process::Command::new(dx_testing::env_file(runner_var))
+        .env("STARLARK_HARNESS_MANIFEST", manifest)
         .output()
         .expect("red runner must execute");
     assert!(
@@ -21,38 +23,41 @@ fn expect_all(output: &str, wants: &[&str]) {
 }
 
 #[test]
-fn negative_proof() {
-    let case = std::env::var("DX_NEGATIVE_CASE").expect("DX_NEGATIVE_CASE must select the proof");
-    let output = run_red();
-    match case.as_str() {
-        "failing_check" => expect_all(
-            &output,
-            &[
-                "FAIL: deliberately wrong sum",
-                "  expected: 3",
-                "  actual:   2",
-                "FAIL: deliberately wrong product",
-                "starlark_test: 1 passed, 2 failed",
-                "PASS: control that still passes",
-            ],
-        ),
-        "missing_observation" => expect_all(
-            &output,
-            &[
-                "FAIL: observations",
-                "field sum=43",
-                "field sum=0",
-                "starlark_test: 0 passed, 1 failed",
-            ],
-        ),
-        "missing_fragment" => expect_all(
-            &output,
-            &[
-                "FAIL: file //core/tests/negative:present_fixture.txt is missing substring 1/1",
-                "substring: this substring is absent",
-                "starlark_test: 0 passed, 1 failed",
-            ],
-        ),
-        other => panic!("unknown DX_NEGATIVE_CASE: {other}"),
-    }
+fn failing_check() {
+    expect_all(
+        &run_red("DX_FAILING_CHECK_BIN", "DX_FAILING_CHECK_MANIFEST"),
+        &[
+            "FAIL: deliberately wrong sum",
+            "  expected: 3",
+            "  actual:   2",
+            "FAIL: deliberately wrong product",
+            "starlark_test: 1 passed, 2 failed",
+            "PASS: control that still passes",
+        ],
+    );
+}
+
+#[test]
+fn missing_observation() {
+    expect_all(
+        &run_red("DX_MISSING_OBSERVATION_BIN", "DX_MISSING_OBSERVATION_MANIFEST"),
+        &[
+            "FAIL: observations",
+            "field sum=43",
+            "field sum=0",
+            "starlark_test: 0 passed, 1 failed",
+        ],
+    );
+}
+
+#[test]
+fn missing_fragment() {
+    expect_all(
+        &run_red("DX_MISSING_FRAGMENT_BIN", "DX_MISSING_FRAGMENT_MANIFEST"),
+        &[
+            "FAIL: file //core/tests/negative:present_fixture.txt is missing substring 1/1",
+            "substring: this substring is absent",
+            "starlark_test: 0 passed, 1 failed",
+        ],
+    );
 }

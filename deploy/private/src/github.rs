@@ -85,7 +85,14 @@ pub(crate) fn commit_notes(
 ) -> Result<String, String> {
     let previous = git_output(
         workspace,
-        &["describe", "--tags", "--abbrev=0", &format!("{tag}^")],
+        &[
+            "describe",
+            "--tags",
+            "--abbrev=0",
+            "--match",
+            "v[0-9]*",
+            &format!("{tag}^"),
+        ],
     )
     .ok()
     .map(|out| out.trim().to_owned())
@@ -837,8 +844,8 @@ mod tests {
         let script = r#"#!/bin/sh
 case "$1" in
   tag) echo v1.1.0 ;;
-  describe) echo v1.0.0 ;;
-  log) printf 'aaaaaaa1\0feat(cli): add init\0\036bbbbbbb2\0fix: stop crash\0\036ccccccc3\0fix: second\0\036' ;;
+  describe) case "$*" in *--match*) echo v1.0.0 ;; *) echo mirror-php-8.5.12 ;; esac ;;
+  log) case "$*" in *v1.0.0..*) ;; *) exit 0 ;; esac; printf 'aaaaaaa1\0feat(cli): add init\0\036bbbbbbb2\0fix: stop crash\0\036ccccccc3\0fix: second\0\036' ;;
 esac
 "#;
         dx_testing::executable_script(&git, &script);

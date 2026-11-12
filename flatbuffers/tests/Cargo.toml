@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "flatbuffers_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "conform_deleted_field_test"
+path = "conform_deleted_field_test.rs"
+
+[[test]]
+name = "rs_roundtrip_test"
+path = "rs_roundtrip_test.rs"

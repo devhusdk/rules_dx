@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "capnproto_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "rs_roundtrip_test"
+path = "rs_roundtrip_test.rs"

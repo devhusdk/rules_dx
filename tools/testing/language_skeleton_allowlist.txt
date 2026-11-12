@@ -360,8 +360,6 @@ private-visibility cc/private/context/BUILD.bazel
 private-visibility cc/private/toolchains/BUILD.bazel
 private-visibility cc/private/toolchains/gcc_features/BUILD.bazel
 private-visibility cc/private/toolchains/gcc_repo/BUILD.bazel
-private-visibility csharp/private/BUILD.bazel
-private-visibility csharp/private/ide/BUILD.bazel
 private-visibility cuda/private/gpu/BUILD.bazel
 private-visibility cuda/private/toolchain/BUILD.bazel
 private-visibility d/private/BUILD.bazel
@@ -388,14 +386,6 @@ private-visibility flutter/private/BUILD.bazel
 private-visibility fortran/private/BUILD.bazel
 private-visibility fortran/private/toolchain/BUILD.bazel
 private-visibility fortran/private/tools/BUILD.bazel
-private-visibility fsharp/private/BUILD.bazel
-private-visibility fsharp/private/ide/BUILD.bazel
-private-visibility go/private/tools/BUILD.bazel
-private-visibility go/private/tools/analysis/cmd/dx_errcheck/BUILD.bazel
-private-visibility go/private/tools/analysis/cmd/dx_gotype/BUILD.bazel
-private-visibility go/private/tools/analysis/cmd/dx_govet/BUILD.bazel
-private-visibility go/private/tools/analysis/cmd/dx_staticcheck/BUILD.bazel
-private-visibility go/private/tools/modfmt/BUILD.bazel
 private-visibility haskell/private/toolchain/BUILD.bazel
 private-visibility haskell/private/tools/BUILD.bazel
 private-visibility haskell/private/tools/hlint/BUILD.bazel
@@ -442,7 +432,6 @@ private-visibility php/private/tools/BUILD.bazel
 private-visibility php/private/tools/lock/BUILD.bazel
 private-visibility powershell/private/coverage/BUILD.bazel
 private-visibility powershell/private/gallery/BUILD.bazel
-private-visibility powershell/private/toolchain/BUILD.bazel
 private-visibility python/private/BUILD.bazel
 private-visibility qt/private/BUILD.bazel
 private-visibility qt/private/platforms/BUILD.bazel
@@ -464,7 +453,6 @@ private-visibility swift/private/toolchain/BUILD.bazel
 private-visibility swift/private/tools/BUILD.bazel
 private-visibility swift/private/tools/lock/BUILD.bazel
 private-visibility thrift/private/crates/BUILD.bazel
-private-visibility typescript/private/ide/BUILD.bazel
 private-visibility typescript/private/playwright/BUILD.bazel
 private-visibility zig/private/BUILD.bazel
 private-visibility zig/private/lock/BUILD.bazel

@@ -21,5 +21,4 @@ filegroup(
         ["**"],
         exclude = ["**/tests/**"],
     ),
-    visibility = ["//visibility:public"],
 )

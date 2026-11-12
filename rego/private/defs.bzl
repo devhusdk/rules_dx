@@ -1,5 +1,6 @@
 """Rego source ownership for dx quality."""
 
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "RegoInfo")
@@ -70,7 +71,7 @@ def _rego_test_impl(ctx):
         executable = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.symlink(output = executable, target_file = ctx.executable._launcher, is_executable = True)
     runfiles = ctx.runfiles(files = staged.values() + [manifest, opa])
-    runfiles = runfiles.merge(ctx.attr._launcher[DefaultInfo].default_runfiles)
+    runfiles = runfiles.merge(ctx.attr._launcher[0][DefaultInfo].default_runfiles)
     return [
         DefaultInfo(executable = executable, runfiles = runfiles),
         RunEnvironmentInfo({"DX_REGO_TEST_MANIFEST": rlocation_path(ctx, manifest)}),
@@ -84,7 +85,7 @@ _REGO_TEST_ATTRS = {
     "data": attr.label_list(allow_files = [".json", ".yaml", ".yml"], doc = "Data files loaded with the Rego files."),
     "deps": attr.label_list(providers = [RegoInfo], doc = "Rego libraries the tests import."),
     "_opa": attr.label(default = "//config:tool_opa", allow_single_file = True, cfg = "target"),
-    "_launcher": attr.label(default = "//rego/private/launcher:opa_test_launcher", executable = True, cfg = "target"),
+    "_launcher": attr.label(default = "//rego/private/launcher:opa_test_launcher", executable = True, cfg = no_coverage_transition),
     "_windows_os": attr.label(default = "@platforms//os:windows"),
 }
 

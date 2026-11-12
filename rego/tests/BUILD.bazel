@@ -5,6 +5,7 @@ load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/tests:direct_sources.bzl", "dx_direct_sources_test")
+load("//core/tests:no_coverage_tests.bzl", "no_coverage_build_scripts_test")
 load("//rego:defs.bzl", "rego_library", "rego_test")
 load("//rego/private:defs.bzl", "rego_exec")
 load("//rust:defs.bzl", "rust_test")
@@ -161,4 +162,9 @@ real_source_target(
     testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+no_coverage_build_scripts_test(
+    name = "launcher_build_scripts_no_coverage_test",
+    target_under_test = ":pass_test",
 )

@@ -1,6 +1,7 @@
 """Project-owned Starlark testing facade."""
 
 load("//core:canonical.bzl", "strip_canonical")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 
 DxSubjectInfo = provider(
@@ -275,7 +276,7 @@ def _write_harness(ctx, records, observations):
         files = staged + [manifest],
         transitive_files = depset(transitive = transitive),
     )
-    runfiles = runfiles.merge(ctx.attr._harness[DefaultInfo].default_runfiles)
+    runfiles = runfiles.merge(ctx.attr._harness[0][DefaultInfo].default_runfiles)
     return [
         DefaultInfo(executable = executable, runfiles = runfiles),
         RunEnvironmentInfo({_HARNESS_MANIFEST_ENV: rlocation_path(ctx, manifest)}),
@@ -363,7 +364,7 @@ def _execution_test_impl(ctx):
 
 _common_attrs = {
     "_harness": attr.label(
-        cfg = "target",
+        cfg = no_coverage_transition,
         default = Label("//tools/testing:starlark_harness"),
         executable = True,
     ),

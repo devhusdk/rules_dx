@@ -54,6 +54,53 @@ _launcher_test = analysistest.make(
     config_settings = {"//command_line_option:collect_code_coverage": True},
 )
 
+_CoveredBuildScriptsInfo = provider(doc = "cargo_build_script targets configured with coverage on.", fields = ["labels"])
+
+def _dep_targets(value):
+    if type(value) == "Target":
+        return [value]
+    if type(value) == "list":
+        return [item for item in value if type(item) == "Target"]
+    if type(value) == "dict":
+        return [item for item in list(value.keys()) + list(value.values()) if type(item) == "Target"]
+    return []
+
+def _covered_build_scripts_aspect_impl(target, ctx):
+    transitive = []
+    for name in dir(ctx.rule.attr):
+        for dep in _dep_targets(getattr(ctx.rule.attr, name)):
+            if _CoveredBuildScriptsInfo in dep:
+                transitive.append(dep[_CoveredBuildScriptsInfo].labels)
+    direct = [str(target.label)] if ctx.rule.kind == "cargo_build_script" and ctx.configuration.coverage_enabled else []
+    return [_CoveredBuildScriptsInfo(labels = depset(direct, transitive = transitive))]
+
+_covered_build_scripts_aspect = aspect(
+    implementation = _covered_build_scripts_aspect_impl,
+    attr_aspects = ["*"],
+)
+
+def _build_scripts_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    asserts.equals(env, [], target[_CoveredBuildScriptsInfo].labels.to_list(), "cargo_build_script configured with coverage on")
+    return analysistest.end(env)
+
+_build_scripts_test = analysistest.make(
+    _build_scripts_impl,
+    config_settings = {"//command_line_option:collect_code_coverage": True},
+    extra_target_under_test_aspects = [_covered_build_scripts_aspect],
+)
+
+def no_coverage_build_scripts_test(name, target_under_test, **kwargs):
+    """Fails when target_under_test, built with coverage on, configures a cargo_build_script with coverage on.
+
+    Args:
+      name: Test name.
+      target_under_test: Target whose dependency graph is checked.
+      **kwargs: Forwarded to the analysis test.
+    """
+    _build_scripts_test(name = name, target_under_test = target_under_test, size = "small", **kwargs)
+
 def no_coverage_tests(name):
     _reader(name = name + "_reader")
     _probe(name = name + "_probe", dep = ":" + name + "_reader")

@@ -12,6 +12,7 @@ load("//core:platform.bzl", "platforms_transition")
 load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings", "msvc_crt_static_flag")
 load("//core:resources.bzl", "dx_test_resource_tags")
 load("//core:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_upstream_tags", "dx_warnings_flags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":build_script_cc_env.bzl", "BUILD_SCRIPT_CC_ENV")
@@ -461,16 +462,6 @@ def rust_static_library(
         **kwargs
     )
 
-def _no_coverage_transition_impl(_settings, _attr):
-    """Turns off coverage instrumentation on one dependency edge."""
-    return {_COVERAGE: False}
-
-_no_coverage_transition = transition(
-    implementation = _no_coverage_transition_impl,
-    inputs = [],
-    outputs = [_COVERAGE],
-)
-
 def _rust_wasm_input_impl(ctx):
     """Forwards one Wasm module built without coverage instrumentation."""
     target = ctx.attr.wasm_file[0]
@@ -490,7 +481,7 @@ _rust_wasm_input = rule(
         "wasm_file": attr.label(
             doc = "The Wasm module or Rust binary to forward.",
             mandatory = True,
-            cfg = _no_coverage_transition,
+            cfg = no_coverage_transition,
         ),
     },
 )
@@ -698,7 +689,7 @@ _rust_wasi_run_test = rule(
         "srcs": attr.label_list(doc = "The test crate sources.", allow_files = True),
         "upstream": attr.label(doc = "The test crate built for wasm32-wasip1.", mandatory = True, cfg = _wasi_test_transition),
         "_managed": attr.label(default = _WASMTIME, allow_single_file = True),
-        "_runner": attr.label(default = "//tools/testing/wasi:wasi_test_runner", executable = True, cfg = _no_coverage_transition),
+        "_runner": attr.label(default = "//tools/testing/wasi:wasi_test_runner", executable = True, cfg = no_coverage_transition),
     } | dx_run_env_attrs(),
 )
 

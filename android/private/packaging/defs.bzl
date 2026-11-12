@@ -4,6 +4,7 @@ load("@rules_android//providers:providers.bzl", "AndroidBundleInfo", "ApkInfo")
 load("@rules_android//rules:rules.bzl", "android_binary")
 load("@rules_android//rules/android_application:android_application_rule.bzl", "android_application")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("//android/private/platforms:defs.bzl", "api_floor")
@@ -36,7 +37,7 @@ def _key(ctx, short_path):
 def _ops_launcher(ctx, lines, runfiles):
     text = "\n".join(["program=" + _key(ctx, ctx.executable._ops.short_path)] + lines) + "\n"
     launcher, _, launcher_runfiles = write_native_launcher(ctx, text)
-    merged = launcher_runfiles.merge_all([ctx.attr._ops[DefaultInfo].default_runfiles] + runfiles)
+    merged = launcher_runfiles.merge_all([ctx.attr._ops[0][DefaultInfo].default_runfiles] + runfiles)
     return DefaultInfo(executable = launcher, runfiles = merged)
 
 def _manifest_text(app_id, activity, api_level, library, permissions, version_code, version_name):
@@ -475,7 +476,7 @@ _adb_launcher = rule(
         "selection": attr.label(doc = "Selection target that fails analysis on a rejected declaration."),
         "serial": attr.string(default = "", doc = "Device or emulator serial the operation targets."),
         "_adb": attr.label(default = _ADB, cfg = "exec", allow_files = True, doc = "Pinned adb; empty without the platform-tools package."),
-        "_ops": attr.label(default = _OPS, cfg = "target", executable = True, doc = "The Android operations program."),
+        "_ops": attr.label(default = _OPS, cfg = no_coverage_transition, executable = True, doc = "The Android operations program."),
     } | NATIVE_LAUNCHER_ATTRS,
 )
 
@@ -642,7 +643,7 @@ _sign_launcher = rule(
         "_apksigner_jar": attr.label(default = _APKSIGNER_JAR, cfg = "exec", allow_single_file = True),
         "_bundletool": attr.label(default = _BUNDLETOOL, cfg = "exec", executable = True),
         "_java_runtime": attr.label(default = _JAVA_RUNTIME, cfg = "exec", providers = [java_common.JavaRuntimeInfo]),
-        "_ops": attr.label(default = _OPS, cfg = "target", executable = True, doc = "The Android operations program."),
+        "_ops": attr.label(default = _OPS, cfg = no_coverage_transition, executable = True, doc = "The Android operations program."),
         "_zipalign": attr.label(default = _ZIPALIGN, cfg = "exec", allow_single_file = True),
     } | NATIVE_LAUNCHER_ATTRS,
 )
@@ -729,7 +730,7 @@ _package_check_test = rule(
         "resources": attr.string_list(default = [], doc = "type/name resources the bundle must resolve."),
         "selection": attr.label(doc = "Selection target that fails analysis on a rejected declaration."),
         "_bundletool": attr.label(default = _BUNDLETOOL, cfg = "target", executable = True, doc = "Pinned bundletool."),
-        "_ops": attr.label(default = _OPS, cfg = "target", executable = True, doc = "The Android operations program."),
+        "_ops": attr.label(default = _OPS, cfg = no_coverage_transition, executable = True, doc = "The Android operations program."),
     } | NATIVE_LAUNCHER_ATTRS,
 )
 

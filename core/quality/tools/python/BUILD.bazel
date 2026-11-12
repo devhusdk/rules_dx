@@ -91,6 +91,18 @@ py_binary(
 )
 
 py_binary(
+    name = "pypi_attestations",
+    srcs = [
+        "pypi_attestations_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "pypi_attestations_main.py",
+    visibility = ["//deploy/private:__pkg__"],
+    deps = ["@pypi//pypi_attestations"],
+)
+
+py_binary(
     name = "yamllint",
     srcs = [
         "tool_bootstrap.py",

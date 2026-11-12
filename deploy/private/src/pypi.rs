@@ -302,7 +302,7 @@ pub(crate) const PYPI_GATE: OwnerGate = OwnerGate {
     approved: "PYPI_PUBLISH_APPROVED",
 };
 
-/// Python used for attestation signing and the trusted-publisher token exchange.
+/// Python used for the trusted-publisher token exchange.
 const PYPI_PYTHON: &str = "python3";
 
 /// Env names the signing and token-exchange children keep for the CI identity.
@@ -384,13 +384,13 @@ fn pypi_mint_token(python: &Path, registry_url: &str) -> Result<String, String> 
     ))
 }
 
-/// Signs the staged files; returns the attestation file for each.
+/// Signs the staged files with the pinned pypi-attestations; returns the attestation file for each.
 fn pypi_sign(
-    python: &Path,
+    signer: &Path,
     files: &[std::path::PathBuf],
 ) -> Result<Vec<std::path::PathBuf>, String> {
-    let mut cmd = scrubbed_command(python, &[PUBLISH_CHILD_ENV_KEEP, PYPI_OIDC_ENV], &[]);
-    cmd.args(["-m", "pypi_attestations", "sign"]).args(files);
+    let mut cmd = scrubbed_command(signer, &[PUBLISH_CHILD_ENV_KEEP, PYPI_OIDC_ENV], &[]);
+    cmd.arg("sign").args(files);
     let out = run_publish(&mut cmd).map_err(|error| format!("pypi_deploy: {error}"))?;
     if !out.success() {
         eprint!("{}", pypi_scrub(&out.stderr, ""));
@@ -442,7 +442,7 @@ fn pypi_upload(
     stage: &Path,
     registry_url: &str,
     token: &str,
-    python: Option<&Path>,
+    signer: Option<&Path>,
 ) -> i32 {
     let (_, version) = match pypi_check_pair(wheel, sdist) {
         Ok(identity) => identity,
@@ -455,7 +455,7 @@ fn pypi_upload(
         twine,
         (wheel, sdist),
         stage,
-        (registry_url, token, python),
+        (registry_url, token, signer),
         &version,
     );
     let _ = std::fs::remove_dir_all(stage);
@@ -466,7 +466,7 @@ fn pypi_upload_staged(
     twine: &Path,
     (wheel, sdist): (&Path, Option<&Path>),
     stage: &Path,
-    (registry_url, token, python): (&str, &str, Option<&Path>),
+    (registry_url, token, signer): (&str, &str, Option<&Path>),
     version: &str,
 ) -> i32 {
     let mut files = Vec::new();
@@ -509,7 +509,7 @@ fn pypi_upload_staged(
             return 1;
         }
     }
-    let attestations = match python.map(|python| pypi_sign(python, &files)) {
+    let attestations = match signer.map(|signer| pypi_sign(signer, &files)) {
         Some(Ok(paths)) => paths,
         Some(Err(error)) => {
             eprintln!("{error}");
@@ -551,13 +551,14 @@ fn pypi_upload_staged(
     1
 }
 
-/// Public API check settings of one PyPI deployment.
+/// Public API check and attestation signer settings of one PyPI deployment.
 pub struct PypiApiCheck<'a> {
     pub mode: &'a str,
     pub baseline: &'a str,
     pub package: &'a str,
     pub src: &'a str,
     pub griffe_rloc: &'a str,
+    pub attestations_rloc: &'a str,
 }
 
 /// Returns the breaking changes in `griffe check` output: one `path.py:line: ...` line each.
@@ -706,6 +707,7 @@ pub fn pypi_main(
         package: "",
         src: "",
         griffe_rloc: "",
+        attestations_rloc: "",
     };
     pypi_main_checked(wheel_rloc, sdist_rloc, dist_name, registry_url, &off, argv)
 }
@@ -767,9 +769,9 @@ pub fn pypi_main_checked(
         }
         let python = Path::new(PYPI_PYTHON);
         let (token, attest) = match pypi_auth(env_or_empty) {
-            PypiAuth::Token(token) => (token, pypi_oidc_present(env_or_empty).then_some(python)),
+            PypiAuth::Token(token) => (token, pypi_oidc_present(env_or_empty)),
             PypiAuth::TrustedPublishing => match pypi_mint_token(python, registry_url) {
-                Ok(token) => (token, Some(python)),
+                Ok(token) => (token, true),
                 Err(error) => {
                     eprintln!("{error}");
                     return 1;
@@ -783,6 +785,19 @@ pub fn pypi_main_checked(
                 return 1;
             }
         };
+        let signer = if !attest {
+            None
+        } else if api.attestations_rloc.is_empty() {
+            eprintln!(
+                "pypi_deploy: attestation signing needs the pinned pypi-attestations; refusing"
+            );
+            return 1;
+        } else {
+            match run.resolve(api.attestations_rloc) {
+                Some(signer) => Some(signer),
+                None => return 1,
+            }
+        };
         return pypi_upload(
             Path::new("twine"),
             &wheel,
@@ -790,7 +805,7 @@ pub fn pypi_main_checked(
             &outdir.join(dist_name.to_owned() + "-upload"),
             registry_url,
             &token,
-            attest,
+            signer.as_deref(),
         );
     }
     match pypi_build_wheelhouse(&wheel, sdist.as_deref(), outdir, dist_name) {
@@ -867,6 +882,7 @@ mod tests {
             package: "pkg",
             src: "src",
             griffe_rloc: "",
+            attestations_rloc: "",
         };
         let run = |version: &str| {
             with_env(&[], || {
@@ -1234,10 +1250,10 @@ mod tests {
         let dir = scratch.path();
         let argv = dir.join("argv");
         let twine = fake_twine(dir, &format!("echo \"$@\" >> {}", argv.display()));
-        let python = dir.join("python3");
+        let signer = dir.join("pypi_attestations");
         dx_testing::executable_script(
-            &python,
-            "#!/bin/sh\nshift 3\nfor f in \"$@\"; do : > \"$f.publish.attestation\"; done\n",
+            &signer,
+            "#!/bin/sh\nshift 1\nfor f in \"$@\"; do : > \"$f.publish.attestation\"; done\n",
         );
         let (wheel, sdist) = upload_fixture(dir, "pkg-1.0.tar.gz");
         let stage = dir.join("stage");
@@ -1248,7 +1264,7 @@ mod tests {
             &stage,
             "https://u",
             "tok",
-            Some(&python),
+            Some(&signer),
         );
         assert_eq!(code, 0);
         let lines = std::fs::read_to_string(&argv).expect("argv");

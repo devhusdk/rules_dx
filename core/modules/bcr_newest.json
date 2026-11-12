@@ -8,6 +8,7 @@
   "bazel_lib": "3.7.2",
   "bazel_linux_packages": "0.4.1",
   "bazel_skylib": "1.9.2",
+  "c-ares": "1.34.9.bcr.1",
   "elfutils": "0.195",
   "gazelle": "0.54.0",
   "gcc_toolchain": "0.13.0",

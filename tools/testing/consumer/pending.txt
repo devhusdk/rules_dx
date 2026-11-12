@@ -25,6 +25,7 @@ override single_version_override fmt
 override single_version_override gazelle
 override single_version_override gcc_toolchain
 override single_version_override google_benchmark
+override single_version_override grpc
 override single_version_override grpc-java
 override single_version_override hermetic_launcher
 override single_version_override llvm

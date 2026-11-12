@@ -5,16 +5,15 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load(
     "//core:wrapper.bzl",
-    "dx_binary_forward_kwargs",
     "dx_forward_data_attr",
     "dx_forwarded_runtime_providers",
     "dx_lcov_merger_attr",
     "dx_quality_sources",
     "dx_symlink_default_info",
     "dx_run_env_attrs",
-    "dx_test_forward_kwargs",
     "dx_run_environment",
-    "dx_test_upstream_kwargs",
+    "dx_wrap_binary",
+    "dx_wrap_test",
     "dx_upstream",
     "dx_upstream_tags",
 )
@@ -446,12 +445,9 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
             fail("qt_cc_" + rule_kind + ": plugin '" + plugin + "' is not one of " + ", ".join(sorted(RUNTIME_PLUGINS.keys())))
     effective_deps = _qt_deps(qt, deps, modules, forms)
     test = rule_kind == "test"
-    upstream_kwargs = dx_test_upstream_kwargs(kwargs) if test else dict(kwargs)
-    upstream_kwargs.pop("env", None)
-    upstream_kwargs.pop("env_inherit", None)
-    tags = upstream_kwargs.pop("tags", None)
-    upstream_kwargs.pop("visibility", None)
+    tags = kwargs.get("tags", None)
     _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, translations, [], None, [], "1.0", tags, True if test else kwargs.get("testonly", None), kwargs.get("target_compatible_with", None))
+    upstream_kwargs = dict(kwargs)
     upstream_kwargs.setdefault("linkstatic", select({"@platforms//os:windows": True, "//conditions:default": False}))
     upstream_kwargs["linkopts"] = upstream_kwargs.get("linkopts", []) + _no_object_linkopts()
     if not test:
@@ -464,33 +460,27 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
         target_compatible_with = kwargs.get("target_compatible_with", None),
         visibility = ["//visibility:private"],
     )
-    upstream = _cc_test if test else _cc_binary
-    upstream(
-        name = name + "_upstream",
-        srcs = srcs + hdrs + moc_hdrs + [":" + name + "_qt_srcs", ":" + name + "_qt_hdrs"],
-        copts = copts + _include_copts(name),
-        deps = effective_deps + [":" + name + "_qt_frameworks"] + _windows_console(test, modules),
-        tags = dx_upstream_tags(tags),
-        visibility = ["//visibility:private"],
-        **upstream_kwargs
-    )
-    forward = dx_test_forward_kwargs(kwargs) if test else {}
-    if not test:
-        forward = dx_binary_forward_kwargs(kwargs)
-    forward_rule = _qt_forward_test if test else _qt_binary_forward
-    forward_rule(
-        name = name,
-        srcs = srcs,
-        hdrs = hdrs,
-        moc_hdrs = moc_hdrs,
-        deps = deps,
-        fonts = qt + "//:fonts",
-        platforms = qt + "//:platforms",
-        plugins = [qt + "//:plugins_" + plugin for plugin in plugins],
-        qml_imports = qt + "//:qml_imports" if _uses_qml(modules) else None,
-        upstream = ":" + name + "_upstream",
+    upstream_kwargs["copts"] = copts + _include_copts(name)
+    upstream_kwargs["deps"] = effective_deps + [":" + name + "_qt_frameworks"] + _windows_console(test, modules)
+    wrap = dx_wrap_test if test else dx_wrap_binary
+    wrap(
+        name,
+        _cc_test if test else _cc_binary,
+        _qt_forward_test if test else _qt_binary_forward,
+        srcs + hdrs + moc_hdrs + [":" + name + "_qt_srcs", ":" + name + "_qt_hdrs"],
         visibility = visibility,
-        **forward
+        upstream_kwargs = upstream_kwargs,
+        extra_forward_kwargs = {
+            "hdrs": hdrs,
+            "moc_hdrs": moc_hdrs,
+            "deps": deps,
+            "fonts": qt + "//:fonts",
+            "platforms": qt + "//:platforms",
+            "plugins": [qt + "//:plugins_" + plugin for plugin in plugins],
+            "qml_imports": qt + "//:qml_imports" if _uses_qml(modules) else None,
+        },
+        quality_srcs = srcs,
+        **kwargs
     )
 
 def qt_cc_binary(

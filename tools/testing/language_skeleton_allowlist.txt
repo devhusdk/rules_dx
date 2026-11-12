@@ -677,9 +677,7 @@ wrap java/defs.bzl
 wrap javascript/defs.bzl
 wrap julia/defs.bzl
 wrap kotlin/defs.bzl
-wrap lua/defs.bzl
 wrap ocaml/defs.bzl
-wrap qt/defs.bzl
 wrap rego/defs.bzl
 wrap scala/defs.bzl
 wrap typescript/defs.bzl

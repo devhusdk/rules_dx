@@ -8,11 +8,11 @@ use serde_json::Value;
 use dx_testing::read_runfiles;
 
 const SETUP_ACTION: &str = ".github/actions/remote-cache-helper/action.yml";
-const INLINE_HELPER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 const SCAN_ACTION: &str = ".github/actions/assert-no-secret/action.yml";
 const LOCAL_HELPER: &str = "tools/buildbuddy-credential-helper.sh";
 const HELPER_STEP: &str = "Configure the remote cache credential helper";
 const REMOTE_SCAN: &str = "devhusdk/rules_dx/.github/actions/assert-no-secret";
+const REMOTE_HELPER: &str = "devhusdk/rules_dx/.github/actions/remote-cache-helper";
 const SCAN_STEP: &str = "Check the upload holds no secret";
 
 fn rc_files() -> Vec<(String, String)> {
@@ -118,23 +118,24 @@ fn no_workflow_sets_bb_args_in_env() {
 }
 
 #[test]
-fn inline_helper_steps_match_each_other() {
-    let helper = inline_helper();
+fn workflow_helper_steps_use_the_pinned_action() {
+    let remote = format!("{REMOTE_HELPER}@");
     let mut helpers = 0;
     for path in dx_testing::workflow_files() {
         for (id, steps) in jobs(&parse(&path)) {
             for step in steps {
                 if step["name"] == HELPER_STEP {
                     helpers += 1;
-                    assert_eq!(
-                        step, helper,
-                        "{path} job {id} helper differs from {INLINE_HELPER_WORKFLOW}"
+                    assert!(
+                        step["uses"].as_str().is_some_and(|uses| uses.starts_with(&remote)),
+                        "{path} job {id} helper must use {remote}<sha>"
                     );
+                    assert!(step["run"].is_null(), "{path} job {id} helper runs a script");
                 }
             }
         }
     }
-    assert!(helpers > 0, "no workflow copies the helper step");
+    assert!(helpers > 0, "no workflow configures the helper");
 }
 
 #[test]
@@ -153,11 +154,6 @@ fn helper_action_runs_the_script_on_node() {
 
 #[test]
 fn ci_writes_the_same_helper_local_builds_use() {
-    let step = inline_helper();
-    let run = step["run"].as_str().expect("helper run");
-    let (_, rest) = run.split_once("<<'EOF'\n").expect("helper heredoc");
-    let (body, _) = rest.split_once("\nEOF\n").expect("helper heredoc end");
-    assert_eq!(format!("{body}\n"), read_runfiles(LOCAL_HELPER));
     let dir = dx_test_scratch::scratch("helper-action-content");
     let (code, output, written) = run_helper_node(dir.path(), &[("BUILDBUDDY_API_KEY", "k3y")]);
     assert_eq!(code, 0, "{output}");
@@ -294,22 +290,6 @@ fn every_upload_follows_a_matching_scan() {
     assert!(uploads > 0, "no workflow with the key uploads anything");
 }
 
-#[cfg(unix)]
-fn run_script(dir: &Path, script: &str, env: &[(&str, &str)]) -> (i32, String) {
-    let mut command = Command::new("bash");
-    command.arg("-e").arg("-c").arg(script).current_dir(dir);
-    command
-        .env_clear()
-        .env("PATH", std::env::var("PATH").unwrap_or_default());
-    for (key, value) in env {
-        command.env(key, value);
-    }
-    let done = command.output().expect("run bash");
-    let mut output = String::from_utf8_lossy(&done.stdout).into_owned();
-    output.push_str(&String::from_utf8_lossy(&done.stderr));
-    (done.status.code().unwrap_or(-1), output)
-}
-
 fn keep_system_root(command: &mut Command) {
     if let Some(root) = std::env::var_os("SystemRoot") {
         command.env("SystemRoot", root);
@@ -338,9 +318,8 @@ fn run_scans(dir: &Path, env: &[(&str, &str)]) -> Vec<(&'static str, i32, String
     vec![("node", code, output)]
 }
 
-#[test]
-fn remote_scan_references_name_one_sha() {
-    let remote = format!("{REMOTE_SCAN}@");
+fn remote_action_shas(action: &str) -> std::collections::BTreeSet<String> {
+    let remote = format!("{action}@");
     let mut shas = std::collections::BTreeSet::new();
     for path in dx_testing::workflow_files() {
         for (_, steps) in jobs(&parse(&path)) {
@@ -355,7 +334,19 @@ fn remote_scan_references_name_one_sha() {
             }
         }
     }
+    shas
+}
+
+#[test]
+fn remote_scan_references_name_one_sha() {
+    let shas = remote_action_shas(REMOTE_SCAN);
     assert_eq!(shas.len(), 1, "scan action refs name {shas:?}");
+}
+
+#[test]
+fn remote_helper_references_name_one_sha() {
+    let shas = remote_action_shas(REMOTE_HELPER);
+    assert_eq!(shas.len(), 1, "helper action refs name {shas:?}");
 }
 
 fn assert_no_secret_printed(name: &str, output: &str) {
@@ -450,14 +441,6 @@ fn blanked_key_keeps_header_visible() {
     assert!(matched > 0, "no workflow blanks the key for a header");
 }
 
-fn inline_helper() -> Value {
-    jobs(&parse(INLINE_HELPER_WORKFLOW))
-        .into_iter()
-        .flat_map(|(_, steps)| steps)
-        .find(|step| step["name"] == HELPER_STEP && step["uses"].is_null())
-        .unwrap_or_else(|| panic!("{INLINE_HELPER_WORKFLOW} has no inline helper step"))
-}
-
 fn helper_path(written: &str) -> String {
     written
         .trim()
@@ -490,11 +473,8 @@ fn run_helper_node(dir: &Path, env: &[(&str, &str)]) -> (i32, String, String) {
     (done.status.code().unwrap_or(-1), output, written)
 }
 
-#[cfg(unix)]
 #[test]
 fn helper_action_writes_a_working_helper() {
-    let step = inline_helper();
-    let script = step["run"].as_str().expect("helper run");
     let key = ("BUILDBUDDY_API_KEY", "k3y");
     let cache = (
         "DX_REMOTE_CACHE_ARG",
@@ -505,14 +485,8 @@ fn helper_action_writes_a_working_helper() {
         "DX_REMOTE_CACHE_ARG",
         "--remote_cache=grpcs://u@cache.example.com:443",
     );
-    let cases: &[(&str, &[(&str, &str)], i32, Option<&str>, Option<&str>)] = &[
-        (
-            "key only",
-            &[key],
-            0,
-            Some("remote.buildbuddy.io="),
-            Some(r#"{"headers":{"x-buildbuddy-api-key":["k3y"]}}"#),
-        ),
+    let cases: &[(&str, &[(&str, &str)], i32, Option<&str>)] = &[
+        ("key only", &[key], 0, Some("remote.buildbuddy.io=")),
         (
             "key with a custom cache",
             &[key, cache],
@@ -520,83 +494,42 @@ fn helper_action_writes_a_working_helper() {
             Some(
                 "--remote_cache=grpcs://remote.example.com --credential_helper=remote.buildbuddy.io=",
             ),
-            Some(r#"{"headers":{"x-buildbuddy-api-key":["k3y"]}}"#),
         ),
         (
             "header",
             &[header, own_host],
             0,
             Some("--credential_helper=cache.example.com="),
-            Some(r#"{"headers":{"x-t":["s3cr3t"]}}"#),
         ),
         (
             "header wins over key",
             &[key, header, own_host],
             0,
             Some("--credential_helper=cache.example.com="),
-            Some(r#"{"headers":{"x-t":["s3cr3t"]}}"#),
         ),
-        (
-            "no equals",
-            &[("REMOTE_CACHE_HEADER", "novalue")],
-            1,
-            None,
-            None,
-        ),
-        ("quote", &[("REMOTE_CACHE_HEADER", "x=a\"b")], 1, None, None),
-        (
-            "percent",
-            &[("REMOTE_CACHE_HEADER", "x=a%b")],
-            1,
-            None,
-            None,
-        ),
-        ("nothing set", &[], 0, None, None),
+        ("no equals", &[("REMOTE_CACHE_HEADER", "novalue")], 1, None),
+        ("quote", &[("REMOTE_CACHE_HEADER", "x=a\"b")], 1, None),
+        ("percent", &[("REMOTE_CACHE_HEADER", "x=a%b")], 1, None),
+        ("nothing set", &[], 0, None),
     ];
-    for (name, env, status, args, printed) in cases {
-        let dir = dx_test_scratch::scratch("helper-action");
-        let temp = dir.path().join("temp");
-        std::fs::create_dir(&temp).expect("create temp");
-        let github_env = dir.path().join("github_env");
-        let mut env = env.to_vec();
-        env.push(("RUNNER_OS", "Linux"));
-        env.push(("RUNNER_TEMP", temp.to_str().expect("utf-8 path")));
-        env.push(("GITHUB_ENV", github_env.to_str().expect("utf-8 path")));
-        let (code, output) = run_script(dir.path(), script, &env);
+    for (name, env, status, args) in cases {
+        let dir = dx_test_scratch::scratch("helper-action-node");
+        let (code, output, written) = run_helper_node(dir.path(), env);
         assert_eq!(code, *status, "{name}: {output}");
         assert_no_secret_printed(name, &output);
-        let written = std::fs::read_to_string(&github_env).unwrap_or_default();
-
-        let node_dir = dx_test_scratch::scratch("helper-action-node");
-        let node_env: Vec<_> = env
-            .iter()
-            .filter(|(key, _)| !matches!(*key, "RUNNER_OS" | "RUNNER_TEMP" | "GITHUB_ENV"))
-            .copied()
-            .collect();
-        let (node_code, node_output, node_written) = run_helper_node(node_dir.path(), &node_env);
-        assert_eq!(node_code, *status, "node {name}: {node_output}");
-        assert_no_secret_printed(name, &node_output);
-        if let Some(message) = (*status != 0).then_some("::error::") {
-            assert!(node_output.contains(message), "node {name}: {node_output}");
+        if *status != 0 {
+            assert!(output.contains("::error::"), "{name}: {output}");
         }
-
         let Some(args) = args else {
             assert!(written.is_empty(), "{name} wrote {written:?}");
-            assert!(node_written.is_empty(), "node {name} wrote {node_written:?}");
             continue;
         };
-        for (runner, text) in [("bash", &written), ("node", &node_written)] {
-            assert!(
-                text.starts_with("BB_ARGS=") && text.contains(args),
-                "{runner} {name}: {text}"
-            );
-        }
-        let helper = helper_path(&written);
-        let (code, output) = run_script(dir.path(), &helper, &env);
-        assert_eq!(code, 0, "{name}: {output}");
-        assert_eq!(output.trim(), printed.expect("helper output"), "{name}");
-        let node_helper = std::fs::read_to_string(helper_path(&node_written)).expect("read helper");
-        assert_eq!(node_helper, read_runfiles(LOCAL_HELPER), "node {name}");
+        assert!(
+            written.starts_with("BB_ARGS=") && written.contains(args),
+            "{name}: {written}"
+        );
+        let helper = std::fs::read_to_string(helper_path(&written)).expect("read helper");
+        assert_eq!(helper, read_runfiles(LOCAL_HELPER), "{name}");
     }
 }
 

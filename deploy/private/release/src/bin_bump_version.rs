@@ -4,11 +4,13 @@ use dx_process::capture::{DEFAULT_TIMEOUT, run_checked};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const USAGE: &str = "usage: bazel run //deploy/private/release:bump_version -- <version> [--workflow-ref <commit>]\n\nSets the rules_dx version, the starter workflow pin and the assert-no-secret action pin in every file that carries them and refreshes tools/ci/starter_pin.sha256 from the workflows in the checkout.\n--workflow-ref defaults to origin/main, must have the affected_on_pr input and must carry the assert-no-secret action.";
+const USAGE: &str = "usage: bazel run //deploy/private/release:bump_version -- <version> [--workflow-ref <commit>]\n\nSets the rules_dx version, the starter workflow pin and the assert-no-secret and remote-cache-helper action pins in every file that carries them and refreshes tools/ci/starter_pin.sha256 from the workflows in the checkout.\n--workflow-ref defaults to origin/main, must have the affected_on_pr input and must carry the assert-no-secret and remote-cache-helper actions.";
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 const DOCS_WORKFLOW: &str = ".github/workflows/reusable-docs.yml";
 const SCAN_ACTION: &str = ".github/actions/assert-no-secret";
 const SCAN_ACTION_PIN: &str = "devhusdk/rules_dx/.github/actions/assert-no-secret@";
+const HELPER_ACTION: &str = ".github/actions/remote-cache-helper";
+const HELPER_ACTION_PIN: &str = "devhusdk/rules_dx/.github/actions/remote-cache-helper@";
 const DIGEST_RECORD: &str = "tools/ci/starter_pin.sha256";
 
 struct Edit {
@@ -65,8 +67,14 @@ fn targets() -> Vec<(&'static str, Vec<Edit>)> {
             "examples/docs-ci/caller.yml",
             vec![pin("reusable-docs.yml@")],
         ),
-        (CONSUMER_WORKFLOW, vec![pin(SCAN_ACTION_PIN)]),
-        (DOCS_WORKFLOW, vec![pin(SCAN_ACTION_PIN)]),
+        (
+            CONSUMER_WORKFLOW,
+            vec![pin(SCAN_ACTION_PIN), pin(HELPER_ACTION_PIN)],
+        ),
+        (
+            DOCS_WORKFLOW,
+            vec![pin(SCAN_ACTION_PIN), pin(HELPER_ACTION_PIN)],
+        ),
     ]
 }
 
@@ -190,15 +198,13 @@ fn resolve_commit(root: &Path, reference: &str) -> Result<String, String> {
             "{commit} has no affected_on_pr input in {CONSUMER_WORKFLOW}"
         ));
     }
-    git(
-        root,
-        &[
-            "cat-file",
-            "-e",
-            &format!("{commit}:{SCAN_ACTION}/action.yml"),
-        ],
-    )
-    .map_err(|_| format!("{commit} has no {SCAN_ACTION}/action.yml"))?;
+    for file in [
+        format!("{SCAN_ACTION}/action.yml"),
+        format!("{HELPER_ACTION}/helper.cjs"),
+    ] {
+        git(root, &["cat-file", "-e", &format!("{commit}:{file}")])
+            .map_err(|_| format!("{commit} has no {file}"))?;
+    }
     Ok(commit)
 }
 
@@ -275,11 +281,11 @@ mod tests {
             ),
             (
                 ".github/workflows/reusable-docs.yml",
-                "name: docs\n        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@e97ab7b550d08e047c35edc5f50c7d242227842f # main\n",
+                "name: docs\n        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@e97ab7b550d08e047c35edc5f50c7d242227842f # main\n        uses: devhusdk/rules_dx/.github/actions/remote-cache-helper@e97ab7b550d08e047c35edc5f50c7d242227842f # main\n",
             ),
             (
                 ".github/workflows/reusable-consumer.yml",
-                "name: consumer\n        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@e97ab7b550d08e047c35edc5f50c7d242227842f # main\n        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@e97ab7b550d08e047c35edc5f50c7d242227842f # main\n",
+                "name: consumer\n        uses: devhusdk/rules_dx/.github/actions/remote-cache-helper@e97ab7b550d08e047c35edc5f50c7d242227842f # main\n        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@e97ab7b550d08e047c35edc5f50c7d242227842f # main\n        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@e97ab7b550d08e047c35edc5f50c7d242227842f # main\n",
             ),
             (
                 "tools/ci/starter_pin.sha256",
@@ -323,7 +329,9 @@ mod tests {
         let docs = read(dir.path(), ".github/workflows/reusable-docs.yml");
         assert_eq!(
             docs,
-            format!("name: docs\n        uses: {SCAN_ACTION_PIN}{NEW} # main\n")
+            format!(
+                "name: docs\n        uses: {SCAN_ACTION_PIN}{NEW} # main\n        uses: {HELPER_ACTION_PIN}{NEW} # main\n"
+            )
         );
         let consumer = read(dir.path(), ".github/workflows/reusable-consumer.yml");
         assert_eq!(
@@ -331,6 +339,12 @@ mod tests {
                 .matches(&format!("{SCAN_ACTION_PIN}{NEW} # main\n"))
                 .count(),
             2
+        );
+        assert_eq!(
+            consumer
+                .matches(&format!("{HELPER_ACTION_PIN}{NEW} # main\n"))
+                .count(),
+            1
         );
         assert!(!consumer.contains(OLD));
         assert_eq!(

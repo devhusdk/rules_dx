@@ -1570,10 +1570,10 @@ LANGS = json.decode("""{
           "hub": "maven",
           "imports": "provides",
           "lock": "maven_install.json",
-          "manifest": "MODULE.bazel",
+          "manifest": "libs.versions.toml",
           "resolver": null,
           "state": null,
-          "tag": "install"
+          "tag": "from_toml"
         }
       ]
     },

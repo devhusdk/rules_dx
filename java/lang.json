@@ -18,11 +18,11 @@
     "hubs": [
       {
         "ecosystem": "maven",
-        "manifest": "MODULE.bazel",
+        "manifest": "libs.versions.toml",
         "lock": "maven_install.json",
         "state": null,
         "extension": "@rules_dx//java:extensions.bzl",
-        "tag": "install",
+        "tag": "from_toml",
         "hub": "maven",
         "resolver": null,
         "imports": "provides"

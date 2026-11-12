@@ -75,7 +75,7 @@ LOCK_REGISTRY = {
         "hub": "maven",
         "imports": "provides",
         "lock": "maven_install.json",
-        "manifest": "MODULE.bazel",
+        "manifest": "libs.versions.toml",
         "state": None,
     },
     "npm": {

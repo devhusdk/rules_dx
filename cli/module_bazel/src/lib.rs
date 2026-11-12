@@ -827,6 +827,22 @@ impl ModuleFile {
         None
     }
 
+    /// The hub name and literal `libs_versions_toml` label of every `maven.from_toml` tag.
+    pub fn maven_from_tomls(&self) -> Vec<(&str, &str)> {
+        let proxies = self.maven_proxies();
+        self.calls
+            .iter()
+            .filter(|call| {
+                call.name
+                    .rsplit_once('.')
+                    .is_some_and(|(proxy, tag)| tag == "from_toml" && proxies.contains(&proxy))
+            })
+            .filter_map(|call| {
+                Some((call.str("name").unwrap_or("maven"), call.str("libs_versions_toml")?))
+            })
+            .collect()
+    }
+
     /// Every rules_jvm_external `maven.install` tag in source order. The name defaults
     /// to `maven`; a computed name or lock_file is an error.
     pub fn maven_installs(&self) -> Result<Vec<MavenInstall<'_>>, ModuleError> {

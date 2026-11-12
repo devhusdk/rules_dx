@@ -124,3 +124,26 @@ Lockfiles:
 - macOS arm64
 - Windows arm64
 - Windows x86_64
+
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
+
+## Dependencies
+
+Add the package to the root `package.json`, then run `dx generate --apply`. dx
+writes a missing `pnpm-lock.yaml`. An import of a package listed
+in the root `package.json` resolves to `//:node_modules/<package>`.
+
+## Quality
+
+`biome` formats and lints JavaScript. Its config is `biome.json` at the
+workspace root. JavaScript has no typecheck tool. To lint with `eslint`, put
+`eslint.config.mjs` at the root and bind it with `eslint_config`.
+
+```sh
+dx format --apply
+dx lint
+```
+
+## Bench and fuzz
+
+`javascript_bench` runs a tinybench `Bench` for `dx bench`, and `javascript_fuzz_test` runs a Jazzer.js target for `dx fuzz`. List `tinybench` or `@jazzer.js/core` in `package.json` and pass `node_modules`. See [`dx bench`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/bench.md) and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/fuzz.md).

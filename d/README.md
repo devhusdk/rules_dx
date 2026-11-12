@@ -4,75 +4,9 @@ Build, run and test D with the pinned `rules_d` 0.12.1 and LDC 1.43.0.
 Nothing needs to be installed. rules_dx registers the toolchain, so there is
 no setup in `MODULE.bazel`. Linking uses the hermetic LLVM C++ toolchain.
 
-## API docs
+## Dependencies
 
-`dx docs` documents every `d_library` in scope with the pinned LDC: `ldc2 -D -X`
-reads the ddoc comments, and `d_doc_shard` (`@rules_dx//tools/docs/d:defs.bzl`)
-turns them into the API reference. Nothing needs to be installed.
-
-## Start
-
-Run `dx init --apply demo-app` and add sources. The language is wired when
-its sources appear.
-
-```python
-load("@rules_dx//d:defs.bzl", "d_binary", "d_library", "d_test")
-
-d_library(
-    name = "greet",
-    srcs = ["greet.d"],
-)
-
-d_binary(
-    name = "hello",
-    srcs = ["main.d"],
-    deps = [":greet"],
-)
-
-d_test(
-    name = "greet_test",
-    srcs = ["greet.d"],
-)
-```
-
-- `srcs` lists the `.d` and `.di` files the target owns.
-- `d_test` compiles `srcs` with `-unittest` and runs every `unittest` block.
-- `deps` takes D libraries and `cc_library` targets.
-- `imports`, `string_srcs`, `string_imports`, `versions`, `dopts` and
-  `linkopts` pass through to `rules_d`. Files in `string_srcs` are read with
-  `import("file")` and are not D sources.
-- `d_bench` is a `d_binary` for `dx bench`. The program times its work with
-  `std.datetime.stopwatch.benchmark` and writes `dx-bench.json` to
-  `TEST_UNDECLARED_OUTPUTS_DIR`.
-- `d_fuzz_test` builds `srcs` with `-fsanitize=fuzzer,address` for `dx fuzz`.
-  Define `LLVMFuzzerTestOneInput`, for example with `ldc.libfuzzer`'s
-  `DefineTestOneInput`. It adds the `<name>_run` runner.
-- Every D target covers every pinned LDC cell: linux x86_64, linux arm64, macOS arm64,
-  Windows x86_64 and Windows arm64. windows_arm64 runs the x64 LDC under emulation. Both Windows
-  cells constrain on the `@llvm//constraints/windows/abi:msvc` ABI, because LDC's prebuilt runtime
-  is MSVC-ABI.
-- On Windows, D stdio uses ISO wide specifiers, matching cc, and D links the dynamic CRT
-  (`-mscrtlib=msvcrt`).
-
-## Generate
-
-`dx generate` writes one `d_library` per directory of D modules. See
-`gazelle/d/testdata/modules/README.md` for the module rules.
-
-Next to a `dub.json`, generation reads the import roots (`importPaths`, else `sourcePaths`, else
-`source` or `src`) and fails when a package's modules need a different root. With
-`"targetType": "executable"`, the package of the root that defines `main` becomes a `d_binary`.
-
-An import resolves to `@dub//<package>` when its first segment is the name of a dependency in
-`dub.json` (with `-` read as `_`) and `dub.selections.json` pins it. Set
-`# gazelle:dx_external dub dub.json <repo>` in a BUILD file to name the hub repo other than `dub`, for example
-`dub_packages`. `# gazelle:resolve d <module> <label>` overrides one import.
-
-## Coverage
-
-`bazel coverage` and `dx coverage` build D libraries and tests with `-cov`, run each test under a small launcher, and convert the `.lst` files ldc writes into LCOV. Coverage covers the sources of targets that match `--instrumentation_filter`. The test's own sources count only with `--instrument_test_targets`. Tag a test `no-coverage` to skip it.
-
-## DUB packages
+### DUB packages
 
 `dx update` runs `bazel run @rules_dx//d/private/tools/lock -- --dir <set directory>`. It reads `dub.json`,
 resolves exact versions from the `code.dlang.org` API, downloads each archive and writes
@@ -99,12 +33,36 @@ Each package is the label `@dub_packages//<name>`, for example
 Only registry versions are supported: a `path` or `repository` dependency fails, and so does a
 package that has a `dub.sdl` instead of a `dub.json`.
 
+## Generate
+
+`dx generate` writes one `d_library` per directory of D modules. See
+`gazelle/d/testdata/modules/README.md` for the module rules.
+
+Next to a `dub.json`, generation reads the import roots (`importPaths`, else `sourcePaths`, else
+`source` or `src`) and fails when a package's modules need a different root. With
+`"targetType": "executable"`, the package of the root that defines `main` becomes a `d_binary`.
+
+An import resolves to `@dub//<package>` when its first segment is the name of a dependency in
+`dub.json` (with `-` read as `_`) and `dub.selections.json` pins it. Set
+`# gazelle:dx_external dub dub.json <repo>` in a BUILD file to name the hub repo other than `dub`, for example
+`dub_packages`. `# gazelle:resolve d <module> <label>` overrides one import.
+
+## Quality
+
+`dx format` has no D formatter.
+
+## Coverage
+
+`bazel coverage` and `dx coverage` build D libraries and tests with `-cov`, run each test under a small launcher, and convert the `.lst` files ldc writes into LCOV. Coverage covers the sources of targets that match `--instrumentation_filter`. The test's own sources count only with `--instrument_test_targets`. Tag a test `no-coverage` to skip it.
+
+## API docs
+
+`dx docs` documents every `d_library` in scope with the pinned LDC: `ldc2 -D -X`
+reads the ddoc comments, and `d_doc_shard` (`@rules_dx//tools/docs/d:defs.bzl`)
+turns them into the API reference. Nothing needs to be installed.
+
 ## Platforms
 
 See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
 On Windows arm64 the x64 LDC runs under emulation.
-
-## Formatting
-
-`dx format` has no D formatter.

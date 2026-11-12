@@ -11,35 +11,9 @@ analysis with `target platform is unsupported`. A build with no
 Windows execution platform fails analysis with
 `packaging needs a windows_x86_64 or windows_arm64 execution platform`.
 
-## Pins
+## Packaging
 
-| Tool | License |
-| --- | --- |
-| Microsoft.Windows.SDK.BuildTools (NuGet) | [Windows SDK license](https://aka.ms/WinSDKLicenseURL) |
-
-The version is in `pins.json`.
-
-The package has `makeappx.exe` and `signtool.exe` for x64 and arm64 hosts.
-Its SHA-256 is pinned in `msix/private/pins.bzl`.
-
-## License
-
-The Build Tools license must be accepted in the root `MODULE.bazel`. Until it
-is, nothing is downloaded and packaging fails with
-`the Windows SDK Build Tools license (https://aka.ms/WinSDKLicenseURL) is not accepted`.
-
-```python
-msix_tools = use_extension("@rules_dx//msix:extensions.bzl", "msix_tools")
-dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
-dx_licenses.accept(ids = ["windows-sdk-buildtools"])
-```
-
-Only the root module's acceptance counts. An unknown license name fails the
-extension.
-
-Accepting the license here does not grant you one. You still need your own from Microsoft.
-
-## Use
+### Use
 
 ```python
 load("@rules_dx//msix:defs.bzl", "msix_package", "msix_sign")
@@ -102,7 +76,7 @@ Outputs:
 Every `.exe` and `.dll` must match the package arch, or the build fails with
 `<file> is built for <machine>, but the package targets <arch>`.
 
-## Build
+### Build
 
 ```sh
 bazel build //pkg:app
@@ -114,7 +88,7 @@ The `platform` attribute and `--platforms` do the same thing.
 The package digest changes between builds. The digests of the packaged files
 do not.
 
-## Install
+### Register a package
 
 Unsigned packages install only through a developer registration. Turn on
 Developer Mode, then, in Windows PowerShell:
@@ -130,7 +104,7 @@ Get-AppxPackage -Name Example.App | Remove-AppxPackage
 The registration is per user and needs no administrator rights. An x64 host
 cannot install or run an arm64 package.
 
-## Sign
+### Sign
 
 `msix_sign` signs a copy of the package with a PFX certificate. Building it
 signs nothing. Signing happens only on `bazel run`. Set the password in
@@ -200,3 +174,33 @@ Add-AppxPackage -Path C:\out\app.msix
 ```
 
 Otherwise `Add-AppxPackage` fails with `0x800B0109` and installs nothing.
+
+## Toolchain
+
+### Pins
+
+| Tool | License |
+| --- | --- |
+| Microsoft.Windows.SDK.BuildTools (NuGet) | [Windows SDK license](https://aka.ms/WinSDKLicenseURL) |
+
+The version is in `pins.json`.
+
+The package has `makeappx.exe` and `signtool.exe` for x64 and arm64 hosts.
+Its SHA-256 is pinned in `msix/private/pins.bzl`.
+
+## License
+
+The Build Tools license must be accepted in the root `MODULE.bazel`. Until it
+is, nothing is downloaded and packaging fails with
+`the Windows SDK Build Tools license (https://aka.ms/WinSDKLicenseURL) is not accepted`.
+
+```python
+msix_tools = use_extension("@rules_dx//msix:extensions.bzl", "msix_tools")
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["windows-sdk-buildtools"])
+```
+
+Only the root module's acceptance counts. An unknown license name fails the
+extension.
+
+Accepting the license here does not grant you one. You still need your own from Microsoft.

@@ -6,100 +6,9 @@ with `--allow-unsupported-compiler` because the pinned nvcc lists an older
 clang. Under the gcc toolchain the flag is off. The build needs no CUDA
 install and no GPU.
 
-## Setup
+## Dependencies
 
-The CUDA rules load from `@rules_dx//cuda:defs.bzl`. rules_dx declares the
-pinned toolkit and the nvcc toolchain. Add this to the root `MODULE.bazel`:
-
-```python
-cuda = use_extension("@rules_dx//cuda:extensions.bzl", "cuda")
-dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
-dx_licenses.accept(ids = ["cuda-eula"])
-```
-
-## License
-
-The CUDA Toolkit is licensed under the
-[NVIDIA CUDA EULA](https://docs.nvidia.com/cuda/eula/index.html).
-`dx_licenses.accept(ids = ["cuda-eula"])` accepts it for this build.
-Only the root module's tag counts. Without it, fetching the CUDA redistributables fails. `cuda-eula` is the only license name.
-
-Accepting the license here does not grant you one. You still need your own from NVIDIA.
-
-## Rules
-
-```python
-load("@rules_dx//cuda:defs.bzl", "cuda_binary", "cuda_library", "cuda_objects", "cuda_test")
-
-cuda_library(
-    name = "kernels",
-    srcs = ["saxpy.cu"],
-    hdrs = ["saxpy.cuh", "saxpy.h"],
-    cuda_archs = ["compute_89:compute_89,sm_89", "sm_120"],
-)
-```
-
-- `cuda_library`: compiles `srcs` with nvcc into a static library that C
-  and C++ targets can depend on. `srcs` takes `.cu` files. `hdrs` takes
-  `.cuh`, `.h`, `.hh`, `.hpp` and `.hxx` files. `deps`, `testonly`, `tags`
-  and `visibility` work as for `cc_library`. The CUDA runtime links
-  statically.
-- `cuda_binary`: a `cc_binary`. Its `.cu` and `.cuh` sources go through a
-  `cuda_library` with the same `cuda_archs`. The other sources compile as C++.
-- `cuda_test`: the same as `cuda_binary`, as a `cc_test`. Under
-  `bazel coverage` the host code, including the host side of `.cu` files, is
-  instrumented with llvm-cov through the cuda toolchain's host clang and
-  written as LCOV. Device code (kernels) is not covered. Coverage needs the
-  LLVM host compiler; the gcc toolchain does not write it.
-
-`defines` and `local_defines` on `cuda_binary` and `cuda_test` apply to all
-srcs. `copts` and `features` apply to the host srcs only. `cuda_copts` goes
-to nvcc.
-- `cuda_objects`: compiles `srcs` into relocatable device objects without
-  linking them. It only goes into `deps` of a `cuda_library`, `cuda_binary`
-  or `cuda_test` with `rdc = True`.
-
-`cuda_library`, `cuda_binary` and `cuda_test` take `rdc` (default `False`).
-`rdc = True` compiles relocatable device code and device-links it, so
-`__device__` functions can call across `.cu` files and across libraries.
-`rdc` supports `sm_` archs.
-
-`cuda_archs` is required on all four. Each entry is one of:
-
-- `sm_XY`: SASS for compute capability X.Y.
-- `compute_XY`: PTX for X.Y, compiled for the device at load time.
-- `compute_XY:compute_XY,sm_XY`: PTX and SASS for X.Y.
-
-The accepted `sm_` and `compute_` values are the ones nvcc 13.4 supports:
-75, 80, 86, 87, 89, 90, 100, 103, 120 and 121.
-
-## Toolchain
-
-rules_dx declares the pinned nvcc toolchain; a consumer adds no
-`register_toolchains` line. The one tag a consumer adds is
-`dx_licenses.accept(ids = ["cuda-eula"])`.
-
-## Platforms
-
-See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
-
-Windows needs `--//cc:compiler=msvc`: nvcc on Windows only drives `cl.exe`. With the default `llvm` compiler CUDA targets are incompatible there and Windows builds skip them.
-
-## Errors
-
-| Message | Fix |
-| --- | --- |
-| `dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add dx_licenses.accept(ids = ["cuda-eula"]) to the root MODULE.bazel` | Add the license tag to the root `MODULE.bazel`. |
-| `dx_cuda: unknown license '<name>'; the only one is 'cuda-eula'` | Accept `cuda-eula`. |
-| `dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = ["sm_89"]` | Set `cuda_archs`. |
-| `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |
-| `dx_cuda: @rules_cuda//cuda:compiler is '<compiler>'; dx CUDA targets compile with nvcc only` | Remove the `@rules_cuda//cuda:compiler` setting. |
-| `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); use the cuda extension from @rules_dx//cuda:extensions.bzl and remove your own cuda.redist_json and cuda.toolkit tags` | Remove your own `cuda.redist_json` and `cuda.toolkit` tags and use the `cuda` extension from `@rules_dx//cuda:extensions.bzl`. |
-| `dx_cuda: the CUDA toolkit is <version>; dx CUDA targets need 13.4` | Use the versions from Setup. |
-| `dx_cuda: no nvcc toolchain for this target; dx CUDA targets build for linux_x86_64, linux_arm64, windows_x86_64, windows_arm64` | Build for one of the listed platforms. |
-| nvcc fails with `unsupported clang version!` | Move the stanza before `register_toolchains("@llvm//toolchain:all")`. |
-
-## Library components
+### Library components
 
 The pinned stanza declares cuBLAS 13.8.0.4, cuFFT 12.4.0.43 and cuRAND
 10.4.4.72 next to the compiler components, from the CUDA 13.4.3
@@ -123,7 +32,9 @@ every component. The `cufft` and `curand` targets are tagged `manual`.
 
 See `cuda/tests/fixtures/cublas`.
 
-## GPU tests
+## Quality
+
+### GPU tests
 
 ```python
 load("@rules_dx//cuda:defs.bzl", "cuda_test")
@@ -192,3 +103,51 @@ name, compute capability and memory, and every check.
 
 When the status is not `pass`, the first stderr line is
 `<status>: <reason>`.
+
+## Toolchain
+
+### Setup
+
+The CUDA rules load from `@rules_dx//cuda:defs.bzl`. rules_dx declares the
+pinned toolkit and the nvcc toolchain. Add this to the root `MODULE.bazel`:
+
+```python
+cuda = use_extension("@rules_dx//cuda:extensions.bzl", "cuda")
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["cuda-eula"])
+```
+
+### Toolchain
+
+rules_dx declares the pinned nvcc toolchain; a consumer adds no
+`register_toolchains` line. The one tag a consumer adds is
+`dx_licenses.accept(ids = ["cuda-eula"])`.
+
+### Errors
+
+| Message | Fix |
+| --- | --- |
+| `dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add dx_licenses.accept(ids = ["cuda-eula"]) to the root MODULE.bazel` | Add the license tag to the root `MODULE.bazel`. |
+| `dx_cuda: unknown license '<name>'; the only one is 'cuda-eula'` | Accept `cuda-eula`. |
+| `dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = ["sm_89"]` | Set `cuda_archs`. |
+| `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |
+| `dx_cuda: @rules_cuda//cuda:compiler is '<compiler>'; dx CUDA targets compile with nvcc only` | Remove the `@rules_cuda//cuda:compiler` setting. |
+| `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); use the cuda extension from @rules_dx//cuda:extensions.bzl and remove your own cuda.redist_json and cuda.toolkit tags` | Remove your own `cuda.redist_json` and `cuda.toolkit` tags and use the `cuda` extension from `@rules_dx//cuda:extensions.bzl`. |
+| `dx_cuda: the CUDA toolkit is <version>; dx CUDA targets need 13.4` | Use the versions from Setup. |
+| `dx_cuda: no nvcc toolchain for this target; dx CUDA targets build for linux_x86_64, linux_arm64, windows_x86_64, windows_arm64` | Build for one of the listed platforms. |
+| nvcc fails with `unsupported clang version!` | Move the stanza before `register_toolchains("@llvm//toolchain:all")`. |
+
+## Platforms
+
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
+
+Windows needs `--//cc:compiler=msvc`: nvcc on Windows only drives `cl.exe`. With the default `llvm` compiler CUDA targets are incompatible there and Windows builds skip them.
+
+## License
+
+The CUDA Toolkit is licensed under the
+[NVIDIA CUDA EULA](https://docs.nvidia.com/cuda/eula/index.html).
+`dx_licenses.accept(ids = ["cuda-eula"])` accepts it for this build.
+Only the root module's tag counts. Without it, fetching the CUDA redistributables fails. `cuda-eula` is the only license name.
+
+Accepting the license here does not grant you one. You still need your own from NVIDIA.

@@ -33,7 +33,30 @@ dx build //app:hello
 dx test //app:tests
 ```
 
-## Fuzz and bench
+## Quality
+
+### Format and lint
+
+`dx format` and `dx lint` run `swift-format` from the pinned toolchain on Swift
+sources. The default policy runs `swift_format` and `swift_lint` with the
+default swift-format style. They run on Linux only; other platforms skip them
+with a note.
+
+```sh
+dx format --apply
+dx lint
+```
+
+### Typecheck
+
+`dx typecheck` with `typecheck = ["swiftc"]` on the `swift` family replays the
+`SwiftCompile` action of each `swift_library`, `swift_binary` and `swift_test`
+with `-typecheck`, keeping its module, search path and `-D` flags and dropping
+every output flag. Diagnostics are reported at their source position; a
+`swiftc` failure without a parsed error fails closed. It runs the compiler the
+rule already uses and downloads nothing. Params files are rejected.
+
+## Bench and fuzz
 
 `swift_fuzz_test` builds a libFuzzer binary with AddressSanitizer and defines
 `<name>_run` for `dx fuzz`. The source exports `LLVMFuzzerTestOneInput` with
@@ -62,23 +85,24 @@ swift_bench(
 )
 ```
 
-## Format and lint
-
-`dx format` and `dx lint` run `swift-format` from the pinned toolchain on Swift
-sources. The default policy runs `swift_format` and `swift_lint` with the
-default swift-format style. They run on Linux only; other platforms skip them
-with a note.
-
-```sh
-dx format --apply
-dx lint
-```
-
 ## API docs
 
 `dx docs` documents every `swift_library` in scope from the symbol graph that `swift-symbolgraph-extract` of the Swift toolchain writes for its public declarations. `swift_doc_shard` (`@rules_dx//tools/docs/swift:defs.bzl`) turns the graph and the library's own `.swift` files into the API reference. Nothing needs to be installed. Members that an extension adds to a type of another module are not documented.
 
-## macOS arm64
+## Toolchain
+
+The sections below describe the Linux toolchain.
+
+- The compiler is the Swift 6.4.2 Ubuntu 22.04 archive from swift.org.
+- Headers and C libraries come from a locked Ubuntu 22.04 package set.
+- Libraries `swiftc` needs on the build host, such as `libncurses`, come from the same package set.
+- C++ resolution stays with `@llvm`.
+
+The build host needs glibc 2.35 or newer.
+
+## Platforms
+
+### macOS arm64
 
 On macOS the same rules build with the Xcode installed on the host. Install
 Xcode first; no Swift toolchain is downloaded. Swift targets use the Xcode
@@ -90,7 +114,7 @@ dx build //app:hello
 dx test //app:tests
 ```
 
-## Windows x86_64
+### Windows x86_64
 
 On a Windows x86_64 host the rules build with the Swift 6.4.2 Windows installer
 from swift.org, pinned by sha256. The first Swift build downloads the 2 GB
@@ -108,28 +132,8 @@ On windows_x86_64 Swift targets compile and link, but Swift binaries and
 `swift_test` targets, XCTest and Swift Testing included, do not run there yet
 (#12125).
 
-## Windows arm64
+### Windows arm64
 
 A Windows arm64 host uses the Swift 6.4.2 `windows10-arm64` installer, pinned by
 sha256 and unpacked the same way. It is registered but unverified, and Swift
 stays unsupported on windows_arm64 until it builds on a Windows ARM runner.
-
-## Toolchain
-
-The sections below describe the Linux toolchain.
-
-- The compiler is the Swift 6.4.2 Ubuntu 22.04 archive from swift.org.
-- Headers and C libraries come from a locked Ubuntu 22.04 package set.
-- Libraries `swiftc` needs on the build host, such as `libncurses`, come from the same package set.
-- C++ resolution stays with `@llvm`.
-
-The build host needs glibc 2.35 or newer.
-
-## Typecheck
-
-`dx typecheck` with `typecheck = ["swiftc"]` on the `swift` family replays the
-`SwiftCompile` action of each `swift_library`, `swift_binary` and `swift_test`
-with `-typecheck`, keeping its module, search path and `-D` flags and dropping
-every output flag. Diagnostics are reported at their source position; a
-`swiftc` failure without a parsed error fails closed. It runs the compiler the
-rule already uses and downloads nothing. Params files are rejected.

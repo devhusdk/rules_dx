@@ -6,12 +6,9 @@ installed on the host and nothing is fetched until a target needs it.
 rules_perl registers the toolchains, so there is no toolchain setup in
 `MODULE.bazel`.
 
-## Start
+## Dependencies
 
-Run `dx init --apply demo-app` and add sources. The language is wired when
-its sources appear.
-
-## Packages
+### Packages
 
 ```python
 cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
@@ -22,53 +19,7 @@ cpan.install(
 use_repo(cpan, "app_cpan")
 ```
 
-## Rules
-
-Load the rules from `@rules_dx//perl:defs.bzl`. They wrap rules_perl
-and take the same attributes, `select()` values included.
-
-```python
-load("@rules_dx//perl:defs.bzl", "perl_binary", "perl_library", "perl_test")
-
-perl_library(
-    name = "ledger",
-    srcs = ["lib/Inventory/Ledger.pm"],
-)
-
-perl_test(
-    name = "ledger_test",
-    srcs = ["t/ledger.t"],
-    deps = [":ledger"],
-)
-
-perl_binary(
-    name = "stockctl",
-    srcs = ["stockctl.pl"],
-    deps = [":ledger"],
-)
-```
-
-| Rule | What it makes |
-| --- | --- |
-| `perl_library` | Modules from `.pm` files, with `lib` and the package on `@INC` |
-| `perl_test` | Runs one `.t` script; a non-zero exit fails the test |
-| `perl_bench` | `perl_test` for `dx bench`. The script calls `DxBench::run_benchmarks` with `name => sub` pairs, timed with core `Benchmark`; seconds per call |
-| `perl_binary` | Runs one `.pl` script with `bazel run` |
-
-- Library `tags` reach the library; the generated upstream target is
-  `manual`, so `//...` builds only the library.
-- A module that a target does not list in `deps` is not on `@INC`, so
-  `use` fails with `Can't locate`.
-- Read data files through `@rules_perl//perl/runfiles` and its `Runfiles`
-  module.
-- `PerlInfo` passes through unchanged. Load it from
-  `@rules_dx//perl:defs.bzl`.
-- There is no build-time compile check. A syntax error fails the first test
-  or run that loads the module.
-- `perl_xs` is not wrapped, and the `cpan` extension does not build XS
-  distributions.
-
-## CPAN dependencies
+### CPAN dependencies
 
 Declare a hub with the `cpan` extension. Its lock pins each
 distribution to a URL and a sha256.
@@ -87,7 +38,7 @@ lock, add a `cpan_compiler` target from
 `@rules_dx//perl:defs.bzl` next to the `cpanfile` and run it.
 A wrong digest fails the fetch.
 
-## Generating BUILD files
+## Generate
 
 `dx generate` writes `perl_library` and `perl_test` rules. Each package takes
 its own `.pm` files plus every `.pm` under `lib/` that has no `BUILD` file of
@@ -115,6 +66,14 @@ pure-Perl stand-ins (Clone::PP and Params::Util's PP mode). Until typecheck
 exists, the Perl rules add the `no-typecheck` tag to every target. Set
 `--@rules_dx//config:tool_perltidy` or `tool_perlcritic` to use another tool.
 
+## Coverage
+
+`dx coverage` runs `perl_test` through the `DxLcov` collector in
+`@rules_dx//perl/private/coverage`. It loads in every Perl the test starts, counts the
+statements that run, and writes LCOV for the instrumented sources to
+`$COVERAGE_OUTPUT_FILE`. Devel::Cover needs XS, which the `cpan` extension
+cannot build.
+
 ## Platforms
 
 See the [support matrix](../docs/support-matrix.md).
@@ -124,11 +83,3 @@ See the [support matrix](../docs/support-matrix.md).
 rules_perl has no toolchain for other platforms. The wrappers mark their
 targets incompatible there, so a build fails instead of running the host
 Perl. Unix launchers start through a bash script.
-
-## Coverage
-
-`dx coverage` runs `perl_test` through the `DxLcov` collector in
-`@rules_dx//perl/private/coverage`. It loads in every Perl the test starts, counts the
-statements that run, and writes LCOV for the instrumented sources to
-`$COVERAGE_OUTPUT_FILE`. Devel::Cover needs XS, which the `cpan` extension
-cannot build.

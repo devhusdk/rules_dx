@@ -34,6 +34,8 @@ apple_ios_app_test(name, app, srcs = None, deployment = "", device_type = "", os
 
 Runs XCTest cases inside one app on a declared simulator device and runtime.
 
+`app` must be an `apple_ios_app` simulator target.
+
 ### `apple_ios_xcframework`
 
 ```python
@@ -125,3 +127,661 @@ None.
 ## Platforms
 
 None.
+
+## Packaging
+
+### iOS libraries
+
+Build one Rust static library for one device or simulator cell.
+
+```python
+load("@rules_dx//apple:defs.bzl", "apple_ios_lib")
+
+apple_ios_lib(
+    name = "share",
+    srcs = ["share.rs"],
+    hdrs = ["share_api.h"],
+    platform = "@rules_dx//apple:ios_sim_arm64",
+    deployment = "17.0",
+    xcode_version = "16.4",
+    frameworks = ["Foundation"],
+    crate_features = ["share"],
+    rustc_flags = ["--cfg", "dx_ios"],
+)
+```
+
+`srcs`, `deps`, `proc_macro_deps`, `crate_root`, `crate_name`, and
+`edition` pass to `rust_static_library`. Building `:share` on a macOS
+host with Xcode writes the static archive and `<name>_cell.txt`, which
+records the cell, SDK, deployment, Xcode, and the archive's Mach-O
+platform and minimum OS. Consumers get the archive, `hdrs`, and one
+`-Wl,-framework,<name>` link flag per framework through `CcInfo`.
+
+| Cell | Triple | SDK |
+| --- | --- | --- |
+| `device/arm64` | `aarch64-apple-ios` | `iphoneos` |
+| `simulator/arm64` | `aarch64-apple-ios-sim` | `iphonesimulator` |
+| `simulator/x86_64` | `x86_64-apple-ios` | `iphonesimulator` |
+
+Add the triples to `MODULE.bazel`:
+
+```python
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = [
+        "aarch64-apple-ios",
+        "aarch64-apple-ios-sim",
+        "x86_64-apple-ios",
+    ],
+)
+```
+
+Outside an iOS build the library builds for its own cell at `deployment`
+(default 17.0, the SDK floor). Inside an app or framework it builds in
+that cell. Linux hosts skip it. The build fails when:
+
+- a device triple, SDK, or arch is set on a simulator cell, or the reverse;
+- `deployment` is below 17.0 or above the Xcode 16 ceiling (18.0), or
+  above the iOS version of the build;
+- Xcode is outside lineage 16, or another Xcode resolved;
+- the library links no static archive;
+- the archive carries another arch or platform, or needs a newer iOS
+  than the deployment;
+- the app or framework builds another cell than the library declares.
+
+One `apple_ios_lib` serves one cell, so pass a single-slice
+`apple_ios_xcframework` or an app in that cell.
+
+### Simulator apps
+
+Build one iOS application bundle over a Rust static library. The app
+target is an upstream `ios_application`; building it never boots,
+installs, or launches a simulator.
+
+```python
+load("@rules_dx//apple:defs.bzl", "apple_ios_app", "apple_ios_app_test")
+load("@rules_rust//rust:defs.bzl", "rust_static_library")
+
+rust_static_library(
+    name = "ledger_rust",
+    srcs = ["ledger.rs"],
+)
+
+apple_ios_app(
+    name = "ledger_app",
+    srcs = ["main.m", "LedgerAppDelegate.m"],
+    hdrs = ["LedgerAppDelegate.h"],
+    platform = "@rules_dx//apple:ios_sim_arm64",
+    bundle_id = "com.example.ledger",
+    version = "1.0",
+    deployment = "17.0",
+    xcode_version = "16.4",
+    library = ":ledger_rust",
+    resources = ["entries.txt"],
+)
+
+apple_ios_app_test(
+    name = "ledger_app_test",
+    size = "large",
+    srcs = ["LedgerAppTests.m"],
+    app = ":ledger_app",
+    deployment = "17.0",
+    device_type = "iPhone 16",
+    os_version = "18.5",
+)
+```
+
+`srcs` holds the native entry point that calls `UIApplicationMain`; set
+`entry` instead for a Swift `@main` module, never both.
+`library` is any target with `CcInfo` that links one static archive,
+such as `rust_static_library`. `frameworks` takes XCFramework imports;
+see [Consume an XCFramework](#consume-an-xcframework). The app needs
+`library`, `frameworks`, `entry`, or a mix. Without `infoplists`, the app gets a
+default `Info.plist`.
+
+Your `MODULE.bazel` needs the Rust simulator triple:
+
+```python
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = ["aarch64-apple-ios-sim"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+```
+
+Build and test on a macOS host with Xcode:
+
+```sh
+bazel build //:ledger_app
+bazel test //:ledger_app_test
+```
+
+The build writes `bazel-bin/<package>/<name>.ipa` and
+`bazel-bin/<package>/<name>_library.txt`, which records the cell, SDK,
+SDK version, deployment target, Xcode, and each archive's arch,
+platform, and minimum OS. Linking waits for that check.
+
+`apple_ios_app_test` creates and boots a new simulator of `device_type`
+on the exact iOS `os_version` runtime, runs XCTest cases inside the app,
+then deletes the simulator. A simulator left by an interrupted or
+timed-out run is deleted by the next test run on that host. The runtime must be installed. A missing
+runtime fails the test and creates no simulator; it never falls back to
+another runtime. `os_version` below `deployment`
+fails analysis.
+
+The build fails before linking when:
+
+- the library links no static archive or lacks `CcInfo`;
+- an archive misses the cell's arch, is built for another platform
+  (`iphoneos`, `macosx`), or needs a newer iOS than `deployment`;
+- a library builds for another cell than the app declares. Apps select
+  their own cell;
+- no Xcode resolves, as on a Linux host, or Bazel resolved a different
+  Xcode than `xcode_version`;
+- `srcs` and `entry` are both empty or both set, `deployment`,
+  `bundle_id`, or `version` is missing or malformed, or `library`,
+  `frameworks`, and `entry` are all empty.
+
+#### Swift apps
+
+`entry` takes any `CcInfo` or `SwiftInfo` target that holds the `@main`
+module, such as a `swift_library` from `@rules_dx//swift:defs.bzl`.
+`swift_library` keeps `alwayslink` on, so the `@main` module stays
+linked. Name the file something other than `main.swift`.
+
+Use `swift_binary` and `swift_test` for a macOS-native Swift tool; they
+need no simulator.
+
+```python
+apple_ios_app(
+    name = "ledger_app",
+    entry = ":ledger_main",
+    library = ":ledger_rust",
+    platform = "@rules_dx//apple:ios_sim_arm64",
+    bundle_id = "com.example.ledger",
+    version = "1.0",
+    deployment = "17.0",
+    xcode_version = "16.4",
+)
+
+apple_ios_app_test(
+    name = "ledger_app_test",
+    app = ":ledger_app",
+    deps = [":ledger_xctests"],
+    deployment = "17.0",
+    device_type = "iPhone 16",
+    os_version = "18.5",
+)
+```
+
+`apple_ios_app_test` takes `srcs` for native XCTest sources, `deps` for
+Swift XCTest modules, or both. It runs on the simulator only.
+
+Simulator builds sign ad hoc; `provisioning_profile` fails there. On
+non-Apple hosts the app targets are incompatible and skip.
+
+#### Device apps
+
+Set `platform = "@rules_dx//apple:ios_arm64"` and
+`provisioning_profile` to a `.mobileprovision` file:
+
+```python
+apple_ios_app(
+    name = "ledger_device",
+    srcs = ["main.m"],
+    bundle_id = "com.example.ledger",
+    deployment = "17.0",
+    platform = "@rules_dx//apple:ios_arm64",
+    library = ":ledger_rust",
+    provisioning_profile = "ledger_dev.mobileprovision",
+    version = "1.0",
+)
+```
+
+```sh
+bazel build //:ledger_device
+```
+
+Device builds always sign ad hoc and embed the profile. They never read
+a keychain, even when `signing_certificate_name` is set. The build fails
+when the profile has expired, does not cover `bundle_id`, or does not
+allow an entitlement. Rust needs the `aarch64-apple-ios` triple.
+
+#### Simulator operations
+
+Boot, install, and launch are explicit `bazel run` launchers:
+
+```python
+load(
+    "@rules_dx//apple:defs.bzl",
+    "apple_simulator_boot",
+    "apple_simulator_install",
+    "apple_simulator_launch",
+)
+
+apple_simulator_boot(name = "boot", simulator = "iPhone 16")
+
+apple_simulator_install(name = "install", app = ":ledger_app", simulator = "iPhone 16")
+
+apple_simulator_launch(name = "launch", bundle_id = "com.example.ledger", simulator = "iPhone 16")
+```
+
+```sh
+bazel run //:boot
+bazel run //:install
+bazel run //:launch
+```
+
+`simulator` is an available simulator's name or UDID. Each launcher
+exits with:
+
+- `0` when `xcrun simctl` succeeds;
+- `2` when no available simulator matches, a name matches several, or
+  an input is missing;
+- `127` only when `xcrun` is missing;
+- `simctl`'s own code when it fails.
+
+#### Export a signed IPA
+
+Export is an explicit `bazel run` launcher over one device app:
+
+```python
+load("@rules_dx//apple:defs.bzl", "apple_ios_export")
+
+apple_ios_export(name = "export", app = ":ledger_device")
+```
+
+```sh
+bazel run //:export -- \
+    --certificate dev.p12 --password-file dev.p12.pass --out dist/Ledger.ipa
+```
+
+Flags:
+
+- `--certificate`: the signing identity `.p12` file.
+- `--password-file`: the file holding the `.p12` password.
+- `--out`: the `.ipa` to write, outside `bazel-out`.
+
+Relative paths resolve against the directory you ran `bazel` from.
+`apple_ios_export` takes only a device `apple_ios_app`; other targets
+fail analysis.
+
+The launcher checks that:
+
+- the IPA embeds the declared profile;
+- the profile has not expired and covers the bundle id;
+- the app's entitlements are in the profile;
+- the certificate is in the profile's `DeveloperCertificates`.
+
+It signs `Frameworks/*`, then the app, and verifies the result with
+`codesign --verify --deep --strict`, the team, `arm64` only, the
+`iphoneos` platform, and an unchanged file list. Apps with extensions
+fail.
+
+It writes `<out>` and `<out>.txt`, which records the bundle id, team,
+profile name, UUID and expiry, certificate SHA-1, signing authority,
+entitlement keys, archs, platform, and minimum OS.
+
+The certificate and password are never Bazel inputs. The identity goes
+into a temporary keychain that is deleted on exit, and the keychain
+search list is restored. Override tools with `XCRUN`, `SECURITY`,
+`CODESIGN`, `OPENSSL`, `PLUTIL`, `DX_UNZIP`, `DITTO`, or `DX_ZIP`.
+
+The launcher exits with:
+
+- `0` when the IPA and report are written;
+- `1` when the signed app fails verification;
+- `2` when an input is missing or bad, or the profile or certificate is
+  rejected;
+- `127` when a tool is missing;
+- `codesign`'s own code when signing fails.
+
+### XCFrameworks
+
+Build one XCFramework over a Rust static library and public headers. The
+bundle is an upstream `apple_xcframework`; each slice is built for its own
+platform, never merged by architecture name.
+
+```python
+load("@rules_dx//apple:defs.bzl", "apple_ios_xcframework")
+load("@rules_rust//rust:defs.bzl", "rust_static_library")
+
+rust_static_library(
+    name = "share_rust",
+    srcs = ["share.rs"],
+)
+
+apple_ios_xcframework(
+    name = "share",
+    bundle_id = "com.example.share",
+    bundle_name = "Share",
+    version = "1.4",
+    deployment = "17.0",
+    xcode_version = "16.4",
+    hdrs = ["share_api.h"],
+    library = ":share_rust",
+    resources = ["rates.txt"],
+    platforms = [
+        "@rules_dx//apple:ios_arm64",
+        "@rules_dx//apple:ios_sim_arm64",
+        "@rules_dx//apple:ios_x86_64",
+    ],
+)
+```
+
+Add every slice triple to the Rust toolchain:
+
+```python
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = [
+        "aarch64-apple-ios",
+        "aarch64-apple-ios-sim",
+        "x86_64-apple-ios",
+    ],
+)
+```
+
+Build on a macOS host with Xcode:
+
+```sh
+bazel build //:share
+```
+
+The build writes `bazel-bin/<package>/<name>.xcframework.zip` with
+`<bundle_name>.xcframework` inside, and
+`bazel-bin/<package>/<name>_xcframework.txt`, which records each slice's
+library identifier, platform, minimum OS, and install name. The archive
+appears only after every check passes.
+
+Each platform is a `@rules_dx//apple` label: `ios_arm64`,
+`ios_sim_arm64`, or `ios_x86_64`. The framework needs `ios_arm64` and at
+least one simulator platform.
+
+The build fails when:
+
+- a platform is not an iOS platform label or is listed twice, or `ios_arm64` or
+  every simulator platform is missing;
+- `hdrs`, `deployment`, `bundle_id`, `version`, or `library` is missing
+  or malformed, or a resource path is empty or absolute;
+- a public header has the umbrella header's name in any case, such as
+  `share.h` next to `Share.h`;
+- the library links no static archive, or an archive misses the slice's
+  arch, is built for another platform, or needs a newer iOS than
+  `deployment`;
+- the XCFramework misses a declared slice, carries an undeclared one, or
+  lists one twice;
+- a slice binary is built for another platform, needs a newer iOS than
+  `deployment`, or has the wrong install name;
+- a slice misses its module map, a public header, a resource, or the
+  declared bundle identifier, version, or minimum OS;
+- no Xcode resolves, or Bazel resolved a different Xcode than
+  `xcode_version`.
+
+#### Consume an XCFramework
+
+Import the unpacked XCFramework with upstream
+`apple_dynamic_xcframework_import` and pass it in `frameworks`:
+
+```python
+load("@rules_apple//apple:apple.bzl", "apple_dynamic_xcframework_import")
+load("@rules_dx//apple:defs.bzl", "apple_ios_app")
+
+apple_dynamic_xcframework_import(
+    name = "share",
+    xcframework_imports = glob(["Share.xcframework/**"]),
+)
+
+apple_ios_app(
+    name = "till_app",
+    srcs = ["main.m"],
+    platform = "@rules_dx//apple:ios_sim_arm64",
+    bundle_id = "com.example.till",
+    version = "2.0",
+    deployment = "17.0",
+    frameworks = [":share"],
+)
+```
+
+Your `MODULE.bazel` needs `bazel_dep(name = "rules_apple", version =
+"5.4.0")`. Sources import `<Share/share_api.h>`. The app embeds the
+framework under `Frameworks/`, and its resources load from
+`[NSBundle bundleWithIdentifier:]`.
+
+`bazel-bin/<package>/<name>_library.txt` records each framework binary's
+arch, platform, and minimum OS. The app build fails when the imported
+XCFramework has no slice for the cell, or the slice binary misses the
+arch, is built for another platform, or needs a newer iOS than the app
+`deployment`.
+
+### macOS apps
+
+Build one macOS application bundle over a Rust static library. The
+bundle is an upstream `macos_application`; `apple_macos_app` checks it
+and ships it signed ad hoc.
+
+```python
+load("@rules_dx//apple:defs.bzl", "apple_macos_app")
+load("@rules_rust//rust:defs.bzl", "rust_static_library")
+
+rust_static_library(
+    name = "ledger_rust",
+    srcs = ["ledger.rs"],
+)
+
+apple_macos_app(
+    name = "ledger",
+    srcs = ["main.m"],
+    platform = "@rules_dx//apple:macos_arm64",
+    bundle_id = "com.example.ledger",
+    version = "1.0",
+    deployment = "14.0",
+    xcode_version = "16.4",
+    library = ":ledger_rust",
+    resources = ["entries.txt"],
+)
+```
+
+`platform` is optional and defaults to the current target platform. It names the
+platform the selection and check rules read the arch from; only `macos_arm64` is
+accepted. It does not change the platform the bundle is built for: build with
+`--platforms` or `--macos_cpus`. An x86_64 macOS target platform fails with
+"arch 'x86_64' is outside macos".
+
+`srcs` holds the native entry point. `library` is any target with
+`CcInfo` that links one static archive, such as `rust_static_library`.
+The app needs `srcs`, `library`, or both. `frameworks` takes frameworks
+`macos_dynamic_framework` targets, checked by bundle name under
+`Contents/Frameworks`. `plugins` takes `macos_bundle` targets, checked as
+`<bundle_name>.bundle`, binaries, or files placed by their package-relative
+path under `Contents/PlugIns`. Without `infoplists`, the app gets a default
+`Info.plist`.
+
+Your `MODULE.bazel` needs the Rust macOS triple:
+
+```python
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = ["aarch64-apple-darwin"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+```
+
+```sh
+bazel build //:ledger --macos_cpus=arm64
+bazel run //:ledger
+```
+
+`bazel run` unpacks the app into a temporary directory and runs its
+executable with your arguments.
+
+The build writes:
+
+- `bazel-bin/<package>/<name>.zip`: the app, copied only after every
+  check passes. This is the checked artifact.
+- `bazel-bin/<package>/<name>.app.identity.json`: what the checks saw.
+
+The identity JSON holds `identity` (`bundle_id`, `executable`,
+`version`, `deployment`), `target` (`arch`, `platform`, `sdk_version`,
+`xcode`, `minos`), `linkage` (`rpaths`, `loads`), `contents`
+(`frameworks`, `plugins`, `resources`), and `signing` (`signature`,
+`executable_sha256`).
+
+The cell is macos/arm64, deployment 14.0 to 15.0, Xcode 16. The check
+fails the build when:
+
+- an `Info.plist` key, the architecture, or the build platform differs
+  from the declaration;
+- a Mach-O file needs a newer macOS than `deployment`;
+- a file has an absolute rpath, an `@rpath` load missing from the
+  bundle, or a load outside `/usr/lib`, `/System/Library`, and the
+  bundle;
+- a declared framework, plugin, or resource is missing;
+- the signature is not ad hoc.
+
+Building signs ad hoc only, whatever `--macos_signing_cert_name` says.
+`provisioning_profile` and `entitlements` are rejected; sign with
+[macOS signing and notarization](#macos-signing-and-notarization).
+`--norun_validations` skips the check, so ship `<name>.zip`.
+
+Failures read:
+
+- `apple_macos_app: arch 'x86_64' is outside macos: want arm64`
+- `apple_macos_app: deployment '13.0' is below 14.0`
+- `apple_macos_app: plugin '//app:empty' places nothing under PlugIns`
+- `apple_macos_app: deployment '16.0' is above the Xcode 16 'macosx' ceiling 15.0`
+- `apple_macos_app: building signs ad hoc only; signing is a separate operation`
+- `apple_macos_app: srcs or library is required; pass the native entry point or a Rust static library`
+- `apple_macos_app: app declares macos/arm64 but this build targets macos/x86_64; pass --macos_cpus=arm64`
+- `apple_macos_app: <file> loads host runtime <path>; embed it under Frameworks`
+
+### macOS signing and notarization
+
+Signing and notarization are explicit `bazel run` launchers over one
+macOS application. The application target must provide rules_apple's
+`AppleBundleInfo`, as `macos_application` and `apple_macos_app` do:
+
+```python
+load("@rules_dx//apple:defs.bzl", "apple_macos_notarize", "apple_macos_sign")
+
+apple_macos_sign(name = "sign", app = ":ledger")
+
+apple_macos_notarize(name = "notarize", app = ":ledger")
+```
+
+```sh
+bazel run //:sign -- \
+    --certificate developer_id.p12 --password-file developer_id.p12.pass \
+    --out dist/Ledger.app
+bazel run //:notarize -- --app dist/Ledger.app \
+    --key AuthKey_2X9R4HXF34.p8 --key-id 2X9R4HXF34 --issuer <issuer-uuid>
+```
+
+`bazel build` and `dx check` only write a small metadata file for these
+targets. They never sign anything or contact Apple. Both launchers need a
+macOS host with Xcode. Relative paths resolve against the directory you
+ran `bazel` from. Other targets than a macOS `.app` fail analysis.
+
+#### Sign
+
+Flags:
+
+- `--certificate`: the Developer ID Application identity `.p12` file.
+- `--password-file`: the file holding the `.p12` password.
+- `--identity`: instead of the two flags above, the SHA-1 or name of a
+  code signing identity that is already in a keychain. A name must match
+  exactly one identity.
+- `--keychain`: with `--identity`, the keychain to search. It must be
+  unlocked. Without it, the user keychain search list is used.
+- `--out`: the `.app` to write, outside `bazel-out`.
+
+When no credential flag is given, the launcher reads the identity from
+`DX_APPLE_SIGN_IDENTITY` and the keychain from `DX_APPLE_KEYCHAIN`.
+
+The launcher unpacks the built app and signs it inside out. In each
+bundle it signs, in order:
+
+1. each entry in `Contents/Frameworks`;
+2. each entry in `Contents/PlugIns`, `Contents/XPCServices`,
+   `Contents/Helpers`, and `Contents/Library/LoginItems`,
+   `SystemExtensions`, `QuickLook` and `Spotlight`, signing the nested
+   code of each nested bundle first;
+3. any other Mach-O file in `Contents/MacOS`;
+4. the bundle itself.
+
+Nested code keeps its own entitlements through
+`--preserve-metadata=entitlements`. The app itself is signed with the
+target's entitlements. Every call uses `--force --options runtime
+--timestamp`, so the ad hoc build signature is replaced, the hardened
+runtime is on, and Apple's secure timestamp is attached. It never signs
+with `--deep`.
+
+Input that fails before signing:
+
+- entitlements on the app or on nested code that set
+  `com.apple.security.get-task-allow`;
+- a nested bundle without `Contents/Info.plist`;
+- code nested inside a framework;
+- a Mach-O file anywhere else, such as `Contents/Resources`, since it
+  would keep its ad hoc signature and fail notarization.
+
+After signing, the launcher checks `codesign --verify --deep --strict`
+and that `codesign -dvv` shows the runtime flag, a timestamp, and a
+signing authority. It then writes `<out>` and `<out>.txt`, which records
+the bundle id, team, signing authority, certificate SHA-1, timestamp,
+entitlement keys, archs, and the runtime flag.
+
+The certificate and password are never Bazel inputs. A `.p12` identity
+goes into a temporary keychain that is deleted on exit, and the keychain
+search list is restored. An `--identity` is used where it is and no
+keychain is changed.
+
+#### Notarize
+
+Flags:
+
+- `--app`: the signed `.app` to notarize and staple.
+- `--keychain-profile`: a profile stored with
+  `xcrun notarytool store-credentials`.
+- `--key`, `--key-id`, `--issuer`: an App Store Connect API key file,
+  its key id, and the issuer id. Use these three or `--keychain-profile`,
+  not both.
+- `--timeout`: how long `notarytool` waits, `2h` by default.
+
+The launcher checks that the app's bundle id is the target's bundle id
+and that the app carries a hardened runtime signature that is not ad hoc.
+It zips the app with `ditto`, submits it with `xcrun notarytool submit
+--wait`, and reads the submission status from the JSON output. It always
+fetches the notary log to `<app>.notary.json`. Only an `Accepted`
+submission is stapled; the launcher then runs `xcrun stapler validate`
+and `spctl --assess --type execute`.
+
+Only file paths of secrets are passed to the tools. The launchers never
+print the password or key contents.
+
+Override tools with `XCRUN`, `SECURITY`, `CODESIGN`, `OPENSSL`, `PLUTIL`,
+`DITTO`, or `SPCTL`.
+
+Both launchers exit with:
+
+- `0` when the signed app and report are written, or the app is
+  notarized and stapled;
+- `1` when the signed app fails verification, notarization returns
+  `Invalid` or `Rejected`, or stapling or assessment fails;
+- `2` when an input or credential is missing or bad;
+- `3` when the Apple timestamp or notary service is unreachable, or the
+  submission is still `In Progress` after `--timeout`;
+- `127` when a tool is missing;
+- `codesign`'s or `notarytool`'s own code for other failures.
+
+## Toolchain
+
+rules_dx registers the Xcode C/C++ toolchain; a consumer adds no
+`register_toolchains` line and no Apple-specific tag.

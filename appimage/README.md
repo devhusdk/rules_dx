@@ -8,17 +8,9 @@ step is a pinned Rust binary run with an empty `PATH`. It uses no tool from
 Cells: `linux_x86_64` and `linux_arm64`. Any other target fails analysis with
 `target platform is unsupported`.
 
-## Pins
+## Packaging
 
-| Tool | License |
-| --- | --- |
-| appimagetool | MIT |
-| type 2 runtime (x86_64, aarch64) | MIT |
-| mksquashfs | GPL-2.0-or-later |
-
-Versions are in `pins.json`.
-
-## Use
+### Use
 
 `MODULE.bazel` needs nothing extra. The tools come from `@dx_appimage_tools`,
 declared by rules_dx and fetched on first use.
@@ -62,7 +54,7 @@ Outputs:
 
 `AppRun` is a link to `usr/bin/<app_name>`. The runtime sets `$APPDIR`.
 
-## Build and run
+### Build and run
 
 ```sh
 bazel build //pkg:app
@@ -78,7 +70,7 @@ bazel-bin/pkg/app.AppImage --appimage-extract
 APPDIR="$PWD/squashfs-root" squashfs-root/AppRun
 ```
 
-### Supported tuples
+#### Supported tuples
 
 | Build host | Target cell | Run host | Run route | Install | Sign |
 | --- | --- | --- | --- | --- | --- |
@@ -109,7 +101,7 @@ current target platform.
 The image is packaged from the arm64 target bytes. Running it needs an arm64
 Linux host.
 
-## Test
+### Test
 
 ```sh
 bazel test //appimage/... //appimage/tests/fixtures/appimage-app/...
@@ -119,3 +111,15 @@ bazel test //tools/testing/hermetic:appimage
 
 The [appimage-app fixture](tests/fixtures/appimage-app/README.md) is a two-package
 app that is built, relocated and run without FUSE in its tests.
+
+## Toolchain
+
+### Pins
+
+| Tool | License |
+| --- | --- |
+| appimagetool | MIT |
+| type 2 runtime (x86_64, aarch64) | MIT |
+| mksquashfs | GPL-2.0-or-later |
+
+Versions are in `pins.json`.

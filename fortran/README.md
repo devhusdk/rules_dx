@@ -7,42 +7,37 @@ the rest of the build, and binaries and tests link through `cc_binary` and
 target needs it. rules_dx registers the toolchain, so there is no setup in
 `MODULE.bazel`.
 
-## Start
+## Dependencies
 
-Run `dx init --apply demo-app` and add sources. The language is wired when
-its sources appear.
+### Modules
 
-```python
-load("@rules_dx//fortran:defs.bzl", "fortran_binary", "fortran_library", "fortran_test")
+A source can `use` modules from the targets in its `deps`. It cannot `use` a
+module from another source of the same target. Put each module that other
+code uses in its own `fortran_library` and share it through `deps`.
+Sources in different packages may share a file name, such as `kinds.f90`.
 
-fortran_library(
-    name = "units",
-    srcs = ["units.f90"],
-)
+The intrinsic modules (`iso_fortran_env`, `iso_c_binding`, `ieee_*`) work
+without any dependency.
 
-fortran_library(
-    name = "solver",
-    srcs = ["solver.f90"],
-    deps = [":units"],
-)
+### Locked packages
 
-fortran_binary(
-    name = "solve",
-    srcs = ["main.f90"],
-    deps = [":solver"],
-)
+`fpm.lock(name, lock)` in `MODULE.bazel` reads an `fpm.lock.toml` and declares
+one pinned archive per `[dependencies.<name>]` table, plus a hub repository
+named `name` with one `fortran_library` alias per package. Each table needs
+`version`, `url` and `sha256`, and may set `strip_prefix` and
+`dependencies`, a list of other locked packages. Each package compiles the
+Fortran sources under its `src` tree. `dx security` and `dx license` list the
+locked packages. `fortran_fpm_lock(name)` from `@rules_dx//fortran:defs.bzl` next to `fpm.lock.toml` is the target `dx update` runs; it downloads each archive and rewrites its `sha256`, and `dx update <set>:<package>` re-hashes one package.
 
-fortran_test(
-    name = "solver_test",
-    srcs = ["solver_test.f90"],
-    deps = [":solver"],
-)
-```
+## Quality
 
-```sh
-bazel run //:solve
-bazel test //:solver_test
-```
+`dx format` runs `ffmt` and `dx lint` runs `fortitude` by default; the default policy selects
+`format = ["ffmt"]` and `lint = ["fortitude", "typos"]` for the `fortran` family. It formats `.f90`, `.f95`, `.f03`, `.F90`, `.F95` and `.fpp`
+sources. Fixed-form `.f` and `.F` files and `.f08` and `.F08` files are left
+alone, because ffmt would corrupt or reject them. `dx typecheck` runs `flang` only when the `fortran` family
+selects it with `typecheck = ["flang"]`. `fortitude` lints free-form sources (`.f90` and the
+newer extensions). Fixed-form `.f` and `.F` files are not linted, because
+fortitude reads free-form source only.
 
 ## API docs
 
@@ -60,43 +55,9 @@ fortran_doc_shard(
 )
 ```
 
-## Rules
+## Toolchain
 
-Load the rules from `@rules_dx//fortran:defs.bzl`. `fortran_library`
-wraps the [rules_fortran](https://github.com/miinso/rules_fortran) rule and
-takes the same attributes.
-
-| Rule | What it makes |
-| --- | --- |
-| `fortran_library` | A static library and the `.mod` files of its modules |
-| `fortran_binary` | A program linked by `cc_binary`; run it with `bazel run` |
-| `fortran_test` | A program linked by `cc_test`; a non-zero exit or `error stop` fails it |
-
-`fortran_binary` and `fortran_test` take two kinds of attributes:
-
-| Goes to | Attributes |
-| --- | --- |
-| The Fortran compile | `srcs`, `deps`, `copts`, `defines`, `hdrs`, `includes` |
-| The link and the run | `linkopts`, `data`, `args`, `env`, `env_inherit`, `size`, `timeout`, `stamp` and the other `cc_binary` or `cc_test` attributes |
-
-- Sources end in `.f`, `.f90`, `.f95`, `.f03` or `.f08`. Uppercase
-  extensions (`.F`, `.F90`, ...) run the preprocessor first; `defines` only
-  work on those.
-- `.f` is fixed form. The others are free form.
-- `linkopts` on a `fortran_library` only reach other Fortran targets. Put
-  link options on the `fortran_binary` or `fortran_test`.
-
-## Modules
-
-A source can `use` modules from the targets in its `deps`. It cannot `use` a
-module from another source of the same target. Put each module that other
-code uses in its own `fortran_library` and share it through `deps`.
-Sources in different packages may share a file name, such as `kinds.f90`.
-
-The intrinsic modules (`iso_fortran_env`, `iso_c_binding`, `ieee_*`) work
-without any dependency.
-
-## C interop
+### C interop
 
 A `fortran_library` gives C and C++ rules a `CcInfo`, and it can depend on a
 `cc_library`.
@@ -106,16 +67,6 @@ A `fortran_library` gives C and C++ rules a `CcInfo`, and it can depend on a
 - C calling Fortran: write the routine with `bind(c)` and add the
   `fortran_library` to the `deps` of a `cc_binary` or `cc_test`. The runtime
   comes with it.
-
-## Formatting and linting
-
-`dx format` runs `ffmt` and `dx lint` runs `fortitude` by default; the default policy selects
-`format = ["ffmt"]` and `lint = ["fortitude", "typos"]` for the `fortran` family. It formats `.f90`, `.f95`, `.f03`, `.F90`, `.F95` and `.fpp`
-sources. Fixed-form `.f` and `.F` files and `.f08` and `.F08` files are left
-alone, because ffmt would corrupt or reject them. `dx typecheck` runs `flang` only when the `fortran` family
-selects it with `typecheck = ["flang"]`. `fortitude` lints free-form sources (`.f90` and the
-newer extensions). Fixed-form `.f` and `.F` files are not linted, because
-fortitude reads free-form source only.
 
 ## Platforms
 
@@ -129,13 +80,3 @@ fortitude reads free-form source only.
 
 OpenMP, GPU offload and Wasm are unsupported. On other platforms Fortran
 targets are incompatible and skipped.
-
-## Locked packages
-
-`fpm.lock(name, lock)` in `MODULE.bazel` reads an `fpm.lock.toml` and declares
-one pinned archive per `[dependencies.<name>]` table, plus a hub repository
-named `name` with one `fortran_library` alias per package. Each table needs
-`version`, `url` and `sha256`, and may set `strip_prefix` and
-`dependencies`, a list of other locked packages. Each package compiles the
-Fortran sources under its `src` tree. `dx security` and `dx license` list the
-locked packages. `fortran_fpm_lock(name)` from `@rules_dx//fortran:defs.bzl` next to `fpm.lock.toml` is the target `dx update` runs; it downloads each archive and rewrites its `sha256`, and `dx update <set>:<package>` re-hashes one package.

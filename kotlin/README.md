@@ -26,7 +26,9 @@ kotlin_test(
 
 `kotlin_test` infers `test_class` from the sources and the package path. Set it to override. Other attributes pass through to `kt_jvm_library`, `kt_jvm_binary` and `kt_jvm_test`.
 
-## Internal members
+## Dependencies
+
+### Internal members
 
 List a `kotlin_library` in `associates` to use its `internal` members. The target joins the Kotlin module of that library.
 
@@ -38,7 +40,7 @@ kotlin_library(
 )
 ```
 
-## Third-party dependencies
+### Third-party dependencies
 
 List the artifacts in a rules_jvm_external `maven_install.json` and run
 `dx generate --apply`. The `kotlin` language of `dx generate` writes the targets and `deps`.
@@ -46,16 +48,12 @@ A dependency is the label `@maven//:<group>_<artifact>`, with dots and dashes
 turned into underscores, for example `@maven//:com_google_guava_guava`. See
 [generate](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/generate.md).
 
-## Format, lint and typecheck
+## Quality
 
 By default `dx format` runs `ktfmt`, `dx lint` runs `detekt` and `dx typecheck`
 runs `kotlinc`. None of them needs a config file.
 
-## Platforms
-
-See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
-
-## Fuzzing
+## Bench and fuzz
 
 `kotlin_fuzz_test` builds a Jazzer fuzz target for `dx fuzz`, like `java_fuzz_test`.
 
@@ -70,3 +68,7 @@ kotlin_fuzz_test(
 ```
 
 The target class needs a static `fuzzerTestOneInput(data: ByteArray)`, so put it in an `object` with `@JvmStatic`.
+
+## Platforms
+
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).

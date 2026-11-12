@@ -6,59 +6,32 @@ is installed on the host and nothing is fetched until a target needs it.
 rules_dart registers the toolchains, so there is no toolchain setup beyond the
 version pin in `MODULE.bazel`.
 
-## Rules
+## Dependencies
 
-Load the rules from `@rules_dx//dart:defs.bzl`. They wrap rules_dart and
-take the same attributes.
+### Pub dependencies
+
+Declare a hub with the `pub` extension from `@rules_dx//dart:extensions.bzl`. The lock pins each package
+to a sha256. Make the lock with `dart pub get` on a developer machine, never
+inside an action.
 
 ```python
-load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library", "dart_test")
+bazel_dep(name = "rules_dart", version = "0.8.1")
 
-dart_library(
-    name = "greet",
-    srcs = ["lib/greet.dart"],
-    package_name = "greet",
+pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
+pub.from_lock(
+    name = "my_pub_deps",
+    lock = "//third_party/dart:pubspec.lock",
+    on_version_conflict = "upgrade",
 )
-
-dart_binary(
-    name = "greet_bin",
-    main = "bin/greet.dart",
-    deps = [":greet"],
-)
-
-dart_test(
-    name = "greet_test",
-    deps = [
-        ":greet",
-        "@my_pub_deps//:test",
-    ],
-)
+use_repo(pub, "my_pub_deps")
 ```
 
-| Rule | What it makes |
-| --- | --- |
-| `dart_library` | A package from `.dart` files, importable as `package:<name>` |
-| `dart_binary` | A compiled executable that runs with `bazel run` |
-| `dart_test` | Runs one test file with the package:test runner |
-| `dart_bench` | `dart_test` for `dx bench`. `main` calls `runBenchmarks` from `package:dx_bench` with `BenchmarkBase` objects; seconds per run. Depend on `@dx_dart_bench_deps//:benchmark_harness` for the base class |
-| `dart_codegen` | Runs a generator script over one `.dart` file and makes the output files |
+rules_dart shares one pub hub across modules and does not support two versions
+of a package, so the hub name must differ from `ext_pub_deps`.
 
-`dart_js_binary` and `dart_wasm_binary` compile a web app to `.js`, or to `.wasm` plus its `.mjs` loader and `.support.js`.
+## Generate
 
-`dart_binary` and `dart_test` default `main` to `<name>.dart`, then `bin/<name>.dart` or `test/<name>.dart`.
-
-- The generated upstream target is `manual`, so `//...` builds only the
-  public wrapper.
-- An import of a package that the target does not list in `deps` fails the
-  build, even when a dependency re-exports it.
-- `dart_test` needs `package:test` as a direct dependency.
-- Read data files through `@rules_dart//dart/runfiles`.
-- `DartInfo`, `DartAnalyzableInfo` and `DartCompileInfo` pass through
-  unchanged.
-- `dart_codegen` is the upstream rule, unchanged. Its outputs can be `srcs` of a
-  `dart_library`.
-
-## Gazelle
+### Gazelle
 
 `dx generate` writes the Dart rules for each pub package. It makes one Bazel
 package per folder that holds a `pubspec.yaml`:
@@ -96,40 +69,6 @@ Loose `.dart` files outside a pubspec folder get no rule. `data`, `defines`,
 `tags` and `aspect_hints` are never touched. `analysis_options.yaml` is not
 turned into a rule: bind `dart_config` by hand through `aspect_hints`.
 
-## Examples
-
-- `dart/tests/fixtures/adopt-dart` adopts a pub workspace with `dx generate`.
-- `dart/tests/fixtures/dart-app` is a multi-package app with a generated source file, runfiles data and failure targets.
-
-## Start a project
-
-```sh
-dx init demo-app
-```
-
-Add a `pubspec.lock` and run `dx generate --apply`: it adds `rules_dart` and a `pub_deps` hub to `MODULE.bazel` and declares `dart_library`, `dart_binary` and `dart_test` targets.
-
-## Pub dependencies
-
-Declare a hub with the `pub` extension from `@rules_dx//dart:extensions.bzl`. The lock pins each package
-to a sha256. Make the lock with `dart pub get` on a developer machine, never
-inside an action.
-
-```python
-bazel_dep(name = "rules_dart", version = "0.8.1")
-
-pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
-pub.from_lock(
-    name = "my_pub_deps",
-    lock = "//third_party/dart:pubspec.lock",
-    on_version_conflict = "upgrade",
-)
-use_repo(pub, "my_pub_deps")
-```
-
-rules_dart shares one pub hub across modules and does not support two versions
-of a package, so the hub name must differ from `ext_pub_deps`.
-
 ## Quality
 
 Dart sources form the `dart` class, so `dx check` sees them. Format, lint and
@@ -162,18 +101,27 @@ dart_config(
 Bind it with `aspect_hints = [":analysis_options"]`. Format ignores `deps`.
 `dx lint --apply` does not rewrite Dart sources.
 
+## API docs
+
+`dart_doc_shard` in `@rules_dx//tools/docs/dart:defs.bzl` runs the pinned `dart doc` over a `dart_library` and converts its `index.json` to a DocIr shard. `dx docs` runs it on every Dart library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_dart ships no SDK. Flutter libraries (`flutter_library`) work too: their SDK packages are staged from the pinned `rules_flutter` repositories. The index holds each symbol's first doc paragraph, not its signature or source location.
+
+## Toolchain
+
+### Examples
+
+- `dart/tests/fixtures/adopt-dart` adopts a pub workspace with `dx generate`.
+- `dart/tests/fixtures/dart-app` is a multi-package app with a generated source file, runfiles data and failure targets.
+
 ## Platforms
+
+### Platforms
 
 Supported on linux x86_64 and arm64, macOS arm64 and Windows x86_64. Windows arm64 is unsupported: rules_dart ships no SDK for it, so its targets are incompatible there.
 
-## Cross-compiling
+### Cross-compiling
 
 ```sh
 bazel build --platforms=//:linux_arm64 //app:cli
 ```
 
 `exe` and `aot-snapshot` cross-compile. `dart_test` runs on the host.
-
-## API docs
-
-`dart_doc_shard` in `@rules_dx//tools/docs/dart:defs.bzl` runs the pinned `dart doc` over a `dart_library` and converts its `index.json` to a DocIr shard. `dx docs` runs it on every Dart library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_dart ships no SDK. Flutter libraries (`flutter_library`) work too: their SDK packages are staged from the pinned `rules_flutter` repositories. The index holds each symbol's first doc paragraph, not its signature or source location.

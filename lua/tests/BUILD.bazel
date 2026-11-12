@@ -1,8 +1,8 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
+load(":defs_tests.bzl", "lua_wrapper_contract_tests")
 load(":hub_tests.bzl", "lua_hub_tests")
 load(":toolchain_tests.bzl", "lua_metadata_tests")
-load(":defs_tests.bzl", "lua_wrapper_contract_tests")
 
 rust_test(
     name = "selene_smoke_test",

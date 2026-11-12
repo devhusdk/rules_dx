@@ -23,7 +23,6 @@ msix_signtool(
     visibility = ["//visibility:public"],
 )
 
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

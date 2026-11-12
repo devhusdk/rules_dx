@@ -7,6 +7,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 csharp_test(
     name = "greet_test",
+    size = "small",
     srcs = ["GreetTest.cs"],
     deps = [
         ":greet",

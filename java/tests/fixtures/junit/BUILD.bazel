@@ -8,6 +8,7 @@ package(
 
 java_test(
     name = "hello_jupiter_test",
+    size = "small",
     srcs = ["HelloJupiterTest.java"],
     args = [
         "execute",

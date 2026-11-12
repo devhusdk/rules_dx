@@ -10,7 +10,6 @@ exports_files([
     "toolchain.bzl",
 ])
 
-
 toolchain_type(name = "toolchain_type")
 
 lua_toolchain(

@@ -17,8 +17,6 @@ otp_cell_settings(name = "cell")
 
 unsupported_value("unsupported")
 
-
-
 build_test(
     name = "otp_windows_arm64",
     target_compatible_with = otp_compatible_with(["windows_arm64"]),

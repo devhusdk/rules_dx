@@ -5,6 +5,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 java_test(
     name = "pure_test",
+    size = "small",
     srcs = ["PureTest.java"],
     test_class = "solo.PureTest",
     deps = [":solo"],

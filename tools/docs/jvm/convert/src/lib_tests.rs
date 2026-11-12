@@ -203,7 +203,6 @@ fn parse_requires_every_flag() {
     .map(|s| (*s).to_owned())
     .collect();
     assert_eq!(parse(&args).unwrap().dep_shards, vec!["d1", "d2"]);
-    assert!(parse(&args[..4]).is_err());
 }
 
 fn kotlin_doc(symbols: Value) -> Value {

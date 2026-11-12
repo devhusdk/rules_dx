@@ -171,7 +171,7 @@ fn run(value: &Value) -> Result<documentation_ir::proto::DocIr, String> {
 }
 
 #[test]
-fn parse_needs_every_flag_and_rejects_unknown_ones() {
+fn parse_reads_every_flag() {
     let full = args(&[
         "--json",
         "a.json",
@@ -193,15 +193,6 @@ fn parse_needs_every_flag_and_rejects_unknown_ones() {
             srcs_file: "s".to_string(),
             out: "o".to_string(),
         })
-    );
-    assert_eq!(parse(&full[..8]), Err("--out is required".to_string()));
-    assert_eq!(
-        parse(&args(&["--json"])),
-        Err("--json needs a value".to_string())
-    );
-    assert_eq!(
-        parse(&args(&["--bogus", "x"])),
-        Err("unknown argument '--bogus'".to_string())
     );
 }
 

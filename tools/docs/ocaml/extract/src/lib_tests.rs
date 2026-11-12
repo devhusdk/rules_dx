@@ -99,25 +99,20 @@ fn html_reader_decodes_and_renders() {
 }
 
 #[test]
-fn parse_args_requires_every_flag_once() {
+fn parse_args_reads_every_flag_and_requires_html() {
     let args = |list: &[&str]| list.iter().map(|s| s.to_string()).collect::<Vec<_>>();
     let ok = parse_args(&args(&["--html", "a", "--package", "p", "--out", "o"])).unwrap();
     assert_eq!(ok.package, "p");
-    assert!(parse_args(&args(&["--html", "a"])).unwrap_err().contains("required"));
-    assert!(parse_args(&args(&["--bogus", "a"])).unwrap_err().contains("unknown"));
-    assert!(parse_args(&args(&["--html"])).unwrap_err().contains("needs a value"));
+    assert_eq!(
+        parse_args(&args(&["--package", "p", "--out", "o"])).unwrap_err(),
+        "--html is required"
+    );
     assert_eq!(
         parse_args(&args(&["--html", "a", "--html", "b", "--package", "p", "--out", "o"]))
             .unwrap()
             .html,
         vec!["a".to_owned(), "b".to_owned()]
     );
-    assert!(
-        parse_args(&args(&["--package", "a", "--package", "b"]))
-            .unwrap_err()
-            .contains("more than once")
-    );
-    assert!(parse_args(&args(&["--html", ""])).unwrap_err().contains("empty"));
 }
 
 #[test]

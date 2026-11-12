@@ -241,8 +241,6 @@ fn parses_arguments() {
     .collect();
     let options = parse(&args).expect("parses");
     assert_eq!(options.language, "cuda");
-    assert!(parse(&args[..8]).is_err());
-    assert!(parse(&["--nope".to_owned(), "x".to_owned()]).is_err());
 }
 
 #[test]

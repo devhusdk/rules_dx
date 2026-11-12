@@ -52,16 +52,6 @@ dialyzer_plt(
     target_compatible_with = ELIXIR_DIALYZER_COMPATIBLE_WITH,
 )
 
-alias(
-    name = "dialyzer_code_if_ported",
-    actual = ":dialyzer_code",
-)
-
-alias(
-    name = "elixir_plt_if_ported",
-    actual = ":elixir_plt",
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

@@ -55,11 +55,11 @@ _elixir_app_forward = dx_library_forward_rule(
             providers = [ErlangNifInfo],
         ),
         "_dialyzer_code": attr.label_list(
-            default = ["//elixir/private/tools:dialyzer_code_if_ported"],
+            default = ["//elixir/private/tools:dialyzer_code"],
             doc = "The Elixir compiler beams dialyzer loads to read the debug info of Elixir beams.",
         ),
         "_dialyzer_plts": attr.label_list(
-            default = ["//elixir/private/tools:elixir_plt_if_ported"],
+            default = ["//elixir/private/tools:elixir_plt"],
             doc = "The Elixir standard-library PLT dialyzer checks Elixir beams against.",
         ),
     },

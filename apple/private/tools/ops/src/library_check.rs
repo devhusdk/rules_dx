@@ -14,8 +14,8 @@ pub struct Declared {
 
 /// Reads the build platforms and minimum versions out of `otool -l` text.
 ///
-/// `legacy` is the platform number the old iOS version-min command stands for.
-pub fn declared(loads: &str, legacy: &str) -> Declared {
+/// `version_min` is the platform number the old iOS version-min command stands for.
+pub fn declared(loads: &str, version_min: &str) -> Declared {
     let mut found = Declared::default();
     let mut command = "";
     for line in loads.lines() {
@@ -30,7 +30,7 @@ pub fn declared(loads: &str, legacy: &str) -> Declared {
             ("LC_BUILD_VERSION", "platform") => found.platforms.push(second.to_owned()),
             ("LC_BUILD_VERSION", "minos") => found.versions.push(second.to_owned()),
             ("LC_VERSION_MIN_IPHONEOS", "version") => {
-                found.platforms.push(legacy.to_owned());
+                found.platforms.push(version_min.to_owned());
                 found.versions.push(second.to_owned());
             }
             ("LC_VERSION_MIN_MACOSX", "version") => {
@@ -86,7 +86,7 @@ pub fn run(tools: &Tools, args: &[String]) -> Outcome {
     };
     let owner = kind.rsplit('_').next().unwrap_or(kind);
     let os = if sdk == "macosx" { "macOS" } else { "iOS" };
-    let legacy = if arch == "x86_64" { "7" } else { "2" };
+    let version_min = if arch == "x86_64" { "7" } else { "2" };
 
     let mut text = format!(
         "cell={cell}\nsdk={sdk}\nsdk_version={sdk_version}\ndeployment={deployment}\nxcode={xcode}\n"
@@ -119,7 +119,7 @@ pub fn run(tools: &Tools, args: &[String]) -> Outcome {
         let Declared {
             platforms,
             versions,
-        } = declared(&loads, legacy);
+        } = declared(&loads, version_min);
         if platforms.is_empty() {
             return Err(reject(format!(
                 "{what} declares no build platform; rebuild it for {sdk}"

@@ -22,7 +22,7 @@ Load command 1
     minos 17.0
 ";
 
-const LEGACY_LOADS: &str = "libledger.a(ledger.o):
+const VERSION_MIN_LOADS: &str = "libledger.a(ledger.o):
 Load command 1
       cmd LC_VERSION_MIN_IPHONEOS
   cmdsize 16
@@ -238,14 +238,14 @@ fn a_macos_archive_records_its_cell_and_names_macos() {
 }
 
 #[test]
-fn legacy_version_min_archives_resolve_by_arch() {
+fn version_min_archives_resolve_by_arch() {
     let device = ["device/arm64", "iphoneos", "2", "arm64"];
     let checked = check(
         "apple_ios_app",
         "17.0",
         device,
         "arm64",
-        LEGACY_LOADS,
+        VERSION_MIN_LOADS,
         &["/out/libledger.a"],
     );
     assert!(
@@ -259,7 +259,7 @@ fn legacy_version_min_archives_resolve_by_arch() {
         "17.0",
         x86,
         "x86_64",
-        LEGACY_LOADS,
+        VERSION_MIN_LOADS,
         &["/out/libledger.a"],
     );
     assert!(
@@ -272,7 +272,7 @@ fn legacy_version_min_archives_resolve_by_arch() {
         "17.0",
         SIM,
         "arm64",
-        LEGACY_LOADS,
+        VERSION_MIN_LOADS,
         &["/out/libledger.a"],
     );
     rejects(
@@ -285,7 +285,7 @@ fn legacy_version_min_archives_resolve_by_arch() {
         "17.0",
         SIM,
         "arm64",
-        &LEGACY_LOADS.replace("LC_VERSION_MIN_IPHONEOS", "LC_VERSION_MIN_MACOSX"),
+        &VERSION_MIN_LOADS.replace("LC_VERSION_MIN_IPHONEOS", "LC_VERSION_MIN_MACOSX"),
         &["/out/libledger.a"],
     );
     rejects(

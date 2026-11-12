@@ -1,7 +1,6 @@
 BUILD.bazel compat-word 1
 MODULE.bazel compat-word 3
 android/private/sdk/repos.bzl compat-word 4
-capnproto/BUILD.bazel compat-word 1
 capnproto/tests/defs_tests.bzl compat-word 3
 cc/BUILD.bazel alias 2
 cc/private/BUILD.bazel compat-word 1
@@ -14,12 +13,6 @@ cli/adopt/src/build_output.rs compat-word 2
 cli/adopt/src/launcher.rs compat-word 1
 cli/atomic_fs/src/lib.rs compat-word 1
 cli/audit/src/advisory_prep_tests.rs compat-word 4
-cli/audit/src/locks_licenses.rs compat-word 2
-cli/audit/src/locks_npm.rs compat-word 8
-cli/audit/src/locks_tests.rs compat-word 8
-cli/audit/src/secrets.rs compat-word 4
-cli/audit/src/vuln_pypi.rs compat-word 1
-cli/audit/src/vuln_tests.rs compat-word 1
 cli/cli/src/bin_man.rs compat-word 2
 cli/cli/src/main.rs compat-word 4
 cli/codegen_shard/src/main.rs compat-word 2
@@ -49,7 +42,6 @@ cli/update/src/edit/request.rs compat-word 1
 cli/update/src/edit/request_plans.rs compat-word 14
 cli/update/src/edit/request_tests.rs compat-word 6
 core/quality/BUILD.bazel alias 1
-core/quality/BUILD.bazel compat-word 2
 core/quality/adapter/src/commands.rs compat-word 2
 core/quality/adapter/src/commands_tests.rs compat-word 1
 core/quality/adapter/src/parsers/ldc.rs compat-word 1

@@ -1,7 +1,7 @@
 # gazelle:dx_rust_corpus false
 
 load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
-load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlc_opts")
+load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_erlc_opts")
 load("//erlang/tests/negative:negative_tests.bzl", "erlc_input_test", "erlc_warnings_as_errors_test", "erlc_warnings_flag_off_test")
 
 erlang_app(
@@ -36,7 +36,7 @@ erlc_warnings_flag_off_test(
     target = ":strict_bytecode_upstream",
 )
 
-erlc_opts(
+erlang_erlc_opts(
     name = "strict_erlc_opts",
     values = [
         "-Werror",

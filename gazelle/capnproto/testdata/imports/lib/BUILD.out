@@ -1,6 +1,6 @@
-load("@rules_dx//capnproto:defs.bzl", "capnp_library")
+load("@rules_dx//capnproto:defs.bzl", "capnproto_library")
 
-capnp_library(
+capnproto_library(
     name = "lib",
     srcs = [
         "path.capnp",

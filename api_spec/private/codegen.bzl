@@ -62,7 +62,7 @@ def _client_providers(ctx, out):
 
 def _client_impl(ctx):
     info = ctx.attr.spec[ApiSpecInfo]
-    root = _root(ctx, info, "openapi_typescript_client")
+    root = _root(ctx, info, "api_spec_typescript_client")
     out = ctx.actions.declare_file(ctx.attr.out if ctx.attr.out else ctx.label.name + ".ts")
     stamp = _preflight(ctx, info, root)
     ctx.actions.run(
@@ -78,7 +78,7 @@ def _client_impl(ctx):
     )
     return _client_providers(ctx, out)
 
-openapi_typescript_client = rule(
+api_spec_typescript_client = rule(
     implementation = _client_impl,
     doc = "Generates one self-contained TypeScript client from an OpenAPI root of an api_spec_library.",
     attrs = {
@@ -93,7 +93,7 @@ openapi_typescript_client = rule(
 
 def _go_client_impl(ctx):
     info = ctx.attr.spec[ApiSpecInfo]
-    root = _root(ctx, info, "openapi_go_client")
+    root = _root(ctx, info, "api_spec_go_client")
     out = ctx.actions.declare_file(ctx.attr.out if ctx.attr.out else ctx.label.name + ".go")
     stamp = _preflight(ctx, info, root)
     sdk = ctx.toolchains["@rules_go//go:toolchain"].sdk
@@ -110,7 +110,7 @@ def _go_client_impl(ctx):
     )
     return _client_providers(ctx, out)
 
-openapi_go_client = rule(
+api_spec_go_client = rule(
     implementation = _go_client_impl,
     doc = "Generates one Go client file (types and client) with oapi-codegen from an OpenAPI root of an api_spec_library.",
     attrs = {
@@ -127,7 +127,7 @@ openapi_go_client = rule(
 
 def _python_client_impl(ctx):
     info = ctx.attr.spec[ApiSpecInfo]
-    root = _root(ctx, info, "openapi_python_client")
+    root = _root(ctx, info, "api_spec_python_client")
     out = ctx.actions.declare_directory(ctx.attr.out if ctx.attr.out else ctx.label.name)
     stamp = _preflight(ctx, info, root)
     ctx.actions.run(
@@ -149,7 +149,7 @@ def _python_client_impl(ctx):
     )
     return _client_providers(ctx, out)
 
-openapi_python_client = rule(
+api_spec_python_client = rule(
     implementation = _python_client_impl,
     doc = "Generates one Python client package directory with openapi-python-client from an OpenAPI root of an api_spec_library.",
     attrs = {
@@ -164,7 +164,7 @@ openapi_python_client = rule(
 
 def _rust_client_impl(ctx):
     info = ctx.attr.spec[ApiSpecInfo]
-    root = _root(ctx, info, "openapi_rust_client")
+    root = _root(ctx, info, "api_spec_rust_client")
     out = ctx.actions.declare_file(ctx.attr.out if ctx.attr.out else ctx.label.name + ".rs")
     stamp = _preflight(ctx, info, root)
     ctx.actions.run(
@@ -178,7 +178,7 @@ def _rust_client_impl(ctx):
     )
     return _client_providers(ctx, out)
 
-openapi_rust_client = rule(
+api_spec_rust_client = rule(
     implementation = _rust_client_impl,
     doc = "Generates one Rust client file with progenitor from an OpenAPI root of an api_spec_library. The file needs progenitor-client, reqwest, serde and serde_json at compile time.",
     attrs = {
@@ -190,12 +190,12 @@ openapi_rust_client = rule(
     },
 )
 
-openapi_codegen_shard = codegen_shard_rule(
-    "openapi_codegen_shard",
+api_spec_codegen_shard = codegen_shard_rule(
+    "api_spec_codegen_shard",
     "openapi",
     OPENAPI_GENERATED_SRCS_GROUP,
-    "want an openapi_typescript_client, openapi_go_client, openapi_python_client or openapi_rust_client",
+    "want an api_spec_typescript_client, api_spec_go_client, api_spec_python_client or api_spec_rust_client",
     "typescript, go, python or rust.",
     "Declares codegen plan entries for the file an openapi client rule generates. The file needs one entry with an EXEC_PATH suffix.",
-    "openapi_typescript_client, openapi_go_client, openapi_python_client or openapi_rust_client whose output the entries bind.",
+    "api_spec_typescript_client, api_spec_go_client, api_spec_python_client or api_spec_rust_client whose output the entries bind.",
 )

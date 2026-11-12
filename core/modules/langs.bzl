@@ -90,12 +90,12 @@ LANGS = json.decode("""{
     },
     "ecosystems": [],
     "entry_points": [
+      "api_spec_codegen_shard",
+      "api_spec_go_client",
       "api_spec_library",
-      "openapi_go_client",
-      "openapi_python_client",
-      "openapi_rust_client",
-      "openapi_typescript_client",
-      "openapi_codegen_shard"
+      "api_spec_python_client",
+      "api_spec_rust_client",
+      "api_spec_typescript_client"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -343,11 +343,11 @@ LANGS = json.decode("""{
   "capnproto": {
     "ecosystems": [],
     "entry_points": [
-      "capnp_library",
-      "capnp_cc_library",
-      "capnp_java_library",
-      "capnp_rust_library",
-      "capnp_codegen_shard"
+      "capnproto_cc_library",
+      "capnproto_codegen_shard",
+      "capnproto_java_library",
+      "capnproto_library",
+      "capnproto_rust_library"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -930,11 +930,11 @@ LANGS = json.decode("""{
       "hex"
     ],
     "entry_points": [
-      "escript_archive",
-      "escript_headers",
       "elixir_app",
-      "elixir_test",
-      "elixir_bench"
+      "elixir_bench",
+      "elixir_escript_archive",
+      "elixir_escript_headers",
+      "elixir_test"
     ],
     "family": "core",
     "lockfiles": [
@@ -1009,17 +1009,17 @@ LANGS = json.decode("""{
       "hex"
     ],
     "entry_points": [
-      "erlc_opts",
-      "erlang_xrl_yrl",
-      "erlang_nif",
-      "erlang_release",
       "erlang_app",
-      "erlang_test_app",
+      "erlang_bench",
       "erlang_bytecode",
+      "erlang_ct_suite_test",
+      "erlang_erlc_opts",
       "erlang_escript_archive",
       "erlang_eunit_test",
-      "erlang_ct_suite_test",
-      "erlang_bench"
+      "erlang_nif",
+      "erlang_release",
+      "erlang_test_app",
+      "erlang_xrl_yrl"
     ],
     "family": "core",
     "lockfiles": [
@@ -1466,7 +1466,7 @@ LANGS = json.decode("""{
   "helm": {
     "ecosystems": [],
     "entry_points": [
-      "helm_chart"
+      "helm_library"
     ],
     "family": "core",
     "lockfiles": [],

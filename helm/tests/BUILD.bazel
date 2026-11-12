@@ -1,9 +1,9 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:failure_test.bzl", "failure_test")
-load("//helm:defs.bzl", "helm_chart")
+load("//helm:defs.bzl", "helm_library")
 load(":library_tests.bzl", "chart_provider_test", "owns_helm_class_test")
 
-helm_chart(
+helm_library(
     name = "app",
     srcs = [
         "Chart.yaml",
@@ -29,7 +29,7 @@ chart_provider_test(
     target_under_test = ":app",
 )
 
-helm_chart(
+helm_library(
     name = "dotted_release",
     srcs = [
         "Chart.yaml",
@@ -49,7 +49,7 @@ chart_provider_test(
     target_under_test = ":dotted_release",
 )
 
-helm_chart(
+helm_library(
     name = "empty_label_release",
     srcs = ["Chart.yaml"],
     release_name = "a..b",
@@ -62,7 +62,7 @@ failure_test(
     target = ":empty_label_release",
 )
 
-helm_chart(
+helm_library(
     name = "no_chart_yaml",
     srcs = ["values.yaml"],
     tags = ["manual"],
@@ -74,7 +74,7 @@ failure_test(
     target = ":no_chart_yaml",
 )
 
-helm_chart(
+helm_library(
     name = "bad_release",
     srcs = ["Chart.yaml"],
     release_name = "Bad_Name",
@@ -87,7 +87,7 @@ failure_test(
     target = ":bad_release",
 )
 
-helm_chart(
+helm_library(
     name = "long_release",
     srcs = ["Chart.yaml"],
     release_name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -100,13 +100,13 @@ failure_test(
     target = ":long_release",
 )
 
-helm_chart(
+helm_library(
     name = "max_release",
     srcs = ["Chart.yaml"],
     release_name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 )
 
-helm_chart(
+helm_library(
     name = "long_namespace",
     srcs = ["Chart.yaml"],
     namespace = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -119,7 +119,7 @@ failure_test(
     target = ":long_namespace",
 )
 
-helm_chart(
+helm_library(
     name = "bad_namespace",
     srcs = ["Chart.yaml"],
     namespace = "-lead",
@@ -132,7 +132,7 @@ failure_test(
     target = ":bad_namespace",
 )
 
-helm_chart(
+helm_library(
     name = "archive_in_srcs",
     srcs = [
         "Chart.yaml",
@@ -147,7 +147,7 @@ failure_test(
     target = ":archive_in_srcs",
 )
 
-helm_chart(
+helm_library(
     name = "misplaced_dependency",
     srcs = ["Chart.yaml"],
     subcharts = ["other/dep-1.0.0.tgz"],
@@ -160,7 +160,7 @@ failure_test(
     target = ":misplaced_dependency",
 )
 
-helm_chart(
+helm_library(
     name = "duplicate_file",
     srcs = [
         "Chart.yaml",
@@ -176,7 +176,7 @@ failure_test(
     target = ":duplicate_file",
 )
 
-helm_chart(
+helm_library(
     name = "foreign_src",
     srcs = [
         "Chart.yaml",

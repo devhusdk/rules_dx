@@ -40,7 +40,7 @@ _helm_config = rule(
     doc = "Writes the deploy config for one Helm chart deployment.",
     attrs = {
         "chart": attr.label(
-            doc = "The helm_chart to package and push.",
+            doc = "The helm_library to package and push.",
             mandatory = True,
             providers = [HelmChartInfo],
         ),
@@ -58,7 +58,7 @@ _helm_config = rule(
 )
 
 def helm_chart_deploy(name, chart, registry, version = "", repository = "", build_mode = "release", sbom = None, size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
-    """Packages a helm_chart and pushes it to an OCI registry as a local-first deployment."""
+    """Packages a helm_library and pushes it to an OCI registry as a local-first deployment."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     where = " (in " + native.package_name() + ":" + name + ")"
     if version != "":

@@ -1,7 +1,7 @@
-"""Analysis tests for capnp_library."""
+"""Analysis tests for capnproto_library."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//capnproto/private:defs.bzl", "capnp_library", "std_import_path")
+load("//capnproto/private:defs.bzl", "capnproto_library", "std_import_path")
 load("//capnproto/private:providers.bzl", "CapnprotoInfo")
 
 def _closure_impl(ctx):
@@ -26,14 +26,14 @@ def _external_impl(ctx):
 _external_test = analysistest.make(_external_impl, expect_failure = True)
 
 def capnp_library_tests(name):
-    """Instantiates the capnp_library analysis tests.
+    """Instantiates the capnproto_library analysis tests.
 
     Args:
       name: Name of the test suite.
     """
-    capnp_library(name = name + "_base", srcs = ["fixtures/closure/base.capnp"], tags = ["manual"])
-    capnp_library(name = name + "_top", srcs = ["fixtures/closure/top.capnp"], deps = [":" + name + "_base"], tags = ["manual"])
+    capnproto_library(name = name + "_base", srcs = ["fixtures/closure/base.capnp"], tags = ["manual"])
+    capnproto_library(name = name + "_top", srcs = ["fixtures/closure/top.capnp"], deps = [":" + name + "_base"], tags = ["manual"])
     _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top", size = "small")
-    capnp_library(name = name + "_external", srcs = ["//capnproto:std"], tags = ["manual"])
+    capnproto_library(name = name + "_external", srcs = ["//capnproto:std"], tags = ["manual"])
     _external_test(name = name + "_external_test", target_under_test = ":" + name + "_external", size = "small")
     native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_external_test"])

@@ -1,6 +1,6 @@
-load("//helm:defs.bzl", "helm_chart")
+load("//helm:defs.bzl", "helm_library")
 
-helm_chart(
+helm_library(
     name = "clean_helm",
     srcs = [
         "Chart.yaml",

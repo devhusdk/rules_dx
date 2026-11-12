@@ -57,7 +57,7 @@ var families = []family{
 	{"terraform_library", "terraform", "terraform:defs.bzl", isTerraform, nil},
 	{"kubernetes_library", "kubernetes", "kubernetes:defs.bzl", isYAML, isKubernetes},
 	{"api_spec_library", "api_spec", "api_spec:defs.bzl", isYAML, isAPISpec},
-	{"helm_chart", "helm", "helm:defs.bzl", isHelmChart, nil},
+	{"helm_library", "helm", "helm:defs.bzl", isHelmChart, nil},
 }
 
 // isDockerfile matches the names is_dockerfile_name in core/quality/sources.bzl accepts.

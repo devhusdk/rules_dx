@@ -2,7 +2,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//rust:defs.bzl", "rust_test")
 load(":codegen_tests.bzl", "go_client_action_test")
-load("//api_spec:defs.bzl", "api_spec_library", "openapi_codegen_shard", "openapi_go_client", "openapi_python_client", "openapi_rust_client", "openapi_typescript_client")
+load("//api_spec:defs.bzl", "api_spec_codegen_shard", "api_spec_go_client", "api_spec_library", "api_spec_python_client", "api_spec_rust_client", "api_spec_typescript_client")
 load("//core:defs.bzl", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
@@ -21,12 +21,12 @@ api_spec_library(
     deps = ["//api_spec/tests/shared"],
 )
 
-openapi_typescript_client(
+api_spec_typescript_client(
     name = "client",
     spec = ":spec",
 )
 
-openapi_codegen_shard(
+api_spec_codegen_shard(
     name = "client_shard",
     generated = ":client",
     entries = ["gen/shop/client.ts|gen|shop|api_spec/tests/client.ts"],
@@ -85,7 +85,7 @@ api_spec_library(
     srcs = ["petstore.yaml"],
 )
 
-openapi_go_client(
+api_spec_go_client(
     name = "petstore_go",
     out = "petstore.go",
     package = "petstore",
@@ -104,7 +104,7 @@ go_client_action_test(
     target_under_test = ":petstore_go",
 )
 
-openapi_codegen_shard(
+api_spec_codegen_shard(
     name = "petstore_go_shard",
     generated = ":petstore_go",
     entries = ["gen/petstore/petstore.go|gen|petstore|api_spec/tests/petstore.go"],
@@ -134,12 +134,12 @@ go_library(
     deps = ["//third_party/go:oapi_codegen_runtime"],
 )
 
-openapi_python_client(
+api_spec_python_client(
     name = "petstore_py",
     spec = ":petstore",
 )
 
-openapi_codegen_shard(
+api_spec_codegen_shard(
     name = "petstore_py_shard",
     generated = ":petstore_py",
     entries = ["gen/petstore|gen|petstore|api_spec/tests/petstore_py"],
@@ -174,13 +174,13 @@ python_test(
     ],
 )
 
-openapi_rust_client(
+api_spec_rust_client(
     name = "petstore_rs",
     out = "petstore.rs",
     spec = ":petstore",
 )
 
-openapi_codegen_shard(
+api_spec_codegen_shard(
     name = "petstore_rs_shard",
     generated = ":petstore_rs",
     entries = ["gen/petstore/petstore.rs|gen|petstore|api_spec/tests/petstore.rs"],
@@ -232,7 +232,7 @@ rust_test(
     ),
 )
 
-openapi_codegen_shard(
+api_spec_codegen_shard(
     name = "unmatched_shard",
     generated = ":client",
     entries = ["gen/shop/other.ts|gen|shop|api_spec/tests/other.ts"],
@@ -240,7 +240,7 @@ openapi_codegen_shard(
     tags = ["manual"],
 )
 
-openapi_codegen_shard(
+api_spec_codegen_shard(
     name = "ruby_shard",
     generated = ":client",
     entries = ["gen/shop/client.rb|gen|shop|api_spec/tests/client.ts"],
@@ -248,7 +248,7 @@ openapi_codegen_shard(
     tags = ["manual"],
 )
 
-openapi_typescript_client(
+api_spec_typescript_client(
     name = "wrong_root_client",
     root = "//api_spec/tests/shared:error.yaml",
     spec = ":spec",
@@ -283,14 +283,14 @@ api_spec_library(
     deps = ["//api_spec/tests/shared"],
 )
 
-openapi_go_client(
+api_spec_go_client(
     name = "multi_root_go_client",
     package = "multi",
     spec = ":multi_root_spec",
     tags = ["manual"],
 )
 
-openapi_go_client(
+api_spec_go_client(
     name = "wrong_root_go_client",
     package = "wrong",
     root = "//api_spec/tests/shared:error.yaml",
@@ -298,14 +298,14 @@ openapi_go_client(
     tags = ["manual"],
 )
 
-openapi_python_client(
+api_spec_python_client(
     name = "wrong_root_python_client",
     root = "//api_spec/tests/shared:error.yaml",
     spec = ":spec",
     tags = ["manual"],
 )
 
-openapi_rust_client(
+api_spec_rust_client(
     name = "wrong_root_rust_client",
     root = "//api_spec/tests/shared:error.yaml",
     spec = ":spec",
@@ -314,25 +314,25 @@ openapi_rust_client(
 
 failure_test(
     name = "multi_root_go_test",
-    expected_failure_substring = "openapi_go_client //api_spec/tests:multi_root_go_client: ",
+    expected_failure_substring = "api_spec_go_client //api_spec/tests:multi_root_go_client: ",
     target = ":multi_root_go_client",
 )
 
 failure_test(
     name = "wrong_root_go_test",
-    expected_failure_substring = "openapi_go_client //api_spec/tests:wrong_root_go_client: root ",
+    expected_failure_substring = "api_spec_go_client //api_spec/tests:wrong_root_go_client: root ",
     target = ":wrong_root_go_client",
 )
 
 failure_test(
     name = "wrong_root_python_test",
-    expected_failure_substring = "openapi_python_client //api_spec/tests:wrong_root_python_client: root ",
+    expected_failure_substring = "api_spec_python_client //api_spec/tests:wrong_root_python_client: root ",
     target = ":wrong_root_python_client",
 )
 
 failure_test(
     name = "wrong_root_rust_test",
-    expected_failure_substring = "openapi_rust_client //api_spec/tests:wrong_root_rust_client: root ",
+    expected_failure_substring = "api_spec_rust_client //api_spec/tests:wrong_root_rust_client: root ",
     target = ":wrong_root_rust_client",
 )
 

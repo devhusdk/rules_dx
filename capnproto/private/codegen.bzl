@@ -6,9 +6,9 @@ the other archives pinned there. Every action reads only the declared import clo
 staged as symlinks under a private root and compiled with --no-standard-import,
 so an import outside the declared deps fails with or without a sandbox.
 
-C++ and Java are generated and compiled once per capnp_library by an aspect, so
+C++ and Java are generated and compiled once per capnproto_library by an aspect, so
 two targets that share a schema library never link duplicate symbols.
-Rust is one crate per capnp_library: the crate's dependencies mirror the library's
+Rust is one crate per capnproto_library: the crate's dependencies mirror the library's
 dependencies, and imports of a dependency's schemas become `::dep_crate::x_capnp`
 paths, so a type is never duplicated across crates.
 """
@@ -27,7 +27,7 @@ load(":providers.bzl", "CapnprotoInfo")
 
 CAPNP_GENERATED_SRCS_GROUP = "capnp_generated_srcs"
 
-# Languages a capnp_codegen_shard can bind.
+# Languages a capnproto_codegen_shard can bind.
 _LANGUAGES = ("cpp", "rust", "java")
 
 CapnpCodegenInfo = provider(
@@ -61,7 +61,7 @@ _PRIVATE_ATTRS = {
 }
 
 CapnpCcAspectInfo = provider(
-    doc = "C++ generated and compiled for one capnp_library closure.",
+    doc = "C++ generated and compiled for one capnproto_library closure.",
     fields = {
         "cc_info": "CcInfo of the generated code of the closure.",
         "generated": "List[File]: headers and sources generated for this library's own schemas.",
@@ -172,14 +172,14 @@ def _cc_library_impl(ctx):
         CapnpCodegenInfo(language = "cpp"),
     ]
 
-capnp_cc_library = rule(
+capnproto_cc_library = rule(
     implementation = _cc_library_impl,
-    doc = "C++ code and runtime for capnp_library schemas. Each library is generated and compiled once, by its own aspect.",
+    doc = "C++ code and runtime for capnproto_library schemas. Each library is generated and compiled once, by its own aspect.",
     attrs = {
         "deps": attr.label_list(
             providers = [CapnprotoInfo],
             aspects = [_cc_aspect],
-            doc = "capnp_library targets to generate C++ for.",
+            doc = "capnproto_library targets to generate C++ for.",
         ),
         "_runtime": attr.label(default = Label("@dx_capnproto//src/capnp:capnp_runtime"), providers = [CcInfo]),
     },
@@ -187,7 +187,7 @@ capnp_cc_library = rule(
 )
 
 CapnpJavaAspectInfo = provider(
-    doc = "Java sources and classes generated for one capnp_library closure.",
+    doc = "Java sources and classes generated for one capnproto_library closure.",
     fields = {
         "java_info": "JavaInfo of the compiled generated sources of the closure.",
         "srcjar": "File or None: srcjar of this library's own schemas.",
@@ -260,14 +260,14 @@ def _java_library_impl(ctx):
         CapnpCodegenInfo(language = "java"),
     ]
 
-capnp_java_library = rule(
+capnproto_java_library = rule(
     implementation = _java_library_impl,
-    doc = "Java classes and runtime for capnp_library schemas. Each library is generated and compiled once, by its own aspect. Every schema needs the $Java.package annotation from /capnp/java.capnp.",
+    doc = "Java classes and runtime for capnproto_library schemas. Each library is generated and compiled once, by its own aspect. Every schema needs the $Java.package annotation from /capnp/java.capnp.",
     attrs = {
         "deps": attr.label_list(
             providers = [CapnprotoInfo],
             aspects = [_java_aspect],
-            doc = "capnp_library targets to generate Java for.",
+            doc = "capnproto_library targets to generate Java for.",
         ),
         "_runtime": attr.label(default = Label("//capnproto:runtime_java"), providers = [JavaInfo]),
     },
@@ -275,10 +275,10 @@ capnp_java_library = rule(
 )
 
 CapnpRustCrateInfo = provider(
-    doc = "The Rust crate generated for one capnp_library.",
+    doc = "The Rust crate generated for one capnproto_library.",
     fields = {
         "crate_name": "string: the crate name dependents import.",
-        "library": "string: label of the capnp_library the crate was generated from.",
+        "library": "string: label of the capnproto_library the crate was generated from.",
         "schemas": "List[string]: import paths of the schemas the crate owns.",
     },
 )
@@ -286,7 +286,7 @@ CapnpRustCrateInfo = provider(
 def _module_name(path):
     stem = path.rpartition("/")[2]
     if not stem.endswith(".capnp") or len(stem) == len(".capnp"):
-        fail("capnp_rust_library: " + path + " is not a .capnp schema")
+        fail("capnproto_rust_library: " + path + " is not a .capnp schema")
     return stem[:-len(".capnp")].replace("-", "_") + "_capnp"
 
 def _rust_srcs_impl(ctx):
@@ -295,18 +295,18 @@ def _rust_srcs_impl(ctx):
     for direct in info.direct_deps:
         if direct.label not in crates:
             fail(
-                "capnp_rust_library " + display_label(ctx.label) + ": " + display_label(ctx.attr.library.label) +
-                " depends on " + direct.label + ", which has no capnp_rust_library in deps. Rust sees only " +
-                "direct dependencies, so add a capnp_rust_library of " + direct.label + " to deps",
+                "capnproto_rust_library " + display_label(ctx.label) + ": " + display_label(ctx.attr.library.label) +
+                " depends on " + direct.label + ", which has no capnproto_rust_library in deps. Rust sees only " +
+                "direct dependencies, so add a capnproto_rust_library of " + direct.label + " to deps",
             )
     if not info.direct_srcs:
-        fail("capnp_rust_library " + display_label(ctx.label) + ": " + display_label(ctx.attr.library.label) + " owns no schemas")
+        fail("capnproto_rust_library " + display_label(ctx.label) + ": " + display_label(ctx.attr.library.label) + " owns no schemas")
     modules = {}
     for src in info.direct_srcs:
         module = _module_name(src.short_path)
         if module in modules.values():
             fail(
-                "capnp_rust_library " + display_label(ctx.label) + ": two schemas of " + display_label(ctx.attr.library.label) +
+                "capnproto_rust_library " + display_label(ctx.label) + ": two schemas of " + display_label(ctx.attr.library.label) +
                 " generate module " + module + "; rename one or split the library",
             )
         modules[src.short_path] = module
@@ -353,34 +353,34 @@ def _rust_srcs_impl(ctx):
 
 _capnp_rust_srcs = rule(
     implementation = _rust_srcs_impl,
-    doc = "Runs capnp and capnpc over one capnp_library and writes its crate sources.",
+    doc = "Runs capnp and capnpc over one capnproto_library and writes its crate sources.",
     attrs = {
         "crate_deps": attr.label_list(
             providers = [CapnpRustCrateInfo],
-            doc = "NAME_generated targets of the capnp_rust_library of every direct capnp dep.",
+            doc = "NAME_generated targets of the capnproto_rust_library of every direct capnp dep.",
         ),
         "crate_name": attr.string(mandatory = True),
         "library": attr.label(
             providers = [CapnprotoInfo],
             mandatory = True,
-            doc = "capnp_library whose schemas the crate owns.",
+            doc = "capnproto_library whose schemas the crate owns.",
         ),
     } | _PRIVATE_ATTRS,
 )
 
-def capnp_rust_library(name, library, crate_name = None, deps = None, **kwargs):
-    """Rust crate for one capnp_library.
+def capnproto_rust_library(name, library, crate_name = None, deps = None, **kwargs):
+    """Rust crate for one capnproto_library.
 
-    The crate's deps must mirror the library's direct deps: one capnp_rust_library
-    per capnp_library the schemas import. Imports of a dependency's schemas become
+    The crate's deps must mirror the library's direct deps: one capnproto_rust_library
+    per capnproto_library the schemas import. Imports of a dependency's schemas become
     ::dep_crate::x_capnp paths. /capnp/schema.capnp maps to the capnp crate. Point
-    capnp_codegen_shard at NAME_generated.
+    capnproto_codegen_shard at NAME_generated.
 
     Args:
       name: Name of the rust_library.
-      library: capnp_library whose schemas the crate owns.
+      library: capnproto_library whose schemas the crate owns.
       crate_name: Crate name dependents import; defaults to name.
-      deps: capnp_rust_library targets of the library's direct capnp deps.
+      deps: capnproto_rust_library targets of the library's direct capnp deps.
       **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
         and the like replace the defaults; srcs and deps are added to them.
     """
@@ -398,14 +398,14 @@ def capnp_rust_library(name, library, crate_name = None, deps = None, **kwargs):
     )
     rust_library(**codegen_rust_library_kwargs(name, ":" + generated, crate, [Label("//capnproto:runtime_rust")], deps, kwargs))
 
-capnp_codegen_shard = codegen_shard_rule(
-    "capnp_codegen_shard",
+capnproto_codegen_shard = codegen_shard_rule(
+    "capnproto_codegen_shard",
     "capnp",
     CAPNP_GENERATED_SRCS_GROUP,
-    "want a capnp_cc_library, a capnp_java_library or a capnp_rust_library NAME_generated",
+    "want a capnproto_cc_library, a capnproto_java_library or a capnproto_rust_library NAME_generated",
     "cpp, rust or java.",
     "Declares codegen plan entries for the sources capnp generates. Every generated file needs one entry with an EXEC_PATH suffix.",
-    "capnp_cc_library, capnp_java_library, or the NAME_generated target of a capnp_rust_library, whose generated files the entries bind.",
+    "capnproto_cc_library, capnproto_java_library, or the NAME_generated target of a capnproto_rust_library, whose generated files the entries bind.",
     codegen_info = CapnpCodegenInfo,
     languages = _LANGUAGES,
 )

@@ -1,7 +1,7 @@
 """Providers for Helm rules."""
 
 HelmChartInfo = provider(
-    doc = "The chart root, ordered values files and release settings of a helm_chart.",
+    doc = "The chart root, ordered values files and release settings of a helm_library.",
     fields = {
         "chart_root": "string: workspace-relative package path holding Chart.yaml.",
         "subcharts": "list[File]: vendored subchart archives under charts/.",

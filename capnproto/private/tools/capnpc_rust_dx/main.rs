@@ -1,4 +1,4 @@
-//! Generates the Rust crate sources of one `capnp_rust_library`.
+//! Generates the Rust crate sources of one `capnproto_rust_library`.
 //!
 //! The driver runs the pinned `capnp` compiler over the staged import closure,
 //! reads the `CodeGeneratorRequest` it writes to stdout, maps every import to the
@@ -94,7 +94,7 @@ fn owned_modules(own: &[String]) -> Result<Vec<(String, String)>, String> {
         let module = module_name(path)?;
         if let Some(first) = seen.insert(module.clone(), path.clone()) {
             return Err(format!(
-                "schemas {first} and {path} in one capnp_rust_library both generate module {module}; \
+                "schemas {first} and {path} in one capnproto_rust_library both generate module {module}; \
                  rename one or split them into separate libraries"
             ));
         }
@@ -161,7 +161,7 @@ fn resolve_provides(
             } else {
                 return Err(format!(
                     "{filename}: import {written} resolves to /{path}, which is neither owned by this \
-                     capnp_rust_library nor provided by a dependency; add the capnp_rust_library that \
+                     capnproto_rust_library nor provided by a dependency; add the capnproto_rust_library that \
                      generates it to deps"
                 ));
             }
@@ -347,7 +347,7 @@ mod tests {
         )
         .unwrap_err();
         assert!(
-            err.contains("/b/common.capnp") && err.contains("capnp_rust_library"),
+            err.contains("/b/common.capnp") && err.contains("capnproto_rust_library"),
             "{err}"
         );
     }

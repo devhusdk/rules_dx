@@ -97,7 +97,7 @@ func TestOwns(t *testing.T) {
 		{TestAppKind, TestAppTarget, true},
 		{TestAppKind, "mine", false},
 		{OptsKind, TestOptsTarget, true},
-		{OptsKind, "erlc_opts", false},
+		{OptsKind, "erlang_erlc_opts", false},
 		{EunitKind, "demo_test", true},
 		{EunitKind, "eunit", false},
 		{EunitKind, "integration_test", false},

@@ -1,6 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
-load("//elixir:defs.bzl", "elixir_app", "elixir_test", "escript_archive", "escript_headers")
+load("//elixir:defs.bzl", "elixir_app", "elixir_escript_archive", "elixir_escript_headers", "elixir_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
 package(
@@ -29,11 +29,11 @@ elixir_app(
     deps = [":greet_app"],
 )
 
-escript_archive(
+elixir_escript_archive(
     name = "hello",
     testonly = True,
     app = ":hello_app",
-    headers = escript_headers("Hello"),
+    headers = elixir_escript_headers("Hello"),
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )
 

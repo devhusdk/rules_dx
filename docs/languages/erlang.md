@@ -13,18 +13,62 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//erlang:defs.bzl`:
 
 ```python
-load("@rules_dx//erlang:defs.bzl", "erlc_opts", "erlang_xrl_yrl", "erlang_nif")
+load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bench", "erlang_bytecode")
 ```
 
 ## Rules
 
-### `erlc_opts`
+### `erlang_app`
+
+```python
+erlang_app(name = "erlang_app", visibility = None, testonly = False, **kwargs)
+```
+
+Thin wrapper over the rules_erlang erlang_app macro.
+
+### `erlang_bench`
+
+```python
+erlang_bench(name, *, suite_name = "", tags = None, runtime_deps = None, **kwargs)
+```
+
+ct_suite run by dx bench: dx_bench:run in the suite runs erlperf and writes dx-bench.json.
+
+### `erlang_bytecode`
+
+```python
+erlang_bytecode(name, srcs, visibility = None, **kwargs)
+```
+
+Thin wrapper over rules_erlang erlang_bytecode. Adds -Werror to erlc_opts following warnings_as_errors.
+
+### `erlang_ct_suite_test`
+
+```python
+erlang_ct_suite_test(name, *, suite_name = "", visibility = None, **kwargs)
+```
+
+Thin wrapper over the rules_erlang ct_suite macro. Adds -sname undefined and -start_epmd false unless ct_run_extra_args sets -sname or -name.
+
+### `erlang_erlc_opts`
 
 No documentation.
 
-### `erlang_xrl_yrl`
+### `erlang_escript_archive`
 
-No documentation.
+```python
+erlang_escript_archive(name, visibility = None, **kwargs)
+```
+
+Thin wrapper over rules_erlang escript_archive. Runs on the pinned OTP runtime; fails when an app ships NIFs.
+
+### `erlang_eunit_test`
+
+```python
+erlang_eunit_test(name = "eunit", *, visibility = None, **kwargs)
+```
+
+Thin wrapper over the rules_erlang eunit test. target and deps are the apps under test.
 
 ### `erlang_nif`
 
@@ -43,14 +87,6 @@ Assembles a release tree with lib/<app>/ebin and lib/<app>/priv, carrying each a
 | `apps` | `label_list` | yes | erlang_app targets to include, with their dependencies. |
 | `_release_tree` | `label` | no |  |
 
-### `erlang_app`
-
-```python
-erlang_app(name = "erlang_app", visibility = None, testonly = False, **kwargs)
-```
-
-Thin wrapper over the rules_erlang erlang_app macro.
-
 ### `erlang_test_app`
 
 ```python
@@ -59,45 +95,9 @@ erlang_test_app(name = "test_erlang_app", visibility = None, **kwargs)
 
 Thin wrapper over the rules_erlang test_erlang_app macro.
 
-### `erlang_bytecode`
+### `erlang_xrl_yrl`
 
-```python
-erlang_bytecode(name, srcs, visibility = None, **kwargs)
-```
-
-Thin wrapper over rules_erlang erlang_bytecode. Adds -Werror to erlc_opts following warnings_as_errors.
-
-### `erlang_escript_archive`
-
-```python
-erlang_escript_archive(name, visibility = None, **kwargs)
-```
-
-Thin wrapper over rules_erlang escript_archive. Runs on the pinned OTP runtime; fails when an app ships NIFs.
-
-### `erlang_eunit_test`
-
-```python
-erlang_eunit_test(name = "eunit", *, visibility = None, **kwargs)
-```
-
-Thin wrapper over the rules_erlang eunit test. target and deps are the apps under test.
-
-### `erlang_ct_suite_test`
-
-```python
-erlang_ct_suite_test(name, *, suite_name = "", visibility = None, **kwargs)
-```
-
-Thin wrapper over the rules_erlang ct_suite macro. Adds -sname undefined and -start_epmd false unless ct_run_extra_args sets -sname or -name.
-
-### `erlang_bench`
-
-```python
-erlang_bench(name, *, suite_name = "", tags = None, runtime_deps = None, **kwargs)
-```
-
-ct_suite run by dx bench: dx_bench:run in the suite runs erlperf and writes dx-bench.json.
+No documentation.
 
 ## API docs
 

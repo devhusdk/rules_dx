@@ -13,63 +13,63 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//capnproto:defs.bzl`:
 
 ```python
-load("@rules_dx//capnproto:defs.bzl", "capnp_library", "capnp_cc_library", "capnp_java_library")
+load("@rules_dx//capnproto:defs.bzl", "capnproto_cc_library", "capnproto_codegen_shard", "capnproto_java_library")
 ```
 
 ## Rules
 
-### `capnp_library`
+### `capnproto_cc_library`
+
+C++ code and runtime for capnproto_library schemas. Each library is generated and compiled once, by its own aspect.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | capnproto_library targets to generate C++ for. |
+| `_runtime` | `label` | no |  |
+
+### `capnproto_codegen_shard`
+
+No documentation.
+
+### `capnproto_java_library`
+
+Java classes and runtime for capnproto_library schemas. Each library is generated and compiled once, by its own aspect. Every schema needs the $Java.package annotation from /capnp/java.capnp.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | capnproto_library targets to generate Java for. |
+| `_runtime` | `label` | no |  |
+
+### `capnproto_library`
 
 Owns Cap'n Proto schemas for dx lint. Imports resolve only from deps, relative to the importing file or from the workspace root, plus the bundled /capnp/*.capnp schemas.
 
 | Attribute | Type | Required | Description |
 | --- | --- | --- | --- |
 | `srcs` | `label_list` | no | Cap'n Proto schema files of this package. |
-| `deps` | `label_list` | no | capnp_library targets whose schemas these import. |
+| `deps` | `label_list` | no | capnproto_library targets whose schemas these import. |
 | `_std` | `label` | no |  |
 
-### `capnp_cc_library`
-
-C++ code and runtime for capnp_library schemas. Each library is generated and compiled once, by its own aspect.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `deps` | `label_list` | no | capnp_library targets to generate C++ for. |
-| `_runtime` | `label` | no |  |
-
-### `capnp_java_library`
-
-Java classes and runtime for capnp_library schemas. Each library is generated and compiled once, by its own aspect. Every schema needs the $Java.package annotation from /capnp/java.capnp.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `deps` | `label_list` | no | capnp_library targets to generate Java for. |
-| `_runtime` | `label` | no |  |
-
-### `capnp_rust_library`
+### `capnproto_rust_library`
 
 ```python
-capnp_rust_library(name, library, crate_name = None, deps = None, **kwargs)
+capnproto_rust_library(name, library, crate_name = None, deps = None, **kwargs)
 ```
 
-Rust crate for one capnp_library.
+Rust crate for one capnproto_library.
 
-The crate's deps must mirror the library's direct deps: one capnp_rust_library
-per capnp_library the schemas import. Imports of a dependency's schemas become
+The crate's deps must mirror the library's direct deps: one capnproto_rust_library
+per capnproto_library the schemas import. Imports of a dependency's schemas become
 ::dep_crate::x_capnp paths. /capnp/schema.capnp maps to the capnp crate. Point
-capnp_codegen_shard at NAME_generated.
+capnproto_codegen_shard at NAME_generated.
 
 Args:
   name: Name of the rust_library.
-  library: capnp_library whose schemas the crate owns.
+  library: capnproto_library whose schemas the crate owns.
   crate_name: Crate name dependents import; defaults to name.
-  deps: capnp_rust_library targets of the library's direct capnp deps.
+  deps: capnproto_rust_library targets of the library's direct capnp deps.
   **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
     and the like replace the defaults; srcs and deps are added to them.
-
-### `capnp_codegen_shard`
-
-No documentation.
 
 ## Tools
 

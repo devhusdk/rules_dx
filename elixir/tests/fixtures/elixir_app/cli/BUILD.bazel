@@ -1,6 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
-load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_test", "escript_archive", "escript_headers")
+load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_escript_archive", "elixir_escript_headers", "elixir_test")
 
 exports_files(
     glob([
@@ -19,10 +19,10 @@ elixir_app(
     deps = ["//elixir/tests/fixtures/elixir_app/stock:erlang_app"],
 )
 
-escript_archive(
+elixir_escript_archive(
     name = "stockctl",
     app = ":erlang_app",
-    headers = escript_headers("Stockctl"),
+    headers = elixir_escript_headers("Stockctl"),
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )
 

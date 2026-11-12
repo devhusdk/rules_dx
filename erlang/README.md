@@ -41,7 +41,7 @@ erlang_escript_archive(
 | `erlang_app` | OTP application from `src/`, `include/` and `priv/` |
 | `erlang_test_app` | The same application compiled with `-DTEST=1` for tests |
 | `erlang_bytecode` | `.beam` files from `srcs`, with `outs` and an `erlc_opts` target |
-| `erlc_opts` | Reusable `erlc` flags |
+| `erlang_erlc_opts` | Reusable `erlc` flags |
 | `erlang_xrl_yrl` | `.erl` files from leex `.xrl` and yecc `.yrl` grammars |
 | `erlang_eunit_test` | EUnit test over `target` and `compiled_suites` |
 | `erlang_ct_suite_test` | Common Test suite from `test/<name>.erl` with `test/<name>_data/` |

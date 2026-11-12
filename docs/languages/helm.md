@@ -13,12 +13,12 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//helm:defs.bzl`:
 
 ```python
-load("@rules_dx//helm:defs.bzl", "helm_chart")
+load("@rules_dx//helm:defs.bzl", "helm_library")
 ```
 
 ## Rules
 
-### `helm_chart`
+### `helm_library`
 
 Owns one Helm chart, the package holding Chart.yaml, for dx lint.
 

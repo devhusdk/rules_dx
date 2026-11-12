@@ -27,7 +27,7 @@ def _capnp_library_impl(ctx):
     direct = ctx.files.srcs
     for f in direct:
         if f.short_path.startswith("../"):
-            fail("capnp_library %s: schema %s is in another Bazel repository; cross-repo capnp schemas are unsupported because imports resolve from the main workspace root" % (ctx.label, f.short_path))
+            fail("capnproto_library %s: schema %s is in another Bazel repository; cross-repo capnp schemas are unsupported because imports resolve from the main workspace root" % (ctx.label, f.short_path))
     own = [struct(path = f.short_path, file = f) for f in direct]
     std = [struct(path = std_import_path(f.short_path), file = f) for f in ctx.files._std]
     transitive = depset(
@@ -50,12 +50,12 @@ def _capnp_library_impl(ctx):
         dx_quality_sources(direct, [("capnp", ["capnp"])], str(ctx.label)),
     ]
 
-capnp_library = rule(
+capnproto_library = rule(
     implementation = _capnp_library_impl,
     doc = "Owns Cap'n Proto schemas for dx lint. Imports resolve only from deps, relative to the importing file or from the workspace root, plus the bundled /capnp/*.capnp schemas.",
     attrs = {
         "srcs": attr.label_list(allow_files = [".capnp"], doc = "Cap'n Proto schema files of this package."),
-        "deps": attr.label_list(providers = [CapnprotoInfo], doc = "capnp_library targets whose schemas these import."),
+        "deps": attr.label_list(providers = [CapnprotoInfo], doc = "capnproto_library targets whose schemas these import."),
         "_std": attr.label(default = "//capnproto:std", allow_files = True),
     },
     provides = [CapnprotoInfo],

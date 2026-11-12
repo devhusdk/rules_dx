@@ -1,4 +1,4 @@
-//! Offline gate every openapi_typescript_client runs before Redocly generates anything.
+//! Offline gate every api_spec_typescript_client runs before Redocly generates anything.
 
 use std::collections::BTreeMap;
 use std::process::ExitCode;

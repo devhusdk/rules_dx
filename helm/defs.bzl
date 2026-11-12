@@ -2,7 +2,7 @@
 
 load(
     "//helm/private:defs.bzl",
-    _helm_chart = "helm_chart",
+    _helm_library = "helm_library",
 )
 
-helm_chart = _helm_chart
+helm_library = _helm_library

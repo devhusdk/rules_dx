@@ -10,7 +10,7 @@ import (
 
 const (
 	languageName = "capnproto"
-	LibraryKind  = "capnp_library"
+	LibraryKind  = "capnproto_library"
 )
 
 var SupportedExts = []string{".capnp"}
@@ -30,9 +30,9 @@ func NewLanguage() language.Language {
 		Defs:        "capnproto:defs.bzl",
 		Exts:        SupportedExts,
 		StdPrefix:   "/capnp/",
-		Bindings:    common.IDLBindings("capnp", "", false),
+		Bindings:    common.IDLBindings("capnproto", "", false),
 		AbsoluteDep: true,
-	}, ParseImports, "add a capnp_library that owns that file or an exact # gazelle:resolve capnproto mapping")
+	}, ParseImports, "add a capnproto_library that owns that file or an exact # gazelle:resolve capnproto mapping")
 }
 
 func init() { common.RegisterLanguage(NewLanguage) }

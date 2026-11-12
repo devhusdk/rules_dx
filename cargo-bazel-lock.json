@@ -1,5 +1,5 @@
 {
-  "checksum": "f3c325bbb73017f18f50ae0f26063232828355f92b539f1bc4cc158e1c0b92aa",
+  "checksum": "8399a8f3be650b5f26828ccce4aa030e38bd6a1edaaf8aa03af23860a5b6cdb6",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8120,6 +8120,10 @@
             "target": "md5"
           },
           {
+            "id": "percent-encoding 2.3.2",
+            "target": "percent_encoding"
+          },
+          {
             "id": "pgp 0.21.0",
             "target": "pgp"
           },
@@ -9516,6 +9520,10 @@
           {
             "id": "pep440_rs 0.7.3",
             "target": "pep440_rs"
+          },
+          {
+            "id": "percent-encoding 2.3.2",
+            "target": "percent_encoding"
           },
           {
             "id": "saphyr-parser 0.2.2",
@@ -32480,6 +32488,7 @@
     "osv 0.3.0",
     "packageurl 0.7.0",
     "pep440_rs 0.7.3",
+    "percent-encoding 2.3.2",
     "pgp 0.21.0",
     "proc-macro2 1.0.107",
     "progenitor-client 0.15.1",

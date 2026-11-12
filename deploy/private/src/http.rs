@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use base64::Engine as _;
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 
 /// Builds the HTTPS agent for publish uploads with the proxy from the environment.
 pub fn publish_agent() -> ureq::Agent {
@@ -101,17 +102,11 @@ pub fn basic_auth(user: &str, pass: &str) -> String {
     format!("Basic {token}")
 }
 
+const UNRESERVED: &AsciiSet = &NON_ALPHANUMERIC.remove(b'-').remove(b'.').remove(b'_').remove(b'~');
+
 /// Percent-encodes one query value, keeping only unreserved characters.
 pub fn query_escape(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for byte in value.bytes() {
-        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
-            out.push(char::from(byte));
-        } else {
-            out.push_str(&format!("%{byte:02X}"));
-        }
-    }
-    out
+    utf8_percent_encode(value, UNRESERVED).to_string()
 }
 
 #[cfg(test)]

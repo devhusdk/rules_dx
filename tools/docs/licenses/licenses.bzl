@@ -3,7 +3,7 @@
 load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//appimage/private:pins.bzl", "MKSQUASHFS_LICENSE", "MKSQUASHFS_VERSION", "RUNTIME_LICENSE", "RUNTIME_VERSION", "TOOL_LICENSE", "TOOL_VERSION")
-load("//core/quality/artifacts:extension.bzl", "TOOL_ARTIFACTS", "TOOL_SOURCES")
+load("@dx_pins_data//:pins.bzl", "DATA")
 
 _WRITE_GOOD_VERSION = "0.4.1"
 
@@ -26,9 +26,9 @@ def _license_names(tool, licenses):
 def licenses_rows():
     """Returns the sorted table rows as (tool, version, licenses) tuples."""
     rows = {}
-    for artifact in TOOL_ARTIFACTS:
+    for artifact in [a for t in DATA["dx_quality_tools"].values() for a in t.values()]:
         rows[artifact["tool"]] = (artifact["upstream_version"], _license_names(artifact["tool"], artifact["licenses"]))
-    for source in TOOL_SOURCES:
+    for source in DATA["dx_quality_pins"]["sources"].values():
         rows[source["tool"]] = (source["version"], _license_names(source["tool"], source["licenses"]))
     rows["appimagetool"] = (TOOL_VERSION, TOOL_LICENSE)
     rows["appimage runtime"] = (RUNTIME_VERSION, RUNTIME_LICENSE)

@@ -6,7 +6,7 @@ load("//erlang/private/toolchain:pins.bzl", ERLANG_CELLS = "CELLS", "OTP_DIALYZE
 load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/private/sdk:pins.bzl", QT_CELLS = "CELLS")
-load("//core/quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
+load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core/quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS", "SOURCE_BUILT_TOOL_PLATFORMS")
 load("//core/quality/testdata:real_result_cases.bzl", "REAL_RESULT_CASES", "real_result_evidence")
 load("//core/quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
@@ -23,7 +23,7 @@ def _without(wired, tool, capability):
 def _artifact_platforms():
     """Returns the pinned artifact platforms keyed by tool."""
     by_tool = {}
-    for artifact in TOOL_ARTIFACTS:
+    for artifact in [a for t in DATA["dx_quality_tools"].values() for a in t.values()]:
         by_tool.setdefault(artifact["tool"], []).append(artifact["os"] + "_" + artifact["cpu"])
     return by_tool
 

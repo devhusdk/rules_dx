@@ -1,8 +1,10 @@
 """Selection tests for standalone tool artifact repositories."""
 
+load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core:defs.bzl", "DxSubjectInfo", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load("//core/quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//core/quality/artifacts:hub.bzl", "ARTIFACT_PLATFORMS", "EMULATED_TOOLS", "PARTIAL_TOOL_PLATFORMS", "PLATFORM_CONSTRAINTS", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS", "UNAVAILABLE_TARGET", "artifact_map_errors", "artifact_metadata_errors", "branch_labels", "hub_build", "no_match_error", "ordered_platforms", "resolved_entries")
+
+_TOOL_ARTIFACTS = [a for t in DATA["dx_quality_tools"].values() for a in t.values()]
 
 _CONSTRAINT_LABELS = {
     "cpu_arm64": "@platforms//cpu:arm64",
@@ -40,7 +42,7 @@ _NATIVE = {_FIXTURE_TOOL: dict(_FIXTURE_REPOS, windows_arm64 = _FIXTURE_REPOS["l
 # The windows_arm64 part is derived: every tool with a native pin there.
 _NATIVE_WINDOWS_ARM64 = sorted([
     a["tool"]
-    for a in TOOL_ARTIFACTS
+    for a in _TOOL_ARTIFACTS
     if a["os"] == "windows" and a["cpu"] == "arm64"
 ])
 
@@ -57,7 +59,7 @@ def _artifact_repo(artifact):
 def _released_map():
     """Returns the released tool-to-platform repository map."""
     by_tool = {}
-    for artifact in TOOL_ARTIFACTS:
+    for artifact in _TOOL_ARTIFACTS:
         by_tool.setdefault(artifact["tool"], {})[artifact["os"] + "_" + artifact["cpu"]] = _artifact_repo(artifact)
     return by_tool
 
@@ -75,7 +77,7 @@ def _unit_checks():
     released = _released_map()
     rendered = hub_build(released, _CONSTRAINT_LABELS)
     sparse_rendered = hub_build(_SPARSE, _CONSTRAINT_LABELS)
-    sample = dict(TOOL_ARTIFACTS[0])
+    sample = dict(_TOOL_ARTIFACTS[0])
     sample_tool = sample["tool"]
     sample_platform = sample["os"] + "_" + sample["cpu"]
     checks = [
@@ -107,7 +109,7 @@ def _unit_checks():
         expect_equal("no windows_x86_64 means no windows_arm64 fallback", "windows_arm64" in resolved_entries({"linux_x86_64": "dx_a"}), False),
         expect_equal("a native windows_arm64 artifact keeps its repository", resolved_entries(_NATIVE[_FIXTURE_TOOL])["windows_arm64"], "dx_hub_fixture_taplo_linux_arm64"),
         expect_contains("the sparse hub renders the windows_arm64 fallback branch", sparse_rendered, '":windows_arm64": "@dx_hub_fixture_taplo_windows_x86_64//:tool",'),
-        expect_equal("the released artifacts carry valid metadata", artifact_metadata_errors(TOOL_ARTIFACTS), []),
+        expect_equal("the released artifacts carry valid metadata", artifact_metadata_errors(_TOOL_ARTIFACTS), []),
         expect_equal("the released tool map is valid", artifact_map_errors(released), []),
         expect_equal("one repository cannot serve two platforms", artifact_map_errors({"taplo": {"linux_x86_64": "dx_a", "macos_arm64": "dx_a"}}), ["repository 'dx_a' is selected by both 'taplo/linux_x86_64' and 'taplo/macos_arm64'"]),
         expect_equal("an unsupported platform key is rejected", artifact_map_errors({"taplo": {"solaris_x86_64": "dx_a"}}), ["tool 'taplo' names unsupported platform 'solaris_x86_64'; want one of linux_x86_64, linux_arm64, macos_arm64, windows_x86_64, macos_x86_64, windows_arm64"]),

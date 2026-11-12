@@ -740,6 +740,14 @@ dx_pins.pin(
     pins = "//php:pins.json",
 )
 dx_pins.data(
+    name = "dx_quality_pins",
+    pins = "//core/quality/artifacts:pins.json",
+)
+dx_pins.data(
+    name = "dx_quality_tools",
+    pins = "//core/quality/artifacts:lock.json",
+)
+dx_pins.data(
     name = "dx_cc_gcc",
     pins = "//cc:pins.json",
 )

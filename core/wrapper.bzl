@@ -2,7 +2,7 @@
 
 load("//core:resources.bzl", "dx_test_resource_tags")
 load("//core/quality:pipeline.bzl", "upstream_tags")
-load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "single_target")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "quality_sources_info", "single_target")
 load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 
 DX_EXEC_PROVIDES = [DefaultInfo, QualitySourcesInfo]
@@ -106,12 +106,7 @@ def dx_quality_sources(files, specs, label):
             buckets[key] = []
             order.append(key)
         buckets[key].extend(matched)
-    direct_sources = {}
-    for key in order:
-        if len(buckets[key]) > 0:
-            direct_sources[key] = depset(buckets[key])
-    check_direct_sources(direct_sources, label)
-    return QualitySourcesInfo(direct_sources = direct_sources)
+    return quality_sources_info({key: buckets[key] for key in order}, label)
 
 def dx_symlink_executable_name(name, upstream_executable):
     """Maps one forwarder output name to the upstream's own filename suffix."""

@@ -1,7 +1,6 @@
 """CloudFormation template ownership for dx lint."""
 
 load("//core:wrapper.bzl", "dx_quality_sources")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _cloudformation_library_impl(ctx):
     return [
@@ -20,6 +19,6 @@ cloudformation_library = rule(
             allow_files = [".yaml", ".yml", ".json", ".template"],
             doc = "CloudFormation template files of this package; each needs a top-level Resources section.",
         ),
-        "deps": attr.label_list(providers = [QualitySourcesInfo], doc = "Other template libraries this package depends on."),
+        "deps": attr.label_list(providers = [DefaultInfo], doc = "Other template libraries this package depends on."),
     },
 )

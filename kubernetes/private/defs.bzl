@@ -2,7 +2,6 @@
 
 load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
 load("//core:wrapper.bzl", "dx_quality_sources")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _version_error(version):
     parts = version.split(".")
@@ -30,7 +29,7 @@ kubernetes_library = rule(
             allow_files = [".yaml", ".yml", ".json"],
             doc = "Kubernetes manifest files of this package; every document needs apiVersion and kind.",
         ),
-        "deps": attr.label_list(providers = [QualitySourcesInfo], doc = "Other manifest libraries this package depends on."),
+        "deps": attr.label_list(providers = [DefaultInfo], doc = "Other manifest libraries this package depends on."),
     },
 )
 

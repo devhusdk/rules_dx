@@ -1,7 +1,6 @@
 """SQL source ownership for dx quality."""
 
 load("//core:wrapper.bzl", "dx_quality_sources")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "SQL_DIALECTS", "SqlDialectInfo", "sql_dialect_error")
 
 _EXTENSIONS = ["sql"]
@@ -28,6 +27,6 @@ sql_library = rule(
     attrs = {
         "srcs": attr.label_list(allow_files = ["." + ext for ext in _EXTENSIONS], doc = "SQL files of this package."),
         "dialect": attr.string(default = "", values = [""] + SQL_DIALECTS, doc = "SQL dialect of every source; empty lets each file's dialect suffix decide."),
-        "deps": attr.label_list(providers = [QualitySourcesInfo], doc = "SQL libraries this package depends on."),
+        "deps": attr.label_list(providers = [DefaultInfo], doc = "SQL libraries this package depends on."),
     },
 )

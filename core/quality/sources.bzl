@@ -130,16 +130,12 @@ def named_source_library(class_id, doc, srcs_doc, name_error = None):
             error = name_error(f.basename) if name_error else named_source_class_error(class_id, f.basename)
             if error != "":
                 fail(name + " " + str(ctx.label) + ": " + error)
-        direct_sources = {}
-        if len(ctx.files.srcs) > 0:
-            direct_sources[class_id] = depset(ctx.files.srcs)
-        check_direct_sources(direct_sources, str(ctx.label))
         return [
             DefaultInfo(files = depset(
                 ctx.files.srcs,
                 transitive = [dep[DefaultInfo].files for dep in ctx.attr.deps],
             )),
-            QualitySourcesInfo(direct_sources = direct_sources),
+            quality_sources_info({class_id: ctx.files.srcs}, str(ctx.label)),
         ]
 
     return rule(
@@ -215,6 +211,15 @@ def check_direct_sources(direct_sources, what):
             if type(f) != "File":
                 fail("QualitySourcesInfo (" + what + "): class '" + class_id +
                      "' holds a non-File member: " + type(f))
+
+def quality_sources_info(classes, what):
+    """Builds QualitySourcesInfo from a dict of class ID to File list, dropping empty classes."""
+    direct_sources = {}
+    for class_id, files in classes.items():
+        if len(files) > 0:
+            direct_sources[class_id] = depset(files)
+    check_direct_sources(direct_sources, what)
+    return QualitySourcesInfo(direct_sources = direct_sources)
 
 def single_target(value):
     """Returns the one target of an attribute that a transition may wrap in a list."""

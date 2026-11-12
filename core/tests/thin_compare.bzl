@@ -113,6 +113,7 @@ def thin_compare_cc_env_tests(name):
         mode = "analysis",
         subjects = [":thin_cc_env_subject"],
         expected_observations = THIN_CC_ENV_OBSERVATIONS,
+        windows_expected_observations = THIN_CC_ENV_OBSERVATIONS.replace("field wrapper_inherited=HOME", "field wrapper_inherited="),
     )
 
 def thin_compare_rust_tests(name):

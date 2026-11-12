@@ -34,7 +34,6 @@ One C++ header with every type of the avro_library deps and their imports, and t
 | Attribute | Type | Required | Description |
 | --- | --- | --- | --- |
 | `deps` | `label_list` | no | avro_library targets to generate C++ for. |
-| `codegen_path` | `string` | no | Logical path of the single generated file in the dx sync projection, gen/ plus the file name by default. |
 | `namespace` | `string` | no | C++ namespace passed to avrogencpp. |
 | `_avro_union` | `label` | no |  |
 | `_avrogencpp` | `label` | no |  |
@@ -46,7 +45,6 @@ Java classes for the schemas of avro_library deps and their imports, compiled on
 
 | Attribute | Type | Required | Description |
 | --- | --- | --- | --- |
-| `codegen_path` | `string` | no | Logical path of the single generated file in the dx sync projection, gen/ plus the file name by default. |
 | `deps` | `label_list` | no | avro_library targets to generate Java for. |
 | `_avro_union` | `label` | no |  |
 | `_avro_tools` | `label` | no |  |

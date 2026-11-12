@@ -2222,6 +2222,8 @@ crate.from_cargo(
         "//deploy/private/install:Cargo.toml",
         "//deploy/private/image_demo:Cargo.toml",
         "//deploy/private/sbom_demo:Cargo.toml",
+        "//core/tests/negative:Cargo.toml",
+        "//gazelle/rust:Cargo.toml",
         "//env/private/env_shard:Cargo.toml",
         "//env/private/stubs:Cargo.toml",
         "//cli/codegen_shard:Cargo.toml",

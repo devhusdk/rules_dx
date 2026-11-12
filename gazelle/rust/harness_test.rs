@@ -66,6 +66,7 @@ fn assert_unchanged(path: &Path, before: Option<&[u8]>, what: &str) {
     }
 }
 
+#[test]
 fn failure_case() {
     let scratch = workspace("gazelle-failure-");
     let root = scratch.path();
@@ -162,6 +163,7 @@ fn failure_case() {
     );
 }
 
+#[test]
 fn idempotent_case() {
     let scratch = workspace("gazelle-idempotent-");
     let root = scratch.path();
@@ -194,6 +196,7 @@ fn idempotent_case() {
     );
 }
 
+#[test]
 fn native_config_case() {
     let scratch = workspace("gazelle-native-");
     let root = scratch.path();
@@ -312,15 +315,4 @@ fn native_config_case() {
     );
     dx_testing::expect_contains(&ambiguous_build, &["rust_library"])
         .expect("single config generation");
-}
-
-#[test]
-fn gazelle_rust_harness() {
-    let case = std::env::var("DX_GAZELLE_CASE").expect("DX_GAZELLE_CASE must select the harness");
-    match case.as_str() {
-        "failure" => failure_case(),
-        "idempotent" => idempotent_case(),
-        "native_config" => native_config_case(),
-        other => panic!("unknown DX_GAZELLE_CASE: {other}"),
-    }
 }

@@ -929,6 +929,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
+name = "core_tests_negative"
+version = "0.0.0"
+
+[[package]]
 name = "coverlet_launcher"
 version = "0.0.0"
 
@@ -2524,6 +2528,10 @@ checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
 dependencies = [
  "byteorder",
 ]
+
+[[package]]
+name = "gazelle_rust"
+version = "0.0.0"
 
 [[package]]
 name = "generation_result"

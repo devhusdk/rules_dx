@@ -2,7 +2,6 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_binary")
 load("//core:failure_test.bzl", "failure_test")
-load("//rust:defs.bzl", "rust_test")
 
 def _red_manifest(name):
     """Exposes one red runner's harness manifest so a demo can stage it."""
@@ -61,60 +60,6 @@ def red_missing_fragment(name):
         tags = ["manual"],
     )
     _red_manifest(name)
-
-def failing_check_demo(name):
-    rust_test(
-        name = name,
-        srcs = ["negative_proof_test.rs"],
-        data = [
-            ":red_failing_checks",
-            ":red_failing_checks_manifest",
-        ],
-        env = {
-            "DX_NEGATIVE_CASE": "failing_check",
-            "DX_RUNNER_BIN": "$(rootpath :red_failing_checks)",
-            "STARLARK_HARNESS_MANIFEST": "$(rlocationpath :red_failing_checks_manifest)",
-        },
-        tags = ["no-coverage"],
-        target_compatible_with = ["@platforms//os:linux"],
-        deps = ["//tools/testing:dx_testing"],
-    )
-
-def missing_observation_demo(name):
-    rust_test(
-        name = name,
-        srcs = ["negative_proof_test.rs"],
-        data = [
-            ":red_missing_observation",
-            ":red_missing_observation_manifest",
-        ],
-        env = {
-            "DX_NEGATIVE_CASE": "missing_observation",
-            "DX_RUNNER_BIN": "$(rootpath :red_missing_observation)",
-            "STARLARK_HARNESS_MANIFEST": "$(rlocationpath :red_missing_observation_manifest)",
-        },
-        tags = ["no-coverage"],
-        target_compatible_with = ["@platforms//os:linux"],
-        deps = ["//tools/testing:dx_testing"],
-    )
-
-def missing_fragment_demo(name):
-    rust_test(
-        name = name,
-        srcs = ["negative_proof_test.rs"],
-        data = [
-            ":red_missing_fragment",
-            ":red_missing_fragment_manifest",
-        ],
-        env = {
-            "DX_NEGATIVE_CASE": "missing_fragment",
-            "DX_RUNNER_BIN": "$(rootpath :red_missing_fragment)",
-            "STARLARK_HARNESS_MANIFEST": "$(rlocationpath :red_missing_fragment_manifest)",
-        },
-        tags = ["no-coverage"],
-        target_compatible_with = ["@platforms//os:linux"],
-        deps = ["//tools/testing:dx_testing"],
-    )
 
 def wrong_phase_demo(name):
     starlark_binary(

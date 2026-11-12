@@ -120,7 +120,11 @@ pub fn parse_dart_analyze(
                 diagnostic.code
             )));
         }
-        let Some(known) = files.iter().copied().find(|known| *known == file) else {
+        let Some(known) = files
+            .iter()
+            .copied()
+            .find(|known| super::same_drive_path(known, file))
+        else {
             return Err(ParseError::UnknownFile {
                 tool: TOOL,
                 path: file.to_owned(),

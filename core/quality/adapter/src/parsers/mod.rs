@@ -14,6 +14,7 @@ pub mod clang_format;
 pub mod clang_syntax;
 pub mod clang_tidy;
 pub mod cmakelint;
+pub mod container_structure_test;
 pub mod credo;
 pub mod csharpier;
 pub mod cue;
@@ -116,7 +117,6 @@ pub mod thrift;
 pub mod tinymist;
 pub mod topiary;
 pub mod trivy_config;
-pub mod container_structure_test;
 pub mod trivy_image_config;
 pub mod tsc;
 pub mod ty;
@@ -149,6 +149,7 @@ pub use clang_format::parse_clang_format;
 pub use clang_syntax::parse_clang_syntax;
 pub use clang_tidy::parse_clang_tidy;
 pub use cmakelint::parse_cmakelint;
+pub use container_structure_test::parse_container_structure_test;
 pub use credo::parse_credo;
 pub use csharpier::parse_csharpier;
 pub use cue::{parse_cue, parse_cue_vet};
@@ -247,7 +248,6 @@ pub use thrift::{ThriftReport, parse_thrift};
 pub use tinymist::parse_tinymist;
 pub use topiary::parse_topiary;
 pub use trivy_config::parse_trivy_config;
-pub use container_structure_test::parse_container_structure_test;
 pub use trivy_image_config::parse_trivy_image_config;
 pub use tsc::{parse_tsc, parse_tsc_format};
 pub use ty::parse_ty;
@@ -317,10 +317,39 @@ pub fn check_output_size(tool: &'static str, bytes: &[u8]) -> Result<(), ParseEr
     Ok(())
 }
 
+/// Whether two paths are equal. Paths that start with a Windows drive letter compare that
+/// letter case-insensitively and treat `\` and `/` as the same separator; other paths compare
+/// exactly.
+pub(super) fn same_drive_path(a: &str, b: &str) -> bool {
+    fn drive(path: &str) -> Option<(u8, &str)> {
+        match path.as_bytes() {
+            [letter, b':', ..] if letter.is_ascii_alphabetic() => {
+                Some((letter.to_ascii_uppercase(), &path[2..]))
+            }
+            _ => None,
+        }
+    }
+    fn separator(byte: u8) -> u8 {
+        if byte == b'\\' { b'/' } else { byte }
+    }
+    match (drive(a), drive(b)) {
+        (Some((left, a_rest)), Some((right, b_rest))) => {
+            left == right
+                && a_rest.len() == b_rest.len()
+                && a_rest
+                    .bytes()
+                    .zip(b_rest.bytes())
+                    .all(|(x, y)| separator(x) == separator(y))
+        }
+        (None, None) => a == b,
+        _ => false,
+    }
+}
+
 fn known<'a>(tool: &'static str, files: &[&'a str], path: &str) -> Result<&'a str, ParseError> {
     files
         .iter()
-        .find(|file| **file == path)
+        .find(|file| same_drive_path(file, path))
         .copied()
         .ok_or_else(|| ParseError::UnknownFile {
             tool,
@@ -991,8 +1020,8 @@ mod tests {
 
     use super::{
         FileFinding, MAX_OUTPUT_BYTES, ParseError, Spelling, check_output_size, code_name,
-        columned, finding, known_native, lines, located, missing, numbered, path_row_col, prefixed,
-        require_findings, row_col,
+        columned, finding, known, known_native, lines, located, missing, numbered, path_row_col,
+        prefixed, require_findings, row_col,
     };
     use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
@@ -1024,6 +1053,19 @@ mod tests {
             cfg!(windows)
         );
         assert!(known_native("biome", &files, "src/b.js").is_err());
+    }
+
+    #[test]
+    fn a_drive_letter_matches_in_either_case() {
+        let files = ["D:/w/a.dart"];
+        assert_eq!(known("dart", &files, "d:/w/a.dart"), Ok("D:/w/a.dart"));
+        assert!(known("dart", &files, "d:/w/b.dart").is_err());
+        assert!(known("dart", &["/w/a.dart"], "/W/a.dart").is_err());
+        assert_eq!(
+            known("dart", &[r"D:\w\a.dart"], "d:/w/a.dart"),
+            Ok(r"D:\w\a.dart")
+        );
+        assert!(known("dart", &["/w/a"], "/w\\a").is_err());
     }
 
     #[test]
@@ -2977,7 +3019,8 @@ mod tests {
         _code: Option<i32>,
         _files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::jvm_unused_deps::parse_missing_dependencies("javac", input, input).map(|_| Vec::new())
+        super::jvm_unused_deps::parse_missing_dependencies("javac", input, input)
+            .map(|_| Vec::new())
     }
 
     fn fuzz_scalac_unused_dependencies(
@@ -3011,8 +3054,14 @@ mod tests {
         ("notebook_outputs", fuzz_notebook_outputs),
         ("jvm_unused_dependencies", fuzz_jvm_unused_dependencies),
         ("jvm_missing_dependencies", fuzz_jvm_missing_dependencies),
-        ("scalac_unused_dependencies", fuzz_scalac_unused_dependencies),
-        ("scalac_missing_dependencies", fuzz_scalac_missing_dependencies),
+        (
+            "scalac_unused_dependencies",
+            fuzz_scalac_unused_dependencies,
+        ),
+        (
+            "scalac_missing_dependencies",
+            fuzz_scalac_missing_dependencies,
+        ),
         ("rust_unused_dependencies", fuzz_rust_unused_dependencies),
         ("biome_lint", fuzz_biome_lint),
         ("biome_format", fuzz_biome_format),

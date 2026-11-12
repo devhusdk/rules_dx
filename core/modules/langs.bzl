@@ -409,14 +409,14 @@ LANGS = json.decode("""{
       "cc_binary",
       "cc_test",
       "cc_fuzz_test",
-      "cc_bench"
+      "cc_bench",
+      "cc_coverage_settings"
     ],
     "family": "core",
     "lockfiles": [],
     "manifests": [],
     "name": "cc",
     "pins": [
-      "private/toolchains/pins.bzl",
       "private/toolchains/pins.json"
     ],
     "platforms": [
@@ -911,7 +911,7 @@ LANGS = json.decode("""{
         ]
       }
     },
-    "title": "dotnet",
+    "title": ".NET",
     "tools": []
   },
   "elixir": {
@@ -1190,8 +1190,7 @@ LANGS = json.decode("""{
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
-      "macos_arm64",
-      "windows_x86_64"
+      "macos_arm64"
     ],
     "quality": {
       "aspects": {
@@ -1519,7 +1518,9 @@ LANGS = json.decode("""{
       "MODULE.bazel"
     ],
     "name": "java",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -2511,7 +2512,7 @@ LANGS = json.decode("""{
         ".qml"
       ]
     },
-    "title": "qt",
+    "title": "Qt",
     "tools": [
       "qmlformat",
       "qmllint"

@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "dotnet",
-  "title": "dotnet",
+  "title": ".NET",
   "family": "core",
   "ecosystems": [
     "nuget"

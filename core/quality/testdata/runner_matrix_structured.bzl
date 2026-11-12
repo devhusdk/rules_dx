@@ -1008,8 +1008,7 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_dart_lint_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        # dart analyze hangs in the hermetic Windows launch, see #12159.
-        "windows_x86_64": False,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_lint_fail",
@@ -1026,8 +1025,7 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_dart_lint_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        # dart analyze hangs in the hermetic Windows launch, see #12159.
-        "windows_x86_64": False,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_lint_include",
@@ -1044,8 +1042,7 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_dart_lint_include.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        # dart analyze hangs in the hermetic Windows launch, see #12159.
-        "windows_x86_64": False,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_typecheck_profile_standard",
@@ -1062,8 +1059,7 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_dart_typecheck_profile_standard.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        # dart analyze hangs in the hermetic Windows launch, see #12159.
-        "windows_x86_64": False,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_typecheck_profile_strict",
@@ -1080,8 +1076,7 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_dart_typecheck_profile_strict.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        # dart analyze hangs in the hermetic Windows launch, see #12159.
-        "windows_x86_64": False,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_typecheck_fail",
@@ -1098,8 +1093,7 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_dart_typecheck_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        # dart analyze hangs in the hermetic Windows launch, see #12159.
-        "windows_x86_64": False,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_bad_options",
@@ -1117,8 +1111,7 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_dart_bad_options.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        # dart analyze hangs in the hermetic Windows launch, see #12159.
-        "windows_x86_64": False,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_qml_lint_pass",

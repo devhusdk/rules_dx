@@ -19,6 +19,7 @@ const BICEP_CONFIG_REL: &str = "bicepconfig.json";
 /// reference resolves from the host.
 const BICEP_HOME_REL: &str = "dx-bicep/home";
 const PKL_LSP_HOME_REL: &str = ".dx-pkl-lsp/home";
+const DART_ANALYZE_HOME_REL: &str = ".dx-dart-analyze/home";
 const HELMFMT_HOME_REL: &str = "dx-helmfmt/home";
 /// The request env key naming the provider mirror roots, joined with `|`.
 const TERRAFORM_PLUGIN_DIRS_ENV: &str = "DX_TERRAFORM_PLUGIN_DIRS";
@@ -623,6 +624,22 @@ impl RealBackend {
                 OsString::from("CUE_CONFIG_DIR"),
                 state.join("config").into_os_string(),
             ));
+        }
+        if tool_id == "dart"
+            && cfg!(windows)
+            && invocation.argv.iter().any(|arg| arg == "analyze")
+        {
+            let home = scratch.root().join(DART_ANALYZE_HOME_REL);
+            std::fs::create_dir_all(&home)
+                .map_err(|err| execution(tool_id, format!("dart analyze home: {err}")))?;
+            for name in ["USERPROFILE", "APPDATA", "LOCALAPPDATA"] {
+                env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
+                env.push((OsString::from(name), home.clone().into_os_string()));
+            }
+            if let Some(root) = std::env::var_os("SystemRoot") {
+                env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("SystemRoot"));
+                env.push((OsString::from("SystemRoot"), root));
+            }
         }
         if tool_id == "dart" {
             // The host HOME stays unset (dart format needs none); analytics stay off.

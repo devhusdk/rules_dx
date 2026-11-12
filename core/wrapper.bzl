@@ -704,23 +704,36 @@ def dx_args_label_error(name, args, visible_labels, upstream_only):
                 return "%s: args names %s, which is only in %s; add it to data" % (name, label, attr_name)
     return None
 
-def dx_source_library(language, extensions, noun):
-    """Defines a rule that owns the source files of one language for dx quality."""
+def dx_source_library(language, extensions, noun, tools = {}):
+    """Defines a rule that owns the source files of one language for dx quality.
+
+    `tools` maps a quality tool ID to the label of its executable; the owner then also carries QualityToolsInfo.
+    """
 
     def _impl(ctx):
-        return [
+        providers = [
             DefaultInfo(files = depset(
                 ctx.files.srcs,
                 transitive = [dep[DefaultInfo].files for dep in ctx.attr.deps],
             )),
             dx_quality_sources(ctx.files.srcs, [(language, extensions)], str(ctx.label)),
         ]
+        if tools:
+            providers.append(QualityToolsInfo(tools = {
+                tool_id: getattr(ctx.attr, "_" + tool_id)[DefaultInfo].files_to_run
+                for tool_id in tools
+            }))
+        return providers
 
+    attrs = {
+        "srcs": attr.label_list(allow_files = ["." + ext for ext in extensions], doc = noun + " files of this package."),
+        "deps": attr.label_list(providers = [DefaultInfo], doc = noun + " libraries this package depends on."),
+    }
+    for tool_id, label in tools.items():
+        attrs["_" + tool_id] = attr.label(default = label, cfg = "exec", executable = True)
     return rule(
         implementation = _impl,
         doc = "Owns the " + noun + " files of one package for dx quality.",
-        attrs = {
-            "srcs": attr.label_list(allow_files = ["." + ext for ext in extensions], doc = noun + " files of this package."),
-            "deps": attr.label_list(providers = [DefaultInfo], doc = noun + " libraries this package depends on."),
-        },
+        attrs = attrs,
+        provides = [DefaultInfo, QualityToolsInfo] if tools else [DefaultInfo],
     )

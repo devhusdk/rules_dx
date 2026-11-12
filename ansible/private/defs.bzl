@@ -35,6 +35,6 @@ ansible_library = rule(
     attrs = {
         "srcs": attr.label_list(allow_files = [".yaml", ".yml"], doc = "YAML files of this package."),
         "playbooks": attr.label_list(allow_files = [".yaml", ".yml"], doc = "Subset of srcs forced to the ansible class."),
-        "deps": attr.label_list(providers = [QualitySourcesInfo], doc = "Libraries this package depends on."),
+        "deps": attr.label_list(providers = [DefaultInfo], doc = "Libraries this package depends on."),
     },
 )

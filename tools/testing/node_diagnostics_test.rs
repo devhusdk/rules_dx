@@ -11,6 +11,8 @@ fn tsc(source: &str, extra: &[&str]) -> dx_testing::Run {
         "ESNext",
         "--moduleResolution",
         "Bundler",
+        "--typeRoots",
+        "node_modules/@types",
     ];
     args.extend_from_slice(extra);
     args.push(path.as_str());

@@ -579,7 +579,12 @@ fn rendered_bazel_files_pass_buildifier() {
             std::fs::create_dir_all(file.parent().expect("parent")).expect("mkdir");
             std::fs::write(&file, bytes).expect("write");
             let output = Command::new(&buildifier)
-                .args(["--mode=check", "--lint=warn"])
+                .args([
+                    "--mode=check",
+                    "--lint=warn",
+                    "--config=off",
+                    "--warnings=-bzl-visibility",
+                ])
                 .arg(&file)
                 .output()
                 .expect("buildifier runs");

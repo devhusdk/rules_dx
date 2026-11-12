@@ -423,8 +423,7 @@ LANGS = json.decode("""{
       "cc_binary",
       "cc_test",
       "cc_fuzz_test",
-      "cc_bench",
-      "cc_coverage_settings"
+      "cc_bench"
     ],
     "family": "core",
     "lockfiles": [],
@@ -628,8 +627,7 @@ LANGS = json.decode("""{
       "cuda_binary",
       "cuda_test",
       "cuda_objects",
-      "cuda_component_library",
-      "cuda_gpu_env"
+      "cuda_component_library"
     ],
     "family": "core",
     "lockfiles": [],
@@ -2544,6 +2542,7 @@ LANGS = json.decode("""{
       "qt_cc_test",
       "qt_rust_cc_library",
       "qt_bundle",
+      "qt_consumer_archive",
       "qt_rust_library"
     ],
     "family": "core",

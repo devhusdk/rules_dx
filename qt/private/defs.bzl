@@ -24,7 +24,7 @@ load("//qt/private/sdk:pins.bzl", "RUNTIME_PLUGINS")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "QtInfo")
 load(":bundle.bzl", _QT_CONF = "QT_CONF", _qt_bundle = "qt_bundle", _qt_bundle_members = "qt_bundle_members", _qt_os_supplied_libraries = "qt_os_supplied_libraries", _qt_runtime_members = "qt_runtime_members")
-load(":cells.bzl", _QT_BUNDLE_COMPATIBLE_WITH = "QT_BUNDLE_COMPATIBLE_WITH", _QT_COMPATIBLE_WITH = "QT_COMPATIBLE_WITH", _QT_CONSUMER_MIN_RUNTIME = "QT_CONSUMER_MIN_RUNTIME", _QT_CONSUMER_RUNTIME = "QT_CONSUMER_RUNTIME", _qt_consumer_identity = "qt_consumer_identity")
+load(":cells.bzl", _QT_BUNDLE_COMPATIBLE_WITH = "QT_BUNDLE_COMPATIBLE_WITH", _QT_COMPATIBLE_WITH = "QT_COMPATIBLE_WITH", _qt_consumer_identity = "qt_consumer_identity")
 load(":constants.bzl", _QT_REPOSITORY = "QT_REPOSITORY", "QT_CC_HDRS", "QT_GENERATED", "QT_QML_SRCS")
 load(":text.bzl", _qt_framework_path = "qt_framework_path", _qt_identifier = "qt_identifier", _qt_module_path = "qt_module_path", _qt_package_path = "qt_package_path", _qt_qmldir = "qt_qmldir", _qt_qrc = "qt_qrc", _qt_version_parts = "qt_version_parts")
 load(":generate.bzl", _qt_generate = "qt_generate")
@@ -37,8 +37,6 @@ qt_os_supplied_libraries = _qt_os_supplied_libraries
 qt_runtime_members = _qt_runtime_members
 QT_BUNDLE_COMPATIBLE_WITH = _QT_BUNDLE_COMPATIBLE_WITH
 QT_COMPATIBLE_WITH = _QT_COMPATIBLE_WITH
-QT_CONSUMER_MIN_RUNTIME = _QT_CONSUMER_MIN_RUNTIME
-QT_CONSUMER_RUNTIME = _QT_CONSUMER_RUNTIME
 qt_consumer_identity = _qt_consumer_identity
 QT_REPOSITORY = _QT_REPOSITORY
 qt_framework_path = _qt_framework_path

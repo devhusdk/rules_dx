@@ -66,14 +66,6 @@ cc_bench(name, *, srcs = None, visibility = None, tags = None, deps = None, **kw
 
 A Google Benchmark binary plus a `<name>` runner that writes dx-bench.json for `dx bench`.
 
-### `cc_coverage_settings`
-
-```python
-cc_coverage_settings(settings)
-```
-
-Returns the features setting a transition over CC_COVERAGE_INPUTS gives C and C++ code built for coverage.
-
 ## API docs
 
 Tool: `doxygen`.

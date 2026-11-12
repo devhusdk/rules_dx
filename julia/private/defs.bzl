@@ -6,7 +6,7 @@ load("//julia/private/coverage:coverage.bzl", "dx_julia_coverage_aspect", "dx_ju
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//julia/private:platforms.bzl", JULIA_SUPPORT = "PLATFORM_SUPPORT")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -22,41 +22,32 @@ JULIA_COMPATIBLE_WITH = compatible_with(JULIA_SUPPORT)
 
 _DX_JULIA_EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo, _JuliaInfo]
 
+_JULIA = dx_language_spec(what = "julia_*", quality_specs = JULIA_SOURCE_SPECS, allow_files = JULIA_SOURCE_EXTS, quality_tools = JULIA_QUALITY_TOOLS)
+
 _julia_library_forward = dx_library_forward_rule(
+    _JULIA,
     provides = [_JuliaInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
     required_providers = [(_JuliaInfo, "JuliaInfo")],
-    quality_specs = JULIA_SOURCE_SPECS,
-    what = "julia_*",
-    allow_files = JULIA_SOURCE_EXTS,
     upstream_providers = [[_JuliaInfo]],
     runtime = "besteffort",
-    quality_tools = JULIA_QUALITY_TOOLS,
     instrument_srcs = True,
 )
 
 _julia_binary_forward = dx_executable_forward_rule(
+    _JULIA,
     kind = "executable",
     provides = _DX_JULIA_EXEC_PROVIDES,
     required_providers = [(_JuliaInfo, "JuliaInfo")],
-    quality_specs = JULIA_SOURCE_SPECS,
-    what = "julia_*",
-    allow_files = JULIA_SOURCE_EXTS,
     upstream_providers = [[_JuliaInfo]],
-    runtime = "besteffort",
-    quality_tools = JULIA_QUALITY_TOOLS,
 )
 
 _julia_forward_test = dx_executable_forward_rule(
+    _JULIA,
     kind = "test",
     provides = _DX_JULIA_EXEC_PROVIDES,
     required_providers = [(_JuliaInfo, "JuliaInfo")],
-    quality_specs = JULIA_SOURCE_SPECS,
-    what = "julia_*",
-    allow_files = JULIA_SOURCE_EXTS,
     upstream_providers = [[_JuliaInfo]],
     extra_attrs = dx_lcov_merger_attr() | dx_julia_coverage_attrs(),
-    runtime = "besteffort",
-    quality_tools = JULIA_QUALITY_TOOLS,
     upstream_aspects = [dx_julia_coverage_aspect],
     coverage_providers = dx_julia_test_coverage,
 )

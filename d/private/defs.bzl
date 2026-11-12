@@ -6,7 +6,7 @@ load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:rlocation.bzl", "rlocation_path")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "d_kwargs", _D_CELLS = "D_CELLS", _D_COMPATIBLE_WITH = "D_COMPATIBLE_WITH")
 
@@ -21,26 +21,22 @@ _SPECS = [("d", "d")]
 
 _EXTS = [".d", ".di"]
 
+_D = dx_language_spec(what = "d_library", quality_specs = _SPECS, allow_files = _EXTS)
+
 _d_library_forward = dx_library_forward_rule(
+    _D,
     provides = [_DInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     required_providers = [(_DInfo, "DInfo")],
-    quality_specs = _SPECS,
-    what = "d_library",
-    allow_files = _EXTS,
     upstream_providers = [[_DInfo]],
     runtime = "besteffort",
     instrument_srcs = True,
 )
 
 _d_binary_forward = dx_executable_forward_rule(
+    _D,
     kind = "executable",
     provides = _D_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _SPECS,
     what = "d_binary",
-    allow_files = _EXTS,
-    upstream_providers = None,
-    runtime = "besteffort",
 )
 
 def _d_test_coverage(ctx, upstream):
@@ -67,13 +63,10 @@ def _d_test_coverage(ctx, upstream):
     )
 
 _d_forward_test = dx_executable_forward_rule(
+    _D,
     kind = "test",
     provides = _D_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _SPECS,
     what = "d_test",
-    allow_files = _EXTS,
-    upstream_providers = None,
     extra_attrs = dx_lcov_merger_attr() | {
         "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
         "_d_coverage_launcher": attr.label(
@@ -82,7 +75,6 @@ _d_forward_test = dx_executable_forward_rule(
             cfg = "target",
         ),
     },
-    runtime = "besteffort",
     coverage_providers = _d_test_coverage,
 )
 

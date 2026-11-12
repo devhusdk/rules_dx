@@ -11,7 +11,7 @@ load("//apple/private/ios:cell.bzl", "APPLE_BUILD_HOST")
 load("//dart:defs.bzl", "DART_QUALITY_TOOLS", "DART_SOURCE_SPECS")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//flutter/private:platforms.bzl", FLUTTER_SUPPORT = "PLATFORM_SUPPORT")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -23,37 +23,31 @@ FLUTTER_COMPATIBLE_WITH = compatible_with(FLUTTER_SUPPORT)
 
 FLUTTER_ANDROID_ABIS = ["arm64", "x64"]
 
+_FLUTTER = dx_language_spec(what = "flutter_library", quality_specs = DART_SOURCE_SPECS, allow_files = FLUTTER_SOURCE_EXTS, quality_tools = DART_QUALITY_TOOLS)
+
 _flutter_library_forward = dx_library_forward_rule(
+    _FLUTTER,
     provides = [DartAnalyzableInfo, DartInfo, DefaultInfo, FlutterInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
     required_providers = [(DartInfo, "DartInfo"), (DartAnalyzableInfo, "DartAnalyzableInfo"), (FlutterInfo, "FlutterInfo")],
-    quality_specs = DART_SOURCE_SPECS,
-    quality_tools = DART_QUALITY_TOOLS,
-    what = "flutter_library",
-    allow_files = FLUTTER_SOURCE_EXTS,
     upstream_providers = [[DartInfo, DartAnalyzableInfo, FlutterInfo]],
     runtime = "besteffort",
 )
 
 _flutter_forward_test = dx_executable_forward_rule(
+    _FLUTTER,
     kind = "test",
     provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, QualityToolsInfo],
     required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
-    quality_specs = DART_SOURCE_SPECS,
-    quality_tools = DART_QUALITY_TOOLS,
     what = "flutter_test",
-    allow_files = FLUTTER_SOURCE_EXTS,
     upstream_providers = [[DartAnalyzableInfo]],
     extra_attrs = dx_lcov_merger_attr(),
-    runtime = "besteffort",
 )
 
 _flutter_web_forward = dx_library_forward_rule(
+    _FLUTTER,
     provides = [DartAnalyzableInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
     required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
-    quality_specs = DART_SOURCE_SPECS,
-    quality_tools = DART_QUALITY_TOOLS,
     what = "flutter_web_app",
-    allow_files = FLUTTER_SOURCE_EXTS,
     upstream_providers = [[DartAnalyzableInfo]],
     runtime = "besteffort",
 )
@@ -74,12 +68,10 @@ def _application_dart_info(ctx, _upstream):
     )]
 
 _flutter_application_forward = dx_library_forward_rule(
+    _FLUTTER,
     provides = [DartAnalyzableInfo, DefaultInfo, FlutterApplicationInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
     required_providers = [(FlutterApplicationInfo, "FlutterApplicationInfo")],
-    quality_specs = DART_SOURCE_SPECS,
-    quality_tools = DART_QUALITY_TOOLS,
     what = "flutter_application",
-    allow_files = FLUTTER_SOURCE_EXTS,
     upstream_providers = [[FlutterApplicationInfo]],
     extra_attrs = {
         "deps": attr.label_list(doc = "Dart libraries the application imports.", providers = [DartInfo]),

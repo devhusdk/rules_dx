@@ -2,7 +2,7 @@
 
 load("//core:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_forward_observations", "dx_wrapper_forward_subject")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_symlink_default_info", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_library_forward_rule", "dx_symlink_default_info", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _fake_upstream_impl(ctx):
@@ -51,33 +51,27 @@ _fake_test = rule(
     attrs = _fake_attrs(True),
 )
 
+_FIXTURE = dx_language_spec(what = "wrapper_forward", quality_specs = [("text", ["txt"])], allow_files = [".txt"])
+
 _forward_library = dx_library_forward_rule(
+    _FIXTURE,
     provides = [DefaultInfo, QualitySourcesInfo],
     required_providers = [],
-    quality_specs = [("text", ["txt"])],
-    what = "wrapper_forward",
-    allow_files = [".txt"],
     upstream_providers = None,
 )
 
 _forward_binary = dx_executable_forward_rule(
+    _FIXTURE,
     kind = "executable",
     provides = [DefaultInfo, QualitySourcesInfo],
-    required_providers = [],
-    quality_specs = [("text", ["txt"])],
-    what = "wrapper_forward",
-    allow_files = [".txt"],
-    upstream_providers = None,
+    runtime = "mandatory",
 )
 
 _forward_test = dx_executable_forward_rule(
+    _FIXTURE,
     kind = "test",
     provides = [DefaultInfo, QualitySourcesInfo],
-    required_providers = [],
-    quality_specs = [("text", ["txt"])],
-    what = "wrapper_forward",
-    allow_files = [".txt"],
-    upstream_providers = None,
+    runtime = "mandatory",
 )
 
 def _lossy_binary_impl(ctx):

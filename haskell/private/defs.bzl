@@ -6,7 +6,7 @@ load("@rules_haskell//haskell:providers.bzl", _HaskellCoverageInfo = "HaskellCov
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//haskell/private/toolchain:transition.bzl", "ghc_mingw_transition")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//haskell/private/coverage:coverage.bzl", "dx_haskell_coverage_attrs", "dx_haskell_test_coverage")
 load(":kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs", _DEFAULT_GHCOPTS = "DEFAULT_GHCOPTS", _HASKELL_CELLS = "HASKELL_CELLS", _HASKELL_COMPATIBLE_WITH = "HASKELL_COMPATIBLE_WITH", _STANDARD_GHCOPTS = "STANDARD_GHCOPTS", _STRICT_GHCOPTS = "STRICT_GHCOPTS")
@@ -27,12 +27,12 @@ _HASKELL = [("haskell", ["hs"])]
 
 _SOURCES = [".hs", ".lhs", ".hsc", ".hs-boot", ".lhs-boot"]
 
+_HASKELL_LANGUAGE = dx_language_spec(what = "haskell_library", quality_specs = _HASKELL, allow_files = _SOURCES)
+
 _haskell_library_forward = dx_library_forward_rule(
+    _HASKELL_LANGUAGE,
     provides = [_HaskellInfo, _HaskellLibraryInfo, CcInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     required_providers = [(_HaskellInfo, "HaskellInfo"), (_HaskellLibraryInfo, "HaskellLibraryInfo"), (CcInfo, "CcInfo")],
-    quality_specs = _HASKELL,
-    what = "haskell_library",
-    allow_files = _SOURCES,
     upstream_providers = [[_HaskellInfo, _HaskellLibraryInfo]],
     quiet_providers = [_HaskellCoverageInfo],
     runtime = "besteffort",
@@ -40,29 +40,21 @@ _haskell_library_forward = dx_library_forward_rule(
 )
 
 _haskell_forward_binary = dx_executable_forward_rule(
+    _HASKELL_LANGUAGE,
     kind = "executable",
     provides = [DefaultInfo, QualitySourcesInfo],
-    required_providers = [],
-    quality_specs = _HASKELL,
     what = "haskell_binary",
-    allow_files = _SOURCES,
-    upstream_providers = None,
     quiet_providers = [_HaskellInfo],
-    runtime = "besteffort",
     upstream_cfg = ghc_mingw_transition,
 )
 
 _haskell_forward_test = dx_executable_forward_rule(
+    _HASKELL_LANGUAGE,
     kind = "test",
     provides = [DefaultInfo, QualitySourcesInfo],
-    required_providers = [],
-    quality_specs = _HASKELL,
     what = "haskell_test",
-    allow_files = _SOURCES,
-    upstream_providers = None,
     extra_attrs = dx_lcov_merger_attr() | dx_haskell_coverage_attrs(),
     quiet_providers = [_HaskellInfo],
-    runtime = "besteffort",
     coverage_providers = dx_haskell_test_coverage,
     upstream_cfg = ghc_mingw_transition,
 )

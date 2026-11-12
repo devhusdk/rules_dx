@@ -11,7 +11,7 @@ load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/private/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
@@ -48,33 +48,26 @@ def _swift_docs_providers(ctx, upstream):
     graphs = upstream[SwiftSymbolGraphInfo].direct_symbol_graphs if SwiftSymbolGraphInfo in upstream else []
     return [SwiftDocsInfo(graphs = graphs, srcs = [f for f in ctx.files.srcs if f.extension == "swift"])]
 
+_SWIFT = dx_language_spec(what = "swift_*", quality_specs = _SPECS, allow_files = True, quality_tools = SWIFT_QUALITY_TOOLS)
+
 _swift_library_forward = dx_library_forward_rule(
+    _SWIFT,
     provides = [SwiftInfo, CcInfo, DefaultInfo, QualitySourcesInfo, QualityToolsInfo, SwiftDocsInfo],
     extra_providers = _swift_docs_providers,
     upstream_aspects = [swift_symbol_graph_aspect],
     required_providers = [(SwiftInfo, "SwiftInfo"), (CcInfo, "CcInfo")],
-    quality_specs = _SPECS,
-    what = "swift_*",
-    allow_files = True,
     upstream_providers = [[SwiftInfo]],
     extra_attrs = _PLATFORM_ATTR,
     runtime = "besteffort",
     upstream_cfg = swift_linux_transition,
-    quality_tools = SWIFT_QUALITY_TOOLS,
 )
 
 _swift_binary_forward = dx_executable_forward_rule(
+    _SWIFT,
     kind = "executable",
     provides = _EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _SPECS,
-    what = "swift_*",
-    allow_files = True,
-    upstream_providers = None,
     extra_attrs = _PLATFORM_ATTR,
-    runtime = "besteffort",
     upstream_cfg = swift_linux_transition,
-    quality_tools = SWIFT_QUALITY_TOOLS,
 )
 
 def _swift_test_coverage(ctx, upstream):
@@ -84,20 +77,14 @@ def _swift_tool_attr(label):
     return attr.label(default = Label(label), executable = True, allow_files = True, cfg = config.exec(exec_group = "test"))
 
 _swift_forward_test = dx_executable_forward_rule(
+    _SWIFT,
     kind = "test",
     provides = _EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _SPECS,
-    what = "swift_*",
-    allow_files = True,
-    upstream_providers = None,
     extra_attrs = _PLATFORM_ATTR | dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
         "_swift_llvm_cov": _swift_tool_attr("//swift/private/tools:llvm_cov"),
         "_swift_llvm_profdata": _swift_tool_attr("//swift/private/tools:llvm_profdata"),
     },
-    runtime = "besteffort",
     upstream_cfg = swift_linux_transition,
-    quality_tools = SWIFT_QUALITY_TOOLS,
     coverage_providers = _swift_test_coverage,
     toolchains = dx_native_coverage_toolchains(),
 )

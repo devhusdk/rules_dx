@@ -3,7 +3,7 @@
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_fortran//fortran:defs.bzl", "FortranInfo", _fortran_library = "fortran_library")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 load(":kwargs.bzl", _FORTRAN_COMPATIBLE_WITH = "FORTRAN_COMPATIBLE_WITH", "fortran_library_kwargs", "fortran_link_kwargs", "fortran_with_defaults")
@@ -16,26 +16,20 @@ _FORTRAN = [("fortran", FORTRAN_EXTENSIONS)]
 
 _SOURCE_EXTS = ["." + ext for ext in FORTRAN_EXTENSIONS]
 
+_FORTRAN_LANGUAGE = dx_language_spec(what = "fortran_*", quality_specs = _FORTRAN, allow_files = _SOURCE_EXTS)
+
 _library_forward = dx_library_forward_rule(
+    _FORTRAN_LANGUAGE,
     provides = [FortranInfo, CcInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     required_providers = [(FortranInfo, "FortranInfo"), (CcInfo, "CcInfo")],
-    quality_specs = _FORTRAN,
-    what = "fortran_*",
-    allow_files = _SOURCE_EXTS,
     upstream_providers = [[FortranInfo]],
     runtime = "besteffort",
     instrument_srcs = True,
 )
 
 _binary_forward = dx_executable_forward_rule(
+    _FORTRAN_LANGUAGE,
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _FORTRAN,
-    what = "fortran_*",
-    allow_files = _SOURCE_EXTS,
-    upstream_providers = None,
-    runtime = "besteffort",
 )
 
 def _kcov_upstream_impl(settings, _attr):
@@ -67,17 +61,11 @@ def _fortran_test_coverage(ctx, upstream):
     return dx_kcov_test_coverage(ctx, upstream, sources, ["upstream", "deps"])
 
 _fortran_forward_test = dx_executable_forward_rule(
+    _FORTRAN_LANGUAGE,
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _FORTRAN,
-    what = "fortran_*",
-    allow_files = _SOURCE_EXTS,
-    upstream_providers = None,
     extra_attrs = dx_lcov_merger_attr() | dx_kcov_attrs() | {
         "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
     },
-    runtime = "besteffort",
     upstream_cfg = _kcov_upstream,
     coverage_providers = _fortran_test_coverage,
 )

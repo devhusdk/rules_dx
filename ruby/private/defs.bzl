@@ -4,7 +4,7 @@ load("@rules_ruby//ruby:defs.bzl", _rb_binary = "rb_binary", _rb_library = "rb_l
 load("@rules_ruby//ruby/private:providers.bzl", "BundlerInfo", "RubyFilesInfo")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//ruby/private/coverage:pins.bzl", "RUBY_BENCH_GEMS", "RUBY_BENCH_REPOSITORY", "RUBY_COVERAGE_GEMS", "gem_dir")
 
@@ -18,26 +18,21 @@ _DX_RUBY_LIBRARY_PROVIDES = [
 _DX_RUBY_SOURCE_SPECS = [("ruby", "rb")]
 _DX_RUBY_SOURCE_EXTS = [".rb"]
 
+_RUBY = dx_language_spec(what = "ruby_*", quality_specs = _DX_RUBY_SOURCE_SPECS, allow_files = _DX_RUBY_SOURCE_EXTS)
+
 _ruby_library_forward = dx_library_forward_rule(
+    _RUBY,
     provides = _DX_RUBY_LIBRARY_PROVIDES,
     required_providers = [(RubyFilesInfo, "RubyFilesInfo")],
-    quality_specs = _DX_RUBY_SOURCE_SPECS,
-    what = "ruby_*",
-    allow_files = _DX_RUBY_SOURCE_EXTS,
     upstream_providers = [[RubyFilesInfo]],
     runtime = "besteffort",
 )
 
 _ruby_binary_forward = dx_executable_forward_rule(
+    _RUBY,
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_RUBY_SOURCE_SPECS,
-    what = "ruby_*",
-    allow_files = _DX_RUBY_SOURCE_EXTS,
     upstream_providers = [[RubyFilesInfo]],
     optional_providers = [RubyFilesInfo, BundlerInfo],
-    runtime = "besteffort",
 )
 
 def ruby_coverage_lib_dirs(short_paths):
@@ -79,19 +74,14 @@ def _ruby_test_coverage(ctx, upstream):
     )
 
 _ruby_forward_test = dx_executable_forward_rule(
+    _RUBY,
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = _DX_RUBY_SOURCE_SPECS,
-    what = "ruby_*",
-    allow_files = _DX_RUBY_SOURCE_EXTS,
     upstream_providers = [[RubyFilesInfo]],
     extra_attrs = dx_lcov_merger_attr() | {
         "_ruby_coverage_gems": attr.label(default = Label("//ruby/private/coverage:gems")),
         "_ruby_windows": attr.label(default = Label("@platforms//os:windows"), providers = [platform_common.ConstraintValueInfo]),
     },
     optional_providers = [RubyFilesInfo, BundlerInfo],
-    runtime = "besteffort",
     coverage_providers = _ruby_test_coverage,
 )
 

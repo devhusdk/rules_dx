@@ -4,7 +4,7 @@ load("@rules_perl//perl:defs.bzl", _PerlInfo = "PerlInfo", _perl_binary = "perl_
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//perl/private:platforms.bzl", PERL_SUPPORT = "PLATFORM_SUPPORT")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -23,28 +23,22 @@ PERL_SOURCE_EXTS = [".pl", ".pm", ".t"]
 
 PERL_COMPATIBLE_WITH = compatible_with(PERL_SUPPORT)
 
+_PERL = dx_language_spec(what = "perl_library", quality_specs = PERL_SOURCE_SPECS, allow_files = PERL_SOURCE_EXTS, quality_tools = PERL_QUALITY_TOOLS)
+
 _perl_library_forward = dx_library_forward_rule(
+    _PERL,
     provides = [_PerlInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
     required_providers = [(_PerlInfo, "PerlInfo")],
-    quality_specs = PERL_SOURCE_SPECS,
-    what = "perl_library",
-    allow_files = PERL_SOURCE_EXTS,
     upstream_providers = [[_PerlInfo]],
     runtime = "besteffort",
-    quality_tools = PERL_QUALITY_TOOLS,
     instrument_srcs = True,
 )
 
 _perl_binary_forward = dx_executable_forward_rule(
+    _PERL,
     kind = "executable",
     provides = _PERL_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = PERL_SOURCE_SPECS,
     what = "perl_binary",
-    allow_files = PERL_SOURCE_EXTS,
-    upstream_providers = None,
-    runtime = "besteffort",
-    quality_tools = PERL_QUALITY_TOOLS,
 )
 
 def _perl_test_coverage(ctx, upstream):
@@ -73,20 +67,15 @@ def _perl_test_coverage(ctx, upstream):
     )
 
 _perl_forward_test = dx_executable_forward_rule(
+    _PERL,
     kind = "test",
     provides = _PERL_EXEC_PROVIDES,
-    required_providers = [],
-    quality_specs = PERL_SOURCE_SPECS,
     what = "perl_test",
-    allow_files = PERL_SOURCE_EXTS,
-    upstream_providers = None,
     extra_attrs = dx_lcov_merger_attr() | {
         "deps": attr.label_list(doc = "Perl libraries the target depends on.", providers = [_PerlInfo]),
         "_perl_coverage": attr.label(default = Label("//perl/private/coverage:collector")),
         "_perl_windows": attr.label(default = Label("@platforms//os:windows"), providers = [platform_common.ConstraintValueInfo]),
     },
-    runtime = "besteffort",
-    quality_tools = PERL_QUALITY_TOOLS,
     coverage_providers = _perl_test_coverage,
 )
 

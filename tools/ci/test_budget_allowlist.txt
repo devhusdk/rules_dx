@@ -34,7 +34,6 @@ asciidoc/tests/BUILD.bazel no-size 1
 astro/private/ide/BUILD.bazel no-size 1
 astro/tests/app/BUILD.bazel no-size 3
 astro/tests/app_config/BUILD.bazel no-size 1
-astro/tests/fixtures/hello/BUILD.bazel no-size 1
 avro/tests/BUILD.bazel no-size 6
 bcr_test_module/BUILD.bazel no-size 1
 bicep/private/tools/BUILD.bazel no-size 1
@@ -501,7 +500,6 @@ lua/tests/negative/BUILD.bazel no-size 1
 lua/tests/runtime/BUILD.bazel no-size 2
 make/tests/BUILD.bazel no-size 1
 mdx/tests/app/BUILD.bazel no-size 4
-mdx/tests/fixtures/hello/BUILD.bazel no-size 1
 msix/tests/BUILD.bazel no-size 26
 msix/tests/BUILD.bazel size-medium 1
 ocaml/private/BUILD.bazel no-size 1
@@ -615,7 +613,6 @@ scala/tests/fixtures/no_srcs/BUILD.bazel no-size 1
 sql/tests/BUILD.bazel no-size 1
 svelte/tests/app/BUILD.bazel no-size 4
 svelte/tests/app_errors/BUILD.bazel no-size 3
-svelte/tests/fixtures/hello/BUILD.bazel no-size 1
 swift/tests/BUILD.bazel no-size 2
 swift/tests/cross/BUILD.bazel no-size 1
 swift/tests/fixtures/bench/BUILD.bazel no-size 3

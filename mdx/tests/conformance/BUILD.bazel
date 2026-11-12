@@ -1,0 +1,83 @@
+# gazelle:ignore
+load("//mdx:defs.bzl", "mdx_library", "mdx_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "dx_coverage_test", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+mdx_library(
+    name = "conformance",
+    srcs = ["Hello.mdx"],
+)
+
+mdx_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["pass.test.js"],
+    data = [
+        ":Hello.mdx",
+        ":helper.js",
+        "//:node_modules/preact",
+        "//:node_modules/preact-render-to-string",
+    ],
+    node_modules = "//:node_modules",
+    package_json = "//:package_json",
+    target_compatible_with = subject_compatible_with(),
+)
+
+mdx_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["fail.test.js"],
+    data = [
+        ":Hello.mdx",
+        ":helper.js",
+        "//:node_modules/preact",
+        "//:node_modules/preact-render-to-string",
+    ],
+    node_modules = "//:node_modules",
+    package_json = "//:package_json",
+    target_compatible_with = subject_compatible_with(),
+)
+
+mdx_test(
+    name = "wrapper_test",
+    size = "small",
+    srcs = ["pass.test.js"],
+    data = [
+        ":Hello.mdx",
+        ":helper.js",
+        "//:node_modules/preact",
+        "//:node_modules/preact-render-to-string",
+    ],
+    node_modules = "//:node_modules",
+    package_json = "//:package_json",
+)
+
+dx_coverage_test(
+    name = "component_coverage_test",
+    size = "small",
+    covered_source = "conformance/Hello.mdx",
+    subject = ":wrapper_test",
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":conformance",
+    covered_source = "helper.js",
+    expected = "",
+    failing_case = "failing case",
+    failing_pattern = "Hello.mdx › {case}",
+    failing_test = ":fail_subject_test",
+    lang = "mdx",
+    not_applicable = {
+        "build_test": "mdx has no binary rule",
+        "cross_test": "mdx has no binary rule",
+        "lock_test": "mdx has no binary rule",
+        "runfiles_test": "mdx has no binary rule",
+    },
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

@@ -6,7 +6,6 @@ apple/tests/fixtures/swift_app/BUILD.bazel orphan-target 1
 asciidoc/BUILD.bazel orphan-target 1
 astro/BUILD.bazel orphan-target 1
 astro/private/BUILD.bazel orphan-target 1
-astro/tests/fixtures/hello/helper.js unreferenced-fixture 1
 avro/BUILD.bazel orphan-target 1
 bicep/BUILD.bazel orphan-target 1
 capnproto/BUILD.bazel orphan-target 1
@@ -96,7 +95,6 @@ lua/private/quality/BUILD.bazel orphan-target 1
 make/BUILD.bazel orphan-target 1
 mdx/BUILD.bazel orphan-target 1
 mdx/private/BUILD.bazel orphan-target 1
-mdx/tests/fixtures/hello/helper.js unreferenced-fixture 1
 msix/BUILD.bazel orphan-target 1
 ocaml/BUILD.bazel orphan-target 1
 ocaml/private/coverage/BUILD.bazel orphan-target 1
@@ -123,7 +121,6 @@ svelte/BUILD.bazel orphan-target 1
 svelte/private/BUILD.bazel orphan-target 1
 svelte/tests/app_errors/src empty-package 1
 svelte/tests/app_errors/src/components empty-package 1
-svelte/tests/fixtures/hello/helper.js unreferenced-fixture 1
 swift/BUILD.bazel orphan-target 1
 terraform/BUILD.bazel orphan-target 1
 third_party/dart/BUILD.bazel orphan-target 1

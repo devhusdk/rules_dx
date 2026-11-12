@@ -10,17 +10,7 @@ dx_wrapper_contract_tests(
     }},
     file_classes = ["mdx"],
     wrappers = {
-        "library": "//mdx/tests/fixtures/hello:hello_lib",
-        "test": "//mdx/tests/fixtures/hello:hello_test",
+        "library": "//mdx/tests/conformance:conformance",
+        "test": "//mdx/tests/conformance:wrapper_test",
     },
-)
-
-test_suite(
-    name = "fixture_tests",
-    testonly = True,
-    tests = [
-        "//mdx/tests/fixtures/hello:coverage_test",
-        "//mdx/tests/fixtures/hello:hello_aggregate_test",
-        "//mdx/tests/fixtures/hello:hello_test",
-    ],
 )

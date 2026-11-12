@@ -52,6 +52,7 @@ rust_library(
     ) + [
         "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
+        "//cli/families:dx_families",
         "//cli/gomod:dx_gomod",
         "//cli/path:dx_path",
     ],
@@ -156,6 +157,7 @@ rust_test(
     ) + [
         "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
+        "//cli/families:dx_families",
         "//cli/gomod:dx_gomod",
         "//cli/path:dx_path",
     ],

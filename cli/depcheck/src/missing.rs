@@ -227,7 +227,7 @@ pub fn find_missing(
             .lockfiles()
             .first()
             .map_or("", String::as_str),
-        Language::Ocaml => "dune-project",
+        Language::Ocaml => dx_families::hub("opam").map_or("", |hub| hub.manifest.as_str()),
         _ => Ecosystem::Npm.manifest_name(),
     };
     let found = crate::usage::find_first_imports(eco, sources, nested, &candidates)?;

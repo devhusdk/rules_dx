@@ -14,7 +14,10 @@ use crate::{GenerateError, Inputs, RootBuild, references, render};
 const VERSION: &str = "v1";
 
 /// Root files whose stats the fingerprint covers besides the outputs.
-const SHARED_INPUTS: [&str; 4] = ["MODULE.bazel", "pyproject.toml", "BUILD.bazel", "BUILD"];
+fn shared_inputs() -> [&'static str; 4] {
+    let manifest = dx_families::hub("uv").map_or("", |hub| hub.manifest.as_str());
+    ["MODULE.bazel", manifest, "BUILD.bazel", "BUILD"]
+}
 
 /// Top-level entries under `.dx` that dx does not own.
 const KEPT: [&str; 2] = ["local", "pins"];
@@ -333,13 +336,13 @@ struct Snapshot {
     /// The `.dx/` paths each root tool config names.
     dx_refs: BTreeMap<String, Vec<String>>,
     files: BTreeSet<String>,
-    /// (size, mtime) of each of [`SHARED_INPUTS`], taken before anything is read.
+    /// (size, mtime) of each of [`shared_inputs`], taken before anything is read.
     stats: Vec<Option<(u64, u128)>>,
 }
 
 impl Snapshot {
     fn take(root: &Path) -> Result<Self, SyncError> {
-        let stats = SHARED_INPUTS
+        let stats = shared_inputs()
             .iter()
             .map(|rel| stat(&root.join(rel)))
             .collect();
@@ -531,11 +534,11 @@ fn fingerprint(snapshot: &Snapshot, root: &Path, outputs: &[String]) -> [u8; 32]
     for file in &snapshot.files {
         field(file.as_bytes());
     }
-    let shared = SHARED_INPUTS
-        .iter()
+    let shared = shared_inputs()
+        .into_iter()
         .zip(&snapshot.stats)
         .filter(|(rel, _)| !is_output(rel))
-        .map(|(rel, stats)| (*rel, *stats));
+        .map(|(rel, stats)| (rel, *stats));
     let written = outputs
         .iter()
         .map(|rel| (rel.as_str(), stat(&root.join(rel))));

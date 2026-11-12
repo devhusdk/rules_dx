@@ -3459,3 +3459,11 @@ fn depcheck_errors_map_to_kinds() {
         assert_eq!(DxError::from(error).kind(), kind);
     }
 }
+
+#[test]
+fn a_starred_manifest_matches_any_stem() {
+    let dir = tempfile::tempdir().expect("scratch");
+    assert!(!crate::usage::holds(dir.path(), "*.opam"));
+    std::fs::write(dir.path().join("app.opam"), "").expect("manifest");
+    assert!(crate::usage::holds(dir.path(), "*.opam"));
+}

@@ -5,6 +5,7 @@ load("//core:failure_test.bzl", "failure_test_rule")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load(":defs.bzl", "adhoc_signing_transition")
+load("//core/quality:sources.bzl", "single_target")
 
 _XCODES = str(Label("//apple/private/provisioning:managed_xcodes"))
 
@@ -88,7 +89,7 @@ signing_probe = rule(
 )
 
 def _signing_probe_device_impl(ctx):
-    probe = ctx.attr.probe[0] if type(ctx.attr.probe) == "list" else ctx.attr.probe
+    probe = single_target(ctx.attr.probe)
     return [probe[_SigningProbeInfo]]
 
 signing_probe_device = rule(

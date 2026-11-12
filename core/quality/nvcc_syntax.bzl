@@ -2,6 +2,7 @@
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
+load("//core/quality:sources.bzl", "single_target")
 
 NvccSyntaxInfo = provider(
     doc = "Front-end-only replays of the CudaCompile actions of one CUDA target.",
@@ -93,9 +94,6 @@ def nvcc_syntax_select(argvs):
             chosen[src] = i
     return [chosen[src] for src in order]
 
-def _first(value):
-    return value[0] if type(value) == "list" else value
-
 def _compile_actions(target):
     actions = getattr(target, "actions", None)
     if actions == None:
@@ -108,7 +106,7 @@ def _nvcc_syntax_impl(target, ctx):
     if len(actions) == 0:
         if not hasattr(attrs, "upstream"):
             return []
-        upstream = _first(attrs.upstream)
+        upstream = single_target(attrs.upstream)
         if NvccSyntaxInfo not in upstream:
             return []
         info = upstream[NvccSyntaxInfo]

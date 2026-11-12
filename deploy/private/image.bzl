@@ -6,6 +6,7 @@ load("@rules_pkg//pkg:providers.bzl", "PackageFilesInfo")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load(":image_quality.bzl", "oci_image_quality")
 load(":validate_image.bzl", "IMAGE_BASES", "IMAGE_LABEL_PLATFORMS", "IMAGE_PLATFORM_LABELS", "IMAGE_RUNTIMES", "image_options_error")
+load("//core/quality:sources.bzl", "single_target")
 
 _RUNTIME_LAYOUT = {
     "dotnet": {"include": ["dotnet", "host/", "shared/Microsoft.NETCore.App/"], "strip": ""},
@@ -144,7 +145,7 @@ def _main_class_aspect_impl(target, ctx):
         return [MainClassInfo(main_class = main_class)]
     upstream = getattr(ctx.rule.attr, "upstream", None)
     if upstream != None:
-        upstream = upstream[0] if type(upstream) == "list" else upstream
+        upstream = single_target(upstream)
         if MainClassInfo in upstream:
             return [upstream[MainClassInfo]]
     return [MainClassInfo(main_class = "")]

@@ -8,6 +8,7 @@ load("//apple/private/provisioning:defs.bzl", _deployment_floor = "deployment_fl
 load("//apple/private/provisioning:validate.bzl", _version_below = "provisioning_version_below")
 load(":cell.bzl", "APPLE_HOSTS", "CELL_ATTRS", "MACH_O_PLATFORMS", "ios_platform", "target_cell")
 load(":validate.bzl", "IOS_PLATFORMS", "ios_config_errors", "ios_sdk_for", "ios_triple_for", _DEVICE_ENV = "DEVICE_ENV")
+load("//core/quality:sources.bzl", "single_target")
 
 DEVICE_ENV = _DEVICE_ENV
 
@@ -293,7 +294,7 @@ _cell_transition = transition(
 )
 
 def _ios_lib_impl(ctx):
-    cell = ctx.attr.cell[0] if type(ctx.attr.cell) == "list" else ctx.attr.cell
+    cell = single_target(ctx.attr.cell)
     return [
         cell[CcInfo],
         cell[DefaultInfo],

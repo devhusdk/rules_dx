@@ -6,6 +6,7 @@ load("@rules_go//go/private:providers.bzl", "GoStdLib")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs")
 load("//core/quality:policy.bzl", "QualityPolicyInfo")
+load("//core/quality:sources.bzl", "single_target")
 
 GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"
 
@@ -42,9 +43,6 @@ def go_lang_version(sdk_version):
     if len(parts) < 2 or not parts[0].isdigit() or minor == "":
         fail("gofumpt: cannot derive -lang from Go SDK version '" + sdk_version + "'")
     return "go" + parts[0] + "." + minor
-
-def _first(value):
-    return value[0] if type(value) == "list" else value
 
 def _install_suffix(mode):
     suffix = mode.goos + "_" + mode.goarch
@@ -101,7 +99,7 @@ def _tool_arguments(target, ctx, tool):
 def _go_analysis_impl(target, ctx):
     attrs = ctx.rule.attr
     if hasattr(attrs, "upstream"):
-        upstream = _first(attrs.upstream)
+        upstream = single_target(attrs.upstream)
         if GoAnalysisInfo not in upstream:
             return []
         info = upstream[GoAnalysisInfo]

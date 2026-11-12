@@ -9,6 +9,7 @@ load("//core/quality:fortran_flags.bzl", "MODULE_FLAG_FORMAT")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:family_hooks.bzl", "stage", "without")
 load("//core/quality:real_core.bzl", "real_context")
+load("//core/quality:sources.bzl", "single_target")
 
 CompileCheckInfo = provider(
     doc = "Check-only replays of the compile actions of one target.",
@@ -299,9 +300,6 @@ _SPECS = {
 # The quality tool ids whose logs the replay produces, derived from _SPECS.
 COMPILE_CHECK_TOOLS = sorted({spec.tool: True for spec in _SPECS.values()}.keys())
 
-def _first(value):
-    return value[0] if type(value) == "list" else value
-
 def _forwarded(info):
     return [info, OutputGroupInfo(compile_check = depset(info.diagnostics + info.statuses))]
 
@@ -318,7 +316,7 @@ def _compile_check_impl(target, ctx):
     if len(actions) == 0:
         upstream = None
         if hasattr(attrs, "upstream"):
-            upstream = _first(attrs.upstream)
+            upstream = single_target(attrs.upstream)
         elif ctx.rule.kind in ["cc_binary", "cc_test"]:
             for dep in getattr(attrs, "deps", []):
                 if dep.label.name == target.label.name + "_fortran" and CompileCheckInfo in dep:

@@ -125,6 +125,7 @@ load(
     "real_yaml_lint_aspect",
 )
 load("//core/quality/testdata:config_subject.bzl", "config_attr", "config_subject_rule", "config_transition")
+load("//core/quality:sources.bzl", "single_target")
 
 CONSUMER_POLICY_CONFIGS = ["consumer_cc_clang_tidy", "consumer_format_off", "default", "generated", "shared"]
 
@@ -271,7 +272,7 @@ def _consumer_policy_impl(ctx):
         dep = getattr(ctx.attr, _subject_attr(key))
         if not dep:
             continue
-        subject = dep[0] if type(dep) == "list" else dep
+        subject = single_target(dep)
         subjects.append(str(subject.label))
         for name in _dx_result_names(subject):
             results[name] = True

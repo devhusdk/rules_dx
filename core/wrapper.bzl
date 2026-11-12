@@ -2,7 +2,7 @@
 
 load("//core:resources.bzl", "dx_test_resource_tags")
 load("//core/quality:pipeline.bzl", "upstream_tags")
-load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "single_target")
 load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 
 DX_EXEC_PROVIDES = [DefaultInfo, QualitySourcesInfo]
@@ -136,8 +136,7 @@ def dx_symlink_executable(ctx, target_file):
 
 def dx_upstream(ctx):
     """Returns the upstream target, unwrapping a transitioned attribute."""
-    upstream = ctx.attr.upstream
-    return upstream[0] if type(upstream) == "list" else upstream
+    return single_target(ctx.attr.upstream)
 
 def dx_symlink_default_info(ctx, what, extra_runfiles = None, executable = None):
     """Builds the executable DefaultInfo symlinking the upstream binary or a replacement executable."""

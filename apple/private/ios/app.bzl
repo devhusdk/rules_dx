@@ -23,6 +23,7 @@ load(
 )
 load(":defs.bzl", "AppleIosLibInfo", "ios_platform_errors", "ios_platforms", "ios_slice", "split_platform")
 load(":validate.bzl", "ios_arch_errors", "ios_environment_errors", "ios_sdk_for")
+load("//core/quality:sources.bzl", "single_target")
 
 _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -328,7 +329,7 @@ AppleIosDeviceAppInfo = provider(
 )
 
 def _device_app_impl(ctx):
-    bundle = ctx.attr.bundle[0] if type(ctx.attr.bundle) == "list" else ctx.attr.bundle
+    bundle = single_target(ctx.attr.bundle)
     ipas = [file for file in bundle[DefaultInfo].files.to_list() if file.extension == "ipa"]
     if len(ipas) != 1:
         fail("apple_ios_app: '{}' built {} .ipa outputs, want exactly one".format(display(bundle.label), len(ipas)))
@@ -380,7 +381,7 @@ _device_app = rule(
 )
 
 def _simulator_app_impl(ctx):
-    bundle = ctx.attr.bundle[0] if type(ctx.attr.bundle) == "list" else ctx.attr.bundle
+    bundle = single_target(ctx.attr.bundle)
     source = bundle[DefaultInfo].files_to_run.executable
     default_info = DefaultInfo(
         files = bundle[DefaultInfo].files,

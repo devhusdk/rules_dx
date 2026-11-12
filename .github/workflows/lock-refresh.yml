@@ -80,12 +80,8 @@ jobs:
       - name: Merge
         env:
           LOCKS: ${{ runner.temp }}/locks
-        run: |
-          jq -n --argjson keys '{"linux_x86_64":"os:linux,arch:amd64","linux_arm64":"os:linux,arch:aarch64","macos_arm64":"os:osx,arch:aarch64","windows_x86_64":"os:windows,arch:amd64","windows_arm64":"os:windows,arch:aarch64"}' '
-            def own($key): .moduleExtensions |= map_values(with_entries(select(.key == "general" or .key == $key)));
-            reduce (inputs | own($keys[input_filename | capture("lock-(?<platform>[a-z0-9_]+)/").platform])) as $lock
-              (null; if . == null then $lock else .moduleExtensions *= $lock.moduleExtensions | .facts *= $lock.facts end)' \
-            "$LOCKS"/lock-*/MODULE.bazel.lock > MODULE.bazel.lock
+          DX_JQ: jq
+        run: tools/ci/lock_merge.sh "$LOCKS" MODULE.bazel.lock
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: false

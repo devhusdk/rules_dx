@@ -77,7 +77,7 @@ pub(super) fn check(
         }
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "swift package resolve checks the whole Package.resolved; select the set without a package",
+            reason: "swift package resolve checks the whole resolved file; select the set without a package",
         }),
     }
 }

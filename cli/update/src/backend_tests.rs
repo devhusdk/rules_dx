@@ -571,7 +571,7 @@ fn cpan_update_refuses_without_a_compiler() {
     assert!(
         error
             .to_string()
-            .contains("add a cpan_compiler next to the cpanfile")
+            .contains("add a cpan_compiler next to the manifest")
     );
 }
 

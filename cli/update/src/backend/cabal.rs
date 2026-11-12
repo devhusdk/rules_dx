@@ -26,7 +26,7 @@ pub(super) fn plan(
             else {
                 return Err(BackendError::Unsupported {
                     set: set.name.clone(),
-                    reason: "add a haskell_deps_resolve next to cabal.project; it keeps cabal.project.freeze and haskell_deps.json in step",
+                    reason: "add a haskell_deps_resolve next to the manifest; it keeps the freeze file and the lock JSON in step",
                 });
             };
             Ok(BackendPlan::Run {
@@ -61,7 +61,7 @@ pub(super) fn check(
             else {
                 return Err(BackendError::Unsupported {
                     set: set.name.clone(),
-                    reason: "add a haskell_deps_resolve_test next to cabal.project; dx checks the set by running it",
+                    reason: "add a haskell_deps_resolve_test next to the manifest; dx checks the set by running it",
                 });
             };
             Ok(CheckPlan::Run {

@@ -26,7 +26,7 @@ pub(super) fn plan(
             else {
                 return Err(BackendError::Unsupported {
                     set: set.name.clone(),
-                    reason: "add a julia_pkg_resolve next to the lock JSON; it keeps the lock JSON in step with Manifest.toml",
+                    reason: "add a julia_pkg_resolve next to the lock JSON; it keeps the lock JSON in step with the Pkg manifest",
                 });
             };
             let dir = set_dir(workspace, set)?;
@@ -82,7 +82,7 @@ pub(super) fn check(
         }
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "julia_pkg_resolve_test checks the whole Manifest.toml; select the set without a package",
+            reason: "julia_pkg_resolve_test checks the whole Pkg manifest; select the set without a package",
         }),
     }
 }

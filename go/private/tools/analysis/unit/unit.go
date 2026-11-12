@@ -351,36 +351,91 @@ func run(tool string, analyzers []*analysis.Analyzer, opts Options, args []strin
 		return 1, err
 	}
 	defer os.RemoveAll(dir)
-	report := filepath.Join(dir, "report.json")
 	id := cfg.ID
 	if id == "" {
 		id = cfg.ImportPath
 	}
-	vetx, importMap, err := vetxForImports(&cfg, files, dir)
+	internal, external := splitExternal(files)
+	merged := map[string]json.RawMessage{}
+	passes := []pass{{id: id, importPath: cfg.ImportPath, files: internal, vetxOnly: cfg.VetxOnly, vetxOutput: cfg.VetxOutput}}
+	if len(external) > 0 && !cfg.VetxOnly {
+		passes = append(passes, pass{id: id + "_test", importPath: cfg.ImportPath + "_test", files: external})
+	}
+	for i, p := range passes {
+		if len(p.files) == 0 {
+			continue
+		}
+		passDir := filepath.Join(dir, fmt.Sprint(i))
+		if err := os.Mkdir(passDir, 0o755); err != nil {
+			return 1, err
+		}
+		byAnalyzer, msg, err := analyze(&cfg, p, extra, passDir)
+		if err != nil {
+			return 1, err
+		}
+		if msg != "" {
+			return 0, emitError(*out, stdout, &cfg, tool, msg)
+		}
+		merged = mergeDiagnostics(merged, byAnalyzer)
+	}
+	owned := filterOwned(map[string]map[string]json.RawMessage{cfg.ImportPath: merged}, cfg.OwnedFiles)
+	if opts.Filter != nil {
+		owned = opts.Filter(&cfg, owned)
+	}
+	return 0, emit(*out, stdout, &cfg, owned)
+}
+
+type pass struct {
+	id         string
+	importPath string
+	files      []string
+	vetxOnly   bool
+	vetxOutput string
+}
+
+func splitExternal(files []string) ([]string, []string) {
+	var internal, external []string
+	fset := token.NewFileSet()
+	for _, path := range files {
+		if strings.HasSuffix(path, "_test.go") {
+			f, err := parser.ParseFile(fset, path, nil, parser.PackageClauseOnly)
+			if err == nil && strings.HasSuffix(f.Name.Name, "_test") {
+				external = append(external, path)
+				continue
+			}
+		}
+		internal = append(internal, path)
+	}
+	return internal, external
+}
+
+func analyze(cfg *Config, p pass, extra []string, dir string) (map[string]json.RawMessage, string, error) {
+	report := filepath.Join(dir, "report.json")
+	vetx, importMap, err := vetxForImports(cfg, p.files, dir)
 	if err != nil {
-		return 0, emitError(*out, stdout, &cfg, tool, err.Error())
+		return nil, err.Error(), nil
 	}
 	inner := checkerConfig{
-		ID: id, Compiler: "gc", ImportPath: cfg.ImportPath, GoVersion: cfg.GoVersion,
-		GoFiles: files, ImportMap: importMap, PackageFile: cfg.PackageFile,
-		Standard: cfg.Standard, PackageVetx: vetx, VetxOnly: cfg.VetxOnly,
-		VetxOutput: cfg.VetxOutput, Stdout: report,
+		ID: p.id, Compiler: "gc", ImportPath: p.importPath, GoVersion: cfg.GoVersion,
+		GoFiles: p.files, ImportMap: importMap, PackageFile: cfg.PackageFile,
+		Standard: cfg.Standard, PackageVetx: vetx, VetxOnly: p.vetxOnly,
+		VetxOutput: p.vetxOutput, Stdout: report,
 	}
 	encoded, err := json.Marshal(inner)
 	if err != nil {
-		return 1, err
+		return nil, "", err
 	}
 	cfgPath := filepath.Join(dir, "unit.cfg")
 	if err := os.WriteFile(cfgPath, encoded, 0o644); err != nil {
-		return 1, err
+		return nil, "", err
 	}
 	payload, err := json.Marshal(childPayload{Extra: extra, GOOS: cfg.GOOS, GOARCH: cfg.GOARCH})
 	if err != nil {
-		return 1, err
+		return nil, "", err
 	}
 	exe, err := os.Executable()
 	if err != nil {
-		return 1, err
+		return nil, "", err
 	}
 	var errBuf bytes.Buffer
 	cmd := exec.Command(exe, "-json", cfgPath)
@@ -391,28 +446,48 @@ func run(tool string, analyzers []*analysis.Analyzer, opts Options, args []strin
 		if strings.TrimSpace(msg) == "" {
 			msg = err.Error()
 		}
-		return 0, emitError(*out, stdout, &cfg, tool, msg)
+		return nil, msg, nil
 	}
 	data, err := os.ReadFile(report)
 	if err != nil || len(bytes.TrimSpace(data)) == 0 {
-		if cfg.VetxOnly {
-			return 0, emit(*out, stdout, &cfg, nil)
+		if p.vetxOnly {
+			return nil, "", nil
 		}
-		return 0, emitError(*out, stdout, &cfg, tool, "analysis produced no report: "+errBuf.String())
+		return nil, "analysis produced no report: " + errBuf.String(), nil
 	}
 	var tree map[string]map[string]json.RawMessage
 	if err := json.Unmarshal(data, &tree); err != nil {
-		return 0, emitError(*out, stdout, &cfg, tool, "unreadable report: "+err.Error())
+		return nil, "unreadable report: " + err.Error(), nil
 	}
-	renamed := map[string]map[string]json.RawMessage{}
+	var merged map[string]json.RawMessage
 	for _, byAnalyzer := range tree {
-		renamed[cfg.ImportPath] = mergeTools(renamed[cfg.ImportPath], byAnalyzer)
+		merged = mergeTools(merged, byAnalyzer)
 	}
-	owned := filterOwned(renamed, cfg.OwnedFiles)
-	if opts.Filter != nil {
-		owned = opts.Filter(&cfg, owned)
+	return merged, "", nil
+}
+
+func mergeDiagnostics(dst, src map[string]json.RawMessage) map[string]json.RawMessage {
+	for name, raw := range src {
+		prev, ok := dst[name]
+		if !ok {
+			dst[name] = raw
+			continue
+		}
+		var a, b []json.RawMessage
+		if json.Unmarshal(raw, &b) != nil {
+			dst[name] = raw
+			continue
+		}
+		if json.Unmarshal(prev, &a) != nil {
+			continue
+		}
+		joined, err := json.Marshal(append(a, b...))
+		if err != nil {
+			continue
+		}
+		dst[name] = joined
 	}
-	return 0, emit(*out, stdout, &cfg, owned)
+	return dst
 }
 
 func mergeTools(dst, src map[string]json.RawMessage) map[string]json.RawMessage {

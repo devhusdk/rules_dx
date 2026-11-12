@@ -116,8 +116,10 @@ def _go_analysis_impl(target, ctx):
     package_file = {}
     import_map = {}
     exports = []
+    own = []
     for dep in archive.direct:
         if is_test and dep.data.label == own_label:
+            own.append(dep.data)
             continue
         for data in dep.transitive.to_list():
             if not data.importmap or data.export_file == None:
@@ -126,6 +128,13 @@ def _go_analysis_impl(target, ctx):
             exports.append(data.export_file)
             if data.importpath and data.importpath != data.importmap:
                 import_map[data.importpath] = data.importmap
+    for data in own:
+        if not data.importmap or data.export_file == None or data.importpath == importpath + "_test":
+            continue
+        package_file[data.importmap] = data.export_file.path
+        exports.append(data.export_file)
+        if data.importpath and data.importpath != data.importmap:
+            import_map[data.importpath] = data.importmap
     stdlib = ctx.attr._go_stdlib[GoStdLib]
     toolchain = ctx.toolchains[GO_TOOLCHAIN_TYPE]
     config = {

@@ -48,6 +48,7 @@ their license texts in `dx_closure/licenses`:
 | Library | Package | License |
 | --- | --- | --- |
 | `libgmp.so.10` | `libgmp10` 6.1.2 | LGPL-3.0-or-later OR GPL-2.0-or-later |
+| `libgmp.a` | `libgmp-dev` 6.1.2 | LGPL-3.0-or-later OR GPL-2.0-or-later |
 | `libtinfo.so.6` | `libtinfo6` 6.1 | X11 |
 
 `haskell_binary` and `haskell_test` link GMP dynamically and carry

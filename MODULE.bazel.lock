@@ -511,7 +511,7 @@
           "REPO_MAPPING:rules_cc++compatibility_proxy+cc_compatibility_proxy,rules_cc rules_cc+",
           "REPO_MAPPING:rules_cuda+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_cuda+,rules_cc rules_cc+",
-          "FILE:@@//cuda/private/toolchain/pins.json 29f5fbf13d63828112677edef9ef7098d067f15cd2bc1eb341caf25dfb6e8960",
+          "FILE:@@//cuda/private/toolchain/pins.json 34706d8bdb67dec1955b07a20a8016a9f3f6a5907e59408b2a82e308f5d6876a",
           "REPO_MAPPING:,dx_licenses +dx_licenses+dx_licenses",
           "FILE:@@+dx_licenses+dx_licenses//accepted.json 12ec2fe138c8ab5974b6a1ee1893e4a30983cf43c38c5f73265a33b9cb335741"
         ],

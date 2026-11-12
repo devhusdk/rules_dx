@@ -5,6 +5,24 @@ load(":license.bzl", "LICENSE_IDS", "unknown_ids")
 load(":repo.bzl", "hub_repo", "pinned_archive")
 load(":toolchain.bzl", "cell_archive_rule", "cell_repo", "host_archive_rule", "pins_hub")
 
+_FILE_BUILD = """package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "file",
+    srcs = ["{path}"],
+)
+"""
+
+_JAR_BUILD = """load("@rules_java//java:defs.bzl", "java_import")
+
+package(default_visibility = ["//visibility:public"])
+
+java_import(
+    name = "jar",
+    jars = ["downloaded.jar"],
+)
+"""
+
 def _dx_pins_impl(mctx):
     archives = {}
     data = {}
@@ -34,11 +52,24 @@ def _dx_pins_impl(mctx):
         for tag in mod.tags.archive:
             pin = json.decode(mctx.read(tag.pins))["archives"][tag.key or tag.name]
             archives[tag.name] = pin
+            kind = pin.get("type", "")
+            files = {"BUILD.bazel": mctx.read(tag.build)} if tag.build else {}
+            download_as = ""
+            if kind == "file":
+                download_as = "file/" + pin.get("path", "downloaded")
+                files["file/BUILD.bazel"] = _FILE_BUILD.format(path = pin.get("path", "downloaded"))
+            elif kind == "jar":
+                download_as = "jar/downloaded.jar"
+                files["jar/BUILD.bazel"] = _JAR_BUILD
+            elif kind:
+                fail("{}: type '{}' is not file or jar".format(tag.name, kind))
             pinned_archive(
                 name = tag.name,
                 crlf = tag.crlf,
+                download_as = download_as,
                 dropped = tag.dropped,
-                files = {"BUILD.bazel": mctx.read(tag.build)} if tag.build else {},
+                executable = pin.get("executable", False),
+                files = files,
                 patches = tag.patches,
                 required = tag.required,
                 sha256 = pin["sha256"],
@@ -61,7 +92,7 @@ dx_pins = module_extension(
                 "key": attr.string(doc = "Entry under archives; defaults to name."),
                 "name": attr.string(mandatory = True, doc = "Repository name."),
                 "patches": attr.label_list(doc = "Patches applied in order with strip 1."),
-                "pins": attr.label(mandatory = True, allow_single_file = True, doc = "JSON file with an archives object."),
+                "pins": attr.label(mandatory = True, allow_single_file = True, doc = "JSON file with an archives object; an entry with type file or jar is downloaded without extraction."),
                 "required": attr.string_list(doc = "Paths the archive must ship."),
             },
         ),

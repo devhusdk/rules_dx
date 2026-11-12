@@ -801,6 +801,59 @@ dx_pins.data(
     pins = "//cuda/private/toolchain:pins.json",
 )
 dx_pins.archive(
+    name = "dx_jazzer",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "dx_jazzer_api",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "dx_jmh_asm",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "dx_jmh_commons_math3",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "dx_jmh_core",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "dx_jmh_generator_annprocess",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "dx_jmh_generator_asm",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "dx_jmh_generator_bytecode",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "dx_jmh_generator_reflection",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "dx_jmh_jopt_simple",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "dx_thrift_commons_lang3",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "dx_thrift_slf4j",
+    pins = "//java:pins.json",
+)
+dx_pins.archive(
+    name = "cuda_redistrib_json",
+    key = "redist_manifest",
+    pins = "//cuda/private/toolchain:pins.json",
+)
+dx_pins.archive(
     name = "dx_rules_dart_pub",
     dropped = ["MODULE.bazel"],
     key = "rules_dart",
@@ -879,6 +932,7 @@ dx_pins.archive(
 )
 use_repo(
     dx_pins,
+    "cuda_redistrib_json",
     "dx_coreutils",
     "dx_coreutils__linux_arm64",
     "dx_coreutils__linux_x86_64",
@@ -886,6 +940,16 @@ use_repo(
     "dx_coreutils__macos_x86_64",
     "dx_coreutils__windows_arm64",
     "dx_coreutils__windows_x86_64",
+    "dx_jazzer",
+    "dx_jazzer_api",
+    "dx_jmh_asm",
+    "dx_jmh_commons_math3",
+    "dx_jmh_core",
+    "dx_jmh_generator_annprocess",
+    "dx_jmh_generator_asm",
+    "dx_jmh_generator_bytecode",
+    "dx_jmh_generator_reflection",
+    "dx_jmh_jopt_simple",
     "dx_ldoc",
     "dx_libfuzzer_dotnet",
     "dx_luacov",
@@ -906,6 +970,8 @@ use_repo(
     "dx_rules_flutter_pub",
     "dx_sorbet",
     "dx_swift_format_macos_arm64",
+    "dx_thrift_commons_lang3",
+    "dx_thrift_slf4j",
     "nfpm_linux_arm64",
     "nfpm_linux_x86_64",
     "nfpm_macos_arm64",
@@ -2496,13 +2562,6 @@ use_repo(nested_repository_cache, "nested_cache_harness")
 _http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
 _http_file(
-    name = "cuda_redistrib_json",
-    dev_dependency = True,
-    sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
-    urls = ["https://developer.download.nvidia.com/compute/cuda/redist/redistrib_13.4.2.json"],
-)
-
-_http_file(
     name = "dx_jq_linux_x86_64",
     dev_dependency = True,
     downloaded_file_path = "jq",
@@ -2669,82 +2728,6 @@ use_repo(
     "dx_flatbuffers_java",
     "dx_flatbuffers_rust",
     "dx_thrift",
-)
-
-_http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
-
-_http_jar(
-    name = "dx_thrift_commons_lang3",
-    sha256 = "4eeeae8d20c078abb64b015ec158add383ac581571cddc45c68f0c9ae0230720",
-    urls = ["https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar"],
-)
-
-_http_jar(
-    name = "dx_thrift_slf4j",
-    sha256 = "7b751d952061954d5abfed7181c1f645d336091b679891591d63329c622eb832",
-    urls = ["https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar"],
-)
-
-# Jazzer 0.30.0 from Maven Central: the libFuzzer driver for java_fuzz_test.
-_http_jar(
-    name = "dx_jazzer",
-    sha256 = "8bdeac017bcd3d9473c9772fac62111c4df830188571def1d001a1b743a62b2f",
-    urls = ["https://repo1.maven.org/maven2/com/code-intelligence/jazzer/0.30.0/jazzer-0.30.0.jar"],
-)
-
-_http_jar(
-    name = "dx_jazzer_api",
-    sha256 = "d36a725cfedcb7f3590206866cc2836f84d12afccf7c98912f5c720e4d2208d7",
-    urls = ["https://repo1.maven.org/maven2/com/code-intelligence/jazzer-api/0.30.0/jazzer-api-0.30.0.jar"],
-)
-
-# JMH 1.37 from Maven Central for java_bench, kotlin_bench and scala_bench.
-_http_jar(
-    name = "dx_jmh_core",
-    sha256 = "dc0eaf2bbf0036a70b60798c785d6e03a9daf06b68b8edb0f1ba9eb3421baeb3",
-    urls = ["https://repo1.maven.org/maven2/org/openjdk/jmh/jmh-core/1.37/jmh-core-1.37.jar"],
-)
-
-_http_jar(
-    name = "dx_jmh_generator_annprocess",
-    sha256 = "6a5604b5b804e0daca1145df1077609321687734a8b49387e49f10557c186c77",
-    urls = ["https://repo1.maven.org/maven2/org/openjdk/jmh/jmh-generator-annprocess/1.37/jmh-generator-annprocess-1.37.jar"],
-)
-
-_http_jar(
-    name = "dx_jmh_jopt_simple",
-    sha256 = "df26cc58f235f477db07f753ba5a3ab243ebe5789d9f89ecf68dd62ea9a66c28",
-    urls = ["https://repo1.maven.org/maven2/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar"],
-)
-
-_http_jar(
-    name = "dx_jmh_commons_math3",
-    sha256 = "1e56d7b058d28b65abd256b8458e3885b674c1d588fa43cd7d1cbb9c7ef2b308",
-    urls = ["https://repo1.maven.org/maven2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar"],
-)
-
-_http_jar(
-    name = "dx_jmh_generator_bytecode",
-    sha256 = "619b3d15a5e8bfc4ec49d3b7a64dbed053a0ca8625820a49a4f869d1b8c71d09",
-    urls = ["https://repo1.maven.org/maven2/org/openjdk/jmh/jmh-generator-bytecode/1.37/jmh-generator-bytecode-1.37.jar"],
-)
-
-_http_jar(
-    name = "dx_jmh_generator_reflection",
-    sha256 = "a0421dbbe5e77690df2dfdef98618b62852d816bbb814c5cbd0b4d464bff32b0",
-    urls = ["https://repo1.maven.org/maven2/org/openjdk/jmh/jmh-generator-reflection/1.37/jmh-generator-reflection-1.37.jar"],
-)
-
-_http_jar(
-    name = "dx_jmh_generator_asm",
-    sha256 = "de29bacc5c3a413215800f57de9017fdda1b3cb6e5359ea0c84ebe13c9610222",
-    urls = ["https://repo1.maven.org/maven2/org/openjdk/jmh/jmh-generator-asm/1.37/jmh-generator-asm-1.37.jar"],
-)
-
-_http_jar(
-    name = "dx_jmh_asm",
-    sha256 = "0df97574914aee92fd349d0cb4e00f3345d45b2c239e0bb50f0a90ead47888e0",
-    urls = ["https://repo1.maven.org/maven2/org/ow2/asm/asm/9.0/asm-9.0.jar"],
 )
 
 powershell = use_extension("//powershell:extensions.bzl", "powershell")

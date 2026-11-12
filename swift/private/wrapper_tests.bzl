@@ -35,12 +35,15 @@ def _coverage_impl(ctx):
     run_env = target[RunEnvironmentInfo].environment
     script = run_env.get("CC_CODE_COVERAGE_SCRIPT", "")
     asserts.true(env, script.removesuffix(".exe").endswith("/tools/coverage/collect/collect_native"), "CC_CODE_COVERAGE_SCRIPT=" + script)
+    paths = [f.path for f in target[DefaultInfo].default_runfiles.files.to_list()]
     for key, tool in [("LLVM_COV", "llvm-cov"), ("LLVM_PROFDATA", "llvm-profdata")]:
         value = run_env.get(key, "")
         if ctx.attr.tools_from:
             asserts.true(env, ctx.attr.tools_from in value, key + " is not from " + ctx.attr.tools_from + ": " + value)
         else:
             asserts.true(env, value.removesuffix(".exe").endswith(tool), key + "=" + value)
+        if value.endswith("_macos"):
+            asserts.true(env, value + ".launch" in paths, key + " launch descriptor is not in the test runfiles: " + value + ".launch")
     asserts.equals(env, "test_binary", run_env.get("DX_COVERAGE_CLANG_OBJECTS"))
     return analysistest.end(env)
 

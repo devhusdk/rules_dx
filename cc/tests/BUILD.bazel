@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":resolved_toolchain.bzl", "APPLE_SUPPORT_TOOLCHAIN_ID", "resolved_cc_toolchain")
 
 # gazelle:lang rust,dx_dispatch
 
@@ -120,7 +121,10 @@ rust_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "resolved_toolchain.bzl",
+    ],
     tags = ["corpus"],
 )
 
@@ -142,5 +146,16 @@ test_suite(
         "//cc/tests/fixtures/no_srcs:app_sources_test",
         "//cc/tests/fixtures/no_srcs:x_test",
         "//cc/tests/fixtures/strict_generation:strict_test",
+    ],
+)
+
+# apple_support's rule-based toolchain reports its label as toolchain_id; see #12105.
+resolved_cc_toolchain(
+    name = "macos_arm64_cc",
+    testonly = True,
+    expected = APPLE_SUPPORT_TOOLCHAIN_ID,
+    target_compatible_with = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:macos",
     ],
 )

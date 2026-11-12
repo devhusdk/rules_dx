@@ -615,6 +615,8 @@ register_toolchains("//cc/private/toolchains:msvc_windows_arm64")
 # The guard must stay last among the MSVC entries.
 register_toolchains("//cc/private/toolchains:msvc_unsupported")
 
+# On a macOS exec the Xcode toolchain wins for Apple targets, including macos_*.
+# @llvm with @macos_sdk serves macOS targets only from Linux and Windows execs.
 # Swift on macOS selects this toolchain through its wrapper transition.
 apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
 use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")

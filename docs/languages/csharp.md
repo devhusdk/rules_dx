@@ -110,10 +110,7 @@ Lockfiles:
 - Windows arm64
 - Windows x86_64
 
-| Cell | Format and lint |
-| --- | --- |
-| `linux_x86_64` | Supported |
-| Other cells | Not supported |
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
 ## Dependencies
 

@@ -39,9 +39,9 @@ dart_test(
     main = "test/ledger_test.dart",
     deps = [
         ":ledger",
+        "//dart:runfiles",
         "//dart/tests/fixtures/dart-app/model",
         "@dx_dart_deps//:test",
-        "@rules_dart//dart/runfiles",
     ],
 )
 

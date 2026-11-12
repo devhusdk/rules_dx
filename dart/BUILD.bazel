@@ -18,6 +18,12 @@ real_source_target(
     tags = ["corpus"],
 )
 
+alias(
+    name = "runfiles",
+    actual = "@rules_dart//dart/runfiles",
+    visibility = ["//visibility:public"],
+)
+
 exports_files([
     "README.md",
     "defs.bzl",

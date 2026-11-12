@@ -34,7 +34,7 @@ dart_binary(
     main = "bin/inventory.dart",
     deps = [
         ":inventory_cli",
-        "@rules_dart//dart/runfiles",
+        "//dart:runfiles",
     ],
 )
 
@@ -44,8 +44,8 @@ dart_test(
     data = [":inventory"],
     main = "test/exit_codes_test.dart",
     deps = [
+        "//dart:runfiles",
         "@dx_dart_deps//:test",
-        "@rules_dart//dart/runfiles",
     ],
 )
 

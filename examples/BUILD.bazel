@@ -32,9 +32,18 @@ test_suite(
     name = "shared_rust_tests",
     tests = [
         "//examples/shared-rust:asset_test",
+        "//examples/shared-rust:bad_asset_path_test",
+        "//examples/shared-rust:browser_test",
+        "//examples/shared-rust:interface_test",
+        "//examples/shared-rust:missing_asset_test",
+        "//examples/shared-rust:missing_interface_test",
         "//examples/shared-rust:native_test",
+        "//examples/shared-rust:release_test",
         "//examples/shared-rust:tasks_core_test",
+        "//examples/shared-rust:tasks_deploy_verify",
+        "//examples/shared-rust:tasks_ffi_test",
         "//examples/shared-rust:tasks_model_test",
+        "//examples/shared-rust:wasi_test",
     ],
 )
 

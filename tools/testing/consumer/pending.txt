@@ -6,7 +6,6 @@ fixture env
 fixture flutter
 fixture fortran
 fixture msix
-override archive_override lua
 override archive_override rules_flutter
 override archive_override rules_py
 override override_repo androidsdk

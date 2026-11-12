@@ -1490,10 +1490,6 @@ register_toolchains("//core/quality:busybox_sh_linux_x86_64")
 
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.5.0")
-single_version_override(
-    module_name = "lua",
-    version = "5.5.0",
-)
 
 lua = use_extension("//lua:extensions.bzl", "lua")
 use_repo(lua, "dx_lua_toolchains")

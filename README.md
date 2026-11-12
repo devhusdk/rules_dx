@@ -20,12 +20,6 @@ Bazel via Bazelisk is required. In an empty directory, create three files.
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-`BUILD.bazel`:
-
-```starlark
-# Empty on purpose: rules_rust crate_universe needs a root package.
-```
-
 Then:
 
 ```sh

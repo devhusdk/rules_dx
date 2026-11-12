@@ -90,6 +90,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "build_script_cc_env.bzl",
+        "crate_universe.bzl",
         "defs.bzl",
         "edition.bzl",
         "pdb.bzl",

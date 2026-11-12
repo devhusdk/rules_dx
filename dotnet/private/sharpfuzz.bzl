@@ -1,7 +1,7 @@
 """SharpFuzz instrumentation and the `<name>` harness plus `<name>_run` runner shared by the .NET fuzz macros."""
 
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
-load("@rules_dx//core:fuzz.bzl", "dx_fuzz_target")
+load("//core:fuzz.bzl", "dx_fuzz_target")
 
 SHARPFUZZ = [
     Label("@paket.main//sharpfuzz"),
@@ -68,7 +68,7 @@ dx_sharpfuzz_aspect = aspect(
     attr_aspects = ["deps", "upstream"],
     attrs = {
         "_instrument": attr.label(
-            default = Label("@rules_dx//dotnet/private/fuzz:instrument"),
+            default = Label("//dotnet/private/fuzz:instrument"),
             executable = True,
             cfg = "exec",
         ),
@@ -127,7 +127,7 @@ def sharpfuzz_fuzz(name, binary, srcs, deps, visibility, tags, kwargs):
         name,
         binary,
         engine = "dotnet",
-        fuzz = Label("@rules_dx//dotnet/private/fuzz:libfuzzer_dotnet"),
+        fuzz = Label("//dotnet/private/fuzz:libfuzzer_dotnet"),
         harness = ":" + name,
         srcs = srcs,
         deps = instrumented + SHARPFUZZ,

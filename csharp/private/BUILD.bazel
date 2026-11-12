@@ -1,7 +1,7 @@
 # gazelle:exclude BenchMain.cs
-load("@rules_dx//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("@rules_dx//core:defs.bzl", "expect_equal")
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":kwargs.bzl", "csharp_tfm_forward_kwargs", "csharp_tfm_with_defaults")
 load(":proto.bzl", "pascal_case")
 
@@ -13,13 +13,10 @@ package(default_visibility = [
 
 exports_files([
     "BenchMain.cs",
-    "benchmarkdotnet.bzl",
     "coverage_check.bzl",
     "defs.bzl",
     "kwargs.bzl",
     "proto.bzl",
-    "sharpfuzz.bzl",
-    "sharpfuzz_check.bzl",
 ])
 
 dx_wrapper_contract_tests(
@@ -151,9 +148,6 @@ real_source_target(
         "coverage_check.bzl",
         "defs.bzl",
         "kwargs.bzl",
-        "sharpfuzz.bzl",
-        "sharpfuzz_check.bzl",
-        "benchmarkdotnet.bzl",
         "proto.bzl",
     ],
     tags = ["corpus"],

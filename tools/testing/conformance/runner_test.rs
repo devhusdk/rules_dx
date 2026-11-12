@@ -159,6 +159,58 @@ fn subject_matches_mode() {
                 "lines {missed:?} of {text} never ran:\n{report}"
             );
         }
+        "lock" => {
+            assert_eq!(
+                run.status.code(),
+                Some(0),
+                "lock subject failed:\n{}",
+                run.combined()
+            );
+            let stdout = run.stdout.replace("\r\n", "\n");
+            assert_eq!(stdout.trim_end_matches('\n'), text, "unexpected output");
+            let lock_input = |var: &str| {
+                let key = std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set"));
+                dx_testing::rlocation(&key).expect("lock input must resolve from runfiles")
+            };
+            let depcheck = lock_input("DX_CONFORMANCE_DEPCHECK");
+            let ecosystem = std::env::var("DX_CONFORMANCE_ECOSYSTEM").expect("ecosystem");
+            let package = std::env::var("DX_CONFORMANCE_PACKAGE").expect("package");
+            let manifest = lock_input("DX_CONFORMANCE_MANIFEST");
+            let check = |lock: &std::path::Path| {
+                let (manifest, lock) = (
+                    manifest.to_string_lossy().into_owned(),
+                    lock.to_string_lossy().into_owned(),
+                );
+                let args = [
+                    "consistency",
+                    "--ecosystem",
+                    ecosystem.as_str(),
+                    "--manifest",
+                    manifest.as_str(),
+                    "--lock",
+                    lock.as_str(),
+                ];
+                dx_testing::run(&depcheck, &args, &[]).expect("depcheck must execute")
+            };
+            let fresh = check(&lock_input("DX_CONFORMANCE_LOCK"));
+            assert!(
+                fresh.status.success(),
+                "lock check rejected the lockfile:\n{}",
+                fresh.combined()
+            );
+            let stale = check(&lock_input("DX_CONFORMANCE_STALE"));
+            assert!(
+                !stale.status.success(),
+                "lock check accepted the stale lockfile:\n{}",
+                stale.combined()
+            );
+            let line = format!("missing lock entry for '{package}'");
+            assert!(
+                stale.combined().contains(&line),
+                "missing {line:?} in:\n{}",
+                stale.combined()
+            );
+        }
         "fail" => {
             assert!(
                 !run.status.success(),

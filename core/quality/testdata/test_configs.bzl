@@ -1,6 +1,6 @@
 """Build settings of every quality test configuration."""
 
-MAX_TEST_CONFIGS = 25
+MAX_TEST_CONFIGS = 27
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 
@@ -77,12 +77,15 @@ TEST_CONFIGS = {
     "cc_tidy_gcc": _config(_CC_TIDY, compiler = "gcc"),
     "cc_tidy_msvc": _config(_CC_TIDY, compiler = "msvc"),
     "consumer_cc_clang_tidy": _config("//core/quality/tests/fixtures/consumer_policy:cc_clang_tidy_policy"),
+    "consumer_python_ruff": _config("//core/quality/tests/fixtures/consumer_policy:python_ruff_policy"),
     "consumer_format_off": _config("//core/quality/tests/fixtures/consumer_policy:format_off_policy"),
     "shared": _config(_SHARED),
     "shared_standard": _config(_SHARED, profile = "standard"),
     "default": _config("//config:default_workspace_policy"),
+    "default_standard": _config("//config:default_workspace_policy", profile = "standard"),
     "zig_owned": _config(_ZIG),
     "generated": _config("//core/quality/tests/fixtures/generated_policy:policy"),
+    "strict_generated_standard": _config("//core/quality/tests/fixtures/consumer_policy:strict_generated_policy", profile = "standard"),
     "iac_tiers": _config("//core/quality/testdata/iac_tiers:policy"),
     "objc": _config("//core/quality/testdata/clang_syntax:objc_policy"),
     "prose_dirty": _config("//core/quality/testdata/prose_dirty:policy"),

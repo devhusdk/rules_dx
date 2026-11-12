@@ -23,6 +23,7 @@ ClangSyntaxInfo = provider(
         "sources": "list of string: source path (execroot relative) per replayed action.",
         "statuses": "list of File: compiler exit code, one per replayed action.",
         "tidy_diagnostics": "list of File: clang-tidy output, one per replayed action.",
+        "tidy_inputs": "list of depset of File: the clang-tidy action inputs, one per clang-tidy action.",
         "tidy_error": "string: why clang-tidy cannot run on this target, empty when a clang_tidy config is bound.",
     },
 )
@@ -292,6 +293,7 @@ def _clang_syntax_impl(target, ctx):
     diagnostics = []
     statuses = []
     tidy_diagnostics = []
+    tidy_inputs = []
     drivers = []
     toolchain_env = _toolchain_compile_env(ctx) if identity.driver == "msvc" else {}
     cuda_indices = [i for i in range(len(actions)) if actions[i].mnemonic == "CudaCompile"]
@@ -312,12 +314,14 @@ def _clang_syntax_impl(target, ctx):
                 _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
                 tidy_diagnostics.append(tidy_log)
                 continue
+            tidy_action_inputs = depset([tidy], transitive = [action.inputs, headers, tidy_closure])
+            tidy_inputs.append(tidy_action_inputs)
             ctx.actions.run(
                 mnemonic = "ClangTidy",
                 progress_message = "clang-tidy %{label}: " + src,
                 executable = ctx.executable._capture,
                 arguments = _tidy_capture(tidy_log) + tidy_argv.argv,
-                inputs = depset([tidy], transitive = [action.inputs, headers, tidy_closure]),
+                inputs = tidy_action_inputs,
                 outputs = [tidy_log],
                 env = action.env,
                 resource_set = dx_heavy_resources,
@@ -358,12 +362,14 @@ def _clang_syntax_impl(target, ctx):
             if tidy_argv.error != "":
                 _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
             else:
+                tidy_action_inputs = depset([tidy], transitive = [all_inputs, tidy_closure])
+                tidy_inputs.append(tidy_action_inputs)
                 ctx.actions.run(
                     mnemonic = "ClangTidy",
                     progress_message = "clang-tidy %{label}: " + src,
                     executable = ctx.executable._capture,
                     arguments = _tidy_capture(tidy_log) + tidy_argv.argv,
-                    inputs = depset([tidy], transitive = [all_inputs, tidy_closure]),
+                    inputs = tidy_action_inputs,
                     outputs = [tidy_log],
                     env = base_env,
                     execution_requirements = requirements,
@@ -378,7 +384,7 @@ def _clang_syntax_impl(target, ctx):
         statuses.append(status)
         drivers.append(driver)
     return [
-        ClangSyntaxInfo(argv = argvs, envs = envs, inputs = inputs, sources = sources, diagnostics = diagnostics, drivers = drivers, statuses = statuses, tidy_diagnostics = tidy_diagnostics, tidy_error = tidy_error),
+        ClangSyntaxInfo(argv = argvs, envs = envs, inputs = inputs, sources = sources, diagnostics = diagnostics, drivers = drivers, statuses = statuses, tidy_diagnostics = tidy_diagnostics, tidy_error = tidy_error, tidy_inputs = tidy_inputs),
         OutputGroupInfo(clang_syntax = depset(diagnostics + statuses + drivers), clang_tidy = depset(tidy_diagnostics)),
     ]
 

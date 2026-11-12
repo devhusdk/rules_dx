@@ -1,7 +1,7 @@
 """Analysis proofs for the consumer-selected workspace policy."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//cc/private:clang_syntax.bzl", "clang_syntax_aspect")
+load("//cc/private:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load(
     "//core/quality/testdata:all_languages.bzl",
     "real_cc_format_aspect",
@@ -127,6 +127,8 @@ load(
 load("//core/quality/testdata:config_subject.bzl", "config_attr", "config_subject_rule", "config_transition")
 
 CONSUMER_POLICY_CONFIGS = ["consumer_cc_clang_tidy", "consumer_format_off", "default", "generated", "shared"]
+
+POLICY_CONFIG_TEST_CONFIGS = ["consumer_python_ruff", "default_standard", "strict_generated_standard"]
 
 _ASPECTS_BY_RESULT = {
     "format-cc": real_cc_format_aspect,
@@ -325,11 +327,10 @@ def _result_keys(expected_dx_results, absent_keys):
     return sorted(keys) or ["lint-text"]
 
 def _ruff_config_inputs(env):
-    paths = []
-    for action in analysistest.target_under_test(env).actions:
-        if action.mnemonic.startswith("DxRealQuality"):
-            paths += [f.short_path for f in action.inputs.to_list() if f.basename == "ruff.toml"]
-    return sorted(paths)
+    inputs = analysistest.target_under_test(env)[OutputGroupInfo].dx_inputs.to_list()
+    return sorted([f.short_path for f in inputs if f.basename == "ruff.toml"])
+
+_ruff_subject = config_subject_rule([real_python_lint_aspect], [OutputGroupInfo])
 
 def _policy_config_impl(ctx):
     env = analysistest.begin(ctx)
@@ -339,23 +340,20 @@ def _policy_config_impl(ctx):
 _policy_config_test = analysistest.make(
     _policy_config_impl,
     attrs = {"expected_config": attr.string(mandatory = True)},
-    config_settings = {str(Label("//config:workspace")): str(Label("//core/quality/tests/fixtures/consumer_policy:python_ruff_policy"))},
-    extra_target_under_test_aspects = [real_python_lint_aspect],
 )
+
+_tidy_subject = config_subject_rule([clang_syntax_aspect], [ClangSyntaxInfo])
 
 def _policy_clang_tidy_impl(ctx):
     env = analysistest.begin(ctx)
     tidy_inputs = []
-    for action in analysistest.target_under_test(env).actions:
-        if action.mnemonic == "ClangTidy":
-            tidy_inputs += [f.basename for f in action.inputs.to_list()]
+    for inputs in analysistest.target_under_test(env)[ClangSyntaxInfo].tidy_inputs:
+        tidy_inputs += [f.basename for f in inputs.to_list()]
     asserts.true(env, ".clang-tidy" in tidy_inputs, "want .clang-tidy in the clang-tidy inputs, got " + str(tidy_inputs))
     return analysistest.end(env)
 
 _policy_clang_tidy_test = analysistest.make(
     _policy_clang_tidy_impl,
-    config_settings = {str(Label("//config:workspace")): str(Label("//core/quality/tests/fixtures/consumer_policy:cc_clang_tidy_policy"))},
-    extra_target_under_test_aspects = [clang_syntax_aspect],
 )
 
 def _policy_generated_impl(ctx):
@@ -370,11 +368,9 @@ _generated_subject = config_subject_rule([real_typecheck_probe_aspect])
 
 def _tier_base_inputs(env):
     paths = {}
-    for action in analysistest.target_under_test(env).actions:
-        if action.mnemonic.startswith("DxRealQuality"):
-            for f in action.inputs.to_list():
-                if f.short_path.startswith("core/quality/tiers/ruff/") or f.short_path.startswith("core/quality/tiers/ty/"):
-                    paths[f.short_path] = True
+    for f in analysistest.target_under_test(env)[OutputGroupInfo].dx_inputs.to_list():
+        if f.short_path.startswith("core/quality/tiers/ruff/") or f.short_path.startswith("core/quality/tiers/ty/"):
+            paths[f.short_path] = True
     return sorted(paths.keys())
 
 def _tier_base_impl(ctx):
@@ -385,80 +381,67 @@ def _tier_base_impl(ctx):
     return analysistest.end(env)
 
 _TIER_BASE_ATTRS = {"expected_profile": attr.string(mandatory = True)}
-_PYTHON_ASPECTS = [real_python_lint_aspect, real_python_typecheck_aspect]
-
-_tier_base_default_test = analysistest.make(
-    _tier_base_impl,
-    attrs = _TIER_BASE_ATTRS,
-    config_settings = {
-        str(Label("//config:config_profile")): "standard",
-        str(Label("//config:workspace")): str(Label("//config:default_workspace_policy")),
-    },
-    extra_target_under_test_aspects = _PYTHON_ASPECTS,
-)
-
-_tier_base_default_strict_test = analysistest.make(
-    _tier_base_impl,
-    attrs = _TIER_BASE_ATTRS,
-    config_settings = {
-        str(Label("//config:config_profile")): "strict",
-        str(Label("//config:workspace")): str(Label("//config:default_workspace_policy")),
-    },
-    extra_target_under_test_aspects = _PYTHON_ASPECTS,
-)
-
-# The workspace profile stays standard, so strict bases can only come from the generated policy.
-_tier_base_generated_strict_test = analysistest.make(
-    _tier_base_impl,
-    attrs = _TIER_BASE_ATTRS,
-    config_settings = {
-        str(Label("//config:config_profile")): "standard",
-        str(Label("//config:workspace")): str(Label("//core/quality/tests/fixtures/consumer_policy:strict_generated_policy")),
-    },
-    extra_target_under_test_aspects = _PYTHON_ASPECTS,
-)
+_tier_base_subject = config_subject_rule([real_python_lint_aspect, real_python_typecheck_aspect], [OutputGroupInfo])
+_tier_base_test = analysistest.make(_tier_base_impl, attrs = _TIER_BASE_ATTRS)
 
 def policy_config_tests(name):
     """Proves policy configs bind a target, aspect_hints override them, tier bases follow the profile and a rendered policy analyzes."""
     pkg = "core/quality/tests/fixtures/consumer_policy/"
-    _policy_config_test(
-        name = name + "_policy",
-        size = "small",
-        expected_config = pkg + "ruff.toml",
-        target_under_test = "//core/quality/tests/fixtures/consumer_policy:policy_bound_py",
-    )
-    _policy_config_test(
-        name = name + "_hint",
-        size = "small",
-        expected_config = pkg + "override/ruff.toml",
-        target_under_test = "//core/quality/tests/fixtures/consumer_policy:hinted_py",
+    fixtures = "//core/quality/tests/fixtures/consumer_policy:"
+    for suffix, target, expected in [
+        ("_policy", "policy_bound_py", pkg + "ruff.toml"),
+        ("_hint", "hinted_py", pkg + "override/ruff.toml"),
+    ]:
+        _ruff_subject(
+            name = name + suffix + "_subject",
+            config = "consumer_python_ruff",
+            tags = ["manual"],
+            target = fixtures + target,
+        )
+        _policy_config_test(
+            name = name + suffix,
+            size = "small",
+            expected_config = expected,
+            target_under_test = name + suffix + "_subject",
+        )
+    _tidy_subject(
+        name = name + "_clang_tidy_subject",
+        config = "consumer_cc_clang_tidy",
+        tags = ["manual"],
+        target = fixtures + "policy_bound_c",
     )
     _policy_clang_tidy_test(
         name = name + "_clang_tidy",
         size = "small",
-        target_under_test = "//core/quality/tests/fixtures/consumer_policy:policy_bound_c",
+        target_under_test = name + "_clang_tidy_subject",
     )
     _generated_subject(
         name = name + "_generated_subject",
         config = "generated",
         tags = ["manual"],
-        target = "//core/quality/tests/fixtures/consumer_policy:policy_bound_py",
+        target = fixtures + "policy_bound_py",
     )
     _policy_generated_test(
         name = name + "_generated",
         size = "small",
         target_under_test = name + "_generated_subject",
     )
-    for suffix, test, profile in [
-        ("_tier_base_default", _tier_base_default_test, "standard"),
-        ("_tier_base_default_strict", _tier_base_default_strict_test, "strict"),
-        ("_tier_base_generated_strict", _tier_base_generated_strict_test, "strict"),
+    for suffix, config, profile in [
+        ("_tier_base_default", "default_standard", "standard"),
+        ("_tier_base_default_strict", "default", "strict"),
+        ("_tier_base_generated_strict", "strict_generated_standard", "strict"),
     ]:
-        test(
+        _tier_base_subject(
+            name = name + suffix + "_subject",
+            config = config,
+            tags = ["manual"],
+            target = fixtures + "policy_bound_py",
+        )
+        _tier_base_test(
             name = name + suffix,
             size = "small",
             expected_profile = profile,
-            target_under_test = "//core/quality/tests/fixtures/consumer_policy:policy_bound_py",
+            target_under_test = name + suffix + "_subject",
         )
     native.test_suite(name = name, tests = [
         name + "_policy",

@@ -2,10 +2,12 @@
 
 load("//cc/private/toolchains:bindings.bzl", "CC_COMPILERS", "cc_compiler_identity")
 load("//cc/private/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
+load("//core/modules:langs.bzl", "LANGS")
 load("//core/quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//core/quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//core/quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "LANGUAGES", "NOT_LANGUAGES", "NO_COVERAGE", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "PLATFORM_SUPPORT", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
+load("//tools/testing/conformance:defs.bzl", "ConformanceManifestInfo")
+load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "LANGUAGES", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "PLATFORM_SUPPORT", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -30,13 +32,6 @@ def _dead_code(row):
         return DEAD_CODE[row["name"]]
     if row["section"] == "languages":
         return []
-    return None
-
-def _coverage(name):
-    if name in COVERAGE_COLLECTORS:
-        return {"collectors": COVERAGE_COLLECTORS[name], "reason": COVERAGE_NOTES.get(name, "")}
-    if name in NO_COVERAGE:
-        return {"collectors": [], "reason": NO_COVERAGE[name]}
     return None
 
 def _quality():
@@ -134,15 +129,6 @@ def support_matrix_facts_dict():
         if compiler not in CC_COMPILERS:
             fail("support matrix: COMPILER_PROBES names unknown compiler " + compiler)
     row_names = {row["name"]: True for row in ROWS}
-    for name in COVERAGE_COLLECTORS:
-        if name not in row_names or name in NO_COVERAGE:
-            fail("support matrix: COVERAGE_COLLECTORS names " + name + " which is unknown or also in NO_COVERAGE")
-    for name in COVERAGE_NOTES:
-        if name not in COVERAGE_COLLECTORS:
-            fail("support matrix: COVERAGE_NOTES names " + name + " which has no coverage collector")
-    for name in NO_COVERAGE:
-        if name not in row_names:
-            fail("support matrix: NO_COVERAGE names unknown row " + name)
     for lang in LANGUAGES:
         if lang.name not in row_names:
             fail("support matrix: LANGUAGES names unknown row " + lang.name)
@@ -210,7 +196,6 @@ def support_matrix_facts_dict():
             {
                 "ci_tests": row.get("ci_tests", []),
                 "consumer_tests": row.get("consumer_tests", []),
-                "coverage": _coverage(row["name"]),
                 "dead_code": _dead_code(row),
                 "doc": _doc(row["name"]),
                 "doc_shard": _doc_shard(row["name"]),
@@ -230,10 +215,16 @@ def support_matrix_facts_dict():
 
 def _support_matrix_facts_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".json")
-    ctx.actions.write(out, json.encode_indent(support_matrix_facts_dict(), indent = "  ") + "\n")
+    facts = support_matrix_facts_dict()
+    facts["conformance"] = {
+        "entries": ctx.attr.manifest[ConformanceManifestInfo].entries,
+        "platforms": {lang: LANGS[lang]["platforms"] for lang in LANGS},
+    }
+    ctx.actions.write(out, json.encode_indent(facts, indent = "  ") + "\n")
     return [DefaultInfo(files = depset([out]))]
 
 support_matrix_facts = rule(
     implementation = _support_matrix_facts_impl,
+    attrs = {"manifest": attr.label(mandatory = True, providers = [ConformanceManifestInfo])},
     doc = "Writes the support matrix facts JSON.",
 )

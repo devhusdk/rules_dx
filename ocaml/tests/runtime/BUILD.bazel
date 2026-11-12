@@ -62,11 +62,6 @@ ocaml_test(
     visibility = ["//ocaml/tests/native:__pkg__"],
 )
 
-exports_files(
-    ["BUILD.bazel"],
-    visibility = ["//tools/docs/support_matrix:__pkg__"],
-)
-
 ocaml_module(
     name = "no_annot",
     struct = "shout.ml",

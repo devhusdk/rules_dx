@@ -9,12 +9,17 @@ load(":languages.bzl", "support_matrix_inputs")
 
 package(default_visibility = VIS_TOOLS)
 
-support_matrix_facts(name = "facts")
+support_matrix_facts(
+    name = "facts",
+    testonly = True,
+    manifest = "//tools/testing/conformance:manifest",
+)
 
 support_matrix_facts_tests(name = "facts_test")
 
 filegroup(
     name = "inputs",
+    testonly = True,
     srcs = [
         ":facts",
         "//.github:workflows/ci.yml",
@@ -89,6 +94,7 @@ rust_test(
 
 rust_binary(
     name = "update",
+    testonly = True,
     srcs = ["src/main.rs"],
     aliases = aliases(
         package_name = "tools/docs/support_matrix",

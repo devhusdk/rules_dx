@@ -241,7 +241,7 @@ def _aggregate_impl(ctx):
     platforms = {lang: LANGS[lang]["platforms"] for lang in LANGS}
     out = ctx.actions.declare_file(ctx.label.name + ".json")
     ctx.actions.write(out, json.encode({"entries": entries, "platforms": platforms}))
-    return [DefaultInfo(files = depset([out]))]
+    return [DefaultInfo(files = depset([out])), ConformanceManifestInfo(entries = entries)]
 
 dx_conformance_manifest = rule(
     implementation = _aggregate_impl,

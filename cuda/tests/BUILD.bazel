@@ -449,11 +449,6 @@ cuda_license_gate_tests(
     size = "small",
 )
 
-exports_files(
-    ["BUILD.bazel"],
-    visibility = ["//tools/docs/support_matrix:__pkg__"],
-)
-
 real_source_target(
     name = "corpus_toml",
     testonly = True,

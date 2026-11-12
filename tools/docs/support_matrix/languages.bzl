@@ -78,9 +78,8 @@ def _starter_consumers(*_starters):
 # consumer_tests: golden checks of dx init output and hermetic manifests, or tests that
 # build a target in another module. CI selects the hermetic ones by the hermetic-consumer tag.
 ROWS = [
-    {"ci_tests": _hello("astro"), "consumer_tests": _starter_consumers("astro"), "name": "astro", "section": "languages", "title": LANGS["astro"]["title"]},
+    {"consumer_tests": _starter_consumers("astro"), "name": "astro", "section": "languages", "title": LANGS["astro"]["title"]},
     {
-        "ci_tests": _hello("cc"),
         "consumer_tests": _starter_consumers("c", "cpp"),
         "name": "cc",
         "section": "languages",
@@ -138,55 +137,50 @@ ROWS = [
         "section": "compilers",
         "title": "Microsoft cl.exe (`msvc`)",
     },
-    {"ci_tests": _hello("csharp"), "consumer_tests": _starter_consumers("csharp"), "name": "csharp", "section": "languages", "title": LANGS["csharp"]["title"]},
+    {"consumer_tests": _starter_consumers("csharp"), "name": "csharp", "section": "languages", "title": LANGS["csharp"]["title"]},
     {
-        "ci_tests": ["//cuda/tests:saxpy_device_code_test", "//cuda/tests:saxpy_gpu_test"],
         "consumer_tests": _starter_consumers("cuda"),
         "name": "cuda",
         "section": "languages",
         "title": LANGS["cuda"]["title"],
     },
-    {"ci_tests": ["//d/tests/fixtures/hello:greet_test", "//d/tests/fixtures/d-app/diagnostics:diagnostics_test", "//d/tests/fixtures/d-app/source:app_output_test", "//d/tests/fixtures/d-app/source/base:base_test", "//d/tests/fixtures/d-app/source/cli:cli_test"], "consumer_tests": _starter_consumers("d"), "name": "d", "section": "languages", "title": LANGS["d"]["title"]},
-    {"ci_tests": ["//dart/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:dart"] + _starter_consumers("dart"), "name": "dart", "section": "languages", "title": LANGS["dart"]["title"]},
+    {"consumer_tests": _starter_consumers("d"), "name": "d", "section": "languages", "title": LANGS["d"]["title"]},
+    {"consumer_tests": ["//tools/testing/hermetic:dart"] + _starter_consumers("dart"), "name": "dart", "section": "languages", "title": LANGS["dart"]["title"]},
     {
-        "ci_tests": ["//elixir/tests/runtime:probe_test"],
         "consumer_tests": _starter_consumers("elixir"),
         "name": "elixir",
         "section": "languages",
         "title": LANGS["elixir"]["title"],
     },
     {
-        "ci_tests": ["//erlang/tests/runtime:eunit"],
         "consumer_tests": _starter_consumers("erlang"),
         "name": "erlang",
         "section": "languages",
         "title": LANGS["erlang"]["title"],
     },
     {
-        "ci_tests": ["//flutter/tests/fixtures/flutter-app/app:app_test", "//flutter/tests/fixtures/flutter-app/web:browser_test"],
         "consumer_tests": ["//tools/testing/hermetic:flutter"],
         "families": ["dart"],
         "name": "flutter",
         "section": "languages",
         "title": LANGS["flutter"]["title"],
     },
-    {"ci_tests": ["//fortran/tests/runtime:stats_test"], "consumer_tests": _starter_consumers("fortran"), "name": "fortran", "section": "languages", "title": LANGS["fortran"]["title"]},
-    {"ci_tests": _hello("fsharp"), "consumer_tests": _starter_consumers("fsharp"), "name": "fsharp", "section": "languages", "title": LANGS["fsharp"]["title"]},
-    {"ci_tests": _hello("go"), "consumer_tests": _starter_consumers("go"), "name": "go", "section": "languages", "title": LANGS["go"]["title"]},
-    {"ci_tests": ["//haskell/tests/runtime:probe_test"], "consumer_tests": _starter_consumers("haskell"), "name": "haskell", "section": "languages", "title": LANGS["haskell"]["title"]},
-    {"ci_tests": _hello("java"), "consumer_tests": _starter_consumers("java"), "name": "java", "section": "languages", "title": LANGS["java"]["title"]},
-    {"ci_tests": _hello("javascript"), "consumer_tests": _starter_consumers("javascript"), "name": "javascript", "section": "languages", "title": LANGS["javascript"]["title"]},
-    {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "consumer_tests": _starter_consumers("julia"), "name": "julia", "section": "languages", "title": LANGS["julia"]["title"]},
-    {"ci_tests": _hello("kotlin"), "name": "kotlin", "section": "languages", "title": LANGS["kotlin"]["title"]},
-    {"ci_tests": ["//lua/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:lua"] + _starter_consumers("lua"), "name": "lua", "section": "languages", "title": LANGS["lua"]["title"]},
-    {"ci_tests": _hello("mdx") + ["//mdx/tests/app:site_static_test"], "consumer_tests": _starter_consumers("mdx"), "name": "mdx", "section": "languages", "title": LANGS["mdx"]["title"]},
-    {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:ocaml"] + _starter_consumers("ocaml"), "name": "ocaml", "section": "languages", "title": LANGS["ocaml"]["title"]},
-    {"ci_tests": ["//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"] + _starter_consumers("perl"), "name": "perl", "section": "languages", "title": LANGS["perl"]["title"]},
-    {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "consumer_tests": _starter_consumers("php"), "name": "php", "section": "languages", "title": LANGS["php"]["title"]},
-    {"ci_tests": ["//powershell/tests/fixtures/hello:hello_test"], "consumer_tests": _starter_consumers("powershell"), "name": "powershell", "section": "languages", "title": LANGS["powershell"]["title"]},
-    {"ci_tests": ["//core/codegen:codegen_prost_fixture_argv_test"], "name": "protobuf", "section": "languages", "title": "Protobuf"},
+    {"consumer_tests": _starter_consumers("fortran"), "name": "fortran", "section": "languages", "title": LANGS["fortran"]["title"]},
+    {"consumer_tests": _starter_consumers("fsharp"), "name": "fsharp", "section": "languages", "title": LANGS["fsharp"]["title"]},
+    {"consumer_tests": _starter_consumers("go"), "name": "go", "section": "languages", "title": LANGS["go"]["title"]},
+    {"consumer_tests": _starter_consumers("haskell"), "name": "haskell", "section": "languages", "title": LANGS["haskell"]["title"]},
+    {"consumer_tests": _starter_consumers("java"), "name": "java", "section": "languages", "title": LANGS["java"]["title"]},
+    {"consumer_tests": _starter_consumers("javascript"), "name": "javascript", "section": "languages", "title": LANGS["javascript"]["title"]},
+    {"consumer_tests": _starter_consumers("julia"), "name": "julia", "section": "languages", "title": LANGS["julia"]["title"]},
+    {"name": "kotlin", "section": "languages", "title": LANGS["kotlin"]["title"]},
+    {"consumer_tests": ["//tools/testing/hermetic:lua"] + _starter_consumers("lua"), "name": "lua", "section": "languages", "title": LANGS["lua"]["title"]},
+    {"consumer_tests": _starter_consumers("mdx"), "name": "mdx", "section": "languages", "title": LANGS["mdx"]["title"]},
+    {"consumer_tests": ["//tools/testing/hermetic:ocaml"] + _starter_consumers("ocaml"), "name": "ocaml", "section": "languages", "title": LANGS["ocaml"]["title"]},
+    {"consumer_tests": ["//tools/testing/hermetic:perl"] + _starter_consumers("perl"), "name": "perl", "section": "languages", "title": LANGS["perl"]["title"]},
+    {"consumer_tests": _starter_consumers("php"), "name": "php", "section": "languages", "title": LANGS["php"]["title"]},
+    {"consumer_tests": _starter_consumers("powershell"), "name": "powershell", "section": "languages", "title": LANGS["powershell"]["title"]},
+    {"name": "protobuf", "section": "languages", "title": "Protobuf"},
     {
-        "ci_tests": ["//python/tests/fixtures/entries:helper_test"],
         "consumer_tests": [
             "//python/tests:python_init_adopt_test",
         ] + _starter_consumers("python"),
@@ -194,20 +188,19 @@ ROWS = [
         "section": "languages",
         "title": LANGS["python"]["title"],
     },
-    {"ci_tests": _hello("ruby"), "consumer_tests": _starter_consumers("ruby"), "name": "ruby", "section": "languages", "title": LANGS["ruby"]["title"]},
+    {"consumer_tests": _starter_consumers("ruby"), "name": "ruby", "section": "languages", "title": LANGS["ruby"]["title"]},
     {
-        "ci_tests": ["//rust/tests/fixtures/consumer_wasm:consumer_wasm_test"],
         "consumer_tests": ["//tools/testing/hermetic:rust_wasi", "//tools/testing/hermetic:cpp_rust"] + _starter_consumers("rust"),
         "name": "rust",
         "section": "languages",
         "title": LANGS["rust"]["title"],
     },
-    {"ci_tests": _hello("scala"), "consumer_tests": ["//tools/testing/hermetic:scala_scalafix"], "name": "scala", "section": "languages", "title": LANGS["scala"]["title"]},
-    {"ci_tests": _hello("svelte"), "consumer_tests": _starter_consumers("svelte"), "name": "svelte", "section": "languages", "title": LANGS["svelte"]["title"]},
-    {"ci_tests": ["//swift/tests/fixtures/hello:hello_output_test"], "name": "swift", "section": "languages", "title": LANGS["swift"]["title"]},
-    {"ci_tests": _hello("typescript"), "consumer_tests": _starter_consumers("typescript"), "name": "typescript", "section": "languages", "title": LANGS["typescript"]["title"]},
-    {"ci_tests": _hello("vue"), "consumer_tests": _starter_consumers("vue"), "name": "vue", "section": "languages", "title": LANGS["vue"]["title"]},
-    {"ci_tests": ["//zig/tests/fixtures/hello:greet_test"], "consumer_tests": ["//tools/testing/hermetic:zig"] + _starter_consumers("zig"), "name": "zig", "section": "languages", "title": LANGS["zig"]["title"]},
+    {"consumer_tests": ["//tools/testing/hermetic:scala_scalafix"], "name": "scala", "section": "languages", "title": LANGS["scala"]["title"]},
+    {"consumer_tests": _starter_consumers("svelte"), "name": "svelte", "section": "languages", "title": LANGS["svelte"]["title"]},
+    {"name": "swift", "section": "languages", "title": LANGS["swift"]["title"]},
+    {"consumer_tests": _starter_consumers("typescript"), "name": "typescript", "section": "languages", "title": LANGS["typescript"]["title"]},
+    {"consumer_tests": _starter_consumers("vue"), "name": "vue", "section": "languages", "title": LANGS["vue"]["title"]},
+    {"consumer_tests": ["//tools/testing/hermetic:zig"] + _starter_consumers("zig"), "name": "zig", "section": "languages", "title": LANGS["zig"]["title"]},
     {
         "ci_tests": [
             "//android/tests/fixtures/rust_apk:check_unsigned_test",
@@ -281,7 +274,7 @@ ROWS = [
     {"name": "toml", "section": "formats", "title": "TOML"},
     {"name": "api_spec", "section": "formats", "title": "API specs"},
     {"name": "ansible", "section": "formats", "title": "Ansible"},
-    {"ci_tests": ["//avro/tests:cc_roundtrip_test", "//avro/tests:RoundtripTest"], "families": ["avro"], "name": "avro", "section": "languages", "title": LANGS["avro"]["title"]},
+    {"families": ["avro"], "name": "avro", "section": "languages", "title": LANGS["avro"]["title"]},
     {"families": ["capnp"], "name": "capnproto", "section": "formats", "title": "Cap'n Proto"},
     {"name": "bicep", "section": "formats", "title": "Bicep"},
     {"name": "cloudformation", "section": "formats", "title": "CloudFormation"},
@@ -309,10 +302,10 @@ ROWS = [
     {"name": "yaml", "section": "formats", "title": "YAML"},
 ]
 
-# One entry per row that carries per-language columns. Every row in the languages section must give deps, doc, and either coverage or no_coverage; facts.bzl fails on a gap instead of printing n/a.
+# One entry per row that carries per-language columns. Every row in the languages section must give deps and doc; facts.bzl fails on a gap instead of printing n/a.
 NO_DOC = struct(tool = "", shard = "")
 
-def _language(name, bench = None, fuzz = None, deps = None, doc = None, dead_code = None, coverage = None, coverage_note = "", no_coverage = None, unsupported = None, not_applicable = None):
+def _language(name, bench = None, fuzz = None, deps = None, doc = None, dead_code = None, unsupported = None, not_applicable = None):
     return struct(
         name = name,
         bench = bench,
@@ -320,9 +313,6 @@ def _language(name, bench = None, fuzz = None, deps = None, doc = None, dead_cod
         deps = deps,
         doc = doc,
         dead_code = dead_code,
-        coverage = coverage,
-        coverage_note = coverage_note,
-        no_coverage = no_coverage,
         unsupported = unsupported,
         not_applicable = not_applicable,
     )
@@ -330,7 +320,6 @@ def _language(name, bench = None, fuzz = None, deps = None, doc = None, dead_cod
 LANGUAGES = [
     _language(
         "android",
-        no_coverage = "no dx coverage wiring in the Android rules",
     ),
     _language(
         "appimage",
@@ -342,7 +331,6 @@ LANGUAGES = [
     ),
     _language(
         "apple",
-        coverage = ["llvm-cov"],
         not_applicable = {
             "windows_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
             "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS"
@@ -353,7 +341,6 @@ LANGUAGES = [
         deps = "`npm`",
         doc = struct(tool = "astro-compiler", shard = "astro_doc_shard"),
         dead_code = ["eslint @typescript-eslint/no-unused-vars"],
-        coverage = ["jest"],
     ),
     _language(
         "avro",
@@ -368,7 +355,6 @@ LANGUAGES = [
         deps = "none for `vcpkg.json`: there is no vcpkg set",
         doc = struct(tool = "doxygen", shard = "cc_doc_shard"),
         dead_code = ["clang_tidy misc-unused-parameters, misc-unused-using-decls"],
-        coverage = ["gcov", "llvm-cov"],
     ),
     _language(
         "cc_gcc",
@@ -393,15 +379,12 @@ LANGUAGES = [
         deps = "`nuget`",
         doc = struct(tool = "csharp doc driver", shard = "csharp_doc_shard"),
         dead_code = ["roslyn IDE0051, IDE0052, IDE0060, IDE0005"],
-        coverage = ["coverlet"],
     ),
     _language(
         "cuda",
         deps = "none: the CUDA toolkit is a pinned download",
         doc = struct(tool = "doxygen", shard = "cuda_doc_shard"),
         dead_code = ["none"],
-        coverage = ["llvm-cov"],
-        coverage_note = "host code only; device code is not covered",
         not_applicable = {
             "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS"
         },
@@ -413,7 +396,6 @@ LANGUAGES = [
         deps = "`dub` (pinned, no advisories)",
         doc = struct(tool = "ldc ddoc", shard = "d_doc_shard"),
         dead_code = ["none"],
-        coverage = ["ldc --coverage"],
     ),
     _language(
         "dart",
@@ -421,7 +403,6 @@ LANGUAGES = [
         deps = "`pub`",
         doc = struct(tool = "dart doc", shard = "dart_doc_shard"),
         dead_code = ["dart unused_element"],
-        coverage = ["package:test"],
         unsupported = "//dart/private:unsupported",
         not_applicable = {
             "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK"
@@ -433,7 +414,6 @@ LANGUAGES = [
         deps = "`hex`",
         doc = struct(tool = "Code.fetch_docs", shard = "elixir_doc_shard"),
         dead_code = ["elixirc unused variable, unused function"],
-        coverage = ["cover"],
     ),
     _language(
         "erlang",
@@ -441,14 +421,12 @@ LANGUAGES = [
         deps = "`hex` from `mix.lock` or an `erlang.rebar` `rebar.lock`",
         doc = struct(tool = "edoc", shard = "erlang_doc_shard"),
         dead_code = ["erlc warn_unused_vars, warn_unused_function"],
-        coverage = ["cover"],
     ),
     _language(
         "flutter",
         deps = "`pub`",
         doc = struct(tool = "dart doc", shard = "dart_doc_shard"),
         dead_code = ["dart unused_element"],
-        coverage = ["flutter_tester"],
         unsupported = "//flutter/private:unsupported",
         not_applicable = {
             "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
@@ -459,8 +437,6 @@ LANGUAGES = [
         deps = "the `fpm.lock` tag of the `fpm` extension builds pinned archives from the fpm lock; `dx security` and `dx license` read it, `dx update` re-hashes the archives",
         doc = struct(tool = "ford", shard = "fortran_doc_shard"),
         dead_code = ["fortitude C191 unreachable-statement"],
-        coverage = ["kcov"],
-        coverage_note = "kcov runs on Linux only",
         not_applicable = {
             "windows_arm64": "flang-releases v21.1.8 ships no Windows arm64 build"
         },
@@ -472,7 +448,6 @@ LANGUAGES = [
         deps = "`nuget`",
         doc = struct(tool = "fsharp doc driver", shard = "fsharp_doc_shard"),
         dead_code = ["fsc FS1182 (--warnon:1182)"],
-        coverage = ["coverlet"],
     ),
     _language(
         "go",
@@ -481,7 +456,6 @@ LANGUAGES = [
         deps = "`go`; cgo is not supported on `windows_x86_64` and `windows_arm64`: the hermetic Windows toolchain is MSVC ABI only, and cgo needs the MinGW (GNU) ABI",
         doc = struct(tool = "go doc", shard = "go_doc_shard"),
         dead_code = ["staticcheck U1000"],
-        coverage = ["go cover"],
     ),
     _language(
         "haskell",
@@ -489,7 +463,6 @@ LANGUAGES = [
         deps = "`hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`, which `haskell_deps_resolve` reads to write it",
         doc = struct(tool = "haddock", shard = "haskell_doc_shard"),
         dead_code = ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
-        coverage = ["hpc"],
         unsupported = "//haskell/private/toolchain:unsupported",
         not_applicable = {
             "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist"
@@ -502,7 +475,6 @@ LANGUAGES = [
         deps = "`maven`",
         doc = struct(tool = "javadoc", shard = "java_doc_shard"),
         dead_code = ["pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter"],
-        coverage = ["jacoco"],
     ),
     _language(
         "javascript",
@@ -511,7 +483,6 @@ LANGUAGES = [
         deps = "`npm`",
         doc = struct(tool = "typedoc", shard = "javascript_doc_shard"),
         dead_code = ["eslint no-unused-vars"],
-        coverage = ["jest"],
     ),
     _language(
         "julia",
@@ -519,7 +490,6 @@ LANGUAGES = [
         deps = "`julia`",
         doc = struct(tool = "documenter", shard = "julia_doc_shard"),
         dead_code = ["none"],
-        coverage = ["CoverageTools"],
         unsupported = "//julia/private:unsupported",
         not_applicable = {
             "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build"
@@ -532,7 +502,6 @@ LANGUAGES = [
         deps = "`maven`",
         doc = struct(tool = "dokka", shard = "kotlin_doc_shard"),
         dead_code = ["detekt"],
-        coverage = ["jacoco"],
     ),
     _language(
         "lua",
@@ -540,14 +509,12 @@ LANGUAGES = [
         deps = "`luarocks` (pinned, no advisories)",
         doc = struct(tool = "ldoc", shard = "lua_doc_shard"),
         dead_code = ["selene unused_variable"],
-        coverage = ["luacov"],
     ),
     _language(
         "mdx",
         deps = "`npm`",
         doc = struct(tool = "mdx", shard = "mdx_doc_shard"),
         dead_code = ["eslint no-unused-vars"],
-        coverage = ["jest"],
     ),
     _language(
         "nix",
@@ -560,7 +527,6 @@ LANGUAGES = [
         deps = "`opam`",
         doc = struct(tool = "odoc", shard = "ocaml_doc_shard"),
         dead_code = ["ocamlc warnings 26, 27, 32 to 39"],
-        coverage = ["bisect_ppx"],
         not_applicable = {
             "windows_arm64": "conda-forge ships no win-arm64 OCaml package",
             "windows_x86_64": "conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2"
@@ -572,7 +538,6 @@ LANGUAGES = [
         deps = "`cpan`",
         doc = struct(tool = "pod (perl)", shard = "perl_doc_shard"),
         dead_code = ["perlcritic ProhibitUnusedVariables"],
-        coverage = ["DxLcov"],
         not_applicable = {
             "windows_arm64": "Windows ARM64 perl is not qualified"
         },
@@ -583,7 +548,6 @@ LANGUAGES = [
         deps = "`packagist`",
         doc = struct(tool = "phpdocumentor", shard = "php_doc_shard"),
         dead_code = ["phpcs Generic.CodeAnalysis.UnusedFunctionParameter"],
-        coverage = ["pcov (Linux only)"],
         unsupported = "//php/private/toolchain:unsupported",
         not_applicable = {
             "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build"
@@ -594,7 +558,6 @@ LANGUAGES = [
         deps = "`powershell` (pinned, no advisories)",
         doc = struct(tool = "pwsh", shard = "powershell_doc_shard"),
         dead_code = ["psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments"],
-        coverage = ["pester"],
     ),
     _language(
         "protobuf",
@@ -609,11 +572,9 @@ LANGUAGES = [
         deps = "`uv`; none for `poetry.lock` and `Pipfile.lock`: uv is the supported manager",
         doc = struct(tool = "griffe", shard = "python_doc_shard"),
         dead_code = ["ruff F401, F841"],
-        coverage = ["coverage.py"],
     ),
     _language(
         "qt",
-        coverage = ["llvm-cov"],
     ),
     _language(
         "ruby",
@@ -621,7 +582,6 @@ LANGUAGES = [
         deps = "`ruby`",
         doc = struct(tool = "yard", shard = "ruby_doc_shard"),
         dead_code = ["rubocop Lint/UselessAssignment"],
-        coverage = ["simplecov"],
     ),
     _language(
         "rust",
@@ -630,7 +590,6 @@ LANGUAGES = [
         deps = "`cargo`",
         doc = struct(tool = "rustdoc", shard = "rust_docs_site"),
         dead_code = ["rustc dead_code"],
-        coverage = ["llvm-cov"],
     ),
     _language(
         "scala",
@@ -639,7 +598,6 @@ LANGUAGES = [
         deps = "`maven`",
         doc = struct(tool = "scaladoc", shard = "scala_doc_shard"),
         dead_code = ["scalac -Wunused"],
-        coverage = ["jacoco"],
     ),
     _language(
         "shell",
@@ -654,7 +612,6 @@ LANGUAGES = [
         deps = "`npm`",
         doc = struct(tool = "svelte2tsx", shard = "svelte_doc_shard"),
         dead_code = ["eslint @typescript-eslint/no-unused-vars"],
-        coverage = ["jest"],
     ),
     _language(
         "swift",
@@ -662,7 +619,6 @@ LANGUAGES = [
         fuzz = "swift_fuzz_test",
         deps = "`swiftpm`",
         doc = struct(tool = "swift-symbolgraph-extract", shard = "swift_doc_shard"),
-        coverage = ["llvm-cov"],
         not_applicable = {
             "windows_arm64": "The Swift Windows arm64 toolchain is registered but unverified on Windows ARM",
             "windows_x86_64": "rules_dx registers no Swift toolchain for Windows"
@@ -675,18 +631,15 @@ LANGUAGES = [
         deps = "`npm`",
         doc = struct(tool = "typedoc", shard = "typescript_doc_shard"),
         dead_code = ["eslint no-unused-vars"],
-        coverage = ["jest"],
     ),
     _language(
         "vue",
         deps = "`npm`",
         doc = struct(tool = "vue-component-meta", shard = "vue_doc_shard"),
         dead_code = ["eslint @typescript-eslint/no-unused-vars"],
-        coverage = ["jest"],
     ),
     _language(
         "wasi",
-        no_coverage = "the WASI guest test has no coverage collector",
     ),
     _language(
         "zig",
@@ -694,8 +647,6 @@ LANGUAGES = [
         deps = "`zig_deps` (`" + LOCK_REGISTRY["zig"]["manifest"] + "` `.dependencies`, pinned by sha256)",
         doc = struct(tool = "zig std.zig.Ast", shard = "zig_doc_shard"),
         dead_code = ["zig ast-check unused local, unused parameter"],
-        coverage = ["kcov"],
-        coverage_note = "kcov runs on Linux only",
     ),
 ]
 
@@ -706,11 +657,8 @@ BENCH = _view("bench")
 FUZZ = _view("fuzz")
 DEPENDENCIES = _view("deps")
 DEAD_CODE = _view("dead_code")
-COVERAGE_COLLECTORS = _view("coverage")
-NO_COVERAGE = _view("no_coverage")
 UNSUPPORTED_CONSTRAINTS = _view("unsupported")
 PLATFORM_NOT_APPLICABLE = _view("not_applicable")
-COVERAGE_NOTES = {lang.name: lang.coverage_note for lang in LANGUAGES if lang.coverage_note}
 DOC_TOOLS = {
     lang.name: (None if lang.doc == NO_DOC else {"tool": lang.doc.tool, "shard": lang.doc.shard})
     for lang in LANGUAGES

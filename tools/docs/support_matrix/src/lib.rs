@@ -56,9 +56,6 @@ pub struct Row {
     pub dead_code: Option<Vec<String>>,
     #[serde(default)]
     pub identity: Identity,
-    /// The coverage collector; absent when coverage does not apply to the row.
-    #[serde(default)]
-    pub coverage: Option<Coverage>,
     pub ci_tests: Vec<String>,
     pub consumer_tests: Vec<String>,
     pub workflows: Vec<String>,
@@ -76,11 +73,23 @@ pub struct Identity {
     pub platform_probes: BTreeMap<String, String>,
 }
 
-/// The coverage collectors of a row with a note on them, or the reason it has none.
+/// One row of the conformance manifest: a suite test of a language on a platform.
 #[derive(Clone, Debug, Deserialize)]
-pub struct Coverage {
-    pub collectors: Vec<String>,
+pub struct ConformanceEntry {
+    pub lang: String,
+    pub capability: String,
+    pub platform: String,
+    /// `run`, `n/a` or `pending`.
+    pub status: String,
     pub reason: String,
+}
+
+/// The conformance manifest: every suite test per language and platform, and the `lang.json` platforms.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct Conformance {
+    pub entries: Vec<ConformanceEntry>,
+    /// Language to its `lang.json` platforms; empty means every platform.
+    pub platforms: BTreeMap<String, Vec<String>>,
 }
 
 /// One explicit tool support record.
@@ -98,6 +107,8 @@ pub struct Facts {
     pub platforms: Vec<PlatformFact>,
     pub sections: Vec<String>,
     pub rows: Vec<Row>,
+    #[serde(default)]
+    pub conformance: Conformance,
     pub quality: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     pub support: Vec<Support>,
     pub deferred_families: Vec<String>,

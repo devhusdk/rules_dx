@@ -2,7 +2,7 @@
 
 This page lists, for each language, target, and compiler, the platforms it does not support, and its lint, format, typecheck, and API doc tools.
 
-Everything builds and tests on every platform it supports. `none` means all five platforms are supported. `macos_x86_64` is not supported.
+`none` means all five platforms are supported. `macos_x86_64` is not supported.
 
 `n/a` means the capability does not apply to that language or format.
 
@@ -12,42 +12,44 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 
 ## Languages
 
-| Language | Not supported on | Dependencies | Bench | Fuzz |
-| --- | --- | --- | --- | --- |
-| Astro | none | `npm` | n/a | n/a |
-| Avro | none | none: schemas only, no packages | n/a | n/a |
-| C and C++ | none | none for `vcpkg.json`: there is no vcpkg set | `cc_bench` | `cc_fuzz_test` |
-| C# | none | `nuget` | `csharp_bench` | `csharp_fuzz_test` |
-| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS | none: the CUDA toolkit is a pinned download | n/a | n/a |
-| D | none | `dub` (pinned, no advisories) | `d_bench` | `d_fuzz_test` |
-| Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` | `dart_bench` | n/a |
-| Elixir | none | `hex` | `elixir_bench` | n/a |
-| Erlang | none | `hex` from `mix.lock` or an `erlang.rebar` `rebar.lock` | `erlang_bench` | n/a |
-| Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) | `pub` | n/a | n/a |
-| Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | the `fpm.lock` tag of the `fpm` extension builds pinned archives from the fpm lock; `dx security` and `dx license` read it, `dx update` re-hashes the archives | n/a | n/a |
-| F# | none | `nuget` | `fsharp_bench` | `fsharp_fuzz_test` |
-| Go | none | `go`; cgo is not supported on `windows_x86_64` and `windows_arm64`: the hermetic Windows toolchain is MSVC ABI only, and cgo needs the MinGW (GNU) ABI | `go_bench` | `go_fuzz_test` |
-| Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`, which `haskell_deps_resolve` reads to write it | `haskell_bench` | n/a |
-| Java | none | `maven` | `java_bench` | `java_fuzz_test` |
-| JavaScript | none | `npm` | `javascript_bench` | `javascript_fuzz_test` |
-| Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build | `julia` | `julia_bench` | n/a |
-| Kotlin | none | `maven` | `kotlin_bench` | `kotlin_fuzz_test` |
-| Lua | none | `luarocks` (pinned, no advisories) | `lua_bench` | n/a |
-| MDX | none | `npm` | n/a | n/a |
-| OCaml | `windows_x86_64`: conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2; `windows_arm64`: conda-forge ships no win-arm64 OCaml package | `opam` | `ocaml_bench` | `ocaml_fuzz_test` |
-| Perl | `windows_arm64`: Windows ARM64 perl is not qualified | `cpan` | `perl_bench` | n/a |
-| PHP | `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build | `packagist` | `php_bench` | n/a |
-| PowerShell | none | `powershell` (pinned, no advisories) | n/a | n/a |
-| Protobuf | none | none: schemas only, no packages | n/a | n/a |
-| Python | none | `uv`; none for `poetry.lock` and `Pipfile.lock`: uv is the supported manager | `python_bench` | `python_fuzz_test` |
-| Ruby | none | `ruby` | `ruby_bench` | n/a |
-| Rust | none | `cargo` | `rust_bench` | `rust_fuzz_test` |
-| Scala | none | `maven` | `scala_bench` | `scala_fuzz_test` |
-| Svelte | none | `npm` | n/a | n/a |
-| Swift | `windows_x86_64`: rules_dx registers no Swift toolchain for Windows; `windows_arm64`: The Swift Windows arm64 toolchain is registered but unverified on Windows ARM | `swiftpm` | `swift_bench` | `swift_fuzz_test` |
-| TypeScript | none | `npm` | `typescript_bench` | `typescript_fuzz_test` |
-| Vue | none | `npm` | n/a | n/a |
-| Zig | none | `zig_deps` (`build.zig.zon` `.dependencies`, pinned by sha256) | `zig_bench` | n/a |
+Each suite column names the platforms the conformance test runs on, `n/a` with its reason, or `pending`.
+
+| Language | Not supported on | Dependencies | Bench | Fuzz | build_test | pass_test | fail_test | coverage_test | cross_test | lock_test |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Astro | none | `npm` | n/a | n/a | pending | pending | pending | pending | pending | pending |
+| Avro | none | none: schemas only, no packages | n/a | n/a | pending | pending | pending | pending | pending | pending |
+| C and C++ | none | none for `vcpkg.json`: there is no vcpkg set | `cc_bench` | `cc_fuzz_test` | all | all | all | all | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64`; pending on `macos_arm64` | pending |
+| C# | none | `nuget` | `csharp_bench` | `csharp_fuzz_test` | all | all | all | all | pending | pending |
+| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS | none: the CUDA toolkit is a pinned download | n/a | n/a | pending | pending | pending | pending | pending | pending |
+| D | none | `dub` (pinned, no advisories) | `d_bench` | `d_fuzz_test` | all | all | all | all | pending | pending |
+| Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` | `dart_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`; n/a: dart supports no other windows platform; pending on `macos_arm64` | pending |
+| Elixir | none | `hex` | `elixir_bench` | n/a | all | all | all | all | pending | pending |
+| Erlang | none | `hex` from `mix.lock` or an `erlang.rebar` `rebar.lock` | `erlang_bench` | n/a | all | all | all | all | pending | pending |
+| Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) | `pub` | n/a | n/a | pending | pending | pending | pending | pending | pending |
+| Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | the `fpm.lock` tag of the `fpm` extension builds pinned archives from the fpm lock; `dx security` and `dx license` read it, `dx update` re-hashes the archives | n/a | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
+| F# | none | `nuget` | `fsharp_bench` | `fsharp_fuzz_test` | all | all | all | all | pending | pending |
+| Go | none | `go`; cgo is not supported on `windows_x86_64` and `windows_arm64`: the hermetic Windows toolchain is MSVC ABI only, and cgo needs the MinGW (GNU) ABI | `go_bench` | `go_fuzz_test` | all | all | all | all | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64`; pending on `macos_arm64` | pending |
+| Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`, which `haskell_deps_resolve` reads to write it | `haskell_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
+| Java | none | `maven` | `java_bench` | `java_fuzz_test` | all | all | all | all | pending | pending |
+| JavaScript | none | `npm` | `javascript_bench` | `javascript_fuzz_test` | all | all | all | all | pending | pending |
+| Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build | `julia` | `julia_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
+| Kotlin | none | `maven` | `kotlin_bench` | `kotlin_fuzz_test` | all | all | all | all | pending | pending |
+| Lua | none | `luarocks` (pinned, no advisories) | `lua_bench` | n/a | all | all | all | all | pending | pending |
+| MDX | none | `npm` | n/a | n/a | pending | pending | pending | pending | pending | pending |
+| OCaml | `windows_x86_64`: conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2; `windows_arm64`: conda-forge ships no win-arm64 OCaml package | `opam` | `ocaml_bench` | `ocaml_fuzz_test` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | pending | pending |
+| Perl | `windows_arm64`: Windows ARM64 perl is not qualified | `cpan` | `perl_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
+| PHP | `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build | `packagist` | `php_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`; pending on `macos_arm64`, `windows_x86_64` | pending | pending |
+| PowerShell | none | `powershell` (pinned, no advisories) | n/a | n/a | pending | pending | pending | pending | pending | pending |
+| Protobuf | none | none: schemas only, no packages | n/a | n/a | pending | pending | pending | pending | pending | pending |
+| Python | none | `uv`; none for `poetry.lock` and `Pipfile.lock`: uv is the supported manager | `python_bench` | `python_fuzz_test` | all | all | all | all | pending | pending |
+| Ruby | `windows_arm64`: not in lang.json platforms | `ruby` | `ruby_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
+| Rust | none | `cargo` | `rust_bench` | `rust_fuzz_test` | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_arm64`; pending on `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64`; pending on `macos_arm64` | all |
+| Scala | none | `maven` | `scala_bench` | `scala_fuzz_test` | all | all | all | all | pending | pending |
+| Svelte | none | `npm` | n/a | n/a | pending | pending | pending | pending | pending | pending |
+| Swift | `windows_x86_64`: rules_dx registers no Swift toolchain for Windows; `windows_arm64`: The Swift Windows arm64 toolchain is registered but unverified on Windows ARM | `swiftpm` | `swift_bench` | `swift_fuzz_test` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`; pending on `macos_arm64` | pending |
+| TypeScript | none | `npm` | `typescript_bench` | `typescript_fuzz_test` | all | all | all | all | pending | pending |
+| Vue | none | `npm` | n/a | n/a | pending | pending | pending | pending | pending | pending |
+| Zig | none | `zig_deps` (`build.zig.zon` `.dependencies`, pinned by sha256) | `zig_bench` | n/a | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_arm64`; pending on `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64`; pending on `macos_arm64` | pending |
 
 ## Targets
 
@@ -75,82 +77,82 @@ Select one with `--@rules_dx//cc:compiler=<value>`. Blocked on names a platform 
 
 ## Quality
 
-Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and the tool that builds its API docs. A tool runs on every platform its row supports unless a note says otherwise. Coverage names the collector that writes the LCOV for the row's tests, or `no` with the reason it has none. Dead code names the tool and rule that report unused code, `no` when none runs yet, or `none` when the language has no such tool.
+Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and the tool that builds its API docs. A tool runs on every platform its row supports unless a note says otherwise. Dead code names the tool and rule that report unused code, `no` when none runs yet, or `none` when the language has no such tool.
 
-| Name | Lint | Format | Typecheck | API docs | Coverage | Dead code |
-| --- | --- | --- | --- | --- | --- | --- |
-| Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | `jest` | `eslint @typescript-eslint/no-unused-vars` |
-| Avro | `avro_tools`, `typos` | `prettier` | `avro_tools` | `avro-tools` | n/a | none |
-| C and C++ | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` | `doxygen` | `gcov`, `llvm-cov` | `clang_tidy misc-unused-parameters, misc-unused-using-decls` |
-| C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
-| CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | `doxygen` | `llvm-cov` (host code only; device code is not covered) | none |
-| D | `typos` | no | `ldc` | `ldc ddoc` | `ldc --coverage` | none |
-| Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart doc` | `package:test` | `dart unused_element` |
-| Elixir | `credo`, `typos` | `mix_format` | `dialyzer` (not on `windows_x86_64`: the Elixir dialyzer fixture has not run on Windows; `windows_arm64`: the Elixir dialyzer fixture has not run on Windows), `elixirc` (not on `windows_x86_64`: The elixirc replay needs a POSIX shell; `windows_arm64`: The elixirc replay needs a POSIX shell) | `Code.fetch_docs` | `cover` | `elixirc unused variable, unused function` |
-| Erlang | `elvis`, `typos` | `erlfmt` | `dialyzer`, `erlc` | `edoc` | `cover` | `erlc warn_unused_vars, warn_unused_function` |
-| Flutter | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart doc` | `flutter_tester` | `dart unused_element` |
-| Fortran | `fortitude`, `typos` | `ffmt` | `flang` | `ford` | `kcov` (kcov runs on Linux only) | `fortitude C191 unreachable-statement` |
-| F# | `fsharplint`, `typos` | `fantomas` | `fsc` | `fsharp doc driver` | `coverlet` | `fsc FS1182 (--warnon:1182)` |
-| Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `go cover` | `staticcheck U1000` |
-| Haskell | `hlint`, `typos`, `weeder` (not on `windows_x86_64`: weeder is built from Hackage and only the linux_x86_64 build is verified; `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist) | `ormolu` | `ghc` | `haddock` | `hpc` | `ghc -Wunused-local-binds, -Wunused-matches (-Wall)` |
-| Java | `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `jacoco` | `pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter` |
-| JavaScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `jest` | `eslint no-unused-vars` |
-| Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | `documenter` | `CoverageTools` | none |
-| Kotlin | `detekt`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |
-| Lua | `selene` (not on `windows_arm64`: the dx_quality_crates hub has no windows_arm64 cell), `typos` | `stylua` | `luals` | `ldoc` | `luacov` | `selene unused_variable` |
-| MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | `jest` | `eslint no-unused-vars` |
-| OCaml | `typos`, `zanuda` (not on `windows_x86_64`: zanuda has no Windows build; `windows_arm64`: zanuda has no Windows build) | `topiary` | `ocaml` | `odoc` | `bisect_ppx` | `ocamlc warnings 26, 27, 32 to 39` |
-| Perl | `perlcritic` (not on `windows_arm64`: Windows ARM64 perl is not qualified), `typos` | `perltidy` (not on `windows_arm64`: Windows ARM64 perl is not qualified) | n/a | `pod (perl)` | `DxLcov` | `perlcritic ProhibitUnusedVariables` |
-| PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build), `typos` | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | `phpdocumentor` | `pcov (Linux only)` | `phpcs Generic.CodeAnalysis.UnusedFunctionParameter` |
-| PowerShell | `psscriptanalyzer`, `typos` | `psscriptanalyzer` | n/a | `pwsh` | `pester` | `psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments` |
-| Protobuf | `buf`, `typos` | `buf` | `buf` | `protoc` | n/a | none |
-| Python | `pydoclint`, `ruff`, `typos` | `ruff` | `ty` | `griffe` | `coverage.py` | `ruff F401, F841` |
-| Ruby | `rubocop` (not on `windows_arm64`: RubyInstaller arm64 Ruby is not pinned or qualified), `typos` | `rubocop` (not on `windows_arm64`: RubyInstaller arm64 Ruby is not pinned or qualified) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `simplecov` | `rubocop Lint/UselessAssignment` |
-| Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` | `rustc dead_code` |
-| Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `jacoco` | `scalac -Wunused` |
-| Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | `jest` | `eslint @typescript-eslint/no-unused-vars` |
-| Swift | `swift_lint` (not on `windows_x86_64`: swift_lint runs the swift-format pinned only for Linux and macOS arm64; `windows_arm64`: swift_lint runs the swift-format pinned only for Linux and macOS arm64), `typos` | `swift_format` (not on `windows_x86_64`: swift-format is pinned only for Linux and macOS arm64; `windows_arm64`: swift-format is pinned only for Linux and macOS arm64) | `swiftc` | `swift-symbolgraph-extract` | `llvm-cov` | no |
-| TypeScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `jest` | `eslint no-unused-vars` |
-| Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | `jest` | `eslint @typescript-eslint/no-unused-vars` |
-| Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | `zig std.zig.Ast` | `kcov` (kcov runs on Linux only) | `zig ast-check unused local, unused parameter` |
-| Apple | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | `llvm-cov` | n/a |
-| CMake | `cmakelint`, `typos` | `gersemi` | n/a | n/a | n/a | n/a |
-| Dockerfile | `hadolint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
-| Make | `checkmake`, `typos` | `mbake` | n/a | n/a | n/a | n/a |
-| Qt | `qmllint`, `typos` | `qmlformat` | `qmllint` | n/a | `llvm-cov` | n/a |
-| Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows), `typos` | `yamlfmt` | n/a | n/a | n/a | n/a |
-| API specs | `redocly`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
-| AsciiDoc | `lychee`, `typos`, `vale` | n/a | n/a | n/a | n/a | n/a |
-| Bicep | `bicep`, `trivy_config`, `typos` | `bicep` | n/a | n/a | n/a | n/a |
-| Cap'n Proto | `capnp`, `typos` | n/a | `capnp` | n/a | n/a | n/a |
-| CloudFormation | `cfn_lint`, `trivy_config`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
-| CSS | `stylelint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
-| CUE | n/a | `cue` | `cue` | n/a | n/a | n/a |
-| FlatBuffers | `flatc`, `typos` | n/a | `flatc` | n/a | n/a | n/a |
-| Gherkin | `gplint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
-| GitHub workflows | `actionlint`, `zizmor` | `yamlfmt` | n/a | n/a | n/a | n/a |
-| GraphQL | `graphql_eslint`, `typos` | `prettier` | `graphql_eslint` | n/a | n/a | n/a |
-| Helm | `helm`, `trivy_config`, `typos` | `helmfmt`, `prettier` | n/a | n/a | n/a | n/a |
-| HTML templates | `djlint`, `typos` | `djlint` | n/a | n/a | n/a | n/a |
-| Jsonnet | `jsonnet_lint`, `typos` | `jsonnetfmt` | n/a | n/a | n/a | n/a |
-| Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a | n/a | n/a |
-| Kubernetes | `kubeconform`, `trivy_config`, `typos` | `yamlfmt` | n/a | n/a | n/a | n/a |
-| LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a | n/a |
-| Markdown | `lychee`, `markdown_check`, `typos`, `vale` | `prettier` | n/a | n/a | n/a | n/a |
-| Nix | `deadnix` (not on `windows_arm64`: the dx_quality_crates hub has no windows_arm64 cell), `typos` | `nixfmt` (not on `macos_arm64`: nixfmt builds from source with the managed GHC, which has no hermetic macOS cabal path yet; `windows_x86_64`: nixfmt depends on the unix package and does not build on Windows; `windows_arm64`: nixfmt depends on the unix package and does not build on Windows) | n/a | n/a | n/a | `deadnix` |
-| OCI images | `trivy_image_config` | n/a | `container_structure_test` | n/a | n/a | n/a |
-| Pkl | `pkl_lsp`, `typos` | `pkl` | `pkl` | n/a | n/a | n/a |
-| Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a | n/a |
-| reStructuredText | `lychee`, `typos`, `vale` | `docstrfmt` | n/a | n/a | n/a | n/a |
-| Shell | `shellcheck`, `typos` | `shfmt` | n/a | n/a | n/a | `shellcheck SC2034` |
-| SQL | `sqlfluff`, `typos` | `sqlfluff` | n/a | n/a | n/a | n/a |
-| Starlark | `buildifier`, `typos` | `buildifier` | n/a | n/a | n/a | `buildifier unused-variable` |
-| Terraform | `tflint`, `trivy_config`, `typos` | `terraform` | `terraform` | n/a | n/a | n/a |
-| Thrift | `thrift`, `typos` | n/a | `thrift` | n/a | n/a | n/a |
-| TOML | `taplo`, `typos` | `taplo` | `taplo` | n/a | n/a | n/a |
-| Typst | `tinymist`, `typos` | `typstyle` | n/a | n/a | n/a | n/a |
-| XML | `typos`, `xmllint` | `prettier` | n/a | n/a | n/a | n/a |
-| YAML | `typos`, `yamllint` | `yamlfmt` | n/a | n/a | n/a | n/a |
+| Name | Lint | Format | Typecheck | API docs | Dead code |
+| --- | --- | --- | --- | --- | --- |
+| Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | `eslint @typescript-eslint/no-unused-vars` |
+| Avro | `avro_tools`, `typos` | `prettier` | `avro_tools` | `avro-tools` | none |
+| C and C++ | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` | `doxygen` | `clang_tidy misc-unused-parameters, misc-unused-using-decls` |
+| C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
+| CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | `doxygen` | none |
+| D | `typos` | no | `ldc` | `ldc ddoc` | none |
+| Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart doc` | `dart unused_element` |
+| Elixir | `credo`, `typos` | `mix_format` | `dialyzer` (not on `windows_x86_64`: the Elixir dialyzer fixture has not run on Windows; `windows_arm64`: the Elixir dialyzer fixture has not run on Windows), `elixirc` (not on `windows_x86_64`: The elixirc replay needs a POSIX shell; `windows_arm64`: The elixirc replay needs a POSIX shell) | `Code.fetch_docs` | `elixirc unused variable, unused function` |
+| Erlang | `elvis`, `typos` | `erlfmt` | `dialyzer`, `erlc` | `edoc` | `erlc warn_unused_vars, warn_unused_function` |
+| Flutter | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart doc` | `dart unused_element` |
+| Fortran | `fortitude`, `typos` | `ffmt` | `flang` | `ford` | `fortitude C191 unreachable-statement` |
+| F# | `fsharplint`, `typos` | `fantomas` | `fsc` | `fsharp doc driver` | `fsc FS1182 (--warnon:1182)` |
+| Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `staticcheck U1000` |
+| Haskell | `hlint`, `typos`, `weeder` (not on `windows_x86_64`: weeder is built from Hackage and only the linux_x86_64 build is verified; `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist) | `ormolu` | `ghc` | `haddock` | `ghc -Wunused-local-binds, -Wunused-matches (-Wall)` |
+| Java | `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter` |
+| JavaScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `eslint no-unused-vars` |
+| Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | `documenter` | none |
+| Kotlin | `detekt`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `detekt` |
+| Lua | `selene` (not on `windows_arm64`: the dx_quality_crates hub has no windows_arm64 cell), `typos` | `stylua` | `luals` | `ldoc` | `selene unused_variable` |
+| MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | `eslint no-unused-vars` |
+| OCaml | `typos`, `zanuda` (not on `windows_x86_64`: zanuda has no Windows build; `windows_arm64`: zanuda has no Windows build) | `topiary` | `ocaml` | `odoc` | `ocamlc warnings 26, 27, 32 to 39` |
+| Perl | `perlcritic` (not on `windows_arm64`: Windows ARM64 perl is not qualified), `typos` | `perltidy` (not on `windows_arm64`: Windows ARM64 perl is not qualified) | n/a | `pod (perl)` | `perlcritic ProhibitUnusedVariables` |
+| PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build), `typos` | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | `phpdocumentor` | `phpcs Generic.CodeAnalysis.UnusedFunctionParameter` |
+| PowerShell | `psscriptanalyzer`, `typos` | `psscriptanalyzer` | n/a | `pwsh` | `psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments` |
+| Protobuf | `buf`, `typos` | `buf` | `buf` | `protoc` | none |
+| Python | `pydoclint`, `ruff`, `typos` | `ruff` | `ty` | `griffe` | `ruff F401, F841` |
+| Ruby | `rubocop` (not on `windows_arm64`: RubyInstaller arm64 Ruby is not pinned or qualified), `typos` | `rubocop` (not on `windows_arm64`: RubyInstaller arm64 Ruby is not pinned or qualified) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `rubocop Lint/UselessAssignment` |
+| Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `rustc dead_code` |
+| Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `scalac -Wunused` |
+| Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | `eslint @typescript-eslint/no-unused-vars` |
+| Swift | `swift_lint` (not on `windows_x86_64`: swift_lint runs the swift-format pinned only for Linux and macOS arm64; `windows_arm64`: swift_lint runs the swift-format pinned only for Linux and macOS arm64), `typos` | `swift_format` (not on `windows_x86_64`: swift-format is pinned only for Linux and macOS arm64; `windows_arm64`: swift-format is pinned only for Linux and macOS arm64) | `swiftc` | `swift-symbolgraph-extract` | no |
+| TypeScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `eslint no-unused-vars` |
+| Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | `eslint @typescript-eslint/no-unused-vars` |
+| Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | `zig std.zig.Ast` | `zig ast-check unused local, unused parameter` |
+| Apple | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | n/a |
+| CMake | `cmakelint`, `typos` | `gersemi` | n/a | n/a | n/a |
+| Dockerfile | `hadolint`, `typos` | `prettier` | n/a | n/a | n/a |
+| Make | `checkmake`, `typos` | `mbake` | n/a | n/a | n/a |
+| Qt | `qmllint`, `typos` | `qmlformat` | `qmllint` | n/a | n/a |
+| Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows), `typos` | `yamlfmt` | n/a | n/a | n/a |
+| API specs | `redocly`, `typos` | `prettier` | n/a | n/a | n/a |
+| AsciiDoc | `lychee`, `typos`, `vale` | n/a | n/a | n/a | n/a |
+| Bicep | `bicep`, `trivy_config`, `typos` | `bicep` | n/a | n/a | n/a |
+| Cap'n Proto | `capnp`, `typos` | n/a | `capnp` | n/a | n/a |
+| CloudFormation | `cfn_lint`, `trivy_config`, `typos` | `prettier` | n/a | n/a | n/a |
+| CSS | `stylelint`, `typos` | `prettier` | n/a | n/a | n/a |
+| CUE | n/a | `cue` | `cue` | n/a | n/a |
+| FlatBuffers | `flatc`, `typos` | n/a | `flatc` | n/a | n/a |
+| Gherkin | `gplint`, `typos` | `prettier` | n/a | n/a | n/a |
+| GitHub workflows | `actionlint`, `zizmor` | `yamlfmt` | n/a | n/a | n/a |
+| GraphQL | `graphql_eslint`, `typos` | `prettier` | `graphql_eslint` | n/a | n/a |
+| Helm | `helm`, `trivy_config`, `typos` | `helmfmt`, `prettier` | n/a | n/a | n/a |
+| HTML templates | `djlint`, `typos` | `djlint` | n/a | n/a | n/a |
+| Jsonnet | `jsonnet_lint`, `typos` | `jsonnetfmt` | n/a | n/a | n/a |
+| Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a | n/a |
+| Kubernetes | `kubeconform`, `trivy_config`, `typos` | `yamlfmt` | n/a | n/a | n/a |
+| LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a |
+| Markdown | `lychee`, `markdown_check`, `typos`, `vale` | `prettier` | n/a | n/a | n/a |
+| Nix | `deadnix` (not on `windows_arm64`: the dx_quality_crates hub has no windows_arm64 cell), `typos` | `nixfmt` (not on `macos_arm64`: nixfmt builds from source with the managed GHC, which has no hermetic macOS cabal path yet; `windows_x86_64`: nixfmt depends on the unix package and does not build on Windows; `windows_arm64`: nixfmt depends on the unix package and does not build on Windows) | n/a | n/a | `deadnix` |
+| OCI images | `trivy_image_config` | n/a | `container_structure_test` | n/a | n/a |
+| Pkl | `pkl_lsp`, `typos` | `pkl` | `pkl` | n/a | n/a |
+| Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a |
+| reStructuredText | `lychee`, `typos`, `vale` | `docstrfmt` | n/a | n/a | n/a |
+| Shell | `shellcheck`, `typos` | `shfmt` | n/a | n/a | `shellcheck SC2034` |
+| SQL | `sqlfluff`, `typos` | `sqlfluff` | n/a | n/a | n/a |
+| Starlark | `buildifier`, `typos` | `buildifier` | n/a | n/a | `buildifier unused-variable` |
+| Terraform | `tflint`, `trivy_config`, `typos` | `terraform` | `terraform` | n/a | n/a |
+| Thrift | `thrift`, `typos` | n/a | `thrift` | n/a | n/a |
+| TOML | `taplo`, `typos` | `taplo` | `taplo` | n/a | n/a |
+| Typst | `tinymist`, `typos` | `typstyle` | n/a | n/a | n/a |
+| XML | `typos`, `xmllint` | `prettier` | n/a | n/a | n/a |
+| YAML | `typos`, `yamllint` | `yamlfmt` | n/a | n/a | n/a |
 
 ### Not applicable
 

@@ -50,6 +50,7 @@ dx_conformance_suite(
     covered_source = "greet.cc",
     expected = "hello world",
     failing_case = "failingCase",
+    failing_pattern = "{case}",
     failing_test = ":fail_subject_test",
     lang = "cc",
     passing_test = ":pass_subject_test",

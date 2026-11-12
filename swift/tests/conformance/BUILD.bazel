@@ -43,6 +43,7 @@ dx_conformance_suite(
     covered_source = "Greet.swift",
     expected = "hello world",
     failing_case = "failingCase",
+    failing_pattern = "Test {case}() recorded an issue",
     failing_test = ":fail_subject_test",
     lang = "swift",
     passing_test = ":pass_subject_test",

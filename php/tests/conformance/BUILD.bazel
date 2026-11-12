@@ -46,6 +46,7 @@ dx_conformance_suite(
     covered_source = "src/Conformance/Greet.php",
     expected = "hello world",
     failing_case = "testCase",
+    failing_pattern = "FailTest::{case}",
     failing_test = ":fail_subject_test",
     lang = "php",
     passing_test = ":pass_subject_test",

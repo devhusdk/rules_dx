@@ -66,6 +66,7 @@ dx_conformance_suite(
     covered_source = "greet.ex",
     expected = "hello world",
     failing_case = "failing_case",
+    failing_pattern = "test {case} (FailTest)",
     failing_test = ":fail_subject_test",
     lang = "elixir",
     passing_test = ":pass_subject_test",

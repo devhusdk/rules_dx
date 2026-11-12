@@ -45,6 +45,7 @@ dx_conformance_suite(
     covered_source = "Greet.scala",
     expected = "hello world",
     failing_case = "failingCase",
+    failing_pattern = "AssertionError: {case}",
     failing_test = ":fail_subject_test",
     lang = "scala",
     passing_test = ":pass_subject_test",

@@ -287,7 +287,7 @@ def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
         **kwargs
     )
 
-def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "{case}", lock = {}, runfiles = {}, not_applicable = {}, size = "small", **kwargs):
+def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, not_applicable = {}, size = "small", **kwargs):
     """Declares build_test, coverage_test, cross_test, pass_test, fail_test, lock_test and runfiles_test for one language.
 
     Args:

@@ -50,6 +50,7 @@ dx_conformance_suite(
     covered_source = "greet.dart",
     expected = "hello world",
     failing_case = "failing_case",
+    failing_pattern = "{case} [E]",
     failing_test = ":fail_subject_test",
     lang = "dart",
     not_applicable = {"cross_test:windows_x86_64": "dart supports no other windows platform"},

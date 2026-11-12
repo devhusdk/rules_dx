@@ -62,6 +62,7 @@ dx_conformance_suite(
     covered_source = "greet.ml",
     expected = "hello world",
     failing_case = "failing_case",
+    failing_pattern = "{case}",
     failing_test = ":fail_subject_test",
     lang = "ocaml",
     passing_test = ":pass_subject_test",

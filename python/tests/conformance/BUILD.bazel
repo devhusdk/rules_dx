@@ -49,6 +49,7 @@ dx_conformance_suite(
     covered_source = "greet.py",
     expected = "hello world",
     failing_case = "test_failing_case",
+    failing_pattern = "FAIL: {case} (",
     failing_test = ":fail_subject_test",
     lang = "python",
     passing_test = ":pass_subject_test",

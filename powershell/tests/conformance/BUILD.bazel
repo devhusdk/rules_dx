@@ -54,6 +54,7 @@ dx_conformance_suite(
     covered_source = "Greet.psm1",
     expected = "hello world",
     failing_case = "failing_case",
+    failing_pattern = "[-] {case}",
     failing_test = ":fail_subject_test",
     lang = "powershell",
     passing_test = ":pass_subject_test",

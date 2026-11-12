@@ -287,7 +287,7 @@ go_repository(
     ],
     importpath = "github.com/odvcencio/gotreesitter",
     patch_args = ["-p1"],
-    patches = ["//third_party/go:gotreesitter_embed.patch"],
+    patches = ["//patches/gotreesitter:embed.patch"],
     sha256 = "6c915c29ff5db03bcb2f2db690caed293c689c32bf445d48b5c0e2f5997a7a4a",
     strip_prefix = "gotreesitter-a8d5183f93260b8c3743375f70f4dee5b1778569",
     urls = ["https://github.com/TrapsterDK/gotreesitter/archive/a8d5183f93260b8c3743375f70f4dee5b1778569.tar.gz"],

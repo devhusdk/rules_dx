@@ -67,7 +67,7 @@ gazelle/    shared Gazelle plugins
 ci/         CI templates consumers include by URL
 tools/      maintainer-only scripts and generators
 patches/    upstream patches
-third_party/ vendored upstream sources
+third_party/ dependency manifests and lock files
 bcr_test_module/ the BCR presubmit module
 docs/       user docs
 examples/   tested examples
@@ -84,7 +84,7 @@ examples/   tested examples
 - `tools/` holds scripts that only maintainers run, and the generators.
 - WASI is a Rust target, not a language. Its test helpers `wasi_run` and `wasmtime` live in `//tools/testing/wasi`.
 - `patches/` holds upstream patches and the rules_dx registry. The patch table is generated from them.
-- `third_party/` holds vendored upstream sources.
+- `third_party/` holds dependency manifests and lock files.
 - `docs/` holds user docs. Per-language pages are generated from `lang.json`.
 - Every example in `examples/` is a tested target.
 - The root holds only language directories with a `lang.json` and the directories above. A test enforces the list, and the list has no pending entries.

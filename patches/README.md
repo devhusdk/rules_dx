@@ -98,3 +98,7 @@ applied to rules_dx's own `dx_crates` and are not exported to consumers: `clang_
 directly by `//` parses (baz-scm/gomod-parser#52) with `glued_comment.patch`. It is applied to
 rules_dx's own `dx_crates` and needs nothing from consumers. Remove it once a
 gomod-parser release after 0.6.0 carries the fix.
+
+## gotreesitter (go_repository)
+
+`MODULE.bazel` patches the `com_github_odvcencio_gotreesitter` `go_repository` with `embed.patch`. It is applied to rules_dx's own build and needs nothing from consumers.

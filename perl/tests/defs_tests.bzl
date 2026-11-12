@@ -95,13 +95,12 @@ def perl_wrapper_contract_tests(name):
                 ],
             ),
             expect_equal(
-                "rules_perl platforms are the five it ships",
+                "perl platforms are the lang.json platforms",
                 sorted(PERL_PLATFORMS.keys()),
                 [
                     "linux_arm64",
                     "linux_x86_64",
                     "macos_arm64",
-                    "macos_x86_64",
                     "windows_x86_64",
                 ],
             ),

@@ -1,13 +1,7 @@
-"""The platforms rules_perl ships a toolchain for."""
+"""The platforms the Perl wrappers accept, from perl/lang.json."""
 
-load("//core:platform_support.bzl", "os_cpu_support")
+load("//core:platform_support.bzl", "lang_platforms", "os_cpu_support")
 
-PERL_PLATFORMS = {
-    "linux_x86_64": ("linux", "x86_64"),
-    "linux_arm64": ("linux", "arm64"),
-    "macos_x86_64": ("macos", "x86_64"),
-    "macos_arm64": ("macos", "arm64"),
-    "windows_x86_64": ("windows", "x86_64"),
-}
+PERL_PLATFORMS = lang_platforms("perl")
 
 PLATFORM_SUPPORT = os_cpu_support("//perl/private:defs.bzl", "PERL_COMPATIBLE_WITH", PERL_PLATFORMS, [Label("//perl/private:rules_perl_platform")], "//perl/private")

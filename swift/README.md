@@ -101,11 +101,11 @@ nothing is installed on the host and no host program runs. The toolchain is the
 
 Swift targets link with the Windows C/C++ toolchain, so `dx_msvc` with its
 license accepted must be configured. Binaries link the Swift runtime
-dynamically; `swift_test` puts the runtime DLLs on `PATH`.
+dynamically.
 
-Swift Testing (`import Testing`) is not wired on Windows: the module search
-path and `Testing.dll` are not provided, so a `swift_test` that imports
-`Testing` must be incompatible with `@platforms//os:windows`. XCTest works.
+On windows_x86_64 Swift targets compile and link, but Swift binaries and
+`swift_test` targets, XCTest and Swift Testing included, do not run there yet
+(#12125).
 
 ## Windows arm64
 

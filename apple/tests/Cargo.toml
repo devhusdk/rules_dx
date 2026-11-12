@@ -5,10 +5,6 @@ version = "0.0.0"
 edition = "2024"
 
 [[test]]
-name = "macos_app_script_test"
-path = "macos_app_script_test.rs"
-
-[[test]]
 name = "path_test"
 path = "path_test.rs"
 

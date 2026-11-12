@@ -19,6 +19,7 @@
     )
 )]
 
+pub mod app_check;
 pub mod codesign;
 pub mod export;
 pub mod library_check;
@@ -122,10 +123,17 @@ pub fn run(args: &[String]) -> u8 {
                 library_check::run(&tools, rest),
             )
         }
+        "macos-app-check" => {
+            let tools = Tools {
+                developer_dir: process_env("DEVELOPER_DIR").map(PathBuf::from),
+                runner: &System,
+            };
+            report(app_check::PREFIX, app_check::run(&tools, rest))
+        }
         _ => report(
             "dx-apple-ops",
             Err(util::usage(
-                "usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|probe|library-check> ...",
+                "usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|probe|library-check|macos-app-check> ...",
             )),
         ),
     }

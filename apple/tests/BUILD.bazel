@@ -41,27 +41,6 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-rust_test(
-    name = "macos_app_script_test",
-    testonly = True,
-    srcs = ["macos_app_script_test.rs"],
-    aliases = aliases(
-        package_name = "apple/apple_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "macos_app_script_test",
-    crate_root = "macos_app_script_test.rs",
-    data = [
-        "//apple/private/macos:app_check.sh",
-    ],
-    env = {
-        "DX_MACOS_APP_CHECK": "$(rootpath //apple/private/macos:app_check.sh)",
-    },
-    target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
-)
-
 apple_ios_tests(
     name = "ios_metadata",
     size = "small",

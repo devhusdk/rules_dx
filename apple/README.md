@@ -493,7 +493,7 @@ register_toolchains("@rust_toolchains//:all")
 ```
 
 ```sh
-bazel build //:ledger
+bazel build //:ledger --macos_cpus=arm64
 bazel run //:ledger
 ```
 

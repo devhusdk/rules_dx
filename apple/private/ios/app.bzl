@@ -784,6 +784,7 @@ def _xcframework_check_impl(ctx):
     report = ctx.actions.declare_file(ctx.label.name + "_xcframework.txt")
     out = ctx.actions.declare_file(ctx.label.name + ".xcframework.zip")
     args = ctx.actions.args()
+    args.add("xcframework-check")
     args.add(report)
     args.add(out)
     args.add(archives[0])
@@ -861,8 +862,7 @@ _xcframework_check = rule(
             default = "",
         ),
         "_check": attr.label(
-            default = ":xcframework_check.sh",
-            allow_single_file = True,
+            default = Label("//apple/private/tools/ops:apple_ops"),
             cfg = "exec",
             executable = True,
         ),

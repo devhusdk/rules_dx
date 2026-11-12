@@ -21,7 +21,6 @@ exports_files([
     "lib_tests.bzl",
     "simulator.bzl",
     "validate.bzl",
-    "xcframework_check.sh",
 ])
 
 apple_ios_app_tests(name = "app_metadata")

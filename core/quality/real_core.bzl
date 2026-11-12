@@ -555,6 +555,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
     groups = dict(skip_groups)
     if "lychee" in stage_tools and capability == "lint":
         groups["dx_link_requests"] = depset([request_file])
+    groups["dx_inputs"] = depset(inputs)
     return [OutputGroupInfo(dx_results = depset([out]), **groups)]
 
 def real_quality_resource_set(cfg, tools):
@@ -573,9 +574,9 @@ def real_tool_table_error(cfg):
     return ""
 
 def real_merged_output_groups(groups):
-    """Merges the dx_results, dx_skips and dx_link_requests output groups of several targets."""
+    """Merges the dx_results, dx_skips, dx_link_requests and dx_inputs output groups of several targets."""
     merged = {}
-    for name in ["dx_results", "dx_skips", "dx_link_requests"]:
+    for name in ["dx_results", "dx_skips", "dx_link_requests", "dx_inputs"]:
         parts = [group[name] for group in groups if name in group]
         if len(parts) > 0:
             merged[name] = depset(transitive = parts)

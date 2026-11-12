@@ -58,7 +58,7 @@ def _cell_checks(name):
     conf = closure_library_dirs(_CONF.replace("{triple}", triple), CLOSURE_DIR)
     arch_dir = {"linux_x86_64": "x86_64-linux-gnu", "linux_arm64": "aarch64-linux-gnu", "macos_arm64": "", "windows_x86_64": ""}[name]
     return [
-        expect_equal(name + " runtime packages", [package.package for package in cell.runtime], ["libgmp10", "libtinfo6"] if has_runtime else []),
+        expect_equal(name + " runtime packages", [package.package for package in cell.runtime], ["libgmp10", "libgmp-dev", "libtinfo6"] if has_runtime else []),
         expect_true(name + " names a locale", len(cell.locale) > 0),
         expect_equal(name + " every library ships a license", [package.package for package in cell.runtime if package.libraries and package.license == ""], []),
         expect_equal(name + " every library ships a copyright", [package.package for package in cell.runtime if package.libraries and package.copyright == ""], []),
@@ -129,7 +129,7 @@ def _checks():
         expect_equal("windows cell gets one gated cc toolchain", hub_files()["BUILD.bazel"].count("@bazel_tools//tools/cpp:toolchain_type"), 1),
         expect_contains("windows cell cc toolchain is gated", hub_files()["BUILD.bazel"], "target_settings = [\"@@//config:toolchains_on\", \"@@//haskell/private/toolchain:ghc_mingw_enabled\"]"),
         expect_true("glibc floor covers the bindist", _version_at_least(GLIBC_FLOOR, "2.28")),
-        expect_equal("runtime package names match across cells", [[package.package for package in CELLS[name].runtime] for name in sorted(CELLS) if name.startswith("linux_")], [["libgmp10", "libtinfo6"]] * 2),
+        expect_equal("runtime package names match across cells", [[package.package for package in CELLS[name].runtime] for name in sorted(CELLS) if name.startswith("linux_")], [["libgmp10", "libgmp-dev", "libtinfo6"]] * 2),
         expect_equal("darwin has no runtime closure", CELLS["macos_arm64"].runtime, []),
         expect_true("arm64 mac runs the macos cell", cell_matches_host("macos_arm64", "mac os x", "aarch64")),
         expect_false("linux never runs the macos cell", cell_matches_host("macos_arm64", "linux", "aarch64")),

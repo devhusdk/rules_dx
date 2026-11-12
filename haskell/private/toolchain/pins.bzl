@@ -43,6 +43,14 @@ CELLS = {
                 sha256 = "91f8037c4ffaf7937a957a33de939a04ad42d088c07b383c19051dfd8476036b",
             ),
             struct(
+                copyright = "usr/share/doc/libgmp-dev/copyright",
+                deb = "debian/20240701T000000Z/pool/main/g/gmp/libgmp-dev_6.1.2+dfsg-4+deb10u1_amd64.deb",
+                libraries = {"libgmp.a": "usr/lib/x86_64-linux-gnu/libgmp.a"},
+                license = "LGPL-3.0-or-later OR GPL-2.0-or-later",
+                package = "libgmp-dev",
+                sha256 = "c465d54f56c94980d331c5716f9e909ed2beefabf381791f81e133b0fa631960",
+            ),
+            struct(
                 copyright = "usr/share/doc/libtinfo6/copyright",
                 deb = "debian-security/20240701T000000Z/pool/updates/main/n/ncurses/libtinfo6_6.1+20181013-2+deb10u5_amd64.deb",
                 libraries = {"libtinfo.so.6": "lib/x86_64-linux-gnu/libtinfo.so.6"},
@@ -72,6 +80,14 @@ CELLS = {
                 license = "LGPL-3.0-or-later OR GPL-2.0-or-later",
                 package = "libgmp10",
                 sha256 = "5ec3bd481106d1ce7d757f58f29dde5257056fdaa415b7ced01b7ff0bfafab0c",
+            ),
+            struct(
+                copyright = "usr/share/doc/libgmp-dev/copyright",
+                deb = "debian/20240701T000000Z/pool/main/g/gmp/libgmp-dev_6.1.2+dfsg-4+deb10u1_arm64.deb",
+                libraries = {"libgmp.a": "usr/lib/aarch64-linux-gnu/libgmp.a"},
+                license = "LGPL-3.0-or-later OR GPL-2.0-or-later",
+                package = "libgmp-dev",
+                sha256 = "6fdca077981df89a0f2ff271147ee47abcae43016429179611794c6ffc937808",
             ),
             struct(
                 copyright = "usr/share/doc/libtinfo6/copyright",

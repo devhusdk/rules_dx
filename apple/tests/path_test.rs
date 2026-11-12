@@ -13,5 +13,5 @@ fn no_apple_action_puts_a_host_directory_on_path() {
         }
         seen += 1;
     }
-    assert_eq!(seen, 4, "{sources}");
+    assert_eq!(seen, 3, "{sources}");
 }

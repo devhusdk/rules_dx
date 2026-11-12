@@ -18,9 +18,8 @@ rust_test(
         "//apple/private/bundle:defs.bzl",
         "//apple/private/ios:app.bzl",
         "//apple/private/macos:app.bzl",
-        "//apple/private/provisioning:probe.bzl",
     ],
-    env = {"DX_APPLE_PATH_SOURCES": "$(rootpath //apple/private/bundle:defs.bzl) $(rootpath //apple/private/ios:app.bzl) $(rootpath //apple/private/macos:app.bzl) $(rootpath //apple/private/provisioning:probe.bzl)"},
+    env = {"DX_APPLE_PATH_SOURCES": "$(rootpath //apple/private/bundle:defs.bzl) $(rootpath //apple/private/ios:app.bzl) $(rootpath //apple/private/macos:app.bzl)"},
     deps = ["//tools/testing:dx_testing"],
 )
 

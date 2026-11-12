@@ -7,7 +7,9 @@
   "manifests": [],
   "lockfiles": [],
   "tools": [],
-  "platforms": [],
+  "platforms": [
+    "macos_arm64"
+  ],
   "pins": [],
   "entry_points": [
     "apple_ios_app",

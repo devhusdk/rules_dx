@@ -681,7 +681,7 @@ fn pins_list_every_pins_json_under_the_language_dir() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
-const PLATFORM_DRIFT: [&str; 5] = ["android", "apple", "make", "msix", "ruby"];
+const PLATFORM_DRIFT: [&str; 2] = ["android", "msix"];
 
 const PLATFORMS: [&str; 5] =
     ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"];
@@ -744,7 +744,7 @@ fn lang_json_platforms_equal_the_support_matrix() {
     assert!(drift.is_empty(), "lang.json platforms differ from docs/support-matrix.md:\n{}", drift.join("\n"));
 }
 
-const EMPTY_PLATFORMS: [&str; 5] = ["android", "apple", "appimage", "env", "rego"];
+const EMPTY_PLATFORMS: [&str; 4] = ["android", "appimage", "env", "rego"];
 
 #[test]
 fn lang_json_platforms_are_not_empty() {

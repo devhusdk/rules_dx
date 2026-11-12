@@ -163,7 +163,9 @@ LANGS = json.decode("""{
     "manifests": [],
     "name": "apple",
     "pins": [],
-    "platforms": [],
+    "platforms": [
+      "macos_arm64"
+    ],
     "title": "Apple",
     "tools": []
   },
@@ -1961,7 +1963,11 @@ LANGS = json.decode("""{
     "name": "make",
     "pins": [],
     "platforms": [
-      "linux_x86_64"
+      "linux_arm64",
+      "linux_x86_64",
+      "macos_arm64",
+      "windows_arm64",
+      "windows_x86_64"
     ],
     "quality": {
       "aspects": {

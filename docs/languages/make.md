@@ -46,4 +46,8 @@ None.
 
 ## Platforms
 
+- Linux arm64
 - Linux x86_64
+- macOS arm64
+- Windows arm64
+- Windows x86_64

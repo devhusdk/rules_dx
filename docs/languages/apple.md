@@ -126,7 +126,7 @@ None.
 
 ## Platforms
 
-None.
+- macOS arm64
 
 ## Packaging
 

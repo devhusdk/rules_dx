@@ -196,6 +196,7 @@ impl<'a> Swift<'a> {
         let output = scratch
             .command(&self.swift)
             .arg("package")
+            .arg("--disable-sandbox")
             .arg(command)
             .args(args)
             .current_dir(package)

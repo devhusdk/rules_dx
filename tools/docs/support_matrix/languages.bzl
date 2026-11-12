@@ -17,6 +17,7 @@ load("//ocaml/private:kwargs.bzl", OCAML_SUPPORT = "PLATFORM_SUPPORT")
 load("//perl/private:platforms.bzl", PERL_SUPPORT = "PLATFORM_SUPPORT")
 load("//php/private:defs.bzl", PHP_SUPPORT = "PLATFORM_SUPPORT")
 load("//qt/private/sdk:repos.bzl", QT_SUPPORT = "PLATFORM_SUPPORT")
+load("//swift/private/platforms:support.bzl", SWIFT_SUPPORT = "PLATFORM_SUPPORT")
 load("//tools/platforms:defs.bzl", "WINDOWS_MSVC_HOST_CONSTRAINTS")
 load("//tools/testing/hermetic:defs.bzl", HERMETIC_SUPPORT = "PLATFORM_SUPPORT")
 
@@ -46,6 +47,7 @@ PLATFORM_SUPPORT = [
     PERL_SUPPORT,
     PHP_SUPPORT,
     QT_SUPPORT,
+    SWIFT_SUPPORT,
 ]
 
 # The tool api_compat runs per publishing rule; "not available" where no maintained free API diff tool exists.

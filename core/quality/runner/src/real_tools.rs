@@ -2769,7 +2769,10 @@ fn ffmt_run(
         !flags.iter().any(|arg| arg == "--config"),
         "ffmt has no --config"
     );
-    let files: Vec<&String> = flags.iter().filter(|arg| arg.starts_with('/')).collect();
+    let files: Vec<&String> = flags
+        .iter()
+        .filter(|arg| Path::new(arg.as_str()).is_absolute())
+        .collect();
     assert!(!files.is_empty(), "ffmt is never run without a file");
     for file in &files {
         let lower = file.to_ascii_lowercase();

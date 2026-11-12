@@ -132,72 +132,6 @@ def host_path(settings):
             return True
     return False
 
-DROPPED_PATHS = [
-    "BUILD.bazel",
-    "CLAUDE.md",
-    "MODULE.bazel",
-    "WORKSPACE",
-    "WORKSPACE.bzlmod",
-    "buildifier",
-    "constants.bzl",
-    "debug",
-    "docs",
-    "examples",
-    "extensions",
-    "haskell/ahc.BUILD.tpl",
-    "haskell/assets/ghc_9_2_1_mac.patch",
-    "haskell/assets/relpath.sh",
-    "haskell/asterius",
-    "haskell/c2hs",
-    "haskell/c2hs.bzl",
-    "haskell/cabal",
-    "haskell/doctest.bzl",
-    "haskell/gen_ghc_bindist.py",
-    "haskell/ghc.bzl",
-    "haskell/ghc_bindist.bzl",
-    "haskell/nixpkgs.bzl",
-    "haskell/private/ghc_bindist_generated.json",
-    "haskell/private/ghc_ci.bzl",
-    "haskell/private/pkgdb_to_bzl.bzl",
-    "haskell/private/stack_snapshot_pin.sh.tpl",
-    "haskell/protobuf.bzl",
-    "haskell/repositories.bzl",
-    "logo",
-    "netlify.toml",
-    "nixpkgs",
-    "non_module_dev_deps.bzl",
-    "protobuf",
-    "registry",
-    "rule_info",
-    "rules_haskell_nix",
-    "rules_haskell_tests",
-    "run-bazel",
-    "serve-docs.sh",
-    "shell.nix",
-    "stackage_snapshot.json",
-    "stackage_snapshot.yaml",
-    "stackage_snapshot_9.10.3.json",
-    "stackage_snapshot_9.10.3.yaml",
-    "stackage_snapshot_9.2.8.json",
-    "stackage_snapshot_9.2.8.yaml",
-    "stackage_snapshot_9.4.8.json",
-    "stackage_snapshot_9.4.8.yaml",
-    "stackage_snapshot_9.6.5.json",
-    "stackage_snapshot_9.6.5.yaml",
-    "stackage_snapshot_9.8.2.json",
-    "stackage_snapshot_9.8.2.yaml",
-    "start",
-    "tests",
-    "tools/BUILD.bazel",
-    "tools/README.md",
-    "tools/coverage-reports",
-    "tools/ghc-paths",
-    "tools/os_info.bzl",
-    "tools/repositories.bzl",
-    "tools/worker",
-    "tutorial",
-]
-
 GHC_DROPPED_PATHS = [
     "INSTALL",
     "Makefile",
@@ -247,9 +181,6 @@ SETTINGS = {
     "LLVM opt command": NO_HOST_TOOL,
     "LLVM llvm-as command": NO_HOST_TOOL,
 }
-
-ROOT_BUILD = """exports_files(["LICENSE"])
-"""
 
 _GHC_BUILD = """load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")

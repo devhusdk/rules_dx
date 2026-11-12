@@ -2,9 +2,9 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load("//d/private/toolchain:pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_VERSION", "TOOL_SOURCES")
 load("//d/private/toolchain:ldmd2.bzl", "ldmd2_descriptor")
-load("//d/private/toolchain:repos.bzl", "DROPPED_PATHS", "LDC_BUILD", "TOOL_BUILDS", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
+load("//d/private/toolchain:pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_VERSION", "TOOL_SOURCES")
+load("//d/private/toolchain:repos.bzl", "LDC_BUILD", "TOOL_BUILDS", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
 
 def _checks():
     linux = LDC_CELLS["linux_x86_64"]
@@ -27,9 +27,6 @@ def _checks():
         expect_equal("linux archive", linux.archive, "ldc2-1.43.0-linux-x86_64.tar.xz"),
         expect_contains("linux prefix names the version", linux.strip_prefix, LDC_VERSION),
         expect_equal("linux runtime closure", sorted([package.package for package in ldc_runtime("linux_x86_64")]), ["gcc-12-base", "libgcc-s1", "zlib1g"]),
-        expect_true("the upstream toolchain extension is dropped", "d/extensions.bzl" in DROPPED_PATHS),
-        expect_true("the upstream compiler download is dropped", "d/repositories.bzl" in DROPPED_PATHS),
-        expect_true("the upstream module file is dropped", "MODULE.bazel" in DROPPED_PATHS),
         expect_true("acquisition requires the real compiler", "bin/ldc2" in ldc_required_paths(linux)),
         expect_equal("windows required paths", ldc_required_paths(LDC_CELLS["windows_x86_64"]), ["bin/ldc2.exe", "bin/ldmd2.exe", "etc/ldc2.conf", "lib/druntime-ldc.lib", "lib/phobos2-ldc.lib"]),
         expect_equal("windows arm64 required paths", ldc_required_paths(LDC_CELLS["windows_arm64"])[3:], ["lib-windows-arm64/druntime-ldc.lib", "lib-windows-arm64/phobos2-ldc.lib"]),

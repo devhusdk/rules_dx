@@ -16,6 +16,7 @@ exports_files([
     "bench_run.sh",
     "defs.bzl",
     "kwargs.bzl",
+    "rules_haskell.BUILD.bazel",
 ])
 
 dx_wrapper_contract_tests(
@@ -154,6 +155,7 @@ real_source_target(
         "kwargs.bzl",
         "profile_tests.bzl",
         "deps_resolve.bzl",
+        "rules_haskell.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

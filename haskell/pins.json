@@ -63,7 +63,8 @@
       "strip_prefix": "rules_haskell-826018312ea91c80ff66fde1e1e39f76c42c07b8",
       "urls": [
         "https://github.com/tweag/rules_haskell/archive/826018312ea91c80ff66fde1e1e39f76c42c07b8.tar.gz"
-      ]
+      ],
+      "version": "826018312ea91c80ff66fde1e1e39f76c42c07b8"
     }
   },
   "version": "9.10.3"

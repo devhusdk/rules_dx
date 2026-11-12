@@ -12,10 +12,6 @@ _ARCHIVES = _PINS["archives"]
 
 RULES_D_VERSION = _ARCHIVES["rules_d"]["version"]
 
-RULES_D_SHA256 = _ARCHIVES["rules_d"]["sha256"]
-
-RULES_D_URLS = _ARCHIVES["rules_d"]["urls"]
-
 LDC_VERSION = _PINS["version"]
 
 _MSVC_ABI = "@llvm//constraints/windows/abi:msvc"

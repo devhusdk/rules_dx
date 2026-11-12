@@ -912,6 +912,118 @@ dx_pins.archive(
     pins = "//dotnet:pins.json",
 )
 dx_pins.archive(
+    name = "rules_d",
+    build = "//d/private:rules_d.BUILD.bazel",
+    dropped = [
+        ".bazelignore",
+        ".bazelrc",
+        ".bazelversion",
+        ".bcr",
+        ".github",
+        ".pre-commit-config.yaml",
+        "MODULE.bazel",
+        "MODULE.bazel.lock",
+        "REPO.bazel",
+        "WORKSPACE.bazel",
+        "_typos.toml",
+        "d/extensions.bzl",
+        "d/private/toolchains_repo.bzl",
+        "d/repositories.bzl",
+        "d/tests",
+        "docs",
+        "dub",
+        "e2e",
+        "renovate.json",
+        "tools",
+    ],
+    patches = [
+        "//patches/rules_d:pic_link.patch",
+        "//patches/rules_d:disabled_features.patch",
+    ],
+    pins = "//d:pins.json",
+)
+dx_pins.archive(
+    name = "rules_haskell",
+    build = "//haskell/private:rules_haskell.BUILD.bazel",
+    dropped = [
+        "BUILD.bazel",
+        "CLAUDE.md",
+        "MODULE.bazel",
+        "WORKSPACE",
+        "WORKSPACE.bzlmod",
+        "buildifier",
+        "constants.bzl",
+        "debug",
+        "docs",
+        "examples",
+        "extensions",
+        "haskell/ahc.BUILD.tpl",
+        "haskell/assets/ghc_9_2_1_mac.patch",
+        "haskell/assets/relpath.sh",
+        "haskell/asterius",
+        "haskell/c2hs",
+        "haskell/c2hs.bzl",
+        "haskell/cabal",
+        "haskell/doctest.bzl",
+        "haskell/gen_ghc_bindist.py",
+        "haskell/ghc.bzl",
+        "haskell/ghc_bindist.bzl",
+        "haskell/nixpkgs.bzl",
+        "haskell/private/ghc_bindist_generated.json",
+        "haskell/private/ghc_ci.bzl",
+        "haskell/private/pkgdb_to_bzl.bzl",
+        "haskell/private/stack_snapshot_pin.sh.tpl",
+        "haskell/protobuf.bzl",
+        "haskell/repositories.bzl",
+        "logo",
+        "netlify.toml",
+        "nixpkgs",
+        "non_module_dev_deps.bzl",
+        "protobuf",
+        "registry",
+        "rule_info",
+        "rules_haskell_nix",
+        "rules_haskell_tests",
+        "run-bazel",
+        "serve-docs.sh",
+        "shell.nix",
+        "stackage_snapshot.json",
+        "stackage_snapshot.yaml",
+        "stackage_snapshot_9.10.3.json",
+        "stackage_snapshot_9.10.3.yaml",
+        "stackage_snapshot_9.2.8.json",
+        "stackage_snapshot_9.2.8.yaml",
+        "stackage_snapshot_9.4.8.json",
+        "stackage_snapshot_9.4.8.yaml",
+        "stackage_snapshot_9.6.5.json",
+        "stackage_snapshot_9.6.5.yaml",
+        "stackage_snapshot_9.8.2.json",
+        "stackage_snapshot_9.8.2.yaml",
+        "start",
+        "tests",
+        "tools/BUILD.bazel",
+        "tools/README.md",
+        "tools/coverage-reports",
+        "tools/ghc-paths",
+        "tools/os_info.bzl",
+        "tools/repositories.bzl",
+        "tools/worker",
+        "tutorial",
+    ],
+    patches = [
+        "//patches/rules_haskell:coverage_wrapper_no_report.patch",
+        "//patches/rules_haskell:hermetic_haskell.patch",
+        "//patches/rules_haskell:cabal_rules.patch",
+        "//patches/rules_haskell:cabal_mingw_transition.patch",
+        "//patches/rules_haskell:cc_wrapper_relpath_mount.patch",
+        "//patches/rules_haskell:ghc_wrapper_runfiles_env.patch",
+        "//patches/rules_haskell:cc_toolchain_config_info.patch",
+        "//patches/rules_haskell:cabal_llvm_ar.patch",
+        "//patches/rules_haskell:cc_wrapper_darwin_ffi.patch",
+    ],
+    pins = "//haskell:pins.json",
+)
+dx_pins.archive(
     name = "rules_powershell",
     pins = "//powershell:pins.json",
 )
@@ -996,7 +1108,9 @@ use_repo(
     "nfpm_linux_x86_64",
     "nfpm_macos_arm64",
     "nfpm_windows_x86_64",
+    "rules_d",
     "rules_dotnet",
+    "rules_haskell",
     "rules_powershell",
     "rules_ruby",
 )
@@ -1538,7 +1652,7 @@ composer.lock(
 use_repo(composer, php_fixture_vendor = "composer_php.tests.fixtures.composer")
 
 haskell = use_extension("//haskell:extensions.bzl", "haskell")
-use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "rules_haskell")
+use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains")
 
 cabal = use_extension("//haskell:extensions.bzl", "cabal")
 cabal.lock(
@@ -1581,7 +1695,7 @@ use_repo(cabal_dev, "haskell_app_hackage", "haskell_bench_hackage", "haskell_exe
 register_toolchains("@dx_haskell_toolchains//toolchains:all")
 
 d = use_extension("//d:extensions.bzl", "d")
-use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_x86_64", "dx_d_ldc_linux_arm64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
+use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_arm64", "dx_d_ldc_linux_x86_64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains")
 
 register_toolchains("@dx_d_toolchains//:all")
 

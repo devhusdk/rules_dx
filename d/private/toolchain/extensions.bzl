@@ -1,9 +1,8 @@
 """Module extension for d/private/toolchain."""
 
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "LDC_CELLS", "RULES_D_SHA256", "RULES_D_URLS", "RULES_D_VERSION", "TOOL_SOURCES")
-load(":repos.bzl", "DROPPED_PATHS", "HUB_NAME", "ROOT_BUILD", "hub_build", "ldc_repo", "ldc_repository_name", "tool_build")
-
+load(":pins.bzl", "LDC_CELLS", "TOOL_SOURCES")
+load(":repos.bzl", "HUB_NAME", "hub_build", "ldc_repo", "ldc_repository_name", "tool_build")
 
 def tool_files(tool):
     """Returns the files written into one D quality tool source repository."""
@@ -11,20 +10,7 @@ def tool_files(tool):
     files["BUILD.bazel"] = tool_build(tool)
     return files
 
-
 def _d_impl(mctx):
-    pinned_archive(
-        name = "rules_d",
-        dropped = DROPPED_PATHS,
-        files = {"BUILD.bazel": ROOT_BUILD},
-        patches = [
-            Label("//patches/rules_d:pic_link.patch"),
-            Label("//patches/rules_d:disabled_features.patch"),
-        ],
-        sha256 = RULES_D_SHA256,
-        strip_prefix = "rules_d-" + RULES_D_VERSION,
-        urls = RULES_D_URLS,
-    )
     for cell in sorted(LDC_CELLS.keys()):
         ldc_repo(name = ldc_repository_name(cell), cell = cell)
     hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
@@ -40,8 +26,7 @@ def _d_impl(mctx):
         )
     return mctx.extension_metadata(reproducible = True)
 
-
 d = module_extension(
     implementation = _d_impl,
-    doc = "Creates rules_d, the pinned LDC compilers and the D toolchain hub.",
+    doc = "Creates the pinned LDC compilers, the D toolchain hub and the D tool sources.",
 )

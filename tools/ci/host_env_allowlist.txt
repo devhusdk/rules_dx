@@ -206,7 +206,7 @@ deploy/tests/fixtures/consumer_resources/BUILD.bazel genrule 1
 deploy/tests/fixtures/linux_package/BUILD.bazel genrule 2
 deploy/tests/runfiles/deploy_runfiles_test.rs shebang 1
 elixir/private/tools/launcher.bzl home 2
-elixir/tests/fixtures/elixir-app/catalog/BUILD.bazel genrule 1
+elixir/tests/fixtures/elixir_app/catalog/BUILD.bazel genrule 1
 env/private/stubs/BUILD.bazel sh-rule 1
 env/private/stubs/BUILD.bazel shebang 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel sh-rule 1
@@ -231,7 +231,7 @@ go/tests/fixtures/fuzz/run_test.sh shebang 1
 haskell/private/bench_run.sh shebang 1
 haskell/tests/fixtures/bench/BUILD.bazel sh-rule 1
 haskell/tests/fixtures/bench/run_test.sh shebang 1
-haskell/tests/fixtures/haskell-app/stock/BUILD.bazel genrule 1
+haskell/tests/fixtures/haskell_app/stock/BUILD.bazel genrule 1
 haskell/tests/toolchain_tests.bzl host-path 4
 java/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 java/tests/fixtures/fuzz/run_test.sh shebang 1
@@ -260,8 +260,8 @@ ocaml/private/tools/BUILD.bazel sh-rule 1
 ocaml/private/tools/opam.sh shebang 1
 ocaml/tests/fixtures/bench/BUILD.bazel sh-rule 1
 ocaml/tests/fixtures/bench/run_test.sh shebang 1
-ocaml/tests/fixtures/ocaml-app/cli/BUILD.bazel sh-rule 1
-ocaml/tests/fixtures/ocaml-app/cli/exit_codes.sh shebang 1
+ocaml/tests/fixtures/ocaml_app/cli/BUILD.bazel sh-rule 1
+ocaml/tests/fixtures/ocaml_app/cli/exit_codes.sh shebang 1
 patches/BUILD.bazel genrule 1
 patches/llvm/tests/BUILD.bazel sh-rule 4
 patches/llvm/tests/libunwind_copy_test.sh shebang 1

@@ -141,11 +141,9 @@ fixture-name dart/tests/web
 fixture-name dockerfile/tests/fixtures/Dockerfile-dev
 fixture-name dockerfile/tests/fixtures/app.Dockerfile
 fixture-name dockerfile/tests/fixtures/dirty.Dockerfile
-fixture-name elixir/tests/fixtures/elixir-app
 fixture-name elixir/tests/negative
 fixture-name elixir/tests/runtime
 fixture-name elixir/tests/tags
-fixture-name erlang/tests/fixtures/erlang-app
 fixture-name erlang/tests/negative
 fixture-name erlang/tests/nif_cpp
 fixture-name erlang/tests/nif_escript
@@ -165,7 +163,6 @@ fixture-name fortran/tests/runtime
 fixture-name fsharp/tests/fixtures/adopt-fsharp
 fixture-name go/tests/fixtures/adopt-go
 fixture-name haskell/tests/fixtures/hackage-exe
-fixture-name haskell/tests/fixtures/haskell-app
 fixture-name haskell/tests/mingw_cc
 fixture-name haskell/tests/negative
 fixture-name haskell/tests/runtime
@@ -202,7 +199,6 @@ fixture-name msix/tests/fixtures/greeting.txt
 fixture-name msix/tests/fixtures/logo.png
 fixture-name msix/tests/fixtures/msix-app
 fixture-name ocaml/tests/fixtures/dune-lib
-fixture-name ocaml/tests/fixtures/ocaml-app
 fixture-name ocaml/tests/native
 fixture-name ocaml/tests/negative
 fixture-name ocaml/tests/runtime

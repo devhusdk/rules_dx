@@ -1,0 +1,84 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@rules_dx//haskell:defs.bzl", "haskell_binary", "haskell_library", "haskell_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = [
+    "//haskell/tests/fixtures/haskell_app:__subpackages__",
+    "//core/quality:__pkg__",
+])
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "src/Cli.hs",
+        "src/Main.hs",
+        "src/ReportWithoutSplit.hs",
+        "test/CliTest.hs",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+string_flag(
+    name = "limit",
+    build_setting_default = "60",
+    values = [
+        "60",
+        "144",
+    ],
+)
+
+config_setting(
+    name = "limit_144",
+    flag_values = {":limit": "144"},
+)
+
+haskell_library(
+    name = "cli",
+    srcs = ["src/Cli.hs"],
+    ghcopts = [
+        "-Wall",
+        "-Werror",
+    ] + select({
+        ":limit_144": ["-DSTOCK_LIMIT=144"],
+        "//conditions:default": [],
+    }),
+    deps = [
+        "//haskell/tests/fixtures/haskell_app/stock",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+haskell_binary(
+    name = "stockctl",
+    srcs = ["src/Main.hs"],
+    deps = [
+        ":cli",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+haskell_test(
+    name = "cli_test",
+    srcs = ["test/CliTest.hs"],
+    args = select({
+        ":limit_144": ["144"],
+        "//conditions:default": ["60"],
+    }),
+    deps = [
+        ":cli",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+haskell_library(
+    name = "report_without_split",
+    srcs = ["src/ReportWithoutSplit.hs"],
+    tags = ["manual"],
+    deps = ["@dx_haskell_toolchains//:base"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

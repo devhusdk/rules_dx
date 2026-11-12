@@ -7,11 +7,11 @@ use_repo(ocaml, "dx_ocaml_toolchains", "rules_ocaml")
 opam = use_extension("@my_dx//ocaml:extensions.bzl", "opam")
 opam.lock(
     name = "ocaml_app",
-    lock = "//ocaml/tests/fixtures/ocaml-app:ocaml_app.opam.locked",
+    lock = "//ocaml/tests/fixtures/ocaml_app:ocaml_app.opam.locked",
 )
 opam.annotation(
     package = "astring",
-    build_file = "//ocaml/tests/fixtures/ocaml-app:astring.BUILD.bazel",
+    build_file = "//ocaml/tests/fixtures/ocaml_app:astring.BUILD.bazel",
     strip_prefix = "astring-0.8.5",
 )
 use_repo(opam, "ocaml_app")

@@ -127,9 +127,9 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude gazelle
 # gazelle:exclude examples/shared-rust
 # gazelle:exclude swift/tests/fixtures/swift-app
-# gazelle:exclude haskell/tests/fixtures/haskell-app
+# gazelle:exclude haskell/tests/fixtures/haskell_app
 # gazelle:exclude qt/tests/fixtures/qt-app
-# gazelle:exclude ocaml/tests/fixtures/ocaml-app
+# gazelle:exclude ocaml/tests/fixtures/ocaml_app
 # gazelle:exclude qt/tests/fixtures/qt-rust
 # gazelle:exclude qt/tests/fixtures/qt-tasks
 # gazelle:exclude appimage/tests/fixtures/appimage-app
@@ -241,7 +241,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude asciidoc/tests/fixtures
 # gazelle:exclude bicep/tests/fixtures
 # gazelle:exclude dockerfile/tests/fixtures
-# gazelle:exclude erlang/tests/fixtures/erlang-app/checksum/c_src
+# gazelle:exclude erlang/tests/fixtures/erlang_app/checksum/c_src
 # gazelle:exclude haskell/private/coverage/fixture
 # gazelle:exclude haskell/tests/fixtures/bench/src
 # gazelle:exclude java/tests/fixtures/hello/src/test/java/hello

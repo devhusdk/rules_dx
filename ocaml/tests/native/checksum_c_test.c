@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "ocaml/tests/fixtures/ocaml-app/checksum/native/checksum.h"
+#include "ocaml/tests/fixtures/ocaml_app/checksum/native/checksum.h"
 
 int main(void) {
   intptr_t h = dx_checksum_step(2166136261, 'a');

@@ -1344,7 +1344,7 @@ use_repo(hex, "dx_benchee")
 hex_dev = use_extension("//elixir:extensions.bzl", "hex", dev_dependency = True)
 hex_dev.lock(
     name = "elixir_app_deps",
-    lock = "//elixir/tests/fixtures/elixir-app:mix.lock",
+    lock = "//elixir/tests/fixtures/elixir_app:mix.lock",
 )
 use_repo(hex_dev, "elixir_app_deps")
 
@@ -1352,7 +1352,7 @@ _beam_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl
 
 _beam_http_archive(
     name = "erlang_app_thoas",
-    build_file = "//erlang/tests/fixtures/erlang-app:thoas.BUILD.bazel",
+    build_file = "//erlang/tests/fixtures/erlang_app:thoas.BUILD.bazel",
     sha256 = "9187a4a283a4cdb0640d9ab84575e2cbe47fe68366fd47ea4a8a983def415207",
     strip_prefix = "thoas-1.2.1",
     urls = ["https://github.com/lpil/thoas/archive/refs/tags/v1.2.1.tar.gz"],
@@ -1373,10 +1373,10 @@ use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "dx_opam_repository", "r
 opam_dev = use_extension("//ocaml:extensions.bzl", "opam", dev_dependency = True)
 opam_dev.lock(
     name = "ocaml_app",
-    lock = "//ocaml/tests/fixtures/ocaml-app:ocaml_app.opam.locked",
+    lock = "//ocaml/tests/fixtures/ocaml_app:ocaml_app.opam.locked",
 )
 opam_dev.annotation(
-    build_file = "//ocaml/tests/fixtures/ocaml-app:astring.BUILD.bazel",
+    build_file = "//ocaml/tests/fixtures/ocaml_app:astring.BUILD.bazel",
     package = "astring",
     strip_prefix = "astring-0.8.5",
 )
@@ -1498,7 +1498,7 @@ use_repo(cabal, "haskell_hlint_hackage", "haskell_nixfmt_hackage", "haskell_ormo
 cabal_dev = use_extension("//haskell:extensions.bzl", "cabal", dev_dependency = True)
 cabal_dev.lock(
     name = "haskell_app_hackage",
-    lock = "//haskell/tests/fixtures/haskell-app/third_party:haskell_deps.json",
+    lock = "//haskell/tests/fixtures/haskell_app/third_party:haskell_deps.json",
 )
 cabal_dev.lock(
     name = "haskell_exe_hackage",

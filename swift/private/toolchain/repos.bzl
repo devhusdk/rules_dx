@@ -219,6 +219,18 @@ filegroup(
 )
 
 filegroup(
+    name = "link_inputs",
+    srcs = glob(
+        [
+            "platform/Developer/SDKs/Windows.sdk/usr/lib/swift/windows/**",
+            "platform/Developer/Library/XCTest-*/usr/lib/swift/windows/**",
+        ],
+        exclude = ["**/*.pdb"],
+        allow_empty = True,
+    ),
+)
+
+filegroup(
     name = "runtime_dlls",
     srcs = glob(
         [

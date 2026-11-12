@@ -31,11 +31,11 @@ def _after(argv, flag):
         return argv[argv.index(flag) + 1]
     return ""
 
-_GCC = "dx_gcc_linux_x86_64"
+_GCC = "dx_gcc_linux_"
 
 def _assert_compiler(env, gcc, value, what):
     if gcc:
-        asserts.true(env, _GCC in value, what + " must come from " + _GCC + ", got " + value)
+        asserts.true(env, _GCC in value and "_cross" not in value, what + " must come from a native " + _GCC + "* repo, got " + value)
     else:
         asserts.true(env, "llvm" in value and "dx_gcc" not in value, what + " must come from the llvm repo, got " + value)
 
@@ -96,7 +96,7 @@ def cgo_toolchain_tests(name, target_under_test):
     )
     _gcc_test(
         name = name + "_gcc",
-        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+        target_compatible_with = ["@platforms//os:linux"],
         target_under_test = target_under_test,
     )
     native.test_suite(name = name, tests = [name + "_llvm", name + "_gcc"])

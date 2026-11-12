@@ -26,17 +26,8 @@ fn name_char(c: char) -> bool {
 }
 
 fn is_pattern(text: &str) -> bool {
-    let rest = match text.strip_prefix('@') {
-        Some(external) => match external.split_once("//") {
-            Some((repo, rest)) if repo.starts_with("rules_dx_") && repo.chars().all(name_char) => {
-                rest
-            }
-            _ => return false,
-        },
-        None => match text.strip_prefix("//") {
-            Some(rest) => rest,
-            None => return false,
-        },
+    let Some(rest) = text.strip_prefix("//") else {
+        return false;
     };
     let (path, target) = match rest.split_once(':') {
         Some((path, target)) => (path, Some(target)),

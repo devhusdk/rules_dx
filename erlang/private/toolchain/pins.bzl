@@ -124,16 +124,14 @@ CELLS = {
     ),
 }
 
-# Cells whose OTP is pinned but cannot run Erlang yet: the launchers are POSIX sh (#5962).
-# Apps do not build for them until those land.
+# Cells whose OTP is pinned but cannot run Erlang yet: the launchers are POSIX sh.
 OTP_UNPORTED_CELLS = []
 
 OTP_NIF_UNPORTED_CELLS = []
 
 OTP_DIALYZER_UNPORTED_CELLS = []
 
-# The OTP applications the dialyzer base PLT covers. A call into an application missing here
-# is an "Unknown function" warning, so the list holds what Erlang apps commonly use.
+# OTP applications in the dialyzer base PLT.
 DIALYZER_PLT_CORE = ["erts", "kernel", "stdlib"]
 
 DIALYZER_PLT_APPS = ["compiler", "crypto", "syntax_tools", "sasl", "public_key", "ssl", "inets", "tools", "runtime_tools", "eunit"]

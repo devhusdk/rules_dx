@@ -29,8 +29,7 @@ FlatBuffersCodegenInfo = provider(
     fields = {"language": "string: cpp, rust or java."},
 )
 
-# Private attributes shared by every codegen rule, so a later toolchain swap
-# touches one place. The compiler is the pinned source build, never the lint flag.
+# The compiler is the pinned source build, never the lint flag.
 _PRIVATE_ATTRS = {
     "_flatc": attr.label(
         default = Label("@dx_flatbuffers//:flatc"),
@@ -71,9 +70,7 @@ def _cc_aspect_impl(target, ctx):
     info = target[FlatBuffersInfo]
     headers = []
 
-    # The flags change the output, so each variant gets its own root: one
-    # flatbuffers_library reached by cc libraries with different gen_object_api
-    # values would otherwise declare the same path from conflicting actions.
+    # Each flag variant gets its own root so variants do not declare the same path.
     subdir = "_fbs_obj" if ctx.attr.gen_object_api else "_fbs"
     stage = _stage(ctx, subdir + "_stage/" + target.label.name, info)
     for src in info.direct_srcs:

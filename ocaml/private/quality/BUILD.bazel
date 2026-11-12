@@ -16,8 +16,7 @@ exports_files(glob(["patches/*.patch"]) + [
     "tools_tests.bzl",
 ])
 
-# zanuda 2.1.0, built from source with dune. Licensed LGPL-3.0-only; the
-# licenses of the whole source closure are in :zanuda_licenses.
+# zanuda 2.1.0 (LGPL-3.0-only), built from source; closure licenses in :zanuda_licenses.
 dx_dune_build(
     name = "zanuda",
     srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
@@ -26,10 +25,7 @@ dx_dune_build(
     workspace = "@dx_ocaml_tools_duniverse//:dune-project",
 )
 
-# The aspect's tool attribute. The hermetic OCaml toolchain has no cell for most
-# exec platforms, so the real zanuda resolves only where it is supported
-# (linux_x86_64, linux_arm64, macos_arm64); elsewhere the alias selects a marked stub and the aspect skips
-# the stage with a note.
+# Real zanuda on linux_x86_64, linux_arm64 and macos_arm64; a marked stub elsewhere.
 alias(
     name = "zanuda_tool",
     actual = select({

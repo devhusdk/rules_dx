@@ -41,7 +41,7 @@ pub const RULES_PY_PATCHES: [&str; 6] = [
     "external_repo_pytest_paths",
 ];
 
-/// Pins the patched rules_py the way the root MODULE.bazel does, until the BCR serves alpha.11 (#6811).
+/// Pins the patched rules_py the way the root MODULE.bazel does, until the BCR serves alpha.11.
 pub fn rules_py_override() -> String {
     let patches = RULES_PY_PATCHES
     .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))

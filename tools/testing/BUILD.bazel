@@ -273,7 +273,7 @@ _HARNESS_CONSUMER_DATA = [
     "//patches/rules_py:venv_bin_files.patch",
 ]
 
-# size: large, nested Bazel consumer build, see #5689
+# size: large, nested Bazel consumer build
 nested_bazel_test(
     name = "nested_bazel_harness_test",
     size = "large",

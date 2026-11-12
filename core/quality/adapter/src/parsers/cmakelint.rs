@@ -45,7 +45,7 @@ fn split_line<'a>(line: &'a str, files: &[&'a str]) -> Option<(&'a str, u64, &'a
 ///
 /// Findings are line-only: cmakelint reports no column, so each finding is anchored at column
 /// 1 of its line (line 0 file-level findings clamp to line 1), counted in Unicode scalars as
-/// for checkmake (#3931).
+/// for checkmake.
 ///
 /// cmakelint exits 0 quietly in several broken situations (a file it does not recognise
 /// prints `Ignoring file:` and is skipped, an unreadable `--config` is ignored), so this never

@@ -35,8 +35,7 @@ CapnpCodegenInfo = provider(
     fields = {"language": "string: cpp, rust or java."},
 )
 
-# Private attributes shared by every codegen rule, so a later toolchain swap
-# touches one place. The compiler is the pinned source build, never the lint flag.
+# The compiler is the pinned source build, never the lint flag.
 _PRIVATE_ATTRS = {
     "_capnp": attr.label(
         default = Label("@dx_capnproto//src/capnp:capnp_tool"),

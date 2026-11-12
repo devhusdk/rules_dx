@@ -166,16 +166,7 @@ def _gcc_toolchain_impl(rctx):
     ])
     extra_cxxflags.extend(rctx.attr.extra_cxxflags)
 
-    # Note: we deliberately do NOT add `-B`/`-L` flags for the sysroot lib dirs
-    # (`%workspace%/sysroot/lib`, `%workspace%/sysroot/usr/lib`). GCC already
-    # searches them via its built-in sysroot, so they are redundant. They are
-    # also harmful to `lld` (the `linker-lld` feature): these flags are relative,
-    # so in the sandbox they resolve against the action's cwd, and `lld` then
-    # finds glibc's `libm.so`/`libc.so` linker scripts via a path that is not
-    # under the absolute sysroot. Unlike BFD, `lld` then refuses to rewrite the
-    # absolute `GROUP(/lib/libm.so.6)` entries in those scripts and the link
-    # fails with `cannot open /lib/libm.so.6`. Relying on GCC's built-in sysroot
-    # keeps both linkers working.
+    # No sysroot -B/-L flags: relative paths make lld reject glibc's absolute linker-script entries.
     extra_ldflags = [
         lib.format(
             include_prefix = include_prefix,
@@ -307,8 +298,7 @@ _FEATURE_ATTRS = {
     ),
 }
 
-# Attributes of the `toolchain` declarations, which live in the hub rather than in the repository
-# holding the compiler itself.
+# Attributes of the hub's `toolchain` declarations.
 _TOOLCHAIN_DECLARATION_ATTRS = {
     "extra_target_compatible_with": attr.label_list(
         doc = "Additional constraint_values appended to target_compatible_with of the toolchain," +
@@ -400,8 +390,7 @@ def _gcc_toolchains_hub_impl(rctx):
             gcc_version_flag = gcc_version_flag,
         ))
 
-    # The default version is selected both when the flag is left at its empty default and when it
-    # is set to that version explicitly.
+    # The default version matches both the empty flag and its explicit value.
     content.append(_HUB_DEFAULT_SETTING_TEMPLATE.format(suffix = _sanitize_version(default_gcc_version)))
 
     for gcc_version in sorted(toolchain_repos.keys()):
@@ -415,8 +404,7 @@ def _gcc_toolchains_hub_impl(rctx):
             toolchain_repo = toolchain_repos[gcc_version],
         ))
 
-    # Keep the targets of the selected toolchain reachable under the hub name, so that labels like
-    # @gcc_toolchain_x86_64//:libstdcxx keep resolving and follow the selected version.
+    # Aliases under the hub name that follow the selected version.
     for target in _HUB_ALIASED_TARGETS:
         actual = {
             ":_gcc_version_" + _sanitize_version(gcc_version): "@{}//:{}".format(toolchain_repo, target)
@@ -542,13 +530,11 @@ def gcc_declare_toolchain(
 
     hub_kwargs = {}
 
-    # An explicitly empty target_compatible_with drops the default constraints, so only an omitted
-    # one may fall back to the attribute default.
+    # An explicitly empty target_compatible_with drops the default constraints.
     if target_compatible_with != None:
         hub_kwargs["target_compatible_with"] = target_compatible_with
 
-    # The hub BUILD file resolves @bazel_skylib, @platforms and @rules_cc as well, so it needs the
-    # same repository mapping as the per-version repositories.
+    # The hub BUILD file needs the same repository mapping as the per-version repositories.
     if repo_mapping != None:
         hub_kwargs["repo_mapping"] = repo_mapping
 
@@ -568,8 +554,7 @@ ARCHS = struct(
     x86_64 = "x86_64",
 )
 
-# The public targets of a toolchain repository, aliased by the hub so that they track the GCC
-# version selected by the flag.
+# Public targets of a toolchain repository, aliased by the hub to the selected version.
 _HUB_ALIASED_TARGETS = [
     "_cc_toolchain",
     "all_files",

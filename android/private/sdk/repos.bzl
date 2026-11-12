@@ -144,8 +144,7 @@ APP_SDK_HUB_NAME = "dx_androidsdk"
 
 APP_SDK_FILES_NAME = APP_SDK_HUB_NAME + "_files"
 
-# Targets of rules_android's SDK template the light @androidsdk hub forwards to
-# the files repo. Check this list against @androidsdk//: labels on upgrades.
+# Targets of @androidsdk the light hub forwards to the files repo.
 APP_SDK_FORWARDED = [
     "sdk",
     "sdk-%d",

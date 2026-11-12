@@ -32,8 +32,7 @@ alias(
     actual = "//rust/private/quality/tools/topiary:dx_topiary",
 )
 
-# The dx_quality_crates hub has no windows_arm64 cell, so the aspect tool
-# attributes select a marked stub there and the stage is skipped with a note.
+# dx_quality_crates has no windows_arm64 cell, so tools select a marked stub there.
 config_setting(
     name = "windows_arm64",
     constraint_values = [

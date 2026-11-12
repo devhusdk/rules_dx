@@ -1,11 +1,6 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 
-# selene 0.32.0, built from source. The upstream release binaries are compiled
-# without selene-lib's lua52/lua53/lua54 features (Kampfkarren/selene#645), so
-# valid Lua 5.2+ syntax is reported as a parse error. Building here enables
-# those features. The roblox and tracy features stay off, which keeps ureq (and
-# any network access) out of the binary.
-# --cap-lints=allow keeps upstream warnings from failing under --deny=warnings.
+# Upstream release binaries lack the lua52/lua53/lua54 features; roblox and tracy stay off.
 
 rust_library(
     name = "selene_lib",

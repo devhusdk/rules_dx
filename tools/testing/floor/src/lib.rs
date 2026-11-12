@@ -1,4 +1,4 @@
-//! Floor checks for consumer `bazel_dep`s (#3747).
+//! Floor checks for consumer `bazel_dep`s.
 //!
 //! A consumer that depends on rules_dx must resolve every `CONSUMER_BAZEL_DEPS` module at its
 //! floor, the oldest version rules_dx supports. This crate holds the pure pieces: the candidate

@@ -278,9 +278,7 @@ def _has_select(values):
             return True
     return False
 
-# rules_android 0.8.0 reads its Starlark flag before the native option (rules/utils.bzl
-# _get_android_platforms) and aliases `--android_platforms` to it, so the transition writes
-# both. Drop the native option once Bazel 10 removes it.
+# rules_android 0.8.0 reads its Starlark flag before this native option, so both are written.
 _NATIVE_PLATFORMS = "//command_line_option:android_platforms"
 _STARLARK_PLATFORMS = "@rules_android//flags:android_platforms"
 

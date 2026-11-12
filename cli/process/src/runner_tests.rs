@@ -144,7 +144,7 @@ fn bazel_stderr_is_teed_only_off_a_terminal() {
 
 /// The probe linked (copied on Windows) under a Bazel-like name, so the runner
 /// treats it as Bazel. A link opens no write fd, so a concurrent fork cannot make
-/// exec fail with ETXTBSY (#8979).
+/// exec fail with ETXTBSY.
 fn bazel_probe(dir: &Path) -> String {
     let probe = PathBuf::from(&probe_argv(&[])[0]);
     #[cfg(unix)]

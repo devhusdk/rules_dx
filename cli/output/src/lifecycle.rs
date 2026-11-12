@@ -322,7 +322,7 @@ pub fn config_file_event(file: &ConfigFileEvent) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
-/// One finding of the read-only `dx init` plan (#3751).
+/// One finding of the read-only `dx init` plan.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanFindingEvent {
     pub kind: String,

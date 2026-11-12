@@ -4,8 +4,7 @@ exports_files([
     "pins.json",
 ])
 
-# Schemas the compiler resolves from /capnp/*.capnp: c++, schema, stream and compat/json,
-# plus java.capnp from capnpc-java, so Java annotations lint and generate alike.
+# Schemas the compiler resolves from /capnp/*.capnp, plus java.capnp from capnpc-java.
 filegroup(
     name = "std",
     srcs = [

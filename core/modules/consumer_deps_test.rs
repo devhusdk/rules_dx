@@ -134,7 +134,7 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
 ///
 /// Hermetic consumers build their MODULE.bazel from a fragment with rules_dx as a non-root
 /// module, so the root `single_version_override`s do not apply to them. A fragment that pins a
-/// consumer dep above its floor would hide a floor that no longer holds (#3747).
+/// consumer dep above its floor would hide a floor that no longer holds.
 fn fragment_violations(source: &str, label: &str, table: &Table) -> Vec<String> {
     let module = match ModuleFile::parse(source) {
         Ok(module) => module,

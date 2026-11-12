@@ -103,8 +103,7 @@ codegen_shard_argv_test(
     target_under_test = ":shapes_cc_shard",
 )
 
-# Rust: one crate per capnproto_library; api_rs mirrors the api -> base dependency and
-# refers to base_rs types by path instead of copying them.
+# api_rs mirrors the api -> base dependency and refers to base_rs types by path.
 capnproto_rust_library(
     name = "base_rs",
     library = "//capnproto/tests/base",

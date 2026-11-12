@@ -1,4 +1,4 @@
-//! Policy for #3167: JVM tools must read JavaInfo classpaths only through
+//! Policy: JVM tools must read JavaInfo classpaths only through
 //! `_jvm_aux_jars`, which keeps compile-only (neverlink) jars. A tool that reads
 //! `transitive_runtime_jars` directly silently loses them.
 //!
@@ -98,7 +98,7 @@ fn jvm_classpaths_are_read_only_through_jvm_aux_jars() {
     assert!(
         failures.is_empty(),
         "JavaInfo classpaths must be read via _jvm_aux_jars(java_info, owned) so compile-only \
-         jars are kept (#3167), or add a justified function to ALLOWED_FUNCTIONS:\n{}",
+         jars are kept, or add a justified function to ALLOWED_FUNCTIONS:\n{}",
         failures.join("\n")
     );
 }

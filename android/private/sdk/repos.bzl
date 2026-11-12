@@ -523,6 +523,9 @@ def hub_build(ndk_repos, build_tools_repos, bundletool_repo, *, platform_repo = 
     _hub_target(lines, "emulator", emulator_repos, "emulator", package_no_match_error("emulator"))
     return "\n".join(lines) + "\n"
 
+# readelf -d bin/ld.lld: NEEDED entries resolved through RUNPATH $ORIGIN/../lib.
+NDK_RUNTIME_LIBS = ["libxml2.so.2"]
+
 def ndk_toolchain_build(root):
     """Returns the filegroups a cc toolchain needs from the NDK unpacked under root."""
     prebuilt = root + "/" + NDK_PREBUILT
@@ -536,6 +539,14 @@ def ndk_toolchain_build(root):
             ")",
             "",
         ])
+    lines.extend([
+        "filegroup(",
+        '    name = "runtime_libs",',
+        "    srcs = [%s]," % ", ".join(['"%s/lib/%s"' % (prebuilt, lib) for lib in NDK_RUNTIME_LIBS]),
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+    ])
     lines.extend([
         "filegroup(",
         '    name = "compiler_files",',

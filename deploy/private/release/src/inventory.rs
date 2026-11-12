@@ -198,8 +198,8 @@ pub fn join(
         .get("crates")
         .and_then(serde_json::Value::as_object)
         .ok_or("inventory: cargo-bazel-lock.json has no crates table")?;
-    let profile = dx_audit::profile_base::Tier::Standard;
-    let policy = dx_audit::license_policy::load_licenses(Some(licenses_toml), profile)
+    let base_tier = dx_audit::tier_base::Tier::Standard;
+    let policy = dx_audit::license_policy::load_licenses(Some(licenses_toml), base_tier)
         .map_err(|error| format!("inventory: {error}"))?;
     let packages: Vec<dx_audit::vuln::LockedPackage> = crates
         .iter()

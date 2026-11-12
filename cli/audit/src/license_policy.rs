@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::exception::{ExceptionProblem, check_expiry, line_of, toml_message};
 use crate::license_expr::Tier;
-use crate::profile_base::base_text;
+use crate::tier_base::base_text;
 use dx_config::conventions::pattern_covers;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -250,15 +250,15 @@ fn parse_file(text: &str) -> Result<LicensesFile, PolicyProblem> {
     })
 }
 
-/// The policy for `profile`: its embedded base with `text`, the workspace's
+/// The policy for `tier`: its embedded base with `text`, the workspace's
 /// license.toml, merged over it. Missing or blank text means the base alone.
 pub fn load_licenses(
     text: Option<&str>,
-    profile: dx_config::Tier,
+    tier: dx_config::Tier,
 ) -> Result<LicensePolicy, PolicyProblem> {
     let base_text =
-        base_text("licenses", profile).ok_or_else(|| PolicyProblem::InvalidLicensesToml {
-            message: format!("the {} base is missing", profile.as_str()),
+        base_text("licenses", tier).ok_or_else(|| PolicyProblem::InvalidLicensesToml {
+            message: format!("the {} base is missing", tier.as_str()),
         })?;
     let base = parse_file(base_text)?;
     match text.filter(|text| !text.trim().is_empty()) {

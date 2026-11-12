@@ -135,18 +135,18 @@ fn the_built_in_license_table_passes_only_its_allow_list() {
 }
 
 #[test]
-fn the_strict_profile_denies_a_license_the_standard_profile_only_reviews() {
-    for (profile, reviewed) in [("standard", true), ("strict", false)] {
-        let harness = Harness::new("license-profile");
+fn the_strict_tier_denies_a_license_the_standard_tier_only_reviews() {
+    for (tier, reviewed) in [("standard", true), ("strict", false)] {
+        let harness = Harness::new("license-tier");
         harness.write_source(
             "dx.toml",
-            &format!("schema_version = 1\ntier = \"{profile}\"\n"),
+            &format!("schema_version = 1\ntier = \"{tier}\"\n"),
         );
         let tables = super::load_license_policy(&harness.workspace)
             .expect("policy")
             .tables;
-        assert_eq!(tables.review.contains("MPL-2.0"), reviewed, "{profile}");
-        assert_eq!(tables.deny.contains("MPL-2.0"), !reviewed, "{profile}");
+        assert_eq!(tables.review.contains("MPL-2.0"), reviewed, "{tier}");
+        assert_eq!(tables.deny.contains("MPL-2.0"), !reviewed, "{tier}");
     }
 }
 
@@ -231,7 +231,7 @@ fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
         }
     }
     let load = |text: &str| {
-        dx_audit::license_policy::load_licenses(Some(text), dx_audit::profile_base::Tier::Standard)
+        dx_audit::license_policy::load_licenses(Some(text), dx_audit::tier_base::Tier::Standard)
             .expect("policy")
     };
     let roots = |labels: &[&str]| {

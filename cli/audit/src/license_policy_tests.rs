@@ -1,7 +1,7 @@
 use super::*;
 use crate::license_expr::{IdClass, LicenseExpr, TierOutcome, evaluate};
 
-/// Loads `body` as a standard-profile license.toml whose line 1 is `schema_version = 1`.
+/// Loads `body` as a standard-tier license.toml whose line 1 is `schema_version = 1`.
 fn load(body: &str) -> Result<LicensePolicy, PolicyProblem> {
     load_licenses(
         Some(&format!("schema_version = 1\n{body}")),
@@ -738,7 +738,7 @@ fn a_root_list_replaces_that_list_and_inherits_the_rest() {
 }
 
 #[test]
-fn the_strict_profile_denies_what_the_standard_profile_only_reviews() {
+fn the_strict_tier_denies_what_the_standard_tier_only_reviews() {
     let standard = standard();
     let strict = load_licenses(None, dx_config::Tier::Strict).expect("strict");
     for id in ["LGPL-3.0-only", "MPL-2.0", "EPL-2.0", "CDDL-1.0"] {

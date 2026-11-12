@@ -2,7 +2,7 @@ package powershell
 
 import "strings"
 
-// stdlibModules ships in $PSHOME/Modules of the pinned pwsh 7.5.13
+// stdlibModules ships in $PSHOME/Modules of the pinned pwsh 7.6.9
 // (version in powershell/pins.json), linux_x64 and win_x64 together, plus
 // the Microsoft.PowerShell.Core snap-in. Pester is a Gallery module, not here.
 var stdlibModules = map[string]bool{

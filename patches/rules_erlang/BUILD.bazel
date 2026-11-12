@@ -5,6 +5,7 @@ exports_files([
     "02_tcw_tags.patch",
     "03_auto_sname.patch",
     "04_otp_tree.patch",
+    "05_windows_eunit_cover.patch",
 ])
 
 real_source_target(

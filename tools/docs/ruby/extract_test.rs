@@ -337,7 +337,7 @@ impl Driver {
         self.run_with(yard_lib, own, &srcs, &deps, cwd, home, plugin_lib)
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
     fn run_with(
         &self,
         yard_lib: &Path,

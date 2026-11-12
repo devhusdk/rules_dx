@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![expect(dead_code, reason = "each test uses a subset of the helpers")]
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};

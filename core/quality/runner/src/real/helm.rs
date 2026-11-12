@@ -191,7 +191,7 @@ impl RealBackend {
         let rendered = parsed(tool_id, parsers::split_rendered(&out.stdout))?;
         let chart_yaml = join_rel(&context.chart_root, "Chart.yaml");
         let mut owned: Vec<(String, String, Vec<Document>)> = Vec::new();
-        #[allow(clippy::type_complexity)]
+        #[expect(clippy::type_complexity, reason = "the tuple is local to this function")]
         let mut unowned: Vec<(String, (String, String, Vec<Document>))> = Vec::new();
         for file in &rendered {
             let workspace = join_rel(&context.chart_root, &file.path);

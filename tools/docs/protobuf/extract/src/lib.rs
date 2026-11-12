@@ -161,7 +161,7 @@ struct Builder<'a> {
 }
 
 impl Builder<'_> {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
     fn push(
         &mut self,
         segments: &[String],

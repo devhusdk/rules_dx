@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use std::net::TcpListener;
 
-#[allow(dead_code)]
+#[expect(dead_code, reason = "the test uses a subset of the generated client")]
 #[path = "petstore.rs"]
 mod petstore;
 

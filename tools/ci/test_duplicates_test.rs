@@ -1,6 +1,6 @@
 //! No BUILD file holds two test calls with the same callee and the same arguments apart from `name`, `tags` and `flaky`.
 
-#[allow(dead_code)]
+#[expect(dead_code, reason = "the test uses a subset of the shared module")]
 mod test_calls;
 
 use std::collections::BTreeMap;

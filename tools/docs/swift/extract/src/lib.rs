@@ -429,7 +429,7 @@ fn link_symbols(text: &str, module: &str, links: &BTreeMap<String, String>) -> S
     out
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
 fn build(
     id: &str,
     kind: SymbolKind,

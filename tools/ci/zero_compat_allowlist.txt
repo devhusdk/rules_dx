@@ -82,7 +82,6 @@ deploy/private/maven.bzl compat-word 13
 deploy/private/npm.bzl compat-word 12
 deploy/private/nuget.bzl compat-word 15
 deploy/private/nuget_tests.bzl compat-word 11
-deploy/private/pins/extensions.bzl compat-word 2
 deploy/private/pub.bzl compat-word 12
 deploy/private/pub_tests.bzl compat-word 11
 deploy/private/pypi.bzl compat-word 15

@@ -621,7 +621,7 @@ pub fn render_signing_dry_run(
     out.push_str(&format!("  identity: {identity}\n"));
     out.push_str(&format!("  issuer: {issuer}\n"));
     out.push_str(&format!(
-        "  cosign: {cosign_version} (pinned and sha256-checked per deploy/private/release/cosign_pins.bzl)\n"
+        "  cosign: {cosign_version} (pinned and sha256-checked per deploy/private/release/pins.json)\n"
     ));
     out.push_str(&format!(
         "  bundle media type: {SIGNING_BUNDLE_MEDIA_TYPE} (Sigstore bundle v0.3)\n"
@@ -745,7 +745,7 @@ fn signing_live(
         .map_err(|error| format!("signing: cannot hash cosign at {}: {error}", pin.path))?;
     if actual != pin.sha256 {
         return Err(format!(
-            "signing: cosign at {} has sha256 {actual}, want {} (pinned per deploy/private/release/cosign_pins.bzl); refusing to sign",
+            "signing: cosign at {} has sha256 {actual}, want {} (pinned per deploy/private/release/pins.json); refusing to sign",
             pin.path, pin.sha256
         ));
     }
@@ -755,7 +755,7 @@ fn signing_live(
     let version_text = version_out.stdout_text() + &String::from_utf8_lossy(&version_out.stderr);
     if !version_out.success() || !signing_version_ok(&version_text, pin.version) {
         return Err(format!(
-            "signing: cosign GitVersion must be {} (pinned per deploy/private/release/cosign_pins.bzl); got: {}",
+            "signing: cosign GitVersion must be {} (pinned per deploy/private/release/pins.json); got: {}",
             pin.version,
             cosign_git_version(&version_text).unwrap_or("none")
         ));

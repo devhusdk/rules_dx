@@ -2,8 +2,7 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality/artifacts:hub.bzl", "TOOL_PLATFORMS")
-load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
-load(":signing.bzl", "SIGNING_BUNDLE_MEDIA_TYPE", "SIGNING_COSIGN_VERSION", "SIGNING_ISSUER", "SIGNING_TRUST_ROOT", "signing_bundle_media_error", "signing_bundle_names", "signing_cosign_error", "signing_identity_error")
+load(":signing.bzl", "SIGNING_BUNDLE_MEDIA_TYPE", "SIGNING_COSIGN_PLATFORMS", "SIGNING_COSIGN_VERSION", "SIGNING_ISSUER", "SIGNING_TRUST_ROOT", "signing_bundle_media_error", "signing_bundle_names", "signing_cosign_error", "signing_identity_error")
 
 def signing_unit_tests(name):
     starlark_test(
@@ -27,27 +26,27 @@ def signing_unit_tests(name):
             ),
             expect_equal(
                 "signing cosign pins cover exactly the tool platforms",
-                sorted(COSIGN_PLATFORMS.keys()),
+                sorted(SIGNING_COSIGN_PLATFORMS.keys()),
                 sorted(TOOL_PLATFORMS),
             ),
             expect_equal(
                 "signing cosign sha is pinned for linux-amd64",
-                COSIGN_PLATFORMS["linux_x86_64"]["sha256"],
+                SIGNING_COSIGN_PLATFORMS["linux_x86_64"]["sha256"],
                 "c3b4f5410e608af03a5eb0aaac84a4313d8da131248e08ff1759ac70c79d1644",
             ),
             expect_equal(
                 "signing cosign shas are 64 characters",
-                [key for key, pin in COSIGN_PLATFORMS.items() if len(pin["sha256"]) != 64],
+                [key for key, pin in SIGNING_COSIGN_PLATFORMS.items() if len(pin["sha256"]) != 64],
                 [],
             ),
             expect_equal(
                 "signing cosign shas are pairwise distinct",
-                len({pin["sha256"]: True for pin in COSIGN_PLATFORMS.values()}),
-                len(COSIGN_PLATFORMS),
+                len({pin["sha256"]: True for pin in SIGNING_COSIGN_PLATFORMS.values()}),
+                len(SIGNING_COSIGN_PLATFORMS),
             ),
             expect_equal(
                 "signing cosign windows binary is cosign.exe",
-                COSIGN_PLATFORMS["windows_x86_64"]["exe"],
+                SIGNING_COSIGN_PLATFORMS["windows_x86_64"]["exe"],
                 "cosign.exe",
             ),
             expect_equal(

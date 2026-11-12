@@ -1,0 +1,4 @@
+exports_files(glob(
+    ["cargo-semver-checks", "cargo-semver-checks.exe"],
+    allow_empty = True,
+))

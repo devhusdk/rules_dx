@@ -4,7 +4,6 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load(":bcr.bzl", "bcr_check")
 load(":bcr_tests.bzl", "bcr_unit_tests")
-load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
 load(":inventory_tests.bzl", "inventory_file_tests", "inventory_runtime_file_tests", "inventory_unit_tests")
 load(":matrix.bzl", "release_cells", "release_matrix_cell", "release_matrix_file")
 load(":matrix_tests.bzl", "matrix_unit_tests")
@@ -12,7 +11,7 @@ load(":notice.bzl", "notice_bundle")
 load(":notice_tests.bzl", "notice_file_tests", "notice_unit_tests")
 load(":sbom.bzl", "sbom_release")
 load(":sbom_tests.bzl", "sbom_file_tests", "sbom_unit_tests")
-load(":signing.bzl", "cosign_binary", "signed_release")
+load(":signing.bzl", "SIGNING_COSIGN_PLATFORMS", "cosign_binary", "signed_release")
 load(":signing_tests.bzl", "signing_unit_tests")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -22,7 +21,6 @@ exports_files([
     "bcr_tests.bzl",
     "consumer/consumer.BUILD.bazel",
     "consumer/lib.rs",
-    "cosign_pins.bzl",
     "inventory.bzl",
     "inventory_tests.bzl",
     "matrix.bzl",
@@ -37,7 +35,6 @@ exports_files([
     "notice_tests.bzl",
     "pins.json",
     "repos.bzl",
-    "extensions.bzl",
     "sbom.bzl",
     "sbom_tests.bzl",
     "signing.bzl",
@@ -597,7 +594,7 @@ notice_bundle(
             "@platforms//cpu:" + pin["cpu"],
         ],
     )
-    for key, pin in COSIGN_PLATFORMS.items()
+    for key, pin in SIGNING_COSIGN_PLATFORMS.items()
 ]
 
 [
@@ -607,7 +604,7 @@ notice_bundle(
         sha256 = pin["sha256"],
         visibility = ["//visibility:public"],
     )
-    for key, pin in COSIGN_PLATFORMS.items()
+    for key, pin in SIGNING_COSIGN_PLATFORMS.items()
 ]
 
 filegroup(
@@ -726,9 +723,7 @@ real_source_target(
         "sbom_tests.bzl",
         "signing.bzl",
         "signing_tests.bzl",
-        "cosign_pins.bzl",
         "repos.bzl",
-        "extensions.bzl",
         "tool.bzl",
         "consumer/consumer.BUILD.bazel",
     ],

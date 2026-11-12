@@ -12,7 +12,6 @@ OPAM_PLATFORMS = {name[len("opam_"):]: pin for name, pin in _ARCHIVES.items() if
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
-    "extensions.bzl",
     "pins.json",
     "repos.bzl",
 ])

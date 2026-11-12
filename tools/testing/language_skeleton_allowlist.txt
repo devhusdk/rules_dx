@@ -20,8 +20,6 @@ export-kind perl/defs.bzl
 export-kind php/defs.bzl
 extension-label cli/prebuilt/extension.bzl
 extension-label core/quality/artifacts/extension.bzl
-extension-label deploy/private/pins/extensions.bzl
-extension-label deploy/private/release/extensions.bzl
 extension-label gazelle/dispatch/extension.bzl
 extension-label javascript/private/dev_hub.bzl
 extension-label ruby/private/coverage/extensions.bzl

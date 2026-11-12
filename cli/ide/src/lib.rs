@@ -577,7 +577,7 @@ mod tests {
         let root = scratch.path();
         std::fs::write(root.join("main.py"), "").expect("py");
         std::fs::write(
-            root.join("uv.lock"),
+            root.join(python::lock_name()),
             "[[package]]\nname = \"requests\"\nsource = { registry = \"x\" }\n",
         )
         .expect("lock");

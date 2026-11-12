@@ -1,7 +1,3 @@
-name cli/depcheck/src/missing.rs dune-project
-name cli/generate/src/sync.rs pyproject.toml
-name cli/ide/src/lib.rs uv.lock
-name cli/ide/src/python.rs uv.lock
 name cli/update/src/edit/add.rs Gemfile
 name cli/update/src/edit/add.rs Package.swift
 name cli/update/src/edit/add.rs Project.toml

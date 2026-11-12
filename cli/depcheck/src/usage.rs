@@ -7,6 +7,22 @@ use crate::DepcheckError;
 use crate::consistency::reported;
 use dx_ecosystems::{Ecosystem, Language};
 
+/// Whether `dir` holds a file named `manifest`, where a leading `*` matches any stem.
+pub(crate) fn holds(dir: &Path, manifest: &str) -> bool {
+    let Some(suffix) = manifest.strip_prefix('*') else {
+        return dir.join(manifest).is_file();
+    };
+    std::fs::read_dir(dir).is_ok_and(|entries| {
+        entries.flatten().any(|entry| {
+            entry.path().is_file()
+                && entry
+                    .file_name()
+                    .to_str()
+                    .is_some_and(|name| name.ends_with(suffix))
+        })
+    })
+}
+
 fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
@@ -24,7 +40,7 @@ fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
             if child.is_dir() {
                 if !matches!(name, ".git" | "node_modules" | "target" | ".dart_tool")
                     && !name.starts_with("bazel-")
-                    && !nested.is_some_and(|file| child.join(file).is_file())
+                    && !nested.is_some_and(|file| holds(&child, file))
                 {
                     stack.push(child);
                 }

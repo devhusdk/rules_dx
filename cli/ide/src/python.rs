@@ -15,6 +15,13 @@ pub const PLUGIN: Plugin = Plugin {
     write,
 };
 
+/// The lock file name of the `uv` hub.
+pub(crate) fn lock_name() -> &'static str {
+    dx_families::hub("uv")
+        .and_then(|hub| hub.lock.as_deref())
+        .unwrap_or_default()
+}
+
 fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let interpreter = ctx
         .outputs
@@ -37,7 +44,7 @@ fn write_site_packages(ctx: &Ctx<'_>) -> Result<(), DxError> {
     std::fs::create_dir_all(&target).map_err(|error| {
         DxError::from_io(format!("creating {}: {error}", target.display()), &error)
     })?;
-    let labels = locked_labels(&ctx.workspace.join("uv.lock"));
+    let labels = locked_labels(&ctx.workspace.join(lock_name()));
     if labels.is_empty() {
         return Ok(());
     }
@@ -118,7 +125,7 @@ mod tests {
     #[test]
     fn locked_labels_skip_the_workspace_projects() {
         let scratch = dx_test_scratch::scratch("dx-ide-lock-");
-        let lock = scratch.path().join("uv.lock");
+        let lock = scratch.path().join(lock_name());
         std::fs::write(
             &lock,
             "version = 1\n\n[[package]]\nname = \"app\"\nversion = \"0.1\"\nsource = { editable = \".\" }\n\n[[package]]\nname = \"Typing-Extensions\"\nversion = \"4\"\nsource = { registry = \"https://pypi.org/simple\" }\n\n[[package]]\nname = \"requests\"\nversion = \"2\"\nsource = { registry = \"https://mirror.example/pypi-virtual/simple\" }\n\n[[package]]\nname = \"lib\"\nversion = \"0.1\"\nsource = { virtual = \"libs/lib\" }\n",

@@ -1,7 +1,6 @@
 """Configuration for the nvcc compile of dx CUDA libraries."""
 
-load("//cc:defs.bzl", "cc_coverage_settings")
-load("//cc/private:defs.bzl", "CC_COVERAGE_INPUTS")
+load("//cc/private:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
 
 _STATIC_RUNTIME = str(Label("//cuda/private/toolchain:static_runtime"))
 _RUNTIME = "@rules_cuda//cuda:runtime"

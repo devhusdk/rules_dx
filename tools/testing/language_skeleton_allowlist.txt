@@ -11,8 +11,6 @@ entry-points lua/lang.json
 entry-points qt/lang.json
 entry-points terraform/lang.json
 entry-points thrift/lang.json
-export-kind cc/defs.bzl
-export-kind cuda/defs.bzl
 export-kind dart/defs.bzl
 export-kind elixir/defs.bzl
 export-kind erlang/defs.bzl
@@ -20,7 +18,6 @@ export-kind flutter/defs.bzl
 export-kind julia/defs.bzl
 export-kind perl/defs.bzl
 export-kind php/defs.bzl
-export-kind qt/defs.bzl
 extension-label cli/prebuilt/extension.bzl
 extension-label core/quality/artifacts/extension.bzl
 extension-label deploy/private/pins/extensions.bzl

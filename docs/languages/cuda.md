@@ -59,14 +59,6 @@ Forwards one pinned CUDA library component after the pin check.
 | `component` | `label` | yes | The rules_cuda component target, for example @cuda//:cublas. |
 | `component_name` | `string` | yes | rules_cuda short name of the component. |
 
-### `cuda_gpu_env`
-
-```python
-cuda_gpu_env(min_compute_capability, min_driver)
-```
-
-Returns the env a GPU cuda_test binary reads its declared requirements from.
-
 ## API docs
 
 Tool: `doxygen`.

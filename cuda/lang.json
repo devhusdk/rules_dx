@@ -25,7 +25,6 @@
     "cuda_binary",
     "cuda_test",
     "cuda_objects",
-    "cuda_component_library",
-    "cuda_gpu_env"
+    "cuda_component_library"
   ]
 }

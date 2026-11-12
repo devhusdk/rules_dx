@@ -346,7 +346,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//capnproto:defs.bzl` | `capnproto_library` |
 |  |  | `@rules_dx//capnproto:defs.bzl` | `capnproto_rust_library` |
 |  |  | `@rules_dx//cc:defs.bzl` | `cc_bench` |
-|  |  | `@rules_dx//cc:defs.bzl` | `cc_coverage_settings` |
 |  |  | `@rules_dx//cc:defs.bzl` | `cc_fuzz_test` |
 |  |  | `@rules_dx//cloudformation:defs.bzl` | `cloudformation_library` |
 |  |  | `@rules_dx//cmake:defs.bzl` | `cmake_library` |
@@ -355,7 +354,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//csharp:defs.bzl` | `csharp_proto_library` |
 |  |  | `@rules_dx//cuda:defs.bzl` | `cuda_binary` |
 |  |  | `@rules_dx//cuda:defs.bzl` | `cuda_component_library` |
-|  |  | `@rules_dx//cuda:defs.bzl` | `cuda_gpu_env` |
 |  |  | `@rules_dx//cuda:defs.bzl` | `cuda_test` |
 |  |  | `@rules_dx//d:defs.bzl` | `d_bench` |
 |  |  | `@rules_dx//d:defs.bzl` | `d_fuzz_test` |
@@ -450,6 +448,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_cc_binary` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_cc_library` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_cc_test` |
+|  |  | `@rules_dx//qt:defs.bzl` | `qt_consumer_archive` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_frameworks` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_qml_module` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_rust_cc_library` |

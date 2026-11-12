@@ -1,5 +1,4 @@
-load("@rules_dx//deploy:defs.bzl", "consumer_archive")
-load("@rules_dx//qt:defs.bzl", "QT_CONSUMER_MIN_RUNTIME", "QT_CONSUMER_RUNTIME", "qt_bundle", "qt_cc_binary", "qt_cc_test")
+load("@rules_dx//qt:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_test", "qt_consumer_archive")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -66,13 +65,12 @@ qt_bundle(
     ],
 )
 
-consumer_archive(
+qt_consumer_archive(
     name = "tasks_release",
     app = ":tasks",
-    min_runtime = QT_CONSUMER_MIN_RUNTIME,
     notice = "NOTICE",
     resources = [":runtime"],
-    runtime = QT_CONSUMER_RUNTIME + [":runtime_runtime"],
+    runtime = [":runtime_runtime"],
 )
 
 qt_bundle(
@@ -91,13 +89,11 @@ qt_bundle(
     ],
 )
 
-consumer_archive(
+qt_consumer_archive(
     name = "board_release",
     app = ":board",
-    min_runtime = QT_CONSUMER_MIN_RUNTIME,
     notice = "BOARD_NOTICE",
     resources = [":board_runtime"],
-    runtime = QT_CONSUMER_RUNTIME,
 )
 
 real_source_target(

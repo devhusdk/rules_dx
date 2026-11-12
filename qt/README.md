@@ -46,12 +46,11 @@ under `lib/`, the fonts under `fonts/` (an app must point `FONTCONFIG_FILE` at `
 `gui`, the `plugins` types under `plugins/<type>/`, the QML import modules under `qml/` and the Qt, ICU and closure
 license texts under `licenses/`. `lib/` holds the libraries the
 binary links, the libraries those need, and the ones the shipped QML
-plugins need. Pass it to `consumer_archive` as a
+plugins need. Pass it to `qt_consumer_archive` as a
 resource:
 
 ```python
-load("@rules_dx//deploy:defs.bzl", "consumer_archive")
-load("@rules_dx//qt:defs.bzl", "QT_CONSUMER_MIN_RUNTIME", "qt_bundle")
+load("@rules_dx//qt:defs.bzl", "qt_bundle", "qt_consumer_archive")
 
 qt_bundle(
     name = "runtime",
@@ -59,10 +58,9 @@ qt_bundle(
     plugins = ["imageformats"],
 )
 
-consumer_archive(
+qt_consumer_archive(
     name = "app_release",
     app = ":app",
-    min_runtime = QT_CONSUMER_MIN_RUNTIME,
     notice = "NOTICE",
     resources = [":runtime"],
     runtime = [":runtime_runtime"],
@@ -73,10 +71,11 @@ consumer_archive(
 `resources/`, so `consumer_archive` puts them next to the executable. It ships
 nothing on cells without DLLs.
 
-`consumer_archive` records the os and cpu of the target platform.
-`QT_CONSUMER_MIN_RUNTIME` selects the minimum runtime of the targeted cell:
+`qt_consumer_archive` takes the arguments of `consumer_archive`. It records the
+os and cpu of the target platform. `min_runtime` defaults to the minimum runtime
+of the targeted cell:
 `glibc-2.34` on `linux_x86_64`, `glibc-2.39` on `linux_arm64` and `macos-13.0`
-on `macos_arm64`. `qt_bundle` is skipped on
+on `macos_arm64`. `runtime` gains the OS runtime of the targeted cell. `qt_bundle` is skipped on
 cells without a needs table, such as the Windows cells for now. On macOS, any
 non-empty `display` ships the `cocoa` platform plugin.
 

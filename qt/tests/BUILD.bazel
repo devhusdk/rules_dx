@@ -45,7 +45,7 @@ qt_frameworks(
 cc_binary(
     name = "probe",
     srcs = ["probe.cc"],
-    local_defines = ["DX_QT_PINNED_VERSION=\"" + QT_VERSION + "\""],
+    local_defines = ['DX_QT_PINNED_VERSION=\\"' + QT_VERSION + '\\"'],
     copts = select({
         "@platforms//os:windows": [],
         "//conditions:default": ["-fPIC"],

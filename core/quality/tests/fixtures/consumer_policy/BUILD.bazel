@@ -44,6 +44,10 @@ workspace_policy(
             "//conditions:default": ["//core/quality/tiers/credo:standard"],
         }) +
         select({
+            "//config:config_tier_strict": ["//core/quality/tiers/docstrfmt:strict"],
+            "//conditions:default": ["//core/quality/tiers/docstrfmt:standard"],
+        }) +
+        select({
             "//config:config_tier_strict": ["//core/quality/tiers/detekt:strict"],
             "//conditions:default": ["//core/quality/tiers/detekt:standard"],
         }) +
@@ -744,11 +748,9 @@ real_source_target(
 
 quality_family(
     name = "rst_family",
-    disabled = [
-        "format",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "rst",
+    format = ["docstrfmt"],
     lint = ["vale"],
 )
 

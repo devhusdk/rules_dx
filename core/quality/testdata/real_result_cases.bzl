@@ -326,7 +326,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_vale_asciidoc_dirty",
         "target": "//core/quality/testdata/prose_dirty:asciidoc",
-        "config": "prose_dirty",
+        "config": "shared",
         "tool": "vale",
         "capability": "lint",
         "class": "asciidoc",
@@ -336,7 +336,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_docstrfmt_rst_dirty",
         "target": "//core/quality/testdata/prose_dirty:rst",
-        "config": "prose_dirty",
+        "config": "shared_standard",
         "tool": "docstrfmt",
         "capability": "format",
         "class": "rst",

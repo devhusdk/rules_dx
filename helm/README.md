@@ -4,7 +4,7 @@
 its files to the quality pipeline as the `helm` class. Every file in `srcs` lives in that package.
 Vendored subchart archives go in `subcharts`.
 
-## Formatting
+## Quality
 
 `dx format` formats a chart with two pinned tools.
 

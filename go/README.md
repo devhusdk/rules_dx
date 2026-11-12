@@ -40,7 +40,17 @@ Then run `dx generate --apply`. An import under a module that `go.mod`
 requires directly resolves to `@<repo>//<package>`. A module required only as
 `// indirect` fails with a hint to require it directly.
 
-## cgo
+## Quality
+
+| Check | Default tool | Opt-in tools |
+| --- | --- | --- |
+| Format | `gofumpt` | |
+| Typecheck | `gotype` | |
+| Lint | none | `errcheck`, `govet`, `staticcheck` |
+
+## Toolchain
+
+### cgo
 
 Ordinary cgo, meaning C sources and C++ through `cdeps` over a C ABI, runs with
 LLVM (the default) and with GCC on Linux x86_64 and arm64. Under GCC, libstdc++
@@ -50,14 +60,6 @@ race failure never hides ordinary cgo. Windows and MSVC are not supported yet.
 cgo needs a GNU-style C++ driver and ABI. With `cgo = True`, an MSVC or clang-cl
 toolchain fails at analysis, because rules_go would otherwise build the package
 without cgo.
-
-## Quality tools
-
-| Check | Default tool | Opt-in tools |
-| --- | --- | --- |
-| Format | `gofumpt` | |
-| Typecheck | `gotype` | |
-| Lint | none | `errcheck`, `govet`, `staticcheck` |
 
 ## Platforms
 

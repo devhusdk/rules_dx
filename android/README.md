@@ -43,44 +43,9 @@ that were not requested are empty. Without a `configure` tag the defaults apply.
 The qualified host is Linux
 x86_64 with NDK r27 targeting API 31.
 
-## Native platforms
+## Packaging
 
-`@rules_dx//android` names the two qualified tuples: `device`
-(`aarch64-linux-android`) and `emulator` (`x86_64-linux-android`) at API
-floor 31. Build one mixed Rust and C library for both tuples with
-`android_native_library` from `@rules_dx//android:defs.bzl`:
-
-```python
-load("@rules_dx//android:defs.bzl", "android_native_library")
-
-android_native_library(
-    name = "native_lib",
-    rust_srcs = ["src/lib.rs"],
-    c_srcs = ["native.c"],
-    hdrs = ["native.h"],
-)
-```
-
-Each tuple in `platforms` (default all tuples) gets a `:name_<tuple>`
-shared library, and `:name` groups them. `edition` defaults to the
-repo Rust edition. Unknown tuples,
-downgraded API levels, and unknown C++ runtimes fail at analysis.
-`api_level` chooses the NDK level the library is compiled and linked
-against (default 31, the floor); each level builds in its own
-configuration. `compatible_with`, `deprecation`, `exec_compatible_with`,
-`features`, `restricted_to`, `tags`, `target_compatible_with`, and
-`testonly` reach every generated target. `crate_features`, `rustc_flags`, `copts`, and `linkopts` reach the
-underlying Rust and C actions; build scripts stay on the host toolchain.
-
-## Toolchain
-
-`rules_dx` registers the NDK clang toolchains for both tuples; a consumer
-adds no `register_toolchains` line. The NDK comes from the `android_sdk`
-extension's pinned download on Linux x86_64 and is fetched only after
-`dx_licenses.accept(ids = ["android-sdk-license"])` is in the root
-module. `android_sdk.configure` is the one optional tag.
-
-## Application packaging
+### Application packaging
 
 `android_rust_apk` from `@rules_dx//android:defs.bzl` builds one installable
 APK from static native deps through the qualified upstream backend (`rules_android` 0.8.1):
@@ -141,7 +106,7 @@ device or emulator. The launcher runs the pinned adb when
 split APKs with `adb install-multiple -r`. Neither or both fail at
 analysis.
 
-## Release signing
+### Release signing
 
 `:app_apk_unsigned_file` is the unsigned package. Sign it with an
 explicit launcher that runs only when you ask:
@@ -187,7 +152,7 @@ minimum SDK needs, so an API 31 package carries a v3 signature.
 Run `bazel test //android/tests/fixtures/rust_apk:sign_test` to sign a
 package with a generated test key and verify it.
 
-## App Bundles
+### App Bundles
 
 `android_rust_apk` also declares `:<name>_aab_file`. It builds the
 unsigned App Bundle `<name>_bundle_unsigned.aab` from the same
@@ -247,7 +212,7 @@ The inspect tests read the package, version, SDK floors and library
 name from the bundle manifest, and check the asset, the resource table,
 the dex and the ELF machine of each `base/lib/<abi>/lib<name>.so`.
 
-### APK sets
+#### APK sets
 
 Turn a bundle into the split APKs one device installs:
 
@@ -285,7 +250,7 @@ On a qualified host with `emulator-5554` running,
 `tools/dx run $pkg:install_set $pkg:start` installs the fixture set and
 starts it; `device_run.sh` checks its logcat.
 
-### Upload signing
+#### Upload signing
 
 Sign a bundle with your upload key through an explicit launcher:
 
@@ -324,7 +289,7 @@ invalid bundle exits 1 without writing a bundle.
 Run `bazel test //android/tests/fixtures/rust_apk:sign_aab_test` to
 sign a generated test bundle with a disposable key and verify it.
 
-## Qualified SDK for packaging builds
+### Qualified SDK for packaging builds
 
 To start a new app, run `dx init --apply <dir>` and add the sources and
 targets above.
@@ -368,7 +333,7 @@ directories, the exported `ANativeActivity_onCreate`, system-only
 `NEEDED` entries, the asset bundle, and the debug signature. The custom
 target packages `x86_64` only at API 33 with its own ID and permissions.
 
-## Run on a device
+### Run on a device
 
 The fixture app logs `lifecycle=`, `input=` and `asset=` lines under the
 `DxRustApk` tag. With the SDK host above and an emulator on
@@ -392,7 +357,22 @@ because `bazel run` starts it in its runfiles. `:install_custom` and
 whole scenario from the repository root and writes logs, `logcat-default.txt`,
 `dumpsys-custom.txt`, `versions.txt` and `exit-codes.txt` to `<dir>`.
 
-## Backend decision
+### Example
+
+See [`tests/fixtures/adopt-android`](tests/fixtures/adopt-android/README.md) for a
+consumer that adopts these rules end to end.
+
+## Toolchain
+
+### Toolchain
+
+`rules_dx` registers the NDK clang toolchains for both tuples; a consumer
+adds no `register_toolchains` line. The NDK comes from the `android_sdk`
+extension's pinned download on Linux x86_64 and is fetched only after
+`dx_licenses.accept(ids = ["android-sdk-license"])` is in the root
+module. `android_sdk.configure` is the one optional tag.
+
+### Backend decision
 
 Packaging stays on the upstream backend: `android_rust_apk` composes
 `android_binary` from `rules_android` 0.8.1, so manifest merge,
@@ -408,7 +388,33 @@ the `arm64-v8a` library is packaged but not executed there. Selection, negative,
 bazel test //android/...
 ```
 
-## Example
+## Platforms
 
-See [`tests/fixtures/adopt-android`](tests/fixtures/adopt-android/README.md) for a
-consumer that adopts these rules end to end.
+### Native platforms
+
+`@rules_dx//android` names the two qualified tuples: `device`
+(`aarch64-linux-android`) and `emulator` (`x86_64-linux-android`) at API
+floor 31. Build one mixed Rust and C library for both tuples with
+`android_native_library` from `@rules_dx//android:defs.bzl`:
+
+```python
+load("@rules_dx//android:defs.bzl", "android_native_library")
+
+android_native_library(
+    name = "native_lib",
+    rust_srcs = ["src/lib.rs"],
+    c_srcs = ["native.c"],
+    hdrs = ["native.h"],
+)
+```
+
+Each tuple in `platforms` (default all tuples) gets a `:name_<tuple>`
+shared library, and `:name` groups them. `edition` defaults to the
+repo Rust edition. Unknown tuples,
+downgraded API levels, and unknown C++ runtimes fail at analysis.
+`api_level` chooses the NDK level the library is compiled and linked
+against (default 31, the floor); each level builds in its own
+configuration. `compatible_with`, `deprecation`, `exec_compatible_with`,
+`features`, `restricted_to`, `tags`, `target_compatible_with`, and
+`testonly` reach every generated target. `crate_features`, `rustc_flags`, `copts`, and `linkopts` reach the
+underlying Rust and C actions; build scripts stay on the host toolchain.

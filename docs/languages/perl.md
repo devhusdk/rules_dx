@@ -97,3 +97,79 @@ Lockfiles:
 - Linux x86_64
 - macOS arm64
 - Windows x86_64
+
+See the [support matrix](../docs/support-matrix.md).
+
+`windows_arm64` is unsupported.
+
+rules_perl has no toolchain for other platforms. The wrappers mark their
+targets incompatible there, so a build fails instead of running the host
+Perl. Unix launchers start through a bash script.
+
+## Dependencies
+
+### Packages
+
+```python
+cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
+cpan.install(
+    name = "app_cpan",
+    lock = "//:cpanfile.snapshot.lock.json",
+)
+use_repo(cpan, "app_cpan")
+```
+
+### CPAN dependencies
+
+Declare a hub with the `cpan` extension. Its lock pins each
+distribution to a URL and a sha256.
+
+```python
+cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
+cpan.install(
+    name = "cpan",
+    lock = "//third_party/perl:cpanfile.snapshot.lock.json",
+)
+use_repo(cpan, "cpan")
+```
+
+Depend on `@cpan//:Text-CSV` for one distribution. To make or refresh the
+lock, add a `cpan_compiler` target from
+`@rules_dx//perl:defs.bzl` next to the `cpanfile` and run it.
+A wrong digest fails the fetch.
+
+## Generate
+
+`dx generate` writes `perl_library` and `perl_test` rules. Each package takes
+its own `.pm` files plus every `.pm` under `lib/` that has no `BUILD` file of
+its own, and gets one `perl_test` per `t/*.t`. A module is named by its path
+under `lib/` (`lib/Inventory/Item.pm` is `Inventory::Item`), never by its
+`package` statement. This matches the default `includes` of rules_perl.
+
+- Modules that ship with Perl need no dep.
+- A CPAN module resolves to the distribution in `cpanfile.snapshot.lock.json` that is named after it (`Text::CSV` is `Text-CSV`).
+- `perl_binary` targets and `.pl` scripts stay hand-written.
+- Loads inside `eval` are optional and are skipped. Loads in POD, heredocs,
+  strings and after `__END__` are ignored.
+- Helper libraries under `t/lib` are not generated.
+
+## Quality
+
+Perl sources form the `perl` class, so `dx check` sees them. The Perl
+wrappers carry perltidy 20260826, which `dx check` runs as the
+formatter with its default style, LF line endings and no profile, so
+`.perltidyrc` and `$PERLTIDY` are never read. They also carry Perl::Critic
+1.156, which runs as the linter at severity 5 only with no profile, so
+`.perlcriticrc` and `$PERLCRITIC` are never read. Perl::Critic needs two XS
+modules the cpan hub cannot build, so `perl/private/tools/perlcritic.pl` swaps in
+pure-Perl stand-ins (Clone::PP and Params::Util's PP mode). Until typecheck
+exists, the Perl rules add the `no-typecheck` tag to every target. Set
+`--@rules_dx//config:tool_perltidy` or `tool_perlcritic` to use another tool.
+
+## Coverage
+
+`dx coverage` runs `perl_test` through the `DxLcov` collector in
+`@rules_dx//perl/private/coverage`. It loads in every Perl the test starts, counts the
+statements that run, and writes LCOV for the instrumented sources to
+`$COVERAGE_OUTPUT_FILE`. Devel::Cover needs XS, which the `cpan` extension
+cannot build.

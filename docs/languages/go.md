@@ -103,3 +103,39 @@ Lockfiles:
 - macOS arm64
 - Windows arm64
 - Windows x86_64
+
+See the [support matrix](../docs/support-matrix.md).
+
+## Dependencies
+
+Add the module to `go.mod` and wire it in `MODULE.bazel`:
+
+```starlark
+go = use_extension("@rules_dx//go:extensions.bzl", "go")
+go.from_file(go_mod = "//:go.mod")
+```
+
+Then run `dx generate --apply`. An import under a module that `go.mod`
+requires directly resolves to `@<repo>//<package>`. A module required only as
+`// indirect` fails with a hint to require it directly.
+
+## Quality
+
+| Check | Default tool | Opt-in tools |
+| --- | --- | --- |
+| Format | `gofumpt` | |
+| Typecheck | `gotype` | |
+| Lint | none | `errcheck`, `govet`, `staticcheck` |
+
+## Toolchain
+
+### cgo
+
+Ordinary cgo, meaning C sources and C++ through `cdeps` over a C ABI, runs with
+LLVM (the default) and with GCC on Linux x86_64 and arm64. Under GCC, libstdc++
+links statically. Race mode has its own test target (`gcc_cgo_race_test`) so a
+race failure never hides ordinary cgo. Windows and MSVC are not supported yet.
+
+cgo needs a GNU-style C++ driver and ABI. With `cgo = True`, an MSVC or clang-cl
+toolchain fails at analysis, because rules_go would otherwise build the package
+without cgo.

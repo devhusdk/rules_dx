@@ -6,65 +6,9 @@ Registry. Nothing is installed on the host and no host `lua` runs. rules_dx
 registers the Lua toolchain, so there is no toolchain setup in
 `MODULE.bazel`.
 
-## Start
+## Dependencies
 
-Run `dx init --apply demo-app` and add sources. The language is wired when
-its sources appear.
-
-Load the rules from `@rules_dx//lua:defs.bzl`.
-
-```python
-load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_library", "lua_test")
-
-lua_library(
-    name = "catalog",
-    srcs = [
-        "catalog/init.lua",
-        "catalog/parse.lua",
-    ],
-    strip_import_prefix = "/app",
-)
-
-lua_test(
-    name = "catalog_test",
-    main = "catalog_test.lua",
-    deps = [":catalog"],
-)
-
-lua_binary(
-    name = "cli",
-    main = "cli.lua",
-    data = ["units.tsv"],
-    deps = [":catalog"],
-)
-```
-
-`bazel run //app:cli -- arg1 arg2` runs `cli.lua` with the arguments in
-`arg` and in `...`.
-
-## Rules
-
-| Rule | What it makes |
-| --- | --- |
-| `lua_library` | Lua modules other Lua targets can require |
-| `lua_binary` | A Lua program that `bazel run` starts through the shared launcher |
-| `lua_test` | A Lua test; it passes when `main` returns or calls `os.exit(0)` |
-| `lua_bench` | `lua_test` for `dx bench`. `main` calls `require("dx_bench").run({{name, fn}, ...})`, timed with `os.clock`; seconds per call |
-
-| Attribute | Rules | Meaning |
-| --- | --- | --- |
-| `srcs` | all | Lua modules of this target. Each file becomes one module named after its path |
-| `deps` | all | `lua_library` targets whose modules this target requires |
-| `data` | all | Files the Lua code reads at run time; find them with `require('runfiles').rlocation` |
-| `strip_import_prefix` | all | Directory removed from module paths. `/x` starts at the repository root, `x` at the package |
-| `import_prefix` | all | Module prefix added after `strip_import_prefix`, for example `vendor.inspect` |
-| `main` | `lua_binary`, `lua_test` | The `.lua` chunk that runs first |
-| `env` | `lua_binary`, `lua_test` | Environment variables set when the target runs or is tested; `$(location)` is expanded |
-
-`LuaInfo` carries the modules of a target and its deps. Load it from
-`@rules_dx//lua:defs.bzl`.
-
-## Modules and data files
+### Modules and data files
 
 - A module is named after its path from the repository root, after
   `strip_import_prefix` and `import_prefix`: `a/b.lua` is `a.b` and
@@ -88,7 +32,7 @@ lua_binary(
 - `bazel build` checks the syntax of every source with `luac`, so a syntax
   error fails the build.
 
-## Packages
+### Packages
 
 The `luarocks` module extension turns a `luarocks.lock.json` into a hub with one
 `lua_library` per rock. Only pure-Lua rocks with the `builtin` build type are
@@ -137,7 +81,7 @@ lua_library(
 )
 ```
 
-## Generating BUILD files
+## Generate
 
 `dx generate` writes `lua_library` and `lua_test` rules. Each package gets one
 `lua_library` over its `.lua` files and one `lua_test` per `*_test.lua`, with
@@ -190,6 +134,15 @@ reported; only the sources of the target are. Bind a `luals_config` from
 set globals or diagnostics. The runtime version, the library, `libraryFiles` and
 the output paths are always set by dx. Linux x86_64 only.
 
+## Coverage
+
+Lua tests write LCOV under `bazel coverage` and `dx coverage` through luacov.
+rules_dx brings pinned luacov 0.17.0 and luacov-reporter-lcov 0.2 and adds them to
+a `lua_test` only under coverage, so `bazel test` never fetches them. Records
+name each file by its path from the repository root.
+
+Tag a test `no-coverage` to skip it under coverage.
+
 ## API docs
 
 `dx docs` documents a `lua_library` with `lua_doc_shard(name, lib, package)` from
@@ -199,15 +152,6 @@ the C module LuaFileSystem, so rules_dx builds LuaFileSystem 1.9.0 from a
 sha256-pinned source with the hermetic C toolchain and links it into the Lua
 that runs LDoc. Penlight 1.15.0 is pinned the same way. Document modules with
 `@module` and functions with LDoc tags; local functions are left out.
-
-## Coverage
-
-Lua tests write LCOV under `bazel coverage` and `dx coverage` through luacov.
-rules_dx brings pinned luacov 0.17.0 and luacov-reporter-lcov 0.2 and adds them to
-a `lua_test` only under coverage, so `bazel test` never fetches them. Records
-name each file by its path from the repository root.
-
-Tag a test `no-coverage` to skip it under coverage.
 
 ## Platforms
 

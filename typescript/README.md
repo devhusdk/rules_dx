@@ -35,7 +35,16 @@ typescript_binary(
 `main` to run the file with Node instead.
 On Windows, Jest coverage uses the v8 provider.
 
-## Browser tests
+## Dependencies
+
+Add the package to the root `package.json`, then run `dx generate --apply`. dx
+writes a missing `pnpm-lock.yaml`. An import of a package listed
+in the root `package.json` resolves to `//:node_modules/<package>`. Imports
+that match `paths` in the nearest `tsconfig.json` resolve to local targets.
+
+## Quality
+
+### Browser tests
 
 `typescript_playwright_test` runs Playwright tests in a pinned headless Chromium. The
 browser and the Linux libraries it loads are downloaded by Bazel, so none has to be
@@ -72,18 +81,7 @@ the outputs zip as `outputs_path` on each failed `test_outcome`.
 Supported platforms are Linux x86_64, Linux arm64 and macOS arm64. On any other
 platform the test is skipped.
 
-## Benchmarks and fuzzing
-
-`typescript_bench` runs a tinybench `Bench` for `dx bench`, and `typescript_fuzz_test` runs a Jazzer.js target for `dx fuzz`. List `tinybench` or `@jazzer.js/core` in `package.json` and pass `node_modules`. See [`dx bench`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/bench.md) and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/fuzz.md).
-
-## Third-party packages
-
-Add the package to the root `package.json`, then run `dx generate --apply`. dx
-writes a missing `pnpm-lock.yaml`. An import of a package listed
-in the root `package.json` resolves to `//:node_modules/<package>`. Imports
-that match `paths` in the nearest `tsconfig.json` resolve to local targets.
-
-## Format, lint and typecheck
+### Format, lint and typecheck
 
 `biome` formats and lints TypeScript, and `tsc` checks types. Biome reads
 `biome.json` at the workspace root. To lint with `eslint`, put
@@ -94,6 +92,10 @@ dx format --apply
 dx lint
 dx typecheck
 ```
+
+## Bench and fuzz
+
+`typescript_bench` runs a tinybench `Bench` for `dx bench`, and `typescript_fuzz_test` runs a Jazzer.js target for `dx fuzz`. List `tinybench` or `@jazzer.js/core` in `package.json` and pass `node_modules`. See [`dx bench`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/bench.md) and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/fuzz.md).
 
 ## Platforms
 

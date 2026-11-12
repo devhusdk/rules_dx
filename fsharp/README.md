@@ -4,59 +4,9 @@ Build and test F# with a pinned .NET SDK 10.0.403. Nothing is installed on the
 host and nothing is fetched until a target needs it. `rules_dx` registers
 the toolchain.
 
-## Start
+## Dependencies
 
-```sh
-bazel run @rules_dx//:dx -- init --apply demo
-cd demo
-bazel run @rules_dx//:dx -- generate
-bazel build //...
-```
-
-Add a `demo.fsproj` and its sources before `dx generate`. `dx generate`
-wires the language and writes the targets; you write no `BUILD.bazel`.
-
-## Rules
-
-Load the rules from `@rules_dx//fsharp:defs.bzl`. They wrap
-[rules_dotnet](https://github.com/bazel-contrib/rules_dotnet) and take the same
-attributes.
-
-```python
-load("@rules_dx//fsharp:defs.bzl", "fsharp_binary", "fsharp_library", "fsharp_test")
-
-fsharp_library(
-    name = "greeter_lib",
-    srcs = ["Greeter.fs"],
-    deps = ["@paket.main//fsharp.core"],
-)
-
-fsharp_test(
-    name = "greeter_test",
-    srcs = ["GreeterTest.fs"],
-    deps = [
-        ":greeter_lib",
-        "@paket.main//fsharp.core",
-    ],
-)
-```
-
-| Rule | What it makes |
-| --- | --- |
-| `fsharp_library` | Assembly from `srcs`, which is optional |
-| `fsharp_binary` | Executable run with `bazel run`. `srcs` is optional |
-| `fsharp_test` | Test executable run with `bazel test` |
-| `fsharp_bench` | `fsharp_test` that runs `[<Benchmark>]` classes with BenchmarkDotNet and writes `dx-bench.json` for `dx bench`; add `nuget BenchmarkDotNet` to your `paket.dependencies` |
-| `fsharp_fuzz_test` | SharpFuzz harness whose `main` calls `Fuzzer.LibFuzzer.Run`, plus a `<name>_run` runner for `dx fuzz`. The libraries in `deps` are instrumented at build time. Linux and macOS; SharpFuzz comes with rules_dx |
-
-- `target_frameworks` defaults to `["net10.0"]`. Set it to change it.
-- `warnings_as_errors` follows `//config:warnings_as_errors`, which is on by
-  default. Set the attribute to `True` or `False` to override the flag for one
-  target. `common --@rules_dx//config:warnings_as_errors=false` turns it off
-  everywhere.
-- `FSharp.Core` is a NuGet package. List it in `deps`.
-
-## Compile order
+### Compile order
 
 F# compiles files in the order they are listed. List `srcs` in that order and
 tell buildifier not to sort the list:
@@ -85,7 +35,7 @@ A `Name.fsi` signature file goes right before its `Name.fs`. A lone `.fsi` is
 refused. When two files need each other, generation stops and names one edge,
 for example `A.fs -> B.fs (B)`; split the directory or list `srcs` by hand.
 
-## NuGet packages
+### NuGet packages
 
 Keep a `paket.dependencies` file in your module and generate the Bazel
 repository from it with rules_dotnet:
@@ -104,7 +54,9 @@ use_repo(dotnet_nuget, "paket.main")
 Depend on a package as `@paket.main//<lowercase package id>`. `dx update nuget`
 bumps the pins.
 
-## Formatting and linting
+## Quality
+
+### Formatting and linting
 
 `fantomas` formats and `fsharplint` lints. Both run from managed pins. See
 the Quality page of the command reference for the family setup.
@@ -114,11 +66,15 @@ bazel run @rules_dx//:dx -- format //app/...
 bazel run @rules_dx//:dx -- lint //app/...
 ```
 
-## Typecheck
+### Typecheck
 
 `dx typecheck` runs `fsc`, which compiles the target a second time with the
 pinned F# compiler and reports its `FS` diagnostics. See the Quality page of
 the command reference.
+
+## Coverage
+
+`bazel coverage` and `dx coverage` run F# tests under coverlet and write LCOV. Coverage covers the first-party assemblies that match `--instrumentation_filter`. The test assembly counts only with `--instrument_test_targets`. Tag a test `no-coverage` to skip it under coverage.
 
 ## Platforms
 
@@ -128,7 +84,3 @@ the command reference.
 | Other cells | Not supported |
 
 The command reference covers `dx generate`. The `fsharp/tests/fixtures/adopt-fsharp` tree shows a full run.
-
-## Coverage
-
-`bazel coverage` and `dx coverage` run F# tests under coverlet and write LCOV. Coverage covers the first-party assemblies that match `--instrumentation_filter`. The test assembly counts only with `--instrument_test_targets`. Tag a test `no-coverage` to skip it under coverage.

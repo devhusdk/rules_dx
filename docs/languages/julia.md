@@ -83,6 +83,16 @@ Args:
 
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
+`dx docs` documents every `julia_library` with no setup: it loads the library
+under the pinned Julia, reads the docstrings of the exported and `public`
+names through the pinned Documenter.jl 1.20.0, and writes a DocIr shard. The
+library is named after its root module. Its dependencies must be
+`julia_library` targets of the same workspace. To name the shard yourself, use
+`julia_doc_shard(name, lib, module, package)` from
+`@rules_dx//tools/docs/julia:defs.bzl`. Documenter and its packages are
+fetched from the Julia package server by sha256 and run on the same Julia as
+the formatter.
+
 ## Tools
 
 - `julia_format`
@@ -106,3 +116,55 @@ Lockfiles:
 - Linux x86_64
 - macOS arm64
 - Windows x86_64
+
+| Platform | Support |
+| --- | --- |
+| linux_x86_64 | yes |
+| linux_arm64 | yes |
+| macos_arm64 | yes |
+| windows_x86_64 | yes |
+| windows_arm64 | no Julia build exists |
+
+## Dependencies
+
+### Packages
+
+```python
+julia = use_extension("@rules_dx//julia:extensions.bzl", "julia")
+julia.from_manifest(
+    name = "app_pkgs",
+    lockfile = "//:Manifest.bazel.json",
+)
+use_repo(julia, "app_pkgs")
+```
+
+## Generate
+
+`dx generate` reads `Project.toml` only. A `Project.toml` with a `name` and a
+`src/<name>.jl` gets a `julia_library` named `<name>` from `src/**/*.jl`, with
+`Project.toml` as `data` and `[deps]` as dependencies. When `test/runtests.jl`
+exists it also gets a `julia_test` named `<name>_test`. It never generates a
+`julia_binary`, `ext/` or `[weakdeps]`, and it leaves a `Project.toml` without
+a name alone. Third-party packages need a `# gazelle:resolve julia` line.
+
+## Quality
+
+### Formatting
+
+`dx format` runs JuliaFormatter 2.2.0 when a `julia` family selects
+`julia_format`. The formatter and its packages are fetched only for Julia
+targets. Syntax errors are reported with line and column and are never written.
+
+### Linting
+
+`dx lint` runs the Julia VS Code linter (JuliaWorkspaces.jl 13.5.0) when a
+`julia` family selects `julialint`. `--@rules_dx//config:tool_julialint`
+overrides the pinned binary. Findings are reported as `julialint/<code>` at
+their line and column. It works offline and only reads the files dx passes.
+See `docs/cli/commands/quality.md`.
+
+### Type checking
+
+`dx typecheck` runs JET 0.13.1 when a `julia` family selects `jet`.
+`--@rules_dx//config:tool_jet` overrides the pinned binary. Findings
+are reported at their line. See `docs/cli/commands/quality.md`.

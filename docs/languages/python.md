@@ -109,3 +109,60 @@ Lockfiles:
 - macOS arm64
 - Windows arm64
 - Windows x86_64
+
+See the [support matrix](../docs/support-matrix.md).
+
+## Dependencies
+
+Add the package to `pyproject.toml`, then run `dx generate --apply`. dx writes a missing `uv.lock` and the `pypi` hub in `MODULE.bazel`:
+
+```starlark
+uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
+uv.declare_hub(hub_name = "pypi")
+uv.project(
+    hub_name = "pypi",
+    lock = "//:uv.lock",
+    pyproject = "//:pyproject.toml",
+)
+use_repo(uv, "pypi")
+```
+
+An import whose top-level module matches a package in `uv.lock` resolves to
+`@pypi//<name>`. To use another hub name, add
+`# gazelle:dx_external python <path> <repo>` to a `BUILD` file.
+
+## Quality
+
+| Check | Default tool |
+| --- | --- |
+| Format | `ruff` |
+| Lint | `ruff`, `pydoclint` |
+| Typecheck | `ty` |
+
+Configure `ruff` in `ruff.toml` and bind it with `ruff_config`.
+
+## Packaging
+
+### Native extensions
+
+Build C and C++ extension modules with `py_extension`:
+
+```starlark
+load("@rules_python//python/cc:py_extension.bzl", "py_extension")
+
+py_extension(
+    name = "fast",
+    srcs = ["fast.cc"],
+)
+```
+
+The extension is built with the repo's hermetic C++ toolchain and imported by the hermetic interpreter. These compiler and platform pairs build it:
+
+| Compiler | Platform |
+| --- | --- |
+| LLVM | linux_x86_64, linux_arm64 |
+| GCC | linux_x86_64, linux_arm64 |
+| clang-cl | windows_x86_64 |
+| cl.exe | windows_x86_64 |
+
+Windows links the dynamic CRT. An app that ships an extension must also ship `msvcp140` and `vcruntime140*` from `@msvc_runtime`. Invalid compiler and platform combinations fail at analysis.

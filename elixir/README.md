@@ -4,89 +4,9 @@ Build and test Elixir with a pinned Elixir 1.20.5 on the pinned OTP 29.1.2
 runtime. Nothing is installed on the host and nothing is fetched until a
 target needs it. `rules_dx` registers the toolchain.
 
-## Start
+## Dependencies
 
-```sh
-bazel run @rules_dx//:dx -- init --apply demo
-cd demo
-```
-
-Add sources, then run `bazel run @rules_dx//:dx -- generate`. The language is
-wired when its sources appear. See `tests/fixtures/elixir_app` for a working app.
-
-## Rules
-
-Load the rules from `@rules_dx//elixir:defs.bzl`. They wrap
-[rules_elixir](https://github.com/bazelverse/rules_elixir) and take the same
-attributes.
-
-```python
-load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_escript_archive", "elixir_escript_headers", "elixir_test")
-
-elixir_app(
-    name = "erlang_app",
-    app_name = "stock",
-    app_version = "1.0.0",
-    app_module = "Stock.Application",
-    app_env = "[{max_units, 60}]",
-    deps = ["//catalog:erlang_app"],
-)
-
-elixir_test(
-    name = "ledger_test",
-    srcs = [
-        "test/ledger_test.exs",
-        "test/test_helper.exs",
-    ],
-    deps = [":erlang_app"],
-)
-
-elixir_escript_archive(
-    name = "stockctl",
-    app = ":erlang_app",
-    headers = elixir_escript_headers("Stockctl"),
-)
-```
-
-| Rule | What it makes |
-| --- | --- |
-| `elixir_app` | OTP application from `lib/**/*.ex`, compiled with `--warnings-as-errors` |
-| `elixir_test` | ExUnit test; `test_helper.exs` in `srcs` runs first |
-| `elixir_escript_archive` | Escript with the app and its deps, runnable with `bazel run` |
-
-- `elixir_app` is named `erlang_app` unless you pass `name`.
-- `elixir_app(nifs = [...])` takes `erlang_nif` targets, places them in `priv/`, and forwards `ErlangNifInfo`.
-- `testonly = True` marks the app and everything it builds test-only.
-- `tags` reach the app and every target it builds; the generated targets are
-  `manual`, so `//...` builds only the app.
-- `app_module` names the Elixir module that starts the application.
-- `elixirc_opts` is kept and `--warnings-as-errors` is added. Set
-  `warnings_as_errors = False` on a target, or
-  `--@rules_dx//config:warnings_as_errors=false`, to turn it off.
-- `elixir_escript_headers("Mod")` starts `Mod.main/1` with UTF-8 file names and
-  stdio.
-- An `elixir_escript_archive` fails at analysis time when a bundled app ships a NIF; a NIF cannot load from an escript archive.
-- A test that runs no tests fails.
-
-## Benchmarks
-
-`elixir_bench` is an `elixir_test` for `dx bench`. Benchee 1.5.1 comes with rules_dx. Call `DxBench.run/2` once in the test with a map of names to funs. It runs Benchee without formatters and writes `dx-bench.json`, one row per job in ns.
-
-```python
-load("@rules_dx//elixir:defs.bzl", "elixir_bench")
-
-elixir_bench(
-    name = "sum_bench",
-    srcs = [
-        "sum_bench.exs",
-        "test_helper.exs",
-    ],
-)
-```
-
-The target is tagged `dx-bench`. Benchee has no coverage-guided fuzzer on the BEAM, so there is no `elixir_fuzz_test`.
-
-## Hex packages
+### Hex packages
 
 Declare each Hex package once, pinned to a version and the tarball digest.
 Nothing runs `mix deps.get` and no Hex or Mix home is read.
@@ -107,7 +27,7 @@ The build file declares the package as an `elixir_app` with
 `visibility = ["//visibility:public"]`. Depend on it as
 `@jason//:erlang_app`. A wrong digest fails the fetch.
 
-### From mix.lock
+#### From mix.lock
 
 The `mix` tag reads a `mix.lock` and declares one `hex_package` per entry,
 named `<name>_<package>`, with the last checksum as `sha256`. The hub repo
@@ -124,7 +44,7 @@ required Hex dependencies; optional ones are skipped. An entry that is not
 from `hexpm` (`:git`, `:path`) fails with a message naming it. Erlang
 `rebar.lock` is not read yet.
 
-## Adopt a Mix project
+### Adopt a Mix project
 
 rules_dx is not released yet. Install starts with the first BCR release.
 
@@ -153,7 +73,9 @@ umbrella root gets no rule. A module named in code resolves to the
   `mix deps.get` generates cleanly. A custom `deps_path` or `build_path` is
   not read. Add `# gazelle:exclude <dir>` for it.
 
-## Formatting
+## Quality
+
+### Formatting
 
 `dx format` checks Elixir sources with `mix format` from the pinned Elixir.
 Select `mix_format` in an `elixir` family. The tool flag overrides the pinned binary:
@@ -163,7 +85,7 @@ dx format -- --@rules_dx//config:tool_mix_format=@rules_dx//elixir/private/tools
 dx format --apply -- --@rules_dx//config:tool_mix_format=@rules_dx//elixir/private/tools:mix_format
 ```
 
-## Linting
+### Linting
 
 `dx lint` runs Credo 1.7.19 on the pinned Elixir. Select `credo` in the `lint`
 list of an `elixir` family. The tool flag overrides the pinned binary:
@@ -177,7 +99,7 @@ is an error named `credo/syntax`. The defaults are Credo's own non-strict
 checks. Bind a `credo_config` to change them; `requires` and `plugins` are not
 supported. The compiler is still the type and warning check.
 
-## Type checking
+### Type checking
 
 `dx typecheck` runs the OTP 29.1.2 dialyzer on the compiled beams of each
 `elixir_app`. Select `dialyzer` in the `typecheck` list of an `elixir` family
@@ -193,17 +115,35 @@ type checker does not. The Elixir PLT is built by Bazel from the pinned Elixir
 `dialyzer/<rule>`. Silence one with `@dialyzer {:nowarn_function, name: arity}`.
 See `docs/cli/commands/quality.md`.
 
-## Platforms
-
-See the [support matrix](../docs/support-matrix.md).
-
-On other platforms Elixir targets fail toolchain resolution.
-
 ## Coverage
 
 `elixir_test` writes LCOV under `dx coverage`. A script cover-compiles the workspace apps in the test's `deps` and writes their line hits when the VM exits. Apps from other repositories are not counted. Tag a test `no-coverage` to skip it.
+
+## Bench and fuzz
+
+`elixir_bench` is an `elixir_test` for `dx bench`. Benchee 1.5.1 comes with rules_dx. Call `DxBench.run/2` once in the test with a map of names to funs. It runs Benchee without formatters and writes `dx-bench.json`, one row per job in ns.
+
+```python
+load("@rules_dx//elixir:defs.bzl", "elixir_bench")
+
+elixir_bench(
+    name = "sum_bench",
+    srcs = [
+        "sum_bench.exs",
+        "test_helper.exs",
+    ],
+)
+```
+
+The target is tagged `dx-bench`. Benchee has no coverage-guided fuzzer on the BEAM, so there is no `elixir_fuzz_test`.
 
 ## API docs
 
 `dx docs` documents an `elixir_app` with `elixir_doc_shard(name, app, package)` from
 `@rules_dx//tools/docs/elixir:defs.bzl`. It reads each module's docs chunk with `Code.fetch_docs/1` on the pinned Elixir and writes a DocIr shard. Modules marked `@moduledoc false` and functions marked `@doc false` are left out. Windows execution platforms are not covered.
+
+## Platforms
+
+See the [support matrix](../docs/support-matrix.md).
+
+On other platforms Elixir targets fail toolchain resolution.

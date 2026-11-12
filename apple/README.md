@@ -3,7 +3,9 @@
 Accept the Xcode license once with the `apple-xcode-license` tag. Loading
 these rules changes no toolchain.
 
-## iOS libraries
+## Packaging
+
+### iOS libraries
 
 Build one Rust static library for one device or simulator cell.
 
@@ -66,7 +68,7 @@ that cell. Linux hosts skip it. The build fails when:
 One `apple_ios_lib` serves one cell, so pass a single-slice
 `apple_ios_xcframework` or an app in that cell.
 
-## Simulator apps
+### Simulator apps
 
 Build one iOS application bundle over a Rust static library. The app
 target is an upstream `ios_application`; building it never boots,
@@ -159,7 +161,7 @@ The build fails before linking when:
   `bundle_id`, or `version` is missing or malformed, or `library`,
   `frameworks`, and `entry` are all empty.
 
-### Swift apps
+#### Swift apps
 
 `entry` takes any `CcInfo` or `SwiftInfo` target that holds the `@main`
 module, such as a `swift_library` from `@rules_dx//swift:defs.bzl`.
@@ -197,7 +199,7 @@ Swift XCTest modules, or both. It runs on the simulator only.
 Simulator builds sign ad hoc; `provisioning_profile` fails there. On
 non-Apple hosts the app targets are incompatible and skip.
 
-### Device apps
+#### Device apps
 
 Set `platform = "@rules_dx//apple:ios_arm64"` and
 `provisioning_profile` to a `.mobileprovision` file:
@@ -224,7 +226,7 @@ a keychain, even when `signing_certificate_name` is set. The build fails
 when the profile has expired, does not cover `bundle_id`, or does not
 allow an entitlement. Rust needs the `aarch64-apple-ios` triple.
 
-### Simulator operations
+#### Simulator operations
 
 Boot, install, and launch are explicit `bazel run` launchers:
 
@@ -258,7 +260,7 @@ exits with:
 - `127` only when `xcrun` is missing;
 - `simctl`'s own code when it fails.
 
-### Export a signed IPA
+#### Export a signed IPA
 
 Export is an explicit `bazel run` launcher over one device app:
 
@@ -313,7 +315,7 @@ The launcher exits with:
 - `127` when a tool is missing;
 - `codesign`'s own code when signing fails.
 
-## XCFrameworks
+### XCFrameworks
 
 Build one XCFramework over a Rust static library and public headers. The
 bundle is an upstream `apple_xcframework`; each slice is built for its own
@@ -395,7 +397,7 @@ The build fails when:
 - no Xcode resolves, or Bazel resolved a different Xcode than
   `xcode_version`.
 
-### Consume an XCFramework
+#### Consume an XCFramework
 
 Import the unpacked XCFramework with upstream
 `apple_dynamic_xcframework_import` and pass it in `frameworks`:
@@ -431,12 +433,7 @@ XCFramework has no slice for the cell, or the slice binary misses the
 arch, is built for another platform, or needs a newer iOS than the app
 `deployment`.
 
-## Toolchain
-
-rules_dx registers the Xcode C/C++ toolchain; a consumer adds no
-`register_toolchains` line and no Apple-specific tag.
-
-## macOS apps
+### macOS apps
 
 Build one macOS application bundle over a Rust static library. The
 bundle is an upstream `macos_application`; `apple_macos_app` checks it
@@ -540,7 +537,7 @@ Failures read:
 - `apple_macos_app: app declares macos/arm64 but this build targets macos/x86_64; pass --macos_cpus=arm64`
 - `apple_macos_app: <file> loads host runtime <path>; embed it under Frameworks`
 
-## macOS signing and notarization
+### macOS signing and notarization
 
 Signing and notarization are explicit `bazel run` launchers over one
 macOS application. The application target must provide rules_apple's
@@ -567,7 +564,7 @@ targets. They never sign anything or contact Apple. Both launchers need a
 macOS host with Xcode. Relative paths resolve against the directory you
 ran `bazel` from. Other targets than a macOS `.app` fail analysis.
 
-### Sign
+#### Sign
 
 Flags:
 
@@ -621,7 +618,7 @@ goes into a temporary keychain that is deleted on exit, and the keychain
 search list is restored. An `--identity` is used where it is and no
 keychain is changed.
 
-### Notarize
+#### Notarize
 
 Flags:
 
@@ -658,3 +655,8 @@ Both launchers exit with:
   submission is still `In Progress` after `--timeout`;
 - `127` when a tool is missing;
 - `codesign`'s or `notarytool`'s own code for other failures.
+
+## Toolchain
+
+rules_dx registers the Xcode C/C++ toolchain; a consumer adds no
+`register_toolchains` line and no Apple-specific tag.

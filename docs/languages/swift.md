@@ -87,6 +87,8 @@ Converts one Swift library's public API into a DocIr shard with the symbol graph
 
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
+`dx docs` documents every `swift_library` in scope from the symbol graph that `swift-symbolgraph-extract` of the Swift toolchain writes for its public declarations. `swift_doc_shard` (`@rules_dx//tools/docs/swift:defs.bzl`) turns the graph and the library's own `.swift` files into the API reference. Nothing needs to be installed. Members that an extension adds to a type of another module are not documented.
+
 ## Tools
 
 - `swift_format`
@@ -109,3 +111,102 @@ Lockfiles:
 - Linux arm64
 - Linux x86_64
 - macOS arm64
+
+### macOS arm64
+
+On macOS the same rules build with the Xcode installed on the host. Install
+Xcode first; no Swift toolchain is downloaded. Swift targets use the Xcode
+C/C++ toolchain automatically, so `MODULE.bazel` needs no edits. Binaries link
+the system Swift runtime dynamically.
+
+```sh
+dx build //app:hello
+dx test //app:tests
+```
+
+### Windows x86_64
+
+On a Windows x86_64 host the rules build with the Swift 6.4.2 Windows installer
+from swift.org, pinned by sha256. The first Swift build downloads the 2 GB
+installer and unpacks it with the pinned PowerShell and the pinned 7-Zip;
+nothing is installed on the host and no host program runs. The toolchain is the
+`Asserts` one of the installer. The fetch fails unless `swiftc.exe` and
+`swiftCore.dll` are PE images for the host architecture.
+
+Swift targets link with the Windows C/C++ toolchain, so `dx_msvc` with its
+license accepted must be configured. Binaries link the Swift runtime
+dynamically. Swift binaries and tests always link the dynamic CRT, also as
+`rust_test` data.
+
+On windows_x86_64 Swift targets compile and link, but Swift binaries and
+`swift_test` targets, XCTest and Swift Testing included, do not run there yet
+(#12125).
+
+### Windows arm64
+
+A Windows arm64 host uses the Swift 6.4.2 `windows10-arm64` installer, pinned by
+sha256 and unpacked the same way. It is registered but unverified, and Swift
+stays unsupported on windows_arm64 until it builds on a Windows ARM runner.
+
+## Quality
+
+### Format and lint
+
+`dx format` and `dx lint` run `swift-format` from the pinned toolchain on Swift
+sources. The default policy runs `swift_format` and `swift_lint` with the
+default swift-format style. They run on Linux only; other platforms skip them
+with a note.
+
+```sh
+dx format --apply
+dx lint
+```
+
+### Typecheck
+
+`dx typecheck` with `typecheck = ["swiftc"]` on the `swift` family replays the
+`SwiftCompile` action of each `swift_library`, `swift_binary` and `swift_test`
+with `-typecheck`, keeping its module, search path and `-D` flags and dropping
+every output flag. Diagnostics are reported at their source position; a
+`swiftc` failure without a parsed error fails closed. It runs the compiler the
+rule already uses and downloads nothing. Params files are rejected.
+
+## Bench and fuzz
+
+`swift_fuzz_test` builds a libFuzzer binary with AddressSanitizer and defines
+`<name>_run` for `dx fuzz`. The source exports `LLVMFuzzerTestOneInput` with
+`@_cdecl`. It links the libFuzzer from the Swift toolchain archive, because the
+pinned LLVM's libFuzzer needs libc++ and Swift binaries link libstdc++. Linux only.
+
+```python
+load("@rules_dx//swift:defs.bzl", "swift_fuzz_test")
+
+swift_fuzz_test(
+    name = "parse_fuzz",
+    srcs = ["parse.swift"],
+)
+```
+
+`swift_bench` builds a `swift_binary` that times a loop with `dxBench` from
+`//swift/private/bench` and writes `dx-bench.json` for `dx bench`. It needs no
+package-benchmark download. The sources need a `main.swift` for top-level code.
+
+```python
+load("@rules_dx//swift:defs.bzl", "swift_bench")
+
+swift_bench(
+    name = "parse_bench",
+    srcs = ["main.swift"],
+)
+```
+
+## Toolchain
+
+The sections below describe the Linux toolchain.
+
+- The compiler is the Swift 6.4.2 Ubuntu 22.04 archive from swift.org.
+- Headers and C libraries come from a locked Ubuntu 22.04 package set.
+- Libraries `swiftc` needs on the build host, such as `libncurses`, come from the same package set.
+- C++ resolution stays with `@llvm`.
+
+The build host needs glibc 2.35 or newer.

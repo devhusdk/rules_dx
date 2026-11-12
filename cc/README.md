@@ -1,4 +1,4 @@
-# C/C++ rules
+# C and C++
 
 `defs.bzl` wraps `cc_library`, `cc_binary`, `cc_test` and `cc_objc_library`.
 
@@ -26,7 +26,9 @@ cc_test(
 
 `cc_objc_library` is the upstream rule under your name, with no forwarder. rules_apple resources and frameworks, and rules_swift `module_name`, behave exactly as upstream. Quality ownership of `srcs`, `non_arc_srcs` and `hdrs` comes from the target's paths.
 
-## CMake dependencies
+## Dependencies
+
+### CMake dependencies
 
 `cmake_library` from `@rules_dx//cmake:defs.bzl` only formats and lints CMake files. It never builds them.
 
@@ -49,11 +51,9 @@ cc_binary(
 
 This is tested on Linux x86_64 with LLVM and GCC, with LLVM cross-compiling to Linux arm64, and on Windows x64 with MSVC (cl.exe through the Ninja generator). On Linux, `bash` is the only host tool. On Windows, ninja is a pinned prebuilt binary.
 
-## Options
+## Quality
 
-`copts`, `defines`, `features`, `includes` and `linkopts` reach the upstream rule exactly as written. A `select()` value stays a `select()` value. The requested language standard is never translated: `-std=c++23` compiles as C++23.
-
-## Warnings
+### Warnings
 
 Each wrapper adds the upstream `treat_warnings_as_errors` feature to `features`. Set `warnings_as_errors = False` on a target to leave it out, or `True` to keep it whatever the flag says. Without the attribute, the target follows `//config:warnings_as_errors`, which is on by default. To turn it off for the whole repository:
 
@@ -63,7 +63,32 @@ common --@rules_dx//config:warnings_as_errors=false
 
 The flags are driver syntax. A GCC or Clang toolchain takes `-Wall -Werror`. An MSVC-style driver takes `/W4 /WX`. Plain C never receives a C++-only option.
 
-## GCC
+## Bench and fuzz
+
+`cc_bench` links Google Benchmark's `benchmark_main` into a private `<name>_bin` and declares `<name>` as the `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.
+
+```starlark
+load("@rules_dx//cc:defs.bzl", "cc_bench")
+
+cc_bench(
+    name = "parse_bench",
+    srcs = ["parse_bench.cc"],
+)
+```
+
+The test writes `dx-bench.json` with one row per benchmark, using the real time in the unit the benchmark reports. Google Benchmark comes from the `google_benchmark` Bazel module that rules_dx depends on.
+
+## API docs
+
+`dx docs` documents the public `hdrs` of a `cc_library` with the pinned Doxygen, with no setup. Declare `cc_doc_shard(name = "docs", lib = ":lib")` from `@rules_dx//tools/docs/cc:defs.bzl` to set the package name. Doxygen publishes no Linux arm64 or Windows arm64 build, so those hosts get no C or C++ API docs.
+
+## Toolchain
+
+### Options
+
+`copts`, `defines`, `features`, `includes` and `linkopts` reach the upstream rule exactly as written. A `select()` value stays a `select()` value. The requested language standard is never translated: `-std=c++23` compiles as C++23.
+
+### GCC
 
 To use your own compiler instead, see [Use your own C/C++ toolchain](../docs/own-cc-toolchain.md).
 
@@ -98,7 +123,7 @@ bazel test --@rules_dx//cc:compiler=gcc --features=ubsan //pkg:test
 
 On a macOS host, `--features=asan`, `ubsan` or `tsan` uses the Xcode toolchain, and the runtimes load from the installed Xcode, so this is not hermetic.
 
-## MSVC
+### MSVC
 
 Select the MSVC toolchain in `.bazelrc`:
 
@@ -116,25 +141,6 @@ dx_licenses.accept(ids = ["visual-studio-build-tools"])
 
 Any other host or target platform fails with a message that names the supported pair. There is no clang-cl fallback.
 
-## macOS
+### macOS
 
 On a macOS host, Apple targets including `macos_*` resolve the Xcode toolchain; `@llvm` with the pinned `@macos_sdk` serves macOS targets only from Linux and Windows hosts.
-
-## Benchmarks
-
-`cc_bench` links Google Benchmark's `benchmark_main` into a private `<name>_bin` and declares `<name>` as the `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.
-
-```starlark
-load("@rules_dx//cc:defs.bzl", "cc_bench")
-
-cc_bench(
-    name = "parse_bench",
-    srcs = ["parse_bench.cc"],
-)
-```
-
-The test writes `dx-bench.json` with one row per benchmark, using the real time in the unit the benchmark reports. Google Benchmark comes from the `google_benchmark` Bazel module that rules_dx depends on.
-
-## API docs
-
-`dx docs` documents the public `hdrs` of a `cc_library` with the pinned Doxygen, with no setup. Declare `cc_doc_shard(name = "docs", lib = ":lib")` from `@rules_dx//tools/docs/cc:defs.bzl` to set the package name. Doxygen publishes no Linux arm64 or Windows arm64 build, so those hosts get no C or C++ API docs.

@@ -29,17 +29,13 @@ javascript_test(
 `main` to run the file with Node instead.
 On Windows, Jest coverage uses the v8 provider.
 
-## Benchmarks and fuzzing
-
-`javascript_bench` runs a tinybench `Bench` for `dx bench`, and `javascript_fuzz_test` runs a Jazzer.js target for `dx fuzz`. List `tinybench` or `@jazzer.js/core` in `package.json` and pass `node_modules`. See [`dx bench`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/bench.md) and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/fuzz.md).
-
-## Third-party packages
+## Dependencies
 
 Add the package to the root `package.json`, then run `dx generate --apply`. dx
 writes a missing `pnpm-lock.yaml`. An import of a package listed
 in the root `package.json` resolves to `//:node_modules/<package>`.
 
-## Format and lint
+## Quality
 
 `biome` formats and lints JavaScript. Its config is `biome.json` at the
 workspace root. JavaScript has no typecheck tool. To lint with `eslint`, put
@@ -49,6 +45,10 @@ workspace root. JavaScript has no typecheck tool. To lint with `eslint`, put
 dx format --apply
 dx lint
 ```
+
+## Bench and fuzz
+
+`javascript_bench` runs a tinybench `Bench` for `dx bench`, and `javascript_fuzz_test` runs a Jazzer.js target for `dx fuzz`. List `tinybench` or `@jazzer.js/core` in `package.json` and pass `node_modules`. See [`dx bench`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/bench.md) and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/fuzz.md).
 
 ## Platforms
 

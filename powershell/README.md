@@ -4,58 +4,9 @@ Build, run and test PowerShell with a pinned pwsh 7.6.9. Nothing is installed
 on the host and nothing is fetched until a target needs it. rules_dx registers
 the toolchain, so there is no setup in `MODULE.bazel`.
 
-## Start
+## Dependencies
 
-```sh
-bazel run @rules_dx//:dx -- init --apply demo
-cd demo
-```
-
-Add sources, then run `bazel run @rules_dx//:dx -- generate`. The language is
-wired when its sources appear.
-
-The targets are Linux only. They set `target_compatible_with` to
-`@platforms//os:linux`.
-
-## Rules
-
-Load the rules from `@rules_dx//powershell:defs.bzl`. They wrap
-[rules_powershell](https://github.com/bazel-contrib/rules_powershell) and take
-the same attributes.
-
-```python
-load("@rules_dx//powershell:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
-
-powershell_library(
-    name = "hello_lib",
-    srcs = [
-        "Hello.psd1",
-        "Hello.psm1",
-    ],
-)
-
-powershell_binary(
-    name = "hello",
-    srcs = ["Main.ps1"],
-    target_compatible_with = ["@platforms//os:linux"],
-    deps = [":hello_lib"],
-)
-
-powershell_test(
-    name = "hello_test",
-    srcs = ["Hello.Tests.ps1"],
-    target_compatible_with = ["@platforms//os:linux"],
-    deps = [":hello_lib"],
-)
-```
-
-| Rule | What it makes |
-| --- | --- |
-| `powershell_library` | Module from `.ps1`, `.psm1` and `.psd1` files. `srcs` is optional |
-| `powershell_binary` | Script run with `bazel run`. `srcs` takes `.ps1` files and is optional |
-| `powershell_test` | Script run with `bazel test`. `srcs` takes `.ps1` files |
-
-## Gallery modules
+### Gallery modules
 
 List each PowerShell Gallery module with its exact version in
 `PSGallery.requirements.psd1`. Nothing runs `Install-Module`.
@@ -77,7 +28,15 @@ use_repo(powershell, "psgallery")
 
 Depend on `@psgallery//Pester`. A wrong digest fails the fetch.
 
-## Pester
+## Generate
+
+`dx generate --apply` writes a `powershell_library` per directory of `.psm1`
+modules and a `powershell_test` per `*.Tests.ps1` script. The
+`powershell/tests/fixtures/adopt-powershell` tree shows a full layout.
+
+## Quality
+
+### Pester
 
 To test with the pinned Pester 5.7.1, add `@rules_dx//powershell:pester`
 to the `deps` of a `powershell_test` and import it by version:
@@ -86,7 +45,7 @@ to the `deps` of a `powershell_test` and import it by version:
 Import-Module Pester -RequiredVersion 5.7.1
 ```
 
-## Formatting and linting
+### Formatting and linting
 
 `psscriptanalyzer` formats and lints. Format runs `Invoke-Formatter`, and
 `dx check --apply` rewrites scripts that would change. A script that does not parse is
@@ -106,11 +65,9 @@ bazel run @rules_dx//:dx -- format //scripts/...
 bazel run @rules_dx//:dx -- lint //scripts/...
 ```
 
-## Generating BUILD files
+## Coverage
 
-`dx generate --apply` writes a `powershell_library` per directory of `.psm1`
-modules and a `powershell_test` per `*.Tests.ps1` script. The
-`powershell/tests/fixtures/adopt-powershell` tree shows a full layout.
+Pester tests write LCOV under `bazel coverage` and `dx coverage`. Depend on `//powershell:dx_coverage` and build the Pester configuration with `New-DxPesterConfiguration`. After `Invoke-Pester`, call `Write-DxPesterCoverage -Result $result`. Only the first-party `.ps1` and `.psm1` sources the test depends on are measured, and a line counts as covered when Pester ran a command on it. A test that does not call these functions writes no coverage.
 
 ## Platforms
 
@@ -118,7 +75,3 @@ modules and a `powershell_test` per `*.Tests.ps1` script. The
 | --- | --- | --- |
 | `linux_x86_64` | Supported | Supported |
 | Other cells | Not supported | Not supported |
-
-## Coverage
-
-Pester tests write LCOV under `bazel coverage` and `dx coverage`. Depend on `//powershell:dx_coverage` and build the Pester configuration with `New-DxPesterConfiguration`. After `Invoke-Pester`, call `Write-DxPesterCoverage -Result $result`. Only the first-party `.ps1` and `.psm1` sources the test depends on are measured, and a line counts as covered when Pester ran a command on it. A test that does not call these functions writes no coverage.

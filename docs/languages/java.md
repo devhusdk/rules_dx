@@ -109,3 +109,36 @@ Lockfiles:
 - macOS arm64
 - Windows arm64
 - Windows x86_64
+
+See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
+
+## Dependencies
+
+List the artifacts in a rules_jvm_external `maven_install.json` and run
+`dx generate --apply`. The `java` language of `dx generate` writes the targets and `deps`.
+A dependency is the label `@maven//:<group>_<artifact>`, with dots and dashes
+turned into underscores, for example `@maven//:com_google_guava_guava`. See
+[generate](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/generate.md).
+
+## Quality
+
+By default `dx format` runs `google_java_format`, `dx lint` runs `pmd`,
+`spotbugs` and `typos`, and `dx typecheck` runs `javac`. `pmd` reads a ruleset bound
+with `pmd_config`. Without one it reports unused private methods, fields, locals,
+parameters and assignments as info. See the
+[quality config table](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/quality.md).
+
+## Bench and fuzz
+
+`java_bench` runs JMH benchmarks for `dx bench`. JMH 1.37 comes with rules_dx, so no Maven hub entries are needed.
+
+```python
+load("@rules_dx//java:defs.bzl", "java_bench")
+
+java_bench(
+    name = "sum_bench",
+    srcs = ["Sum.java"],
+)
+```
+
+The test is tagged `dx-bench`, runs in the default test set and writes `dx-bench.json` with one row per `@Benchmark` method. It runs one warmup and three measurement iterations of 200 ms in the test JVM, without forking. `kotlin_bench` in `@rules_dx//kotlin:defs.bzl` and `scala_bench` in `@rules_dx//scala:defs.bzl` take Kotlin and Scala sources the same way. `size`, `timeout`, `args`, `env`, `flaky`, `jvm_flags`, `data` and `visibility` go to the test. Other attributes go to the library that compiles `srcs`. `tags` and `target_compatible_with` go to every target.

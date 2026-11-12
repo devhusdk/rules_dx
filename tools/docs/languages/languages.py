@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate docs/languages/<lang>.md from <lang>/lang.json and <lang>/defs.bzl.
+"""Generate docs/languages/<lang>.md from <lang>/lang.json, <lang>/defs.bzl and <lang>/README.md.
 
 A language gets a page once <lang>/lang.json and <lang>/defs.bzl both exist.
 Run with --write to regenerate, or without to check.
@@ -262,7 +262,33 @@ def render(name, info):
     return out
 
 
-def api_docs(root, lang, rows):
+def readme_sections(root, lang):
+    """Returns the `##` sections of <lang>/README.md as an ordered {heading: body} map."""
+    text = read(root, "%s/README.md" % lang)
+    sections = {}
+    if text is None:
+        return sections
+    heading = None
+    fenced = False
+    for line in text.splitlines():
+        if line.startswith("```"):
+            fenced = not fenced
+        if not fenced and line.startswith("## "):
+            heading = line[3:].strip()
+            sections[heading] = []
+        elif heading is not None:
+            sections[heading].append(line)
+    return {h: "\n".join(b).strip("\n") for h, b in sections.items()}
+
+
+def with_readme(out, extra, heading):
+    body = extra.pop(heading, "")
+    if body:
+        out.append(body + "\n")
+    return out
+
+
+def api_docs(root, lang, rows, extra):
     row = rows.get(lang)
     if row is None or row.get("doc_shard") is None:
         return []
@@ -270,14 +296,14 @@ def api_docs(root, lang, rows):
     shard = row["doc_shard"]
     if not shard:
         out.append("No API doc tool yet.\n")
-        return out
+        return with_readme(out, extra, "API docs")
     path = shard_bzl(root, shard)
     out.append("Tool: `%s`.\n" % row["doc"])
     out.append("```python\nload(\"@rules_dx//%s\", \"%s\")\n```\n" % ("%s:%s" % os.path.split(path), shard))
     out.append("### `%s`\n" % shard)
     out.extend(render(shard, describe(root, path, shard)))
     out.append("Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).\n")
-    return out
+    return with_readme(out, extra, "API docs")
 
 
 def page(root, lang, rows):
@@ -298,7 +324,8 @@ def page(root, lang, rows):
     for name in names:
         out.append("### `%s`\n" % name)
         out.extend(render(name, describe(root, defs, name)))
-    out.extend(api_docs(root, lang, rows))
+    extra = readme_sections(root, lang)
+    out.extend(api_docs(root, lang, rows, extra))
     out.append("## Tools\n")
     out.append(bullets(meta["tools"]))
     out.append("## Ecosystems\n")
@@ -309,6 +336,11 @@ def page(root, lang, rows):
     out.append(bullets(meta["lockfiles"]))
     out.append("## Platforms\n")
     out.append(bullets([PLATFORM_NAMES.get(p, p) for p in meta["platforms"]], "%s"))
+    with_readme(out, extra, "Platforms")
+    for heading, body in extra.items():
+        out.append("## %s\n" % heading)
+        if body:
+            out.append(body + "\n")
     return "\n".join(out).rstrip("\n") + "\n"
 
 

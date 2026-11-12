@@ -1,4 +1,4 @@
-# Rust rules
+# Rust
 
 `defs.bzl` wraps the `rules_rust` rules. One `rust_binary` builds native,
 browser, and WASI outputs. The target platform picks the output.
@@ -36,7 +36,7 @@ rust_test(
 )
 ```
 
-## Benchmarks
+## Bench and fuzz
 
 `rust_bench(name, srcs, deps, ...)` is a `rust_test` built with the
 `dx_bench` feature and tagged `dx-bench`. It runs the binary with
@@ -47,7 +47,9 @@ outputs, and writes the `test NAME ... bench: N ns/iter (+/- M)` lines to
 `use_libtest_harness = True` for nightly `#[bench]` functions.
 `@rules_dx//rust/tests/fixtures/bench` is a criterion example.
 
-## Native
+## Toolchain
+
+### Native
 
 ```sh
 bazel build //pkg:tool
@@ -58,30 +60,11 @@ crates and their dependencies build without the static C++ runtime.
 Binaries and tests link LLVM libunwind. The private `<name>_upstream`
 targets are incompatible there; build `<name>`.
 
-## Edition
+### Edition
 
 Targets default to Rust edition 2024. Set `edition` on a target to build it with another edition, for example `edition = "2021"`.
 
-## Target triples
-
-Add the Wasm triples for browser and WASI builds to your root `MODULE.bazel`:
-
-```python
-bazel_dep(name = "rules_rust", version = "0.75.0")
-
-rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
-rust.toolchain(
-    edition = "2024",
-    extra_target_triples = ["wasm32-unknown-unknown", "wasm32-wasip1"],
-    rustfmt_version = "1.99.1",
-    versions = ["1.99.1"],
-)
-use_repo(rust, "rust_toolchains")
-```
-
-List only the triples you build.
-
-## Browser
+### Browser
 
 `rust_binary(wasm = "browser")` builds the binary for `wasm32-unknown-unknown`
 and emits the JavaScript bindings: `<name>.js`, `<name>_bg.wasm`, and the
@@ -103,7 +86,7 @@ them but reports no Wasm coverage.
 For `nodejs` output, bindgen flags, or a custom toolchain, load
 `rust_wasm_bindgen` from `@rules_rust_wasm_bindgen//:defs.bzl`.
 
-## WASI
+### WASI
 
 `rust_binary(wasm = "wasi")` builds for `wasm32-wasip1` and outputs one
 `.wasm` file, without coverage. Building it fetches no runtime. A plain
@@ -138,3 +121,24 @@ directory to one host file.
 A custom `runtime` receives `DX_WASI_MANAGED_RUNTIME`, the path of the
 default Wasmtime, so it can delegate. Proc macros and build scripts stay
 on the execution platform. `rust_test` runs unit tests natively.
+
+## Platforms
+
+### Target triples
+
+Add the Wasm triples for browser and WASI builds to your root `MODULE.bazel`:
+
+```python
+bazel_dep(name = "rules_rust", version = "0.75.0")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2024",
+    extra_target_triples = ["wasm32-unknown-unknown", "wasm32-wasip1"],
+    rustfmt_version = "1.99.1",
+    versions = ["1.99.1"],
+)
+use_repo(rust, "rust_toolchains")
+```
+
+List only the triples you build.

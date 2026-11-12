@@ -7,59 +7,9 @@ Build, run and test PHP 8.5 with a pinned static PHP CLI build from
 and nothing is fetched until a target needs it. rules_dx registers the
 toolchains, so there is no toolchain setup in `MODULE.bazel`.
 
-## Start
+## Dependencies
 
-Run `dx init --apply demo-app` and add sources. The language is wired when
-its sources appear.
-
-## Rules
-
-Load the rules from `@rules_dx//php:defs.bzl`.
-
-```python
-load("@rules_dx//php:defs.bzl", "php_binary", "php_library", "php_test")
-
-php_library(
-    name = "ledger",
-    srcs = ["src/Inventory/Ledger.php"],
-)
-
-php_test(
-    name = "ledger_test",
-    srcs = ["tests/LedgerTest.php"],
-    deps = [":ledger"],
-)
-
-php_binary(
-    name = "stockctl",
-    ini = {"memory_limit": "256M"},
-    main = "bin/stockctl.php",
-    deps = [":ledger"],
-)
-```
-
-| Rule | What it makes |
-| --- | --- |
-| `php_library` | Sources whose classes other targets load; every file is checked with `php -l` at build time |
-| `php_binary` | Runs `main` with `bazel run` |
-| `php_test` | Runs PHPUnit test files; a failure or an empty suite fails the test |
-| `php_bench` | `php_test` for `dx bench`. `srcs` lists phpbench files, one class per file named like the file; the pinned phpbench phar runs them. `php_fuzz_test` is not offered: php-fuzzer is not a pinned phar |
-
-- A syntax error fails the build, not the first run.
-- PHP runs with `-n`, so no `php.ini` from the host is read. Set ini values
-  with `ini`; each entry becomes one `-d key=value` flag.
-- `env` sets environment variables for `bazel run` and `bazel test`. Values
-  expand `$(rlocationpath ...)` of `data`.
-- The launcher exports `RUNFILES_DIR`. Read a data file as
-  `getenv('RUNFILES_DIR') . '/' . $path`, with `$path` from
-  `$(rlocationpath ...)`.
-- `php_test` runs PHPUnit with `--no-configuration`. Pass a `phpunit.xml` as
-  `config` to use one.
-- `autoload_files` on `php_library` lists files that are loaded on every run,
-  like Composer's `files` autoload. Use it for function files.
-- `PhpInfo` is exported from `@rules_dx//php:defs.bzl`.
-
-## Autoloading
+### Autoloading
 
 Each `php_binary` and `php_test` runs one build action on the pinned PHP. The
 action copies the target's sources and the sources of all its `deps` into
@@ -72,7 +22,7 @@ The class map lists only classes from the target and its `deps`. A class
 from a library that is not in `deps` fails with `Class "..." not found`.
 PSR-4 layout is not required.
 
-## Composer packages
+### Composer packages
 
 Packages come from `composer.lock.json`, which `bazel run @rules_dx//php/private/tools/lock -- --dir <dir>`
 writes beside `composer.json` from the Packagist API. It also writes the
@@ -109,7 +59,7 @@ Refused: `composer-plugin` packages, packages without a zip dist
 run. Do not depend on `phpunit/phpunit` from the lock; `php_test` uses the
 pinned PHPUnit phar.
 
-## Generating BUILD files
+## Generate
 
 `dx generate` writes `php_library` and `php_test` rules. Each package takes
 its own `.php` files plus every `.php` under `src/` that has no `BUILD` file of
@@ -133,13 +83,6 @@ resolve by PHP's lexical rules: the current namespace and the `use` aliases.
 - `php_binary` targets and `bin/` scripts stay hand-written. A hand-set
   `autoload_files` stays out of `srcs` and its declarations are indexed.
 
-## Coverage
-
-On Linux, `dx coverage` runs `php_test` with PCOV and writes LCOV. The pinned
-Linux PHP is the glibc `gnu-bulk` build, which can load extensions; PCOV is built
-from source against the conda-forge PHP headers. macOS and Windows run the tests
-without collecting coverage.
-
 ## Quality
 
 PHP sources form the `php` class, so `dx check` sees them. No formatter runs
@@ -161,12 +104,12 @@ dx typecheck -- --@rules_dx//config:tool_phpstan=@rules_dx//php/private/tools:ph
 
 Dependencies are scanned, not run. See `docs/cli/commands/quality.md`.
 
-## Refreshing the PHP pins
+## Coverage
 
-1. Download each archive from `dl.static-php.dev`.
-2. Check its SHA-256 against the upstream `.sha256` sidecar.
-3. Run `gh release upload mirror-php-<version> <archive>`.
-4. Update `php/pins.json`: the mirror URL first, the upstream URL second.
+On Linux, `dx coverage` runs `php_test` with PCOV and writes LCOV. The pinned
+Linux PHP is the glibc `gnu-bulk` build, which can load extensions; PCOV is built
+from source against the conda-forge PHP headers. macOS and Windows run the tests
+without collecting coverage.
 
 ## API docs
 
@@ -187,6 +130,13 @@ The rules mark their targets
 incompatible elsewhere, so a build fails instead of running the host PHP.
 Launchers start through a bash script, except on Windows, where a small
 native launcher starts PHP from a descriptor file beside the `.exe`.
+
+### Refreshing the PHP pins
+
+1. Download each archive from `dl.static-php.dev`.
+2. Check its SHA-256 against the upstream `.sha256` sidecar.
+3. Run `gh release upload mirror-php-<version> <archive>`.
+4. Update `php/pins.json`: the mirror URL first, the upstream URL second.
 
 ## License
 

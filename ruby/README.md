@@ -4,52 +4,9 @@ Build, run and test Ruby with a pinned Ruby 3.4.12 and rules_ruby 0.29.0.
 Nothing is installed on the host and nothing is fetched until a target needs
 it. rules_dx registers the toolchain, so there is no setup in `MODULE.bazel`.
 
-## Start
+## Dependencies
 
-```sh
-bazel run @rules_dx//:dx -- init --apply demo
-cd demo
-```
-
-Add sources, then run `bazel run @rules_dx//:dx -- generate`. The language is
-wired when its sources appear.
-
-## Rules
-
-Load the rules from `@rules_dx//ruby:defs.bzl`. They wrap
-[rules_ruby](https://github.com/bazel-contrib/rules_ruby) and take the same
-attributes.
-
-```python
-load("@rules_dx//ruby:defs.bzl", "ruby_binary", "ruby_library", "ruby_test")
-
-ruby_library(
-    name = "hello_lib",
-    srcs = ["hello.rb"],
-)
-
-ruby_binary(
-    name = "hello",
-    srcs = ["main.rb"],
-    main = "main.rb",
-    deps = [":hello_lib"],
-)
-
-ruby_test(
-    name = "hello_test",
-    srcs = ["hello_test.rb"],
-    deps = [":hello_lib"],
-)
-```
-
-| Rule | What it wraps |
-| --- | --- |
-| `ruby_library` | `rb_library`. `srcs` is optional |
-| `ruby_binary` | `rb_binary`. `srcs` is optional |
-| `ruby_test` | `rb_test`. Set `main` to a runner such as an RSpec bin |
-| `ruby_bench` | `ruby_test` for `dx bench`. `main` (name.rb, else the single src) calls `DxBench.run` with a benchmark-ips block and reports seconds per call. `ruby_fuzz_test` is not offered yet: ruzzy builds a native extension against libFuzzer |
-
-## Gems
+### Gems
 
 Declare your own bundle in `MODULE.bazel`:
 
@@ -80,7 +37,14 @@ ruby_test(
 )
 ```
 
-## Formatting and linting
+## Generate
+
+`dx generate` writes `ruby_library` and `ruby_test` targets from your `.rb`
+files and `require` lines. The command reference covers `dx generate`. The `ruby/tests/fixtures/adopt-ruby` tree shows a full run.
+
+## Quality
+
+### Formatting and linting
 
 `rubocop` formats and lints. It runs from the gems of a bundle you
 declare, and you point `rubocop` at it in `.bazelrc`. See
@@ -92,7 +56,7 @@ bazel run @rules_dx//:dx -- format //app/...
 bazel run @rules_dx//:dx -- lint //app/...
 ```
 
-## Type checking with Sorbet
+### Type checking with Sorbet
 
 `dx typecheck` runs the pinned Sorbet 0.6.13650 (the `sorbet-static` gem, no Ruby
 needed) over `ruby_library`, `ruby_binary` and `ruby_test` sources. Select
@@ -108,18 +72,6 @@ needed) over `ruby_library`, `ruby_binary` and `ruby_test` sources. Select
   tapioca) in a dep, or a `# typed: ignore` on the file.
 - Sorbet has no Windows build, so the check is not available on Windows.
 
-## Generating BUILD files
-
-`dx generate` writes `ruby_library` and `ruby_test` targets from your `.rb`
-files and `require` lines. The command reference covers `dx generate`. The `ruby/tests/fixtures/adopt-ruby` tree shows a full run.
-
-## Platforms
-
-| Cell | Format and lint |
-| --- | --- |
-| `linux_x86_64` | Supported |
-| Other cells | Not supported |
-
 ## Coverage
 
 Ruby tests write LCOV under `bazel coverage` and `dx coverage` through
@@ -130,3 +82,10 @@ neither and `bazel test` never fetches them. A bundle that has its own
 Records name each file as `SF:./<path>`.
 
 Tag a test `no-coverage` to skip it under coverage.
+
+## Platforms
+
+| Cell | Format and lint |
+| --- | --- |
+| `linux_x86_64` | Supported |
+| Other cells | Not supported |

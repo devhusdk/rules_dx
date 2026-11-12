@@ -4,66 +4,55 @@ Build, run and test Haskell with a pinned GHC 9.10.3. Nothing is installed on
 the host and nothing is fetched until a target needs it. rules_dx registers
 the toolchain, so there is no setup in `MODULE.bazel`.
 
-## Rules
+## Dependencies
 
-Load the rules from `@rules_dx//haskell:defs.bzl`. They wrap
-[rules_haskell](https://github.com/tweag/rules_haskell) and take the same
-attributes.
+### Resolving Hackage dependencies
 
-```python
-load("@rules_dx//haskell:defs.bzl", "haskell_binary", "haskell_library", "haskell_test")
+The toolchain pins cabal-install 3.18.2.0 next to GHC. `haskell_deps_resolve` (`bazel run`) runs it for a directory with a `.cabal` file and a `cabal.project` that sets `index-state:`. It writes `cabal.project.freeze` and `haskell_deps.json`, which lists each package with its version, sdist sha256, `.cabal` revision and sha256, components and dependencies. A public sublibrary of another package is recorded as `lib:<sub>` and depended on as `<pkg>:<sub>`, which the hub builds as `<pkg>-lib-<sub>`. Resolving needs network access to Hackage. `haskell_deps_resolve_test` reads the committed files only and fails when either is stale. With `stack_lock = "stack.yaml.lock"` (listed in `srcs`), `haskell_deps_resolve` pins every version named by the lock's sha256-checked snapshot and extra-deps, and writes the same two files; `dx security`, `dx license` and `dx update` read the resulting `cabal.project.freeze`. It does not run `stack`; `dx update` of a set whose only lock is `stack.yaml.lock` reports that the lock must be resolved first.
 
-haskell_library(
-    name = "stock",
-    srcs = ["src/Stock.hs"],
-    deps = ["//haskell:base"],
-)
+```starlark
+load("@rules_dx//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
 
-haskell_test(
-    name = "stock_test",
-    srcs = ["test/StockTest.hs"],
-    deps = [
-        ":stock",
-        "//haskell:base",
-    ],
-)
+haskell_deps_resolve(name = "resolve", srcs = ["cabal.project", "app.cabal"])
 
-haskell_binary(
-    name = "stockctl",
-    srcs = ["src/Main.hs"],
-    deps = [
-        ":stock",
-        "//haskell:base",
-    ],
-)
+haskell_deps_resolve_test(name = "resolve_test", srcs = ["cabal.project", "app.cabal"])
 ```
 
-| Rule | What it makes |
-| --- | --- |
-| `haskell_library` | Haskell package from `srcs` |
-| `haskell_binary` | Executable with a `Main` module, run with `bazel run` |
-| `haskell_test` | Test executable; a non-zero exit fails the test |
+The resolve runs on Linux and macOS. It uses the host `cc` where the pinned GHC names none.
 
-- A warning fails the build: `-Werror` is added to `ghcopts`, which defaults to
-  `["-Wall"]`. Set `warnings_as_errors = False` on a target, or
-  `--@rules_dx//config:warnings_as_errors=false`, to turn it off.
-- Library `tags` reach the library; the generated upstream target is
-  `manual`, so `//...` builds only the library.
-- `//haskell:<package>` has the GHC boot packages: `array`,
-  `base`, `binary`, `bytestring`, `containers`, `deepseq`, `directory`,
-  `exceptions`, `filepath`, `ghc-prim`, `mtl`, `parsec`, `pretty`, `process`,
-  `stm`, `template-haskell`, `text`, `time`, `transformers` and `unix`.
-- A `cc_library` in `deps` is callable through `foreign import ccall`.
-- C compiling, linking and object merging run on the rules_dx C++ toolchain.
-  GHC reads no compiler, linker or preprocessor from the host.
+### Building Hackage packages
 
-## Benchmarks
+The `cabal.lock` tag turns a `haskell_deps.json` into a hub repository:
+
+```starlark
+cabal = use_extension("@rules_dx//haskell:extensions.bzl", "cabal")
+cabal.lock(name = "hackage", lock = "//third_party:haskell_deps.json")
+use_repo(cabal, "hackage")
+```
+
+Each Hackage package becomes one repository fetched from its sdist with the sidecar sha256 and the pinned `.cabal` revision, built with `haskell_cabal_library` and `haskell_cabal_binary`. Nothing is resolved at fetch time. The hub has `@hackage//:<package>` for libraries and `@hackage//:<package>-exe-<name>` for executables. Haddock is off for these packages.
+
+## Quality
+
+`dx format` runs `ormolu` 0.9.0.0 on Haskell sources by default. See the Haskell section of `docs/cli/commands/quality.md`. `dx typecheck` runs `ghc -fno-code` when a `haskell` family opts in with `typecheck = ["ghc"]`. `dx lint` runs `hlint` 3.10 by default.
+
+## Coverage
+
+Haskell tests write LCOV under `bazel coverage` and `dx coverage`. rules_haskell compiles the test and its libraries with `-fhpc`, and rules_dx converts the `.tix` and `.mix` files hpc writes into line coverage. Only the lines of each expression are reported, not branches or functions.
+
+## Bench and fuzz
 
 `haskell_bench` builds a `haskell_binary` from [tasty-bench](https://hackage.haskell.org/package/tasty-bench) benchmarks and adds a `dx-bench` test `<name>` that runs it with `--csv` and writes `dx-bench.json` for `dx bench`. Resolve `tasty-bench` through `cabal.lock` like any Hackage dependency, see [bench](tests/fixtures/bench/BUILD.bazel).
 
 There is no `haskell_fuzz_test`: Haskell has no maintained libFuzzer-style fuzz harness.
 
-## Runtime libraries
+## API docs
+
+`dx docs` documents every `haskell_library` in scope with the `haddock` of the pinned GHC bindist: `haddock --hoogle` writes the declarations and their comments as Hoogle text, and `haskell_doc_shard` (`@rules_dx//tools/docs/haskell:defs.bzl`) turns them into the API reference. Nothing needs to be installed. Test and binary targets are skipped. A library that needs GHCi libraries (Template Haskell with C dependencies) fails in haddock with its own error.
+
+## Toolchain
+
+### Runtime libraries
 
 GHC and the programs it links load two shared libraries that are not in
 glibc. Both come from pinned Debian 10 `amd64` or `arm64` packages, one set
@@ -81,7 +70,7 @@ their license texts in `dx_closure/licenses`:
 
 The host needs glibc 2.28 or newer.
 
-## Host locale
+### Host locale
 
 GHC runs with `LANG=C.UTF-8` and loads that locale from the host. The
 toolchain ships no locale data, because glibc can reject locale files built
@@ -89,17 +78,9 @@ by another glibc version. If the host has no `C.UTF-8` locale, GHC falls back
 to ASCII and can fail on non-ASCII text with `invalid byte sequence`. Check
 with `locale -a | grep -i c.utf`.
 
-## API docs
+### Example
 
-`dx docs` documents every `haskell_library` in scope with the `haddock` of the pinned GHC bindist: `haddock --hoogle` writes the declarations and their comments as Hoogle text, and `haskell_doc_shard` (`@rules_dx//tools/docs/haskell:defs.bzl`) turns them into the API reference. Nothing needs to be installed. Test and binary targets are skipped. A library that needs GHCi libraries (Template Haskell with C dependencies) fails in haddock with its own error.
-
-## Formatting
-
-`dx format` runs `ormolu` 0.9.0.0 on Haskell sources by default. See the Haskell section of `docs/cli/commands/quality.md`. `dx typecheck` runs `ghc -fno-code` when a `haskell` family opts in with `typecheck = ["ghc"]`. `dx lint` runs `hlint` 3.10 by default.
-
-## Coverage
-
-Haskell tests write LCOV under `bazel coverage` and `dx coverage`. rules_haskell compiles the test and its libraries with `-fhpc`, and rules_dx converts the `.tix` and `.mix` files hpc writes into line coverage. Only the lines of each expression are reported, not branches or functions.
+See [haskell_app](tests/fixtures/haskell_app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.
 
 ## Platforms
 
@@ -108,33 +89,3 @@ See the [support matrix](../docs/support-matrix.md).
 GHC 9.10.3 ships no Windows arm64 bindist.
 
 On other platforms Haskell targets fail toolchain resolution.
-
-## Resolving Hackage dependencies
-
-The toolchain pins cabal-install 3.18.2.0 next to GHC. `haskell_deps_resolve` (`bazel run`) runs it for a directory with a `.cabal` file and a `cabal.project` that sets `index-state:`. It writes `cabal.project.freeze` and `haskell_deps.json`, which lists each package with its version, sdist sha256, `.cabal` revision and sha256, components and dependencies. A public sublibrary of another package is recorded as `lib:<sub>` and depended on as `<pkg>:<sub>`, which the hub builds as `<pkg>-lib-<sub>`. Resolving needs network access to Hackage. `haskell_deps_resolve_test` reads the committed files only and fails when either is stale. With `stack_lock = "stack.yaml.lock"` (listed in `srcs`), `haskell_deps_resolve` pins every version named by the lock's sha256-checked snapshot and extra-deps, and writes the same two files; `dx security`, `dx license` and `dx update` read the resulting `cabal.project.freeze`. It does not run `stack`; `dx update` of a set whose only lock is `stack.yaml.lock` reports that the lock must be resolved first.
-
-```starlark
-load("@rules_dx//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
-
-haskell_deps_resolve(name = "resolve", srcs = ["cabal.project", "app.cabal"])
-
-haskell_deps_resolve_test(name = "resolve_test", srcs = ["cabal.project", "app.cabal"])
-```
-
-The resolve runs on Linux and macOS. It uses the host `cc` where the pinned GHC names none.
-
-## Building Hackage packages
-
-The `cabal.lock` tag turns a `haskell_deps.json` into a hub repository:
-
-```starlark
-cabal = use_extension("@rules_dx//haskell:extensions.bzl", "cabal")
-cabal.lock(name = "hackage", lock = "//third_party:haskell_deps.json")
-use_repo(cabal, "hackage")
-```
-
-Each Hackage package becomes one repository fetched from its sdist with the sidecar sha256 and the pinned `.cabal` revision, built with `haskell_cabal_library` and `haskell_cabal_binary`. Nothing is resolved at fetch time. The hub has `@hackage//:<package>` for libraries and `@hackage//:<package>-exe-<name>` for executables. Haddock is off for these packages.
-
-## Example
-
-See [haskell_app](tests/fixtures/haskell_app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.

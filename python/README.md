@@ -51,7 +51,7 @@ An import whose top-level module matches a package in `uv.lock` resolves to
 `@pypi//<name>`. To use another hub name, add
 `# gazelle:dx_external python <path> <repo>` to a `BUILD` file.
 
-## Quality tools
+## Quality
 
 | Check | Default tool |
 | --- | --- |
@@ -61,7 +61,9 @@ An import whose top-level module matches a package in `uv.lock` resolves to
 
 Configure `ruff` in `ruff.toml` and bind it with `ruff_config`.
 
-## Native extensions
+## Packaging
+
+### Native extensions
 
 Build C and C++ extension modules with `py_extension`:
 

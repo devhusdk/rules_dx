@@ -98,6 +98,8 @@ Converts one dart_library public API into a DocIr shard with the pinned `dart do
 
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
+`dart_doc_shard` in `@rules_dx//tools/docs/dart:defs.bzl` runs the pinned `dart doc` over a `flutter_library`. `dx docs` runs it on every Flutter library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_flutter ships no SDK.
+
 ## Tools
 
 None.

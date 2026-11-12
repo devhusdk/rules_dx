@@ -8,6 +8,17 @@
   "semver": false,
   "manifests": [],
   "lockfiles": [],
+  "setup": {
+    "licenses": [
+      {
+        "id": "visual-studio-build-tools",
+        "platforms": [
+          "windows_arm64",
+          "windows_x86_64"
+        ]
+      }
+    ]
+  },
   "tools": [
     "clang_format",
     "clang_syntax",

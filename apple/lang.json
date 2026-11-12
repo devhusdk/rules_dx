@@ -6,6 +6,16 @@
   "ecosystems": [],
   "manifests": [],
   "lockfiles": [],
+  "setup": {
+    "licenses": [
+      {
+        "id": "apple-xcode-license",
+        "platforms": [
+          "macos_arm64"
+        ]
+      }
+    ]
+  },
   "tools": [],
   "platforms": [
     "macos_arm64"

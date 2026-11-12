@@ -6,6 +6,19 @@
   "ecosystems": [],
   "manifests": [],
   "lockfiles": [],
+  "setup": {
+    "licenses": [
+      {
+        "id": "cuda-eula",
+        "platforms": [
+          "linux_arm64",
+          "linux_x86_64",
+          "windows_arm64",
+          "windows_x86_64"
+        ]
+      }
+    ]
+  },
   "tools": [
     "clang_format",
     "clang_tidy",

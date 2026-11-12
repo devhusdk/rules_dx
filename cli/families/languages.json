@@ -1,6 +1,19 @@
 {
   "languages": [
     {
+      "name": "android",
+      "setup": {
+        "licenses": [
+          {
+            "id": "android-sdk-license",
+            "platforms": [
+              "linux_x86_64"
+            ]
+          }
+        ]
+      }
+    },
+    {
       "name": "ansible",
       "quality": {
         "aspects": {
@@ -69,6 +82,19 @@
             "real_generation_typecheck_probe_aspect"
           ]
         }
+      }
+    },
+    {
+      "name": "apple",
+      "setup": {
+        "licenses": [
+          {
+            "id": "apple-xcode-license",
+            "platforms": [
+              "macos_arm64"
+            ]
+          }
+        ]
       }
     },
     {
@@ -226,6 +252,17 @@
             "real_cc_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "licenses": [
+          {
+            "id": "visual-studio-build-tools",
+            "platforms": [
+              "windows_arm64",
+              "windows_x86_64"
+            ]
+          }
+        ]
       }
     },
     {
@@ -279,6 +316,22 @@
             "resolver": null,
             "state": "paket.lock",
             "tag": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "cuda",
+      "setup": {
+        "licenses": [
+          {
+            "id": "cuda-eula",
+            "platforms": [
+              "linux_arm64",
+              "linux_x86_64",
+              "windows_arm64",
+              "windows_x86_64"
+            ]
           }
         ]
       }
@@ -1035,6 +1088,20 @@
         "bzl": "javascript/private/quality:js.bzl",
         "file_extensions": [
           ".mdx"
+        ]
+      }
+    },
+    {
+      "name": "msix",
+      "setup": {
+        "licenses": [
+          {
+            "id": "windows-sdk-buildtools",
+            "platforms": [
+              "windows_arm64",
+              "windows_x86_64"
+            ]
+          }
         ]
       }
     },

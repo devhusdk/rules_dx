@@ -7,28 +7,26 @@ packages. Nothing is fetched until a target needs it.
 bazel_dep(name = "rules_dx", version = "0.0.0")
 ```
 
-Nothing else is needed. To narrow or mirror the SDK, the root module calls
-`configure`:
+Nothing else is needed. Every Qt module (`qtbase`, `qtdeclarative`,
+`qttools`) is declared; `qttools` carries only `lrelease`. To mirror the SDK,
+the root module calls `configure`:
 
 ```python
 qt = use_extension("@rules_dx//qt:extensions.bzl", "qt")
 
 qt.configure(
-    modules = ["qtdeclarative"],
+    mirror = "https://mirror.example/qtsdkrepository",
 )
 ```
 
 `configure` takes:
 
-- `modules`: `qtbase` (default), `qtdeclarative`, which adds `qtbase`, or
-  `qttools`, which adds `qtdeclarative`. `qttools` carries only `lrelease`.
 - `version`: must be `6.11.3`. Other versions fail.
 - `mirror`: an https mirror of `download.qt.io/online/qtsdkrepository`.
 - `runtime_mirror`: an https mirror of `vault.almalinux.org`, with its
   `9.6/` and `10.1/` `BaseOS/` and `AppStream/` trees.
 
-`configure` is optional, root-module only, and called at most once. Without
-it every module is fetched.
+`configure` is optional, root-module only, and called at most once.
 
 ## Quality
 

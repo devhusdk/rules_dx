@@ -8,7 +8,6 @@ load("//qt/private/sdk:layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
 load(
     "//qt/private/sdk:pins.bzl",
     "CELLS",
-    "DEFAULT_MODULES",
     "EXTRACTORS",
     "IDENTITIES",
     "LAYOUTS",
@@ -35,7 +34,6 @@ load(
     "host_key",
     "hub_build",
     "hub_targets",
-    "implicit_request",
     "no_match_error",
     "pin_errors",
     "qualified_cells",
@@ -50,7 +48,6 @@ def _request(**kwargs):
     base = default_request()
     return struct(**{key: kwargs.get(key, getattr(base, key)) for key in [
         "mirror",
-        "modules",
         "runtime_mirror",
         "version",
     ]})
@@ -157,7 +154,6 @@ def _pin_checks():
         expect_equal("blocked cells pass the pin checks", [cell for cell in CELLS if CELLS[cell].blocker != "" and cell_errors(cell, CELLS[cell]) != []], []),
         expect_equal("modules", sorted(MODULES.keys()), ["qtbase", "qtdeclarative", "qttools"]),
         expect_equal("qttools keeps lrelease only", MODULES["qttools"].files, ["bin/lrelease", "modules/Linguist.json", "sbom/qttools-" + QT_VERSION + ".spdx.json"]),
-        expect_equal("default modules", DEFAULT_MODULES, ["qtbase"]),
         expect_equal("platform plugins", LINUX_LAYOUT.platform_plugins, ["libqminimal.so", "libqoffscreen.so"]),
         expect_equal("display plugins", LINUX_LAYOUT.display_plugins, {
             "wayland": [
@@ -413,16 +409,9 @@ def _url_checks():
 def _request_checks():
     return [
         expect_equal("default request is clean", request_errors(default_request()), []),
-        expect_equal("implicit request is clean", request_errors(implicit_request()), []),
-        expect_equal("implicit request resolves every module", resolve_modules(implicit_request().modules), ["qtbase", "qtdeclarative", "qttools"]),
+        expect_equal("every module resolves", resolve_modules(MODULES.keys()), ["qtbase", "qtdeclarative", "qttools"]),
         expect_equal("other version fails", request_errors(_request(version = "6.8.3")), [
             "qt: version '6.8.3' is not pinned; want 6.11.3",
-        ]),
-        expect_equal("unknown module fails", request_errors(_request(modules = ["qtmultimedia"])), [
-            "qt: unknown module 'qtmultimedia'; want one of qtbase, qtdeclarative, qttools",
-        ]),
-        expect_equal("empty modules fail", request_errors(_request(modules = [])), [
-            "qt: request at least one module",
         ]),
         expect_equal("plain http mirrors fail", request_errors(_request(mirror = "http://a", runtime_mirror = "http://b")), [
             "qt: mirror 'http://a' must use https",
@@ -520,7 +509,7 @@ def _build_checks():
         expect_contains("windows cell loads qt_tool", windows, 'load("//qt/private/sdk:tool.bzl", "qt_tool")'),
         expect_false("windows cell writes no c launchers", "launcher/launcher.c" in windows),
         expect_contains("base cell links core", base, '    srcs = ["lib/libQt6Core.so.6"],'),
-        expect_contains("base cell refuses qml", base, "    name = \"qml\",\n    reason = \"enable module 'qtdeclarative' in qt.configure(modules = ...)\","),
+        expect_contains("base cell refuses qml", base, "    name = \"qml\",\n    reason = \"Qt module 'qtdeclarative' is not acquired; name 'qml' in the modules attribute of the Qt rule\","),
         expect_false("base cell builds no qmllint", 'srcs = ["launcher/launcher.c", "launcher/qmllint.c"]' in base),
         expect_contains("full cell launches qmllint", full, 'srcs = ["launcher/launcher.c", "launcher/qmllint.c"]'),
         expect_contains("qmllint carries its plugins", full, 'data = ["bin/qmllint", ":plugins", ":qml_imports", ":runtime"],'),
@@ -532,7 +521,7 @@ def _build_checks():
         expect_false("base cell builds no qmltyperegistrar", "launcher/qmltyperegistrar.c" in base),
         expect_contains("full cell launches qmltyperegistrar", full, 'data = ["libexec/qmltyperegistrar", ":runtime"],'),
         expect_contains("full cell ships qml headers", full, '"include/QtQml/**", "include/QtQmlIntegration/**"'),
-        expect_contains("full cell refuses lrelease", full, "    name = \"lrelease\",\n    reason = \"enable module 'qttools' in qt.configure(modules = ...)\","),
+        expect_contains("full cell refuses lrelease", full, "    name = \"lrelease\",\n    reason = \"Qt module 'qttools' is not acquired; name 'lrelease' in the modules attribute of the Qt rule\","),
         expect_contains("tools cell launches lrelease", tools, 'data = ["bin/lrelease", ":runtime"],'),
         expect_contains("base cell links widgets", base, '    srcs = ["lib/libQt6Widgets.so.6"],'),
         expect_contains("base cell defines the module macro", base, '    defines = ["QT_WIDGETS_LIB"],'),
@@ -546,7 +535,7 @@ def _build_checks():
         expect_false("gui closure leaves display libraries unlinked", '"lib/libxcb-cursor.so.0"' in base),
         expect_contains("base cell ships headless platforms", base, '["plugins/platforms/libqminimal.so", "plugins/platforms/libqoffscreen.so"]'),
         expect_false("base cell builds no quick", '"lib/libQt6Quick.so.6"' in base),
-        expect_contains("base cell refuses quick", base, "    name = \"quick\",\n    reason = \"enable module 'qtdeclarative' in qt.configure(modules = ...)\","),
+        expect_contains("base cell refuses quick", base, "    name = \"quick\",\n    reason = \"Qt module 'qtdeclarative' is not acquired; name 'quick' in the modules attribute of the Qt rule\","),
         expect_contains("full cell links quick", full, '    srcs = ["lib/libQt6Quick.so.6"],'),
         expect_contains("full cell links quick_test", full, '    srcs = ["lib/libQt6QuickTest.so.6"],'),
         expect_false("full cell builds gui", 'qt_unsupported(\n    name = "gui",' in full),

@@ -1,18 +1,14 @@
 """The qt module extension."""
 
 load("//core:repo.bzl", "hub_repo")
-load(":pins.bzl", "DEFAULT_MODULES", "QT_VERSION")
-load(":repos.bzl", "HUB_NAME", "default_request", "implicit_request", "cell_repository_name", "cell_spec", "consumer_cells", "effective_cells", "hub_build", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors", "resolve_modules")
+load(":pins.bzl", "MODULES", "QT_VERSION")
+load(":repos.bzl", "HUB_NAME", "default_request", "cell_repository_name", "cell_spec", "consumer_cells", "effective_cells", "hub_build", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors", "resolve_modules")
 
 def _merge(requests):
     """Returns the one request the configure tags of every module add up to."""
     request = default_request()
-    modules = []
     fields = {"mirror": "", "runtime_mirror": "", "version": request.version}
     for tag in requests:
-        for module in tag.modules:
-            if module not in modules:
-                modules.append(module)
         for field in fields:
             value = getattr(tag, field)
             if value == "" or value == getattr(request, field):
@@ -22,7 +18,6 @@ def _merge(requests):
             fields[field] = value
     return struct(
         mirror = fields["mirror"],
-        modules = modules,
         runtime_mirror = fields["runtime_mirror"],
         version = fields["version"],
     )
@@ -49,11 +44,10 @@ def _qt_impl(module_ctx):
         for tag in module.tags.configure:
             requests.append(struct(
                 mirror = tag.mirror,
-                modules = list(tag.modules),
                 runtime_mirror = tag.runtime_mirror,
                 version = tag.version,
             ))
-    request = _merge(requests) if len(requests) > 0 else implicit_request()
+    request = _merge(requests)
     failures = request_errors(request)
     if len(failures) > 0:
         fail("; ".join(failures))
@@ -78,7 +72,7 @@ def _qt_impl(module_ctx):
             cell = cell,
             entry = entry,
             mirror = request.mirror,
-            modules = resolve_modules(request.modules),
+            modules = resolve_modules(MODULES.keys()),
             runtime_mirror = request.runtime_mirror,
         )
     hub_repo(
@@ -97,10 +91,9 @@ qt = module_extension(
     doc = "Acquires the pinned Qt SDK and runtime closure on first use.",
     tag_classes = {
         "configure": tag_class(
-            doc = "Requests Qt modules and optional mirrors.",
+            doc = "Requests optional mirrors.",
             attrs = {
                 "mirror": attr.string(default = "", doc = "Https mirror of the Qt online repository."),
-                "modules": attr.string_list(default = DEFAULT_MODULES, doc = "Qt modules to acquire."),
                 "runtime_mirror": attr.string(default = "", doc = "Https mirror of vault.almalinux.org."),
                 "version": attr.string(default = QT_VERSION, doc = "Qt version; only the pinned one is accepted."),
             },

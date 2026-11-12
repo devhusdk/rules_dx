@@ -490,11 +490,13 @@ pub fn discover(
             )?);
         }
         for ansible in module.ansible_collections().map_err(hub)? {
+            let lock = path(ansible.lock)?;
+            let dir = manifest_dir(std::slice::from_ref(&lock));
             sets.push(hub_set(
                 ansible.name,
                 Ecosystem::Ansible,
-                vec![MODULE_BAZEL.to_owned()],
-                vec![path(ansible.lock)?],
+                vec![in_dir(&dir, manifest_of("ansible"))],
+                vec![lock],
             )?);
         }
         for bicep in module.bicep_registry_modules().map_err(hub)? {

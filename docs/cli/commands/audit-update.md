@@ -715,12 +715,14 @@ cabal.lock(name = "hackage", lock = "//third_party:haskell_deps.json")
 
 ```starlark
 ansible = use_extension("@rules_dx//ansible:extensions.bzl", "ansible")
-ansible.collections(name = "collections", lock = "//third_party:lock.json")
+ansible.lock(
+    name = "ansible_collections",
+    lock = "//:ansible.lock.json",
+)
 ```
 
-- The manifest is `MODULE.bazel` and the one lock is the JSON file the `lock` label names. A check reports `pinned`.
-- `--apply` runs the `ansible_lock` target in the package of the lock once per collection in it, or once per `dx update <set>:<namespace.collection>`. Each run moves that collection to the latest Galaxy version and adds new dependencies; dependencies already locked stay. Without the target the set is unsupported. `--offline` fails with `offline_required`; `--apply --frozen` fails with `frozen_locked`.
-- A package may be a collection that is not in the lock yet. Dx does not solve version constraints.
+- `ansible.lock.json` is `lock`; `requirements.yml` is the manifest and must sit beside it. Each `collections` entry has a `name` and an exact `version`, and every dependency of a collection is listed too.
+- An ansible set: `dx update` runs `bazel run @rules_dx//ansible/private/tools/lock -- --dir <set directory>`, which downloads each Galaxy archive and rewrites `ansible.lock.json`. It does not move versions, and `<set>:<namespace.collection>` is refused. `--offline` fails with `offline_required`; `--apply --frozen` fails with `frozen_locked`.
 
 ### bicep
 

@@ -45,13 +45,14 @@ LANGS = json.decode("""{
       "ansible"
     ],
     "entry_points": [
-      "ansible_library",
-      "ansible_lock"
+      "ansible_library"
     ],
     "family": "core",
-    "lockfiles": [],
+    "lockfiles": [
+      "ansible.lock.json"
+    ],
     "manifests": [
-      "MODULE.bazel"
+      "requirements.yml"
     ],
     "name": "ansible",
     "pins": [],
@@ -79,12 +80,12 @@ LANGS = json.decode("""{
           "ecosystem": "ansible",
           "extension": "@rules_dx//ansible:extensions.bzl",
           "hub": "ansible_collections",
-          "imports": "name",
-          "lock": null,
-          "manifest": "MODULE.bazel",
-          "resolver": null,
+          "imports": "provides",
+          "lock": "ansible.lock.json",
+          "manifest": "requirements.yml",
+          "resolver": "@rules_dx//ansible/private/tools/lock",
           "state": null,
-          "tag": null
+          "tag": "lock"
         }
       ]
     },

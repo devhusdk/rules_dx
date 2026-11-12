@@ -34,12 +34,12 @@
             "ecosystem": "ansible",
             "extension": "@rules_dx//ansible:extensions.bzl",
             "hub": "ansible_collections",
-            "imports": "name",
-            "lock": null,
-            "manifest": "MODULE.bazel",
-            "resolver": null,
+            "imports": "provides",
+            "lock": "ansible.lock.json",
+            "manifest": "requirements.yml",
+            "resolver": "@rules_dx//ansible/private/tools/lock",
             "state": null,
-            "tag": null
+            "tag": "lock"
           }
         ]
       }

@@ -457,7 +457,7 @@ register_toolchains(
 ansible = use_extension("//ansible:extensions.bzl", "ansible", dev_dependency = True)
 ansible.lock(
     name = "dx_ansible_test_collections",
-    lock = "//ansible/tests:fixtures/collections/lock.json",
+    lock = "//ansible/tests:fixtures/collections/ansible.lock.json",
 )
 use_repo(ansible, "dx_ansible_test_collections")
 
@@ -2424,6 +2424,7 @@ crate.from_cargo(
         "//zig/private/tools/lock:Cargo.toml",
         "//d/private/tools/lock:Cargo.toml",
         "//php/private/tools/lock:Cargo.toml",
+        "//ansible/private/tools/lock:Cargo.toml",
         "//powershell/private/tools/lock:Cargo.toml",
         "//lua/private/tools/lock:Cargo.toml",
         "//cli/families:Cargo.toml",

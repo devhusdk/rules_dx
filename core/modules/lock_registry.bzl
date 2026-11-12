@@ -1,6 +1,13 @@
 """Generated from every <lang>/lang.json setup.hubs entry with a lock."""
 
 LOCK_REGISTRY = {
+    "ansible": {
+        "hub": "ansible_collections",
+        "imports": "provides",
+        "lock": "ansible.lock.json",
+        "manifest": "requirements.yml",
+        "state": None,
+    },
     "cabal": {
         "hub": "hackage",
         "imports": "name",

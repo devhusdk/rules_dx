@@ -4,6 +4,7 @@ load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI + [
+    "//ansible/private/tools/lock:__pkg__",
     "//d/private/tools/lock:__pkg__",
     "//lua/private/tools/lock:__pkg__",
     "//php/private/tools/lock:__pkg__",

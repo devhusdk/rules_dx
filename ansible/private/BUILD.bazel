@@ -8,8 +8,6 @@ package(default_visibility = [
 exports_files([
     "defs.bzl",
     "layout.bzl",
-    "lock.bzl",
-    "update.bzl",
 ])
 
 real_source_target(
@@ -18,8 +16,6 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "layout.bzl",
-        "lock.bzl",
-        "update.bzl",
-    ],
+            ],
     tags = ["corpus"],
 )

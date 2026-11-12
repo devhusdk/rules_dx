@@ -31,7 +31,6 @@ name tools/docs/support_matrix/languages.bzl mix.lock
 name tools/testing/hermetic/maven_pin.rs maven_install.json
 name tools/testing/nested/src/lib.rs maven_install.json
 name tools/testing/nested_bazel.bzl maven_install.json
-parser ansible/private/lock.bzl
 parser elixir/private/mix_lock.bzl
 parser erlang/private/rebar_lock.bzl
 parser fortran/private/fpm_lock.bzl

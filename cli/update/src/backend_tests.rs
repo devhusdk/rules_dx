@@ -746,67 +746,49 @@ fn ansible_set() -> ResolvedSet {
     ResolvedSet {
         name: "cols".to_owned(),
         ecosystem: Ecosystem::Ansible,
-        dir: ".".to_owned(),
-        manifests: vec!["MODULE.bazel".to_owned()],
-        locks: vec!["play/lock.json".to_owned()],
+        dir: "play".to_owned(),
+        manifests: vec!["play/requirements.yml".to_owned()],
+        locks: vec!["play/ansible.lock.json".to_owned()],
         repository: None,
     }
 }
 
 #[test]
-fn ansible_update_runs_the_lock_target_per_collection() {
+fn ansible_update_runs_the_lock_step() {
     let dir = dx_test_scratch::scratch("ansible_backend");
-    dx_test_scratch::write(
-        dir.path(),
-        "play/BUILD.bazel",
-        "ansible_lock(name = \"lock\")\n",
-    );
-    dx_test_scratch::write(
-        dir.path(),
-        "play/lock.json",
-        "{\"collections\": [{\"name\": \"a.one\"}, {\"name\": \"b.two\"}]}",
-    );
-    let plan = |request: &Selection, offline: bool| {
+    let plan = |request: &Selection, offline: bool, frozen: bool| {
         plan_configured(
             dir.path(),
             &ansible_set(),
             request,
             offline,
-            false,
+            frozen,
             &no_head(),
             &UvClosure::default(),
         )
     };
-    let BackendPlan::Sequence(runs) = plan(&Selection::Full, false).expect("plan") else {
-        panic!("expected a sequence");
+    let BackendPlan::Run { argv, .. } = plan(&Selection::Full, false, false).expect("plan") else {
+        panic!("expected a run");
     };
-    let tails: Vec<_> = runs
-        .iter()
-        .map(|run| run.argv[run.argv.len() - 3..].join(" "))
-        .collect();
-    assert_eq!(tails, ["//play:lock -- a.one", "//play:lock -- b.two"]);
-    let BackendPlan::Sequence(one) =
-        plan(&Selection::Packages(vec!["c.three".to_owned()]), false).expect("plan")
-    else {
-        panic!("expected a sequence");
-    };
-    assert_eq!(one.len(), 1);
+    assert_eq!(
+        argv[argv.len() - 5..].join(" "),
+        format!(
+            "run @rules_dx//ansible/private/tools/lock -- --dir {}",
+            dir.path().join("play").display()
+        )
+    );
     assert!(matches!(
-        plan(&Selection::Full, true),
+        plan(&Selection::Packages(vec!["a.one".to_owned()]), false, false),
+        Err(BackendError::Unsupported { .. })
+    ));
+    assert!(matches!(
+        plan(&Selection::Full, true, false),
         Err(BackendError::OfflineRequired { .. })
     ));
-    let bare = dx_test_scratch::scratch("ansible_backend_bare");
-    let error = plan_configured(
-        bare.path(),
-        &ansible_set(),
-        &Selection::Full,
-        false,
-        false,
-        &no_head(),
-        &UvClosure::default(),
-    )
-    .expect_err("refused");
-    assert!(error.to_string().contains("add an ansible_lock"));
+    assert!(matches!(
+        plan(&Selection::Full, false, true),
+        Err(BackendError::FrozenLocked { .. })
+    ));
 }
 
 fn luarocks_set() -> ResolvedSet {

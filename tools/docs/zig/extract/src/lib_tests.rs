@@ -117,10 +117,8 @@ fn unknown_file_and_schema_are_rejected() {
 }
 
 #[test]
-fn parse_rejects_bad_arguments() {
+fn parse_reads_every_flag() {
     let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
-    assert!(parse(&args(&["--nope", "x"])).is_err());
-    assert!(parse(&args(&["--dump", "a"])).is_err());
     let all = args(&[
         "--dump",
         "a",

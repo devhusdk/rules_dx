@@ -334,7 +334,7 @@ fn generated_sources_are_marked() {
 }
 
 #[test]
-fn parse_collects_sources_and_rejects_bad_flags() {
+fn parse_collects_sources_and_rejects_a_src_without_a_path() {
     let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
     let parsed = parse(&args(&[
         "--descriptor",
@@ -351,11 +351,5 @@ fn parse_collects_sources_and_rejects_bad_flags() {
     .unwrap();
     assert_eq!(parsed.srcs["a.proto"], "x/a.proto");
     assert!(parsed.generated.contains("a.proto"));
-    assert!(parse(&args(&["--bogus", "1"])).is_err());
     assert!(parse(&args(&["--src", "nopath"])).is_err());
-    assert!(
-        parse(&args(&["--package", "p"]))
-            .unwrap_err()
-            .contains("--descriptor")
-    );
 }

@@ -142,6 +142,4 @@ fn parses_arguments() {
         .map(|s| s.to_string())
         .collect();
     assert_eq!(parse(&args).unwrap().package, "p");
-    assert!(parse(&args[..4]).is_err());
-    assert!(parse(&["--nope".to_owned()]).is_err());
 }

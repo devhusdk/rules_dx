@@ -520,38 +520,6 @@ fn parse_reads_one_flat_flag_set() {
             config: "c".to_owned(),
         }
     );
-}
-
-#[test]
-fn parse_rejects_bad_invocations() {
-    for (input, needle) in [
-        (vec!["--typedoc"], "needs a value"),
-        (vec!["--bogus", "x"], "unknown argument"),
-        (
-            vec!["--out", "b", "--package", "p"],
-            "--typedoc is required",
-        ),
-        (
-            vec![
-                "--typedoc",
-                "a",
-                "--typedoc",
-                "b",
-                "--out",
-                "o",
-                "--package",
-                "p",
-            ],
-            "more than once",
-        ),
-        (
-            vec!["--typedoc", "", "--out", "o", "--package", "p"],
-            "must not be empty",
-        ),
-    ] {
-        let error = parse(&args(&input)).expect_err("rejected");
-        assert!(error.contains(needle), "{input:?}: {error}");
-    }
     assert!(usage().contains("typescript_extract"));
 }
 

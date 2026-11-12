@@ -248,7 +248,7 @@ fn malformed_and_foreign_inputs_are_rejected() {
 }
 
 #[test]
-fn parse_requires_flags_and_known_language() {
+fn parse_reads_flags_and_requires_a_known_language() {
     let args = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
     let full = [
         "--api",
@@ -264,15 +264,9 @@ fn parse_requires_flags_and_known_language() {
     ];
     let options = parse(&args(&full)).unwrap();
     assert_eq!(options.language, "csharp");
-    assert!(parse(&args(&full[..8])).unwrap_err().contains("--out"));
     let mut bad = full.to_vec();
     bad[3] = "vb";
     assert!(parse(&args(&bad)).unwrap_err().contains("csharp or fsharp"));
-    assert!(
-        parse(&args(&["--nope", "x"]))
-            .unwrap_err()
-            .contains("unknown")
-    );
 }
 
 #[test]

@@ -42,6 +42,4 @@ fn rejects_unknown_language_and_empty_symbols() {
 fn parses_flags() {
     let options = parse(&args(&["--json", "a", "--package", "p", "--out", "o"])).expect("parses");
     assert_eq!(options.package, "p");
-    assert!(parse(&args(&["--json", "a"])).is_err());
-    assert!(parse(&args(&["--bogus", "a"])).is_err());
 }

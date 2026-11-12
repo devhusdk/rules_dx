@@ -112,3 +112,20 @@ fn every_docs_extension_has_one_aspect_file() {
     }
     assert!(docs_languages().len() > 20);
 }
+
+#[test]
+fn licenses_list_the_setup_ids_with_the_quality_marks() {
+    let cc = licenses()
+        .iter()
+        .find(|entry| entry.language == "cc")
+        .expect("cc lists a license");
+    assert!(cc.marks.iter().any(|mark| mark == ".cc"), "{cc:?}");
+    assert!(
+        cc.licenses
+            .iter()
+            .any(|license| license.id == "visual-studio-build-tools"
+                && license.platforms.iter().any(|p| p == "windows_x86_64")),
+        "{cc:?}"
+    );
+    assert!(licenses().iter().all(|entry| !entry.licenses.is_empty()));
+}

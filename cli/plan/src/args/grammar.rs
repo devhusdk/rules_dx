@@ -133,6 +133,7 @@ pub(crate) struct Flags {
     pub(crate) agents: Vec<Agent>,
     pub(crate) ci: Option<Ci>,
     pub(crate) no_generate: bool,
+    pub(crate) accept_license: Vec<String>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
     pub(crate) affected: bool,
@@ -493,6 +494,14 @@ flag_group! {
     CiFlag, {
         #[arg(long, value_enum, value_name = "PROVIDER", overrides_with = "ci")]
         ci: Option<Ci>,
+    }
+}
+
+flag_group! {
+    /// License ids `dx init` accepts in `MODULE.bazel`.
+    AcceptLicenseFlag, {
+        #[arg(long = "accept-license", value_name = "ID", value_parser = non_empty)]
+        accept_license: Vec<String>,
     }
 }
 
@@ -1171,6 +1180,7 @@ command_args! {
         agents: AgentsFlag,
         ci: CiFlag,
         no_generate: NoGenerateFlag,
+        accept_license: AcceptLicenseFlag,
     };
     /// The flags `dx upgrade` accepts.
     Upgrade => 17, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: ToFlag, };

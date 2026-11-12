@@ -7,6 +7,7 @@ pub mod families;
 pub mod git_changes;
 pub mod init_dir;
 pub mod launcher;
+pub mod licenses;
 pub mod load_graph;
 pub mod lock_hubs;
 pub mod module_deps;
@@ -40,6 +41,10 @@ pub use launcher::{
     LAUNCHER_CMD_REL, LAUNCHER_SH_REL, LauncherPins, LauncherState, RELEASE_ASSETS,
     init_apply_command, launcher_state, plan_launcher_files, refresh_launcher_files, release_pins,
     render_launcher_cmd, render_launcher_sh, stale_launchers, write_launcher_files,
+};
+pub use licenses::{
+    NeededLicense, accepted_license_ids, host_platform, known_license_ids, needed_licenses,
+    render_license_accept,
 };
 pub use load_graph::{BzlImpact, bzl_impact, external_repos, module_inputs, repo_impact};
 pub use lock_hubs::{

@@ -91,10 +91,31 @@ pub struct Hub {
     pub imports: String,
 }
 
+/// One `setup.licenses` entry of a `<lang>/lang.json`.
+#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize)]
+#[serde(default)]
+pub struct License {
+    /// The id a `dx_licenses.accept` tag lists.
+    pub id: String,
+    /// The host platforms, like `linux_x86_64`, that need the id.
+    pub platforms: Vec<String>,
+}
+
+/// The `setup.licenses` of one language, with the files that mark the language present.
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+pub struct LanguageLicenses {
+    /// The `lang.json` name.
+    pub language: String,
+    /// The `quality` file extensions and file names of the language.
+    pub marks: Vec<String>,
+    pub licenses: Vec<License>,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct Setup {
     hubs: Vec<Hub>,
+    licenses: Vec<License>,
 }
 
 const LANGUAGES: &str = include_str!("../languages.json");
@@ -112,6 +133,8 @@ fn shipped() -> Vec<Manifest> {
 
 #[derive(Deserialize)]
 struct Manifest {
+    #[serde(default)]
+    name: String,
     quality: Option<QualityFiles>,
     docs: Option<DocsFiles>,
     setup: Option<Setup>,
@@ -128,6 +151,33 @@ pub fn hubs() -> &'static [Hub] {
             .collect();
         hubs.sort_by(|a, b| a.ecosystem.cmp(&b.ecosystem));
         hubs
+    })
+}
+
+/// The languages whose `lang.json` lists `setup.licenses`, sorted by language.
+pub fn licenses() -> &'static [LanguageLicenses] {
+    static ALL: OnceLock<Vec<LanguageLicenses>> = OnceLock::new();
+    ALL.get_or_init(|| {
+        let mut all: Vec<LanguageLicenses> = shipped()
+            .into_iter()
+            .filter_map(|manifest| {
+                let licenses = manifest.setup?.licenses;
+                if licenses.is_empty() {
+                    return None;
+                }
+                let marks = manifest
+                    .quality
+                    .map(|quality| [quality.file_extensions, quality.file_names].concat())
+                    .unwrap_or_default();
+                Some(LanguageLicenses {
+                    language: manifest.name,
+                    marks,
+                    licenses,
+                })
+            })
+            .collect();
+        all.sort_by(|a, b| a.language.cmp(&b.language));
+        all
     })
 }
 

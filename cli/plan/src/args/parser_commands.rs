@@ -1333,6 +1333,21 @@ fn no_generate_is_an_init_flag() {
 }
 
 #[test]
+fn accept_license_is_a_repeatable_init_flag() {
+    let init = parse(&strings(&[
+        "init",
+        "--apply",
+        "--accept-license",
+        "cuda-eula",
+        "--accept-license=android-sdk-license",
+    ]))
+    .unwrap();
+    assert_eq!(init.accept_license, ["cuda-eula", "android-sdk-license"]);
+    assert!(parse(&strings(&["init", "--accept-license="])).is_err());
+    assert!(parse(&strings(&["build", "--accept-license", "cuda-eula"])).is_err());
+}
+
+#[test]
 fn value_flags_accept_a_space_or_equals() {
     for (space, equals) in [
         (

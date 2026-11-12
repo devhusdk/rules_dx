@@ -48,7 +48,7 @@ def dx_framework_test(name, srcs, config, transform, packages, node_modules, dat
         fail(rejection)
     kwargs["config"] = config
     kwargs["node_options"] = ["--experimental-vm-modules"]
-    upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs)
+    upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs, package_json)
     upstream_data = list(srcs) + list(data or []) + [transform, Label("//javascript/private:framework_jest_config")] + [node_modules + "/" + package for package in packages]
     a = node_test_wrap_args(name, srcs, upstream_data, package_json, upstream_kwargs, env_inherit, kwargs)
     dx_wrap_test(name, _jest_test, javascript_forward_test, None, visibility = visibility, quality_srcs = dx_entry_quality_srcs(None, srcs), upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)

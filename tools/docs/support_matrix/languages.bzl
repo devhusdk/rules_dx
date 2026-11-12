@@ -327,6 +327,8 @@ LANGUAGES = [
     _language(
         "apple",
         not_applicable = {
+            "linux_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
+            "linux_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
             "windows_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
             "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
         },

@@ -20,11 +20,11 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 | Avro | none | none: schemas only, no packages | n/a | n/a | pending | pending | pending | pending | pending | pending |
 | C and C++ | none | none for `vcpkg.json`: there is no vcpkg set | `cc_bench` | `cc_fuzz_test` | all | all | all | all | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64`; pending on `macos_arm64` | pending |
 | C# | none | `nuget` | `csharp_bench` | `csharp_fuzz_test` | all | all | all | all | pending | pending |
-| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS | none: the CUDA toolkit is a pinned download | n/a | n/a | pending | pending | pending | pending | pending | pending |
+| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS | none: the CUDA toolkit is a pinned download | n/a | n/a | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | pending | pending | pending |
 | D | none | `dub` (pinned, no advisories) | `d_bench` | `d_fuzz_test` | all | all | all | all | pending | pending |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` | `dart_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`; n/a: dart supports no other windows platform; pending on `macos_arm64` | pending |
 | Elixir | none | `hex` | `elixir_bench` | n/a | all | all | all | all | pending | pending |
-| Erlang | none | `hex` from `mix.lock` or an `erlang.rebar` `rebar.lock` | `erlang_bench` | n/a | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`; pending on `windows_arm64`, `windows_x86_64` | pending | pending |
+| Erlang | none | `hex` from `mix.lock` or an `erlang.rebar` `rebar.lock` | `erlang_bench` | n/a | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64`; pending on `windows_arm64` | pending | pending |
 | Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) | `pub` | n/a | n/a | pending | pending | pending | pending | pending | pending |
 | Fortran | `windows_x86_64`: not in lang.json platforms; `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | the `fpm.lock` tag of the `fpm` extension builds pinned archives from the fpm lock; `dx security` and `dx license` read it, `dx update` re-hashes the archives | n/a | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | pending | pending |
 | F# | none | `nuget` | `fsharp_bench` | `fsharp_fuzz_test` | all | all | all | all | pending | pending |
@@ -43,7 +43,7 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 | Protobuf | none | none: schemas only, no packages | n/a | n/a | pending | pending | pending | pending | pending | pending |
 | Python | none | `uv`; none for `poetry.lock` and `Pipfile.lock`: uv is the supported manager | `python_bench` | `python_fuzz_test` | all | all | all | all | pending | pending |
 | Ruby | `windows_arm64`: not in lang.json platforms | `ruby` | `ruby_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
-| Rust | none | `cargo` | `rust_bench` | `rust_fuzz_test` | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_arm64`; pending on `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64`; pending on `macos_arm64` | all |
+| Rust | none | `cargo` | `rust_bench` | `rust_fuzz_test` | all | all | all | all | `linux_arm64`, `linux_x86_64`; pending on `macos_arm64`, `windows_arm64`, `windows_x86_64` | all |
 | Scala | none | `maven` | `scala_bench` | `scala_fuzz_test` | all | all | all | all | pending | pending |
 | Svelte | none | `npm` | n/a | n/a | pending | pending | pending | pending | pending | pending |
 | Swift | `windows_x86_64`: rules_dx registers no Swift toolchain for Windows; `windows_arm64`: The Swift Windows arm64 toolchain is registered but unverified on Windows ARM | `swiftpm` | `swift_bench` | `swift_fuzz_test` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`; pending on `macos_arm64` | pending |
@@ -57,7 +57,7 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 | --- | --- |
 | Android | none |
 | AppImage | `macos_arm64`, `windows_x86_64`, `windows_arm64`: AppImage is a Linux format |
-| Apple | `windows_x86_64`, `windows_arm64`: Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS |
+| Apple | `linux_x86_64`, `linux_arm64`, `windows_x86_64`, `windows_arm64`: Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS |
 | CMake | none |
 | Dockerfile | none |
 | Make | none |

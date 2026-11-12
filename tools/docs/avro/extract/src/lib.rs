@@ -1,16 +1,6 @@
 //! Converts Avro schemas (.avsc, .avpr, or the schemas avro-tools writes for .avdl) into one
 //! validated DocIr shard, reading the `doc` attribute of every named type, field and message.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;

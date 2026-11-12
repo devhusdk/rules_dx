@@ -1,15 +1,5 @@
 //! Runs one .NET test under coverlet and writes its LCOV report for Bazel coverage.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 mod lcov;
 mod plan;
 

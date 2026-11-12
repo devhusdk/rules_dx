@@ -1,13 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use proto::{
     AncestorOwned, FileResult, GenerationManifest, IgnoredImport, Mode, Modification, Scope,
     file_result,

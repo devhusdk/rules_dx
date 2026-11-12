@@ -1,13 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 //! Runs a language server over stdio, opens files and collects the
 //! diagnostics it publishes, for servers that have no batch mode.
 

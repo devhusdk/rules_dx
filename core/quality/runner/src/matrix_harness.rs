@@ -1,13 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 //! Layer-2 matrix test executor: runs one quality runner case without host shell tooling.
 //!
 //! The Starlark rule writes one JSON manifest per case and runs this binary as

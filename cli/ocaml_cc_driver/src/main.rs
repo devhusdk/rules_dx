@@ -1,15 +1,5 @@
 //! Runs the C tool behind one `conda-ocaml-*` program name the OCaml compiler calls, or one `dune` step.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 mod driver;
 #[cfg(test)]
 mod driver_tests;

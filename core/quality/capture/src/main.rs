@@ -1,13 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use capture::{Placeholders, USAGE, parse, run};
 
 fn text(value: std::ffi::OsString) -> Result<String, String> {

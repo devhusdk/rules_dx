@@ -1,12 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
 //! Warm checkout slots for `dx worktree`: the slot pool and its leases, the
 //! Claude Code worktree hooks, and the disk reclaim that runs before a build.
 

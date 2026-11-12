@@ -1,13 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 //! Serves a built docs site over HTTP with nothing but the standard library.
 
 use std::io::{self, BufRead, BufReader, Write};

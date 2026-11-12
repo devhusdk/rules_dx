@@ -1,15 +1,5 @@
 //! Forwards a repin request to dx update, which owns the pinned versions.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};

@@ -1,15 +1,5 @@
 //! Converts the LDoc filter's JSON into one validated DocIr shard.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::fs;
 
 use documentation_ir::json::{field, number, string, strings};

@@ -1,13 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 pub mod finding;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

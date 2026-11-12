@@ -1,15 +1,5 @@
 //! Checks that one rendered mdBook site holds together as a browsable website.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;

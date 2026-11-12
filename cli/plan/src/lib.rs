@@ -1,12 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
 //! The planning layer under `dx`: argument parsing, build plans, report
 //! planning, target resolution, slots, platform checks, and
 //! generated-file projection. dx_cli's exec and adopt layers run on top.

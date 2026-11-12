@@ -1,15 +1,5 @@
 //! Converts TypeDoc JSON into one validated DocIr shard.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 mod convert;
 mod types;
 

@@ -1,15 +1,5 @@
 //! Assembles a directory from `--dir <path>` and `--copy <source> <path>` steps below the output directory.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 mod tree;
 #[cfg(test)]
 mod tree_tests;

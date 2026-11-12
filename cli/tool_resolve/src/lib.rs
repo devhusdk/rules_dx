@@ -1,15 +1,5 @@
 //! Resolves one pinned tool label to the absolute artifact path CI exports.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;

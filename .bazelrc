@@ -35,6 +35,18 @@ build:windows --host_per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__
 
 build --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings
 build --@rules_rust//rust/settings:clippy.toml=//tools/workspace:clippy.toml
+# Strict tier lints rules_dx enforces.
+common --@rules_dx//config:clippy_flag=-Dclippy::unwrap_used
+common --@rules_dx//config:clippy_flag=-Dclippy::expect_used
+common --@rules_dx//config:clippy_flag=-Dclippy::unreachable
+common --@rules_dx//config:clippy_flag=-Dclippy::todo
+common --@rules_dx//config:clippy_flag=-Dclippy::unimplemented
+common --@rules_dx//config:clippy_flag=-Dclippy::get_unwrap
+common --@rules_dx//config:clippy_flag=-Dclippy::fallible_impl_from
+common --@rules_dx//config:clippy_flag=-Dclippy::unwrap_in_result
+common --@rules_dx//config:clippy_flag=-Dclippy::panic_in_result_fn
+common --@rules_dx//config:clippy_flag=-Dunsafe_op_in_unsafe_fn
+common --@rules_dx//config:clippy_flag=-Dunused_must_use
 build:linux --@rules_rust//rust/settings:pipelined_compilation=true
 build:linux --linkopt=-Wno-unused-command-line-argument
 build:linux --host_linkopt=-Wno-unused-command-line-argument

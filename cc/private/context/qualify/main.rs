@@ -1,13 +1,4 @@
 //! Host-run qualifier: checks exported compile commands against Bazel's own action argv.
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
 
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};

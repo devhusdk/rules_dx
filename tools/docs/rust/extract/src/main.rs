@@ -1,15 +1,5 @@
 //! Writes one DocIr shard from nightly rustdoc JSON.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

@@ -4,16 +4,6 @@
 //! can move to its own crate. The scanner keeps byte spans into the original
 //! text so a rewrite can touch only the bytes of the edited cells.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::fmt;
 
 mod cli;

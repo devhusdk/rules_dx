@@ -2,16 +2,6 @@
 //!
 //! Arguments: `<tree> <pcov> <php> [<php flag>...] -- <phpunit> [<phpunit argument>...]`.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::env;
 use std::ffi::OsString;
 use std::fs;

@@ -1,15 +1,5 @@
 //! `docs_scope_bin` runs dx lint over the patterns in `DX_DOCS_SCOPE`.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::process::{Command, ExitCode};
 
 fn main() -> ExitCode {

@@ -1,13 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use dx_process::capture::{DEFAULT_TIMEOUT, run_checked};
 use std::fs;
 use std::path::{Path, PathBuf};

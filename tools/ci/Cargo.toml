@@ -86,6 +86,10 @@ name = "host_env_test"
 path = "host_env_test.rs"
 
 [[test]]
+name = "lint_attributes_test"
+path = "lint_attributes_test.rs"
+
+[[test]]
 name = "determinism_allowlist_test"
 path = "determinism_allowlist_test.rs"
 

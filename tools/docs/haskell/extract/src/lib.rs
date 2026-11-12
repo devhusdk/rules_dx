@@ -4,16 +4,6 @@
 //! constructor, field, class and function, each preceded by its `-- |` doc. It carries no
 //! positions, so each declaration is located in the module source by matching its name.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use documentation_ir::proto::{DocIr, Extension, SourceRef, Symbol, SymbolKind, Visibility};
 use std::collections::BTreeMap;
 use std::fs;

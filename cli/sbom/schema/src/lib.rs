@@ -1,16 +1,6 @@
 //! Test-only SBOM checks: the vendored official SPDX 2.3 and CycloneDX 1.6 JSON schemas plus the
 //! dx_sbom graph rules.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use serde_json::Value;
 
 /// The SPDX 2.3 JSON schema (draft-07), vendored from spdx/spdx-spec at tag v2.3.

@@ -1,15 +1,5 @@
 //! Assembles one mdBook source tree and runs the pinned mdBook build.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};

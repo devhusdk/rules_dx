@@ -7,16 +7,6 @@
 //! observations, and renders one PASS or FAIL line per assertion. No sh, awk,
 //! grep, cat, or batch interpreter is launched.
 
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use std::path::{Path, PathBuf};
 
 use dx_path::Resolver;

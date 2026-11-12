@@ -17,6 +17,29 @@ DxClippyInfo = provider(
 
 UNUSED_CRATE_DEPENDENCIES = "--force-warn=unused_crate_dependencies"
 
+TEST_EXEMPT_LINTS = [
+    "clippy::exit",
+    "clippy::expect_used",
+    "clippy::get_unwrap",
+    "clippy::indexing_slicing",
+    "clippy::panic",
+    "clippy::panic_in_result_fn",
+    "clippy::string_slice",
+    "clippy::unreachable",
+    "clippy::unwrap_in_result",
+    "clippy::unwrap_used",
+]
+
+def _flag_lint(flag):
+    for prefix in ["--deny=", "--warn=", "--forbid=", "--force-warn=", "-D", "-W", "-F"]:
+        if flag.startswith(prefix):
+            return flag[len(prefix):].replace("-", "_")
+    return None
+
+def test_crate_flags(flags):
+    """Returns flags without those naming a lint in TEST_EXEMPT_LINTS."""
+    return [flag for flag in flags if _flag_lint(flag) not in TEST_EXEMPT_LINTS]
+
 def _dx_clippy_aspect_impl(target, ctx):
     if OutputGroupInfo in target and hasattr(target[OutputGroupInfo], "clippy_checks"):
         return [DxClippyInfo(diagnostics = [])]
@@ -28,6 +51,8 @@ def _dx_clippy_aspect_impl(target, ctx):
     use_clippy_error_format = ctx.attr._incompatible_change_clippy_error_format[IncompatibleFlagInfo].enabled
     error_format = get_error_format(ctx.attr, "_clippy_error_format" if use_clippy_error_format else "_error_format")
     flags = ctx.attr._clippy_flags[ClippyFlagsInfo].clippy_flags + ctx.attr._clippy_flag[ClippyFlagsInfo].clippy_flags
+    if crate_info.is_test or getattr(ctx.rule.attr, "testonly", False):
+        flags = test_crate_flags(flags)
     rust_clippy_action.action(
         ctx = ctx,
         clippy_executable = ctx.toolchains[RUST_TOOLCHAIN_TYPE].clippy_driver,

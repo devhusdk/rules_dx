@@ -1,13 +1,3 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
 use dx_release_tools::{bcr_submit_record, ledger_exit, render_ledger};
 
 fn run(args: &[String]) -> (String, i32) {

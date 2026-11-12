@@ -427,6 +427,9 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			headers = append(headers, name)
 		}
 	}
+	claimed := handwrittenSources(args.File, kinds)
+	sources = slices.DeleteFunc(sources, func(name string) bool { return claimed[name] })
+	headers = slices.DeleteFunc(headers, func(name string) bool { return claimed[name] })
 	sort.Strings(sources)
 	sort.Strings(headers)
 	sort.Strings(tests)
@@ -442,6 +445,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		if !ok {
 			return language.GenerateResult{}
 		}
+		hasLib = !lib.empty
 	}
 	type testPlan struct {
 		name    string
@@ -563,12 +567,71 @@ type dirLibrary struct {
 	kind    string
 	rule    *rule.Rule
 	imports []string
+	empty   bool
+}
+
+// handwrittenSources returns the sources that a call of a kind outside kinds,
+// other than filegroup, names in srcs, hdrs, main or struct, anywhere in the
+// file.
+func handwrittenSources(file *rule.File, kinds map[string]rule.KindInfo) map[string]bool {
+	named := make(map[string]bool)
+	if file == nil || file.File == nil {
+		return named
+	}
+	build.Walk(file.File, func(x build.Expr, _ []build.Expr) {
+		call, ok := x.(*build.CallExpr)
+		if !ok {
+			return
+		}
+		if fn, ok := call.X.(*build.Ident); ok {
+			if _, owned := kinds[fn.Name]; owned || fn.Name == "filegroup" {
+				return
+			}
+		}
+		for _, arg := range call.List {
+			assign, ok := arg.(*build.AssignExpr)
+			if !ok {
+				continue
+			}
+			key, ok := assign.LHS.(*build.Ident)
+			if !ok || !slices.Contains([]string{"srcs", "hdrs", "main", "struct"}, key.Name) {
+				continue
+			}
+			build.Walk(assign.RHS, func(v build.Expr, _ []build.Expr) {
+				if s, ok := v.(*build.StringExpr); ok {
+					named[s.Value] = true
+				}
+			})
+		}
+	})
+	return named
+}
+
+// exportedFiles returns the files exports_files lists by name.
+func exportedFiles(file *rule.File) map[string]bool {
+	exported := make(map[string]bool)
+	if file == nil {
+		return exported
+	}
+	for _, r := range file.Rules {
+		if r.Kind() != "exports_files" {
+			continue
+		}
+		for _, arg := range r.Args() {
+			build.Walk(arg, func(v build.Expr, _ []build.Expr) {
+				if s, ok := v.(*build.StringExpr); ok {
+					exported[s.Value] = true
+				}
+			})
+		}
+	}
+	return exported
 }
 
 // mainOwners returns the sources that a handwritten rule of the given kind
-// lists in srcs.
+// lists in srcs, plus the files exports_files lists by name.
 func mainOwners(file *rule.File, kind string) map[string]bool {
-	owned := make(map[string]bool)
+	owned := exportedFiles(file)
 	if file == nil || kind == "" {
 		return owned
 	}
@@ -721,7 +784,7 @@ func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources,
 			lib.SetAttr(a.Name, a.Value)
 		}
 	}
-	return dirLibrary{name: name, kind: lib.Kind(), rule: lib, imports: imports}, true
+	return dirLibrary{name: name, kind: lib.Kind(), rule: lib, imports: imports, empty: len(sources) == 0 && len(headers) == 0}, true
 }
 
 type ResolveSpec struct {

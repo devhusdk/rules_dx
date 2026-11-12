@@ -1,4 +1,3 @@
-# gazelle:exclude BenchMain.fs
 load("@rules_dotnet//dotnet/private:common.bzl", "framework_preprocessor_symbols")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")

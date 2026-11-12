@@ -1,8 +1,7 @@
 # gazelle:dx_rust_corpus false
 
-# gazelle:exclude probe_nif.c
-load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
 load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_escript_archive", "erlang_nif")
+load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
 load("@rules_dx//erlang/tests:wrapper_tests.bzl", "erlang_escript_nif_refusal_test")
 
 exports_files(

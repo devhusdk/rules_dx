@@ -8,4 +8,4 @@ initial 1
 initial WARNING psscriptanalyzer - matrix/psscriptanalyzer_format_dirty.ps1 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/psscriptanalyzer_format_dirty.ps1 7 23 " {\n    Write-Output 1\n"
+replacement matrix/psscriptanalyzer_format_dirty.ps1 9 9 "    "

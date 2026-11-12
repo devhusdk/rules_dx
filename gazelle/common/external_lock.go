@@ -142,13 +142,20 @@ func (m *lockManifest) Lookup(repo, name string) ([]label.Label, string) {
 			}
 			return labels, ""
 		}
-		i := strings.LastIndexAny(candidate, `/.\:`)
+		i := strings.LastIndexAny(candidate, m.separators())
 		if i < 0 {
 			break
 		}
 		candidate = candidate[:i]
 	}
 	return nil, fmt.Sprintf("no package in %s provides %s; add it to %s", m.entry.Lock, name, m.entry.Manifest)
+}
+
+func (m *lockManifest) separators() string {
+	if m.entry.Ecosystem == "cpan" {
+		return `/.\:`
+	}
+	return `/.\`
 }
 
 func lockEcosystems() []string {

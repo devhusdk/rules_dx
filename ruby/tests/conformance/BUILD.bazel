@@ -1,4 +1,4 @@
-# gazelle:ignore
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//ruby:defs.bzl", "ruby_binary", "ruby_library", "ruby_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -9,7 +9,8 @@ package(
 
 ruby_library(
     name = "conformance",
-    srcs = ["greet.rb"],
+    testonly = True,
+    srcs = ["greet.rb"],  # keep
 )
 
 ruby_binary(
@@ -39,6 +40,7 @@ ruby_test(
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "greet.rb",
     expected = "hello world",
@@ -46,5 +48,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "ruby",
     passing_test = ":pass_subject_test",
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

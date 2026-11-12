@@ -76,6 +76,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 			IsSource: func(name string) bool { return isSupported(name) && IsTestSource(name) },
 			Name:     func(src string) (string, error) { return common.SnakeName(src, SupportedExts) },
 		},
+		KeepLibraryName: true,
 	}, rep)
 }
 

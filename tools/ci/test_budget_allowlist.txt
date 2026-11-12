@@ -571,7 +571,7 @@ rst/tests/BUILD.bazel no-size 1
 ruby/private/coverage/extensions.bzl no-size 1
 ruby/tests/fixtures/adopt-ruby/solo/BUILD.bazel no-size 1
 ruby/tests/fixtures/bench/BUILD.bazel no-size 2
-ruby/tests/fixtures/hello/BUILD.bazel no-size 5
+ruby/tests/fixtures/hello/BUILD.bazel no-size 3
 ruby/tests/fixtures/rspec/BUILD.bazel no-size 1
 rust/private/bench_report/BUILD.bazel no-size 1
 rust/private/ide/BUILD.bazel no-size 2

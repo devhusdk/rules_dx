@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//ruby:defs.bzl", "ruby_binary", "ruby_library", "ruby_test")
 load("@rules_dx//ruby/tests:wrapper_tests.bzl", "ruby_coverage_env_test")
@@ -12,7 +11,8 @@ package(
 
 ruby_library(
     name = "hello_lib",
-    srcs = ["hello.rb"],
+    testonly = True,
+    srcs = ["hello.rb"],  # keep
 )
 
 ruby_binary(
@@ -35,6 +35,7 @@ main_outside_srcs_test(
 
 ruby_test(
     name = "hello_test",
+    size = "small",
     srcs = ["hello_test.rb"],
     main = "hello_test.rb",
     deps = [":hello_lib"],
@@ -42,6 +43,7 @@ ruby_test(
 
 ruby_test(
     name = "coverage_probe_test",
+    size = "small",
     srcs = ["coverage_probe_test.rb"],
     data = ["hello_test.rb"],
     main = "coverage_probe_test.rb",
@@ -70,6 +72,9 @@ real_source_target(
 )
 
 exports_files(
-    ["BUILD.bazel", "main_outside_srcs.rb"],
+    [
+        "BUILD.bazel",
+        "main_outside_srcs.rb",
+    ],
     visibility = ["@rules_dx//tools/docs/support_matrix:__pkg__"],
 )

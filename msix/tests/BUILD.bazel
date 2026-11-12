@@ -579,10 +579,7 @@ sign_env_test(
             "DX_MSIX_SIGNTOOL": "$(rlocationpaths //msix/private:signtool)",
             "DX_MSIX_X64": "$(rlocationpaths //msix/tests/fixtures/msix-app/app)",
         },
-        tags = [
-            "exclusive",
-            "manual",
-        ],
+        tags = ["resources:msix_package_store:1"],
         target_compatible_with = _WINDOWS,
         deps = ["@rules_powershell//powershell/runfiles"],
     )
@@ -596,7 +593,6 @@ sign_env_test(
 
 test_suite(
     name = "install_test",
-    tags = ["manual"],
     tests = [
         ":install_noresource_test",
         ":install_probe_test",

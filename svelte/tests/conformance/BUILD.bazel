@@ -1,6 +1,6 @@
 # gazelle:ignore
 load("//svelte:defs.bzl", "svelte_library", "svelte_test")
-load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "dx_coverage_test", "subject_compatible_with")
 
 package(
     default_testonly = True,
@@ -48,6 +48,13 @@ svelte_test(
     ],
     node_modules = "//:node_modules",
     package_json = "//:package_json",
+)
+
+dx_coverage_test(
+    name = "component_coverage_test",
+    size = "small",
+    covered_source = "conformance/Hello.svelte",
+    subject = ":wrapper_test",
 )
 
 dx_conformance_suite(

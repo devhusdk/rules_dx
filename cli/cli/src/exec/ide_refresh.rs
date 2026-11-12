@@ -41,7 +41,7 @@ impl BazelBuild<'_> {
             .map_err(|error| DxError::infra(format!("could not build the {verb} argv: {error}")))
     }
 
-    #[allow(clippy::disallowed_methods)] // info takes no build settings
+    #[expect(clippy::disallowed_methods, reason = "info takes no build settings")]
     fn info(&self, key: &str) -> Result<PathBuf, DxError> {
         let mut argv = dx_process::startup_argv(self.startup);
         argv.extend(["info".to_owned(), key.to_owned()]);

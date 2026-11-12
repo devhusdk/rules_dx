@@ -292,7 +292,7 @@ impl Consumer {
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity, reason = "the type is spelled out once")]
 const JSON_MODES: [(&[&str], &[(&str, &str)]); 4] = [
     (&["--output=json"], &[]),
     (&["--output=json", "-q"], &[]),

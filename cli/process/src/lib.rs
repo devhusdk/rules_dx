@@ -591,7 +591,10 @@ pub struct ArgvPolicy<'a> {
 }
 
 /// Builds a workflow argv; required options follow user options so dx values win.
-#[allow(clippy::disallowed_methods)] // the banned wrapper delegates to its policy form
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the banned wrapper delegates to its policy form"
+)]
 pub fn build_workflow_argv(
     bazel_command: &str,
     user_options: &[String],
@@ -962,7 +965,10 @@ pub fn make_writable(path: &Path) {
     }
     #[cfg(not(unix))]
     {
-        #[allow(clippy::permissions_set_readonly_false)]
+        #[expect(
+            clippy::permissions_set_readonly_false,
+            reason = "the directory must be writable to be removed"
+        )]
         permissions.set_readonly(false);
     }
     let _ = std::fs::set_permissions(path, permissions);
@@ -1001,6 +1007,9 @@ where
 }
 
 #[cfg(test)]
-#[allow(clippy::disallowed_methods)]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the argv carries no build settings"
+)]
 #[path = "lib_tests.rs"]
 mod lib_tests;

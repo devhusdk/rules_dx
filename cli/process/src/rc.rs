@@ -724,6 +724,6 @@ pub use sections::{
 };
 
 #[cfg(test)]
-#[allow(clippy::disallowed_methods)] // test asserts the launcher head
+#[expect(clippy::disallowed_methods, reason = "test asserts the launcher head")]
 #[path = "rc_tests.rs"]
 mod rc_tests;

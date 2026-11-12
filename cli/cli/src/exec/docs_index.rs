@@ -53,7 +53,7 @@ fn tool_path(workspace: &Path, execution_root: Option<&Path>, path: &str) -> Pat
 }
 
 /// The execution root `bazel info` reports, or `None` when it cannot be read.
-#[allow(clippy::disallowed_methods)] // info takes no build settings
+#[expect(clippy::disallowed_methods, reason = "info takes no build settings")]
 pub(crate) fn execution_root(
     query_runner: &dyn dx_plan::resolve::QueryRunner,
     workspace: &Path,

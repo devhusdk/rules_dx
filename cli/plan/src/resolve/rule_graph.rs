@@ -28,7 +28,7 @@ const QUERY_FLAGS: [&str; 9] = [
     EXPRESSION,
 ];
 
-#[allow(clippy::disallowed_methods)] // query takes no build settings
+#[expect(clippy::disallowed_methods, reason = "query takes no build settings")]
 fn query_argv(startup_options: &[String]) -> Vec<String> {
     let mut argv = dx_process::startup_argv(startup_options);
     argv.extend(QUERY_FLAGS.iter().map(|flag| (*flag).to_owned()));

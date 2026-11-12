@@ -168,7 +168,7 @@ fn unsafe_needs_apply_or_diff() {
     ));
 }
 
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity, reason = "the type is spelled out once")]
 const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 6] = [
     (
         "--affected",
@@ -224,7 +224,7 @@ fn a_global_gate_is_accepted_exactly_where_the_registry_declares() {
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity, reason = "the type is spelled out once")]
 const OUTPUT_MODES: [(&str, &str, fn(Command) -> bool); 2] = [
     ("--output=json", "json", Command::supports_json),
     ("--diff", "diff", Command::supports_diff),

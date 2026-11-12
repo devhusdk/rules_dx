@@ -270,7 +270,7 @@ struct StagedRunner {
     verify_intended: Option<Vec<u8>>,
     verify_from: usize,
     launches: Cell<usize>,
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
     seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
 }
 

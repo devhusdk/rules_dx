@@ -1605,7 +1605,7 @@ mod tests {
             ]
         );
         assert_eq!(events[10]["entries"], 2);
-        #[allow(clippy::type_complexity)]
+        #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
         let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 11] = [
             ("/cache/slots/3", Some(3), None, Some(100), None),
             ("/cache/slots/4", Some(4), None, None, Some("busy")),

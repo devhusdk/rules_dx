@@ -147,7 +147,11 @@ pub fn bazel_argv(
 
 /// Builds a Bazel argv whose shared settings are spelled with `repo`, and guards them.
 /// With `layered`, the settings come from the correctness layer and are only guarded.
-#[allow(clippy::disallowed_methods, clippy::too_many_arguments)]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::too_many_arguments,
+    reason = "the argv carries no build settings; each argument is a distinct input"
+)]
 fn bazel_argv_in(
     repo: &str,
     bazel_command: &str,

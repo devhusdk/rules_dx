@@ -56,7 +56,7 @@ impl dx_tool_resolve::Bazel for QueryBazel<'_> {
 }
 
 impl QueryBazel<'_> {
-    #[allow(clippy::disallowed_methods)] // info takes no build settings
+    #[expect(clippy::disallowed_methods, reason = "info takes no build settings")]
     fn info(&self, key: &str) -> Result<String, dx_tool_resolve::ResolveError> {
         let mut argv = dx_process::startup_argv(self.startup);
         argv.push("info".to_owned());

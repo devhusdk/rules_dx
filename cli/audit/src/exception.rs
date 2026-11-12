@@ -275,8 +275,10 @@ fn build_policy(text: &str, file: SecurityFile, base: SecurityFile) -> SecurityP
 #[derive(Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SecurityFile {
-    // Checked by `parse_file` before the rest of the file.
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "`parse_file` checks it before the rest of the file"
+    )]
     schema_version: u32,
     #[serde(default)]
     #[schemars(with = "Vec<RiskException>")]

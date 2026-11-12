@@ -26,7 +26,7 @@ pub(super) fn hermetic_trivy() -> String {
 
 pub(super) struct AuditRunner {
     pub(super) calls: Rc<RefCell<Vec<Vec<String>>>>,
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
     pub(super) envs: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(super) code: Option<i32>,
     pub(super) sarif: Option<String>,

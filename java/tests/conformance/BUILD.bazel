@@ -44,6 +44,14 @@ java_test(
     ],
 )
 
+java_binary(
+    name = "runfiles_hello",
+    srcs = ["RunfilesMain.java"],
+    data = ["data.txt"],
+    main_class = "conformance.RunfilesMain",
+    deps = ["@rules_java//java/runfiles"],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -54,6 +62,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "java",
     passing_test = ":pass_subject_test",
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+    },
 )
 
 real_source_target(

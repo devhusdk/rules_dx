@@ -7,7 +7,6 @@ package(default_visibility = ["//:__subpackages__"])
 filegroup(
     name = "tsdk",
     srcs = ["@npm_typescript//:node_modules/typescript"],
-    visibility = ["//visibility:public"],
 )
 
 ide_acquisition_test(

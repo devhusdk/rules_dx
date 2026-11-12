@@ -15,7 +15,7 @@ go_library(
 go_binary(
     name = "dx_errcheck",
     embed = [":dx_errcheck_lib"],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 go_test(

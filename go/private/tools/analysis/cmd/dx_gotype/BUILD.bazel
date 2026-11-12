@@ -11,5 +11,5 @@ go_library(
 go_binary(
     name = "dx_gotype",
     embed = [":dx_gotype_lib"],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )

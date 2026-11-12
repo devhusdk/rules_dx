@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use dx_generate::base_path;
 use dx_generate::tools_gen::{TOOL_CONFIGS, ToolConfig};
 use dx_merge::merge3::{Labels, Merge3, merge3};
+use dx_process::shell::word as shell_word;
 
 use crate::rule_keys::{rule_report, rule_settings};
 
@@ -11,18 +12,6 @@ use crate::rule_keys::{rule_report, rule_settings};
 pub struct UpgradeIntent {
     pub apply: bool,
     pub workspace: Option<String>,
-}
-
-fn shell_word(word: &str) -> String {
-    let plain = !word.is_empty()
-        && word
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "_@%+=:,./-".contains(c));
-    if plain {
-        word.to_owned()
-    } else {
-        format!("'{}'", word.replace('\'', "'\\''"))
-    }
 }
 
 /// The command that reruns this upgrade.

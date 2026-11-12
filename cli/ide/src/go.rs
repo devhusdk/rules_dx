@@ -1,6 +1,8 @@
 use crate::link::make_executable;
 use crate::{Ctx, Plugin};
 use dx_error::DxError;
+#[cfg(not(windows))]
+use dx_process::shell::quote;
 
 const WRAPPER: &str = if cfg!(windows) {
     "gopackagesdriver.cmd"
@@ -52,10 +54,6 @@ fn script(workspace: &str, driver: &str) -> String {
     )
 }
 
-#[cfg(not(windows))]
-fn quote(text: &str) -> String {
-    format!("'{}'", text.replace('\'', "'\\''"))
-}
 
 #[cfg(windows)]
 fn cmd_quote(text: &str) -> String {

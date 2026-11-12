@@ -411,6 +411,9 @@ type SingleDirSpec struct {
 	// Tests, when set, also generates one test rule per test source. Nil
 	// keeps library-only generation.
 	Tests *TestSpec
+	// KeepLibraryName names the directory library after the first existing
+	// LibraryKind rule whose srcs are all directory sources.
+	KeepLibraryName bool
 }
 
 func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInfo, spec SingleDirSpec, rep Reporter) language.GenerateResult {
@@ -583,6 +586,38 @@ func mainOwners(file *rule.File, kind string) map[string]bool {
 	return owned
 }
 
+// existingLibraryName returns the name of the first kind rule in file whose
+// srcs are non-empty and all in sources.
+func existingLibraryName(file *rule.File, kind string, sources []string) (string, bool) {
+	if file == nil {
+		return "", false
+	}
+	have := make(map[string]bool, len(sources))
+	for _, src := range sources {
+		have[src] = true
+	}
+	for _, r := range file.Rules {
+		if r.Kind() != kind {
+			continue
+		}
+		srcs := r.AttrStrings("srcs")
+		if len(srcs) == 0 {
+			continue
+		}
+		all := true
+		for _, src := range srcs {
+			if !have[path.Clean(src)] {
+				all = false
+				break
+			}
+		}
+		if all {
+			return r.Name(), true
+		}
+	}
+	return "", false
+}
+
 // generateDirLibrary builds the directory library rule and its imports.
 func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources, headers []string, rep Reporter) (dirLibrary, bool) {
 	var hints []string
@@ -691,6 +726,11 @@ func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources,
 			}
 		}
 		sources = kept
+	}
+	if spec.KeepLibraryName {
+		if kept, ok := existingLibraryName(args.File, spec.LibraryKind, sources); ok {
+			name = kept
+		}
 	}
 	ordered := sources
 	if spec.OrderSrcs != nil {

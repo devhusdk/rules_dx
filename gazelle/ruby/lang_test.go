@@ -240,6 +240,61 @@ ruby_library(
 	}
 }
 
+func TestGenerateKeepsExistingLibraryName(t *testing.T) {
+	root := t.TempDir()
+	for name, content := range map[string]string{
+		"pkg/demo/greet.rb": "module Greet\nend\n",
+		"pkg/demo/main.rb":  "require_relative \"greet\"\n",
+	} {
+		writeFixture(t, root, name, content)
+	}
+	build := `load("@rules_dx//ruby:defs.bzl", "ruby_binary", "ruby_library")
+
+ruby_library(
+    name = "greet_lib",
+    srcs = ["greet.rb"],  # keep
+)
+
+ruby_binary(
+    name = "demo",
+    srcs = ["main.rb"],
+    main = "main.rb",
+    deps = [":greet_lib"],
+)
+`
+	file, err := rule.LoadData("BUILD.bazel", "pkg/demo", []byte(build))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"greet.rb", "main.rb"},
+		File:         file,
+	})
+	if got := common.Errors.Take(); len(got) != 0 {
+		t.Fatalf("errors = %#v, want none", got)
+	}
+	if len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules, want 1", len(result.Gen))
+	}
+	if got := result.Gen[0].Name(); got != "greet_lib" {
+		t.Errorf("library name = %q, want greet_lib", got)
+	}
+	merger.MergeFile(file, result.Empty, result.Gen, merger.PreResolve, rubyKinds, nil)
+	for _, r := range file.Rules {
+		if r.Kind() == LibraryKind && r.Name() == "greet_lib" {
+			if got := strings.Join(r.AttrStrings("srcs"), ","); got != "greet.rb" {
+				t.Errorf("merged srcs = %q, want greet.rb", got)
+			}
+			return
+		}
+	}
+	t.Fatal("merged greet_lib rule missing")
+}
+
 func generateRoot(t *testing.T, repoName string, files map[string]string) language.GenerateResult {
 	t.Helper()
 	root := t.TempDir()

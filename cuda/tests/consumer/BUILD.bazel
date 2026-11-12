@@ -1,5 +1,7 @@
 load("@rules_dx//cuda:defs.bzl", "cuda_library")
 
+# dx: written once, yours to edit
+
 cuda_library(
     name = "my_project_cuda",
     srcs = ["kernel.cu"],

@@ -1,5 +1,7 @@
 load("@rules_dx//qt:defs.bzl", "qt_cc_test")
 
+# dx: written once, yours to edit
+
 qt_cc_test(
     name = "my_project_test",
     size = "small",

@@ -1,8 +1,9 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@rules_dx//javascript:defs.bzl", "javascript_binary", "javascript_library")
 
 # dx: written once, yours to edit
 
-javascript_library(
+js_library(
     name = "package_json",
     srcs = ["package.json"],
     visibility = ["//visibility:public"],

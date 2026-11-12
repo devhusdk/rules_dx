@@ -1,9 +1,12 @@
 load("@rules_dx//dart:defs.bzl", "dart_library", "dart_test")
 
+# dx: written once, yours to edit
+
 dart_library(
     name = "consumer",
     package_name = "consumer",
     srcs = ["lib/greet.dart"],
+    visibility = ["//visibility:public"],
 )
 
 dart_test(

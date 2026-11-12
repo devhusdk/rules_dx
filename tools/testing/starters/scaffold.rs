@@ -6,7 +6,7 @@ use std::process::Command;
 /// The runfiles directory that holds the hello-world fixtures, one subdirectory per language.
 pub const FIXTURES_DIR: &str = "tools/testing/starters/fixtures";
 
-/// Starts `scratch/<name>` the way a user does: `dx init --apply <name>` with the dx named by
+/// Starts `scratch/<name>` the way a user does: `dx init --apply --no-generate <name>` with the dx named by
 /// `DX_BIN`, then the hello-world sources of `fixture`, read from the runfiles that `files` lists
 /// (`$(rootpaths //tools/testing/starters/fixtures:<fixture>)`; files of other fixtures in the
 /// list are skipped).

@@ -1210,8 +1210,8 @@ def _marked_tool_test(platform):
         config_settings = {"//command_line_option:platforms": str(Label(platform))},
     )
 
-_zanuda_marked_test = _marked_tool_test("//qt:windows_x86_64")
-_swift_format_marked_test = _marked_tool_test("//qt:windows_x86_64")
+_zanuda_marked_test = _marked_tool_test("//core/quality:unsupported_tool_platform")
+_swift_format_marked_test = _marked_tool_test("//core/quality:unsupported_tool_platform")
 
 _zanuda_policy_test = analysistest.make(
     _unsupported_platform_impl,

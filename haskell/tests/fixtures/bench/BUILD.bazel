@@ -28,7 +28,7 @@ haskell_bench(
     srcs = ["bench_src/Sum.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
         "@haskell_bench_hackage//:tasty-bench",
     ],
 )
@@ -60,7 +60,7 @@ haskell_bench(
     ],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
         "@haskell_bench_hackage//:tasty-bench",
     ],
 )

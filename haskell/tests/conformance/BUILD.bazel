@@ -13,7 +13,7 @@ haskell_library(
     testonly = True,
     srcs = ["src/Greet.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["@dx_haskell_toolchains//lib:base"],
 )
 
 haskell_binary(
@@ -23,7 +23,7 @@ haskell_binary(
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":greet",
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
     ],
 )
 
@@ -34,7 +34,7 @@ haskell_test(
     target_compatible_with = subject_compatible_with() + HASKELL_COMPATIBLE_WITH,
     deps = [
         ":greet",
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
     ],
 )
 
@@ -45,7 +45,7 @@ haskell_test(
     target_compatible_with = subject_compatible_with() + HASKELL_COMPATIBLE_WITH,
     deps = [
         ":greet",
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
     ],
 )
 

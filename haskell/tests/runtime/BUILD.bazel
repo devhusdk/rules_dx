@@ -25,7 +25,7 @@ haskell_library(
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":probe_c",
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
     ],
 )
 
@@ -35,7 +35,7 @@ haskell_binary(
     srcs = ["src/Main.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
     ] + select({
         "@platforms//os:linux": [":probe"],
         "//conditions:default": [":probe"],
@@ -50,7 +50,7 @@ haskell_test(
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":probe",
-        "@dx_haskell_toolchains//:base",
+        "@dx_haskell_toolchains//lib:base",
     ],
 )
 

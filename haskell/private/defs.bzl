@@ -21,7 +21,7 @@ HaskellInfo = _HaskellInfo
 
 HaskellLibraryInfo = _HaskellLibraryInfo
 
-GMP = Label("@dx_haskell_toolchains//:gmp")
+GMP = Label("@dx_haskell_toolchains//lib:gmp")
 
 _HASKELL = [("haskell", ["hs"])]
 

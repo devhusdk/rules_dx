@@ -11,7 +11,7 @@ haskell_library(
     name = "geometry",
     srcs = ["src/Geometry.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["@dx_haskell_toolchains//lib:base"],
 )
 
 haskell_doc_shard(

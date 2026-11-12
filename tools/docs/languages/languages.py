@@ -7,6 +7,7 @@ Run with --write to regenerate, or without to check.
 
 import json
 import os
+import posixpath
 import re
 import sys
 import tempfile
@@ -23,6 +24,7 @@ PLATFORM_NAMES = {
 LOAD = re.compile(r"^load\(\s*(\"[^\"]+\")\s*,([^\n]*)\)\s*$|^load\(\s*(\"[^\"]+\")\s*,(.*?)\n\)", re.M | re.S)
 LOAD_ITEM = re.compile(r"(?:(\w+)\s*=\s*)?\"(\w+)\"")
 ALIAS = re.compile(r"^(\w+)\s*=\s*(\w+)\s*$", re.M)
+LINK = re.compile(r"\]\(([^)\s#?]+)")
 STRING = re.compile(r'"""(.*?)"""|"((?:[^"\\\n]|\\.)*)"', re.S)
 
 
@@ -262,6 +264,25 @@ def render(name, info):
     return out
 
 
+def rebase_links(text, lang):
+    """Rewrites the relative links of <lang>/README.md text to resolve from OUT."""
+
+    def rebase(match):
+        target = match.group(1)
+        if "://" in target or target.startswith(("mailto:", "/")):
+            return match.group(0)
+        moved = posixpath.relpath(posixpath.normpath(posixpath.join(lang, target)), OUT)
+        return "](" + moved
+
+    out = []
+    fenced = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        out.append(line if fenced else LINK.sub(rebase, line))
+    return "\n".join(out)
+
+
 def readme_sections(root, lang):
     """Returns the `##` sections of <lang>/README.md as an ordered {heading: body} map."""
     text = read(root, "%s/README.md" % lang)
@@ -278,7 +299,7 @@ def readme_sections(root, lang):
             sections[heading] = []
         elif heading is not None:
             sections[heading].append(line)
-    return {h: "\n".join(b).strip("\n") for h, b in sections.items()}
+    return {h: rebase_links("\n".join(b).strip("\n"), lang) for h, b in sections.items()}
 
 
 def with_readme(out, extra, heading):

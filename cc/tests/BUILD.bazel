@@ -149,7 +149,7 @@ test_suite(
     ],
 )
 
-# apple_support's rule-based toolchain reports its label as toolchain_id; see #12105.
+# apple_support's rule-based toolchain reports its label as toolchain_id.
 resolved_cc_toolchain(
     name = "macos_arm64_cc",
     testonly = True,

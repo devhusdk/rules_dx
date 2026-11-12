@@ -153,7 +153,7 @@ Lockfiles:
 - Windows arm64
 - Windows x86_64
 
-See the [support matrix](../docs/support-matrix.md).
+See the [support matrix](../support-matrix.md).
 
 - `windows_x86_64`: tools and escripts run through the native launcher.
 - `windows_arm64`: x64 OTP runs under emulation; NIFs are built for x64 Windows.

@@ -51,17 +51,17 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 
 - `defs.bzl` holds a docstring, `load` statements and `name = _name` assignments. It defines nothing.
 - `defs.bzl` exports rules, macros and providers. It exports no constant and no helper function.
-- A rule or macro name starts with `<lang>_`.
+- Rule and macro names start with `<lang>_`.
 - A rule that builds another language's sources is named `<lang>_<other>_<kind>`. `<other>` is a language directory name.
-- The common kinds are `library`, `binary`, `test`, `bench` and `fuzz_test`. A rule with one of these roles uses that suffix.
+- A rule with a common role uses its suffix: `library`, `binary`, `test`, `bench` or `fuzz_test`.
 - A provider name ends in `Info`. Lower-cased, it starts with the directory name without underscores.
 - A module extension that creates the language toolchain is named `<lang>`. Any other extension name starts with `<lang>_` or is an ecosystem id from the manifest.
 - The manifest `entry_points` field equals the set of rules and macros `defs.bzl` exports.
-- The manifest `title` is the display name. It differs from `name`.
+- The manifest `title` is the display name and differs from `name`.
 
 ## Executable macros
 
-- Every `<lang>_binary`, `<lang>_test`, `<lang>_bench` and `<lang>_fuzz_test` is a macro that calls `dx_wrap_binary` or `dx_wrap_test` from `//core:wrapper.bzl`.
+- Every executable rule (`<lang>_binary`, `<lang>_test`, `<lang>_bench`, `<lang>_fuzz_test`) is a macro that calls `dx_wrap_binary` or `dx_wrap_test` from `//core:wrapper.bzl`.
 - A language whose runner is not an upstream rule passes its own rule as `upstream_rule`.
 
 ## Platforms
@@ -108,13 +108,11 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 
 ## README
 
-- `docs/languages/<lang>.md` is generated. It holds `Install` and `Rules`.
-- `<lang>/README.md` is the hand-written guide.
-- Its first line is `# <title>`.
+- `docs/languages/<lang>.md` is generated from `Install`, `Rules` and the README sections.
+- `<lang>/README.md` is the hand-written guide. Its first line is `# <title>`.
 - Its `##` headings come from this list, in this order: `Dependencies`, `Generate`, `Quality`, `Coverage`, `Bench and fuzz`, `API docs`, `Packaging`, `Toolchain`, `Platforms`, `License`.
 - Any other topic is a `###` heading under one of them.
 - It has no `Install`, `Start` or `Rules` section.
-- The generator appends the README sections to the generated page.
 
 ## Structure lint
 
@@ -123,8 +121,7 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 - It checks the Entries, Private directories, Public names, Toolchains and README rules, the test and fixture locations, and the two decidable Platforms rules: the type of each `platforms` attr and the option name under `private/`.
 - `tools/testing/language_skeleton_allowlist.txt` holds one line per violation: `<rule> <path>`. Lines are sorted.
 - The lint fails on a violation with no line and on a line with no violation.
-- The allowlist only shrinks. No change adds a line.
-- A new language directory passes with no line.
+- The allowlist only shrinks, and a new language directory passes with no line.
 
 ## New language
 

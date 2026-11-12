@@ -12,7 +12,6 @@ audit-update.md unknown-flag --env-file
 audit-update.md unknown-flag --force-with-lease
 audit-update.md unknown-flag --frozen-lockfile
 audit-update.md unknown-flag --ignore-workspace
-audit-update.md unknown-flag --incremental
 audit-update.md unknown-flag --label
 audit-update.md unknown-flag --lockfile-only
 audit-update.md unknown-flag --max-time

@@ -4,8 +4,6 @@ load("//thrift:defs.bzl", "thrift_library", "thrift_rust_library")
 
 package(default_visibility = ["//thrift:__subpackages__"])
 
-exports_files(["hidden.thrift"])
-
 thrift_library(
     name = "lost",
     srcs = ["lost.thrift"],

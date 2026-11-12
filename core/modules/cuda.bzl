@@ -1,7 +1,6 @@
 """Pinned CUDA Toolkit components and the archs the pinned nvcc accepts."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
-load("//cuda/private/toolchain:platforms.bzl", "CUDA_PLATFORMS")
 load(":versions.bzl", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _CUDA_VERSION = "CUDA_VERSION", _RULES_CUDA_VERSION = "RULES_CUDA_VERSION")
 
 CUDA_VERSION = _CUDA_VERSION
@@ -9,6 +8,13 @@ CUDA_REDIST_VERSION = _CUDA_REDIST_VERSION
 RULES_CUDA_VERSION = _RULES_CUDA_VERSION
 
 CUDA_MAX_HOST_CLANG_MAJOR = 22
+
+CUDA_PLATFORMS = {
+    "linux_x86_64": "linux-x86_64",
+    "linux_arm64": "linux-sbsa",
+    "windows_x86_64": "windows-x86_64",
+    "windows_arm64": "windows-arm64",
+}
 
 _PINS = DATA["dx_cuda"]
 

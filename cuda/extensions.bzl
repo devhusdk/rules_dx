@@ -4,8 +4,8 @@ load("@rules_cuda//cuda:platform_alias_extension.bzl", "platform_alias_repo")
 load("@rules_cuda//cuda/private:platforms.bzl", "SUPPORTED_PLATFORMS")
 load("@rules_cuda//cuda/private:repositories.bzl", "cuda_component", "cuda_toolkit")
 load("//core:license.bzl", "accepted_ids", "unaccepted")
+load("//core/modules:cuda.bzl", "CUDA_PLATFORMS")
 load("//cuda/private:license.bzl", "cuda_unaccepted")
-load("//cuda/private/toolchain:platforms.bzl", "CUDA_PLATFORMS")
 
 _LICENSE = "cuda-eula"
 

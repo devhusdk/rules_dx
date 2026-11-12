@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//deploy/private/release:cosign_pins.bzl", "COSIGN_VERSION")
+load("//deploy/private/release:signing.bzl", "SIGNING_COSIGN_VERSION")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -71,7 +71,7 @@ rust_test(
     ],
     env = {
         "DX_COSIGN_BIN": "$(rootpath //deploy/private/release:cosign)",
-        "DX_COSIGN_VERSION": COSIGN_VERSION,
+        "DX_COSIGN_VERSION": SIGNING_COSIGN_VERSION,
         "DX_VERIFY_BIN": "$(rootpath :dx_verify)",
         "DX_COSIGN_FIXTURES": "$(rootpath tests/fixtures/ca.pem)",
     },

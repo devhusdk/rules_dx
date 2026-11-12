@@ -1076,9 +1076,90 @@ dx_pins.archive(
     required = ["nfpm.exe"],
 )
 dx_pins.archive(
+    name = "apicompat_tool",
+    build = "//deploy/private/pins:apicompat.BUILD.bazel",
+    key = "apicompat",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["tools/net8.0/any"],
+)
+dx_pins.archive(
     name = "c_app_cjson",
     build = "//cc/tests/fixtures/c-app:cjson.BUILD.bazel",
     pins = "//cc:pins.json",
+)
+dx_pins.archive(
+    name = "cargo_semver_checks_linux_arm64",
+    build = "//deploy/private/pins:semver_checks.BUILD.bazel",
+    key = "semver_checks_linux_arm64",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["cargo-semver-checks"],
+)
+dx_pins.archive(
+    name = "cargo_semver_checks_linux_x86_64",
+    build = "//deploy/private/pins:semver_checks.BUILD.bazel",
+    key = "semver_checks_linux_x86_64",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["cargo-semver-checks"],
+)
+dx_pins.archive(
+    name = "cargo_semver_checks_macos_arm64",
+    build = "//deploy/private/pins:semver_checks.BUILD.bazel",
+    key = "semver_checks_macos_arm64",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["cargo-semver-checks"],
+)
+dx_pins.archive(
+    name = "cargo_semver_checks_windows_x86_64",
+    build = "//deploy/private/pins:semver_checks.BUILD.bazel",
+    key = "semver_checks_windows_x86_64",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["cargo-semver-checks.exe"],
+)
+dx_pins.archive(
+    name = "conan_linux_arm64",
+    build = "//deploy/private/pins:conan.BUILD.bazel",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["bin/conan"],
+)
+dx_pins.archive(
+    name = "conan_linux_x86_64",
+    build = "//deploy/private/pins:conan.BUILD.bazel",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["bin/conan"],
+)
+dx_pins.archive(
+    name = "conan_macos_arm64",
+    build = "//deploy/private/pins:conan.BUILD.bazel",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["bin/conan"],
+)
+dx_pins.archive(
+    name = "conan_macos_x86_64",
+    build = "//deploy/private/pins:conan.BUILD.bazel",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["bin/conan"],
+)
+dx_pins.archive(
+    name = "conan_windows_x86_64",
+    build = "//deploy/private/pins:conan.BUILD.bazel",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["conan.exe"],
+)
+dx_pins.archive(
+    name = "cosign_linux_arm64",
+    pins = "//deploy/private/release:pins.json",
+)
+dx_pins.archive(
+    name = "cosign_linux_x86_64",
+    pins = "//deploy/private/release:pins.json",
+)
+dx_pins.archive(
+    name = "cosign_macos_arm64",
+    pins = "//deploy/private/release:pins.json",
+)
+dx_pins.archive(
+    name = "cosign_windows_x86_64",
+    pins = "//deploy/private/release:pins.json",
 )
 dx_pins.archive(
     name = "cpp_app_fmt",
@@ -1099,6 +1180,11 @@ dx_pins.archive(
     pins = "//rust:pins.json",
 )
 dx_pins.archive(
+    name = "japicmp_jar",
+    key = "japicmp",
+    pins = "//deploy/private/pins:pins.json",
+)
+dx_pins.archive(
     name = "kcov",
     build = "//tools/coverage/kcov:kcov.BUILD",
     patches = [
@@ -1109,13 +1195,47 @@ dx_pins.archive(
     pins = "//tools/coverage/kcov:pins.json",
 )
 dx_pins.archive(
+    name = "opam_linux_arm64",
+    pins = "//deploy/private/pins:pins.json",
+)
+dx_pins.archive(
+    name = "opam_linux_x86_64",
+    pins = "//deploy/private/pins:pins.json",
+)
+dx_pins.archive(
+    name = "opam_macos_arm64",
+    pins = "//deploy/private/pins:pins.json",
+)
+dx_pins.archive(
+    name = "opam_macos_x86_64",
+    pins = "//deploy/private/pins:pins.json",
+)
+dx_pins.archive(
+    name = "opam_windows_x86_64",
+    pins = "//deploy/private/pins:pins.json",
+)
+dx_pins.archive(
     name = "shared_tasks_adler2",
     build = "//examples/shared-rust:adler2.BUILD.bazel",
     pins = "//rust:pins.json",
 )
 use_repo(
     dx_pins,
+    "apicompat_tool",
     "c_app_cjson",
+    "cargo_semver_checks_linux_arm64",
+    "cargo_semver_checks_linux_x86_64",
+    "cargo_semver_checks_macos_arm64",
+    "cargo_semver_checks_windows_x86_64",
+    "conan_linux_arm64",
+    "conan_linux_x86_64",
+    "conan_macos_arm64",
+    "conan_macos_x86_64",
+    "conan_windows_x86_64",
+    "cosign_linux_arm64",
+    "cosign_linux_x86_64",
+    "cosign_macos_arm64",
+    "cosign_windows_x86_64",
     "cpp_app_fmt",
     "cuda_redistrib_json",
     "dx_busybox_sh",
@@ -1160,11 +1280,17 @@ use_repo(
     "dx_swift_format_macos_arm64",
     "dx_thrift_commons_lang3",
     "dx_thrift_slf4j",
+    "japicmp_jar",
     "kcov",
     "nfpm_linux_arm64",
     "nfpm_linux_x86_64",
     "nfpm_macos_arm64",
     "nfpm_windows_x86_64",
+    "opam_linux_arm64",
+    "opam_linux_x86_64",
+    "opam_macos_arm64",
+    "opam_macos_x86_64",
+    "opam_windows_x86_64",
     "rules_d",
     "rules_dotnet",
     "rules_haskell",
@@ -2697,24 +2823,6 @@ _fixture_repo(
     dev_dependency = True,
     path = "javascript/tests/fixtures/web_app/repo",
 )
-
-semver_checks = use_extension("//deploy/private/pins:extensions.bzl", "semver_checks")
-use_repo(semver_checks, "cargo_semver_checks_linux_arm64", "cargo_semver_checks_linux_x86_64", "cargo_semver_checks_macos_arm64", "cargo_semver_checks_windows_x86_64")
-
-opam = use_extension("//deploy/private/pins:extensions.bzl", "opam")
-use_repo(opam, "opam_linux_arm64", "opam_linux_x86_64", "opam_macos_arm64", "opam_macos_x86_64", "opam_windows_x86_64")
-
-conan = use_extension("//deploy/private/pins:extensions.bzl", "conan")
-use_repo(conan, "conan_linux_arm64", "conan_linux_x86_64", "conan_macos_arm64", "conan_macos_x86_64", "conan_windows_x86_64")
-
-japicmp = use_extension("//deploy/private/pins:extensions.bzl", "japicmp")
-use_repo(japicmp, "japicmp_jar")
-
-apicompat = use_extension("//deploy/private/pins:extensions.bzl", "apicompat")
-use_repo(apicompat, "apicompat_tool")
-
-cosign = use_extension("//deploy/private/release:extensions.bzl", "cosign", dev_dependency = True)
-use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm64", "cosign_windows_x86_64")
 
 bazel_version = use_extension("//tools/bazelrc:extensions.bzl", "bazel_version")
 use_repo(bazel_version, "dx_bazel_version")

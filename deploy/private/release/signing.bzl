@@ -1,6 +1,6 @@
 """Signing and attestation selection for releases."""
 
-load("//deploy/private/release:cosign_pins.bzl", "COSIGN_VERSION")
+load("@dx_pins_data//:pins.bzl", "DATA")
 load("//deploy/private/release:tool.bzl", "RELEASE_DEPLOY_TOOL")
 load("//deploy/private:config.bzl", "deploy_config")
 load("//core:rlocation.bzl", "rlocation_path")
@@ -9,7 +9,9 @@ load("//deploy/private:deployment.bzl", "dx_deployment")
 SIGNING_TRUST_ROOT = "https://tuf-repo-cdn.sigstore.dev"
 SIGNING_ISSUER = "https://token.actions.githubusercontent.com"
 
-SIGNING_COSIGN_VERSION = COSIGN_VERSION
+SIGNING_COSIGN_VERSION = DATA["dx_cosign"]["version"]
+
+SIGNING_COSIGN_PLATFORMS = {name[len("cosign_"):]: pin for name, pin in DATA["dx_cosign"]["archives"].items()}
 _COSIGN = Label("//deploy/private/release:cosign")
 SIGNING_BUNDLE_MEDIA_TYPE = "application/vnd.dev.sigstore.bundle.v0.3+json"
 

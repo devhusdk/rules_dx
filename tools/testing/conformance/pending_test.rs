@@ -2,13 +2,14 @@
 
 use serde_json::Value;
 
-const TESTS: [&str; 6] = [
+const TESTS: [&str; 7] = [
     "build_test",
     "coverage_test",
     "cross_test",
     "fail_test",
     "lock_test",
     "pass_test",
+    "runfiles_test",
 ];
 
 fn read(var: &str) -> String {

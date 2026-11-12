@@ -5,7 +5,7 @@ load("//core/modules:langs.bzl", "LANGS")
 load("//rust:defs.bzl", "rust_test")
 load(":pending.bzl", "PENDING")
 
-TESTS = ["build_test", "coverage_test", "cross_test", "fail_test", "lock_test", "pass_test"]
+TESTS = ["build_test", "coverage_test", "cross_test", "fail_test", "lock_test", "pass_test", "runfiles_test"]
 
 _FLAG = Label("//tools/testing/conformance:subject")
 _PLATFORM_SETTINGS = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]
@@ -287,8 +287,8 @@ def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
         **kwargs
     )
 
-def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "{case}", lock = {}, not_applicable = {}, size = "small", **kwargs):
-    """Declares build_test, coverage_test, cross_test, pass_test, fail_test and lock_test for one language.
+def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "{case}", lock = {}, runfiles = {}, not_applicable = {}, size = "small", **kwargs):
+    """Declares build_test, coverage_test, cross_test, pass_test, fail_test, lock_test and runfiles_test for one language.
 
     Args:
       name: Prefix of the declared targets; empty for the bare test names.
@@ -301,6 +301,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
       failing_pattern: Line the failing test must print, with one `{case}` placeholder for failing_case.
       covered_source: File name whose lines passing_test must cover; empty only when coverage_test is not applicable.
       lock: Inputs of lock_test: binary, expected, ecosystem, package, manifest, lockfile, stale. Empty only when lock_test is pending or not applicable.
+      runfiles: Inputs of runfiles_test: binary, data (file name the binary carries as data), expected. Empty only when runfiles_test is pending or not applicable.
       not_applicable: Maps a test, or test:platform, to the reason it does not apply.
       size: Size of the declared tests.
       **kwargs: Forwarded to the declared tests.
@@ -319,6 +320,14 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
             fail("%s: lock is set but lock_test is pending or not applicable" % lang)
     elif _compatible_with(lang, "lock_test", not_applicable) != ["@platforms//:incompatible"]:
         fail("%s: lock_test needs lock, or a pending or not_applicable entry" % lang)
+    if runfiles:
+        for key in ["binary", "data", "expected"]:
+            if key not in runfiles:
+                fail("%s: runfiles needs %r" % (lang, key))
+        if _compatible_with(lang, "runfiles_test", not_applicable) == ["@platforms//:incompatible"]:
+            fail("%s: runfiles is set but runfiles_test is pending or not applicable" % lang)
+    elif _compatible_with(lang, "runfiles_test", not_applicable) != ["@platforms//:incompatible"]:
+        fail("%s: runfiles_test needs runfiles, or a pending or not_applicable entry" % lang)
     prefix = name + "_" if name else ""
     dx_conformance_subject(
         name = prefix + "pass_subject",
@@ -363,7 +372,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     }
     _manifest(
         name = prefix + "manifest",
-        entries = json.encode(_entries(lang, {t: "//%s:%s%s" % (native.package_name(), prefix, t) for t in TESTS if lock or t != "lock_test"}, not_applicable)),
+        entries = json.encode(_entries(lang, {t: "//%s:%s%s" % (native.package_name(), prefix, t) for t in TESTS if (lock or t != "lock_test") and (runfiles or t != "runfiles_test")}, not_applicable)),
         visibility = ["//:__subpackages__"],
     )
     for test, (subject, mode, text) in runs.items():
@@ -399,5 +408,22 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
             },
             size = size,
             target_compatible_with = _compatible_with(lang, "lock_test", not_applicable),
+            **kwargs
+        )
+
+    if runfiles:
+        rust_test(
+            name = prefix + "runfiles_test",
+            srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+            data = [runfiles["binary"]],
+            deps = [Label("//tools/testing:dx_testing")],
+            env = {
+                "DX_CONFORMANCE_ARGS": "_main/%s/%s" % (native.package_name(), runfiles["data"]),
+                "DX_CONFORMANCE_MODE": "runfiles",
+                "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths %s)" % runfiles["binary"],
+                "DX_CONFORMANCE_TEXT": runfiles["expected"],
+            },
+            size = size,
+            target_compatible_with = _compatible_with(lang, "runfiles_test", not_applicable),
             **kwargs
         )

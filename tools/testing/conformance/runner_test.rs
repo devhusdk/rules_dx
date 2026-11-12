@@ -90,7 +90,11 @@ fn subject_matches_mode() {
         envs.push(("LLVM_PROFILE_FILE", profile.as_str()));
         envs.push(("TEST_BINARY", binary.as_str()));
     }
-    let run = dx_testing::run(&subject, &[], &envs).expect("subject must execute");
+    let subject_args: Vec<String> = std::env::var("DX_CONFORMANCE_ARGS")
+        .map(|args| args.split(' ').map(str::to_owned).collect())
+        .unwrap_or_default();
+    let subject_args: Vec<&str> = subject_args.iter().map(String::as_str).collect();
+    let run = dx_testing::run(&subject, &subject_args, &envs).expect("subject must execute");
     match mode.as_str() {
         "build" => {
             assert_eq!(
@@ -213,6 +217,43 @@ fn subject_matches_mode() {
                 stale.combined().contains(&line),
                 "missing {line:?} in:\n{}",
                 stale.combined()
+            );
+        }
+        "runfiles" => {
+            assert_eq!(
+                run.status.code(),
+                Some(0),
+                "runfiles directory run failed:\n{}",
+                run.combined()
+            );
+            let stdout = run.stdout.replace("\r\n", "\n");
+            assert_eq!(
+                stdout.trim_end_matches('\n'),
+                text,
+                "unexpected output with a runfiles directory"
+            );
+            let manifest = manifest_file(&runfiles, std::path::Path::new(&tmp));
+            let manifest = manifest.to_string_lossy().into_owned();
+            let mut command = dx_testing::command_for(&subject, &envs).expect("command");
+            command
+                .env_remove("RUNFILES_DIR")
+                .env_remove("TEST_SRCDIR")
+                .env("RUNFILES_MANIFEST_ONLY", "1")
+                .env("RUNFILES_MANIFEST_FILE", manifest.as_str())
+                .args(&subject_args);
+            let only = dx_testing::run_command(&mut command, std::time::Duration::from_secs(120))
+                .expect("subject must execute");
+            assert_eq!(
+                only.status.code(),
+                Some(0),
+                "manifest-only run failed:\n{}",
+                only.combined()
+            );
+            let stdout = only.stdout.replace("\r\n", "\n");
+            assert_eq!(
+                stdout.trim_end_matches('\n'),
+                text,
+                "unexpected output with a manifest only"
             );
         }
         "fail" => {
@@ -357,6 +398,32 @@ fn hits(report: &str, source: &str) -> u64 {
         }
     }
     total
+}
+
+fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
+    if let Ok(manifest) = std::env::var("RUNFILES_MANIFEST_FILE") {
+        return manifest.into();
+    }
+    let root = std::path::Path::new(runfiles);
+    let mut lines = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        for entry in std::fs::read_dir(&dir).expect("runfiles must be readable").flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if let (Ok(real), Ok(rel)) = (path.canonicalize(), path.strip_prefix(root)) {
+                if rel == std::path::Path::new("MANIFEST") {
+                    continue;
+                }
+                lines.push(format!("{} {}", rel.to_string_lossy(), real.to_string_lossy()));
+            }
+        }
+    }
+    lines.sort();
+    let manifest = tmp.join("runfiles.manifest");
+    std::fs::write(&manifest, lines.join("\n") + "\n").expect("manifest must be writable");
+    manifest
 }
 
 fn with_suffix(path: &std::path::Path, suffix: &str) -> std::path::PathBuf {

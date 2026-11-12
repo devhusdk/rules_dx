@@ -54,6 +54,15 @@ rust_test(
     deps = [":conformance"],
 )
 
+rust_binary(
+    name = "runfiles_hello",
+    srcs = ["runfiles_main.rs"],
+    crate_root = "runfiles_main.rs",
+    data = ["data.txt"],
+    edition = "2024",
+    deps = ["@rules_rust//rust/runfiles"],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -73,6 +82,11 @@ dx_conformance_suite(
         "stale": "Cargo.stale.lock",
     },
     passing_test = ":pass_subject_test",
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+    },
 )
 
 real_source_target(

@@ -69,11 +69,8 @@ rust_binary(
     ),
     crate_name = "fixture_resolver",
     crate_root = "tests/fixture_resolver.rs",
-    deps = all_crate_deps(
-        package_name = "cli/dx_lock",
-        normal = True,
-    ) + [
-        ":dx_lock",
+    # keep
+    deps = [
         "@crates//:serde_json",
     ],
 )
@@ -107,14 +104,14 @@ rust_test(
         "MANIFEST": "$(rootpath testdata/set/fixture.json)",
         "REGISTRY_INDEX": "$(rootpath testdata/registry/index.json)",
     },
-    deps = all_crate_deps(
-        package_name = "cli/dx_lock",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    # keep
+    deps = [
         ":dx_lock",
         "//cli/digest:dx_digest",
         "//tools/testing:dx_testing",
+        "@crates//:jsonschema",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
     ],
 )
 

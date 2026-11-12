@@ -94,13 +94,6 @@ dx_unavailable_tool(
     tool = "topiary",
 )
 
-exports_files(
-    [
-        "src/lib.rs",
-    ],
-    visibility = ["//core/quality:__pkg__"],
-)
-
 build_test(
     name = "release_tools_build_test",
     targets = [

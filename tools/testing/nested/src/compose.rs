@@ -60,13 +60,52 @@ pub const RULES_FLUTTER_PATCHES: [&str; 5] = [
     "ios_target_compatible_with",
 ];
 
-/// Pins the patched rules_flutter the way the root MODULE.bazel does.
+/// The `flutter/pins.json` that holds the rules_flutter pin.
+const FLUTTER_PINS: &str = include_str!("../../../../flutter/pins.json");
+
+/// The `sha256-` integrity of a lowercase hex SHA-256.
+fn sha256_integrity(hex: &str) -> String {
+    const ALPHABET: &[u8; 64] =
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let bytes: Vec<u8> = (0..hex.len() / 2)
+        .map(|at| {
+            u8::from_str_radix(&hex[at * 2..at * 2 + 2], 16)
+                .unwrap_or_else(|error| panic!("sha256 {hex}: {error}"))
+        })
+        .collect();
+    let mut out = String::from("sha256-");
+    for chunk in bytes.chunks(3) {
+        let word = chunk.iter().enumerate().fold(0u32, |word, (at, byte)| {
+            word | u32::from(*byte) << (16 - 8 * at)
+        });
+        for at in 0..=chunk.len() {
+            out.push(char::from(ALPHABET[(word >> (18 - 6 * at) & 63) as usize]));
+        }
+    }
+    out.push_str(&"=".repeat((3 - bytes.len() % 3) % 3));
+    out
+}
+
+/// Pins the patched rules_flutter the way the root MODULE.bazel does, from `flutter/pins.json`.
 pub fn rules_flutter_override() -> String {
+    let pins: serde_json::Value = serde_json::from_str(FLUTTER_PINS)
+        .unwrap_or_else(|error| panic!("flutter/pins.json: {error}"));
+    let pin = &pins["archives"]["rules_flutter"];
+    let field = |name: &str| {
+        pin[name]
+            .as_str()
+            .unwrap_or_else(|| panic!("flutter/pins.json rules_flutter has no {name}"))
+    };
+    let integrity = sha256_integrity(field("sha256"));
+    let strip_prefix = field("strip_prefix");
+    let url = pin["urls"][0]
+        .as_str()
+        .unwrap_or_else(|| panic!("flutter/pins.json rules_flutter has no urls"));
     let patches = RULES_FLUTTER_PATCHES
         .map(|name| format!("        \"//patches/rules_flutter:{name}.patch\",\n"))
         .concat();
     format!(
-        "archive_override(\n    module_name = \"rules_flutter\",\n    integrity = \"sha256-sNPw28M2Y+oIctymkU3ZY9svCoAG5VaULN5iB+lvzGk=\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"rules_flutter-2b203359a0a79edaae66126ea5c212d1d7b19353\",\n    urls = [\"https://github.com/aran/rules_flutter/archive/2b203359a0a79edaae66126ea5c212d1d7b19353.tar.gz\"],\n)\n"
+        "archive_override(\n    module_name = \"rules_flutter\",\n    integrity = \"{integrity}\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"{strip_prefix}\",\n    urls = [\"{url}\"],\n)\n"
     )
 }
 
@@ -212,6 +251,14 @@ mod tests {
     fn module_pins_rules_py_once() {
         let module = compose_module(SNIPPET, "m", "rules_dx", "", Path::new("/s")).unwrap();
         assert_eq!(module.matches("module_name = \"rules_py\"").count(), 1);
+    }
+
+    #[test]
+    fn integrity_pads_like_base64() {
+        assert_eq!(sha256_integrity("ff"), "sha256-/w==");
+        assert_eq!(sha256_integrity("ffff"), "sha256-//8=");
+        assert_eq!(sha256_integrity("ffffff"), "sha256-////");
+        assert_eq!(sha256_integrity("4d616e"), "sha256-TWFu");
     }
 
     #[test]

@@ -8,6 +8,7 @@ go_library(
     name = "d",
     srcs = [
         "doc.go",
+        "dub.go",
         "lang.go",
         "lexer.go",
         "naming.go",

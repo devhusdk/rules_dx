@@ -1,13 +1,15 @@
-package common
+package d
 
 import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
-// DubProject is the part of a dub manifest that generation reads.
-type DubProject struct {
+// dubProject is the part of a dub manifest that generation reads.
+type dubProject struct {
 	Name              string                     `json:"name"`
 	TargetType        string                     `json:"targetType"`
 	SourcePaths       []string                   `json:"sourcePaths"`
@@ -16,23 +18,23 @@ type DubProject struct {
 	Dependencies      map[string]json.RawMessage `json:"dependencies"`
 }
 
-// ParseDubProject reads a dub manifest.
-func ParseDubProject(content []byte) (*DubProject, error) {
-	var p DubProject
-	if err := json.Unmarshal(StripBOM(content), &p); err != nil {
+// parseDubProject reads a dub manifest.
+func parseDubProject(content []byte) (*dubProject, error) {
+	var p dubProject
+	if err := json.Unmarshal(common.StripBOM(content), &p); err != nil {
 		return nil, err
 	}
 	return &p, nil
 }
 
-// ReadDubProject reads the dub manifest in dir. It returns nil when there is none
+// readDubProject reads the dub manifest in dir. It returns nil when there is none
 // or when it does not parse.
-func ReadDubProject(dir string) *DubProject {
-	content, err := os.ReadFile(filepath.Join(dir, ManifestName("dub")))
+func readDubProject(dir string) *dubProject {
+	content, err := os.ReadFile(filepath.Join(dir, common.ManifestName("dub")))
 	if err != nil {
 		return nil
 	}
-	p, err := ParseDubProject(content)
+	p, err := parseDubProject(content)
 	if err != nil {
 		return nil
 	}
@@ -41,7 +43,7 @@ func ReadDubProject(dir string) *DubProject {
 
 // Roots returns the import roots of the project: importPaths, else
 // sourcePaths, else the source or src directory that exists in dir.
-func (p *DubProject) Roots(dir string) []string {
+func (p *dubProject) Roots(dir string) []string {
 	switch {
 	case len(p.ImportPaths) > 0:
 		return p.ImportPaths

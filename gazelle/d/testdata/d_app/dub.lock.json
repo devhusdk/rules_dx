@@ -1,0 +1,12 @@
+{
+  "ecosystem": "dub",
+  "packages": [
+    {
+      "name": "semver",
+      "provides": [
+        "mvs",
+        "semver"
+      ]
+    }
+  ]
+}

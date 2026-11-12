@@ -1,0 +1,11 @@
+{
+  "ecosystem": "dub",
+  "packages": [
+    {
+      "name": "silly",
+      "provides": [
+        "silly"
+      ]
+    }
+  ]
+}

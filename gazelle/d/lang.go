@@ -49,7 +49,7 @@ func init() {
 // dubConfig is the dub manifest in effect for a directory.
 type dubConfig struct {
 	rel     string
-	project *common.DubProject
+	project *dubProject
 	roots   []string
 }
 
@@ -62,7 +62,7 @@ const dubExt = "d.dub"
 
 func configureDub(c *config.Config, rel string, f *rule.File, rep common.Reporter) {
 	cfg := dubOf(c)
-	if project := common.ReadDubProject(filepath.Join(c.RepoRoot, filepath.FromSlash(rel))); project != nil {
+	if project := readDubProject(filepath.Join(c.RepoRoot, filepath.FromSlash(rel))); project != nil {
 		next := &dubConfig{rel: rel, project: project}
 		for _, root := range project.Roots(filepath.Join(c.RepoRoot, filepath.FromSlash(rel))) {
 			next.roots = append(next.roots, path.Join(rel, root))

@@ -1136,6 +1136,10 @@ fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
         .ok()
 }
 
+/// Starts a detached shim that sweeps the slot's workspaces once `owner` dies outside a job kill.
+/// Bazel's test job sets only `KILL_ON_JOB_CLOSE` (bazel src/main/native/windows/process.cc).
+/// Bazel starts servers without breakaway (bazel src/main/cpp/blaze_util_windows.cc), so a test's
+/// job kill stops its nested servers along with the shim.
 #[cfg(windows)]
 fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
     use std::os::windows::process::CommandExt;

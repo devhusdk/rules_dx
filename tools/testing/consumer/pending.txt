@@ -31,6 +31,7 @@ override single_version_override hermetic_launcher
 override single_version_override llvm
 override single_version_override platforms
 override single_version_override protobuf
+override single_version_override protoc-gen-validate
 override single_version_override rules_android
 override single_version_override rules_apple
 override single_version_override rules_cc

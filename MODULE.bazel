@@ -372,6 +372,13 @@ single_version_override(
     version = "0.0.0-20260901-005c18a.bcr.1",
 )
 
+single_version_override(
+    module_name = "protoc-gen-validate",
+    patch_strip = 1,
+    patches = ["//patches/protoc-gen-validate:pip_parse_no_39_310.patch"],
+    version = "1.2.1.bcr.2",
+)
+
 # floor: equals tested
 bazel_dep(name = "rules_rust_prost", version = "0.75.0")
 single_version_override(

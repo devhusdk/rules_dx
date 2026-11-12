@@ -14,6 +14,21 @@ use crate::module_pin::ModuleEdit;
 
 const MODULE_FILE: &str = "MODULE.bazel";
 
+/// The keys of `BUILD_SCRIPT_CC_ENV` in `rust/private/build_script_cc_env.bzl`.
+const BUILD_SCRIPT_CC_ENV: [&str; 9] = [
+    "CFLAGS",
+    "HOST_AR",
+    "HOST_CC",
+    "HOST_CFLAGS",
+    "HOST_CXX",
+    "HOST_CXXFLAGS",
+    "TARGET_AR",
+    "TARGET_CC",
+    "TARGET_CXX",
+];
+
+const BUILD_SCRIPT_CC_ENV_TOOLCHAIN: &str = "@rules_dx//rust/private:build_script_cc_env";
+
 /// The planned `MODULE.bazel` edit, if any, and what the planner could not do.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct LockHubs {
@@ -93,6 +108,25 @@ fn tag(name: &str, args: Vec<(&str, Arg)>) -> NewTag {
             .map(|(key, arg)| (key.to_owned(), arg))
             .collect(),
     }
+}
+
+/// The `cargo.annotation` that gives every crate build script of a hub the rules_dx cc env.
+fn build_script_cc_env_annotation() -> NewTag {
+    let env = BUILD_SCRIPT_CC_ENV
+        .iter()
+        .map(|var| (var.to_string(), format!("$(DX_BS_{var})")))
+        .collect();
+    tag(
+        "annotation",
+        vec![
+            ("build_script_env", Arg::Dict(env)),
+            (
+                "build_script_toolchains",
+                Arg::List(vec![BUILD_SCRIPT_CC_ENV_TOOLCHAIN.to_owned()]),
+            ),
+            ("crate", string("*")),
+        ],
+    )
 }
 
 /// The root manifests that `dx generate --apply` can lock: a cargo manifest without a cargo lock
@@ -314,14 +348,17 @@ impl Planner<'_> {
             return Ok(());
         }
         let manifests = self.cargo_manifests();
-        let tags = vec![tag(
-            "from_cargo",
-            vec![
-                ("name", string(&cargo.hub)),
-                ("cargo_lockfile", string(&lock)),
-                ("manifests", Arg::List(manifests)),
-            ],
-        )];
+        let tags = vec![
+            tag(
+                "from_cargo",
+                vec![
+                    ("name", string(&cargo.hub)),
+                    ("cargo_lockfile", string(&lock)),
+                    ("manifests", Arg::List(manifests)),
+                ],
+            ),
+            build_script_cc_env_annotation(),
+        ];
         self.add(cargo, &tags, &[cargo.hub.as_str()])
     }
 
@@ -861,8 +898,16 @@ mod tests {
         assert!(!text.contains("bazel_dep(name = \"rules_rust\""), "{text}");
         assert!(
             text.contains(
-                t("cargo.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:{cargo:lock}\",\n    manifests = [\n        \"//:{cargo:manifest}\",\n        \"//app:{cargo:manifest}\",\n    ],\n)\nuse_repo(cargo, \"crates\")\n")
+                t("cargo.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:{cargo:lock}\",\n    manifests = [\n        \"//:{cargo:manifest}\",\n        \"//app:{cargo:manifest}\",\n    ],\n)\ncargo.annotation(\n")
             ),
+            "{text}"
+        );
+        assert!(
+            text.contains("cargo.annotation(\n    build_script_env = {\n        \"CFLAGS\": \"$(DX_BS_CFLAGS)\",\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains("        \"TARGET_CXX\": \"$(DX_BS_TARGET_CXX)\",\n    },\n    build_script_toolchains = [\"@rules_dx//rust/private:build_script_cc_env\"],\n    crate = \"*\",\n)\nuse_repo(cargo, \"crates\")\n"),
             "{text}"
         );
         assert_eq!(hubs.notes.len(), 2, "{:?}", hubs.notes);

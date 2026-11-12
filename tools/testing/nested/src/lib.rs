@@ -672,22 +672,6 @@ fn parse_ps_lines(text: &str) -> Vec<(u32, char, String)> {
         .collect()
 }
 
-/// Lists Windows processes that look like Bazel servers, one `pid<TAB>command line` per line.
-#[cfg(windows)]
-const WINDOWS_PROCESSES: &str = "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*--output_user_root=*' -or $_.CommandLine -like '*--workspace_directory=*' } | ForEach-Object { \"$($_.ProcessId)`t$($_.CommandLine)\" }";
-
-/// Parses `pid<TAB>command line` lines, skipping anything else.
-#[cfg_attr(not(windows), allow(dead_code))]
-fn parse_process_lines(text: &str) -> Vec<(u32, String)> {
-    text.lines()
-        .filter_map(|line| {
-            let (pid, cmdline) = line.split_once('\t')?;
-            let pid = pid.trim().parse::<u32>().ok()?;
-            Some((pid, cmdline.trim_end_matches('\r').to_owned()))
-        })
-        .collect()
-}
-
 /// One sweep's view of the process table: Unix reads `/proc` per pid, Windows takes one snapshot.
 struct Processes {
     #[cfg(not(unix))]
@@ -738,18 +722,11 @@ impl Processes {
 
     #[cfg(windows)]
     fn snapshot() -> Processes {
-        let text = dx_process::probe(
-            "powershell",
-            [
-                "-NoProfile",
-                "-NonInteractive",
-                "-Command",
-                WINDOWS_PROCESSES,
-            ],
-        )
-        .unwrap_or_default();
         Processes {
-            table: parse_process_lines(&text),
+            table: dx_process::procs::command_lines()
+                .into_iter()
+                .map(|info| (info.pid, info.command_line))
+                .collect(),
         }
     }
 
@@ -2688,22 +2665,6 @@ mod portable_tests {
     }
 
     #[test]
-    fn windows_process_lines_parse() {
-        let text = "4242\tC:\\jdk\\java.exe --output_user_root=C:\\u --workspace_directory=C:\\w\r\nnoise\n\n17\t\"C:\\x.exe\" a\n";
-        assert_eq!(
-            parse_process_lines(text),
-            vec![
-                (
-                    4242,
-                    "C:\\jdk\\java.exe --output_user_root=C:\\u --workspace_directory=C:\\w"
-                        .to_owned()
-                ),
-                (17, "\"C:\\x.exe\" a".to_owned()),
-            ]
-        );
-    }
-
-    #[test]
     fn workspace_match_accepts_backslashes_case_verbatim_prefix_and_quotes() {
         let flag = "--workspace_directory=";
         let line = "java.exe \"--workspace_directory=C:\\Users\\me\\.dxnb\\0\\w\\consumer\" --x";
@@ -2830,6 +2791,30 @@ mod portable_tests {
                 "{name} is read by from_parts but the root .bazelrc has no `test --test_env={name}`"
             );
         }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_windows_server_under_the_workspaces_is_found_from_the_native_process_table() {
+        let scratch = tempfile::tempdir().expect("tempdir");
+        let workspace = scratch.path().join("ws");
+        let flag = format!("--workspace_directory={}", workspace.display());
+        let mut child = probe_command(&["sleep", "30", &flag])
+            .spawn()
+            .expect("spawn");
+        let pid = child.id();
+        let started = Instant::now();
+        while !servers_in_workspaces(scratch.path()).contains(&pid)
+            && started.elapsed() < Duration::from_secs(5)
+        {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let found = servers_in_workspaces(scratch.path()).contains(&pid);
+        let elsewhere = servers_in_workspaces(&scratch.path().join("other")).contains(&pid);
+        child.kill().expect("kill");
+        child.wait().expect("wait");
+        assert!(found);
+        assert!(!elsewhere);
     }
 }
 

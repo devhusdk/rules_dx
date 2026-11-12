@@ -107,8 +107,18 @@ def clang_syntax_unit_tests(name):
             ),
             expect_equal(
                 "clang-cl drops dependency-file flags",
-                _rewrite(["clang-cl.exe", "/nologo", "-MF", "a.d", "-MT", "a.obj", "/clang:-MF", "/clang:a.d", "/clang:-MD", "-MMD", "/c", "a.c"], "a.c", _CLANG_CL).argv,
+                _rewrite(["clang-cl.exe", "/nologo", "-MF", "a.d", "-MQ", "a.obj", "/clang:-MT", "/clang:a.obj", "/clang:-MD", "-MMD", "/c", "a.c"], "a.c", _CLANG_CL).argv,
                 ["clang-cl.exe", "/nologo", _CLANG_CL.syntax_only, "a.c", "/diagnostics:column"],
+            ),
+            expect_equal(
+                "clang-cl keeps the static runtime flags",
+                _rewrite(["clang-cl.exe", "-MT", "-MTd", "-MD", "/c", "a.c"], "a.c", _CLANG_CL).argv,
+                ["clang-cl.exe", "-MT", "-MTd", "-MD", _CLANG_CL.syntax_only, "a.c", "/diagnostics:column"],
+            ),
+            expect_equal(
+                "clang-tidy drops dependency-file flags for clang-cl",
+                clang_tidy_argv("tidy", ["clang-cl.exe", "-MF", "a.d", "/clang:-MT", "/clang:a.obj", "-MMD", "-MT", "-c", "a.c"], "a.c", _CLANG_CL).argv,
+                ["tidy", "--header-filter=", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "-MT"],
             ),
             expect_equal(
                 "MSVC with two /c is rejected",

@@ -40,8 +40,8 @@ _GCC_ONLY = ["-fno-canonical-system-headers", "-fcanonical-system-headers", "-fn
 _MSVC_DROP_PREFIXES = ["Fo", "Fd", "Fe", "Fa", "Fp", "Fi", "showIncludes", "sourceDependencies"]
 
 _MSVC_DEP_FLAGS = ["-MMD", "-MG", "-MP", "/clang:-MD", "/clang:-MMD", "/clang:-MG", "/clang:-MP"]
-_MSVC_DEP_WITH_VALUE = ["-MF", "-MT", "-MQ", "/clang:-MF", "/clang:-MT", "/clang:-MQ"]
-_MSVC_DEP_VALUE_PREFIXES = ("-MF", "-MT", "-MQ", "/clang:-MF", "/clang:-MT", "/clang:-MQ")
+_MSVC_DEP_WITH_VALUE = ["-MF", "-MQ", "/clang:-MF", "/clang:-MT", "/clang:-MQ"]
+_MSVC_DEP_VALUE_PREFIXES = ("-MF", "-MQ", "/clang:-MF", "/clang:-MT", "/clang:-MQ")
 
 def _msvc_dropped(arg):
     return len(arg) > 1 and arg[0] in "/-" and arg[1:].startswith(tuple(_MSVC_DROP_PREFIXES))

@@ -1,7 +1,7 @@
 """Core PHP rules: php_library, php_binary and php_test on the pinned PHP, Composer and PHPUnit."""
 
 load("//core:rlocation.bzl", "external_path", "runfiles_path")
-load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE", "TOOLCHAIN_TYPE")
 load(":providers.bzl", "PhpInfo")
 
@@ -130,9 +130,11 @@ def _write_launcher(ctx, tokens):
     launcher, runfiles = write_launcher(ctx, php, ctx.attr.ini, tokens)
     return launcher, runfiles.merge(ctx.runfiles(transitive_files = php.files))
 
-def coverage_descriptor(runner, tree, pcov, php, ini, tokens):
-    """Returns the descriptor of a php_test under coverage: the coverage runner with the autoload tree, PCOV, php, its flags and the tokens."""
+def coverage_descriptor(runner, tree, pcov, php, ini, tokens, extensions = []):
+    """Returns the descriptor of a php_test under coverage: the coverage runner with the autoload tree, PCOV, php, its extensions, its flags and the tokens."""
     lines = ["program=" + runner, "path=" + tree, "path=" + pcov, "path=" + php, "arg=-n"]
+    for extension in extensions:
+        lines.extend(["arg=-d", _descriptor_line(rf_prefixed("extension=", extension))])
     for flag in ini_flags(ini):
         lines.append("arg=" + flag)
     lines.append("arg=--")
@@ -146,11 +148,12 @@ def _write_coverage_launcher(ctx, tokens, tree):
         runfiles_path(ctx.workspace_name, ctx.executable._coverage_run.short_path),
         tree,
         runfiles_path(ctx.workspace_name, php.pcov.short_path),
-        runfiles_path(ctx.workspace_name, php.interpreter.short_path),
+        runfiles_path(ctx.workspace_name, php.coverage.interpreter.short_path),
         ctx.attr.ini,
         tokens,
+        [runfiles_path(ctx.workspace_name, f.short_path) for f in php.coverage.extensions],
     ))
-    runfiles = runfiles.merge(ctx.runfiles(files = [php.pcov, ctx.executable._coverage_run], transitive_files = php.files))
+    runfiles = runfiles.merge(ctx.runfiles(files = [php.pcov, ctx.executable._coverage_run] + php.coverage.extensions, transitive_files = php.coverage.files))
     return launcher, runfiles.merge(ctx.attr._coverage_run[DefaultInfo].default_runfiles)
 
 def _runfiles(ctx, files, transitive, base = None):
@@ -218,7 +221,7 @@ def _php_test_impl(ctx):
     tokens += [lit("--fail-on-empty-test-suite"), lit("--do-not-cache-test-index"), env_flag("--log-junit", "XML_OUTPUT_FILE")]
     tokens += [rf(root + "/" + external_path(f.short_path)) for f in srcs]
     php = ctx.toolchains[TOOLCHAIN_TYPE].php
-    if ctx.configuration.coverage_enabled and php.pcov and not target_is_windows(ctx):
+    if ctx.configuration.coverage_enabled and php.pcov:
         launcher, base = _write_coverage_launcher(ctx, tokens, root)
     else:
         launcher, base = _write_launcher(ctx, tokens)

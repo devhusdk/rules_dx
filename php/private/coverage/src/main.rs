@@ -26,6 +26,7 @@ fn rebase(lcov: &str, marker: &str) -> String {
     let mut keep = false;
     for line in lcov.lines() {
         if let Some(path) = line.strip_prefix("SF:") {
+            let path = path.replace('\\', "/");
             let rest = path
                 .split_once(marker)
                 .map(|(_, rest)| rest)
@@ -107,11 +108,23 @@ fn marker(tree: &Path) -> String {
     format!("/{name}/")
 }
 
+/// Drops the `\\?\` prefix from a canonical Windows drive path.
+fn plain(path: PathBuf) -> PathBuf {
+    let stripped = path
+        .to_string_lossy()
+        .strip_prefix(r"\\?\")
+        .filter(|rest| rest.as_bytes().get(1) == Some(&b':'))
+        .map(PathBuf::from);
+    stripped.unwrap_or(path)
+}
+
 fn run(request: &Request) -> Result<i32, String> {
-    let tree = request
-        .tree
-        .canonicalize()
-        .map_err(|err| format!("{}: {err}", request.tree.display()))?;
+    let tree = plain(
+        request
+            .tree
+            .canonicalize()
+            .map_err(|err| format!("{}: {err}", request.tree.display()))?,
+    );
     let scratch = env::var_os("TEST_TMPDIR").map_or_else(env::temp_dir, PathBuf::from);
     let clover = scratch.join(format!("clover.{}.xml", process::id()));
     let status = Command::new(&request.php)
@@ -152,6 +165,21 @@ mod tests {
             rebase(LCOV, "/t.php/"),
             "SF:app/A.php\nDA:1,2\nLF:1\nLH:1\nend_of_record\n"
         );
+    }
+
+    #[test]
+    fn windows_source_paths_match_the_tree() {
+        assert_eq!(
+            rebase("SF:C:\\o\\t.php\\app\\A.php\nDA:1,1\nend_of_record\n", "/t.php/"),
+            "SF:app/A.php\nDA:1,1\nend_of_record\n"
+        );
+    }
+
+    #[test]
+    fn a_verbatim_drive_path_loses_its_prefix() {
+        assert_eq!(plain(PathBuf::from(r"\\?\C:\o\t.php")), PathBuf::from(r"C:\o\t.php"));
+        assert_eq!(plain(PathBuf::from(r"\\?\UNC\h\s")), PathBuf::from(r"\\?\UNC\h\s"));
+        assert_eq!(plain(PathBuf::from("/o/t.php")), PathBuf::from("/o/t.php"));
     }
 
     #[test]

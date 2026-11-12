@@ -3,7 +3,7 @@
 load("@dx_pins_data//:pins.bzl", "PINS")
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":cells.bzl", "PHP_CELLS")
-load(":repos.bzl", "HEADERS_BUILD", "HUB_NAME", "RUNTIME_PREFIX", "SOURCES_BUILD", "VERSION_FILE", "hub_build", "phar_build", "runtime_build")
+load(":repos.bzl", "HEADERS_BUILD", "HUB_NAME", "COVERAGE_PREFIX", "RUNTIME_PREFIX", "SOURCES_BUILD", "VERSION_FILE", "hub_build", "phar_build", "php_coverage_runtime", "runtime_build")
 
 
 _PHP_INCLUDES = ["include/php", "include/php/main", "include/php/Zend", "include/php/TSRM", "include/php/ext"]
@@ -15,11 +15,18 @@ def _php_impl(mctx):
     pcov = pins["pcov"]
     pcre2 = pins["pcre2"]
     tools = pins["tools"]
+    for cell, coverage in sorted(pins["coverage"].items()):
+        php_coverage_runtime(
+            name = COVERAGE_PREFIX + cell,
+            pcov = [coverage["pcov"]["sha256"]] + coverage["pcov"]["urls"],
+            php = [coverage["php"]["sha256"]] + coverage["php"]["urls"],
+        )
     for cell in sorted(PHP_CELLS.keys()):
+        coverage = COVERAGE_PREFIX + cell if cell in pins["coverage"] else ""
         pinned_archive(
             name = RUNTIME_PREFIX + cell,
             files = {
-                "BUILD.bazel": runtime_build(php_version, PHP_CELLS[cell].interpreter, PHP_CELLS[cell].pcov),
+                "BUILD.bazel": runtime_build(php_version, PHP_CELLS[cell].interpreter, PHP_CELLS[cell].pcov, coverage),
                 VERSION_FILE: php_version + "\n",
             },
             required = [PHP_CELLS[cell].interpreter],

@@ -106,10 +106,12 @@ Dependencies are scanned, not run. See `docs/cli/commands/quality.md`.
 
 ## Coverage
 
-On Linux, `dx coverage` runs `php_test` with PCOV and writes LCOV. The pinned
-Linux PHP is the glibc `gnu-bulk` build, which can load extensions; PCOV is built
-from source against the conda-forge PHP headers. macOS and Windows run the tests
-without collecting coverage.
+On Linux and Windows, `dx coverage` runs `php_test` with PCOV and writes LCOV. The
+pinned Linux PHP is the glibc `gnu-bulk` build, which can load extensions; PCOV is
+built from source against the conda-forge PHP headers. On Windows, coverage runs on
+the official windows.php.net NTS build with the prebuilt `php_pcov.dll` and the
+MSVC runtime from `@msvc_runtime`; every other Windows action uses the static
+`spc-max` build. macOS runs the tests without collecting coverage.
 
 ## API docs
 

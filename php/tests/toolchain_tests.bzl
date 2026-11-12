@@ -9,7 +9,7 @@ load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/private:php.bzl", "lit", "rf", "write_launcher")
 load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
 load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
-load("//php/private/toolchain:repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
+load("//php/private/toolchain:repos.bzl", "COVERAGE_BUILD", "COVERAGE_PREFIX", "VERSION_FILE", "hub_build", "runtime_build")
 
 _PHP = PINS["dx_php"]
 
@@ -41,7 +41,15 @@ def _checks():
         expect_equal("unix interpreters", [PHP_CELLS[c].interpreter for c in ["linux_arm64", "linux_x86_64", "macos_arm64"]], ["php", "php", "php"]),
         expect_contains("a pcov runtime names the extension", runtime_build(PHP_VERSION, "php", True), 'pcov = "@dx_php_pcov//:pcov.so",'),
         expect_contains("a runtime without pcov names none", runtime_build(PHP_VERSION), "pcov = None,"),
-        expect_equal("only the linux cells load pcov", sorted([c for c in PHP_CELLS if PHP_CELLS[c].pcov]), ["linux_arm64", "linux_x86_64"]),
+        expect_equal("the linux and windows cells load pcov", sorted([c for c in PHP_CELLS if PHP_CELLS[c].pcov]), ["linux_arm64", "linux_x86_64", "windows_x86_64"]),
+        expect_equal("windows has a separate coverage runtime", sorted(_PHP["coverage"].keys()), ["windows_x86_64"]),
+        expect_true("coverage runtimes are pinned windows.php.net builds", all([len(pin["sha256"]) == 64 and all([url.startswith("https://downloads.php.net/~windows/") for url in pin["urls"]]) for c in _PHP["coverage"].values() for pin in [c["php"], c["pcov"]]])),
+        expect_true("the coverage php matches the version", all([PHP_VERSION + "-" in url and "-nts-" in url for c in _PHP["coverage"].values() for url in c["php"]["urls"]])),
+        expect_true("the coverage pcov matches the pcov version", all([c["pcov"]["version"] == _PHP["pcov"]["version"] and all([c["pcov"]["version"] in url and "-" + PHP_VERSION.rsplit(".", 1)[0] + "-nts-" in url for url in c["pcov"]["urls"]]) for c in _PHP["coverage"].values()])),
+        expect_contains("the windows runtime loads pcov from its coverage runtime", runtime_build(PHP_VERSION, "php.exe", True, COVERAGE_PREFIX + "windows_x86_64"), 'pcov = "@dx_php_coverage_windows_x86_64//:php_pcov.dll",'),
+        expect_contains("the windows runtime names the coverage interpreter", runtime_build(PHP_VERSION, "php.exe", True, COVERAGE_PREFIX + "windows_x86_64"), 'coverage_interpreter = "@dx_php_coverage_windows_x86_64//:php.exe",'),
+        expect_contains("the windows coverage runtime loads mbstring", runtime_build(PHP_VERSION, "php.exe", True, COVERAGE_PREFIX + "windows_x86_64"), 'coverage_extensions = ["@dx_php_coverage_windows_x86_64//:ext/php_mbstring.dll"],'),
+        expect_contains("the coverage runtime ships the msvc runtime beside php", COVERAGE_BUILD, '"php.exe", "php8.dll", "ext/php_mbstring.dll", "php_pcov.dll", "vcruntime140.dll"'),
         expect_true("pcov headers are pinned per linux cell", all([len(h["sha256"]) == 64 for h in _PHP["headers"].values()]) and sorted(_PHP["headers"].keys()) == ["linux_arm64", "linux_x86_64"]),
         expect_contains("the windows runtime exports its interpreter", runtime_build(PHP_VERSION, "php.exe"), 'interpreter = "php.exe",'),
         expect_contains("the windows runtime exports the exe", runtime_build(PHP_VERSION, "php.exe"), 'exports_files(["php.exe", "DX_PHP_VERSION"])'),

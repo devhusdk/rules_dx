@@ -198,7 +198,10 @@ fn copy_tree(src: &Path, dst: &Path) -> io::Result<()> {
 fn writable_copy(src: &Path, dst: &Path) -> io::Result<()> {
     fs::copy(src, dst)?;
     let mut permissions = fs::metadata(dst)?.permissions();
-    #[allow(clippy::permissions_set_readonly_false)]
+    #[expect(
+        clippy::permissions_set_readonly_false,
+        reason = "the copy must be writable by the next step"
+    )]
     permissions.set_readonly(false);
     fs::set_permissions(dst, permissions)
 }

@@ -739,7 +739,7 @@ const GO_FILES: [(&str, &str); 4] = [
 struct GoRunner {
     code: Option<i32>,
     writes: Vec<(&'static str, String)>,
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity, reason = "the tuple is local to this function")]
     launches: std::cell::RefCell<Vec<(Vec<String>, std::path::PathBuf, Vec<(String, String)>)>>,
     scratch: std::cell::RefCell<Option<std::path::PathBuf>>,
 }
@@ -830,7 +830,7 @@ fn consumer_go_set_widens_require_and_refreshes_go_sum_in_a_scratch_dir() {
     assert_eq!(launches.len(), 1, "{launches:?}");
     let (argv, cwd, env) = &launches[0];
     let at = argv.iter().position(|arg| arg == "-C").expect("-C");
-    #[allow(clippy::disallowed_methods)]
+    #[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
     let mut head = dx_process::startup_argv(&[]);
     head.extend(
         [

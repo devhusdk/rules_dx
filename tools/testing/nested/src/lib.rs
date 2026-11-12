@@ -405,7 +405,10 @@ fn make_file_writable(path: &Path) {
     if let Ok(meta) = std::fs::metadata(path) {
         let mut permissions = meta.permissions();
         if permissions.readonly() {
-            #[allow(clippy::permissions_set_readonly_false)]
+            #[expect(
+                clippy::permissions_set_readonly_false,
+                reason = "the file must be writable"
+            )]
             permissions.set_readonly(false);
             let _ = std::fs::set_permissions(path, permissions);
         }

@@ -27,7 +27,7 @@ pub fn npm_package_paths(
 }
 
 /// Creates one deterministic npm pack.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
 pub fn npm_create_pack(
     package: &str,
     tag: &str,
@@ -231,7 +231,7 @@ struct NpmFeed {
     registry: String,
     access: String,
     provenance: String,
-    #[allow(dead_code)]
+    #[expect(dead_code, reason = "the feed field is parsed but not read")]
     tarball: String,
     sha256: String,
     files: Vec<String>,

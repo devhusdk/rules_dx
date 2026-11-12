@@ -199,7 +199,7 @@ impl Builder<'_> {
             .map_or(0, |(index, _)| index as u64 + 1)
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
     fn push(
         &mut self,
         id: String,

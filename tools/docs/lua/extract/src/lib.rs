@@ -282,7 +282,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     Ok(shard)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
 fn symbol(
     id: String,
     kind: SymbolKind,

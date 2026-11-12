@@ -1,5 +1,5 @@
 //! A scripted runner and the helpers the tests share.
-#![allow(dead_code)]
+#![expect(dead_code, reason = "each test uses a subset of the helpers")]
 
 use std::cell::RefCell;
 use std::collections::HashMap;

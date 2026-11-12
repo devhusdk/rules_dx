@@ -432,7 +432,6 @@ const CLOUDFLARE_GATE: OwnerGate = OwnerGate {
     approved: "CLOUDFLARE_PUBLISH_APPROVED",
 };
 
-#[allow(clippy::too_many_arguments)]
 fn pages_deploy_with(
     launch: &PagesLaunch<'_>,
     site: &Path,
@@ -465,7 +464,7 @@ fn pages_deploy_with(
     code
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
 fn pages_deploy_staged(
     launch: &PagesLaunch<'_>,
     files: &[PagesFile],

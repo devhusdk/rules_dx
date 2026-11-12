@@ -548,7 +548,7 @@ fn npm_env() -> Vec<(String, String)> {
     ]
 }
 
-#[allow(clippy::disallowed_methods)] // test helper mirrors the backend argv
+#[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
 fn npm_call(
     harness: &Harness,
     startup: &[String],
@@ -970,7 +970,7 @@ fn cargo_harness(name: &str) -> Harness {
     harness
 }
 
-#[allow(clippy::disallowed_methods)] // test helper mirrors the backend argv
+#[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
 fn cargo_call(startup: &[String], offline: bool, repository: &str) -> Vec<String> {
     let mut argv = dx_process::startup_argv(startup);
     argv.push("fetch".to_owned());
@@ -1298,7 +1298,7 @@ fn maven_harness(name: &str) -> Harness {
     harness
 }
 
-#[allow(clippy::disallowed_methods)] // test helper mirrors the backend argv
+#[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
 fn maven_pin_call(repository: &str) -> Vec<String> {
     let mut argv = dx_process::startup_argv(&[]);
     argv.push("run".to_owned());
@@ -1529,7 +1529,7 @@ fn consumer_nuget_check_without_drift_is_current_and_cleans_scratch() {
     let launches = runner.launches.borrow();
     assert_eq!(launches.len(), 1);
     let argv = &launches[0].argv;
-    #[allow(clippy::disallowed_methods)]
+    #[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
     let mut head = dx_process::startup_argv(&[]);
     head.extend(strings_of(&[
         "run",
@@ -1938,7 +1938,7 @@ fn consumer_go_check_runs_go_in_scratch_with_forced_env_and_cleans_up() {
     let launches = runner.launches.borrow();
     assert_eq!(launches.len(), 1);
     let argv = &launches[0].argv;
-    #[allow(clippy::disallowed_methods)]
+    #[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
     let mut head = dx_process::startup_argv(&[]);
     head.extend(strings_of(&[
         "run",

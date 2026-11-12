@@ -17,6 +17,9 @@
     "windows_arm64",
     "windows_x86_64"
   ],
+  "unsupported": {
+    "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS"
+  },
   "pins": [
     "private/toolchain/pins.json"
   ],

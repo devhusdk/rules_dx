@@ -1,11 +1,11 @@
 load("//elixir/private/toolchain:pins.bzl", _ELIXIR_CELLS = "ELIXIR_CELLS")
 load("//erlang/private/toolchain:pins.bzl", OTP_CELLS = "CELLS")
-load("//core:platform_support.bzl", "cells_support", "compatible_with")
+load("//core:platform_support.bzl", "cells_support", "compatible_with", "lang_cells")
 load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_as_errors")
 
 ELIXIR_CELLS = _ELIXIR_CELLS
 
-PLATFORM_SUPPORT = cells_support("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH", OTP_CELLS, ELIXIR_CELLS, "//erlang/private/toolchain")
+PLATFORM_SUPPORT = cells_support("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH", OTP_CELLS, lang_cells("elixir"), "//erlang/private/toolchain")
 
 ELIXIR_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 

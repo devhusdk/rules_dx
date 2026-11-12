@@ -1,8 +1,8 @@
-load("//haskell/private/toolchain:pins.bzl", "CELLS", "qualified_cells")
-load("//core:platform_support.bzl", "cells_support", "compatible_with")
+load("//haskell/private/toolchain:pins.bzl", "CELLS")
+load("//core:platform_support.bzl", "cells_support", "compatible_with", "lang_cells")
 load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_as_errors")
 
-HASKELL_CELLS = qualified_cells()
+HASKELL_CELLS = lang_cells("haskell")
 
 PLATFORM_SUPPORT = cells_support("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH", CELLS, HASKELL_CELLS, "//haskell/private/toolchain")
 

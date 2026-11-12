@@ -19,6 +19,9 @@
     "macos_arm64",
     "windows_x86_64"
   ],
+  "unsupported": {
+    "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
+  },
   "pins": [
     "private/pins.json"
   ],

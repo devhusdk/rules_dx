@@ -1,10 +1,10 @@
 """Keyword helpers for the Erlang wrappers."""
 
-load("//core:platform_support.bzl", "cells_support", "compatible_with")
+load("//core:platform_support.bzl", "cells_support", "compatible_with", "lang_cells")
 load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_as_errors", "dx_without_warnings_attr")
-load("//erlang/private/toolchain:pins.bzl", "CELLS", "OTP_UNPORTED_CELLS")
+load("//erlang/private/toolchain:pins.bzl", "CELLS")
 
-ERLANG_CELLS = sorted([cell for cell in CELLS.keys() if cell not in OTP_UNPORTED_CELLS])
+ERLANG_CELLS = lang_cells("erlang")
 
 PLATFORM_SUPPORT = cells_support("//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH", CELLS, ERLANG_CELLS, "//erlang/private/toolchain")
 

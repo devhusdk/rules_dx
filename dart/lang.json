@@ -38,6 +38,9 @@
     "macos_arm64",
     "windows_x86_64"
   ],
+  "unsupported": {
+    "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK"
+  },
   "pins": [
     "pins.json"
   ],

@@ -40,6 +40,9 @@
     "macos_arm64",
     "windows_x86_64"
   ],
+  "unsupported": {
+    "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build"
+  },
   "pins": [
     "pins.json"
   ],

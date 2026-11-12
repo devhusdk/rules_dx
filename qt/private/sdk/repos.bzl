@@ -2,7 +2,7 @@
 
 load("//cc/private/toolchains:pins.bzl", "VC_REDIST_VERSION")
 load("//core:host.bzl", "host_cell_of")
-load("//core:platform_support.bzl", "cells_support")
+load("//core:platform_support.bzl", "cells_support", "lang_cells")
 load("//core:seven_zip.bzl", "seven_zip_fetch")
 load(
     ":pins.bzl",
@@ -141,7 +141,7 @@ def qualified_cells(cells = CELLS):
     """Returns the cells with pinned archives and probe evidence."""
     return [cell for cell in sorted(cells.keys()) if cells[cell].blocker == ""]
 
-PLATFORM_SUPPORT = cells_support("//qt:defs.bzl", "QT_COMPATIBLE_WITH", CELLS, qualified_cells(), "//qt/private", "constraints", settings = {cell: Label("//qt/private/platforms:cell_" + cell) for cell in CELLS})
+PLATFORM_SUPPORT = cells_support("//qt:defs.bzl", "QT_COMPATIBLE_WITH", CELLS, lang_cells("qt"), "//qt/private", "constraints", settings = {cell: Label("//qt/private/platforms:cell_" + cell) for cell in CELLS})
 
 def hub_targets():
     """Returns every target name the hub repository exposes."""

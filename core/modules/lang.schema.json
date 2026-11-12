@@ -58,6 +58,17 @@
       "uniqueItems": true,
       "items": {"enum": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]}
     },
+    "unsupported": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "linux_arm64": {"type": "string", "minLength": 1},
+        "linux_x86_64": {"type": "string", "minLength": 1},
+        "macos_arm64": {"type": "string", "minLength": 1},
+        "windows_arm64": {"type": "string", "minLength": 1},
+        "windows_x86_64": {"type": "string", "minLength": 1}
+      }
+    },
     "pins": {"$ref": "#/$defs/strings"},
     "entry_points": {"$ref": "#/$defs/strings"},
     "quality": {

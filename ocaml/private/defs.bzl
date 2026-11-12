@@ -197,7 +197,7 @@ def _bytecode_coverage_launcher(ctx, upstream, bytecode):
     descriptor = ctx.actions.declare_file(ctx.label.name + ".run.launch")
     ctx.actions.write(descriptor, launcher_descriptor(runfiles_path(ctx.workspace_name, ocamlrun.short_path), runfiles_path(ctx.workspace_name, bytecode.short_path)))
     ctx.actions.symlink(output = inner, target_file = ctx.executable._exec_launcher, is_executable = True)
-    return _coverage_launcher(ctx, upstream, inner, [inner, descriptor, bytecode, ocamlrun], _native_coverage(ctx, upstream, None), [runtime.default_runfiles, ctx.attr._exec_launcher[DefaultInfo].default_runfiles])
+    return _coverage_launcher(ctx, upstream, inner, [inner, descriptor, bytecode, ocamlrun], _native_coverage(ctx, upstream, None), [runtime.default_runfiles, ctx.attr._exec_launcher[0][DefaultInfo].default_runfiles])
 
 def _launcher_impl(ctx):
     upstream = dx_upstream(ctx)

@@ -1104,6 +1104,23 @@ toolchain(
     toolchain_type = ":compile_check_sh_toolchain_type",
 )
 
+dx_sh_toolchain(
+    name = "busybox_sh_windows",
+    executable = "@dx_busybox_sh_windows//file",
+    launcher = "@bazel_tools//tools/launcher:launcher",
+    launcher_maker = "@bazel_tools//tools/launcher:launcher_maker",
+)
+
+toolchain(
+    name = "busybox_sh_windows_x86_64",
+    exec_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    toolchain = ":busybox_sh_windows",
+    toolchain_type = ":compile_check_sh_toolchain_type",
+)
+
 suite_membership_test(name = "suite_membership_test", sh_test = sh_test)
 
 platform(

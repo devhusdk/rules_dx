@@ -2267,7 +2267,7 @@ crate.from_cargo(
         "//tools/docs/jvm:Cargo.toml",
         "//tools/coverage/collect:Cargo.toml",
         "//tools/coverage/d:Cargo.toml",
-        "//tools/coverage/dotnet:Cargo.toml",
+        "//dotnet/private/coverage:Cargo.toml",
         "//tools/bazelisk:Cargo.toml",
         "//tools/docs/dotnet:Cargo.toml",
         "//tools/docs/go:Cargo.toml",

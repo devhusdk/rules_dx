@@ -1,5 +1,5 @@
 {
-  "checksum": "bedc43498b78caed719290e8bf192acc9bf6f13c288128f93608c23e03d28cd4",
+  "checksum": "59e4fb5b872e0bc9d420eff57b4354b08229fa6f62b0802d7f40cd7f1dbabc83",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -32564,7 +32564,7 @@
     "codegen_shard 0.0.0": "cli/codegen_shard",
     "collect_native 0.0.0": "tools/coverage/collect_native",
     "component_extract 0.0.0": "tools/docs/components/component_extract",
-    "coverlet_launcher 0.0.0": "tools/coverage/coverlet_launcher",
+    "coverlet_launcher 0.0.0": "dotnet/private/coverlet_launcher",
     "csharp_roslyn_fixture 0.0.0": "csharp/tests/fixtures/csharp_roslyn_fixture",
     "cuda_tests 0.0.0": "cuda/cuda_tests",
     "d_coverage_launcher 0.0.0": "tools/coverage/d_coverage_launcher",

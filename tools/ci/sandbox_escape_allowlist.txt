@@ -58,6 +58,9 @@ deploy/private/install/src/lib.rs tmp-path 48
 deploy/private/offline/bootstrap/src/lib_tests.rs tmp-path 4
 deploy/private/release/src/release_lib_tests.rs tmp-path 7
 deploy/private/src/stage.rs tmp-path 2
+dotnet/private/coverage/src/lcov.rs tmp-path 1
+dotnet/private/coverage/src/main.rs tmp-path 2
+dotnet/private/coverage/src/plan.rs tmp-path 2
 java/private/quality/tools/pkl_lsp_smoke_test.rs tmp-path 1
 julia/private/tools/format_cli_test.rs tmp-path 1
 julia/private/tools/jet/jet_cli_test.rs tmp-path 1
@@ -66,9 +69,6 @@ lua/tests/runtime/BUILD.bazel tmp-path 2
 rego/private/launcher/src/opa.rs tmp-path 1
 tools/ci/fill_pins/src/main.rs tmp-path 1
 tools/coverage/collect/src/collect.rs tmp-path 1
-tools/coverage/dotnet/src/lcov.rs tmp-path 1
-tools/coverage/dotnet/src/main.rs tmp-path 2
-tools/coverage/dotnet/src/plan.rs tmp-path 2
 tools/docs/site/build/src/lib.rs tmp-path 1
 tools/testing/hermetic/src/tests.rs tmp-path 3
 tools/testing/src/lib.rs tmp-path 1

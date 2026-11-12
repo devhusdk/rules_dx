@@ -27,6 +27,33 @@ load("//rust:defs.bzl", "rust_test")
     ]
 ]
 
+rust_test(
+    name = "interaction_test",
+    size = "medium",
+    srcs = ["interaction_test.rs"],
+    crate_root = "interaction_test.rs",
+    data = [
+        "//android:declared_emulator",
+        "//flutter/tests/fixtures/flutter-app/android:apk",
+        "@dx_android_sdk//:adb",
+    ],
+    env = {
+        "DX_ADB": "$(rootpaths @dx_android_sdk//:adb)",
+        "DX_ANDROID_SERIAL_FILE": "$(rootpath //android:declared_emulator)",
+        "DX_APK": "$(rootpaths //flutter/tests/fixtures/flutter-app/android:apk)",
+        "DX_APK_ACTIVITY": "io.flutter.embedding.android.FlutterActivity",
+        "DX_APK_APP_ID": "dk.devhus.flutterapp",
+    },
+    tags = ["resources:android_emulator:1"],
+    target_compatible_with = select({
+        "//android:emulator_undeclared": ["@platforms//:incompatible"],
+        "//conditions:default": [
+            "@platforms//cpu:x86_64",
+            "@platforms//os:linux",
+        ],
+    }),
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

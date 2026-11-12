@@ -787,7 +787,6 @@ hermetic_qualification(
     },
     files = {
         "//flutter/tests/fixtures/flutter-app/android:BUILD.bazel": "flutter/tests/fixtures/flutter-app/android/BUILD.bazel",
-        "//flutter/tests/fixtures/flutter-app/android:interaction.sh": "flutter/tests/fixtures/flutter-app/android/interaction.sh",
         "//flutter/tests/fixtures/flutter-app:.dart_tool/package_config.json": "flutter/tests/fixtures/flutter-app/.dart_tool/package_config.json",
         "//flutter/tests/fixtures/flutter-app:.dart_tool/package_graph.json": "flutter/tests/fixtures/flutter-app/.dart_tool/package_graph.json",
         "//flutter/tests/fixtures/flutter-app:BUILD.bazel": "flutter/tests/fixtures/flutter-app/BUILD.bazel",

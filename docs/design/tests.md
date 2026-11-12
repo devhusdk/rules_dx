@@ -35,6 +35,9 @@ Every test target and test macro follows these rules.
 - A test that needs a device the machine may lack is incompatible until the machine declares the device with build flags.
 - The declared device is an input of the test. The test fails when the device it finds is not the declared one.
 - Its rule behaviour is also proven by a unit, analysis or in-graph fixture test that needs no device.
+- An Android emulator is declared with `--@rules_dx//android:emulator_serial=<serial>`. A test that needs it reads the serial from `//android:declared_emulator` and is incompatible under `//android:emulator_undeclared`.
+- A device test carries a `resources:<device>:1` tag, such as `resources:android_emulator:1`. The root `.bazelrc` sets `--local_resources=<device>=<n>`.
+- A device test starts `adb` and `simctl` from runfiles or a pinned toolchain.
 
 ## Test kinds
 

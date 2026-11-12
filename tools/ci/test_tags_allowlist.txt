@@ -4,8 +4,6 @@ examples/adopt-polyglot/BUILD.bazel requires-network 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel exclusive 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel local 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel manual 1
-flutter/tests/fixtures/flutter-app/android/BUILD.bazel exclusive 1
-flutter/tests/fixtures/flutter-app/android/BUILD.bazel manual 1
 tools/ci/BUILD.bazel no-remote 1
 tools/testing/hermetic/BUILD.bazel exclusive 2
 tools/testing/hermetic/BUILD.bazel manual 2

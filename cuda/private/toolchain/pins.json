@@ -2,6 +2,9 @@
   "version": "13.4.2",
   "archives": {
     "redist_manifest": {
+      "version": "13.4.2",
+      "type": "file",
+      "path": "redistrib.json",
       "urls": [
         "https://developer.download.nvidia.com/compute/cuda/redist/redistrib_13.4.2.json"
       ],

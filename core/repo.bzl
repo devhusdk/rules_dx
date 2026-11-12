@@ -32,7 +32,7 @@ def _pinned_archive_impl(rctx):
     if error:
         fail(error)
     if rctx.attr.download_as:
-        rctx.download(url = rctx.attr.urls, output = rctx.attr.download_as, sha256 = rctx.attr.sha256, integrity = rctx.attr.integrity)
+        rctx.download(url = rctx.attr.urls, output = rctx.attr.download_as, sha256 = rctx.attr.sha256, integrity = rctx.attr.integrity, executable = rctx.attr.executable)
     else:
         rctx.download_and_extract(
             url = rctx.attr.urls,
@@ -86,6 +86,7 @@ pinned_archive = repository_rule(
         "crlf": attr.string_list(doc = "Paths rewritten with CRLF line endings after patching."),
         "download_as": attr.string(doc = "File name to download to without extracting."),
         "dropped": attr.string_list(doc = "Paths deleted after extraction."),
+        "executable": attr.bool(doc = "Marks the file named by download_as executable."),
         "files": attr.string_dict(doc = "Repository path to file content."),
         "integrity": attr.string(doc = "Subresource integrity of the archive, such as sha512-<base64>, used when there is no sha256."),
         "inner": attr.string_list(doc = "Archives inside the downloaded one, extracted into the repository and then deleted."),

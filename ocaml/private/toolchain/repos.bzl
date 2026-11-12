@@ -162,6 +162,9 @@ def _dist_impl(rctx):
     for package in cell.packages:
         _install_package(rctx, package)
     rctx.delete("_conda")
+    for path in getattr(cell, "required_files", []):
+        if not rctx.path(path).exists:
+            fail("OCaml cell " + rctx.attr.cell + " has no " + path + "; lib/ holds " + repr([str(p.basename) for p in rctx.path("lib").readdir()]))
     rctx.file(VERSION_FILE, OCAML_VERSION + "\n")
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", _DIST_BUILD.format(

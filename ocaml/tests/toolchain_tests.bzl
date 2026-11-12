@@ -42,6 +42,7 @@ def _checks():
         expect_equal("linux packages", sorted([p.name for p in linux.packages]), ["ocaml", "zstd"]),
         expect_contains("ocaml package names the version", ocaml.archive.urls[0], "ocaml_linux-64-" + OCAML_VERSION + "-"),
         expect_equal("macos packages", sorted(macos.keys()), ["ocaml", "zstd", "zstd-static"]),
+        expect_equal("macos cell requires the zstd dylib", OCAML_CELLS["macos_arm64"].required_files, ["lib/libzstd.1.dylib"]),
         expect_contains("macos zstd version", macos["zstd"].archive.urls[0], "/zstd-1.5.7-"),
         expect_contains("macos zstd-static matches the zstd version", macos["zstd-static"].archive.urls[0], "/zstd-static-1.5.7-"),
         expect_equal("ocaml license", ocaml.license, "LGPL-2.1-only WITH OCaml-LGPL-linking-exception"),

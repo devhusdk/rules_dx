@@ -93,6 +93,7 @@ OCAML_CELLS = {
     "macos_arm64": struct(
         exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
         emitters = ["sys", "vm"],
+        required_files = ["lib/libzstd.1.dylib"],
         packages = [
             struct(
                 name = "ocaml",

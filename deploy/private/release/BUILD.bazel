@@ -116,6 +116,7 @@ rust_test(
         "src/ledger.rs",
         "src/lib.rs",
         "src/modules.rs",
+        "src/presubmit.rs",
         "src/provenance.rs",
         "src/publish.rs",
         "src/release_lib_tests.rs",

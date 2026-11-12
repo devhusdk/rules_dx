@@ -155,8 +155,8 @@ rust_test(
     crate_name = "lock_merge_test",
     crate_root = "lock_merge_test.rs",
     data = [
-        ":jq",
         "lock_merge.sh",
+        ":jq",
     ],
     env = {"DX_JQ": "$(rootpath :jq)"},
     deps = all_crate_deps(

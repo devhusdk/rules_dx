@@ -113,7 +113,6 @@ def thin_compare_cc_env_tests(name):
         mode = "analysis",
         subjects = [":thin_cc_env_subject"],
         expected_observations = THIN_CC_ENV_OBSERVATIONS,
-        windows_expected_observations = THIN_CC_ENV_OBSERVATIONS.replace("field wrapper_inherited=HOME", "field wrapper_inherited="),
     )
 
 def thin_compare_rust_tests(name):
@@ -160,7 +159,7 @@ field thin_env=
 field thin_inherited=
 field thin_label=//cc/tests/fixtures/hello:hello_test_upstream
 field wrapper_env=DX_HELLO_ENV=1
-field wrapper_inherited=HOME
+field wrapper_inherited=
 field wrapper_label=//cc/tests/fixtures/hello:hello_test
 aspect_field aspect_seen=True
 aspect_field field_count=7

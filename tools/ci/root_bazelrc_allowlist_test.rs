@@ -7,7 +7,7 @@ use dx_testing::read_runfiles;
 const ALLOWLIST: &str = "tools/ci/root_bazelrc_allowlist.txt";
 const BAZELRC: &str = ".bazelrc";
 
-const ROOT_BAZELRC_ALLOWLIST_CAP: usize = 48;
+const ROOT_BAZELRC_ALLOWLIST_CAP: usize = 47;
 
 fn allowlist(text: &str) -> BTreeSet<String> {
     text.lines()

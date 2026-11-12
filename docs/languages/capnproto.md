@@ -13,20 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//capnproto:defs.bzl`:
 
 ```python
-load("@rules_dx//capnproto:defs.bzl", "capnproto_cc_library", "capnproto_java_library", "capnproto_library")
+load("@rules_dx//capnproto:defs.bzl", "capnproto_cc_library", "capnproto_codegen_shard", "capnproto_java_library")
 ```
 
 ## Rules
-
-### `capnproto_library`
-
-Owns Cap'n Proto schemas for dx lint. Imports resolve only from deps, relative to the importing file or from the workspace root, plus the bundled /capnp/*.capnp schemas.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `srcs` | `label_list` | no | Cap'n Proto schema files of this package. |
-| `deps` | `label_list` | no | capnproto_library targets whose schemas these import. |
-| `_std` | `label` | no |  |
 
 ### `capnproto_cc_library`
 
@@ -37,6 +27,10 @@ C++ code and runtime for capnproto_library schemas. Each library is generated an
 | `deps` | `label_list` | no | capnproto_library targets to generate C++ for. |
 | `_runtime` | `label` | no |  |
 
+### `capnproto_codegen_shard`
+
+No documentation.
+
 ### `capnproto_java_library`
 
 Java classes and runtime for capnproto_library schemas. Each library is generated and compiled once, by its own aspect. Every schema needs the $Java.package annotation from /capnp/java.capnp.
@@ -45,6 +39,16 @@ Java classes and runtime for capnproto_library schemas. Each library is generate
 | --- | --- | --- | --- |
 | `deps` | `label_list` | no | capnproto_library targets to generate Java for. |
 | `_runtime` | `label` | no |  |
+
+### `capnproto_library`
+
+Owns Cap'n Proto schemas for dx lint. Imports resolve only from deps, relative to the importing file or from the workspace root, plus the bundled /capnp/*.capnp schemas.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `srcs` | `label_list` | no | Cap'n Proto schema files of this package. |
+| `deps` | `label_list` | no | capnproto_library targets whose schemas these import. |
+| `_std` | `label` | no |  |
 
 ### `capnproto_rust_library`
 
@@ -66,10 +70,6 @@ Args:
   deps: capnproto_rust_library targets of the library's direct capnp deps.
   **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
     and the like replace the defaults; srcs and deps are added to them.
-
-### `capnproto_codegen_shard`
-
-No documentation.
 
 ## Tools
 

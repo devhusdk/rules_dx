@@ -13,20 +13,14 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//api_spec:defs.bzl`:
 
 ```python
-load("@rules_dx//api_spec:defs.bzl", "api_spec_go_client", "api_spec_library", "api_spec_python_client")
+load("@rules_dx//api_spec:defs.bzl", "api_spec_codegen_shard", "api_spec_go_client", "api_spec_library")
 ```
 
 ## Rules
 
-### `api_spec_library`
+### `api_spec_codegen_shard`
 
-Owns the OpenAPI and AsyncAPI documents of one package for dx quality.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `srcs` | `label_list` | no | Root OpenAPI or AsyncAPI documents to lint. |
-| `refs` | `label_list` | no | Files the roots reach through relative $ref. |
-| `deps` | `label_list` | no | Spec libraries the roots reach through relative $ref. |
+No documentation.
 
 ### `api_spec_go_client`
 
@@ -41,6 +35,16 @@ Generates one Go client file (types and client) with oapi-codegen from an OpenAP
 | `_driver` | `label` | no |  |
 | `_oapi_codegen` | `label` | no |  |
 | `_preflight` | `label` | no |  |
+
+### `api_spec_library`
+
+Owns the OpenAPI and AsyncAPI documents of one package for dx quality.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `srcs` | `label_list` | no | Root OpenAPI or AsyncAPI documents to lint. |
+| `refs` | `label_list` | no | Files the roots reach through relative $ref. |
+| `deps` | `label_list` | no | Spec libraries the roots reach through relative $ref. |
 
 ### `api_spec_python_client`
 
@@ -79,10 +83,6 @@ Generates one self-contained TypeScript client from an OpenAPI root of an api_sp
 | `_config` | `label` | no |  |
 | `_preflight` | `label` | no |  |
 | `_redocly` | `label` | no |  |
-
-### `api_spec_codegen_shard`
-
-No documentation.
 
 ## Tools
 

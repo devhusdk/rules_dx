@@ -13,10 +13,26 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//elixir:defs.bzl`:
 
 ```python
-load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_escript_archive", "elixir_escript_headers")
+load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_bench", "elixir_escript_archive")
 ```
 
 ## Rules
+
+### `elixir_app`
+
+```python
+elixir_app(name, visibility = None, testonly = False, **kwargs)
+```
+
+Thin wrapper over the rules_elixir elixir_app macro.
+
+### `elixir_bench`
+
+```python
+elixir_bench(name, *, srcs, tags = None, deps = None, **kwargs)
+```
+
+elixir_test run by dx bench: DxBench.run in srcs runs Benchee and writes dx-bench.json.
 
 ### `elixir_escript_archive`
 
@@ -34,14 +50,6 @@ elixir_escript_headers(module)
 
 Returns elixir_escript_archive headers that start one Elixir module in a UTF-8 VM.
 
-### `elixir_app`
-
-```python
-elixir_app(name, visibility = None, testonly = False, **kwargs)
-```
-
-Thin wrapper over the rules_elixir elixir_app macro.
-
 ### `elixir_test`
 
 ```python
@@ -49,14 +57,6 @@ elixir_test(name, *, srcs = None, visibility = None, **kwargs)
 ```
 
 Thin wrapper over the rules_elixir ex_unit_test rule. srcs is required; test_helper.exs is loaded first and coverage loads through elixir_opts.
-
-### `elixir_bench`
-
-```python
-elixir_bench(name, *, srcs, tags = None, deps = None, **kwargs)
-```
-
-elixir_test run by dx bench: DxBench.run in srcs runs Benchee and writes dx-bench.json.
 
 ## API docs
 

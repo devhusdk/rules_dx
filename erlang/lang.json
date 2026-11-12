@@ -31,17 +31,17 @@
     "pins.json"
   ],
   "entry_points": [
-    "erlang_erlc_opts",
-    "erlang_xrl_yrl",
-    "erlang_nif",
-    "erlang_release",
     "erlang_app",
-    "erlang_test_app",
+    "erlang_bench",
     "erlang_bytecode",
+    "erlang_ct_suite_test",
+    "erlang_erlc_opts",
     "erlang_escript_archive",
     "erlang_eunit_test",
-    "erlang_ct_suite_test",
-    "erlang_bench"
+    "erlang_nif",
+    "erlang_release",
+    "erlang_test_app",
+    "erlang_xrl_yrl"
   ],
   "quality": {
     "bzl": "core/quality:families/beam.bzl",

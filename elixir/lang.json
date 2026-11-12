@@ -46,11 +46,11 @@
     "pins.json"
   ],
   "entry_points": [
+    "elixir_app",
+    "elixir_bench",
     "elixir_escript_archive",
     "elixir_escript_headers",
-    "elixir_app",
-    "elixir_test",
-    "elixir_bench"
+    "elixir_test"
   ],
   "quality": {
     "bzl": "core/quality:families/beam.bzl",

@@ -19,12 +19,12 @@
   ],
   "pins": [],
   "entry_points": [
-    "api_spec_library",
+    "api_spec_codegen_shard",
     "api_spec_go_client",
+    "api_spec_library",
     "api_spec_python_client",
     "api_spec_rust_client",
-    "api_spec_typescript_client",
-    "api_spec_codegen_shard"
+    "api_spec_typescript_client"
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",

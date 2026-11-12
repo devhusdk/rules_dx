@@ -23,7 +23,7 @@ def _helm_config_impl(ctx):
     helm = ctx.file.helm
     return deploy_config(
         ctx,
-        "helm_library",
+        "helm_chart",
         {
             "deploy_name": ctx.attr.deploy_name,
             "files": files,

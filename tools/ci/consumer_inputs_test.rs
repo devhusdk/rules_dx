@@ -1,8 +1,11 @@
-use ci_workflow::{document, job, jobs_of, steps_of, text_at};
+use ci_workflow::{document, jobs_of, steps_of};
+#[cfg(unix)]
+use ci_workflow::{job, text_at};
 use serde_json::Value;
 
 const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
+#[cfg(unix)]
 const MATRIX_JOB: &str = "checks";
 
 #[cfg(unix)]

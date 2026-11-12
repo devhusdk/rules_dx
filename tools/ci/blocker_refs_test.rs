@@ -1,3 +1,5 @@
+#![cfg(unix)]
+
 use dx_testing::resolve_runfiles;
 use std::io::Write;
 use std::process::{Command, Stdio};

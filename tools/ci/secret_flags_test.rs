@@ -294,6 +294,7 @@ fn every_upload_follows_a_matching_scan() {
     assert!(uploads > 0, "no workflow with the key uploads anything");
 }
 
+#[cfg(unix)]
 fn run_script(dir: &Path, script: &str, env: &[(&str, &str)]) -> (i32, String) {
     let mut command = Command::new("bash");
     command.arg("-e").arg("-c").arg(script).current_dir(dir);

@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "qt_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "consumer_identity_test"
+path = "consumer_identity_test.rs"
+
+[[test]]
+name = "qt_test"
+path = "qt_test.rs"

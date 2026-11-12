@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "appimage_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "appimage_arm64_test"
+path = "appimage_arm64_test.rs"
+
+[[test]]
+name = "appimage_test"
+path = "appimage_test.rs"

@@ -291,3 +291,10 @@ rust_test(
         "LIBRARY": "$(rootpath //flatbuffers/tests/conform/bad:shape.fbs)",
     },
 )
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

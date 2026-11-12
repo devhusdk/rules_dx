@@ -209,6 +209,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "appimage_tests"
+version = "0.0.0"
+
+[[package]]
 name = "apple_tests"
 version = "0.0.0"
 
@@ -541,6 +545,10 @@ dependencies = [
 
 [[package]]
 name = "capnpc_rust_dx"
+version = "0.0.0"
+
+[[package]]
+name = "capnproto_tests"
 version = "0.0.0"
 
 [[package]]
@@ -2374,6 +2382,10 @@ name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
+
+[[package]]
+name = "flatbuffers_tests"
+version = "0.0.0"
 
 [[package]]
 name = "flate2"
@@ -4415,6 +4427,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "qt_tests"
+version = "0.0.0"
+
+[[package]]
 name = "quality_adapter"
 version = "0.0.0"
 dependencies = [
@@ -4852,6 +4868,10 @@ dependencies = [
  "rustdoc-types",
  "serde_json",
 ]
+
+[[package]]
+name = "rust_tonic_tests"
+version = "0.0.0"
 
 [[package]]
 name = "rustc_version"
@@ -5817,6 +5837,10 @@ checksum = "1ad99c4c6d32803332c548b1af0540b357b3f5fc0be8f6c6bfe8b2e6ae784070"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "thrift_tests"
+version = "0.0.0"
 
 [[package]]
 name = "tiers"

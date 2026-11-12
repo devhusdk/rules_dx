@@ -1,5 +1,5 @@
 {
-  "checksum": "1fd93ac74d0ee4f85512e1bb2ee30b833f9bd9ee477d2b06e482aa71fb396085",
+  "checksum": "cc9ee6e455f303c48961816e27ee95d89b1385387f344bb1517258c03494188c",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1234,6 +1234,19 @@
           }
         }
       ],
+      "version": "0.0.0"
+    },
+    "appimage_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "appimage_tests",
+      "repository": null,
+      "targets": [],
       "version": "0.0.0"
     },
     "apple_tests 0.0.0": {
@@ -2849,6 +2862,19 @@
         "Apache-2.0"
       ],
       "name": "capnpc_rust_dx",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "capnproto_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "capnproto_tests",
       "repository": null,
       "targets": [],
       "version": "0.0.0"
@@ -10743,6 +10769,19 @@
         }
       ],
       "version": "0.1.15"
+    },
+    "flatbuffers_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "flatbuffers_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "flate2 1.1.10": {
       "common_attrs": {
@@ -20453,6 +20492,19 @@
       "targets": [],
       "version": "0.0.0"
     },
+    "qt_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "qt_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "quality_adapter 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -22573,6 +22625,19 @@
           }
         }
       ],
+      "version": "0.0.0"
+    },
+    "rust_tonic_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "rust_tonic_tests",
+      "repository": null,
+      "targets": [],
       "version": "0.0.0"
     },
     "rustc_version 0.4.1": {
@@ -27373,6 +27438,19 @@
         }
       ],
       "version": "1.1.10"
+    },
+    "thrift_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "thrift_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "tiers 0.0.0": {
       "common_attrs": {
@@ -32600,11 +32678,13 @@
   "workspace_members": {
     "api_spec_tests 0.0.0": "api_spec/api_spec_tests",
     "appimage_packer 0.0.0": "appimage/private/appimage_packer",
+    "appimage_tests 0.0.0": "appimage/appimage_tests",
     "apple_tests 0.0.0": "apple/apple_tests",
     "avro_extract 0.0.0": "tools/docs/avro/avro_extract",
     "bazelisk_wrapper 0.0.0": "tools/bazelisk_wrapper",
     "beam_extract 0.0.0": "tools/docs/beam/beam_extract",
     "capnpc_rust_dx 0.0.0": "capnproto/private/tools/capnpc_rust_dx",
+    "capnproto_tests 0.0.0": "capnproto/capnproto_tests",
     "cc_context 0.0.0": "cc/private/cc_context",
     "cc_extract 0.0.0": "tools/docs/cc/cc_extract",
     "cc_tests 0.0.0": "cc/cc_tests",
@@ -32703,6 +32783,7 @@
     "dx_worktree 0.0.0": "cli/dx_worktree",
     "env_shard 0.0.0": "env/private/env_shard",
     "env_stubs 0.0.0": "env/private/env_stubs",
+    "flatbuffers_tests 0.0.0": "flatbuffers/flatbuffers_tests",
     "fortran_extract 0.0.0": "tools/docs/fortran/fortran_extract",
     "gazelle_rust 0.0.0": "gazelle/gazelle_rust",
     "generation_result 0.0.0": "cli/generation_result",
@@ -32736,6 +32817,7 @@
     "python_docs_tests 0.0.0": "tools/docs/python_docs_tests",
     "python_extract 0.0.0": "tools/docs/python/python_extract",
     "qt_rust_bridge 0.0.0": "qt/private/qt_rust_bridge",
+    "qt_tests 0.0.0": "qt/qt_tests",
     "quality_adapter 0.0.0": "core/quality/quality_adapter",
     "quality_markdown 0.0.0": "core/quality/quality_markdown",
     "quality_notebook 0.0.0": "core/quality/quality_notebook",
@@ -32750,6 +32832,7 @@
     "ruby_docs_tests 0.0.0": "tools/docs/ruby_docs_tests",
     "ruby_extract 0.0.0": "tools/docs/ruby/ruby_extract",
     "rust_extract 0.0.0": "tools/docs/rust/rust_extract",
+    "rust_tonic_tests 0.0.0": "rust/tests/rust_tonic_tests",
     "sbom_demo 0.0.0": "deploy/private/sbom_demo",
     "site_aggregate 0.0.0": "tools/docs/site/site_aggregate",
     "site_browser 0.0.0": "tools/docs/site/site_browser",
@@ -32760,6 +32843,7 @@
     "support_matrix 0.0.0": "tools/docs/support_matrix",
     "swift_extract 0.0.0": "tools/docs/swift/swift_extract",
     "swift_lock 0.0.0": "swift/private/tools/swift_lock",
+    "thrift_tests 0.0.0": "thrift/thrift_tests",
     "tiers 0.0.0": "tools/docs/tiers",
     "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",

@@ -9,7 +9,7 @@ load("@rules_apple//apple/testing/default_runner:ios_xctestrun_runner.bzl", "ios
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//apple/private/bundle:defs.bzl", "NO_PATH", "SIGNING_CERTIFICATE", "archives", "check_cell", "display", "flat_resources", "framework_binaries", "label_text", "resolved_xcode")
+load("//apple/private/bundle:defs.bzl", "EXTRA_TOOLCHAINS_SETTING", "NO_PATH", "SIGNING_CERTIFICATE", "apple_extra_toolchains", "archives", "check_cell", "display", "flat_resources", "framework_binaries", "label_text", "resolved_xcode")
 load("//core:resources.bzl", "dx_heavy_resources")
 load(":app_validate.bzl", "ios_app_errors", "ios_test_coverage_kwargs", "ios_test_errors", "ios_test_source_errors", "ios_xcframework_errors", "ios_xcframework_header_name_errors")
 load(
@@ -351,16 +351,17 @@ def _device_app_impl(ctx):
         providers.append(bundle[OutputGroupInfo])
     return providers
 
-def _device_cpu_impl(_settings, _attr):
+def _device_cpu_impl(settings, _attr):
     return {
+        EXTRA_TOOLCHAINS_SETTING: apple_extra_toolchains(settings[EXTRA_TOOLCHAINS_SETTING]),
         _IOS_MULTI_CPUS: [MULTI_CPUS["device/arm64"]],
         SIGNING_CERTIFICATE: "-",
     }
 
 _device_cpu_transition = transition(
     implementation = _device_cpu_impl,
-    inputs = [],
-    outputs = [_IOS_MULTI_CPUS, SIGNING_CERTIFICATE],
+    inputs = [EXTRA_TOOLCHAINS_SETTING],
+    outputs = [EXTRA_TOOLCHAINS_SETTING, _IOS_MULTI_CPUS, SIGNING_CERTIFICATE],
 )
 
 _device_app = rule(
@@ -403,6 +404,7 @@ def _simulator_app_impl(ctx):
 def _simulator_cell_impl(settings, attr):
     xcode = attr.xcode_version if attr.xcode_version != "" else settings[_XCODE_VERSION]
     return {
+        EXTRA_TOOLCHAINS_SETTING: apple_extra_toolchains(settings[EXTRA_TOOLCHAINS_SETTING]),
         _IOS_MULTI_CPUS: [MULTI_CPUS[attr.environment + "/" + attr.arch]],
         _IOS_MINIMUM_OS: attr.deployment if attr.deployment != "" else settings[_IOS_MINIMUM_OS],
         _XCODE_VERSION: xcode,
@@ -410,8 +412,8 @@ def _simulator_cell_impl(settings, attr):
 
 _simulator_cell_transition = transition(
     implementation = _simulator_cell_impl,
-    inputs = [_IOS_MINIMUM_OS, _XCODE_VERSION],
-    outputs = [_IOS_MULTI_CPUS, _IOS_MINIMUM_OS, _XCODE_VERSION],
+    inputs = [EXTRA_TOOLCHAINS_SETTING, _IOS_MINIMUM_OS, _XCODE_VERSION],
+    outputs = [EXTRA_TOOLCHAINS_SETTING, _IOS_MULTI_CPUS, _IOS_MINIMUM_OS, _XCODE_VERSION],
 )
 
 _simulator_app = rule(

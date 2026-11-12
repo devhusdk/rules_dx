@@ -11,6 +11,18 @@ _GROUPED_RESOURCES = (".alticon", ".atlas", ".bundle", ".icon", ".lproj", ".mlpa
 
 SIGNING_CERTIFICATE = str(Label("@rules_apple//apple/build_settings:signing_certificate_name"))
 
+EXTRA_TOOLCHAINS_SETTING = "//command_line_option:extra_toolchains"
+
+_APPLE_CC_TOOLCHAINS = str(Label("@local_config_apple_cc_toolchains//:all"))
+
+def apple_extra_toolchains(current):
+    """Returns the Xcode C++ toolchains followed by the current extra toolchains."""
+    toolchains = [_APPLE_CC_TOOLCHAINS]
+    for toolchain in current:
+        if str(toolchain) not in toolchains:
+            toolchains.append(str(toolchain))
+    return toolchains
+
 def display(label):
     """Returns a label as users write it in their own repository."""
     if label.repo_name == "":
@@ -103,11 +115,14 @@ def check_cell(ctx, kind, cell, sdk, mach_o_platform, platform, platform_type, m
     )
     return report
 
-def _adhoc_signing_impl(_settings, _attr):
-    return {SIGNING_CERTIFICATE: "-"}
+def _adhoc_signing_impl(settings, _attr):
+    return {
+        EXTRA_TOOLCHAINS_SETTING: apple_extra_toolchains(settings[EXTRA_TOOLCHAINS_SETTING]),
+        SIGNING_CERTIFICATE: "-",
+    }
 
 adhoc_signing_transition = transition(
     implementation = _adhoc_signing_impl,
-    inputs = [],
-    outputs = [SIGNING_CERTIFICATE],
+    inputs = [EXTRA_TOOLCHAINS_SETTING],
+    outputs = [EXTRA_TOOLCHAINS_SETTING, SIGNING_CERTIFICATE],
 )

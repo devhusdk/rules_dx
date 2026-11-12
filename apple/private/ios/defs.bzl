@@ -316,6 +316,9 @@ ios_lib = rule(
             doc = "iOS library environment, either device or simulator.",
             mandatory = True,
         ),
+        "selection": attr.label(
+            doc = "The selection rule that validates the platform and options.",
+        ),
         "xcode_version": attr.string(
             doc = "Xcode version selected for the cell build, or empty when unset.",
             default = "",
@@ -399,6 +402,7 @@ def apple_ios_lib(
         cell = ":" + name + "_cell",
         deployment = deployment,
         environment = environment,
+        selection = ":" + name + "_selection",
         xcode_version = xcode_version,
         tags = tags,
         testonly = testonly,

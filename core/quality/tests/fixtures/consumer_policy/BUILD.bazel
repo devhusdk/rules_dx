@@ -20,12 +20,32 @@ exports_files([
 workspace_policy(
     name = "shared_policy",
     configs = select({
+            "//config:config_tier_strict": ["//core/quality/tiers/ansible_lint:strict"],
+            "//conditions:default": ["//core/quality/tiers/ansible_lint:standard"],
+        }) +
+        select({
+            "//config:config_tier_strict": ["//core/quality/tiers/bicep:strict"],
+            "//conditions:default": ["//core/quality/tiers/bicep:standard"],
+        }) +
+        select({
             "//config:config_tier_strict": ["//core/quality/tiers/buildifier:strict"],
             "//conditions:default": ["//core/quality/tiers/buildifier:standard"],
         }) +
         select({
+            "//config:config_tier_strict": ["//core/quality/tiers/checkmake:strict"],
+            "//conditions:default": ["//core/quality/tiers/checkmake:standard"],
+        }) +
+        select({
+            "//config:config_tier_strict": ["//core/quality/tiers/cmakelint:strict"],
+            "//conditions:default": ["//core/quality/tiers/cmakelint:standard"],
+        }) +
+        select({
             "//config:config_tier_strict": ["//core/quality/tiers/credo:strict"],
             "//conditions:default": ["//core/quality/tiers/credo:standard"],
+        }) +
+        select({
+            "//config:config_tier_strict": ["//core/quality/tiers/docstrfmt:strict"],
+            "//conditions:default": ["//core/quality/tiers/docstrfmt:standard"],
         }) +
         select({
             "//config:config_tier_strict": ["//core/quality/tiers/detekt:strict"],
@@ -52,12 +72,24 @@ workspace_policy(
             "//conditions:default": ["//core/quality/tiers/sqlfluff:standard"],
         }) +
         select({
+            "//config:config_tier_strict": ["//core/quality/tiers/tflint:strict"],
+            "//conditions:default": ["//core/quality/tiers/tflint:standard"],
+        }) +
+        select({
             "//config:config_tier_strict": ["//core/quality/tiers/yamllint:strict"],
             "//conditions:default": ["//core/quality/tiers/yamllint:standard"],
         }),
     bases = select({
-        "//config:config_tier_strict": ["//core/quality/tiers/hlint:strict"],
-        "//conditions:default": ["//core/quality/tiers/hlint:standard"],
+        "//config:config_tier_strict": [
+            "//core/quality/tiers/gersemi:strict",
+            "//core/quality/tiers/hlint:strict",
+            "//core/quality/tiers/mbake:strict",
+        ],
+        "//conditions:default": [
+            "//core/quality/tiers/gersemi:standard",
+            "//core/quality/tiers/hlint:standard",
+            "//core/quality/tiers/mbake:standard",
+        ],
     }),
     families = [
         ":ansible_family",
@@ -294,12 +326,10 @@ real_source_target(
 
 quality_family(
     name = "terraform_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "terraform",
     format = ["terraform"],
+    lint = ["tflint"],
 )
 
 filegroup(
@@ -718,11 +748,9 @@ real_source_target(
 
 quality_family(
     name = "rst_family",
-    disabled = [
-        "format",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "rst",
+    format = ["docstrfmt"],
     lint = ["vale"],
 )
 

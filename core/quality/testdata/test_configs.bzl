@@ -1,6 +1,6 @@
 """Build settings of every quality test configuration."""
 
-MAX_TEST_CONFIGS = 27
+MAX_TEST_CONFIGS = 24
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 
@@ -67,7 +67,6 @@ def _config(policy, compiler = "llvm", tier = "strict", clippy_flags = [], tools
 _CC_SYNTAX = "//core/quality/testdata/clang_syntax:cc_syntax_policy"
 _CC_TIDY = "//core/quality/testdata/clang_syntax:cc_tidy_policy"
 _SHARED = "//core/quality/tests/fixtures/consumer_policy:shared_policy"
-_ZIG = "//core/quality/testdata/zig_owned:policy"
 
 TEST_CONFIGS = {
     "cc_syntax": _config(_CC_SYNTAX),
@@ -83,12 +82,9 @@ TEST_CONFIGS = {
     "shared_standard": _config(_SHARED, tier = "standard"),
     "default": _config("//config:default_workspace_policy"),
     "default_standard": _config("//config:default_workspace_policy", tier = "standard"),
-    "zig_owned": _config(_ZIG),
     "generated": _config("//core/quality/tests/fixtures/generated_policy:policy"),
     "strict_generated_standard": _config("//core/quality/tests/fixtures/consumer_policy:strict_generated_policy", tier = "standard"),
-    "iac_tiers": _config("//core/quality/testdata/iac_tiers:policy"),
     "objc": _config("//core/quality/testdata/clang_syntax:objc_policy"),
-    "prose_dirty": _config("//core/quality/testdata/prose_dirty:policy"),
     "ruff_alternate": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:alternate_ruff"}),
     "ruff_empty": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:no_ruff"}),
     "ruff_pair": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:two_ruffs"}),

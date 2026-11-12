@@ -11,6 +11,7 @@ exports_files([
     "cabal_llvm_ar.patch",
     "cc_wrapper_darwin_ffi.patch",
     "cabal_binary_dep_data.patch",
+    "cabal_static_exe.patch",
 ])
 
 real_source_target(

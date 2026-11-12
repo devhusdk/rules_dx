@@ -1,15 +1,8 @@
 """Analysis tests for protos outside the package of the generating rule."""
 
-load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//core:failure_test.bzl", "failure_test")
 load("//python:defs.bzl", "python_grpc_library")
 load("//typescript/private:proto.bzl", "ts_proto_srcs")
-
-def _other_package_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "must be in the package")
-    return analysistest.end(env)
-
-_other_package_test = analysistest.make(_other_package_impl, expect_failure = True)
 
 def proto_package_tests(name):
     """Instantiates the tests that reject a proto_library from another package.
@@ -30,6 +23,6 @@ def proto_package_tests(name):
         tags = ["manual"],
         testonly = True,
     )
-    _other_package_test(name = name + "_py_test", target_under_test = ":" + name + "_py_srcs")
-    _other_package_test(name = name + "_ts_test", target_under_test = ":" + name + "_ts_srcs")
+    failure_test(name = name + "_py_test", target = ":" + name + "_py_srcs", expected_failure_substring = "must be in the package")
+    failure_test(name = name + "_ts_test", target = ":" + name + "_ts_srcs", expected_failure_substring = "must be in the package")
     native.test_suite(name = name, tests = [":" + name + "_py_test", ":" + name + "_ts_test"])

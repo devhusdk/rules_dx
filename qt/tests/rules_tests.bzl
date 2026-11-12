@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core:failure_test.bzl", "failure_test")
 load("//qt/private:defs.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "QT_BUNDLE_MACOS_RUNPATH", "QT_COMPATIBLE_WITH", "QT_CONF", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_runtime_members")
 load("//qt/private:providers.bzl", "QtInfo")
 load("//qt/private:validate.bzl", "qt_uri_error")
@@ -559,17 +560,6 @@ def _macos_bundle_test_impl(ctx):
 
 _macos_bundle_test = analysistest.make(_macos_bundle_test_impl)
 
-def _failure_test_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, ctx.attr.message)
-    return analysistest.end(env)
-
-_failure_test = analysistest.make(
-    _failure_test_impl,
-    expect_failure = True,
-    attrs = {"message": attr.string(mandatory = True)},
-)
-
 def qt_rules_tests(name):
     """Declares the Qt rules unit and analysis tests."""
     starlark_test(
@@ -689,10 +679,10 @@ def qt_rules_tests(name):
         "rust_foreign": "bridge '" + str(Label("//qt/tests/other:bridge.rs")) + "' must be in package qt/tests; give it its own target",
     }
     for fixture in sorted(failures.keys()):
-        _failure_test(
+        failure_test(
             name = name + "_" + fixture,
-            target_under_test = ":" + fixture,
-            message = failures[fixture],
+            target = ":" + fixture,
+            expected_failure_substring = failures[fixture],
             target_compatible_with = QT_BUNDLE_COMPATIBLE_WITH if fixture.startswith("bundle_") else QT_COMPATIBLE_WITH,
         )
     native.test_suite(

@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//cc/private:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
+load("//core:failure_test.bzl", "failure_test")
 load("//core/quality/testdata:all_languages.bzl", "real_cc_lint_aspect")
 load("//core/quality/testdata:config_subject.bzl", "config_subject_rule")
 
@@ -40,17 +41,6 @@ _no_tidy_config_test = analysistest.make(
     _no_tidy_config_impl,
 )
 
-def _tidy_without_config_impl(ctx):
-    """Checks selecting clang_tidy without a config fails with the missing-config message."""
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "has no clang_tidy config")
-    return analysistest.end(env)
-
-_tidy_without_config_test = analysistest.make(
-    _tidy_without_config_impl,
-    expect_failure = True,
-)
-
 def clang_syntax_analysis_tests(name):
     """Instantiates the clang syntax analysis tests as one suite."""
     _windows_argv_test(
@@ -75,9 +65,9 @@ def clang_syntax_analysis_tests(name):
         tags = ["manual"],
         target = "//core/quality/testdata/clang_syntax:dirty",
     )
-    _tidy_without_config_test(
+    failure_test(
         name = name + "_tidy_without_config",
-        size = "small",
-        target_under_test = name + "_tidy_without_config_subject",
+        target = name + "_tidy_without_config_subject",
+        expected_failure_substring = "has no clang_tidy config",
     )
     native.test_suite(name = name, tests = [name + "_windows", name + "_no_tidy_config", name + "_tidy_without_config"])

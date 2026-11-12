@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//capnproto/private:defs.bzl", "capnproto_library", "std_import_path")
 load("//capnproto/private:providers.bzl", "CapnprotoInfo")
+load("//core:failure_test.bzl", "failure_test")
 
 def _closure_impl(ctx):
     env = analysistest.begin(ctx)
@@ -18,13 +19,6 @@ def _closure_impl(ctx):
 
 _closure_test = analysistest.make(_closure_impl)
 
-def _external_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "cross-repo capnp schemas are unsupported")
-    return analysistest.end(env)
-
-_external_test = analysistest.make(_external_impl, expect_failure = True)
-
 def capnp_library_tests(name):
     """Instantiates the capnproto_library analysis tests.
 
@@ -35,5 +29,5 @@ def capnp_library_tests(name):
     capnproto_library(name = name + "_top", srcs = ["fixtures/closure/top.capnp"], deps = [":" + name + "_base"], tags = ["manual"])
     _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top", size = "small")
     capnproto_library(name = name + "_external", srcs = ["//capnproto:std"], tags = ["manual"])
-    _external_test(name = name + "_external_test", target_under_test = ":" + name + "_external", size = "small")
+    failure_test(name = name + "_external_test", target = ":" + name + "_external", expected_failure_substring = "cross-repo capnp schemas are unsupported")
     native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_external_test"])

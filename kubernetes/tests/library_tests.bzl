@@ -1,22 +1,10 @@
 """kubernetes_library and kubernetes_schemas proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//core:owns_class_test.bzl", "owns_class_test")
 load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
-def _owns_kubernetes_class_impl(ctx):
-    env = analysistest.begin(ctx)
-    target = analysistest.target_under_test(env)
-    direct = target[QualitySourcesInfo].direct_sources
-    asserts.equals(env, ["kubernetes"], sorted(direct.keys()))
-    asserts.equals(
-        env,
-        ["app.yaml"],
-        [f.basename for f in direct["kubernetes"].to_list()],
-    )
-    return analysistest.end(env)
-
-owns_kubernetes_class_test = analysistest.make(_owns_kubernetes_class_impl)
+owns_kubernetes_class_test = owns_class_test("kubernetes", ["app.yaml"])
 
 def _schemas_config_impl(ctx):
     env = analysistest.begin(ctx)

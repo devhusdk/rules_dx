@@ -1,18 +1,11 @@
 """rego_library ownership and provider proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//core:owns_class_test.bzl", "owns_class_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//rego/private:providers.bzl", "RegoInfo")
 
-def _owns_rego_class_impl(ctx):
-    env = analysistest.begin(ctx)
-    target = analysistest.target_under_test(env)
-    direct = target[QualitySourcesInfo].direct_sources
-    asserts.equals(env, ["rego"], sorted(direct.keys()))
-    asserts.equals(env, ["app.rego"], [f.basename for f in direct["rego"].to_list()])
-    return analysistest.end(env)
-
-owns_rego_class_test = analysistest.make(_owns_rego_class_impl)
+owns_rego_class_test = owns_class_test("rego", ["app.rego"])
 
 def _transitive_context_impl(ctx):
     env = analysistest.begin(ctx)

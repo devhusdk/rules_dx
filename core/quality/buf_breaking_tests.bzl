@@ -1,6 +1,7 @@
 """Analysis tests for the buf breaking base image input."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//core:failure_test.bzl", "failure_test_rule")
 load("//core/quality/testdata:all_languages.bzl", "real_protobuf_lint_aspect")
 
 _IMAGE = "core/quality/tests/fixtures/buf_breaking/base.binpb"
@@ -36,11 +37,6 @@ def _without_image_impl(ctx):
     asserts.false(env, "DX_BUF_BREAKING_AGAINST" in _request(env), "the request names no base image")
     return analysistest.end(env)
 
-def _two_images_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "//config:buf_breaking_against must name one image file, got 2")
-    return analysistest.end(env)
-
 _with_image_test = analysistest.make(
     _with_image_impl,
     config_settings = _POLICY | {
@@ -55,13 +51,11 @@ _without_image_test = analysistest.make(
     extra_target_under_test_aspects = [real_protobuf_lint_aspect],
 )
 
-_two_images_test = analysistest.make(
-    _two_images_impl,
-    config_settings = _POLICY | {
+_two_images_test = failure_test_rule(
+    _POLICY | {
         str(Label("//config:buf_breaking_against")): str(Label("//core/quality/tests/fixtures/buf_breaking:two_images")),
     },
-    expect_failure = True,
-    extra_target_under_test_aspects = [real_protobuf_lint_aspect],
+    [real_protobuf_lint_aspect],
 )
 
 def buf_breaking_analysis_tests(name, size):
@@ -74,5 +68,5 @@ def buf_breaking_analysis_tests(name, size):
     subject = "//core/quality/tests/fixtures/consumer_policy:clean_protobuf"
     _with_image_test(name = name + "_with_image", size = size, target_under_test = subject)
     _without_image_test(name = name + "_without_image", size = size, target_under_test = subject)
-    _two_images_test(name = name + "_two_images", size = size, target_under_test = subject)
+    _two_images_test(name = name + "_two_images", size = size, target_under_test = subject, expected_failure_substring = "//config:buf_breaking_against must name one image file, got 2")
     native.test_suite(name = name, tests = [name + "_with_image", name + "_without_image", name + "_two_images"])

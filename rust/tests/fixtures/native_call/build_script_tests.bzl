@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_dx//core:failure_test.bzl", "failure_test_rule")
 load("@rules_dx//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT")
 
 def _relative(value):
@@ -485,17 +486,14 @@ def _crt_ok_impl(ctx):
     env = analysistest.begin(ctx)
     return analysistest.end(env)
 
-def _crt_bad_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "MSVC CRT mismatch")
-    return analysistest.end(env)
-
 _crt_ok_test = analysistest.make(_crt_ok_impl, config_settings = _CRT_CONFIG)
 _crt_target_flag_test = analysistest.make(_crt_ok_impl, config_settings = {_COMPILER: "msvc"})
-_crt_bad_test = analysistest.make(_crt_bad_impl, config_settings = _CRT_CONFIG, expect_failure = True)
-_crt_mixed_actions_test = analysistest.make(_crt_bad_impl, config_settings = {_COMPILER: "msvc"}, expect_failure = True)
+_crt_bad_test = failure_test_rule(_CRT_CONFIG)
+_crt_mixed_actions_test = failure_test_rule({_COMPILER: "msvc"})
 _crt_ok_llvm_test = analysistest.make(_crt_ok_impl, config_settings = _CRT_CONFIG_LLVM)
-_crt_bad_llvm_test = analysistest.make(_crt_bad_impl, config_settings = _CRT_CONFIG_LLVM, expect_failure = True)
+_crt_bad_llvm_test = failure_test_rule(_CRT_CONFIG_LLVM)
+
+_CRT_MISMATCH = {"expected_failure_substring": "MSVC CRT mismatch"}
 
 def _mixed_crt_actions_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".txt")
@@ -520,6 +518,7 @@ def rust_msvc_crt_mixed_actions_test(name, target):
         size = "small",
         target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
         target_under_test = target,
+        **_CRT_MISMATCH
     )
 
 def rust_msvc_crt_tests(name, ok, bad, target_flag):
@@ -537,18 +536,19 @@ def rust_msvc_crt_tests(name, ok, bad, target_flag):
     ok_llvm_name = name + "_ok_llvm"
     bad_llvm_name = name + "_bad_llvm"
     cases = [
-        (ok_name, _crt_ok_test, ok),
-        (bad_name, _crt_bad_test, bad),
-        (target_flag_name, _crt_target_flag_test, target_flag),
-        (ok_llvm_name, _crt_ok_llvm_test, ok),
-        (bad_llvm_name, _crt_bad_llvm_test, bad),
+        (ok_name, _crt_ok_test, ok, {}),
+        (bad_name, _crt_bad_test, bad, _CRT_MISMATCH),
+        (target_flag_name, _crt_target_flag_test, target_flag, {}),
+        (ok_llvm_name, _crt_ok_llvm_test, ok, {}),
+        (bad_llvm_name, _crt_bad_llvm_test, bad, _CRT_MISMATCH),
     ]
-    for test, rule, target in cases:
+    for test, rule, target, expected in cases:
         rule(
             name = test,
             size = "small",
             target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
             target_under_test = target,
+            **expected
         )
     native.test_suite(name = name, tests = [ok_name, bad_name, target_flag_name, ok_llvm_name, bad_llvm_name])
 
@@ -569,6 +569,7 @@ def rust_msvc_crt_library_tests(name, shared, static, cc_consumer):
             size = "small",
             target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
             target_under_test = target,
+            **_CRT_MISMATCH
         )
         tests.append(test)
     native.test_suite(name = name, tests = tests)

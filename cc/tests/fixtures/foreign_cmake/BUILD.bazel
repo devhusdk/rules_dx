@@ -204,6 +204,7 @@ cmake(
 unknown_generator_test(
     name = "unknown_generator_test",
     size = "small",
+    expected_failure_substring = "`Bogus` is not a known generator",
     target_under_test = ":zlib_bogus_generator",
     target_compatible_with = _LINUX_X86_64,
 )
@@ -237,6 +238,7 @@ cmake_toolchain_present_test(
 missing_cmake_toolchain_test(
     name = "missing_cmake_toolchain_test",
     size = "small",
+    expected_failure_substring = "No toolchain found for @rules_foreign_cc//toolchains:cmake_toolchain",
     target_under_test = ":cmake_probe_riscv64",
     target_compatible_with = _LINUX_X86_64,
 )

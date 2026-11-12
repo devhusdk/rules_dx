@@ -21,7 +21,6 @@ load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":rmeta_typecheck_tests.bzl", "clippy_rmeta_inputs_test", "crate_no_pipelining_test", "pipelined_rmeta_paths_test", "rmeta_typecheck_test")
 load(":config_subject.bzl", "config_subject")
-load(":rst_converter_tests.bzl", "asciidoc_no_converter_test", "rst_no_converter_test")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
 load("//core/quality:suite_membership.bzl", "suite_membership_test")
 load(":test_configs_test.bzl", "test_configs_test")
@@ -637,10 +636,10 @@ config_subject(
     target = ":fixture_real_asciidoc_no_converter_subject",
 )
 
-asciidoc_no_converter_test(
+failure_test(
     name = "fixture_real_asciidoc_no_converter_test",
-    size = "small",
-    target_under_test = ":fixture_real_asciidoc_no_converter_config_subject",
+    expected_failure_substring = "vale: asciidoc files need asciidoctor; own them with asciidoc_library from @rules_dx//asciidoc:defs.bzl",
+    target = ":fixture_real_asciidoc_no_converter_config_subject",
 )
 
 real_aspect_subject(
@@ -655,10 +654,10 @@ config_subject(
     target = ":fixture_real_rst_no_converter_subject",
 )
 
-rst_no_converter_test(
+failure_test(
     name = "fixture_real_rst_no_converter_test",
-    size = "small",
-    target_under_test = ":fixture_real_rst_no_converter_config_subject",
+    expected_failure_substring = "vale: rst files need rst2html; own them with rst_library from @rules_dx//rst:defs.bzl",
+    target = ":fixture_real_rst_no_converter_config_subject",
 )
 
 real_aspect_subject(

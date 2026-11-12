@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:canonical.bzl", "strip_canonical")
 load("//core:defs.bzl", "DxSubjectInfo")
+load("//core:failure_test.bzl", "failure_test")
 load("//perl/private:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//dart/private:dart_config.bzl", "DartConfigInfo")
 load(
@@ -417,42 +418,6 @@ def _selected_impl(ctx):
 
 _tool_override_selected_test = analysistest.make(_selected_impl)
 
-def _rejected_impl(ctx):
-    """Asserts the expected override rejection diagnostic."""
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, ctx.attr.expected_failure_substring)
-    return analysistest.end(env)
-
-_tool_override_rejects_pair_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-)
-
-_tool_override_rejects_empty_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-)
-
-_tool_override_rejects_policy_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-)
-
-_qmlformat_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-)
-
-_qmllint_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-)
-
 def _perl_lint_subject_impl(ctx):
     """Exposes the resolved perlcritic binary and the lint results beside the real aspect."""
     tool = ctx.attr._perlcritic[DefaultInfo].files_to_run.executable
@@ -847,10 +812,9 @@ def mix_format_flag_tests(name, subject):
 
 def qmllint_flag_tests(name, subject):
     """Instantiates the missing qmllint flag proof."""
-    _qmllint_unset_test(
+    failure_test(
         name = name + "_unset_test",
-        size = "small",
-        target_under_test = _subject(name + "_unset_test_subject", subject, "shared"),
+        target = _subject(name + "_unset_test_subject", subject, "shared"),
         expected_failure_substring = "--@rules_dx//config:tool_qmllint",
     )
     return [
@@ -859,10 +823,9 @@ def qmllint_flag_tests(name, subject):
 
 def qmlformat_flag_tests(name, subject):
     """Instantiates the missing qmlformat flag proof."""
-    _qmlformat_unset_test(
+    failure_test(
         name = name + "_unset_test",
-        size = "small",
-        target_under_test = _subject(name + "_unset_test_subject", subject, "shared"),
+        target = _subject(name + "_unset_test_subject", subject, "shared"),
         expected_failure_substring = "--@rules_dx//config:tool_qmlformat",
     )
     return [
@@ -881,22 +844,19 @@ def tool_override_tests(name, subject):
         size = "small",
         target_under_test = _subject(name + "_selected_test_subject", subject, "ruff_alternate"),
     )
-    _tool_override_rejects_pair_test(
+    failure_test(
         name = name + "_rejects_pair_test",
-        size = "small",
-        target_under_test = _subject(name + "_rejects_pair_test_subject", subject, "ruff_pair"),
+        target = _subject(name + "_rejects_pair_test_subject", subject, "ruff_pair"),
         expected_failure_substring = "two_ruffs' must produce a single file",
     )
-    _tool_override_rejects_empty_test(
+    failure_test(
         name = name + "_rejects_empty_test",
-        size = "small",
-        target_under_test = _subject(name + "_rejects_empty_test_subject", subject, "ruff_empty"),
+        target = _subject(name + "_rejects_empty_test_subject", subject, "ruff_empty"),
         expected_failure_substring = "no_ruff' must produce a single file",
     )
-    _tool_override_rejects_policy_test(
+    failure_test(
         name = name + "_rejects_policy_test",
-        size = "small",
-        target_under_test = _subject(name + "_rejects_policy_test_subject", subject, "ruff_policy"),
+        target = _subject(name + "_rejects_policy_test_subject", subject, "ruff_policy"),
         expected_failure_substring = "fixture_policy' must produce a single file",
     )
     return [

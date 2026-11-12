@@ -225,6 +225,7 @@ data_paths_test(
 
 unsupported_cpu_test(
     name = "riscv64_cell_fails",
+    expected_failure_substring = "target platform is unsupported",
     target_compatible_with = _LINUX,
     target_under_test = ":arm64_cell",
 )

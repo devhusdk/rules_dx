@@ -1,6 +1,6 @@
 """Analysis tests that cgo rejects C++ toolchains it cannot use."""
 
-load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//core:failure_test.bzl", "failure_test_rule")
 
 _WINDOWS = "x86_64-pc-windows-msvc"
 
@@ -21,33 +21,18 @@ _CASES = {
 
 _DEFAULT_MESSAGE = "Go cgo on Windows needs the MinGW (GNU) ABI"
 
-def _impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, ctx.attr.message)
-    return analysistest.end(env)
-
 def _make(case):
-    return analysistest.make(
-        _impl,
-        attrs = {"message": attr.string(mandatory = True)},
-        expect_failure = True,
-        config_settings = {
-            "//command_line_option:extra_toolchains": [str(Label(_CASES[case][0]))],
-        },
-    )
+    return failure_test_rule({
+        "//command_line_option:extra_toolchains": [str(Label(_CASES[case][0]))],
+    })
 
 _clang_cl_test = _make("clang_cl")
 _clang_msvc_test = _make("clang_msvc")
 _msvc_cl_test = _make("msvc_cl")
 
-_default_windows_test = analysistest.make(
-    _impl,
-    attrs = {"message": attr.string(mandatory = True)},
-    expect_failure = True,
-    config_settings = {
-        "//command_line_option:platforms": [str(Label("//go/tests/fixtures/cgo:windows_x86_64"))],
-    },
-)
+_default_windows_test = failure_test_rule({
+    "//command_line_option:platforms": [str(Label("//go/tests/fixtures/cgo:windows_x86_64"))],
+})
 
 _RULES = {
     "clang_cl": _clang_cl_test,
@@ -67,7 +52,7 @@ def cgo_unsupported_toolchain_tests(name, target_under_test):
         test = name + "_" + case
         _RULES[case](
             name = test,
-            message = message,
+            expected_failure_substring = message,
             size = "small",
             target_under_test = target_under_test,
         )
@@ -75,7 +60,7 @@ def cgo_unsupported_toolchain_tests(name, target_under_test):
     test = name + "_default_windows"
     _default_windows_test(
         name = test,
-        message = _DEFAULT_MESSAGE,
+        expected_failure_substring = _DEFAULT_MESSAGE,
         size = "small",
         target_under_test = target_under_test,
     )

@@ -3,28 +3,17 @@
 load("@rules_cuda//cuda:platform_alias_extension.bzl", "platform_alias_repo")
 load("@rules_cuda//cuda/private:platforms.bzl", "SUPPORTED_PLATFORMS")
 load("@rules_cuda//cuda/private:repositories.bzl", "cuda_component", "cuda_toolkit")
+load("//core:license.bzl", "accepted_ids", "unaccepted")
 load("//cuda/private:license.bzl", "cuda_unaccepted")
 load("//cuda/private/toolchain:platforms.bzl", "CUDA_PLATFORMS")
 
 _LICENSE = "cuda-eula"
 
-_license_tag = tag_class(attrs = {
-    "accept": attr.string_list(mandatory = True, doc = "License names to accept: cuda-eula."),
-})
-
-def cuda_license_error(modules):
+def cuda_license_error(ids):
     """Returns the error for an unaccepted CUDA Toolkit EULA, or an empty string when the root module accepts it."""
-    names = []
-    for module in modules:
-        if module.is_root:
-            for tag in module.tags.license:
-                names.extend(tag.accept)
-    for name in names:
-        if name != _LICENSE:
-            fail("dx_cuda: unknown license '" + name + "'; the only one is '" + _LICENSE + "'")
-    if _LICENSE in names:
+    if _LICENSE in ids:
         return ""
-    return "dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add cuda.license(accept = [\"cuda-eula\"]) to the root MODULE.bazel"
+    return unaccepted("dx_cuda", "CUDA Toolkit EULA", "https://docs.nvidia.com/cuda/eula/index.html", _LICENSE)
 
 def cuda_component_repo_name(component, platform, version):
     """Returns the repo name of a pinned component, the same for the real repo and the license stub."""
@@ -41,7 +30,7 @@ def _impl(module_ctx):
     pins = json.decode(module_ctx.read(Label("//cuda/private/toolchain:pins.json")))
     version = pins["version"]
     version_label = version.replace(".", "_")
-    license_error = cuda_license_error(module_ctx.modules)
+    license_error = cuda_license_error(accepted_ids(module_ctx))
 
     repos = {}
     for cell, cell_pins in pins["cells"].items():
@@ -87,6 +76,5 @@ def _impl(module_ctx):
 
 cuda = module_extension(
     implementation = _impl,
-    tag_classes = {"license": _license_tag},
     doc = "Declares the pinned CUDA Toolkit components and the toolkit repo `cuda` from cuda/private/toolchain/pins.json.",
 )

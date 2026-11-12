@@ -30,7 +30,8 @@ is, nothing is downloaded and packaging fails with
 
 ```python
 msix_tools = use_extension("@rules_dx//msix:extensions.bzl", "msix_tools")
-msix_tools.license(accept = ["windows-sdk-buildtools"])
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["windows-sdk-buildtools"])
 ```
 
 Only the root module's acceptance counts. An unknown license name fails the

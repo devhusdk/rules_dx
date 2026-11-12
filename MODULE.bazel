@@ -695,6 +695,18 @@ bazel_dep(name = "bazel_features", version = "1.55.0")
 ruby_coverage = use_extension("//ruby:extensions.bzl", "ruby_coverage")
 use_repo(ruby_coverage, "dx_ruby_bench_gems", "dx_ruby_coverage_gems")
 
+dx_licenses = use_extension("//core:extensions.bzl", "dx_licenses")
+use_repo(dx_licenses, "dx_licenses")
+
+dx_licenses_dev = use_extension("//core:extensions.bzl", "dx_licenses", dev_dependency = True)
+dx_licenses_dev.accept(ids = [
+    "android-sdk-license",
+    "apple-xcode-license",
+    "cuda-eula",
+    "visual-studio-build-tools",
+    "windows-sdk-buildtools",
+])
+
 dx_pins = use_extension("//core:extensions.bzl", "dx_pins")
 dx_pins.pin(
     name = "dx_sorbet",
@@ -1287,9 +1299,6 @@ use_repo(cpan, perl_cpan = "perl_app_cpan")
 
 cuda = use_extension("//cuda:extensions.bzl", "cuda")
 use_repo(cuda, "cuda")
-
-cuda_dev = use_extension("//cuda:extensions.bzl", "cuda", dev_dependency = True)
-cuda_dev.license(accept = ["cuda-eula"])
 
 register_toolchains("@cuda//toolchain/...")
 
@@ -2445,9 +2454,6 @@ use_repo(
     "remotejdk21_linux_aarch64",
 )
 
-android_sdk_dev = use_extension("//android:extensions.bzl", "android_sdk", dev_dependency = True)
-android_sdk_dev.license(accept = ["android-sdk-license"])
-
 _fixture_repo(
     name = "web_consumer",
     dev_dependency = True,
@@ -3058,9 +3064,6 @@ use_repo(msix_tools, "dx_msix_tools")
 
 register_toolchains("//msix/private/toolchain:all")
 
-msix_dev = use_extension("//msix:extensions.bzl", "msix_tools", dev_dependency = True)
-msix_dev.license(accept = ["windows-sdk-buildtools"])
-
 windows_msvc_runtime = use_extension("@windows_support//windows:extensions.bzl", "msvc_runtime")
 use_repo(windows_msvc_runtime, "msvc_runtime")
 
@@ -3069,9 +3072,6 @@ use_repo(windows_sdk_ext, "windows_sdk")
 
 msvc = use_extension("//cc:extensions.bzl", "msvc")
 use_repo(msvc, "dx_msvc")
-
-msvc_dev = use_extension("//cc:extensions.bzl", "msvc", dev_dependency = True)
-msvc_dev.license(accept = ["visual-studio-build-tools"])
 
 qt_sdk = use_extension("//qt:extensions.bzl", "qt_sdk")
 use_repo(qt_sdk, "dx_qt")

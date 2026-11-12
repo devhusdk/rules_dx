@@ -1,6 +1,7 @@
 """The dx_pins module extension."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load(":license.bzl", "LICENSE_IDS", "unknown_ids")
 load(":repo.bzl", "hub_repo", "pinned_archive")
 load(":toolchain.bzl", "cell_archive_rule", "cell_repo", "host_archive_rule", "pins_hub")
 
@@ -117,6 +118,30 @@ dx_source_archives = module_extension(
                 "patches": attr.label_list(doc = "Patch files applied to the archive."),
                 "pins": attr.label(mandatory = True, allow_single_file = True, doc = "JSON file keyed by repository name."),
             },
+        ),
+    },
+)
+
+def _dx_licenses_impl(mctx):
+    ids = []
+    for mod in mctx.modules:
+        if not mod.is_root:
+            continue
+        for tag in mod.tags.accept:
+            unknown = unknown_ids(tag.ids)
+            if unknown:
+                fail("dx_licenses: unknown license id " + ", ".join(unknown) + "; the ids are " + ", ".join(LICENSE_IDS))
+            ids.extend([name for name in tag.ids if name not in ids])
+    hub_repo(name = "dx_licenses", files = {"BUILD.bazel": "", "accepted.json": json.encode(sorted(ids))})
+    return mctx.extension_metadata(reproducible = True)
+
+dx_licenses = module_extension(
+    implementation = _dx_licenses_impl,
+    doc = "Accepts licenses for restricted downloads. Only root-module tags count.",
+    tag_classes = {
+        "accept": tag_class(
+            doc = "Accepts the listed license ids.",
+            attrs = {"ids": attr.string_list(mandatory = True, doc = "License ids: " + ", ".join(LICENSE_IDS) + ".")},
         ),
     },
 )

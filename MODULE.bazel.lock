@@ -495,8 +495,8 @@
   "moduleExtensions": {
     "//cuda:extensions.bzl%cuda": {
       "general": {
-        "bzlTransitiveDigest": "EVozyo5Vp2iu8A3yMcTns/PGyBKNXhQp/YeTM7ffM1U=",
-        "usagesDigest": "dKqqbcG3tYUGbCm249x/leTyIDCgUCdF9vKXdYaQtbg=",
+        "bzlTransitiveDigest": "/nl15iFD2gxqNZUEd40B3Wze8/Y25BWA5NQYxuFzuio=",
+        "usagesDigest": "FHWEtbYnc8LMI0uiG18BmjaIzcYlbKrXT7HsEP84OGE=",
         "recordedInputs": [
           "REPO_MAPPING:,rules_cuda rules_cuda+",
           "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",
@@ -511,7 +511,9 @@
           "REPO_MAPPING:rules_cc++compatibility_proxy+cc_compatibility_proxy,rules_cc rules_cc+",
           "REPO_MAPPING:rules_cuda+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_cuda+,rules_cc rules_cc+",
-          "FILE:@@//cuda/private/toolchain/pins.json 29f5fbf13d63828112677edef9ef7098d067f15cd2bc1eb341caf25dfb6e8960"
+          "FILE:@@//cuda/private/toolchain/pins.json 29f5fbf13d63828112677edef9ef7098d067f15cd2bc1eb341caf25dfb6e8960",
+          "REPO_MAPPING:,dx_licenses +dx_licenses+dx_licenses",
+          "FILE:@@+dx_licenses+dx_licenses//accepted.json 12ec2fe138c8ab5974b6a1ee1893e4a30983cf43c38c5f73265a33b9cb335741"
         ],
         "generatedRepoSpecs": {
           "cuda_cccl_linux_x86_64_13_4_2": {

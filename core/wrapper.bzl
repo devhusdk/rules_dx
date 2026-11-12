@@ -19,14 +19,8 @@ def dx_forwarded_runtime_providers(upstream, what):
         out.append(upstream[RunEnvironmentInfo])
     return out
 
-def dx_missing_optional_names(requested_names, present_names):
-    """Returns the requested names absent from the present names."""
-    return [n for n in requested_names if n not in present_names]
-
 def dx_optional_forward_warning(what, upstream_label, requested_names, missing_names):
-    """Returns the skip warning for an optional forward, or None when nothing was skipped."""
-    if len(missing_names) == 0:
-        return None
+    """Returns the skip warning for an optional forward."""
     forwarded = len(requested_names) - len(missing_names)
     suffix = "; empty forward is expected when upstream omits the surface" if forwarded == 0 else ""
     return what + ": upstream " + upstream_label + " omits optional provider(s) " + ", ".join(missing_names) + " (forwarded " + str(forwarded) + " of " + str(len(requested_names)) + ")" + suffix
@@ -35,14 +29,12 @@ def dx_forwarded_optional(upstream, providers, what = "dx wrapper"):
     """Forwards the upstream providers that are present, warning on each skip."""
     missing = [p for p in providers if p not in upstream]
     if len(missing) > 0:
-        warning = dx_optional_forward_warning(
+        print(dx_optional_forward_warning(  # buildifier: disable=print
             what,
             str(upstream.label),
             [str(p) for p in providers],
             [str(p) for p in missing],
-        )
-        if warning != None:
-            print(warning)  # buildifier: disable=print
+        ))
     return [upstream[p] for p in providers if p in upstream]
 
 def dx_forwarded_quiet(upstream, providers):
@@ -108,7 +100,7 @@ def dx_quality_sources(files, specs, label):
         matched = [
             f
             for f in spec_files
-            if f.is_source and f.extension in exts and not _has_excluded_suffix(f.basename, excludes)
+            if f.is_source and f.extension in exts and not f.basename.endswith(tuple(excludes))
         ]
         if key not in buckets:
             buckets[key] = []
@@ -120,12 +112,6 @@ def dx_quality_sources(files, specs, label):
             direct_sources[key] = depset(buckets[key])
     check_direct_sources(direct_sources, label)
     return QualitySourcesInfo(direct_sources = direct_sources)
-
-def _has_excluded_suffix(basename, excludes):
-    for suffix in excludes:
-        if basename.endswith(suffix):
-            return True
-    return False
 
 def dx_symlink_executable_name(name, upstream_executable):
     """Maps one forwarder output name to the upstream's own filename suffix."""

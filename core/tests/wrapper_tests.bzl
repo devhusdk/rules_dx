@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core:resources.bzl", "dx_bundler_resources", "dx_quality_resource_set", "dx_test_resource_tags")
-load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_language_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_quality_srcs", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
+load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_language_kwargs", "dx_optional_forward_warning", "dx_quality_srcs", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 _PARITY_KWARGS = {
@@ -21,34 +21,6 @@ def wrapper_optional_forward_tests(name):
         mode = "unit",
         checks = [
             expect_equal(
-                "empty request forwards nothing without warning",
-                dx_missing_optional_names([], ["CcInfo"]),
-                [],
-            ),
-            expect_equal(
-                "empty request warns nothing",
-                dx_optional_forward_warning("go_*", "//go:bin_upstream", [], []),
-                None,
-            ),
-            expect_equal(
-                "all present misses nothing",
-                dx_missing_optional_names(["GoArchive"], ["GoArchive"]),
-                [],
-            ),
-            expect_equal(
-                "all present warns nothing",
-                dx_optional_forward_warning("go_*", "//go:bin_upstream", ["GoArchive"], []),
-                None,
-            ),
-            expect_equal(
-                "partial skip reports only the missing provider",
-                dx_missing_optional_names(
-                    ["DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo"],
-                    ["DotnetAssemblyCompileInfo"],
-                ),
-                ["DotnetAssemblyRuntimeInfo"],
-            ),
-            expect_equal(
                 "partial warning names the missing provider and the forward count",
                 dx_optional_forward_warning(
                     "csharp_*",
@@ -57,11 +29,6 @@ def wrapper_optional_forward_tests(name):
                     ["DotnetAssemblyRuntimeInfo"],
                 ),
                 "csharp_*: upstream //cs:bin_upstream omits optional provider(s) DotnetAssemblyRuntimeInfo (forwarded 1 of 2)",
-            ),
-            expect_equal(
-                "total skip reports every requested provider",
-                dx_missing_optional_names(["CcInfo"], []),
-                ["CcInfo"],
             ),
             expect_equal(
                 "empty forward warns and marks the empty case expected",

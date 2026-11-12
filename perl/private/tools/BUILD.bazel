@@ -1,5 +1,5 @@
 load("@rules_perl//perl:perl_binary.bzl", "perl_binary")
-load("@rules_perl//perl/cpan:cpan_compiler.bzl", "cpan_compiler")
+load("@rules_perl//perl/cpan:cpan_compiler.bzl", perl_cpan_compiler = "cpan_compiler")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
@@ -39,7 +39,7 @@ perl_binary(
     deps = ["@dx_perl_cpan//:CPANSA-DB"],
 )
 
-cpan_compiler(
+perl_cpan_compiler(
     name = "compiler",
     cpanfile = "cpanfile",
     lockfile = "cpanfile.snapshot.lock.json",

@@ -14,6 +14,7 @@ android_rust_apk(
     name = "app_apk",
     testonly = True,
     app_id = "com.example.dxtestonly",
+    resource_files = ["res/values/strings.xml"],
     visibility = ["//visibility:private"],
     deps = [":app_jni"],
 )

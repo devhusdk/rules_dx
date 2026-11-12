@@ -33,6 +33,8 @@ test_suite(
         "//go/tests/fixtures/cgo:cgo_test",
         "//go/tests/fixtures/cgo:cxx_test",
         "//go/tests/fixtures/godeps:godeps_test",
+        "//go/tests/fixtures/hello:hello_test",
+        "//go/tests/fixtures/hello:hello_thin_output_test",
         "//go/tests/fixtures/no_srcs:lib_test",
         "//go/tests/fixtures/no_srcs:lib_test_sources_test",
         "//go/tests/fixtures/testonly_binary:testonly_binary_build_test",

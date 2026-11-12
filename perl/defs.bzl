@@ -9,7 +9,7 @@ load(
     _perl_test = "perl_test",
 )
 
-cpan_compiler = _cpan_compiler
+perl_cpan_compiler = _cpan_compiler
 perl_library = _perl_library
 perl_binary = _perl_binary
 perl_test = _perl_test

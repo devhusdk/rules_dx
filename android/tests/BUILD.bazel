@@ -43,3 +43,14 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//android/tests/fixtures/android_library:android_libraries_build",
+        "//android/tests/fixtures/android_library:java_screen_providers_test",
+        "//android/tests/fixtures/android_library:kotlin_screen_providers_test",
+        "//android/tests/fixtures/testonly_apk:testonly_targets_analyze",
+    ],
+)

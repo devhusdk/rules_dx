@@ -24,6 +24,7 @@ fsharp_binary(
 
 fsharp_test(
     name = "hello_test",
+    size = "small",
     srcs = ["HelloTest.fs"],
     deps = [":hello"],
 )

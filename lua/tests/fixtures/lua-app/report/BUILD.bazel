@@ -1,3 +1,4 @@
+# gazelle:resolve lua inspect @lua_app_inspect//:inspect
 load("@rules_dx//lua:defs.bzl", "lua_library", "lua_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
@@ -29,5 +30,6 @@ lua_test(
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],    visibility = ["//:__pkg__"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
 )

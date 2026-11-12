@@ -1,6 +1,7 @@
 """Unit test for the quality test configuration table."""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
+load("//core/quality:buf_breaking_tests.bzl", "BUF_BREAKING_CONFIGS")
 load("//core/quality:consumer_policy_tests.bzl", "CONSUMER_POLICY_CONFIGS", "POLICY_CONFIG_TEST_CONFIGS")
 load("//core/quality/tests/testdata/scalafix_aux:results.bzl", "SCALAFIX_CONFIG")
 load("//core/quality/tests/testdata/spotbugs_owned:results.bzl", "SPOTBUGS_CONFIG")
@@ -21,7 +22,7 @@ def _table_impl(ctx):
     ]
     asserts.equals(env, [], equal)
     used = {case["config"]: True for case in REAL_RESULT_CASES}
-    for name in CONSUMER_POLICY_CONFIGS + POLICY_CONFIG_TEST_CONFIGS + TOOL_OVERRIDE_CONFIGS + [SCALAFIX_CONFIG, SPOTBUGS_CONFIG]:
+    for name in BUF_BREAKING_CONFIGS + CONSUMER_POLICY_CONFIGS + POLICY_CONFIG_TEST_CONFIGS + TOOL_OVERRIDE_CONFIGS + [SCALAFIX_CONFIG, SPOTBUGS_CONFIG]:
         used[name] = True
     asserts.equals(env, names, sorted(used.keys()))
     return unittest.end(env)

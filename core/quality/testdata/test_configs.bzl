@@ -1,6 +1,6 @@
 """Build settings of every quality test configuration."""
 
-MAX_TEST_CONFIGS = 24
+MAX_TEST_CONFIGS = 26
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 
@@ -65,10 +65,11 @@ _TOOL_OVERRIDES = dict(_TOOL_DEFAULTS, **{
     "//config:tool_zig_fmt": "//zig/private/tools:zig",
 })
 
-def _config(policy, compiler = "llvm", tier = "strict", clippy_flags = [], tools = {}):
+def _config(policy, compiler = "llvm", tier = "strict", clippy_flags = [], tools = {}, breaking_against = "//config:buf_breaking_none"):
     """Returns the full settings of one configuration."""
     settings = {
         "//cc:compiler": compiler,
+        "//config:buf_breaking_against": str(Label(breaking_against)),
         "//config:config_tier": tier,
         "//config:workspace": str(Label(policy)),
         "@rules_rust//rust/settings:clippy_flag": clippy_flags,
@@ -86,6 +87,8 @@ _CC_TIDY = "//core/quality/testdata/clang_syntax:cc_tidy_policy"
 _SHARED = "//core/quality/tests/fixtures/consumer_policy:shared_policy"
 
 TEST_CONFIGS = {
+    "buf_breaking_image": _config(_SHARED, breaking_against = "//core/quality/tests/fixtures/buf_breaking:base.binpb"),
+    "buf_breaking_two_images": _config(_SHARED, breaking_against = "//core/quality/tests/fixtures/buf_breaking:two_images"),
     "cc_syntax": _config(_CC_SYNTAX),
     "cc_syntax_gcc": _config(_CC_SYNTAX, compiler = "gcc"),
     "cc_syntax_msvc": _config(_CC_SYNTAX, compiler = "msvc"),

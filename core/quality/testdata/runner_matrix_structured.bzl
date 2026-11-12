@@ -702,7 +702,7 @@ STRUCTURED_CASES = [
         generated = {
             "matrix/dart_lint_clean.dart": "void main() {\n  print(1);\n}\n",
         },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
+        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
         toolfile_tools = ["dart", "dart"],
         toolfile_srcs = ["//core/quality/tests/testdata:dart_cfg/analysis_options.yaml", "//core/quality/tests/testdata:dart_cfg/package_config.json"],
         toolfile_rels = ["analysis_options.yaml", ".dart_tool/package_config.json"],
@@ -716,7 +716,7 @@ STRUCTURED_CASES = [
         generated = {
             "matrix/dart_lint_dirty.dart": "class bad_name {}\n\nvoid main() {\n  var unused = 1;\n}\n",
         },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
+        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
         toolfile_tools = ["dart", "dart"],
         toolfile_srcs = ["//core/quality/tests/testdata:dart_cfg/analysis_options.yaml", "//core/quality/tests/testdata:dart_cfg/package_config.json"],
         toolfile_rels = ["analysis_options.yaml", ".dart_tool/package_config.json"],
@@ -730,7 +730,7 @@ STRUCTURED_CASES = [
         generated = {
             "matrix/dart_lint_include.dart": "class bad_name {}\n\nvoid main() {\n  var unused = 1;\n}\n",
         },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
+        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
         toolfile_tools = ["dart", "dart", "dart"],
         toolfile_srcs = ["//core/quality/tests/testdata:dart_cfg/lints_options.yaml", "//core/quality/tests/testdata:dart_cfg/lints_package_config.json", "//core/quality/tests/testdata:dart_cfg/lints/lib/recommended.yaml"],
         toolfile_rels = ["analysis_options.yaml", ".dart_tool/package_config.json", "lints/lib/recommended.yaml"],
@@ -744,7 +744,7 @@ STRUCTURED_CASES = [
         generated = {
             "matrix/dart_profile_standard.dart": "class Box {\n  final dynamic value;\n  Box(this.value);\n}\n\nvoid main() {\n  final Box b = Box(1);\n  final int n = b.value;\n  print(n);\n}\n",
         },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
+        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
         toolfile_tools = ["dart", "dart"],
         toolfile_srcs = ["//core/quality/tiers/dart:standard.yaml", "//core/quality/tests/testdata:dart_cfg/package_config.json"],
         toolfile_rels = ["analysis_options.yaml", ".dart_tool/package_config.json"],
@@ -758,7 +758,7 @@ STRUCTURED_CASES = [
         generated = {
             "matrix/dart_profile_strict.dart": "class Box {\n  final dynamic value;\n  Box(this.value);\n}\n\nvoid main() {\n  final Box b = Box(1);\n  final int n = b.value;\n  print(n);\n}\n",
         },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
+        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
         toolfile_tools = ["dart", "dart", "dart"],
         toolfile_srcs = ["//core/quality/tiers/dart:strict.yaml", "//core/quality/tiers/dart:standard.yaml", "//core/quality/tests/testdata:dart_cfg/package_config.json"],
         toolfile_rels = ["analysis_options.yaml", "standard.yaml", ".dart_tool/package_config.json"],
@@ -772,7 +772,7 @@ STRUCTURED_CASES = [
         generated = {
             "matrix/dart_type_dirty.dart": "void main() {\n  int x = 'a';\n  print(x);\n}\n",
         },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
+        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
         toolfile_tools = ["dart", "dart"],
         toolfile_srcs = ["//core/quality/tests/testdata:dart_cfg/analysis_options.yaml", "//core/quality/tests/testdata:dart_cfg/package_config.json"],
         toolfile_rels = ["analysis_options.yaml", ".dart_tool/package_config.json"],
@@ -786,7 +786,7 @@ STRUCTURED_CASES = [
         generated = {
             "matrix/dart_bad_options.dart": "void main() {}\n",
         },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
+        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
         toolfile_tools = ["dart", "dart"],
         toolfile_srcs = ["//core/quality/tests/testdata:dart_cfg/bad_analysis_options.yaml", "//core/quality/tests/testdata:dart_cfg/package_config.json"],
         toolfile_rels = ["analysis_options.yaml", ".dart_tool/package_config.json"],

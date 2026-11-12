@@ -4822,7 +4822,7 @@ fn sqlfluff_dialect_fake(
         .collect();
     let files = names
         .iter()
-        .map(|name| name.rsplit('/').next().unwrap_or(name).to_owned())
+        .map(|name| name.rsplit(['/', '\\']).next().unwrap_or(name).to_owned())
         .collect();
     SQLFLUFF_DIALECT_RUNS.with(|log| log.borrow_mut().push((args[at + 1].clone(), files)));
     Ok(ChildOutput {
@@ -6596,7 +6596,7 @@ fn phpcs_report(
     } else {
         format!(
             r#"{{"totals":{{"errors":1,"warnings":0,"fixable":1}},"files":{{"{0}":{{"errors":1,"warnings":0,"messages":[{{"message":"Header blocks must be separated by a single blank line","source":"PSR12.Files.FileHeader.SpacingAfterTagBlock","severity":5,"fixable":true,"type":"ERROR","line":2,"column":1}}]}}}}}}"#,
-            paths[0]
+            json_escape(&paths[0])
         )
     };
     Ok(ChildOutput {
@@ -6755,7 +6755,7 @@ fn jet_report(
             r#"{{"v":1,"kind":"MethodError","message":"dep","frames":[{{"file":"{0}/dx-jet/rf/_main/dep.jl","line":1}}]}}"#,
             "\n"
         ),
-        root
+        json_escape(&root)
     );
     std::fs::write(after("--report"), body)?;
     Ok(ChildOutput {
@@ -6941,7 +6941,7 @@ fn phpstan_report(
     } else {
         format!(
             r#"{{"totals":{{"errors":0,"file_errors":2}},"files":{{"{0}":{{"errors":1,"messages":[{{"message":"Method f() should return int.","line":3,"ignorable":true,"identifier":"return.type"}}]}},"/elsewhere/dep.php":{{"errors":1,"messages":[{{"message":"x","line":1,"ignorable":true}}]}}}},"errors":[]}}"#,
-            paths[0]
+            json_escape(&paths[0])
         )
     };
     Ok(ChildOutput {

@@ -31,14 +31,14 @@ pub fn parse_luals(stdout: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, Pa
     for (uri, entries) in by_uri {
         let path = uri_path(uri)
             .ok_or_else(|| ParseError::shape(TOOL, format!("key {uri} is not a file URI")))?;
-        if !files.contains(&path.as_str()) {
+        let Some(path) = files.iter().find(|file| same_path(file, &path)) else {
             continue;
-        }
+        };
         let entries = entries
             .as_array()
             .ok_or_else(|| ParseError::shape(TOOL, format!("{path} diagnostics are not a list")))?;
         for entry in entries {
-            findings.push(one(&path, entry)?);
+            findings.push(one(path, entry)?);
         }
     }
     findings.sort_by(|a, b| {
@@ -87,6 +87,18 @@ fn one(path: &str, entry: &serde_json::Value) -> Result<FileFinding, ParseError>
         },
         ColumnEncoding::Utf16,
     ))
+}
+
+/// Whether two absolute paths name the same file, ignoring separator style and drive letter case.
+fn same_path(left: &str, right: &str) -> bool {
+    fn normal(path: &str) -> String {
+        let mut out = path.replace('\\', "/");
+        if out.as_bytes().get(1) == Some(&b':') {
+            out[..1].make_ascii_lowercase();
+        }
+        out
+    }
+    normal(left) == normal(right)
 }
 
 /// The file path a `file://` URI names: percent escapes decoded, and a Windows drive URI
@@ -195,6 +207,14 @@ mod tests {
                 .iter()
                 .all(|f| f.finding.severity == ToolSeverity::Info)
         );
+    }
+
+    #[test]
+    fn luals_matches_a_windows_uri_to_the_backslash_path_it_was_given() {
+        let report = r#"{"file:///c%3A/w/lib/b.lua":[{"message":"m","range":{"start":{"line":0,"character":0}},"severity":4}]}"#;
+        let found = parse_luals(report.as_bytes(), &["C:\\w\\lib\\b.lua"]).expect("parsed");
+        let seen: Vec<_> = found.iter().map(|f| f.file.as_str()).collect();
+        assert_eq!(seen, vec!["C:\\w\\lib\\b.lua"]);
     }
 
     #[test]

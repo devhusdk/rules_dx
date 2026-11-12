@@ -3327,7 +3327,8 @@ fn phpstan_neon_adds_unused_public_only_without_a_consumer_config() {
         &[],
         Some(Path::new("/s/ext")),
     )
-    .replace("\\\\", "/");
+    .replace("\\\\", "/")
+    .replace('\\', "/");
     assert!(
         neon.starts_with("includes:\n    - \"/s/ext/unused-public/config/extension.neon\"\n"),
         "{neon}"

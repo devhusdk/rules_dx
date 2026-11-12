@@ -444,7 +444,7 @@ fn zanuda_behavior(
         if text.contains("smells") {
             report.push_str(&format!(
                 r#"{{"message":"smells bad\n","location":{{"path":"{}","range":{{"start":{{"line":2,"column":1}}}}}},"severity":"INFO","code":{{"value":"if_bool","url":"u"}}}}"#,
-                fields[1]
+                json_escape(fields[1])
             ));
             report.push('\n');
         }
@@ -1150,7 +1150,8 @@ fn opa_behavior(
         }
         if text.contains("missing") {
             let report = format!(
-                "{{\"errors\":[{{\"message\":\"undefined function data.lib.missing\",\"code\":\"rego_type_error\",\"location\":{{\"file\":\"{file}\",\"row\":3,\"col\":6}}}}]}}"
+                "{{\"errors\":[{{\"message\":\"undefined function data.lib.missing\",\"code\":\"rego_type_error\",\"location\":{{\"file\":\"{file}\",\"row\":3,\"col\":6}}}}]}}",
+                file = json_escape(&file)
             );
             return done(1, "", report);
         }
@@ -1356,7 +1357,8 @@ fn opa_dependency_behavior(
         let text = std::fs::read_to_string(&file).expect("read staged file");
         if text.contains("broken") {
             errors.push(format!(
-                "{{\"message\":\"unexpected token\",\"code\":\"rego_parse_error\",\"location\":{{\"file\":\"{file}\",\"row\":2,\"col\":1}}}}"
+                "{{\"message\":\"unexpected token\",\"code\":\"rego_parse_error\",\"location\":{{\"file\":\"{file}\",\"row\":2,\"col\":1}}}}",
+                file = json_escape(&file)
             ));
         }
     }

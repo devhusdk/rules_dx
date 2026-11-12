@@ -285,6 +285,7 @@ deploy/tests/fixtures/pub_package/BUILD.bazel no-size 1
 deploy/tests/runfiles/BUILD.bazel no-size 1
 dockerfile/tests/BUILD.bazel no-size 1
 docs/BUILD.bazel no-size 1
+dotnet/private/coverage/BUILD.bazel no-size 1
 elixir/tests/BUILD.bazel no-size 1
 elixir/tests/fixtures/bench/BUILD.bazel no-size 2
 elixir/tests/fixtures/elixir_app/catalog/BUILD.bazel no-size 1
@@ -634,7 +635,6 @@ tools/ci/fill_pins/BUILD.bazel no-size 1
 tools/ci/repos_tests.bzl no-size 1
 tools/coverage/collect/BUILD.bazel no-size 2
 tools/coverage/d/BUILD.bazel no-size 1
-tools/coverage/dotnet/BUILD.bazel no-size 1
 tools/docs/avro/BUILD.bazel no-size 1
 tools/docs/avro/extract/BUILD.bazel no-size 1
 tools/docs/beam/extract/BUILD.bazel no-size 1

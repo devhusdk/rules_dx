@@ -28,7 +28,7 @@ rust_binary(
         "src/plan.rs",
     ],
     aliases = aliases(
-        package_name = "tools/coverage/coverlet_launcher",
+        package_name = "dotnet/private/coverlet_launcher",
         normal = True,
     ),
     crate_name = "coverlet_launcher",
@@ -40,7 +40,7 @@ rust_binary(
 rust_test(
     name = "coverlet_launcher_bin_test",
     aliases = aliases(
-        package_name = "tools/coverage/coverlet_launcher",
+        package_name = "dotnet/private/coverlet_launcher",
         normal = True,
         normal_dev = True,
     ),

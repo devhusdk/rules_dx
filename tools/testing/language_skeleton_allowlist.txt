@@ -350,7 +350,6 @@ outside-lang core/quality/tools/cc
 outside-lang core/quality/tools/dotnet
 outside-lang core/quality/tools/python
 outside-lang tools/coverage/d
-outside-lang tools/coverage/dotnet
 pins cc/lang.json
 platforms-option android/private/library/defs.bzl
 platforms-option apple/private/bundle/cell_tests.bzl

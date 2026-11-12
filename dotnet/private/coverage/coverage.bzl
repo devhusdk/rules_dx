@@ -44,12 +44,12 @@ def dx_dotnet_coverage_attrs():
     """Returns the attributes coverlet coverage needs."""
     return {
         "_dx_coverlet": attr.label(
-            default = Label("//tools/coverage/dotnet:coverlet"),
+            default = Label("//dotnet/private/coverage:coverlet"),
             executable = True,
             cfg = "target",
         ),
         "_dx_coverlet_launcher": attr.label(
-            default = Label("//tools/coverage/dotnet:coverlet_launcher"),
+            default = Label("//dotnet/private/coverage:coverlet_launcher"),
             executable = True,
             cfg = "target",
         ),

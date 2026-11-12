@@ -16,7 +16,6 @@ exports_files(
         "action_input.bzl",
         "child_runfiles.bzl",
         "clang_diagnostics_test.rs",
-        "cross_binary_test.rs",
         "format_test.rs",
         "gazelle_compile_test.rs",
         "hello_output.bzl",

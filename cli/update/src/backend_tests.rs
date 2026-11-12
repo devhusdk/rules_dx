@@ -866,6 +866,51 @@ fn rehash_set(name: &str, ecosystem: Ecosystem, manifest: &str, lock: &str) -> R
 }
 
 #[test]
+fn dub_runs_the_lock_step_for_the_whole_set() {
+    let dir = dx_test_scratch::scratch("dub_backend");
+    let dub = rehash_set(
+        "dub",
+        Ecosystem::Dub,
+        "native/dub.json",
+        "native/dub.lock.json",
+    );
+    let run = |request: &Selection, offline: bool, frozen: bool| {
+        plan_configured(
+            dir.path(),
+            &dub,
+            request,
+            offline,
+            frozen,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    };
+    let BackendPlan::Run { argv, .. } = run(&Selection::Full, false, false).expect("plan") else {
+        panic!("expected a run");
+    };
+    assert_eq!(
+        argv[argv.len() - 5..].join(" "),
+        format!(
+            "run @rules_dx//d/private/tools/lock -- --dir {}",
+            dir.path().join("native").display()
+        )
+    );
+    let named = Selection::Packages(vec!["silly".to_owned()]);
+    assert!(matches!(
+        run(&named, false, false),
+        Err(BackendError::Unsupported { .. })
+    ));
+    assert!(matches!(
+        run(&Selection::Full, true, false),
+        Err(BackendError::OfflineRequired { .. })
+    ));
+    assert!(matches!(
+        run(&Selection::Full, false, true),
+        Err(BackendError::FrozenLocked { .. })
+    ));
+}
+
+#[test]
 fn zig_runs_the_lock_step_and_fpm_runs_the_rehash_target() {
     let dir = dx_test_scratch::scratch("rehash_backend");
     dx_test_scratch::write(

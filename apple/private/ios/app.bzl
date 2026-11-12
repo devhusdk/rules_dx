@@ -585,7 +585,7 @@ def apple_ios_app(
         tags = ["manual"],
         testonly = testonly,
         target_compatible_with = APPLE_HOSTS,
-        visibility = ["//visibility:private"],
+        visibility = visibility,
     )
     _simulator_app(
         name = name,
@@ -659,7 +659,10 @@ def apple_ios_app_test(
         tags = None,
         visibility = None,
         **kwargs):
-    """Runs XCTest cases inside one app on a declared simulator device and runtime."""
+    """Runs XCTest cases inside one app on a declared simulator device and runtime.
+
+    `app` must be an `apple_ios_app` simulator target.
+    """
     srcs = srcs or []
     deps = deps or []
     tags = tags or []
@@ -700,11 +703,13 @@ def apple_ios_app_test(
     )
     env = kwargs.pop("env", {})
     kwargs.update(ios_test_coverage_kwargs(env))
+    host = native.package_relative_label(app)
+    host = host.same_package_label(host.name + "_bundle")
     ios_unit_test(
         name = name,
         minimum_os_version = deployment,
         runner = ":" + name + "_runner",
-        test_host = app,
+        test_host = host,
         deps = test_deps,
         tags = tags,
         target_compatible_with = APPLE_HOSTS,

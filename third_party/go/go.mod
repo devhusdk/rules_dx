@@ -3,7 +3,7 @@ module rules_dx/third_party/go
 go 1.26.0
 
 require (
-	github.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52
+	github.com/bazelbuild/buildtools v0.0.0-20260904073137-eaa4d125b423
 	github.com/google/go-cmp v0.7.0
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
@@ -15,7 +15,7 @@ require (
 
 require (
 	github.com/kisielk/errcheck v1.30.0
-	golang.org/x/exp/typeparams v0.0.0-20261014143641-f0251eb4aa3e
+	golang.org/x/exp/typeparams v0.0.0-20261109185158-a52e3aef5920
 	honnef.co/go/tools v0.8.2
 )
 

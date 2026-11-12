@@ -152,7 +152,7 @@ def javascript_binary(name, *, srcs = None, main = None, visibility = None, **kw
         kwargs["entry_point"] = main
     _javascript_wrap_binary(name, effective_srcs, visibility = visibility, **kwargs)
 
-_javascript_test = node_test_forward_rule("javascript_*", _JS_EXTS, _DX_JS_SOURCE_SPECS)
+javascript_test_forward = node_test_forward_rule("javascript_*", _JS_EXTS, _DX_JS_SOURCE_SPECS)
 
 def javascript_test_rejection(runner, node_modules, main, kwargs):
     """Returns the rejection for bad javascript_test arguments, or None."""
@@ -171,7 +171,7 @@ def javascript_test(name, *, srcs = None, main = None, runner = "jest", node_mod
         upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs)
     quality_srcs = dx_entry_quality_srcs(main, srcs)
     a = node_test_wrap_args(name, quality_srcs, list(srcs or []) + (list(data) if data != None else []), package_json, upstream_kwargs, env_inherit, kwargs)
-    dx_wrap_test(name, upstream, _javascript_test, None, visibility = visibility, quality_srcs = quality_srcs, upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)
+    dx_wrap_test(name, upstream, javascript_test_forward, None, visibility = visibility, quality_srcs = quality_srcs, upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)
 
 def _source_label(src):
     return src if src.startswith(":") or src.startswith("//") or src.startswith("@") else ":" + src

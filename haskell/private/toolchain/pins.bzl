@@ -1,4 +1,4 @@
-"""Pinned GHC bindist, native closure and rules_haskell identities; the archive data is in pins.json."""
+"""Pinned GHC bindist and native closure identities; the archive data is in pins.json."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 
@@ -9,8 +9,6 @@ GHC_VERSION = _PINS["version"]
 def _archive(name):
     pin = _PINS["archives"][name]
     return struct(sha256 = pin["sha256"], strip_prefix = pin.get("strip_prefix", ""), urls = pin["urls"])
-
-RULES_HASKELL = _archive("rules_haskell")
 
 _GMP_LICENSE = struct(
     name = "gmp",

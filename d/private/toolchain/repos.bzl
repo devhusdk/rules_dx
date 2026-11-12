@@ -1,7 +1,7 @@
 """Hermetic LDC acquisition, the pinned rules_d sources and toolchain registration."""
 
-load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
 load("//core:deb_closure.bzl", "deb_closure")
+load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
 load("//core:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 load("//core:toolchain.bzl", "toolchain_target")
 load(":pins.bzl", "LDC_CELLS", "LDC_VERSION")
@@ -25,32 +25,6 @@ ADDON_DIR = "_dx_addon"
 def ldc_required_paths(cell):
     """Returns the paths one LDC cell's archive must provide."""
     return [cell.ldc, cell.compiler, "etc/ldc2.conf", cell.druntime, cell.phobos]
-
-DROPPED_PATHS = [
-    ".bazelignore",
-    ".bazelrc",
-    ".bazelversion",
-    ".bcr",
-    ".github",
-    ".pre-commit-config.yaml",
-    "MODULE.bazel",
-    "MODULE.bazel.lock",
-    "REPO.bazel",
-    "WORKSPACE.bazel",
-    "_typos.toml",
-    "d/extensions.bzl",
-    "d/private/toolchains_repo.bzl",
-    "d/repositories.bzl",
-    "d/tests",
-    "docs",
-    "dub",
-    "e2e",
-    "renovate.json",
-    "tools",
-]
-
-ROOT_BUILD = """exports_files(["LICENSE"])
-"""
 
 DMD_FILEGROUP = """filegroup(
     name = "dmd",

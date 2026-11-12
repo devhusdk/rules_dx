@@ -1,30 +1,11 @@
 """The haskell module extension."""
 
-load("//core:repo.bzl", "hub_repo", "pinned_archive")
+load("//core:repo.bzl", "hub_repo")
 load(":packages.bzl", "declare_packages")
-load(":pins.bzl", "CELLS", "RULES_HASKELL")
-load(":repos.bzl", "DROPPED_PATHS", "HUB_NAME", "ROOT_BUILD", "cell_repository_name", "ghc_repo", "hub_files")
+load(":pins.bzl", "CELLS")
+load(":repos.bzl", "HUB_NAME", "cell_repository_name", "ghc_repo", "hub_files")
 
 def _haskell_impl(mctx):
-    pinned_archive(
-        name = "rules_haskell",
-        dropped = DROPPED_PATHS,
-        files = {"BUILD.bazel": ROOT_BUILD},
-        patches = [
-            Label("//patches/rules_haskell:coverage_wrapper_no_report.patch"),
-            Label("//patches/rules_haskell:hermetic_haskell.patch"),
-            Label("//patches/rules_haskell:cabal_rules.patch"),
-            Label("//patches/rules_haskell:cabal_mingw_transition.patch"),
-            Label("//patches/rules_haskell:cc_wrapper_relpath_mount.patch"),
-            Label("//patches/rules_haskell:ghc_wrapper_runfiles_env.patch"),
-            Label("//patches/rules_haskell:cc_toolchain_config_info.patch"),
-            Label("//patches/rules_haskell:cabal_llvm_ar.patch"),
-            Label("//patches/rules_haskell:cc_wrapper_darwin_ffi.patch"),
-        ],
-        sha256 = RULES_HASKELL.sha256,
-        strip_prefix = RULES_HASKELL.strip_prefix,
-        urls = RULES_HASKELL.urls,
-    )
     for cell in sorted(CELLS):
         ghc_repo(
             name = cell_repository_name(cell),
@@ -36,7 +17,7 @@ def _haskell_impl(mctx):
 
 haskell = module_extension(
     implementation = _haskell_impl,
-    doc = "Creates rules_haskell, the pinned GHC bindists and the toolchain hub.",
+    doc = "Creates the pinned GHC bindists and the toolchain hub.",
 )
 
 def _cabal_impl(mctx):

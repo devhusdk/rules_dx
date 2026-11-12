@@ -10,6 +10,7 @@ exports_files([
     "bench_run.sh",
     "defs.bzl",
     "kwargs.bzl",
+    "rules_haskell.BUILD.bazel",
 ])
 
 real_source_target(
@@ -19,6 +20,7 @@ real_source_target(
         "defs.bzl",
         "kwargs.bzl",
         "deps_resolve.bzl",
+        "rules_haskell.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

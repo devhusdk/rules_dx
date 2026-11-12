@@ -1342,7 +1342,8 @@ pub(super) fn roundtrip_redocly(
     let mut problems = Vec::new();
     if text.contains("dupe") {
         problems.push(format!(
-            r##"{{"ruleId":"operation-operationId-unique","severity":"error","message":"Every operation must have a unique `operationId`.","location":[{{"source":{{"ref":"{root}"}},"pointer":"#/paths","reportOnKey":true,"start":{{"line":5,"col":7}},"end":{{"line":5,"col":18}}}}],"suggest":[]}}"##
+            r##"{{"ruleId":"operation-operationId-unique","severity":"error","message":"Every operation must have a unique `operationId`.","location":[{{"source":{{"ref":"{root}"}},"pointer":"#/paths","reportOnKey":true,"start":{{"line":5,"col":7}},"end":{{"line":5,"col":18}}}}],"suggest":[]}}"##,
+            root = json_escape(&root)
         ));
     }
     if text.contains("fragbad") {

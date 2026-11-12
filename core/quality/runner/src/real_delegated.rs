@@ -375,7 +375,8 @@ fn fortitude_behavior(
         (
             1,
             format!(
-                r#"[{{"code":"C001","severity":"error","filename":"{file}","location":{{"column":1,"row":1}},"end_location":{{"column":1,"row":2}},"message":"program uses implicit typing"}}]"#
+                r#"[{{"code":"C001","severity":"error","filename":"{file}","location":{{"column":1,"row":1}},"end_location":{{"column":1,"row":2}},"message":"program uses implicit typing"}}]"#,
+                file = json_escape(&file)
             ),
         )
     } else {
@@ -541,7 +542,8 @@ fn hlint_behavior(
         (
             1,
             format!(
-                r#"[{{"module":[],"decl":[],"severity":"Warning","hint":"Use id","file":"{file}","startLine":1,"startColumn":5,"endLine":1,"endColumn":12,"from":"x","to":"id","note":[],"refactorings":"[]"}}]"#
+                r#"[{{"module":[],"decl":[],"severity":"Warning","hint":"Use id","file":"{file}","startLine":1,"startColumn":5,"endLine":1,"endColumn":12,"from":"x","to":"id","note":[],"refactorings":"[]"}}]"#,
+                file = json_escape(&file)
             ),
         )
     } else {
@@ -639,7 +641,8 @@ fn julialint_behavior(
         (0, format!("{line}\n"))
     } else if source.contains("missing") {
         let line = format!(
-            r#"{{"v":1,"file":"{file}","line":1,"col":3,"severity":"error","rule":"missing-reference","message":"Missing reference: x"}}"#
+            r#"{{"v":1,"file":"{file}","line":1,"col":3,"severity":"error","rule":"missing-reference","message":"Missing reference: x"}}"#,
+            file = json_escape(&file)
         );
         (0, format!("{line}\n"))
     } else {
@@ -711,7 +714,8 @@ fn pkl_lsp_behavior(
         (2, String::new())
     } else if source.contains("unused") {
         let line = format!(
-            r#"{{"file":"{file}","line":1,"col":7,"severity":2,"code":"unused","message":"Unused local"}}"#
+            r#"{{"file":"{file}","line":1,"col":7,"severity":2,"code":"unused","message":"Unused local"}}"#,
+            file = json_escape(&file)
         );
         (1, format!("{line}\n"))
     } else {
@@ -861,7 +865,8 @@ fn dart_analyze_behavior(
     let text = std::fs::read_to_string(&file).expect("read staged file");
     let diagnostic = |path: &str, code: &str, severity: &str, kind: &str| {
         format!(
-            r#"{{"code":"{code}","severity":"{severity}","type":"{kind}","location":{{"file":"{path}","range":{{"start":{{"offset":0,"line":1,"column":1}},"end":{{"offset":1,"line":1,"column":2}}}}}},"problemMessage":"msg."}}"#
+            r#"{{"code":"{code}","severity":"{severity}","type":"{kind}","location":{{"file":"{path}","range":{{"start":{{"offset":0,"line":1,"column":1}},"end":{{"offset":1,"line":1,"column":2}}}}}},"problemMessage":"msg."}}"#,
+            path = json_escape(path)
         )
     };
     let (code, diagnostics) = if text.contains("badoptions") {
@@ -2150,7 +2155,8 @@ fn javac_log(exit: i32, file: &str) -> String {
         String::new()
     } else {
         format!(
-            r#"{{"file":"{file}","line":2,"column":22,"severity":"error","code":"compiler.err.prob.found.req","message":"incompatible types"}}"#
+            r#"{{"file":"{file}","line":2,"column":22,"severity":"error","code":"compiler.err.prob.found.req","message":"incompatible types"}}"#,
+            file = json_escape(&file)
         )
     };
     format!(r#"{{"tool":"javac","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
@@ -2209,7 +2215,8 @@ fn kotlinc_log(exit: i32, file: &str) -> String {
         String::new()
     } else {
         format!(
-            r#"{{"file":"{file}","line":2,"column":10,"severity":"error","code":"RETURN_TYPE_MISMATCH","message":"type mismatch"}}"#
+            r#"{{"file":"{file}","line":2,"column":10,"severity":"error","code":"RETURN_TYPE_MISMATCH","message":"type mismatch"}}"#,
+            file = json_escape(&file)
         )
     };
     format!(r#"{{"tool":"kotlinc","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
@@ -2268,7 +2275,8 @@ fn scalac_log(exit: i32, file: &str) -> String {
         String::new()
     } else {
         format!(
-            r#"{{"file":"{file}","line":1,"column":24,"severity":"error","code":"scalac","message":"type mismatch"}}"#
+            r#"{{"file":"{file}","line":1,"column":24,"severity":"error","code":"scalac","message":"type mismatch"}}"#,
+            file = json_escape(&file)
         )
     };
     format!(r#"{{"tool":"scalac","exit":{exit},"diagnostics":[{diagnostics}]}}"#)

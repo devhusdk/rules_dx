@@ -394,7 +394,7 @@ public final class ScalacCheck {
         out.append(',');
       }
       first = false;
-      out.append("{\"file\":").append(quote(e.file));
+      out.append("{\"file\":").append(quote(e.file.replace('\\', '/')));
       out.append(",\"line\":").append(e.line);
       out.append(",\"column\":").append(e.column);
       out.append(",\"severity\":").append(quote(e.severity));

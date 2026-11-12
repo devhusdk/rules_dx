@@ -3826,7 +3826,8 @@ fn cfn_lint_fake(
     for name in &args[7..] {
         if std::fs::read_to_string(name)?.contains("Bogus") {
             entries.push(format!(
-                r#"{{"Filename":"{name}","Level":"Error","Location":{{"End":{{"ColumnNumber":12,"LineNumber":6}},"Path":null,"Start":{{"ColumnNumber":7,"LineNumber":6}}}},"Message":"Additional properties are not allowed ('Bogus' was unexpected)","Rule":{{"Id":"E3002"}}}}"#
+                r#"{{"Filename":"{name}","Level":"Error","Location":{{"End":{{"ColumnNumber":12,"LineNumber":6}},"Path":null,"Start":{{"ColumnNumber":7,"LineNumber":6}}}},"Message":"Additional properties are not allowed ('Bogus' was unexpected)","Rule":{{"Id":"E3002"}}}}"#,
+name = json_escape(&name)
             ));
         }
     }
@@ -3996,7 +3997,8 @@ fn bicep_sarif(file: &str, rule: &str, level: &str, line: u64, column: u64) -> S
         format!(r#""level":"{level}","#)
     };
     format!(
-        r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"bicep"}}}},"results":[{{"ruleId":"{rule}",{level}"message":{{"text":"{text}"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"file://{file}"}},"region":{{"startLine":{line},"charOffset":{column}}}}}}}]}}],"columnKind":"utf16CodeUnits"}}]}}"#
+        r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"bicep"}}}},"results":[{{"ruleId":"{rule}",{level}"message":{{"text":"{text}"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"file://{file}"}},"region":{{"startLine":{line},"charOffset":{column}}}}}}}]}}],"columnKind":"utf16CodeUnits"}}]}}"#,
+        file = json_escape(&file)
     )
 }
 
@@ -4582,7 +4584,8 @@ fn sqlfluff_fake(
             ""
         };
         entries.push(format!(
-            r#"{{"filepath":"{name}","violations":[{violations}],"statistics":{{}},"timings":{{}}}}"#
+            r#"{{"filepath":"{name}","violations":[{violations}],"statistics":{{}},"timings":{{}}}}"#,
+name = json_escape(&name)
         ));
     }
     Ok(ChildOutput {
@@ -4804,7 +4807,10 @@ fn sqlfluff_dialect_fake(
     let entries: Vec<String> = names
         .iter()
         .map(|name| {
-            format!(r#"{{"filepath":"{name}","violations":[],"statistics":{{}},"timings":{{}}}}"#)
+            format!(
+                r#"{{"filepath":"{name}","violations":[],"statistics":{{}},"timings":{{}}}}"#,
+                name = json_escape(&name)
+            )
         })
         .collect();
     let files = names
@@ -6169,12 +6175,16 @@ fn credo_fake(
     let (issues, invalid) = if text.contains("broken") {
         (
             String::new(),
-            format!(r#"{{"path":"{file}","line":2,"column":8,"message":"missing terminator: )"}}"#),
+            format!(
+                r#"{{"path":"{file}","line":2,"column":8,"message":"missing terminator: )"}}"#,
+                file = json_escape(&file)
+            ),
         )
     } else if text.contains("IO.inspect") {
         (
             format!(
-                r#"{{"category":"warning","check":"Credo.Check.Warning.IoInspect","column":3,"filename":"{file}","line_no":2,"message":"There should be no calls to `IO.inspect/1`."}}"#
+                r#"{{"category":"warning","check":"Credo.Check.Warning.IoInspect","column":3,"filename":"{file}","line_no":2,"message":"There should be no calls to `IO.inspect/1`."}}"#,
+                file = json_escape(&file)
             ),
             String::new(),
         )
@@ -6601,7 +6611,8 @@ fn luals_report(
     assert!(flag("--logpath=").contains(".dx-luals"));
     assert!(flag("--metapath=").contains(".dx-luals"));
     let body = format!(
-        r#"{{"file://{root}/lib/bad.lua":[{{"code":"param-type-mismatch","message":"Cannot assign","range":{{"start":{{"line":2,"character":4}}}},"severity":2}}],"file://{root}/dx-luals/mod/dep.lua":[{{"code":"x","message":"dep","range":{{"start":{{"line":0,"character":0}}}},"severity":2}}]}}"#
+        r#"{{"file://{root}/lib/bad.lua":[{{"code":"param-type-mismatch","message":"Cannot assign","range":{{"start":{{"line":2,"character":4}}}},"severity":2}}],"file://{root}/dx-luals/mod/dep.lua":[{{"code":"x","message":"dep","range":{{"start":{{"line":0,"character":0}}}},"severity":2}}]}}"#,
+        root = json_escape(&root)
     );
     std::fs::write(flag("--check_out_path="), body)?;
     Ok(ChildOutput {
@@ -7223,7 +7234,8 @@ fn terraform_fake(
     let text = std::fs::read_to_string(dir.join("main.tf")).unwrap_or_default();
     let located = |severity: &str, file: &str| {
         format!(
-            r#"{{"severity":"{severity}","summary":"Boom","detail":"d","range":{{"filename":"{file}","start":{{"line":2,"column":3,"byte":1}},"end":{{"line":2,"column":6,"byte":4}}}}}}"#
+            r#"{{"severity":"{severity}","summary":"Boom","detail":"d","range":{{"filename":"{file}","start":{{"line":2,"column":3,"byte":1}},"end":{{"line":2,"column":6,"byte":4}}}}}}"#,
+            file = json_escape(&file)
         )
     };
     match args[1].as_str() {
@@ -7498,7 +7510,8 @@ fn lychee_fake(
             let name = file.to_string_lossy().replace('\\', "/");
             let slashes = if root.starts_with('/') { "//" } else { "///" };
             broken.push_str(&format!(
-                "\"{name}\":[{{\"url\":\"file:{slashes}{root}/gone.md\",\"status\":{{\"text\":\"File not found\"}},\"span\":{{\"line\":2,\"column\":3}}}}]"
+                "\"{name}\":[{{\"url\":\"file:{slashes}{root}/gone.md\",\"status\":{{\"text\":\"File not found\"}},\"span\":{{\"line\":2,\"column\":3}}}}]",
+name = json_escape(&name), root = json_escape(&root)
             ));
         }
     }
@@ -7541,7 +7554,8 @@ fn actionlint_fake(
         return Ok(ChildOutput {
             code: Some(1),
             stdout: format!(
-                "[{{\"message\":\"property \\\"foo\\\" is not defined in object type {{}}\",\"filepath\":\"{name}\",\"line\":7,\"column\":14,\"kind\":\"expression\"}}]"
+                "[{{\"message\":\"property \\\"foo\\\" is not defined in object type {{}}\",\"filepath\":\"{name}\",\"line\":7,\"column\":14,\"kind\":\"expression\"}}]",
+name = json_escape(&name)
             )
             .into_bytes(),
             stderr: Vec::new(),
@@ -7592,7 +7606,8 @@ fn zizmor_fake(
         return Ok(ChildOutput {
             code: Some(11),
             stdout: format!(
-                "[{{\"ident\":\"unpinned-uses\",\"desc\":\"unpinned action reference\",\"url\":\"u\",\"determinations\":{{\"confidence\":\"High\",\"severity\":\"Medium\"}},\"locations\":[{{\"symbolic\":{{\"key\":{{\"Local\":{{\"prefix\":\"/w\",\"given_path\":\"{name}\"}}}},\"annotation\":\"a\",\"kind\":\"Primary\"}},\"concrete\":{{\"location\":{{\"start_point\":{{\"row\":6,\"column\":14}},\"end_point\":{{\"row\":6,\"column\":35}}}},\"feature\":\"f\",\"comments\":[]}}}}],\"ignored\":false}}]"
+                "[{{\"ident\":\"unpinned-uses\",\"desc\":\"unpinned action reference\",\"url\":\"u\",\"determinations\":{{\"confidence\":\"High\",\"severity\":\"Medium\"}},\"locations\":[{{\"symbolic\":{{\"key\":{{\"Local\":{{\"prefix\":\"/w\",\"given_path\":\"{name}\"}}}},\"annotation\":\"a\",\"kind\":\"Primary\"}},\"concrete\":{{\"location\":{{\"start_point\":{{\"row\":6,\"column\":14}},\"end_point\":{{\"row\":6,\"column\":35}}}},\"feature\":\"f\",\"comments\":[]}}}}],\"ignored\":false}}]",
+name = json_escape(&name)
             )
             .into_bytes(),
             stderr: Vec::new(),
@@ -7897,7 +7912,11 @@ fn container_structure_test_reports_failed_tests_on_the_build_file() {
         ],
         ..plain_tool()
     };
-    let backend = backend_for("container_structure_test", tool, container_structure_test_tool);
+    let backend = backend_for(
+        "container_structure_test",
+        tool,
+        container_structure_test_tool,
+    );
     let findings = backend
         .diagnose(
             "container_structure_test",

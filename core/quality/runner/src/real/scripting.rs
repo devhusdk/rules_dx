@@ -344,12 +344,22 @@ fn luals(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Ru
     let pairs = &call.staged.pairs;
     let config = call.config;
     // LuaLS reports file URIs of the real paths, so analyse and match canonical ones.
-    let root = std::fs::canonicalize(scratch.root())
-        .map_err(|err| execution(tool_id, format!("canonicalize scratch root: {err}")))?;
+    let root = real_launcher(scratch.root());
+    if !root.is_dir() {
+        return Err(execution(
+            tool_id,
+            "canonicalize scratch root: not a directory".to_owned(),
+        ));
+    }
     let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
     for (workspace, absolute) in pairs {
-        let real = std::fs::canonicalize(absolute)
-            .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+        let real = real_launcher(absolute);
+        if !real.exists() {
+            return Err(execution(
+                tool_id,
+                format!("resolve {workspace}: not found"),
+            ));
+        }
         owned.push((real, absolute));
     }
     let work = root.join(".dx-luals");

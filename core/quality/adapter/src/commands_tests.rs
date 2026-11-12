@@ -8,7 +8,7 @@ fn argv_strings(invocation: &Invocation) -> Vec<String> {
     invocation
         .argv
         .iter()
-        .map(|arg| arg.to_string_lossy().into_owned())
+        .map(|arg| arg.to_string_lossy().replace('\\', "/"))
         .collect()
 }
 
@@ -3315,7 +3315,8 @@ fn phpstan_neon_adds_unused_public_only_without_a_consumer_config() {
         Path::new("/s/.tmp"),
         &[],
         Some(Path::new("/s/ext")),
-    );
+    )
+    .replace('\\', "/");
     assert!(
         neon.starts_with("includes:\n    - \"/s/ext/unused-public/config/extension.neon\"\n"),
         "{neon}"

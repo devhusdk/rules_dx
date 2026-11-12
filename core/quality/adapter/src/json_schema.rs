@@ -454,7 +454,7 @@ pub fn prepare(
     };
     let mut embedded: BTreeSet<String> = BTreeSet::new();
     for resource in &config.resources {
-        let shown = resource.path.display().to_string();
+        let shown = resource.path.to_string_lossy().replace('\\', "/");
         let bytes = read(&resource.path).map_err(|err| format!("schema {shown}: {err}"))?;
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|err| format!("schema {shown}: not valid JSON: {err}"))?;

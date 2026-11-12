@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":defs_tests.bzl", "cc_wrapper_contract_tests")
 load(":resolved_toolchain.bzl", "APPLE_SUPPORT_TOOLCHAIN_ID", "resolved_cc_toolchain")
 
 # gazelle:lang rust,dx_dispatch
@@ -118,11 +119,17 @@ rust_test(
     deps = [],
 )
 
+cc_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    size = "small",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
+        "defs_tests.bzl",
         "resolved_toolchain.bzl",
     ],
     tags = ["corpus"],

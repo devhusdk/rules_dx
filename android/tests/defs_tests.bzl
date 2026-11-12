@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//android/private/toolchain:cc_toolchain_config.bzl", "NdkToolchainLevelInfo")
-load(":kwargs.bzl", "android_split_native_kwargs")
+load("//android/private/library:kwargs.bzl", "android_split_native_kwargs")
 
 def _split_checks():
     shared, rest = android_split_native_kwargs({
@@ -36,17 +36,19 @@ _selected_test = analysistest.make(
     config_settings = {str(Label("//android:api_level")): 34},
 )
 
-def android_native_library_tests(name):
+def android_native_library_tests(name, size = "small"):
     """Declares the android_native_library tests."""
-    starlark_test(name = name + "_split", mode = "load", checks = _split_checks())
+    starlark_test(name = name + "_split", size = size, mode = "load", checks = _split_checks())
     _floor_test(
         name = name + "_floor_level_test",
+        size = size,
         target_under_test = "//android/private/toolchain:fake_config",
         want_level = 31,
         want_target = "aarch64-linux-android31",
     )
     _selected_test(
         name = name + "_selected_level_test",
+        size = size,
         target_under_test = "//android/private/toolchain:fake_config",
         want_level = 34,
         want_target = "aarch64-linux-android34",

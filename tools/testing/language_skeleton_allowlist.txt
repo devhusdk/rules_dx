@@ -459,8 +459,6 @@ register-label java/private/toolchain
 register-label kotlin/private/toolchain
 register-label scala/private/toolchain
 register-label tools/platforms
-test-location android/private/library/BUILD.bazel
-test-location android/private/library/defs_tests.bzl
 test-location android/private/packaging/BUILD.bazel
 test-location android/private/packaging/rotation_tests.bzl
 test-location android/private/sdk/BUILD.bazel
@@ -490,17 +488,14 @@ test-location cc/private/toolchains/gcc_unsupported_tests.bzl
 test-location cc/private/toolchains/identity_tests.bzl
 test-location cc/private/toolchains/msvc/BUILD.bazel
 test-location cc/private/toolchains/msvc/repos_tests.bzl
-test-location cc/private/wrapper_tests.bzl
 test-location csharp/private/BUILD.bazel
 test-location csharp/private/ide/BUILD.bazel
 test-location csharp/tests/BUILD.bazel
 test-location cuda/private/BUILD.bazel
 test-location d/private/BUILD.bazel
 test-location dart/private/BUILD.bazel
-test-location env/private/defs_tests.bzl
 test-location env/private/env_shard/BUILD.bazel
 test-location env/private/plan_tests.bzl
-test-location env/tests/BUILD.bazel
 test-location erlang/private/toolchain/BUILD.bazel
 test-location flutter/tests/BUILD.bazel
 test-location fortran/private/BUILD.bazel

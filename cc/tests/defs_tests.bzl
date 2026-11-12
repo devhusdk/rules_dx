@@ -7,15 +7,16 @@ load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "msvc_crt_reset_settings", "ms
 load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
-load(":defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_features", "cc_coverage_mismatch", "cc_coverage_settings", "cc_coverage_unsupported", "cc_param_file_features")
+load("//cc/private:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_features", "cc_coverage_mismatch", "cc_coverage_settings", "cc_coverage_unsupported", "cc_param_file_features")
 
 def _coverage_inputs(features, collect, compiler, compiler_flag):
     return dict(zip(CC_COVERAGE_INPUTS, [features, collect, compiler, compiler_flag]))
 
-def cc_wrapper_contract_tests(name):
+def cc_wrapper_contract_tests(name, size = "small"):
     """Instantiates C, C++ and Objective-C wrapper contract tests."""
     dx_wrapper_contract_tests(
         name,
+        size = size,
         file_classes = ["c", "cpp", "objc", "objcpp"],
         wrappers = {
             "binary": "//cc/tests/fixtures/hello:hello",

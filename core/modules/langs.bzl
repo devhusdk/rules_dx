@@ -1190,7 +1190,8 @@ LANGS = json.decode("""{
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
-      "macos_arm64"
+      "macos_arm64",
+      "windows_x86_64"
     ],
     "quality": {
       "aspects": {
@@ -1518,9 +1519,7 @@ LANGS = json.decode("""{
       "MODULE.bazel"
     ],
     "name": "java",
-    "pins": [
-      "pins.json"
-    ],
+    "pins": [],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",

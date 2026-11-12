@@ -35,8 +35,8 @@ pub mod watch;
 #[cfg(test)]
 mod local_paths_tests;
 
-pub use error::AdoptError;
 pub use avro_cpp::{AvroCpp, plan_avro_cpp};
+pub use error::AdoptError;
 pub use families::{detected_families, file_extensions};
 pub use git_changes::{
     ChangeKind, DEFAULT_BRANCH_CANDIDATES, GitChange, dedupe_changes, dx_config_git_ignored,
@@ -53,7 +53,8 @@ pub use launcher::{
 };
 pub use load_graph::{BzlImpact, bzl_impact, external_repos, module_inputs, repo_impact};
 pub use lock_hubs::{
-    LockHubs, MavenLocks, plan_lock_hubs, plan_maven_locks, plan_pnpm_tool, unlocked_manifests,
+    LockHubs, MavenLocks, RESOLVER_LOCKS, plan_lock_hubs, plan_maven_locks, plan_pnpm_tool,
+    unlocked_manifests,
 };
 pub use module_deps::{is_rules_dx_root, module_deps};
 pub use module_pin::{ModuleEdit, plan_rules_dx_version, write_edit_or_create, write_module_edit};

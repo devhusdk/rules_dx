@@ -96,8 +96,8 @@ fn tag(name: &str, args: Vec<(&str, Arg)>) -> NewTag {
 }
 
 /// The root manifests that `dx generate --apply` can lock: a cargo manifest without a cargo lock
-/// (an empty one counts as missing), a uv manifest without a uv lock, and a pnpm manifest
-/// without a pnpm lock.
+/// (an empty one counts as missing), a uv manifest without a uv lock, a pnpm manifest
+/// without a pnpm lock, and a composer or dub manifest without its lock.
 pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
     let mut out = Vec::new();
     let cargo_lock = std::fs::metadata(root.join(lock_of("cargo")));
@@ -119,8 +119,16 @@ pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
     if wants_pnpm_lock(root) {
         out.push(manifest_of("npm"));
     }
+    for ecosystem in RESOLVER_LOCKS {
+        if root.join(manifest_of(ecosystem)).is_file() && !root.join(lock_of(ecosystem)).exists() {
+            out.push(manifest_of(ecosystem));
+        }
+    }
     out
 }
+
+/// The ecosystems whose lock comes from the pinned resolver of their `setup.hubs` entry.
+pub const RESOLVER_LOCKS: [&str; 2] = ["composer", "dub"];
 
 /// True when the npm manifest at `path` lists a package in a dependency table.
 fn declares_dependency(path: &Path) -> bool {
@@ -779,7 +787,7 @@ mod tests {
 
     fn t(template: &str) -> &'static str {
         let mut text = template.to_owned();
-        for eco in ["cargo", "npm", "uv"] {
+        for eco in ["cargo", "npm", "uv", "composer", "dub"] {
             text = text.replace(&format!("{{{eco}:manifest}}"), manifest_of(eco));
             text = text.replace(&format!("{{{eco}:lock}}"), lock_of(eco));
         }
@@ -946,6 +954,26 @@ mod tests {
         ]);
         assert!(hubs.edit.is_none());
         assert!(hubs.notes.is_empty(), "{:?}", hubs.notes);
+    }
+
+    #[test]
+    fn composer_and_dub_manifests_without_their_lock_are_unlocked() {
+        assert_eq!(
+            unlocked(&[
+                (t("{composer:manifest}"), "{}"),
+                (t("{dub:manifest}"), "{}")
+            ]),
+            [t("{composer:manifest}"), t("{dub:manifest}")]
+        );
+        assert!(
+            unlocked(&[
+                (t("{composer:manifest}"), "{}"),
+                (t("{composer:lock}"), ""),
+                (t("{dub:manifest}"), "{}"),
+                (t("{dub:lock}"), "")
+            ])
+            .is_empty()
+        );
     }
 
     #[test]

@@ -1,0 +1,12 @@
+[package]
+name = "cc_rs_consumer"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+cxx = "=1.0.205"
+libz-sys = { version = "=1.1.31", default-features = false, features = ["static"] }

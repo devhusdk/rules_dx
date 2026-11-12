@@ -82,7 +82,6 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
         target_compatible_with = _LINUX,
         arch = target_cpu,
         dynamic_runtime = [target_repo + "//:linux_dynamic_runtime"],
-        env = {"LD_LIBRARY_PATH": Label(exec_sysroot + "//:files").workspace_root + "/host_libs"},
         features = [
             "swift._supports_upcoming_features",
             "swift.no_embed_debug_module",

@@ -1,27 +1,25 @@
 #!/usr/bin/env bash
-# Fails when a Swift toolchain binary needs a shared library that neither the
-# toolchain nor the sysroot host_libs provides. This is the static form of
-# running ldd with LD_LIBRARY_PATH cleared: the loader would take any other
-# library from the host. Only the glibc runtime may come from the host.
+# Fails when a Swift toolchain binary needs a shared library that its RUNPATH
+# directories do not provide. This is the static form of running ldd with
+# LD_LIBRARY_PATH cleared: the loader would take any other library from the
+# host. Only the glibc runtime may come from the host.
 set -euo pipefail
 
 objdump="$1"
-# The toolchain root is two levels above its usr/bin/llvm-objdump; host_libs is
-# where the sysroot's libz.so.1 sits.
+# The toolchain root is two levels above its usr/bin/llvm-objdump.
 toolchain="$(cd "$(dirname "$objdump")/../.." && pwd)"
-host_libs="$(cd "$(dirname "$2")" && pwd)"
 
 needed() {
   "$objdump" -p "$1" | awk '$1 == "NEEDED" {print $2}'
 }
 
-# Where the binaries' RUNPATHs and the wrapper's LD_LIBRARY_PATH point.
+# The binaries' RUNPATH directories; the sysroot host_libs are symlinked into
+# usr/lib and usr/lib/swift/linux, so these alone must resolve every NEEDED lib.
 dirs=(
   "$toolchain/usr/lib"
   "$toolchain/usr/lib/swift/linux"
   "$toolchain/usr/lib/swift/host"
   "$toolchain/usr/lib/swift/host/compiler"
-  "$host_libs"
 )
 
 host_ok='^(ld-linux-.*|libc\.so\.6|libm\.so\.6|libdl\.so\.2|libpthread\.so\.0|librt\.so\.1|libutil\.so\.1|libresolv\.so\.2)$'

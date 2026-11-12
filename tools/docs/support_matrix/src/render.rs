@@ -29,7 +29,7 @@ fn lang_supports(facts: &Facts, row: &Row, platform: &str) -> bool {
         .is_none_or(|ids| ids.is_empty() || ids.iter().any(|id| id == platform))
 }
 
-const SUITE_TESTS: [&str; 6] = [
+pub(crate) const SUITE_TESTS: [&str; 6] = [
     "build_test",
     "pass_test",
     "fail_test",

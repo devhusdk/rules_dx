@@ -82,6 +82,8 @@ pub struct ConformanceEntry {
     /// `run`, `n/a` or `pending`.
     pub status: String,
     pub reason: String,
+    #[serde(default)]
+    pub label: String,
 }
 
 /// The conformance manifest: every suite test per language and platform, and the `lang.json` platforms.
@@ -364,9 +366,51 @@ pub fn row_platforms(
     Ok(out)
 }
 
+/// Checks that every `lang.json` language has one manifest entry per suite column and `lang.json` platform, and that each run entry names its test.
+pub fn check_conformance(facts: &Facts) -> Result<(), String> {
+    let every = vec!["*".to_owned()];
+    for row in facts.rows.iter().filter(|row| row.section == "languages") {
+        let platforms = match facts.conformance.platforms.get(&row.name) {
+            None => continue,
+            Some(ids) if ids.is_empty() => &every,
+            Some(ids) => ids,
+        };
+        for test in render::SUITE_TESTS {
+            for platform in platforms {
+                let entries: Vec<_> = facts
+                    .conformance
+                    .entries
+                    .iter()
+                    .filter(|e| {
+                        e.lang == row.name && e.capability == test && &e.platform == platform
+                    })
+                    .collect();
+                match entries.as_slice() {
+                    [entry] if entry.status != "run" || !entry.label.is_empty() => {}
+                    [_] => {
+                        return Err(format!(
+                            "{} {test} on {platform} runs but its suite declares no test; add a pending.bzl line or a not_applicable entry",
+                            row.name
+                        ));
+                    }
+                    _ => {
+                        return Err(format!(
+                            "{} {test} on {platform} has {} conformance manifest entries, want 1; add a pending.bzl line or a not_applicable entry",
+                            row.name,
+                            entries.len()
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Generates the page from the facts and the workspace sources.
 pub fn generate(facts_json: &str, source: &dyn Source) -> Result<String, String> {
     let facts = parse_facts(facts_json)?;
+    check_conformance(&facts)?;
     let platforms = row_platforms(&facts, source)?;
     Ok(render::render(&facts, &platforms))
 }

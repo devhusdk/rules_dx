@@ -70,11 +70,3 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
-
-exports_files(
-    [
-        "BUILD.bazel",
-        "main_outside_srcs.rb",
-    ],
-    visibility = ["@rules_dx//tools/docs/support_matrix:__pkg__"],
-)

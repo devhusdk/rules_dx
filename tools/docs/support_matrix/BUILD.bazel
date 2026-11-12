@@ -88,6 +88,7 @@ rust_test(
         normal_dev = True,
     ) + [
         ":support_matrix",
+        "@crates//:serde_json",
         "@rules_rust//rust/runfiles",
     ],
 )

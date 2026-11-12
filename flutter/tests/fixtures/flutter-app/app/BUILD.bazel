@@ -16,10 +16,7 @@ exports_files(
         "BUILD.bazel",
         "tips.txt",
     ],
-    visibility = [
-        "//tools/docs/support_matrix:__pkg__",
-        "//tools/testing/hermetic:__pkg__",
-    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
 )
 
 _PUB = [

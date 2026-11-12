@@ -181,6 +181,47 @@ pub fn run_command(
     Ok(run)
 }
 
+/// Copies the directory `from` into `to`, keeping files, directories and symlinks.
+pub fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap_or_else(|error| panic!("create {}: {error}", to.display()));
+    for entry in
+        std::fs::read_dir(from).unwrap_or_else(|error| panic!("read {}: {error}", from.display()))
+    {
+        let entry = entry.unwrap_or_else(|error| panic!("entry of {}: {error}", from.display()));
+        let source = entry.path();
+        let target = to.join(entry.file_name());
+        let kind = entry
+            .file_type()
+            .unwrap_or_else(|error| panic!("type of {}: {error}", source.display()));
+        if kind.is_symlink() {
+            let destination = std::fs::read_link(&source)
+                .unwrap_or_else(|error| panic!("readlink {}: {error}", source.display()));
+            symlink(&destination, &target, &source);
+        } else if kind.is_dir() {
+            copy_tree(&source, &target);
+        } else {
+            std::fs::copy(&source, &target)
+                .unwrap_or_else(|error| panic!("copy {}: {error}", source.display()));
+        }
+    }
+}
+
+#[cfg(unix)]
+fn symlink(destination: &Path, link: &Path, source: &Path) {
+    std::os::unix::fs::symlink(destination, link)
+        .unwrap_or_else(|error| panic!("link {}: {error}", source.display()));
+}
+
+#[cfg(windows)]
+fn symlink(destination: &Path, link: &Path, source: &Path) {
+    let result = if source.is_dir() {
+        std::os::windows::fs::symlink_dir(destination, link)
+    } else {
+        std::os::windows::fs::symlink_file(destination, link)
+    };
+    result.unwrap_or_else(|error| panic!("link {}: {error}", source.display()));
+}
+
 static SCRATCH_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// Being removed by #2841; use `dx_test_scratch::scratch`.

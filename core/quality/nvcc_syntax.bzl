@@ -112,8 +112,7 @@ def _nvcc_syntax_impl(target, ctx):
     if target.label.repo_name != "":
         return []
 
-    # Declared headers are pruned from the compile action inputs, so a replay without
-    # them cannot find its own includes.
+    # Declared headers are pruned from the compile inputs, so the replay cannot use them.
     headers = depset()
     if CcInfo in target:
         context = target[CcInfo].compilation_context

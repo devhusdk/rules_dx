@@ -3,8 +3,7 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":clippy_tests.bzl", "clippy_config_test")
 
-# Repo policy files that .bazelrc flags point at. Keep them out of the root
-# package: loading it fetches every npm link repo.
+# Outside the root package, whose loading fetches every npm link repo.
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files(["clippy.toml"])

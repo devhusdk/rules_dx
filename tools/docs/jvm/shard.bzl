@@ -39,8 +39,7 @@ def jvm_shard_action(ctx, language, java_info, own, package, dep_shards, stem, a
         if output.class_jar:
             own_jars[output.class_jar.path] = True
 
-    # The adapter reads the sources alone. The library's own compile jar is only an input, so a
-    # library that does not compile fails the build before extraction, in every language.
+    # Compile jars are inputs only, so a library that does not compile fails first.
     classpath_jars = {f.path: f for f in java_info.transitive_compile_time_jars.to_list()}
     if language == "kotlin":
         # The Kotlin toolchain adds its stdlib to a library's compile classpath only privately.

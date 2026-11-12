@@ -5,8 +5,7 @@ load("//core:platform_support.bzl", "compatible_with", "platform_support")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
-# The string each compiler leaves in the binaries it builds: the ELF .comment entry, or the
-# PE Rich header entry of cl.exe compiling C++.
+# The ELF .comment entry, or the PE Rich header entry of cl.exe compiling C++.
 COMPILER_PRODUCERS = {
     "gcc": "GCC: (GNU) " + GCC_VERSION,
     "llvm": "clang version " + LLVM_CLANG_VERSION,
@@ -84,7 +83,6 @@ hermetic_manifest = rule(
     },
 )
 
-# Read by the support matrix (tools/docs/support_matrix) for the hermetic_qualification kind.
 # Targets that cannot run on Windows (AppImage, GCC) pass their own compatible_with.
 PLATFORM_SUPPORT = platform_support(
     "//tools/testing/hermetic:defs.bzl",

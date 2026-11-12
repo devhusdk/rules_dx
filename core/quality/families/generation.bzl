@@ -128,10 +128,7 @@ def _avro_closure(target):
 def _thrift_closure(target):
     return [(i.path, i.file) for i in target[ThriftInfo].transitive_includes.to_list()]
 
-# Tools whose declared import closure is staged next to the checked files:
-# tool -> (provider, closure(target) -> [(staged path, File)], strict). A strict
-# tool fails when two different Files claim one staged path, because the
-# compiler would see a different file than the one declared.
+# tool -> (provider, closure(target) -> [(staged path, File)], strict).
 _CLOSURE_STAGING = {
     "capnp": (CapnprotoInfo, _capnp_closure, True),
     "flatc": (FlatBuffersInfo, _flatc_closure, False),

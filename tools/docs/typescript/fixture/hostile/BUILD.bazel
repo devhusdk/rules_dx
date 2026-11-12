@@ -22,8 +22,7 @@ typescript_doc_shard(
     tsconfig = "tsconfig.json",
 )
 
-# Controls: the stock CLI must load each fixture plugin, which proves the
-# fixture really tries to inject them. Each control isolates one config source.
+# Controls: the stock CLI loads each fixture plugin, one config source each.
 [
     js_run_binary(
         name = "hostile_control_" + marker,

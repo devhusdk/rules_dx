@@ -3,8 +3,7 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
 
-# Not a vue_doc_shard: the launcher must refuse this project, so the isolation
-# test runs the launcher on these files directly.
+# The launcher must refuse this project, so it is not a vue_doc_shard.
 filegroup(
     name = "project",
     testonly = True,

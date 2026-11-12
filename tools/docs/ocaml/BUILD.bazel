@@ -58,8 +58,7 @@ dx_unavailable_tool(
     tool = "odoc",
 )
 
-# The tool attribute of the docs aspect and the shard rule: odoc where the OCaml toolchain has a
-# cell, a marked stub elsewhere, which makes the aspect skip OCaml targets.
+# odoc where the OCaml toolchain has a cell, else a marked stub the docs aspect skips.
 alias(
     name = "odoc_tool",
     actual = select({

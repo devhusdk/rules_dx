@@ -1,7 +1,7 @@
 .github/workflows/README.md issue-number 4
 AGENTS.md history-word 2
 CONTRIBUTING.md issue-number 1
-MODULE.bazel issue-number 38
+MODULE.bazel issue-number 20
 README.md dead-link 1
 cli/plan/src/args/invocation.rs link-chain 2
 core/quality/policy.bzl link-chain 1

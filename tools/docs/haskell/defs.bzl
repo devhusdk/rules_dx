@@ -25,8 +25,7 @@ def haskell_shard_action(ctx, info, package, config, stem, extract_tool):
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own]))
 
-    # The bindist ships no `lib/html`, which haddock lists to find its themes even for
-    # `--hoogle`; naming a stylesheet explicitly skips that lookup.
+    # The bindist ships no `lib/html`; naming a stylesheet skips haddock's theme lookup.
     css = ctx.actions.declare_file(stem + ".haddock.css")
     ctx.actions.write(css, "")
     hoogle = ctx.actions.declare_directory(stem + ".hoogle")

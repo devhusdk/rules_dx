@@ -9,9 +9,7 @@ PLATFORM_CONSTRAINTS = {
     "windows_arm64": ["os_windows", "cpu_arm64"],
 }
 
-# The qualified execution set: every dx tool ships for each of these, and
-# signing, remote execution and is_supported_key read it. Keep it explicit so a
-# selectable platform added to PLATFORM_CONSTRAINTS does not qualify itself.
+# Explicit, so a platform added to PLATFORM_CONSTRAINTS does not qualify itself.
 TOOL_PLATFORMS = [
     "linux_x86_64",
     "linux_arm64",
@@ -19,21 +17,12 @@ TOOL_PLATFORMS = [
     "windows_x86_64",
 ]
 
-# Selectable platforms without a native build resolve to a qualified platform's
-# artifact, run under OS emulation (Windows on Arm runs x64 via Prism). Keys must
-# be outside TOOL_PLATFORMS and values inside it: qualified platforms never run
-# emulated binaries. A native artifact on the key platform always wins.
-# Fallback resolution supplies an artifact, never a support claim: a record claims
-# the key platform only with a matrix case flagged for it.
+# Unqualified platform to the qualified platform whose artifact runs there emulated.
 PLATFORM_FALLBACKS = {
     "windows_arm64": "windows_x86_64",
 }
 
-# Inventory of tools whose upstream release ships no native build for a
-# fallback platform, so they run emulated there. Inventory only: resolution
-# stays in PLATFORM_FALLBACKS. A test requires every tool with a pin on the
-# fallback target to be either natively pinned on the key platform or listed
-# here (sorted), so a new upstream build forces this list to shrink.
+# Tools with no native build on a fallback platform, sorted.
 EMULATED_TOOLS = {
     "windows_arm64": [
         "chktex",
@@ -60,10 +49,7 @@ EMULATED_TOOLS = {
     ],
 }
 
-# Tools pinned on only some qualified platforms (upstream ships no build for the
-# rest). The hub renders a default branch to an empty file set for them instead
-# of failing analysis, so unrelated builds on other platforms keep working;
-# consumers that need the tool fail with a hint to set a tool override.
+# Tools pinned on only some qualified platforms; elsewhere they resolve to an empty file set.
 PARTIAL_TOOL_PLATFORMS = {
     "hlint": ["linux_x86_64", "windows_x86_64"],
     "nixfmt": ["linux_x86_64"],
@@ -80,7 +66,6 @@ SOURCE_BUILT_TOOL_PLATFORMS = {
 # Name of the empty target a partial tool resolves to on an unpinned platform.
 UNAVAILABLE_TARGET = "dx_unavailable"
 
-# Every platform the hub renders a config_setting for and accepts artifacts on.
 # Platforms outside TOOL_PLATFORMS are selectable but unqualified.
 ARTIFACT_PLATFORMS = list(PLATFORM_CONSTRAINTS.keys())
 

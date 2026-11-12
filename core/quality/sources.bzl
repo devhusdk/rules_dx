@@ -85,8 +85,7 @@ def dockerfile_name_error(basename):
         return ""
     return "'" + basename + "' is not a Dockerfile name; accepted names: " + ", ".join(DOCKERFILE_NAME_PATTERNS)
 
-# Classes whose files are recognised by exact basename or suffix. Matching is
-# case-sensitive. Add a row here to onboard a new name-matched class.
+# Classes matched by exact, case-sensitive basename or suffix.
 NAMED_SOURCE_CLASSES = {
     "make": {
         "names": ["GNUmakefile", "Makefile", "makefile"],
@@ -144,8 +143,7 @@ def named_source_library(class_id, doc, srcs_doc, name_error = None):
         },
     )
 
-# Classes recognised by directory and extension. These are checked before the
-# extension table, so a workflow file leaves the `yaml` class for lint.
+# Checked before the extension table, so a workflow file leaves the `yaml` class.
 PATH_SOURCE_CLASSES = {
     "github_workflow": {
         "dirs": [".github/workflows"],

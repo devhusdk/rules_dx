@@ -505,7 +505,7 @@ source = { registry = "https://pypi.org/simple" }
             std::os::unix::fs::symlink(
                 harness
                     .workspace
-                    .join(&format!("locks/{}", lock_name(Ecosystem::Uv))),
+                    .join(format!("locks/{}", lock_name(Ecosystem::Uv))),
                 harness.workspace.join(rel),
             )
             .unwrap();

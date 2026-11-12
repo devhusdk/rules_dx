@@ -78,10 +78,10 @@ pub fn select_aspects(
 pub(crate) fn setting_name(option: &str) -> Result<String, DxError> {
     let bare = option
         .strip_prefix("--")
-        .ok_or_else(|| dx_process::invalid_setting(option.to_owned()))?;
+        .ok_or_else(|| dx_process::invalid_setting(option))?;
     let name = bare.split('=').next().unwrap_or("");
     if name.is_empty() {
-        return Err(dx_process::invalid_setting(option.to_owned()));
+        return Err(dx_process::invalid_setting(option));
     }
     Ok(name.to_owned())
 }
@@ -91,7 +91,7 @@ pub fn protected_flags(required: &[String]) -> Result<Vec<ProtectedFlag>, DxErro
         .iter()
         .find(|option| option.as_str() == KEEP_GOING_FLAG)
         .cloned()
-        .ok_or_else(|| dx_process::invalid_required_option("keep_going".to_owned()))?;
+        .ok_or_else(|| dx_process::invalid_required_option("keep_going"))?;
     let mut protected = vec![
         ProtectedFlag {
             name: "aspects".to_owned(),
@@ -1046,9 +1046,8 @@ mod tests {
                 && arg.contains(
                     "@rules_dx//javascript/private/quality:js.bzl%real_js_typecheck_aspect"
                 )
-                && arg.contains(
-                    "@rules_dx//java/private/quality:jvm.bzl%real_jvm_typecheck_aspect"
-                )
+                && arg
+                    .contains("@rules_dx//java/private/quality:jvm.bzl%real_jvm_typecheck_aspect")
                 && arg.contains("@rules_dx//d/private/quality:d.bzl%real_d_typecheck_aspect")
                 && arg.contains(
                     "@rules_dx//fortran/private/quality:fortran.bzl%real_fortran_typecheck_aspect"

@@ -86,7 +86,7 @@ mod tests {
         assert_eq!(first, second);
         let other = "0".repeat(64);
         std::fs::write(
-            dx_path::state::local_dir(&workspace)
+            dx_path::state::local_dir(workspace)
                 .join(GENERATED_DIR_NAME)
                 .join(&other),
             "foreign",
@@ -111,9 +111,9 @@ mod tests {
     fn managed_generation_dir_create_failure_surfaces() {
         let workspace = temp_dir("managed-gendir-create-ws");
         let workspace = workspace.path();
-        std::fs::create_dir_all(dx_path::state::local_dir(&workspace)).expect("dx dir");
+        std::fs::create_dir_all(dx_path::state::local_dir(workspace)).expect("dx dir");
         std::fs::write(
-            dx_path::state::local_dir(&workspace).join(GENERATED_DIR_NAME),
+            dx_path::state::local_dir(workspace).join(GENERATED_DIR_NAME),
             "file",
         )
         .expect("blocker");

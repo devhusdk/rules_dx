@@ -134,7 +134,7 @@ fn execute_checked(
                 invocation.output,
                 out,
                 err,
-                &dx_process::unsupported_command(invocation.command.name().to_owned()).to_string(),
+                &dx_process::unsupported_command(invocation.command.name()).to_string(),
             );
         }
     };
@@ -147,7 +147,7 @@ fn execute_checked(
             invocation.output,
             out,
             err,
-            &dx_process::unsupported_command(invocation.command.name().to_owned()).to_string(),
+            &dx_process::unsupported_command(invocation.command.name()).to_string(),
         );
     };
     let bep = bep_path(temp_dir, pid, nonce);

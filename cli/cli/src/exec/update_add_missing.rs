@@ -26,13 +26,12 @@ fn kind_of(ecosystem: Ecosystem) -> Option<ConfiguredKind> {
 }
 
 fn latest(ecosystem: Ecosystem, name: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
-    let latest = match ecosystem {
+    match ecosystem {
         Ecosystem::Cargo => cargo::latest_stable(name, cargo::DEFAULT_BASE, fetch),
         Ecosystem::Npm => npm::latest_stable(name, npm::DEFAULT_BASE, fetch),
         Ecosystem::Uv => pypi::latest_stable(name, pypi::DEFAULT_BASE, fetch),
         _ => ruby::latest_stable(name, ruby::DEFAULT_BASE, fetch),
-    };
-    latest
+    }
 }
 
 /// The manifest of the set whose directory holds `file`, else the first one.
@@ -308,9 +307,9 @@ mod tests {
             .map(|a| format!("{} {} {}", a.set, a.name, a.version))
             .collect();
         assert_eq!(names, ["crates regex 1.5.0", "npm left-pad 1.3.0"]);
-        let cargo = std::fs::read_to_string(root.join(&format!("rs/{cargo}"))).unwrap();
+        let cargo = std::fs::read_to_string(root.join(format!("rs/{cargo}"))).unwrap();
         assert!(cargo.contains("regex = \"1.5.0\""), "{cargo}");
-        let npm = std::fs::read_to_string(root.join(&format!("web/{npm_manifest}"))).unwrap();
+        let npm = std::fs::read_to_string(root.join(format!("web/{npm_manifest}"))).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
         assert!(update_unused::find_missing(root, &resolved, &NoQuery, &[]).is_empty());
         assert!(
@@ -351,7 +350,7 @@ mod tests {
             .map(|a| format!("{} {}", a.name, a.version))
             .collect();
         assert_eq!(names, ["left-pad 1.3.0"]);
-        let npm = std::fs::read_to_string(root.join(&format!("web/{npm_manifest}"))).unwrap();
+        let npm = std::fs::read_to_string(root.join(format!("web/{npm_manifest}"))).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
         assert!(npm.contains("\"react\": \"18.0.0\""), "{npm}");
     }
@@ -385,7 +384,7 @@ mod tests {
         )];
         let error = add_missing(root, &resolved, &registry, &NoQuery, &[]).expect_err("zzz fails");
         assert!(error.message().contains("npm:zzz"), "{error}");
-        let npm = std::fs::read_to_string(root.join(&format!("web/{npm_manifest}"))).unwrap();
+        let npm = std::fs::read_to_string(root.join(format!("web/{npm_manifest}"))).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
     }
 }

@@ -38,9 +38,9 @@ fn repo_files_match_their_schemas() {
 #[test]
 fn typo_key_is_rejected() {
     let security = validator(SECURITY_SCHEMA);
-    assert!(!security.is_valid(&toml_value("schema_versoin = 1")));
+    assert!(!security.is_valid(&toml_value("schema_verzion = 1")));
     let licenses = validator(LICENSES_SCHEMA);
-    assert!(!licenses.is_valid(&toml_value("[polcy]\nblocked = []")));
+    assert!(!licenses.is_valid(&toml_value("[plicy]\nblocked = []")));
 }
 
 #[test]

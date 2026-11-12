@@ -48,8 +48,8 @@ fn a_family_override_replaces_one_capability() {
 
 #[test]
 fn an_unknown_family_gets_a_hint() {
-    let error = problem("schema_version = 1\n[families.pyhton]\ndisabled = true\n");
-    assert!(error.to_string().contains("unknown family `pyhton`"));
+    let error = problem("schema_version = 1\n[families.pythn]\ndisabled = true\n");
+    assert!(error.to_string().contains("unknown family `pythn`"));
     assert!(error.to_string().contains("did you mean `python`?"));
 }
 

@@ -302,6 +302,14 @@ impl ResolveError {
     }
 }
 
+fn list_with_more(candidates: &[String], total: usize) -> String {
+    let mut text = candidates.join(", ");
+    if total > candidates.len() {
+        text.push_str(&format!(", and {} more", total - candidates.len()));
+    }
+    text
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -414,12 +422,4 @@ mod tests {
         assert!(probed.is_empty(), "{probed:?}");
         assert!(matches!(failure(result), QueryFailure::Exit { .. }));
     }
-}
-
-fn list_with_more(candidates: &[String], total: usize) -> String {
-    let mut text = candidates.join(", ");
-    if total > candidates.len() {
-        text.push_str(&format!(", and {} more", total - candidates.len()));
-    }
-    text
 }

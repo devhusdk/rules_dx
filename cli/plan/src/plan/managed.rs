@@ -11,7 +11,7 @@ pub fn plan_managed(
     bep_path: &str,
     startup_options: &[String],
 ) -> Result<BuildPlan, DxError> {
-    let unsupported = || dx_process::unsupported_command(command.name().to_owned());
+    let unsupported = || dx_process::unsupported_command(command.name());
     if !command.is_managed() {
         return Err(unsupported());
     }
@@ -56,7 +56,7 @@ fn managed_argv(
     bep_path: &str,
     startup_options: &[String],
 ) -> Result<Vec<String>, DxError> {
-    let unsupported = || dx_process::unsupported_command(command.name().to_owned());
+    let unsupported = || dx_process::unsupported_command(command.name());
     if !command.is_managed() {
         return Err(unsupported());
     }

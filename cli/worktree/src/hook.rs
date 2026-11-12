@@ -720,7 +720,7 @@ fn shell_script<'a>(args: &[&'a str]) -> Option<&'a str> {
                 rest.next();
             }
         } else {
-            return Some(word).filter(|_| command);
+            return command.then_some(word);
         }
     }
     None

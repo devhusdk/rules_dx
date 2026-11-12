@@ -365,12 +365,12 @@ fn lock_errors_convert_to_env_errors() {
     }
     assert!(matches!(
         Error::from(busy),
-        Error::Busy { path, .. } if path == PathBuf::from("/ws/.dx/local/.commit.lock")
+        Error::Busy { path, .. } if path == Path::new("/ws/.dx/local/.commit.lock")
     ));
     assert!(matches!(
         Error::from(failed),
         Error::LockFailed { path, reason }
-            if path == PathBuf::from("/ws/.dx/local/.commit.lock") && reason == "r"
+            if path == Path::new("/ws/.dx/local/.commit.lock") && reason == "r"
     ));
 }
 

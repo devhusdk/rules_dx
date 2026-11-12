@@ -38,16 +38,16 @@ fn gazelle(args: &[String]) -> bool {
 
 fn bazel(args: &[String]) {
     gazelle(args);
-    if let Ok(intended) = std::env::var("DX_GENERATE_INTENDED") {
-        if !intended.is_empty() {
-            let mode = std::env::var("DX_GENERATE_MODE").unwrap_or_else(|_| "default".into());
-            write(
-                &intended,
-                &format!(
-                    "{{\"mode\":\"{mode}\",\"result\":\"clean\",\"scopes\":[{{\"value\":\"//...\",\"results_complete\":true}}],\"files\":[],\"ignored_imports\":[]}}"
-                ),
-            );
-        }
+    if let Ok(intended) = std::env::var("DX_GENERATE_INTENDED")
+        && !intended.is_empty()
+    {
+        let mode = std::env::var("DX_GENERATE_MODE").unwrap_or_else(|_| "default".into());
+        write(
+            &intended,
+            &format!(
+                "{{\"mode\":\"{mode}\",\"result\":\"clean\",\"scopes\":[{{\"value\":\"//...\",\"results_complete\":true}}],\"files\":[],\"ignored_imports\":[]}}"
+            ),
+        );
     }
     if std::env::var("CARGO_BAZEL_REPIN").is_ok_and(|v| !v.is_empty()) {
         write("Cargo.lock", "# lock\n");

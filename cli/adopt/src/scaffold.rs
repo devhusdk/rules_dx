@@ -2258,7 +2258,7 @@ mod tests {
         let path = root.join(".devcontainer/devcontainer.json");
         let old = DEVCONTAINER_JSON
             .replace(
-                &"b1e3b08610ae0b2599f57c3a492eebc93d1d26dbaefb4a0bad0caa7149e4ec95",
+                "b1e3b08610ae0b2599f57c3a492eebc93d1d26dbaefb4a0bad0caa7149e4ec95",
                 &"0".repeat(64),
             )
             .replace("bazel:1.2.2", "bazel:1.0.0")

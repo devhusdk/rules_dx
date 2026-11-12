@@ -64,8 +64,6 @@ fn ansible_plan(
     Ok(BackendPlan::Sequence(runs))
 }
 
-/// A process to run in a directory other than the workspace root.
-
 pub(super) fn plan(
     workspace: &Path,
     set: &ResolvedSet,

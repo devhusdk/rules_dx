@@ -180,7 +180,6 @@ mod tests {
         let policy = Policy {
             allow_major: true,
             cutoff: Some("2026-01-31".into()),
-            ..Policy::default()
         };
         let (kept, skipped) = filter(&all, &policy);
         assert_eq!(kept.len(), 1);

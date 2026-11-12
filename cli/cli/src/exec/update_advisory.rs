@@ -292,9 +292,8 @@ fn open_pull_request(
     built
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
-    #![cfg(unix)]
     use super::*;
 
     const SHA_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";

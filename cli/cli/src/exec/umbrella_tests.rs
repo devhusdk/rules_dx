@@ -302,10 +302,9 @@ impl Runner for StagedRunner {
         if let Some(path) = env
             .iter()
             .find_map(|(key, value)| (*key == GENERATE_ENV_INTENDED).then_some(*value))
+            && let Some(witness) = intended
         {
-            if let Some(witness) = intended {
-                std::fs::write(path, witness).expect("stage witness");
-            }
+            std::fs::write(path, witness).expect("stage witness");
         }
         self.seen_env.borrow_mut().push(
             env.iter()

@@ -870,13 +870,12 @@ impl Runner for FakeRunner {
                 .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
                 .collect(),
         );
-        if !self.skip_bep {
-            if let Some(bep) = argv
+        if !self.skip_bep
+            && let Some(bep) = argv
                 .iter()
                 .find_map(|arg| arg.strip_prefix("--build_event_json_file="))
-            {
-                std::fs::write(bep, self.bep_lines.join("\n")).expect("BEP file");
-            }
+        {
+            std::fs::write(bep, self.bep_lines.join("\n")).expect("BEP file");
         }
         if let (Some(payload), Some(path)) = (
             &self.patch,
@@ -1405,6 +1404,13 @@ pub(crate) fn closed_pipe() -> io::PipeWriter {
     writer
 }
 
+/// An empty process table, so live observation succeeds and sees no readers.
+pub(crate) fn quiet_proc(harness: &Harness) -> std::path::PathBuf {
+    let proc_root = harness.workspace.join("quiet-proc");
+    std::fs::create_dir_all(&proc_root).expect("empty process table");
+    proc_root
+}
+
 #[cfg(test)]
 mod scope_exclude_tests {
     use super::*;
@@ -1474,11 +1480,4 @@ mod scope_exclude_tests {
         assert!(err.contains("invalid dx.toml"), "{err}");
         assert!(harness.build_argv.borrow().is_empty());
     }
-}
-
-/// An empty process table, so live observation succeeds and sees no readers.
-pub(crate) fn quiet_proc(harness: &Harness) -> std::path::PathBuf {
-    let proc_root = harness.workspace.join("quiet-proc");
-    std::fs::create_dir_all(&proc_root).expect("empty process table");
-    proc_root
 }

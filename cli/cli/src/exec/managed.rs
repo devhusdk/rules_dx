@@ -31,7 +31,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             invocation.output,
             out,
             err,
-            &dx_process::unsupported_command(invocation.command.name().to_owned()).to_string(),
+            &dx_process::unsupported_command(invocation.command.name()).to_string(),
         );
     }
     let scope = match dx_setup::resolve_scope(&invocation.targets) {
@@ -532,7 +532,7 @@ mod tests {
         let (staged, _held) = stage_env_side(workspace, &env_plan).expect("stage");
         assert_eq!(staged, empty_env_id());
         let values = std::fs::read_to_string(
-            dx_path::state::local_dir(&workspace)
+            dx_path::state::local_dir(workspace)
                 .join(ENVIRONMENTS_DIR_NAME)
                 .join(empty_env_id().as_str())
                 .join("values.json"),

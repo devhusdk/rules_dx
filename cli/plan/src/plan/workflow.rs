@@ -735,7 +735,7 @@ mod tests {
                     .expect_err("download override must fail");
                 assert_eq!(
                     err,
-                    dx_process::conflicting_option(flag.to_owned()),
+                    dx_process::conflicting_option(flag),
                     "{verb:?} {option}"
                 );
             }

@@ -557,9 +557,10 @@ fn the_golden_lock_matches_the_schema() {
 
 #[test]
 fn the_schema_rejects_what_the_design_bans() {
+    type Edit = (&'static str, fn(&mut serde_json::Value));
     let golden: serde_json::Value =
         serde_json::from_str(&text(&runfile("GOLDEN"))).expect("golden is JSON");
-    let edits: [(&str, fn(&mut serde_json::Value)); 11] = [
+    let edits: [Edit; 11] = [
         ("no digest", |lock| {
             lock["packages"][0]["archives"][0]
                 .as_object_mut()

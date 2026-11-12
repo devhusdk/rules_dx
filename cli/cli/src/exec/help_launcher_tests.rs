@@ -95,7 +95,7 @@ fn clap_renders_the_error_and_supplies_the_suggestion() {
             "some similar subcommands exist: 'init', 'lint'",
         ),
         (
-            vec!["lint", "--ouptut=json"],
+            vec!["lint", "--outpt=json"],
             "a similar argument exists: '--output'",
         ),
     ] {

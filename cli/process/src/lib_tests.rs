@@ -358,11 +358,11 @@ fn startup_and_binary_args_are_detected() {
 
 #[test]
 fn internal_errors_render_without_echoing_values() {
-    let err = invalid_required_option("keep_going".to_owned());
+    let err = invalid_required_option("keep_going");
     assert!(err.to_string().contains("--keep_going"));
-    let err = invalid_setting("clippy_output_diagnostics=true".to_owned());
+    let err = invalid_setting("clippy_output_diagnostics=true");
     assert!(err.to_string().contains("malformed required setting"));
-    let err = unsupported_command("lint".to_owned());
+    let err = unsupported_command("lint");
     assert!(err.to_string().contains("lint"));
     assert!(err.to_string().ends_with(BUG_REPORT_HINT));
 }
@@ -441,7 +441,7 @@ fn workflow_argv_rejects_startup_options() {
         &[],
     )
     .expect_err("startup");
-    assert_eq!(err, startup_option("output_base".to_owned()));
+    assert_eq!(err, startup_option("output_base"));
     assert!(err.to_string().contains("native bazel"));
     assert!(!err.to_string().contains("/tmp/x"));
 }
@@ -458,7 +458,7 @@ fn workflow_argv_rejects_test_binary_args_outside_test_commands() {
             &[],
         )
         .expect_err("binary args");
-        assert_eq!(err, test_binary_args("test_arg".to_owned()), "{command}");
+        assert_eq!(err, test_binary_args("test_arg"), "{command}");
         assert!(err.to_string().contains("native bazel"), "{command}: {err}");
     }
 }

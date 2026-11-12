@@ -17,7 +17,7 @@ fn workspace(prefix: &str) -> (dx_test_scratch::TempDir, PathBuf) {
 }
 
 fn materialize(workspace: &Path, pair: &SetupPair) {
-    let dx_dir = dx_path::state::local_dir(&workspace);
+    let dx_dir = dx_path::state::local_dir(workspace);
     for (kind, hex) in [
         (GenerationUse::Environment, pair.environment.as_str()),
         (GenerationUse::Generated, pair.generated.as_str()),
@@ -34,13 +34,13 @@ fn select(workspace: &Path, pair: &SetupPair) {
 }
 
 fn generation_dir(workspace: &Path, kind: GenerationUse, hex: &str) -> PathBuf {
-    dx_path::state::local_dir(&workspace)
+    dx_path::state::local_dir(workspace)
         .join(kind.dir_name())
         .join(hex)
 }
 
 fn exclusive_free(workspace: &Path, kind: GenerationUse, hex: &str) -> bool {
-    lease::try_acquire_exclusive(&dx_path::state::local_dir(&workspace), kind, hex)
+    lease::try_acquire_exclusive(&dx_path::state::local_dir(workspace), kind, hex)
         .expect("probe lease")
         .is_some()
 }

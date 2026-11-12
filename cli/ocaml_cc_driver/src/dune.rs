@@ -136,12 +136,12 @@ fn io(context: &str, error: std::io::Error) -> String {
 #[cfg(unix)]
 fn add_write(path: &Path) {
     use std::os::unix::fs::PermissionsExt;
-    if let Ok(meta) = fs::symlink_metadata(path) {
-        if !meta.file_type().is_symlink() {
-            let mut permissions = meta.permissions();
-            permissions.set_mode(permissions.mode() | 0o700);
-            let _ = fs::set_permissions(path, permissions);
-        }
+    if let Ok(meta) = fs::symlink_metadata(path)
+        && !meta.file_type().is_symlink()
+    {
+        let mut permissions = meta.permissions();
+        permissions.set_mode(permissions.mode() | 0o700);
+        let _ = fs::set_permissions(path, permissions);
     }
 }
 
@@ -151,13 +151,12 @@ fn add_write(_path: &Path) {}
 /// Makes a tree writable so it can be removed.
 fn make_writable(path: &Path) {
     add_write(path);
-    if let Ok(meta) = fs::symlink_metadata(path) {
-        if meta.is_dir() {
-            if let Ok(entries) = fs::read_dir(path) {
-                for entry in entries.flatten() {
-                    make_writable(&entry.path());
-                }
-            }
+    if let Ok(meta) = fs::symlink_metadata(path)
+        && meta.is_dir()
+        && let Ok(entries) = fs::read_dir(path)
+    {
+        for entry in entries.flatten() {
+            make_writable(&entry.path());
         }
     }
 }

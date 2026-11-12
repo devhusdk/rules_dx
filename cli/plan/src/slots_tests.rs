@@ -2354,8 +2354,7 @@ fn a_zero_wait_fails_at_once_naming_the_holder() {
     let (mut err, mut events) = (Vec::new(), Vec::new());
     let stop = gate
         .take(Command::Test, &mut err, &mut events)
-        .err()
-        .expect("busy");
+        .expect_err("busy");
     assert_eq!(stop, Stop::Busy("/w/holder".to_owned()));
     assert!(err.is_empty() && events.is_empty());
 }
@@ -2368,8 +2367,7 @@ fn a_wait_gives_up_once_the_clock_passes_the_limit() {
     let (mut err, mut events) = (Vec::new(), Vec::new());
     let stop = gate
         .take(Command::Test, &mut err, &mut events)
-        .err()
-        .expect("busy");
+        .expect_err("busy");
     assert_eq!(stop, Stop::Busy("/w/holder".to_owned()));
     assert!(
         String::from_utf8(err)

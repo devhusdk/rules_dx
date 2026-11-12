@@ -256,12 +256,12 @@ mod tests {
         let conflicting = strings(&["--config=dx_build_release"]);
         assert_eq!(
             plan_run("//app:bin", &conflicting, &[], BuildMode::Dev, &[]).expect_err("conflict"),
-            dx_process::conflicting_option("config".to_owned())
+            dx_process::conflicting_option("config")
         );
         assert_eq!(
             plan_run_build(&strings(&["//app:bin"]), &conflicting, BuildMode::Dev, &[])
                 .expect_err("conflict"),
-            dx_process::conflicting_option("config".to_owned())
+            dx_process::conflicting_option("config")
         );
         let options = strings(&["--noshow_progress", "--config=dx_build_dev", "--jobs=4"]);
         let run = plan_run("//app:bin", &options, &[], BuildMode::Dev, &[]).expect("plan");

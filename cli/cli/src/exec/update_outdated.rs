@@ -1080,6 +1080,15 @@ fn stack_lock_errors(set: &str, locks: &[String]) -> Vec<dx_update::discover::Lo
         .collect()
 }
 
+fn outdated_hint(ecosystem: Ecosystem) -> String {
+    match ecosystem {
+        Ecosystem::LuaRocks => {
+            "edit the dependencies in the rockspec, then run dx update".to_owned()
+        }
+        _ => "edit the dub manifest, then run dx update".to_owned(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1465,14 +1474,5 @@ mod tests {
         let json = String::from_utf8_lossy(&out);
         assert!(json.contains(CODE_UPDATE_OUTDATED_OVERRIDDEN), "{json}");
         assert!(json.contains("\"maven:com.google.guava:guava\""), "{json}");
-    }
-}
-
-fn outdated_hint(ecosystem: Ecosystem) -> String {
-    match ecosystem {
-        Ecosystem::LuaRocks => {
-            "edit the dependencies in the rockspec, then run dx update".to_owned()
-        }
-        _ => "edit the dub manifest, then run dx update".to_owned(),
     }
 }

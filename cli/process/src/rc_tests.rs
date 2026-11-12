@@ -592,16 +592,15 @@ fn the_vendored_preset_suppresses_nothing() {
     ] {
         assert!(preset.contains(&flag), "{flag}");
     }
-    for dir in [".dx/bazelrc"] {
-        let policy = Machine::local()
-            .file(
-                "/ws/.bazelrc",
-                &format!("import %workspace%/{dir}/resources.bazelrc\n"),
-            )
-            .file(&format!("/ws/{dir}/resources.bazelrc"), &preset)
-            .policy();
-        assert_eq!(resources(&policy), (true, true), "{dir}");
-    }
+    let dir = ".dx/bazelrc";
+    let policy = Machine::local()
+        .file(
+            "/ws/.bazelrc",
+            &format!("import %workspace%/{dir}/resources.bazelrc\n"),
+        )
+        .file(&format!("/ws/{dir}/resources.bazelrc"), &preset)
+        .policy();
+    assert_eq!(resources(&policy), (true, true), "{dir}");
 }
 
 #[test]

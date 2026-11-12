@@ -591,14 +591,14 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("csharp_test", Constraint::AsWritten),
     (
         "cuda_test",
-        Constraint::Appended("//cuda/private:defs.bzl", "CUDA_TARGET"),
+        Constraint::Appended("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH"),
     ),
     (
         "d_test",
         Constraint::Appended("//d/private:defs.bzl", "D_COMPATIBLE_WITH"),
     ),
     ("dx_hello_output_test", Constraint::AsWritten),
-    ("dx_wasi_test_tests", Constraint::AsWritten),
+    ("rust_wasi_test_tests", Constraint::AsWritten),
     (
         "erlang_eunit_test",
         Constraint::Appended("//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH"),

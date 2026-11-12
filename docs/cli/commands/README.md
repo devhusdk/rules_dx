@@ -407,7 +407,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//helm:defs.bzl` | `helm_library` |
 |  |  | `@rules_dx//java:defs.bzl` | `java_bench` |
 |  |  | `@rules_dx//java:defs.bzl` | `java_fuzz_test` |
-|  |  | `@rules_dx//java:defs.bzl` | `java_jmh_test` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_bench` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_fuzz_test` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_wasm_bindgen_library` |

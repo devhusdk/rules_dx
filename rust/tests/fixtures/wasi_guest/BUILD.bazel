@@ -1,6 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
-load("//rust/tests:wrapper_tests.bzl", "dx_wasi_test_tests")
+load("//rust/tests:wrapper_tests.bzl", "rust_wasi_test_tests")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -14,7 +14,7 @@ rust_test(
     wasm = "wasi",
 )
 
-dx_wasi_test_tests(
+rust_wasi_test_tests(
     name = "wasi_guest_analysis_test",
     size = "small",
     target = ":wasi_guest_test",

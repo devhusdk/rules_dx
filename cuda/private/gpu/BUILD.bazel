@@ -1,7 +1,7 @@
 # gazelle:dx_rust_corpus false
 
 load("//cc:defs.bzl", "cc_library")
-load("//cuda/private:defs.bzl", "CUDA_TARGET", "cuda_library")
+load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH", "cuda_library")
 load("//cuda/private/toolchain:check.bzl", "cuda_gpu_device")
 
 package(default_visibility = ["//visibility:public"])
@@ -11,26 +11,26 @@ cc_library(
     srcs = ["gpu_facts.cc"],
     hdrs = ["gpu_facts.h"],
     copts = ["-std=c++17"],
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 cuda_gpu_device(
     name = "gpu_device_src",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 cc_library(
     name = "gpu_device",
     srcs = [":gpu_device_src"],
     hdrs = ["gpu_device.h"],
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 cc_library(
     name = "gpu_guard",
     srcs = ["gpu_guard.cc"],
     hdrs = ["gpu_guard.h"],
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 cc_library(
@@ -39,7 +39,7 @@ cc_library(
     hdrs = ["gpu_check.h"],
     include_prefix = "dx",
     strip_include_prefix = "/cuda/private/gpu",
-    target_compatible_with = CUDA_TARGET,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 cuda_library(

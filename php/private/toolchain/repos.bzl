@@ -1,5 +1,7 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
+load("//cc/private/toolchains:pins.bzl", "VC_REDIST_VERSION")
+load("//core:repo.bzl", "digest_error")
 load("//core:toolchain.bzl", "toolchain_target")
 load(":cells.bzl", "PHP_CELLS")
 
@@ -20,12 +22,31 @@ package(default_visibility = ["//visibility:public"])
 exports_files(["{interpreter}", "{version_file}"])
 
 php_toolchain(
-    name = "php_toolchain",
+    name = "php_toolchain",{coverage}
     interpreter = "{interpreter}",
     pcov = {pcov},
     version = "{version}",
 )
 """
+
+_COVERAGE_ATTRS = """
+    coverage_extensions = ["@{repo}//:ext/php_mbstring.dll"],
+    coverage_files = "@{repo}//:files",
+    coverage_interpreter = "@{repo}//:php.exe","""
+
+COVERAGE_PREFIX = "dx_php_coverage_"
+
+COVERAGE_RUNTIME_FILES = ["php.exe", "php8.dll", "ext/php_mbstring.dll", "php_pcov.dll", "vcruntime140.dll"]
+
+COVERAGE_BUILD = """package(default_visibility = ["//visibility:public"])
+
+exports_files({files})
+
+filegroup(
+    name = "files",
+    srcs = {files},
+)
+""".format(files = repr(COVERAGE_RUNTIME_FILES))
 
 PCOV_LABEL = "@dx_php_pcov//:pcov.so"
 
@@ -40,11 +61,16 @@ cc_library(
 )
 """
 
-def runtime_build(version, interpreter = "php", pcov = False):
-    """Returns the BUILD file of one runtime repository; pcov names the PCOV extension it can load."""
+def runtime_build(version, interpreter = "php", pcov = False, coverage = ""):
+    """Returns the BUILD file of one runtime repository; pcov names the PCOV extension it can load and coverage the repository of a separate coverage runtime."""
+    if coverage:
+        pcov_label = repr("@" + coverage + "//:php_pcov.dll")
+    else:
+        pcov_label = repr(PCOV_LABEL) if pcov else "None"
     return _RUNTIME_BUILD.format(
+        coverage = _COVERAGE_ATTRS.format(repo = coverage) if coverage else "",
         interpreter = interpreter,
-        pcov = repr(PCOV_LABEL) if pcov else "None",
+        pcov = pcov_label,
         php_bzl = str(Label("//php/private/toolchain:php.bzl")),
         version = version,
         version_file = VERSION_FILE,
@@ -82,3 +108,33 @@ filegroup(
 def phar_build(file):
     """Returns the BUILD file that exports one downloaded phar."""
     return 'package(default_visibility = ["//visibility:public"])\n\nexports_files([{}])\n'.format(repr(file))
+
+def _coverage_runtime_impl(rctx):
+    for pin in [rctx.attr.php, rctx.attr.pcov]:
+        sha256, urls = pin[0], pin[1:]
+        error = digest_error(rctx.name, sha256, "")
+        if error:
+            fail(error)
+        rctx.download_and_extract(url = urls, sha256 = sha256, type = "zip")
+    redist = rctx.path(rctx.attr._msvc_runtime).dirname.get_child("sysroot/Contents/VC/Redist/MSVC/{}/x64".format(VC_REDIST_VERSION))
+    if redist.exists:
+        for directory in redist.readdir():
+            for dll in directory.readdir():
+                if dll.basename.lower() == "vcruntime140.dll":
+                    rctx.symlink(dll, "vcruntime140.dll")
+    for path in COVERAGE_RUNTIME_FILES:
+        if not rctx.path(path).exists:
+            fail(rctx.name + ": the coverage runtime has no " + path)
+    rctx.file("REPO.bazel", "")
+    rctx.file("BUILD.bazel", COVERAGE_BUILD)
+    return rctx.repo_metadata(reproducible = True)
+
+php_coverage_runtime = repository_rule(
+    implementation = _coverage_runtime_impl,
+    doc = "Fetches a dynamic PHP with PCOV and places the MSVC runtime it links beside php.exe.",
+    attrs = {
+        "pcov": attr.string_list(mandatory = True, doc = "The PCOV zip: its sha256 and then its URLs."),
+        "php": attr.string_list(mandatory = True, doc = "The PHP zip: its sha256 and then its URLs."),
+        "_msvc_runtime": attr.label(default = "@msvc_runtime//:BUILD.bazel", doc = "The hermetic MSVC redistributable."),
+    },
+)

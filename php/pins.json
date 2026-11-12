@@ -33,6 +33,24 @@
       ]
     }
   },
+  "coverage": {
+    "windows_x86_64": {
+      "pcov": {
+        "sha256": "76001f4f517d42661ff4590bf310ce717aed07fb168de8a63ce7627e9c65e933",
+        "urls": [
+          "https://downloads.php.net/~windows/pecl/releases/pcov/1.0.12/php_pcov-1.0.12-8.5-nts-vs17-x64.zip"
+        ],
+        "version": "1.0.12"
+      },
+      "php": {
+        "sha256": "2a36a2edcb7a5b9252f638fd5e4cf84d7f6e066092654220dc0b63e5cf4e9723",
+        "urls": [
+          "https://downloads.php.net/~windows/releases/php-8.5.12-1-nts-Win32-vs17-x64.zip",
+          "https://downloads.php.net/~windows/releases/archives/php-8.5.12-1-nts-Win32-vs17-x64.zip"
+        ]
+      }
+    }
+  },
   "headers": {
     "linux_arm64": {
       "inner": "pkg-php-8.5.12-h36107db_0.tar.zst",

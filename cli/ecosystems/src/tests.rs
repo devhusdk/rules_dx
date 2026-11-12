@@ -170,7 +170,7 @@ fn manifest_columns_resolve() {
     assert_eq!(Ecosystem::Maven.alt_manifests(), ["MODULE.bazel"]);
     assert!(Ecosystem::Uv.alt_manifests().is_empty());
     assert!(Ecosystem::Maven.shared_manifest());
-    assert!(Ecosystem::Ansible.shared_manifest());
+    assert!(!Ecosystem::Ansible.shared_manifest());
     assert!(Ecosystem::Bicep.shared_manifest());
     assert!(!Ecosystem::Cargo.shared_manifest());
 }

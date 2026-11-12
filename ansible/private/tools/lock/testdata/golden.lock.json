@@ -1,0 +1,43 @@
+{
+  "ecosystem": "ansible",
+  "inputs": {
+    "requirements.yml": "30a3c4c53027693e72a76735ef7cffc6f62886c9a958254b9d92cf690bc1ffdb"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "7e4fa2eb8c7ac089739d5defc4489fad68a100d92082ca35c6b40a4524821f87",
+          "type": "tar.gz",
+          "urls": [
+            "https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/artifacts/dxtest-other-2.0.0.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "dxtest.other",
+      "provides": [
+        "dxtest.other"
+      ],
+      "version": "2.0.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "98e470c6f3d93bcdc0c456cc0f1e21446f18c7bc3bdbde9bfc0c5279febb4c4e",
+          "type": "tar.gz",
+          "urls": [
+            "https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/artifacts/dxtest-tiny-1.0.0.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "dxtest.tiny",
+      "provides": [
+        "dxtest.tiny"
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "schema": 1
+}

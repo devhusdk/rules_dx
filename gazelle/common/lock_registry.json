@@ -1,5 +1,12 @@
 [
   {
+    "ecosystem": "ansible",
+    "hub": "ansible_collections",
+    "imports": "provides",
+    "lock": "ansible.lock.json",
+    "manifest": "requirements.yml"
+  },
+  {
     "ecosystem": "cabal",
     "hub": "hackage",
     "imports": "name",

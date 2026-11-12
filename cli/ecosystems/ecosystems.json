@@ -350,7 +350,7 @@
     {
       "name": "ansible",
       "alt_manifests": [],
-      "shared_manifest": true,
+      "shared_manifest": false,
       "plan_backend": "ansible",
       "check_backend": "pinned",
       "graph_only": false,

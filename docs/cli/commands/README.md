@@ -315,7 +315,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//android:defs.bzl` | `android_rust_apk` |
 |  |  | `@rules_dx//android:defs.bzl` | `android_sign` |
 |  |  | `@rules_dx//ansible:defs.bzl` | `ansible_library` |
-|  |  | `@rules_dx//ansible:defs.bzl` | `ansible_lock` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_go_client` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_library` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_python_client` |

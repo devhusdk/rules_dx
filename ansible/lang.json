@@ -7,21 +7,23 @@
     "ansible"
   ],
   "manifests": [
-    "MODULE.bazel"
+    "requirements.yml"
   ],
-  "lockfiles": [],
+  "lockfiles": [
+    "ansible.lock.json"
+  ],
   "setup": {
     "hubs": [
       {
         "ecosystem": "ansible",
-        "manifest": "MODULE.bazel",
-        "lock": null,
+        "manifest": "requirements.yml",
+        "lock": "ansible.lock.json",
         "state": null,
         "extension": "@rules_dx//ansible:extensions.bzl",
-        "tag": null,
+        "tag": "lock",
         "hub": "ansible_collections",
-        "resolver": null,
-        "imports": "name"
+        "resolver": "@rules_dx//ansible/private/tools/lock",
+        "imports": "provides"
       }
     ]
   },
@@ -36,8 +38,7 @@
   ],
   "pins": [],
   "entry_points": [
-    "ansible_library",
-    "ansible_lock"
+    "ansible_library"
   ],
   "quality": {
     "bzl": "ansible/private/quality:ansible.bzl",

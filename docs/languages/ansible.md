@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//ansible:defs.bzl`:
 
 ```python
-load("@rules_dx//ansible:defs.bzl", "ansible_library", "ansible_lock")
+load("@rules_dx//ansible:defs.bzl", "ansible_library")
 ```
 
 ## Rules
@@ -28,22 +28,6 @@ Owns the Ansible and plain YAML files of one package for dx quality, split by An
 | `playbooks` | `label_list` | no | Subset of srcs forced to the ansible class. |
 | `deps` | `label_list` | no | Libraries this package depends on. |
 
-### `ansible_lock`
-
-```python
-ansible_lock(name, lock = "lock.json", **kwargs)
-```
-
-Adds a collection and its transitive dependencies to lock.json.
-
-Run it with `bazel run //pkg:name -- namespace.collection [version]`.
-It needs network access to Galaxy.
-
-Args:
-    name: Target name.
-    lock: The lock file in this package.
-    **kwargs: Passed to the py_binary.
-
 ## Tools
 
 - `ansible_lint`
@@ -55,11 +39,11 @@ Args:
 
 Manifests:
 
-- `MODULE.bazel`
+- `requirements.yml`
 
 Lockfiles:
 
-None.
+- `ansible.lock.json`
 
 ## Platforms
 

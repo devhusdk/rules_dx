@@ -346,6 +346,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//capnproto:defs.bzl` | `capnproto_library` |
 |  |  | `@rules_dx//capnproto:defs.bzl` | `capnproto_rust_library` |
 |  |  | `@rules_dx//cc:defs.bzl` | `cc_bench` |
+|  |  | `@rules_dx//cc:defs.bzl` | `cc_coverage_settings` |
 |  |  | `@rules_dx//cc:defs.bzl` | `cc_fuzz_test` |
 |  |  | `@rules_dx//cloudformation:defs.bzl` | `cloudformation_library` |
 |  |  | `@rules_dx//cmake:defs.bzl` | `cmake_library` |

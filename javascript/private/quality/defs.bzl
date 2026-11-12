@@ -12,6 +12,7 @@ generated launcher cannot be used at all.
 
 load("@bazel_lib//lib:directory_path.bzl", "DirectoryPathInfo")
 load("//core/quality/artifacts:platforms.bzl", "execution_is_windows")
+load("//core:rlocation.bzl", "runfiles_path")
 
 _NODE_OPTIONS = ["--preserve-symlinks-main"]
 
@@ -40,10 +41,8 @@ def _entry_point_path(entry_point):
     return path.replace("/./", "/")
 
 def _key(ctx, path):
-    """Returns the runfiles key naming one short path."""
-    if path.startswith("../"):
-        return path.removeprefix("../")
-    return (ctx.workspace_name + "/" + path).replace("\\", "/")
+    """Returns the slash-normalized runfiles key naming one short path."""
+    return runfiles_path(ctx.workspace_name, path).replace("\\", "/")
 
 def _one_key(ctx, files, matches, what):
     """Returns the runfiles key of the single file matching a predicate."""

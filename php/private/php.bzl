@@ -1,6 +1,6 @@
 """Core PHP rules: php_library, php_binary and php_test on the pinned PHP, Composer and PHPUnit."""
 
-load("//core:rlocation.bzl", "runfiles_path")
+load("//core:rlocation.bzl", "external_path", "runfiles_path")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE", "TOOLCHAIN_TYPE")
 load(":providers.bzl", "PhpInfo")
@@ -15,13 +15,6 @@ _COMPOSER = Label("@dx_composer//:composer.phar")
 
 _PHPUNIT = Label("@dx_phpunit//:phpunit.phar")
 
-def staged_path(file):
-    """Returns where one source sits below the autoload root: its workspace path, external/<repo>/... for other repos."""
-    path = file.short_path
-    if path.startswith("../"):
-        return "external/" + path[3:]
-    return path
-
 def autoloader_suffix(label):
     """Returns the Composer autoloader suffix for one label: letters, digits and underscores only."""
     text = (label.repo_name or "main") + "_" + label.package + "_" + label.name
@@ -35,13 +28,13 @@ def ini_flags(ini):
     return [flag for key in sorted(ini.keys()) for flag in ("-d", key + "=" + ini[key])]
 
 def _src_args(file):
-    return ["--src", file.path, staged_path(file)]
+    return ["--src", file.path, external_path(file.short_path)]
 
 def _package_args(package):
     return ["--package", package.manifest.path, package.root]
 
 def _file_args(file):
-    return ["--file", staged_path(file)]
+    return ["--file", external_path(file.short_path)]
 
 def _php_info(ctx, srcs):
     deps = [dep[PhpInfo] for dep in ctx.attr.deps]
@@ -59,7 +52,7 @@ def _lint(ctx, srcs):
     php = ctx.toolchains[EXEC_TOOLCHAIN_TYPE].php
     markers = []
     for src in srcs:
-        marker = ctx.actions.declare_file(ctx.label.name + ".lint/" + staged_path(src) + ".ok")
+        marker = ctx.actions.declare_file(ctx.label.name + ".lint/" + external_path(src.short_path) + ".ok")
         ctx.actions.run(
             executable = php.interpreter,
             arguments = ["-n", ctx.file._tool.path, "lint", marker.path, src.path],
@@ -201,7 +194,7 @@ def _php_binary_impl(ctx):
     tokens = [
         lit("-d"),
         rf_prefixed("auto_prepend_file=", root + "/vendor/autoload.php"),
-        rf(root + "/" + staged_path(ctx.file.main)),
+        rf(root + "/" + external_path(ctx.file.main.short_path)),
     ]
     launcher, base = _write_launcher(ctx, tokens)
     return [
@@ -223,7 +216,7 @@ def _php_test_impl(ctx):
     else:
         tokens.append(lit("--no-configuration"))
     tokens += [lit("--fail-on-empty-test-suite"), lit("--do-not-cache-test-index"), env_flag("--log-junit", "XML_OUTPUT_FILE")]
-    tokens += [rf(root + "/" + staged_path(f)) for f in srcs]
+    tokens += [rf(root + "/" + external_path(f.short_path)) for f in srcs]
     php = ctx.toolchains[TOOLCHAIN_TYPE].php
     if ctx.configuration.coverage_enabled and php.pcov and not target_is_windows(ctx):
         launcher, base = _write_coverage_launcher(ctx, tokens, root)

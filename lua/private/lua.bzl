@@ -1,22 +1,9 @@
-"""Core Lua rules: modules, entry files and the shared launcher. Loads nothing from dx."""
+"""Core Lua rules: modules, entry files and the shared launcher. Loads only //core:rlocation.bzl from dx."""
 
+load("//core:rlocation.bzl", "repo_relative_path", "runfiles_path")
 load(":providers.bzl", "LUA_ENTRY_SUFFIX", "LuaInfo")
 
 LUA_TOOLCHAIN_TYPE = Label("//lua/private/toolchain:toolchain_type")
-
-def repo_relative_path(short_path):
-    """Returns a File.short_path relative to the root of its own repository."""
-    if short_path.startswith("../"):
-        rest = short_path[3:]
-        slash = rest.find("/")
-        return rest[slash + 1:] if slash >= 0 else ""
-    return short_path
-
-def canonical_rlocation(short_path, workspace_name):
-    """Returns the canonical runfiles key of one File.short_path."""
-    if short_path.startswith("../"):
-        return short_path[3:]
-    return workspace_name + "/" + short_path
 
 def _join(parts):
     return "/".join([p for p in parts if p])
@@ -160,9 +147,9 @@ def lua_executable_impl(ctx):
     ctx.actions.symlink(output = executable, target_file = launcher, is_executable = True)
     entry = ctx.actions.declare_file(ctx.label.name + LUA_ENTRY_SUFFIX)
     ctx.actions.write(entry, entry_lines(
-        canonical_rlocation(main.short_path, ctx.workspace_name),
+        runfiles_path(ctx.workspace_name, main.short_path),
         ctx.label.repo_name,
-        [(name, canonical_rlocation(f.short_path, ctx.workspace_name)) for name, f in module_map.items()],
+        [(name, runfiles_path(ctx.workspace_name, f.short_path)) for name, f in module_map.items()],
     ))
 
     runfiles = ctx.runfiles(files = [executable, entry, main]).merge_all([

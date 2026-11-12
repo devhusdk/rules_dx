@@ -2,7 +2,8 @@
 
 load("//core:defs.bzl", "display_label")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
+load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":native_runtime.bzl", "NativeRuntimeInfo")
 load(":validate_archive.bzl", "consumer_identity_error")

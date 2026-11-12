@@ -3,7 +3,8 @@
 load("//core:defs.bzl", "DxSubjectInfo", "display_label")
 load("//core:wrapper.bzl", "dx_symlink_executable")
 load(":sbom.bzl", "DxSbomFileInfo")
-load(":config.bzl", "DxDeployConfigInfo", "rlocation_path")
+load(":config.bzl", "DxDeployConfigInfo")
+load("//core:rlocation.bzl", "rlocation_path")
 load(":validate.bzl", "parse_size_budget", "size_budget_error")
 
 DxDeployInfo = provider(

@@ -142,7 +142,7 @@ deploy/private/offline/offline.bzl genrule 2
 deploy/private/release/BUILD.bazel home 2
 deploy/private/release/bcr.bzl genrule 1
 deploy/private/release/candidate_test.rs shebang 1
-deploy/private/release/inventory_tests.bzl genrule 3
+deploy/private/release/inventory_tests.bzl genrule 2
 deploy/private/release/matrix.bzl genrule 2
 deploy/private/release/notice.bzl genrule 2
 deploy/private/release/sbom.bzl genrule 2

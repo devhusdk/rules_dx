@@ -22,8 +22,7 @@ mod tests {
             let security = crate::exception::load_security(Some(base), tier).expect("parses");
             assert!(security.exceptions.is_empty() && security.uncovered.is_empty());
             let base = base_text("licenses", tier).expect("licenses base");
-            let licenses =
-                crate::license_policy::load_licenses(Some(base), tier).expect("parses");
+            let licenses = crate::license_policy::load_licenses(Some(base), tier).expect("parses");
             assert!(licenses.exceptions.is_empty() && licenses.inventory.is_empty());
         }
     }

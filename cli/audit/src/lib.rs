@@ -21,8 +21,8 @@ pub mod license_policy;
 pub mod locks;
 pub mod notice_manifest;
 pub mod outcome;
-pub mod tier_base;
 pub mod secrets;
+pub mod tier_base;
 pub mod vuln;
 
 pub const SECURITY_FAMILY: &str = "security";

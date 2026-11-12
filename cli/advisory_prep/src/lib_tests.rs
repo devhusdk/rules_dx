@@ -750,7 +750,7 @@ fn a_cpan_set_is_prepared_from_the_cpansa_output() {
     for (rel, text) in [
         (
             "MODULE.bazel",
-            "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"cpan\", lock = \"//pl:cpanfile.snapshot.lock.json\")\n",
+            "cpan = use_extension(\"@rules_dx//perl:extensions.bzl\", \"cpan\")\ncpan.lock(name = \"cpan\", lock = \"//pl:cpan.lock.json\")\n",
         ),
         ("pl/cpanfile", "requires 'Mojolicious';\n"),
         (

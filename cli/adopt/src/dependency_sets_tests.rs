@@ -217,7 +217,7 @@ fn cabal_layout_compares_freeze_and_sidecar_versions() {
 
 #[test]
 fn cpan_installs_become_cpan_sets() {
-    let module = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"perl_cpan\", lock = \"//perl/private/tools:cpanfile.snapshot.lock.json\")\n";
+    let module = "cpan = use_extension(\"@rules_dx//perl:extensions.bzl\", \"cpan\")\ncpan.lock(name = \"perl_cpan\", lock = \"//perl/private/tools:cpan.lock.json\")\n";
     let registry = discover(module, &|_: &str| Err("none".to_owned()))
         .expect("discovers")
         .expect("registry");
@@ -228,7 +228,7 @@ fn cpan_installs_become_cpan_sets() {
         set.locks,
         [
             "perl/private/tools/cpanfile.snapshot",
-            "perl/private/tools/cpanfile.snapshot.lock.json"
+            "perl/private/tools/cpan.lock.json"
         ]
     );
 }
@@ -240,12 +240,7 @@ fn cpan_workspace(lock: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
     let root = scratch.path();
     std::fs::create_dir_all(root.join("perl")).expect("dir");
     std::fs::write(root.join("perl/cpanfile.snapshot"), CPAN_SNAPSHOT).expect("snapshot");
-    std::fs::write(root.join("perl/cpanfile.snapshot.lock.json"), lock).expect("lock");
-    std::fs::write(
-        root.join("perl/BUILD.bazel"),
-        "load(\"@rules_dx//perl:defs.bzl\", \"perl_cpan_compiler\")\n\nperl_cpan_compiler(\n    name = \"compiler\",\n    cpanfile = \"cpanfile\",\n    lockfile = \"cpanfile.snapshot.lock.json\",\n)\n",
-    )
-    .expect("build");
+    std::fs::write(root.join("perl/cpan.lock.json"), lock).expect("lock");
     let set = ResolvedSet {
         name: "perl_cpan".to_owned(),
         ecosystem: Ecosystem::Cpan,
@@ -253,7 +248,7 @@ fn cpan_workspace(lock: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
         manifests: vec!["perl/cpanfile".to_owned()],
         locks: vec![
             "perl/cpanfile.snapshot".to_owned(),
-            "perl/cpanfile.snapshot.lock.json".to_owned(),
+            "perl/cpan.lock.json".to_owned(),
         ],
         repository: None,
     };
@@ -261,29 +256,18 @@ fn cpan_workspace(lock: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
 }
 
 #[test]
-fn cpan_compiler_label_reads_the_build_file_beside_the_lock() {
-    let (scratch, set) = cpan_workspace("{}");
-    assert_eq!(
-        cpan_compiler_label(scratch.path(), &set).as_deref(),
-        Some("//perl:compiler")
-    );
-    std::fs::write(scratch.path().join("perl/BUILD.bazel"), "").expect("build");
-    assert_eq!(cpan_compiler_label(scratch.path(), &set), None);
-}
-
-#[test]
 fn cpan_layout_accepts_a_lock_that_matches_the_snapshot() {
-    let (scratch, set) = cpan_workspace("{\"Try-Tiny\":{\"strip_prefix\":\"Try-Tiny-0.31\"}}");
+    let (scratch, set) = cpan_workspace("{\"packages\":[{\"name\":\"Try-Tiny\",\"archives\":[{\"strip_prefix\":\"Try-Tiny-0.31\"}]}]}");
     assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
 }
 
 #[test]
 fn cpan_layout_rejects_a_stale_lock_json() {
-    let (scratch, set) = cpan_workspace("{\"Try-Tiny\":{\"strip_prefix\":\"Try-Tiny-0.30\"}}");
+    let (scratch, set) = cpan_workspace("{\"packages\":[{\"name\":\"Try-Tiny\",\"archives\":[{\"strip_prefix\":\"Try-Tiny-0.30\"}]}]}");
     let error = check_backend_settings(scratch.path(), &set).expect_err("stale");
     let message = error.to_string();
     assert!(message.contains("Try-Tiny-0.31"), "{message}");
-    assert!(message.contains("run the perl_cpan_compiler"), "{message}");
+    assert!(message.contains("run the cpan lock step"), "{message}");
 }
 
 #[test]

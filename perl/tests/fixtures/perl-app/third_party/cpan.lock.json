@@ -1,0 +1,29 @@
+{
+  "ecosystem": "cpan",
+  "inputs": {
+    "cpanfile": "9fd452973d12ece39df472c090b058c1d3879eee6b9517288b614ed0437e9ee5",
+    "cpanfile.snapshot": "81c3733bbd3c9d36a23b8d0f81ff0a1e75cb3790870ba07bf5867db40e6c428c"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "dfcaec925a788b0ba41e51bc6d16e21b0e98b4c7af9b79395090add75f5e506f",
+          "strip_prefix": "Text-CSV-2.06",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Text-CSV",
+      "provides": [
+        "Text::CSV",
+        "Text::CSV::ErrorDiag",
+        "Text::CSV_PP"
+      ],
+      "version": "2.06"
+    }
+  ],
+  "schema": 1
+}

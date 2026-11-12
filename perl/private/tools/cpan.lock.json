@@ -1,0 +1,1667 @@
+{
+  "ecosystem": "cpan",
+  "inputs": {
+    "cpanfile": "307dd2fb89de2c4f944f91b43b72ee9f1957fbbb5a1a98c7defd009a48b4fd33",
+    "cpanfile.snapshot": "a2fa14f9124b4de114fa04f9d76ddd65d50f756919f1f347f38b88e0c9376e03"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "e0aa19d3390409f0ece7342ab041c5b432c31d7cf1abf182c134b6aab78784b0",
+          "strip_prefix": "B-Keywords-1.29",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/R/RU/RURBAN/B-Keywords-1.29.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "B-Keywords",
+      "provides": [
+        "B::Keywords"
+      ],
+      "version": "1.29"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "c43ddbb22fd42b06118fe6357f53700fbd77f531ba3c427faafbf303cbf4eaf0",
+          "strip_prefix": "CPAN-Common-Index-0.010",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DA/DAGOLDEN/CPAN-Common-Index-0.010.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "CPAN-DistnameInfo",
+        "Class-Tiny",
+        "Tie-Handle-Offset",
+        "URI"
+      ],
+      "name": "CPAN-Common-Index",
+      "provides": [
+        "CPAN::Common::Index",
+        "CPAN::Common::Index::LocalPackage",
+        "CPAN::Common::Index::MetaDB",
+        "CPAN::Common::Index::Mirror",
+        "CPAN::Common::Index::Mux::Ordered"
+      ],
+      "version": "0.010"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "2f24fbe9f7eeacbc269d35fc61618322fc17be499ee0cd9018f370934a9f2435",
+          "strip_prefix": "CPAN-DistnameInfo-0.12",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/G/GB/GBARR/CPAN-DistnameInfo-0.12.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "CPAN-DistnameInfo",
+      "provides": [
+        "CPAN::DistnameInfo"
+      ],
+      "version": "0.12"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "f619d2df5ea0fd91c8cf83eb54acccb5e43d9e6ec1a3f727b3d0ac15d0cf378a",
+          "strip_prefix": "CPAN-Meta-Check-0.018",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/L/LE/LEONT/CPAN-Meta-Check-0.018.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "CPAN-Meta-Check",
+      "provides": [
+        "CPAN::Meta::Check"
+      ],
+      "version": "0.018"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "9393db0a7f02fdc482c56b9112a615125118ec002defe7766ada5118d13b7ccd",
+          "strip_prefix": "CPANSA-DB-20261101.010",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/B/BR/BRIANDFOY/CPANSA-DB-20261101.010.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "CPANSA-DB",
+      "provides": [
+        "CPAN::Audit::DB",
+        "CPANSA::DB"
+      ],
+      "version": "20261101.010"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "ca6e8d7ce7471c2be54e1009f64c367d7ee233a2894cacf52ebe6f53b04e81e5",
+          "strip_prefix": "Capture-Tiny-0.50",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DA/DAGOLDEN/Capture-Tiny-0.50.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Capture-Tiny",
+      "provides": [
+        "Capture::Tiny"
+      ],
+      "version": "0.50"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "9c4558ca97cd08b69fdfb52b28c3ddc2043ef52f0627b90e53d05a4087344175",
+          "strip_prefix": "Carton-v1.0.35",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/M/MI/MIYAGAWA/Carton-v1.0.35.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "Class-Tiny",
+        "Menlo-Legacy",
+        "Module-CPANfile",
+        "Path-Tiny",
+        "Try-Tiny"
+      ],
+      "name": "Carton",
+      "provides": [
+        "Carton",
+        "Carton::Builder",
+        "Carton::CLI",
+        "Carton::CPANfile",
+        "Carton::Dependency",
+        "Carton::Dist",
+        "Carton::Dist::Core",
+        "Carton::Environment",
+        "Carton::Error",
+        "Carton::Error::CPANfileNotFound",
+        "Carton::Error::CommandExit",
+        "Carton::Error::CommandNotFound",
+        "Carton::Error::SnapshotNotFound",
+        "Carton::Error::SnapshotParseError",
+        "Carton::Index",
+        "Carton::Mirror",
+        "Carton::Package",
+        "Carton::Packer",
+        "Carton::Snapshot",
+        "Carton::Snapshot::Emitter",
+        "Carton::Snapshot::Parser",
+        "Carton::Tree",
+        "Carton::Util"
+      ],
+      "version": "v1.0.35"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "aa1ae68a611357b7bfd9a2f64907cc196ddd6d047cae64ef9d0ad099d98ae54a",
+          "strip_prefix": "Class-Data-Inheritable-0.10",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/R/RS/RSHERER/Class-Data-Inheritable-0.10.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Class-Data-Inheritable",
+      "provides": [
+        "Class::Data::Inheritable"
+      ],
+      "version": "0.10"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "cc295d23a472687c24489d58226ead23b9fdc2588e522f0b5f0747741700694e",
+          "strip_prefix": "Class-Inspector-1.36",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/P/PL/PLICEASE/Class-Inspector-1.36.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Class-Inspector",
+      "provides": [
+        "Class::Inspector",
+        "Class::Inspector::Functions"
+      ],
+      "version": "1.36"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "ee058a63912fa1fcb9a72498f56ca421a2056dc7f9f4b67837446d6421815615",
+          "strip_prefix": "Class-Tiny-1.008",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DA/DAGOLDEN/Class-Tiny-1.008.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Class-Tiny",
+      "provides": [
+        "Class::Tiny",
+        "Class::Tiny::Object"
+      ],
+      "version": "1.008"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "f17f66fec97dacca67ac9585701d2d079cfc80539fe6e8160c201c4e55f67507",
+          "strip_prefix": "Clone-0.51",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/A/AT/ATOOMIC/Clone-0.51.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Clone",
+      "provides": [
+        "Clone"
+      ],
+      "version": "0.51"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "4bb44697ef82105bd8d6204e550796a1eea89ce7108a98e0b7bf3ae4700d1c34",
+          "strip_prefix": "Clone-PP-1.09",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/N/NE/NEILB/Clone-PP-1.09.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Clone-PP",
+      "provides": [
+        "Clone::PP"
+      ],
+      "version": "1.09"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "b2f7345619b3b8e636dd39ea010731c9dc2bfb8f022bcbd86ae6ad17866e110d",
+          "strip_prefix": "Config-Tiny-2.30",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/R/RS/RSAVAGE/Config-Tiny-2.30.tgz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Config-Tiny",
+      "provides": [
+        "Config::Tiny"
+      ],
+      "version": "2.30"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "63cb6196e986a7e578c4d28b3c780e7194835bfc78b68eeb8f00599d4444888c",
+          "strip_prefix": "Devel-StackTrace-2.05",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DR/DROLSKY/Devel-StackTrace-2.05.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Devel-StackTrace",
+      "provides": [
+        "Devel::StackTrace",
+        "Devel::StackTrace::Frame"
+      ],
+      "version": "2.05"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "e2f8c0708ff8de8b1bb7be1faa3cdb240fdd9774bc741627350577ea7e0e76a1",
+          "strip_prefix": "Exception-Class-1.46",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DR/DROLSKY/Exception-Class-1.46.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "Class-Data-Inheritable",
+        "Devel-StackTrace"
+      ],
+      "name": "Exception-Class",
+      "provides": [
+        "Exception::Class",
+        "Exception::Class::Base"
+      ],
+      "version": "1.46"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "82e7e4e90cbe380e152f5de6e3e403746982d502dd30197a123652e46610c66d",
+          "strip_prefix": "ExtUtils-Config-0.010",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/L/LE/LEONT/ExtUtils-Config-0.010.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "ExtUtils-Config",
+      "provides": [
+        "ExtUtils::Config",
+        "ExtUtils::Config::MakeMaker"
+      ],
+      "version": "0.010"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "c8574875cce073e7dc5345a7b06d502e52044d68894f9160203fcaab379514fe",
+          "strip_prefix": "ExtUtils-Helpers-0.028",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/L/LE/LEONT/ExtUtils-Helpers-0.028.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "ExtUtils-Helpers",
+      "provides": [
+        "ExtUtils::Helpers",
+        "ExtUtils::Helpers::Unix",
+        "ExtUtils::Helpers::VMS",
+        "ExtUtils::Helpers::Windows"
+      ],
+      "version": "0.028"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "7d64eb2dfa87ead010cdf55c8a1bdfde50b7b5852d7cb8cf2304f55bea2eb007",
+          "strip_prefix": "ExtUtils-InstallPaths-0.015",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/L/LE/LEONT/ExtUtils-InstallPaths-0.015.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "ExtUtils-Config"
+      ],
+      "name": "ExtUtils-InstallPaths",
+      "provides": [
+        "ExtUtils::InstallPaths"
+      ],
+      "version": "0.015"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "87467857ca7a624cb64e5dee706eafc6a0bfeed773646c9d6d2f042ed72fb13e",
+          "strip_prefix": "ExtUtils-MakeMaker-CPANfile-0.11",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/I/IS/ISHIGAKI/ExtUtils-MakeMaker-CPANfile-0.11.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "Module-CPANfile"
+      ],
+      "name": "ExtUtils-MakeMaker-CPANfile",
+      "provides": [
+        "ExtUtils::MakeMaker::CPANfile"
+      ],
+      "version": "0.11"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "3bb2a20ba35df958dc0a4f2306fc05d903d8b8c4de3c8beefce17739d281c958",
+          "strip_prefix": "File-ShareDir-1.118",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/R/RE/REHSACK/File-ShareDir-1.118.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "Class-Inspector",
+        "File-ShareDir-Install"
+      ],
+      "name": "File-ShareDir",
+      "provides": [
+        "File::ShareDir"
+      ],
+      "version": "1.118"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "8f9533b198f2d4a9a5288cbc7d224f7679ad05a7a8573745599789428bc5aea0",
+          "strip_prefix": "File-ShareDir-Install-0.14",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/E/ET/ETHER/File-ShareDir-Install-0.14.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "File-ShareDir-Install",
+      "provides": [
+        "File::ShareDir::Install"
+      ],
+      "version": "0.14"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "3201f1a60e3f16484082e6045c896842261fc345de9fb2e620fd2a2c7af3a93a",
+          "strip_prefix": "File-Which-1.27",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/P/PL/PLICEASE/File-Which-1.27.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "File-Which",
+      "provides": [
+        "File::Which"
+      ],
+      "version": "1.27"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "d73a7f09442983b098260df3df7a832a5f660773a313ca273fa8b56665f97cdc",
+          "strip_prefix": "File-pushd-1.016",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DA/DAGOLDEN/File-pushd-1.016.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "File-pushd",
+      "provides": [
+        "File::pushd"
+      ],
+      "version": "1.016"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "c60e714186f81c815690ca5d475f3e6eac8617c50b146ae668ae4dd5d86a5ed7",
+          "strip_prefix": "HTTP-Tinyish-0.20",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/M/MI/MIYAGAWA/HTTP-Tinyish-0.20.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "File-Which",
+        "IPC-Run3"
+      ],
+      "name": "HTTP-Tinyish",
+      "provides": [
+        "HTTP::Tinyish",
+        "HTTP::Tinyish::Base",
+        "HTTP::Tinyish::Curl",
+        "HTTP::Tinyish::HTTPTiny",
+        "HTTP::Tinyish::LWP",
+        "HTTP::Tinyish::Wget"
+      ],
+      "version": "0.20"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "9d048ae7b9ae63871bae976ba01e081d887392d904e5d48b04e22d35ed22011a",
+          "strip_prefix": "IPC-Run3-0.049",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/R/RJ/RJBS/IPC-Run3-0.049.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "IPC-Run3",
+      "provides": [
+        "IPC::Run3"
+      ],
+      "version": "0.049"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "05c29ec3482e572313a60da2181b0b30c5db7cf01f8ae7616ad67e1b66263296",
+          "strip_prefix": "Lingua-EN-Inflect-1.905",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DC/DCONWAY/Lingua-EN-Inflect-1.905.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Lingua-EN-Inflect",
+      "provides": [
+        "Lingua::EN::Inflect"
+      ],
+      "version": "1.905"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "fab30372e4c67bf5a46062da38d1d0c8756279feada866eb439fa29571a2dc7b",
+          "strip_prefix": "List-SomeUtils-0.59",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DR/DROLSKY/List-SomeUtils-0.59.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "List-SomeUtils-XS",
+        "Module-Implementation"
+      ],
+      "name": "List-SomeUtils",
+      "provides": [
+        "List::SomeUtils",
+        "List::SomeUtils::PP"
+      ],
+      "version": "0.59"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "1da2d21762f40b58cbc8f3ba5239e849e5c73c4dbe0a5f3c4510118e65a2eae4",
+          "strip_prefix": "List-SomeUtils-XS-0.59",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DR/DROLSKY/List-SomeUtils-XS-0.59.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "List-SomeUtils-XS",
+      "provides": [
+        "List::SomeUtils::XS"
+      ],
+      "version": "0.59"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "ab21fa99130e33a0aff6cdb596f647e5e565d207d634ba2ef06bdbef50424e99",
+          "strip_prefix": "MIME-Base32-1.303",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/R/RE/REHSACK/MIME-Base32-1.303.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "MIME-Base32",
+      "provides": [
+        "MIME::Base32"
+      ],
+      "version": "1.303"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "3b573f68e7b3a36a87c860be258599330fac248b518854dfb5657ac483dca565",
+          "strip_prefix": "Menlo-1.9019",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/M/MI/MIYAGAWA/Menlo-1.9019.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "CPAN-Common-Index",
+        "CPAN-DistnameInfo",
+        "CPAN-Meta-Check",
+        "Capture-Tiny",
+        "Class-Tiny",
+        "ExtUtils-Config",
+        "ExtUtils-Helpers",
+        "ExtUtils-InstallPaths",
+        "File-Which",
+        "File-pushd",
+        "HTTP-Tinyish",
+        "Module-CPANfile",
+        "Parse-PMFile",
+        "String-ShellQuote",
+        "URI",
+        "Win32-ShellQuote",
+        "local-lib"
+      ],
+      "name": "Menlo",
+      "provides": [
+        "Menlo",
+        "Menlo::Builder::Static",
+        "Menlo::Dependency",
+        "Menlo::Index::MetaCPAN",
+        "Menlo::Index::MetaDB",
+        "Menlo::Index::Mirror",
+        "Menlo::Util"
+      ],
+      "version": "1.9019"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "a6acac3fee318a804b439de54acbc7c27f0b44cfdad8551bbc9cd45986abc201",
+          "strip_prefix": "Menlo-Legacy-1.9022",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/M/MI/MIYAGAWA/Menlo-Legacy-1.9022.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "Menlo"
+      ],
+      "name": "Menlo-Legacy",
+      "provides": [
+        "Menlo::CLI::Compat",
+        "Menlo::Legacy"
+      ],
+      "version": "1.9022"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "66aeac6127418be5e471ead3744648c766bd01482825c5b66652675f2bc86a8f",
+          "strip_prefix": "Module-Build-0.4234",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/L/LE/LEONT/Module-Build-0.4234.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Module-Build",
+      "provides": [
+        "Module::Build",
+        "Module::Build::Base",
+        "Module::Build::Compat",
+        "Module::Build::Config",
+        "Module::Build::Cookbook",
+        "Module::Build::Dumper",
+        "Module::Build::Notes",
+        "Module::Build::PPMMaker",
+        "Module::Build::Platform::Default",
+        "Module::Build::Platform::MacOS",
+        "Module::Build::Platform::Unix",
+        "Module::Build::Platform::VMS",
+        "Module::Build::Platform::VOS",
+        "Module::Build::Platform::Windows",
+        "Module::Build::Platform::aix",
+        "Module::Build::Platform::cygwin",
+        "Module::Build::Platform::darwin",
+        "Module::Build::Platform::os2",
+        "Module::Build::PodParser"
+      ],
+      "version": "0.4234"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "3726d622da6f655e88fdf89e4fd597709c44970b47de65082003e8d86b5e193a",
+          "strip_prefix": "Module-Build-Tiny-0.053",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/L/LE/LEONT/Module-Build-Tiny-0.053.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "ExtUtils-Config",
+        "ExtUtils-Helpers",
+        "ExtUtils-InstallPaths"
+      ],
+      "name": "Module-Build-Tiny",
+      "provides": [
+        "Module::Build::Tiny"
+      ],
+      "version": "0.053"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "88efbe2e9a642dceaa186430fedfcf999aaf0e06f6cced28a714b8e56b514921",
+          "strip_prefix": "Module-CPANfile-1.1004",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/M/MI/MIYAGAWA/Module-CPANfile-1.1004.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Module-CPANfile",
+      "provides": [
+        "Module::CPANfile",
+        "Module::CPANfile::Environment",
+        "Module::CPANfile::Prereq",
+        "Module::CPANfile::Prereqs",
+        "Module::CPANfile::Requirement"
+      ],
+      "version": "1.1004"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "c15f1a12f0c2130c9efff3c2e1afe5887b08ccd033bd132186d1e7d5087fd66d",
+          "strip_prefix": "Module-Implementation-0.09",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DR/DROLSKY/Module-Implementation-0.09.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "Module-Runtime",
+        "Try-Tiny"
+      ],
+      "name": "Module-Implementation",
+      "provides": [
+        "Module::Implementation"
+      ],
+      "version": "0.09"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "970fd13accd3d538e637db080ebbd9898020c8b5591837c8493a39edd737922d",
+          "strip_prefix": "Module-Pluggable-6.4",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/S/SI/SIMONW/Module-Pluggable-6.4.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Module-Pluggable",
+      "provides": [
+        "Devel::InnerPackage",
+        "Module::Pluggable",
+        "Module::Pluggable::Object"
+      ],
+      "version": "6.4"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "0bf77ef68e53721914ff554eada20973596310b4e2cf1401fc958601807de577",
+          "strip_prefix": "Module-Runtime-0.018",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/H/HA/HAARG/Module-Runtime-0.018.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Module-Runtime",
+      "provides": [
+        "Module::Runtime"
+      ],
+      "version": "0.018"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "74ac10bf66443ea813fb37d2ff5219c4d8e685379272d6699c812a39d91f3c1d",
+          "strip_prefix": "PPI-1.291",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/M/MI/MITHALDU/PPI-1.291.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "Clone",
+        "Params-Util",
+        "Safe-Isa",
+        "Task-Weaken",
+        "YAML-PP"
+      ],
+      "name": "PPI",
+      "provides": [
+        "PPI",
+        "PPI::Cache",
+        "PPI::Document",
+        "PPI::Document::File",
+        "PPI::Document::Fragment",
+        "PPI::Document::Normalized",
+        "PPI::Dumper",
+        "PPI::Element",
+        "PPI::Exception",
+        "PPI::Exception::ParserRejection",
+        "PPI::Find",
+        "PPI::Lexer",
+        "PPI::Node",
+        "PPI::Normal",
+        "PPI::Normal::Standard",
+        "PPI::Singletons",
+        "PPI::Statement",
+        "PPI::Statement::Break",
+        "PPI::Statement::Compound",
+        "PPI::Statement::Data",
+        "PPI::Statement::End",
+        "PPI::Statement::Expression",
+        "PPI::Statement::Given",
+        "PPI::Statement::Include",
+        "PPI::Statement::Include::Perl6",
+        "PPI::Statement::Null",
+        "PPI::Statement::Package",
+        "PPI::Statement::Scheduled",
+        "PPI::Statement::Sub",
+        "PPI::Statement::Unknown",
+        "PPI::Statement::UnmatchedBrace",
+        "PPI::Statement::Variable",
+        "PPI::Statement::When",
+        "PPI::Structure",
+        "PPI::Structure::Block",
+        "PPI::Structure::Condition",
+        "PPI::Structure::Constructor",
+        "PPI::Structure::For",
+        "PPI::Structure::Given",
+        "PPI::Structure::List",
+        "PPI::Structure::Signature",
+        "PPI::Structure::Subscript",
+        "PPI::Structure::Unknown",
+        "PPI::Structure::When",
+        "PPI::Token",
+        "PPI::Token::ArrayIndex",
+        "PPI::Token::Attribute",
+        "PPI::Token::BOM",
+        "PPI::Token::Cast",
+        "PPI::Token::Comment",
+        "PPI::Token::DashedWord",
+        "PPI::Token::Data",
+        "PPI::Token::End",
+        "PPI::Token::HereDoc",
+        "PPI::Token::Label",
+        "PPI::Token::Magic",
+        "PPI::Token::Number",
+        "PPI::Token::Number::Binary",
+        "PPI::Token::Number::Exp",
+        "PPI::Token::Number::Float",
+        "PPI::Token::Number::Hex",
+        "PPI::Token::Number::Octal",
+        "PPI::Token::Number::Version",
+        "PPI::Token::Operator",
+        "PPI::Token::Pod",
+        "PPI::Token::Prototype",
+        "PPI::Token::Quote",
+        "PPI::Token::Quote::Double",
+        "PPI::Token::Quote::Interpolate",
+        "PPI::Token::Quote::Literal",
+        "PPI::Token::Quote::Single",
+        "PPI::Token::QuoteLike",
+        "PPI::Token::QuoteLike::Backtick",
+        "PPI::Token::QuoteLike::Command",
+        "PPI::Token::QuoteLike::Readline",
+        "PPI::Token::QuoteLike::Regexp",
+        "PPI::Token::QuoteLike::Words",
+        "PPI::Token::Regexp",
+        "PPI::Token::Regexp::Match",
+        "PPI::Token::Regexp::Substitute",
+        "PPI::Token::Regexp::Transliterate",
+        "PPI::Token::Separator",
+        "PPI::Token::Structure",
+        "PPI::Token::Symbol",
+        "PPI::Token::Unknown",
+        "PPI::Token::Whitespace",
+        "PPI::Token::Word",
+        "PPI::Tokenizer",
+        "PPI::Transform",
+        "PPI::Transform::UpdateCopyright",
+        "PPI::Util",
+        "PPI::XSAccessor"
+      ],
+      "version": "1.291"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "b71da7748be3a0ab7c19fe8a3ddf7fec480180342c8e76654d28582281152e07",
+          "strip_prefix": "PPIx-QuoteLike-0.024",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/W/WY/WYANT/PPIx-QuoteLike-0.024.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "PPI",
+        "Readonly"
+      ],
+      "name": "PPIx-QuoteLike",
+      "provides": [
+        "PPIx::QuoteLike",
+        "PPIx::QuoteLike::Constant",
+        "PPIx::QuoteLike::Dumper",
+        "PPIx::QuoteLike::Token",
+        "PPIx::QuoteLike::Token::Control",
+        "PPIx::QuoteLike::Token::Delimiter",
+        "PPIx::QuoteLike::Token::Interpolation",
+        "PPIx::QuoteLike::Token::String",
+        "PPIx::QuoteLike::Token::Structure",
+        "PPIx::QuoteLike::Token::Unknown",
+        "PPIx::QuoteLike::Token::Whitespace",
+        "PPIx::QuoteLike::Utils"
+      ],
+      "version": "0.024"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "e9c669c01d7c951f9bfee899c147fc8c8ddd98d3f32329f94000c7b02f53366b",
+          "strip_prefix": "PPIx-Regexp-0.092",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/W/WY/WYANT/PPIx-Regexp-0.092.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "PPI",
+        "Task-Weaken"
+      ],
+      "name": "PPIx-Regexp",
+      "provides": [
+        "PPIx::Regexp",
+        "PPIx::Regexp::Constant",
+        "PPIx::Regexp::Constant::Inf",
+        "PPIx::Regexp::Dumper",
+        "PPIx::Regexp::Element",
+        "PPIx::Regexp::Lexer",
+        "PPIx::Regexp::Node",
+        "PPIx::Regexp::Node::Range",
+        "PPIx::Regexp::Node::Unknown",
+        "PPIx::Regexp::Structure",
+        "PPIx::Regexp::Structure::Assertion",
+        "PPIx::Regexp::Structure::Atomic_Script_Run",
+        "PPIx::Regexp::Structure::BranchReset",
+        "PPIx::Regexp::Structure::Capture",
+        "PPIx::Regexp::Structure::CharClass",
+        "PPIx::Regexp::Structure::Code",
+        "PPIx::Regexp::Structure::Main",
+        "PPIx::Regexp::Structure::Modifier",
+        "PPIx::Regexp::Structure::NamedCapture",
+        "PPIx::Regexp::Structure::Quantifier",
+        "PPIx::Regexp::Structure::RegexSet",
+        "PPIx::Regexp::Structure::Regexp",
+        "PPIx::Regexp::Structure::Replacement",
+        "PPIx::Regexp::Structure::Script_Run",
+        "PPIx::Regexp::Structure::Subexpression",
+        "PPIx::Regexp::Structure::Switch",
+        "PPIx::Regexp::Structure::Unknown",
+        "PPIx::Regexp::Support",
+        "PPIx::Regexp::Token",
+        "PPIx::Regexp::Token::Assertion",
+        "PPIx::Regexp::Token::Backreference",
+        "PPIx::Regexp::Token::Backtrack",
+        "PPIx::Regexp::Token::CharClass",
+        "PPIx::Regexp::Token::CharClass::POSIX",
+        "PPIx::Regexp::Token::CharClass::POSIX::Unknown",
+        "PPIx::Regexp::Token::CharClass::Simple",
+        "PPIx::Regexp::Token::Code",
+        "PPIx::Regexp::Token::Comment",
+        "PPIx::Regexp::Token::Condition",
+        "PPIx::Regexp::Token::Control",
+        "PPIx::Regexp::Token::Delimiter",
+        "PPIx::Regexp::Token::Greediness",
+        "PPIx::Regexp::Token::GroupType",
+        "PPIx::Regexp::Token::GroupType::Assertion",
+        "PPIx::Regexp::Token::GroupType::Atomic_Script_Run",
+        "PPIx::Regexp::Token::GroupType::BranchReset",
+        "PPIx::Regexp::Token::GroupType::Code",
+        "PPIx::Regexp::Token::GroupType::Modifier",
+        "PPIx::Regexp::Token::GroupType::NamedCapture",
+        "PPIx::Regexp::Token::GroupType::Script_Run",
+        "PPIx::Regexp::Token::GroupType::Subexpression",
+        "PPIx::Regexp::Token::GroupType::Switch",
+        "PPIx::Regexp::Token::Interpolation",
+        "PPIx::Regexp::Token::Literal",
+        "PPIx::Regexp::Token::Modifier",
+        "PPIx::Regexp::Token::NoOp",
+        "PPIx::Regexp::Token::Operator",
+        "PPIx::Regexp::Token::Quantifier",
+        "PPIx::Regexp::Token::Recursion",
+        "PPIx::Regexp::Token::Reference",
+        "PPIx::Regexp::Token::Structure",
+        "PPIx::Regexp::Token::Unknown",
+        "PPIx::Regexp::Token::Unmatched",
+        "PPIx::Regexp::Token::Whitespace",
+        "PPIx::Regexp::Tokenizer",
+        "PPIx::Regexp::Util"
+      ],
+      "version": "0.092"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "336918d56ac9482d248d2ca6e79ed7f2cc67403fbdecdd73a9c414a034adb3cf",
+          "strip_prefix": "PPIx-Utils-0.004",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DB/DBOOK/PPIx-Utils-0.004.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "B-Keywords",
+        "PPI"
+      ],
+      "name": "PPIx-Utils",
+      "provides": [
+        "PPIx::Utils",
+        "PPIx::Utils::Classification",
+        "PPIx::Utils::Language",
+        "PPIx::Utils::Traversal"
+      ],
+      "version": "0.004"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "499bb1b482db24fda277a51525596ad092c2bd51dd508fa8fec2e9f849097402",
+          "strip_prefix": "Params-Util-1.102",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/R/RE/REHSACK/Params-Util-1.102.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Params-Util",
+      "provides": [
+        "Params::Util",
+        "Params::Util::PP"
+      ],
+      "version": "1.102"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "b459d0b73e18d3c69f15f58acf018cdb599d54482344de570b877874b33cbc53",
+          "strip_prefix": "Parse-PMFile-0.48",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/I/IS/ISHIGAKI/Parse-PMFile-0.48.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "ExtUtils-MakeMaker-CPANfile"
+      ],
+      "name": "Parse-PMFile",
+      "provides": [
+        "Parse::PMFile"
+      ],
+      "version": "0.48"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "ff20713d1a14d257af9c78209001f40dc177e4b9d1496115cbd8726d577946c7",
+          "strip_prefix": "Path-Tiny-0.150",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DA/DAGOLDEN/Path-Tiny-0.150.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Path-Tiny",
+      "provides": [
+        "Path::Tiny",
+        "Path::Tiny::Error"
+      ],
+      "version": "0.150"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "572a7c8758ba1c0ab6daf0bd40297c4f0dcf1516f084522df2c2bf04d525e232",
+          "strip_prefix": "Perl-Critic-1.156",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/P/PE/PETDANCE/Perl-Critic-1.156.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "B-Keywords",
+        "Config-Tiny",
+        "Exception-Class",
+        "File-Which",
+        "List-SomeUtils",
+        "Module-Build",
+        "Module-Pluggable",
+        "PPI",
+        "PPIx-QuoteLike",
+        "PPIx-Regexp",
+        "PPIx-Utils",
+        "Perl-Tidy",
+        "Pod-Parser",
+        "Pod-Spell",
+        "Readonly",
+        "String-Format"
+      ],
+      "name": "Perl-Critic",
+      "provides": [
+        "Perl::Critic",
+        "Perl::Critic::Annotation",
+        "Perl::Critic::Command",
+        "Perl::Critic::Config",
+        "Perl::Critic::Document",
+        "Perl::Critic::Exception",
+        "Perl::Critic::Exception::AggregateConfiguration",
+        "Perl::Critic::Exception::Configuration",
+        "Perl::Critic::Exception::Configuration::Generic",
+        "Perl::Critic::Exception::Configuration::NonExistentPolicy",
+        "Perl::Critic::Exception::Configuration::Option",
+        "Perl::Critic::Exception::Configuration::Option::Global",
+        "Perl::Critic::Exception::Configuration::Option::Global::ExtraParameter",
+        "Perl::Critic::Exception::Configuration::Option::Global::ParameterValue",
+        "Perl::Critic::Exception::Configuration::Option::Policy",
+        "Perl::Critic::Exception::Configuration::Option::Policy::ExtraParameter",
+        "Perl::Critic::Exception::Configuration::Option::Policy::ParameterValue",
+        "Perl::Critic::Exception::Fatal",
+        "Perl::Critic::Exception::Fatal::Generic",
+        "Perl::Critic::Exception::Fatal::Internal",
+        "Perl::Critic::Exception::Fatal::PolicyDefinition",
+        "Perl::Critic::Exception::IO",
+        "Perl::Critic::Exception::Parse",
+        "Perl::Critic::OptionsProcessor",
+        "Perl::Critic::Policy",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitBooleanGrep",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitComplexMappings",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitLvalueSubstr",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitReverseSortBlock",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitShiftRef",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitSleepViaSelect",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitStringyEval",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitStringySplit",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitUniversalCan",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitUniversalIsa",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitUselessTopic",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitVoidGrep",
+        "Perl::Critic::Policy::BuiltinFunctions::ProhibitVoidMap",
+        "Perl::Critic::Policy::BuiltinFunctions::RequireBlockGrep",
+        "Perl::Critic::Policy::BuiltinFunctions::RequireBlockMap",
+        "Perl::Critic::Policy::BuiltinFunctions::RequireGlobFunction",
+        "Perl::Critic::Policy::BuiltinFunctions::RequireSimpleSortBlock",
+        "Perl::Critic::Policy::ClassHierarchies::ProhibitAutoloading",
+        "Perl::Critic::Policy::ClassHierarchies::ProhibitExplicitISA",
+        "Perl::Critic::Policy::ClassHierarchies::ProhibitOneArgBless",
+        "Perl::Critic::Policy::CodeLayout::ProhibitHardTabs",
+        "Perl::Critic::Policy::CodeLayout::ProhibitParensWithBuiltins",
+        "Perl::Critic::Policy::CodeLayout::ProhibitQuotedWordLists",
+        "Perl::Critic::Policy::CodeLayout::ProhibitTrailingWhitespace",
+        "Perl::Critic::Policy::CodeLayout::RequireConsistentNewlines",
+        "Perl::Critic::Policy::CodeLayout::RequireTidyCode",
+        "Perl::Critic::Policy::CodeLayout::RequireTrailingCommas",
+        "Perl::Critic::Policy::ControlStructures::ProhibitCStyleForLoops",
+        "Perl::Critic::Policy::ControlStructures::ProhibitCascadingIfElse",
+        "Perl::Critic::Policy::ControlStructures::ProhibitDeepNests",
+        "Perl::Critic::Policy::ControlStructures::ProhibitLabelsWithSpecialBlockNames",
+        "Perl::Critic::Policy::ControlStructures::ProhibitMutatingListFunctions",
+        "Perl::Critic::Policy::ControlStructures::ProhibitNegativeExpressionsInUnlessAndUntilConditions",
+        "Perl::Critic::Policy::ControlStructures::ProhibitPostfixControls",
+        "Perl::Critic::Policy::ControlStructures::ProhibitUnlessBlocks",
+        "Perl::Critic::Policy::ControlStructures::ProhibitUnreachableCode",
+        "Perl::Critic::Policy::ControlStructures::ProhibitUntilBlocks",
+        "Perl::Critic::Policy::ControlStructures::ProhibitYadaOperator",
+        "Perl::Critic::Policy::Documentation::PodSpelling",
+        "Perl::Critic::Policy::Documentation::RequirePackageMatchesPodName",
+        "Perl::Critic::Policy::Documentation::RequirePodAtEnd",
+        "Perl::Critic::Policy::Documentation::RequirePodSections",
+        "Perl::Critic::Policy::ErrorHandling::RequireCarping",
+        "Perl::Critic::Policy::ErrorHandling::RequireCheckingReturnValueOfEval",
+        "Perl::Critic::Policy::InputOutput::ProhibitBacktickOperators",
+        "Perl::Critic::Policy::InputOutput::ProhibitBarewordDirHandles",
+        "Perl::Critic::Policy::InputOutput::ProhibitBarewordFileHandles",
+        "Perl::Critic::Policy::InputOutput::ProhibitExplicitStdin",
+        "Perl::Critic::Policy::InputOutput::ProhibitInteractiveTest",
+        "Perl::Critic::Policy::InputOutput::ProhibitJoinedReadline",
+        "Perl::Critic::Policy::InputOutput::ProhibitOneArgSelect",
+        "Perl::Critic::Policy::InputOutput::ProhibitReadlineInForLoop",
+        "Perl::Critic::Policy::InputOutput::ProhibitTwoArgOpen",
+        "Perl::Critic::Policy::InputOutput::RequireBracedFileHandleWithPrint",
+        "Perl::Critic::Policy::InputOutput::RequireBriefOpen",
+        "Perl::Critic::Policy::InputOutput::RequireCheckedClose",
+        "Perl::Critic::Policy::InputOutput::RequireCheckedOpen",
+        "Perl::Critic::Policy::InputOutput::RequireCheckedSyscalls",
+        "Perl::Critic::Policy::InputOutput::RequireEncodingWithUTF8Layer",
+        "Perl::Critic::Policy::Miscellanea::ProhibitFormats",
+        "Perl::Critic::Policy::Miscellanea::ProhibitTies",
+        "Perl::Critic::Policy::Miscellanea::ProhibitUnrestrictedNoCritic",
+        "Perl::Critic::Policy::Miscellanea::ProhibitUselessNoCritic",
+        "Perl::Critic::Policy::Modules::ProhibitAutomaticExportation",
+        "Perl::Critic::Policy::Modules::ProhibitConditionalUseStatements",
+        "Perl::Critic::Policy::Modules::ProhibitEvilModules",
+        "Perl::Critic::Policy::Modules::ProhibitExcessMainComplexity",
+        "Perl::Critic::Policy::Modules::ProhibitMultiplePackages",
+        "Perl::Critic::Policy::Modules::RequireBarewordIncludes",
+        "Perl::Critic::Policy::Modules::RequireEndWithOne",
+        "Perl::Critic::Policy::Modules::RequireExplicitPackage",
+        "Perl::Critic::Policy::Modules::RequireFilenameMatchesPackage",
+        "Perl::Critic::Policy::Modules::RequireNoMatchVarsWithUseEnglish",
+        "Perl::Critic::Policy::Modules::RequireVersionVar",
+        "Perl::Critic::Policy::NamingConventions::Capitalization",
+        "Perl::Critic::Policy::NamingConventions::ProhibitAmbiguousNames",
+        "Perl::Critic::Policy::Objects::ProhibitIndirectSyntax",
+        "Perl::Critic::Policy::References::ProhibitDoubleSigils",
+        "Perl::Critic::Policy::RegularExpressions::ProhibitCaptureWithoutTest",
+        "Perl::Critic::Policy::RegularExpressions::ProhibitComplexRegexes",
+        "Perl::Critic::Policy::RegularExpressions::ProhibitEnumeratedClasses",
+        "Perl::Critic::Policy::RegularExpressions::ProhibitEscapedMetacharacters",
+        "Perl::Critic::Policy::RegularExpressions::ProhibitFixedStringMatches",
+        "Perl::Critic::Policy::RegularExpressions::ProhibitSingleCharAlternation",
+        "Perl::Critic::Policy::RegularExpressions::ProhibitUnusedCapture",
+        "Perl::Critic::Policy::RegularExpressions::ProhibitUnusualDelimiters",
+        "Perl::Critic::Policy::RegularExpressions::ProhibitUselessTopic",
+        "Perl::Critic::Policy::RegularExpressions::RequireBracesForMultiline",
+        "Perl::Critic::Policy::RegularExpressions::RequireDotMatchAnything",
+        "Perl::Critic::Policy::RegularExpressions::RequireExtendedFormatting",
+        "Perl::Critic::Policy::RegularExpressions::RequireLineBoundaryMatching",
+        "Perl::Critic::Policy::Subroutines::ProhibitAmpersandSigils",
+        "Perl::Critic::Policy::Subroutines::ProhibitBuiltinHomonyms",
+        "Perl::Critic::Policy::Subroutines::ProhibitExcessComplexity",
+        "Perl::Critic::Policy::Subroutines::ProhibitExplicitReturnUndef",
+        "Perl::Critic::Policy::Subroutines::ProhibitManyArgs",
+        "Perl::Critic::Policy::Subroutines::ProhibitNestedSubs",
+        "Perl::Critic::Policy::Subroutines::ProhibitReturnSort",
+        "Perl::Critic::Policy::Subroutines::ProhibitSubroutinePrototypes",
+        "Perl::Critic::Policy::Subroutines::ProhibitUnusedPrivateSubroutines",
+        "Perl::Critic::Policy::Subroutines::ProtectPrivateSubs",
+        "Perl::Critic::Policy::Subroutines::RequireArgUnpacking",
+        "Perl::Critic::Policy::Subroutines::RequireFinalReturn",
+        "Perl::Critic::Policy::TestingAndDebugging::ProhibitNoStrict",
+        "Perl::Critic::Policy::TestingAndDebugging::ProhibitNoWarnings",
+        "Perl::Critic::Policy::TestingAndDebugging::ProhibitProlongedStrictureOverride",
+        "Perl::Critic::Policy::TestingAndDebugging::RequireTestLabels",
+        "Perl::Critic::Policy::TestingAndDebugging::RequireUseStrict",
+        "Perl::Critic::Policy::TestingAndDebugging::RequireUseWarnings",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitCommaSeparatedStatements",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitComplexVersion",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitConstantPragma",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitEmptyQuotes",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitEscapedCharacters",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitImplicitNewlines",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitInterpolationOfLiterals",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitLeadingZeros",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitLongChainsOfMethodCalls",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitMagicNumbers",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitMismatchedOperators",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitMixedBooleanOperators",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitNoisyQuotes",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitQuotesAsQuotelikeOperatorDelimiters",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitSpecialLiteralHeredocTerminator",
+        "Perl::Critic::Policy::ValuesAndExpressions::ProhibitVersionStrings",
+        "Perl::Critic::Policy::ValuesAndExpressions::RequireConstantVersion",
+        "Perl::Critic::Policy::ValuesAndExpressions::RequireInterpolationOfMetachars",
+        "Perl::Critic::Policy::ValuesAndExpressions::RequireNumberSeparators",
+        "Perl::Critic::Policy::ValuesAndExpressions::RequireQuotedHeredocTerminator",
+        "Perl::Critic::Policy::ValuesAndExpressions::RequireUpperCaseHeredocTerminator",
+        "Perl::Critic::Policy::Variables::ProhibitAugmentedAssignmentInDeclaration",
+        "Perl::Critic::Policy::Variables::ProhibitConditionalDeclarations",
+        "Perl::Critic::Policy::Variables::ProhibitEvilVariables",
+        "Perl::Critic::Policy::Variables::ProhibitLocalVars",
+        "Perl::Critic::Policy::Variables::ProhibitMatchVars",
+        "Perl::Critic::Policy::Variables::ProhibitPackageVars",
+        "Perl::Critic::Policy::Variables::ProhibitPerl4PackageNames",
+        "Perl::Critic::Policy::Variables::ProhibitPunctuationVars",
+        "Perl::Critic::Policy::Variables::ProhibitReusedNames",
+        "Perl::Critic::Policy::Variables::ProhibitUnusedVariables",
+        "Perl::Critic::Policy::Variables::ProtectPrivateVars",
+        "Perl::Critic::Policy::Variables::RequireInitializationForLocalVars",
+        "Perl::Critic::Policy::Variables::RequireLexicalLoopIterators",
+        "Perl::Critic::Policy::Variables::RequireLocalizedPunctuationVars",
+        "Perl::Critic::Policy::Variables::RequireNegativeIndices",
+        "Perl::Critic::PolicyConfig",
+        "Perl::Critic::PolicyFactory",
+        "Perl::Critic::PolicyListing",
+        "Perl::Critic::PolicyParameter",
+        "Perl::Critic::PolicyParameter::Behavior",
+        "Perl::Critic::PolicyParameter::Behavior::Boolean",
+        "Perl::Critic::PolicyParameter::Behavior::Enumeration",
+        "Perl::Critic::PolicyParameter::Behavior::Integer",
+        "Perl::Critic::PolicyParameter::Behavior::String",
+        "Perl::Critic::PolicyParameter::Behavior::StringList",
+        "Perl::Critic::ProfilePrototype",
+        "Perl::Critic::Statistics",
+        "Perl::Critic::TestUtils",
+        "Perl::Critic::Theme",
+        "Perl::Critic::ThemeListing",
+        "Perl::Critic::UserProfile",
+        "Perl::Critic::Utils",
+        "Perl::Critic::Utils::Constants",
+        "Perl::Critic::Utils::McCabe",
+        "Perl::Critic::Utils::POD",
+        "Perl::Critic::Utils::PPI",
+        "Perl::Critic::Utils::Perl",
+        "Perl::Critic::Violation",
+        "Test::Perl::Critic::Policy"
+      ],
+      "version": "1.156"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "104e3e5ee5c84524d5e50324d664c7859b1ac422ab97a3e7a248985a4b4f7f64",
+          "strip_prefix": "Perl-Tidy-20260826",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/S/SH/SHANCOCK/Perl-Tidy-20260826.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Perl-Tidy",
+      "provides": [
+        "Perl::Tidy",
+        "Perl::Tidy::Debugger",
+        "Perl::Tidy::Diagnostics",
+        "Perl::Tidy::FileWriter",
+        "Perl::Tidy::Formatter",
+        "Perl::Tidy::HtmlWriter",
+        "Perl::Tidy::IOScalar",
+        "Perl::Tidy::IOScalarArray",
+        "Perl::Tidy::IndentationItem",
+        "Perl::Tidy::Logger",
+        "Perl::Tidy::Tokenizer",
+        "Perl::Tidy::VerticalAligner",
+        "Perl::Tidy::VerticalAligner::Alignment",
+        "Perl::Tidy::VerticalAligner::Line"
+      ],
+      "version": "20260826"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "5deccbf55d750ce65588cd211c1a03fa1ef3aaa15d1ac2b8d85383a42c1427ea",
+          "strip_prefix": "Pod-Parser-1.67",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/M/MA/MAREKR/Pod-Parser-1.67.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Pod-Parser",
+      "provides": [
+        "Pod::Cache",
+        "Pod::Cache::Item",
+        "Pod::Find",
+        "Pod::Hyperlink",
+        "Pod::InputObjects",
+        "Pod::InputSource",
+        "Pod::InteriorSequence",
+        "Pod::List",
+        "Pod::Paragraph",
+        "Pod::ParseTree",
+        "Pod::ParseUtils",
+        "Pod::Parser",
+        "Pod::PlainText",
+        "Pod::Select"
+      ],
+      "version": "1.67"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "7ef56c9229f3efbc71a0462ce44490c0dd49fbf3b21fe85bb08b1eeac6f7b063",
+          "strip_prefix": "Pod-Spell-1.27",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/H/HA/HAARG/Pod-Spell-1.27.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "Class-Tiny",
+        "File-ShareDir",
+        "File-ShareDir-Install",
+        "Lingua-EN-Inflect"
+      ],
+      "name": "Pod-Spell",
+      "provides": [
+        "Pod::Spell",
+        "Pod::Wordlist"
+      ],
+      "version": "1.27"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "4b23542491af010d44a5c7c861244738acc74ababae6b8838d354dfb19462b5e",
+          "strip_prefix": "Readonly-2.05",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/S/SA/SANKO/Readonly-2.05.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "Module-Build-Tiny"
+      ],
+      "name": "Readonly",
+      "provides": [
+        "Readonly",
+        "Readonly::Array",
+        "Readonly::Hash",
+        "Readonly::Scalar"
+      ],
+      "version": "2.05"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "87f4148aa0ff1d5e652723322eab7dafa3801c967d6f91ac9147a3c467b8a66a",
+          "strip_prefix": "Safe-Isa-1.000010",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/E/ET/ETHER/Safe-Isa-1.000010.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Safe-Isa",
+      "provides": [
+        "Safe::Isa"
+      ],
+      "version": "1.000010"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "9e417a8f8d9ea623beea2d13a47c0d5a696fc8602c0509b826cd45f97b76e778",
+          "strip_prefix": "String-Format-1.18",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/S/SR/SREZIC/String-Format-1.18.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "String-Format",
+      "provides": [
+        "String::Format"
+      ],
+      "version": "1.18"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "e606365038ce20d646d255c805effdd32f86475f18d43ca75455b00e4d86dd35",
+          "strip_prefix": "String-ShellQuote-1.04",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/R/RO/ROSCH/String-ShellQuote-1.04.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "String-ShellQuote",
+      "provides": [
+        "String::ShellQuote"
+      ],
+      "version": "1.04"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "2383fedb9dbaef646468ea824afbf7c801076720cfba0df2a7a074726dcd66be",
+          "strip_prefix": "Task-Weaken-1.06",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/E/ET/ETHER/Task-Weaken-1.06.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Task-Weaken",
+      "provides": [
+        "Task::Weaken"
+      ],
+      "version": "1.06"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "ee9f39055dc695aa244a252f56ffd37f8be07209b337ad387824721206d2a89e",
+          "strip_prefix": "Tie-Handle-Offset-0.004",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/D/DA/DAGOLDEN/Tie-Handle-Offset-0.004.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Tie-Handle-Offset",
+      "provides": [
+        "Tie::Handle::Offset",
+        "Tie::Handle::SkipHeader"
+      ],
+      "version": "0.004"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "ef2d6cab0bad18e3ab1c4e6125cc5f695c7e459899f512451c8fa3ef83fa7fc0",
+          "strip_prefix": "Try-Tiny-0.32",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/E/ET/ETHER/Try-Tiny-0.32.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Try-Tiny",
+      "provides": [
+        "Try::Tiny"
+      ],
+      "version": "0.32"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "ef5d2ef099a1a24a6e83ffe543de73337805d3d39c00b84fa205d725ad1a1b63",
+          "strip_prefix": "URI-5.40",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/O/OA/OALDERS/URI-5.40.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "MIME-Base32"
+      ],
+      "name": "URI",
+      "provides": [
+        "URI",
+        "URI::Escape",
+        "URI::Heuristic",
+        "URI::IRI",
+        "URI::QueryParam",
+        "URI::Split",
+        "URI::URL",
+        "URI::WithBase",
+        "URI::data",
+        "URI::file",
+        "URI::file::Base",
+        "URI::file::FAT",
+        "URI::file::Mac",
+        "URI::file::OS2",
+        "URI::file::QNX",
+        "URI::file::Unix",
+        "URI::file::Win32",
+        "URI::ftp",
+        "URI::ftpes",
+        "URI::ftps",
+        "URI::geo",
+        "URI::gopher",
+        "URI::http",
+        "URI::https",
+        "URI::icap",
+        "URI::icaps",
+        "URI::irc",
+        "URI::ircs",
+        "URI::ldap",
+        "URI::ldapi",
+        "URI::ldaps",
+        "URI::mailto",
+        "URI::mms",
+        "URI::news",
+        "URI::nntp",
+        "URI::nntps",
+        "URI::otpauth",
+        "URI::pop",
+        "URI::rlogin",
+        "URI::rsync",
+        "URI::rtsp",
+        "URI::rtspu",
+        "URI::scp",
+        "URI::sftp",
+        "URI::sip",
+        "URI::sips",
+        "URI::smb",
+        "URI::smtp",
+        "URI::snews",
+        "URI::ssh",
+        "URI::telnet",
+        "URI::tn3270",
+        "URI::urn",
+        "URI::urn::isbn",
+        "URI::urn::oid",
+        "URI::ws",
+        "URI::wss"
+      ],
+      "version": "5.40"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "aa74b0e3dc2d41cd63f62f853e521ffd76b8d823479a2619e22edb4049b4c0dc",
+          "strip_prefix": "Win32-ShellQuote-0.003001",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/H/HA/HAARG/Win32-ShellQuote-0.003001.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "Win32-ShellQuote",
+      "provides": [
+        "Win32::ShellQuote"
+      ],
+      "version": "0.003001"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "f4a2a6d22b32a31e418debcbd04b843ba0997f9dea0fcc1f96b08b2f2ebcb2e7",
+          "strip_prefix": "YAML-PP-v0.43.0",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/T/TI/TINITA/YAML-PP-v0.43.0.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "YAML-PP",
+      "provides": [
+        "YAML::PP",
+        "YAML::PP::Common",
+        "YAML::PP::Constructor",
+        "YAML::PP::Dumper",
+        "YAML::PP::Emitter",
+        "YAML::PP::Exception",
+        "YAML::PP::Grammar",
+        "YAML::PP::Highlight",
+        "YAML::PP::Lexer",
+        "YAML::PP::Loader",
+        "YAML::PP::Parser",
+        "YAML::PP::Perl",
+        "YAML::PP::Preserve::Array",
+        "YAML::PP::Preserve::Hash",
+        "YAML::PP::Preserve::Scalar",
+        "YAML::PP::Reader",
+        "YAML::PP::Reader::File",
+        "YAML::PP::Render",
+        "YAML::PP::Representer",
+        "YAML::PP::Schema",
+        "YAML::PP::Schema::Binary",
+        "YAML::PP::Schema::Catchall",
+        "YAML::PP::Schema::Core",
+        "YAML::PP::Schema::Failsafe",
+        "YAML::PP::Schema::Include",
+        "YAML::PP::Schema::JSON",
+        "YAML::PP::Schema::Merge",
+        "YAML::PP::Schema::Perl",
+        "YAML::PP::Schema::Tie::IxHash",
+        "YAML::PP::Schema::YAML1_1",
+        "YAML::PP::Type::MergeKey",
+        "YAML::PP::Writer",
+        "YAML::PP::Writer::File"
+      ],
+      "version": "v0.43.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "8df87a10c14c8e909c5b47c5701e4b8187d519e5251e87c80709b02bb33efdd7",
+          "strip_prefix": "local-lib-2.000029",
+          "urls": [
+            "https://cpan.metacpan.org/authors/id/H/HA/HAARG/local-lib-2.000029.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "local-lib",
+      "provides": [
+        "lib::core::only",
+        "local::lib"
+      ],
+      "version": "2.000029"
+    }
+  ],
+  "schema": 1
+}

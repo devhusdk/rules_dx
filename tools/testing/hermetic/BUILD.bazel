@@ -436,7 +436,7 @@ hermetic_qualification(
         "//perl/tests/fixtures/perl-app/third_party:BUILD.bazel": "perl/tests/fixtures/perl-app/third_party/BUILD.bazel",
         "//perl/tests/fixtures/perl-app/third_party:cpanfile": "perl/tests/fixtures/perl-app/third_party/cpanfile",
         "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot": "perl/tests/fixtures/perl-app/third_party/cpanfile.snapshot",
-        "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot.lock.json": "perl/tests/fixtures/perl-app/third_party/cpanfile.snapshot.lock.json",
+        "//perl/tests/fixtures/perl-app/third_party:cpan.lock.json": "perl/tests/fixtures/perl-app/third_party/cpan.lock.json",
     },
     languages = ["perl"],
     module_fragment = "consumers/perl/module_fragment.bazel",

@@ -1263,9 +1263,9 @@ fn swiftpm_locks_follow_the_rules_dx_extension() {
 }
 
 #[test]
-fn cpan_installs_follow_the_rules_perl_and_rules_dx_extensions() {
+fn cpan_installs_follow_the_rules_dx_extension() {
     let file = parse(
-        "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"tools\", lock = \"//perl:cpanfile.snapshot.lock.json\")\nother = use_extension(\"//perl:extensions.bzl\", \"cpan\")\nother.install(name = \"dev\", lock = \"//x:l.json\")\n",
+        "cpan = use_extension(\"@rules_dx//perl:extensions.bzl\", \"cpan\")\ncpan.lock(name = \"tools\", lock = \"//perl:cpan.lock.json\")\nother = use_extension(\"//perl:extensions.bzl\", \"cpan\")\nother.lock(name = \"dev\", lock = \"//x:l.json\")\nold = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\nold.install(name = \"gone\", lock = \"//y:l.json\")\n",
     );
     let found: Vec<_> = file
         .cpan_installs()
@@ -1276,7 +1276,7 @@ fn cpan_installs_follow_the_rules_perl_and_rules_dx_extensions() {
     assert_eq!(
         found,
         [
-            ("tools", "//perl:cpanfile.snapshot.lock.json"),
+            ("tools", "//perl:cpan.lock.json"),
             ("dev", "//x:l.json"),
         ]
     );

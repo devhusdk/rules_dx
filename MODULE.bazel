@@ -1483,21 +1483,17 @@ single_version_override(
     version = "2.1.0",
 )
 
-perl_tools_cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
-perl_tools_cpan.install(
+perl_tools_cpan = use_extension("//perl:extensions.bzl", "cpan")
+perl_tools_cpan.lock(
     name = "dx_perl_cpan",
-    bins = {
-        "Carton": ["bin/carton"],
-        "Perl-Tidy": ["bin/perltidy"],
-    },
-    lock = "//perl/private/tools:cpanfile.snapshot.lock.json",
+    lock = "//perl/private/tools:cpan.lock.json",
 )
 use_repo(perl_tools_cpan, "dx_perl_cpan")
 
-cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan", dev_dependency = True)
-cpan.install(
+cpan = use_extension("//perl:extensions.bzl", "cpan", dev_dependency = True)
+cpan.lock(
     name = "perl_app_cpan",
-    lock = "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot.lock.json",
+    lock = "//perl/tests/fixtures/perl-app/third_party:cpan.lock.json",
 )
 use_repo(cpan, perl_cpan = "perl_app_cpan")
 
@@ -2435,6 +2431,7 @@ crate.from_cargo(
         "//ansible/private/tools/lock:Cargo.toml",
         "//powershell/private/tools/lock:Cargo.toml",
         "//fortran/private/tools/lock:Cargo.toml",
+        "//perl/private/tools/lock:Cargo.toml",
         "//lua/private/tools/lock:Cargo.toml",
         "//cli/families:Cargo.toml",
         "//cli/module_bazel:Cargo.toml",

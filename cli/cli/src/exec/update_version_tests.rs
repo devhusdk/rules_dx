@@ -146,7 +146,7 @@ fn consumer_composer_set_widens_the_constraint_and_refreshes() {
     assert!(!harness.build_argv.borrow().is_empty());
 }
 
-const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"cpan_deps\", lock = \"//pl:cpanfile.snapshot.lock.json\")\n";
+const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_dx//perl:extensions.bzl\", \"cpan\")\ncpan.lock(name = \"cpan_deps\", lock = \"//pl:cpan.lock.json\")\n";
 const CPANFILE: &str = "requires 'Text::CSV', '== 2.06';\n";
 
 fn seed_cpan_set(harness: &Harness) {
@@ -157,12 +157,8 @@ fn seed_cpan_set(harness: &Harness) {
         "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  Text-CSV-2.06\n",
     );
     harness.write_source(
-        "pl/cpanfile.snapshot.lock.json",
-        "{\"Text-CSV\":{\"strip_prefix\":\"Text-CSV-2.06\"}}\n",
-    );
-    harness.write_source(
-        "pl/BUILD.bazel",
-        "perl_cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n",
+        "pl/cpan.lock.json",
+        "{\"schema\":1,\"ecosystem\":\"cpan\",\"inputs\":{},\"packages\":[{\"name\":\"Text-CSV\",\"version\":\"2.06\",\"archives\":[{\"urls\":[\"https://cpan.metacpan.org/authors/id/I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz\"],\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"strip_prefix\":\"Text-CSV-2.06\"}],\"deps\":[],\"provides\":[\"Text::CSV\"]}]}\n",
     );
 }
 
@@ -186,7 +182,7 @@ fn consumer_cpan_set_widens_the_cpanfile_and_refreshes() {
         runs[0]
     );
     assert!(
-        runs[1].iter().any(|arg| arg == "//pl:compiler"),
+        runs[1].iter().any(|arg| arg == "@rules_dx//perl/private/tools/lock"),
         "{:?}",
         runs[1]
     );
@@ -743,7 +739,7 @@ const GO_FILES: [(&str, &str); 4] = [
 struct GoRunner {
     code: Option<i32>,
     writes: Vec<(&'static str, String)>,
-    #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
+    #[allow(clippy::type_complexity)]
     launches: std::cell::RefCell<Vec<(Vec<String>, std::path::PathBuf, Vec<(String, String)>)>>,
     scratch: std::cell::RefCell<Option<std::path::PathBuf>>,
 }
@@ -834,10 +830,7 @@ fn consumer_go_set_widens_require_and_refreshes_go_sum_in_a_scratch_dir() {
     assert_eq!(launches.len(), 1, "{launches:?}");
     let (argv, cwd, env) = &launches[0];
     let at = argv.iter().position(|arg| arg == "-C").expect("-C");
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "the argv carries no build settings"
-    )]
+    #[allow(clippy::disallowed_methods)]
     let mut head = dx_process::startup_argv(&[]);
     head.extend(
         [

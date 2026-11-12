@@ -142,7 +142,7 @@ func (m *lockManifest) Lookup(repo, name string) ([]label.Label, string) {
 			}
 			return labels, ""
 		}
-		i := strings.LastIndexAny(candidate, `/.\`)
+		i := strings.LastIndexAny(candidate, `/.\:`)
 		if i < 0 {
 			break
 		}

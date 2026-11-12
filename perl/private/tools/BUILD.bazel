@@ -1,5 +1,4 @@
 load("@rules_perl//perl:perl_binary.bzl", "perl_binary")
-load("@rules_perl//perl/cpan:cpan_compiler.bzl", perl_cpan_compiler = "cpan_compiler")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
@@ -7,19 +6,19 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "cpanfile",
     "cpanfile.snapshot",
-    "cpanfile.snapshot.lock.json",
+    "cpan.lock.json",
     "critic/testdata/clean.pl",
     "critic/testdata/dirty.pl",
 ])
 
 alias(
     name = "perltidy",
-    actual = "@dx_perl_cpan//:Perl-Tidy_bin_perltidy",
+    actual = "@dx_perl_cpan//Perl-Tidy:bin_perltidy",
 )
 
 alias(
     name = "carton",
-    actual = "@dx_perl_cpan//:Carton_bin_carton",
+    actual = "@dx_perl_cpan//Carton:bin_carton",
 )
 
 perl_binary(
@@ -27,8 +26,8 @@ perl_binary(
     srcs = ["perlcritic.pl"],
     main = "perlcritic.pl",
     deps = [
-        "@dx_perl_cpan//:Clone-PP",
-        "@dx_perl_cpan//:Perl-Critic",
+        "@dx_perl_cpan//Clone-PP",
+        "@dx_perl_cpan//Perl-Critic",
     ],
 )
 
@@ -36,14 +35,7 @@ perl_binary(
     name = "cpansa_dump",
     srcs = ["cpansa_dump.pl"],
     main = "cpansa_dump.pl",
-    deps = ["@dx_perl_cpan//:CPANSA-DB"],
-)
-
-perl_cpan_compiler(
-    name = "compiler",
-    cpanfile = "cpanfile",
-    lockfile = "cpanfile.snapshot.lock.json",
-    tags = ["manual"],
+    deps = ["@dx_perl_cpan//CPANSA-DB"],
 )
 
 real_source_target(

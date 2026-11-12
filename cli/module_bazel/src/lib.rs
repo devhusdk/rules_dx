@@ -245,7 +245,7 @@ pub struct BundleFetch<'a> {
     pub line: usize,
 }
 
-/// One `cpan.install` tag.
+/// One `cpan.lock` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CpanInstall<'a> {
     pub name: &'a str,
@@ -379,7 +379,6 @@ const JS_MODULE: &str = "aspect_rules_js";
 const PY_MODULE: &str = "rules_py";
 const GAZELLE_MODULE: &str = "gazelle";
 const RUBY_MODULE: &str = "rules_dx";
-const PERL_MODULE: &str = "rules_perl";
 const DART_MODULE: &str = "rules_dart";
 const FLUTTER_MODULE: &str = "rules_flutter";
 const JULIA_MODULE: &str = "rules_julia";
@@ -1071,11 +1070,10 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `cpan.install` tag of the rules_perl extension in source order.
+    /// Every `cpan.lock` tag of the rules_dx extension in source order.
     pub fn cpan_installs(&self) -> Result<Vec<CpanInstall<'_>>, ModuleError> {
-        const TAG: &str = "cpan.install";
-        self.tags(PERL_MODULE, "perl/cpan:extensions.bzl", "cpan", "install")
-            .chain(self.dx_tags("perl", "cpan", "install"))
+        const TAG: &str = "cpan.lock";
+        self.dx_tags("perl", "cpan", "lock")
             .map(|call| {
                 Ok(CpanInstall {
                     name: required(call, TAG, "name")?,

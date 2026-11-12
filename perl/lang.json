@@ -19,13 +19,13 @@
       {
         "ecosystem": "cpan",
         "manifest": "cpanfile",
-        "lock": "cpanfile.snapshot.lock.json",
+        "lock": "cpan.lock.json",
         "state": "cpanfile.snapshot",
         "extension": "@rules_dx//perl:extensions.bzl",
-        "tag": "install",
+        "tag": "lock",
         "hub": "cpan",
-        "resolver": null,
-        "imports": "name"
+        "resolver": "@rules_dx//perl/private/tools/lock",
+        "imports": "provides"
       }
     ]
   },

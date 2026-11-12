@@ -30,11 +30,3 @@ def action_input_test(name, target, mnemonic, file, present):
         present = present,
         target_compatible_with = LINUX_X86_64,
     )
-
-def platform_flip_transition(platform):
-    """Returns a transition that builds its target for platform."""
-    return transition(
-        implementation = lambda _settings, _attr: {"//command_line_option:platforms": platform},
-        inputs = [],
-        outputs = ["//command_line_option:platforms"],
-    )

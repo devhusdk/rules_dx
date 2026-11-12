@@ -1,5 +1,6 @@
 # gazelle:ignore
 
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_shared_library")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//appimage:defs.bzl", "appimage_package")
@@ -7,7 +8,6 @@ load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":cell_tests.bzl", "arm64_action_test", "data_paths_test", "dedup_action_test", "unsupported_cpu_test", "x86_64_action_test")
-load(":transition.bzl", "arm64_files")
 load(":toolchain_tests.bzl", "appimage_metadata_tests")
 
 _LINUX = ["@platforms//os:linux"]
@@ -245,13 +245,14 @@ filegroup(
     target_compatible_with = _LINUX,
 )
 
-arm64_files(
+platform_transition_filegroup(
     name = "dxhello_arm64",
     srcs = [
         ":dxhello",
         ":dxhello_bin",
         ":greet_shared",
     ],
+    target_platform = "//appimage:linux_arm64",
 )
 
 rust_test(
@@ -304,7 +305,6 @@ real_source_target(
         "BUILD.bazel",
         "cell_tests.bzl",
         "toolchain_tests.bzl",
-        "transition.bzl",
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],

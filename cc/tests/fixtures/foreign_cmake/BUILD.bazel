@@ -1,3 +1,4 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_dx//cc:defs.bzl", "cc_test")
 load("@rules_dx//cc/private/toolchains:select.bzl", "cc_toolchain_files")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
@@ -9,7 +10,7 @@ load(
     "missing_cmake_toolchain_test",
     "unknown_generator_test",
 )
-load(":transition.bzl", "arm64_files", "wrong_arch_link")
+load(":transition.bzl", "wrong_arch_link")
 
 package(
     default_testonly = True,
@@ -63,15 +64,30 @@ cmake(
     tags = _THIRD_PARTY,
 )
 
-arm64_files(
+filegroup(
+    name = "zlib_arm64_cmake_log",
+    srcs = [":zlib_arm64"],
+    output_group = "CMake_logs",
+    tags = _THIRD_PARTY,
+)
+
+platform_transition_filegroup(
     name = "zlib_arm64_log",
+    srcs = [":zlib_arm64_cmake_log"],
+    tags = _THIRD_PARTY,
+    target_platform = "@rules_dx//appimage:linux_arm64",
+)
+
+platform_transition_filegroup(
+    name = "zlib_arm64_files",
     srcs = [":zlib_arm64"],
     tags = _THIRD_PARTY,
+    target_platform = "@rules_dx//appimage:linux_arm64",
 )
 
 wrong_arch_link(
     name = "zlib_arm64_wrong_arch_link",
-    lib = ":zlib_arm64",
+    lib = ":zlib_arm64_files",
     tags = _THIRD_PARTY,
     target_compatible_with = _LINUX_X86_64,
 )

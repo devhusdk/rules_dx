@@ -42,6 +42,7 @@ pub enum Format {
     Elf,
     MachO,
     Pe,
+    Wasm,
 }
 
 impl Format {
@@ -51,6 +52,7 @@ impl Format {
             Format::Elf => "elf",
             Format::MachO => "macho",
             Format::Pe => "pe",
+            Format::Wasm => "wasm",
         }
     }
 }
@@ -121,8 +123,14 @@ pub fn macho_machine_name(raw: u32) -> String {
     }
 }
 
-/// Names the machine from the first header bytes of an ELF, PE or thin Mach-O file.
+const WASM_MAGIC: &[u8] = b"\0asm\x01\0\0\0";
+const WASM_MACHINE: &str = "wasm32";
+
+/// Names the machine from the first header bytes of an ELF, PE, thin Mach-O or wasm file.
 pub fn machine(head: &[u8]) -> Option<String> {
+    if head.starts_with(WASM_MAGIC) {
+        return Some(WASM_MACHINE.to_owned());
+    }
     if head.len() >= 20 && head.starts_with(b"\x7fELF") {
         let raw = match head[5] {
             1 => u16::from_le_bytes([head[18], head[19]]),
@@ -157,6 +165,14 @@ pub fn machine(head: &[u8]) -> Option<String> {
 
 /// Reads every image in one binary; a fat Mach-O yields one image per slice.
 pub fn inspect(bytes: &[u8]) -> Result<Vec<Image>, Error> {
+    if bytes.starts_with(WASM_MAGIC) {
+        return Ok(vec![Image {
+            format: Format::Wasm,
+            machine: WASM_MACHINE.to_owned(),
+            abi: Abi::Static,
+            needed: Vec::new(),
+        }]);
+    }
     let kind = FileKind::parse(bytes).map_err(|error| fail("unknown binary format", error))?;
     match kind {
         FileKind::Elf32 => Ok(vec![inspect_elf::<elf::FileHeader32<object::Endianness>>(

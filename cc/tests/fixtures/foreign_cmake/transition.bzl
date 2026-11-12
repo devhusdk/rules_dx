@@ -1,30 +1,13 @@
-"""Builds targets for linux arm64 from any host."""
+"""Links an arm64 archive with the target cc toolchain."""
 
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
-load("//tools/testing:action_input.bzl", "platform_flip_transition")
-
-_arm64 = platform_flip_transition(str(Label("//appimage:linux_arm64")))
-
-def _files_impl(ctx):
-    files = []
-    for target in ctx.attr.srcs:
-        files.extend(target[OutputGroupInfo].CMake_logs.to_list())
-    return [DefaultInfo(files = depset(files))]
-
-arm64_files = rule(
-    implementation = _files_impl,
-    doc = "Forwards the CMake logs of targets built for linux arm64.",
-    attrs = {
-        "srcs": attr.label_list(doc = "Targets built for linux arm64.", cfg = _arm64),
-    },
-)
 
 def _wrong_arch_link_impl(ctx):
-    archives = [f for f in ctx.attr.lib[0][DefaultInfo].files.to_list() if f.basename == ctx.attr.archive]
+    archives = [f for f in ctx.files.lib if f.basename == ctx.attr.archive]
     if len(archives) != 1:
-        fail("expected one %s in %s" % (ctx.attr.archive, ctx.attr.lib[0].label))
+        fail("expected one %s in %s" % (ctx.attr.archive, ctx.attr.lib.label))
     cc_toolchain = find_cc_toolchain(ctx)
     config = cc_common.configure_features(
         ctx = ctx,
@@ -74,7 +57,7 @@ wrong_arch_link = rule(
     doc = "Links an arm64 static archive into an executable with the target cc toolchain and saves the linker output and exit code to a log.",
     attrs = {
         "archive": attr.string(default = "libz.a", doc = "Basename of the archive to link."),
-        "lib": attr.label(doc = "Target built for linux arm64.", cfg = _arm64),
+        "lib": attr.label(doc = "Files built for linux arm64."),
     },
     fragments = ["cpp"],
     toolchains = use_cc_toolchain(),

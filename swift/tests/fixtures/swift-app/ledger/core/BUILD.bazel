@@ -8,6 +8,13 @@ package(
     default_visibility = ["//swift/tests/fixtures/swift-app:__subpackages__"],
 )
 
+_TESTING = select({
+    "@platforms//os:linux": [],
+    "@platforms//os:macos": [],
+    "@platforms//os:windows": ["@platforms//cpu:x86_64"],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
 swift_library(
     name = "core",
     testonly = False,
@@ -27,6 +34,7 @@ swift_test(
     name = "testing",
     srcs = ["ledger_testing.swift"],
     tags = ["block-network"],
+    target_compatible_with = _TESTING,
     deps = [":core"],
 )
 

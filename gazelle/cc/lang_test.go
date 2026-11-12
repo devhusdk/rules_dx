@@ -524,3 +524,23 @@ func TestQtModules(t *testing.T) {
 		t.Errorf("unmapped include error = %v", err)
 	}
 }
+
+func TestHandwrittenNifSourceNotClaimed(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/probe_nif.c", "int x;\n")
+	f, err := rule.LoadData(filepath.Join(root, "pkg/demo/BUILD.bazel"), "pkg/demo",
+		[]byte("erlang_nif(name = \"probe_nif\", srcs = [\"probe_nif.c\"])\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		File:         f,
+		RegularFiles: []string{"probe_nif.c"},
+	})
+	if len(result.Gen) != 0 {
+		t.Errorf("generated %d rules, want none for a source erlang_nif lists", len(result.Gen))
+	}
+}

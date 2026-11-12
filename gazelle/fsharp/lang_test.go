@@ -699,3 +699,44 @@ func TestResolveNamespaceOpen(t *testing.T) {
 		t.Errorf("unexpected failure: %v", takeErrors(l))
 	}
 }
+
+func generateWithBuild(t *testing.T, files map[string]string, regular []string, build string) language.GenerateResult {
+	t.Helper()
+	root := t.TempDir()
+	for name, content := range files {
+		writeFixture(t, root, name, content)
+	}
+	f, err := rule.LoadData(filepath.Join(root, "pkg/demo/BUILD.bazel"), "pkg/demo", []byte(build))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		File:         f,
+		RegularFiles: regular,
+	})
+}
+
+func TestGenerateSkipsExportedMain(t *testing.T) {
+	result := generateWithBuild(t, map[string]string{
+		"pkg/demo/BenchMain.fs": "module Demo.BenchMain\n\n[<EntryPoint>]\nlet main _ = 0\n",
+	}, []string{"BenchMain.fs"}, "exports_files([\"BenchMain.fs\"])\n")
+	if len(result.Gen) != 0 {
+		t.Errorf("generated %d rules, want none for an exported main source", len(result.Gen))
+	}
+}
+
+func TestGenerateSkipsSourceNamedByHandwrittenRule(t *testing.T) {
+	result := generateWithBuild(t, map[string]string{
+		"pkg/demo/Short.fs": "module Short\n\nlet Identity x = x\n",
+		"pkg/demo/Demo.fs":  "module Demo\n\nlet d = 1\n",
+	}, []string{"Demo.fs", "Short.fs"}, "[genrule(name = \"lint_\" + n, srcs = [\"Short.fs\"], outs = [n], cmd = \"\") for n in [\"a\"]]\n")
+	if len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules, want 1", len(result.Gen))
+	}
+	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Demo.fs" {
+		t.Errorf("library srcs = %q, want Demo.fs", got)
+	}
+}

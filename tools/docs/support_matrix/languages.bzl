@@ -483,6 +483,10 @@ LANGUAGES = [
         dead_code = ["eslint no-unused-vars"],
     ),
     _language(
+        "msix",
+        unsupported = "//msix/private:unsupported",
+    ),
+    _language(
         "nix",
         dead_code = ["deadnix"],
     ),

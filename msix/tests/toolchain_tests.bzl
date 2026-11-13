@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load("//msix/private:defs.bzl", "compatible_with", "publisher_cn")
+load("//msix/private:defs.bzl", "WINDOWS_CASES", "extra_constraints", "publisher_cn")
 load("//msix/private:validate.bzl", "msix_alias_errors", "msix_application_errors", "msix_identity_errors", "msix_named_version_errors", "msix_publisher_errors", "msix_version_errors")
 load("//msix/private:pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "SUPPORTED_CELLS", "TOOL_ARCHES")
 load("//msix/private:repos.bzl", "UNACCEPTED", "hub_build", "toolchains_hub_build")
@@ -26,8 +26,9 @@ def _checks():
         expect_true("accepted hub has no error", UNACCEPTED not in accepted and "error =" not in accepted),
         expect_contains("unaccepted hub names the license", unaccepted, LICENSE),
         expect_true("unaccepted hub downloads nothing", "bin/" not in unaccepted),
-        expect_equal("windows only by default", compatible_with([]), ["@platforms//os:windows"]),
-        expect_equal("windows is not repeated", compatible_with(["@platforms//os:windows", "//x:y"]), ["@platforms//os:windows", "//x:y"]),
+        expect_equal("windows is compatible", WINDOWS_CASES[Label("@platforms//os:windows")], []),
+        expect_equal("other platforms are incompatible and unsupported", [str(label) for label in WINDOWS_CASES["//conditions:default"]], [str(Label("@platforms//:incompatible")), str(Label("//msix/private:unsupported"))]),
+        expect_equal("windows is not repeated", extra_constraints(["@platforms//os:windows", "//x:y"]), ["//x:y"]),
         expect_equal("good min version", msix_named_version_errors("min_version", "10.0.17763.0"), []),
         expect_true("short min version", len(msix_named_version_errors("min_version", "10.0")) == 1),
         expect_contains("bad max version names the attribute", msix_named_version_errors("max_version_tested", "10.0.x.0")[0], "max_version_tested '10.0.x.0'"),

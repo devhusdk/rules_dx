@@ -1,6 +1,7 @@
 """Windows MSIX packaging for target binaries."""
 
 load("//powershell:defs.bzl", "powershell_binary")
+load("//core:cells.bzl", "unsupported_constraint")
 load("//core:packaging.bzl", "claim_dest", "data_path")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity", "platform_transition")
 load(":pins.bzl", "MAX_VERSION_TESTED", "MIN_VERSION")
@@ -20,9 +21,18 @@ MsixInfo = provider(
 
 TOOLCHAIN_TYPE = str(Label("//msix:toolchain_type"))
 
+WINDOWS_CASES = {
+    Label("@platforms//os:windows"): [],
+    "//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//msix/private")],
+}
+
+def extra_constraints(constraints):
+    """Returns the caller's target constraints without the Windows constraint."""
+    return [c for c in constraints if c != "@platforms//os:windows"]
+
 def compatible_with(constraints):
-    """Returns the target constraints of a msix_package target, always including Windows."""
-    return ["@platforms//os:windows"] + [c for c in constraints if c != "@platforms//os:windows"]
+    """Returns the target constraints of a msix_package target, always requiring Windows."""
+    return select(WINDOWS_CASES) + extra_constraints(constraints)
 
 def publisher_cn(publisher):
     """Returns the unescaped CN value of a publisher distinguished name."""
@@ -194,7 +204,7 @@ def _windowsonly_chars(target_compatible_with):
     """Adds the Windows constraint to a target_compatible_with value."""
     if type(target_compatible_with) == "list":
         return compatible_with(target_compatible_with)
-    return ["@platforms//os:windows"] + target_compatible_with
+    return select(WINDOWS_CASES) + target_compatible_with
 
 def msix_package(name, target_compatible_with = None, **kwargs):
     """Packages one Windows target binary and its files as an unsigned MSIX."""

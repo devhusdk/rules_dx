@@ -61,7 +61,7 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 | CMake | none |
 | Dockerfile | none |
 | Make | none |
-| MSIX | none |
+| MSIX | `linux_x86_64`, `linux_arm64`, `macos_arm64`: MakeAppx and SignTool from the Windows SDK run only on Windows |
 | Qt | none |
 | WASI | none |
 

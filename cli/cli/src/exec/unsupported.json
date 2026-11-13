@@ -23,6 +23,14 @@
     },
     "title": "Julia"
   },
+  "//msix/private:unsupported": {
+    "platforms": {
+      "linux_arm64": "MakeAppx and SignTool from the Windows SDK run only on Windows",
+      "linux_x86_64": "MakeAppx and SignTool from the Windows SDK run only on Windows",
+      "macos_arm64": "MakeAppx and SignTool from the Windows SDK run only on Windows"
+    },
+    "title": "MSIX"
+  },
   "//php/private/toolchain:unsupported": {
     "platforms": {
       "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build"

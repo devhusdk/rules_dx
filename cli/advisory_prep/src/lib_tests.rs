@@ -752,14 +752,19 @@ const CPAN_OUTPUT: &str = "1.002\n{\"Mojolicious\":{\"distribution\":\"Mojolicio
 #[test]
 fn a_cpan_set_is_prepared_from_the_cpansa_output() {
     let workspace = workspace();
+    let hub = dx_families::hub("cpan").expect("setup.hubs entry cpan");
+    let tag = hub.tag.as_ref().expect("cpan tag");
+    let lock = hub.lock.as_ref().expect("cpan lock");
+    let state = hub.state.as_ref().expect("cpan state");
+    let module = format!(
+        "cpan = use_extension(\"{}\", \"{}\")\ncpan.{tag}(name = \"{}\", lock = \"//pl:{lock}\")\n",
+        hub.extension, hub.ecosystem, hub.hub
+    );
     for (rel, text) in [
+        ("MODULE.bazel".to_owned(), module.as_str()),
+        (format!("pl/{}", hub.manifest), "requires 'Mojolicious';\n"),
         (
-            "MODULE.bazel",
-            "cpan = use_extension(\"@rules_dx//perl:extensions.bzl\", \"cpan\")\ncpan.lock(name = \"cpan\", lock = \"//pl:cpan.lock.json\")\n",
-        ),
-        ("pl/cpanfile", "requires 'Mojolicious';\n"),
-        (
-            "pl/cpanfile.snapshot",
+            format!("pl/{state}"),
             "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n",
         ),
     ] {

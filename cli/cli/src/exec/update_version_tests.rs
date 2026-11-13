@@ -146,18 +146,35 @@ fn consumer_composer_set_widens_the_constraint_and_refreshes() {
     assert!(!harness.build_argv.borrow().is_empty());
 }
 
-const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_dx//perl:extensions.bzl\", \"cpan\")\ncpan.lock(name = \"cpan_deps\", lock = \"//pl:cpan.lock.json\")\n";
 const CPANFILE: &str = "requires 'Text::CSV', '== 2.06';\n";
 
+fn cpan_registry() -> &'static dx_families::Hub {
+    dx_families::hub("cpan").expect("setup.hubs entry cpan")
+}
+
+fn cpan_manifest() -> String {
+    format!("pl/{}", cpan_registry().manifest)
+}
+
 fn seed_cpan_set(harness: &Harness) {
-    harness.write_source("MODULE.bazel", CPAN_MODULE);
-    harness.write_source("pl/cpanfile", CPANFILE);
+    let hub = cpan_registry();
+    let tag = hub.tag.as_ref().expect("cpan tag");
+    let lock = hub.lock.as_ref().expect("cpan lock");
+    let state = hub.state.as_ref().expect("cpan state");
     harness.write_source(
-        "pl/cpanfile.snapshot",
+        "MODULE.bazel",
+        &format!(
+            "cpan = use_extension(\"{}\", \"{}\")\ncpan.{tag}(name = \"cpan_deps\", lock = \"//pl:{lock}\")\n",
+            hub.extension, hub.ecosystem
+        ),
+    );
+    harness.write_source(&cpan_manifest(), CPANFILE);
+    harness.write_source(
+        &format!("pl/{state}"),
         "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  Text-CSV-2.06\n",
     );
     harness.write_source(
-        "pl/cpan.lock.json",
+        &format!("pl/{lock}"),
         "{\"schema\":1,\"ecosystem\":\"cpan\",\"inputs\":{},\"packages\":[{\"name\":\"Text-CSV\",\"version\":\"2.06\",\"archives\":[{\"urls\":[\"https://cpan.metacpan.org/authors/id/I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz\"],\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"strip_prefix\":\"Text-CSV-2.06\"}],\"deps\":[],\"provides\":[\"Text::CSV\"]}]}\n",
     );
 }
@@ -169,7 +186,7 @@ fn consumer_cpan_set_widens_the_cpanfile_and_refreshes() {
     let (code, out, err) = harness.run(&["update", "cpan_deps:Text::CSV", "2.07", "--apply"]);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(
-        read(&harness, "pl/cpanfile"),
+        read(&harness, &cpan_manifest()),
         CPANFILE.replace("2.06", "2.07")
     );
     let runs = harness.build_argv.borrow();
@@ -202,7 +219,7 @@ fn consumer_cpan_set_refusals_write_nothing_and_launch_nothing() {
         "--frozen",
     ]);
     assert_eq!(code, 1, "{err}");
-    assert_unchanged(&harness, &[("pl/cpanfile", CPANFILE)]);
+    assert_unchanged(&harness, &[(&cpan_manifest(), CPANFILE)]);
     assert!(harness.build_argv.borrow().is_empty());
 }
 

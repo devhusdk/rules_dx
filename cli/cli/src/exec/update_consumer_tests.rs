@@ -2260,32 +2260,49 @@ fn consumer_swiftpm_refusals_launch_nothing_and_keep_the_manifest() {
     assert!(runner.launches.borrow().is_empty());
 }
 
-const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_dx//perl:extensions.bzl\", \"cpan\")\ncpan.lock(name = \"cpan_deps\", lock = \"//perl/third_party:cpan.lock.json\")\n";
-const CPAN_FILES: [&str; 3] = [
-    "perl/third_party/cpanfile",
-    "perl/third_party/cpanfile.snapshot",
-    "perl/third_party/cpan.lock.json",
-];
+const CPAN_DIR: &str = "perl/third_party";
+
+fn cpan_registry() -> &'static dx_families::Hub {
+    dx_families::hub("cpan").expect("setup.hubs entry cpan")
+}
+
+fn cpan_files() -> [String; 3] {
+    let hub = cpan_registry();
+    [
+        &hub.manifest,
+        hub.state.as_ref().expect("cpan state"),
+        hub.lock.as_ref().expect("cpan lock"),
+    ]
+    .map(|name| format!("{CPAN_DIR}/{name}"))
+}
+
+fn cpan_module() -> String {
+    let hub = cpan_registry();
+    let tag = hub.tag.as_ref().expect("cpan tag");
+    let lock = hub.lock.as_ref().expect("cpan lock");
+    format!(
+        "cpan = use_extension(\"{}\", \"{}\")\ncpan.{tag}(name = \"cpan_deps\", lock = \"//{CPAN_DIR}:{lock}\")\n",
+        hub.extension, hub.ecosystem
+    )
+}
 
 fn cpan_harness(name: &str) -> Harness {
-    let harness = consumer_harness(name, CPAN_MODULE, true);
+    let harness = consumer_harness(name, &cpan_module(), true);
+    let [manifest, state, lock] = cpan_files();
+    harness.write_source(&manifest, "requires 'Text::CSV', '== 2.06';\n");
     harness.write_source(
-        "perl/third_party/cpanfile",
-        "requires 'Text::CSV', '== 2.06';\n",
-    );
-    harness.write_source(
-        "perl/third_party/cpanfile.snapshot",
+        &state,
         "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  Text-CSV-2.06\n    pathname: I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz\n",
     );
     harness.write_source(
-        "perl/third_party/cpan.lock.json",
+        &lock,
         "{\"schema\":1,\"ecosystem\":\"cpan\",\"inputs\":{},\"packages\":[{\"name\":\"Text-CSV\",\"version\":\"2.06\",\"archives\":[{\"urls\":[\"https://cpan.metacpan.org/authors/id/I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz\"],\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"strip_prefix\":\"Text-CSV-2.06\"}],\"deps\":[],\"provides\":[\"Text::CSV\"]}]}\n",
     );
     harness
 }
 
 fn cpan_bytes(harness: &Harness) -> Vec<Vec<u8>> {
-    CPAN_FILES
+    cpan_files()
         .iter()
         .map(|rel| read_bytes(harness, rel))
         .collect()
@@ -2311,7 +2328,7 @@ fn consumer_cpan_check_installs_the_snapshot_in_deployment_mode() {
     let argv = &launches[0].argv;
     assert!(
         argv.iter()
-            .any(|arg| arg.starts_with("--run_under=cd '") && arg.contains("perl/third_party")),
+            .any(|arg| arg.starts_with("--run_under=cd '") && arg.contains(CPAN_DIR)),
         "{argv:?}"
     );
     assert_eq!(

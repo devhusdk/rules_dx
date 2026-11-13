@@ -73,6 +73,7 @@ rust_test(
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/digest:dx_digest",
+        "//cli/families:dx_families",
         "//cli/update:dx_update",
         "@crates//:crc32fast",
         "@crates//:flate2",

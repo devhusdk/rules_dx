@@ -153,6 +153,7 @@ fn a_row_tag_naming_no_row_fails() {
     );
 }
 
+#[test]
 fn a_removed_suite_test_fails_without_a_pending_or_not_applicable_entry() {
     let source = RunfilesSource::create().expect("runfiles");
     let facts = source

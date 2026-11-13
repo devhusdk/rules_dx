@@ -125,7 +125,7 @@ examples/   tested examples
 - Its fields are `name`, `title`, `family`, `ecosystems`, `manifests`, `lockfiles`, `tools`, `platforms`, `pins`, `entry_points` and `setup`.
 - Every manifest validates against one shared schema. A test checks it.
 - It drives quality registration, the dx ecosystem registry, `dx init`, the support matrix and the per-language docs.
-- Its `quality` entry names the aspect file, the aspects and the probes. dx loads the file when the workspace has a file with one of `file_extensions` or named one of `file_names`, or in every workspace when `every_workspace` is set.
+- Its `quality` entry names the aspect file, the aspects and the probes. dx loads the file when the workspace has a file with one of `file_extensions` or named one of `file_names` alone or before a dot, or in every workspace when `every_workspace` is set.
 - `cli/families/languages.json` is generated from the `quality` and `docs` entries. The dx plan registry reads it.
 - Family values only group languages. They create no module, directory or label.
 - Code reads the manifest. It does not repeat its values.

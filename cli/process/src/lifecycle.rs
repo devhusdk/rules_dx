@@ -668,9 +668,6 @@ pub(crate) fn run_streamed_in(
     }
     let target = backend::stream_target(&child, group);
     let mut forwarding = Forwarding::register(target);
-    if let Some(job) = job.as_ref() {
-        record_reported(job); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    }
     let mut stopped = stop();
     if let Some(signal) = stopped.filter(|_| !forwarding.claimed()) {
         backend::send(target, signal);

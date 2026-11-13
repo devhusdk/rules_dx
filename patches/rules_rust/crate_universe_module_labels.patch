@@ -1,0 +1,97 @@
+--- a/crate_universe/extensions.bzl
++++ b/crate_universe/extensions.bzl
+@@ -533,6 +533,14 @@
+ 
+     return config
+ 
++# buildifier: disable=canonical-repository
++_MAIN_REPO_PREFIX = "@@//"
++
++def _main_repo_labels(module_repo_prefix, text):
++    if module_repo_prefix:
++        return text.replace(module_repo_prefix, _MAIN_REPO_PREFIX)
++    return text
++
+ def _generate_hub_and_spokes(
+         *,
+         module_ctx,
+@@ -545,6 +553,7 @@
+         skip_cargo_lockfile_overwrite,
+         strip_internal_dependencies_from_cargo_lockfile,
+         is_root,
++        module_name = None,
+         cargo_lockfile = None,
+         manifests = {},
+         packages = {},
+@@ -580,6 +589,10 @@
+ 
+     tag_path = module_ctx.path(cfg.name)
+ 
++    module_repo_prefix = "@@{}+//".format(module_name) if is_root and module_name else None
++    if module_repo_prefix:
++        annotations = json.decode(json.encode(annotations).replace(_MAIN_REPO_PREFIX, module_repo_prefix))
++
+     config_file = tag_path.get_child("config.json")
+     module_ctx.file(
+         config_file,
+@@ -720,10 +733,10 @@
+ 
+     crates_dir = tag_path.get_child(cfg.name)
+     hub_contents = {
+-        "BUILD.bazel": module_ctx.read(crates_dir.get_child("BUILD.bazel")),
+-        "alias_rules.bzl": module_ctx.read(crates_dir.get_child("alias_rules.bzl")),
+-        "crates.bzl": module_ctx.read(crates_dir.get_child("crates.bzl")),
+-        "defs.bzl": module_ctx.read(crates_dir.get_child("defs.bzl")),
++        "BUILD.bazel": _main_repo_labels(module_repo_prefix, module_ctx.read(crates_dir.get_child("BUILD.bazel"))),
++        "alias_rules.bzl": _main_repo_labels(module_repo_prefix, module_ctx.read(crates_dir.get_child("alias_rules.bzl"))),
++        "crates.bzl": _main_repo_labels(module_repo_prefix, module_ctx.read(crates_dir.get_child("crates.bzl"))),
++        "defs.bzl": _main_repo_labels(module_repo_prefix, module_ctx.read(crates_dir.get_child("defs.bzl"))),
+     }
+ 
+     # Per-alias subpackages always render so users can consume
+@@ -731,16 +744,16 @@
+     # renderer writes a sidecar list of subpackage names we slurp here.
+     hub_packages = json.decode(module_ctx.read(hub_packages_output_file))
+     for hub_package in hub_packages:
+-        hub_contents["{}/BUILD.bazel".format(hub_package)] = module_ctx.read(
++        hub_contents["{}/BUILD.bazel".format(hub_package)] = _main_repo_labels(module_repo_prefix, module_ctx.read(
+             crates_dir.get_child(hub_package).get_child("BUILD.bazel"),
+-        )
++        ))
+ 
+     crates_vendor_remote_repository(
+         name = cfg.name,
+         contents = hub_contents,
+     )
+ 
+-    contents = json.decode(module_ctx.read(lockfile))
++    contents = json.decode(_main_repo_labels(module_repo_prefix, module_ctx.read(lockfile)))
+ 
+     for crate in contents["crates"].values():
+         repo = crate["repository"]
+@@ -758,7 +771,7 @@
+ 
+         if "Http" in repo:
+             # Replicates functionality in repo_http.j2.
+-            build_file_content = module_ctx.read(crates_dir.get_child("BUILD.%s-%s.bazel" % (name, version)))
++            build_file_content = _main_repo_labels(module_repo_prefix, module_ctx.read(crates_dir.get_child("BUILD.%s-%s.bazel" % (name, version))))
+             repo = repo["Http"]
+             http_archive(
+                 name = crate_repo_name,
+@@ -774,7 +787,7 @@
+             )
+         elif "Git" in repo:
+             # Replicates functionality in repo_git.j2
+-            build_file_content = module_ctx.read(crates_dir.get_child("BUILD.%s-%s.bazel" % (name, version)))
++            build_file_content = _main_repo_labels(module_repo_prefix, module_ctx.read(crates_dir.get_child("BUILD.%s-%s.bazel" % (name, version))))
+             repo = repo["Git"]
+             kwargs = {}
+             for k, v in repo["commitish"].items():
+@@ -1245,6 +1258,7 @@
+                 skip_cargo_lockfile_overwrite = cfg.skip_cargo_lockfile_overwrite,
+                 strip_internal_dependencies_from_cargo_lockfile = cfg.strip_internal_dependencies_from_cargo_lockfile,
+                 is_root = mod.is_root,
++                module_name = mod.name,
+                 trust_lockfile = trust_lockfile,
+             )
+ 

@@ -122,6 +122,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+      - name: Build the review path filter
+        run: bazel build --noshow_progress //tools/ci/producers:producers_bin
       - name: Warn about merged pull requests on review paths without a Review comment
         env:
           GH_TOKEN: ${{ github.token }}
@@ -129,9 +132,10 @@ jobs:
         run: |
           set -euo pipefail
           marker='<!-- unreviewed-merge -->'
+          producers="$(bazel info bazel-bin)/tools/ci/producers/producers_bin"
           since=$(date -u -d '2 days ago' +%Y-%m-%d)
           for n in $(gh pr list --state merged --search "merged:>=$since" --limit 200 --json number --jq '.[].number'); do
-            paths=$(gh pr view "$n" --json files --jq '.files[].path' | tools/ci/review_paths.sh)
+            paths=$(gh pr view "$n" --json files --jq '.files[].path' | "$producers" --review-paths)
             [ -n "$paths" ] || continue
             bodies=$(gh pr view "$n" --json comments,reviews --jq '[.comments[].body, .reviews[].body] | .[]')
             if grep -q '^Review:' <<< "$bodies"; then

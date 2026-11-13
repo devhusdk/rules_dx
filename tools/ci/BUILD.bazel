@@ -418,7 +418,6 @@ rust_test(
     crate_name = "review_paths_test",
     crate_root = "review_paths_test.rs",
     data = [
-        "review_paths.sh",
         "//.github:review-paths.txt",
         "//.github:workflows",
     ],

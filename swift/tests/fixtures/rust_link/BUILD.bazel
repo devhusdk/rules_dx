@@ -21,6 +21,7 @@ rust_test(
     srcs = ["rust_link.rs"],
     edition = "2024",
     link_deps = [":add"],
+    runtime_dlls = ["@dx_swift_windows_x86_64//:runtime_dlls"],
     target_compatible_with = _WINDOWS_X86_64,
 )
 

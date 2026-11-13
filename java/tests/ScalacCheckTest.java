@@ -32,7 +32,7 @@ public final class ScalacCheckTest {
     }
     Path dir = Files.createTempDirectory("scalac_check_test");
     clean(dir);
-    typeError(dir);
+    typeError();
     deprecation(dir);
     werror(dir);
     unused(dir);
@@ -55,7 +55,10 @@ public final class ScalacCheckTest {
 
   private static Path write(Path dir, String name, String body) throws IOException {
     Path path = dir.resolve(name);
-    Files.createDirectories(path.getParent());
+    Path parent = path.getParent();
+    if (parent != null) {
+      Files.createDirectories(parent);
+    }
     Files.writeString(path, body);
     return path;
   }
@@ -73,7 +76,7 @@ public final class ScalacCheckTest {
     expect(log.contains("\"diagnostics\":[]"), "clean has no diagnostics", log);
   }
 
-  private static void typeError(Path dir) throws IOException {
+  private static void typeError() throws IOException {
     // A tab and a non-BMP character (two UTF-16 units) precede the error on line 2.
     Path a =
         write(

@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -34,7 +35,7 @@ public final class Scala3CheckTest {
     }
     Path dir = Files.createTempDirectory("scala3_check_test");
     clean(dir);
-    typeError(dir);
+    typeError();
     deprecation(dir);
     werror(dir);
     unused(dir);
@@ -53,7 +54,10 @@ public final class Scala3CheckTest {
 
   private static Path write(Path dir, String name, String body) throws IOException {
     Path path = dir.resolve(name);
-    Files.createDirectories(path.getParent());
+    Path parent = path.getParent();
+    if (parent != null) {
+      Files.createDirectories(parent);
+    }
     Files.writeString(path, body);
     return path;
   }
@@ -75,7 +79,7 @@ public final class Scala3CheckTest {
     expect(log.contains("\"diagnostics\":[]"), "clean has no diagnostics", log);
   }
 
-  private static void typeError(Path dir) throws IOException {
+  private static void typeError() throws IOException {
     // A tab and a non-BMP character (two UTF-16 units) precede the error on line 2.
     Path a =
         write(
@@ -121,7 +125,7 @@ public final class Scala3CheckTest {
     String log = check(List.of("source=" + a, "scalacopt=-Wunused:all"));
     expect(log.contains("\"exit\":0"), "unused code does not fail", log);
     expect(occurrences(log, "\"severity\":\"warning\"") == 2, "one import and one private val", log);
-    expect(occurrences(log.toLowerCase(), "unused") >= 2, "both warnings mention unused", log);
+    expect(occurrences(log.toLowerCase(Locale.ROOT), "unused") >= 2, "both warnings mention unused", log);
   }
 
   private static void badOption(Path dir) throws IOException {

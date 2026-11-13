@@ -25,7 +25,10 @@ public final class JavacCheckTest {
 
   private static Path write(Path dir, String name, String body) throws IOException {
     Path path = dir.resolve(name);
-    Files.createDirectories(path.getParent());
+    Path parent = path.getParent();
+    if (parent != null) {
+      Files.createDirectories(parent);
+    }
     Files.writeString(path, body);
     return path;
   }

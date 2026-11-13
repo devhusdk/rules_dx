@@ -30,7 +30,7 @@ public final class KotlincCheckTest {
     }
     Path dir = Files.createTempDirectory("kotlinc_check_test");
     clean(dir);
-    typeError(dir);
+    typeError();
     werror(dir);
     javaSource(dir);
     friend(dir);
@@ -46,7 +46,10 @@ public final class KotlincCheckTest {
 
   private static Path write(Path dir, String name, String body) throws IOException {
     Path path = dir.resolve(name);
-    Files.createDirectories(path.getParent());
+    Path parent = path.getParent();
+    if (parent != null) {
+      Files.createDirectories(parent);
+    }
     Files.writeString(path, body);
     return path;
   }
@@ -64,7 +67,7 @@ public final class KotlincCheckTest {
     expect(log.contains("\"diagnostics\":[]"), "clean has no diagnostics", log);
   }
 
-  private static void typeError(Path dir) throws IOException {
+  private static void typeError() throws IOException {
     Path a = write(Path.of(""), "kotlinc_err/B.kt", "fun f(): Int {\n\treturn \"s\"\n}\n");
     String log = check(List.of("source=" + a));
     expect(log.contains("\"exit\":1"), "error exits 1", log);

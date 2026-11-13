@@ -73,6 +73,9 @@ def _real_tool_launch(cfg, target, ctx, stage_tools, delegated, has_toolchain, w
         if kind == "toolchain":
             if has_toolchain:
                 binaries[tool] = cfg.toolchain.file(ctx, spec["toolchain_file"])
+                runtime_files = getattr(cfg.toolchain, "runtime_files", None)
+                if runtime_files:
+                    extra[tool] = runtime_files(ctx)
             continue
         if kind == "file" and "fallback" in spec:
             # An optional pin: the hub resolves an empty file set on platforms without an artifact.

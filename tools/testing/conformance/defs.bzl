@@ -489,7 +489,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
             name = prefix + "runfiles_test",
             srcs = [Label("//tools/testing/conformance:runner_test.rs")],
             data = [runfiles["binary"]],
-            deps = [Label("//tools/testing:dx_testing")],
+            deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
             env = {
                 "DX_CONFORMANCE_ARGS": "_main/%s/%s" % (native.package_name(), runfiles["data"]),
                 "DX_CONFORMANCE_MODE": "runfiles",

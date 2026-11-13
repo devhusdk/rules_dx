@@ -11,7 +11,10 @@ _PROJECT = [
     "bench.cabal",
 ]
 
-exports_files(["haskell_deps.json"])
+exports_files([
+    "BUILD.bazel",
+    "haskell_deps.json",
+])
 
 haskell_deps_resolve(
     name = "resolve",

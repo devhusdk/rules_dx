@@ -1,4 +1,6 @@
 use dx_testing::{read_runfiles, runfiles_root};
+use starlark_syntax as _;
+use yaml_serde as _;
 
 fn squeezed(text: &str) -> String {
     text.chars().filter(|ch| !ch.is_whitespace()).collect()
@@ -157,7 +159,10 @@ fn runner_config_refusals(source: &str) -> Vec<String> {
 fn runner_tier_base_tools(source: &str) -> Vec<String> {
     let marker = "const TIER_BASE_TOOLS: &[&str] = &[";
     let open = source.find(marker).expect("TIER_BASE_TOOLS is missing") + marker.len();
-    let close = open + source[open..].find(']').expect("TIER_BASE_TOOLS is unterminated");
+    let close = open
+        + source[open..]
+            .find(']')
+            .expect("TIER_BASE_TOOLS is unterminated");
     json_strings(&source[open..close])
 }
 
@@ -871,12 +876,18 @@ fn ci_config_leaves_remote_downloads_to_dx() {
 fn remote_repo_contents_cache_comes_from_the_preset() {
     let flag = "startup --experimental_remote_repo_contents_cache";
     let performance = preset_layer(dx_preset::Layer::Performance);
-    assert!(performance.contains(flag), "the preset no longer sets {flag}");
+    assert!(
+        performance.contains(flag),
+        "the preset no longer sets {flag}"
+    );
     for path in [
         ".github/workflows/evidence.yml",
         ".github/workflows/reusable-consumer.yml",
     ] {
-        assert!(!read_runfiles(path).contains(flag), "{path} echoes {flag} again");
+        assert!(
+            !read_runfiles(path).contains(flag),
+            "{path} echoes {flag} again"
+        );
     }
     assert!(
         !read_runfiles(".github/workflows/evidence.yml").contains("build --jobs=64"),
@@ -899,7 +910,9 @@ fn remote_repo_contents_cache_comes_from_the_preset() {
 const PLAIN_GIT_CHECKOUT: &str = "-c checkout.workers=0 checkout --force FETCH_HEAD";
 
 fn step_runs(step: &serde_json::Value) -> &str {
-    step.get("run").and_then(serde_json::Value::as_str).unwrap_or("")
+    step.get("run")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("")
 }
 
 fn uses_actions_checkout(step: &serde_json::Value) -> bool {
@@ -914,10 +927,18 @@ fn evidence_checks_out_in_parallel_without_actions_checkout() {
     let mut parallel = 0;
     for (id, job) in ci_workflow::jobs_of(&ci_workflow::document(EVIDENCE)) {
         for step in ci_workflow::steps_of(job) {
-            assert!(!uses_actions_checkout(step), "{EVIDENCE} {id} checks out with git, not actions/checkout");
-            if step.get("name").and_then(serde_json::Value::as_str) == Some("Check out files in parallel") {
+            assert!(
+                !uses_actions_checkout(step),
+                "{EVIDENCE} {id} checks out with git, not actions/checkout"
+            );
+            if step.get("name").and_then(serde_json::Value::as_str)
+                == Some("Check out files in parallel")
+            {
                 parallel += 1;
-                assert!(step.get("if").is_none(), "the parallel checkout must run on every OS");
+                assert!(
+                    step.get("if").is_none(),
+                    "the parallel checkout must run on every OS"
+                );
                 assert!(
                     step_runs(step).contains(PLAIN_GIT_CHECKOUT),
                     "the checkout must run with checkout.workers=0"
@@ -934,7 +955,9 @@ fn ci_windows_jobs_check_out_with_git() {
     for name in ["hermetic-windows", "starter-consumer", "preflight"] {
         let steps = ci_workflow::steps(CI, name);
         assert!(
-            steps.iter().any(|step| step_runs(step).contains(PLAIN_GIT_CHECKOUT)),
+            steps
+                .iter()
+                .any(|step| step_runs(step).contains(PLAIN_GIT_CHECKOUT)),
             "ci.yml {name} must check out with git and checkout.workers=0"
         );
         assert!(
@@ -952,7 +975,9 @@ fn windows_capable_jobs_check_out_in_parallel() {
         ".github/workflows/reusable-consumer.yml",
     ] {
         for (id, job) in ci_workflow::jobs_of(&ci_workflow::document(path)) {
-            let runner = job.get("runs-on").map_or_else(String::new, ToString::to_string);
+            let runner = job
+                .get("runs-on")
+                .map_or_else(String::new, ToString::to_string);
             let runner = runner.trim_matches('"');
             let windows_capable = !(runner.starts_with("ubuntu-") || runner.starts_with("macos-"));
             let steps = ci_workflow::steps_of(job);
@@ -960,7 +985,9 @@ fn windows_capable_jobs_check_out_in_parallel() {
                 continue;
             }
             assert!(
-                steps.iter().any(|step| step_runs(step).contains(PLAIN_GIT_CHECKOUT)),
+                steps
+                    .iter()
+                    .any(|step| step_runs(step).contains(PLAIN_GIT_CHECKOUT)),
                 "{path} {id} can run on Windows but does not check out with plain git and -c checkout.workers=0"
             );
             assert!(
@@ -980,8 +1007,9 @@ fn the_scalafmt_tiers_pin_the_version_the_toolchain_downloads() {
             .trim()
             .to_owned()
     };
-    let lock: serde_json::Value = serde_json::from_str(&read_runfiles("core/quality/artifacts/lock.json"))
-        .expect("lock.json is JSON");
+    let lock: serde_json::Value =
+        serde_json::from_str(&read_runfiles("core/quality/artifacts/lock.json"))
+            .expect("lock.json is JSON");
     let shipped: Vec<&str> = lock["scalafmt"]
         .as_object()
         .expect("lock.json pins scalafmt")
@@ -991,7 +1019,11 @@ fn the_scalafmt_tiers_pin_the_version_the_toolchain_downloads() {
     for tier in ["standard", "strict"] {
         let path = format!("core/quality/tiers/scalafmt/{tier}.conf");
         let pinned = version_of(&read_runfiles(&path));
-        assert_eq!(pinned, version_of(&read_runfiles(".scalafmt.conf")), "{path}");
+        assert_eq!(
+            pinned,
+            version_of(&read_runfiles(".scalafmt.conf")),
+            "{path}"
+        );
         assert!(
             shipped.contains(&pinned.as_str()),
             "{path} pins {pinned}, which core/quality/artifacts/lock.json does not ship"

@@ -25,6 +25,11 @@ real_source_target(
     markdown_siblings = [
         "//.github:workflows/README.md",
         "//:AGENTS.md",
+        "//android/tests/fixtures/adopt-android:README.md",
+        "//appimage/tests/fixtures/appimage-app:README.md",
+        "//haskell/tests/fixtures/bench:BUILD.bazel",
+        "//haskell/tests/fixtures/haskell_app:README.md",
+        "//ocaml/tests/fixtures/ocaml_app:README.md",
         "//:CONTRIBUTING.md",
         "//:README.md",
         "//:SECURITY.md",

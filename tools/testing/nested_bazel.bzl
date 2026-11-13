@@ -1,5 +1,7 @@
 """Tags and platform constraints for tests that run a nested Bazel server."""
 
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
+
 NESTED_BAZEL_TAGS = [
     "resources:cpu:2",
     "resources:memory:2560",
@@ -20,7 +22,7 @@ NESTED_BAZEL_ENV = {
     "DX_NESTED_BAZEL_SHIM": "$(rlocationpath " + _NESTED_BAZEL_SHIM + ")",
 }
 
-_CONSUMER_MAVEN_LOCK = str(Label("//tools/testing/fixtures/consumer_maven:maven_install.json"))
+_CONSUMER_MAVEN_LOCK = str(Label("//tools/testing/fixtures/consumer_maven:" + LOCK_REGISTRY["maven"]["lock"]))
 
 # The pinned Maven lock that nested consumers copy into their workspace.
 CONSUMER_MAVEN_DATA = [_CONSUMER_MAVEN_LOCK]

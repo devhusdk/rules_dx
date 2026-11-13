@@ -16,11 +16,12 @@ fn tail(path: &Path) -> String {
     lines[lines.len().saturating_sub(200)..].join("\n")
 }
 
-fn consumer(committed: &str) -> Result<dx_nested::Case, String> {
+fn consumer(name: &str, committed: &str) -> Result<dx_nested::Case, String> {
     let Ok(rel) = std::env::var("DX_HERMETIC_MANIFEST") else {
-        let case = dx_nested::Case::consumer("consumer_maven_pin", dx_nested::CONSUMER_MAVEN);
+        let case =
+            dx_nested::Case::consumer("consumer_maven_pin", &dx_nested::consumer_maven(name));
         case.write("BUILD.bazel", "");
-        case.write("maven_install.json", committed);
+        case.write(name, committed);
         return Ok(case);
     };
     let text = dx_testing::read_text(&dx_testing::resolve_runfiles(&rel));
@@ -32,7 +33,7 @@ fn consumer(committed: &str) -> Result<dx_nested::Case, String> {
     Ok(case)
 }
 
-fn pin(case: &dx_nested::Case) -> Result<String, String> {
+fn pin(case: &dx_nested::Case, name: &str) -> Result<String, String> {
     let log_path = case.root().with_extension("pin.log");
     let log = File::create(&log_path).map_err(|error| format!("no pin log: {error}"))?;
     let mut command = case.bazel_command(&["run", "--show_progress_rate_limit=5", "@maven//:pin"]);
@@ -69,9 +70,7 @@ fn pin(case: &dx_nested::Case) -> Result<String, String> {
     if !status.success() {
         return Err(tail(&log_path));
     }
-    Ok(dx_testing::read_text(
-        &case.root().join("maven_install.json"),
-    ))
+    Ok(dx_testing::read_text(&case.root().join(name)))
 }
 
 fn run() -> Result<String, String> {
@@ -81,7 +80,11 @@ fn run() -> Result<String, String> {
     let lock = PathBuf::from(workspace).join(&rel);
     let committed = std::fs::read_to_string(&lock)
         .map_err(|error| format!("cannot read {}: {error}", lock.display()))?;
-    let pinned = pin(&consumer(&committed)?)?;
+    let name = Path::new(&rel)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| format!("DX_MAVEN_LOCK {rel} names no file"))?;
+    let pinned = pin(&consumer(name, &committed)?, name)?;
     if !hermetic::lock_differs(&committed, &pinned) {
         return Ok(format!("{rel} is up to date"));
     }

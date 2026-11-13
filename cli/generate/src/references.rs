@@ -28,21 +28,23 @@ pub fn dx_paths(text: &str) -> Vec<String> {
     let is_path = |c: char| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '/' | '-');
     let mut out = Vec::new();
     let mut rest = text;
-    while let Some(at) = rest.find(".dx/") {
-        let start = rest[..at]
+    while let Some((before, after)) = rest.find(".dx/").and_then(|at| rest.split_at_checked(at)) {
+        let start = before
             .char_indices()
             .rfind(|(_, c)| !is_path(*c))
             .map_or(0, |(i, c)| i + c.len_utf8());
-        let end = rest[at..]
+        let end = after
             .find(|c: char| !is_path(c))
-            .map_or(rest.len(), |i| at + i);
-        let token = &rest[start..end];
+            .map_or(rest.len(), |i| before.len() + i);
+        let Some(token) = rest.get(start..end) else {
+            break;
+        };
         let token = token.strip_prefix("./").unwrap_or(token);
         let token = token.trim_end_matches(['/', '.']);
         if token.starts_with(".dx/") && !out.iter().any(|path| path == token) {
             out.push(token.to_owned());
         }
-        rest = &rest[end..];
+        rest = rest.get(end..).unwrap_or_default();
     }
     out
 }
@@ -85,7 +87,10 @@ pub fn resolve(
         .into_iter()
         .map(|path| match package(&path, files) {
             Some(package) => Reference {
-                label: format!("//{package}:{}", &path[package.len() + 1..]),
+                label: format!(
+                    "//{package}:{}",
+                    path.get(package.len() + 1..).unwrap_or_default()
+                ),
                 export: None,
             },
             None => Reference {
@@ -159,7 +164,8 @@ fn values(syntax: &str, key: &str, text: &str) -> Vec<String> {
             ),
             "toml" => {
                 let quote = value.chars().next().filter(|c| matches!(c, '"' | '\''));
-                if let Some((inner, _)) = quote.and_then(|quote| value[1..].split_once(quote)) {
+                if let Some((inner, _)) = quote.and_then(|quote| value.get(1..)?.split_once(quote))
+                {
                     out.push(inner.to_owned());
                 }
             }

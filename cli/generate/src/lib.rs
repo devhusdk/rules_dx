@@ -1,5 +1,7 @@
 //! Renders the `.dx` tree and the root export block from `dx.toml`, without IO.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 mod references;
 mod root_block;
 mod sync;
@@ -429,12 +431,13 @@ fn dx_build(
 /// The tools each family selects per capability, read from the `families` of a `.dx/BUILD.bazel`.
 /// Empty when the block is missing or does not parse.
 pub fn policy_families(text: &str) -> BTreeMap<String, BTreeMap<String, Vec<String>>> {
-    let Some(start) = text.find("families = {") else {
+    let Some(rest) = text
+        .find("families = {")
+        .and_then(|start| text.get(start + "families = ".len()..))
+    else {
         return BTreeMap::new();
     };
-    let mut literal = Literal {
-        rest: &text[start + "families = ".len()..],
-    };
+    let mut literal = Literal { rest };
     let Some(Value::Dict(families)) = literal.value() else {
         return BTreeMap::new();
     };

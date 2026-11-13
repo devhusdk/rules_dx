@@ -98,11 +98,11 @@ pub fn truncate_line(line: &str, limit: usize) -> String {
     if line.len() <= limit {
         return line.to_owned();
     }
-    let mut end = limit;
-    while !line.is_char_boundary(end) {
-        end -= 1;
-    }
-    format!("{}...", &line[..end])
+    let head = (0..=limit)
+        .rev()
+        .find_map(|end| line.get(..end))
+        .unwrap_or_default();
+    format!("{head}...")
 }
 
 /// Picks the first line of a tool's output that says something, shortened to `limit` bytes plus `...`.
@@ -146,11 +146,15 @@ pub fn diagnostic_excerpt(bytes: &[u8], max_lines: usize, max_bytes: usize) -> O
         });
     let (mut head, mut tail, mut truncated) = match split {
         Some((e, head_len, tail_start)) => (
-            lines[e..e + head_len].to_vec(),
-            lines[tail_start..].to_vec(),
+            lines.get(e..e + head_len).unwrap_or_default().to_vec(),
+            lines.get(tail_start..).unwrap_or_default().to_vec(),
             true,
         ),
-        None => (Vec::new(), lines[plain_start..].to_vec(), plain_start > 0),
+        None => (
+            Vec::new(),
+            lines.get(plain_start..).unwrap_or_default().to_vec(),
+            plain_start > 0,
+        ),
     };
     let gap = split.is_some();
     let joined = |head: &[&str], tail: &[&str]| {

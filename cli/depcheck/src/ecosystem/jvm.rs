@@ -97,8 +97,7 @@ fn maven_lock_label() -> String {
 fn maven_install_artifacts(text: &str) -> Option<&str> {
     let label = maven_lock_label();
     let mut rest = text;
-    while let Some(at) = rest.find("maven.install(") {
-        let body = &rest[at + "maven.install(".len()..];
+    while let Some((_, body)) = rest.split_once("maven.install(") {
         let mut depth = 1usize;
         let mut end = body.len();
         for (i, c) in body.char_indices() {
@@ -114,14 +113,14 @@ fn maven_install_artifacts(text: &str) -> Option<&str> {
                 _ => {}
             }
         }
-        let call = &body[..end];
+        let (call, tail) = body.split_at_checked(end).unwrap_or((body, ""));
         if call.contains(&label) {
-            let list = &call[call.find("artifacts")?..];
+            let list = call.get(call.find("artifacts")?..)?;
             let open = list.find('[')?;
-            let close = open + list[open..].find(']')?;
-            return Some(&list[open..close]);
+            let close = open + list.get(open..)?.find(']')?;
+            return list.get(open..close);
         }
-        rest = &body[end..];
+        rest = tail;
     }
     None
 }

@@ -49,7 +49,10 @@ pub fn parse_haskell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
         if let Some(rest) = lower.strip_prefix("build-depends:") {
             in_depends = true;
             field_indent = indent;
-            body = item[item.len() - rest.len()..].to_owned();
+            body = item
+                .get(item.len() - rest.len()..)
+                .unwrap_or(rest)
+                .to_owned();
         }
     }
     flush(&mut body, category);
@@ -60,7 +63,7 @@ pub fn parse_haskell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
             let name_end = entry
                 .find(|c: char| !(c.is_ascii_alphanumeric() || c == '-'))
                 .unwrap_or(entry.len());
-            let name = &entry[..name_end];
+            let (name, spec) = entry.split_at_checked(name_end).unwrap_or((entry, ""));
             if name.is_empty() || name == "base" || name.eq_ignore_ascii_case(&package) {
                 continue;
             }
@@ -68,7 +71,7 @@ pub fn parse_haskell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
                 &mut deps,
                 name.to_owned(),
                 DepInfo {
-                    spec: haskell_spec(&entry[name_end..]),
+                    spec: haskell_spec(spec),
                     category: category.to_owned(),
                     optional: false,
                     platform: false,

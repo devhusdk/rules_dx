@@ -27,7 +27,7 @@ fn mix_deps_block(text: &str) -> Option<String> {
     let head = regex::Regex::new(r"(?m)^\s*defp?\s+deps(?:\(\s*\))?\s+do\b").ok()?;
     let start = head.find(text)?.end();
     let mut block = String::new();
-    for line in text[start..].lines() {
+    for line in text.get(start..)?.lines() {
         if line.trim() == "end" {
             break;
         }
@@ -93,17 +93,18 @@ pub fn parse_mix_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckE
 
 /// The text of the bracketed list that follows `{deps,` and the rest of the file after it.
 fn bracket_list(text: &str, from: usize) -> Option<&str> {
-    let open = from + text[from..].find('[')?;
+    let open = from + text.get(from..)?.find('[')?;
+    let list = text.get(open..)?;
     let mut depth = 0usize;
     let mut in_string = false;
-    for (at, ch) in text[open..].char_indices() {
+    for (at, ch) in list.char_indices() {
         match ch {
             '"' => in_string = !in_string,
             '[' | '{' if !in_string => depth += 1,
             ']' | '}' if !in_string => {
                 depth -= 1;
                 if depth == 0 {
-                    return Some(&text[open + 1..open + at]);
+                    return list.get(1..at);
                 }
             }
             _ => {}
@@ -124,13 +125,13 @@ fn split_elements(body: &str) -> Vec<&str> {
             '[' | '{' if !in_string => depth += 1,
             ']' | '}' if !in_string => depth = depth.saturating_sub(1),
             ',' if !in_string && depth == 0 => {
-                out.push(&body[start..at]);
+                out.push(body.get(start..at).unwrap_or_default());
                 start = at + 1;
             }
             _ => {}
         }
     }
-    out.push(&body[start..]);
+    out.push(body.get(start..).unwrap_or_default());
     out.into_iter()
         .map(str::trim)
         .filter(|e| !e.is_empty())

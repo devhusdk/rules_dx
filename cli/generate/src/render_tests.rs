@@ -59,7 +59,7 @@ fn summary(out: &BTreeMap<String, Vec<u8>>) -> String {
                 })
                 .find(|preset| text.starts_with(preset.as_str()))
                 .expect("an rc starts with its preset");
-            lines.push_str(&text[preset.len()..]);
+            lines.push_str(text.strip_prefix(preset.as_str()).unwrap_or_default());
         } else {
             lines.push_str(&text);
         }

@@ -91,8 +91,8 @@ pub fn quality_started(
     unsafe_fixes: bool,
 ) -> Result<Value, OutputError> {
     let mut event = command_started(command, mode)?;
-    if unsafe_fixes {
-        event["unsafe_fixes"] = Value::Bool(true);
+    if let (true, Some(fields)) = (unsafe_fixes, event.as_object_mut()) {
+        fields.insert("unsafe_fixes".to_owned(), Value::Bool(true));
     }
     Ok(event)
 }
@@ -858,11 +858,10 @@ fn cut(text: &str, limit: usize) -> &str {
     if text.len() <= limit {
         return text;
     }
-    let mut end = limit;
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    &text[..end]
+    (0..=limit)
+        .rev()
+        .find_map(|end| text.get(..end))
+        .unwrap_or_default()
 }
 
 fn case_value(case: &TestCase, message_limit: usize) -> Value {

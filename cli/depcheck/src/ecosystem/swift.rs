@@ -23,26 +23,27 @@ fn identity(location: &str) -> String {
 fn calls<'a>(text: &'a str, head: &str) -> Vec<&'a str> {
     let mut out = Vec::new();
     let mut from = 0;
-    while let Some(found) = text[from..].find(head) {
+    while let Some(found) = text.get(from..).and_then(|tail| tail.find(head)) {
         let start = from + found + head.len();
+        let args = text.get(start..).unwrap_or_default();
         let mut depth = 1;
         let mut in_string = false;
-        let mut end = text.len();
-        for (offset, ch) in text[start..].char_indices() {
+        let mut end = args.len();
+        for (offset, ch) in args.char_indices() {
             match ch {
                 '"' => in_string = !in_string,
                 '(' if !in_string => depth += 1,
                 ')' if !in_string => {
                     depth -= 1;
                     if depth == 0 {
-                        end = start + offset;
+                        end = offset;
                         break;
                     }
                 }
                 _ => {}
             }
         }
-        out.push(&text[start..end]);
+        out.push(args.get(..end).unwrap_or(args));
         from = start;
     }
     out
@@ -57,7 +58,7 @@ fn strip_comments(text: &str) -> String {
                 if ch == '"' {
                     in_string = !in_string;
                 } else if !in_string && ch == '/' && previous == '/' {
-                    return &line[..at - 1];
+                    return line.get(..at - 1).unwrap_or(line);
                 }
                 previous = ch;
             }

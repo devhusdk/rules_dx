@@ -33,13 +33,10 @@ fn parse_requirement(item: &str) -> Option<Requirement> {
     if end == 0 {
         return None;
     }
-    let name = &head[..end];
-    let after_extras = match head[end..].trim_start().strip_prefix('[') {
-        Some(inner) => match inner.find(']') {
-            Some(close) => &inner[close + 1..],
-            None => "",
-        },
-        None => head[end..].trim(),
+    let (name, tail) = head.split_at_checked(end)?;
+    let after_extras = match tail.trim_start().strip_prefix('[') {
+        Some(inner) => inner.split_once(']').map_or("", |(_, after)| after),
+        None => tail.trim(),
     };
     let spec = match VersionSpecifiers::from_str(after_extras.trim()) {
         Ok(specifiers) => {

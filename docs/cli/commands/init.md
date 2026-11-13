@@ -23,7 +23,7 @@ tools/dx init
 ## `dx init`
 
 ```text
-dx init [--apply] [--agents <list>] [--ci <provider>] [--no-generate] [dir]
+dx init [--apply] [--agents <list>] [--ci <provider>] [--no-generate] [--accept-license <id>] [dir]
 ```
 
 Starts a new workspace or adopts `dx` into an existing tree. Checks by
@@ -46,6 +46,7 @@ sources appear.
 | `--agents <list>` | Agent tools whose files init adds: `claude`, `codex`, `gemini`, `copilot`. |
 | `--ci <provider>` | CI provider whose workflow init writes: `github`, `gitlab`, `none`. |
 | `--no-generate` | With `--apply`, stop after the writes and skip `dx generate`. |
+| `--accept-license <id>` | With `--apply`, accept a license id in `MODULE.bazel`. Repeatable. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 
@@ -56,6 +57,8 @@ before any file is written.
 
 It writes every path in the [fixed file set](#fixed-file-set). Re-running
 `dx init --apply` is safe: it keeps your edits outside the rows owned by `dx`.
+
+`--accept-license <id>` appends `dx_licenses.accept(ids = [...])` to `MODULE.bazel` with the given ids that no `dx_licenses.accept` tag lists yet, after a `dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")` line when no name binds the extension. The ids are the `setup.licenses` ids of the `lang.json` manifests: `android-sdk-license`, `apple-xcode-license`, `cuda-eula`, `visual-studio-build-tools` and `windows-sdk-buildtools`. An unknown id, or the flag without `--apply`, is a usage error. When a language found in the tree needs an id on the host platform that is neither given nor in `MODULE.bazel`, `--apply` writes nothing and fails with `init_failed`, for example `dx: init_failed: dx init: cc needs license visual-studio-build-tools; accept it with --accept-license visual-studio-build-tools`.
 
 Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json`, and no `security.toml` or `license.toml`. Those files are yours. To pick the strict tier, write `dx.toml` with a top-level `tier = "strict"` (see the [config reference](config.md)). Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml`, or from the defaults when there is none, for the languages found.
 
@@ -95,7 +98,7 @@ rust-analyzer at the `rules_rust` discover and flycheck launchers that `dx sync`
 `.dx/local/ide/rust_analyzer/`. Discover and flycheck use separate Bazel output bases under `.dx/local/ide/`, and the file
 watcher and search exclude `bazel-*` and `.dx/local/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).
-Flags: `--apply`, `--agents <list>`, `--ci github|gitlab|none`, `--no-generate`.
+Flags: `--apply`, `--agents <list>`, `--ci github|gitlab|none`, `--no-generate`, `--accept-license <id>`.
 Scopes: optional single directory, created by `--apply` when missing.
 
 Output: text only. Check mode looks for every file init writes.
@@ -130,7 +133,7 @@ Output: `--output text|json`. JSON covers the check only; see Init plan below.
 | Exit code | Meaning |
 | --- | --- |
 | `0` | Check passed (absent paths may be named on stderr) or apply succeeded. |
-| `1` | Check found drift or apply failed on content dx refuses. |
+| `1` | Check found drift, apply failed on content dx refuses, or a needed license id is not accepted. |
 | `2` | Usage error, including extra positionals, an unknown flag, or an invalid directory. |
 | `3` | Apply could not read, write or start something. |
 | `141` | Apply wrote every file but stdout closed early. |

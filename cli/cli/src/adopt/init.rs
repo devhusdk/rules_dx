@@ -117,6 +117,60 @@ fn ci_name(ci: dx_plan::args::Ci) -> &'static str {
     }
 }
 
+/// The ids `--accept-license` adds to `MODULE.bazel`: the given ids it does not accept yet.
+/// Fails with the message that names each id a language under `root` needs on `platform` and
+/// neither the flag nor `MODULE.bazel` accepts.
+fn license_ids(
+    given: &[String],
+    root: &std::path::Path,
+    platform: Option<&str>,
+) -> Result<std::collections::BTreeSet<String>, String> {
+    let module = std::fs::read_to_string(root.join("MODULE.bazel")).unwrap_or_default();
+    let accepted = dx_adopt::accepted_license_ids(&module);
+    let given: std::collections::BTreeSet<String> = given.iter().cloned().collect();
+    let missing: Vec<String> = platform
+        .map(|platform| dx_adopt::needed_licenses(root, platform))
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|needed| !given.contains(&needed.id) && !accepted.contains(&needed.id))
+        .map(|needed| {
+            format!(
+                "{} needs license {}; accept it with --accept-license {}",
+                needed.language, needed.id, needed.id
+            )
+        })
+        .collect();
+    if !missing.is_empty() {
+        return Err(missing.join("; "));
+    }
+    Ok(given.difference(&accepted).cloned().collect())
+}
+
+/// Appends the `dx_licenses.accept` tag of `ids` to `MODULE.bazel` under `root`.
+fn write_license_accept(
+    root: &std::path::Path,
+    ids: &std::collections::BTreeSet<String>,
+) -> Result<bool, dx_adopt::AdoptError> {
+    if ids.is_empty() {
+        return Ok(false);
+    }
+    let old = std::fs::read_to_string(root.join("MODULE.bazel")).unwrap_or_default();
+    let mut new = old.clone();
+    if !new.is_empty() && !new.ends_with('\n') {
+        new.push('\n');
+    }
+    new.push_str(&dx_adopt::render_license_accept(&old, ids));
+    dx_adopt::write_edit_or_create(
+        root,
+        &dx_adopt::ModuleEdit {
+            path: "MODULE.bazel".to_owned(),
+            old,
+            new,
+        },
+    )?;
+    Ok(true)
+}
+
 fn prefixed(prefix: &str, paths: Vec<String>) -> impl Iterator<Item = String> + '_ {
     paths.into_iter().map(move |path| format!("{prefix}{path}"))
 }
@@ -140,9 +194,46 @@ pub(crate) fn execute_init(
             "dx init --apply has no JSON output; drop --output=json",
         );
     }
+    if !invocation.accept_license.is_empty() && !invocation.applies() {
+        return refusal(
+            invocation.output,
+            out,
+            err,
+            "dx init --accept-license writes MODULE.bazel; add --apply",
+        );
+    }
+    let known = dx_adopt::known_license_ids();
+    if let Some(unknown) = invocation
+        .accept_license
+        .iter()
+        .find(|id| !known.contains(*id))
+    {
+        let ids: Vec<&str> = known.iter().map(String::as_str).collect();
+        return refusal(
+            invocation.output,
+            out,
+            err,
+            &format!(
+                "dx init: unknown license id {unknown}; the ids are {}",
+                ids.join(", ")
+            ),
+        );
+    }
     if !invocation.applies() {
         return check_init(invocation, &target, out, err);
     }
+    let licenses = match license_ids(&invocation.accept_license, root, dx_adopt::host_platform()) {
+        Ok(ids) => ids,
+        Err(message) => {
+            return report_dx_error(
+                invocation.output,
+                out,
+                err,
+                CODE_INIT_FAILED,
+                &dx_error::DxError::failure(format!("dx init: {message}")),
+            );
+        }
+    };
     let planned = match target.plan() {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
@@ -191,7 +282,16 @@ pub(crate) fn execute_init(
         super::init_files::Mode::Create,
         &mut applied,
         &mut notes,
-    );
+    )
+    .and_then(|()| {
+        let module = format!("{}MODULE.bazel", target.prefix);
+        let wrote = write_license_accept(root, &licenses)
+            .map_err(|error| from_adopt(&target.prefix, &error))?;
+        if wrote && !applied.wrote.contains(&module) {
+            applied.wrote.push(module);
+        }
+        Ok(())
+    });
     let runner = dx_runner(dx_on_path());
     if result.is_ok() {
         notes.push(sync_note(
@@ -461,9 +561,78 @@ fn check_init(
 
 #[cfg(test)]
 mod tests {
-    use super::{dx_on_path, dx_runner, next_steps, sync_note};
+    use super::{dx_on_path, dx_runner, license_ids, next_steps, sync_note};
     use crate::adopt::test_support::{Truncated, env, invocation, run};
     use dx_process::pre_exec_code;
+
+    fn ids(ids: &[&str]) -> std::collections::BTreeSet<String> {
+        ids.iter().map(|id| (*id).to_owned()).collect()
+    }
+
+    #[test]
+    fn license_ids_cover_given_accepted_and_missing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-licenses-");
+        let root = scratch.path();
+        std::fs::write(root.join("main.cc"), "int main() {}\n").expect("cc");
+        let vs = "visual-studio-build-tools".to_owned();
+        assert_eq!(
+            license_ids(std::slice::from_ref(&vs), root, Some("windows_x86_64")),
+            Ok(ids(&[&vs]))
+        );
+        let err = license_ids(&[], root, Some("windows_x86_64")).expect_err("missing");
+        assert!(
+            err.contains("cc needs license visual-studio-build-tools")
+                && err.contains("--accept-license visual-studio-build-tools"),
+            "{err}"
+        );
+        assert_eq!(license_ids(&[], root, Some("linux_x86_64")), Ok(ids(&[])));
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            format!(
+                "{}\ndx_licenses.accept(ids = [\"{vs}\"])\n",
+                dx_adopt::licenses::LICENSE_EXTENSION_LINE
+            ),
+        )
+        .expect("module");
+        assert_eq!(license_ids(&[], root, Some("windows_x86_64")), Ok(ids(&[])));
+        assert_eq!(
+            license_ids(std::slice::from_ref(&vs), root, Some("windows_x86_64")),
+            Ok(ids(&[]))
+        );
+    }
+
+    #[test]
+    fn accept_license_writes_the_tag_once() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-accept-license-");
+        let root = scratch.path().to_path_buf();
+        let apply = invocation(&["init", "--apply", "--accept-license", "cuda-eula"]);
+        let (code, out, err) = run(&apply, &root);
+        assert_eq!(code, 0, "{out}{err}");
+        let module = std::fs::read_to_string(root.join("MODULE.bazel")).expect("module");
+        assert!(
+            module.contains(&format!(
+                "{}\ndx_licenses.accept(ids = [\"cuda-eula\"])\n",
+                dx_adopt::licenses::LICENSE_EXTENSION_LINE
+            )),
+            "{module}"
+        );
+        assert_eq!(run(&apply, &root).0, 0);
+        assert_eq!(
+            std::fs::read_to_string(root.join("MODULE.bazel")).expect("module"),
+            module
+        );
+        let (code, _out, err) = run(
+            &invocation(&["init", "--accept-license", "cuda-eula"]),
+            &root,
+        );
+        assert_eq!(code, pre_exec_code(), "{err}");
+        let (code, _out, err) = run(
+            &invocation(&["init", "--apply", "--accept-license", "nope"]),
+            &root,
+        );
+        assert_eq!(code, pre_exec_code(), "{err}");
+        assert!(err.contains("unknown license id nope"), "{err}");
+    }
 
     #[test]
     fn init_check_names_missing_hooks_and_agents_block() {

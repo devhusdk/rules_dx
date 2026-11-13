@@ -447,7 +447,7 @@ fn language_toolchain_checks(root: &Path) -> Vec<StatusCheck> {
     checks
 }
 
-fn host_name(os: &str, arch: &str) -> Option<&'static str> {
+pub(crate) fn host_name(os: &str, arch: &str) -> Option<&'static str> {
     match (os, arch) {
         ("linux", "x86_64") => Some("linux_x86_64"),
         ("linux", "aarch64") => Some("linux_arm64"),

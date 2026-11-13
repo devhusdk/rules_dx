@@ -289,6 +289,8 @@ pub struct Invocation {
     pub ci: Option<crate::args::Ci>,
     /// `dx init --no-generate`: the apply stops after the scaffold.
     pub no_generate: bool,
+    /// `dx init --accept-license`: license ids init writes into the `dx_licenses` tag.
+    pub accept_license: Vec<String>,
     pub to: Option<String>,
     pub here: bool,
     pub affected: bool,
@@ -740,6 +742,7 @@ mod tests {
             agents: Vec::new(),
             ci: None,
             no_generate: false,
+            accept_license: Vec::new(),
             to: None,
             here: true,
             affected: false,

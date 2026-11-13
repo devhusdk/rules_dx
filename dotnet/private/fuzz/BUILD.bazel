@@ -28,7 +28,10 @@ cc_binary(
         "@platforms//os:macos": False,
         "//conditions:default": True,
     }),
-    target_compatible_with = _SUPPORTED,
+    target_compatible_with = _SUPPORTED + select({
+        "@llvm//config:fuzzer_enabled": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
     visibility = ["//visibility:private"],
 )
 

@@ -1,7 +1,7 @@
 diff -ruN a/http_pkg_archive.bzl b/http_pkg_archive.bzl
 --- a/http_pkg_archive.bzl
 +++ b/http_pkg_archive.bzl
-@@ -1,6 +1,40 @@
+@@ -1,6 +1,46 @@
  load("@bazel_lib//lib:repo_utils.bzl", "repo_utils")
  load("@bazel_tools//tools/build_defs/repo:utils.bzl", "get_auth")
  
@@ -10,12 +10,18 @@ diff -ruN a/http_pkg_archive.bzl b/http_pkg_archive.bzl
 +    if not current.exists or current.realpath == current:
 +        return
 +    real = current.realpath
++    version = real.basename
 +    for child in fw.readdir():
 +        if child.basename != "Versions" and child.realpath != child:
 +            rctx.delete(child)
++    stubs = []
 +    for child in real.readdir():
++        if child.basename.endswith(".tbd"):
++            stubs.append(child.basename)
 +        rctx.rename(child, fw.get_child(child.basename))
 +    rctx.delete(fw.get_child("Versions"))
++    for stub in stubs:
++        rctx.file(fw.get_child("Versions", version, stub), rctx.read(fw.get_child(stub)))
 +
 +def _resolve_file_symlinks(rctx, root):
 +    pending = [rctx.path(root)]
@@ -42,7 +48,7 @@ diff -ruN a/http_pkg_archive.bzl b/http_pkg_archive.bzl
  def _http_pkg_archive_impl(rctx):
      rctx.download(
          url = rctx.attr.urls,
-@@ -34,6 +68,8 @@
+@@ -34,6 +74,8 @@
  
      rctx.delete(".downloaded.pkg")
  

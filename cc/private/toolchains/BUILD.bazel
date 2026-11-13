@@ -117,6 +117,42 @@ toolchain(
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )
 
+toolchain(
+    name = "llvm_fuzzer_macos_arm64",
+    exec_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    target_settings = [
+        "@llvm//config:fuzzer_enabled",
+        "@llvm//toolchain:bootstrap_stage0_prebuilt_seed",
+    ],
+    toolchain = "@llvm//toolchain:macos_aarch64_cc_toolchain",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "llvm_fuzzer_macos_x86_64",
+    exec_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:x86_64",
+    ],
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:x86_64",
+    ],
+    target_settings = [
+        "@llvm//config:fuzzer_enabled",
+        "@llvm//toolchain:bootstrap_stage0_prebuilt_seed",
+    ],
+    toolchain = "@llvm//toolchain:macos_x86_64_cc_toolchain",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
 msvc_toolchains(name = "msvc")
 
 toolchain(

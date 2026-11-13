@@ -20,6 +20,7 @@ rust_static_library(
 
 rust_test(
     name = "flavors_staticlib_test",
+    size = "small",
     aliases = aliases(
         package_name = "crates/flavors-staticlib",
         normal = True,

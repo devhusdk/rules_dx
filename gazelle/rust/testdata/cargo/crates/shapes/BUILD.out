@@ -20,6 +20,7 @@ rust_library(
 
 rust_test(
     name = "shapes_lib_test",
+    size = "small",
     aliases = aliases(
         package_name = "crates/shapes",
         normal = True,
@@ -53,6 +54,7 @@ rust_binary(
 
 rust_test(
     name = "demo_example_test",
+    size = "small",
     aliases = aliases(
         package_name = "crates/shapes",
         normal = True,

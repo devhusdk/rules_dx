@@ -20,6 +20,7 @@ rust_shared_library(
 
 rust_test(
     name = "flavors_cdylib_test",
+    size = "small",
     aliases = aliases(
         package_name = "crates/flavors-cdylib",
         normal = True,

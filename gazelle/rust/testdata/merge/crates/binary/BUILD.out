@@ -14,5 +14,6 @@ rust_binary(
 
 rust_test(
     name = "binary_test",
+    size = "small",
     crate = ":binary",
 )

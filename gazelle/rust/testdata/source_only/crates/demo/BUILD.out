@@ -19,6 +19,7 @@ rust_library(
 
 rust_test(
     name = "demo_test",
+    size = "small",
     srcs = [
         "src/lib.rs",
         "src/model.rs",
@@ -38,6 +39,7 @@ rust_binary(
 
 rust_test(
     name = "smoke_test",
+    size = "small",
     srcs = ["tests/smoke.rs"],
     crate_name = "smoke",
     crate_root = "tests/smoke.rs",

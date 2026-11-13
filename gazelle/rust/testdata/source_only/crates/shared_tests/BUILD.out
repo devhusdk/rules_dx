@@ -2,6 +2,7 @@ load("@rules_dx//rust:defs.bzl", "rust_test")
 
 rust_test(
     name = "a_test",
+    size = "small",
     srcs = [
         "tests/a.rs",
         "tests/common/mod.rs",
@@ -12,6 +13,7 @@ rust_test(
 
 rust_test(
     name = "b_test",
+    size = "small",
     srcs = [
         "tests/b.rs",
         "tests/common/mod.rs",

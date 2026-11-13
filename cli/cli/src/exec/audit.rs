@@ -460,7 +460,12 @@ fn parse_locked_for_configured(
                 }
                 _ => Ok(Vec::new()),
             },
-            dx_adopt::dependency_sets::Ecosystem::Opam => dx_audit::locks::parse_opam_locked(text),
+            dx_adopt::dependency_sets::Ecosystem::Opam => match rel.rsplit('/').next() {
+                Some(name) if name.ends_with(".opam.locked") => {
+                    dx_audit::locks::parse_opam_locked(text)
+                }
+                _ => Ok(Vec::new()),
+            },
             dx_adopt::dependency_sets::Ecosystem::SwiftPm => match rel.rsplit('/').next() {
                 Some(name) if name == dx_adopt::dependency_sets::package_resolved() => {
                     dx_audit::locks::parse_package_resolved(text)

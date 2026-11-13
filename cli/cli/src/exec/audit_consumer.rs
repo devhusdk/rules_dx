@@ -790,7 +790,7 @@ source = { registry = "https://pypi.org/simple" }
         );
     }
 
-    const OPAM_MODULE: &str = "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"ocaml_app\", lock = \"//apps/ml:ocaml_app.opam.locked\")\n";
+    const OPAM_MODULE: &str = "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"ocaml_app\", lock = \"//apps/ml:opam.lock.json\")\n";
 
     const OPAM_ADVISORY: &str = r#"[{
         "id": "OSV-OPAM-0001",
@@ -805,6 +805,10 @@ source = { registry = "https://pypi.org/simple" }
     fn consumer_opam_set_reads_its_opam_locked_and_the_opam_snapshot() {
         let harness = consumer_harness("opam-vuln", OPAM_MODULE, false);
         harness.write_source("apps/ml/ocaml_app.opam", "opam-version: \"2.0\"\n");
+        harness.write_source(
+            "apps/ml/opam.lock.json",
+            r#"{"ecosystem": "opam", "inputs": {"ocaml_app.opam": "00", "ocaml_app.opam.locked": "11"}, "packages": []}"#,
+        );
         harness.write_source(
             "apps/ml/ocaml_app.opam.locked",
             "opam-version: \"2.0\"\ndepends: [\n  \"astring\" {= \"0.8.5\"}\n]\n",

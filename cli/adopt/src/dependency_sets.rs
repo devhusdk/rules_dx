@@ -467,12 +467,9 @@ pub fn discover(
         for opam in module.opam_packages().map_err(hub)? {
             let lock = path(opam.lock)?;
             let dir = manifest_dir(std::slice::from_ref(&lock));
-            sets.push(hub_set(
-                opam.name,
-                Ecosystem::Opam,
-                vec![in_dir(&dir, "*.opam")],
-                vec![in_dir(&dir, "*.opam.locked"), lock],
-            )?);
+            let (manifests, mut locks) = opam_lock_inputs(&dir, &read(&lock).unwrap_or_default());
+            locks.push(lock);
+            sets.push(hub_set(opam.name, Ecosystem::Opam, manifests, locks)?);
         }
         for haskell in module.haskell_packages().map_err(hub)? {
             let deps = path(haskell.lock)?;
@@ -1205,6 +1202,24 @@ fn parent_dirs(dir: &str) -> Vec<&str> {
         };
     }
     out
+}
+
+/// The `*.opam` manifests and `*.opam.locked` state files an `opam.lock.json` lists as inputs.
+fn opam_lock_inputs(dir: &str, lock_text: &str) -> (Vec<String>, Vec<String>) {
+    let json: serde_json::Value = serde_json::from_str(lock_text).unwrap_or_default();
+    let names: Vec<&str> = json
+        .get("inputs")
+        .and_then(serde_json::Value::as_object)
+        .map(|inputs| inputs.keys().map(String::as_str).collect())
+        .unwrap_or_default();
+    let pick = |suffix: &str| {
+        names
+            .iter()
+            .filter(|name| name.ends_with(suffix))
+            .map(|name| in_dir(dir, name))
+            .collect()
+    };
+    (pick(".opam"), pick(".opam.locked"))
 }
 
 fn in_dir(dir: &str, file: &str) -> String {

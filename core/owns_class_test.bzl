@@ -4,14 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def owns_class_test(class_id, basenames, others = {}, sort = False):
-    """Returns an analysis test proving a library owns exactly `basenames` in `class_id`.
-
-    Args:
-      class_id: quality class the library must own.
-      basenames: expected basenames in `class_id`.
-      others: further owned classes, mapped to their expected basenames.
-      sort: compare sorted basenames instead of depset order.
-    """
+    """Returns an analysis test proving a library owns exactly `basenames` in `class_id` and `others`."""
     expected = dict(others)
     expected[class_id] = basenames
 

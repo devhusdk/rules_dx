@@ -147,8 +147,9 @@ fn download(
         if n == 0 {
             break;
         }
-        hasher.update(&buf[..n]);
-        file.write_all(&buf[..n]).map_err(|e| {
+        let chunk = buf.get(..n).unwrap_or_default();
+        hasher.update(chunk);
+        file.write_all(chunk).map_err(|e| {
             ShimError::failure(format!("cannot write {}: {e}", part.path.display()))
         })?;
     }

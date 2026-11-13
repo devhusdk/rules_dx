@@ -479,7 +479,7 @@ fn program<'a>(words: &'a [&'a str]) -> &'a [&'a str] {
             }
         }
     }
-    &words[i.min(words.len())..]
+    words.get(i..).unwrap_or_default()
 }
 
 #[derive(Default)]
@@ -515,10 +515,10 @@ impl Commands {
 fn skip_heredoc(chars: &[char], mut i: usize, tag: &str, strip: bool) -> usize {
     while i < chars.len() {
         let start = i;
-        while i < chars.len() && chars[i] != '\n' {
+        while chars.get(i).is_some_and(|c| *c != '\n') {
             i += 1;
         }
-        let line: String = chars[start..i].iter().collect();
+        let line: String = chars.get(start..i).unwrap_or_default().iter().collect();
         i = (i + 1).min(chars.len());
         let line = if strip {
             line.trim_start_matches('\t')
@@ -534,9 +534,8 @@ fn skip_heredoc(chars: &[char], mut i: usize, tag: &str, strip: bool) -> usize {
 
 fn closing_paren(chars: &[char], open: usize) -> usize {
     let mut depth = 0usize;
-    let mut i = open;
-    while i < chars.len() {
-        match chars[i] {
+    for (i, c) in chars.iter().enumerate().skip(open) {
+        match c {
             '(' => depth += 1,
             ')' => {
                 depth -= 1;
@@ -546,32 +545,37 @@ fn closing_paren(chars: &[char], open: usize) -> usize {
             }
             _ => {}
         }
-        i += 1;
     }
     chars.len()
 }
 
 fn substitution(chars: &[char], i: usize, cmds: &mut Commands) -> Option<usize> {
-    match chars[i] {
+    match chars.get(i)? {
         '$' if chars.get(i + 1) == Some(&'(') && chars.get(i + 2) == Some(&'(') => {
             Some(closing_paren(chars, i + 1) + 1)
         }
         '$' if chars.get(i + 1) == Some(&'(') => {
             let close = closing_paren(chars, i + 1);
-            let inner: String = chars[i + 2..close.max(i + 2)].iter().collect();
+            let inner: String = chars
+                .get(i + 2..close.max(i + 2))
+                .unwrap_or_default()
+                .iter()
+                .collect();
             cmds.done.extend(commands(&inner));
             Some(close + 1)
         }
         '`' => {
             let mut close = i + 1;
-            while close < chars.len() && chars[close] != '`' {
-                if chars[close] == '\\' {
+            while let Some(&c) = chars.get(close)
+                && c != '`'
+            {
+                if c == '\\' {
                     close += 1;
                 }
                 close += 1;
             }
             let close = close.min(chars.len());
-            let inner: String = chars[i + 1..close].iter().collect();
+            let inner: String = chars.get(i + 1..close).unwrap_or_default().iter().collect();
             cmds.done.extend(commands(&inner));
             Some(close + 1)
         }
@@ -584,46 +588,53 @@ fn commands(script: &str) -> Vec<Vec<String>> {
     let mut cmds = Commands::default();
     let mut pending: Vec<(String, bool)> = Vec::new();
     let mut i = 0;
-    while i < chars.len() {
+    while let Some(&c) = chars.get(i) {
         if let Some(next) = substitution(&chars, i, &mut cmds) {
             i = next;
             continue;
         }
-        let c = chars[i];
         match c {
             '\'' => {
                 cmds.mark();
                 i += 1;
-                while i < chars.len() && chars[i] != '\'' {
-                    cmds.push(chars[i]);
+                while let Some(&q) = chars.get(i)
+                    && q != '\''
+                {
+                    cmds.push(q);
                     i += 1;
                 }
             }
             '"' => {
                 cmds.mark();
                 i += 1;
-                while i < chars.len() && chars[i] != '"' {
+                while let Some(&q) = chars.get(i)
+                    && q != '"'
+                {
                     if let Some(next) = substitution(&chars, i, &mut cmds) {
                         i = next;
                         continue;
                     }
-                    if chars[i] == '\\' && i + 1 < chars.len() {
+                    let mut pushed = q;
+                    if q == '\\'
+                        && let Some(&escaped) = chars.get(i + 1)
+                    {
                         i += 1;
+                        pushed = escaped;
                     }
-                    cmds.push(chars[i]);
+                    cmds.push(pushed);
                     i += 1;
                 }
             }
             '\\' => {
-                if i + 1 < chars.len() {
+                if let Some(&escaped) = chars.get(i + 1) {
                     i += 1;
-                    if chars[i] != '\n' {
-                        cmds.push(chars[i]);
+                    if escaped != '\n' {
+                        cmds.push(escaped);
                     }
                 }
             }
             '#' if cmds.word.is_none() => {
-                while i < chars.len() && chars[i] != '\n' {
+                while chars.get(i).is_some_and(|q| *q != '\n') {
                     i += 1;
                 }
                 continue;
@@ -697,7 +708,7 @@ fn collect_segments(script: &str, depth: usize, out: &mut Vec<Vec<String>>) {
         if depth >= MAX_SHELL_DEPTH || !SHELLS.contains(&base(first)) {
             continue;
         }
-        if let Some(inner) = shell_script(&tail[1..]) {
+        if let Some(inner) = tail.get(1..).and_then(shell_script) {
             collect_segments(inner, depth + 1, out);
         }
     }
@@ -883,17 +894,17 @@ pub fn guard_with(
         Value::String(format!("{}\n{command}", exports.join("\n"))),
     );
     if deploy {
-        let mut output = serde_json::json!({
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "ask",
-                "permissionDecisionReason": DEPLOY_APPLY_ASK,
-            }
+        let mut specific = serde_json::json!({
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "ask",
+            "permissionDecisionReason": DEPLOY_APPLY_ASK,
         });
-        if !exports.is_empty() {
-            output["hookSpecificOutput"]["updatedInput"] = Value::Object(updated);
+        if !exports.is_empty()
+            && let Some(object) = specific.as_object_mut()
+        {
+            object.insert("updatedInput".to_owned(), Value::Object(updated));
         }
-        return Guard::Ask(output);
+        return Guard::Ask(serde_json::json!({ "hookSpecificOutput": specific }));
     }
     Guard::Rewrite(dialect.rewrite(Value::Object(updated)))
 }

@@ -126,10 +126,9 @@ fn windows_flag_value(line: &str, flag: &str) -> Option<PathBuf> {
 
 /// Reads a flag from `ps` output, which has no quoting. A value ends at the next ` --`.
 fn ps_flag_value(args: &str, flag: &str) -> Option<PathBuf> {
-    let start = args.find(&format!(" {flag}="))? + flag.len() + 2;
-    let rest = &args[start..];
-    let end = rest.find(" --").unwrap_or(rest.len());
-    non_empty_path(&rest[..end])
+    let (_, rest) = args.split_once(&format!(" {flag}="))?;
+    let value = rest.split_once(" --").map_or(rest, |(value, _)| value);
+    non_empty_path(value)
 }
 
 fn non_empty_path(value: &str) -> Option<PathBuf> {

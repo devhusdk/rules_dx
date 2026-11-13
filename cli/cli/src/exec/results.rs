@@ -785,7 +785,7 @@ mod tests {
         let placed = map_diagnostic(&diagnostic, Snapshot::Terminal, root.path()).expect("mapped");
         let (start, end) = placed.range.expect("range");
         assert_eq!(placed.path.as_deref(), Some("p/BUILD.bazel"));
-        assert_eq!(&build[start as usize..end as usize], "\"//a:a\"");
+        assert_eq!(build.get(start as usize..end as usize), Some("\"//a:a\""));
 
         std::fs::remove_file(root.path().join("p/BUILD.bazel")).expect("remove");
         let kept = map_diagnostic(&diagnostic, Snapshot::Terminal, root.path()).expect("mapped");

@@ -407,8 +407,8 @@ mod tests {
             assert!(correlation.starts_with("run:"), "{correlation}");
         }
         assert_eq!(
-            run_correlation("@repo//x"),
-            format!("run:_repo//x-{}", &dx_digest::sha256_hex(b"@repo//x")[..16])
+            run_correlation("@repo//x").strip_prefix("run:_repo//x-"),
+            dx_digest::sha256_hex(b"@repo//x").get(..16)
         );
         assert_ne!(run_correlation("@a//x"), run_correlation("+a//x"));
     }

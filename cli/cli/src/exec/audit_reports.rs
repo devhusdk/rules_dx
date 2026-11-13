@@ -665,7 +665,7 @@ fn advisory_loader_rejects_corrupt_pinned_snapshots() {
             "tampered" => matches!(error, AuditError::AdvisoryPinMismatch { .. }),
             "invalid-json" => matches!(error, AuditError::AdvisoryParse { .. }),
             "no-pin" => matches!(error, AuditError::AdvisoryPinMissing { .. }),
-            _ => unreachable!(),
+            _ => false,
         };
         assert!(expected, "{variant}: {error}");
     }
@@ -735,7 +735,7 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
         let by_package = sarif_paths(&harness, report, driver);
         assert_eq!(
             by_package.get("pnpmonly").map(String::as_str),
-            Some(&dx_ecosystems::Ecosystem::Npm.lockfiles()[0][..]),
+            dx_ecosystems::Ecosystem::Npm.lockfiles().first().map(String::as_str),
             "{command}: {by_package:?}"
         );
     }

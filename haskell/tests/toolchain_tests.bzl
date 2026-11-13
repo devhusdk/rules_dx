@@ -83,8 +83,11 @@ version: 2.1.7
 common common-stanza
   build-depends: tabular
 
+common modules
+  exposed-modules: Happy.Grammar
+
 library grammar
-  import: common-stanza
+  import: common-stanza, modules
   build-depends:       base < 5, array
 
 Library frontend
@@ -165,12 +168,14 @@ def _checks():
         {"name": "lib", "version": "1.0", "source": "hackage", "components": ["lib"], "dependencies": [], "tools": ["alex:alex"]},
     ]}
     package = sidecar["packages"][1]
-    build = package_build("lib", "1.0", package["components"], package_deps("hub", sidecar, package), tool_labels("hub", package), {"": []})
+    build = package_build("lib", "1.0", package["components"], package_deps("hub", sidecar, package), tool_labels("hub", package), {"": {"deps": [], "empty": False}})
     libraries = cabal_libraries(_SUBLIBRARY_CABAL)
     happy = package_build("happy-lib", "2.1.7", ["lib", "exe:happy"], ["@hub_base//:base"], [], libraries)
     checks += [
-        expect_equal("cabal libraries name every library stanza with its sibling deps", libraries, {"grammar": [], "frontend": ["grammar"], "tabular": ["grammar"], "": ["frontend", "tabular"]}),
-        expect_equal("a cabal file without sublibraries has only the main library", cabal_libraries("name: a\nlibrary\n  build-depends: base\n"), {"": []}),
+        expect_equal("cabal libraries name every library stanza with its sibling deps", {name: library["deps"] for name, library in libraries.items()}, {"grammar": [], "frontend": ["grammar"], "tabular": ["grammar"], "": ["frontend", "tabular"]}),
+        expect_equal("libraries without modules are empty", sorted([name for name, library in libraries.items() if library["empty"]]), ["", "tabular"]),
+        expect_contains("an empty library builds with empty cabal args", happy, 'haddock = False,\n    cabal_args = ":empty_library",'),
+        expect_equal("a cabal file without sublibraries has only the main library", cabal_libraries("name: a\nlibrary\n  build-depends: base\n  exposed-modules: A\n"), {"": {"deps": [], "empty": False}}),
         expect_contains("a sublibrary builds as its own component", happy, 'name = "happy-lib-lib-frontend",\n    package_name = "happy-lib",\n    version = "2.1.7",\n    haddock = False,\n    sublibrary_name = "frontend",'),
         expect_contains("a sublibrary depends on its siblings", happy, 'deps = ["@hub_base//:base", ":happy-lib-lib-grammar"],'),
         expect_contains("the main library depends on its sublibraries", happy, 'deps = ["@hub_base//:base", ":happy-lib-lib-frontend", ":happy-lib-lib-tabular"],'),

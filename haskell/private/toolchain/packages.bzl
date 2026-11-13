@@ -107,7 +107,7 @@ def _words(text):
 def _indent(line):
     return len(line) - len(line.lstrip(" \t"))
 
-def _build_depends(lines):
+def _field_words(lines, fields):
     texts = []
     field = None
     for line in lines:
@@ -119,29 +119,47 @@ def _build_depends(lines):
             continue
         field = None
         key, colon, value = stripped.partition(":")
-        if colon and key.strip().lower() == "build-depends":
+        if colon and key.strip().lower() in fields:
             field = _indent(line)
             texts.append(value)
     return _words(" ".join(texts))
 
 def cabal_libraries(text):
-    """Returns the library stanzas of a .cabal file, "" for the main library, each with the sibling libraries it builds on."""
+    """Returns the library stanzas of a .cabal file by name, "" for the main library.
+
+    Args:
+        text: The .cabal file content.
+
+    Returns:
+        A dict from library name to a dict with "deps", the sibling libraries it builds on,
+        and "empty", whether it and its imported common stanzas list no modules.
+    """
     stanzas = {}
+    commons = {}
     current = None
     for line in text.splitlines():
         if line.strip() and _indent(line) == 0 and not line.startswith("--"):
             words = [word for word in line.replace("\t", " ").split(" ") if word]
+            kind = words[0].lower()
             current = None
-            if words[0].lower() == "library":
-                current = words[1] if len(words) > 1 else ""
-                stanzas[current] = []
+            if kind == "library":
+                current = []
+                stanzas[words[1] if len(words) > 1 else ""] = current
+            elif kind == "common" and len(words) > 1:
+                current = []
+                commons[words[1]] = current
         elif current != None:
-            stanzas[current].append(line)
+            current.append(line)
     named = [name for name in stanzas if name]
-    return {
-        name: sorted([sibling for sibling in named if sibling != name and sibling in _build_depends(lines)])
-        for name, lines in stanzas.items()
-    }
+    libraries = {}
+    for name, lines in stanzas.items():
+        imported = [line for common in _field_words(lines, ["import"]) for line in commons.get(common, [])]
+        depends = _field_words(lines, ["build-depends"])
+        libraries[name] = {
+            "deps": sorted([sibling for sibling in named if sibling != name and sibling in depends]),
+            "empty": not _field_words(lines + imported, ["exposed-modules", "other-modules"]),
+        }
+    return libraries
 
 def _target(kind, name, attrs, deps, tools):
     attrs = attrs + ([
@@ -153,6 +171,9 @@ def _target(kind, name, attrs, deps, tools):
         "verbose = False",
     ]
     return "{}(\n    name = \"{}\",\n{}\n)\n".format(kind, name, "".join(["    {},\n".format(attr) for attr in attrs]).rstrip("\n"))
+
+def _cabal_args(library):
+    return ['cabal_args = ":empty_library"'] if library.get("empty") else []
 
 def package_deps(hub, sidecar, package):
     """Returns the dependency labels of one package."""
@@ -175,19 +196,21 @@ def package_build(name, version, components, deps, tools, libraries):
     has_lib = "lib" in components
     sublibs = sorted([sub for sub in libraries if sub])
     lines = [
-        'load("@rules_haskell//haskell:cabal.bzl", "haskell_cabal_binary", "haskell_cabal_library")',
+        'load("@rules_haskell//haskell:cabal.bzl", "haskell_cabal_args", "haskell_cabal_binary", "haskell_cabal_library")',
         'load("{}", "HASKELL_COMPATIBLE_WITH")'.format(_DEFS),
         "",
         'package(default_visibility = ["//visibility:public"])',
         "",
     ]
+    if [library for library in libraries.values() if library["empty"]]:
+        lines.append('haskell_cabal_args(\n    name = "empty_library",\n    is_empty = True,\n)\n')
     common = ['package_name = "{}"'.format(name), 'version = "{}"'.format(version), "haddock = False"]
     for sub in sublibs:
-        sub_deps = deps + [":" + sublibrary_target(name, sibling) for sibling in libraries[sub]]
-        lines.append(_target("haskell_cabal_library", sublibrary_target(name, sub), common + ['sublibrary_name = "{}"'.format(sub)], sub_deps, tools))
+        sub_deps = deps + [":" + sublibrary_target(name, sibling) for sibling in libraries[sub]["deps"]]
+        lines.append(_target("haskell_cabal_library", sublibrary_target(name, sub), common + ['sublibrary_name = "{}"'.format(sub)] + _cabal_args(libraries[sub]), sub_deps, tools))
     if has_lib:
-        lib_deps = deps + [":" + sublibrary_target(name, sibling) for sibling in libraries.get("", [])]
-        lines.append(_target("haskell_cabal_library", name, common, lib_deps, tools))
+        lib_deps = deps + [":" + sublibrary_target(name, sibling) for sibling in libraries.get("", {}).get("deps", [])]
+        lines.append(_target("haskell_cabal_library", name, common + _cabal_args(libraries.get("", {})), lib_deps, tools))
     for exe in executables({"components": components}):
         exe_deps = deps + ([":" + name] if has_lib else []) + [":" + sublibrary_target(name, sub) for sub in sublibs]
         lines.append(_target("haskell_cabal_binary", "{}-exe-{}".format(name, exe), ['exe_name = "{}"'.format(exe)], exe_deps, tools))

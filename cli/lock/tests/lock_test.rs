@@ -502,6 +502,62 @@ fn a_manifest_pattern_takes_every_matching_file() {
     );
 }
 
+/// Records the files the scratch set holds and asks for every `*.part` file.
+#[derive(Default)]
+struct Parts(RefCell<Vec<String>>);
+
+impl Resolver for Parts {
+    fn resolve(&self, scratch: &Scratch, _: Option<&Lock>) -> Result<Resolution, Error> {
+        let mut names: Vec<String> = std::fs::read_dir(scratch.set())
+            .map_err(|error| Error::new(error.to_string()))?
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        self.0.replace(names);
+        Ok(Resolution {
+            packages: Vec::new(),
+        })
+    }
+
+    fn sources(&self) -> Vec<String> {
+        vec!["*.part".to_owned()]
+    }
+}
+
+#[test]
+fn every_source_file_is_copied_and_digested() {
+    let dir = tempfile::tempdir().expect("set directory");
+    for name in ["fixture.json", "b.part", "a.part", "other.txt"] {
+        std::fs::write(dir.path().join(name), name).expect("file");
+    }
+    let parts = Parts::default();
+    run(
+        &spec(),
+        &args(dir.path(), false),
+        &parts,
+        &Archives::default(),
+    )
+    .expect("run");
+    assert_eq!(*parts.0.borrow(), ["a.part", "b.part", "fixture.json"]);
+    let lock = Lock::from_json(&text(&dir.path().join("fixture.lock.json"))).expect("lock");
+    assert_eq!(
+        lock.inputs.keys().collect::<Vec<_>>(),
+        ["a.part", "b.part", "fixture.json"]
+    );
+    std::fs::write(dir.path().join("b.part"), "changed").expect("file");
+    assert_eq!(
+        run(
+            &spec(),
+            &args(dir.path(), true),
+            &parts,
+            &Archives::default()
+        )
+        .expect("check"),
+        Outcome::Stale
+    );
+}
+
 #[test]
 fn the_flags_are_dir_and_check() {
     let parse = |args: &[&str]| Args::parse(args.iter().map(|arg| (*arg).to_owned()));

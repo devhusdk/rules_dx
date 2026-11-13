@@ -33,10 +33,13 @@ const GATED: &[&str] = &[
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",
     "//tools/platforms:protoc_windows_arm64",
+    "@cuda//toolchain/...",
     "@dx_dotnet_toolchains//:all",
     "@dx_haskell_toolchains//:all",
     "@dx_python_toolchains//:all",
     "@dx_swift_toolchains//:all",
+    "@llvm//toolchain:all",
+    "@python_interpreters//:all",
     "@ruby_toolchains//:all",
 ];
 
@@ -44,10 +47,7 @@ const GATED: &[&str] = &[
 const UNGATED: &[&str] = &[
     "@android_ndk_toolchain//:ndk_cc_toolchain_device",
     "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
-    "@cuda//toolchain/...",
-    "@llvm//toolchain:all",
     "@local_config_apple_cc_toolchains//:all",
-    "@python_interpreters//:all",
     "@rust_toolchains//:all",
 ];
 

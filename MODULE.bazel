@@ -85,6 +85,7 @@ single_version_override(
         "//patches/llvm:aarch64_outline_atomics.patch",
         "//patches/llvm:macos_sdk_resolve_symlinks.patch",
         "//patches/llvm:msvc_link_lib_env.patch",
+        "//patches/llvm:toolchains_gate.patch",
     ],
     version = "0.8.26",
 )
@@ -171,7 +172,10 @@ bazel_dep(name = "rules_cuda", version = "0.4.0")
 single_version_override(
     module_name = "rules_cuda",
     patch_strip = 1,
-    patches = ["//patches/rules_cuda:msvc_dlink_crt.patch"],
+    patches = [
+        "//patches/rules_cuda:msvc_dlink_crt.patch",
+        "//patches/rules_cuda:toolchains_gate.patch",
+    ],
     version = "0.4.0",
 )
 
@@ -2156,7 +2160,10 @@ dx_gazelle.language(library = "//gazelle/zig")
 use_repo(dx_gazelle, "dx_gazelle")
 
 python_interpreters = use_extension("@rules_py//py:extensions.bzl", "python_interpreters")
-python_interpreters.toolchain(python_version = "3.12")
+python_interpreters.toolchain(
+    config_settings = ["//config:toolchains_on"],
+    python_version = "3.12",
+)
 use_repo(
     python_interpreters,
     "python_3_12_aarch64_apple_darwin",

@@ -1,0 +1,40 @@
+diff -ruN a/toolchain/declare_toolchains.bzl b/toolchain/declare_toolchains.bzl
+--- a/toolchain/declare_toolchains.bzl
++++ b/toolchain/declare_toolchains.bzl
+@@ -56,7 +56,7 @@
+         )
+ 
+         for (target_os, target_cpu) in targets:
+-            target_settings = ["@llvm//toolchain:bootstrap_stage0_prebuilt_seed"]
++            target_settings = ["@@//config:toolchains_on", "@llvm//toolchain:bootstrap_stage0_prebuilt_seed"]
+             if target_os == "windows":
+                 target_settings.append("@llvm//platforms/config:windows_" + target_cpu + "_mingw_compatible")
+ 
+@@ -88,6 +88,7 @@
+                         "@platforms//os:" + target_os,
+                     ],
+                     target_settings = [
++                        "@@//config:toolchains_on",
+                         "@llvm//toolchain:bootstrap_stage0_prebuilt_seed",
+                         "@llvm//platforms/config:windows_" + target_cpu + "_msvc",
+                     ],
+diff -ruN a/toolchain/bootstrap/declare_toolchains.bzl b/toolchain/bootstrap/declare_toolchains.bzl
+--- a/toolchain/bootstrap/declare_toolchains.bzl
++++ b/toolchain/bootstrap/declare_toolchains.bzl
+@@ -630,7 +630,7 @@
+             )
+ 
+             for (target_os, target_cpu) in targets:
+-                target_settings = [target_setting]
++                target_settings = ["@@//config:toolchains_on", target_setting]
+                 if target_os == "windows":
+                     target_settings.append("@llvm//platforms/config:windows_{}_mingw_compatible".format(target_cpu))
+ 
+@@ -662,6 +662,7 @@
+                             "@platforms//os:" + target_os,
+                         ],
+                         target_settings = [
++                            "@@//config:toolchains_on",
+                             target_setting,
+                             "@llvm//platforms/config:windows_{}_msvc".format(target_cpu),
+                         ],

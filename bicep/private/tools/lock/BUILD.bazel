@@ -2,7 +2,7 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 rust_library(
     name = "bicep_lock_lib",
@@ -32,7 +32,7 @@ rust_binary(
     ),
     crate_name = "bicep_lock_bin",
     crate_root = "src/main.rs",
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
     deps = all_crate_deps(
         package_name = "bicep/private/tools/bicep_lock",
         normal = True,
@@ -91,12 +91,12 @@ real_source_target(
 
 exports_files(
     ["Cargo.toml"],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 exports_files(
     [
         "src/main.rs",
     ],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )

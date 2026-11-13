@@ -13,5 +13,5 @@ real_source_target(
 
 exports_files(
     ["hub.bzl"],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )

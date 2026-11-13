@@ -220,7 +220,7 @@ fn wants_pnpm_lock(root: &Path) -> bool {
     ((declared && depends) || workspace) && !other_lock
 }
 
-/// Plans the `pnpm` extension and `@pnpm` repo that `bazel run @pnpm//:pnpm` needs.
+/// Plans the `pnpm` extension and hub repo that `bazel run` of the hermetic pnpm needs.
 pub fn plan_pnpm_tool(root: &Path) -> Result<LockHubs, AdoptError> {
     plan_with(root, |plan| plan.pnpm())
 }

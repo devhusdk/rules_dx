@@ -142,7 +142,7 @@ deploy/private/offline/offline.bzl genrule 2
 deploy/private/release/BUILD.bazel home 2
 deploy/private/release/bcr.bzl genrule 1
 deploy/private/release/candidate_test.rs shebang 1
-deploy/private/release/inventory_tests.bzl genrule 3
+deploy/private/release/inventory_tests.bzl genrule 2
 deploy/private/release/matrix.bzl genrule 2
 deploy/private/release/notice.bzl genrule 2
 deploy/private/release/sbom.bzl genrule 2
@@ -191,9 +191,9 @@ flutter/tests/fixtures/flutter-app/BUILD.bazel sh-rule 1
 flutter/tests/fixtures/flutter-app/android/BUILD.bazel sh-rule 1
 flutter/tests/fixtures/flutter-app/android/interaction.sh shebang 1
 flutter/tests/fixtures/flutter-app/ios/simulator_smoke.sh shebang 1
-fortran/private/BUILD.bazel env-inherit 2
-fortran/private/BUILD.bazel home 1
 fortran/private/flang_rt.BUILD.bazel genrule 1
+fortran/tests/BUILD.bazel env-inherit 2
+fortran/tests/BUILD.bazel home 1
 fsharp/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 fsharp/tests/fixtures/fuzz/run_test.sh shebang 1
 fsharp/tests/fixtures/profiles/BUILD.bazel genrule 1

@@ -50,7 +50,7 @@ fn workflow_is_reusable_and_read_only() {
 fn each_host_uploads_its_artifact() {
     let text = read_runfiles(TOOLS);
     assert!(text.contains("name: release-tool-${{ matrix.host }}"));
-    assert!(text.contains("tools/ci/release_tools.sh"));
+    assert!(text.contains("//rust/private/quality/tools:deadnix //rust/private/quality/tools:selene"));
 }
 
 #[test]

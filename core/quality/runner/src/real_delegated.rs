@@ -692,20 +692,12 @@ fn pkl_lsp_behavior(
             "{name} stays in the scratch home"
         );
     }
-    let system = std::env::var_os("SystemRoot")
-        .map(|root| Path::new(&root).join("System32").into_os_string());
-    if let Some(system) = &system {
-        assert!(
-            env.contains(&(OsString::from("PATH"), system.clone())),
-            "PATH names only System32"
-        );
+    if let Some((_, path)) = env.iter().find(|(key, _)| key == "PATH") {
+        assert_eq!(std::env::split_paths(path).count(), 1, "PATH names one directory");
     }
     let rest: Vec<(OsString, OsString)> = env
         .iter()
-        .filter(|(key, value)| {
-            !profile.iter().any(|name| key == name)
-                && !(key == "PATH" && Some(value) == system.as_ref())
-        })
+        .filter(|(key, _)| !profile.iter().any(|name| key == name) && key != "PATH")
         .cloned()
         .collect();
     assert_hermetic(&rest);

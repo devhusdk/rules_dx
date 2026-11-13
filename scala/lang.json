@@ -9,7 +9,7 @@
   "depcheck": "scala",
   "semver": false,
   "manifests": [
-    "MODULE.bazel"
+    "libs.versions.toml"
   ],
   "lockfiles": [
     "maven_install.json"

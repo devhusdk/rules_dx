@@ -1588,7 +1588,7 @@ LANGS = json.decode("""{
       "maven_install.json"
     ],
     "manifests": [
-      "MODULE.bazel"
+      "libs.versions.toml"
     ],
     "name": "java",
     "pins": [
@@ -1874,7 +1874,7 @@ LANGS = json.decode("""{
       "maven_install.json"
     ],
     "manifests": [
-      "MODULE.bazel"
+      "libs.versions.toml"
     ],
     "name": "kotlin",
     "pins": [],
@@ -2902,7 +2902,7 @@ LANGS = json.decode("""{
       "maven_install.json"
     ],
     "manifests": [
-      "MODULE.bazel"
+      "libs.versions.toml"
     ],
     "name": "scala",
     "pins": [],

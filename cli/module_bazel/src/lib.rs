@@ -1,4 +1,5 @@
 //! One reader for literal top-level `MODULE.bazel` calls, shared by every MODULE.bazel tool.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod identity;
 
@@ -158,10 +159,11 @@ impl NewTag {
         for (key, arg) in &self.args {
             match arg {
                 Arg::Str(value) => out.push_str(&format!("    {key} = \"{value}\",\n")),
-                Arg::List(values) if values.len() == 1 => {
-                    out.push_str(&format!("    {key} = [\"{}\"],\n", values[0]));
-                }
                 Arg::List(values) => {
+                    if let [only] = values.as_slice() {
+                        out.push_str(&format!("    {key} = [\"{only}\"],\n"));
+                        continue;
+                    }
                     out.push_str(&format!("    {key} = [\n"));
                     for value in values {
                         out.push_str(&format!("        \"{value}\",\n"));
@@ -552,7 +554,12 @@ impl ModuleFile {
         }
         let reasons: Vec<&str> = lines
             .iter()
-            .map(|line| line.trim_start()[FLOOR_MARKER.len()..].trim())
+            .map(|line| {
+                line.trim_start()
+                    .strip_prefix(FLOOR_MARKER)
+                    .unwrap_or_default()
+                    .trim()
+            })
             .collect();
         Ok(Some(reasons.join(" ")))
     }
@@ -569,16 +576,16 @@ impl ModuleFile {
         }
         let call = self.bazel_dep(name)?;
         let (start, _) = self.floor_lines(call)?;
-        let line_start = self.source[..call.span.start]
+        let line_start = text_at(&self.source, ..call.span.start)?
             .rfind('\n')
             .map_or(0, |at| at + 1);
-        let indent = &self.source[line_start..call.span.start];
+        let indent = text_at(&self.source, line_start..call.span.start)?;
         let eol = line_ending(&self.source);
         let text = format!("{indent}{FLOOR_MARKER}{reason}{eol}");
         let mut out = String::with_capacity(self.source.len() + text.len());
-        out.push_str(&self.source[..start]);
+        out.push_str(text_at(&self.source, ..start)?);
         out.push_str(&text);
-        out.push_str(&self.source[line_start..]);
+        out.push_str(text_at(&self.source, line_start..)?);
         let reparsed = ModuleFile::parse(&out)?;
         if reparsed.floor_comment(name)?.as_deref() != Some(reason) {
             return Err(ModuleError::NoInsertPoint {
@@ -590,10 +597,13 @@ impl ModuleFile {
 
     /// The byte offset where the `# floor: ` lines above `call` start, and those lines.
     fn floor_lines(&self, call: &Call) -> Result<(usize, Vec<&str>), ModuleError> {
-        let line_start = self.source[..call.span.start]
+        let line_start = text_at(&self.source, ..call.span.start)?
             .rfind('\n')
             .map_or(0, |at| at + 1);
-        if !self.source[line_start..call.span.start].trim().is_empty() {
+        if !text_at(&self.source, line_start..call.span.start)?
+            .trim()
+            .is_empty()
+        {
             return Err(ModuleError::NoInsertPoint {
                 reason: format!(
                     "bazel_dep at line {} does not start its own line",
@@ -605,8 +615,10 @@ impl ModuleFile {
         let mut lines = Vec::new();
         while start > 0 {
             let prev_end = start - 1;
-            let prev_start = self.source[..prev_end].rfind('\n').map_or(0, |at| at + 1);
-            let line = self.source[prev_start..prev_end].trim_end_matches('\r');
+            let prev_start = text_at(&self.source, ..prev_end)?
+                .rfind('\n')
+                .map_or(0, |at| at + 1);
+            let line = text_at(&self.source, prev_start..prev_end)?.trim_end_matches('\r');
             if !line.trim_start().starts_with(FLOOR_MARKER) {
                 break;
             }
@@ -687,7 +699,7 @@ impl ModuleFile {
             if !matches!(call.positional.first(), Some(Value::Ident(v)) if v == binding) {
                 continue;
             }
-            for value in &call.positional[1..] {
+            for value in call.positional.iter().skip(1) {
                 if let Value::Str(repo) = value {
                     out.push((repo.value.as_str(), call.line));
                 }
@@ -811,7 +823,7 @@ impl ModuleFile {
             {
                 continue;
             }
-            for value in &call.positional[1..] {
+            for value in call.positional.iter().skip(1) {
                 if let Value::Str(repo) = value
                     && repo.value == hub.name
                 {
@@ -838,7 +850,10 @@ impl ModuleFile {
                     .is_some_and(|(proxy, tag)| tag == "from_toml" && proxies.contains(&proxy))
             })
             .filter_map(|call| {
-                Some((call.str("name").unwrap_or("maven"), call.str("libs_versions_toml")?))
+                Some((
+                    call.str("name").unwrap_or("maven"),
+                    call.str("libs_versions_toml")?,
+                ))
             })
             .collect()
     }
@@ -1297,7 +1312,7 @@ impl ModuleFile {
                 }
                 text.push_str(&line);
                 text.push_str(eol);
-                splice(&self.source, at, &text)
+                splice(&self.source, at, &text)?
             }
             None => {
                 let mut text = String::new();
@@ -1309,7 +1324,7 @@ impl ModuleFile {
                 }
                 text.push_str(&line);
                 text.push_str(eol);
-                splice(&self.source, self.source.len(), &text)
+                splice(&self.source, self.source.len(), &text)?
             }
         };
         let reparsed = ModuleFile::parse(&out)?;
@@ -1380,7 +1395,7 @@ impl ModuleFile {
                 text.push_str(eol);
             }
         }
-        let out = splice(&self.source, self.source.len(), &text);
+        let out = splice(&self.source, self.source.len(), &text)?;
         let reparsed = ModuleFile::parse(&out)?;
         let tag_name = |tag: &NewTag| format!("{binding}.{}", tag.name);
         let count = |file: &ModuleFile, name: &str| file.calls_named(name).count();
@@ -1470,16 +1485,18 @@ impl ModuleFile {
             });
         };
         let source = &self.source;
-        let line_start = source[..last.span.start].rfind('\n').map_or(0, |at| at + 1);
-        let before = &source[line_start..last.span.start];
-        let quote = if source[last.span.clone()].starts_with('\'') {
+        let line_start = text_at(source, ..last.span.start)?
+            .rfind('\n')
+            .map_or(0, |at| at + 1);
+        let before = text_at(source, line_start..last.span.start)?;
+        let quote = if text_at(source, last.span.clone())?.starts_with('\'') {
             '\''
         } else {
             '"'
         };
         let literal = format!("{quote}{coordinate}{quote}");
         let out = if before.trim().is_empty() {
-            let rest = &source[last.span.end..];
+            let rest = text_at(source, last.span.end..)?;
             let comma = rest.trim_start_matches([' ', '\t']).starts_with(',');
             let eol = line_ending(source);
             if comma {
@@ -1492,12 +1509,12 @@ impl ModuleFile {
                 text.push_str(&literal);
                 text.push(',');
                 text.push_str(eol);
-                splice(source, at, &text)
+                splice(source, at, &text)?
             } else {
-                splice(source, last.span.end, &format!(",{eol}{before}{literal}"))
+                splice(source, last.span.end, &format!(",{eol}{before}{literal}"))?
             }
         } else {
-            splice(source, last.span.end, &format!(", {literal}"))
+            splice(source, last.span.end, &format!(", {literal}"))?
         };
         let reparsed = ModuleFile::parse(&out)?;
         let mut expected: Vec<String> = self
@@ -1570,21 +1587,20 @@ impl ModuleFile {
                 value: value.to_owned(),
             });
         }
-        let token = &self.source[literal.span.clone()];
+        let token = text_at(&self.source, literal.span.clone())?;
         let open = token.find(['"', '\'']).unwrap_or(0);
-        let body = &token[open..];
-        let quote = if body.starts_with("\"\"\"") || body.starts_with("'''") {
-            &body[..3]
-        } else {
-            &body[..1]
-        };
+        let (prefix, body) = token.split_at_checked(open).unwrap_or(("", token));
+        let quote = ["\"\"\"", "'''", "\"", "'"]
+            .into_iter()
+            .find(|quote| body.starts_with(quote))
+            .unwrap_or_default();
         let mut out = String::with_capacity(self.source.len() + value.len());
-        out.push_str(&self.source[..literal.span.start]);
-        out.push_str(&token[..open]);
+        out.push_str(text_at(&self.source, ..literal.span.start)?);
+        out.push_str(prefix);
         out.push_str(quote);
         out.push_str(value);
         out.push_str(quote);
-        out.push_str(&self.source[literal.span.end..]);
+        out.push_str(text_at(&self.source, literal.span.end..)?);
         Ok(out)
     }
 }
@@ -1663,17 +1679,34 @@ fn line_ending(source: &str) -> &'static str {
 
 /// The byte just past the newline that ends the line holding `at`, or the source end.
 fn line_end(source: &str, at: usize) -> usize {
-    source[at..]
-        .find('\n')
+    source
+        .get(at..)
+        .and_then(|rest| rest.find('\n'))
         .map_or(source.len(), |off| at + off + 1)
 }
 
-fn splice(source: &str, at: usize, text: &str) -> String {
+fn splice(source: &str, at: usize, text: &str) -> Result<String, ModuleError> {
+    let (head, tail) = source
+        .split_at_checked(at)
+        .ok_or_else(|| ModuleError::NoInsertPoint {
+            reason: format!("byte {at} is not a character boundary of the source"),
+        })?;
     let mut out = String::with_capacity(source.len() + text.len());
-    out.push_str(&source[..at]);
+    out.push_str(head);
     out.push_str(text);
-    out.push_str(&source[at..]);
-    out
+    out.push_str(tail);
+    Ok(out)
+}
+
+fn text_at<R>(source: &str, range: R) -> Result<&str, ModuleError>
+where
+    R: std::slice::SliceIndex<str, Output = str> + std::fmt::Debug + Clone,
+{
+    source
+        .get(range.clone())
+        .ok_or_else(|| ModuleError::NoInsertPoint {
+            reason: format!("byte range {range:?} is not inside the source"),
+        })
 }
 
 /// The module strings of every `load()` in a .bzl source, in source order.

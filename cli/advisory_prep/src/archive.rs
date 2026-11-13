@@ -73,13 +73,19 @@ fn field_at(bytes: &[u8], at: usize, len: usize) -> Result<&[u8], ArchiveError> 
 }
 
 fn u16_at(bytes: &[u8], at: usize) -> Result<u16, ArchiveError> {
-    let raw = field_at(bytes, at, 2)?;
-    Ok(u16::from_le_bytes([raw[0], raw[1]]))
+    array_at(bytes, at).map(u16::from_le_bytes)
 }
 
 fn u32_at(bytes: &[u8], at: usize) -> Result<u32, ArchiveError> {
-    let raw = field_at(bytes, at, 4)?;
-    Ok(u32::from_le_bytes([raw[0], raw[1], raw[2], raw[3]]))
+    array_at(bytes, at).map(u32::from_le_bytes)
+}
+
+fn array_at<const N: usize>(bytes: &[u8], at: usize) -> Result<[u8; N], ArchiveError> {
+    field_at(bytes, at, N)?
+        .try_into()
+        .map_err(|_| ArchiveError::BadCentralDirectory {
+            detail: format!("field at {at} is not {N} bytes"),
+        })
 }
 
 fn no_zip64(value: u32, field: &str) -> Result<u32, ArchiveError> {
@@ -109,10 +115,7 @@ fn end_of_central_directory(archive: &[u8]) -> Result<usize, ArchiveError> {
 }
 
 fn u64_at(bytes: &[u8], at: usize) -> Result<u64, ArchiveError> {
-    let raw = field_at(bytes, at, 8)?;
-    Ok(u64::from_le_bytes([
-        raw[0], raw[1], raw[2], raw[3], raw[4], raw[5], raw[6], raw[7],
-    ]))
+    array_at(bytes, at).map(u64::from_le_bytes)
 }
 
 fn offset_of(value: u64, field: &str) -> Result<usize, ArchiveError> {

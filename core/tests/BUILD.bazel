@@ -112,6 +112,7 @@ no_coverage_tests(name = "no_coverage")
 
 no_coverage_build_scripts_test(
     name = "starlark_harness_build_scripts_no_coverage_test",
+    size = "small",
     target_under_test = ":warnings_parity",
 )
 

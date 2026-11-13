@@ -1,4 +1,4 @@
-"""Hackage packages from a cabal.lock.json: one repository each and a hub of aliases."""
+"""Hackage packages from a cabal lock file: one repository each and a hub of aliases."""
 
 load("//core:pins.bzl", "lock_problems")
 load("//core:repo.bzl", "hub_repo")

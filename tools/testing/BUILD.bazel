@@ -190,6 +190,7 @@ testing_rust_test(
 
 testing_rust_test(
     name = "toolchain_gate_test",
+    size = "small",
     data = ["//:module_srcs"],
     deps = [":dx_testing"],
 )
@@ -328,6 +329,7 @@ rust_binary(
 # keep
 rust_test(
     name = "determinism_check_test",
+    size = "small",
     crate = ":determinism_check",
     compile_data = [
         "exec_log_fixtures/first.log.zst",

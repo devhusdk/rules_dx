@@ -27,6 +27,7 @@ rust_binary(
 
 build_test(
     name = "rust_link_build_test",
+    size = "small",
     targets = [":rust_link"],
     target_compatible_with = _WINDOWS_X86_64,
 )

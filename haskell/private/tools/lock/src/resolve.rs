@@ -407,7 +407,7 @@ pub fn stack_pins(
     Ok(pins)
 }
 
-/// Returns a `cabal.project.freeze` that pins every package of `pins`, then the index-state when one is given.
+/// Returns a freeze file that pins every package of `pins`, then the index-state when one is given.
 #[must_use]
 pub fn freeze_text(pins: &BTreeMap<String, String>, state: Option<&str>) -> String {
     let body = pins
@@ -712,7 +712,11 @@ impl Resolver for Cabal {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
             Err(error) => return Err(Error::new(format!("{STACK_LOCK}: {error}"))),
         };
-        let freeze = set.join(hub.state.as_deref().unwrap_or("cabal.project.freeze"));
+        let state_file = hub
+            .state
+            .as_deref()
+            .ok_or_else(|| Error::new("the hub names no state file"))?;
+        let freeze = set.join(state_file);
         let write = |text: String| {
             std::fs::write(&freeze, text)
                 .map_err(|error| Error::new(format!("{}: {error}", freeze.display())))

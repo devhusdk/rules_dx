@@ -166,5 +166,6 @@ real_source_target(
 
 no_coverage_build_scripts_test(
     name = "launcher_build_scripts_no_coverage_test",
+    size = "small",
     target_under_test = ":pass_test",
 )

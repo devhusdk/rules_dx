@@ -1903,6 +1903,11 @@ use_repo(
 bazel_dep(name = "rules_oci", version = "2.3.0")
 single_version_override(
     module_name = "rules_oci",
+    patch_strip = 1,
+    patches = [
+        "//patches/rules_oci:descriptor_image.patch",
+        "//patches/rules_oci:descriptor_util.patch",
+    ],
     version = "2.3.0",
 )
 

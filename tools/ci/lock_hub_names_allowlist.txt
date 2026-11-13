@@ -1,9 +1,7 @@
 hub cli/adopt/src/lock_hubs.rs pnpm
 hub cli/cli/src/exec/affected.rs crates
 hub cli/cli/src/exec/generate.rs crates
-hub cli/cli/src/exec/generate.rs maven
 hub cli/cli/src/exec/quality_edits.rs maven
-hub cli/cli/src/exec/update_live.rs maven
 hub cli/cli/src/exec/update_live.rs pnpm
 hub cli/cli/src/exec/update_unused.rs crates
 hub cli/cli/src/exec/update_unused.rs maven
@@ -19,7 +17,5 @@ hub cli/update/src/backend.rs pnpm
 hub core/quality/result/src/build_deps.rs crates
 hub core/quality/result/src/build_deps.rs maven
 hub deploy/private/release/src/inventory.rs crates
-hub gazelle/javascript/lang.go npm
-hub gazelle/protobuf/lang.go paket.main
 hub gazelle/rust/doc.go crates
 hub tools/testing/hermetic/maven_pin.rs maven

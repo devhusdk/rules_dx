@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 //! Safe extraction of release archives (tar.gz and zip) into a fresh directory.
 
 use std::collections::HashSet;
@@ -132,7 +134,7 @@ fn is_device_name(segment: &str) -> bool {
     matches!(
         stem.as_str(),
         "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
-    ) || matches!(numbered, Some(n) if n.len() == 1 && n.as_bytes()[0].is_ascii_digit())
+    ) || matches!(numbered, Some(n) if n.len() == 1 && n.bytes().all(|b| b.is_ascii_digit()))
 }
 
 struct Extraction<'a> {
@@ -241,7 +243,7 @@ pub fn extract(
     let mut file = File::open(archive)?;
     let mut head = [0u8; 4];
     let read = read_head(&mut file, &mut head)?;
-    if !format.magic_matches(&head[..read]) {
+    if !format.magic_matches(head.get(..read).unwrap_or_default()) {
         return Err(invalid(format!(
             "{} does not look like a {} archive",
             archive.display(),
@@ -285,8 +287,8 @@ pub fn read_zip_member(archive: &Path, name: &str, max_bytes: u64) -> io::Result
 
 fn read_head(file: &mut File, head: &mut [u8]) -> io::Result<usize> {
     let mut filled = 0;
-    while filled < head.len() {
-        let n = file.read(&mut head[filled..])?;
+    while let Some(rest) = head.get_mut(filled..).filter(|rest| !rest.is_empty()) {
+        let n = file.read(rest)?;
         if n == 0 {
             break;
         }

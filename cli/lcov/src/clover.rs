@@ -9,13 +9,12 @@ pub fn clover_to_lcov(xml: &str) -> Result<String, LcovError> {
     let mut files: BTreeMap<String, BTreeMap<u32, u64>> = BTreeMap::new();
     let mut current: Option<String> = None;
     let mut rest = xml;
-    while let Some(start) = rest.find('<') {
-        let after = &rest[start + 1..];
-        let end = after
-            .find('>')
+    while let Some((_, after)) = rest.split_once('<') {
+        let (tag, tail) = after
+            .split_once('>')
             .ok_or_else(|| clover_error("unterminated tag"))?;
-        let tag = after[..end].trim_end_matches('/');
-        rest = &after[end + 1..];
+        let tag = tag.trim_end_matches('/');
+        rest = tail;
         let (name, attrs) = tag.split_once(char::is_whitespace).unwrap_or((tag, ""));
         match name {
             "file" => {
@@ -71,16 +70,15 @@ fn number<T: std::str::FromStr>(attrs: &str, key: &str) -> Result<T, LcovError> 
 
 pub(crate) fn attribute(attrs: &str, key: &str) -> Option<String> {
     let mut rest = attrs;
-    while let Some(eq) = rest.find('=') {
-        let name = rest[..eq].trim();
-        let quoted = rest[eq + 1..].trim_start();
-        let quote = quoted.chars().next().filter(|c| *c == '"' || *c == '\'')?;
-        let body = &quoted[1..];
-        let close = body.find(quote)?;
+    while let Some((name, tail)) = rest.split_once('=') {
+        let name = name.trim();
+        let mut quoted = tail.trim_start().chars();
+        let quote = quoted.next().filter(|c| *c == '"' || *c == '\'')?;
+        let (value, after) = quoted.as_str().split_once(quote)?;
         if name == key {
-            return Some(unescape(&body[..close]));
+            return Some(unescape(value));
         }
-        rest = &body[close + 1..];
+        rest = after;
     }
     None
 }

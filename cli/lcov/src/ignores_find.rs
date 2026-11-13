@@ -8,8 +8,10 @@ pub fn find_ignores(path: &str, source: &str) -> Result<Ignores, LcovError> {
     for (index, line) in lines.iter().enumerate() {
         let lineno = index + 1;
         let comment = comment_text(path, line);
-        for (pos, _) in comment.match_indices("LCOV_EXCL") {
-            let rest = &comment[pos + "LCOV_EXCL".len()..];
+        for (pos, marker) in comment.match_indices("LCOV_EXCL") {
+            let Some(rest) = comment.get(pos + marker.len()..) else {
+                continue;
+            };
             if take_word(rest, "_LINE") {
                 let reason = nearby_reason(path, "LINE directive", lineno, &lines)?;
                 ignores.singles.insert(lineno as u32, reason);

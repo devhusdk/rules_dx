@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 //! Loads and validates `dx.toml`, and holds the conventions `security.toml` and
 //! `license.toml` share with it.
 

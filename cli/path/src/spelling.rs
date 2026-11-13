@@ -52,10 +52,12 @@ pub fn manifest(path: &Path) -> String {
 /// Returns one path the way Git's `sh` on Windows reads it.
 pub fn msys(path: &Path) -> String {
     let text = posix(path);
-    let bytes = text.as_bytes();
-    if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
-        let drive = (bytes[0] as char).to_ascii_lowercase();
-        return format!("/{drive}{}", &text[2..]);
+    let mut chars = text.chars();
+    if let (Some(letter), Some(':')) = (chars.next(), chars.next())
+        && letter.is_ascii_alphabetic()
+    {
+        let drive = letter.to_ascii_lowercase();
+        return format!("/{drive}{}", chars.as_str());
     }
     text
 }

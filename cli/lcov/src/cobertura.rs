@@ -14,17 +14,16 @@ pub fn cobertura_to_lcov(xml: &str) -> Result<String, LcovError> {
     let mut in_methods = false;
     let mut source: Option<String> = None;
     let mut rest = xml;
-    while let Some(start) = rest.find('<') {
-        let after = &rest[start + 1..];
-        let end = after
-            .find('>')
+    while let Some((_, after)) = rest.split_once('<') {
+        let (tag, tail) = after
+            .split_once('>')
             .ok_or_else(|| cobertura_error("unterminated tag"))?;
-        let tag = after[..end].trim_end_matches('/');
-        rest = &after[end + 1..];
+        let tag = tag.trim_end_matches('/');
+        rest = tail;
         let (name, attrs) = tag.split_once(char::is_whitespace).unwrap_or((tag, ""));
         match name {
             "source" if source.is_none() => {
-                let text = &rest[..rest.find('<').unwrap_or(rest.len())];
+                let text = rest.split('<').next().unwrap_or(rest);
                 source = Some(text.trim().trim_end_matches('/').to_owned());
             }
             "class" => {

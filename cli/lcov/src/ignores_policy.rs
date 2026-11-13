@@ -3,8 +3,8 @@ use crate::LcovError;
 pub const MAX_REASON_LEN: usize = 120;
 
 fn key_value(line: &str, key: &str) -> Option<String> {
-    let offset = line.find(key)?;
-    let value = line[offset + key.len()..].trim();
+    let (_, value) = line.split_once(key)?;
+    let value = value.trim();
     // An OCaml marker closes its comment on the same line.
     let value = value
         .strip_suffix("*)")
@@ -37,12 +37,15 @@ pub(crate) fn nearby_reason(
     lineno: usize,
     lines: &[&str],
 ) -> Result<String, LcovError> {
-    let current = lines[lineno - 1];
-    let previous = if lineno >= 2 {
-        Some(lines[lineno - 2])
-    } else {
-        None
-    };
+    let current = lineno
+        .checked_sub(1)
+        .and_then(|index| lines.get(index))
+        .copied()
+        .unwrap_or_default();
+    let previous = lineno
+        .checked_sub(2)
+        .and_then(|index| lines.get(index))
+        .copied();
     let reason = if let Some(reason) = reason_value(current) {
         reason
     } else if let Some(prev) = previous {

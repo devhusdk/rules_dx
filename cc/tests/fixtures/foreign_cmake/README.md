@@ -10,6 +10,7 @@ shell and has no shell toolchain to declare it through.
 The root MODULE.bazel uses `tools.explicit()` with pinned cmake, ninja, make,
 m4 and pkgconfig, so rules_foreign_cc has no host cmake fallback. The arm64
 cell runs cmake with `--trace-expand` so its log shows `CMAKE_CROSSCOMPILING`.
+The arm64 cross targets build on Linux x86_64 hosts only.
 
 `unknown_generator_test` checks that `-GBogus` fails analysis with a clear
 message and no fallback generator.

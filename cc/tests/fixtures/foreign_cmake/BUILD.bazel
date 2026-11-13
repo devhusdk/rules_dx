@@ -72,6 +72,7 @@ cmake(
     lib_source = "@foreign_cmake_zlib//:all_srcs",
     out_static_libs = ["libz.a"],
     tags = _THIRD_PARTY,
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 filegroup(
@@ -79,12 +80,14 @@ filegroup(
     srcs = [":zlib_arm64"],
     output_group = "CMake_logs",
     tags = _THIRD_PARTY,
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 platform_transition_filegroup(
     name = "zlib_arm64_log",
     srcs = [":zlib_arm64_cmake_log"],
     tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
     target_platform = "@rules_dx//appimage:linux_arm64",
 )
 
@@ -92,6 +95,7 @@ platform_transition_filegroup(
     name = "zlib_arm64_files",
     srcs = [":zlib_arm64"],
     tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
     target_platform = "@rules_dx//appimage:linux_arm64",
 )
 

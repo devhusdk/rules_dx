@@ -5,4 +5,4 @@
 //tools/testing/hermetic:cpp_fixture_gcc 3600
 //tools/testing/hermetic:cpp_fixture_msvc 3600
 //tools/testing/hermetic:cpp_rust 653
-//tools/testing:nested_bazel_harness_test 300
+//tools/testing:nested_bazel_harness_test 33

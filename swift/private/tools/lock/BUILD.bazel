@@ -40,7 +40,7 @@ rust_binary(
         "@platforms//os:macos": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
     deps = all_crate_deps(
         package_name = "swift/private/tools/swift_lock",
         normal = True,
@@ -108,12 +108,12 @@ real_source_target(
 
 exports_files(
     ["Cargo.toml"],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 exports_files(
     [
         "src/main.rs",
     ],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )

@@ -3,7 +3,7 @@
 use dx_nested::compose::{rules_dx_override, rules_flutter_override, rules_py_override};
 use dx_nested::{self as nested, Case, footprint, plain_fixture};
 use dx_release_tools::presubmit;
-use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
+use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, scratch_dir, write_text};
 
 fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
@@ -50,8 +50,32 @@ fn built_dx(case: &Case) -> std::path::PathBuf {
     std::path::PathBuf::from(info.stdout.trim()).join(files.stdout.trim())
 }
 
+/// The `PATH` of the nested commands: a directory holding only the host `ldd`, which the rules_py
+/// host platform repository runs on Linux.
+fn ldd_path() -> String {
+    let dir = scratch_dir("quickstart-ldd");
+    #[cfg(target_os = "linux")]
+    {
+        let link = dir.join("ldd");
+        if !link.exists() {
+            let path = std::env::var_os("PATH").unwrap_or_default();
+            let ldd = std::env::split_paths(&path)
+                .map(|entry| entry.join("ldd"))
+                .find(|candidate| candidate.is_file())
+                .unwrap_or_else(|| panic!("no ldd on the test PATH {path:?}"));
+            if let Err(error) = std::os::unix::fs::symlink(&ldd, &link)
+                && !link.exists()
+            {
+                panic!("{}: {error}", link.display());
+            }
+        }
+    }
+    dir.to_string_lossy().into_owned()
+}
+
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
-    let run = case.bazel(args);
+    let path = ldd_path();
+    let run = case.bazel_with(args, &[("PATH", path.as_str())]);
     ok(&run, what);
     run
 }
@@ -123,10 +147,14 @@ fn the_readme_quickstart_runs_as_written() {
         &read_text(&module).replace(&rules_py_override(), ""),
     );
     let root = case.root().to_string_lossy().into_owned();
+    let path = ldd_path();
     let init = case.run(
         &dx,
         &["init", "--apply"],
-        &[("BUILD_WORKSPACE_DIRECTORY", root.as_str())],
+        &[
+            ("BUILD_WORKSPACE_DIRECTORY", root.as_str()),
+            ("PATH", path.as_str()),
+        ],
     );
     ok(&init, "dx init --apply");
     run_in(

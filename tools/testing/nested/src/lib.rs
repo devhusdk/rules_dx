@@ -1862,6 +1862,11 @@ fn runfile(var: &str) -> PathBuf {
 }
 
 #[cfg(test)]
+fn bazel_wrapper_runfile() -> PathBuf {
+    runfile("DX_TEST_NESTED_BAZEL_SHIM")
+}
+
+#[cfg(test)]
 fn probe() -> PathBuf {
     runfile("DX_TEST_NESTED_PROBE")
 }
@@ -1907,7 +1912,7 @@ mod tests {
             bazel: bazel.to_path_buf(),
             heap: DEFAULT_HEAP.to_owned(),
             offline: false,
-            shim: Some(runfile("DX_TEST_NESTED_BAZEL_SHIM")),
+            shim: Some(bazel_wrapper_runfile()),
             cache: Vec::new(),
             record: None,
         }
@@ -2362,7 +2367,7 @@ mod tests {
 
     #[test]
     fn the_shim_runs_the_pinned_bazel_with_the_startup_options() {
-        let shim = runfile("DX_TEST_NESTED_BAZEL_SHIM");
+        let shim = bazel_wrapper_runfile();
         let dir = scratch("nested-shim-");
         let (bazel, log) = recorder(dir.path());
         let shimmed = Config {
@@ -2551,7 +2556,7 @@ mod tests {
         wait_until("the stand-in", || {
             servers_in_workspaces(&workspaces) == vec![pid]
         });
-        let mut reaper = spawn_reaper(&runfile("DX_TEST_NESTED_BAZEL_SHIM"), owner.id(), &home).expect("reaper");
+        let mut reaper = spawn_reaper(&bazel_wrapper_runfile(), owner.id(), &home).expect("reaper");
         std::thread::sleep(Duration::from_millis(1500));
         assert!(alive(pid));
         owner.kill().expect("kill owner");
@@ -2889,7 +2894,7 @@ mod portable_tests {
         wait_until("the stand-in", &|| {
             servers_in_workspaces(&workspaces).contains(&pid)
         });
-        let mut reaper = spawn_reaper(&runfile("DX_TEST_NESTED_BAZEL_SHIM"), owner.id(), &home)
+        let mut reaper = spawn_reaper(&bazel_wrapper_runfile(), owner.id(), &home)
             .expect("reaper");
         let log = || std::fs::read_to_string(home.join(REAPER_LOG)).unwrap_or_default();
         std::thread::sleep(Duration::from_millis(1500));

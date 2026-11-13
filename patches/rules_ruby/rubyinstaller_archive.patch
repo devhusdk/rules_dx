@@ -1,7 +1,14 @@
 diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
 --- a/ruby/private/download.bzl
 +++ b/ruby/private/download.bzl
-@@ -11,7 +11,17 @@
+@@ -1,5 +1,6 @@
+ "Repository rule for fetching Ruby interpreters"
+ 
++load("@rules_dx//core:seven_zip.bzl", "seven_zip_fetch")
+ load("//ruby/private:portable_ruby_checksums.bzl", "PORTABLE_RUBY_CHECKSUMS", "PORTABLE_RUBY_DEFAULT_SUFFIXES")
+ load(
+     "//ruby/private/toolchain:platforms.bzl",
+@@ -11,7 +12,15 @@
  
  _JRUBY_BINARY_URL = "https://repo1.maven.org/maven2/org/jruby/jruby-dist/{version}/jruby-dist-{version}-bin.tar.gz"
  _RUBY_BUILD_URL = "https://github.com/rbenv/ruby-build/archive/refs/tags/v{version}.tar.gz"
@@ -15,12 +22,10 @@ diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
 +_MSYS2_MAKE_URL = "https://repo.msys2.org/msys/x86_64/" + _MSYS2_MAKE_NAME
 +_LLVM_MINGW_NAME = "llvm-mingw-20261104-ucrt-aarch64.zip"
 +_LLVM_MINGW_URL = "https://github.com/mstorsjo/llvm-mingw/releases/download/20261104/" + _LLVM_MINGW_NAME
-+_SEVEN_ZIP_NAME = "7zr-26.06.exe"
-+_SEVEN_ZIP_URL = "https://github.com/ip7z/7zip/releases/download/26.06/7zr.exe"
  _PORTABLE_RUBY_NAME = "ruby-{version}.{platform}.tar.gz"
  _PORTABLE_RUBY_URL = "https://github.com/bazel-contrib/portable-ruby/releases/download/{release}/{name}"
  
-@@ -179,7 +189,7 @@
+@@ -179,7 +188,7 @@
          # Windows tarballs. Applies whether the platform was inferred from the
          # host (single-platform mode) or set explicitly via the `platform` attr
          # (multi-platform mode picking the Windows per-platform repo).
@@ -29,7 +34,7 @@ diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
      elif repository_ctx.attr.portable_ruby:
          _install_portable_ruby(
              repository_ctx,
-@@ -267,7 +277,7 @@
+@@ -267,7 +276,7 @@
  
      Only portable Ruby is: it is a checksummed archive and writes no absolute
      paths. System Ruby depends on the host, TruffleRuby records Homebrew
@@ -38,7 +43,7 @@ diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
  
      Args:
          version: Ruby version string
-@@ -277,7 +287,7 @@
+@@ -277,7 +286,7 @@
      Returns:
          bool
      """
@@ -47,7 +52,7 @@ diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
          return False
      if version == "system" or version.startswith("jruby") or version.startswith("truffleruby"):
          return False
-@@ -323,39 +333,98 @@
+@@ -323,39 +332,91 @@
      repository_ctx.symlink("dist/bin/bundle.bat", "dist/bin/bundle.cmd")
      repository_ctx.symlink("dist/bin/jgem.bat", "dist/bin/jgem.cmd")
  
@@ -91,7 +96,27 @@ diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
 +        sha256 = checksums[_MSYS2_BASE_NAME],
 +        output = "dist/msys64",
 +        stripPrefix = "msys64",
-+    )
+     )
+-
+-    repository_ctx.report_progress("Installing Ruby %s" % version)
+-    _execute_command(repository_ctx, [
+-        "./ruby-installer.exe",
+-        "/components=ruby,msys2",
+-        "/currentuser",
+-        "/dir=dist",
+-        "/tasks=nomodpath,noassocfiles",
+-        "/verysilent",
+-    ])
+-    repository_ctx.delete("ruby-installer.exe")
+-
+-    _execute_command(repository_ctx, ["./dist/bin/ridk.cmd", "install", "1", "3"])
+-
+-    if len(repository_ctx.attr.msys2_packages) > 0:
+-        mingw_package_prefix = _execute_command(repository_ctx, [
+-            "./dist/bin/ruby.exe",
+-            "-rruby_installer",
+-            "-e",
+-            "puts RubyInstaller::Runtime::Msys2Installation.new.mingw_package_prefix",
 +    repository_ctx.download_and_extract(
 +        url = _MSYS2_MAKE_URL,
 +        sha256 = checksums[_MSYS2_MAKE_NAME],
@@ -123,54 +148,25 @@ diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
 +            stripPrefix = stem,
 +        )
 +    else:
-+        if _SEVEN_ZIP_NAME not in checksums:
-+            fail("missing sha256 for {} in portable_ruby_checksums".format(_SEVEN_ZIP_NAME))
-+        repository_ctx.download(
-+            url = _SEVEN_ZIP_URL,
-+            sha256 = checksums[_SEVEN_ZIP_NAME],
-+            output = "7zr.exe",
-+            canonical_id = "dx-7zip:" + _SEVEN_ZIP_URL,
-+        )
++        seven_zip = seven_zip_fetch(repository_ctx, "_seven_zip")
 +        repository_ctx.download(
 +            url = archive_url,
 +            sha256 = checksums[artifact_name],
 +            output = artifact_name,
 +        )
 +        _execute_command(repository_ctx, [
-+            repository_ctx.path("7zr.exe"),
++            seven_zip,
 +            "x",
 +            "-y",
 +            "-bd",
 +            "-o_rubyinstaller",
 +            artifact_name,
-+        ])
+         ])
 +        for child in repository_ctx.path("_rubyinstaller/" + stem).readdir():
 +            repository_ctx.rename(child, "dist/" + child.basename)
 +        for path in (artifact_name, "_rubyinstaller"):
 +            repository_ctx.delete(path)
--    )
  
--    repository_ctx.report_progress("Installing Ruby %s" % version)
--    _execute_command(repository_ctx, [
--        "./ruby-installer.exe",
--        "/components=ruby,msys2",
--        "/currentuser",
--        "/dir=dist",
--        "/tasks=nomodpath,noassocfiles",
--        "/verysilent",
--    ])
--    repository_ctx.delete("ruby-installer.exe")
--
--    _execute_command(repository_ctx, ["./dist/bin/ridk.cmd", "install", "1", "3"])
--
--    if len(repository_ctx.attr.msys2_packages) > 0:
--        mingw_package_prefix = _execute_command(repository_ctx, [
--            "./dist/bin/ruby.exe",
--            "-rruby_installer",
--            "-e",
--            "puts RubyInstaller::Runtime::Msys2Installation.new.mingw_package_prefix",
--        ])
--
 -        packages = ["%s-%s" % (mingw_package_prefix, package) for package in repository_ctx.attr.msys2_packages]
 -        _execute_command(repository_ctx, ["./dist/bin/ridk.cmd", "exec", "pacman", "--sync", "--noconfirm"] + packages)
 -

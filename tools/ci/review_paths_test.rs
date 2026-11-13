@@ -1,10 +1,16 @@
-use dx_testing::{read_runfiles, resolve_runfiles};
+use dx_testing::read_runfiles;
+#[cfg(unix)]
+use dx_testing::resolve_runfiles;
+#[cfg(unix)]
 use std::io::Write;
+#[cfg(unix)]
 use std::process::{Command, Stdio};
 
 const LIST: &str = ".github/review-paths.txt";
+#[cfg(unix)]
 const SCRIPT: &str = "tools/ci/review_paths.sh";
 
+#[cfg(unix)]
 fn matched(input: &str) -> String {
     let mut child = Command::new("bash")
         .arg(resolve_runfiles(SCRIPT))
@@ -76,12 +82,14 @@ fn every_workflow_prefix_names_a_parsed_workflow() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn matches_listed_paths_only() {
     let out = matched("cli/worktree/src/lib.rs\ncli/cli/src/main.rs\ncli/plan/src/slots.rs\n");
     assert_eq!(out, "cli/worktree/src/lib.rs\ncli/plan/src/slots.rs\n");
 }
 
+#[cfg(unix)]
 #[test]
 fn prints_nothing_and_succeeds_without_a_match() {
     assert_eq!(matched("cli/cli/src/main.rs\n"), "");

@@ -56,3 +56,24 @@ fn root_excludes_do_not_hide_dx_crates_packages() {
         .collect();
     assert!(offenders.is_empty(), "{}", offenders.join("\n"));
 }
+
+#[test]
+fn root_excludes_cover_every_gazelle_extension_without_dx_crates() {
+    let excludes = root_excludes();
+    let dirs = dx_crates_manifest_dirs();
+    let mut tops: Vec<String> = read_runfiles("gazelle/subpackages.txt")
+        .lines()
+        .filter_map(|line| line.trim().split('/').next())
+        .filter(|top| !top.is_empty())
+        .map(|top| format!("gazelle/{top}"))
+        .collect();
+    tops.dedup();
+    assert!(!tops.is_empty(), "gazelle subpackages must parse");
+    let offenders: Vec<String> = tops
+        .iter()
+        .filter(|top| !dirs.iter().any(|dir| hides(top, dir)))
+        .filter(|top| !excludes.iter().any(|exclude| hides(exclude, top)))
+        .map(|top| format!("{ROOT_BUILD} has no gazelle:exclude {top}"))
+        .collect();
+    assert!(offenders.is_empty(), "{}", offenders.join("\n"));
+}

@@ -1,5 +1,8 @@
-use dx_testing::{read_runfiles, resolve_runfiles};
+use dx_testing::read_runfiles;
+#[cfg(unix)]
+use dx_testing::resolve_runfiles;
 use evidence_inputs::{PLATFORMS, validate};
+#[cfg(unix)]
 use std::process::Command;
 
 #[path = "evidence_rules/status.rs"]
@@ -9,6 +12,7 @@ const WORKFLOW: &str = ".github/workflows/evidence.yml";
 
 const SCRIPT: &str = "tools/ci/evidence_inputs.sh";
 
+#[cfg(unix)]
 const VARS: [&str; 7] = [
     "DX_SCOPE",
     "DX_TASK",
@@ -26,6 +30,7 @@ fn lookup<'a>(inputs: &[(&str, &'a str)], name: &str) -> &'a str {
         .map_or("", |(_, value)| value)
 }
 
+#[cfg(unix)]
 fn has_jq() -> bool {
     Command::new("jq")
         .arg("--version")
@@ -34,6 +39,7 @@ fn has_jq() -> bool {
 }
 
 /// Runs evidence_inputs.sh and returns what it wrote to GITHUB_OUTPUT, or None when it rejects the inputs.
+#[cfg(unix)]
 fn script(inputs: &[(&str, &str)], jq: bool) -> Option<String> {
     let dir = dx_test_scratch::scratch("evidence-inputs");
     let out = dir.path().join("github_output");
@@ -56,19 +62,22 @@ fn script(inputs: &[(&str, &str)], jq: bool) -> Option<String> {
 /// Validates with evidence_inputs/src/lib.rs and checks that the script agrees with and without jq.
 fn check(inputs: &[(&str, &str)]) -> Result<Vec<(String, String)>, String> {
     let validated = validate(|name| lookup(inputs, name).to_string()).map(|done| done.outputs);
-    let expected = validated.as_ref().ok().map(|outputs| {
-        outputs
-            .iter()
-            .map(|(key, value)| format!("{key}={value}\n"))
-            .collect::<String>()
-    });
-    let modes: &[bool] = if has_jq() { &[false, true] } else { &[false] };
-    for &jq in modes {
-        assert_eq!(
-            script(inputs, jq),
-            expected,
-            "{SCRIPT} (jq: {jq}) disagrees with evidence_inputs/src/lib.rs on {inputs:?}"
-        );
+    #[cfg(unix)]
+    {
+        let expected = validated.as_ref().ok().map(|outputs| {
+            outputs
+                .iter()
+                .map(|(key, value)| format!("{key}={value}\n"))
+                .collect::<String>()
+        });
+        let modes: &[bool] = if has_jq() { &[false, true] } else { &[false] };
+        for &jq in modes {
+            assert_eq!(
+                script(inputs, jq),
+                expected,
+                "{SCRIPT} (jq: {jq}) disagrees with evidence_inputs/src/lib.rs on {inputs:?}"
+            );
+        }
     }
     validated
 }

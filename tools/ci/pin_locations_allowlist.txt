@@ -1,5 +1,5 @@
-MODULE.bazel digest-outside-pins 57
-MODULE.bazel duplicate-pin 9
+MODULE.bazel digest-outside-pins 56
+MODULE.bazel duplicate-pin 8
 MODULE.bazel no-digest 1
 android/private/sdk/repos.bzl digest-outside-pins 9
 appimage/private/packer/src/lib.rs digest-outside-pins 1
@@ -27,7 +27,6 @@ cli/output/src/lifecycle.rs digest-outside-pins 1
 cli/output/src/lifecycle.rs duplicate-pin 1
 cli/output/src/validation.rs digest-outside-pins 1
 cli/output/src/validation.rs duplicate-pin 1
-cli/sbom/schema/BUILD.bazel digest-outside-pins 4
 cli/update/src/advisory.rs digest-outside-pins 2
 cli/update/src/advisory.rs duplicate-pin 2
 cli/update/src/discover/containers.rs digest-outside-pins 2

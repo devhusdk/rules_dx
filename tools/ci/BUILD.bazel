@@ -802,6 +802,7 @@ rust_test(
     data = [
         "//:BUILD.bazel",
         "//:MODULE.bazel",
+        "//gazelle:subpackages",
     ],
     deps = all_crate_deps(
         package_name = "tools/ci_tests",

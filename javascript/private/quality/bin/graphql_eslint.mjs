@@ -144,7 +144,7 @@ function readConfig(file) {
 
 async function typecheck(schemaFiles, documentFiles, files) {
   const graphql = await import("graphql");
-  const { validateSDL } = await import("graphql/validation/validate.mjs");
+  const { validateSDL } = await import("graphql/validation/validate");
   const messages = new Map(files.map((file) => [file, []]));
   const report = (file, ruleId, error) => {
     const location = error.locations?.[0];

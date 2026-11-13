@@ -74,8 +74,11 @@ pub fn parse_djlint_format(
     let lines: Vec<&str> = text.lines().collect();
     let mut changed: Vec<&str> = Vec::new();
     for pair in lines.windows(2) {
-        let name = pair[0].trim();
-        if !name.is_empty() && !name.starts_with('\u{2500}') && pair[1].starts_with('\u{2500}') {
+        let [first, second] = pair else {
+            continue;
+        };
+        let name = first.trim();
+        if !name.is_empty() && !name.starts_with('\u{2500}') && second.starts_with('\u{2500}') {
             changed.push(name);
         }
     }
@@ -114,14 +117,15 @@ fn is_rule(text: &str) -> bool {
 
 fn split_location(line: &str) -> Option<(&str, u64, u64, &str)> {
     for (index, _) in line.match_indices(':') {
-        let rest = &line[index + 1..];
+        let (head, rest) = line.split_at_checked(index)?;
+        let rest = rest.get(1..)?;
         let mut parts = rest.splitn(3, ':');
         let (Some(row), Some(column), Some(tail)) = (parts.next(), parts.next(), parts.next())
         else {
             continue;
         };
         if let (Ok(row), Ok(column)) = (row.parse(), column.parse()) {
-            return Some((&line[..index], row, column, tail.trim()));
+            return Some((head, row, column, tail.trim()));
         }
     }
     None

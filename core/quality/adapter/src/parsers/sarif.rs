@@ -126,8 +126,8 @@ fn percent_decoded(path: &str) -> String {
     let bytes = path.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut at = 0;
-    while at < bytes.len() {
-        let escaped = (bytes[at] == b'%')
+    while let Some(&current) = bytes.get(at) {
+        let escaped = (current == b'%')
             .then(|| path.get(at + 1..at + 3))
             .flatten()
             .and_then(|hex| u8::from_str_radix(hex, 16).ok());
@@ -137,7 +137,7 @@ fn percent_decoded(path: &str) -> String {
                 at += 3;
             }
             None => {
-                out.push(bytes[at]);
+                out.push(current);
                 at += 1;
             }
         }

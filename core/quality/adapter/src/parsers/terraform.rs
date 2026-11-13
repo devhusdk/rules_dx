@@ -38,8 +38,9 @@ fn syntax_errors(
         let Some(summary) = line.strip_prefix("Error: ") else {
             continue;
         };
-        let Some((path, number)) = lines[index + 1..]
+        let Some((path, number)) = lines
             .iter()
+            .skip(index + 1)
             .take_while(|next| !next.starts_with("Error: "))
             .find_map(|next| located(next))
         else {
@@ -72,13 +73,13 @@ fn syntax_errors(
 fn located(line: &str) -> Option<(&str, u64)> {
     let rest = line.strip_prefix("  on ")?;
     rest.match_indices(" line ").find_map(|(at, marker)| {
-        let tail = &rest[at + marker.len()..];
+        let tail = rest.get(at + marker.len()..)?;
         let digits: String = tail.chars().take_while(char::is_ascii_digit).collect();
-        let after = &tail[digits.len()..];
+        let after = tail.get(digits.len()..)?;
         if !(after.is_empty() || after.starts_with(',') || after.starts_with(':')) {
             return None;
         }
-        Some((&rest[..at], digits.parse().ok()?))
+        Some((rest.get(..at)?, digits.parse().ok()?))
     })
 }
 

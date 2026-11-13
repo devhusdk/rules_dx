@@ -48,8 +48,8 @@ impl Document {
             if let Some(found) = self.pointers.get(at) {
                 return *found;
             }
-            match at.rfind('/') {
-                Some(cut) => at = &at[..cut],
+            match at.rsplit_once('/') {
+                Some((parent, _)) => at = parent,
                 None => return (self.line, self.column),
             }
         }
@@ -95,16 +95,16 @@ fn decode(bytes: &[u8]) -> Result<(&str, usize), Problem> {
     })
 }
 
-fn finish(raw: Raw, start: usize, end: usize, text: &str, bom: usize) -> Document {
+fn finish(raw: Raw, start: usize, end: usize, text: &str, bom: usize) -> Option<Document> {
     let (line, column) = raw.root.unwrap_or((1, 1));
-    let mut slice = &text[start..end];
+    let mut slice = text.get(start..end)?;
     if raw.explicit {
         slice = slice.strip_prefix("---").unwrap_or(slice);
     }
     let mut pointers = raw.pointers;
     pointers.entry(String::new()).or_insert((line, column));
     let take = |captured: &BTreeMap<String, String>, key: &str| captured.get(key).cloned();
-    Document {
+    Some(Document {
         start: start + bom,
         end: end + bom,
         line,
@@ -114,7 +114,7 @@ fn finish(raw: Raw, start: usize, end: usize, text: &str, bom: usize) -> Documen
         kind: take(&raw.captured, "/kind"),
         name: take(&raw.captured, "/metadata/name"),
         pointers,
-    }
+    })
 }
 
 fn yaml_documents(text: &str, bom: usize) -> Result<Vec<(Document, bool)>, Problem> {
@@ -124,20 +124,19 @@ fn yaml_documents(text: &str, bom: usize) -> Result<Vec<(Document, bool)>, Probl
         .iter()
         .map(|raw| offsets.byte(raw.start_char))
         .collect();
-    Ok(raws
-        .into_iter()
-        .enumerate()
-        .map(|(index, raw)| {
-            let start = starts[index];
-            let end = starts
-                .get(index + 1)
-                .copied()
-                .unwrap_or(text.len())
-                .max(start);
+    let ends = starts
+        .iter()
+        .skip(1)
+        .copied()
+        .chain(std::iter::once(text.len()));
+    raws.into_iter()
+        .zip(starts.iter().copied().zip(ends))
+        .map(|(raw, (start, end))| {
             let empty = raw.empty;
-            (finish(raw, start, end, text, bom), empty)
+            finish(raw, start, end.max(start), text, bom).map(|document| (document, empty))
         })
-        .collect())
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| syntax(1, 0, "the document offsets are out of range"))
 }
 
 fn json_document(text: &str, bom: usize) -> Result<Option<Document>, Problem> {
@@ -153,7 +152,8 @@ fn json_document(text: &str, bom: usize) -> Result<Option<Document>, Problem> {
             .map(str::to_owned)
     };
     let mut document = match scan_yaml(text) {
-        Ok(mut raws) if raws.len() == 1 => finish(raws.remove(0), 0, text.len(), text, bom),
+        Ok(mut raws) if raws.len() == 1 => finish(raws.remove(0), 0, text.len(), text, bom)
+            .ok_or_else(|| syntax(1, 0, "the document offsets are out of range"))?,
         _ => Document {
             start: bom,
             end: text.len() + bom,
@@ -235,7 +235,7 @@ mod tests {
         assert!(!first.text.contains("Deployment"));
         assert!(!second.text.contains("---"));
         assert!(second.text.contains("kind: Deployment"));
-        assert_eq!(&TWO[second.start..second.start + 3], "---");
+        assert_eq!(TWO.get(second.start..second.start + 3), Some("---"));
         assert_eq!(second.end, TWO.len());
     }
 
@@ -270,7 +270,7 @@ mod tests {
         let text = "# é\napiVersion: v1\nkind: Pod\n---\n# ü\napiVersion: v1\nkind: Service\n";
         let checked = check_file("m.yaml", text.as_bytes());
         let second = &checked.documents[1];
-        assert_eq!(&text[second.start..second.start + 3], "---");
+        assert_eq!(text.get(second.start..second.start + 3), Some("---"));
         assert_eq!(second.line, 6);
         assert!(second.text.contains("kind: Service"));
     }

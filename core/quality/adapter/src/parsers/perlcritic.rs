@@ -40,10 +40,15 @@ fn shape(detail: String) -> ParseError {
 fn violation(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
     let bad = |detail: &str| shape(format!("{detail}: {line}"));
     let fields: Vec<&str> = line.splitn(PERLCRITIC_FIELDS, '\t').collect();
-    if fields.len() != PERLCRITIC_FIELDS || fields[0] != PERLCRITIC_SENTINEL {
+    let [sentinel, path, line_text, column_text, severity_text, policy, message] =
+        fields.as_slice()
+    else {
+        return Err(bad("line outside the pinned format"));
+    };
+    if *sentinel != PERLCRITIC_SENTINEL {
         return Err(bad("line outside the pinned format"));
     }
-    let file = known(TOOL, files, fields[1])?;
+    let file = known(TOOL, files, path)?;
     let number = |text: &str| -> Result<u64, ParseError> {
         match text.parse::<u64>() {
             Ok(value) if value > 0 => Ok(value),
@@ -51,24 +56,24 @@ fn violation(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
         }
     };
     let position = TextPosition {
-        line: number(fields[2])?,
-        column: number(fields[3])?,
+        line: number(line_text)?,
+        column: number(column_text)?,
     };
     // Severity 5 is the only level dx asks for, but 1 to 5 all parse so a flag change cannot
     // turn into a parse failure.
-    let severity = match fields[4] {
+    let severity = match *severity_text {
         "5" | "4" => ToolSeverity::Error,
         "3" | "2" | "1" => ToolSeverity::Warning,
         _ => return Err(bad("unknown severity")),
     };
-    if fields[5].is_empty() {
+    if policy.is_empty() {
         return Err(bad("violation without a policy name"));
     }
     Ok(finding(
         TOOL,
         file,
-        fields[5].to_owned(),
-        fields[6].trim().to_owned(),
+        (*policy).to_owned(),
+        message.trim().to_owned(),
         severity,
         position,
         ColumnEncoding::ScalarsTabs { width: 8 },

@@ -34,7 +34,10 @@ pub fn parse_mix_format(
         }
         if let Some(path) = line.strip_prefix(FAILED_PREFIX) {
             let file = known_relative(TOOL, files, cwd, path.trim())?;
-            findings.push(syntax_error(file, path.trim(), &lines[index + 1..]));
+            let rest = lines
+                .get(index + 1..)
+                .ok_or_else(|| ParseError::shape(TOOL, "the failure line is past the output"))?;
+            findings.push(syntax_error(file, path.trim(), rest));
             listing = false;
             continue;
         }
@@ -97,7 +100,7 @@ fn syntax_error(file: &str, reported: &str, rest: &[(bool, String)]) -> FileFind
 fn position(header: &str, reported: &str) -> Option<(u64, u64)> {
     let marker = format!(" on {reported}:");
     let at = header.rfind(&marker)?;
-    let mut parts = header[at + marker.len()..].split(':');
+    let mut parts = header.get(at + marker.len()..)?.split(':');
     let line = parts.next()?.parse().ok()?;
     let column = parts.next().and_then(|part| part.parse().ok()).unwrap_or(1);
     Some((line, column))
@@ -109,8 +112,8 @@ fn summary(header: &str, reported: &str) -> String {
         .map_or(header, |(_, rest)| rest)
         .trim();
     let marker = format!(" on {reported}:");
-    body.rfind(&marker)
-        .map_or(body, |at| &body[..at])
+    body.rsplit_once(marker.as_str())
+        .map_or(body, |(head, _)| head)
         .to_owned()
 }
 

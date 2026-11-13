@@ -55,11 +55,14 @@ pub fn parse_sorbet(
         if !files.contains(&path) {
             continue;
         }
-        let (message, rule) = match message.rfind(URL_PREFIX) {
-            Some(at) if !message[at + URL_PREFIX.len()..].is_empty() => (
-                message[..at].trim_end(),
-                format!("sorbet/{}", &message[at + URL_PREFIX.len()..]),
-            ),
+        let url = message
+            .rfind(URL_PREFIX)
+            .and_then(|at| message.split_at_checked(at))
+            .and_then(|(head, from)| Some((head, from.strip_prefix(URL_PREFIX)?)));
+        let (message, rule) = match url {
+            Some((head, tail)) if !tail.is_empty() => {
+                (head.trim_end(), format!("sorbet/{tail}"))
+            }
             _ => (message, "sorbet/error".to_owned()),
         };
         findings.push(finding(
@@ -110,11 +113,18 @@ fn excerpt(out: &str) -> String {
 /// Splits `<path>:<line>: <message>`; the path ends at the first `:<digits>: `.
 fn header(line: &str) -> Option<(&str, u64, &str)> {
     for (at, _) in line.match_indices(':') {
-        let rest = &line[at + 1..];
+        let Some(rest) = line.get(at + 1..) else {
+            continue;
+        };
         let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
-        if digits > 0 && rest[digits..].starts_with(": ") && at > 0 {
-            let number = rest[..digits].parse().ok()?;
-            return Some((&line[..at], number, &rest[digits + 2..]));
+        let Some((number, after)) = rest.split_at_checked(digits) else {
+            continue;
+        };
+        if let Some(body) = after.strip_prefix(": ")
+            && digits > 0
+            && at > 0
+        {
+            return Some((line.get(..at)?, number.parse().ok()?, body));
         }
     }
     None

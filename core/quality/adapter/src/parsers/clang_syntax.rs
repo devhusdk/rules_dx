@@ -19,11 +19,11 @@ pub(super) fn diagnostic(line: &str) -> Option<(&str, u64, u64, Option<ToolSever
             line.find(&marker).map(|at| (at, marker.len(), *severity))
         })
         .min_by_key(|(at, _, _)| *at)?;
-    let mut parts = line[..at].rsplitn(3, ':');
+    let mut parts = line.get(..at)?.rsplitn(3, ':');
     let column = parts.next()?.parse().ok()?;
     let line_no = parts.next()?.parse().ok()?;
     let file = parts.next()?;
-    Some((file, line_no, column, severity, &line[at + word..]))
+    Some((file, line_no, column, severity, line.get(at + word..)?))
 }
 
 /// One `In file included from path:line:` (clang) or `from path:line,` (GCC) entry.
@@ -64,12 +64,12 @@ pub(super) fn locate<'a>(
 
 /// Splits a trailing `[-Wflag]` off the message into a rule id.
 pub(super) fn split_rule(message: &str) -> (String, String) {
-    match message.rfind(" [") {
-        Some(start) if message.ends_with(']') => (
-            message[..start].trim_end().to_owned(),
-            message[start + 2..message.len() - 1].to_owned(),
-        ),
-        _ => (message.trim().to_owned(), String::new()),
+    match message
+        .strip_suffix(']')
+        .and_then(|inner| inner.rsplit_once(" ["))
+    {
+        Some((head, flag)) => (head.trim_end().to_owned(), flag.to_owned()),
+        None => (message.trim().to_owned(), String::new()),
     }
 }
 

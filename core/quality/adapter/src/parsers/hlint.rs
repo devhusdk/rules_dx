@@ -206,7 +206,7 @@ mod tests {
         assert!(parse("Couldn't find file: x.hs", 1).is_err());
         assert!(parse_hlint(&[0xff, 0xfe], b"", Some(1), &FILES).is_err());
         // A truncated report.
-        assert!(parse(&SYNTAX[..60], 1).is_err());
+        assert!(matches!(SYNTAX.get(..60), Some(cut) if parse(cut, 1).is_err()));
         // A finding in a file that was not passed.
         assert!(parse_hlint(SYNTAX.as_bytes(), b"", Some(1), &["/s/other.hs"]).is_err());
         // A zero position.

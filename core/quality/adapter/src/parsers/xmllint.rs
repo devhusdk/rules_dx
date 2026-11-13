@@ -18,17 +18,17 @@ struct Header {
 /// names that were passed, never by splitting on `:`, so a Windows drive letter is safe. Only the
 /// line structure is read, never the wording of the message.
 fn header(files: &[&str], line: &str) -> Option<Header> {
-    let file = files
+    let (file, rest) = files
         .iter()
         .copied()
-        .filter(|file| {
-            line.strip_prefix(*file)
-                .is_some_and(|rest| rest.starts_with(':'))
+        .filter_map(|file| {
+            line.strip_prefix(file)?
+                .strip_prefix(':')
+                .map(|rest| (file, rest))
         })
-        .max_by_key(|file| file.len())?;
-    let rest = &line[file.len() + 1..];
+        .max_by_key(|(file, _)| file.len())?;
     let tail = rest.trim_start_matches(|c: char| c.is_ascii_digit());
-    let number = &rest[..rest.len() - tail.len()];
+    let number = rest.get(..rest.len() - tail.len())?;
     let tail = tail.strip_prefix(": ")?;
     let (head, message) = tail.split_once(" : ")?;
     let (domain, severity) = if let Some(domain) = head.strip_suffix(" error") {
@@ -52,15 +52,16 @@ fn header(files: &[&str], line: &str) -> Option<Header> {
 /// `I/O warning : failed to load "<file>": <reason>` names a passed file xmllint could not read.
 fn unreadable(files: &[&str], line: &str) -> Option<(String, String)> {
     let rest = line.strip_prefix("I/O warning : failed to load \"")?;
-    let file = files
+    let (file, tail) = files
         .iter()
         .copied()
-        .filter(|file| {
-            rest.strip_prefix(*file)
-                .is_some_and(|tail| tail.starts_with("\":"))
+        .filter_map(|file| {
+            rest.strip_prefix(file)?
+                .strip_prefix("\":")
+                .map(|tail| (file, tail))
         })
-        .max_by_key(|file| file.len())?;
-    Some((file.to_owned(), rest[file.len() + 2..].trim().to_owned()))
+        .max_by_key(|(file, _)| file.len())?;
+    Some((file.to_owned(), tail.trim().to_owned()))
 }
 
 fn finding(

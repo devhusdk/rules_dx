@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use line_index::LineIndex;
 use quality_result::proto::{self, Diagnostic, Severity};
 
@@ -705,7 +707,7 @@ mod tests {
                 } else {
                     text.find('\n').unwrap() + 1
                 };
-                let line_body = text[line_start..].split('\n').next().unwrap();
+                let line_body = text.get(line_start..).unwrap().split('\n').next().unwrap();
                 let end = column_width(line_body, encoding) + 1;
                 assert_eq!(
                     line_col_to_byte(&text, line, end, encoding),

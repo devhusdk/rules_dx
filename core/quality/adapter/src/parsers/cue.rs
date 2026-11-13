@@ -47,15 +47,15 @@ fn syntax_errors(stderr: &str, files: &[&str], cwd: &Path) -> Result<Vec<FileFin
     let lines: Vec<&str> = stderr.lines().collect();
     let mut findings = Vec::new();
     let mut index = 0;
-    while index < lines.len() {
-        let line = lines[index];
+    while let Some(&line) = lines.get(index) {
         index += 1;
         if line.starts_with(char::is_whitespace) || line.trim().is_empty() {
             continue;
         }
         let message = line.trim_end().trim_end_matches(':').to_owned();
-        let Some((path, row, column)) = lines[index..]
+        let Some((path, row, column)) = lines
             .iter()
+            .skip(index)
             .take_while(|next| next.starts_with(char::is_whitespace))
             .find_map(|next| {
                 let (path, row, column) = path_row_col(next.trim())?;
@@ -122,8 +122,7 @@ fn vet_errors(
     let lines: Vec<&str> = stderr.lines().collect();
     let mut findings = Vec::new();
     let mut index = 0;
-    while index < lines.len() {
-        let line = lines[index];
+    while let Some(&line) = lines.get(index) {
         index += 1;
         if line.starts_with(char::is_whitespace) || line.trim().is_empty() {
             continue;

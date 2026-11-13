@@ -34,11 +34,11 @@ fn location(head: &str) -> Option<(&str, Option<(u64, u64)>)> {
 
 /// Reads `error C2065: text`, `warning LNK4098: text` or clang-cl's `error: text`.
 fn severity_and_code(tail: &str) -> Option<(Option<ToolSeverity>, &str, &str)> {
-    let (word, severity) = SEVERITIES.iter().find(|(word, _)| {
+    let (rest, severity) = SEVERITIES.iter().find_map(|(word, severity)| {
         tail.strip_prefix(word)
-            .is_some_and(|rest| rest.starts_with(':') || rest.starts_with(' '))
+            .filter(|rest| rest.starts_with(':') || rest.starts_with(' '))
+            .map(|rest| (rest, severity))
     })?;
-    let rest = &tail[word.len()..];
     if let Some(message) = rest.strip_prefix(": ") {
         return Some((*severity, "", message));
     }
@@ -46,7 +46,7 @@ fn severity_and_code(tail: &str) -> Option<(Option<ToolSeverity>, &str, &str)> {
     let (code, message) = rest.split_once(':')?;
     let code = code.trim_end();
     let letters = code.chars().take_while(char::is_ascii_uppercase).count();
-    let digits = &code[letters..];
+    let digits = code.get(letters..)?;
     if letters == 0 || digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
         return None;
     }
@@ -55,13 +55,13 @@ fn severity_and_code(tail: &str) -> Option<(Option<ToolSeverity>, &str, &str)> {
 
 fn diagnostic(line: &str) -> Option<Diagnostic<'_>> {
     let mut from = 0;
-    while let Some(offset) = line[from..].find(": ") {
+    while let Some(offset) = line.get(from..).and_then(|rest| rest.find(": ")) {
         let at = from + offset;
         from = at + 1;
-        let Some((severity, code, message)) = severity_and_code(&line[at + 2..]) else {
+        let Some((severity, code, message)) = line.get(at + 2..).and_then(severity_and_code) else {
             continue;
         };
-        let (file, position) = location(&line[..at])?;
+        let (file, position) = location(line.get(..at)?)?;
         return Some(Diagnostic {
             file,
             position,

@@ -18,8 +18,9 @@ fn pydoclint_violation(line: &str) -> Result<(u64, &str, String), ParseError> {
         .ok_or_else(|| missing(TOOL, "violation", line))?;
     let message = message.strip_prefix(' ').unwrap_or(message);
     if !(rule.len() > 3
-        && rule.starts_with("DOC")
-        && rule[3..].chars().all(|char| char.is_ascii_digit()))
+        && rule
+            .strip_prefix("DOC")
+            .is_some_and(|digits| digits.chars().all(|char| char.is_ascii_digit())))
         || message.is_empty()
     {
         return Err(ParseError::Shape {

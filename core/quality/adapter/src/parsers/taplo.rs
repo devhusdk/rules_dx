@@ -23,8 +23,8 @@ fn taplo_blocks(stderr: &str) -> Result<Vec<TaploBlock>, ParseError> {
             open = None;
             continue;
         }
-        if let Some(marker) = trimmed.find("┌─ ") {
-            let location = trimmed[marker + "┌─ ".len()..].trim();
+        if let Some((_, after)) = trimmed.split_once("┌─ ") {
+            let location = after.trim();
             let (path, line, column) = taplo_location(location)?;
             let base = pending.clone().ok_or_else(|| ParseError::Shape {
                 tool: TOOL,
@@ -50,8 +50,9 @@ fn taplo_blocks(stderr: &str) -> Result<Vec<TaploBlock>, ParseError> {
             })?;
             let detail = caret.trim();
             if !detail.is_empty() && !detail.contains('│') && !detail.contains('─') {
-                let block = &mut blocks[index];
-                if !block.message.ends_with(detail) {
+                if let Some(block) = blocks.get_mut(index)
+                    && !block.message.ends_with(detail)
+                {
                     block.message.push_str(": ");
                     block.message.push_str(detail);
                 }
@@ -131,14 +132,13 @@ pub fn parse_taplo_format_check(
     })?;
     let mut findings = parse_taplo_lint(stderr, Some(0), files)?;
     for line in stderr_text.lines() {
-        if let Some(marker) = line.find("the file is not properly formatted") {
-            let rest = &line[marker..];
+        if let Some(rest) = line
+            .find("the file is not properly formatted")
+            .and_then(|marker| line.get(marker..))
+        {
             let path = rest
-                .find("path=\"")
-                .and_then(|start| {
-                    let quoted = &rest[start + "path=\"".len()..];
-                    quoted.find('"').map(|end| &quoted[..end])
-                })
+                .split_once("path=\"")
+                .and_then(|(_, quoted)| quoted.split_once('"').map(|(path, _)| path))
                 .ok_or_else(|| missing(TOOL, "format path", line))?;
             let checked = known(TOOL, files, path)?;
             findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));

@@ -166,8 +166,9 @@ fn classify(text: &str) -> Option<(ToolSeverity, String, String)> {
 fn rule_of(what: &str) -> String {
     if let (Some(open), Some(close)) = (what.find('['), what.rfind(']'))
         && open < close
+        && let Some(name) = what.get(open + 1..close)
     {
-        return what[open + 1..close].to_owned();
+        return name.to_owned();
     }
     let mut words = what.split_whitespace();
     match (words.next(), words.next()) {

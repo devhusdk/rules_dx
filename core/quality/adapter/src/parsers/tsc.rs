@@ -22,8 +22,9 @@ fn diagnostic<'a>(tool: &'static str, line: &'a str) -> Result<Diagnostic<'a>, P
         .rfind('(')
         .ok_or_else(|| missing(tool, "diagnostic location", line))?;
     let (path, position) = head.split_at(open);
-    let (line_text, column_text) = position[1..]
-        .split_once(',')
+    let (line_text, column_text) = position
+        .strip_prefix('(')
+        .and_then(|inner| inner.split_once(','))
         .ok_or_else(|| missing(tool, "diagnostic location", line))?;
     let (severity, rest) = tail
         .split_once(' ')

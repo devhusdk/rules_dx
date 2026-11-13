@@ -27,15 +27,14 @@ fn text<'a>(value: &'a serde_json::Value, key: &str) -> Result<&'a str, ParseErr
 fn clean(message: &str, targets: &[KubeconformTarget<'_>]) -> String {
     let mut out = String::with_capacity(message.len());
     let mut rest = message;
-    while let Some(at) = rest.find(FILE_URL) {
-        out.push_str(&rest[..at]);
-        let tail = &rest[at + FILE_URL.len()..];
+    while let Some((before, tail)) = rest.split_once(FILE_URL) {
+        out.push_str(before);
         let end = tail
             .find(|c: char| c.is_whitespace() || matches!(c, '\'' | '"' | '#' | ','))
             .unwrap_or(tail.len());
-        let url = &tail[..end];
+        let (url, after) = tail.split_at_checked(end).unwrap_or((tail, ""));
         out.push_str(url.rsplit(['/', '\\']).next().unwrap_or(url));
-        rest = &tail[end..];
+        rest = after;
     }
     out.push_str(rest);
     for target in targets {

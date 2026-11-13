@@ -25,16 +25,16 @@ fn head(text: &str) -> Option<(Option<ToolSeverity>, &str, &str)> {
     };
     let (code, message) = rest.split_once(':')?;
     let code = code.trim();
-    let numbered = code.len() > 2
-        && code.starts_with("FS")
-        && code[2..].bytes().all(|byte| byte.is_ascii_digit());
+    let numbered = code.strip_prefix("FS").is_some_and(|digits| {
+        !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
+    });
     numbered.then_some((severity, code, message.trim()))
 }
 
 /// The line and column of a `(l,c)` position, also when it spans a range.
 fn position(text: &str) -> Option<(u64, u64)> {
     let inner = text.strip_prefix('(')?;
-    let inner = &inner[..inner.find(')')?];
+    let (inner, _) = inner.split_once(')')?;
     let mut numbers = inner
         .split(['-', ',', ')', '('])
         .filter(|part| !part.is_empty());
@@ -56,19 +56,20 @@ fn diagnostic(line: &str) -> Option<Diagnostic<'_>> {
     }
     // The location ends at the first `): ` that is followed by a diagnostic head.
     let mut from = 0;
-    while let Some(at) = line[from..].find("): ") {
+    while let Some(at) = line.get(from..).and_then(|tail| tail.find("): ")) {
         let end = from + at + 1;
-        let location = &line[..end];
-        if let Some((severity, code, message)) = head(line[end + 1..].trim_start()) {
+        let location = line.get(..end)?;
+        if let Some((severity, code, message)) = head(line.get(end + 1..)?.trim_start()) {
             let open = location.rfind('(')?;
             // A range may repeat the pair as `(l,c)-(l2,c2)`.
-            let open = location[..open]
+            let open = location
+                .get(..open)?
                 .strip_suffix('-')
                 .and_then(|before| before.rfind('('))
                 .unwrap_or(open);
-            let (line_no, column) = position(&location[open..])?;
+            let (line_no, column) = position(location.get(open..)?)?;
             return Some(Diagnostic {
-                file: &location[..open],
+                file: location.get(..open)?,
                 line: line_no,
                 column,
                 severity,

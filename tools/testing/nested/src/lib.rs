@@ -2819,13 +2819,11 @@ mod portable_tests {
             .next()
             .unwrap_or_default();
         let mut names = Vec::new();
-        for (at, _) in code.match_indices("\"DX_NESTED_BAZEL") {
-            let rest = &code[at + 1..];
-            if let Some(end) = rest.find('"') {
-                let name = &rest[..end];
-                if name.bytes().all(|b| b.is_ascii_uppercase() || b == b'_') {
-                    names.push(name.to_owned());
-                }
+        for name in code.split('"').skip(1) {
+            if name.starts_with("DX_NESTED_BAZEL")
+                && name.bytes().all(|b| b.is_ascii_uppercase() || b == b'_')
+            {
+                names.push(name.to_owned());
             }
         }
         names.sort();

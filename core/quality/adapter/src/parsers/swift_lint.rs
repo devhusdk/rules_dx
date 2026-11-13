@@ -41,18 +41,18 @@ fn shape(detail: String) -> ParseError {
 
 fn diagnostic(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
     let bad = |detail: &str| shape(format!("{detail}: {line}"));
-    let file = files
+    let (file, rest) = files
         .iter()
         .copied()
-        .find(|file| {
-            line.strip_prefix(file)
-                .is_some_and(|rest| rest.starts_with(':'))
+        .find_map(|file| {
+            line.strip_prefix(file)?
+                .strip_prefix(':')
+                .map(|rest| (file, rest))
         })
         .ok_or_else(|| ParseError::UnknownFile {
             tool: TOOL,
             path: line.split(':').next().unwrap_or(line).to_owned(),
         })?;
-    let rest = &line[file.len() + 1..];
     let mut parts = rest.splitn(3, ':');
     let (Some(row), Some(col), Some(tail)) = (parts.next(), parts.next(), parts.next()) else {
         return Err(bad("line outside swift-format's grammar"));

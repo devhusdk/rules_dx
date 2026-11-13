@@ -125,14 +125,14 @@ fn check(text: &str) -> Result<(), String> {
             }
             continue;
         }
-        let Some(split) = line.find(['=', ':']) else {
+        let Some((key, value)) = line.split_once(['=', ':']) else {
             return Err(format!(
                 "sqlfluff config line {number}: expected `key = value`"
             ));
         };
         in_key = true;
-        let key = line[..split].trim().to_ascii_lowercase();
-        let value = line[split + 1..].trim();
+        let key = key.trim().to_ascii_lowercase();
+        let value = value.trim();
         if BANNED_KEYS.contains(&key.as_str()) {
             return Err(format!(
                 "sqlfluff config line {number}: `{key}` is not allowed: dx does not load macros or libraries from the file system"

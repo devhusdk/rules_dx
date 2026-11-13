@@ -2,7 +2,7 @@
 
 load("//rust:defs.bzl", "rust_test")
 
-def starter_consumer_test(name, *, bazel_deps):
+def starter_consumer_test(name, *, bazel_deps, rows):
     """Declares one test that checks every starter fixture's generated files and its MODULE.bazel bazel_dep names."""
     fixtures = sorted(bazel_deps)
     env = {
@@ -18,7 +18,7 @@ def starter_consumer_test(name, *, bazel_deps):
         data = ["//cli/cli:dx"] + ["//tools/testing/starters/fixtures:" + fixture for fixture in fixtures],
         env = env,
         size = "small",
-        tags = ["starter-consumer"],
+        tags = ["starter-consumer"] + ["consumer-row:" + row for row in rows],
         deps = [
             "//cli/test_scratch:dx_test_scratch",
             "//tools/testing/starters:starter_scaffold",

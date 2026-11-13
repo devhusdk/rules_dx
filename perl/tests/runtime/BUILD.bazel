@@ -1,9 +1,9 @@
-# gazelle:dx_ignore_import perl Runfiles
-load("@rules_dx//perl:defs.bzl", "perl_binary", "perl_library", "perl_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//perl:defs.bzl", "perl_binary", "perl_library", "perl_test")
 
 package(default_visibility = ["//visibility:public"])
 
+# keep
 perl_library(
     name = "dx_probe",
     srcs = ["lib/DxProbe.pm"],
@@ -16,6 +16,7 @@ perl_binary(
     deps = [":dx_probe"],
 )
 
+# keep
 perl_test(
     name = "probe_test",
     srcs = ["t/probe.t"],
@@ -27,6 +28,7 @@ perl_test(
     ],
 )
 
+# keep
 perl_test(
     name = "launcher_test",
     srcs = ["t/launcher.t"],

@@ -39,12 +39,12 @@ rust_clippy_test_suite(
 build_test(
     name = "release_tools_build_test",
     size = "small",
-    targets = [
-        "//rust/private/quality/tools:deadnix",
-        "//rust/private/quality/tools:selene",
-    ],
     target_compatible_with = select({
         "//rust/private/quality/tools:windows_arm64": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
+    targets = [
+        "//rust/private/quality/tools:deadnix",
+        "//rust/private/quality/tools:selene",
+    ],
 )

@@ -1,7 +1,5 @@
-# gazelle:dx_ignore_import perl Text::CSV
-# gazelle:dx_ignore_import perl Runfiles
-load("@rules_dx//perl:defs.bzl", "perl_library", "perl_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//perl:defs.bzl", "perl_library", "perl_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -16,6 +14,7 @@ exports_files(
 
 APPS = ["//perl/tests/fixtures/perl-app:__subpackages__"]
 
+# keep
 perl_library(
     name = "report",
     srcs = ["lib/Report.pm"],
@@ -27,6 +26,7 @@ perl_library(
     ],
 )
 
+# keep
 perl_test(
     name = "report_test",
     srcs = ["t/report.t"],
@@ -36,6 +36,7 @@ perl_test(
     ],
 )
 
+# keep
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],

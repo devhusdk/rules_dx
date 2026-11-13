@@ -1,6 +1,7 @@
-# gazelle:resolve lua inspect @lua_app_inspect//:inspect
-load("@rules_dx//lua:defs.bzl", "lua_library", "lua_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//lua:defs.bzl", "lua_library", "lua_test")
+
+# gazelle:resolve lua inspect @lua_app_inspect//:inspect
 
 APPS = ["//lua/tests/fixtures/lua-app:__subpackages__"]
 
@@ -13,6 +14,7 @@ exports_files(
     visibility = ["@rules_dx//tools/testing/hermetic:__pkg__"] + APPS,
 )
 
+# keep
 lua_library(
     name = "report",
     srcs = ["init.lua"],
@@ -21,12 +23,14 @@ lua_library(
     deps = ["@lua_app_inspect//:inspect"],
 )
 
+# keep
 lua_test(
     name = "report_test",
     main = "report_test.lua",
     deps = [":report"],
 )
 
+# keep
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],

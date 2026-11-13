@@ -22,8 +22,8 @@ fn render_graph_rule(name: &str, kind: Option<&str>, inputs: &[&str], tags: &[&s
         "ruleInput": inputs,
         "attribute": [{"name": "tags", "stringListValue": tags}],
     });
-    if let Some(kind) = kind {
-        rule["ruleClass"] = serde_json::json!(kind);
+    if let (Some(kind), Some(fields)) = (kind, rule.as_object_mut()) {
+        fields.insert("ruleClass".to_owned(), serde_json::json!(kind));
     }
     serde_json::json!({"type": "RULE", "rule": rule}).to_string()
 }

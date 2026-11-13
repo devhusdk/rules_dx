@@ -19,14 +19,15 @@ pub fn local_override_repos(module: &str) -> Vec<String> {
         .split("local_path_override(")
         .skip(1)
         .filter_map(|call| {
-            let call = &call[..call.find(')').unwrap_or(call.len())];
-            let rest = &call[call.find("module_name")? + "module_name".len()..];
+            let call = call.split_once(')').map_or(call, |(head, _)| head);
+            let (_, rest) = call.split_once("module_name")?;
             let rest = rest
                 .trim_start()
                 .strip_prefix('=')?
                 .trim_start()
                 .strip_prefix('"')?;
-            Some(format!("repository @@{}+", &rest[..rest.find('"')?]))
+            let (name, _) = rest.split_once('"')?;
+            Some(format!("repository @@{name}+"))
         })
         .collect()
 }
@@ -68,8 +69,10 @@ fn sha256_integrity(hex: &str) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let bytes: Vec<u8> = (0..hex.len() / 2)
         .map(|at| {
-            u8::from_str_radix(&hex[at * 2..at * 2 + 2], 16)
-                .unwrap_or_else(|error| panic!("sha256 {hex}: {error}"))
+            let digits = hex
+                .get(at * 2..at * 2 + 2)
+                .unwrap_or_else(|| panic!("sha256 {hex} is not ASCII hex"));
+            u8::from_str_radix(digits, 16).unwrap_or_else(|error| panic!("sha256 {hex}: {error}"))
         })
         .collect();
     let mut out = String::from("sha256-");
@@ -78,7 +81,10 @@ fn sha256_integrity(hex: &str) -> String {
             word | u32::from(*byte) << (16 - 8 * at)
         });
         for at in 0..=chunk.len() {
-            out.push(char::from(ALPHABET[(word >> (18 - 6 * at) & 63) as usize]));
+            let sextet = ALPHABET
+                .get((word >> (18 - 6 * at) & 63) as usize)
+                .unwrap_or_else(|| panic!("base64 sextet of {hex} out of range"));
+            out.push(char::from(*sextet));
         }
     }
     out.push_str(&"=".repeat((3 - bytes.len() % 3) % 3));
@@ -89,16 +95,17 @@ fn sha256_integrity(hex: &str) -> String {
 pub fn rules_flutter_override() -> String {
     let pins: serde_json::Value = serde_json::from_str(FLUTTER_PINS)
         .unwrap_or_else(|error| panic!("flutter/pins.json: {error}"));
-    let pin = &pins["archives"]["rules_flutter"];
+    let pin = pins.pointer("/archives/rules_flutter");
     let field = |name: &str| {
-        pin[name]
-            .as_str()
+        pin.and_then(|pin| pin.get(name))
+            .and_then(serde_json::Value::as_str)
             .unwrap_or_else(|| panic!("flutter/pins.json rules_flutter has no {name}"))
     };
     let integrity = sha256_integrity(field("sha256"));
     let strip_prefix = field("strip_prefix");
-    let url = pin["urls"][0]
-        .as_str()
+    let url = pin
+        .and_then(|pin| pin.pointer("/urls/0"))
+        .and_then(serde_json::Value::as_str)
         .unwrap_or_else(|| panic!("flutter/pins.json rules_flutter has no urls"));
     let patches = RULES_FLUTTER_PATCHES
         .map(|name| format!("        \"//patches/rules_flutter:{name}.patch\",\n"))

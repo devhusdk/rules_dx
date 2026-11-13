@@ -65,8 +65,11 @@ pub fn measure_lock(lock_text: &str) -> Result<Footprint, String> {
 /// same rules as `check_budget`.
 pub fn check_lock_budget(measured: &Footprint, budget: &Value) -> Result<(), String> {
     let mut lock_only = budget.clone();
+    let fields = lock_only
+        .as_object_mut()
+        .ok_or_else(|| "footprint budget is not a JSON object".to_owned())?;
     for name in ["modules", "external_repos"] {
-        lock_only[name] = json!(0);
+        fields.insert(name.to_owned(), json!(0));
     }
     check_budget(measured, &lock_only)
 }

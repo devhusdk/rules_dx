@@ -88,7 +88,8 @@ fn clangd_reports_diagnostic_and_definition_for_generated_sources() {
         .main_text
         .find("unknown_identifier")
         .expect("fixture holds the error");
-    let (error_line, _) = offset_to_position(&fixture.main_text, offset);
+    let (error_line, _) =
+        offset_to_position(&fixture.main_text, offset).expect("error offset is in the fixture");
     let hit = items
         .iter()
         .find(|item| {

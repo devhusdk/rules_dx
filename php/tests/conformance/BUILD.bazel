@@ -21,6 +21,12 @@ php_binary(
     deps = [":conformance"],
 )
 
+php_binary(
+    name = "lock_hello",
+    main = "bin/lock_main.php",
+    deps = ["@php_fixture_vendor//psr/http-factory"],  # keep
+)
+
 php_test(
     name = "pass_subject_test",
     size = "small",
@@ -48,6 +54,15 @@ dx_conformance_suite(
     failing_case = "testCase",
     failing_pattern = "FailTest::{case}",
     failing_test = ":fail_subject_test",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "php",
+        "expected": "hello lock",
+        "lockfile": "//php/tests/fixtures/composer:composer.lock",
+        "manifest": "//php/tests/fixtures/composer:composer.json",
+        "package": "psr/http-factory",
+        "stale": "composer.stale.lock",
+    },
     lang = "php",
     passing_test = ":pass_subject_test",
 )

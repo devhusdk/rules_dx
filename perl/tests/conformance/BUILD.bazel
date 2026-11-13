@@ -19,6 +19,12 @@ perl_binary(
     deps = [":conformance"],
 )
 
+perl_binary(
+    name = "lock_hello",
+    srcs = ["lock_main.pl"],
+    deps = ["@perl_cpan//Text-CSV"],  # keep
+)
+
 perl_test(
     name = "pass_subject_test",
     size = "small",
@@ -46,6 +52,15 @@ dx_conformance_suite(
     failing_case = "failing_case",
     failing_pattern = "not ok 1 - {case}",
     failing_test = ":fail_subject_test",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "perl",
+        "expected": "hello lock",
+        "lockfile": "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot",
+        "manifest": "//perl/tests/fixtures/perl-app/third_party:cpanfile",
+        "package": "Text::CSV",
+        "stale": "cpanfile.stale.snapshot",
+    },
     lang = "perl",
     passing_test = ":pass_subject_test",
 )

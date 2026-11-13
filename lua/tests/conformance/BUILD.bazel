@@ -21,6 +21,13 @@ lua_binary(
 )
 
 # keep
+lua_binary(
+    name = "lock_hello",
+    main = "lock_main.lua",
+    deps = ["@rocks_lua.tests.luarocks//inspect"],
+)
+
+# keep
 lua_test(
     name = "pass_subject_test",
     size = "small",
@@ -48,6 +55,15 @@ dx_conformance_suite(
     failing_pattern = ": {case}",
     failing_test = ":fail_subject_test",
     lang = "lua",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "lua",
+        "expected": "hello lock",
+        "lockfile": "//lua/tests/luarocks:luarocks.lock.json",
+        "manifest": "//lua/tests/luarocks:fixture.rockspec",
+        "package": "inspect",
+        "stale": "luarocks.stale.lock.json",
+    },
     passing_test = ":pass_subject_test",
 )
 

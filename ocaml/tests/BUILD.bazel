@@ -1,4 +1,5 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
 load(":toolchain_tests.bzl", "ocaml_metadata_tests")
 
 exports_files(["defs_tests.bzl"])
@@ -15,6 +16,27 @@ test_suite(
         "//ocaml/tests/fixtures/dune-lib:greet_dune_native_test",
         "//ocaml/tests/fixtures/dune-lib:greet_dune_run_test",
     ],
+)
+
+rust_test(
+    name = "zanuda_test",
+    size = "small",
+    srcs = ["zanuda_test.rs"],
+    data = [
+        "//ocaml/private/quality:clean_cmts",
+        "//ocaml/private/quality:dirty_cmts",
+        "//ocaml/private/quality:zanuda",
+        "@dx_ocaml_toolchains//:stdlib_cmi",
+        "@dx_ocaml_toolchains//:stdlib_cmis",
+    ],
+    env = {
+        "CLEAN_LIST": "$(rootpath //ocaml/private/quality:clean_cmts)",
+        "DIRTY_LIST": "$(rootpath //ocaml/private/quality:dirty_cmts)",
+        "STDLIB_CMI": "$(rootpath @dx_ocaml_toolchains//:stdlib_cmi)",
+        "ZANUDA": "$(rootpath //ocaml/private/quality:zanuda)",
+    },
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

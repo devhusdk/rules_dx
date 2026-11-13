@@ -18,5 +18,5 @@ exports_files(
         "hub.bzl",
         "package.bzl",
     ],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )

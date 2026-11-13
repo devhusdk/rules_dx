@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
-load(":rust_clippy.bzl", "test_crate_flags")
+load("//rust/private/quality:rust_clippy.bzl", "test_crate_flags")
 
 def _drops_exempt_lints_test_impl(ctx):
     env = unittest.begin(ctx)

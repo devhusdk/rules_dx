@@ -1904,7 +1904,6 @@ single_version_override(
     patches = [
         "//patches/rules_oci:descriptor_image.patch",
         "//patches/rules_oci:descriptor_util.patch",
-        "//patches/rules_oci:debug_image_sh.patch",
     ],
     version = "2.3.0",
 )

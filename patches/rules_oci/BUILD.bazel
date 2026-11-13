@@ -3,7 +3,6 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 exports_files([
     "descriptor_image.patch",
     "descriptor_util.patch",
-    "debug_image_sh.patch",
 ])
 
 real_source_target(

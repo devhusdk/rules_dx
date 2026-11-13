@@ -34,3 +34,12 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
+
+build_test(
+    name = "hlint_clock_hsc2hs_build_test",
+    target_compatible_with = select({
+        "//haskell/private/toolchain:cell_linux_x86_64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    targets = ["@haskell_hlint_hackage//:clock"],
+)

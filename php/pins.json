@@ -18,10 +18,10 @@
     },
     "macos_arm64": {
       "binary": "php",
-      "sha256": "cfbb53b904bb29f553c23cb51dfb9ec82bb69adaf9aeb6df8b6da29ea9f03553",
+      "sha256": "929673eb6d6869e28a0bd97e2d4475302a6d3b2e7ad8035a60d551c9f2e37951",
       "urls": [
-        "https://github.com/devhusdk/rules_dx/releases/download/mirror-php-8.5.12/php-8.5.12-cli-macos-aarch64.tar.gz",
-        "https://dl.static-php.dev/v3/php-bin/common/php-8.5.12-cli-macos-aarch64.tar.gz"
+        "https://github.com/devhusdk/rules_dx/releases/download/mirror-php-8.5.12/php-8.5.12-bulk-cli-macos-aarch64.tar.gz",
+        "https://dl.static-php.dev/v3/php-bin/bulk/php-8.5.12-cli-macos-aarch64.tar.gz"
       ]
     },
     "windows_x86_64": {
@@ -64,6 +64,13 @@
       "sha256": "2a1e0b77c218dcc68f054a5b7a3c7fe3593fb7ad91e9ae9d98d63251753edbd1",
       "urls": [
         "https://conda.anaconda.org/conda-forge/linux-64/php-8.5.12-h2a25e86_0.conda"
+      ]
+    },
+    "macos_arm64": {
+      "inner": "pkg-php-8.5.12-h825bc69_0.tar.zst",
+      "sha256": "9a830aa21b5957ddb38e559478bdf096210ce43322c5ffd7a6c5be2c72edbfe0",
+      "urls": [
+        "https://conda.anaconda.org/conda-forge/osx-arm64/php-8.5.12-h825bc69_0.conda"
       ]
     }
   },

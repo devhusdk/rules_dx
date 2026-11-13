@@ -219,7 +219,7 @@ def _php_test_impl(ctx):
         tokens += [lit("--configuration"), rf(runfiles_path(ctx.workspace_name, ctx.file.config.short_path))]
     else:
         tokens.append(lit("--no-configuration"))
-    tokens += [lit("--fail-on-empty-test-suite"), lit("--do-not-cache-test-index"), env_flag("--log-junit", "XML_OUTPUT_FILE")]
+    tokens += [lit("--fail-on-empty-test-suite"), lit("--do-not-cache-test-index"), lit("--do-not-cache-result"), env_flag("--log-junit", "XML_OUTPUT_FILE")]
     tokens += [rf(root + "/" + external_path(f.short_path)) for f in srcs]
     php = ctx.toolchains[TOOLCHAIN_TYPE].php
     if ctx.configuration.coverage_enabled and php.pcov:

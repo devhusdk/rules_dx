@@ -165,7 +165,6 @@ ocaml lock_test *
 ocaml runfiles_test *
 perl cross_test *
 perl runfiles_test *
-php coverage_test macos_arm64
 php cross_test *
 php runfiles_test *
 powershell cross_test *

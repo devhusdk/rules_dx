@@ -16,6 +16,7 @@ package(default_visibility = [
 exports_files([
     "BenchTest.php",
     "defs.bzl",
+    "patches/pcov_user_opcode_handlers.patch",
     "pcov.BUILD.bazel",
     "php.bzl",
     "providers.bzl",

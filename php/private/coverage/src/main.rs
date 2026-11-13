@@ -109,13 +109,22 @@ fn plain(path: PathBuf) -> PathBuf {
     stripped.unwrap_or(path)
 }
 
+/// The directory the files of `tree` resolve into, also when the runfiles link each file on its own.
+fn real_tree(tree: &Path) -> Result<PathBuf, String> {
+    let autoload = tree.join("vendor").join("autoload.php");
+    let resolved = autoload
+        .canonicalize()
+        .map_err(|err| format!("{}: {err}", autoload.display()))?;
+    let tree = resolved
+        .parent()
+        .and_then(Path::parent)
+        .map(Path::to_path_buf)
+        .ok_or_else(|| format!("{}: no tree above it", resolved.display()))?;
+    Ok(plain(tree))
+}
+
 fn run(request: &Request) -> Result<i32, String> {
-    let tree = plain(
-        request
-            .tree
-            .canonicalize()
-            .map_err(|err| format!("{}: {err}", request.tree.display()))?,
-    );
+    let tree = real_tree(&request.tree)?;
     let scratch = env::var_os("TEST_TMPDIR").map_or_else(env::temp_dir, PathBuf::from);
     let clover = scratch.join(format!("clover.{}.xml", process::id()));
     let status = Command::new(&request.php)
@@ -193,6 +202,27 @@ mod tests {
         let text = fs::read_to_string(&out).unwrap();
         fs::remove_dir_all(&dir).unwrap();
         assert_eq!(text, "SF:app/A.php\nDA:3,1\nLF:1\nLH:1\nend_of_record\n");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_tree_of_linked_files_resolves_to_where_the_files_live() {
+        let dir = env::temp_dir().join(format!("coverage_run_tree_{}", process::id()));
+        let real = dir.join("out").join("t.php");
+        let linked = dir.join("runfiles").join("t.php");
+        fs::create_dir_all(real.join("vendor")).unwrap();
+        fs::create_dir_all(linked.join("vendor")).unwrap();
+        fs::write(real.join("vendor").join("autoload.php"), "<?php\n").unwrap();
+        std::os::unix::fs::symlink(real.join("vendor").join("autoload.php"), linked.join("vendor").join("autoload.php")).unwrap();
+        let resolved = real_tree(&linked);
+        let expected = real.canonicalize().unwrap();
+        fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(resolved, Ok(expected));
+    }
+
+    #[test]
+    fn a_tree_without_an_autoloader_is_an_error() {
+        assert!(real_tree(Path::new("no/such/t.php")).is_err());
     }
 
     #[test]

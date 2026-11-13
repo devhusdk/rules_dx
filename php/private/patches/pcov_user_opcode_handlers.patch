@@ -1,0 +1,87 @@
+--- a/pcov-1.0.12/pcov.c
++++ b/pcov-1.0.12/pcov.c
+@@ -65,7 +65,7 @@
+ static zval php_pcov_uncovered;
+ static zval php_pcov_covered;
+ 
+-void (*zend_execute_ex_function)(zend_execute_data *execute_data);
++static zend_bool php_pcov_handlers[256];
+ zend_op_array* (*zend_compile_file_function)(zend_file_handle *fh, int type) = NULL;
+ 
+ ZEND_DECLARE_MODULE_GLOBALS(pcov)
+@@ -243,7 +243,7 @@
+ 	return 0;
+ } /* }}} */
+ 
+-static zend_always_inline int php_pcov_trace(zend_execute_data *execute_data) { /* {{{ */
++static int php_pcov_trace(zend_execute_data *execute_data) { /* {{{ */
+     if (PCG(enabled)) {
+ 		if (php_pcov_wants(EX(func)->op_array.filename) &&
+ 			!php_pcov_ignored_opcode(EX(opline)->opcode) &&
+@@ -261,7 +261,7 @@
+ 		}
+ 	}
+ 
+-	return zend_vm_call_opcode_handler(execute_data);
++	return ZEND_USER_OPCODE_DISPATCH;
+ } /* }}} */
+ 
+ zend_op_array* php_pcov_compile_file(zend_file_handle *fh, int type) { /* {{{ */
+@@ -298,21 +298,6 @@
+ 	return result;
+ } /* }}} */
+ 
+-void php_pcov_execute_ex(zend_execute_data *execute_data) { /* {{{ */
+-	int zrc		= 0;
+-
+-	while (1) {
+-		zrc = php_pcov_trace(execute_data);
+-
+-		if (zrc != SUCCESS) {
+-			if (zrc < SUCCESS) {
+-				return;
+-			}
+-			execute_data = EG(current_execute_data);
+-		}
+-	}
+-} /* }}} */
+-
+ void php_pcov_covered_dtor(zval *zv) { /* {{{ */
+ 	zend_hash_destroy(Z_PTR_P(zv));
+ 	efree(Z_PTR_P(zv));
+@@ -340,8 +325,17 @@
+ 	REGISTER_INI_ENTRIES();
+ 
+ 	if (INI_BOOL("pcov.enabled")) {
+-		zend_execute_ex_function   = zend_execute_ex;
+-		zend_execute_ex            = php_pcov_execute_ex;
++		int opcode;
++
++		for (opcode = 0; opcode <= ZEND_VM_LAST_OPCODE; opcode++) {
++			if (opcode == ZEND_USER_OPCODE || opcode == ZEND_HANDLE_EXCEPTION) {
++				continue;
++			}
++			if (zend_get_user_opcode_handler(opcode) == NULL &&
++				zend_set_user_opcode_handler(opcode, php_pcov_trace) == SUCCESS) {
++				php_pcov_handlers[opcode] = 1;
++			}
++		}
+ 	}
+ 
+ 	ZVAL_LONG(&php_pcov_uncovered,   PHP_PCOV_UNCOVERED);
+@@ -356,7 +350,14 @@
+ PHP_MSHUTDOWN_FUNCTION(pcov)
+ {
+ 	if (INI_BOOL("pcov.enabled")) {
+-		zend_execute_ex   = zend_execute_ex_function;
++		int opcode;
++
++		for (opcode = 0; opcode <= ZEND_VM_LAST_OPCODE; opcode++) {
++			if (php_pcov_handlers[opcode]) {
++				zend_set_user_opcode_handler(opcode, NULL);
++				php_pcov_handlers[opcode] = 0;
++			}
++		}
+ 	}
+ 
+ 	UNREGISTER_INI_ENTRIES();

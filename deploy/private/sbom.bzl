@@ -87,9 +87,9 @@ dx_sbom = rule(
         ),
         "package_name": attr.string(doc = "Name of the described package; defaults to the rule name."),
         "npm_lock": attr.label(allow_single_file = True, doc = "package-lock.json whose packages are added to the SBOM."),
-        "go_mod": attr.label(allow_single_file = True, doc = "go.mod whose requirements are added to the SBOM."),
-        "maven_lock": attr.label(allow_single_file = True, doc = "maven_install.json whose artifacts are added to the SBOM."),
-        "pip_lock": attr.label(allow_single_file = True, doc = "uv.lock whose packages are added to the SBOM."),
+        "go_mod": attr.label(allow_single_file = True, doc = "Go module file whose requirements are added to the SBOM."),
+        "maven_lock": attr.label(allow_single_file = True, doc = "Maven lock whose artifacts are added to the SBOM."),
+        "pip_lock": attr.label(allow_single_file = True, doc = "Python lock whose packages are added to the SBOM."),
         "supplier": attr.string(default = "rules_dx", doc = "Supplier recorded on the described package."),
         "_release_tool": attr.label(
             default = Label("//deploy/private/release:release_tool"),

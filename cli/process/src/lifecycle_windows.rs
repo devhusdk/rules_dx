@@ -251,8 +251,10 @@ impl Job {
             if queried && assigned <= listed {
                 let listed = listed.min(capacity);
                 return Some(
-                    buffer[header..header + listed]
+                    buffer
                         .iter()
+                        .skip(header)
+                        .take(listed)
                         .map(|&pid| pid as u32)
                         .collect(),
                 );

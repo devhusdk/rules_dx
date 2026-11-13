@@ -69,13 +69,16 @@ fn parse_gem_version(text: &str) -> Option<GemVersion> {
 fn push_segments(piece: &str, out: &mut Vec<Segment>) -> Option<()> {
     let bytes = piece.as_bytes();
     let mut start = 0;
-    while start < bytes.len() {
-        let digit = bytes[start].is_ascii_digit();
+    while let Some(first) = bytes.get(start) {
+        let digit = first.is_ascii_digit();
         let mut end = start;
-        while end < bytes.len() && bytes[end].is_ascii_digit() == digit {
+        while bytes
+            .get(end)
+            .is_some_and(|byte| byte.is_ascii_digit() == digit)
+        {
             end += 1;
         }
-        let run = &piece[start..end];
+        let run = piece.get(start..end)?;
         if digit {
             out.push(Segment::Num(run.parse().ok()?));
         } else if run.bytes().all(|byte| byte.is_ascii_alphabetic()) {
@@ -93,8 +96,9 @@ impl GemVersion {
             .iter()
             .position(|segment| matches!(segment, Segment::Text(_)))
             .unwrap_or(self.segments.len());
-        let mut head = self.segments[..split].to_vec();
-        let mut tail = self.segments[split..].to_vec();
+        let (head_part, tail_part) = self.segments.split_at_checked(split).unwrap_or_default();
+        let mut head = head_part.to_vec();
+        let mut tail = tail_part.to_vec();
         for part in [&mut head, &mut tail] {
             while matches!(part.last(), Some(Segment::Num(0))) {
                 part.pop();

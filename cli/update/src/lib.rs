@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod accept;
 pub mod advisory;
 pub mod backend;

@@ -89,7 +89,10 @@ pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String
 fn repository(api: &str, name: &str, fetch: &dyn Fetch) -> Option<String> {
     let body = fetch.get(&format!("{api}/api/v1/crates/{name}")).ok()?;
     let json: serde_json::Value = serde_json::from_str(&body).ok()?;
-    json["crate"]["repository"].as_str().and_then(github_repo)
+    json.get("crate")?
+        .get("repository")?
+        .as_str()
+        .and_then(github_repo)
 }
 
 fn collect(root: &Table, into: &mut BTreeMap<String, Vec<String>>) {
@@ -146,11 +149,16 @@ pub fn index_path(name: &str) -> Result<String, DxError> {
         return Err(DxError::failure(format!("invalid crate name {name:?}")));
     }
     let lower = name.to_ascii_lowercase();
+    let bad = || DxError::failure(format!("invalid crate name {name:?}"));
     Ok(match lower.len() {
         1 => format!("1/{lower}"),
         2 => format!("2/{lower}"),
-        3 => format!("3/{}/{lower}", &lower[..1]),
-        _ => format!("{}/{}/{lower}", &lower[..2], &lower[2..4]),
+        3 => format!("3/{}/{lower}", lower.get(..1).ok_or_else(bad)?),
+        _ => format!(
+            "{}/{}/{lower}",
+            lower.get(..2).ok_or_else(bad)?,
+            lower.get(2..4).ok_or_else(bad)?
+        ),
     })
 }
 
@@ -171,13 +179,19 @@ pub fn index_entries(body: &str) -> Result<Vec<IndexEntry>, DxError> {
     for line in body.lines().filter(|line| !line.trim().is_empty()) {
         let entry: serde_json::Value =
             serde_json::from_str(line).map_err(|e| DxError::failure(e.to_string()))?;
-        let Some(version) = entry["vers"].as_str() else {
+        let Some(version) = entry.get("vers").and_then(serde_json::Value::as_str) else {
             continue;
         };
         out.push(IndexEntry {
             version: version.to_owned(),
-            yanked: entry["yanked"].as_bool().unwrap_or(false),
-            published: entry["pubtime"].as_str().map(str::to_owned),
+            yanked: entry
+                .get("yanked")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+            published: entry
+                .get("pubtime")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned),
         });
     }
     Ok(out)

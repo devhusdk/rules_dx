@@ -60,7 +60,10 @@ fn table_keys(file: &str, table: &str) -> Vec<String> {
     let section = CONFIG_DOC
         .split("\n### ")
         .map(|part| format!("### {part}"))
-        .find(|part| part.starts_with(&heading) && part[heading.len()..].starts_with('\n'))
+        .find(|part| {
+            part.strip_prefix(&heading)
+                .is_some_and(|rest| rest.starts_with('\n'))
+        })
         .unwrap_or_else(|| panic!("config.md has no section {heading:?}"));
     section
         .lines()

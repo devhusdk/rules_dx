@@ -21,11 +21,18 @@ pub fn outdated(
         let Ok(root) = serde_json::from_str::<Value>(text) else {
             continue;
         };
-        let pins = root["pins"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+        let pins = root
+            .get("pins")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
         for pin in pins {
-            let (Some(location), Some(current)) =
-                (pin["location"].as_str(), pin["state"]["version"].as_str())
-            else {
+            let (Some(location), Some(current)) = (
+                pin.get("location").and_then(Value::as_str),
+                pin.get("state")
+                    .and_then(|state| state.get("version"))
+                    .and_then(Value::as_str),
+            ) else {
                 continue;
             };
             let package = name(location);

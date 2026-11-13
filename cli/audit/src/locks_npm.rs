@@ -57,7 +57,10 @@ pub(crate) fn package_lock_name(path: &str) -> Option<String> {
     }
     if last.contains('/') {
         let parts: Vec<&str> = last.split('/').collect();
-        if parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty() {
+        if let [scope, name] = parts.as_slice()
+            && !scope.is_empty()
+            && !name.is_empty()
+        {
             return Some(last.to_owned());
         }
         let segment = parts.last()?.trim();

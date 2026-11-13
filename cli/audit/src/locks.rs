@@ -146,15 +146,23 @@ pub(crate) fn indent_of(line: &str) -> usize {
 /// Parses `name (version)` where `version` has no parentheses.
 pub(crate) fn split_paren_spec(line: &str) -> Option<(&str, &str)> {
     for (open, _) in line.rmatch_indices('(') {
-        let rest = &line[open + 1..];
+        let Some((name_part, tail)) = line.split_at_checked(open) else {
+            continue;
+        };
+        let Some(rest) = tail.strip_prefix('(') else {
+            continue;
+        };
         let Some(close) = rest.find(['(', ')']) else {
             continue;
         };
-        if close == 0 || !rest[close..].starts_with(')') {
+        let Some((version_part, after)) = rest.split_at_checked(close) else {
+            continue;
+        };
+        if close == 0 || !after.starts_with(')') {
             continue;
         }
-        let name = line[..open].trim();
-        let version = rest[..close].trim();
+        let name = name_part.trim();
+        let version = version_part.trim();
         if name.is_empty() || version.is_empty() {
             return None;
         }

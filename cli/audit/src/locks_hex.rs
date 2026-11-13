@@ -16,10 +16,10 @@ fn tokenize(text: &str, name: &str) -> Result<Vec<Token>, DxError> {
     let mut tokens = Vec::new();
     let mut depth = 0usize;
     let mut i = 0;
-    while i < chars.len() {
-        match chars[i] {
+    while let Some(&current) = chars.get(i) {
+        match current {
             '#' => {
-                while i < chars.len() && chars[i] != '\n' {
+                while chars.get(i).is_some_and(|&c| c != '\n') {
                     i += 1;
                 }
             }
@@ -36,11 +36,16 @@ fn tokenize(text: &str, name: &str) -> Result<Vec<Token>, DxError> {
             ':' => {
                 let start = i + 1;
                 i = start;
-                while i < chars.len() && (chars[i].is_alphanumeric() || "_@?!".contains(chars[i])) {
+                while chars
+                    .get(i)
+                    .is_some_and(|&c| c.is_alphanumeric() || "_@?!".contains(c))
+                {
                     i += 1;
                 }
-                if i > start {
-                    tokens.push(Token::Atom(chars[start..i].iter().collect()));
+                if i > start
+                    && let Some(atom) = chars.get(start..i)
+                {
+                    tokens.push(Token::Atom(atom.iter().collect()));
                 }
             }
             '{' | '[' => {
@@ -74,8 +79,8 @@ fn tokenize(text: &str, name: &str) -> Result<Vec<Token>, DxError> {
 fn read_string(chars: &[char], quote: usize, name: &str) -> Result<(String, usize), DxError> {
     let mut value = String::new();
     let mut i = quote + 1;
-    while i < chars.len() {
-        match chars[i] {
+    while let Some(&current) = chars.get(i) {
+        match current {
             '\\' => {
                 i += 1;
                 if let Some(c) = chars.get(i) {
@@ -124,25 +129,23 @@ pub fn parse_rebar_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let mut out = Vec::new();
     let mut rest = text;
     while let Some(at) = rest.find("{pkg,") {
-        rest = &rest[at + "{pkg,".len()..];
+        rest = rest.get(at + "{pkg,".len()..).unwrap_or_default();
         let mut names = Vec::new();
         let mut cursor = rest;
         while names.len() < 2 {
             let open = cursor.find("<<\"").ok_or_else(|| {
                 DxError::failure("invalid rebar.lock: pkg entry without name and version")
             })?;
-            let body = &cursor[open + 3..];
+            let body = cursor.get(open + 3..).unwrap_or_default();
             let close = body
                 .find("\">>")
                 .ok_or_else(|| DxError::failure("invalid rebar.lock: unterminated binary"))?;
-            names.push(body[..close].to_owned());
-            cursor = &body[close + 3..];
+            names.push(body.get(..close).unwrap_or_default().to_owned());
+            cursor = body.get(close + 3..).unwrap_or_default();
         }
-        out.push(LockedPackage::new(
-            "hex",
-            names[0].as_str(),
-            names[1].as_str(),
-        ));
+        if let [name, version] = names.as_slice() {
+            out.push(LockedPackage::new("hex", name.as_str(), version.as_str()));
+        }
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     Ok(out)

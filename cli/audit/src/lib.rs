@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 #[cfg(test)]
 macro_rules! key_names {
     ($ty:path { $($field:ident),+ $(,)? }) => {{

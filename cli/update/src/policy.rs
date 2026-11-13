@@ -25,10 +25,12 @@ impl Level {
 
 fn numbers(version: &str) -> Option<(u64, u64)> {
     let start = version.find(|c: char| c.is_ascii_digit())?;
-    let end = version[start..]
+    let tail = version.get(start..)?;
+    let end = tail
         .find(|c: char| !c.is_ascii_digit() && c != '.')
         .map_or(version.len(), |i| start + i);
-    let mut parts = version[start..end]
+    let mut parts = version
+        .get(start..end)?
         .split('.')
         .map(|part| part.parse::<u64>().ok());
     let major = parts.next()??;

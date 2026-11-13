@@ -68,13 +68,16 @@ pub fn outdated(
 fn pinned(text: &str) -> Result<Vec<(String, String)>, DxError> {
     let root: serde_json::Value = serde_json::from_str(text)
         .map_err(|e| DxError::failure(format!("invalid dub selections file: {e}")))?;
-    let versions = root["versions"]
-        .as_object()
+    let versions = root
+        .get("versions")
+        .and_then(serde_json::Value::as_object)
         .ok_or_else(|| DxError::failure("invalid dub selections file: missing versions"))?;
     Ok(versions
         .iter()
         .filter_map(|(name, entry)| {
-            let version = entry.as_str().or_else(|| entry["version"].as_str())?;
+            let version = entry
+                .as_str()
+                .or_else(|| entry.get("version").and_then(serde_json::Value::as_str))?;
             version
                 .starts_with(|c: char| c.is_ascii_digit())
                 .then(|| (name.clone(), version.to_owned()))

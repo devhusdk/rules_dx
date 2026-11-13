@@ -37,7 +37,7 @@ pub fn outdated(
             continue;
         };
         for key in DEP_KEYS {
-            let Some(table) = doc[key].as_object() else {
+            let Some(table) = doc.get(key).and_then(serde_json::Value::as_object) else {
                 continue;
             };
             for (name, spec) in table {
@@ -116,8 +116,13 @@ fn skipped(spec: &str) -> bool {
 
 fn repo(body: &str) -> Option<String> {
     let doc: serde_json::Value = serde_json::from_str(body).ok()?;
-    let field = &doc["repository"];
-    super::github_repo(field.as_str().or_else(|| field["url"].as_str())?)
+    let field = doc.get("repository");
+    let text = field.and_then(serde_json::Value::as_str).or_else(|| {
+        field
+            .and_then(|f| f.get("url"))
+            .and_then(serde_json::Value::as_str)
+    })?;
+    super::github_repo(text)
 }
 
 type Latest = Option<(Version, Option<String>)>;
@@ -126,25 +131,36 @@ fn latest(body: &str, prereleases: bool) -> Result<Latest, DxError> {
     let doc: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     if prereleases {
-        let newest = doc["versions"]
-            .as_object()
+        let newest = doc
+            .get("versions")
+            .and_then(serde_json::Value::as_object)
             .into_iter()
             .flatten()
             .filter_map(|(key, _)| Some((Version::parse(key).ok()?, key)))
             .max_by(|a, b| a.0.cmp(&b.0));
         if let Some((version, key)) = newest {
-            let published = doc["time"][key.as_str()].as_str().map(str::to_owned);
+            let published = doc
+                .get("time")
+                .and_then(|time| time.get(key.as_str()))
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned);
             return Ok(Some((version, published)));
         }
     }
-    let tag = doc["dist-tags"]["latest"]
-        .as_str()
+    let tag = doc
+        .get("dist-tags")
+        .and_then(|tags| tags.get("latest"))
+        .and_then(serde_json::Value::as_str)
         .ok_or_else(|| DxError::failure("no latest tag"))?;
     let version = Version::parse(tag).map_err(|e| DxError::failure(e.to_string()))?;
     if version.is_prerelease() {
         return Ok(None);
     }
-    let published = doc["time"][tag].as_str().map(str::to_owned);
+    let published = doc
+        .get("time")
+        .and_then(|time| time.get(tag))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned);
     Ok(Some((version, published)))
 }
 

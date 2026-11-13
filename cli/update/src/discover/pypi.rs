@@ -111,7 +111,7 @@ fn split(requirement: &str) -> Option<(String, String)> {
     let (name, mut rest) = requirement.split_at(name_end);
     rest = rest.trim_start();
     if rest.starts_with('[') {
-        rest = rest[rest.find(']')? + 1..].trim_start();
+        rest = rest.get(rest.find(']')? + 1..)?.trim_start();
     }
     if rest.starts_with('@') {
         return None;
@@ -125,7 +125,7 @@ fn split(requirement: &str) -> Option<(String, String)> {
 
 fn repo(body: &str) -> Option<String> {
     let doc: serde_json::Value = serde_json::from_str(body).ok()?;
-    let urls = doc["info"]["project_urls"].as_object()?;
+    let urls = doc.get("info")?.get("project_urls")?.as_object()?;
     let mut keys: Vec<_> = urls.keys().collect();
     keys.sort_by_key(|key| {
         let key = key.to_lowercase();
@@ -135,7 +135,7 @@ fn repo(body: &str) -> Option<String> {
             .unwrap_or(usize::MAX)
     });
     keys.into_iter()
-        .filter_map(|key| urls[key].as_str())
+        .filter_map(|key| urls.get(key).and_then(serde_json::Value::as_str))
         .find_map(super::github_repo)
 }
 
@@ -143,8 +143,9 @@ fn repo(body: &str) -> Option<String> {
 pub fn yanked_releases(body: &str) -> Result<Vec<String>, DxError> {
     let doc: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
-    let releases = doc["releases"]
-        .as_object()
+    let releases = doc
+        .get("releases")
+        .and_then(serde_json::Value::as_object)
         .ok_or_else(|| DxError::failure("no releases"))?;
     Ok(releases
         .iter()
@@ -157,14 +158,17 @@ pub fn yanked_releases(body: &str) -> Result<Vec<String>, DxError> {
 }
 
 fn is_yanked(file: &serde_json::Value) -> bool {
-    file["yanked"].as_bool().unwrap_or(false)
+    file.get("yanked")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
 }
 
 fn newest(body: &str, prereleases: bool) -> Result<(Version, Option<String>), DxError> {
     let doc: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
-    let releases = doc["releases"]
-        .as_object()
+    let releases = doc
+        .get("releases")
+        .and_then(serde_json::Value::as_object)
         .ok_or_else(|| DxError::failure("no releases"))?;
     let yanked = yanked_releases(body)?;
     let mut best: Option<(Version, Option<String>)> = None;

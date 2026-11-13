@@ -63,12 +63,13 @@ pub(super) fn plan_cargo_toml(
             package: package.to_owned(),
         }),
         1 => {
-            let table = cargo_table_at_mut(&mut doc, &matches[0]).ok_or_else(|| {
-                EditError::UnsupportedManifest {
+            let table = matches
+                .first()
+                .and_then(|first| cargo_table_at_mut(&mut doc, first))
+                .ok_or_else(|| EditError::UnsupportedManifest {
                     manifest: manifest.to_owned(),
                     reason: format!("{package:?} has no version to widen"),
-                }
-            })?;
+                })?;
             cargo_set_version(table, package, &new).ok_or_else(|| {
                 EditError::UnsupportedManifest {
                     manifest: manifest.to_owned(),

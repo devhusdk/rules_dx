@@ -78,10 +78,14 @@ pub fn parse_stack_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
 
 fn split_package_version(spec: &str) -> Option<(&str, &str)> {
     let at = spec.rmatch_indices('-').map(|(at, _)| at).find(|&at| {
-        let version = &spec[at + 1..];
-        !version.is_empty() && version.chars().all(|c| c.is_ascii_digit() || c == '.')
+        spec.get(at + 1..).is_some_and(|version| {
+            !version.is_empty() && version.chars().all(|c| c.is_ascii_digit() || c == '.')
+        })
     })?;
-    (at > 0).then(|| (&spec[..at], &spec[at + 1..]))
+    if at == 0 {
+        return None;
+    }
+    Some((spec.get(..at)?, spec.get(at + 1..)?))
 }
 
 #[cfg(test)]

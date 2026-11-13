@@ -189,13 +189,17 @@ impl StagedRun {
             return bytes;
         }
         const FROM: &[u8] = b"load(\"@rules_dotnet//dotnet:defs.bzl\", \"nuget_repo\")";
-        const TO: &[u8] = b"load(\"@rules_dx//dotnet:extensions.bzl\", nuget_repo = \"dotnet_nuget_repo\")";
+        const TO: &[u8] =
+            b"load(\"@rules_dx//dotnet:extensions.bzl\", nuget_repo = \"dotnet_nuget_repo\")";
         let mut out = Vec::with_capacity(bytes.len());
         let mut rest = bytes.as_slice();
         while let Some(at) = rest.windows(FROM.len()).position(|w| w == FROM) {
-            out.extend_from_slice(&rest[..at]);
+            let Some((head, tail)) = rest.split_at_checked(at + FROM.len()) else {
+                break;
+            };
+            out.extend_from_slice(head.get(..at).unwrap_or_default());
             out.extend_from_slice(TO);
-            rest = &rest[at + FROM.len()..];
+            rest = tail;
         }
         out.extend_from_slice(rest);
         out

@@ -56,7 +56,7 @@ fn repository(base: &str, name: &str, fetch: &dyn Fetch) -> Option<String> {
     let json: serde_json::Value = serde_json::from_str(&body).ok()?;
     ["source_code_uri", "homepage_uri"]
         .iter()
-        .find_map(|key| json[key].as_str().and_then(github_repo))
+        .find_map(|key| json.get(key).and_then(|v| v.as_str()).and_then(github_repo))
 }
 
 fn declaration(line: &str) -> Option<(String, String)> {

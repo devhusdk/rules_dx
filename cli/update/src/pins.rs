@@ -22,7 +22,7 @@ pub fn listed(workspace: &Path) -> Vec<String> {
         let Ok(lang) = serde_json::from_str::<Value>(&text) else {
             continue;
         };
-        let Some(pins) = lang["pins"].as_array() else {
+        let Some(pins) = lang.get("pins").and_then(Value::as_array) else {
             continue;
         };
         for pin in pins.iter().filter_map(Value::as_str) {
@@ -116,8 +116,9 @@ pub fn rewrite(
         return Ok(None);
     }
     let mut digests: BTreeMap<String, String> = BTreeMap::new();
-    let cells = pins["cells"]
-        .as_object_mut()
+    let cells = pins
+        .get_mut("cells")
+        .and_then(Value::as_object_mut)
         .ok_or_else(|| DxError::failure("pins.json has no cells"))?;
     for cell in cells.values_mut().filter_map(Value::as_object_mut) {
         if cell.contains_key("stub") {
@@ -134,16 +135,23 @@ pub fn rewrite(
         let first = urls
             .first()
             .ok_or_else(|| DxError::failure("a cell lists no url"))?;
-        if !digests.contains_key(first) {
-            digests.insert(first.clone(), download(first)?);
-        }
-        cell.insert("sha256".to_owned(), Value::String(digests[first].clone()));
+        let digest = match digests.get(first) {
+            Some(digest) => digest.clone(),
+            None => {
+                let digest = download(first)?;
+                digests.insert(first.clone(), digest.clone());
+                digest
+            }
+        };
+        cell.insert("sha256".to_owned(), Value::String(digest));
         cell.insert(
             "urls".to_owned(),
             Value::Array(urls.into_iter().map(Value::String).collect()),
         );
     }
-    pins["version"] = Value::String(latest.to_owned());
+    pins.as_object_mut()
+        .ok_or_else(|| DxError::failure("pins.json is not an object"))?
+        .insert("version".to_owned(), Value::String(latest.to_owned()));
     render(&pins).map(Some)
 }
 
@@ -178,15 +186,16 @@ fn version_of(pins: &Value) -> Result<&str, DxError> {
 }
 
 fn first_cell(pins: &Value) -> Result<(&String, &Value), DxError> {
-    pins["cells"]
-        .as_object()
+    pins.get("cells")
+        .and_then(Value::as_object)
         .and_then(|cells| cells.iter().find(|(_, cell)| cell.get("stub").is_none()))
         .ok_or_else(|| DxError::failure("pins.json has no downloadable cell"))
 }
 
 fn first_url(cell: &Value) -> Result<&str, DxError> {
-    cell["urls"][0]
-        .as_str()
+    cell.get("urls")
+        .and_then(|urls| urls.get(0))
+        .and_then(Value::as_str)
         .ok_or_else(|| DxError::failure("a cell lists no url"))
 }
 

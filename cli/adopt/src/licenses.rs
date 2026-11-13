@@ -52,29 +52,29 @@ fn strip_comment(line: &str) -> &str {
     for (index, ch) in line.char_indices() {
         match ch {
             '"' => quoted = !quoted,
-            '#' if !quoted => return &line[..index],
+            '#' if !quoted => return line.get(..index).unwrap_or(line),
             _ => {}
         }
     }
     line
 }
 
-/// The text of the call that starts at `open`, the index just after its `(`.
-fn call_body(text: &str, open: usize) -> &str {
+/// The text of the call whose body is `text`, the text just after its `(`.
+fn call_body(text: &str) -> &str {
     let mut depth = 1usize;
-    for (index, ch) in text[open..].char_indices() {
+    for (index, ch) in text.char_indices() {
         match ch {
             '(' => depth += 1,
             ')' => {
                 depth -= 1;
                 if depth == 0 {
-                    return &text[open..open + index];
+                    return text.get(..index).unwrap_or_default();
                 }
             }
             _ => {}
         }
     }
-    &text[open..]
+    text
 }
 
 fn quoted(text: &str) -> Vec<String> {
@@ -89,16 +89,15 @@ fn quoted(text: &str) -> Vec<String> {
 fn extension_names(text: &str) -> Vec<String> {
     let mut names = Vec::new();
     let mut rest = text;
-    while let Some(at) = rest.find("use_extension(") {
-        let open = at + "use_extension(".len();
-        let body = call_body(rest, open);
-        let start = rest[..at].rfind('\n').map_or(0, |line| line + 1);
-        if let Some((name, _)) = rest[start..at].split_once('=')
+    while let Some((before, after)) = rest.split_once("use_extension(") {
+        let body = call_body(after);
+        let start = before.rfind('\n').map_or(0, |line| line + 1);
+        if let Some((name, _)) = before.get(start..).unwrap_or_default().split_once('=')
             && quoted(body).iter().any(|word| word == "dx_licenses")
         {
             names.push(name.trim().to_owned());
         }
-        rest = &rest[open..];
+        rest = after;
     }
     names
 }
@@ -114,16 +113,15 @@ pub fn accepted_license_ids(module: &str) -> BTreeSet<String> {
     for name in extension_names(&text) {
         let call = format!("{name}.accept(");
         let mut rest = text.as_str();
-        while let Some(at) = rest.find(&call) {
-            let open = at + call.len();
-            let boundary = rest[..at]
+        while let Some((before, after)) = rest.split_once(call.as_str()) {
+            let boundary = before
                 .chars()
                 .next_back()
                 .is_none_or(|ch| !(ch.is_alphanumeric() || ch == '_' || ch == '.'));
             if boundary {
-                ids.extend(quoted(call_body(rest, open)));
+                ids.extend(quoted(call_body(after)));
             }
-            rest = &rest[open..];
+            rest = after;
         }
     }
     ids

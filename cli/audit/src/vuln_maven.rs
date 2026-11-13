@@ -17,18 +17,20 @@ fn maven_dot_qualifiers_are_dashes(version: &str) -> String {
     let bytes = lower.as_bytes();
     let mut out: Vec<u8> = Vec::with_capacity(bytes.len() + 4);
     let mut index: usize = 0;
-    while index < bytes.len() {
-        let byte = bytes[index];
+    while let Some(&byte) = bytes.get(index) {
         if byte == b'.'
             && bytes
                 .get(index + 1)
                 .is_some_and(|next| !next.is_ascii_digit())
         {
             let mut after = index + 1;
-            while after < bytes.len() && !bytes[after].is_ascii_digit() && bytes[after] != b'-' {
+            while bytes
+                .get(after)
+                .is_some_and(|b| !b.is_ascii_digit() && *b != b'-')
+            {
                 after += 1;
             }
-            if after == bytes.len() || bytes[after].is_ascii_digit() {
+            if bytes.get(after).is_none_or(|b| b.is_ascii_digit()) {
                 out.push(b'-');
                 index += 1;
                 continue;
@@ -109,25 +111,18 @@ fn maven_intervals(scope: &str) -> Option<Vec<Option<MavenInterval>>> {
     let chars: Vec<char> = scope.chars().collect();
     let mut intervals: Vec<Option<MavenInterval>> = Vec::new();
     let mut index: usize = 0;
-    while index < chars.len() {
-        let current = chars[index];
+    while let Some(&current) = chars.get(index) {
         if current == '[' || current == '(' {
             let mut close_index = index + 1;
-            while close_index < chars.len()
-                && chars[close_index] != ']'
-                && chars[close_index] != ')'
+            while chars
+                .get(close_index)
+                .is_some_and(|c| *c != ']' && *c != ')')
             {
                 close_index += 1;
             }
-            if close_index >= chars.len() {
-                return None;
-            }
-            let content: String = chars[index + 1..close_index].iter().collect();
-            intervals.push(maven_interval(
-                &content,
-                current == '[',
-                chars[close_index] == ']',
-            ));
+            let closer = chars.get(close_index)?;
+            let content: String = chars.get(index + 1..close_index)?.iter().collect();
+            intervals.push(maven_interval(&content, current == '[', *closer == ']'));
             index = close_index + 1;
         } else if current == ',' || current.is_whitespace() {
             index += 1;

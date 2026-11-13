@@ -84,8 +84,8 @@ pub(super) fn plan_opam(
         package: package.to_owned(),
     };
     let start = content.find("depends:").ok_or_else(not_found)?;
-    let all = tokens(&content[start + "depends:".len()..]);
     let base = start + "depends:".len();
+    let all = tokens(content.get(base..).ok_or_else(not_found)?);
     if all.first().map(|t| t.kind) != Some(Kind::Other('[')) {
         return Err(unsupported("depends is not a list"));
     }
@@ -102,15 +102,22 @@ pub(super) fn plan_opam(
             _ => {}
         }
     }
-    let list = &all[1..list_end];
-    let text_of = |t: &Token| &content[base + t.start..base + t.end];
+    let list = all
+        .get(1..list_end)
+        .ok_or_else(|| unsupported("depends is not a list"))?;
+    let text_of = |t: &Token| content.get(base + t.start..base + t.end);
     let mut hits = Vec::new();
     let mut depth = 0;
     for (i, token) in list.iter().enumerate() {
         match token.kind {
             Kind::Open => depth += 1,
             Kind::Close => depth -= 1,
-            Kind::Str if depth == 0 && text_of(token).trim_matches('"') == package => hits.push(i),
+            Kind::Str
+                if depth == 0
+                    && text_of(token).is_some_and(|text| text.trim_matches('"') == package) =>
+            {
+                hits.push(i)
+            }
             _ => {}
         }
     }
@@ -128,7 +135,7 @@ pub(super) fn plan_opam(
     let block: Vec<&Token> = if list.get(index + 1).map(|t| t.kind) == Some(Kind::Open) {
         let mut depth = 0;
         let mut block = Vec::new();
-        for token in &list[index + 1..] {
+        for token in list.iter().skip(index + 1) {
             match token.kind {
                 Kind::Open => depth += 1,
                 Kind::Close => depth -= 1,
@@ -143,13 +150,18 @@ pub(super) fn plan_opam(
     } else {
         Vec::new()
     };
-    let constraints: Vec<&Token> = (1..block.len())
-        .filter(|&i| {
-            block[i].kind == Kind::Op
-                && matches!(block[i - 1].kind, Kind::Open | Kind::Other('&' | '|' | '('))
-                && block.get(i + 1).map(|t| t.kind) == Some(Kind::Str)
+    let constraints: Vec<&Token> = block
+        .windows(3)
+        .filter(|w| {
+            matches!(
+                w,
+                [prev, op, val]
+                    if op.kind == Kind::Op
+                        && matches!(prev.kind, Kind::Open | Kind::Other('&' | '|' | '('))
+                        && val.kind == Kind::Str
+            )
         })
-        .map(|i| block[i + 1])
+        .filter_map(|w| w.get(2).copied())
         .collect();
     let [constraint] = constraints.as_slice() else {
         return Err(unsupported(

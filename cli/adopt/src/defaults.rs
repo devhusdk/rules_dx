@@ -33,9 +33,9 @@ pub const ENV_DEFAULTS: [(&str, &str, &str); 3] = [
 pub fn parse_wait(value: &str) -> Option<std::time::Duration> {
     let value = value.trim().to_ascii_lowercase();
     let (digits, unit) = match value.chars().last()? {
-        's' => (&value[..value.len() - 1], 1),
-        'm' => (&value[..value.len() - 1], 60),
-        'h' => (&value[..value.len() - 1], 3600),
+        's' => (value.strip_suffix('s')?, 1),
+        'm' => (value.strip_suffix('m')?, 60),
+        'h' => (value.strip_suffix('h')?, 3600),
         _ => (value.as_str(), 1),
     };
     if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {

@@ -26,7 +26,9 @@ fn rewrite_generated_points_nuget_repo_at_rules_dx() {
         outputs: Vec::new(),
     };
     let input = b"a\nload(\"@rules_dotnet//dotnet:defs.bzl\", \"nuget_repo\")\nb\n".to_vec();
-    let want = b"a\nload(\"@rules_dx//dotnet:extensions.bzl\", nuget_repo = \"dotnet_nuget_repo\")\nb\n".to_vec();
+    let want =
+        b"a\nload(\"@rules_dx//dotnet:extensions.bzl\", nuget_repo = \"dotnet_nuget_repo\")\nb\n"
+            .to_vec();
     assert_eq!(run.rewrite_generated(input.clone()), want);
     run.tool = StagedTool::GoModDownload;
     assert_eq!(run.rewrite_generated(input.clone()), input);
@@ -1438,20 +1440,18 @@ fn configured_bazel_selective_points_at_update() {
 }
 
 fn pinned_sets() -> Vec<(ResolvedSet, &'static str, &'static str)> {
-    vec![
-        (
-            ResolvedSet {
-                name: "gems".to_owned(),
-                ecosystem: Ecosystem::Ruby,
-                dir: "apps/rb".to_owned(),
-                manifests: vec!["apps/rb/Gemfile".to_owned()],
-                locks: vec!["apps/rb/Gemfile.lock".to_owned()],
-                repository: None,
-            },
-            "rspec-core",
-            "`bundle lock`",
-        ),
-    ]
+    vec![(
+        ResolvedSet {
+            name: "gems".to_owned(),
+            ecosystem: Ecosystem::Ruby,
+            dir: "apps/rb".to_owned(),
+            manifests: vec!["apps/rb/Gemfile".to_owned()],
+            locks: vec!["apps/rb/Gemfile.lock".to_owned()],
+            repository: None,
+        },
+        "rspec-core",
+        "`bundle lock`",
+    )]
 }
 
 #[test]

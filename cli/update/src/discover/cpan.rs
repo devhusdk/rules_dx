@@ -53,15 +53,17 @@ fn declaration(line: &str) -> Option<(String, String)> {
 fn newest(body: &str) -> Result<(String, Option<String>, bool), DxError> {
     let json: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
-    let version = match &json["version"] {
-        serde_json::Value::String(text) => text.clone(),
-        serde_json::Value::Number(number) => number.to_string(),
+    let version = match json.get("version") {
+        Some(serde_json::Value::String(text)) => text.clone(),
+        Some(serde_json::Value::Number(number)) => number.to_string(),
         _ => return Err(DxError::failure("no version")),
     };
     Ok((
         version,
-        json["date"].as_str().map(str::to_owned),
-        json["maturity"].as_str() == Some("developer"),
+        json.get("date")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned),
+        json.get("maturity").and_then(serde_json::Value::as_str) == Some("developer"),
     ))
 }
 

@@ -200,7 +200,7 @@ pub fn freshness(snapshot: &AdvisorySnapshot, today: &str) -> Freshness {
 /// Whether one value is an audit date, `YYYY-MM-DD`.
 pub fn is_audit_date(value: &str) -> bool {
     let bytes = value.as_bytes();
-    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+    if bytes.len() != 10 || bytes.get(4) != Some(&b'-') || bytes.get(7) != Some(&b'-') {
         return false;
     }
     if !bytes

@@ -32,10 +32,11 @@ pub fn parse_cpanfile_snapshot(text: &str) -> Result<Vec<LockedPackage>, DxError
 
 fn split_distribution(entry: &str) -> Option<(String, String)> {
     let at = entry.rmatch_indices('-').find_map(|(index, _)| {
-        let numeric = entry[index + 1..]
-            .trim_start_matches('v')
-            .starts_with(|c: char| c.is_ascii_digit());
+        let numeric = entry.get(index + 1..).is_some_and(|tail| {
+            tail.trim_start_matches('v')
+                .starts_with(|c: char| c.is_ascii_digit())
+        });
         (index > 0 && numeric).then_some(index)
     })?;
-    Some((entry[..at].to_owned(), entry[at + 1..].to_owned()))
+    Some((entry.get(..at)?.to_owned(), entry.get(at + 1..)?.to_owned()))
 }

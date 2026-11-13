@@ -44,14 +44,19 @@ fn widen_requirement(
     if normalize(name) != normalize(package) {
         return Ok(None);
     }
-    let lead = &requirement[..requirement.len() - trimmed.len()];
+    let lead = requirement
+        .strip_suffix(trimmed)
+        .ok_or_else(|| unsupported(format!("cannot split {requirement:?}")))?;
     let after_name = rest.trim_start();
     let (extras, after_extras) = match after_name.strip_prefix('[') {
         Some(inner) => {
             let close = inner
                 .find(']')
                 .ok_or_else(|| unsupported(format!("unterminated extras in {requirement:?}")))?;
-            (&after_name[..close + 2], inner[close + 1..].trim_start())
+            let (extras, after_extras) = after_name
+                .split_at_checked(close + 2)
+                .ok_or_else(|| unsupported(format!("unterminated extras in {requirement:?}")))?;
+            (extras, after_extras.trim_start())
         }
         None => ("", after_name),
     };

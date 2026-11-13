@@ -59,7 +59,11 @@ pub fn outdated(
                 .get(&format!("{base}/{escaped}/@v/v{}.info", latest.1))
                 .ok()
                 .and_then(|body| serde_json::from_str::<serde_json::Value>(&body).ok())
-                .and_then(|info| info["Time"].as_str().map(str::to_owned));
+                .and_then(|info| {
+                    info.get("Time")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned)
+                });
             let (repo, tags) = match tags(module, current, &latest.1) {
                 Some((repo, tags)) => (Some(repo), Some(tags)),
                 None => (None, None),

@@ -58,7 +58,10 @@ pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, DxError> {
     let mut changes = Vec::new();
     let mut index = 0;
     while index < fields.len() {
-        let status = utf8_path(fields[index])?;
+        let status = fields
+            .get(index)
+            .ok_or_else(|| DxError::failure("git change list ends before its status"))
+            .and_then(|field| utf8_path(field))?;
         if status.is_empty() {
             return Err(DxError::failure(
                 "git change list has an empty status field",
@@ -139,8 +142,8 @@ fn is_package_dir(workspace: &Path, dir: &str) -> bool {
 
 /// Maps a missing path to the nearest enclosing Bazel package pattern for fallback.
 pub fn nearest_package_pattern(workspace: &Path, rel: &str) -> String {
-    let mut dir = match rel.rfind('/') {
-        Some(index) => &rel[..index],
+    let mut dir = match rel.rsplit_once('/') {
+        Some((parent, _)) => parent,
         None => "",
     };
     loop {
@@ -153,8 +156,8 @@ pub fn nearest_package_pattern(workspace: &Path, rel: &str) -> String {
         if dir.is_empty() {
             return "//...".to_owned();
         }
-        dir = match dir.rfind('/') {
-            Some(index) => &dir[..index],
+        dir = match dir.rsplit_once('/') {
+            Some((parent, _)) => parent,
             None => "",
         };
     }

@@ -329,7 +329,12 @@ fn pages_failure_text(output: &dx_process::capture::Captured, token: &str) -> St
         .filter(|line| !line.trim().is_empty())
         .collect();
     let start = lines.len().saturating_sub(TAIL_LINES);
-    let mut tail = lines[start..].join("\n");
+    let mut tail = lines
+        .iter()
+        .skip(start)
+        .copied()
+        .collect::<Vec<_>>()
+        .join("\n");
     let lower = redacted.to_lowercase();
     if lower.contains("authentication error")
         || lower.contains("invalid access token")
@@ -464,7 +469,10 @@ fn pages_deploy_with(
     code
 }
 
-#[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input of the call"
+)]
 fn pages_deploy_staged(
     launch: &PagesLaunch<'_>,
     files: &[PagesFile],
@@ -641,18 +649,17 @@ fn pages_runfiles_root(dir: Option<String>, exe: Option<PathBuf>) -> Option<Stri
 
 /// Checks one Pages deployment locally and writes its manifest.
 pub fn cloudflare_pages_verify_main(argv: &[String]) -> i32 {
-    if argv.len() != 7 {
+    let [_, account, project, branch, production, site, out] = argv else {
         return super::bin_usage(
             "cloudflare_verify",
             "<account_id> <project> <branch> <production_branch> <site> <out>",
         );
-    }
-    let (account, project, branch, production) = (&argv[1], &argv[2], &argv[3], &argv[4]);
+    };
     if let Some(message) = pages_identity_error(account, project, branch, production) {
         eprintln!("cloudflare_pages_deploy: {message}");
         return 1;
     }
-    let files = match pages_scan_site(Path::new(&argv[5])) {
+    let files = match pages_scan_site(Path::new(site)) {
         Ok(files) => files,
         Err(message) => {
             eprintln!("cloudflare_pages_deploy: {message}");
@@ -670,9 +677,9 @@ pub fn cloudflare_pages_verify_main(argv: &[String]) -> i32 {
             .collect::<Vec<_>>(),
     });
     let text = manifest.to_string() + "\n";
-    match std::fs::write(&argv[6], text) {
+    match std::fs::write(out, text) {
         Ok(()) => 0,
-        Err(error) => super::bin_cannot("cloudflare_verify", "write", Path::new(&argv[6]), error),
+        Err(error) => super::bin_cannot("cloudflare_verify", "write", Path::new(out), error),
     }
 }
 

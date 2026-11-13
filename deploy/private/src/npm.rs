@@ -27,7 +27,10 @@ pub fn npm_package_paths(
 }
 
 /// Creates one deterministic npm pack.
-#[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input of the call"
+)]
 pub fn npm_create_pack(
     package: &str,
     tag: &str,
@@ -100,9 +103,12 @@ pub fn npm_create_pack(
 pub fn npm_access_error(package: &str, access: &str) -> Option<String> {
     let scoped = package.starts_with('@');
     if scoped
-        && !package[1..].split_once('/').is_some_and(|(scope, name)| {
-            !scope.is_empty() && !name.is_empty() && !name.contains('/')
-        })
+        && !package
+            .strip_prefix('@')
+            .and_then(|rest| rest.split_once('/'))
+            .is_some_and(|(scope, name)| {
+                !scope.is_empty() && !name.is_empty() && !name.contains('/')
+            })
     {
         return Some(format!(
             "npm_deploy: invalid package '{package}': a scoped name is @scope/name"
@@ -318,20 +324,37 @@ pub fn npm_find_pack_inputs(
 
 /// Runs the npm pack tool.
 pub fn npm_pack_main(argv: &[String]) -> i32 {
-    if argv.len() < 9 {
+    let [
+        _,
+        package,
+        tag,
+        registry,
+        access,
+        provenance,
+        tgz_out,
+        feed_out,
+        srcs @ ..,
+    ] = argv
+    else {
+        eprintln!(
+            "usage: npm_pack <package> <tag> <registry> <access> <provenance> <tgz_out> <feed_out> <src...>"
+        );
+        return 1;
+    };
+    if srcs.is_empty() {
         eprintln!(
             "usage: npm_pack <package> <tag> <registry> <access> <provenance> <tgz_out> <feed_out> <src...>"
         );
         return 1;
     }
-    let package = argv[1].clone();
-    let tag = argv[2].clone();
-    let registry = argv[3].clone();
-    let access = argv[4].clone();
-    let provenance = argv[5].clone();
-    let tgz_out = std::path::PathBuf::from(&argv[6]);
-    let feed_out = std::path::PathBuf::from(&argv[7]);
-    let srcs: Vec<std::path::PathBuf> = argv[8..].iter().map(std::path::PathBuf::from).collect();
+    let package = package.clone();
+    let tag = tag.clone();
+    let registry = registry.clone();
+    let access = access.clone();
+    let provenance = provenance.clone();
+    let tgz_out = std::path::PathBuf::from(tgz_out);
+    let feed_out = std::path::PathBuf::from(feed_out);
+    let srcs: Vec<std::path::PathBuf> = srcs.iter().map(std::path::PathBuf::from).collect();
     match npm_create_pack(
         &package,
         &tag,
@@ -452,10 +475,15 @@ fn package_version_and_types(package_dir: &Path) -> Result<(String, Option<Strin
         .map_err(|error| format!("{}: {error}", manifest_name()))?;
     let json: serde_json::Value =
         serde_json::from_str(&body).map_err(|error| format!("{}: {error}", manifest_name()))?;
-    let version = json["version"].as_str().unwrap_or("").to_owned();
-    let types = json["types"]
-        .as_str()
-        .or_else(|| json["typings"].as_str())
+    let version = json
+        .get("version")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("")
+        .to_owned();
+    let types = json
+        .get("types")
+        .and_then(serde_json::Value::as_str)
+        .or_else(|| json.get("typings").and_then(serde_json::Value::as_str))
         .map(|types| types.trim_start_matches("./").to_owned());
     Ok((version, types))
 }
@@ -516,12 +544,12 @@ fn npm_published(body: &str) -> Vec<(String, String)> {
     let Ok(json) = serde_json::from_str::<serde_json::Value>(body) else {
         return Vec::new();
     };
-    json["versions"]
-        .as_object()
+    json.get("versions")
+        .and_then(serde_json::Value::as_object)
         .into_iter()
         .flatten()
         .filter_map(|(version, meta)| {
-            let tarball = meta["dist"]["tarball"].as_str()?;
+            let tarball = meta.pointer("/dist/tarball")?.as_str()?;
             Some((version.clone(), tarball.to_owned()))
         })
         .collect()

@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 // LCOV_EXCL_START - reason: process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 fn main() {
     std::process::exit(dx_release_tools::release_deploy_tool_main(

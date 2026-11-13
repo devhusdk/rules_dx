@@ -166,8 +166,9 @@ fn cargo_failure_lines(stderr: &[u8], token: &str) -> Vec<String> {
         text.replace(token, "[redacted]")
     };
     let lines: Vec<&str> = text.lines().collect();
-    lines[lines.len().saturating_sub(CARGO_FAILURE_LINES)..]
+    lines
         .iter()
+        .skip(lines.len().saturating_sub(CARGO_FAILURE_LINES))
         .map(|line| (*line).to_owned())
         .collect()
 }
@@ -298,8 +299,12 @@ fn index_path(name: &str) -> String {
     match name.len() {
         1 => format!("1/{name}"),
         2 => format!("2/{name}"),
-        3 => format!("3/{}/{name}", &name[..1]),
-        _ => format!("{}/{}/{name}", &name[..2], &name[2..4]),
+        3 => format!("3/{}/{name}", name.get(..1).unwrap_or_default()),
+        _ => format!(
+            "{}/{}/{name}",
+            name.get(..2).unwrap_or_default(),
+            name.get(2..4).unwrap_or_default()
+        ),
     }
 }
 

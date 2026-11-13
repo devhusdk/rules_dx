@@ -337,7 +337,13 @@ pub fn homebrew_tap_main(launch: &HomebrewLaunch<'_>, argv: &[String]) -> i32 {
             serde_json::from_str::<serde_json::Value>(&text).map_err(|error| error.to_string())
         })
         .and_then(|value| {
-            serde_json::from_value(value["config"].clone()).map_err(|error| error.to_string())
+            serde_json::from_value(
+                value
+                    .get("config")
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null),
+            )
+            .map_err(|error| error.to_string())
         }) {
         Ok(release) => release,
         Err(error) => {

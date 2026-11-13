@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 mod api_compat;
 mod archive;
 mod cloudflare;

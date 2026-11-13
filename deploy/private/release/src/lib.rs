@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::io;
 use std::path::Path;
 
@@ -1049,13 +1051,13 @@ pub fn notice_entry_body<'a>(
         match start {
             None if bare == header => start = Some(offset + line.len()),
             Some(begin) if headers.iter().any(|known| known == bare) => {
-                return Some(&notice_text[begin..offset]);
+                return notice_text.get(begin..offset);
             }
             _ => {}
         }
         offset += line.len();
     }
-    start.map(|begin| &notice_text[begin..])
+    start.and_then(|begin| notice_text.get(begin..))
 }
 
 /// Shared NOTICE verifier for the release and install sides. Errors carry no

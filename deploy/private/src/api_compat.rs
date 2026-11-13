@@ -111,7 +111,12 @@ pub fn latest_published(index_body: &str, next: &str) -> Option<String> {
         .lines()
         .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
         .filter(|entry| !entry["yanked"].as_bool().unwrap_or(false))
-        .filter_map(|entry| entry["vers"].as_str().map(str::to_owned))
+        .filter_map(|entry| {
+            entry
+                .get("vers")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
         .collect();
     highest_below(versions.iter().map(String::as_str), next)
 }
@@ -207,7 +212,12 @@ pub fn changes_or_failure(
         .map(str::trim)
         .filter(|line| !line.is_empty())
         .collect();
-    let tail = tail[tail.len().saturating_sub(5)..].join(" | ");
+    let tail = tail
+        .iter()
+        .skip(tail.len().saturating_sub(5))
+        .copied()
+        .collect::<Vec<_>>()
+        .join(" | ");
     vec![format!("{tool} failed: {tail}")]
 }
 

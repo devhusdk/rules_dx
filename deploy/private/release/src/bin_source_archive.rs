@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::ffi::OsString;
 use std::path::PathBuf;
 
@@ -9,15 +11,17 @@ struct SourceArchiveInputs<'a> {
 }
 
 fn parse_source_archive_args(argv: &[String]) -> Option<SourceArchiveInputs<'_>> {
-    let pins = match argv.len() {
-        4 => None,
-        6 if argv[4] == "--pins" => Some(PathBuf::from(&argv[5])),
+    let (tag, commit, out_dir, pins) = match argv {
+        [_, tag, commit, out_dir] => (tag, commit, out_dir, None),
+        [_, tag, commit, out_dir, flag, pins] if flag == "--pins" => {
+            (tag, commit, out_dir, Some(PathBuf::from(pins)))
+        }
         _ => return None,
     };
     Some(SourceArchiveInputs {
-        tag: &argv[1],
-        commit: &argv[2],
-        out_dir: PathBuf::from(&argv[3]),
+        tag,
+        commit,
+        out_dir: PathBuf::from(out_dir),
         pins,
     })
 }

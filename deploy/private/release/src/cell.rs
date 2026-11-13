@@ -317,7 +317,11 @@ fn clip(text: &str) -> String {
     while !text.is_char_boundary(tail) {
         tail += 1;
     }
-    format!("{}\n...\n{}", &text[..head], &text[tail..])
+    format!(
+        "{}\n...\n{}",
+        text.get(..head).unwrap_or(""),
+        text.get(tail..).unwrap_or("")
+    )
 }
 
 fn ran(runner: &dyn Runner, program: &Path, args: &[&str], cwd: &Path) -> Result<String, String> {
@@ -967,7 +971,11 @@ pub fn verify_each(
                 continue;
             }
         };
-        let Some(index) = matrix.iter().position(|cell| cell.name == record.cell) else {
+        let Some((outcome, cell)) = cells
+            .iter_mut()
+            .zip(matrix)
+            .find(|(_, cell)| cell.name == record.cell)
+        else {
             stray.push(format!(
                 "record {}: unknown cell {:?}",
                 path.display(),
@@ -975,7 +983,6 @@ pub fn verify_each(
             ));
             continue;
         };
-        let outcome = &mut cells[index];
         if outcome.record.is_some() {
             outcome
                 .reasons
@@ -984,7 +991,7 @@ pub fn verify_each(
         }
         outcome
             .reasons
-            .extend(record_errors(&matrix[index], &record, archives, expected));
+            .extend(record_errors(cell, &record, archives, expected));
         outcome.record = Some(record);
     }
     for outcome in cells.iter_mut().filter(|outcome| outcome.record.is_none()) {

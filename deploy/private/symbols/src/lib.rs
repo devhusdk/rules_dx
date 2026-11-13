@@ -1,6 +1,8 @@
 //! Checks that a binary and its debug info belong together: ELF build-ids and
 //! macOS dSYM UUIDs and Windows PDB GUIDs.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use object::{Architecture, Object};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -34,7 +36,10 @@ fn read(bytes: &[u8], what: &str) -> Result<Elf, String> {
         .map_err(|e| format!("{what} is corrupt: {e}"))?
         .ok_or_else(|| format!("{what} has no build-id"))?
         .to_vec();
-    let raw = [bytes[18], bytes[19]];
+    let raw: [u8; 2] = bytes
+        .get(18..20)
+        .and_then(|s| s.try_into().ok())
+        .ok_or_else(|| format!("{what} is corrupt"))?;
     let machine = if file.is_little_endian() {
         u16::from_le_bytes(raw)
     } else {
@@ -197,12 +202,15 @@ pub fn pe_codeview(bytes: &[u8]) -> Result<PeId, String> {
     let nt = u32_at(bytes, 0x3c).ok_or("binary is truncated")? as usize;
     let machine = u16_at(bytes, nt + 4).ok_or("binary is truncated")?;
     let linker = bytes.get(nt + 26..nt + 28).ok_or("binary is truncated")?;
+    let [major, minor] = linker else {
+        return Err("binary is truncated".into());
+    };
     Ok(PeId {
         guid: cv.guid(),
         age: cv.age(),
         path: String::from_utf8_lossy(cv.path()).into_owned(),
         machine,
-        linker_version: format!("{}.{}", linker[0], linker[1]),
+        linker_version: format!("{}.{}", major, minor),
     })
 }
 
@@ -262,9 +270,10 @@ pub fn pdb_identity(bytes: &[u8]) -> Result<PdbId, String> {
     let dbi = streams.get(3).filter(|s| s.len() >= 64);
     let dbi = dbi.ok_or("pdb has no DBI stream")?;
     Ok(PdbId {
-        guid: info[12..28]
-            .try_into()
-            .map_err(|_| "pdb has no info stream")?,
+        guid: info
+            .get(12..28)
+            .and_then(|s| s.try_into().ok())
+            .ok_or("pdb has no info stream")?,
         age: u32_at(dbi, 8).ok_or("pdb has no DBI stream")?,
         machine: u16_at(dbi, 58).ok_or("pdb has no DBI stream")?,
     })

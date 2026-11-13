@@ -189,10 +189,12 @@ pub fn archive_tree(members: &[(&str, &[u8], u32)], dst: &Path) -> io::Result<()
     let mut ordered: Vec<(&str, &[u8], u32)> = members.to_vec();
     ordered.sort_by(|left, right| left.0.cmp(right.0));
     for pair in ordered.windows(2) {
-        if pair[0].0 == pair[1].0 {
+        if let [first, second] = pair
+            && first.0 == second.0
+        {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                format!("archive members: duplicate name {:?}", pair[0].0),
+                format!("archive members: duplicate name {:?}", first.0),
             ));
         }
     }

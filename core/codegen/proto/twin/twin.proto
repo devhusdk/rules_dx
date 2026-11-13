@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package dx.codegen.twin.v1;
+
+message Twin {
+  string value = 1;
+}

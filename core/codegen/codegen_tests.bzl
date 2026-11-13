@@ -364,22 +364,45 @@ def codegen_defs_unit_tests(name):
         ],
     )
 
-_PROST_FINGERPRINT = (
-    "[{\"entries\":[{\"exec_path\":\"core/codegen/proto/result_proto.lib.rs\",\"import_root\":\"gen\"," +
-    "\"logical_path\":\"gen/result_proto.lib.rs\",\"namespace\":\"\",\"read_only\":true,\"replaces\":\"\"}]," +
-    "\"language\":\"rust\",\"producer\":\"//core/codegen/proto:result_proto_rs\"}]"
-)
+def _prost_record(package):
+    return (
+        "{\"entries\":[{\"exec_path\":\"%s/result_proto.lib.rs\",\"import_root\":\"gen\"," +
+        "\"logical_path\":\"gen/%s/result_proto.lib.rs\",\"namespace\":\"\",\"read_only\":true,\"replaces\":\"\"}]," +
+        "\"language\":\"rust\",\"producer\":\"//%s:result_proto_rs\"}"
+    ) % (package, package, package)
+
+_PROST = _prost_record("core/codegen/proto")
+_PROST_TWIN = _prost_record("core/codegen/proto/twin")
 
 EXPECTED_CODEGEN_PLAN_OBSERVATIONS = """subject //core/codegen:codegen_plan_prost_subject
 field files=result_proto.lib.rs,result_proto_rs.dxcodegen.pb,result_proto_rs.dxcodegen.src
-field fingerprint=%s
+field fingerprint=[%s]
 field label=//core/codegen/proto:result_proto_rs
 field record_count=1
 aspect_field aspect_seen=True
 aspect_field field_count=4
 aspect_field has_subject=True
 aspect_field subject_label=//core/codegen:codegen_plan_prost_subject
-aspect_field transitive_count=0""" % _PROST_FINGERPRINT
+aspect_field transitive_count=0
+subject //core/codegen:codegen_plan_prost_two_packages_subject
+field files=result_proto.lib.rs,result_proto.lib.rs,result_proto_rs.dxcodegen.pb,result_proto_rs.dxcodegen.pb,result_proto_rs.dxcodegen.src,result_proto_rs.dxcodegen.src
+field fingerprint=[%s,%s]
+field label=//core/codegen:codegen_prost_two_packages
+field record_count=2
+aspect_field aspect_seen=True
+aspect_field field_count=4
+aspect_field has_subject=True
+aspect_field subject_label=//core/codegen:codegen_plan_prost_two_packages_subject
+aspect_field transitive_count=0""" % (_PROST, _PROST_TWIN, _PROST)
+
+def _codegen_deps_fixture_impl(_ctx):
+    return [DefaultInfo()]
+
+codegen_deps_fixture = rule(
+    implementation = _codegen_deps_fixture_impl,
+    doc = "Fixture whose deps the codegen plan aspect walks.",
+    attrs = {"deps": attr.label_list()},
+)
 
 def codegen_plan_analysis_tests(name):
     starlark_test(
@@ -387,6 +410,7 @@ def codegen_plan_analysis_tests(name):
         mode = "analysis",
         subjects = [
             ":codegen_plan_prost_subject",
+            ":codegen_plan_prost_two_packages_subject",
         ],
         expected_observations = EXPECTED_CODEGEN_PLAN_OBSERVATIONS,
     )

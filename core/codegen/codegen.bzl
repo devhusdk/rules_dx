@@ -260,7 +260,7 @@ def _prost_plan(target, ctx):
     generated = groups.rust_generated_srcs.to_list()
     if len(generated) == 0:
         return None
-    files = [codegen_library_file(f, f.basename) for f in generated]
+    files = [codegen_package_file(f) for f in generated]
     return _codegen_plan_outputs(ctx, display_label(target.label), "protobuf", "rust", CODEGEN_LIBRARY_ROOT, files, "")
 
 _CODEGEN_ASPECT_ATTRS = ["deps", "proto", "generated"]

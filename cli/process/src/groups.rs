@@ -65,7 +65,7 @@ impl GroupLease {
     }
 
     /// Makes the spawned child write this lease for its own group before it execs.
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub(crate) fn record_from_child(&self, command: &mut std::process::Command) {
         use std::os::fd::AsRawFd;
         use std::os::unix::process::CommandExt;
@@ -184,7 +184,6 @@ mod sys {
     /// Writes the lease line of the calling process's own group into `fd`; runs between fork and exec.
     #[cfg(target_os = "linux")]
     pub(super) fn write_own_lease(fd: i32, namespace: &str, boot: &str) {
-        use std::io::Write;
         let mut stat = [0u8; 4096];
         let read = unsafe {
             let stat_fd = libc::open(
@@ -206,6 +205,23 @@ mod sys {
         else {
             return;
         };
+        write_lease_line(fd, format_args!("{start}"), namespace, boot);
+    }
+
+    /// Writes the lease line of the calling process's own group into `fd`; runs between fork and exec.
+    #[cfg(target_os = "macos")]
+    pub(super) fn write_own_lease(fd: i32, namespace: &str, boot: &str) {
+        let pid = unsafe { libc::getpid() };
+        let Some((secs, micros)) = crate::procs::start_timeval(pid) else {
+            return;
+        };
+        write_lease_line(fd, format_args!("{secs}.{micros:06}"), namespace, boot);
+    }
+
+    /// Replaces the text of `fd` with the calling process's lease line, using only stack buffers.
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    fn write_lease_line(fd: i32, start: std::fmt::Arguments<'_>, namespace: &str, boot: &str) {
+        use std::io::Write;
         let pid = unsafe { libc::getpid() };
         let mut line = [0u8; 1024];
         let mut cursor = std::io::Cursor::new(&mut line[..]);

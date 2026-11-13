@@ -669,7 +669,7 @@ fn stat_start_reads_the_twenty_second_field_after_the_name() {
     assert_eq!(sys::stat_start(b"no name"), None);
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 #[test]
 fn a_child_replaces_its_lease_text_before_spawn_returns() {
     let scratch = dx_test_scratch::scratch("dx-groups-child-");

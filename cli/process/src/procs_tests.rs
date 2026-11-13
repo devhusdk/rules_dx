@@ -88,7 +88,17 @@ fn this_process_has_a_stable_start_time() {
     assert_eq!(first, start_time(std::process::id()));
 }
 
-#[cfg(all(unix, not(target_os = "linux")))]
+#[cfg(target_os = "macos")]
+#[test]
+fn start_time_has_microseconds_after_the_seconds() {
+    let start = start_time(std::process::id()).expect("start");
+    let (secs, micros) = start.split_once('.').expect("seconds and microseconds");
+    assert!(secs.parse::<u64>().expect("seconds") > 0);
+    assert_eq!(micros.len(), 6);
+    assert_eq!(start_time(u32::MAX), None);
+}
+
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
 #[test]
 fn start_time_runs_ps_in_the_c_locale() {
     let command = start_time_command(std::process::id());

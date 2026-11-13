@@ -231,16 +231,30 @@ pub fn short_label(
 mod tests {
     use super::*;
 
-    const BUILD: &str = concat!(
-        "rust_library(\n",
-        "    name = \"lib\",\n",
-        "    srcs = [\"lib.rs\"],\n",
-        "    deps = [\n",
-        "        \"//util:used\",\n",
-        "        \"@crates//:serde\",\n",
-        "    ],\n",
-        ")\n",
-    );
+    /// The `cargo` hub label of `serde`.
+    fn serde() -> String {
+        format!(
+            "@{}//:serde",
+            dx_families::hub("cargo")
+                .expect("setup.hubs entry cargo")
+                .hub
+        )
+    }
+
+    /// One `rust_library` whose deps are `//util:used` and the `serde` hub label.
+    fn lib_build() -> String {
+        [
+            "rust_library(\n",
+            "    name = \"lib\",\n",
+            "    srcs = [\"lib.rs\"],\n",
+            "    deps = [\n",
+            "        \"//util:used\",\n",
+            &format!("        \"{}\",\n", serde()),
+            "    ],\n",
+            ")\n",
+        ]
+        .concat()
+    }
 
     fn cut(text: &str, target: &str, dependency: &str) -> Option<String> {
         let (start, end) = locate(text, target, dependency)?;
@@ -285,9 +299,10 @@ mod tests {
 
     #[test]
     fn finds_the_entry_and_removes_its_line() {
-        let (start, end) = locate(BUILD, "lib", "serde").expect("located");
-        assert_eq!(&BUILD[start..end], "\"@crates//:serde\"");
-        let fixed = cut(BUILD, "lib", "serde").expect("cut");
+        let build = lib_build();
+        let (start, end) = locate(&build, "lib", "serde").expect("located");
+        assert_eq!(build[start..end], format!("\"{}\"", serde()));
+        let fixed = cut(&build, "lib", "serde").expect("cut");
         assert!(!fixed.contains("serde"));
         assert!(fixed.contains("\"//util:used\",\n    ],"));
     }
@@ -337,8 +352,11 @@ mod tests {
 
     #[test]
     fn inserts_into_a_multi_line_list() {
-        let fixed = insert(BUILD, "lib", "//q:needed").expect("inserted");
-        assert!(fixed.contains("\"@crates//:serde\",\n        \"//q:needed\",\n    ],"));
+        let fixed = insert(&lib_build(), "lib", "//q:needed").expect("inserted");
+        assert!(fixed.contains(&format!(
+            "\"{}\",\n        \"//q:needed\",\n    ],",
+            serde()
+        )));
     }
 
     #[test]
@@ -359,13 +377,14 @@ mod tests {
     fn does_not_insert_without_deps_or_a_second_time() {
         let build = "rust_library(name = \"lib\")\n";
         assert!(insert(build, "lib", "//b:b").is_none());
-        assert!(insert(BUILD, "lib", "//util:used").is_none());
+        assert!(insert(&lib_build(), "lib", "//util:used").is_none());
     }
 
     #[test]
     fn locates_the_deps_key_else_the_name_line() {
-        let (start, end) = locate_deps_list(BUILD, "lib").expect("located");
-        assert_eq!(&BUILD[start..end], "deps = [");
+        let full = lib_build();
+        let (start, end) = locate_deps_list(&full, "lib").expect("located");
+        assert_eq!(&full[start..end], "deps = [");
         let build = "rust_library(\n    name = \"lib\",\n)\n";
         let (start, end) = locate_deps_list(build, "lib").expect("located");
         assert_eq!(&build[start..end], "    name = \"lib\",");

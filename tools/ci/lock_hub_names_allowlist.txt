@@ -1,11 +1,5 @@
-hub cli/cli/src/exec/affected.rs crates
 hub cli/cli/src/exec/quality_edits.rs maven
 hub cli/cli/src/exec/update_unused.rs maven
-hub cli/plan/src/resolve/changed.rs crates
-hub cli/plan/src/resolve/changed.rs npm
-hub cli/plan/src/resolve/lock_inputs.rs crates
 hub cli/plan/src/resolve/lock_inputs.rs maven
-hub core/quality/result/src/build_deps.rs crates
 hub core/quality/result/src/build_deps.rs maven
-hub deploy/private/release/src/inventory.rs crates
 hub tools/testing/hermetic/maven_pin.rs maven

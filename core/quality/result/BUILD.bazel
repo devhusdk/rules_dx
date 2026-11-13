@@ -40,7 +40,10 @@ rust_test(
         package_name = "core/quality/quality_result",
         normal = True,
         normal_dev = True,
-    ) + ["@rules_rust_prost//private/3rdparty/crates:prost"],
+    ) + [
+        "//cli/families:dx_families",
+        "@rules_rust_prost//private/3rdparty/crates:prost",
+    ],
 )
 
 exports_files([

@@ -143,8 +143,9 @@ fn the_profile_report_is_kept_and_summarised_in_the_pr_comment() {
         checks.contains("cp .dx/local/timings/report.json \"$reports/profile-$id.json\""),
         "{checks}"
     );
-    let summary = run_of("dx-coverage-summary");
-    assert!(summary.contains("% cache hits (remote "), "{summary}");
-    assert!(summary.contains("critical path "), "{summary}");
-    assert!(summary.contains("\"$profile_lines\""), "{summary}");
+    let summary = run_of("@rules_dx//cli/coverage_summary");
+    assert!(
+        summary.contains("--runner-temp \"$RUNNER_TEMP\""),
+        "{summary}"
+    );
 }

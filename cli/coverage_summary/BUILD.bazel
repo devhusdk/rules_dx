@@ -1,0 +1,96 @@
+load("@crates//:crates.bzl", "aliases")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+exports_files([
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/lib_tests.rs",
+    "src/main.rs",
+    "src/main_tests.rs",
+])
+
+rust_binary(
+    name = "coverage_summary",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_coverage_summary",
+        normal = True,
+    ),
+    crate_name = "coverage_summary",
+    crate_root = "src/main.rs",
+    # keep
+    deps = [
+        ":dx_coverage_summary",
+        "@crates//:clap",
+    ],
+)
+
+rust_library(
+    name = "dx_coverage_summary",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_coverage_summary",
+        normal = True,
+    ),
+    crate_name = "dx_coverage_summary",
+    crate_root = "src/lib.rs",
+    # keep
+    deps = ["@crates//:serde_json"],
+)
+
+rust_test(
+    name = "dx_coverage_summary_test",
+    size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_coverage_summary",
+        normal = True,
+        normal_dev = True,
+    ),
+    coverage_lib = ":dx_coverage_summary",
+    crate_name = "dx_coverage_summary",
+    crate_root = "src/lib.rs",
+    # keep
+    deps = ["@crates//:serde_json"],
+)
+
+rust_test(
+    name = "coverage_summary_bin_test",
+    size = "small",
+    srcs = [
+        "src/main.rs",
+        "src/main_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_coverage_summary",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "coverage_summary",
+    crate_root = "src/main.rs",
+    # keep
+    deps = [
+        ":dx_coverage_summary",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:clap",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

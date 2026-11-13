@@ -1,5 +1,5 @@
 {
-  "checksum": "25d06fd1f006cb82b0dbfd34ca11a202e5959f24eee94f036e508c8ebe6d62df",
+  "checksum": "d26e4ff0615487df9f9055041abc65b7180a30c96e31e5de64da24ce296788d0",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8171,6 +8171,37 @@
         {
           "Library": {
             "crate_name": "dx_config",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_coverage_summary 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_coverage_summary",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_coverage_summary",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_coverage_summary",
             "crate_root": "src/lib.rs"
           }
         }
@@ -32966,6 +32997,7 @@
     "dx_cli 0.0.0": "cli/dx_cli",
     "dx_codegen 0.0.0": "cli/dx_codegen",
     "dx_config 0.0.0": "cli/dx_config",
+    "dx_coverage_summary 0.0.0": "cli/dx_coverage_summary",
     "dx_depcheck 0.0.0": "cli/dx_depcheck",
     "dx_deploy_tools 0.0.0": "deploy/dx_deploy_tools",
     "dx_diff 0.0.0": "cli/dx_diff",

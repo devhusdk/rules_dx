@@ -1789,6 +1789,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_coverage_summary"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "serde_json",
+]
+
+[[package]]
 name = "dx_depcheck"
 version = "0.0.0"
 dependencies = [

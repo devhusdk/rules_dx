@@ -109,22 +109,23 @@ pub fn sha256(data: &[u8]) -> String {
             *slot = u32::from_be_bytes(*word);
         }
         for i in 16..64 {
-            let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
-            let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
-            w[i] = w[i - 16]
-                .wrapping_add(s0)
-                .wrapping_add(w[i - 7])
-                .wrapping_add(s1);
+            if let Some((done, [next, ..])) = w.split_at_mut_checked(i) {
+                if let Some(&[w16, w15, .., w7, _, _, _, _, w2, _]) = done.last_chunk::<16>() {
+                    let s0 = w15.rotate_right(7) ^ w15.rotate_right(18) ^ (w15 >> 3);
+                    let s1 = w2.rotate_right(17) ^ w2.rotate_right(19) ^ (w2 >> 10);
+                    *next = w16.wrapping_add(s0).wrapping_add(w7).wrapping_add(s1);
+                }
+            }
         }
         let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = state;
-        for i in 0..64 {
+        for (&k, &word) in K.iter().zip(&w) {
             let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
             let choice = (e & f) ^ (!e & g);
             let t1 = h
                 .wrapping_add(s1)
                 .wrapping_add(choice)
-                .wrapping_add(K[i])
-                .wrapping_add(w[i]);
+                .wrapping_add(k)
+                .wrapping_add(word);
             let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
             let majority = (a & b) ^ (a & c) ^ (b & c);
             let t2 = s0.wrapping_add(majority);

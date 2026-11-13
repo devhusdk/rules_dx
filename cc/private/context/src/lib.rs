@@ -1,5 +1,7 @@
 //! Authoritative C/C++ compile context read from a Bazel aquery action record.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -359,9 +361,8 @@ fn source_argument<'a>(target: &str, arguments: &'a [String]) -> Result<&'a str,
         target: target.to_string(),
         flag: flag.to_string(),
     };
-    let mut index = 0;
-    while index < arguments.len() {
-        let flag = arguments[index].as_str();
+    for (index, argument) in arguments.iter().enumerate() {
+        let flag = argument.as_str();
         if matches!(flag, "-c" | "/c" | "/Tc" | "/Tp") {
             let source = arguments.get(index + 1).ok_or_else(|| missing(flag))?;
             if source.starts_with('-') || source.starts_with('/') || source.starts_with('@') {
@@ -370,11 +371,12 @@ fn source_argument<'a>(target: &str, arguments: &'a [String]) -> Result<&'a str,
             return Ok(source);
         }
         for prefix in ["/Tc", "/Tp"] {
-            if flag.len() > prefix.len() && flag.starts_with(prefix) {
-                return Ok(&flag[prefix.len()..]);
+            if let Some(source) = flag.strip_prefix(prefix)
+                && !source.is_empty()
+            {
+                return Ok(source);
             }
         }
-        index += 1;
     }
     Err(missing(""))
 }
@@ -773,8 +775,7 @@ fn tokenize_windows(path: &str, text: &str) -> Result<Vec<String>, Error> {
     let mut in_token = false;
     let mut quoted = false;
     let mut index = 0;
-    while index < chars.len() {
-        let ch = chars[index];
+    while let Some(&ch) = chars.get(index) {
         if ch == '\\' {
             let mut slashes = 0;
             while chars.get(index) == Some(&'\\') {

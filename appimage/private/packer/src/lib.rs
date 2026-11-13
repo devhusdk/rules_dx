@@ -1,5 +1,7 @@
 //! Builds an AppDir, runs appimagetool and writes the identity file.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Read;
@@ -38,30 +40,46 @@ pub struct Request {
 }
 
 pub fn parse(args: &[String]) -> Result<Request, String> {
-    if args.len() < FIXED_ARGS {
+    let [
+        tools,
+        runtime,
+        name,
+        version,
+        image,
+        identity,
+        binary,
+        desktop,
+        icon,
+        arch,
+        tool_version,
+        runtime_version,
+        squashfs_version,
+        rest @ ..,
+    ] = args
+    else {
         return Err(format!(
             "expected at least {FIXED_ARGS} arguments, got {}",
             args.len()
         ));
-    }
-    let mut entries = Vec::new();
-    for entry in &args[FIXED_ARGS..] {
-        entries.push(parse_entry(entry)?);
-    }
+    };
+    let entries = rest
+        .iter()
+        .map(|entry| parse_entry(entry))
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(Request {
-        tools: args[0].clone().into(),
-        runtime: args[1].clone().into(),
-        name: args[2].clone(),
-        version: args[3].clone(),
-        image: args[4].clone().into(),
-        identity: args[5].clone().into(),
-        binary: args[6].clone().into(),
-        desktop: args[7].clone().into(),
-        icon: args[8].clone().into(),
-        arch: args[9].clone(),
-        tool_version: args[10].clone(),
-        runtime_version: args[11].clone(),
-        squashfs_version: args[12].clone(),
+        tools: tools.into(),
+        runtime: runtime.into(),
+        name: name.clone(),
+        version: version.clone(),
+        image: image.into(),
+        identity: identity.into(),
+        binary: binary.into(),
+        desktop: desktop.into(),
+        icon: icon.into(),
+        arch: arch.clone(),
+        tool_version: tool_version.clone(),
+        runtime_version: runtime_version.clone(),
+        squashfs_version: squashfs_version.clone(),
         entries,
     })
 }
@@ -104,7 +122,10 @@ fn hash_file(path: &Path) -> Result<String, String> {
         if read == 0 {
             break;
         }
-        hasher.update(&buffer[..read]);
+        let chunk = buffer
+            .get(..read)
+            .ok_or_else(|| format!("read {}: {read} bytes overflow the buffer", path.display()))?;
+        hasher.update(chunk);
     }
     Ok(hex(&hasher.finalize()))
 }
@@ -112,18 +133,20 @@ fn hash_file(path: &Path) -> Result<String, String> {
 pub fn highest_glibc(bytes: &[u8]) -> Option<Vec<u64>> {
     const MARK: &[u8] = b"GLIBC_";
     let mut best: Option<Vec<u64>> = None;
-    let mut index = 0;
-    while index + MARK.len() <= bytes.len() {
-        if &bytes[index..index + MARK.len()] != MARK {
-            index += 1;
-            continue;
-        }
-        index += MARK.len();
-        let start = index;
-        while index < bytes.len() && (bytes[index].is_ascii_digit() || bytes[index] == b'.') {
-            index += 1;
-        }
-        let text = String::from_utf8_lossy(&bytes[start..index]);
+    let mut rest = bytes;
+    while let Some(offset) = find(rest, MARK) {
+        let Some(after) = rest.get(offset + MARK.len()..) else {
+            break;
+        };
+        let len = after
+            .iter()
+            .take_while(|byte| byte.is_ascii_digit() || **byte == b'.')
+            .count();
+        let Some((digits, tail)) = after.split_at_checked(len) else {
+            break;
+        };
+        rest = tail;
+        let text = String::from_utf8_lossy(digits);
         let parts: Vec<u64> = text
             .trim_end_matches('.')
             .split('.')
@@ -137,26 +160,38 @@ pub fn highest_glibc(bytes: &[u8]) -> Option<Vec<u64>> {
 }
 
 pub fn interpreter(bytes: &[u8]) -> Option<String> {
+    const LIB: &[u8] = b"/lib";
+    const LD: &[u8] = b"/ld-linux";
     let mut found: Vec<String> = Vec::new();
-    let mut index = 0;
-    while let Some(offset) = find(&bytes[index..], b"/lib") {
-        let start = index + offset;
-        index = start + 4;
-        let mut end = index;
-        while end < bytes.len() && bytes[end].is_ascii_digit() {
-            end += 1;
-        }
-        if !bytes[end..].starts_with(b"/ld-linux") {
+    let mut rest = bytes;
+    while let Some(offset) = find(rest, LIB) {
+        let Some(candidate) = rest.get(offset..) else {
+            break;
+        };
+        let Some(after_lib) = candidate.get(LIB.len()..) else {
+            break;
+        };
+        let digits = after_lib
+            .iter()
+            .take_while(|byte| byte.is_ascii_digit())
+            .count();
+        let Some(ld_tail) = after_lib
+            .get(digits..)
+            .and_then(|tail| tail.strip_prefix(LD))
+        else {
+            rest = after_lib;
             continue;
-        }
-        end += b"/ld-linux".len();
-        while end < bytes.len()
-            && (bytes[end].is_ascii_alphanumeric() || b"-_.".contains(&bytes[end]))
-        {
-            end += 1;
-        }
-        found.push(String::from_utf8_lossy(&bytes[start..end]).into_owned());
-        index = end;
+        };
+        let name = ld_tail
+            .iter()
+            .take_while(|byte| byte.is_ascii_alphanumeric() || b"-_.".contains(byte))
+            .count();
+        let Some((path, tail)) = candidate.split_at_checked(LIB.len() + digits + LD.len() + name)
+        else {
+            break;
+        };
+        found.push(String::from_utf8_lossy(path).into_owned());
+        rest = tail;
     }
     found.sort();
     found.into_iter().next()

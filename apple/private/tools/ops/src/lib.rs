@@ -1,5 +1,7 @@
 //! The Apple operations: simulators, test simulators, running a macOS app, export, signing and notarization.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod app_check;
 pub mod codesign;
 pub mod export;

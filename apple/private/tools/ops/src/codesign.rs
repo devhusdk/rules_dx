@@ -200,10 +200,10 @@ fn identity_sha1(
         let (Some(first), Some(hash)) = (fields.next(), fields.next()) else {
             continue;
         };
-        if !first.ends_with(')')
-            || !first[..first.len() - 1].chars().all(|c| c.is_ascii_digit())
-            || first.len() < 2
-        {
+        let Some(index) = first.strip_suffix(')') else {
+            continue;
+        };
+        if index.is_empty() || !index.chars().all(|c| c.is_ascii_digit()) {
             continue;
         }
         if fields.next().is_none() {

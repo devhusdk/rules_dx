@@ -220,9 +220,8 @@ pub fn detail(details: &str, name: &str) -> String {
 pub fn hardened(details: &str) -> bool {
     details.lines().any(|line| {
         line.starts_with("CodeDirectory ")
-            && line.match_indices("flags=").any(|(at, _)| {
-                line[at + 6..]
-                    .split(' ')
+            && line.split("flags=").skip(1).any(|rest| {
+                rest.split(' ')
                     .next()
                     .is_some_and(|flags| flags.contains("runtime"))
             })

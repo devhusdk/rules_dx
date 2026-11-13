@@ -178,7 +178,7 @@ The test writes `dx-bench.json` with one row per benchmark, using the real time 
 
 ### GCC
 
-To use your own compiler instead, see [Use your own C/C++ toolchain](../docs/own-cc-toolchain.md).
+To use your own compiler instead, see [Use your own C/C++ toolchain](../own-cc-toolchain.md).
 
 Select the GCC toolchain in `.bazelrc`:
 

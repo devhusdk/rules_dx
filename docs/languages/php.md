@@ -106,7 +106,7 @@ Lockfiles:
 - macOS arm64
 - Windows x86_64
 
-See the [support matrix](../docs/support-matrix.md).
+See the [support matrix](../support-matrix.md).
 
 No Windows arm64 PHP 8.5 build exists.
 

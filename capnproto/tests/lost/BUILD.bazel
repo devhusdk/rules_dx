@@ -4,8 +4,6 @@ load("//capnproto:defs.bzl", "capnproto_library", "capnproto_rust_library")
 
 package(default_visibility = ["//capnproto:__subpackages__"])
 
-exports_files(["hidden.capnp"])
-
 capnproto_library(
     name = "lost",
     srcs = ["lost.capnp"],

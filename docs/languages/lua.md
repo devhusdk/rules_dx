@@ -107,7 +107,7 @@ None.
 - Windows arm64
 - Windows x86_64
 
-See the [support matrix](../docs/support-matrix.md).
+See the [support matrix](../support-matrix.md).
 
 ## Dependencies
 
@@ -206,7 +206,7 @@ when a `lua` family selects it.
 format = ["stylua"]
 ```
 
-See the [config reference](../docs/cli/commands/config.md#dxtoml).
+See the [config reference](../cli/commands/config.md#dxtoml).
 
 StyLua never reads a `stylua.toml` or `.editorconfig` next to the sources. Bind
 a `stylua_config` from `@rules_dx//core/quality:native_config.bzl` to set indent

@@ -24,7 +24,10 @@ javascript_library(
 
 javascript_binary(
     name = "main_bin",
-    data = [":main"],
+    data = [
+        ":env_node",
+        ":main",
+    ],
     main = "main.js",
 )
 

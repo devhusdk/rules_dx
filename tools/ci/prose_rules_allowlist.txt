@@ -1,7 +1,7 @@
 .github/workflows/README.md issue-number 4
 AGENTS.md history-word 2
 CONTRIBUTING.md issue-number 1
-MODULE.bazel issue-number 43
+MODULE.bazel issue-number 38
 README.md dead-link 1
 cli/plan/src/args/invocation.rs link-chain 2
 core/quality/policy.bzl link-chain 1
@@ -11,11 +11,9 @@ docs/cli/commands/audit-update.md history-word 1
 docs/cli/commands/generate.md history-word 2
 docs/cli/commands/init.md history-word 2
 docs/github-ci.md history-word 1
-docs/support-matrix.md issue-number 2
+docs/support-matrix.md issue-number 1
 docs/tutorial.md dead-link 1
-ocaml/README.md issue-number 1
 patches/README.md history-word 1
-qt/README.md issue-number 1
 tools/ci/prose_rules_test.rs link-chain 1
 tools/docs/jvm/fixture/jvm_prose.md not-linted 1
 tools/docs/python/fixture/guide.md not-linted 1

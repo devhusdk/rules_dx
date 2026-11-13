@@ -472,7 +472,7 @@ whole scenario from the repository root and writes logs, `logcat-default.txt`,
 
 ### Example
 
-See [`tests/fixtures/adopt-android`](tests/fixtures/adopt-android/README.md) for a
+See [`tests/fixtures/adopt-android`](../../android/tests/fixtures/adopt-android/README.md) for a
 consumer that adopts these rules end to end.
 
 ## Toolchain

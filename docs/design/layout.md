@@ -1,6 +1,6 @@
 # Layout design
 
-This page fixes the repository layout. Directory moves, module files and generators follow it.
+This page fixes the repository layout.
 
 ## Modules
 
@@ -27,7 +27,7 @@ Each language owns one top-level directory.
 
 - `defs.bzl` is the only file users load.
 - `extensions.bzl` holds the public module extensions.
-- A module extension is named after its language, such as `qt` or `ocaml`. An extension that serves one sub-feature is named after that feature, such as `cuda_license` or `zig_deps`.
+- A module extension is named after its language (`qt`, `ocaml`). An extension that serves one sub-feature is named after that feature (`cuda_license`, `zig_deps`).
 - `private/` holds everything else. Users never load from it.
 - `tests/` holds the language tests and fixtures. Starlark test suites and `testdata/` live there, instantiated from `tests/BUILD.bazel`, not in `private/`.
 - Starlark suites are named `tests/defs_tests.bzl` for rule and macro analysis tests, `tests/failure_tests.bzl` for expected analysis failures, and `tests/toolchain_tests.bzl` for pin and hub checks.
@@ -89,7 +89,7 @@ examples/   tested examples
 - `third_party/` holds dependency manifests and lock files.
 - `docs/` holds user docs. Per-language pages are generated from `lang.json`.
 - Every example in `examples/` is a tested target.
-- The root holds only language directories with a `lang.json` and the directories above. A test enforces the list, and the list has no pending entries.
+- The root holds only language directories with a `lang.json` and the directories above. A test enforces the list, which has no pending entries.
 - A directory that holds only a README is not a root directory. Its page lives in `docs/`.
 - Every `.bzl` file is loaded, every fixture and Rust file is named by a target or a test, every `filegroup` and exported file has a user, and every directory belongs to a package. `//tools/ci:unreferenced_files_test` enforces it.
 
@@ -97,8 +97,8 @@ examples/   tested examples
 
 - `core/quality/` holds the framework: runner, adapters, tiers, the tool table and the aspect factory.
 - A language's aspects, tool rows and tool packages live in `<lang>/private/quality/`.
-- A file family that has no rules gets no root directory. Markdown, CSS, GraphQL, YAML, JSON, TOML, XML, shell and plain text are such families.
-- The aspects and tool rows of such a family's tools that do not run on Node stay in `core/quality/families/`. Its Node tools follow the Node tools section.
+- A file family with no rules, such as Markdown, CSS, GraphQL, YAML, JSON, TOML, XML, shell or plain text, gets no root directory.
+- Such a family's aspects and tool rows for tools not run on Node stay in `core/quality/families/`. Its Node tools follow the Node tools section.
 - A shard that serves several languages lives with the language that owns its runtime: `js` in `javascript/`, `jvm` in `java/`, `beam` in `erlang/`, `dotnet` in `dotnet/`, `cc` in `cc/`.
 - A tool has all its rows in one `_tools.bzl` table. Moving a tool binary never moves its rows.
 - A `<name>_tools.bzl` file is data. It loads only the core data files `//core/quality:tool_defs.bzl` and `//core/quality:taxonomy.bzl`.
@@ -111,12 +111,12 @@ examples/   tested examples
 - `javascript/` owns every tool that runs on Node, whichever file family the tool checks.
 - There is one tool hub, `@dx_npm_tools`. Its `package.json`, `pnpm-lock.yaml` and launcher live in `javascript/private/quality/`.
 - No other directory holds a tool `package.json`, a tool lockfile or a second `npm_translate_lock` for tools.
-- Every Node tool has one target in `javascript/private/quality/bin/`. That covers Prettier, remark, Stylelint, graphql-eslint, gplint, Redocly, Asciidoctor, TypeDoc, esbuild, Wrangler, API Extractor and protoc-gen-es.
-- `javascript/private/quality/js.bzl` defines the `js` shard: the `real_js_*` aspects and probes. The shard runs every Node tool in the tool table.
+- Every Node tool has one target in `javascript/private/quality/bin/`.
+- `javascript/private/quality/js.bzl` defines the `js` shard: the `real_js_*` aspects and probes. It runs every Node tool in the tool table.
 - `javascript/private/quality/js_tools.bzl` holds the rows of Biome, ESLint, remark, Stylelint and `tsc`. The rows of Prettier, graphql-eslint, gplint and Redocly are in `core/quality/families/core_tools.bzl`.
 - `typescript/private/quality/` holds the `tsc` aspect and its report. Its tool defaults point at the hub.
 - The manifests of javascript, typescript, astro, mdx, svelte and vue name `javascript/private/quality:js.bzl` as their quality file.
-- Another directory uses a hub tool through the label `//javascript/private/quality/bin:<tool>` as an attribute default. It does not copy the entry point.
+- Another directory uses a hub tool through `//javascript/private/quality/bin:<tool>` as an attribute default and copies no entry point.
 
 ## Language manifest
 

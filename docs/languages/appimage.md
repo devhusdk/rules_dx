@@ -152,7 +152,7 @@ bazel test //appimage/... //appimage/tests/fixtures/appimage-app/...
 bazel test //tools/testing/hermetic:appimage
 ```
 
-The [appimage-app fixture](tests/fixtures/appimage-app/README.md) is a two-package
+The [appimage-app fixture](../../appimage/tests/fixtures/appimage-app/README.md) is a two-package
 app that is built, relocated and run without FUSE in its tests.
 
 ## Toolchain

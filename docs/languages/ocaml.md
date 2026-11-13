@@ -312,4 +312,4 @@ actions are unchanged.
 
 ### Example
 
-See [ocaml_app](tests/fixtures/ocaml_app/README.md) for a multi-package app with a pinned `Astring` dependency, an ocaml_lex lexer and a C stub that only the native cell builds.
+See [ocaml_app](../../ocaml/tests/fixtures/ocaml_app/README.md) for a multi-package app with a pinned `Astring` dependency, an ocaml_lex lexer and a C stub that only the native cell builds.

@@ -67,7 +67,6 @@ lua/private/quality/BUILD.bazel orphan-target 1
 mdx/private/BUILD.bazel orphan-target 1
 ocaml/private/coverage/BUILD.bazel orphan-target 1
 ocaml/private/quality/BUILD.bazel orphan-target 2
-perl/private/tools/BUILD.bazel orphan-target 1
 perl/tests/fixtures/perl-app/cli/BUILD.bazel orphan-target 1
 perl/tests/fixtures/perl-app/inventory/BUILD.bazel orphan-target 2
 perl/tests/fixtures/perl-app/report/BUILD.bazel orphan-target 3

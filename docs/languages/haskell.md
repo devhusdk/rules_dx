@@ -114,7 +114,7 @@ Lockfiles:
 - macOS arm64
 - Windows x86_64
 
-See the [support matrix](../docs/support-matrix.md).
+See the [support matrix](../support-matrix.md).
 
 GHC 9.10.3 ships no Windows arm64 bindist.
 
@@ -152,7 +152,7 @@ Haskell tests write LCOV under `bazel coverage` and `dx coverage`. rules_haskell
 
 ## Bench and fuzz
 
-`haskell_bench` builds a `haskell_binary` from [tasty-bench](https://hackage.haskell.org/package/tasty-bench) benchmarks and adds a `dx-bench` test `<name>` that runs it with `--csv` and writes `dx-bench.json` for `dx bench`. Resolve `tasty-bench` through `cabal.lock` like any Hackage dependency, see [bench](tests/fixtures/bench/BUILD.bazel).
+`haskell_bench` builds a `haskell_binary` from [tasty-bench](https://hackage.haskell.org/package/tasty-bench) benchmarks and adds a `dx-bench` test `<name>` that runs it with `--csv` and writes `dx-bench.json` for `dx bench`. Resolve `tasty-bench` through `cabal.lock` like any Hackage dependency, see [bench](../../haskell/tests/fixtures/bench/BUILD.bazel).
 
 There is no `haskell_fuzz_test`: Haskell has no maintained libFuzzer-style fuzz harness.
 
@@ -186,4 +186,4 @@ with `locale -a | grep -i c.utf`.
 
 ### Example
 
-See [haskell_app](tests/fixtures/haskell_app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.
+See [haskell_app](../../haskell/tests/fixtures/haskell_app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.

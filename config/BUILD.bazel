@@ -39,6 +39,16 @@ filegroup(
     srcs = [],
 )
 
+bool_flag(
+    name = "toolchains",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "toolchains_on",
+    flag_values = {":toolchains": "true"},
+)
+
 config_setting(
     name = "config_tier_strict",
     flag_values = {":config_tier": "strict"},

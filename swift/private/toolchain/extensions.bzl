@@ -6,6 +6,7 @@ load(":repos.bzl", "swift_libs_linux_repo", "swift_linux_repo", "swift_windows_r
 load(":toolchain.bzl", "SWIFT_LINUX_CPUS")
 
 _TOOLCHAIN_TYPE = "@rules_swift//toolchains:toolchain_type"
+_TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
 _WINDOWS_CPUS = ["aarch64", "x86_64"]
 
 def _platform(os, cpu):
@@ -18,6 +19,7 @@ def swift_hub():
             name = "toolchain_%s_%s" % (exec_cpu, target_cpu),
             exec_compatible_with = _platform("linux", exec_cpu),
             target_compatible_with = _platform("linux", target_cpu),
+            target_settings = [_TOOLCHAINS_ON],
             toolchain = str(Label(":swift_toolchain_%s_%s" % (exec_cpu, target_cpu))),
             toolchain_type = _TOOLCHAIN_TYPE,
             visibility = ["//visibility:public"],
@@ -30,6 +32,7 @@ def swift_hub():
             name = "toolchain_windows_" + cpu,
             exec_compatible_with = _platform("windows", cpu),
             target_compatible_with = _platform("windows", cpu),
+            target_settings = [_TOOLCHAINS_ON],
             toolchain = str(Label(":swift_toolchain_windows_" + cpu)),
             toolchain_type = _TOOLCHAIN_TYPE,
             visibility = ["//visibility:public"],

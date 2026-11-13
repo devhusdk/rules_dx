@@ -1552,6 +1552,40 @@ rust_test(
 )
 
 rust_test(
+    name = "lock_hub_names_test",
+    size = "small",
+    srcs = ["lock_hub_names_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "lock_hub_names_test",
+    crate_root = "lock_hub_names_test.rs",
+    data = [
+        "lock_hub_names_allowlist.txt",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:lock_scan.json",
+        "@dx_test_tags_sources//:rust.json",
+    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_LOCK_SCAN_JSON": "$(rlocationpath @dx_test_tags_sources//:lock_scan.json)",
+        "DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:rust.json)",
+        "LOCK_HUB_NAMES_ALLOWLIST": "$(rlocationpath lock_hub_names_allowlist.txt)",
+    },
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)
+
+rust_test(
     name = "lock_registry_test",
     size = "small",
     srcs = ["lock_registry_test.rs"],

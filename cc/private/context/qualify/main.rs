@@ -1,5 +1,7 @@
 //! Host-run qualifier: checks exported compile commands against Bazel's own action argv.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
@@ -8,7 +10,10 @@ use cc_context::{AqueryGraph, Error};
 const USAGE: &str = "Usage: bazel run //cc/private/context:qualify -- --target <label>... \
 [--compiler <name>] [--output <file>] [--bazel <bin>] [-- <bazel flags>...]";
 
-const IDENTITIES: [&str; 2] = ["//cc/private/context:identity", "//cc/private/context:identity_exec"];
+const IDENTITIES: [&str; 2] = [
+    "//cc/private/context:identity",
+    "//cc/private/context:identity_exec",
+];
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {

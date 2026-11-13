@@ -1,5 +1,7 @@
 //! Writes the C++ side of CXX-Qt and CXX bridges with the pinned generators.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::fs;
 use std::path::Path;
 use std::process::ExitCode;
@@ -80,15 +82,11 @@ fn qml_properties(header: &str) -> String {
         let trimmed = line.trim_start();
         let rest = trimmed.strip_prefix("Q_PROPERTY(");
         let mapped = rest.and_then(|rest| {
+            let indent = line.strip_suffix(trimmed)?;
             QML_TYPES.iter().find_map(|(cxx, qml)| {
                 rest.strip_prefix(cxx)
                     .filter(|tail| tail.starts_with(' '))
-                    .map(|tail| {
-                        format!(
-                            "{}Q_PROPERTY({qml}{tail}",
-                            &line[..line.len() - trimmed.len()]
-                        )
-                    })
+                    .map(|tail| format!("{indent}Q_PROPERTY({qml}{tail}"))
             })
         });
         out.push_str(mapped.as_deref().unwrap_or(line));

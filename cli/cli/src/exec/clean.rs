@@ -1,5 +1,5 @@
 use super::common::*;
-use dx_atomic_fs::commit::{DEFAULT_COMMIT_LOCK_TIMEOUT, ManagedRoot, acquire_commit_lock};
+use dx_atomic_fs::commit::{ManagedRoot, acquire_commit_lock};
 use dx_atomic_fs::lease;
 use dx_atomic_fs::managed::{EntryKind, classify, remove_managed};
 use dx_error::DxError;
@@ -9,6 +9,12 @@ use dx_plan::args::Invocation;
 use std::fs;
 use std::io;
 use std::path::Path;
+use std::time::Duration;
+
+#[cfg(not(test))]
+const CLEAN_LOCK_TIMEOUT: Duration = dx_atomic_fs::commit::DEFAULT_COMMIT_LOCK_TIMEOUT;
+#[cfg(test)]
+const CLEAN_LOCK_TIMEOUT: Duration = Duration::from_millis(200);
 
 struct Removed {
     path: String,
@@ -107,11 +113,8 @@ fn remove_local_state(workspace: &Path) -> Result<Vec<Removed>, DxError> {
     if !local.is_dir() {
         return Ok(Vec::new());
     }
-    let _lock = acquire_commit_lock(
-        &ManagedRoot::new(local.clone()),
-        DEFAULT_COMMIT_LOCK_TIMEOUT,
-    )
-    .map_err(|error| DxError::failure(error.to_string()))?;
+    let _lock = acquire_commit_lock(&ManagedRoot::new(local.clone()), CLEAN_LOCK_TIMEOUT)
+        .map_err(|error| DxError::failure(error.to_string()))?;
     let mut removed = Vec::new();
     for entry in CLEAN_ENTRIES {
         let path = local.join(entry);

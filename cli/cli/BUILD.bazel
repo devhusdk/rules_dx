@@ -402,6 +402,7 @@ rust_test(
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe)",
         "DX_TEST_GITLEAKS": "$(rootpath @dx_tools//:gitleaks)",
         "DX_TEST_LYCHEE": "$(rootpath @dx_tools//:lychee)",
+        "RUST_TEST_THREADS": "16",
     },
     # keep
     deps = [

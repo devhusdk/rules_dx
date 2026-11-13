@@ -6,8 +6,8 @@ cc/BUILD.bazel alias 2
 cc/private/BUILD.bazel compat-word 1
 cc/private/context/BUILD.bazel compat-word 1
 cc/private/context/tests/context_clang_tidy.rs compat-word 25
-cc/private/toolchains/external/custom_gcc_tests.bzl compat-word 1
-cc/private/toolchains/msvc/toolchain.bzl compat-word 1
+cc/private/toolchain/external/custom_gcc_tests.bzl compat-word 1
+cc/private/toolchain/msvc/toolchain.bzl compat-word 1
 cc/tests/fixtures/compilation_db/BUILD.bazel compat-word 4
 cli/adopt/src/build_output.rs compat-word 2
 cli/adopt/src/launcher.rs compat-word 1
@@ -128,7 +128,7 @@ ocaml/private/providers.bzl compat-word 1
 powershell/BUILD.bazel alias 2
 powershell/private/quality/BUILD.bazel alias 1
 qt/BUILD.bazel alias 1
-qt/private/sdk/linux_arm64.bzl compat-word 3
+qt/private/toolchain/linux_arm64.bzl compat-word 3
 qt/tests/qt_test.rs compat-word 1
 qt/tests/toolchain_tests.bzl compat-word 1
 rust/private/edition.bzl reexport 1

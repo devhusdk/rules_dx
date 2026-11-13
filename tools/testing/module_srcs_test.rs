@@ -5,7 +5,7 @@ const DECLARED: &[&str] = &[
     "erlang/private/toolchain/extensions.bzl",
     "core/wrapper.bzl",
     "qt/private/defs.bzl",
-    "qt/private/sdk/launcher.c",
+    "qt/private/toolchain/launcher.c",
     "core/quality/pipeline.bzl",
 ];
 

@@ -1,8 +1,8 @@
 load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 load("@rules_dx//cc/tests:defs_tests.bzl", "cc_external_asan_env_tests", "cc_external_coverage_tests")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//cc/private/toolchains:identity_subject.bzl", "cc_toolchain_identity_subject")
-load("//cc/private/toolchains:select.bzl", "cc_toolchain_test")
+load("//cc/private/toolchain:identity_subject.bzl", "cc_toolchain_identity_subject")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
 load(":custom_gcc_tests.bzl", "custom_gcc_identity_test")
 load(":fake_config.bzl", "fake_cc_toolchain_config")
 load(":tests.bzl", "external_toolchain_tests")
@@ -82,18 +82,18 @@ fake_cc_toolchain_config(
 
 cc_toolchain_identity_subject(
     name = "gcc_subject",
-    extra_toolchains = ["//cc/private/toolchains/external:gcc_toolchain"],
+    extra_toolchains = ["//cc/private/toolchain/external:gcc_toolchain"],
 )
 
 cc_toolchain_identity_subject(
     name = "gcc_flag_subject",
     compiler = "gcc",
-    extra_toolchains = ["//cc/private/toolchains/external:gcc_toolchain"],
+    extra_toolchains = ["//cc/private/toolchain/external:gcc_toolchain"],
 )
 
 cc_toolchain_identity_subject(
     name = "icx_subject",
-    extra_toolchains = ["//cc/private/toolchains/external:icx_toolchain"],
+    extra_toolchains = ["//cc/private/toolchain/external:icx_toolchain"],
 )
 
 external_toolchain_tests(name = "external")
@@ -123,7 +123,7 @@ toolchain(
 
 cc_toolchain_identity_subject(
     name = "custom_gcc_subject",
-    extra_toolchains = ["//cc/private/toolchains/external:custom_gcc_x86_64"],
+    extra_toolchains = ["//cc/private/toolchain/external:custom_gcc_x86_64"],
 )
 
 custom_gcc_identity_test(name = "custom_gcc_identity")
@@ -131,7 +131,7 @@ custom_gcc_identity_test(name = "custom_gcc_identity")
 cc_toolchain_test(
     name = "custom_gcc_hello_test",
     compiler = "gcc",
-    extra_toolchains = ["//cc/private/toolchains/external:custom_gcc_x86_64"],
+    extra_toolchains = ["//cc/private/toolchain/external:custom_gcc_x86_64"],
     target_compatible_with = _LINUX_X86_64,
     test = "//cc/tests/fixtures/hello:hello_private_header_test",
 )

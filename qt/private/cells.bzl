@@ -2,8 +2,8 @@
 
 load("//core:cells.bzl", "unsupported_constraint")
 load("//core:platform_support.bzl", "compatible_with")
-load("//qt/private/sdk:pins.bzl", "CELLS", "IDENTITIES")
-load("//qt/private/sdk:repos.bzl", "PLATFORM_SUPPORT", "qualified_cells")
+load("//qt/private/toolchain:pins.bzl", "CELLS", "IDENTITIES")
+load("//qt/private/toolchain:repos.bzl", "PLATFORM_SUPPORT", "qualified_cells")
 
 def qt_consumer_identity(cell):
     """Returns the consumer_archive arch, os and min_runtime of one qualified Qt cell."""
@@ -33,6 +33,6 @@ _WINDOWS_CELLS = [cell for cell in _BUNDLE_CELLS if CELLS[cell].layout.os == "wi
 
 QT_CONSUMER_RUNTIME = select(
     {_cell_setting(cell): [Label("//qt/private:os_runtime_" + cell)] for cell in _RUNTIME_CELLS} |
-    {_cell_setting(cell): [Label("//cc/private/toolchains:msvc_vcruntime")] for cell in _WINDOWS_CELLS} |
+    {_cell_setting(cell): [Label("//cc/private/toolchain:msvc_vcruntime")] for cell in _WINDOWS_CELLS} |
     {"//conditions:default": []},
 )

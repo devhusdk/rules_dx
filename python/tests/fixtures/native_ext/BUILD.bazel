@@ -2,7 +2,7 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("@rules_python//python/cc:py_extension.bzl", "py_extension")
-load("//cc/private/toolchains:select.bzl", "cc_toolchain_test")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
 load("//python:defs.bzl", "python_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 

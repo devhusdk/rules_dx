@@ -599,7 +599,7 @@ def _absolute_tool_impl(ctx):
 
 _absolute_tool_test = analysistest.make(
     _absolute_tool_impl,
-    config_settings = {"//command_line_option:extra_toolchains": [str(Label("@rules_dx//cc/private/toolchains/external:fake_windows_cc_toolchain"))]},
+    config_settings = {"//command_line_option:extra_toolchains": [str(Label("@rules_dx//cc/private/toolchain/external:fake_windows_cc_toolchain"))]},
 )
 
 def build_script_absolute_tool_test(name, target):

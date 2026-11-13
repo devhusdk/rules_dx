@@ -64,7 +64,7 @@ _UPSTREAM_ONLY_UNDER_TRANSITION = select({
 
 # nvcc rejects clang newer than CUDA_MAX_HOST_CLANG_MAJOR; the main @llvm is ahead of it.
 _ALLOW_UNSUPPORTED_COMPILER = select({
-    Label("//cc/private/toolchains:gcc_selected"): [],
+    Label("//cc/private/toolchain:gcc_selected"): [],
     "//conditions:default": ["nvcc_allow_unsupported_compiler"],
 })
 

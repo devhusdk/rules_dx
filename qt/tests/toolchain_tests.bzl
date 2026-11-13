@@ -2,11 +2,11 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//qt/private/platforms:libc.bzl", "glibc_at_least")
-load("//qt/private/sdk:layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
-load("//qt/private/sdk:layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
-load("//qt/private/sdk:layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
+load("//qt/private/toolchain:layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
+load("//qt/private/toolchain:layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
+load("//qt/private/toolchain:layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
 load(
-    "//qt/private/sdk:pins.bzl",
+    "//qt/private/toolchain:pins.bzl",
     "CELLS",
     "EXTRACTORS",
     "IDENTITIES",
@@ -19,7 +19,7 @@ load(
     "RUNTIME_REPOSITORIES",
 )
 load(
-    "//qt/private/sdk:repos.bzl",
+    "//qt/private/toolchain:repos.bzl",
     "HUB_NAME",
     "canonical_id_for",
     "cell_build",
@@ -42,7 +42,7 @@ load(
     "runtime_url_for",
     "url_for",
 )
-load("//qt/private/sdk:tool.bzl", "qt_tool_descriptor")
+load("//qt/private/toolchain:tool.bzl", "qt_tool_descriptor")
 
 def _request(**kwargs):
     base = default_request()
@@ -426,21 +426,21 @@ def _request_checks():
 
 def _build_checks():
     hub = hub_build({cell: cell_repository_name(cell) for cell in qualified_cells()}, "//qt/private:defs.bzl")
-    arm64 = cell_build("linux_arm64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/sdk:unsupported.bzl", "//qt/private/sdk:needs.bzl")
-    base = cell_build("linux_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/sdk:unsupported.bzl", "//qt/private/sdk:needs.bzl")
-    full = cell_build("linux_x86_64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/private/sdk:unsupported.bzl", "//qt/private/sdk:needs.bzl")
-    tools = cell_build("linux_x86_64", ["qtbase", "qtdeclarative", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/private/sdk:unsupported.bzl", "//qt/private/sdk:needs.bzl")
-    macos = cell_build("macos_arm64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/sdk:unsupported.bzl", "//qt/private/sdk:needs.bzl")
-    macos_full = cell_build("macos_arm64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/private/sdk:unsupported.bzl", "//qt/private/sdk:needs.bzl")
+    arm64 = cell_build("linux_arm64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl")
+    base = cell_build("linux_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl")
+    full = cell_build("linux_x86_64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl")
+    tools = cell_build("linux_x86_64", ["qtbase", "qtdeclarative", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl")
+    macos = cell_build("macos_arm64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl")
+    macos_full = cell_build("macos_arm64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl")
     blocked_cells = dict(CELLS, windows_arm64 = struct(**dict({field: getattr(CELLS["windows_arm64"], field) for field in dir(CELLS["windows_arm64"])}, blocker = "pending (#6544)")))
-    windows = cell_build("windows_x86_64", ["qtbase", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/private/sdk:unsupported.bzl", "//qt/private/sdk:needs.bzl", tool = "//qt/private/sdk:tool.bzl")
+    windows = cell_build("windows_x86_64", ["qtbase", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl", tool = "//qt/private/toolchain:tool.bzl")
     all_modules = sorted(MODULES.keys())
     return [
         expect_equal("every qualified cell defines every hub target", [
             cell + ":" + target
             for cell in qualified_cells()
             for target in hub_targets()
-            if ('    name = "%s",' % target) not in cell_build(cell, all_modules, "@rules_cc//cc:defs.bzl", "//qt/private/sdk:unsupported.bzl", "//qt/private/sdk:needs.bzl")
+            if ('    name = "%s",' % target) not in cell_build(cell, all_modules, "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl")
         ], []),
         expect_contains("macos core links the framework binary", macos, '    additional_linker_inputs = ["lib/QtCore.framework/Versions/A/QtCore"],\n    linkopts = ["$(execpath lib/QtCore.framework/Versions/A/QtCore)"],'),
         expect_false("macos cell links no srcs", 'srcs = ["lib/' in macos),
@@ -491,7 +491,7 @@ def _build_checks():
         expect_contains("hub declares the CXX-Qt runtime", hub, 'qt_rust_runtime(\n    name = "cxx_qt",\n    core = ":core",\n'),
         expect_contains("hub routes qmllint", hub, '":linux_x86_64": "@dx_qt_linux_x86_64//:qmllint"'),
         expect_contains("hub routes needs", hub, '":linux_x86_64": "@dx_qt_linux_x86_64//:needs"'),
-        expect_contains("base cell loads qt_needs", base, 'load("//qt/private/sdk:needs.bzl", "qt_needs")\n'),
+        expect_contains("base cell loads qt_needs", base, 'load("//qt/private/toolchain:needs.bzl", "qt_needs")\n'),
         expect_contains("base cell publishes its needs", base, 'qt_needs(\n    name = "needs",'),
         expect_contains("base cell needs carry the library table", base, '"libxcb.so.1": ["libXau.so.6"]'),
         expect_contains("hub routes arm64 qmllint", hub, '":linux_arm64": "@dx_qt_linux_arm64//:qmllint"'),
@@ -506,7 +506,7 @@ def _build_checks():
         expect_contains("windows cell imports core", windows, '    interface_library = "lib/Qt6Core.lib",\n    shared_library = "bin/Qt6Core.dll",'),
         expect_contains("windows core depends on its import", windows, '    deps = [":core_import"'),
         expect_contains("windows cell launches moc", windows, 'qt_tool(\n    name = "moc",\n    program = "bin/moc.exe",'),
-        expect_contains("windows cell loads qt_tool", windows, 'load("//qt/private/sdk:tool.bzl", "qt_tool")'),
+        expect_contains("windows cell loads qt_tool", windows, 'load("//qt/private/toolchain:tool.bzl", "qt_tool")'),
         expect_false("windows cell writes no c launchers", "launcher/launcher.c" in windows),
         expect_contains("base cell links core", base, '    srcs = ["lib/libQt6Core.so.6"],'),
         expect_contains("base cell refuses qml", base, "    name = \"qml\",\n    reason = \"Qt module 'qtdeclarative' is not acquired; name 'qml' in the modules attribute of the Qt rule\","),
@@ -552,7 +552,7 @@ def qt_metadata_tests(name, size):
         checks = _pin_checks() + _seam_checks() + _url_checks() + _request_checks() + _build_checks() + _hardening_checks() + _consumer_checks(),
     )
 
-_CUSTOM = [str(Label(constraint)) for constraint in ["@platforms//os:linux", "@platforms//cpu:x86_64", "//qt/private/sdk:custom"]]
+_CUSTOM = [str(Label(constraint)) for constraint in ["@platforms//os:linux", "@platforms//cpu:x86_64", "//qt/private/toolchain:custom"]]
 
 def _spec(cell = "linux_x86_64"):
     return json.decode(json.encode(cell_spec(CELLS[cell])))
@@ -674,8 +674,8 @@ def _consumer_checks():
         expect_equal("consumer needs entries are string lists", _errors(listed), ["cell 'custom' spec needs 'plugin' is not an object of string lists"]),
         expect_equal("consumer needs carry every table", _errors(partial), ["cell 'custom' spec needs is missing 'plugin'"]),
         expect_equal("consumer cell names avoid needs", consumer_cells([_tag(_spec(), "needs")])[1], ["cell 'needs' name is taken by a @dx_qt target"]),
-        expect_contains("consumer cell publishes its needs", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/sdk:unsupported.bzl", "//qt/private/sdk:needs.bzl", custom), 'qt_needs(\n    name = "needs",'),
-        expect_contains("a needless consumer cell refuses bundling", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/sdk:unsupported.bzl", "//qt/private/sdk:needs.bzl", bare), "qt_unsupported(\n    name = \"needs\",\n    reason = \"cell 'custom_x86_64' spec carries no needs tables; qt_bundle cannot package it\","),
+        expect_contains("consumer cell publishes its needs", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl", custom), 'qt_needs(\n    name = "needs",'),
+        expect_contains("a needless consumer cell refuses bundling", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl", bare), "qt_unsupported(\n    name = \"needs\",\n    reason = \"cell 'custom_x86_64' spec carries no needs tables; qt_bundle cannot package it\","),
         expect_equal("consumer spec is JSON", _errors("{"), ["cell 'custom' spec is not a JSON object"]),
         expect_equal("consumer cell names are plain", consumer_cells([_tag(_spec(), "Bad-Name")])[1], ["cell 'Bad-Name' name is not made of lowercase letters, digits and '_'"]),
         expect_equal("consumer cell names avoid hub targets", consumer_cells([_tag(_spec(), "core")])[1], ["cell 'core' name is taken by a @dx_qt target"]),
@@ -686,6 +686,6 @@ def _consumer_checks():
         expect_equal("an override qualifies a blocked cell", qualified_cells(windows), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_equal("a new consumer cell joins the qualified cells", active, ["custom_x86_64", "linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_contains("hub routes the consumer cell", hub, '":custom_x86_64": "@dx_qt_custom_x86_64//:core"'),
-        expect_contains("hub matches the consumer constraint", hub, '        "%s",\n' % str(Label("//qt/private/sdk:custom"))),
-        expect_contains("consumer cell builds core", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/sdk:unsupported.bzl", "//qt/private/sdk:needs.bzl", custom), '    srcs = ["lib/libQt6Core.so.6"],'),
+        expect_contains("hub matches the consumer constraint", hub, '        "%s",\n' % str(Label("//qt/private/toolchain:custom"))),
+        expect_contains("consumer cell builds core", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl", custom), '    srcs = ["lib/libQt6Core.so.6"],'),
     ]

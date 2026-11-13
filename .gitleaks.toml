@@ -17,6 +17,6 @@ regexTarget = "line"
 [[allowlists]]
 description = "Qt runtime library names in the pinned SDK tables are not secrets"
 condition = "AND"
-paths = ["qt/private/sdk/linux_arm64\\.bzl$", "qt/private/sdk/linux_x86_64\\.bzl$"]
+paths = ["qt/private/toolchain/linux_arm64\\.bzl$", "qt/private/toolchain/linux_x86_64\\.bzl$"]
 regexes = ["libxcb-keysyms\\.so"]
 regexTarget = "match"

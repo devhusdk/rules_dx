@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("//cc/private/toolchains/msvc:toolchains.bzl", "msvc_toolchains")
+load("//cc/private/toolchain/msvc:toolchains.bzl", "msvc_toolchains")
 load("//cc/tests:defs_tests.bzl", "cc_gcov_coverage_env_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
@@ -160,7 +160,7 @@ msvc_toolchains(name = "msvc")
 toolchain(
     name = "msvc_unsupported",
     target_settings = [":msvc_selected"],
-    toolchain = "//cc/private/toolchains/msvc:unsupported",
+    toolchain = "//cc/private/toolchain/msvc:unsupported",
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )
 
@@ -658,14 +658,14 @@ test_suite(
         ":xcode_asan_test",
         ":xcode_tsan_test",
         ":xcode_ubsan_test",
-        "//cc/private/toolchains/msvc:msvc_arm64_arm64_toolchain",
-        "//cc/private/toolchains/msvc:msvc_layout",
-        "//cc/private/toolchains/msvc:msvc_layout_arm64",
-        "//cc/private/toolchains/msvc:msvc_repos",
-        "//cc/private/toolchains/msvc:msvc_unavailable",
-        "//cc/private/toolchains/msvc:msvc_unsupported",
-        "//cc/private/toolchains/msvc:msvc_x64_arm64_toolchain",
-        "//cc/private/toolchains/msvc:msvc_x64_x64_toolchain",
+        "//cc/private/toolchain/msvc:msvc_arm64_arm64_toolchain",
+        "//cc/private/toolchain/msvc:msvc_layout",
+        "//cc/private/toolchain/msvc:msvc_layout_arm64",
+        "//cc/private/toolchain/msvc:msvc_repos",
+        "//cc/private/toolchain/msvc:msvc_unavailable",
+        "//cc/private/toolchain/msvc:msvc_unsupported",
+        "//cc/private/toolchain/msvc:msvc_x64_arm64_toolchain",
+        "//cc/private/toolchain/msvc:msvc_x64_x64_toolchain",
         "//cc/tests/fixtures/hello:toolchain_action_tests",
         "//cc/tests/fixtures/msvc_shared:toolchain_action_tests",
         "//cc/tests/gcc_linux_x86_64:all",
@@ -699,7 +699,7 @@ exports_files(
 
 exports_files(
     ["notices/MSVC_REDISTRIBUTABLE.txt"],
-    visibility = ["//qt/private/sdk:__pkg__"],
+    visibility = ["//qt/private/toolchain:__pkg__"],
 )
 
 # glibc and libgcc come from the host OS and libstdc++ links statically.

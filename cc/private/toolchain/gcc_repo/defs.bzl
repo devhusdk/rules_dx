@@ -217,7 +217,7 @@ def _gcc_toolchain_impl(rctx):
     extra_asmflags.extend(rctx.attr.extra_asmflags)
 
     rctx.file("BUILD.bazel", _TOOLCHAIN_BUILD_FILE_CONTENT.format(
-        cc_toolchain_config_bzl = str(Label("//cc/private/toolchains/gcc_repo:cc_toolchain_config.bzl")),
+        cc_toolchain_config_bzl = str(Label("//cc/private/toolchain/gcc_repo:cc_toolchain_config.bzl")),
         binary_prefix = binary_prefix,
         include_prefix = include_prefix,
 

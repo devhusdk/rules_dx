@@ -10,7 +10,7 @@ load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core/modules:cuda.bzl", "CUDA_CELLS")
 load("//ocaml/private/toolchain:pins.bzl", "OCAML_CELLS")
 load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
-load("//qt/private/sdk:pins.bzl", qt_cells = "CELLS")
+load("//qt/private/toolchain:pins.bzl", qt_cells = "CELLS")
 
 _DEFAULT = "//conditions:default"
 

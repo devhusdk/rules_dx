@@ -1,5 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//qt/private/sdk:repos.bzl", "qualified_cells")
+load("//qt/private/toolchain:repos.bzl", "qualified_cells")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -17,7 +17,7 @@ filegroup(
         "//qt/private:module_srcs",
         "//qt/private/platforms:module_srcs",
         "//qt/private/rust:module_srcs",
-        "//qt/private/sdk:module_srcs",
+        "//qt/private/toolchain:module_srcs",
     ],
 )
 
@@ -83,7 +83,7 @@ platform(
 [
     alias(
         name = cell + "_cell",
-        actual = "//qt/private/sdk:" + cell + "_cell",
+        actual = "//qt/private/toolchain:" + cell + "_cell",
         visibility = ["//visibility:public"],
     )
     for cell in qualified_cells()

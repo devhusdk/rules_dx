@@ -1,6 +1,6 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
-load("//cc/private/toolchains:pins.bzl", "VC_REDIST_VERSION")
+load("//cc/private/toolchain:pins.bzl", "VC_REDIST_VERSION")
 load("//core:repo.bzl", "digest_error")
 load("//core:toolchain.bzl", "toolchain_target")
 load(":cells.bzl", "PHP_CELLS")

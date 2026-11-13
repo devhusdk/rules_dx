@@ -75,6 +75,29 @@ _COVERAGE = coverage_env_tests(
 _coverage_env_on_test = _COVERAGE.on
 _coverage_env_off_test = _COVERAGE.off
 
+def _macos_coverage_tools_impl(ctx):
+    env = analysistest.begin(ctx)
+    run_env = analysistest.target_under_test(env)[RunEnvironmentInfo].environment
+    for key in ["LLVM_COV", "LLVM_PROFDATA"]:
+        value = run_env.get(key, "")
+        asserts.true(env, value.endswith(key.lower().replace("_", "-")), key + "=" + value)
+        asserts.false(env, "apple_support" in value, key + "=" + value)
+    return analysistest.end(env)
+
+_macos_coverage_tools_test = analysistest.make(
+    _macos_coverage_tools_impl,
+    config_settings = {"//command_line_option:collect_code_coverage": True},
+)
+
+def cc_macos_coverage_tools_test(name, target):
+    """Asserts a cc_test on macOS collects coverage with the hermetic llvm tools."""
+    _macos_coverage_tools_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        target_compatible_with = ["@platforms//os:macos"],
+    )
+
 def cc_coverage_env_tests(name, target):
     """Asserts a cc_test gets the dx native collector only under coverage."""
     _coverage_env_on_test(name = name + "_on", size = "small", target_under_test = target)

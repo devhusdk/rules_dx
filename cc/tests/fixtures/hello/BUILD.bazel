@@ -1,5 +1,5 @@
 load("//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
-load("//cc/tests:defs_tests.bzl", "cc_build_id_test", "cc_coverage_env_tests", "cc_macos_no_dylib_test", "cc_macos_static_link_test", "cc_windows_static_link_test")
+load("//cc/tests:defs_tests.bzl", "cc_build_id_test", "cc_coverage_env_tests", "cc_macos_coverage_tools_test", "cc_macos_no_dylib_test", "cc_macos_static_link_test", "cc_windows_static_link_test")
 load("//cc/private/toolchains:action_tests.bzl", "cc_action_tests")
 load("//core/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//core/tests:thin_compare.bzl", "run_env_compare_subject", "thin_compare_cc_env_tests", "thin_compare_cc_tests", "thin_compare_subject")
@@ -99,6 +99,11 @@ cc_macos_static_link_test(
 cc_windows_static_link_test(
     name = "windows_static_link_test",
     target = ":hello_c_test_upstream",
+)
+
+cc_macos_coverage_tools_test(
+    name = "macos_coverage_tools_test",
+    target = ":hello_c_test",
 )
 
 cc_coverage_env_tests(

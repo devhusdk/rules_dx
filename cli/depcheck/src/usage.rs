@@ -198,7 +198,11 @@ fn skip_names() -> BTreeSet<&'static str> {
         "opam.locked",
     ]
     .into_iter()
-    .chain(Ecosystem::ALL.into_iter().flat_map(Ecosystem::registry_names))
+    .chain(
+        Ecosystem::ALL
+            .into_iter()
+            .flat_map(Ecosystem::registry_names),
+    )
     .collect()
 }
 
@@ -585,7 +589,7 @@ pub(crate) fn find_first_imports(
         let patterns = dep_patterns(eco, name)?;
         for (rel, text) in hits {
             if let Some(at) = patterns.first_match(text) {
-                let line = text[..at].matches('\n').count() + 1;
+                let line = text.get(..at).unwrap_or_default().matches('\n').count() + 1;
                 out.insert(name.clone(), (rel.clone(), line));
                 break;
             }

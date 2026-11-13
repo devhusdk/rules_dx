@@ -46,7 +46,7 @@ fn check_change(change: &ChangeEvent) -> Result<(), OutputError> {
                     value: change.source_digest.clone().unwrap_or_default(),
                 });
             }
-            if change.edits.len() != 1 || change.edits[0].start != 0 || change.edits[0].end != 0 {
+            if !matches!(change.edits.as_slice(), [edit] if edit.start == 0 && edit.end == 0) {
                 return Err(OutputError::BadEdit {
                     index: 0,
                     reason: "create holds exactly one 0..0 insertion",

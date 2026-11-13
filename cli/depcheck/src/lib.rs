@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod ecosystem;
 
 mod consistency;

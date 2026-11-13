@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod cache_errors;
 pub mod failures;
 pub mod ledger;
@@ -441,7 +443,9 @@ pub(crate) fn testlog_path_under(
     }
     if identity.attempt < identity.attempt_total {
         path.push("test_attempts");
-        segments[0] = segments[0].replacen("test", &format!("attempt_{}", identity.attempt), 1);
+        if let Some(first) = segments.first_mut() {
+            *first = first.replacen("test", &format!("attempt_{}", identity.attempt), 1);
+        }
     }
     path.extend(segments);
     Ok(path)

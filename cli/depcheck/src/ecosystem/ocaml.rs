@@ -71,47 +71,45 @@ pub fn parse_ocaml_lock(path: &Path) -> Result<BTreeMap<String, String>, Depchec
 /// The `"name" {filter}` entries of the `key: [ ... ]` list, with the filter text between braces.
 fn list_entries(text: &str, key: &str) -> Vec<(String, String)> {
     let text = strip_comments(text);
-    let Some(start) = find_list(&text, key) else {
+    let Some(list) = find_list(&text, key).and_then(|start| text.get(start..)) else {
         return Vec::new();
     };
-    let chars: Vec<char> = text[start..].chars().collect();
+    let chars: Vec<char> = list.chars().collect();
     let mut out = Vec::new();
-    let mut at = 0;
-    while at < chars.len() && chars[at] != ']' {
-        if chars[at] != '"' {
-            at += 1;
+    let mut rest = chars.as_slice();
+    while let Some((&c, tail)) = rest.split_first() {
+        if c == ']' {
+            break;
+        }
+        if c != '"' {
+            rest = tail;
             continue;
         }
-        let name_start = at + 1;
-        at = name_start;
-        while at < chars.len() && chars[at] != '"' {
-            at += 1;
-        }
-        let name: String = chars[name_start..at].iter().collect();
-        at += 1;
-        let mut look = at;
-        while look < chars.len() && chars[look].is_whitespace() {
-            look += 1;
-        }
+        let name_len = tail.iter().position(|&ch| ch == '"').unwrap_or(tail.len());
+        let (name, after) = tail.split_at_checked(name_len).unwrap_or((tail, &[]));
+        let name: String = name.iter().collect();
+        rest = after.get(1..).unwrap_or_default();
+        let look = rest
+            .iter()
+            .position(|ch| !ch.is_whitespace())
+            .and_then(|ws| rest.get(ws..))
+            .unwrap_or_default();
         let mut filter = String::new();
-        if chars.get(look) == Some(&'{') {
+        if look.first() == Some(&'{') {
             let mut depth = 0;
-            let filter_start = look + 1;
-            while look < chars.len() {
-                match chars[look] {
-                    '{' => depth += 1,
-                    '}' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            break;
-                        }
+            let close = look
+                .iter()
+                .position(|&ch| {
+                    match ch {
+                        '{' => depth += 1,
+                        '}' => depth -= 1,
+                        _ => {}
                     }
-                    _ => {}
-                }
-                look += 1;
-            }
-            filter = chars[filter_start..look.min(chars.len())].iter().collect();
-            at = look + 1;
+                    ch == '}' && depth == 0
+                })
+                .unwrap_or(look.len());
+            filter = look.get(1..close).unwrap_or_default().iter().collect();
+            rest = look.get(close + 1..).unwrap_or_default();
         }
         out.push((name, filter));
     }

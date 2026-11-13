@@ -57,7 +57,12 @@ pub fn parse_lua_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckE
         DepcheckError::LockIo(std::io::Error::new(std::io::ErrorKind::InvalidData, error))
     })?;
     let mut rocks = BTreeMap::new();
-    for package in json["packages"].as_array().into_iter().flatten() {
+    for package in json
+        .get("packages")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         let (Some(name), Some(full)) = (package["name"].as_str(), package["version"].as_str())
         else {
             continue;

@@ -126,8 +126,7 @@ pub fn check_edits(edits: &[Edit]) -> Result<(), OutputError> {
                 reason: "start must not exceed end",
             });
         }
-        if index > 0 {
-            let prev = &edits[index - 1];
+        if let Some(prev) = index.checked_sub(1).and_then(|prev| edits.get(prev)) {
             if edit.start <= prev.start {
                 return Err(OutputError::BadEdit {
                     index,

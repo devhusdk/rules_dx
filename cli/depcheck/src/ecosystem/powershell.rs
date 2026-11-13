@@ -24,24 +24,30 @@ pub fn parse_powershell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo
     let Some(start) = start_re.find(&text) else {
         return Ok(deps);
     };
-    let rest = &text[start.end()..];
+    let rest = text.get(start.end()..).unwrap_or_default();
     let chars: Vec<(usize, char)> = rest.char_indices().collect();
     let mut at = 0;
     let mut depth = 1usize;
-    while at < chars.len() && depth > 0 {
-        let (pos, ch) = chars[at];
+    while depth > 0 {
+        let Some(&(pos, ch)) = chars.get(at) else {
+            break;
+        };
         let mut entry: Option<(String, String)> = None;
         match ch {
             '(' => depth += 1,
             ')' => depth -= 1,
             '\'' | '"' => {
-                let end = rest[pos + 1..].find(ch).map_or(rest.len(), |n| pos + 1 + n);
-                entry = Some((rest[pos + 1..end].to_owned(), String::new()));
+                let quoted = rest.get(pos + 1..).unwrap_or_default();
+                let value = quoted.split_once(ch).map_or(quoted, |(value, _)| value);
+                let end = pos + 1 + value.len();
+                entry = Some((value.to_owned(), String::new()));
                 at = chars.partition_point(|(p, _)| *p < end);
             }
-            '@' if rest[pos..].starts_with("@{") => {
-                let end = pos + 2 + brace_end(&rest[pos + 2..]);
-                let body = &rest[pos + 2..end];
+            '@' if rest.get(pos..).is_some_and(|tail| tail.starts_with("@{")) => {
+                let inner = rest.get(pos + 2..).unwrap_or_default();
+                let body_len = brace_end(inner);
+                let end = pos + 2 + body_len;
+                let body = inner.get(..body_len).unwrap_or_default();
                 let get = |re: &regex::Regex| re.captures(body).map(|c| c[1].to_owned());
                 let mut bounds = Vec::new();
                 if let Some(version) = get(&exact_re) {
@@ -107,7 +113,7 @@ fn strip_comments(text: &str) -> String {
                 match (quote, ch) {
                     (None, '\'' | '"') => quote = Some(ch),
                     (Some(open), _) if open == ch => quote = None,
-                    (None, '#') => return &line[..at],
+                    (None, '#') => return line.get(..at).unwrap_or(line),
                     _ => {}
                 }
             }

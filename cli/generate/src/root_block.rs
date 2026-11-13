@@ -28,9 +28,10 @@ pub fn render(
         }
         return Ok(Some(("BUILD.bazel".to_owned(), block_text(wanted))));
     };
-    let span = block::span(&build.text, BEGIN, END);
+    let span = block::span(&build.text, BEGIN, END)
+        .and_then(|(start, stop)| Some((build.text.get(..start)?, build.text.get(stop..)?)));
     let outside = match span {
-        Some((start, stop)) => without_block(&build.text, start, stop),
+        Some((before, after)) => without_block(&build.text, before, after),
         None => build.text.clone(),
     };
     let mut missing: BTreeSet<&str> = wanted.clone();
@@ -74,10 +75,9 @@ pub fn render(
     Ok(Some((build.name.clone(), text)))
 }
 
-/// The text without the block at `start..stop`, leaving no extra blank line behind.
-fn without_block(text: &str, start: usize, stop: usize) -> String {
+/// `before` joined to `after` with the block between them dropped, leaving no extra blank line behind.
+fn without_block(text: &str, before: &str, after: &str) -> String {
     let eol = block::eol(text);
-    let (before, after) = (&text[..start], &text[stop..]);
     if after.is_empty() {
         let before = before.trim_end_matches(['\r', '\n']);
         return if before.is_empty() {
@@ -120,42 +120,55 @@ enum Token {
 fn tokens(text: &str) -> Vec<Token> {
     let chars: Vec<char> = text.chars().collect();
     let mut out = Vec::new();
-    let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
+    let mut rest = chars.as_slice();
+    while let Some((&c, tail)) = rest.split_first() {
         if c == '#' {
-            while i < chars.len() && chars[i] != '\n' {
-                i += 1;
-            }
+            rest = tail
+                .iter()
+                .position(|&ch| ch == '\n')
+                .and_then(|newline| tail.get(newline..))
+                .unwrap_or_default();
         } else if c == '"' || c == '\'' {
-            let triple = chars[i..].starts_with(&[c, c, c]);
-            let quote = if triple { 3 } else { 1 };
-            i += quote;
+            let triple = [c, c, c];
+            let single = [c];
+            let delim: &[char] = if rest.starts_with(&triple) {
+                &triple
+            } else {
+                &single
+            };
+            rest = rest.get(delim.len()..).unwrap_or_default();
             let mut value = String::new();
-            while i < chars.len() {
-                if chars[i] == '\\' && i + 1 < chars.len() {
-                    value.push(chars[i + 1]);
-                    i += 2;
-                } else if chars[i..].starts_with(&vec![c; quote]) {
-                    i += quote;
-                    break;
-                } else {
-                    value.push(chars[i]);
-                    i += 1;
+            loop {
+                match rest {
+                    ['\\', escaped, tail @ ..] => {
+                        value.push(*escaped);
+                        rest = tail;
+                    }
+                    _ if rest.starts_with(delim) => {
+                        rest = rest.get(delim.len()..).unwrap_or_default();
+                        break;
+                    }
+                    [ch, tail @ ..] => {
+                        value.push(*ch);
+                        rest = tail;
+                    }
+                    [] => break,
                 }
             }
             out.push(Token::Str(value));
         } else if c.is_alphanumeric() || c == '_' {
-            let start = i;
-            while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_') {
-                i += 1;
-            }
-            out.push(Token::Word(chars[start..i].iter().collect()));
+            let len = rest
+                .iter()
+                .position(|ch| !(ch.is_alphanumeric() || *ch == '_'))
+                .unwrap_or(rest.len());
+            let (word, tail) = rest.split_at_checked(len).unwrap_or((rest, &[]));
+            out.push(Token::Word(word.iter().collect()));
+            rest = tail;
         } else {
             if !c.is_whitespace() {
                 out.push(Token::Punct(c));
             }
-            i += 1;
+            rest = tail;
         }
     }
     out
@@ -172,7 +185,7 @@ fn exports(text: &str) -> (Vec<Export>, Option<String>) {
         {
             continue;
         }
-        match call(&tokens[at + 2..]) {
+        match call(tokens.get(at + 2..).unwrap_or_default()) {
             Ok(export) => out.push(export),
             Err(error) => {
                 non_literal.get_or_insert(error.message().to_owned());

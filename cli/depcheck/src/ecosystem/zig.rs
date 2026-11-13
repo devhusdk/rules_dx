@@ -20,12 +20,13 @@ pub fn parse_zig_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
         return Ok(deps);
     };
     let mut at = 0;
-    while let Some(caps) = entry_re.captures(&block[at..]) {
+    while let Some(caps) = block.get(at..).and_then(|tail| entry_re.captures(tail)) {
         let whole = caps.get(0).map_or(0, |m| m.end());
         let body_start = at + whole;
-        let body_end = body_start + matching_brace(&block[body_start..]);
-        let body = &block[body_start..body_end];
-        at = body_end;
+        let rest = block.get(body_start..).unwrap_or_default();
+        let body_len = matching_brace(rest);
+        let body = rest.get(..body_len).unwrap_or(rest);
+        at = body_start + body_len;
         if body.contains(".path") {
             continue;
         }
@@ -76,7 +77,7 @@ fn strip_comments(text: &str) -> String {
                     quoted = !quoted;
                 }
                 if !quoted && ch == '/' && prev == '/' {
-                    return &line[..at - 1];
+                    return line.get(..at - 1).unwrap_or(line);
                 }
                 prev = ch;
             }
@@ -90,7 +91,8 @@ fn strip_comments(text: &str) -> String {
 fn dependencies_block(text: &str) -> Option<&str> {
     let re = regex::Regex::new(r"\.dependencies\s*=\s*\.\{").ok()?;
     let start = re.find(text)?.end();
-    Some(&text[start..start + matching_brace(&text[start..])])
+    let rest = text.get(start..)?;
+    rest.get(..matching_brace(rest))
 }
 
 /// Offset of the `}` closing an already opened brace, or the text length when unclosed.

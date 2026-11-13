@@ -236,9 +236,9 @@ fn parse_importer(
 fn package_identity(key: &str) -> Result<(String, String), DepcheckError> {
     let trimmed = key.trim().trim_start_matches('/');
     let bare = trimmed.split('(').next().unwrap_or("");
-    match bare.rfind('@') {
-        Some(at) if at > 0 && at + 1 < bare.len() => {
-            Ok((normalize_lower(&bare[..at]), bare[at + 1..].to_owned()))
+    match bare.rsplit_once('@') {
+        Some((name, version)) if !name.is_empty() && !version.is_empty() => {
+            Ok((normalize_lower(name), version.to_owned()))
         }
         _ => Err(lock_error(format!("malformed package key '{key}'"))),
     }
@@ -323,8 +323,8 @@ fn is_remote_spec(spec: &str) -> bool {
 }
 
 fn split_alias(text: &str) -> Option<(&str, &str)> {
-    let at = text.rfind('@')?;
-    (at > 0 && at + 1 < text.len()).then(|| (&text[..at], &text[at + 1..]))
+    text.rsplit_once('@')
+        .filter(|(name, spec)| !name.is_empty() && !spec.is_empty())
 }
 
 /// Compares each manifest declaration with the importer's resolution.

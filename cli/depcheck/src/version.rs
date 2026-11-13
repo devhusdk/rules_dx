@@ -50,16 +50,9 @@ fn satisfies_semver(spec: &str, locked: &str) -> Option<bool> {
 }
 
 fn strip_v_prefix(value: &str) -> String {
-    if value.len() > 1
-        && value.starts_with('v')
-        && value[1..]
-            .chars()
-            .next()
-            .is_some_and(|c| c.is_ascii_digit())
-    {
-        value[1..].to_owned()
-    } else {
-        value.to_owned()
+    match value.strip_prefix('v') {
+        Some(rest) if rest.starts_with(|c: char| c.is_ascii_digit()) => rest.to_owned(),
+        _ => value.to_owned(),
     }
 }
 
@@ -96,7 +89,10 @@ fn parse_version(value: &str) -> Option<(Vec<u64>, bool)> {
         if !digits.is_empty() {
             numbers.push(digits.parse::<u64>().ok()?);
         }
-        suffix = segment[digits.len()..].to_ascii_lowercase();
+        suffix = segment
+            .get(digits.len()..)
+            .unwrap_or_default()
+            .to_ascii_lowercase();
         if !suffix.is_empty() {
             break;
         }
@@ -126,8 +122,10 @@ fn upper_bound(parts: &[u64], pessimistic: bool) -> (Vec<u64>, bool) {
         (len, true) => len - 1,
         (_, false) => 2,
     };
-    let mut bound = parts[..keep].to_vec();
-    bound[keep - 1] += 1;
+    let mut bound = parts.get(..keep).unwrap_or(parts).to_vec();
+    if let Some(last) = bound.last_mut() {
+        *last += 1;
+    }
     (bound, true)
 }
 

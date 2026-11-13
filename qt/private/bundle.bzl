@@ -183,4 +183,5 @@ def qt_bundle(name, binary, qml_modules = [], licenses = [], display = [], plugi
         license_files = [qt + "//:licenses"],
         target_compatible_with = kwargs["target_compatible_with"],
         visibility = kwargs.get("visibility"),
+        tags = kwargs.get("tags"),
     )

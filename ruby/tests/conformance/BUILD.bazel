@@ -20,6 +20,13 @@ ruby_binary(
     deps = [":conformance"],
 )
 
+ruby_binary(
+    name = "lock_hello",
+    srcs = ["lock_main.rb"],
+    main = "lock_main.rb",
+    deps = ["@bundle"],
+)
+
 ruby_test(
     name = "pass_subject_test",
     size = "small",
@@ -48,6 +55,15 @@ dx_conformance_suite(
     failing_pattern = "{case}",
     failing_test = ":fail_subject_test",
     lang = "ruby",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "ruby",
+        "expected": "hello lock",
+        "lockfile": "//third_party/ruby:Gemfile.lock",
+        "manifest": "//third_party/ruby:Gemfile",
+        "package": "rspec",
+        "stale": "Gemfile.stale.lock",
+    },
     passing_test = ":pass_subject_test",
 )
 

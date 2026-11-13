@@ -82,7 +82,6 @@ cuda runfiles_test *
 d cross_test *
 d lock_test *
 d runfiles_test *
-dart lock_test *
 dart runfiles_test *
 dockerfile build_test *
 dockerfile coverage_test *
@@ -176,7 +175,6 @@ powershell cross_test *
 powershell lock_test *
 powershell runfiles_test *
 python cross_test *
-python lock_test *
 python runfiles_test *
 qt build_test *
 qt coverage_test *
@@ -200,7 +198,6 @@ rst lock_test *
 rst pass_test *
 rst runfiles_test *
 ruby cross_test *
-ruby lock_test *
 ruby runfiles_test *
 scala cross_test *
 scala lock_test *

@@ -20,6 +20,12 @@ dart_binary(
     deps = [":conformance"],
 )
 
+dart_binary(
+    name = "lock_hello",
+    main = "lock_main.dart",
+    deps = ["@dx_dart_deps//:collection"],
+)
+
 dart_test(
     name = "pass_subject_test",
     size = "small",
@@ -51,6 +57,15 @@ dx_conformance_suite(
     failing_pattern = "{case} [E]",
     failing_test = ":fail_subject_test",
     lang = "dart",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "dart",
+        "expected": "hello lock",
+        "lockfile": "//third_party/dart:pubspec.lock",
+        "manifest": "//third_party/dart:pubspec.yaml",
+        "package": "collection",
+        "stale": "pubspec.stale.lock",
+    },
     not_applicable = {"cross_test:windows_x86_64": "dart supports no other windows platform"},
     passing_test = ":pass_subject_test",
     size = "small",

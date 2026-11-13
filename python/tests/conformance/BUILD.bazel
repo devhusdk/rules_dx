@@ -22,6 +22,14 @@ python_binary(
     deps = [":conformance"],
 )
 
+python_binary(
+    name = "lock_hello",
+    srcs = ["lock_main.py"],
+    dep_group = "hello",
+    main = "lock_main.py",
+    deps = ["@dx_pypi_fixtures//pytest"],
+)
+
 python_test(
     name = "pass_subject_test",
     size = "small",
@@ -52,6 +60,15 @@ dx_conformance_suite(
     failing_pattern = "FAIL: {case} (",
     failing_test = ":fail_subject_test",
     lang = "python",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "python",
+        "expected": "hello lock",
+        "lockfile": "//python/tests/fixtures/hello:uv.lock",
+        "manifest": "//python/tests/fixtures/hello:pyproject.toml",
+        "package": "pytest",
+        "stale": "uv.stale.lock",
+    },
     passing_test = ":pass_subject_test",
 )
 

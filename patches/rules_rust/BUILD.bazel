@@ -5,6 +5,7 @@ exports_files([
     "cargo_toml_env_vars_flag.patch",
     "clippy_metadata_inputs.patch",
     "crate_universe_lazy_host_tools.patch",
+    "crate_universe_module_labels.patch",
     "crate_universe_root_lookup.patch",
     "exec_scope_universal.patch",
     "msvc_pdb_output.patch",

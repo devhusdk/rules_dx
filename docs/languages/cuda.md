@@ -157,7 +157,7 @@ cuda_test(
 
 A machine with a GPU declares it with three flags, for example in its `user.bazelrc`:
 
-```
+```text
 common --@rules_dx//cuda:gpu_compute_capability=12.0
 common --@rules_dx//cuda:gpu_driver=13.4
 common --local_resources=gpu=1

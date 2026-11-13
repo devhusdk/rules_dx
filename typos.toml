@@ -3,6 +3,7 @@ locale = "en"
 extend-ignore-re = ["~2E\\w+"]
 
 [default.extend-words]
+intoto = "intoto"
 PAKET = "PAKET"
 paket = "paket"
 Paket = "Paket"

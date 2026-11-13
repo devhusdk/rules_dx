@@ -471,7 +471,6 @@ title env/lang.json
 wrap apple/defs.bzl
 wrap erlang/defs.bzl
 wrap flatbuffers/defs.bzl
-wrap haskell/defs.bzl
 wrap java/defs.bzl
 wrap javascript/defs.bzl
 wrap julia/defs.bzl

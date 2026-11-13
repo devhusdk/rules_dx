@@ -26,7 +26,7 @@ const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 pub const ROW_LABELS_PATH: &str = "tools/docs/support_matrix/row_labels.json";
 /// Row to the labels tagged `consumer-row:<row>`.
 pub const CONSUMER_LABELS_PATH: &str = "tools/docs/support_matrix/consumer_labels.json";
-pub const ROW_TESTS_COMMAND: &str = "tools/docs/support_matrix/row_tests.sh <platform>";
+pub const ROW_TESTS_COMMAND: &str = "bazel run //tools/docs/support_matrix:row_tests -- <platform>";
 
 /// One CI platform from the language list.
 #[derive(Clone, Debug, Deserialize)]

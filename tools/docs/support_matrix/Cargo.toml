@@ -17,6 +17,10 @@ path = "src/lib.rs"
 name = "update"
 path = "src/main.rs"
 
+[[bin]]
+name = "row_tests"
+path = "src/row_tests.rs"
+
 [[test]]
 name = "generate_test"
 path = "src/generate_test.rs"

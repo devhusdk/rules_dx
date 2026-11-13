@@ -290,9 +290,11 @@ fn every_upload_follows_a_matching_scan() {
     assert!(uploads > 0, "no workflow with the key uploads anything");
 }
 
-fn keep_system_root(command: &mut Command) {
-    if let Some(root) = std::env::var_os("SystemRoot") {
-        command.env("SystemRoot", root);
+fn keep_system_vars(command: &mut Command) {
+    for (key, value) in std::env::vars_os() {
+        if key.to_string_lossy().to_ascii_lowercase().starts_with("system") {
+            command.env(key, value);
+        }
     }
 }
 
@@ -302,7 +304,7 @@ fn run_node(dir: &Path, env: &[(&str, &str)]) -> (i32, String) {
         .arg(dx_testing::env_file("DX_SCAN_CJS"))
         .current_dir(dir)
         .env_clear();
-    keep_system_root(&mut command);
+    keep_system_vars(&mut command);
     for (key, value) in env {
         let key = if *key == "DX_UPLOAD_PATH" { "INPUT_PATH" } else { key };
         command.env(key, value);
@@ -462,7 +464,7 @@ fn run_helper_node(dir: &Path, env: &[(&str, &str)]) -> (i32, String, String) {
         .env("RUNNER_OS", "Linux")
         .env("RUNNER_TEMP", &temp)
         .env("GITHUB_ENV", &github_env);
-    keep_system_root(&mut command);
+    keep_system_vars(&mut command);
     for (key, value) in env {
         command.env(key, value);
     }

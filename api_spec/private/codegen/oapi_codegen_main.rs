@@ -1,3 +1,4 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! Runs oapi-codegen with the Go SDK as its only PATH entry and a scratch home beside the output.
 
 use std::path::{Path, PathBuf};

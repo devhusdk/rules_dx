@@ -1,3 +1,4 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! Prints a data file resolved through the runfiles library.
 
 use runfiles::{Runfiles, rlocation};

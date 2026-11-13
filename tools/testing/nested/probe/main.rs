@@ -1,3 +1,4 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! The test stand-in for host tools: records Bazel calls, prints its environment, sleeps, emits or exits.
 
 use std::io::Write;

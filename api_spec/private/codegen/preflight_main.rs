@@ -1,3 +1,4 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! Offline gate every api_spec_typescript_client runs before Redocly generates anything.
 
 use std::collections::BTreeMap;

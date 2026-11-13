@@ -1,0 +1,42 @@
+{
+  "ecosystem": "hex",
+  "inputs": {
+    "rebar.config": "5a8dc5e5d785ba9e7c53f3cdda381c52e46771bf85fd2c2d17b96f158df78600",
+    "rebar.lock": "0a381d6ac82f62ebc87f72f3936b0ece9fd41c4fd8a8cb96a0551b7d1f03c761"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "163b73f6367a7341b33c794c4e88e7dbfe6498ac42dcd69ef44c5bc5507c8db0",
+          "urls": [
+            "https://repo.hex.pm/tarballs/cowlib-2.12.1.tar"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "cowlib",
+      "provides": [
+        "cowlib"
+      ],
+      "version": "2.12.1"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "0c5cc8fdc11b53cc25cf65ac6705ad39e54ecc56d1c22e4adb8f5a53fb9427f3",
+          "urls": [
+            "https://repo.hex.pm/tarballs/jsx-3.1.0.tar"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "jsx",
+      "provides": [
+        "jsx"
+      ],
+      "version": "3.1.0"
+    }
+  ],
+  "schema": 1
+}

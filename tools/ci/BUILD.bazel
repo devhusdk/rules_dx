@@ -632,6 +632,7 @@ rust_test(
         "//elixir/private/bench:corpus_starlark",
         "//elixir/private/toolchain:corpus_starlark",
         "//elixir/private/tools:corpus_starlark",
+        "//elixir/private/tools/lock:corpus_starlark",
         "//elixir/tests:corpus_starlark",
         "//env:corpus_starlark",
         "//env/private:corpus_starlark",

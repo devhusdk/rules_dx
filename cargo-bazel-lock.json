@@ -1,5 +1,5 @@
 {
-  "checksum": "e769a1c6314c5ad5a98b32728ec0f39ac16dbe122975445072617e17d8b3d7bf",
+  "checksum": "cf24c5e9bf1b15675edf66d16874b011b735003e5f12db14456a85993f3fa8e1",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -12717,6 +12717,33 @@
         }
       ],
       "version": "0.4.3"
+    },
+    "hex_lock 0.0.0": {
+      "common_attrs": {
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "hex_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "hex_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "hex_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "hkdf 0.12.4": {
       "common_attrs": {
@@ -32889,6 +32916,7 @@
     "gopls_gen 0.0.0": "core/quality/tiers/gopls_gen",
     "haskell_extract 0.0.0": "tools/docs/haskell/haskell_extract",
     "hermetic 0.0.0": "tools/testing/hermetic",
+    "hex_lock 0.0.0": "elixir/private/tools/hex_lock",
     "ide_tests 0.0.0": "tools/ide_tests",
     "image_demo 0.0.0": "deploy/private/image_demo",
     "java_app_cli_fixture 0.0.0": "java/tests/fixtures/java-app/java_app_cli_fixture",

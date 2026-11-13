@@ -1,0 +1,61 @@
+{
+  "ecosystem": "hex",
+  "inputs": {
+    "mix.exs": "faae8b7542c0ed7cbf89ce186fe137aadc658f9e9b369e5fe18bcae950fb085a",
+    "mix.lock": "f6c8a24b0a75b8fd3a38d361cf9026232498cd62439c02dceed2a07c3804c73e"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "a539301f8dfd4efc5c5123bfb9d47ebde20092a863a5b5b16c2a60d2243dfce7",
+          "urls": [
+            "https://repo.hex.pm/tarballs/benchee-1.5.1.tar"
+          ]
+        }
+      ],
+      "deps": [
+        "deep_merge",
+        "statistex"
+      ],
+      "name": "benchee",
+      "provides": [
+        "benchee"
+      ],
+      "version": "1.5.1"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "737a53cdc9758fedbb608bdc213969e65729466c4ef3cd8e8726d0335dff116c",
+          "urls": [
+            "https://repo.hex.pm/tarballs/deep_merge-1.0.2.tar"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "deep_merge",
+      "provides": [
+        "deep_merge"
+      ],
+      "version": "1.0.2"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "310c4b49b34adf683de3103639006bed233ab54c08a4add65a531448e653857c",
+          "urls": [
+            "https://repo.hex.pm/tarballs/statistex-1.1.1.tar"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "statistex",
+      "provides": [
+        "statistex"
+      ],
+      "version": "1.1.1"
+    }
+  ],
+  "schema": 1
+}

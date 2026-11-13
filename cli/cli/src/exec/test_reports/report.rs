@@ -76,7 +76,14 @@ pub(super) fn write_failed_line(err: &mut dyn Write, outcome: &TestOutcome) {
     let mut line = format!("dx: failed: {}", outcome.target);
     if !failing.is_empty() {
         line.push_str(": ");
-        line.push_str(&failing[..failing.len().min(TEXT_CASE_LIMIT)].join(", "));
+        line.push_str(
+            &failing
+                .iter()
+                .take(TEXT_CASE_LIMIT)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
         if failing.len() > TEXT_CASE_LIMIT {
             line.push_str(&format!(" and {} more", failing.len() - TEXT_CASE_LIMIT));
         }

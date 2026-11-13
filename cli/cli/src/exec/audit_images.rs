@@ -223,11 +223,12 @@ fn report_image(
         {
             continue;
         }
-        if let Some(at) = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+        if let Some(count) = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
             .iter()
             .position(|name| *name == found.severity)
+            .and_then(|at| counts.get_mut(at))
         {
-            counts[at] += 1;
+            *count += 1;
         }
         let severity = image_severity(&found.severity, inputs.policy);
         if dx_output::meets_threshold(severity, inputs.fail_on)

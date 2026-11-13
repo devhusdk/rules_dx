@@ -132,7 +132,9 @@ fn document(bep: &Path, bazel_code: i32) -> (String, bool) {
     let truncated = omitted > 0
         || records.iter().any(|record| {
             matches!(
-                record["stderr"]["status"].as_str(),
+                record
+                    .pointer("/stderr/status")
+                    .and_then(serde_json::Value::as_str),
                 Some("truncated" | "omitted_limit")
             )
         });

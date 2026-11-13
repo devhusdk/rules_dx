@@ -3,6 +3,7 @@
 //! requests in `dx_link_requests`, and this module runs the lychee stage of each
 //! with the exec paths made absolute.
 
+use super::common::set_field;
 use dx_tool_resolve::Bazel;
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -106,8 +107,9 @@ pub(crate) fn prepare(
     scratch_parent: &str,
 ) -> Result<Option<Vec<u8>>, String> {
     let mut doc: Value = serde_json::from_slice(bytes).map_err(|error| error.to_string())?;
-    let stages = doc["stages"]
-        .as_array()
+    let stages = doc
+        .get("stages")
+        .and_then(Value::as_array)
         .ok_or_else(|| "the request has no stages".to_owned())?
         .iter()
         .filter(|stage| stage["tool"] == TOOL)
@@ -121,8 +123,9 @@ pub(crate) fn prepare(
         .flat_map(|stage| stage["sources"].as_array().into_iter().flatten())
         .filter_map(Value::as_str)
         .collect();
-    let mut sources: Vec<Value> = doc["sources"]
-        .as_array()
+    let mut sources: Vec<Value> = doc
+        .get("sources")
+        .and_then(Value::as_array)
         .into_iter()
         .flatten()
         .filter(|mapping| {
@@ -132,25 +135,37 @@ pub(crate) fn prepare(
         })
         .cloned()
         .collect();
-    let mut tool = doc["tools"][TOOL].clone();
+    let mut tool = doc
+        .get("tools")
+        .and_then(|tools| tools.get(TOOL))
+        .cloned()
+        .unwrap_or(Value::Null);
     if tool.is_null() {
         return Err("the request has a lychee stage but no lychee tool".to_owned());
     }
-    let mut env = tool["env"].as_array().cloned().unwrap_or_default();
+    let mut env = tool
+        .get("env")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     env.push(json!({"key": ONLINE_ENV, "value": "1"}));
-    tool["env"] = Value::Array(env);
+    set_field(&mut tool, "env", Value::Array(env));
     rewrite_tool(&mut tool, roots);
     for source in &mut sources {
         if let Some(exec) = source["exec"].as_str().map(|exec| roots.absolute(exec)) {
             source["exec"] = Value::String(exec);
         }
     }
-    doc["stages"] = Value::Array(stages);
-    doc["sources"] = Value::Array(sources);
-    doc["tools"] = json!({ TOOL: tool });
+    set_field(&mut doc, "stages", Value::Array(stages));
+    set_field(&mut doc, "sources", Value::Array(sources));
+    set_field(&mut doc, "tools", json!({ TOOL: tool }));
     rewrite_entries(&mut doc, "siblings", "exec", roots);
     rewrite_entries(&mut doc, "resolves", "exec", roots);
-    doc["scratch_parent"] = Value::String(scratch_parent.to_owned());
+    set_field(
+        &mut doc,
+        "scratch_parent",
+        Value::String(scratch_parent.to_owned()),
+    );
     serde_json::to_vec(&doc)
         .map(Some)
         .map_err(|error| error.to_string())

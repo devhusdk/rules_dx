@@ -478,13 +478,14 @@ fn whole_edit(before: &[u8], after: &[u8]) -> Option<(u64, u64, String)> {
         return None;
     }
     let prefix = before.iter().zip(after).take_while(|(a, b)| a == b).count();
-    let suffix = before[prefix..]
+    let suffix = before
         .iter()
+        .skip(prefix)
         .rev()
-        .zip(after[prefix..].iter().rev())
+        .zip(after.iter().skip(prefix).rev())
         .take_while(|(a, b)| a == b)
         .count();
-    let middle = String::from_utf8(after[prefix..after.len() - suffix].to_vec()).ok()?;
+    let middle = String::from_utf8(after.get(prefix..after.len() - suffix)?.to_vec()).ok()?;
     Some((prefix as u64, (before.len() - suffix) as u64, middle))
 }
 

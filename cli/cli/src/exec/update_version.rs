@@ -32,32 +32,28 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
         Ok(_) => {}
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     }
-    if invocation.targets.len() != 2 {
+    let [selector, version] = invocation.targets.as_slice() else {
         return pre_exec(
             invocation.output,
             out,
             err,
             "update needs exactly <selector> <version>",
         );
-    }
+    };
     let request = match configured_request(invocation, out, err, workspace) {
         Ok(Some(request)) => request,
         Ok(None) => {
-            let selector = &invocation.targets[0];
             let head = selector
                 .split_once(':')
                 .map_or(selector.as_str(), |(h, _)| h);
             if !head.is_empty()
-                && !invocation.targets[1].is_empty()
+                && !version.is_empty()
                 && !dx_update::edit::UpdateSet::builtin_names().contains(&head)
             {
                 let message = dep_edit::unknown_set_error(workspace, head);
                 return pre_exec(invocation.output, out, err, &message);
             }
-            match dx_update::edit::UpdateRequest::parse(
-                &invocation.targets[0],
-                &invocation.targets[1],
-            ) {
+            match dx_update::edit::UpdateRequest::parse(selector, version) {
                 Ok(request) => request,
                 Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
             }
@@ -207,13 +203,16 @@ fn configured_request(
     else {
         return Ok(None);
     };
+    let [selector, version] = invocation.targets.as_slice() else {
+        return Ok(None);
+    };
     dx_update::edit::UpdateRequest::parse_configured_set(
         configured.kind,
         &configured.name,
         &configured.manifests,
         configured.repository.as_deref(),
-        &invocation.targets[0],
-        &invocation.targets[1],
+        selector,
+        version,
     )
     .map(Some)
     .map_err(|error| pre_exec(invocation.output, out, err, &error.to_string()))

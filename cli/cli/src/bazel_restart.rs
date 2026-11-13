@@ -75,16 +75,19 @@ pub fn cache_off_argv(argv: &[String]) -> Option<Vec<String>> {
         return None;
     }
     let command = argv.iter().skip(1).position(|arg| !arg.starts_with('-'))? + 1;
-    if !CACHE_COMMANDS.contains(&argv[command].as_str()) {
+    let (head, rest) = argv.split_at_checked(command)?;
+    if !CACHE_COMMANDS.contains(&rest.first()?.as_str()) {
         return None;
     }
-    let end = argv[command..]
+    let end = rest
         .iter()
         .position(|arg| arg == "--")
-        .map_or(argv.len(), |at| command + at);
-    let mut off = argv[..end].to_vec();
+        .unwrap_or(rest.len());
+    let (args, tail) = rest.split_at_checked(end)?;
+    let mut off = head.to_vec();
+    off.extend_from_slice(args);
     off.extend(CACHE_OFF_FLAGS.map(String::from));
-    off.extend_from_slice(&argv[end..]);
+    off.extend_from_slice(tail);
     Some(off)
 }
 

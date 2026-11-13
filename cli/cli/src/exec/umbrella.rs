@@ -946,8 +946,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     let mut generate_clean = false;
     let mut rerun_planned = false;
     let mut index = 0;
-    while index < phases.len() {
-        let (phase, label) = phases[index];
+    while let Some(&(phase, label)) = phases.get(index) {
         let phase_nonce = nonce.wrapping_add(index as u64);
         let mut phase_reports = Vec::new();
         let mut sarif_capture: Option<PathBuf> = None;
@@ -1279,7 +1278,7 @@ pub(super) fn lint_commits(
     let bad = dx_update::conventional::lint(&log);
     let command = command.name();
     for (hash, subject) in &bad {
-        let sha = &hash[..hash.len().min(12)];
+        let sha = hash.get(..12).unwrap_or(hash);
         let message = format!("{sha} {subject}: not a conventional commit");
         if output == OutputMode::Json {
             let notice = NoticeEvent {

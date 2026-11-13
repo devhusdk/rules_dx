@@ -246,7 +246,7 @@ fn manifest_of(ecosystem: Ecosystem) -> &'static str {
 }
 
 fn lock_of(ecosystem: Ecosystem) -> &'static str {
-    ecosystem.lockfiles()[0].as_str()
+    ecosystem.lockfiles().first().map_or("", String::as_str)
 }
 
 fn has_root_build(workspace: &Path) -> bool {

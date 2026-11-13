@@ -219,6 +219,10 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
     exit
 }
 
+fn first_lock(ecosystem: Ecosystem) -> &'static str {
+    ecosystem.lockfiles().first().map_or("", String::as_str)
+}
+
 const BAZEL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1800);
 
 /// Finds the pinned opam-repository snapshot checkout through the pinned opam wrapper.
@@ -228,9 +232,12 @@ fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, dx_error::DxError> {
     }
     let mut argv = dx_process::BazelHead::default().argv("run");
     argv.extend(["@rules_dx//ocaml/private/tools:opam", "--", "snapshot-dir"].map(str::to_owned));
+    let Some((program, args)) = argv.split_first() else {
+        return Err(DxError::infra("bazel run has no program".to_owned()));
+    };
     let output = dx_process::capture::run_checked_with(
-        std::process::Command::new(&argv[0])
-            .args(&argv[1..])
+        std::process::Command::new(program)
+            .args(args)
             .current_dir(workspace),
         BAZEL_TIMEOUT,
         dx_process::capture::RunOptions {
@@ -389,7 +396,7 @@ pub(super) fn collect(
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with(Ecosystem::Cabal.lockfiles()[0].as_str()))
+                    .filter(|lock| lock.ends_with(first_lock(Ecosystem::Cabal)))
                     .cloned()
                     .collect();
                 if freezes.is_empty() {
@@ -453,7 +460,7 @@ pub(super) fn collect(
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with(Ecosystem::Julia.lockfiles()[0].as_str()))
+                    .filter(|lock| lock.ends_with(first_lock(Ecosystem::Julia)))
                     .cloned()
                     .collect();
                 merge(
@@ -1074,7 +1081,7 @@ fn stack_lock_errors(set: &str, locks: &[String]) -> Vec<dx_update::discover::Lo
             package: lock.clone(),
             reason: format!(
                 "dx does not run stack; resolve {lock} with haskell_deps_resolve(stack_lock = ...) to write {}",
-                Ecosystem::Cabal.lockfiles()[0]
+                first_lock(Ecosystem::Cabal)
             ),
         })
         .collect()
@@ -1110,7 +1117,7 @@ mod tests {
     fn stack_lock_without_freeze_is_refused() {
         let locks = vec![
             "app/stack.yaml.lock".to_owned(),
-            Ecosystem::Cabal.lockfiles()[0].clone(),
+            first_lock(Ecosystem::Cabal).to_owned(),
         ];
         let errors = stack_lock_errors("hackage", &locks);
         assert_eq!(errors.len(), 1);

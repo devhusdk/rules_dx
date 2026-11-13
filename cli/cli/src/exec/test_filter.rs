@@ -8,8 +8,7 @@ pub(crate) const SUPPORTED_CASE_KINDS: [&str; 2] = ["rust_test", "_rust_forward_
 pub(crate) fn last_test_filter(options: &[String]) -> Option<String> {
     let mut found = None;
     let mut index = 0;
-    while index < options.len() {
-        let arg = &options[index];
+    while let Some(arg) = options.get(index) {
         if let Some(value) = arg.strip_prefix("--test_filter=") {
             found = Some(value.to_owned());
         } else if arg == "--test_filter" {

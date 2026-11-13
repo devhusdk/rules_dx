@@ -40,11 +40,11 @@ fn diagnostic(
 fn colon_form(line: &str) -> Option<ActionDiagnostic> {
     let skip = if dx_path::drive_rooted(line) { 2 } else { 0 };
     let mut from = skip;
-    while let Some(at) = line[from..].find(':') {
+    while let Some(at) = line.get(from..)?.find(':') {
         let colon = from + at;
         from = colon + 1;
-        let file = &line[..colon];
-        let mut rest = &line[colon + 1..];
+        let (file, after_file) = line.split_at_checked(colon)?;
+        let mut rest = after_file.strip_prefix(':')?;
         let Some((number, after)) = rest.split_once(':') else {
             continue;
         };
@@ -79,18 +79,18 @@ fn colon_form(line: &str) -> Option<ActionDiagnostic> {
 
 fn split_rule(message: &str) -> (&str, Option<String>) {
     let message = message.trim();
-    match message.rfind(" [") {
-        Some(start) if message.ends_with(']') => (
-            message[..start].trim_end(),
-            Some(message[start + 2..message.len() - 1].to_owned()),
-        ),
-        _ => (message, None),
+    match message
+        .rsplit_once(" [")
+        .and_then(|(head, tail)| Some((head, tail.strip_suffix(']')?)))
+    {
+        Some((head, code)) => (head.trim_end(), Some(code.to_owned())),
+        None => (message, None),
     }
 }
 
 fn paren_form(line: &str) -> Option<ActionDiagnostic> {
-    let open = line.find('(')?;
-    let (position, rest) = line[open + 1..].split_once("): ")?;
+    let (head, after) = line.split_once('(')?;
+    let (position, rest) = after.split_once("): ")?;
     let (line_text, column_text) = position.split_once(',')?;
     let line_no = line_text.trim().parse::<u64>().ok()?;
     let column = column_text.trim().parse::<u64>().ok();
@@ -102,7 +102,7 @@ fn paren_form(line: &str) -> Option<ActionDiagnostic> {
     let (code, message) = message.split_once(": ")?;
     Some(diagnostic(
         severity,
-        &line[..open],
+        head,
         line_no,
         column,
         Some(code.to_owned()),

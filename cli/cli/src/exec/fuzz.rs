@@ -70,10 +70,10 @@ fn crash_event(label: &str, runner: &str, crash: &str, repro: &[String]) -> serd
         format!("{label} crashed; reproduce with: {}", shell_join(repro)),
     );
     let mut event = notice_value(&notice);
-    event["target"] = label.into();
-    event["runner"] = runner.into();
-    event["crash_path"] = crash.into();
-    event["repro"] = repro.into();
+    set_field(&mut event, "target", label);
+    set_field(&mut event, "runner", runner);
+    set_field(&mut event, "crash_path", crash);
+    set_field(&mut event, "repro", repro);
     event
 }
 

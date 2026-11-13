@@ -33,11 +33,15 @@ pub(super) fn drop_excepted_findings(
         .map(|tool| dx_audit::exception::live_exceptions_for_set(&policy, tool, &today))
         .collect();
     status.retain(|diagnostic| {
-        let Some(index) = TOOLS.iter().position(|tool| *tool == diagnostic.tool) else {
+        let Some(exceptions) = TOOLS
+            .iter()
+            .position(|tool| *tool == diagnostic.tool)
+            .and_then(|index| live.get(index))
+        else {
             return true;
         };
         let path = diagnostic.path.as_deref().unwrap_or("").replace('\\', "/");
-        !live[index].iter().any(|exception| {
+        !exceptions.iter().any(|exception| {
             exception.versions.trim() == "*"
                 && diagnostic.rule.as_deref() == Some(exception.advisory.as_str())
                 && (exception.package == "*" || exception.package == path)

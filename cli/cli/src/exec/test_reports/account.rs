@@ -3,21 +3,20 @@ use super::*;
 /// Returns one exec path spelled without the build directory, so a report reads the same on every host.
 pub(super) fn stable_exec_path(exec_path: &Path) -> String {
     let text = dx_path::posix(exec_path);
-    if let Some(out) = text.find("/bazel-testlogs/") {
-        return text[out + "/bazel-testlogs/".len()..].to_owned();
+    if let Some((_, rest)) = text.split_once("/bazel-testlogs/") {
+        return rest.to_owned();
     }
-    if let Some(out) = text.find("/testlogs/") {
-        return text[out + "/testlogs/".len()..].to_owned();
+    if let Some((_, rest)) = text.split_once("/testlogs/") {
+        return rest.to_owned();
     }
-    if let Some(out) = text.find("/bazel-out/") {
-        let rest = &text[out + "/bazel-out/".len()..];
-        return match rest.find("/bin/") {
-            Some(bin) => rest[bin + "/bin/".len()..].to_owned(),
+    if let Some((_, rest)) = text.split_once("/bazel-out/") {
+        return match rest.split_once("/bin/") {
+            Some((_, path)) => path.to_owned(),
             None => rest.to_owned(),
         };
     }
-    if let Some(bin) = text.find("/bin/") {
-        return text[bin + "/bin/".len()..].to_owned();
+    if let Some((_, rest)) = text.split_once("/bin/") {
+        return rest.to_owned();
     }
     exec_path
         .file_name()
@@ -212,16 +211,18 @@ pub(super) const LOG_TAIL_BYTES: usize = 8192;
 /// whole lines are dropped; a single oversize line is cut at a char boundary instead.
 pub(super) fn log_tail(bytes: &[u8]) -> Option<String> {
     let text = String::from_utf8_lossy(bytes);
-    let lines: Vec<&str> = text.lines().collect();
+    let mut lines: Vec<&str> = text.lines().collect();
     let start = lines.len().saturating_sub(LOG_TAIL_LINES);
-    let mut tail = lines[start..].join("\n");
+    let mut tail = lines.split_off(start).join("\n");
     if tail.len() > LOG_TAIL_BYTES {
         let mut from = tail.len() - LOG_TAIL_BYTES;
         while !tail.is_char_boundary(from) {
             from += 1;
         }
-        let at_line_start = tail.as_bytes()[from - 1] == b'\n';
-        let window = &tail[from..];
+        let Some((head, window)) = tail.split_at_checked(from) else {
+            return (!tail.trim().is_empty()).then_some(tail);
+        };
+        let at_line_start = head.ends_with('\n');
         tail = match window.split_once('\n') {
             _ if at_line_start => window.to_owned(),
             Some((_, rest)) => rest.to_owned(),
@@ -316,11 +317,12 @@ pub(super) fn bounded(text: &str, limit: usize) -> (String, bool) {
     if text.len() <= limit {
         return (text.to_owned(), false);
     }
-    let mut end = limit;
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    (text[..end].to_owned(), true)
+    let end = (0..=limit)
+        .rev()
+        .find(|end| text.is_char_boundary(*end))
+        .unwrap_or_default();
+    let (head, _) = text.split_at_checked(end).unwrap_or_default();
+    (head.to_owned(), true)
 }
 
 /// The reason a native report gave for one case, when it gave one.

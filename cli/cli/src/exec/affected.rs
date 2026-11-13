@@ -1,4 +1,4 @@
-use super::common::{Env, emit_built, emit_event, refusal, resolve_failed};
+use super::common::{Env, emit_built, emit_event, refusal, resolve_failed, set_field};
 use super::execute;
 use super::umbrella::lint_commits;
 use dx_adopt::DEFAULT_BRANCH_CANDIDATES;
@@ -55,7 +55,7 @@ impl AffectedPlan {
             .map(|entry| {
                 let mut value = json!({"scope": entry.scope, "reason": entry.reason});
                 if !entry.repos.is_empty() {
-                    value["repos"] = json!(entry.repos);
+                    set_field(&mut value, "repos", json!(entry.repos));
                 }
                 value
             })
@@ -67,10 +67,10 @@ impl AffectedPlan {
             "widened": widened,
         });
         if command == Command::Check {
-            value["tests"] = json!(self.tests);
+            set_field(&mut value, "tests", json!(self.tests));
         }
         if !self.skipped_external.is_empty() {
-            value["skipped_external"] = json!(self.skipped_external);
+            set_field(&mut value, "skipped_external", json!(self.skipped_external));
         }
         value
     }
@@ -464,19 +464,24 @@ impl Write for InjectAffected<'_> {
         if self.done {
             return self.inner.write(buf);
         }
-        match buf.iter().position(|byte| *byte == b'\n') {
+        match buf
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .and_then(|end| buf.split_at_checked(end))
+        {
             None => {
                 self.first.extend_from_slice(buf);
                 Ok(buf.len())
             }
-            Some(end) => {
-                self.first.extend_from_slice(&buf[..end]);
+            Some((head, rest)) => {
+                self.first.extend_from_slice(head);
                 let line = std::mem::take(&mut self.first);
                 self.done = true;
                 let mut rewritten = self.rewrite(&line);
                 rewritten.push(b'\n');
                 self.inner.write_all(&rewritten)?;
-                self.inner.write_all(&buf[end + 1..])?;
+                self.inner
+                    .write_all(rest.strip_prefix(b"\n").unwrap_or(rest))?;
                 Ok(buf.len())
             }
         }

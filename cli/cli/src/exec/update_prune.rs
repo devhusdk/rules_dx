@@ -19,9 +19,11 @@ pub(super) fn prune(workspace: &Path, unused: &[Unused]) -> Result<Vec<Unused>, 
         let json = manifest.ends_with(".json");
         let mut changed = false;
         for item in items {
-            if item.line == 0
-                || item.line > lines.len()
-                || !removable(&lines[item.line - 1], &item.name)
+            if !item
+                .line
+                .checked_sub(1)
+                .and_then(|at| lines.get(at))
+                .is_some_and(|line| removable(line, &item.name))
             {
                 continue;
             }
@@ -61,16 +63,18 @@ fn removable(line: &str, name: &str) -> bool {
 }
 
 fn drop_trailing_comma(lines: &mut [String], before: usize) {
-    let Some(prev) = lines[..before]
+    let Some(prev) = lines
         .iter_mut()
+        .take(before)
         .rev()
         .find(|l| !l.trim().is_empty())
     else {
         return;
     };
     let body = prev.trim_end();
-    if let Some(stripped) = body.strip_suffix(',') {
-        let ending = &prev[body.len()..];
+    if let Some(stripped) = body.strip_suffix(',')
+        && let Some((_, ending)) = prev.split_at_checked(body.len())
+    {
         *prev = format!("{stripped}{ending}");
     }
 }

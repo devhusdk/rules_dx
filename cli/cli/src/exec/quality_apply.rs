@@ -80,13 +80,13 @@ pub(crate) fn apply_collected_changes(
 
 fn reappears(initial: &DiagnosticEvent, terminal: &[DiagnosticEvent], used: &mut [bool]) -> bool {
     let found = terminal.iter().enumerate().position(|(index, later)| {
-        !used[index]
+        used.get(index) == Some(&false)
             && later.tool == initial.tool
             && later.rule == initial.rule
             && later.path == initial.path
     });
-    if let Some(index) = found {
-        used[index] = true;
+    if let Some(slot) = found.and_then(|index| used.get_mut(index)) {
+        *slot = true;
     }
     found.is_some()
 }

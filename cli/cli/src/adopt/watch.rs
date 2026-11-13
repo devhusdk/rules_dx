@@ -361,10 +361,11 @@ fn verdict_line(round: u32, code: i32, elapsed: Duration, first: bool) -> String
 }
 
 fn changed_line(paths: &[PathBuf]) -> String {
-    if paths.len() == 1 {
-        return format!("changed {}", paths[0].display());
+    match paths {
+        [] => "changed".to_owned(),
+        [only] => format!("changed {}", only.display()),
+        [first, rest @ ..] => format!("changed {} (+{} more)", first.display(), rest.len()),
     }
-    format!("changed {} (+{} more)", paths[0].display(), paths.len() - 1)
 }
 
 #[cfg(test)]

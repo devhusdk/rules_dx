@@ -252,9 +252,10 @@ struct Gutter<'a> {
 fn gutter(line: &str) -> Option<Gutter<'_>> {
     let trimmed = line.trim_start();
     let digits = trimmed.chars().take_while(char::is_ascii_digit).count();
-    let content = trimmed[digits..].trim_start().strip_prefix('|')?;
+    let (number_text, rest) = trimmed.split_at_checked(digits)?;
+    let content = rest.trim_start().strip_prefix('|')?;
     let number = if digits > 0 {
-        Some(trimmed[..digits].parse().ok()?)
+        Some(number_text.parse().ok()?)
     } else {
         None
     };

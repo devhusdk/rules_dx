@@ -275,10 +275,10 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
 pub(super) fn tail(text: &str) -> String {
     let text = text.trim();
     let start = text.len().saturating_sub(300);
-    let start = (start..=text.len())
-        .find(|i| text.is_char_boundary(*i))
-        .unwrap_or(text.len());
-    text[start..].to_owned()
+    (start..=text.len())
+        .find_map(|i| text.get(i..))
+        .unwrap_or_default()
+        .to_owned()
 }
 
 fn emit(out: &mut dyn Write, outcomes: &[Outcome], json: bool, exit: i32) -> Result<(), i32> {

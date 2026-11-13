@@ -559,6 +559,19 @@ fn a_stat_read_is_classified_by_its_outcome() {
     );
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn an_unreadable_stat_of_a_gone_leader_is_absent() {
+    assert_eq!(sys::settle_leader(Leader::Unknown, || true), Leader::Absent);
+    assert_eq!(sys::settle_leader(Leader::Unknown, || false), Leader::Unknown);
+    assert_eq!(
+        sys::settle_leader(Leader::Present("7".to_owned()), || true),
+        Leader::Present("7".to_owned())
+    );
+    assert_eq!(sys::settle_leader(Leader::Absent, || false), Leader::Absent);
+    assert!(!sys::gone(std::process::id() as i32));
+}
+
 #[cfg(not(unix))]
 #[test]
 fn without_unix_groups_nothing_is_known_and_a_lease_is_dropped() {

@@ -119,9 +119,28 @@ mod sys {
         crate::procs::boot_id().unwrap_or_else(|| "-".to_owned())
     }
 
+    /// True when no process has `pid`; a zombie still counts as present.
+    pub fn gone(pid: i32) -> bool {
+        const ESRCH: i32 = 3;
+        (unsafe { kill(pid, 0) }) != 0
+            && std::io::Error::last_os_error().raw_os_error() == Some(ESRCH)
+    }
+
     #[cfg(target_os = "linux")]
     pub fn leader(pid: i32) -> super::Leader {
-        leader_from_stat(std::fs::read_to_string(format!("/proc/{pid}/stat")))
+        settle_leader(
+            leader_from_stat(std::fs::read_to_string(format!("/proc/{pid}/stat"))),
+            || gone(pid),
+        )
+    }
+
+    /// An unreadable stat of a leader that is gone by now is an absent leader.
+    #[cfg(target_os = "linux")]
+    pub(super) fn settle_leader(read: super::Leader, gone: impl FnOnce() -> bool) -> super::Leader {
+        match read {
+            super::Leader::Unknown if gone() => super::Leader::Absent,
+            other => other,
+        }
     }
 
     #[cfg(target_os = "linux")]
@@ -140,10 +159,7 @@ mod sys {
     #[cfg(not(target_os = "linux"))]
     pub fn leader(pid: i32) -> super::Leader {
         use super::Leader;
-        const ESRCH: i32 = 3;
-        if unsafe { kill(pid, 0) } != 0
-            && std::io::Error::last_os_error().raw_os_error() == Some(ESRCH)
-        {
+        if gone(pid) {
             return Leader::Absent;
         }
         start_time(pid).map_or(Leader::Unknown, Leader::Present)

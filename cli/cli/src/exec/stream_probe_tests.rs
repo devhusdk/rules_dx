@@ -835,7 +835,16 @@ fn the_next_run_stops_what_a_killed_dx_left_behind() {
         let gone = wait_until_gone(build, Duration::from_secs(10));
         kill_group(build);
         assert_eq!(next.status.code(), Some(0), "{next:?}");
-        assert!(gone, "{words:?}: leftovers survived the next run");
+        assert!(
+            gone,
+            "{words:?}: leftovers survived the next run\n{}\nreaped.log:\n{}",
+            String::from_utf8_lossy(&next.stderr),
+            fs::read_to_string(
+                run.dir()
+                    .join("ws/.dx/local/leases/process-groups/reaped.log")
+            )
+            .unwrap_or_default()
+        );
         for dir in &leftover_dirs {
             assert!(!dir.exists(), "{} must be swept", dir.display());
         }

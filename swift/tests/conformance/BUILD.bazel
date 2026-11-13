@@ -46,6 +46,7 @@ dx_conformance_suite(
     failing_pattern = "Test {case}() recorded an issue",
     failing_test = ":fail_subject_test",
     lang = "swift",
+    not_applicable = {"cross_test:macos_arm64": "swift cross-compiles to linux only from a linux host"},
     passing_test = ":pass_subject_test",
 )
 

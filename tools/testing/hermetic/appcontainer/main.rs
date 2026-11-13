@@ -1,5 +1,6 @@
 //! Runs a command isolated on Windows: no network unless `--net`, files only where granted.
 //! The AppContainer backend is the default; the user backend runs it as a throwaway local account.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 mod args;
 
 #[cfg(windows)]

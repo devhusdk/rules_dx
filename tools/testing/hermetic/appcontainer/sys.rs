@@ -114,8 +114,14 @@ pub(crate) fn user_defaults() -> Result<Vec<(String, String)>, String> {
                 break;
             }
             let entry = String::from_utf16_lossy(std::slice::from_raw_parts(at, len));
-            if let Some(split) = entry.get(1..).and_then(|rest| rest.find('=')) {
-                vars.push((entry[..split + 1].to_owned(), entry[split + 2..].to_owned()));
+            let split = entry
+                .get(1..)
+                .and_then(|rest| rest.find('='))
+                .map(|at| at + 1);
+            if let Some((name, value)) =
+                split.and_then(|at| Some((entry.get(..at)?, entry.get(at + 1..)?)))
+            {
+                vars.push((name.to_owned(), value.to_owned()));
             }
             at = at.add(len + 1);
         }
@@ -483,7 +489,7 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
         let err = std::io::Error::last_os_error();
         return Err(format!(
             "cannot start {}: {err} (filled: {})",
-            config.command[0],
+            config.command.first().map_or("", String::as_str),
             filled.join(", ")
         ));
     }

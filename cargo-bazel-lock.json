@@ -1,5 +1,5 @@
 {
-  "checksum": "05d583130c880855666ac2c4768d9cf84f6934729498f5f260f768707faac810",
+  "checksum": "3773e66bff9f4ea1240e86c3395ad8036d133d1a40b2213d4bd0ad1dc8f6ff60",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2877,6 +2877,10 @@
     "cabal_lock 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
+          },
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"

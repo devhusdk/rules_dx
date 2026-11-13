@@ -11,9 +11,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use dx_lock::{Archive, Error, Lock, Package, Resolution, Resolver, Scratch, Spec};
+use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use serde_json::{Value, json};
 
 /// The Hackage host every package archive comes from.
@@ -68,6 +68,137 @@ pub fn revisions(
         *ordinal += 1;
     }
     Ok(found)
+}
+
+/// The `packages:` URLs of a project file mapped to the tarballs they are fetched to.
+pub type Fetched = BTreeMap<String, Tarball>;
+
+/// A `packages:` URL fetched and unpacked to a local package directory.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Tarball {
+    /// The package directory handed to cabal.
+    pub path: PathBuf,
+    /// The sha256 of the tarball.
+    pub sha256: String,
+}
+
+fn is_url(token: &str) -> bool {
+    token.starts_with("https://") || token.starts_with("http://")
+}
+
+/// Returns the URLs that the `packages:` field of a project file names, in order.
+#[must_use]
+pub fn remote_packages(project: &str) -> Vec<String> {
+    let mut urls = Vec::new();
+    let mut field = false;
+    for line in project.lines() {
+        if !line.starts_with([' ', '\t']) {
+            field = line.starts_with("packages:");
+        }
+        if !field {
+            continue;
+        }
+        let values = line.strip_prefix("packages:").unwrap_or(line);
+        for token in values.split([' ', '\t', ',']).filter(|token| is_url(token)) {
+            if !urls.iter().any(|url| url == token) {
+                urls.push(token.to_owned());
+            }
+        }
+    }
+    urls
+}
+
+fn unpack(bytes: &[u8], dir: &Path) -> Result<PathBuf, Error> {
+    let fail = |error: std::io::Error| Error::new(format!("{}: {error}", dir.display()));
+    tar::Archive::new(flate2::read::GzDecoder::new(bytes))
+        .unpack(dir)
+        .map_err(fail)?;
+    let mut tops = Vec::new();
+    for entry in std::fs::read_dir(dir).map_err(fail)? {
+        tops.push(entry.map_err(fail)?.path());
+    }
+    match tops.as_slice() {
+        [top] if top.is_dir() => Ok(top.clone()),
+        _ => Err(Error::new(format!(
+            "{}: the tarball does not hold one top directory",
+            dir.display()
+        ))),
+    }
+}
+
+/// Downloads and unpacks the `packages:` URLs of `project` into `dir` and returns the project that names the package directories instead.
+///
+/// # Errors
+/// Fails when a download fails, a tarball does not match the sha256 that `old` locks for its URL, or a file cannot be written.
+pub fn fetch_packages(
+    project: &str,
+    dir: &Path,
+    old: Option<&Lock>,
+    download: &dyn Fn(&str) -> Result<Vec<u8>, Error>,
+) -> Result<(String, Fetched), Error> {
+    let mut fetched = Fetched::new();
+    let mut localized = project.to_owned();
+    for (index, url) in remote_packages(project).into_iter().enumerate() {
+        let bytes = download(&url).map_err(|error| Error::new(format!("{url}: {error}")))?;
+        let sha256 = dx_digest::sha256_hex(&bytes);
+        let locked = old
+            .into_iter()
+            .flat_map(|lock| &lock.packages)
+            .flat_map(|package| &package.archives)
+            .find(|archive| archive.urls.contains(&url));
+        if let Some(archive) = locked.filter(|archive| archive.sha256 != sha256) {
+            return Err(Error::new(format!(
+                "{url} has the sha256 {sha256}, the lock has {}",
+                archive.sha256
+            )));
+        }
+        let path = unpack(&bytes, &dir.join(index.to_string()))
+            .map_err(|error| Error::new(format!("{url}: {error}")))?;
+        localized = localized.replace(&url, &path.to_string_lossy());
+        fetched.insert(url, Tarball { path, sha256 });
+    }
+    Ok((localized, fetched))
+}
+
+fn same_directory(plan: &str, fetched: &Path) -> bool {
+    let tail: PathBuf = fetched
+        .components()
+        .rev()
+        .take(2)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+    Path::new(plan.trim_end_matches(['/', '\\'])).ends_with(tail)
+}
+
+/// Turns the plan entries of the fetched packages back into entries of their URLs.
+pub fn remote_tarballs(plan: &mut Value, fetched: &Fetched) {
+    let Some(entries) = plan.get_mut("install-plan").and_then(Value::as_array_mut) else {
+        return;
+    };
+    for entry in entries {
+        if entry.pointer("/pkg-src/type").and_then(Value::as_str) != Some("local") {
+            continue;
+        }
+        let path = entry
+            .pointer("/pkg-src/path")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let Some((url, tarball)) = fetched
+            .iter()
+            .find(|(_, tarball)| same_directory(path, &tarball.path))
+        else {
+            continue;
+        };
+        if let Some(object) = entry.as_object_mut() {
+            object.insert(
+                "pkg-src".to_owned(),
+                json!({"type": "remote-tar", "uri": url}),
+            );
+            object.insert("pkg-src-sha256".to_owned(), json!(tarball.sha256));
+        }
+    }
 }
 
 fn text<'a>(entry: &'a Value, key: &str) -> &'a str {
@@ -125,6 +256,11 @@ pub fn packages(plan: &Value, revisions: &Revisions) -> Result<Vec<Package>, Err
                 (text(entry, "pkg-name"), component(entry)),
             )
         })
+        .collect();
+    let locked: BTreeSet<&str> = entries
+        .iter()
+        .filter(|entry| matches!(source(entry), "hackage" | "url"))
+        .map(|entry| text(entry, "pkg-name"))
         .collect();
     let mut merged: BTreeMap<(String, String), Entry> = BTreeMap::new();
     for entry in entries {
@@ -187,6 +323,22 @@ pub fn packages(plan: &Value, revisions: &Revisions) -> Result<Vec<Package>, Err
             _ => continue,
         };
         let mut extra = BTreeMap::new();
+        let deps: BTreeSet<String> = entry
+            .deps
+            .iter()
+            .map(|dep| {
+                dep.split_once(':')
+                    .map_or(dep.as_str(), |(package, _)| package)
+            })
+            .filter(|package| locked.contains(package))
+            .map(str::to_owned)
+            .collect();
+        if !entry.deps.is_empty() {
+            extra.insert(
+                "cabal_deps".to_owned(),
+                json!(entry.deps.iter().collect::<Vec<_>>()),
+            );
+        }
         extra.insert(
             "cabal_components".to_owned(),
             json!(entry.components.iter().collect::<Vec<_>>()),
@@ -209,7 +361,7 @@ pub fn packages(plan: &Value, revisions: &Revisions) -> Result<Vec<Package>, Err
                 strip_prefix: id,
                 ..Archive::default()
             }],
-            deps: entry.deps.into_iter().collect(),
+            deps: deps.into_iter().collect(),
             extra,
             ..Package::default()
         });
@@ -264,7 +416,11 @@ impl Cabal {
 }
 
 impl Resolver for Cabal {
-    fn resolve(&self, scratch: &Scratch, _old: Option<&Lock>) -> Result<Resolution, Error> {
+    fn sources(&self) -> Vec<String> {
+        vec!["*.cabal".to_owned()]
+    }
+
+    fn resolve(&self, scratch: &Scratch, old: Option<&Lock>) -> Result<Resolution, Error> {
         let set = scratch.set();
         let read = |path: PathBuf| {
             std::fs::read(&path).map_err(|error| Error::new(format!("{}: {error}", path.display())))
@@ -273,11 +429,22 @@ impl Resolver for Cabal {
             dx_families::hub("cabal").ok_or_else(|| Error::new("cabal has no registry entry"))?;
         let project = String::from_utf8_lossy(&read(set.join(&hub.manifest))?).into_owned();
         let state = index_state(&project)?;
+        let http = HttpFetch::new();
+        let (localized, fetched) = fetch_packages(
+            &project,
+            &scratch.tmp().with_file_name("packages"),
+            old,
+            &|url| http.bytes(url),
+        )?;
+        std::fs::write(set.join(&hub.manifest), localized)
+            .map_err(|error| Error::new(format!("{}: {error}", hub.manifest)))?;
         self.run(scratch, &["update", &format!("--index-state={state}")])?;
         self.run(scratch, &["freeze"])?;
         self.run(scratch, &["build", "--dry-run", "all"])?;
-        let plan: Value = serde_json::from_slice(&read(set.join("dist-newstyle/cache/plan.json"))?)
-            .map_err(|error| Error::new(format!("plan.json: {error}")))?;
+        let mut plan: Value =
+            serde_json::from_slice(&read(set.join("dist-newstyle/cache/plan.json"))?)
+                .map_err(|error| Error::new(format!("plan.json: {error}")))?;
+        remote_tarballs(&mut plan, &fetched);
         let index = cabal_dir(scratch).join("packages/hackage.haskell.org/01-index.tar");
         let file = std::fs::File::open(&index)
             .map_err(|error| Error::new(format!("{}: {error}", index.display())))?;

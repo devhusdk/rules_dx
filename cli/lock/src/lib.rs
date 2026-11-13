@@ -62,6 +62,13 @@ pub trait Resolver {
     /// # Errors
     /// Fails when the manifest has no resolution.
     fn resolve(&self, scratch: &Scratch, old: Option<&Lock>) -> Result<Resolution, Error>;
+
+    /// The names of the further files the resolver reads; `*` matches any run of characters.
+    ///
+    /// Every file that any of them matches is copied into `scratch.set()` and digested with the manifest.
+    fn sources(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// Reads archives the lock has no digest for.
@@ -152,8 +159,8 @@ fn matches(pattern: &str, name: &str) -> bool {
     }
 }
 
-/// The files of `dir` named by the first of `patterns` that names any, sorted.
-fn named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
+/// The sorted names of the files in `dir`.
+fn file_names(dir: &Path) -> Result<Vec<String>, Error> {
     let mut names = Vec::new();
     let entries = std::fs::read_dir(dir)
         .map_err(|error| Error::new(format!("{}: {error}", dir.display())))?;
@@ -164,6 +171,12 @@ fn named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
         }
     }
     names.sort();
+    Ok(names)
+}
+
+/// The files of `dir` named by the first of `patterns` that names any, sorted.
+fn named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
+    let names = file_names(dir)?;
     for pattern in patterns {
         let found: Vec<String> = names
             .iter()
@@ -175,6 +188,14 @@ fn named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
         }
     }
     Ok(Vec::new())
+}
+
+/// The files of `dir` named by any of `patterns`, sorted.
+fn all_named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
+    Ok(file_names(dir)?
+        .into_iter()
+        .filter(|name| patterns.iter().any(|pattern| matches(pattern, name)))
+        .collect())
 }
 
 fn read(path: &Path) -> Result<Vec<u8>, Error> {
@@ -197,11 +218,12 @@ fn write(path: &Path, bytes: &[u8]) -> Result<(), Error> {
 /// The manifest and state files of a set.
 struct Inputs {
     manifest: Vec<String>,
+    sources: Vec<String>,
     state: Vec<String>,
 }
 
 impl Inputs {
-    fn of(spec: &Spec, dir: &Path) -> Result<Self, Error> {
+    fn of(spec: &Spec, sources: &[String], dir: &Path) -> Result<Self, Error> {
         let manifest = named_files(dir, &spec.manifest)?;
         if manifest.is_empty() {
             return Err(Error::new(format!(
@@ -211,6 +233,10 @@ impl Inputs {
             )));
         }
         Ok(Self {
+            sources: all_named_files(dir, sources)?
+                .into_iter()
+                .filter(|name| !manifest.contains(name))
+                .collect(),
             manifest,
             state: named_files(dir, &spec.state)?,
         })
@@ -218,10 +244,14 @@ impl Inputs {
 
     fn digests(&self, dir: &Path) -> Result<BTreeMap<String, String>, Error> {
         let mut digests = BTreeMap::new();
-        for name in self.manifest.iter().chain(&self.state) {
+        for name in self.copied() {
             digests.insert(name.clone(), dx_digest::sha256_hex(&read(&dir.join(name))?));
         }
         Ok(digests)
+    }
+
+    fn copied(&self) -> impl Iterator<Item = &String> {
+        self.manifest.iter().chain(&self.sources).chain(&self.state)
     }
 }
 
@@ -265,7 +295,7 @@ pub fn run(
 ) -> Result<Outcome, Error> {
     let dir = &args.dir;
     let lock_path = dir.join(spec.lock_name());
-    let inputs = Inputs::of(spec, dir)?;
+    let inputs = Inputs::of(spec, &resolver.sources(), dir)?;
     let old_text = std::fs::read_to_string(&lock_path).ok();
     let old = old_text
         .as_deref()
@@ -282,7 +312,7 @@ pub fn run(
         return Ok(Outcome::Stale);
     }
     let scratch = Scratch::new()?;
-    for name in inputs.manifest.iter().chain(&inputs.state) {
+    for name in inputs.copied() {
         std::fs::write(scratch.set().join(name), read(&dir.join(name))?)
             .map_err(|error| Error::new(format!("{name}: {error}")))?;
     }
@@ -340,6 +370,7 @@ pub fn run(
     }
     lock.inputs = Inputs {
         manifest: inputs.manifest,
+        sources: inputs.sources,
         state,
     }
     .digests(dir)?;

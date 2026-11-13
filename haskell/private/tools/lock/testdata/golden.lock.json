@@ -12,13 +12,14 @@
           ]
         }
       ],
-      "deps": [
-        "base"
-      ],
+      "deps": [],
       "extra": {
         "cabal_components": [
           "exe:happy",
           "lib:frontend"
+        ],
+        "cabal_deps": [
+          "base"
         ]
       },
       "name": "happy",
@@ -36,13 +37,17 @@
         }
       ],
       "deps": [
-        "base",
-        "happy:frontend",
+        "happy",
         "splitmix"
       ],
       "extra": {
         "cabal_components": [
           "lib"
+        ],
+        "cabal_deps": [
+          "base",
+          "happy:frontend",
+          "splitmix"
         ],
         "cabal_revision": {
           "number": 1,
@@ -66,12 +71,13 @@
           ]
         }
       ],
-      "deps": [
-        "base"
-      ],
+      "deps": [],
       "extra": {
         "cabal_components": [
           "lib"
+        ],
+        "cabal_deps": [
+          "base"
         ],
         "cabal_revision": {
           "number": 0,

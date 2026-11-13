@@ -9,7 +9,6 @@
   "depcheck": "ocaml",
   "semver": false,
   "manifests": [
-    "dune-project",
     "*.opam"
   ],
   "lockfiles": [],

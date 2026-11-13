@@ -2179,7 +2179,6 @@ LANGS = json.decode("""{
     "family": "core",
     "lockfiles": [],
     "manifests": [
-      "dune-project",
       "*.opam"
     ],
     "name": "ocaml",

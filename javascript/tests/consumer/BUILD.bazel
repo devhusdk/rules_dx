@@ -24,14 +24,6 @@ javascript_library(
 
 javascript_binary(
     name = "main_bin",
-    data = [
-        ":env_node",
-        ":main",
-    ],
+    data = [":main"],
     main = "main.js",
-)
-
-filegroup(
-    name = "env_node",
-    srcs = ["@rules_dx//env:node"],
 )

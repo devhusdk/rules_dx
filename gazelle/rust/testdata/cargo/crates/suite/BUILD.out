@@ -17,6 +17,7 @@ rust_library(
 
 rust_test(
     name = "alpha_test",
+    size = "small",
     srcs = ["tests/alpha.rs"],
     aliases = aliases(
         package_name = "crates/suite",
@@ -31,6 +32,7 @@ rust_test(
 
 rust_test(
     name = "bravo_test",
+    size = "small",
     srcs = ["tests/bravo.rs"],
     aliases = aliases(
         package_name = "crates/suite",
@@ -45,6 +47,7 @@ rust_test(
 
 rust_test(
     name = "charlie_test",
+    size = "small",
     srcs = ["tests/charlie.rs"],
     aliases = aliases(
         package_name = "crates/suite",
@@ -59,6 +62,7 @@ rust_test(
 
 rust_test(
     name = "delta_test",
+    size = "small",
     srcs = ["tests/delta.rs"],
     aliases = aliases(
         package_name = "crates/suite",

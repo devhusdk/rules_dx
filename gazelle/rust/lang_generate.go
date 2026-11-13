@@ -739,6 +739,9 @@ func crateRule(kind, name, crateName, root string, tree map[string]*FileFacts, p
 	r.SetAttr("srcs", srcs)
 	r.SetAttr("crate_root", strings.TrimPrefix(root, strings.TrimSuffix(pkg, "/")+"/"))
 	r.SetAttr("crate_name", crateName)
+	if kind == testKind {
+		common.SizeSmall(r)
+	}
 	return r
 }
 
@@ -752,6 +755,7 @@ func unitTestRule(name, of, crateName, root string, tree map[string]*FileFacts, 
 	} else {
 		t = rule.NewRule(testKind, name)
 		t.SetAttr("crate", ":"+of)
+		common.SizeSmall(t)
 	}
 	t.SetPrivateAttr(unitTestOfAttr, of)
 	return t

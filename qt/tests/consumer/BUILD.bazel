@@ -6,4 +6,5 @@ qt_cc_test(
     name = "my_project_test",
     size = "small",
     srcs = ["my_project_test.cc"],
+    modules = ["core"],
 )

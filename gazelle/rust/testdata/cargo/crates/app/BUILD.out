@@ -19,6 +19,7 @@ rust_library(
 
 rust_test(
     name = "cargo_core_test",
+    size = "small",
     aliases = aliases(
         package_name = "crates/cargo-app",
         normal = True,
@@ -49,6 +50,7 @@ rust_binary(
 
 rust_test(
     name = "acceptance",
+    size = "small",
     srcs = ["spec/acceptance.rs"],
     aliases = aliases(
         package_name = "crates/cargo-app",

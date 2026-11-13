@@ -9,6 +9,7 @@ rust_binary(
     name = "producers_bin",
     testonly = True,
     srcs = [
+        "src/blocker_refs.rs",
         "src/evidence.rs",
         "src/lock_merge.rs",
         "src/main.rs",

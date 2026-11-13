@@ -34,10 +34,6 @@ name = "artifact_writes_test"
 path = "artifact_writes_test.rs"
 
 [[test]]
-name = "blocker_refs_test"
-path = "blocker_refs_test.rs"
-
-[[test]]
 name = "command_docs_test"
 path = "command_docs_test.rs"
 

@@ -1,9 +1,11 @@
 //! `producers_bin` prints the compiler signatures of each file argument as a JSON object.
 //! `producers_bin --evidence OUT PLATFORM FACTS ROW_LABELS` appends the compiler evidence lines to OUT.
 //! `producers_bin --lock-merge LOCKS_DIR OUT` merges the per-platform module locks into OUT.
+//! `producers_bin --blocker-refs OWNER/REPO` prints the references of a "Blocked on:" line on stdin.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+mod blocker_refs;
 mod evidence;
 mod lock_merge;
 
@@ -19,6 +21,11 @@ fn main() -> Result<(), String> {
     if let Some(("--lock-merge", rest)) = args.split_first().map(|(mode, rest)| (mode.as_str(), rest))
     {
         return lock_merge::merge(rest);
+    }
+    if let Some(("--blocker-refs", rest)) =
+        args.split_first().map(|(mode, rest)| (mode.as_str(), rest))
+    {
+        return blocker_refs::print(rest);
     }
     let mut found = BTreeMap::new();
     for path in args {

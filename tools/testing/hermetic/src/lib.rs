@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -418,8 +420,22 @@ impl Manifest {
     }
 }
 
+static NULL: Value = Value::Null;
+
+fn at<'a>(value: &'a Value, pointer: &str) -> &'a Value {
+    value.pointer(pointer).unwrap_or(&NULL)
+}
+
+fn set(value: &mut Value, key: &str, field: Value) {
+    if let Some(object) = value.as_object_mut() {
+        object.insert(key.to_owned(), field);
+    }
+}
+
 fn strings(value: &Value, key: &str) -> Result<Vec<String>, String> {
-    value[key]
+    value
+        .get(key)
+        .unwrap_or(&NULL)
         .as_array()
         .ok_or_else(|| format!("manifest field {key} must be a list"))?
         .iter()
@@ -432,7 +448,7 @@ fn strings(value: &Value, key: &str) -> Result<Vec<String>, String> {
 }
 
 fn string(value: &Value, key: &str) -> Result<String, String> {
-    match value[key].as_str() {
+    match value.get(key).and_then(Value::as_str) {
         Some(text) if !text.is_empty() => Ok(text.to_owned()),
         _ => Err(format!("manifest field {key} must be a non-empty string")),
     }
@@ -471,7 +487,7 @@ pub fn failure_probe_name(label: &str) -> String {
 
 fn parse_failures(value: &Value) -> Result<Vec<(String, String)>, String> {
     let mut failures = Vec::new();
-    for (label, marker) in value["failures"]
+    for (label, marker) in at(value, "/failures")
         .as_object()
         .ok_or_else(|| "manifest field failures must be a map".to_owned())?
     {
@@ -490,10 +506,14 @@ fn parse_failures(value: &Value) -> Result<Vec<(String, String)>, String> {
         .map(|(label, _)| failure_probe_name(label))
         .collect();
     names.sort();
-    if let Some(pair) = names.windows(2).find(|pair| pair[0] == pair[1]) {
+    if let Some(pair) = names
+        .iter()
+        .zip(names.iter().skip(1))
+        .find(|(left, right)| left == right)
+    {
         return Err(format!(
             "two failure targets share the probe name {}",
-            pair[0]
+            pair.0
         ));
     }
     Ok(failures)
@@ -523,7 +543,7 @@ fn parse_coverage(
 }
 
 fn parse_lint_findings(value: &Value) -> Result<Vec<(String, u64)>, String> {
-    let Some(map) = value["lint_findings"].as_object() else {
+    let Some(map) = at(value, "/lint_findings").as_object() else {
         return Ok(Vec::new());
     };
     let mut findings = Vec::new();
@@ -546,14 +566,14 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     let value: Value =
         serde_json::from_str(text).map_err(|err| format!("manifest is not JSON: {err}"))?;
     let mut files = Vec::new();
-    for entry in value["files"]
+    for entry in at(&value, "/files")
         .as_array()
         .ok_or_else(|| "manifest field files must be a list".to_owned())?
     {
-        let src = entry["src"]
+        let src = at(entry, "/src")
             .as_str()
             .ok_or_else(|| "manifest file entry needs src".to_owned())?;
-        let dest = entry["dest"]
+        let dest = at(entry, "/dest")
             .as_str()
             .ok_or_else(|| "manifest file entry needs dest".to_owned())?;
         files.push((base.join(src), checked_dest(dest)?));
@@ -573,12 +593,15 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     }
     let failures = parse_failures(&value)?;
     let (coverage, covered) = parse_coverage(&value, &files)?;
-    let fragment = value["module_fragment"].as_str().unwrap_or("");
-    let compiler = match value["compiler"]["name"]
+    let fragment = at(&value, "/module_fragment").as_str().unwrap_or("");
+    let compiler = match at(&value, "/compiler/name")
         .as_str()
         .filter(|name| !name.is_empty())
     {
-        Some(name) => Some((name.to_owned(), string(&value["compiler"], "producer")?)),
+        Some(name) => Some((
+            name.to_owned(),
+            string(at(&value, "/compiler"), "producer")?,
+        )),
         None => None,
     };
     let repo_name = string(&value, "repo_name")?;
@@ -598,14 +621,14 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         workspace_dir: checked_dest(&string(&value, "workspace_dir")?)?,
         patterns,
         failures,
-        fetch_fails: value["fetch_fails"].as_bool().unwrap_or(false),
+        fetch_fails: at(&value, "/fetch_fails").as_bool().unwrap_or(false),
         coverage,
         covered,
-        generate: value["generate"].as_bool().unwrap_or(false),
+        generate: at(&value, "/generate").as_bool().unwrap_or(false),
         files,
         module_fragment,
         compiler,
-        platform: value["platform"].as_str().unwrap_or("").to_owned(),
+        platform: at(&value, "/platform").as_str().unwrap_or("").to_owned(),
         lint_findings: parse_lint_findings(&value)?,
         dx: base.join(string(&value, "dx")?),
         module_file: base.join(string(&value, "module_file")?),
@@ -662,14 +685,17 @@ pub fn verdict(expect: &Expect, exit: i32, log: &str) -> Result<(), String> {
 
 /// Names a core WebAssembly module wasm32, or None for any other file.
 pub fn wasm_machine(head: &[u8]) -> Option<String> {
-    (head.len() >= 8 && head[..8] == *b"\0asm\x01\0\0\0").then(|| "wasm32".to_owned())
+    head.starts_with(b"\0asm\x01\0\0\0")
+        .then(|| "wasm32".to_owned())
 }
 
 /// Reads the home directory of one user from passwd text.
 pub fn passwd_home(passwd: &str, uid: u32) -> Option<PathBuf> {
     passwd.lines().find_map(|line| {
         let fields: Vec<&str> = line.split(':').collect();
-        (fields.len() >= 7 && fields[2] == uid.to_string()).then(|| PathBuf::from(fields[5]))
+        (fields.len() >= 7 && fields.get(2) == Some(&uid.to_string().as_str()))
+            .then(|| fields.get(5).map(PathBuf::from))
+            .flatten()
     })
 }
 
@@ -1435,7 +1461,7 @@ impl Session {
             self.manifest.dx.to_string_lossy().into_owned(),
         ];
         argv.extend(args);
-        let recorded = argv[10..].to_vec();
+        let recorded = argv.get(10..).unwrap_or_default().to_vec();
         // Lint exits 1 when it reports findings, which the manifest then compares.
         let expect = if command == "lint" {
             Expect::Findings
@@ -1474,7 +1500,7 @@ impl Session {
             });
         }
         let argv = self.bazel_argv(&probe);
-        let recorded = argv[10..].to_vec();
+        let recorded = argv.get(10..).unwrap_or_default().to_vec();
         self.execute(Exec {
             name: &probe.name,
             net: probe.net,
@@ -1545,7 +1571,10 @@ impl Session {
         }));
         checked.map_err(|err| {
             let lines: Vec<&str> = log.lines().collect();
-            let log_tail = lines[lines.len().saturating_sub(40)..].join("\n");
+            let log_tail = lines
+                .get(lines.len().saturating_sub(40)..)
+                .unwrap_or_default()
+                .join("\n");
             let module =
                 std::fs::read_to_string(self.workspace.join("MODULE.bazel")).unwrap_or_default();
             let testlogs = copy_test_logs(
@@ -1671,7 +1700,7 @@ const NATIVE_LANGUAGES: [&str; 6] = ["appimage", "c", "cpp", "cuda", "rust", "zi
 fn unique_machines(artifacts: &[Value]) -> Vec<String> {
     let mut machines: Vec<String> = artifacts
         .iter()
-        .filter_map(|artifact| artifact["machine"].as_str().map(str::to_owned))
+        .filter_map(|artifact| at(artifact, "/machine").as_str().map(str::to_owned))
         .collect();
     machines.sort();
     machines.dedup();
@@ -1726,14 +1755,14 @@ pub fn sources_from_json(value: &Value) -> Result<Vec<CoveredSource>, String> {
         .iter()
         .map(|source| {
             Ok(CoveredSource {
-                path: source["path"]
+                path: at(source, "/path")
                     .as_str()
                     .ok_or_else(|| "coverage source has no path".to_owned())?
                     .to_owned(),
-                lines_found: source["lines_found"]
+                lines_found: at(source, "/lines_found")
                     .as_u64()
                     .ok_or_else(|| "coverage source has no lines_found".to_owned())?,
-                lines_hit: source["lines_hit"]
+                lines_hit: at(source, "/lines_hit")
                     .as_u64()
                     .ok_or_else(|| "coverage source has no lines_hit".to_owned())?,
             })
@@ -1792,10 +1821,12 @@ pub fn lint_counts(stdout: &str) -> BTreeMap<String, u64> {
         .lines()
         .filter_map(|line| serde_json::from_str::<Value>(line).ok())
     {
-        if event["event"] != "diagnostic" {
+        if at(&event, "/event") != "diagnostic" {
             continue;
         }
-        if let (Some(tool), Some(rule)) = (event["tool"].as_str(), event["rule"].as_str()) {
+        if let (Some(tool), Some(rule)) =
+            (at(&event, "/tool").as_str(), at(&event, "/rule").as_str())
+        {
             *counts.entry(format!("{tool}:{rule}")).or_insert(0) += 1;
         }
     }
@@ -1858,42 +1889,42 @@ fn required_probes<'a>(manifest: &'a Manifest, os: &str) -> Vec<(String, &'a str
 pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> Result<(), String> {
     let label = manifest.label.as_str();
     let languages = manifest.languages.as_slice();
-    if evidence["schema"] != SCHEMA {
+    if at(evidence, "/schema") != SCHEMA {
         return Err(format!("evidence schema must be {SCHEMA}"));
     }
-    if evidence["qualification"] != label {
+    if at(evidence, "/qualification") != label {
         return Err(format!(
             "evidence describes {}, want {label}",
-            evidence["qualification"]
+            at(evidence, "/qualification")
         ));
     }
-    if evidence["rules_dx"]["commit"] != commit {
+    if at(evidence, "/rules_dx/commit") != commit {
         return Err(format!(
             "evidence is stale: it records commit {}, want {commit}",
-            evidence["rules_dx"]["commit"]
+            at(evidence, "/rules_dx/commit")
         ));
     }
-    if evidence["rules_dx"]["dirty"] != false {
+    if *at(evidence, "/rules_dx/dirty") != false {
         return Err(format!(
             "evidence came from a tree with uncommitted changes: {}",
-            evidence["rules_dx"]["changes"]
+            at(evidence, "/rules_dx/changes")
         ));
     }
-    let recorded: Vec<&str> = evidence["languages"]
+    let recorded: Vec<&str> = at(evidence, "/languages")
         .as_array()
         .map(|list| list.iter().filter_map(Value::as_str).collect())
         .unwrap_or_default();
     if languages.is_empty() || recorded != languages {
         return Err(format!(
             "evidence languages {} disagree with the required {languages:?}",
-            evidence["languages"]
+            at(evidence, "/languages")
         ));
     }
-    if evidence["result"] != "qualified" {
-        return Err(format!("evidence result is {}", evidence["result"]));
+    if at(evidence, "/result") != "qualified" {
+        return Err(format!("evidence result is {}", at(evidence, "/result")));
     }
     for key in ["os", "arch", "kernel"] {
-        if evidence["host"][key]
+        if at(evidence, &format!("/host/{key}"))
             .as_str()
             .unwrap_or_default()
             .is_empty()
@@ -1901,23 +1932,31 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
             return Err(format!("evidence names no host {key}"));
         }
     }
-    let probes = evidence["probes"].as_array().cloned().unwrap_or_default();
-    for (name, expect, marker, net) in
-        required_probes(manifest, evidence["exec"]["os"].as_str().unwrap_or("linux"))
-    {
-        let Some(probe) = probes.iter().find(|probe| probe["name"] == name.as_str()) else {
+    let probes = at(evidence, "/probes")
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    for (name, expect, marker, net) in required_probes(
+        manifest,
+        at(evidence, "/exec/os").as_str().unwrap_or("linux"),
+    ) {
+        let Some(probe) = probes
+            .iter()
+            .find(|probe| at(probe, "/name") == name.as_str())
+        else {
             return Err(format!("evidence is missing required probe {name}"));
         };
-        if probe["verdict"] != "ok" {
+        if at(probe, "/verdict") != "ok" {
             return Err(format!("required probe {name} did not hold"));
         }
-        if probe["expect"] != expect || probe["marker"] != marker {
+        if at(probe, "/expect") != expect || at(probe, "/marker") != marker {
             return Err(format!(
                 "required probe {name} recorded expect {} marker {}, want {expect} {marker:?}",
-                probe["expect"], probe["marker"]
+                at(probe, "/expect"),
+                at(probe, "/marker")
             ));
         }
-        if net == Net::Denied && probe["network"] != "denied" {
+        if net == Net::Denied && at(probe, "/network") != "denied" {
             return Err(format!("required probe {name} ran with network"));
         }
     }
@@ -1925,9 +1964,9 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
         let name = failure_probe_name(label);
         let built = probes
             .iter()
-            .filter(|probe| probe["name"] == name.as_str())
+            .filter(|probe| at(probe, "/name") == name.as_str())
             .all(|probe| {
-                probe["argv"]
+                at(probe, "/argv")
                     .as_array()
                     .is_some_and(|argv| argv.iter().any(|arg| arg == label.as_str()))
             });
@@ -1937,23 +1976,23 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
     }
     if !manifest.coverage.is_empty() {
         check_coverage(
-            &sources_from_json(&evidence["coverage"]["sources"])?,
+            &sources_from_json(at(evidence, "/coverage/sources"))?,
             manifest,
         )?;
     }
     if !manifest.lint_findings.is_empty() {
-        check_lint(&evidence["lint"], &manifest.lint_findings)?;
+        check_lint(at(evidence, "/lint"), &manifest.lint_findings)?;
     }
     if manifest.fetch_fails {
-        if evidence["downloads"] != json!([]) {
+        if *at(evidence, "/downloads") != json!([]) {
             return Err(format!(
                 "a consumer that fails at fetch downloaded {}",
-                evidence["downloads"]
+                at(evidence, "/downloads")
             ));
         }
         return Ok(());
     }
-    let artifacts = evidence["artifacts"]
+    let artifacts = at(evidence, "/artifacts")
         .as_array()
         .cloned()
         .unwrap_or_default();
@@ -1961,12 +2000,12 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
         return Err("evidence names no built artifacts".to_owned());
     }
     for artifact in &artifacts {
-        let digest = artifact["sha256"].as_str().unwrap_or_default();
+        let digest = at(artifact, "/sha256").as_str().unwrap_or_default();
         if digest.len() != 64 || !digest.bytes().all(|b| b.is_ascii_hexdigit()) {
-            return Err(format!("artifact {} has no sha256", artifact["path"]));
+            return Err(format!("artifact {} has no sha256", at(artifact, "/path")));
         }
     }
-    if evidence["target"]["machines"] != json!(unique_machines(&artifacts)) {
+    if *at(evidence, "/target/machines") != json!(unique_machines(&artifacts)) {
         return Err("evidence target machines disagree with its artifacts".to_owned());
     }
     if let Some((name, producer)) = &manifest.compiler {
@@ -1984,7 +2023,7 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
 fn check_compiler(name: &str, producer: &str, artifacts: &[Value]) -> Result<(), String> {
     let mut signed = 0;
     for artifact in artifacts {
-        let found: Vec<&str> = artifact["producers"]
+        let found: Vec<&str> = at(artifact, "/producers")
             .as_array()
             .map(|list| list.iter().filter_map(Value::as_str).collect())
             .unwrap_or_default();
@@ -1995,7 +2034,7 @@ fn check_compiler(name: &str, producer: &str, artifacts: &[Value]) -> Result<(),
         if !found.contains(&producer) {
             return Err(format!(
                 "artifact {} was not built by {name} ({producer:?}); its producers are {found:?}",
-                artifact["path"]
+                at(artifact, "/path")
             ));
         }
     }
@@ -2055,15 +2094,16 @@ pub fn relocatable(head: &[u8]) -> bool {
     }
     let Some(pe) = head
         .get(0x3c..0x40)
-        .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize)
+        .and_then(|b| <[u8; 4]>::try_from(b).ok())
+        .map(|b| u32::from_le_bytes(b) as usize)
     else {
         return true;
     };
     if head.get(pe..pe + 4) != Some(b"PE\0\0".as_slice()) {
         return true;
     }
-    head.get(pe + 22..pe + 24)
-        .is_none_or(|characteristics| characteristics[0] & 0x1 == 0)
+    head.get(pe + 22)
+        .is_none_or(|characteristics| characteristics & 0x1 == 0)
 }
 
 /// The Bazel binary `bazelisk --print_env` resolved: `BAZEL_REAL` when a wrapper is
@@ -2186,7 +2226,13 @@ fn run_init(manifest: &Manifest, workspace: &Path) -> Result<(), String> {
     let workspace_text = workspace.to_string_lossy().into_owned();
     let init = dx_testing::run(
         &manifest.dx,
-        &["init", "--apply", "--no-generate", "--workspace", &workspace_text],
+        &[
+            "init",
+            "--apply",
+            "--no-generate",
+            "--workspace",
+            &workspace_text,
+        ],
         &[],
     )
     .map_err(|err| format!("cannot run dx init: {err}"))?;
@@ -2285,8 +2331,8 @@ fn windows_build() -> Option<String> {
     let out = Command::new(cmd).args(["/c", "ver"]).output().ok()?;
     let text = String::from_utf8(out.stdout).ok()?;
     let start = text.find("[Version ")? + "[Version ".len();
-    let end = text[start..].find(']')? + start;
-    Some(text[start..end].to_owned())
+    let rest = text.get(start..)?;
+    Some(rest.get(..rest.find(']')?)?.to_owned())
 }
 
 fn host() -> Value {
@@ -2311,12 +2357,15 @@ fn host() -> Value {
 /// characters; the nested execroot under `TEST_TMPDIR` is too deep for that.
 pub fn qualification_root_for(tmp: &Path, windows: bool) -> PathBuf {
     let text = tmp.to_string_lossy();
-    let bytes = text.as_bytes();
-    if !windows || bytes.len() < 2 || !bytes[0].is_ascii_alphabetic() || bytes[1] != b':' {
-        return tmp.join("qualification");
-    }
+    let drive = match text.as_bytes() {
+        [letter, b':', ..] if windows && letter.is_ascii_alphabetic() => text.get(..2),
+        _ => None,
+    };
     let digest = sha256_hex(text.as_bytes());
-    PathBuf::from(format!("{}\\q\\{}", &text[..2], &digest[..6]))
+    match (drive, digest.get(..6)) {
+        (Some(drive), Some(short)) => PathBuf::from(format!("{drive}\\q\\{short}")),
+        _ => tmp.join("qualification"),
+    }
 }
 
 pub fn qualification_root(tmp: &Path) -> PathBuf {
@@ -2345,11 +2394,11 @@ fn startup_flags_for(output_root: &Path, windows: bool) -> Vec<String> {
 fn windows_output_base(output_root: &Path) -> String {
     let root = output_root.display().to_string();
     let name = root.rfind(['\\', '/']).map_or(0, |at| at + 1);
-    let end = root[name..]
-        .chars()
-        .next()
+    let end = root
+        .get(name..)
+        .and_then(|rest| rest.chars().next())
         .map_or(name, |c| name + c.len_utf8());
-    root[..end].to_owned()
+    root.get(..end).unwrap_or(&root).to_owned()
 }
 
 /// The Windows bash path rules_shell detected in `output_base`, read from its generated BUILD.
@@ -2365,11 +2414,11 @@ pub fn detected_windows_sh(output_base: &Path) -> Option<String> {
         })?
         .path();
     let build = std::fs::read_to_string(repo.join("BUILD")).ok()?;
-    let rest = &build[build.find("name = \"windows_sh\"")?..];
-    let rest = &rest[rest.find("path = ")? + "path = ".len()..];
+    let (_, rest) = build.split_once("name = \"windows_sh\"")?;
+    let (_, rest) = rest.split_once("path = ")?;
     let quote = rest.chars().next().filter(|c| *c == '"' || *c == '\'')?;
-    let value = &rest[1..];
-    Some(value[..value.find(quote)?].to_owned())
+    let value = rest.get(quote.len_utf8()..)?;
+    Some(value.get(..value.find(quote)?)?.to_owned())
 }
 
 /// Fails when rules_shell gave the Windows sh toolchain no bash, or System32's bash.exe,
@@ -2568,11 +2617,11 @@ pub fn qualify(manifest: Manifest, root: &Path, out: &Path) -> Value {
     let mut session = None;
     let outcome = run_all(manifest, root, out, &mut evidence, &mut session);
     if let Some(session) = session {
-        evidence["probes"] = json!(session.probes);
+        set(&mut evidence, "probes", json!(session.probes));
     }
     match outcome {
-        Ok(()) => evidence["result"] = json!("qualified"),
-        Err(err) => evidence["error"] = json!(err),
+        Ok(()) => set(&mut evidence, "result", json!("qualified")),
+        Err(err) => set(&mut evidence, "error", json!(err)),
     }
     evidence
 }
@@ -2602,7 +2651,11 @@ fn run_all(
     let source = source_tree(&manifest)?;
     let commit = git(&source, &["rev-parse", "HEAD"])?;
     let changes = git(&source, &["status", "--porcelain"])?;
-    evidence["rules_dx"] = json!({"commit": commit, "dirty": !changes.is_empty(), "changes": changes, "source": source});
+    set(
+        evidence,
+        "rules_dx",
+        json!({"commit": commit, "dirty": !changes.is_empty(), "changes": changes, "source": source}),
+    );
     let found = find_bazelisk(
         std::env::var("DX_HERMETIC_BAZELISK").ok().as_deref(),
         &std::env::var("PATH").unwrap_or_default(),
@@ -2684,23 +2737,27 @@ fn run_all(
     } else {
         None
     };
-    evidence["isolation"] = json!({
-        "network": if cfg!(target_os = "macos") {
-            "sandbox-exec profile, loopback only"
-        } else if cfg!(windows) {
-            "AppContainer without network capabilities"
-        } else {
-            "fresh network namespace with loopback only"
-        },
-        "path": path,
-        "masked_tools": isolation.tools,
-        "masked_sdk_dirs": isolation.sdk_dirs,
-        "masked_home": isolation.home_dirs.iter().chain(&isolation.home_files).collect::<Vec<_>>(),
-        "ambient_probe_tool": ambient,
-        "bash": bash,
-        "denied_dirs": isolation.denies,
-        "acl_scope": isolation.group.as_ref().map(|_| "group"),
-    });
+    set(
+        evidence,
+        "isolation",
+        json!({
+            "network": if cfg!(target_os = "macos") {
+                "sandbox-exec profile, loopback only"
+            } else if cfg!(windows) {
+                "AppContainer without network capabilities"
+            } else {
+                "fresh network namespace with loopback only"
+            },
+            "path": path,
+            "masked_tools": isolation.tools,
+            "masked_sdk_dirs": isolation.sdk_dirs,
+            "masked_home": isolation.home_dirs.iter().chain(&isolation.home_files).collect::<Vec<_>>(),
+            "ambient_probe_tool": ambient,
+            "bash": bash,
+            "denied_dirs": isolation.denies,
+            "acl_scope": isolation.group.as_ref().map(|_| "group"),
+        }),
+    );
     let started = Instant::now();
     if cfg!(windows) {
         isolation_check(
@@ -2720,14 +2777,22 @@ fn run_all(
         ),
     );
     let workspace = root.join(&manifest.workspace_dir);
-    evidence["consumer"] = json!({
-        "module": manifest.module,
-        "repo_name": manifest.repo_name,
-        "workspace": workspace,
-        "patterns": manifest.patterns,
-    });
+    set(
+        evidence,
+        "consumer",
+        json!({
+            "module": manifest.module,
+            "repo_name": manifest.repo_name,
+            "workspace": workspace,
+            "patterns": manifest.patterns,
+        }),
+    );
     if let Some((name, producer)) = &manifest.compiler {
-        evidence["compiler"] = json!({"name": name, "producer": producer});
+        set(
+            evidence,
+            "compiler",
+            json!({"name": name, "producer": producer}),
+        );
     }
     let session = slot.insert(Session {
         manifest,
@@ -2821,7 +2886,7 @@ fn run_all(
         }
         let downloaded =
             dx_nested::record::downloads(&std::fs::read(&download_log).unwrap_or_default());
-        evidence["downloads"] = json!(downloaded);
+        set(evidence, "downloads", json!(downloaded));
         return Ok(());
     }
     if session.manifest.generate {
@@ -2880,11 +2945,15 @@ fn run_all(
             .arg("--version");
         command
     })?;
-    evidence["bazel"] = json!({
-        "version": version.stdout.trim(),
-        "bazelisk": found,
-        "isolated": session.bazel,
-    });
+    set(
+        evidence,
+        "bazel",
+        json!({
+            "version": version.stdout.trim(),
+            "bazelisk": found,
+            "isolated": session.bazel,
+        }),
+    );
     session.run(Probe {
         name: "hermetic_test".to_owned(),
         net: Net::Denied,
@@ -2914,9 +2983,17 @@ fn run_all(
         expect: Expect::Pass,
     })?;
     let built = artifacts(&session.workspace, &listed.stdout)?;
-    evidence["target"] = json!({"machines": unique_machines(&built)});
-    evidence["exec"] = json!({"os": std::env::consts::OS, "arch": std::env::consts::ARCH});
-    evidence["artifacts"] = json!(built);
+    set(
+        evidence,
+        "target",
+        json!({"machines": unique_machines(&built)}),
+    );
+    set(
+        evidence,
+        "exec",
+        json!({"os": std::env::consts::OS, "arch": std::env::consts::ARCH}),
+    );
+    set(evidence, "artifacts", json!(built));
     let (ambient_marker, network_marker, home_marker) = markers(std::env::consts::OS);
     for (name, marker) in [
         ("ambient_tool", ambient_marker),
@@ -3003,22 +3080,26 @@ fn run_all(
             .map_err(|err| format!("cannot read {}: {err}", report_path.display()))?;
         write(&out.join("coverage.lcov"), &report)?;
         let sources = coverage_sources(&report)?;
-        evidence["coverage"] = json!({
-            "report": "coverage.lcov",
-            "sources": sources
-                .iter()
-                .map(|source| json!({
-                    "path": source.path,
-                    "lines_found": source.lines_found,
-                    "lines_hit": source.lines_hit,
-                }))
-                .collect::<Vec<_>>(),
-        });
+        set(
+            evidence,
+            "coverage",
+            json!({
+                "report": "coverage.lcov",
+                "sources": sources
+                    .iter()
+                    .map(|source| json!({
+                        "path": source.path,
+                        "lines_found": source.lines_found,
+                        "lines_hit": source.lines_hit,
+                    }))
+                    .collect::<Vec<_>>(),
+            }),
+        );
         check_coverage(&sources, &session.manifest)?;
         if cfg!(windows) {
             let output_base = PathBuf::from(windows_output_base(&cold));
             let detected = detected_windows_sh(&output_base);
-            evidence["sh_toolchain"] = json!(detected);
+            set(evidence, "sh_toolchain", json!(detected));
             let system_root =
                 std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".to_owned());
             if let Some(detected) = &detected {
@@ -3055,7 +3136,7 @@ fn run_all(
         if lint.exit == 1 && counts.is_empty() {
             return Err("dx lint exited 1 without reporting a finding".to_owned());
         }
-        evidence["lint"] = json!(counts);
+        set(evidence, "lint", json!(counts));
     }
     for (label, marker) in failures {
         session.run(Probe {

@@ -34,3 +34,6 @@ On windows_x86_64 with `--//cc:compiler=msvc`, `zlib_msvc_static` and
 make, m4 and pkgconfig toolchains there. `foreign_cmake_msvc_log_test` checks the
 MSVC identification and the /MD flag in the CMake log. Link warnings are not errors
 for these probes (`/WX:NO`).
+Static targets set `ZLIB_BUILD_SHARED=OFF`, shared targets set
+`ZLIB_BUILD_STATIC=OFF`, and CMake's compiler checks build in the Release
+configuration (`CMAKE_TRY_COMPILE_CONFIGURATION`).

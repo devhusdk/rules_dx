@@ -25,7 +25,14 @@ _THIRD_PARTY = [
     "no-typecheck",
 ]
 
-_ZLIB = {"ZLIB_BUILD_TESTING": "OFF"}
+_ZLIB = {
+    "CMAKE_TRY_COMPILE_CONFIGURATION": "Release",
+    "ZLIB_BUILD_TESTING": "OFF",
+}
+
+_ZLIB_STATIC = _ZLIB | {"ZLIB_BUILD_SHARED": "OFF"}
+
+_ZLIB_SHARED = _ZLIB | {"ZLIB_BUILD_STATIC": "OFF"}
 
 _LINUX_X86_64 = [
     "@platforms//cpu:x86_64",
@@ -35,7 +42,7 @@ _LINUX_X86_64 = [
 cmake(
     name = "zlib_static",
     build_args = ["--verbose"],
-    cache_entries = _ZLIB | {"CMAKE_C_FLAGS": "-DDX_FOREIGN_CMAKE_FLAG=1"},
+    cache_entries = _ZLIB_STATIC | {"CMAKE_C_FLAGS": "-DDX_FOREIGN_CMAKE_FLAG=1"},
     generate_args = ["-GNinja"],
     lib_source = "@foreign_cmake_zlib//:all_srcs",
     out_static_libs = ["libz.a"],
@@ -46,7 +53,7 @@ cmake(
 cmake(
     name = "zlib_shared",
     build_args = ["--verbose"],
-    cache_entries = _ZLIB | {"CMAKE_C_FLAGS": "-DDX_FOREIGN_CMAKE_FLAG=1"},
+    cache_entries = _ZLIB_SHARED | {"CMAKE_C_FLAGS": "-DDX_FOREIGN_CMAKE_FLAG=1"},
     generate_args = ["-GNinja"],
     lib_source = "@foreign_cmake_zlib//:all_srcs",
     out_shared_libs = ["libz.so.1"],
@@ -57,7 +64,7 @@ cmake(
 cmake(
     name = "zlib_arm64",
     build_args = ["--verbose"],
-    cache_entries = _ZLIB,
+    cache_entries = _ZLIB_STATIC,
     generate_args = [
         "-GNinja",
         "--trace-expand",
@@ -141,7 +148,7 @@ _WINDOWS_X86_64 = [
 cmake(
     name = "zlib_msvc_static",
     build_args = ["--verbose"],
-    cache_entries = _ZLIB | _MSVC_NO_WX,
+    cache_entries = _ZLIB_STATIC | _MSVC_NO_WX,
     generate_args = [
         "-GNinja",
         "--trace-expand",
@@ -155,7 +162,7 @@ cmake(
 cmake(
     name = "zlib_msvc_shared",
     build_args = ["--verbose"],
-    cache_entries = _ZLIB | _MSVC_NO_WX,
+    cache_entries = _ZLIB_SHARED | _MSVC_NO_WX,
     generate_args = ["-GNinja"],
     lib_source = "@foreign_cmake_zlib//:all_srcs",
     out_interface_libs = ["libz.lib"],

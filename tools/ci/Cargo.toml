@@ -118,6 +118,10 @@ name = "lock_registry_test"
 path = "lock_registry_test.rs"
 
 [[test]]
+name = "rule_set_loads_test"
+path = "rule_set_loads_test.rs"
+
+[[test]]
 name = "prose_rules_test"
 path = "prose_rules_test.rs"
 

@@ -1401,6 +1401,38 @@ rust_test(
 )
 
 rust_test(
+    name = "rule_set_loads_test",
+    size = "small",
+    srcs = [
+        "guard_rules/scan.rs",
+        "rule_set_loads_test.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "rule_set_loads_test",
+    crate_root = "rule_set_loads_test.rs",
+    data = [
+        "rule_set_loads_allowlist.txt",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:rust.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:rust.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + ["//tools/testing:dx_testing"],
+)
+
+rust_test(
     name = "repo_rule_refetch_test",
     size = "small",
     srcs = [

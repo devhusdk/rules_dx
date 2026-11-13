@@ -5,6 +5,7 @@ package(default_visibility = ["//visibility:public"])
 # This package must not load rules_kotlin.
 toolchain(
     name = "unused_deps",
+    target_settings = ["//config:toolchains_on"],
     toolchain = "//kotlin/private/toolchain/impl:unused_deps_impl",
     toolchain_type = "@rules_kotlin//kotlin:kt_toolchain_type",
 )

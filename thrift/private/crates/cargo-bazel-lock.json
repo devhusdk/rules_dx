@@ -1,5 +1,5 @@
 {
-  "checksum": "93e4eadb5d14f7f9391871ae957b4c362089374cd1d0eb475c847107ff281a71",
+  "checksum": "f46f4a4454c3b0346f4a2c165a1e0c0dc4bcaaf6ce87c2018593450f662ee205",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -374,7 +374,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -467,7 +467,7 @@
           }
         ],
         "toolchains": [
-          "@@//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -637,7 +637,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -701,7 +701,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -765,7 +765,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -1045,7 +1045,7 @@
           }
         ],
         "toolchains": [
-          "@@//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -1206,7 +1206,7 @@
         },
         "links": "wasm_bindgen",
         "toolchains": [
-          "@@//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust/private:build_script_cc_env"
         ]
       },
       "common_attrs": {

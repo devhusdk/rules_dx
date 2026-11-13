@@ -46,7 +46,7 @@ fn symbols_carry_signatures_docs_and_repo_sources() {
     let source = add.source.as_ref().expect("add has a source");
     assert_eq!(
         (source.file.as_str(), source.line, source.generated),
-        ("tools/docs/rust/fixture/src/lib.rs", 18, false)
+        ("tools/docs/rust/fixture/src/lib.rs", 8, false)
     );
     let area = symbol(&shard, "rust:docs_fixture:shapes.Circle.area");
     assert_eq!(area.kind, SymbolKind::Method as i32);

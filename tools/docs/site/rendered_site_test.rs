@@ -807,7 +807,8 @@ fn a_site_without_its_stylesheet_is_refused() {
     let scratch_tmp = dx_test_scratch::scratch("rendered-missing-css");
     let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
-    std::fs::remove_file(asset(&scratch, "css/general.css").expect("find the stylesheet")).expect("remove the stylesheet");
+    std::fs::remove_file(asset(&scratch, "css/general.css").expect("find the stylesheet"))
+        .expect("remove the stylesheet");
     check_rendered(&scratch, &["--landing"]).expect_refusal("has no css/general.css");
 }
 
@@ -856,25 +857,17 @@ fn copy_tree(from: &Path, to: &Path) {
 }
 
 fn copy_readonly(from: &Path, to: &Path) {
-    for route in every_html(from) {
-        let target = to.join(&route);
-        if let Some(parent) = target.parent() {
-            std::fs::create_dir_all(parent).expect("create parent");
-        }
-        write_copy(&from.join(&route), &target);
-    }
-    for entry in std::fs::read_dir(from).expect("read site root").flatten() {
+    std::fs::create_dir_all(to).unwrap_or_else(|error| panic!("create {}: {error}", to.display()));
+    for entry in std::fs::read_dir(from)
+        .unwrap_or_else(|error| panic!("read {}: {error}", from.display()))
+        .flatten()
+    {
         let source = entry.path();
-        let name = entry.file_name();
+        let target = to.join(entry.file_name());
         if source.is_dir() {
-            dx_testing::copy_tree(&source, &to.join(&name));
-        } else if source.extension().is_none_or(|ext| ext != "html") {
-            write_copy(&source, &to.join(&name));
-        }
-    }
-    for page in ["print.html", "404.html", "toc.html"] {
-        if from.join(page).is_file() {
-            write_copy(&from.join(page), &to.join(page));
+            copy_readonly(&source, &target);
+        } else {
+            write_copy(&source, &target);
         }
     }
 }

@@ -260,6 +260,7 @@ fixture-referenced scala/tests/fixtures/scala3
 fixture-referenced scala/tests/fixtures/scalafmt
 fixture-referenced swift/tests/fixtures/bench
 fixture-referenced swift/tests/fixtures/fuzz
+fixture-referenced swift/tests/fixtures/rust_link
 fixture-referenced swift/tests/fixtures/typecheck
 fixture-referenced typescript/tests/fixtures/args
 fixture-referenced typescript/tests/fixtures/bench

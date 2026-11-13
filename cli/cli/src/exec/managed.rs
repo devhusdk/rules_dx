@@ -438,12 +438,6 @@ mod tests {
                 &["//core/codegen:result_proto"],
                 &[],
             ),
-            graph_rule_of_kind(
-                "//core/codegen:codegen_prost_fixture",
-                "prost_codegen_shard",
-                &["//core/codegen:result_proto_rs"],
-                &[],
-            ),
         ]
     }
 
@@ -455,7 +449,7 @@ mod tests {
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains(
-                "Running sync for //core/codegen:codegen_prost_fixture //core/codegen:result_proto"
+                "Running sync for //core/codegen:result_proto //core/codegen:result_proto_rs"
             ),
             "{out}"
         );

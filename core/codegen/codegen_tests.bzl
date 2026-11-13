@@ -364,49 +364,53 @@ def codegen_defs_unit_tests(name):
         ],
     )
 
-_CHAIN_FINGERPRINT = (
-    "[{\"entries\":[{\"exec_path\":\"\",\"import_root\":\"gen\",\"logical_path\":\"gen/alpha.rs\"," +
-    "\"namespace\":\"alpha\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\"," +
-    "\"producer\":\"//core/codegen:codegen_shard_alpha\"}," +
-    "{\"entries\":[{\"exec_path\":\"\",\"import_root\":\"gen\",\"logical_path\":\"gen/beta.rs\"," +
-    "\"namespace\":\"beta\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\"," +
-    "\"producer\":\"//core/codegen:codegen_shard_beta\"}]"
-)
+def _prost_record(package):
+    return (
+        "{\"entries\":[{\"exec_path\":\"%s/result_proto.lib.rs\",\"import_root\":\"gen\"," +
+        "\"logical_path\":\"gen/%s/result_proto.lib.rs\",\"namespace\":\"\",\"read_only\":true,\"replaces\":\"\"}]," +
+        "\"language\":\"rust\",\"producer\":\"//%s:result_proto_rs\"}"
+    ) % (package, package, package)
 
-_PROST_FINGERPRINT = (
-    "[{\"entries\":[{\"exec_path\":\"result_proto.lib.rs\",\"import_root\":\"gen\",\"logical_path\":\"gen/prost_result.rs\"," +
-    "\"namespace\":\"result\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\"," +
-    "\"producer\":\"//core/codegen:codegen_prost_fixture\"}]"
-)
+_PROST = _prost_record("core/codegen/proto")
+_PROST_TWIN = _prost_record("core/codegen/proto/twin")
 
-EXPECTED_CODEGEN_PLAN_OBSERVATIONS = """subject //core/codegen:codegen_plan_chain_subject
-field files=codegen_shard_alpha.dxcodegen.pb,codegen_shard_alpha.dxcodegen.src,codegen_shard_beta.dxcodegen.pb,codegen_shard_beta.dxcodegen.src
-field fingerprint=%s
-field label=//core/codegen:codegen_shard_beta
-field record_count=2
-aspect_field aspect_seen=True
-aspect_field field_count=4
-aspect_field has_subject=True
-aspect_field subject_label=//core/codegen:codegen_plan_chain_subject
-aspect_field transitive_count=0
-subject //core/codegen:codegen_plan_prost_subject
-field files=codegen_prost_fixture.dxcodegen.pb,codegen_prost_fixture.dxcodegen.src,result_proto.lib.rs
-field fingerprint=%s
-field label=//core/codegen:codegen_prost_fixture
+EXPECTED_CODEGEN_PLAN_OBSERVATIONS = """subject //core/codegen:codegen_plan_prost_subject
+field files=result_proto.lib.rs,result_proto_rs.dxcodegen.pb,result_proto_rs.dxcodegen.src
+field fingerprint=[%s]
+field label=//core/codegen/proto:result_proto_rs
 field record_count=1
 aspect_field aspect_seen=True
 aspect_field field_count=4
 aspect_field has_subject=True
 aspect_field subject_label=//core/codegen:codegen_plan_prost_subject
-aspect_field transitive_count=0""" % (_CHAIN_FINGERPRINT, _PROST_FINGERPRINT)
+aspect_field transitive_count=0
+subject //core/codegen:codegen_plan_prost_two_packages_subject
+field files=result_proto.lib.rs,result_proto.lib.rs,result_proto_rs.dxcodegen.pb,result_proto_rs.dxcodegen.pb,result_proto_rs.dxcodegen.src,result_proto_rs.dxcodegen.src
+field fingerprint=[%s,%s]
+field label=//core/codegen:codegen_prost_two_packages
+field record_count=2
+aspect_field aspect_seen=True
+aspect_field field_count=4
+aspect_field has_subject=True
+aspect_field subject_label=//core/codegen:codegen_plan_prost_two_packages_subject
+aspect_field transitive_count=0""" % (_PROST, _PROST_TWIN, _PROST)
+
+def _codegen_deps_fixture_impl(_ctx):
+    return [DefaultInfo()]
+
+codegen_deps_fixture = rule(
+    implementation = _codegen_deps_fixture_impl,
+    doc = "Fixture whose deps the codegen plan aspect walks.",
+    attrs = {"deps": attr.label_list()},
+)
 
 def codegen_plan_analysis_tests(name):
     starlark_test(
         name = name,
         mode = "analysis",
         subjects = [
-            ":codegen_plan_chain_subject",
             ":codegen_plan_prost_subject",
+            ":codegen_plan_prost_two_packages_subject",
         ],
         expected_observations = EXPECTED_CODEGEN_PLAN_OBSERVATIONS,
     )

@@ -517,23 +517,18 @@ mod tests {
                 &["//gen:schema"],
                 &[],
             ),
-            graph_rule_of_kind(
-                "//gen:shard",
-                "prost_codegen_shard",
-                &["//gen:schema_rs"],
-                &[],
-            ),
+            graph_rule_of_kind("//gen:capnp", "capnproto_library", &["//gen:schema"], &[]),
             graph_rule_of_kind(
                 "//gen:held",
-                "dx_codegen_shard",
-                &["//gen:schema"],
+                "capnproto_cc_library",
+                &["//gen:capnp"],
                 &["manual"],
             ),
             graph_rule_of_kind("//gen:bin", "rust_binary", &["//gen:schema_rs"], &[]),
             rule("//gen:untyped_shard", &["//gen:schema"], &[]),
             graph_rule_of_kind(
                 "//ext:shard",
-                "prost_codegen_shard",
+                "rust_prost_library",
                 &["@@repo+//pkg:schema"],
                 &[],
             ),
@@ -599,11 +594,11 @@ mod tests {
     #[test]
     fn shards_are_found_through_a_transitive_chain() {
         let graph = shard_graph();
-        let shards = graph.dependents_of_kind("//gen:schema", dx_codegen::is_shard_kind);
-        assert!(shards.contains(&"//gen:shard".to_owned()), "{shards:?}");
+        let shards = graph.dependents_of_kind("//gen:schema", dx_codegen::is_library_kind);
+        assert!(shards.contains(&"//gen:held".to_owned()), "{shards:?}");
         assert_eq!(
-            graph.dependents_of_kind("//gen:schema_rs", dx_codegen::is_shard_kind),
-            ["//gen:shard"]
+            graph.dependents_of_kind("//gen:capnp", dx_codegen::is_library_kind),
+            ["//gen:held"]
         );
     }
 
@@ -611,16 +606,16 @@ mod tests {
     fn manual_shards_are_kept() {
         let graph = shard_graph();
         assert_eq!(
-            graph.dependents_of_kind("//gen:schema", dx_codegen::is_shard_kind),
-            ["//gen:held", "//gen:shard"]
+            graph.dependents_of_kind("//gen:schema", dx_codegen::is_library_kind),
+            ["//gen:held", "//gen:schema_rs"]
         );
     }
 
     #[test]
     fn non_shard_dependents_are_dropped() {
         let graph = shard_graph();
-        let shards = graph.dependents_of_kind("//gen:schema", dx_codegen::is_shard_kind);
-        for dropped in ["//gen:schema", "//gen:schema_rs", "//gen:bin"] {
+        let shards = graph.dependents_of_kind("//gen:schema", dx_codegen::is_library_kind);
+        for dropped in ["//gen:schema", "//gen:capnp", "//gen:bin"] {
             assert!(
                 !shards.contains(&dropped.to_owned()),
                 "{dropped}: {shards:?}"
@@ -637,21 +632,21 @@ mod tests {
         let graph = shard_graph();
         for label in ["@repo//pkg:schema", "@@repo+//pkg:schema"] {
             assert_eq!(
-                graph.dependents_of_kind(label, dx_codegen::is_shard_kind),
+                graph.dependents_of_kind(label, dx_codegen::is_library_kind),
                 ["//ext:shard"],
                 "{label}"
             );
         }
-        for label in ["@//gen:schema_rs", "@@//gen:schema_rs"] {
+        for label in ["@//gen:capnp", "@@//gen:capnp"] {
             assert_eq!(
-                graph.dependents_of_kind(label, dx_codegen::is_shard_kind),
-                ["//gen:shard"],
+                graph.dependents_of_kind(label, dx_codegen::is_library_kind),
+                ["//gen:held"],
                 "{label}"
             );
         }
         assert!(
             graph
-                .dependents_of_kind("@other//pkg:schema", dx_codegen::is_shard_kind)
+                .dependents_of_kind("@other//pkg:schema", dx_codegen::is_library_kind)
                 .is_empty()
         );
     }
@@ -671,7 +666,7 @@ mod tests {
         let graph = shard_graph();
         assert!(
             graph
-                .dependents_of_kind("//gone:schema", dx_codegen::is_shard_kind)
+                .dependents_of_kind("//gone:schema", dx_codegen::is_library_kind)
                 .is_empty()
         );
     }

@@ -20,9 +20,6 @@ pub const CODEGEN_ASPECT: &str = "core/codegen:codegen.bzl%dx_codegen_plan_aspec
 /// Repo-relative label; qualify it with [`repository_target`].
 pub const REPOSITORY_TARGET: &str = "dx:codegen";
 
-/// Rule class suffix shared by every codegen shard rule.
-pub const SHARD_KIND_SUFFIX: &str = "codegen_shard";
-
 /// Library rules that return their own codegen plan.
 pub const LIBRARY_KINDS: &[&str] = &[
     "api_spec_go_client",
@@ -40,11 +37,12 @@ pub const LIBRARY_KINDS: &[&str] = &[
     "thrift_cc_library",
     "thrift_java_library",
     "_thrift_rust_srcs",
+    "rust_prost_library",
 ];
 
 /// Reports whether a rule class contributes a codegen plan.
-pub fn is_shard_kind(rule_class: &str) -> bool {
-    rule_class.ends_with(SHARD_KIND_SUFFIX) || LIBRARY_KINDS.contains(&rule_class)
+pub fn is_library_kind(rule_class: &str) -> bool {
+    LIBRARY_KINDS.contains(&rule_class)
 }
 
 pub fn quote_label(label: &str) -> String {

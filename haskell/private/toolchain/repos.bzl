@@ -72,6 +72,7 @@ filegroup(
 
 GMP_PACKAGE = "ghc-bignum"
 
+_TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
 _CELL_PREFIX = "dx_ghc_"
 
 COMMON_LIBRARIES = [
@@ -474,6 +475,7 @@ def hub_files(cells = CELLS):
             name = cell,
             exec_compatible_with = cells[cell].exec_compatible_with,
             target_compatible_with = cells[cell].exec_compatible_with,
+            target_settings = [_TOOLCHAINS_ON],
             toolchain = "@{}//:toolchain-impl".format(cell_repository_name(cell)),
             toolchain_type = str(Label("@rules_haskell//haskell:toolchain")),
         ))
@@ -494,7 +496,7 @@ def hub_files(cells = CELLS):
             name = "cc_" + cell,
             exec_compatible_with = cells[cell].exec_compatible_with,
             target_compatible_with = cells[cell].exec_compatible_with,
-            target_settings = [str(Label("//haskell/private/toolchain:ghc_mingw_enabled"))],
+            target_settings = [_TOOLCHAINS_ON, str(Label("//haskell/private/toolchain:ghc_mingw_enabled"))],
             toolchain = "@{}//:cc-compiler-mingw64".format(cell_repository_name(cell)),
             toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
         )

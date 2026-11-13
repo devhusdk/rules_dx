@@ -63,6 +63,7 @@ toolchain(
         "@platforms//os:windows",
         "@platforms//cpu:arm64",
     ],
+    target_settings = ["//config:toolchains_on"],
     toolchain = "@prebuilt_protoc.win64//:prebuilt_protoc_toolchain",
     toolchain_type = "@protobuf//bazel/private:proto_toolchain_type",
 )

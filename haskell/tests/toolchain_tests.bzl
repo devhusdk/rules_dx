@@ -127,7 +127,7 @@ def _checks():
         expect_equal("hub files", sorted(hub_files().keys()), ["BUILD.bazel", "lib/BUILD.bazel"]),
         expect_equal("hub toolchain order", _hub_names(hub_files()["BUILD.bazel"]), ["cc_windows_x86_64", "linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("windows cell gets one gated cc toolchain", hub_files()["BUILD.bazel"].count("@bazel_tools//tools/cpp:toolchain_type"), 1),
-        expect_contains("windows cell cc toolchain is gated", hub_files()["BUILD.bazel"], "target_settings = [\"@@//haskell/private/toolchain:ghc_mingw_enabled\"]"),
+        expect_contains("windows cell cc toolchain is gated", hub_files()["BUILD.bazel"], "target_settings = [\"@@//config:toolchains_on\", \"@@//haskell/private/toolchain:ghc_mingw_enabled\"]"),
         expect_true("glibc floor covers the bindist", _version_at_least(GLIBC_FLOOR, "2.28")),
         expect_equal("runtime package names match across cells", [[package.package for package in CELLS[name].runtime] for name in sorted(CELLS) if name.startswith("linux_")], [["libgmp10", "libtinfo6"]] * 2),
         expect_equal("darwin has no runtime closure", CELLS["macos_arm64"].runtime, []),

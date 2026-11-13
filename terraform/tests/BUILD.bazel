@@ -21,18 +21,22 @@ terraform_provider(
     version = "3.2.3",
 )
 
+# keep
 terraform_library(name = "bare")
 
+# keep
 terraform_library(
     name = "leaf",
     providers = [":null_324"],
 )
 
+# keep
 terraform_library(
     name = "root",
     deps = [":leaf"],
 )
 
+# keep
 terraform_library(
     name = "conflict",
     providers = [":null_323"],
@@ -59,6 +63,7 @@ failure_test(
 )
 
 # The hub resolves for the exec platform of the host.
+# keep
 terraform_library(
     name = "hub_null",
     providers = ["@dx_terraform_providers//:null"],

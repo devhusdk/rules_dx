@@ -176,6 +176,7 @@ real_source_target(
     toml_srcs = ["Cargo.toml"],
 )
 
+# keep
 rust_binary(
     name = "fake_dx",
     srcs = ["fake/fake_dx.rs"],

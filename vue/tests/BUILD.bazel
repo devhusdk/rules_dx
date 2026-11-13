@@ -1,15 +1,23 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     size = "small",
+    file_classes = ["vue"],
     known_gaps = {"test": {
         "upstream_instrumented": "False",
         "wrapper_instrumented": "False",
     }},
-    file_classes = ["vue"],
     wrappers = {
         "library": "//vue/tests/fixtures/hello:hello_lib",
         "test": "//vue/tests/fixtures/hello:hello_test",
     },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

@@ -3,6 +3,8 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load(":toolchain.bzl", "SWIFT_LINUX_CPUS", "swift_linux_toolchain")
 load(":windows.bzl", "swift_windows_toolchain")
 
+# gazelle:exclude libc_single_threaded.c
+
 package(default_visibility = ["//visibility:public"])
 
 [
@@ -43,6 +45,7 @@ filegroup(
 )
 
 # libFuzzer built for libstdc++, which Swift binaries link.
+# keep
 cc_library(
     name = "libfuzzer",
     testonly = True,
@@ -55,19 +58,20 @@ cc_library(
 )
 
 # The Swift archive's AddressSanitizer runtime; the pinned LLVM toolchain ships none.
+# keep
 cc_library(
     name = "asan_archives",
     testonly = True,
     srcs = select({
         "//swift/private/platforms:is_linux_aarch64": [
             "libc_single_threaded.c",
-            "@dx_swift_linux_aarch64//:usr/lib/clang/21/lib/linux/libclang_rt.asan_static-aarch64.a",
             "@dx_swift_linux_aarch64//:usr/lib/clang/21/lib/linux/libclang_rt.asan-aarch64.a",
+            "@dx_swift_linux_aarch64//:usr/lib/clang/21/lib/linux/libclang_rt.asan_static-aarch64.a",
         ],
         "//swift/private/platforms:is_linux_x86_64": [
             "libc_single_threaded.c",
-            "@dx_swift_linux_x86_64//:usr/lib/clang/21/lib/linux/libclang_rt.asan_static-x86_64.a",
             "@dx_swift_linux_x86_64//:usr/lib/clang/21/lib/linux/libclang_rt.asan-x86_64.a",
+            "@dx_swift_linux_x86_64//:usr/lib/clang/21/lib/linux/libclang_rt.asan_static-x86_64.a",
         ],
         "//conditions:default": [],
     }),
@@ -81,17 +85,19 @@ cc_library(
     target_compatible_with = ["@platforms//os:linux"],
 )
 
+# keep
 cc_library(
     name = "asan_runtime",
     testonly = True,
+    target_compatible_with = ["@platforms//os:linux"],
     deps = select({
         "@llvm//config:asan_enabled": [],
         "//conditions:default": [":asan_archives"],
     }),
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 # Swift profile runtime, linked by swift_test under bazel coverage.
+# keep
 cc_library(
     name = "profile_runtime",
     testonly = True,

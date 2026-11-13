@@ -126,11 +126,13 @@ real_source_target(
     tags = ["corpus"],
 )
 
+# keep
 real_source_target(
     name = "corpus_json",
     json_srcs = tier_labels(TIER_JSON),
 )
 
+# keep
 real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],

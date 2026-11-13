@@ -1,12 +1,15 @@
-load("//csharp:defs.bzl", "csharp_binary", "csharp_library", "csharp_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//csharp:defs.bzl", "csharp_binary", "csharp_library", "csharp_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+# gazelle:exclude Greet.cs
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
+# keep
 csharp_library(
     name = "greet",
     srcs = ["Greet.cs"],

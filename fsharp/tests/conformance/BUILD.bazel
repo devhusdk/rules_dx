@@ -2,11 +2,14 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//fsharp:defs.bzl", "fsharp_binary", "fsharp_library", "fsharp_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
+# gazelle:exclude Greet.fs
+
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
+# keep
 fsharp_library(
     name = "greet",
     srcs = ["Greet.fs"],

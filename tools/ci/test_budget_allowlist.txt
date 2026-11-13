@@ -1,6 +1,4 @@
 .devcontainer/BUILD.bazel no-size 1
-android/private/library/BUILD.bazel no-size 1
-android/private/library/defs_tests.bzl no-size 3
 android/private/packaging/BUILD.bazel no-size 25
 android/private/sdk/BUILD.bazel no-size 1
 android/tests/fixtures/adopt-android/app/BUILD.bazel no-size 3
@@ -38,7 +36,7 @@ bicep/tests/BUILD.bazel no-size 3
 bicep/tests/defs_tests.bzl no-size 1
 capnproto/private/tools/capnpc_rust_dx/BUILD.bazel no-size 1
 capnproto/tests/BUILD.bazel no-size 11
-cc/private/BUILD.bazel no-size 3
+cc/private/BUILD.bazel no-size 2
 cc/private/clang_syntax_tests.bzl no-size 1
 cc/private/context/BUILD.bazel no-size 2
 cc/private/ide/BUILD.bazel no-size 2
@@ -290,9 +288,9 @@ elixir/tests/negative/BUILD.bazel no-size 3
 elixir/tests/runtime/BUILD.bazel no-size 3
 elixir/tests/tags/BUILD.bazel no-size 1
 env/BUILD.bazel no-size 12
-env/private/defs_tests.bzl no-size 5
 env/private/env_shard/BUILD.bazel no-size 1
 env/private/plan_tests.bzl no-size 2
+env/tests/defs_tests.bzl no-size 5
 erlang/private/toolchain/BUILD.bazel no-size 2
 erlang/tests/fixtures/bench/BUILD.bazel no-size 2
 erlang/tests/fixtures/erlang_app/checksum/BUILD.bazel no-size 1

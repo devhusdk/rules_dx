@@ -8,7 +8,6 @@ package(default_visibility = [
 
 exports_files([
     "defs.bzl",
-    "defs_tests.bzl",
     "plan.bzl",
     "plan_tests.bzl",
     "validate.bzl",
@@ -19,7 +18,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "defs_tests.bzl",
         "plan.bzl",
         "plan_tests.bzl",
         "validate.bzl",

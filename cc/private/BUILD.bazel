@@ -1,9 +1,9 @@
 # gazelle:ignore
 # gazelle:exclude fuzz_driver.cc
+load("//cc/tests:defs_tests.bzl", "objc_library_tests")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
 load(":defs.bzl", "cc_coverage_probe", "cc_library", "cc_objc_library")
-load(":wrapper_tests.bzl", "cc_wrapper_contract_tests", "objc_library_tests")
 
 package(default_visibility = ["//cc:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
@@ -12,17 +12,10 @@ exports_files([
     "defs.bzl",
 ])
 
-exports_files(
-    ["wrapper_tests.bzl"],
-    visibility = ["//:__subpackages__"],
-)
-
 cc_coverage_probe(
     name = "coverage_probe",
     visibility = ["//:__subpackages__"],
 )
-
-cc_wrapper_contract_tests(name = "wrapper_contract_tests")
 
 clang_syntax_unit_tests(name = "clang_syntax_unit")
 
@@ -48,7 +41,6 @@ real_source_target(
         "clang_syntax.bzl",
         "clang_syntax_tests.bzl",
         "defs.bzl",
-        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )

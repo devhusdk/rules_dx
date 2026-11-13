@@ -53,18 +53,43 @@ impl GroupLease {
         Some(GroupLease { file, path })
     }
 
-    pub(crate) fn record(&mut self, pgid: i32) {
+    pub(crate) fn record(&self, pgid: i32) {
         self.write_line(lease_line(pgid));
     }
 
-    fn write_line(&mut self, line: Option<String>) {
-        let _ = self.file.set_len(0);
-        let _ = self.file.seek(SeekFrom::Start(0));
+    /// Records `pgid` unless the child already wrote the lease.
+    pub(crate) fn record_unwritten(&self, pgid: i32) {
+        if self.file.metadata().is_ok_and(|meta| meta.len() == 0) {
+            self.record(pgid);
+        }
+    }
+
+    /// Makes the spawned child write this lease for its own group before it execs.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn record_from_child(&self, command: &mut std::process::Command) {
+        use std::os::fd::AsRawFd;
+        use std::os::unix::process::CommandExt;
+        let fd = self.file.as_raw_fd();
+        let namespace = sys::namespace();
+        let boot = sys::boot_id();
+        // SAFETY: the closure only calls async-signal-safe libc functions on stack buffers.
+        unsafe {
+            command.pre_exec(move || {
+                sys::write_own_lease(fd, &namespace, &boot);
+                Ok(())
+            });
+        }
+    }
+
+    fn write_line(&self, line: Option<String>) {
+        let mut file = &self.file;
+        let _ = file.set_len(0);
+        let _ = file.seek(SeekFrom::Start(0));
         let Some(line) = line else {
             return;
         };
-        let _ = writeln!(self.file, "{line}");
-        let _ = self.file.flush();
+        let _ = writeln!(file, "{line}");
+        let _ = file.flush();
     }
 }
 
@@ -140,6 +165,54 @@ mod sys {
         match read {
             super::Leader::Unknown if gone() => super::Leader::Absent,
             other => other,
+        }
+    }
+
+    /// The start time field of a `/proc/<pid>/stat` text.
+    #[cfg(target_os = "linux")]
+    pub(super) fn stat_start(stat: &[u8]) -> Option<&[u8]> {
+        let close = stat.iter().rposition(|&byte| byte == b')')?;
+        stat[close + 1..]
+            .split(u8::is_ascii_whitespace)
+            .filter(|field| !field.is_empty())
+            .nth(19)
+    }
+
+    /// Writes the lease line of the calling process's own group into `fd`; runs between fork and exec.
+    #[cfg(target_os = "linux")]
+    pub(super) fn write_own_lease(fd: i32, namespace: &str, boot: &str) {
+        use std::io::Write;
+        let mut stat = [0u8; 4096];
+        let read = unsafe {
+            let stat_fd = libc::open(
+                c"/proc/self/stat".as_ptr(),
+                libc::O_RDONLY | libc::O_CLOEXEC,
+            );
+            if stat_fd < 0 {
+                return;
+            }
+            let read = libc::read(stat_fd, stat.as_mut_ptr().cast(), stat.len());
+            libc::close(stat_fd);
+            read
+        };
+        let Ok(read) = usize::try_from(read) else {
+            return;
+        };
+        let Some(start) =
+            stat_start(&stat[..read]).and_then(|start| std::str::from_utf8(start).ok())
+        else {
+            return;
+        };
+        let pid = unsafe { libc::getpid() };
+        let mut line = [0u8; 1024];
+        let mut cursor = std::io::Cursor::new(&mut line[..]);
+        if writeln!(cursor, "{pid} {namespace} {start} {boot}").is_err() {
+            return;
+        }
+        let len = cursor.position() as usize;
+        unsafe {
+            libc::ftruncate(fd, 0);
+            libc::pwrite(fd, line.as_ptr().cast(), len, 0);
         }
     }
 

@@ -126,7 +126,7 @@ fn a_lease_dropped_with_its_group_still_running_leaves_nothing_to_reap() {
     let dir = scratch.path().join("groups");
     let mut child = sleeper();
     let pgid = child.id() as i32;
-    let mut lease = GroupLease::acquire_in(&dir).expect("lease");
+    let lease = GroupLease::acquire_in(&dir).expect("lease");
     lease.record(pgid);
     drop(lease);
     assert!(reap_in(&dir).is_empty());
@@ -514,7 +514,7 @@ fn a_group_that_ignores_the_first_signal_is_killed() {
 #[test]
 fn recording_a_group_with_an_unknown_start_leaves_the_lease_empty() {
     let scratch = dx_test_scratch::scratch("dx-groups-empty-");
-    let mut lease = GroupLease::acquire_in(scratch.path()).expect("lease");
+    let lease = GroupLease::acquire_in(scratch.path()).expect("lease");
     lease.record(i32::MAX);
     assert_eq!(std::fs::metadata(&lease.path).expect("lease file").len(), 0);
 }
@@ -563,7 +563,10 @@ fn a_stat_read_is_classified_by_its_outcome() {
 #[test]
 fn an_unreadable_stat_of_a_gone_leader_is_absent() {
     assert_eq!(sys::settle_leader(Leader::Unknown, || true), Leader::Absent);
-    assert_eq!(sys::settle_leader(Leader::Unknown, || false), Leader::Unknown);
+    assert_eq!(
+        sys::settle_leader(Leader::Unknown, || false),
+        Leader::Unknown
+    );
     assert_eq!(
         sys::settle_leader(Leader::Present("7".to_owned()), || true),
         Leader::Present("7".to_owned())
@@ -654,4 +657,51 @@ fn a_group_with_an_unreadable_leader_keeps_its_lease_and_is_logged() {
     assert!(path.exists());
     let log = std::fs::read_to_string(scratch.path().join(LOG_NAME)).expect("log");
     assert!(log.contains(" keep-unknown "));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn stat_start_reads_the_twenty_second_field_after_the_name() {
+    let stat = b"42 (a) b) c) S 1 42 42 0 -1 4194560 1 0 0 0 0 0 0 0 20 0 1 0 98765 1 2\n";
+    assert_eq!(sys::stat_start(stat), Some(&b"98765"[..]));
+    assert_eq!(sys::stat_start(b"42 (short) S 1"), None);
+    assert_eq!(sys::stat_start(b"no name"), None);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_child_replaces_its_lease_text_before_spawn_returns() {
+    let scratch = dx_test_scratch::scratch("dx-groups-child-");
+    let lease = GroupLease::acquire_in(scratch.path()).expect("lease");
+    std::fs::write(&lease.path, format!("{}\n", "9".repeat(200))).expect("stale text");
+    let mut command = Command::new(dx_testing::process_probe());
+    command.arg("--sleep-ms=30000").process_group(0);
+    lease.record_from_child(&mut command);
+    let mut child = command.spawn().expect("child starts");
+    let text = std::fs::read_to_string(&lease.path).expect("lease text");
+    let pgid = child.id() as i32;
+    let start = sys::start_time(pgid);
+    sys::signal_group(pgid, 9);
+    let _ = child.wait();
+    assert_eq!(
+        text,
+        format!("{}\n", lease_text(pgid, &start.expect("start")))
+    );
+}
+
+#[test]
+fn a_written_lease_is_not_recorded_again() {
+    let scratch = dx_test_scratch::scratch("dx-groups-written-");
+    let lease = GroupLease::acquire_in(scratch.path()).expect("lease");
+    let line = lease_line(std::process::id() as i32).expect("line");
+    lease.record_unwritten(std::process::id() as i32);
+    assert_eq!(
+        std::fs::read_to_string(&lease.path).expect("lease"),
+        format!("{line}\n")
+    );
+    lease.record_unwritten(i32::MAX);
+    assert_eq!(
+        std::fs::read_to_string(&lease.path).expect("lease"),
+        format!("{line}\n")
+    );
 }

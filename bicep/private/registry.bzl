@@ -1,21 +1,12 @@
-"""Repository rule that downloads one Bicep registry module pinned by digest."""
+"""The bicep hub: one repository whose packages are the locked Bicep registry modules."""
+
+load("//core:pins.bzl", "lock_problems")
 
 _HEX = "0123456789abcdef"
 
 _MANIFEST = "application/vnd.oci.image.manifest.v1+json"
 
 _LAYER = "application/vnd.ms.bicep.module.layer.v1+json"
-
-def registry_errors(ref, digest):
-    """Returns the errors in a registry module declaration, ref and digest."""
-    errors = []
-    if not ref.startswith("br:"):
-        errors.append("ref %r must start with br:" % ref)
-    elif ":" not in ref.rpartition("/")[2] or ref.endswith(":"):
-        errors.append("ref %r must end in :<tag>" % ref)
-    if not is_digest(digest):
-        errors.append("digest %r must be sha256: plus 64 lowercase hex characters" % digest)
-    return errors
 
 def is_digest(digest):
     """Returns whether a value is sha256: plus 64 lowercase hex characters."""
@@ -72,41 +63,64 @@ def fetch_failure(ref, what, digest, url):
     """Returns the error for a manifest or layer that was not fetched with its pinned digest."""
     return "bicep registry module %s: %s %s was not fetched from %s with that sha256" % (ref, what, digest, url)
 
-def _fetch(rctx, what, digest, url, output, headers):
-    result = rctx.download(url = [url], output = output, sha256 = digest[len("sha256:"):], headers = headers, allow_fail = True)
-    if not result.success:
-        fail(fetch_failure(rctx.attr.ref, what, digest, url))
+def _fail(message):
+    fail("bicep hub: " + message)
 
-def _impl(rctx):
-    ref = rctx.attr.ref
-    errors = registry_errors(ref, rctx.attr.digest)
-    if errors:
-        fail("bicep registry module: " + "; ".join(errors))
-    directory = "home/.bicep/" + cache_directory(ref)
-    _fetch(rctx, "manifest", rctx.attr.digest, manifest_url(ref, rctx.attr.digest), directory + "/manifest", {"Accept": _MANIFEST})
-    layer, error = module_layer(ref, rctx.read(directory + "/manifest"))
+def _package_files(rctx, package):
+    name = package["name"]
+    ref = "br:%s:%s" % (name, package["version"])
+    manifests = [package.get("extra", {}).get("bicep_manifest")]
+    layers = package.get("archives", [])
+    if type(manifests[0]) != "dict" or len(layers) != 1:
+        _fail("%s: the lock needs one layer archive and an extra.bicep_manifest" % name)
+    manifest_problems = lock_problems({"schema": 1, "packages": [{"name": name, "version": package["version"], "archives": manifests}]})
+    if manifest_problems:
+        _fail("; ".join(manifest_problems))
+    manifest = "sha256:" + manifests[0]["sha256"]
+    layer = "sha256:" + layers[0]["sha256"]
+    directory = "%s/home/.bicep/%s" % (name, cache_directory(ref))
+    for archive, what, output, headers in [
+        (manifests[0], "manifest", directory + "/manifest", {"Accept": _MANIFEST}),
+        (layers[0], "layer", directory + "/main.json", {}),
+    ]:
+        result = rctx.download(url = archive["urls"], output = output, sha256 = archive["sha256"], headers = headers, allow_fail = True)
+        if not result.success:
+            _fail(fetch_failure(ref, what, "sha256:" + archive["sha256"], archive["urls"][0]))
+    found, error = module_layer(ref, rctx.read(directory + "/manifest"))
     if error:
-        fail(error)
-    _fetch(rctx, "layer", layer, blob_url(ref, layer), directory + "/main.json", {})
-    rctx.file(directory + "/metadata", json.encode_indent({"manifestDigest": rctx.attr.digest}, indent = "  "))
-    rctx.file("BUILD.bazel", """load("@rules_dx//bicep:defs.bzl", "bicep_registry_module")
+        _fail(error)
+    if found != layer:
+        _fail("%s: manifest names the layer %s, the lock %s" % (name, found, layer))
+    rctx.file(directory + "/metadata", json.encode_indent({"manifestDigest": manifest}, indent = "  "))
+    rctx.file(name + "/BUILD.bazel", _PACKAGE_BUILD.format(
+        target = repr(name.rpartition("/")[2]),
+        cache_root = repr(name + "/home/.bicep"),
+        digest = repr(manifest),
+        ref = repr(ref),
+    ))
+
+_PACKAGE_BUILD = """load("@rules_dx//bicep:defs.bzl", "bicep_registry_module")
 
 bicep_registry_module(
-    name = "module",
+    name = {target},
     srcs = glob(["home/.bicep/br/**"]),
-    cache_root = "home/.bicep",
+    cache_root = {cache_root},
     digest = {digest},
     ref = {ref},
     visibility = ["//visibility:public"],
 )
-""".format(digest = repr(rctx.attr.digest), ref = repr(rctx.attr.ref)))
+"""
+
+def _hub_impl(rctx):
+    for package in json.decode(rctx.attr.lock)["packages"]:
+        _package_files(rctx, package)
+    rctx.file("BUILD.bazel", "")
     return rctx.repo_metadata(reproducible = True)
 
-bicep_registry_repo = repository_rule(
-    implementation = _impl,
-    doc = "Downloads one Bicep registry module by its manifest digest into the cache layout of the Bicep CLI.",
+bicep_hub = repository_rule(
+    implementation = _hub_impl,
+    doc = "Lays out every locked Bicep registry module in the cache layout of the Bicep CLI, one package per module.",
     attrs = {
-        "digest": attr.string(mandatory = True, doc = "sha256: and 64 hex characters of the module manifest."),
-        "ref": attr.string(mandatory = True, doc = "Module reference, br:HOST/PATH:TAG."),
+        "lock": attr.string(mandatory = True, doc = "The decoded dx lock as JSON text."),
     },
 )

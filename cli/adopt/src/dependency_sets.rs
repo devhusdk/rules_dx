@@ -499,12 +499,14 @@ pub fn discover(
                 vec![lock],
             )?);
         }
-        for bicep in module.bicep_registry_modules().map_err(hub)? {
+        for bicep in module.bicep_locks().map_err(hub)? {
+            let lock = path(bicep.lock)?;
+            let dir = manifest_dir(std::slice::from_ref(&lock));
             sets.push(hub_set(
                 bicep.name,
                 Ecosystem::Bicep,
-                vec![MODULE_BAZEL.to_owned()],
-                Vec::new(),
+                vec![in_dir(&dir, manifest_of("bicep"))],
+                vec![lock],
             )?);
         }
         for julia in module.julia_manifests().map_err(hub)? {

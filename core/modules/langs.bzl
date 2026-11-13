@@ -325,9 +325,11 @@ LANGS = json.decode("""{
       "bicep_registry_module"
     ],
     "family": "core",
-    "lockfiles": [],
+    "lockfiles": [
+      "bicep.lock.json"
+    ],
     "manifests": [
-      "MODULE.bazel"
+      "*.bicep"
     ],
     "name": "bicep",
     "pins": [],
@@ -358,13 +360,13 @@ LANGS = json.decode("""{
         {
           "ecosystem": "bicep",
           "extension": "@rules_dx//bicep:extensions.bzl",
-          "hub": "bicep_registry",
-          "imports": "name",
-          "lock": null,
-          "manifest": "MODULE.bazel",
-          "resolver": null,
+          "hub": "bicep",
+          "imports": "provides",
+          "lock": "bicep.lock.json",
+          "manifest": "*.bicep",
+          "resolver": "@rules_dx//bicep/private/tools/lock",
           "state": null,
-          "tag": null
+          "tag": "lock"
         }
       ]
     },
@@ -1586,7 +1588,7 @@ LANGS = json.decode("""{
       "maven_install.json"
     ],
     "manifests": [
-      "MODULE.bazel"
+      "libs.versions.toml"
     ],
     "name": "java",
     "pins": [
@@ -1872,7 +1874,7 @@ LANGS = json.decode("""{
       "maven_install.json"
     ],
     "manifests": [
-      "MODULE.bazel"
+      "libs.versions.toml"
     ],
     "name": "kotlin",
     "pins": [],
@@ -2900,7 +2902,7 @@ LANGS = json.decode("""{
       "maven_install.json"
     ],
     "manifests": [
-      "MODULE.bazel"
+      "libs.versions.toml"
     ],
     "name": "scala",
     "pins": [],

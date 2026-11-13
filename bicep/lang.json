@@ -7,21 +7,23 @@
     "bicep"
   ],
   "manifests": [
-    "MODULE.bazel"
+    "*.bicep"
   ],
-  "lockfiles": [],
+  "lockfiles": [
+    "bicep.lock.json"
+  ],
   "setup": {
     "hubs": [
       {
         "ecosystem": "bicep",
-        "manifest": "MODULE.bazel",
-        "lock": null,
+        "manifest": "*.bicep",
+        "lock": "bicep.lock.json",
         "state": null,
         "extension": "@rules_dx//bicep:extensions.bzl",
-        "tag": null,
-        "hub": "bicep_registry",
-        "resolver": null,
-        "imports": "name"
+        "tag": "lock",
+        "hub": "bicep",
+        "resolver": "@rules_dx//bicep/private/tools/lock",
+        "imports": "provides"
       }
     ]
   },

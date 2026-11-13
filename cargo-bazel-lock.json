@@ -1,5 +1,5 @@
 {
-  "checksum": "cf24c5e9bf1b15675edf66d16874b011b735003e5f12db14456a85993f3fa8e1",
+  "checksum": "a53a3fd52cd5e27086b2dcb02e5b5f49cf8a33544a623b3f23ac69fb6fd825ea",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1928,6 +1928,39 @@
         }
       ],
       "version": "0.5.2"
+    },
+    "bicep_lock 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "bicep_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "bicep_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "bicep_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "bit-set 0.8.0": {
       "common_attrs": {
@@ -32806,6 +32839,7 @@
     "avro_extract 0.0.0": "tools/docs/avro/avro_extract",
     "bazelisk_wrapper 0.0.0": "tools/bazelisk_wrapper",
     "beam_extract 0.0.0": "tools/docs/beam/beam_extract",
+    "bicep_lock 0.0.0": "bicep/private/tools/bicep_lock",
     "capnpc_rust_dx 0.0.0": "capnproto/private/tools/capnpc_rust_dx",
     "capnproto_tests 0.0.0": "capnproto/capnproto_tests",
     "cc_context 0.0.0": "cc/private/cc_context",

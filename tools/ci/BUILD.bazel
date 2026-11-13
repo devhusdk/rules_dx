@@ -592,6 +592,7 @@ rust_test(
         "//avro/private:corpus_starlark",
         "//bicep/private:corpus_starlark",
         "//bicep/private/quality:corpus_starlark",
+        "//bicep/private/tools/lock:corpus_starlark",
         "//cc/private:corpus_starlark",
         "//cc/private/toolchains:corpus_starlark",
         "//cli/exec_os:corpus_starlark",

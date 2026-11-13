@@ -728,11 +728,16 @@ ansible.lock(
 
 ```starlark
 bicep = use_extension("@rules_dx//bicep:extensions.bzl", "bicep")
-bicep.registry_module(name = "storage", ref = "br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0", digest = "sha256:...")
+bicep.lock(
+    name = "bicep",
+    lock = "//infra:bicep.lock.json",
+)
+use_repo(bicep, "bicep")
 ```
 
-- The manifest is `MODULE.bazel`; the digest in the tag is the pin, so the set has no lock. A check and an update report `pinned`.
-- To move a module, edit `ref` and set `digest` from `bazel run @rules_dx//bicep/private/tools:pin -- <ref>`. Dx never picks a registry tag.
+- The manifests are the `*.bicep` files beside `bicep.lock.json`. Each `br:HOST/PATH:TAG` or `br/public:PATH:TAG` module reference is locked to its manifest and layer sha256; one module takes one tag per set. A check and an update report `pinned`.
+- To move a module, edit the tag in the `.bicep` file and run `dx generate --apply`. Dx never picks a registry tag.
+- A locked module is `@bicep//HOST/PATH`, for example `@bicep//mcr.microsoft.com/bicep/avm/res/storage/storage-account`.
 
 ### uv
 

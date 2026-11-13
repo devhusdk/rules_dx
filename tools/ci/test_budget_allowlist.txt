@@ -31,7 +31,6 @@ astro/private/ide/BUILD.bazel no-size 1
 astro/tests/app/BUILD.bazel no-size 3
 astro/tests/app_config/BUILD.bazel no-size 1
 avro/tests/BUILD.bazel no-size 6
-bicep/private/tools/BUILD.bazel no-size 1
 bicep/tests/BUILD.bazel no-size 3
 bicep/tests/defs_tests.bzl no-size 1
 capnproto/private/tools/capnpc_rust_dx/BUILD.bazel no-size 1

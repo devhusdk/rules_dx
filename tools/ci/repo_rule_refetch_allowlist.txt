@@ -1,7 +1,6 @@
 android/private/sdk/repos.bzl not-reproducible 5
 android/private/toolchain/repos.bzl not-reproducible 1
 appimage/private/repos.bzl not-reproducible 1
-bicep/private/registry.bzl not-reproducible 1
 core/quality/artifacts/acquire_test/repos.bzl environ 1
 core/quality/artifacts/acquire_test/repos.bzl not-reproducible 1
 core/toolchain.bzl not-reproducible 2

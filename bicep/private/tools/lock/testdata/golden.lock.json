@@ -1,0 +1,58 @@
+{
+  "ecosystem": "bicep",
+  "inputs": {
+    "main.bicep": "c2266a4f123c620a6a546e9e4fd35e4561fe1c3aca9ff434e33d029987012a58",
+    "second.bicep": "c3230bd87b286810069c1194304074051bb6e27ce28ee85da9ac7cb1cd403439"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+          "urls": [
+            "https://mcr.microsoft.com/v2/bicep/avm/res/network/virtual-network/blobs/sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "bicep_manifest": {
+          "sha256": "1553965aefa08303a280473d699b62a84ee8227637c023a0ca31e647220a3ad0",
+          "urls": [
+            "https://mcr.microsoft.com/v2/bicep/avm/res/network/virtual-network/manifests/sha256:1553965aefa08303a280473d699b62a84ee8227637c023a0ca31e647220a3ad0"
+          ]
+        }
+      },
+      "name": "mcr.microsoft.com/bicep/avm/res/network/virtual-network",
+      "provides": [
+        "br:mcr.microsoft.com/bicep/avm/res/network/virtual-network:0.1.0"
+      ],
+      "version": "0.1.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+          "urls": [
+            "https://mcr.microsoft.com/v2/bicep/avm/res/storage/storage-account/blobs/sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "bicep_manifest": {
+          "sha256": "1553965aefa08303a280473d699b62a84ee8227637c023a0ca31e647220a3ad0",
+          "urls": [
+            "https://mcr.microsoft.com/v2/bicep/avm/res/storage/storage-account/manifests/sha256:1553965aefa08303a280473d699b62a84ee8227637c023a0ca31e647220a3ad0"
+          ]
+        }
+      },
+      "name": "mcr.microsoft.com/bicep/avm/res/storage/storage-account",
+      "provides": [
+        "br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.3"
+      ],
+      "version": "0.14.3"
+    }
+  ],
+  "schema": 1
+}

@@ -96,7 +96,7 @@ Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 Manifests:
 
-- `MODULE.bazel`
+- `libs.versions.toml`
 
 Lockfiles:
 

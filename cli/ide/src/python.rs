@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 
 use crate::{Ctx, Plugin, link};
 
-const HUB: &str = "@pypi";
 const SITE_PACKAGES: &str = "site-packages";
 const OUTPUT_GROUP: &str = "install_dir";
 
@@ -14,6 +13,11 @@ pub const PLUGIN: Plugin = Plugin {
     outputs: &["python", SITE_PACKAGES],
     write,
 };
+
+/// The repository name of the `uv` hub.
+fn hub_name() -> &'static str {
+    dx_families::hub("uv").map_or_else(Default::default, |hub| hub.hub.as_str())
+}
 
 /// The lock file name of the `uv` hub.
 pub(crate) fn lock_name() -> &'static str {
@@ -84,9 +88,10 @@ fn locked_labels(lock: &Path) -> Vec<String> {
     }
     names.sort();
     names.dedup();
+    let hub = hub_name();
     names
         .into_iter()
-        .map(|name| format!("{HUB}//{name}"))
+        .map(|name| format!("@{hub}//{name}"))
         .collect()
 }
 
@@ -131,9 +136,13 @@ mod tests {
             "version = 1\n\n[[package]]\nname = \"app\"\nversion = \"0.1\"\nsource = { editable = \".\" }\n\n[[package]]\nname = \"Typing-Extensions\"\nversion = \"4\"\nsource = { registry = \"https://pypi.org/simple\" }\n\n[[package]]\nname = \"requests\"\nversion = \"2\"\nsource = { registry = \"https://mirror.example/pypi-virtual/simple\" }\n\n[[package]]\nname = \"lib\"\nversion = \"0.1\"\nsource = { virtual = \"libs/lib\" }\n",
         )
         .expect("lock");
+        let hub = hub_name();
         assert_eq!(
             locked_labels(&lock),
-            ["@pypi//requests", "@pypi//typing_extensions"]
+            [
+                format!("@{hub}//requests"),
+                format!("@{hub}//typing_extensions")
+            ]
         );
         scratch.close().expect("cleanup");
     }

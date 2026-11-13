@@ -545,7 +545,13 @@ fn configured_pnpm_argv(
     Ok(pnpm_run_argv(head, offline, &dir, ignore, command))
 }
 
-/// `bazel run @pnpm//:pnpm -- --dir <dir> <command>`, the hermetic pnpm.
+/// `@<pnpm hub>//:pnpm`, the hermetic pnpm binary.
+pub fn pnpm_label() -> String {
+    let hub = dx_families::hub("pnpm").map_or("", |hub| hub.hub.as_str());
+    format!("@{hub}//:pnpm")
+}
+
+/// `bazel run <pnpm label> -- --dir <dir> <command>`, the hermetic pnpm.
 pub fn pnpm_run_argv(
     head: &dx_process::BazelHead,
     offline: bool,
@@ -557,7 +563,8 @@ pub fn pnpm_run_argv(
     if offline {
         run.push("--repository_disable_download");
     }
-    run.extend(["@pnpm//:pnpm", "--", "--dir"]);
+    let pnpm = pnpm_label();
+    run.extend([pnpm.as_str(), "--", "--dir"]);
     let ignore = if ignore_workspace {
         vec!["--ignore-workspace".to_owned()]
     } else {

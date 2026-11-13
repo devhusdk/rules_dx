@@ -116,7 +116,7 @@ impl ScriptRunner {
                 .unwrap_or_default();
             format!("consumer-uv:{dir}")
         } else if let Some(dir) = argv
-            .contains(&"@pnpm//:pnpm".to_owned())
+            .contains(&dx_update::backend::pnpm_label())
             .then(|| argv.iter().skip_while(|arg| *arg != "--dir").nth(1))
             .flatten()
             .filter(|dir| dx_path::posix_str(dir).contains("/consumer-npm/"))
@@ -134,13 +134,13 @@ impl ScriptRunner {
             format!("consumer-cargo:{repository}")
         } else if argv.contains(&"//rust/tests/fixtures/hello:hello".to_owned()) {
             "cargo".to_owned()
-        } else if argv.contains(&"@pnpm//:pnpm".to_owned())
+        } else if argv.contains(&dx_update::backend::pnpm_label())
             && argv
                 .iter()
                 .any(|arg| arg.contains("javascript/private/quality"))
         {
             "npm-tools".to_owned()
-        } else if argv.contains(&"@pnpm//:pnpm".to_owned()) {
+        } else if argv.contains(&dx_update::backend::pnpm_label()) {
             "npm".to_owned()
         } else if argv.contains(&maven_pin()) {
             "maven".to_owned()

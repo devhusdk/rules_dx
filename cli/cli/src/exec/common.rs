@@ -68,7 +68,7 @@ impl<'a> LatchedOut<'a> {
 
     /// The run's exit code, or the stdout failure code once a write failed.
     pub(crate) fn exit_code(&mut self, code: i32) -> i32 {
-        let _ = self.flush();
+        self.flush().ok();
         match &self.failed {
             Some((kind, message)) => stdout_io_code(&io::Error::new(*kind, message.clone())),
             None => code,
@@ -114,10 +114,11 @@ pub(crate) fn kept_child(err: &mut dyn Write, child: i32, delivery: i32) -> i32 
     if child == 0 {
         return delivery;
     }
-    let _ = writeln!(
+    writeln!(
         err,
         "dx: could not write the final events to stdout; keeping exit {child}"
-    );
+    )
+    .ok();
     child
 }
 
@@ -310,7 +311,12 @@ impl PhaseKind {
             | PhaseKind::Cancelled
             | PhaseKind::GenerateFailed => false,
             PhaseKind::Compile => !apply,
-            _ => true,
+            PhaseKind::Clean
+            | PhaseKind::Findings
+            | PhaseKind::NonConvergence
+            | PhaseKind::Tool
+            | PhaseKind::Incomplete
+            | PhaseKind::Report => true,
         }
     }
 
@@ -409,17 +415,17 @@ pub fn print_actions(output: OutputMode, tally: &ActionTally, err: &mut dyn Writ
         return;
     }
     if let Some(line) = tally.total().map(|counts| actions_line(&counts)) {
-        let _ = writeln!(err, "{line}");
+        writeln!(err, "{line}").ok();
     }
 }
 
 /// Prints on stderr in visible text mode that `retries` calls ran again without the remote cache.
 pub fn print_cache_retries(output: OutputMode, retries: u32, err: &mut dyn Write) {
     if retries > 0 && dx_output::dx_text_visible(&output) {
-        let _ = writeln!(
+        writeln!(
             err,
             "dx: {retries} Bazel call(s) ran again without the remote cache after a remote cache error"
-        );
+        ).ok();
     }
 }
 
@@ -740,10 +746,10 @@ pub(crate) fn report_failed_with_next(
     detail: &str,
     next: Option<&str>,
 ) -> Result<(), i32> {
-    let _ = writeln!(err, "dx: {CODE_REPORT_FAILED}: {detail}");
+    writeln!(err, "dx: {CODE_REPORT_FAILED}: {detail}").ok();
     let default = super::guidance::next_action(CODE_REPORT_FAILED);
     if let Some(next) = next.or(default) {
-        let _ = writeln!(err, "{next}");
+        writeln!(err, "{next}").ok();
     }
     if output != OutputMode::Json {
         return Ok(());
@@ -927,7 +933,7 @@ pub(crate) fn warn_scope_excluded(
         let message = format!(
             "{label} is excluded by dx.toml [scope] exclude; running it because it was named"
         );
-        let _ = writeln!(err, "dx: {CODE_SCOPE_EXCLUDED}: {message}");
+        writeln!(err, "dx: {CODE_SCOPE_EXCLUDED}: {message}").ok();
         if output == OutputMode::Json {
             emit_built(
                 out,
@@ -953,7 +959,7 @@ fn warn_low_disk(
         return Ok(());
     };
     let message = dx_plan::disk::low_message(&path, free);
-    let _ = writeln!(err, "dx: {CODE_DISK_LOW}: {message}");
+    writeln!(err, "dx: {CODE_DISK_LOW}: {message}").ok();
     if output != OutputMode::Json {
         return Ok(());
     }
@@ -1078,15 +1084,16 @@ fn app_exit(
 
 /// Writes the text line for an app that died by `signo`.
 pub(crate) fn app_signalled_line(err: &mut dyn Write, label: &str, signo: i32) {
-    let _ = writeln!(
+    writeln!(
         err,
         "dx: application_failed: bazel run {label} terminated by signal {signo}"
-    );
+    )
+    .ok();
 }
 
 /// Writes the text line for an app that exited with `code`.
 pub(crate) fn app_exited_line(err: &mut dyn Write, label: &str, code: i32) {
-    let _ = writeln!(err, "dx: {label} exited {code}");
+    writeln!(err, "dx: {label} exited {code}").ok();
 }
 
 /// Launches one `bazel run` app; its exit is the app's, and a signalled app exits 128 plus the signal.

@@ -48,11 +48,12 @@ pub(super) fn emit_outcomes(
                     .attempt
                     .map(|attempt| format!(" (attempt {attempt})"))
                     .unwrap_or_default();
-                let _ = writeln!(
+                writeln!(
                     err,
                     "dx: flaky success (passed after retry): {}{attempt}",
                     outcome.target
-                );
+                )
+                .ok();
             }
             if !outcome.superseded && is_failed(&outcome.outcome) {
                 write_failed_line(err, outcome);
@@ -91,7 +92,7 @@ pub(super) fn write_failed_line(err: &mut dyn Write, outcome: &TestOutcome) {
     if let Some(log) = &outcome.log_path {
         line.push_str(&format!(" (log: {log})"));
     }
-    let _ = writeln!(err, "{line}");
+    writeln!(err, "{line}").ok();
 }
 
 /// Writes reports to their destinations and announces each one in the run's output mode.
@@ -122,11 +123,12 @@ impl ReportSink<'_> {
                 report_event(name, destination.display(), complete),
             )?;
         } else if matches!(self.output, OutputMode::Text { .. }) && !self.stdout_report {
-            let _ = writeln!(
+            writeln!(
                 self.out,
                 "Wrote {name} report to {}.",
                 destination.display()
-            );
+            )
+            .ok();
         }
         Ok(true)
     }
@@ -171,7 +173,9 @@ pub(super) fn render_report(
                 Ok(combined)
             }
         }
-        _ => Err(dx_error::DxError::failure(detail)), // LCOV_EXCL_LINE - reason: defensive arm, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+        WorkflowVerb::Build | WorkflowVerb::Bench | WorkflowVerb::Run => {
+            Err(dx_error::DxError::failure(detail))
+        } // LCOV_EXCL_LINE - reason: defensive arm, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -191,7 +195,7 @@ pub(super) fn announce_incomplete(
             dx_output::error_event("incomplete_results", detail, None, None, None),
         )?;
     } else {
-        let _ = writeln!(err, "dx: incomplete_results: {detail}");
+        writeln!(err, "dx: incomplete_results: {detail}").ok();
     }
     Ok(())
 }
@@ -244,7 +248,7 @@ pub(super) fn coverage_threshold(
             )?;
         }
     } else {
-        let _ = writeln!(err, "dx: {summary}");
+        writeln!(err, "dx: {summary}").ok();
     }
     Ok(threshold_ok)
 }
@@ -267,12 +271,13 @@ pub(super) fn coverage_summary(
     if show_total {
         if eligible > 0 {
             let percent = 100.0 * covered as f64 / eligible as f64;
-            let _ = writeln!(
+            writeln!(
                 err,
                 "dx: coverage {percent:.1}% ({covered}/{eligible} lines)"
-            );
+            )
+            .ok();
         } else {
-            let _ = writeln!(err, "dx: coverage (0/0 lines)");
+            writeln!(err, "dx: coverage (0/0 lines)").ok();
         }
     }
     let mut worst: Vec<(&String, u64, u64)> = account
@@ -290,10 +295,10 @@ pub(super) fn coverage_summary(
     if worst.is_empty() {
         return;
     }
-    let _ = writeln!(err, "dx: least covered files:");
+    writeln!(err, "dx: least covered files:").ok();
     for (path, covered, eligible) in worst.into_iter().take(WORST_FILES) {
         let percent = 100.0 * covered as f64 / eligible as f64;
-        let _ = writeln!(err, "  {percent:5.1}%  {covered}/{eligible}  {path}");
+        writeln!(err, "  {percent:5.1}%  {covered}/{eligible}  {path}").ok();
     }
 }
 
@@ -380,10 +385,10 @@ pub(super) fn coverage_sources(
                 emit_built(out, notice_event(&notice(code, message.clone())))?;
             }
             OutputMode::Text { .. } if code == CODE_COVERAGE_SOURCES => {
-                let _ = writeln!(err, "dx: {message}");
+                writeln!(err, "dx: {message}").ok();
             }
             OutputMode::Text { .. } => {
-                let _ = writeln!(err, "dx: {code}: {message}");
+                writeln!(err, "dx: {code}: {message}").ok();
             }
             _ => {}
         }

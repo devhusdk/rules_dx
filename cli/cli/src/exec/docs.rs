@@ -179,7 +179,7 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         Err(exit) => return exit,
     };
     if bazel_code != 0 {
-        let _ = std::fs::remove_file(&bep);
+        std::fs::remove_file(&bep).ok();
         if json {
             if let Err(exit) = emit_built(
                 out,
@@ -228,12 +228,12 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
                     index = Some(dir);
                 }
                 Err(error) => {
-                    let _ = std::fs::remove_file(&bep);
+                    std::fs::remove_file(&bep).ok();
                     return report_dx_error(invocation.output, out, err, CODE_INDEX_FAILED, &error);
                 }
             },
             Err(error) => {
-                let _ = std::fs::remove_file(&bep);
+                std::fs::remove_file(&bep).ok();
                 return report_dx_error(
                     invocation.output,
                     out,
@@ -245,7 +245,7 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         }
     }
     if !invocation.serve {
-        let _ = std::fs::remove_file(&bep);
+        std::fs::remove_file(&bep).ok();
         if json && let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default()))
         {
             return exit;
@@ -255,7 +255,7 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
     let port = invocation.port.unwrap_or(DOCS_DEFAULT_PORT);
     let host = invocation.host.as_deref().unwrap_or(DOCS_DEFAULT_HOST);
     let url = preview_url(host, port);
-    let _ = std::fs::remove_file(&bep);
+    std::fs::remove_file(&bep).ok();
     let site = sites.and_then(|sites| serve_tree(sites, index, &scope_text));
     let serve_dir = match site {
         Ok(dir) => dir,
@@ -295,7 +295,7 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         match runner.run(&open_argv, workspace, &[]) {
             Ok(status) if status.code == Some(0) => {}
             Ok(status) => {
-                let _ = match status.code {
+                match status.code {
                     Some(code) => writeln!(
                         err,
                         "dx: warning: browser open exited with code {code} for {url} (continuing preview)"
@@ -304,13 +304,15 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
                         err,
                         "dx: warning: browser open was terminated by a signal for {url} (continuing preview)"
                     ),
-                };
+                }
+                .ok();
             }
             Err(error) => {
-                let _ = writeln!(
+                writeln!(
                     err,
                     "dx: warning: failed to open browser for {url}: {error} (continuing preview)",
-                );
+                )
+                .ok();
             }
         }
     }

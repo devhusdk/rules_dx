@@ -21,10 +21,10 @@ pub(super) fn report(
     err: &mut dyn Write,
 ) -> i32 {
     for path in &applied.refused {
-        let _ = writeln!(err, "dx: {path} (absent-only, left untouched)");
+        writeln!(err, "dx: {path} (absent-only, left untouched)").ok();
     }
     for note in notes {
-        let _ = writeln!(err, "dx: {note}");
+        writeln!(err, "dx: {note}").ok();
     }
     let mut closed = None;
     if !summaries_suppressed(invocation) {

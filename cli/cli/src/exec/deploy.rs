@@ -97,7 +97,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         } else {
             build_plan.summary.clone()
         };
-        let _ = writeln!(err, "{summary}");
+        writeln!(err, "{summary}").ok();
     }
     let build_code = match run_bazel(
         invocation,
@@ -116,23 +116,25 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     if !invocation.applies() && !invocation.quiet {
         if !info.size_budget.is_empty() {
-            let _ = writeln!(
+            writeln!(
                 err,
                 "Size of {label}: {}",
                 size_line(workspace, &info.size_stamp, &info.size_budget)
-            );
+            )
+            .ok();
         }
         if !info.sbom.is_empty() {
-            let _ = writeln!(err, "SBOM of {label}: {}", sbom_line(workspace, &info.sbom));
+            writeln!(err, "SBOM of {label}: {}", sbom_line(workspace, &info.sbom)).ok();
         }
     }
     if !invocation.applies() && !info.has_provider {
         if !invocation.quiet {
-            let _ = writeln!(
+            writeln!(
                 err,
                 "Validated {label} (built, not published; publish with: {})",
                 publish_command(invocation, &label)
-            );
+            )
+            .ok();
         }
         return 0;
     }
@@ -160,11 +162,12 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(exit) => exit,
     };
     if code == 0 && !invocation.applies() && !invocation.quiet {
-        let _ = writeln!(
+        writeln!(
             err,
             "Dry run of {label} (nothing published; publish with: {})",
             publish_command(invocation, &label)
-        );
+        )
+        .ok();
     }
     code
 }

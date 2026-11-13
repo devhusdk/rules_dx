@@ -105,14 +105,14 @@ fn fuzz_targets(
         Err(error) => return resolve_failed(invocation.output, out, err, &error),
     };
     if labels.is_empty() {
-        let _ = writeln!(err, "dx: no dx-fuzz targets in scope");
+        writeln!(err, "dx: no dx-fuzz targets in scope").ok();
         return 0;
     }
     let mut status = 0;
     for label in &labels {
         let dir = out_dir(label);
         if let Err(error) = std::fs::create_dir_all(workspace.join(&dir)) {
-            let _ = writeln!(err, "dx: cannot create {dir}: {error}");
+            writeln!(err, "dx: cannot create {dir}: {error}").ok();
             return 1;
         }
         let mut app_args = vec![
@@ -130,7 +130,7 @@ fn fuzz_targets(
             Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
         };
         if !invocation.quiet {
-            let _ = writeln!(err, "Fuzzing {label} for {seconds}s");
+            writeln!(err, "Fuzzing {label} for {seconds}s").ok();
         }
         let exit = match run_bazel_app(invocation, out, err, workspace, runner, &plan.argv, &[]) {
             Ok(exit) => exit,
@@ -159,18 +159,19 @@ fn fuzz_targets(
                         return exit;
                     }
                 } else {
-                    let _ = writeln!(
+                    writeln!(
                         err,
                         "dx: {label} crashed; reproduce with: {}",
                         shell_join(&repro)
-                    );
+                    )
+                    .ok();
                 }
                 if status == 0 {
                     status = 1;
                 }
             }
             (None, code) => {
-                let _ = writeln!(err, "dx: fuzz_failed: {run} exited {code}");
+                writeln!(err, "dx: fuzz_failed: {run} exited {code}").ok();
                 if status == 0 {
                     status = code;
                 }

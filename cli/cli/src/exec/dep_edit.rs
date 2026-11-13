@@ -134,7 +134,28 @@ pub(crate) fn configured_set(
         dx_adopt::dependency_sets::Ecosystem::Hex if foreign => {
             Some(dx_update::edit::ConfiguredKind::Hex)
         }
-        _ => None,
+        dx_adopt::dependency_sets::Ecosystem::Uv
+        | dx_adopt::dependency_sets::Ecosystem::Npm
+        | dx_adopt::dependency_sets::Ecosystem::Ruby
+        | dx_adopt::dependency_sets::Ecosystem::PowerShell
+        | dx_adopt::dependency_sets::Ecosystem::Cargo
+        | dx_adopt::dependency_sets::Ecosystem::Maven
+        | dx_adopt::dependency_sets::Ecosystem::Nuget
+        | dx_adopt::dependency_sets::Ecosystem::Go
+        | dx_adopt::dependency_sets::Ecosystem::Cpan
+        | dx_adopt::dependency_sets::Ecosystem::Pub
+        | dx_adopt::dependency_sets::Ecosystem::Julia
+        | dx_adopt::dependency_sets::Ecosystem::Hex
+        | dx_adopt::dependency_sets::Ecosystem::Composer
+        | dx_adopt::dependency_sets::Ecosystem::Dub
+        | dx_adopt::dependency_sets::Ecosystem::Fpm
+        | dx_adopt::dependency_sets::Ecosystem::Zig
+        | dx_adopt::dependency_sets::Ecosystem::LuaRocks
+        | dx_adopt::dependency_sets::Ecosystem::Opam
+        | dx_adopt::dependency_sets::Ecosystem::SwiftPm
+        | dx_adopt::dependency_sets::Ecosystem::Cabal
+        | dx_adopt::dependency_sets::Ecosystem::Ansible
+        | dx_adopt::dependency_sets::Ecosystem::Bicep => None,
     };
     match (set.ecosystem, kind) {
         (_, Some(kind)) => {
@@ -679,7 +700,7 @@ fn refresh_failed(
     } else {
         CODE_UPDATE_FAILED
     };
-    let _ = writeln!(err, "dx: {code}: {message}");
+    writeln!(err, "dx: {code}: {message}").ok();
     if invocation.output == OutputMode::Json {
         if let Err(exit) = emit_built(
             out,
@@ -842,7 +863,17 @@ fn manifest_need(
         ConfiguredKind::Composer => "exactly one composer manifest".to_owned(),
         ConfiguredKind::Cabal => "exactly one .cabal file".to_owned(),
         ConfiguredKind::Opam => "exactly one .opam file".to_owned(),
-        _ => format!("exactly one {}", ecosystem.manifest_name()),
+        ConfiguredKind::Npm
+        | ConfiguredKind::Uv
+        | ConfiguredKind::Bazel
+        | ConfiguredKind::Nuget
+        | ConfiguredKind::Go
+        | ConfiguredKind::Ruby
+        | ConfiguredKind::Cpan
+        | ConfiguredKind::Pub
+        | ConfiguredKind::Julia
+        | ConfiguredKind::SwiftPm
+        | ConfiguredKind::Hex => format!("exactly one {}", ecosystem.manifest_name()),
     }
 }
 

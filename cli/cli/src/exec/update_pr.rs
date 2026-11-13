@@ -260,11 +260,12 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     let failed = outcomes.iter().any(|outcome| outcome.result.is_err());
     let exit = i32::from(failed || !found.errors.is_empty());
     for error in &found.errors {
-        let _ = writeln!(
+        writeln!(
             err,
             "dx: {CODE_UPDATE_PR_LOOKUP}: {}:{} ({})",
             error.set, error.package, error.reason
-        );
+        )
+        .ok();
     }
     if let Err(code) = emit(out, &outcomes, json, exit) {
         return code;
@@ -344,7 +345,11 @@ pub(super) fn program(program: &Path, root: &Path, args: &[&str]) -> Result<Stri
         dx_process::capture::RunError::Failed { stderr, .. } => {
             DxError::failure(format!("{label} failed: {}", tail(&stderr)))
         }
-        other => DxError::infra(format!("{label}: {other}")),
+        other @ dx_process::capture::RunError::Spawn { .. }
+        | other @ dx_process::capture::RunError::TimedOut { .. }
+        | other @ dx_process::capture::RunError::OutputTooLarge { .. } => {
+            DxError::infra(format!("{label}: {other}"))
+        }
     })
 }
 
@@ -448,8 +453,8 @@ fn publish(
             open.push((0, group.branch.clone()));
         }
         if result.is_err() {
-            let _ = git(&["reset", "--hard", &sha]);
-            let _ = git(&["clean", "-fd"]);
+            git(&["reset", "--hard", &sha]).ok();
+            git(&["clean", "-fd"]).ok();
         }
         outcomes.push(Outcome {
             branch: group.branch.clone(),
@@ -594,7 +599,7 @@ fn publish_one(
     ]);
     if fetched.is_err() {
         // The remote branch is gone; a stale tracking ref would fail the lease.
-        let _ = git(&["update-ref", "-d", &tracking]);
+        git(&["update-ref", "-d", &tracking]).ok();
     }
     if let Some(number) = existing {
         let remote = format!("origin/{branch}");
@@ -627,7 +632,7 @@ fn publish_one(
         if merge {
             note = enable_auto_merge(&gh, &number);
         } else {
-            let _ = gh(&["pr", "merge", &number, "--disable-auto"]);
+            gh(&["pr", "merge", &number, "--disable-auto"]).ok();
         }
         return Ok(format!("updated #{number}{note}"));
     }

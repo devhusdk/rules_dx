@@ -38,7 +38,7 @@ fn identity(producer: &Producer) -> String {
 fn candidate_key(source: &SourceRead, change: &FileChange) -> Result<Option<Vec<u8>>, ()> {
     match source {
         SourceRead::Bytes(original) => Ok(apply_to_bytes(original, &change.edits)),
-        _ => Err(()),
+        SourceRead::Unreadable | SourceRead::Stale => Err(()),
     }
 }
 

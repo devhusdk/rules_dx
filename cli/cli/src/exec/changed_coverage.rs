@@ -217,10 +217,10 @@ pub(super) fn changed_line_threshold(
         }
     } else {
         if let Some((code, message)) = &error {
-            let _ = writeln!(err, "dx: {message} ({code})");
+            writeln!(err, "dx: {message} ({code})").ok();
         }
         for line in &lines {
-            let _ = writeln!(err, "dx: {line}");
+            writeln!(err, "dx: {line}").ok();
         }
     }
     Ok(error.is_none())

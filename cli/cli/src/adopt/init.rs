@@ -249,11 +249,12 @@ pub(crate) fn execute_init(
     if plan.applicable {
         let hard: Vec<&str> = plan.hard().map(|f| f.subject.as_str()).collect();
         if !hard.is_empty() {
-            let _ = write!(
+            write!(
                 err,
                 "{}",
                 dx_adopt::render_plan_text(&target.module, &target.apply_command(), &plan)
-            );
+            )
+            .ok();
             return operational(
                 invocation,
                 out,
@@ -442,7 +443,7 @@ fn check_init(
                 return exit;
             }
         } else if !summaries_suppressed(invocation) {
-            let _ = writeln!(err, "advisory: {} ({}:{})", f.hint, f.file, f.line);
+            writeln!(err, "advisory: {} ({}:{})", f.hint, f.file, f.line).ok();
         }
     }
     if let (Some(plan), true) = (&plan, json) {
@@ -501,7 +502,7 @@ fn check_init(
                 return exit;
             }
         } else if !absent.is_empty() {
-            let _ = writeln!(err, "{}", absent_message(&absent, &apply));
+            writeln!(err, "{}", absent_message(&absent, &apply)).ok();
         } else if !summaries_suppressed(invocation)
             && let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}"))
         {

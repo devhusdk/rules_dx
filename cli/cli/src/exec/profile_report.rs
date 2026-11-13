@@ -34,7 +34,7 @@ pub(crate) fn prune(workspace: &Path) {
     traces.sort();
     let surplus = (traces.len() + 1).saturating_sub(KEPT_TRACES);
     for (_, path) in traces.into_iter().take(surplus) {
-        let _ = std::fs::remove_file(path);
+        std::fs::remove_file(path).ok();
     }
 }
 

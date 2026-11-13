@@ -1,4 +1,9 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::let_underscore_must_use,
+    clippy::string_slice,
+    clippy::wildcard_enum_match_arm
+)]
 
 use std::io::{self, IsTerminal, Write};
 use std::path::Path;

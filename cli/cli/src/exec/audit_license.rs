@@ -134,11 +134,33 @@ pub(super) fn run_license(
                         dx_adopt::dependency_sets::Ecosystem::Cargo => {
                             configured_cargo_licenses(&locks, &locked, &policy.inventory)
                         }
-                        _ => dx_audit::locks::inventory_licenses(
-                            &locked,
-                            &policy.inventory,
-                            ecosystem,
-                        ),
+                        dx_adopt::dependency_sets::Ecosystem::Uv
+                        | dx_adopt::dependency_sets::Ecosystem::Bazel
+                        | dx_adopt::dependency_sets::Ecosystem::Ruby
+                        | dx_adopt::dependency_sets::Ecosystem::PowerShell
+                        | dx_adopt::dependency_sets::Ecosystem::Maven
+                        | dx_adopt::dependency_sets::Ecosystem::Nuget
+                        | dx_adopt::dependency_sets::Ecosystem::Go
+                        | dx_adopt::dependency_sets::Ecosystem::Cpan
+                        | dx_adopt::dependency_sets::Ecosystem::Pub
+                        | dx_adopt::dependency_sets::Ecosystem::Julia
+                        | dx_adopt::dependency_sets::Ecosystem::Hex
+                        | dx_adopt::dependency_sets::Ecosystem::Composer
+                        | dx_adopt::dependency_sets::Ecosystem::Dub
+                        | dx_adopt::dependency_sets::Ecosystem::Fpm
+                        | dx_adopt::dependency_sets::Ecosystem::Zig
+                        | dx_adopt::dependency_sets::Ecosystem::LuaRocks
+                        | dx_adopt::dependency_sets::Ecosystem::Opam
+                        | dx_adopt::dependency_sets::Ecosystem::SwiftPm
+                        | dx_adopt::dependency_sets::Ecosystem::Cabal
+                        | dx_adopt::dependency_sets::Ecosystem::Ansible
+                        | dx_adopt::dependency_sets::Ecosystem::Bicep => {
+                            dx_audit::locks::inventory_licenses(
+                                &locked,
+                                &policy.inventory,
+                                ecosystem,
+                            )
+                        }
                     };
                     let entry = lock_paths.entry(ecosystem.to_owned()).or_insert(LockPaths {
                         by_package: BTreeMap::new(),
@@ -322,14 +344,10 @@ pub(super) fn run_license(
     for target in sets {
         selected_sets.insert(target.name());
         let AuditTarget::Configured(set) = target;
-        match set.ecosystem {
-            dx_adopt::dependency_sets::Ecosystem::Bazel => {
-                selected_sets.insert(dx_audit::locks::BAZEL_SET);
-            }
-            other if other.license_audit() => {
-                selected_sets.insert(other.name());
-            }
-            _ => {}
+        if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
+            selected_sets.insert(dx_audit::locks::BAZEL_SET);
+        } else if set.ecosystem.license_audit() {
+            selected_sets.insert(set.ecosystem.name());
         }
     }
     let mut exception_problems: Vec<String> = Vec::new();

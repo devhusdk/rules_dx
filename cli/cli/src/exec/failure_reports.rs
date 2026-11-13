@@ -186,11 +186,12 @@ pub(crate) fn write_failure_reports(
         } else if matches!(invocation.output, OutputMode::Text { .. })
             && planned.destination != dx_plan::reports::Destination::Stdout
         {
-            let _ = writeln!(
+            writeln!(
                 out,
                 "Wrote failures report to {}.",
                 planned.destination.display()
-            );
+            )
+            .ok();
         }
     }
     Ok(all_ok)

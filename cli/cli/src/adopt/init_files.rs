@@ -336,7 +336,13 @@ pub(super) fn apply(
                 content: file.content.clone(),
                 kind,
             }),
-            _ => None,
+            Kind::Launcher
+            | Kind::Preset
+            | Kind::Generated
+            | Kind::Hooks
+            | Kind::AgentsBlock
+            | Kind::ClaudeImport
+            | Kind::CopilotInstructions => None,
         })
         .collect();
     let mut own = Applied::default();
@@ -459,7 +465,13 @@ fn refresh(
                 content: file.content.clone(),
                 kind,
             }),
-            _ => None,
+            Kind::Launcher
+            | Kind::Preset
+            | Kind::Generated
+            | Kind::Hooks
+            | Kind::AgentsBlock
+            | Kind::ClaudeImport
+            | Kind::CopilotInstructions => None,
         })
         .collect();
     if !scaffold.is_empty() {

@@ -456,7 +456,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
         Err(exit) => {
-            let _ = std::fs::remove_file(&bep);
+            std::fs::remove_file(&bep).ok();
             return exit;
         }
     };
@@ -473,7 +473,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
             })
             .map_err(|error| format!("invalid build events: {error}"))
         });
-    let _ = std::fs::remove_file(&bep);
+    std::fs::remove_file(&bep).ok();
     let events = match events {
         Ok(events) => events,
         Err(message) if bazel_code == 0 => {
@@ -526,14 +526,14 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
         return kept_child(err, bazel_code, exit);
     }
     for problem in &problems {
-        let _ = writeln!(err, "dx: {CODE_BENCH_RESULTS}: {problem}");
+        writeln!(err, "dx: {CODE_BENCH_RESULTS}: {problem}").ok();
     }
     let slower = match (&baseline, invocation.bench_regression) {
         (Some(baseline), Some(limit)) => regressions(&targets, baseline, limit),
         _ => Vec::new(),
     };
     for line in &slower {
-        let _ = writeln!(err, "dx: {CODE_BENCH_REGRESSION}: {line}");
+        writeln!(err, "dx: {CODE_BENCH_REGRESSION}: {line}").ok();
     }
     if bazel_code == 0 && (!problems.is_empty() || !slower.is_empty()) {
         return 1;

@@ -108,11 +108,12 @@ fn prune_unused(
     match update_prune::prune(workspace, &unused) {
         Ok(removed) => {
             for item in removed {
-                let _ = writeln!(
+                writeln!(
                     err,
                     "dx: update_pruned: {}: {} (removed from {}:{})",
                     item.set, item.name, item.manifest, item.line
-                );
+                )
+                .ok();
             }
             Ok(())
         }
@@ -182,11 +183,12 @@ fn report_added(
     match added {
         Ok(added) => {
             for item in added {
-                let _ = writeln!(
+                writeln!(
                     err,
                     "dx: update_added: {}: {} {} (added to {})",
                     item.set, item.name, item.version, item.manifest
-                );
+                )
+                .ok();
             }
             Ok(())
         }
@@ -455,7 +457,11 @@ fn emit_update_json(
                         CODE_UPDATE_SET_CURRENT,
                         format!("{set_name} lockfile current"),
                     ),
-                    _ => (
+                    dx_update::outcome::ReportedStatus::Updated
+                    | dx_update::outcome::ReportedStatus::Pinned
+                    | dx_update::outcome::ReportedStatus::Unsupported
+                    | dx_update::outcome::ReportedStatus::Failed
+                    | dx_update::outcome::ReportedStatus::Blocked => (
                         CODE_UPDATE_SET_PINNED,
                         format!("{set_name} pins are manual; nothing to resolve"),
                     ),
@@ -494,7 +500,7 @@ fn emit_update_json(
                 ) {
                     return exit;
                 }
-                let _ = writeln!(err, "dx: update_set_unsupported: {message}");
+                writeln!(err, "dx: update_set_unsupported: {message}").ok();
             }
             dx_update::outcome::ReportedStatus::Failed => {
                 let message = details
@@ -513,7 +519,7 @@ fn emit_update_json(
                 ) {
                     return exit;
                 }
-                let _ = writeln!(err, "dx: {code}: {message}");
+                writeln!(err, "dx: {code}: {message}").ok();
             }
             dx_update::outcome::ReportedStatus::Blocked => {
                 let message = format!("blocked {set_name} (depends on a failed update)");
@@ -545,12 +551,13 @@ fn emit_update_json(
         ) {
             return exit;
         }
-        let _ = writeln!(
+        writeln!(
             err,
             "dx: {}: {}",
             dx_update::recovery::RECOVERY_CODE,
             plan.message
-        );
+        )
+        .ok();
     }
     let finished = command_finished(
         exit,
@@ -590,14 +597,14 @@ fn emit_update_text(
             dx_update::outcome::ReportedStatus::Unsupported => {
                 if let Some(detail) = details.get(outcome.set.as_str()) {
                     let message = &detail.message;
-                    let _ = writeln!(err, "dx: update_set_unsupported: {message}");
+                    writeln!(err, "dx: update_set_unsupported: {message}").ok();
                 }
             }
             dx_update::outcome::ReportedStatus::Failed => {
                 if let Some(detail) = details.get(outcome.set.as_str()) {
                     let code = detail.failure_code.unwrap_or(CODE_UPDATE_FAILED);
                     let message = &detail.message;
-                    let _ = writeln!(err, "dx: {code}: {message}");
+                    writeln!(err, "dx: {code}: {message}").ok();
                 }
             }
             dx_update::outcome::ReportedStatus::Blocked => {
@@ -614,12 +621,13 @@ fn emit_update_text(
         }
     }
     if let Some(plan) = recovery {
-        let _ = writeln!(
+        writeln!(
             err,
             "dx: {}: {}",
             dx_update::recovery::RECOVERY_CODE,
             plan.message
-        );
+        )
+        .ok();
     }
     if verbose
         && let Err(exit) = check_stdout_write(writeln!(out, "{}", status_summary(report, mode)))

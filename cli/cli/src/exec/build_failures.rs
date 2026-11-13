@@ -300,7 +300,7 @@ fn unavailable(
             emit_built(out, notice_event(&notice))
         }
         OutputMode::Text { .. } => {
-            let _ = writeln!(err, "dx: build_events_incomplete: {detail}");
+            writeln!(err, "dx: build_events_incomplete: {detail}").ok();
             Ok(())
         }
         _ => Ok(()),
@@ -347,7 +347,7 @@ pub(crate) fn report_build_failures(
                 emit_built(out, build_failure_event(event))?;
             }
             OutputMode::Text { .. } => {
-                let _ = writeln!(err, "{}", describe(event));
+                writeln!(err, "{}", describe(event)).ok();
             }
             _ => {}
         }

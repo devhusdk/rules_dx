@@ -108,13 +108,13 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
         Err(exit) => {
-            let _ = std::fs::remove_file(&bep);
+            std::fs::remove_file(&bep).ok();
             return exit;
         }
     };
     let action_counts = read_actions(&bep, actions);
     if bazel_code != 0 {
-        let _ = std::fs::remove_file(&bep);
+        std::fs::remove_file(&bep).ok();
         if json {
             let scope_text = op_scope
                 .as_deref()
@@ -143,7 +143,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     let prepared = match prepare_managed_sides(workspace, workspace, &bep) {
         Ok(prepared) => prepared,
         Err(error) => {
-            let _ = std::fs::remove_file(&bep);
+            std::fs::remove_file(&bep).ok();
             return report_dx_error(
                 invocation.output,
                 out,
@@ -166,18 +166,18 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
                 CODE_MANAGED_COMMIT_FAILED
             };
             let error = map_commit_error(error);
-            let _ = std::fs::remove_file(&bep);
+            std::fs::remove_file(&bep).ok();
             return report_dx_error(invocation.output, out, err, code, &error);
         }
     };
     drop(prepared.leases);
-    let _ = std::fs::remove_file(&bep);
+    std::fs::remove_file(&bep).ok();
     let record = super::sync_fingerprint::Record {
         targets: invocation.targets.clone(),
         artifacts: prepared.artifacts,
         sources: prepared.sources,
     };
-    let _ = super::sync_fingerprint::record(workspace, &record, None);
+    super::sync_fingerprint::record(workspace, &record, None).ok();
     let previous = before.filter(|hex| *hex != dx_setup::setup_hex(&pair));
     super::sync_prune::prune_and_warn(
         workspace,

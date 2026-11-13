@@ -21,7 +21,25 @@ fn kind_of(ecosystem: Ecosystem) -> Option<ConfiguredKind> {
         Ecosystem::Npm => Some(ConfiguredKind::Npm),
         Ecosystem::Uv => Some(ConfiguredKind::Uv),
         Ecosystem::Ruby => Some(ConfiguredKind::Ruby),
-        _ => None,
+        Ecosystem::Bazel
+        | Ecosystem::PowerShell
+        | Ecosystem::Maven
+        | Ecosystem::Nuget
+        | Ecosystem::Go
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => None,
     }
 }
 
@@ -30,7 +48,26 @@ fn latest(ecosystem: Ecosystem, name: &str, fetch: &dyn Fetch) -> Result<String,
         Ecosystem::Cargo => cargo::latest_stable(name, cargo::DEFAULT_BASE, fetch),
         Ecosystem::Npm => npm::latest_stable(name, npm::DEFAULT_BASE, fetch),
         Ecosystem::Uv => pypi::latest_stable(name, pypi::DEFAULT_BASE, fetch),
-        _ => ruby::latest_stable(name, ruby::DEFAULT_BASE, fetch),
+        Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Maven
+        | Ecosystem::Nuget
+        | Ecosystem::Go
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => ruby::latest_stable(name, ruby::DEFAULT_BASE, fetch),
     }
 }
 

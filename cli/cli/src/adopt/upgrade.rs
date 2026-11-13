@@ -115,9 +115,9 @@ fn write_module(
         ),
         Err(error) => (ErrorKind::Infra, error.to_string()),
     };
-    let _ = std::fs::write(workspace.join(&edit.path), &edit.old);
+    std::fs::write(workspace.join(&edit.path), &edit.old).ok();
     if let Some(lock_bytes) = lock_before {
-        let _ = std::fs::write(&lock, lock_bytes);
+        std::fs::write(&lock, lock_bytes).ok();
     }
     Err(DxError::new(
         kind,
@@ -396,13 +396,13 @@ fn upgrade_with(
     let (bases, swaps) = dx_changes(&before, &dx_snapshot(workspace));
     let tracked = (!swaps.is_empty()).then(|| tracked_texts(workspace));
     for swap in swaps {
-        let _ = writeln!(err, "{}", swap.warning());
+        writeln!(err, "{}", swap.warning()).ok();
         let files = tracked
             .iter()
             .flatten()
             .map(|(path, text)| (path.as_str(), text.as_str()));
         for line in dx_adopt::suppression_lines(&swap.gone, files) {
-            let _ = writeln!(err, "{line}");
+            writeln!(err, "{line}").ok();
         }
     }
     let conflicts = merge_overrides(workspace, &before, &mut wrote, err);
@@ -430,11 +430,12 @@ fn upgrade_with(
             .map_or_else(|exit| exit, |()| 0);
     }
     if let Some(message) = &ide_warning {
-        let _ = writeln!(
+        writeln!(
             err,
             "dx: {}: {message}",
             crate::exec::notice_codes::CODE_IDE_REFRESH_FAILED
-        );
+        )
+        .ok();
     }
     let line = if rerun {
         format!("pinned {to} (upgrade current)")
@@ -564,7 +565,7 @@ fn merge_overrides(
         }
         let Some(ancestor) = old_base(workspace, &base, before.get(&base), sha) else {
             let note = dx_adopt::override_missing_base_message(root, sha, config.id);
-            let _ = writeln!(err, "{note}");
+            writeln!(err, "{note}").ok();
             continue;
         };
         let merged = dx_adopt::merge_override(&text, &ancestor, &new_base, sha, &new_sha);
@@ -573,13 +574,13 @@ fn merge_overrides(
             dx_merge::merge3::Merge3::Conflicts { text, .. } => (text, true),
         };
         if let Err(error) = std::fs::write(workspace.join(root), merged) {
-            let _ = writeln!(err, "{root}: cannot write the merge: {error}");
+            writeln!(err, "{root}: cannot write the merge: {error}").ok();
             conflicts += 1;
             continue;
         }
         wrote.push(root.to_owned());
         if conflict {
-            let _ = writeln!(err, "{}", dx_adopt::override_conflict_message(root));
+            writeln!(err, "{}", dx_adopt::override_conflict_message(root)).ok();
             conflicts += 1;
         }
     }

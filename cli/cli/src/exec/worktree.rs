@@ -262,7 +262,7 @@ fn add_output(
     } else if invocation.path_only || quiet_text(invocation) {
         warn_lines(err, &added.warnings);
         if let Some(base) = &added.base {
-            let _ = writeln!(err, "dx worktree: started {branch} from {base}");
+            writeln!(err, "dx worktree: started {branch} from {base}").ok();
         }
         write_line(out, &added.path.to_string_lossy())?;
     } else {
@@ -788,7 +788,7 @@ pub fn run_worktree_hook(
 
 fn warn_lines(err: &mut dyn Write, warnings: &[Warning]) {
     for warning in warnings {
-        let _ = writeln!(err, "dx worktree: {}", warning.message);
+        writeln!(err, "dx worktree: {}", warning.message).ok();
     }
 }
 
@@ -835,17 +835,17 @@ fn guard_hook(stdin: &str, who: &Who, out: &mut dyn Write, err: &mut dyn Write) 
     let input = match hook::parse(stdin) {
         Ok(input) => input,
         Err(error) => {
-            let _ = writeln!(err, "dx worktree: hook guard: {error}; command not checked");
+            writeln!(err, "dx worktree: hook guard: {error}; command not checked").ok();
             return 0;
         }
     };
     if let Some(line) = hook::primary_checkout(&input, who, &dx_worktree::slots_for_primary) {
-        let _ = writeln!(err, "{line}");
+        writeln!(err, "{line}").ok();
         return dx_process::pre_exec_code();
     }
     match hook::guard(&input, who, &dx_worktree::lease_for_dir) {
         hook::Guard::Block(line) => {
-            let _ = writeln!(err, "{line}");
+            writeln!(err, "{line}").ok();
             dx_process::pre_exec_code()
         }
         hook::Guard::Rewrite(output) | hook::Guard::Ask(output) => {
@@ -879,7 +879,7 @@ fn pool_hook(
 }
 
 fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
-    let _ = writeln!(err, "dx worktree: {error}");
+    writeln!(err, "dx worktree: {error}").ok();
     dx_process::operational_code()
 }
 

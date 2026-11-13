@@ -310,12 +310,19 @@ fn run_script(dir: &Path, script: &str, env: &[(&str, &str)]) -> (i32, String) {
     (done.status.code().unwrap_or(-1), output)
 }
 
+fn keep_system_root(command: &mut Command) {
+    if let Some(root) = std::env::var_os("SystemRoot") {
+        command.env("SystemRoot", root);
+    }
+}
+
 fn run_node(dir: &Path, env: &[(&str, &str)]) -> (i32, String) {
     let mut command = Command::new(dx_testing::env_file("DX_NODE"));
     command
         .arg(dx_testing::env_file("DX_SCAN_CJS"))
         .current_dir(dir)
         .env_clear();
+    keep_system_root(&mut command);
     for (key, value) in env {
         let key = if *key == "DX_UPLOAD_PATH" { "INPUT_PATH" } else { key };
         command.env(key, value);
@@ -472,6 +479,7 @@ fn run_helper_node(dir: &Path, env: &[(&str, &str)]) -> (i32, String, String) {
         .env("RUNNER_OS", "Linux")
         .env("RUNNER_TEMP", &temp)
         .env("GITHUB_ENV", &github_env);
+    keep_system_root(&mut command);
     for (key, value) in env {
         command.env(key, value);
     }

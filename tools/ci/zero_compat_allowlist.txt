@@ -26,7 +26,7 @@ cli/plan/src/resolve/classify.rs compat-word 5
 cli/process/src/lib.rs compat-word 12
 cli/process/src/lib_tests.rs compat-word 9
 cli/shard_writer/src/lib.rs compat-word 2
-cli/shim/BUILD.bazel compat-word 32
+cli/shim/BUILD.bazel compat-word 26
 cli/shim/fake/fake_dx.rs compat-word 4
 cli/shim/src/fetch.rs compat-word 19
 cli/shim/src/main.rs compat-word 1

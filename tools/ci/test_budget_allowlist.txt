@@ -191,8 +191,6 @@ core/tests/wrapper_forward_fixture.bzl no-size 4
 core/tests/wrapper_tests.bzl no-size 5
 csharp/private/BUILD.bazel no-size 1
 csharp/private/ide/BUILD.bazel no-size 1
-csharp/tests/fixtures/adopt-csharp/greet/BUILD.bazel no-size 1
-csharp/tests/fixtures/adopt-csharp/solo/BUILD.bazel no-size 1
 csharp/tests/fixtures/bench/BUILD.bazel no-size 2
 csharp/tests/fixtures/fuzz/BUILD.bazel no-size 8
 csharp/tests/fixtures/hello/BUILD.bazel no-size 2
@@ -420,16 +418,14 @@ java/private/BUILD.bazel no-size 1
 java/private/ide/BUILD.bazel no-size 1
 java/private/jmh_tests.bzl no-size 1
 java/tests/fixtures/adopt-java/greet/BUILD.bazel no-size 1
-java/tests/fixtures/adopt-java/solo/BUILD.bazel no-size 1
 java/tests/fixtures/bench/BUILD.bazel no-size 8
 java/tests/fixtures/bench/BUILD.bazel size-large 1
 java/tests/fixtures/bench/BUILD.bazel timeout-long 1
 java/tests/fixtures/fuzz/BUILD.bazel no-size 6
 java/tests/fixtures/hello/BUILD.bazel no-size 5
-java/tests/fixtures/java-app/billing/BUILD.bazel no-size 3
-java/tests/fixtures/java-app/cli/BUILD.bazel no-size 2
+java/tests/fixtures/java-app/cli/BUILD.bazel no-size 1
 java/tests/fixtures/java-app/diagnostics/BUILD.bazel no-size 2
-java/tests/fixtures/junit/BUILD.bazel no-size 2
+java/tests/fixtures/junit/BUILD.bazel no-size 1
 java/tests/fixtures/no_srcs/BUILD.bazel no-size 3
 java/tests/fixtures/testonly_binary/BUILD.bazel no-size 1
 javascript/tests/BUILD.bazel no-size 1
@@ -470,8 +466,8 @@ kotlin/tests/fixtures/bench/BUILD.bazel timeout-long 1
 kotlin/tests/fixtures/custom_opts/BUILD.bazel no-size 3
 kotlin/tests/fixtures/fuzz/BUILD.bazel no-size 2
 kotlin/tests/fixtures/hello/BUILD.bazel no-size 5
-kotlin/tests/fixtures/junit/BUILD.bazel no-size 2
-kotlin/tests/fixtures/kotlin-app/cli/BUILD.bazel no-size 2
+kotlin/tests/fixtures/junit/BUILD.bazel no-size 1
+kotlin/tests/fixtures/kotlin-app/cli/BUILD.bazel no-size 1
 kotlin/tests/fixtures/kotlin-app/diagnostics/BUILD.bazel no-size 2
 kotlin/tests/fixtures/kotlin-app/grades/BUILD.bazel no-size 3
 kotlin/tests/fixtures/no_srcs/BUILD.bazel no-size 3
@@ -585,7 +581,6 @@ rust/tests/fixtures/wasm_bindgen/js_parity.bzl no-size 1
 rust/tests/tonic/BUILD.bazel no-size 1
 scala/private/BUILD.bazel no-size 1
 scala/tests/fixtures/adopt-scala/greet/BUILD.bazel no-size 1
-scala/tests/fixtures/adopt-scala/solo/BUILD.bazel no-size 1
 scala/tests/fixtures/bench/BUILD.bazel no-size 6
 scala/tests/fixtures/bench/BUILD.bazel size-large 1
 scala/tests/fixtures/bench/BUILD.bazel timeout-long 1

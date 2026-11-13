@@ -356,7 +356,10 @@ bazel_dep(name = "grpc", version = "1.85.1", dev_dependency = True)
 single_version_override(
     module_name = "grpc",
     patch_strip = 1,
-    patches = ["//patches/grpc:pip_parse_no_310.patch"],
+    patches = [
+        "//patches/grpc:drop_vendored_wkt_upb.patch",
+        "//patches/grpc:pip_parse_no_310.patch",
+    ],
     version = "1.85.1",
 )
 

@@ -180,21 +180,48 @@ mod tests {
     }
 
     #[test]
-    fn adoption_output_truncation_fails_at_each_document_boundary() {
-        for words in [
-            vec!["status"],
-            vec!["status", "--output=json"],
-            vec!["status", "--capabilities"],
-            vec!["status", "--output=json", "--capabilities"],
-            vec!["upgrade", "--to=2.0.0"],
-            vec!["upgrade", "--to=2.0.0", "--output=json"],
-            vec!["completion", "bash"],
-            vec!["init"],
-            vec!["init", "demo"],
-        ] {
+    fn status_output_truncation_fails_at_each_document_boundary() {
+        truncation_fails_at_each_document_boundary(&[&["status"], &["status", "--output=json"]]);
+    }
+
+    #[test]
+    fn status_capabilities_output_truncation_fails_at_each_document_boundary() {
+        truncation_fails_at_each_document_boundary(&[&["status", "--capabilities"]]);
+    }
+
+    #[test]
+    fn status_capabilities_json_output_truncation_fails_at_each_document_boundary() {
+        truncation_fails_at_each_document_boundary(&[&[
+            "status",
+            "--output=json",
+            "--capabilities",
+        ]]);
+    }
+
+    #[test]
+    fn upgrade_and_completion_output_truncation_fails_at_each_document_boundary() {
+        truncation_fails_at_each_document_boundary(&[
+            &["upgrade", "--to=2.0.0"],
+            &["upgrade", "--to=2.0.0", "--output=json"],
+            &["completion", "bash"],
+        ]);
+    }
+
+    #[test]
+    fn init_output_truncation_fails_at_each_document_boundary() {
+        truncation_fails_at_each_document_boundary(&[&["init"]]);
+    }
+
+    #[test]
+    fn init_demo_output_truncation_fails_at_each_document_boundary() {
+        truncation_fails_at_each_document_boundary(&[&["init", "demo"]]);
+    }
+
+    fn truncation_fails_at_each_document_boundary(cases: &[&[&str]]) {
+        for &words in cases {
             let scratch = dx_test_scratch::scratch("adoption-pipe-");
             dx_adopt::write_version_pin(scratch.path(), "0.0.0").expect("pin");
-            let inv = invocation(&words);
+            let inv = invocation(words);
             let run = |out: &mut dyn Write| {
                 execute_adoption(&inv, env(scratch.path(), out, &mut Vec::new()))
             };

@@ -140,7 +140,6 @@ tools/ci/config_consistency_test.rs compat-word 4
 tools/ci/guards/shared.rs compat-word 4
 tools/coverage/collect/src/main.rs compat-word 2
 tools/docs/cc/extract/src/lib.rs compat-word 3
-tools/docs/jvm/dokka/BUILD.bazel compat-word 1
 tools/docs/support_matrix/facts.bzl compat-word 3
 tools/docs/support_matrix/facts_tests.bzl compat-word 4
 tools/docs/support_matrix/languages.bzl compat-word 3

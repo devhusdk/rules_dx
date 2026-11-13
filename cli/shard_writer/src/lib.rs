@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::{fmt::Display, path::PathBuf};
 
 use clap::{Arg, ArgAction, Command, error::ErrorKind};

@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PatchKind {
     Modify,
@@ -98,8 +100,9 @@ fn render_file(out: &mut String, file: &FilePatch<'_>) -> Result<(), DiffError> 
     unified.context_radius(CONTEXT);
     for hunk in unified.iter_hunks() {
         let ops = hunk.ops();
-        let first = &ops[0];
-        let last = &ops[ops.len() - 1];
+        let (Some(first), Some(last)) = (ops.first(), ops.last()) else {
+            continue;
+        };
         let old_start = first.old_range().start;
         let new_start = first.new_range().start;
         let old_len = last.old_range().end - old_start;

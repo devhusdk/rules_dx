@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -160,20 +162,22 @@ fn bind_artifacts<'p>(
             .iter()
             .filter(|path| dx_bep::suffix_matches(path, &entry.exec_path))
             .collect();
-        if matches.is_empty() {
-            return Err(CollectError::MissingArtifact {
-                producer: record.producer.clone(),
-                key: entry.key.clone(),
-                exec_path: entry.exec_path.clone(),
-            });
+        match matches.as_slice() {
+            [] => {
+                return Err(CollectError::MissingArtifact {
+                    producer: record.producer.clone(),
+                    key: entry.key.clone(),
+                    exec_path: entry.exec_path.clone(),
+                });
+            }
+            [only] => resolved.push(only.as_str()),
+            _ => {
+                return Err(CollectError::AmbiguousArtifact {
+                    exec_path: entry.exec_path.clone(),
+                    artifacts: matches.into_iter().cloned().collect(),
+                });
+            }
         }
-        if matches.len() > 1 {
-            return Err(CollectError::AmbiguousArtifact {
-                exec_path: entry.exec_path.clone(),
-                artifacts: matches.into_iter().map(|path| (*path).clone()).collect(),
-            });
-        }
-        resolved.push(matches[0]);
     }
     for path in backing_paths {
         if !bound

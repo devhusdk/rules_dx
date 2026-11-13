@@ -1,5 +1,7 @@
 //! Runs the C tool behind one `conda-ocaml-*` program name the OCaml compiler calls, or one `dune` step.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 mod driver;
 #[cfg(test)]
 mod driver_tests;

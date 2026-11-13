@@ -1,5 +1,7 @@
 //! Assembles a directory from `--dir <path>` and `--copy <source> <path>` steps below the output directory.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 mod tree;
 #[cfg(test)]
 mod tree_tests;

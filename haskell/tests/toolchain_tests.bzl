@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load("//haskell/private/toolchain:packages.bzl", "is_sha256", "package_build", "pin_problems")
+load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "is_sha256", "package_build", "package_deps", "pin_problems", "tool_labels")
 load("//haskell/private/toolchain:pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
 load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
@@ -76,6 +76,41 @@ def _cell_checks(name):
         expect_contains(name + " gmp stays an extra library", conf, "extra-libraries: gmp"),
     ]
 
+_SUBLIBRARY_CABAL = """cabal-version: 3.0
+name: happy-lib
+version: 2.1.7
+
+common common-stanza
+  build-depends: tabular
+
+common modules
+  exposed-modules: Happy.Grammar
+
+library grammar
+  import: common-stanza, modules
+  build-depends:       base < 5, array
+
+Library frontend
+  build-depends:       base < 5, array, mtl, grammar
+  exposed-modules:     Happy.Frontend,
+                       Happy.Tabular
+
+library tabular
+  if impl(ghc >= 9)
+    build-depends:
+      base,
+      -- grammar comes next
+      happy-lib:grammar
+  build-depends: frontend-extra
+
+library
+  build-depends: base >= 4.9 && < 5,
+                 happy-lib:{frontend, tabular}
+
+executable happy
+  build-depends: base, grammar
+"""
+
 def _hub_names(hub):
     return [line.split("\"")[1] for line in hub.splitlines() if line.startswith("    name = ")]
 
@@ -132,8 +167,20 @@ def _checks():
         {"name": "alex", "version": "3.5", "source": "hackage", "components": ["exe:alex"], "dependencies": [], "tools": []},
         {"name": "lib", "version": "1.0", "source": "hackage", "components": ["lib"], "dependencies": [], "tools": ["alex:alex"]},
     ]}
-    build = package_build("hub", sidecar, sidecar["packages"][1])
+    package = sidecar["packages"][1]
+    build = package_build("lib", "1.0", package["components"], package_deps("hub", sidecar, package), tool_labels("hub", package), {"": {"deps": [], "empty": False}})
+    libraries = cabal_libraries(_SUBLIBRARY_CABAL)
+    happy = package_build("happy-lib", "2.1.7", ["lib", "exe:happy"], ["@hub_base//:base"], [], libraries)
     checks += [
+        expect_equal("cabal libraries name every library stanza with its sibling deps", {name: library["deps"] for name, library in libraries.items()}, {"grammar": [], "frontend": ["grammar"], "tabular": ["grammar"], "": ["frontend", "tabular"]}),
+        expect_equal("libraries without modules are empty", sorted([name for name, library in libraries.items() if library["empty"]]), ["", "tabular"]),
+        expect_contains("an empty library builds with empty cabal args", happy, 'haddock = False,\n    cabal_args = ":empty_library",'),
+        expect_equal("a cabal file without sublibraries has only the main library", cabal_libraries("name: a\nlibrary\n  build-depends: base\n  exposed-modules: A\n"), {"": {"deps": [], "empty": False}}),
+        expect_contains("a sublibrary builds as its own component", happy, 'name = "happy-lib-lib-frontend",\n    package_name = "happy-lib",\n    version = "2.1.7",\n    haddock = False,\n    sublibrary_name = "frontend",'),
+        expect_contains("a sublibrary depends on its siblings", happy, 'deps = ["@hub_base//:base", ":happy-lib-lib-grammar"],'),
+        expect_contains("the main library depends on its sublibraries", happy, 'deps = ["@hub_base//:base", ":happy-lib-lib-frontend", ":happy-lib-lib-tabular"],'),
+        expect_contains("executables see every library of the package", happy, 'deps = ["@hub_base//:base", ":happy-lib", ":happy-lib-lib-frontend", ":happy-lib-lib-grammar", ":happy-lib-lib-tabular"],'),
+        expect_false("sublibraries are no aliases", "alias(" in happy),
         expect_contains("package build renders tools", build, 'tools = ["@hub_alex//:alex-exe-alex"]'),
         expect_false("package build keeps tools out of deps", 'deps = ["@hub_alex' in build),
     ]

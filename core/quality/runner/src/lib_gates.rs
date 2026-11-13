@@ -75,7 +75,8 @@ fn newline_variants_yield_distinct_manifests() {
     let mut manifests = Vec::with_capacity(variants.len());
     for (index, body) in variants.iter().enumerate() {
         let files = vec![file("src/lib.rs", body)];
-        let result = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
+        let result =
+            synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
         assert_eq!(result.convergence, Convergence::Stable as i32);
         assert_eq!(result.replacements.len(), 1);
         assert_eq!(
@@ -139,7 +140,8 @@ fn file_modes_do_not_alter_pipeline_outputs() {
     for mode in modes {
         let _ = mode;
         let files = vec![file("src/lib.rs", "BAD\n")];
-        let result = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
+        let result =
+            synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
         assert_eq!(result.convergence, Convergence::Stable as i32);
         assert_eq!(result.replacements.len(), 1);
         assert_eq!(
@@ -151,7 +153,8 @@ fn file_modes_do_not_alter_pipeline_outputs() {
     }
     assert_all_equal(&manifests);
     let clean = vec![file("src/lib.rs", "GOOD\n")];
-    let clean_result = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &clean).unwrap();
+    let clean_result =
+        synthetic::run_pipeline("//core/quality:test", "lint", &stages, &clean).unwrap();
     assert!(clean_result.replacements.is_empty());
     assert_ne!(manifests[0], encode_validated(&clean_result).unwrap());
 }
@@ -277,8 +280,10 @@ fn permutation_ranking_prefers_stable_fewer_rounds() {
     let fix_stages = vec![stage("lint-a", &["rust"], &["src/lib.rs"])];
     let keep_stages = vec![stage("lint-b", &["rust"], &["src/lib.rs"])];
     let bad_files = vec![file("src/lib.rs", "BAD\n")];
-    let fixed = synthetic::run_pipeline("//core/quality:test", "lint", &fix_stages, &bad_files).unwrap();
-    let kept = synthetic::run_pipeline("//core/quality:test", "lint", &keep_stages, &bad_files).unwrap();
+    let fixed =
+        synthetic::run_pipeline("//core/quality:test", "lint", &fix_stages, &bad_files).unwrap();
+    let kept =
+        synthetic::run_pipeline("//core/quality:test", "lint", &keep_stages, &bad_files).unwrap();
     assert_ne!(fixed.terminal_snapshot, kept.terminal_snapshot);
 }
 
@@ -372,7 +377,8 @@ fn checkout_and_query_permutations_converge_identically() {
         } else {
             vec![file("src/b.rs", "BAD b\n"), file("src/a.rs", "BAD a\n")]
         };
-        let result = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
+        let result =
+            synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
         assert_eq!(result.convergence, Convergence::Stable as i32);
         assert_eq!(result.completed_rounds, 2);
         assert_eq!(result.replacements.len(), 2);
@@ -405,7 +411,8 @@ fn checkout_and_query_permutations_converge_identically() {
     let forward = vec![file("src/a.rs", "BAD a\n"), file("src/b.rs", "BAD b\n")];
     let reversed = vec![file("src/b.rs", "BAD b\n"), file("src/a.rs", "BAD a\n")];
     let first = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &forward).unwrap();
-    let second = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &reversed).unwrap();
+    let second =
+        synthetic::run_pipeline("//core/quality:test", "lint", &stages, &reversed).unwrap();
     assert_eq!(first.replacements, second.replacements);
     assert_eq!(manifests[0], encode_validated(&first).unwrap());
 }

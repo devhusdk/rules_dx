@@ -110,7 +110,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     return Err(dependency_failure(
                         tool_id,
                         "opa check failed in dependencies before the owned files were type checked",
-                        &resolve_pairs,
+                        resolve_pairs,
                         &reported,
                     ));
                 }
@@ -324,9 +324,8 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 .map_err(|err| execution(tool_id, format!("working directory: {err}")))?
                 .join(layout);
             let layout = scratch.root().join(OCI_LAYOUT_DIR_REL);
-            copy_layout(&source, &layout).map_err(|err| {
-                execution(tool_id, format!("copy {}: {err}", source.display()))
-            })?;
+            copy_layout(&source, &layout)
+                .map_err(|err| execution(tool_id, format!("copy {}: {err}", source.display())))?;
             let (_, names) = super::single_run::paths(call);
             let Some(file) = names.first() else {
                 return Ok(Vec::new());
@@ -788,7 +787,10 @@ fn ustar_header(name: &str, size: u64) -> std::io::Result<[u8; 512]> {
         return Err(invalid(format!("member name too long: {name}")));
     }
     let mut header = [0u8; 512];
-    header[..name.len()].copy_from_slice(name.as_bytes());
+    header
+        .get_mut(..name.len())
+        .ok_or_else(|| invalid(format!("member name too long: {name}")))?
+        .copy_from_slice(name.as_bytes());
     header[100..108].copy_from_slice(b"0000644\0");
     header[108..116].copy_from_slice(b"0000000\0");
     header[116..124].copy_from_slice(b"0000000\0");
@@ -847,7 +849,9 @@ fn layout_to_docker_archive(layout: &Path, archive: &Path) -> std::io::Result<()
         .get("layers")
         .and_then(serde_json::Value::as_array)
         .ok_or_else(|| invalid("manifest has no layers".to_owned()))?;
-    let mut members = vec![layout_blob(layout, digest_of(config, "config")?)?];
+    let config_member = layout_blob(layout, digest_of(config, "config")?)?;
+    let config_name = config_member.0.clone();
+    let mut members = vec![config_member];
     for layer in layers {
         let member = layout_blob(layout, digest_of(layer, "layer")?)?;
         if !members.iter().any(|(name, _)| *name == member.0) {
@@ -855,7 +859,7 @@ fn layout_to_docker_archive(layout: &Path, archive: &Path) -> std::io::Result<()
         }
     }
     let listing = serde_json::json!([{
-        "Config": members[0].0,
+        "Config": config_name,
         "RepoTags": [],
         "Layers": layers
             .iter()

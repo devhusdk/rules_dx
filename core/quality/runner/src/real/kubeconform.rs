@@ -129,13 +129,14 @@ impl RealBackend {
         }
         let targets: Vec<KubeconformTarget<'_>> = written
             .iter()
-            .map(|(reported, index, at)| {
-                let (_, absolute, documents) = &owned[*index];
-                KubeconformTarget {
+            .filter_map(|(reported, index, at)| {
+                let (_, absolute, documents) = owned.get(*index)?;
+                let document = documents.get(*at)?;
+                Some(KubeconformTarget {
                     reported,
                     file: absolute,
-                    documents: std::slice::from_ref(&documents[*at]),
-                }
+                    documents: std::slice::from_ref(document),
+                })
             })
             .collect();
         let refs: Vec<&Path> = written

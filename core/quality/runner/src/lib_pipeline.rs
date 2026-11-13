@@ -573,9 +573,13 @@ fn assemble_emits_replacements_only_when_stable() {
     let original = "BAD\n";
     let applied = format!(
         "{}{}{}",
-        &original[..edits.edits[0].start_byte as usize],
+        original
+            .get(..edits.edits[0].start_byte as usize)
+            .expect("prefix"),
         String::from_utf8_lossy(&edits.edits[0].replacement),
-        &original[edits.edits[0].end_byte as usize..]
+        original
+            .get(edits.edits[0].end_byte as usize..)
+            .expect("suffix")
     );
     assert_eq!(applied, "GOOD\n");
 

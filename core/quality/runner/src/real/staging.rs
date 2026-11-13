@@ -60,11 +60,13 @@ fn strip_json_comments(bytes: &[u8]) -> Vec<u8> {
     let mut i = 0;
     let mut in_string = false;
     while i < bytes.len() {
-        let b = bytes[i];
+        let Some(&b) = bytes.get(i) else {
+            break;
+        };
         if in_string {
             out.push(b);
-            if b == b'\\' && i + 1 < bytes.len() {
-                out.push(bytes[i + 1]);
+            if let (b'\\', Some(&next)) = (b, bytes.get(i + 1)) {
+                out.push(next);
                 i += 1;
             } else if b == b'"' {
                 in_string = false;
@@ -73,13 +75,13 @@ fn strip_json_comments(bytes: &[u8]) -> Vec<u8> {
             in_string = true;
             out.push(b);
         } else if b == b'/' && bytes.get(i + 1) == Some(&b'/') {
-            while i < bytes.len() && bytes[i] != b'\n' {
+            while bytes.get(i).is_some_and(|c| *c != b'\n') {
                 i += 1;
             }
             continue;
         } else if b == b'/' && bytes.get(i + 1) == Some(&b'*') {
             i += 2;
-            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+            while i + 1 < bytes.len() && bytes.get(i..i + 2) != Some(b"*/".as_slice()) {
                 i += 1;
             }
             i += 2;
@@ -487,8 +489,13 @@ pub(super) fn ansible_collections_roots<'a>(
         if parts.len() < at + 4 {
             continue;
         }
-        let root = parts[..at].join("/");
-        let key = (parts[at + 1].to_owned(), parts[at + 2].to_owned());
+        let (Some(prefix), Some(namespace), Some(name)) =
+            (parts.get(..at), parts.get(at + 1), parts.get(at + 2))
+        else {
+            continue;
+        };
+        let root = prefix.join("/");
+        let key = ((*namespace).to_owned(), (*name).to_owned());
         match owners.get(&key) {
             Some(first) if *first != root => {
                 return Err(format!(

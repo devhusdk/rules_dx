@@ -14,14 +14,14 @@ pub(crate) fn check_headings(headings: &[Heading], outcome: &mut CheckOutcome) {
         return;
     }
     let top: Vec<&Heading> = headings.iter().filter(|h| h.top_level).collect();
-    if top.is_empty() {
+    let Some(first) = top.first() else {
         return;
-    }
+    };
     let mut h1_lines = top.iter().filter(|h| h.level == 1).map(|h| h.line);
     match h1_lines.next() {
         None => push_finding(
             outcome,
-            top[0].line,
+            first.line,
             FindingKind::HeadingHierarchy,
             "no H1 heading: exactly one H1 is required",
         ),
@@ -36,7 +36,7 @@ pub(crate) fn check_headings(headings: &[Heading], outcome: &mut CheckOutcome) {
             }
         }
     }
-    let mut previous = top[0].level;
+    let mut previous = first.level;
     for heading in top.iter().skip(1) {
         if heading.level > previous + 1 {
             push_finding(
@@ -131,11 +131,16 @@ pub(crate) fn code_regions(text: &str, starts: &[usize]) -> Vec<CodeRegion> {
                 let mut fence = None;
                 let mut open_end = range.end;
                 if info.is_some() {
-                    let rest = text[range.start..].trim_start_matches([' ', '\t', '>']);
+                    let rest = text
+                        .get(range.start..)
+                        .unwrap_or_default()
+                        .trim_start_matches([' ', '\t', '>']);
                     if let Some(c) = rest.chars().next().filter(|c| *c == '`' || *c == '~') {
                         fence = Some((c, rest.chars().take_while(|x| *x == c).count()));
                     }
-                    open_end = text[range.start..range.end]
+                    open_end = text
+                        .get(range.start..range.end)
+                        .unwrap_or_default()
                         .find('\n')
                         .map_or(range.end, |i| range.start + i + 1);
                 }
@@ -159,7 +164,9 @@ pub(crate) fn code_regions(text: &str, starts: &[usize]) -> Vec<CodeRegion> {
                         (true, None) => true,
                         (true, Some((c, len))) => {
                             let from = content_end.min(range.end);
-                            let tail = text[from..range.end]
+                            let tail = text
+                                .get(from..range.end)
+                                .unwrap_or_default()
                                 .trim_start_matches(|x: char| x.is_whitespace() || x == '>')
                                 .trim_end();
                             !(tail.len() >= len && tail.chars().all(|x| x == c))

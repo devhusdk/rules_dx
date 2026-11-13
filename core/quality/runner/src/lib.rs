@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use dx_digest::{DIGEST_LEN, blake3 as digest};
@@ -188,7 +190,7 @@ fn minimal_edit(original: &str, terminal: &str) -> Edit {
     let orig = original.as_bytes();
     let term = terminal.as_bytes();
     let mut prefix = 0;
-    while prefix < orig.len() && prefix < term.len() && orig[prefix] == term[prefix] {
+    while prefix < orig.len() && prefix < term.len() && orig.get(prefix) == term.get(prefix) {
         prefix += 1;
     }
     while prefix > 0 && !original.is_char_boundary(prefix) {
@@ -197,7 +199,7 @@ fn minimal_edit(original: &str, terminal: &str) -> Edit {
     let mut suffix = 0;
     while suffix < orig.len() - prefix
         && suffix < term.len() - prefix
-        && orig[orig.len() - 1 - suffix] == term[term.len() - 1 - suffix]
+        && orig.get(orig.len() - 1 - suffix) == term.get(term.len() - 1 - suffix)
     {
         suffix += 1;
     }
@@ -210,7 +212,10 @@ fn minimal_edit(original: &str, terminal: &str) -> Edit {
     Edit {
         start_byte: prefix as u64,
         end_byte: (orig.len() - suffix) as u64,
-        replacement: term[prefix..term.len() - suffix].to_vec(),
+        replacement: term
+            .get(prefix..term.len() - suffix)
+            .unwrap_or_default()
+            .to_vec(),
     }
 }
 

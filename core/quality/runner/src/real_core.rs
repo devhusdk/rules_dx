@@ -207,8 +207,14 @@ pub(super) fn rustfmt_crate_root_with_unformatted_modules_is_fixable_for_every_p
         file("src/lib.rs", "pub mod candidate;\npub fn f( ){ }  \n"),
         file("src/candidate.rs", "pub fn candidate() {}  \n"),
     ];
-    let forwarder = run_real_pipeline("//deploy/private/release:x", "format", &stages, &files, &backend)
-        .expect("forwarder pipeline");
+    let forwarder = run_real_pipeline(
+        "//deploy/private/release:x",
+        "format",
+        &stages,
+        &files,
+        &backend,
+    )
+    .expect("forwarder pipeline");
     assert_eq!(forwarder.convergence, Convergence::Stable as i32);
     assert_eq!(forwarder.initial_diagnostics.len(), 2);
     assert!(forwarder.initial_diagnostics.iter().all(|d| d.fixable));
@@ -273,7 +279,8 @@ pub(super) fn rustfmt_missing_module_fails_with_rustfmt_stderr() {
     );
     assert!(text.starts_with(&head), "{text}");
     assert!(
-        text[head.len()..].starts_with(" (config rustfmt.toml): Error writing files"),
+        text.strip_prefix(head.as_str())
+            .is_some_and(|rest| rest.starts_with(" (config rustfmt.toml): Error writing files")),
         "{text}"
     );
 }

@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use capture::{Placeholders, USAGE, parse, run};
 
 fn text(value: std::ffi::OsString) -> Result<String, String> {

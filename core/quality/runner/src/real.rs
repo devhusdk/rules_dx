@@ -296,7 +296,10 @@ fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerEr
 fn with_stderr(err: RunnerError, stderr: &[u8]) -> RunnerError {
     let text = String::from_utf8_lossy(stderr);
     let lines: Vec<&str> = text.trim().lines().collect();
-    let tail = lines[lines.len().saturating_sub(20)..].join("\n");
+    let tail = lines
+        .get(lines.len().saturating_sub(20)..)
+        .unwrap_or_default()
+        .join("\n");
     let already = matches!(&err,
         RunnerError::ToolOutput { detail, .. } | RunnerError::ToolExecution { detail, .. }
         if detail.contains(&tail));

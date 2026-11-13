@@ -2,9 +2,21 @@
 
 use std::collections::BTreeMap;
 
+fn sub(text: &str, from: usize, to: usize) -> &str {
+    text.get(from..to).unwrap_or_default()
+}
+
+fn from_(text: &str, at: usize) -> &str {
+    text.get(at..).unwrap_or_default()
+}
+
+fn upto(text: &str, at: usize) -> &str {
+    text.get(..at).unwrap_or_default()
+}
+
 /// Whether `text` has an identifier character right before `at`.
 fn inside_identifier(text: &str, at: usize) -> bool {
-    text[..at]
+    upto(text, at)
         .chars()
         .next_back()
         .is_some_and(|c| c.is_alphanumeric() || c == '_')
@@ -14,13 +26,15 @@ fn inside_identifier(text: &str, at: usize) -> bool {
 fn find_rule(text: &str, target: &str) -> Option<(usize, usize)> {
     let name = format!("name = \"{target}\"");
     let mut from = 0;
-    while let Some(at) = text[from..].find(&name) {
+    while let Some(at) = from_(text, from).find(&name) {
         let rule = from + at;
         from = rule + name.len();
         if inside_identifier(text, rule) {
             continue;
         }
-        let rule_end = text[rule..].find("\n)").map_or(text.len(), |at| rule + at);
+        let rule_end = from_(text, rule)
+            .find("\n)")
+            .map_or(text.len(), |at| rule + at);
         return Some((rule, rule_end));
     }
     None
@@ -35,13 +49,13 @@ fn find_list(
 ) -> Option<(usize, usize, usize)> {
     let open = format!("{attr} = [");
     let mut from = rule;
-    while let Some(at) = text[from..rule_end].find(&open) {
+    while let Some(at) = sub(text, from, rule_end).find(&open) {
         let key = from + at;
         from = key + open.len();
         if inside_identifier(text, key) {
             continue;
         }
-        let close = text[from..rule_end]
+        let close = sub(text, from, rule_end)
             .find(']')
             .map_or(rule_end, |at| from + at);
         return Some((key, from, close));
@@ -53,9 +67,9 @@ fn find_list(
 pub fn locate(text: &str, target: &str, dependency: &str) -> Option<(usize, usize)> {
     let (rule, rule_end) = find_rule(text, target)?;
     let (_, open, close) = find_list(text, rule, rule_end, "deps")?;
-    literals(&text[open..close], open)
+    literals(sub(text, open, close), open)
         .into_iter()
-        .find(|(start, end)| target_name(&text[start + 1..end - 1]) == dependency)
+        .find(|(start, end)| target_name(sub(text, start + 1, end - 1)) == dependency)
 }
 
 /// Whether the rule named `target` has `"dx-keep"` in its `tags`, which exempts it from dep checks.
@@ -66,9 +80,9 @@ pub fn has_keep_tag(text: &str, target: &str) -> bool {
     let Some((_, open, close)) = find_list(text, rule, rule_end, "tags") else {
         return false;
     };
-    literals(&text[open..close], open)
+    literals(sub(text, open, close), open)
         .into_iter()
-        .any(|(start, end)| &text[start..end] == "\"dx-keep\"")
+        .any(|(start, end)| sub(text, start, end) == "\"dx-keep\"")
 }
 
 /// The quoted strings of a list body, as byte ranges including the quotes.
@@ -106,19 +120,22 @@ fn target_name(label: &str) -> &str {
 /// The bytes to delete: the whole line when the entry is alone on it, else the entry and its comma.
 pub fn removal(text: &str, start: usize, end: usize) -> (usize, usize) {
     let mut cut_end = end;
-    if text[cut_end..].starts_with(',') {
+    if from_(text, cut_end).starts_with(',') {
         cut_end += 1;
     }
-    let line_start = text[..start].rfind('\n').map_or(0, |at| at + 1);
-    let line_end = text[cut_end..]
+    let line_start = upto(text, start).rfind('\n').map_or(0, |at| at + 1);
+    let line_end = from_(text, cut_end)
         .find('\n')
         .map_or(text.len(), |at| cut_end + at + 1);
-    let alone =
-        text[line_start..start].trim().is_empty() && text[cut_end..line_end].trim().is_empty();
+    let alone = sub(text, line_start, start).trim().is_empty()
+        && sub(text, cut_end, line_end).trim().is_empty();
     if alone {
         return (line_start, line_end);
     }
-    let spaces = text[cut_end..].chars().take_while(|c| *c == ' ').count();
+    let spaces = from_(text, cut_end)
+        .chars()
+        .take_while(|c| *c == ' ')
+        .count();
     (start, cut_end + spaces)
 }
 
@@ -128,8 +145,10 @@ pub fn locate_deps_list(text: &str, target: &str) -> Option<(usize, usize)> {
     if let Some((key, open, _)) = find_list(text, rule, rule_end, "deps") {
         return Some((key, open));
     }
-    let line_start = text[..rule].rfind('\n').map_or(0, |at| at + 1);
-    let line_end = text[rule..].find('\n').map_or(text.len(), |at| rule + at);
+    let line_start = upto(text, rule).rfind('\n').map_or(0, |at| at + 1);
+    let line_end = from_(text, rule)
+        .find('\n')
+        .map_or(text.len(), |at| rule + at);
     Some((line_start, line_end))
 }
 
@@ -138,32 +157,32 @@ pub fn locate_deps_list(text: &str, target: &str) -> Option<(usize, usize)> {
 pub fn insertion(text: &str, target: &str, label: &str) -> Option<(usize, String)> {
     let (rule, rule_end) = find_rule(text, target)?;
     let (_, open, close) = find_list(text, rule, rule_end, "deps")?;
-    let entries = literals(&text[open..close], open);
+    let entries = literals(sub(text, open, close), open);
     if entries
         .iter()
-        .any(|(start, end)| &text[start + 1..end - 1] == label)
+        .any(|(start, end)| sub(text, start + 1, end - 1) == label)
     {
         return None;
     }
-    if !text[open..close].contains('\n') {
+    if !sub(text, open, close).contains('\n') {
         return Some(match entries.last() {
             Some((_, end)) => (*end, format!(", \"{label}\"")),
             None => (open, format!("\"{label}\"")),
         });
     }
     let indent_of = |at: usize| -> String {
-        let line = text[..at].rfind('\n').map_or(0, |n| n + 1);
-        text[line..at]
+        let line = upto(text, at).rfind('\n').map_or(0, |n| n + 1);
+        sub(text, line, at)
             .chars()
             .take_while(|c| *c == ' ' || *c == '\t')
             .collect()
     };
     let Some((start, end)) = entries.last() else {
-        let line_end = text[open..].find('\n').map_or(close, |at| open + at);
+        let line_end = from_(text, open).find('\n').map_or(close, |at| open + at);
         return Some((line_end, format!("\n{}    \"{label}\",", indent_of(close))));
     };
     let indent = indent_of(*start);
-    let tail = &text[*end..close];
+    let tail = sub(text, *end, close);
     if tail.trim_start().starts_with(',') {
         let line_end = tail.find('\n').map_or(close, |at| end + at);
         Some((line_end, format!("\n{indent}\"{label}\",")))
@@ -256,7 +275,7 @@ mod tests {
         assert!(!has_keep_tag(text, "bin"));
         assert!(locate(text, "bin", "a").is_none());
         let (start, end) = locate(text, "bin", "b").expect("located");
-        assert_eq!(&text[start..end], "\"//b:b\"");
+        assert_eq!(sub(text, start, end), "\"//b:b\"");
         let (start, _) = locate_deps_list(text, "bin").expect("located");
         assert!(start > text.find("rust_binary").expect("second rule"));
         let (at, _) = insertion(text, "bin", "//c:c").expect("inserted");

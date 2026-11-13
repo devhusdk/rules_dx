@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 mod check;
 pub mod entry;
 mod frontmatter;

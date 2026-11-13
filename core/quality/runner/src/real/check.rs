@@ -439,7 +439,9 @@ impl RealBackend {
         let mut offset = 0usize;
         let mut merged: Vec<FileFinding> = Vec::new();
         for (index, batch) in batches.iter().enumerate() {
-            let batch_names = &strs[offset..offset + batch.len()];
+            let Some(batch_names) = strs.get(offset..offset + batch.len()) else {
+                return Err(execution(tool_id, "batch out of range".to_owned()));
+            };
             offset += batch.len();
             let report = build(batch.as_slice())
                 .and_then(|invocation| self.run(tool_id, tool, &invocation, scratch))

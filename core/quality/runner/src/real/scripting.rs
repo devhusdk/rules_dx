@@ -480,8 +480,7 @@ fn phpstan(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
         .iter()
         .any(|(rel, _)| rel == "dx-phpstan/ext/autoload.php")
         .then(|| root.join("dx-phpstan/ext/autoload.php"));
-    let invocation =
-        commands::phpstan_check(&tool.binary, &neon, autoload.as_deref(), &path_refs);
+    let invocation = commands::phpstan_check(&tool.binary, &neon, autoload.as_deref(), &path_refs);
     let out = backend.run(tool_id, tool, &invocation, scratch)?;
     let real_names: Vec<String> = owned
         .iter()
@@ -585,8 +584,12 @@ fn elvis(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Ru
         parsers::parse_elvis(&out.stdout, &out.stderr, out.code, &relative_strs),
     )?;
     for found in &mut findings {
-        if let Some(at) = relative_names.iter().position(|name| *name == found.file) {
-            found.file.clone_from(&names[at]);
+        if let Some(name) = relative_names
+            .iter()
+            .position(|name| *name == found.file)
+            .and_then(|at| names.get(at))
+        {
+            found.file.clone_from(name);
         }
     }
     Ok(findings)
@@ -641,8 +644,12 @@ fn credo(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Ru
         parsers::parse_credo(&out.stdout, &out.stderr, out.code, &relative_strs),
     )?;
     for found in &mut findings {
-        if let Some(at) = relative_names.iter().position(|name| *name == found.file) {
-            found.file.clone_from(&names[at]);
+        if let Some(name) = relative_names
+            .iter()
+            .position(|name| *name == found.file)
+            .and_then(|at| names.get(at))
+        {
+            found.file.clone_from(name);
         }
     }
     Ok(findings)

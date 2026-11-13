@@ -107,12 +107,8 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     let image = std::path::absolute(image).map_err(|err| {
                         execution(call.tool_id, format!("resolve base image {image}: {err}"))
                     })?;
-                    let invocation = commands::buf_breaking_check(
-                        &call.tool.binary,
-                        &image,
-                        &root,
-                        call.config,
-                    );
+                    let invocation =
+                        commands::buf_breaking_check(&call.tool.binary, &image, &root, call.config);
                     let out =
                         backend.run(call.tool_id, call.tool, &invocation, &call.staged.scratch)?;
                     found.extend(parsed(
@@ -433,8 +429,9 @@ pub(super) fn without_verbatim(path: PathBuf) -> PathBuf {
     let Some(rest) = text.strip_prefix(r"\\?\") else {
         return path;
     };
-    let bytes = rest.as_bytes();
-    if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+    if let [drive, b':', ..] = rest.as_bytes()
+        && drive.is_ascii_alphabetic()
+    {
         PathBuf::from(rest)
     } else {
         path

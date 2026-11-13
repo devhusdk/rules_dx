@@ -148,8 +148,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     commands::capnp_check(&call.tool.binary, Path::new(workspace), &root);
                 let out =
                     backend.run(call.tool_id, call.tool, &invocation, &call.staged.scratch)?;
-                // Exit 1 is a schema error; the crash banner for an escaping `..` import
-                // also exits 1 and is reported by the parser. Anything else is not a verdict.
+                // Exit 1 is a schema error.
                 if !matches!(out.code, Some(0 | 1)) {
                     let code = out
                         .code
@@ -254,8 +253,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 let invocation = commands::thrift_check(&call.tool.binary, &file, &root, &out_dir);
                 let out =
                     backend.run(call.tool_id, call.tool, &invocation, &call.staged.scratch)?;
-                // Exit 1 is a schema error; a usage error also exits 1 and the parser
-                // rejects it. Anything else is not a verdict.
+                // Exit 1 is a schema error.
                 if !matches!(out.code, Some(0 | 1)) {
                     let code = out
                         .code

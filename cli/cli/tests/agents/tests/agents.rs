@@ -59,8 +59,7 @@ fn run_env(
         .env("XDG_CACHE_HOME", env.home.join(".cache"))
         .env("CLAUDE_CODE_SESSION_ID", env.session)
         .env("CLAUDE_PROJECT_DIR", &env.project)
-        // Git must not find the enclosing checkout: a bazel test scratch dir sits
-        // under the execroot, whose `.git` links to the source repository.
+        // Git must not find the enclosing checkout.
         .env("GIT_CEILING_DIRECTORIES", &env.base)
         .envs(extra.iter().copied())
         .stdin(Stdio::piped())
@@ -497,8 +496,7 @@ fn hooks_fall_back_to_the_bazel_run_working_directory() {
     std::fs::create_dir_all(&runfiles).expect("runfiles");
     let dx = env_file("DX_BIN");
     let dx = dx.to_str().expect("utf8");
-    // `bazel run` sets both variables. Without BUILD_WORKSPACE_DIRECTORY, dx
-    // walks up from the runfiles dir and finds the execroot's MODULE.bazel.
+    // `bazel run` sets both variables.
     let user_dir = [
         ("BUILD_WORKSPACE_DIRECTORY", root.to_str().expect("utf8")),
         ("BUILD_WORKING_DIRECTORY", root.to_str().expect("utf8")),

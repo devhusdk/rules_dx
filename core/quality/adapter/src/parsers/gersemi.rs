@@ -46,8 +46,7 @@ pub fn parse_gersemi(
             continue;
         }
         if line.starts_with("Warning: unknown command ") {
-            // Every call site follows on its own `<path>:<line>:<col>` line, up to a blank line;
-            // unknown commands are neither findings nor errors.
+            // Every call site follows on its own `<path>:<line>:<col>` line, up to a blank line.
             while lines.get(at).is_some_and(|next| !next.trim().is_empty()) {
                 at += 1;
             }
@@ -76,8 +75,7 @@ pub fn parse_gersemi(
             position,
             ColumnEncoding::Scalars,
         ));
-        // The source line and the caret line follow a located message only; unlocated failures
-        // are a single line, so the next record must not be swallowed.
+        // The source line and the caret line follow a located message only.
         if is_located {
             if lines.get(at).is_some_and(|next| next.trim() == "^") {
                 at += 1;

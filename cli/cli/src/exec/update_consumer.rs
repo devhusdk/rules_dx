@@ -487,8 +487,7 @@ impl CheckGuard {
             };
             let now = dx_path::workspace::resolve_target_in_workspace(workspace, &rel);
             if now.as_ref().ok() != Some(&stored) {
-                // The check swapped in a link that leaves the workspace or points elsewhere:
-                // drop the link itself, then put the original bytes back at the stored path.
+                // The check swapped in a link that leaves the workspace or points elsewhere.
                 let link = workspace.join(&rel);
                 if std::fs::symlink_metadata(&link)
                     .map(|metadata| metadata.file_type().is_symlink())

@@ -94,8 +94,7 @@ fn check(text: &str) -> Result<(), String> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let mut section = String::new();
     let mut templater: Option<String> = None;
-    // Mirrors Python's configparser: a line is a continuation only when the section already has
-    // a key and the line is indented more than that key.
+    // Mirrors Python's configparser.
     let mut in_key = false;
     let mut indent_level = 0usize;
     for (index, raw) in text.lines().enumerate() {

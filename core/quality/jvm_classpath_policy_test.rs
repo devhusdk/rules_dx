@@ -14,8 +14,7 @@ use dx_testing::runfiles_root;
 const ALLOWED_FUNCTIONS: &[&str] = &[
     "_jvm_aux_jars",
     "_jacoco_runtime_jars",
-    // Dependency analysis reads the compile classpath to attribute used jars to
-    // owners; it never builds a tool classpath, so neverlink jars are irrelevant.
+    // Dependency analysis reads the compile classpath to attribute used jars to owners.
     "_indirect_jars",
     "_unused_deps_map",
     "_analyzer",

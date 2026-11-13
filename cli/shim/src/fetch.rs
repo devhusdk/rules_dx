@@ -105,9 +105,7 @@ fn agent(url: &str) -> ureq::Agent {
         .proxy(proxy)
         .timeout_connect(Some(Duration::from_secs(30)))
         .timeout_recv_response(Some(Duration::from_secs(60)))
-        // ureq bounds the whole body transfer, not idle time. Keep it
-        // generous so slow links can fetch a large binary (curl in tools/dx
-        // has no limit); this only stops a transfer that has truly stalled.
+        // ureq bounds the whole body transfer, not idle time.
         .timeout_recv_body(Some(Duration::from_secs(60 * 60)))
         .build()
         .into()
@@ -178,8 +176,7 @@ pub fn parse_hash(text: &str) -> Option<String> {
 
 const STALE_PART_AGE: Duration = Duration::from_secs(60 * 60);
 
-// A killed run leaves its part file behind. Parts younger than an hour may
-// belong to a download that is still running, so only older ones go.
+// A killed run leaves its part file behind.
 fn sweep_stale_parts(dir: &Path, asset: &str) {
     let prefix = format!(".{asset}.");
     let Ok(entries) = std::fs::read_dir(dir) else {

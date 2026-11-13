@@ -401,8 +401,7 @@ fn insert_require_rejects_declared_and_malformed_input() {
 
 #[test]
 fn edits_change_only_the_target_entry_as_gomod_parser_reads_it() {
-    // Cross-check: what `gomod-parser` reads back from an edited file differs from the
-    // original only in the edited entry.
+    // Cross-check.
     let inputs = [
         "module m\nrequire \"example.com/a\" v1.0.0 // indirect\nrequire example.com/b v1.0.0\n",
         "module m\nrequire (\n\texample.com/a v1.0.0// indirect\n\texample.com/b v1.0.0 // pinned\n)\n",

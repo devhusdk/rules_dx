@@ -684,8 +684,7 @@ impl<'a> Walker<'a> {
                     _ => live.push(*cand),
                 }
             }
-            // A glob name is dropped when another item has the same name in
-            // the same namespace; an explicit name is an error instead.
+            // A glob name is dropped when another item has the same name in the same namespace.
             let mut survivors = Vec::new();
             for cand in &live {
                 if let Cand::Alias(_, alias) = cand {

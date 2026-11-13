@@ -504,8 +504,7 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
             serde_json::json!({"shellcheck.executablePath": bin("shellcheck")}),
         );
     }
-    // gopls ignores staticcheck.conf (golang/go#36373), so the tier goes in as settings. gopls
-    // has no errcheck analyzer; errcheck only runs under `dx lint`.
+    // gopls ignores staticcheck.conf (golang/go#36373), so the tier goes in as settings.
     let mut go = serde_json::json!({"go.toolsManagement.checkForUpdates": "off"});
     let gopls = if tools.strict {
         GOPLS_STRICT

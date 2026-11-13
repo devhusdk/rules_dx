@@ -136,8 +136,7 @@ impl<R: BufRead> Iterator for EventLines<R> {
             };
             match parsed {
                 Ok(event) => return Some(Ok((line_no, event))),
-                // A garbled line is skipped, not fatal: the first one is kept as the tail so
-                // the caller reports the stream as damaged while keeping every other event.
+                // A garbled line is skipped, not fatal.
                 Err((blank, reason)) => {
                     if !blank && self.tail.is_none() {
                         self.tail = Some((line_no, reason));

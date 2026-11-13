@@ -184,8 +184,7 @@ fn unix_shim(binary: &str, env: &[(String, String)]) -> String {
     for (key, value) in env {
         out.push_str(&format!("{key}={}\nexport {key}\n", quote(value)));
     }
-    // The child PATH is only the shim dir; launchers that start with
-    // `#!/usr/bin/env bash` need the system default search path back.
+    // The child PATH is only the shim dir.
     out.push_str("unset PATH\n");
     out.push_str(&format!("exec {} \"$@\"\n", quote(binary)));
     out
@@ -481,8 +480,7 @@ impl RealBackend {
             env.push((OsString::from("PATH"), dir.into_os_string()));
         }
         if tool_id == "terraform" {
-            // Terraform reads no user CLI config, plugin cache or extra args: the environment
-            // is built from scratch, and the mirror list is the runner's input, not terraform's.
+            // Terraform reads no user CLI config, plugin cache or extra args.
             env.retain(|(key, _)| {
                 let key = key.to_string_lossy();
                 key != TERRAFORM_PLUGIN_DIRS_ENV
@@ -593,8 +591,7 @@ impl RealBackend {
             }
         }
         if tool_id == "zanuda" {
-            // zanuda type checks against the compiler's standard library. The request names it
-            // relative to the execution root, like the binary, so resolve it against the cwd.
+            // zanuda type checks against the compiler's standard library.
             let cwd = std::env::current_dir().unwrap_or_default();
             for (key, value) in &mut env {
                 if key == "OCAMLLIB" && Path::new(value.as_os_str()).is_relative() {

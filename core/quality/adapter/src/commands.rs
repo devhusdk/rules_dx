@@ -60,7 +60,7 @@ const FORTITUDE_CHECK_TAIL: &[&str] = &[
     "--output-format",
     "json",
 ];
-// ffmt has no `--config` flag: it reads `ffmt.toml`, `.ffmt.toml` or `pyproject.toml` from the
+// ffmt has no `--config` flag: it reads `ffmt.toml`, `.ffmt.toml` or the Python project file from the
 // working directory and its parents, so the runner pins the working directory to a staged config.
 // `--no-cache` keeps it from writing a cache, `--no-ignore` stops `.gitignore` files from hiding
 // an explicitly named file, and `--color never` keeps ANSI codes out of the path list.
@@ -1081,7 +1081,7 @@ pub fn gofumpt_fix(binary: &Path, files: &[&Path], lang: &str) -> Invocation {
     gofumpt(binary, GOFUMPT_FIX_ARGS, files, lang)
 }
 
-/// Pins `-lang` so the sandboxed check and the in-place fix never fall back to go.mod discovery.
+/// Pins `-lang` so the sandboxed check and the in-place fix never fall back to Go module file discovery.
 fn gofumpt(binary: &Path, args: &[&str], files: &[&Path], lang: &str) -> Invocation {
     let mut head = vec![
         binary.as_os_str().to_owned(),
@@ -2188,7 +2188,7 @@ pub fn mbake_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     )
 }
 
-/// Always `--pyproject-config <config>`: docstrfmt otherwise searches upward for a `pyproject.toml`.
+/// Always `--pyproject-config <config>`: docstrfmt otherwise searches upward for a Python project file.
 pub fn docstrfmt_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
         binary,

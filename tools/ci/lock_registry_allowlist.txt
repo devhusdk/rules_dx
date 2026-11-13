@@ -1,15 +1,7 @@
-name core/quality/adapter/src/commands.rs go.mod
-name core/quality/adapter/src/commands.rs pyproject.toml
-name core/quality/adapter/src/parsers/modfmt.rs go.mod
-name core/quality/dart_context.bzl pubspec.yaml
-name core/quality/fixtures.bzl go.mod
-name core/quality/tools/python_bundle/bundle.bzl pyproject.toml
 name d/private/toolchain/pins.bzl package.json
 name python/private/sdist_cargo_vendor.bzl Cargo.lock
 name python/private/sdist_cargo_vendor.bzl uv.lock
 name third_party/dotnet/framework.bzl paket.dependencies
-name tools/docs/support_matrix/languages.bzl cabal.project.freeze
-name tools/docs/support_matrix/languages.bzl mix.lock
 name tools/testing/hermetic/maven_pin.rs maven_install.json
 name tools/testing/nested/src/lib.rs maven_install.json
 name tools/testing/nested_bazel.bzl maven_install.json

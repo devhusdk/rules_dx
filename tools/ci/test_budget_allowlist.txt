@@ -202,6 +202,7 @@ cuda/tests/fixtures/coverage/BUILD.bazel no-size 1
 cuda/tests/fixtures/cuda-app/checks/BUILD.bazel no-size 2
 cuda/tests/fixtures/cuda-app/gpu/BUILD.bazel no-size 1
 cuda/tests/fixtures/executable/BUILD.bazel no-size 3
+d/private/coverage/BUILD.bazel no-size 1
 d/tests/fixtures/bench/BUILD.bazel no-size 3
 d/tests/fixtures/cc_interop/BUILD.bazel no-size 1
 d/tests/fixtures/coverage/BUILD.bazel no-size 1
@@ -601,7 +602,6 @@ tools/ci/BUILD.bazel no-size 31
 tools/ci/fill_pins/BUILD.bazel no-size 1
 tools/ci/repos_tests.bzl no-size 1
 tools/coverage/collect/BUILD.bazel no-size 2
-d/private/coverage/BUILD.bazel no-size 1
 tools/docs/elixir/fixture/BUILD.bazel no-size 1
 tools/docs/erlang/fixture/BUILD.bazel no-size 1
 tools/docs/ir/ir/BUILD.bazel no-size 2

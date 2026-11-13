@@ -9,11 +9,12 @@ load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
 load("//rust/private:defs.bzl", "CLANG_CL_LINK_FLAGS", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS")
 
-def rust_wrapper_registry_tests(name):
+def rust_wrapper_registry_tests(name, size):
     """Instantiates Rust wrapper registry tests."""
     dx_wrapper_contract_tests(
         name,
         include_forwarder_checks = True,
+        size = size,
         wrappers = {
             "binary": "//rust/tests/fixtures/hello:hello",
             "library": "//rust/tests/fixtures/hello:hello_lib",

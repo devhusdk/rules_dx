@@ -526,55 +526,17 @@ jobs:
           DX_INVOCATION_ID: ${{ inputs.invocation_id }}
           PLATFORM: ${{ matrix.platform }}
         run: |
-          set -euo pipefail
-          cell="coverage ${PLATFORM}"
-          if [[ -n "$DX_INVOCATION_ID" ]]; then cell="$cell $DX_INVOCATION_ID"; fi
-          dx_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc 2>/dev/null || echo unknown)"
-          events="${RUNNER_TEMP:-/tmp}/dx-reports/coverage/coverage.ndjson"
-          dx_line="$(jq -rR 'fromjson? | select(.event=="error" and .code=="coverage_below_minimum") | .message' "$events" 2>/dev/null | head -n 1 || true)"
-          if [[ -z "$dx_line" ]]; then
-            dx_line="$(jq -rR 'fromjson? | select(.event=="coverage" and .result=="pass" and .minimum!=null) | "coverage \(.covered_lines)/\(.eligible_lines) lines meets minimum \(.minimum)% in cell \(.cell)"' "$events" 2>/dev/null | head -n 1 || true)"
-          fi
-          sources_lines="$(jq -rR 'fromjson? | select(.code=="coverage_sources" or .code=="coverage_sources_incomplete") | "\(.code): \(.message)"' "$events" 2>/dev/null | head -n 200 || true)"
-          if [[ -z "$DX_MIN_CHANGED_LINE_COVERAGE" ]]; then
-            changed_rc="not configured"
-          else
-            changed_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.rc 2>/dev/null || echo "not run")"
-          fi
-          changed_line="$(grep -v -e '^[[:space:]]*$' "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.txt 2>/dev/null | head -n 1 || true)"
-          profile_lines=""
-          for id in build test; do
-            profile_lines+="$(jq -r --arg id "$id" '
-              def clock: (. / 1000000 | floor) as $s | "\($s / 60 | floor)m\($s % 60 | tostring | if length < 2 then "0" + . else . end)s";
-              select(.cache != null and .cache.actions > 0)
-              | "\($id): \(.cache.hit_percent)% cache hits (remote \(.cache.remote_hits * 100 / .cache.actions | floor)%, disk \(.cache.disk_hits * 100 / .cache.actions | floor)%), \(.wall_micros | clock), critical path \(.critical_path_micros | clock)"
-            ' "${RUNNER_TEMP:-/tmp}/dx-reports/$id/profile-$id.json" 2>/dev/null || true)"$'\n'
-          done
-          profile_lines="$(printf '%s' "$profile_lines" | grep -v '^$' || true)"
-          status="PASS"
-          if [[ "$dx_rc" != "0" ]]; then status="FAIL"; fi
-          if [[ "$changed_rc" =~ ^[0-9]+$ && "$changed_rc" != "0" ]]; then status="FAIL"; fi
-          {
-            echo "<!-- dx-coverage-summary: $cell -->"
-            echo "## Coverage summary — $cell — $status"
-            echo ""
-            echo "Analyzed revision: \`${GITHUB_SHA}\` | Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} | Cell: \`$cell\`."
-            echo ""
-            if [[ -n "$dx_line" ]]; then echo "$dx_line"; echo ""; fi
-            if [[ -n "$sources_lines" ]]; then echo '```text'; echo "$sources_lines"; echo '```'; echo ""; fi
-            if [[ -n "$profile_lines" ]]; then echo '```text'; echo "$profile_lines"; echo '```'; echo ""; fi
-            echo "Gate exit: $dx_rc (comment never changes this outcome)."
-            echo ""
-            echo "Changed-line gate exit: $changed_rc"
-            echo ""
-            if [[ -n "$changed_line" ]]; then echo "$changed_line"; echo ""; fi
-            echo "LCOV: Bazel-owned combined report for this cell (see workflow run ${GITHUB_RUN_ID})."
-            echo ""
-            echo "Scope: per-cell exact counts only; no cross-cell union, no averaged percentages, no rounding up. Codecov stays opt-in only, never required."
-            echo ""
-            echo "Findings outside the diff stay in counts only; no invented review locations."
-          } > "${RUNNER_TEMP:-/tmp}"/coverage_comment.md
-          cat "${RUNNER_TEMP:-/tmp}"/coverage_comment.md >> "$GITHUB_STEP_SUMMARY"
+          # shellcheck disable=SC2086
+          bazel run --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/coverage_summary -- \
+            --runner-temp "$RUNNER_TEMP" \
+            --step-summary "$GITHUB_STEP_SUMMARY" \
+            --platform "$PLATFORM" \
+            --invocation-id "$DX_INVOCATION_ID" \
+            --min-changed-line-coverage "$DX_MIN_CHANGED_LINE_COVERAGE" \
+            --sha "$GITHUB_SHA" \
+            --server-url "$GITHUB_SERVER_URL" \
+            --repository "$GITHUB_REPOSITORY" \
+            --run-id "$GITHUB_RUN_ID"
       - name: Publish PR summary comment (dedup marker, fork-safe)
         if: ${{ always() && github.event_name == 'pull_request' }}
         env:

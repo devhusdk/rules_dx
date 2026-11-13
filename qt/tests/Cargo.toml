@@ -11,3 +11,7 @@ path = "consumer_identity_test.rs"
 [[test]]
 name = "qt_test"
 path = "qt_test.rs"
+
+[[test]]
+name = "needs_test"
+path = "needs_test.rs"

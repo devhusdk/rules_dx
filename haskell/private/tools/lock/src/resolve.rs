@@ -239,6 +239,237 @@ pub fn remote_tarballs(plan: &mut Value, fetched: &Fetched) {
     }
 }
 
+/// The file of a set that pins its packages to a stack snapshot.
+pub const STACK_LOCK: &str = "stack.yaml.lock";
+
+/// A Hackage package that a `stack.yaml.lock` or a snapshot names.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StackPackage {
+    /// The package name.
+    pub name: String,
+    /// The package version.
+    pub version: String,
+    /// The sha256 of the `.cabal` file, when the entry pins one.
+    pub cabal_sha256: Option<String>,
+}
+
+/// The pins of a `stack.yaml.lock`.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct StackLock {
+    /// The `(url, sha256)` of each completed snapshot.
+    pub snapshots: Vec<(String, String)>,
+    /// The completed Hackage extra-deps.
+    pub packages: Vec<StackPackage>,
+}
+
+fn stack_hackage(line: &str) -> Option<StackPackage> {
+    let value = line
+        .trim_start()
+        .trim_start_matches('-')
+        .trim_start()
+        .strip_prefix("hackage:")?
+        .trim();
+    let (id, pin) = value.split_once('@').unwrap_or((value, ""));
+    let (name, version) = id.rsplit_once('-')?;
+    if name.is_empty() || !version.starts_with(|c: char| c.is_ascii_digit()) {
+        return None;
+    }
+    let cabal_sha256 = pin
+        .strip_prefix("sha256:")
+        .map(|rest| rest.split(',').next().unwrap_or_default().to_owned());
+    Some(StackPackage {
+        name: name.to_owned(),
+        version: version.to_owned(),
+        cabal_sha256,
+    })
+}
+
+fn flush(url: &mut Option<String>, digest: &mut Option<String>, lock: &mut StackLock) {
+    if let (Some(url), Some(digest)) = (url.take(), digest.take()) {
+        lock.snapshots.push((url, digest));
+    }
+}
+
+fn yaml_value<'a>(line: &'a str, key: &str) -> Option<&'a str> {
+    line.trim_start()
+        .trim_start_matches('-')
+        .trim_start()
+        .strip_prefix(key)?
+        .strip_prefix(':')
+        .map(str::trim)
+}
+
+/// Parses the completed snapshots and Hackage extra-deps of a `stack.yaml.lock`.
+///
+/// # Errors
+/// Fails when a snapshot entry has no https URL, a pin is not a sha256, or the file names no snapshot.
+pub fn stack_lock(text: &str) -> Result<StackLock, Error> {
+    let mut lock = StackLock::default();
+    let mut section = "";
+    let mut completed = false;
+    let mut url: Option<String> = None;
+    let mut digest: Option<String> = None;
+    for line in text.lines() {
+        if line.starts_with('#') || line.trim().is_empty() {
+            continue;
+        }
+        if !line.starts_with([' ', '\t', '-']) {
+            flush(&mut url, &mut digest, &mut lock);
+            section = line.split(':').next().unwrap_or_default();
+            completed = false;
+            continue;
+        }
+        let item = line.trim_start();
+        if item.starts_with('-') && !line.starts_with([' ', '\t']) {
+            flush(&mut url, &mut digest, &mut lock);
+        }
+        let key = item.trim_start_matches('-').trim_start();
+        if key.starts_with("completed:") {
+            completed = true;
+        } else if key.starts_with("original:") {
+            completed = false;
+        }
+        if !completed {
+            continue;
+        }
+        match section {
+            "snapshots" => {
+                if let Some(value) = yaml_value(line, "url") {
+                    url = Some(value.to_owned());
+                } else if let Some(value) = yaml_value(line, "sha256") {
+                    digest = Some(value.to_owned());
+                }
+            }
+            "packages" => lock.packages.extend(stack_hackage(line)),
+            _ => {}
+        }
+    }
+    flush(&mut url, &mut digest, &mut lock);
+    if lock.snapshots.is_empty() {
+        return Err(Error::new(format!(
+            "{STACK_LOCK} names no completed snapshot"
+        )));
+    }
+    for (url, digest) in &lock.snapshots {
+        if !is_url(url) {
+            return Err(Error::new(format!(
+                "{STACK_LOCK}: {url} is not an https URL"
+            )));
+        }
+        if !dx_lock::is_sha256(digest) {
+            return Err(Error::new(format!(
+                "{STACK_LOCK}: {url} has the pin {digest:?}, not a sha256"
+            )));
+        }
+    }
+    for package in &lock.packages {
+        if let Some(pin) = package
+            .cabal_sha256
+            .as_ref()
+            .filter(|pin| !dx_lock::is_sha256(pin))
+        {
+            return Err(Error::new(format!(
+                "{STACK_LOCK}: {}-{} has the pin {pin:?}, not a sha256",
+                package.name, package.version
+            )));
+        }
+    }
+    Ok(lock)
+}
+
+/// Downloads the snapshots of `lock`, checks each against its sha256, and returns the version that the snapshots and extra-deps pin per package.
+///
+/// # Errors
+/// Fails when a download fails or a snapshot does not match its sha256.
+pub fn stack_pins(
+    lock: &StackLock,
+    download: &dyn Fn(&str) -> Result<Vec<u8>, Error>,
+) -> Result<BTreeMap<String, String>, Error> {
+    let mut pins = BTreeMap::new();
+    for (url, digest) in &lock.snapshots {
+        let bytes = download(url).map_err(|error| Error::new(format!("{url}: {error}")))?;
+        let sha256 = dx_digest::sha256_hex(&bytes);
+        if &sha256 != digest {
+            return Err(Error::new(format!(
+                "{url} has the sha256 {sha256}, {STACK_LOCK} has {digest}"
+            )));
+        }
+        for package in String::from_utf8_lossy(&bytes)
+            .lines()
+            .filter_map(stack_hackage)
+        {
+            pins.insert(package.name, package.version);
+        }
+    }
+    for package in &lock.packages {
+        pins.insert(package.name.clone(), package.version.clone());
+    }
+    Ok(pins)
+}
+
+/// Returns a `cabal.project.freeze` that pins every package of `pins`, then the index-state when one is given.
+#[must_use]
+pub fn freeze_text(pins: &BTreeMap<String, String>, state: Option<&str>) -> String {
+    let body = pins
+        .iter()
+        .map(|(name, version)| format!("any.{name} =={version}"))
+        .collect::<Vec<_>>()
+        .join(",\n             ");
+    let mut out = format!("constraints: {body}\n");
+    if let Some(state) = state {
+        out.push_str(&format!("index-state: hackage.haskell.org {state}\n"));
+    }
+    out
+}
+
+/// Returns the name and version of each package of a plan that is not local.
+#[must_use]
+pub fn plan_pins(plan: &Value) -> BTreeMap<String, String> {
+    plan.get("install-plan")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|entry| source(entry) != "local")
+        .map(|entry| {
+            (
+                text(entry, "pkg-name").to_owned(),
+                text(entry, "pkg-version").to_owned(),
+            )
+        })
+        .collect()
+}
+
+/// Checks the `.cabal` sha256 of each extra-dep of `lock` against the plan entry of the same package.
+///
+/// # Errors
+/// Fails when the plan resolves an extra-dep to a `.cabal` file of another sha256.
+pub fn check_stack_pins(plan: &Value, lock: &StackLock) -> Result<(), Error> {
+    let entries = plan
+        .get("install-plan")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|entry| source(entry) == "hackage");
+    for entry in entries {
+        let (name, version) = (text(entry, "pkg-name"), text(entry, "pkg-version"));
+        let Some(pin) = lock
+            .packages
+            .iter()
+            .filter(|package| package.name == name && package.version == version)
+            .find_map(|package| package.cabal_sha256.as_deref())
+        else {
+            continue;
+        };
+        let cabal = text(entry, "pkg-cabal-sha256");
+        if cabal != pin {
+            return Err(Error::new(format!(
+                "{name}-{version} has the .cabal sha256 {cabal}, {STACK_LOCK} has {pin}"
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn text<'a>(entry: &'a Value, key: &str) -> &'a str {
     entry.get(key).and_then(Value::as_str).unwrap_or_default()
 }
@@ -455,7 +686,7 @@ impl Cabal {
 
 impl Resolver for Cabal {
     fn sources(&self) -> Vec<String> {
-        vec!["*.cabal".to_owned()]
+        vec!["*.cabal".to_owned(), STACK_LOCK.to_owned()]
     }
 
     fn resolve(&self, scratch: &Scratch, old: Option<&Lock>) -> Result<Resolution, Error> {
@@ -476,12 +707,33 @@ impl Resolver for Cabal {
         )?;
         std::fs::write(set.join(&hub.manifest), localized)
             .map_err(|error| Error::new(format!("{}: {error}", hub.manifest)))?;
+        let stack = match std::fs::read(set.join(STACK_LOCK)) {
+            Ok(bytes) => Some(stack_lock(&String::from_utf8_lossy(&bytes))?),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => return Err(Error::new(format!("{STACK_LOCK}: {error}"))),
+        };
+        let freeze = set.join(hub.state.as_deref().unwrap_or("cabal.project.freeze"));
+        let write = |text: String| {
+            std::fs::write(&freeze, text)
+                .map_err(|error| Error::new(format!("{}: {error}", freeze.display())))
+        };
         self.run(scratch, &["update", &format!("--index-state={state}")])?;
-        self.run(scratch, &["freeze"])?;
+        if let Some(stack) = &stack {
+            write(freeze_text(
+                &stack_pins(stack, &|url| http.bytes(url))?,
+                None,
+            ))?;
+        } else {
+            self.run(scratch, &["freeze"])?;
+        }
         self.run(scratch, &["build", "--dry-run", "all"])?;
         let mut plan: Value =
             serde_json::from_slice(&read(set.join("dist-newstyle/cache/plan.json"))?)
                 .map_err(|error| Error::new(format!("plan.json: {error}")))?;
+        if let Some(stack) = &stack {
+            check_stack_pins(&plan, stack)?;
+            write(freeze_text(&plan_pins(&plan), Some(&state)))?;
+        }
         remote_tarballs(&mut plan, &fetched);
         let index = cabal_dir(scratch).join("packages/hackage.haskell.org/01-index.tar");
         let file = std::fs::File::open(&index)

@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use cabal_lock::{
-    Revisions, fetch_packages, index_state, packages, remote_packages, remote_tarballs, revisions,
+    Revisions, StackLock, StackPackage, check_stack_pins, fetch_packages, freeze_text, index_state,
+    packages, plan_pins, remote_packages, remote_tarballs, revisions, stack_lock, stack_pins,
 };
 use dx_lock::{Archive, Error, Lock, Package, SCHEMA};
 
@@ -198,4 +199,74 @@ fn only_the_packages_field_is_localized() {
             a.display()
         )
     );
+}
+
+const SNAPSHOT: &[u8] = b"packages:\n- hackage: safe-0.3.21@sha256:aaaa,1\n  pantry-tree:\n    sha256: bbbb\n    size: 2\n- hackage: split-0.2.4@sha256:cccc,3\n";
+
+fn stack_text(snapshot_sha256: &str, cabal_sha256: &str) -> String {
+    format!(
+        "# comment\n\npackages:\n- completed:\n    hackage: split-0.2.5@sha256:{cabal_sha256},2625\n    pantry-tree:\n      sha256: {snapshot_sha256}\n      size: 443\n  original:\n    hackage: split-0.2.5\nsnapshots:\n- completed:\n    sha256: {snapshot_sha256}\n    size: 726103\n    url: https://example.invalid/lts.yaml\n  original: lts-24.15\n"
+    )
+}
+
+#[test]
+fn a_stack_lock_gives_its_snapshot_and_extra_dep_pins() {
+    let digest = dx_digest::sha256_hex(SNAPSHOT);
+    let cabal = dx_digest::sha256_hex(SPLITMIX);
+    let lock = stack_lock(&stack_text(&digest, &cabal)).expect("stack lock");
+    assert_eq!(
+        lock.snapshots,
+        vec![("https://example.invalid/lts.yaml".to_owned(), digest)]
+    );
+    assert_eq!(
+        lock.packages,
+        vec![StackPackage {
+            name: "split".to_owned(),
+            version: "0.2.5".to_owned(),
+            cabal_sha256: Some(cabal),
+        }]
+    );
+    let pins = stack_pins(&lock, &|url| {
+        assert_eq!(url, "https://example.invalid/lts.yaml");
+        Ok(SNAPSHOT.to_vec())
+    })
+    .expect("pins");
+    assert_eq!(
+        freeze_text(&pins, Some("2026-10-01T00:00:00Z")),
+        "constraints: any.safe ==0.3.21,\n             any.split ==0.2.5\nindex-state: hackage.haskell.org 2026-10-01T00:00:00Z\n"
+    );
+}
+
+#[test]
+fn a_snapshot_of_another_sha256_fails() {
+    let lock = stack_lock(&stack_text(&"0".repeat(64), &"1".repeat(64))).expect("stack lock");
+    let error = stack_pins(&lock, &|_| Ok(SNAPSHOT.to_vec())).expect_err("mismatch");
+    assert!(error.to_string().contains("stack.yaml.lock has"), "{error}");
+}
+
+#[test]
+fn a_stack_lock_without_sha256_pins_fails() {
+    let text = stack_text("feed", &"1".repeat(64));
+    assert!(stack_lock(&text).is_err());
+    let text = stack_text(&"0".repeat(64), "abc");
+    assert!(stack_lock(&text).is_err());
+    assert!(stack_lock("packages: []\nsnapshots: []\n").is_err());
+}
+
+#[test]
+fn an_extra_dep_of_another_cabal_sha256_fails() {
+    let plan = plan();
+    let pins = plan_pins(&plan);
+    assert_eq!(pins.get("splitmix").map(String::as_str), Some("0.1.1"));
+    let pinned = |cabal: &str| StackLock {
+        snapshots: Vec::new(),
+        packages: vec![StackPackage {
+            name: "splitmix".to_owned(),
+            version: "0.1.1".to_owned(),
+            cabal_sha256: Some(cabal.to_owned()),
+        }],
+    };
+    check_stack_pins(&plan, &pinned(&dx_digest::sha256_hex(SPLITMIX))).expect("same sha256");
+    let error = check_stack_pins(&plan, &pinned(&"2".repeat(64))).expect_err("mismatch");
+    assert!(error.to_string().contains("splitmix-0.1.1"), "{error}");
 }

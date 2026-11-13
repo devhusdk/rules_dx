@@ -12,6 +12,7 @@ exports_files(
 
 rust_test(
     name = "shard_test",
+    size = "small",
     srcs = ["shard_test.rs"],
     aliases = aliases(
         package_name = "tools/docs/docs_swift_tests",

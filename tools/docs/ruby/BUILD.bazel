@@ -33,6 +33,7 @@ filegroup(
 
 rust_test(
     name = "extract_test",
+    size = "small",
     srcs = ["extract_test.rs"],
     aliases = aliases(
         package_name = "tools/docs/ruby_docs_tests",

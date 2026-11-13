@@ -22,6 +22,7 @@ filegroup(
 
 rust_test(
     name = "java_extract_test",
+    size = "small",
     srcs = ["java_extract_test.rs"],
     aliases = aliases(
         package_name = "tools/docs/jvm_docs_tests",
@@ -61,6 +62,7 @@ rust_test(
 
 rust_test(
     name = "kotlin_extract_test",
+    size = "small",
     srcs = ["kotlin_extract_test.rs"],
     aliases = aliases(
         package_name = "tools/docs/jvm_docs_tests",
@@ -98,6 +100,7 @@ rust_test(
 
 rust_test(
     name = "scala_extract_test",
+    size = "small",
     srcs = ["scala_extract_test.rs"],
     aliases = aliases(
         package_name = "tools/docs/jvm_docs_tests",

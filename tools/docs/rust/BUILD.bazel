@@ -27,6 +27,7 @@ real_docs_shard_files(
 
 rust_test(
     name = "extract_test",
+    size = "small",
     srcs = ["extract_test.rs"],
     aliases = aliases(
         package_name = "tools/docs/docs_rust",

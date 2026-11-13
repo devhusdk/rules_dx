@@ -15,6 +15,7 @@ exports_files(
 
 rust_test(
     name = "extract_test",
+    size = "small",
     srcs = ["extract_test.rs"],
     aliases = aliases(
         package_name = "tools/docs/typescript_docs_tests",
@@ -44,6 +45,7 @@ rust_test(
 
 rust_test(
     name = "isolation_test",
+    size = "small",
     srcs = ["isolation_test.rs"],
     aliases = aliases(
         package_name = "tools/docs/typescript_docs_tests",

@@ -18,6 +18,7 @@ exports_files(
 
 rust_test(
     name = "extract_test",
+    size = "small",
     srcs = ["extract_test.rs"],
     aliases = aliases(
         package_name = "tools/docs/dotnet_docs_tests",
@@ -44,6 +45,7 @@ rust_test(
 
 rust_test(
     name = "fsharp_extract_test",
+    size = "small",
     srcs = ["fsharp_extract_test.rs"],
     aliases = aliases(
         package_name = "tools/docs/dotnet_docs_tests",

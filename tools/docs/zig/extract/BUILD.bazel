@@ -55,6 +55,7 @@ rust_binary(
 
 rust_test(
     name = "dx_docs_zig_extract_test",
+    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",

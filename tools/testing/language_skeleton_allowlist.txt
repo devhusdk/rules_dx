@@ -271,7 +271,6 @@ fixture-referenced zig/tests/fixtures/bench
 fixture-referenced zig/tests/fixtures/calc
 outside-lang core/quality/tools/cc
 outside-lang core/quality/tools/python
-outside-lang d/private/coverage
 platforms-option android/private/library/defs.bzl
 platforms-option apple/private/bundle/cell_tests.bzl
 platforms-option apple/private/ios/defs.bzl
@@ -281,7 +280,6 @@ platforms-option cc/private/toolchain/select.bzl
 platforms-option erlang/private/defs.bzl
 private-names cc/private/context/tests
 private-names cc/private/testdata
-private-names cc/private/toolchain
 private-visibility android/private/library/BUILD.bazel
 private-visibility android/private/packaging/BUILD.bazel
 private-visibility android/private/packaging/ops/BUILD.bazel
@@ -423,6 +421,7 @@ test-location csharp/private/BUILD.bazel
 test-location csharp/private/ide/BUILD.bazel
 test-location csharp/tests/BUILD.bazel
 test-location cuda/private/BUILD.bazel
+test-location d/private/coverage/BUILD.bazel
 test-location dart/private/BUILD.bazel
 test-location env/private/env_shard/BUILD.bazel
 test-location env/private/plan_tests.bzl

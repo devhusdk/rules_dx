@@ -311,8 +311,8 @@ mod sys {
         String::new()
     }
 
-    pub fn start_time(_pid: i32) -> Option<String> {
-        None
+    pub fn start_time(pid: i32) -> Option<String> {
+        crate::procs::start_time(u32::try_from(pid).ok()?)
     }
 
     pub fn own_groups() -> Vec<i32> {

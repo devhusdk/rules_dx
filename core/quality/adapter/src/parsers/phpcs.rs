@@ -76,9 +76,7 @@ pub fn parse_phpcs(
         ));
     }
     match (code, findings.is_empty()) {
-        // A bound ruleset may mask issues from the exit code
-        // (`ignore_warnings_on_exit` and friends), so exit 0 can come with
-        // findings; the totals check above is the consistency guard.
+        // Exit 0 can come with findings; the totals check is the guard.
         (Some(1..=3), true) => Err(ParseError::shape(
             TOOL,
             format!("exit {} with no diagnostics", code_name(code)),

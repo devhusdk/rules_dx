@@ -122,8 +122,7 @@ fn dialyzer(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>,
         .chain(staged("dx-dialyzer/aux/"))
         .filter(|path| path.extension().is_some_and(|ext| ext == "beam"))
         .collect();
-    // A language's own compiler beams (Elixir's) go on the code path, so dialyzer can
-    // read the debug info of that language's beams.
+    // Language compiler beams go on the code path for dialyzer.
     let code_dir = scratch.root().join("dx-dialyzer/pa");
     let code_dirs: Vec<&Path> = if staged("dx-dialyzer/pa/").is_empty() {
         Vec::new()
@@ -506,10 +505,7 @@ fn sorbet(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, R
     let scratch = &call.staged.scratch;
     let (refs, names) = paths(call);
     let strs: Vec<&str> = names.iter().map(String::as_str).collect();
-    // The owned sources and the staged dependency sources go on the command line, so
-    // Sorbet resolves constants across them; only findings in the owned sources are
-    // kept. It reads no config and writes no cache, so nothing outside the scratch
-    // directory is touched.
+    // Owned and staged dependency sources go on the command line; only owned findings are kept.
     let mut deps: Vec<PathBuf> = tool
         .tool_files
         .iter()

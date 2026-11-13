@@ -142,8 +142,7 @@ fn split_known<'a, 'b>(files: &[&'a str], line: &'b str) -> Option<(&'a str, &'b
 fn located(rest: &str) -> (TextPosition, &str, bool) {
     let mut parts = rest.splitn(3, ':');
     if let (Some(line), Some(column), Some(message)) = (parts.next(), parts.next(), parts.next()) {
-        // gersemi reports columns that can lie past the end of the line (and positions at the end
-        // of the file), so only the line is trusted; the column is pinned to the line start.
+        // Only the line is trusted; the column is pinned to the line start.
         if let (Ok(line), Ok(_)) = (line.trim().parse::<u64>(), column.trim().parse::<u64>()) {
             return (TextPosition { line, column: 1 }, message.trim(), true);
         }

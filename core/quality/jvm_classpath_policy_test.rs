@@ -18,8 +18,7 @@ const ALLOWED_FUNCTIONS: &[&str] = &[
     "_indirect_jars",
     "_unused_deps_map",
     "_analyzer",
-    // Compiler and compiler-plugin jars come from toolchain targets, not from
-    // the analyzed target's classpath.
+    // Compiler and plugin jars come from toolchain targets.
     "_kotlinc_check",
     "_scalac_check",
     "scalac_toolchain_jars",

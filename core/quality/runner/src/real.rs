@@ -281,8 +281,7 @@ fn missing_tier_base(tool_id: &str) -> RunnerError {
 
 fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerError> {
     result.map_err(|err| match err {
-        // An incomplete analysis means the tool could not do its job, not that
-        // its output was malformed.
+        // An incomplete analysis is not malformed output.
         ParseError::Incomplete { .. } => execution(tool_id, err.to_string()),
         other => RunnerError::ToolOutput {
             tool_id: tool_id.to_owned(),
@@ -565,8 +564,7 @@ impl RealBackend {
             }
         }
         if tool_id == "pkl_lsp" {
-            // The JVM on Windows reads its profile directories from the environment, which the
-            // hermetic launch leaves empty. Point them at the scratch home the server writes to.
+            // Point the JVM profile directories at the scratch home.
             let home = scratch.root().join(PKL_LSP_HOME_REL);
             for name in ["USERPROFILE", "APPDATA", "LOCALAPPDATA"] {
                 env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
@@ -606,8 +604,7 @@ impl RealBackend {
             env.push((OsString::from("PYTHONUTF8"), OsString::from("1")));
         }
         if tool_id == "mbake" {
-            // rich and typer emit ANSI codes unless told otherwise, and rich wraps a long line
-            // at 80 columns when stdout is not a terminal, which splits a path from its message.
+            // Disable ANSI codes and line wrapping so paths stay with their messages.
             env.push((OsString::from("NO_COLOR"), OsString::from("1")));
             env.push((OsString::from("TERM"), OsString::from("dumb")));
             env.push((OsString::from("COLUMNS"), OsString::from("100000")));

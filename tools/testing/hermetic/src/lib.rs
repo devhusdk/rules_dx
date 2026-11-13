@@ -2308,8 +2308,7 @@ pub fn materialize(
             copy(src, &workspace.join(dest))?;
         }
     }
-    // A second init reads the fixture's dx.toml and sources and merges its block into the root BUILD.
-    // The composed MODULE.bazel stays: init would add family dependencies the registry does not have.
+    // The composed MODULE.bazel stays.
     let module_path = workspace.join("MODULE.bazel");
     let module = std::fs::read_to_string(&module_path)
         .map_err(|err| format!("cannot read {}: {err}", module_path.display()))?;
@@ -2820,8 +2819,7 @@ fn run_all(
         &ambient,
     )?;
     if cfg!(windows) {
-        // An AppContainer relocates every image, and bazelisk's Windows release has its
-        // relocations stripped, so resolve Bazel here and run that inside instead.
+        // Resolve Bazel here and run that inside.
         let printed = capture({
             let mut command = Command::new(&session.bazelisk);
             command

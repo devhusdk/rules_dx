@@ -94,7 +94,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Fortran | `fortitude`, `typos` | `ffmt` | `flang` | `ford` | `fortitude C191 unreachable-statement` |
 | F# | `fsharplint`, `typos` | `fantomas` | `fsc` | `fsharp doc driver` | `fsc FS1182 (--warnon:1182)` |
 | Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `staticcheck U1000` |
-| Haskell | `hlint`, `typos`, `weeder` (not on `windows_x86_64`: weeder.exe crashes with an access violation (#9971); `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist) | `ormolu` | `ghc` | `haddock` | `ghc -Wunused-local-binds, -Wunused-matches (-Wall)` |
+| Haskell | `hlint`, `typos`, `weeder` (not on `windows_x86_64`: weeder.exe crashes with an access violation; `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist) | `ormolu` | `ghc` | `haddock` | `ghc -Wunused-local-binds, -Wunused-matches (-Wall)` |
 | Java | `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter` |
 | JavaScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `eslint no-unused-vars` |
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | `documenter` | none |

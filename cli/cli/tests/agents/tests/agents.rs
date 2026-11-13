@@ -508,8 +508,7 @@ fn hooks_fall_back_to_the_bazel_run_working_directory() {
     assert_eq!(created.stdout.lines().count(), 1, "{}", created.stdout);
     let path = PathBuf::from(created.stdout.trim());
     assert!(path.join(".git").exists(), "{path:?}");
-    // The slot must belong to the scratch repo, not the rules_dx checkout that
-    // the execroot's `.git` and `MODULE.bazel` expose to this test.
+    // The slot belongs to the scratch repo.
     assert!(
         path.starts_with(env.home.join(".cache/dx/worktrees/app")),
         "{path:?}"

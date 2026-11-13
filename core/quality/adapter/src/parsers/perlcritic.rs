@@ -59,8 +59,7 @@ fn violation(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
         line: number(line_text)?,
         column: number(column_text)?,
     };
-    // Severity 5 is the only level dx asks for, but 1 to 5 all parse so a flag change cannot
-    // turn into a parse failure.
+    // Severities 1 to 5 all parse.
     let severity = match *severity_text {
         "5" | "4" => ToolSeverity::Error,
         "3" | "2" | "1" => ToolSeverity::Warning,

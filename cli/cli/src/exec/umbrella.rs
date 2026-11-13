@@ -1079,8 +1079,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                     && quality_applied
                     && !rerun_planned
                 {
-                    // A compile error may need a dep that generate adds, so
-                    // skip only the phases after this one and rerun generate.
+                    // Skip the later phases and rerun generate.
                     rerun_planned = true;
                     collector.skip_remaining(skip_cause.clone());
                     phases.push((Command::Generate, RERUN_GENERATE));

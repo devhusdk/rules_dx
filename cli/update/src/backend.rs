@@ -766,8 +766,6 @@ fn nuget_staged(
             set: set.name.clone(),
         });
     }
-    // The run needs no rules_dx diagnostics settings, and a consumer without rules_dx
-    // cannot resolve them.
     let pin_head = dx_process::BazelHead {
         settings: Vec::new(),
         ..head.clone()

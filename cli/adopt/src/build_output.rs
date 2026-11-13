@@ -43,8 +43,7 @@ pub const IGNORE_LINES: [&str; 10] = [
     "/build/",
     "/.dx/bazelrc/",
     "/.dx/local/",
-    // rules_rust 0.75.0 discover writes last_warnings.log here (WARNINGS_LOG_REL in
-    // tools/rust_analyzer/lib.rs); keep while dx wires the rules_rust discover binary.
+    // rules_rust discover writes last_warnings.log here.
     "/.vscode/.rules_rust_analyzer/",
 ];
 

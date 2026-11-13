@@ -90,8 +90,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let pairs = &call.staged.pairs;
             let resolve_pairs = &call.staged.resolve_pairs;
             {
-                // ty cannot read notebooks, so each one is checked as a script of its code
-                // cells written beside the staged copy; findings map back to notebook cells.
+                // Each notebook is checked as a script of its code cells.
                 let notebooks = RealBackend::read_notebooks(tool_id, pairs)?;
                 let mut scripts: Vec<(String, String, quality_notebook::PythonScript)> = Vec::new();
                 let mut checked_pairs: Vec<(String, PathBuf)> = Vec::new();

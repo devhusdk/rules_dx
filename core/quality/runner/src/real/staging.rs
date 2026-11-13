@@ -200,8 +200,7 @@ impl RealBackend {
         }
         if tool_id == "selene" && !user_ships_selene_std(tool, staged.iter().chain(mirrors.iter()))
         {
-            // selene checks the cwd (the scratch root) before the config directory, so a
-            // user config can say `std = "lua53+lua54"` without shipping the file.
+            // selene reads the cwd config first.
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(SELENE_STD_FILE),
                 contents: MirrorContents::Bytes(SELENE_STD_BYTES.to_vec()),

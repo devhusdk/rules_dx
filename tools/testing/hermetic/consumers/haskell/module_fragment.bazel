@@ -6,6 +6,6 @@ use_repo(haskell, "dx_haskell_toolchains")
 cabal = use_extension("@my_dx//haskell:extensions.bzl", "cabal")
 cabal.lock(
     name = "haskell_app_hackage",
-    lock = "//haskell/tests/fixtures/haskell_app/stock:haskell_deps.json",
+    lock = "//haskell/tests/fixtures/haskell_app/stock:cabal.lock.json",
 )
 use_repo(cabal, "haskell_app_hackage")

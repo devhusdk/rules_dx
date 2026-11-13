@@ -216,7 +216,7 @@ pub enum DependencySetsError {
         detail: String,
     },
     #[error(
-        "dependency set {name:?} has a stale {lock}: {detail}; run the haskell_deps_resolve target next to the manifest"
+        "dependency set {name:?} has a stale {lock}: {detail}; run the cabal lock step"
     )]
     StaleCabalLock {
         name: String,

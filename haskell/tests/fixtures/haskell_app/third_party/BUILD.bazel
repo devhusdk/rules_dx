@@ -1,4 +1,3 @@
-load("//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
@@ -8,17 +7,7 @@ _PROJECT = [
     "third_party.cabal",
 ]
 
-exports_files(_PROJECT + ["haskell_deps.json"])
-
-haskell_deps_resolve(
-    name = "resolve",
-    srcs = _PROJECT,
-)
-
-haskell_deps_resolve_test(
-    name = "resolve_test",
-    srcs = _PROJECT,
-)
+exports_files(_PROJECT + ["cabal.lock.json"])
 
 real_source_target(
     name = "corpus_starlark",

@@ -1467,9 +1467,7 @@ LANGS = json.decode("""{
       "haskell_library",
       "haskell_binary",
       "haskell_test",
-      "haskell_bench",
-      "haskell_deps_resolve",
-      "haskell_deps_resolve_test"
+      "haskell_bench"
     ],
     "family": "core",
     "lockfiles": [
@@ -1524,9 +1522,9 @@ LANGS = json.decode("""{
           "extension": "@rules_dx//haskell:extensions.bzl",
           "hub": "hackage",
           "imports": "name",
-          "lock": "haskell_deps.json",
+          "lock": "cabal.lock.json",
           "manifest": "cabal.project",
-          "resolver": null,
+          "resolver": "@rules_dx//haskell/private/tools/lock",
           "state": "cabal.project.freeze",
           "tag": "lock"
         }

@@ -8,23 +8,15 @@ the toolchain, so there is no setup in `MODULE.bazel`.
 
 ### Resolving Hackage dependencies
 
-The toolchain pins cabal-install 3.18.2.0 next to GHC. `haskell_deps_resolve` (`bazel run`) runs it for a directory with a `.cabal` file and a `cabal.project` that sets `index-state:`. It writes `cabal.project.freeze` and `haskell_deps.json`, which lists each package with its version, sdist sha256, `.cabal` revision and sha256, components and dependencies. A public sublibrary of another package is recorded as `lib:<sub>` and depended on as `<pkg>:<sub>`, which the hub builds as `<pkg>-lib-<sub>`. Resolving needs network access to Hackage. `haskell_deps_resolve_test` reads the committed files only and fails when either is stale. With `stack_lock = "stack.yaml.lock"` (listed in `srcs`), `haskell_deps_resolve` pins every version named by the lock's sha256-checked snapshot and extra-deps, and writes the same two files; `dx security`, `dx license` and `dx update` read the resulting `cabal.project.freeze`. It does not run `stack`; `dx update` of a set whose only lock is `stack.yaml.lock` reports that the lock must be resolved first.
-
-```starlark
-load("@rules_dx//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
-
-haskell_deps_resolve(name = "resolve", srcs = ["cabal.project", "app.cabal"])
-
-haskell_deps_resolve_test(name = "resolve_test", srcs = ["cabal.project", "app.cabal"])
-```
-
-The resolve runs on Linux and macOS. It uses the host `cc` where the pinned GHC names none.
+The toolchain pins cabal-install 3.18.2.0 next to GHC.
+`bazel run @rules_dx//haskell/private/tools/lock -- --dir <set directory>`
+runs it for a directory with `.cabal` files and a `cabal.project` that sets `index-state:`. It writes `cabal.project.freeze` and `cabal.lock.json`, which lists each package with its version, sdist sha256, `.cabal` revision and sha256, components and dependencies. A public sublibrary of another package is recorded as `lib:<sub>` and depended on as `<pkg>:<sub>`, which the hub builds as `<pkg>-lib-<sub>`. Resolving needs network access to Hackage. `dx update` and `dx update --check` run the same step. `dx security`, `dx license` and `dx update` read `cabal.project.freeze`. `stack.yaml.lock` is not resolved; `dx update` of a set whose only lock is `stack.yaml.lock` reports that the lock must be resolved first.
 
 ### Building Hackage packages
 
-With `haskell_deps.json` beside the root `cabal.project`, `dx generate --apply` adds the `cabal.lock` stanza for the `@hackage` hub to `MODULE.bazel`.
+With `cabal.lock.json` beside the root `cabal.project`, `dx generate --apply` adds the `cabal.lock` stanza for the `@hackage` hub to `MODULE.bazel`.
 
-Each Hackage package becomes one repository fetched from its sdist with the sidecar sha256 and the pinned `.cabal` revision, built with `haskell_cabal_library` and `haskell_cabal_binary`. Nothing is resolved at fetch time. The hub has `@hackage//:<package>` for libraries and `@hackage//:<package>-exe-<name>` for executables. Haddock is off for these packages.
+Each Hackage package becomes one repository fetched from its sdist with the lock sha256 and the pinned `.cabal` revision, built with `haskell_cabal_library` and `haskell_cabal_binary`. Nothing is resolved at fetch time. The hub has `@hackage//:<package>` for libraries and `@hackage//:<package>-exe-<name>` for executables. Haddock is off for these packages.
 
 ## Quality
 

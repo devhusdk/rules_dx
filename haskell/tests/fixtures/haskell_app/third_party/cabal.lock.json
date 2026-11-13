@@ -1,0 +1,65 @@
+{
+  "ecosystem": "cabal",
+  "inputs": {
+    "cabal.project": "2068c625626934a1f9c50734b3465c9409fe3ecbd23ed86f98cda179b6e191de",
+    "cabal.project.freeze": "51f26080efb325c2984257ed77fce91406fe7e6fbdf28d7c3d8cfe634651f1ed",
+    "third_party.cabal": "076007290b31e4dd60c7d726a27d3bfed1f0fc92c66335b1f7a4b9aa682901dd"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "2c81fea42bbe79ec488774043c1ec54f30efba059df9a4f3681ce83d85007f01",
+          "strip_prefix": "safe-0.3.21",
+          "urls": [
+            "https://hackage.haskell.org/package/safe-0.3.21/safe-0.3.21.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "base"
+        ],
+        "cabal_revision": {
+          "number": 1,
+          "sha256": "b928ea1645876788155b38ce85c7e46d157a1bb41d2b05f5770b13d60bc6a3f7"
+        }
+      },
+      "name": "safe",
+      "provides": [],
+      "version": "0.3.21"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "52da404e8397c1ab238354c8d4fd9a7e9c5cac8849cc2ce2e45facc85e74a913",
+          "strip_prefix": "split-0.2.5",
+          "urls": [
+            "https://hackage.haskell.org/package/split-0.2.5/split-0.2.5.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "base"
+        ],
+        "cabal_revision": {
+          "number": 0,
+          "sha256": "5bc1ae848bfded3087ea3e568908f1b75f56ecde6f02df3fad1a138dd5c783d5"
+        }
+      },
+      "name": "split",
+      "provides": [],
+      "version": "0.2.5"
+    }
+  ],
+  "schema": 1
+}

@@ -171,7 +171,7 @@ impl AddRequest {
             }),
             UpdateSet::Cabal => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
-                hint: "edit the .cabal file and run the haskell_deps_resolve target",
+                hint: "edit the .cabal file and run the cabal lock step",
             }),
             UpdateSet::Opam => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),

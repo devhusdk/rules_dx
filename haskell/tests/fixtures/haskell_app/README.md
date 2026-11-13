@@ -28,12 +28,12 @@ bazel test //haskell/tests/fixtures/haskell_app/... --//haskell/tests/fixtures/h
 
 ## The pinned dependency
 
-`split` 0.2.5 comes from Hackage. `third_party/haskell_deps.json` pins its
+`split` 0.2.5 comes from Hackage. `third_party/cabal.lock.json` pins its
 hash and `.cabal` revision, and the `cabal.lock` tag in the root
 `MODULE.bazel` turns that file into the `@haskell_app_hackage` hub, which
 builds each package with `haskell_cabal_library`. Its license is
 BSD-3-Clause. Refresh the pin with
-`bazel run //haskell/tests/fixtures/haskell_app/third_party:resolve`.
+`bazel run //haskell/private/tools/lock -- --dir haskell/tests/fixtures/haskell_app/third_party`.
 
 `//haskell/tests/fixtures/haskell_app/cli:report_without_split` imports `Data.List.Split`
 without declaring the dependency. It is tagged `manual`, and building it fails

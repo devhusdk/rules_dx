@@ -396,8 +396,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//go:defs.bzl` | `go_bench` |
 |  |  | `@rules_dx//go:defs.bzl` | `go_fuzz_test` |
 |  |  | `@rules_dx//haskell:defs.bzl` | `haskell_bench` |
-|  |  | `@rules_dx//haskell:defs.bzl` | `haskell_deps_resolve` |
-|  |  | `@rules_dx//haskell:defs.bzl` | `haskell_deps_resolve_test` |
 |  |  | `@rules_dx//helm:defs.bzl` | `helm_library` |
 |  |  | `@rules_dx//java:defs.bzl` | `java_bench` |
 |  |  | `@rules_dx//java:defs.bzl` | `java_fuzz_test` |

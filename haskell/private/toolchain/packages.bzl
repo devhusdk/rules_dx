@@ -1,62 +1,56 @@
-"""Hackage packages from the resolved sidecar: one repository each and a hub of aliases."""
+"""Hackage packages from a cabal.lock.json: one repository each and a hub of aliases."""
 
+load("//core:pins.bzl", "lock_problems")
 load("//core:repo.bzl", "hub_repo")
 
 _DEFS = str(Label("//haskell/private:defs.bzl"))
 
 _TOOLCHAINS = "@dx_haskell_toolchains//lib"
 
-def hackage_url(package):
-    """Returns the sdist URL of a sidecar package."""
-    name = "{}-{}".format(package["name"], package["version"])
-    return "https://hackage.haskell.org/package/{}/{}.tar.gz".format(name, name)
-
 def cabal_url(package):
-    """Returns the URL of the pinned .cabal revision of a sidecar package."""
+    """Returns the URL of the pinned .cabal revision of a lock package."""
     return "https://hackage.haskell.org/package/{}-{}/revision/{}.cabal".format(
         package["name"],
         package["version"],
-        package["cabal_revision"],
+        package["extra"]["cabal_revision"]["number"],
     )
 
 def repo_name(hub, package):
     """Returns the repository name of one package."""
     return "{}_{}".format(hub, package)
 
-def fetched_packages(sidecar):
-    """Returns the packages of a parsed sidecar that are fetched as sdists (Hackage or a tarball URL) by name."""
-    return {
-        package["name"]: package
-        for package in sidecar["packages"]
-        if package["source"] in ("hackage", "url")
-    }
-
-def sdist_url(package):
-    """Returns the sdist URL of a fetched sidecar package."""
-    return package["url"] if package["source"] == "url" else hackage_url(package)
-
 def has_revision(package):
-    """Returns whether a fetched package carries a pinned cabal revision above 0."""
-    return package["source"] == "hackage" and package["cabal_revision"] > 0
+    """Returns whether a lock package carries a pinned cabal revision above 0."""
+    return package.get("extra", {}).get("cabal_revision", {}).get("number", 0) > 0
 
 def is_sha256(value):
     """Returns whether a value is 64 lowercase hex characters."""
     return len(value) == 64 and not value.lstrip("0123456789abcdef")
 
-def pin_problems(sidecar):
-    """Returns one message per fetched package whose sdist or cabal revision digest is not a sha256."""
-    problems = []
-    for name, package in sorted(fetched_packages(sidecar).items()):
-        fields = ["sdist_sha256"] + (["cabal_sha256"] if has_revision(package) else [])
-        for field in fields:
-            value = package.get(field, "")
+def pin_problems(lock):
+    """Returns one message per lock package without one sdist archive or whose cabal revision digest is not a sha256."""
+    problems = lock_problems(lock)
+    for package in lock.get("packages", []):
+        name = package.get("name", "")
+        if len(package.get("archives", [])) != 1:
+            problems.append("package {} has {} archives, expected 1".format(name, len(package.get("archives", []))))
+        if has_revision(package):
+            value = package["extra"]["cabal_revision"].get("sha256", "")
             if type(value) != "string" or not is_sha256(value):
-                problems.append("package {} has {} {}, expected 64 lowercase hex characters".format(name, field, repr(value)))
+                problems.append("package {} has cabal revision sha256 {}, expected 64 lowercase hex characters".format(name, repr(value)))
     return problems
+
+def by_name(lock):
+    """Returns the packages of a lock by name."""
+    return {package["name"]: package for package in lock["packages"]}
+
+def components(package):
+    """Returns the cabal components of a lock package."""
+    return package.get("extra", {}).get("cabal_components", [])
 
 def executables(package):
     """Returns the executable names of a package."""
-    return [component[len("exe:"):] for component in package["components"] if component.startswith("exe:")]
+    return [component[len("exe:"):] for component in components(package) if component.startswith("exe:")]
 
 def sublibrary_target(package, sublibrary):
     """Returns the target name of one public sublibrary of a package."""
@@ -64,25 +58,20 @@ def sublibrary_target(package, sublibrary):
 
 def sublibraries(package):
     """Returns the sublibrary names of a package."""
-    return [component[len("lib:"):] for component in package["components"] if component.startswith("lib:")]
+    return [component[len("lib:"):] for component in components(package) if component.startswith("lib:")]
 
-def dependency_label(hub, sidecar, name):
-    """Returns the label a package dependency points at, or None for local packages."""
+def dependency_label(hub, names, name):
+    """Returns the label a package dependency points at: a lock package, else a GHC boot package."""
     name, _, sublibrary = name.partition(":")
-    for package in sidecar["packages"]:
-        if package["name"] != name:
-            continue
-        if package["source"] == "ghc":
-            return "{}:{}".format(_TOOLCHAINS, name)
-        if package["source"] in ("hackage", "url"):
-            target = sublibrary_target(name, sublibrary) if sublibrary else name
-            return "@{}//:{}".format(repo_name(hub, name), target)
-    return None
+    if name in names:
+        target = sublibrary_target(name, sublibrary) if sublibrary else name
+        return "@{}//:{}".format(repo_name(hub, name), target)
+    return "{}:{}".format(_TOOLCHAINS, name)
 
 def tool_labels(hub, package):
     """Returns the executable labels of the build-tool-depends of a package."""
     labels = []
-    for tool in package.get("tools", []):
+    for tool in package.get("extra", {}).get("cabal_tools", []):
         name, _, exe = tool.partition(":")
         labels.append("@{}//:{}-exe-{}".format(repo_name(hub, name), name, exe))
     return sorted(labels)
@@ -175,9 +164,10 @@ def _target(kind, name, attrs, deps, tools):
 def _cabal_args(library):
     return ['cabal_args = ":empty_library"'] if library.get("empty") else []
 
-def package_deps(hub, sidecar, package):
+def package_deps(hub, lock, package):
     """Returns the dependency labels of one package."""
-    return sorted([dep for dep in [dependency_label(hub, sidecar, dep) for dep in package["dependencies"]] if dep])
+    names = by_name(lock)
+    return sorted([dependency_label(hub, names, dep) for dep in package.get("extra", {}).get("cabal_deps", [])])
 
 def package_build(name, version, components, deps, tools, libraries):
     """Returns the BUILD file of one package repository.
@@ -185,7 +175,7 @@ def package_build(name, version, components, deps, tools, libraries):
     Args:
         name: The package name.
         version: The package version.
-        components: The components of the package in the lock.
+        components: The cabal components of the package in the lock.
         deps: The dependency labels of the package.
         tools: The build tool labels of the package.
         libraries: The library stanzas of the .cabal file, as returned by cabal_libraries.
@@ -211,17 +201,17 @@ def package_build(name, version, components, deps, tools, libraries):
     if has_lib:
         lib_deps = deps + [":" + sublibrary_target(name, sibling) for sibling in libraries.get("", {}).get("deps", [])]
         lines.append(_target("haskell_cabal_library", name, common + _cabal_args(libraries.get("", {})), lib_deps, tools))
-    for exe in executables({"components": components}):
+    for exe in executables({"extra": {"cabal_components": components}}):
         exe_deps = deps + ([":" + name] if has_lib else []) + [":" + sublibrary_target(name, sub) for sub in sublibs]
         lines.append(_target("haskell_cabal_binary", "{}-exe-{}".format(name, exe), ['exe_name = "{}"'.format(exe)], exe_deps, tools))
     return "\n".join(lines)
 
-def hub_build(hub, sidecar):
+def hub_build(hub, lock):
     """Returns the hub BUILD file with one alias per package and per executable."""
     lines = ['package(default_visibility = ["//visibility:public"])', ""]
-    for name, package in sorted(fetched_packages(sidecar).items()):
+    for name, package in sorted(by_name(lock).items()):
         repo = repo_name(hub, name)
-        if "lib" in package["components"]:
+        if "lib" in components(package):
             lines.append('alias(name = "{name}", actual = "@{repo}//:{name}")\n'.format(name = name, repo = repo))
         for sub in sublibraries(package):
             target = sublibrary_target(name, sub)
@@ -239,9 +229,9 @@ def _hackage_package_impl(rctx):
         if not is_sha256(value):
             fail("package {} has {} {}, expected 64 lowercase hex characters".format(rctx.attr.package, field, repr(value)))
     rctx.download_and_extract(
-        url = [rctx.attr.url],
+        url = rctx.attr.urls,
         sha256 = rctx.attr.sha256,
-        stripPrefix = "{}-{}".format(rctx.attr.package, rctx.attr.version),
+        stripPrefix = rctx.attr.strip_prefix,
     )
     if rctx.attr.cabal_url:
         rctx.download(
@@ -264,8 +254,9 @@ hackage_package = repository_rule(
         "deps": attr.string_list(doc = "Dependency labels of the package."),
         "package": attr.string(mandatory = True, doc = "Package name."),
         "sha256": attr.string(mandatory = True, doc = "Digest of the sdist."),
+        "strip_prefix": attr.string(doc = "Directory prefix stripped from the sdist."),
         "tools": attr.string_list(doc = "Build tool labels of the package."),
-        "url": attr.string(mandatory = True, doc = "Sdist URL."),
+        "urls": attr.string_list(mandatory = True, doc = "Sdist URLs."),
         "version": attr.string(mandatory = True, doc = "Package version."),
     },
 )
@@ -275,32 +266,32 @@ def declare_packages(mctx, tag):
 
     Args:
         mctx: The module extension context.
-        tag: The packages tag with name and deps.
+        tag: The lock tag with name and lock.
 
     Returns:
         The names of the repositories created.
     """
-    sidecar = json.decode(mctx.read(tag.lock))
-    if sidecar.get("version") != 1:
-        fail("{} has sidecar version {}, expected 1".format(tag.lock, sidecar.get("version")))
-    problems = pin_problems(sidecar)
+    lock = json.decode(mctx.read(tag.lock))
+    problems = pin_problems(lock)
     if problems:
         fail("{}: {}".format(tag.lock, "; ".join(problems)))
     created = [tag.name]
-    for name, package in sorted(fetched_packages(sidecar).items()):
+    for name, package in sorted(by_name(lock).items()):
+        archive = package["archives"][0]
         revised = has_revision(package)
         hackage_package(
             name = repo_name(tag.name, name),
-            components = package["components"],
-            deps = package_deps(tag.name, sidecar, package),
-            cabal_sha256 = package["cabal_sha256"] if revised else "",
+            components = components(package),
+            deps = package_deps(tag.name, lock, package),
+            cabal_sha256 = package["extra"]["cabal_revision"]["sha256"] if revised else "",
             cabal_url = cabal_url(package) if revised else "",
             package = name,
-            sha256 = package["sdist_sha256"],
+            sha256 = archive["sha256"],
+            strip_prefix = archive.get("strip_prefix", ""),
             tools = tool_labels(tag.name, package),
-            url = sdist_url(package),
+            urls = archive["urls"],
             version = package["version"],
         )
         created.append(repo_name(tag.name, name))
-    hub_repo(name = tag.name, files = {"BUILD.bazel": hub_build(tag.name, sidecar)})
+    hub_repo(name = tag.name, files = {"BUILD.bazel": hub_build(tag.name, lock)})
     return created

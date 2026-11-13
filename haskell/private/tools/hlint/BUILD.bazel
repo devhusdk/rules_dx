@@ -1,23 +1,11 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
 
 package(default_visibility = ["//visibility:public"])
 
 _PROJECT = ["cabal.project"]
 
-exports_files(_PROJECT + ["haskell_deps.json"])
-
-haskell_deps_resolve(
-    name = "resolve",
-    srcs = _PROJECT,
-    target = "exe:hlint",
-)
-
-haskell_deps_resolve_test(
-    name = "resolve_test",
-    srcs = _PROJECT,
-)
+exports_files(_PROJECT + ["cabal.lock.json"])
 
 build_test(
     name = "hlint_build_test",

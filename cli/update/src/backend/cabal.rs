@@ -1,5 +1,22 @@
 use super::*;
 
+const RESOLVER: &str = "@rules_dx//haskell/private/tools/lock";
+
+fn resolver_argv(
+    workspace: &Path,
+    set: &ResolvedSet,
+    head: &dx_process::BazelHead,
+    check: bool,
+) -> Vec<String> {
+    let dir = workspace.join(&set.dir);
+    let dir = dir.to_string_lossy();
+    let mut args = vec![RESOLVER, "--", "--dir", &dir];
+    if check {
+        args.push("--check");
+    }
+    bazel(head, "run", &args)
+}
+
 pub(super) fn plan(
     workspace: &Path,
     set: &ResolvedSet,
@@ -21,22 +38,14 @@ pub(super) fn plan(
                     set: set.name.clone(),
                 });
             }
-            let Some(resolve) =
-                dependency_sets::julia_target_label(workspace, set, "haskell_deps_resolve")
-            else {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: "add a haskell_deps_resolve next to the manifest; it keeps the freeze file and the lock JSON in step",
-                });
-            };
             Ok(BackendPlan::Run {
-                argv: bazel(head, "run", &[resolve.as_str()]),
+                argv: resolver_argv(workspace, set, head, false),
                 env: Vec::new(),
             })
         }
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "haskell_deps_resolve resolves the whole cabal project again; select the set without a package",
+            reason: "the cabal lock step resolves the whole cabal project again; select the set without a package",
         }),
     }
 }
@@ -56,22 +65,14 @@ pub(super) fn check(
                     set: set.name.clone(),
                 });
             }
-            let Some(test) =
-                dependency_sets::julia_target_label(workspace, set, "haskell_deps_resolve_test")
-            else {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: "add a haskell_deps_resolve_test next to the manifest; dx checks the set by running it",
-                });
-            };
             Ok(CheckPlan::Run {
-                argv: bazel(head, "test", &[test.as_str()]),
+                argv: resolver_argv(workspace, set, head, true),
                 env: Vec::new(),
             })
         }
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "haskell_deps_resolve_test checks the whole cabal project; select the set without a package",
+            reason: "the cabal lock step checks the whole cabal project; select the set without a package",
         }),
     }
 }

@@ -2401,11 +2401,11 @@ fn consumer_cpan_refusals_launch_nothing() {
     assert_eq!(cpan_bytes(&harness), before);
 }
 
-const CABAL_MODULE: &str = "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
+const CABAL_MODULE: &str = "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//hs:cabal.lock.json\")\n";
 const CABAL_FILES: [&str; 4] = [
     "hs/cabal.project",
     "hs/cabal.project.freeze",
-    "hs/haskell_deps.json",
+    "hs/cabal.lock.json",
     "hs/app.cabal",
 ];
 
@@ -2417,16 +2417,12 @@ fn cabal_harness(name: &str) -> Harness {
         "constraints: any.base ==4.20.2.0,\n             any.safe ==0.3.21\nindex-state: hackage.haskell.org 2026-09-30T23:43:34Z\n",
     );
     harness.write_source(
-        "hs/haskell_deps.json",
+        "hs/cabal.lock.json",
         "{\"packages\":[{\"name\":\"base\",\"version\":\"4.20.2.0\"},{\"name\":\"safe\",\"version\":\"0.3.21\"}]}\n",
     );
     harness.write_source(
         "hs/app.cabal",
         "cabal-version: 3.0\nname: app\nversion: 0.1.0.0\nbuild-type: Simple\n\nlibrary\n  build-depends: base, safe ==0.3.21\n",
-    );
-    harness.write_source(
-        "hs/BUILD.bazel",
-        "haskell_deps_resolve(name = \"resolve\")\nhaskell_deps_resolve_test(name = \"resolve_test\")\n",
     );
     harness
 }
@@ -2439,7 +2435,7 @@ fn cabal_bytes(harness: &Harness) -> Vec<Vec<u8>> {
 }
 
 #[test]
-fn consumer_cabal_check_runs_the_resolve_test() {
+fn consumer_cabal_check_runs_the_lock_step_in_check_mode() {
     let harness = cabal_harness("cabal-check");
     let before = cabal_bytes(&harness);
     let runner = ScriptRunner::new(&[]);
@@ -2449,13 +2445,13 @@ fn consumer_cabal_check_runs_the_resolve_test() {
     assert_eq!(launches.len(), 1, "{launches:?}");
     assert_eq!(
         launches[0].argv.last().map(String::as_str),
-        Some("//hs:resolve_test")
+        Some("--check")
     );
     assert_eq!(cabal_bytes(&harness), before);
 }
 
 #[test]
-fn consumer_cabal_apply_runs_the_resolve_target() {
+fn consumer_cabal_apply_runs_the_lock_step() {
     let harness = cabal_harness("cabal-apply");
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(&["update", "--apply", "hackage"], &runner, &harness);
@@ -2463,8 +2459,8 @@ fn consumer_cabal_apply_runs_the_resolve_target() {
     let launches = runner.launches.borrow();
     assert_eq!(launches.len(), 1, "{launches:?}");
     assert_eq!(
-        launches[0].argv.last().map(String::as_str),
-        Some("//hs:resolve")
+        launches[0].argv.iter().nth_back(3).map(String::as_str),
+        Some("@rules_dx//haskell/private/tools/lock")
     );
 }
 
@@ -2483,8 +2479,8 @@ fn consumer_cabal_apply_package_rewrites_the_bound_then_resolves() {
     let launches = runner.launches.borrow();
     assert_eq!(launches.len(), 1, "{launches:?}");
     assert_eq!(
-        launches[0].argv.last().map(String::as_str),
-        Some("//hs:resolve")
+        launches[0].argv.iter().nth_back(3).map(String::as_str),
+        Some("@rules_dx//haskell/private/tools/lock")
     );
 }
 

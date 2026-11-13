@@ -13,6 +13,7 @@ rust_static_library(
 
 rust_test(
     name = "demo-app_test",
+    size = "small",
     crate = ":demo-app",
 )
 

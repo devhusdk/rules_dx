@@ -11,5 +11,6 @@ rust_library(
 
 rust_test(
     name = "dx_release_consumer_test",
+    size = "small",
     crate = ":dx_release_consumer",
 )

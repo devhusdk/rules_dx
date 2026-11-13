@@ -121,17 +121,21 @@ fn distance(a: &str, b: &str) -> usize {
     let b: Vec<char> = b.chars().collect();
     let mut row: Vec<usize> = (0..=b.len()).collect();
     for (i, ca) in a.chars().enumerate() {
-        let mut previous = row[0];
-        row[0] = i + 1;
-        for (j, cb) in b.iter().enumerate() {
-            let held = row[j + 1];
-            row[j + 1] = (previous + usize::from(ca != *cb))
-                .min(row[j] + 1)
+        let mut previous = i;
+        let mut left = i + 1;
+        for (cell, cb) in row.iter_mut().skip(1).zip(&b) {
+            let held = *cell;
+            left = (previous + usize::from(ca != *cb))
+                .min(left + 1)
                 .min(held + 1);
+            *cell = left;
             previous = held;
         }
+        if let Some(first) = row.first_mut() {
+            *first = i + 1;
+        }
     }
-    row[b.len()]
+    row.last().copied().unwrap_or_default()
 }
 
 fn owned(tools: &[&str]) -> Vec<String> {
@@ -169,8 +173,9 @@ fn pick(
     } else if edits == tools.len() {
         let mut picked = owned(base);
         for edit in tools {
-            check_known(family, &edit[1..])?;
-            picked.retain(|tool| *tool != edit[1..]);
+            let name = edit.get(1..).unwrap_or_default();
+            check_known(family, name)?;
+            picked.retain(|tool| tool != name);
             if let Some(added) = edit.strip_prefix('+') {
                 picked.push(added.to_owned());
             }

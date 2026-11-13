@@ -46,8 +46,8 @@ pub fn check_schema_version(value: Option<&toml::Value>) -> Result<(), Conventio
 pub fn parse_date(value: &str) -> Result<NaiveDate, ConventionProblem> {
     let bytes = value.as_bytes();
     let shaped = bytes.len() == 10
-        && bytes[4] == b'-'
-        && bytes[7] == b'-'
+        && bytes.get(4) == Some(&b'-')
+        && bytes.get(7) == Some(&b'-')
         && bytes
             .iter()
             .enumerate()

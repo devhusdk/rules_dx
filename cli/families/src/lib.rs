@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 //! The quality and docs aspect files and the dependency hubs of the `<lang>/lang.json` manifests.
 
 use std::collections::BTreeSet;

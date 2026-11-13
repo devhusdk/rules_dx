@@ -40,16 +40,17 @@ pub fn merge3(ancestor: &str, ours: &str, theirs: &str, labels: Labels<'_>) -> M
     let mut hunks = 0;
     let (mut i, mut o, mut t) = (0, 0, 0);
     loop {
-        let synced = i < base.len() && to_ours[i] == Some(o) && to_theirs[i] == Some(t);
-        if synced {
-            out.push_str(base[i]);
+        let synced = to_ours.get(i) == Some(&Some(o)) && to_theirs.get(i) == Some(&Some(t));
+        if let (true, Some(line)) = (synced, base.get(i)) {
+            out.push_str(line);
             (i, o, t) = (i + 1, o + 1, t + 1);
             continue;
         }
         if i >= base.len() && o >= our.len() && t >= their.len() {
             break;
         }
-        let next = (i..base.len()).find_map(|k| Some((k, to_ours[k]?, to_theirs[k]?)));
+        let next =
+            (i..base.len()).find_map(|k| Some((k, (*to_ours.get(k)?)?, (*to_theirs.get(k)?)?)));
         let (k, oe, te) = next.unwrap_or((base.len(), our.len(), their.len()));
         let b = lines(&base, i, k);
         let x = lines(&our, o, oe);

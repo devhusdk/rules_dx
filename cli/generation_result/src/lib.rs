@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use proto::{
     AncestorOwned, FileResult, GenerationManifest, IgnoredImport, Mode, Modification, Scope,
     file_result,
@@ -214,7 +216,7 @@ fn modification_text<'a>(
                 path: path.to_owned(),
                 index,
             })?;
-        if &original.as_bytes()[start..end] == edit.replacement.as_slice() {
+        if original.as_bytes().get(start..end) == Some(edit.replacement.as_slice()) {
             return Err(Error::NoopEdit {
                 path: path.to_owned(),
                 index,
@@ -246,11 +248,15 @@ fn modification_text<'a>(
     let mut candidate = String::with_capacity(capacity);
     let mut cursor = 0;
     for (edit, replacement) in modification.edits.iter().zip(&edits) {
-        candidate.push_str(&original[cursor..edit.start_byte as usize]);
+        candidate.push_str(
+            original
+                .get(cursor..edit.start_byte as usize)
+                .unwrap_or_default(),
+        );
         candidate.push_str(replacement.text);
         cursor = edit.end_byte as usize;
     }
-    candidate.push_str(&original[cursor..]);
+    candidate.push_str(original.get(cursor..).unwrap_or_default());
     if candidate == original {
         return Err(Error::UnchangedCandidate {
             path: path.to_owned(),

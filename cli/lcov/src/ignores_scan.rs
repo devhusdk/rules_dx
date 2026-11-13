@@ -52,27 +52,27 @@ fn scan_with(line: &str, compiled: Option<&Regex>) -> Option<usize> {
 }
 
 fn slash_comment(line: &str) -> Option<&str> {
-    scan_with(line, slash_scan()).map(|end| &line[end..])
+    scan_with(line, slash_scan()).and_then(|end| line.get(end..))
 }
 
 fn rust_comment(line: &str) -> Option<&str> {
-    scan_with(line, rust_scan()).map(|end| &line[end..])
+    scan_with(line, rust_scan()).and_then(|end| line.get(end..))
 }
 
 fn hash_comment(line: &str) -> Option<&str> {
-    scan_with(line, hash_scan()).map(|end| &line[end..])
+    scan_with(line, hash_scan()).and_then(|end| line.get(end..))
 }
 
 fn percent_comment(line: &str) -> Option<&str> {
-    scan_with(line, percent_scan()).map(|end| &line[end..])
+    scan_with(line, percent_scan()).and_then(|end| line.get(end..))
 }
 
 fn dash_comment(line: &str) -> Option<&str> {
-    scan_with(line, dash_scan()).map(|end| &line[end..])
+    scan_with(line, dash_scan()).and_then(|end| line.get(end..))
 }
 
 fn paren_comment(line: &str) -> Option<&str> {
-    scan_with(line, paren_scan()).map(|end| &line[end..])
+    scan_with(line, paren_scan()).and_then(|end| line.get(end..))
 }
 
 pub(crate) fn comment_text(path: &str, line: &str) -> String {

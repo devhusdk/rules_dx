@@ -115,7 +115,7 @@ pub(crate) fn count_lines(hits: &FileHits, ignores: &Ignores) -> LineCount {
             continue;
         }
         count.eligible += 1;
-        if hits.lines[&line] > 0 {
+        if hits.lines.get(&line).is_some_and(|hit| *hit > 0) {
             count.covered += 1;
         } else {
             count.uncovered.push(line);

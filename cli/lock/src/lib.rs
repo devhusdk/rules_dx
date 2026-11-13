@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 //! The lock step of a dx class ecosystem and the only writer of `<ecosystem>.lock.json`.
 
 mod http;
@@ -145,7 +147,7 @@ fn matches(pattern: &str, name: &str) -> bool {
     match pattern.split_once('*') {
         None => pattern == name,
         Some((head, tail)) => name.strip_prefix(head).is_some_and(|rest| {
-            (0..=rest.len()).any(|at| rest.is_char_boundary(at) && matches(tail, &rest[at..]))
+            (0..=rest.len()).any(|at| rest.get(at..).is_some_and(|suffix| matches(tail, suffix)))
         }),
     }
 }
@@ -307,12 +309,9 @@ pub fn run(
             problems.join("\n")
         )));
     }
-    for package in 0..lock.packages.len() {
-        for archive in 0..lock.packages[package].archives.len() {
-            let (entry, wanted) = (
-                &lock.packages[package],
-                &lock.packages[package].archives[archive],
-            );
+    let mut digests = Vec::new();
+    for (package, entry) in lock.packages.iter().enumerate() {
+        for (archive, wanted) in entry.archives.iter().enumerate() {
             if !wanted.sha256.is_empty() {
                 continue;
             }
@@ -320,7 +319,16 @@ pub fn run(
                 Some(digest) => digest.to_owned(),
                 None => fetched(fetch, entry, wanted)?,
             };
-            lock.packages[package].archives[archive].sha256 = digest;
+            digests.push((package, archive, digest));
+        }
+    }
+    for (package, archive, digest) in digests {
+        if let Some(wanted) = lock
+            .packages
+            .get_mut(package)
+            .and_then(|entry| entry.archives.get_mut(archive))
+        {
+            wanted.sha256 = digest;
         }
     }
     let state = named_files(scratch.set(), &spec.state)?;

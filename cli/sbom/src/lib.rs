@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 //! The one SPDX 2.3 JSON data model shared by every dx SBOM writer and reader.
 //!
 //! Writers build documents through [`Document::new`] so the version, data license, document id

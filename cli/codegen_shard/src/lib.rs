@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod writer;
 
 pub use codegen_proto::rules_dx::codegen as proto;

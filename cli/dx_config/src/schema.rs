@@ -1,5 +1,5 @@
 use schemars::generate::SchemaSettings;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use crate::config::DxConfig;
 use crate::curated_defaults_gen::{FAMILIES, OPT_IN_FAMILIES, TOOLS};
@@ -23,7 +23,11 @@ fn add_family_ids(schema: &mut Value) {
         .collect();
     ids.sort_unstable();
     ids.dedup();
-    schema["properties"]["families"]["propertyNames"] = json!({ "enum": ids });
+    set(
+        schema,
+        &["properties", "families", "propertyNames"],
+        json!({ "enum": ids }),
+    );
 }
 
 /// A tool id, or a `+id` or `-id` edit of the curated list.
@@ -38,7 +42,35 @@ fn tool_id_items() -> Value {
 fn add_tool_ids(schema: &mut Value) {
     let items = tool_id_items();
     for capability in ["lint", "format", "typecheck", "audit"] {
-        schema["definitions"]["FamilyConfig"]["properties"][capability]["items"] = items.clone();
+        set(
+            schema,
+            &[
+                "definitions",
+                "FamilyConfig",
+                "properties",
+                capability,
+                "items",
+            ],
+            items.clone(),
+        );
     }
-    schema["properties"]["skip_tools"]["items"] = json!({ "enum": TOOLS });
+    set(
+        schema,
+        &["properties", "skip_tools", "items"],
+        json!({ "enum": TOOLS }),
+    );
+}
+
+fn set(schema: &mut Value, path: &[&str], value: Value) {
+    let mut node = schema;
+    for key in path {
+        if node.is_null() {
+            *node = Value::Object(Map::new());
+        }
+        let Some(map) = node.as_object_mut() else {
+            return;
+        };
+        node = map.entry(*key).or_insert(Value::Null);
+    }
+    *node = value;
 }

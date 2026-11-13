@@ -136,7 +136,7 @@ fn read_targets(
     let maps = checked(&maps_path, proc.read(&maps_path))?.unwrap_or_default();
     for line in String::from_utf8_lossy(&maps).lines() {
         if let Some(start) = line.find('/') {
-            let mapped = Path::new(&line[start..]);
+            let mapped = Path::new(line.get(start..).unwrap_or_default());
             if mapped.starts_with(dx_dir) {
                 targets.push(mapped.to_path_buf());
             }

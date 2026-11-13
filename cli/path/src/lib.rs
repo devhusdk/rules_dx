@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 //! Path facts and spellings shared across the tool.
 
 pub mod bazel_package;
@@ -44,8 +46,7 @@ impl PathProblem {
 }
 
 pub fn drive_prefix(path: &str) -> bool {
-    let bytes = path.as_bytes();
-    bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
+    matches!(path.as_bytes(), [letter, b':', ..] if letter.is_ascii_alphabetic())
 }
 
 pub fn is_absolute(path: &str) -> bool {

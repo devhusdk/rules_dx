@@ -21,11 +21,18 @@ fn uses_line(line: &str, action: &str, reference: &str) -> String {
         return line.to_owned();
     };
     let from = line.len() - rest.len() + at + action.len() + 1;
-    let tail = &line[from..];
+    let Some((head, tail)) = line.split_at_checked(from) else {
+        return line.to_owned();
+    };
     let len = tail
         .find(|c: char| c.is_whitespace() || c == '"' || c == '\'' || c == '#')
         .unwrap_or(tail.len());
-    format!("{}{}{}", &line[..from], reference, &line[from + len..])
+    format!(
+        "{}{}{}",
+        head,
+        reference,
+        tail.get(len..).unwrap_or_default()
+    )
 }
 
 #[cfg(test)]

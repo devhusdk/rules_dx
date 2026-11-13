@@ -108,9 +108,9 @@ impl CycloneDxDocument {
                 depends_on: Vec::new(),
             });
         }
-        self.dependencies[0]
-            .depends_on
-            .push(component.bom_ref.clone());
+        if let Some(root) = self.dependencies.first_mut() {
+            root.depends_on.push(component.bom_ref.clone());
+        }
         self.dependencies.push(CdxDependency {
             reference: component.bom_ref.clone(),
             depends_on: Vec::new(),

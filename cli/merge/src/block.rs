@@ -5,10 +5,11 @@ use crate::Error;
 /// The byte range of the block, including one trailing line break.
 pub fn span(text: &str, begin: &str, end: &str) -> Option<(usize, usize)> {
     let start = text.find(begin)?;
-    let stop = start + text[start..].find(end)? + end.len();
-    let stop = if text[stop..].starts_with("\r\n") {
+    let stop = start + text.get(start..)?.find(end)? + end.len();
+    let after = text.get(stop..)?;
+    let stop = if after.starts_with("\r\n") {
         stop + 2
-    } else if text[stop..].starts_with('\n') {
+    } else if after.starts_with('\n') {
         stop + 1
     } else {
         stop
@@ -37,7 +38,12 @@ pub fn merge(text: &str, begin: &str, end: &str, block: &str) -> Result<String, 
     let eol = eol(text);
     let block = block.replace('\n', eol);
     Ok(match span(text, begin, end) {
-        Some((start, stop)) => format!("{}{}{}", &text[..start], block, &text[stop..]),
+        Some((start, stop)) => format!(
+            "{}{}{}",
+            text.get(..start).unwrap_or_default(),
+            block,
+            text.get(stop..).unwrap_or_default()
+        ),
         None => {
             let mut out = text.to_owned();
             if !out.is_empty() && !out.ends_with('\n') {

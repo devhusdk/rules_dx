@@ -134,7 +134,7 @@ fn located(text: &str, error: &toml::de::Error, message: String) -> String {
     let Some(span) = error.span() else {
         return message;
     };
-    let before = &text[..span.start.min(text.len())];
+    let before = text.get(..span.start).unwrap_or(text);
     let line = before.matches('\n').count() + 1;
     let column = before
         .rsplit('\n')

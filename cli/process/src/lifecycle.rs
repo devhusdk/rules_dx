@@ -886,10 +886,6 @@ pub(crate) mod test_exports {
 mod backend {
     /// Which process group a streamed child joins.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    #[cfg_attr(
-        not(unix),
-        expect(dead_code, reason = "only unix reads the joined group")
-    )]
     pub enum Group {
         /// It leads its own group, which the parent owns and cleans up.
         Owned,

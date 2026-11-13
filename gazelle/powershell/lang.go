@@ -97,7 +97,9 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	name := ""
 	if len(modules) > 0 {
 		var err error
-		if name, err = common.PackageTargetName(args); err != nil {
+		if kept, ok := common.ExistingLibraryName(args.File, LibraryKind, modules); ok {
+			name = kept
+		} else if name, err = common.PackageTargetName(args); err != nil {
 			rep.Fail(common.InPackage(args.Rel), "powershell: %s: %v", args.Rel, err)
 			return language.GenerateResult{}
 		}

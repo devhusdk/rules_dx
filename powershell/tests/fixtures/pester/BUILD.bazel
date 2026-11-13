@@ -1,7 +1,9 @@
-# gazelle:ignore
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//powershell:defs.bzl", "powershell_library", "powershell_test")
 load("//powershell/tests:defs_tests.bzl", "pwsh_coverage_env_test")
-load("//core/quality:fixtures.bzl", "real_source_target")
+
+# gazelle:resolve powershell DxCoverage //powershell:dx_coverage
+# gazelle:resolve powershell Pester //powershell:pester
 
 package(
     default_testonly = True,
@@ -10,11 +12,13 @@ package(
 
 powershell_library(
     name = "greeter_lib",
+    testonly = True,
     srcs = ["Greeter.psm1"],
 )
 
 powershell_test(
     name = "greeter_test",
+    size = "small",
     srcs = ["Greeter.Tests.ps1"],
     data = ["Greeter.Describe.ps1"],
     target_compatible_with = ["@platforms//os:linux"],

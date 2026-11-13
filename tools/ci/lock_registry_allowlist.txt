@@ -1,7 +1,3 @@
-name d/private/toolchain/pins.bzl package.json
-name python/private/sdist_cargo_vendor.bzl Cargo.lock
-name python/private/sdist_cargo_vendor.bzl uv.lock
-name third_party/dotnet/framework.bzl paket.dependencies
 name tools/testing/hermetic/maven_pin.rs maven_install.json
 name tools/testing/nested/src/lib.rs maven_install.json
 name tools/testing/nested_bazel.bzl maven_install.json

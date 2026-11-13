@@ -1080,7 +1080,7 @@ fn stack_lock_errors(set: &str, locks: &[String]) -> Vec<dx_update::discover::Lo
             set: set.to_owned(),
             package: lock.clone(),
             reason: format!(
-                "dx does not run stack; pin the {lock} versions in the cabal.project and run the cabal lock step to write {}",
+                "dx does not run stack; pin the {lock} versions in the project file and run the cabal lock step to write {}",
                 first_lock(Ecosystem::Cabal)
             ),
         })

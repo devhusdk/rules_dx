@@ -103,6 +103,7 @@ cc_windows_static_link_test(
 
 cc_macos_coverage_tools_test(
     name = "macos_coverage_tools_test",
+    size = "small",
     target = ":hello_c_test",
 )
 

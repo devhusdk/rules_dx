@@ -89,11 +89,11 @@ _macos_coverage_tools_test = analysistest.make(
     config_settings = {"//command_line_option:collect_code_coverage": True},
 )
 
-def cc_macos_coverage_tools_test(name, target):
+def cc_macos_coverage_tools_test(name, target, size):
     """Asserts a cc_test on macOS collects coverage with the hermetic llvm tools."""
     _macos_coverage_tools_test(
         name = name,
-        size = "small",
+        size = size,
         target_under_test = target,
         target_compatible_with = ["@platforms//os:macos"],
     )

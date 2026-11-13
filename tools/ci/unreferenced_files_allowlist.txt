@@ -75,7 +75,6 @@ scala/tests/fixtures/scalafmt/BUILD.bazel orphan-target 1
 svelte/private/BUILD.bazel orphan-target 1
 svelte/tests/app_errors/src empty-package 1
 svelte/tests/app_errors/src/components empty-package 1
-third_party/dart/BUILD.bazel orphan-target 1
 third_party/dotnet/BUILD.bazel orphan-target 1
 thrift/private/crates/BUILD.bazel orphan-target 1
 tools/docs/components/tests/fixture/consumer/BUILD.bazel orphan-target 2

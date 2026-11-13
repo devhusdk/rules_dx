@@ -91,15 +91,16 @@ _build_scripts_test = analysistest.make(
     extra_target_under_test_aspects = [_covered_build_scripts_aspect],
 )
 
-def no_coverage_build_scripts_test(name, target_under_test, **kwargs):
+def no_coverage_build_scripts_test(name, target_under_test, size, **kwargs):
     """Fails when target_under_test, built with coverage on, configures a cargo_build_script with coverage on.
 
     Args:
       name: Test name.
       target_under_test: Target whose dependency graph is checked.
+      size: Test size.
       **kwargs: Forwarded to the analysis test.
     """
-    _build_scripts_test(name = name, target_under_test = target_under_test, size = "small", **kwargs)
+    _build_scripts_test(name = name, target_under_test = target_under_test, size = size, **kwargs)
 
 def no_coverage_tests(name):
     _reader(name = name + "_reader")

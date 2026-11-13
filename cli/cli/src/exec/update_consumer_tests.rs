@@ -1716,13 +1716,17 @@ fn consumer_rebar_check_reports_drift_and_apply_writes_only_rebar_lock() {
     );
 }
 
-const OPAM_MODULE: &str = "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"ocaml_app\", lock = \"//ocaml/app:ocaml_app.opam.locked\")\n";
+const OPAM_MODULE: &str = "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"ocaml_app\", lock = \"//ocaml/app:opam.lock.json\")\n";
 
 const OPAM_FILE: &str = "opam-version: \"2.0\"\ndepends: [\n  \"astring\" {>= \"0.8.5\"}\n  \"ocaml\" {>= \"5.5\"}\n]\n";
 
 fn opam_harness(name: &str) -> Harness {
     let harness = consumer_harness(name, OPAM_MODULE, false);
     harness.write_source("ocaml/app/ocaml_app.opam", OPAM_FILE);
+    harness.write_source(
+        "ocaml/app/opam.lock.json",
+        r#"{"ecosystem": "opam", "inputs": {"ocaml_app.opam": "00", "ocaml_app.opam.locked": "11"}, "packages": []}"#,
+    );
     harness.write_source(
         "ocaml/app/ocaml_app.opam.locked",
         "opam-version: \"2.0\"\ndepends: [\n  \"astring\" {= \"0.8.5\"}\n]\n",

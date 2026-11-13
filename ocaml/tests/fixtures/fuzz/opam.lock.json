@@ -1,0 +1,64 @@
+{
+  "ecosystem": "opam",
+  "inputs": {
+    "ocaml_fuzz.opam": "7e0204f1402946aa0509053d49a4be9317a554bdfea9f297e909bd5a1b3a865d",
+    "ocaml_fuzz.opam.locked": "2b4e1c4715dd8cdbb60662e0a7bc801bebd115f2c73ee1698400e2413ecef6d1"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "4e2a4701b584b7fc27f8df33bb345b653a28d0733ecf5c66ee3cbbcff3fd1557",
+          "strip_prefix": "afl-persistent-1.4",
+          "urls": [
+            "https://github.com/stedolan/ocaml-afl-persistent/archive/refs/tags/v1.4.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "afl-persistent",
+      "provides": [
+        "afl_persistent"
+      ],
+      "version": "1.4"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "05b938d1def4f54c478178f1982822834510431ed98f2ac67cb4d90aa120d6b6",
+          "strip_prefix": "cmdliner-2.1.1",
+          "urls": [
+            "https://erratique.ch/software/cmdliner/releases/cmdliner-2.1.1.tbz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "cmdliner",
+      "provides": [
+        "cmdliner"
+      ],
+      "version": "2.1.1"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "debd1345ac0116232390af64552d15948b5dc7200e287730235f7ff42098f3c5",
+          "strip_prefix": "crowbar-0.2.2",
+          "urls": [
+            "https://github.com/stedolan/crowbar/archive/v0.2.2.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "afl-persistent",
+        "cmdliner"
+      ],
+      "name": "crowbar",
+      "provides": [
+        "crowbar"
+      ],
+      "version": "0.2.2"
+    }
+  ],
+  "schema": 1
+}

@@ -1,5 +1,7 @@
 use super::*;
 
+const RESOLVER: &str = "@rules_dx//ocaml/private/tools/lock";
+
 pub(super) fn plan(
     workspace: &Path,
     set: &ResolvedSet,
@@ -38,6 +40,14 @@ pub(super) fn plan(
                 Run {
                     argv: opam_argv(workspace, set, head, &["lock", manifest])?,
                     env: opam_env(),
+                },
+                Run {
+                    argv: bazel(
+                        head,
+                        "run",
+                        &[RESOLVER, "--", "--dir", &workspace.join(&set.dir).to_string_lossy()],
+                    ),
+                    env: Vec::new(),
                 },
             ]))
         }

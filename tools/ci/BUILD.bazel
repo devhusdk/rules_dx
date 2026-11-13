@@ -1026,6 +1026,7 @@ rust_test(
         "//ocaml/private/quality:corpus_starlark",
         "//ocaml/private/toolchain:corpus_starlark",
         "//ocaml/tests:corpus_starlark",
+        "//ocaml/private/tools/lock:corpus_starlark",
         "//perl/private/lock:corpus_starlark",
         "//perl/private/tools/lock:corpus_starlark",
         "//php/private/lock:corpus_starlark",

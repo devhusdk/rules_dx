@@ -1161,11 +1161,11 @@
             "ecosystem": "opam",
             "extension": "@rules_dx//ocaml:extensions.bzl",
             "hub": "opam",
-            "imports": "name",
-            "lock": "*.opam.locked",
+            "imports": "provides",
+            "lock": "opam.lock.json",
             "manifest": "*.opam",
-            "resolver": null,
-            "state": null,
+            "resolver": "@rules_dx//ocaml/private/tools/lock",
+            "state": "*.opam.locked",
             "tag": "lock"
           }
         ]

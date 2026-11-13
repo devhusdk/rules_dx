@@ -1,5 +1,5 @@
 {
-  "checksum": "a53a3fd52cd5e27086b2dcb02e5b5f49cf8a33544a623b3f23ac69fb6fd825ea",
+  "checksum": "f6a0c151afaa9c9433e6699a51253a334b8a1271b0c4b018d51f8186a13e8ab8",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -18301,6 +18301,39 @@
       ],
       "version": "1.70.2"
     },
+    "opam_lock 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "opam_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "opam_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "opam_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "opaque-debug 0.3.1": {
       "common_attrs": {
         "edition": "2018"
@@ -32965,6 +32998,7 @@
     "lua_lock 0.0.0": "lua/private/tools/lua_lock",
     "modules_tests 0.0.0": "core/modules_tests",
     "ocaml_extract 0.0.0": "tools/docs/ocaml/ocaml_extract",
+    "opam_lock 0.0.0": "ocaml/private/tools/opam_lock",
     "openapi_codegen_preflight 0.0.0": "api_spec/private/openapi_codegen_preflight",
     "perl_extract 0.0.0": "tools/docs/perl/perl_extract",
     "perl_lock 0.0.0": "perl/private/tools/perl_lock",

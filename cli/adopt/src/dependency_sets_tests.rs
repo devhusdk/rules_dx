@@ -143,12 +143,16 @@ fn go_deps_files_become_the_go_set() {
 
 #[test]
 fn opam_packages_become_opam_sets() {
-    let module = "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"app_opam\", lock = \"//ocaml/app:app.opam.locked\")\n";
-    let registry = found(module, &[]);
+    let module = "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"app_opam\", lock = \"//ocaml/app:opam.lock.json\")\n";
+    let lock = r#"{"ecosystem": "opam", "inputs": {"app.opam": "00", "app.opam.locked": "11"}, "packages": []}"#;
+    let registry = found(module, &[("ocaml/app/opam.lock.json", lock)]);
     let set = registry.find("app_opam").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::Opam);
     assert_eq!(set.manifests, ["ocaml/app/app.opam"]);
-    assert_eq!(set.locks, ["ocaml/app/app.opam.locked"]);
+    assert_eq!(
+        set.locks,
+        ["ocaml/app/app.opam.locked", "ocaml/app/opam.lock.json"]
+    );
     assert!(check_opam_layout(&ResolvedSet::of(set)).is_ok());
 }
 

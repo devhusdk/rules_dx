@@ -1162,12 +1162,13 @@ fn opam_update_upgrades_then_relocks() {
     let BackendPlan::Sequence(runs) = opam_update(false, false).expect("plan") else {
         panic!("expected a sequence");
     };
-    assert_eq!(runs.len(), 2);
+    assert_eq!(runs.len(), 3);
     assert_eq!(
         runs[0].argv[runs[0].argv.len() - 2..],
         ["upgrade", "astring"]
     );
     assert_eq!(runs[1].argv[runs[1].argv.len() - 2..], ["lock", "app.opam"]);
+    assert!(runs[2].argv.iter().any(|a| a == "@rules_dx//ocaml/private/tools/lock"));
     assert!(
         runs[0]
             .argv

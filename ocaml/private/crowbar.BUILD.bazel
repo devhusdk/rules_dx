@@ -22,7 +22,7 @@ ocaml_module(
     deps = [
         "@dx_ocaml_toolchains//:str",
         "@dx_ocaml_toolchains//:unix",
-        "@{hub}//:afl-persistent",
-        "@{hub}//:cmdliner",
+        "//afl-persistent",
+        "//cmdliner",
     ],
 )

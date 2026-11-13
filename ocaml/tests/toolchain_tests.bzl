@@ -3,34 +3,9 @@
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load("//ocaml/private/toolchain:ocaml.bzl", "COMPILERS", "NATIVE_CC_TOOLS", "TOOLS", "native_cc_env", "toolchain_fields")
-load("//ocaml/private/toolchain:opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url", "pick_annotation")
+load("//ocaml/private/toolchain:opam.bzl", "pick_annotation")
 load("//ocaml/private/toolchain:pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
-load("//ocaml/private/toolchain:repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build", "placeholder_files", "relative_prefix", "softlink_paths")
-
-_LOCK = """opam-version: "2.0"
-name: "app"
-depends: [
-  "astring" {= "0.8.5"}
-  "cmdliner" {with-test & = "1.2.0"}
-  "cmdliner" {= "1.3.0"}
-  "alcotest" {with-test & = "1.7.0"}
-  "odoc" {dev}
-  "dune" {= "3.16.0"}
-  "ocaml" {= "5.5.2" & post}
-  "lwt" {>= "5.0"}
-]
-build: ["dune" "build"]
-"""
-
-_URL_OPAM = """opam-version: "2.0"
-url {
-  src: "https://example.org/a-1.tbz"
-  checksum: [
-    "sha256=ab12"
-    "md5=ff"
-  ]
-}
-"""
+load("//ocaml/private/toolchain:repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "placeholder_files", "relative_prefix", "softlink_paths")
 
 def _checks():
     linux = OCAML_CELLS["linux_x86_64"]
@@ -123,22 +98,8 @@ def _checks():
             ]),
             ["lib/libzstd.so.1"],
         ),
-        expect_equal("locked versions are read", parse_depends(_LOCK), {"astring": "0.8.5", "cmdliner": "1.3.0", "dune": "3.16.0", "ocaml": "5.5.2"}),
-        expect_equal("a file without depends pins nothing", parse_depends("opam-version: \"2.0\"\n"), {}),
-        expect_equal("an unpinned entry is skipped", parse_depends("depends: [\"a\" {>= \"1\"}]"), {}),
-        expect_equal("a version after a build filter is kept", parse_depends("depends: [\"a\" {build & = \"2\"}]"), {"a": "2"}),
-        expect_equal("build dependencies are named", parse_depend_names("depends: [\"dune\" {>= \"2\"} \"a\" \"t\" {with-test}]"), ["dune", "a"]),
-        expect_contains("dune package build passes hub deps", dune_package_build("a", "a", "//d", "//r:d.bzl", ["b"], "hub"), "deps = [\"@hub//:b\"]"),
+        expect_contains("dune package build passes hub deps", dune_package_build("a", "a", "//d", "//r:d.bzl", ["b"]), "deps = [\"//b\"]"),
         expect_contains("dune package build names the library", dune_package_build("a-b", "a_b", "//d", "//r:d.bzl"), "library = \"a_b\""),
-        expect_equal("url and sha256 are read", parse_url(_URL_OPAM), struct(src = "https://example.org/a-1.tbz", sha256 = "ab12", integrity = "")),
-        expect_equal("src may sit on the next line", parse_url("url {\n  src:\n    \"https://x/a.tbz\"\n  checksum: \"sha256=cd\"\n}\n").src, "https://x/a.tbz"),
-        expect_equal("single checksum string", parse_url("url {\n  src: \"https://x/a.tgz\"\n  checksum: \"sha256=cd\"\n}\n").sha256, "cd"),
-        expect_equal("sha512 becomes integrity", parse_url("url {\n  src: \"https://x/a.tgz\"\n  checksum: [\"sha512=000102ff\"]\n}\n").integrity, "sha512-AAEC/w=="),
-        expect_equal("sha512 pads two bytes", parse_url("url {\n  src: \"https://x/a.tgz\"\n  checksum: \"sha512=0001\"\n}\n").integrity, "sha512-AAE="),
-        expect_true("compiler packages come from the toolchain", all([is_toolchain_package(n) for n in ["ocaml", "ocaml-base-compiler", "base-unix", "dune"]])),
-        expect_true("libraries do not", not any([is_toolchain_package(n) for n in ["astring", "dune-configurator", "ocaml-compiler-libs"]])),
-        expect_equal("package repository name", package_repo_name("deps", "ppx-base.v"), "dx_opam_deps_ppx_base_v"),
-        expect_contains("hub aliases a package", packages_hub_build("deps", {"astring": "1"}), "alias(name = \"astring\", actual = \"@dx_opam_deps_astring//:astring\""),
         expect_equal("afl-persistent default", [str(pick_annotation("afl-persistent", {}).build_file), pick_annotation("afl-persistent", {}).strip_prefix], [str(Label("//ocaml/private:afl-persistent.BUILD.bazel")), "ocaml-afl-persistent-1.4"]),
         expect_equal("cmdliner default", [str(pick_annotation("cmdliner", {}).build_file), pick_annotation("cmdliner", {}).strip_prefix], [str(Label("//ocaml/private:cmdliner.BUILD.bazel")), ""]),
         expect_equal("crowbar default", [str(pick_annotation("crowbar", {}).build_file), pick_annotation("crowbar", {}).strip_prefix], [str(Label("//ocaml/private:crowbar.BUILD.bazel")), ""]),

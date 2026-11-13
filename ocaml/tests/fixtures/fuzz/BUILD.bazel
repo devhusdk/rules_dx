@@ -10,7 +10,7 @@ package(
 exports_files(
     [
         "BUILD.bazel",
-        "ocaml_fuzz.opam.locked",
+        "opam.lock.json",
     ],
     visibility = ["//visibility:public"],
 )
@@ -26,7 +26,7 @@ ocaml_fuzz_test(
         "-w",
         "-40-42",
     ],
-    deps = ["@ocaml_fuzz//:crowbar"],
+    deps = ["@ocaml_fuzz//crowbar"],
 )
 
 dx_runner_attr_test(

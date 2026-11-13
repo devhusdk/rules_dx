@@ -1,0 +1,51 @@
+{
+  "ecosystem": "opam",
+  "inputs": {
+    "ocaml_app.opam": "a69613302f59a192b8f451bbea50de3dc6a0f7070464fc7a3e141f4971dcc730",
+    "ocaml_app.opam.locked": "eedd622ed905de659cb4cf7f2de22c99fa5b8c4b60547028f6704342ca8a656e"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "865692630c07c3ab87c66cdfc2734c0fdfc9c34a57f8e89ffec7c7d15e7a70fa",
+          "strip_prefix": "astring-0.8.5",
+          "urls": [
+            "https://erratique.ch/software/astring/releases/astring-0.8.5.tbz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "opam_unpinned": [
+          "ocamlbuild",
+          "ocamlfind",
+          "topkg"
+        ]
+      },
+      "name": "astring",
+      "provides": [
+        "astring"
+      ],
+      "version": "0.8.5"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "bf674de3312dee7b7215f07df1e8a96eb3d679164b8a918cdd95b8d97e505884",
+          "strip_prefix": "either-1.0.0",
+          "urls": [
+            "https://github.com/mirage/either/releases/download/1.0.0/either-1.0.0.tbz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "either",
+      "provides": [
+        "either"
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "schema": 1
+}

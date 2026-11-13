@@ -80,6 +80,35 @@ fn fpm_lock_packages_are_audited() {
 }
 
 #[test]
+fn opam_set_audits_the_opam_locked_files_only() {
+    let set = ResolvedSet {
+        name: "app_opam".to_owned(),
+        ecosystem: Ecosystem::Opam,
+        dir: String::new(),
+        manifests: Vec::new(),
+        locks: vec![
+            "app/app.opam.locked".to_owned(),
+            "app/opam.lock.json".to_owned(),
+        ],
+        repository: None,
+    };
+    let locks = vec![
+        (
+            "app/app.opam.locked".to_owned(),
+            "opam-version: \"2.0\"\nname: \"app\"\ndepends: [\n  \"astring\" {= \"0.8.5\"}\n]\n"
+                .to_owned(),
+        ),
+        (
+            "app/opam.lock.json".to_owned(),
+            r#"{"ecosystem": "opam", "packages": []}"#.to_owned(),
+        ),
+    ];
+    let (packages, _) = parse_locked_for_configured(&set, &locks).expect("parses");
+    let names: Vec<_> = packages.into_iter().map(|p| (p.name, p.version)).collect();
+    assert_eq!(names, [("astring".to_owned(), "0.8.5".to_owned())]);
+}
+
+#[test]
 fn stack_lock_hackage_entries_are_audited() {
     let text = "packages:\n- completed:\n    hackage: aeson-2.1.0.0@sha256:ab,100\n  original:\n    hackage: aeson-2.1.0.0\n";
     assert_eq!(

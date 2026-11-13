@@ -1,3 +1,4 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! Generates the Rust crate sources of one `capnproto_rust_library`.
 //!
 //! The driver runs the pinned `capnp` compiler over the staged import closure,
@@ -209,9 +210,11 @@ fn run(args: &Args) -> Result<(), String> {
         return Err(format!("capnp compile failed with {}", output.status));
     }
 
-    let message =
-        capnp::serialize::read_message(&output.stdout[..], capnp::message::ReaderOptions::new())
-            .map_err(|e| format!("capnp wrote an unreadable CodeGeneratorRequest: {e}"))?;
+    let message = capnp::serialize::read_message(
+        output.stdout.as_slice(),
+        capnp::message::ReaderOptions::new(),
+    )
+    .map_err(|e| format!("capnp wrote an unreadable CodeGeneratorRequest: {e}"))?;
     let request = message
         .get_root::<code_generator_request::Reader>()
         .map_err(|e| format!("capnp wrote an unreadable CodeGeneratorRequest: {e}"))?;
@@ -222,7 +225,7 @@ fn run(args: &Args) -> Result<(), String> {
         .output_directory(&args.out)
         .crates_provide_map(provides);
     generator
-        .run(&output.stdout[..])
+        .run(output.stdout.as_slice())
         .map_err(|e| format!("capnpc code generation failed: {e}"))?;
 
     for path in &args.own {

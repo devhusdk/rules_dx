@@ -1,3 +1,4 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! Greets by name.
 
 /// Returns the greeting for `name`.

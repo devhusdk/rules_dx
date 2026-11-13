@@ -1,3 +1,4 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! Stands in for `bazel`, `uv` and `python` in `dx generate` tests; the name it
 //! runs as picks the behaviour.
 
@@ -29,9 +30,7 @@ fn gazelle(args: &[String]) -> bool {
     if target.ends_with("dx:generate_check") {
         command.arg("-mode=diff");
     }
-    if let Some(split) = args.iter().position(|a| a == "--") {
-        command.args(&args[split + 1..]);
-    }
+    command.args(args.iter().skip_while(|a| *a != "--").skip(1));
     let status = command.status().expect("run gazelle");
     std::process::exit(status.code().unwrap_or(1));
 }

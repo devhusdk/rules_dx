@@ -38,9 +38,10 @@ fn query_argv(startup_options: &[String]) -> Vec<String> {
 /// Whether `argv` is the workspace rule-graph query built by `RuleGraph::load`.
 pub(crate) fn is_graph_query(argv: &[String]) -> bool {
     argv.len() >= QUERY_FLAGS.len()
-        && argv[argv.len() - QUERY_FLAGS.len()..]
+        && argv
             .iter()
-            .zip(QUERY_FLAGS)
+            .rev()
+            .zip(QUERY_FLAGS.iter().rev())
             .all(|(have, want)| have == want)
 }
 

@@ -68,10 +68,10 @@ fn keep_ui(argv: &[String], columns: Option<u16>, no_color: bool) -> Vec<String>
     let (Some(command), Some(columns)) = (command.map(|at| at + 1), columns) else {
         return argv.to_vec();
     };
-    if !wanted(argv[0].as_ref()) {
+    if !argv.first().is_some_and(|program| wanted(program.as_ref())) {
         return argv.to_vec();
     }
-    let mut out = argv[..=command].to_vec();
+    let mut out = argv.iter().take(command + 1).cloned().collect::<Vec<_>>();
     if !chosen("--isatty") {
         out.push("--isatty=1".to_owned());
     }
@@ -81,7 +81,7 @@ fn keep_ui(argv: &[String], columns: Option<u16>, no_color: bool) -> Vec<String>
     if no_color && !chosen("--color") {
         out.push("--color=no".to_owned());
     }
-    out.extend_from_slice(&argv[command + 1..]);
+    out.extend(argv.iter().skip(command + 1).cloned());
     out
 }
 
@@ -112,7 +112,7 @@ pub(crate) struct Tee;
 impl Write for Tee {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let written = io::stderr().write(buf)?;
-        push(&buf[..written]);
+        push(buf.get(..written).unwrap_or(buf));
         Ok(written)
     }
 

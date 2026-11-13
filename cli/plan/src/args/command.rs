@@ -457,6 +457,10 @@ pub static COMMANDS: [CommandMeta; 25] = [
 ];
 
 impl Command {
+    #[expect(
+        clippy::indexing_slicing,
+        reason = "COMMANDS holds one entry per Command variant in declaration order"
+    )]
     pub fn meta(self) -> &'static CommandMeta {
         let entry = &COMMANDS[self as usize];
         debug_assert_eq!(entry.command, self);

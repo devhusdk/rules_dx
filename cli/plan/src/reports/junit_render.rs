@@ -84,10 +84,13 @@ pub fn render_junit(suites: &[(String, Vec<JunitCase>)]) -> Result<String, super
     for (label, cases) in &ordered {
         let mut suite = quick_junit::TestSuite::new(label.as_str());
         let mut suite_time = std::time::Duration::ZERO;
-        let show_run = cases.iter().any(|case| case.run != cases[0].run);
-        let show_configuration = cases
-            .iter()
-            .any(|case| case.configuration != cases[0].configuration);
+        let first = cases.first();
+        let show_run = first.is_some_and(|first| cases.iter().any(|case| case.run != first.run));
+        let show_configuration = first.is_some_and(|first| {
+            cases
+                .iter()
+                .any(|case| case.configuration != first.configuration)
+        });
         for case in cases {
             let display = junit_display_name(case, show_run, show_configuration);
             let mut test_case = quick_junit::TestCase::new(display, junit_status(case));

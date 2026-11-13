@@ -50,6 +50,10 @@ pub struct HelpSurface {
 
 impl Command {
     /// The page under `docs/cli/commands/` that documents this command.
+    #[expect(
+        clippy::indexing_slicing,
+        reason = "PAGES holds one entry per Command variant in declaration order"
+    )]
     pub fn page(self) -> &'static str {
         let entry = &PAGES[self as usize];
         debug_assert_eq!(entry.0, self);

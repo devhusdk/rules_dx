@@ -322,7 +322,7 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
         }
         hubs.push(Hub {
             name: "go_deps".to_owned(),
-            lockfile: Some(format!("{dir}{}", Ecosystem::Go.lockfiles()[0])),
+            lockfile: Some(format!("{dir}{}", Ecosystem::Go.lockfile())),
             cargo_lockfile: go_mod,
             pip: false,
             maven: false,
@@ -351,7 +351,7 @@ pub(crate) fn changed_go(
     base: &str,
     head: &str,
 ) -> Result<LockChange, dx_error::DxError> {
-    let sum = path.ends_with(Ecosystem::Go.lockfiles()[0].as_str());
+    let sum = path.ends_with(Ecosystem::Go.lockfile());
     let parse = |text: &str| {
         let mut modules: BTreeSet<(String, String)> = BTreeSet::new();
         let mut other: BTreeSet<String> = BTreeSet::new();
@@ -362,10 +362,10 @@ pub(crate) fn changed_go(
             let is_module = if sum {
                 words.len() == 3
             } else {
-                words.len() == 2 && words[1].starts_with('v') && words[0] != "go"
+                matches!(words.as_slice(), [module, version] if version.starts_with('v') && *module != "go")
             };
-            if is_module {
-                modules.insert((words[0].to_owned(), words[1..].join(" ")));
+            if is_module && let Some((module, rest)) = words.split_first() {
+                modules.insert(((*module).to_owned(), rest.join(" ")));
             } else if !sum && !line.is_empty() && line != "require (" && line != ")" {
                 other.insert(line.to_owned());
             }
@@ -815,9 +815,9 @@ fn requirement_lines(text: &str) -> BTreeMap<String, String> {
         let end = line
             .find(|ch: char| !(ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.')))
             .unwrap_or(line.len());
-        let name = pip_name(&line[..end]);
+        let name = pip_name(line.get(..end).unwrap_or_default());
         if !name.is_empty() {
-            let rest = &line[end..];
+            let rest = line.get(end..).unwrap_or_default();
             out.entry(name.clone())
                 .or_default()
                 .push_str(&format!("{name}{rest}\n"));

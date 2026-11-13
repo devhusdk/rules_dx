@@ -23,26 +23,20 @@ impl PackageCache {
     }
 
     fn enclosing(&mut self, workspace: &Path, rel: &str) -> Option<(String, String)> {
-        let mut dir = match rel.rfind('/') {
-            Some(index) => &rel[..index],
-            None => "",
-        };
+        let mut dir = rel.rsplit_once('/').map_or("", |(dir, _)| dir);
         loop {
             if self.is_package(workspace, dir) {
                 let in_package = if dir.is_empty() {
                     rel.to_owned()
                 } else {
-                    rel[dir.len() + 1..].to_owned()
+                    rel.get(dir.len() + 1..).unwrap_or_default().to_owned()
                 };
                 return Some((dir.to_owned(), in_package));
             }
             if dir.is_empty() {
                 return None;
             }
-            dir = match dir.rfind('/') {
-                Some(index) => &dir[..index],
-                None => "",
-            };
+            dir = dir.rsplit_once('/').map_or("", |(parent, _)| parent);
         }
     }
 

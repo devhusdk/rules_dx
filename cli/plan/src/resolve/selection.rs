@@ -14,8 +14,7 @@ pub struct SelectionContext {
 fn selection_options(options: &[String]) -> Vec<String> {
     let mut kept = Vec::with_capacity(options.len());
     let mut index = 0;
-    while index < options.len() {
-        let arg = &options[index];
+    while let Some(arg) = options.get(index) {
         if dx_process::is_test_binary_arg(arg) {
             index += if arg.contains('=') { 1 } else { 2 };
         } else {
@@ -64,14 +63,13 @@ fn query_option_name(arg: &str) -> Option<&'static str> {
 fn query_options(options: &[String]) -> Vec<String> {
     let mut kept = Vec::with_capacity(options.len());
     let mut index = 0;
-    while index < options.len() {
-        let arg = &options[index];
+    while let Some(arg) = options.get(index) {
         let consumed = match options.get(index + 1) {
             Some(next) if !arg.contains('=') && !next.starts_with('-') => 2,
             _ => 1,
         };
         if query_option_name(arg).is_some() {
-            kept.extend(options[index..index + consumed].iter().cloned());
+            kept.extend(options.iter().skip(index).take(consumed).cloned());
         }
         index += consumed;
     }

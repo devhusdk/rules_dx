@@ -95,14 +95,14 @@ fn fuzz_duration(raw: &str) -> Result<String, dx_error::DxError> {
 }
 
 /// The usage line clap renders for one command.
-fn usage_of(index: usize) -> String {
-    let usage = COMMANDS[index].usage;
+fn usage_of(command: super::command::Command) -> String {
+    let usage = command.meta().usage;
     usage.strip_prefix("Usage: ").unwrap_or(usage).to_owned()
 }
 
 /// The prose clap prints under one command's options.
-fn after_help_of(index: usize) -> String {
-    super::help::after_long_help(COMMANDS[index].command)
+fn after_help_of(command: super::command::Command) -> String {
+    super::help::after_long_help(command)
 }
 
 /// Every flag the normalized invocation carries, whether or not one command takes it.
@@ -967,8 +967,8 @@ macro_rules! command_args {
                 #[command(
                     name = COMMANDS[$index].name,
                     about = COMMANDS[$index].describe,
-                    override_usage = usage_of($index),
-                    after_help = after_help_of($index),
+                    override_usage = usage_of(super::command::Command::$variant),
+                    after_help = after_help_of(super::command::Command::$variant),
                 )]
                 $variant($variant),
             )*

@@ -320,11 +320,11 @@ fn secret_key(name: &str) -> bool {
 /// True when `text` holds a `KEY=` assignment whose key names a secret, such as `-DAPI_KEY=x`.
 fn embedded_secret(text: &str) -> bool {
     text.match_indices('=').any(|(at, _)| {
-        let head = &text[..at];
+        let head = text.get(..at).unwrap_or_default();
         let start = head
             .rfind(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-')))
             .map_or(0, |index| index + 1);
-        let key = &head[start..];
+        let key = head.get(start..).unwrap_or_default();
         let key = key
             .strip_prefix("--")
             .or_else(|| key.strip_prefix("-D"))

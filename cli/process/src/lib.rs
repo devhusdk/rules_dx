@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use dx_error::DxError;
 use std::ffi::{OsStr, OsString};
 use std::io;
@@ -124,7 +126,7 @@ fn expand_tilde_with(path: &Path, home: Option<OsString>) -> PathBuf {
     if is_bare {
         return PathBuf::from(home);
     }
-    PathBuf::from(home).join(&text[2..])
+    PathBuf::from(home).join(text.get(2..).unwrap_or_default())
 }
 
 pub fn canonicalize_or_keep(path: &Path) -> PathBuf {
@@ -319,10 +321,12 @@ pub fn redact_url_credentials(text: &str) -> String {
         let authority_end = tail
             .find(|cell: char| matches!(cell, '/' | '?' | '#') || cell.is_whitespace())
             .unwrap_or(tail.len());
-        match tail[..authority_end].rfind('@') {
-            Some(at) => {
-                redacted.push_str("(credentials)");
-                rest = &tail[at..];
+        let (authority, after) = tail.split_at(authority_end);
+        match authority.rsplit_once('@') {
+            Some((_, host)) => {
+                redacted.push_str("(credentials)@");
+                redacted.push_str(host);
+                rest = after;
             }
             None => rest = tail,
         }
@@ -517,10 +521,7 @@ pub fn unsupported_command(command: impl AsRef<str>) -> DxError {
 
 /// Returns the option name of a `--name` or `--name=value` token.
 pub fn flag_name(arg: &str) -> Option<String> {
-    if !arg.starts_with("--") {
-        return None;
-    }
-    let bare = &arg[2..];
+    let bare = arg.strip_prefix("--")?;
     if bare.is_empty() {
         return None;
     }

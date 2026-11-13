@@ -230,17 +230,22 @@ fn edit_distance(a: &str, b: &str) -> usize {
     let b: Vec<char> = b.chars().collect();
     let mut row: Vec<usize> = (0..=b.len()).collect();
     for (i, ca) in a.chars().enumerate() {
-        let mut diagonal = row[0];
-        row[0] = i + 1;
-        for (j, cb) in b.iter().enumerate() {
-            let above = row[j + 1];
-            row[j + 1] = (above + 1)
-                .min(row[j] + 1)
-                .min(diagonal + usize::from(ca != *cb));
-            diagonal = above;
+        let mut next = Vec::with_capacity(row.len());
+        next.push(i + 1);
+        for (cb, pair) in b.iter().zip(row.windows(2)) {
+            let &[diagonal, above] = pair else {
+                continue;
+            };
+            let left = next.last().copied().unwrap_or(i + 1);
+            next.push(
+                (above + 1)
+                    .min(left + 1)
+                    .min(diagonal + usize::from(ca != *cb)),
+            );
         }
+        row = next;
     }
-    row[b.len()]
+    row.last().copied().unwrap_or_default()
 }
 
 fn has_build_file_under(dir: &Path) -> bool {

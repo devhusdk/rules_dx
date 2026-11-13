@@ -235,12 +235,11 @@ pub fn format_deploy_labels(all: &[String], release: &[String]) -> String {
 }
 
 pub fn resolve_deploy(scopes: &[String]) -> Result<String, ResolveError> {
-    if scopes.len() != 1 {
+    let [scope] = scopes else {
         return Err(ResolveError::DeployCount {
             count: scopes.len(),
         });
-    }
-    let scope = &scopes[0];
+    };
     if scope.starts_with("//") {
         if scope.contains("...") {
             return Err(ResolveError::DeployScope {

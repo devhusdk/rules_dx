@@ -13,9 +13,8 @@ fn skip_flag<S: AsRef<OsStr>>(args: &[S], index: usize, arg: &str) -> usize {
 
 pub fn help_command_in<S: AsRef<OsStr>>(args: &[S]) -> Option<Command> {
     let mut index = 0;
-    while index < args.len() {
-        let raw = args[index].as_ref();
-        let arg = raw.to_str()?;
+    while let Some(raw) = args.get(index) {
+        let arg = raw.as_ref().to_str()?;
         if arg == "--" {
             return None;
         }
@@ -31,9 +30,8 @@ pub fn help_command_in<S: AsRef<OsStr>>(args: &[S]) -> Option<Command> {
 pub(crate) fn help_verb_error_in<S: AsRef<OsStr>>(args: &[S]) -> Option<ArgsError> {
     let mut index = 0;
     let mut help_at: Option<usize> = None;
-    while index < args.len() {
-        let raw = args[index].as_ref();
-        let Some(arg) = raw.to_str() else {
+    while let Some(raw) = args.get(index) {
+        let Some(arg) = raw.as_ref().to_str() else {
             break;
         };
         if arg == "--" {
@@ -51,8 +49,8 @@ pub(crate) fn help_verb_error_in<S: AsRef<OsStr>>(args: &[S]) -> Option<ArgsErro
     let help_at = help_at?;
     let mut target: Option<String> = None;
     let mut scan = help_at + 1;
-    while scan < args.len() {
-        let raw = args[scan].as_ref();
+    while let Some(raw) = args.get(scan) {
+        let raw = raw.as_ref();
         let Some(arg) = raw.to_str() else {
             target = Some(raw.to_string_lossy().into_owned());
             break;

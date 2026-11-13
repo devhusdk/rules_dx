@@ -449,13 +449,13 @@ fn is_lock_input(path: &str, hubs: &[Hub]) -> bool {
 
 fn fallback_inputs() -> [&'static str; 8] {
     [
-        Ecosystem::Npm.lockfiles()[0].as_str(),
+        Ecosystem::Npm.lockfile(),
         "package-lock.json",
         Ecosystem::Go.manifest_name(),
-        Ecosystem::Go.lockfiles()[0].as_str(),
+        Ecosystem::Go.lockfile(),
         "go.work",
         "go.work.sum",
-        Ecosystem::Maven.lockfiles()[0].as_str(),
+        Ecosystem::Maven.lockfile(),
         "requirements_lock.txt",
     ]
 }
@@ -512,14 +512,17 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
             }
             let name = file_name_of(&file.path);
             let sibling = if name == Ecosystem::Go.manifest_name() {
-                Some(Ecosystem::Go.lockfiles()[0].as_str())
+                Some(Ecosystem::Go.lockfile())
             } else if name == "go.work" {
                 Some("go.work.sum")
             } else {
                 None
             };
             if let Some(sibling) = sibling {
-                let dir = &file.path[..file.path.len() - file_name_of(&file.path).len()];
+                let dir = file
+                    .path
+                    .strip_suffix(file_name_of(&file.path))
+                    .unwrap_or_default();
                 inputs.paths.insert(format!("{dir}{sibling}"));
             }
             inputs.paths.insert(file.path);

@@ -8,8 +8,8 @@ use super::{
 
 pub(crate) fn strip_configuration(line: &str) -> &str {
     let line = line.trim();
-    match line.rfind(" (") {
-        Some(index) if line.ends_with(')') => &line[..index],
+    match line.rsplit_once(" (") {
+        Some((head, _)) if line.ends_with(')') => head,
         _ => line,
     }
 }

@@ -24,7 +24,7 @@ pub fn byte_to_line(path: &str, text: &str, offset: u64) -> Result<(u64, u64), R
         return Err(bad());
     }
     if text.len() >= u32::MAX as usize {
-        let prefix = &text[..offset_usize];
+        let prefix = text.get(..offset_usize).unwrap_or_default();
         let line = prefix.as_bytes().iter().filter(|&&b| b == b'\n').count() as u64 + 1;
         let column = prefix.rsplit('\n').next().unwrap_or("").chars().count() as u64 + 1;
         return Ok((line, column));
@@ -174,7 +174,7 @@ fn machine_fix(
         edits.sort_unstable();
         if edits
             .windows(2)
-            .any(|pair| pair[1].0 < pair[0].1 || pair[1].0 == pair[0].0)
+            .any(|pair| matches!(pair, [a, b] if b.0 < a.1 || b.0 == a.0))
         {
             return None;
         }

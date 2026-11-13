@@ -1204,7 +1204,7 @@ fn parent_dirs(dir: &str) -> Vec<&str> {
     out
 }
 
-/// The `*.opam` manifests and `*.opam.locked` state files an `opam.lock.json` lists as inputs.
+/// The `*.opam` manifests and `*.opam.locked` state files the opam lock at `dir` lists as inputs.
 fn opam_lock_inputs(dir: &str, lock_text: &str) -> (Vec<String>, Vec<String>) {
     let json: serde_json::Value = serde_json::from_str(lock_text).unwrap_or_default();
     let names: Vec<&str> = json

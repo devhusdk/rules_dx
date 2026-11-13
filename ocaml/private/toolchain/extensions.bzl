@@ -90,9 +90,9 @@ opam = module_extension(
             },
         ),
         "lock": tag_class(
-            doc = "Creates a hub repository with one package per entry of an opam.lock.json.",
+            doc = "Creates a hub repository with one package per entry of an opam lock.",
             attrs = {
-                "lock": attr.label(mandatory = True, allow_single_file = [".json"], doc = "The opam.lock.json the opam lock step writes."),
+                "lock": attr.label(mandatory = True, allow_single_file = [".json"], doc = "The lock file the opam lock step writes."),
                 "name": attr.string(mandatory = True, doc = "Hub repository name."),
             },
         ),

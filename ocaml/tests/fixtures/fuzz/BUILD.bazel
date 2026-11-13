@@ -10,8 +10,6 @@ package(
 exports_files(
     [
         "BUILD.bazel",
-        "ocaml_fuzz.opam",
-        "ocaml_fuzz.opam.locked",
         "opam.lock.json",
     ],
     visibility = ["//visibility:public"],

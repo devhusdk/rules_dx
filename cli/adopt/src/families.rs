@@ -93,8 +93,8 @@ fn is_named_file(name: &str) -> bool {
         .any(|language| language.file_names.iter().any(|file| file == name))
 }
 
-/// The lowercased extensions, with their dot, of the files under `root`, plus the exact names
-/// that `is_named_file` accepts.
+/// The lowercased extensions, with their dot, of the files under `root`, plus the names that
+/// `is_named_file` accepts, alone or before a dot.
 pub fn file_extensions(root: &Path) -> BTreeSet<String> {
     source_files(root)
         .iter()
@@ -102,6 +102,11 @@ pub fn file_extensions(root: &Path) -> BTreeSet<String> {
             let name = path.rsplit('/').next()?;
             if is_named_file(name) {
                 return Some(name.to_owned());
+            }
+            if let Some((head, _)) = name.split_once('.')
+                && is_named_file(head)
+            {
+                return Some(head.to_owned());
             }
             let (stem, ext) = name.rsplit_once('.')?;
             (!stem.is_empty()).then(|| format!(".{}", ext.to_ascii_lowercase()))
@@ -274,6 +279,15 @@ mod tests {
         assert!(extensions.contains("CMakeLists.txt"));
         assert!(extensions.contains("Makefile"));
         assert!(!extensions.contains("README"));
+    }
+
+    #[test]
+    fn a_file_name_before_a_dot_is_reported() {
+        let dir = workspace(&["Dockerfile.prod", "web/app.Dockerfile"], true);
+        let extensions = file_extensions(dir.path());
+        assert!(extensions.contains("Dockerfile"));
+        assert!(extensions.contains(".dockerfile"));
+        assert!(!extensions.contains(".prod"));
     }
 
     #[test]

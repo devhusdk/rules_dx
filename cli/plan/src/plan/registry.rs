@@ -435,7 +435,11 @@ mod tests {
         let extensions = extensions(&[".go"]);
         let lint = aspects_for(Command::Lint, consumer(&extensions));
         assert!(
-            lint.contains(&"dockerfile/private/quality:dockerfile.bzl%real_dockerfile_lint_aspect")
+            lint.contains(&"kubernetes/private/quality:kubernetes.bzl%real_kubernetes_lint_aspect")
+        );
+        assert!(
+            !lint
+                .contains(&"dockerfile/private/quality:dockerfile.bzl%real_dockerfile_lint_aspect")
         );
         assert!(!lint.contains(&"make/private/quality:make.bzl%real_make_lint_aspect"));
         assert!(!lint.contains(&"sql/private/quality:sql.bzl%real_sql_lint_aspect"));
@@ -449,6 +453,13 @@ mod tests {
         let cmake = extensions(&["CMakeLists.txt"]);
         let format = aspects_for(Command::Format, consumer(&cmake));
         assert!(format.contains(&"cmake/private/quality:cmake.bzl%real_cmake_format_aspect"));
+        for mark in ["Dockerfile", "Containerfile", ".dockerfile"] {
+            let docker = extensions(&[mark]);
+            let lint = aspects_for(Command::Lint, consumer(&docker));
+            assert!(lint.contains(
+                &"dockerfile/private/quality:dockerfile.bzl%real_dockerfile_lint_aspect"
+            ));
+        }
     }
 
     #[test]

@@ -902,8 +902,14 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "dockerfile/private/quality:dockerfile.bzl",
-      "every_workspace": true,
-      "file_extensions": []
+      "file_extensions": [
+        ".containerfile",
+        ".dockerfile"
+      ],
+      "file_names": [
+        "Containerfile",
+        "Dockerfile"
+      ]
     },
     "title": "Dockerfile",
     "tools": [

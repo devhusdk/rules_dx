@@ -5,7 +5,6 @@
 //! `--group G` need no ACL changes of their own. `--backend user --ensure-host-denies [--deny P]...`
 //! puts the denies on the shared `dxh-host` group once per machine, and `--remove-host-denies`
 //! takes them off again.
-#![cfg_attr(test, expect(dead_code, reason = "the test harness does not run main"))]
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Backend {
@@ -180,11 +179,9 @@ pub fn ancestors(grants: &[String]) -> Result<Vec<String>, String> {
     for grant in grants {
         let path = grant.replace('/', "\\");
         let parts: Vec<&str> = path.split('\\').filter(|part| !part.is_empty()).collect();
-        let drive = parts.first().map_or(&[][..], |part| part.as_bytes());
+        let drive = parts.first().map_or(&[] as &[u8], |part| part.as_bytes());
         if path.starts_with('\\')
-            || drive.len() != 2
-            || !drive[0].is_ascii_alphabetic()
-            || drive[1] != b':'
+            || !matches!(drive, [letter, b':'] if letter.is_ascii_alphabetic())
         {
             return Err(format!("grant {grant:?} is not a drive letter path"));
         }
@@ -207,10 +204,10 @@ pub fn ancestors(grants: &[String]) -> Result<Vec<String>, String> {
     for path in &granted {
         let parts: Vec<&str> = path.split('\\').collect();
         for depth in 1..parts.len() {
-            let dir = if depth == 1 {
-                format!("{}\\", parts[0])
-            } else {
-                parts[..depth].join("\\")
+            let above = parts.get(..depth).unwrap_or_default();
+            let dir = match above {
+                [drive] => format!("{drive}\\"),
+                _ => above.join("\\"),
             };
             if !covered(&dir) && !out.iter().any(|have| have.eq_ignore_ascii_case(&dir)) {
                 out.push(dir);
@@ -236,17 +233,19 @@ pub fn acl_waves(paths: &[&str]) -> Vec<Vec<usize>> {
     };
     let mut wave_of: Vec<usize> = Vec::new();
     let mut waves: Vec<Vec<usize>> = Vec::new();
-    for at in 0..norm.len() {
-        let wave = (0..at)
-            .filter(|&before| nested(&norm[at], &norm[before]))
-            .map(|before| wave_of[before] + 1)
+    for (at, path) in norm.iter().enumerate() {
+        let wave = norm
+            .iter()
+            .zip(&wave_of)
+            .filter(|(before, _)| nested(path, before))
+            .map(|(_, wave)| wave + 1)
             .max()
             .unwrap_or(0);
         wave_of.push(wave);
-        if waves.len() == wave {
-            waves.push(Vec::new());
+        match waves.get_mut(wave) {
+            Some(members) => members.push(at),
+            None => waves.push(vec![at]),
         }
-        waves[wave].push(at);
     }
     waves
 }
@@ -300,11 +299,8 @@ pub fn password(bytes: &[u8]) -> String {
     ];
     bytes
         .iter()
-        .enumerate()
-        .map(|(at, byte)| {
-            let class = CLASSES[at % CLASSES.len()].as_bytes();
-            class[usize::from(*byte) % class.len()] as char
-        })
+        .zip(CLASSES.iter().cycle())
+        .filter_map(|(byte, class)| class.chars().nth(usize::from(*byte) % class.len()))
         .collect()
 }
 
@@ -324,7 +320,7 @@ pub fn logon_command_line(command: &[String]) -> Result<String, String> {
     if line.encode_utf16().count() > 1024 {
         return Err(format!(
             "the command line of {} is longer than the 1024 characters the run account accepts",
-            command[0]
+            command.first().map_or("", String::as_str)
         ));
     }
     Ok(line)

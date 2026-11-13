@@ -310,7 +310,7 @@ fn account_sid(name: &[u16]) -> Result<Vec<u8>, String> {
     if found == 0 {
         return Err(format!(
             "cannot look up the SID of {}: {}",
-            String::from_utf16_lossy(&name[..name.len() - 1]),
+            String::from_utf16_lossy(name.strip_suffix(&[0]).unwrap_or(name)),
             std::io::Error::last_os_error()
         ));
     }
@@ -529,8 +529,8 @@ fn dns_client_pid() -> Result<u32, String> {
         }
         CloseServiceHandle(manager);
     }
-    match status[7] {
-        pid if ok && pid != 0 => Ok(pid),
+    match status.get(7) {
+        Some(&pid) if ok && pid != 0 => Ok(pid),
         _ => Err("cannot find the process of the Dnscache service".to_owned()),
     }
 }
@@ -556,7 +556,7 @@ fn handle_entries() -> Result<Vec<HandleEntry>, String> {
                 "cannot list the system handles (NTSTATUS {status:#x})"
             ));
         }
-        let count = buffer[0] as usize;
+        let count = buffer.first().copied().unwrap_or(0) as usize;
         let first = unsafe { buffer.as_ptr().add(2) } as *const HandleEntry;
         return Ok((0..count)
             .map(|at| unsafe { std::ptr::read(first.add(at)) })
@@ -781,7 +781,7 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
     if created == 0 {
         return Err(format!(
             "cannot start {} as the run account: {}",
-            config.command[0],
+            config.command.first().map_or("", String::as_str),
             std::io::Error::last_os_error()
         ));
     }
@@ -1059,8 +1059,8 @@ fn in_waves<'a>(
         std::thread::scope(|scope| {
             let threads: Vec<_> = wave
                 .iter()
-                .map(|&at| {
-                    let (path, mode) = entries[at];
+                .filter_map(|&at| {
+                    let &(path, mode) = entries.get(at)?;
                     // Each thread has its own copy, as raw pointers cannot cross threads.
                     let mut sid = sid.to_vec();
                     let thread = scope.spawn(move || {
@@ -1068,17 +1068,16 @@ fn in_waves<'a>(
                         let result = step(path, sid.as_mut_ptr() as *mut c_void, mode);
                         (start.elapsed().as_millis(), result)
                     });
-                    (at, thread)
+                    Some((at, path, thread))
                 })
                 .collect();
-            for (at, thread) in threads {
-                let outcome = thread.join().unwrap_or_else(|_| {
-                    (
-                        0,
-                        Err(format!("changing the ACL of {} panicked", paths[at])),
-                    )
-                });
-                done[at] = Some(outcome);
+            for (at, path, thread) in threads {
+                let outcome = thread
+                    .join()
+                    .unwrap_or_else(|_| (0, Err(format!("changing the ACL of {path} panicked"))));
+                if let Some(slot) = done.get_mut(at) {
+                    *slot = Some(outcome);
+                }
             }
         });
     }

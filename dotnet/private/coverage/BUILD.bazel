@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_binary")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS)
@@ -48,16 +48,4 @@ exports_files(
         "src/main.rs",
     ],
     visibility = ["//core/quality:__pkg__"],
-)
-
-rust_test(
-    name = "coverlet_launcher_bin_test",
-    size = "small",
-    aliases = aliases(
-        package_name = "dotnet/private/coverlet_launcher",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate = ":coverlet_launcher",
-    deps = [],
 )

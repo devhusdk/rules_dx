@@ -202,6 +202,9 @@ rust_test(
     }) + select({
         "@dx_qt//:windows_x86_64": [":console_fixture_windows_x86_64"],
         "//conditions:default": [],
+    }) + select({
+        "@platforms//os:macos": ["@dx_qt//:display_cocoa"],
+        "//conditions:default": [],
     }),
     env = select({
         "@platforms//os:macos": _QT_TEST_ENV,

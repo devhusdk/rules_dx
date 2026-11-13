@@ -84,6 +84,7 @@
     ],
     "syntax-string-no-invalid": true,
     "unit-no-unknown": true,
+    "value-no-invalid": true,
     "value-no-vendor-prefix": true
   },
   "overrides": [

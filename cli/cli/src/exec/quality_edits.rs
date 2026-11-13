@@ -848,9 +848,14 @@ fn apply_inserts_an_external_dep_by_its_apparent_name() {
     assert_eq!(code, 0, "{out}");
     let after =
         std::fs::read_to_string(harness.workspace.join("p/BUILD.bazel")).expect("BUILD file");
+    let hub = &dx_families::hub("maven")
+        .expect("setup.hubs entry maven")
+        .hub;
     assert_eq!(
         after,
-        "rust_library(\n    name = \"lib\",\n    deps = [\n        \":used\",\n        \"@maven//:guava\",\n    ],\n)\n"
+        format!(
+            "rust_library(\n    name = \"lib\",\n    deps = [\n        \":used\",\n        \"@{hub}//:guava\",\n    ],\n)\n"
+        )
     );
     assert_eq!(mapping_call(&harness).len(), 1);
 }

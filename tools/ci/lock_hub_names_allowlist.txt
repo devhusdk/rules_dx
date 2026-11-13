@@ -1,5 +1,0 @@
-hub cli/cli/src/exec/quality_edits.rs maven
-hub cli/cli/src/exec/update_unused.rs maven
-hub cli/plan/src/resolve/lock_inputs.rs maven
-hub core/quality/result/src/build_deps.rs maven
-hub tools/testing/hermetic/maven_pin.rs maven

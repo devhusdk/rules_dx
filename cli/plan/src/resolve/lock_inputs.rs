@@ -1379,18 +1379,25 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         let changed = changed_maven_artifacts(base, head).expect("diff");
         assert_eq!(changed.keys().cloned().collect::<Vec<_>>(), ["d_e", "f_g"]);
         assert!(changed_maven_artifacts("{}", head).is_err());
+        let hub = dx_families::hub("maven")
+            .expect("setup.hubs entry maven")
+            .hub
+            .as_str();
+        let at = |label: &str| label.replace("{hub}", hub);
         let labels = [
             "@@//:x",
-            "@@maven//:d_e",
-            "@@maven//:other",
-            "@@rules_jvm_external++maven+maven_f_g//jar:jar",
-        ];
+            "@@{hub}//:d_e",
+            "@@{hub}//:other",
+            "@@rules_jvm_external++maven+{hub}_f_g//jar:jar",
+        ]
+        .map(at);
         assert_eq!(
-            maven_seeds(labels.iter().copied(), "maven", &changed),
+            maven_seeds(labels.iter().map(String::as_str), hub, &changed),
             [
-                "@@maven//:d_e",
-                "@@rules_jvm_external++maven+maven_f_g//jar:jar"
+                "@@{hub}//:d_e",
+                "@@rules_jvm_external++maven+{hub}_f_g//jar:jar"
             ]
+            .map(at)
         );
     }
 

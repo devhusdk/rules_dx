@@ -855,12 +855,11 @@ mod tests {
         );
         let mut resolved = [target("maven", Ecosystem::Maven, "MODULE.bazel")];
         resolved[0].set.repository = Some("maven".to_owned());
-        let found = find(
-            root,
-            &resolved,
-            &Labels("@maven//:com_google_guava_guava\n"),
-            &[],
-        );
+        let hub = &dx_families::hub("maven")
+            .expect("setup.hubs entry maven")
+            .hub;
+        let labels = format!("@{hub}//:com_google_guava_guava\n");
+        let found = find(root, &resolved, &Labels(&labels), &[]);
         assert_eq!(found.len(), 1);
         assert_eq!(
             (found[0].name.as_str(), found[0].line),

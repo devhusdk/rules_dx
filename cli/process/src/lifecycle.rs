@@ -657,7 +657,7 @@ pub(crate) fn run_streamed_in(
             StreamStdin::Null => Stdio::null(),
         },
     );
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     if let Some(lease) = lease.as_ref() {
         lease.record_from_child(&mut command);
     }

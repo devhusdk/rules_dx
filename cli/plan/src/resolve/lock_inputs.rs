@@ -1264,7 +1264,7 @@ fn npm_repo_name(name: &str) -> String {
     }
 }
 
-/// Labels of changed npm packages: the hub's `@npm//name` targets and the
+/// Labels of changed npm packages: the hub's `@<hub>//name` targets and the
 /// per-version `npm__name__version` spoke repositories.
 pub(crate) fn npm_seeds<'a>(
     labels: impl Iterator<Item = &'a str>,

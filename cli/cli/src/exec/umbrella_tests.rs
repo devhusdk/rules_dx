@@ -199,7 +199,7 @@ impl<R: Runner> Runner for CompileFailAt<R> {
             .find_map(|arg| arg.strip_prefix("--build_event_json_file="))
         {
             let rest = std::fs::read_to_string(bep).unwrap_or_default();
-            std::fs::write(bep, format!("{}\n{rest}", self.bep_line)).expect("BEP file");
+            std::fs::write(bep, format!("{}\n{rest}", self.bep_line))?;
         }
         Ok(ChildStatus::exited(1))
     }
@@ -297,14 +297,14 @@ impl Runner for StagedRunner {
             (&self.apply_files, &self.apply_intended)
         };
         for (path, bytes) in files {
-            std::fs::write(path, bytes).expect("stage artifact");
+            std::fs::write(path, bytes)?;
         }
         if let Some(path) = env
             .iter()
             .find_map(|(key, value)| (*key == GENERATE_ENV_INTENDED).then_some(*value))
             && let Some(witness) = intended
         {
-            std::fs::write(path, witness).expect("stage witness");
+            std::fs::write(path, witness)?;
         }
         self.seen_env.borrow_mut().push(
             env.iter()
@@ -315,7 +315,7 @@ impl Runner for StagedRunner {
             .iter()
             .find_map(|arg| arg.strip_prefix("--build_event_json_file="))
         {
-            std::fs::write(bep, self.bep_lines.join("\n")).expect("BEP file");
+            std::fs::write(bep, self.bep_lines.join("\n"))?;
         }
         Ok(ChildStatus {
             code: self.code,
@@ -2964,10 +2964,10 @@ impl<R: Runner> Runner for StaleBuild<R> {
             let launch = self.generate_launches.get();
             self.generate_launches.set(launch + 1);
             if launch == 0 {
-                std::fs::write(&self.build, &self.fixed).expect("BUILD");
-                std::fs::write(path, &self.apply_witness).expect("witness");
+                std::fs::write(&self.build, &self.fixed)?;
+                std::fs::write(path, &self.apply_witness)?;
             } else {
-                std::fs::write(path, intended_witness("check", true, "", "")).expect("witness");
+                std::fs::write(path, intended_witness("check", true, "", ""))?;
             }
             return Ok(status);
         }
@@ -2979,7 +2979,7 @@ impl<R: Runner> Runner for StaleBuild<R> {
             .iter()
             .find_map(|arg| arg.strip_prefix("--build_event_json_file="))
         {
-            std::fs::write(bep, format!("{}\n{LAST_EVENT}", self.bep_line)).expect("BEP");
+            std::fs::write(bep, format!("{}\n{LAST_EVENT}", self.bep_line))?;
         }
         Ok(ChildStatus::exited(1))
     }

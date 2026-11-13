@@ -69,7 +69,7 @@ impl Runner for AuditRunner {
                 if arg == "--report-path"
                     && let Some(path) = argv.get(index + 1)
                 {
-                    let _ = std::fs::write(path, sarif.as_bytes());
+                    std::fs::write(path, sarif.as_bytes()).ok();
                 }
             }
         }
@@ -78,7 +78,7 @@ impl Runner for AuditRunner {
                 if arg == "--output"
                     && let Some(path) = argv.get(index + 1)
                 {
-                    let _ = std::fs::write(path, report.as_bytes());
+                    std::fs::write(path, report.as_bytes()).ok();
                 }
             }
         }
@@ -1321,7 +1321,9 @@ struct RealGit;
 
 impl dx_plan::resolve::QueryRunner for RealGit {
     fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<dx_plan::resolve::QueryResult> {
-        assert_eq!(argv[0], "git", "unexpected query {argv:?}");
+        if argv.first().map(String::as_str) != Some("git") {
+            return Err(io::Error::other(format!("unexpected query {argv:?}")));
+        }
         let output = dx_process::capture::run_captured(
             dx_process::capture::git(cwd).args(&argv[1..]),
             dx_process::capture::DEFAULT_TIMEOUT,

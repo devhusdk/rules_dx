@@ -131,11 +131,11 @@ impl Policy {
     /// Announces restart `n` and waits; false when a stop arrived first.
     fn pause(&self, code: i32, n: u32) -> bool {
         let wait = jittered(n);
-        let _ = writeln!(
+        writeln!(
             self.notice.borrow_mut(),
             "dx: notice: bazel exited {code} before the command started; restarting in {}s (restart {n} of {MAX_RESTARTS})",
             wait.as_secs()
-        );
+        ).ok();
         (self.sleep)(wait);
         !(self.stop)()
     }
@@ -234,14 +234,14 @@ impl<R: Runner> RestartingRunner<R> {
                 return Ok(None);
             }
             if let Some(path) = bep_path_of(argv) {
-                let _ = std::fs::remove_file(cwd.join(path));
+                std::fs::remove_file(cwd.join(path)).ok();
             }
             if let Some(off) = off {
                 self.cache_retries.set(self.cache_retries.get() + 1);
-                let _ = writeln!(
+                writeln!(
                     self.policy.notice.borrow_mut(),
                     "dx: notice: bazel reported a remote cache error; running once more without the remote cache"
-                );
+                ).ok();
                 current = off;
                 cache_off = true;
             } else {
@@ -512,7 +512,7 @@ mod tests {
 
     impl Runner for Apps {
         fn run(&self, _: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
-            unreachable!("apps go through run_app")
+            Err(io::Error::other("apps go through run_app"))
         }
 
         fn run_app(
@@ -692,7 +692,9 @@ mod tests {
         fn run(&self, argv: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
             let fresh = self.calls.borrow().is_empty();
             self.calls.borrow_mut().push(argv.to_vec());
-            assert!(fresh || !self.bep.exists(), "stale stream");
+            if !fresh && self.bep.exists() {
+                return Err(io::Error::other("stale stream"));
+            }
             let text = if fresh { self.stderr } else { "" };
             let event = serde_json::json!({"id": {"progress": {}}, "progress": {"stderr": text}});
             std::fs::write(&self.bep, format!("{event}\n"))?;

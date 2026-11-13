@@ -571,7 +571,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     };
     if text {
-        let _ = writeln!(err, "{}", resolving_line(&base));
+        writeln!(err, "{}", resolving_line(&base)).ok();
     }
     let plan = match plan(
         invocation.command,
@@ -590,7 +590,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         return finished_empty(invocation, &plan, workspace, out, err);
     }
     if text {
-        let _ = writeln!(err, "{}", plan.summary());
+        writeln!(err, "{}", plan.summary()).ok();
     }
     let mut next = invocation.clone();
     next.affected = false;
@@ -666,7 +666,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
             edit_commit_json,
         },
     );
-    let _ = injector.finish();
+    injector.finish().ok();
     code
 }
 
@@ -788,7 +788,7 @@ mod tests {
                 .iter()
                 .find_map(|arg| arg.strip_prefix("--query_file="))
             {
-                seen = std::fs::read_to_string(path).expect("query file");
+                seen = std::fs::read_to_string(path)?;
             }
             self.expressions.borrow_mut().push(seen);
             let answer = self.bazel.borrow_mut().remove(0);

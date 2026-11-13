@@ -29,6 +29,7 @@ file ocaml/tests/fixtures/ocaml_app/lexer/lexer_test.ml
 file ocaml/tests/fixtures/ocaml_app/lexer/tokens.mll
 file ocaml/tests/fixtures/ocaml_app/ocaml_app.opam
 file ocaml/tests/fixtures/ocaml_app/ocaml_app.opam.locked
+file ocaml/tests/fixtures/ocaml_app/opam.lock.json
 failure //ocaml/tests/fixtures/ocaml_app/cli:report_without_astring
 failure //ocaml/tests/fixtures/ocaml_app/diagnostics:syntax_error
 bazel_dep platforms

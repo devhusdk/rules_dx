@@ -1,5 +1,7 @@
 //! Converts the LDoc filter's JSON into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::fs;
 
 use documentation_ir::json::{field, number, string, strings};
@@ -282,7 +284,10 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     Ok(shard)
 }
 
-#[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input of the call"
+)]
 fn symbol(
     id: String,
     kind: SymbolKind,

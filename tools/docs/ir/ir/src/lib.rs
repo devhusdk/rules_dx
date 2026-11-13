@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod json;
 pub mod tool;
 

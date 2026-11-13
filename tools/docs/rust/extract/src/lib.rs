@@ -1,5 +1,7 @@
 //! Converts nightly rustdoc JSON into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
 
@@ -83,8 +85,9 @@ pub fn map_source(sources: &[Source], span_file: &str) -> Option<(String, bool)>
             } else {
                 file.find(&format!("/{dir}")).map(|at| at + 1)
             };
-            if let Some(at) = at {
-                let rest = &file[at + dir.len()..];
+            if let Some(at) = at
+                && let Some(rest) = file.get(at + dir.len()..)
+            {
                 if !rest.is_empty() {
                     return Some((format!("{}{rest}", source.file), source.generated));
                 }
@@ -224,9 +227,9 @@ struct AliasCand {
 }
 
 #[derive(Clone, Copy)]
-enum Cand {
-    Entry(usize),
-    Alias(usize),
+enum Cand<'x> {
+    Entry(usize, &'x Entry),
+    Alias(usize, &'x AliasCand),
 }
 
 struct Walker<'a> {
@@ -367,8 +370,12 @@ impl<'a> Walker<'a> {
             }
         }
         if let Some(&idx) = self.canonical.get(&owner) {
-            self.entries[idx].implements = implements;
-            self.entries[idx].relations = true;
+            let entry = self
+                .entries
+                .get_mut(idx)
+                .ok_or_else(|| format!("entry index {idx} out of range"))?;
+            entry.implements = implements;
+            entry.relations = true;
         }
         Ok(())
     }
@@ -551,7 +558,10 @@ impl<'a> Walker<'a> {
             format!("pub use {source}::*;"),
             None,
         )?;
-        self.entries[idx].forced = true;
+        self.entries
+            .get_mut(idx)
+            .ok_or_else(|| format!("entry index {idx} out of range"))?
+            .forced = true;
         Ok(())
     }
 
@@ -564,7 +574,10 @@ impl<'a> Walker<'a> {
         glob: bool,
     ) -> Result<(), String> {
         if let Some(&idx) = self.canonical.get(&target.id) {
-            let canonical = &self.entries[idx];
+            let canonical = self
+                .entries
+                .get(idx)
+                .ok_or_else(|| format!("entry index {idx} out of range"))?;
             let bang = if canonical.base.ends_with('!') {
                 "!"
             } else {
@@ -597,14 +610,17 @@ impl<'a> Walker<'a> {
     }
 
     fn path_ref(&self, path: &Path) -> Ref {
-        let fallback = match self.krate.paths.get(&path.id) {
-            Some(summary) if summary.crate_id == 0 && summary.path.len() > 1 => {
-                format!("{}{}", self.prefix, summary.path[1..].join("."))
-            }
-            Some(summary) if summary.path.len() > 1 => {
-                format!("rust:{}:{}", summary.path[0], summary.path[1..].join("."))
-            }
-            _ => format!("rust::{}", path.path.replace("::", ".")),
+        let split = self.krate.paths.get(&path.id).and_then(|summary| {
+            summary
+                .path
+                .split_first()
+                .filter(|(_, rest)| !rest.is_empty())
+                .map(|(first, rest)| (summary.crate_id, first, rest))
+        });
+        let fallback = match split {
+            Some((0, _, rest)) => format!("{}{}", self.prefix, rest.join(".")),
+            Some((_, first, rest)) => format!("rust:{first}:{}", rest.join(".")),
+            None => format!("rust::{}", path.path.replace("::", ".")),
         };
         Ref {
             id: path.id,
@@ -623,15 +639,15 @@ impl<'a> Walker<'a> {
             ..
         } = self;
         // One alias per (name, target); an explicit `pub use` beats a glob.
-        let mut kept: BTreeMap<(&str, Id), usize> = BTreeMap::new();
+        let mut kept: BTreeMap<(&str, Id), (usize, &AliasCand)> = BTreeMap::new();
         for (index, alias) in aliases.iter().enumerate() {
             match kept.entry((alias.base.as_str(), alias.target)) {
                 std::collections::btree_map::Entry::Vacant(slot) => {
-                    slot.insert(index);
+                    slot.insert((index, alias));
                 }
                 std::collections::btree_map::Entry::Occupied(mut slot) => {
-                    if aliases[*slot.get()].glob && !alias.glob {
-                        slot.insert(index);
+                    if slot.get().1.glob && !alias.glob {
+                        slot.insert((index, alias));
                     }
                 }
             }
@@ -641,30 +657,30 @@ impl<'a> Walker<'a> {
             groups
                 .entry(entry.base.as_str())
                 .or_default()
-                .push(Cand::Entry(index));
+                .push(Cand::Entry(index, entry));
         }
-        for index in kept.into_values() {
+        for (index, alias) in kept.into_values() {
             groups
-                .entry(aliases[index].base.as_str())
+                .entry(alias.base.as_str())
                 .or_default()
-                .push(Cand::Alias(index));
+                .push(Cand::Alias(index, alias));
         }
         let rank_of = |cand: &Cand| match cand {
-            Cand::Entry(i) => entries[*i].rank,
-            Cand::Alias(i) => aliases[*i].rank,
+            Cand::Entry(_, e) => e.rank,
+            Cand::Alias(_, a) => a.rank,
         };
         let key_of = |cand: &Cand| match cand {
-            Cand::Entry(i) => (entries[*i].rank, entries[*i].pos.clone(), entries[*i].tag),
-            Cand::Alias(i) => (aliases[*i].rank, aliases[*i].pos.clone(), aliases[*i].tag),
+            Cand::Entry(_, e) => (e.rank, e.pos.clone(), e.tag),
+            Cand::Alias(_, a) => (a.rank, a.pos.clone(), a.tag),
         };
-        let mut final_entry = vec![String::new(); entries.len()];
-        let mut final_alias: Vec<Option<String>> = vec![None; aliases.len()];
+        let mut final_entry: BTreeMap<usize, String> = BTreeMap::new();
+        let mut final_alias: BTreeMap<usize, String> = BTreeMap::new();
         for (base, cands) in groups {
             let mut forced = Vec::new();
             let mut live = Vec::new();
             for cand in &cands {
                 match cand {
-                    Cand::Entry(i) if entries[*i].forced => forced.push(*cand),
+                    Cand::Entry(_, e) if e.forced => forced.push(*cand),
                     _ => live.push(*cand),
                 }
             }
@@ -672,25 +688,25 @@ impl<'a> Walker<'a> {
             // the same namespace; an explicit name is an error instead.
             let mut survivors = Vec::new();
             for cand in &live {
-                if let Cand::Alias(i) = cand {
+                if let Cand::Alias(_, alias) = cand {
                     let rivals: Vec<&Cand> = live
                         .iter()
                         .filter(|other| {
-                            !matches!((cand, other), (Cand::Alias(a), Cand::Alias(b)) if a == b)
+                            !matches!((cand, other), (Cand::Alias(a, _), Cand::Alias(b, _)) if a == b)
                                 && rank_of(other) == rank_of(cand)
                         })
                         .collect();
-                    if aliases[*i].glob {
+                    if alias.glob {
                         if !rivals.is_empty() {
                             continue;
                         }
                     } else if let Some(rival) = rivals
                         .iter()
-                        .find(|r| !matches!(r, Cand::Alias(j) if aliases[*j].glob))
+                        .find(|r| !matches!(r, Cand::Alias(_, a) if a.glob))
                     {
                         let other = match rival {
-                            Cand::Entry(j) => entries[*j].symbol.signature_text.clone(),
-                            Cand::Alias(j) => format!("a re-export of {}", aliases[*j].base),
+                            Cand::Entry(_, e) => e.symbol.signature_text.clone(),
+                            Cand::Alias(_, a) => format!("a re-export of {}", a.base),
                         };
                         return Err(format!(
                             "re-export name '{base}' collides with '{other}' in the same namespace"
@@ -717,23 +733,39 @@ impl<'a> Walker<'a> {
                         }
                     };
                     match cand {
-                        Cand::Entry(i) => final_entry[*i] = id,
-                        Cand::Alias(i) => final_alias[*i] = Some(id),
+                        Cand::Entry(i, _) => {
+                            final_entry.insert(*i, id);
+                        }
+                        Cand::Alias(i, _) => {
+                            final_alias.insert(*i, id);
+                        }
                     }
                 }
             }
         }
-        let resolve = |id: &Id| canonical.get(id).map(|index| final_entry[*index].clone());
+        if final_entry.len() != entries.len() {
+            return Err("an entry was left without a final id".to_string());
+        }
+        let resolve = |id: &Id| {
+            canonical
+                .get(id)
+                .and_then(|index| final_entry.get(index).cloned())
+        };
         let mut reexported: BTreeMap<usize, BTreeSet<String>> = BTreeMap::new();
         for (index, alias) in aliases.iter().enumerate() {
-            if let (Some(id), Some(&target)) = (&final_alias[index], canonical.get(&alias.target)) {
+            if let (Some(id), Some(&target)) =
+                (final_alias.get(&index), canonical.get(&alias.target))
+            {
                 reexported.entry(target).or_default().insert(id.clone());
             }
         }
         let mut symbols = Vec::with_capacity(entries.len());
         for (index, entry) in entries.into_iter().enumerate() {
             let mut symbol = entry.symbol;
-            symbol.id = final_entry[index].clone();
+            symbol.id = final_entry
+                .get(&index)
+                .cloned()
+                .ok_or_else(|| format!("entry {index} has no final id"))?;
             let member_of: Vec<String> = entry.owner.iter().filter_map(&resolve).collect();
             let implements: BTreeSet<String> = entry
                 .implements
@@ -1270,10 +1302,10 @@ pub fn ty(type_: &Type) -> String {
             }
             text
         }
-        Type::Tuple(items) if items.len() == 1 => format!("({},)", ty(&items[0])),
-        Type::Tuple(items) => {
-            format!("({})", items.iter().map(ty).collect::<Vec<_>>().join(", "))
-        }
+        Type::Tuple(items) => match items.as_slice() {
+            [only] => format!("({},)", ty(only)),
+            _ => format!("({})", items.iter().map(ty).collect::<Vec<_>>().join(", ")),
+        },
         Type::Slice(inner) => format!("[{}]", ty(inner)),
         Type::Array { type_, len } => format!("[{}; {len}]", ty(type_)),
         Type::Pat { type_, .. } => ty(type_),

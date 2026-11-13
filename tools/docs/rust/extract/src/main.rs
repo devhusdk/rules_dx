@@ -1,5 +1,7 @@
 //! Writes one DocIr shard from nightly rustdoc JSON.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

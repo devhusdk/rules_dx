@@ -4,6 +4,11 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
+fn field<'a>(value: &'a Value, key: &str) -> &'a Value {
+    static NULL: Value = Value::Null;
+    value.get(key).unwrap_or(&NULL)
+}
+
 fn document(path: &str, text: &str) -> Result<Value, String> {
     yaml_serde::from_str(text)
         .map_err(|error| format!("{path} is not valid workflow YAML: {error}"))
@@ -12,7 +17,11 @@ fn document(path: &str, text: &str) -> Result<Value, String> {
 /// Returns the platforms the `dogfood` job of `ci.yml` passes to the reusable workflow.
 pub fn dogfood_platforms(path: &str, text: &str) -> Result<Vec<String>, String> {
     let document = document(path, text)?;
-    let Some(platforms) = document["jobs"]["dogfood"]["with"]["platforms"].as_str() else {
+    let Some(platforms) = field(
+        field(field(field(&document, "jobs"), "dogfood"), "with"),
+        "platforms",
+    )
+    .as_str() else {
         return Err(format!(
             "{path}: jobs.dogfood.with.platforms is not a string"
         ));
@@ -24,16 +33,24 @@ pub fn dogfood_platforms(path: &str, text: &str) -> Result<Vec<String>, String> 
 /// Returns the runner label of each platform in the `preflight` matrix of `ci.yml`.
 pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, String>, String> {
     let document = document(path, text)?;
-    let Some(include) = document["jobs"]["preflight"]["strategy"]["matrix"]["include"].as_array()
-    else {
+    let Some(include) = field(
+        field(
+            field(field(field(&document, "jobs"), "preflight"), "strategy"),
+            "matrix",
+        ),
+        "include",
+    )
+    .as_array() else {
         return Err(format!(
             "{path}: jobs.preflight.strategy.matrix.include is not a list"
         ));
     };
     let mut runners = BTreeMap::new();
     for entry in include {
-        let (Some(platform), Some(runner)) = (entry["platform"].as_str(), entry["runner"].as_str())
-        else {
+        let (Some(platform), Some(runner)) = (
+            field(entry, "platform").as_str(),
+            field(entry, "runner").as_str(),
+        ) else {
             return Err(format!(
                 "{path}: a preflight entry lacks platform or runner"
             ));
@@ -46,18 +63,24 @@ pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, Strin
 /// Returns the `quality` labels of each platform's `preflight` lane in `ci.yml`.
 pub fn preflight_quality(path: &str, text: &str) -> Result<BTreeMap<String, Vec<String>>, String> {
     let document = document(path, text)?;
-    let Some(include) = document["jobs"]["preflight"]["strategy"]["matrix"]["include"].as_array()
-    else {
+    let Some(include) = field(
+        field(
+            field(field(field(&document, "jobs"), "preflight"), "strategy"),
+            "matrix",
+        ),
+        "include",
+    )
+    .as_array() else {
         return Err(format!(
             "{path}: jobs.preflight.strategy.matrix.include is not a list"
         ));
     };
     let mut lanes = BTreeMap::new();
     for entry in include {
-        let Some(platform) = entry["platform"].as_str() else {
+        let Some(platform) = field(entry, "platform").as_str() else {
             return Err(format!("{path}: a preflight entry lacks platform"));
         };
-        let labels = entry["quality"]
+        let labels = field(entry, "quality")
             .as_str()
             .unwrap_or_default()
             .split_whitespace()
@@ -91,7 +114,7 @@ pub fn check_evidence_lanes(
     }
     for (platform, labels) in lanes {
         for (index, label) in labels.iter().enumerate() {
-            if labels[..index].contains(label) {
+            if labels.iter().take(index).any(|earlier| earlier == label) {
                 return Err(format!(
                     "{path}: the {platform} preflight lane lists {label} twice"
                 ));
@@ -121,12 +144,12 @@ pub fn workflow_platforms(
     runners: &BTreeMap<String, String>,
 ) -> Result<Vec<String>, String> {
     let document = document(path, text)?;
-    let Some(jobs) = document["jobs"].as_object() else {
+    let Some(jobs) = field(&document, "jobs").as_object() else {
         return Err(format!("{path} declares no jobs"));
     };
     let mut platforms = Vec::new();
     for (id, job) in jobs {
-        let Some(runs_on) = job["runs-on"].as_str() else {
+        let Some(runs_on) = field(job, "runs-on").as_str() else {
             return Err(format!("{path}: job {id} has no string runs-on"));
         };
         if runs_on.contains("matrix.platform") {
@@ -163,19 +186,19 @@ pub fn tag_job_platforms(
     runners: &BTreeMap<String, String>,
 ) -> Result<BTreeMap<String, Vec<String>>, String> {
     let document = document(path, text)?;
-    let Some(jobs) = document["jobs"].as_object() else {
+    let Some(jobs) = field(&document, "jobs").as_object() else {
         return Ok(BTreeMap::new());
     };
     let mut out: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for (id, job) in jobs {
         let mut tags = Vec::new();
-        for step in job["steps"].as_array().into_iter().flatten() {
-            let Some(run) = step["run"].as_str() else {
+        for step in field(job, "steps").as_array().into_iter().flatten() {
+            let Some(run) = field(step, "run").as_str() else {
                 continue;
             };
             let mut rest = run;
-            while let Some(index) = rest.find("attr(tags,") {
-                rest = &rest[index + "attr(tags,".len()..];
+            while let Some((_, after)) = rest.split_once("attr(tags,") {
+                rest = after;
                 let Some((tag, _)) = rest.split_once(',') else {
                     return Err(format!("{path}: job {id} has an unterminated attr(tags,"));
                 };
@@ -196,24 +219,27 @@ pub fn tag_job_platforms(
         if tags.is_empty() {
             continue;
         }
-        let Some(runs_on) = job["runs-on"].as_str() else {
+        let Some(runs_on) = field(job, "runs-on").as_str() else {
             return Err(format!("{path}: job {id} has no string runs-on"));
         };
         let labels: Vec<String> = if runs_on.trim() == "${{ matrix.runner }}" {
-            let Some(include) = job["strategy"]["matrix"]["include"].as_array() else {
+            let Some(include) =
+                field(field(field(job, "strategy"), "matrix"), "include").as_array()
+            else {
                 return Err(format!("{path}: job {id} has no matrix.include"));
             };
-            let matrix = &job["strategy"]["matrix"];
-            if !matrix["exclude"].is_null() {
+            let matrix = field(field(job, "strategy"), "matrix");
+            if !field(matrix, "exclude").is_null() {
                 return Err(format!(
                     "{path}: job {id} has matrix.exclude, so the reader cannot tell \
                      which cells run"
                 ));
             }
-            if let Some(axis) = matrix["platform"].as_array() {
+            if let Some(axis) = field(matrix, "platform").as_array() {
                 for value in axis {
                     let covered = include.iter().any(|entry| {
-                        entry["platform"] == *value && entry["runner"].as_str().is_some()
+                        field(entry, "platform") == value
+                            && field(entry, "runner").as_str().is_some()
                     });
                     if !covered {
                         return Err(format!(
@@ -224,7 +250,7 @@ pub fn tag_job_platforms(
             }
             include
                 .iter()
-                .filter_map(|entry| entry["runner"].as_str().map(str::to_owned))
+                .filter_map(|entry| field(entry, "runner").as_str().map(str::to_owned))
                 .collect()
         } else {
             vec![runner_label(runs_on).to_owned()]
@@ -336,9 +362,11 @@ jobs:
     fn skips_jobs_that_run_no_bazel() {
         let runners = runner_platforms("ci.yml", CI).expect("runners");
         let extra = "jobs:\n  finish:\n    runs-on: ubuntu-slim\n";
-        assert!(workflow_platforms("evidence.yml", extra, &runners)
-            .expect("platforms")
-            .is_empty());
+        assert!(
+            workflow_platforms("evidence.yml", extra, &runners)
+                .expect("platforms")
+                .is_empty()
+        );
     }
 
     #[test]

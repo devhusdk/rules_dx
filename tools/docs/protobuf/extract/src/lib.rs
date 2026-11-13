@@ -1,5 +1,7 @@
 //! Converts a protoc descriptor set with source info into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 
@@ -161,7 +163,10 @@ struct Builder<'a> {
 }
 
 impl Builder<'_> {
-    #[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each argument is a distinct input of the call"
+    )]
     fn push(
         &mut self,
         segments: &[String],

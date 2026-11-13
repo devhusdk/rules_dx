@@ -4,6 +4,8 @@
 //! constructor, field, class and function, each preceded by its `-- |` doc. It carries no
 //! positions, so each declaration is located in the module source by matching its name.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use documentation_ir::proto::{DocIr, Extension, SourceRef, Symbol, SymbolKind, Visibility};
 use std::collections::BTreeMap;
 use std::fs;
@@ -186,7 +188,10 @@ pub fn convert(
                 if words.get(1) == Some(&"instance") {
                     continue;
                 }
-                let Some(name) = declared_name(&words[1 + skip..], first == "class") else {
+                let Some(rest_words) = words.get(1 + skip..) else {
+                    continue;
+                };
+                let Some(name) = declared_name(rest_words, first == "class") else {
                     continue;
                 };
                 let kind = match first {
@@ -199,15 +204,22 @@ pub fn convert(
                     let t = l.trim_start();
                     t.starts_with(first) && tokens(t).any(|w| w == name)
                 });
-                symbols.push(symbol(&context, current, &id, kind, line.to_owned(), docs, at));
-                parent = matches!(kind, SymbolKind::Class | SymbolKind::Interface).then(|| {
-                    Parent {
+                symbols.push(symbol(
+                    &context,
+                    current,
+                    &id,
+                    kind,
+                    line.to_owned(),
+                    docs,
+                    at,
+                ));
+                parent =
+                    matches!(kind, SymbolKind::Class | SymbolKind::Interface).then(|| Parent {
                         id,
                         name,
                         is_class: first == "class",
                         line: at,
-                    }
-                });
+                    });
             }
             _ => {
                 let Some((names, sig)) = line.split_once(" :: ") else {
@@ -302,7 +314,7 @@ fn declared_name(words: &[&str], is_class: bool) -> Option<String> {
     if (is_class || words.contains(&"=>"))
         && let Some(at) = words.iter().position(|w| *w == "=>")
     {
-        rest = &words[at + 1..];
+        rest = words.get(at + 1..)?;
     }
     let word = rest.first()?;
     let word = word.trim_matches(['(', ')']);
@@ -321,7 +333,10 @@ fn locate(text: &str, name: &str, from: usize, constructor: bool) -> usize {
         if constructor {
             return tokens(line).any(|w| w == name);
         }
-        let t = line.trim_start().trim_start_matches(['{', ',']).trim_start();
+        let t = line
+            .trim_start()
+            .trim_start_matches(['{', ','])
+            .trim_start();
         let t = t.strip_prefix('(').map_or(t, |inner| inner);
         t.strip_prefix(name).is_some_and(|rest| {
             let rest = rest.trim_start_matches(')').trim_start();

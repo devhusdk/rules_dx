@@ -162,7 +162,7 @@ pub fn wildcard_match(pattern: &str, name: &str) -> bool {
                 star = Some((p, n));
                 p += 1;
             }
-            Some(&c) if c == '?' || c == name[n] => {
+            Some(&c) if c == '?' || name.get(n) == Some(&c) => {
                 p += 1;
                 n += 1;
             }
@@ -176,5 +176,7 @@ pub fn wildcard_match(pattern: &str, name: &str) -> bool {
             },
         }
     }
-    pattern[p..].iter().all(|&c| c == '*')
+    pattern
+        .get(p..)
+        .is_some_and(|tail| tail.iter().all(|&c| c == '*'))
 }

@@ -1,5 +1,7 @@
 //! Writes `docs/support-matrix.md`.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::path::Path;
 use std::process::ExitCode;
 

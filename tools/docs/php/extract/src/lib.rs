@@ -1,5 +1,7 @@
 //! Converts the php_dump driver's JSON into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeSet;
 use std::fs;
 

@@ -1,5 +1,7 @@
 //! Converts component metadata JSON into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 mod convert;
 
 pub use convert::{SCHEMA, Settings, convert};

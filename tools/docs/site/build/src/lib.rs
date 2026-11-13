@@ -1,5 +1,7 @@
 //! Assembles one mdBook source tree and runs the pinned mdBook build.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -35,8 +37,7 @@ pub fn usage() -> String {
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut options = Options::default();
     let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].clone();
+    while let Some(flag) = args.get(index).cloned() {
         let Some(value) = args.get(index + 1) else {
             return Err(format!("{flag} needs a value"));
         };
@@ -154,9 +155,9 @@ pub fn manifest_pages(text: &str) -> Vec<Page> {
 pub fn log_error(log: &str) -> String {
     for line in log.lines() {
         for marker in ["[WARN]", "[ERROR]"] {
-            if let Some(at) = line.find(marker) {
-                let text = line[at..].trim();
-                return format!("mdbook reported {text}");
+            if let Some((_, after)) = line.split_once(marker) {
+                let text = format!("{marker}{after}");
+                return format!("mdbook reported {}", text.trim());
             }
         }
     }

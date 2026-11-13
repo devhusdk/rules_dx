@@ -1,5 +1,7 @@
 //! Converts the griffe driver's JSON into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 
@@ -70,17 +72,20 @@ pub fn parse_sources(manifest: &str) -> Result<BTreeMap<String, (String, bool)>,
     let mut sources = BTreeMap::new();
     for line in manifest.lines().filter(|line| !line.is_empty()) {
         let columns: Vec<&str> = line.split('\t').collect();
-        let generated = match columns.as_slice() {
-            [_, rel, flag] if !rel.is_empty() && !rel.starts_with('/') && !rel.contains("..") => {
-                match *flag {
+        let (staged, rel, generated) = match columns.as_slice() {
+            [staged, rel, flag]
+                if !rel.is_empty() && !rel.starts_with('/') && !rel.contains("..") =>
+            {
+                let generated = match *flag {
                     "0" => false,
                     "1" => true,
                     _ => return Err(format!("malformed srcs manifest line '{line}'")),
-                }
+                };
+                (staged, rel, generated)
             }
             _ => return Err(format!("malformed srcs manifest line '{line}'")),
         };
-        sources.insert(columns[0].to_owned(), (columns[1].to_owned(), generated));
+        sources.insert((*staged).to_owned(), ((*rel).to_owned(), generated));
     }
     Ok(sources)
 }

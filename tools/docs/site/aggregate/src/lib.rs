@@ -1,5 +1,7 @@
 //! Renders DocIr shards into API pages, an index, a SUMMARY fragment and search records.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
@@ -36,8 +38,7 @@ pub fn usage() -> &'static str {
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut options = Options::default();
     let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
+    while let Some(flag) = args.get(index).map(String::as_str) {
         let Some(value) = args.get(index + 1) else {
             return Err(format!("{flag} needs a value"));
         };
@@ -441,8 +442,8 @@ fn link(from: &str, id: &str, known: &BTreeSet<&str>, titles: &Titles) -> String
 
 /// Returns the link from one book page to another, relative to the first page's folder.
 pub fn relative(from: &str, to: &str) -> String {
-    let from_dirs: Vec<&str> = from.split('/').collect();
-    let from_dirs = &from_dirs[..from_dirs.len().saturating_sub(1)];
+    let mut from_dirs: Vec<&str> = from.split('/').collect();
+    from_dirs.pop();
     let to_parts: Vec<&str> = to.split('/').collect();
     let common = from_dirs
         .iter()
@@ -451,7 +452,7 @@ pub fn relative(from: &str, to: &str) -> String {
         .count()
         .min(to_parts.len().saturating_sub(1));
     let mut parts: Vec<&str> = vec![".."; from_dirs.len() - common];
-    parts.extend(&to_parts[common..]);
+    parts.extend(to_parts.iter().skip(common));
     parts.join("/")
 }
 
@@ -481,39 +482,39 @@ fn rewrite_dx_line(line: &str, from: &str, known: &BTreeSet<&str>, titles: &Titl
     while !rest.is_empty() {
         if rest.starts_with('`') {
             let ticks = rest.bytes().take_while(|b| *b == b'`').count();
-            let marker = &rest[..ticks];
-            if let Some(end) = rest[ticks..].find(marker) {
-                let total = ticks + end + ticks;
-                out.push_str(&rest[..total]);
-                rest = &rest[total..];
-                continue;
-            }
-            out.push_str(&rest[..ticks]);
-            rest = &rest[ticks..];
+            let Some((marker, after)) = rest.split_at_checked(ticks) else {
+                out.push_str(rest);
+                break;
+            };
+            let total = after.find(marker).map(|end| ticks + end + ticks);
+            let Some((kept, tail)) = rest.split_at_checked(total.unwrap_or(ticks)) else {
+                out.push_str(rest);
+                break;
+            };
+            out.push_str(kept);
+            rest = tail;
             continue;
         }
-        if rest.starts_with('[')
-            && let Some(close) = rest.find("](dx:")
+        if let Some(bracketed) = rest.strip_prefix('[')
+            && let Some((label, target)) = bracketed.split_once("](dx:")
+            && !label.contains('[')
+            && !label.contains('`')
+            && let Some((id, tail)) = target.split_once(')')
         {
-            let label = &rest[1..close];
-            let target_start = close + "](dx:".len();
-            if !label.contains('[')
-                && !label.contains('`')
-                && let Some(end) = rest[target_start..].find(')')
-            {
-                let id = &rest[target_start..target_start + end];
-                if known.contains(id) {
-                    out.push_str(&format!("[{label}]({})", relative(from, &api_path(id))));
-                } else {
-                    out.push_str(&code(&titles.of(id)));
-                }
-                rest = &rest[target_start + end + 1..];
-                continue;
+            if known.contains(id) {
+                out.push_str(&format!("[{label}]({})", relative(from, &api_path(id))));
+            } else {
+                out.push_str(&code(&titles.of(id)));
             }
+            rest = tail;
+            continue;
         }
-        let ch = rest.chars().next().map_or(1, char::len_utf8);
-        out.push_str(&rest[..ch]);
-        rest = &rest[ch..];
+        let mut chars = rest.chars();
+        let Some(ch) = chars.next() else {
+            break;
+        };
+        out.push(ch);
+        rest = chars.as_str();
     }
     out
 }

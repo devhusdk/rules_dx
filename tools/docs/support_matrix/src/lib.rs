@@ -1,5 +1,7 @@
 //! Generates `docs/support-matrix.md` from CI workflows, test BUILD files and the quality registry.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod render;
 pub mod runfiles_source;
 pub mod starlark;

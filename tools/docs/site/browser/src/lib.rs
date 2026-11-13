@@ -1,5 +1,7 @@
 //! Drives one Firefox over its Marionette control port to exercise a rendered site.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
@@ -211,14 +213,17 @@ impl Browser {
             let Some(parts) = frame.as_array() else {
                 continue;
             };
-            if parts.len() < 4 || parts[0].as_u64() != Some(1) {
+            let [kind, id, error, result, ..] = parts.as_slice() else {
+                continue;
+            };
+            if kind.as_u64() != Some(1) {
                 continue;
             }
-            if parts[1].as_u64() != Some(self.next_id) {
+            if id.as_u64() != Some(self.next_id) {
                 continue;
             }
-            let error = parts[2].clone();
-            let result = parts[3].clone();
+            let error = error.clone();
+            let result = result.clone();
             if !error.is_null() {
                 return Err(format!("browser: {name} failed: {error}"));
             }
@@ -361,10 +366,10 @@ fn missing_libraries(log: &Path) -> String {
     let text = std::fs::read_to_string(log).unwrap_or_default();
     let mut libraries: Vec<&str> = Vec::new();
     for line in text.lines() {
-        let Some(end) = line.find(MISSING_LIBRARY_MARK) else {
+        let Some((end, _)) = line.split_once(MISSING_LIBRARY_MARK) else {
             continue;
         };
-        let name = line[..end].rsplit(": ").next().unwrap_or("").trim();
+        let name = end.rsplit(": ").next().unwrap_or("").trim();
         if !name.is_empty() && !name.contains(char::is_whitespace) && !libraries.contains(&name) {
             libraries.push(name);
         }
@@ -380,7 +385,12 @@ fn missing_libraries(log: &Path) -> String {
 fn log_tail(log: &Path) -> String {
     let text = std::fs::read_to_string(log).unwrap_or_default();
     let lines: Vec<&str> = text.lines().collect();
-    lines[lines.len().saturating_sub(LOG_TAIL_LINES)..].join("\n")
+    lines
+        .iter()
+        .skip(lines.len().saturating_sub(LOG_TAIL_LINES))
+        .copied()
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn settle() -> Result<(), String> {

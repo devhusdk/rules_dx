@@ -1,5 +1,7 @@
 //! Converts the XML tree Doxygen writes for the public headers of a library into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 
@@ -165,7 +167,9 @@ fn parse_xml(text: &str) -> Result<Node, String> {
                 }
             }
             Event::End(_) => {
-                let node = stack.pop().ok_or("Doxygen XML closes an unopened element")?;
+                let node = stack
+                    .pop()
+                    .ok_or("Doxygen XML closes an unopened element")?;
                 match stack.last_mut() {
                     Some(top) => top.children.push(Child::Node(node)),
                     None => root = Some(node),
@@ -295,9 +299,7 @@ fn block(node: &Node, blocks: &mut Vec<String>, described: &mut Described) {
                     for names in item.all("parameternamelist") {
                         for name in names.all("parametername") {
                             for one in name.text().split(',') {
-                                described
-                                    .params
-                                    .insert(one.trim().to_owned(), doc.clone());
+                                described.params.insert(one.trim().to_owned(), doc.clone());
                             }
                         }
                     }
@@ -416,7 +418,9 @@ fn segments(name: &str) -> Vec<String> {
     let bytes: Vec<char> = name.chars().collect();
     let mut index = 0;
     while index < bytes.len() {
-        let c = bytes[index];
+        let Some(&c) = bytes.get(index) else {
+            break;
+        };
         match c {
             '<' | '(' => depth += 1,
             '>' | ')' => depth = depth.saturating_sub(1),
@@ -500,10 +504,7 @@ fn location(node: &Node, context: &Context) -> Option<(String, u64, bool)> {
     Some((rel.clone(), line.parse().unwrap_or(0), *generated))
 }
 
-fn incomplete_extensions(
-    context: &Context,
-    undocumented: Vec<String>,
-) -> Vec<Extension> {
+fn incomplete_extensions(context: &Context, undocumented: Vec<String>) -> Vec<Extension> {
     let mut extensions = vec![extension(
         &format!("{}.config", context.language),
         &context.config,
@@ -633,7 +634,10 @@ fn member_draft(
             if member.attr("static") == "yes" {
                 head.push_str("static ");
             }
-            head.push_str(&format!("{ty} {name}{}", type_text(member.first("argsstring"))));
+            head.push_str(&format!(
+                "{ty} {name}{}",
+                type_text(member.first("argsstring"))
+            ));
             let init = type_text(member.first("initializer"));
             if !init.is_empty() {
                 head.push(' ');
@@ -770,7 +774,9 @@ pub fn convert(
         return Err(format!("invalid package '{package}'"));
     }
     if language != "cc" && language != "cuda" {
-        return Err(format!("unknown language '{language}', expected cc or cuda"));
+        return Err(format!(
+            "unknown language '{language}', expected cc or cuda"
+        ));
     }
     let sources = Sources::parse(manifest)?;
     let prefix = format!("{language}:{package}:");
@@ -779,7 +785,10 @@ pub fn convert(
     for text in documents {
         let root = parse_xml(text)?;
         if root.name != "doxygen" {
-            return Err(format!("Doxygen XML root is <{}>, want <doxygen>", root.name));
+            return Err(format!(
+                "Doxygen XML root is <{}>, want <doxygen>",
+                root.name
+            ));
         }
         if version.is_empty() {
             version = root.attr("version").to_owned();
@@ -833,23 +842,21 @@ pub fn convert(
                 .collect();
             implements.sort();
             implements.dedup();
-            let parent: Vec<String> = path[..path.len() - 1].to_vec();
+            let Some((_, parent)) = path.split_last() else {
+                continue;
+            };
             let member_of = if parent.is_empty() {
                 Vec::new()
             } else {
                 vec![format!("{prefix}{}", qualified(&parent))]
             };
-            let relations = (!member_of.is_empty() || !implements.is_empty()).then_some(Relations {
-                member_of,
-                implements,
-                reexported_as: Vec::new(),
-            });
-            let head = format!(
-                "{}{} {}",
-                template_prefix(compound),
-                kind,
-                path.join("::")
-            );
+            let relations =
+                (!member_of.is_empty() || !implements.is_empty()).then_some(Relations {
+                    member_of,
+                    implements,
+                    reexported_as: Vec::new(),
+                });
+            let head = format!("{}{} {}", template_prefix(compound), kind, path.join("::"));
             drafts.push(Draft {
                 order: (0, file.clone(), line),
                 symbol: Symbol {
@@ -878,9 +885,14 @@ pub fn convert(
                     continue;
                 }
                 let compound_id = if scoped { compound.attr("id") } else { "" };
-                if let Some(draft) =
-                    member_draft(member, member_path, compound_id, in_class, &context, &prefix)
-                {
+                if let Some(draft) = member_draft(
+                    member,
+                    member_path,
+                    compound_id,
+                    in_class,
+                    &context,
+                    &prefix,
+                ) {
                     if member.attr("kind") == "enum" {
                         drafts.extend(enum_values(member, &draft.path, &context, &prefix));
                     }
@@ -899,7 +911,11 @@ pub fn convert(
     }
     let mut used: BTreeSet<Vec<String>> = BTreeSet::new();
     for draft in &drafts {
-        let mut path = draft.path[..draft.path.len().saturating_sub(1)].to_vec();
+        let mut path = draft
+            .path
+            .split_last()
+            .map_or(&[][..], |(_, init)| init)
+            .to_vec();
         while !path.is_empty() {
             if namespaces.contains_key(&path) {
                 used.insert(path.clone());
@@ -916,7 +932,9 @@ pub fn convert(
         if described.markdown.is_empty() {
             undocumented.push("doc".to_owned());
         }
-        let parent: Vec<String> = path[..path.len() - 1].to_vec();
+        let Some((_, parent)) = path.split_last() else {
+            continue;
+        };
         let relations = (!parent.is_empty()).then(|| Relations {
             member_of: vec![format!("{prefix}{}", qualified(&parent))],
             implements: Vec::new(),

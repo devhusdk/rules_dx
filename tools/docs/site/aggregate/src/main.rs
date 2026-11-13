@@ -1,5 +1,7 @@
 //! Writes the API pages, index, SUMMARY fragment and search records of one docs site.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

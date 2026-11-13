@@ -1,5 +1,7 @@
 //! Renders the standard and strict tier pages from the tier files.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeMap;
 
 use dx_diff::{FilePatch, PatchKind, render_patch};

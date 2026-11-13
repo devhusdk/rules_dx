@@ -64,7 +64,9 @@ pub fn flags(args: &[String], known: &[&str]) -> Result<Flags, String> {
     let mut pairs = Vec::new();
     let mut index = 0;
     while index < args.len() {
-        let flag = args[index].as_str();
+        let Some(flag) = args.get(index).map(String::as_str) else {
+            break;
+        };
         if !known.contains(&flag) {
             return Err(format!("unknown argument '{flag}'"));
         }

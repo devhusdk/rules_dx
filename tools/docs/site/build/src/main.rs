@@ -1,5 +1,7 @@
 //! Assembles one mdBook source tree and runs the pinned mdBook build.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

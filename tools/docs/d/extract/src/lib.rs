@@ -5,6 +5,8 @@
 //! at the declaration line, and the ddoc `Params:`, `Returns:` and `Examples:` sections fill in
 //! the parameter docs, the return doc and the examples.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use documentation_ir::proto::{
     DocIr, Extension, Param, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
@@ -221,14 +223,7 @@ fn members(
             kind,
             SymbolKind::Class | SymbolKind::Interface | SymbolKind::Enum
         );
-        out.push(symbol(
-            context,
-            child,
-            source,
-            &id,
-            kind,
-            name.to_owned(),
-        ));
+        out.push(symbol(context, child, source, &id, kind, name.to_owned()));
         if aggregate {
             members(context, child, source, &id, true, out);
         } else if text_of(child, "kind") == "template" {
@@ -361,13 +356,13 @@ pub fn declaration(text: &str, line: usize) -> String {
 
 /// The type of one parameter, read from the first parenthesis group of the signature.
 fn parameter_type(signature: &str, name: &str) -> String {
-    let Some(start) = signature.find('(') else {
+    let Some((_, inside)) = signature.split_once('(') else {
         return String::new();
     };
     let mut depth = 0usize;
     let mut current = String::new();
     let mut parts: Vec<String> = Vec::new();
-    for ch in signature[start + 1..].chars() {
+    for ch in inside.chars() {
         match ch {
             '(' | '[' => depth += 1,
             ')' | ']' if depth == 0 => break,

@@ -866,7 +866,9 @@ oci_deploy(
   `<name>_load` loads the image of the first platform.
 
 The image targets are incompatible with a Windows target platform, so a
-wildcard build on Windows skips them.
+wildcard build on Windows skips them. A Windows exec platform still builds the
+Linux binary of an image, the `<name>_binary` target, with the Linux-target
+Rust and cc toolchains.
 
 The `oci_deploy` dry run prints the image size in bytes.
 

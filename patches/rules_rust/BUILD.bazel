@@ -10,6 +10,7 @@ exports_files([
     "msvc_pdb_output.patch",
     "pipelined_rmeta_path.patch",
     "static_archive_link_arg.patch",
+    "windows_exec_foreign_target_cc_linker.patch",
 ])
 
 real_source_target(

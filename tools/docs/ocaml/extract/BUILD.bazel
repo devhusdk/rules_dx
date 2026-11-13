@@ -57,6 +57,7 @@ rust_binary(
 
 rust_test(
     name = "dx_docs_ocaml_extract_test",
+    size = "small",
     srcs = [
         "src/html.rs",
         "src/lib.rs",

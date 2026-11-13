@@ -30,6 +30,7 @@ rust_library(
 
 rust_test(
     name = "dx_site_build_test",
+    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",

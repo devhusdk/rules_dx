@@ -837,7 +837,7 @@ mod tests {
         let builds = harness.build_argv.borrow();
         let fetch = builds
             .iter()
-            .position(|argv| argv.iter().any(|arg| *arg == repo))
+            .position(|argv| argv.contains(&repo))
             .expect("crate repin");
         assert!(builds[fetch].iter().any(|arg| arg == "fetch"), "{builds:?}");
         let env = &harness.seen_env.borrow()[fetch];
@@ -884,7 +884,7 @@ mod tests {
         let builds = harness.build_argv.borrow();
         let pin = builds
             .iter()
-            .position(|argv| argv.iter().any(|arg| *arg == maven_pin))
+            .position(|argv| argv.contains(&maven_pin))
             .expect("maven pin");
         assert!(builds[pin].iter().any(|arg| arg == "run"), "{builds:?}");
         assert!(
@@ -925,7 +925,7 @@ mod tests {
                 .build_argv
                 .borrow()
                 .iter()
-                .any(|argv| argv.iter().any(|arg| *arg == repo))
+                .any(|argv| argv.contains(&repo))
         );
     }
 

@@ -108,7 +108,6 @@ impl LockKind {
 }
 
 const CRATE_EXTENSION_BZL: &str = "crate_universe:extensions.bzl";
-const DEFAULT_HUB: &str = "crates";
 const NPM_EXTENSION_BZL: &str = "npm:extensions.bzl";
 const CARGO_HUB_BZL: &str = "//rust:extensions.bzl";
 const NPM_HUB_BZL: &str = "//javascript:extensions.bzl";
@@ -257,7 +256,15 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxErro
                 call.name, call.line
             )));
         }
-        let name = literal(call, "name", None)?.unwrap_or_else(|| DEFAULT_HUB.to_owned());
+        let name = match literal(call, "name", None)? {
+            Some(name) => name,
+            None => dx_families::hub("cargo")
+                .ok_or_else(|| {
+                    dx_error::DxError::failure("cargo has no setup.hubs entry".to_owned())
+                })?
+                .hub
+                .clone(),
+        };
         let cargo_lockfile = literal(call, "cargo_lockfile", None)?.ok_or_else(|| {
             dx_error::DxError::failure({
                 format!(

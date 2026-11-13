@@ -98,6 +98,10 @@ name = "host_program_test"
 path = "host_program_test.rs"
 
 [[test]]
+name = "hub_literals_test"
+path = "hub_literals_test.rs"
+
+[[test]]
 name = "input_validation_test"
 path = "input_validation_test.rs"
 

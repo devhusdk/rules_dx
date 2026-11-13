@@ -2,6 +2,7 @@
 
 load("//core:rlocation.bzl", "external_path", "runfiles_path")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE", "TOOLCHAIN_TYPE")
 load(":providers.bzl", "PhpInfo")
 
@@ -154,7 +155,7 @@ def _write_coverage_launcher(ctx, tokens, tree):
         [runfiles_path(ctx.workspace_name, f.short_path) for f in php.coverage.extensions],
     ))
     runfiles = runfiles.merge(ctx.runfiles(files = [php.pcov, ctx.executable._coverage_run] + php.coverage.extensions, transitive_files = php.coverage.files))
-    return launcher, runfiles.merge(ctx.attr._coverage_run[DefaultInfo].default_runfiles)
+    return launcher, runfiles.merge(ctx.attr._coverage_run[0][DefaultInfo].default_runfiles)
 
 def _runfiles(ctx, files, transitive, base = None):
     runfiles = ctx.runfiles(files = files + ctx.files.data, transitive_files = depset(transitive = transitive))
@@ -272,7 +273,7 @@ php_test = rule(
     attrs = _RUN_ATTRS | {
         "config": attr.label(allow_single_file = [".xml", ".dist"], doc = "A phpunit.xml; without it PHPUnit runs with --no-configuration."),
         "srcs": attr.label_list(mandatory = True, allow_files = PHP_SOURCE_EXTS, doc = "PHPUnit test files PHPUnit runs."),
-        "_coverage_run": attr.label(default = _COVERAGE_RUN, executable = True, cfg = "target", doc = "Runs PHPUnit under PCOV and converts its Clover report to LCOV."),
+        "_coverage_run": attr.label(default = _COVERAGE_RUN, executable = True, cfg = no_coverage_transition, doc = "Runs PHPUnit under PCOV and converts its Clover report to LCOV."),
         "_phpunit": attr.label(default = _PHPUNIT, allow_single_file = True, doc = "The pinned PHPUnit phar."),
     },
     test = True,

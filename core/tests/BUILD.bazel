@@ -16,7 +16,7 @@ load(":fuzz_tests.bzl", "fuzz_binary_tests")
 load(":harness_link_tests.bzl", "harness_link_tests")
 load(":license_tests.bzl", "license_tests")
 load(":lock_hub_tests.bzl", "lock_hub_tests")
-load(":no_coverage_tests.bzl", "no_coverage_tests")
+load(":no_coverage_tests.bzl", "no_coverage_build_scripts_test", "no_coverage_tests")
 load(":packaging_tests.bzl", "packaging_unit_tests")
 load(":pins_tests.bzl", "pins_tests")
 load(":platform_tests.bzl", "platform_probe_tests", "platforms_transition_tests")
@@ -109,6 +109,11 @@ license_tests(name = "license")
 seven_zip_tests(name = "seven_zip")
 
 no_coverage_tests(name = "no_coverage")
+
+no_coverage_build_scripts_test(
+    name = "starlark_harness_build_scripts_no_coverage_test",
+    target_under_test = ":warnings_parity",
+)
 
 toolchain_tests(name = "toolchain")
 

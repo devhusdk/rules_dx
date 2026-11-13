@@ -10,6 +10,7 @@ shell and has no shell toolchain to declare it through.
 The root MODULE.bazel uses `tools.explicit()` with pinned cmake, ninja, make,
 m4 and pkgconfig, so rules_foreign_cc has no host cmake fallback. The arm64
 cell runs cmake with `--trace-expand` so its log shows `CMAKE_CROSSCOMPILING`.
+The arm64 cross targets build on Linux x86_64 hosts only.
 
 `unknown_generator_test` checks that `-GBogus` fails analysis with a clear
 message and no fallback generator.
@@ -30,8 +31,10 @@ switching compilers reconfigures CMake instead of reusing a stale cache.
 
 On windows_x86_64 with `--//cc:compiler=msvc`, `zlib_msvc_static` and
 `zlib_msvc_shared` build the same zlib with cl.exe through the Ninja generator
-(`zlibstatic.lib`, `zlib.lib` and `zlib.dll`; zlib only names the DLL `zlib1.dll`
-under MinGW). The root MODULE.bazel uses the prebuilt ninja on Windows and noop
+(`libzs.lib`, `libz.lib` and `libz.dll`). The root MODULE.bazel uses the prebuilt ninja on Windows and noop
 make, m4 and pkgconfig toolchains there. `foreign_cmake_msvc_log_test` checks the
 MSVC identification and the /MD flag in the CMake log. Link warnings are not errors
 for these probes (`/WX:NO`).
+Static targets set `ZLIB_BUILD_SHARED=OFF`, shared targets set
+`ZLIB_BUILD_STATIC=OFF`, and CMake's compiler checks build in the Release
+configuration (`CMAKE_TRY_COMPILE_CONFIGURATION`).

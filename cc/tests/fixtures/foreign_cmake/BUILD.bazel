@@ -25,6 +25,15 @@ _THIRD_PARTY = [
     "no-typecheck",
 ]
 
+_ZLIB = {
+    "CMAKE_TRY_COMPILE_CONFIGURATION": "Release",
+    "ZLIB_BUILD_TESTING": "OFF",
+}
+
+_ZLIB_STATIC = _ZLIB | {"ZLIB_BUILD_SHARED": "OFF"}
+
+_ZLIB_SHARED = _ZLIB | {"ZLIB_BUILD_STATIC": "OFF"}
+
 _LINUX_X86_64 = [
     "@platforms//cpu:x86_64",
     "@platforms//os:linux",
@@ -33,7 +42,7 @@ _LINUX_X86_64 = [
 cmake(
     name = "zlib_static",
     build_args = ["--verbose"],
-    cache_entries = {"CMAKE_C_FLAGS": "-DDX_FOREIGN_CMAKE_FLAG=1"},
+    cache_entries = _ZLIB_STATIC | {"CMAKE_C_FLAGS": "-DDX_FOREIGN_CMAKE_FLAG=1"},
     generate_args = ["-GNinja"],
     lib_source = "@foreign_cmake_zlib//:all_srcs",
     out_static_libs = ["libz.a"],
@@ -44,7 +53,7 @@ cmake(
 cmake(
     name = "zlib_shared",
     build_args = ["--verbose"],
-    cache_entries = {"CMAKE_C_FLAGS": "-DDX_FOREIGN_CMAKE_FLAG=1"},
+    cache_entries = _ZLIB_SHARED | {"CMAKE_C_FLAGS": "-DDX_FOREIGN_CMAKE_FLAG=1"},
     generate_args = ["-GNinja"],
     lib_source = "@foreign_cmake_zlib//:all_srcs",
     out_shared_libs = ["libz.so.1"],
@@ -55,6 +64,7 @@ cmake(
 cmake(
     name = "zlib_arm64",
     build_args = ["--verbose"],
+    cache_entries = _ZLIB_STATIC,
     generate_args = [
         "-GNinja",
         "--trace-expand",
@@ -62,6 +72,7 @@ cmake(
     lib_source = "@foreign_cmake_zlib//:all_srcs",
     out_static_libs = ["libz.a"],
     tags = _THIRD_PARTY,
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 filegroup(
@@ -69,12 +80,14 @@ filegroup(
     srcs = [":zlib_arm64"],
     output_group = "CMake_logs",
     tags = _THIRD_PARTY,
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 platform_transition_filegroup(
     name = "zlib_arm64_log",
     srcs = [":zlib_arm64_cmake_log"],
     tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
     target_platform = "@rules_dx//appimage:linux_arm64",
 )
 
@@ -82,6 +95,7 @@ platform_transition_filegroup(
     name = "zlib_arm64_files",
     srcs = [":zlib_arm64"],
     tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
     target_platform = "@rules_dx//appimage:linux_arm64",
 )
 
@@ -138,13 +152,13 @@ _WINDOWS_X86_64 = [
 cmake(
     name = "zlib_msvc_static",
     build_args = ["--verbose"],
-    cache_entries = _MSVC_NO_WX,
+    cache_entries = _ZLIB_STATIC | _MSVC_NO_WX,
     generate_args = [
         "-GNinja",
         "--trace-expand",
     ],
     lib_source = "@foreign_cmake_zlib//:all_srcs",
-    out_static_libs = ["zlibstatic.lib"],
+    out_static_libs = ["libzs.lib"],
     tags = _THIRD_PARTY,
     target_compatible_with = _WINDOWS_X86_64,
 )
@@ -152,11 +166,11 @@ cmake(
 cmake(
     name = "zlib_msvc_shared",
     build_args = ["--verbose"],
-    cache_entries = _MSVC_NO_WX,
+    cache_entries = _ZLIB_SHARED | _MSVC_NO_WX,
     generate_args = ["-GNinja"],
     lib_source = "@foreign_cmake_zlib//:all_srcs",
-    out_interface_libs = ["zlib.lib"],
-    out_shared_libs = ["zlib.dll"],
+    out_interface_libs = ["libz.lib"],
+    out_shared_libs = ["libz.dll"],
     tags = _THIRD_PARTY,
     target_compatible_with = _WINDOWS_X86_64,
 )

@@ -22,11 +22,11 @@
       "version": "16.2.0"
     },
     "foreign_cmake_zlib": {
-      "version": "1.3.1",
-      "sha256": "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23",
-      "strip_prefix": "zlib-1.3.1",
+      "version": "1.4",
+      "sha256": "02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584",
+      "strip_prefix": "zlib-1.4",
       "urls": [
-        "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz"
+        "https://github.com/madler/zlib/releases/download/v1.4/zlib-1.4.tar.gz"
       ]
     },
     "c_app_cjson": {

@@ -6,8 +6,8 @@
 #include <vector>
 
 int main() {
-  if (std::string(zlibVersion()) != "1.3.1") return 1;
-  if (std::string(ZLIB_VERSION) != "1.3.1") return 2;
+  if (std::string(zlibVersion()) != "1.4") return 1;
+  if (std::string(ZLIB_VERSION) != "1.4") return 2;
 
   const char input[] = "hello hello hello hello hello hello";
   uLong input_size = sizeof(input);

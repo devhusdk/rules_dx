@@ -236,6 +236,38 @@ rust_test(
     ],
 )
 
+rust_test(
+    name = "needs_test",
+    size = "small",
+    srcs = ["needs_test.rs"],
+    data = [
+        ":needs_native",
+        "@dx_qt//:display_wayland",
+        "@dx_qt//:display_xcb",
+        "@dx_qt//:platforms",
+        "@dx_qt//:plugins_imageformats",
+        "@dx_qt//:plugins_platformthemes",
+        "@dx_qt//:plugins_tls",
+        "@dx_qt//:qml_imports",
+        "@dx_qt//:qtqml_qmldir",
+        "@dx_qt//:runtime",
+    ],
+    env = {
+        "DX_QT_NEEDS": "$(rootpath :needs_native)",
+        "DX_QT_QMLDIR_PATH": "$(rootpath @dx_qt//:qtqml_qmldir)",
+    },
+    tags = [
+        "block-network",
+        "no-remote-exec",
+    ],
+    target_compatible_with = select({
+        "@dx_qt//:linux_arm64": [],
+        "@dx_qt//:linux_x86_64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = ["//tools/testing:dx_testing"],
+)
+
 qt_cc_library(
     name = "gui",
     testonly = True,

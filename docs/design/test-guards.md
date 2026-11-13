@@ -42,6 +42,14 @@ The guards check the rules of `docs/design/tests.md`.
 - Each has its own allowlist, `tools/ci/<name>_allowlist.txt`, with lines `<path> <kind> <count>` under the same rules as the tags allowlist.
 - The three guards skip their own sources.
 
+## Rule-set loads
+
+- `//tools/ci:rule_set_loads_test` scans the `php`, `lua` and `qt` build-rule files named by `RULE_SETS` in `tools/ci/rule_set_loads_test.rs`: the public `defs.bzl` and `extensions.bzl`, `private/` rule code, toolchain, runtime and lock hub. Quality, coverage, tools, `lang.json` and tests are not rule-set files.
+- It has two kinds:
+  - `foreign-load`: a `load()` in a rule-set file of a label that is not in the same language, in `@rules_cc`, `@platforms`, `@bazel_skylib`, `@bazel_tools`, `@rules_shell`, `@bazel_lib`, `@llvm` or `@crates`, or in `RULES_DX_ALLOW`. `@rules_dx//x` and `//x` are one label and `:x` is resolved.
+  - `reaches-rule-set`: a file in the `load()` closure of `RULES_DX_ALLOW` is a rule-set file. The failure prints the chain.
+- `tools/ci/rule_set_loads_allowlist.txt` has lines `<path> <kind> <count>` under the same rules as the tags allowlist. It only shrinks.
+
 ## Determinism
 
 - `//tools/testing:determinism_check` builds `//appimage/...` and `//cli/archive/...` twice, each in a fresh output base with `--disk_cache=`, `--remote_cache=` and `--remote_executor=` empty, and compares the two compact execution logs with `dx_testing::exec_log`.

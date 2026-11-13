@@ -11,7 +11,7 @@ This page fixes the repository layout.
 - `rules_php`, `rules_lua` and `rules_qt` are rule-set modules that rules_dx owns. rules_dx depends on each like any upstream rule set, and each depends on rules_dx as a normal `bazel_dep`.
 - A rule-set module holds the build rules: toolchain, `<lang>_library`, `<lang>_binary`, `<lang>_test`, `<lang>_bench`, providers, runtime pins and the dependency hub. Its public API is `@rules_<lang>//<lang>:defs.bzl` and `@rules_<lang>//<lang>:extensions.bzl`.
 - `<lang>/` in rules_dx keeps the dx layer: `lang.json`, quality, coverage, docs, Gazelle and CLI ecosystem code. `<lang>/private/defs.bzl` wraps the rule-set macros, as `zig/private/defs.bzl` wraps `@rules_zig`.
-- A rule-set module loads from rules_dx only `@rules_dx//rust:defs.bzl` and the files listed in the guard of #12603.
+- A rule-set module loads from rules_dx only `@rules_dx//rust:defs.bzl` and the files in `RULES_DX_ALLOW` of `tools/ci/rule_set_loads_test.rs`.
 - rules_dx's floor on each rule-set module is `equals tested`. It moves with each rules_dx release.
 - There are no family modules. A family is a grouping label in the language manifest, used for CI sharding and docs.
 

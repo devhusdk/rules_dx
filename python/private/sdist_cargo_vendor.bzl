@@ -1,5 +1,10 @@
 """Vendors the crates of a pinned Rust-backed sdist into an offline cargo source."""
 
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
+
+_CARGO_LOCK = LOCK_REGISTRY["cargo"]["lock"]
+_UV_LOCK = LOCK_REGISTRY["uv"]["lock"]
+
 _CRATES_IO = "registry+https://github.com/rust-lang/crates.io-index"
 
 def _blocks(text):
@@ -53,7 +58,7 @@ def parse_cargo_lock(text):
             return "crate %s has unsupported source %s; only crates.io is vendored." % (name, source)
         checksum = _quoted(fields.get("checksum", ""))
         if checksum == None:
-            return "crate %s has no checksum in Cargo.lock." % name
+            return "crate %s has no checksum in %s." % (name, _CARGO_LOCK)
         crates.append((name, _quoted(fields.get("version", "")), checksum))
     return crates
 
@@ -128,19 +133,19 @@ def _repo_impl(rctx):
 sdist_cargo_vendor_repo = repository_rule(
     implementation = _repo_impl,
     attrs = {
-        "cargo_lock_path": attr.string(doc = "Cargo.lock path inside the sdist.", default = "Cargo.lock"),
+        "cargo_lock_path": attr.string(doc = _CARGO_LOCK + " path inside the sdist.", default = _CARGO_LOCK),
         "lock": attr.label(doc = "Lock file the vendored crates come from.", mandatory = True, allow_single_file = True),
         "package": attr.string(doc = "Name of the sdist package.", mandatory = True),
     },
 )
 
 _crates = tag_class(
-    doc = "One Rust-backed sdist pinned in a uv.lock.",
+    doc = "One Rust-backed sdist pinned in a " + _UV_LOCK + ".",
     attrs = {
-        "cargo_lock_path": attr.string(default = "Cargo.lock", doc = "Path of Cargo.lock inside the sdist."),
-        "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The uv.lock that pins the sdist."),
+        "cargo_lock_path": attr.string(default = _CARGO_LOCK, doc = "Path of " + _CARGO_LOCK + " inside the sdist."),
+        "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The " + _UV_LOCK + " that pins the sdist."),
         "name": attr.string(mandatory = True, doc = "The vendor repository name."),
-        "package": attr.string(mandatory = True, doc = "The package name in uv.lock."),
+        "package": attr.string(mandatory = True, doc = "The package name in " + _UV_LOCK + "."),
     },
 )
 
@@ -156,7 +161,7 @@ def _ext_impl(module_ctx):
     return module_ctx.extension_metadata(reproducible = True)
 
 sdist_cargo_vendor = module_extension(
-    doc = "Vendors a sdist's Cargo.lock crates so wheel builds never reach crates.io.",
+    doc = "Vendors a sdist's " + _CARGO_LOCK + " crates so wheel builds never reach crates.io.",
     implementation = _ext_impl,
     tag_classes = {"crates": _crates},
 )

@@ -5,6 +5,7 @@ load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 
 _DUB_MANIFEST = LOCK_REGISTRY["dub"]["manifest"]
 _DUB_STATE = LOCK_REGISTRY["dub"]["state"]
+_NPM_MANIFEST = LOCK_REGISTRY["npm"]["manifest"]
 
 _PINS = DATA["dx_d"]
 
@@ -179,7 +180,7 @@ TOOL_SOURCES = {
         urls = _ARCHIVES["dx_d_dcd"]["urls"],
     ),
     "dx_d_inifiled": struct(
-        dropped = ["test", "package.json"],
+        dropped = ["test", _NPM_MANIFEST],
         files = {},
         sha256 = _ARCHIVES["dx_d_inifiled"]["sha256"],
         strip_prefix = _ARCHIVES["dx_d_inifiled"]["strip_prefix"],

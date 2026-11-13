@@ -1,4 +1,4 @@
-"""Pins .NET tool drivers to one target framework, matching the net10.0 lines in paket.dependencies."""
+"""Pins .NET tool drivers to one target framework, matching the net10.0 lines of the nuget manifest."""
 
 DOTNET_TOOL_FRAMEWORK = "net10.0"
 

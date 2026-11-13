@@ -32,7 +32,7 @@ python_tools_bundle = rule(
     implementation = _impl,
     attrs = {
         "lock_files": attr.label_list(allow_files = True),
-        "projects": attr.label_keyed_string_dict(allow_files = True, doc = "pyproject.toml to 'group:tool,tool'."),
+        "projects": attr.label_keyed_string_dict(allow_files = True, doc = "Python project file to 'group:tool,tool'."),
         "python_files": attr.label(mandatory = True),
         "python_marker": attr.label(allow_single_file = True, mandatory = True),
         "skip_packages": attr.string_list(),

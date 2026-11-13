@@ -6,6 +6,10 @@ The stub pubspec follows rules_dart 0.8.1 `dart/private/project_staging.bzl` `pu
 is private API and so re-implemented here.
 """
 
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
+
+_PUBSPEC = LOCK_REGISTRY["pub"]["manifest"]
+
 DART_FORMAT = "format"
 DART_ANALYZE = "analyze"
 
@@ -51,7 +55,7 @@ def dart_package_entries(packages, mode):
     return entries
 
 def dart_pubspec_stub(packages, name, sdk_version = ""):
-    """Returns a valid stub `pubspec.yaml` for the in-repo package `name`."""
+    """Returns a valid stub pubspec for the in-repo package `name`."""
     sdk = ">=3.0.0 <4.0.0"
     parts = sdk_version.split(".")
     if len(parts) >= 2:
@@ -78,6 +82,6 @@ def dart_pubspec_stubs(packages, sdk_version = ""):
             chosen[pkg.lib_root] = pkg.package_name
     stubs = []
     for lib_root in sorted(chosen):
-        path = (lib_root + "/pubspec.yaml") if lib_root else "pubspec.yaml"
+        path = (lib_root + "/" + _PUBSPEC) if lib_root else _PUBSPEC
         stubs.append((path, dart_pubspec_stub(packages, chosen[lib_root], sdk_version)))
     return stubs

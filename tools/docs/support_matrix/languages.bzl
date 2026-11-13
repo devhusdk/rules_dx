@@ -395,7 +395,7 @@ LANGUAGES = [
     _language(
         "erlang",
         bench = "erlang_bench",
-        deps = "`hex` from `mix.lock` or an `erlang.rebar` `rebar.lock`",
+        deps = "`hex` from `" + LOCK_REGISTRY["hex"]["lock"] + "` or an `erlang.rebar` `rebar.lock`",
         doc = struct(tool = "edoc", shard = "erlang_doc_shard"),
         dead_code = ["erlc warn_unused_vars, warn_unused_function"],
     ),
@@ -431,7 +431,7 @@ LANGUAGES = [
     _language(
         "haskell",
         bench = "haskell_bench",
-        deps = "`hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`, which `haskell_deps_resolve` reads to write it",
+        deps = "`hackage` from `" + LOCK_REGISTRY["cabal"]["state"] + "`; none for `stack.yaml.lock`, which `haskell_deps_resolve` reads to write it",
         doc = struct(tool = "haddock", shard = "haskell_doc_shard"),
         dead_code = ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
         unsupported = "//haskell/private/toolchain:unsupported",

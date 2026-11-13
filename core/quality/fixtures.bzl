@@ -1,6 +1,9 @@
 """Source fixtures for real aspects."""
 
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "dockerfile_name_error", "named_source_class_error")
+
+_GO_MOD = LOCK_REGISTRY["go"]["manifest"]
 
 def markdown_sibling_error(what, siblings, markdown_srcs):
     """Returns the validation error for markdown_siblings, or "" when valid."""
@@ -126,8 +129,8 @@ def _real_source_target_impl(ctx):
                 error = dockerfile_name_error(source.basename)
             elif class_id in ["make", "cmake"]:
                 error = named_source_class_error(class_id, source.basename)
-            elif class_id == "go_module" and source.basename != "go.mod":
-                error = "'%s' is not a go_module file name; accepted names: go.mod" % source.basename
+            elif class_id == "go_module" and source.basename != _GO_MOD:
+                error = "'%s' is not a go_module file name; accepted names: %s" % (source.basename, _GO_MOD)
             else:
                 error = ""
             if error != "":

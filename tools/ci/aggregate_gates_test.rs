@@ -72,6 +72,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "coverage-cells",
         "dogfood",
         "docs",
+        "determinism",
         "devcontainer-check",
         "gate",
         "gcc-cross-build",

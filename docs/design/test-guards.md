@@ -41,3 +41,11 @@ The guards check the rules of `docs/design/tests.md`.
 - `docs/design/host-tools.md` section Checks lists the kinds of the other two.
 - Each has its own allowlist, `tools/ci/<name>_allowlist.txt`, with lines `<path> <kind> <count>` under the same rules as the tags allowlist.
 - The three guards skip their own sources.
+
+## Determinism
+
+- `//tools/testing:determinism_check` builds `//appimage/...` and `//cli/archive/...` twice, each in a fresh output base with `--disk_cache=`, `--remote_cache=` and `--remote_executor=` empty, and compares the two compact execution logs with `dx_testing::exec_log`.
+- The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run` and passes Bazel with `--bazel`.
+- An action is keyed by `<label> <mnemonic> <output path>`. The job fails for an output that differs, for an action in one log only, and for an allowlist line that no longer differs or is in neither log.
+- `tools/ci/determinism_allowlist.txt` lists the actions that differ. It only shrinks; `//tools/ci:determinism_allowlist_test` holds the cap.
+- Measured on Linux with warm repository caches: 34 s and 33 s per build, 67 s for both.

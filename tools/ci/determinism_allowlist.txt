@@ -1,0 +1,5 @@
+//appimage/tests:appimage_arm64_test_upstream Rustc bazel-out/k8-fastbuild/bin/appimage/tests/appimage_arm64_test_upstream
+//appimage/tests:appimage_test_upstream Rustc bazel-out/k8-fastbuild/bin/appimage/tests/appimage_test_upstream
+//cli/archive:dx_archive_test_upstream Rustc bazel-out/k8-fastbuild/bin/cli/archive/dx_archive_test_upstream
+@@rules_rust++crate+dx_crates__libz-sys-1.1.31//:_bs CargoBuildScriptRun bazel-out/k8-fastbuild/bin/external/rules_rust++crate+dx_crates__libz-sys-1.1.31/_bs.out_dir
+@@rules_rust++crate+dx_crates__libz-sys-1.1.31//:libz_sys Rustc bazel-out/k8-fastbuild/bin/external/rules_rust++crate+dx_crates__libz-sys-1.1.31/liblibz_sys-1584023708.rlib

@@ -402,11 +402,12 @@ def _wasi_test_impl(ctx):
 
 _wasi_test_test = analysistest.make(_wasi_test_impl)
 
-def rust_wasi_test_tests(name, target, size = "small"):
+def rust_wasi_test_tests(name, target, size = "small", tags = []):
     """Asserts a wasm = "wasi" rust_test runs one .wasm module through the shared runner."""
     _wasi_test_test(
         name = name,
         size = size,
+        tags = tags,
         target_under_test = target,
     )
 

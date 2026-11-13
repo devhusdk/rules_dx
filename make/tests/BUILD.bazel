@@ -14,6 +14,7 @@ make_library(
 owns_make_class_test(
     name = "owns_make_class_test",
     size = "small",
+    tags = ["row:make"],
     target_under_test = ":app",
 )
 
@@ -26,6 +27,7 @@ make_library(
 failure_test(
     name = "bad_name_fails",
     expected_failure_substring = "'Makefile.in' is not a make file name; accepted names: GNUmakefile, Makefile, makefile, *.mk",
+    tags = ["row:make"],
     target = ":bad_name",
 )
 

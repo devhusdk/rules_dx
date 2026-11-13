@@ -21,6 +21,7 @@ filegroup(
     name = "inputs",
     testonly = True,
     srcs = [
+        "row_labels.json",
         ":facts",
         "//.github:workflows/ci.yml",
         "//cli/cli:src/exec/unsupported.json",
@@ -54,6 +55,7 @@ rust_library(
 
 rust_test(
     name = "support_matrix_test",
+    size = "small",
     aliases = aliases(
         package_name = "tools/docs/support_matrix",
         normal = True,
@@ -69,6 +71,7 @@ rust_test(
 
 rust_test(
     name = "generate_test",
+    size = "small",
     srcs = ["src/generate_test.rs"],
     aliases = aliases(
         package_name = "tools/docs/support_matrix",

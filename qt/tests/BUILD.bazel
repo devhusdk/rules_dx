@@ -227,6 +227,7 @@ rust_test(
     tags = [
         "block-network",
         "no-remote-exec",
+        "row:qt",
     ],
     target_compatible_with = select({
         "@dx_qt//:linux_arm64": [],

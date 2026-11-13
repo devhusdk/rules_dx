@@ -11,6 +11,7 @@ dockerfile_library(
 owns_dockerfile_class_test(
     name = "owns_dockerfile_class_test",
     size = "small",
+    tags = ["row:dockerfile"],
     target_under_test = ":app",
 )
 
@@ -23,6 +24,7 @@ dockerfile_library(
 failure_test(
     name = "bad_name_fails",
     expected_failure_substring = "'Dockerfile-dev' is not a Dockerfile name; accepted names: Dockerfile, Containerfile, Dockerfile.*, Containerfile.*, *.Dockerfile, *.dockerfile, *.Containerfile, *.containerfile",
+    tags = ["row:dockerfile"],
     target = ":bad_name",
 )
 

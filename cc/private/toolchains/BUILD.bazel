@@ -180,6 +180,7 @@ gcc_unsupported_tests(name = "gcc_unsupported_test")
 cc_toolchain_test(
     name = "gcc_hello_test",
     compiler = "gcc",
+    tags = ["row:cc_gcc"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -190,6 +191,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "gcc_hello_lib_test",
     compiler = "gcc",
+    tags = ["row:cc_gcc"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -200,6 +202,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "gcc_hello_c_test",
     compiler = "gcc",
+    tags = ["row:cc_gcc"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -210,6 +213,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "gcc_shared_test",
     compiler = "gcc",
+    tags = ["row:cc_gcc"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -232,7 +236,10 @@ cc_toolchain_test(
     name = "gcc_asan_test",
     compiler = "gcc",
     extra_features = ["asan"],
-    tags = ["no-coverage"],
+    tags = [
+        "no-coverage",
+        "row:cc_gcc",
+    ],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -244,7 +251,10 @@ cc_toolchain_test(
     name = "gcc_ubsan_test",
     compiler = "gcc",
     extra_features = ["ubsan"],
-    tags = ["no-coverage"],
+    tags = [
+        "no-coverage",
+        "row:cc_gcc",
+    ],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -343,6 +353,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "gcc_arm64_hello_test",
     compiler = "gcc",
+    tags = ["row:cc_gcc"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:arm64",
@@ -353,6 +364,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "gcc_arm64_hello_c_test",
     compiler = "gcc",
+    tags = ["row:cc_gcc"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:arm64",
@@ -363,6 +375,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "gcc_arm64_shared_test",
     compiler = "gcc",
+    tags = ["row:cc_gcc"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:arm64",
@@ -374,6 +387,7 @@ cc_toolchain_test(
     name = "gcc_arm64_dynamic_libstdcxx_test",
     compiler = "gcc",
     extra_features = ["dynamic_libstdcxx"],
+    tags = ["row:cc_gcc"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:arm64",
@@ -385,7 +399,10 @@ cc_toolchain_test(
     name = "gcc_arm64_asan_test",
     compiler = "gcc",
     extra_features = ["asan"],
-    tags = ["no-coverage"],
+    tags = [
+        "no-coverage",
+        "row:cc_gcc",
+    ],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:arm64",
@@ -397,7 +414,10 @@ cc_toolchain_test(
     name = "gcc_arm64_ubsan_test",
     compiler = "gcc",
     extra_features = ["ubsan"],
-    tags = ["no-coverage"],
+    tags = [
+        "no-coverage",
+        "row:cc_gcc",
+    ],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:arm64",
@@ -408,6 +428,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "msvc_hello_test",
     compiler = "msvc",
+    tags = ["row:cc_msvc"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",
@@ -418,6 +439,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "msvc_hello_lib_test",
     compiler = "msvc",
+    tags = ["row:cc_msvc"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",
@@ -428,6 +450,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "msvc_hello_c_test",
     compiler = "msvc",
+    tags = ["row:cc_msvc"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",
@@ -438,6 +461,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "msvc_shared_test",
     compiler = "msvc",
+    tags = ["row:cc_msvc"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",
@@ -448,6 +472,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "msvc_c_test",
     compiler = "msvc",
+    tags = ["row:cc_msvc"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",
@@ -458,6 +483,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "msvc_spaced_test",
     compiler = "msvc",
+    tags = ["row:cc_msvc"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",
@@ -469,6 +495,7 @@ cc_toolchain_test(
     name = "msvc_shared_dbg_test",
     compilation_mode = "dbg",
     compiler = "msvc",
+    tags = ["row:cc_msvc"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",
@@ -480,6 +507,7 @@ cc_toolchain_test(
     name = "msvc_shared_opt_test",
     compilation_mode = "opt",
     compiler = "msvc",
+    tags = ["row:cc_msvc"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",
@@ -494,6 +522,7 @@ cc_toolchain_test(
         "-dynamic_link_msvcrt",
         "static_link_msvcrt",
     ],
+    tags = ["row:cc_msvc"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",
@@ -504,6 +533,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "msvc_arm64_hello_test",
     compiler = "msvc",
+    tags = ["row:cc_msvc"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:aarch64",
@@ -546,6 +576,7 @@ cc_toolchain_test(
     name = "msvc_arm64_pe_machine_test",
     size = "small",
     compiler = "msvc",
+    tags = ["row:cc_msvc"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:aarch64",

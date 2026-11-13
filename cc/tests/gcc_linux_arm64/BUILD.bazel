@@ -64,6 +64,7 @@ consumer_archive(
 
 rust_test(
     name = "libstdcxx_archive_test",
+    size = "small",
     testonly = True,
     srcs = ["libstdcxx_archive_test.rs"],
     aliases = aliases(
@@ -88,6 +89,7 @@ rust_test(
 
 rust_test(
     name = "archive_test",
+    size = "small",
     testonly = True,
     srcs = ["archive_test.rs"],
     aliases = aliases(
@@ -112,6 +114,7 @@ rust_test(
 
 rust_test(
     name = "native_arm64_test",
+    size = "small",
     testonly = True,
     srcs = ["native_arm64_test.rs"],
     aliases = aliases(
@@ -123,6 +126,7 @@ rust_test(
     crate_root = "native_arm64_test.rs",
     data = [":hello_gcc"],
     env = {"APP": "$(rootpath :hello_gcc)"},
+    tags = ["row:cc_gcc"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:arm64",

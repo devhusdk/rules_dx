@@ -38,6 +38,7 @@ swift_binary(
 
 swift_test(
     name = "xctest",
+    tags = ["row:apple"],
     srcs = ["greet_xctest.swift"],
     deps = [":greet"],
 )

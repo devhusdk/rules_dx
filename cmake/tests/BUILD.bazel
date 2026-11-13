@@ -14,6 +14,7 @@ cmake_library(
 owns_cmake_class_test(
     name = "owns_cmake_class_test",
     size = "small",
+    tags = ["row:cmake"],
     target_under_test = ":app",
 )
 
@@ -26,6 +27,7 @@ cmake_library(
 failure_test(
     name = "bad_name_fails",
     expected_failure_substring = "'CMakeLists.txt.in' is not a cmake file name; accepted names: CMakeLists.txt, *.cmake",
+    tags = ["row:cmake"],
     target = ":bad_name",
 )
 

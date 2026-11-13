@@ -227,7 +227,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2046
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test $(cat "$RUNNER_TEMP/hermetic-targets")
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing:nested_bazel_harness_test $(cat "$RUNNER_TEMP/hermetic-targets")
       - uses: ./.github/actions/hermetic-evidence
         if: always()
         with:
@@ -282,6 +282,7 @@ jobs:
           # shellcheck disable=SC2046
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_windows_probe_test $(cat "$RUNNER_TEMP/hermetic-targets")
           if [ "$PLATFORM" = windows_x86_64 ]; then
+            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors "$@" //tools/testing:nested_bazel_harness_test
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc:compiler=msvc //deploy/private:pypi_native_msvc_verify
           fi
       - uses: ./.github/actions/hermetic-evidence

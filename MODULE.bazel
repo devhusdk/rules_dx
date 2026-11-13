@@ -87,11 +87,11 @@ single_version_override(
     version = "0.8.26",
 )
 
-# dev only: //patches/llvm/tests:libunwind_copy_test reads the patched libunwind.a (#7781)
+# dev only: //patches/llvm/tests:libunwind_copy_test reads the patched libunwind.a
 _llvm_runtimes = use_extension("@llvm//extensions:llvm.bzl", "llvm", dev_dependency = True)
 use_repo(_llvm_runtimes, "llvm-project")
 
-# dev only: qualifies a real foreign CMake build (#4830); cmake_library stays quality-only
+# dev only: qualifies a real foreign CMake build; cmake_library stays quality-only
 bazel_dep(name = "rules_foreign_cc", version = "0.17.0", dev_dependency = True)
 bazel_dep(name = "ninja", version = "1.13.2", dev_dependency = True)
 bazel_dep(name = "m4", version = "1.4.21.bcr.8", dev_dependency = True)
@@ -116,8 +116,7 @@ _foreign_cc_tools.ninja(
     target = "@ninja",
 )
 
-# make, m4 and pkgconfig are not needed by the Ninja generator on Windows and do not build with cl.exe, so they are noop there (#6220)
-# the pinned ninja source does not build with clang-cl (std::set_terminate), so Windows uses the prebuilt binary; the linux and macos tags above win elsewhere (#6220)
+# On Windows the Ninja generator needs no make, m4 or pkgconfig, and ninja is the prebuilt binary.
 _foreign_cc_tools.ninja(
     mode = "binary",
     version = "1.13.2",
@@ -229,8 +228,7 @@ single_version_override(
 # floor: equals tested
 bazel_dep(name = "rules_go", version = "0.65.0")
 
-# lock_extension.patch locks the host-dependent go_sdk extension per platform; lock-refresh.yml refreshes it.
-# lazy_nogo.patch keeps toolchain resolution from fetching @io_bazel_rules_nogo in builds without Go targets.
+# lock_extension.patch locks go_sdk per platform; lazy_nogo.patch avoids fetching @io_bazel_rules_nogo.
 single_version_override(
     module_name = "rules_go",
     patch_strip = 1,
@@ -272,11 +270,7 @@ single_version_override(
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
 
-# go_deps rejects module_override in a non-root module, so gotreesitter is fetched
-# directly. It embeds grammars/grammar_blobs/go.bin from a sibling package, which
-# Gazelle cannot express; the patch adds that file to the root library's embedsrcs.
-# map_kind makes the generated loads use rules_go's name in this module.
-# Return to a version once a gotreesitter release carries odvcencio/gotreesitter#1574.
+# go_deps rejects module_override in a non-root module; return to a version once a release carries odvcencio/gotreesitter#1574.
 go_repository = use_repo_rule("@gazelle//internal:go_repository.bzl", "go_repository")
 
 go_repository(
@@ -402,7 +396,7 @@ single_version_override(
     version = "1.84.0",
 )
 
-# 0.8.0 needs build-tools 35 and --tool_java_language_version=17 (#3739, #2283, #3736).
+# 0.8.0 needs build-tools 35 and --tool_java_language_version=17.
 # floor: equals tested; patched for key-rotation bundles (#3739)
 bazel_dep(name = "rules_android", version = "0.8.1")
 single_version_override(
@@ -557,7 +551,6 @@ maven.install(
     ],
 )
 
-# Bumping rules_android or rules_flutter needs a new lock: run pin-android-maven.yml.
 # The Scala 3 compiler for scalac_check_test only; 3.3 is the LTS line rules_scala defaults to.
 maven.install(
     name = "dx_scala3_test",
@@ -589,8 +582,7 @@ maven_tools.install(
         "org.jetbrains.dokka:dokka-base:2.2.0",
         "org.jetbrains.dokka:dokka-core:2.2.0",
     ],
-    # analysis-kotlin-symbols calls stdlib APIs newer than the 2.0.21 that dokka-base declares, so
-    # the Kotlin toolchain's stdlib must be the only one on the adapter's classpath.
+    # Only the Kotlin toolchain's stdlib may be on the adapter's classpath.
     excluded_artifacts = [
         "org.jetbrains.kotlin:kotlin-stdlib",
         "org.jetbrains.kotlin:kotlin-stdlib-common",
@@ -638,9 +630,7 @@ register_toolchains("//cc/private/toolchains:msvc_windows_arm64")
 # The guard must stay last among the MSVC entries.
 register_toolchains("//cc/private/toolchains:msvc_unsupported")
 
-# On a macOS exec the Xcode toolchain wins for Apple targets, including macos_*.
-# @llvm with @macos_sdk serves macOS targets only from Linux and Windows execs.
-# Swift on macOS selects this toolchain through its wrapper transition.
+# On a macOS exec the Xcode toolchain wins for Apple targets; @llvm serves macOS targets from other execs.
 apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
 use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
 
@@ -648,8 +638,7 @@ register_toolchains("@local_config_apple_cc_toolchains//:all")
 
 register_toolchains("@llvm//toolchain:all")
 
-# A consumer-declared GCC distribution by url and sha256, written the way a consumer would.
-# It reuses the pinned archive and is selected only through --extra_toolchains in tests.
+# A consumer-declared GCC distribution, selected only through --extra_toolchains in tests.
 gcc_toolchains = use_extension("@gcc_toolchain//toolchain:module_extensions.bzl", "gcc_toolchains", dev_dependency = True)
 gcc_toolchains.toolchain(
     name = "custom_gcc_x86_64",
@@ -688,7 +677,7 @@ register_toolchains("@dx_coreutils//:all")
 # needed: @rules_ruby (dx_pins extension) loads @bazel_features
 bazel_dep(name = "bazel_features", version = "1.55.0")
 
-# Pinned SimpleCov gems Ruby tests load under `bazel coverage`; consumers need them (#3954).
+# Pinned SimpleCov gems Ruby tests load under `bazel coverage`; consumers need them.
 ruby_coverage = use_extension("//ruby:extensions.bzl", "ruby_coverage")
 use_repo(ruby_coverage, "dx_ruby_bench_gems", "dx_ruby_coverage_gems")
 
@@ -1533,12 +1522,7 @@ dart.toolchain(dart_version = "3.13.7")
 # floor: equals tested
 bazel_dep(name = "rules_flutter", version = "0.0.8")
 
-# Pinned to the commit with aran/rules_flutter#5 until it is released.
-# registrant_javacopts.patch keeps -Xlint:all quiet about the registrant's source 8 (#9085).
-# lock_extension.patch marks the flutter extension non-reproducible so the lockfile keeps its result (#8987).
-# required_checksums.patch fails an engine download that has no sha256 (#11084).
-# flutter_3_47_9.patch adds Flutter 3.47.9 to FLUTTER_VERSIONS; drop it once a rules_flutter release lists 3.47.9 (#10853).
-# ios_target_compatible_with.patch applies flutter_ios_app's target_compatible_with to every target it generates.
+# Pinned to the commit with aran/rules_flutter#5; drop flutter_3_47_9.patch once a release lists 3.47.9.
 archive_override(
     module_name = "rules_flutter",
     integrity = "sha256-sNPw28M2Y+oIctymkU3ZY9svCoAG5VaULN5iB+lvzGk=",
@@ -2371,12 +2355,7 @@ crate.annotation_select(
     triples = ["x86_64-pc-windows-msvc"],
 )
 
-# ring's build.rs only accepts plain clang on windows_arm64; the hermetic
-# toolchain uses clang-cl (#6337, briansmith/ring#2673). cl.exe opens the
-# fiat includes without collapsing `..`, which overflows MAX_PATH under the
-# build script runfiles (#8290). The MSVC compiler has no clang, so ring's
-# aarch64 build script gets the hermetic clang-cl as CC (#9224). ring's /Wall
-# is -Weverything in clang-cl, so the MSVC toolchain's /WX is turned off.
+# ring's aarch64 build script needs the hermetic clang-cl as CC, which reads /Wall as -Weverything, so /WX is off.
 crate.annotation(
     crate = "ring",
     patch_args = ["-p1"],
@@ -2438,8 +2417,7 @@ crate.annotation_select(
     version = "0.17.14",
 )
 
-# gomod-parser 0.5.3 reads `v1.2.3// indirect` as one version (#4008,
-# baz-scm/gomod-parser#52). Drop once a release after 0.6.0 carries the fix.
+# gomod-parser 0.5.3 reads `v1.2.3// indirect` as one version; drop once a release after 0.6.0 carries baz-scm/gomod-parser#52.
 crate.annotation(
     crate = "gomod-parser",
     patch_args = ["-p1"],
@@ -2448,7 +2426,7 @@ crate.annotation(
     version = "0.5.3",
 )
 
-# rmeta/rlib SVH split on windows_arm64 (#9243); drop with #9292.
+# rmeta/rlib SVH split on windows_arm64.
 crate.annotation(
     crate = "pulldown-cmark",
     disable_pipelining = True,

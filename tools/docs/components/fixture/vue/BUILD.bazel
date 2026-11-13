@@ -18,8 +18,7 @@ vue_doc_shard(
     tsconfig = "tsconfig.json",
 )
 
-# The same sources under a looser compiler configuration, to prove the
-# configuration is part of the shard's identity.
+# The same sources under a looser compiler configuration, which changes the shard identity.
 vue_doc_shard(
     name = "ui_docs_loose",
     srcs = glob(["src/*.vue"]) + ["tsconfig.json"],

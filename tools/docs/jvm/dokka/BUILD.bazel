@@ -4,8 +4,7 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
-# Dokka 2.2.0 brings kotlin-stdlib 2.0.21 (API levels below 2.2 only warn as deprecated, which the
-# warnings-as-errors default rejects), so keep the sources to stable stdlib APIs.
+# Dokka 2.2.0 brings kotlin-stdlib 2.0.21, so the sources keep to stable stdlib APIs.
 kotlin_binary(
     name = "dokka_extract",
     srcs = [
@@ -19,8 +18,7 @@ kotlin_binary(
         "Types.kt",
     ],
     main_class = "dx.docs.dokka.Main",
-    # The default src/main/resources prefix strip also works from an external repository, where
-    # rules_kotlin cannot match an explicit resource_strip_prefix.
+    # rules_kotlin cannot match an explicit resource_strip_prefix in an external repository.
     resources = ["src/main/resources/META-INF/services/org.jetbrains.dokka.plugability.DokkaPlugin"],
     runtime_deps = ["@dx_dokka//:org_jetbrains_dokka_analysis_kotlin_symbols"],
     deps = [

@@ -37,9 +37,7 @@ _COMPLETE = {_FIXTURE_TOOL: dict(_FIXTURE_REPOS)}
 # A native windows_arm64 artifact wins over the emulated fallback.
 _NATIVE = {_FIXTURE_TOOL: dict(_FIXTURE_REPOS, windows_arm64 = _FIXTURE_REPOS["linux_arm64"])}
 
-# Tools allowed to ship artifacts on selectable platforms outside the qualified
-# TOOL_PLATFORMS set, and the only such platforms each may use.
-# The windows_arm64 part is derived: every tool with a native pin there.
+# Every tool with a native windows_arm64 pin.
 _NATIVE_WINDOWS_ARM64 = sorted([
     a["tool"]
     for a in _TOOL_ARTIFACTS

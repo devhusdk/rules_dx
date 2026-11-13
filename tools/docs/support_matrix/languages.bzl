@@ -64,8 +64,7 @@ def _hello(lang, repo = ""):
 def _starter_consumers(*_starters):
     return ["//tools/testing/starters:starters_test"]
 
-# consumer_tests: golden checks of dx init output and hermetic manifests, or tests that
-# build a target in another module. CI selects the hermetic ones by the hermetic-consumer tag.
+# CI selects the hermetic consumer_tests by the hermetic-consumer tag.
 ROWS = [
     {"consumer_tests": _starter_consumers("astro"), "name": "astro", "section": "languages", "title": LANGS["astro"]["title"]},
     {

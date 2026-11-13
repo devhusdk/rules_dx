@@ -208,8 +208,7 @@ def _canonical(cells):
     """Maps toolchain cell names to support platform names (amd64 is x86_64)."""
     return [cell.replace("amd64", "x86_64") for cell in cells]
 
-# Platforms of the language toolchain that supplies each tool. A record may only claim a platform
-# inside its toolchain's cells; widening a cell and flagging a matrix case widens the claim.
+# A record may only claim platforms inside its tool's language toolchain cells.
 def _toolchain_platforms():
     return {
         "credo": _canonical(ELIXIR_CELLS),

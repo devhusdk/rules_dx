@@ -70,8 +70,7 @@ def _fsc_impl(target, ctx):
     if toolchain == None:
         fail("fsc: " + str(target.label) + " needs a resolved rules_dotnet toolchain")
     if ctx.target_platform_has_constraint(attrs._windows_constraint[platform_common.ConstraintValueInfo]):
-        # Do not fail here: this aspect runs on every F# target the typecheck
-        # visits, whatever the policy says. The pipeline fails only if fsc is resolved.
+        # The pipeline fails only if fsc is resolved.
         return [FscUnsupportedInfo(reason = "the fsc typecheck is linux_x86_64 only and " + str(target.label) + " is built for a Windows target platform")]
     tfm = attrs._target_framework[BuildSettingInfo].value
     fsc = toolchain.fsharp_compiler.files_to_run.executable
@@ -91,10 +90,7 @@ def _fsc_impl(target, ctx):
     status = ctx.actions.declare_file("dx_fsc/%s/%s.exit" % (target.label.name, tfm))
     out_tree = ctx.actions.declare_directory("dx_fsc/%s/%s.out" % (target.label.name, tfm))
 
-    # The arguments mirror rules_dotnet 0.22.2 fsharp/actions/fsharp_assembly.bzl
-    # _compile, so the diagnostics match the real build. Strong-name keys,
-    # resources and the generated InternalsVisibleTo file do not change them.
-    # The one deliberate addition is fsc_warnon_args, which reports unused values.
+    # Mirrors rules_dotnet 0.22.2 fsharp_assembly.bzl _compile, plus fsc_warnon_args.
     debug = ctx.var["COMPILATION_MODE"] in ["dbg", "fastbuild"]
     args = ctx.actions.args()
     args.add("--noframework")

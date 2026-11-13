@@ -36,8 +36,7 @@ def protobuf_shard_action(ctx, proto_info, protoc, windows, package, stem, extra
     if not sources:
         fail("protobuf_doc_shard " + str(ctx.label) + ": proto_library lists no .proto srcs")
 
-    # The library's own descriptor set is left out: protoc drops the comments of a file it
-    # reads from a descriptor set, and the docs come from the comments.
+    # protoc drops the comments of a file it reads from a descriptor set.
     own_set = proto_info.direct_descriptor_set
     dep_sets = [f for f in proto_info.transitive_descriptor_sets.to_list() if f != own_set]
 

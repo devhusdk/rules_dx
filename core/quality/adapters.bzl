@@ -26,10 +26,7 @@ REAL_ADAPTERS = {tool.id: tool.adapters for tool in TOOLS}
 
 REAL_CLASS_TO_FAMILY = CLASS_TO_FAMILY
 
-# Capabilities a family can never have: no static type system (or no
-# maintained checker) exists, so the support matrix shows `n/a`, not a gap.
-# Keyed by capability, then family. "n/a" means never; "not yet" belongs in
-# the gap ledger. A family with a real adapter must not be listed here.
+# Capabilities no tool can give a family, shown as `n/a` in the support matrix.
 NOT_APPLICABLE = {
     "lint": {
         "cue": "cue vet is the only CUE analysis and it is already the typecheck capability; the pinned cue binary has no separate linter",
@@ -72,9 +69,7 @@ NOT_APPLICABLE = {
     },
 }
 
-# Families whose Typecheck cell is `no` because the adapter is missing, mapped
-# to the tool that would fill it. A `no` cell must name one; otherwise the
-# family belongs in NOT_APPLICABLE["typecheck"] with a reason.
+# Families missing a typecheck adapter, mapped to the tool that would fill it.
 TYPECHECK_CANDIDATES = {}
 
 def not_applicable_error(not_applicable, adapters, class_to_family):

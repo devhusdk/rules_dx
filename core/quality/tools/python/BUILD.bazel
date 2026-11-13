@@ -214,9 +214,7 @@ config_setting(
     ],
 )
 
-# cryptography has no win_arm64 wheel and its sdist needs maturin, Rust and
-# OpenSSL. Remove this alias once a wheel ships or an OpenSSL-backed sdist
-# override exists.
+# cryptography has no win_arm64 wheel and its sdist needs maturin, Rust and OpenSSL.
 alias(
     name = "ansible_lint_tool",
     actual = select({

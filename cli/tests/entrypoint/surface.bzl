@@ -1,7 +1,6 @@
 """A consumer repository that proves the supported surface avoids dev-only repos."""
 
-# Repositories declared with dev_dependency = True in MODULE.bazel. A consumer
-# module cannot see them, so no supported file may load from one.
+# dev_dependency repositories, which a consumer module cannot load from.
 DEV_ONLY_REPOS = [
     "cosign",
     "dx_qt",

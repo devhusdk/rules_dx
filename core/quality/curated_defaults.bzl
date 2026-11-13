@@ -2,9 +2,7 @@
 
 load(":tool_defs.bzl", "is_canonical_token")
 
-# Julia lints with julialint only. Its extra fetch over typos is the dx_julia_lint package set
-# (21 packages, about 4.2 MB); the 1.12.5 runtime (about 288 MB on linux_x86_64) is already
-# fetched to precompile any julia_library. JET and JuliaFormatter stay opt-in.
+# JET and JuliaFormatter stay opt-in.
 CURATED_DEFAULTS = {
     "astro": {
         "audit": [],
@@ -253,8 +251,7 @@ CURATED_DEFAULTS = {
     },
 }
 
-# Tools that several families select. They always use the root profile, so a family
-# profile never changes how they run.
+# Tools several families select; they always use the root profile.
 CROSS_FAMILY_TOOLS = [
     "biome",
     "lychee",

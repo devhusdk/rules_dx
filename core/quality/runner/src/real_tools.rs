@@ -2120,7 +2120,10 @@ fn buf_breaking_fake(
     };
     assert!(Path::new(&argv[at + 1]).is_absolute(), "{argv:?}");
     let base = std::fs::read_to_string(&argv[at + 1])?;
-    let head_path = PathBuf::from(argv.last().expect("root")).join("hello/v1/hello.proto");
+    let head_path = PathBuf::from(argv.last().expect("root"))
+        .join("hello")
+        .join("v1")
+        .join("hello.proto");
     let head = std::fs::read_to_string(&head_path)?;
     if !base.contains("string name = 2;") || head.contains("name") {
         return Ok(clean);
@@ -2769,7 +2772,10 @@ fn ffmt_run(
         !flags.iter().any(|arg| arg == "--config"),
         "ffmt has no --config"
     );
-    let files: Vec<&String> = flags.iter().filter(|arg| arg.starts_with('/')).collect();
+    let files: Vec<&String> = flags
+        .iter()
+        .filter(|arg| Path::new(arg.as_str()).is_absolute())
+        .collect();
     assert!(!files.is_empty(), "ffmt is never run without a file");
     for file in &files {
         let lower = file.to_ascii_lowercase();
@@ -4816,7 +4822,7 @@ fn sqlfluff_dialect_fake(
         .collect();
     let files = names
         .iter()
-        .map(|name| name.rsplit('/').next().unwrap_or(name).to_owned())
+        .map(|name| name.rsplit(['/', '\\']).next().unwrap_or(name).to_owned())
         .collect();
     SQLFLUFF_DIALECT_RUNS.with(|log| log.borrow_mut().push((args[at + 1].clone(), files)));
     Ok(ChildOutput {
@@ -6590,7 +6596,7 @@ fn phpcs_report(
     } else {
         format!(
             r#"{{"totals":{{"errors":1,"warnings":0,"fixable":1}},"files":{{"{0}":{{"errors":1,"warnings":0,"messages":[{{"message":"Header blocks must be separated by a single blank line","source":"PSR12.Files.FileHeader.SpacingAfterTagBlock","severity":5,"fixable":true,"type":"ERROR","line":2,"column":1}}]}}}}}}"#,
-            paths[0]
+            json_escape(&paths[0])
         )
     };
     Ok(ChildOutput {
@@ -6744,12 +6750,20 @@ fn jet_report(
     assert!(after("--report").contains(".dx-jet"));
     let body = format!(
         concat!(
-            r#"{{"v":1,"kind":"UndefVarError","message":"x is not defined","frames":[{{"file":"{0}/lib/bad.jl","line":3}}]}}"#,
+            r#"{{"v":1,"kind":"UndefVarError","message":"x is not defined","frames":[{{"file":"{0}","line":3}}]}}"#,
             "\n",
-            r#"{{"v":1,"kind":"MethodError","message":"dep","frames":[{{"file":"{0}/dx-jet/rf/_main/dep.jl","line":1}}]}}"#,
+            r#"{{"v":1,"kind":"MethodError","message":"dep","frames":[{{"file":"{1}","line":1}}]}}"#,
             "\n"
         ),
-        root
+        json_escape(&Path::new(&root).join("lib").join("bad.jl").to_string_lossy()),
+        json_escape(
+            &Path::new(&root)
+                .join("dx-jet")
+                .join("rf")
+                .join("_main")
+                .join("dep.jl")
+                .to_string_lossy()
+        )
     );
     std::fs::write(after("--report"), body)?;
     Ok(ChildOutput {
@@ -6835,11 +6849,14 @@ fn sorbet_report(
     let paths = &text[separator + 1..];
     let owned = paths
         .iter()
-        .find(|path| path.ends_with("lib/bad.rb"))
+        .find(|path| path.replace('\\', "/").ends_with("lib/bad.rb"))
         .expect("owned source");
     let dep = paths
         .iter()
-        .find(|path| path.contains("dx-sorbet/dep/") && path.ends_with("dep.rb"))
+        .find(|path| {
+            let path = path.replace('\\', "/");
+            path.contains("dx-sorbet/dep/") && path.ends_with("dep.rb")
+        })
         .expect("staged dependency");
     let body = format!(
         "{owned}:3: Method `g` does not exist on `A` https://srb.help/7003\n     3 |A.new.g\n\n{dep}:1: dep https://srb.help/5002\n     1 |x\n\nErrors: 2\n"
@@ -6932,7 +6949,7 @@ fn phpstan_report(
     } else {
         format!(
             r#"{{"totals":{{"errors":0,"file_errors":2}},"files":{{"{0}":{{"errors":1,"messages":[{{"message":"Method f() should return int.","line":3,"ignorable":true,"identifier":"return.type"}}]}},"/elsewhere/dep.php":{{"errors":1,"messages":[{{"message":"x","line":1,"ignorable":true}}]}}}},"errors":[]}}"#,
-            paths[0]
+            json_escape(&paths[0])
         )
     };
     Ok(ChildOutput {

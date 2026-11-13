@@ -444,7 +444,7 @@ fn zanuda_behavior(
         if text.contains("smells") {
             report.push_str(&format!(
                 r#"{{"message":"smells bad\n","location":{{"path":"{}","range":{{"start":{{"line":2,"column":1}}}}}},"severity":"INFO","code":{{"value":"if_bool","url":"u"}}}}"#,
-                fields[1]
+                json_escape(fields[1])
             ));
             report.push('\n');
         }
@@ -528,7 +528,7 @@ fn hlint_behavior(
     assert_eq!(argv[1], OsString::from("--json"));
     let config = argv[2].to_string_lossy().into_owned();
     assert!(
-        config.starts_with("--hint=") && config.ends_with("cfg/hlint.yaml"),
+        config.starts_with("--hint=") && config.replace('\\', "/").ends_with("cfg/hlint.yaml"),
         "{config}"
     );
     assert_eq!(argv[3], OsString::from("--"));
@@ -692,9 +692,20 @@ fn pkl_lsp_behavior(
             "{name} stays in the scratch home"
         );
     }
+    let system = std::env::var_os("SystemRoot")
+        .map(|root| Path::new(&root).join("System32").into_os_string());
+    if let Some(system) = &system {
+        assert!(
+            env.contains(&(OsString::from("PATH"), system.clone())),
+            "PATH names only System32"
+        );
+    }
     let rest: Vec<(OsString, OsString)> = env
         .iter()
-        .filter(|(key, _)| !profile.iter().any(|name| key == name))
+        .filter(|(key, value)| {
+            !profile.iter().any(|name| key == name)
+                && !(key == "PATH" && Some(value) == system.as_ref())
+        })
         .cloned()
         .collect();
     assert_hermetic(&rest);
@@ -1139,7 +1150,8 @@ fn opa_behavior(
         }
         if text.contains("missing") {
             let report = format!(
-                "{{\"errors\":[{{\"message\":\"undefined function data.lib.missing\",\"code\":\"rego_type_error\",\"location\":{{\"file\":\"{file}\",\"row\":3,\"col\":6}}}}]}}"
+                "{{\"errors\":[{{\"message\":\"undefined function data.lib.missing\",\"code\":\"rego_type_error\",\"location\":{{\"file\":\"{file}\",\"row\":3,\"col\":6}}}}]}}",
+                file = json_escape(&file)
             );
             return done(1, "", report);
         }
@@ -1345,7 +1357,8 @@ fn opa_dependency_behavior(
         let text = std::fs::read_to_string(&file).expect("read staged file");
         if text.contains("broken") {
             errors.push(format!(
-                "{{\"message\":\"unexpected token\",\"code\":\"rego_parse_error\",\"location\":{{\"file\":\"{file}\",\"row\":2,\"col\":1}}}}"
+                "{{\"message\":\"unexpected token\",\"code\":\"rego_parse_error\",\"location\":{{\"file\":\"{file}\",\"row\":2,\"col\":1}}}}",
+                file = json_escape(&file)
             ));
         }
     }

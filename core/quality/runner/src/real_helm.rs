@@ -152,8 +152,18 @@ fn helm_runs_lint_template_then_kubeconform_offline() {
     let calls = log();
     let verbs: Vec<&str> = calls.iter().map(|call| call[1].as_str()).collect();
     assert_eq!(verbs, ["lint", "template", "-output"]);
-    assert_eq!(calls[0][0], "/fake/bin/tool");
-    assert_eq!(calls[2][0], "/fake/bin/kubeconform");
+    assert!(
+        calls[0][0].replace('\\', "/").ends_with("/fake/bin/tool"),
+        "{}",
+        calls[0][0]
+    );
+    assert!(
+        calls[2][0]
+            .replace('\\', "/")
+            .ends_with("/fake/bin/kubeconform"),
+        "{}",
+        calls[2][0]
+    );
     assert!(calls[0].contains(&"--kube-version".to_owned()));
     assert!(calls[1].contains(&"rel".to_owned()) && calls[1].contains(&"ns".to_owned()));
     for call in &calls {

@@ -17,6 +17,7 @@ rust_library(
         package_name = "elixir/private/tools/hex_lock",
         normal = True,
     ) + [
+        "//cli/families:dx_families",
         "//cli/lock:dx_lock",
     ],
 )
@@ -36,6 +37,7 @@ rust_binary(
         normal = True,
     ) + [
         ":hex_lock_lib",
+        "//cli/families:dx_families",
         "//cli/lock:dx_lock",
     ],
 )
@@ -66,6 +68,7 @@ rust_test(
         normal_dev = True,
     ) + [
         ":hex_lock_lib",
+        "//cli/families:dx_families",
         "//cli/lock:dx_lock",
         "//tools/testing:dx_testing",
     ],

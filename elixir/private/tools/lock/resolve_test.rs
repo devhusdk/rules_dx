@@ -1,6 +1,6 @@
 //! The hex lock step writes the golden lock from a `mix.lock` or `rebar.lock` with an empty `PATH` and no network.
 
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Fetch, Outcome, Spec, run};
 use hex_lock::Hex;
 
 const MIX_EXS: &str = "defmodule Bench.MixProject do
@@ -49,15 +49,20 @@ fn set(files: &[(&str, &str)]) -> tempfile::TempDir {
     dir
 }
 
+fn spec() -> Spec {
+    Hex::spec(dx_families::hub("hex").expect("hex registry entry"))
+}
+
 fn lock(dir: &std::path::Path) -> Result<Outcome, Error> {
+    let spec = spec();
     run(
-        &Hex::spec(),
+        &spec,
         &Args {
             dir: dir.to_owned(),
             check: false,
             upgrade: Vec::new(),
         },
-        &Hex,
+        &Hex::new(&spec),
         &NoFetch,
     )
 }
@@ -65,7 +70,7 @@ fn lock(dir: &std::path::Path) -> Result<Outcome, Error> {
 fn golden(dir: &std::path::Path, env: &str, rel: &str) {
     dx_testing::snapshot_diff(
         &dx_testing::env_file(env),
-        &dir.join(Hex::spec().lock_name()),
+        &dir.join(spec().lock_name()),
         Some(rel),
     )
     .expect("the lock matches the golden");
@@ -126,7 +131,7 @@ fn a_git_mix_entry_fails() {
     let error = lock(dir.path()).expect_err("refused");
     assert!(
         error.to_string().contains(
-            "mix.lock entry deep_merge is a git dependency; only hex entries are supported"
+            "mix.lock: entry deep_merge is a git dependency; only hex entries are supported"
         ),
         "{error}"
     );
@@ -140,7 +145,7 @@ fn a_private_repository_fails() {
     assert!(
         error
             .to_string()
-            .contains("mix.lock entry deep_merge is not from the hexpm repository"),
+            .contains("mix.lock: entry deep_merge is not from the hexpm repository"),
         "{error}"
     );
 }
@@ -167,7 +172,10 @@ fn a_rebar_entry_without_a_checksum_fails() {
         " {<<\"jsx\">>, <<\"0C5CC8FDC11B53CC25CF65AC6705AD39E54ECC56D1C22E4ADB8F5A53FB9427F3\">>}]}",
         "]}",
     );
-    let text = text.replace("<<\"163B73F6367A7341B33C794C4E88E7DBFE6498AC42DCD69EF44C5BC5507C8DB0\">>},", "<<\"163B73F6367A7341B33C794C4E88E7DBFE6498AC42DCD69EF44C5BC5507C8DB0\">>}");
+    let text = text.replace(
+        "<<\"163B73F6367A7341B33C794C4E88E7DBFE6498AC42DCD69EF44C5BC5507C8DB0\">>},",
+        "<<\"163B73F6367A7341B33C794C4E88E7DBFE6498AC42DCD69EF44C5BC5507C8DB0\">>}",
+    );
     let dir = set(&[("rebar.config", REBAR_CONFIG), ("rebar.lock", &text)]);
     let error = lock(dir.path()).expect_err("refused");
     assert!(

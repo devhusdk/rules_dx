@@ -1,13 +1,10 @@
-//! Resolves a Hex package set from the `mix.lock` or `rebar.lock` next to its manifest.
+//! Resolves a Hex package set from the Mix or rebar3 lock next to its manifest.
 
 use dx_lock::{Archive, Error, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use std::collections::BTreeMap;
 
 /// The tarball URL prefix of repo.hex.pm.
 pub const HEX_REPO: &str = "https://repo.hex.pm/tarballs/";
-
-/// The `mix.exs` state file.
-pub const MIX_LOCK: &str = "mix.lock";
 
 /// The `rebar.config` state file.
 pub const REBAR_LOCK: &str = "rebar.lock";
@@ -241,7 +238,7 @@ impl Parser<'_> {
     }
 }
 
-/// The one term of an Elixir file such as `mix.lock`.
+/// The one term of an Elixir file such as a Mix lock.
 ///
 /// # Errors
 /// Fails when the text is not one term.
@@ -325,13 +322,13 @@ fn mix_dependency(dep: &Term) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// The packages of a `mix.lock`.
+/// The packages of a Mix lock.
 ///
 /// # Errors
 /// Fails when the text is not a map of hexpm entries.
 pub fn mix_packages(text: &str) -> Result<Vec<Package>, Error> {
     let Term::Map(entries) = parse_elixir(text)? else {
-        return Err(Error::new("mix.lock must hold one map"));
+        return Err(Error::new("the lock must hold one map"));
     };
     let mut packages = Vec::new();
     for (key, entry) in &entries {
@@ -340,13 +337,13 @@ pub fn mix_packages(text: &str) -> Result<Vec<Package>, Error> {
         let kind = items.first().and_then(Term::text).unwrap_or_default();
         if kind != "hex" {
             return Err(Error::new(format!(
-                "mix.lock entry {key} is a {kind} dependency; only hex entries are supported"
+                "entry {key} is a {kind} dependency; only hex entries are supported"
             )));
         }
         let field = |index: usize| items.get(index).and_then(Term::text);
         if items.len() < 8 || field(6) != Some("hexpm") {
             return Err(Error::new(format!(
-                "mix.lock entry {key} is not from the hexpm repository"
+                "entry {key} is not from the hexpm repository"
             )));
         }
         let deps = items[5]
@@ -421,16 +418,31 @@ pub fn rebar_packages(text: &str) -> Result<Vec<Package>, Error> {
 }
 
 /// The resolver of the hex ecosystem.
-pub struct Hex;
+pub struct Hex {
+    mix: String,
+}
 
 impl Hex {
-    /// The lock step values of the hex ecosystem.
+    /// The resolver that reads the Mix lock named first in `spec.state`.
     #[must_use]
-    pub fn spec() -> Spec {
+    pub fn new(spec: &Spec) -> Self {
+        Self {
+            mix: spec.state.first().cloned().unwrap_or_default(),
+        }
+    }
+
+    /// The lock step values of the registry entry.
+    #[must_use]
+    pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
-            ecosystem: "hex".to_owned(),
-            manifest: vec!["mix.exs".to_owned(), "rebar.config".to_owned()],
-            state: vec![MIX_LOCK.to_owned(), REBAR_LOCK.to_owned()],
+            ecosystem: hub.ecosystem.clone(),
+            manifest: vec![hub.manifest.clone(), "rebar.config".to_owned()],
+            state: hub
+                .lock
+                .iter()
+                .cloned()
+                .chain([REBAR_LOCK.to_owned()])
+                .collect(),
         }
     }
 }
@@ -438,13 +450,14 @@ impl Hex {
 impl Resolver for Hex {
     fn resolve(&self, scratch: &Scratch, _old: Option<&Lock>) -> Result<Resolution, Error> {
         let read = |name: &str| std::fs::read_to_string(scratch.set().join(name)).ok();
-        let packages = if let Some(text) = read(MIX_LOCK) {
-            mix_packages(&text).map_err(|error| Error::new(format!("{MIX_LOCK}: {error}")))?
+        let mix = &self.mix;
+        let packages = if let Some(text) = read(mix) {
+            mix_packages(&text).map_err(|error| Error::new(format!("{mix}: {error}")))?
         } else if let Some(text) = read(REBAR_LOCK) {
             rebar_packages(&text).map_err(|error| Error::new(format!("{REBAR_LOCK}: {error}")))?
         } else {
             return Err(Error::new(format!(
-                "the set has no {MIX_LOCK} or {REBAR_LOCK}; run mix deps.get or rebar3 lock first"
+                "the set has no {mix} or {REBAR_LOCK}; run mix deps.get or rebar3 lock first"
             )));
         };
         Ok(Resolution { packages })

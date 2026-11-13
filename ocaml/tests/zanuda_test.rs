@@ -6,12 +6,10 @@ use std::path::{Path, PathBuf};
 use dx_testing::{Run, command_for, env_file, env_text, path_text, read, scratch_dir, write};
 
 fn runfiles_root() -> PathBuf {
-    let rel = env_text("DIRTY_LIST");
-    let mut root = env_file("DIRTY_LIST");
-    for _ in Path::new(&rel).components() {
-        root.pop();
-    }
-    root
+    let base = std::env::var("RUNFILES_DIR")
+        .or_else(|_| std::env::var("TEST_SRCDIR"))
+        .expect("RUNFILES_DIR or TEST_SRCDIR");
+    PathBuf::from(base).join(env_text("TEST_WORKSPACE"))
 }
 
 fn zanuda(args: &[&str]) -> Run {

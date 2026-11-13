@@ -32,13 +32,14 @@ pub fn local_override_repos(module: &str) -> Vec<String> {
 }
 
 /// The patches of `//patches/rules_py` that `rules_py_override` names, without `.patch`.
-pub const RULES_PY_PATCHES: [&str; 6] = [
+pub const RULES_PY_PATCHES: [&str; 7] = [
     "py_cc_toolchain_platform",
     "native_sdist_toolchain_flags",
     "pep517_msvc",
     "venv_bin_files",
     "host_interpreter_windows_arm64",
     "external_repo_pytest_paths",
+    "host_libc_glibc",
 ];
 
 /// Pins the patched rules_py the way the root MODULE.bazel does, until the BCR serves alpha.11.

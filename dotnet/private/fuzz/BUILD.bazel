@@ -5,7 +5,6 @@ load("//rust:defs.bzl", "rust_binary")
 
 _SUPPORTED = select({
     "@platforms//os:linux": [],
-    "@platforms//os:macos": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
@@ -24,10 +23,7 @@ cc_binary(
     srcs = ["@dx_libfuzzer_dotnet//:libfuzzer-dotnet.cc"],
     copts = ["-fsanitize=fuzzer"],
     linkopts = ["-fsanitize=fuzzer"],
-    linkstatic = select({
-        "@platforms//os:macos": False,
-        "//conditions:default": True,
-    }),
+    linkstatic = True,
     target_compatible_with = _SUPPORTED + select({
         "@llvm//config:fuzzer_enabled": [],
         "//conditions:default": ["@platforms//:incompatible"],

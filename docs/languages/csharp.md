@@ -64,7 +64,7 @@ A csharp_test that runs the [Benchmark] classes in srcs with BenchmarkDotNet and
 csharp_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, **kwargs)
 ```
 
-A SharpFuzz harness plus a `<name>_run` runner for `dx fuzz`; the first-party libraries in deps are instrumented. Linux and macOS only.
+A SharpFuzz harness plus a `<name>_run` runner for `dx fuzz`; the first-party libraries in deps are instrumented. Linux only.
 
 ## API docs
 

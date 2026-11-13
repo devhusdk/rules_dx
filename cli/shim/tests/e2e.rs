@@ -4,7 +4,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
-use support::{Reply, Server};
+#[cfg(unix)]
+use support::Reply;
+use support::Server;
 
 const VERSION: &str = "1.2.3";
 

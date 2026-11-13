@@ -82,7 +82,10 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str, query_args: &str) -
 }
 
 struct Pty {
-    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    #[cfg_attr(
+        not(target_os = "linux"),
+        expect(dead_code, reason = "only linux tests write to the master")
+    )]
     master: fs::File,
     slave: CString,
 }

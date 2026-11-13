@@ -114,7 +114,10 @@ rust_library(
         "@crates//:serde_json",
         "@crates//:tempfile",
         "@crates//:thiserror",
-    ],
+    ] + select({
+        "@platforms//os:macos": ["@crates//:libc"],
+        "//conditions:default": [],
+    }),
 )
 
 rust_test(

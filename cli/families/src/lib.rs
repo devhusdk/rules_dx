@@ -116,6 +116,7 @@ pub struct LanguageLicenses {
 struct Setup {
     hubs: Vec<Hub>,
     licenses: Vec<License>,
+    flags: Vec<String>,
 }
 
 const LANGUAGES: &str = include_str!("../languages.json");
@@ -179,6 +180,20 @@ pub fn licenses() -> &'static [LanguageLicenses] {
         all.sort_by(|a, b| a.language.cmp(&b.language));
         all
     })
+}
+
+/// The `setup.flags` of each language in `names` that has any, as (language, flags), sorted by
+/// language.
+pub fn setup_flags<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<(String, Vec<String>)> {
+    let names: BTreeSet<&str> = names.into_iter().collect();
+    let mut found: Vec<(String, Vec<String>)> = shipped()
+        .into_iter()
+        .filter(|manifest| names.contains(manifest.name.as_str()))
+        .filter_map(|manifest| Some((manifest.name, manifest.setup?.flags)))
+        .filter(|(_, flags)| !flags.is_empty())
+        .collect();
+    found.sort();
+    found
 }
 
 /// The hub entry of `ecosystem`, if a `lang.json` has one.

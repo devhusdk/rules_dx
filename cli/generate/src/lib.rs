@@ -282,7 +282,7 @@ pub fn render(inputs: &Inputs) -> Result<BTreeMap<String, Vec<u8>>, GenerateErro
     for layer in Layer::ALL {
         out.insert(
             format!(".dx/bazelrc/{}", layer.file_name()),
-            bazelrc(layer, &inputs.repo, root, &tools).into_bytes(),
+            bazelrc(layer, &inputs.repo, root, &tools, &detected).into_bytes(),
         );
     }
     if let Some((path, text)) = root_block::render(inputs.root_build.as_ref(), &exports)? {
@@ -530,7 +530,13 @@ impl Literal<'_> {
     }
 }
 
-fn bazelrc(layer: Layer, repo: &str, root: Tier, tools: &[Tool]) -> String {
+fn bazelrc(
+    layer: Layer,
+    repo: &str,
+    root: Tier,
+    tools: &[Tool],
+    detected: &BTreeSet<String>,
+) -> String {
     let mut text = dx_preset::render_layer_with(layer, repo, Some(root == Tier::Strict));
     if layer != Layer::Correctness {
         return text;
@@ -548,6 +554,13 @@ fn bazelrc(layer: Layer, repo: &str, root: Tier, tools: &[Tool]) -> String {
         // Setting any clippy_flag drops rules_rust's default `-Dwarnings`, so it comes back last.
         for line in lines.chain(["-Dwarnings"]) {
             text.push_str(&format!("common --@{repo}//config:clippy_flag={line}\n"));
+        }
+    }
+    for (language, flags) in dx_families::setup_flags(detected.iter().map(String::as_str)) {
+        text.push_str(&format!("\n# The {language} setup flags.\n"));
+        for flag in flags {
+            text.push_str(&flag.replace("@rules_dx//", &format!("@{repo}//")));
+            text.push('\n');
         }
     }
     text

@@ -2221,6 +2221,9 @@ LANGS = json.decode("""{
     },
     "semver": false,
     "setup": {
+      "flags": [
+        "build:macos --modify_execution_info=CompileOcaml.*=+no-sandbox,CompileOCaml.*=+no-sandbox,ArchiveOCaml.*=+no-sandbox,LinkOCaml.*=+no-sandbox"
+      ],
       "hubs": [
         {
           "ecosystem": "opam",
@@ -2570,6 +2573,9 @@ LANGS = json.decode("""{
     },
     "semver": false,
     "setup": {
+      "flags": [
+        "common --modify_execution_info=PySdist.*=+block-network"
+      ],
       "hubs": [
         {
           "ecosystem": "uv",

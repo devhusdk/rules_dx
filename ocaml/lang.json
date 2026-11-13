@@ -13,6 +13,9 @@
   ],
   "lockfiles": [],
   "setup": {
+    "flags": [
+      "build:macos --modify_execution_info=CompileOcaml.*=+no-sandbox,CompileOCaml.*=+no-sandbox,ArchiveOCaml.*=+no-sandbox,LinkOCaml.*=+no-sandbox"
+    ],
     "hubs": [
       {
         "ecosystem": "opam",

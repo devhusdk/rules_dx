@@ -147,6 +147,9 @@ fn renders_standard() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The python setup flags.
+    common --modify_execution_info=PySdist.*=+block-network
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -205,6 +208,9 @@ fn renders_strict() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The python setup flags.
+    common --modify_execution_info=PySdist.*=+block-network
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -266,6 +272,9 @@ fn renders_no_dx_toml() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The python setup flags.
+    common --modify_execution_info=PySdist.*=+block-network
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -337,6 +346,9 @@ fn renders_existing_exports() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The python setup flags.
+    common --modify_execution_info=PySdist.*=+block-network
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -397,6 +409,9 @@ fn renders_no_root_build() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The python setup flags.
+    common --modify_execution_info=PySdist.*=+block-network
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -458,6 +473,9 @@ fn renders_mixed_tiers() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The python setup flags.
+    common --modify_execution_info=PySdist.*=+block-network
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -937,4 +955,22 @@ fn policy_families_survives_odd_input() {
             )])
         )])
     );
+}
+
+#[test]
+fn a_detected_language_writes_its_setup_flags() {
+    let flag = "common --modify_execution_info=PySdist.*=+block-network";
+    let with = text(
+        &rendered(&inputs(None, &["python"], &[])),
+        ".dx/bazelrc/correctness.bazelrc",
+    );
+    assert!(
+        with.contains(&format!("# The python setup flags.\n{flag}\n")),
+        "{with}"
+    );
+    let without = text(
+        &rendered(&inputs(None, &["rust"], &[])),
+        ".dx/bazelrc/correctness.bazelrc",
+    );
+    assert!(!without.contains(flag), "{without}");
 }

@@ -15,6 +15,9 @@
     "uv.lock"
   ],
   "setup": {
+    "flags": [
+      "common --modify_execution_info=PySdist.*=+block-network"
+    ],
     "hubs": [
       {
         "ecosystem": "uv",

@@ -19,7 +19,6 @@
 --javacopt
 --linkopt
 --local_resources
---modify_execution_info
 --noremote_upload_local_results
 --output_user_root
 --override_repository

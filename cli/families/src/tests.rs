@@ -129,3 +129,16 @@ fn licenses_list_the_setup_ids_with_the_quality_marks() {
     );
     assert!(licenses().iter().all(|entry| !entry.licenses.is_empty()));
 }
+
+#[test]
+fn setup_flags_follow_the_named_languages() {
+    let flags = setup_flags(["python", "rust"]);
+    assert_eq!(
+        flags,
+        vec![(
+            "python".to_owned(),
+            vec!["common --modify_execution_info=PySdist.*=+block-network".to_owned()]
+        )]
+    );
+    assert!(setup_flags(["rust"]).is_empty());
+}

@@ -1,4 +1,3 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! The smallest crate a user could adopt dx with; release qualification builds it with the
 //! extracted dx.
 

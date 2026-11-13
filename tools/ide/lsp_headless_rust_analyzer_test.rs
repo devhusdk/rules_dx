@@ -121,7 +121,8 @@ fn rust_project_definition_resolves_through_selected_features() {
         .lib_text
         .find("feature_helper(stepped)")
         .expect("fixture holds the feature use");
-    let (line, character) = offset_to_position(&fixture.lib_text, offset + 2);
+    let (line, character) = offset_to_position(&fixture.lib_text, offset + 2)
+        .expect("feature use offset is in the fixture");
     let id = session
         .request(
             "textDocument/hover",

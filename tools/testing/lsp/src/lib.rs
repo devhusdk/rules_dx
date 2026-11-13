@@ -1,5 +1,7 @@
 //! A small headless LSP client for tests: framing, a reader thread and deadline-based waits.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::cell::RefCell;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -49,7 +51,10 @@ pub fn encode(message: &serde_json::Value) -> Vec<u8> {
 }
 
 pub fn header_length(head: &[u8]) -> Result<usize, Error> {
-    let text = std::str::from_utf8(&head[..head.len() - 4])
+    let fields = head
+        .strip_suffix(b"\r\n\r\n")
+        .ok_or_else(|| Error::Malformed("lsp headers lack the blank line".to_owned()))?;
+    let text = std::str::from_utf8(fields)
         .map_err(|err| Error::Malformed(format!("lsp headers are not UTF-8: {err}")))?;
     for line in text.split("\r\n") {
         let (name, value) = line.split_once(':').unwrap_or((line, ""));
@@ -77,8 +82,8 @@ pub fn read_message(reader: &mut impl BufRead) -> Result<serde_json::Value, Erro
         reader
             .read_exact(&mut byte)
             .map_err(|err| Error::Malformed(format!("lsp stream ended inside headers: {err}")))?;
-        head.push(byte[0]);
-        if head.len() >= 4 && head[head.len() - 4..] == *b"\r\n\r\n" {
+        head.extend_from_slice(&byte);
+        if head.ends_with(b"\r\n\r\n") {
             break;
         }
     }
@@ -184,7 +189,7 @@ impl Session {
                     break;
                 }
                 let mut kept = stderr_sink.lock().expect("stderr lock");
-                kept.extend_from_slice(&chunk[..read]);
+                kept.extend(chunk.iter().take(read));
                 if kept.len() > STDERR_KEEP_BYTES {
                     let excess = kept.len() - STDERR_KEEP_BYTES;
                     kept.drain(..excess);
@@ -252,7 +257,12 @@ impl Session {
         let bytes = self.stderr.lock().expect("stderr lock").clone();
         let text = String::from_utf8_lossy(&bytes);
         let lines: Vec<&str> = text.lines().collect();
-        lines[lines.len().saturating_sub(5)..].join("\n")
+        lines
+            .iter()
+            .skip(lines.len().saturating_sub(5))
+            .copied()
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     pub fn next_event(&self, what: &str, deadline: Instant) -> Result<serde_json::Value, Error> {
@@ -338,7 +348,7 @@ impl Session {
         let mut seen = 0;
         loop {
             let publications = self.publications(uri)?;
-            for params in &publications[seen.min(publications.len())..] {
+            for params in publications.iter().skip(seen) {
                 let empty = params
                     .get("diagnostics")
                     .and_then(serde_json::Value::as_array)
@@ -365,7 +375,7 @@ impl Session {
             self.drain()?;
             {
                 let log = self.log.borrow();
-                for message in &log[seen.min(log.len())..] {
+                for message in log.iter().skip(seen) {
                     let is_show = message.get("method").and_then(serde_json::Value::as_str)
                         == Some("window/showMessage");
                     let text = message
@@ -471,13 +481,11 @@ pub fn file_uri(path: &Path) -> String {
     format!("file://{}", path.display())
 }
 
-pub fn offset_to_position(text: &str, offset: usize) -> (u32, u32) {
-    let line = text[..offset].matches('\n').count() as u32;
-    let start = text[..offset]
-        .rfind('\n')
-        .map(|index| index + 1)
-        .unwrap_or(0);
-    (line, (offset - start) as u32)
+pub fn offset_to_position(text: &str, offset: usize) -> Option<(u32, u32)> {
+    let before = text.get(..offset)?;
+    let line = before.matches('\n').count() as u32;
+    let start = before.rfind('\n').map(|index| index + 1).unwrap_or(0);
+    Some((line, (offset - start) as u32))
 }
 
 pub fn error_code(message: &serde_json::Value) -> Option<i64> {
@@ -492,6 +500,7 @@ pub fn position_of(text: &str, needle: &str, occurrence: usize) -> (u32, u32) {
         .unwrap_or_else(|| panic!("{needle:?} occurrence {occurrence} not found"))
         .0;
     offset_to_position(text, offset)
+        .unwrap_or_else(|| panic!("{needle:?} occurrence {occurrence} is not on a char boundary"))
 }
 
 /// The first `uri` or `targetUri` of a definition result.
@@ -529,7 +538,8 @@ pub fn definition_uri(
     let offset = text
         .find(needle)
         .unwrap_or_else(|| panic!("fixture holds {needle}"));
-    let (line, character) = offset_to_position(text, offset + 2);
+    let (line, character) = offset_to_position(text, offset + 2)
+        .ok_or_else(|| Error::Malformed(format!("{needle} is too short to point into")))?;
     let id = session.request(
         "textDocument/definition",
         serde_json::json!({

@@ -1,8 +1,10 @@
 //! A deterministic child process for tests that must not need a host shell.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeMap;
 use std::env;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
@@ -303,13 +305,7 @@ fn parse(args: &[String]) -> Result<Plan, String> {
 }
 
 fn write_zeros(out: &mut impl Write, count: usize) -> io::Result<()> {
-    let chunk = vec![0u8; count.min(64 * 1024)];
-    let mut left = count;
-    while left > 0 {
-        let take = left.min(chunk.len());
-        out.write_all(&chunk[..take])?;
-        left -= take;
-    }
+    io::copy(&mut io::repeat(0).take(count as u64), out)?;
     Ok(())
 }
 

@@ -103,9 +103,10 @@ pub fn integrity_hex(integrity: &str) -> Option<String> {
 }
 
 fn quoted_after<'a>(text: &'a str, key: &str) -> Option<&'a str> {
-    let rest = &text[text.find(key)? + key.len()..];
-    let rest = &rest[rest.find('"')? + 1..];
-    Some(&rest[..rest.find('"')?])
+    let (_, rest) = text.split_once(key)?;
+    let (_, rest) = rest.split_once('"')?;
+    let (value, _) = rest.split_once('"')?;
+    Some(value)
 }
 
 /// The `(url, sha256)` of every `archive_override` in a MODULE.bazel text.
@@ -133,8 +134,9 @@ pub fn list(
 ) -> Result<String, String> {
     let lock: serde_json::Value =
         serde_json::from_str(lock).map_err(|error| format!("MODULE.bazel.lock: {error}"))?;
-    let registry = lock["registryFileHashes"]
-        .as_object()
+    let registry = lock
+        .get("registryFileHashes")
+        .and_then(serde_json::Value::as_object)
         .ok_or("MODULE.bazel.lock: no registryFileHashes")?;
     let mut entries: BTreeMap<String, String> = BTreeMap::new();
     let mut add = |url: &str, sha256: &str| {
@@ -151,7 +153,8 @@ pub fn list(
         }
         let source: serde_json::Value =
             serde_json::from_slice(&bytes).map_err(|error| format!("{url}: {error}"))?;
-        let archive = source["url"].as_str().zip(source["integrity"].as_str());
+        let field = |name: &str| source.get(name).and_then(serde_json::Value::as_str);
+        let archive = field("url").zip(field("integrity"));
         if let Some((archive, integrity)) = archive {
             let sha256 = integrity_hex(integrity).ok_or_else(|| format!("{url}: bad integrity"))?;
             if fetched(&sha256).is_some() {
@@ -160,7 +163,7 @@ pub fn list(
         }
         let base = url.trim_end_matches("source.json");
         for kind in ["patches", "overlay"] {
-            let Some(files) = source[kind].as_object() else {
+            let Some(files) = source.get(kind).and_then(serde_json::Value::as_object) else {
                 continue;
             };
             for (name, integrity) in files {

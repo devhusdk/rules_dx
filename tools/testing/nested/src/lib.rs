@@ -1,5 +1,7 @@
 //! Runs nested Bazel servers for tests: one server under `TEST_TMPDIR`, hermetic environments and the fake Bazel.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod cache;
 pub mod compose;
 pub mod footprint;
@@ -801,11 +803,17 @@ fn names_dir(cmdline: &str, flag: &str, dir: &str) -> bool {
     }
     let needle = format!("{flag}{dir}");
     let mut from = 0;
-    while let Some(found) = line[from..].find(&needle) {
+    while let Some(found) = line.get(from..).and_then(|rest| rest.find(&needle)) {
         let at = from + found;
         let step = needle.chars().next().map_or(1, char::len_utf8);
-        let before = line[..at].chars().next_back();
-        let after = line[at + needle.len()..].chars().next();
+        let Some((head, tail)) = line.split_at_checked(at) else {
+            return false;
+        };
+        let Some(rest) = tail.strip_prefix(needle.as_str()) else {
+            return false;
+        };
+        let before = head.chars().next_back();
+        let after = rest.chars().next();
         let starts = flag.is_empty() || before.is_none_or(|c| matches!(c, ' ' | '"' | '\0' | '\t'));
         let ends = after.is_none_or(|c| matches!(c, '/' | '"' | ' ' | '\0' | '\t'));
         if starts && ends {
@@ -1276,7 +1284,8 @@ fn output_within(command: &mut Command, limit: Duration) -> Result<std::process:
                 let tail = |bytes: Vec<u8>| {
                     let text = String::from_utf8_lossy(&bytes).into_owned();
                     let keep = text.len().saturating_sub(4000);
-                    text[text.ceil_char_boundary(keep)..].to_string()
+                    let (_, kept) = text.split_at(text.ceil_char_boundary(keep));
+                    kept.to_string()
                 };
                 let out = tail(stdout.join().unwrap_or_default());
                 let err = tail(stderr.join().unwrap_or_default());

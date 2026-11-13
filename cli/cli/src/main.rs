@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::io::{self, IsTerminal, Write};
 use std::path::Path;
 

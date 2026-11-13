@@ -22,14 +22,16 @@ pub struct Entry {
 fn u16_at(bytes: &[u8], at: usize) -> Result<u16, String> {
     bytes
         .get(at..at + 2)
-        .map(|b| u16::from_le_bytes([b[0], b[1]]))
+        .and_then(|b| b.try_into().ok())
+        .map(u16::from_le_bytes)
         .ok_or_else(|| format!("truncated u16 at offset {at}"))
 }
 
 fn u32_at(bytes: &[u8], at: usize) -> Result<u32, String> {
     bytes
         .get(at..at + 4)
-        .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .and_then(|b| b.try_into().ok())
+        .map(u32::from_le_bytes)
         .ok_or_else(|| format!("truncated u32 at offset {at}"))
 }
 
@@ -180,8 +182,8 @@ fn c_string(table: &[u8], at: usize) -> Result<String, String> {
     let tail = table
         .get(at..)
         .ok_or_else(|| format!("string offset {at} is out of range"))?;
-    let end = tail.iter().position(|b| *b == 0).unwrap_or(tail.len());
-    String::from_utf8(tail[..end].to_vec()).map_err(|e| e.to_string())
+    let name: Vec<u8> = tail.iter().take_while(|b| **b != 0).copied().collect();
+    String::from_utf8(name).map_err(|e| e.to_string())
 }
 
 fn elf_device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {
@@ -199,15 +201,14 @@ pub fn archive_members(bytes: &[u8]) -> Result<Vec<(String, &[u8])>, String> {
     let mut members = Vec::new();
     let mut long_names: &[u8] = &[];
     let mut at = 8;
-    while at + 60 <= bytes.len() {
-        let header = &bytes[at..at + 60];
-        if &header[58..60] != b"`\n" {
+    while let Some(header) = bytes.get(at..at + 60) {
+        let (Some(name_field), Some(size_field), Some(b"`\n")) =
+            (header.get(..16), header.get(48..58), header.get(58..))
+        else {
             return Err(format!("bad ar member header at offset {at}"));
-        }
-        let raw_name = String::from_utf8_lossy(&header[0..16])
-            .trim_end()
-            .to_string();
-        let size: usize = String::from_utf8_lossy(&header[48..58])
+        };
+        let raw_name = String::from_utf8_lossy(name_field).trim_end().to_string();
+        let size: usize = String::from_utf8_lossy(size_field)
             .trim()
             .parse()
             .map_err(|e| format!("bad ar member size at offset {at}: {e}"))?;
@@ -226,8 +227,9 @@ pub fn archive_members(bytes: &[u8]) -> Result<Vec<(String, &[u8])>, String> {
                     let tail = long_names
                         .get(offset..)
                         .ok_or_else(|| format!("ar long name {raw_name} out of range"))?;
-                    let end = tail.iter().position(|b| *b == b'\n').unwrap_or(tail.len());
-                    String::from_utf8_lossy(&tail[..end])
+                    let long_name: Vec<u8> =
+                        tail.iter().take_while(|b| **b != b'\n').copied().collect();
+                    String::from_utf8_lossy(&long_name)
                         .trim_end_matches('/')
                         .to_string()
                 }
@@ -243,14 +245,16 @@ pub fn archive_members(bytes: &[u8]) -> Result<Vec<(String, &[u8])>, String> {
 const COFF_MACHINES: [u16; 3] = [0x8664, 0xAA64, 0x014C];
 
 fn is_bigobj(bytes: &[u8]) -> bool {
-    bytes.len() >= 56 && bytes[..4] == [0, 0, 0xFF, 0xFF] && bytes[4..6] != [0, 0]
+    bytes.len() >= 56
+        && bytes.starts_with(&[0, 0, 0xFF, 0xFF])
+        && bytes.get(4..6).is_some_and(|version| version != [0, 0])
 }
 
 fn is_coff_object(bytes: &[u8]) -> bool {
     is_bigobj(bytes)
         || (bytes.len() >= 20
-            && COFF_MACHINES.contains(&u16::from_le_bytes([bytes[0], bytes[1]]))
-            && bytes[2..4] != [0, 0])
+            && u16_at(bytes, 0).is_ok_and(|machine| COFF_MACHINES.contains(&machine))
+            && bytes.get(2..4).is_some_and(|sections| sections != [0, 0]))
 }
 
 fn is_pe_image(bytes: &[u8]) -> bool {
@@ -319,8 +323,8 @@ fn coff_sections(bytes: &[u8]) -> Result<Vec<CoffSection<'_>>, String> {
         let raw_name = bytes
             .get(at..at + 8)
             .ok_or_else(|| format!("truncated COFF section header {index}"))?;
-        let end = raw_name.iter().position(|b| *b == 0).unwrap_or(8);
-        let short = String::from_utf8_lossy(&raw_name[..end]).to_string();
+        let short_name: Vec<u8> = raw_name.iter().take_while(|b| **b != 0).copied().collect();
+        let short = String::from_utf8_lossy(&short_name).to_string();
         let name = match short.strip_prefix('/').map(str::parse::<usize>) {
             Some(Ok(offset)) => c_string(strings, offset)?,
             _ => short,

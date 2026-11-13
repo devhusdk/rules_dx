@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::path::{Path, PathBuf};
 
 pub mod cli;
@@ -79,7 +81,7 @@ fn drain<R: std::io::Read + Send + 'static>(
             }
             into.lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner())
-                .extend_from_slice(&chunk[..count]);
+                .extend(chunk.iter().take(count));
         }
     })
 }

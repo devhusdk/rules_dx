@@ -1,5 +1,7 @@
 //! Runs one D test built with `-cov` and writes its LCOV report into COVERAGE_DIR for Bazel.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 mod lst;
 
 use std::env;

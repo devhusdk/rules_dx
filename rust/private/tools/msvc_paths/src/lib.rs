@@ -1,5 +1,7 @@
 //! Rewrites absolute execroot paths in MSVC linker and archiver arguments to relative ones.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -48,37 +50,42 @@ impl Rewriter {
 
     /// Replaces every `<root>\` and `<root>/` in `text`, ignoring ASCII case.
     pub fn rewrite(&self, text: &str) -> String {
-        let bytes = text.as_bytes();
         let mut out = String::with_capacity(text.len());
-        let mut start = 0;
-        let mut i = 0;
-        while i < bytes.len() {
-            match self.match_at(bytes, i) {
-                Some(end) => {
-                    let head = &text[start..i];
+        let mut rest = text;
+        'scan: loop {
+            for (i, _) in rest.char_indices() {
+                let Some((head, tail)) = rest.split_at_checked(i) else {
+                    continue;
+                };
+                if let Some(after) = self.strip_root(tail) {
                     out.push_str(head.strip_suffix(r"\\?\").unwrap_or(head));
                     out.push_str(&self.prefix);
-                    start = end;
-                    i = end;
+                    rest = after;
+                    continue 'scan;
                 }
-                None => i += 1,
             }
+            break;
         }
-        out.push_str(&text[start..]);
+        out.push_str(rest);
         out
     }
 
-    fn match_at(&self, bytes: &[u8], i: usize) -> Option<usize> {
+    /// Returns what follows `<root>` and one separator at the start of `text`.
+    fn strip_root<'a>(&self, text: &'a str) -> Option<&'a str> {
         let root = self.root.as_bytes();
-        let end = i + root.len();
-        if root.is_empty() || !is_sep(*bytes.get(end)?) {
+        let bytes = text.as_bytes();
+        if root.is_empty() || !is_sep(*bytes.get(root.len())?) {
             return None;
         }
         let same = root
             .iter()
-            .zip(&bytes[i..end])
+            .zip(bytes.get(..root.len())?)
             .all(|(a, b)| a.eq_ignore_ascii_case(b) || (is_sep(*a) && is_sep(*b)));
-        same.then_some(end + 1)
+        if same {
+            text.get(root.len() + 1..)
+        } else {
+            None
+        }
     }
 }
 
@@ -154,8 +161,11 @@ fn edit_response_file(
     let mut out = String::with_capacity(text.len());
     for line in text.split_inclusive('\n') {
         let body = line.trim_end_matches(['\r', '\n']);
+        let ending = line.strip_prefix(body).ok_or_else(|| {
+            io::Error::other(format!("{}: line ending split failed", path.display()))
+        })?;
         out.push_str(&edit_line(body, edit)?);
-        out.push_str(&line[body.len()..]);
+        out.push_str(ending);
     }
     if out != text {
         fs::write(path, encode(&out, encoding))?;
@@ -178,12 +188,13 @@ fn edit_line(line: &str, edit: &mut impl FnMut(&str) -> io::Result<String>) -> i
 
 /// Splits an MSVC option such as `/DEF:` from its value; a plain path has no option.
 pub fn split_option(arg: &str) -> (&str, &str) {
-    if arg.starts_with(['/', '-']) {
-        if let Some(colon) = arg.find(':') {
-            if colon > 1 && arg[1..colon].bytes().all(|c| c.is_ascii_alphabetic()) {
-                return arg.split_at(colon + 1);
-            }
-        }
+    if let Some(rest) = arg.strip_prefix(['/', '-'])
+        && let Some((name, _)) = rest.split_once(':')
+        && !name.is_empty()
+        && name.bytes().all(|c| c.is_ascii_alphabetic())
+        && let Some(split) = arg.split_at_checked(name.len() + 2)
+    {
+        return split;
     }
     ("", arg)
 }

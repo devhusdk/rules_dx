@@ -1,6 +1,8 @@
 //! Rewrites the `SHA256` and `GAZELLE_SHA256` values in `cli/prebuilt/pins.bzl`
 //! from a verified `dx-sha256sums.txt` and `dx-gazelle-sha256sums.txt`.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use dx_adopt::{LauncherPins, RELEASE_ASSETS};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -205,7 +207,9 @@ fn rewrite(pins_bzl: &str, hashes: &BTreeMap<String, String>) -> Result<String, 
                 let hash = hashes
                     .get(asset)
                     .ok_or_else(|| format!("{asset} has no pin"))?;
-                let ending = &line[line.trim_end_matches(['\r', '\n']).len()..];
+                let ending = line
+                    .strip_prefix(line.trim_end_matches(['\r', '\n']))
+                    .ok_or_else(|| format!("{asset} pin line has no ending"))?;
                 out.push_str(&format!("    \"{asset}\": \"{hash}\",{ending}"));
                 replaced += 1;
             }

@@ -2,6 +2,8 @@
 //! depend on the checkout. Build scripts call it from deep inside bazel-out, where `../` prefixes
 //! would push paths past MAX_PATH, so the archiver always runs from the execroot itself.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::env;
 use std::io;
 use std::path::{self, Path};

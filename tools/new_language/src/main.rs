@@ -1,5 +1,7 @@
 //! Creates the directory for a new language.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::fs;
 use std::path::Path;
 use std::process::ExitCode;

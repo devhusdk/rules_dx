@@ -1,5 +1,7 @@
 //! Runs rust-lld as lld-link with execroot-relative paths, so the PDB does not depend on the checkout.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::env;
 use std::fs;
 use std::io;

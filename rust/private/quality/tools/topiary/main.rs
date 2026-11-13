@@ -9,6 +9,8 @@
 //! would change (one PATH per line on stdout), 2 = a syntax
 //! error (`PATH:LINE:COL: message`), an unsupported file, or a tool error.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::path::Path;
 use std::process::ExitCode;
 

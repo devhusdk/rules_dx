@@ -1,5 +1,7 @@
 //! Forwards a repin request to dx update, which owns the pinned versions.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};

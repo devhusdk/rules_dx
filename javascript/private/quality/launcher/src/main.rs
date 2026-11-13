@@ -1,5 +1,7 @@
 //! Runs a generated JavaScript tool through the node runtime beside it.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::path::PathBuf;
 use std::process::Command;
 

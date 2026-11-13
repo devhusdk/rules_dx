@@ -1,5 +1,7 @@
 //! Reads a generated JavaScript launcher's own runfiles so a host can run the tool.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};

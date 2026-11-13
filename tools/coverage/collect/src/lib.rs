@@ -1,5 +1,7 @@
 //! Collects LLVM coverage for tests with one llvm-profdata and llvm-cov pair.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod apple;
 mod collect;
 mod gcov;

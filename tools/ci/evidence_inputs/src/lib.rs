@@ -1,5 +1,7 @@
 //! Validates the evidence workflow dispatch inputs.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use serde_json::{Value, json};
 
 pub const PLATFORMS: [(&str, &str); 5] = [
@@ -140,7 +142,7 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
         ));
     }
     for (index, name) in platforms.iter().enumerate() {
-        if platforms[..index].contains(name) {
+        if platforms.iter().take(index).any(|earlier| earlier == name) {
             return Err(format!(
                 "platforms lists '{name}' twice; list each platform once"
             ));

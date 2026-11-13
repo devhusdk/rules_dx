@@ -12,12 +12,16 @@ pub type Report = BTreeMap<String, FileCoverage>;
 
 /// The part of a path from `bazel-out/` on, without its extension.
 pub fn object_key(path: &str) -> Option<String> {
-    let start = if path.starts_with("bazel-out/") && !path[1..].contains("/bazel-out/") {
+    let start = if path.starts_with("bazel-out/")
+        && path
+            .get(1..)
+            .is_some_and(|tail| !tail.contains("/bazel-out/"))
+    {
         0
     } else {
         path.rfind("/bazel-out/")? + 1
     };
-    let key = &path[start..];
+    let key = path.get(start..)?;
     Some(
         key.rsplit_once('.')
             .map_or(key, |(stem, _)| stem)
@@ -72,7 +76,10 @@ fn wanted(source: &str) -> bool {
 pub fn add_gcov_json(report: &mut Report, json: &str) -> Result<(), String> {
     for doc in serde_json::Deserializer::from_str(json).into_iter::<Value>() {
         let doc = doc.map_err(|e| format!("bad gcov json: {e}"))?;
-        let files = doc["files"].as_array().map_or(&[][..], Vec::as_slice);
+        let files = doc
+            .get("files")
+            .and_then(Value::as_array)
+            .map_or(&[][..], Vec::as_slice);
         for file in files {
             let Some(source) = file["file"].as_str().filter(|s| wanted(s)) else {
                 continue;

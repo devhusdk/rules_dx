@@ -2486,8 +2486,7 @@ mod tests {
     #[test]
     fn shutdown_stops_a_server_outside_the_pinned_output_root() {
         let dir = scratch("nested-shutdown-");
-        let mut server =
-            Server::acquire(config(dir.path(), Path::new("/bin/true"))).expect("acquire");
+        let mut server = Server::acquire(config(dir.path(), &probe())).expect("acquire");
         let mut stray = stand_in(&server.home().join("w/consumer"));
         let pid = stray.id();
         wait_until("the stand-in", || server.servers() == vec![pid]);
@@ -2499,7 +2498,7 @@ mod tests {
     #[test]
     fn drop_stops_a_server_outside_the_pinned_output_root() {
         let dir = scratch("nested-drop-");
-        let server = Server::acquire(config(dir.path(), Path::new("/bin/true"))).expect("acquire");
+        let server = Server::acquire(config(dir.path(), &probe())).expect("acquire");
         let mut stray = stand_in(&server.home().join("w/consumer"));
         let pid = stray.id();
         wait_until("the stand-in", || server.servers() == vec![pid]);
@@ -2518,7 +2517,7 @@ mod tests {
         wait_until("the stand-in", || {
             servers_in_workspaces(&dir.path().join("w")) == vec![pid]
         });
-        let server = Server::acquire(config(dir.path(), Path::new("/bin/true"))).expect("acquire");
+        let server = Server::acquire(config(dir.path(), &probe())).expect("acquire");
         let _ = stray.wait();
         assert!(!alive(pid));
         drop(server);

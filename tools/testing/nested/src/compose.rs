@@ -45,10 +45,23 @@ pub const RULES_PY_PATCHES: [&str; 6] = [
 /// Pins the patched rules_py the way the root MODULE.bazel does, until the BCR serves alpha.11.
 pub fn rules_py_override() -> String {
     let patches = RULES_PY_PATCHES
-    .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
-    .concat();
+        .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
+        .concat();
     format!(
         "archive_override(\n    module_name = \"rules_py\",\n    integrity = \"sha256-TlCUj7uFZKizo7HzVM2ex//f4wT2PGpf6x/bz7/Hgr0=\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"rules_py-2.0.0-alpha.11\",\n    urls = [\"https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz\"],\n)\n"
+    )
+}
+
+/// The patches of `//patches/rules_rust` that `rules_rust_override` names, without `.patch`.
+pub const RULES_RUST_PATCHES: [&str; 1] = ["windows_exec_foreign_target_cc_linker"];
+
+/// Pins rules_rust 0.75.0 with the Windows exec linker patch of the root MODULE.bazel.
+pub fn rules_rust_override() -> String {
+    let patches = RULES_RUST_PATCHES
+        .map(|name| format!("        \"//patches/rules_rust:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "single_version_override(\n    module_name = \"rules_rust\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.75.0\",\n)\n"
     )
 }
 
@@ -190,6 +203,11 @@ fn write_patches(
             .map_err(|err| format!("cannot copy {}: {err}", from.display()))?;
     }
     Ok(())
+}
+
+/// Writes the files `rules_rust_override` names into the consumer.
+pub fn write_rules_rust_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
+    write_patches(workspace, rules_dx, "rules_rust", &RULES_RUST_PATCHES)
 }
 
 /// Writes the files `rules_py_override` and `rules_flutter_override` name into the consumer.

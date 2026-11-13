@@ -697,13 +697,16 @@ fn a_written_lease_is_not_recorded_again() {
     let lease = GroupLease::acquire_in(scratch.path()).expect("lease");
     let line = lease_line(std::process::id() as i32).expect("line");
     lease.record_unwritten(std::process::id() as i32);
-    assert_eq!(
-        std::fs::read_to_string(&lease.path).expect("lease"),
-        format!("{line}\n")
-    );
+    assert_eq!(held_text(&lease), format!("{line}\n"));
     lease.record_unwritten(i32::MAX);
-    assert_eq!(
-        std::fs::read_to_string(&lease.path).expect("lease"),
-        format!("{line}\n")
-    );
+    assert_eq!(held_text(&lease), format!("{line}\n"));
+}
+
+fn held_text(lease: &GroupLease) -> String {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut file = &lease.file;
+    let mut text = String::new();
+    file.seek(SeekFrom::Start(0)).expect("rewind");
+    file.read_to_string(&mut text).expect("lease text");
+    text
 }

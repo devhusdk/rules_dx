@@ -123,6 +123,7 @@ def hermetic_qualification(
         srcs = None,
         smoke = False,
         compatible_with = HERMETIC_COMPATIBLE_WITH,
+        consumer_rows = [],
         workspace_dir = "consumer ws",
         **kwargs):
     """Declares a consumer manifest and a golden check; smoke also runs the nested qualification."""
@@ -161,7 +162,7 @@ def hermetic_qualification(
                 "DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name,
             },
             size = "small",
-            tags = ["hermetic-golden"],
+            tags = ["hermetic-golden"] + ["consumer-row:" + row for row in consumer_rows],
             target_compatible_with = compatible_with,
             deps = [
                 "//tools/testing:dx_testing",
@@ -187,7 +188,7 @@ def hermetic_qualification(
                 "DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name,
             },
         }),
-        tags = QUALIFICATION_TAGS + ["hermetic-consumer", "resources:nested_bazel:1"],
+        tags = QUALIFICATION_TAGS + ["hermetic-consumer", "resources:nested_bazel:1"] + ["consumer-row:" + row for row in consumer_rows],
         target_compatible_with = compatible_with,
         deps = [
             "//tools/testing:dx_testing",

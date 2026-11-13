@@ -1,0 +1,124 @@
+{
+  "android": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "appimage": [
+    "//tools/testing/hermetic:appimage"
+  ],
+  "astro": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "cc": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "cc_gcc": [
+    "//tools/testing/hermetic:c_fixture_gcc",
+    "//tools/testing/hermetic:cpp_fixture_gcc"
+  ],
+  "cc_msvc": [
+    "//tools/testing/hermetic:c_fixture_msvc",
+    "//tools/testing/hermetic:cpp_fixture_msvc"
+  ],
+  "csharp": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "cuda": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "d": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "dart": [
+    "//tools/testing/hermetic:dart",
+    "//tools/testing/starters:starters_test"
+  ],
+  "elixir": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "erlang": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "flutter": [
+    "//tools/testing/hermetic:flutter"
+  ],
+  "fortran": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "fsharp": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "go": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "haskell": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "java": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "javascript": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "julia": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "lua": [
+    "//tools/testing/hermetic:lua",
+    "//tools/testing/starters:starters_test"
+  ],
+  "mdx": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "msix": [
+    "//tools/testing/hermetic:msix"
+  ],
+  "ocaml": [
+    "//tools/testing/hermetic:ocaml",
+    "//tools/testing/starters:starters_test"
+  ],
+  "perl": [
+    "//tools/testing/hermetic:perl",
+    "//tools/testing/starters:starters_test"
+  ],
+  "php": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "powershell": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "python": [
+    "//python/tests:python_init_adopt_test",
+    "//tools/testing/starters:starters_test"
+  ],
+  "qt": [
+    "//tools/testing/hermetic:qt_rust",
+    "//tools/testing/hermetic:qt_tasks"
+  ],
+  "ruby": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "rust": [
+    "//tools/testing/hermetic:cpp_rust",
+    "//tools/testing/hermetic:rust_wasi",
+    "//tools/testing/starters:starters_test"
+  ],
+  "scala": [
+    "//tools/testing/hermetic:scala_scalafix"
+  ],
+  "svelte": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "typescript": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "vue": [
+    "//tools/testing/starters:starters_test"
+  ],
+  "wasi": [
+    "//tools/testing/hermetic:rust_wasi"
+  ],
+  "zig": [
+    "//tools/testing/hermetic:zig",
+    "//tools/testing/starters:starters_test"
+  ]
+}

@@ -2,8 +2,8 @@
 
 use support_matrix::runfiles_source::RunfilesSource;
 use support_matrix::{
-    MATRIX_PATH, ROW_LABELS_PATH, Source, UNSUPPORTED_PATH, UPDATE_COMMAND, diff, generate, parse_facts,
-    unsupported_json,
+    CONSUMER_LABELS_PATH, MATRIX_PATH, ROW_LABELS_PATH, Source, UNSUPPORTED_PATH, UPDATE_COMMAND,
+    diff, generate, parse_facts, unsupported_json,
 };
 
 fn generated() -> (String, RunfilesSource) {
@@ -90,9 +90,20 @@ fn a_row_test_missing_from_every_platform_file_fails() {
     let facts = source
         .read("tools/docs/support_matrix/facts.json")
         .expect("facts");
-    let golden = "//tools/testing/hermetic:c_fixture_msvc";
-    let facts = facts.replace(golden, "//tools/testing/hermetic:not_queried");
-    let error = generate(&facts, &source).expect_err("an unqueried row test");
+    struct Renamed<'a>(&'a RunfilesSource);
+    impl Source for Renamed<'_> {
+        fn read(&self, path: &str) -> Result<String, String> {
+            let text = self.0.read(path)?;
+            if path != CONSUMER_LABELS_PATH {
+                return Ok(text);
+            }
+            Ok(text.replace(
+                "//tools/testing/hermetic:c_fixture_msvc",
+                "//tools/testing/hermetic:not_queried",
+            ))
+        }
+    }
+    let error = generate(&facts, &Renamed(&source)).expect_err("an unqueried row test");
     assert!(error.contains("row_tests.sh"), "{error}");
 }
 
@@ -121,6 +132,33 @@ fn row_labels_match_the_ci_tests_of_every_compiler_and_target_row() {
         assert!(
             missing.is_empty() && extra.is_empty(),
             "row {} differs from its row:{} tags; missing the tag: {missing:?}; tagged but not in ci_tests: {extra:?}; run `tools/docs/support_matrix/row_tests.sh <platform>`",
+            row.name,
+            row.name
+        );
+    }
+}
+
+#[test]
+fn consumer_labels_match_the_consumer_tests_of_every_row() {
+    let source = RunfilesSource::create().expect("runfiles");
+    let facts = parse_facts(
+        &source
+            .read("tools/docs/support_matrix/facts.json")
+            .expect("facts"),
+    )
+    .expect("facts parse");
+    let labels: std::collections::BTreeMap<String, Vec<String>> =
+        serde_json::from_str(&source.read(CONSUMER_LABELS_PATH).expect("consumer labels"))
+            .expect("consumer labels parse");
+    for row in &facts.rows {
+        let mut want = row.consumer_tests.clone();
+        want.sort();
+        let have = labels.get(&row.name).cloned().unwrap_or_default();
+        let missing: Vec<_> = want.iter().filter(|l| !have.contains(l)).collect();
+        let extra: Vec<_> = have.iter().filter(|l| !want.contains(l)).collect();
+        assert!(
+            missing.is_empty() && extra.is_empty(),
+            "row {} differs from its consumer-row:{} tags; missing the tag: {missing:?}; tagged but not in consumer_tests: {extra:?}; run `tools/docs/support_matrix/row_tests.sh <platform>`",
             row.name,
             row.name
         );

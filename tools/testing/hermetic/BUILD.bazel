@@ -254,6 +254,7 @@ rust_test(
 
 hermetic_qualification(
     name = "cpp_rust",
+    consumer_rows = ["rust"],
     # macOS takes about 870s (run 42173489188), Linux 653s (run 42178777570).
     timeout = "eternal",
     coverage = [
@@ -428,6 +429,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "perl",
+    consumer_rows = ["perl"],
     files = {
         "//perl/tests/fixtures/perl-app/cli:BUILD.bazel": "perl/tests/fixtures/perl-app/cli/BUILD.bazel",
         "//perl/tests/fixtures/perl-app/cli:stockctl.pl": "perl/tests/fixtures/perl-app/cli/stockctl.pl",
@@ -537,6 +539,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "lua",
+    consumer_rows = ["lua"],
     files = {
         "//lua/tests/fixtures/lua-app:BUILD.bazel": "lua/tests/fixtures/lua-app/BUILD.bazel",
         "//lua/tests/fixtures/lua-app:inspect.BUILD.bazel": "lua/tests/fixtures/lua-app/inspect.BUILD.bazel",
@@ -611,6 +614,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "ocaml",
+    consumer_rows = ["ocaml"],
     failures = {
         "//ocaml/tests/fixtures/ocaml_app/cli:report_without_astring": "Unbound module Astring",
         "//ocaml/tests/fixtures/ocaml_app/diagnostics:syntax_error": "Syntax error",
@@ -654,6 +658,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "qt_tasks",
+    consumer_rows = ["qt"],
     srcs = ["//qt:module_srcs"],
     files = {
         "consumers/qt_tasks/consumer.bazelrc": ".bazelrc",
@@ -701,6 +706,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "scala_scalafix",
+    consumer_rows = ["scala"],
     files = {
         "consumers/scala_scalafix/Pure.scala": "app/Pure.scala",
         "consumers/scala_scalafix/PureTest.scala": "app/PureTest.scala",
@@ -718,6 +724,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "zig",
+    consumer_rows = ["zig"],
     files = {
         "consumers/zig/apps/catalog.BUILD.bazel": "zig/tests/fixtures/zig-app/catalog/BUILD.bazel",
         "consumers/zig/apps/digest.BUILD.bazel": "zig/tests/fixtures/zig-app/digest/BUILD.bazel",
@@ -743,6 +750,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "dart",
+    consumer_rows = ["dart"],
     files = {
         "//dart/tests/fixtures/dart-app:BUILD.bazel": "dart/tests/fixtures/dart-app/BUILD.bazel",
         "//dart/tests/fixtures/dart-app:analysis_options.yaml": "dart/tests/fixtures/dart-app/analysis_options.yaml",
@@ -769,6 +777,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "flutter",
+    consumer_rows = ["flutter"],
     failures = {
         "//flutter/tests/fixtures/flutter-app/failures:missing_font": "font_files does not provide it",
         "//flutter/tests/fixtures/flutter-app/failures:missing_asset": "1 input file(s) do not exist",
@@ -868,6 +877,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "msix",
+    consumer_rows = ["msix"],
     files = {
         "consumers/msix/apps/app.BUILD.bazel": "msix/tests/fixtures/msix-app/app/BUILD.bazel",
         "consumers/msix/apps/tools_test.sh": "msix/tests/fixtures/msix-app/app/tools_test.sh",
@@ -943,6 +953,7 @@ rust_binary(
 
 hermetic_qualification(
     name = "qt_rust",
+    consumer_rows = ["qt"],
     srcs = ["//qt:module_srcs"],
     files = {
         "consumers/qt_rust/consumer.bazelrc": ".bazelrc",
@@ -980,6 +991,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "rust_wasi",
+    consumer_rows = ["rust", "wasi"],
     failures = {"//examples/shared-rust:tasks_without_core": "error[E0432]: unresolved import `shared_tasks`"},
     files = {
         "consumers/rust_wasi/app.BUILD.bazel": "examples/shared-rust/BUILD.bazel",
@@ -1053,6 +1065,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "appimage",
+    consumer_rows = ["appimage"],
     compatible_with = LINUX_MACOS,
     files = {
         "consumers/appimage/consumer.bazelrc": ".bazelrc",
@@ -1126,6 +1139,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "c_fixture_gcc",
+    consumer_rows = ["cc_gcc"],
     timeout = "eternal",
     compatible_with = LINUX_MACOS,
     compiler = "gcc",
@@ -1150,6 +1164,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "c_fixture_msvc",
+    consumer_rows = ["cc_msvc"],
     timeout = "eternal",
     compatible_with = WINDOWS,
     compiler = "msvc",
@@ -1194,6 +1209,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "cpp_fixture_gcc",
+    consumer_rows = ["cc_gcc"],
     timeout = "eternal",
     compatible_with = LINUX_MACOS,
     compiler = "gcc",
@@ -1218,6 +1234,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "cpp_fixture_msvc",
+    consumer_rows = ["cc_msvc"],
     timeout = "eternal",
     compatible_with = WINDOWS,
     compiler = "msvc",

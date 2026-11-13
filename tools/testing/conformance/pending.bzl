@@ -212,6 +212,7 @@ sql fail_test *
 sql lock_test *
 sql pass_test *
 sql runfiles_test *
+swift cross_test macos_arm64
 swift lock_test *
 swift runfiles_test *
 terraform build_test *

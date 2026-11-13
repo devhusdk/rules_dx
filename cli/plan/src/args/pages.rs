@@ -3,35 +3,6 @@ use super::command::Command;
 /// The page under `docs/cli/commands/` that documents `dx` itself.
 pub const ROOT_PAGE: &str = "README.md";
 
-/// The page under `docs/cli/commands/` that documents each command.
-pub const PAGES: [(Command, &str); 25] = [
-    (Command::Security, "audit-update.md"),
-    (Command::License, "audit-update.md"),
-    (Command::Lint, "quality.md"),
-    (Command::Typecheck, "quality.md"),
-    (Command::Format, "quality.md"),
-    (Command::Generate, "generate.md"),
-    (Command::Build, "build-test-coverage.md"),
-    (Command::Test, "build-test-coverage.md"),
-    (Command::Coverage, "build-test-coverage.md"),
-    (Command::Bench, "bench.md"),
-    (Command::Run, "build-test-coverage.md"),
-    (Command::Deploy, "deploy.md"),
-    (Command::Check, "check.md"),
-    (Command::Clean, "clean.md"),
-    (Command::Update, "audit-update.md"),
-    (Command::Sync, "sync.md"),
-    (Command::Init, "init.md"),
-    (Command::Upgrade, "upgrade.md"),
-    (Command::Status, "status.md"),
-    (Command::Watch, "watch.md"),
-    (Command::Completion, "completion.md"),
-    (Command::Docs, "docs.md"),
-    (Command::Worktree, "worktree.md"),
-    (Command::Fuzz, "fuzz.md"),
-    (Command::Config, "config.md"),
-];
-
 /// One flag `--help` lists: its long name, or its short one when it has no long name, and its other spellings.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct HelpFlag {
@@ -50,14 +21,29 @@ pub struct HelpSurface {
 
 impl Command {
     /// The page under `docs/cli/commands/` that documents this command.
-    #[expect(
-        clippy::indexing_slicing,
-        reason = "PAGES holds one entry per Command variant in declaration order"
-    )]
     pub fn page(self) -> &'static str {
-        let entry = &PAGES[self as usize];
-        debug_assert_eq!(entry.0, self);
-        entry.1
+        match self {
+            Command::Security | Command::License | Command::Update => "audit-update.md",
+            Command::Lint | Command::Typecheck | Command::Format => "quality.md",
+            Command::Generate => "generate.md",
+            Command::Build | Command::Test | Command::Coverage | Command::Run => {
+                "build-test-coverage.md"
+            }
+            Command::Bench => "bench.md",
+            Command::Deploy => "deploy.md",
+            Command::Check => "check.md",
+            Command::Clean => "clean.md",
+            Command::Sync => "sync.md",
+            Command::Init => "init.md",
+            Command::Upgrade => "upgrade.md",
+            Command::Status => "status.md",
+            Command::Watch => "watch.md",
+            Command::Completion => "completion.md",
+            Command::Docs => "docs.md",
+            Command::Worktree => "worktree.md",
+            Command::Fuzz => "fuzz.md",
+            Command::Config => "config.md",
+        }
     }
 }
 
@@ -146,13 +132,10 @@ pub fn help_surface() -> Vec<HelpSurface> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Command, PAGES, ROOT_PAGE, exit_codes_in, help_surface};
+    use super::{Command, ROOT_PAGE, exit_codes_in, help_surface};
 
     #[test]
-    fn the_page_table_covers_every_command_in_order() {
-        use clap::ValueEnum;
-        let commands: Vec<Command> = PAGES.iter().map(|entry| entry.0).collect();
-        assert_eq!(commands, Command::value_variants());
+    fn every_command_names_its_page() {
         assert_eq!(Command::Coverage.page(), "build-test-coverage.md");
         assert_eq!(Command::License.page(), "audit-update.md");
     }
@@ -198,7 +181,7 @@ mod tests {
                 "{entry:?}"
             );
         }
-        for command in PAGES.iter().map(|entry| entry.0) {
+        for &command in <Command as clap::ValueEnum>::value_variants() {
             assert_eq!(find(&[command.name()]).page, Some(command.page()));
         }
     }

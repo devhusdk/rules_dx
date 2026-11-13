@@ -1,0 +1,10 @@
+--- a/oci/private/image.sh	2026-11-13 23:29:54.336887043 +0100
++++ b/oci/private/image.sh	2026-11-13 23:29:54.339854600 +0100
+@@ -1,5 +1,7 @@
+ #!/usr/bin/env bash
+ set -o pipefail -o errexit -o nounset
++trap 'echo "image.sh ERR line $LINENO: $BASH_COMMAND" >&2' ERR
++set -o errtrace
+ 
+ # Replace PATH with hermetically built jq, regctl, coreutils.
+ # shellcheck disable=SC2123

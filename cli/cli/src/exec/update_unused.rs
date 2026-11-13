@@ -106,7 +106,7 @@ fn paket_hubs(locks: &[String]) -> Vec<String> {
 }
 
 /// Labels without repository and without a target that repeats the last package segment, so
-/// `@pypi//numpy:numpy` and `@pypi//numpy` agree.
+/// `@<hub>//numpy:numpy` and `@<hub>//numpy` agree.
 fn label_key(label: &str) -> Option<String> {
     let (_, rest) = label.split_once("//")?;
     let (package, name) = match rest.split_once(':') {
@@ -599,12 +599,21 @@ mod tests {
         }
     }
 
-    struct Labels(&'static str);
+    struct Labels<'a>(&'a str);
 
     /// Answers the hub query with `Labels` and the `rdeps` query with one BUILD target.
-    struct HubAndUser(&'static str, &'static str);
+    struct HubAndUser<'a>(&'a str, &'a str);
 
-    impl QueryRunner for HubAndUser {
+    /// `text` with each `{hub}` replaced by the hub name of `ecosystem`.
+    fn at_hub(ecosystem: &str, text: &str) -> String {
+        let hub = dx_families::hub(ecosystem)
+            .unwrap_or_else(|| panic!("setup.hubs entry {ecosystem}"))
+            .hub
+            .as_str();
+        text.replace("{hub}", hub)
+    }
+
+    impl QueryRunner for HubAndUser<'_> {
         fn run_query(
             &self,
             argv: &[String],
@@ -619,7 +628,7 @@ mod tests {
         }
     }
 
-    impl QueryRunner for Labels {
+    impl QueryRunner for Labels<'_> {
         fn run_query(
             &self,
             _argv: &[String],
@@ -694,11 +703,17 @@ mod tests {
             "x"
         );
         assert_eq!(name("@@rules_rust++crate+crates//:cc"), "cc");
-        assert_eq!(name("@crates//sha-1-0.10.1:sha-1-0.10.1"), "sha-1");
-        assert_eq!(name("@crates//:sha-1"), "sha-1");
-        assert_eq!(name("@crates//:ripgrep__rg"), "ripgrep");
         assert_eq!(
-            name("@crates//ripgrep-14.1.0:ripgrep-14.1.0__rg"),
+            name(&at_hub("cargo", "@{hub}//sha-1-0.10.1:sha-1-0.10.1")),
+            "sha-1"
+        );
+        assert_eq!(name(&at_hub("cargo", "@{hub}//:sha-1")), "sha-1");
+        assert_eq!(name(&at_hub("cargo", "@{hub}//:ripgrep__rg")), "ripgrep");
+        assert_eq!(
+            name(&at_hub(
+                "cargo",
+                "@{hub}//ripgrep-14.1.0:ripgrep-14.1.0__rg"
+            )),
             "ripgrep"
         );
     }
@@ -766,13 +781,14 @@ mod tests {
         let root = dir.path();
         let manifest = "[package]\nname = \"x\"\n\n[dependencies]\ncc = \"1\"\nregex = \"1\"\n";
         let resolved = cargo_set(root, manifest);
-        let query = Labels("@crates//:cc\n");
+        let labels = at_hub("cargo", "@{hub}//:cc\n");
+        let query = Labels(&labels);
         let found = find(root, &resolved, &query, &[]);
         let names: Vec<&str> = found.iter().map(|u| u.name.as_str()).collect();
         assert_eq!(names, ["regex"]);
     }
 
-    fn unused_names(root: &Path, resolved: &[ResolvedTarget], labels: &'static str) -> Vec<String> {
+    fn unused_names(root: &Path, resolved: &[ResolvedTarget], labels: &str) -> Vec<String> {
         find(root, resolved, &Labels(labels), &[])
             .into_iter()
             .map(|u| u.name)
@@ -803,7 +819,7 @@ mod tests {
             &format!("py/{}", manifest_of(Ecosystem::Uv)),
         )];
         assert_eq!(
-            unused_names(root, &resolved, "@@pypi//numpy:numpy\n"),
+            unused_names(root, &resolved, &at_hub("uv", "@@{hub}//numpy:numpy\n")),
             ["Requests"]
         );
     }
@@ -875,7 +891,7 @@ mod tests {
             unused_names(
                 root,
                 &resolved,
-                "@paket.main//newtonsoft.json:newtonsoft.json\n"
+                &at_hub("nuget", "@{hub}//newtonsoft.json:newtonsoft.json\n")
             ),
             ["Serilog"]
         );
@@ -971,7 +987,8 @@ mod tests {
             root,
             "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\n",
         );
-        let query = HubAndUser("@crates//:serde\n@crates//:regex\n", "//app:bin\n");
+        let labels = at_hub("cargo", "@{hub}//:serde\n@{hub}//:regex\n");
+        let query = HubAndUser(&labels, "//app:bin\n");
         let found = find_missing(root, &resolved, &query, &[]);
         let mut out = Vec::new();
         emit_missing_text(&mut out, &found).unwrap();
@@ -999,7 +1016,8 @@ mod tests {
         let by_import = find_missing(root, &resolved, &NoQuery, &[]);
         assert_eq!(by_import.len(), 1);
         assert!(matches!(by_import[0].via, Via::Import { .. }));
-        let query = Labels("@crates//:regex\n");
+        let labels = at_hub("cargo", "@{hub}//:regex\n");
+        let query = Labels(&labels);
         let found = find_missing(root, &resolved, &query, &[]);
         assert_eq!(found.len(), 1);
         assert!(matches!(found[0].via, Via::Label(_)));

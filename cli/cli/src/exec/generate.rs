@@ -323,8 +323,9 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wir
 
 /// Fills the empty cargo lock with the crate_universe repin `dx update` runs.
 fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
-    let argv = dx_update::backend::configured_fetch_argv(&request.bazel_head(), "crates", false);
-    let vars = dx_update::backend::cargo_env("workspace", "crates");
+    let hub = dx_families::hub("cargo").map_or("", |hub| hub.hub.as_str());
+    let argv = dx_update::backend::configured_fetch_argv(&request.bazel_head(), hub, false);
+    let vars = dx_update::backend::cargo_env("workspace", hub);
     let pairs: Vec<(&str, &str)> = vars
         .iter()
         .map(|(key, value)| (key.as_str(), value.as_str()))
@@ -811,6 +812,14 @@ mod tests {
         harness
     }
 
+    /// The `cargo` hub name.
+    fn cargo_hub() -> &'static str {
+        dx_families::hub("cargo")
+            .expect("setup.hubs entry cargo")
+            .hub
+            .as_str()
+    }
+
     #[test]
     fn generate_apply_seeds_cargo_lock_and_repins_crates() {
         let harness = cargo_workspace("generate-seed-cargo", "default");
@@ -824,15 +833,16 @@ mod tests {
             )),
             "{module}"
         );
+        let repo = format!("--repo=@{}", cargo_hub());
         let builds = harness.build_argv.borrow();
         let fetch = builds
             .iter()
-            .position(|argv| argv.iter().any(|arg| arg == "--repo=@crates"))
+            .position(|argv| argv.iter().any(|arg| *arg == repo))
             .expect("crate repin");
         assert!(builds[fetch].iter().any(|arg| arg == "fetch"), "{builds:?}");
         let env = &harness.seen_env.borrow()[fetch];
         assert!(env.contains(&("CARGO_BAZEL_REPIN".to_owned(), "workspace".to_owned())));
-        assert!(env.contains(&("CARGO_BAZEL_REPIN_ONLY".to_owned(), "crates".to_owned())));
+        assert!(env.contains(&("CARGO_BAZEL_REPIN_ONLY".to_owned(), cargo_hub().to_owned())));
         assert!(
             err.contains(&format!(
                 "dx: {} is still empty after bazel fetch; run dx generate --apply again",
@@ -867,7 +877,9 @@ mod tests {
         assert_eq!(read(&format!("third_party/{maven}")), "");
         let maven_pin = format!(
             "@{}//:pin",
-            dx_families::hub("maven").expect("setup.hubs entry maven").hub
+            dx_families::hub("maven")
+                .expect("setup.hubs entry maven")
+                .hub
         );
         let builds = harness.build_argv.borrow();
         let pin = builds
@@ -907,12 +919,13 @@ mod tests {
             out.contains(&format!("would create {}", lock_of(Ecosystem::Cargo))),
             "{out}"
         );
+        let repo = format!("--repo=@{}", cargo_hub());
         assert!(
             !harness
                 .build_argv
                 .borrow()
                 .iter()
-                .any(|argv| argv.iter().any(|arg| arg == "--repo=@crates"))
+                .any(|argv| argv.iter().any(|arg| *arg == repo))
         );
     }
 

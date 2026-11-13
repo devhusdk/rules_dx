@@ -38,7 +38,7 @@ The `luarocks` module extension turns a `luarocks.lock.json` into a hub with one
 `lua_library` per rock. Only pure-Lua rocks with the `builtin` build type are
 supported.
 
-With `luarocks.lock.json` beside the root `*.rockspec`, `dx generate --apply` adds the `luarocks.lock` stanza for the `@rocks` hub to `MODULE.bazel`.
+`dx generate --apply` writes `luarocks.lock.json` beside a root `*.rockspec` that has none, then adds the `luarocks.lock` stanza for the `@rocks` hub to `MODULE.bazel`.
 
 Depend on `@rocks//inspect`. `bazel run @rules_dx//lua/private/tools/lock -- --dir third_party/lua`
 resolves the `dependencies` of the `*.rockspec` in that directory from

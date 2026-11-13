@@ -10,6 +10,21 @@
   "lockfiles": [
     ".terraform.lock.hcl"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "terraform",
+        "manifest": "*.tf",
+        "lock": null,
+        "state": ".terraform.lock.hcl",
+        "extension": "@rules_dx//terraform:extensions.bzl",
+        "tag": null,
+        "hub": "dx_terraform_providers",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "terraform",
     "tflint",

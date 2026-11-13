@@ -3158,6 +3158,21 @@ LANGS = json.decode("""{
         ".tfvars"
       ]
     },
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "terraform",
+          "extension": "@rules_dx//terraform:extensions.bzl",
+          "hub": "dx_terraform_providers",
+          "imports": "name",
+          "lock": null,
+          "manifest": "*.tf",
+          "resolver": null,
+          "state": ".terraform.lock.hcl",
+          "tag": null
+        }
+      ]
+    },
     "title": "Terraform",
     "tools": [
       "terraform",

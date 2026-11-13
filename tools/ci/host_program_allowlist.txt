@@ -51,8 +51,6 @@ tools/ci/docs_scope_test.rs env-path 1
 tools/ci/evidence_inputs_test.rs spawn-by-name 2
 tools/ci/fill_pins/src/main.rs spawn-by-name 2
 tools/ci/review_paths_test.rs spawn-by-name 1
-tools/ci/secret_flags_test.rs env-path 1
-tools/ci/secret_flags_test.rs spawn-by-name 1
 tools/ci/upgrade_e2e_test.rs spawn-by-name 2
 tools/docs/site/browser/src/lib_tests.rs spawn-by-name 1
 tools/testing/hermetic/isolation_windows_test.rs spawn-by-name 3

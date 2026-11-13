@@ -1,6 +1,6 @@
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//java:defs.bzl", "java_fuzz_test", "java_library")
+load("@rules_dx//java:defs.bzl", "java_fuzz_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(
@@ -60,12 +60,6 @@ dx_runner_attr_test(
 )
 
 exports_files(["run_test.sh"])
-
-java_library(
-    name = "fuzz",
-    testonly = True,
-    srcs = ["ParseFuzz.java"],
-)
 
 real_source_target(
     name = "corpus_starlark",

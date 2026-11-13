@@ -56,12 +56,12 @@ A haskell_binary of tasty-bench benchmarks plus a `<name>` runner that writes dx
 haskell_deps_resolve(name, srcs, target = "all", stack_lock = "", **kwargs)
 ```
 
-Writes cabal.project.freeze and haskell_deps.json next to the cabal project in this package.
+Writes the freeze file and the Hackage sidecar next to the cabal project in this package.
 
 ### `haskell_deps_resolve_test`
 
 ```python
-haskell_deps_resolve_test(name, srcs, freeze = "cabal.project.freeze", sidecar = "haskell_deps.json", **kwargs)
+haskell_deps_resolve_test(name, srcs, freeze = LOCK_REGISTRY["cabal"]["state"], sidecar = LOCK_REGISTRY["cabal"]["lock"], **kwargs)
 ```
 
 Fails when the freeze file or the sidecar is stale against the cabal project.

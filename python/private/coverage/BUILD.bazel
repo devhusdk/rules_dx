@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//python:defs.bzl", "python_library")
 
 package(default_visibility = ["//python:__subpackages__"])
@@ -11,4 +12,10 @@ python_library(
     name = "sitecustomize",
     srcs = ["sitecustomize.py"],
     imports = ["."],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

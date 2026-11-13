@@ -432,6 +432,8 @@ real_source_target(
         "jmh_tests.bzl",
         "kwargs.bzl",
         "jazzer.bzl",
+        "pmd_dist.BUILD.bazel",
+        "spotbugs_dist.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

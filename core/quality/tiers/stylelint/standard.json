@@ -65,7 +65,8 @@
       { "ignore": ["at-rule-preludes", "declaration-values"] }
     ],
     "syntax-string-no-invalid": true,
-    "unit-no-unknown": true
+    "unit-no-unknown": true,
+    "value-no-invalid": true
   },
   "overrides": [
     { "files": ["*.scss"], "customSyntax": "postcss-scss" },

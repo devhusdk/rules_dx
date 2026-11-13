@@ -1,5 +1,5 @@
 import * as nodeModule from "node:module";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readlinkSync, rmSync, symlinkSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readlinkSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -7,8 +7,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const MANAGED = ["stylelint-config-recess-order", "stylelint-config-standard", "stylelint-order"];
 
 // stylelint resolves extends and plugins from the config directory, then the working directory,
-// then the global modules directory. It bypasses module hooks, so dx's copies go in a global
-// directory that is only reached when the consumer has none.
+// and bypasses module hooks while doing so. dx's copies go in a private directory that its module
+// path lookup falls back to only when the consumer has none.
 const global = mkdtempSync(join(tmpdir(), "dx-stylelint-"));
 const modules = join(global, "lib", "node_modules");
 mkdirSync(modules, { recursive: true });
@@ -51,7 +51,28 @@ process.on("exit", () => {
   }
   rmSync(global, { recursive: true, force: true });
 });
-process.env.PREFIX = global;
+
+const stylelintRoot = dirname(require.resolve("stylelint/package.json"));
+const lookupURL = pathToFileURL(join(stylelintRoot, "lib", "utils", "getModulePath.mjs")).href;
+const fallbackURL = pathToFileURL(join(global, "getModulePath.mjs")).href;
+writeFileSync(
+  fileURLToPath(fallbackURL),
+  `import getModulePath from ${JSON.stringify(lookupURL)};
+import resolveSilent from ${JSON.stringify(new URL("resolveSilent.mjs", lookupURL).href)};
+export * from ${JSON.stringify(lookupURL)};
+export default function (basedir, lookup, cwd) {
+  try {
+    return getModulePath(basedir, lookup, cwd);
+  } catch (error) {
+    const path = resolveSilent(${JSON.stringify(join(global, "lib"))}, lookup);
+    if (path) {
+      return path;
+    }
+    throw error;
+  }
+}
+`,
+);
 
 // The launcher preserves symlinks, so a file reached through a link would look for its own
 // dependencies beside the link. Resolve from the package's real directory instead.
@@ -68,9 +89,12 @@ nodeModule.registerHooks({
       const parentURL = pathToFileURL(join(base, ...parts.slice(depth))).href;
       return nextResolve(specifier, { ...context, parentURL });
     }
-    return nextResolve(specifier, context);
+    const resolved = nextResolve(specifier, context);
+    if (resolved.url === lookupURL && context.parentURL !== fallbackURL) {
+      return { ...resolved, url: fallbackURL };
+    }
+    return resolved;
   },
 });
 
-const stylelintRoot = dirname(require.resolve("stylelint/package.json"));
 await import(pathToFileURL(join(stylelintRoot, "bin", "stylelint.mjs")).href);

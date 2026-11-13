@@ -2,7 +2,8 @@
   "ecosystem": "cabal",
   "inputs": {
     "cabal.project": "03bf61c0d93b74d46d8c8b438be67ad93cd7a62f61768c2ff132066c7d7a7d32",
-    "cabal.project.freeze": "49a116e8161860efddc4b7623b2046d792b98a770971532ef0dcae1a02ed3e0e",
+    "cabal.project.freeze": "fe96825e71fcdec23d7c419eea81d903adb57911b789f1b1ae762e2c872bb003",
+    "stack.yaml.lock": "bbbdc0bb45f5909eef5e5a0e4521786e2f08c4c04f17404f00504b74f1981267",
     "stack_app.cabal": "6d9fa7c5eacbabff88f9009268dd42977955096ed92885cd4d47bfa9f74bd137"
   },
   "packages": [

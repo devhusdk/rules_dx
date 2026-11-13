@@ -187,7 +187,7 @@ def _checks():
         expect_contains("a lock package dep points at its repository", build, '"@hub_alex//:alex"'),
         expect_contains("a dep outside the lock is a GHC boot package", build, '"@dx_haskell_toolchains//lib:base"'),
         expect_contains("a sublibrary dep points at its alias", build, '"@hub_sub//:sub-lib-inner"'),
-        expect_false("lock deps alone do not name boot packages", "lib:base" in package_build("hub", lock, lock["packages"][1] | {"extra": {"cabal_components": ["lib"]}})),
+        expect_false("lock deps alone do not name boot packages", "@dx_haskell_toolchains//lib:base" in package_deps("hub", lock, lock["packages"][1] | {"extra": {"cabal_components": ["lib"]}})),
     ]
     pinned = {"name": "pinned", "version": "1.0", "archives": [archive], "extra": {"cabal_revision": {"number": 2, "sha256": "b" * 64}}}
     checks += [

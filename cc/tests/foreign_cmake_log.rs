@@ -64,7 +64,7 @@ fn switching_compiler_reconfigures() {
 fn the_generated_zconf_header_is_installed() {
     let path = path("DX_FOREIGN_CMAKE_INCLUDE", "include").join("zconf.h");
     let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-    assert!(text.lines().any(|l| l == "#define Z_HAVE_UNISTD_H"));
+    assert!(text.lines().any(|l| l == "#define HAVE_UNISTD_H 1"));
     assert!(text.lines().any(|l| l == "/* #undef Z_PREFIX */"));
     assert!(!text.contains("#cmakedefine"));
 }

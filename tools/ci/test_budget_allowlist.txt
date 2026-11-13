@@ -113,7 +113,7 @@ cli/web_server/BUILD.bazel no-size 1
 cmake/tests/BUILD.bazel no-size 1
 config/BUILD.bazel no-size 4
 config/settings_tests.bzl no-size 4
-core/codegen/BUILD.bazel no-size 4
+core/codegen/BUILD.bazel no-size 2
 core/codegen/codegen_tests.bzl no-size 2
 core/coreutils/BUILD.bazel no-size 2
 core/fuzz.bzl no-size 1

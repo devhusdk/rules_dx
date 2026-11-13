@@ -5,7 +5,6 @@
 //! `--group G` need no ACL changes of their own. `--backend user --ensure-host-denies [--deny P]...`
 //! puts the denies on the shared `dxh-host` group once per machine, and `--remove-host-denies`
 //! takes them off again.
-#![cfg_attr(test, expect(dead_code, reason = "the test harness does not run main"))]
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Backend {

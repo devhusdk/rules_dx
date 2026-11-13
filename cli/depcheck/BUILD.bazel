@@ -46,15 +46,20 @@ rust_library(
     ),
     crate_name = "dx_depcheck",
     crate_root = "src/lib.rs",
-    deps = all_crate_deps(
-        package_name = "cli/dx_depcheck",
-        normal = True,
-    ) + [
+    # keep
+    deps = [
         "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/families:dx_families",
         "//cli/gomod:dx_gomod",
         "//cli/path:dx_path",
+        "@crates//:pep440_rs",
+        "@crates//:regex",
+        "@crates//:semver",
+        "@crates//:serde_json",
+        "@crates//:thiserror",
+        "@crates//:toml",
+        "@crates//:yaml_serde",
     ],
 )
 
@@ -67,14 +72,12 @@ rust_binary(
     ),
     crate_name = "depcheck",
     crate_root = "src/main.rs",
-    deps = all_crate_deps(
-        package_name = "cli/dx_depcheck",
-        normal = True,
-    ) + [
+    # keep
+    deps = [
         ":depcheck_lib",
         "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
-        "//cli/gomod:dx_gomod",
+        "@crates//:clap",
     ],
 )
 
@@ -150,16 +153,21 @@ rust_test(
         ":ts_testdata",
         ":zig_testdata",
     ],
-    deps = all_crate_deps(
-        package_name = "cli/dx_depcheck",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    # keep
+    deps = [
         "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/families:dx_families",
         "//cli/gomod:dx_gomod",
         "//cli/path:dx_path",
+        "@crates//:pep440_rs",
+        "@crates//:regex",
+        "@crates//:semver",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
+        "@crates//:toml",
+        "@crates//:yaml_serde",
     ],
 )
 
@@ -234,12 +242,8 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = all_crate_deps(
-        package_name = "cli/dx_depcheck",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        ":depcheck_lib",
+    # keep
+    deps = [
         "//tools/testing:dx_testing",
     ],
 )
@@ -302,12 +306,8 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = all_crate_deps(
-        package_name = "cli/dx_depcheck",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        ":depcheck_lib",
+    # keep
+    deps = [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],

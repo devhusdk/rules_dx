@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:dx_config_gen.bzl", "plan_registry_gen")
 load("//rust:defs.bzl", "rust_library", "rust_test")
@@ -78,10 +78,8 @@ rust_library(
     crate_name = "dx_plan",
     crate_root = "src/lib.rs",
     visibility = VIS_QUALITY_CLI + ["//tools/ci:__pkg__"],
-    deps = all_crate_deps(
-        package_name = "cli/dx_plan",
-        normal = True,
-    ) + [
+    # keep
+    deps = [
         "//cli/adopt:dx_adopt",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
@@ -89,7 +87,6 @@ rust_library(
         "//cli/diff:dx_diff",
         "//cli/digest:dx_digest",
         "//cli/dx_config",
-        "//cli/env:dx_env",
         "//cli/env_plan:dx_env_plan",
         "//cli/error:dx_error",
         "//cli/families:dx_families",
@@ -104,8 +101,19 @@ rust_library(
         "//cli/update:dx_update",
         "//cli/worktree:dx_worktree",
         "//tools/bazelrc:dx_preset",
+        "@crates//:base64",
+        "@crates//:clap",
+        "@crates//:clap_complete",
+        "@crates//:clap_lex",
+        "@crates//:clap_mangen",
+        "@crates//:line-index",
+        "@crates//:quick-junit",
+        "@crates//:quick-xml",
         "@crates//:serde",
+        "@crates//:serde-sarif",
         "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
     ],
 )
 
@@ -203,11 +211,8 @@ rust_test(
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe)",
     },
     visibility = VIS_QUALITY_CLI,
-    deps = all_crate_deps(
-        package_name = "cli/dx_plan",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    # keep
+    deps = [
         "//cli/adopt:dx_adopt",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
@@ -215,7 +220,6 @@ rust_test(
         "//cli/diff:dx_diff",
         "//cli/digest:dx_digest",
         "//cli/dx_config",
-        "//cli/env:dx_env",
         "//cli/env_plan:dx_env_plan",
         "//cli/error:dx_error",
         "//cli/families:dx_families",
@@ -232,8 +236,21 @@ rust_test(
         "//cli/worktree:dx_worktree",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
+        "@crates//:base64",
+        "@crates//:clap",
+        "@crates//:clap_complete",
+        "@crates//:clap_lex",
+        "@crates//:clap_mangen",
+        "@crates//:insta",
+        "@crates//:libc",
+        "@crates//:line-index",
+        "@crates//:quick-junit",
+        "@crates//:quick-xml",
         "@crates//:serde",
+        "@crates//:serde-sarif",
         "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
     ],
 )
 

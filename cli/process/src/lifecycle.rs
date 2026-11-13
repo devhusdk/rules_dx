@@ -636,7 +636,7 @@ pub(crate) fn run_streamed_in(
         .stderr(output_stdio(&spec.stderr));
     apply_env(&mut command, &spec.env);
     let owned = spec.group == StreamGroup::Owned;
-    let mut lease = lease_dir
+    let lease = lease_dir
         .filter(|_| owned)
         .and_then(crate::groups::GroupLease::acquire_in);
     let held = spec.held;
@@ -657,9 +657,13 @@ pub(crate) fn run_streamed_in(
             StreamStdin::Null => Stdio::null(),
         },
     );
+    #[cfg(target_os = "linux")]
+    if let Some(lease) = lease.as_ref() {
+        lease.record_from_child(&mut command);
+    }
     let (mut child, tree) = backend::spawn_streamed(&mut command, group, &held)?;
-    if let Some(lease) = lease.as_mut() {
-        lease.record(child.id() as i32);
+    if let Some(lease) = lease.as_ref() {
+        lease.record_unwritten(child.id() as i32);
     }
     let target = backend::stream_target(&child, group);
     let mut forwarding = Forwarding::register(target);

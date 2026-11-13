@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//lua:defs.bzl", "lua_binary", "lua_library", "lua_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -6,6 +7,7 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
+# keep
 lua_library(
     name = "conformance",
     srcs = ["greet.lua"],
@@ -18,6 +20,7 @@ lua_binary(
     deps = [":conformance"],
 )
 
+# keep
 lua_test(
     name = "pass_subject_test",
     size = "small",
@@ -26,6 +29,7 @@ lua_test(
     deps = [":conformance"],
 )
 
+# keep
 lua_test(
     name = "fail_subject_test",
     size = "small",
@@ -36,6 +40,7 @@ lua_test(
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "greet.lua",
     expected = "hello world",
@@ -44,5 +49,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "lua",
     passing_test = ":pass_subject_test",
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

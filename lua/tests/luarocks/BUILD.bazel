@@ -1,17 +1,19 @@
-load("@rules_dx//lua:defs.bzl", "lua_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//lua:defs.bzl", "lua_test")
 
 exports_files(
     ["luarocks.lock.json"],
     visibility = ["//visibility:public"],
 )
 
+# keep
 lua_test(
     name = "inspect_test",
     main = "inspect_test.lua",
     deps = ["@rocks_lua.tests.luarocks//inspect"],
 )
 
+# keep
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],

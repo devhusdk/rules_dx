@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
-load("@rules_dx//julia:defs.bzl", "julia_binary", "julia_library", "julia_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//julia:defs.bzl", "julia_binary", "julia_library", "julia_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -23,6 +23,7 @@ config_setting(
     flag_values = {":digits": "4"},
 )
 
+# keep
 julia_library(
     name = "Report",
     srcs = ["src/Report.jl"],
@@ -70,8 +71,16 @@ julia_test(
     deps = ["@rules_julia//julia/runfiles"],
 )
 
+# keep
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Project.toml"],
 )

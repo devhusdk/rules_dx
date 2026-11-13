@@ -1,8 +1,9 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_library", "lua_test")
+
 # gazelle:dx_ignore_import lua luacov.runner
 # gazelle:exclude lib.lua
 # gazelle:exclude pkg
-load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_library", "lua_test")
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 lua_library(
     name = "lib",
@@ -24,6 +25,7 @@ lua_binary(
     deps = [":lib"],
 )
 
+# keep
 lua_test(
     name = "probe_test",
     args = [
@@ -41,6 +43,7 @@ lua_test(
     deps = [":lib"],
 )
 
+# keep
 lua_test(
     name = "coverage_probe_test",
     main = "coverage_probe_test.lua",
@@ -51,5 +54,6 @@ real_source_target(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],    visibility = ["//:__pkg__"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
 )

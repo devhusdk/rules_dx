@@ -1,7 +1,6 @@
-# gazelle:dx_ignore_import perl Runfiles
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
-load("@rules_dx//perl:defs.bzl", "perl_binary", "perl_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//perl:defs.bzl", "perl_binary", "perl_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -41,6 +40,7 @@ perl_binary(
     ],
 )
 
+# keep
 perl_test(
     name = "launcher_test",
     srcs = ["t/launcher.t"],
@@ -60,6 +60,7 @@ perl_test(
     deps = ["@rules_perl//perl/runfiles"],
 )
 
+# keep
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],

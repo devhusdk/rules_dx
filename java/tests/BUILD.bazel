@@ -2,6 +2,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//java:defs.bzl", "java_test")
 load("//rust:defs.bzl", "rust_test")
 
+# keep
 java_test(
     name = "javac_check_test",
     size = "small",
@@ -11,6 +12,7 @@ java_test(
     deps = ["//java/private/quality/tools/javac_check:javac_check_lib"],
 )
 
+# keep
 java_test(
     name = "kotlinc_check_test",
     size = "small",
@@ -22,6 +24,7 @@ java_test(
     deps = ["//java/private/quality/tools/kotlinc_check:kotlinc_check_lib"],
 )
 
+# keep
 java_test(
     name = "scalac_check_test",
     size = "small",
@@ -33,6 +36,7 @@ java_test(
     deps = ["//java/private/quality/tools/scalac_check:scalac_check_lib"],
 )
 
+# keep
 java_test(
     name = "scala3_check_test",
     size = "small",
@@ -44,6 +48,7 @@ java_test(
     deps = ["//java/private/quality/tools/scalac_check:scalac_check_lib"],
 )
 
+# keep
 rust_test(
     name = "pkl_lsp_smoke_test",
     size = "small",

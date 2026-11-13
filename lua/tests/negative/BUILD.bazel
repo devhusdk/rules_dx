@@ -1,9 +1,10 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_test")
+
 # gazelle:exclude cpath_denied.lua
 # gazelle:exclude missing_dep.lua
 # gazelle:exclude runtime_error.lua
 # gazelle:exclude syntax_error.lua
-load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_test")
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 [
     lua_binary(
@@ -18,9 +19,9 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
     ]
 ]
 
+# keep
 lua_test(
     name = "negative_test",
-    main = "negative_test.lua",
     data = [
         "syntax_error.lua",
         ":cpath_denied",
@@ -37,6 +38,7 @@ lua_test(
         "RUNTIME_ERROR": "$(rlocationpath :runtime_error)",
         "SYNTAX_ERROR": "$(rlocationpath syntax_error.lua)",
     },
+    main = "negative_test.lua",
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -48,5 +50,8 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-    visibility = ["@rules_dx//tools/ci:__pkg__", "//:__pkg__"],
+    visibility = [
+        "//:__pkg__",
+        "@rules_dx//tools/ci:__pkg__",
+    ],
 )

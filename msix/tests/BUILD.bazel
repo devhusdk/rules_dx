@@ -452,7 +452,10 @@ powershell_test(
         "DX_MSIX_PE_ARM64": "$(rlocationpaths :pe_arm64) $(rlocationpaths :greet_arm64)",
         "DX_MSIX_PE_X64": "$(rlocationpaths :pe_x64) $(rlocationpaths :greet_x64)",
     },
-    tags = ["block-network"],
+    tags = [
+        "block-network",
+        "row:msix",
+    ],
     deps = ["@rules_powershell//powershell/runfiles"],
 )
 

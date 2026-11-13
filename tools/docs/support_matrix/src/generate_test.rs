@@ -2,7 +2,7 @@
 
 use support_matrix::runfiles_source::RunfilesSource;
 use support_matrix::{
-    MATRIX_PATH, Source, UNSUPPORTED_PATH, UPDATE_COMMAND, diff, generate, parse_facts,
+    MATRIX_PATH, ROW_LABELS_PATH, Source, UNSUPPORTED_PATH, UPDATE_COMMAND, diff, generate, parse_facts,
     unsupported_json,
 };
 
@@ -94,6 +94,63 @@ fn a_row_test_missing_from_every_platform_file_fails() {
     let facts = facts.replace(golden, "//tools/testing/hermetic:not_queried");
     let error = generate(&facts, &source).expect_err("an unqueried row test");
     assert!(error.contains("row_tests.sh"), "{error}");
+}
+
+#[test]
+fn row_labels_match_the_ci_tests_of_every_compiler_and_target_row() {
+    let source = RunfilesSource::create().expect("runfiles");
+    let facts = parse_facts(
+        &source
+            .read("tools/docs/support_matrix/facts.json")
+            .expect("facts"),
+    )
+    .expect("facts parse");
+    let labels: std::collections::BTreeMap<String, Vec<String>> =
+        serde_json::from_str(&source.read(ROW_LABELS_PATH).expect("row labels"))
+            .expect("row labels parse");
+    for row in facts
+        .rows
+        .iter()
+        .filter(|row| row.section == "compilers" || row.section == "targets")
+    {
+        let mut want = row.ci_tests.clone();
+        want.sort();
+        let have = labels.get(&row.name).cloned().unwrap_or_default();
+        let missing: Vec<_> = want.iter().filter(|l| !have.contains(l)).collect();
+        let extra: Vec<_> = have.iter().filter(|l| !want.contains(l)).collect();
+        assert!(
+            missing.is_empty() && extra.is_empty(),
+            "row {} differs from its row:{} tags; missing the tag: {missing:?}; tagged but not in ci_tests: {extra:?}; run `tools/docs/support_matrix/row_tests.sh <platform>`",
+            row.name,
+            row.name
+        );
+    }
+}
+
+#[test]
+fn a_row_tag_naming_no_row_fails() {
+    struct WithRow<'a>(&'a RunfilesSource);
+    impl Source for WithRow<'_> {
+        fn read(&self, path: &str) -> Result<String, String> {
+            let text = self.0.read(path)?;
+            if path != ROW_LABELS_PATH {
+                return Ok(text);
+            }
+            let mut labels: serde_json::Map<String, serde_json::Value> =
+                serde_json::from_str(&text).map_err(|error| error.to_string())?;
+            labels.insert("no_such_row".to_owned(), serde_json::json!([]));
+            serde_json::to_string(&labels).map_err(|error| error.to_string())
+        }
+    }
+    let source = RunfilesSource::create().expect("runfiles");
+    let facts = source
+        .read("tools/docs/support_matrix/facts.json")
+        .expect("facts");
+    let error = generate(&facts, &WithRow(&source)).expect_err("a row tag naming no row");
+    assert!(
+        error.contains("no_such_row") && error.contains("row_tests.sh"),
+        "{error}"
+    );
 }
 
 #[test]

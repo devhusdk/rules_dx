@@ -193,6 +193,7 @@ android_sign(
 
 android_check(
     name = "check_unsigned_test",
+    tags = ["row:android"],
     package = ":unsigned.apk",
 )
 
@@ -375,6 +376,7 @@ sh_test(
 
 sh_test(
     name = "sign_test",
+    tags = ["row:android"],
     srcs = ["sign_test.sh"],
     args = [
         "$(rootpath :sign)",

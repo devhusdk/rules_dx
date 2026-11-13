@@ -22,6 +22,8 @@ pub const UPDATE_COMMAND: &str = "bazel run //tools/docs/support_matrix:update";
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
 /// The command that refreshes one platform's row test file.
+/// Row to the labels tagged with it.
+pub const ROW_LABELS_PATH: &str = "tools/docs/support_matrix/row_labels.json";
 pub const ROW_TESTS_COMMAND: &str = "tools/docs/support_matrix/row_tests.sh <platform>";
 
 /// One CI platform from the language list.
@@ -177,6 +179,12 @@ pub fn read_row_tests(
     Ok(out)
 }
 
+/// Reads `tools/docs/support_matrix/row_labels.json`: row name to the sorted labels tagged `row:<name>`.
+pub fn read_row_labels(source: &dyn Source) -> Result<BTreeMap<String, Vec<String>>, String> {
+    let text = source.read(ROW_LABELS_PATH)?;
+    serde_json::from_str(&text).map_err(|error| format!("{ROW_LABELS_PATH} is invalid: {error}"))
+}
+
 struct Context {
     platforms: Vec<String>,
     row_tests: BTreeMap<String, RowTests>,
@@ -311,12 +319,21 @@ pub fn row_platforms(
         tag_jobs,
         extra,
     };
+    let row_labels = read_row_labels(source)?;
+    for name in row_labels.keys() {
+        if !facts.rows.iter().any(|row| &row.name == name) {
+            return Err(format!(
+                "{ROW_LABELS_PATH} lists row:{name}, which names no row in languages.bzl; run `{ROW_TESTS_COMMAND}`"
+            ));
+        }
+    }
     let mut out = BTreeMap::new();
     for row in &facts.rows {
+        let labels = row_labels.get(&row.name).map_or(&[][..], Vec::as_slice);
         out.insert(
             row.name.clone(),
             RowPlatforms {
-                build: context.tested_on(row, &row.ci_tests, false)?,
+                build: context.tested_on(row, labels, false)?,
                 consumer: context.tested_on(row, &row.consumer_tests, true)?,
             },
         );

@@ -22,6 +22,7 @@ cc_binary(
 
 cc_test(
     name = "ledger_test",
+    tags = ["row:apple"],
     srcs = ["ledger_test.c"],
     target_compatible_with = _MACOS_ARM64,
     deps = [":ledger"],

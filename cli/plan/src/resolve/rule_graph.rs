@@ -13,6 +13,7 @@ pub struct RuleGraph {
     inputs: HashMap<String, Vec<String>>,
     users: HashMap<String, Vec<String>>,
     manual: HashSet<String>,
+    release: HashSet<String>,
     kinds: HashMap<String, String>,
 }
 
@@ -46,6 +47,10 @@ pub(crate) fn is_graph_query(argv: &[String]) -> bool {
 }
 
 fn has_manual_tag(rule: &Value) -> bool {
+    has_tag(rule, "manual")
+}
+
+fn has_tag(rule: &Value, wanted: &str) -> bool {
     let Some(attributes) = rule.get("attribute").and_then(Value::as_array) else {
         return false;
     };
@@ -57,7 +62,7 @@ fn has_manual_tag(rule: &Value) -> bool {
         .filter_map(Value::as_str)
         .any(|tag| {
             tag.split(|ch: char| !(ch.is_alphanumeric() || ch == '_'))
-                .any(|word| word == "manual")
+                .any(|word| word == wanted)
         })
 }
 
@@ -104,6 +109,7 @@ impl RuleGraph {
             inputs: HashMap::new(),
             users: HashMap::new(),
             manual: HashSet::new(),
+            release: HashSet::new(),
             kinds: HashMap::new(),
         };
         for line in text.lines().filter(|line| !line.trim().is_empty()) {
@@ -155,6 +161,9 @@ impl RuleGraph {
             }
             if has_manual_tag(rule) {
                 graph.manual.insert(name.to_owned());
+            }
+            if has_tag(rule, "release") {
+                graph.release.insert(name.to_owned());
             }
             if let Some(kind) = rule.get("ruleClass").and_then(Value::as_str) {
                 graph.kinds.insert(name.to_owned(), kind.to_owned());
@@ -244,9 +253,11 @@ impl RuleGraph {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
     }
 
-    /// The `dx_deployment` rules the scopes reach, keeping manual rules.
+    /// The `dx_deployment` rules tagged `release` that the scopes reach, keeping manual rules.
     pub fn deployments(&self, scopes: &[String]) -> Vec<String> {
-        self.reached_of_kind(scopes, |kind| kind == "dx_deployment")
+        let mut rules = self.reached_of_kind(scopes, |kind| kind == "dx_deployment");
+        rules.retain(|rule| self.release.contains(rule));
+        rules
     }
 
     /// Rules the scopes select that no other selected rule uses through its inputs.
@@ -537,10 +548,22 @@ mod tests {
     }
 
     #[test]
-    fn deployments_are_the_dx_deployment_rules_a_seed_reaches() {
+    fn deployments_are_the_release_dx_deployment_rules_a_seed_reaches() {
         let graph = graph(&[
             graph_rule_of_kind("//app:bin", "rust_binary", &["//app:main.rs"], &[]),
-            graph_rule_of_kind("//app:deploy", "dx_deployment", &["//app:bin"], &[]),
+            graph_rule_of_kind(
+                "//app:deploy",
+                "dx_deployment",
+                &["//app:bin"],
+                &["release"],
+            ),
+            graph_rule_of_kind("//app:staging", "dx_deployment", &["//app:bin"], &[]),
+            graph_rule_of_kind(
+                "//app:prerelease",
+                "dx_deployment",
+                &["//app:bin"],
+                &["prerelease"],
+            ),
             graph_rule_of_kind("//other:deploy", "dx_deployment", &["//other:x"], &[]),
         ]);
         assert_eq!(

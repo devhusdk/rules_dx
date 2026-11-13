@@ -718,7 +718,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 2
+          fetch-depth: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr && 2 || 0 }}
           persist-credentials: false
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
@@ -730,64 +730,13 @@ jobs:
           AFFECTED: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr }}
         run: |
           set -euo pipefail
-          universe='//...'
+          args=()
           if [ "$AFFECTED" = "true" ] && git rev-parse --verify -q 'HEAD^2' >/dev/null; then
-            labels=()
-            whole=false
-            while IFS= read -r -d '' file; do
-              base=$(basename "$file")
-              case "$base" in
-                MODULE.bazel | MODULE.bazel.lock | .bazelrc | .bazelversion | WORKSPACE* | *.bzl) whole=true; break ;;
-              esac
-              if [ ! -e "$file" ]; then whole=true; break; fi
-              dir=$(dirname "$file")
-              if [ "$base" = BUILD ] || [ "$base" = BUILD.bazel ]; then
-                labels+=("//${dir#.}:all")
-                continue
-              fi
-              while [ "$dir" != . ] && [ ! -e "$dir/BUILD.bazel" ] && [ ! -e "$dir/BUILD" ]; do dir=$(dirname "$dir"); done
-              if [ ! -e "$dir/BUILD.bazel" ] && [ ! -e "$dir/BUILD" ]; then whole=true; break; fi
-              [ "$dir" = . ] && rel="$file" || rel="${file#"$dir"/}"
-              labels+=("//${dir#.}:$rel")
-            done < <(git diff -z --name-only HEAD^1 HEAD)
-            if [ "$whole" = false ]; then
-              if [ ${#labels[@]} -eq 0 ]; then
-                echo "deploy dry run: no affected targets" | tee -a "$GITHUB_STEP_SUMMARY"
-                exit 0
-              fi
-              targets=''
-              for label in "${labels[@]}"; do targets+=" \"$label\""; done
-              universe="rdeps(//..., set($targets))"
-            fi
+            args=(--affected --since HEAD^1)
+          else
+            args=(--affected --since "$(git rev-list --max-parents=0 HEAD | tail -n 1)")
           fi
-          rc=0
-          bazel query --keep_going --lockfile_mode=error --output=label "attr(tags, \"[\\\\[ ]release[,\\\\]]\", kind(dx_deployment, $universe))" > "$RUNNER_TEMP/deployables.txt" || rc=$?
-          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
-            echo "::error::bazel query exited $rc"
-            exit "$rc"
-          fi
-          mapfile -t deployables < "$RUNNER_TEMP/deployables.txt"
-          if [ ${#deployables[@]} -eq 0 ]; then
-            echo "deploy dry run: no release deployment to check" | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          failed=0
-          {
-            echo "| deployment | dry run |"
-            echo "| --- | --- |"
-          } >> "$GITHUB_STEP_SUMMARY"
-          for label in "${deployables[@]}"; do
-            echo "::group::dx deploy $label (dry run)"
-            if bazel run --lockfile_mode=error @rules_dx//:dx -- deploy "$label" < /dev/null; then
-              outcome=pass
-            else
-              outcome=fail
-              failed=1
-            fi
-            echo "::endgroup::"
-            echo "| \`$label\` | $outcome |" >> "$GITHUB_STEP_SUMMARY"
-          done
-          exit "$failed"
+          bazel run --lockfile_mode=error @rules_dx//:dx -- deploy "${args[@]}" < /dev/null
   bench:
     name: bench
     needs: [validate]

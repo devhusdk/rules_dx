@@ -7,7 +7,6 @@ name core/quality/tools/python_bundle/bundle.bzl pyproject.toml
 name d/private/toolchain/pins.bzl package.json
 name python/private/sdist_cargo_vendor.bzl Cargo.lock
 name python/private/sdist_cargo_vendor.bzl uv.lock
-name terraform/lang.json .terraform.lock.hcl
 name third_party/dotnet/framework.bzl paket.dependencies
 name tools/docs/support_matrix/languages.bzl cabal.project.freeze
 name tools/docs/support_matrix/languages.bzl mix.lock

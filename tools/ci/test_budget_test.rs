@@ -35,6 +35,12 @@ const NESTED_TAG: &str = "resources:nested_bazel";
 /// The most nested tests the list may hold.
 const NESTED_CAP: usize = 8;
 
+/// The tags that opt a nested test into a CI job.
+const CONSUMER_TAGS: [&str; 3] = ["hermetic-consumer", "network-consumer", "starter-consumer"];
+
+/// The workflow path named in failures.
+const WORKFLOW: &str = ".github/workflows/ci.yml";
+
 /// The ending of a private wrapper target.
 const UPSTREAM: &str = "_upstream";
 
@@ -86,7 +92,7 @@ struct Call {
     flaky: bool,
     spread: bool,
     trues: BTreeSet<String>,
-    nested_tag: bool,
+    tag_strings: Vec<String>,
     tag_names: Vec<String>,
     guards: BTreeSet<String>,
 }
@@ -94,7 +100,7 @@ struct Call {
 /// A module-level constant: whether it holds the nested tag, and the names it is built from.
 #[derive(Default, Clone)]
 struct Constant {
-    nested: bool,
+    strings: Vec<String>,
     names: BTreeSet<String>,
 }
 
@@ -179,7 +185,7 @@ impl Walker<'_> {
                         .constants
                         .entry(ident.node.ident.clone())
                         .or_default();
-                    constant.nested |= nested_tag(&found.strings);
+                    constant.strings.extend(found.strings);
                     constant.names.extend(found.names);
                 }
                 self.expr(&assign.rhs);
@@ -243,7 +249,7 @@ impl Walker<'_> {
                         "tags" => {
                             let mut found = Leaves::default();
                             leaves(value, &mut found);
-                            call.nested_tag = nested_tag(&found.strings);
+                            call.tag_strings = found.strings;
                             call.tag_names = found.names;
                         }
                         _ => {}
@@ -282,7 +288,8 @@ fn scan_file(path: &str, source: &str) -> FileScan {
 /// Whether `callee` takes no size: a binary macro, which may declare a test inside, or the test build of an app.
 fn unsized_macro(callee: &str) -> bool {
     callee == "erlang_test_app"
-        || callee.split('_').any(|word| word == "binary") && !callee.split('_').any(|word| word == "test")
+        || callee.split('_').any(|word| word == "binary")
+            && !callee.split('_').any(|word| word == "test")
 }
 
 /// Budget hits across `files`, keyed by path and kind.
@@ -294,7 +301,8 @@ fn budget(files: &BTreeMap<String, FileScan>) -> Counts {
             *counts.entry((path.clone(), kind)).or_default() += 1;
         };
         for call in &scan.calls {
-            if call.callee == SUITE || unsized_macro(&call.callee) || !is_test(&tests, &call.callee) {
+            if call.callee == SUITE || unsized_macro(&call.callee) || !is_test(&tests, &call.callee)
+            {
                 continue;
             }
             match &call.size {
@@ -318,13 +326,23 @@ fn budget(files: &BTreeMap<String, FileScan>) -> Counts {
     counts
 }
 
-/// The names of the module-level constants that hold the nested tag.
-fn nested_constants(files: &BTreeMap<String, FileScan>) -> BTreeSet<String> {
+/// Whether `strings` hold a tag that opts a test into a CI job.
+fn consumer_tag(strings: &[String]) -> bool {
+    strings
+        .iter()
+        .any(|text| CONSUMER_TAGS.contains(&text.as_str()))
+}
+
+/// The names of the module-level constants whose strings satisfy `hit`.
+fn nested_constants(
+    files: &BTreeMap<String, FileScan>,
+    hit: fn(&[String]) -> bool,
+) -> BTreeSet<String> {
     let mut merged: BTreeMap<String, Constant> = BTreeMap::new();
     for scan in files.values() {
         for (name, constant) in &scan.constants {
             let entry = merged.entry(name.clone()).or_default();
-            entry.nested |= constant.nested;
+            entry.strings.extend(constant.strings.iter().cloned());
             for inner in &constant.names {
                 entry
                     .names
@@ -334,7 +352,7 @@ fn nested_constants(files: &BTreeMap<String, FileScan>) -> BTreeSet<String> {
     }
     let mut nested: BTreeSet<String> = merged
         .iter()
-        .filter(|(_, constant)| constant.nested)
+        .filter(|(_, constant)| hit(&constant.strings))
         .map(|(name, _)| name.clone())
         .collect();
     loop {
@@ -350,9 +368,14 @@ fn nested_constants(files: &BTreeMap<String, FileScan>) -> BTreeSet<String> {
     }
 }
 
-/// Whether the tags of `call` hold the nested tag.
-fn tagged(scan: &FileScan, call: &Call, constants: &BTreeSet<String>) -> bool {
-    call.nested_tag
+/// Whether the tags of `call` satisfy `hit`.
+fn tagged(
+    scan: &FileScan,
+    call: &Call,
+    constants: &BTreeSet<String>,
+    hit: fn(&[String]) -> bool,
+) -> bool {
+    hit(&call.tag_strings)
         || call.tag_names.iter().any(|name| {
             let known = scan.constants.contains_key(name) || scan.loads.contains_key(name);
             known && constants.contains(scan.loads.get(name).unwrap_or(name))
@@ -363,6 +386,7 @@ fn tagged(scan: &FileScan, call: &Call, constants: &BTreeSet<String>) -> bool {
 fn nested_macros(
     files: &BTreeMap<String, FileScan>,
     constants: &BTreeSet<String>,
+    hit: fn(&[String]) -> bool,
 ) -> BTreeMap<String, BTreeSet<String>> {
     let mut macros: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     loop {
@@ -372,7 +396,7 @@ fn nested_macros(
                 let Some(def) = &call.def else {
                     continue;
                 };
-                if !tagged(scan, call, constants) && !macros.contains_key(&call.callee) {
+                if !tagged(scan, call, constants, hit) && !macros.contains_key(&call.callee) {
                     continue;
                 }
                 match macros.get_mut(def) {
@@ -404,11 +428,14 @@ fn build_file(path: &str) -> bool {
     name == "BUILD.bazel" || name == "BUILD"
 }
 
-/// The labels of the nested tests that BUILD files declare.
-fn nested_tests(files: &BTreeMap<String, FileScan>) -> BTreeSet<String> {
+/// The labels of the tests that BUILD files declare with a tag that satisfies `hit`.
+fn tests_tagged(
+    files: &BTreeMap<String, FileScan>,
+    hit: fn(&[String]) -> bool,
+) -> BTreeSet<String> {
     let tests = test_callees(files.values().map(|scan| &scan.callees));
-    let constants = nested_constants(files);
-    let macros = nested_macros(files, &constants);
+    let constants = nested_constants(files, hit);
+    let macros = nested_macros(files, &constants, hit);
     let mut labels = BTreeSet::new();
     for (path, scan) in files {
         if !build_file(path) {
@@ -422,7 +449,7 @@ fn nested_tests(files: &BTreeMap<String, FileScan>) -> BTreeSet<String> {
             if call.def.is_some() || name.ends_with(UPSTREAM) {
                 continue;
             }
-            let direct = tagged(scan, call, &constants) && is_test(&tests, &call.callee);
+            let direct = tagged(scan, call, &constants, hit) && is_test(&tests, &call.callee);
             let through = macros
                 .get(&call.callee)
                 .is_some_and(|guards| guards.is_empty() || !guards.is_disjoint(&call.trues));
@@ -432,6 +459,30 @@ fn nested_tests(files: &BTreeMap<String, FileScan>) -> BTreeSet<String> {
         }
     }
     labels
+}
+
+/// The labels of the nested tests that BUILD files declare.
+fn nested_tests(files: &BTreeMap<String, FileScan>) -> BTreeSet<String> {
+    tests_tagged(files, nested_tag)
+}
+
+/// Listed nested tests that no CI job selects: none carries a consumer tag and `workflow` does not name them.
+fn unselected(
+    files: &BTreeMap<String, FileScan>,
+    listed: &BTreeSet<String>,
+    workflow: &str,
+) -> Vec<String> {
+    let tagged = tests_tagged(files, consumer_tag);
+    listed
+        .iter()
+        .filter(|label| !tagged.contains(*label) && !workflow.contains(label.as_str()))
+        .map(|label| {
+            format!(
+                "{label}: no CI job runs it; tag it {}, or name it in {WORKFLOW}",
+                CONSUMER_TAGS.join(", ")
+            )
+        })
+        .collect()
 }
 
 /// One nested list line: `<label> <seconds>`.
@@ -523,6 +574,7 @@ fn the_tree_matches_the_allowlist_and_the_nested_list() {
     );
     let (listed, mut problems) = parse_nested(&read_input("NESTED_LIST"));
     problems.extend(nested_differences(&nested_tests(&files), &listed));
+    problems.extend(unselected(&files, &listed, &read_input("CI_WORKFLOW")));
     assert!(
         problems.is_empty(),
         "{NESTED_LIST} and the tree disagree:\n{}",
@@ -706,4 +758,35 @@ fn the_nested_list_format_is_strict() {
     ] {
         assert!(!parse_nested(bad).1.is_empty(), "{bad:?}");
     }
+}
+
+#[test]
+fn listed_tests_need_a_consumer_tag_or_a_workflow_line() {
+    let defs = r#"
+def smoke(name, **kwargs):
+    rust_test(name = name, tags = ["hermetic-consumer"], **kwargs)
+"#;
+    let build = r#"
+NETWORK = ["network-consumer"]
+rust_test(name = "tagged", tags = ["starter-consumer"])
+rust_test(name = "constant", tags = NETWORK)
+rust_test(name = "named", tags = ["x"])
+rust_test(name = "orphan", tags = ["x"])
+smoke(name = "macro")
+"#;
+    let files = scan_sources(&[("tools/defs.bzl", defs), ("pkg/BUILD.bazel", build)]);
+    let listed = labels(&[
+        "//pkg:constant",
+        "//pkg:macro",
+        "//pkg:named",
+        "//pkg:orphan",
+        "//pkg:tagged",
+    ]);
+    assert_eq!(
+        unselected(&files, &listed, "bazel test //pkg:named"),
+        [format!(
+            "//pkg:orphan: no CI job runs it; tag it {}, or name it in {WORKFLOW}",
+            CONSUMER_TAGS.join(", ")
+        )],
+    );
 }

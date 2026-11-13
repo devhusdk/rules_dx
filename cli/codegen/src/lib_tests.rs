@@ -140,14 +140,12 @@ fn frozen_identities_match_starlark() {
         "core/codegen:codegen.bzl%dx_codegen_plan_aspect"
     );
     assert_eq!(REPOSITORY_TARGET, "dx:codegen");
-    assert_eq!(SHARD_KIND_SUFFIX, "codegen_shard");
 }
 
 #[test]
-fn is_shard_kind_matches_shard_rules() {
+fn is_library_kind_matches_library_rules() {
     for kind in [
-        "dx_codegen_shard",
-        "prost_codegen_shard",
+        "rust_prost_library",
         "avro_cc_library",
         "avro_java_library",
         "api_spec_go_client",
@@ -155,16 +153,17 @@ fn is_shard_kind_matches_shard_rules() {
         "_flatbuffers_rust_srcs",
         "thrift_java_library",
     ] {
-        assert!(is_shard_kind(kind), "{kind}");
+        assert!(is_library_kind(kind), "{kind}");
     }
     for kind in [
         "proto_library",
-        "rust_prost_library",
+        "dx_codegen_shard",
+        "prost_codegen_shard",
         "codegen_plan_subject",
         "codegen_shard_writer_bin",
         "",
     ] {
-        assert!(!is_shard_kind(kind), "{kind}");
+        assert!(!is_library_kind(kind), "{kind}");
     }
 }
 

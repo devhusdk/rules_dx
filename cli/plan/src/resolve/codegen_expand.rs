@@ -10,7 +10,7 @@ pub fn expand_codegen_roots(
     startup_options: &[String],
 ) -> Result<Vec<String>, ResolveError> {
     let graph = RuleGraph::load(workspace, runner, startup_options)?;
-    let projections = graph.dependents_of_kind(label, dx_codegen::is_shard_kind);
+    let projections = graph.dependents_of_kind(label, dx_codegen::is_library_kind);
     Ok(dx_codegen::expand_roots(label, &projections))
 }
 
@@ -44,20 +44,14 @@ mod tests {
                 &["//core/codegen:result_proto"],
                 &[],
             ),
-            graph_rule_of_kind(
-                "//core/codegen:codegen_prost_fixture",
-                "prost_codegen_shard",
-                &["//core/codegen:result_proto_rs"],
-                &[],
-            ),
         ]))]);
         let got = expand_codegen_roots("//core/codegen:result_proto", &workspace, &query, &[])
             .expect("expand");
         assert_eq!(
             got,
             vec![
-                "//core/codegen:codegen_prost_fixture".to_owned(),
                 "//core/codegen:result_proto".to_owned(),
+                "//core/codegen:result_proto_rs".to_owned(),
             ]
         );
         let calls = query.calls();
@@ -71,7 +65,7 @@ mod tests {
     }
 
     #[test]
-    fn a_flatbuffers_shard_graph_expands_to_the_shard_plus_the_schema() {
+    fn a_flatbuffers_library_graph_expands_to_the_library_plus_the_schema() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fbs-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
@@ -87,25 +81,16 @@ mod tests {
                 &["//schema:lib"],
                 &[],
             ),
-            graph_rule_of_kind(
-                "//schema:lib_cc_shard",
-                "flatbuffers_codegen_shard",
-                &["//schema:lib_cc"],
-                &[],
-            ),
         ]))]);
         let got = expand_codegen_roots("//schema:lib", &workspace, &query, &[]).expect("expand");
         assert_eq!(
             got,
-            vec![
-                "//schema:lib".to_owned(),
-                "//schema:lib_cc_shard".to_owned()
-            ]
+            vec!["//schema:lib".to_owned(), "//schema:lib_cc".to_owned()]
         );
     }
 
     #[test]
-    fn a_capnp_shard_graph_expands_to_the_shard_plus_the_schema() {
+    fn a_capnp_library_graph_expands_to_the_library_plus_the_schema() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
@@ -116,25 +101,16 @@ mod tests {
                 &["//schema:lib"],
                 &[],
             ),
-            graph_rule_of_kind(
-                "//schema:lib_cc_shard",
-                "capnproto_codegen_shard",
-                &["//schema:lib_cc"],
-                &[],
-            ),
         ]))]);
         let got = expand_codegen_roots("//schema:lib", &workspace, &query, &[]).expect("expand");
         assert_eq!(
             got,
-            vec![
-                "//schema:lib".to_owned(),
-                "//schema:lib_cc_shard".to_owned()
-            ]
+            vec!["//schema:lib".to_owned(), "//schema:lib_cc".to_owned()]
         );
     }
 
     #[test]
-    fn a_capnp_rust_shard_graph_expands_to_the_shard_plus_the_schema() {
+    fn a_capnp_rust_library_graph_expands_to_the_library_plus_the_schema() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-rs-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
@@ -145,25 +121,19 @@ mod tests {
                 &["//schema:lib"],
                 &[],
             ),
-            graph_rule_of_kind(
-                "//schema:lib_rs_shard",
-                "capnproto_codegen_shard",
-                &["//schema:lib_rs_generated"],
-                &[],
-            ),
         ]))]);
         let got = expand_codegen_roots("//schema:lib", &workspace, &query, &[]).expect("expand");
         assert_eq!(
             got,
             vec![
                 "//schema:lib".to_owned(),
-                "//schema:lib_rs_shard".to_owned()
+                "//schema:lib_rs_generated".to_owned()
             ]
         );
     }
 
     #[test]
-    fn a_capnp_java_shard_graph_expands_to_the_shard_plus_the_schema() {
+    fn a_capnp_java_library_graph_expands_to_the_library_plus_the_schema() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-java-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
@@ -174,25 +144,16 @@ mod tests {
                 &["//schema:lib"],
                 &[],
             ),
-            graph_rule_of_kind(
-                "//schema:lib_java_shard",
-                "capnproto_codegen_shard",
-                &["//schema:lib_java"],
-                &[],
-            ),
         ]))]);
         let got = expand_codegen_roots("//schema:lib", &workspace, &query, &[]).expect("expand");
         assert_eq!(
             got,
-            vec![
-                "//schema:lib".to_owned(),
-                "//schema:lib_java_shard".to_owned()
-            ]
+            vec!["//schema:lib".to_owned(), "//schema:lib_java".to_owned()]
         );
     }
 
     #[test]
-    fn a_flatbuffers_rust_shard_graph_expands_to_the_shard_plus_the_schema() {
+    fn a_flatbuffers_rust_library_graph_expands_to_the_library_plus_the_schema() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fbs-rs-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
@@ -208,25 +169,19 @@ mod tests {
                 &["//schema:lib"],
                 &[],
             ),
-            graph_rule_of_kind(
-                "//schema:lib_rs_shard",
-                "flatbuffers_codegen_shard",
-                &["//schema:lib_rs_generated"],
-                &[],
-            ),
         ]))]);
         let got = expand_codegen_roots("//schema:lib", &workspace, &query, &[]).expect("expand");
         assert_eq!(
             got,
             vec![
                 "//schema:lib".to_owned(),
-                "//schema:lib_rs_shard".to_owned()
+                "//schema:lib_rs_generated".to_owned()
             ]
         );
     }
 
     #[test]
-    fn an_openapi_shard_graph_expands_to_the_shard_plus_the_spec() {
+    fn an_openapi_library_graph_expands_to_the_library_plus_the_spec() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-openapi-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
@@ -242,27 +197,21 @@ mod tests {
                 &["//shop:spec"],
                 &[],
             ),
-            graph_rule_of_kind(
-                "//shop:client_shard",
-                "api_spec_codegen_shard",
-                &["//shop:client"],
-                &[],
-            ),
         ]))]);
         let got = expand_codegen_roots("//shop:spec", &workspace, &query, &[]).expect("expand");
         assert_eq!(
             got,
-            vec!["//shop:client_shard".to_owned(), "//shop:spec".to_owned()]
+            vec!["//shop:client".to_owned(), "//shop:spec".to_owned()]
         );
     }
 
     #[test]
-    fn a_graph_without_shards_keeps_the_single_label() {
+    fn a_graph_without_libraries_keeps_the_single_label() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-empty-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule_of_kind(
-            "//core/codegen:result_proto_rs",
-            "rust_prost_library",
+            "//core/codegen:result_bin",
+            "rust_binary",
             &["//core/codegen:result_proto"],
             &[],
         )]))]);

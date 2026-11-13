@@ -2604,6 +2604,7 @@ crate.from_cargo(
         "//powershell/private/tools/lock:Cargo.toml",
         "//fortran/private/tools/lock:Cargo.toml",
         "//elixir/private/tools/lock:Cargo.toml",
+        "//haskell/private/tools/lock:Cargo.toml",
         "//ocaml/private/tools/lock:Cargo.toml",
         "//perl/private/tools/lock:Cargo.toml",
         "//lua/private/tools/lock:Cargo.toml",

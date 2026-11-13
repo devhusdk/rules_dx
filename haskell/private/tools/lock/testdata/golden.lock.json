@@ -1,0 +1,87 @@
+{
+  "ecosystem": "cabal",
+  "inputs": {},
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "strip_prefix": "happy-2.1",
+          "urls": [
+            "https://example.com/happy-2.1.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "base"
+      ],
+      "extra": {
+        "cabal_components": [
+          "exe:happy",
+          "lib:frontend"
+        ]
+      },
+      "name": "happy",
+      "provides": [],
+      "version": "2.1"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "strip_prefix": "random-1.2.1",
+          "urls": [
+            "https://hackage.haskell.org/package/random-1.2.1/random-1.2.1.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "base",
+        "happy:frontend",
+        "splitmix"
+      ],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_revision": {
+          "number": 1,
+          "sha256": "ec9b49cf1d96da99d7169c4aeebb2ae16270045073561596b019873a509dcd05"
+        },
+        "cabal_tools": [
+          "happy:happy"
+        ]
+      },
+      "name": "random",
+      "provides": [],
+      "version": "1.2.1"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "strip_prefix": "splitmix-0.1.1",
+          "urls": [
+            "https://hackage.haskell.org/package/splitmix-0.1.1/splitmix-0.1.1.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "base"
+      ],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_revision": {
+          "number": 0,
+          "sha256": "0410cde17b384f2e617209547b15232936b2ae5a802c9ae1d69a2c336f996838"
+        }
+      },
+      "name": "splitmix",
+      "provides": [],
+      "version": "0.1.1"
+    }
+  ],
+  "schema": 1
+}

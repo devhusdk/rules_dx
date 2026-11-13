@@ -78,6 +78,17 @@
       "additionalProperties": false,
       "properties": {
         "bicep_manifest": {"$ref": "#/$defs/archive"},
+        "cabal_components": {"$ref": "#/$defs/strings"},
+        "cabal_revision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["number", "sha256"],
+          "properties": {
+            "number": {"type": "integer", "minimum": 0},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
+        "cabal_tools": {"$ref": "#/$defs/strings"},
         "zig_main": {"type": "string", "minLength": 1},
         "d_library": {
           "type": "object",

@@ -1,5 +1,5 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//scala:defs.bzl", "scala_fuzz_test", "scala_library")
+load("@rules_dx//scala:defs.bzl", "scala_fuzz_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(
@@ -33,10 +33,4 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-)
-
-scala_library(
-    name = "fuzz",
-    testonly = True,
-    srcs = ["ParseFuzz.scala"],
 )

@@ -80,8 +80,8 @@ swift_xcode_launcher(
 [
     swift_xcode_launcher(
         name = "%s_macos" % tool.replace("-", "_"),
-        tool = tool,
         target_compatible_with = ["@platforms//os:macos"],
+        tool = tool,
     )
     for tool in [
         "llvm-cov",
@@ -121,6 +121,7 @@ real_source_target(
         "swift_tool.bzl",
         "swift_tool_tests.bzl",
         "xcode_swift.bzl",
+        "host_swift.bzl",
     ],
     tags = ["corpus"],
 )

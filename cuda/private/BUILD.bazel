@@ -332,6 +332,7 @@ real_source_target(
         "BUILD.bazel",
         "components.bzl",
         "defs.bzl",
+        "license.bzl",
     ],
     tags = ["corpus"],
 )

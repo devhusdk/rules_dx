@@ -142,6 +142,7 @@ profile_ghcopts_tests(name = "ghcopts_profile_test")
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
         "profile_tests.bzl",

@@ -1,3 +1,5 @@
+# gazelle:exclude fixtures/unlisted
+
 load("//ansible:defs.bzl", "ansible_library")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")

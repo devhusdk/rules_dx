@@ -318,6 +318,7 @@ rust_binary(
     crate_root = "nested_cache_update.rs",
 )
 
+# keep
 rust_test(
     name = "nested_cache_update_test",
     crate = ":nested_cache_update",

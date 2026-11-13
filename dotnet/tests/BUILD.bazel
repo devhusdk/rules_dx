@@ -13,6 +13,7 @@ nuget_unit_tests(
     size = "small",
 )
 
+# keep
 rust_test(
     name = "coverlet_launcher_bin_test",
     size = "small",

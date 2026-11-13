@@ -1,21 +1,28 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//javascript:defs.bzl", "javascript_library")
 load("//vue:defs.bzl", "vue_library", "vue_test")
+
+# gazelle:exclude Hello.test.js
+# gazelle:exclude helper.js
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
+# keep
 vue_library(
     name = "hello_lib",
     srcs = ["Hello.vue"],
 )
 
+# keep
 javascript_library(
     name = "helper_lib",
     srcs = ["helper.js"],
 )
 
+# keep
 vue_test(
     name = "hello_test",
     size = "small",
@@ -26,4 +33,11 @@ vue_test(
     ],
     node_modules = "//:node_modules",
     package_json = "//:package_json",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

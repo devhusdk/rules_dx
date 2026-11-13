@@ -2,6 +2,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 load(":toolchain.bzl", "APPLE_SUPPORT_TOOLCHAIN_ID", "resolved_cc_toolchain")
 
+# keep
 rust_test(
     name = "hello_test",
     size = "small",

@@ -9,6 +9,7 @@ package(
 vue_library(
     name = "hello_lib",
     srcs = ["Hello.vue"],
+    deps = [":helper_lib"],
 )
 
 javascript_library(

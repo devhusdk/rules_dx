@@ -844,6 +844,7 @@ fn the_pinned_dependency_tables_match_the_shipped_frameworks() {
             "imageformats/libqgif.dylib",
             "imageformats/libqico.dylib",
             "imageformats/libqjpeg.dylib",
+            "platforms/libqcocoa.dylib",
             "platforms/libqminimal.dylib",
             "platforms/libqoffscreen.dylib",
             "tls/libqcertonlybackend.dylib",

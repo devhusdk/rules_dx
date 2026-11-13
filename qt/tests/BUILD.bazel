@@ -2,6 +2,7 @@
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
 load("//qt/private/sdk:pins.bzl", "QT_VERSION")
 load("//qt:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module", "qt_rust_library")
@@ -184,6 +185,8 @@ rust_test(
         "@dx_qt//:licenses",
         "@dx_qt//:moc",
         "@dx_qt//:platforms",
+        "@dx_qt//:plugins_imageformats",
+        "@dx_qt//:plugins_tls",
         "@dx_qt//:qml_imports",
         "@dx_qt//:qmlformat",
         "@dx_qt//:qmllint",
@@ -198,6 +201,9 @@ rust_test(
         "//conditions:default": [],
     }) + select({
         "@dx_qt//:windows_x86_64": [":console_fixture_windows_x86_64"],
+        "//conditions:default": [],
+    }) + select({
+        "@platforms//os:macos": ["@dx_qt//:display_cocoa"],
         "//conditions:default": [],
     }),
     env = select({
@@ -521,6 +527,31 @@ qt_metadata_tests(
 )
 
 qt_rules_tests(name = "rules_test")
+
+sh_test(
+    name = "tool_dylibs_test",
+    size = "small",
+    srcs = ["tool_dylibs_test.sh"],
+    args = [
+        "bin/lrelease",
+        "bin/qmlformat",
+        "bin/qmllint",
+        "libexec/moc",
+        "libexec/qmltyperegistrar",
+        "libexec/rcc",
+        "libexec/uic",
+    ],
+    data = [
+        "@dx_qt//:lrelease",
+        "@dx_qt//:moc",
+        "@dx_qt//:qmlformat",
+        "@dx_qt//:qmllint",
+        "@dx_qt//:qmltyperegistrar",
+        "@dx_qt//:rcc",
+        "@dx_qt//:uic",
+    ],
+    target_compatible_with = ["@platforms//os:macos"],
+)
 
 real_source_target(
     name = "corpus_starlark",

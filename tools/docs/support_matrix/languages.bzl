@@ -15,32 +15,6 @@ PLATFORMS = [
 
 SECTIONS = ["languages", "targets", "compilers", "formats"]
 
-COMPATIBLE_WITH = {
-    "apple": "//apple/private/ios:cell.bzl%APPLE_HOSTS",
-    "cuda": "//cuda/private:defs.bzl%CUDA_COMPATIBLE_WITH",
-    "d": "//d/private:defs.bzl%D_COMPATIBLE_WITH",
-    "dart": "//dart/private:defs.bzl%DART_COMPATIBLE_WITH",
-    "elixir": "//elixir/private:defs.bzl%ELIXIR_COMPATIBLE_WITH",
-    "erlang": "//erlang/private:defs.bzl%ERLANG_COMPATIBLE_WITH",
-    "flutter": "//flutter/private:defs.bzl%FLUTTER_COMPATIBLE_WITH",
-    "fortran": "//fortran/private:defs.bzl%FORTRAN_COMPATIBLE_WITH",
-    "haskell": "//haskell/private:defs.bzl%HASKELL_COMPATIBLE_WITH",
-    "julia": "//julia/private:defs.bzl%JULIA_COMPATIBLE_WITH",
-    "ocaml": "//ocaml/private:defs.bzl%OCAML_COMPATIBLE_WITH",
-    "perl": "//perl/private:defs.bzl%PERL_COMPATIBLE_WITH",
-    "php": "//php/private:defs.bzl%PHP_COMPATIBLE_WITH",
-    "qt": "//qt:defs.bzl%QT_COMPATIBLE_WITH",
-    "swift": "//swift/private:defs.bzl%SWIFT_COMPATIBLE_WITH",
-}
-
-def _os_cpu(ids):
-    by_id = {platform["id"]: platform for platform in PLATFORMS}
-    return [["@platforms//os:" + by_id[id]["os"], "@platforms//cpu:" + by_id[id]["cpu"]] for id in ids]
-
-COMPUTED_CONSTRAINTS = {key: _os_cpu(LANGS[lang]["platforms"]) for lang, key in COMPATIBLE_WITH.items()} | {
-    "//tools/testing/hermetic:defs.bzl%HERMETIC_COMPATIBLE_WITH": [["@platforms//os:" + os] for os in sorted({platform["os"]: True for platform in PLATFORMS}.keys())],
-}
-
 # The tool api_compat runs per publishing rule; "not available" where no maintained free API diff tool exists.
 API_COMPAT_TOOLS = {
     "conan_deploy": "not available",
@@ -653,18 +627,6 @@ COMPILER_PLATFORM_PROBES = {
     "msvc": {"windows_arm64": "//cc/private/toolchains:identity_msvc_arm64_native"},
 }
 
-def _build_file(label):
-    return label.split(":")[0] + ":BUILD.bazel"
-
 def support_matrix_inputs():
-    """Returns the BUILD and .bzl files the reader opens."""
-    files = {}
-    for row in ROWS:
-        for label in row.get("ci_tests", []) + row.get("consumer_tests", []):
-            files[_build_file(label)] = True
-        for workflow in row.get("workflows", []):
-            files["//.github:workflows/" + workflow] = True
-    files["//flutter:defs.bzl"] = True
-    files["//tools/testing:nested_bazel.bzl"] = True
-    files["//tools/testing/hermetic:defs.bzl"] = True
-    return sorted(files.keys())
+    """Returns the workflow files the reader opens."""
+    return sorted({"//.github:workflows/" + workflow: True for row in ROWS for workflow in row.get("workflows", [])}.keys())

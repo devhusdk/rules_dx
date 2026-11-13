@@ -1,0 +1,99 @@
+{
+  "//android/tests/fixtures/rust_apk:check_unsigned_test": [],
+  "//android/tests/fixtures/rust_apk:sign_test": [],
+  "//cc/private/toolchains:msvc_arm64_hello_test": [],
+  "//cc/private/toolchains:msvc_arm64_pe_machine_test": [],
+  "//cc/tests/fixtures/hello:hello_test": [],
+  "//cmake/tests:bad_name_fails": [],
+  "//cmake/tests:owns_cmake_class_test": [],
+  "//dockerfile/tests:bad_name_fails": [],
+  "//dockerfile/tests:owns_dockerfile_class_test": [],
+  "//make/tests:bad_name_fails": [],
+  "//make/tests:owns_make_class_test": [],
+  "//msix/tests:pack_test": [
+    "block-network"
+  ],
+  "//python/tests:python_init_adopt_test": [],
+  "//qt/tests:qt_test": [
+    "block-network",
+    "no-remote-exec"
+  ],
+  "//rust/tests/fixtures/wasi_guest:wasi_guest_analysis_test": [],
+  "//rust/tests/fixtures/wasi_guest:wasi_guest_test": [
+    "dx-no-coverage-collector"
+  ],
+  "//swift/tests/fixtures/hello:xctest": [],
+  "//tools/testing/hermetic:c_fixture_msvc": [
+    "exclusive",
+    "hermetic-consumer",
+    "hermetic-qualification",
+    "manual",
+    "no-cache",
+    "no-coverage",
+    "no-remote",
+    "no-sandbox",
+    "requires-network",
+    "resources:nested_bazel:1"
+  ],
+  "//tools/testing/hermetic:cpp_fixture_msvc": [
+    "exclusive",
+    "hermetic-consumer",
+    "hermetic-qualification",
+    "manual",
+    "no-cache",
+    "no-coverage",
+    "no-remote",
+    "no-sandbox",
+    "requires-network",
+    "resources:nested_bazel:1"
+  ],
+  "//tools/testing/hermetic:cpp_rust": [
+    "exclusive",
+    "hermetic-consumer",
+    "hermetic-qualification",
+    "manual",
+    "no-cache",
+    "no-coverage",
+    "no-remote",
+    "no-sandbox",
+    "requires-network",
+    "resources:nested_bazel:1"
+  ],
+  "//tools/testing/hermetic:dart": [
+    "hermetic-golden"
+  ],
+  "//tools/testing/hermetic:flutter": [
+    "hermetic-golden"
+  ],
+  "//tools/testing/hermetic:lua": [
+    "hermetic-golden"
+  ],
+  "//tools/testing/hermetic:msix": [
+    "hermetic-golden"
+  ],
+  "//tools/testing/hermetic:ocaml": [
+    "hermetic-golden"
+  ],
+  "//tools/testing/hermetic:perl": [
+    "hermetic-golden"
+  ],
+  "//tools/testing/hermetic:qt_rust": [
+    "hermetic-golden"
+  ],
+  "//tools/testing/hermetic:qt_tasks": [
+    "hermetic-golden"
+  ],
+  "//tools/testing/hermetic:rust_wasi": [
+    "hermetic-golden"
+  ],
+  "//tools/testing/hermetic:scala_scalafix": [
+    "hermetic-golden"
+  ],
+  "//tools/testing/hermetic:zig": [
+    "hermetic-golden"
+  ],
+  "//tools/testing/starters:starters_test": [
+    "starter-consumer"
+  ],
+  "//tools/testing/wasi:wasi_run_unit_test": []
+}

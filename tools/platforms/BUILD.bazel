@@ -34,6 +34,14 @@ platform(
 )
 
 platform(
+    name = "macos_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:macos",
+    ],
+)
+
+platform(
     name = "windows_arm64",
     constraint_values = [
         "@platforms//cpu:arm64",

@@ -474,8 +474,7 @@ mod tests {
       "tool_not_applicable": {"yaml": {"lint": {"yamllint": {"macos_arm64": "no build"}}}},
       "deferred_families": [],
       "not_applicable": {"typecheck": {"yaml": "data format"}},
-      "not_languages": [],
-      "computed_constraints": {}
+      "not_languages": []
     }"#;
 
     #[test]

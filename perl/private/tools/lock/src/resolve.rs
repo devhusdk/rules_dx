@@ -1,4 +1,5 @@
 //! Locks the distributions a Carton snapshot pins for the modules the manifest requires.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -94,8 +95,8 @@ pub fn parse_requires(text: &str) -> Vec<String> {
         .filter_map(|line| {
             let rest = line.trim().strip_prefix("requires")?.trim_start();
             let quote = rest.chars().next().filter(|c| matches!(c, '\'' | '"'))?;
-            let rest = &rest[1..];
-            Some(rest[..rest.find(quote)?].to_owned())
+            let (module, _) = rest.strip_prefix(quote)?.split_once(quote)?;
+            Some(module.to_owned())
         })
         .collect()
 }

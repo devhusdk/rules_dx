@@ -1,4 +1,5 @@
 //! The lock step of the dub ecosystem.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::process::ExitCode;
 

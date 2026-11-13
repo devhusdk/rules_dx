@@ -1,4 +1,5 @@
 //! Resolves a Swift package set from its pins and the targets `swift package describe` prints.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
@@ -120,23 +121,51 @@ impl<'a> Swift<'a> {
             .package_json(scratch, scratch.set(), "dump-package", &[])
             .map_err(|message| Error::new(format!("{}: {message}", self.manifest)))?;
         let mut pins = BTreeMap::new();
-        for dependency in elements(&dumped["dependencies"]) {
-            let source = &dependency["sourceControl"][0];
-            let location = &source["location"]["remote"][0];
-            let url = location["urlString"].as_str().or_else(|| location.as_str()).ok_or_else(|| {
-                Error::new(format!("{}: a dependency is not a source control dependency", self.manifest))
-            })?;
-            let version = source["requirement"]["exact"][0]
-                .as_str()
+        for dependency in elements(dumped.get("dependencies")) {
+            let source = dependency.pointer("/sourceControl/0");
+            let url = source
+                .and_then(|source| source.pointer("/location/remote/0"))
+                .and_then(|location| {
+                    location
+                        .get("urlString")
+                        .and_then(Value::as_str)
+                        .or_else(|| location.as_str())
+                })
+                .ok_or_else(|| {
+                    Error::new(format!(
+                        "{}: a dependency is not a source control dependency",
+                        self.manifest
+                    ))
+                })?;
+            let version = source
+                .and_then(|source| source.pointer("/requirement/exact/0"))
+                .and_then(Value::as_str)
                 .ok_or_else(|| at(url, format!("{url} is not an exact version requirement")))?;
-            let (owner, repo) = github_repository(url)
-                .ok_or_else(|| at(url, format!("{url} is not on github.com; only github.com is supported")))?;
-            let reference = format!("https://api.github.com/repos/{owner}/{repo}/git/ref/tags/{version}");
-            let object = self.api(&reference).map_err(|error| at(url, error.to_string()))?;
-            let mut object = object["object"].clone();
-            if object["type"] == "tag" {
-                let tag = field(&object, "url").map_err(|error| at(url, error.to_string()))?.to_owned();
-                object = self.api(&tag).map_err(|error| at(url, error.to_string()))?["object"].clone();
+            let (owner, repo) = github_repository(url).ok_or_else(|| {
+                at(
+                    url,
+                    format!("{url} is not on github.com; only github.com is supported"),
+                )
+            })?;
+            let reference =
+                format!("https://api.github.com/repos/{owner}/{repo}/git/ref/tags/{version}");
+            let object = self
+                .api(&reference)
+                .map_err(|error| at(url, error.to_string()))?;
+            let mut object = object
+                .get("object")
+                .cloned()
+                .ok_or_else(|| at(url, format!("{reference} has no object")))?;
+            if object.get("type").and_then(Value::as_str) == Some("tag") {
+                let tag = field(&object, "url")
+                    .map_err(|error| at(url, error.to_string()))?
+                    .to_owned();
+                object = self
+                    .api(&tag)
+                    .map_err(|error| at(url, error.to_string()))?
+                    .get("object")
+                    .cloned()
+                    .ok_or_else(|| at(url, format!("{tag} has no object")))?;
             }
             let revision = field(&object, "sha").map_err(|error| at(url, format!("{reference}: {error}")))?;
             pins.insert(repo.to_lowercase(), (url.to_owned(), version.to_owned(), revision.to_owned()));
@@ -170,21 +199,35 @@ impl<'a> Swift<'a> {
         }
         let text = std::fs::read_to_string(&path)
             .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
-        let state: Value = serde_json::from_str(&text).map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
-        let version = state["version"].as_u64().unwrap_or(0);
+        let state: Value = serde_json::from_str(&text)
+            .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
+        let version = state.get("version").and_then(Value::as_u64).unwrap_or(0);
         if version != 2 && version != 3 {
             return Err(Error::new(format!("{} has version {version}; want 2 or 3", self.state)));
         }
         let mut pins = Vec::new();
-        for pin in state["pins"].as_array().into_iter().flatten() {
+        for pin in elements(state.get("pins")) {
             let identity = field(pin, "identity")?.to_owned();
             let location = field(pin, "location")?;
-            let revision = field(&pin["state"], "revision")?;
-            let repository = github_repository(location)
-                .ok_or_else(|| Error::new(format!("pin {identity} is at {location}; only github.com is supported")))?;
+            let pin_state = pin
+                .get("state")
+                .ok_or_else(|| Error::new(format!("pin {identity} has no state")))?;
+            let revision = field(pin_state, "revision")?;
+            let repository = github_repository(location).ok_or_else(|| {
+                Error::new(format!(
+                    "pin {identity} is at {location}; only github.com is supported"
+                ))
+            })?;
             pins.push(Pin {
-                version: pin["state"]["version"].as_str().unwrap_or(revision).to_owned(),
-                url: format!("https://github.com/{}/{}/archive/{revision}.tar.gz", repository.0, repository.1),
+                version: pin_state
+                    .get("version")
+                    .and_then(Value::as_str)
+                    .unwrap_or(revision)
+                    .to_owned(),
+                url: format!(
+                    "https://github.com/{}/{}/archive/{revision}.tar.gz",
+                    repository.0, repository.1
+                ),
                 strip_prefix: format!("{}-{revision}", repository.1),
                 identity,
             });
@@ -220,8 +263,10 @@ impl<'a> Swift<'a> {
             .unpack(&source)
             .map_err(|error| failed(error.to_string()))?;
         let package = source.join(&pin.strip_prefix);
-        let dumped = self.package_json(scratch, &package, "dump-package", &[]).map_err(failed)?;
-        if !elements(&dumped["dependencies"]).is_empty() {
+        let dumped = self
+            .package_json(scratch, &package, "dump-package", &[])
+            .map_err(failed)?;
+        if !elements(dumped.get("dependencies")).is_empty() {
             return Err(failed("declares dependencies on other packages; only packages without dependencies are supported".to_owned()));
         }
         let described = self.package_json(scratch, &package, "describe", &["--type", "json"]).map_err(failed)?;
@@ -239,14 +284,26 @@ fn github_repository(location: &str) -> Option<(&str, &str)> {
         .filter(|(owner, repo)| !owner.is_empty() && !repo.is_empty() && !repo.contains('/'))
 }
 
-fn elements(value: &Value) -> &[Value] {
-    value.as_array().map_or(&[], Vec::as_slice)
+fn set_field(value: &mut Value, key: &str, field: Value) {
+    if let Some(map) = value.as_object_mut() {
+        map.insert(key.to_owned(), field);
+    }
+}
+
+fn elements(value: Option<&Value>) -> &[Value] {
+    value.and_then(Value::as_array).map_or(&[], Vec::as_slice)
 }
 
 fn setting_values(setting: &Value, kind: &str) -> Vec<String> {
-    strings(&setting["kind"][kind]["_0"])
+    let value = setting
+        .get("kind")
+        .and_then(|kinds| kinds.get(kind))
+        .and_then(|kind| kind.get("_0"));
+    value
+        .map(strings)
+        .unwrap_or_default()
         .into_iter()
-        .chain(setting["kind"][kind]["_0"].as_str().map(str::to_owned))
+        .chain(value.and_then(Value::as_str).map(str::to_owned))
         .collect()
 }
 
@@ -258,13 +315,13 @@ fn setting_values(setting: &Value, kind: &str) -> Vec<String> {
 fn target_settings(dumped: &Value) -> Result<(BTreeMap<String, Settings>, BTreeSet<String>), String> {
     let mut all = BTreeMap::new();
     let mut conditional = BTreeSet::new();
-    for target in elements(&dumped["targets"]) {
+    for target in elements(dumped.get("targets")) {
         let name = target["name"].as_str().ok_or("a target has no name")?;
         let mut settings = Settings {
             include: target["publicHeadersPath"].as_str().unwrap_or("include").to_owned(),
             ..Settings::default()
         };
-        for setting in elements(&target["settings"]) {
+        for setting in elements(target.get("settings")) {
             let tool = setting["tool"].as_str().unwrap_or_default();
             if !matches!(tool, "swift" | "c" | "cxx") {
                 continue;
@@ -346,9 +403,10 @@ fn unchanged<'l>(old: &'l Lock, pin: &Pin) -> Option<&'l Package> {
     old.packages.iter().find(|package| {
         package.name == pin.identity
             && package.version == pin.version
-            && package.archives.len() == 1
-            && package.archives[0].urls == [pin.url.as_str()]
-            && package.archives[0].strip_prefix == pin.strip_prefix
+            && matches!(
+                package.archives.as_slice(),
+                [archive] if archive.urls == [pin.url.as_str()] && archive.strip_prefix == pin.strip_prefix
+            )
     })
 }
 
@@ -405,7 +463,11 @@ impl Resolver for Swift<'_> {
                                 many.join(" and ")
                             )));
                         }
-                        None => return Err(Error::new(format!("pin {identity}: product {product} is in no pin"))),
+                        None => {
+                            return Err(Error::new(format!(
+                                "pin {identity}: product {product} is in no pin"
+                            )));
+                        }
                     };
                     product_deps.push(format!("{owner}:{product}"));
                     deps.push(owner.to_owned());
@@ -421,19 +483,32 @@ impl Resolver for Swift<'_> {
                     "srcs": srcs,
                 });
                 if target["module_type"] == "ClangTarget" {
-                    entry["kind"] = json!("clang");
+                    set_field(&mut entry, "kind", json!("clang"));
                 }
                 if let Some(settings) = entry_settings.get(name) {
                     if target["module_type"] == "ClangTarget" {
-                        entry["include"] = json!(format!("{path}/{}", settings.include));
+                        set_field(
+                            &mut entry,
+                            "include",
+                            json!(format!("{path}/{}", settings.include)),
+                        );
                     }
                     let defines = if target["module_type"] == "ClangTarget" { &settings.c_defines } else { &settings.defines };
                     if !defines.is_empty() {
-                        entry["defines"] = json!(defines);
+                        set_field(&mut entry, "defines", json!(defines));
                     }
                     if !settings.header_paths.is_empty() {
-                        entry["header_paths"] =
-                            json!(settings.header_paths.iter().map(|header| format!("{path}/{header}")).collect::<Vec<_>>());
+                        set_field(
+                            &mut entry,
+                            "header_paths",
+                            json!(
+                                settings
+                                    .header_paths
+                                    .iter()
+                                    .map(|header| format!("{path}/{header}"))
+                                    .collect::<Vec<_>>()
+                            ),
+                        );
                     }
                 }
                 targets.insert(name.clone(), entry);

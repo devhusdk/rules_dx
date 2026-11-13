@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod writer;
 
 pub use plan_proto::rules_dx::env as proto;

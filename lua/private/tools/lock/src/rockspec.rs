@@ -70,15 +70,14 @@ fn long_end(chars: &[char], from: usize, level: usize) -> Option<usize> {
         .chain(std::iter::repeat_n('=', level))
         .chain(std::iter::once(']'))
         .collect();
-    (from..chars.len()).find(|&at| chars[at..].starts_with(&close))
+    (from..chars.len()).find(|&at| chars.get(at..).is_some_and(|rest| rest.starts_with(&close)))
 }
 
 fn tokenize(text: &str) -> Result<Vec<Token>, String> {
     let chars: Vec<char> = text.chars().collect();
     let mut tokens = Vec::new();
     let mut at = 0;
-    while at < chars.len() {
-        let c = chars[at];
+    while let Some(&c) = chars.get(at) {
         if c.is_whitespace() {
             at += 1;
         } else if c == '-' && chars.get(at + 1) == Some(&'-') {
@@ -87,7 +86,7 @@ fn tokenize(text: &str) -> Result<Vec<Token>, String> {
                 let end = long_end(&chars, body, level).ok_or("unterminated comment")?;
                 at = end + level + 2;
             } else {
-                while at < chars.len() && chars[at] != '\n' {
+                while chars.get(at).is_some_and(|&next| next != '\n') {
                     at += 1;
                 }
             }
@@ -119,27 +118,50 @@ fn tokenize(text: &str) -> Result<Vec<Token>, String> {
             tokens.push(Token::Text(value));
         } else if let Some((level, body)) = long_bracket(&chars, at) {
             let end = long_end(&chars, body, level).ok_or("unterminated string")?;
-            let value: String = chars[body..end].iter().collect();
+            let value: String = chars
+                .get(body..end)
+                .ok_or("unterminated string")?
+                .iter()
+                .collect();
             tokens.push(Token::Text(
                 value.strip_prefix('\n').unwrap_or(&value).to_owned(),
             ));
             at = end + level + 2;
         } else if c.is_ascii_alphabetic() || c == '_' {
             let start = at;
-            while at < chars.len() && (chars[at].is_ascii_alphanumeric() || chars[at] == '_') {
+            while chars
+                .get(at)
+                .is_some_and(|&next| next.is_ascii_alphanumeric() || next == '_')
+            {
                 at += 1;
             }
-            tokens.push(Token::Name(chars[start..at].iter().collect()));
+            tokens.push(Token::Name(
+                chars
+                    .get(start..at)
+                    .ok_or("name out of range")?
+                    .iter()
+                    .collect(),
+            ));
         } else if c.is_ascii_digit() {
             let start = at;
-            while at < chars.len() && (chars[at].is_ascii_alphanumeric() || chars[at] == '.') {
+            while chars
+                .get(at)
+                .is_some_and(|&next| next.is_ascii_alphanumeric() || next == '.')
+            {
                 at += 1;
             }
-            tokens.push(Token::Number(chars[start..at].iter().collect()));
-        } else if let Some(punct) = PUNCT
-            .iter()
-            .find(|punct| chars[at..].starts_with(&punct.chars().collect::<Vec<_>>()))
-        {
+            tokens.push(Token::Number(
+                chars
+                    .get(start..at)
+                    .ok_or("number out of range")?
+                    .iter()
+                    .collect(),
+            ));
+        } else if let Some(punct) = PUNCT.iter().find(|punct| {
+            chars
+                .get(at..)
+                .is_some_and(|rest| rest.starts_with(&punct.chars().collect::<Vec<_>>()))
+        }) {
             tokens.push(Token::Punct(punct));
             at += punct.len();
         } else {

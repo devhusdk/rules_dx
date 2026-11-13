@@ -1,4 +1,5 @@
 //! Runs the Android packaging operations.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::process::ExitCode;
 

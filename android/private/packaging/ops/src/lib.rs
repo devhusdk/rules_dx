@@ -1,4 +1,5 @@
 //! The Android packaging operations: adb, APK sets, package checks and release signing.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod adb;
 pub mod apk_set;

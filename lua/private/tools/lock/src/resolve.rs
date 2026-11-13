@@ -1,4 +1,5 @@
 //! Resolves the rocks a rockspec depends on from the luarocks.org manifest and the rockspecs it serves.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 mod rockspec;
 
@@ -173,7 +174,8 @@ impl Bound {
             Op::Lt => order == Ordering::Less,
             Op::Pessimistic => {
                 let keep = self.version.count.saturating_sub(1).max(1);
-                order != Ordering::Less && candidate.parts[..keep] == self.version.parts[..keep]
+                order != Ordering::Less
+                    && candidate.parts.get(..keep) == self.version.parts.get(..keep)
             }
         }
     }

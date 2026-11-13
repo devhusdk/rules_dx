@@ -1,4 +1,5 @@
 //! Resolves a Hex package set from the Mix or rebar3 lock next to its manifest.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use std::collections::BTreeMap;
@@ -62,7 +63,7 @@ impl Parser<'_> {
     }
 
     fn rest(&self) -> &[u8] {
-        &self.text[self.pos.min(self.text.len())..]
+        self.text.get(self.pos..).unwrap_or_default()
     }
 
     fn skip(&mut self) {
@@ -120,7 +121,7 @@ impl Parser<'_> {
         while self.peek().is_some_and(is_word) {
             self.pos += 1;
         }
-        String::from_utf8_lossy(&self.text[start..self.pos]).into_owned()
+        String::from_utf8_lossy(self.text.get(start..self.pos).unwrap_or_default()).into_owned()
     }
 
     fn keyword(&mut self) -> Option<String> {
@@ -346,8 +347,9 @@ pub fn mix_packages(text: &str) -> Result<Vec<Package>, Error> {
                 "entry {key} is not from the hexpm repository"
             )));
         }
-        let deps = items[5]
-            .items()
+        let deps = items
+            .get(5)
+            .and_then(|term| term.items())
             .unwrap_or_default()
             .iter()
             .filter_map(mix_dependency)

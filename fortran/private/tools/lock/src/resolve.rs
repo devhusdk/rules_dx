@@ -1,4 +1,5 @@
 //! Resolves an fpm package set from the git dependencies of its manifest and of every archive they name.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use std::collections::{BTreeMap, VecDeque};
@@ -210,9 +211,10 @@ fn kept<'l>(old: Option<&'l Lock>, dependency: &Dependency) -> Option<&'l Packag
     old?.packages.iter().find(|package| {
         package.name == dependency.name
             && package.version == dependency.reference
-            && package.archives.len() == 1
-            && package.archives[0].urls == [dependency.url.clone()]
-            && !package.archives[0].sha256.is_empty()
+            && matches!(
+                package.archives.as_slice(),
+                [archive] if archive.urls == [dependency.url.clone()] && !archive.sha256.is_empty()
+            )
     })
 }
 

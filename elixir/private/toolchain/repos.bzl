@@ -185,7 +185,7 @@ _ALIAS = """alias(
 """
 
 def mix_build(package, prefix):
-    """Returns the BUILD file of one package from a mix.lock."""
+    """Returns the BUILD file of one package from a Mix lock."""
     return _APP_BUILD.format(
         defs = str(Label("//elixir/private:defs.bzl")),
         deps = repr(["@{}_{}//:erlang_app".format(prefix, dep) for dep in package["deps"]]),

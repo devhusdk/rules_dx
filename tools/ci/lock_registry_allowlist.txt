@@ -5,18 +5,10 @@ name core/quality/dart_context.bzl pubspec.yaml
 name core/quality/fixtures.bzl go.mod
 name core/quality/tools/python_bundle/bundle.bzl pyproject.toml
 name d/private/toolchain/pins.bzl package.json
-name dart/private/quality/dart.bzl pubspec.yaml
 name deploy/private/github.bzl go.mod
 name deploy/private/sbom.bzl go.mod
 name deploy/private/sbom.bzl maven_install.json
 name deploy/private/sbom.bzl uv.lock
-name elixir/private/mix_lock.bzl mix.lock
-name elixir/private/toolchain/extensions.bzl mix.lock
-name elixir/private/toolchain/repos.bzl mix.lock
-name haskell/private/deps_resolve.bzl cabal.project.freeze
-name haskell/private/deps_resolve.bzl haskell_deps.json
-name haskell/private/toolchain/extensions.bzl haskell_deps.json
-name julia/private/quality/julia.bzl Project.toml
 name ocaml/lang.json dune-project
 name ocaml/private/dune.bzl dune-project
 name ocaml/private/quality/repos.bzl dune-project
@@ -25,7 +17,6 @@ name python/private/sdist_cargo_vendor.bzl Cargo.lock
 name python/private/sdist_cargo_vendor.bzl uv.lock
 name terraform/lang.json .terraform.lock.hcl
 name third_party/dotnet/framework.bzl paket.dependencies
-name tools/docs/dart/defs.bzl pubspec.yaml
 name tools/docs/support_matrix/languages.bzl cabal.project.freeze
 name tools/docs/support_matrix/languages.bzl mix.lock
 name tools/testing/hermetic/maven_pin.rs maven_install.json

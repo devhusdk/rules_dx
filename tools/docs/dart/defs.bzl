@@ -2,9 +2,12 @@
 
 load("@rules_dart//dart:providers.bzl", "DartInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 _DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
+
+_PUBSPEC = LOCK_REGISTRY["pub"]["manifest"]
 
 def _within(path, root):
     """Returns `path` relative to the package root `root`, or None when outside it."""
@@ -53,7 +56,7 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
     root_dir = ctx.bin_dir.path + "/" + ctx.label.package + "/" + stem + ".root"
     pubspecs = []
     for name in sorted(packages.keys()):
-        pubspec = ctx.actions.declare_file("%s.root/%s/pubspec.yaml" % (stem, name))
+        pubspec = ctx.actions.declare_file("%s.root/%s/%s" % (stem, name, _PUBSPEC))
         ctx.actions.write(pubspec, "name: %s\nenvironment:\n  sdk: ^3.0.0\n" % name)
         pubspecs.append(pubspec)
     entries = []

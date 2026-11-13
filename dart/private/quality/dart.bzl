@@ -89,7 +89,7 @@ def _dart_hook(target, ctx, _resolved, capability, what, _shared):
                 continue
             pairs.append((ws_path, f, False))
         for (stub_path, _) in stubs:
-            reserved.append((stub_path, "generated pubspec.yaml stub collides with the staged source " + stub_path))
+            reserved.append((stub_path, "generated pubspec stub collides with the staged source " + stub_path))
 
     def _with_config(hint, config_rel):
         # dart format reads the nearest analysis_options.yaml.
@@ -105,7 +105,7 @@ def _dart_hook(target, ctx, _resolved, capability, what, _shared):
         stage(tool_files, inputs, _DART_PACKAGE_CONFIG_REL, package_config)
         for (stub_path, stub) in stubs:
             if stub_path == config_rel:
-                fail(what + ": generated pubspec.yaml stub collides with the config " + stub_path)
+                fail(what + ": generated pubspec stub collides with the config " + stub_path)
             stage(tool_files, inputs, stub_path, stub)
         return struct(tool_files = tool_files, inputs = inputs)
 

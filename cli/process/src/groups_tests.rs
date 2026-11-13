@@ -519,6 +519,7 @@ fn recording_a_group_with_an_unknown_start_leaves_the_lease_empty() {
     assert_eq!(std::fs::metadata(&lease.path).expect("lease file").len(), 0);
 }
 
+#[cfg(unix)]
 #[test]
 fn a_leader_matches_only_when_present_with_the_recorded_start_or_gone() {
     assert!(leader_matches(&Leader::Present("7".to_owned()), "7"));

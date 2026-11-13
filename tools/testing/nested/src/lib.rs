@@ -664,7 +664,7 @@ fn all_pids() -> Vec<u32> {
 }
 
 /// Parses `ps -o pid=,stat=,command=` lines into `(pid, state, command line)`, skipping junk.
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg(unix)]
 fn parse_ps_lines(text: &str) -> Vec<(u32, char, String)> {
     text.lines()
         .filter_map(|line| {
@@ -817,7 +817,7 @@ fn owned_in(processes: &Processes, pid: u32, user_root: &Path) -> bool {
 }
 
 #[cfg(test)]
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg_attr(not(unix), expect(dead_code, reason = "only the unix tests call it"))]
 fn owned_by(pid: u32, user_root: &Path) -> bool {
     owned_in(&Processes::snapshot(), pid, user_root)
 }
@@ -2705,6 +2705,7 @@ mod portable_tests {
         assert_eq!(before, after);
     }
 
+    #[cfg(unix)]
     #[test]
     fn ps_lines_parse() {
         let text = "    1 Ss   /sbin/init\n 4242 Z+   java  --workspace_directory=/w a  b\nnoise\n\n  x S y\n";

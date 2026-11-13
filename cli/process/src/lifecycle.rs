@@ -45,7 +45,7 @@ pub enum Descendants {
 /// The job members a Detachable stop kills: those on dx's console, except dx itself.
 /// `None` means the attached members cannot be told apart (no member list, or dx has no
 /// console), so a forced stop falls back to ending the whole job, detached server included.
-#[cfg_attr(not(windows), allow(dead_code))]
+#[cfg(windows)]
 fn attached_targets(own: u32, members: Option<&[u32]>, console: &[u32]) -> Option<Vec<u32>> {
     let members = members?;
     if console.is_empty() {
@@ -886,7 +886,10 @@ pub(crate) mod test_exports {
 mod backend {
     /// Which process group a streamed child joins.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    #[cfg_attr(not(unix), allow(dead_code))]
+    #[cfg_attr(
+        not(unix),
+        expect(dead_code, reason = "only unix reads the joined group")
+    )]
     pub enum Group {
         /// It leads its own group, which the parent owns and cleans up.
         Owned,

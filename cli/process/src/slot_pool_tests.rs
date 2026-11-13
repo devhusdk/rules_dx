@@ -157,6 +157,7 @@ fn a_missing_or_non_file_slot_keeps_the_open_error() {
     assert!(lock_slot(&dir, false).is_err());
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn the_tighter_of_memory_and_cgroup_limit_wins() {
     assert_eq!(tightest(Some(8), Some(4)), Some(4));

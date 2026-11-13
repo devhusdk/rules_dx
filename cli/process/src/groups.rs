@@ -85,7 +85,10 @@ fn lease_text(pgid: i32, start: &str) -> String {
 }
 
 /// What is known about the process whose pid equals a recorded group number.
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg_attr(
+    all(not(unix), not(test)),
+    expect(dead_code, reason = "only unix observes a present or absent leader")
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Leader {
     Present(String),
@@ -410,7 +413,7 @@ fn still_recorded(recorded: &Recorded) -> bool {
     leader_matches(&sys::leader(recorded.pgid), &recorded.start)
 }
 
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg(unix)]
 fn leader_matches(leader: &Leader, start: &str) -> bool {
     match leader {
         Leader::Present(now) => now == start,

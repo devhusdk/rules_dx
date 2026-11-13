@@ -205,7 +205,7 @@ pub(crate) fn server_from(pid: u32, rss_bytes: u64, args: &str) -> Option<Server
 }
 
 /// Reads Bazel servers from `pid rss-kib args` lines.
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg(unix)]
 pub(crate) fn parse_servers(text: &str) -> Vec<Server> {
     let mut servers = Vec::new();
     for line in text.lines() {
@@ -396,7 +396,7 @@ fn du_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<u64> {
 }
 
 /// Swapped-out bytes from a `/proc/<pid>/status` text.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg(target_os = "linux")]
 pub(crate) fn parse_vm_swap(status: &str) -> Option<u64> {
     let line = status
         .lines()
@@ -874,6 +874,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn servers_are_read_from_ps_lines_with_paths_that_hold_spaces() {
         let text = "  10 2048 /usr/bin/other --workspace_directory=/x\n\
@@ -1106,6 +1107,7 @@ mod tests {
         assert!(du_bytes(scratch.path(), &|| None).is_some_and(|bytes| bytes > 0));
     }
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn vm_swap_is_read_in_bytes() {
         let status = "Name:\tjava\nVmRSS:\t  2048 kB\nVmSwap:\t   512 kB\nThreads:\t9\n";

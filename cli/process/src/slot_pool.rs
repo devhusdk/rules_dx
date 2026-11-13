@@ -62,7 +62,7 @@ pub fn lock_slot(path: &Path, shared: bool) -> io::Result<Option<File>> {
 }
 
 /// The smaller of the two limits that are known.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg(target_os = "linux")]
 fn tightest(total: Option<u64>, limit: Option<u64>) -> Option<u64> {
     match (total, limit) {
         (Some(total), Some(limit)) => Some(total.min(limit)),

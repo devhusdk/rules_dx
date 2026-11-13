@@ -33,7 +33,11 @@ pub(super) fn plan(
                     env: carton_env(),
                 },
                 Run {
-                    argv: bazel(head, "run", &[RESOLVER, "--", "--dir", &dir.to_string_lossy()]),
+                    argv: bazel(
+                        head,
+                        "run",
+                        &[RESOLVER, "--", "--dir", &dir.to_string_lossy()],
+                    ),
                     env: carton_env(),
                 },
             ]))

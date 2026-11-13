@@ -32,7 +32,7 @@ pub(super) fn insert_cargo_dependency(
         )));
     }
     let keys: Vec<String> = table.iter().map(|(key, _)| key.to_owned()).collect();
-    let sorted = keys.windows(2).all(|pair| pair[0] <= pair[1]);
+    let sorted = keys.windows(2).all(|pair| matches!(pair, [a, b] if a <= b));
     table.insert(package, toml_edit::value(version));
     if sorted && !keys.is_empty() {
         table.sort_values();
@@ -79,11 +79,11 @@ pub(super) fn insert_npm_dependency(
     let Some(&(_, last_root_value)) = members.last() else {
         return Err(DxError::failure("manifest root has no members"));
     };
-    let unit = line_indent(content, last_root_value);
-    let multiline = content[root_open..root_close].contains('\n');
+    let unit = line_indent(content, last_root_value)?;
+    let multiline = part(content, root_open..root_close)?.contains('\n');
     let out = match members.iter().find(|(name, _)| name == "dependencies") {
         Some(&(_, at)) => {
-            if !content[at..].starts_with('{') {
+            if !part(content, at..)?.starts_with('{') {
                 return Err(DxError::failure("dependency section is not an object"));
             }
             scan.at = at;
@@ -97,21 +97,25 @@ pub(super) fn insert_npm_dependency(
                     scan.skip_value()
                         .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
                     let end = scan.at;
-                    let entry = if content[at..close].contains('\n') {
-                        format!(",{eol}{}{key}: {value}", line_indent(content, last))
+                    let entry = if part(content, at..close)?.contains('\n') {
+                        format!(",{eol}{}{key}: {value}", line_indent(content, last)?)
                     } else {
                         format!(", {key}: {value}")
                     };
-                    splice(content, end, &entry)
+                    splice(content, end, &entry)?
                 }
                 None => {
-                    let parent = line_indent(content, at);
+                    let parent = line_indent(content, at)?;
                     let entry = if multiline {
                         format!("{{{eol}{parent}{unit}{key}: {value}{eol}{parent}}}")
                     } else {
                         format!("{{ {key}: {value} }}")
                     };
-                    format!("{}{entry}{}", &content[..at], &content[close + 1..])
+                    format!(
+                        "{}{entry}{}",
+                        part(content, ..at)?,
+                        part(content, close + 1..)?
+                    )
                 }
             }
         }
@@ -125,8 +129,8 @@ pub(super) fn insert_npm_dependency(
                 .iter()
                 .position(|(name, _)| name == "devDependencies")
                 .filter(|index| *index > 0);
-            let after = match before_dev {
-                Some(index) => members[index - 1].1,
+            let after = match before_dev.and_then(|index| members.get(index - 1)) {
+                Some(member) => member.1,
                 None => last_root_value,
             };
             scan.at = after;
@@ -138,7 +142,7 @@ pub(super) fn insert_npm_dependency(
             } else {
                 format!(", {section}")
             };
-            splice(content, end, &entry)
+            splice(content, end, &entry)?
         }
     };
     let reparsed: serde_json::Value =
@@ -172,18 +176,32 @@ pub(super) fn insert_npm_dependency(
 }
 
 /// The leading whitespace of the line holding byte `at`.
-fn line_indent(content: &str, at: usize) -> &str {
-    let start = content[..at].rfind('\n').map_or(0, |index| index + 1);
-    let line = &content[start..at];
-    &line[..line.len() - line.trim_start().len()]
+fn line_indent(content: &str, at: usize) -> Result<&str, DxError> {
+    let before = part(content, ..at)?;
+    let line = before.rsplit_once('\n').map_or(before, |(_, line)| line);
+    leading_whitespace(line)
 }
 
-fn splice(content: &str, at: usize, text: &str) -> String {
+fn leading_whitespace(line: &str) -> Result<&str, DxError> {
+    line.strip_suffix(line.trim_start())
+        .ok_or_else(|| DxError::failure("line has no indent prefix"))
+}
+
+fn part<R: std::slice::SliceIndex<str, Output = str>>(
+    content: &str,
+    range: R,
+) -> Result<&str, DxError> {
+    content
+        .get(range)
+        .ok_or_else(|| DxError::failure("edit offset is out of range"))
+}
+
+fn splice(content: &str, at: usize, text: &str) -> Result<String, DxError> {
     let mut out = String::with_capacity(content.len() + text.len());
-    out.push_str(&content[..at]);
+    out.push_str(part(content, ..at)?);
     out.push_str(text);
-    out.push_str(&content[at..]);
-    out
+    out.push_str(part(content, at..)?);
+    Ok(out)
 }
 
 /// Adds `nuget package version` after the last `nuget` line of the main group.
@@ -215,7 +233,7 @@ pub(super) fn insert_paket_dependency(
         return Err(DxError::failure("no main-group declaration to add after"));
     };
     let eol = line_ending(content);
-    let indent = &line[..line.len() - line.trim_start().len()];
+    let indent = leading_whitespace(line)?;
     let end = start + line.len();
     let mut entry = String::new();
     if !line.ends_with('\n') {
@@ -226,7 +244,7 @@ pub(super) fn insert_paket_dependency(
         entry.push_str(eol);
     }
     entry.push_str(&format!("{indent}nuget {package} {version}{eol}"));
-    Ok(splice(content, end, &entry))
+    splice(content, end, &entry)
 }
 
 /// Adds `package>=version` to `[project].dependencies`, creating the array when missing.
@@ -275,11 +293,14 @@ pub(super) fn insert_pyproject_dependency(
         .parse::<toml_edit::DocumentMut>()
         .ok()
         .and_then(|doc| {
-            doc["project"]["dependencies"].as_array().map(|array| {
-                array
-                    .iter()
-                    .any(|v| v.as_str() == Some(requirement.as_str()))
-            })
+            doc.get("project")
+                .and_then(|project| project.get("dependencies"))
+                .and_then(|deps| deps.as_array())
+                .map(|array| {
+                    array
+                        .iter()
+                        .any(|v| v.as_str() == Some(requirement.as_str()))
+                })
         })
         .unwrap_or(false);
     if !kept {
@@ -310,8 +331,8 @@ pub(super) fn insert_gem(content: &str, package: &str, version: &str) -> Result<
         entry.push_str(eol);
     }
     entry.push_str(&format!("gem \"{package}\", \"~> {requirement}\"{eol}"));
-    if at < content.len() && !content[..at].ends_with('\n') {
+    if at < content.len() && !part(content, ..at)?.ends_with('\n') {
         entry.insert_str(0, eol);
     }
-    Ok(splice(content, at, &entry))
+    splice(content, at, &entry)
 }

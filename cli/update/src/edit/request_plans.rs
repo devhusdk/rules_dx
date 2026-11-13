@@ -206,7 +206,7 @@ pub(super) fn plan_package_json(
     let mut spans = Vec::new();
     for value_at in sections {
         scan.at = value_at;
-        if !scan.text[value_at..].starts_with('{') {
+        if !scan.rest()?.starts_with('{') {
             return Err(unsupported(
                 "dependency section is not an object".to_owned(),
             ));
@@ -217,26 +217,24 @@ pub(super) fn plan_package_json(
             }
         }
     }
-    match spans.len() {
-        0 => Err(EditError::NotFound {
+    match (spans.len(), spans.first().copied()) {
+        (0, _) => Err(EditError::NotFound {
             manifest: manifest_of("npm").to_owned(),
             package: package.to_owned(),
         }),
-        1 => {
-            scan.at = spans[0];
-            if !content[spans[0]..].starts_with('"') {
+        (1, Some(span_at)) => {
+            scan.at = span_at;
+            if !scan.rest()?.starts_with('"') {
                 return Err(unsupported(format!(
                     "{package:?} requirement is not a string"
                 )));
             }
             let end = scan.string_end()?;
-            Ok(format!(
-                "{}\"{new}\"{}",
-                &content[..spans[0]],
-                &content[end..]
-            ))
+            let before = content.get(..span_at).ok_or_else(JsonScan::bad)?;
+            let after = content.get(end..).ok_or_else(JsonScan::bad)?;
+            Ok(format!("{before}\"{new}\"{after}"))
         }
-        count => Err(EditError::Ambiguous {
+        (count, _) => Err(EditError::Ambiguous {
             manifest: manifest_of("npm").to_owned(),
             package: package.to_owned(),
             count,
@@ -257,6 +255,10 @@ pub(crate) struct JsonScan<'a> {
 }
 
 impl JsonScan<'_> {
+    fn rest(&self) -> Result<&str, EditError> {
+        self.text.get(self.at..).ok_or_else(Self::bad)
+    }
+
     fn bad() -> EditError {
         EditError::UnsupportedManifest {
             manifest: manifest_of("npm").to_owned(),
@@ -265,7 +267,11 @@ impl JsonScan<'_> {
     }
 
     pub(crate) fn skip_ws(&mut self) {
-        while self.text[self.at..].starts_with([' ', '\t', '\n', '\r']) {
+        while self
+            .text
+            .get(self.at..)
+            .is_some_and(|rest| rest.starts_with([' ', '\t', '\n', '\r']))
+        {
             self.at += 1;
         }
     }
@@ -274,9 +280,9 @@ impl JsonScan<'_> {
         let bytes = self.text.as_bytes();
         let mut i = self.at + 1;
         while i < bytes.len() {
-            match bytes[i] {
-                b'\\' => i += 2,
-                b'"' => {
+            match bytes.get(i) {
+                Some(b'\\') => i += 2,
+                Some(b'"') => {
                     self.at = i + 1;
                     return Ok(self.at);
                 }
@@ -288,25 +294,25 @@ impl JsonScan<'_> {
 
     pub(crate) fn skip_value(&mut self) -> Result<(), EditError> {
         self.skip_ws();
-        match self.text[self.at..].chars().next() {
+        match self.rest()?.chars().next() {
             Some('"') => self.string_end().map(|_| ()),
             Some(open @ ('{' | '[')) => {
                 let close = if open == '{' { '}' } else { ']' };
                 self.at += 1;
                 loop {
                     self.skip_ws();
-                    if self.text[self.at..].starts_with(close) {
+                    if self.rest()?.starts_with(close) {
                         self.at += 1;
                         return Ok(());
                     }
-                    if self.text[self.at..].starts_with(',') {
+                    if self.rest()?.starts_with(',') {
                         self.at += 1;
                         continue;
                     }
                     if open == '{' {
                         self.skip_value()?;
                         self.skip_ws();
-                        if !self.text[self.at..].starts_with(':') {
+                        if !self.rest()?.starts_with(':') {
                             return Err(Self::bad());
                         }
                         self.at += 1;
@@ -315,7 +321,7 @@ impl JsonScan<'_> {
                 }
             }
             Some(_) => {
-                let rest = &self.text[self.at..];
+                let rest = self.rest()?;
                 let len = rest
                     .find([',', '}', ']', ' ', '\t', '\n', '\r'])
                     .unwrap_or(rest.len());
@@ -331,26 +337,27 @@ impl JsonScan<'_> {
 
     pub(crate) fn members(&mut self) -> Result<Vec<(String, usize)>, EditError> {
         self.skip_ws();
-        if !self.text[self.at..].starts_with('{') {
+        if !self.rest()?.starts_with('{') {
             return Err(Self::bad());
         }
         self.at += 1;
         let mut out = Vec::new();
         loop {
             self.skip_ws();
-            if self.text[self.at..].starts_with('}') {
+            if self.rest()?.starts_with('}') {
                 return Ok(out);
             }
-            if self.text[self.at..].starts_with(',') {
+            if self.rest()?.starts_with(',') {
                 self.at += 1;
                 continue;
             }
             let start = self.at;
             let end = self.string_end()?;
             let key: String =
-                serde_json::from_str(&self.text[start..end]).map_err(|_| Self::bad())?;
+                serde_json::from_str(self.text.get(start..end).ok_or_else(Self::bad)?)
+                    .map_err(|_| Self::bad())?;
             self.skip_ws();
-            if !self.text[self.at..].starts_with(':') {
+            if !self.rest()?.starts_with(':') {
                 return Err(Self::bad());
             }
             self.at += 1;
@@ -414,12 +421,15 @@ pub(super) fn plan_gemfile(
         reason: reason.to_owned(),
     };
     let lines: Vec<&str> = content.split_inclusive('\n').collect();
-    let hits: Vec<usize> = (0..lines.len())
-        .filter(|&i| {
-            literals(lines[i], "gem ")
+    let hits: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| {
+            literals(line, "gem ")
                 .first()
                 .is_some_and(|l| l.text == package)
         })
+        .map(|(i, _)| i)
         .collect();
     let index = match hits.as_slice() {
         [] => {
@@ -437,7 +447,9 @@ pub(super) fn plan_gemfile(
             });
         }
     };
-    let line = lines[index];
+    let Some(&line) = lines.get(index) else {
+        return Err(unsupported("the gem line is missing"));
+    };
     let requirements: Vec<Literal<'_>> = literals(line, "gem ")
         .into_iter()
         .skip(1)
@@ -454,9 +466,12 @@ pub(super) fn plan_gemfile(
     let number = requirement
         .text
         .trim_start_matches(['>', '<', '=', '~', ' ']);
-    let operator = &requirement.text[..requirement.text.len() - number.len()];
+    let operator = requirement
+        .text
+        .strip_suffix(number)
+        .ok_or_else(|| unsupported("the requirement has no version"))?;
     let mut edited = lines.concat();
-    let offset: usize = lines[..index].iter().map(|l| l.len()).sum();
+    let offset: usize = lines.iter().take(index).map(|l| l.len()).sum();
     edited.replace_range(
         offset + requirement.start..offset + requirement.end,
         &format!("{operator}{new}"),
@@ -487,7 +502,7 @@ pub(super) fn plan_composer_json(
         serde_json::from_str(content).map_err(|error| unsupported(&error.to_string()))?;
     let sections: Vec<&str> = ["require", "require-dev"]
         .into_iter()
-        .filter(|section| json[*section].get(package).is_some())
+        .filter(|section| json.get(*section).and_then(|s| s.get(package)).is_some())
         .collect();
     let section = match sections.as_slice() {
         [] => {
@@ -505,8 +520,10 @@ pub(super) fn plan_composer_json(
             });
         }
     };
-    let constraint = json[section][package]
-        .as_str()
+    let constraint = json
+        .get(section)
+        .and_then(|s| s.get(package))
+        .and_then(|v| v.as_str())
         .ok_or_else(|| unsupported("the constraint is not a string"))?;
     let number = constraint.trim_start_matches(['^', '~', '>', '<', '=', ' ']);
     let literal = number.strip_prefix('v').unwrap_or(number);
@@ -519,26 +536,33 @@ pub(super) fn plan_composer_json(
             "the constraint needs exactly one literal version",
         ));
     }
-    let operator = &constraint[..constraint.len() - number.len()];
+    let operator = constraint
+        .strip_suffix(number)
+        .ok_or_else(|| unsupported("the constraint has no version"))?;
     let key_start = content
         .find(&format!("\"{section}\""))
         .and_then(|at| {
-            let rest = &content[at..];
+            let rest = content.get(at..)?;
             let open = at + rest.find('{')?;
             Some(open)
         })
         .ok_or_else(|| unsupported("cannot find the section"))?;
-    let section_end = content[key_start..]
+    let section_end = content
+        .get(key_start..)
+        .ok_or_else(|| unsupported("cannot find the section"))?
         .find('}')
         .map_or(content.len(), |end| key_start + end);
     let key = format!("\"{package}\"");
-    let found = content[key_start..section_end]
+    let found = content
+        .get(key_start..section_end)
+        .ok_or_else(|| unsupported("cannot find the section"))?
         .find(&key)
         .ok_or_else(|| unsupported("cannot find the package in its section"))?;
     let after_key = key_start + found + key.len();
     let value_start = after_key
-        + content[after_key..section_end]
-            .find('"')
+        + content
+            .get(after_key..section_end)
+            .and_then(|value| value.find('"'))
             .ok_or_else(|| unsupported("cannot find the constraint"))?
         + 1;
     let value_end = value_start + constraint.len();
@@ -565,16 +589,22 @@ fn literals<'a>(line: &'a str, keyword: &str) -> Vec<Literal<'a>> {
     let mut found = Vec::new();
     let mut cursor = line.len() - rest.len();
     loop {
-        let after = line[cursor..].trim_start_matches([' ', ',', '=', '>']);
+        let Some(rest) = line.get(cursor..) else {
+            return found;
+        };
+        let after = rest.trim_start_matches([' ', ',', '=', '>']);
         let start = line.len() - after.len();
         let Some(quote) = after.chars().next().filter(|c| matches!(c, '"' | '\'')) else {
             return found;
         };
-        let Some(close) = after[1..].find(quote) else {
+        let Some(close) = after.get(1..).and_then(|inner| inner.find(quote)) else {
+            return found;
+        };
+        let Some(text) = after.get(1..1 + close) else {
             return found;
         };
         found.push(Literal {
-            text: &after[1..1 + close],
+            text,
             start: start + 1,
             end: start + 1 + close,
         });
@@ -596,12 +626,15 @@ pub(super) fn plan_cpanfile(
         });
     };
     let lines: Vec<&str> = content.split_inclusive('\n').collect();
-    let hits: Vec<usize> = (0..lines.len())
-        .filter(|&i| {
-            literals(lines[i], "requires ")
+    let hits: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| {
+            literals(line, "requires ")
                 .first()
                 .is_some_and(|l| l.text == package)
         })
+        .map(|(i, _)| i)
         .collect();
     let index = match hits.as_slice() {
         [] => {
@@ -619,7 +652,10 @@ pub(super) fn plan_cpanfile(
             });
         }
     };
-    let found = literals(lines[index], "requires ");
+    let found = lines
+        .get(index)
+        .map(|line| literals(line, "requires "))
+        .unwrap_or_default();
     let requirement = match found.as_slice() {
         [_, requirement] if requirement.text.contains(|c: char| c.is_ascii_digit()) => requirement,
         _ => {
@@ -633,9 +669,16 @@ pub(super) fn plan_cpanfile(
     let number = requirement
         .text
         .trim_start_matches(['>', '<', '=', '!', ' ']);
-    let operator = &requirement.text[..requirement.text.len() - number.len()];
+    let operator =
+        requirement
+            .text
+            .strip_suffix(number)
+            .ok_or_else(|| EditError::UnsupportedManifest {
+                manifest: manifest.to_owned(),
+                reason: "the requirement has no version".to_owned(),
+            })?;
     let mut edited = lines.concat();
-    let offset: usize = lines[..index].iter().map(|l| l.len()).sum();
+    let offset: usize = lines.iter().take(index).map(|l| l.len()).sum();
     edited.replace_range(
         offset + requirement.start..offset + requirement.end,
         &format!("{operator}{new}"),
@@ -683,7 +726,9 @@ pub(super) fn plan_cabal(
             });
         }
     };
-    let bound = &content[depend.bound.clone()];
+    let bound = content
+        .get(depend.bound.clone())
+        .ok_or_else(|| unsupported("the bound is out of range"))?;
     let parts: Vec<&str> = bound.split("&&").map(str::trim).collect();
     let replaced = match parts.as_slice() {
         [single] => single_bound(single, new),
@@ -789,15 +834,17 @@ pub(super) fn plan_pubspec(
             });
         }
     };
-    let constraint = match value.find(" #") {
-        Some(cut) => &value[..cut],
-        None => value,
-    };
+    let constraint = value
+        .split_once(" #")
+        .map_or(value, |(constraint, _)| constraint);
     let lead = constraint.len() - constraint.trim_start().len();
     let body = constraint.trim();
     let (quote, inner) = match body.chars().next() {
-        Some(q @ ('"' | '\'')) if body.len() >= 2 && body.ends_with(q) => {
-            (q.to_string(), &body[1..body.len() - 1])
+        Some(q @ ('"' | '\'')) => {
+            match body.strip_prefix(q).and_then(|rest| rest.strip_suffix(q)) {
+                Some(inner) => (q.to_string(), inner),
+                None => (String::new(), body),
+            }
         }
         _ => (String::new(), body),
     };
@@ -853,13 +900,16 @@ pub(super) fn plan_package_swift(
     };
     let mut hits = Vec::new();
     let mut from = 0;
-    while let Some(found) = content[from..].find(".package(") {
+    while let Some(found) = content.get(from..).and_then(|rest| rest.find(".package(")) {
         let start = from + found;
-        let end = content[start..]
-            .find(')')
+        let end = content
+            .get(start..)
+            .and_then(|rest| rest.find(')'))
             .map_or(content.len(), |n| start + n);
         from = end.max(start + 1);
-        let call = &content[start..end];
+        let Some(call) = content.get(start..end) else {
+            continue;
+        };
         let Some(url) = swift_string_after(call, "url:") else {
             continue;
         };
@@ -915,13 +965,14 @@ pub(super) fn plan_package_swift(
 /// The string literal after `label` in a call: its text, content offset and length.
 fn swift_string_after<'a>(call: &'a str, label: &str) -> Option<(&'a str, usize, usize)> {
     let rest = call.find(label).map(|n| n + label.len())?;
-    let after = &call[rest..];
-    let open = rest + after.find('"')? + 1;
-    if !after[..after.find('"')?].trim().is_empty() {
+    let after = call.get(rest..)?;
+    let (lead, _) = after.split_once('"')?;
+    if !lead.trim().is_empty() {
         return None;
     }
-    let len = call[open..].find('"')?;
-    Some((&call[open..open + len], open, len))
+    let open = rest + lead.len() + 1;
+    let len = call.get(open..)?.find('"')?;
+    Some((call.get(open..open + len)?, open, len))
 }
 
 /// Rewrites the requirement of the one `{:package, "<op> x.y.z"}` tuple in a hex manifest,
@@ -944,7 +995,7 @@ pub(super) fn plan_mix_exs(
     for line in content.split_inclusive('\n') {
         if !line.trim_start().starts_with('#') {
             let mut from = 0;
-            while let Some(found) = line[from..].find(&head) {
+            while let Some(found) = line.get(from..).and_then(|rest| rest.find(&head)) {
                 hits.push(offset + from + found + head.len());
                 from += found + head.len();
             }
@@ -971,13 +1022,15 @@ pub(super) fn plan_mix_exs(
         manifest: manifest.to_owned(),
         reason: "the dependency needs one literal requirement such as \"~> 1.2\"".to_owned(),
     };
-    let rest = &content[at..];
+    let rest = content.get(at..).ok_or_else(unsupported)?;
     let lead = rest.len() - rest.trim_start().len();
-    let literal = rest[lead..].strip_prefix('"').ok_or_else(unsupported)?;
-    let end = literal.find('"').ok_or_else(unsupported)?;
-    let requirement = &literal[..end];
+    let literal = rest
+        .trim_start()
+        .strip_prefix('"')
+        .ok_or_else(unsupported)?;
+    let (requirement, _) = literal.split_once('"').ok_or_else(unsupported)?;
     let number = requirement.trim_start_matches(['~', '>', '<', '=', ' ']);
-    let operator = &requirement[..requirement.len() - number.len()];
+    let operator = requirement.strip_suffix(number).ok_or_else(unsupported)?;
     let single = number.starts_with(|c: char| c.is_ascii_digit()) && !number.contains([' ', ',']);
     if !single {
         return Err(unsupported());
@@ -1044,10 +1097,11 @@ pub(super) fn plan_julia_project(
         }
     };
     if doc.get("compat").is_none() {
-        doc["compat"] = toml_edit::table();
+        doc.insert("compat", toml_edit::table());
     }
-    let compat = doc["compat"]
-        .as_table_like_mut()
+    let compat = doc
+        .get_mut("compat")
+        .and_then(toml_edit::Item::as_table_like_mut)
         .ok_or_else(|| unsupported("compat is not a table"))?;
     match compat.get_mut(package) {
         Some(item) => {
@@ -1090,7 +1144,7 @@ pub(super) fn plan_maven_module_bazel(
     let mut selected = Vec::new();
     for literal in artifacts {
         let parts: Vec<&str> = literal.value.split(':').collect();
-        let identity = parts.len() >= 2 && format!("{}:{}", parts[0], parts[1]) == package;
+        let identity = matches!(parts.as_slice(), [group, artifact, ..] if format!("{group}:{artifact}") == package);
         if !identity {
             continue;
         }
@@ -1108,7 +1162,13 @@ pub(super) fn plan_maven_module_bazel(
             package: package.to_owned(),
         }),
         [(literal, parts)] => {
-            let mut next = parts[..parts.len() - 1].join(":");
+            let Some((_, kept)) = parts.split_last() else {
+                return Err(EditError::UnsupportedManifest {
+                    manifest: manifest.to_owned(),
+                    reason: format!("{package:?} has no version"),
+                });
+            };
+            let mut next = kept.join(":");
             next.push(':');
             next.push_str(&new);
             module
@@ -1168,22 +1228,33 @@ pub(super) fn plan_paket_dependencies(
         reason: format!("{package:?}: {reason}"),
     };
     let decl = parse_paket_declaration(line).map_err(|error| unsupported(error.to_string()))?;
+    let out_of_range = || unsupported("requirement is out of range".to_owned());
+    let before = content
+        .get(..at + decl.requirement.start)
+        .ok_or_else(out_of_range)?;
+    let after = content
+        .get(at + decl.requirement.end..)
+        .ok_or_else(out_of_range)?;
     let mut out = String::with_capacity(content.len() + new.len());
-    out.push_str(&content[..at + decl.requirement.start]);
+    out.push_str(before);
     out.push_str(&new);
-    out.push_str(&content[at + decl.requirement.end..]);
+    out.push_str(after);
 
     let reparsed_at = at;
-    let reparsed_line = out[reparsed_at..]
-        .split_inclusive('\n')
-        .next()
-        .unwrap_or_default();
+    let reparsed_line = out
+        .get(reparsed_at..)
+        .and_then(|rest| rest.split_inclusive('\n').next())
+        .ok_or_else(out_of_range)?;
     let reparsed =
         parse_paket_declaration(reparsed_line).map_err(|error| unsupported(error.to_string()))?;
-    let kept = reparsed_line[reparsed.requirement.clone()] == *new
+    let kept = reparsed_line.get(reparsed.requirement.clone()) == Some(new.as_str())
         && reparsed.id.eq_ignore_ascii_case(package)
-        && reparsed_line[..reparsed.requirement.start] == line[..decl.requirement.start]
-        && reparsed_line[reparsed.requirement.end..] == line[decl.requirement.end..];
+        && reparsed_line
+            .get(..reparsed.requirement.start)
+            .is_some_and(|lead| line.get(..decl.requirement.start) == Some(lead))
+        && reparsed_line
+            .get(reparsed.requirement.end..)
+            .is_some_and(|trail| line.get(decl.requirement.end..) == Some(trail));
     if !kept {
         return Err(unsupported("edit did not round-trip".to_owned()));
     }
@@ -1206,12 +1277,14 @@ pub(crate) fn paket_tokens(line: &str) -> Vec<(usize, usize, &str)> {
         match (start, ch.is_whitespace()) {
             (None, false) => start = Some(index),
             (Some(from), true) => {
-                let token = &body[from..index];
+                let Some(token) = body.get(from..index) else {
+                    return tokens;
+                };
                 if token.starts_with('#') || token.starts_with("//") {
                     return tokens;
                 }
-                if let Some(at) = token.find('#') {
-                    tokens.push((from, from + at, &token[..at]));
+                if let Some((lead, _)) = token.split_once('#') {
+                    tokens.push((from, from + lead.len(), lead));
                     return tokens;
                 }
                 tokens.push((from, index, token));
@@ -1263,7 +1336,9 @@ fn parse_paket_declaration(line: &str) -> Result<PaketDeclaration<'_>, DxError> 
     while let Some(&(from, to, token)) = rest.get(index) {
         let operand = match paket_operator_prefix(token) {
             Some(op) => {
-                let operand = &token[op.len()..];
+                let Some(operand) = token.strip_prefix(op) else {
+                    return Err(DxError::failure("operator is not a prefix of its token"));
+                };
                 if operand.is_empty() {
                     if expect_version {
                         return Err(DxError::failure("comparison operator without a version"));
@@ -1295,7 +1370,7 @@ fn parse_paket_declaration(line: &str) -> Result<PaketDeclaration<'_>, DxError> 
     let Some(first) = first else {
         return Err(DxError::failure("no version requirement to replace"));
     };
-    for &(_, _, token) in &rest[index..] {
+    for &(_, _, token) in rest.iter().skip(index) {
         if token.contains(':') {
             break;
         }
@@ -1354,7 +1429,11 @@ pub(super) fn plan_github_workflow(
                     package: package.to_owned(),
                 }),
                 [index] => {
-                    let pin = &parsed.pins[*index];
+                    let Some(pin) = parsed.pins.get(*index) else {
+                        return Err(unsupported(format!(
+                            "{package:?} has no replaceable @SHA pin"
+                        )));
+                    };
                     let no_pin = || unsupported(format!("{package:?} has no replaceable @SHA pin"));
                     let renamed = match tag {
                         Some(tag) => crate::edit::gha::replace_version_comment(content, pin, tag),

@@ -93,7 +93,7 @@ pub fn rewrite(text: &str, release: &Release) -> String {
     let mut out = String::with_capacity(text.len());
     for line in text.split_inclusive('\n') {
         let body = line.trim_end_matches(['\n', '\r']);
-        let ending = &line[body.len()..];
+        let ending = line.get(body.len()..).unwrap_or_default();
         match parse_line(body).and_then(|pin| newest.get(pin.family.as_str())) {
             Some(pin) => {
                 out.push_str(&pin.line());

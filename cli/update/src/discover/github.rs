@@ -155,7 +155,10 @@ fn judge(
     };
     let mut newest = newest;
     newest.resize(newest.len().max(have.len()), 0);
-    if newest[..have.len()] > have[..] {
+    if newest
+        .get(..have.len())
+        .is_some_and(|head| head > have.as_slice())
+    {
         found.candidates.push(Candidate {
             set: set.to_owned(),
             package: package.to_owned(),
@@ -169,7 +172,11 @@ fn judge(
     }
 }
 
-const UNRESERVED: &AsciiSet = &NON_ALPHANUMERIC.remove(b'-').remove(b'.').remove(b'_').remove(b'~');
+const UNRESERVED: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'.')
+    .remove(b'_')
+    .remove(b'~');
 
 const NO_RELEASE: &str = "no GitHub release";
 

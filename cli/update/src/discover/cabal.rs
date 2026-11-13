@@ -73,8 +73,8 @@ fn frozen(text: &str) -> Vec<(String, String)> {
 fn newest(body: &str) -> Result<String, DxError> {
     let json: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
-    json["normal-version"]
-        .as_array()
+    json.get("normal-version")
+        .and_then(serde_json::Value::as_array)
         .into_iter()
         .flatten()
         .filter_map(|version| version.as_str())
@@ -102,7 +102,7 @@ pub(crate) fn build_depends(text: &str) -> Vec<Depend> {
         let indent = body.len() - trimmed.len();
         let mut content = body;
         if let Some(cut) = comment_start(body) {
-            content = &body[..cut];
+            content = body.get(..cut).unwrap_or(body);
         }
         let continues = field_indent.is_some_and(|field| indent > field)
             || trimmed.is_empty()
@@ -139,9 +139,13 @@ pub(crate) fn build_depends(text: &str) -> Vec<Depend> {
 
 fn comment_start(line: &str) -> Option<usize> {
     let mut at = 0;
-    while let Some(found) = line[at..].find("--") {
+    while let Some(found) = line.get(at..).and_then(|rest| rest.find("--")) {
         let cut = at + found;
-        if cut == 0 || line[..cut].ends_with(char::is_whitespace) {
+        if cut == 0
+            || line
+                .get(..cut)
+                .is_some_and(|head| head.ends_with(char::is_whitespace))
+        {
             return Some(cut);
         }
         at = cut + 2;
@@ -151,19 +155,24 @@ fn comment_start(line: &str) -> Option<usize> {
 
 /// Keeps the first non-blank piece of an entry; a bound has to sit on the line of the name.
 fn extend(text: &str, entry: &mut Option<(usize, usize)>, start: usize, end: usize) {
-    if entry.is_none() && start < end && !text[start..end].trim().is_empty() {
+    if entry.is_none()
+        && start < end
+        && text
+            .get(start..end)
+            .is_some_and(|piece| !piece.trim().is_empty())
+    {
         *entry = Some((start, end));
     }
 }
 
 fn parse_entry(text: &str, start: usize, end: usize) -> Option<Depend> {
-    let piece = &text[start..end];
+    let piece = text.get(start..end)?;
     let lead = piece.len() - piece.trim_start().len();
     let piece = piece.trim();
     let name_end = piece
         .find(|c: char| c.is_whitespace() || matches!(c, '<' | '>' | '=' | '^' | '!'))
         .unwrap_or(piece.len());
-    let name = &piece[..name_end];
+    let name = piece.get(..name_end)?;
     if name.is_empty()
         || !name
             .chars()
@@ -171,7 +180,7 @@ fn parse_entry(text: &str, start: usize, end: usize) -> Option<Depend> {
     {
         return None;
     }
-    let rest = &piece[name_end..];
+    let rest = piece.get(name_end..)?;
     let gap = rest.len() - rest.trim_start().len();
     let bound_start = start + lead + name_end + gap;
     Some(Depend {
@@ -243,7 +252,12 @@ mod tests {
         let depends = build_depends(text);
         let seen: Vec<_> = depends
             .iter()
-            .map(|d| (d.name.as_str(), &text[d.bound.clone()]))
+            .map(|d| {
+                (
+                    d.name.as_str(),
+                    text.get(d.bound.clone()).unwrap_or("<out of range>"),
+                )
+            })
             .collect();
         assert_eq!(
             seen,

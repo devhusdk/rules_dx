@@ -91,14 +91,19 @@ fn cargo_build_dir(root: &Path, parent: &[&str]) -> bool {
 fn output_dir(root: &Path, path: &str) -> Option<String> {
     let parts: Vec<&str> = path.split('/').collect();
     for (index, part) in parts.iter().enumerate().take(parts.len().saturating_sub(1)) {
-        let dir = parts[..=index].join("/");
+        let Some(prefix) = parts.get(..=index) else {
+            continue;
+        };
+        let dir = prefix.join("/");
         if part.starts_with("bazel-") && index == 0 {
             return Some(dir);
         }
         if BUILD_OUTPUT_DIRS.contains(part) {
             return Some(dir);
         }
-        if *part == "build" && !has_manifest(root, &dir) && !cargo_build_dir(root, &parts[..index])
+        if *part == "build"
+            && !has_manifest(root, &dir)
+            && !cargo_build_dir(root, parts.get(..index).unwrap_or_default())
         {
             return Some(dir);
         }
@@ -270,8 +275,12 @@ fn lfs_paths(git: &Git<'_>, paths: &[String]) -> Result<BTreeSet<String>, DxErro
     let fields: Vec<&[u8]> = stdout.split(|byte| *byte == 0).collect();
     Ok(fields
         .chunks(3)
-        .filter(|chunk| chunk.len() == 3 && chunk[2] == b"lfs")
-        .filter_map(|chunk| std::str::from_utf8(chunk[0]).ok().map(ToOwned::to_owned))
+        .filter_map(|chunk| match chunk {
+            [path, _, kind] if *kind == b"lfs" => {
+                std::str::from_utf8(path).ok().map(ToOwned::to_owned)
+            }
+            _ => None,
+        })
         .collect())
 }
 

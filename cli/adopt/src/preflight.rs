@@ -346,7 +346,7 @@ fn registered_labels(module: &ModuleFile) -> Vec<(&str, usize)> {
 /// Normalised argument text of a call, without the binding name.
 fn args_text(module: &ModuleFile, call: &dx_module_bazel::Call) -> String {
     let text = module.source().get(call.span.clone()).unwrap_or_default();
-    let args = text.find('(').map_or(text, |i| &text[i..]);
+    let args = text.find('(').and_then(|i| text.get(i..)).unwrap_or(text);
     args.chars().filter(|c| !c.is_whitespace()).collect()
 }
 

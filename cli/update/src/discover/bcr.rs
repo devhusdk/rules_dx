@@ -102,7 +102,8 @@ pub fn newest_snapshot(
 
 fn repo(body: &str) -> Option<String> {
     let metadata: serde_json::Value = serde_json::from_str(body).ok()?;
-    metadata["repository"]
+    metadata
+        .get("repository")?
         .as_array()?
         .iter()
         .filter_map(|entry| entry.as_str())
@@ -120,14 +121,15 @@ fn is_skipped(module: &ModuleFile, name: &str) -> bool {
 fn newest(body: &str, prereleases: bool) -> Result<String, DxError> {
     let metadata: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
-    let versions = metadata["versions"]
-        .as_array()
+    let versions = metadata
+        .get("versions")
+        .and_then(serde_json::Value::as_array)
         .ok_or_else(|| DxError::failure("metadata has no versions"))?;
-    let yanked = &metadata["yanked_versions"];
+    let yanked = metadata.get("yanked_versions");
     versions
         .iter()
         .filter_map(|v| v.as_str())
-        .filter(|v| (prereleases || !v.contains('-')) && yanked.get(*v).is_none())
+        .filter(|v| (prereleases || !v.contains('-')) && yanked.and_then(|y| y.get(*v)).is_none())
         .max_by(|a, b| compare_module_versions(a, b))
         .map(str::to_owned)
         .ok_or_else(|| DxError::failure("no stable version"))

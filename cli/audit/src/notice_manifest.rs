@@ -22,20 +22,20 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, DxError> {
             continue;
         }
         let fields: Vec<&str> = line.split('|').collect();
-        if fields.len() != 6 {
+        let [package, set, version, license, text_path, text_sha256] = fields.as_slice() else {
             return Err(DxError::failure(format!(
                 "notice manifest line {}: want 6 '|' fields 'package|set|version|license|text|sha256' where text is a per-package relative path (for example 'cargo/serde/LICENSE'), got {}",
                 index + 1,
                 fields.len()
             )));
-        }
+        };
         let entry = NoticeEntry {
-            package: fields[0].trim().to_owned(),
-            set: fields[1].trim().to_owned(),
-            version: fields[2].trim().to_owned(),
-            license: fields[3].trim().to_owned(),
-            text_path: fields[4].trim().to_owned(),
-            text_sha256: fields[5].trim().to_owned(),
+            package: package.trim().to_owned(),
+            set: set.trim().to_owned(),
+            version: version.trim().to_owned(),
+            license: license.trim().to_owned(),
+            text_path: text_path.trim().to_owned(),
+            text_sha256: text_sha256.trim().to_owned(),
         };
         if entry.package.is_empty()
             || entry.set.is_empty()
@@ -74,7 +74,9 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, DxError> {
             .cmp(&(&b.package, &b.set, &b.version, &b.license))
     });
     for pair in entries.windows(2) {
-        let (a, b) = (&pair[0], &pair[1]);
+        let [a, b] = pair else {
+            continue;
+        };
         if (&a.package, &a.set, &a.version, &a.license)
             == (&b.package, &b.set, &b.version, &b.license)
         {

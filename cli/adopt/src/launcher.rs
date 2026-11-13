@@ -37,7 +37,8 @@ impl LauncherPins {
         RELEASE_ASSETS
             .iter()
             .position(|known| *known == asset)
-            .map(|i| self.sha256[i].as_str())
+            .and_then(|i| self.sha256.get(i))
+            .map(String::as_str)
     }
 
     /// Parses a `dx-sha256sums.txt` manifest: exactly one `<hash>  <asset>`
@@ -63,19 +64,27 @@ impl LauncherPins {
                 }
                 continue;
             }
-            let Some(i) = RELEASE_ASSETS.iter().position(|known| *known == asset) else {
+            let Some(slot) = RELEASE_ASSETS
+                .iter()
+                .position(|known| *known == asset)
+                .and_then(|i| pins.sha256.get_mut(i))
+            else {
                 return Err(pins_error(format!("unknown asset {asset:?}")));
             };
             if hash.is_empty() || !valid_pin(hash) {
                 return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
             }
-            if !pins.sha256[i].is_empty() {
+            if !slot.is_empty() {
                 return Err(pins_error(format!("{asset} is listed twice")));
             }
-            pins.sha256[i] = hash.to_owned();
+            *slot = hash.to_owned();
         }
-        if let Some(i) = pins.sha256.iter().position(String::is_empty) {
-            return Err(pins_error(format!("{} is missing", RELEASE_ASSETS[i])));
+        if let Some((asset, _)) = RELEASE_ASSETS
+            .iter()
+            .zip(&pins.sha256)
+            .find(|(_, pin)| pin.is_empty())
+        {
+            return Err(pins_error(format!("{asset} is missing")));
         }
         Ok(pins)
     }
@@ -102,16 +111,20 @@ impl LauncherPins {
             let (Some(hash), Some(asset)) = (hash, asset) else {
                 continue;
             };
-            let Some(i) = RELEASE_ASSETS.iter().position(|known| *known == asset) else {
+            let Some(slot) = RELEASE_ASSETS
+                .iter()
+                .position(|known| *known == asset)
+                .and_then(|i| pins.sha256.get_mut(i))
+            else {
                 return Err(pins_error(format!("unknown asset {asset:?}")));
             };
             if hash.is_empty() || !valid_pin(hash) {
                 return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
             }
-            if !pins.sha256[i].is_empty() {
+            if !slot.is_empty() {
                 return Err(pins_error(format!("{asset} is listed twice")));
             }
-            pins.sha256[i] = hash.to_owned();
+            *slot = hash.to_owned();
         }
         Ok(pins)
     }
@@ -205,13 +218,17 @@ fn pins_from_bzl(text: &str, version: &str) -> Result<LauncherPins, AdoptError> 
             else {
                 return Err(pins_error(format!("bad pins.bzl line {line:?}")));
             };
-            let Some(i) = RELEASE_ASSETS.iter().position(|known| *known == asset) else {
+            let Some(slot) = RELEASE_ASSETS
+                .iter()
+                .position(|known| *known == asset)
+                .and_then(|i| pins.sha256.get_mut(i))
+            else {
                 return Err(pins_error(format!("unknown asset {asset:?}")));
             };
             if !valid_pin(hash) {
                 return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
             }
-            pins.sha256[i] = hash.to_owned();
+            *slot = hash.to_owned();
         }
     }
     if pinned_version != Some(version) || pins.sha256.iter().any(String::is_empty) {

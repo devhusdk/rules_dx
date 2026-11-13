@@ -225,10 +225,10 @@ fn yarn_field_value(line: &str) -> Option<(&str, String)> {
         let Some(rest) = body.strip_prefix(key) else {
             continue;
         };
-        let rest = match rest.chars().next() {
-            Some(':') => rest[1..].trim_start(),
-            Some(char) if char.is_whitespace() => rest.trim_start(),
-            _ => continue,
+        let rest = match rest.strip_prefix(':') {
+            Some(after) => after.trim_start(),
+            None if rest.starts_with(char::is_whitespace) => rest.trim_start(),
+            None => continue,
         };
         if rest.is_empty() {
             continue;
@@ -255,7 +255,10 @@ fn yarn_entry_text(stanza: &str) -> String {
                 out.push_str("@npm:0.0.0:");
             }
         } else if let Some((key, value)) = yarn_field_value(line) {
-            out.push_str(&line[..line.len() - line.trim_start().len()]);
+            out.push_str(
+                line.get(..line.len() - line.trim_start().len())
+                    .unwrap_or_default(),
+            );
             out.push_str(key);
             out.push_str(" \"");
             out.push_str(&value);
@@ -317,17 +320,20 @@ fn yarn_resolution_spec(resolved: &str) -> &str {
         return resolved;
     }
     match resolved.char_indices().skip(1).find(|(_, c)| *c == '@') {
-        Some((at, _)) if super::locks_npm::valid_package_name(&resolved[..at]) => {
-            &resolved[at + 1..]
-        }
-        _ => resolved,
+        Some((at, _)) => match resolved.split_at_checked(at) {
+            Some((name, tail)) if super::locks_npm::valid_package_name(name) => {
+                tail.get(1..).unwrap_or(resolved)
+            }
+            _ => resolved,
+        },
+        None => resolved,
     }
 }
 
 fn yarn_alias_target(range: &str) -> Option<String> {
     let spec = range.trim().strip_prefix("npm:")?;
     let split = spec.char_indices().skip(1).find(|(_, c)| *c == '@')?.0;
-    let real = &spec[..split];
+    let real = spec.get(..split)?;
     super::locks_npm::valid_package_name(real).then(|| real.to_owned())
 }
 
@@ -414,11 +420,11 @@ pub(crate) fn split_pnpm_key(key: &str) -> Option<(String, String)> {
 
 pub(crate) fn split_pnpm_scoped_fallback(base: &str) -> Option<(String, String)> {
     let slash = base.find('/')?;
-    let rest = &base[slash + 1..];
+    let scope = base.get(..slash)?;
+    let rest = base.get(slash + 1..)?;
     let at = rest.rfind('@')?;
-    let scope = &base[..slash];
-    let name_base = &rest[..at];
-    let version = &rest[at + 1..];
+    let name_base = rest.get(..at)?;
+    let version = rest.get(at + 1..)?;
     let name = format!("{scope}/{name_base}").trim().to_owned();
     let version = version.trim().to_owned();
     if name.is_empty() || version.is_empty() {
@@ -429,8 +435,8 @@ pub(crate) fn split_pnpm_scoped_fallback(base: &str) -> Option<(String, String)>
 
 pub(crate) fn split_pnpm_unscoped_fallback(base: &str) -> Option<(String, String)> {
     let at = base.rfind('@')?;
-    let name = base[..at].trim().to_owned();
-    let version = base[at + 1..].trim().to_owned();
+    let name = base.get(..at)?.trim().to_owned();
+    let version = base.get(at + 1..)?.trim().to_owned();
     if name.is_empty() || version.is_empty() {
         return None;
     }

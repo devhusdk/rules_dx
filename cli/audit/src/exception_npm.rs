@@ -60,7 +60,7 @@ fn npm_branch_assess(branch: &str, locked: &Version) -> VersionScope {
         return VersionScope::Incomplete;
     }
     let tokens: Vec<&str> = normalized.split_whitespace().collect();
-    let hyphen = tokens.len() == 3 && tokens[1] == "-";
+    let hyphen = matches!(tokens.as_slice(), [_, "-", _]);
     for bound in npm_bounds(&tokens, hyphen) {
         if !npm_wildcard_is_trailing(bound) || npm_has_leading_zero(bound) {
             return VersionScope::Incomplete;
@@ -85,37 +85,42 @@ fn npm_branch_assess(branch: &str, locked: &Version) -> VersionScope {
 }
 
 fn npm_bounds<'t>(tokens: &'t [&'t str], hyphen: bool) -> Vec<&'t str> {
-    if hyphen {
-        vec![tokens[0], tokens[2]]
-    } else {
-        tokens.to_vec()
+    match tokens {
+        [first, _, last] if hyphen => vec![*first, *last],
+        _ => tokens.to_vec(),
     }
 }
 
 fn npm_normalize_branch(branch: &str) -> String {
     let source = branch.replace(',', " ");
     let tokens: Vec<&str> = source.split_whitespace().collect();
-    if tokens.len() == 3 && tokens[1] == "-" && npm_is_bare_wildcard(tokens[2]) {
-        let bound = if npm_is_bare_wildcard(tokens[0]) {
-            tokens[2]
+    if let [first, "-", last] = tokens.as_slice()
+        && npm_is_bare_wildcard(last)
+    {
+        let bound = if npm_is_bare_wildcard(first) {
+            last
         } else {
-            tokens[0]
+            first
         };
         return format!(">={bound}");
     }
-    if tokens.len() == 1 && npm_is_bare_wildcard(tokens[0]) {
+    if let [only] = tokens.as_slice()
+        && npm_is_bare_wildcard(only)
+    {
         return "*".to_owned();
     }
     let mut merged: Vec<String> = Vec::new();
     let mut index = 0;
-    while index < tokens.len() {
-        let token = tokens[index];
-        if npm_is_operator(token) && index + 1 < tokens.len() {
-            merged.push(format!("{token}{}", tokens[index + 1]));
-            index += 2;
-        } else {
-            merged.push(token.to_owned());
-            index += 1;
+    while let Some(token) = tokens.get(index).copied() {
+        match tokens.get(index + 1) {
+            Some(next) if npm_is_operator(token) => {
+                merged.push(format!("{token}{next}"));
+                index += 2;
+            }
+            _ => {
+                merged.push(token.to_owned());
+                index += 1;
+            }
         }
     }
     merged.join(" ")
@@ -136,9 +141,9 @@ fn npm_split_operator(token: &str) -> (Option<&str>, &str) {
 
 fn npm_wildcard_is_trailing(token: &str) -> bool {
     let core = npm_core(token);
-    match core.find(['x', 'X', '*']) {
+    match core.find(['x', 'X', '*']).and_then(|at| core.get(at..)) {
         None => true,
-        Some(at) => core[at..]
+        Some(tail) => tail
             .chars()
             .all(|ch| ch == '.' || npm_is_wildcard(&ch.to_string())),
     }

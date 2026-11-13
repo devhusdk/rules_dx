@@ -180,10 +180,13 @@ pub fn parse_bazel_inputs(
     out.extend(extension_inputs(&lock)?);
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     for pair in out.windows(2) {
-        if pair[0].name == pair[1].name && pair[0].version == pair[1].version {
+        if let [first, second] = pair
+            && first.name == second.name
+            && first.version == second.version
+        {
             return Err(DxError::failure(format!(
                 "{}@{} is declared twice across MODULE.bazel and MODULE.bazel.lock",
-                pair[0].name, pair[0].version
+                first.name, first.version
             )));
         }
     }
@@ -351,11 +354,11 @@ fn module_overrides(calls: &[&Call]) -> Result<BTreeMap<String, Override>, DxErr
         let patched = !call.str_list("patches").is_empty();
         let over = match call.name.as_str() {
             "archive_override" => {
-                let urls = urls_of(call)?;
+                let origin = first_url(call)?;
                 Override {
                     source: BazelSource::ArchiveOverride,
                     version: None,
-                    origin: urls[0].clone(),
+                    origin,
                     digest: Some(digest_of(call)?),
                     patched,
                 }
@@ -422,6 +425,15 @@ fn declared_deps(calls: &[&Call]) -> Result<BTreeMap<String, String>, DxError> {
         }
     }
     Ok(out)
+}
+
+fn first_url(call: &Call) -> Result<String, DxError> {
+    urls_of(call)?.into_iter().next().ok_or_else(|| {
+        DxError::failure(format!(
+            "{} at MODULE.bazel line {} has no urls",
+            call.name, call.line
+        ))
+    })
 }
 
 fn urls_of(call: &Call) -> Result<Vec<String>, DxError> {
@@ -534,13 +546,13 @@ fn download_inputs(module: &ModuleFile) -> Result<Vec<BazelInput>, DxError> {
     for call in module.calls() {
         if http.contains(call.name.as_str()) {
             let name = required(call, "name")?.to_owned();
-            let urls = urls_of(call)?;
+            let origin = first_url(call)?;
             let digest = digest_of(call)?;
             out.push(BazelInput {
                 name,
                 version: digest.clone(),
                 source: BazelSource::HttpArchive,
-                origin: urls[0].clone(),
+                origin,
                 digest: Some(digest),
                 patched: !call.str_list("patches").is_empty(),
             });

@@ -455,23 +455,37 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
         "python.defaultInterpreterPath": format!("{ide}/python/python"),
         "python.analysis.extraPaths": [format!("{ide}/python/site-packages")],
     });
-    if tools.is_selected("ruff") {
-        python["ruff.configuration"] =
-            owned(&tools.ruff_config, ".dx/config/ruff/base.toml").into();
-        python["ruff.path"] = serde_json::json!([bin("ruff")]);
+    if tools.is_selected("ruff")
+        && let Some(map) = python.as_object_mut()
+    {
+        map.insert(
+            "ruff.configuration".to_owned(),
+            owned(&tools.ruff_config, ".dx/config/ruff/base.toml").into(),
+        );
+        map.insert("ruff.path".to_owned(), serde_json::json!([bin("ruff")]));
     }
     add(&[".py", ".pyi"], python);
     let mut js = serde_json::json!({"typescript.tsdk": format!("{ide}/typescript/lib")});
-    if tools.is_selected("eslint") {
-        js["eslint.runtime"] = bin("node").into();
-        js["eslint.options"] = serde_json::json!({
-            "overrideConfigFile": owned(&tools.eslint_config, ".dx/config/eslint/base.mjs"),
-        });
+    if tools.is_selected("eslint")
+        && let Some(map) = js.as_object_mut()
+    {
+        map.insert("eslint.runtime".to_owned(), bin("node").into());
+        map.insert(
+            "eslint.options".to_owned(),
+            serde_json::json!({
+                "overrideConfigFile": owned(&tools.eslint_config, ".dx/config/eslint/base.mjs"),
+            }),
+        );
     }
-    if tools.is_selected("biome") {
-        js["biome.lsp.bin"] = bin("biome").into();
+    if tools.is_selected("biome")
+        && let Some(map) = js.as_object_mut()
+    {
+        map.insert("biome.lsp.bin".to_owned(), bin("biome").into());
         if !tools.biome_config.is_empty() {
-            js["biome.configurationPath"] = owned(&tools.biome_config, "").into();
+            map.insert(
+                "biome.configurationPath".to_owned(),
+                owned(&tools.biome_config, "").into(),
+            );
         }
     }
     add(JS_FILES, js);
@@ -604,7 +618,12 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                 .unwrap_or_default();
             let wanted = dx_merge::jsonc::parse(generated)?;
             let mut text = existing.to_owned();
-            for id in wanted["recommendations"].as_array().into_iter().flatten() {
+            for id in wanted
+                .get("recommendations")
+                .and_then(|value| value.as_array())
+                .into_iter()
+                .flatten()
+            {
                 let skipped = unwanted.iter().any(|other| {
                     other.as_str().map(str::to_lowercase) == id.as_str().map(str::to_lowercase)
                 });
@@ -617,8 +636,9 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                 .iter()
                 .map(|(_, id, _)| serde_json::Value::from(*id))
                 .filter(|id| {
-                    !wanted["recommendations"]
-                        .as_array()
+                    !wanted
+                        .get("recommendations")
+                        .and_then(|value| value.as_array())
                         .is_some_and(|ids| ids.contains(id))
                 })
                 .collect();
@@ -628,14 +648,23 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
             let wanted = dx_merge::jsonc::parse(generated)?;
             let current = dx_merge::jsonc::parse(existing)?;
             let mut text = existing.to_owned();
-            let image = wanted["image"].as_str().unwrap_or_default();
-            if current["image"]
-                .as_str()
+            let image = wanted
+                .get("image")
+                .and_then(|value| value.as_str())
+                .unwrap_or_default();
+            if current
+                .get("image")
+                .and_then(|value| value.as_str())
                 .is_some_and(|old| old != image && image_repository(old) == image_repository(image))
             {
                 text = dx_merge::jsonc::set_keys(&text, &[(&["image"], image.into())])?;
             }
-            for (feature, _) in wanted["features"].as_object().into_iter().flatten() {
+            for (feature, _) in wanted
+                .get("features")
+                .and_then(|value| value.as_object())
+                .into_iter()
+                .flatten()
+            {
                 let base = feature_base(feature);
                 text = dx_merge::jsonc::rename_key(
                     &text,
@@ -666,8 +695,14 @@ fn repin_gitlab_line(line: &str, pin: &str) -> String {
         return line.to_owned();
     };
     let from = start + GITLAB_TEMPLATE_URL.len();
-    match line[from..].find(GITLAB_TEMPLATE_PATH) {
-        Some(len) => format!("{}{pin}{}", &line[..from], &line[from + len..]),
+    let Some((head, tail)) = line.split_at_checked(from) else {
+        return line.to_owned();
+    };
+    match tail
+        .find(GITLAB_TEMPLATE_PATH)
+        .and_then(|len| tail.get(len..))
+    {
+        Some(rest) => format!("{head}{pin}{rest}"),
         None => line.to_owned(),
     }
 }
@@ -874,7 +909,7 @@ pub fn preflight_destinations(root: &Path, relatives: &[&str]) -> Result<(), Ado
         let parts: Vec<_> = Path::new(relative).components().collect();
         let mut current = root.to_path_buf();
         let mut shown = std::path::PathBuf::new();
-        for part in &parts[..parts.len().saturating_sub(1)] {
+        for part in parts.iter().take(parts.len().saturating_sub(1)) {
             current.push(part);
             shown.push(part);
             match std::fs::metadata(&current) {

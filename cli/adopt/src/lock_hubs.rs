@@ -586,7 +586,7 @@ impl Planner<'_> {
         if wired {
             return Ok(());
         }
-        for other in &dirs[1..] {
+        for other in dirs.iter().skip(1) {
             self.notes.push(format!(
                 "{other}/{} is not wired; add a pub.from_lock for it",
                 lock_of("pub")
@@ -831,7 +831,10 @@ fn maven_repo_import(file: &ModuleFile, proxies: &[&str], repo: &str) -> Option<
         {
             continue;
         }
-        if call.positional[1..]
+        if call
+            .positional
+            .get(1..)
+            .unwrap_or_default()
             .iter()
             .any(|value| matches!(value, Value::Str(s) if s.value == repo))
         {

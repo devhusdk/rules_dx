@@ -702,11 +702,12 @@ fn impact_graph<'a>(
 fn string_literals(source: &str) -> Vec<&str> {
     let mut found = Vec::new();
     let mut rest = source;
-    while let Some(start) = rest.find('"') {
-        let tail = &rest[start + 1..];
-        let Some(end) = tail.find('"') else { break };
-        found.push(&tail[..end]);
-        rest = &tail[end + 1..];
+    while let Some((_, tail)) = rest.split_once('"') {
+        let Some((literal, after)) = tail.split_once('"') else {
+            break;
+        };
+        found.push(literal);
+        rest = after;
     }
     found
 }
@@ -715,19 +716,25 @@ fn string_literals(source: &str) -> Vec<&str> {
 fn toolchain_attr_labels(source: &str) -> Vec<&str> {
     let mut found = Vec::new();
     for (at, _) in source.match_indices("toolchain") {
-        let before = source[..at].chars().next_back();
+        let Some((head, from_at)) = source.split_at_checked(at) else {
+            continue;
+        };
+        let before = head.chars().next_back();
         if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
             continue;
         }
-        let tail = source[at + "toolchain".len()..].trim_start();
+        let Some(tail) = from_at.strip_prefix("toolchain") else {
+            continue;
+        };
+        let tail = tail.trim_start();
         let Some(tail) = tail.strip_prefix('=') else {
             continue;
         };
         let Some(tail) = tail.trim_start().strip_prefix('"') else {
             continue;
         };
-        if let Some(end) = tail.find('"') {
-            found.push(&tail[..end]);
+        if let Some((label, _)) = tail.split_once('"') {
+            found.push(label);
         }
     }
     found

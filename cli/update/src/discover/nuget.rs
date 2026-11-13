@@ -61,8 +61,8 @@ fn declaration(line: &str) -> Option<(String, String)> {
 fn newest(body: &str, prereleases: bool) -> Result<String, DxError> {
     let json: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
-    json["versions"]
-        .as_array()
+    json.get("versions")
+        .and_then(serde_json::Value::as_array)
         .into_iter()
         .flatten()
         .filter_map(|v| v.as_str())

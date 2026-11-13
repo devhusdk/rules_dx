@@ -37,7 +37,10 @@ fn locked(text: &str) -> Vec<(String, String)> {
     let mut depth = 0;
     let mut braces = 0;
     let mut after_equals = false;
-    let mut chars = text[start + "depends:".len()..].chars().peekable();
+    let Some(tail) = text.get(start + "depends:".len()..) else {
+        return Vec::new();
+    };
+    let mut chars = tail.chars().peekable();
     while let Some(c) = chars.next() {
         match c {
             '[' if braces == 0 => depth += 1,

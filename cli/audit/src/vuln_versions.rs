@@ -204,22 +204,26 @@ fn debian_compare(mut left: &[u8], mut right: &[u8]) -> Ordering {
             .iter()
             .take_while(|byte| !byte.is_ascii_digit())
             .count();
+        let (left_head, left_rest) = left.split_at_checked(left_text).unwrap_or_default();
+        let (right_head, right_rest) = right.split_at_checked(right_text).unwrap_or_default();
         for index in 0..left_text.max(right_text) {
-            let order = debian_weight(left[..left_text].get(index))
-                .cmp(&debian_weight(right[..right_text].get(index)));
+            let order =
+                debian_weight(left_head.get(index)).cmp(&debian_weight(right_head.get(index)));
             if order != Ordering::Equal {
                 return order;
             }
         }
-        left = &left[left_text..];
-        right = &right[right_text..];
+        left = left_rest;
+        right = right_rest;
         let left_digits = left.iter().take_while(|byte| byte.is_ascii_digit()).count();
         let right_digits = right
             .iter()
             .take_while(|byte| byte.is_ascii_digit())
             .count();
-        let left_number = digits_value(&left[..left_digits]);
-        let right_number = digits_value(&right[..right_digits]);
+        let (left_run, left_after) = left.split_at_checked(left_digits).unwrap_or_default();
+        let (right_run, right_after) = right.split_at_checked(right_digits).unwrap_or_default();
+        let left_number = digits_value(left_run);
+        let right_number = digits_value(right_run);
         let order = left_number
             .len()
             .cmp(&right_number.len())
@@ -227,15 +231,15 @@ fn debian_compare(mut left: &[u8], mut right: &[u8]) -> Ordering {
         if order != Ordering::Equal {
             return order;
         }
-        left = &left[left_digits..];
-        right = &right[right_digits..];
+        left = left_after;
+        right = right_after;
     }
     Ordering::Equal
 }
 
 fn digits_value(digits: &[u8]) -> &[u8] {
     let start = digits.iter().take_while(|byte| **byte == b'0').count();
-    &digits[start..]
+    digits.get(start..).unwrap_or_default()
 }
 
 #[cfg(test)]

@@ -79,24 +79,42 @@ fn direct_hosted(lock: &str) -> Vec<(String, String)> {
 fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), DxError> {
     let json: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
-    let stable = json["latest"]["version"].as_str().map(str::to_owned);
+    let stable = json
+        .get("latest")
+        .and_then(|latest| latest.get("version"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned);
     let mut best = stable
         .clone()
         .ok_or_else(|| DxError::failure("no version"))?;
     if prereleases {
-        for entry in json["versions"].as_array().into_iter().flatten() {
-            if let Some(version) = entry["version"].as_str()
+        for entry in json
+            .get("versions")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            if let Some(version) = entry.get("version").and_then(serde_json::Value::as_str)
                 && release_cmp(&strip_build(version), &strip_build(&best)) == Ordering::Greater
             {
                 best = version.to_owned();
             }
         }
     }
-    let published = [&json["latest"]]
+    let published = json
+        .get("latest")
         .into_iter()
-        .chain(json["versions"].as_array().into_iter().flatten())
-        .find(|entry| entry["version"].as_str() == Some(best.as_str()))
-        .and_then(|entry| entry["published"].as_str())
+        .chain(
+            json.get("versions")
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten(),
+        )
+        .find(|entry| {
+            entry.get("version").and_then(serde_json::Value::as_str) == Some(best.as_str())
+        })
+        .and_then(|entry| entry.get("published"))
+        .and_then(serde_json::Value::as_str)
         .map(str::to_owned);
     Ok((best, published))
 }

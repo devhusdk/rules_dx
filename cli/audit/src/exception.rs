@@ -49,8 +49,10 @@ pub fn or_unknown(value: &str) -> &str {
 
 pub fn line_of(text: &str, offset: usize) -> usize {
     let end = offset.min(text.len());
-    1 + text.as_bytes()[..end]
+    1 + text
+        .as_bytes()
         .iter()
+        .take(end)
         .filter(|byte| **byte == b'\n')
         .count()
 }

@@ -116,13 +116,15 @@ type Release = (String, Option<String>, bool, Option<String>);
 fn newest(body: &str, name: &str, prereleases: bool) -> Result<Release, DxError> {
     let json: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
-    let entries = json["packages"][name]
-        .as_array()
+    let entries = json
+        .get("packages")
+        .and_then(|packages| packages.get(name))
+        .and_then(serde_json::Value::as_array)
         .ok_or_else(|| DxError::failure("package not found"))?;
     entries
         .iter()
         .filter_map(|entry| {
-            let version = entry["version"].as_str()?;
+            let version = entry.get("version")?.as_str()?;
             if version.starts_with("dev-") || version.ends_with("-dev") {
                 return None;
             }
@@ -131,10 +133,17 @@ fn newest(body: &str, name: &str, prereleases: bool) -> Result<Release, DxError>
             if prerelease && !prereleases {
                 return None;
             }
-            let repo = entry["source"]["url"].as_str().and_then(github_repo);
+            let repo = entry
+                .get("source")
+                .and_then(|source| source.get("url"))
+                .and_then(serde_json::Value::as_str)
+                .and_then(github_repo);
             Some((
                 version.to_owned(),
-                entry["time"].as_str().map(str::to_owned),
+                entry
+                    .get("time")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned),
                 prerelease,
                 repo,
             ))

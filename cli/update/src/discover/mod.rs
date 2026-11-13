@@ -229,7 +229,9 @@ impl Registry {
 /// The text inside a leading single- or double-quoted literal.
 pub(crate) fn unquote(text: &str) -> Option<&str> {
     let quote = text.chars().next().filter(|c| matches!(c, '"' | '\''))?;
-    text[1..].split_once(quote).map(|(inside, _)| inside)
+    text.strip_prefix(quote)?
+        .split_once(quote)
+        .map(|(inside, _)| inside)
 }
 
 /// Compares dotted numeric versions; a missing segment counts as 0.
@@ -292,7 +294,10 @@ fn suffix_runs(suffix: &str) -> Vec<SuffixRun> {
     while let Some(first) = rest.chars().next() {
         let class = |c: char| (c.is_ascii_digit(), c.is_alphabetic());
         if class(first) == (false, false) {
-            rest = &rest[first.len_utf8()..];
+            let Some(tail) = rest.strip_prefix(first) else {
+                break;
+            };
+            rest = tail;
             continue;
         }
         let end = rest

@@ -216,9 +216,9 @@ pub fn replace_version_comment(content: &str, pin: &UsesPin, tag: &str) -> Optio
     version_numbers(word)?;
     let word_at = pin.span.end + (line.len() - trimmed.len()) + 1 + after_hash.find(word)?;
     let mut out = String::with_capacity(content.len() + tag.len());
-    out.push_str(&content[..word_at]);
+    out.push_str(content.get(..word_at)?);
     out.push_str(tag);
-    out.push_str(&content[word_at + word.len()..]);
+    out.push_str(content.get(word_at + word.len()..)?);
     Some(out)
 }
 
@@ -303,15 +303,15 @@ pub fn replace_pin_reference(content: &str, pin: &UsesPin, sha: &str) -> Option<
     };
     let inner_end = raw.len().checked_sub(close)?;
     let inner = raw.get(open..inner_end)?;
-    let head = inner.strip_suffix(reference)?;
-    if !head.ends_with('@') {
+    let prefix = inner.strip_suffix(reference)?;
+    if !prefix.ends_with('@') {
         return None;
     }
-    let tail_at = pin.span.start + open + head.len();
+    let tail_at = pin.span.start + open + prefix.len();
     let mut out = String::with_capacity(content.len() + sha.len());
-    out.push_str(&content[..tail_at]);
+    out.push_str(content.get(..tail_at)?);
     out.push_str(sha);
-    out.push_str(&content[pin.span.start + inner_end..]);
+    out.push_str(content.get(pin.span.start + inner_end..)?);
     Some(out)
 }
 

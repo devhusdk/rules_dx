@@ -62,11 +62,12 @@ fn parse_nuget_version(version: &str) -> Option<NugetVersion> {
     while normalized.len() < 4 {
         normalized.push("0".to_owned());
     }
+    let mut padded = normalized.into_iter();
     let parts: [String; 4] = [
-        normalized[0].clone(),
-        normalized[1].clone(),
-        normalized[2].clone(),
-        normalized[3].clone(),
+        padded.next()?,
+        padded.next()?,
+        padded.next()?,
+        padded.next()?,
     ];
     let prerelease = match pre_str {
         None => None,
@@ -117,9 +118,8 @@ pub fn nuget_compare(left: &str, right: &str) -> std::cmp::Ordering {
     let right_parsed = parse_nuget_version(right);
     match (left_parsed, right_parsed) {
         (Some(left_version), Some(right_version)) => {
-            for index in 0..4 {
-                match compare_nuget_numeric(&left_version.parts[index], &right_version.parts[index])
-                {
+            for (left_part, right_part) in left_version.parts.iter().zip(&right_version.parts) {
+                match compare_nuget_numeric(left_part, right_part) {
                     std::cmp::Ordering::Equal => continue,
                     other => return other,
                 }
@@ -129,9 +129,8 @@ pub fn nuget_compare(left: &str, right: &str) -> std::cmp::Ordering {
                 (None, Some(_)) => std::cmp::Ordering::Greater,
                 (Some(_), None) => std::cmp::Ordering::Less,
                 (Some(left_labels), Some(right_labels)) => {
-                    let common = left_labels.len().min(right_labels.len());
-                    for index in 0..common {
-                        match (&left_labels[index], &right_labels[index]) {
+                    for pair in left_labels.iter().zip(&right_labels) {
+                        match pair {
                             (
                                 NugetPrereleaseLabel::Numeric(left_num),
                                 NugetPrereleaseLabel::Numeric(right_num),
@@ -214,22 +213,26 @@ pub fn nuget_assess(scope: &str, version: &str) -> VersionScope {
     if chars.len() < 3 {
         return VersionScope::Incomplete;
     }
-    if (chars[0] != '[' && chars[0] != '(')
-        || (chars[chars.len() - 1] != ']' && chars[chars.len() - 1] != ')')
-    {
+    let (Some(&open), Some(&close)) = (chars.first(), chars.last()) else {
+        return VersionScope::Incomplete;
+    };
+    if (open != '[' && open != '(') || (close != ']' && close != ')') {
         return VersionScope::Incomplete;
     }
-    let inner: String = chars[1..chars.len() - 1].iter().collect();
+    let Some(inner_chars) = chars.get(1..chars.len() - 1) else {
+        return VersionScope::Incomplete;
+    };
+    let inner: String = inner_chars.iter().collect();
     if inner.contains('[') || inner.contains('(') || inner.contains(']') || inner.contains(')') {
         return VersionScope::Incomplete;
     }
     let parts: Vec<&str> = inner.split(',').collect();
-    if parts.len() == 1 {
-        let bound = parts[0].trim();
+    if let [only] = parts.as_slice() {
+        let bound = only.trim();
         if bound.is_empty() {
             return VersionScope::Incomplete;
         }
-        if chars[0] != '[' || chars[chars.len() - 1] != ']' {
+        if open != '[' || close != ']' {
             return VersionScope::Incomplete;
         }
         if bound.len() > 256 || parse_nuget_version(bound).is_none() {
@@ -237,11 +240,11 @@ pub fn nuget_assess(scope: &str, version: &str) -> VersionScope {
         }
         return scope_from(nuget_version_eq(bound, version_trimmed));
     }
-    if parts.len() != 2 {
+    let [lower, upper] = parts.as_slice() else {
         return VersionScope::Incomplete;
-    }
-    let lower = parts[0].trim().to_owned();
-    let upper = parts[1].trim().to_owned();
+    };
+    let lower = lower.trim().to_owned();
+    let upper = upper.trim().to_owned();
     if lower.is_empty() && upper.is_empty() {
         return VersionScope::Incomplete;
     }
@@ -257,8 +260,8 @@ pub fn nuget_assess(scope: &str, version: &str) -> VersionScope {
     scope_from(nuget_interval_matches(
         &lower,
         &upper,
-        chars[0] == '[',
-        chars[chars.len() - 1] == ']',
+        open == '[',
+        close == ']',
         version_trimmed,
     ))
 }

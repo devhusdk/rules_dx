@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod avro_cpp;
 pub mod build_output;
 pub mod defaults;

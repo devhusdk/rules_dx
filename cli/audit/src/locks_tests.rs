@@ -46,7 +46,9 @@ fn pnpm_git_resolution_forms_are_never_assessed_as_registry_packages() {
         "{repo: 'github:owner/repo'}",
         "{tarball: 'https://codeload.github.com/owner/repo/tar.gz/v1'}",
     ] {
-        let text = format!("lockfileVersion: '9.0'\npackages:\n  demo@1.0.0:\n    resolution: {resolution}\n");
+        let text = format!(
+            "lockfileVersion: '9.0'\npackages:\n  demo@1.0.0:\n    resolution: {resolution}\n"
+        );
         let packages = parse_pnpm_lock(&text).expect("pnpm");
         assert_eq!(packages.len(), 1);
         assert!(packages[0].is_git, "{resolution}");
@@ -95,7 +97,9 @@ fn pnpm_unsupported_lockfile_versions_name_the_supported_one() {
         "lockfileVersion: '9.0'\n---\nlockfileVersion: 6.0",
         "importers: {}",
     ] {
-        let text = format!("{header}\npackages:\n  react@18.2.0:\n    resolution: {{integrity: sha512-a}}\n");
+        let text = format!(
+            "{header}\npackages:\n  react@18.2.0:\n    resolution: {{integrity: sha512-a}}\n"
+        );
         let error = parse_pnpm_lock(&text).expect_err(header);
         assert!(error.message().contains("lockfileVersion 9.0"), "{error}");
     }
@@ -112,7 +116,8 @@ fn pnpm_multi_document_lock_reads_every_document() {
 
 #[test]
 fn npm_lock_shapes_keep_registry_and_git_entries_but_skip_workspace_links() {
-    let packages = parse_package_lock(r#"{
+    let packages = parse_package_lock(
+        r#"{
         "lockfileVersion": 3,
         "packages": {
             "": {"version":"1.0.0"},
@@ -126,16 +131,15 @@ fn npm_lock_shapes_keep_registry_and_git_entries_but_skip_workspace_links() {
             "node_modules/@scope/demo": {"version":"1.0.0"},
             "node_modules/git-demo": {"version":"1.0.0","from":"github:owner/repo"}
         }
-    }"#).expect("npm lock");
+    }"#,
+    )
+    .expect("npm lock");
     assert_eq!(
         packages
             .iter()
             .map(|p| (p.name.as_str(), p.version.as_str(), p.is_git))
             .collect::<Vec<_>>(),
-        vec![
-            ("@scope/demo", "1.0.0", false),
-            ("git-demo", "1.0.0", true)
-        ]
+        vec![("@scope/demo", "1.0.0", false), ("git-demo", "1.0.0", true)]
     );
     assert!(parse_package_lock("[]").is_err());
     assert!(parse_package_lock("{").is_err());
@@ -164,7 +168,13 @@ fn pnpm_documents_reject_scalars_and_nonmapping_packages() {
     ] {
         assert!(parse_pnpm_lock(invalid).is_err(), "{invalid}");
     }
-    for empty in ["", " \n", "null\n", "---\nnull\n...\n", "lockfileVersion: '9.0'\npackages: null\n"] {
+    for empty in [
+        "",
+        " \n",
+        "null\n",
+        "---\nnull\n...\n",
+        "lockfileVersion: '9.0'\npackages: null\n",
+    ] {
         assert!(
             parse_pnpm_lock(empty).expect("empty lock").is_empty(),
             "{empty}"
@@ -1388,7 +1398,10 @@ fn fpm_lock_lists_dependency_versions() {
         .iter()
         .map(|p| (p.set.as_str(), p.name.as_str(), p.version.as_str()))
         .collect();
-    assert_eq!(pairs, [("fpm", "alpha", "v0.1.0"), ("fpm", "zeta", "v1.2.0")]);
+    assert_eq!(
+        pairs,
+        [("fpm", "alpha", "v0.1.0"), ("fpm", "zeta", "v1.2.0")]
+    );
     assert!(parse_fpm_lock(r#"{"packages": [{"name": "a"}]}"#).is_err());
     assert!(parse_fpm_lock("[dependencies.a]\nversion = \"1\"\n").is_err());
 }

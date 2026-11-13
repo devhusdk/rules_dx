@@ -5,11 +5,15 @@ pub(crate) fn strip_go_v(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for (index, current) in chars.iter().enumerate() {
         if *current == 'v' || *current == 'V' {
-            let prev_ok = index == 0
-                || matches!(
-                    chars[index - 1],
-                    ' ' | '\t' | ',' | '<' | '>' | '=' | '~' | '^' | '!' | '('
-                );
+            let prev_ok = index
+                .checked_sub(1)
+                .and_then(|prev| chars.get(prev).copied())
+                .is_none_or(|prev| {
+                    matches!(
+                        prev,
+                        ' ' | '\t' | ',' | '<' | '>' | '=' | '~' | '^' | '!' | '('
+                    )
+                });
             let next_ok = chars
                 .get(index + 1)
                 .is_some_and(|next| next.is_ascii_digit());

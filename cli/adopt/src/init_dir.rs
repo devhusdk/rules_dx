@@ -62,9 +62,7 @@ pub fn validate_init_dir(dir: &str) -> Result<String, AdoptError> {
         ));
     }
     let bytes = dir.as_bytes();
-    if dir.starts_with('/')
-        || (bytes.len() >= 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic())
-    {
+    if dir.starts_with('/') || matches!(bytes, [first, b':', ..] if first.is_ascii_alphabetic()) {
         return Err(refused(
             "directories stay inside the current directory (no absolute paths)",
         ));
@@ -161,7 +159,9 @@ fn is_fresh_module(path: &Path) -> bool {
     else {
         return false;
     };
-    plan_fresh_files(module)[0].content == text
+    plan_fresh_files(module)
+        .first()
+        .is_some_and(|file| file.content == text)
 }
 
 /// The files only a fresh workspace gets: a `MODULE.bazel` that depends on rules_dx and

@@ -209,9 +209,7 @@ pub enum DependencySetsError {
         lock: String,
         detail: String,
     },
-    #[error(
-        "dependency set {name:?} has a stale {lock}: {detail}; run the cpan lock step"
-    )]
+    #[error("dependency set {name:?} has a stale {lock}: {detail}; run the cpan lock step")]
     StaleCpanLock {
         name: String,
         lock: String,
@@ -710,14 +708,13 @@ fn escapes_workspace(path: &str) -> bool {
 }
 
 fn has_drive_prefix(path: &str) -> bool {
-    let bytes = path.as_bytes();
-    bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
+    matches!(path.as_bytes(), [first, b':', ..] if first.is_ascii_alphabetic())
 }
 
 pub fn manifest_dir(manifests: &[String]) -> String {
     let first = manifests.first().map(String::as_str).unwrap_or("");
-    match first.rfind('/') {
-        Some(index) => first[..index].to_owned(),
+    match first.rsplit_once('/') {
+        Some((dir, _)) => dir.to_owned(),
         None => ".".to_owned(),
     }
 }
@@ -1017,8 +1014,8 @@ fn normalize_scope(text: &str) -> (String, bool) {
     while path.ends_with('/') && path.len() > 1 {
         path.pop();
     }
-    if label && let Some(colon) = path.find(':') {
-        path = path[..colon].to_owned();
+    if label && let Some((before, _)) = path.split_once(':') {
+        path = before.to_owned();
     }
     (path, recursive)
 }
@@ -1198,8 +1195,8 @@ fn parent_dirs(dir: &str) -> Vec<&str> {
     let mut current = Some(dir);
     while let Some(here) = current {
         out.push(here);
-        current = match here.rfind('/') {
-            Some(index) => Some(&here[..index]),
+        current = match here.rsplit_once('/') {
+            Some((parent, _)) => Some(parent),
             None if here != "." => Some("."),
             None => None,
         };
@@ -1337,7 +1334,13 @@ fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
         .and_then(serde_json::Value::as_array)
         .into_iter()
         .flatten()
-        .filter_map(|package| package.get("archives")?.get(0)?.get("strip_prefix")?.as_str())
+        .filter_map(|package| {
+            package
+                .get("archives")?
+                .get(0)?
+                .get("strip_prefix")?
+                .as_str()
+        })
         .collect();
     let mut in_snapshot = std::collections::BTreeSet::new();
     let mut distributions = false;
@@ -1481,7 +1484,9 @@ fn check_cargo_hub(workspace: &Path, set: &ResolvedSet) -> Result<String, Depend
             )));
         }
     };
-    let visible = std::iter::once(&modules[*index])
+    let visible = modules
+        .get(*index)
+        .into_iter()
         .chain(
             modules
                 .iter()
@@ -1725,7 +1730,7 @@ fn check_go_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependency
     };
     check_pinned_lock(set, lock_of("go"))?;
     let sum = in_dir(&set.dir, lock_of("go"));
-    if set.locks.len() != 1 || set.locks[0] != sum {
+    if !matches!(set.locks.as_slice(), [lock] if *lock == sum) {
         return Err(unsupported(format!(
             "locks must list exactly {sum} (the run writes the lock only)"
         )));
@@ -1775,7 +1780,7 @@ fn check_pinned_lock(set: &ResolvedSet, file: &str) -> Result<(), DependencySets
 
 /// An ansible set has exactly the one collections lock its tag names.
 fn check_ansible_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    if set.locks.len() == 1 && set.locks[0].ends_with(".json") {
+    if matches!(set.locks.as_slice(), [lock] if lock.ends_with(".json")) {
         return Ok(());
     }
     Err(DependencySetsError::MissingPinnedLock {
@@ -1949,8 +1954,8 @@ fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
                 });
             }
         }
-        dir = match current.rfind('/') {
-            Some(index) => Some(&current[..index]),
+        dir = match current.rsplit_once('/') {
+            Some((parent, _)) => Some(parent),
             None if current != "." => Some("."),
             None => None,
         };

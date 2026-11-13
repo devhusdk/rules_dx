@@ -36,20 +36,19 @@ pub fn outdated(
 fn rebar_packages(lock: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     let mut rest = lock;
-    while let Some(at) = rest.find("{pkg,") {
-        rest = &rest[at + "{pkg,".len()..];
+    while let Some((_, after)) = rest.split_once("{pkg,") {
+        rest = after;
         let mut names = Vec::new();
         let mut cursor = rest;
         while names.len() < 2 {
-            let Some(open) = cursor.find("<<\"") else {
+            let Some((_, body)) = cursor.split_once("<<\"") else {
                 break;
             };
-            let body = &cursor[open + 3..];
-            let Some(close) = body.find("\">>") else {
+            let Some((name, after)) = body.split_once("\">>") else {
                 break;
             };
-            names.push(body[..close].to_owned());
-            cursor = &body[close + 3..];
+            names.push(name.to_owned());
+            cursor = after;
         }
         if let [package, version] = names.as_slice() {
             out.push((package.clone(), version.clone()));
@@ -88,11 +87,17 @@ fn locked_packages(lock: &str) -> Vec<(String, String)> {
 fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), DxError> {
     let json: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
-    let releases = json["releases"].as_array().map_or(&[][..], Vec::as_slice);
-    let mut best = json["latest_stable_version"].as_str().map(str::to_owned);
+    let releases = json
+        .get("releases")
+        .and_then(serde_json::Value::as_array)
+        .map_or(&[][..], Vec::as_slice);
+    let mut best = json
+        .get("latest_stable_version")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned);
     if prereleases || best.is_none() {
         for entry in releases {
-            let Some(version) = entry["version"].as_str() else {
+            let Some(version) = entry.get("version").and_then(serde_json::Value::as_str) else {
                 continue;
             };
             let newer = best
@@ -106,8 +111,10 @@ fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), DxE
     let best = best.ok_or_else(|| DxError::failure("no version"))?;
     let published = releases
         .iter()
-        .find(|entry| entry["version"].as_str() == Some(best.as_str()))
-        .and_then(|entry| entry["inserted_at"].as_str())
+        .find(|entry| {
+            entry.get("version").and_then(serde_json::Value::as_str) == Some(best.as_str())
+        })
+        .and_then(|entry| entry.get("inserted_at").and_then(serde_json::Value::as_str))
         .map(str::to_owned);
     Ok((best, published))
 }

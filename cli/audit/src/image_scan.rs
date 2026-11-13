@@ -64,7 +64,12 @@ pub fn severity_list(floor: &str) -> Result<String, DxError> {
                 "scan_severity '{floor}': want LOW, MEDIUM, HIGH or CRITICAL"
             ))
         })?;
-    Ok(SEVERITIES[at..].join(","))
+    Ok(SEVERITIES
+        .iter()
+        .skip(at)
+        .copied()
+        .collect::<Vec<_>>()
+        .join(","))
 }
 
 pub fn trivy_args(

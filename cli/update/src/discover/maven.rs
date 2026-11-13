@@ -40,11 +40,15 @@ pub fn outdated(
         if !(3..=5).contains(&parts.len()) {
             continue;
         }
-        let package = format!("{}:{}", parts[0], parts[1]);
+        let (Some(group), Some(artifact_id), Some(&requested)) =
+            (parts.first(), parts.get(1), parts.last())
+        else {
+            continue;
+        };
+        let package = format!("{group}:{artifact_id}");
         if !wanted(only, &package) {
             continue;
         }
-        let requested = parts[parts.len() - 1];
         let current = resolved.get(&package).map_or(requested, String::as_str);
         if current != requested {
             found.overridden.push(Overridden {
@@ -56,8 +60,8 @@ pub fn outdated(
         }
         let url = format!(
             "{base}/{}/{}/maven-metadata.xml",
-            parts[0].replace('.', "/"),
-            parts[1]
+            group.replace('.', "/"),
+            artifact_id
         );
         match fetch.get(&url).and_then(|body| newest(&body, prereleases)) {
             Ok(latest) => {
@@ -90,7 +94,10 @@ fn is_release(version: &str) -> bool {
         PRERELEASE.iter().any(|word| token.starts_with(word))
             || token == "milestone"
             || token.starts_with("milestone")
-            || (token.starts_with('m') && token[1..].starts_with(|c: char| c.is_ascii_digit()))
+            || (token.starts_with('m')
+                && token
+                    .strip_prefix('m')
+                    .is_some_and(|tail| tail.starts_with(|c: char| c.is_ascii_digit())))
     })
 }
 

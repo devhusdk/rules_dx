@@ -38,7 +38,11 @@ pub fn outdated(
         }
     };
     for (name, current) in wanted_pins {
-        let Some(versions) = manifest["repository"][name.as_str()].as_object() else {
+        let Some(versions) = manifest
+            .get("repository")
+            .and_then(|repository| repository.get(name.as_str()))
+            .and_then(serde_json::Value::as_object)
+        else {
             found.errors.push(LookupError {
                 set: set.to_owned(),
                 package: name.clone(),

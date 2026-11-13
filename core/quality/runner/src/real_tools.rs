@@ -6750,12 +6750,20 @@ fn jet_report(
     assert!(after("--report").contains(".dx-jet"));
     let body = format!(
         concat!(
-            r#"{{"v":1,"kind":"UndefVarError","message":"x is not defined","frames":[{{"file":"{0}/lib/bad.jl","line":3}}]}}"#,
+            r#"{{"v":1,"kind":"UndefVarError","message":"x is not defined","frames":[{{"file":"{0}","line":3}}]}}"#,
             "\n",
-            r#"{{"v":1,"kind":"MethodError","message":"dep","frames":[{{"file":"{0}/dx-jet/rf/_main/dep.jl","line":1}}]}}"#,
+            r#"{{"v":1,"kind":"MethodError","message":"dep","frames":[{{"file":"{1}","line":1}}]}}"#,
             "\n"
         ),
-        json_escape(&root)
+        json_escape(&Path::new(&root).join("lib").join("bad.jl").to_string_lossy()),
+        json_escape(
+            &Path::new(&root)
+                .join("dx-jet")
+                .join("rf")
+                .join("_main")
+                .join("dep.jl")
+                .to_string_lossy()
+        )
     );
     std::fs::write(after("--report"), body)?;
     Ok(ChildOutput {

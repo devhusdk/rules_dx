@@ -33,32 +33,6 @@ BOOT_FILES = ["no_dot_erlang.boot", "start_clean.boot", "start_sasl.boot"]
 
 _CELL_PREFIX = "dx_otp_"
 
-ROOT_BUILD = """load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
-
-package(default_visibility = ["//visibility:public"])
-
-config_setting(
-    name = "debug_build",
-    values = {"compilation_mode": "dbg"},
-)
-
-string_flag(name = "erlang_home", build_setting_default = "")
-
-string_flag(name = "erlang_version", build_setting_default = "")
-
-string_flag(name = "ct_logdir", build_setting_default = "")
-
-string_flag(name = "ct_test_windows_logdir_drive_letter", build_setting_default = "b")
-
-exports_files(["LICENSE", "LICENSE-APACHE2", "LICENSE-MPL-RabbitMQ"])
-"""
-
-PRIVATE_BUILD = """config_setting(
-    name = "private_stamp_detect",
-    values = {"stamp": "1"},
-)
-"""
-
 _OTP_BUILD = """load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_dx//erlang/private/toolchain:otp.bzl", "dx_otp")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_toolchain")

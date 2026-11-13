@@ -1038,6 +1038,45 @@ dx_pins.archive(
     pins = "//haskell:pins.json",
 )
 dx_pins.archive(
+    name = "rules_elixir",
+    dropped = [
+        ".bazelignore",
+        ".bazelrc",
+        ".bazelversion",
+        "MODULE.bazel",
+        "examples",
+        "test",
+    ],
+    patches = [
+        "//patches/rules_elixir:elixir_app_name.patch",
+        "//patches/rules_elixir:elixir_app_deps.patch",
+        "//patches/rules_elixir:warnings_as_errors.patch",
+        "//patches/rules_elixir:relocatable_tree.patch",
+        "//patches/rules_elixir:windows_ex_unit_test.patch",
+    ],
+    pins = "//elixir:pins.json",
+)
+dx_pins.archive(
+    name = "rules_erlang",
+    build = "//erlang/private:rules_erlang.BUILD.bazel",
+    dropped = [
+        "MODULE.bazel",
+        "gazelle",
+        "test",
+    ],
+    files = {
+        "private/BUILD.bazel": "//erlang/private:rules_erlang_private.BUILD.bazel",
+    },
+    patches = [
+        "//patches/rules_erlang:01_xrl_yrl.patch",
+        "//patches/rules_erlang:02_tcw_tags.patch",
+        "//patches/rules_erlang:03_auto_sname.patch",
+        "//patches/rules_erlang:04_otp_tree.patch",
+        "//patches/rules_erlang:05_windows_eunit_cover.patch",
+    ],
+    pins = "//erlang:pins.json",
+)
+dx_pins.archive(
     name = "rules_powershell",
     pins = "//powershell:pins.json",
 )
@@ -1294,6 +1333,8 @@ use_repo(
     "opam_windows_x86_64",
     "rules_d",
     "rules_dotnet",
+    "rules_elixir",
+    "rules_erlang",
     "rules_haskell",
     "rules_powershell",
     "rules_ruby",
@@ -1705,10 +1746,10 @@ use_repo(cuda, "cuda")
 register_toolchains("@cuda//toolchain/...")
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
-use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlfmt", "dx_erlperf", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "dx_rebar3", "rules_erlang")
+use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlfmt", "dx_erlperf", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "dx_rebar3")
 
 elixir = use_extension("//elixir:extensions.bzl", "elixir")
-use_repo(elixir, "dx_credo", "dx_elixir", "dx_elixir_toolchains", "rules_elixir")
+use_repo(elixir, "dx_credo", "dx_elixir", "dx_elixir_toolchains")
 
 hex = use_extension("//elixir:extensions.bzl", "hex")
 hex.lock(

@@ -1,15 +1,13 @@
 """Module extension for erlang/private/toolchain."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load("//elixir/private:hex.bzl", "hex_package")
 load("//erlang/private:rebar_lock.bzl", "rebar_lock_packages")
-load("//core:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "CELLS", "HEX_SOURCES", "REBAR3_SHA256", "REBAR3_URLS", "RULES_ERLANG_COMMIT", "RULES_ERLANG_SHA256", "RULES_ERLANG_URLS", "TOOL_SOURCES")
-load(":repos.bzl", "HEX_BUILD", "HUB_NAME", "PRIVATE_BUILD", "ROOT_BUILD", "TOOL_BUILDS", "cell_repository_name", "hub_build", "otp_repo", "rebar_hub_build", "rebar_package")
-
+load(":pins.bzl", "CELLS", "HEX_SOURCES", "REBAR3_SHA256", "REBAR3_URLS", "TOOL_SOURCES")
+load(":repos.bzl", "HEX_BUILD", "HUB_NAME", "TOOL_BUILDS", "cell_repository_name", "hub_build", "otp_repo", "rebar_hub_build", "rebar_package")
 
 HEX_DEPS = {"dx_erlperf": ["@dx_erlang_argparse//:erlang_app"]}
-
 
 def _declare_rebar(mctx, tag):
     packages = rebar_lock_packages(mctx.read(tag.lock))
@@ -25,25 +23,6 @@ def _declare_rebar(mctx, tag):
     hub_repo(name = tag.name, files = {"BUILD.bazel": rebar_hub_build(packages, tag.name)})
 
 def _erlang_impl(mctx):
-    pinned_archive(
-        name = "rules_erlang",
-        dropped = ["MODULE.bazel", "gazelle", "test"],
-        files = {
-            "BUILD.bazel": ROOT_BUILD,
-            "private/BUILD.bazel": PRIVATE_BUILD,
-        },
-        patches = [
-            Label("//patches/rules_erlang:01_xrl_yrl.patch"),
-            Label("//patches/rules_erlang:02_tcw_tags.patch"),
-            Label("//patches/rules_erlang:03_auto_sname.patch"),
-            Label("//patches/rules_erlang:04_otp_tree.patch"),
-            Label("//patches/rules_erlang:05_windows_eunit_cover.patch"),
-        ],
-        sha256 = RULES_ERLANG_SHA256,
-        strip_prefix = "rules_erlang-" + RULES_ERLANG_COMMIT,
-        type = "tar.gz",
-        urls = RULES_ERLANG_URLS,
-    )
     for cell in sorted(CELLS.keys()):
         otp_repo(name = cell_repository_name(cell), cell = cell)
     hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
@@ -78,10 +57,9 @@ def _erlang_impl(mctx):
             _declare_rebar(mctx, tag)
     return mctx.extension_metadata(reproducible = True)
 
-
 erlang = module_extension(
     implementation = _erlang_impl,
-    doc = "Creates rules_erlang, the pinned OTP trees, the toolchain hub and the erlfmt and elvis sources.",
+    doc = "Creates the pinned OTP trees, the toolchain hub and the erlfmt and elvis sources.",
     tag_classes = {
         "rebar": tag_class(
             doc = "Declares a package repo per entry of a rebar.lock and a hub repo with one erlang_app alias per package.",

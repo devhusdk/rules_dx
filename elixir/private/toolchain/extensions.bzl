@@ -1,9 +1,9 @@
 """The elixir module extension."""
 
+load("//core:repo.bzl", "hub_repo")
 load("//elixir/private:hex.bzl", "hex_package")
 load("//elixir/private:mix_lock.bzl", "mix_lock_packages")
-load("//core:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "ELIXIR_CELLS", "RULES_ELIXIR_COMMIT", "RULES_ELIXIR_DROPPED", "RULES_ELIXIR_SHA256", "RULES_ELIXIR_URLS")
+load(":pins.bzl", "ELIXIR_CELLS")
 load(":repos.bzl", "CREDO_NAME", "DIST_NAME", "HUB_NAME", "credo_repo", "dist_repo", "hub_build", "mix_build", "mix_hub_build")
 
 def _declare_mix(mctx, tag):
@@ -19,21 +19,6 @@ def _declare_mix(mctx, tag):
     hub_repo(name = tag.name, files = {"BUILD.bazel": mix_hub_build(packages, tag.name)})
 
 def _elixir_impl(mctx):
-    pinned_archive(
-        name = "rules_elixir",
-        dropped = RULES_ELIXIR_DROPPED,
-        patches = [
-            # Applied in this order: the deps patch builds on the name patch.
-            Label("//patches/rules_elixir:elixir_app_name.patch"),
-            Label("//patches/rules_elixir:elixir_app_deps.patch"),
-            Label("//patches/rules_elixir:warnings_as_errors.patch"),
-            Label("//patches/rules_elixir:relocatable_tree.patch"),
-            Label("//patches/rules_elixir:windows_ex_unit_test.patch"),
-        ],
-        sha256 = RULES_ELIXIR_SHA256,
-        strip_prefix = "rules_elixir-" + RULES_ELIXIR_COMMIT,
-        urls = RULES_ELIXIR_URLS,
-    )
     dist_repo(name = DIST_NAME)
     hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(ELIXIR_CELLS)})
     credo_repo(name = CREDO_NAME)
@@ -41,7 +26,7 @@ def _elixir_impl(mctx):
 
 elixir = module_extension(
     implementation = _elixir_impl,
-    doc = "Creates rules_elixir, the pinned Elixir tree and the toolchain hub.",
+    doc = "Creates the pinned Elixir tree and the toolchain hub.",
 )
 
 def _hex_impl(mctx):

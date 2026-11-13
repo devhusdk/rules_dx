@@ -22,6 +22,8 @@ const GATED: &[&str] = &[
     "//cc/private/toolchains:gcc_linux_x86_64",
     "//cc/private/toolchains:gcc_linux_x86_64_to_arm64",
     "//cc/private/toolchains:gcc_unsupported",
+    "//cc/private/toolchains:llvm_fuzzer_macos_arm64",
+    "//cc/private/toolchains:llvm_fuzzer_macos_x86_64",
     "//cc/private/toolchains:msvc_unsupported",
     "//cc/private/toolchains:msvc_windows_arm64",
     "//cc/private/toolchains:msvc_windows_x86_64",

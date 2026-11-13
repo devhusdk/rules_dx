@@ -1,0 +1,295 @@
+{
+  "ecosystem": "cabal",
+  "inputs": {
+    "bench.cabal": "4c5d47d89e2e7f2c0f45356b2dadb4e8c643c0aff3f7f0a0e1356c2a66e667c7",
+    "cabal.project": "2068c625626934a1f9c50734b3465c9409fe3ecbd23ed86f98cda179b6e191de",
+    "cabal.project.freeze": "08a07bb47b02731886e6f9940ca677d3b6f18657f0e38a9df071a3696957d426"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "9cf083cef2e2ba88a425f132c8a82bfa931eb4b0c38232b2017f8fcea2e23073",
+          "strip_prefix": "ansi-terminal-1.1.5",
+          "urls": [
+            "https://hackage.haskell.org/package/ansi-terminal-1.1.5/ansi-terminal-1.1.5.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "ansi-terminal-types",
+        "colour"
+      ],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "ansi-terminal-types",
+          "base",
+          "colour"
+        ],
+        "cabal_revision": {
+          "number": 0,
+          "sha256": "408d9232e5304efead718f96138d6d7eb2da608c6121c5c0dc6a71a833b14320"
+        }
+      },
+      "name": "ansi-terminal",
+      "provides": [],
+      "version": "1.1.5"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "9fc9ce2157f1889bd99a4d22c9f1c64589590be0f797c3efe71c8fa17a11a689",
+          "strip_prefix": "ansi-terminal-types-1.1.3",
+          "urls": [
+            "https://hackage.haskell.org/package/ansi-terminal-types-1.1.3/ansi-terminal-types-1.1.3.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "colour"
+      ],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "base",
+          "colour"
+        ],
+        "cabal_revision": {
+          "number": 0,
+          "sha256": "1d6061eceaf35a9ed269b81177dd4c8c60403a499526f7f68fdffa4ec7842e7f"
+        }
+      },
+      "name": "ansi-terminal-types",
+      "provides": [],
+      "version": "1.1.3"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "1f3b1055675abe4e3362800cc9bf7ab9b92dfdf21a1f6c82b252611270be9680",
+          "strip_prefix": "colour-2.3.7",
+          "urls": [
+            "https://hackage.haskell.org/package/colour-2.3.7/colour-2.3.7.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "base"
+        ],
+        "cabal_revision": {
+          "number": 0,
+          "sha256": "613dc8d5f6e51babe57398a742ab8d5c2964fa98b773f3bf6e6a72b7e87f1c6e"
+        }
+      },
+      "name": "colour",
+      "provides": [],
+      "version": "2.3.7"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "cf16aeefd821730c7738447fa7c6b7ada7ca1c9cc25400d64ef283294d345871",
+          "strip_prefix": "optparse-applicative-0.19.0.0",
+          "urls": [
+            "https://hackage.haskell.org/package/optparse-applicative-0.19.0.0/optparse-applicative-0.19.0.0.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "prettyprinter",
+        "prettyprinter-ansi-terminal"
+      ],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "base",
+          "prettyprinter",
+          "prettyprinter-ansi-terminal",
+          "process",
+          "text",
+          "transformers"
+        ],
+        "cabal_revision": {
+          "number": 1,
+          "sha256": "4c1dcbdbf2498f7cdd88826e876403db7f8d81931962060ec4c3a57a186c6cc3"
+        }
+      },
+      "name": "optparse-applicative",
+      "provides": [],
+      "version": "0.19.0.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "f04eb6fd865512ad8672da1e8bfcea1c384509fc2f662c41b7ac39d7898706ee",
+          "strip_prefix": "prettyprinter-1.7.2",
+          "urls": [
+            "https://hackage.haskell.org/package/prettyprinter-1.7.2/prettyprinter-1.7.2.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "base",
+          "text"
+        ],
+        "cabal_revision": {
+          "number": 0,
+          "sha256": "e3a802ea939d465b2e37b9fa09d8e5bb88b5775d6d62dd2ec6ca32b63416656d"
+        }
+      },
+      "name": "prettyprinter",
+      "provides": [],
+      "version": "1.7.2"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "912cd340d5c2583111e2eaeb9aa03b87551ca2e3dd78bbfd346756b9f1e6c9fe",
+          "strip_prefix": "prettyprinter-ansi-terminal-1.1.4",
+          "urls": [
+            "https://hackage.haskell.org/package/prettyprinter-ansi-terminal-1.1.4/prettyprinter-ansi-terminal-1.1.4.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "ansi-terminal",
+        "prettyprinter"
+      ],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "ansi-terminal",
+          "base",
+          "prettyprinter",
+          "text"
+        ],
+        "cabal_revision": {
+          "number": 0,
+          "sha256": "5184ba6002a650de3307547347eaba19bdc9b82eb68e943f406818caa215ce4f"
+        }
+      },
+      "name": "prettyprinter-ansi-terminal",
+      "provides": [],
+      "version": "1.1.4"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "cd4c8d122f367b608b3cafade19efe980c4d6b982aa27c6c0690e552948e6b78",
+          "strip_prefix": "tagged-0.9",
+          "urls": [
+            "https://hackage.haskell.org/package/tagged-0.9/tagged-0.9.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "base",
+          "deepseq"
+        ],
+        "cabal_revision": {
+          "number": 0,
+          "sha256": "4d7bb8fec6dbb3107ff4fb1b25fa5a73049afde4b50cd434f6843de6c270fdbf"
+        }
+      },
+      "name": "tagged",
+      "provides": [],
+      "version": "0.9"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "c76120141bd61c4418b3ed5efc5fe3094186d47cfe12d7be552320139f52c6c7",
+          "strip_prefix": "tasty-1.5.4",
+          "urls": [
+            "https://hackage.haskell.org/package/tasty-1.5.4/tasty-1.5.4.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "ansi-terminal",
+        "optparse-applicative",
+        "tagged"
+      ],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "ansi-terminal",
+          "base",
+          "containers",
+          "optparse-applicative",
+          "stm",
+          "tagged",
+          "transformers",
+          "unix"
+        ],
+        "cabal_revision": {
+          "number": 1,
+          "sha256": "2065ef38e061551c7e3a997c4a4eac1b68dbf0553cc6177f01c8f7982f4cd375"
+        }
+      },
+      "name": "tasty",
+      "provides": [],
+      "version": "1.5.4"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "829c80478dcd6450f3ddab0232603850bff6bc7277b2eecf126b2fd9c26d7be2",
+          "strip_prefix": "tasty-bench-0.4",
+          "urls": [
+            "https://hackage.haskell.org/package/tasty-bench-0.4/tasty-bench-0.4.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "tasty"
+      ],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "base",
+          "containers",
+          "deepseq",
+          "ghc-prim",
+          "tasty"
+        ],
+        "cabal_revision": {
+          "number": 1,
+          "sha256": "06e336ea94ae35f116318e535a7d70947734bb7dae35f6ba36cfbd0bb23c1fe3"
+        }
+      },
+      "name": "tasty-bench",
+      "provides": [],
+      "version": "0.4"
+    }
+  ],
+  "schema": 1
+}

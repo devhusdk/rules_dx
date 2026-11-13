@@ -405,7 +405,7 @@ LANGUAGES = [
     _language(
         "haskell",
         bench = "haskell_bench",
-        deps = "`hackage` from `" + LOCK_REGISTRY["cabal"]["state"] + "`; none for `stack.yaml.lock`, which `haskell_deps_resolve` reads to write it",
+        deps = "`hackage` from `" + LOCK_REGISTRY["cabal"]["state"] + "`; none for `stack.yaml.lock`",
         doc = struct(tool = "haddock", shard = "haskell_doc_shard"),
         dead_code = ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
         unsupported = "//haskell/private/toolchain:unsupported",

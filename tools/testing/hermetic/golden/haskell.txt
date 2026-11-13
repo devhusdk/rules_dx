@@ -7,9 +7,9 @@ file haskell/tests/fixtures/haskell_app/cli/src/ReportWithoutSplit.hs
 file haskell/tests/fixtures/haskell_app/cli/test/CliTest.hs
 file haskell/tests/fixtures/haskell_app/stock/BUILD.bazel
 file haskell/tests/fixtures/haskell_app/stock/VERSION
+file haskell/tests/fixtures/haskell_app/stock/cabal.lock.json
 file haskell/tests/fixtures/haskell_app/stock/cbits/checksum.c
 file haskell/tests/fixtures/haskell_app/stock/cbits/checksum.h
-file haskell/tests/fixtures/haskell_app/stock/haskell_deps.json
 file haskell/tests/fixtures/haskell_app/stock/src/Stock.hs
 file haskell/tests/fixtures/haskell_app/stock/test/StockTest.hs
 failure //haskell/tests/fixtures/haskell_app/cli:report_without_split

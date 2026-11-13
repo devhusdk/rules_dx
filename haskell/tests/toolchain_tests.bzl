@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "is_sha256", "package_build", "package_deps", "pin_problems", "tool_labels")
+load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "tool_labels")
 load("//haskell/private/toolchain:pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
 load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
@@ -166,7 +166,8 @@ def _checks():
     archive = {"sha256": "a" * 64, "strip_prefix": "x-1.0", "urls": ["https://hackage.haskell.org/package/x-1.0/x-1.0.tar.gz"]}
     lock = {"schema": 1, "packages": [
         {"name": "alex", "version": "3.5", "archives": [archive], "deps": [], "extra": {"cabal_components": ["exe:alex"]}},
-        {"name": "lib", "version": "1.0", "archives": [archive], "deps": ["alex", "base"], "extra": {"cabal_components": ["lib"], "cabal_tools": ["alex:alex"]}},
+        {"name": "lib", "version": "1.0", "archives": [archive], "deps": ["alex"], "extra": {"cabal_components": ["lib"], "cabal_deps": ["alex", "base", "sub:inner"], "cabal_tools": ["alex:alex"]}},
+        {"name": "sub", "version": "1.0", "archives": [archive], "deps": [], "extra": {"cabal_components": ["lib", "lib:inner"]}},
     ]}
     package = lock["packages"][1]
     build = package_build("lib", "1.0", components(package), package_deps("hub", lock, package), tool_labels("hub", package), {"": {"deps": [], "empty": False}})
@@ -185,6 +186,8 @@ def _checks():
         expect_contains("package build renders tools", build, 'tools = ["@hub_alex//:alex-exe-alex"]'),
         expect_contains("a lock package dep points at its repository", build, '"@hub_alex//:alex"'),
         expect_contains("a dep outside the lock is a GHC boot package", build, '"@dx_haskell_toolchains//lib:base"'),
+        expect_contains("a sublibrary dep points at its alias", build, '"@hub_sub//:sub-lib-inner"'),
+        expect_false("lock deps alone do not name boot packages", "lib:base" in package_build("hub", lock, lock["packages"][1] | {"extra": {"cabal_components": ["lib"]}})),
     ]
     pinned = {"name": "pinned", "version": "1.0", "archives": [archive], "extra": {"cabal_revision": {"number": 2, "sha256": "b" * 64}}}
     checks += [

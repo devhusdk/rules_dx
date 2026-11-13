@@ -1,0 +1,38 @@
+{
+  "ecosystem": "cabal",
+  "inputs": {
+    "cabal.project": "03bf61c0d93b74d46d8c8b438be67ad93cd7a62f61768c2ff132066c7d7a7d32",
+    "cabal.project.freeze": "49a116e8161860efddc4b7623b2046d792b98a770971532ef0dcae1a02ed3e0e",
+    "stack_app.cabal": "6d9fa7c5eacbabff88f9009268dd42977955096ed92885cd4d47bfa9f74bd137"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "2c81fea42bbe79ec488774043c1ec54f30efba059df9a4f3681ce83d85007f01",
+          "strip_prefix": "safe-0.3.21",
+          "urls": [
+            "https://hackage.haskell.org/package/safe-0.3.21/safe-0.3.21.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "cabal_components": [
+          "lib"
+        ],
+        "cabal_deps": [
+          "base"
+        ],
+        "cabal_revision": {
+          "number": 1,
+          "sha256": "b928ea1645876788155b38ce85c7e46d157a1bb41d2b05f5770b13d60bc6a3f7"
+        }
+      },
+      "name": "safe",
+      "provides": [],
+      "version": "0.3.21"
+    }
+  ],
+  "schema": 1
+}

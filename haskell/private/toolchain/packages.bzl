@@ -167,7 +167,7 @@ def _cabal_args(library):
 def package_deps(hub, lock, package):
     """Returns the dependency labels of one package."""
     names = by_name(lock)
-    return sorted([dependency_label(hub, names, dep) for dep in package.get("deps", [])])
+    return sorted([dependency_label(hub, names, dep) for dep in package.get("extra", {}).get("cabal_deps", [])])
 
 def package_build(name, version, components, deps, tools, libraries):
     """Returns the BUILD file of one package repository.

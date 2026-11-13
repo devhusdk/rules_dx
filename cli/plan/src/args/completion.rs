@@ -126,8 +126,8 @@ fn prior_scopes(words: &[OsString]) -> Vec<String> {
         Some(separator) => separator + 1,
         None => 0,
     };
-    while index < words.len() {
-        let word = words[index].to_string_lossy().into_owned();
+    while let Some(word) = words.get(index) {
+        let word = word.to_string_lossy().into_owned();
         index += 1;
         if word == "--" {
             break;
@@ -193,7 +193,7 @@ fn typed_words(words: &[OsString]) -> &[OsString] {
     if typed.first().is_some_and(|first| first == "--") {
         typed = typed.get(2..).unwrap_or_default();
     } else if typed.first().is_some_and(|first| first == "dx") {
-        typed = &typed[1..];
+        typed = typed.get(1..).unwrap_or_default();
     }
     typed.split_last().map_or(typed, |(_, rest)| rest)
 }

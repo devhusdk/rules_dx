@@ -115,10 +115,15 @@ impl RcColor {
 
     /// Whether the rc files choose `--color` for the Bazel call `argv`.
     pub fn chosen(&self, argv: &[String]) -> bool {
-        let Some(at) = argv.iter().skip(1).position(|arg| !arg.starts_with('-')) else {
+        let Some((at, verb)) = argv
+            .iter()
+            .enumerate()
+            .skip(1)
+            .find(|(_, arg)| !arg.starts_with('-'))
+        else {
             return false;
         };
-        let verb = argv[at + 1].as_str();
+        let verb = verb.as_str();
         let verb = if RESOURCE_VERBS.contains(&verb) {
             verb
         } else {
@@ -127,7 +132,7 @@ impl RcColor {
         if self.plain.contains(verb) {
             return true;
         }
-        let mut flags = argv[at + 2..].iter().take_while(|arg| *arg != "--");
+        let mut flags = argv.iter().skip(at + 1).take_while(|arg| *arg != "--");
         while let Some(flag) = flags.next() {
             let name = match flag.strip_prefix("--config=") {
                 Some(name) => Some(name),

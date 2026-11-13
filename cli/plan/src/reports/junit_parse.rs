@@ -122,21 +122,22 @@ fn decode_numeric_references(text: &str) -> Cow<'_, str> {
     }
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
-    while let Some(start) = rest.find("&#") {
-        out.push_str(&rest[..start]);
-        let tail = &rest[start + 2..];
-        let decoded = tail.find(';').filter(|end| *end <= 8).and_then(|end| {
-            let digits = &tail[..end];
-            let code = match digits.strip_prefix(['x', 'X']) {
-                Some(hex) => u32::from_str_radix(hex, 16).ok()?,
-                None => digits.parse::<u32>().ok()?,
-            };
-            let c =
-                char::from_u32(code).filter(|c| matches!(c, '\t' | '\n' | '\r') || *c >= ' ')?;
-            Some((c, end))
-        });
+    while let Some((before, tail)) = rest.split_once("&#") {
+        out.push_str(before);
+        let decoded = tail
+            .split_once(';')
+            .filter(|(digits, _)| digits.len() <= 8)
+            .and_then(|(digits, after)| {
+                let code = match digits.strip_prefix(['x', 'X']) {
+                    Some(hex) => u32::from_str_radix(hex, 16).ok()?,
+                    None => digits.parse::<u32>().ok()?,
+                };
+                let c = char::from_u32(code)
+                    .filter(|c| matches!(c, '\t' | '\n' | '\r') || *c >= ' ')?;
+                Some((c, after))
+            });
         match decoded {
-            Some((c, end)) => {
+            Some((c, after)) => {
                 match c {
                     '&' => out.push_str("&amp;"),
                     '<' => out.push_str("&lt;"),
@@ -145,7 +146,7 @@ fn decode_numeric_references(text: &str) -> Cow<'_, str> {
                     '\'' => out.push_str("&apos;"),
                     _ => out.push(c),
                 }
-                rest = &tail[end + 1..];
+                rest = after;
             }
             None => {
                 out.push_str("&#");
@@ -160,9 +161,9 @@ fn decode_numeric_references(text: &str) -> Cow<'_, str> {
 fn strip_leading_decl(text: &str) -> &str {
     let trimmed = text.trim_start();
     if trimmed.starts_with("<?xml")
-        && let Some(end) = trimmed.find("?>")
+        && let Some((_, after)) = trimmed.split_once("?>")
     {
-        return trimmed[end + 2..].trim_start();
+        return after.trim_start();
     }
     text
 }
@@ -282,13 +283,12 @@ fn escape_inner_quotes(value: Cow<'_, [u8]>) -> Cow<'_, [u8]> {
         return value;
     }
     let mut out = Vec::with_capacity(value.len());
-    let mut rest = value.as_ref();
-    while let Some(at) = rest.iter().position(|b| *b == b'"') {
-        out.extend_from_slice(&rest[..at]);
-        out.extend_from_slice(b"&quot;");
-        rest = &rest[at + 1..];
+    for (index, part) in value.split(|b| *b == b'"').enumerate() {
+        if index > 0 {
+            out.extend_from_slice(b"&quot;");
+        }
+        out.extend_from_slice(part);
     }
-    out.extend_from_slice(rest);
     Cow::Owned(out)
 }
 

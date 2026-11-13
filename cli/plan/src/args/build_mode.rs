@@ -72,8 +72,7 @@ pub(crate) fn filter_build_mode_configs(
     let required = build_mode.config_flag();
     let mut kept = Vec::with_capacity(options.len());
     let mut index = 0;
-    while index < options.len() {
-        let arg = &options[index];
+    while let Some(arg) = options.get(index) {
         if arg == &required {
             index += 1;
             continue;
@@ -99,9 +98,7 @@ pub(crate) fn filter_build_mode_configs(
         {
             return Err(dx_process::conflicting_option("config"));
         }
-        for offset in 0..consumed {
-            kept.push(options[index + offset].clone());
-        }
+        kept.extend(options.iter().skip(index).take(consumed).cloned());
         index += consumed;
     }
     Ok(kept)

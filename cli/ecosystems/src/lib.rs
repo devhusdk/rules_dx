@@ -329,6 +329,11 @@ impl Ecosystem {
         self.row().map_or(&[], |row| row.locks.as_slice())
     }
 
+    /// Names the first lockfile of this ecosystem, or `""` when it has none.
+    pub fn lockfile(self) -> &'static str {
+        self.lockfiles().first().map_or("", String::as_str)
+    }
+
     /// Names the OSV archive URL of this ecosystem's advisories.
     pub fn osv_source(self) -> Option<&'static str> {
         self.row()?.osv_source.as_deref()

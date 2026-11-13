@@ -367,7 +367,7 @@ fn drain_pipe<R: io::Read + Send + 'static>(
                         Ok(0) => break,
                         Ok(n) => {
                             let room = limit.saturating_add(1).saturating_sub(buf.len());
-                            buf.extend_from_slice(&chunk[..n.min(room)]);
+                            buf.extend(chunk.iter().take(n.min(room)));
                         }
                         Err(err) if err.kind() == io::ErrorKind::Interrupted => continue,
                         Err(_) => break,

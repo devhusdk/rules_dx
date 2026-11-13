@@ -108,7 +108,7 @@ pub fn start_time(pid: u32) -> Option<String> {
     let [creation, exit, kernel, user] = &mut times;
     // SAFETY: the handle is valid and every pointer names a writable FileTime.
     let ok = unsafe { GetProcessTimes(handle.0, creation, exit, kernel, user) };
-    (ok != 0).then(|| ((u64::from(times[0].high) << 32) | u64::from(times[0].low)).to_string())
+    (ok != 0).then(|| ((u64::from(creation.high) << 32) | u64::from(creation.low)).to_string())
 }
 
 pub fn boot_id() -> Option<String> {
@@ -140,16 +140,13 @@ pub fn process_table() -> Vec<(u32, u32, String)> {
     snapshot()
         .iter()
         .map(|entry| {
-            let end = entry
+            let name: Vec<u16> = entry
                 .exe
                 .iter()
-                .position(|unit| *unit == 0)
-                .unwrap_or(entry.exe.len());
-            (
-                entry.pid,
-                entry.parent,
-                String::from_utf16_lossy(&entry.exe[..end]),
-            )
+                .copied()
+                .take_while(|unit| *unit != 0)
+                .collect();
+            (entry.pid, entry.parent, String::from_utf16_lossy(&name))
         })
         .collect()
 }

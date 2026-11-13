@@ -44,10 +44,12 @@ pub const SLOT_MEMORY_ENV: &str = "DX_BUILD_SLOT_MEMORY";
 /// Reads a slot memory size in bytes; `None` for zero or anything unreadable.
 pub fn parse_slot_memory(value: &str) -> Option<u64> {
     let value = value.trim().to_ascii_lowercase();
-    let (digits, unit) = match value.chars().last()? {
-        'g' => (&value[..value.len() - 1], 30),
-        'm' => (&value[..value.len() - 1], 20),
-        _ => (value.as_str(), 20),
+    let (digits, unit) = if let Some(digits) = value.strip_suffix('g') {
+        (digits, 30)
+    } else if let Some(digits) = value.strip_suffix('m') {
+        (digits, 20)
+    } else {
+        (value.as_str(), 20)
     };
     if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return None;
@@ -1936,10 +1938,11 @@ impl<W: Write> Write for AfterFirstLine<W> {
         match buf.iter().position(|byte| *byte == b'\n') {
             None => self.inner.write(buf),
             Some(end) => {
-                self.inner.write_all(&buf[..=end])?;
+                let (line, rest) = buf.split_at(end + 1);
+                self.inner.write_all(line)?;
                 let pending = std::mem::take(&mut self.pending);
                 self.inner.write_all(&pending)?;
-                self.inner.write_all(&buf[end + 1..])?;
+                self.inner.write_all(rest)?;
                 Ok(buf.len())
             }
         }

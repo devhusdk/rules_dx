@@ -373,7 +373,8 @@ pub const AGENT_QUIET_FLAGS: [&str; 6] = [
 impl Invocation {
     /// Whether `dx update` names one `<set:package> <version>` to widen or add.
     pub fn edits_version(&self) -> bool {
-        self.command == Command::Update && self.targets.len() == 2 && is_version(&self.targets[1])
+        self.command == Command::Update
+            && matches!(self.targets.as_slice(), [_, version] if is_version(version))
     }
 
     /// Bazel UI flags that silence progress output in agent JSON sessions and piped runs; `-v` keeps Bazel output.

@@ -128,8 +128,8 @@ fn known_flags() -> Vec<String> {
 /// The words after the command word, up to the `--` separator, with their
 /// flags spelled canonically and inline values kept.
 fn words_after_command<S: AsRef<OsStr>>(args: &[S], command_at: usize) -> Vec<String> {
-    args[command_at + 1..]
-        .iter()
+    args.iter()
+        .skip(command_at + 1)
         .filter_map(|word| word.as_ref().to_str())
         .take_while(|word| *word != "--")
         .map(canonical_word)
@@ -151,15 +151,13 @@ fn name_of(word: &str) -> &str {
 }
 
 /// The flag as typed, with its value attached when the value is a separate word.
-fn spelled(words: &[String], index: usize) -> String {
-    let word = &words[index];
-    let next = words.get(index + 1).map(String::as_str);
+fn spelled(word: &str, next: Option<&str>) -> String {
     if !super::grammar::option_at(word, next).is_some_and(|option| option.used_next) {
-        return word.clone();
+        return word.to_owned();
     }
     match next {
         Some(value) => format!("{word}={value}"),
-        None => word.clone(),
+        None => word.to_owned(),
     }
 }
 
@@ -180,10 +178,10 @@ fn unsupported_option<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
         .enumerate()
         .filter_map(|(index, word)| word.as_ref().to_str().map(|word| (index, word)))
         .collect();
-    let command_at = utf8
+    let (command_at, command) = utf8
         .iter()
-        .position(|(_, word)| Command::parse(word).is_some())?;
-    let command = Command::parse(utf8[command_at].1)?;
+        .enumerate()
+        .find_map(|(at, (_, word))| Command::parse(word).map(|command| (at, command)))?;
     let after_command = utf8.iter().any(|(index, word)| {
         *index > command_at && reported_flag(word).as_deref() == Some(token.as_str())
     });
@@ -193,8 +191,12 @@ fn unsupported_option<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
     let words = words_after_command(args, command_at);
     let named = words
         .iter()
-        .position(|word| name_of(word) == token)
-        .map_or_else(|| token.clone(), |index| spelled(&words, index));
+        .enumerate()
+        .find(|(_, word)| name_of(word) == token)
+        .map_or_else(
+            || token.clone(),
+            |(index, word)| spelled(word, words.get(index + 1).map(String::as_str)),
+        );
     let named = if matches!(token.as_str(), "--output" | "--report") {
         named
     } else {
@@ -253,9 +255,7 @@ mod tests {
 
     #[test]
     fn a_short_cluster_takes_its_value_word() {
-        let words: Vec<String> = ["-qo", "json"].map(str::to_owned).to_vec();
-        assert_eq!(spelled(&words, 0), "-qo=json");
-        let words: Vec<String> = ["-q", "json"].map(str::to_owned).to_vec();
-        assert_eq!(spelled(&words, 0), "-q");
+        assert_eq!(spelled("-qo", Some("json")), "-qo=json");
+        assert_eq!(spelled("-q", Some("json")), "-q");
     }
 }

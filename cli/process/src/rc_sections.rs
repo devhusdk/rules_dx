@@ -61,7 +61,7 @@ fn logical_lines(text: &str) -> Vec<String> {
                     None => {}
                 }
             }
-            line[..end].trim().to_owned()
+            line.get(..end).unwrap_or(line).trim().to_owned()
         })
         .filter(|line| !line.is_empty())
         .collect()
@@ -288,7 +288,9 @@ pub fn explicit_rc_files(
     let mut flag_paths = Vec::new();
     let mut index = 0;
     while index < startup.len() {
-        let option = startup[index].as_str();
+        let Some(option) = startup.get(index).map(String::as_str) else {
+            break;
+        };
         if let Some(path) = option.strip_prefix("--bazelrc=") {
             flag_paths.push(path.to_owned());
         } else if option == "--bazelrc"
@@ -325,9 +327,12 @@ fn load(
     for line in logical_lines(&text) {
         let line = line.as_str();
         let words = tokenize(line);
-        let first = words[0].as_str();
+        let Some((first, tail)) = words.split_first() else {
+            continue;
+        };
+        let first = first.as_str();
         if matches!(first, "import" | "try-import") {
-            let rest = line[first.len()..].trim();
+            let rest = line.get(first.len()..).unwrap_or_default().trim();
             let target = import_path(unquote(rest), workspace);
             load(&target, workspace, read_file, seen, depth + 1, lines);
             continue;
@@ -339,7 +344,7 @@ fn load(
         lines.push(Line {
             command: command.to_owned(),
             config,
-            tokens: words[1..].to_vec(),
+            tokens: tail.to_vec(),
         });
     }
 }
@@ -384,7 +389,9 @@ fn expand_tokens(
 ) {
     let mut index = 0;
     while index < tokens.len() {
-        let token = tokens[index].as_str();
+        let Some(token) = tokens.get(index).map(String::as_str) else {
+            break;
+        };
         if let Some(name) = token.strip_prefix("--config=") {
             expand_config(lines, levels, name, stack, out);
         } else if token == "--config" {

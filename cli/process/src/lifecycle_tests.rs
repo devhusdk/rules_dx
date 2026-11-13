@@ -1120,7 +1120,7 @@ fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
         StreamOutcome::Exited(Exit::Code(0))
     );
     let stat = String::from_utf8(sink.bytes()).expect("utf-8 stat");
-    let after_name = &stat[stat.rfind(')').expect("stat names the command") + 2..];
+    let (_, after_name) = stat.rsplit_once(')').expect("stat names the command");
     let fields: Vec<&str> = after_name.split_whitespace().collect();
     let pid: i32 = stat
         .split_whitespace()
@@ -1128,7 +1128,7 @@ fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
         .expect("pid")
         .parse()
         .expect("pid");
-    let pgid: i32 = fields[2].parse().expect("pgrp");
+    let pgid: i32 = fields.get(2).expect("pgrp").parse().expect("pgrp");
     assert_ne!(pgid, unsafe { libc::getpgrp() }, "{stat}");
     if !terminal_foreground() {
         assert_eq!(pgid, pid, "{stat}");

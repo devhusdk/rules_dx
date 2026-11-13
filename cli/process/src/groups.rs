@@ -175,7 +175,7 @@ mod sys {
     #[cfg(target_os = "linux")]
     pub(super) fn stat_start(stat: &[u8]) -> Option<&[u8]> {
         let close = stat.iter().rposition(|&byte| byte == b')')?;
-        stat[close + 1..]
+        stat.get(close + 1..)?
             .split(u8::is_ascii_whitespace)
             .filter(|field| !field.is_empty())
             .nth(19)
@@ -200,8 +200,10 @@ mod sys {
         let Ok(read) = usize::try_from(read) else {
             return;
         };
-        let Some(start) =
-            stat_start(&stat[..read]).and_then(|start| std::str::from_utf8(start).ok())
+        let Some(start) = stat
+            .get(..read)
+            .and_then(stat_start)
+            .and_then(|start| std::str::from_utf8(start).ok())
         else {
             return;
         };

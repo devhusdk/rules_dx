@@ -55,9 +55,9 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
         .collect();
     let mut seen: Option<String> = None;
     let mut index = 0;
-    while index < words.len() {
+    while let Some(word) = words.get(index).copied() {
         let next = words.get(index + 1).copied();
-        if let Some(option) = super::grammar::option_at(words[index], next) {
+        if let Some(option) = super::grammar::option_at(word, next) {
             if matches!(option.name.as_str(), "--output" | "-o") && option.value.is_some() {
                 seen = option.value;
             }
@@ -155,8 +155,9 @@ fn wrapped_invocation<S: AsRef<OsStr>>(
         .iter()
         .position(|word| word.as_ref().to_str() == Some("--"))
         .unwrap_or(args.len());
-    let poll = args[..dashes_at]
+    let poll = args
         .iter()
+        .take(dashes_at)
         .any(|word| word.as_ref().to_str() == Some("--poll"));
     let mut rest: Vec<&OsStr> = vec![OsStr::new(&wrapped)];
     rest.extend(
@@ -217,14 +218,17 @@ fn validate_worktree(targets: &[String]) -> Result<(), ArgsError> {
     if targets.len() < min {
         return Err(missing_positional(command));
     }
-    if targets.len() > max {
-        return Err(extra_positional(command, &targets[max]));
+    if let Some(extra) = targets.get(max) {
+        return Err(extra_positional(command, extra));
     }
-    if sub == "hook" && HookKind::from_word(&targets[1]).is_none() {
+    if sub == "hook"
+        && let Some(hook) = targets.get(1)
+        && HookKind::from_word(hook).is_none()
+    {
         return Err(ArgsError::Usage {
             text: format!(
                 "unknown dx worktree hook {:?}: want one of: {}",
-                targets[1],
+                hook,
                 HookKind::names()
             ),
         });
@@ -500,7 +504,8 @@ fn parse_inner<S: AsRef<OsStr>>(
             Some("--floor")
         } else if reason.is_some() {
             Some("--reason")
-        } else if targets.len() == 2 && super::invocation::is_version(&targets[1]) {
+        } else if matches!(targets.as_slice(), [_, version] if super::invocation::is_version(version))
+        {
             Some("<version>")
         } else {
             None
@@ -546,7 +551,8 @@ fn parse_inner<S: AsRef<OsStr>>(
             Some("--reason")
         } else if offline {
             Some("--offline")
-        } else if targets.len() == 2 && super::invocation::is_version(&targets[1]) {
+        } else if matches!(targets.as_slice(), [_, version] if super::invocation::is_version(version))
+        {
             Some("<version>")
         } else {
             None
@@ -567,7 +573,8 @@ fn parse_inner<S: AsRef<OsStr>>(
         }
     }
     if command == Command::Update && (floor || reason.is_some()) {
-        let versioned = targets.len() == 2 && super::invocation::is_version(&targets[1]);
+        let versioned =
+            matches!(targets.as_slice(), [_, version] if super::invocation::is_version(version));
         if !versioned {
             return Err(unsupported(
                 command,
@@ -638,14 +645,14 @@ fn parse_inner<S: AsRef<OsStr>>(
     if command.is_adoption() {
         match command {
             Command::Status => {
-                if !targets.is_empty() {
-                    return Err(extra_positional(command, &targets[0]));
+                if let Some(extra) = targets.first() {
+                    return Err(extra_positional(command, extra));
                 }
             }
             Command::Config => validate_config(command, &targets)?,
             Command::Completion => {
-                if targets.len() > 1 {
-                    return Err(extra_positional(command, &targets[1]));
+                if let Some(extra) = targets.get(1) {
+                    return Err(extra_positional(command, extra));
                 }
                 if targets.is_empty() {
                     return Err(missing_positional(command));
@@ -654,8 +661,10 @@ fn parse_inner<S: AsRef<OsStr>>(
             Command::Watch if targets.is_empty() => {
                 return Err(missing_positional(command));
             }
-            Command::Init if targets.len() > 1 => {
-                return Err(extra_positional(command, &targets[1]));
+            Command::Init => {
+                if let Some(extra) = targets.get(1) {
+                    return Err(extra_positional(command, extra));
+                }
             }
             _ => {}
         }

@@ -87,6 +87,62 @@ def tool_labels(hub, package):
         labels.append("@{}//:{}-exe-{}".format(repo_name(hub, name), name, exe))
     return sorted(labels)
 
+def _identifier_char(char):
+    return char.isalnum() or char in "-_"
+
+def _words(text):
+    words = []
+    word = ""
+    for char in text.elems():
+        if _identifier_char(char):
+            word += char
+        else:
+            if word:
+                words.append(word)
+            word = ""
+    if word:
+        words.append(word)
+    return words
+
+def _indent(line):
+    return len(line) - len(line.lstrip(" \t"))
+
+def _build_depends(lines):
+    texts = []
+    field = None
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("--"):
+            continue
+        if field != None and _indent(line) > field:
+            texts.append(stripped)
+            continue
+        field = None
+        key, colon, value = stripped.partition(":")
+        if colon and key.strip().lower() == "build-depends":
+            field = _indent(line)
+            texts.append(value)
+    return _words(" ".join(texts))
+
+def cabal_libraries(text):
+    """Returns the library stanzas of a .cabal file, "" for the main library, each with the sibling libraries it builds on."""
+    stanzas = {}
+    current = None
+    for line in text.splitlines():
+        if line.strip() and _indent(line) == 0 and not line.startswith("--"):
+            words = [word for word in line.replace("\t", " ").split(" ") if word]
+            current = None
+            if words[0].lower() == "library":
+                current = words[1] if len(words) > 1 else ""
+                stanzas[current] = []
+        elif current != None:
+            stanzas[current].append(line)
+    named = [name for name in stanzas if name]
+    return {
+        name: sorted([sibling for sibling in named if sibling != name and sibling in _build_depends(lines)])
+        for name, lines in stanzas.items()
+    }
+
 def _target(kind, name, attrs, deps, tools):
     attrs = attrs + ([
         "tools = " + repr(tools),
@@ -98,12 +154,26 @@ def _target(kind, name, attrs, deps, tools):
     ]
     return "{}(\n    name = \"{}\",\n{}\n)\n".format(kind, name, "".join(["    {},\n".format(attr) for attr in attrs]).rstrip("\n"))
 
-def package_build(hub, sidecar, package):
-    """Returns the BUILD file of one package repository."""
-    name = package["name"]
-    deps = sorted([dep for dep in [dependency_label(hub, sidecar, dep) for dep in package["dependencies"]] if dep])
-    tools = tool_labels(hub, package)
-    has_lib = "lib" in package["components"]
+def package_deps(hub, sidecar, package):
+    """Returns the dependency labels of one package."""
+    return sorted([dep for dep in [dependency_label(hub, sidecar, dep) for dep in package["dependencies"]] if dep])
+
+def package_build(name, version, components, deps, tools, libraries):
+    """Returns the BUILD file of one package repository.
+
+    Args:
+        name: The package name.
+        version: The package version.
+        components: The components of the package in the lock.
+        deps: The dependency labels of the package.
+        tools: The build tool labels of the package.
+        libraries: The library stanzas of the .cabal file, as returned by cabal_libraries.
+
+    Returns:
+        The BUILD file content.
+    """
+    has_lib = "lib" in components
+    sublibs = sorted([sub for sub in libraries if sub])
     lines = [
         'load("@rules_haskell//haskell:cabal.bzl", "haskell_cabal_binary", "haskell_cabal_library")',
         'load("{}", "HASKELL_COMPATIBLE_WITH")'.format(_DEFS),
@@ -111,13 +181,15 @@ def package_build(hub, sidecar, package):
         'package(default_visibility = ["//visibility:public"])',
         "",
     ]
+    common = ['package_name = "{}"'.format(name), 'version = "{}"'.format(version), "haddock = False"]
+    for sub in sublibs:
+        sub_deps = deps + [":" + sublibrary_target(name, sibling) for sibling in libraries[sub]]
+        lines.append(_target("haskell_cabal_library", sublibrary_target(name, sub), common + ['sublibrary_name = "{}"'.format(sub)], sub_deps, tools))
     if has_lib:
-        attrs = ['package_name = "{}"'.format(name), 'version = "{}"'.format(package["version"]), "haddock = False"]
-        lines.append(_target("haskell_cabal_library", name, attrs, deps, tools))
-    for sub in sublibraries(package):
-        lines.append('alias(name = "{}", actual = ":{}")\n'.format(sublibrary_target(name, sub), name))
-    for exe in executables(package):
-        exe_deps = deps + [":" + name] if has_lib else deps
+        lib_deps = deps + [":" + sublibrary_target(name, sibling) for sibling in libraries.get("", [])]
+        lines.append(_target("haskell_cabal_library", name, common, lib_deps, tools))
+    for exe in executables({"components": components}):
+        exe_deps = deps + ([":" + name] if has_lib else []) + [":" + sublibrary_target(name, sub) for sub in sublibs]
         lines.append(_target("haskell_cabal_binary", "{}-exe-{}".format(name, exe), ['exe_name = "{}"'.format(exe)], exe_deps, tools))
     return "\n".join(lines)
 
@@ -155,18 +227,21 @@ def _hackage_package_impl(rctx):
             sha256 = rctx.attr.cabal_sha256,
         )
     rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", rctx.attr.build)
+    libraries = cabal_libraries(rctx.read("{}.cabal".format(rctx.attr.package)))
+    rctx.file("BUILD.bazel", package_build(rctx.attr.package, rctx.attr.version, rctx.attr.components, rctx.attr.deps, rctx.attr.tools, libraries))
     return rctx.repo_metadata(reproducible = True)
 
 hackage_package = repository_rule(
     implementation = _hackage_package_impl,
     doc = "Fetches one Hackage sdist, replaces its .cabal file with the pinned revision and writes its BUILD file.",
     attrs = {
-        "build": attr.string(mandatory = True, doc = "Content of the BUILD file."),
         "cabal_sha256": attr.string(doc = "Digest of the pinned .cabal revision."),
         "cabal_url": attr.string(doc = "URL of the pinned .cabal revision. Empty for revision 0."),
+        "components": attr.string_list(mandatory = True, doc = "Components of the package in the lock."),
+        "deps": attr.string_list(doc = "Dependency labels of the package."),
         "package": attr.string(mandatory = True, doc = "Package name."),
         "sha256": attr.string(mandatory = True, doc = "Digest of the sdist."),
+        "tools": attr.string_list(doc = "Build tool labels of the package."),
         "url": attr.string(mandatory = True, doc = "Sdist URL."),
         "version": attr.string(mandatory = True, doc = "Package version."),
     },
@@ -193,11 +268,13 @@ def declare_packages(mctx, tag):
         revised = has_revision(package)
         hackage_package(
             name = repo_name(tag.name, name),
-            build = package_build(tag.name, sidecar, package),
+            components = package["components"],
+            deps = package_deps(tag.name, sidecar, package),
             cabal_sha256 = package["cabal_sha256"] if revised else "",
             cabal_url = cabal_url(package) if revised else "",
             package = name,
             sha256 = package["sdist_sha256"],
+            tools = tool_labels(tag.name, package),
             url = sdist_url(package),
             version = package["version"],
         )

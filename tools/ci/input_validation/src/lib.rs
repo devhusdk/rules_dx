@@ -1,5 +1,7 @@
 //! Validates the consumer workflow inputs and renders the job outputs the matrix reads.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeMap;
 
 pub const PLATFORMS_ENV: &str = "DX_PLATFORMS";
@@ -167,7 +169,11 @@ impl Parser<'_> {
     }
 
     fn word(&mut self, word: &str, value: Json) -> Result<Json, String> {
-        if self.bytes[self.at..].starts_with(word.as_bytes()) {
+        if self
+            .bytes
+            .get(self.at..)
+            .is_some_and(|rest| rest.starts_with(word.as_bytes()))
+        {
             self.at += word.len();
             Ok(value)
         } else {
@@ -198,8 +204,11 @@ impl Parser<'_> {
         ) {
             self.at += 1;
         }
-        let text = String::from_utf8_lossy(&self.bytes[start..self.at]).into_owned();
-        if text.parse::<f64>().is_ok() {
+        let text = self
+            .bytes
+            .get(start..self.at)
+            .map(|digits| String::from_utf8_lossy(digits).into_owned());
+        if text.is_some_and(|text| text.parse::<f64>().is_ok()) {
             Ok(Json::Number)
         } else {
             self.fail("invalid number")
@@ -349,7 +358,7 @@ pub fn validate_platforms(text: &str) -> Result<Vec<String>, String> {
         }
     }
     for (index, label) in labels.iter().enumerate() {
-        if labels[..index].contains(label) {
+        if labels.iter().take(index).any(|earlier| earlier == label) {
             return Err(format!(
                 "{PLATFORMS_ENV} lists '{label}' twice. List every platform once."
             ));
@@ -540,7 +549,8 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
         format!("-{invocation}")
     };
     let mut outputs = BTreeMap::new();
-    outputs.insert("platforms".to_string(), quoted_list(&platform_list));
+    let platforms = quoted_list(&platform_list);
+    outputs.insert("platforms".to_string(), platforms.clone());
     outputs.insert("runners".to_string(), format!("{{{}}}", runners.join(",")));
     outputs.insert(
         "checks".to_string(),
@@ -567,7 +577,7 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
     );
     let ids: Vec<&str> = MATRIX_CHECKS.iter().map(|check| check.id).collect();
     let summary = vec![
-        format!("{PLATFORMS_ENV} {}", outputs["platforms"]),
+        format!("{PLATFORMS_ENV} {platforms}"),
         format!("checks {}", ids.join(",")),
         format!("{MIN_COVERAGE_ENV} {}", or_none(coverage)),
         format!("{MIN_CHANGED_ENV} {}", or_none(changed)),

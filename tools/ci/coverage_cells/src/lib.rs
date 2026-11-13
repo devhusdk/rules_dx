@@ -5,6 +5,8 @@
 //! once, at the expected SHA, with the same collector, and with covered equal to
 //! eligible over a non-empty denominator.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeMap;
 
 use serde_json::Value;

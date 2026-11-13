@@ -1,5 +1,7 @@
 //! `coverage_cells_bin <cells.txt> <sha> <events.ndjson>...` exits 1 listing every failure.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

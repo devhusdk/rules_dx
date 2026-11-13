@@ -3,6 +3,8 @@
 //! Usage: `dx_progenitor SPEC OUT`. SPEC is YAML or JSON. The output parses as
 //! Rust and uses the `progenitor-client` runtime, which the consumer provides.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::process::ExitCode;
 
 use progenitor::{GenerationSettings, Generator, InterfaceStyle};

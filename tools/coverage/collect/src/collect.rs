@@ -60,12 +60,14 @@ pub fn rewrite_paths(report: &str, root: &Path) -> String {
     let root = root.display().to_string().replace('\\', "/");
     report
         .split_inclusive('\n')
-        .map(|line| match line.strip_prefix("SF:") {
-            Some(path) => {
-                let end = &path[path.trim_end().len()..];
-                format!("SF:{}{end}", source_path(path.trim_end(), &root))
+        .map(|line| {
+            match line
+                .strip_prefix("SF:")
+                .and_then(|path| Some((path.trim_end(), path.strip_prefix(path.trim_end())?)))
+            {
+                Some((path, end)) => format!("SF:{}{end}", source_path(path, &root)),
+                None => line.to_string(),
             }
-            None => line.to_string(),
         })
         .collect()
 }
@@ -73,9 +75,9 @@ pub fn rewrite_paths(report: &str, root: &Path) -> String {
 fn source_path(path: &str, root: &str) -> String {
     let path = path.replace('\\', "/");
     let path = path.strip_prefix("/proc/self/cwd/").unwrap_or(&path);
-    let path = match path.get(..root.len()) {
-        Some(prefix) if !root.is_empty() && prefix.eq_ignore_ascii_case(root) => {
-            path[root.len()..].trim_start_matches('/')
+    let path = match path.split_at_checked(root.len()) {
+        Some((prefix, rest)) if !root.is_empty() && prefix.eq_ignore_ascii_case(root) => {
+            rest.trim_start_matches('/')
         }
         _ => path,
     };

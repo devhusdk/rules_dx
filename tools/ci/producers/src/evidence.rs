@@ -102,7 +102,11 @@ fn line(
     let identity = &row["identity"];
     let flag = text(&identity["compiler"]);
     let version = text(&identity["version"]);
-    let probe = match identity["platform_probes"][run.platform].as_str() {
+    let probe = match identity
+        .get("platform_probes")
+        .and_then(|probes| probes.get(run.platform))
+        .and_then(Value::as_str)
+    {
         Some(probe) => probe,
         None => text(&identity["probe"]),
     };
@@ -159,7 +163,12 @@ fn line(
     if flag == "msvc" && outcome == "passed" && !files.is_empty() && observed.is_empty() {
         outcome = "mismatch";
     }
-    let blocker = text(&facts["compiler_blockers"][name][run.platform]);
+    let blocker = facts
+        .get("compiler_blockers")
+        .and_then(|blockers| blockers.get(name))
+        .and_then(|blockers| blockers.get(run.platform))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let tested_outcome = outcome;
     if !blocker.is_empty() && (outcome == "passed" || outcome == "skipped") {
         outcome = "blocked";

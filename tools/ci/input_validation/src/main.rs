@@ -1,6 +1,8 @@
 //! `input_validation_bin` validates the consumer workflow inputs and writes them to `GITHUB_OUTPUT`.
 //! With the `deployables` argument it validates the release workflow list instead.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::io::Write;
 use std::process::ExitCode;
 

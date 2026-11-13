@@ -1,8 +1,12 @@
 //! Reads GitHub Actions workflows from runfiles for the CI policy tests.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use serde_json::Value;
 
 use dx_testing::read_runfiles;
+
+static NULL: Value = Value::Null;
 
 /// Returns the parsed workflow `text`, named `name` in failures, which must be valid Actions YAML.
 #[track_caller]
@@ -72,7 +76,9 @@ pub fn step_code(step: &Value) -> Vec<&str> {
 
 /// Returns the permissions a job holds: its own, else the workflow's.
 pub fn effective_permissions<'a>(document: &'a Value, job: &'a Value) -> &'a Value {
-    job.get("permissions").unwrap_or(&document["permissions"])
+    job.get("permissions")
+        .or_else(|| document.get("permissions"))
+        .unwrap_or(&NULL)
 }
 
 /// Returns the keys that a job's `strategy.matrix` defines, including `include` entries.
@@ -108,11 +114,17 @@ pub fn matrix_refs(value: &Value, found: &mut Vec<String>) {
             for expression in text.split("${{").skip(1) {
                 let expression = expression.split("}}").next().unwrap_or_default();
                 for (at, _) in expression.match_indices("matrix.") {
-                    let before = expression[..at].chars().next_back();
+                    let Some((head, tail)) = expression.split_at_checked(at) else {
+                        continue;
+                    };
+                    let before = head.chars().next_back();
                     if before.is_some_and(|c| c.is_alphanumeric() || matches!(c, '_' | '.' | '-')) {
                         continue;
                     }
-                    let name: String = expression[at + "matrix.".len()..]
+                    let Some(tail) = tail.strip_prefix("matrix.") else {
+                        continue;
+                    };
+                    let name: String = tail
                         .chars()
                         .take_while(|c| c.is_alphanumeric() || matches!(c, '_' | '-'))
                         .collect();
@@ -132,19 +144,21 @@ pub fn matrix_refs(value: &Value, found: &mut Vec<String>) {
 #[track_caller]
 pub fn job(path: &str, name: &str) -> Value {
     let document = document(path);
-    let found = document["jobs"][name].clone();
-    assert!(
-        found.is_object(),
-        "{path} names no {name:?} job: {}",
-        document["jobs"]
-    );
-    found
+    let jobs = document.get("jobs").unwrap_or(&NULL);
+    let Some(found) = jobs.get(name).filter(|found| found.is_object()) else {
+        panic!("{path} names no {name:?} job: {jobs}");
+    };
+    found.clone()
 }
 
 /// Returns the steps of one job, which must declare some.
 #[track_caller]
 pub fn steps(path: &str, name: &str) -> Vec<Value> {
-    let Some(found) = job(path, name)["steps"].as_array().cloned() else {
+    let Some(found) = job(path, name)
+        .get("steps")
+        .and_then(Value::as_array)
+        .cloned()
+    else {
         panic!("{path} job {name} declares no steps");
     };
     found
@@ -155,7 +169,7 @@ pub fn steps(path: &str, name: &str) -> Vec<Value> {
 pub fn scripts(path: &str, name: &str) -> String {
     steps(path, name)
         .iter()
-        .filter_map(|step| step["run"].as_str())
+        .filter_map(|step| step.get("run").and_then(Value::as_str))
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -173,7 +187,7 @@ pub fn text_at(value: &Value, what: &str) -> String {
 #[track_caller]
 pub fn jobs(path: &str) -> Vec<(String, Value)> {
     let document = document(path);
-    let Some(found) = document["jobs"].as_object() else {
+    let Some(found) = document.get("jobs").and_then(Value::as_object) else {
         panic!("{path} declares no jobs");
     };
     found
@@ -186,18 +200,23 @@ pub fn jobs(path: &str) -> Vec<(String, Value)> {
 #[track_caller]
 pub fn triggers(path: &str) -> Value {
     let document = document(path);
-    if document["on"].is_object() {
-        return document["on"].clone();
+    if let Some(on) = document.get("on").filter(|on| on.is_object()) {
+        return on.clone();
     }
-    document["true"].clone()
+    document.get("true").cloned().unwrap_or(Value::Null)
 }
 
 /// Returns `on.workflow_call` of the reusable workflow at `path`, which must declare it.
 #[track_caller]
 pub fn workflow_call(path: &str) -> Value {
-    let found = triggers(path)["workflow_call"].clone();
-    assert!(found.is_object(), "{path} declares no on.workflow_call");
-    found
+    let triggers = triggers(path);
+    let Some(found) = triggers
+        .get("workflow_call")
+        .filter(|found| found.is_object())
+    else {
+        panic!("{path} declares no on.workflow_call");
+    };
+    found.clone()
 }
 
 /// Returns the called workflow file name of a `uses` value, when it names a reusable workflow.
@@ -215,7 +234,7 @@ pub fn reusable_calls(path: &str) -> Vec<(String, String, Value)> {
     jobs(path)
         .into_iter()
         .filter_map(|(id, job)| {
-            let called = called_workflow(job["uses"].as_str()?)?;
+            let called = called_workflow(job.get("uses")?.as_str()?)?;
             Some((id, called, job))
         })
         .collect()
@@ -245,20 +264,22 @@ pub fn swallows(path: &str) -> Vec<(String, String, String)> {
         if job.get("continue-on-error").is_some() {
             found.push((id.clone(), String::new(), "continue-on-error".to_owned()));
         }
-        let Some(steps) = job["steps"].as_array() else {
+        let Some(steps) = job.get("steps").and_then(Value::as_array) else {
             continue;
         };
         for step in steps {
-            let label = step["name"]
-                .as_str()
-                .or_else(|| step["uses"].as_str())
+            let label = step
+                .get("name")
+                .and_then(Value::as_str)
+                .or_else(|| step.get("uses").and_then(Value::as_str))
                 .unwrap_or_default()
                 .to_owned();
             if step.get("continue-on-error").is_some() {
                 found.push((id.clone(), label.clone(), "continue-on-error".to_owned()));
             }
-            if step["run"]
-                .as_str()
+            if step
+                .get("run")
+                .and_then(Value::as_str)
                 .is_some_and(|run| run.contains("|| true"))
             {
                 found.push((id.clone(), label, "|| true".to_owned()));

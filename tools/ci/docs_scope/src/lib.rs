@@ -1,5 +1,7 @@
 //! Validates the docs scope input and builds the dx lint arguments for it.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub const SCOPE_ENV: &str = "DX_DOCS_SCOPE";
 
 fn is_package_char(c: char) -> bool {

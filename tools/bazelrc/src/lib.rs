@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -485,15 +487,10 @@ pub enum ImportState {
 }
 
 fn unquote(word: &str) -> &str {
-    let bytes = word.as_bytes();
-    if bytes.len() >= 2
-        && ((bytes[0] == b'"' && bytes[bytes.len() - 1] == b'"')
-            || (bytes[0] == b'\'' && bytes[bytes.len() - 1] == b'\''))
-    {
-        &word[1..word.len() - 1]
-    } else {
-        word
-    }
+    ['"', '\'']
+        .into_iter()
+        .find_map(|quote| word.strip_prefix(quote)?.strip_suffix(quote))
+        .unwrap_or(word)
 }
 
 fn joined_lines(text: &str) -> String {

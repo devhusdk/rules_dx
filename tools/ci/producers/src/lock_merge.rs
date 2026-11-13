@@ -90,8 +90,11 @@ pub fn merge(args: &[String]) -> Result<(), String> {
     for (platform, _, lock) in &loaded {
         check_keys(platform, lock)?;
     }
-    let mut merged = loaded[0].2.clone();
-    for (_, factor, lock) in &loaded[1..] {
+    let Some(((_, _, first), rest)) = loaded.split_first() else {
+        return Err("lock merge has no platforms".to_owned());
+    };
+    let mut merged = first.clone();
+    for (_, factor, lock) in rest {
         let extensions = lock.get("moduleExtensions").and_then(Value::as_object);
         for (key, value) in extensions.into_iter().flatten() {
             let Some(entry) = value.get(*factor) else {

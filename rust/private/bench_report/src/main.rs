@@ -1,5 +1,7 @@
 //! Runs a Rust benchmark binary and writes its bencher output as `dx-bench.json`.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::path::PathBuf;
 use std::process::{Command, ExitCode, Stdio};
 

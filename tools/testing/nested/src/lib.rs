@@ -38,29 +38,35 @@ const REPOSITORY_CACHE: &str = "repository-cache";
 /// Environment variable naming the runfiles key of the pinned consumer Maven lock.
 pub const CONSUMER_MAVEN_LOCK_ENV: &str = "DX_CONSUMER_MAVEN_LOCK";
 
-/// The `maven` extension block every nested consumer module uses.
+/// The `maven` extension block every nested consumer module uses, pinned to the root `lock`.
 ///
-/// Pins resolution to `tools/testing/fixtures/consumer_maven/maven_install.json`, which
-/// `stage_consumer_maven_lock` copies to `//:maven_install.json` of the nested workspace.
-pub const CONSUMER_MAVEN: &str = r#"maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+/// `stage_consumer_maven_lock` copies `tools/testing/fixtures/consumer_maven/<lock>` there.
+pub fn consumer_maven(lock: &str) -> String {
+    format!(
+        r#"maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = ["com.google.guava:guava:32.0.1-jre"],
     fail_if_repin_required = True,
     known_contributing_modules = ["protobuf", "rules_dx"],
-    lock_file = "//:maven_install.json",
+    lock_file = "//:{lock}",
     repositories = ["https://repo1.maven.org/maven2"],
 )
 use_repo(maven, "maven")
-"#;
+"#
+    )
+}
 
-/// Copies the pinned consumer Maven lock into the nested workspace at `root`.
+/// Copies the pinned consumer Maven lock into the nested workspace at `root` under its own name.
 pub fn stage_consumer_maven_lock(root: &Path) {
     let key = std::env::var(CONSUMER_MAVEN_LOCK_ENV)
         .unwrap_or_else(|_| panic!("{CONSUMER_MAVEN_LOCK_ENV} is not set; add CONSUMER_MAVEN_ENV"));
     let lock =
         dx_testing::rlocation(&key).unwrap_or_else(|error| panic!("rlocation {key}: {error}"));
+    let name = lock
+        .file_name()
+        .unwrap_or_else(|| panic!("{key} names no file"));
     let text = dx_testing::read(&lock);
-    dx_testing::write(&root.join("maven_install.json"), &text);
+    dx_testing::write(&root.join(name), &text);
 }
 pub const STARTUP: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 

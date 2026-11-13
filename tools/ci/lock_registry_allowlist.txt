@@ -1,6 +1,3 @@
-name tools/testing/hermetic/maven_pin.rs maven_install.json
-name tools/testing/nested/src/lib.rs maven_install.json
-name tools/testing/nested_bazel.bzl maven_install.json
 parser elixir/private/mix_lock.bzl
 parser erlang/private/rebar_lock.bzl
 parser python/private/sdist_cargo_vendor.bzl

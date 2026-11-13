@@ -1,6 +1,6 @@
 //! Checks the pinned Maven lock that every nested consumer copies into its workspace.
 
-use dx_nested::{CONSUMER_MAVEN, CONSUMER_MAVEN_LOCK_ENV};
+use dx_nested::{CONSUMER_MAVEN_LOCK_ENV, consumer_maven};
 use dx_testing::{read, rlocation};
 use serde_json::Value;
 
@@ -52,6 +52,7 @@ fn guava_is_pinned_with_checksums() {
 
 #[test]
 fn block_pins_the_lock() {
-    assert!(CONSUMER_MAVEN.contains("lock_file = \"//:maven_install.json\""));
-    assert!(CONSUMER_MAVEN.contains("fail_if_repin_required = True"));
+    let block = consumer_maven("pinned.json");
+    assert!(block.contains("lock_file = \"//:pinned.json\""));
+    assert!(block.contains("fail_if_repin_required = True"));
 }

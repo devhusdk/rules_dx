@@ -1,6 +1,5 @@
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary")
+load("//rust:defs.bzl", "rust_test")
 load("//swift:defs.bzl", "swift_library")
 
 package(
@@ -17,18 +16,11 @@ swift_library(
     target_compatible_with = _WINDOWS_X86_64,
 )
 
-rust_binary(
+rust_test(
     name = "rust_link",
     srcs = ["rust_link.rs"],
     edition = "2024",
     link_deps = [":add"],
-    target_compatible_with = _WINDOWS_X86_64,
-)
-
-build_test(
-    name = "rust_link_build_test",
-    size = "small",
-    targets = [":rust_link"],
     target_compatible_with = _WINDOWS_X86_64,
 )
 

@@ -14,7 +14,7 @@ This page fixes what a consumer writes to use rules_dx, and what rules_dx writes
 
 ## Consumer MODULE.bazel
 
-- A consumer has one `bazel_dep`: `rules_dx`.
+- A consumer has one `bazel_dep`: `rules_dx`. A rule-set user writes `bazel_dep(name = "rules_<lang>")` and needs no dx setup.
 - A consumer writes no override, `override_repo`, `inject_repo`, `register_toolchains` or `use_repo_rule` for a rules_dx language.
 - Every extension a consumer uses is in `@rules_dx//<lang>:extensions.bzl` or `@rules_dx//core:extensions.bzl`. No consumer names an upstream rule set.
 - `dx init` writes three kinds of tag: a dependency hub, the crate hub annotation and a license. A user writes any other tag to change a default.

@@ -2,18 +2,15 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//csharp/private:coverage_check.bzl", "dx_dotnet_coverage_tests")
 load("//fsharp:defs.bzl", "fsharp_library", "fsharp_test")
 
-# gazelle:exclude Greeter.fs
-
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-# keep
 fsharp_library(
-    name = "greeter_lib",
+    name = "xunit",
+    testonly = True,
     srcs = ["Greeter.fs"],
-    deps = ["@paket.main//fsharp.core"],
 )
 
 fsharp_test(
@@ -24,7 +21,7 @@ fsharp_test(
         "XunitEntryPoint.fs",
     ],
     deps = [
-        ":greeter_lib",
+        ":xunit",
         "@paket.main//fsharp.core",
         "@paket.main//microsoft.testing.extensions.telemetry",
         "@paket.main//microsoft.testing.extensions.trxreport.abstractions",
@@ -44,7 +41,7 @@ fsharp_test(
 
 dx_dotnet_coverage_tests(
     name = "fsharp_coverage_test",
-    library = "greeter_lib_upstream",
+    library = "xunit_upstream",
     source = "fsharp/tests/fixtures/xunit/Greeter.fs",
     target = ":greeter_test",
 )

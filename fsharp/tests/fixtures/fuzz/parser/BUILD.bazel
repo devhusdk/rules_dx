@@ -1,0 +1,21 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//fsharp:defs.bzl", "fsharp_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+fsharp_library(
+    name = "parser",
+    testonly = True,
+    # do not sort: F# compile order, dependencies first
+    srcs = ["Parser.fs"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

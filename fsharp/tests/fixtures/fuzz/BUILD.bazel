@@ -3,28 +3,18 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//dotnet/private/fuzz:labels.bzl", "LIBFUZZER_DOTNET")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//dotnet/private:sharpfuzz_check.bzl", "dx_sharpfuzz_transitive_test")
-load("//fsharp:defs.bzl", "fsharp_fuzz_test", "fsharp_library")
-
-# gazelle:exclude Parser.fs
-# gazelle:exclude Wrapper.fs
+load("//fsharp:defs.bzl", "fsharp_fuzz_test")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-# keep
-fsharp_library(
-    name = "parser",
-    srcs = ["Parser.fs"],
-    deps = ["@paket.main//fsharp.core"],
-)
-
 fsharp_fuzz_test(
     name = "parse_fuzz",
     srcs = ["Harness.fs"],
     deps = [
-        ":parser",
+        "//fsharp/tests/fixtures/fuzz/parser",
         "@paket.main//fsharp.core",
     ],
 )
@@ -52,21 +42,11 @@ sh_test(
     }),
 )
 
-# keep
-fsharp_library(
-    name = "wrapper",
-    srcs = ["Wrapper.fs"],
-    deps = [
-        ":parser",
-        "@paket.main//fsharp.core",
-    ],
-)
-
 fsharp_fuzz_test(
     name = "transitive_fuzz",
     srcs = ["TransitiveHarness.fs"],
     deps = [
-        ":wrapper",
+        "//fsharp/tests/fixtures/fuzz/wrapper",
         "@paket.main//fsharp.core",
     ],
 )
@@ -85,7 +65,7 @@ fsharp_fuzz_test(
     srcs = ["Harness.fs"],
     args = ["-max_total_time=1"],
     deps = [
-        ":parser",
+        "//fsharp/tests/fixtures/fuzz/parser",
         "@paket.main//fsharp.core",
     ],
 )

@@ -169,6 +169,28 @@ func TestClassLangMainRefusal(t *testing.T) {
 	}
 }
 
+func TestClassLangSkipsMainOwnedByHandwrittenNonLibraryRule(t *testing.T) {
+	l := NewClassLang(clsSpec())
+	l.Before(context.Background())
+	root := t.TempDir()
+	dotFile(t, root, "pkg/demo/Demo.cls", "package demo\n")
+	dotFile(t, root, "pkg/demo/Harness.cls", "package demo\nmain()\n")
+	f, err := rule.LoadData(filepath.Join(root, "pkg/demo/BUILD.bazel"), "pkg/demo", []byte(`cls_fuzz_test(name = "harness_fuzz", srcs = ["Harness.cls"])`+"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		File:         f,
+		RegularFiles: []string{"BUILD.bazel", "Demo.cls", "Harness.cls"},
+	})
+	if l.Failed() || len(result.Gen) != 1 || !reflect.DeepEqual(result.Gen[0].AttrStrings("srcs"), []string{"Demo.cls"}) {
+		t.Fatalf("failed = %v gen = %+v", l.Failed(), result.Gen)
+	}
+}
+
 func TestClassLangOrderAndMakeRule(t *testing.T) {
 	files := map[string]string{"A.cls": "package demo\n", "B.cls": "package demo\n"}
 	spec := clsSpec()

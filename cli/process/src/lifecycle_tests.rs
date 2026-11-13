@@ -142,6 +142,18 @@ fn signal_exit_is_distinct_from_an_exit_code() {
 }
 
 #[test]
+fn a_terminal_group_child_ended_by_a_stop_signal_is_a_stop() {
+    for signo in STOP_SIGNALS {
+        assert_eq!(group_stop(true, Some(Exit::Signal(signo))), Some(signo));
+        assert_eq!(group_stop(false, Some(Exit::Signal(signo))), None);
+    }
+    assert_eq!(group_stop(true, Some(Exit::Signal(9))), None);
+    assert_eq!(group_stop(true, Some(Exit::Signal(0))), None);
+    assert_eq!(group_stop(true, Some(Exit::Code(130))), None);
+    assert_eq!(group_stop(true, None), None);
+}
+
+#[test]
 fn polling_a_running_child_gives_up_at_the_deadline() {
     let mut command = Command::new(dx_testing::process_probe());
     command.arg("--sleep-ms=30000");

@@ -645,6 +645,7 @@ pub(crate) fn run_streamed_in(
     } else {
         backend::TerminalJob::start()
     };
+    let terminal = job.is_some();
     let group = match (&job, owned) {
         (_, true) => backend::Group::Owned,
         (Some(job), false) => backend::Group::Join(job.pgid()), // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -736,6 +737,13 @@ pub(crate) fn run_streamed_in(
             settle_reported(&job); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
     }
+    if stopped.is_none()
+        && let Some(signo) = group_stop(terminal, waited.as_ref().map(exit_of))
+    {
+        // LCOV_EXCL_START - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        crate::record_interrupt(signo);
+        stopped = Some(signo);
+    } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     let deadline = Instant::now() + cleanup.drain;
     while !drained.is_empty() {
         if stopped.is_none() {
@@ -773,6 +781,14 @@ pub(crate) fn run_streamed_in(
         (None, Some(status)) if !withdrawn => StreamOutcome::Exited(exit_of(&status)),
         (None, _) => StreamOutcome::Withdrawn,
     })
+}
+
+/// The stop signal that ended a child in the terminal's foreground group.
+fn group_stop(terminal: bool, exit: Option<Exit>) -> Option<i32> {
+    match exit {
+        Some(Exit::Signal(signo)) if terminal && STOP_SIGNALS.contains(&signo) => Some(signo),
+        _ => None,
+    }
 }
 
 /// Records the stop signals the terminal delivered straight to the child's group; they are not forwarded again.

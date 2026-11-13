@@ -898,7 +898,6 @@ jobs:
           path: ${{ runner.temp }}/compiler-evidence
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: always()
-        continue-on-error: true
         with:
           name: ci-producers-bin
           path: ${{ runner.temp }}/ci-producers-bin
@@ -906,10 +905,6 @@ jobs:
         if: always()
         run: |
           mkdir -p "$RUNNER_TEMP/compiler-evidence"
-          if [ ! -f "$RUNNER_TEMP/ci-producers-bin/producers_bin" ]; then
-            echo "::notice::ci-producers-bin is absent; the compiler evidence table is skipped."
-            exit 0
-          fi
           chmod +x "$RUNNER_TEMP/ci-producers-bin/producers_bin"
           {
             echo "### Compiler evidence (row x platform)"

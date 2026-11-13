@@ -7211,59 +7211,59 @@
     "//dotnet:extensions.bzl%dotnet": {
       "general": {
         "bzlTransitiveDigest": "1rlmz1pTXgn+orRm4FX/sUT9iyGrlbACph/ExYgYfnI=",
-        "usagesDigest": "BXREC0LKejTlmD82iDKM7punCJko63UudIsb0LKyCTw=",
+        "usagesDigest": "GoWWpS5sxyPXf+HMaQVutFbg//hDtlHMpcDpfcKjF+k=",
         "recordedInputs": [
           "REPO_MAPPING:,rules_dotnet +dx_pins+rules_dotnet",
           "REPO_MAPPING:+dx_pins+rules_dotnet,bazel_skylib bazel_skylib+",
           "REPO_MAPPING:+dx_pins+rules_dotnet,bazel_tools bazel_tools"
         ],
         "generatedRepoSpecs": {
-          "dotnet_x86_64-apple-darwin": {
+          "dx_dotnet_x86_64-apple-darwin": {
             "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-apple-darwin",
               "dotnet_version": "10.0.403"
             }
           },
-          "dotnet_aarch64-apple-darwin": {
+          "dx_dotnet_aarch64-apple-darwin": {
             "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "aarch64-apple-darwin",
               "dotnet_version": "10.0.403"
             }
           },
-          "dotnet_x86_64-unknown-linux-gnu": {
+          "dx_dotnet_x86_64-unknown-linux-gnu": {
             "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-unknown-linux-gnu",
               "dotnet_version": "10.0.403"
             }
           },
-          "dotnet_arm64-unknown-linux-gnu": {
+          "dx_dotnet_arm64-unknown-linux-gnu": {
             "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "arm64-unknown-linux-gnu",
               "dotnet_version": "10.0.403"
             }
           },
-          "dotnet_x86_64-pc-windows-msvc": {
+          "dx_dotnet_x86_64-pc-windows-msvc": {
             "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-pc-windows-msvc",
               "dotnet_version": "10.0.403"
             }
           },
-          "dotnet_arm64-pc-windows-msvc": {
+          "dx_dotnet_arm64-pc-windows-msvc": {
             "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "arm64-pc-windows-msvc",
               "dotnet_version": "10.0.403"
             }
           },
-          "dotnet_toolchains": {
+          "dx_dotnet_toolchains": {
             "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet/private:toolchains_repo.bzl%toolchains_repo",
             "attributes": {
-              "user_repository_name": "dotnet"
+              "user_repository_name": "dx_dotnet"
             }
           },
           "dotnet_apphost_x86_64-apple-darwin": {

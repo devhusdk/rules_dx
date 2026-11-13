@@ -4,7 +4,7 @@ This repository uses Bazel.
 
 - Treat warnings as errors.
 - Docs rules also live in `docs/AGENTS.md`. Read it before you edit docs.
-- Repo layout rules live in `docs/design/layout.md`. New language code goes in `<lang>/`. Never add a family module.
+- Repo layout rules live in `docs/design/layout.md`. New language code goes in `<lang>/`. Never add a family module. Build-rule changes for `php`, `lua` and `qt` go in the `rules_php`, `rules_lua` and `rules_qt` rule-set modules.
 - Public API only in `<lang>/defs.bzl` and `<lang>/extensions.bzl`. Implementation goes in `<lang>/private/`. Tests go in `<lang>/tests/`. No label points into `private/`.
 - Language facts live in `<lang>/lang.json` and `<lang>/pins.json`. Code reads them. Never repeat their values.
 - `core/` never loads a language `.bzl` file. One exception: `core/quality/tools.bzl` loads the `_tools.bzl` files.

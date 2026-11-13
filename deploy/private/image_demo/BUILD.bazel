@@ -1,3 +1,5 @@
+# gazelle:ignore
+
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("@rules_dotnet//dotnet:defs.bzl", "csharp_binary")
 load("//cc:defs.bzl", "cc_binary")

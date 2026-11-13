@@ -31,9 +31,10 @@ const (
 	csKind       = "csharp_proto_library"
 	csSuffix     = "_cs"
 	csModule     = "rules_dx"
-	csRuntime    = "@paket.main//google.protobuf"
 	csDefs       = "@rules_dx//csharp:defs.bzl"
 )
+
+var csRuntime = "@" + common.HubName("nuget") + "//google.protobuf"
 
 var kinds = withBindings(map[string]rule.KindInfo{
 	LibraryKind: {
@@ -242,10 +243,10 @@ func addTypeScriptLibraries(args language.GenerateArgs, result language.Generate
 }
 
 // addCSharpLibraries adds a csharp_proto_library next to each proto_library
-// when the root MODULE.bazel depends on rules_dx and uses the paket.main repo.
+// when the root MODULE.bazel depends on rules_dx and uses the registry nuget hub.
 func addCSharpLibraries(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
 	data, err := os.ReadFile(filepath.Join(args.Config.RepoRoot, "MODULE.bazel"))
-	if err != nil || !strings.Contains(string(data), `"paket.main"`) {
+	if err != nil || !strings.Contains(string(data), `"`+common.HubName("nuget")+`"`) {
 		return result
 	}
 	return addProtoRefs(args, result, csModule, csKind, csSuffix)

@@ -54,6 +54,11 @@ func LockName(ecosystem string) string {
 	return registryEntry(ecosystem).Lock
 }
 
+// HubName returns the hub repository name the registry gives an ecosystem.
+func HubName(ecosystem string) string {
+	return registryEntry(ecosystem).Hub
+}
+
 // lockRegistry lists every ecosystem whose imports resolve through the
 // provides of its lock.
 var lockRegistry = func() []lockRegistryEntry {

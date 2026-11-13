@@ -27,6 +27,12 @@ pub(super) struct Launch {
     pub(super) hermetic: bool,
 }
 
+/// `@<maven hub>//:pin`, the label `dx update` runs to pin the root maven lock.
+fn maven_pin() -> String {
+    let hub = dx_families::hub("maven").expect("setup.hubs entry maven");
+    format!("@{}//:pin", hub.hub)
+}
+
 pub(super) fn fake_pinned(name: &str) -> String {
     if cfg!(windows) {
         format!("C:\\hermetic\\{name}")
@@ -136,7 +142,7 @@ impl ScriptRunner {
             "npm-tools".to_owned()
         } else if argv.contains(&"@pnpm//:pnpm".to_owned()) {
             "npm".to_owned()
-        } else if argv.contains(&"@maven//:pin".to_owned()) {
+        } else if argv.contains(&maven_pin()) {
             "maven".to_owned()
         } else if let Some(repository) = argv
             .iter()

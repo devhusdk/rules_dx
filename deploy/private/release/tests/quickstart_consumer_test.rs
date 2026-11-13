@@ -1,6 +1,8 @@
 //! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
 
-use dx_nested::compose::{rules_dx_override, rules_flutter_override, rules_py_override};
+use dx_nested::compose::{
+    rules_dx_override, rules_flutter_override, rules_py_override, rules_rust_override,
+};
 use dx_nested::{self as nested, Case, footprint, plain_fixture};
 use dx_release_tools::presubmit;
 use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, scratch_dir, write_text};
@@ -82,7 +84,13 @@ fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
 
 /// Gives the consumer the patch files named by `rules_py_override` and `rules_flutter_override` and the lockfile's crate patches, which resolve in the root module.
 fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
-    for package in ["rules_py", "rules_flutter", "ring", "gomod-parser"] {
+    for package in [
+        "rules_py",
+        "rules_flutter",
+        "rules_rust",
+        "ring",
+        "gomod-parser",
+    ] {
         copy_patches(source, case, package);
     }
 }
@@ -130,6 +138,7 @@ fn the_readme_quickstart_runs_as_written() {
             text.push('\n');
             text.push_str(&rules_py_override());
             text.push_str(&rules_flutter_override());
+            text.push_str(&rules_rust_override());
             text.push_str(&rules_dx_override(&source));
         }
         write_text(&case.root().join(name), &text);
@@ -216,7 +225,8 @@ fn bcr_test_module_runs_its_presubmit_targets() {
         &(read_text(&module)
             + &rules_dx_override(&source)
             + &rules_py_override()
-            + &rules_flutter_override()),
+            + &rules_flutter_override()
+            + &rules_rust_override()),
     );
 
     let host = presubmit::host_platforms();

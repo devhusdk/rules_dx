@@ -3,7 +3,10 @@
 
 use std::path::{Path, PathBuf};
 
-use dx_nested::compose::{rules_flutter_override, rules_py_override, write_rules_py_patches};
+use dx_nested::compose::{
+    rules_flutter_override, rules_py_override, rules_rust_override, write_rules_py_patches,
+    write_rules_rust_patches,
+};
 use dx_nested::{self as nested, Case};
 use dx_release_tools::candidate::{
     Candidate, build_source_archive, file_url, source_archive_error, stage_local_registry,
@@ -107,13 +110,15 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     );
     write(&root.join(".bazelrc"), &rc);
     let module = format!(
-        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n{}{}",
+        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n{}{}{}",
         candidate.version(),
         rules_py_override(),
         rules_flutter_override(),
+        rules_rust_override(),
     );
     assert!(!module.contains("module_name = \"rules_dx\""), "{module}");
     write_rules_py_patches(&root, &rules_dx_source()).unwrap_or_else(|error| panic!("{error}"));
+    write_rules_rust_patches(&root, &rules_dx_source()).unwrap_or_else(|error| panic!("{error}"));
     write(&root.join("MODULE.bazel"), module.as_bytes());
     write(&root.join("BUILD.bazel"), BUILD.as_bytes());
     write(&root.join("main.rs"), b"fn main() {}\n");

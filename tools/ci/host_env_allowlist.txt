@@ -191,9 +191,9 @@ flutter/tests/fixtures/flutter-app/BUILD.bazel sh-rule 1
 flutter/tests/fixtures/flutter-app/android/BUILD.bazel sh-rule 1
 flutter/tests/fixtures/flutter-app/android/interaction.sh shebang 1
 flutter/tests/fixtures/flutter-app/ios/simulator_smoke.sh shebang 1
-fortran/private/BUILD.bazel env-inherit 2
-fortran/private/BUILD.bazel home 1
 fortran/private/flang_rt.BUILD.bazel genrule 1
+fortran/tests/BUILD.bazel env-inherit 2
+fortran/tests/BUILD.bazel home 1
 fsharp/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 fsharp/tests/fixtures/fuzz/run_test.sh shebang 1
 fsharp/tests/fixtures/profiles/BUILD.bazel genrule 1

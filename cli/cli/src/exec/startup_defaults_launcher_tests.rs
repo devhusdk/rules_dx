@@ -275,19 +275,16 @@ fn init_and_completion_run_without_a_workspace() {
     let start = root.to_string_lossy();
     let tools = root.join("fake-bin");
     std::fs::create_dir_all(&tools).expect("fake bin");
-    let bazel = tools.join("bazel");
-    std::fs::write(&bazel, "#!/bin/sh\nexit 0\n").expect("fake bazel");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&bazel, std::fs::Permissions::from_mode(0o755))
-            .expect("fake bazel mode");
-    }
+    let bazel = tools.join(format!("bazel{}", std::env::consts::EXE_SUFFIX));
+    std::fs::copy(dx_testing::process_probe(), &bazel).expect("fake bazel");
     let path = tools.to_string_lossy();
     let (code, out, err) = run_dx(
         root,
         &["init", "--workspace", start.as_ref(), "--apply", "demo"],
-        &[("PATH", path.as_ref())],
+        &[
+            ("PATH", path.as_ref()),
+            ("PROCESS_PROBE_BAZEL_DIR", path.as_ref()),
+        ],
     );
     assert_eq!(
         code,

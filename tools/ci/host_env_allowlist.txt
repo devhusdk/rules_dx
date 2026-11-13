@@ -20,9 +20,9 @@ android/tests/fixtures/rust_apk/sign_test.sh shebang 1
 api_spec/private/codegen.bzl home 1
 appimage/private/packer/src/lib.rs shebang 2
 appimage/tests/BUILD.bazel sh-rule 1
-appimage/tests/fixtures/any.sh shebang 1
 appimage/tests/fixtures/appimage-app/app/BUILD.bazel sh-rule 1
 appimage/tests/fixtures/appimage-app/app/run_test.sh shebang 1
+appimage/tests/fixtures/dxhello/any.sh shebang 1
 apple/tests/fixtures/swift_app/BUILD.bazel sh-rule 1
 apple/tests/fixtures/swift_app/check_ipa.sh shebang 1
 apple/tests/path_test.rs host-path 3

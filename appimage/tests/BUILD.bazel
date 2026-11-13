@@ -14,10 +14,10 @@ _LINUX = ["@platforms//os:linux"]
 
 cc_library(
     name = "greet",
-    srcs = ["fixtures/greet.c"],
-    hdrs = ["fixtures/greet.h"],
+    srcs = ["fixtures/dxhello/greet.c"],
+    hdrs = ["fixtures/dxhello/greet.h"],
     copts = ["-fPIC"],
-    includes = ["fixtures"],
+    includes = ["fixtures/dxhello"],
     target_compatible_with = _LINUX,
 )
 
@@ -29,7 +29,7 @@ cc_shared_library(
 
 cc_binary(
     name = "dxhello_bin",
-    srcs = ["fixtures/dxhello.c"],
+    srcs = ["fixtures/dxhello/dxhello.c"],
     dynamic_deps = [":greet_shared"],
     linkopts = ["-Wl,-rpath,$ORIGIN/../lib"],
     target_compatible_with = _LINUX,
@@ -40,11 +40,11 @@ appimage_package(
     name = "dxhello",
     app_name = "dxhello",
     binary = ":dxhello_bin",
-    data = ["fixtures/greeting.txt"],
-    desktop = "fixtures/dxhello.desktop",
-    icon = "fixtures/dxhello.png",
+    data = ["fixtures/dxhello/greeting.txt"],
+    desktop = "fixtures/dxhello/dxhello.desktop",
+    icon = "fixtures/dxhello/dxhello.png",
     libs = [":greet_shared"],
-    notice = ["fixtures/NOTICE.txt"],
+    notice = ["fixtures/dxhello/NOTICE.txt"],
     version = "1.2.3",
 )
 
@@ -52,10 +52,10 @@ appimage_package(
     name = "dxhello_noresource",
     app_name = "dxhello",
     binary = ":dxhello_bin",
-    desktop = "fixtures/dxhello.desktop",
-    icon = "fixtures/dxhello.png",
+    desktop = "fixtures/dxhello/dxhello.desktop",
+    icon = "fixtures/dxhello/dxhello.png",
     libs = [":greet_shared"],
-    notice = ["fixtures/NOTICE.txt"],
+    notice = ["fixtures/dxhello/NOTICE.txt"],
     version = "1.2.3",
 )
 
@@ -63,10 +63,10 @@ appimage_package(
     name = "dxhello_nolib",
     app_name = "dxhello",
     binary = ":dxhello_bin",
-    data = ["fixtures/greeting.txt"],
-    desktop = "fixtures/dxhello.desktop",
-    icon = "fixtures/dxhello.png",
-    notice = ["fixtures/NOTICE.txt"],
+    data = ["fixtures/dxhello/greeting.txt"],
+    desktop = "fixtures/dxhello/dxhello.desktop",
+    icon = "fixtures/dxhello/dxhello.png",
+    notice = ["fixtures/dxhello/NOTICE.txt"],
     version = "1.2.3",
 )
 
@@ -74,25 +74,25 @@ appimage_package(
     name = "bad_names",
     app_name = "other",
     binary = ":dxhello_bin",
-    desktop = "fixtures/dxhello.desktop",
-    icon = "fixtures/dxhello.png",
-    notice = ["fixtures/NOTICE.txt"],
+    desktop = "fixtures/dxhello/dxhello.desktop",
+    icon = "fixtures/dxhello/dxhello.png",
+    notice = ["fixtures/dxhello/NOTICE.txt"],
     tags = ["manual"],
     version = "1.0.0",
 )
 
 sh_binary(
     name = "any_cell_bin",
-    srcs = ["fixtures/any.sh"],
+    srcs = ["fixtures/dxhello/any.sh"],
 )
 
 appimage_package(
     name = "arm64_cell",
     app_name = "dxhello",
     binary = ":any_cell_bin",
-    desktop = "fixtures/dxhello.desktop",
-    icon = "fixtures/dxhello.png",
-    notice = ["fixtures/NOTICE.txt"],
+    desktop = "fixtures/dxhello/dxhello.desktop",
+    icon = "fixtures/dxhello/dxhello.png",
+    notice = ["fixtures/dxhello/NOTICE.txt"],
     tags = ["manual"],
     version = "1.0.0",
 )
@@ -101,10 +101,10 @@ appimage_package(
     name = "notice_clash",
     app_name = "dxhello",
     binary = ":any_cell_bin",
-    desktop = "fixtures/dxhello.desktop",
-    icon = "fixtures/dxhello.png",
+    desktop = "fixtures/dxhello/dxhello.desktop",
+    icon = "fixtures/dxhello/dxhello.png",
     notice = [
-        "fixtures/NOTICE.txt",
+        "fixtures/dxhello/NOTICE.txt",
         "fixtures/third_party/NOTICE.txt",
     ],
     tags = ["manual"],
@@ -115,13 +115,13 @@ appimage_package(
     name = "lib_clash",
     app_name = "dxhello",
     binary = ":any_cell_bin",
-    desktop = "fixtures/dxhello.desktop",
-    icon = "fixtures/dxhello.png",
+    desktop = "fixtures/dxhello/dxhello.desktop",
+    icon = "fixtures/dxhello/dxhello.png",
     libs = [
         "fixtures/lib_a/libdup.so",
         "fixtures/lib_b/libdup.so",
     ],
-    notice = ["fixtures/NOTICE.txt"],
+    notice = ["fixtures/dxhello/NOTICE.txt"],
     tags = ["manual"],
     version = "1.0.0",
 )
@@ -134,13 +134,13 @@ filegroup(
 
 filegroup(
     name = "notice_files",
-    srcs = ["fixtures/NOTICE.txt"],
+    srcs = ["fixtures/dxhello/NOTICE.txt"],
     target_compatible_with = _LINUX,
 )
 
 filegroup(
     name = "greeting_files",
-    srcs = ["fixtures/greeting.txt"],
+    srcs = ["fixtures/dxhello/greeting.txt"],
     target_compatible_with = _LINUX,
 )
 
@@ -149,17 +149,17 @@ appimage_package(
     app_name = "dxhello",
     binary = ":any_cell_bin",
     data = [
-        "fixtures/greeting.txt",
+        "fixtures/dxhello/greeting.txt",
         ":greeting_files",
     ],
-    desktop = "fixtures/dxhello.desktop",
-    icon = "fixtures/dxhello.png",
+    desktop = "fixtures/dxhello/dxhello.desktop",
+    icon = "fixtures/dxhello/dxhello.png",
     libs = [
         "fixtures/lib_a/libdup.so",
         ":libdup_a_files",
     ],
     notice = [
-        "fixtures/NOTICE.txt",
+        "fixtures/dxhello/NOTICE.txt",
         ":notice_files",
     ],
     tags = ["manual"],
@@ -171,9 +171,9 @@ appimage_package(
     app_name = "dxhello",
     binary = ":any_cell_bin",
     data = ["//:packaging_root_data"],
-    desktop = "fixtures/dxhello.desktop",
-    icon = "fixtures/dxhello.png",
-    notice = ["fixtures/NOTICE.txt"],
+    desktop = "fixtures/dxhello/dxhello.desktop",
+    icon = "fixtures/dxhello/dxhello.png",
+    notice = ["fixtures/dxhello/NOTICE.txt"],
     tags = ["manual"],
     version = "1.0.0",
 )
@@ -187,7 +187,7 @@ failure_test(
 
 failure_test(
     name = "notice_clash_fails",
-    expected_failure_substring = "notice files appimage/tests/fixtures/NOTICE.txt and appimage/tests/fixtures/third_party/NOTICE.txt both map to usr/share/licenses/dxhello/NOTICE.txt",
+    expected_failure_substring = "notice files appimage/tests/fixtures/dxhello/NOTICE.txt and appimage/tests/fixtures/third_party/NOTICE.txt both map to usr/share/licenses/dxhello/NOTICE.txt",
     target = ":notice_clash",
     target_compatible_with = _LINUX,
 )

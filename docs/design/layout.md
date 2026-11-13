@@ -31,7 +31,6 @@ Each language owns one top-level directory.
 ```
 
 - `defs.bzl` is the only file users load.
-- `extensions.bzl` holds the public module extensions.
 - A module extension is named after its language (`qt`, `ocaml`). An extension that serves one sub-feature is named after that feature (`cuda_license`, `zig_deps`).
 - `private/` holds everything else. Users never load from it.
 - `tests/` holds the language tests and fixtures. Starlark test suites and `testdata/` live there, instantiated from `tests/BUILD.bazel`, not in `private/`.
@@ -58,8 +57,6 @@ This rule covers every public `<lang>_binary`, `<lang>_test`, `<lang>_bench` and
 - `srcs` defaults to `None` in binary and test macros. A bench or fuzz macro may require it.
 - `main` names the entry file. It follows `srcs` and defaults to `None`.
 - No macro takes `entry_point`. JVM macros take `main_class` or `target_class`.
-- `visibility` defaults to `None`.
-- `**kwargs` comes last.
 - `tools/testing/signatures/macro_signatures.py` checks the parameter order, the defaults and the absence of `entry_point`. It lists the macros that require `srcs` or `main`.
 
 ## Shared directories
@@ -81,21 +78,11 @@ examples/   tested examples
 ```
 
 - `core/` holds providers, the quality framework, `dx_wrap`, and the toolchain and pins factory. It holds no language code.
-- `config/` holds public build settings that are not specific to one language.
-- `core/private/` holds core internals.
 - `cli/` holds every Rust crate.
 - `dx/` holds only a `BUILD.bazel` with the targets `dx` runs in a consumer workspace. It holds no `.bzl` file.
-- `deploy/` follows the language directory shape without a manifest: `deploy/defs.bzl`, `deploy/private/`, `deploy/tests/`.
-- `gazelle/` holds the shared Gazelle plugins.
 - `ci/` holds one directory per CI system. Its file paths are public URLs.
-- `tools/` holds scripts that only maintainers run, and the generators.
-- WASI is a Rust target, not a language. Its test helpers `wasi_run` and `wasmtime` live in `//tools/testing/wasi`.
 - `patches/` holds upstream patches and the rules_dx registry. The patch table is generated from them.
-- `third_party/` holds dependency manifests and lock files.
-- `docs/` holds user docs. Per-language pages are generated from `lang.json`.
-- Every example in `examples/` is a tested target.
 - The root holds only language directories with a `lang.json` and the directories above. A test enforces the list, which has no pending entries.
-- A directory that holds only a README is not a root directory. Its page lives in `docs/`.
 - Every `.bzl` file is loaded, every fixture and Rust file is named by a target or a test, every `filegroup` and exported file has a user, and every directory belongs to a package. `//tools/ci:unreferenced_files_test` enforces it.
 
 ## Quality code
@@ -133,7 +120,6 @@ examples/   tested examples
 - Its `quality` entry names the aspect file, aspects and probes. dx loads the file when the workspace has a file with one of `file_extensions` or named one of `file_names` alone or before a dot, or always when `every_workspace` is set.
 - `cli/families/languages.json` is generated from the `quality` and `docs` entries. The dx plan registry reads it.
 - Family values only group languages. They create no module, directory or label.
-- Code reads the manifest. It does not repeat its values.
 
 ## Tool pins
 

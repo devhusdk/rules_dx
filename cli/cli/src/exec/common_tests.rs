@@ -223,7 +223,7 @@ impl Runner for CallRunner {
         _cwd: &Path,
         _env: &[(&str, &str)],
     ) -> io::Result<dx_process::ChildStatus> {
-        unreachable!("builds go through run_withdrawable") // LCOV_EXCL_LINE - reason: the build never takes this path, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        Err(io::Error::other("builds go through run_withdrawable")) // LCOV_EXCL_LINE - reason: the build never takes this path, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 
     fn run_withdrawable(

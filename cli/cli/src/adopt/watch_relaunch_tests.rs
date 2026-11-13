@@ -113,9 +113,9 @@ impl Watch {
 
 impl Drop for Watch {
     fn drop(&mut self) {
-        let _ = fs::write(self.state.join("stop"), "");
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        fs::write(self.state.join("stop"), "").ok();
+        self.child.kill().ok();
+        self.child.wait().ok();
     }
 }
 

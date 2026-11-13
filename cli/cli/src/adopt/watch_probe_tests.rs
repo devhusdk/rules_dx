@@ -175,7 +175,9 @@ impl Probe {
         self.signalled = Some(Instant::now());
         let pid = self.child.id() as i32;
         let target = if group { -pid } else { pid };
-        assert_eq!(unsafe { libc::kill(target, signo) }, 0, "signal delivered");
+        // SAFETY: kill(2) takes plain integers and touches no memory.
+        let delivered = unsafe { libc::kill(target, signo) };
+        assert_eq!(delivered, 0, "signal delivered");
     }
 
     fn exit(&mut self) -> ExitStatus {
@@ -186,8 +188,8 @@ impl Probe {
                 return status;
             }
             if Instant::now() >= deadline {
-                let _ = self.child.kill();
-                let _ = self.child.wait();
+                self.child.kill().ok();
+                self.child.wait().ok();
                 panic!(
                     "dx did not exit\nlog:\n{}\nstdout:\n{}\nstderr:\n{}",
                     self.log(),
@@ -220,16 +222,19 @@ fn assert_interrupted(status: ExitStatus) {
 impl Drop for Probe {
     fn drop(&mut self) {
         if let Ok(None) = self.child.try_wait() {
+            // SAFETY: kill(2) takes plain integers and touches no memory.
             unsafe {
                 libc::kill(-(self.child.id() as i32), libc::SIGKILL);
             }
-            let _ = self.child.wait();
+            self.child.wait().ok();
         }
     }
 }
 
 fn alive(pid: i32) -> bool {
-    unsafe { libc::kill(pid, 0) == 0 && !zombie(pid) }
+    // SAFETY: kill(2) takes plain integers and touches no memory.
+    let exists = unsafe { libc::kill(pid, 0) } == 0;
+    exists && !zombie(pid)
 }
 
 #[cfg(target_os = "linux")]

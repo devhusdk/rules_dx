@@ -814,7 +814,7 @@ impl FakeRunner {
                 signal: None,
             });
         };
-        let files: Vec<serde_json::Value> = shards
+        let files = shards
             .iter()
             .enumerate()
             .map(|(index, shard)| {
@@ -822,11 +822,10 @@ impl FakeRunner {
                 std::fs::write(
                     &artifact,
                     serde_json::json!({ "shards": [shard] }).to_string(),
-                )
-                .expect("shard file");
-                serde_json::json!({"uri": format!("file://{artifact}")})
+                )?;
+                Ok(serde_json::json!({"uri": format!("file://{artifact}")}))
             })
-            .collect();
+            .collect::<io::Result<Vec<serde_json::Value>>>()?;
         let lines = [
             serde_json::json!({
                 "id": {"namedSet": {"id": "0"}},
@@ -842,7 +841,7 @@ impl FakeRunner {
                 .clone()
                 .unwrap_or_else(|| LAST_EVENT.to_owned()),
         ];
-        std::fs::write(bep, lines.join("\n")).expect("probe BEP file");
+        std::fs::write(bep, lines.join("\n"))?;
         Ok(ChildStatus {
             code: Some(0),
             signal: None,
@@ -875,20 +874,20 @@ impl Runner for FakeRunner {
                 .iter()
                 .find_map(|arg| arg.strip_prefix("--build_event_json_file="))
         {
-            std::fs::write(bep, self.bep_lines.join("\n")).expect("BEP file");
+            std::fs::write(bep, self.bep_lines.join("\n"))?;
         }
         if let (Some(payload), Some(path)) = (
             &self.patch,
             argv.iter().find_map(|arg| arg.strip_prefix("-patch=")),
         ) {
-            std::fs::write(path, payload).expect("patch file");
+            std::fs::write(path, payload)?;
         }
         if let Some(path) = env
             .iter()
             .find_map(|(key, value)| (*key == GENERATE_ENV_INTENDED).then_some(*value))
         {
             if let Some(witness) = &self.intended {
-                std::fs::write(path, witness).expect("intended witness");
+                std::fs::write(path, witness)?;
             }
             if let Some(code) = self.generate_code {
                 return Ok(ChildStatus::exited(code));
@@ -1377,6 +1376,7 @@ pub(crate) fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
         events: libc::POLLOUT,
         revents: 0,
     };
+    // SAFETY: `fd` is a live pollfd and the count is 1.
     let ready = unsafe { libc::poll(&mut fd, 1, timeout_ms) };
     ready > 0 && fd.revents & (libc::POLLERR | libc::POLLHUP) != 0
 }

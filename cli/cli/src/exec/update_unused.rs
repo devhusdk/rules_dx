@@ -154,7 +154,24 @@ fn used_labels(
                 .collect::<Vec<_>>()
                 .join(" + ")
         }
-        _ => return None,
+        Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Go
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => return None,
     };
     let expression = format!("deps(//..., 1) intersect ({scope})");
     let labels = run_label_query_file(&expression, &expression, workspace, query, startup).ok()?;
@@ -220,7 +237,24 @@ fn dep_keys(ecosystem: Ecosystem, dir: &str, dep: &dx_depcheck::DeclaredDep) -> 
         Ecosystem::Npm => vec![format!("{dir}:node_modules/{}", dep.hub)],
         Ecosystem::Maven => vec![format!(":{}", underscored(&dep.hub))],
         Ecosystem::Nuget => vec![dep.hub.to_lowercase()],
-        _ => Vec::new(),
+        Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Go
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => Vec::new(),
     }
 }
 
@@ -681,10 +715,11 @@ mod tests {
         ) -> std::io::Result<dx_plan::resolve::QueryResult> {
             for arg in argv {
                 if let Some(file) = arg.strip_prefix("--query_file=") {
+                    let text = std::fs::read_to_string(file)?;
                     self.0
                         .lock()
-                        .unwrap()
-                        .push(std::fs::read_to_string(file).unwrap());
+                        .map_err(|poisoned| std::io::Error::other(poisoned.to_string()))?
+                        .push(text);
                 }
             }
             Labels(self.1).run_query(argv, _cwd)

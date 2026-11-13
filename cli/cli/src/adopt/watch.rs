@@ -111,7 +111,7 @@ impl Progress {
             Progress::Silent => Ok(()),
             Progress::Stdout => check_stdout_write(writeln!(out, "{line}")),
             Progress::Stderr => {
-                let _ = writeln!(err, "{line}");
+                writeln!(err, "{line}").ok();
                 Ok(())
             }
         }
@@ -203,7 +203,7 @@ fn watch(
         round += 1;
         if round > 1 {
             if std::io::stdout().is_terminal() && progress != Progress::Silent {
-                let _ = write!(out, "\x1b[2J\x1b[H");
+                write!(out, "\x1b[2J\x1b[H").ok();
             }
             if let Err(exit) = progress.say(&mut *out, &mut *err, SEPARATOR) {
                 return exit;
@@ -887,8 +887,7 @@ mod tests {
                 _env: &[(&str, &str)],
             ) -> io::Result<dx_process::ChildStatus> {
                 self.seen.borrow_mut().push(argv.join(" "));
-                std::fs::write(self.workspace.join("trigger.txt"), "edited")
-                    .expect("trigger write");
+                std::fs::write(self.workspace.join("trigger.txt"), "edited")?;
                 Ok(dx_process::ChildStatus::exited(0))
             }
         }
@@ -1371,7 +1370,9 @@ mod tests {
                     .push(format!("build {}", argv.join(" ")));
                 return Ok(Some(dx_process::ChildStatus::exited(0)));
             }
-            assert!(!self.running.get(), "app instances overlap");
+            if self.running.get() {
+                return Err(io::Error::other("app instances overlap"));
+            }
             self.running.set(true);
             self.events
                 .borrow_mut()

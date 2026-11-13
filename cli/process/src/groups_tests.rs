@@ -578,14 +578,15 @@ fn an_unreadable_stat_of_a_gone_leader_is_absent() {
 
 #[cfg(not(unix))]
 #[test]
-fn without_unix_groups_nothing_is_known_and_a_lease_is_dropped() {
+fn without_unix_groups_only_start_times_are_known_and_a_lease_is_dropped() {
     assert!(!group_alive(4000));
     stop_group(&recorded("77"));
     assert_eq!(sys::cmdline(4000), "");
-    assert!(sys::start_time(4000).is_none());
+    assert!(sys::start_time(-1).is_none());
+    assert!(sys::start_time(std::process::id() as i32).is_some());
     assert!(sys::own_groups().is_empty());
     assert_eq!(sys::leader(4000), Leader::Unknown);
-    assert!(lease_line(4000).is_none());
+    assert!(lease_line(-1).is_none());
     let scratch = dx_test_scratch::scratch("dx-groups-portable-");
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");

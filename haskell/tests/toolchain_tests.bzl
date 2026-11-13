@@ -163,12 +163,13 @@ def _checks():
         expect_equal("linux conf is unchanged", drop_host_sdk_dirs(_CONF), _CONF),
         expect_contains("bundled programs stay relative", settings, "(\"unlit command\", \"$topdir/../bin/unlit\")"),
     ]
-    sidecar = {"packages": [
-        {"name": "alex", "version": "3.5", "source": "hackage", "components": ["exe:alex"], "dependencies": [], "tools": []},
-        {"name": "lib", "version": "1.0", "source": "hackage", "components": ["lib"], "dependencies": [], "tools": ["alex:alex"]},
+    archive = {"sha256": "a" * 64, "strip_prefix": "x-1.0", "urls": ["https://hackage.haskell.org/package/x-1.0/x-1.0.tar.gz"]}
+    lock = {"schema": 1, "packages": [
+        {"name": "alex", "version": "3.5", "archives": [archive], "deps": [], "extra": {"cabal_components": ["exe:alex"]}},
+        {"name": "lib", "version": "1.0", "archives": [archive], "deps": ["alex", "base"], "extra": {"cabal_components": ["lib"], "cabal_tools": ["alex:alex"]}},
     ]}
-    package = sidecar["packages"][1]
-    build = package_build("lib", "1.0", package["components"], package_deps("hub", sidecar, package), tool_labels("hub", package), {"": {"deps": [], "empty": False}})
+    package = lock["packages"][1]
+    build = package_build("lib", "1.0", components(package), package_deps("hub", lock, package), tool_labels("hub", package), {"": {"deps": [], "empty": False}})
     libraries = cabal_libraries(_SUBLIBRARY_CABAL)
     happy = package_build("happy-lib", "2.1.7", ["lib", "exe:happy"], ["@hub_base//:base"], [], libraries)
     checks += [
@@ -182,17 +183,16 @@ def _checks():
         expect_contains("executables see every library of the package", happy, 'deps = ["@hub_base//:base", ":happy-lib", ":happy-lib-lib-frontend", ":happy-lib-lib-grammar", ":happy-lib-lib-tabular"],'),
         expect_false("sublibraries are no aliases", "alias(" in happy),
         expect_contains("package build renders tools", build, 'tools = ["@hub_alex//:alex-exe-alex"]'),
-        expect_false("package build keeps tools out of deps", 'deps = ["@hub_alex' in build),
+        expect_contains("a lock package dep points at its repository", build, '"@hub_alex//:alex"'),
+        expect_contains("a dep outside the lock is a GHC boot package", build, '"@dx_haskell_toolchains//lib:base"'),
     ]
-    pinned = {"name": "pinned", "version": "1.0", "source": "hackage", "cabal_revision": 2, "sdist_sha256": "a" * 64, "cabal_sha256": "b" * 64}
+    pinned = {"name": "pinned", "version": "1.0", "archives": [archive], "extra": {"cabal_revision": {"number": 2, "sha256": "b" * 64}}}
     checks += [
-        expect_equal("pinned packages have no pin problem", pin_problems({"packages": [pinned, {"name": "base", "source": "ghc"}]}), []),
-        expect_equal("an empty sdist digest names the package", pin_problems({"packages": [pinned | {"name": "empty", "sdist_sha256": ""}]}), ['package empty has sdist_sha256 "", expected 64 lowercase hex characters']),
-        expect_equal("a 63 character sdist digest names the package", pin_problems({"packages": [pinned | {"name": "short", "sdist_sha256": "a" * 63}]}), ['package short has sdist_sha256 "{}", expected 64 lowercase hex characters'.format("a" * 63)]),
-        expect_equal("an empty cabal digest of a revision names the package", pin_problems({"packages": [pinned | {"name": "revised", "cabal_sha256": ""}]}), ['package revised has cabal_sha256 "", expected 64 lowercase hex characters']),
-        expect_equal("a missing sdist digest of a url package names the package", pin_problems({"packages": [{"name": "tarball", "version": "1.0", "source": "url"}]}), ['package tarball has sdist_sha256 "", expected 64 lowercase hex characters']),
-        expect_equal("revision 0 needs no cabal digest", pin_problems({"packages": [pinned | {"cabal_revision": 0, "cabal_sha256": ""}]}), []),
-        expect_equal("problems are reported for every package", len(pin_problems({"packages": [pinned | {"name": "a", "sdist_sha256": ""}, pinned | {"name": "b", "cabal_sha256": "x"}]})), 2),
+        expect_equal("pinned packages have no pin problem", pin_problems({"schema": 1, "packages": [pinned]}), []),
+        expect_equal("an empty cabal digest of a revision names the package", pin_problems({"schema": 1, "packages": [pinned | {"name": "revised", "extra": {"cabal_revision": {"number": 1, "sha256": ""}}}]}), ['package revised has cabal revision sha256 "", expected 64 lowercase hex characters']),
+        expect_equal("revision 0 needs no cabal digest", pin_problems({"schema": 1, "packages": [pinned | {"extra": {"cabal_revision": {"number": 0, "sha256": ""}}}]}), []),
+        expect_equal("a package needs one sdist archive", pin_problems({"schema": 1, "packages": [pinned | {"name": "none", "archives": []}]}), ["package none has 0 archives, expected 1"]),
+        expect_equal("a short sdist digest fails", len(pin_problems({"schema": 1, "packages": [pinned | {"archives": [archive | {"sha256": "a" * 63}]}]})), 1),
         expect_false("an uppercase digest is no sha256", is_sha256("A" * 64)),
         expect_false("a 65 character digest is no sha256", is_sha256("a" * 65)),
         expect_true("64 lowercase hex characters are a sha256", is_sha256("0123456789abcdef" * 4)),

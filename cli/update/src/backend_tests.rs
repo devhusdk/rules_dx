@@ -945,18 +945,15 @@ fn cabal_set() -> ResolvedSet {
         manifests: vec!["hs/cabal.project".to_owned()],
         locks: vec![
             "hs/cabal.project.freeze".to_owned(),
-            "hs/haskell_deps.json".to_owned(),
+            "hs/cabal.lock.json".to_owned(),
         ],
         repository: None,
     }
 }
 
-const CABAL_BUILD: &str = "haskell_deps_resolve(name = \"resolve\")\nhaskell_deps_resolve_test(name = \"resolve_test\")\n";
-
 #[test]
-fn cabal_update_runs_the_resolve_target() {
+fn cabal_update_runs_the_lock_step() {
     let dir = dx_test_scratch::scratch("cabal_backend");
-    dx_test_scratch::write(dir.path(), "hs/BUILD.bazel", CABAL_BUILD);
     let plan = |request: &Selection, offline: bool, frozen: bool| {
         plan_configured(
             dir.path(),
@@ -971,7 +968,11 @@ fn cabal_update_runs_the_resolve_target() {
     let BackendPlan::Run { argv, .. } = plan(&Selection::Full, false, false).expect("plan") else {
         panic!("expected a run");
     };
-    assert_eq!(argv.last().map(String::as_str), Some("//hs:resolve"));
+    assert!(argv.contains(&"@rules_dx//haskell/private/tools/lock".to_owned()));
+    assert_eq!(
+        argv.last().map(String::as_str),
+        Some(dir.path().join("hs").to_string_lossy().as_ref())
+    );
     assert!(matches!(
         plan(&Selection::Full, true, false),
         Err(BackendError::OfflineRequired { .. })
@@ -984,9 +985,8 @@ fn cabal_update_runs_the_resolve_target() {
 }
 
 #[test]
-fn cabal_check_runs_the_resolve_test() {
+fn cabal_check_runs_the_lock_step_in_check_mode() {
     let dir = dx_test_scratch::scratch("cabal_backend_check");
-    dx_test_scratch::write(dir.path(), "hs/BUILD.bazel", CABAL_BUILD);
     let CheckPlan::Run { argv, .. } = check_configured(
         dir.path(),
         &cabal_set(),
@@ -999,23 +999,8 @@ fn cabal_check_runs_the_resolve_test() {
     .expect("plan") else {
         panic!("expected a run");
     };
-    assert_eq!(argv.last().map(String::as_str), Some("//hs:resolve_test"));
-    let bare = dx_test_scratch::scratch("cabal_backend_bare");
-    let error = check_configured(
-        bare.path(),
-        &cabal_set(),
-        &Selection::Full,
-        false,
-        false,
-        &no_head(),
-        &UvClosure::default(),
-    )
-    .expect_err("refused");
-    assert!(
-        error
-            .to_string()
-            .contains("add a haskell_deps_resolve_test")
-    );
+    assert!(argv.contains(&"@rules_dx//haskell/private/tools/lock".to_owned()));
+    assert_eq!(argv.last().map(String::as_str), Some("--check"));
 }
 
 fn swift_set() -> ResolvedSet {

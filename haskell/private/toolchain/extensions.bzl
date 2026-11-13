@@ -27,9 +27,9 @@ def _cabal_impl(mctx):
     return mctx.extension_metadata(reproducible = True)
 
 _lock = tag_class(
-    doc = "Builds the Hackage packages of a Hackage sidecar and exposes them through a hub repository.",
+    doc = "Builds the Hackage packages of a cabal.lock.json and exposes them through a hub repository.",
     attrs = {
-        "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The Hackage sidecar written by haskell_deps_resolve."),
+        "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The cabal.lock.json written by the cabal lock step."),
         "name": attr.string(mandatory = True, doc = "Name of the hub repository, which has one alias per package and per executable."),
     },
 )
@@ -37,5 +37,5 @@ _lock = tag_class(
 cabal = module_extension(
     implementation = _cabal_impl,
     tag_classes = {"lock": _lock},
-    doc = "Builds the Hackage packages of Hackage sidecars.",
+    doc = "Builds the Hackage packages of cabal.lock.json files.",
 )

@@ -1841,38 +1841,38 @@ use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains")
 cabal = use_extension("//haskell:extensions.bzl", "cabal")
 cabal.lock(
     name = "haskell_weeder_hackage",
-    lock = "//haskell/private/tools/weeder:haskell_deps.json",
+    lock = "//haskell/private/tools/weeder:cabal.lock.json",
 )
 cabal.lock(
     name = "haskell_nixfmt_hackage",
-    lock = "//core/quality/tools/nixfmt:haskell_deps.json",
+    lock = "//core/quality/tools/nixfmt:cabal.lock.json",
 )
 cabal.lock(
     name = "haskell_hlint_hackage",
-    lock = "//haskell/private/tools/hlint:haskell_deps.json",
+    lock = "//haskell/private/tools/hlint:cabal.lock.json",
 )
 cabal.lock(
     name = "haskell_ormolu_hackage",
-    lock = "//haskell/private/tools/ormolu:haskell_deps.json",
+    lock = "//haskell/private/tools/ormolu:cabal.lock.json",
 )
 use_repo(cabal, "haskell_hlint_hackage", "haskell_nixfmt_hackage", "haskell_ormolu_hackage", "haskell_weeder_hackage")
 
 cabal_dev = use_extension("//haskell:extensions.bzl", "cabal", dev_dependency = True)
 cabal_dev.lock(
     name = "haskell_app_hackage",
-    lock = "//haskell/tests/fixtures/haskell_app/third_party:haskell_deps.json",
+    lock = "//haskell/tests/fixtures/haskell_app/third_party:cabal.lock.json",
 )
 cabal_dev.lock(
     name = "haskell_exe_hackage",
-    lock = "//haskell/tests/fixtures/hackage-exe:haskell_deps.json",
+    lock = "//haskell/tests/fixtures/hackage-exe:cabal.lock.json",
 )
 cabal_dev.lock(
     name = "haskell_stack_hackage",
-    lock = "//haskell/tests/fixtures/stack:haskell_deps.json",
+    lock = "//haskell/tests/fixtures/stack:cabal.lock.json",
 )
 cabal_dev.lock(
     name = "haskell_bench_hackage",
-    lock = "//haskell/tests/fixtures/bench:haskell_deps.json",
+    lock = "//haskell/tests/fixtures/bench:cabal.lock.json",
 )
 use_repo(cabal_dev, "haskell_app_hackage", "haskell_bench_hackage", "haskell_exe_hackage", "haskell_stack_hackage")
 

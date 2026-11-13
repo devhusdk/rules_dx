@@ -1405,7 +1405,7 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     fn cabal_module() -> String {
-        let v0 = named(Ecosystem::Cabal, "deps");
+        let v0 = named(Ecosystem::Cabal, "lock.json");
         format!(
             "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//hs:{v0}\")\n"
         )
@@ -1432,7 +1432,7 @@ source = { registry = "https://pypi.org/simple" }
             "constraints: any.base ==4.20.2.0,\n             any.safe ==0.3.21\nindex-state: hackage.haskell.org 2026-09-30T23:43:34Z\n",
         );
         harness.write_source(
-            &format!("hs/{}", named(Ecosystem::Cabal, "deps")),
+            &format!("hs/{}", named(Ecosystem::Cabal, "lock.json")),
             "{\"packages\":[{\"name\":\"base\",\"version\":\"4.20.2.0\"},{\"name\":\"safe\",\"version\":\"0.3.21\"}]}\n",
         );
         write_advisory(&harness, "hackage", HACKAGE_ADVISORY);

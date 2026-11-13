@@ -18,7 +18,7 @@ LOCK_REGISTRY = {
     "cabal": {
         "hub": "hackage",
         "imports": "name",
-        "lock": "haskell_deps.json",
+        "lock": "cabal.lock.json",
         "manifest": "cabal.project",
         "state": "cabal.project.freeze",
     },

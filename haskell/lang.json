@@ -19,12 +19,12 @@
       {
         "ecosystem": "cabal",
         "manifest": "cabal.project",
-        "lock": "haskell_deps.json",
+        "lock": "cabal.lock.json",
         "state": "cabal.project.freeze",
         "extension": "@rules_dx//haskell:extensions.bzl",
         "tag": "lock",
         "hub": "hackage",
-        "resolver": null,
+        "resolver": "@rules_dx//haskell/private/tools/lock",
         "imports": "name"
       }
     ]
@@ -50,9 +50,7 @@
     "haskell_library",
     "haskell_binary",
     "haskell_test",
-    "haskell_bench",
-    "haskell_deps_resolve",
-    "haskell_deps_resolve_test"
+    "haskell_bench"
   ],
   "quality": {
     "bzl": "haskell/private/quality:haskell.bzl",

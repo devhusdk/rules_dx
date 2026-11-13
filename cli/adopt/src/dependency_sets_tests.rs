@@ -158,7 +158,7 @@ fn opam_packages_become_opam_sets() {
 
 #[test]
 fn haskell_packages_become_cabal_sets() {
-    let module = "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//third_party:haskell_deps.json\")\n";
+    let module = "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//third_party:cabal.lock.json\")\n";
     let registry = found(module, &[]);
     let set = registry.find("hackage").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::Cabal);
@@ -167,21 +167,21 @@ fn haskell_packages_become_cabal_sets() {
         set.locks,
         [
             "third_party/cabal.project.freeze",
-            "third_party/haskell_deps.json"
+            "third_party/cabal.lock.json"
         ]
     );
 }
 
 #[test]
 fn a_stack_lock_beside_cabal_project_joins_the_cabal_set() {
-    let module = "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
+    let module = "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//hs:cabal.lock.json\")\n";
     let registry = found(module, &[("hs/stack.yaml.lock", "packages: []\n")]);
     let set = registry.find("hackage").expect("set");
     assert_eq!(
         set.locks,
         [
             "hs/cabal.project.freeze",
-            "hs/haskell_deps.json",
+            "hs/cabal.lock.json",
             "hs/stack.yaml.lock"
         ]
     );
@@ -209,13 +209,13 @@ fn cabal_layout_compares_freeze_and_sidecar_versions() {
         manifests: vec!["hs/cabal.project".to_owned()],
         locks: vec![
             "hs/cabal.project.freeze".to_owned(),
-            "hs/haskell_deps.json".to_owned(),
+            "hs/cabal.lock.json".to_owned(),
         ],
         repository: None,
     };
-    std::fs::write(root.join("hs/haskell_deps.json"), sidecar("0.3.21")).expect("sidecar");
+    std::fs::write(root.join("hs/cabal.lock.json"), sidecar("0.3.21")).expect("sidecar");
     assert!(check_cabal_layout(root, &set).is_ok());
-    std::fs::write(root.join("hs/haskell_deps.json"), sidecar("0.3.20")).expect("sidecar");
+    std::fs::write(root.join("hs/cabal.lock.json"), sidecar("0.3.20")).expect("sidecar");
     let message = check_cabal_layout(root, &set)
         .expect_err("stale")
         .to_string();

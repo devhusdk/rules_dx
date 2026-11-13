@@ -1,7 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH")
-load("//haskell/private:deps_resolve.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -10,17 +9,7 @@ _PROJECT = [
     "weeder_tool.cabal",
 ]
 
-exports_files(_PROJECT + ["haskell_deps.json"])
-
-haskell_deps_resolve(
-    name = "resolve",
-    srcs = _PROJECT,
-)
-
-haskell_deps_resolve_test(
-    name = "resolve_test",
-    srcs = _PROJECT,
-)
+exports_files(_PROJECT + ["cabal.lock.json"])
 
 build_test(
     name = "weeder_build_test",

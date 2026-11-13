@@ -506,15 +506,15 @@ fn composer_check_refuses_a_package_selection() {
 }
 
 fn cpan_set() -> ResolvedSet {
+    let hub = dx_families::hub("cpan").expect("setup.hubs entry cpan");
+    let state = hub.state.as_ref().expect("cpan state");
+    let lock = hub.lock.as_ref().expect("cpan lock");
     ResolvedSet {
         name: "perl".to_owned(),
         ecosystem: Ecosystem::Cpan,
         dir: "app".to_owned(),
-        manifests: vec!["app/cpanfile".to_owned()],
-        locks: vec![
-            "app/cpanfile.snapshot".to_owned(),
-            "app/cpan.lock.json".to_owned(),
-        ],
+        manifests: vec![format!("app/{}", hub.manifest)],
+        locks: vec![format!("app/{state}"), format!("app/{lock}")],
         repository: None,
     }
 }

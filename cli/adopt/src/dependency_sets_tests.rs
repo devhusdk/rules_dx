@@ -222,22 +222,38 @@ fn cabal_layout_compares_freeze_and_sidecar_versions() {
     assert!(message.contains("safe 0.3.20"), "{message}");
 }
 
+fn cpan_registry() -> &'static dx_families::Hub {
+    dx_families::hub("cpan").expect("setup.hubs entry cpan")
+}
+
+/// The manifest and the state and lock files of a cpan set in `dir`.
+fn cpan_paths(dir: &str) -> (String, [String; 2]) {
+    let hub = cpan_registry();
+    let state = hub.state.as_ref().expect("cpan state");
+    let lock = hub.lock.as_ref().expect("cpan lock");
+    (
+        format!("{dir}/{}", hub.manifest),
+        [format!("{dir}/{state}"), format!("{dir}/{lock}")],
+    )
+}
+
 #[test]
 fn cpan_installs_become_cpan_sets() {
-    let module = "cpan = use_extension(\"@rules_dx//perl:extensions.bzl\", \"cpan\")\ncpan.lock(name = \"perl_cpan\", lock = \"//perl/private/tools:cpan.lock.json\")\n";
-    let registry = discover(module, &|_: &str| Err("none".to_owned()))
+    let hub = cpan_registry();
+    let tag = hub.tag.as_ref().expect("cpan tag");
+    let lock = hub.lock.as_ref().expect("cpan lock");
+    let module = format!(
+        "cpan = use_extension(\"{}\", \"{}\")\ncpan.{tag}(name = \"perl_cpan\", lock = \"//perl/private/tools:{lock}\")\n",
+        hub.extension, hub.ecosystem
+    );
+    let registry = discover(&module, &|_: &str| Err("none".to_owned()))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("perl_cpan").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::Cpan);
-    assert_eq!(set.manifests, ["perl/private/tools/cpanfile"]);
-    assert_eq!(
-        set.locks,
-        [
-            "perl/private/tools/cpanfile.snapshot",
-            "perl/private/tools/cpan.lock.json"
-        ]
-    );
+    let (manifest, locks) = cpan_paths("perl/private/tools");
+    assert_eq!(set.manifests, [manifest]);
+    assert_eq!(set.locks, locks);
 }
 
 const CPAN_SNAPSHOT: &str = "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  Try-Tiny-0.31\n    pathname: E/ET/ETHER/Try-Tiny-0.31.tar.gz\n";
@@ -246,17 +262,15 @@ fn cpan_workspace(lock: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
     let scratch = dx_test_scratch::scratch("dx-dependency-sets-cpan-");
     let root = scratch.path();
     std::fs::create_dir_all(root.join("perl")).expect("dir");
-    std::fs::write(root.join("perl/cpanfile.snapshot"), CPAN_SNAPSHOT).expect("snapshot");
-    std::fs::write(root.join("perl/cpan.lock.json"), lock).expect("lock");
+    let (manifest, [state_path, lock_path]) = cpan_paths("perl");
+    std::fs::write(root.join(&state_path), CPAN_SNAPSHOT).expect("snapshot");
+    std::fs::write(root.join(&lock_path), lock).expect("lock");
     let set = ResolvedSet {
         name: "perl_cpan".to_owned(),
         ecosystem: Ecosystem::Cpan,
         dir: "perl".to_owned(),
-        manifests: vec!["perl/cpanfile".to_owned()],
-        locks: vec![
-            "perl/cpanfile.snapshot".to_owned(),
-            "perl/cpan.lock.json".to_owned(),
-        ],
+        manifests: vec![manifest],
+        locks: vec![state_path, lock_path],
         repository: None,
     };
     (scratch, set)

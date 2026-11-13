@@ -6,7 +6,7 @@ load("@rules_dx//rust/private/toolchain:bindings.bzl", "RUST_TOOLCHAIN_TYPE")
 
 _DISABLED_PLATFORM_REPOS = [
     "bundle",
-    "dotnet_toolchains",
+    "dx_dotnet_toolchains",
     "dx_npm",
     "dx_npm_tools",
     "dx_pypi",

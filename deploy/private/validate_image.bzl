@@ -11,8 +11,8 @@ IMAGE_BASES = {
 
 IMAGE_RUNTIMES = {
     "dotnet": {
-        "linux/amd64": "@dotnet_x86_64-unknown-linux-gnu//:runtime",
-        "linux/arm64": "@dotnet_arm64-unknown-linux-gnu//:runtime",
+        "linux/amd64": "@dx_dotnet_x86_64-unknown-linux-gnu//:runtime",
+        "linux/arm64": "@dx_dotnet_arm64-unknown-linux-gnu//:runtime",
     },
     "java": {
         "linux/amd64": "@remotejdk21_linux//:jdk",

@@ -24,7 +24,7 @@ filegroup(
         ":facts",
         "//.github:workflows/ci.yml",
         "//cli/cli:src/exec/unsupported.json",
-    ] + support_matrix_inputs(),
+    ] + glob(["row_tests/*.json"]) + support_matrix_inputs(),
 )
 
 rust_library(
@@ -33,7 +33,6 @@ rust_library(
         "src/lib.rs",
         "src/render.rs",
         "src/runfiles_source.rs",
-        "src/starlark.rs",
         "src/workflows.rs",
     ],
     aliases = aliases(

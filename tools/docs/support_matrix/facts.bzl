@@ -7,7 +7,7 @@ load("//core/quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLA
 load("//core/quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//core/quality:support.bzl", "SUPPORT_RECORDS")
 load("//tools/testing/conformance:defs.bzl", "ConformanceManifestInfo")
-load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "LANGUAGES", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
+load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "LANGUAGES", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -182,7 +182,6 @@ def support_matrix_facts_dict():
         "api_compat_tools": API_COMPAT_TOOLS,
         "bench": BENCH,
         "compiler_blockers": COMPILER_BLOCKERS,
-        "computed_constraints": COMPUTED_CONSTRAINTS,
         "dependencies": DEPENDENCIES,
         "fuzz": FUZZ,
         "deferred_families": sorted(deferred.keys()),

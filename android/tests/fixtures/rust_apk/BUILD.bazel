@@ -811,8 +811,3 @@ sh_test(
     ],
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
-
-exports_files(
-    ["BUILD.bazel"],
-    visibility = ["//tools/docs/support_matrix:__pkg__"],
-)

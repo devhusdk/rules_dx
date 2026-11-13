@@ -152,8 +152,3 @@ test_suite(
         ":native_arm64_test",
     ],
 )
-
-exports_files(
-    ["BUILD.bazel"],
-    visibility = ["//tools/docs/support_matrix:__pkg__"],
-)

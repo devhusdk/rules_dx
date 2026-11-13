@@ -145,7 +145,6 @@ tools/docs/support_matrix/facts_tests.bzl compat-word 4
 tools/docs/support_matrix/languages.bzl compat-word 3
 tools/docs/support_matrix/src/lib.rs compat-word 2
 tools/docs/support_matrix/src/render.rs compat-word 11
-tools/docs/support_matrix/src/starlark.rs compat-word 1
 tools/docs/typescript/extract/src/convert.rs compat-word 2
 tools/docs/typescript/extract/src/lib_tests.rs compat-word 2
 tools/testing/BUILD.bazel compat-word 4

@@ -1,10 +1,9 @@
-//! Generates `docs/support-matrix.md` from CI workflows, test BUILD files and the quality registry.
+//! Generates `docs/support-matrix.md` from CI workflows, per-platform row test queries and the quality registry.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod render;
 pub mod runfiles_source;
-pub mod starlark;
 pub mod workflows;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -21,6 +20,9 @@ pub const UNSUPPORTED_PATH: &str = "cli/cli/src/exec/unsupported.json";
 pub const UPDATE_COMMAND: &str = "bazel run //tools/docs/support_matrix:update";
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
+
+/// The command that refreshes one platform's row test file.
+pub const ROW_TESTS_COMMAND: &str = "tools/docs/support_matrix/row_tests.sh <platform>";
 
 /// One CI platform from the language list.
 #[derive(Clone, Debug, Deserialize)]
@@ -134,7 +136,6 @@ pub struct Facts {
     #[serde(default)]
     pub api_compat_tools: BTreeMap<String, String>,
     pub not_languages: Vec<String>,
-    pub computed_constraints: BTreeMap<String, Vec<Vec<String>>>,
 }
 
 /// Reads workspace files by their repository-relative path.
@@ -158,65 +159,33 @@ pub fn parse_facts(text: &str) -> Result<Facts, String> {
     serde_json::from_str(text).map_err(|error| format!("facts JSON is invalid: {error}"))
 }
 
-struct BuildLoader<'a> {
-    source: &'a dyn Source,
-    package: String,
-    computed: &'a BTreeMap<String, Vec<Vec<String>>>,
-}
+/// Row test label to its tags, for the row tests compatible with one platform.
+pub type RowTests = BTreeMap<String, Vec<String>>;
 
-fn bzl_path(package: &str, label: &str) -> Result<String, String> {
-    let (pkg, file) = if let Some(rest) = label
-        .strip_prefix("@rules_dx//")
-        .or_else(|| label.strip_prefix("//"))
-    {
-        let (pkg, file) = rest
-            .split_once(':')
-            .ok_or_else(|| format!("load label {label} has no `:`"))?;
-        (pkg.to_owned(), file)
-    } else if let Some(file) = label.strip_prefix(':') {
-        (package.to_owned(), file)
-    } else {
-        return Err(format!("load label {label} is outside the main repository"));
-    };
-    Ok(if pkg.is_empty() {
-        file.to_owned()
-    } else {
-        format!("{pkg}/{file}")
-    })
-}
-
-impl starlark::Loader for BuildLoader<'_> {
-    fn load(&self, label: &str) -> Result<starlark::File, String> {
-        let path = bzl_path(&self.package, label)?;
-        starlark::parse(&path, &self.source.read(&path)?)
+/// Reads `tools/docs/support_matrix/row_tests/<platform>.json` for every platform.
+pub fn read_row_tests(
+    facts: &Facts,
+    source: &dyn Source,
+) -> Result<BTreeMap<String, RowTests>, String> {
+    let mut out = BTreeMap::new();
+    for platform in &facts.platforms {
+        let path = format!("tools/docs/support_matrix/row_tests/{}.json", platform.id);
+        let tests: RowTests = serde_json::from_str(&source.read(&path)?)
+            .map_err(|error| format!("{path} is invalid: {error}"))?;
+        out.insert(platform.id.clone(), tests);
     }
-
-    fn computed(&self, label: &str, symbol: &str) -> Option<Vec<Vec<String>>> {
-        let label = label
-            .strip_prefix("@rules_dx")
-            .filter(|rest| rest.starts_with("//"))
-            .unwrap_or(label);
-        self.computed.get(&format!("{label}%{symbol}")).cloned()
-    }
+    Ok(out)
 }
 
-fn split_label(label: &str) -> Result<(String, &str), String> {
-    let rest = label.strip_prefix("//").unwrap_or("");
-    rest.split_once(':')
-        .map(|(package, name)| (package.to_string(), name))
-        .ok_or_else(|| format!("test label {label} is not //package:name"))
-}
-
-struct Context<'a> {
-    source: &'a dyn Source,
-    computed: &'a BTreeMap<String, Vec<Vec<String>>>,
-    platforms: Vec<starlark::Platform>,
+struct Context {
+    platforms: Vec<String>,
+    row_tests: BTreeMap<String, RowTests>,
     dogfood: Vec<String>,
     tag_jobs: BTreeMap<String, Vec<String>>,
     extra: BTreeMap<String, (Vec<String>, String)>,
 }
 
-impl Context<'_> {
+impl Context {
     fn tested_on(
         &self,
         row: &Row,
@@ -225,48 +194,55 @@ impl Context<'_> {
     ) -> Result<Vec<String>, String> {
         let mut on = BTreeSet::new();
         for label in labels {
-            let (package, name) = split_label(label)?;
-            let path = format!("{package}/BUILD.bazel");
-            let file = starlark::parse(&path, &self.source.read(&path)?)?;
-            let loader = BuildLoader {
-                source: self.source,
-                package: package.clone(),
-                computed: self.computed,
+            let mut tags = None;
+            for platform in &self.platforms {
+                if let Some(found) = self
+                    .row_tests
+                    .get(platform)
+                    .and_then(|tests| tests.get(label))
+                {
+                    tags = Some(found);
+                }
+            }
+            let Some(tags) = tags else {
+                return Err(format!(
+                    "{label} of row {} is in no row_tests/<platform>.json; run `{ROW_TESTS_COMMAND}` on each platform",
+                    row.name
+                ));
             };
-            let facts = starlark::test_facts(&file, name, &loader)?;
-            if label.ends_with("_upstream")
-                && facts.tags.iter().any(|t| self.tag_jobs.contains_key(t))
-            {
+            if label.ends_with("_upstream") && tags.iter().any(|t| self.tag_jobs.contains_key(t)) {
                 return Err(format!(
                     "{label} is filtered out of tag-selected CI jobs, so it cannot be a consumer test"
                 ));
             }
             if consumer
                 && row.section == "compilers"
-                && !facts.tags.iter().any(|tag| tag == "hermetic-consumer")
+                && !tags.iter().any(|tag| tag == "hermetic-consumer")
             {
                 return Err(format!(
                     "{label} is a consumer test of compiler row {} but lacks the hermetic-consumer tag, so it is not a nested qualification",
                     row.name
                 ));
             }
-            let manual = facts.tags.iter().any(|tag| tag == "manual");
+            let manual = tags.iter().any(|tag| tag == "manual");
             for platform in &self.platforms {
-                if !starlark::compatible(&facts.compatible_with, platform)
-                    .map_err(|error| format!("{path} :{name}: {error}"))?
+                if !self
+                    .row_tests
+                    .get(platform)
+                    .is_some_and(|tests| tests.contains_key(label))
                 {
                     continue;
                 }
-                if !manual && self.dogfood.contains(&platform.id) {
-                    on.insert(platform.id.clone());
+                if !manual && self.dogfood.contains(platform) {
+                    on.insert(platform.clone());
                 }
-                for tag in &facts.tags {
+                for tag in tags {
                     if self
                         .tag_jobs
                         .get(tag)
-                        .is_some_and(|platforms| platforms.contains(&platform.id))
+                        .is_some_and(|platforms| platforms.contains(platform))
                     {
-                        on.insert(platform.id.clone());
+                        on.insert(platform.clone());
                     }
                 }
                 for workflow in &row.workflows {
@@ -276,8 +252,8 @@ impl Context<'_> {
                             row.name
                         ));
                     };
-                    if platforms.contains(&platform.id) && text.contains(label.as_str()) {
-                        on.insert(platform.id.clone());
+                    if platforms.contains(platform) && text.contains(label.as_str()) {
+                        on.insert(platform.clone());
                     }
                 }
             }
@@ -285,8 +261,8 @@ impl Context<'_> {
         Ok(self
             .platforms
             .iter()
-            .filter(|platform| on.contains(&platform.id))
-            .map(|platform| platform.id.clone())
+            .filter(|platform| on.contains(*platform))
+            .cloned()
             .collect())
     }
 }
@@ -329,18 +305,8 @@ pub fn row_platforms(
         extra.insert(workflow.clone(), (platforms, text));
     }
     let context = Context {
-        source,
-        computed: &facts.computed_constraints,
-        platforms: facts
-            .platforms
-            .iter()
-            .map(|platform| starlark::Platform {
-                id: platform.id.clone(),
-                os: platform.os.clone(),
-                cpu: platform.cpu.clone(),
-                constraints: platform.constraints.clone(),
-            })
-            .collect(),
+        platforms: ids.iter().map(|id| (*id).to_owned()).collect(),
+        row_tests: read_row_tests(facts, source)?,
         dogfood,
         tag_jobs,
         extra,
@@ -466,24 +432,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn resolves_load_paths() {
-        assert_eq!(
-            bzl_path("a/b", "//tools/testing:nested_bazel.bzl").expect("path"),
-            "tools/testing/nested_bazel.bzl"
-        );
-        assert_eq!(bzl_path("a/b", ":x.bzl").expect("path"), "a/b/x.bzl");
-        assert_eq!(
-            bzl_path("a", "@rules_dx//tools/testing:x.bzl").expect("path"),
-            "tools/testing/x.bzl"
-        );
-        assert!(bzl_path("a", "@platforms//os:BUILD").is_err());
-        assert_eq!(
-            bzl_path("a", "@rules_dx//rust:defs.bzl").expect("path"),
-            "rust/defs.bzl"
-        );
-    }
-
-    #[test]
     fn unsupported_json_lists_declared_reasons() {
         let facts = parse_facts(
             r#"{
@@ -498,7 +446,7 @@ mod tests {
               "quality": {}, "support": [], "deferred_families": [],
               "platform_not_applicable": {"hs": {"b": "no bindist"}, "go": {"a": "x"}},
               "unsupported_constraints": {"hs": "//haskell/private/toolchain:unsupported"},
-              "not_languages": [], "computed_constraints": {}
+              "not_languages": []
             }"#,
         )
         .expect("facts");

@@ -59,11 +59,6 @@ rust_library(
     deps = ["//tools/testing:dx_testing"],
 )
 
-exports_files(
-    ["BUILD.bazel"],
-    visibility = ["//tools/docs/support_matrix:__pkg__"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

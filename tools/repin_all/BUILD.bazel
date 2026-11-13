@@ -34,6 +34,7 @@ rust_binary(
 
 rust_test(
     name = "workspace_cwd_test",
+    size = "small",
     srcs = ["tests/workspace_cwd_test.rs"],
     aliases = aliases(
         package_name = "tools/repin_all",

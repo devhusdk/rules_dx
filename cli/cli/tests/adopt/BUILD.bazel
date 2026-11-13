@@ -5,6 +5,7 @@ package(default_testonly = True)
 
 rust_test(
     name = "adopt_test",
+    size = "small",
     testonly = True,
     srcs = ["tests/adopt.rs"],
     crate_name = "adopt",

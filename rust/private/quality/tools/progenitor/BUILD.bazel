@@ -30,6 +30,7 @@ rust_binary(
 
 rust_test(
     name = "dx_progenitor_bin_test",
+    size = "small",
     aliases = aliases(
         package_name = "rust/private/quality/tools/dx_progenitor",
         normal = True,

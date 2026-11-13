@@ -28,6 +28,7 @@ rust_library(
 
 rust_test(
     name = "generation_result_test",
+    size = "small",
     aliases = aliases(
         package_name = "cli/generation_result",
         normal = True,

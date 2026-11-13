@@ -23,6 +23,7 @@ rust_library(
 
 rust_test(
     name = "dx_lsp_test",
+    size = "small",
     aliases = aliases(
         package_name = "tools/testing/dx_lsp",
         normal = True,

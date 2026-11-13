@@ -6,6 +6,7 @@ package(default_testonly = True)
 
 rust_test(
     name = "consumer_dx_entry",
+    size = "small",
     testonly = True,
     srcs = ["entrypoint_test.rs"],
     aliases = aliases(
@@ -102,6 +103,7 @@ rust_test(
 
 rust_test(
     name = "consumer_dx_completion",
+    size = "small",
     testonly = True,
     srcs = ["completion_test.rs"],
     aliases = aliases(
@@ -129,6 +131,7 @@ rust_test(
 
 rust_test(
     name = "consumer_surface",
+    size = "small",
     testonly = True,
     srcs = ["surface_test.rs"],
     aliases = aliases(

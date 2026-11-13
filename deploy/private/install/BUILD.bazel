@@ -39,6 +39,7 @@ rust_binary(
 
 rust_test(
     name = "dx_install_tools_test",
+    size = "small",
     aliases = aliases(
         package_name = "deploy/private/dx_install_tools",
         normal = True,
@@ -54,6 +55,7 @@ rust_test(
 
 rust_test(
     name = "cosign_real_test",
+    size = "small",
     srcs = ["tests/cosign_real.rs"],
     aliases = aliases(
         package_name = "deploy/private/dx_install_tools",

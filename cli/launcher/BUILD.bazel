@@ -16,6 +16,7 @@ rust_binary(
 
 rust_test(
     name = "exec_launcher_test",
+    size = "small",
     srcs = [
         "src/launch.rs",
         "src/launch_tests.rs",

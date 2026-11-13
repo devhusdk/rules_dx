@@ -25,6 +25,7 @@ rust_library(
 
 rust_test(
     name = "dx_tool_resolve_test",
+    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",
@@ -66,6 +67,7 @@ rust_binary(
 
 rust_test(
     name = "tool_resolve_bin_test",
+    size = "small",
     srcs = [
         "src/main.rs",
         "src/main_tests.rs",

@@ -29,6 +29,7 @@ rust_binary(
 
 rust_test(
     name = "dx_topiary_bin_test",
+    size = "small",
     aliases = aliases(
         package_name = "rust/private/quality/tools/dx_topiary",
         normal = True,

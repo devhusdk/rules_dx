@@ -50,6 +50,7 @@ rust_test(
 
 rust_test(
     name = "column_units_test",
+    size = "small",
     testonly = True,
     srcs = ["column_units_test.rs"],
     aliases = aliases(

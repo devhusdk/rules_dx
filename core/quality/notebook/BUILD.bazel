@@ -51,6 +51,7 @@ rust_binary(
 
 rust_test(
     name = "quality_notebook_test",
+    size = "small",
     aliases = aliases(
         package_name = "core/quality/quality_notebook",
         normal = True,

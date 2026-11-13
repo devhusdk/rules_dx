@@ -13,6 +13,7 @@ rust_binary(
 
 rust_test(
     name = "new_language_test",
+    size = "small",
     crate = ":new_language",
     deps = ["//cli/test_scratch:dx_test_scratch"],
 )

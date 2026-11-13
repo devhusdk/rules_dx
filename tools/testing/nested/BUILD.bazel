@@ -49,6 +49,7 @@ rust_binary(
 
 rust_test(
     name = "dx_nested_test",
+    size = "small",
     aliases = aliases(
         package_name = "tools/testing/dx_nested",
         normal = True,

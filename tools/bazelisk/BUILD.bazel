@@ -26,6 +26,7 @@ rust_binary(
 
 rust_test(
     name = "wrapper_test",
+    size = "small",
     srcs = ["wrapper_test.rs"],
     aliases = aliases(
         package_name = "tools/bazelisk_wrapper",

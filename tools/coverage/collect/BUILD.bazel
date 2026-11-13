@@ -77,6 +77,7 @@ rust_binary(
 
 rust_test(
     name = "gcov_native_test",
+    size = "small",
     srcs = ["tests/gcov_native_test.rs"],
     aliases = aliases(
         package_name = "tools/coverage/collect_native",
@@ -110,6 +111,7 @@ rust_test(
 
 rust_test(
     name = "collect_native_test",
+    size = "small",
     aliases = aliases(
         package_name = "tools/coverage/collect_native",
         normal = True,

@@ -100,6 +100,7 @@ rust_binary(
 
 rust_test(
     name = "to_lcov_test",
+    size = "small",
     aliases = aliases(
         package_name = "cli/dx_lcov",
         normal = True,

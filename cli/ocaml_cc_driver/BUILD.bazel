@@ -16,6 +16,7 @@ rust_binary(
 
 rust_test(
     name = "ocaml_cc_driver_test",
+    size = "small",
     srcs = [
         "src/driver.rs",
         "src/driver_tests.rs",

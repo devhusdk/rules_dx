@@ -26,6 +26,7 @@ rust_binary(
 
 rust_test(
     name = "lsp_check_test",
+    size = "small",
     srcs = [
         "src/entry.rs",
         "src/lib.rs",

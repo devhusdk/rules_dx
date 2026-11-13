@@ -12,6 +12,7 @@ rust_binary(
 
 rust_test(
     name = "bench_report_test",
+    size = "small",
     crate = ":bench_report",
 )
 

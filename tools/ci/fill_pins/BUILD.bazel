@@ -34,6 +34,7 @@ rust_binary(
 
 rust_test(
     name = "fill_pins_test",
+    size = "small",
     srcs = ["tests/fill_pins_test.rs"],
     aliases = aliases(
         package_name = "tools/ci/ci_fill_pins",

@@ -183,6 +183,7 @@ rust_library(
 
 rust_test(
     name = "quality_adapter_test",
+    size = "small",
     srcs = [
         "src/api_spec_preflight.rs",
         "src/cloudformation_preflight.rs",

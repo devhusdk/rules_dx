@@ -18,6 +18,7 @@ red_missing_fragment(name = "red_missing_fragment")
 
 rust_test(
     name = "negative_proof_test",
+    size = "small",
     testonly = True,
     srcs = ["negative_proof_test.rs"],
     aliases = aliases(

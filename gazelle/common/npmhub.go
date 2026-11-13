@@ -8,13 +8,11 @@ import (
 	"github.com/bazelbuild/buildtools/build"
 )
 
-const defaultNpmHub = "npm"
-
 var npmHubs sync.Map
 
 // NpmHub returns the repository name of the npm hub that links the
 // pnpm lock at lockRel, read from the npm_translate_lock call in the root
-// root module file and the files it includes. It returns "npm" when nothing matches.
+// root module file and the files it includes. It returns the registry npm hub when nothing matches.
 func NpmHub(repoRoot, lockRel string) string {
 	hubs, ok := npmHubs.Load(repoRoot)
 	if !ok {
@@ -23,7 +21,7 @@ func NpmHub(repoRoot, lockRel string) string {
 	if hub, ok := hubs.(map[string]string)[path.Clean(lockRel)]; ok {
 		return hub
 	}
-	return defaultNpmHub
+	return HubName("npm")
 }
 
 func readNpmHubs(repoRoot string) map[string]string {

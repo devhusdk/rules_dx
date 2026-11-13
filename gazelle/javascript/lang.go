@@ -26,10 +26,11 @@ const (
 	packageKind     = "npm_package"
 	packageJSONName = "package_json"
 	packageName     = "pkg"
-	linkDefs        = "@npm//:defs.bzl"
 	rootNodeModules = "//:node_modules"
 	rootPackageJSON = "//:package_json"
 )
+
+var linkDefs = "@" + common.HubName("npm") + "//:defs.bzl"
 
 var javascriptKinds = map[string]rule.KindInfo{
 	libraryKind: libraryKindInfo(),
@@ -128,7 +129,7 @@ func configureExt(c *config.Config, rel string, f *rule.File, rep common.Reporte
 		return
 	}
 	hub := common.NpmHub(c.RepoRoot, path.Join(rel, npmLockFile))
-	if hub == "npm" {
+	if hub == common.HubName("npm") {
 		if ours {
 			delete(c.KindMap, linkKind)
 			c.Exts[npmHubKey] = false

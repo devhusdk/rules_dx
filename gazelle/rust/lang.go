@@ -203,7 +203,7 @@ func (*rustLang) Name() string { return languageName }
 func (*rustLang) Kinds() map[string]rule.KindInfo { return rustKinds }
 
 func (*rustLang) Loads() []rule.LoadInfo {
-	return rustLoads("rules_dx", "crates")
+	return rustLoads("rules_dx", common.HubName("cargo"))
 }
 
 func (l *rustLang) ApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
@@ -211,9 +211,9 @@ func (l *rustLang) ApparentLoads(moduleToApparentName func(string) string) []rul
 	if repoName == "" {
 		repoName = "rules_dx"
 	}
-	cratesName := moduleToApparentName("crates")
+	cratesName := moduleToApparentName(common.HubName("cargo"))
 	if cratesName == "" {
-		cratesName = "crates"
+		cratesName = common.HubName("cargo")
 	}
 	return rustLoads(repoName, cratesName)
 }

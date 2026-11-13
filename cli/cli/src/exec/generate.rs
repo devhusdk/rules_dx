@@ -865,10 +865,14 @@ mod tests {
             format!("# gazelle:dx_external maven third_party/{maven} maven\n")
         );
         assert_eq!(read(&format!("third_party/{maven}")), "");
+        let maven_pin = format!(
+            "@{}//:pin",
+            dx_families::hub("maven").expect("setup.hubs entry maven").hub
+        );
         let builds = harness.build_argv.borrow();
         let pin = builds
             .iter()
-            .position(|argv| argv.iter().any(|arg| arg == "@maven//:pin"))
+            .position(|argv| argv.iter().any(|arg| *arg == maven_pin))
             .expect("maven pin");
         assert!(builds[pin].iter().any(|arg| arg == "run"), "{builds:?}");
         assert!(

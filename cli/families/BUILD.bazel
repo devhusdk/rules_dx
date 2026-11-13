@@ -9,6 +9,7 @@ package(default_visibility = VIS_CLI_TOOLS + [
     "//d/private/tools/lock:__pkg__",
     "//elixir/private/tools/lock:__pkg__",
     "//fortran/private/tools/lock:__pkg__",
+    "//haskell/private/tools/lock:__pkg__",
     "//lua/private/tools/lock:__pkg__",
     "//ocaml/private/tools/lock:__pkg__",
     "//perl/private/tools/lock:__pkg__",

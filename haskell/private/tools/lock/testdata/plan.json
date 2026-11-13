@@ -1,0 +1,11 @@
+{
+  "install-plan": [
+    {"type": "pre-existing", "id": "base-4.20.0.0", "pkg-name": "base", "pkg-version": "4.20.0.0", "depends": []},
+    {"type": "configured", "id": "splitmix-0.1.1-l", "pkg-name": "splitmix", "pkg-version": "0.1.1", "component-name": "lib", "pkg-src": {"type": "repo-tar"}, "pkg-src-sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "pkg-cabal-sha256": "SPLITMIX_CABAL", "depends": ["base-4.20.0.0"], "exe-depends": []},
+    {"type": "configured", "id": "happy-2.1-e", "pkg-name": "happy", "pkg-version": "2.1", "component-name": "exe:happy", "pkg-src": {"type": "remote-tar", "uri": "https://example.com/happy-2.1.tar.gz"}, "pkg-src-sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "depends": ["base-4.20.0.0", "happy-2.1-l"]},
+    {"type": "configured", "id": "happy-2.1-l", "pkg-name": "happy", "pkg-version": "2.1", "component-name": "lib:frontend", "pkg-src": {"type": "remote-tar", "uri": "https://example.com/happy-2.1.tar.gz"}, "pkg-src-sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "depends": ["base-4.20.0.0"]},
+    {"type": "configured", "id": "random-1.2.1-l", "pkg-name": "random", "pkg-version": "1.2.1", "component-name": "lib", "pkg-src": {"type": "repo-tar"}, "pkg-src-sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "pkg-cabal-sha256": "RANDOM_CABAL", "depends": ["base-4.20.0.0", "splitmix-0.1.1-l", "happy-2.1-l"], "exe-depends": ["happy-2.1-e"]},
+    {"type": "configured", "id": "random-1.2.1-t", "pkg-name": "random", "pkg-version": "1.2.1", "component-name": "test:spec", "pkg-src": {"type": "repo-tar"}, "pkg-src-sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "pkg-cabal-sha256": "RANDOM_CABAL", "depends": ["random-1.2.1-l"]},
+    {"type": "configured", "id": "app-0.1-e", "pkg-name": "app", "pkg-version": "0.1", "component-name": "exe:app", "pkg-src": {"type": "local", "path": "."}, "depends": ["random-1.2.1-l"]}
+  ]
+}

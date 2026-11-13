@@ -108,10 +108,10 @@ LOCK_REGISTRY = {
     },
     "opam": {
         "hub": "opam",
-        "imports": "name",
-        "lock": "*.opam.locked",
+        "imports": "provides",
+        "lock": "opam.lock.json",
         "manifest": "*.opam",
-        "state": None,
+        "state": "*.opam.locked",
     },
     "powershell": {
         "hub": "psgallery",

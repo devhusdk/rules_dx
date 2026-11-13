@@ -1,0 +1,23 @@
+[package]
+license = "Apache-2.0"
+name = "opam_lock"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "opam_lock"
+path = "src/resolve.rs"
+
+[[bin]]
+name = "opam_lock_bin"
+path = "src/main.rs"
+
+[[test]]
+name = "resolve_test"
+path = "resolve_test.rs"
+
+[dependencies]
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

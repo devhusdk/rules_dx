@@ -1,0 +1,46 @@
+{
+  "ecosystem": "opam",
+  "inputs": {
+    "app.opam": "ef0ea10e41a6872423f8edde48a93e6557ff56d962fa3b624f2df2637e834eac",
+    "app.opam.locked": "28e5e570017814c0079f81bf8759af4966ebb9e10d5704679a244f003b584c31"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "strip_prefix": "either-sum-1.0.0",
+          "urls": [
+            "https://example.org/either-sum-1.0.0.tbz"
+          ]
+        }
+      ],
+      "deps": [
+        "fmt-lite"
+      ],
+      "name": "either-sum",
+      "provides": [
+        "either_sum"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "08ad1293cacd2a8c5063e770aafe7cf14f4a94a8da9f47f6ce1606a60de6c30e",
+          "strip_prefix": "fmt-lite-0.9.0",
+          "urls": [
+            "https://example.org/fmt-lite-0.9.0.tbz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "fmt-lite",
+      "provides": [
+        "fmt_lite"
+      ],
+      "version": "0.9.0"
+    }
+  ],
+  "schema": 1
+}

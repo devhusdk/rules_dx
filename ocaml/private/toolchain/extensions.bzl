@@ -1,52 +1,35 @@
 """The ocaml module extension."""
 
+load("//core:pins.bzl", "lock_problems", "lock_repo")
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
-load(":opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url", "pick_annotation")
-load(":pins.bzl", "DUNE", "OCAML_CELLS", "OPAM_REPOSITORY", "OPAM_REPOSITORY_COMMIT", "RULES_OCAML")
-load(":repos.bzl", "DIST_PREFIX", "DROPPED_PATHS", "DUNE_BUILD", "HUB_NAME", "dist_repo", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build")
+load(":opam.bzl", "pick_annotation")
+load(":pins.bzl", "DUNE", "OCAML_CELLS", "OPAM_REPOSITORY", "RULES_OCAML")
+load(":repos.bzl", "DIST_PREFIX", "DROPPED_PATHS", "DUNE_BUILD", "HUB_NAME", "dist_repo", "dune_package_build", "hub_build")
 
-def _fact_key(package, version):
-    return "{}/{}.{}".format(OPAM_REPOSITORY_COMMIT, package, version)
+def _package_build(mctx, tag, package, annotation):
+    name = package["name"]
+    if annotation and annotation.build_file:
+        return mctx.read(annotation.build_file).replace("{hub}", tag.name)
+    unpinned = package.get("extra", {}).get("opam_unpinned", [])
+    if unpinned:
+        fail("{} {} depends on {}, which {} does not lock".format(name, package["version"], ", ".join(unpinned), tag.lock))
+    library = annotation.library if annotation and annotation.library else package["provides"][0]
+    return dune_package_build(name, library, str(Label("//ocaml/private/toolchain:dune")), str(Label("//ocaml/private:dune.bzl")), package.get("deps", []))
 
-def _snapshot_fact(mctx, package, version):
-    path = "opam_snapshot/packages/{p}/{p}.{v}/opam".format(p = package, v = version)
-    if not mctx.path(path).exists:
-        fail("opam-repository {} has no {} {}".format(OPAM_REPOSITORY_COMMIT, package, version))
-    opam = mctx.read(path)
-    url = parse_url(opam)
-    return {
-        "needs": [n for n in parse_depend_names(opam) if not is_toolchain_package(n)],
-        "integrity": url.integrity,
-        "sha256": url.sha256,
-        "src": url.src,
-    }
-
-def _declare_packages(mctx, tag, locked, annotations, facts):
-    packages = {}
-    for package, version in locked.items():
-        if is_toolchain_package(package):
-            continue
-        fact = facts[_fact_key(package, version)]
-        annotation = pick_annotation(package, annotations)
-        if annotation and annotation.build_file:
-            build_file = mctx.read(annotation.build_file).replace("{hub}", tag.name)
-        else:
-            needs = fact["needs"]
-            missing = [n for n in needs if n not in locked]
-            if missing:
-                fail("{} {} depends on {}, which {} does not lock".format(package, version, ", ".join(missing), tag.lock))
-            library = annotation.library if annotation and annotation.library else package.replace("-", "_").replace(".", "_")
-            build_file = dune_package_build(package, library, str(Label("//ocaml/private/toolchain:dune")), str(Label("//ocaml/private:dune.bzl")), needs, tag.name)
-        pinned_archive(
-            name = package_repo_name(tag.name, package),
-            files = {"BUILD.bazel": build_file},
-            sha256 = fact["sha256"],
-            integrity = fact.get("integrity", ""),
-            strip_prefix = annotation.strip_prefix if annotation and annotation.strip_prefix else "{}-{}".format(package, version),
-            urls = [fact["src"]],
-        )
-        packages[package] = version
-    hub_repo(name = tag.name, files = {"BUILD.bazel": packages_hub_build(tag.name, packages)})
+def _declare_packages(mctx, tag, annotations):
+    text = mctx.read(tag.lock)
+    lock = json.decode(text)
+    problems = lock_problems(lock)
+    if problems:
+        fail("%s %s" % (tag.lock, "; ".join(problems)))
+    builds = {}
+    for package in lock["packages"]:
+        annotation = pick_annotation(package["name"], annotations)
+        if annotation and annotation.strip_prefix:
+            for archive in package["archives"]:
+                archive["strip_prefix"] = annotation.strip_prefix
+        builds[package["name"]] = _package_build(mctx, tag, package, annotation)
+    lock_repo(name = tag.name, lock = json.encode(lock), builds = builds)
 
 def _ocaml_impl(mctx):
     pinned_archive(
@@ -87,28 +70,11 @@ ocaml = module_extension(
 )
 
 def _opam_impl(mctx):
-    tags = [tag for module in mctx.modules for tag in module.tags.lock]
-    locks = [parse_depends(mctx.read(tag.lock)) for tag in tags]
-    wanted = {}
-    for locked in locks:
-        for package, version in locked.items():
-            if not is_toolchain_package(package):
-                wanted[_fact_key(package, version)] = (package, version)
-    facts = {key: mctx.facts.get(key) for key in wanted}
-    if None in facts.values():
-        mctx.download_and_extract(
-            url = OPAM_REPOSITORY.urls,
-            output = "opam_snapshot",
-            sha256 = OPAM_REPOSITORY.sha256,
-            strip_prefix = OPAM_REPOSITORY.strip_prefix,
-        )
-        for key, (package, version) in wanted.items():
-            if not facts[key]:
-                facts[key] = _snapshot_fact(mctx, package, version)
     annotations = {tag.package: tag for module in mctx.modules for tag in module.tags.annotation}
-    for tag, locked in zip(tags, locks):
-        _declare_packages(mctx, tag, locked, annotations, facts)
-    return mctx.extension_metadata(reproducible = True, facts = facts)
+    for module in mctx.modules:
+        for tag in module.tags.lock:
+            _declare_packages(mctx, tag, annotations)
+    return mctx.extension_metadata(reproducible = True)
 
 opam = module_extension(
     implementation = _opam_impl,
@@ -124,9 +90,9 @@ opam = module_extension(
             },
         ),
         "lock": tag_class(
-            doc = "Creates a hub repository with one alias per package pinned in an opam lock file.",
+            doc = "Creates a hub repository with one package per entry of an opam.lock.json.",
             attrs = {
-                "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The `.opam.locked` file."),
+                "lock": attr.label(mandatory = True, allow_single_file = [".json"], doc = "The opam.lock.json the opam lock step writes."),
                 "name": attr.string(mandatory = True, doc = "Hub repository name."),
             },
         ),

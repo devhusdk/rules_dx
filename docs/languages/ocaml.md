@@ -145,17 +145,18 @@ On other platforms OCaml targets fail toolchain resolution.
 
 ### Opam packages
 
-`opam.lock(name, lock)` reads the pinned versions from the `depends:` list
-of a `.opam.locked` file and creates a hub with one alias per package. Sources
-and sha256 digests (sha512 when an opam file has no sha256) come from the opam-repository snapshot pinned in
-`ocaml/pins.json`; nothing runs opam. Compiler and `base-*` packages
-and `dune` come from the toolchain and get no alias. A package without an
+`bazel run @rules_dx//ocaml/private/tools/lock -- --dir <set>` reads the pinned
+versions from the `depends:` lists of the `*.opam.locked` files beside the
+`*.opam` manifest and writes `opam.lock.json`. Sources and sha256 digests come
+from the opam files of the opam-repository commit pinned in `ocaml/pins.json`;
+nothing runs opam. `opam.lock(name, lock)` reads `opam.lock.json` and creates a
+hub with one package `@<name>//<package>` per entry. Compiler and `base-*`
+packages and `dune` come from the toolchain and get no package. A package without an
 `opam.annotation` is a dune package: it is built with `ocaml_dune_library` and
 `//ocaml:dune` (dune 3.24.2 from `ocaml/pins.json`), and its
 library is the package name with `-` and `.` as `_`. Set
 `opam.annotation(package, library = ...)` for another library name. A dune
-package that depends on another non-toolchain package fails until dune package
-dependencies are supported. A package that is not built with dune needs
+package that depends on a package no `*.opam.locked` file pins fails. A package that is not built with dune needs
 `opam.annotation(package, build_file, strip_prefix)`.
 
 `@dx_ocaml_toolchains//:unix` and `:str` are the compiler's own `unix` and
@@ -174,7 +175,7 @@ timeout. `<name>_run` runs `-s <seed> -r 500` rounds with fresh seeds until
 `--repro`. Opam builds crowbar, cmdliner and afl-persistent itself. An `opam.annotation`
 for one of them replaces the whole default, including `strip_prefix`.
 
-With `<name>.opam.locked` beside the root `<name>.opam`, `dx generate --apply` adds the `opam.lock` stanza for the `@opam` hub to `MODULE.bazel`.
+With `opam.lock.json` beside the root `<name>.opam`, `dx generate --apply` adds the `opam.lock` stanza for the `@opam` hub to `MODULE.bazel`.
 
 ```python
 ocaml_fuzz_test(

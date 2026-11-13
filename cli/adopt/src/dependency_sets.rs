@@ -466,12 +466,12 @@ pub fn discover(
         }
         for opam in module.opam_packages().map_err(hub)? {
             let lock = path(opam.lock)?;
-            let manifest = lock.strip_suffix(".locked").unwrap_or(&lock).to_owned();
+            let dir = manifest_dir(std::slice::from_ref(&lock));
             sets.push(hub_set(
                 opam.name,
                 Ecosystem::Opam,
-                vec![manifest],
-                vec![lock],
+                vec![in_dir(&dir, "*.opam")],
+                vec![in_dir(&dir, "*.opam.locked"), lock],
             )?);
         }
         for haskell in module.haskell_packages().map_err(hub)? {

@@ -8,6 +8,7 @@ exports_files(
         "astring.BUILD.bazel",
         "ocaml_app.opam",
         "ocaml_app.opam.locked",
+        "opam.lock.json",
     ],
     visibility = ["//visibility:public"],
 )

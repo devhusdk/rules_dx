@@ -228,21 +228,7 @@ def hub_build():
         content.append(_ALIAS.format(name = alias, cases = repr(cases)))
     return "\n".join(content)
 
-def package_repo_name(group, package):
-    """Returns the repository name of one opam package in a packages group."""
-    return "dx_opam_{}_{}".format(group, package.replace("-", "_").replace(".", "_"))
-
-def packages_hub_build(group, packages):
-    """Returns the BUILD file of a packages hub with one alias per package."""
-    return "\n".join([
-        'alias(name = "{p}", actual = "@{repo}//:{p}", visibility = ["//visibility:public"])\n'.format(
-            p = package,
-            repo = package_repo_name(group, package),
-        )
-        for package in sorted(packages)
-    ])
-
-def dune_package_build(package, library, dune, rule, deps = [], hub = ""):
+def dune_package_build(package, library, dune, rule, deps = []):
     """Returns the BUILD file that builds one dune package of an opam archive."""
     return """load("{rule}", "ocaml_dune_library")
 
@@ -257,7 +243,7 @@ ocaml_dune_library(
     package = "{package}",
     workspace = "dune-project",
 )
-""".format(package = package, library = library, dune = dune, rule = rule, deps = repr(["@{}//:{}".format(hub, d) for d in deps]))
+""".format(package = package, library = library, dune = dune, rule = rule, deps = repr(["//{}".format(d) for d in deps]))
 
 DUNE_BUILD = """package(default_visibility = ["//visibility:public"])
 

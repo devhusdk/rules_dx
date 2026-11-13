@@ -1763,7 +1763,7 @@ use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "dx_opam_repository", "r
 opam_dev = use_extension("//ocaml:extensions.bzl", "opam", dev_dependency = True)
 opam_dev.lock(
     name = "ocaml_app",
-    lock = "//ocaml/tests/fixtures/ocaml_app:ocaml_app.opam.locked",
+    lock = "//ocaml/tests/fixtures/ocaml_app:opam.lock.json",
 )
 opam_dev.annotation(
     build_file = "//ocaml/tests/fixtures/ocaml_app:astring.BUILD.bazel",
@@ -1772,7 +1772,7 @@ opam_dev.annotation(
 )
 opam_dev.lock(
     name = "ocaml_fuzz",
-    lock = "//ocaml/tests/fixtures/fuzz:ocaml_fuzz.opam.locked",
+    lock = "//ocaml/tests/fixtures/fuzz:opam.lock.json",
 )
 use_repo(opam_dev, "ocaml_app", "ocaml_fuzz")
 
@@ -2603,6 +2603,7 @@ crate.from_cargo(
         "//powershell/private/tools/lock:Cargo.toml",
         "//fortran/private/tools/lock:Cargo.toml",
         "//elixir/private/tools/lock:Cargo.toml",
+        "//ocaml/private/tools/lock:Cargo.toml",
         "//perl/private/tools/lock:Cargo.toml",
         "//lua/private/tools/lock:Cargo.toml",
         "//cli/families:Cargo.toml",

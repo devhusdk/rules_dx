@@ -1,9 +1,12 @@
 """Julia real quality aspects."""
 
 load("//core:rlocation.bzl", "rlocation_path")
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
 load("//core/quality:family_hooks.bzl", "stage", "without")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
+
+_PROJECT = LOCK_REGISTRY["julia"]["manifest"]
 
 TOOLS = {
     "jet": {
@@ -62,7 +65,7 @@ def _jet_staging(target, ctx, path_to_file):
         roots = sorted(owned.values())
     staged = []
     seen = {}
-    candidates = info.transitive_srcs.to_list() + [f for f in info.runfiles.files.to_list() if f.basename in ("Project.toml", "JuliaProject.toml") and "/share/julia/" not in f.short_path]
+    candidates = info.transitive_srcs.to_list() + [f for f in info.runfiles.files.to_list() if f.basename in (_PROJECT, "Julia" + _PROJECT) and "/share/julia/" not in f.short_path]
     for f in sorted(candidates, key = lambda f: f.path):
         if f.is_directory or f.path in seen:
             continue

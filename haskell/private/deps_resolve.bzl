@@ -1,8 +1,9 @@
-"""Resolve a cabal project into cabal.project.freeze and a Hackage sidecar."""
+"""Resolve a cabal project into a freeze file and a Hackage sidecar."""
 
 load("@rules_py//py:defs.bzl", "py_binary", "py_test")
 load("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH")
 load("//core:wrapper.bzl", "dx_language_kwargs")
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 
 _SCRIPT = Label("//haskell/private/tools:deps_resolve.py")
 
@@ -16,7 +17,7 @@ def _input_args(inputs):
     return ["--input=$(rlocationpath {})".format(src) for src in inputs]
 
 def haskell_deps_resolve(name, srcs, target = "all", stack_lock = "", **kwargs):
-    """Writes cabal.project.freeze and haskell_deps.json next to the cabal project in this package."""
+    """Writes the freeze file and the Hackage sidecar next to the cabal project in this package."""
     package = native.package_name()
     py_binary(
         name = name,
@@ -33,7 +34,7 @@ def haskell_deps_resolve(name, srcs, target = "all", stack_lock = "", **kwargs):
         **dx_language_kwargs(kwargs, [], HASKELL_COMPATIBLE_WITH)
     )
 
-def haskell_deps_resolve_test(name, srcs, freeze = "cabal.project.freeze", sidecar = "haskell_deps.json", **kwargs):
+def haskell_deps_resolve_test(name, srcs, freeze = LOCK_REGISTRY["cabal"]["state"], sidecar = LOCK_REGISTRY["cabal"]["lock"], **kwargs):
     """Fails when the freeze file or the sidecar is stale against the cabal project."""
     package = native.package_name()
     py_test(

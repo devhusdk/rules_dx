@@ -52,12 +52,12 @@ def _hex_impl(mctx):
 
 hex = module_extension(
     implementation = _hex_impl,
-    doc = "Builds the Hex packages of mix.lock files.",
+    doc = "Builds the Hex packages of Mix lock files.",
     tag_classes = {
         "lock": tag_class(
-            doc = "Declares a hex_package per Hex entry of a mix.lock and a hub repo with one alias per package.",
+            doc = "Declares a hex_package per Hex entry of a Mix lock and a hub repo with one alias per package.",
             attrs = {
-                "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The mix.lock to read."),
+                "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The Mix lock to read."),
                 "name": attr.string(mandatory = True, doc = "Hub repository name; package repos are named <name>_<package>."),
             },
         ),

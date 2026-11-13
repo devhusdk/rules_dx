@@ -124,7 +124,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude php/private/tool.php
 # gazelle:exclude gazelle/php/builtins_dump.php
 # gazelle:exclude haskell/tests/runtime/src
-# gazelle:exclude core/quality/tools/dotnet/fsharplint
+# gazelle:exclude dotnet/private/quality/tools/fsharplint
 # gazelle:exclude gazelle
 # gazelle:exclude examples/shared-rust
 # gazelle:exclude swift/tests/fixtures/swift-app
@@ -400,6 +400,7 @@ filegroup(
         "//dart/private:module_srcs",
         "//dart/private/quality:module_srcs",
         "//dockerfile/private/quality:module_srcs",
+        "//dotnet/private/quality:module_srcs",
         "//elixir/private:module_srcs",
         "//erlang/private/quality:module_srcs",
         "//fortran/private/quality:module_srcs",

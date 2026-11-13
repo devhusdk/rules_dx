@@ -71,7 +71,7 @@ core/quality:families/cue.bzl
 d/private/quality:d.bzl
 dart/private/quality:dart.bzl
 dockerfile/private/quality:dockerfile.bzl
-core/quality:families/dotnet.bzl
+dotnet/private/quality:dotnet.bzl
 fortran/private/quality:fortran.bzl
 core/quality:families/generation.bzl
 go/private/quality:go.bzl

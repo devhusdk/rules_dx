@@ -954,7 +954,7 @@ LANGS = json.decode("""{
           "real_dotnet_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/dotnet.bzl",
+      "bzl": "dotnet/private/quality:dotnet.bzl",
       "file_extensions": [
         ".cs",
         ".csproj",
@@ -2810,7 +2810,9 @@ LANGS = json.decode("""{
       "Cargo.toml"
     ],
     "name": "rust",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -3315,7 +3317,9 @@ LANGS = json.decode("""{
       "build.zig.zon"
     ],
     "name": "zig",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",

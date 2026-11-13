@@ -1,0 +1,8 @@
+{
+  "ecosystem": "luarocks",
+  "inputs": {
+    "fixture.rockspec": "b3ef9f74dff4653fdc77edef33bf87fd4e9a9dff593e9d91cafb043fbb3d7822"
+  },
+  "packages": [],
+  "schema": 1
+}

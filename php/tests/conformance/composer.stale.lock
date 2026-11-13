@@ -1,0 +1,145 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "aliases": [],
+    "content-hash": "e235a31720785e78237a8a72a5a66cae",
+    "minimum-stability": "stable",
+    "packages": [
+        {
+            "authors": [
+                {
+                    "homepage": "https://www.php-fig.org/",
+                    "name": "PHP-FIG"
+                }
+            ],
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Http\\Message\\": "src/"
+                }
+            },
+            "description": "Common interface for HTTP messages",
+            "dist": {
+                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71",
+                "shasum": "",
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/http-message/zipball/402d35bcb92c70c026d1a6a9883f06b2ead23d71"
+            },
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0.x-dev"
+                }
+            },
+            "funding": [],
+            "homepage": "https://github.com/php-fig/http-message",
+            "keywords": [
+                "http",
+                "response",
+                "request",
+                "psr",
+                "psr-7",
+                "http-message"
+            ],
+            "license": [
+                "MIT"
+            ],
+            "name": "psr/http-message",
+            "published-time": "2023-04-04T09:55:35+00:00",
+            "require": {
+                "php": "^7.2 || ^8.0"
+            },
+            "source": {
+                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71",
+                "type": "git",
+                "url": "https://github.com/php-fig/http-message.git"
+            },
+            "support": {
+                "source": "https://github.com/php-fig/http-message/tree/2.0"
+            },
+            "time": "2023-04-04T09:54:51+00:00",
+            "type": "library",
+            "version": "2.0"
+        },
+        {
+            "authors": [
+                {
+                    "email": "p@tchwork.com",
+                    "name": "Nicolas Grekas"
+                },
+                {
+                    "homepage": "https://symfony.com/contributors",
+                    "name": "Symfony Community"
+                }
+            ],
+            "autoload": {
+                "files": [
+                    "function.php"
+                ]
+            },
+            "description": "A generic function and convention to trigger deprecation notices",
+            "dist": {
+                "reference": "feb1edf4e546af3b85c5caebe8359a20db230ca3",
+                "shasum": "",
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/deprecation-contracts/zipball/feb1edf4e546af3b85c5caebe8359a20db230ca3"
+            },
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "3.8-dev"
+                },
+                "thanks": {
+                    "name": "symfony/contracts",
+                    "url": "https://github.com/symfony/contracts"
+                }
+            },
+            "funding": [
+                {
+                    "type": "custom",
+                    "url": "https://symfony.com/sponsor"
+                },
+                {
+                    "type": "github",
+                    "url": "https://github.com/fabpot"
+                },
+                {
+                    "type": "github",
+                    "url": "https://github.com/nicolas-grekas"
+                },
+                {
+                    "type": "tidelift",
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony"
+                }
+            ],
+            "homepage": "https://symfony.com",
+            "keywords": [],
+            "license": [
+                "MIT"
+            ],
+            "name": "symfony/deprecation-contracts",
+            "published-time": "2026-11-04T11:25:34+00:00",
+            "require": {
+                "php": ">=8.1"
+            },
+            "source": {
+                "reference": "feb1edf4e546af3b85c5caebe8359a20db230ca3",
+                "type": "git",
+                "url": "https://github.com/symfony/deprecation-contracts.git"
+            },
+            "support": {
+                "source": "https://github.com/symfony/deprecation-contracts/tree/v3.8.1"
+            },
+            "time": "2026-09-16T14:15:10+00:00",
+            "type": "library",
+            "version": "v3.8.1"
+        }
+    ],
+    "packages-dev": [],
+    "platform": [],
+    "platform-dev": [],
+    "plugin-api-version": "2.6.0",
+    "prefer-lowest": false,
+    "prefer-stable": false,
+    "stability-flags": []
+}

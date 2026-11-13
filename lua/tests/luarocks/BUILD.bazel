@@ -2,7 +2,10 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//lua:defs.bzl", "lua_test")
 
 exports_files(
-    ["luarocks.lock.json"],
+    [
+        "fixture.rockspec",
+        "luarocks.lock.json",
+    ],
     visibility = ["//visibility:public"],
 )
 

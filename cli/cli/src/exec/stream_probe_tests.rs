@@ -476,6 +476,41 @@ fn wait_for_file(run: &mut Run, path: &Path) {
     }
 }
 
+/// The group numbers recorded in the leases the running dx holds.
+fn recorded_groups(run: &Run) -> Vec<i32> {
+    let prefix = format!("{}-", run.child.id());
+    fs::read_dir(run.dir().join("ws/.dx/local/leases/process-groups"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|entry| entry.file_name().to_string_lossy().starts_with(&prefix))
+        .filter_map(|entry| fs::read_to_string(entry.path()).ok())
+        .filter_map(|text| text.split_whitespace().next()?.parse().ok())
+        .collect()
+}
+
+/// Waits until dx holds a written lease for `pgid`; on Linux it must already be written.
+fn wait_for_lease(run: &mut Run, pgid: i32) {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !recorded_groups(run).contains(&pgid) {
+        if cfg!(target_os = "linux") {
+            panic!(
+                "no lease records group {pgid} while it runs\n{}",
+                run.context()
+            );
+        }
+        if let Ok(Some(status)) = run.child.try_wait() {
+            panic!("dx exited ({status:?}) early\n{}", run.context());
+        }
+        assert!(
+            Instant::now() < deadline,
+            "no lease ever recorded group {pgid}\n{}",
+            run.context()
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
 /// Waits until dx has reaped `pid`.
 fn wait_until_reaped(run: &mut Run, pid: i32) {
     let deadline = Instant::now() + Duration::from_secs(30);
@@ -765,6 +800,7 @@ fn the_next_run_stops_what_a_killed_dx_left_behind_from_a_query() {
         let query = run.query_pid();
         let alive = run.dir().join("descendant.alive");
         wait_for_file(&mut run, &alive);
+        wait_for_lease(&mut run, query);
         run.signal(libc::SIGKILL);
         let _ = run.exit();
         assert!(group_alive(query), "the descendant should outlive dx");

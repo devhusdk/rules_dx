@@ -1,4 +1,3 @@
-.bazelrc exec-requirement 4
 .bazelrc rc-flag 2
 cli/adopt/src/init_dir.rs tmp-path 1
 cli/adopt/src/watch.rs tmp-path 15

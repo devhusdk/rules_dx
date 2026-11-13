@@ -87,3 +87,9 @@ common --@rules_dx//config:workspace=//.dx:policy
 # The clippy tier.
 common --@rules_dx//config:clippy_flag=-Wclippy::all
 common --@rules_dx//config:clippy_flag=-Dwarnings
+
+# The ocaml setup flags.
+build:macos --modify_execution_info=CompileOcaml.*=+no-sandbox,CompileOCaml.*=+no-sandbox,ArchiveOCaml.*=+no-sandbox,LinkOCaml.*=+no-sandbox
+
+# The python setup flags.
+common --modify_execution_info=PySdist.*=+block-network

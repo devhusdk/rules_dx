@@ -42,7 +42,7 @@ rust_test(
     coverage_lib = ":dx_site_build",
     crate_name = "dx_site_build",
     crate_root = "src/lib.rs",
-    deps = [],
+    deps = ["//cli/test_scratch:dx_test_scratch"],
 )
 
 rust_binary(

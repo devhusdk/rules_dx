@@ -1,26 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::{Mutex, PoisonError};
 
 /// Serializes copying the harness and spawning it across this test binary's threads.
 static SPAWN_LOCK: Mutex<()> = Mutex::new(());
-
-fn case_dir(name: &str) -> PathBuf {
-    let base = std::env::var_os("TEST_TMPDIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    let dir = base.join(format!(
-        "starlark-harness-exit-{}-{name}",
-        std::process::id()
-    ));
-    if dir.exists() {
-        std::fs::remove_dir_all(&dir)
-            .unwrap_or_else(|err| panic!("cannot clear {}: {err}", dir.display()));
-    }
-    std::fs::create_dir_all(&dir)
-        .unwrap_or_else(|err| panic!("cannot create {}: {err}", dir.display()));
-    dir
-}
 
 fn write(path: &Path, bytes: &[u8]) {
     if let Some(parent) = path.parent() {
@@ -48,7 +31,8 @@ fn spawn_copy(exe: &Path, cmd: &mut Command) -> Child {
 }
 
 fn run_case(name: &str, expected: &str, actual: &str) -> Output {
-    let dir = case_dir(name);
+    let scratch = dx_test_scratch::scratch(&format!("starlark-harness-exit-{name}"));
+    let dir = scratch.path();
     let exe = dir.join(format!("probe_test{}", std::env::consts::EXE_SUFFIX));
     let manifest = serde_json::json!({
         "version": 2,
@@ -111,7 +95,8 @@ fn passing_checks_exit_zero() {
 
 #[test]
 fn a_missing_manifest_env_exits_one() {
-    let dir = case_dir("noenv");
+    let scratch = dx_test_scratch::scratch("starlark-harness-exit-noenv");
+    let dir = scratch.path();
     let exe = dir.join(format!("probe_test{}", std::env::consts::EXE_SUFFIX));
     let mut cmd = Command::new(&exe);
     cmd.env_remove("STARLARK_HARNESS_MANIFEST")

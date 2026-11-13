@@ -221,14 +221,6 @@ mod tests {
 
     const ROOT: &str = r"C:\b\out\execroot\_main";
 
-    fn scratch(name: &str) -> PathBuf {
-        let base = std::env::var_os("TEST_TMPDIR").map_or_else(std::env::temp_dir, PathBuf::from);
-        let dir = base.join(name);
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
     #[test]
     fn rewrites_backslash_paths() {
         let rewriter = Rewriter::new(ROOT, "");
@@ -275,7 +267,8 @@ mod tests {
 
     #[test]
     fn response_files_keep_their_encoding() {
-        let dir = scratch("rsp");
+        let scratch = dx_test_scratch::scratch("rsp");
+        let dir = scratch.path();
         let rewriter = Rewriter::new(ROOT, "");
         let text = "\"C:\\b\\out\\execroot\\_main\\bazel-out\\a.rlib\"\r\n\"/OUT:say \\\"hi\\\"\"\r\nkernel32.lib\n";
         let want = "\"bazel-out\\a.rlib\"\r\n\"/OUT:say \\\"hi\\\"\"\r\nkernel32.lib\n";
@@ -314,7 +307,8 @@ mod tests {
 
     #[test]
     fn execroot_is_the_nearest_dir_with_bazel_out() {
-        let dir = scratch("execroot");
+        let scratch = dx_test_scratch::scratch("execroot");
+        let dir = scratch.path();
         let cwd = dir.join("external").join("ring");
         fs::create_dir_all(dir.join("bazel-out")).unwrap();
         fs::create_dir_all(&cwd).unwrap();

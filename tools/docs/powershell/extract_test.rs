@@ -1,6 +1,5 @@
 //! Checks the PowerShell fixture shards and the mapper's failure handling.
 
-use std::path::PathBuf;
 use std::process::Command;
 
 use documentation_ir::proto::{DocIr, Symbol};
@@ -210,11 +209,7 @@ fn the_tally_shard_uses_literal_exports_and_its_own_config() {
     let shard = ledger();
     let ledger_config =
         extension(symbol(&shard, "Add-LedgerEntry"), "powershell.config").expect("ledger config");
-    assert_config(
-        ledger_config,
-        &format!("{LEDGER_DIR}/Ledger.psd1"),
-        "1.4.0",
-    );
+    assert_config(ledger_config, &format!("{LEDGER_DIR}/Ledger.psd1"), "1.4.0");
     assert_ne!(tally_config, ledger_config);
 }
 
@@ -237,19 +232,11 @@ fn re_encoding_a_shard_is_byte_identical() {
     }
 }
 
-fn scratch(name: &str) -> PathBuf {
-    let base = std::env::var_os("TEST_TMPDIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    let dir = base.join(name);
-    std::fs::create_dir_all(&dir).expect("scratch dir");
-    dir
-}
-
 #[test]
 fn the_mapper_fails_without_writing_on_bad_api_json() {
     let mapper = dx_testing::env_file("DX_POWERSHELL_EXTRACT");
-    let dir = scratch("bad_api");
+    let scratch = dx_test_scratch::scratch("bad_api");
+    let dir = scratch.path();
     for (name, json) in [
         (
             "schema",

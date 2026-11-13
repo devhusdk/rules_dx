@@ -55,7 +55,10 @@ rust_test(
     srcs = ["js_launcher_test.rs"],
     data = ["//javascript/private/quality/launcher:js_launcher"],
     env = {"DX_JS_LAUNCHER": "$(rootpath //javascript/private/quality/launcher:js_launcher)"},
-    deps = ["//javascript/private/quality/launcher:dx_js_launcher"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//javascript/private/quality/launcher:dx_js_launcher",
+    ],
 )
 
 real_source_target(

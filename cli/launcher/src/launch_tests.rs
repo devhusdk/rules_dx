@@ -95,7 +95,8 @@ fn names_the_descriptor_beside_the_executable() {
 
 #[test]
 fn falls_back_to_the_upstream_descriptor() {
-    let dir = scratch("upstream");
+    let scratch = dx_test_scratch::scratch("exec_launcher_upstream_");
+    let dir = scratch.path().to_path_buf();
     std::fs::write(dir.join("app_upstream.launch"), "").unwrap();
     assert_eq!(
         descriptor_path(&dir.join("app.exe")),
@@ -114,7 +115,8 @@ fn falls_back_to_the_upstream_descriptor() {
 
 #[test]
 fn finds_the_exe_runfiles_for_an_extensionless_argv0() {
-    let dir = scratch("extensionless");
+    let scratch = dx_test_scratch::scratch("exec_launcher_extensionless_");
+    let dir = scratch.path().to_path_buf();
     let tree = dir.join("app.exe.runfiles");
     std::fs::create_dir_all(tree.join("_main")).unwrap();
     std::fs::write(dir.join("app.launch"), "").unwrap();
@@ -164,7 +166,9 @@ fn runs_from_the_descriptor_in_the_runfiles() {
         ("app.run", "app.run.launch"),
         ("wrapped", "wrapped_upstream.launch"),
     ] {
-        let dir = scratch(&format!("runfiles_descriptor_{name}")).join("bazel-out/cfg/bin/pkg");
+        let scratch =
+            dx_test_scratch::scratch(&format!("exec_launcher_runfiles_descriptor_{name}_"));
+        let dir = scratch.path().join("bazel-out/cfg/bin/pkg");
         let main = dir.join(format!("{name}.runfiles/_main"));
         std::fs::create_dir_all(main.join("pkg")).unwrap();
         dx_testing::executable_script(&main.join("prog"), "#!/bin/sh\nexit $(( $# + 4 ))\n");
@@ -176,13 +180,6 @@ fn runs_from_the_descriptor_in_the_runfiles() {
         let code = run(&dir.join(name), &[OsString::from("two")]).unwrap();
         assert_eq!(code, 6, "{name}");
     }
-}
-
-fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("exec_launcher_{name}_{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
 }
 
 fn expected_args(root: &Path, with_junit: bool) -> Vec<OsString> {
@@ -206,7 +203,8 @@ fn slashed(args: &[OsString]) -> Vec<String> {
 
 #[test]
 fn plans_from_a_runfiles_tree() {
-    let dir = scratch("tree");
+    let scratch = dx_test_scratch::scratch("exec_launcher_tree_");
+    let dir = scratch.path().to_path_buf();
     let tree = dir.join("app.runfiles");
     let main = tree.join("_main");
     std::fs::create_dir_all(main.join("bin")).unwrap();
@@ -234,7 +232,8 @@ fn plans_from_a_runfiles_tree() {
 
 #[test]
 fn plans_from_a_manifest_with_a_tree_artifact() {
-    let dir = scratch("manifest");
+    let scratch = dx_test_scratch::scratch("exec_launcher_manifest_");
+    let dir = scratch.path().to_path_buf();
     let store = dir.join("store");
     std::fs::create_dir_all(store.join("t.php/vendor")).unwrap();
     std::fs::write(store.join("php"), "").unwrap();
@@ -268,7 +267,8 @@ fn plans_from_a_manifest_with_a_tree_artifact() {
 
 #[test]
 fn names_a_missing_runfile() {
-    let dir = scratch("missing");
+    let scratch = dx_test_scratch::scratch("exec_launcher_missing_");
+    let dir = scratch.path().to_path_buf();
     let tree = dir.join("app.runfiles");
     std::fs::create_dir_all(tree.join("_main")).unwrap();
     let resolver = resolver_for(&dir.join("app.exe")).unwrap();
@@ -279,7 +279,8 @@ fn names_a_missing_runfile() {
 #[cfg(unix)]
 #[test]
 fn runs_the_program_and_passes_the_exit_code() {
-    let dir = scratch("run");
+    let scratch = dx_test_scratch::scratch("exec_launcher_run_");
+    let dir = scratch.path().to_path_buf();
     let main = dir.join("app.runfiles/_main");
     std::fs::create_dir_all(&main).unwrap();
     let script = main.join("prog");
@@ -324,7 +325,8 @@ fn command_removes_unset_names_and_sets_runfiles() {
 #[cfg(unix)]
 #[test]
 fn run_scrubs_unset_variables() {
-    let dir = scratch("unset");
+    let scratch = dx_test_scratch::scratch("exec_launcher_unset_");
+    let dir = scratch.path().to_path_buf();
     let main = dir.join("app.runfiles/_main");
     std::fs::create_dir_all(&main).unwrap();
     let script = main.join("prog");
@@ -400,7 +402,8 @@ fn parses_env_dir_and_env_default_lines() {
 
 #[test]
 fn env_default_applies_only_when_unset_or_empty() {
-    let tree = scratch("env_default");
+    let scratch = dx_test_scratch::scratch("exec_launcher_env_default_");
+    let tree = scratch.path().to_path_buf();
     let resolver = Resolver::for_tree(&tree).unwrap();
     let descriptor = parse("program=x\nenv_default=HOME\t/fallback\n").unwrap();
     let unset = child_env(&resolver, &descriptor, &|_| None).unwrap();
@@ -413,7 +416,8 @@ fn env_default_applies_only_when_unset_or_empty() {
 
 #[test]
 fn env_dir_is_the_directory_of_the_runfiles_file() {
-    let tree = scratch("env_dir");
+    let scratch = dx_test_scratch::scratch("exec_launcher_env_dir_");
+    let tree = scratch.path().to_path_buf();
     std::fs::create_dir_all(tree.join("_main/otp/bin")).unwrap();
     std::fs::write(tree.join("_main/otp/bin/erl"), "").unwrap();
     let resolver = Resolver::for_tree(&tree).unwrap();
@@ -428,7 +432,8 @@ fn env_dir_is_the_directory_of_the_runfiles_file() {
 #[cfg(unix)]
 #[test]
 fn real_program_resolves_symlinks() {
-    let tree = scratch("real_program");
+    let scratch = dx_test_scratch::scratch("exec_launcher_real_program_");
+    let tree = scratch.path().to_path_buf();
     std::fs::create_dir_all(tree.join("_main/real")).unwrap();
     std::fs::write(tree.join("_main/real/tool"), "").unwrap();
     std::os::unix::fs::symlink(tree.join("_main/real/tool"), tree.join("_main/tool")).unwrap();
@@ -444,7 +449,8 @@ fn real_program_resolves_symlinks() {
 
 #[test]
 fn a_fail_descriptor_prints_its_message_and_exits_2_without_runfiles() {
-    let dir = scratch("fail");
+    let scratch = dx_test_scratch::scratch("exec_launcher_fail_");
+    let dir = scratch.path().to_path_buf();
     std::fs::write(dir.join("stub.launch"), "fail=tool is unavailable here\n").unwrap();
     assert_eq!(
         parse("fail=tool is unavailable here\n")
@@ -462,7 +468,8 @@ fn a_fail_descriptor_prints_its_message_and_exits_2_without_runfiles() {
 
 #[test]
 fn copy_lines_write_runfiles_below_the_workspace() {
-    let dir = scratch("copy");
+    let scratch = dx_test_scratch::scratch("exec_launcher_copy_");
+    let dir = scratch.path().to_path_buf();
     let tree = dir.join("update.runfiles");
     std::fs::create_dir_all(tree.join("_main/pkg")).unwrap();
     std::fs::write(tree.join("_main/pkg/a_cell.json"), "{\"a\": 1}\n").unwrap();

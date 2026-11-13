@@ -72,6 +72,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/test_scratch:dx_test_scratch",
         "@rules_rust//rust/runfiles",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],

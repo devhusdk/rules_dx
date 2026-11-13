@@ -404,18 +404,10 @@ fn crlf_clean_handles_lone_carriage_returns() {
     assert_eq!(clean("  a\rb\r\n"), "a\nb");
 }
 
-fn scratch(name: &str) -> std::path::PathBuf {
-    let base = std::env::var_os("TEST_TMPDIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    let dir = base.join(format!("powershell_extract_{name}_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("scratch dir");
-    dir
-}
-
 #[test]
 fn no_output_on_error() {
-    let dir = scratch("error");
+    let scratch = dx_test_scratch::scratch("powershell_extract_error");
+    let dir = scratch.path();
     let input = dir.join("api.json");
     let out = dir.join("out.ir.pb");
     let mut f = file("m.psm1", vec![function("Get-A", 1)]);
@@ -433,7 +425,8 @@ fn no_output_on_error() {
 
 #[test]
 fn no_output_on_error_but_written_on_success() {
-    let dir = scratch("ok");
+    let scratch = dx_test_scratch::scratch("powershell_extract_ok");
+    let dir = scratch.path();
     let input = dir.join("api.json");
     let out = dir.join("out.ir.pb");
     std::fs::write(

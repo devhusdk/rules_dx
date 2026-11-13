@@ -2,7 +2,8 @@ use dx_testing::env_file as file;
 use std::path::PathBuf;
 
 fn compile(label: &str, sources: &[PathBuf], vars: &[&str]) -> dx_testing::Run {
-    let out = dx_testing::path_text(&dx_testing::scratch_dir(&format!("classes-{label}")));
+    let scratch = dx_test_scratch::scratch(&format!("classes-{label}"));
+    let out = dx_testing::path_text(scratch.path());
     let classpath = dx_testing::classpath(vars);
     let sources: Vec<String> = sources
         .iter()

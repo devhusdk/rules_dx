@@ -105,6 +105,7 @@ rust_test(
         "//cli/digest:dx_digest",
         "//cli/lcov:dx_lcov",
         "//cli/process:dx_process",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
         "//tools/testing/floor:dx_floor",
         "//tools/testing/nested:dx_nested",
@@ -174,7 +175,10 @@ rust_test(
         package_name = "tools/testing/hermetic",
         normal = True,
         normal_dev = True,
-    ) + [":hermetic"],
+    ) + [
+        ":hermetic",
+        "//cli/test_scratch:dx_test_scratch",
+    ],
 )
 
 rust_binary(

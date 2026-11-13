@@ -530,9 +530,6 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static SEQ: AtomicU64 = AtomicU64::new(0);
 
     fn manifest(checks: serde_json::Value, files: serde_json::Value) -> serde_json::Value {
         serde_json::json!({
@@ -548,16 +545,6 @@ mod tests {
         manifest(serde_json::json!([]), serde_json::json!([]))
     }
 
-    fn scratch() -> PathBuf {
-        let base = std::env::var_os("TEST_TMPDIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(std::env::temp_dir);
-        let seq = SEQ.fetch_add(1, Ordering::Relaxed);
-        let dir = base.join(format!("starlark-harness-{}-{seq}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("scratch dir");
-        dir
-    }
-
     fn write(dir: &Path, rel: &str, bytes: &[u8]) -> PathBuf {
         let path = dir.join(rel);
         if let Some(parent) = path.parent() {
@@ -569,7 +556,8 @@ mod tests {
 
     fn evaluated(value: serde_json::Value) -> Report {
         let mut report = evaluate(&value).expect("manifest evaluates");
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         let resolver = Resolver::for_tree(&dir).expect("tree resolver");
         evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
         evaluate_observations(&value, &mut report).expect("observations evaluate");
@@ -589,7 +577,8 @@ mod tests {
         tree_files: &[(&str, &[u8])],
         manifest_value: &serde_json::Value,
     ) -> std::io::Result<Report> {
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         let tree = dir.join("probe_test.runfiles");
         for (rel, bytes) in tree_files {
             write(&tree, rel, bytes);
@@ -804,7 +793,8 @@ mod tests {
 
     #[test]
     fn file_entries_check_every_needle_against_raw_bytes() {
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         write(
             &dir,
             "_main/pkg/answer.txt",
@@ -834,7 +824,8 @@ mod tests {
 
     #[test]
     fn a_missing_substring_reports_needle_and_path() {
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         write(&dir, "_main/pkg/present.txt", b"here\n");
         let value = manifest(
             serde_json::json!([]),
@@ -853,7 +844,8 @@ mod tests {
 
     #[test]
     fn a_multiline_needle_matches_only_contiguous_lines() {
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         write(&dir, "_main/pkg/joined.txt", b"a\nb\n");
         write(&dir, "_main/pkg/split.txt", b"a\nx\nb\n");
         let value = manifest(
@@ -876,7 +868,8 @@ mod tests {
 
     #[test]
     fn a_missing_multiline_needle_reports_only_the_missing_line() {
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         write(&dir, "_main/pkg/block.txt", b"a\nb\nc\n");
         let value = manifest(
             serde_json::json!([]),
@@ -895,7 +888,8 @@ mod tests {
 
     #[test]
     fn an_out_of_order_needle_line_is_reported() {
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         write(&dir, "_main/pkg/split.txt", b"a\nx\nb\n");
         let value = manifest(
             serde_json::json!([]),
@@ -920,7 +914,8 @@ mod tests {
 
     #[test]
     fn a_missing_runfile_is_an_error() {
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         let value = manifest(
             serde_json::json!([]),
             serde_json::json!([
@@ -935,7 +930,8 @@ mod tests {
     }
 
     fn endings_report(bytes: &[u8], kind: &str) -> Report {
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         write(&dir, "_main/pkg/t.txt", bytes);
         let value = manifest(
             serde_json::json!([]),
@@ -976,7 +972,8 @@ mod tests {
 
     #[test]
     fn an_unknown_line_ending_kind_is_an_error() {
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         write(&dir, "_main/pkg/t.txt", b"a\n");
         let value = manifest(
             serde_json::json!([]),
@@ -992,7 +989,8 @@ mod tests {
 
     #[test]
     fn a_file_entry_without_needles_is_an_error() {
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         write(&dir, "_main/pkg/empty.txt", b"x\n");
         let value = manifest(
             serde_json::json!([]),
@@ -1130,7 +1128,8 @@ mod tests {
 
     #[test]
     fn run_with_rejects_an_unknown_manifest_key() {
-        let dir = scratch();
+        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let dir = scratch.path();
         let exe = write(&dir, "probe_test", b"stand-in");
         std::fs::create_dir_all(dir.join("probe_test.runfiles/_main/pkg")).expect("empty tree");
         let error = run_with(&exe, "_main/pkg/absent.json").expect_err("unknown key");

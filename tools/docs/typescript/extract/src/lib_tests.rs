@@ -523,16 +523,10 @@ fn parse_reads_one_flat_flag_set() {
     assert!(usage().contains("typescript_extract"));
 }
 
-fn scratch(name: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("dx-docs-ts-{}-{name}", std::process::id()));
-    let _ = fs::remove_dir_all(&dir);
-    fs::create_dir_all(&dir).expect("a scratch directory");
-    dir
-}
-
 #[test]
 fn run_writes_a_valid_shard_and_reports_file_errors() {
-    let dir = scratch("run");
+    let scratch = dx_test_scratch::scratch("dx-docs-ts-run");
+    let dir = scratch.path();
     let path = |name: &str| dir.join(name).to_string_lossy().into_owned();
     let options = |typedoc: String, out: String| Options {
         typedoc,

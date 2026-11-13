@@ -78,6 +78,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/ir/ir:documentation_ir",
         "@crates//:serde",
     ],

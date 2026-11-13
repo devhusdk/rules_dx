@@ -392,8 +392,8 @@ fn an_id_collision_fails_validation() {
 
 #[test]
 fn run_writes_no_shard_on_failure() {
-    let dir = std::env::temp_dir().join(format!("ruby-extract-{}", std::process::id()));
-    fs::create_dir_all(&dir).unwrap();
+    let scratch = dx_test_scratch::scratch("ruby-extract");
+    let dir = scratch.path();
     let json = dir.join("in.json");
     let out = dir.join("out.ir.pb");
     fs::write(
@@ -412,7 +412,6 @@ fn run_writes_no_shard_on_failure() {
     run(&options).unwrap();
     let shard = documentation_ir::decode_shard(&fs::read(&out).unwrap()).unwrap();
     assert_eq!(shard.symbols.len(), 2);
-    fs::remove_dir_all(&dir).unwrap();
 }
 
 #[test]

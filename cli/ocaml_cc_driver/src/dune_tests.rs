@@ -111,7 +111,8 @@ fn drops_only_vendored_dirs_lines() {
 
 #[test]
 fn copy_tree_follows_links_and_writes_over_read_only_files() {
-    let base = std::env::temp_dir().join(format!("dx_dune_test.{}", std::process::id()));
+    let scratch = dx_test_scratch::scratch("dx_dune_test-");
+    let base = scratch.path();
     let src = base.join("src");
     fs::create_dir_all(src.join("d")).unwrap();
     fs::write(src.join("d/f"), "x").unwrap();

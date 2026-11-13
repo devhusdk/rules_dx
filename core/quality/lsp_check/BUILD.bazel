@@ -34,7 +34,10 @@ rust_test(
     coverage_lib = ":lsp_check_lib",
     crate_name = "lsp_check",
     crate_root = "src/lib.rs",
-    deps = ["@crates//:serde_json"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:serde_json",
+    ],
 )
 
 real_source_target(

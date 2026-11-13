@@ -1,14 +1,5 @@
 use super::tree::run;
 use std::fs;
-use std::path::PathBuf;
-
-fn scratch(name: &str) -> PathBuf {
-    let base = std::env::var("TEST_TMPDIR").unwrap_or_default();
-    let dir = PathBuf::from(base).join(name);
-    let _ = fs::remove_dir_all(&dir);
-    fs::create_dir_all(&dir).unwrap_or_default();
-    dir
-}
 
 fn args(items: &[&str]) -> Vec<String> {
     items.iter().map(|s| (*s).to_string()).collect()
@@ -16,7 +7,8 @@ fn args(items: &[&str]) -> Vec<String> {
 
 #[test]
 fn copies_files_and_merges_directories() {
-    let root = scratch("copies");
+    let scratch = dx_test_scratch::scratch("dx-release-tree-copies-");
+    let root = scratch.path().to_path_buf();
     fs::create_dir_all(root.join("beams")).unwrap_or_default();
     fs::write(root.join("beams/a.beam"), "a").unwrap_or_default();
     fs::write(root.join("lib.so"), "so").unwrap_or_default();
@@ -45,7 +37,8 @@ fn copies_files_and_merges_directories() {
 
 #[test]
 fn rejects_paths_outside_the_output() {
-    let root = scratch("escape");
+    let scratch = dx_test_scratch::scratch("dx-release-tree-escape-");
+    let root = scratch.path().to_path_buf();
     let out = root.join("out");
     let result = run(&args(&[out.to_str().unwrap_or_default(), "--dir", "../x"]));
     assert!(result.is_err());
@@ -53,7 +46,8 @@ fn rejects_paths_outside_the_output() {
 
 #[test]
 fn rejects_unknown_steps() {
-    let root = scratch("unknown");
+    let scratch = dx_test_scratch::scratch("dx-release-tree-unknown-");
+    let root = scratch.path().to_path_buf();
     let out = root.join("out");
     assert!(run(&args(&[out.to_str().unwrap_or_default(), "--bogus"])).is_err());
 }

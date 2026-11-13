@@ -2922,8 +2922,9 @@ fn ping_argv_carries_startup_options_before_the_info_verb() {
 #[cfg(unix)]
 #[test]
 fn a_real_ping_child_is_reaped_on_stop() {
+    let scratch = dx_test_scratch::scratch("dx-plan-ping-");
     let warmth = Warmth {
-        workspace: std::env::temp_dir(),
+        workspace: scratch.path().to_path_buf(),
         startup_options: Vec::new(),
         output_user_root: None,
         output_base: None,

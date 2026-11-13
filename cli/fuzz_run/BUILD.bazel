@@ -23,7 +23,10 @@ rust_test(
     ],
     crate_name = "fuzz_run",
     crate_root = "src/main.rs",
-    deps = ["@rules_rust//rust/runfiles"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "@rules_rust//rust/runfiles",
+    ],
 )
 
 real_source_target(

@@ -91,7 +91,10 @@ fn maven_installs_with_a_lock_file_become_sets() {
     );
     let registry = found(&module, &[]);
     assert_eq!(registry.names(), vec!["maven", "tool"]);
-    assert_eq!(registry.find("tool").expect("tool").manifests, [MODULE_BAZEL]);
+    assert_eq!(
+        registry.find("tool").expect("tool").manifests,
+        [MODULE_BAZEL]
+    );
     let set = registry.find("maven").expect("maven");
     assert_eq!(set.ecosystem, Ecosystem::Maven);
     assert_eq!(set.manifests, ["third_party/libs.versions.toml"]);
@@ -257,13 +260,17 @@ fn cpan_workspace(lock: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
 
 #[test]
 fn cpan_layout_accepts_a_lock_that_matches_the_snapshot() {
-    let (scratch, set) = cpan_workspace("{\"packages\":[{\"name\":\"Try-Tiny\",\"archives\":[{\"strip_prefix\":\"Try-Tiny-0.31\"}]}]}");
+    let (scratch, set) = cpan_workspace(
+        "{\"packages\":[{\"name\":\"Try-Tiny\",\"archives\":[{\"strip_prefix\":\"Try-Tiny-0.31\"}]}]}",
+    );
     assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
 }
 
 #[test]
 fn cpan_layout_rejects_a_stale_lock_json() {
-    let (scratch, set) = cpan_workspace("{\"packages\":[{\"name\":\"Try-Tiny\",\"archives\":[{\"strip_prefix\":\"Try-Tiny-0.30\"}]}]}");
+    let (scratch, set) = cpan_workspace(
+        "{\"packages\":[{\"name\":\"Try-Tiny\",\"archives\":[{\"strip_prefix\":\"Try-Tiny-0.30\"}]}]}",
+    );
     let error = check_backend_settings(scratch.path(), &set).expect_err("stale");
     let message = error.to_string();
     assert!(message.contains("Try-Tiny-0.31"), "{message}");
@@ -388,8 +395,8 @@ fn julia_from_manifest_tags_become_julia_sets() {
 
 #[test]
 fn julia_layout_needs_both_locks_to_name_the_same_versions() {
-    let dir = std::env::temp_dir().join(format!("dx-julia-layout-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("dir");
+    let scratch = dx_test_scratch::scratch("dx-julia-layout-");
+    let dir = scratch.path().to_path_buf();
     let manifest = "manifest_format = \"2.0\"\n[[deps.Glob]]\nversion = \"1.3.1\"\n[[deps.Dates]]\nuuid = \"x\"\n";
     std::fs::write(dir.join("Manifest.toml"), manifest).expect("write");
     std::fs::write(
@@ -413,7 +420,6 @@ fn julia_layout_needs_both_locks_to_name_the_same_versions() {
     .expect("write");
     let message = check_julia_layout(&dir, &set).unwrap_err().to_string();
     assert!(message.contains("Glob 1.3.0"), "{message}");
-    std::fs::remove_dir_all(&dir).ok();
 }
 
 #[test]

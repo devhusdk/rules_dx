@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 struct Env {
-    root: PathBuf,
+    root: dx_test_scratch::TempDir,
     tree: PathBuf,
     tidy: PathBuf,
 }
@@ -32,16 +32,11 @@ fn env_path(name: &str) -> PathBuf {
     PathBuf::from(std::env::var(name).unwrap_or_else(|_| panic!("{name}")))
 }
 
-fn tag(name: &str) -> String {
-    format!("cc-context-{}-{name}", std::process::id())
-}
-
 fn stage(name: &str) -> Env {
-    let root = std::env::temp_dir().join(tag(name));
-    std::fs::create_dir_all(&root).expect("scratch root");
-    let tree = root.join("execroot");
+    let root = dx_test_scratch::scratch(name);
+    let tree = root.path().join("execroot");
     std::fs::create_dir_all(&tree).expect("execroot");
-    let tidy = root.join("clang-tidy");
+    let tidy = root.path().join("clang-tidy");
     std::fs::copy(env_path("DX_CLANG_TIDY"), &tidy).expect("clang-tidy staged");
     let source = tree.join("cc/tests/fixtures/compilation_db");
     std::fs::create_dir_all(&source).expect("source dir");
@@ -72,7 +67,7 @@ fn record(name: &str) -> String {
 }
 
 fn policy(env: &Env) -> PathBuf {
-    let path = env.root.join(".clang-tidy");
+    let path = env.root.path().join(".clang-tidy");
     std::fs::copy(
         runfiles("cc/tests/fixtures/compilation_db/.clang-tidy"),
         &path,
@@ -94,7 +89,7 @@ fn produce(
     let sources = vec!["cc/tests/fixtures/compilation_db/probe.c".to_string()];
     let entries = cc_context::database(&commands, &env.tree, label, &sources)
         .map_err(|err| err.to_string())?;
-    let dir = env.root.join(out);
+    let dir = env.root.path().join(out);
     let policy = std::fs::read_to_string(policy(env)).expect("policy body");
     cc_context::write_bundle(&dir, &entries, &policy).map_err(|err| err.to_string())?;
     Ok((entries, commands))
@@ -115,7 +110,7 @@ fn assert_consumer_compiler(commands: &[cc_context::CompileCommand]) {
 fn tidy(env: &Env, bundle: &str) -> (Option<i32>, String) {
     let output = Command::new(&env.tidy)
         .arg("-p")
-        .arg(env.root.join(bundle))
+        .arg(env.root.path().join(bundle))
         .arg("cc/tests/fixtures/compilation_db/probe.c")
         .current_dir(&env.tree)
         .output()
@@ -179,7 +174,6 @@ fn the_legacy_configuration_reports_a_real_include_and_macro_finding() {
         !text.contains("file not found"),
         "the generated header must resolve: {text}"
     );
-    std::fs::remove_dir_all(&env.root).ok();
 }
 
 #[test]
@@ -202,7 +196,6 @@ fn the_plain_configuration_is_clean_because_the_macro_is_absent() {
     assert_eq!(code, Some(0), "{text}");
     assert!(!text.contains("readability-else-after-return"), "{text}");
     assert!(!text.contains("file not found"), "{text}");
-    std::fs::remove_dir_all(&env.root).ok();
 }
 
 #[test]
@@ -226,7 +219,6 @@ fn a_consumer_defined_macro_wins_over_the_generated_default() {
     assert_eq!(code, Some(1), "{text}");
     assert!(text.contains("readability-else-after-return"), "{text}");
     assert!(!text.contains("redefined"), "{text}");
-    std::fs::remove_dir_all(&env.root).ok();
 }
 
 #[test]
@@ -258,7 +250,6 @@ fn two_configurations_of_one_source_do_not_leak_into_one_database() {
             count: 2
         }
     );
-    std::fs::remove_dir_all(&env.root).ok();
 }
 
 #[test]
@@ -293,14 +284,13 @@ fn missing_context_fails_closed_instead_of_running_with_no_flags() {
             input: "cc/tests/fixtures/compilation_db/absent.c".to_string()
         }
     );
-    assert!(!env.root.join("missing").exists());
-    std::fs::remove_dir_all(&env.root).ok();
+    assert!(!env.root.path().join("missing").exists());
 }
 
 #[test]
 fn an_unbound_policy_fails_closed() {
     let env = stage("policy");
-    let empty = env.root.join("empty/.clang-tidy");
+    let empty = env.root.path().join("empty/.clang-tidy");
     std::fs::create_dir_all(empty.parent().expect("policy parent")).expect("policy dir");
     std::fs::write(&empty, "  \n").expect("empty policy");
     assert_eq!(
@@ -309,7 +299,7 @@ fn an_unbound_policy_fails_closed() {
             path: empty.to_string_lossy().into_owned()
         }
     );
-    let wrong = env.root.join("policy.yaml");
+    let wrong = env.root.path().join("policy.yaml");
     std::fs::write(&wrong, "Checks: '-*'\n").expect("wrong extension");
     assert_eq!(
         cc_context::read_policy(&wrong).expect_err("wrong extension"),
@@ -318,7 +308,6 @@ fn an_unbound_policy_fails_closed() {
             want: cc_context::POLICY_EXTENSION.to_string()
         }
     );
-    std::fs::remove_dir_all(&env.root).ok();
 }
 
 #[test]
@@ -370,14 +359,13 @@ fn a_response_file_carries_the_real_target_flags() {
             .into_owned(),
         arguments: commands[0].arguments.clone(),
     }];
-    let dir = env.root.join("response");
+    let dir = env.root.path().join("response");
     let policy = std::fs::read_to_string(policy(&env)).expect("policy body");
     cc_context::write_bundle(&dir, &entries, &policy).expect("bundle");
     let (code, text) = tidy(&env, "response");
     assert_eq!(code, Some(1), "{text}");
     assert!(text.contains("readability-else-after-return"), "{text}");
     assert!(!text.contains("file not found"), "{text}");
-    std::fs::remove_dir_all(&env.root).ok();
 }
 
 fn msvc_tidy(name: &str, extra: &str) -> (Option<i32>, String) {
@@ -401,15 +389,14 @@ fn msvc_tidy(name: &str, extra: &str) -> (Option<i32>, String) {
     let entries = cc_context::database(&commands, &env.tree, "//:a", &[]).expect("database");
     let policy = "Checks: '-*,readability-else-after-return'\n";
     std::fs::write(env.tree.join(".clang-tidy"), policy).expect("policy");
-    cc_context::write_bundle(&env.root.join("msvc"), &entries, policy).expect("bundle");
+    cc_context::write_bundle(&env.root.path().join("msvc"), &entries, policy).expect("bundle");
     let output = Command::new(&env.tidy)
         .arg("-p")
-        .arg(env.root.join("msvc"))
+        .arg(env.root.path().join("msvc"))
         .arg("a.c")
         .current_dir(&env.tree)
         .output()
         .expect("clang-tidy runs");
-    std::fs::remove_dir_all(&env.root).ok();
     (
         output.status.code(),
         String::from_utf8_lossy(&output.stdout).into_owned()

@@ -6,10 +6,7 @@ const DIRTY: &str = "function f(a)\n        return a + 1\nend\n";
 const CLEAN: &str = "function f(a)\n    return a + 1\nend\n";
 const BROKEN: &str = "function f(\n    x = 1 +\n";
 
-fn scratch(name: &str, text: &str) -> PathBuf {
-    let dir = PathBuf::from(std::env::var("TEST_TMPDIR").unwrap_or_else(|_| "/tmp".into()))
-        .join(format!("julia_format_{}_{name}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap_or_else(|error| panic!("mkdir: {error}"));
+fn source(dir: &Path, name: &str, text: &str) -> PathBuf {
     let file = dir.join(format!("{name}.jl"));
     std::fs::write(&file, text).unwrap_or_else(|error| panic!("write: {error}"));
     file
@@ -30,7 +27,8 @@ fn text(bytes: &[u8]) -> String {
 
 #[test]
 fn clean_file_passes() {
-    let file = scratch("clean", CLEAN);
+    let scratch = dx_test_scratch::scratch("julia-format");
+    let file = source(scratch.path(), "clean", CLEAN);
     let out = run("--check", &[&file]);
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
     assert!(out.stdout.is_empty());
@@ -38,7 +36,8 @@ fn clean_file_passes() {
 
 #[test]
 fn dirty_file_is_listed_then_fixed() {
-    let file = scratch("dirty", DIRTY);
+    let scratch = dx_test_scratch::scratch("julia-format");
+    let file = source(scratch.path(), "dirty", DIRTY);
     let out = run("--check", &[&file]);
     assert_eq!(out.status.code(), Some(1));
     assert_eq!(text(&out.stdout), format!("{}\n", file.display()));
@@ -51,7 +50,8 @@ fn dirty_file_is_listed_then_fixed() {
 
 #[test]
 fn syntax_error_reports_position_and_is_never_written() {
-    let file = scratch("broken", BROKEN);
+    let scratch = dx_test_scratch::scratch("julia-format");
+    let file = source(scratch.path(), "broken", BROKEN);
     for mode in ["--check", "--apply"] {
         let out = run(mode, &[&file]);
         assert_eq!(out.status.code(), Some(1));

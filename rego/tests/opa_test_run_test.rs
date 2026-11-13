@@ -5,14 +5,9 @@ use std::process::Command;
 fn run(name: &str, filter: Option<&str>) -> (i32, String) {
     let exe = std::env::var(format!("{name}_EXE")).expect("executable path");
     let key = std::env::var(format!("{name}_MANIFEST")).expect("manifest key");
-    let scratch = std::env::temp_dir().join(format!(
-        "opa_run_{name}_{}_{}",
-        filter.unwrap_or("all"),
-        std::process::id()
-    ));
-    std::fs::create_dir_all(&scratch).expect("scratch dir");
+    let scratch = dx_test_scratch::scratch(&format!("opa_run_{name}_{}", filter.unwrap_or("all")));
     let mut command = Command::new(exe);
-    command.env("TEST_TMPDIR", &scratch);
+    command.env("TEST_TMPDIR", scratch.path());
     command.env("DX_REGO_TEST_MANIFEST", key);
     command.env_remove("TESTBRIDGE_TEST_ONLY");
     if let Some(filter) = filter {
@@ -24,7 +19,6 @@ fn run(name: &str, filter: Option<&str>) -> (i32, String) {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    let _ = std::fs::remove_dir_all(&scratch);
     (output.status.code().expect("exit code"), text)
 }
 

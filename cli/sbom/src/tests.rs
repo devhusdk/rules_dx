@@ -202,8 +202,8 @@ fn checksums_select_sha256_case_insensitively() {
 
 #[test]
 fn spdx_package_count_reads_the_packages_array() {
-    let dir = std::env::temp_dir().join(format!("dx_sbom_count_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("dir");
+    let scratch = dx_test_scratch::scratch("dx_sbom_count_");
+    let dir = scratch.path().to_path_buf();
     let good = dir.join("g.spdx.json");
     std::fs::write(&good, br#"{"packages":[{"name":"a"},{"name":"b"}]}"#).expect("write");
     let bad = dir.join("b.spdx.json");
@@ -211,5 +211,4 @@ fn spdx_package_count_reads_the_packages_array() {
     assert_eq!(spdx_package_count(&good), Some(2));
     assert_eq!(spdx_package_count(&bad), None);
     assert_eq!(spdx_package_count(&dir.join("missing")), None);
-    std::fs::remove_dir_all(&dir).expect("cleanup");
 }

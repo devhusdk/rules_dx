@@ -38,7 +38,7 @@ rust_test(
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
-    deps = [],
+    deps = ["//cli/test_scratch:dx_test_scratch"],
 )
 
 rust_test(

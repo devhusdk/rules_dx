@@ -45,12 +45,6 @@ fn stderr(run: &Output) -> String {
     String::from_utf8_lossy(&run.stderr).replace("\r\n", "\n")
 }
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set")).join(name);
-    std::fs::create_dir_all(&dir).expect("create scratch directory");
-    dir
-}
-
 #[test]
 fn unknown_command_exits_2() {
     let run = registry(&["sell"], None);
@@ -124,7 +118,8 @@ fn malformed_files_exit_3_with_their_reason() {
 
 #[test]
 fn packaged_registry_is_found_from_any_directory() {
-    let dir = scratch("elsewhere");
+    let scratch = dx_test_scratch::scratch("node-app-elsewhere");
+    let dir = scratch.path().to_path_buf();
     let run = registry(&["list"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
     assert_eq!(stdout(&run), "core 1.1.3\nnet 2.1.1\nedge none\n");
@@ -147,7 +142,8 @@ fn relative_file_resolves_against_the_invoking_directory() {
 
 #[test]
 fn environment_file_is_used_when_no_flag_is_given() {
-    let dir = scratch("env");
+    let scratch = dx_test_scratch::scratch("node-app-env");
+    let dir = scratch.path().to_path_buf();
     let file = dir.join("mine.json");
     std::fs::write(&file, r#"[{"name":"solo","versions":["4.5.6"]}]"#).expect("write file");
     let mut command = Command::new(registry_bin());
@@ -158,7 +154,8 @@ fn environment_file_is_used_when_no_flag_is_given() {
 
 #[test]
 fn where_reports_the_staged_entry_and_the_pinned_dependency() {
-    let dir = scratch("where");
+    let scratch = dx_test_scratch::scratch("node-app-where");
+    let dir = scratch.path().to_path_buf();
     let run = registry(&["where", "--flag", "two words"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
     let text = stdout(&run).replace('\\', "/");
@@ -189,7 +186,8 @@ fn where_reports_the_staged_entry_and_the_pinned_dependency() {
 #[cfg(unix)]
 #[test]
 fn staged_symlink_runs_the_same_entry() {
-    let dir = scratch("staged");
+    let scratch = dx_test_scratch::scratch("node-app-staged");
+    let dir = scratch.path().to_path_buf();
     let link = dir.join("registry-link");
     let _ = std::fs::remove_file(&link);
     std::os::unix::fs::symlink(registry_bin(), &link).expect("symlink");

@@ -355,7 +355,10 @@ rust_test(
         package_name = "tools/dx_testing",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/path:dx_path"],
+    ) + [
+        "//cli/path:dx_path",
+        "//cli/test_scratch:dx_test_scratch",
+    ],
 )
 
 rust_test(
@@ -375,7 +378,10 @@ rust_test(
         package_name = "tools/dx_testing",
         normal = True,
         normal_dev = True,
-    ) + [":dx_testing"],
+    ) + [
+        ":dx_testing",
+        "//cli/test_scratch:dx_test_scratch",
+    ],
 )
 
 rust_test(

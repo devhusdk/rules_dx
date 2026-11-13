@@ -727,9 +727,9 @@ mod tools_gen;
 mod web;
 mod weeder;
 
+pub use pipeline::run_real_pipeline_with_resolve;
 #[cfg(test)]
 pub use pipeline::{run_real_pipeline, run_real_pipeline_with_siblings};
-pub use pipeline::run_real_pipeline_with_resolve;
 
 #[path = "real_fix.rs"]
 mod real_fix;
@@ -764,8 +764,8 @@ mod tests {
     use std::ffi::OsString;
     use std::path::{Path, PathBuf};
 
-    fn out() -> PathBuf {
-        std::env::temp_dir().join("out")
+    fn out(scratch: &dx_test_scratch::TempDir) -> PathBuf {
+        scratch.path().join("out")
     }
 
     use quality_adapter::parsers::ParseError;
@@ -862,7 +862,8 @@ mod tests {
         let absolute = absolute_argv(&relative);
         assert!(Path::new(&absolute[0]).is_absolute());
         assert_eq!(absolute[1], relative[1]);
-        let already = [out().join("bin").join("tool").into_os_string()];
+        let scratch = dx_test_scratch::scratch("real-out");
+        let already = [out(&scratch).join("bin").join("tool").into_os_string()];
         assert_eq!(absolute_argv(&already)[0], already[0]);
         assert!(absolute_argv(&[]).is_empty());
     }
@@ -886,7 +887,8 @@ mod tests {
     /// The manifest sits beside the tool that reads it.
     #[test]
     fn the_manifest_sits_beside_the_binary() {
-        let binary = out().join("bin").join("pydoclint");
+        let scratch = dx_test_scratch::scratch("real-out");
+        let binary = out(&scratch).join("bin").join("pydoclint");
         let env = own_runfiles_manifest(&binary);
         assert_eq!(
             env,
@@ -900,8 +902,9 @@ mod tests {
     /// Neither manifest is on disk yet, so the executable's own name is the answer.
     #[test]
     fn a_windows_launcher_keeps_its_own_suffix() {
+        let scratch = dx_test_scratch::scratch("real-out");
         for name in ["prettier_/prettier.bat", "prettier.exe"] {
-            let binary = out().join("bin").join(name);
+            let binary = out(&scratch).join("bin").join(name);
             let env = own_runfiles_manifest(&binary);
             assert_eq!(
                 env,

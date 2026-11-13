@@ -1,4 +1,4 @@
-//! No action leaves the sandbox, reaches the network or shares /tmp outside tools/ci/sandbox_escape_allowlist.txt, and the allowlist holds no spare entry.
+//! No action leaves the sandbox, reaches the network or shares /tmp outside tools/ci/sandbox_escape_allowlist.txt, the allowlist holds no spare entry, and no test file calls `env::temp_dir`.
 
 mod guard_scan;
 
@@ -51,6 +51,7 @@ struct Scan {
     test_rules: BTreeSet<String>,
     defs: BTreeMap<String, BTreeSet<String>>,
     tagged: Vec<(String, String, usize)>,
+    test_temp_dirs: Vec<(String, usize)>,
 }
 
 /// Whether `name` is a banned requirement that reads as nothing else.
@@ -197,6 +198,10 @@ impl Scan {
             }
         }
         if test_file(path) {
+            let calls = temp_dir_calls(&tokens);
+            if calls > 0 {
+                self.test_temp_dirs.push((path.to_owned(), calls));
+            }
             return;
         }
         for _ in 0..temp_dir_calls(&product_tokens(tokens)) {
@@ -436,6 +441,52 @@ fn the_tree_matches_the_allowlist() {
     guard_scan::verify(&scan_files(&files), &KINDS);
 }
 
+/// Test files that call `env::temp_dir`, with the call count.
+fn test_temp_dirs(sources: &[(&str, &str)]) -> Vec<(String, usize)> {
+    let mut scan = Scan::default();
+    for (path, source) in sources {
+        scan.file(path, source);
+    }
+    scan.test_temp_dirs
+}
+
+#[test]
+fn no_test_file_calls_env_temp_dir() {
+    let files = guard_scan::snapshot();
+    let sources: Vec<(&str, &str)> = files
+        .iter()
+        .map(|(path, source)| (path.as_str(), source.as_str()))
+        .collect();
+    assert_eq!(
+        test_temp_dirs(&sources),
+        Vec::<(String, usize)>::new(),
+        "test files call env::temp_dir; use dx_test_scratch::scratch",
+    );
+}
+
+#[test]
+fn env_temp_dir_in_a_test_file_is_reported() {
+    let test = "fn dir() -> std::path::PathBuf { std::env::temp_dir ().join(\"x\") }\n";
+    let product = "fn dir() -> std::path::PathBuf { std::env::temp_dir ().join(\"x\") }\n";
+    assert_eq!(
+        test_temp_dirs(&[
+            ("pkg/src/lib.rs", product),
+            ("pkg/src/lib_tests.rs", test),
+            ("pkg/src/tests.rs", test),
+            ("pkg/tests/run.rs", test),
+            (
+                "pkg/x_test.rs",
+                "fn dir() { let _ = other::temp_dir (); }\n"
+            ),
+        ]),
+        [
+            ("pkg/src/lib_tests.rs".to_owned(), 1),
+            ("pkg/src/tests.rs".to_owned(), 1),
+            ("pkg/tests/run.rs".to_owned(), 1),
+        ],
+    );
+}
+
 #[test]
 fn execution_requirement_keys_count() {
     let bzl = r#"
@@ -509,20 +560,20 @@ _OTHER = ["/tmpl", "x/tmp/y", "$TMPDIR/tmp"]
     let rust = r#"
 const SCRATCH: &str = "/tmp/x";
 fn scratch() -> std::path::PathBuf {
-    std::env::temp_dir().join("x")
+    std::env::temp_dir ().join("x")
 }
 #[cfg(test)]
 mod tests {
     #[test]
     fn scratch_dir() {
-        let dir = std::env::temp_dir();
+        let dir = std::env::temp_dir ();
     }
 }
 fn other() -> std::path::PathBuf {
-    env::temp_dir()
+    env::temp_dir ()
 }
 "#;
-    let test = "fn dir() -> std::path::PathBuf { std::env::temp_dir().join(\"/tmp/y\") }\n";
+    let test = "fn dir() -> std::path::PathBuf { std::env::temp_dir ().join(\"/tmp/y\") }\n";
     let sh = "
 cd /tmp
 out=\"/tmp/out\"

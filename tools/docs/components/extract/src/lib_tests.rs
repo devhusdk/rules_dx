@@ -215,8 +215,8 @@ fn parse_reads_every_flag() {
 
 #[test]
 fn run_writes_nothing_on_failure() {
-    let dir = std::env::temp_dir().join(format!("component_extract_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("dir");
+    let scratch = dx_test_scratch::scratch("component_extract");
+    let dir = scratch.path();
     let meta = dir.join("meta.json");
     let out = dir.join("out.pb");
     std::fs::write(&meta, doc(json!([]))).expect("write");
@@ -234,7 +234,6 @@ fn run_writes_nothing_on_failure() {
     let shard =
         documentation_ir::decode_shard(&std::fs::read(&out).expect("read")).expect("decode");
     assert_eq!(shard.symbols.len(), 7);
-    std::fs::remove_dir_all(&dir).ok();
 }
 
 #[test]

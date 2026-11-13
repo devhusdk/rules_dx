@@ -100,9 +100,8 @@ fn sleeping_holds_the_child_before_it_exits() {
 
 #[test]
 fn a_gate_file_ends_the_sleep() {
-    let dir = std::env::temp_dir().join(format!("probe-gate-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("dir");
-    let gate = dir.join("gate");
+    let scratch = dx_test_scratch::scratch("probe-gate");
+    let gate = scratch.path().join("gate");
     std::fs::write(&gate, b"").expect("gate");
     let started = Instant::now();
     let run = run(&[
@@ -110,7 +109,6 @@ fn a_gate_file_ends_the_sleep() {
         "--sleep-ms=30000",
         "--exit-code=5",
     ]);
-    let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(run.status.code(), Some(5));
     assert!(
         started.elapsed().as_secs() < 10,

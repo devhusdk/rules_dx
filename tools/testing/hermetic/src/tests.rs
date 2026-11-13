@@ -1966,7 +1966,8 @@ fn copy_test_logs_keeps_layout_and_returns_heads() {
 
 #[test]
 fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {
-    let root = std::env::temp_dir().join(format!("dx-hermetic-win-{}", std::process::id()));
+    let scratch = dx_test_scratch::scratch("dx-hermetic-win");
+    let root = scratch.path().to_path_buf();
     let pf = root.join("pf");
     let local = root.join("local");
     for dir in [
@@ -1990,14 +1991,14 @@ fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {
         canon(pf.join("LLVM").join("bin")),
         canon(local.join("Programs").join("Python").join("Python311")),
     ];
-    let _ = std::fs::remove_dir_all(&root);
     assert_eq!(dirs, want);
     assert!(windows_tool_dirs(None, None).is_empty());
 }
 
 #[test]
 fn canonical_paths_have_no_verbatim_prefix() {
-    let dir = std::env::temp_dir();
+    let scratch = dx_test_scratch::scratch("dx-hermetic-canonical");
+    let dir = scratch.path().to_path_buf();
     let real = canonical(&dir).unwrap();
     assert!(!real.to_string_lossy().starts_with(r"\\?\"));
     assert!(canonical(&dir.join("dx-hermetic-missing-path")).is_none());
@@ -2029,13 +2030,20 @@ fn windows_leak_package_uses_powershell_and_keeps_the_markers() {
 #[test]
 fn action_path_is_system_only() {
     if cfg!(windows) {
-        let path = action_path(Some(r"D:\Win"), Some(Path::new(r"C:\q\shims")), Path::new(""));
+        let path = action_path(
+            Some(r"D:\Win"),
+            Some(Path::new(r"C:\q\shims")),
+            Path::new(""),
+        );
         assert_eq!(
             path,
             r"D:\Win\System32;D:\Win;D:\Win\System32\WindowsPowerShell\v1.0;C:\q\shims"
         );
     } else {
-        assert_eq!(action_path(None, None, Path::new("/q/applets")), "/q/applets");
+        assert_eq!(
+            action_path(None, None, Path::new("/q/applets")),
+            "/q/applets"
+        );
     }
     assert_eq!(SHIM_NAME.ends_with(".cmd"), cfg!(windows));
 }

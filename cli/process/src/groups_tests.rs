@@ -152,13 +152,17 @@ fn leases(dir: &Path) -> Vec<PathBuf> {
 }
 
 #[cfg(unix)]
-fn probe_spec(args: &[&str], group: crate::lifecycle::StreamGroup) -> crate::lifecycle::StreamSpec {
+fn probe_spec(
+    cwd: &Path,
+    args: &[&str],
+    group: crate::lifecycle::StreamGroup,
+) -> crate::lifecycle::StreamSpec {
     use crate::lifecycle::{EnvPolicy, StreamOutput, StreamSpec, StreamStdin};
     let mut argv = vec![dx_testing::process_probe().into_os_string()];
     argv.extend(args.iter().map(std::ffi::OsString::from));
     StreamSpec {
         argv,
-        cwd: std::env::temp_dir(),
+        cwd: cwd.to_path_buf(),
         env: EnvPolicy::Inherited { extra: Vec::new() },
         stdin: StreamStdin::Null,
         stdout: StreamOutput::Inherit,
@@ -199,7 +203,11 @@ fn an_owned_run_holds_a_lease_naming_its_group_and_removes_it() {
         recorded.is_some() || started.elapsed() >= Duration::from_secs(5)
     };
     let outcome = crate::lifecycle::run_streamed_in(
-        probe_spec(&["--sleep-ms=30000"], crate::lifecycle::StreamGroup::Owned),
+        probe_spec(
+            scratch.path(),
+            &["--sleep-ms=30000"],
+            crate::lifecycle::StreamGroup::Owned,
+        ),
         QUICK,
         &|| None,
         &withdraw,
@@ -222,7 +230,11 @@ fn a_terminal_run_takes_no_lease() {
     let scratch = dx_test_scratch::scratch("dx-groups-terminal-");
     let dir = scratch.path().join("groups");
     let outcome = crate::lifecycle::run_streamed_in(
-        probe_spec(&["--exit-code=0"], crate::lifecycle::StreamGroup::Terminal),
+        probe_spec(
+            scratch.path(),
+            &["--exit-code=0"],
+            crate::lifecycle::StreamGroup::Terminal,
+        ),
         QUICK,
         &|| None,
         &|| false,
@@ -247,7 +259,7 @@ fn a_terminal_run_takes_no_lease() {
 fn a_failed_owned_spawn_leaves_no_lease() {
     let scratch = dx_test_scratch::scratch("dx-groups-missing-");
     let dir = scratch.path().join("groups");
-    let mut spec = probe_spec(&[], crate::lifecycle::StreamGroup::Owned);
+    let mut spec = probe_spec(scratch.path(), &[], crate::lifecycle::StreamGroup::Owned);
     spec.argv = vec![scratch.path().join("missing-binary").into_os_string()];
     let result = crate::lifecycle::run_streamed_in(spec, QUICK, &|| None, &|| false, Some(&dir));
     assert!(result.is_err());

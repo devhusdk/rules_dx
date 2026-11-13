@@ -271,8 +271,8 @@ fn parse_reads_flags_and_requires_a_known_language() {
 
 #[test]
 fn run_writes_nothing_on_error() {
-    let dir = std::env::temp_dir().join(format!("dotnet_extract_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let scratch = dx_test_scratch::scratch("dotnet_extract");
+    let dir = scratch.path();
     let api_path = dir.join("api.json");
     let srcs = dir.join("srcs.tsv");
     let out = dir.join("out.bin");
@@ -291,5 +291,4 @@ fn run_writes_nothing_on_error() {
     std::fs::write(&api_path, api(&[item("T:A.X", "class", "X", None)])).unwrap();
     run(&options).unwrap();
     assert!(documentation_ir::decode_shard(&std::fs::read(&out).unwrap()).is_ok());
-    std::fs::remove_dir_all(&dir).unwrap();
 }

@@ -77,14 +77,13 @@ fn the_control_port_is_a_bound_loopback_port() {
 
 #[test]
 fn the_acquired_firefox_layout_names_the_browser_binary() {
-    let root = std::env::temp_dir().join(format!("dx-browser-tests-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&root);
+    let scratch = dx_test_scratch::scratch("dx-browser-tests");
+    let root = scratch.path().to_path_buf();
     assert_eq!(firefox_executable(&root), "");
     let browser = root.join("extracted/firefox/firefox");
     std::fs::create_dir_all(browser.parent().expect("a parent")).expect("a tree");
     std::fs::write(&browser, b"binary").expect("a browser file");
     assert_eq!(firefox_executable(&root), browser.to_string_lossy());
-    let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]

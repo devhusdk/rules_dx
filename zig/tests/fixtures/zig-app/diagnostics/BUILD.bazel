@@ -42,7 +42,10 @@ rust_test(
         "DX_ZIG": "$(rootpath @rules_dx//zig/private/tools:zig)",
         "DX_ZIG_STD": "$(rootpath @rules_dx//zig/private/tools:zig_lib_marker)",
     },
-    deps = ["@rules_dx//tools/testing:dx_testing"],
+    deps = [
+        "@rules_dx//cli/test_scratch:dx_test_scratch",
+        "@rules_dx//tools/testing:dx_testing",
+    ],
 )
 
 real_source_target(

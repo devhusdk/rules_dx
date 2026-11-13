@@ -6,7 +6,7 @@ Language toolchains come from Bazel. No separate installs.
 
 ## Quickstart
 
-Bazel via Bazelisk is required. In an empty directory, create three files.
+Bazel via Bazelisk is required. In an empty directory, create two files.
 
 `.bazelversion`:
 
@@ -18,12 +18,6 @@ Bazel via Bazelisk is required. In an empty directory, create three files.
 
 ```starlark
 bazel_dep(name = "rules_dx", version = "<release>")
-```
-
-`BUILD.bazel`:
-
-```starlark
-# Empty on purpose: rules_rust crate_universe needs a root package.
 ```
 
 Then:

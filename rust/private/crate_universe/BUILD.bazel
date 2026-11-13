@@ -1,0 +1,7 @@
+# gazelle:dx_rust_corpus false
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

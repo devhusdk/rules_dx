@@ -12,7 +12,6 @@ single_version_override(
     patches = [
         "//patches/rules_rust:clippy_metadata_inputs.patch",
         "//patches/rules_rust:pipelined_rmeta_path.patch",
-        "//patches/rules_rust:crate_universe_root_lookup.patch",
         "//patches/rules_rust:msvc_pdb_output.patch",
         "//patches/rules_rust:static_archive_link_arg.patch",
         "//patches/rules_rust:crate_universe_lazy_host_tools.patch",
@@ -2332,7 +2331,10 @@ use_repo(
     "safaridriver",
 )
 
-crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+rust_host_tools = use_extension("@rules_rust//rust:extensions.bzl", "rust_host_tools")
+use_repo(rust_host_tools, "rust_host_tools")
+
+crate = use_extension("//rust/private/crate_universe:extensions.bzl", "crate")
 crate.annotation(
     build_script_env = {
         "CFLAGS": "$(DX_BS_CFLAGS)",

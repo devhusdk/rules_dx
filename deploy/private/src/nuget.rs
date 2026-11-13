@@ -119,10 +119,10 @@ fn nuget_parse_nuspec(xml: &str) -> Result<(String, String), String> {
         }
     }
     let one = |name: &str, values: Vec<String>| -> Result<String, String> {
-        match values.len() {
-            0 => Err(format!("nuspec has no <{name}> in <metadata>")),
-            1 => {
-                let value = values[0].trim().to_owned();
+        match values.as_slice() {
+            [] => Err(format!("nuspec has no <{name}> in <metadata>")),
+            [value] => {
+                let value = value.trim().to_owned();
                 if value.is_empty() {
                     Err(format!("nuspec <{name}> is empty"))
                 } else {
@@ -356,11 +356,17 @@ pub struct NugetApiCheck<'a> {
 /// Returns the package base URL a NuGet v3 service index lists, ending in `/`.
 fn nuget_package_base(service_index: &str) -> Option<String> {
     let json: serde_json::Value = serde_json::from_str(service_index).ok()?;
-    let id = json["resources"].as_array()?.iter().find(|resource| {
-        resource["@type"]
-            .as_str()
-            .is_some_and(|kind| kind.starts_with("PackageBaseAddress/3.0.0"))
-    })?["@id"]
+    let id = json
+        .get("resources")?
+        .as_array()?
+        .iter()
+        .find(|resource| {
+            resource
+                .get("@type")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|kind| kind.starts_with("PackageBaseAddress/3.0.0"))
+        })?
+        .get("@id")?
         .as_str()?;
     Some(format!("{}/", id.trim_end_matches('/')))
 }
@@ -373,8 +379,10 @@ fn apicompat_changes(output: &str) -> Vec<String> {
         let code = line.trim_start();
         let is_diagnostic = code.len() > 7
             && code.starts_with("CP")
-            && code[2..6].bytes().all(|b| b.is_ascii_digit())
-            && code.as_bytes()[6] == b':';
+            && code
+                .get(2..6)
+                .is_some_and(|digits| digits.bytes().all(|b| b.is_ascii_digit()))
+            && code.as_bytes().get(6) == Some(&b':');
         if is_diagnostic {
             changes.push(code.trim_end().to_owned());
             open = true;
@@ -426,7 +434,11 @@ fn nuget_api_check(
             Err(error) => return Ok(Outcome::Skipped(error)),
         };
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
-        let versions = json["versions"].as_array().into_iter().flatten();
+        let versions = json
+            .get("versions")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten();
         match highest_below(versions.filter_map(|v| v.as_str()), version) {
             Some(previous) => previous,
             None => return Ok(Outcome::FirstRelease),

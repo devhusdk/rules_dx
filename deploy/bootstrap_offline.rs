@@ -1,5 +1,7 @@
 //! Installs Bazel and vendored advisory snapshots from an offline bundle.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

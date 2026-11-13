@@ -201,7 +201,7 @@ fn origin_of(url: &str) -> Option<String> {
         return None;
     }
     let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
-    let authority = rest[..end].to_ascii_lowercase();
+    let authority = rest.get(..end)?.to_ascii_lowercase();
     if authority.is_empty() || authority.contains('@') {
         return None;
     }
@@ -341,7 +341,11 @@ impl<'a> Session<'a> {
                     .map_err(|_| "registry auth: malformed token response".to_owned())?;
                 let token = ["token", "access_token"]
                     .iter()
-                    .find_map(|key| json[*key].as_str().filter(|token| !token.is_empty()))
+                    .find_map(|key| {
+                        json.get(*key)
+                            .and_then(serde_json::Value::as_str)
+                            .filter(|token| !token.is_empty())
+                    })
                     .ok_or_else(|| "registry auth: token response has no token".to_owned())?;
                 format!("Bearer {token}")
             }
@@ -499,8 +503,9 @@ fn staged_manifest(
     if format!("sha256:{}", dx_digest::sha256_hex(&bytes)) != digest {
         return Err(format!("oci layout: manifest blob does not match {digest}"));
     }
-    let media_type = manifest["mediaType"]
-        .as_str()
+    let media_type = manifest
+        .get("mediaType")
+        .and_then(serde_json::Value::as_str)
         .or_else(|| descriptor["mediaType"].as_str())
         .unwrap_or("")
         .to_owned();
@@ -510,12 +515,18 @@ fn staged_manifest(
         ));
     }
     let mut blobs = vec![
-        manifest["config"]["digest"]
-            .as_str()
+        manifest
+            .pointer("/config/digest")
+            .and_then(serde_json::Value::as_str)
             .unwrap_or("")
             .to_owned(),
     ];
-    for layer in manifest["layers"].as_array().into_iter().flatten() {
+    for layer in manifest
+        .get("layers")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         blobs.push(layer["digest"].as_str().unwrap_or("").to_owned());
     }
     for blob in &blobs {
@@ -541,7 +552,11 @@ pub(crate) fn push_layout(
         return Err(format!("oci registry: want a valid tag, got '{tag}'"));
     }
     let (_, index) = read_json(&layout.join("index.json"), "index.json")?;
-    let descriptors = index["manifests"].as_array().cloned().unwrap_or_default();
+    let descriptors = index
+        .get("manifests")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let manifests = descriptors
         .iter()
         .map(|descriptor| staged_manifest(layout, descriptor))

@@ -1,12 +1,14 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 use std::path::Path;
 
 fn run(argv: &[String]) -> i32 {
-    if argv.len() != 3 {
+    let [_, src, dst] = argv else {
         return dx_deploy_tools::bin_usage("hasher", "<src> <out>");
-    }
-    let src = Path::new(&argv[1]);
-    let dst = Path::new(&argv[2]);
+    };
+    let src = Path::new(src);
+    let dst = Path::new(dst);
     // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     match dx_deploy_tools::hash_file(src, dst) {
         Ok(()) => 0,

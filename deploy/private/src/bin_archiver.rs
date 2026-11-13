@@ -1,16 +1,21 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 use std::path::Path;
 
 fn run(argv: &[String]) -> i32 {
-    if argv.len() >= 2 && argv[1] == "--members" {
-        if argv.len() < 4 {
+    if let [_, flag, rest @ ..] = argv
+        && flag == "--members"
+    {
+        let Some((dst, member_argv)) = rest.split_first().filter(|(_, args)| !args.is_empty())
+        else {
             return dx_deploy_tools::bin_usage(
                 "archiver",
                 "--members <out> [--executable <member>]... <name=path>...",
             );
-        }
-        let dst = Path::new(&argv[2]);
-        let parsed = match dx_deploy_tools::member_args(&argv[3..]) {
+        };
+        let dst = Path::new(dst);
+        let parsed = match dx_deploy_tools::member_args(member_argv) {
             Ok(parsed) => parsed,
             Err(error) => {
                 eprintln!("archiver: {error}");
@@ -27,17 +32,20 @@ fn run(argv: &[String]) -> i32 {
             Err(error) => dx_deploy_tools::bin_cannot("archiver", "archive", dst, error),
         };
     }
-    if argv.len() >= 2 && argv[1] == "--imports" {
+    if let [_, flag, rest @ ..] = argv
+        && flag == "--imports"
+    {
         // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        if argv.len() < 4 {
+        let Some((dst, import_argv)) = rest.split_first().filter(|(_, args)| !args.is_empty())
+        else {
             return dx_deploy_tools::bin_usage(
                 "archiver",
                 "--imports <out> [--check <member>]... [--provides <name>]... <member=path>...",
             );
-        }
-        let dst = Path::new(&argv[2]);
+        };
+        let dst = Path::new(dst);
         // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        return match dx_deploy_tools::check_imports(&argv[3..]) {
+        return match dx_deploy_tools::check_imports(import_argv) {
             Ok(()) => match std::fs::write(dst, b"") {
                 Ok(()) => 0,
                 Err(error) => dx_deploy_tools::bin_cannot("archiver", "write", dst, error),
@@ -48,45 +56,55 @@ fn run(argv: &[String]) -> i32 {
             }
         };
     }
-    if argv.len() >= 2 && argv[1] == "--oci-layout" {
+    if let [_, flag, ..] = argv
+        && flag == "--oci-layout"
+    {
         // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        if argv.len() != 6 {
+        let [_, _, dst, platform, reference, image] = argv else {
             return dx_deploy_tools::bin_usage(
                 "archiver",
                 "--oci-layout <out> <platform> <ref> <image>",
             );
-        }
-        let dst = Path::new(&argv[2]);
-        let image = Path::new(&argv[5]);
+        };
+        let dst = Path::new(dst);
+        let image = Path::new(image);
         // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        return match dx_deploy_tools::archive_oci_layout(image, &argv[3], &argv[4], dst) {
+        return match dx_deploy_tools::archive_oci_layout(image, platform, reference, dst) {
             Ok(()) => 0,
             Err(error) => dx_deploy_tools::bin_cannot("archiver", "archive", image, error),
         };
     }
-    if argv.len() >= 2 && argv[1] == "--image" {
+    if let [_, flag, ..] = argv
+        && flag == "--image"
+    {
         // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        if argv.len() < 6 {
+        let [_, _, dst, platform, entry, layer_argv @ ..] = argv else {
+            return dx_deploy_tools::bin_usage(
+                "archiver",
+                "--image <out> <platform> <entrypoint> <layer>...",
+            );
+        };
+        if layer_argv.is_empty() {
             return dx_deploy_tools::bin_usage(
                 "archiver",
                 "--image <out> <platform> <entrypoint> <layer>...",
             );
         }
-        let dst = Path::new(&argv[2]);
-        let entrypoint: Vec<&str> = argv[4].split_whitespace().collect();
-        let layers: Vec<&Path> = argv[5..].iter().map(Path::new).collect();
+        let dst = Path::new(dst);
+        let entrypoint: Vec<&str> = entry.split_whitespace().collect();
+        let layers: Vec<&Path> = layer_argv.iter().map(Path::new).collect();
         // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        return match dx_deploy_tools::archive_image(&layers, &argv[3], &entrypoint, dst) {
+        return match dx_deploy_tools::archive_image(&layers, platform, &entrypoint, dst) {
             Ok(_) => 0,
             Err(error) => dx_deploy_tools::bin_cannot("archiver", "archive", dst, error),
         };
     }
     // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    if argv.len() != 3 {
+    let [_, src, dst] = argv else {
         return dx_deploy_tools::bin_usage("archiver", "<src> <out>");
-    }
-    let src = Path::new(&argv[1]);
-    let dst = Path::new(&argv[2]);
+    };
+    let src = Path::new(src);
+    let dst = Path::new(dst);
     // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     match dx_deploy_tools::archive_file(src, dst) {
         Ok(()) => 0,
@@ -97,7 +115,7 @@ fn run(argv: &[String]) -> i32 {
 fn main() {
     let mut argv: Vec<String> = std::env::args().collect();
     if argv.len() == 2
-        && let Some(path) = argv[1].strip_prefix('@')
+        && let Some(path) = argv.get(1).and_then(|arg| arg.strip_prefix('@'))
     {
         match std::fs::read_to_string(path) {
             Ok(text) => {

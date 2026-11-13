@@ -199,7 +199,7 @@ pub fn sync_assets(
         if failures.iter().any(|(failed, _)| failed == name) {
             continue;
         }
-        let detail = if pending[..attempted].contains(name) {
+        let detail = if pending.iter().take(attempted).any(|asked| asked == name) {
             "uploaded, but the release does not list the asset"
         } else {
             "not uploaded: an earlier upload failed"

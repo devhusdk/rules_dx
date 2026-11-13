@@ -232,8 +232,10 @@ fn opam_live_pull_request(
         "content": base64::engine::general_purpose::STANDARD.encode(contents),
         "branch": branch,
     });
-    if let Some(sha) = existing {
-        put["sha"] = serde_json::Value::String(sha);
+    if let Some(sha) = existing
+        && let Some(object) = put.as_object_mut()
+    {
+        object.insert("sha".to_owned(), serde_json::Value::String(sha));
     }
     github.call("PUT", &format!("/repos/{fork}/contents/{path}"), Some(put))?;
     let head = format!("{owner}:{branch}");

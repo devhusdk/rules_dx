@@ -34,8 +34,8 @@ pub fn pypi_normalize_name(raw: &str) -> String {
 fn pypi_valid_name(name: &str) -> bool {
     let bytes = name.as_bytes();
     !bytes.is_empty()
-        && bytes[0].is_ascii_alphanumeric()
-        && bytes[bytes.len() - 1].is_ascii_alphanumeric()
+        && bytes.first().is_some_and(u8::is_ascii_alphanumeric)
+        && bytes.last().is_some_and(u8::is_ascii_alphanumeric)
         && bytes
             .iter()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
@@ -45,12 +45,14 @@ fn pypi_valid_name(name: &str) -> bool {
 pub fn pypi_artifact_identity(base: &str) -> Result<(String, String), String> {
     let (name, version) = if let Some(stem) = base.strip_suffix(".whl") {
         let parts: Vec<&str> = stem.split('-').collect();
-        if parts.len() < 5 || parts.len() > 6 {
-            return Err(format!(
-                "pypi_deploy: invalid wheel filename {base:?}: want name-version-python-abi-platform.whl"
-            ));
+        match parts.as_slice() {
+            &[name, version, _, _, _] | &[name, version, _, _, _, _] => (name, version),
+            _ => {
+                return Err(format!(
+                    "pypi_deploy: invalid wheel filename {base:?}: want name-version-python-abi-platform.whl"
+                ));
+            }
         }
-        (parts[0], parts[1])
     } else if let Some(stem) = base.strip_suffix(".tar.gz") {
         stem.rsplit_once('-').ok_or_else(|| {
             format!("pypi_deploy: invalid sdist filename {base:?}: want name-version.tar.gz")
@@ -229,10 +231,13 @@ impl FilenameTags {
 fn path_python_tag(lower: &str) -> Option<String> {
     let file = lower.rsplit('/').next()?;
     for marker in [".cpython-3", ".cp3"] {
-        if let Some(index) = file.find(marker) {
-            let rest = &file[index + marker.len()..];
+        if let Some((_, rest)) = file.split_once(marker) {
             let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
-            if !digits.is_empty() && rest[digits.len()..].starts_with('-') {
+            if !digits.is_empty()
+                && rest
+                    .get(digits.len()..)
+                    .is_some_and(|tail| tail.starts_with('-'))
+            {
                 return Some(format!("cp3{digits}"));
             }
         }
@@ -576,7 +581,7 @@ fn griffe_changes(output: &str) -> Vec<String> {
 /// Returns the release below `next` in a PyPI JSON body and the URL of its first wheel.
 fn pypi_previous_wheel(body: &str, next: &str) -> Option<(String, Option<String>)> {
     let json: serde_json::Value = serde_json::from_str(body).ok()?;
-    let releases = json["releases"].as_object()?;
+    let releases = json.get("releases")?.as_object()?;
     let previous = highest_below(releases.keys().map(String::as_str), next)?;
     let wheel = releases[&previous]
         .as_array()

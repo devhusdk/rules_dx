@@ -34,9 +34,12 @@ fn gemspec_value(text: &str, field: &str) -> Option<String> {
             continue;
         }
         let right = right.trim();
-        let quote = right.chars().next().filter(|c| matches!(c, '"' | '\''))?;
-        let rest = &right[1..];
-        return rest.find(quote).map(|end| rest[..end].to_owned());
+        let mut chars = right.chars();
+        let quote = chars.next().filter(|c| matches!(c, '"' | '\''))?;
+        return chars
+            .as_str()
+            .split_once(quote)
+            .map(|(value, _)| value.to_owned());
     }
     None
 }
@@ -140,8 +143,9 @@ fn gem_failure_lines(output: &dx_process::capture::Captured, token: &str) -> Vec
         text = text.replace(token, "[redacted]");
     }
     let lines: Vec<&str> = text.lines().collect();
-    lines[lines.len().saturating_sub(GEM_FAILURE_LINES)..]
+    lines
         .iter()
+        .skip(lines.len().saturating_sub(GEM_FAILURE_LINES))
         .map(|line| (*line).to_owned())
         .collect()
 }

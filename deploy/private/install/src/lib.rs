@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -37,8 +39,8 @@ fn help_text() -> String {
 pub fn parse_args(argv: &[String]) -> Result<VerifyArgs, ArgsError> {
     let mut args = VerifyArgs::default();
     let mut i = 1;
-    while i < argv.len() {
-        match argv[i].as_str() {
+    while let Some(flag) = argv.get(i) {
+        match flag.as_str() {
             "--binary" => {
                 args.binary = argv.get(i + 1).cloned().unwrap_or_default();
                 i += 2;

@@ -73,8 +73,8 @@ pub fn resolve_runfile_anchored(rloc: &str, anchor: &str) -> io::Result<std::pat
 
 /// Returns the deploy output directory.
 pub fn deploy_outdir(argv: &[String]) -> std::path::PathBuf {
-    if argv.len() >= 2 {
-        return absolute_from_invocation(Path::new(&argv[1]));
+    if let Some(first) = argv.get(1) {
+        return absolute_from_invocation(Path::new(first));
     }
     std::env::var("BUILD_WORKSPACE_DIRECTORY")
         .map(std::path::PathBuf::from)
@@ -183,7 +183,10 @@ pub(crate) fn package_relative_paths(
     }
     mapped.sort_by(|left, right| left.1.cmp(&right.1));
     for pair in mapped.windows(2) {
-        let (left, right) = (&pair[0].1, &pair[1].1);
+        let [first, second] = pair else {
+            continue;
+        };
+        let (left, right) = (&first.1, &second.1);
         if left == right {
             return Err(bad(format!("{label}: path collision on '{left}'")));
         }

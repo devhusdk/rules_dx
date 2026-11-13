@@ -142,12 +142,13 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
         .get(1)
         .and_then(|name| spec_for(name))
         .ok_or(ParseError::UnknownKind)?;
-    let args = &argv[2..];
+    let args = argv.get(2..).ok_or(ParseError::UnknownKind)?;
+    let arity_error = || ParseError::Arity {
+        name: spec.name,
+        usage: spec.usage,
+    };
     if !spec.arity.accepts(args.len()) {
-        return Err(ParseError::Arity {
-            name: spec.name,
-            usage: spec.usage,
-        });
+        return Err(arity_error());
     }
     if spec.kind == Kind::Spdx {
         for arg in args.iter().skip(4).filter(|arg| arg.starts_with("--")) {
@@ -163,59 +164,85 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
     }
     Ok(match spec.kind {
         Kind::Spdx => {
-            let runtimes = args[4..]
+            let [src, dst, package, supplier, extra @ ..] = args else {
+                return Err(arity_error());
+            };
+            let runtimes = extra
                 .iter()
                 .find_map(|arg| arg.strip_prefix("--runtimes="))
                 .map(PathBuf::from);
-            let inventory = args[4..]
+            let inventory = extra
                 .iter()
                 .find(|arg| !arg.starts_with("--"))
                 .map(PathBuf::from);
-            let locks = args[4..]
+            let locks = extra
                 .iter()
                 .filter_map(|arg| arg.strip_prefix("--lock="))
                 .filter_map(|spec| spec.split_once(':'))
                 .map(|(kind, path)| (kind.to_owned(), PathBuf::from(path)))
                 .collect();
             Invocation::Spdx {
-                src: PathBuf::from(&args[0]),
-                dst: PathBuf::from(&args[1]),
-                package: args[2].clone(),
-                supplier: args[3].clone(),
+                src: PathBuf::from(src),
+                dst: PathBuf::from(dst),
+                package: package.clone(),
+                supplier: supplier.clone(),
                 inventory,
                 runtimes,
                 locks,
             }
         }
-        Kind::Provenance => Invocation::Provenance {
-            src: PathBuf::from(&args[0]),
-            dst: PathBuf::from(&args[1]),
-            builder: args[2].clone(),
-        },
-        Kind::BcrSource => Invocation::BcrSource {
-            dst: PathBuf::from(&args[0]),
-            module: args[1].clone(),
-            version: args[2].clone(),
-        },
+        Kind::Provenance => {
+            let [src, dst, builder, ..] = args else {
+                return Err(arity_error());
+            };
+            Invocation::Provenance {
+                src: PathBuf::from(src),
+                dst: PathBuf::from(dst),
+                builder: builder.clone(),
+            }
+        }
+        Kind::BcrSource => {
+            let [dst, module, version, ..] = args else {
+                return Err(arity_error());
+            };
+            Invocation::BcrSource {
+                dst: PathBuf::from(dst),
+                module: module.clone(),
+                version: version.clone(),
+            }
+        }
         Kind::Notice => {
-            let runtimes = args[3].strip_prefix("--runtimes=").map(PathBuf::from);
+            let [manifest, dst, root, third, ..] = args else {
+                return Err(arity_error());
+            };
+            let runtimes = third.strip_prefix("--runtimes=").map(PathBuf::from);
             let texts_from = if runtimes.is_some() { 4 } else { 3 };
             Invocation::Notice {
-                manifest: PathBuf::from(&args[0]),
-                dst: PathBuf::from(&args[1]),
-                root: args[2].clone(),
-                texts: args[texts_from..].iter().map(PathBuf::from).collect(),
+                manifest: PathBuf::from(manifest),
+                dst: PathBuf::from(dst),
+                root: root.clone(),
+                texts: args
+                    .get(texts_from..)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(PathBuf::from)
+                    .collect(),
                 runtimes,
             }
         }
-        Kind::Inventory => Invocation::Inventory {
-            shipped: PathBuf::from(&args[0]),
-            lock: PathBuf::from(&args[1]),
-            licenses: PathBuf::from(&args[2]),
-            dst: PathBuf::from(&args[3]),
-            texts: PathBuf::from(&args[4]),
-            runtimes: args.get(5).map(PathBuf::from),
-        },
+        Kind::Inventory => {
+            let [shipped, lock, licenses, dst, texts, rest @ ..] = args else {
+                return Err(arity_error());
+            };
+            Invocation::Inventory {
+                shipped: PathBuf::from(shipped),
+                lock: PathBuf::from(lock),
+                licenses: PathBuf::from(licenses),
+                dst: PathBuf::from(dst),
+                texts: PathBuf::from(texts),
+                runtimes: rest.first().map(PathBuf::from),
+            }
+        }
     })
 }
 

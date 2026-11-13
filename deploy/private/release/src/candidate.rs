@@ -249,9 +249,11 @@ fn filtered_paths(
     let raw = git_pipe(repo, &args, input, |stdout| Ok(stdout.to_vec()))?;
     let fields: Vec<&[u8]> = raw.split(|byte| *byte == 0).collect();
     let mut flagged = std::collections::BTreeSet::new();
-    for record in fields.chunks(3).filter(|record| record.len() == 3) {
-        if changes_on_checkout(record[1], record[2]) {
-            flagged.insert(record[0]);
+    for record in fields.chunks(3) {
+        if let [path, attr, value] = record
+            && changes_on_checkout(attr, value)
+        {
+            flagged.insert(*path);
         }
     }
     Ok(entries
@@ -528,7 +530,7 @@ pub(crate) fn call_end(text: &str, open: usize) -> Option<usize> {
     let mut depth = 0usize;
     let mut in_string = false;
     let mut escaped = false;
-    for (at, ch) in text[open..].char_indices() {
+    for (at, ch) in text.get(open..)?.char_indices() {
         if in_string {
             match (escaped, ch) {
                 (true, _) => escaped = false,
@@ -558,33 +560,40 @@ pub(crate) fn string_fields(body: &str, base: usize) -> Vec<(String, String, usi
     let bytes = body.as_bytes();
     let mut at = 0;
     let mut depth = 0usize;
-    while at < bytes.len() {
-        match bytes[at] {
+    while let Some(&current) = bytes.get(at) {
+        match current {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth = depth.saturating_sub(1),
             b'"' => {
                 at += 1;
-                while at < bytes.len() && bytes[at] != b'"' {
-                    at += if bytes[at] == b'\\' { 2 } else { 1 };
+                while let Some(&inner) = bytes.get(at) {
+                    if inner == b'"' {
+                        break;
+                    }
+                    at += if inner == b'\\' { 2 } else { 1 };
                 }
             }
             byte if depth == 0 && (byte.is_ascii_alphabetic() || byte == b'_') => {
                 let start = at;
-                while at < bytes.len() && (bytes[at].is_ascii_alphanumeric() || bytes[at] == b'_') {
+                while bytes
+                    .get(at)
+                    .is_some_and(|b| b.is_ascii_alphanumeric() || *b == b'_')
+                {
                     at += 1;
                 }
-                let name = &body[start..at];
-                let rest = &body[at..];
+                let name = body.get(start..at).unwrap_or("");
+                let rest = body.get(at..).unwrap_or("");
                 let after_eq = rest.trim_start();
                 if let Some(value) = after_eq.strip_prefix('=').filter(|v| !v.starts_with('=')) {
                     let value_trim = value.trim_start();
                     if let Some(quoted) = value_trim.strip_prefix('"')
-                        && let Some(close) = quoted.find('"')
+                        && let Some((inner, _)) = quoted.split_once('"')
                     {
+                        let close = inner.len();
                         let open = body.len() - quoted.len();
                         fields.push((
                             name.to_owned(),
-                            quoted[..close].to_owned(),
+                            inner.to_owned(),
                             base + open,
                             base + open + close,
                         ));
@@ -614,7 +623,13 @@ pub fn candidate_named_module_file(
     let starts: Vec<usize> = text
         .match_indices("module(")
         .map(|(at, _)| at)
-        .filter(|at| *at == 0 || text.as_bytes()[at - 1] == b'\n')
+        .filter(|at| {
+            *at == 0
+                || text
+                    .as_bytes()
+                    .get(..*at)
+                    .is_some_and(|before| before.last() == Some(&b'\n'))
+        })
         .collect();
     let open = match starts.as_slice() {
         [one] => *one + "module".len(),
@@ -627,7 +642,10 @@ pub fn candidate_named_module_file(
     };
     let close = call_end(text, open)
         .ok_or_else(|| "candidate: MODULE.bazel module() call is not closed".to_owned())?;
-    let fields = string_fields(&text[open + 1..close], open + 1);
+    let body = text
+        .get(open + 1..close)
+        .ok_or_else(|| "candidate: MODULE.bazel module() call is not closed".to_owned())?;
+    let fields = string_fields(body, open + 1);
     let named: Vec<&String> = fields
         .iter()
         .filter(|field| field.0 == "name")
@@ -649,7 +667,10 @@ pub fn candidate_named_module_file(
             ));
         }
     };
-    Ok(format!("{}{version}{}", &text[..start], &text[end..]))
+    let (Some(head), Some(tail)) = (text.get(..start), text.get(end..)) else {
+        return Err("candidate: MODULE.bazel module() version field is out of range".to_owned());
+    };
+    Ok(format!("{head}{version}{tail}"))
 }
 
 /// Returns one absolute path as a `file://` URL with forward slashes.

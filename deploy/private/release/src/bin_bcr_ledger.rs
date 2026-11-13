@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use dx_release_tools::{bcr_submit_record, ledger_exit, render_ledger};
 
 fn run(args: &[String]) -> (String, i32) {

@@ -7,12 +7,19 @@ type Call = Vec<(String, String)>;
 fn calls(text: &str, function: &str) -> Vec<Call> {
     let mut found = Vec::new();
     for (at, _) in text.match_indices(&format!("{function}(")) {
-        if at != 0 && text.as_bytes()[at - 1] != b'\n' {
+        if at != 0
+            && !text
+                .as_bytes()
+                .get(..at)
+                .is_some_and(|before| before.last() == Some(&b'\n'))
+        {
             continue;
         }
         let open = at + function.len();
-        if let Some(close) = call_end(text, open) {
-            let fields = string_fields(&text[open + 1..close], open + 1);
+        if let Some(close) = call_end(text, open)
+            && let Some(body) = text.get(open + 1..close)
+        {
+            let fields = string_fields(body, open + 1);
             found.push(fields.into_iter().map(|f| (f.0, f.1)).collect());
         }
     }

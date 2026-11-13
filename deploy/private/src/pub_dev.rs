@@ -137,7 +137,10 @@ fn failure_message(step: &str, status: &str, out: &[u8], token: &str) -> String 
     let text = crate::run::pages_redact(&String::from_utf8_lossy(out), token);
     let lines: Vec<&str> = text.lines().collect();
     let mut message = format!("pub_deploy: {step} failed with {status}");
-    for line in &lines[lines.len().saturating_sub(PUB_FAILURE_LINES)..] {
+    for line in lines
+        .iter()
+        .skip(lines.len().saturating_sub(PUB_FAILURE_LINES))
+    {
         message.push_str("\npub: ");
         message.push_str(line);
     }
@@ -252,18 +255,19 @@ fn apitool_changes(report: &str) -> Option<Vec<String>> {
     }
     let json: serde_json::Value = serde_json::from_str(report).ok()?;
     let mut out = Vec::new();
-    walk(
-        &json["report"]["breakingChanges"],
-        &mut Vec::new(),
-        &mut out,
-    );
+    let breaking = json
+        .pointer("/report/breakingChanges")
+        .cloned()
+        .unwrap_or_default();
+    walk(&breaking, &mut Vec::new(), &mut out);
     Some(out)
 }
 
 /// Returns the highest non-retracted version below `next` in a pub `api/packages` body.
 fn pub_previous_version(body: &[u8], next: &str) -> Option<String> {
     let json: serde_json::Value = serde_json::from_slice(body).ok()?;
-    let versions = json["versions"]
+    let versions = json
+        .get("versions")?
         .as_array()?
         .iter()
         .filter(|entry| !entry["retracted"].as_bool().unwrap_or(false));

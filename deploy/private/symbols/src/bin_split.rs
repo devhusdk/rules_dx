@@ -1,5 +1,7 @@
 //! Splits an ELF binary into a stripped binary, a debug file and a manifest.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -22,12 +24,15 @@ fn parse(args: &[String]) -> Result<Args, String> {
             .position(|n| n == flag)
             .ok_or_else(|| format!("unknown flag {flag}"))?;
         let value = it.next().ok_or_else(|| format!("{flag} needs a value"))?;
-        found[slot] = Some(PathBuf::from(value));
+        *found
+            .get_mut(slot)
+            .ok_or_else(|| format!("unknown flag {flag}"))? = Some(PathBuf::from(value));
     }
     let mut take = |i: usize| {
-        found[i]
-            .take()
-            .ok_or_else(|| format!("{} is required", names[i]))
+        found
+            .get_mut(i)
+            .and_then(Option::take)
+            .ok_or_else(|| format!("{} is required", names.get(i).copied().unwrap_or_default()))
     };
     Ok(Args {
         objcopy: take(0)?,

@@ -1,15 +1,14 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::path::{Path, PathBuf};
 
 use dx_release_tools::cell::Expected;
 use dx_release_tools::{PublishDryRunInputs, publish_dry_run_check};
 
 fn flag_value(argv: &[String], name: &str) -> Option<String> {
-    argv.windows(2).find_map(|pair| {
-        if pair[0] == name {
-            Some(pair[1].clone())
-        } else {
-            None
-        }
+    argv.windows(2).find_map(|pair| match pair {
+        [key, value] if key == name => Some(value.clone()),
+        _ => None,
     })
 }
 

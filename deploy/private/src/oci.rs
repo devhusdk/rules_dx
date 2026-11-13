@@ -102,8 +102,14 @@ fn oci_check_config(archive: &OciArchive, os: &str, architecture: &str) -> io::R
             format!("oci image: malformed image config: {error}"),
         )
     })?;
-    let found_os = config["os"].as_str().unwrap_or("");
-    let found_architecture = config["architecture"].as_str().unwrap_or("");
+    let found_os = config
+        .get("os")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    let found_architecture = config
+        .get("architecture")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
     if found_os != os || found_architecture != architecture {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -212,7 +218,10 @@ fn oci_malformed(error: impl std::fmt::Display) -> io::Error {
 fn read_prefix(reader: &mut impl Read, buf: &mut [u8]) -> io::Result<usize> {
     let mut filled = 0;
     while filled < buf.len() {
-        match reader.read(&mut buf[filled..]) {
+        match buf
+            .get_mut(filled..)
+            .map_or(Ok(0), |rest| reader.read(rest))
+        {
             Ok(0) => break,
             Ok(read) => filled += read,
             Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
@@ -232,7 +241,7 @@ fn oci_open_archive(image: &Path) -> io::Result<tar::Archive<Box<dyn Read>>> {
     let got = read_prefix(&mut file, &mut magic).map_err(opened)?;
     file.seek(io::SeekFrom::Start(0)).map_err(opened)?;
     let file = io::BufReader::new(file);
-    let reader: Box<dyn Read> = match oci_compression(&magic[..got]) {
+    let reader: Box<dyn Read> = match oci_compression(magic.get(..got).unwrap_or_default()) {
         OciCompression::Gzip => Box::new(flate2::read::MultiGzDecoder::new(file)),
         OciCompression::Zstd => {
             return Err(oci_invalid(format!(
@@ -402,9 +411,12 @@ struct OciTee<'a, R> {
 impl<R: Read> Read for OciTee<'_, R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let read = self.inner.read(buf)?;
-        self.hash.write_all(&buf[..read])?;
+        let chunk = buf
+            .get(..read)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "read past the buffer"))?;
+        self.hash.write_all(chunk)?;
         if let Some(copy) = self.copy.as_mut() {
-            copy.write_all(&buf[..read])?;
+            copy.write_all(chunk)?;
         }
         self.size += read as u64;
         Ok(read)
@@ -425,8 +437,9 @@ fn oci_read_layer(
     };
     let mut magic = [0u8; 4];
     let got = read_prefix(&mut tee, &mut magic)?;
-    let compression = oci_compression(&magic[..got]);
-    let head = io::Cursor::new(magic[..got].to_vec());
+    let prefix = magic.get(..got).unwrap_or_default();
+    let compression = oci_compression(prefix);
+    let head = io::Cursor::new(prefix.to_vec());
     let diff_id = match compression {
         OciCompression::Gzip => {
             dx_digest::sha256_reader_hex(flate2::read::MultiGzDecoder::new(head.chain(&mut tee)))
@@ -594,17 +607,17 @@ fn oci_docker_plan(manifest: &[u8], links: &OciLinks) -> io::Result<OciPlan> {
     let images = parsed
         .as_array()
         .ok_or_else(|| oci_invalid("malformed manifest.json: want an array"))?;
-    if images.len() != 1 {
+    let [image] = images.as_slice() else {
         return Err(oci_invalid(format!(
             "image archive holds {} images; want exactly one",
             images.len()
         )));
-    }
-    let config_name = images[0]
+    };
+    let config_name = image
         .get("Config")
         .and_then(|value| value.as_str())
         .ok_or_else(|| oci_invalid("malformed manifest.json: missing Config"))?;
-    let layer_names: Vec<&str> = images[0]
+    let layer_names: Vec<&str> = image
         .get("Layers")
         .and_then(|value| value.as_array())
         .map(|layers| layers.iter().filter_map(|layer| layer.as_str()).collect())
@@ -671,7 +684,10 @@ fn oci_read_descriptors(
     let mut read = Vec::with_capacity(names.len());
     for (position, (name, digest)) in names.iter().zip(&digests).enumerate() {
         // A digest listed twice shares one body: clone until its last use.
-        let body = if names[position + 1..].contains(name) {
+        let body = if names
+            .get(position + 1..)
+            .is_some_and(|rest| rest.contains(name))
+        {
             bodies.get(name).cloned()
         } else {
             bodies.remove(name)
@@ -706,8 +722,9 @@ fn oci_index_plan(
 ) -> io::Result<OciPlan> {
     let parsed: serde_json::Value = serde_json::from_slice(index)
         .map_err(|error| oci_invalid(format!("malformed index.json: {error}")))?;
-    let mut level = parsed["manifests"]
-        .as_array()
+    let mut level = parsed
+        .get("manifests")
+        .and_then(serde_json::Value::as_array)
         .cloned()
         .ok_or_else(|| oci_invalid("malformed index.json: want a manifests array"))?;
     let mut images: Vec<serde_json::Value> = Vec::new();
@@ -715,10 +732,17 @@ fn oci_index_plan(
     loop {
         let mut nested: Vec<serde_json::Value> = Vec::new();
         for descriptor in level {
-            if descriptor["annotations"]["vnd.docker.reference.type"] == "attestation-manifest" {
+            if descriptor
+                .pointer("/annotations/vnd.docker.reference.type")
+                .and_then(serde_json::Value::as_str)
+                == Some("attestation-manifest")
+            {
                 continue;
             }
-            let media_type = descriptor["mediaType"].as_str().unwrap_or("");
+            let media_type = descriptor
+                .get("mediaType")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("");
             if OCI_INDEX_TYPES.contains(&media_type) {
                 nested.push(descriptor);
             } else if OCI_MANIFEST_TYPES.contains(&media_type) {
@@ -744,8 +768,9 @@ fn oci_index_plan(
             let parsed: serde_json::Value = serde_json::from_slice(&body)
                 .map_err(|error| oci_invalid(format!("malformed image index: {error}")))?;
             level.extend(
-                parsed["manifests"]
-                    .as_array()
+                parsed
+                    .get("manifests")
+                    .and_then(serde_json::Value::as_array)
                     .cloned()
                     .ok_or_else(|| oci_invalid("malformed image index: want a manifests array"))?,
             );
@@ -756,8 +781,14 @@ fn oci_index_plan(
         let matching: Vec<serde_json::Value> = images
             .iter()
             .filter(|descriptor| {
-                descriptor["platform"]["os"] == os
-                    && descriptor["platform"]["architecture"] == architecture
+                descriptor
+                    .pointer("/platform/os")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(os)
+                    && descriptor
+                        .pointer("/platform/architecture")
+                        .and_then(serde_json::Value::as_str)
+                        == Some(architecture)
             })
             .cloned()
             .collect();
@@ -774,17 +805,25 @@ fn oci_index_plan(
     let body = oci_read_descriptors(source, links, &images)?.remove(0);
     let manifest: serde_json::Value = serde_json::from_slice(&body)
         .map_err(|error| oci_invalid(format!("malformed image manifest: {error}")))?;
-    let config_digest = manifest["config"]["digest"]
-        .as_str()
+    let config_digest = manifest
+        .pointer("/config/digest")
+        .and_then(serde_json::Value::as_str)
         .ok_or_else(|| oci_invalid("malformed image manifest: missing config"))?
         .to_owned();
-    let descriptors = manifest["layers"].as_array().cloned().unwrap_or_default();
+    let descriptors = manifest
+        .get("layers")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     if descriptors.is_empty() {
         return Err(oci_invalid("malformed image manifest: missing layers"));
     }
     let mut layer_digests = Vec::with_capacity(descriptors.len());
     for descriptor in &descriptors {
-        let media_type = descriptor["mediaType"].as_str().unwrap_or("");
+        let media_type = descriptor
+            .get("mediaType")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("");
         if !OCI_LAYER_TYPES.contains(&media_type) {
             return Err(oci_invalid(format!(
                 "unsupported layer media type '{media_type}'"
@@ -860,7 +899,7 @@ fn oci_read_plan(
                 indexes
                     .iter()
                     .copied()
-                    .filter(|&index| layers[index].is_none())
+                    .filter(|&index| layers.get(index).is_some_and(Option::is_none))
                     .collect()
             })
             .unwrap_or_default();
@@ -882,7 +921,9 @@ fn oci_read_plan(
         };
         if let Some(layer) = read {
             for index in pending {
-                layers[index] = Some(layer.clone());
+                if let Some(slot) = layers.get_mut(index) {
+                    *slot = Some(layer.clone());
+                }
             }
         }
         Ok(())
@@ -911,7 +952,7 @@ fn oci_read_plan(
         if plan
             .layer_digests
             .as_ref()
-            .is_some_and(|expected| expected[index] != layer.digest)
+            .is_some_and(|expected| expected.get(index) != Some(&layer.digest))
         {
             return Err(oci_invalid(format!(
                 "image archive blob '{label}' does not match its digest"
@@ -921,8 +962,9 @@ fn oci_read_plan(
     }
     let parsed_config: serde_json::Value = serde_json::from_slice(&config)
         .map_err(|error| oci_invalid(format!("malformed image config: {error}")))?;
-    let diff_ids: Vec<&str> = parsed_config["rootfs"]["diff_ids"]
-        .as_array()
+    let diff_ids: Vec<&str> = parsed_config
+        .pointer("/rootfs/diff_ids")
+        .and_then(serde_json::Value::as_array)
         .map(|ids| ids.iter().filter_map(|id| id.as_str()).collect())
         .unwrap_or_default();
     let computed: Vec<&str> = found.iter().map(|layer| layer.diff_id.as_str()).collect();
@@ -979,15 +1021,19 @@ fn oci_layout_config_digest(layout: &Path) -> Result<String, String> {
         serde_json::from_slice(&bytes).map_err(|error| format!("oci layout: {error}"))
     };
     let index = read(&layout.join("index.json"))?;
-    let digest = index["manifests"][0]["digest"].as_str().unwrap_or("");
+    let digest = index
+        .pointer("/manifests/0/digest")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
     let manifest = read(
         &layout
             .join("blobs")
             .join("sha256")
             .join(digest.trim_start_matches("sha256:")),
     )?;
-    manifest["config"]["digest"]
-        .as_str()
+    manifest
+        .pointer("/config/digest")
+        .and_then(serde_json::Value::as_str)
         .map(str::to_owned)
         .ok_or_else(|| "oci layout: manifest has no config digest".to_owned())
 }

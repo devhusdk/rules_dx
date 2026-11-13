@@ -157,7 +157,7 @@ pub fn strip_section(notice: &str) -> &str {
     let mut offset = 0;
     for line in notice.split_inclusive('\n') {
         if line.trim_end_matches('\n').trim_end_matches('\r') == SECTION_MARKER {
-            return &notice[..offset];
+            return notice.get(..offset).unwrap_or(notice);
         }
         offset += line.len();
     }

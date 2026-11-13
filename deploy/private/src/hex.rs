@@ -46,8 +46,8 @@ pub fn hex_package_paths(
 
 /// Returns the first double-quoted string in `text`.
 fn first_quoted(text: &str) -> Option<&str> {
-    let rest = &text[text.find('"')? + 1..];
-    Some(&rest[..rest.find('"')?])
+    let (_, rest) = text.split_once('"')?;
+    Some(rest.split_once('"')?.0)
 }
 
 /// Returns the version declared in a Hex manifest, `@version "x"` first, then `version: "x"`.
@@ -64,9 +64,9 @@ pub fn mix_version(text: &str) -> Option<String> {
 
 /// Returns the version declared by `{vsn, "x"}` in an .app.src.
 pub fn app_src_version(text: &str) -> Option<String> {
-    let start = text.find("{vsn")?;
-    let rest = &text[start + 4..];
-    let rest = rest[..rest.find('}')?].trim_start().strip_prefix(',')?;
+    let (_, rest) = text.split_once("{vsn")?;
+    let (inner, _) = rest.split_once('}')?;
+    let rest = inner.trim_start().strip_prefix(',')?;
     first_quoted(rest).map(str::to_owned)
 }
 
@@ -116,8 +116,9 @@ fn hex_failure_lines(out: &dx_process::capture::Captured, key: &str) -> String {
         key,
     );
     let lines: Vec<&str> = text.lines().filter(|line| !line.is_empty()).collect();
-    lines[lines.len().saturating_sub(HEX_FAILURE_LINES)..]
+    lines
         .iter()
+        .skip(lines.len().saturating_sub(HEX_FAILURE_LINES))
         .map(|line| format!("\nhex: {line}"))
         .collect()
 }

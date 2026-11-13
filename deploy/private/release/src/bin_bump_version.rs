@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use dx_process::capture::{DEFAULT_TIMEOUT, run_checked};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -102,12 +104,14 @@ fn rewrite(text: &str, edit: &Edit, value: &str) -> Result<String, String> {
         match line.find(edit.marker).filter(|_| allowed) {
             Some(at) => {
                 let start = at + edit.marker.len();
-                let end = line[start..]
+                let (head, tail) = line.split_at_checked(start).unwrap_or((line, ""));
+                let rest = tail
                     .find(|c: char| matches!(c, '"' | '/') || c.is_whitespace())
-                    .map_or(line.len(), |n| start + n);
-                out.push_str(&line[..start]);
+                    .and_then(|n| tail.get(n..))
+                    .unwrap_or("");
+                out.push_str(head);
                 out.push_str(value);
-                out.push_str(&line[end..]);
+                out.push_str(rest);
                 hits += 1;
             }
             None => out.push_str(line),

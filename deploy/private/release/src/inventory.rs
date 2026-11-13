@@ -53,10 +53,12 @@ pub fn parse_shipped(text: &str) -> Result<Vec<ShippedCrate>, String> {
     let mut crates = doc.crates;
     crates.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     for pair in crates.windows(2) {
-        if (&pair[0].name, &pair[0].version) == (&pair[1].name, &pair[1].version) {
+        if let [first, second] = pair
+            && (&first.name, &first.version) == (&second.name, &second.version)
+        {
             return Err(format!(
                 "inventory: {}@{} is listed twice ({} and {})",
-                pair[0].name, pair[0].version, pair[0].label, pair[1].label
+                first.name, first.version, first.label, second.label
             ));
         }
     }

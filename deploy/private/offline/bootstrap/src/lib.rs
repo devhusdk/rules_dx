@@ -1,5 +1,7 @@
 //! Installs Bazel and vendored advisory snapshots from an offline bundle.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -39,15 +41,18 @@ pub fn parse_args(args: &[String]) -> Result<Command, String> {
     };
     let mut install_dir = None;
     let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
+    while let Some(flag) = args.get(index).map(String::as_str) {
         if matches!(flag, "--bundle" | "--install-dir" | "--workspace") && args.len() < index + 2 {
             return Err(format!("{flag} needs a DIR"));
         }
         match flag {
             "--bundle" => options.bundle = args.get(index + 1).cloned(),
-            "--install-dir" => install_dir = Some(args[index + 1].clone()),
-            "--workspace" => options.workspace = args[index + 1].clone(),
+            "--install-dir" => install_dir = args.get(index + 1).cloned(),
+            "--workspace" => {
+                if let Some(value) = args.get(index + 1) {
+                    options.workspace = value.clone();
+                }
+            }
             "-h" | "--help" => return Ok(Command::Help),
             _ => return Err(format!("unknown argument '{flag}'")),
         }
@@ -122,11 +127,15 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
 /// Returns whether one value is a real calendar day written `YYYY-MM-DD`.
 pub fn is_plain_date(value: &str) -> bool {
     let bytes = value.as_bytes();
-    if !value.is_ascii() || bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+    if !value.is_ascii()
+        || bytes.len() != 10
+        || bytes.get(4) != Some(&b'-')
+        || bytes.get(7) != Some(&b'-')
+    {
         return false;
     }
     let digits = |range: std::ops::Range<usize>| -> Option<u32> {
-        let part = &value[range];
+        let part = value.get(range)?;
         part.bytes()
             .all(|b| b.is_ascii_digit())
             .then(|| part.parse().ok())
@@ -154,17 +163,17 @@ pub fn is_plain_date(value: &str) -> bool {
 pub fn recorded_field(text: &str, key: &str) -> Option<String> {
     let needle = format!("\"{key}\"");
     let mut from = 0usize;
-    while let Some(found) = text[from..].find(&needle) {
+    while let Some(found) = text.get(from..).and_then(|rest| rest.find(&needle)) {
         let start = from + found;
-        let after = &text[start + needle.len()..];
-        let before = text[..start].trim_end();
+        let after = text.get(start + needle.len()..)?;
+        let before = text.get(..start)?.trim_end();
         // A key opens an object or follows a comma; a value never does.
         if (before.ends_with('{') || before.ends_with(','))
             && let Some(rest) = after.trim_start().strip_prefix(':')
         {
             let rest = rest.trim_start();
             let body = rest.strip_prefix('"')?;
-            let value = &body[..body.find('"')?];
+            let (value, _) = body.split_once('"')?;
             return (!value.contains('\\')).then(|| value.to_string());
         }
         from = start + needle.len();

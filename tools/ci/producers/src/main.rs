@@ -1,5 +1,5 @@
 //! `producers_bin` prints the compiler signatures of each file argument as a JSON object.
-//! `producers_bin --evidence OUT PLATFORM FACTS` appends the compiler evidence lines to OUT.
+//! `producers_bin --evidence OUT PLATFORM FACTS ROW_LABELS` appends the compiler evidence lines to OUT.
 //! `producers_bin --lock-merge LOCKS_DIR OUT` merges the per-platform module locks into OUT.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]

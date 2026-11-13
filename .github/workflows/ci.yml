@@ -153,7 +153,7 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci/producers:producers_bin
           facts="$(bazel info "$@" bazel-bin)/tools/docs/support_matrix/facts.json"
-          jq -r '.rows[] | select(.section == "compilers") | .identity.probe, .ci_tests[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ' > "$RUNNER_TEMP/compiler-targets"
+          jq -r --slurpfile labels tools/docs/support_matrix/row_labels.json '.rows[] | select(.section == "compilers") | .identity.probe, ($labels[0][.name] // [])[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ' > "$RUNNER_TEMP/compiler-targets"
           targets="$(cat "$RUNNER_TEMP/compiler-targets")"
           # shellcheck disable=SC2086
           bazel build --noshow_progress --skip_incompatible_explicit_targets --output_groups=starlark_manifest "$@" $targets
@@ -510,7 +510,7 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci/producers:producers_bin
           facts="$PWD/bazel-bin/tools/docs/support_matrix/facts.json"
-          jq -r --arg platform "$PLATFORM" '.rows[] | select(.section == "compilers") | (.identity.platform_probes[$platform] // .identity.probe), .ci_tests[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ' > "$RUNNER_TEMP/compiler-targets"
+          jq -r --arg platform "$PLATFORM" --slurpfile labels tools/docs/support_matrix/row_labels.json '.rows[] | select(.section == "compilers") | (.identity.platform_probes[$platform] // .identity.probe), ($labels[0][.name] // [])[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ' > "$RUNNER_TEMP/compiler-targets"
           targets="$(cat "$RUNNER_TEMP/compiler-targets")"
           # shellcheck disable=SC2086
           bazel build --noshow_progress --skip_incompatible_explicit_targets --output_groups=starlark_manifest "$@" $targets

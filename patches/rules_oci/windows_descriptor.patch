@@ -1,0 +1,75 @@
+--- a/oci/private/image.bzl
++++ b/oci/private/image.bzl
+@@ -104,14 +104,14 @@
+         parts["variant"] = variant
+     return json.encode(parts)
+ 
+-def _calculate_descriptor(ctx, idx, layer, zstd, jq, coreutils, regctl):
++def _calculate_descriptor(ctx, idx, layer, launcher, zstd, jq, coreutils, regctl):
+     descriptor = ctx.actions.declare_file("%s.%s.descriptor.json" % (ctx.label.name, idx))
+     args = ctx.actions.args()
+     args.add(layer)
+     args.add(descriptor)
+     args.add(layer.owner)
+     ctx.actions.run(
+-        executable = util.maybe_wrap_launcher_for_windows(ctx, ctx.executable._descriptor_sh),
++        executable = launcher,
+         inputs = [layer],
+         outputs = [descriptor],
+         arguments = [args],
+@@ -124,6 +124,7 @@
+             ]),
+         },
+         tools = [
++            ctx.executable._descriptor_sh,
+             jq.jqinfo.bin,
+             zstd.zstdinfo.binary,
+             coreutils.coreutils_info.bin,
+@@ -189,8 +190,9 @@
+         transitive_inputs.append(depset(ctx.files.tars))
+ 
+     # add layers
++    descriptor_launcher = util.maybe_wrap_launcher_for_windows(ctx, ctx.executable._descriptor_sh, name = ctx.label.name + "_descriptor") if ctx.files.tars else None
+     for (i, layer) in enumerate(ctx.files.tars):
+-        descriptor = _calculate_descriptor(ctx, i, layer, zstd, jq, coreutils, regctl)
++        descriptor = _calculate_descriptor(ctx, i, layer, descriptor_launcher, zstd, jq, coreutils, regctl)
+         inputs.append(descriptor)
+ 
+         # tars are already added as input above.
+--- a/oci/private/util.bzl
++++ b/oci/private/util.bzl
+@@ -189,7 +189,7 @@
+         "\033[0;33mWARNING:\033[0m {}".format(message),
+     ], quiet = False)
+ 
+-def _maybe_wrap_launcher_for_windows(ctx, bash_launcher):
++def _maybe_wrap_launcher_for_windows(ctx, bash_launcher, name = None):
+     """Windows cannot directly execute a shell script.
+ 
+     Wrap with a .bat file that executes the shell script with a bash command.
+@@ -205,7 +205,11 @@
+     if not is_windows_exec(ctx):
+         return bash_launcher
+ 
+-    win_launcher = ctx.actions.declare_file("wrap_%s.bat" % ctx.label.name)
++    win_launcher = ctx.actions.declare_file("wrap_%s.bat" % (name or ctx.label.name))
++    if bash_launcher.path.startswith(win_launcher.dirname + "/"):
++        launcher = "%parent_dir%" + paths.relativize(bash_launcher.path, win_launcher.dirname)
++    else:
++        launcher = bash_launcher.path
+     ctx.actions.write(
+         output = win_launcher,
+         content = r"""@echo off
+@@ -221,10 +225,10 @@
+   set args=!args:\=\\\\!
+   set args=!args:"=\"!
+ )
+-"{bash_bin}" -c "%parent_dir%{launcher} !args!"
++"{bash_bin}" -c "{launcher} !args!"
+ """.format(
+             bash_bin = ctx.toolchains["@bazel_tools//tools/sh:toolchain_type"].path,
+-            launcher = paths.relativize(bash_launcher.path, win_launcher.dirname),
++            launcher = launcher,
+         ),
+         is_executable = True,
+     )

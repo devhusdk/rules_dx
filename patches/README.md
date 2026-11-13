@@ -70,6 +70,7 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `windows_support` | 0.4.1 | `hostarm64_packages.patch` | `@msvc_runtime` selects the `Hostarm64` MSVC packages and their dependencies when `host_tools` is set. Consumer fix: #11416 |
 | `rules_go` | 0.65.0 | `lazy_nogo.patch` | Toolchain registration does not load the Go rules, so builds without Go targets never fetch `@io_bazel_rules_nogo`. Consumer fix: #11418 |
 | `rules_go` | 0.65.0 | `lock_extension.patch` | Root only. The `go_sdk` extension is not reproducible, so the lockfile keeps its result per platform |
+| `rules_oci` | 2.3.0 | `windows_descriptor.patch` | On a Windows exec platform `oci_image` runs `descriptor.sh` through one `.bat` wrapper per image, which calls the script by its execroot path, so images with layers analyze. Consumer fix: #11758 |
 | `rules_flutter` | 0.0.8 | `lock_extension.patch` | Root only. The `flutter` extension is not reproducible, so the lockfile keeps its result |
 
 ## elvis, rules_d, rules_dart, rules_dotnet, rules_elixir, rules_erlang, rules_flutter, rules_fortran, rules_haskell, rules_ocaml, rules_ruby

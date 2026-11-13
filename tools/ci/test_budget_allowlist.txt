@@ -204,7 +204,6 @@ cuda/tests/fixtures/coverage/BUILD.bazel no-size 1
 cuda/tests/fixtures/cuda-app/checks/BUILD.bazel no-size 2
 cuda/tests/fixtures/cuda-app/gpu/BUILD.bazel no-size 1
 cuda/tests/fixtures/executable/BUILD.bazel no-size 3
-d/private/BUILD.bazel no-size 1
 d/tests/fixtures/bench/BUILD.bazel no-size 3
 d/tests/fixtures/cc_interop/BUILD.bazel no-size 1
 d/tests/fixtures/coverage/BUILD.bazel no-size 1
@@ -315,7 +314,6 @@ flutter/tests/fixtures/flutter-app/app/BUILD.bazel no-size 2
 flutter/tests/fixtures/flutter-app/web/BUILD.bazel no-size 1
 flutter/tests/negative/BUILD.bazel no-size 2
 flutter/tests/runtime/BUILD.bazel no-size 1
-fortran/private/BUILD.bazel no-size 1
 fortran/tests/fixtures/calc/BUILD.bazel no-size 2
 fortran/tests/negative/BUILD.bazel no-size 3
 fortran/tests/runtime/BUILD.bazel no-size 6
@@ -699,7 +697,6 @@ typescript/tests/fixtures/scoped/BUILD.bazel no-size 1
 typescript/tests/tags/BUILD.bazel no-size 1
 typescript/tests/typecheck_profiles/BUILD.bazel no-size 1
 vue/tests/app/BUILD.bazel no-size 4
-zig/private/BUILD.bazel no-size 1
 zig/tests/fixtures/bench/BUILD.bazel no-size 3
 zig/tests/fixtures/bench/BUILD.bazel size-large 1
 zig/tests/fixtures/bench/BUILD.bazel timeout-long 1

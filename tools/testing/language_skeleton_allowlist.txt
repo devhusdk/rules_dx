@@ -433,13 +433,11 @@ test-location csharp/private/BUILD.bazel
 test-location csharp/private/ide/BUILD.bazel
 test-location csharp/tests/BUILD.bazel
 test-location cuda/private/BUILD.bazel
-test-location d/private/BUILD.bazel
 test-location dart/private/BUILD.bazel
 test-location env/private/env_shard/BUILD.bazel
 test-location env/private/plan_tests.bzl
 test-location erlang/private/toolchain/BUILD.bazel
 test-location flutter/tests/BUILD.bazel
-test-location fortran/private/BUILD.bazel
 test-location fsharp/private/BUILD.bazel
 test-location fsharp/private/ide/BUILD.bazel
 test-location fsharp/tests/BUILD.bazel
@@ -480,7 +478,6 @@ test-location scala/private/BUILD.bazel
 test-location scala/tests/BUILD.bazel
 test-location typescript/private/BUILD.bazel
 test-location typescript/private/ide/BUILD.bazel
-test-location zig/private/BUILD.bazel
 title env/lang.json
 wrap apple/defs.bzl
 wrap erlang/defs.bzl

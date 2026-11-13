@@ -1,4 +1,5 @@
 //! Resolves the `br:` module references of the `*.bicep` files of a set to their OCI manifests and layers.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
 

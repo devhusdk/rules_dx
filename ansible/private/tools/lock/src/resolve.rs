@@ -1,4 +1,5 @@
 //! Resolves the collections the ansible manifest pins to their Galaxy archives.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, Lock, Package, Resolution, Resolver, Scratch, Spec};
 

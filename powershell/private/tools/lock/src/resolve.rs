@@ -1,4 +1,5 @@
 //! Resolves the modules the PowerShell manifest pins to their Gallery packages.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, Lock, Package, Resolution, Resolver, Scratch, Spec};
 

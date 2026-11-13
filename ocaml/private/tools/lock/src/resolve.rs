@@ -1,4 +1,5 @@
 //! Locks the packages that `*.opam.locked` files pin, with the archive each opam-repository entry names.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -86,20 +87,19 @@ fn tokens(text: &str) -> Result<Vec<Token>, Error> {
     let chars: Vec<char> = text.chars().collect();
     let mut out = Vec::new();
     let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
+    while let Some(&c) = chars.get(i) {
         if c.is_whitespace() {
             i += 1;
         } else if c == '#' {
-            while i < chars.len() && chars[i] != '\n' {
+            while chars.get(i).is_some_and(|&next| next != '\n') {
                 i += 1;
             }
         } else if c == '(' && chars.get(i + 1) == Some(&'*') {
             i += 2;
-            while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == ')') {
+            while chars.get(i..i + 2).is_some_and(|pair| pair != ['*', ')']) {
                 i += 1;
             }
-            if i + 1 >= chars.len() {
+            if chars.get(i..i + 2).is_none() {
                 return Err(Error::new("has an unterminated comment"));
             }
             i += 2;
@@ -116,7 +116,11 @@ fn tokens(text: &str) -> Result<Vec<Token>, Error> {
                         value.push(escaped);
                     }
                     i += 2;
-                } else if triple && chars[i..].starts_with(&['"', '"', '"']) {
+                } else if triple
+                    && chars
+                        .get(i..)
+                        .is_some_and(|rest| rest.starts_with(&['"', '"', '"']))
+                {
                     i += 3;
                     break;
                 } else if !triple && next == '"' {
@@ -136,13 +140,16 @@ fn tokens(text: &str) -> Result<Vec<Token>, Error> {
             i += 1;
         } else {
             let start = i;
-            while i < chars.len()
-                && !chars[i].is_whitespace()
-                && !matches!(chars[i], '"' | '[' | ']' | '{' | '}' | '(' | ')' | '#')
-            {
+            while chars.get(i).is_some_and(|&next| {
+                !next.is_whitespace()
+                    && !matches!(next, '"' | '[' | ']' | '{' | '}' | '(' | ')' | '#')
+            }) {
                 i += 1;
             }
-            out.push(Token::Word(chars[start..i].iter().collect()));
+            let word = chars
+                .get(start..i)
+                .ok_or_else(|| Error::new("has a word out of range"))?;
+            out.push(Token::Word(word.iter().collect()));
         }
     }
     Ok(out)
@@ -151,21 +158,16 @@ fn tokens(text: &str) -> Result<Vec<Token>, Error> {
 /// The tokens of the top-level field `key`, without the key.
 fn field(all: &[Token], key: &str) -> Option<Vec<Token>> {
     let mut depth = 0usize;
-    let mut i = 0;
     let wanted = format!("{key}:");
-    while i < all.len() {
-        match &all[i] {
+    for (i, token) in all.iter().enumerate() {
+        match token {
             Token::Open(_) => depth += 1,
             Token::Close(_) => depth = depth.saturating_sub(1),
-            Token::Word(word) if depth == 0 && *word == wanted => {
-                return Some(value(&all[i + 1..]));
-            }
-            Token::Word(word) if depth == 0 && *word == key => {
-                return Some(value(&all[i + 1..]));
+            Token::Word(word) if depth == 0 && (*word == wanted || *word == key) => {
+                return all.get(i + 1..).map(value);
             }
             _ => {}
         }
-        i += 1;
     }
     None
 }
@@ -180,7 +182,7 @@ fn value(rest: &[Token]) -> Vec<Token> {
             _ => {}
         }
         if depth == 0 {
-            return rest[..=i].to_vec();
+            return rest.iter().take(i + 1).cloned().collect();
         }
     }
     rest.to_vec()
@@ -204,22 +206,26 @@ fn depends(text: &str) -> Result<Vec<(String, String)>, Error> {
     let Some(list) = field(&all, "depends") else {
         return Ok(Vec::new());
     };
-    let inner = match list.first() {
-        Some(Token::Open('[')) => &list[1..list.len().saturating_sub(1)],
-        _ => &list[..],
+    let inner = match list.as_slice() {
+        [Token::Open('['), inner @ .., _] => inner,
+        [Token::Open('[')] => return Err(Error::new("has an unterminated depends list")),
+        all => all,
     };
     let mut out: Vec<(String, String)> = Vec::new();
     let mut i = 0;
-    while i < inner.len() {
-        match &inner[i] {
+    while let Some(rest @ [token, ..]) = inner.get(i..) {
+        match token {
             Token::Str(name) => {
                 out.push((name.clone(), String::new()));
                 i += 1;
             }
             Token::Open('{') => {
-                let group = value(&inner[i..]);
+                let group = value(rest);
+                let [_, filter @ .., _] = group.as_slice() else {
+                    return Err(Error::new("has an unterminated dependency filter"));
+                };
                 if let Some(last) = out.last_mut() {
-                    last.1 = render(&group[1..group.len().saturating_sub(1)]);
+                    last.1 = render(filter);
                 }
                 i += group.len();
             }
@@ -290,8 +296,11 @@ pub fn parse_url(text: &str) -> Result<Source, Error> {
         .iter()
         .position(|token| *token == Token::Word("url".to_owned()))
         .ok_or_else(|| Error::new("has no url section"))?;
-    let section = value(&all[start + 1..]);
-    let src = field(&section[1..], "src")
+    let section = all.get(start + 1..).map(value).unwrap_or_default();
+    let body = section
+        .get(1..)
+        .ok_or_else(|| Error::new("has an empty url section"))?;
+    let src = field(body, "src")
         .and_then(|tokens| match tokens.first() {
             Some(Token::Str(src)) => Some(src.clone()),
             _ => None,
@@ -300,7 +309,7 @@ pub fn parse_url(text: &str) -> Result<Source, Error> {
     if !src.starts_with("https://") {
         return Err(Error::new(format!("has the source {src}, which is not https")));
     }
-    let sha256 = field(&section[1..], "checksum")
+    let sha256 = field(body, "checksum")
         .unwrap_or_default()
         .iter()
         .find_map(|token| match token {

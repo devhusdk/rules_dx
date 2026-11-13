@@ -1,6 +1,7 @@
 //! Runs PHPUnit with PCOV loaded and turns the Clover report it writes into the LCOV file Bazel collects.
 //!
 //! Arguments: `<tree> <pcov> <php> [<php flag>...] -- <phpunit> [<phpunit argument>...]`.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::env;
 use std::ffi::OsString;

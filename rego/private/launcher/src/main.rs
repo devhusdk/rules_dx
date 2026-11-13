@@ -1,4 +1,5 @@
 //! Runs `opa test` over the Rego files a `rego_test` target stages.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 mod opa;
 #[cfg(test)]

@@ -1,4 +1,5 @@
 //! Runs one .NET test under coverlet and writes its LCOV report for Bazel coverage.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 mod lcov;
 mod plan;

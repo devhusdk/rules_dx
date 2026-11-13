@@ -1,4 +1,5 @@
 //! Resolves a Zig package set from the `.dependencies` of its manifest and the archives they name.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use serde_json::json;
@@ -69,7 +70,7 @@ fn strip_comments(text: &str) -> String {
             let mut previous = '\0';
             for (at, ch) in line.char_indices() {
                 if !quoted && ch == '/' && previous == '/' {
-                    return &line[..at - 1];
+                    return line.get(..at.saturating_sub(1)).unwrap_or(line);
                 }
                 if escaped {
                     escaped = false;
@@ -91,7 +92,10 @@ fn matching_brace(text: &str, start: usize) -> usize {
     let mut depth = 1;
     let mut quoted = false;
     let mut escaped = false;
-    for (at, ch) in text[start..].char_indices() {
+    let Some(rest) = text.get(start..) else {
+        return text.len();
+    };
+    for (at, ch) in rest.char_indices() {
         if escaped {
             escaped = false;
         } else if quoted && ch == '\\' {
@@ -113,10 +117,13 @@ fn matching_brace(text: &str, start: usize) -> usize {
 fn string_field(body: &str, field: &str) -> String {
     let key = format!(".{field}");
     let mut from = 0;
-    while let Some(found) = body[from..].find(&key) {
+    while let Some(found) = body.get(from..).and_then(|rest| rest.find(&key)) {
         let after = from + found + key.len();
         from = after;
-        let Some(rest) = body[after..].trim_start().strip_prefix('=') else {
+        let Some(rest) = body
+            .get(after..)
+            .and_then(|rest| rest.trim_start().strip_prefix('='))
+        else {
             continue;
         };
         let rest = rest.trim_start();
@@ -124,8 +131,8 @@ fn string_field(body: &str, field: &str) -> String {
             return String::new();
         };
         return rest
-            .find('"')
-            .map_or_else(String::new, |end| rest[..end].to_owned());
+            .split_once('"')
+            .map_or_else(String::new, |(value, _)| value.to_owned());
     }
     String::new()
 }
@@ -133,7 +140,7 @@ fn string_field(body: &str, field: &str) -> String {
 fn dependency_name(head: &str) -> String {
     let head = head.trim().trim_start_matches('.');
     head.strip_prefix("@\"")
-        .and_then(|rest| rest.find('"').map(|end| rest[..end].to_owned()))
+        .and_then(|rest| rest.split_once('"').map(|(name, _)| name.to_owned()))
         .unwrap_or_else(|| head.to_owned())
 }
 
@@ -147,18 +154,25 @@ pub fn parse_dependencies(text: &str) -> Result<BTreeMap<String, Dependency>, Er
     let Some(marker) = text.find(".dependencies") else {
         return Ok(deps);
     };
-    let Some(open) = text[marker..].find(".{") else {
+    let Some(open) = text.get(marker..).and_then(|rest| rest.find(".{")) else {
         return Ok(deps);
     };
     let start = marker + open + 2;
-    let block = &text[start..matching_brace(&text, start)];
+    let block = text
+        .get(start..matching_brace(&text, start))
+        .ok_or_else(|| Error::new("has an unterminated .dependencies block"))?;
     let mut at = 0;
-    while let Some(entry) = block[at..].find("= .{") {
+    while let Some(entry) = block.get(at..).and_then(|rest| rest.find("= .{")) {
         let entry = at + entry;
-        let name = dependency_name(block[at..entry].trim().trim_matches(',').trim());
+        let head = block
+            .get(at..entry)
+            .ok_or_else(|| Error::new("has a dependency name out of range"))?;
+        let name = dependency_name(head.trim().trim_matches(',').trim());
         let body_start = entry + 4;
         let body_end = matching_brace(block, body_start);
-        let body = &block[body_start..body_end];
+        let body = block
+            .get(body_start..body_end)
+            .ok_or_else(|| Error::new(format!("dependency {name} has an unterminated body")))?;
         at = body_end + 1;
         if body.contains(".path") && !body.contains(".url") {
             continue;
@@ -418,8 +432,7 @@ fn unchanged<'l>(old: &'l Lock, dependency: &Dependency) -> Option<&'l Package> 
     old.packages.iter().find(|package| {
         package.name == dependency.name
             && package.version == dependency.hash
-            && package.archives.len() == 1
-            && package.archives[0].urls == [dependency.url.as_str()]
+            && matches!(package.archives.as_slice(), [archive] if archive.urls == [dependency.url.as_str()])
             && package.extra.contains_key("zig_main")
     })
 }

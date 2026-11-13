@@ -1,4 +1,5 @@
 //! Resolves a Composer package set through the Packagist v2 API and writes its lock and state.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use md5::{Digest, Md5};
@@ -61,10 +62,11 @@ pub fn parse_version(text: &str) -> Option<Version> {
     let mut out = [0; 4];
     let mut count = 0;
     for part in text.split('.') {
-        if count == 4 || part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit()) {
+        let slot = out.get_mut(count)?;
+        if part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit()) {
             return None;
         }
-        out[count] = part.parse().ok()?;
+        *slot = part.parse().ok()?;
         count += 1;
     }
     (count > 0).then_some(out)
@@ -87,13 +89,13 @@ fn partial(text: &str) -> Result<(Version, usize), String> {
     let mut out = [0; 4];
     let mut count = 0;
     for part in text.split('.') {
-        if count == 4 {
+        let Some(slot) = out.get_mut(count) else {
             return Err(format!("{text:?} has more than four parts"));
-        }
+        };
         if matches!(part, "*" | "x" | "X") {
             break;
         }
-        out[count] = part
+        *slot = part
             .parse()
             .map_err(|_| format!("{text:?} is not a release version"))?;
         count += 1;
@@ -104,11 +106,22 @@ fn partial(text: &str) -> Result<(Version, usize), String> {
     Ok((out, count))
 }
 
-fn bump(version: Version, index: usize) -> Version {
+fn bump(version: Version, index: usize) -> Result<Version, String> {
+    let next = version
+        .get(index)
+        .ok_or_else(|| format!("version part {index} is out of range"))?
+        + 1;
     let mut out = [0; 4];
-    out[..index].copy_from_slice(&version[..index]);
-    out[index] = version[index] + 1;
-    out
+    for (at, (slot, part)) in out.iter_mut().zip(version).enumerate() {
+        *slot = if at < index {
+            part
+        } else if at == index {
+            next
+        } else {
+            0
+        };
+    }
+    Ok(out)
 }
 
 fn atom(text: &str) -> Result<Vec<Comparator>, String> {
@@ -136,20 +149,20 @@ fn atom(text: &str) -> Result<Vec<Comparator>, String> {
     if let Some(rest) = text.strip_prefix('^') {
         let (low, count) = partial(rest)?;
         let at = (0..count)
-            .find(|&at| low[at] != 0)
+            .find(|&at| low.get(at).is_some_and(|&part| part != 0))
             .unwrap_or_else(|| count.saturating_sub(1));
-        return Ok(vec![(Op::Ge, low), (Op::Lt, bump(low, at))]);
+        return Ok(vec![(Op::Ge, low), (Op::Lt, bump(low, at)?)]);
     }
     if let Some(rest) = text.strip_prefix('~') {
         let (low, count) = partial(rest)?;
         return Ok(vec![
             (Op::Ge, low),
-            (Op::Lt, bump(low, count.saturating_sub(2))),
+            (Op::Lt, bump(low, count.saturating_sub(2))?),
         ]);
     }
     let (low, count) = partial(text)?;
     if text.contains(['*', 'x', 'X']) {
-        return Ok(vec![(Op::Ge, low), (Op::Lt, bump(low, count - 1))]);
+        return Ok(vec![(Op::Ge, low), (Op::Lt, bump(low, count - 1)?)]);
     }
     Ok(vec![(Op::Eq, low)])
 }
@@ -160,20 +173,24 @@ fn conjunction(text: &str) -> Result<Vec<Comparator>, String> {
         .filter(|word| !word.is_empty())
         .collect();
     let mut out = Vec::new();
-    let mut at = 0;
-    while at < words.len() {
-        if words.get(at + 1) == Some(&"-") && at + 2 < words.len() {
-            let (high, count) = partial(words[at + 2])?;
-            out.push((Op::Ge, partial(words[at])?.0));
-            out.push(if count < 3 {
-                (Op::Lt, bump(high, count - 1))
-            } else {
-                (Op::Le, high)
-            });
-            at += 3;
-        } else {
-            out.extend(atom(words[at])?);
-            at += 1;
+    let mut rest = words.as_slice();
+    loop {
+        match rest {
+            [low, "-", high, tail @ ..] => {
+                let (high, count) = partial(high)?;
+                out.push((Op::Ge, partial(low)?.0));
+                out.push(if count < 3 {
+                    (Op::Lt, bump(high, count - 1)?)
+                } else {
+                    (Op::Le, high)
+                });
+                rest = tail;
+            }
+            [word, tail @ ..] => {
+                out.extend(atom(word)?);
+                rest = tail;
+            }
+            [] => break,
         }
     }
     Ok(out)
@@ -411,11 +428,17 @@ impl<'a> Php<'a> {
             let mut next: BTreeMap<String, Chosen> = BTreeMap::new();
             for (name, constraints) in &wanted {
                 self.versions(name, &mut cache)?;
-                let allowed = |version: &Version| constraints.iter().all(|(_, c)| c.allows(*version));
-                let (version, entry) = cache[name]
+                let allowed =
+                    |version: &Version| constraints.iter().all(|(_, c)| c.allows(*version));
+                let releases = cache
+                    .get(name)
+                    .ok_or_else(|| Error::new(format!("{name}: has no fetched releases")))?;
+                let (version, entry) = releases
                     .iter()
-                    .find(|(version, _)| kept.get(name.as_str()) == Some(version) && allowed(version))
-                    .or_else(|| cache[name].iter().find(|(version, _)| allowed(version)))
+                    .find(|(version, _)| {
+                        kept.get(name.as_str()) == Some(version) && allowed(version)
+                    })
+                    .or_else(|| releases.iter().find(|(version, _)| allowed(version)))
                     .ok_or_else(|| {
                         Error::new(format!(
                             "{name}: no stable release satisfies {}",
@@ -493,8 +516,7 @@ fn unchanged<'l>(old: Option<&'l Lock>, name: &str, version: &str, url: &str) ->
     old?.packages.iter().find(|package| {
         package.name == name
             && package.version == version
-            && package.archives.len() == 1
-            && package.archives[0].urls == [url]
+            && matches!(package.archives.as_slice(), [archive] if archive.urls == [url])
             && package.extra.contains_key("composer_manifest")
     })
 }
@@ -604,7 +626,11 @@ impl Resolver for Php<'_> {
             }
         }
         let edges = |name: &str| -> Vec<String> {
-            string_map(&chosen[name].entry, "require")
+            chosen
+                .get(name)
+                .map_or_else(BTreeMap::new, |package| {
+                    string_map(&package.entry, "require")
+                })
                 .into_keys()
                 .filter(|dep| !is_platform(dep))
                 .filter_map(|dep| {
@@ -644,8 +670,10 @@ impl Resolver for Php<'_> {
                 .and_then(Value::as_str)
                 .unwrap_or_default();
             let dev = !production_set.contains(name);
-            let (archive, extra) = match unchanged(old, name, &version, url) {
-                Some(kept) => (kept.archives[0].clone(), kept.extra.clone()),
+            let kept = unchanged(old, name, &version, url)
+                .and_then(|kept| Some((kept.archives.first()?.clone(), kept.extra.clone())));
+            let (archive, extra) = match kept {
+                Some(found) => found,
                 None => {
                     let mut extra = BTreeMap::new();
                     extra.insert("composer_manifest".to_owned(), manifest(&package.entry));

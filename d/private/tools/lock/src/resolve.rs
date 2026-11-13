@@ -1,4 +1,5 @@
 //! Resolves a DUB package set from the `dependencies` of its manifest and the code.dlang.org registry.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use serde_json::{Value, json};
@@ -173,7 +174,7 @@ impl Range {
             },
             Bound::Compatible(wanted, parts) => {
                 let keep = if *parts >= 3 { 2 } else { 1 };
-                version >= wanted && version.numbers[..keep] == wanted.numbers[..keep]
+                version >= wanted && version.numbers.get(..keep) == wanted.numbers.get(..keep)
             }
         })
     }
@@ -497,8 +498,7 @@ fn unchanged<'l>(old: &'l Lock, name: &str, version: &str) -> Option<&'l Package
     old.packages.iter().find(|package| {
         package.name == name
             && package.version == version
-            && package.archives.len() == 1
-            && package.archives[0].urls == [archive_url(name, version)]
+            && matches!(package.archives.as_slice(), [archive] if archive.urls == [archive_url(name, version)])
             && package.extra.contains_key("d_library")
     })
 }
@@ -561,7 +561,12 @@ impl Resolver for Dub<'_> {
                 let Some(version) = chosen.get(&name) else {
                     continue;
                 };
-                for (dep, ranges) in &described[&(name.clone(), version.clone())].nested {
+                let Some(found) = described.get(&(name.clone(), version.clone())) else {
+                    return Err(Error::new(format!(
+                        "{name} {version} was chosen but not described"
+                    )));
+                };
+                for (dep, ranges) in &found.nested {
                     let entry = wanted.entry(dep.clone()).or_default();
                     for range in ranges {
                         if !entry.contains(range) {
@@ -599,8 +604,15 @@ impl Resolver for Dub<'_> {
         Ok(Resolution {
             packages: chosen
                 .iter()
-                .map(|(name, version)| described[&(name.clone(), version.clone())].package.clone())
-                .collect(),
+                .map(|(name, version)| {
+                    described
+                        .get(&(name.clone(), version.clone()))
+                        .map(|found| found.package.clone())
+                        .ok_or_else(|| {
+                            Error::new(format!("{name} {version} was chosen but not described"))
+                        })
+                })
+                .collect::<Result<_, _>>()?,
         })
     }
 }

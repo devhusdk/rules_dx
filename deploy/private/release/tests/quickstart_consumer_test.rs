@@ -52,7 +52,7 @@ fn built_dx(case: &Case) -> std::path::PathBuf {
 
 /// The `PATH` of the nested commands: a directory holding only the host `ldd`, which the rules_py
 /// host platform repository runs on Linux.
-fn ldd_path() -> String {
+pub(crate) fn ldd_path() -> String {
     let dir = scratch_dir("quickstart-ldd");
     #[cfg(target_os = "linux")]
     {

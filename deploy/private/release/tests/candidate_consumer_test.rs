@@ -156,6 +156,12 @@ fn stage(name: &str) {
     let _ = writeln!(std::io::stderr(), "candidate_consumer_test: {name}");
 }
 
+/// Runs nested Bazel with the `PATH` of `ldd_path`.
+fn bazel(case: &Case, args: &[&str]) -> Run {
+    let path = crate::quickstart_consumer_test::ldd_path();
+    case.bazel_with(args, &[("PATH", path.as_str())])
+}
+
 fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
@@ -168,12 +174,12 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     let case = consumer(candidate, archive, &registry);
 
     stage("bazel build");
-    ok(&case.bazel(&["build", "//..."]), "build");
+    ok(&bazel(&case, &["build", "//..."]), "build");
     stage("bazel test");
-    ok(&case.bazel(&["test", "//..."]), "test");
+    ok(&bazel(&case, &["test", "//..."]), "test");
     stage("bazel mod");
 
-    let explain = case.bazel(&["mod", "explain", "rules_dx"]);
+    let explain = bazel(&case, &["mod", "explain", "rules_dx"]);
     ok(&explain, "mod explain");
     assert!(
         explain.stdout.contains(&format!("rules_dx@{VERSION}")),
@@ -181,7 +187,7 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
         explain.combined()
     );
 
-    let repo = case.bazel(&["mod", "show_repo", "@my_dx"]);
+    let repo = bazel(&case, &["mod", "show_repo", "@my_dx"]);
     ok(&repo, "mod show_repo");
     let shown = repo.stdout.clone();
     let registry_url = file_url(&registry);
@@ -196,7 +202,7 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     }
 
     stage("bazel info");
-    let base = case.bazel(&["info", "output_base"]);
+    let base = bazel(&case, &["info", "output_base"]);
     ok(&base, "info output_base");
     let fetched = Path::new(base.stdout.trim()).join("external/rules_dx+/MODULE.bazel");
     let staged = registry.join(format!("modules/rules_dx/{VERSION}/MODULE.bazel"));
@@ -221,6 +227,9 @@ fn assert_gcc_consumer(case: &Case) {
 
     let gcc_dir = dx_test_scratch::scratch("candidate-gcc-shim");
     let shim = gcc_dir.path();
+    let ldd = Path::new(&crate::quickstart_consumer_test::ldd_path()).join("ldd");
+    std::os::unix::fs::symlink(&ldd, shim.join("ldd"))
+        .unwrap_or_else(|error| panic!("link ldd into {shim:?}: {error}"));
     for name in ["gcc", "g++", "cc", "c++"] {
         let path = shim.join(name);
         write(&path, b"#!/bin/sh\nexit 97\n");
@@ -238,15 +247,15 @@ fn assert_gcc_consumer(case: &Case) {
     let with = |head: &[&'static str], target: &'static str| -> Vec<&str> {
         head.iter().copied().chain(flags).chain([target]).collect()
     };
-    let root = case.bazel(&["info", "execution_root"]);
+    let root = bazel(case, &["info", "execution_root"]);
     ok(&root, "info execution_root");
 
     for (target, expected) in [
         ("//gcc:app", "gcc consumer\n"),
         ("//gcc:c_app", "gcc c consumer\n"),
     ] {
-        ok(&case.bazel(&with(&["build"], target)), "gcc build");
-        let files = case.bazel(&with(&["cquery", "--output=files"], target));
+        ok(&bazel(case, &with(&["build"], target)), "gcc build");
+        let files = bazel(case, &with(&["cquery", "--output=files"], target));
         ok(&files, "gcc cquery");
         let binary = Path::new(root.stdout.trim()).join(files.stdout.trim());
         let bytes = std::fs::read(&binary).unwrap_or_else(|error| panic!("{binary:?}: {error}"));

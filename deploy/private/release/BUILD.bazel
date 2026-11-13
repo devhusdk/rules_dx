@@ -139,6 +139,7 @@ rust_test(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/ecosystems:dx_ecosystems",
+        "//cli/families:dx_families",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",

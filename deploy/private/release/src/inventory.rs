@@ -318,11 +318,19 @@ mod tests {
         "nolicense 0.1.0": {"license": ""}
     }}"#;
 
+    /// The `cargo` hub name.
+    fn cargo_hub() -> &'static str {
+        dx_families::hub("cargo")
+            .expect("setup.hubs entry cargo")
+            .hub
+            .as_str()
+    }
+
     fn shipped(name: &str, version: &str, texts: Vec<PathBuf>) -> ShippedCrate {
         ShippedCrate {
             name: name.to_owned(),
             version: version.to_owned(),
-            label: format!("@crates//:{name}"),
+            label: format!("@{}//:{name}", cargo_hub()),
             texts,
             manifest: None,
         }
@@ -518,7 +526,8 @@ mod tests {
     fn join_fails_closed() {
         let dir = tempfile::tempdir().expect("tempdir");
         let missing_license = format!(
-            "inventory: missing@9.9.9 (@crates//:missing) is not in cargo-bazel-lock.json and its {} declares no license",
+            "inventory: missing@9.9.9 (@{}//:missing) is not in cargo-bazel-lock.json and its {} declares no license",
+            cargo_hub(),
             Ecosystem::Cargo.manifest_name()
         );
         let cases = [
@@ -598,7 +607,8 @@ mod tests {
         assert_eq!(
             join(&[krate.clone()], LOCK, ""),
             Err(format!(
-                "inventory: bytes@1.7.1 (@crates//:bytes) is not in cargo-bazel-lock.json and its {manifest} declares no license"
+                "inventory: bytes@1.7.1 (@{}//:bytes) is not in cargo-bazel-lock.json and its {manifest} declares no license",
+                cargo_hub()
             ))
         );
         krate.manifest = Some(dir.path().join("absent").join(manifest));

@@ -1466,17 +1466,23 @@ mod tests {
         let (plan, runner) = run(root, Command::Build, &[&graph]);
         assert_eq!(plan.changed_files, [lock]);
         assert_eq!(plan.targets, ["//a:serde_user"]);
+        let serde = format!(
+            "@{}//:serde",
+            dx_families::hub("cargo")
+                .expect("setup.hubs entry cargo")
+                .hub
+        );
         assert_eq!(
             plan.json(Command::Build)["widened"],
             json!([{
-                "scope": "rdeps(//..., @crates//:serde)",
+                "scope": format!("rdeps(//..., {serde})"),
                 "reason": format!("changed crates in {lock}"),
-                "repos": ["@crates//:serde"],
+                "repos": [serde],
             }])
         );
         assert!(
             plan.summary().contains(&format!(
-                "widened to rdeps(//..., @crates//:serde) (changed crates in {lock})"
+                "widened to rdeps(//..., {serde}) (changed crates in {lock})"
             )),
             "{}",
             plan.summary()

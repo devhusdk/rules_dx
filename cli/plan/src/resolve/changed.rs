@@ -1222,6 +1222,13 @@ mod tests {
     use dx_test_scratch::write;
     use dx_testing::cli::strings;
 
+    /// `@<hub><rest>` for the `setup.hubs` hub of `ecosystem`.
+    fn hub_label(ecosystem: &str, rest: &str) -> String {
+        let hub =
+            dx_families::hub(ecosystem).unwrap_or_else(|| panic!("setup.hubs entry {ecosystem}"));
+        format!("@{}{rest}", hub.hub)
+    }
+
     fn graph(rules: &[(&str, &[&str])]) -> QueryResult {
         let lines: Vec<String> = rules
             .iter()
@@ -1936,9 +1943,9 @@ mod tests {
         assert_eq!(
             selection.widened,
             [WidenedScope {
-                scope: "rdeps(//..., @crates//:serde)".to_owned(),
+                scope: format!("rdeps(//..., {})", hub_label("cargo", "//:serde")),
                 reason: format!("changed crates in {}", lock_of(Ecosystem::Cargo)),
-                repos: strings(&["@crates//:serde"]),
+                repos: vec![hub_label("cargo", "//:serde")],
             }]
         );
         let graph = selection.graph.as_ref().expect("graph");
@@ -2346,9 +2353,9 @@ mod tests {
                     repos: Vec::new(),
                 },
                 WidenedScope {
-                    scope: "rdeps(//..., @crates//:serde)".to_owned(),
+                    scope: format!("rdeps(//..., {})", hub_label("cargo", "//:serde")),
                     reason: format!("changed crates in {}", lock_of(Ecosystem::Cargo)),
-                    repos: strings(&["@crates//:serde"]),
+                    repos: vec![hub_label("cargo", "//:serde")],
                 },
             ]
         );
@@ -2404,9 +2411,9 @@ mod tests {
         assert_eq!(
             selection.widened,
             [WidenedScope {
-                scope: "rdeps(//..., @npm//lodash)".to_owned(),
+                scope: format!("rdeps(//..., {})", hub_label("npm", "//lodash")),
                 reason: format!("changed crates in {}", lock_of(Ecosystem::Npm)),
-                repos: strings(&["@npm//lodash"]),
+                repos: vec![hub_label("npm", "//lodash")],
             }]
         );
     }
@@ -2435,9 +2442,9 @@ mod tests {
         assert_eq!(
             selection.widened,
             [WidenedScope {
-                scope: "rdeps(//..., @crates//:serde)".to_owned(),
+                scope: format!("rdeps(//..., {})", hub_label("cargo", "//:serde")),
                 reason: format!("changed crates in {}", lock_of(Ecosystem::Cargo)),
-                repos: strings(&["@crates//:serde"]),
+                repos: vec![hub_label("cargo", "//:serde")],
             }]
         );
     }
@@ -2479,7 +2486,10 @@ mod tests {
             selection.targets,
             strings(&["@@rules_rust++crate+crates//:serde"])
         );
-        assert_eq!(selection.widened[0].repos, strings(&["@crates//:serde"]));
+        assert_eq!(
+            selection.widened[0].repos,
+            vec![hub_label("cargo", "//:serde")]
+        );
     }
 
     #[test]

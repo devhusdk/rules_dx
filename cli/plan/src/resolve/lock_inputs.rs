@@ -1713,45 +1713,52 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
 
     #[test]
     fn seeds_match_hub_names_versioned_names_and_spoke_repos() {
+        let hub = dx_families::hub("cargo")
+            .expect("setup.hubs entry cargo")
+            .hub
+            .as_str();
+        let at = |label: &str| label.replace("{hub}", hub);
         let labels = [
-            "@@rules_rust++crate+crates//:serde",
-            "@@rules_rust++crate+crates//:serde-1.0.2",
-            "@@rules_rust++crate+crates//:serde_json",
-            "@@rules_rust++crate+crates__serde-1.0.1//:serde",
-            "@@rules_rust~~crate~crates__serde-1.0.3//:serde",
-            "@@rules_rust++crate+crates__serde-1.0.2//:serde",
-            "@@rules_rust++crate+my_crates//:serde",
-            "@@crates//:serde",
-            "@@mycrates+//:serde",
-            "@@crates+//:serde",
+            "@@rules_rust++crate+{hub}//:serde",
+            "@@rules_rust++crate+{hub}//:serde-1.0.2",
+            "@@rules_rust++crate+{hub}//:serde_json",
+            "@@rules_rust++crate+{hub}__serde-1.0.1//:serde",
+            "@@rules_rust~~crate~{hub}__serde-1.0.3//:serde",
+            "@@rules_rust++crate+{hub}__serde-1.0.2//:serde",
+            "@@rules_rust++crate+my_{hub}//:serde",
+            "@@{hub}//:serde",
+            "@@my{hub}+//:serde",
+            "@@{hub}+//:serde",
             "//a:serde",
-            "@@rules_rust++crate+crates//:serde__bin",
-            "@@rules_rust++crate+crates//:serde-1.0.2__bin",
-            "@@rules_rust++crate+crates//serde:serde",
-            "@@rules_rust++crate+crates//:serde1",
-            "@@rules_rust++crate+crates//:serde_json__x",
-            "@@rules_rust++crate+crates//:serdex",
-            "@@rules_rust++crate+crates//:serde-1.0.3__x",
-        ];
+            "@@rules_rust++crate+{hub}//:serde__bin",
+            "@@rules_rust++crate+{hub}//:serde-1.0.2__bin",
+            "@@rules_rust++crate+{hub}//serde:serde",
+            "@@rules_rust++crate+{hub}//:serde1",
+            "@@rules_rust++crate+{hub}//:serde_json__x",
+            "@@rules_rust++crate+{hub}//:serdex",
+            "@@rules_rust++crate+{hub}//:serde-1.0.3__x",
+        ]
+        .map(at);
         assert_eq!(
             seeds(
-                labels.into_iter(),
-                "crates",
+                labels.iter().map(String::as_str),
+                hub,
                 &crates(&[("serde", &["1.0.1", "1.0.2"])]),
                 &names(&["serde1"])
             ),
             [
-                "@@crates+//:serde",
-                "@@crates//:serde",
-                "@@rules_rust++crate+crates//:serde",
-                "@@rules_rust++crate+crates//:serde-1.0.2",
-                "@@rules_rust++crate+crates//:serde-1.0.2__bin",
-                "@@rules_rust++crate+crates//:serde1",
-                "@@rules_rust++crate+crates//:serde__bin",
-                "@@rules_rust++crate+crates//serde:serde",
-                "@@rules_rust++crate+crates__serde-1.0.1//:serde",
-                "@@rules_rust++crate+crates__serde-1.0.2//:serde",
+                "@@{hub}+//:serde",
+                "@@{hub}//:serde",
+                "@@rules_rust++crate+{hub}//:serde",
+                "@@rules_rust++crate+{hub}//:serde-1.0.2",
+                "@@rules_rust++crate+{hub}//:serde-1.0.2__bin",
+                "@@rules_rust++crate+{hub}//:serde1",
+                "@@rules_rust++crate+{hub}//:serde__bin",
+                "@@rules_rust++crate+{hub}//serde:serde",
+                "@@rules_rust++crate+{hub}__serde-1.0.1//:serde",
+                "@@rules_rust++crate+{hub}__serde-1.0.2//:serde",
             ]
+            .map(at)
         );
     }
 

@@ -17,20 +17,19 @@ pub fn line_context_digest(file_bytes: &[u8], start_byte: u64) -> Option<[u8; 32
         return None;
     }
     let start: usize = start_byte.try_into().ok()?;
-    if start > file_bytes.len() {
-        return None;
-    }
-    let mut line_start = start;
-    while line_start > 0 && file_bytes[line_start - 1] != b'\n' {
-        line_start -= 1;
-    }
-    let mut line_end = start;
-    while line_end < file_bytes.len() && file_bytes[line_end] != b'\n' {
-        line_end += 1;
-    }
-    let mut line = &file_bytes[line_start..line_end];
-    while line.last() == Some(&b'\r') {
-        line = &line[..line.len() - 1];
+    let (head, tail) = file_bytes.split_at_checked(start)?;
+    let line_start = head
+        .iter()
+        .rposition(|byte| *byte == b'\n')
+        .map_or(0, |at| at + 1);
+    let line_end = start
+        + tail
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .unwrap_or(tail.len());
+    let mut line = file_bytes.get(line_start..line_end)?;
+    while let Some(rest) = line.strip_suffix(b"\r") {
+        line = rest;
     }
     Some(dx_digest::blake3(line))
 }

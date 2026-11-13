@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExactScopeError {
     MultipleTargets { count: usize },

@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod finding;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

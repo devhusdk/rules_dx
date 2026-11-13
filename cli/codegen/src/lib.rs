@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -235,20 +237,22 @@ fn bind_artifacts<'p>(
             .iter()
             .filter(|path| dx_bep::suffix_matches(path, &entry.exec_path))
             .collect();
-        if matches.is_empty() {
-            return Err(CollectError::MissingArtifact {
-                producer: record.producer.clone(),
-                logical_path: entry.logical_path.clone(),
-                exec_path: entry.exec_path.clone(),
-            });
+        match matches.as_slice() {
+            [] => {
+                return Err(CollectError::MissingArtifact {
+                    producer: record.producer.clone(),
+                    logical_path: entry.logical_path.clone(),
+                    exec_path: entry.exec_path.clone(),
+                });
+            }
+            [only] => resolved.push(only.as_str()),
+            _ => {
+                return Err(CollectError::DuplicateArtifact {
+                    exec_path: entry.exec_path.clone(),
+                    claimants: matches.into_iter().cloned().collect(),
+                });
+            }
         }
-        if matches.len() > 1 {
-            return Err(CollectError::DuplicateArtifact {
-                exec_path: entry.exec_path.clone(),
-                claimants: matches.into_iter().map(|path| (*path).clone()).collect(),
-            });
-        }
-        resolved.push(matches[0]);
     }
     for path in generated_paths {
         let claimants: Vec<(&CodegenRecord, &CodegenEntry)> = bound
@@ -256,11 +260,11 @@ fn bind_artifacts<'p>(
             .filter(|(_, entry)| dx_bep::suffix_matches(path, &entry.exec_path))
             .map(|(record, entry)| (*record, *entry))
             .collect();
-        if claimants.is_empty() {
+        let Some((_, first)) = claimants.first() else {
             return Err(CollectError::UnreportedArtifact { path: path.clone() });
-        }
+        };
         if claimants.len() > 1 {
-            let exec = claimants[0].1.exec_path.clone();
+            let exec = first.exec_path.clone();
             let rendered: Vec<String> = claimants
                 .iter()
                 .map(|(record, entry)| format!("{}:{}", record.producer, entry.logical_path))

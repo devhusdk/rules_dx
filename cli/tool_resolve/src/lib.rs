@@ -1,5 +1,7 @@
 //! Resolves one pinned tool label to the absolute artifact path CI exports.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;

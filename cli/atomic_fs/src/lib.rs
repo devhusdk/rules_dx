@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod commit;
 pub mod lease;
 pub mod managed;
@@ -33,11 +35,14 @@ fn truncated_name(path: &Path) -> String {
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let mut end = name.len().min(STAGING_NAME_MAX);
-    while !name.is_char_boundary(end) {
-        end -= 1;
+    let mut out = String::with_capacity(name.len().min(STAGING_NAME_MAX));
+    for char in name.chars() {
+        if out.len() + char.len_utf8() > STAGING_NAME_MAX {
+            break;
+        }
+        out.push(char);
     }
-    name[..end].to_owned()
+    out
 }
 
 fn staging_prefix(path: &Path) -> String {

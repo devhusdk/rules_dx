@@ -1,5 +1,7 @@
 //! Serves a built docs site over HTTP with nothing but the standard library.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::io::{self, BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Component, Path, PathBuf};
@@ -179,17 +181,14 @@ fn resolve(root: &Path, prefix: &str, path: &str) -> Option<PathBuf> {
 }
 
 fn percent_decode(text: &str) -> Option<String> {
-    let bytes = text.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut at = 0;
-    while at < bytes.len() {
-        if bytes[at] == b'%' {
-            let hex = text.get(at + 1..at + 3)?;
-            out.push(u8::from_str_radix(hex, 16).ok()?);
-            at += 3;
+    let mut out = Vec::with_capacity(text.len());
+    let mut bytes = text.bytes();
+    while let Some(byte) = bytes.next() {
+        if byte == b'%' {
+            let hex = [bytes.next()?, bytes.next()?];
+            out.push(u8::from_str_radix(std::str::from_utf8(&hex).ok()?, 16).ok()?);
         } else {
-            out.push(bytes[at]);
-            at += 1;
+            out.push(byte);
         }
     }
     String::from_utf8(out).ok()

@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::path::Path;
 use std::process::Command;
 pub use tempfile::TempDir;
@@ -29,11 +31,8 @@ fn bounded_prefix(prefix: &str) -> String {
     if sanitized.len() <= PREFIX_KEEP {
         return sanitized;
     }
-    format!(
-        "{}-{:x}",
-        &sanitized[..PREFIX_KEEP],
-        fnv1a(prefix.as_bytes())
-    )
+    let kept: String = sanitized.chars().take(PREFIX_KEEP).collect();
+    format!("{kept}-{:x}", fnv1a(prefix.as_bytes()))
 }
 
 /// Picks where scratch dirs live: `$TEST_TMPDIR` when set and not empty, so

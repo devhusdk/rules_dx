@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::io;
 use std::path::Path;
 
@@ -108,7 +110,10 @@ pub fn sha256_reader_hex(mut reader: impl io::Read) -> io::Result<String> {
         if read == 0 {
             break;
         }
-        io::Write::write_all(&mut sink, &buf[..read])?;
+        let Some(chunk) = buf.get(..read) else {
+            return Err(io::ErrorKind::InvalidData.into());
+        };
+        io::Write::write_all(&mut sink, chunk)?;
     }
     Ok(sink.finish_hex())
 }

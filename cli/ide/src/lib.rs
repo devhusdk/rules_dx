@@ -1,5 +1,7 @@
 //! Editor support files under `.dx/local/ide/`, refreshed from `dx sync` and `dx upgrade`.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 mod cc;
 mod dotnet;
 mod go;

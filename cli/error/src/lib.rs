@@ -1,6 +1,8 @@
 //! The error type every dx command returns and the one table that maps it to
 //! a process exit code.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::fmt;
 use std::process::ExitCode;
 

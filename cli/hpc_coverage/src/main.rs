@@ -2,6 +2,8 @@
 //!
 //! Arguments: `<test> <hpc_lcov> [<test argument>...]`.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 mod run;
 #[cfg(test)]
 mod run_tests;

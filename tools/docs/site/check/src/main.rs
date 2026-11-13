@@ -1,5 +1,7 @@
 //! Reports whether a docs aggregate's links all resolve.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -28,8 +30,7 @@ fn parse_rendered(
     let mut rendered = dx_site_check::rendered::Rendered::default();
     let mut forbid: Vec<String> = Vec::new();
     let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].clone();
+    while let Some(flag) = args.get(index).cloned() {
         if flag == "--landing" {
             rendered.landing = true;
             index += 1;

@@ -1,5 +1,7 @@
 //! Converts the `index.json` of `dart doc` into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeMap;
 use std::fs;
 
@@ -123,8 +125,8 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(format!("invalid package '{package}'"));
     }
-    let root: Value =
-        serde_json::from_str(json).map_err(|error| format!("dartdoc index is malformed: {error}"))?;
+    let root: Value = serde_json::from_str(json)
+        .map_err(|error| format!("dartdoc index is malformed: {error}"))?;
     let list = root.as_array().ok_or("dartdoc index is not a list")?;
     let entries: Vec<Entry> = list
         .iter()

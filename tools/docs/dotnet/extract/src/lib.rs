@@ -1,5 +1,7 @@
 //! Converts the C# and F# API facts of the dotnet drivers into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 mod convert;
 mod types;
 

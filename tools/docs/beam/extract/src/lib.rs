@@ -1,5 +1,7 @@
 //! Converts the Elixir and Erlang doc drivers' JSON into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::fs;
 
 use documentation_ir::json::{field, number, string, strings};

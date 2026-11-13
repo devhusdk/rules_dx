@@ -39,15 +39,16 @@ impl Node {
 pub fn decode(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     let mut rest = raw;
-    while let Some(start) = rest.find('&') {
-        out.push_str(&rest[..start]);
-        rest = &rest[start..];
-        let Some(end) = rest.find(';').filter(|end| *end <= 10) else {
+    while let Some((before, after)) = rest.split_once('&') {
+        out.push_str(before);
+        let Some((entity, tail)) = after
+            .split_once(';')
+            .filter(|(entity, _)| entity.len() < 10)
+        else {
             out.push('&');
-            rest = &rest[1..];
+            rest = after;
             continue;
         };
-        let entity = &rest[1..end];
         let decoded = match entity {
             "amp" => Some('&'),
             "lt" => Some('<'),
@@ -66,11 +67,11 @@ pub fn decode(raw: &str) -> String {
         match decoded {
             Some(c) => {
                 out.push(c);
-                rest = &rest[end + 1..];
+                rest = tail;
             }
             None => {
                 out.push('&');
-                rest = &rest[1..];
+                rest = after;
             }
         }
     }
@@ -78,46 +79,38 @@ pub fn decode(raw: &str) -> String {
     out
 }
 
+fn split_while(source: &str, keep: impl Fn(char) -> bool) -> (&str, &str) {
+    let end = source.find(|c: char| !keep(c)).unwrap_or(source.len());
+    source.split_at_checked(end).unwrap_or((source, ""))
+}
+
 fn attributes(source: &str) -> Vec<(String, String)> {
-    let bytes = source.as_bytes();
+    let blank = |c: char| c.is_ascii_whitespace();
     let mut attrs = Vec::new();
-    let mut i = 0;
-    while i < bytes.len() {
-        while i < bytes.len() && (bytes[i].is_ascii_whitespace() || bytes[i] == b'/') {
-            i += 1;
-        }
-        let start = i;
-        while i < bytes.len() && !bytes[i].is_ascii_whitespace() && bytes[i] != b'=' && bytes[i] != b'/' {
-            i += 1;
-        }
-        if start == i {
+    let mut rest = source;
+    while !rest.is_empty() {
+        rest = rest.trim_start_matches(|c: char| blank(c) || c == '/');
+        let (name, after) = split_while(rest, |c| !blank(c) && c != '=' && c != '/');
+        if name.is_empty() {
             break;
         }
-        let name = source[start..i].to_ascii_lowercase();
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
-            i += 1;
-        }
+        let name = name.to_ascii_lowercase();
+        rest = after.trim_start_matches(blank);
         let mut value = String::new();
-        if i < bytes.len() && bytes[i] == b'=' {
-            i += 1;
-            while i < bytes.len() && bytes[i].is_ascii_whitespace() {
-                i += 1;
-            }
-            if i < bytes.len() && (bytes[i] == b'"' || bytes[i] == b'\'') {
-                let quote = bytes[i];
-                i += 1;
-                let from = i;
-                while i < bytes.len() && bytes[i] != quote {
-                    i += 1;
-                }
-                value = decode(&source[from..i]);
-                i += 1;
+        if let Some(after_equals) = rest.strip_prefix('=') {
+            let after_equals = after_equals.trim_start_matches(blank);
+            let quoted = after_equals
+                .strip_prefix('"')
+                .map(|body| ('"', body))
+                .or_else(|| after_equals.strip_prefix('\'').map(|body| ('\'', body)));
+            if let Some((quote, body)) = quoted {
+                let (raw, tail) = split_while(body, |c| c != quote);
+                value = decode(raw);
+                rest = tail.strip_prefix(quote).unwrap_or(tail);
             } else {
-                let from = i;
-                while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
-                    i += 1;
-                }
-                value = decode(&source[from..i]);
+                let (raw, tail) = split_while(after_equals, |c| !blank(c));
+                value = decode(raw);
+                rest = tail;
             }
         }
         attrs.push((name, value));
@@ -150,35 +143,32 @@ pub fn parse(source: &str) -> Vec<Node> {
     let mut stack = vec![Node::default()];
     let mut rest = source;
     while !rest.is_empty() {
-        let Some(open) = rest.find('<') else {
+        let Some((before, after)) = rest.split_once('<') else {
             append(&mut stack, text_node(rest));
             break;
         };
-        if open > 0 {
-            append(&mut stack, text_node(&rest[..open]));
+        if !before.is_empty() {
+            append(&mut stack, text_node(before));
         }
-        rest = &rest[open..];
-        if let Some(comment) = rest.strip_prefix("<!--") {
-            rest = comment.find("-->").map_or("", |end| &comment[end + 3..]);
+        if let Some(comment) = after.strip_prefix("!--") {
+            rest = comment.split_once("-->").map_or("", |(_, tail)| tail);
             continue;
         }
-        let Some(end) = rest.find('>') else {
+        let Some((inner, tail)) = after.split_once('>') else {
             append(&mut stack, text_node(rest));
             break;
         };
-        let inner = &rest[1..end];
-        rest = &rest[end + 1..];
+        rest = tail;
         if let Some(name) = inner.strip_prefix('/') {
             close(&mut stack, &name.trim().to_ascii_lowercase());
         } else if inner.starts_with('!') || inner.starts_with('?') {
             continue;
         } else {
-            let split = inner
-                .find(|c: char| c.is_ascii_whitespace() || c == '/')
-                .unwrap_or(inner.len());
-            let name = inner[..split].to_ascii_lowercase();
+            let (head, attribute_source) =
+                split_while(inner, |c| !c.is_ascii_whitespace() && c != '/');
+            let name = head.to_ascii_lowercase();
             let node = Node {
-                attrs: attributes(&inner[split..]),
+                attrs: attributes(attribute_source),
                 name: name.clone(),
                 ..Node::default()
             };
@@ -231,6 +221,15 @@ pub fn text(node: &Node, skip: &[&str]) -> String {
     let mut out = String::new();
     gather(node, skip, &mut out);
     out.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn heading_level(name: &str) -> Option<usize> {
+    let [digit] = name.strip_prefix('h')?.as_bytes() else {
+        return None;
+    };
+    digit
+        .is_ascii_digit()
+        .then(|| usize::from(digit - b'0').clamp(1, 6))
 }
 
 fn render(node: &Node, out: &mut String) {
@@ -295,13 +294,14 @@ fn render(node: &Node, out: &mut String) {
                 _ => out.push_str(&label),
             }
         }
-        name if name.len() == 2 && name.starts_with('h') && name.as_bytes()[1].is_ascii_digit() => {
-            let level = usize::from(name.as_bytes()[1] - b'0').clamp(1, 6);
-            out.push_str("\n\n");
-            out.push_str(&"#".repeat(level));
-            out.push(' ');
-            out.push_str(&text(node, &["anchor"]));
-            out.push_str("\n\n");
+        name if heading_level(name).is_some() => {
+            if let Some(level) = heading_level(name) {
+                out.push_str("\n\n");
+                out.push_str(&"#".repeat(level));
+                out.push(' ');
+                out.push_str(&text(node, &["anchor"]));
+                out.push_str("\n\n");
+            }
         }
         _ => {
             for child in &node.children {

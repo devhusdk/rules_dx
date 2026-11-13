@@ -1,5 +1,7 @@
 //! Checks that every link, anchor and API page a docs site names really exists.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod rendered;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -27,8 +29,7 @@ pub fn usage() -> String {
 pub fn parse_args(args: &[String]) -> Result<Inputs, (String, String)> {
     let mut inputs = Inputs::default();
     let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
+    while let Some(flag) = args.get(index).map(String::as_str) {
         match flag {
             "--book" | "--api" | "--records" | "--shard" | "--prose" | "--data" => {
                 let Some(value) = args.get(index + 1) else {
@@ -169,16 +170,16 @@ pub fn check(inputs: &Inputs) -> String {
 fn record_urls(text: &str) -> Vec<String> {
     let mut urls = Vec::new();
     let mut rest = text;
-    while let Some(at) = rest.find("\"url\"") {
-        rest = &rest[at + 5..];
+    while let Some((_, after)) = rest.split_once("\"url\"") {
+        rest = after;
         let Some(open) = rest.trim_start().strip_prefix(':') else {
             continue;
         };
         let Some(open) = open.trim_start().strip_prefix('"') else {
             continue;
         };
-        let end = open.find('"').unwrap_or(open.len());
-        urls.push(open[..end].to_string());
+        let value = open.split_once('"').map_or(open, |(value, _)| value);
+        urls.push(value.to_string());
     }
     urls
 }
@@ -193,17 +194,12 @@ fn any_line(text: &str, wanted: impl Fn(&str) -> bool) -> bool {
 
 fn has_empty_link_target(text: &str) -> bool {
     let bytes = text.as_bytes();
-    for index in 0..bytes.len() {
-        if bytes[index] != b']' || index + 2 >= bytes.len() {
+    for (index, window) in bytes.windows(3).enumerate() {
+        let [b']', b'(', b')'] = window else {
             continue;
-        }
-        if bytes[index + 1] != b'(' || bytes[index + 2] != b')' {
-            continue;
-        }
-        let mut back = index;
-        while back > 0 {
-            back -= 1;
-            match bytes[back] {
+        };
+        for byte in bytes.iter().take(index).rev() {
+            match byte {
                 b']' => break,
                 b'[' => return true,
                 _ => {}
@@ -264,8 +260,9 @@ impl Site {
 /// Returns the longest directory that holds every path, "" when there is none.
 fn common_root(paths: &[String]) -> String {
     let mut dirs = paths.iter().map(|p| {
-        let parts: Vec<&str> = p.split('/').collect();
-        parts[..parts.len() - 1].to_vec()
+        let mut parts: Vec<&str> = p.split('/').collect();
+        parts.pop();
+        parts
     });
     let Some(mut common) = dirs.next() else {
         return String::new();
@@ -356,15 +353,13 @@ fn inline_targets(line: &str) -> Vec<String> {
     let mut found = Vec::new();
     let mut index = 0;
     while index < bytes.len() {
-        if bytes[index] != b']' || index + 1 >= bytes.len() || bytes[index + 1] != b'(' {
+        let (Some(b']'), Some(b'(')) = (bytes.get(index), bytes.get(index + 1)) else {
             index += 1;
             continue;
-        }
-        let mut back = index;
+        };
         let mut opened = false;
-        while back > 0 {
-            back -= 1;
-            match bytes[back] {
+        for byte in bytes.iter().take(index).rev() {
+            match byte {
                 b']' => break,
                 b'[' => {
                     opened = true;
@@ -378,13 +373,11 @@ fn inline_targets(line: &str) -> Vec<String> {
             continue;
         }
         let start = index + 2;
-        match line[start..].find(')') {
-            Some(offset) => {
-                found.push(line[start..start + offset].to_string());
-                index = start + offset;
-            }
-            None => break,
-        }
+        let Some((target, _)) = line.get(start..).and_then(|tail| tail.split_once(')')) else {
+            break;
+        };
+        found.push(target.to_string());
+        index = start + target.len();
     }
     found
 }
@@ -394,11 +387,9 @@ fn split_reference(line: &str) -> Option<(usize, &str)> {
     if !trimmed.starts_with('[') {
         return None;
     }
-    let close = trimmed.find(']')?;
-    if !trimmed[close + 1..].starts_with(':') {
-        return None;
-    }
-    Some((close + 1, &trimmed[close + 2..]))
+    let (head, tail) = trimmed.split_once(']')?;
+    let value = tail.strip_prefix(':')?;
+    Some((head.len() + 1, value))
 }
 
 fn tidy(value: &str) -> String {
@@ -408,10 +399,9 @@ fn tidy(value: &str) -> String {
     if unbracketed.starts_with('"') {
         return String::new();
     }
-    let cut = match unbracketed.find('"') {
-        Some(at) => &unbracketed[..at],
-        None => unbracketed,
-    };
+    let cut = unbracketed
+        .split_once('"')
+        .map_or(unbracketed, |(head, _)| head);
     cut.trim().to_string()
 }
 

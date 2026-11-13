@@ -1,5 +1,7 @@
 //! Converts the Go doc driver's JSON into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::fs;
 
 use documentation_ir::json::{boolean, field, number, string};

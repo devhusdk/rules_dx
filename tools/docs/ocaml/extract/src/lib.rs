@@ -1,5 +1,7 @@
 //! Converts the JSON pages of `odoc html-generate --as-json` into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -249,10 +251,9 @@ pub fn convert(pages: &[(String, String)], package: &str, config: &str) -> Resul
         };
         let (names, label) = page_names(key)?;
         let path = names.join(".");
-        let parent = if names.len() > 1 {
-            Some(names[..names.len() - 1].join("."))
-        } else {
-            None
+        let parent = match names.split_last() {
+            Some((_, init)) if !init.is_empty() => Some(init.join(".")),
+            _ => None,
         };
         let name = names.last().cloned().unwrap_or_default();
         let preamble = html::parse(&field("preamble"));

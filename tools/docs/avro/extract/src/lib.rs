@@ -1,6 +1,8 @@
 //! Converts Avro schemas (.avsc, .avpr, or the schemas avro-tools writes for .avdl) into one
 //! validated DocIr shard, reading the `doc` attribute of every named type, field and message.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
@@ -199,7 +201,10 @@ impl Builder<'_> {
             .map_or(0, |(index, _)| index as u64 + 1)
     }
 
-    #[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each argument is a distinct input of the call"
+    )]
     fn push(
         &mut self,
         id: String,

@@ -305,7 +305,7 @@ pub fn signature(function: &Function) -> String {
                 let Some(bound) = binding(param, set) else {
                     continue;
                 };
-                let position = bound.position.or(implicit[index]);
+                let position = bound.position.or(implicit.get(index).copied().flatten());
                 let text = param_text(param, bound.mandatory, position.is_some());
                 match position {
                     Some(position) => positional.push((position, text)),

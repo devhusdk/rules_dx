@@ -8,6 +8,8 @@
 //! is named `Name$` in `qualified`, so a class and its companion get distinct ids. Kinds `object`, `trait`, `typealias`, `function` and
 //! `property` are accepted only for the languages that have them.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
@@ -211,13 +213,13 @@ fn unescape(text: &str) -> Option<String> {
     let bytes = text.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'~' {
+    while let Some(&byte) = bytes.get(index) {
+        if byte == b'~' {
             let hex = text.get(index + 1..index + 3)?;
             out.push(u8::from_str_radix(hex, 16).ok()?);
             index += 3;
         } else {
-            out.push(bytes[index]);
+            out.push(byte);
             index += 1;
         }
     }
@@ -263,22 +265,27 @@ impl Resolver {
                 opens.push(out.len());
             } else if ch == ']' {
                 let open = opens.pop();
-                if let (Some(open), Some(after)) = (open, rest[1..].strip_prefix("(jvm:"))
-                    && let Some(end) = target_end(after)
+                if let (Some(open), Some(after)) = (
+                    open,
+                    rest.strip_prefix(']').and_then(|r| r.strip_prefix("(jvm:")),
+                ) && let Some(end) = target_end(after)
+                    && let Some(target) = after.get(..end)
+                    && let Some(label) = out.get(open + 1..).map(|s| s.replace('`', ""))
+                    && let Some(next) = after.get(end + 1..)
                 {
-                    let target = &after[..end];
-                    let label = out[open + 1..].replace('`', "");
                     out.truncate(open);
                     match self.resolve(target) {
                         Some(id) => out.push_str(&format!("[{label}](dx:{id})")),
                         None => out.push_str(&format!("`{label}`")),
                     }
-                    rest = &after[end + 1..];
+                    rest = next;
                     continue;
                 }
             }
             out.push(ch);
-            rest = &rest[ch.len_utf8()..];
+            let mut chars = rest.chars();
+            chars.next();
+            rest = chars.as_str();
         }
         out
     }

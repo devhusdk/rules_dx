@@ -156,9 +156,8 @@ fn attribute_values(html: &str, name: &str) -> Vec<String> {
     let needle = format!("{name}=\"");
     let mut out = Vec::new();
     let mut rest = html;
-    while let Some(at) = rest.find(needle.as_str()) {
-        let before = rest[..at].rsplit('<').next().unwrap_or("");
-        let tail = &rest[at + needle.len()..];
+    while let Some((head, tail)) = rest.split_once(needle.as_str()) {
+        let before = head.rsplit('<').next().unwrap_or("");
         let Some((value, remainder)) = tail.split_once('"') else {
             break;
         };
@@ -192,13 +191,13 @@ pub fn decode_fragment(fragment: &str) -> Option<String> {
     let bytes = fragment.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut at = 0;
-    while at < bytes.len() {
-        if bytes[at] == b'%' {
+    while let Some(&byte) = bytes.get(at) {
+        if byte == b'%' {
             let pair = fragment.get(at + 1..at + 3)?;
             out.push(u8::from_str_radix(pair, 16).ok()?);
             at += 3;
         } else {
-            out.push(bytes[at]);
+            out.push(byte);
             at += 1;
         }
     }

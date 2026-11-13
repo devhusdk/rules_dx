@@ -347,7 +347,10 @@ fn every_malformed_document_is_rejected() {
             with(good.clone(), "format", json!(2)).to_string(),
             "format 2 is not supported",
         ),
-        (good.to_string()[..40].to_owned(), "malformed"),
+        (
+            good.to_string().chars().take(40).collect::<String>(),
+            "malformed",
+        ),
         ("[]".to_owned(), "not an object"),
         (
             document(vec![obj("classvariable", "Geo::@@x", "@@x", "Geo")]).to_string(),

@@ -1,5 +1,7 @@
 //! Converts the PowerShell API facts of extract.ps1 into one validated DocIr shard.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 mod convert;
 mod exports;
 mod types;

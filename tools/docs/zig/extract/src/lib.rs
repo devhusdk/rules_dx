@@ -5,6 +5,8 @@
 //! first dumped file) exposes is documented: its `pub` declarations, and the library's own
 //! files it re-exports with `pub const X = @import("own.zig")`, which become modules.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use documentation_ir::proto::{
     DocIr, Extension, Param, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };

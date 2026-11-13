@@ -146,10 +146,7 @@ fn a_missing_asset_fails() {
     let dir = guard.path();
     fs::remove_file(dir.join("book.js")).expect("remove the navigation script");
     let report = check_rendered(&rendered(dir), &[]);
-    assert!(
-        report.contains("has no book.js"),
-        "{report}"
-    );
+    assert!(report.contains("has no book.js"), "{report}");
     let _ = fs::remove_dir_all(dir);
 }
 
@@ -437,8 +434,11 @@ fn relative_targets_resolve_against_their_page() {
 fn a_hashed_search_index_is_found() {
     let guard = site("rendered-hashed-index");
     let dir = guard.path();
-    fs::rename(dir.join("searchindex.js"), dir.join("searchindex-c0036e0f.js"))
-        .expect("hash the search index");
+    fs::rename(
+        dir.join("searchindex.js"),
+        dir.join("searchindex-c0036e0f.js"),
+    )
+    .expect("hash the search index");
     assert_eq!(check_rendered(&rendered(dir), &[]), "");
     let _ = fs::remove_dir_all(dir);
 }

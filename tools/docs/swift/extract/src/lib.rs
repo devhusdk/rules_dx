@@ -4,6 +4,8 @@
 //! and parameter list, but no source locations, so each declaration is located in the library's
 //! own sources by matching its keyword and name.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
@@ -256,7 +258,7 @@ pub fn convert(
         config_text.push_str(&format!(";config={config}"));
     }
     let mut order: Vec<usize> = (0..sources.len()).collect();
-    order.sort_by(|a, b| sources[*a].rel.cmp(&sources[*b].rel));
+    order.sort_by_key(|index| sources.get(*index).map(|source| &source.rel));
     let lines: Vec<Vec<&str>> = sources
         .iter()
         .map(|source| {
@@ -304,7 +306,9 @@ pub fn convert(
         module,
         None,
         String::new(),
-        module_place.map(|place| source_ref(sources, place)),
+        module_place
+            .map(|place| source_ref(sources, place))
+            .transpose()?,
         &config_text,
     ));
 
@@ -322,7 +326,10 @@ pub fn convert(
         if *count > 1 {
             id = format!("{id}@{count}");
         }
-        let parent_path = &entry.path[..entry.path.len() - 1];
+        let Some((name, parent_path)) = entry.path.split_last() else {
+            return Err("a symbol has an empty path".to_owned());
+        };
+        let name = name.as_str();
         let parent_id = match entry.other {
             Some(_) => None,
             None => ids_by_path.get(parent_path).cloned(),
@@ -334,7 +341,6 @@ pub fn convert(
                 .or_insert_with(|| id.clone());
         }
 
-        let name = entry.path[entry.path.len() - 1].as_str();
         let base = name.split('(').next().unwrap_or(name);
         let parent_place = parent_id.as_ref().and_then(|id| places.get(id)).copied();
         let place = locate(&lines, &order, entry.keywords, base, parent_place, &used);
@@ -352,7 +358,7 @@ pub fn convert(
             name,
             Some(&format!("{LANGUAGE}:{package}:{member_of}")),
             doc,
-            place.map(|place| source_ref(sources, place)),
+            place.map(|place| source_ref(sources, place)).transpose()?,
             &config_text,
         );
         if let Some(target) = &entry.extends {
@@ -393,18 +399,26 @@ fn link_symbols(text: &str, module: &str, links: &BTreeMap<String, String>) -> S
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     while let Some(open) = rest.find("``") {
-        let run = rest[open..].bytes().take_while(|b| *b == b'`').count();
-        let after = open + run;
-        out.push_str(&rest[..after]);
-        rest = &rest[after..];
+        let Some((before, tail)) = rest.split_at_checked(open) else {
+            break;
+        };
+        let run = tail.bytes().take_while(|b| *b == b'`').count();
+        let Some((ticks, remainder)) = tail.split_at_checked(run) else {
+            break;
+        };
+        out.push_str(before);
+        out.push_str(ticks);
+        rest = remainder;
         if run != 2 {
             continue;
         }
         let Some(close) = rest.find('`') else {
             break;
         };
-        let name = &rest[..close];
-        let closing = rest[close..].bytes().take_while(|b| *b == b'`').count();
+        let Some((name, from_close)) = rest.split_at_checked(close) else {
+            break;
+        };
+        let closing = from_close.bytes().take_while(|b| *b == b'`').count();
         let key = name
             .strip_prefix(module)
             .and_then(|tail| tail.strip_prefix('/'))
@@ -417,11 +431,18 @@ fn link_symbols(text: &str, module: &str, links: &BTreeMap<String, String>) -> S
             {
                 out.truncate(out.len() - 2);
                 out.push_str(&format!("[{last}](dx:{id})"));
-                rest = &rest[close + 2..];
+                let Some(remainder) = from_close.get(2..) else {
+                    break;
+                };
+                rest = remainder;
             }
             _ => {
-                out.push_str(&rest[..close + closing]);
-                rest = &rest[close + closing..];
+                let Some((ticks, remainder)) = from_close.split_at_checked(closing) else {
+                    break;
+                };
+                out.push_str(name);
+                out.push_str(ticks);
+                rest = remainder;
             }
         }
     }
@@ -429,7 +450,10 @@ fn link_symbols(text: &str, module: &str, links: &BTreeMap<String, String>) -> S
     out
 }
 
-#[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input of the call"
+)]
 fn build(
     id: &str,
     kind: SymbolKind,
@@ -460,12 +484,15 @@ fn build(
     }
 }
 
-fn source_ref(sources: &[Source], place: Place) -> SourceRef {
-    SourceRef {
-        file: sources[place.0].rel.clone(),
+fn source_ref(sources: &[Source], place: Place) -> Result<SourceRef, String> {
+    let source = sources
+        .get(place.0)
+        .ok_or_else(|| format!("source index {} is out of range", place.0))?;
+    Ok(SourceRef {
+        file: source.rel.clone(),
         line: place.1 as u64,
-        generated: sources[place.0].generated,
-    }
+        generated: source.generated,
+    })
 }
 
 /// The spellings of declaration fragments, joined.
@@ -521,7 +548,7 @@ fn split_doc(lines: &[String]) -> (String, Vec<(String, String)>, Option<String>
         let indented = line.starts_with(' ') || line.starts_with('\t');
         if let Some(rest) = lower
             .strip_prefix("- parameter ")
-            .map(|_| &trimmed["- parameter ".len()..])
+            .and_then(|_| trimmed.get("- parameter ".len()..))
             && let Some((name, text)) = rest.split_once(':')
         {
             params.push((name.trim().to_owned(), text.trim().to_owned()));
@@ -532,8 +559,10 @@ fn split_doc(lines: &[String]) -> (String, Vec<(String, String)>, Option<String>
             open = Open::Block;
             continue;
         }
-        if lower.starts_with("- returns:") {
-            returns = Some(trimmed["- returns:".len()..].trim().to_owned());
+        if lower.starts_with("- returns:")
+            && let Some(tail) = trimmed.get("- returns:".len()..)
+        {
+            returns = Some(tail.trim().to_owned());
             open = Open::Returns;
             continue;
         }
@@ -626,17 +655,25 @@ fn declares(line: &str, keywords: &[&str], name: &str) -> bool {
     }
     for keyword in keywords {
         let mut from = 0;
-        while let Some(found) = line[from..].find(keyword) {
+        while let Some(found) = line.get(from..).and_then(|tail| tail.find(keyword)) {
             let start = from + found;
             let end = start + keyword.len();
             from = end;
-            if line[..start].ends_with(is_ident) || line[end..].starts_with(is_ident) {
+            if line
+                .get(..start)
+                .is_some_and(|head| head.ends_with(is_ident))
+                || line
+                    .get(end..)
+                    .is_some_and(|tail| tail.starts_with(is_ident))
+            {
                 continue;
             }
             if matches!(*keyword, "init" | "subscript") {
                 return true;
             }
-            let after = &line[end..];
+            let Some(after) = line.get(end..) else {
+                continue;
+            };
             let rest = after.trim_start();
             if rest.len() == after.len() {
                 continue;
@@ -669,7 +706,8 @@ fn locate(
     used: &BTreeSet<Place>,
 ) -> Option<Place> {
     let search = |file: usize, from: usize| {
-        lines[file]
+        lines
+            .get(file)?
             .iter()
             .enumerate()
             .skip(from.saturating_sub(1))

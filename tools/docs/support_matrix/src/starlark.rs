@@ -26,7 +26,9 @@ fn lex(text: &str) -> Result<Vec<Token>, String> {
     let mut col = 0;
     let mut depth = 0usize;
     while i < chars.len() {
-        let c = chars[i];
+        let Some(&c) = chars.get(i) else {
+            break;
+        };
         if c == '\n' {
             i += 1;
             col = 0;
@@ -43,7 +45,7 @@ fn lex(text: &str) -> Result<Vec<Token>, String> {
             continue;
         }
         if c == '#' {
-            while i < chars.len() && chars[i] != '\n' {
+            while chars.get(i).is_some_and(|&ch| ch != '\n') {
                 i += 1;
             }
             continue;
@@ -54,7 +56,9 @@ fn lex(text: &str) -> Result<Vec<Token>, String> {
             if raw {
                 i += 1;
             }
-            let quote = chars[i];
+            let Some(&quote) = chars.get(i) else {
+                return Err("unterminated string".to_owned());
+            };
             let triple = chars.get(i + 1) == Some(&quote) && chars.get(i + 2) == Some(&quote);
             i += if triple { 3 } else { 1 };
             let mut value = String::new();
@@ -101,8 +105,10 @@ fn lex(text: &str) -> Result<Vec<Token>, String> {
         }
         if c.is_ascii_alphabetic() || c == '_' {
             let mut ident = String::new();
-            while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
-                ident.push(chars[i]);
+            while let Some(&ch) = chars.get(i)
+                && (ch.is_ascii_alphanumeric() || ch == '_')
+            {
+                ident.push(ch);
                 i += 1;
                 col += 1;
             }
@@ -114,7 +120,10 @@ fn lex(text: &str) -> Result<Vec<Token>, String> {
             continue;
         }
         if c.is_ascii_digit() {
-            while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '.') {
+            while chars
+                .get(i)
+                .is_some_and(|ch| ch.is_ascii_alphanumeric() || *ch == '.')
+            {
                 i += 1;
                 col += 1;
             }
@@ -125,7 +134,7 @@ fn lex(text: &str) -> Result<Vec<Token>, String> {
             });
             continue;
         }
-        let two: String = chars[i..chars.len().min(i + 2)].iter().collect();
+        let two: String = chars.iter().skip(i).take(2).collect();
         let op = if ["==", "!=", "<=", ">=", "+=", "|=", "-=", "**", "//"].contains(&two.as_str()) {
             two
         } else {
@@ -171,8 +180,7 @@ pub struct File {
 /// Returns the tokens of one expression that starts at `start`, ending at a depth-0 `,` or close.
 fn expr_end(tokens: &[Token], start: usize, base: usize) -> usize {
     let mut i = start;
-    while i < tokens.len() {
-        let token = &tokens[i];
+    while let Some(token) = tokens.get(i) {
         if token.depth == base && is_op(Some(token), ",") {
             break;
         }
@@ -185,21 +193,23 @@ fn expr_end(tokens: &[Token], start: usize, base: usize) -> usize {
 }
 
 /// Splits the depth-`base + 1` arguments of a call that opens at `open`.
-fn call_args(tokens: &[Token], open: usize) -> (Vec<Vec<Token>>, usize) {
-    let inner = tokens[open].depth + 1;
+fn call_args(tokens: &[Token], open: usize) -> Option<(Vec<Vec<Token>>, usize)> {
+    let inner = tokens.get(open)?.depth + 1;
     let mut args = Vec::new();
     let mut i = open + 1;
-    while i < tokens.len() && !(tokens[i].depth == inner - 1 && is_op(Some(&tokens[i]), ")")) {
+    while let Some(token) = tokens.get(i)
+        && !(token.depth == inner - 1 && is_op(Some(token), ")"))
+    {
         let end = expr_end(tokens, i, inner);
         if end > i {
-            args.push(tokens[i..end].to_vec());
+            args.push(tokens.get(i..end)?.to_vec());
         }
         i = end;
         if is_op(tokens.get(i), ",") {
             i += 1;
         }
     }
-    (args, i + 1)
+    Some((args, i + 1))
 }
 
 /// Parses the top-level statements of a BUILD or `.bzl` file.
@@ -210,8 +220,7 @@ pub fn parse(path: &str, text: &str) -> Result<File, String> {
         ..File::default()
     };
     let mut i = 0;
-    while i < tokens.len() {
-        let token = &tokens[i];
+    while let Some(token) = tokens.get(i) {
         let top = token.col == 0 && token.depth == 0;
         let Tok::Ident(ident) = &token.tok else {
             i += 1;
@@ -223,20 +232,22 @@ pub fn parse(path: &str, text: &str) -> Result<File, String> {
         }
         if is_op(tokens.get(i + 1), "=") {
             let mut stop = i + 2;
-            while stop < tokens.len()
-                && !(tokens[stop].col == 0
-                    && tokens[stop].depth == 0
-                    && matches!(tokens[stop].tok, Tok::Ident(_)))
-            {
+            while tokens.get(stop).is_some_and(|next| {
+                !(next.col == 0 && next.depth == 0 && matches!(next.tok, Tok::Ident(_)))
+            }) {
                 stop += 1;
             }
-            file.assigns
-                .insert(ident.clone(), tokens[i + 2..stop].to_vec());
+            let Some(value) = tokens.get(i + 2..stop) else {
+                return Err(format!("{path}: cannot read an assignment"));
+            };
+            file.assigns.insert(ident.clone(), value.to_vec());
             i = stop;
             continue;
         }
         if is_op(tokens.get(i + 1), "(") {
-            let (args, next) = call_args(&tokens, i + 1);
+            let Some((args, next)) = call_args(&tokens, i + 1) else {
+                return Err(format!("{path}: cannot read a call"));
+            };
             if ident == "load" {
                 let mut source = None;
                 for arg in &args {
@@ -347,11 +358,19 @@ impl Eval<'_> {
         let mut start = 0;
         for (index, token) in tokens.iter().enumerate() {
             if token.depth == base && is_op(Some(token), "+") {
-                terms.push(&tokens[start..index]);
+                terms.push(
+                    tokens
+                        .get(start..index)
+                        .ok_or_else(|| self.err("cannot split the expression"))?,
+                );
                 start = index + 1;
             }
         }
-        terms.push(&tokens[start..]);
+        terms.push(
+            tokens
+                .get(start..)
+                .ok_or_else(|| self.err("cannot split the expression"))?,
+        );
         let mut value: Option<Value> = None;
         for term in terms {
             let next = self.atom(term)?;
@@ -427,7 +446,11 @@ impl Eval<'_> {
                     tok: Tok::Op(close),
                     ..
                 },
-            ] if name == "select" && open == "(" && close == ")" && wrapped(&tokens[1..]) => {
+            ] if name == "select"
+                && open == "("
+                && close == ")"
+                && tokens.get(1..).is_some_and(wrapped) =>
+            {
                 self.select(inner)
             }
             [
@@ -476,10 +499,15 @@ impl Eval<'_> {
             else {
                 return Err(self.err("a select() entry has no `:`"));
             };
-            let Value::Str(key) = self.sum(&entry[..colon])? else {
+            let (Some(key_tokens), Some(branch_tokens)) =
+                (entry.get(..colon), entry.get(colon + 1..))
+            else {
+                return Err(self.err("a select() entry has no `:`"));
+            };
+            let Value::Str(key) = self.sum(key_tokens)? else {
                 return Err(self.err("a select() key is not a string"));
             };
-            let Value::List(parts) = self.sum(&entry[colon + 1..])? else {
+            let Value::List(parts) = self.sum(branch_tokens)? else {
                 return Err(self.err("a select() branch is not a list"));
             };
             let mut items = Vec::new();
@@ -530,10 +558,10 @@ fn wrapped(tokens: &[Token]) -> bool {
     let Some(first) = tokens.first() else {
         return false;
     };
-    tokens.len() >= 2
-        && tokens[1..tokens.len() - 1]
-            .iter()
-            .all(|token| token.depth > first.depth)
+    let [_, middle @ .., _] = tokens else {
+        return false;
+    };
+    middle.iter().all(|token| token.depth > first.depth)
 }
 
 fn split_commas(tokens: &[Token]) -> Vec<&[Token]> {
@@ -541,16 +569,11 @@ fn split_commas(tokens: &[Token]) -> Vec<&[Token]> {
         return Vec::new();
     };
     let base = first.depth;
-    let mut out = Vec::new();
-    let mut start = 0;
-    for (index, token) in tokens.iter().enumerate() {
-        if token.depth == base && is_op(Some(token), ",") {
-            out.push(&tokens[start..index]);
-            start = index + 1;
-        }
-    }
-    if start < tokens.len() {
-        out.push(&tokens[start..]);
+    let mut out: Vec<&[Token]> = tokens
+        .split(|token| token.depth == base && is_op(Some(token), ","))
+        .collect();
+    if out.last().is_some_and(|last| last.is_empty()) {
+        out.pop();
     }
     out
 }

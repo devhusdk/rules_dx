@@ -1,5 +1,7 @@
 //! Command line entry for the PHP docs converter.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

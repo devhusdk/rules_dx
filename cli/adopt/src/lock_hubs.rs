@@ -131,7 +131,7 @@ fn build_script_cc_env_annotation() -> NewTag {
 
 /// The root manifests that `dx generate --apply` can lock: a cargo manifest without a cargo lock
 /// (an empty one counts as missing), a uv manifest without a uv lock, a pnpm manifest
-/// without a pnpm lock, and a composer or dub manifest without its lock.
+/// without a pnpm lock, and a composer, dub or luarocks manifest without its lock.
 pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
     let mut out = Vec::new();
     let cargo_lock = std::fs::metadata(root.join(lock_of("cargo")));
@@ -154,7 +154,9 @@ pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
         out.push(manifest_of("npm"));
     }
     for ecosystem in RESOLVER_LOCKS {
-        if root.join(manifest_of(ecosystem)).is_file() && !root.join(lock_of(ecosystem)).exists() {
+        if root_match(root, manifest_of(ecosystem)).is_some()
+            && root_match(root, lock_of(ecosystem)).is_none()
+        {
             out.push(manifest_of(ecosystem));
         }
     }
@@ -162,7 +164,23 @@ pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
 }
 
 /// The ecosystems whose lock comes from the pinned resolver of their `setup.hubs` entry.
-pub const RESOLVER_LOCKS: [&str; 2] = ["composer", "dub"];
+pub const RESOLVER_LOCKS: [&str; 3] = ["composer", "dub", "luarocks"];
+
+/// The file at the root of `root` matching `pattern`, which is a file name or `*<suffix>`.
+fn root_match(root: &Path, pattern: &str) -> Option<String> {
+    let Some(suffix) = pattern.strip_prefix('*') else {
+        return root.join(pattern).is_file().then(|| pattern.to_owned());
+    };
+    let mut names: Vec<String> = std::fs::read_dir(root)
+        .ok()?
+        .flatten()
+        .filter(|entry| entry.file_type().is_ok_and(|t| t.is_file()))
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name.ends_with(suffix) && name != suffix)
+        .collect();
+    names.sort();
+    names.into_iter().next()
+}
 
 /// True when the npm manifest at `path` lists a package in a dependency table.
 fn declares_dependency(path: &Path) -> bool {
@@ -608,18 +626,7 @@ impl Planner<'_> {
 
     /// The root file matching `pattern`, which is a file name or `*<suffix>`.
     fn root_file(&self, pattern: &str) -> Option<String> {
-        let Some(suffix) = pattern.strip_prefix('*') else {
-            return self.exists(pattern).then(|| pattern.to_owned());
-        };
-        let mut names: Vec<String> = std::fs::read_dir(self.root)
-            .ok()?
-            .flatten()
-            .filter(|entry| entry.file_type().is_ok_and(|t| t.is_file()))
-            .map(|entry| entry.file_name().to_string_lossy().into_owned())
-            .filter(|name| name.ends_with(suffix) && name != suffix)
-            .collect();
-        names.sort();
-        names.into_iter().next()
+        root_match(self.root, pattern)
     }
 
     fn lock_tag(&mut self, ecosystem: &str) -> Result<(), AdoptError> {
@@ -657,11 +664,11 @@ impl Planner<'_> {
         if !self.exists(&maven.manifest) || !self.exists(lock_name) {
             return Ok(());
         }
-        if self
-            .files
-            .iter()
-            .any(|file| !file.hub_bindings(&maven.extension, &maven.ecosystem).is_empty())
-        {
+        if self.files.iter().any(|file| {
+            !file
+                .hub_bindings(&maven.extension, &maven.ecosystem)
+                .is_empty()
+        }) {
             return Ok(());
         }
         let tags = vec![
@@ -860,7 +867,7 @@ mod tests {
 
     fn t(template: &str) -> &'static str {
         let mut text = template.to_owned();
-        for eco in ["cargo", "npm", "uv", "composer", "dub"] {
+        for eco in ["cargo", "npm", "uv", "composer", "dub", "luarocks"] {
             text = text.replace(&format!("{{{eco}:manifest}}"), manifest_of(eco));
             text = text.replace(&format!("{{{eco}:lock}}"), lock_of(eco));
         }
@@ -948,7 +955,10 @@ mod tests {
     #[test]
     fn maven_manifest_and_lock_get_a_from_toml_hub_with_no_coordinate() {
         let hubs = plan(&[
-            (manifest_of("maven"), "[libraries]\nguava = \"com.google.guava:guava:33.4.0-jre\"\n"),
+            (
+                manifest_of("maven"),
+                "[libraries]\nguava = \"com.google.guava:guava:33.4.0-jre\"\n",
+            ),
             (lock_of("maven"), "{}"),
         ]);
         let text = new_text(&hubs);
@@ -1074,6 +1084,16 @@ mod tests {
             ])
             .is_empty()
         );
+    }
+
+    #[test]
+    fn a_rockspec_without_its_lock_is_unlocked() {
+        assert_eq!(
+            unlocked(&[("app-1.0-1.rockspec", "")]),
+            [t("{luarocks:manifest}")]
+        );
+        assert!(unlocked(&[("app-1.0-1.rockspec", ""), (t("{luarocks:lock}"), "")]).is_empty());
+        assert!(unlocked(&[(".rockspec", "")]).is_empty());
     }
 
     #[test]

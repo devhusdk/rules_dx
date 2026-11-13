@@ -46,9 +46,10 @@ pub fn should_watch_path(relative: &Path) -> bool {
             && names
                 .get(1)
                 .is_some_and(|name| name == "local" || name == "bazelrc"));
-    let probe = names
-        .last()
-        .is_some_and(|name| name.to_lowercase().starts_with(".dx-case-probe-"));
+    let probe = names.last().is_some_and(|name| {
+        let name = name.to_lowercase();
+        name.starts_with(".dx-case-probe-") || name.starts_with(WATCH_START_MARKER)
+    });
     !root_ignored && !probe && !names.iter().any(|name| name == ".git")
 }
 
@@ -80,6 +81,22 @@ pub fn is_directory_touch(event: &notify::Event) -> bool {
     matches!(event.kind, EventKind::Modify(ModifyKind::Any))
         && !event.paths.is_empty()
         && event.paths.iter().all(|path| path.is_dir())
+}
+
+/// Name prefix of the file a session writes once its platform watcher is live.
+const WATCH_START_MARKER: &str = ".dx-watch-start-";
+
+/// Longest a session drops events while waiting for its start marker.
+const WATCH_START_GRACE: Duration = Duration::from_secs(2);
+
+/// Whether the platform watcher can replay changes made before it started.
+const REPLAYS_EARLIER_CHANGES: bool = cfg!(target_os = "macos");
+
+fn is_start_marker(event: &notify::Event) -> bool {
+    event.paths.iter().any(|path| {
+        path.file_name()
+            .is_some_and(|name| name.to_string_lossy().starts_with(WATCH_START_MARKER))
+    })
 }
 
 /// Poll interval for roots whose filesystem does not report changes.
@@ -119,7 +136,8 @@ enum Backend {
 }
 
 /// The platform watcher, or a poller when the config asks for `WATCH_POLL_INTERVAL`,
-/// with read-only access events dropped.
+/// with read-only access events dropped. Where the platform watcher replays earlier
+/// changes, events are dropped until the start marker arrives or `WATCH_START_GRACE` passes.
 pub struct ChangeWatcher(Backend);
 
 impl notify::Watcher for ChangeWatcher {
@@ -127,7 +145,19 @@ impl notify::Watcher for ChangeWatcher {
         mut handler: F,
         config: notify::Config,
     ) -> notify::Result<Self> {
+        let polled = config.poll_interval() == Some(WATCH_POLL_INTERVAL);
+        let mut live = polled || !REPLAYS_EARLIER_CHANGES;
+        let created = Instant::now();
         let filtered = move |event: notify::Result<notify::Event>| {
+            if let Ok(event) = &event
+                && !live
+            {
+                let marker = is_start_marker(event);
+                live = marker || created.elapsed() >= WATCH_START_GRACE;
+                if !live || marker {
+                    return;
+                }
+            }
             let relevant = match &event {
                 Ok(event) => {
                     is_change(&event.kind) && !(cfg!(windows) && is_directory_touch(event))
@@ -138,7 +168,7 @@ impl notify::Watcher for ChangeWatcher {
                 handler.handle_event(event);
             }
         };
-        if config.poll_interval() == Some(WATCH_POLL_INTERVAL) {
+        if polled {
             notify::PollWatcher::new(filtered, config).map(|w| ChangeWatcher(Backend::Poll(w)))
         } else {
             notify::RecommendedWatcher::new(filtered, config)
@@ -235,6 +265,18 @@ impl WatchSession {
             .map_err(|e| AdoptError::WatchSpawn {
                 detail: e.to_string(),
             })?;
+        if REPLAYS_EARLIER_CHANGES && !poll {
+            let marker = watch_root.join(format!(
+                "{WATCH_START_MARKER}{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |since| since.as_nanos())
+            ));
+            if std::fs::write(&marker, b"").is_ok() {
+                let _ = std::fs::remove_file(&marker);
+            }
+        }
         let canonical_root = watch_root
             .canonicalize()
             .unwrap_or_else(|_| watch_root.to_path_buf());
@@ -459,6 +501,22 @@ mod tests {
     fn watch_ignores_case_probe_files() {
         assert!(!should_watch_path(Path::new("src/.dx-case-probe-1-0")));
         assert!(!should_watch_path(Path::new(".DX-CASE-PROBE-1-0")));
+        assert!(!should_watch_path(Path::new(".dx-watch-start-1-0")));
+    }
+
+    #[test]
+    fn watch_session_drops_changes_made_before_it_started() {
+        let scratch = dx_test_scratch::scratch("dx-watch-before-start-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join("src")).expect("src");
+        std::fs::write(root.join("src/early.rs"), "").expect("early");
+        let session = WatchSession::start_with(&root, &[], false).expect("session");
+        std::fs::write(root.join("src/late.rs"), "").expect("late");
+        let seen = wait_for(&session, "late.rs");
+        assert!(
+            seen.iter().all(|path| path.ends_with("late.rs")),
+            "{seen:?}"
+        );
     }
 
     #[test]

@@ -276,7 +276,7 @@ fn init_and_completion_run_without_a_workspace() {
     let tools = root.join("fake-bin");
     std::fs::create_dir_all(&tools).expect("fake bin");
     let bazel = tools.join("bazel");
-    std::fs::write(&bazel, "#!/bin/true\n").expect("fake bazel");
+    std::fs::write(&bazel, "#!/bin/sh\nexit 0\n").expect("fake bazel");
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;

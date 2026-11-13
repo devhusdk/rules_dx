@@ -25,9 +25,9 @@ while [ -s "$queue" ]; do
     fi
     echo "$image" >>"$seen"
     dir="$(dirname "$image")"
-    id="$(otool -D "$image" | awk 'NR > 1 { print $1 }')"
+    id="$(otool -D "$image" | awk '!/:$/ { print $1; exit }')"
     rpaths="$(otool -l "$image" | awk '$1 == "cmd" && $2 == "LC_RPATH" { want = 1 } want && $1 == "path" { print $2; want = 0 }')"
-    for dep in $(otool -L "$image" | awk 'NR > 1 { print $1 }'); do
+    for dep in $(otool -L "$image" | awk '/^\t/ { print $1 }' | sort -u); do
         case "$dep" in
         /usr/lib/* | /System/*) continue ;;
         "$id") continue ;;

@@ -232,9 +232,6 @@ fn host_leaks(paths: &BTreeSet<String>) -> Vec<String> {
 
 fn expected_platform_plugins() -> BTreeSet<String> {
     let mut plugins = BTreeSet::from(["minimal".to_owned(), "offscreen".to_owned()]);
-    if cfg!(target_os = "macos") {
-        plugins.insert("cocoa".to_owned());
-    }
     // The Windows archive ships these in plugins/platforms beside the pinned ones.
     if cfg!(windows) {
         plugins.extend(["direct2d".to_owned(), "windows".to_owned()]);

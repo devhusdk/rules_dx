@@ -185,6 +185,8 @@ rust_test(
         "@dx_qt//:licenses",
         "@dx_qt//:moc",
         "@dx_qt//:platforms",
+        "@dx_qt//:plugins_imageformats",
+        "@dx_qt//:plugins_tls",
         "@dx_qt//:qml_imports",
         "@dx_qt//:qmlformat",
         "@dx_qt//:qmllint",

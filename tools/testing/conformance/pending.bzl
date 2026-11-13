@@ -57,7 +57,6 @@ capnproto fail_test *
 capnproto lock_test *
 capnproto pass_test *
 capnproto runfiles_test *
-cc cross_test macos_arm64
 cc lock_test *
 cloudformation build_test *
 cloudformation coverage_test *
@@ -83,7 +82,6 @@ cuda runfiles_test *
 d cross_test *
 d lock_test *
 d runfiles_test *
-dart cross_test macos_arm64
 dart lock_test *
 dart runfiles_test *
 dockerfile build_test *
@@ -123,7 +121,6 @@ fortran runfiles_test *
 fsharp cross_test *
 fsharp lock_test *
 fsharp runfiles_test *
-go cross_test macos_arm64
 haskell cross_test *
 haskell lock_test *
 haskell runfiles_test *
@@ -206,7 +203,6 @@ rst runfiles_test *
 ruby cross_test *
 ruby lock_test *
 ruby runfiles_test *
-rust cross_test macos_arm64
 scala cross_test *
 scala lock_test *
 sql build_test *
@@ -237,7 +233,6 @@ typescript cross_test *
 typescript lock_test *
 typescript runfiles_test *
 zig coverage_test windows_x86_64
-zig cross_test macos_arm64
 zig lock_test *
 zig runfiles_test *
 """

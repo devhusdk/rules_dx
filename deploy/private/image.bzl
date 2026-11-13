@@ -6,6 +6,7 @@ load("@rules_pkg//pkg:providers.bzl", "PackageFilesInfo")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load(":image_quality.bzl", "oci_image_quality")
 load(":validate_image.bzl", "IMAGE_BASES", "IMAGE_LABEL_PLATFORMS", "IMAGE_PLATFORM_LABELS", "IMAGE_RUNTIMES", "image_options_error")
+load("//core:msvc_crt.bzl", "msvc_crt_static_flag")
 load("//core/quality:sources.bzl", "single_target")
 
 _RUNTIME_LAYOUT = {
@@ -60,13 +61,18 @@ def image_entrypoint(base, app, main = None, main_class = None, runtime = False)
         return [("/opt/java" if runtime else "/usr") + "/bin/java", "-cp", "/app/lib/*", main_class or "@/app/lib/main.args"], {}
     return ["/app/" + app], {}
 
-def _platform_transition_impl(_settings, attr):
-    return {"//command_line_option:platforms": str(attr.platform)}
+_EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
+
+def _platform_transition_impl(settings, attr):
+    return {
+        "//command_line_option:platforms": str(attr.platform),
+        _EXTRA_RUSTC_FLAG: [flag for flag in settings[_EXTRA_RUSTC_FLAG] if not msvc_crt_static_flag(flag)],
+    }
 
 _platform_transition = transition(
     implementation = _platform_transition_impl,
-    inputs = [],
-    outputs = ["//command_line_option:platforms"],
+    inputs = [_EXTRA_RUSTC_FLAG],
+    outputs = ["//command_line_option:platforms", _EXTRA_RUSTC_FLAG],
 )
 
 def _for_platform_impl(ctx):

@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use clap::Parser;
 use quality_result::{decode_validated, proto};
 

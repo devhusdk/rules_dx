@@ -857,8 +857,11 @@ mod tests {
             [("shellcheck".to_owned(), PathBuf::from("bin/shellcheck"))]
         );
         assert!(
-            parse_real_request(&doc("actionlint", json!([{"name": "diff", "binary": "bin/diff"}])))
-                .is_err()
+            parse_real_request(&doc(
+                "actionlint",
+                json!([{"name": "diff", "binary": "bin/diff"}])
+            ))
+            .is_err()
         );
         assert!(parse_real_request(&doc("vale", shellcheck)).is_err());
     }

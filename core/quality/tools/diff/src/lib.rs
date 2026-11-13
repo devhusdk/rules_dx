@@ -1,5 +1,7 @@
 //! `diff -u OLD NEW`: the unified diff of two files, for tools that exec `diff` from PATH.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::ffi::OsString;
 use std::io::Write;
 use std::path::Path;

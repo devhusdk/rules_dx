@@ -4,6 +4,8 @@
 //! can move to its own crate. The scanner keeps byte spans into the original
 //! text so a rewrite can touch only the bytes of the edited cells.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::fmt;
 
 mod cli;
@@ -212,7 +214,7 @@ impl Scanner<'_> {
 /// Decodes the JSON string at `span` (quotes included) into scalars paired
 /// with the byte offset where each scalar starts in the raw text.
 fn decode_string(text: &str, span: Span) -> Vec<(char, usize)> {
-    let inner = &text[span.0 + 1..span.1 - 1];
+    let inner = text.get(span.0 + 1..span.1 - 1).unwrap_or_default();
     let base = span.0 + 1;
     let mut out = Vec::with_capacity(inner.len());
     let mut iter = inner.char_indices().peekable();
@@ -314,7 +316,7 @@ impl<'a> Notebook<'a> {
 
     fn lit(&self, node: &Node) -> &'a str {
         let (start, end) = node.span();
-        &self.text[start..end]
+        self.text.get(start..end).unwrap_or_default()
     }
 
     fn from_root(text: &'a str, root: &Node) -> Result<Self, NotebookError> {
@@ -493,7 +495,7 @@ impl<'a> Notebook<'a> {
                 let trimmed = line.trim_start();
                 if cell_magic {
                 } else if trimmed.starts_with('%') || trimmed.starts_with('!') {
-                    source.push_str(&line[..line.len() - trimmed.len()]);
+                    source.push_str(line.strip_suffix(trimmed).unwrap_or_default());
                     source.push_str("pass");
                 } else {
                     source.push_str(line);
@@ -548,10 +550,10 @@ impl<'a> Notebook<'a> {
                 chars.get(at).map_or(end, |(_, raw)| *raw)
             }
         };
-        let before = &self.text[..offset];
+        let before = self.text.get(..offset)?;
         let line = before.matches('\n').count() as u64 + 1;
         let line_start = before.rfind('\n').map_or(0, |at| at + 1);
-        let col = before[line_start..].chars().count() as u64 + 1;
+        let col = before.get(line_start..).unwrap_or_default().chars().count() as u64 + 1;
         Some((line, col))
     }
 }
@@ -616,17 +618,18 @@ fn strip_final_newline(text: &str) -> &str {
 }
 
 fn line_indent(text: &str, at: usize) -> &str {
-    let start = text[..at].rfind('\n').map_or(0, |i| i + 1);
-    let rest = &text[start..at];
-    let len = rest.len() - rest.trim_start_matches([' ', '\t']).len();
-    &rest[..len]
+    let head = text.get(..at).unwrap_or_default();
+    let start = head.rfind('\n').map_or(0, |i| i + 1);
+    let rest = head.get(start..).unwrap_or_default();
+    rest.strip_suffix(rest.trim_start_matches([' ', '\t']))
+        .unwrap_or_default()
 }
 
 fn indent_unit(text: &str) -> &str {
     text.lines()
         .map(|line| {
-            let len = line.len() - line.trim_start_matches([' ', '\t']).len();
-            &line[..len]
+            line.strip_suffix(line.trim_start_matches([' ', '\t']))
+                .unwrap_or_default()
         })
         .find(|indent| !indent.is_empty())
         .unwrap_or(" ")
@@ -640,11 +643,12 @@ fn render_lines(original: &str, source: &Source, new_text: &str, eol: &str) -> S
     if lines_new.is_empty() {
         return "[]".to_owned();
     }
-    let multiline = lines
-        .first()
-        .is_some_and(|first| original[span.0..first.0].contains('\n'));
-    let (elem, close) = if multiline {
-        let first = lines[0];
+    let multiline_first = lines.first().filter(|first| {
+        original
+            .get(span.0..first.0)
+            .is_some_and(|gap| gap.contains('\n'))
+    });
+    let (elem, close) = if let Some(first) = multiline_first {
         let closing = line_indent(original, span.1 - 1);
         (
             line_indent(original, first.0).to_owned(),
@@ -722,13 +726,13 @@ pub fn splice_sources(original: &str, rewritten: &str) -> Result<String, Noteboo
     let check = Notebook::parse(&out)
         .map_err(|err| NotebookError::Splice(format!("result is not a notebook: {err}")))?;
     for (at, (cell, want)) in check.cells.iter().zip(&expected).enumerate() {
-        if let Some(want) = want {
-            if check.source_text(cell).as_deref() != Some(want.as_str()) {
-                return Err(NotebookError::Splice(format!(
-                    "cell {} did not round-trip",
-                    at + 1
-                )));
-            }
+        if let Some(want) = want
+            && check.source_text(cell).as_deref() != Some(want.as_str())
+        {
+            return Err(NotebookError::Splice(format!(
+                "cell {} did not round-trip",
+                at + 1
+            )));
         }
     }
     Ok(out)

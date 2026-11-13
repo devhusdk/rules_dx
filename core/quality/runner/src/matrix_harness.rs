@@ -7,6 +7,8 @@
 //! golden bytes, and stages snapshot updates. No Bash, python3, diff, cp, or
 //! mkdir processes are launched.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -483,9 +485,9 @@ pub fn validate_result(bytes: &[u8], manifest: &Manifest) -> Result<(), HarnessE
 fn header_count(lines: &[&str], prefix: &str) -> Result<usize, HarnessError> {
     for line in lines {
         let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() == 2
-            && parts[0] == prefix
-            && let Ok(count) = parts[1].parse::<usize>()
+        if let [name, value] = parts.as_slice()
+            && *name == prefix
+            && let Ok(count) = value.parse::<usize>()
         {
             return Ok(count);
         }
@@ -505,7 +507,10 @@ fn body_rows(lines: &[&str], prefix: &str) -> usize {
 pub fn check_printed(text: &str, stages: usize) -> Result<(), HarnessError> {
     let lines: Vec<&str> = text.split('\n').collect();
     let body: Vec<&str> = if text.ends_with('\n') {
-        lines[..lines.len().saturating_sub(1)].to_vec()
+        lines
+            .get(..lines.len().saturating_sub(1))
+            .unwrap_or_default()
+            .to_vec()
     } else {
         return Err(HarnessError::BadPrint {
             detail: "print_result must end with newline".to_owned(),
@@ -516,20 +521,19 @@ pub fn check_printed(text: &str, stages: usize) -> Result<(), HarnessError> {
             detail: "empty print_result".to_owned(),
         });
     }
-    if !body[0].starts_with("producer //") {
+    let first = body.first().copied().unwrap_or_default();
+    if !first.starts_with("producer //") {
         return Err(HarnessError::BadPrint {
             detail: format!(
                 "first line must be producer: {}",
-                body[0].chars().take(80).collect::<String>()
+                first.chars().take(80).collect::<String>()
             ),
         });
     }
-    if body.len() < 2
-        || !matches!(
-            body[1],
-            "capability LINT" | "capability FORMAT" | "capability TYPECHECK"
-        )
-    {
+    if !matches!(
+        body.get(1).copied(),
+        Some("capability LINT" | "capability FORMAT" | "capability TYPECHECK")
+    ) {
         return Err(HarnessError::BadPrint {
             detail: format!(
                 "bad capability: {}",
@@ -596,20 +600,24 @@ pub fn render_diff(expected: &[u8], actual: &[u8]) -> String {
     let mut prefix = 0;
     while prefix < expected_lines.len()
         && prefix < actual_lines.len()
-        && expected_lines[prefix] == actual_lines[prefix]
+        && expected_lines.get(prefix) == actual_lines.get(prefix)
     {
         prefix += 1;
     }
     let mut suffix = 0;
     while suffix < expected_lines.len() - prefix
         && suffix < actual_lines.len() - prefix
-        && expected_lines[expected_lines.len() - 1 - suffix]
-            == actual_lines[actual_lines.len() - 1 - suffix]
+        && expected_lines.get(expected_lines.len() - 1 - suffix)
+            == actual_lines.get(actual_lines.len() - 1 - suffix)
     {
         suffix += 1;
     }
-    let expected_mid = &expected_lines[prefix..expected_lines.len() - suffix];
-    let actual_mid = &actual_lines[prefix..actual_lines.len() - suffix];
+    let expected_mid = expected_lines
+        .get(prefix..expected_lines.len() - suffix)
+        .unwrap_or_default();
+    let actual_mid = actual_lines
+        .get(prefix..actual_lines.len() - suffix)
+        .unwrap_or_default();
     let mut out = String::from("--- expected\n+++ actual\n");
     let mut shown = 0;
     for (index, line) in expected_mid.iter().enumerate() {
@@ -869,19 +877,25 @@ pub fn normalize_scratch(text: &str, scratch_parent: &str) -> String {
     );
     let mut out = String::with_capacity(text.len());
     let mut at = 0;
-    while let Some(found) = flat[at..].find(&prefix) {
+    while let Some(found) = flat.get(at..).unwrap_or_default().find(&prefix) {
         let start = at + found;
-        out.push_str(&text[at..start]);
+        out.push_str(text.get(at..start).unwrap_or_default());
         out.push_str(SCRATCH_TOKEN);
         let after = start + prefix.len();
-        let dir_end = flat[after..].find('/').map_or(flat.len(), |i| after + i);
-        let path_end = flat[dir_end..]
+        let dir_end = flat
+            .get(after..)
+            .unwrap_or_default()
+            .find('/')
+            .map_or(flat.len(), |i| after + i);
+        let path_end = flat
+            .get(dir_end..)
+            .unwrap_or_default()
             .find([' ', ':', '\n'])
             .map_or(flat.len(), |i| dir_end + i);
-        out.push_str(&flat[dir_end..path_end]);
+        out.push_str(flat.get(dir_end..path_end).unwrap_or_default());
         at = path_end;
     }
-    out.push_str(&text[at..]);
+    out.push_str(text.get(at..).unwrap_or_default());
     out
 }
 

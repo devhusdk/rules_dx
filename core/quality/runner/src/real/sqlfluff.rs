@@ -143,7 +143,7 @@ fn plan_configs(
             files: group
                 .files
                 .iter()
-                .map(|rel| by_rel[rel].to_path_buf())
+                .filter_map(|rel| by_rel.get(rel).map(|path| path.to_path_buf()))
                 .collect(),
         });
     }

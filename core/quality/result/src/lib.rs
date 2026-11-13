@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod build_deps;
 
 use proto::{
@@ -238,13 +240,13 @@ fn check_edits(file: &FileEdits) -> Result<(), Error> {
                 index,
             });
         }
-        if let Some(previous) = previous {
-            if previous.start_byte >= edit.start_byte || previous.end_byte > edit.start_byte {
-                return Err(Error::EditOrder {
-                    path: file.path.clone(),
-                    index,
-                });
-            }
+        if let Some(previous) = previous
+            && (previous.start_byte >= edit.start_byte || previous.end_byte > edit.start_byte)
+        {
+            return Err(Error::EditOrder {
+                path: file.path.clone(),
+                index,
+            });
         }
         previous = Some(edit);
     }
@@ -333,8 +335,10 @@ pub fn assert_all_equal<T: PartialEq + std::fmt::Debug>(items: &[T]) {
         !items.is_empty(),
         "assert_all_equal: want at least one item"
     );
-    for other in items.iter().skip(1) {
-        assert_eq!(&items[0], other);
+    if let Some(first) = items.first() {
+        for other in items.iter().skip(1) {
+            assert_eq!(first, other);
+        }
     }
 }
 

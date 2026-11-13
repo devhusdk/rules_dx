@@ -1,6 +1,8 @@
 //! Runs a language server over stdio, opens files and collects the
 //! diagnostics it publishes, for servers that have no batch mode.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 pub mod entry;
 
 use serde_json::{Value, json};
@@ -94,7 +96,10 @@ pub fn read_message(input: &mut impl BufRead) -> std::io::Result<Option<Value>> 
             }
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("server wrote non-LSP output: {}", &text[..end]),
+                format!(
+                    "server wrote non-LSP output: {}",
+                    text.get(..end).unwrap_or_default()
+                ),
             ));
         }
     }
@@ -112,16 +117,25 @@ pub fn read_message(input: &mut impl BufRead) -> std::io::Result<Option<Value>> 
 }
 
 fn diagnostics_from(file: &Path, params: &Value) -> Vec<Diagnostic> {
-    let items = params["diagnostics"]
-        .as_array()
+    let items = params
+        .get("diagnostics")
+        .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
     items
         .iter()
         .map(|item| Diagnostic {
             file: file.to_path_buf(),
-            line: item["range"]["start"]["line"].as_u64().unwrap_or(0) + 1,
-            col: item["range"]["start"]["character"].as_u64().unwrap_or(0) + 1,
+            line: item
+                .pointer("/range/start/line")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                + 1,
+            col: item
+                .pointer("/range/start/character")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                + 1,
             severity: item["severity"].as_u64().unwrap_or(1),
             code: match &item["code"] {
                 Value::String(code) => code.clone(),
@@ -193,9 +207,14 @@ where
     )?;
     loop {
         match recv(Duration::from_millis(100))? {
-            Some(message) if message["id"] == 1 && message.get("method").is_none() => {
+            Some(message)
+                if message.get("id") == Some(&json!(1)) && message.get("method").is_none() =>
+            {
                 if message.get("error").is_some() {
-                    return Err(format!("initialize failed: {}", message["error"]));
+                    return Err(format!(
+                        "initialize failed: {}",
+                        message.get("error").unwrap_or(&Value::Null)
+                    ));
                 }
                 break;
             }
@@ -245,10 +264,11 @@ where
         let Some(message) = recv(Duration::from_millis(50))? else {
             continue;
         };
-        if message["method"] == "textDocument/publishDiagnostics" {
-            let uri = message["params"]["uri"].as_str().unwrap_or("");
+        if message.get("method") == Some(&json!("textDocument/publishDiagnostics")) {
+            let params = message.get("params").unwrap_or(&Value::Null);
+            let uri = params.get("uri").and_then(Value::as_str).unwrap_or("");
             if let Some(file) = by_uri.get(uri) {
-                latest.insert(uri.to_string(), diagnostics_from(file, &message["params"]));
+                latest.insert(uri.to_string(), diagnostics_from(file, params));
                 last_publish = Instant::now();
             }
         } else {

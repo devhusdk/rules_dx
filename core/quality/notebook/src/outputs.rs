@@ -27,21 +27,24 @@ pub struct OutputFinding {
 
 fn dirty_outputs(text: &str, cell: &Cell) -> Option<Span> {
     let span = cell.outputs?;
-    let raw = &text[span.0..span.1];
+    let raw = text.get(span.0..span.1)?;
     let inner = raw.strip_prefix('[')?.strip_suffix(']')?;
     (!inner.trim().is_empty()).then_some(span)
 }
 
 fn dirty_count(text: &str, cell: &Cell) -> Option<Span> {
     let span = cell.execution_count?;
-    (&text[span.0..span.1] != "null").then_some(span)
+    (text.get(span.0..span.1)? != "null").then_some(span)
 }
 
 fn position(text: &str, offset: usize) -> (u64, u64) {
-    let before = &text[..offset];
+    let before = text.get(..offset).unwrap_or_default();
     let line = before.matches('\n').count() as u64 + 1;
     let start = before.rfind('\n').map_or(0, |at| at + 1);
-    (line, before[start..].chars().count() as u64 + 1)
+    (
+        line,
+        before.get(start..).unwrap_or_default().chars().count() as u64 + 1,
+    )
 }
 
 fn dirty_fields(notebook: &Notebook<'_>) -> Vec<(usize, &'static str, Span)> {

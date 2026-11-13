@@ -1130,7 +1130,7 @@ pub(super) fn ruff_behavior(argv: &[OsString]) -> io::Result<ChildOutput> {
         for line in text.split_inclusive('\n') {
             let trailing = line.ends_with('\n');
             let body = if trailing {
-                &line[..line.len() - 1]
+                line.strip_suffix('\n').unwrap_or(line)
             } else {
                 line
             };
@@ -1203,7 +1203,10 @@ pub(super) fn ruff_multi_behavior(
         };
         if let Some(template) = template {
             let entry = template.replace("FILE", &json_escape(&name));
-            entries.push(entry[1..entry.len() - 1].to_owned());
+            let mut chars = entry.chars();
+            chars.next();
+            chars.next_back();
+            entries.push(chars.as_str().to_owned());
         }
     }
     Ok(ChildOutput {

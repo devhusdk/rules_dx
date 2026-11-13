@@ -41,8 +41,9 @@ fn parse(args: &[String]) -> Result<(Options, Vec<String>, Vec<PathBuf>), String
     let Some(split) = rest.iter().position(|arg| arg == "--") else {
         return Err("missing second --".to_string());
     };
-    let server = rest[..split].to_vec();
-    let files = rest[split + 1..].iter().map(PathBuf::from).collect();
+    let (server, tail) = rest.split_at(split);
+    let server = server.to_vec();
+    let files = tail.iter().skip(1).map(PathBuf::from).collect();
     if server.is_empty() {
         return Err("missing server command".to_string());
     }
@@ -66,13 +67,16 @@ fn run(args: &[String]) -> Result<bool, String> {
         .map(|file| std::path::absolute(file).map_err(|error| error.to_string()))
         .collect::<Result<_, _>>()?;
     // Streams LSP over piped stdio for the whole session, so it is not a capture launch.
-    let mut child = Command::new(&server[0])
-        .args(&server[1..])
+    let Some((program, program_args)) = server.split_first() else {
+        return Err("missing server command".to_string());
+    };
+    let mut child = Command::new(program)
+        .args(program_args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()
-        .map_err(|error| format!("start {}: {error}", server[0]))?;
+        .map_err(|error| format!("start {program}: {error}"))?;
     let (Some(stdin), Some(stdout)) = (child.stdin.take(), child.stdout.take()) else {
         return Err("server pipes unavailable".to_string());
     };
@@ -88,7 +92,7 @@ fn run(args: &[String]) -> Result<bool, String> {
         let original = absolute
             .iter()
             .position(|file| *file == d.file)
-            .map(|i| files[i].clone())
+            .and_then(|i| files.get(i).cloned())
             .unwrap_or_else(|| d.file.clone());
         (d, original)
     }) {

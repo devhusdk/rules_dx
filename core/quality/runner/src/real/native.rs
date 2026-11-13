@@ -201,8 +201,12 @@ fn dart(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Run
     let scratch_prefix = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
     let mut owned = Vec::with_capacity(found.len());
     for mut item in found {
-        if let Some(at) = file_names.iter().position(|name| *name == item.file) {
-            item.file = names[at].clone();
+        if let Some(name) = file_names
+            .iter()
+            .position(|name| *name == item.file)
+            .and_then(|at| names.get(at))
+        {
+            item.file = name.clone();
         }
         item.finding.message = item.finding.message.replace(&scratch_prefix, "");
         owned.push(item);

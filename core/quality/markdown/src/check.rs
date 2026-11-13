@@ -124,17 +124,23 @@ enum EmptyRejection {
     Neither,
 }
 
+fn previous_arg(args: &[String], index: usize) -> Option<&str> {
+    index
+        .checked_sub(1)
+        .and_then(|previous| args.get(previous))
+        .map(String::as_str)
+}
+
 fn empty_rejection(args: &[String]) -> EmptyRejection {
     for (index, arg) in args.iter().enumerate() {
         if arg == "--source=" || arg == "--sibling=" {
             return EmptyRejection::Attached(arg.clone());
         }
-        if arg.is_empty() && index > 0 {
-            if args[index - 1] == "--sibling" {
-                return EmptyRejection::Separate("--sibling");
-            }
-            if args[index - 1] == "--source" {
-                return EmptyRejection::Separate("--source");
+        if arg.is_empty() {
+            match previous_arg(args, index) {
+                Some("--sibling") => return EmptyRejection::Separate("--sibling"),
+                Some("--source") => return EmptyRejection::Separate("--source"),
+                _ => {}
             }
         }
     }
@@ -155,12 +161,11 @@ fn check_mapping(flag: &str, raw: &str, error: &clap::Error) -> Vec<String> {
 
 fn rejecting_flag(args: &[String], raw: &str) -> &'static str {
     for (index, arg) in args.iter().enumerate() {
-        if arg == raw && index > 0 {
-            if args[index - 1] == "--sibling" {
-                return "--sibling";
-            }
-            if args[index - 1] == "--source" {
-                return "--source";
+        if arg == raw {
+            match previous_arg(args, index) {
+                Some("--sibling") => return "--sibling",
+                Some("--source") => return "--source",
+                _ => {}
             }
         }
     }

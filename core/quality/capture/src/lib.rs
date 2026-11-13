@@ -1,5 +1,7 @@
 //! Runs one program with its streams redirected to files and its exit code recorded.
 
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};

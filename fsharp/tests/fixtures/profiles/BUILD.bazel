@@ -19,10 +19,10 @@ real_source_target(
         testonly = True,
         srcs = ["Short.fs"] + configs,
         outs = ["lint_" + name + ".jsonl"],
-        cmd = "$(location @rules_dx//core/quality/tools/dotnet/fsharplint:runner) %s --compile $$PWD/$(location Short.fs) $$PWD/$(location Short.fs) > $@ || test $$? -le 1" % (
+        cmd = "$(location @rules_dx//dotnet/private/quality/tools/fsharplint:runner) %s --compile $$PWD/$(location Short.fs) $$PWD/$(location Short.fs) > $@ || test $$? -le 1" % (
             "--config $$PWD/$(location %s)" % configs[0] if configs else ""
         ),
-        tools = ["@rules_dx//core/quality/tools/dotnet/fsharplint:runner"],
+        tools = ["@rules_dx//dotnet/private/quality/tools/fsharplint:runner"],
     )
     for name, configs in {
         "default": [],

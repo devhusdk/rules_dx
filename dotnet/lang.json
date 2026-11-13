@@ -25,7 +25,7 @@
   ],
   "entry_points": [],
   "quality": {
-    "bzl": "core/quality:families/dotnet.bzl",
+    "bzl": "dotnet/private/quality:dotnet.bzl",
     "file_extensions": [
       ".cs",
       ".csproj",

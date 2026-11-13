@@ -1041,7 +1041,7 @@ mod tests {
                     "@rules_dx//rust/private/quality:rust.bzl%real_rust_typecheck_aspect"
                 )
                 && arg.contains(
-                    "@rules_dx//core/quality:families/dotnet.bzl%real_dotnet_typecheck_aspect"
+                    "@rules_dx//dotnet/private/quality:dotnet.bzl%real_dotnet_typecheck_aspect"
                 )
                 && arg.contains(
                     "@rules_dx//javascript/private/quality:js.bzl%real_js_typecheck_aspect"

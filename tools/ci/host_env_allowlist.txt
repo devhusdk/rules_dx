@@ -109,8 +109,6 @@ core/quality/testdata/runner_matrix_file_family.bzl shebang 8
 core/quality/tests/fixtures/prose-docs/BUILD.bazel sh-rule 1
 core/quality/tests/fixtures/prose-docs/bundle_test.sh shebang 1
 core/quality/tool_config_docs.bzl genrule 1
-core/quality/tools/dotnet/fsharplint/BUILD.bazel sh-rule 1
-core/quality/tools/dotnet/fsharplint/fsharplint.sh shebang 1
 core/quality/tools/python_bundle/BUILD.bazel sh-rule 1
 core/quality/tools/python_bundle/build_bundle.sh shebang 1
 core/tests/execution_tests.bzl home 4
@@ -183,6 +181,8 @@ deploy/private/validate_tests.bzl home 2
 deploy/tests/fixtures/consumer_resources/BUILD.bazel genrule 1
 deploy/tests/fixtures/linux_package/BUILD.bazel genrule 2
 deploy/tests/runfiles/deploy_runfiles_test.rs shebang 1
+dotnet/private/quality/tools/fsharplint/BUILD.bazel sh-rule 1
+dotnet/private/quality/tools/fsharplint/fsharplint.sh shebang 1
 elixir/private/tools/launcher.bzl home 2
 elixir/tests/fixtures/elixir_app/catalog/BUILD.bazel genrule 1
 env/private/stubs/BUILD.bazel sh-rule 1

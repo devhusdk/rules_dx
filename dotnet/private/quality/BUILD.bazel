@@ -1,0 +1,34 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = [
+    "//:__pkg__",
+    "//core/quality:__subpackages__",
+    "//csharp:__subpackages__",
+    "//dotnet:__subpackages__",
+    "//fsharp:__subpackages__",
+    "//tools/ci:__pkg__",
+])
+
+exports_files([
+    "dotnet.bzl",
+    "dotnet_tools.bzl",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "dotnet.bzl",
+        "dotnet_tools.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

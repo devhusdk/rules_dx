@@ -306,7 +306,6 @@ name-prefix capnproto/defs.bzl
 name-prefix elixir/defs.bzl
 name-prefix erlang/defs.bzl
 outside-lang core/quality/tools/cc
-outside-lang core/quality/tools/dotnet
 outside-lang core/quality/tools/python
 outside-lang tools/coverage/d
 pins cc/lang.json

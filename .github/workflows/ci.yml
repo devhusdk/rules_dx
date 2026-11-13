@@ -847,41 +847,14 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
-      - name: Aggregate job results
+      - name: Fail when a needed job did not succeed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
         env:
-          NEEDS_COVERAGE_CELLS: ${{ needs.coverage-cells.result }}
-          NEEDS_DOGFOOD: ${{ needs.dogfood.result }}
-          NEEDS_DOCS: ${{ needs.docs.result }}
-          NEEDS_DETERMINISM: ${{ needs.determinism.result }}
-          NEEDS_DEVCONTAINER_CHECK: ${{ needs.devcontainer-check.result }}
-          NEEDS_GATE: ${{ needs.gate.result }}
-          NEEDS_GCC_CROSS_BUILD: ${{ needs.gcc-cross-build.result }}
-          NEEDS_GCC_CROSS_RUN_ARM64: ${{ needs.gcc-cross-run-arm64.result }}
-          NEEDS_HERMETIC: ${{ needs.hermetic.result }}
-          NEEDS_HERMETIC_ARM64: ${{ needs.hermetic-arm64.result }}
-          NEEDS_HERMETIC_MACOS: ${{ needs.hermetic-macos.result }}
-          NEEDS_HERMETIC_WINDOWS: ${{ needs.hermetic-windows.result }}
-          NEEDS_MSIX_INSTALL: ${{ needs.msix-install.result }}
-          NEEDS_NETWORK: ${{ needs.network.result }}
-          NEEDS_PREFLIGHT: ${{ needs.preflight.result }}
-          NEEDS_STARTER_CONSUMER: ${{ needs.starter-consumer.result }}
-          NEEDS_WORKFLOW_CHECK: ${{ needs.workflow-check.result }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
-          set -eu
-          export LC_ALL=C
-          required=(coverage-cells dogfood docs determinism devcontainer-check gate gcc-cross-build gcc-cross-run-arm64 hermetic hermetic-arm64 hermetic-macos hermetic-windows msix-install network preflight starter-consumer workflow-check)
-          failing=()
-          for name in "${required[@]}"; do
-            var="NEEDS_${name^^}"
-            var=${var//-/_}
-            [ "${!var:-}" = success ] || failing+=("$name")
-          done
-          list=""
-          for name in $(printf '%s\n' "${failing[@]}" | sort); do
-            list="$list${list:+,}\"$name\""
-          done
-          echo "{\"aggregate\":\"ci\",\"failing checks\":[$list]}"
-          [ ${#failing[@]} -eq 0 ]
+          echo "ci: a needed job did not succeed"
+          echo "$NEEDS_JSON"
+          exit 1
       - name: Write job summary
         if: always()
         env:

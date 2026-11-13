@@ -6,6 +6,7 @@ exports_files([
     "reproducible.patch",
     "nuget_group_prefix.patch",
     "sdk_versions.patch",
+    "toolchains_gate.patch",
 ])
 
 real_source_target(

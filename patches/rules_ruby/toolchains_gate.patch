@@ -1,0 +1,19 @@
+diff --git a/ruby/private/toolchain/repository_proxy.bzl b/ruby/private/toolchain/repository_proxy.bzl
+--- a/ruby/private/toolchain/repository_proxy.bzl
++++ b/ruby/private/toolchain/repository_proxy.bzl
+@@ -7,6 +7,7 @@
+     toolchain = "{target}",
+     toolchain_type = "{toolchain_type}",
+     exec_compatible_with = {exec_compatible_with},
++    target_settings = ["{toolchains_on}"],
+     visibility = ["//visibility:public"],
+ )
+ """
+@@ -28,6 +29,7 @@
+             target = "@{}//:toolchain".format(repo),
+             toolchain_type = repository_ctx.attr.toolchain_type,
+             exec_compatible_with = exec_cw,
++            toolchains_on = str(Label("@rules_dx//config:toolchains_on")),
+         ))
+     repository_ctx.file("BUILD", "\n".join(blocks))
+ 

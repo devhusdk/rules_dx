@@ -97,8 +97,10 @@ pub fn main(args: Vec<OsString>) -> i32 {
 }
 
 fn run(args: Vec<OsString>) -> Result<i32, ShimError> {
-    if args.first().is_some_and(|first| first == "shim") {
-        return shim_command(&args[1..]);
+    if let Some((first, rest)) = args.split_first()
+        && first == "shim"
+    {
+        return shim_command(rest);
     }
     let cwd = std::env::current_dir()
         .map_err(|e| ShimError::failure(format!("cannot read the current directory: {e}")))?;

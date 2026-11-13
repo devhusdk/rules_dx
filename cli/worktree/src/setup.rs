@@ -78,8 +78,10 @@ fn entries(file: &HookFile) -> Vec<(&'static str, Option<&'static str>, String)>
 fn entry_value(file: &HookFile, matcher: Option<&str>, command: &str) -> Value {
     if file.flat {
         let mut entry = json!({ "type": "command", "bash": command });
-        if let Some(matcher) = matcher {
-            entry["matcher"] = json!(matcher);
+        if let Some(matcher) = matcher
+            && let Some(object) = entry.as_object_mut()
+        {
+            object.insert("matcher".to_owned(), json!(matcher));
         }
         return entry;
     }
@@ -161,11 +163,16 @@ pub fn settings_text(file: &HookFile) -> String {
         );
     }
     let mut settings = json!({ "hooks": hooks });
-    if file.flat {
-        settings["version"] = json!(1);
-    }
-    if file.allow {
-        settings["permissions"] = json!({ "allow": allow_rules(), "ask": ask_rules() });
+    if let Some(object) = settings.as_object_mut() {
+        if file.flat {
+            object.insert("version".to_owned(), json!(1));
+        }
+        if file.allow {
+            object.insert(
+                "permissions".to_owned(),
+                json!({ "allow": allow_rules(), "ask": ask_rules() }),
+            );
+        }
     }
     let text = serde_json::to_string_pretty(&settings).unwrap_or_default();
     format!("{text}\n")

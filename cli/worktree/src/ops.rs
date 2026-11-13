@@ -2226,7 +2226,10 @@ pub fn size(bytes: u64) -> String {
     if unit == 0 {
         format!("{bytes} B")
     } else {
-        format!("{value:.1} {}", UNITS[unit])
+        format!(
+            "{value:.1} {}",
+            UNITS.get(unit).copied().unwrap_or_default()
+        )
     }
 }
 

@@ -1,5 +1,6 @@
 """The rules_dx python extension: one interpreter toolchain hub with no version target setting."""
 
+_TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
 _LIBC_FLAG = "@rules_py//uv/private/constraints/platform:platform_libc"
 
 _PLATFORMS = {
@@ -38,7 +39,7 @@ def _hub_impl(rctx):
             "@platforms//os:" + platform.os,
             "@platforms//cpu:" + platform.cpu,
         ]
-        settings = [":libc_glibc"] if platform.libc else []
+        settings = [_TOOLCHAINS_ON] + ([":libc_glibc"] if platform.libc else [])
         for suffix, target, toolchain_type, target_side in [
             ("", "runtime", "@bazel_tools//tools/python:toolchain_type", True),
             ("_py_cc", "py_cc_toolchain", "@rules_python//python/cc:toolchain_type", True),
@@ -49,7 +50,7 @@ def _hub_impl(rctx):
                 name = repo + suffix,
                 constraint_attr = constraint_attr,
                 constraints = repr(constraints),
-                settings = repr(settings if target_side else []),
+                settings = repr(settings if target_side else [_TOOLCHAINS_ON]),
                 repo = repo,
                 target = target,
                 toolchain_type = toolchain_type,

@@ -76,6 +76,9 @@ test --test_output=errors
 # Warn when a test runs far under or over its declared size.
 test --test_verbose_timeout_warnings
 
+# Resolve the toolchains rules_dx registers for shared toolchain types.
+common --@rules_dx//config:toolchains=true
+
 # Apply the linux, macos and windows config lines on matching hosts.
 common --enable_platform_specific_config
 

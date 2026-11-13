@@ -189,6 +189,12 @@ testing_rust_test(
 )
 
 testing_rust_test(
+    name = "toolchain_gate_test",
+    data = ["//:module_srcs"],
+    deps = [":dx_testing"],
+)
+
+testing_rust_test(
     name = "language_skeleton_test",
     size = "small",
     data = [

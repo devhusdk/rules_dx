@@ -83,28 +83,53 @@ pub struct Tarball {
 }
 
 fn is_url(token: &str) -> bool {
-    token.starts_with("https://") || token.starts_with("http://")
+    token.starts_with("https://")
+}
+
+fn is_separator(c: char) -> bool {
+    matches!(c, ' ' | '\t' | ',' | '\r' | '\n')
+}
+
+fn map_packages(project: &str, mut each: impl FnMut(&str) -> Option<String>) -> String {
+    let mut out = String::with_capacity(project.len());
+    let mut field = false;
+    for line in project.split_inclusive('\n') {
+        if !line.starts_with([' ', '\t']) {
+            field = line.starts_with("packages:");
+        }
+        if !field {
+            out.push_str(line);
+            continue;
+        }
+        let values = line.strip_prefix("packages:").map_or(line, |rest| {
+            out.push_str("packages:");
+            rest
+        });
+        let mut rest = values;
+        while !rest.is_empty() {
+            let end = rest.find(is_separator).unwrap_or(rest.len());
+            let (token, tail) = rest.split_at(if end == 0 { 1 } else { end });
+            if end == 0 {
+                out.push_str(token);
+            } else {
+                out.push_str(&each(token).unwrap_or_else(|| token.to_owned()));
+            }
+            rest = tail;
+        }
+    }
+    out
 }
 
 /// Returns the URLs that the `packages:` field of a project file names, in order.
 #[must_use]
 pub fn remote_packages(project: &str) -> Vec<String> {
-    let mut urls = Vec::new();
-    let mut field = false;
-    for line in project.lines() {
-        if !line.starts_with([' ', '\t']) {
-            field = line.starts_with("packages:");
+    let mut urls: Vec<String> = Vec::new();
+    map_packages(project, |token| {
+        if is_url(token) && !urls.iter().any(|url| url == token) {
+            urls.push(token.to_owned());
         }
-        if !field {
-            continue;
-        }
-        let values = line.strip_prefix("packages:").unwrap_or(line);
-        for token in values.split([' ', '\t', ',']).filter(|token| is_url(token)) {
-            if !urls.iter().any(|url| url == token) {
-                urls.push(token.to_owned());
-            }
-        }
-    }
+        None
+    });
     urls
 }
 
@@ -129,15 +154,24 @@ fn unpack(bytes: &[u8], dir: &Path) -> Result<PathBuf, Error> {
 /// Downloads and unpacks the `packages:` URLs of `project` into `dir` and returns the project that names the package directories instead.
 ///
 /// # Errors
-/// Fails when a download fails, a tarball does not match the sha256 that `old` locks for its URL, or a file cannot be written.
+/// Fails when the `packages:` field names an `http://` URL, a download fails, a tarball does not match the sha256 that `old` locks for its URL, or a file cannot be written.
 pub fn fetch_packages(
     project: &str,
     dir: &Path,
     old: Option<&Lock>,
     download: &dyn Fn(&str) -> Result<Vec<u8>, Error>,
 ) -> Result<(String, Fetched), Error> {
+    let mut plain = None;
+    map_packages(project, |token| {
+        if plain.is_none() && token.starts_with("http://") {
+            plain = Some(token.to_owned());
+        }
+        None
+    });
+    if let Some(url) = plain {
+        return Err(Error::new(format!("{url}: packages must be https URLs")));
+    }
     let mut fetched = Fetched::new();
-    let mut localized = project.to_owned();
     for (index, url) in remote_packages(project).into_iter().enumerate() {
         let bytes = download(&url).map_err(|error| Error::new(format!("{url}: {error}")))?;
         let sha256 = dx_digest::sha256_hex(&bytes);
@@ -154,9 +188,13 @@ pub fn fetch_packages(
         }
         let path = unpack(&bytes, &dir.join(index.to_string()))
             .map_err(|error| Error::new(format!("{url}: {error}")))?;
-        localized = localized.replace(&url, &path.to_string_lossy());
         fetched.insert(url, Tarball { path, sha256 });
     }
+    let localized = map_packages(project, |token| {
+        fetched
+            .get(token)
+            .map(|tarball| tarball.path.to_string_lossy().into_owned())
+    });
     Ok((localized, fetched))
 }
 

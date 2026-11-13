@@ -167,3 +167,35 @@ fn a_tarball_that_differs_from_the_lock_fails() {
         .expect_err("sha256 mismatch");
     assert!(error.to_string().contains("a-1.tar.gz"), "{error}");
 }
+
+#[test]
+fn an_http_package_is_not_fetched() {
+    let project = "packages: http://example.com/a-1.tar.gz\nindex-state: 2026-10-01T00:00:00Z\n";
+    assert!(remote_packages(project).is_empty());
+    let error = fetch_packages(project, &scratch("http"), None, &|url| {
+        panic!("fetched {url}")
+    })
+    .expect_err("http URL");
+    assert!(
+        error.to_string().contains("http://example.com/a-1.tar.gz"),
+        "{error}"
+    );
+}
+
+#[test]
+fn only_the_packages_field_is_localized() {
+    let url = "https://example.com/a-1.tar.gz";
+    let project = format!(
+        "packages: {url}\nindex-state: 2026-10-01T00:00:00Z\nsource-repository-package\n  type: git\n  location: {url}\n  subdir: {url}/sub\n"
+    );
+    let dir = scratch("fields");
+    let (localized, _) = fetch_packages(&project, &dir, None, &download).expect("fetch");
+    let a = dir.join("0").join("a-1");
+    assert_eq!(
+        localized,
+        format!(
+            "packages: {}\nindex-state: 2026-10-01T00:00:00Z\nsource-repository-package\n  type: git\n  location: {url}\n  subdir: {url}/sub\n",
+            a.display()
+        )
+    );
+}

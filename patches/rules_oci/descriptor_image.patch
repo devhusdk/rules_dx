@@ -1,0 +1,20 @@
+--- a/oci/private/image.bzl
++++ b/oci/private/image.bzl
+@@ -111,7 +111,7 @@
+     args.add(descriptor)
+     args.add(layer.owner)
+     ctx.actions.run(
+-        executable = util.maybe_wrap_launcher_for_windows(ctx, ctx.executable._descriptor_sh),
++        executable = util.maybe_wrap_launcher_for_windows(ctx, ctx.executable._descriptor_sh, name = "%s_descriptor_%s" % (ctx.label.name, idx)),
+         inputs = [layer],
+         outputs = [descriptor],
+         arguments = [args],
+@@ -124,7 +124,7 @@
+             ]),
+         },
+         tools = [
+-            jq.jqinfo.bin,
++            ctx.executable._descriptor_sh, jq.jqinfo.bin,
+             zstd.zstdinfo.binary,
+             coreutils.coreutils_info.bin,
+             regctl.regctl_info.binary,

@@ -189,8 +189,7 @@ pub(super) fn run_staged_core(
         .iter()
         .map(|rel| (file_name(rel), rel))
         .collect();
-    // An input the tool left as it found it is not output; a changed one that is not a
-    // declared lock means the tool edited a manifest.
+    // An input the tool left as it found it is not output.
     let mut changed_inputs: Vec<String> = Vec::new();
     generated.retain(|name, bytes| match staged_inputs.get(name) {
         Some(original) if !declared.contains_key(name.as_str()) => {

@@ -300,8 +300,7 @@ impl Job {
     }
 
     fn stop(&self) {
-        // Without a console this ends the whole job, server included; see
-        // docs/cli/commands/completion.md.
+        // Without a console this ends the whole job, server included.
         if self.descendants != Descendants::Detachable || !self.stop_attached() {
             self.terminate();
         }

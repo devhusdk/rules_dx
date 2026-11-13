@@ -149,8 +149,7 @@ fn dialyzer(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>,
         tool_id,
         parsers::parse_dialyzer(&out.stdout, out.code, &name_refs),
     )?;
-    // The parser names owned files by workspace path; later stages key them by the
-    // staged absolute path.
+    // The parser names owned files by workspace path.
     for found in &mut findings {
         if let Some((_, absolute)) = pairs.iter().find(|(rel, _)| *rel == found.file) {
             found.file = absolute.to_string_lossy().into_owned();
@@ -174,8 +173,7 @@ fn phpcs(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Ru
         }
         owned.push((real, absolute));
     }
-    // Always name a standard: without one phpcs would pick up a phpcs.xml from the
-    // working directory.
+    // Always name a standard.
     let standard: std::ffi::OsString = match config {
         Some(path) => real_launcher(path).into_os_string(),
         None => PHPCS_STANDARD.into(),
@@ -705,8 +703,7 @@ fn ormolu(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, R
     let scratch = &call.staged.scratch;
     let (refs, names) = paths(call);
     let strs: Vec<&str> = names.iter().map(String::as_str).collect();
-    // One process per file: ormolu formats files concurrently and interleaves
-    // their diffs on stderr, and exits 102 on mixed results.
+    // One process per file.
     let mut merged = Vec::new();
     for (name, path) in strs.iter().zip(refs.iter()) {
         let invocation = commands::ormolu_check(&tool.binary, std::slice::from_ref(path));

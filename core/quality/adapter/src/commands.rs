@@ -60,18 +60,14 @@ const FORTITUDE_CHECK_TAIL: &[&str] = &[
     "--output-format",
     "json",
 ];
-// ffmt has no `--config` flag: it reads `ffmt.toml`, `.ffmt.toml` or the Python project file from the
-// working directory and its parents, so the runner pins the working directory to a staged config.
-// `--no-cache` keeps it from writing a cache, `--no-ignore` stops `.gitignore` files from hiding
-// an explicitly named file, and `--color never` keeps ANSI codes out of the path list.
+// ffmt has no `--config` flag.
 const FFMT_CHECK_ARGS: &[&str] = &["--check", "--no-cache", "--no-ignore", "--color", "never"];
 const FFMT_FIX_ARGS: &[&str] = &["--no-cache", "--no-ignore", "--color", "never"];
 /// A well-formedness check only: no output tree, no network and no catalogs, so a document type
 /// or an entity can never reach outside the staged files. `--noent`, `--loaddtd` and `--valid`
 /// stay off, which keeps external entities and DTDs unread.
 const XMLLINT_CHECK_ARGS: &[&str] = &["--noout", "--nonet", "--nocatalogs"];
-// dx_topiary takes only file arguments: it reads no configuration, environment or `.ocamlformat`.
-// Check mode prints the paths that would change and exits 1; `--write` rewrites in place.
+// dx_topiary takes only file arguments.
 const TOPIARY_FIX_ARGS: &[&str] = &["--write"];
 const TY_BASE: &[&str] = &[
     "check",

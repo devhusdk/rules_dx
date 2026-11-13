@@ -856,9 +856,7 @@ impl super::RealBackend {
             return Ok(fixed);
         }
         if tool_id == "notebook_outputs" {
-            // The single allow-list entry besides ruff: the tool may only
-            // clear outputs and execution counts, so its rewrite must equal
-            // what the library computes from the original bytes.
+            // The single allow-list entry besides ruff.
             let want = quality_notebook::strip_outputs(before)
                 .map_err(|err| execution(tool_id, format!("{path}: {err}")))?;
             if fixed != want {
@@ -1061,8 +1059,7 @@ impl super::RealBackend {
                     Outcome::Kept
                 }
             }
-            // Violations that remain after the rewrite exit 2; a clean rewrite
-            // exits 8 (FIXED_VIOLATIONS). The fixed file is kept either way.
+            // Violations that remain after the rewrite exit 2.
             Route::AnsibleLint => {
                 if matches!(out.code, Some(0) | Some(2) | Some(8)) {
                     Outcome::Fixed

@@ -192,8 +192,7 @@ fn free_branch(
                 return false;
             }
             if git::branch_exists(main, candidate) {
-                // A leftover already merged into the base is stale; one with
-                // unmerged commits stays reusable so resume-by-name works.
+                // A leftover already merged into the base is stale.
                 return base
                     .as_deref()
                     .is_none_or(|base| !git::branch_behind(main, candidate, base));

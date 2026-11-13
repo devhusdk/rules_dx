@@ -1128,8 +1128,7 @@ pub fn resolve_affected(
                 repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
                 repos.extend(aliases.iter().map(|name| format!("@{hub}//:{name}")));
             }
-            // Bazel picks a toolchain through resolution, so its users have no
-            // edge to it; a changed crate behind one can reach any rule.
+            // Bazel picks a toolchain through resolution, so its users have no edge to it.
             if let Some(toolchain) = loaded
                 .reached_of_kind(&seeds, |kind| kind == "toolchain")
                 .first()

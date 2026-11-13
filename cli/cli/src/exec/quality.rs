@@ -377,8 +377,7 @@ fn run_quality_request(
         Ok(resolved) => resolved,
         Err(error) => return resolve_failed(request.common.output, out, err, &error),
     };
-    // An unreadable MODULE.bazel gives no deps, and the rules_dx root carries every family;
-    // in both cases every family's aspects stay.
+    // An unreadable MODULE.bazel gives no deps, and the rules_dx root carries every family.
     let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
     let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace))
         .then(|| dx_adopt::file_extensions(workspace));

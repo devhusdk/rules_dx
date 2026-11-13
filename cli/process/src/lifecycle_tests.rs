@@ -300,8 +300,7 @@ fn a_tight_budget_bounds_a_blocked_child() {
         run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
         ChildOutcome::TimedOut
     );
-    // Hang guard only: the outcome proves the budget bounded the child; a tight
-    // wall-clock bound would race a loaded runner.
+    // Hang guard only.
     assert!(
         started.elapsed() < Duration::from_secs(10),
         "the run hung far past a tight budget"
@@ -329,8 +328,7 @@ fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
         run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
         ChildOutcome::TimedOut
     );
-    // Hang guard only: the outcome proves the budget bounded the child; a tight
-    // wall-clock bound would race a loaded runner.
+    // Hang guard only.
     assert!(
         started.elapsed() < Duration::from_secs(10),
         "the run hung far past a tight budget"

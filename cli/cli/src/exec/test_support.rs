@@ -1365,8 +1365,7 @@ pub(crate) fn failed_action(
     .to_string()
 }
 
-// Pipe helpers: dropping a reader is not enough when a forked child may
-// still hold a copy of the read end, so wait until the kernel reports it gone.
+// Pipe helpers.
 #[cfg(unix)]
 /// Reports whether the pipe behind `writer` has no reader left in any process.
 #[cfg(unix)]

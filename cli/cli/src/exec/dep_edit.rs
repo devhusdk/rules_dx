@@ -775,8 +775,7 @@ fn refresh_plan(
             dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),
             dx_update::backend::UvClosure::default(),
         ),
-        // A hub repin re-resolves the whole lock; it only touches changed requirements.
-        // go sums cover the whole module graph, so a go refresh is always a full one.
+        // A hub repin re-resolves the whole lock.
         dx_update::edit::ConfiguredKind::Cargo
         | dx_update::edit::ConfiguredKind::Maven
         | dx_update::edit::ConfiguredKind::Cabal

@@ -298,8 +298,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "ffmt",
         run: |backend, call| {
-            // Fixed-form `.f` and `.F` and the `.f08` family never reach ffmt; an empty
-            // set skips the run because ffmt exits 2 when it finds no Fortran file.
+            // Fixed-form `.f` and `.F` and the `.f08` family never reach ffmt.
             let (refs, _) = paths(call);
             let accepted: Vec<&Path> = refs
                 .iter()
@@ -322,8 +321,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "fortitude",
         run: |backend, call| {
-            // fortitude parses free-form source only; it reports a valid fixed-form `.f`
-            // or `.F` file as a syntax error, so those are not handed to it.
+            // fortitude parses free-form source only.
             let (refs, _) = paths(call);
             let free_form: Vec<&Path> = refs
                 .iter()
@@ -477,8 +475,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "latexindent",
         run: |backend, call| {
-            // One process per file: latexindent takes a single document. Its log and
-            // backups go to a scratch directory, never next to the source.
+            // One process per file.
             let cruft = RealBackend::latexindent_cruft(call.tool_id, &call.staged.scratch)?;
             per_file(
                 backend,

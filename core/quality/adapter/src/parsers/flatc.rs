@@ -143,8 +143,7 @@ pub fn parse_flatc(
         if found.severity == ToolSeverity::Error {
             errors += 1;
         }
-        // flatc parses every included schema in the same run. Their findings
-        // belong to their own targets, so only the checked files report here.
+        // flatc parses every included schema in the same run.
         let Some(file) = files.iter().find(|file| **file == found.path) else {
             continue;
         };

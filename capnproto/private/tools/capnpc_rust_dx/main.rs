@@ -157,8 +157,7 @@ fn resolve_provides(
             } else if path == STD_SCHEMA {
                 map.insert(id, "capnp".to_string());
             } else if path.starts_with(STD_PREFIX) {
-                // Bundled annotation schemas such as c++.capnp and java.capnp generate
-                // no code; a type from json.capnp or stream.capnp fails to compile in rustc.
+                // Bundled annotation schemas such as c++.capnp and java.capnp generate no code.
             } else {
                 return Err(format!(
                     "{filename}: import {written} resolves to /{path}, which is neither owned by this \

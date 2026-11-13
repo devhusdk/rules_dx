@@ -67,8 +67,7 @@ fn run(args: Vec<String>) -> Result<(), Error> {
         return Ok(());
     }
     let mut targets = Vec::new();
-    // The version probe runs the compiler itself, so its files must be on local disk: a
-    // remote cache hit would leave a remotely cached repository unmaterialized.
+    // The version probe runs the compiler itself, so its files must be on local disk.
     let mut flags =
         vec!["--modify_execution_info=CppCompile=+no-remote,CppCompile=+no-cache".to_string()];
     let mut output = None;

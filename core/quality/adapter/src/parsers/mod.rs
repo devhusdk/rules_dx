@@ -1421,8 +1421,7 @@ mod tests {
 
     #[test]
     fn diff_headers_keep_a_file_whose_own_name_ends_in_orig() {
-        // `git diff` of a file that really is called `x.orig`: stripping the suffix would name
-        // `x`, a file the run was never given.
+        // `git diff` of a file that really is called `x.orig`.
         assert_eq!(
             super::diff_paths("--- a/patch.orig\n+++ b/patch.orig\n@@ -1 +1 @@\n-a\n+b\n"),
             ["patch.orig"]
@@ -1455,8 +1454,7 @@ mod tests {
 
     #[test]
     fn diff_headers_keep_a_real_a_directory_that_is_not_a_git_prefix() {
-        // `gofumpt -d a/x.go` names the path, so `a/` is a directory here, and both sides
-        // carry it: stripping it would name `x.go`, a file the run was never given.
+        // `gofumpt -d a/x.go` names the path, so `a/` is a directory here, and both sides carry it.
         assert_eq!(
             super::diff_paths(
                 "diff a/x.go.orig a/x.go\n--- a/x.go.orig\n+++ a/x.go\n@@ -1 +1 @@\n-a\n+b\n"

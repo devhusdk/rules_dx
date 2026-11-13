@@ -24,8 +24,7 @@ fn main() -> ExitCode {
     let user_args: Vec<OsString> = std::env::args_os().skip(1).collect();
     let mut command = Command::new(&dx);
     command.arg("update");
-    // The outer `bazel run` may use a non-default output base; hand it to dx so its bazel calls
-    // reuse that server instead of starting a second one.
+    // The outer `bazel run` may use a non-default output base.
     if !names_output_base(&user_args)
         && let Some(output_base) = dx_process::run_output_base()
     {

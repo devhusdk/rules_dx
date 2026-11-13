@@ -1,4 +1,5 @@
 //! Reads the format, machine, ABI and imported libraries of an executable.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fmt;
 
@@ -122,25 +123,24 @@ pub fn machine(head: &[u8]) -> Option<String> {
         return Some(WASM_MACHINE.to_owned());
     }
     if head.len() >= 20 && head.starts_with(b"\x7fELF") {
-        let raw = match head[5] {
-            1 => u16::from_le_bytes([head[18], head[19]]),
-            2 => u16::from_be_bytes([head[18], head[19]]),
+        let raw = bytes_at::<2>(head, 18)?;
+        let raw = match head.get(5)? {
+            1 => u16::from_le_bytes(raw),
+            2 => u16::from_be_bytes(raw),
             _ => return None,
         };
         return Some(elf_machine_name(raw));
     }
     if head.len() >= 0x40 && head.starts_with(b"MZ") {
-        let offset = u32::from_le_bytes([head[0x3c], head[0x3d], head[0x3e], head[0x3f]]) as usize;
-        let header = head.get(offset..offset.checked_add(6)?)?;
-        if &header[..4] != b"PE\0\0" {
+        let offset = u32::from_le_bytes(bytes_at::<4>(head, 0x3c)?) as usize;
+        let [b'P', b'E', 0, 0, lo, hi] = bytes_at::<6>(head, offset)? else {
             return None;
-        }
-        return Some(pe_machine_name(u16::from_le_bytes([header[4], header[5]])));
+        };
+        return Some(pe_machine_name(u16::from_le_bytes([lo, hi])));
     }
-    if head.len() >= 8 {
-        let magic = [head[0], head[1], head[2], head[3]];
-        let cpu = [head[4], head[5], head[6], head[7]];
-        return match magic {
+    if let [m0, m1, m2, m3, c0, c1, c2, c3, ..] = *head {
+        let cpu = [c0, c1, c2, c3];
+        return match [m0, m1, m2, m3] {
             [0xcf, 0xfa, 0xed, 0xfe] | [0xce, 0xfa, 0xed, 0xfe] => {
                 Some(macho_machine_name(u32::from_le_bytes(cpu)))
             }
@@ -151,6 +151,10 @@ pub fn machine(head: &[u8]) -> Option<String> {
         };
     }
     None
+}
+
+fn bytes_at<const N: usize>(data: &[u8], at: usize) -> Option<[u8; N]> {
+    data.get(at..at.checked_add(N)?)?.try_into().ok()
 }
 
 /// Reads every image in one binary; a fat Mach-O yields one image per slice.
@@ -251,13 +255,9 @@ fn rich_producers(bytes: &[u8]) -> Vec<String> {
 
 fn rich_entries(bytes: &[u8]) -> Option<Vec<String>> {
     const DANS: u32 = 0x536e_6144;
-    let word = |at: usize| {
-        bytes
-            .get(at..at + 4)
-            .map(|raw| u32::from_le_bytes([raw[0], raw[1], raw[2], raw[3]]))
-    };
+    let word = |at: usize| bytes_at::<4>(bytes, at).map(u32::from_le_bytes);
     let lfanew = word(0x3c)? as usize;
-    let stub = &bytes[..lfanew.min(bytes.len())];
+    let stub = bytes.get(..lfanew).unwrap_or(bytes);
     let rich = stub.windows(4).rposition(|window| window == b"Rich")?;
     let key = word(rich + 4)?;
     let start = (0x40..rich)

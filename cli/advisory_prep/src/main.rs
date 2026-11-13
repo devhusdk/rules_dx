@@ -1,4 +1,5 @@
 //! Prepares the advisory snapshots one CI run shares with every audit cell.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
 use std::ffi::OsStr;

@@ -1,4 +1,5 @@
 //! One reader for the Go manifest and sum file, shared by every Go dependency tool.
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, VecDeque};
@@ -96,8 +97,9 @@ pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
         .collect();
     let replace: Vec<GoReplacement> = parsed.replace.into_iter().map(replacement).collect();
     for (index, entry) in replace.iter().enumerate() {
-        if replace[..index]
+        if replace
             .iter()
+            .take(index)
             .any(|earlier| earlier.module == entry.module && earlier.version == entry.version)
         {
             return Err(match &entry.version {
@@ -245,10 +247,15 @@ pub fn set_require_version(text: &str, module: &str, version: &str) -> Result<St
     let span = locate_require_version(text, module).ok_or_else(|| {
         GoEditError::Invalid(format!("cannot locate the require entry for {module:?}"))
     })?;
+    let (Some(head), Some(tail)) = (text.get(..span.start), text.get(span.end..)) else {
+        return Err(GoEditError::Invalid(format!(
+            "cannot locate the require entry for {module:?}"
+        )));
+    };
     let mut out = String::with_capacity(text.len() + version.len());
-    out.push_str(&text[..span.start]);
+    out.push_str(head);
     out.push_str(&span.quote.render(version));
-    out.push_str(&text[span.end..]);
+    out.push_str(tail);
     let after = parse_mod(&out).map_err(GoEditError::Invalid)?;
     let mut expected = before;
     for requirement in &mut expected.require {
@@ -299,8 +306,11 @@ pub fn insert_require(text: &str, module: &str, version: &str) -> Result<String,
                 .iter()
                 .find(|(_, name)| name.as_str() > module)
                 .map_or(block.close, |(start, _)| *start);
+            let (head, tail) = text.split_at_checked(at).ok_or_else(|| {
+                GoEditError::Invalid(format!("cannot locate the require block for {module:?}"))
+            })?;
             let entry = format!("{}{module} {version}{eol}", block.indent);
-            format!("{}{entry}{}", &text[..at], &text[at..])
+            format!("{head}{entry}{tail}")
         }
         None => {
             let mut out = text.to_owned();
@@ -376,7 +386,10 @@ fn direct_require_block(text: &str) -> Option<RequireBlock> {
                 *direct = true;
             }
             if block.entries.is_empty() {
-                block.indent = line[..line.len() - line.trim_start().len()].to_owned();
+                block.indent = line
+                    .strip_suffix(line.trim_start())
+                    .unwrap_or_default()
+                    .to_owned();
             }
             block.entries.push((start, first.value.clone()));
             continue;
@@ -434,8 +447,7 @@ fn tokenize(line: &str, base: usize) -> Vec<Token> {
     let bytes = line.as_bytes();
     let mut tokens = Vec::new();
     let mut at = 0;
-    while at < bytes.len() {
-        let byte = bytes[at];
+    while let Some(&byte) = bytes.get(at) {
         if byte.is_ascii_whitespace() {
             at += 1;
         } else if byte == b'/' && bytes.get(at + 1) == Some(&b'/') {
@@ -450,14 +462,17 @@ fn tokenize(line: &str, base: usize) -> Vec<Token> {
             at += 1;
         } else if byte == b'"' || byte == b'`' {
             let mut end = at + 1;
-            while end < bytes.len() && bytes[end] != byte {
-                if byte == b'"' && bytes[end] == b'\\' {
+            while let Some(&current) = bytes.get(end) {
+                if current == byte {
+                    break;
+                }
+                if byte == b'"' && current == b'\\' {
                     end += 1;
                 }
                 end += 1;
             }
             let end = (end + 1).min(bytes.len());
-            let inner_end = if end > at + 1 && bytes[end - 1] == byte {
+            let inner_end = if end > at + 1 && bytes.get(end - 1) == Some(&byte) {
                 end - 1
             } else {
                 end
@@ -465,7 +480,7 @@ fn tokenize(line: &str, base: usize) -> Vec<Token> {
             tokens.push(Token {
                 start: base + at,
                 end: base + end,
-                value: line[at + 1..inner_end].to_owned(),
+                value: line.get(at + 1..inner_end).unwrap_or_default().to_owned(),
                 quote: if byte == b'"' {
                     Quote::Double
                 } else {
@@ -475,18 +490,20 @@ fn tokenize(line: &str, base: usize) -> Vec<Token> {
             at = end;
         } else {
             let mut end = at;
-            while end < bytes.len()
-                && !bytes[end].is_ascii_whitespace()
-                && !matches!(bytes[end], b'(' | b')' | b',')
-                && !(bytes[end] == b'/' && bytes.get(end + 1) == Some(&b'/'))
-            {
+            while let Some(&current) = bytes.get(end) {
+                if current.is_ascii_whitespace()
+                    || matches!(current, b'(' | b')' | b',')
+                    || (current == b'/' && bytes.get(end + 1) == Some(&b'/'))
+                {
+                    break;
+                }
                 end += 1;
             }
             let end = end.max(at + 1);
             tokens.push(Token {
                 start: base + at,
                 end: base + end,
-                value: line[at..end].to_owned(),
+                value: line.get(at..end).unwrap_or_default().to_owned(),
                 quote: Quote::Bare,
             });
             at = end;
@@ -598,13 +615,13 @@ fn requirement_markers(text: &str) -> BTreeMap<String, VecDeque<String>> {
             } else {
                 None
             };
-            if keyword == "require" && tokens.len() > 2 {
-                record_marker(&mut markers, tokens[1], comment);
+            if let ("require", [_, name, _, ..]) = (keyword, tokens.as_slice()) {
+                record_marker(&mut markers, name, comment);
             }
             continue;
         }
-        if block == Some("require") && tokens.len() == 2 {
-            record_marker(&mut markers, tokens[0], comment);
+        if let (Some("require"), [name, _]) = (block, tokens.as_slice()) {
+            record_marker(&mut markers, name, comment);
         }
     }
     markers

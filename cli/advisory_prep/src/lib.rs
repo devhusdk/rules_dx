@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 #[path = "archive.rs"]
 pub mod archive;
 #[path = "trivy.rs"]

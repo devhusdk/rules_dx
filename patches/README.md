@@ -82,7 +82,7 @@ No action. `MODULE.bazel` patches the kcov v43 archive for `//tools/coverage/kco
 
 ## libfuzzer_dotnet
 
-No action. `macos_section.patch` puts the extra counters of `libfuzzer-dotnet.cc` in `__DATA,__libfuzz_extra` on macOS. It applies to the `dx_libfuzzer_dotnet` archive.
+No action. `macos_section.patch` puts the extra counters of `libfuzzer-dotnet.cc` in `__DATA,__libfuzz_extra` on macOS. `snprintf.patch` replaces the deprecated `sprintf` call with `snprintf`. Both apply to the `dx_libfuzzer_dotnet` archive.
 
 ## capnproto
 

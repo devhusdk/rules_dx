@@ -899,7 +899,10 @@ dx_pins.archive(
     name = "dx_libfuzzer_dotnet",
     build = "//dotnet/private:libfuzzer_dotnet.BUILD.bazel",
     key = "libfuzzer_dotnet",
-    patches = ["//patches/libfuzzer_dotnet:macos_section.patch"],
+    patches = [
+        "//patches/libfuzzer_dotnet:macos_section.patch",
+        "//patches/libfuzzer_dotnet:snprintf.patch",
+    ],
     pins = "//dotnet:pins.json",
     required = ["libfuzzer-dotnet.cc"],
 )

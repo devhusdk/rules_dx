@@ -1,0 +1,11 @@
+--- a/libfuzzer-dotnet.cc
++++ b/libfuzzer-dotnet.cc
+@@ -148,7 +148,7 @@
+         close(st_pipe[1]);
+ 
+         char shm_str[12];
+-        sprintf(shm_str, "%d", shm_id);
++        snprintf(shm_str, sizeof(shm_str), "%d", shm_id);
+ 
+         if (setenv(SHM_ID_VAR, shm_str, 1))
+         {

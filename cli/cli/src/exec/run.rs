@@ -279,12 +279,13 @@ fn run_correlation(target: &str) -> String {
                 '_'
             }
         })
+        .take(128 - "run:-".len() - 16)
         .collect();
-    let digest = dx_digest::sha256_hex(target.as_bytes());
-    // "run:" + mapped + "-" + 16 hex digits must fit in 128 bytes. `mapped` is ASCII, so the
-    // slice lands on a char boundary.
-    let keep = mapped.len().min(128 - "run:-".len() - 16);
-    format!("run:{}-{}", &mapped[..keep], &digest[..16])
+    let digest: String = dx_digest::sha256_hex(target.as_bytes())
+        .chars()
+        .take(16)
+        .collect();
+    format!("run:{mapped}-{digest}")
 }
 
 fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) -> Result<(), i32> {

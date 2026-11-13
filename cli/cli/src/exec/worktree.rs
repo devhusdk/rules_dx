@@ -122,13 +122,11 @@ pub(crate) fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
     if words.is_empty() {
         words.push("list");
     }
-    if let Some(flag) = misplaced_flag(invocation, words[0]) {
+    let verb = words.first().copied().unwrap_or("list");
+    if let Some(flag) = misplaced_flag(invocation, verb) {
         let error = WorktreeError::usage(
             "invalid_arguments",
-            &format!(
-                "option {flag:?} is not supported by dx worktree {}",
-                words[0]
-            ),
+            &format!("option {flag:?} is not supported by dx worktree {verb}"),
         );
         return fail(invocation, out, err, &error);
     }
@@ -616,12 +614,12 @@ fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
     let mut events = Vec::new();
     for slot in &plan.slots {
         let mut event = simple_event("prune", Some(slot.slot), &slot.path, None, "free");
-        event["disk_bytes"] = slot.bytes.into();
+        set_field(&mut event, "disk_bytes", slot.bytes);
         events.push(event);
     }
     for slot in skipped_slots {
         let mut event = simple_event("prune", Some(slot.slot), &slot.path, None, "skipped");
-        event["reason"] = slot.reason.into();
+        set_field(&mut event, "reason", slot.reason);
         events.push(event);
     }
     for external in &plan.externals {
@@ -632,22 +630,22 @@ fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
             external.branch.clone(),
             "external",
         );
-        event["disk_bytes"] = external.bytes.into();
+        set_field(&mut event, "disk_bytes", external.bytes);
         events.push(event);
     }
     for item in plan.kept_externals.iter().chain(kept) {
         let mut event = simple_event("prune", None, &item.path, item.branch.clone(), "kept");
-        event["reason"] = item.reason.into();
+        set_field(&mut event, "reason", item.reason);
         events.push(event);
     }
     for base in &plan.kept_bases {
         let mut event = simple_event("prune_base", None, &base.dir, None, "kept");
-        event["reason"] = base.reason.into();
+        set_field(&mut event, "reason", base.reason);
         events.push(event);
     }
     for base in skipped_bases {
         let mut event = simple_event("prune_base", base.owner.slot(), &base.dir, None, "skipped");
-        event["reason"] = base.reason.into();
+        set_field(&mut event, "reason", base.reason);
         events.push(event);
     }
     for base in &plan.bases {
@@ -656,7 +654,7 @@ fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
             ops::BaseOwner::Orphan => "orphaned",
         };
         let mut event = simple_event("prune_base", base.owner.slot(), &base.dir, None, state);
-        event["disk_bytes"] = base.bytes.into();
+        set_field(&mut event, "disk_bytes", base.bytes);
         events.push(event);
     }
     for cache in skipped_caches {
@@ -667,18 +665,18 @@ fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
             None,
             "skipped",
         );
-        event["reason"] = cache.reason.into();
+        set_field(&mut event, "reason", cache.reason);
         events.push(event);
     }
     for cache in &plan.caches {
         let mut event = simple_event("prune_cache", Some(cache.slot), &cache.path, None, "free");
-        event["disk_bytes"] = cache.bytes.into();
+        set_field(&mut event, "disk_bytes", cache.bytes);
         events.push(event);
     }
     for downloads in &plan.downloads {
         let mut event = simple_event("prune_downloads", None, &downloads.cache, None, "stale");
-        event["disk_bytes"] = downloads.bytes.into();
-        event["entries"] = downloads.entries.len().into();
+        set_field(&mut event, "disk_bytes", downloads.bytes);
+        set_field(&mut event, "entries", downloads.entries.len());
         events.push(event);
     }
     events

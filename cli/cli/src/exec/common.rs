@@ -506,31 +506,32 @@ pub(crate) fn read_verified(workspace: &Path, path: &str, expected: &[u8; 32]) -
     }
 }
 
+/// Sets one field of a JSON object; other values are left as they are.
+pub(crate) fn set_field(
+    value: &mut serde_json::Value,
+    key: &str,
+    field: impl Into<serde_json::Value>,
+) {
+    if let Some(map) = value.as_object_mut() {
+        map.insert(key.to_owned(), field.into());
+    }
+}
+
 pub(crate) fn apply_to_bytes(original: &[u8], edits: &[(u64, u64, String)]) -> Option<Vec<u8>> {
     let text = std::str::from_utf8(original).ok()?;
     let mut candidate = Vec::with_capacity(original.len());
     let mut cursor = 0usize;
     for (start, end, replacement) in edits {
         let (start, end) = (*start as usize, *end as usize);
-        if start < cursor || start > end || end > original.len() {
+        if start < cursor || start > end {
             return None;
         }
-        if !text.is_char_boundary(start) || !text.is_char_boundary(end) {
-            return None;
-        }
-        let head = &original[cursor..start];
-        if std::str::from_utf8(head).is_err() {
-            return None; // LCOV_EXCL_LINE - reason: utf8 slice of valid text, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        }
-        candidate.extend_from_slice(head);
+        text.get(start..end)?;
+        candidate.extend_from_slice(text.get(cursor..start)?.as_bytes());
         candidate.extend_from_slice(replacement.as_bytes());
         cursor = end;
     }
-    let tail = &original[cursor..];
-    if std::str::from_utf8(tail).is_err() {
-        return None; // LCOV_EXCL_LINE - reason: utf8 slice of valid text, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    }
-    candidate.extend_from_slice(tail);
+    candidate.extend_from_slice(text.get(cursor..)?.as_bytes());
     Some(candidate)
 }
 

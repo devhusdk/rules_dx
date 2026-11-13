@@ -70,8 +70,11 @@ fn crate_name(label: &str) -> Option<String> {
     let target = target.split_once("__").map_or(target, |(krate, _)| krate);
     let name = target
         .match_indices('-')
-        .find(|(at, _)| semver(&target[at + 1..]))
-        .map_or(target, |(at, _)| &target[..at]);
+        .find_map(|(at, _)| {
+            let (name, rest) = target.split_at_checked(at)?;
+            semver(rest.strip_prefix('-')?).then_some(name)
+        })
+        .unwrap_or(target);
     (!name.is_empty()).then(|| name.to_owned())
 }
 
@@ -183,7 +186,12 @@ fn maven_declared(workspace: &Path, repository: &str) -> Option<Vec<dx_depcheck:
         let (Some(group), Some(name)) = (parts.next(), parts.next()) else {
             continue;
         };
-        let line = text[..artifact.span.start].matches('\n').count() + 1;
+        let line = text
+            .bytes()
+            .take(artifact.span.start)
+            .filter(|byte| *byte == b'\n')
+            .count()
+            + 1;
         let coordinate = format!("{group}:{name}");
         out.push(dx_depcheck::DeclaredDep {
             name: coordinate.clone(),

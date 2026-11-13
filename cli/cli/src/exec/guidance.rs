@@ -13,14 +13,15 @@ fn echoed(options: &[String]) -> (Vec<String>, bool) {
     let mut words = Vec::new();
     let mut changed = false;
     let mut index = 0;
-    while index < options.len() {
-        let option = &options[index];
+    while let Some(option) = options.get(index) {
         let paired = option.starts_with("--")
             && !option.contains('=')
             && options.get(index + 1).is_some_and(|next| {
                 !next.starts_with("--") && !next.starts_with("//") && !next.starts_with('@')
             });
-        let unit = &options[index..index + if paired { 2 } else { 1 }];
+        let Some(unit) = options.get(index..index + if paired { 2 } else { 1 }) else {
+            break;
+        };
         index += unit.len();
         let (safe, withheld) = dx_plan::plan::quality::partition_provenance_options(unit);
         if withheld.is_empty() && safe == unit {

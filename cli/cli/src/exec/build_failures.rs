@@ -200,12 +200,11 @@ fn dedupe(events: Vec<BuildFailureEvent>) -> Vec<BuildFailureEvent> {
     let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for event in events {
         let key = identity(&event);
-        let Some(&at) = seen.get(&key) else {
+        let Some(first) = seen.get(&key).and_then(|&at| merged.get_mut(at)) else {
             seen.insert(key, merged.len());
             merged.push(event);
             continue;
         };
-        let first = &mut merged[at];
         first.count += 1;
         if let Some(target) = event.target {
             let known =

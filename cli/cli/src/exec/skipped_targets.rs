@@ -48,9 +48,14 @@ fn known_languages(json: &str) -> Vec<(String, String, String)> {
     };
     map.into_iter()
         .map(|(constraint, entry)| {
-            let title = entry["title"].as_str().unwrap_or_default().to_owned();
-            let reasons: Vec<(&String, &str)> = entry["platforms"]
-                .as_object()
+            let title = entry
+                .get("title")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_owned();
+            let reasons: Vec<(&String, &str)> = entry
+                .get("platforms")
+                .and_then(serde_json::Value::as_object)
                 .map(|platforms| {
                     platforms
                         .iter()

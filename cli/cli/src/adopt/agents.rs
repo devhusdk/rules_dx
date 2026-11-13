@@ -46,7 +46,13 @@ fn span(text: &str) -> Option<(usize, usize)> {
 pub(crate) fn state(text: &str) -> State {
     match span(text) {
         None => State::Missing,
-        Some((start, end)) if text[start..end].replace("\r\n", "\n") == block() => State::Current,
+        Some((start, end))
+            if text
+                .get(start..end)
+                .is_some_and(|found| found.replace("\r\n", "\n") == block()) =>
+        {
+            State::Current
+        }
         Some(_) => State::Stale,
     }
 }

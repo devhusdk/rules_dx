@@ -234,7 +234,9 @@ pub(super) fn run_staged_core(
     }
     let mut differing: Vec<Differing> = Vec::new();
     for (name, rel) in &declared {
-        let bytes = &generated[*name];
+        let Some(bytes) = generated.get(*name) else {
+            continue;
+        };
         let current = dx_path::workspace::resolve_target_in_workspace(workspace, rel)
             .and_then(std::fs::read)
             .ok();

@@ -43,7 +43,9 @@ fn candidate_key(source: &SourceRead, change: &FileChange) -> Result<Option<Vec<
 }
 
 fn candidates_agree(workspace: &Path, path: &str, changes: &[(usize, &FileChange)]) -> bool {
-    let first = changes[0].1;
+    let Some(&(_, first)) = changes.first() else {
+        return true;
+    };
     let source = read_verified(workspace, path, &first.original_digest);
     let first_key = candidate_key(&source, first);
     changes.iter().all(|(_, change)| match &first_key {
@@ -95,10 +97,12 @@ pub(crate) fn reconcile(workspace: &Path, mut producers: Vec<Producer>) -> Recon
         let observer = |index: usize, digest: &[u8; 32]| {
             !path_changes.is_empty()
                 && !path_changes.iter().any(|(held, _)| *held == index)
-                && producers[index]
-                    .originals
-                    .iter()
-                    .any(|(p, o)| *p == path && o == digest && originals.contains(o))
+                && producers.get(index).is_some_and(|producer| {
+                    producer
+                        .originals
+                        .iter()
+                        .any(|(p, o)| *p == path && o == digest && originals.contains(o))
+                })
         };
         let observers: BTreeSet<usize> = path_digests
             .iter()
@@ -128,7 +132,8 @@ pub(crate) fn reconcile(workspace: &Path, mut producers: Vec<Producer>) -> Recon
                 .collect();
             let names: BTreeSet<String> = involved
                 .into_iter()
-                .map(|index| identity(&producers[index]))
+                .filter_map(|index| producers.get(index))
+                .map(identity)
                 .collect();
             out.conflicts.push(Conflict {
                 path,

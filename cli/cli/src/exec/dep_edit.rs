@@ -77,7 +77,9 @@ pub(crate) fn configured_set(
         Ok(None) => return Ok(None),
         Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
     };
-    let selector = &invocation.targets[0];
+    let Some(selector) = invocation.targets.first() else {
+        return Ok(None);
+    };
     let head = selector
         .split_once(':')
         .map(|(head, _)| head)
@@ -516,7 +518,10 @@ pub(crate) fn write_and_refresh(
         }
         RefreshPlan::InDir(run) => {
             let lock_name = if request.is_configured_ruby() {
-                dx_adopt::dependency_sets::Ecosystem::Ruby.lockfiles()[0].as_str()
+                dx_adopt::dependency_sets::Ecosystem::Ruby
+                    .lockfiles()
+                    .first()
+                    .map_or("", String::as_str)
             } else {
                 "MODULE.bazel.lock"
             };

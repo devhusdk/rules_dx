@@ -170,7 +170,10 @@ fn declare(
         }
     }
     for manifest in added.iter().map(|done| &done.manifest) {
-        std::fs::write(workspace.join(manifest), &texts[manifest])
+        let Some(text) = texts.get(manifest) else {
+            continue;
+        };
+        std::fs::write(workspace.join(manifest), text)
             .map_err(|error| DxError::from_io(format!("{manifest}: {error}"), &error))?;
     }
     if failures.is_empty() {

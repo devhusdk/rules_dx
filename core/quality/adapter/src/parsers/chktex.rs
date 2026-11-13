@@ -64,30 +64,30 @@ pub fn parse_chktex(
 fn diagnostic(line: &str, files: &[&str]) -> Result<(FileFinding, i32), ParseError> {
     let (file, rest) = located(TOOL, line, files)?;
     let fields: Vec<&str> = rest.splitn(FIELDS, ':').collect();
-    if fields.len() != FIELDS {
+    let &[row, column, length, kind, rule, message] = fields.as_slice() else {
         return Err(missing(TOOL, "diagnostic", line));
-    }
+    };
     let number = |text: &str, least: u64| match text.parse::<u64>() {
         Ok(value) if value >= least => Ok(value),
         _ => Err(missing(TOOL, "position", line)),
     };
-    let row = number(fields[0], 1)?;
-    let column = number(fields[1], 1)?;
-    let length = number(fields[2], 0)?;
-    let (severity, level) = match fields[3] {
+    let row = number(row, 1)?;
+    let column = number(column, 1)?;
+    let length = number(length, 0)?;
+    let (severity, level) = match kind {
         "Error" => (ToolSeverity::Error, 3),
         "Warning" => (ToolSeverity::Warning, 2),
         "Message" => (ToolSeverity::Warning, 0),
         _ => return Err(missing(TOOL, "kind", line)),
     };
-    let message = fields[5].trim();
-    if fields[4].is_empty() || message.is_empty() {
+    let message = message.trim();
+    if rule.is_empty() || message.is_empty() {
         return Err(missing(TOOL, "diagnostic", line));
     }
     let mut found = finding(
         TOOL,
         file,
-        fields[4].to_owned(),
+        rule.to_owned(),
         message.to_owned(),
         severity,
         TextPosition { line: row, column },

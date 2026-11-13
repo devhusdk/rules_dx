@@ -93,23 +93,26 @@ fn one(path: &str, entry: &serde_json::Value) -> Result<FileFinding, ParseError>
 /// (`file:///C:/x`) turned into `C:/x`.
 fn uri_path(uri: &str) -> Option<String> {
     let rest = uri.strip_prefix("file://")?;
-    let bytes = rest.as_bytes();
-    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'%' && index + 2 < bytes.len() {
-            let hex = std::str::from_utf8(&bytes[index + 1..index + 3]).ok()?;
-            out.push(u8::from_str_radix(hex, 16).ok()?);
-            index += 3;
-        } else {
-            out.push(bytes[index]);
-            index += 1;
+    let mut remaining = rest.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(remaining.len());
+    loop {
+        match remaining {
+            [b'%', high, low, tail @ ..] => {
+                let pair = [*high, *low];
+                let hex = std::str::from_utf8(&pair).ok()?;
+                out.push(u8::from_str_radix(hex, 16).ok()?);
+                remaining = tail;
+            }
+            [byte, tail @ ..] => {
+                out.push(*byte);
+                remaining = tail;
+            }
+            [] => break,
         }
     }
     let path = String::from_utf8(out).ok()?;
-    let drive = path.as_bytes();
-    if drive.len() >= 3 && drive[0] == b'/' && drive[1].is_ascii_alphabetic() && drive[2] == b':' {
-        return Some(path[1..].to_owned());
+    if matches!(path.as_bytes(), [b'/', drive, b':', ..] if drive.is_ascii_alphabetic()) {
+        return path.get(1..).map(str::to_owned);
     }
     Some(path)
 }

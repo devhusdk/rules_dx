@@ -208,8 +208,8 @@ impl Index {
             if let Some(found) = self.pointers.get(at) {
                 return *found;
             }
-            match at.rfind('/') {
-                Some(cut) => at = &at[..cut],
+            match at.rsplit_once('/') {
+                Some((parent, _)) => at = parent,
                 None => return (self.line, self.column),
             }
         }
@@ -265,36 +265,49 @@ impl<'a> Lines<'a> {
         Self { text, starts }
     }
 
-    fn at(&self, offset: usize) -> (u64, u64) {
+    fn at(&self, offset: usize) -> Result<(u64, u64), SyntaxAt> {
         let offset = offset.min(self.text.len());
-        let line = self.starts.partition_point(|start| *start <= offset) - 1;
-        let from = self.starts[line];
+        let line = self
+            .starts
+            .partition_point(|start| *start <= offset)
+            .saturating_sub(1);
         let mut end = offset;
         while !self.text.is_char_boundary(end) {
             end -= 1;
         }
-        let col = self.text[from..end].chars().count();
-        (line as u64 + 1, col as u64 + 1)
+        let span = self
+            .starts
+            .get(line)
+            .and_then(|from| self.text.get(*from..end))
+            .ok_or_else(|| SyntaxAt::new(line, 0, "the offset is outside the indexed text"))?;
+        Ok((line as u64 + 1, span.chars().count() as u64 + 1))
     }
 }
 
 /// Indexes a TOML text. Tables, arrays of tables (`/a/0`), dotted and inline keys are covered.
 pub fn toml_index(text: &str) -> Result<Index, SyntaxAt> {
     let lines = Lines::new(text);
-    let doc = toml_edit::Document::parse(text).map_err(|err| {
-        let at = err.span().map_or(0, |span| span.start);
-        let (line, column) = lines.at(at);
-        SyntaxAt::new(line as usize, column as usize - 1, err.message())
-    })?;
+    let doc = match toml_edit::Document::parse(text) {
+        Ok(doc) => doc,
+        Err(err) => {
+            let at = err.span().map_or(0, |span| span.start);
+            let (line, column) = lines.at(at)?;
+            return Err(SyntaxAt::new(line as usize, column as usize - 1, err.message()));
+        }
+    };
     let mut index = Index::root_only();
     if let toml_edit::Item::Table(root) = doc.as_item() {
-        walk_table(root, "", (1, 1), &lines, &mut index.pointers);
+        walk_table(root, "", (1, 1), &lines, &mut index.pointers)?;
     }
     Ok(index)
 }
 
-fn start(span: Option<std::ops::Range<usize>>, lines: &Lines<'_>, or: (u64, u64)) -> (u64, u64) {
-    span.map_or(or, |span| lines.at(span.start))
+fn start(
+    span: Option<std::ops::Range<usize>>,
+    lines: &Lines<'_>,
+    or: (u64, u64),
+) -> Result<(u64, u64), SyntaxAt> {
+    span.map_or(Ok(or), |span| lines.at(span.start))
 }
 
 fn walk_table(
@@ -303,12 +316,13 @@ fn walk_table(
     parent: (u64, u64),
     lines: &Lines<'_>,
     out: &mut BTreeMap<String, (u64, u64)>,
-) {
+) -> Result<(), SyntaxAt> {
     for (name, item) in table.iter() {
         let key_at = table.key(name).and_then(|key| key.span());
-        let at = start(key_at.or_else(|| item.span()), lines, parent);
-        walk_item(item, &format!("{pointer}/{}", escape(name)), at, lines, out);
+        let at = start(key_at.or_else(|| item.span()), lines, parent)?;
+        walk_item(item, &format!("{pointer}/{}", escape(name)), at, lines, out)?;
     }
+    Ok(())
 }
 
 fn walk_inline(
@@ -317,18 +331,19 @@ fn walk_inline(
     parent: (u64, u64),
     lines: &Lines<'_>,
     out: &mut BTreeMap<String, (u64, u64)>,
-) {
+) -> Result<(), SyntaxAt> {
     for (name, value) in table.iter() {
         let key_at = table.key(name).and_then(|key| key.span());
-        let at = start(key_at.or_else(|| value.span()), lines, parent);
+        let at = start(key_at.or_else(|| value.span()), lines, parent)?;
         walk_value(
             value,
             &format!("{pointer}/{}", escape(name)),
             at,
             lines,
             out,
-        );
+        )?;
     }
+    Ok(())
 }
 
 fn walk_item(
@@ -337,20 +352,21 @@ fn walk_item(
     at: (u64, u64),
     lines: &Lines<'_>,
     out: &mut BTreeMap<String, (u64, u64)>,
-) {
+) -> Result<(), SyntaxAt> {
     out.entry(pointer.to_owned()).or_insert(at);
     match item {
         toml_edit::Item::Table(table) => walk_table(table, pointer, at, lines, out),
         toml_edit::Item::ArrayOfTables(tables) => {
             for (n, table) in tables.iter().enumerate() {
-                let here = start(table.span(), lines, at);
+                let here = start(table.span(), lines, at)?;
                 let pointer = format!("{pointer}/{n}");
                 out.entry(pointer.clone()).or_insert(here);
-                walk_table(table, &pointer, here, lines, out);
+                walk_table(table, &pointer, here, lines, out)?;
             }
+            Ok(())
         }
         toml_edit::Item::Value(value) => walk_value(value, pointer, at, lines, out),
-        toml_edit::Item::None => {}
+        toml_edit::Item::None => Ok(()),
     }
 }
 
@@ -360,17 +376,18 @@ fn walk_value(
     at: (u64, u64),
     lines: &Lines<'_>,
     out: &mut BTreeMap<String, (u64, u64)>,
-) {
+) -> Result<(), SyntaxAt> {
     out.entry(pointer.to_owned()).or_insert(at);
     match value {
         toml_edit::Value::Array(array) => {
             for (n, member) in array.iter().enumerate() {
-                let here = start(member.span(), lines, at);
-                walk_value(member, &format!("{pointer}/{n}"), here, lines, out);
+                let here = start(member.span(), lines, at)?;
+                walk_value(member, &format!("{pointer}/{n}"), here, lines, out)?;
             }
+            Ok(())
         }
         toml_edit::Value::InlineTable(table) => walk_inline(table, pointer, at, lines, out),
-        _ => {}
+        _ => Ok(()),
     }
 }
 

@@ -74,7 +74,7 @@ struct Diagnostic<'a> {
 /// are left alone. The line is 1-based and the column a 0-based count of characters.
 fn split_diagnostic(text: &str) -> Option<Diagnostic<'_>> {
     text.match_indices(':').find_map(|(at, _)| {
-        let rest = &text[at + 1..];
+        let rest = text.get(at + 1..)?;
         let (line, rest) = rest.split_once(':')?;
         let (column, rest) = rest.split_once(": ")?;
         let (severity, message) = rest.split_once(": ")?;
@@ -87,7 +87,7 @@ fn split_diagnostic(text: &str) -> Option<Diagnostic<'_>> {
         let line: u64 = line.parse().ok().filter(|value| *value > 0)?;
         let column: u64 = column.parse::<u64>().ok()?.checked_add(1)?;
         Some(Diagnostic {
-            path: &text[..at],
+            path: text.get(..at)?,
             line,
             column,
             severity,

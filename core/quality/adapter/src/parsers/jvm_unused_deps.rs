@@ -239,7 +239,7 @@ fn used_jars(bytes: &[u8]) -> Result<BTreeSet<String>, String> {
 /// Splits one field off the front of `rest`. Varints come back as their encoded bytes.
 fn next_field<'a>(rest: &mut &'a [u8]) -> Result<(u64, u64, &'a [u8]), String> {
     let (tag, used) = varint(rest)?;
-    let body = &rest[used..];
+    let (_, body) = split(rest, used)?;
     let (value, after) = match tag & 7 {
         0 => {
             let (_, len) = varint(body)?;
@@ -250,8 +250,8 @@ fn next_field<'a>(rest: &mut &'a [u8]) -> Result<(u64, u64, &'a [u8]), String> {
         2 => {
             let (len, used) = varint(body)?;
             let len = usize::try_from(len).map_err(|_| "length out of range".to_owned())?;
-            let (value, after) = split(&body[used..], len)?;
-            (value, after)
+            let (_, tail) = split(body, used)?;
+            split(tail, len)?
         }
         wire => return Err(format!("unsupported wire type {wire}")),
     };

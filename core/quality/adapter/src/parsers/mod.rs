@@ -323,9 +323,9 @@ pub fn check_output_size(tool: &'static str, bytes: &[u8]) -> Result<(), ParseEr
 pub(super) fn same_drive_path(a: &str, b: &str) -> bool {
     fn drive(path: &str) -> Option<(u8, &str)> {
         match path.as_bytes() {
-            [letter, b':', ..] if letter.is_ascii_alphabetic() => {
-                Some((letter.to_ascii_uppercase(), &path[2..]))
-            }
+            [letter, b':', ..] if letter.is_ascii_alphabetic() => path
+                .get(2..)
+                .map(|rest| (letter.to_ascii_uppercase(), rest)),
             _ => None,
         }
     }
@@ -458,10 +458,13 @@ fn located<'a>(
         return Err(missing(tool, "location", line));
     }
     let skip = if dx_path::drive_rooted(line) { 2 } else { 0 };
-    let end = line[skip..].find(':').map_or(line.len(), |at| at + skip);
+    let end = line
+        .get(skip..)
+        .and_then(|tail| tail.find(':'))
+        .map_or(line.len(), |at| at + skip);
     Err(ParseError::UnknownFile {
         tool,
-        path: line[..end].to_owned(),
+        path: line.get(..end).unwrap_or(line).to_owned(),
     })
 }
 
@@ -470,9 +473,12 @@ fn prefixed<'a>(line: &'a str, files: &[&'a str]) -> Option<(&'a str, &'a str)> 
     files
         .iter()
         .copied()
-        .filter(|file| line.strip_prefix(file).is_some_and(|r| r.starts_with(':')))
-        .max_by_key(|file| file.len())
-        .map(|file| (file, &line[file.len() + 1..]))
+        .filter_map(|file| {
+            line.strip_prefix(file)?
+                .strip_prefix(':')
+                .map(|rest| (file, rest))
+        })
+        .max_by_key(|(file, _)| file.len())
 }
 
 /// Exactly `row<sep>col`, both numbers trimmed.
@@ -580,23 +586,20 @@ fn diff_paths(text: &str) -> Vec<String> {
     let mut paths: Vec<String> = Vec::new();
     let lines: Vec<&str> = text.lines().collect();
     let mut index = 0;
-    while index < lines.len() {
-        let old = lines[index].strip_prefix("--- ");
+    while let Some(current) = lines.get(index).copied() {
+        let old = current.strip_prefix("--- ");
         index += 1;
-        if let Some((old_count, new_count)) = hunk_counts(lines[index - 1]) {
+        if let Some((old_count, new_count)) = hunk_counts(current) {
             index = hunk_end(&lines, index, old_count, new_count);
             continue;
         }
         let Some(old) = old else {
             continue;
         };
-        let new = index < lines.len() && lines[index].starts_with("+++ ");
-        let new = if new {
+        let new = lines.get(index).and_then(|next| next.strip_prefix("+++ "));
+        if new.is_some() {
             index += 1;
-            Some(&lines[index - 1][4..])
-        } else {
-            None
-        };
+        }
         let git = git_prefixed(Some(old), new);
         let path = match new {
             Some(new) => diff_path(new, git, false).or_else(|| diff_path(old, git, !git)),
@@ -630,8 +633,10 @@ fn range_count(range: &str) -> Option<usize> {
 fn hunk_end(lines: &[&str], mut index: usize, old_count: usize, new_count: usize) -> usize {
     let mut old_seen = 0;
     let mut new_seen = 0;
-    while index < lines.len() && (old_seen < old_count || new_seen < new_count) {
-        match lines[index].as_bytes().first() {
+    while let Some(line) = lines.get(index)
+        && (old_seen < old_count || new_seen < new_count)
+    {
+        match line.as_bytes().first() {
             Some(b' ') => {
                 old_seen += 1;
                 new_seen += 1;

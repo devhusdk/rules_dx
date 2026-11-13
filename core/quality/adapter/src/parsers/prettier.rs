@@ -176,11 +176,11 @@ fn svelte_frame(raw: &str, frame: &mut Option<SvelteFrame>, findings: &[FileFind
         return true;
     }
     let body = raw.trim_start();
-    let digits = body.len() - body.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+    let rest = body.trim_start_matches(|c: char| c.is_ascii_digit());
+    let digits = body.len() - rest.len();
     if digits == 0 {
         return false;
     }
-    let rest = &body[digits..];
     let shown = if rest == ":" {
         ""
     } else if let Some(shown) = rest.strip_prefix(": ") {
@@ -220,15 +220,20 @@ fn place_svelte_error(
     {
         return;
     }
-    let first = lines[..index]
+    let (Some(before), Some(after)) = (lines.get(..index), lines.get(index..)) else {
+        return;
+    };
+    let first = before
         .iter()
         .rposition(|line| line.contains(SNIPPED))
         .map_or(0, |at| at + 1);
-    let end = lines[index..]
+    let end = after
         .iter()
         .position(|line| line.contains(SNIPPED))
         .map_or(lines.len(), |at| index + at);
-    let window = &lines[first..end];
+    let Some(window) = lines.get(first..end) else {
+        return;
+    };
     let Some(text) = source(&last.file) else {
         return;
     };
@@ -246,7 +251,10 @@ fn place_svelte_error(
         return;
     };
     let row = at + index - first;
-    let tabs = original[row].len() - original[row].trim_start_matches('\t').len();
+    let Some(row_text) = original.get(row) else {
+        return;
+    };
+    let tabs = row_text.len() - row_text.trim_start_matches('\t').len();
     let column = if offset >= 2 * tabs {
         offset - tabs
     } else {

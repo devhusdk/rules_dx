@@ -192,11 +192,12 @@ fn scan_yaml(text: &str) -> Result<Scanned, Problem> {
 fn path_matches(stack: &[Frame], n: usize) -> bool {
     let names = ["Metadata", "cfn-lint", "config"];
     n <= names.len()
-        && stack.len() >= n
-        && names
-            .iter()
-            .zip(&stack[..n])
-            .all(|(name, frame)| matches!(frame, Frame::Map { key: Some(k), .. } if k == name))
+        && stack.get(..n).is_some_and(|open| {
+            names
+                .iter()
+                .zip(open)
+                .all(|(name, frame)| matches!(frame, Frame::Map { key: Some(k), .. } if k == name))
+        })
 }
 
 /// Whether the open frames are root `Metadata`, `cfn-lint`, then `config`.
@@ -205,8 +206,8 @@ fn in_metadata_config(stack: &[Frame]) -> bool {
     stack.len() >= 3
         && names
             .iter()
-            .enumerate()
-            .all(|(i, name)| matches!(&stack[i], Frame::Map { key: Some(k), .. } if k == name))
+            .zip(stack)
+            .all(|(name, frame)| matches!(frame, Frame::Map { key: Some(k), .. } if k == name))
 }
 
 /// Whether the scalar being read is the `Type` of an entry directly under root `Resources`.
@@ -215,11 +216,12 @@ fn is_resource_type(stack: &[Frame]) -> bool {
         Frame::Map { key, .. } => key.clone(),
         Frame::Seq => None,
     };
-    stack.len() == 3
-        && matches!(stack[1], Frame::Map { .. })
-        && matches!(stack[2], Frame::Map { .. })
-        && key_of(&stack[0]).as_deref() == Some("Resources")
-        && key_of(&stack[2]).as_deref() == Some("Type")
+    matches!(
+        stack,
+        [first, Frame::Map { .. }, third @ Frame::Map { .. }]
+            if key_of(first).as_deref() == Some("Resources")
+                && key_of(third).as_deref() == Some("Type")
+    )
 }
 
 fn scan_json(text: &str) -> Result<Scanned, Problem> {

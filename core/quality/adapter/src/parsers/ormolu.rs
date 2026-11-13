@@ -58,8 +58,9 @@ fn failure(
         let Some((file, row, column)) = locate(line, files) else {
             continue;
         };
-        let message = lines[index + 1..]
+        let message = lines
             .iter()
+            .skip(index + 1)
             .take_while(|next| next.starts_with(' '))
             .map(|next| next.trim())
             .collect::<Vec<_>>()

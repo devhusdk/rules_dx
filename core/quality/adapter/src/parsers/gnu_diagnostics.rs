@@ -35,10 +35,10 @@ struct Header<'a> {
 fn header(line: &str) -> Option<Header<'_>> {
     let skip = if dx_path::drive_rooted(line) { 2 } else { 0 };
     let mut from = skip;
-    while let Some(at) = line[from..].find(':') {
+    while let Some(at) = line.get(from..).and_then(|tail| tail.find(':')) {
         let colon = from + at;
         from = colon + 1;
-        let rest = &line[colon + 1..];
+        let rest = line.get(colon + 1..)?;
         let (line_text, rest) = rest.split_once(':')?;
         let Ok(line_no) = line_text.parse::<u64>() else {
             continue;
@@ -59,7 +59,7 @@ fn header(line: &str) -> Option<Header<'_>> {
             continue;
         }
         return Some(Header {
-            file: &line[..colon],
+            file: line.get(..colon)?,
             line: line_no,
             column,
             severity,
@@ -106,11 +106,12 @@ pub(super) fn read(
             }
             continue;
         };
-        let (message, rule_id) = match head.message.rfind(" [") {
-            Some(start) if dialect.bracket_rule && head.message.ends_with(']') => (
-                head.message[..start].trim_end(),
-                head.message[start + 2..head.message.len() - 1].to_owned(),
-            ),
+        let bracketed = head.message.strip_suffix(']').and_then(|inner| {
+            let start = inner.rfind(" [")?;
+            inner.get(..start).zip(inner.get(start + 2..))
+        });
+        let (message, rule_id) = match bracketed {
+            Some((text, rule)) if dialect.bracket_rule => (text.trim_end(), rule.to_owned()),
             _ => (head.message, String::new()),
         };
         findings.push(finding(

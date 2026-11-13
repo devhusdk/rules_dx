@@ -65,8 +65,16 @@ impl<'a> Mapper<'a> {
     }
 
     fn notebook(&mut self, tool: &'static str, path: &str) -> Result<&Notebook<'a>, ParseError> {
+        let inconsistent = || ParseError::Shape {
+            tool,
+            detail: format!("{path}: notebook cache is inconsistent"),
+        };
         if let Some(at) = self.parsed.iter().position(|(known, _)| *known == path) {
-            return Ok(&self.parsed[at].1);
+            return self
+                .parsed
+                .get(at)
+                .map(|(_, notebook)| notebook)
+                .ok_or_else(inconsistent);
         }
         let Some((name, text)) = self.notebooks.iter().find(|(name, _)| *name == path) else {
             return Err(ParseError::Shape {
@@ -79,7 +87,10 @@ impl<'a> Mapper<'a> {
             detail: format!("{path}: {err}"),
         })?;
         self.parsed.push((name, notebook));
-        Ok(&self.parsed[self.parsed.len() - 1].1)
+        self.parsed
+            .last()
+            .map(|(_, notebook)| notebook)
+            .ok_or_else(inconsistent)
     }
 
     /// Start, end and message of one diagnostic, in file coordinates.

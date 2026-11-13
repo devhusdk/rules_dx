@@ -54,8 +54,8 @@ fn lint_header(line: &str) -> Option<Lint<'_>> {
         .iter()
         .filter_map(|(marker, severity)| line.find(marker).map(|at| (at, *marker, *severity)))
         .min_by_key(|(at, _, _)| *at)?;
-    let (rule, message) = line[start + marker.len()..].split_once(']')?;
-    let (path, line, column) = path_row_col(&line[..start])?;
+    let (rule, message) = line.get(start + marker.len()..)?.split_once(']')?;
+    let (path, line, column) = path_row_col(line.get(..start)?)?;
     Some(Lint {
         path,
         line,
@@ -67,7 +67,7 @@ fn lint_header(line: &str) -> Option<Lint<'_>> {
 }
 
 fn is_diff_start(lines: &[&str], at: usize) -> bool {
-    lines[at].starts_with("--- ")
+    lines.get(at).is_some_and(|line| line.starts_with("--- "))
         && lines
             .get(at + 1)
             .is_some_and(|next| next.starts_with("+++ "))
@@ -171,8 +171,7 @@ pub fn parse_scalafix(
     let mut patches = 0;
     let mut errors = 0;
     let mut index = 0;
-    while index < lines.len() {
-        let line = lines[index];
+    while let Some(&line) = lines.get(index) {
         index += 1;
         if line.trim().is_empty() {
             continue;
@@ -182,18 +181,18 @@ pub fn parse_scalafix(
             let mut end = None;
             let mut message = lint.message.to_owned();
             let mut scan = index;
-            while scan < lines.len()
-                && lint_header(lines[scan]).is_none()
+            while let Some(&current) = lines.get(scan)
+                && lint_header(current).is_none()
                 && !is_diff_start(&lines, scan)
             {
                 if scan > index
-                    && let Some(width) = caret_width(lines[scan])
+                    && let Some(width) = caret_width(current)
                 {
                     end = Some(TextPosition {
                         line: lint.line,
                         column: lint.column + width,
                     });
-                    for extra in &lines[index..scan - 1] {
+                    for extra in lines.get(index..scan - 1).into_iter().flatten() {
                         message.push('\n');
                         message.push_str(extra.trim());
                     }
@@ -232,15 +231,18 @@ pub fn parse_scalafix(
         {
             let file = known(TOOL, files, path.trim())?;
             index += 1;
-            while index < lines.len() && lines[index].starts_with("@@ ") {
-                let header = lines[index];
+            while let Some(&header) = lines.get(index)
+                && header.starts_with("@@ ")
+            {
                 let (old, new) = hunk_counts(header)
                     .ok_or_else(|| ParseError::shape(TOOL, format!("malformed hunk: {header}")))?;
                 index += 1;
                 let begin = index;
                 let (mut seen_old, mut seen_new) = (0, 0);
-                while index < lines.len() && (seen_old < old || seen_new < new) {
-                    match lines[index].chars().next() {
+                while let Some(&row) = lines.get(index)
+                    && (seen_old < old || seen_new < new)
+                {
+                    match row.chars().next() {
                         Some('-') => seen_old += 1,
                         Some('+') => seen_new += 1,
                         Some('\\') => {}
@@ -254,10 +256,16 @@ pub fn parse_scalafix(
                 if seen_old != old || seen_new != new {
                     return Err(ParseError::shape(TOOL, format!("truncated hunk: {header}")));
                 }
-                while index < lines.len() && lines[index].starts_with('\\') {
+                while lines
+                    .get(index)
+                    .is_some_and(|row| row.starts_with('\\'))
+                {
                     index += 1;
                 }
-                let hunk = hunk_span(header, &lines[begin..index])?;
+                let body = lines
+                    .get(begin..index)
+                    .ok_or_else(|| ParseError::shape(TOOL, format!("truncated hunk: {header}")))?;
+                let hunk = hunk_span(header, body)?;
                 findings.push(patch_finding(file, &hunk));
                 patches += 1;
             }

@@ -17,7 +17,7 @@ const EXEC_ROOT: &str = "/execroot/_main/";
 fn exec_relative(spelled: &str) -> Option<&str> {
     spelled
         .rfind(EXEC_ROOT)
-        .map(|at| &spelled[at + EXEC_ROOT.len()..])
+        .and_then(|at| spelled.get(at + EXEC_ROOT.len()..))
 }
 
 fn outside_the_main_repository(prefix: &str) -> bool {
@@ -217,7 +217,10 @@ fn parse_scoped(
             if scope == Scope::Compiler && !is_compiler_rule(run, &result) {
                 continue;
             }
-            let rule = result["ruleId"].as_str().unwrap_or_default();
+            let rule = result
+                .get("ruleId")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
             if REFERENCE_TRIMMER_RULES.contains(&rule) {
                 continue;
             }
@@ -247,7 +250,10 @@ fn parse_scoped(
                 map_related_locations(&mut result, files);
                 kept.push(result);
             } else if result.get("level").and_then(Value::as_str) == Some("error") {
-                let rule = result["ruleId"].as_str().unwrap_or_default();
+                let rule = result
+                .get("ruleId")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
                 let message = result
                     .pointer("/message/text")
                     .and_then(Value::as_str)

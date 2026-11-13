@@ -219,7 +219,7 @@ pub fn parse_helm_template_error(
             break;
         }
         let line = if index == 0 {
-            &line["Error: ".len()..]
+            line.strip_prefix("Error: ").unwrap_or(line)
         } else {
             line.trim()
         };

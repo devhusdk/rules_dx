@@ -192,8 +192,12 @@ mod tests {
     fn mixed_levels_need_the_union_of_bits() {
         let both = format!(
             "[{},{}]",
-            &DIRTY_ERROR[1..DIRTY_ERROR.len() - 1],
-            &DIRTY_WARNING[1..DIRTY_WARNING.len() - 1]
+            DIRTY_ERROR
+                .get(1..DIRTY_ERROR.len() - 1)
+                .expect("error body"),
+            DIRTY_WARNING
+                .get(1..DIRTY_WARNING.len() - 1)
+                .expect("warning body")
         );
         assert!(parse_cfn_lint(both.as_bytes(), b"", Some(6), &files()).is_ok());
         assert!(parse_cfn_lint(both.as_bytes(), b"", Some(2), &files()).is_err());

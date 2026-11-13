@@ -40,8 +40,7 @@ pub fn parse_gersemi(
 
     let lines: Vec<&str> = errors.lines().collect();
     let mut at = 0;
-    while at < lines.len() {
-        let line = lines[at];
+    while let Some(&line) = lines.get(at) {
         at += 1;
         if line.trim().is_empty() {
             continue;

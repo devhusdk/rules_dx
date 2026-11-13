@@ -8,16 +8,16 @@ const TOOL: &str = "nvcc_syntax";
 /// One EDG (cudafe++/cicc front end) line: `path(LINE): error|warning|remark[ #NNN-D]: message`.
 fn edg_diagnostic(line: &str) -> Option<(&str, u64, Option<ToolSeverity>, String, &str)> {
     let mut from = 0;
-    while let Some(offset) = line[from..].find("): ") {
+    while let Some(offset) = line.get(from..).and_then(|tail| tail.find("): ")) {
         let end = from + offset;
         from = end + 1;
-        let Some((file, number)) = line[..end].rsplit_once('(') else {
+        let Some((file, number)) = line.get(..end).and_then(|head| head.rsplit_once('(')) else {
             continue;
         };
         let Ok(line_no) = number.parse::<u64>() else {
             continue;
         };
-        let rest = &line[end + 3..];
+        let rest = line.get(end + 3..)?;
         let (word, severity) = [
             ("catastrophic error", Some(ToolSeverity::Error)),
             ("error", Some(ToolSeverity::Error)),
@@ -30,7 +30,7 @@ fn edg_diagnostic(line: &str) -> Option<(&str, u64, Option<ToolSeverity>, String
             rest.strip_prefix(word)
                 .is_some_and(|tail| tail.starts_with(':') || tail.starts_with(" #"))
         })?;
-        let tail = &rest[word.len()..];
+        let tail = rest.get(word.len()..)?;
         let (rule, message) = match tail.strip_prefix(" #") {
             Some(tail) => {
                 let (rule, message) = tail.split_once(": ")?;

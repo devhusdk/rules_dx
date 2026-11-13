@@ -52,11 +52,11 @@ fn parse(text: &str) -> Result<Leaves, String> {
             };
             continue;
         }
-        let Some(split) = line.find('=') else {
+        let Some((key, value)) = line.split_once('=') else {
             return Err(format!("line {number}: expected `key = value`"));
         };
-        let key = line[..split].trim();
-        let value = line[split + 1..].trim();
+        let key = key.trim();
+        let value = value.trim();
         in_key = true;
         let Some(base) = &section else {
             current = None;
@@ -76,14 +76,10 @@ fn parse(text: &str) -> Result<Leaves, String> {
 fn render(leaves: &Leaves) -> String {
     let mut sections: BTreeMap<String, Vec<(String, &String)>> = BTreeMap::new();
     for (path, value) in leaves {
-        let (section, key) = if path[0] == "core" {
-            ("sqlfluff".to_owned(), path[1..].join("."))
-        } else {
-            let head = &path[..path.len() - 1];
-            (
-                format!("sqlfluff:{}", head.join(":")),
-                path[path.len() - 1].clone(),
-            )
+        let (section, key) = match path.as_slice() {
+            [first, rest @ ..] if first == "core" => ("sqlfluff".to_owned(), rest.join(".")),
+            [head @ .., last] => (format!("sqlfluff:{}", head.join(":")), last.clone()),
+            [] => continue,
         };
         sections.entry(section).or_default().push((key, value));
     }
@@ -164,15 +160,20 @@ pub fn group(
     for (chain, mut files) in chains {
         files.sort();
         files.dedup();
+        let picked = chain
+            .iter()
+            .map(|&index| layers.get(index))
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| "nested config layer index out of range".to_owned())?;
         let merged = if chain.is_empty() {
             None
         } else {
             let mut texts = vec![bound];
-            texts.extend(chain.iter().map(|&index| layers[index].2));
+            texts.extend(picked.iter().map(|layer| layer.2));
             Some(merge(&texts)?)
         };
         groups.push(Group {
-            layers: chain.iter().map(|&index| layers[index].1.clone()).collect(),
+            layers: picked.iter().map(|layer| layer.1.clone()).collect(),
             merged,
             files,
         });

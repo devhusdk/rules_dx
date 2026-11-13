@@ -63,7 +63,9 @@ fn located(line: &str) -> Option<(&str, &str, &str)> {
         _ => rest,
     };
     let text = after_column.strip_prefix(' ')?;
-    let position = &line[file.len()..line.len() - text.len()];
+    let position = line
+        .get(file.len()..)?
+        .get(..line.len().checked_sub(text.len())?.checked_sub(file.len())?)?;
     Some((file, position, text))
 }
 

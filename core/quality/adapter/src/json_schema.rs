@@ -524,8 +524,9 @@ pub fn pointer_of(json_path: &str) -> Option<String> {
                 .find(|(_, c)| !(c.is_ascii_alphanumeric() || *c == '_'))
                 .map_or(after.len(), |(at, _)| at);
             pointer.push('/');
-            pointer.push_str(&escape(&after[..end]));
-            rest = &after[end..];
+            let (name, tail) = after.split_at_checked(end)?;
+            pointer.push_str(&escape(name));
+            rest = tail;
         } else if let Some(after) = rest.strip_prefix("['") {
             let mut name = String::new();
             let mut chars = after.char_indices();
@@ -543,8 +544,7 @@ pub fn pointer_of(json_path: &str) -> Option<String> {
                     other => name.push(other),
                 }
             };
-            let after = &after[end..];
-            rest = after.strip_prefix(']')?;
+            rest = after.get(end..)?.strip_prefix(']')?;
             pointer.push('/');
             pointer.push_str(&escape(&name));
         } else {
@@ -582,13 +582,14 @@ pub fn syntax_problem(bytes: &[u8], filetype: Filetype) -> Option<(u64, u64, Str
         }),
         Filetype::Yaml => match pointer_index::yaml_documents(text) {
             Err(err) => Some(at(err.line, err.col, err.detail)),
-            Ok(docs) if docs.len() > 1 => Some((
-                docs[1].line,
-                docs[1].column,
-                "multi-document YAML is not supported by check-jsonschema; keep one document per file"
-                    .to_owned(),
-            )),
-            Ok(_) => None,
+            Ok(docs) => docs.get(1).map(|doc| {
+                (
+                    doc.line,
+                    doc.column,
+                    "multi-document YAML is not supported by check-jsonschema; keep one document per file"
+                        .to_owned(),
+                )
+            }),
         },
         Filetype::Toml => pointer_index::toml_index(text)
             .err()

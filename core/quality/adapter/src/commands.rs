@@ -18,19 +18,19 @@ const BUILDIFIER_CHECK_BARE_ARGS: &[&str] = &[
 ];
 const BUILDIFIER_FIX_ARGS: &[&str] = &["--mode=fix", "--lint=fix"];
 const BUILDIFIER_FIX_BARE_ARGS: &[&str] = &["--mode=fix", "--lint=fix", "--config=off"];
-const RUSTFMT_PREFIX: &[&str] = &["--edition"];
+const RUSTFMT_PREFIX: &str = "--edition";
 const RUSTFMT_MIDDLE: &[&str] = &[
     "--color=never",
     "--config",
     "skip_children=true",
     "--config-path",
 ];
-const RUSTFMT_CHECK_FLAG: &[&str] = &["--check"];
+const RUSTFMT_CHECK_FLAG: &str = "--check";
 const TAPLO_LINT_BASE: &[&str] = &["lint", "--colors=never", "--no-auto-config", "--no-schema"];
 const TAPLO_TYPECHECK_BASE: &[&str] = &["lint", "--colors=never", "--no-auto-config"];
 const TAPLO_FORMAT_BASE: &[&str] = &["format", "--colors=never", "--no-auto-config"];
 const TAPLO_FORMAT_CHECK_FLAG: &[&str] = &["--check"];
-const TAPLO_CONFIG_FLAG: &[&str] = &["-c"];
+const TAPLO_CONFIG_FLAG: &str = "-c";
 const VALE_FIXED: &[&str] = &["--output=JSON", "--no-color", "--no-global", "--no-wrap"];
 const LYCHEE_FIXED: &[&str] = &[
     "--offline",
@@ -40,8 +40,8 @@ const LYCHEE_FIXED: &[&str] = &[
     "--include-fragments",
     "--no-ignore",
 ];
-const RUFF_CHECK_SUBCOMMAND: &[&str] = &["check"];
-const RUFF_FORMAT_SUBCOMMAND: &[&str] = &["format"];
+const RUFF_CHECK_SUBCOMMAND: &str = "check";
+const RUFF_FORMAT_SUBCOMMAND: &str = "format";
 const RUFF_HERMETIC_TAIL: &[&str] = &["--no-cache", "--no-respect-gitignore"];
 const RUFF_CHECK_TAIL: &[&str] = &["--output-format", "json"];
 const RUFF_FIX_TAIL: &[&str] = &["--fix"];
@@ -81,9 +81,10 @@ const TY_BASE: &[&str] = &[
     "--no-respect-ignore-files",
 ];
 const PYDOCLINT_ARGS: &[&str] = &["--quiet"];
-const BIOME_LINT_SUBCOMMAND: &[&str] = &["lint"];
-const BIOME_FORMAT_SUBCOMMAND: &[&str] = &["format"];
-const BIOME_BASE_TAIL: &[&str] = &["--reporter=json", "--colors=off", "--config-path"];
+const BIOME_LINT_SUBCOMMAND: &str = "lint";
+const BIOME_FORMAT_SUBCOMMAND: &str = "format";
+const BIOME_BASE_TAIL: &[&str] = &["--reporter=json", "--colors=off"];
+const BIOME_CONFIG_PATH_FLAG: &str = "--config-path";
 const BIOME_LINT_TAIL: &[&str] = &["--error-on-warnings", "--vcs-enabled=false"];
 const BIOME_FORMAT_FIX_TAIL: &[&str] = &["--write"];
 const BIOME_LINT_FIX_TAIL: &[&str] = &["--write", "--vcs-enabled=false"];
@@ -379,7 +380,7 @@ const TRIVY_IMAGE_CONFIG_PREFIX: &[&str] = &[
 const CONTAINER_STRUCTURE_TEST_PREFIX: &[&str] =
     &["test", "--driver", "tar", "--output", "json", "--no-color"];
 const END_OF_FLAGS: &[&str] = &["--"];
-const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
+const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json"];
 const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
@@ -531,13 +532,13 @@ pub fn rustfmt(
 ) -> Invocation {
     let mut head = vec![
         binary.as_os_str().to_owned(),
-        OsString::from(RUSTFMT_PREFIX[0]),
+        OsString::from(RUSTFMT_PREFIX),
         OsString::from(edition),
     ];
     head.extend(RUSTFMT_MIDDLE.iter().map(OsString::from));
     head.push(config.as_os_str().to_owned());
     if check {
-        head.push(OsString::from(RUSTFMT_CHECK_FLAG[0]));
+        head.push(OsString::from(RUSTFMT_CHECK_FLAG));
     }
     assemble(binary, head, files, "")
 }
@@ -546,7 +547,7 @@ pub fn taplo_lint(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invo
     optional_flag(
         binary,
         TAPLO_LINT_BASE,
-        TAPLO_CONFIG_FLAG[0],
+        TAPLO_CONFIG_FLAG,
         config,
         EMPTY_ARGS,
         files,
@@ -560,7 +561,7 @@ pub fn taplo_typecheck(binary: &Path, files: &[&Path], config: Option<&Path>) ->
     optional_flag(
         binary,
         TAPLO_TYPECHECK_BASE,
-        TAPLO_CONFIG_FLAG[0],
+        TAPLO_CONFIG_FLAG,
         config,
         EMPTY_ARGS,
         files,
@@ -580,7 +581,7 @@ pub fn taplo_format(
         head.extend(TAPLO_FORMAT_CHECK_FLAG.iter().map(OsString::from));
     }
     if let Some(path) = config {
-        head.extend(TAPLO_CONFIG_FLAG.iter().map(OsString::from));
+        head.push(OsString::from(TAPLO_CONFIG_FLAG));
         head.push(path.as_os_str().to_owned());
     }
     assemble(binary, head, files, "")
@@ -675,7 +676,7 @@ pub fn ruff_check(
     config: Option<&Path>,
     cwd_rel: &str,
 ) -> Invocation {
-    let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config, files);
+    let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND, config, files);
     head.extend(RUFF_CHECK_TAIL.iter().map(OsString::from));
     assemble(binary, head, files, cwd_rel)
 }
@@ -687,7 +688,7 @@ pub fn ruff_fix(
     cwd_rel: &str,
     unsafe_fixes: bool,
 ) -> Invocation {
-    let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config, files);
+    let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND, config, files);
     head.extend(RUFF_FIX_TAIL.iter().map(OsString::from));
     if unsafe_fixes {
         head.extend(RUFF_UNSAFE_FIX_TAIL.iter().map(OsString::from));
@@ -701,7 +702,7 @@ pub fn ruff_format_check(
     config: Option<&Path>,
     cwd_rel: &str,
 ) -> Invocation {
-    let mut head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config, files);
+    let mut head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND, config, files);
     head.extend(RUFF_FORMAT_CHECK_TAIL.iter().map(OsString::from));
     assemble(binary, head, files, cwd_rel)
 }
@@ -712,7 +713,7 @@ pub fn ruff_format_fix(
     config: Option<&Path>,
     cwd_rel: &str,
 ) -> Invocation {
-    let head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config, files);
+    let head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND, config, files);
     assemble(binary, head, files, cwd_rel)
 }
 
@@ -765,25 +766,25 @@ pub fn weeder_check(binary: &Path, config: &Path, hie_dir: &Path) -> Invocation 
 
 fn biome_base(binary: &Path, subcommand: &str, config_dir: &Path) -> Vec<OsString> {
     let mut head = vec![binary.as_os_str().to_owned(), OsString::from(subcommand)];
-    head.extend(BIOME_BASE_TAIL[..2].iter().map(OsString::from));
-    head.push(OsString::from(BIOME_BASE_TAIL[2]));
+    head.extend(BIOME_BASE_TAIL.iter().map(OsString::from));
+    head.push(OsString::from(BIOME_CONFIG_PATH_FLAG));
     head.push(config_dir.as_os_str().to_owned());
     head
 }
 
 pub fn biome_lint_check(binary: &Path, files: &[&Path], config_dir: &Path) -> Invocation {
-    let mut head = biome_base(binary, BIOME_LINT_SUBCOMMAND[0], config_dir);
+    let mut head = biome_base(binary, BIOME_LINT_SUBCOMMAND, config_dir);
     head.extend(BIOME_LINT_TAIL.iter().map(OsString::from));
     assemble(binary, head, files, "")
 }
 
 pub fn biome_format_check(binary: &Path, files: &[&Path], config_dir: &Path) -> Invocation {
-    let head = biome_base(binary, BIOME_FORMAT_SUBCOMMAND[0], config_dir);
+    let head = biome_base(binary, BIOME_FORMAT_SUBCOMMAND, config_dir);
     assemble(binary, head, files, "")
 }
 
 pub fn biome_format_fix(binary: &Path, files: &[&Path], config_dir: &Path) -> Invocation {
-    let mut head = biome_base(binary, BIOME_FORMAT_SUBCOMMAND[0], config_dir);
+    let mut head = biome_base(binary, BIOME_FORMAT_SUBCOMMAND, config_dir);
     head.extend(BIOME_FORMAT_FIX_TAIL.iter().map(OsString::from));
     assemble(binary, head, files, "")
 }
@@ -794,7 +795,7 @@ pub fn biome_lint_fix(
     config_dir: &Path,
     unsafe_fixes: bool,
 ) -> Invocation {
-    let mut head = biome_base(binary, BIOME_LINT_SUBCOMMAND[0], config_dir);
+    let mut head = biome_base(binary, BIOME_LINT_SUBCOMMAND, config_dir);
     head.extend(BIOME_LINT_FIX_TAIL.iter().map(OsString::from));
     if unsafe_fixes {
         head.extend(BIOME_UNSAFE_FIX_TAIL.iter().map(OsString::from));
@@ -2941,7 +2942,7 @@ pub fn deadnix_check(
     lambda_pattern_names: bool,
 ) -> Invocation {
     let mut head = vec![binary.as_os_str().to_owned()];
-    head.extend(DEADNIX_CHECK_ARGS[..3].iter().map(OsString::from));
+    head.extend(DEADNIX_CHECK_ARGS.iter().map(OsString::from));
     if !lambda_arg {
         head.push(OsString::from("--no-lambda-arg"));
     }

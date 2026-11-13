@@ -130,13 +130,19 @@ const EVAL_HEADER: &str = "\u{2013}\u{2013} Pkl Error \u{2013}\u{2013}";
 
 fn eval_error(stderr: &str, known: &[&str]) -> Result<FileFinding, ParseError> {
     let lines: Vec<&str> = stderr.lines().map(str::trim_end).collect();
-    if lines.first() != Some(&EVAL_HEADER) || lines[1..].contains(&EVAL_HEADER) {
+    let Some((header, body)) = lines.split_first() else {
+        return Err(ParseError::shape(
+            TOOL,
+            "eval error output is not a single Pkl Error block",
+        ));
+    };
+    if *header != EVAL_HEADER || body.contains(&EVAL_HEADER) {
         return Err(ParseError::shape(
             TOOL,
             "eval error output is not a single Pkl Error block",
         ));
     }
-    let message = lines[1..]
+    let message = body
         .iter()
         .take_while(|line| !line.is_empty())
         .copied()
@@ -145,16 +151,20 @@ fn eval_error(stderr: &str, known: &[&str]) -> Result<FileFinding, ParseError> {
     if message.is_empty() {
         return Err(ParseError::shape(TOOL, "Pkl Error block without a message"));
     }
-    let Some(at) = lines.iter().position(|line| line.starts_with("at ")) else {
+    let Some((before, [frame, ..])) = lines
+        .iter()
+        .position(|line| line.starts_with("at "))
+        .and_then(|at| lines.split_at_checked(at))
+    else {
         return Err(ParseError::shape(
             TOOL,
             format!("error without a located frame: {message}"),
         ));
     };
-    let (path, row) = frame_location(lines[at])
-        .ok_or_else(|| ParseError::shape(TOOL, format!("unlocated first frame: {}", lines[at])))?;
+    let (path, row) = frame_location(frame)
+        .ok_or_else(|| ParseError::shape(TOOL, format!("unlocated first frame: {frame}")))?;
     let file = known_native(TOOL, known, &path)?;
-    let column = frame_column(&lines[..at]);
+    let column = frame_column(before);
     Ok(finding(
         TOOL,
         file,
@@ -175,15 +185,11 @@ fn frame_location(frame: &str) -> Option<(String, u64)> {
     let (uri, row) = inner.rsplit_once(", line ")?;
     let path = percent_decode(uri.strip_prefix("file://")?)?;
     // A Windows drive path is spelled `file:///C:/dir/a.pkl`.
-    let bytes = path.as_bytes();
-    let path = if bytes.len() > 3
-        && bytes[0] == b'/'
-        && bytes[1].is_ascii_alphabetic()
-        && bytes[2] == b':'
-    {
-        path[1..].to_owned()
-    } else {
-        path
+    let path = match path.strip_prefix('/') {
+        Some(rest) if matches!(rest.as_bytes(), [drive, b':', _, ..] if drive.is_ascii_alphabetic()) => {
+            rest.to_owned()
+        }
+        _ => path,
     };
     if !path.starts_with('/') && !path.as_bytes().get(1).is_some_and(|c| *c == b':') {
         return None;
@@ -195,13 +201,13 @@ fn percent_decode(text: &str) -> Option<String> {
     let bytes = text.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'%' {
+    while let Some(&byte) = bytes.get(index) {
+        if byte == b'%' {
             let hex = text.get(index + 1..index + 3)?;
             out.push(u8::from_str_radix(hex, 16).ok()?);
             index += 3;
         } else {
-            out.push(bytes[index]);
+            out.push(byte);
             index += 1;
         }
     }
@@ -216,10 +222,10 @@ fn frame_column(before: &[&str]) -> u64 {
     let Some(gutter) = snippet.find("| ").map(|at| at + 2) else {
         return 1;
     };
-    let Some(caret) = carets.find('^') else {
+    let Some((lead, _)) = carets.split_once('^') else {
         return 1;
     };
-    let offset = carets[..caret].chars().count().saturating_sub(gutter);
+    let offset = lead.chars().count().saturating_sub(gutter);
     offset as u64 + 1
 }
 

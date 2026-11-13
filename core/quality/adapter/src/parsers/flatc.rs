@@ -39,18 +39,20 @@ fn severity(text: &str) -> Option<ToolSeverity> {
 /// `path(line, col): error|warning: message` (the `_WIN32` style).
 fn locate(line: &str) -> Option<Located<'_>> {
     for (at, _) in line.match_indices(": ") {
-        let (head, tail) = (&line[..at], &line[at + 2..]);
+        let (head, tail) = line.split_at_checked(at)?;
+        let tail = tail.strip_prefix(": ")?;
         let (kind, message) = tail.split_once(": ")?;
         let Some(severity) = severity(kind) else {
             continue;
         };
         if let Some(open) = head.rfind('(')
-            && let Some(inner) = head[open + 1..].strip_suffix(')')
+            && let Some(inner) = head.get(open + 1..).and_then(|after| after.strip_suffix(')'))
             && let Some((row, column)) = inner.split_once(", ")
             && let (Some(row), Some(column)) = (number(row), number(column))
+            && let Some(path) = head.get(..open)
         {
             return Some(Located {
-                path: &line[..open],
+                path,
                 line: row,
                 column,
                 severity,
@@ -88,7 +90,7 @@ fn dependencies(stdout: &str) -> Result<Vec<String>, ParseError> {
         for dep in list.split_whitespace() {
             let absolute = dep.starts_with('/')
                 || dep.starts_with("\\\\")
-                || (dep.len() > 2 && dep.as_bytes()[1] == b':');
+                || (dep.len() > 2 && dep.as_bytes().get(1) == Some(&b':'));
             if !absolute {
                 return Err(ParseError::shape(
                     TOOL,

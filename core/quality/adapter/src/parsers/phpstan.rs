@@ -49,9 +49,12 @@ pub fn parse_phpstan(
         Some(serde_json::Value::Object(by_file)) => {
             for (key, entry) in by_file {
                 // A trait error is keyed `<trait file> (in context of class X)`.
-                let (path, in_context) = match key.find(" (in context of ") {
-                    Some(at) if key.ends_with(')') => (&key[..at], true),
-                    _ => (key.as_str(), false),
+                let (path, in_context) = match key
+                    .strip_suffix(')')
+                    .and_then(|inner| inner.split_once(" (in context of "))
+                {
+                    Some((path, _)) => (path, true),
+                    None => (key.as_str(), false),
                 };
                 if !files.contains(&path) {
                     dependency_trait |= in_context;

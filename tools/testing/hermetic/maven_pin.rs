@@ -36,7 +36,11 @@ fn consumer(name: &str, committed: &str) -> Result<dx_nested::Case, String> {
 fn pin(case: &dx_nested::Case, name: &str) -> Result<String, String> {
     let log_path = case.root().with_extension("pin.log");
     let log = File::create(&log_path).map_err(|error| format!("no pin log: {error}"))?;
-    let mut command = case.bazel_command(&["run", "--show_progress_rate_limit=5", "@maven//:pin"]);
+    let hub = &dx_families::hub("maven")
+        .ok_or("no setup.hubs entry maven")?
+        .hub;
+    let target = format!("@{hub}//:pin");
+    let mut command = case.bazel_command(&["run", "--show_progress_rate_limit=5", &target]);
     command
         .env("REPIN", "1")
         .env("RJE_VERBOSE", "1")

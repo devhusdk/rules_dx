@@ -161,6 +161,7 @@ rust_test(
 
 rust_test(
     name = "isolation_probe_test",
+    size = "small",
     srcs = ["isolation_test.rs"],
     aliases = aliases(
         package_name = "tools/testing/hermetic",
@@ -222,6 +223,7 @@ rust_binary(
 
 rust_test(
     name = "isolation_windows_probe_test",
+    size = "small",
     srcs = ["isolation_windows_test.rs"],
     aliases = aliases(
         package_name = "tools/testing/hermetic",
@@ -884,6 +886,7 @@ hermetic_qualification(
 
 rust_test(
     name = "cuda_gpu_facts_test",
+    size = "small",
     srcs = ["cuda_gpu_test.rs"],
     aliases = aliases(
         package_name = "tools/testing/hermetic",
@@ -916,6 +919,7 @@ rust_binary(
     },
     deps = [
         ":hermetic",
+        "//cli/families:dx_families",
         "//tools/testing:dx_testing",
         "//tools/testing/nested:dx_nested",
     ],
@@ -931,6 +935,7 @@ rust_binary(
     },
     deps = [
         ":hermetic",
+        "//cli/families:dx_families",
         "//tools/testing:dx_testing",
         "//tools/testing/nested:dx_nested",
     ],
@@ -1355,6 +1360,7 @@ real_source_target(
 
 rust_test(
     name = "appcontainer_run_bin_test",
+    size = "small",
     aliases = aliases(
         package_name = "tools/testing/hermetic",
         normal = True,

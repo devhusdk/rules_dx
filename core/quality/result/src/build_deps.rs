@@ -191,7 +191,8 @@ pub fn insertion(text: &str, target: &str, label: &str) -> Option<(usize, String
     }
 }
 
-/// The repo of a canonical external label such as `@@maven//:guava`. Main-repo labels give None.
+/// The repo of a canonical external label such as `@@+maven+maven//:guava`. Main-repo labels
+/// give None.
 pub fn canonical_repo(label: &str) -> Option<&str> {
     let rest = label.strip_prefix("@@")?;
     let (repo, _) = rest.split_once("//")?;
@@ -397,10 +398,14 @@ mod tests {
         assert_eq!(short_label("p", "@@//q:a", None).as_deref(), Some("//q:a"));
         assert_eq!(short_label("p", "@@x//:y", None), None);
         assert_eq!(short_label("p", "@x//:y", None), None);
-        let apparent = BTreeMap::from([("+maven+maven".to_owned(), "maven".to_owned())]);
+        let hub = &dx_families::hub("maven")
+            .expect("setup.hubs entry maven")
+            .hub;
+        let canonical = format!("+maven+{hub}");
+        let apparent = BTreeMap::from([(canonical.clone(), hub.clone())]);
         assert_eq!(
-            short_label("p", "@@+maven+maven//:guava", Some(&apparent)).as_deref(),
-            Some("@maven//:guava")
+            short_label("p", &format!("@@{canonical}//:guava"), Some(&apparent)),
+            Some(format!("@{hub}//:guava"))
         );
         assert_eq!(short_label("p", "@@+other//:x", Some(&apparent)), None);
     }

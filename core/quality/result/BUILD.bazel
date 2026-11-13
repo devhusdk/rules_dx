@@ -30,6 +30,7 @@ rust_library(
 
 rust_test(
     name = "quality_result_test",
+    size = "small",
     aliases = aliases(
         package_name = "core/quality/quality_result",
         normal = True,

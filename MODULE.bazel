@@ -19,6 +19,7 @@ single_version_override(
         "//patches/rules_rust:cargo_toml_env_vars_flag.patch",
         "//patches/rules_rust:exec_scope_universal.patch",
         "//patches/rules_rust:cargo_build_script_no_coverage.patch",
+        "//patches/rules_rust:windows_exec_foreign_target_cc_linker.patch",
     ],
     version = "0.75.0",
 )

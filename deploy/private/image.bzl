@@ -60,21 +60,13 @@ def image_entrypoint(base, app, main = None, main_class = None, runtime = False)
         return [("/opt/java" if runtime else "/usr") + "/bin/java", "-cp", "/app/lib/*", main_class or "@/app/lib/main.args"], {}
     return ["/app/" + app], {}
 
-_LINKER_PREFERENCE = str(Label("@rules_rust//rust/settings:toolchain_linker_preference"))
-
 def _platform_transition_impl(_settings, attr):
-    return {
-        "//command_line_option:platforms": str(attr.platform),
-        _LINKER_PREFERENCE: "cc",
-    }
+    return {"//command_line_option:platforms": str(attr.platform)}
 
 _platform_transition = transition(
     implementation = _platform_transition_impl,
     inputs = [],
-    outputs = [
-        "//command_line_option:platforms",
-        _LINKER_PREFERENCE,
-    ],
+    outputs = ["//command_line_option:platforms"],
 )
 
 def _for_platform_impl(ctx):

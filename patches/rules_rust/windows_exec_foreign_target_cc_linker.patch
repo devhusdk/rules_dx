@@ -1,0 +1,30 @@
+diff --git a/rust/private/repository_utils.bzl b/rust/private/repository_utils.bzl
+--- a/rust/private/repository_utils.bzl
++++ b/rust/private/repository_utils.bzl
+@@ -368,6 +368,7 @@
+     rust_std = "//:rust_std-{target_triple}",
+     rustc = "//:rustc",
+     linker = {linker_label},
++    linker_preference = {linker_preference},
+     linker_type = {linker_type},
+     rust_objcopy = {rust_objcopy_label},
+     rustfmt = {rustfmt_label},
+@@ -486,6 +487,10 @@
+     if include_objcopy:
+         rust_objcopy_label = "//:rust-objcopy"
+ 
++    linker_preference = None
++    if exec_triple.system == "windows" and target_triple.system != "windows":
++        linker_preference = "cc"
++
+     return _build_file_for_rust_toolchain_template.format(
+         toolchain_name = name,
+         binary_ext = system_to_binary_ext(target_triple.system),
+@@ -503,6 +508,7 @@
+         llvm_profdata_label = repr(llvm_profdata_label),
+         llvm_lib_label = repr(llvm_lib_label),
+         linker_label = repr(linker_label),
++        linker_preference = repr(linker_preference),
+         linker_type = repr(linker_type),
+         rust_objcopy_label = repr(rust_objcopy_label),
+         extra_rustc_flags = extra_rustc_flags,

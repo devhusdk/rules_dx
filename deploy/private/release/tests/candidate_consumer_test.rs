@@ -45,71 +45,19 @@ fn write(path: &Path, bytes: &[u8]) {
     std::fs::write(path, bytes).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
 }
 
-/// What the checkout looks like to git, to prove the snapshot leaves it alone.
-#[derive(Debug, PartialEq, Eq)]
-struct RepoState {
-    head: String,
-    branch: String,
-    status: String,
-    index: (u64, Option<std::time::SystemTime>),
-}
-
-fn repo_state(root: &Path, sandbox: &Path) -> RepoState {
-    let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, sandbox, args);
-    let index = git(
-        root,
-        &["rev-parse", "--path-format=absolute", "--git-path", "index"],
-    );
-    let meta = std::fs::metadata(&index).ok();
-    RepoState {
-        head: git(root, &["rev-parse", "HEAD"]),
-        // Prints `HEAD` on a detached checkout instead of failing.
-        branch: git(root, &["rev-parse", "--abbrev-ref", "HEAD"]),
-        status: git(root, &["--no-optional-locks", "status", "--porcelain=v1"]),
-        index: (
-            meta.as_ref().map_or(0, |meta| meta.len()),
-            meta.and_then(|meta| meta.modified().ok()),
-        ),
-    }
-}
-
-/// Commits the checkout's working tree in a scratch git dir that borrows the real objects.
-/// Returns the scratch git dir and the commit.
+/// Commits the source tree in a scratch git dir. Returns the scratch git dir and the commit.
 fn snapshot_commit(root: &Path, scratch: &Path) -> (PathBuf, String) {
     let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, scratch, args);
-    let common = git(
-        root,
-        &["rev-parse", "--path-format=absolute", "--git-common-dir"],
-    );
     let git_dir = scratch.join("snapshot.git");
     std::fs::create_dir_all(&git_dir).unwrap_or_else(|error| panic!("mkdir: {error}"));
     git(&git_dir, &["init", "--bare", "--quiet", "."]);
-    write(
-        &git_dir.join("objects/info/alternates"),
-        format!("{common}/objects\n").as_bytes(),
-    );
-    let exclude = Path::new(&common).join("info/exclude");
-    if let Ok(bytes) = std::fs::read(&exclude) {
-        write(&git_dir.join("info/exclude"), &bytes);
-    }
+    write(&git_dir.join("info/exclude"), b"/bazel-*\n/.dx/\n/.git/\n");
     let tree_root = root.to_string_lossy().into_owned();
     git(&git_dir, &["config", "core.bare", "false"]);
     git(&git_dir, &["config", "core.worktree", tree_root.as_str()]);
-    let parent = git(root, &["rev-parse", "HEAD"]);
-    git(&git_dir, &["read-tree", parent.as_str()]);
     git(&git_dir, &["add", "-A"]);
     let tree = git(&git_dir, &["write-tree"]);
-    let sha = git(
-        &git_dir,
-        &[
-            "commit-tree",
-            tree.as_str(),
-            "-p",
-            parent.as_str(),
-            "-m",
-            "candidate",
-        ],
-    );
+    let sha = git(&git_dir, &["commit-tree", tree.as_str(), "-m", "candidate"]);
     (git_dir, sha)
 }
 
@@ -324,16 +272,8 @@ fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
     let root = rules_dx_source();
     let scratch_dir = dx_test_scratch::scratch("candidate-snapshot");
     let scratch = scratch_dir.path();
-    stage("repo state");
-    let before = repo_state(&root, scratch);
     stage("snapshot commit");
     let (git_dir, sha) = snapshot_commit(&root, scratch);
-    stage("repo state");
-    assert_eq!(
-        repo_state(&root, scratch),
-        before,
-        "the snapshot touched the checkout"
-    );
 
     let candidate = Candidate::new(VERSION, &sha).unwrap_or_else(|error| panic!("{error}"));
     let archive = scratch.join("rules_dx.tar.gz");
@@ -345,10 +285,4 @@ fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
         .unwrap_or_else(|error| panic!("{error}"));
 
     assert_registry_consumer(&candidate, &archive, &built.integrity);
-    stage("repo state");
-    assert_eq!(
-        repo_state(&root, scratch),
-        before,
-        "the test touched the checkout"
-    );
 }

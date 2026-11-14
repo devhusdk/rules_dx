@@ -522,7 +522,7 @@ impl Pool {
     }
 
     pub(crate) fn remove(&self, slot: u32) {
-        let _ = std::fs::remove_file(self.record_path(slot));
+        drop(std::fs::remove_file(self.record_path(slot)));
     }
 
     /// The slot a path is, or is inside.
@@ -548,7 +548,7 @@ impl Pool {
             }
         }
         if !gone.is_empty() {
-            let _ = git::run(&self.main, &["worktree", "prune"]);
+            drop(git::run(&self.main, &["worktree", "prune"]));
         }
         gone
     }
@@ -665,7 +665,7 @@ fn claim_marker(marker: &Path, bytes: &[u8]) -> std::io::Result<bool> {
     let staged = marker.with_extension(format!("claim-{}-{claim}", std::process::id()));
     std::fs::write(&staged, bytes)?;
     let linked = std::fs::hard_link(&staged, marker);
-    let _ = std::fs::remove_file(&staged);
+    drop(std::fs::remove_file(&staged));
     match linked {
         Ok(()) => Ok(true),
         Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),

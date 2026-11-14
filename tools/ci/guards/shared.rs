@@ -25,7 +25,9 @@ pub struct Segment {
 /// Adds `count` hits of `kind` in `path`, ignoring zero.
 pub fn add(counts: &mut Counts, path: &str, kind: &str, count: usize) {
     if count > 0 {
-        *counts.entry((path.to_owned(), kind.to_owned())).or_default() += count;
+        *counts
+            .entry((path.to_owned(), kind.to_owned()))
+            .or_default() += count;
     }
 }
 
@@ -91,7 +93,8 @@ pub fn render(found: &Counts, kinds: &[&str]) -> String {
 /// Fails when `found` and the allowlist named by `variable` disagree.
 pub fn settle(found: &Counts, variable: &str, allowlist: &str, kinds: &[&str]) {
     let key = dx_testing::env_text(variable);
-    let path = dx_testing::rlocation(key.trim()).unwrap_or_else(|error| panic!("{variable}: {error}"));
+    let path =
+        dx_testing::rlocation(key.trim()).unwrap_or_else(|error| panic!("{variable}: {error}"));
     let (allowed, mut problems) = parse_allowlist(&dx_testing::read_text(&path), kinds);
     problems.extend(differences(found, &allowed));
     if problems.is_empty() {
@@ -109,13 +112,16 @@ pub fn settle(found: &Counts, variable: &str, allowlist: &str, kinds: &[&str]) {
 }
 
 fn walk(root: &Path, dir: &Path, out: &mut BTreeMap<String, String>) {
-    let entries = std::fs::read_dir(dir).unwrap_or_else(|error| panic!("read_dir {dir:?}: {error}"));
+    let entries =
+        std::fs::read_dir(dir).unwrap_or_else(|error| panic!("read_dir {dir:?}: {error}"));
     for entry in entries {
         let path = entry.expect("readable dir entry").path();
         if path.is_dir() {
             walk(root, &path, out);
         } else {
-            let rel = path.strip_prefix(root).expect("path under the snapshot root");
+            let rel = path
+                .strip_prefix(root)
+                .expect("path under the snapshot root");
             let rel: Vec<String> = rel
                 .components()
                 .map(|part| part.as_os_str().to_string_lossy().into_owned())
@@ -177,17 +183,38 @@ pub fn starlark_segments(source: &str) -> Vec<Segment> {
                 line_start = index;
             }
             b'#' => {
-                push(&mut out, Piece::Code, &source[code_start..index]);
+                push(
+                    &mut out,
+                    Piece::Code,
+                    source
+                        .get(code_start..index)
+                        .expect("string slice within bounds"),
+                );
                 let end = line_end(bytes, index);
-                push(&mut out, Piece::Comment, &source[index + 1..end]);
+                push(
+                    &mut out,
+                    Piece::Comment,
+                    source
+                        .get(index + 1..end)
+                        .expect("string slice within bounds"),
+                );
                 index = end;
                 code_start = end;
             }
             quote @ (b'"' | b'\'') => {
-                push(&mut out, Piece::Code, &source[code_start..index]);
+                push(
+                    &mut out,
+                    Piece::Code,
+                    source
+                        .get(code_start..index)
+                        .expect("string slice within bounds"),
+                );
                 let triple = bytes[index..].starts_with(&[quote, quote, quote]);
                 let width = if triple { 3 } else { 1 };
-                let before = source[line_start..index].trim();
+                let before = source
+                    .get(line_start..index)
+                    .expect("string slice within bounds")
+                    .trim();
                 let doc = (triple && before.is_empty())
                     || before.ends_with("doc =")
                     || before.ends_with("doc=");
@@ -204,17 +231,31 @@ pub fn starlark_segments(source: &str) -> Vec<Segment> {
                 }
                 let end = end.min(bytes.len());
                 let piece = if doc { Piece::Doc } else { Piece::Text };
-                push(&mut out, piece, &source[start..end]);
+                push(
+                    &mut out,
+                    piece,
+                    source.get(start..end).expect("string slice within bounds"),
+                );
                 index = (end + width).min(bytes.len());
                 code_start = index;
-                if let Some(newline) = source[start.min(index)..index].rfind('\n') {
+                if let Some(newline) = source
+                    .get(start.min(index)..index)
+                    .expect("string slice within bounds")
+                    .rfind('\n')
+                {
                     line_start = start + newline + 1;
                 }
             }
             _ => index += 1,
         }
     }
-    push(&mut out, Piece::Code, &source[code_start..]);
+    push(
+        &mut out,
+        Piece::Code,
+        source
+            .get(code_start..)
+            .expect("string slice within bounds"),
+    );
     out
 }
 
@@ -227,14 +268,24 @@ fn raw_string(bytes: &[u8], index: usize) -> Option<(usize, usize)> {
     if bytes[index] != b'r' || (index > 0 && ident_byte(bytes[index - 1])) {
         return None;
     }
-    let hashes = bytes[index + 1..].iter().take_while(|byte| **byte == b'#').count();
+    let hashes = bytes[index + 1..]
+        .iter()
+        .take_while(|byte| **byte == b'#')
+        .count();
     let open = index + 1 + hashes;
     if bytes.get(open) != Some(&b'"') {
         return None;
     }
     let mut end = open + 1;
     while end < bytes.len() {
-        if bytes[end] == b'"' && bytes[end + 1..].iter().take(hashes).filter(|byte| **byte == b'#').count() == hashes {
+        if bytes[end] == b'"'
+            && bytes[end + 1..]
+                .iter()
+                .take(hashes)
+                .filter(|byte| **byte == b'#')
+                .count()
+                == hashes
+        {
             return Some((open + 1, end));
         }
         end += 1;
@@ -244,12 +295,13 @@ fn raw_string(bytes: &[u8], index: usize) -> Option<(usize, usize)> {
 
 /// The length of the char literal that opens at `index`, or `None` for a lifetime.
 fn char_literal(source: &str, index: usize) -> Option<usize> {
-    let rest = &source[index + 1..];
+    let rest = source.get(index + 1..).expect("string slice within bounds");
     if let Some(escaped) = rest.strip_prefix('\\') {
         return escaped.get(1..)?.find('\'').map(|offset| offset + 4);
     }
     let first = rest.chars().next()?;
-    rest[first.len_utf8()..]
+    rest.get(first.len_utf8()..)
+        .expect("string slice within bounds")
         .starts_with('\'')
         .then_some(first.len_utf8() + 2)
 }
@@ -261,13 +313,31 @@ pub fn rust_segments(source: &str) -> Vec<Segment> {
     let (mut index, mut code_start) = (0, 0);
     while index < bytes.len() {
         if bytes[index..].starts_with(b"//") {
-            push(&mut out, Piece::Code, &source[code_start..index]);
+            push(
+                &mut out,
+                Piece::Code,
+                source
+                    .get(code_start..index)
+                    .expect("string slice within bounds"),
+            );
             let end = line_end(bytes, index);
-            push(&mut out, Piece::Comment, &source[index + 2..end]);
+            push(
+                &mut out,
+                Piece::Comment,
+                source
+                    .get(index + 2..end)
+                    .expect("string slice within bounds"),
+            );
             index = end;
             code_start = end;
         } else if bytes[index..].starts_with(b"/*") {
-            push(&mut out, Piece::Code, &source[code_start..index]);
+            push(
+                &mut out,
+                Piece::Code,
+                source
+                    .get(code_start..index)
+                    .expect("string slice within bounds"),
+            );
             let (mut end, mut depth) = (index + 2, 1);
             while end < bytes.len() && depth > 0 {
                 if bytes[end..].starts_with(b"/*") {
@@ -281,23 +351,52 @@ pub fn rust_segments(source: &str) -> Vec<Segment> {
                 }
             }
             let end = end.min(bytes.len());
-            push(&mut out, Piece::Comment, source[index + 2..end].trim_end_matches("*/"));
+            push(
+                &mut out,
+                Piece::Comment,
+                source
+                    .get(index + 2..end)
+                    .expect("string slice within bounds")
+                    .trim_end_matches("*/"),
+            );
             index = end;
             code_start = end;
         } else if let Some((start, end)) = raw_string(bytes, index) {
-            push(&mut out, Piece::Code, &source[code_start..index]);
-            push(&mut out, Piece::Text, &source[start..end]);
+            push(
+                &mut out,
+                Piece::Code,
+                source
+                    .get(code_start..index)
+                    .expect("string slice within bounds"),
+            );
+            push(
+                &mut out,
+                Piece::Text,
+                source.get(start..end).expect("string slice within bounds"),
+            );
             let hashes = start - index - 2;
             index = (end + 1 + hashes).min(bytes.len());
             code_start = index;
         } else if bytes[index] == b'"' {
-            push(&mut out, Piece::Code, &source[code_start..index]);
+            push(
+                &mut out,
+                Piece::Code,
+                source
+                    .get(code_start..index)
+                    .expect("string slice within bounds"),
+            );
             let mut end = index + 1;
             while end < bytes.len() && bytes[end] != b'"' {
                 end += if bytes[end] == b'\\' { 2 } else { 1 };
             }
             let end = end.min(bytes.len());
-            push(&mut out, Piece::Text, &source[index + 1..end]);
+            push(
+                &mut out,
+                Piece::Text,
+                source
+                    .get(index + 1..end)
+                    .expect("string slice within bounds"),
+            );
             index = (end + 1).min(bytes.len());
             code_start = index;
         } else if bytes[index] == b'\'' {
@@ -306,7 +405,13 @@ pub fn rust_segments(source: &str) -> Vec<Segment> {
             index += 1;
         }
     }
-    push(&mut out, Piece::Code, &source[code_start..]);
+    push(
+        &mut out,
+        Piece::Code,
+        source
+            .get(code_start..)
+            .expect("string slice within bounds"),
+    );
     out
 }
 
@@ -341,7 +446,8 @@ pub fn count_word(text: &str, word: &str) -> usize {
     text.match_indices(word)
         .filter(|(start, _)| {
             let end = start + word.len();
-            (*start == 0 || !ident_byte(bytes[start - 1])) && (end == bytes.len() || !ident_byte(bytes[end]))
+            (*start == 0 || !ident_byte(bytes[start - 1]))
+                && (end == bytes.len() || !ident_byte(bytes[end]))
         })
         .count()
 }
@@ -379,7 +485,11 @@ mod tests {
     #[test]
     fn a_count_above_or_below_the_line_fails() {
         let (allowed, _) = parse_allowlist("a.bzl alias 2\nb.bzl alias 2\n", &["alias"]);
-        let found = counts(&[("a.bzl", "alias", 3), ("b.bzl", "alias", 1), ("c.bzl", "alias", 1)]);
+        let found = counts(&[
+            ("a.bzl", "alias", 3),
+            ("b.bzl", "alias", 1),
+            ("c.bzl", "alias", 1),
+        ]);
         let problems = differences(&found, &allowed);
         assert_eq!(problems.len(), 3, "{problems:?}");
         assert!(problems[0].contains("allowlist holds 2; remove the new one"));
@@ -389,13 +499,20 @@ mod tests {
 
     #[test]
     fn malformed_unsorted_and_unknown_kind_lines_fail() {
-        let (_, problems) = parse_allowlist("b alias 1\na alias 1\na other 1\na alias 0\na alias\n", &["alias"]);
+        let (_, problems) = parse_allowlist(
+            "b alias 1\na alias 1\na other 1\na alias 0\na alias\n",
+            &["alias"],
+        );
         assert_eq!(problems.len(), 6, "{problems:?}");
     }
 
     #[test]
     fn render_round_trips_and_leaves_out_unlisted_kinds() {
-        let found = counts(&[("a-b/x", "alias", 1), ("a/x", "alias", 2), ("a/x", "word-limit", 1)]);
+        let found = counts(&[
+            ("a-b/x", "alias", 1),
+            ("a/x", "alias", 2),
+            ("a/x", "word-limit", 1),
+        ]);
         let text = render(&found, &["alias"]);
         assert_eq!(text, "a-b/x alias 1\na/x alias 2\n");
         let (allowed, problems) = parse_allowlist(&text, &["alias"]);
@@ -410,7 +527,10 @@ mod tests {
         let found = counts(&[("a", "alias", 1)]);
         let file = scratch.join("list.txt");
         dx_testing::write_text(&file, &render(&found, &["alias"]));
-        assert_eq!(tree(scratch).get("list.txt").map(String::as_str), Some("a alias 1\n"));
+        assert_eq!(
+            tree(scratch).get("list.txt").map(String::as_str),
+            Some("a alias 1\n")
+        );
         let (allowed, _) = parse_allowlist(&dx_testing::read_text(&file), &["alias"]);
         assert!(differences(&found, &allowed).is_empty());
     }
@@ -438,8 +558,20 @@ mod tests {
         assert!(found.contains(&(Piece::Text, "raw \" // x")), "{found:?}");
         assert!(found.contains(&(Piece::Comment, " block ")), "{found:?}");
         assert!(found.contains(&(Piece::Comment, " end")), "{found:?}");
-        assert_eq!(found.iter().filter(|(piece, _)| *piece == Piece::Comment).count(), 3);
-        assert_eq!(found.iter().filter(|(piece, _)| *piece == Piece::Text).count(), 2);
+        assert_eq!(
+            found
+                .iter()
+                .filter(|(piece, _)| *piece == Piece::Comment)
+                .count(),
+            3
+        );
+        assert_eq!(
+            found
+                .iter()
+                .filter(|(piece, _)| *piece == Piece::Text)
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -452,7 +584,9 @@ mod tests {
         assert_eq!(count_word("legacy legacy_x xlegacy (legacy)", "legacy"), 2);
         assert!(under("a/fixtures/b.md", &["fixtures"]));
         assert!(!under("a/fixtures", &["fixtures"]));
-        assert!(is_starlark("a/BUILD.bazel") && is_starlark("x.bzl") && is_starlark("MODULE.bazel"));
+        assert!(
+            is_starlark("a/BUILD.bazel") && is_starlark("x.bzl") && is_starlark("MODULE.bazel")
+        );
         assert!(!is_starlark("a/b.rs"));
     }
 }

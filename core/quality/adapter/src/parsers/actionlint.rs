@@ -51,8 +51,8 @@ pub fn parse_actionlint(
     let mut findings = Vec::with_capacity(entries.len());
     for entry in &entries {
         let path = text(entry, "filepath")?;
-        let checked = known_spelled(TOOL, files, path)
-            .or_else(|_| known_relative(TOOL, files, cwd, path))?;
+        let checked =
+            known_spelled(TOOL, files, path).or_else(|_| known_relative(TOOL, files, cwd, path))?;
         let message = text(entry, "message")?.trim();
         if message.is_empty() {
             return Err(ParseError::shape(TOOL, "missing message"));
@@ -104,7 +104,8 @@ mod tests {
 
     #[test]
     fn actionlint_reports_kind_as_rule() {
-        let findings = parse_actionlint(DIRTY.as_bytes(), b"", Some(1), &[FILE], Path::new("")).expect("parsed");
+        let findings = parse_actionlint(DIRTY.as_bytes(), b"", Some(1), &[FILE], Path::new(""))
+            .expect("parsed");
         assert_eq!(findings.len(), 2);
         assert_eq!(findings[0].file, FILE);
         assert_eq!(findings[0].finding.rule_id, "expression");
@@ -126,8 +127,14 @@ mod tests {
 
     #[test]
     fn actionlint_rejects_unknown_files() {
-        let err = parse_actionlint(DIRTY.as_bytes(), b"", Some(1), &["other.yml"], Path::new(""))
-            .expect_err("unknown file");
+        let err = parse_actionlint(
+            DIRTY.as_bytes(),
+            b"",
+            Some(1),
+            &["other.yml"],
+            Path::new(""),
+        )
+        .expect_err("unknown file");
         assert!(matches!(err, ParseError::UnknownFile { .. }), "{err}");
     }
 
@@ -144,8 +151,14 @@ mod tests {
         .expect("parsed");
         assert_eq!(findings[0].file, absolute);
         assert!(
-            parse_actionlint(DIRTY.as_bytes(), b"", Some(1), &[absolute], Path::new("/other"))
-                .is_err()
+            parse_actionlint(
+                DIRTY.as_bytes(),
+                b"",
+                Some(1),
+                &[absolute],
+                Path::new("/other")
+            )
+            .is_err()
         );
     }
 }

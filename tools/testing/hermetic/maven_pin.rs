@@ -61,8 +61,8 @@ fn pin(case: &dx_nested::Case, name: &str) -> Result<String, String> {
             break status;
         }
         if started.elapsed() > PIN_DEADLINE {
-            let _ = child.kill();
-            let _ = child.wait();
+            drop(child.kill());
+            drop(child.wait());
             return Err(format!(
                 "pin exceeded {}s; last output:\n{}",
                 PIN_DEADLINE.as_secs(),

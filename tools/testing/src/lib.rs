@@ -99,7 +99,7 @@ fn wait_for(handle: std::thread::JoinHandle<()>, limit: std::time::Duration) {
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
     if handle.is_finished() {
-        let _ = handle.join();
+        drop(handle.join());
     }
 }
 
@@ -144,7 +144,7 @@ pub fn run_command(
     }
     let timed_out = status.is_none();
     if timed_out {
-        let _ = child.kill();
+        drop(child.kill());
         status = Some(child.wait()?);
     }
     // A descendant may still hold the pipes open after the child is gone.
@@ -560,7 +560,7 @@ pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
     std::fs::create_dir_all(dir).expect("fake bazel dir");
     for name in ["bazel", "uv", "python"] {
         let target = dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
-        let _ = std::fs::remove_file(&target);
+        drop(std::fs::remove_file(&target));
         #[cfg(unix)]
         std::os::unix::fs::symlink(tool, &target).expect("link fake generate tool");
         #[cfg(not(unix))]
@@ -786,7 +786,7 @@ pub fn snapshot_diff(
         {
             let dest = root.join(rel);
             if let Some(parent) = dest.parent() {
-                let _ = std::fs::create_dir_all(parent);
+                drop(std::fs::create_dir_all(parent));
             }
             std::fs::copy(actual, &dest)
                 .map_err(|err| format!("cannot refresh {}: {err}", dest.display()))?;

@@ -444,7 +444,7 @@ fn git_unread() -> Result<GitState, String> {
 #[test]
 #[should_panic(expected = "git state read")]
 fn release_reads_git_after_the_gates() {
-    let _ = release_run("v1.2.3", Some(SHA), "1", false, git_unread);
+    drop(release_run("v1.2.3", Some(SHA), "1", false, git_unread));
 }
 
 fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, String> {
@@ -576,8 +576,13 @@ fn interrupted_candidate_publication_fails_closed() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
     let text = render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
     let cut = text.len() / 2;
-    let error =
-        bcr_candidate_error(&text[..cut], "rules_dx", "1.2.3-rc1", digest).expect_err("truncated");
+    let error = bcr_candidate_error(
+        text.get(..cut).expect("string slice within bounds"),
+        "rules_dx",
+        "1.2.3-rc1",
+        digest,
+    )
+    .expect_err("truncated");
     assert!(error.contains("not JSON"), "got {error}");
     let error =
         bcr_candidate_error("{}", "rules_dx", "1.2.3-rc1", digest).expect_err("empty object");

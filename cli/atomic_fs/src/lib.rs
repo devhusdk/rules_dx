@@ -91,7 +91,7 @@ pub fn remove_stale_staging(target: &Path) {
             .ok()
             .and_then(|modified| modified.elapsed().ok());
         if age.is_some_and(|age| age >= STALE_STAGING_AGE) {
-            let _ = std::fs::remove_file(&path);
+            drop(std::fs::remove_file(&path));
         }
     }
 }

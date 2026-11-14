@@ -141,7 +141,7 @@ fn add_write(path: &Path) {
     {
         let mut permissions = meta.permissions();
         permissions.set_mode(permissions.mode() | 0o700);
-        let _ = fs::set_permissions(path, permissions);
+        drop(fs::set_permissions(path, permissions));
     }
 }
 
@@ -187,7 +187,7 @@ struct Scratch(PathBuf);
 impl Drop for Scratch {
     fn drop(&mut self) {
         make_writable(&self.0);
-        let _ = fs::remove_dir_all(&self.0);
+        drop(fs::remove_dir_all(&self.0));
     }
 }
 

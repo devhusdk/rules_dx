@@ -176,7 +176,10 @@ fn dx(case: &Case, command: &str, args: &[&str]) -> Run {
 /// Names the step about to run on the uncaptured stderr, so a test killed mid-step shows it.
 fn stage(name: &str) {
     use std::io::Write;
-    let _ = writeln!(std::io::stderr(), "candidate_consumer_test: {name}");
+    drop(writeln!(
+        std::io::stderr(),
+        "candidate_consumer_test: {name}"
+    ));
 }
 
 /// Consumes the archive through the registry and checks what Bazel fetched.

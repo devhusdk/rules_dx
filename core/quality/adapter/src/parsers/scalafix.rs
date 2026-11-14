@@ -256,10 +256,7 @@ pub fn parse_scalafix(
                 if seen_old != old || seen_new != new {
                     return Err(ParseError::shape(TOOL, format!("truncated hunk: {header}")));
                 }
-                while lines
-                    .get(index)
-                    .is_some_and(|row| row.starts_with('\\'))
-                {
+                while lines.get(index).is_some_and(|row| row.starts_with('\\')) {
                     index += 1;
                 }
                 let body = lines

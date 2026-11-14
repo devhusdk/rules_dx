@@ -37,9 +37,17 @@ fn is_ident(byte: u8) -> bool {
 /// Assignments of `value` to the keyword `key` in `mask`.
 fn count_keyword(mask: &str, key: &str, value: &str) -> usize {
     mask.match_indices(key)
-        .filter(|(at, _)| !mask[..*at].bytes().last().is_some_and(is_ident))
         .filter(|(at, _)| {
-            mask[at + key.len()..]
+            !mask
+                .get(..*at)
+                .expect("string slice within bounds")
+                .bytes()
+                .last()
+                .is_some_and(is_ident)
+        })
+        .filter(|(at, _)| {
+            mask.get(at + key.len()..)
+                .expect("string slice within bounds")
                 .trim_start_matches(' ')
                 .strip_prefix('=')
                 .is_some_and(|rest| {
@@ -61,7 +69,10 @@ fn body<'a>(source: &'a Masked, name: &str) -> Option<&'a str> {
         .match_indices(&header)
         .map(|(at, _)| at)
         .find(|at| *at == 0 || source.mask.as_bytes()[at - 1] == b'\n')?;
-    let rest = &source.mask[start..];
+    let rest = source
+        .mask
+        .get(start..)
+        .expect("string slice within bounds");
     let mut end = 0;
     for (index, line) in rest.split_inclusive('\n').enumerate() {
         if index > 0 && !line.trim().is_empty() && !line.starts_with([' ', '\t', ')']) {
@@ -69,7 +80,7 @@ fn body<'a>(source: &'a Masked, name: &str) -> Option<&'a str> {
         }
         end += line.len();
     }
-    Some(&rest[..end])
+    Some(rest.get(..end).expect("string slice within bounds"))
 }
 
 /// The implementation named by a `repository_rule` or `module_extension` call.
@@ -77,7 +88,11 @@ fn implementation(call: &CallArgs<'_>) -> String {
     call.keyword("implementation").map_or_else(
         || {
             let end = call.mask.find(',').unwrap_or(call.mask.len());
-            call.code[..end].trim().to_owned()
+            call.code
+                .get(..end)
+                .expect("string slice within bounds")
+                .trim()
+                .to_owned()
         },
         str::to_owned,
     )

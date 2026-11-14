@@ -127,11 +127,13 @@ fn cpan_live_upload(
         ));
     }
     let mut text = Vec::new();
-    let _ = response
-        .body_mut()
-        .as_reader()
-        .take(2048)
-        .read_to_end(&mut text);
+    drop(
+        response
+            .body_mut()
+            .as_reader()
+            .take(2048)
+            .read_to_end(&mut text),
+    );
     Err(format!(
         "cpan_deploy: upload to {url} failed with HTTP {status}: {}",
         pages_redact(&String::from_utf8_lossy(&text), token).trim()

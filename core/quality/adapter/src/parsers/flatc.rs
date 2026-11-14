@@ -46,7 +46,9 @@ fn locate(line: &str) -> Option<Located<'_>> {
             continue;
         };
         if let Some(open) = head.rfind('(')
-            && let Some(inner) = head.get(open + 1..).and_then(|after| after.strip_suffix(')'))
+            && let Some(inner) = head
+                .get(open + 1..)
+                .and_then(|after| after.strip_suffix(')'))
             && let Some((row, column)) = inner.split_once(", ")
             && let (Some(row), Some(column)) = (number(row), number(column))
             && let Some(path) = head.get(..open)

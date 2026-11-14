@@ -693,7 +693,11 @@ fn pkl_lsp_behavior(
         );
     }
     if let Some((_, path)) = env.iter().find(|(key, _)| key == "PATH") {
-        assert_eq!(std::env::split_paths(path).count(), 1, "PATH names one directory");
+        assert_eq!(
+            std::env::split_paths(path).count(),
+            1,
+            "PATH names one directory"
+        );
     }
     let rest: Vec<(OsString, OsString)> = env
         .iter()

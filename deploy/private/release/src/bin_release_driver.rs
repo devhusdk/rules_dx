@@ -272,7 +272,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "git state read")]
     fn live_dispatch_reads_git_after_the_gates() {
-        let _ = live("v1.2.3", Some(SHA), "1", git_unread);
+        drop(live("v1.2.3", Some(SHA), "1", git_unread));
     }
 
     fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, String> {

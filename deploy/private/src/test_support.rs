@@ -33,8 +33,8 @@ pub(crate) fn static_registry(files: impl FnOnce(&str) -> Vec<(String, Vec<u8>)>
                 "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
                 body.len()
             );
-            let _ = stream.write_all(reply.as_bytes());
-            let _ = stream.write_all(&body);
+            drop(stream.write_all(reply.as_bytes()));
+            drop(stream.write_all(&body));
         }
     });
     origin
@@ -391,7 +391,7 @@ fn fake_serve(mut stream: std::net::TcpStream, state: &std::sync::Mutex<FakeStat
     }
     text.push_str("\r\n");
     text.push_str(&reply);
-    let _ = stream.write_all(text.as_bytes());
+    drop(stream.write_all(text.as_bytes()));
 }
 
 fn fake_route(

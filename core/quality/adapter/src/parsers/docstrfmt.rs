@@ -147,7 +147,8 @@ mod tests {
         assert!(parse_docstrfmt(b"", unknown.as_bytes(), Some(1), &FILES).is_err());
         let failed = "Error: Invalid value for '-p'\n";
         assert!(parse_docstrfmt(b"", failed.as_bytes(), Some(2), &FILES).is_err());
-        let crashed = "SyntaxError: invalid syntax:\n3 files was checked.\nDone, but 1 error occurred\n";
+        let crashed =
+            "SyntaxError: invalid syntax:\n3 files was checked.\nDone, but 1 error occurred\n";
         assert!(parse_docstrfmt(b"", crashed.as_bytes(), Some(1), &FILES).is_err());
         let miscount = "File '/w/a.rst' could be reformatted.\n2 out of 3 files could be reformatted.\nDone! \u{1f389}\n";
         assert!(parse_docstrfmt(b"", miscount.as_bytes(), Some(1), &FILES).is_err());

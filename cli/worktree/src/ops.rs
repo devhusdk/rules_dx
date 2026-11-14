@@ -423,7 +423,7 @@ fn delete_surplus(pool: &Pool, host: &dyn Host, keep: u32, low_disk: bool) {
         };
         if slot != keep && deletable(pool, host, &record) {
             // A slot that cannot be deleted stays recorded as broken.
-            let _ = delete_slot(pool, host, slot, &bases);
+            drop(delete_slot(pool, host, slot, &bases));
         }
     }
 }
@@ -813,7 +813,7 @@ pub(crate) fn lease_locked(
     };
     for slot in &stale {
         // A stale slot that cannot be deleted stays recorded as broken; `add` goes on with its own slot.
-        let _ = delete_slot(pool, host, *slot, &bases);
+        drop(delete_slot(pool, host, *slot, &bases));
     }
     drop(lock);
     let outcome = switch_slot(pool, host, slot, fresh, reclaimed, &start, branch, &target);
@@ -821,7 +821,7 @@ pub(crate) fn lease_locked(
     if let Err(error) = outcome {
         if fresh {
             pool.remove(slot);
-            let _ = git::run(
+            drop(git::run(
                 &pool.main,
                 &[
                     OsStr::new("worktree"),
@@ -829,15 +829,15 @@ pub(crate) fn lease_locked(
                     OsStr::new("--force"),
                     path.as_os_str(),
                 ],
-            );
+            ));
             // Best-effort cleanup of the slot this call failed to set up.
-            let _ = host.remove_tree(&path);
-            let _ = git::run(&pool.main, &["worktree", "prune"]);
+            host.remove_tree(&path).then_some(()).unwrap_or_default();
+            drop(git::run(&pool.main, &["worktree", "prune"]));
         } else {
             let mut freed = placeholder.clone();
             freed.free();
-            let _ = pool.write(&freed);
-            let _ = git::run(
+            drop(pool.write(&freed));
+            drop(git::run(
                 &pool.main,
                 &[
                     OsStr::new("worktree"),
@@ -846,7 +846,7 @@ pub(crate) fn lease_locked(
                     OsStr::new(FREE_LOCK_REASON),
                     path.as_os_str(),
                 ],
-            );
+            ));
         }
         return Err(error);
     }
@@ -960,14 +960,14 @@ fn switch_slot(
             stop_server(host, &path);
             stop_check(host)?;
         }
-        let _ = git::run(
+        drop(git::run(
             &pool.main,
             &[
                 OsStr::new("worktree"),
                 OsStr::new("unlock"),
                 path.as_os_str(),
             ],
-        );
+        ));
         git::run(&path, &["reset", "--hard", "--quiet"])?;
         clean_slot(&path)?;
     }
@@ -1120,15 +1120,15 @@ fn orphan_record(pool: &Pool, slot: u32) -> Option<Record> {
 fn gone_slot(pool: &Pool, slot: u32, path: PathBuf, branch: Option<String>) -> Released {
     pool.remove(slot);
     // A free slot is locked in git and prune skips locked worktrees, so unlock it first.
-    let _ = git::run(
+    drop(git::run(
         &pool.main,
         &[
             OsStr::new("worktree"),
             OsStr::new("unlock"),
             path.as_os_str(),
         ],
-    );
-    let _ = git::run(&pool.main, &["worktree", "prune"]);
+    ));
+    drop(git::run(&pool.main, &["worktree", "prune"]));
     Released {
         slot: Some(slot),
         path,
@@ -1224,7 +1224,7 @@ fn release_locked(
     stop_server(host, &slot_path);
     stop_check(host)?;
     git::run(&slot_path, &["switch", "--quiet", "--detach"])?;
-    let _ = git::run(
+    drop(git::run(
         &pool.main,
         &[
             OsStr::new("worktree"),
@@ -1233,7 +1233,7 @@ fn release_locked(
             OsStr::new(FREE_LOCK_REASON),
             slot_path.as_os_str(),
         ],
-    );
+    ));
     let mut freed = record.clone();
     freed.last_branch = record.branch.clone().or(record.last_branch.clone());
     freed.free();
@@ -1276,11 +1276,11 @@ fn teardown(
     // The commit point: a stop before it leaves the checkout untouched, after it teardown runs to the end.
     stop_check(host)?;
     let arg = path.as_os_str();
-    let _ = git::run(
+    drop(git::run(
         &pool.main,
         &[OsStr::new("worktree"), OsStr::new("unlock"), arg],
-    );
-    let _ = git::run(
+    ));
+    drop(git::run(
         &pool.main,
         &[
             OsStr::new("worktree"),
@@ -1288,9 +1288,9 @@ fn teardown(
             OsStr::new("--force"),
             arg,
         ],
-    );
+    ));
     let gone = host.remove_tree(path);
-    let _ = git::run(&pool.main, &["worktree", "prune"]);
+    drop(git::run(&pool.main, &["worktree", "prune"]));
     let stuck = owned
         .into_iter()
         .filter(|base| !host.remove_tree(&base.dir))

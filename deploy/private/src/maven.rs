@@ -715,7 +715,7 @@ fn maven_api_compare(
                 ]);
             run_publish(&mut cmd).map_err(|error| format!("maven_deploy: {error}"))
         });
-    let _ = std::fs::remove_dir_all(&staging);
+    drop(std::fs::remove_dir_all(&staging));
     let output = ran?;
     let text = format!(
         "{}\n{}",
@@ -878,7 +878,7 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
             live.signer.as_ref(),
         )
         .and_then(|house| maven_bundle_zip(&house));
-        let _ = std::fs::remove_dir_all(&workdir);
+        drop(std::fs::remove_dir_all(&workdir));
         let bundle = match bundle {
             Ok(bundle) => bundle,
             Err(error) => {
@@ -1437,7 +1437,9 @@ pub(crate) mod tests {
                 seen.extend_from_slice(&buf[..n]);
                 let text = String::from_utf8_lossy(&seen).into_owned();
                 if let Some(end) = text.find("\r\n\r\n") {
-                    let length = text[..end]
+                    let length = text
+                        .get(..end)
+                        .expect("string slice within bounds")
                         .lines()
                         .find_map(|line| {
                             line.to_ascii_lowercase()
@@ -1508,7 +1510,10 @@ pub(crate) mod tests {
             let error = maven_upload_bundle(&test_agent(), &stub.url, &bearer, "g:a:1", b"zip")
                 .expect_err("refused");
             assert_eq!(error, MAVEN_BAD_CREDENTIALS);
-            assert!(!error.contains("s3cret-pass") && !error.contains(&bearer[7..]));
+            assert!(
+                !error.contains("s3cret-pass")
+                    && !error.contains(bearer.get(7..).expect("string slice within bounds"))
+            );
         }
     }
 
@@ -1640,7 +1645,7 @@ pub(crate) mod tests {
         ] {
             assert!(logged.contains(flag), "{logged}");
         }
-        let _ = std::fs::remove_dir_all(&scratch);
+        drop(std::fs::remove_dir_all(&scratch));
     }
 
     #[test]

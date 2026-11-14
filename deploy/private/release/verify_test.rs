@@ -283,7 +283,12 @@ fn interrupted_candidate_publication_fails_closed() {
     let dir = scratch();
     let (source, digest) = candidate_source(dir.path());
     let text = read(&source);
-    let cut = write(dir.path(), "cut.source.json", &text[..text.len() / 2]);
+    let cut = write(
+        dir.path(),
+        "cut.source.json",
+        text.get(..text.len() / 2)
+            .expect("string slice within bounds"),
+    );
     let error = bcr_candidate_error(&read(&cut), "rules_dx", CANDIDATE_VERSION, &digest)
         .expect_err("an interrupted publication must not pass");
     assert!(error.contains("not JSON"), "got {error}");

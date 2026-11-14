@@ -6755,7 +6755,12 @@ fn jet_report(
             r#"{{"v":1,"kind":"MethodError","message":"dep","frames":[{{"file":"{1}","line":1}}]}}"#,
             "\n"
         ),
-        json_escape(&Path::new(&root).join("lib").join("bad.jl").to_string_lossy()),
+        json_escape(
+            &Path::new(&root)
+                .join("lib")
+                .join("bad.jl")
+                .to_string_lossy()
+        ),
         json_escape(
             &Path::new(&root)
                 .join("dx-jet")

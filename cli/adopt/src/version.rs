@@ -102,7 +102,7 @@ pub fn refresh_stale_pins(
     if !has_all_hashes(&pins) {
         return;
     }
-    let _ = write_version_pins(root, module_version, &pins);
+    drop(write_version_pins(root, module_version, &pins));
 }
 
 /// `refresh_stale_pins` for the running binary: the `BUILD_WORKSPACE_DIRECTORY`
@@ -659,7 +659,7 @@ mod tests {
         assert!(parse_module_dependency("bazel_dep(name = \"rules_dx\"", &no_includes).is_err());
         let root =
             std::env::temp_dir().join(format!("dx-adopt-moduledep-{}-missing", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+        drop(std::fs::remove_dir_all(&root));
         std::fs::create_dir_all(&root).expect("dir");
         assert!(matches!(
             read_module_dependency(&root),
@@ -670,7 +670,7 @@ mod tests {
             read_module_dependency(&root),
             Err(AdoptError::ReadModuleFile { .. })
         ));
-        let _ = std::fs::remove_dir_all(&root);
+        drop(std::fs::remove_dir_all(&root));
     }
 
     #[test]

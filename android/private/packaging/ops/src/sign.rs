@@ -20,7 +20,11 @@ fn var(name: &str) -> String {
 pub fn flag(args: &[String], flag: &str) -> String {
     args.iter()
         .rev()
-        .find_map(|arg| arg.strip_prefix("--")?.strip_prefix(flag)?.strip_prefix('='))
+        .find_map(|arg| {
+            arg.strip_prefix("--")?
+                .strip_prefix(flag)?
+                .strip_prefix('=')
+        })
         .unwrap_or_default()
         .to_owned()
 }
@@ -74,10 +78,9 @@ fn key_files(key: &Key) -> Result<(), Failure> {
         )));
     }
     match &key.key_pass {
-        Some(file) if !file.is_file() => Err(usage(format!(
-            "no key password file at {}",
-            file.display()
-        ))),
+        Some(file) if !file.is_file() => {
+            Err(usage(format!("no key password file at {}", file.display())))
+        }
         _ => Ok(()),
     }
 }
@@ -102,7 +105,8 @@ fn scratch(out: &Path) -> Result<Scratch, Failure> {
         std::fs::create_dir_all(parent)
             .map_err(|error| usage(format!("cannot create {}: {error}", parent.display())))?;
     }
-    Scratch::beside(out).map_err(|error| usage(format!("cannot create a scratch directory: {error}")))
+    Scratch::beside(out)
+        .map_err(|error| usage(format!("cannot create a scratch directory: {error}")))
 }
 
 fn publish(from: &Path, to: &Path) -> Result<(), Failure> {
@@ -238,7 +242,7 @@ pub fn run_apk(args: &[String]) -> Outcome {
     let mut out_idsig = out.clone().into_os_string();
     out_idsig.push(".idsig");
     let out_idsig = PathBuf::from(out_idsig);
-    let _ = std::fs::remove_file(&out_idsig);
+    drop(std::fs::remove_file(&out_idsig));
     publish(&signed, &out)?;
     if v4 {
         publish(&idsig, &out_idsig)?;
@@ -336,9 +340,7 @@ pub fn run_aab(args: &[String]) -> Outcome {
     }
     key_files(&key)?;
     if same_file(&aab, &out) {
-        return Err(usage(
-            "DX_SIGN_OUT must not overwrite the input App Bundle",
-        ));
+        return Err(usage("DX_SIGN_OUT must not overwrite the input App Bundle"));
     }
     let work = scratch(&out)?;
     if capture(english(&jarsigner).arg("-verify").arg(&aab)).line_starts("jar verified") {
@@ -380,8 +382,7 @@ pub fn run_aab(args: &[String]) -> Outcome {
     })?;
     let input = work.path().join("in.aab");
     let signed = work.path().join("signed.aab");
-    std::fs::copy(&aab, &input)
-        .map_err(|error| reject(format!("cannot copy {shown}: {error}")))?;
+    std::fs::copy(&aab, &input).map_err(|error| reject(format!("cannot copy {shown}: {error}")))?;
     let mut sign = english(&jarsigner);
     sign.arg("-keystore")
         .arg(&key.keystore)

@@ -749,7 +749,7 @@ impl Host for SystemHost {
             descendants: Descendants::Detachable,
         };
         let stop: &dyn Fn() -> Option<i32> = &dx_process::interrupted;
-        let _ = run_within_until(&spec, CleanupBudget::STANDARD, stop);
+        drop(run_within_until(&spec, CleanupBudget::STANDARD, stop));
         let deadline = std::time::Instant::now() + EXIT_WAIT;
         while self.process_alive(server.pid) {
             if std::time::Instant::now() >= deadline || stop().is_some() {

@@ -41,7 +41,7 @@ fn non_test(source: &str) -> &str {
     let mut offset = 0;
     for line in source.split_inclusive('\n') {
         if line.trim_start().starts_with("#[cfg(test)]") {
-            return &source[..offset];
+            return source.get(..offset).expect("string slice within bounds");
         }
         offset += line.len();
     }
@@ -63,7 +63,11 @@ fn binds_hub(before: &str) -> bool {
     let start = target
         .rfind(['(', ',', '{', '[', ';'])
         .map_or(0, |index| index + 1);
-    target[start..].to_ascii_lowercase().contains("hub")
+    target
+        .get(start..)
+        .expect("string slice within bounds")
+        .to_ascii_lowercase()
+        .contains("hub")
 }
 
 /// One `path:line hub` entry per bare hub literal bound to a hub-named identifier.
@@ -82,7 +86,7 @@ fn violations(
             for hub in hubs {
                 let literal = format!("\"{hub}\"");
                 for (at, _) in line.match_indices(literal.as_str()) {
-                    if binds_hub(&line[..at]) {
+                    if binds_hub(line.get(..at).expect("string slice within bounds")) {
                         out.insert(format!("{path}:{} {hub}", index + 1));
                     }
                 }

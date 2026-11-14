@@ -7,7 +7,11 @@ const REPO: &str = "devhusdk/rules_dx";
 const PINS: &str = "\"\"\"Pins.\"\"\"\n\nDX_VERSION = \"1.2.3\"\n\nURL_TEMPLATE = \"https://github.com/devhusdk/rules_dx/releases/download/v{version}/{asset}\"\n\nSHA256 = {\n    \"dx-linux-arm64\": \"\",\n    \"dx-linux-x86_64\": \"\",\n    \"dx-macos-arm64\": \"\",\n    \"dx-windows-arm64\": \"\",\n    \"dx-windows-x86_64\": \"\",\n}\n\nGAZELLE_SHA256 = {\n    \"dx-gazelle-linux-arm64\": \"\",\n    \"dx-gazelle-linux-x86_64\": \"\",\n    \"dx-gazelle-macos-arm64\": \"\",\n    \"dx-gazelle-windows-arm64\": \"\",\n    \"dx-gazelle-windows-x86_64\": \"\",\n}\n";
 
 fn hash(n: usize) -> String {
-    format!("{n:x}").repeat(64)[..64].to_owned()
+    format!("{n:x}")
+        .repeat(64)
+        .get(..64)
+        .expect("string slice within bounds")
+        .to_owned()
 }
 
 fn manifest() -> String {

@@ -142,7 +142,7 @@ fn expect_like_fresh(
     version: &str,
 ) -> Result<(), String> {
     let fresh = work.join(format!("fresh-{version}"));
-    let _ = std::fs::remove_dir_all(&fresh);
+    drop(std::fs::remove_dir_all(&fresh));
     std::fs::create_dir_all(&fresh).map_err(|error| error.to_string())?;
     std::fs::copy(root.join(".bazelversion"), fresh.join(".bazelversion"))
         .map_err(|error| error.to_string())?;
@@ -182,7 +182,7 @@ struct Scratch(PathBuf);
 
 impl Drop for Scratch {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        drop(std::fs::remove_dir_all(&self.0));
     }
 }
 

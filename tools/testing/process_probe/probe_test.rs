@@ -415,8 +415,8 @@ struct Probe(std::process::Child);
 #[cfg(unix)]
 impl Drop for Probe {
     fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
+        drop(self.0.kill());
+        drop(self.0.wait());
     }
 }
 
@@ -425,7 +425,7 @@ struct Release(std::path::PathBuf);
 
 impl Release {
     fn fire(&self) {
-        let _ = std::fs::write(&self.0, b"");
+        drop(std::fs::write(&self.0, b""));
     }
 }
 

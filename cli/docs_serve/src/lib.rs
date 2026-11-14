@@ -56,7 +56,7 @@ impl Site {
         while !stop() {
             match self.listener.accept() {
                 Ok((stream, _)) => {
-                    let _ = stream.set_nonblocking(false);
+                    drop(stream.set_nonblocking(false));
                     spawn_connection(stream, &root, &prefix);
                 }
                 Err(_) => thread::sleep(ACCEPT_POLL),
@@ -99,9 +99,9 @@ impl Drop for Handle {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
         let wake = SocketAddr::new(loopback_for(&self.addr), self.addr.port());
-        let _ = TcpStream::connect_timeout(&wake, READ_TIMEOUT);
+        drop(TcpStream::connect_timeout(&wake, READ_TIMEOUT));
         if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
+            drop(thread.join());
         }
     }
 }
@@ -121,7 +121,7 @@ fn spawn_connection(stream: TcpStream, root: &Arc<Path>, prefix: &Arc<str>) {
     let root = Arc::clone(root);
     let prefix = Arc::clone(prefix);
     thread::spawn(move || {
-        let _ = serve(stream, &root, &prefix);
+        drop(serve(stream, &root, &prefix));
     });
 }
 

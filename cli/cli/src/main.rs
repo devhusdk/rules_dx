@@ -141,7 +141,7 @@ impl QueryRunner for BinaryQueryRunner {
 }
 
 fn startup_failure(stderr_text: &str, code: &str, message: &str, exit: i32, json: bool) -> i32 {
-    let _ = writeln!(io::stderr(), "{stderr_text}");
+    drop(writeln!(io::stderr(), "{stderr_text}"));
     if !json {
         return exit;
     }
@@ -405,7 +405,7 @@ fn run() -> i32 {
     let mut pending = Vec::new();
     for group in &reaped {
         let message = dx_process::groups::reaped_message(group);
-        let _ = writeln!(err, "dx: {message}");
+        drop(writeln!(err, "dx: {message}"));
         if invocation.output == OutputMode::Json {
             let event = dx_output::notice_value(&dx_output::NoticeEvent {
                 related_command: Some(invocation.command.name().to_owned()),
@@ -414,7 +414,7 @@ fn run() -> i32 {
                     message,
                 )
             });
-            let _ = dx_output::lifecycle::write_event(&mut pending, &event);
+            drop(dx_output::lifecycle::write_event(&mut pending, &event));
         }
     }
     dx_plan::slots::inherit_share(&env_get);
@@ -433,7 +433,7 @@ fn run() -> i32 {
     }) {
         Ok(slot) => slot,
         Err(stop) => {
-            let _ = out.write_all(&pending);
+            drop(out.write_all(&pending));
             return dx_cli::exec::slot_stop(invocation.output, &mut out, &mut err, stop);
         }
     };
@@ -448,7 +448,7 @@ fn run() -> i32 {
     if let Some(notice) =
         dx_cli::exec::first_run::first_run_notice(&invocation, &workspace, &env_get)
     {
-        let _ = writeln!(err, "{notice}");
+        drop(writeln!(err, "{notice}"));
     }
     let mut after_first = dx_plan::slots::AfterFirstLine::new(&mut out, pending);
     let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
@@ -478,10 +478,10 @@ fn run() -> i32 {
     print_cache_retries(invocation.output, runner.cache_retries(), &mut err);
     let temp_display = temp_dir.path().display().to_string();
     if let Err(error) = temp_dir.close() {
-        let _ = writeln!(
+        drop(writeln!(
             io::stderr(),
             "dx: warning: cannot remove temporary directory {temp_display}: {error}",
-        );
+        ));
     }
     code
 }

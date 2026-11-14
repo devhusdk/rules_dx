@@ -185,11 +185,13 @@ fn platform_table() -> BTreeMap<String, String> {
     let start = text
         .find("PLATFORMS: [")
         .unwrap_or_else(|| panic!("{PLATFORM_RUNNERS} declares no PLATFORMS table"));
-    let table = &text[start..];
+    let table = text.get(start..).expect("string slice within bounds");
     let end = table
         .find("\n];")
         .unwrap_or_else(|| panic!("{PLATFORM_RUNNERS} leaves the PLATFORMS table open"));
-    table[..end]
+    table
+        .get(..end)
+        .expect("string slice within bounds")
         .lines()
         .filter_map(|line| {
             let (key, value) = line.trim().strip_prefix("(\"")?.split_once("\", \"")?;

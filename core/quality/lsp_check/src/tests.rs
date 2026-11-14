@@ -26,7 +26,7 @@ struct ChannelWriter(Sender<Vec<u8>>);
 
 impl Write for ChannelWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let _ = self.0.send(buf.to_vec());
+        drop(self.0.send(buf.to_vec()));
         Ok(buf.len())
     }
     fn flush(&mut self) -> std::io::Result<()> {
@@ -73,14 +73,14 @@ fn fake_server(
             let method = message["method"].as_str().unwrap_or("").to_string();
             seen.push(method.clone());
             if method == "initialize" {
-                let _ = write_message(
+                drop(write_message(
                     &mut out,
                     &json!({"jsonrpc": "2.0", "id": message["id"], "result": {"capabilities": {}}}),
-                );
-                let _ = write_message(
+                ));
+                drop(write_message(
                     &mut out,
                     &json!({"jsonrpc": "2.0", "id": 99, "method": "client/registerCapability", "params": {}}),
-                );
+                ));
                 if crash_after_initialize {
                     break;
                 }
@@ -90,7 +90,7 @@ fn fake_server(
                     .as_str()
                     .unwrap_or("");
                 if let Some(note) = publish(uri) {
-                    let _ = write_message(&mut out, &note);
+                    drop(write_message(&mut out, &note));
                 }
             }
             if method == "exit" {

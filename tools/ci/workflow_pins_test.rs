@@ -215,21 +215,42 @@ fn bare_main_repo_labels(text: &str) -> Vec<(usize, String)> {
     let mut found = Vec::new();
     for (index, line) in text.lines().enumerate() {
         for (start, _) in line.match_indices("//") {
-            let after = line[start + 2..].chars().next();
+            let after = line
+                .get(start + 2..)
+                .expect("string slice within bounds")
+                .chars()
+                .next();
             if !after.is_some_and(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':') {
                 continue;
             }
-            let before = line[..start].trim_end_matches(repo_char);
+            let before = line
+                .get(..start)
+                .expect("string slice within bounds")
+                .trim_end_matches(repo_char);
             if before.ends_with('@')
-                || line[..start].ends_with(':')
-                || line[..start].trim_end().ends_with("cmd.exe")
+                || line
+                    .get(..start)
+                    .expect("string slice within bounds")
+                    .ends_with(':')
+                || line
+                    .get(..start)
+                    .expect("string slice within bounds")
+                    .trim_end()
+                    .ends_with("cmd.exe")
             {
                 continue;
             }
-            let end = line[start..]
+            let end = line
+                .get(start..)
+                .expect("string slice within bounds")
                 .find(|c: char| !label_char(c))
                 .map_or(line.len(), |offset| start + offset);
-            found.push((index + 1, line[start..end].to_owned()));
+            found.push((
+                index + 1,
+                line.get(start..end)
+                    .expect("string slice within bounds")
+                    .to_owned(),
+            ));
         }
     }
     found

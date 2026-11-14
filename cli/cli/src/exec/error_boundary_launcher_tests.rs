@@ -137,9 +137,9 @@ impl Consumer {
 
     fn command(&self, args: &[&str], env: &[(&str, &str)], bazel: bool) -> Command {
         let bin = self.base.join(if bazel { "bin" } else { "nobin" });
-        let _ = fs::remove_file(self.log());
-        let _ = fs::remove_file(self.base.join("bazel.log.gate"));
-        let _ = fs::remove_file(self.base.join("bazel.log.started"));
+        drop(fs::remove_file(self.log()));
+        drop(fs::remove_file(self.base.join("bazel.log.gate")));
+        drop(fs::remove_file(self.base.join("bazel.log.started")));
         let mut command = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"));
         command
             .args(args)
@@ -276,7 +276,7 @@ impl Consumer {
 
     fn run_cancelled(&self, args: &[&str], env: &[(&str, &str)], signo: i32) -> Outcome {
         let started = self.base.join("bazel.log.started");
-        let _ = fs::remove_file(&started);
+        drop(fs::remove_file(&started));
         let child = self
             .command(args, env, true)
             .stdout(Stdio::piped())

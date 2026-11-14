@@ -996,7 +996,7 @@ mod sh {
             let mut paths = vec![home.join(".bazelrc"), root.join(".bazelrc")];
             paths.extend(rc_names().iter().map(|extra| root.join(extra)));
             for path in &paths {
-                let _ = std::fs::remove_file(path);
+                drop(std::fs::remove_file(path));
             }
             for (slot, text) in rc.files {
                 let path = match slot {
@@ -1007,8 +1007,8 @@ mod sh {
                 };
                 std::fs::write(path, text).expect("rc file");
             }
-            let _ = std::fs::remove_dir_all(state(&root));
-            let _ = std::fs::remove_file(&args);
+            drop(std::fs::remove_dir_all(state(&root)));
+            drop(std::fs::remove_file(&args));
             let mut cmd = repo.command_in(&root, &["status"]);
             cmd.env("STUB_ARGS", &args);
             for (key, value) in &vars {
@@ -1163,7 +1163,7 @@ mod sh {
         if let Some(text) = marker {
             std::fs::write(ob.join("execroot/DO_NOT_BUILD_HERE"), text).expect("marker");
         }
-        let _ = std::fs::remove_file(workspace.join("bazel-bin"));
+        drop(std::fs::remove_file(workspace.join("bazel-bin")));
         symlink(
             main.join("bazel-out/k8-fastbuild/bin"),
             workspace.join("bazel-bin"),

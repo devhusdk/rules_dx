@@ -457,8 +457,10 @@ fn oci_case() {
         let digest = base_index["manifests"][0]["digest"]
             .as_str()
             .expect("base digest");
-        let base_manifest =
-            dx_testing::read_json(&base_blobs.join(&digest[7..])).expect("base manifest");
+        let base_manifest = dx_testing::read_json(
+            &base_blobs.join(digest.get(7..).expect("string slice within bounds")),
+        )
+        .expect("base manifest");
         assert_eq!(manifest["config"], base_manifest["config"]);
         assert_eq!(manifest["layers"], base_manifest["layers"]);
     }
@@ -466,7 +468,12 @@ fn oci_case() {
     assert_eq!(layers.len(), 2, "{manifest}");
     for layer in layers {
         let hex = layer["digest"].as_str().expect("layer digest");
-        assert!(blobs.join(&hex[7..]).is_file(), "{hex}");
+        assert!(
+            blobs
+                .join(hex.get(7..).expect("string slice within bounds"))
+                .is_file(),
+            "{hex}"
+        );
     }
     let config = blob(&manifest["config"]["digest"]);
     assert_eq!(

@@ -129,7 +129,7 @@ mod tests {
     #[should_panic]
     fn empty_queue_panics() {
         let query = FakeQuery::new(Vec::new());
-        let _ = query.run_query(&strings(&["a"]), Path::new("/w"));
+        drop(query.run_query(&strings(&["a"]), Path::new("/w")));
     }
 
     #[test]

@@ -1180,7 +1180,7 @@ mod tests {
         std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
             let mut buf = [0u8; 4096];
-            let _ = stream.read(&mut buf);
+            drop(stream.read(&mut buf));
             stream.write_all(response.as_bytes()).unwrap();
         });
         url
@@ -1313,7 +1313,7 @@ mod tests {
             fetch.get("https://index.crates.io/3/o/none"),
             Err(DxError::failure("HTTP 404"))
         );
-        let _ = std::fs::remove_dir_all(dir);
+        drop(std::fs::remove_dir_all(dir));
     }
 
     #[test]
@@ -1326,7 +1326,7 @@ mod tests {
             fetch.get("https://registry.npmjs.org/@scope/pkg"),
             Ok("{}".into())
         );
-        let _ = std::fs::remove_dir_all(dir);
+        drop(std::fs::remove_dir_all(dir));
     }
 
     #[test]
@@ -1344,7 +1344,7 @@ mod tests {
     #[test]
     fn download_sha256_reads_the_file_a_dir_fetch_serves() {
         let dir = std::env::temp_dir().join(format!("dx-pins-dl-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        drop(std::fs::remove_dir_all(&dir));
         std::fs::create_dir_all(dir.join("host/p")).unwrap();
         std::fs::write(dir.join("host/p/f.tgz"), b"abc").unwrap();
         let fetch = DirFetch(dir.clone());
@@ -1353,7 +1353,7 @@ mod tests {
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
         assert!(fetch.download_sha256("https://host/p/none.tgz").is_err());
-        let _ = std::fs::remove_dir_all(dir);
+        drop(std::fs::remove_dir_all(dir));
     }
 
     #[test]
@@ -1448,7 +1448,7 @@ mod tests {
         assert!(builtins.selects_all_containers() && rest.is_empty());
         let fetch = DirFetch(root.join("mirror"));
         let collected = collect(&root, &[], &builtins, false, &fetch);
-        let _ = std::fs::remove_dir_all(&root);
+        drop(std::fs::remove_dir_all(&root));
         let candidate = &collected.found.candidates[0];
         assert_eq!(candidate.set, "containers");
         assert_eq!(candidate.package, "distroless_static");
@@ -1476,7 +1476,7 @@ mod tests {
         assert!(builtins.bcr_newest && rest.is_empty());
         let collected = collect(&root, &[], &builtins, false, &DirFetch(root.join("mirror")));
         let written = std::fs::read_to_string(root.join(BCR_NEWEST_FILE));
-        let _ = std::fs::remove_dir_all(&root);
+        drop(std::fs::remove_dir_all(&root));
         assert!(collected.found.errors.is_empty());
         assert_eq!(
             written.expect("snapshot"),
@@ -1511,7 +1511,7 @@ mod tests {
             fetch.get("https://api.github.com/repos/o/r/releases/latest"),
             Ok("{}".into())
         );
-        let _ = std::fs::remove_dir_all(dir);
+        drop(std::fs::remove_dir_all(dir));
     }
 
     #[test]

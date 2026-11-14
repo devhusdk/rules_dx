@@ -1,3 +1,4 @@
+use crate::advisory_prep::PrepError;
 use crate::secrets::{
     CONFIG_FLAG, EXIT_CODE_FLAG, IGNORE_PATH_FLAG, REDACT_FLAG, REPORT_FORMAT_FLAG,
     REPORT_PATH_FLAG, SARIF_FORMAT,
@@ -92,63 +93,66 @@ pub fn plan_secrets(
     })
 }
 
-fn lock_name(ecosystem: &str) -> String {
-    let hub = dx_families::hub(ecosystem)
-        .unwrap_or_else(|| panic!("no setup.hubs entry for {ecosystem}"));
-    hub.lock
+fn hub(ecosystem: &str) -> Result<&'static dx_families::Hub, PrepError> {
+    dx_families::hub(ecosystem).ok_or_else(|| PrepError::MissingHub {
+        ecosystem: ecosystem.to_owned(),
+    })
+}
+
+fn lock_name(ecosystem: &str) -> Result<String, PrepError> {
+    let hub = hub(ecosystem)?;
+    Ok(hub
+        .lock
         .clone()
         .or_else(|| hub.state.clone())
-        .unwrap_or_else(|| hub.manifest.clone())
+        .unwrap_or_else(|| hub.manifest.clone()))
 }
 
-fn go_manifest() -> String {
-    dx_families::hub("go")
-        .unwrap_or_else(|| panic!("no setup.hubs entry for go"))
-        .manifest
-        .clone()
+fn go_manifest() -> Result<String, PrepError> {
+    Ok(hub("go")?.manifest.clone())
 }
 
-fn under(dir: &str, ecosystem: &str) -> String {
-    let name = lock_name(ecosystem);
-    if dir.is_empty() {
+fn under(dir: &str, ecosystem: &str) -> Result<String, PrepError> {
+    let name = lock_name(ecosystem)?;
+    Ok(if dir.is_empty() {
         name
     } else {
         format!("{dir}/{name}")
-    }
+    })
 }
 
-pub fn vuln_locks(set: &str) -> Vec<String> {
-    match set {
-        "cargo" => vec![under("cc/private/context", "cargo")],
+pub fn vuln_locks(set: &str) -> Result<Vec<String>, PrepError> {
+    Ok(match set {
+        "cargo" => vec![under("cc/private/context", "cargo")?],
         "npm" => vec![
-            under("", "npm"),
+            under("", "npm")?,
             "package-lock.json".to_owned(),
             "yarn.lock".to_owned(),
         ],
-        "npm-adopt" => vec![under("javascript/tests/fixtures/adopt-js-ts", "npm")],
-        "npm-adopt-polyglot" => vec![under("examples/adopt-polyglot", "npm")],
-        "npm-tools" => vec![under("javascript/private/quality", "npm")],
-        "maven" => vec![under("third_party/jvm", "maven")],
-        "nuget" => vec![format!("third_party/dotnet/{}", lock_name("nuget"))],
-        "powershell" => vec![under("third_party/powershell", "powershell")],
-        "go" => vec![format!("third_party/go/{}", go_manifest())],
+        "npm-adopt" => vec![under("javascript/tests/fixtures/adopt-js-ts", "npm")?],
+        "npm-adopt-polyglot" => vec![under("examples/adopt-polyglot", "npm")?],
+        "npm-tools" => vec![under("javascript/private/quality", "npm")?],
+        "maven" => vec![under("third_party/jvm", "maven")?],
+        "nuget" => vec![format!("third_party/dotnet/{}", lock_name("nuget")?)],
+        "powershell" => vec![under("third_party/powershell", "powershell")?],
+        "go" => vec![format!("third_party/go/{}", go_manifest()?)],
         "ruby" | "rubygems" => vec![
-            under("third_party/ruby", "ruby"),
-            under("ruby/tests/fixtures/adopt-ruby", "ruby"),
+            under("third_party/ruby", "ruby")?,
+            under("ruby/tests/fixtures/adopt-ruby", "ruby")?,
         ],
         _ => Vec::new(),
-    }
+    })
 }
 
-pub fn is_empty_set(set: &str) -> bool {
-    vuln_locks(set).is_empty()
+pub fn is_empty_set(set: &str) -> Result<bool, PrepError> {
+    Ok(vuln_locks(set)?.is_empty())
 }
 
 #[cfg(test)]
 pub fn sets_without_coverage<'a>(sets: impl IntoIterator<Item = &'a str>) -> Vec<&'a str> {
     let mut out: Vec<&'a str> = Vec::new();
     for set in sets {
-        if is_empty_set(set) && !out.contains(&set) {
+        if is_empty_set(set).unwrap() && !out.contains(&set) {
             out.push(set);
         }
     }
@@ -158,6 +162,33 @@ pub fn sets_without_coverage<'a>(sets: impl IntoIterator<Item = &'a str>) -> Vec
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn vuln_locks(set: &str) -> Vec<String> {
+        super::vuln_locks(set).unwrap()
+    }
+
+    fn is_empty_set(set: &str) -> bool {
+        super::is_empty_set(set).unwrap()
+    }
+
+    fn lock_name(ecosystem: &str) -> String {
+        super::lock_name(ecosystem).unwrap()
+    }
+
+    fn go_manifest() -> String {
+        super::go_manifest().unwrap()
+    }
+
+    #[test]
+    fn a_missing_hub_entry_is_an_error() {
+        assert_eq!(
+            hub("no-such-ecosystem").unwrap_err(),
+            PrepError::MissingHub {
+                ecosystem: "no-such-ecosystem".to_owned()
+            }
+        );
+        assert!(super::lock_name("no-such-ecosystem").is_err());
+    }
 
     /// The pinned gitleaks path, spelled the way this host spells an absolute one.
     fn hermetic_gitleaks() -> String {

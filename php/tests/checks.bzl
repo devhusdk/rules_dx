@@ -15,6 +15,10 @@ def expect_contains(name, haystack, needle):
     """Returns a check that passes when haystack contains needle."""
     return struct(name = name, passed = needle in haystack, detail = "%r not in %r" % (needle, haystack))
 
+def label_string(label):
+    """Returns the Label for a string, for BUILD files."""
+    return Label(label)
+
 def php_checks_test(name, checks, **kwargs):
     """Declares a test that passes when every check passed."""
     if not checks:

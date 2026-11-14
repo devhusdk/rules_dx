@@ -75,6 +75,8 @@ collects_providers_test(
     target_under_test = ":hub_null",
 )
 
+exports_files(["lock/terraform.lock.json"])
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

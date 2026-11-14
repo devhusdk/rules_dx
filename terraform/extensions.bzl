@@ -1,8 +1,10 @@
 """terraform: Terraform providers vendored with sha256 integrity."""
 
+load("//core:pins.bzl", "lock_problems", "lock_tag")
 load("//core:repo.bzl", "hub_repo")
 
 TARGETS = {
+    "darwin_amd64": ("@platforms//os:macos", "@platforms//cpu:x86_64"),
     "darwin_arm64": ("@platforms//os:macos", "@platforms//cpu:arm64"),
     "linux_amd64": ("@platforms//os:linux", "@platforms//cpu:x86_64"),
     "linux_arm64": ("@platforms//os:linux", "@platforms//cpu:arm64"),
@@ -10,48 +12,18 @@ TARGETS = {
     "windows_arm64": ("@platforms//os:windows", "@platforms//cpu:arm64"),
 }
 
-_HASHICORP_HOST = "registry.terraform.io/hashicorp/"
-
-def _is_hex64(value):
-    if len(value) != 64:
-        return False
-    for c in value.elems():
-        if c not in "0123456789abcdef":
-            return False
-    return True
-
-def provider_errors(source, version, sha256, urls):
-    """Validates one provider declaration."""
-    errors = []
-    if len(source.split("/")) != 3:
-        errors.append("source %r must be HOST/NAMESPACE/TYPE" % source)
-    if version == "":
-        errors.append("%s: version is required" % source)
-    if len(sha256) == 0:
-        errors.append("%s: sha256 must name at least one target" % source)
-    for target, digest in sha256.items():
-        if target not in TARGETS:
-            errors.append("%s: unknown target %r, expected one of %s" % (source, target, sorted(TARGETS)))
-        if not _is_hex64(digest):
-            errors.append("%s: sha256 for %s must be 64 lowercase hex characters" % (source, target))
-        if target not in urls and not source.startswith(_HASHICORP_HOST):
-            errors.append("%s: urls is required for target %s" % (source, target))
-    for target in urls:
-        if target not in sha256:
-            errors.append("%s: url for %s has no sha256" % (source, target))
-    return errors
-
-def provider_conflict_message(name, first, second):
-    """Returns the error for two differing declarations of one provider."""
-    return "terraform: conflicting declarations of provider %r: %s declares %s %s, %s declares %s %s" % (name, first[0], first[1], first[2], second[0], second[1], second[2])
-
-def default_url(source, version, target):
-    kind = source.split("/")[-1]
-    return "https://releases.hashicorp.com/terraform-provider-{k}/{v}/terraform-provider-{k}_{v}_{t}.zip".format(k = kind, v = version, t = target)
+PLATFORM_TARGETS = {
+    "linux_x86_64": "linux_amd64",
+    "linux_arm64": "linux_arm64",
+    "macos_x86_64": "darwin_amd64",
+    "macos_arm64": "darwin_arm64",
+    "windows_x86_64": "windows_amd64",
+    "windows_arm64": "windows_arm64",
+}
 
 def _repo_impl(ctx):
     ctx.download_and_extract(
-        url = ctx.attr.url,
+        url = ctx.attr.urls,
         sha256 = ctx.attr.sha256,
         output = "%s/%s/%s" % (ctx.attr.source, ctx.attr.version, ctx.attr.target),
     )
@@ -74,7 +46,7 @@ _provider_repo = repository_rule(
         "sha256": attr.string(mandatory = True),
         "source": attr.string(mandatory = True),
         "target": attr.string(mandatory = True),
-        "url": attr.string(mandatory = True),
+        "urls": attr.string_list(mandatory = True),
         "version": attr.string(mandatory = True),
     },
 )
@@ -90,50 +62,67 @@ def hub_build(providers):
         lines.append("alias(\n    name = \"%s\",\n    actual = select({\n%s\n    }, no_match_error = \"provider %s has no artifact for this execution platform\"),\n)\n" % (name, "\n".join(branches), entry["source"]))
     return "\n".join(lines)
 
-def _extension_impl(ctx):
-    decls = {}
-    for module in ctx.modules:
-        for tag in module.tags.provider:
-            errors = provider_errors(tag.source, tag.version, tag.sha256, tag.urls)
-            if errors:
-                fail("terraform: " + "; ".join(errors))
-            decl = (tag.source, tag.version, tag.sha256, tag.urls)
-            who = "%s %s" % (module.name, module.version)
-            if tag.name in decls and decls[tag.name][0] != decl:
-                fail(provider_conflict_message(tag.name, (decls[tag.name][1], decls[tag.name][0][0], decls[tag.name][0][1]), (who, tag.source, tag.version)))
-            if tag.name not in decls:
-                decls[tag.name] = (decl, who)
-    hub = {}
-    for name, ((source, version, sha256, urls), _) in sorted(decls.items()):
-        repos = {}
-        for target, digest in sorted(sha256.items()):
-            repo = "dx_terraform_%s_%s" % (name, target)
-            _provider_repo(
-                name = repo,
-                sha256 = digest,
-                source = source,
-                target = target,
-                url = urls.get(target, default_url(source, version, target)),
-                version = version,
-            )
-            repos[target] = repo
-        hub[name] = {"repos": repos, "source": source}
-    hub_repo(name = "dx_terraform_providers", files = {"BUILD.bazel": hub_build(hub)})
-    return ctx.extension_metadata(reproducible = True)
+def provider_repos(hub, lock):
+    """Returns the platform repository attributes of every package of a decoded lock, by repository name."""
+    repos = {}
+    for package in lock["packages"]:
+        for archive in package["archives"]:
+            platform = archive.get("platform")
+            if platform not in PLATFORM_TARGETS:
+                fail("terraform %s %s: archive without a platform" % (package["name"], package["version"]))
+            target = PLATFORM_TARGETS[platform]
+            repos["%s_%s_%s" % (hub, package["name"].rpartition("/")[2], target)] = {
+                "sha256": archive["sha256"],
+                "source": package["name"],
+                "target": target,
+                "urls": archive["urls"],
+                "version": package["version"],
+            }
+    return repos
 
-_provider = tag_class(
-    doc = "Declares a Terraform provider to fetch into @dx_terraform_providers.",
-    attrs = {
-        "name": attr.string(mandatory = True, doc = "Target name in @dx_terraform_providers."),
-        "sha256": attr.string_dict(mandatory = True, doc = "Target platform to hex sha256 of the official zip."),
-        "source": attr.string(mandatory = True, doc = "Provider source address HOST/NAMESPACE/TYPE."),
-        "urls": attr.string_dict(doc = "Target platform to zip URL; optional for registry.terraform.io/hashicorp."),
-        "version": attr.string(mandatory = True, doc = "Provider version."),
-    },
-)
+def hub_providers(hub, lock):
+    """Returns the hub entries of a decoded lock: provider type to its source and repository per target."""
+    providers = {}
+    for package in lock["packages"]:
+        kind = package["name"].rpartition("/")[2]
+        if kind in providers:
+            fail("terraform hub %r: %s and %s are both named %s" % (hub, providers[kind]["source"], package["name"], kind))
+        repos = {}
+        for archive in package["archives"]:
+            target = PLATFORM_TARGETS[archive["platform"]]
+            repos[target] = "%s_%s_%s" % (hub, kind, target)
+        providers[kind] = {"repos": repos, "source": package["name"]}
+    return providers
+
+def _extension_impl(mctx):
+    direct = []
+    dev = []
+    seen = {}
+    for module in mctx.modules:
+        for tag in module.tags.lock:
+            if tag.name in seen:
+                fail("terraform hub %r is declared by both %s and %s" % (tag.name, seen[tag.name], module.name))
+            seen[tag.name] = module.name
+            lock = json.decode(mctx.read(tag.lock))
+            problems = lock_problems(lock)
+            if problems:
+                fail("%s %s" % (tag.lock, "; ".join(problems)))
+            for name, attrs in sorted(provider_repos(tag.name, lock).items()):
+                _provider_repo(name = name, **attrs)
+            hub_repo(name = tag.name, files = {"BUILD.bazel": hub_build(hub_providers(tag.name, lock))})
+            if module.is_root:
+                if mctx.is_dev_dependency(tag):
+                    dev.append(tag.name)
+                else:
+                    direct.append(tag.name)
+    return mctx.extension_metadata(
+        reproducible = True,
+        root_module_direct_deps = direct,
+        root_module_direct_dev_deps = dev,
+    )
 
 terraform = module_extension(
-    doc = "Builds @dx_terraform_providers with one target per declared provider.",
+    doc = "Builds one hub of Terraform providers per lock tag.",
     implementation = _extension_impl,
-    tag_classes = {"provider": _provider},
+    tag_classes = {"lock": lock_tag},
 )

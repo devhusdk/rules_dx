@@ -140,6 +140,13 @@
     "manifest": "Package.swift"
   },
   {
+    "ecosystem": "terraform",
+    "hub": "dx_terraform_providers",
+    "imports": "provides",
+    "lock": "terraform.lock.json",
+    "manifest": "*.tf"
+  },
+  {
     "ecosystem": "uv",
     "hub": "pypi",
     "imports": "name",

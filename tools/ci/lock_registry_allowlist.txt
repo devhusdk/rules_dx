@@ -1,10 +1,6 @@
 parser elixir/private/mix_lock.bzl
 parser erlang/private/rebar_lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
-tag-attr terraform/extensions.bzl sha256
-tag-attr terraform/extensions.bzl version
 tag-use MODULE.bazel ruby.bundle_fetch.gem_checksums
 tag-use MODULE.bazel ruby.toolchain.portable_ruby_checksums
 tag-use MODULE.bazel ruby.toolchain.version
-tag-use MODULE.bazel terraform.provider.sha256
-tag-use MODULE.bazel terraform.provider.version

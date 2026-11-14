@@ -13,6 +13,8 @@ use dx_release_tools::candidate::{
 };
 use dx_testing::{Run, resolve_runfiles, rules_dx_source};
 
+use crate::quickstart_consumer_test::ok;
+
 const VERSION: &str = "1.2.3-rc1";
 
 const BUILD: &str = r#"load("@my_dx//core/quality/private:generated_policy.bzl", "dx_generated_policy")
@@ -166,10 +168,6 @@ fn stage(name: &str) {
 fn bazel(case: &Case, args: &[&str]) -> Run {
     let path = crate::quickstart_consumer_test::ldd_path();
     case.bazel_with(args, &[("PATH", path.as_str())])
-}
-
-fn ok(run: &Run, what: &str) {
-    assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
 
 /// Consumes the archive through the registry and checks what Bazel fetched.

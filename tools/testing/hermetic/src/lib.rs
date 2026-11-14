@@ -2241,6 +2241,17 @@ fn accepted_licenses(fragment: &str) -> Vec<String> {
     ids
 }
 
+fn without_license_tags(fragment: &str) -> String {
+    fragment
+        .lines()
+        .filter(|line| {
+            let line = line.trim();
+            !line.starts_with("dx_licenses.accept(") && !line.starts_with("dx_licenses = ")
+        })
+        .map(|line| format!("{line}\n"))
+        .collect()
+}
+
 fn run_init(manifest: &Manifest, workspace: &Path) -> Result<(), String> {
     let workspace_text = workspace.to_string_lossy().into_owned();
     let mut args = vec![
@@ -2277,6 +2288,7 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         .ok_or("manifest needs a module_fragment")?;
     let fragment = std::fs::read_to_string(fragment_path)
         .map_err(|err| format!("cannot read {}: {err}", fragment_path.display()))?;
+    let fragment = without_license_tags(&fragment);
     let module = compose_module(
         &snippet,
         &manifest.module,

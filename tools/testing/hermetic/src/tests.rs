@@ -2329,3 +2329,9 @@ fn accepted_licenses_reads_the_fragment_tags() {
     assert_eq!(accepted_licenses(fragment), ["a", "b-c"]);
     assert!(accepted_licenses("msvc = use_extension(\"x\", \"msvc\")\n").is_empty());
 }
+
+#[test]
+fn without_license_tags_drops_the_license_declarations() {
+    let fragment = "dx_licenses = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"a\"])\nnpm = 1\n";
+    assert_eq!(without_license_tags(fragment), "npm = 1\n");
+}

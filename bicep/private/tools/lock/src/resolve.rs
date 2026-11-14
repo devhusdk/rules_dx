@@ -298,6 +298,10 @@ impl Resolver for Bicep<'_> {
                 None => self.package(&reference)?,
             });
         }
-        Ok(Resolution { packages })
+        Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
+            packages,
+            ..Resolution::default()
+        })
     }
 }

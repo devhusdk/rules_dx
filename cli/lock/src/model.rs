@@ -32,6 +32,9 @@ pub struct Lock {
     pub inputs: BTreeMap<String, String>,
     /// Every package of the closure, sorted by name.
     pub packages: Vec<Package>,
+    /// One closure per group, by group name.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub groups: BTreeMap<String, Vec<Package>>,
 }
 
 /// One package at one exact version.
@@ -84,6 +87,9 @@ pub struct Archive {
 pub struct Resolution {
     /// Every package of the closure, in any order.
     pub packages: Vec<Package>,
+    /// One closure per group, by group name, each in any order.
+    #[serde(default)]
+    pub groups: BTreeMap<String, Vec<Package>>,
 }
 
 impl Resolution {
@@ -131,6 +137,88 @@ fn sort_dedup(items: &mut Vec<String>) {
     items.dedup();
 }
 
+fn normalize(packages: &mut [Package]) {
+    for package in packages.iter_mut() {
+        sort_dedup(&mut package.deps);
+        sort_dedup(&mut package.provides);
+        package
+            .archives
+            .sort_by(|a, b| (&a.platform, &a.urls).cmp(&(&b.platform, &b.urls)));
+    }
+    packages.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+}
+
+fn group_problem(group: &str) -> bool {
+    group.is_empty()
+        || !group
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+}
+
+/// What breaks the schema in one closure, one line each.
+fn closure_problems(packages: &[Package]) -> Vec<String> {
+    let mut problems = Vec::new();
+    let names: BTreeSet<&str> = packages.iter().map(|p| p.name.as_str()).collect();
+    let mut seen = BTreeSet::new();
+    for package in packages {
+        let name = &package.name;
+        if let Some(problem) = name_problem(name) {
+            problems.push(format!("package {name:?} {problem}"));
+        }
+        if !seen.insert(name.as_str()) {
+            problems.push(format!("package {name} is listed twice"));
+        }
+        if package.version.is_empty() {
+            problems.push(format!("package {name} has no version"));
+        }
+        if package.archives.is_empty() {
+            problems.push(format!("package {name} has no archive"));
+        }
+        let mut platforms = BTreeSet::new();
+        for archive in &package.archives {
+            let platform = archive.platform.as_str();
+            if !platform.is_empty() && !PLATFORMS.contains(&platform) {
+                problems.push(format!(
+                    "package {name} has the unknown platform {platform}"
+                ));
+            }
+            if !platforms.insert(platform) {
+                problems.push(format!(
+                    "package {name} has two archives for {}",
+                    if platform.is_empty() {
+                        "every platform"
+                    } else {
+                        platform
+                    }
+                ));
+            }
+            if archive.urls.is_empty() {
+                problems.push(format!("package {name} has an archive with no URL"));
+            }
+            for url in &archive.urls {
+                if !url.starts_with("https://") || url.chars().any(char::is_whitespace) {
+                    problems.push(format!("package {name} has the URL {url:?}; want https"));
+                }
+            }
+            if !archive.sha256.is_empty() && !is_sha256(&archive.sha256) {
+                problems.push(format!(
+                    "package {name} has the sha256 {:?}; want 64 hex characters",
+                    archive.sha256
+                ));
+            }
+        }
+        for dep in &package.deps {
+            if !names.contains(dep.as_str()) {
+                problems.push(format!("package {name} needs {dep}, which is not locked"));
+            }
+        }
+        if package.provides.iter().any(String::is_empty) {
+            problems.push(format!("package {name} provides an empty import name"));
+        }
+    }
+    problems
+}
+
 impl Lock {
     /// Reads a lock file.
     ///
@@ -147,78 +235,30 @@ impl Lock {
 
     /// Puts every list in its fixed order.
     pub fn normalize(&mut self) {
-        for package in &mut self.packages {
-            sort_dedup(&mut package.deps);
-            sort_dedup(&mut package.provides);
-            package
-                .archives
-                .sort_by(|a, b| (&a.platform, &a.urls).cmp(&(&b.platform, &b.urls)));
-        }
-        self.packages
-            .sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+        normalize(&mut self.packages);
+        self.groups
+            .values_mut()
+            .for_each(|packages| normalize(packages));
     }
 
     /// What breaks the schema, one line each; archive digests may still be empty.
     #[must_use]
     pub fn shape_problems(&self) -> Vec<String> {
-        let mut problems = Vec::new();
-        let names: BTreeSet<&str> = self.packages.iter().map(|p| p.name.as_str()).collect();
-        let mut seen = BTreeSet::new();
-        for package in &self.packages {
-            let name = &package.name;
-            if let Some(problem) = name_problem(name) {
-                problems.push(format!("package {name:?} {problem}"));
+        let mut problems = closure_problems(&self.packages);
+        for (group, packages) in &self.groups {
+            if group_problem(group) {
+                problems.push(format!(
+                    "group {group:?} has a name outside letters, digits, `_`, `.` and `-`"
+                ));
             }
-            if !seen.insert(name.as_str()) {
-                problems.push(format!("package {name} is listed twice"));
+            if !self.packages.is_empty() {
+                problems.push(format!("group {group} sits next to top-level packages"));
             }
-            if package.version.is_empty() {
-                problems.push(format!("package {name} has no version"));
-            }
-            if package.archives.is_empty() {
-                problems.push(format!("package {name} has no archive"));
-            }
-            let mut platforms = BTreeSet::new();
-            for archive in &package.archives {
-                let platform = archive.platform.as_str();
-                if !platform.is_empty() && !PLATFORMS.contains(&platform) {
-                    problems.push(format!(
-                        "package {name} has the unknown platform {platform}"
-                    ));
-                }
-                if !platforms.insert(platform) {
-                    problems.push(format!(
-                        "package {name} has two archives for {}",
-                        if platform.is_empty() {
-                            "every platform"
-                        } else {
-                            platform
-                        }
-                    ));
-                }
-                if archive.urls.is_empty() {
-                    problems.push(format!("package {name} has an archive with no URL"));
-                }
-                for url in &archive.urls {
-                    if !url.starts_with("https://") || url.chars().any(char::is_whitespace) {
-                        problems.push(format!("package {name} has the URL {url:?}; want https"));
-                    }
-                }
-                if !archive.sha256.is_empty() && !is_sha256(&archive.sha256) {
-                    problems.push(format!(
-                        "package {name} has the sha256 {:?}; want 64 hex characters",
-                        archive.sha256
-                    ));
-                }
-            }
-            for dep in &package.deps {
-                if !names.contains(dep.as_str()) {
-                    problems.push(format!("package {name} needs {dep}, which is not locked"));
-                }
-            }
-            if package.provides.iter().any(String::is_empty) {
-                problems.push(format!("package {name} provides an empty import name"));
-            }
+            problems.extend(
+                closure_problems(packages)
+                    .into_iter()
+                    .map(|problem| format!("group {group}: {problem}")),
+            );
         }
         problems
     }
@@ -239,7 +279,7 @@ impl Lock {
             }
         }
         problems.extend(self.shape_problems());
-        for package in &self.packages {
+        for package in self.packages.iter().chain(self.groups.values().flatten()) {
             for archive in &package.archives {
                 if archive.sha256.is_empty() {
                     problems.push(format!(

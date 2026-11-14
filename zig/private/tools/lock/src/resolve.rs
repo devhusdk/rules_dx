@@ -495,6 +495,10 @@ impl Resolver for Zig<'_> {
                 extra,
             });
         }
-        Ok(Resolution { packages })
+        Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
+            packages,
+            ..Resolution::default()
+        })
     }
 }

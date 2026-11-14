@@ -551,6 +551,10 @@ impl Resolver for Terraform<'_> {
             state(&packages, &wanted),
         )
         .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
-        Ok(Resolution { packages })
+        Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
+            packages,
+            ..Resolution::default()
+        })
     }
 }

@@ -431,6 +431,7 @@ impl Resolver for Opam<'_> {
             }
         }
         Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
             packages: self.packages(&pins)?,
         })
     }

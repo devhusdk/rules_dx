@@ -2553,6 +2553,7 @@ crate.from_cargo(
         "//swift/private/tools/lock:Cargo.toml",
         "//zig/private/tools/lock:Cargo.toml",
         "//d/private/tools/lock:Cargo.toml",
+        "//csharp/private/tools/lock:Cargo.toml",
         "//php/private/tools/lock:Cargo.toml",
         "//ansible/private/tools/lock:Cargo.toml",
         "//bicep/private/tools/lock:Cargo.toml",

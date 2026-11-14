@@ -567,6 +567,7 @@ impl Resolver for Lua<'_> {
             }
         }
         Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
             packages: chosen.into_values().collect(),
         })
     }

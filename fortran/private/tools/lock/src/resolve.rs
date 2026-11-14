@@ -267,6 +267,7 @@ impl Resolver for Fpm<'_> {
             packages.insert(package.name.clone(), package);
         }
         Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
             packages: packages.into_values().collect(),
         })
     }

@@ -602,6 +602,7 @@ impl Resolver for Dub<'_> {
         std::fs::write(scratch.set().join(&self.state), state)
             .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
         Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
             packages: chosen
                 .iter()
                 .map(|(name, version)| {

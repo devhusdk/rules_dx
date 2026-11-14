@@ -462,6 +462,10 @@ impl Resolver for Hex {
                 "the set has no {mix} or {REBAR_LOCK}; run mix deps.get or rebar3 lock first"
             )));
         };
-        Ok(Resolution { packages })
+        Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
+            packages,
+            ..Resolution::default()
+        })
     }
 }

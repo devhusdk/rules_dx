@@ -974,6 +974,7 @@ rust_test(
         "//cli/tests/entrypoint:corpus_starlark",
         "//core/quality/artifacts/acquire_test:corpus_starlark",
         "//core/quality/artifacts/tests/hub:corpus_starlark",
+        "//csharp/private/tools/lock:corpus_starlark",
         "//cuda/private/toolchain:corpus_starlark",
         "//d/private/lock:corpus_starlark",
         "//d/private/toolchain:corpus_starlark",

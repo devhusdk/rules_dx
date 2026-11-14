@@ -85,6 +85,12 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - Other ecosystem data is under `extra`; the schema lists its keys per ecosystem.
 - Keys are sorted, so the same inputs and registry state give the same bytes.
 
+## Groups
+
+- A `nuget.lock.json` holds one exact-version closure per Paket group under the top key `groups`, which maps the group name to its packages; its `packages` is empty.
+- Each group is its own hub: the `main` group is the set's hub name, another group is `<hub>.<group>`.
+- A package of a group is `@<group hub>//<name>`.
+
 ## Extension
 
 - A consumer loads a hub extension only from `@rules_dx//<lang>:extensions.bzl`. Its name is the ecosystem.

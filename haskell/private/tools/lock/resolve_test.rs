@@ -51,6 +51,7 @@ fn a_plan_and_an_index_give_the_golden_lock() {
         schema: SCHEMA,
         ecosystem: "cabal".to_owned(),
         inputs: BTreeMap::new(),
+        groups: BTreeMap::new(),
         packages: packages(&plan(), &found).expect("packages"),
     };
     assert_eq!(lock.shape_problems(), Vec::<String>::new());
@@ -153,6 +154,7 @@ fn a_tarball_that_differs_from_the_lock_fails() {
         schema: SCHEMA,
         ecosystem: "cabal".to_owned(),
         inputs: BTreeMap::new(),
+        groups: BTreeMap::new(),
         packages: vec![Package {
             name: "a".to_owned(),
             version: "1".to_owned(),

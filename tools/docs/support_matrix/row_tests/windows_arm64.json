@@ -1,8 +1,8 @@
 {
   "//android/tests/fixtures/rust_apk:check_unsigned_test": [],
   "//android/tests/fixtures/rust_apk:sign_test": [],
-  "//cc/private/toolchains:msvc_arm64_hello_test": [],
-  "//cc/private/toolchains:msvc_arm64_pe_machine_test": [],
+  "//cc/private/toolchain:msvc_arm64_hello_test": [],
+  "//cc/private/toolchain:msvc_arm64_pe_machine_test": [],
   "//cc/tests/fixtures/hello:hello_test": [],
   "//cmake/tests:bad_name_fails": [],
   "//cmake/tests:owns_cmake_class_test": [],

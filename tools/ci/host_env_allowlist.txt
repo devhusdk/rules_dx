@@ -30,7 +30,7 @@ cc/private/bench_run.sh shebang 1
 cc/private/clang_syntax_tests.bzl host-path 3
 cc/private/context/src/lib_tests.rs host-path 19
 cc/private/context/tests/context_clang_tidy.rs host-path 1
-cc/private/toolchains/msvc/toolchain.bzl host-path 1
+cc/private/toolchain/msvc/toolchain.bzl host-path 1
 cc/tests/fixtures/bench/BUILD.bazel sh-rule 1
 cc/tests/fixtures/bench/run_test.sh shebang 1
 cc/tests/fixtures/c-app/store/BUILD.bazel genrule 1

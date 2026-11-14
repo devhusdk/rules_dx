@@ -1,6 +1,6 @@
 """MSVC hub repository coverage."""
 
-load("//cc/private/toolchains:unavailable.bzl", "cc_toolchain_unavailable")
+load("//cc/private/toolchain:unavailable.bzl", "cc_toolchain_unavailable")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
 load(":repos.bzl", "HUB_NAME", "LICENSE", "UNACCEPTED", "cell_files", "hub_build")

@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("//cc:defs.bzl", "cc_binary")
-load("//cc/private/toolchains:pins.bzl", "MSVC_CL_BUILD")
-load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary")
+load("//cc/private/toolchain:pins.bzl", "MSVC_CL_BUILD")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//deploy:defs.bzl", "consumer_archive")
 load("//rust:defs.bzl", "rust_test")
@@ -37,8 +37,8 @@ consumer_archive(
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
     platform = "//tools/platforms:windows_x86_64",
     runtime = [
-        "//cc/private/toolchains:msvc_vcruntime",
-        "//cc/private/toolchains:windows_ucrt",
+        "//cc/private/toolchain:msvc_vcruntime",
+        "//cc/private/toolchain:windows_ucrt",
     ],
     tags = ["manual"],
     target_compatible_with = _WINDOWS_X64,

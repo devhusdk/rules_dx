@@ -1,5 +1,5 @@
 load("@rules_py//py:defs.bzl", "py_binary")
-load("//cc/private/toolchains:select.bzl", "cc_toolchain_test")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//python:defs.bzl", "python_test")
 load(":sdist_action_tests.bzl", "sdist_action_tests")

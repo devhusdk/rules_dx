@@ -4,14 +4,14 @@
   "//appimage/tests:appimage_test": [
     "block-network"
   ],
-  "//cc/private/toolchains:gcc_arm64_asan_test": [
+  "//cc/private/toolchain:gcc_arm64_asan_test": [
     "no-coverage"
   ],
-  "//cc/private/toolchains:gcc_arm64_dynamic_libstdcxx_test": [],
-  "//cc/private/toolchains:gcc_arm64_hello_c_test": [],
-  "//cc/private/toolchains:gcc_arm64_hello_test": [],
-  "//cc/private/toolchains:gcc_arm64_shared_test": [],
-  "//cc/private/toolchains:gcc_arm64_ubsan_test": [
+  "//cc/private/toolchain:gcc_arm64_dynamic_libstdcxx_test": [],
+  "//cc/private/toolchain:gcc_arm64_hello_c_test": [],
+  "//cc/private/toolchain:gcc_arm64_hello_test": [],
+  "//cc/private/toolchain:gcc_arm64_shared_test": [],
+  "//cc/private/toolchain:gcc_arm64_ubsan_test": [
     "no-coverage"
   ],
   "//cc/tests/fixtures/hello:hello_test": [],

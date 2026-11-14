@@ -3,7 +3,7 @@
 load("//core:defs.bzl", "starlark_test")
 
 def _expected(subject, compiler, target, family, driver, abi, coverage, syntax_only):
-    return """subject //cc/private/toolchains/external:{subject}
+    return """subject //cc/private/toolchain/external:{subject}
 field cc.abi={abi}
 field cc.builtin_includes=
 field cc.compiler={compiler}
@@ -17,7 +17,7 @@ field cc.target={target}
 aspect_field aspect_seen=True
 aspect_field field_count=10
 aspect_field has_subject=True
-aspect_field subject_label=//cc/private/toolchains/external:{subject}
+aspect_field subject_label=//cc/private/toolchain/external:{subject}
 aspect_field transitive_count=0""".format(
         abi = abi,
         subject = subject,

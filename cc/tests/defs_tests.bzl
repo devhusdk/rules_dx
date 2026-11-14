@@ -138,8 +138,8 @@ def _external_toolchain_asan_test(toolchain):
         config_settings = {"//command_line_option:extra_toolchains": [toolchain]},
     )
 
-_asan_env_external_gcc_test = _external_toolchain_asan_test(str(Label("//cc/private/toolchains/external:gcc_toolchain")))
-_asan_env_external_icx_test = _external_toolchain_asan_test(str(Label("//cc/private/toolchains/external:icx_toolchain")))
+_asan_env_external_gcc_test = _external_toolchain_asan_test(str(Label("//cc/private/toolchain/external:gcc_toolchain")))
+_asan_env_external_icx_test = _external_toolchain_asan_test(str(Label("//cc/private/toolchain/external:icx_toolchain")))
 
 def cc_external_asan_env_tests(name, target, **kwargs):
     """Asserts cc_test sets ASAN_OPTIONS under an external GCC toolchain and not under another external compiler."""
@@ -190,9 +190,9 @@ _coverage_env_gcc_test = analysistest.make(
     },
 )
 
-_coverage_external_gcc_test = _external_coverage_test(str(Label("//cc/private/toolchains/external:gcc_toolchain")), _coverage_mismatch_impl)
-_coverage_external_gcc_flag_test = _external_coverage_test(str(Label("//cc/private/toolchains/external:gcc_toolchain")), _coverage_flag_impl, **{"//command_line_option:compiler": "gcc"})
-_coverage_external_icx_test = _external_coverage_test(str(Label("//cc/private/toolchains/external:icx_toolchain")), _icx_coverage_impl)
+_coverage_external_gcc_test = _external_coverage_test(str(Label("//cc/private/toolchain/external:gcc_toolchain")), _coverage_mismatch_impl)
+_coverage_external_gcc_flag_test = _external_coverage_test(str(Label("//cc/private/toolchain/external:gcc_toolchain")), _coverage_flag_impl, **{"//command_line_option:compiler": "gcc"})
+_coverage_external_icx_test = _external_coverage_test(str(Label("//cc/private/toolchain/external:icx_toolchain")), _icx_coverage_impl)
 
 def cc_external_coverage_tests(name, target, **kwargs):
     """Asserts cc_test coverage fails fast under an external GCC toolchain without --compiler, gets past that check with it (the fake toolchain has no gcov), and leaves unknown compilers alone."""

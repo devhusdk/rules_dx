@@ -1,7 +1,7 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//qt/private/sdk:pins.bzl", "CELLS")
-load("//qt/private/sdk:repos.bzl", "qualified_cells")
+load("//qt/private/toolchain:pins.bzl", "CELLS")
+load("//qt/private/toolchain:repos.bzl", "qualified_cells")
 load(":libc.bzl", "glibc_at_least")
 
 package(default_visibility = ["//visibility:public"])

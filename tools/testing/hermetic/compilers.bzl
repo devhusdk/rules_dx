@@ -1,7 +1,7 @@
 """In-graph compiler fixtures: the starter sources built by one selected C++ toolchain."""
 
 load("//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
-load("//cc/private/toolchains:select.bzl", "cc_toolchain_test", "toolchain_transition")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_test", "toolchain_transition")
 load("//rust:defs.bzl", "rust_test")
 load(":defs.bzl", "COMPILER_PRODUCERS")
 

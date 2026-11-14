@@ -611,7 +611,7 @@ _repo = repository_rule(implementation = _impl, attrs = {"sha256": attr.string()
             ("php/private/composer/extensions.bzl", inline),
             ("php/private/composer/more.bzl", named),
             ("php/private/composer/repos.bzl", rule),
-            ("qt/private/sdk/extensions.bzl", inline),
+            ("qt/private/toolchain/extensions.bzl", inline),
         ],
         &[
             ("php/lang.json", PHP_LANG),

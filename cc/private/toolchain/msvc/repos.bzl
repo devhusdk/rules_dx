@@ -1,6 +1,6 @@
 """MSVC toolchains over the windows_support repositories behind a license acceptance."""
 
-load("//cc/private/toolchains:pins.bzl", "MSVC_TOOLSET_VERSION", "VC_REDIST_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
+load("//cc/private/toolchain:pins.bzl", "MSVC_TOOLSET_VERSION", "VC_REDIST_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
 load("//core:license.bzl", "accepted", "unaccepted")
 load(":layout.bzl", "SUPPORTED_CELLS")
 
@@ -58,7 +58,7 @@ def hub_build(accepted, vc_repo = "", sdk_repo = "", msvc_version = MSVC_TOOLSET
     if accepted:
         text = 'load("{}", "msvc_cc_toolchain")\n'.format(str(Label(":toolchain.bzl"))) + text
     else:
-        text = 'load("{}", "cc_toolchain_unavailable")\n\n'.format(str(Label("//cc/private/toolchains:unavailable.bzl"))) + text
+        text = 'load("{}", "cc_toolchain_unavailable")\n\n'.format(str(Label("//cc/private/toolchain:unavailable.bzl"))) + text
     for host, target in SUPPORTED_CELLS:
         name = cell_name(host, target)
         if accepted:
@@ -79,7 +79,7 @@ def hub_build(accepted, vc_repo = "", sdk_repo = "", msvc_version = MSVC_TOOLSET
         text += 'filegroup(\n    name = "vcruntime_{}",\n    srcs = {},\n)\n\n'.format(arch, json.encode(files))
     text += 'config_setting(\n    name = "windows_arm64",\n    constraint_values = [\n        "@platforms//os:windows",\n        "@platforms//cpu:arm64",\n    ],\n)\n\n'
     if accepted:
-        text += 'dx_native_runtime(\n    name = "msvc_vcruntime",\n    srcs = select({{\n        ":windows_arm64": [":vcruntime_arm64"],\n        "//conditions:default": [":vcruntime_x64"],\n    }}),\n    notice = "{}",\n    redistribution = "app_local",\n    source = "Visual C++ Redistributable",\n    version = "{}",\n)\n\n'.format(str(Label("//cc/private/toolchains:msvc_vcruntime_notice")), redist_version)
+        text += 'dx_native_runtime(\n    name = "msvc_vcruntime",\n    srcs = select({{\n        ":windows_arm64": [":vcruntime_arm64"],\n        "//conditions:default": [":vcruntime_x64"],\n    }}),\n    notice = "{}",\n    redistribution = "app_local",\n    source = "Visual C++ Redistributable",\n    version = "{}",\n)\n\n'.format(str(Label("//cc/private/toolchain:msvc_vcruntime_notice")), redist_version)
     else:
         text += 'cc_toolchain_unavailable(\n    name = "msvc_vcruntime",\n    error = {},\n)\n\n'.format(json.encode(UNACCEPTED))
     return text.rstrip("\n") + "\n"

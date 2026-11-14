@@ -1,12 +1,9 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//core:cells.bzl", "unsupported_value")
-load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
 load("//qt/private/toolchain:pins.bzl", "CELLS", "IDENTITIES")
 load("//qt/private/toolchain:repos.bzl", "qualified_cells")
-load(":defs.bzl", "QT_SOURCE_SPECS", "qt_os_supplied_libraries")
+load(":defs.bzl", "qt_os_supplied_libraries")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -14,7 +11,13 @@ package(default_visibility = [
     "//tools/ci:__pkg__",
 ])
 
-unsupported_value("unsupported")
+constraint_setting(name = "unsupported_setting")
+
+constraint_value(
+    name = "unsupported",
+    constraint_setting = ":unsupported_setting",
+    visibility = ["//visibility:public"],
+)
 
 exports_files([
     "bundle.bzl",
@@ -27,39 +30,6 @@ exports_files([
     "text.bzl",
     "validate.bzl",
 ])
-
-dx_wrapper_contract_tests(
-    name = "wrapper_contract_tests",
-    extra_checks = [
-        expect_equal(
-            "qt rules own c, cpp and qml sources",
-            [file_class for file_class, _ in QT_SOURCE_SPECS],
-            [
-                "c",
-                "cpp",
-                "qml",
-            ],
-        ),
-        expect_equal(
-            "os supplied libraries skip Qt and ICU",
-            qt_os_supplied_libraries({
-                "libQt6Gui.so.6": [
-                    "libGL.so.1",
-                    "libQt6Core.so.6",
-                    "libicuuc.so.73",
-                    "libfreetype.so.6",
-                ],
-                "libGL.so.1": ["libX11.so.6"],
-            }),
-            [
-                "libGL.so.1",
-                "libX11.so.6",
-                "libfreetype.so.6",
-            ],
-        ),
-    ],
-    file_classes = [file_class for file_class, _ in QT_SOURCE_SPECS],
-)
 
 [
     dx_native_runtime(

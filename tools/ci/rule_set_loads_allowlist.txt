@@ -10,7 +10,7 @@ lua/private/toolchain/extensions.bzl foreign-load 1
 php/private/BUILD.bazel foreign-load 2
 php/private/defs.bzl foreign-load 2
 qt/BUILD.bazel foreign-load 1
-qt/private/BUILD.bazel foreign-load 5
+qt/private/BUILD.bazel foreign-load 2
 qt/private/archive.bzl foreign-load 1
 qt/private/bundle.bzl foreign-load 1
 qt/private/defs.bzl foreign-load 4

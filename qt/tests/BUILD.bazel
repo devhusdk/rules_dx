@@ -2,7 +2,10 @@
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
+load("//qt/private:defs.bzl", "QT_SOURCE_SPECS", "qt_os_supplied_libraries")
 load("//qt/private/toolchain:pins.bzl", "QT_VERSION")
 load("//qt:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module", "qt_rust_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -620,4 +623,38 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    size = "small",
+    extra_checks = [
+        expect_equal(
+            "qt rules own c, cpp and qml sources",
+            [file_class for file_class, _ in QT_SOURCE_SPECS],
+            [
+                "c",
+                "cpp",
+                "qml",
+            ],
+        ),
+        expect_equal(
+            "os supplied libraries skip Qt and ICU",
+            qt_os_supplied_libraries({
+                "libQt6Gui.so.6": [
+                    "libGL.so.1",
+                    "libQt6Core.so.6",
+                    "libicuuc.so.73",
+                    "libfreetype.so.6",
+                ],
+                "libGL.so.1": ["libX11.so.6"],
+            }),
+            [
+                "libGL.so.1",
+                "libX11.so.6",
+                "libfreetype.so.6",
+            ],
+        ),
+    ],
+    file_classes = [file_class for file_class, _ in QT_SOURCE_SPECS],
 )

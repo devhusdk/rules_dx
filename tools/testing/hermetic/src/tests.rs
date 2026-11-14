@@ -2335,3 +2335,112 @@ fn without_license_tags_drops_the_license_declarations() {
     let fragment = "dx_licenses = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"a\"])\nnpm = 1\n";
     assert_eq!(without_license_tags(fragment), "npm = 1\n");
 }
+
+#[test]
+fn mod_probes_carry_no_build_flags() {
+    let session = fixture_session();
+    let probe = Probe {
+        command: "mod",
+        targets: vec!["show_repo".to_owned(), "@@a+".to_owned()],
+        extra: vec!["--output=streamed_jsonproto".to_owned()],
+        ..fixture_probe()
+    };
+    let argv = session.bazel_tail(&probe);
+    for flag in ACTION_FLAGS {
+        assert!(!argv.iter().any(|arg| arg == flag), "{flag} in {argv:?}");
+    }
+    assert!(
+        !argv.iter().any(|arg| arg.starts_with("--platforms=")),
+        "{argv:?}"
+    );
+    assert!(
+        !argv
+            .iter()
+            .any(|arg| arg.starts_with("--shell_executable=")),
+        "{argv:?}"
+    );
+    assert!(
+        argv.iter().any(|arg| arg == "--noshow_progress"),
+        "{argv:?}"
+    );
+    assert!(argv.ends_with(&["--".to_owned(), "show_repo".to_owned(), "@@a+".to_owned()]));
+}
+
+#[test]
+fn refetch_candidates_drop_local_path_overrides() {
+    let module = "local_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src\",\n)\n";
+    let contexts = vec![
+        "repository @@rules_dx+".to_owned(),
+        "repository @@platforms+host_platform+host_platform".to_owned(),
+    ];
+    assert_eq!(
+        refetch_candidates(contexts, module),
+        ["repository @@platforms+host_platform+host_platform"]
+    );
+}
+
+#[test]
+fn show_repo_rules_reads_the_rule_of_each_repo() {
+    let stdout = "{\"canonicalName\":\"platforms+host_platform+host_platform\",\"repoRuleName\":\"host_platform_repo\",\"repoRuleBzlLabel\":\"@@platforms//host:extension.bzl\",\"originalName\":\"host_platform\"}\nINFO: noise\n";
+    let rules = show_repo_rules(stdout);
+    assert_eq!(
+        rules.get("platforms+host_platform+host_platform"),
+        Some(&(
+            "@@platforms//host:extension.bzl".to_owned(),
+            "host_platform_repo".to_owned()
+        ))
+    );
+    assert_eq!(rules.len(), 1);
+}
+
+#[test]
+fn external_bzl_maps_a_label_into_external() {
+    let external = Path::new("/o/external");
+    assert_eq!(
+        external_bzl(
+            external,
+            "@@rules_java+//toolchains:local_java_repository.bzl"
+        ),
+        Some(
+            external
+                .join("rules_java+")
+                .join("toolchains")
+                .join("local_java_repository.bzl")
+        )
+    );
+    assert_eq!(external_bzl(external, "@@//a:b.bzl"), None);
+    assert_eq!(external_bzl(external, "//a:b.bzl"), None);
+}
+
+const LOCAL_RULES: &str = r#"load(":x.bzl", "y")
+
+def _impl(rctx):
+    rctx.file("BUILD", "local = True")
+
+host_platform_repo = repository_rule(
+    implementation = _impl,
+    doc = """Generates (constraints), with "quotes" and local = True inside.""",
+    attrs = {"a": attr.string(default = "local = True")},
+    local = True,
+)
+
+configured = repository_rule(
+    implementation = _impl,
+    environ = ["PATH"],  # local = True
+    configure = True,
+)
+
+pinned = repository_rule(implementation = _impl, doc = "", local = False)
+
+alias = host_platform_repo
+"#;
+
+#[test]
+fn declares_local_rule_reads_the_local_attribute() {
+    assert!(declares_local_rule(LOCAL_RULES, "host_platform_repo"));
+    assert!(declares_local_rule(LOCAL_RULES, "alias"));
+    assert!(!declares_local_rule(LOCAL_RULES, "configured"));
+    assert!(!declares_local_rule(LOCAL_RULES, "pinned"));
+    assert!(!declares_local_rule(LOCAL_RULES, "missing"));
+    assert!(!declares_local_rule(LOCAL_RULES, "host_platform"));
+}

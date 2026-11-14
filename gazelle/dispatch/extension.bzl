@@ -1,9 +1,4 @@
-"""Creates @dx_gazelle: a pinned release gazelle, or one gazelle_binary of the registered languages plus dispatch.
-
-The release gazelle holds the languages rules_dx registers. It builds from
-source when rules_dx is root, when the root sets from_source, when another
-module registers a language, or when the release has no pins.
-"""
+"""Creates @dx_gazelle: a pinned release gazelle, or one gazelle_binary of the registered languages plus dispatch."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//cli/prebuilt:hub.bzl", "GAZELLE_ASSET_PLATFORMS", "plan_assets", "plan_root")

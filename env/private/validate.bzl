@@ -65,7 +65,6 @@ def env_collision_error(records):
     """Detects host-name collisions across tool records."""
     owners_by_key = {}
     for record in records:
-        # Records are checked by env_tool_error; owners_by_key dedupes per owner.
         for name in [record.bin_name] + list(record.aliases):
             key = name.lower()
             if key not in owners_by_key:

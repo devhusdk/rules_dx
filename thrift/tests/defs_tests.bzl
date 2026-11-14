@@ -18,11 +18,7 @@ def _closure_impl(ctx):
 _closure_test = analysistest.make(_closure_impl)
 
 def thrift_library_tests(name):
-    """Instantiates the thrift_library analysis tests.
-
-    Args:
-      name: Name of the test suite.
-    """
+    """Instantiates the thrift_library analysis tests."""
     thrift_library(name = name + "_base", srcs = ["fixtures/closure/base.thrift"], tags = ["manual"])
     thrift_library(name = name + "_top", srcs = ["fixtures/closure/top.thrift"], deps = [":" + name + "_base"], tags = ["manual"])
     _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top", size = "small")

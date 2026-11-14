@@ -1,14 +1,4 @@
-r"""Platform-correct launchers for the generated JavaScript tool binaries.
-
-`rules_nodejs` writes its Windows launcher as a batch file that hands the tool's script to
-the `bash.exe` in the Windows system directory. That is WSL's bash, which cannot read a `C:/...` path, so
-every runfile lookup inside the script fails on a Windows host. Git's `sh` reads those paths
-and ships with every Windows image that has a toolchain, and this repository already relies
-on it for `starlark_test`.
-
-The generated script is what runs on every host. Only the wrapper differs, and only where the
-generated launcher cannot be used at all.
-"""
+r"""Platform-correct launchers for the generated JavaScript tool binaries."""
 
 load("@bazel_lib//lib:directory_path.bzl", "DirectoryPathInfo")
 load("//core/quality/artifacts:platforms.bzl", "execution_is_windows")

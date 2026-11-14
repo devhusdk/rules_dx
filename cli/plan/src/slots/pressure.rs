@@ -66,6 +66,7 @@ fn host_high(_low_available: u64) -> Option<bool> {
 
 /// The kernel's memory pressure level, from `kern.memorystatus_vm_pressure_level`.
 #[cfg(target_os = "macos")]
+#[expect(unsafe_code, reason = "sysctlbyname is libc FFI")]
 fn macos_level() -> Option<i32> {
     let name = b"kern.memorystatus_vm_pressure_level\0";
     let mut level: libc::c_int = 0;

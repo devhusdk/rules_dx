@@ -1,3 +1,8 @@
+#![expect(
+    unsafe_code,
+    reason = "the fixture calls the native C dependency and exports unmangled symbols"
+)]
+
 include!(concat!(env!("OUT_DIR"), "/build_probe.rs"));
 
 #[cfg(not(has_native_lib_stamp))]
@@ -10,11 +15,13 @@ unsafe extern "C" {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn native_lib_add(left: i32, right: i32) -> i32 {
+    // SAFETY: native_add and native_offset take plain integers and have no preconditions.
     unsafe { native_add(left, right) }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn native_lib_offset() -> i32 {
+    // SAFETY: native_add and native_offset take plain integers and have no preconditions.
     unsafe { native_offset() }
 }
 
@@ -38,7 +45,9 @@ mod tests {
 
     #[test]
     fn mixed_add_reaches_the_native_dependency() {
+        // SAFETY: native_add and native_offset take plain integers and have no preconditions.
         assert_eq!(unsafe { native_add(2, 3) }, 12);
+        // SAFETY: native_add and native_offset take plain integers and have no preconditions.
         assert_eq!(unsafe { native_offset() }, 7);
     }
 

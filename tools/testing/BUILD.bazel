@@ -521,9 +521,3 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
-
-real_source_target(
-    name = "corpus_markdown",
-    markdown_srcs = ["README.md"],
-    tags = ["corpus"],
-)

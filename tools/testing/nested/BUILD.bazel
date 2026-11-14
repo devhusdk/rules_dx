@@ -12,9 +12,9 @@ rust_library(
         "src/cache.rs",
         "src/compose.rs",
         "src/footprint.rs",
+        "src/lib.rs",
         "src/plain_consumer.rs",
         "src/plain_fixture.rs",
-        "src/lib.rs",
         "src/record.rs",
     ],
     aliases = aliases(
@@ -76,6 +76,7 @@ rust_test(
         "//cli/test_scratch:dx_test_scratch",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )
 

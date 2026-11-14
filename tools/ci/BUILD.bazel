@@ -21,6 +21,7 @@ filegroup(
 
 rust_test(
     name = "input_validation_test",
+    size = "small",
     srcs = ["input_validation_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -79,6 +80,7 @@ rust_test(
 
 rust_test(
     name = "evidence_inputs_test",
+    size = "small",
     srcs = [
         "evidence_inputs_test.rs",
         "evidence_rules/status.rs",
@@ -109,6 +111,7 @@ rust_test(
 
 rust_test(
     name = "docs_scope_test",
+    size = "small",
     srcs = ["docs_scope_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -132,6 +135,7 @@ rust_test(
 
 rust_test(
     name = "gate_base_test",
+    size = "small",
     srcs = ["gate_base_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -154,6 +158,7 @@ rust_test(
 
 rust_test(
     name = "actionlint_test",
+    size = "small",
     srcs = ["actionlint_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -191,6 +196,7 @@ rust_test(
 
 rust_test(
     name = "aggregate_gates_test",
+    size = "small",
     srcs = ["aggregate_gates_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -219,6 +225,7 @@ rust_test(
 
 rust_test(
     name = "artifact_writes_test",
+    size = "small",
     srcs = ["artifact_writes_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -240,6 +247,7 @@ rust_test(
 
 rust_test(
     name = "advisory_snapshots_test",
+    size = "small",
     srcs = ["advisory_snapshots_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -261,6 +269,7 @@ rust_test(
 
 rust_test(
     name = "secret_flags_test",
+    size = "small",
     srcs = ["secret_flags_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -301,6 +310,7 @@ rust_test(
 
 rust_test(
     name = "advisory_launch_test",
+    size = "small",
     srcs = ["advisory_launch_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -319,6 +329,7 @@ rust_test(
 
 rust_test(
     name = "tool_resolve_test",
+    size = "small",
     srcs = ["tool_resolve_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -340,6 +351,7 @@ rust_test(
 
 rust_test(
     name = "workflow_expressions_test",
+    size = "small",
     srcs = ["workflow_expressions_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -366,6 +378,7 @@ rust_test(
 
 rust_test(
     name = "upgrade_e2e_test",
+    size = "small",
     srcs = ["upgrade_e2e_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -387,6 +400,7 @@ rust_test(
 
 rust_test(
     name = "review_paths_test",
+    size = "small",
     srcs = ["review_paths_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -412,6 +426,7 @@ rust_test(
 
 rust_test(
     name = "crate_platform_pins_test",
+    size = "small",
     srcs = ["crate_platform_pins_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -433,6 +448,7 @@ rust_test(
 
 rust_test(
     name = "config_consistency_test",
+    size = "small",
     srcs = ["config_consistency_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -504,6 +520,7 @@ rust_test(
 
 rust_test(
     name = "starlark_docs_test",
+    size = "small",
     srcs = ["starlark_docs_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -687,6 +704,7 @@ rust_test(
 
 rust_test(
     name = "release_assets_test",
+    size = "small",
     srcs = ["release_assets_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -709,6 +727,7 @@ rust_test(
 
 rust_test(
     name = "signing_pins_test",
+    size = "small",
     srcs = ["signing_pins_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -732,6 +751,7 @@ rust_test(
 
 rust_test(
     name = "gazelle_rust_coverage_test",
+    size = "small",
     srcs = ["gazelle_rust_coverage_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -754,6 +774,7 @@ rust_test(
 
 rust_test(
     name = "gitlab_example_test",
+    size = "small",
     srcs = ["gitlab_example_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -778,6 +799,7 @@ rust_test(
 
 rust_test(
     name = "gitlab_inputs_parity_test",
+    size = "small",
     srcs = ["gitlab_inputs_parity_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -804,6 +826,7 @@ rust_test(
 
 rust_test(
     name = "reusable_callers_test",
+    size = "small",
     srcs = ["reusable_callers_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -833,6 +856,7 @@ rust_test(
 
 rust_test(
     name = "workflow_pins_test",
+    size = "small",
     srcs = [
         "workflow_pins_test.rs",
         "workflow_rules/actions.rs",
@@ -881,6 +905,7 @@ real_source_target(
 
 rust_test(
     name = "coverage_cells_test",
+    size = "small",
     srcs = ["coverage_cells_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -903,6 +928,7 @@ rust_test(
 
 rust_test(
     name = "compiler_evidence_test",
+    size = "small",
     srcs = ["compiler_evidence_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -968,8 +994,8 @@ rust_test(
         "//lua/private/toolchain:corpus_starlark",
         "//ocaml/private/quality:corpus_starlark",
         "//ocaml/private/toolchain:corpus_starlark",
-        "//ocaml/tests:corpus_starlark",
         "//ocaml/private/tools/lock:corpus_starlark",
+        "//ocaml/tests:corpus_starlark",
         "//perl/private/lock:corpus_starlark",
         "//perl/private/tools/lock:corpus_starlark",
         "//php/private/lock:corpus_starlark",
@@ -1635,6 +1661,7 @@ rust_test(
 
 rust_test(
     name = "workflow_files_test",
+    size = "small",
     srcs = [
         "consumer_inputs_test.rs",
         "consumer_reports_test.rs",

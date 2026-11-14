@@ -9,6 +9,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "cell_json.bzl",
     "extensions.bzl",
+    "launcher.bzl",
     "launcher.c",
     "layout_linux.bzl",
     "layout_macos.bzl",

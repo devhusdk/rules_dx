@@ -1,8 +1,7 @@
 """Writes the JSON spec of one pinned Qt cell."""
 
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
-load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
-load("//core:rlocation.bzl", "rlocation_path")
+load(":launcher.bzl", "NATIVE_LAUNCHER_ATTRS", "rlocation_path", "write_native_launcher")
 load(":pins.bzl", "CELLS")
 load(":repos.bzl", "cell_spec", "qualified_cells")
 

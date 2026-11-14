@@ -1,7 +1,6 @@
 """Launches one tool of a Qt cell through the shared native launcher."""
 
-load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
-load("//core:rlocation.bzl", "rlocation_path")
+load(":launcher.bzl", "NATIVE_LAUNCHER_ATTRS", "rlocation_path", "write_native_launcher")
 
 QT_TOOL_UNSET = [
     "QML2_IMPORT_PATH",

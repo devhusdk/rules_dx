@@ -574,6 +574,7 @@ impl RealBackend {
             }
             if cfg!(windows) {
                 env.push((OsString::from("LC_ALL"), OsString::from("C")));
+                env.push((OsString::from("PERLIO"), OsString::from("perlio")));
             }
         }
         if tool_id == "pkl_lsp" {

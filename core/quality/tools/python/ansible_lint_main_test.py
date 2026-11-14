@@ -1,5 +1,6 @@
 """Tests for the ansible-lint entry point."""
 
+import importlib
 import multiprocessing
 import os
 import stat
@@ -48,6 +49,10 @@ class AnsibleLintMainTest(unittest.TestCase):
             with self.assertRaises(termios.error):
                 termios.tcgetattr(0)
             self.assertEqual(termios.TIOCGWINSZ, 0)
+            self.assertFalse(hasattr(termios, "__all__"))
+            sys.modules.pop("tty", None)
+            tty = importlib.import_module("tty")
+            self.assertIs(tty.error, termios.error)
             with self.assertRaises(KeyError):
                 sys.modules["pwd"].getpwuid(0)
             with self.assertRaises(KeyError):

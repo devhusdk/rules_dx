@@ -49,13 +49,21 @@ def _termios_module():
     def unavailable(*_args):
         raise error("termios is not available on Windows")
 
+    def constant(name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return 0
+
     module.__dict__.update(
         error=error,
+        TCSANOW=0,
+        TCSADRAIN=1,
+        TCSAFLUSH=2,
         tcgetattr=unavailable,
         tcsetattr=unavailable,
         tcflush=unavailable,
         tcgetpgrp=unavailable,
-        __getattr__=lambda _name: 0,
+        __getattr__=constant,
     )
     return module
 

@@ -56,12 +56,7 @@ _llvm_test = analysistest.make(_llvm_impl, config_settings = {_COMPILER: "llvm",
 _gcc_test = analysistest.make(_gcc_impl, config_settings = {_COMPILER: "gcc", _DEP_GROUP: "sdist-native"})
 
 def sdist_action_tests(name, target):
-    """Asserts the toolchain env of the native sdist build under each compiler.
-
-    Args:
-        name: Name of the test suite.
-        target: The pep517_native_whl target of an sdist-only package.
-    """
+    """Asserts the toolchain env of the native sdist build under each compiler."""
     tests = []
     linux = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
     macos = ["@platforms//os:macos", "@platforms//cpu:aarch64"]

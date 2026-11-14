@@ -119,11 +119,7 @@ def _tool_map(prefix, exec_os, exec_cpu):
     return ":" + prefix + "_tools"
 
 def clang_cl_toolchains(link_lib_env):
-    """Declares one clang-cl cc_toolchain per LLVM execution platform for MSVC targets.
-
-    Args:
-        link_lib_env: cc_args setting LIB on link actions.
-    """
+    """Declares one clang-cl cc_toolchain per LLVM execution platform for MSVC targets."""
     for (exec_os, exec_cpu) in MSVC_TARGET_STAGE0_SUPPORTED_EXECS:
         prefix = exec_os + "_" + exec_cpu
         case_overlays = [] if exec_os == "windows" else ["@llvm//toolchain/args/windows/msvc:case_overlays"]

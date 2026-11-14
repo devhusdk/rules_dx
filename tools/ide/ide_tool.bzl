@@ -1,10 +1,4 @@
-"""Rules that expose the toolchain-resolved tool of one SDK as a single file.
-
-Each rule returns the original tool file (not a symlink), because Java, Go and
-.NET find their home directory from the real path of their own binary. The rest
-of the SDK travels as runfiles. One rule per toolchain type means a test only
-fetches its own SDK.
-"""
+"""Rules that expose the toolchain-resolved tool of one SDK as a single file."""
 
 def _tool_info(ctx, tool, runfiles_files = None, runfiles_transitive = None):
     if tool == None:

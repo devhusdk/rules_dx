@@ -367,25 +367,7 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
     return labels
 
 def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, size = "small", **kwargs):
-    """Declares build_test, coverage_test, cross_test, pass_test, fail_test, lock_test, runfiles_test, lint_test, lint_error_test, format_test and format_error_test for one language.
-
-    Args:
-      name: Prefix of the declared targets; empty for the bare test names.
-      lang: Key of LANGS.
-      binary: Fixture binary whose stdout is expected.
-      expected: Stdout of binary.
-      passing_test: Test target that passes; built under the subject transition.
-      failing_test: Test target that fails with failing_case; built under the subject transition.
-      failing_case: Case name the failing test must report.
-      failing_pattern: Line the failing test must print, with one `{case}` placeholder for failing_case.
-      covered_source: File name whose lines passing_test must cover; empty only when coverage_test is not applicable.
-      lock: Inputs of lock_test: binary, expected, ecosystem, package, manifest, lockfile, stale. Empty only when lock_test is pending or not applicable.
-      runfiles: Inputs of runfiles_test: binary, data (file name the binary carries as data), expected. Empty only when runfiles_test is pending or not applicable.
-      quality: Inputs of the lint and format tests: clean, the fixture library with no finding; lint_dirty, lint_source, lint_rule and lint_line, the library, file, rule and line of one lint finding; format_dirty and format_source, the library and its unformatted file. Keys of a kind whose tests are all pending or not applicable may be absent.
-      not_applicable: Maps a test, or test:platform, to the reason it does not apply.
-      size: Size of the declared tests.
-      **kwargs: Forwarded to the declared tests.
-    """
+    """Declares the conformance tests of one language."""
     if lang not in LANGS:
         fail("unknown lang %r" % lang)
     if _all_pending(lang):

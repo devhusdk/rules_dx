@@ -42,7 +42,9 @@
   "unsupported": {
     "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build"
   },
-  "pins": [],
+  "pins": [
+    "pins.json"
+  ],
   "entry_points": [
     "julia_library",
     "julia_binary",

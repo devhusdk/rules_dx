@@ -36,7 +36,6 @@
   "rules_foreign_cc": "0.17.0",
   "rules_go": "0.65.0",
   "rules_java": "9.9.0",
-  "rules_julia": "0.8.0",
   "rules_jvm_external": "7.2",
   "rules_kotlin": "2.4.21",
   "rules_nodejs": "6.7.7",
@@ -53,6 +52,7 @@
   "rules_swift": "4.2.2",
   "rules_zig": "0.17.0",
   "tar.bzl": "0.10.9",
+  "toml.bzl": "0.5.0",
   "windows_support": "0.4.1",
   "yaml.bzl": "0.1.2",
   "zlib": "1.3.2.bcr.3"

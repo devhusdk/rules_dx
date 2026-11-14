@@ -24,8 +24,6 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `protobuf` | 36.2 | `no_crate_universe.patch` | Drops protobuf's own `crate_universe` use so it does not clash with `dx_crates`. Consumer fix: #11418 |
 | `grpc` | 1.85.1 | `pip_parse_no_310.patch` | Root only. grpc's pip hub skips python 3.10, which has no aarch64-pc-windows-msvc runtime, so windows_arm64 lock refresh evaluates |
 | `protoc-gen-validate` | 1.2.1.bcr.2 | `pip_parse_no_39_310.patch` | Root only. pgv's pip hub skips python 3.9 and 3.10, which have no aarch64-pc-windows-msvc runtime |
-| `rules_julia` | 0.8.0 | `package_name.patch`, `portable_cpu_target.patch`, `template_action_input.patch` | Julia `package_name` attribute for the wrapper targets (periareon/rules_julia#42); package precompiles target portable CPUs so a cache built on one host loads on another; the wrapper script is rendered by an action that reads the generated template as an input, so `julia_binary` builds without `--remote_download_outputs=all`. Consumer fix: #11418 |
-| `rules_julia` | 0.8.0 | `package_annotation_version.patch` | Package annotations are looked up by `name@version` before `name`. Consumer fix: #11418 |
 | `rules_dart` | 0.8.1 | `coverage.patch` | `dart_test` writes LCOV under `bazel coverage`: the test launcher passes `--coverage` to `package:test` and converts the report. Consumer fix: #11417 |
 | `rules_dart` | 0.8.1 | `external_pkgsrcs.patch` | Sources of packages from an external repository are staged into `.pkgsrcs`, which `copy_to_directory` otherwise drops. Consumer fix: #11417 |
 | `rules_flutter` | 0.0.8 | `lock_extension.patch` | Root only. The `flutter` extension is not reproducible, so a lockfile written on one host does not pin another |
@@ -78,9 +76,9 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `rules_oci` | 2.3.0 | `image_layout.patch` | `oci_image` writes the base layout's `oci-layout` as a fresh file so regctl can rewrite it on Windows. Consumer fix: #11758 |
 | `rules_flutter` | 0.0.8 | `lock_extension.patch` | Root only. The `flutter` extension is not reproducible, so the lockfile keeps its result |
 
-## elvis, rules_d, rules_dart, rules_dotnet, rules_elixir, rules_erlang, rules_flutter, rules_fortran, rules_haskell, rules_ocaml, rules_ruby
+## elvis, rules_d, rules_dart, rules_dotnet, rules_elixir, rules_erlang, rules_flutter, rules_fortran, rules_haskell, rules_julia, rules_ocaml, rules_ruby
 
-No action. `rules_dx` applies these patches in its own repository rules: `pic_link.patch`, `disabled_features.patch` (rules_d); `hermetic_tar.patch` (rules_dart); `engine_labels.patch`, `hermetic_pub.patch` (rules_flutter); `reproducible.patch`, `fsharp_signature.patch`, `nuget_group_prefix.patch`, `sdk_versions.patch`, `canonical_labels.patch` (rules_dotnet); `coverage_wrapper_no_report.patch`, `hermetic_haskell.patch`, `cabal_rules.patch`, `cabal_mingw_transition.patch`, `cc_wrapper_relpath_mount.patch`, `ghc_wrapper_runfiles_env.patch`, `cc_toolchain_config_info.patch`, `cabal_llvm_ar.patch`, `cc_wrapper_darwin_ffi.patch` (rules_haskell); `reproducible.patch`, `coverage.patch`, `rubyinstaller_archive.patch` (rules_ruby).
+No action. `rules_dx` applies these patches in its own repository rules: `pic_link.patch`, `disabled_features.patch` (rules_d); `hermetic_tar.patch` (rules_dart); `engine_labels.patch`, `hermetic_pub.patch` (rules_flutter); `reproducible.patch`, `fsharp_signature.patch`, `nuget_group_prefix.patch`, `sdk_versions.patch`, `canonical_labels.patch` (rules_dotnet); `coverage_wrapper_no_report.patch`, `hermetic_haskell.patch`, `cabal_rules.patch`, `cabal_mingw_transition.patch`, `cc_wrapper_relpath_mount.patch`, `ghc_wrapper_runfiles_env.patch`, `cc_toolchain_config_info.patch`, `cabal_llvm_ar.patch`, `cc_wrapper_darwin_ffi.patch` (rules_haskell); `package_annotation_version.patch`, `package_name.patch`, `portable_cpu_target.patch`, `template_action_input.patch` (rules_julia); `reproducible.patch`, `coverage.patch`, `rubyinstaller_archive.patch` (rules_ruby).
 
 ## kcov
 

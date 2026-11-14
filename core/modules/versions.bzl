@@ -109,7 +109,7 @@ CONSUMER_BAZEL_DEPS = {
     "rules_zig": struct(floor = RULES_ZIG_VERSION, tested = RULES_ZIG_VERSION),
     "rules_swift": struct(floor = RULES_SWIFT_VERSION, tested = RULES_SWIFT_VERSION),
     "bazel_linux_packages": struct(floor = "0.4.1", tested = "0.4.1"),
-    "rules_julia": struct(floor = RULES_JULIA_VERSION, tested = RULES_JULIA_VERSION),
+    "toml.bzl": struct(floor = "0.5.0", tested = "0.5.0"),
     "rules_dart": struct(floor = RULES_DART_VERSION, tested = RULES_DART_VERSION),
     "rules_perl": struct(floor = RULES_PERL_VERSION, tested = RULES_PERL_VERSION),
     "rules_oci": struct(floor = "2.3.0", tested = "2.3.0"),

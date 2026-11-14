@@ -20,7 +20,6 @@ override single_version_override rules_android
 override single_version_override rules_cuda
 override single_version_override rules_dart
 override single_version_override rules_go
-override single_version_override rules_julia
 override single_version_override rules_kotlin
 override single_version_override rules_python
 override single_version_override rules_rust

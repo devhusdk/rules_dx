@@ -692,6 +692,10 @@ dx_pins.data(
     name = "dx_fortran",
     pins = "//fortran:pins.json",
 )
+dx_pins.data(
+    name = "dx_julia",
+    pins = "//julia:pins.json",
+)
 dx_pins.pin(
     name = "dx_swift_format_macos_arm64",
     build = "//swift/private:swift_format.BUILD.bazel",
@@ -1535,31 +1539,26 @@ pub_tools.from_lock(
 )
 use_repo(pub_tools, "dart_apitool_deps", "dx_dart_bench_deps")
 
-# floor: equals tested; patched (#5006)
-bazel_dep(name = "rules_julia", version = "0.8.0")
-single_version_override(
-    module_name = "rules_julia",
-    patch_strip = 1,
-    patches = [
-        "//patches/rules_julia:package_annotation_version.patch",
-        "//patches/rules_julia:package_name.patch",
-        "//patches/rules_julia:portable_cpu_target.patch",
-        "//patches/rules_julia:template_action_input.patch",
-    ],
-    version = "0.8.0",
-)
+# floor: equals tested
+bazel_dep(name = "toml.bzl", version = "0.5.0")
 
-julia = use_extension("@rules_julia//julia:extensions.bzl", "julia")
+rules_julia = use_extension("//julia/private/toolchain:extensions.bzl", "rules_julia")
+use_repo(rules_julia, "rules_julia")
+
+julia = use_extension("//julia/private:extensions.bzl", "julia")
 julia.toolchain(version = "1.12.5")
+use_repo(julia, "julia_toolchains")
 
-julia_pkg_dev = use_extension("@rules_julia//julia/pkg:extensions.bzl", "pkg", dev_dependency = True)
+register_toolchains("@julia_toolchains//:all")
+
+julia_pkg_dev = use_extension("//julia/private:extensions.bzl", "pkg", dev_dependency = True)
 julia_pkg_dev.from_manifest(
     name = "julia_app_pkgs",
     lockfile = "//julia/tests/fixtures/julia-app/third_party:Manifest.bazel.json",
 )
 use_repo(julia_pkg_dev, julia_app_deps = "julia_app_pkgs")
 
-julia_pkg = use_extension("@rules_julia//julia/pkg:extensions.bzl", "pkg")
+julia_pkg = use_extension("//julia/private:extensions.bzl", "pkg")
 julia_pkg.from_manifest(
     name = "dx_julia_coverage",
     lockfile = "//julia/private/coverage:Manifest.bazel.json",

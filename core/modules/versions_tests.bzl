@@ -78,6 +78,7 @@ def versions_contract_tests(name):
             "//:rustfmt.toml": "edition = \"" + _RUST_EDITION + "\"",
             "//third_party/dotnet:paket.lock": "Google.Protobuf (3." + _PROTOBUF_VERSION + ")",
             "//third_party/go:go.mod": "go " + _GO_LANGUAGE_FLOOR,
+            "//julia:pins.json": "/download/" + _RULES_JULIA_VERSION + "/rules_julia-" + _RULES_JULIA_VERSION + ".tar.gz",
             "//:MODULE.bazel": "name = \"rules_rust\", version = \"" + _RULES_RUST_VERSION + "\"\n" +
                                "name = \"rules_rust_wasm_bindgen\", version = \"" + _RULES_RUST_WASM_BINDGEN_VERSION + "\"\n" +
                                "name = \"protobuf\", version = \"" + _PROTOBUF_VERSION + "\"\n" +
@@ -105,7 +106,6 @@ def versions_contract_tests(name):
                                "name = \"rules_dart\", version = \"" + _RULES_DART_VERSION + "\"\n" +
                                "dart.toolchain(dart_version = \"" + _DART_SDK_VERSION + "\")\n" +
                                "flutter.toolchain(flutter_version = \"" + _FLUTTER_SDK_VERSION + "\")\n" +
-                               "name = \"rules_julia\", version = \"" + _RULES_JULIA_VERSION + "\"\n" +
                                "julia.toolchain(version = \"" + _JULIA_VERSION + "\")\n" +
                                "zig.toolchain(zig_version = \"" + _ZIG_VERSION + "\")\n" +
                                "name = \"rules_perl\", version = \"" + _RULES_PERL_VERSION + "\"\n" +

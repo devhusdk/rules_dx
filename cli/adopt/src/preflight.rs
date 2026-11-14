@@ -43,7 +43,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_flutter", "0.0.8"),
     ("tar.bzl", "0.10.9"),
     ("yaml.bzl", "0.1.2"),
-    ("rules_julia", "0.8.0"),
+    ("toml.bzl", "0.5.0"),
     ("rules_perl", "2.1.0"),
     ("rules_batch", "0.1.1"),
     ("lua", "5.5.0"),

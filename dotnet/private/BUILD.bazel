@@ -21,3 +21,13 @@ exports_files([
     "sharpfuzz_check.bzl",
     "symbols.bzl",
 ])
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+        "libfuzzer_dotnet.BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

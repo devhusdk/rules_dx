@@ -82,3 +82,9 @@ real_source_target(
         "Cargo.toml",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -120,3 +120,9 @@ alias(
 )
 
 dx_go_binary_file(name = "go")
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

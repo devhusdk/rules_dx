@@ -156,3 +156,10 @@ test_suite(
         ":native_arm64_test",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    testonly = False,
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

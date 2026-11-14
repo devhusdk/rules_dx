@@ -479,3 +479,9 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

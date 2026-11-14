@@ -41,3 +41,9 @@ go_test(
     pure = "on",
     deps = ["@gazelle//v2/rule"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

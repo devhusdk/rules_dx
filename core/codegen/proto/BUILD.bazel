@@ -28,3 +28,9 @@ rust_prost_library(
     name = "codegen_proto_rs",
     proto = ":codegen_proto",
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

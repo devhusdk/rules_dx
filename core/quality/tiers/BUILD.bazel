@@ -174,3 +174,9 @@ rust_test(
     },
     deps = ["//tools/testing:dx_testing"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

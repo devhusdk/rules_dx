@@ -29,3 +29,9 @@ ruby_library(
     name = "private",
     srcs = ["bench_main.rb"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

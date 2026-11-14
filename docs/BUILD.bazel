@@ -176,3 +176,14 @@ tier_docs(
     standard_page = "tiers-standard.md",
     strict_page = "tiers-strict.md",
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "BUILD.bazel",
+        "cli/commands/README.md",
+        "cli/commands/config.md",
+        "tutorial.md",
+    ],
+    visibility = ["//:__subpackages__"],
+)

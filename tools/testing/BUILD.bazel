@@ -227,6 +227,16 @@ testing_rust_test(
     ],
 )
 
+genquery(
+    name = "dx_source_closure",
+    expression = "filter('^//', deps(//cli/cli:dx + //core/quality:fixture_strict_generated_policy))",
+    opts = ["--output=label_kind"],
+    scope = [
+        "//cli/cli:dx",
+        "//core/quality:fixture_strict_generated_policy",
+    ],
+)
+
 rust_test(
     name = "module_extension_srcs_test",
     size = "small",
@@ -241,7 +251,11 @@ rust_test(
     ),
     crate_name = "module_extension_srcs_test",
     crate_root = "module_extension_srcs_test.rs",
-    data = ["//:module_srcs"],
+    data = [
+        ":dx_source_closure",
+        "//:module_srcs",
+    ],
+    env = {"DX_SOURCE_CLOSURE": "$(rlocationpath :dx_source_closure)"},
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
@@ -520,4 +534,10 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

@@ -1806,3 +1806,12 @@ suite_membership_test(
         "runner_matrix_windows_x86_64",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

@@ -31,3 +31,9 @@ build_test(
     }),
     targets = ["@haskell_hlint_hackage//:clock"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

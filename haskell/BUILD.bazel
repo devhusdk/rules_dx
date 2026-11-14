@@ -16,6 +16,7 @@ filegroup(
         "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
+        "pins.json",
         "//haskell/private:module_srcs",
         "//haskell/private/toolchain:module_srcs",
     ],

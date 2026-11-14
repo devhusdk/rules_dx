@@ -117,3 +117,9 @@ exports_files(
     ],
     visibility = ["//:__subpackages__"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

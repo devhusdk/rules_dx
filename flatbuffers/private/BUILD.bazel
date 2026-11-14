@@ -25,3 +25,15 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+        "bitflags.BUILD.bazel",
+        "java_runtime.BUILD.bazel",
+        "rust_runtime.BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

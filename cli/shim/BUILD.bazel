@@ -199,3 +199,9 @@ exports_files(
     ],
     visibility = ["//core/quality:__pkg__"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

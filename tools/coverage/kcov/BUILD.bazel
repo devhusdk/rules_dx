@@ -89,3 +89,9 @@ sh_test(
     tags = ["no-remote-exec"],
     target_compatible_with = ["@platforms//os:linux"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

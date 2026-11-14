@@ -1331,3 +1331,9 @@ diff_test(
     file1 = ":non_testonly_hermetic_dependents",
     file2 = ":no_dependents",
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

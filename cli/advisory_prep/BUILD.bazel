@@ -153,3 +153,9 @@ rust_library(
         "@crates//:thiserror",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

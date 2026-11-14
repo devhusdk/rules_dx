@@ -20,3 +20,12 @@ dart_config(
     visibility = ["//core/quality/testdata:__pkg__"],
     deps = ["@dx_dart_deps//:lints"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

@@ -1,5 +1,14 @@
 {
   "archives": {
+    "dx_paket": {
+      "path": "paket.nupkg",
+      "sha256": "d0820de913117826fb6b34a6bab3a71a0085d07b4f4f49589f114366caa8aff8",
+      "type": "file",
+      "urls": [
+        "https://api.nuget.org/v3-flatcontainer/paket/10.0.0-alpha011/paket.10.0.0-alpha011.nupkg"
+      ],
+      "version": "10.0.0-alpha011"
+    },
     "libfuzzer_dotnet": {
       "sha256": "c7e8281f29072c9a067d703aeeaaf8aa6b7b063cba2d3bd67cb8d85a48fa7c94",
       "strip_prefix": "libfuzzer-dotnet-bd39d4e88d715ab460a929943645be2a186cde52",

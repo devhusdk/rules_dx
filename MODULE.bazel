@@ -876,6 +876,10 @@ dx_pins.archive(
     pins = "//flutter:pins.json",
 )
 dx_pins.archive(
+    name = "dx_paket",
+    pins = "//dotnet:pins.json",
+)
+dx_pins.archive(
     name = "dx_libfuzzer_dotnet",
     build = "//dotnet/private:libfuzzer_dotnet.BUILD.bazel",
     key = "libfuzzer_dotnet",
@@ -1278,6 +1282,7 @@ use_repo(
     "dx_luacov_reporter_lcov",
     "dx_luafilesystem",
     "dx_luals",
+    "dx_paket",
     "dx_patchelf",
     "dx_penlight",
     "dx_pins_data",

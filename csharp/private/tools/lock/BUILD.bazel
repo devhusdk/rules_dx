@@ -33,6 +33,18 @@ rust_binary(
     ),
     crate_name = "nuget_lock_bin",
     crate_root = "src/main.rs",
+    data = [
+        "@dx_paket//file",
+        "@dx_dotnet_x86_64-unknown-linux-gnu//:runtime",
+    ],
+    env = {
+        "DOTNET": "$(rlocationpath @dx_dotnet_x86_64-unknown-linux-gnu//:runtime)",
+        "PAKET": "$(rlocationpath @dx_paket//file)",
+    },
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
     visibility = ["//:__subpackages__"],
     deps = [
         ":nuget_lock_lib",

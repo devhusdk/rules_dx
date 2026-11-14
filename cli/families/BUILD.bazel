@@ -14,6 +14,7 @@ package(default_visibility = VIS_CLI_DEPLOY_QUALITY_TOOLS + [
     "//lua/private/tools/lock:__pkg__",
     "//ocaml/private/tools/lock:__pkg__",
     "//perl/private/tools/lock:__pkg__",
+    "//java/private/tools/lock:__pkg__",
     "//php/private/tools/lock:__pkg__",
     "//powershell/private/tools/lock:__pkg__",
     "//swift/private/tools/lock:__pkg__",

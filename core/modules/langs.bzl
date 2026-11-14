@@ -1648,7 +1648,7 @@ LANGS = json.decode("""{
           "imports": "provides",
           "lock": "maven_install.json",
           "manifest": "libs.versions.toml",
-          "resolver": null,
+          "resolver": "@rules_dx//java/private/tools/lock",
           "state": null,
           "tag": "from_toml"
         }

@@ -1,5 +1,5 @@
 {
-  "checksum": "90dd1eb3ec38a4b333ee29b69bc68565cd91e51a4c9178c636c86c29f3a83c2b",
+  "checksum": "d2f615680dd1ace976db1d84cf406b6303c90279cde9547eb5534e4ba4352802",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -16667,6 +16667,43 @@
       ],
       "version": "0.2.0"
     },
+    "maven_lock 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "toml 1.1.6+spec-1.1.0",
+            "target": "toml"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "maven_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "maven_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "maven_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "md-5 0.10.6": {
       "common_attrs": {
         "crate_features": [
@@ -33142,6 +33179,7 @@
     "kotlin_app_cli_fixture 0.0.0": "kotlin/tests/fixtures/kotlin-app/kotlin_app_cli_fixture",
     "lua_extract 0.0.0": "tools/docs/lua/lua_extract",
     "lua_lock 0.0.0": "lua/private/tools/lua_lock",
+    "maven_lock 0.0.0": "java/private/tools/maven_lock",
     "modules_tests 0.0.0": "core/modules_tests",
     "nuget_lock 0.0.0": "csharp/private/tools/nuget_lock",
     "ocaml_extract 0.0.0": "tools/docs/ocaml/ocaml_extract",

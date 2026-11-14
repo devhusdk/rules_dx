@@ -14,6 +14,22 @@ PHP_CELLS = {
     "windows_x86_64": _cell("windows", "x86_64", interpreter = "php.exe", pcov = True),
 }
 
+_INCOMPATIBLE = Label("@platforms//:incompatible")
+
+def cell_setting(package, cell):
+    """Returns the config_setting label that matches one cell."""
+    return Label(package + ":cell_" + cell)
+
+def unsupported_constraint(package):
+    """Returns the constraint_value that no platform sets, marking PHP as unsupported."""
+    return Label(package + ":unsupported")
+
+def cell_cases(package, cells):
+    """Returns the select cases that accept only the given cells."""
+    cases = {cell_setting(package, cell): [] for cell in sorted(cells)}
+    cases["//conditions:default"] = [_INCOMPATIBLE, unsupported_constraint(package)]
+    return cases
+
 def unsupported_value(name):
     """Declares the unsupported constraint_value and its setting."""
     native.constraint_setting(name = name + "_setting")

@@ -26,7 +26,9 @@
     "windows_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
     "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS"
   },
-  "pins": [],
+  "pins": [
+    "pins.json"
+  ],
   "entry_points": [
     "apple_ios_app",
     "apple_ios_app_test",

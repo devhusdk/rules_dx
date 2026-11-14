@@ -59,7 +59,6 @@ probe = rule(
 /// Starts a consumer whose only dependency is `mid`, a module that depends on rules_dx.
 fn indirect_consumer(name: &str) -> Case {
     let case = nested::harness_consumer(name);
-    case.use_lock("harness");
     let module = dx_testing::read_text(&case.root().join("MODULE.bazel"));
     assert!(module.contains(DEP), "{module}");
     let module = module.replace(
@@ -78,6 +77,7 @@ fn indirect_consumer(name: &str) -> Case {
         "BUILD.bazel",
         "load(\":probe.bzl\", \"probe\")\n\nprobe(name = \"probe\")\n",
     );
+    case.use_lock("indirect");
     case
 }
 
@@ -102,9 +102,6 @@ fn selected_rules_dx(case: &Case, flags: &[&str]) -> Vec<String> {
 
 #[test]
 fn an_indirect_consumer_resolves_no_gated_rules_dx_toolchain() {
-    if nested::recording() {
-        return;
-    }
     let case = indirect_consumer("indirect");
     let selected = selected_rules_dx(&case, &[]);
     assert!(selected.is_empty(), "{selected:?}");
@@ -200,24 +197,13 @@ fn a_download_outside_the_cache_sets_fails_with_its_url() {
 fn nested_commands_see_no_host_path_and_a_home_under_the_test_tmpdir() {
     let tmpdir = std::path::PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
     let case = nested::case("environment");
-    std::fs::write(
-        case.join("MODULE.bazel"),
-        "module(name = \"environment\")\n",
-    )
-    .unwrap_or_else(|error| panic!("write MODULE.bazel: {error}"));
+    std::fs::write(case.join("MODULE.bazel"), "module(name = \"environment\")\n")
+        .unwrap_or_else(|error| panic!("write MODULE.bazel: {error}"));
     let run = case.bazel(&["info", "output_base"]);
     assert!(run.status.success(), "{}", run.combined());
     let output_base = std::path::PathBuf::from(run.stdout.trim());
-    assert!(
-        output_base.starts_with(&tmpdir),
-        "{}",
-        output_base.display()
-    );
-    assert!(
-        case.root().starts_with(&tmpdir),
-        "{}",
-        case.root().display()
-    );
+    assert!(output_base.starts_with(&tmpdir), "{}", output_base.display());
+    assert!(case.root().starts_with(&tmpdir), "{}", case.root().display());
     let environ = std::fs::read(format!("/proc/{}/environ", case.servers()[0])).expect("environ");
     let environ = String::from_utf8_lossy(&environ);
     let vars: Vec<&str> = environ.split('\0').collect();

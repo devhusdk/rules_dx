@@ -54,6 +54,7 @@ fn read(path: &Path) -> String {
 
 fn merge(workspace: &Path, dirs: &[PathBuf]) {
     let mut sets: BTreeMap<String, Vec<PathBuf>> = BTreeMap::new();
+    let mut locks: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
     for dir in dirs {
         let entries = std::fs::read_dir(dir)
             .unwrap_or_else(|error| fail(&format!("cannot read {}: {error}", dir.display())));
@@ -61,6 +62,12 @@ fn merge(workspace: &Path, dirs: &[PathBuf]) {
             let name = entry.file_name().to_string_lossy().into_owned();
             if let Some(set) = name.strip_suffix(".txt") {
                 sets.entry(set.to_string()).or_default().push(dir.clone());
+            } else if let Some(stem) = name.strip_suffix(".MODULE.bazel.lock") {
+                let path = entry.path();
+                locks
+                    .entry(stem.to_string())
+                    .or_default()
+                    .push((path.display().to_string(), read(&path)));
             }
         }
     }
@@ -68,24 +75,25 @@ fn merge(workspace: &Path, dirs: &[PathBuf]) {
         fail("no <set>.txt in the given directories");
     }
     let target = workspace.join(DIR);
+    let write = |name: String, text: String| {
+        let dst = target.join(&name);
+        std::fs::write(&dst, text).unwrap_or_else(|error| fail(&format!("cannot write {}: {error}", dst.display())));
+        println!("wrote {DIR}/{name}");
+    };
     for (set, set_dirs) in sets {
-        let collect = |suffix: &str| -> Vec<(String, String)> {
-            set_dirs
-                .iter()
-                .filter(|dir| dir.join(format!("{set}{suffix}")).exists())
-                .map(|dir| {
-                    let path = dir.join(format!("{set}{suffix}"));
-                    (path.display().to_string(), read(&path))
-                })
-                .collect()
-        };
-        let list = union_lists(&collect(".txt")).unwrap_or_else(|error| fail(&error));
-        let lock = same_lock(&collect(".MODULE.bazel.lock")).unwrap_or_else(|error| fail(&format!("{set} lock: {error}")));
-        for (name, text) in [(format!("{set}.txt"), list), (format!("{set}.MODULE.bazel.lock"), lock)] {
-            let dst = target.join(&name);
-            std::fs::write(&dst, text).unwrap_or_else(|error| fail(&format!("cannot write {}: {error}", dst.display())));
-            println!("wrote {DIR}/{name}");
-        }
+        let lists: Vec<(String, String)> = set_dirs
+            .iter()
+            .map(|dir| {
+                let path = dir.join(format!("{set}.txt"));
+                (path.display().to_string(), read(&path))
+            })
+            .collect();
+        let list = union_lists(&lists).unwrap_or_else(|error| fail(&error));
+        write(format!("{set}.txt"), list);
+    }
+    for (stem, texts) in locks {
+        let lock = same_lock(&texts).unwrap_or_else(|error| fail(&format!("{stem} lock: {error}")));
+        write(format!("{stem}.MODULE.bazel.lock"), lock);
     }
 }
 

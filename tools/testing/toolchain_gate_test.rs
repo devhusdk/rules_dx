@@ -41,6 +41,7 @@ const GATED: &[&str] = &[
     "@llvm//toolchain:all",
     "@python_interpreters//:all",
     "@ruby_toolchains//:all",
+    "@rust_toolchains//:all",
 ];
 
 /// Ungated registrations for shared toolchain types; entries are only removed.
@@ -48,7 +49,6 @@ const UNGATED: &[&str] = &[
     "@android_ndk_toolchain//:ndk_cc_toolchain_device",
     "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
     "@local_config_apple_cc_toolchains//:all",
-    "@rust_toolchains//:all",
 ];
 
 /// Labels of every `register_toolchains` call that is not `dev_dependency = True`.

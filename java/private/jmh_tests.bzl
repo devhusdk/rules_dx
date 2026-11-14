@@ -20,7 +20,7 @@ _compile_flag_test = analysistest.make(
 )
 
 def jmh_compile_flag_test(name, bench, mnemonic, flag):
-    """Asserts every `mnemonic` action that compiles the library of `bench` has `flag` as an argument."""
+    """Asserts every compile action of the bench library has flag."""
     _compile_flag_test(
         name = name,
         size = "small",
@@ -30,7 +30,7 @@ def jmh_compile_flag_test(name, bench, mnemonic, flag):
     )
 
 def jmh_inner_attr_test(name, bench, inner, tags, target_compatible_with):
-    """Asserts each `<bench><suffix>` in `inner`, declared earlier in this package, has every tag in `tags` and is compatible with `target_compatible_with` only."""
+    """Asserts each inner target has the tags and target_compatible_with."""
     want = [str(native.package_relative_label(label)) for label in target_compatible_with]
     checks = []
     for suffix in inner:

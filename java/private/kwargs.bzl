@@ -58,7 +58,7 @@ def java_entry_error(name, srcs, package, kwargs, attr):
     return "%s //%s:%s: cannot infer %s from srcs or package; set %s." % (kind, package, name, attr, attr)
 
 def java_test_main_class(name, srcs, package, kwargs, runner):
-    """Returns the main class a java_test forwards: explicit main_class, else the inferred entry class without the test runner, else runner."""
+    """Returns the main class a java_test forwards."""
     if not _java_unset(kwargs.get("main_class")):
         return kwargs["main_class"]
     if kwargs.get("use_testrunner") != False:

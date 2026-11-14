@@ -10,7 +10,7 @@ _PROCESSOR = [Label("@dx_jmh_generator_annprocess//jar")] + _JMH
 _TEST_KWARGS = ("size", "timeout", "args", "env", "flaky", "jvm_flags", "data", "visibility")
 
 def _split(tags, kwargs, library_kwargs):
-    """Returns (library, run, inner): the kwargs of <name>_bin, of the test, and of every private helper target."""
+    """Returns the library, run and inner kwargs."""
     library, run = split_test_kwargs(kwargs, _TEST_KWARGS)
     inner = {"tags": dx_upstream_tags(tags), "testonly": True, "visibility": ["//visibility:private"]}
     compatible = library.pop("target_compatible_with", None)
@@ -22,7 +22,7 @@ def _split(tags, kwargs, library_kwargs):
     return library, run, inner
 
 def jmh_bench(name, library, test, srcs, deps, tags, kwargs, library_kwargs = {}):
-    """Declares the JMH library, the runner and the dx-bench test. library is the java_library or kotlin_library macro, test is java_jmh_test."""
+    """Declares the JMH library, the runner and the dx-bench test."""
     library_kwargs, run, inner = _split(tags, kwargs, library_kwargs)
     processor = name + "_jmh_processor"
     _java_plugin(
@@ -84,7 +84,7 @@ _jmh_generated = rule(
 )
 
 def jmh_bench_generated(name, library, test, srcs, deps, tags, kwargs, library_kwargs = {}):
-    """Like jmh_bench for languages whose compiler runs no Java annotation processors. The library compiles without the processor, JmhGenerate runs the JMH bytecode generator over its jar, and javac compiles the generated Java."""
+    """Like jmh_bench for compilers without Java annotation processors."""
     library_kwargs, run, inner = _split(tags, kwargs, library_kwargs)
     library(
         name = name + "_bin",

@@ -165,7 +165,10 @@ fn every_aggregate_job_needs_every_other_job() {
             if other == id
                 || (workflow == CI_WORKFLOW && other == "scheduled-report")
                 || (workflow == CONSUMER_WORKFLOW
-                    && (other == "advisory-bump" || other == "bench" || other == "fuzz"))
+                    && (other == "advisory-bump"
+                        || other == "bench"
+                        || other == "deploy-dry-run"
+                        || other == "fuzz"))
             {
                 continue;
             }
@@ -466,7 +469,7 @@ fn no_other_workflow_job_reports_the_gate_context() {
 }
 
 /// Failures the workflows may swallow: (workflow file, job, step, kind, reason).
-const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 18] = [
+const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 17] = [
     (
         "ci.yml",
         "preflight",
@@ -571,13 +574,6 @@ const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 18] = [
         "Check changed-line coverage",
         "|| true",
         "the coverage verdict is read from the event stream",
-    ),
-    (
-        "reusable-consumer.yml",
-        "checks",
-        "Render first-party coverage summary (per-cell, no union)",
-        "|| true",
-        "the summary is informational",
     ),
     (
         "reusable-consumer.yml",

@@ -30,6 +30,7 @@ jobs:
     with:
       platforms: '["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]'
       min_coverage: "100"
+      deploy_dry_run: true
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
       REMOTE_CACHE_HEADER: ${{ secrets.REMOTE_CACHE_HEADER }}

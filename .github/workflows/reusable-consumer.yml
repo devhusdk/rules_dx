@@ -48,6 +48,11 @@ on:
         required: false
         default: false
         type: boolean
+      deploy_dry_run:
+        description: "Run dx deploy, the dry run, on every dx_deployment tagged release on Linux x86_64. Pull requests with affected_on_pr dry-run only the deployments the change reaches."
+        required: false
+        default: false
+        type: boolean
       bench_max_regression:
         description: "Percent a benchmark may be slower than the base branch on a pull request before the bench job fails, a whole number from 0 to 100."
         required: false
@@ -702,6 +707,36 @@ jobs:
           path: .dx/local/fuzz/**/crash-*
           if-no-files-found: ignore
           retention-days: 30
+  deploy-dry-run:
+    name: deploy dry run
+    needs: [validate]
+    if: ${{ inputs.deploy_dry_run }}
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr && 2 || 0 }}
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+      - name: Dry run the release deployments
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AFFECTED: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ "$AFFECTED" = "true" ] && git rev-parse --verify -q 'HEAD^2' >/dev/null; then
+            args=(--affected --since HEAD^1)
+          else
+            args=(--affected --since "$(git rev-list --max-parents=0 HEAD | tail -n 1)")
+          fi
+          bazel run --lockfile_mode=error @rules_dx//:dx -- deploy "${args[@]}" < /dev/null
   bench:
     name: bench
     needs: [validate]

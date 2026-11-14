@@ -16,6 +16,10 @@ spec:
       description: "On merge requests, also run dx lint --breaking-against so buf breaking compares the proto files with the target branch."
       type: boolean
       default: false
+    deploy_dry_run:
+      description: "Run dx deploy, the dry run, on every dx_deployment tagged release. Merge requests with affected_on_pr dry-run only the deployments the change reaches."
+      type: boolean
+      default: false
     link_check_online:
       description: "Outside merge requests, also run dx lint --online so lychee checks external links."
       type: boolean
@@ -139,6 +143,22 @@ fuzz:
     - bazel run @rules_dx//:dx -- fuzz --time "$[[ inputs.fuzz_time ]]" //... > reports/fuzz.log 2>&1 || status=$?
     - cat reports/fuzz.log || status=$?
     - '[ "$status" -eq 0 ] || [ ! -d .dx/local/fuzz ] || cp -R .dx/local/fuzz reports/ || status=$?'
+    - !reference [.dx_finish, script]
+
+deploy_dry_run:
+  extends: .dx
+  timeout: 1h
+  rules:
+    - if: $DX_DEPLOY_DRY_RUN == "true"
+  variables:
+    DX_DEPLOY_DRY_RUN: "$[[ inputs.deploy_dry_run ]]"
+    DX_REPORT: reports/deploy.log
+  script:
+    - status=0
+    - since="$(git rev-list --max-parents=0 HEAD | tail -n 1)" || status=$?
+    - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || [ "$[[ inputs.affected_on_pr ]]" != true ] || since="$(git merge-base HEAD origin/HEAD)" || status=$?'
+    - bazel run --lockfile_mode=error @rules_dx//:dx -- deploy --affected --since "$since" < /dev/null > reports/deploy.log 2>&1 || status=$?
+    - cat reports/deploy.log || status=$?
     - !reference [.dx_finish, script]
 
 bench:

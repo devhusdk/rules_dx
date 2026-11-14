@@ -27,7 +27,7 @@ real_source_target(
         "dialyzer.bzl",
         "kwargs.bzl",
         "providers.bzl",
-            "rules_erlang.BUILD.bazel",
+        "rules_erlang.BUILD.bazel",
         "rules_erlang_private.BUILD.bazel",
     ],
     tags = ["corpus"],

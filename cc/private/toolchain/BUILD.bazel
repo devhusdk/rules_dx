@@ -429,9 +429,9 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_arm64_tsan_test",
+    size = "small",
     compiler = "gcc",
     extra_features = ["tsan"],
-    size = "small",
     tags = ["no-coverage"],
     target_compatible_with = [
         "@platforms//os:linux",

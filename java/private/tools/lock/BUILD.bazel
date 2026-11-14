@@ -33,7 +33,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "java/private/tools/maven_lock",
         normal = True,
-    ),
+    ) + ["@crates//:serde_json"],
 )
 
 rust_binary(

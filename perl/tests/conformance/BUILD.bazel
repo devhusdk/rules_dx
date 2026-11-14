@@ -10,7 +10,11 @@ package(
 perl_library(
     name = "conformance",
     testonly = True,
-    srcs = ["lib/Greet.pm"],
+    srcs = [
+        "lib/FormatDirty.pm",
+        "lib/Greet.pm",
+        "lib/LintDirty.pm",
+    ],
 )
 
 perl_library(
@@ -66,6 +70,7 @@ dx_conformance_suite(
     failing_case = "failing_case",
     failing_pattern = "not ok 1 - {case}",
     failing_test = ":fail_subject_test",
+    lang = "perl",
     lock = {
         "binary": ":lock_hello",
         "ecosystem": "perl",
@@ -75,7 +80,6 @@ dx_conformance_suite(
         "package": "Text::CSV",
         "stale": "cpanfile.stale.snapshot",
     },
-    lang = "perl",
     not_applicable = {"cross_test": "perl_binary is a script the interpreter runs; it has no object format"},
     passing_test = ":pass_subject_test",
     quality = {

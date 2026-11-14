@@ -13,20 +13,6 @@ ruby_library(
     srcs = ["greet.rb"],  # keep
 )
 
-ruby_library(
-    name = "lint_dirty",
-    testonly = True,
-    srcs = ["lib/lint_dirty.rb"],
-    tags = ["manual"],
-)
-
-ruby_library(
-    name = "format_dirty",
-    testonly = True,
-    srcs = ["lib/format_dirty.rb"],
-    tags = ["manual"],
-)
-
 ruby_binary(
     name = "hello",
     srcs = ["main.rb"],

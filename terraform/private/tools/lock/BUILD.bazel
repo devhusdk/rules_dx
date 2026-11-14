@@ -54,11 +54,11 @@ rust_test(
     crate_name = "resolve_test",
     crate_root = "resolve_test.rs",
     data = [
+        "testdata/download_darwin_arm64.json",
+        "testdata/download_linux_amd64.json",
         "testdata/golden.lock.json",
         "testdata/golden.terraform.lock.hcl",
         "testdata/versions.json",
-        "testdata/download_darwin_arm64.json",
-        "testdata/download_linux_amd64.json",
     ],
     env = {
         "GOLDEN": "$(rootpath testdata/golden.lock.json)",

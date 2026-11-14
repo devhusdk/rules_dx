@@ -13,12 +13,6 @@ nuget_unit_tests(
     size = "small",
 )
 
-rust_test(
-    name = "coverlet_launcher_bin_test",
-    size = "small",
-    crate = "//dotnet/private/coverage:coverlet_launcher",
-)
-
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

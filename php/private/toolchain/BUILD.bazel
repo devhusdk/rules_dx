@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//php:defs.bzl", "php_library")
 load(":cells.bzl", "PHP_CELLS", "cell_settings", "unsupported_value")
 
@@ -35,4 +36,16 @@ filegroup(
         "BUILD.bazel",
     ]),
     visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "cells.bzl",
+        "extensions.bzl",
+        "php.bzl",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
 )

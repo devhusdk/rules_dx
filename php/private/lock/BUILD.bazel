@@ -1,7 +1,13 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
 package(default_visibility = ["//visibility:private"])
 
 exports_files(
-    ["BUILD.bazel", "hub.bzl", "repo.bzl"],
+    [
+        "BUILD.bazel",
+        "hub.bzl",
+        "repo.bzl",
+    ],
     visibility = ["//:__subpackages__"],
 )
 
@@ -12,4 +18,14 @@ filegroup(
         "BUILD.bazel",
     ]),
     visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "hub.bzl",
+        "repo.bzl",
+    ],
+    tags = ["corpus"],
 )

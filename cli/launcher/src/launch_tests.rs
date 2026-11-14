@@ -322,6 +322,7 @@ fn command_removes_unset_names_and_sets_runfiles() {
     )));
 }
 
+#[expect(unsafe_code, reason = "set_var has no safe form in edition 2024")]
 #[cfg(unix)]
 #[test]
 fn run_scrubs_unset_variables() {
@@ -340,6 +341,7 @@ fn run_scrubs_unset_variables() {
     )
     .unwrap();
     // Only this test uses this name, so setting it cannot disturb the others.
+    // SAFETY: no other thread reads this variable name while it is set.
     unsafe { std::env::set_var("EXEC_LAUNCHER_UNSET_PROBE", "1") };
     let code = run(&dir.join("app.exe"), &[]).unwrap();
     assert_eq!(code, 0);

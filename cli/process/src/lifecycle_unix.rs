@@ -7,6 +7,7 @@ const SIGTERM: i32 = 15;
 const SIGKILL: i32 = 9;
 
 #[expect(unsafe_code, reason = "signal and terminal group calls are libc FFI")]
+// SAFETY: the declarations match the libc signatures of kill, getpgrp and tcgetpgrp.
 unsafe extern "C" {
     fn kill(pid: i32, sig: i32) -> i32;
     fn getpgrp() -> i32;
@@ -42,6 +43,7 @@ impl OwnedChild {
 #[expect(unsafe_code, reason = "PR_SET_PDEATHSIG has no safe std API")]
 fn child_guard(parent: u32) -> io::Result<()> {
     const PR_SET_PDEATHSIG: i32 = 1;
+    // SAFETY: the declaration matches the libc signature of prctl.
     unsafe extern "C" {
         fn prctl(option: i32, arg2: u64, arg3: u64, arg4: u64, arg5: u64) -> i32;
     }
@@ -125,6 +127,7 @@ const FD_CLOEXEC: i32 = 1;
     unsafe_code,
     reason = "fcntl F_SETFD in a pre_exec hook needs the raw libc call"
 )]
+// SAFETY: the declaration matches the variadic libc signature of fcntl.
 unsafe extern "C" {
     fn fcntl(fd: i32, cmd: i32, ...) -> i32;
 }

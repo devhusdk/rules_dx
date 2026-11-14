@@ -73,6 +73,7 @@ struct ExtendedLimit {
     peak_job_memory_used: usize,
 }
 
+// SAFETY: the declarations match the Win32 signatures of these functions.
 unsafe extern "system" {
     fn SetConsoleCtrlHandler(
         handler: Option<unsafe extern "system" fn(u32) -> i32>,
@@ -113,17 +114,21 @@ struct ThreadEntry {
 }
 
 fn resume_threads(pid: u32) -> io::Result<()> {
+    // SAFETY: CreateToolhelp32Snapshot takes plain integers; the handle is closed below.
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0) };
     if snapshot.is_null() || snapshot as isize == -1 {
         return Err(io::Error::last_os_error()); // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
+    // SAFETY: ThreadEntry is plain C data for which all-zero is valid.
     let mut entry: ThreadEntry = unsafe { std::mem::zeroed() };
     entry.size = std::mem::size_of::<ThreadEntry>() as u32;
     let mut resumed = 0usize;
     let mut failure = None;
+    // SAFETY: snapshot is a valid handle and entry has its size field set.
     let mut more = unsafe { Thread32First(snapshot, &mut entry) } != 0;
     while more {
         if entry.owner_process_id == pid {
+            // SAFETY: OpenThread takes plain integers and a null result is checked.
             let thread = unsafe { OpenThread(THREAD_SUSPEND_RESUME, 0, entry.thread_id) };
             if thread.is_null() {
                 // LCOV_EXCL_START - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -131,8 +136,10 @@ fn resume_threads(pid: u32) -> io::Result<()> {
                 break;
                 // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             }
+            // SAFETY: thread is a valid handle from OpenThread.
             let previous = unsafe { ResumeThread(thread) };
             let err = io::Error::last_os_error();
+            // SAFETY: thread is open and closed once, here.
             unsafe {
                 CloseHandle(thread);
             }
@@ -144,8 +151,10 @@ fn resume_threads(pid: u32) -> io::Result<()> {
             }
             resumed += 1;
         }
+        // SAFETY: snapshot is a valid handle and entry has its size field set.
         more = unsafe { Thread32Next(snapshot, &mut entry) } != 0;
     }
+    // SAFETY: snapshot is open and closed once, here.
     unsafe {
         CloseHandle(snapshot);
     }
@@ -164,6 +173,7 @@ fn resume_threads(pid: u32) -> io::Result<()> {
 fn console_members() -> Vec<u32> {
     let mut list = vec![0u32; 64];
     for _ in 0..LIST_ATTEMPTS {
+        // SAFETY: list is valid for list.len() u32 entries, the count passed.
         let count = unsafe { GetConsoleProcessList(list.as_mut_ptr(), list.len() as u32) } as usize;
         if count <= list.len() {
             list.truncate(count);
@@ -183,15 +193,18 @@ struct Job {
 
 impl Job {
     fn create(descendants: Descendants) -> io::Result<Job> {
+        // SAFETY: CreateJobObjectW accepts null attributes and name; a null result is checked.
         let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
         if handle.is_null() {
             return Err(io::Error::last_os_error()); // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
+        // SAFETY: ExtendedLimit is plain C data for which all-zero is valid.
         let mut info: ExtendedLimit = unsafe { std::mem::zeroed() };
         info.basic.limit_flags = match descendants {
             Descendants::Owned | Descendants::Foreground => KILL_ON_JOB_CLOSE,
             Descendants::Detachable => JOB_OBJECT_LIMIT_BREAKAWAY_OK,
         };
+        // SAFETY: handle is a valid job and info is an ExtendedLimit of the size passed.
         let applied = unsafe {
             SetInformationJobObject(
                 handle,
@@ -203,6 +216,7 @@ impl Job {
         if applied == 0 {
             // LCOV_EXCL_START - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             let err = io::Error::last_os_error();
+            // SAFETY: handle is the job created above and is closed once on this failure path.
             unsafe {
                 CloseHandle(handle);
             }
@@ -217,6 +231,7 @@ impl Job {
 
     fn assign(&self, child: &std::process::Child) -> io::Result<()> {
         let process = child.as_raw_handle() as Handle;
+        // SAFETY: self.handle is a valid job and process is the child's live handle.
         let assigned = unsafe { AssignProcessToJobObject(self.handle, process) };
         if assigned == 0 {
             Err(io::Error::last_os_error()) // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -226,6 +241,7 @@ impl Job {
     }
 
     fn terminate(&self) {
+        // SAFETY: self.handle is a valid job handle owned by this Job.
         unsafe {
             TerminateJobObject(self.handle, 1);
         }
@@ -236,6 +252,7 @@ impl Job {
         let mut capacity = 64usize;
         for _ in 0..LIST_ATTEMPTS {
             let mut buffer = vec![0usize; header + capacity];
+            // SAFETY: buffer is valid for the byte length passed and self.handle is a valid job.
             let queried = unsafe {
                 QueryInformationJobObject(
                     self.handle,
@@ -247,6 +264,7 @@ impl Job {
             } != 0;
             let err = io::Error::last_os_error();
             let counts = buffer.as_ptr() as *const u32;
+            // SAFETY: buffer is zero-initialised and holds at least the two-u32 header.
             let (assigned, listed) = unsafe { (*counts as usize, *counts.add(1) as usize) };
             if queried && assigned <= listed {
                 let listed = listed.min(capacity);
@@ -270,6 +288,7 @@ impl Job {
     }
 
     fn kill_member(&self, pid: u32) {
+        // SAFETY: OpenProcess takes plain integers and a null result is checked.
         let process = unsafe {
             OpenProcess(
                 PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION,
@@ -281,6 +300,7 @@ impl Job {
             return; // LCOV_EXCL_LINE - reason: the member exited before it was opened, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         let mut inside = 0;
+        // SAFETY: process is a valid handle closed once here; inside is a valid out-pointer.
         unsafe {
             if IsProcessInJob(process, self.handle, &mut inside) != 0 && inside != 0 {
                 TerminateProcess(process, 1);
@@ -313,6 +333,7 @@ impl Drop for Job {
             // No console: nothing is killed, so a normal exit leaves the server alone.
             self.stop_attached();
         }
+        // SAFETY: self.handle is a valid job handle, closed once in drop.
         unsafe {
             CloseHandle(self.handle);
         }

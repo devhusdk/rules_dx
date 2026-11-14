@@ -792,6 +792,7 @@ impl Host for SystemHost {
 #[cfg(unix)]
 #[expect(unsafe_code, reason = "getuid has no safe std API")]
 fn current_uid() -> Option<u32> {
+    // SAFETY: getuid has no preconditions.
     Some(unsafe { libc::getuid() })
 }
 

@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+// SAFETY: the declarations match the C signatures of the consumer greet library.
 unsafe extern "C" {
     fn consumer_greet_create(name: *const std::os::raw::c_char) -> *mut std::ffi::c_void;
     fn consumer_greet_message(state: *const std::ffi::c_void) -> *const std::os::raw::c_char;
@@ -37,14 +38,17 @@ fn run() -> i32 {
             return 1;
         }
     };
+    // SAFETY: name is a valid NUL-terminated C string that outlives the call.
     let state = unsafe { consumer_greet_create(name.as_ptr()) };
     if state.is_null() {
         eprintln!("consumer_app: native create failed");
         return 1;
     }
+    // SAFETY: state is the non-null handle from create; the message pointer is a valid C string.
     let message = unsafe { std::ffi::CStr::from_ptr(consumer_greet_message(state)) }
         .to_string_lossy()
         .into_owned();
+    // SAFETY: state came from create and is destroyed once, after the last use.
     unsafe { consumer_greet_destroy(state) };
     for line in text.lines() {
         println!("consumer_app resource: {line}");

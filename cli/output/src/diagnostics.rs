@@ -459,15 +459,18 @@ mod tests {
         assert_eq!(color_override(), prior_override);
     }
 
+    #[expect(unsafe_code, reason = "set_var and remove_var have no safe form in edition 2024")]
     #[test]
     fn no_color_env_lookup_sees_empty_values() {
         if let Some(raw) = std::env::var_os("DX_OUTPUT_NO_COLOR_CHILD") {
             let raw = raw.to_string_lossy().into_owned();
             let (_, sentinel) = raw.split_once(':').expect("mode:path");
+            // SAFETY: this child runs only this test, so no other thread reads the environment.
             unsafe { std::env::set_var("NO_COLOR", "") }
             assert!(!no_color_present(), "an empty NO_COLOR is ignored");
             unsafe { std::env::set_var("NO_COLOR", "1") }
             assert!(no_color_present(), "a non-empty NO_COLOR counts");
+            // SAFETY: this child runs only this test, so no other thread reads the environment.
             unsafe { std::env::remove_var("NO_COLOR") }
             assert!(!no_color_present(), "removing NO_COLOR restores absence");
             std::fs::write(sentinel, b"ok").expect("sentinel");

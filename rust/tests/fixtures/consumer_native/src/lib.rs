@@ -1,5 +1,3 @@
-#![expect(unsafe_code, reason = "the fixture exists to call across the C FFI boundary")]
-
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 include!(concat!(env!("OUT_DIR"), "/build_probe.rs"));
 
@@ -13,10 +11,12 @@ pub fn stamped() -> u32 {
 }
 
 pub fn add(left: i32, right: i32) -> i32 {
+    // SAFETY: consumer_add takes plain integers and has no other preconditions.
     unsafe { consumer_add(left, right) }
 }
 
 pub fn offset() -> i32 {
+    // SAFETY: consumer_offset takes no arguments and has no preconditions.
     unsafe { consumer_offset() }
 }
 

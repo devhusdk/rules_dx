@@ -7,12 +7,15 @@ static STATICS: Mutex<()> = Mutex::new(());
 fn a_report_pipe_is_non_blocking_and_carries_bytes() {
     let (read, write) = report_pipe().expect("pipe");
     let mut empty = [0u8; 1];
+    // SAFETY: empty is a valid one-byte buffer and read is an open pipe end.
     let none = unsafe { libc::read(read.as_raw_fd(), empty.as_mut_ptr().cast(), 1) };
     assert_eq!(none, -1);
     assert_eq!(
+        // SAFETY: the pointer is a valid one-byte buffer and write is an open pipe end.
         unsafe { libc::write(write.as_raw_fd(), [7u8].as_ptr().cast(), 1) },
         1
     );
+    // SAFETY: empty is a valid one-byte buffer and read is an open pipe end.
     let got = unsafe { libc::read(read.as_raw_fd(), empty.as_mut_ptr().cast(), 1) };
     assert_eq!((got, empty[0]), (1, 7));
 }
@@ -20,8 +23,11 @@ fn a_report_pipe_is_non_blocking_and_carries_bytes() {
 #[test]
 fn blocked_signals_come_back_when_dropped() {
     fn is_blocked(signo: i32) -> bool {
+        // SAFETY: sigset_t is plain C data for which all-zero is valid.
         let mut current: libc::sigset_t = unsafe { std::mem::zeroed() };
+        // SAFETY: current is a valid sigset_t out-pointer and the new set is null.
         unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, std::ptr::null(), &mut current) };
+        // SAFETY: current was filled by pthread_sigmask above.
         unsafe { libc::sigismember(&current, signo) == 1 }
     }
     assert!(!is_blocked(libc::SIGUSR2));
@@ -36,8 +42,11 @@ fn blocked_signals_come_back_when_dropped() {
 fn background_tty_writes_block_sigttou_in_this_thread() {
     std::thread::spawn(|| {
         allow_background_tty_writes();
+        // SAFETY: sigset_t is plain C data for which all-zero is valid.
         let mut current: libc::sigset_t = unsafe { std::mem::zeroed() };
+        // SAFETY: current is a valid sigset_t out-pointer and the new set is null.
         unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, std::ptr::null(), &mut current) };
+        // SAFETY: current was filled by pthread_sigmask above.
         assert_eq!(unsafe { libc::sigismember(&current, libc::SIGTTOU) }, 1);
     })
     .join()
@@ -46,6 +55,7 @@ fn background_tty_writes_block_sigttou_in_this_thread() {
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn info_from(pid: i32, code: i32) -> libc::siginfo_t {
+    // SAFETY: siginfo_t is plain C data for which all-zero is valid.
     let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
     info.si_code = code;
     let align = std::mem::size_of::<usize>();
@@ -60,6 +70,7 @@ fn info_from(pid: i32, code: i32) -> libc::siginfo_t {
 
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 fn info_from(pid: i32, code: i32) -> libc::siginfo_t {
+    // SAFETY: siginfo_t is plain C data for which all-zero is valid.
     let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
     info.si_code = code;
     info.si_pid = pid;
@@ -74,6 +85,7 @@ const KERNEL: (i32, bool) = (0x80, true);
 #[test]
 fn a_null_signal_info_is_not_from_dx() {
     let _lock = STATICS.lock().unwrap();
+    // SAFETY: from_parent accepts a null pointer and returns false.
     assert!(!unsafe { from_parent(std::ptr::null()) });
 }
 
@@ -82,10 +94,13 @@ fn only_user_sent_signals_from_dx_are_filtered() {
     let _lock = STATICS.lock().unwrap();
     WATCHER_PARENT.store(4242, Ordering::SeqCst);
     let user = info_from(4242, 0);
+    // SAFETY: user is a valid siginfo_t.
     assert!(unsafe { from_parent(&user) });
     let kernel = info_from(4242, KERNEL.0);
+    // SAFETY: kernel is a valid siginfo_t.
     assert_eq!(unsafe { from_parent(&kernel) }, KERNEL.1);
     let stranger = info_from(77, 0);
+    // SAFETY: stranger is a valid siginfo_t.
     assert!(!unsafe { from_parent(&stranger) });
 }
 
@@ -95,10 +110,13 @@ fn the_signal_handler_reports_foreign_signals_and_keeps_errno() {
     let (read, write) = report_pipe().expect("pipe");
     WATCHER_PARENT.store(-5, Ordering::SeqCst);
     WATCHER_REPORT.store(write.as_raw_fd(), Ordering::SeqCst);
+    // SAFETY: errno_slot returns this thread's errno, valid for reads and writes.
     unsafe { *crate::errno_slot() = 9 };
     report_signal(libc::SIGTERM, std::ptr::null_mut(), std::ptr::null_mut());
+    // SAFETY: errno_slot returns this thread's errno, valid for reads and writes.
     assert_eq!(unsafe { *crate::errno_slot() }, 9);
     let mut byte = [0u8; 1];
+    // SAFETY: byte is a valid one-byte buffer and read is an open pipe end.
     let got = unsafe { libc::read(read.as_raw_fd(), byte.as_mut_ptr().cast(), 1) };
     assert_eq!((got, i32::from(byte[0])), (1, libc::SIGTERM));
     WATCHER_REPORT.store(-1, Ordering::SeqCst);
@@ -111,12 +129,17 @@ fn settling_reports_pending_stop_signals_before_the_settled_byte() {
     WATCHER_REPORT.store(write.as_raw_fd(), Ordering::SeqCst);
     std::thread::spawn(move || {
         let blocked = Blocked::new(&[libc::SIGHUP]);
+        // SAFETY: pthread_kill targets this live thread, which has SIGHUP blocked.
         unsafe { libc::pthread_kill(libc::pthread_self(), libc::SIGHUP) };
+        // SAFETY: errno_slot returns this thread's errno, valid for reads and writes.
         unsafe { *crate::errno_slot() = 9 };
         report_settled(libc::SIGUSR1, std::ptr::null_mut(), std::ptr::null_mut());
+        // SAFETY: errno_slot returns this thread's errno, valid for reads and writes.
         assert_eq!(unsafe { *crate::errno_slot() }, 9);
+        // SAFETY: sigset_t is plain C data for which all-zero is valid.
         let mut hup: libc::sigset_t = unsafe { std::mem::zeroed() };
         let mut taken = 0;
+        // SAFETY: hup and taken are valid; SIGHUP is pending and blocked, so sigwait returns.
         unsafe {
             libc::sigemptyset(&mut hup);
             libc::sigaddset(&mut hup, libc::SIGHUP);
@@ -130,6 +153,7 @@ fn settling_reports_pending_stop_signals_before_the_settled_byte() {
     WATCHER_REPORT.store(-1, Ordering::SeqCst);
     drop(write);
     let mut bytes = [0u8; 3];
+    // SAFETY: bytes is a valid three-byte buffer and read is an open pipe end.
     let got = unsafe { libc::read(read.as_raw_fd(), bytes.as_mut_ptr().cast(), 3) };
     assert_eq!(got, 2);
     assert_eq!(bytes[..2], [libc::SIGHUP as u8, SETTLED]);

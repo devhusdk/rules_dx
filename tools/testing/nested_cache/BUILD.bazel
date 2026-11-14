@@ -8,7 +8,7 @@ exports_files(
 filegroup(
     name = "harness_locks",
     testonly = True,
-    srcs = ["harness.MODULE.bazel.lock"],
+    srcs = glob(["*.MODULE.bazel.lock"]),
     visibility = ["//visibility:public"],
 )
 

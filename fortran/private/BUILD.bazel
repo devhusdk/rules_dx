@@ -44,3 +44,13 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+        "flang_rt.BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

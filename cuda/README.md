@@ -112,7 +112,6 @@ The CUDA rules load from `@rules_dx//cuda:defs.bzl`. rules_dx declares the
 pinned toolkit and the nvcc toolchain. Add this to the root `MODULE.bazel`:
 
 ```python
-cuda = use_extension("@rules_dx//cuda:extensions.bzl", "cuda")
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
 dx_licenses.accept(ids = ["cuda-eula"])
 ```
@@ -132,7 +131,7 @@ rules_dx declares the pinned nvcc toolchain; a consumer adds no
 | `dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = ["sm_89"]` | Set `cuda_archs`. |
 | `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |
 | `dx_cuda: @rules_cuda//cuda:compiler is '<compiler>'; dx CUDA targets compile with nvcc only` | Remove the `@rules_cuda//cuda:compiler` setting. |
-| `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); use the cuda extension from @rules_dx//cuda:extensions.bzl and remove your own cuda.redist_json and cuda.toolkit tags` | Remove your own `cuda.redist_json` and `cuda.toolkit` tags and use the `cuda` extension from `@rules_dx//cuda:extensions.bzl`. |
+| `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); remove your own rules_cuda cuda.redist_json and cuda.toolkit tags` | Remove your own rules_cuda `cuda.redist_json` and `cuda.toolkit` tags. |
 | `dx_cuda: the CUDA toolkit is <version>; dx CUDA targets need 13.4` | Use the versions from Setup. |
 | `dx_cuda: no nvcc toolchain for this target; dx CUDA targets build for linux_x86_64, linux_arm64, windows_x86_64, windows_arm64` | Build for one of the listed platforms. |
 | nvcc fails with `unsupported clang version!` | Move the stanza before `register_toolchains("@llvm//toolchain:all")`. |

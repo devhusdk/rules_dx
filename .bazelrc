@@ -48,6 +48,7 @@ common --@rules_dx//config:clippy_flag=-Dclippy::unwrap_in_result
 common --@rules_dx//config:clippy_flag=-Dclippy::panic_in_result_fn
 common --@rules_dx//config:clippy_flag=-Dclippy::allow_attributes
 common --@rules_dx//config:clippy_flag=-Dclippy::allow_attributes_without_reason
+common --@rules_dx//config:clippy_flag=-Dclippy::undocumented_unsafe_blocks
 common --@rules_dx//config:clippy_flag=-Dunsafe_code
 common --@rules_dx//config:clippy_flag=-Dunsafe_op_in_unsafe_fn
 common --@rules_dx//config:clippy_flag=-Dunused_must_use

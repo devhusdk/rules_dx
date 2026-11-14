@@ -242,5 +242,6 @@ pub fn terminal_foreground() -> bool {
     };
     // SAFETY: `tty` is an open descriptor; getpgrp has no preconditions.
     let foreground = unsafe { tcgetpgrp(tty.as_raw_fd()) }; // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+    // SAFETY: getpgrp has no preconditions.
     foreground > 0 && foreground == unsafe { getpgrp() } // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 }

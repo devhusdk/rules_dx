@@ -980,6 +980,7 @@ fn a_recorded_stop_signal_is_reported_with_its_exit_code() {
         // SAFETY: console_stop only records the stop.
         assert_eq!(unsafe { console_stop(2) }, 0);
         assert_eq!(interrupted(), None);
+        // SAFETY: console_stop only records the stop.
         assert_eq!(unsafe { console_stop(0) }, 1);
         assert_eq!(interrupted(), Some(2));
     }

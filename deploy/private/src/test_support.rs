@@ -53,17 +53,19 @@ pub(crate) fn with_env<T>(vars: &[(&str, Option<&str>)], body: impl FnOnce() -> 
     let mut saved: Vec<(&str, Option<String>)> = Vec::new();
     for (key, value) in vars {
         saved.push((*key, std::env::var(key).ok()));
-        // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
         match value {
+            // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
             Some(value) => unsafe { std::env::set_var(key, value) },
+            // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
             None => unsafe { std::env::remove_var(key) },
         }
     }
     let out = body();
     for (key, value) in saved {
-        // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
         match value {
+            // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
             Some(value) => unsafe { std::env::set_var(key, value) },
+            // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
             None => unsafe { std::env::remove_var(key) },
         }
     }

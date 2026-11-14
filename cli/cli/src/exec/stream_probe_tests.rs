@@ -598,6 +598,7 @@ fn a_terminal_child_gets_sigint_once(sender: Sender) {
         Sender::GroupKill => unsafe {
             libc::kill(-(run.child.id() as i32), libc::SIGINT);
         },
+        // SAFETY: kill takes plain integers and has no memory preconditions.
         Sender::BuildGroup => unsafe {
             libc::kill(-build_pgid, libc::SIGINT);
         },

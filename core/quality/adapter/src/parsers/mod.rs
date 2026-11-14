@@ -364,15 +364,17 @@ fn known_relative<'a>(
     cwd: &Path,
     path: &str,
 ) -> Result<&'a str, ParseError> {
+    use std::path::{Component, PathBuf};
+    let wanted: PathBuf = Path::new(path)
+        .components()
+        .skip_while(|part| matches!(part, Component::CurDir))
+        .collect();
     files
         .iter()
         .copied()
         .find(|file| {
             let file = Path::new(file);
-            file == Path::new(path)
-                || file
-                    .strip_prefix(cwd)
-                    .is_ok_and(|rest| rest == Path::new(path))
+            file == wanted || file.strip_prefix(cwd).is_ok_and(|rest| rest == wanted)
         })
         .ok_or_else(|| ParseError::UnknownFile {
             tool,
@@ -476,13 +478,20 @@ fn located<'a>(
     })
 }
 
-/// The checked file a line starts with (longest wins), followed by a colon, and the rest.
+/// The checked file a line starts with (longest wins), followed by a colon, and the rest. On
+/// Windows the line may spell the file with either separator.
 fn prefixed<'a>(line: &'a str, files: &[&'a str]) -> Option<(&'a str, &'a str)> {
     files
         .iter()
         .copied()
         .filter_map(|file| {
-            line.strip_prefix(file)?
+            let head = line.get(..file.len())?;
+            let same = head == file
+                || (cfg!(windows) && dx_path::posix_str(head) == dx_path::posix_str(file));
+            if !same {
+                return None;
+            }
+            line.get(file.len()..)?
                 .strip_prefix(':')
                 .map(|rest| (file, rest))
         })
@@ -1033,8 +1042,8 @@ mod tests {
 
     use super::{
         FileFinding, MAX_OUTPUT_BYTES, ParseError, Spelling, check_output_size, code_name,
-        columned, finding, known, known_native, lines, located, missing, numbered, path_row_col,
-        prefixed, require_findings, row_col,
+        columned, finding, known, known_native, known_relative, lines, located, missing, numbered,
+        path_row_col, prefixed, require_findings, row_col,
     };
     use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
@@ -1117,6 +1126,32 @@ mod tests {
         assert_eq!(prefixed("/s/a:1: x", &files), Some(("/s/a", "1: x")));
         assert_eq!(prefixed("/s/a.bc", &files), None);
         assert_eq!(prefixed("/s/z:1: x", &files), None);
+    }
+
+    #[test]
+    fn prefixed_reads_backslashes_only_on_windows() {
+        let files = ["m/a.py"];
+        let found = prefixed(r"m\a.py:1: x", &files);
+        if cfg!(windows) {
+            assert_eq!(found, Some(("m/a.py", "1: x")));
+        } else {
+            assert_eq!(found, None);
+        }
+    }
+
+    #[test]
+    fn known_relative_drops_a_leading_current_directory() {
+        let cwd = Path::new("/s");
+        let files = ["/s/lib/g.cue", "m/a.cue"];
+        assert_eq!(
+            known_relative("cue", &files, cwd, "./lib/g.cue").expect("known"),
+            "/s/lib/g.cue"
+        );
+        assert_eq!(
+            known_relative("cue", &files, cwd, "./m/a.cue").expect("known"),
+            "m/a.cue"
+        );
+        assert!(known_relative("cue", &files, cwd, "./lib/h.cue").is_err());
     }
 
     #[test]

@@ -5,7 +5,7 @@ bazel_dep(name = "gazelle", version = "0.54.0")
 bazel_dep(name = "rules_java", version = "9.9.0")
 bazel_dep(name = "rules_python", version = "2.4.6")
 bazel_dep(name = "rules_proto", version = "7.1.0")
-bazel_dep(name = "protobuf", version = "36.2")
+bazel_dep(name = "protobuf", version = "37.0-rc3")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(version = "1.26.10")

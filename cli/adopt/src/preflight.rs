@@ -27,7 +27,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("platforms", "1.1.0"),
     ("bazel_skylib", "1.9.2"),
     ("rules_proto", "7.1.0"),
-    ("protobuf", "36.2"),
+    ("protobuf", "37.0-rc3"),
     ("rules_rust_prost", "0.75.0"),
     ("rules_java", "9.9.0"),
     ("rules_android", "0.8.1"),

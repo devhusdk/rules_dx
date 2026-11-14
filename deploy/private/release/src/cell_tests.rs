@@ -171,6 +171,8 @@ fn patch_machine_flips_every_container() {
     }
 }
 
+const ROOT_MODULE: &str = "module(name = \"rules_dx\")\n\nbazel_dep(name = \"rules_a\", version = \"1\")\narchive_override(\n    module_name = \"rules_a\",\n    patches = [\n        \"//patches/rules_a:fix.patch\",  # upstream: https://example.com/a\n    ],\n    urls = [\"https://example.com/a.tar.gz\"],\n)\n\nsingle_version_override(\n    module_name = \"rules_b\",\n    patches = [\"//patches/rules_b:b.patch\"],\n)\n";
+
 const SNIPPET: &str =
     "module(name = \"my_project\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
@@ -310,6 +312,13 @@ fn stage(cell: Cell, members: Members) -> Fixture {
     }
     std::fs::write(dir.path().join("checkout").join(".bazelversion"), "9.0.0\n")
         .expect("bazelversion");
+    std::fs::write(
+        dir.path().join("checkout").join("MODULE.bazel"),
+        ROOT_MODULE,
+    )
+    .expect("root module");
+    std::fs::create_dir_all(dir.path().join("checkout/patches/rules_a")).expect("patches");
+    std::fs::write(dir.path().join("checkout/patches/rules_a/fix.patch"), "fix").expect("patch");
     let archive = dir.path().join("out").join(cell.archive_name());
     let refs: Vec<(&str, &[u8], u32)> = members
         .iter()
@@ -1215,7 +1224,7 @@ fn consumer_of(fixture: &Fixture) -> Consumer {
 
 #[test]
 fn consumer_module_composes_the_snippet_and_escapes_the_checkout() {
-    let module = consumer_module(SNIPPET, Path::new("C:\\src\\\"rules\"")).expect("module");
+    let module = consumer_module(SNIPPET, "", Path::new("C:\\src\\\"rules\"")).expect("module");
     assert!(module.starts_with("module(name = \"dx_release_consumer\")\n\n"));
     assert!(module.ends_with(
         "local_path_override(\n    module_name = \"rules_dx\",\n    path = \"C:\\\\src\\\\\\\"rules\\\"\",\n)\n"
@@ -1223,13 +1232,54 @@ fn consumer_module_composes_the_snippet_and_escapes_the_checkout() {
 }
 
 #[test]
+fn consumer_module_repeats_the_root_archive_overrides() {
+    let module = consumer_module(SNIPPET, ROOT_MODULE, Path::new("/src")).expect("module");
+    assert!(
+        module.ends_with(&format!(
+            "{}archive_override(\n    module_name = \"rules_a\",\n    patches = [\n        \"//patches/rules_a:fix.patch\",  # upstream: https://example.com/a\n    ],\n    urls = [\"https://example.com/a.tar.gz\"],\n)\n",
+            "    path = \"/src\",\n)\n"
+        )),
+        "{module}"
+    );
+    assert!(!module.contains("rules_b"), "{module}");
+}
+
+#[test]
+fn archive_overrides_reads_one_line_and_block_calls() {
+    let root =
+        "archive_override(module_name = \"x\", urls = [\"u\"])\n# archive_override(\nfoo()\n";
+    assert_eq!(
+        archive_overrides(root),
+        ["archive_override(module_name = \"x\", urls = [\"u\"])\n"]
+    );
+    assert!(archive_overrides("").is_empty());
+}
+
+#[test]
+fn override_patches_names_patch_files_and_rejects_others() {
+    let overrides = archive_overrides(ROOT_MODULE);
+    assert_eq!(
+        override_patches(&overrides).expect("patches"),
+        [("patches/rules_a".to_owned(), "fix.patch".to_owned())]
+    );
+    for bad in [
+        "//patches/rules_a",
+        "//other:fix.patch",
+        "//patches/a:b/c.patch",
+    ] {
+        let block = vec![format!("archive_override(patches = [\"{bad}\"])\n")];
+        assert!(override_patches(&block).is_err(), "{bad}");
+    }
+}
+
+#[test]
 fn consumer_module_drops_the_init_header_and_module_call() {
     let init = format!("# dx: yours; dx adds its missing lines\n{SNIPPET}");
-    let module = consumer_module(&init, Path::new("/src")).expect("module");
+    let module = consumer_module(&init, "", Path::new("/src")).expect("module");
     assert_eq!(module.matches("module(").count(), 1, "{module}");
     let multi =
         "module(\n    name = \"x\",\n)\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
-    let module = consumer_module(multi, Path::new("/src")).expect("module");
+    let module = consumer_module(multi, "", Path::new("/src")).expect("module");
     assert_eq!(module.matches("module(").count(), 1, "{module}");
     assert!(!module.contains("name = \"x\""), "{module}");
 }
@@ -1242,7 +1292,7 @@ fn consumer_module_rejects_bad_snippets() {
         "bazel_dep(name = \"rules_dx\", version = \"1\")\nlocal_path_override(\n)\n",
     ] {
         assert!(
-            consumer_module(snippet, Path::new("/src")).is_err(),
+            consumer_module(snippet, "", Path::new("/src")).is_err(),
             "{snippet}"
         );
     }
@@ -1274,8 +1324,13 @@ fn stage_consumer_renames_files_runs_init_and_restages_over_a_stale_dir() {
     let module = std::fs::read_to_string(dir.join("MODULE.bazel")).expect("module");
     assert_eq!(
         module,
-        consumer_module(SNIPPET, &consumer.checkout).expect("module")
+        consumer_module(SNIPPET, ROOT_MODULE, &consumer.checkout).expect("module")
     );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("patches/rules_a/fix.patch")).expect("patch"),
+        "fix"
+    );
+    assert!(dir.join("patches/rules_a/BUILD.bazel").exists());
     assert_eq!(runner.calls.borrow().len(), 1);
     assert!(!dir.join(".bazelrc").exists());
 }
@@ -1309,7 +1364,10 @@ fn stage_consumer_reports_each_stage_that_fails() {
         checkout: work.join("nowhere"),
         ..good.clone()
     };
-    assert!(run(&no_version, &FakeRunner::new()).contains(".bazelversion"));
+    assert!(run(&no_version, &FakeRunner::new()).contains("nowhere"));
+    std::fs::remove_file(good.checkout.join("patches/rules_a/fix.patch")).expect("rm patch");
+    assert!(run(&good, &FakeRunner::new()).contains("fix.patch"));
+    std::fs::write(good.checkout.join("patches/rules_a/fix.patch"), "fix").expect("patch");
     let mut runner = FakeRunner::new();
     runner.fail = vec!["init"];
     assert!(run(&good, &runner).contains("init broke"));

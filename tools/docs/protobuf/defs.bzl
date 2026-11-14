@@ -17,26 +17,12 @@ def _path(file):
     return file.path
 
 def protobuf_shard_action(ctx, proto_info, protoc, windows, package, stem, extract_tool):
-    """Runs protoc and the extractor for one proto_library.
-
-    Args:
-      ctx: The rule or aspect context.
-      proto_info: The ProtoInfo of the documented proto_library.
-      protoc: The FilesToRunProvider of protoc, from the proto toolchain.
-      windows: Whether the execution platform is Windows, which joins paths with ';'.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard` and the `descriptor` set file.
-    """
+    """Runs protoc and the extractor for one proto_library."""
     root = proto_info.proto_source_root
     sources = proto_info.direct_sources
     if not sources:
         fail("protobuf_doc_shard " + str(ctx.label) + ": proto_library lists no .proto srcs")
 
-    # protoc drops the comments of a file it reads from a descriptor set.
     own_set = proto_info.direct_descriptor_set
     dep_sets = [f for f in proto_info.transitive_descriptor_sets.to_list() if f != own_set]
 
@@ -124,14 +110,7 @@ docs_protobuf_shard = rule(
 )
 
 def protobuf_doc_shard(name, proto, package = "", **kwargs):
-    """Declares the DocIr shard of one proto_library.
-
-    Args:
-      name: Name of the shard target.
-      proto: The documented proto_library.
-      package: Package segment of every symbol id; defaults to the name of proto.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one proto_library."""
     docs_protobuf_shard(
         name = name,
         proto = proto,

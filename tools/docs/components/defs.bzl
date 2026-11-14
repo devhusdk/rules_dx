@@ -35,16 +35,7 @@ component_doc_shard = rule(
 )
 
 def vue_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package_json = None, deps = [], **kwargs):
-    """Declares a component metadata run over one Vue project and its DocIr shard.
-
-    The metadata comes from the pinned `vue-component-meta`, run through an isolated
-    launcher: `vueCompilerOptions.plugins` (also inherited ones) is rejected, and no
-    Vite config or other consumer JavaScript runs. Only the consumer's `vue` package
-    is read from `node_modules`, for its type declarations. Entry points are `.vue`
-    files whose default export is the component. Symbol ids are
-    `vue:<package>:<Component>` plus `.prop_`, `.event_`, `.slot_` and `.exposed_`
-    members.
-    """
+    """Declares a component metadata run over one Vue project and its DocIr shard."""
     where = "vue_doc_shard " + native.package_name() + ":" + name
     if len(entry_points) == 0:
         fail(where + ": need at least one entry point")
@@ -77,14 +68,7 @@ def vue_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, pac
     )
 
 def svelte_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package_json = None, deps = [], **kwargs):
-    """Declares a component metadata run over one Svelte project and its DocIr shard.
-
-    The metadata comes from the pinned `svelte2tsx` and the TypeScript checker, run
-    through an isolated launcher: `svelte.config.js` and other consumer JavaScript never
-    run. Only the consumer's `svelte` package is read from `node_modules`, for its type
-    declarations. Entry points are `.svelte` files using `$props()`. Symbol ids are
-    `svelte:<package>:<Component>` plus `.prop_` and `.slot_` members.
-    """
+    """Declares a component metadata run over one Svelte project and its DocIr shard."""
     where = "svelte_doc_shard " + native.package_name() + ":" + name
     if len(entry_points) == 0:
         fail(where + ": need at least one entry point")
@@ -117,14 +101,7 @@ def svelte_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, 
     )
 
 def astro_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package_json = None, deps = [], **kwargs):
-    """Declares a component metadata run over one Astro project and its DocIr shard.
-
-    The metadata comes from the pinned `@astrojs/compiler` and the TypeScript checker,
-    run through an isolated launcher: `astro.config.*` and other consumer JavaScript never
-    run. Only the consumer's `astro` package is read from `node_modules`, for its type
-    declarations. Entry points are `.astro` files. Symbol ids are
-    `astro:<package>:<Component>` plus `.prop_` and `.slot_` members.
-    """
+    """Declares a component metadata run over one Astro project and its DocIr shard."""
     where = "astro_doc_shard " + native.package_name() + ":" + name
     if len(entry_points) == 0:
         fail(where + ": need at least one entry point")
@@ -157,13 +134,7 @@ def astro_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, p
     )
 
 def mdx_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], **kwargs):
-    """Declares a component metadata run over one MDX project and its DocIr shard.
-
-    MDX files are compiled and parsed with the pinned `@mdx-js/mdx`, never run. ESM
-    exports are typed by the TypeScript checker. Props are the `props.<name>` reads in
-    expressions. Symbol ids are `mdx:<package>:<Name>` plus `.prop_` and `.exposed_`
-    members. Put type packages the exports import in `deps`.
-    """
+    """Declares a component metadata run over one MDX project and its DocIr shard."""
     where = "mdx_doc_shard " + native.package_name() + ":" + name
     if len(entry_points) == 0:
         fail(where + ": need at least one entry point")

@@ -4,7 +4,6 @@ load(":repos.bzl", "bazel_version_repo")
 
 
 def _bazel_version_impl(mctx):
-    # Reading the file through the extension keeps the root package out of every Rust target.
     version = mctx.read(Label("//:.bazelversion")).strip()
     bazel_version_repo(name = "dx_bazel_version", version = version)
     return mctx.extension_metadata(reproducible = True)

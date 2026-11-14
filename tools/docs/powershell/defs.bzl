@@ -17,22 +17,7 @@ def _manifest(ctx, files):
     return manifests[0] if manifests else None
 
 def powershell_shard_action(ctx, files, manifest, package, config, stem, pwsh, script, extract_tool):
-    """Parses a PowerShell module and extracts its DocIr shard.
-
-    Args:
-        ctx: The rule or aspect context.
-        files: The module's source files, `.ps1` and `.psm1`.
-        manifest: The module's `.psd1` file, or None.
-        package: Package segment of the symbol ids.
-        config: Extra configuration identity recorded on every symbol.
-        stem: Output name prefix.
-        pwsh: The ToolchainInfo of the pinned pwsh runtime.
-        script: The extractor script file.
-        extract_tool: The DocIr extractor executable.
-
-    Returns:
-        A struct with the DocIr `shard`, the `api_json` and `srcs_manifest` files.
-    """
+    """Parses a PowerShell module and extracts its DocIr shard."""
     srcs_manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(
         output = srcs_manifest,

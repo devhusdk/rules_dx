@@ -6,7 +6,6 @@ DOXYGEN_VERSION = "1.18.0"
 
 _RELEASE = "https://github.com/doxygen/doxygen/releases/download/Release_1_18_0/"
 
-# One pinned official binary per host cell. The executable is the path inside the extracted archive.
 DOXYGEN_CELLS = {
     "linux_x86_64": struct(
         archive = "doxygen-1.18.0.linux.bin.tar.gz",
@@ -34,14 +33,12 @@ DOXYGEN_CELLS = {
     ),
 }
 
-# Upstream publishes no Linux arm64 or Windows arm64 build, and dx runs no host tool in its place.
 UNSUPPORTED_REASON = "Doxygen publishes no official Linux arm64 or Windows arm64 build, so C, C++ and CUDA API docs are not generated on those hosts"
 
 UNSUPPORTED_MARKER = "doxygen_unsupported.txt"
 
 REPOSITORY_NAME = "dx_doxygen"
 
-# Only the binary and its DLL feed an action; the release also ships thousands of manual pages.
 _BUILD = """\
 filegroup(
     name = "tool",

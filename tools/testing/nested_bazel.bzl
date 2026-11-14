@@ -8,7 +8,6 @@ NESTED_BAZEL_TAGS = [
     "resources:nested_bazel:1",
 ]
 
-# `network-consumer` opts a test into the CI `network` job.
 NESTED_BAZEL_NETWORK_TAGS = NESTED_BAZEL_TAGS + ["requires-network", "network-consumer"]
 
 _NESTED_BAZEL_BIN = str(Label("//tools/testing:nested_bazel_bin"))
@@ -24,7 +23,6 @@ NESTED_BAZEL_ENV = {
 
 _CONSUMER_MAVEN_LOCK = str(Label("//tools/testing/fixtures/consumer_maven:" + LOCK_REGISTRY["maven"]["lock"]))
 
-# The pinned Maven lock that nested consumers copy into their workspace.
 CONSUMER_MAVEN_DATA = [_CONSUMER_MAVEN_LOCK]
 
 CONSUMER_MAVEN_ENV = {

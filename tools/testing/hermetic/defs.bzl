@@ -5,14 +5,12 @@ load("//core:platform_support.bzl", "compatible_with", "platform_support")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
-# The ELF .comment entry, or the PE Rich header entry of cl.exe compiling C++.
 COMPILER_PRODUCERS = {
     "gcc": "GCC: (GNU) " + GCC_VERSION,
     "llvm": "clang version " + LLVM_CLANG_VERSION,
     "msvc": "msvc 261." + MSVC_CL_BUILD,
 }
 
-# The PE Rich header entry of cl.exe compiling C.
 MSVC_C_PRODUCER = "msvc 260." + MSVC_CL_BUILD
 
 def _hermetic_manifest_impl(ctx):
@@ -86,7 +84,6 @@ hermetic_manifest = rule(
     },
 )
 
-# Targets that cannot run on Windows (AppImage, GCC) pass their own compatible_with.
 PLATFORM_SUPPORT = platform_support(
     "//tools/testing/hermetic:defs.bzl",
     "HERMETIC_COMPATIBLE_WITH",

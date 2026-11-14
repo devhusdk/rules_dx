@@ -33,7 +33,6 @@ load("//tools/docs/zig:defs.bzl", "zig_doc_shard")
 load(":facts.bzl", "compiler_blocker_problems", "support_matrix_facts_dict", "tool_not_applicable")
 load(":languages.bzl", "BENCH", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "PLATFORMS", "UNSUPPORTED_CONSTRAINTS")
 
-# Loading each symbol proves the shard rule exists; the names are what DOC_TOOLS may point at.
 _SHARD_RULES = {
     "avro_doc_shard": avro_doc_shard,
     "astro_doc_shard": astro_doc_shard,
@@ -130,7 +129,6 @@ def _typecheck_gaps(facts):
             gaps.append(row["name"])
     return gaps
 
-# Rows with a stated reason that do not yet declare an unsupported constraint_value.
 _PENDING_UNSUPPORTED = ["appimage", "apple", "cc_gcc", "cc_msvc", "cuda", "fortran", "ocaml", "perl", "swift"]
 
 def support_matrix_facts_tests(name):

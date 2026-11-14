@@ -22,20 +22,7 @@ _direct_srcs_aspect = aspect(
 )
 
 def perl_shard_action(ctx, own, package, stem, driver, extract_tool):
-    """Runs the POD driver on the pinned perl and the extractor for one Perl library.
-
-    Args:
-      ctx: The rule or aspect context; it must carry the rules_perl exec toolchain.
-      own: The .pm and .pl files the library lists in its own srcs.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      driver: The pod_dump.pl file.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the `pod_json` and the `manifest`, or None
-      when the platform has no pinned perl.
-    """
+    """Runs the POD driver on the pinned perl and the extractor for one Perl library."""
     toolchain = ctx.toolchains[_PERL_TOOLCHAIN]
     if toolchain == None:
         return None
@@ -122,14 +109,7 @@ docs_perl_shard = rule(
 )
 
 def perl_doc_shard(name, lib, package = "", **kwargs):
-    """Declares the DocIr shard of one Perl library.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented perl_library.
-      package: Package segment of every symbol id; defaults to the name of lib.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one Perl library."""
     docs_perl_shard(
         name = name,
         lib = lib,

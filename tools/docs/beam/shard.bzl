@@ -29,22 +29,7 @@ def _manifest(ctx, stem, files):
     return manifest
 
 def beam_shard_action(ctx, language, srcs, dep_beams, package, stem, runner, extract_tool, driver = None):
-    """Runs the pinned runtime over the sources and the extractor over its JSON.
-
-    Args:
-      ctx: The rule or aspect context carrying the coreutils toolchain.
-      language: "elixir" or "erlang".
-      srcs: The .ex or .erl files the shard documents.
-      dep_beams: Compiled dependency files and ebin directories the Elixir compiler loads.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      runner: FilesToRunProvider of ELIXIR_DUMP_TOOL for Elixir, of ESCRIPT_TOOL for Erlang.
-      extract_tool: The beam_extract executable.
-      driver: The edoc_dump.escript file; Erlang only.
-
-    Returns:
-      A struct with the DocIr `shard`, the dump `json` and the `manifest`.
-    """
+    """Runs the pinned runtime over the sources and the extractor over its JSON."""
     manifest = _manifest(ctx, stem, srcs)
     json = ctx.actions.declare_file(stem + ".dump.json")
     applets = coreutils(ctx)

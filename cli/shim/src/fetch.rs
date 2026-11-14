@@ -210,6 +210,7 @@ mod interrupt {
     const SIGINT: c_int = 2;
     const SIGTERM: c_int = 15;
 
+    #[expect(unsafe_code, reason = "libc signal, unlink and _exit declarations for an async-signal-safe handler")]
     unsafe extern "C" {
         fn signal(signum: c_int, handler: usize) -> usize;
         fn unlink(path: *const c_char) -> c_int;
@@ -218,20 +219,25 @@ mod interrupt {
 
     static PATH: AtomicPtr<c_char> = AtomicPtr::new(std::ptr::null_mut());
 
+    #[expect(unsafe_code, reason = "a signal handler may only call async-signal-safe libc functions")]
     extern "C" fn on_signal(signum: c_int) {
         let path = PATH.load(Ordering::SeqCst);
         if !path.is_null() {
+            // SAFETY: `path` is a leaked NUL-terminated CString; unlink is async-signal-safe.
             unsafe { unlink(path) };
         }
+        // SAFETY: _exit is async-signal-safe and never returns.
         unsafe { _exit(128 + signum) }
     }
 
+    #[expect(unsafe_code, reason = "installing a signal handler needs libc signal")]
     pub fn watch(path: &Path) {
         static INSTALL: Once = Once::new();
         let Ok(path) = CString::new(path.as_os_str().as_bytes()) else {
             return;
         };
         PATH.store(path.into_raw(), Ordering::SeqCst);
+        // SAFETY: `on_signal` has the handler ABI and only calls async-signal-safe functions.
         INSTALL.call_once(|| unsafe {
             signal(SIGINT, on_signal as *const () as usize);
             signal(SIGTERM, on_signal as *const () as usize);
@@ -254,6 +260,7 @@ mod interrupt {
         clippy::exit,
         reason = "a console control handler ends the process with the signal exit code"
     )]
+    #[expect(unsafe_code, reason = "a console control handler is an unsafe extern fn")]
     unsafe extern "system" fn on_ctrl(ctrl_type: u32) -> i32 {
         if let Some(path) = PATH.lock().ok().and_then(|p| p.clone()) {
             let _ = std::fs::remove_file(path);
@@ -261,11 +268,13 @@ mod interrupt {
         std::process::exit(128 + if ctrl_type == 0 { 2 } else { 15 })
     }
 
+    #[expect(unsafe_code, reason = "registering a console control handler calls a Win32 API")]
     pub fn watch(path: &Path) {
         static INSTALL: Once = Once::new();
         if let Ok(mut current) = PATH.lock() {
             *current = Some(path.to_path_buf());
         }
+        // SAFETY: `on_ctrl` is a static handler with the required ABI.
         INSTALL.call_once(|| unsafe {
             windows_sys::Win32::System::Console::SetConsoleCtrlHandler(Some(on_ctrl), 1);
         });

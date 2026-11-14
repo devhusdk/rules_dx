@@ -36,11 +36,19 @@ pub struct LockHubs {
     pub notes: Vec<String>,
 }
 
+#[expect(
+    clippy::panic,
+    reason = "the setup.hubs table is embedded in the binary and callers pass literal ecosystems"
+)]
 fn registry(ecosystem: &str) -> &'static Hub {
     dx_families::hub(ecosystem).unwrap_or_else(|| panic!("no setup.hubs entry for {ecosystem}"))
 }
 
 /// The lock file name of the `setup.hubs` entry of `ecosystem`.
+#[expect(
+    clippy::panic,
+    reason = "the setup.hubs table is embedded in the binary and callers pass literal ecosystems"
+)]
 pub fn lock_of(ecosystem: &str) -> &'static str {
     registry(ecosystem)
         .lock
@@ -53,6 +61,10 @@ pub fn manifest_of(ecosystem: &str) -> &'static str {
 }
 
 /// The state file name of the `setup.hubs` entry of `ecosystem`.
+#[expect(
+    clippy::panic,
+    reason = "the setup.hubs table is embedded in the binary and callers pass literal ecosystems"
+)]
 pub fn state_of(ecosystem: &str) -> &'static str {
     registry(ecosystem)
         .state

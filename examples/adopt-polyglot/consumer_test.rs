@@ -13,6 +13,16 @@ fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
 
+/// The handwritten thin entry of `native_cpp/main`, which `dx generate` does not write.
+const SHAPES_MAIN_BUILD: &str = r#"load("@rules_dx//cc:defs.bzl", "cc_binary")
+
+cc_binary(
+    name = "shapes_main",
+    srcs = ["shapes_main.cc"],
+    deps = ["//native_cpp"],
+)
+"#;
+
 /// Copies the example sources, without the BUILD files that `dx generate` writes.
 fn copy_sources(from: &Path, to: &Path) {
     let entries = std::fs::read_dir(from).unwrap_or_else(|error| panic!("read {from:?}: {error}"));
@@ -82,6 +92,7 @@ fn the_polyglot_example_adopts_and_tests_green() {
     let root = case.root().to_path_buf();
     let example = resolve_runfiles("examples/adopt-polyglot/Cargo.toml");
     copy_sources(example.parent().unwrap_or(&example), &root);
+    write_text(&root.join("native_cpp/main/BUILD.bazel"), SHAPES_MAIN_BUILD);
     write_text(
         &root.join(".bazelversion"),
         &read_text(&source.join(".bazelversion")),

@@ -1,4 +1,4 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
 
 use std::fs;
 use std::io;

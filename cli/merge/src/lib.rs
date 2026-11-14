@@ -1,4 +1,4 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
 
 //! Pure text merges that change only what dx owns and keep every other byte.
 

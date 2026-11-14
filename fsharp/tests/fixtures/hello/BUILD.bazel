@@ -18,7 +18,7 @@ fsharp_binary(
     srcs = ["Program.fs"],
     deps = [
         ":hello",
-        "@paket.main//fsharp.core",
+        "@nuget//fsharp.core",
     ],
 )
 

@@ -12,9 +12,9 @@ fsharp_binary(
     target_frameworks = [DOTNET_TOOL_FRAMEWORK],
     visibility = ["//tools/docs/dotnet:__pkg__"],
     deps = [
-        "@paket.docs_fsharp//fsharp.compiler.service",
-        "@paket.docs_fsharp//fsharp.core",
-        "@paket.docs_fsharp//fsharp.formatting",
+        "@nuget.docs_fsharp//fsharp.compiler.service",
+        "@nuget.docs_fsharp//fsharp.core",
+        "@nuget.docs_fsharp//fsharp.formatting",
     ],
 )
 

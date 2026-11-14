@@ -1,6 +1,6 @@
 load("//core:wrapper.bzl", "dx_setdefaults", "dx_warnings_as_errors")
 
-FSHARP_CORE = Label("@paket.main//fsharp.core")
+FSHARP_CORE = Label("@nuget//fsharp.core")
 
 def fsharp_tfm_with_defaults(kwargs):
     """Returns kwargs defaulting target_frameworks and the upstream treat_warnings_as_errors, which follows //config:warnings_as_errors when unset."""

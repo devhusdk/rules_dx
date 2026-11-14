@@ -70,3 +70,32 @@ npm.npm_translate_lock(
     pnpm_lock = "//javascript/tests/fixtures/node-app:pnpm-lock.yaml",
 )
 use_repo(npm, "npm_consumer_app")
+
+cargo = use_extension("@my_dx//rust:extensions.bzl", "cargo")
+cargo.annotation(
+    build_script_env = {
+        "CFLAGS": "$(DX_BS_CFLAGS)",
+        "HOST_AR": "$(DX_BS_HOST_AR)",
+        "HOST_CC": "$(DX_BS_HOST_CC)",
+        "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+        "HOST_CXX": "$(DX_BS_HOST_CXX)",
+        "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+        "TARGET_AR": "$(DX_BS_TARGET_AR)",
+        "TARGET_CC": "$(DX_BS_TARGET_CC)",
+        "TARGET_CXX": "$(DX_BS_TARGET_CXX)",
+    },
+    build_script_toolchains = ["@my_dx//rust/private:build_script_cc_env"],
+    crate = "*",
+)
+cargo.from_cargo(
+    name = "crates",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = [
+        "//:Cargo.toml",
+        "//rust/tests/fixtures/cc-rs:Cargo.toml",
+    ],
+)
+use_repo(cargo, "crates")
+
+dx_licenses = use_extension("@my_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["visual-studio-build-tools"])

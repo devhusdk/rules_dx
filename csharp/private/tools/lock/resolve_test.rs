@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 
 use dx_lock::{Args, Error, Fetch, Outcome, run};
-use nuget_lock::{Download, Nuget, lock_groups, normalize_version};
+use nuget_lock::{Download, Nuget, Tool, lock_groups, manifest_frameworks, normalize_version, tools};
 
 const ALPHA: &str =
     "https://api.nuget.org/v3-flatcontainer/alpha.core/1.2.0/alpha.core.1.2.0.nupkg";
@@ -157,4 +157,82 @@ fn versions_take_the_nuget_normal_form() {
     assert_eq!(normalize_version("1.2.3.0"), "1.2.3");
     assert_eq!(normalize_version("1.2.3.4"), "1.2.3.4");
     assert_eq!(normalize_version("01.002.0-beta.1+sha"), "1.2.0-beta.1");
+}
+
+#[test]
+fn each_group_takes_its_framework_restriction() {
+    let frameworks = manifest_frameworks(MANIFEST);
+    assert_eq!(
+        frameworks.get("main").map(Vec::as_slice),
+        Some(["net10.0".to_owned()].as_slice())
+    );
+    assert_eq!(
+        frameworks.get("tools").map(Vec::as_slice),
+        Some(["net10.0".to_owned()].as_slice())
+    );
+}
+
+#[test]
+fn a_group_without_a_framework_fails() {
+    let dir = set(
+        "source https://api.nuget.org/v3/index.json\nnuget Beta\n",
+        STATE,
+    );
+    let error = lock(dir.path(), &Registry(RefCell::default())).expect_err("refused");
+    assert!(
+        error
+            .to_string()
+            .contains("group main has no framework restriction"),
+        "{error}"
+    );
+}
+
+fn archive(files: &[(&str, &str)]) -> Vec<u8> {
+    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for (name, text) in files {
+        writer
+            .start_file(
+                *name,
+                zip::write::SimpleFileOptions::default()
+                    .compression_method(zip::CompressionMethod::Stored),
+            )
+            .expect("entry");
+        std::io::Write::write_all(&mut writer, text.as_bytes()).expect("write");
+    }
+    writer.finish().expect("archive").into_inner()
+}
+
+#[test]
+fn tool_packages_name_their_commands_per_framework() {
+    let bytes = archive(&[
+        (
+            "Tool.nuspec",
+            "<package><metadata><packageTypes><packageType name=\"DotnetTool\" /></packageTypes></metadata></package>",
+        ),
+        (
+            "tools/net10.0/any/DotnetToolSettings.xml",
+            "<DotNetCliTool Version=\"1\"><Commands><Command Name=\"tool\" EntryPoint=\"Tool.dll\" Runner=\"dotnet\" /></Commands></DotNetCliTool>",
+        ),
+    ]);
+    let found = tools(&bytes).expect("tools");
+    assert_eq!(
+        found.get("net10.0").map(Vec::as_slice),
+        Some(
+            [Tool {
+                name: "tool".to_owned(),
+                entrypoint: "Tool.dll".to_owned(),
+                runner: "dotnet".to_owned(),
+            }]
+            .as_slice()
+        )
+    );
+}
+
+#[test]
+fn library_packages_have_no_commands() {
+    let bytes = archive(&[
+        ("Lib.nuspec", "<package><metadata /></package>"),
+        ("tools/net10.0/any/DotnetToolSettings.xml", "<Commands />"),
+    ]);
+    assert!(tools(&bytes).expect("tools").is_empty());
 }

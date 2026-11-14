@@ -14,6 +14,9 @@
         ],
         "deps": [],
         "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
           "nuget_sha512": "sha512-KIlO6EGJvF0uWFSLC/FlIqFUE9vRtiYvLPvhCRBsQLEXdgzz1G4CJAzMb5yCXkzHNnL4AZDnP4D7b6Em2Xdqng=="
         },
         "name": "Alpha.Core",
@@ -36,6 +39,9 @@
           "Alpha.Core"
         ],
         "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
           "nuget_sha512": "sha512-KQk/s917z2L/RquSnv1eRM5Aw9y9N8875OMLejsr0J1ZfqRCLJqp59IQT8CD0BfI8bPWjzJDxZknfQWmpWlnjQ=="
         },
         "name": "Beta",
@@ -59,6 +65,9 @@
         ],
         "deps": [],
         "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
           "nuget_sha512": "sha512-KIlO6EGJvF0uWFSLC/FlIqFUE9vRtiYvLPvhCRBsQLEXdgzz1G4CJAzMb5yCXkzHNnL4AZDnP4D7b6Em2Xdqng=="
         },
         "name": "Alpha.Core",

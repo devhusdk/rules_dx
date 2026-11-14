@@ -619,6 +619,7 @@ LANGS = json.decode("""{
     ],
     "family": "core",
     "lockfiles": [
+      "nuget.lock.json",
       "paket.lock"
     ],
     "manifests": [
@@ -639,13 +640,13 @@ LANGS = json.decode("""{
         {
           "ecosystem": "nuget",
           "extension": "@rules_dx//csharp:extensions.bzl",
-          "hub": "paket.main",
-          "imports": "name",
-          "lock": "paket.lock",
+          "hub": "nuget",
+          "imports": "provides",
+          "lock": "nuget.lock.json",
           "manifest": "paket.dependencies",
-          "resolver": null,
+          "resolver": "@rules_dx//csharp/private/tools/lock",
           "state": "paket.lock",
-          "tag": null
+          "tag": "lock"
         }
       ]
     },

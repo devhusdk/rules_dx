@@ -6,6 +6,7 @@ exports_files([
     "framework.bzl",
     "dotnet-tools.json",
     "extension.bzl",
+    "nuget.lock.json",
     "paket.dependencies",
     "paket.lock",
 ])

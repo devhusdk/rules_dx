@@ -90,6 +90,28 @@ pub fn manifest_groups(text: &str) -> Result<Vec<String>, Error> {
     Ok(groups)
 }
 
+/// The `framework:` target frameworks of each group of a Paket dependencies file, sorted.
+#[must_use]
+pub fn manifest_frameworks(text: &str) -> BTreeMap<String, Vec<String>> {
+    let mut frameworks: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut group = MAIN.to_owned();
+    for line in text.lines().map(str::trim) {
+        if let Some(name) = line.strip_prefix("group ") {
+            name.trim().clone_into(&mut group);
+        } else if let Some(list) = line.strip_prefix("framework:") {
+            let tfms = frameworks.entry(group.clone()).or_default();
+            tfms.extend(
+                list.split(',')
+                    .map(|tfm| tfm.trim().trim_start_matches(">=").trim().to_owned())
+                    .filter(|tfm| !tfm.is_empty()),
+            );
+            tfms.sort();
+            tfms.dedup();
+        }
+    }
+    frameworks
+}
+
 /// The NuGet normal form of a version: three or four numeric parts, a fourth only when not zero.
 #[must_use]
 pub fn normalize_version(version: &str) -> String {
@@ -222,6 +244,120 @@ pub fn assemblies(bytes: &[u8]) -> Result<Vec<String>, Error> {
     Ok(names)
 }
 
+/// The attributes of every `<tag ...>` element of an XML text, in document order.
+fn elements(text: &str, tag: &str) -> Vec<BTreeMap<String, String>> {
+    let open = format!("<{tag}");
+    let mut found = Vec::new();
+    let mut rest = text;
+    while let Some(at) = rest.find(&open) {
+        rest = rest.get(at + open.len()..).unwrap_or_default();
+        if !rest.starts_with(|c: char| c.is_whitespace() || c == '/' || c == '>') {
+            continue;
+        }
+        let end = rest.find('>').unwrap_or(rest.len());
+        let mut body = rest.get(..end).unwrap_or_default();
+        let mut attributes = BTreeMap::new();
+        while let Some((key, after)) = body.split_once('=') {
+            let after = after.trim_start();
+            let Some(quote) = after.chars().next().filter(|c| *c == '"' || *c == '\'') else {
+                break;
+            };
+            let value = after.get(1..).unwrap_or_default();
+            let Some((value, tail)) = value.split_once(quote) else {
+                break;
+            };
+            let key = key.split_whitespace().last().unwrap_or_default();
+            attributes.insert(key.to_owned(), value.to_owned());
+            body = tail;
+        }
+        found.push(attributes);
+    }
+    found
+}
+
+/// One command of a .NET tool package.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Tool {
+    /// The command name.
+    pub name: String,
+    /// The assembly the command runs.
+    pub entrypoint: String,
+    /// The host that runs it.
+    pub runner: String,
+}
+
+/// The commands of a .NET tool package archive by tools folder target framework; empty for other packages.
+///
+/// # Errors
+/// Fails when the bytes are not a zip archive or a tool settings file is unreadable.
+pub fn tools(bytes: &[u8]) -> Result<BTreeMap<String, Vec<Tool>>, Error> {
+    let mut archive =
+        zip::ZipArchive::new(Cursor::new(bytes)).map_err(|error| Error::new(error.to_string()))?;
+    let mut read = |path: &str| -> Result<String, Error> {
+        let mut file = archive
+            .by_name(path)
+            .map_err(|error| Error::new(format!("{path}: {error}")))?;
+        let mut text = String::new();
+        std::io::Read::read_to_string(&mut file, &mut text)
+            .map_err(|error| Error::new(format!("{path}: {error}")))?;
+        Ok(text)
+    };
+    let names: Vec<String> = zip::ZipArchive::new(Cursor::new(bytes))
+        .map_err(|error| Error::new(error.to_string()))?
+        .file_names()
+        .map(|name| {
+            name.map(std::borrow::Cow::into_owned)
+                .map_err(|error| Error::new(error.to_string()))
+        })
+        .collect::<Result<_, _>>()?;
+    let Some(nuspec) = names
+        .iter()
+        .find(|name| !name.contains('/') && name.to_ascii_lowercase().ends_with(".nuspec"))
+    else {
+        return Ok(BTreeMap::new());
+    };
+    let is_tool = elements(&read(nuspec)?, "packageType")
+        .iter()
+        .any(|attributes| attributes.get("name").is_some_and(|name| name == "DotnetTool"));
+    let mut found = BTreeMap::new();
+    if !is_tool {
+        return Ok(found);
+    }
+    for name in &names {
+        let mut parts = name.split('/');
+        let (Some("tools"), Some(tfm), Some(_), Some("DotnetToolSettings.xml"), None) = (
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+        ) else {
+            continue;
+        };
+        if tfm == "any" {
+            continue;
+        }
+        let commands = elements(&read(name)?, "Command")
+            .into_iter()
+            .map(|attributes| {
+                let field = |key: &str| {
+                    attributes
+                        .get(key)
+                        .cloned()
+                        .ok_or_else(|| Error::new(format!("{name}: a Command without {key}")))
+                };
+                Ok(Tool {
+                    name: field("Name")?,
+                    entrypoint: field("EntryPoint")?,
+                    runner: field("Runner")?,
+                })
+            })
+            .collect::<Result<Vec<_>, Error>>()?;
+        found.insert(tfm.to_owned(), commands);
+    }
+    Ok(found)
+}
+
 /// The `sha512-<base64>` digest of `bytes`.
 #[must_use]
 pub fn sha512(bytes: &[u8]) -> String {
@@ -263,8 +399,10 @@ impl<'a> Nuget<'a> {
         &self,
         pinned: &Pinned,
         names: &[&str],
+        frameworks: &[String],
         old: Option<&[Package]>,
     ) -> Result<Package, Error> {
+        let frameworks = Value::from(frameworks.to_vec());
         let url = archive_url(&pinned.name, &pinned.version);
         let deps: Vec<String> = pinned
             .deps
@@ -284,8 +422,11 @@ impl<'a> Nuget<'a> {
             })
         });
         if let Some(previous) = previous {
+            let mut extra = previous.extra.clone();
+            extra.insert("nuget_frameworks".to_owned(), frameworks);
             return Ok(Package {
                 deps,
+                extra,
                 ..previous.clone()
             });
         }
@@ -296,6 +437,30 @@ impl<'a> Nuget<'a> {
             ))
         })?;
         let provides = assemblies(&bytes).map_err(|error| Error::new(format!("{url}: {error}")))?;
+        let commands = tools(&bytes).map_err(|error| Error::new(format!("{url}: {error}")))?;
+        let mut extra = BTreeMap::from([
+            ("nuget_frameworks".to_owned(), frameworks),
+            ("nuget_sha512".to_owned(), Value::String(sha512(&bytes))),
+        ]);
+        if !commands.is_empty() {
+            let commands = commands
+                .into_iter()
+                .map(|(tfm, commands)| {
+                    let commands = commands
+                        .into_iter()
+                        .map(|tool| {
+                            serde_json::json!({
+                                "entrypoint": tool.entrypoint,
+                                "name": tool.name,
+                                "runner": tool.runner,
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    (tfm, Value::from(commands))
+                })
+                .collect::<serde_json::Map<_, _>>();
+            extra.insert("nuget_tools".to_owned(), Value::Object(commands));
+        }
         Ok(Package {
             name: pinned.name.clone(),
             version: pinned.version.clone(),
@@ -307,7 +472,7 @@ impl<'a> Nuget<'a> {
             }],
             deps,
             provides,
-            extra: BTreeMap::from([("nuget_sha512".to_owned(), Value::String(sha512(&bytes)))]),
+            extra,
             ..Package::default()
         })
     }
@@ -319,8 +484,10 @@ impl Resolver for Nuget<'_> {
             std::fs::read_to_string(scratch.set().join(name))
                 .map_err(|error| Error::new(format!("{name}: {error}")))
         };
-        let wanted = manifest_groups(&read(&self.manifest)?)
+        let manifest = read(&self.manifest)?;
+        let wanted = manifest_groups(&manifest)
             .map_err(|error| Error::new(format!("{}: {error}", self.manifest)))?;
+        let frameworks = manifest_frameworks(&manifest);
         let locked = lock_groups(&read(&self.state)?)
             .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
         let mut groups = BTreeMap::new();
@@ -333,13 +500,24 @@ impl Resolver for Nuget<'_> {
             if pinned.is_empty() {
                 continue;
             }
+            let tfms = frameworks
+                .iter()
+                .find(|(name, _)| name.eq_ignore_ascii_case(&group))
+                .map(|(_, tfms)| tfms.as_slice())
+                .filter(|tfms| !tfms.is_empty())
+                .ok_or_else(|| {
+                    Error::new(format!(
+                        "{}: group {group} has no framework restriction",
+                        self.manifest
+                    ))
+                })?;
             let names: Vec<&str> = pinned.iter().map(|package| package.name.as_str()).collect();
             let previous = old
                 .and_then(|lock| lock.groups.get(&group))
                 .map(Vec::as_slice);
             let packages = pinned
                 .iter()
-                .map(|package| self.package(package, &names, previous))
+                .map(|package| self.package(package, &names, tfms, previous))
                 .collect::<Result<Vec<_>, _>>()?;
             groups.insert(group, packages);
         }

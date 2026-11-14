@@ -316,10 +316,6 @@ php format_test *
 php lint_error_test *
 php lint_test *
 php runfiles_test *
-powershell format_error_test *
-powershell format_test *
-powershell lint_error_test *
-powershell lint_test *
 powershell runfiles_test *
 python runfiles_test *
 qt build_test *

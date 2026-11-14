@@ -140,6 +140,7 @@ workspace_policy(
         "//core/quality/testdata:tool_override_julia_family",
         "//core/quality/testdata:tool_override_perl_family",
         "//core/quality/testdata:tool_override_php_family",
+        "//core/quality/testdata:tool_override_powershell_family",
         "//core/quality/testdata:tool_override_ruby_family",
         "//core/quality/testdata:tool_override_zig_family",
     ],

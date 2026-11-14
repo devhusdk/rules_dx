@@ -1,10 +1,10 @@
 load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
 load("@rules_cc//cc/toolchains/impl:documented_api.bzl", "cc_args_list")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load(":search_path.bzl", "search_path")
 load(":toolchains.bzl", "clang_cl_toolchains")
 
 package(default_visibility = ["//visibility:public"])
-
 
 search_path(
     name = "dynamic_crt_link_lib_path",
@@ -132,4 +132,14 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "search_path.bzl",
+        "toolchains.bzl",
+    ],
+    tags = ["corpus"],
 )

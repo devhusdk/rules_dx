@@ -71,7 +71,12 @@ func runFakeDir(t *testing.T, tests *TestSpec, files map[string]string, existing
 	}
 	var regular []string
 	for name, content := range files {
-		regular = append(regular, name)
+		if !strings.Contains(name, "/") {
+			regular = append(regular, name)
+		}
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o755); err != nil {
+			t.Fatal(err)
+		}
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -260,5 +265,18 @@ func TestGeneratedTestAcceptsAltKinds(t *testing.T) {
 	}
 	if !ownsGeneratedTest(spec)(r) {
 		t.Errorf("ownsGeneratedTest(%s) = false, want true", r.Kind())
+	}
+}
+
+func TestGenerateSingleDirKeepsRulesListingNestedSources(t *testing.T) {
+	result, rep := runFakeDir(t, fakeTestSpec(), map[string]string{"A.fk": "", "lib/Dirty.fk": ""}, existingFile(
+		newRule(fakeLib, "dirty", "lib/Dirty.fk"),
+		newRule(fakeLib, "gone", "lib/Gone.fk"),
+	))
+	if rep.Failed() {
+		t.Fatal(rep.errs)
+	}
+	if got := ruleSummary(result.Empty); got != "fake_library(gone)" {
+		t.Errorf("Empty = %s, want only fake_library(gone)", got)
 	}
 }

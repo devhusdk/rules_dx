@@ -71,13 +71,3 @@ failure_test(
     expected_failure_substring = "does not have mandatory providers: 'PerlInfo'",
     target = ":wrong_dep",
 )
-
-perl_library(
-    name = "negative",
-    testonly = True,
-    srcs = [
-        "Base.pm",
-        "Clean.pm",
-    ],
-    visibility = ["//visibility:public"],
-)

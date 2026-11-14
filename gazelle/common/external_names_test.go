@@ -25,9 +25,9 @@ func TestNamedLockResolvesImports(t *testing.T) {
 			eco:      "nuget",
 			lockText: "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    Newtonsoft.Json (13.0.3)\n    Azure.Core (1.62)\n      Newtonsoft.Json (>= 13.0.3)\nGITHUB\n  remote: o/r\n    Missing.Namespace (abc)\n",
 			imports: map[string]string{
-				"Newtonsoft.Json":      "@paket.main//newtonsoft.json",
-				"Newtonsoft.Json.Linq": "@paket.main//newtonsoft.json",
-				"Azure.Core":           "@paket.main//azure.core",
+				"Newtonsoft.Json":      "@nuget//newtonsoft.json",
+				"Newtonsoft.Json.Linq": "@nuget//newtonsoft.json",
+				"Azure.Core":           "@nuget//azure.core",
 			},
 			unknown: "Missing.Namespace",
 		},

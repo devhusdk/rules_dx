@@ -22,6 +22,7 @@ rust_binary(
 
 rust_test(
     name = "opa_test_launcher_test",
+    size = "small",
     srcs = [
         "src/main.rs",
         "src/opa.rs",

@@ -88,6 +88,7 @@ consumer_archive(
 
 rust_test(
     name = "libstdcxx_archive_test",
+    size = "small",
     testonly = True,
     srcs = ["libstdcxx_archive_test.rs"],
     aliases = aliases(
@@ -112,6 +113,7 @@ rust_test(
 
 rust_test(
     name = "imports_test",
+    size = "small",
     testonly = True,
     srcs = ["imports_test.rs"],
     aliases = aliases(
@@ -141,6 +143,7 @@ rust_test(
 
 rust_test(
     name = "archive_test",
+    size = "small",
     testonly = True,
     srcs = ["archive_test.rs"],
     aliases = aliases(
@@ -165,6 +168,7 @@ rust_test(
 
 rust_test(
     name = "artifacts_test",
+    size = "small",
     testonly = True,
     srcs = ["artifacts_test.rs"],
     aliases = aliases(

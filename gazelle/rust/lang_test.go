@@ -1222,6 +1222,28 @@ func TestCorpusLeavesTargetsOwnedByOtherKinds(t *testing.T) {
 	}
 }
 
+func TestCorpusLeavesFilesALanguageCorpusListsByLabel(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "lang/BUILD.bazel", "")
+	writeFixture(t, root, "lang/README.md", "")
+	writeFixture(t, root, "lang/defs.bzl", "")
+	writeFixture(t, root, "lang/private/quality/BUILD.bazel", "php_corpus(\n    name = \"corpus_starlark\",\n    markdown_srcs = [\"//lang:README.md\"],\n    starlark_srcs = [\n        \"//lang:BUILD.bazel\",\n        \"//lang:defs.bzl\",\n    ],\n)\n")
+	file, err := rule.LoadData(filepath.Join(root, "lang", "BUILD.bazel"), "lang", []byte("exports_files([\"README.md\"])\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := planCorpus(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "lang"),
+		Rel:          "lang",
+		File:         file,
+		RegularFiles: []string{"BUILD.bazel", "README.md", "defs.bzl"},
+	}, true)
+	if len(plan.errs) != 0 || len(plan.gen) != 0 {
+		t.Errorf("generated %v with errors %v, want nothing", plan.gen, plan.errs)
+	}
+}
+
 func withSubdirs(args language.GenerateArgs) language.GenerateArgs {
 	entries, err := os.ReadDir(args.Dir)
 	if err != nil {

@@ -15,25 +15,14 @@ _SUFFIX = {
 }
 
 def msvc_toolchain_cells(name = "msvc"):
-    """Returns the (name, exec cpu, target cpu) of each supported cell.
-
-    Args:
-        name: Prefix of the toolchain names.
-
-    Returns:
-        A list of (toolchain name, exec cpu, target cpu) tuples.
-    """
+    """Returns the (name, exec cpu, target cpu) of each supported cell."""
     return [
         ("{}_windows_{}".format(name, _SUFFIX[cell]), _CPU[cell[0]], _CPU[cell[1]])
         for cell in SUPPORTED_CELLS
     ]
 
 def msvc_toolchains(name):
-    """Declares a toolchain() for each supported MSVC cell.
-
-    Args:
-        name: Prefix of the toolchain names.
-    """
+    """Declares a toolchain() for each supported MSVC cell."""
     for cell in SUPPORTED_CELLS:
         host, target = cell
         native.toolchain(

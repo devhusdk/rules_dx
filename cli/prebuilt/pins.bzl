@@ -1,4 +1,4 @@
-"""The dx release that consumers download, with one sha256 per release asset (dx and dx_gazelle); empty means unpinned."""
+"""The dx release that consumers download, with one sha256 per release asset."""
 
 DX_VERSION = "0.0.0"
 

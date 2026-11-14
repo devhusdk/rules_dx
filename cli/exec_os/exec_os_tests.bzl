@@ -23,11 +23,7 @@ _default_test = analysistest.make(
 )
 
 def exec_os_tests(name):
-    """Declares the exec_os analysis tests.
-
-    Args:
-        name: Name of the test suite.
-    """
+    """Declares the exec_os analysis tests."""
     tests = [name + "_windows", name + "_default"]
     _windows_test(name = tests[0], size = "small", target_under_test = ":exec_os")
     _default_test(name = tests[1], size = "small", target_under_test = ":exec_os")

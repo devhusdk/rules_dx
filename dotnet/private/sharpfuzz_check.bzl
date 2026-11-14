@@ -37,5 +37,5 @@ _transitive_test = analysistest.make(
 )
 
 def dx_sharpfuzz_transitive_test(name, harness, chain):
-    """Asserts every first-party assembly in chain under a fuzz harness is instrumented and linked to the instrumented ones below it."""
+    """Asserts every first-party assembly in chain under a fuzz harness is instrumented."""
     _transitive_test(name = name, size = "small", target_under_test = harness, chain = chain)

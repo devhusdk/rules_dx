@@ -9,14 +9,7 @@ _STD_MARKER = "/src/capnp/"
 _STD_JAVA_MARKER = "/schema/capnp/"
 
 def std_import_path(short_path):
-    """Maps a bundled schema's short_path to its import path under /capnp/.
-
-    Args:
-      short_path: short_path of a file from the capnp archive (`../<repo>/src/capnp/...` or `../<repo>/.../schema/capnp/...`).
-
-    Returns:
-      The path from the import root, for example `capnp/c++.capnp`.
-    """
+    """Maps a bundled schema's short_path to its import path under /capnp/."""
     for marker in (_STD_MARKER, _STD_JAVA_MARKER):
         at = short_path.rfind(marker)
         if at >= 0:

@@ -76,7 +76,7 @@ _erlang_bytecode_forward = dx_library_forward_rule(
 )
 
 def otp_launch_descriptor(root, tool, archive_key = None, windows = False, version_key = None):
-    """Returns the native launcher descriptor that runs `bin/<tool>` of the OTP tree at `root`; `version_key` is a file in the tree root."""
+    """Returns the native launcher descriptor that runs `bin/<tool>` of the OTP tree at `root`."""
     lines = ["program=" + root + "/bin/" + tool + (".exe" if windows else "")]
     if archive_key:
         lines.append("path=" + archive_key)
@@ -119,7 +119,7 @@ def escript_nif_message(label, offenders):
     )
 
 def _check_escript_without_nifs(ctx):
-    """Fails when an app bundled into the escript ships a native library. The single place an unpack mode would switch off."""
+    """Fails when an app bundled into the escript ships a native library."""
     offenders = []
     for app in ctx.attr.apps + flat_deps(ctx.attr.apps):
         name = app[_ErlangAppInfo].app_name
@@ -470,7 +470,7 @@ _warning_erlc_opts = rule(
 )
 
 def erlang_bytecode(name, srcs, visibility = None, **kwargs):
-    """Thin wrapper over rules_erlang erlang_bytecode. Adds -Werror to erlc_opts following warnings_as_errors."""
+    """Thin wrapper over rules_erlang erlang_bytecode."""
     kwargs, base, flag = erlang_bytecode_kwargs(kwargs)
     _warning_erlc_opts(
         name = name + "_erlc_opts",
@@ -484,7 +484,7 @@ def erlang_bytecode(name, srcs, visibility = None, **kwargs):
     dx_wrap(name, _erlang_bytecode, _erlang_bytecode_forward, srcs, visibility = visibility, **kwargs)
 
 def erlang_escript_archive(name, visibility = None, **kwargs):
-    """Thin wrapper over rules_erlang escript_archive. Runs on the pinned OTP runtime; fails when an app ships NIFs."""
+    """Thin wrapper over rules_erlang escript_archive."""
     kwargs = erlang_kwargs(kwargs)
     srcs = kwargs.get("srcs", [])
     _escript_archive(name = name + "_upstream", **dx_binary_upstream_kwargs(kwargs, srcs))
@@ -516,7 +516,7 @@ def ct_run_args(extra_args):
     return LOCAL_NODE_ARGS + extra_args
 
 def erlang_ct_suite_test(name, *, suite_name = "", visibility = None, **kwargs):
-    """Thin wrapper over the rules_erlang ct_suite macro. Adds -sname undefined and -start_epmd false unless ct_run_extra_args sets -sname or -name."""
+    """Thin wrapper over the rules_erlang ct_suite macro."""
     kwargs = erlang_erlc_kwargs(kwargs, _DEFAULT_TEST_ERLC_OPTS)
     suite = suite_name if suite_name != "" else name
     kwargs["ct_run_extra_args"] = ct_run_args(kwargs.get("ct_run_extra_args", []))

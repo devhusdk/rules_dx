@@ -1,4 +1,4 @@
-// Generated from core/quality/tools.bzl. Run `bazel run //core/quality:update_tools` to refresh it.
+// Generated from core/quality/tools.bzl.
 
 pub const REAL_TOOLS: &[&str] = &[
     "actionlint",

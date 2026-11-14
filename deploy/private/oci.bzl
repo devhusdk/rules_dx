@@ -80,7 +80,7 @@ _oci_config = rule(
 )
 
 def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", build_mode = "release", size_budget = None, sbom = None, scan = "fail", scan_severity = "HIGH", tags = None, visibility = None, testonly = False, target_compatible_with = None):
-    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image for `platform`, a linux amd64 or arm64 platform label, as a local-first OCI deployment, optionally failing above size_budget such as '500MB', carrying a dx_sbom target as `sbom`. The staged image is scanned with trivy (DX_TRIVY, DX_TRIVY_CACHE) for findings at or above scan_severity not covered by security.toml exceptions; scan is off, warn or fail, and fail also stops the push. `dx security` scans the same image (output group dx_oci_image of the `<name>_config` target) and prints one row per image."""
+    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image for `platform`."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     effective_repo = repository if repository != "" else name
     if scan not in ["off", "warn", "fail"]:

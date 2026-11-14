@@ -109,7 +109,7 @@ dx_sharpfuzz_instrument = rule(
 )
 
 def sharpfuzz_fuzz(name, binary, srcs, deps, visibility, tags, kwargs):
-    """Declares the instrumented deps, the harness `<name>` and the `<name>_run` runner. binary is the language's binary macro."""
+    """Declares the instrumented deps, the harness `<name>` and the `<name>_run` runner."""
     instrumented = []
     for i, dep in enumerate(deps or []):
         wrapped = "{}_sharpfuzz_{}".format(name, i)

@@ -38,11 +38,7 @@ _windows_arm64_msvc_test = _make("windows_arm64", "msvc")
 _linux_llvm_test = _make("linux_x86_64", "llvm")
 
 def cuda_cell_tests(name):
-    """Declares a probe carrying CUDA_COMPATIBLE_WITH and checks it per platform and compiler.
-
-    Args:
-      name: suite name and prefix of the declared targets.
-    """
+    """Declares a probe carrying CUDA_COMPATIBLE_WITH and checks it per platform and compiler."""
     probe = name + "_probe"
     _compat_probe(name = probe, compat = CUDA_COMPATIBLE_WITH, tags = ["manual"])
     _windows_llvm_test(name = name + "_windows_llvm", target_under_test = ":" + probe, expected = _INCOMPATIBLE, size = "small")

@@ -32,19 +32,7 @@ _TRIPLE_BINARY_PREFIXES = {
 }
 
 def _detect_binary_prefix(rctx, target_arch):
-    """Resolves the prefix that `bin/` binaries carry in the extracted toolchain.
-
-    Some gcc-builds releases lay the binaries out under the target triple prefix and
-    others leave them unprefixed. `as` tells the two layouts apart, since the
-    unprefixed layout never provides a prefixed alias for it.
-
-    Args:
-        rctx: The repository context, with the toolchain already extracted.
-        target_arch: The target architecture of the toolchain.
-
-    Returns:
-        The binary prefix, either the target triple prefix or the empty string.
-    """
+    """Resolves the prefix that `bin/` binaries carry in the extracted toolchain."""
     triple_prefix = _TRIPLE_BINARY_PREFIXES[target_arch]
     if rctx.path("bin/{}as".format(triple_prefix)).exists:
         return triple_prefix
@@ -473,36 +461,7 @@ def gcc_declare_toolchain(
         name,
         target_arch,
         **kwargs):
-    """Declares a `gcc_toolchain` for every available GCC version.
-
-    `name` is the hub repository holding the `toolchain` declarations. Each GCC version gets its
-    own repository holding the `cc_toolchain`, fetched only when that version is selected through
-    the `@gcc_toolchain//toolchain:gcc_version` flag.
-
-    Args:
-        name: The name of the hub repository holding the toolchain declarations.
-        target_arch: The target architecture of the toolchain.
-        **kwargs: The extra arguments passed to `gcc_toolchain`. See `gcc_toolchain` for more info.
-            The attributes of the `toolchain` declarations themselves are also accepted here,
-            since they apply to the hub rather than to `gcc_toolchain`:
-
-            `target_compatible_with`: constraint_values passed to `target_compatible_with` of the
-            toolchain. `{target_arch}` is rendered to the `target_arch` argument value. Defaults to
-            `["@platforms//os:linux", "@platforms//cpu:{target_arch}"]`.
-
-            `extra_target_compatible_with`: Additional constraint_values appended to
-            `target_compatible_with` of the toolchain, on top of the values from the
-            `target_compatible_with` argument (including its defaults). Unlike
-            `target_compatible_with`, `{target_arch}` is not rendered.
-
-            `target_settings`: Additional config_settings passed to `target_settings` of the
-            toolchain, on top of the GCC version selection. `{target_arch}` is rendered to the
-            `target_arch` argument value.
-
-            `extra_target_settings`: Additional config_settings appended to `target_settings` of
-            the toolchain, on top of the GCC version selection and the `target_settings` argument.
-            Unlike `target_settings`, `{target_arch}` is not rendered.
-    """
+    """Declares a `gcc_toolchain` for every available GCC version."""
     binary_prefix = kwargs.pop("binary_prefix", None)
     if binary_prefix == None:
         if target_arch not in _TRIPLE_BINARY_PREFIXES:

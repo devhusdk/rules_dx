@@ -4,19 +4,7 @@
 SUPPORTED_CELLS = [("x64", "x64"), ("x64", "arm64"), ("arm64", "arm64")]
 
 def msvc_layout(msvc_version, sdk_version, host = "x64", target = "x64", vc_root = "", sdk_root = ""):
-    """Return tool and directory paths of the MSVC toolset and the Windows SDK.
-
-    Args:
-        msvc_version: MSVC toolset version, such as "14.44.35207".
-        sdk_version: Windows SDK Include directory name, such as "10.0.26100.0".
-        host: Architecture the tools run on, "x64" or "arm64".
-        target: Architecture the tools build for, "x64" or "arm64".
-        vc_root: Prefix of the msvc_runtime repository, ending in "/" when set.
-        sdk_root: Prefix of the windows_sdk repository, ending in "/" when set.
-
-    Returns:
-        A struct of tool paths and include, lib and bin directory lists.
-    """
+    """Return tool and directory paths of the MSVC toolset and the Windows SDK."""
     vc = vc_root + "sysroot/Contents/VC/Tools/MSVC/" + msvc_version
     sdk_include = sdk_root + "sysroot/base/c/Include/" + sdk_version
     bin_dir = vc + "/bin/Host{}/{}".format(host, target)

@@ -1,4 +1,4 @@
-"""OpenAPI client generation: TypeScript (Redocly generate-client), Go (oapi-codegen), Python (openapi-python-client) and Rust (progenitor)."""
+"""OpenAPI client generation: TypeScript (Redocly generate-client)."""
 
 load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers")
 load("//core:defs.bzl", "display_label")

@@ -36,17 +36,7 @@ flatbuffers_library = rule(
 )
 
 def resolve_root(rule_kind, label, library_target, root_file):
-    """Picks the root schema of a flatbuffers_library.
-
-    Args:
-      rule_kind: Rule name for error text.
-      label: Label of the calling target.
-      library_target: The flatbuffers_library Target.
-      root_file: Explicit root File or None.
-
-    Returns:
-      The root schema File: root_file, or the only schema the library owns.
-    """
+    """Picks the root schema of a flatbuffers_library."""
     owned = library_target[FlatBuffersInfo].direct_srcs
     if root_file == None:
         if len(owned) != 1:

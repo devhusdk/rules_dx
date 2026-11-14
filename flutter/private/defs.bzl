@@ -222,7 +222,7 @@ _flutter_ios_simulator_app = rule(
 )
 
 def flutter_ios_app(name, application, bundle_id, **kwargs):
-    """Thin wrapper over flutter_ios_app. Reads runner files from ios/Runner/ in the calling package and builds the arm64 simulator debug app on a macOS host."""
+    """Thin wrapper over flutter_ios_app."""
     visibility = kwargs.pop("visibility", None)
     tags = kwargs.get("tags") or []
     testonly = kwargs.get("testonly", False)

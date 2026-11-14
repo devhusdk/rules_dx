@@ -30,11 +30,7 @@ aspect_field transitive_count=0""".format(
     )
 
 def external_toolchain_tests(name):
-    """Pins how --extra_toolchains cc toolchains are reported.
-
-    Args:
-      name: prefix of the test targets.
-    """
+    """Pins how --extra_toolchains cc toolchains are reported."""
     for subject, compiler, family, driver, abi, coverage, syntax_only in [
         ("gcc_subject", "gcc", "gcc", "gnu", "itanium", "gcov", "-fsyntax-only"),
         ("gcc_flag_subject", "gcc", "gcc", "gnu", "itanium", "gcov", "-fsyntax-only"),

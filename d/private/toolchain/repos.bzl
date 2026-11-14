@@ -206,10 +206,7 @@ def ldc_runtime(cell):
     return packages
 
 def _extract_7z(rctx, cell):
-    """Unpacks a .7z LDC archive with the pinned 7-Zip and drops the scratch archive.
-
-    The extractor stays in SEVEN_ZIP_DIR: Windows arm64 keeps the emulated 7zr.exe locked, so deleting it fails the fetch.
-    """
+    """Unpacks a .7z LDC archive with the pinned 7-Zip and drops the scratch archive."""
     seven_zip = seven_zip_fetch(rctx, SEVEN_ZIP_DIR)
     archive = SCRATCH_DIR + "/" + cell.archive
     rctx.download(url = cell.urls, output = archive, sha256 = cell.sha256)

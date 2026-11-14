@@ -158,12 +158,7 @@ _config_runfiles_test = analysistest.make(
 )
 
 def config_runfiles_tests(name, demos):
-    """Checks that each demo deployment names its config and ships its pinned artifacts.
-
-    Args:
-      name: test_suite name.
-      demos: dict of deployment name to the basenames of the artifacts it pins.
-    """
+    """Checks that each demo deployment names its config and ships its pinned artifacts."""
     tests = []
     for demo, pins in demos.items():
         test = name + "_" + demo.replace(".", "_")

@@ -98,13 +98,7 @@ _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 _LINUX_ARM64 = ["@platforms//os:linux", "@platforms//cpu:arm64"]
 
 def cc_action_tests(name, compile_target, link_target):
-    """Asserts compile and link actions use the pinned GCC under gcc and not under llvm.
-
-    Args:
-        name: Name of the test suite.
-        compile_target: A cc_library with C sources.
-        link_target: A cc_binary.
-    """
+    """Asserts compile and link actions use the pinned GCC under gcc and not under llvm."""
     tests = []
     for kind, target, mnemonics in [("compile", compile_target, ["CppCompile"]), ("link", link_target, ["CppLink"])]:
         for compiler, rule, compatible in [
@@ -174,13 +168,7 @@ _msvc_arm64_test = analysistest.make(
 )
 
 def cc_msvc_action_tests(name, compile_target, link_target):
-    """Asserts compile, archive and link actions use the pinned MSVC tools under msvc.
-
-    Args:
-        name: Name of the test suite.
-        compile_target: A cc_library with C sources.
-        link_target: A cc_binary or cc_test.
-    """
+    """Asserts compile, archive and link actions use the pinned MSVC tools under msvc."""
     tests = []
     for kind, target in [("compile", compile_target), ("link", link_target)]:
         test = "%s_%s_msvc" % (name, kind)
@@ -195,13 +183,7 @@ def cc_msvc_action_tests(name, compile_target, link_target):
     native.test_suite(name = name, tests = tests, testonly = True)
 
 def cc_msvc_arm64_action_tests(name, compile_target, link_target):
-    """Asserts compile, archive and link actions cross to arm64 with the pinned MSVC tools.
-
-    Args:
-        name: Name of the test suite.
-        compile_target: A cc_library with C sources.
-        link_target: A cc_binary or cc_test.
-    """
+    """Asserts compile, archive and link actions cross to arm64 with the pinned MSVC tools."""
     tests = []
     for kind, target in [("compile", compile_target), ("link", link_target)]:
         test = "%s_%s_msvc_arm64" % (name, kind)

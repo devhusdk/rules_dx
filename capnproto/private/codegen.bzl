@@ -1,17 +1,4 @@
-"""Cap'n Proto C++, Rust and Java code generation from the pinned source archives.
-
-capnp and the C++ runtime come from the archive pinned in //capnproto:pins.bzl;
-the Rust crates (capnp, capnpc) and capnpc-java with its Java runtime come from
-the other archives pinned there. Every action reads only the declared import closure of CapnprotoInfo: the closure is
-staged as symlinks under a private root and compiled with --no-standard-import,
-so an import outside the declared deps fails with or without a sandbox.
-
-C++ and Java are generated and compiled once per capnproto_library by an aspect, so
-two targets that share a schema library never link duplicate symbols.
-Rust is one crate per capnproto_library: the crate's dependencies mirror the library's
-dependencies, and imports of a dependency's schemas become `::dep_crate::x_capnp`
-paths, so a type is never duplicated across crates.
-"""
+"""Cap'n Proto C++, Rust and Java code generation from the pinned source archives."""
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "CC_TOOLCHAIN_ATTRS", "find_cpp_toolchain", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
@@ -351,21 +338,7 @@ _capnp_rust_srcs = rule(
 )
 
 def capnproto_rust_library(name, library, crate_name = None, deps = None, codegen_path = None, **kwargs):
-    """Rust crate for one capnproto_library.
-
-    The crate's deps must mirror the library's direct deps: one capnproto_rust_library
-    per capnproto_library the schemas import. Imports of a dependency's schemas become
-    ::dep_crate::x_capnp paths. /capnp/schema.capnp maps to the capnp crate.
-
-    Args:
-      name: Name of the rust_library.
-      library: capnproto_library whose schemas the crate owns.
-      crate_name: Crate name dependents import; defaults to name.
-      deps: capnproto_rust_library targets of the library's direct capnp deps.
-      codegen_path: Logical directory of the generated files in the dx sync projection.
-      **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
-        and the like replace the defaults; srcs and deps are added to them.
-    """
+    """Rust crate for one capnproto_library."""
     deps = deps or []
     generated = name + "_generated"
     crate = (crate_name or name).replace("-", "_")

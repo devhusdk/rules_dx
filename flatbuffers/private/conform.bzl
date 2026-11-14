@@ -1,8 +1,4 @@
-"""FlatBuffers breaking-change check (flatc --conform).
-
-The baseline is any flatbuffers_library: an in-repo snapshot or an external
-previous release. Both closures are declared inputs, so the check is hermetic.
-"""
+"""FlatBuffers breaking-change check (flatc --conform)."""
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core:wrapper.bzl", "dx_quality_sources")
@@ -53,20 +49,7 @@ _flatbuffers_conform = rule(
 flatbuffers_conform = _flatbuffers_conform
 
 def flatbuffers_conform_test(name, library, baseline, root = None, baseline_root = None, **kwargs):
-    """Fails the build when library breaks compatibility with baseline.
-
-    Runs flatc --conform. flatc stops at the first error and skips deleted
-    tables and enums and renamed tables. The binary schema it writes can serve
-    as the next snapshot.
-
-    Args:
-      name: Name of the test.
-      library: flatbuffers_library to check.
-      baseline: flatbuffers_library holding the previous schema.
-      root: Root schema of library; optional when it owns one schema.
-      baseline_root: Root schema of baseline; optional when it owns one schema.
-      **kwargs: Passed to the build_test (tags, visibility, size).
-    """
+    """Fails the build when library breaks compatibility with baseline."""
     _flatbuffers_conform(
         name = name + "_conform",
         library = library,

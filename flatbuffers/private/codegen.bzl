@@ -1,16 +1,4 @@
-"""FlatBuffers C++, Rust and Java code generation (flatc from the pinned source archive).
-
-flatc and every runtime come from the one archive pinned in //flatbuffers:pins.bzl,
-so the compiler and the runtimes cannot drift. Actions read only the staged closure.
-
-C++ is generated per flatbuffers_library by an aspect. Rust is generated as one
-crate per root schema (flatc --rust --gen-all), because flatc's Rust output uses
-crate:: and super:: paths that only compile when the whole include closure sits
-in one crate. Two Rust crates whose roots share a schema therefore each get their
-own, non-interchangeable copy of its types.
-Java is generated and compiled once per flatbuffers_library by an aspect, against
-the Java runtime built from the same archive (Maven lags the flatc version).
-"""
+"""FlatBuffers C++, Rust and Java code generation (flatc from the pinned source archive)."""
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -263,22 +251,7 @@ _flatbuffers_rust_srcs = rule(
 )
 
 def flatbuffers_rust_library(name, library, crate_name = None, deps = None, root = None, codegen_path = None, **kwargs):
-    """Rust crate for one root schema and its include closure.
-
-    flatc --rust --gen-all emits the whole closure into one file, so the crate
-    is per root, not per flatbuffers_library. The runtime comes from the pinned
-    flatbuffers archive.
-
-    Args:
-      name: Name of the rust_library.
-      library: flatbuffers_library that owns the root schema.
-      crate_name: Crate name dependents import; defaults to name.
-      deps: Extra Rust dependencies of the crate.
-      root: Root schema label; optional when the library owns one schema.
-      codegen_path: Logical directory of the generated files in the dx sync projection.
-      **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
-        and the like replace the defaults; srcs and deps are added to them.
-    """
+    """Rust crate for one root schema and its include closure."""
     deps = deps or []
     generated = name + "_generated"
     _flatbuffers_rust_srcs(

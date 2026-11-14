@@ -100,7 +100,7 @@ release_matrix_file = rule(
 )
 
 def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx", pdb = "//cli/cli:dx_pdb"):
-    """Declares one archive per release cell, a symbols zip per Windows cell, and the `name` aliases for the host cell."""
+    """Declares one archive per release cell, a symbols zip per Windows cell."""
     for cell in cells:
         cell_name = cell["name"]
         constraints = cell["constraints"]

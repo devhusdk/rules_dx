@@ -68,6 +68,6 @@ _coverage_env_on_test = _COVERAGE.on
 _coverage_env_off_test = _COVERAGE.off
 
 def elixir_coverage_env_test(name, target, apps, sources):
-    """Asserts an elixir_test names its workspace apps and sources for the cover script under coverage, and only then."""
+    """Asserts an elixir_test names its workspace apps."""
     _coverage_env_on_test(name = name, size = "small", target_under_test = target, apps = apps, sources = sources)
     _coverage_env_off_test(name = name + "_off", size = "small", target_under_test = target)

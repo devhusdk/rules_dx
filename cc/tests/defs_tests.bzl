@@ -195,7 +195,7 @@ _coverage_external_gcc_flag_test = _external_coverage_test(str(Label("//cc/priva
 _coverage_external_icx_test = _external_coverage_test(str(Label("//cc/private/toolchain/external:icx_toolchain")), _icx_coverage_impl)
 
 def cc_external_coverage_tests(name, target, **kwargs):
-    """Asserts cc_test coverage fails fast under an external GCC toolchain without --compiler, gets past that check with it (the fake toolchain has no gcov), and leaves unknown compilers alone."""
+    """Asserts cc_test coverage fails fast under an external GCC toolchain without --compiler."""
     _coverage_external_gcc_test(name = name + "_gcc", size = "small", target_under_test = target, **kwargs)
     _coverage_external_gcc_flag_test(name = name + "_gcc_flag", size = "small", target_under_test = target, **kwargs)
     _coverage_external_icx_test(name = name + "_icx", size = "small", target_under_test = target, **kwargs)

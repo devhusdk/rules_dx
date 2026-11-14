@@ -20,11 +20,7 @@ def _closure_impl(ctx):
 _closure_test = analysistest.make(_closure_impl)
 
 def capnp_library_tests(name):
-    """Instantiates the capnproto_library analysis tests.
-
-    Args:
-      name: Name of the test suite.
-    """
+    """Instantiates the capnproto_library analysis tests."""
     capnproto_library(name = name + "_base", srcs = ["fixtures/closure/base.capnp"], tags = ["manual"])
     capnproto_library(name = name + "_top", srcs = ["fixtures/closure/top.capnp"], deps = [":" + name + "_base"], tags = ["manual"])
     _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top", size = "small")

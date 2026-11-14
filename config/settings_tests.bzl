@@ -1,6 +1,4 @@
-"""Analysis tests pinning the frozen quality settings defaults.
-
-The workspace flag reads rules_dx's own policy because .bazelrc selects it."""
+"""Analysis tests pinning the frozen quality settings defaults."""
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 
@@ -39,7 +37,7 @@ def exec_settings_tests(name):
     )
 
 def tool_flag_scope_tests(name):
-    """Declares a test that every tool label_flag declared before it in the package keeps its value in the exec configuration."""
+    """Declares a test that every tool label_flag declared before it in the package keeps its value in the exec."""
     unscoped = sorted([
         rule_name
         for rule_name, rule in native.existing_rules().items()

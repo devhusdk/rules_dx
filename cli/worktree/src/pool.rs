@@ -475,12 +475,15 @@ impl Pool {
             &self.meta_dir().join("pool.lock"),
             self.lock_wait,
         )
-        .map_err(|error| match error.kind() {
-            std::io::ErrorKind::WouldBlock => WorktreeError::refused(
-                "pool_busy",
-                "another dx worktree command holds the pool lock; run the command again",
-            ),
-            _ => WorktreeError::io(error),
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::WouldBlock {
+                WorktreeError::refused(
+                    "pool_busy",
+                    "another dx worktree command holds the pool lock; run the command again",
+                )
+            } else {
+                WorktreeError::io(error)
+            }
         })
     }
 
@@ -583,11 +586,12 @@ pub fn lease_for_dir(dir: &Path) -> Option<(PathBuf, Record)> {
 }
 
 fn busy_error(error: &std::io::Error, slot: u32) -> dx_error::DxError {
-    match error.kind() {
-        std::io::ErrorKind::WouldBlock => dx_error::DxError::failure(format!(
+    if error.kind() == std::io::ErrorKind::WouldBlock {
+        dx_error::DxError::failure(format!(
             "slot {slot} is being switched by dx worktree; run the command again"
-        )),
-        _ => dx_error::DxError::from_io(format!("cannot lock slot {slot}: {error}"), error),
+        ))
+    } else {
+        dx_error::DxError::from_io(format!("cannot lock slot {slot}: {error}"), error)
     }
 }
 

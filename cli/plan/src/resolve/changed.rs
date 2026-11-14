@@ -401,7 +401,10 @@ fn workspace_rc_files(workspace: &Path, startup_options: &[String]) -> BTreeSet<
             .components()
             .filter_map(|c| match c {
                 std::path::Component::Normal(p) => Some(p.to_string_lossy().into_owned()),
-                _ => None,
+                std::path::Component::Prefix(_)
+                | std::path::Component::RootDir
+                | std::path::Component::CurDir
+                | std::path::Component::ParentDir => None,
             })
             .collect();
         if parts.is_empty()

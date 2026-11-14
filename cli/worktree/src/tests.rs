@@ -3418,7 +3418,7 @@ mod hooks {
     fn blocked_in(command: &str, cwd: &str, caller: &str) -> Option<String> {
         match in_foreign_slot(command, cwd, caller, &Cell::new(0)) {
             hook::Guard::Block(line) => Some(line),
-            _ => None,
+            hook::Guard::Allow | hook::Guard::Rewrite(_) | hook::Guard::Ask(_) => None,
         }
     }
 
@@ -3604,7 +3604,7 @@ mod hooks {
     fn blocked(command: &str) -> Option<String> {
         match guard(&serde_json::json!({"tool_input": {"command": command}})) {
             hook::Guard::Block(line) => Some(line),
-            _ => None,
+            hook::Guard::Allow | hook::Guard::Rewrite(_) | hook::Guard::Ask(_) => None,
         }
     }
 

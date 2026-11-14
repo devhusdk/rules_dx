@@ -158,7 +158,7 @@ fn type_text(value: &Value, enclosing: &str) -> String {
                 .map_or_else(String::new, |inner| type_text(inner, enclosing)),
             primitive => primitive.to_owned(),
         },
-        _ => String::new(),
+        Value::Null | Value::Bool(_) | Value::Number(_) => String::new(),
     }
 }
 
@@ -279,7 +279,7 @@ impl Builder<'_> {
                     _ => {}
                 }
             }
-            _ => {}
+            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
         }
     }
 

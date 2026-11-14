@@ -556,7 +556,29 @@ mod tests {
                 registry_gen::TYPECHECK_ASPECTS,
                 registry_gen::TYPECHECK_PROBES,
             ),
-            _ => (registry_gen::FORMAT_ASPECTS, registry_gen::FORMAT_PROBES),
+            Command::Security
+            | Command::License
+            | Command::Format
+            | Command::Generate
+            | Command::Build
+            | Command::Test
+            | Command::Coverage
+            | Command::Bench
+            | Command::Run
+            | Command::Deploy
+            | Command::Check
+            | Command::Clean
+            | Command::Update
+            | Command::Sync
+            | Command::Init
+            | Command::Upgrade
+            | Command::Status
+            | Command::Watch
+            | Command::Completion
+            | Command::Docs
+            | Command::Worktree
+            | Command::Fuzz
+            | Command::Config => (registry_gen::FORMAT_ASPECTS, registry_gen::FORMAT_PROBES),
         };
         assert_eq!(&entry.aspects[..core.0.len()], core.0);
         assert_eq!(&entry.probes[..core.1.len()], core.1);

@@ -111,7 +111,9 @@ impl RunError {
     pub fn stderr(&self) -> &str {
         match self {
             RunError::Failed { stderr, .. } => stderr,
-            _ => "",
+            RunError::Spawn { .. }
+            | RunError::TimedOut { .. }
+            | RunError::OutputTooLarge { .. } => "",
         }
     }
 }
@@ -149,7 +151,9 @@ impl std::error::Error for RunError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             RunError::Spawn { source, .. } => Some(source),
-            _ => None,
+            RunError::TimedOut { .. }
+            | RunError::OutputTooLarge { .. }
+            | RunError::Failed { .. } => None,
         }
     }
 }

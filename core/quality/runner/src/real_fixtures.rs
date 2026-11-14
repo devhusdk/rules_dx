@@ -1372,7 +1372,10 @@ fn notebook_cell_text(cell: &serde_json::Value) -> String {
     match &cell["source"] {
         serde_json::Value::String(text) => text.clone(),
         serde_json::Value::Array(lines) => lines.iter().filter_map(|l| l.as_str()).collect(),
-        _ => String::new(),
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::Object(_) => String::new(),
     }
 }
 

@@ -295,7 +295,26 @@ impl<'a> Walker<'a> {
             ItemEnum::ProcMacro(proc_macro) if proc_macro.kind == MacroKind::Bang => {
                 format!("{name}!")
             }
-            _ => name.to_string(),
+            ItemEnum::Module(_)
+            | ItemEnum::ExternCrate { .. }
+            | ItemEnum::Use(_)
+            | ItemEnum::Union(_)
+            | ItemEnum::Struct(_)
+            | ItemEnum::StructField(_)
+            | ItemEnum::Enum(_)
+            | ItemEnum::Variant(_)
+            | ItemEnum::Function(_)
+            | ItemEnum::Trait(_)
+            | ItemEnum::TraitAlias(_)
+            | ItemEnum::Impl(_)
+            | ItemEnum::TypeAlias(_)
+            | ItemEnum::Constant { .. }
+            | ItemEnum::Static(_)
+            | ItemEnum::ExternType
+            | ItemEnum::ProcMacro(_)
+            | ItemEnum::Primitive(_)
+            | ItemEnum::AssocConst { .. }
+            | ItemEnum::AssocType { .. } => name.to_string(),
         };
         let mut qualified = path.to_vec();
         qualified.push(segment);
@@ -333,7 +352,22 @@ impl<'a> Walker<'a> {
                     }
                 }
             }
-            _ => {}
+            ItemEnum::ExternCrate { .. }
+            | ItemEnum::Use(_)
+            | ItemEnum::StructField(_)
+            | ItemEnum::Variant(_)
+            | ItemEnum::Function(_)
+            | ItemEnum::TraitAlias(_)
+            | ItemEnum::Impl(_)
+            | ItemEnum::TypeAlias(_)
+            | ItemEnum::Constant { .. }
+            | ItemEnum::Static(_)
+            | ItemEnum::ExternType
+            | ItemEnum::Macro(_)
+            | ItemEnum::ProcMacro(_)
+            | ItemEnum::Primitive(_)
+            | ItemEnum::AssocConst { .. }
+            | ItemEnum::AssocType { .. } => {}
         }
         Ok(())
     }
@@ -681,7 +715,7 @@ impl<'a> Walker<'a> {
             for cand in &cands {
                 match cand {
                     Cand::Entry(_, e) if e.forced => forced.push(*cand),
-                    _ => live.push(*cand),
+                    Cand::Entry(..) | Cand::Alias(..) => live.push(*cand),
                 }
             }
             // A glob name is dropped when another item has the same name in the same namespace.
@@ -814,7 +848,14 @@ fn kind_of(inner: &ItemEnum) -> Option<SymbolKind> {
         ItemEnum::TypeAlias(_) => SymbolKind::TypeAlias,
         ItemEnum::Constant { .. } | ItemEnum::Static(_) => SymbolKind::Constant,
         ItemEnum::Macro(_) | ItemEnum::ProcMacro(_) => SymbolKind::Macro,
-        _ => return None,
+        ItemEnum::ExternCrate { .. }
+        | ItemEnum::Use(_)
+        | ItemEnum::StructField(_)
+        | ItemEnum::Variant(_)
+        | ItemEnum::Impl(_)
+        | ItemEnum::Primitive(_)
+        | ItemEnum::AssocConst { .. }
+        | ItemEnum::AssocType { .. } => return None,
     })
 }
 
@@ -823,7 +864,24 @@ fn member_kind(inner: &ItemEnum) -> Option<SymbolKind> {
         ItemEnum::Function(_) => SymbolKind::Method,
         ItemEnum::AssocConst { .. } => SymbolKind::Constant,
         ItemEnum::AssocType { .. } => SymbolKind::TypeAlias,
-        _ => return None,
+        ItemEnum::Module(_)
+        | ItemEnum::ExternCrate { .. }
+        | ItemEnum::Use(_)
+        | ItemEnum::Union(_)
+        | ItemEnum::Struct(_)
+        | ItemEnum::StructField(_)
+        | ItemEnum::Enum(_)
+        | ItemEnum::Variant(_)
+        | ItemEnum::Trait(_)
+        | ItemEnum::TraitAlias(_)
+        | ItemEnum::Impl(_)
+        | ItemEnum::TypeAlias(_)
+        | ItemEnum::Constant { .. }
+        | ItemEnum::Static(_)
+        | ItemEnum::ExternType
+        | ItemEnum::Macro(_)
+        | ItemEnum::ProcMacro(_)
+        | ItemEnum::Primitive(_) => return None,
     })
 }
 
@@ -846,7 +904,14 @@ fn item_namespace(inner: &ItemEnum) -> (u8, &'static str) {
             MacroKind::Attr => (2, "attr"),
             MacroKind::Derive => (2, "derive"),
         },
-        _ => (3, "item"),
+        ItemEnum::ExternCrate { .. }
+        | ItemEnum::Use(_)
+        | ItemEnum::StructField(_)
+        | ItemEnum::Variant(_)
+        | ItemEnum::Impl(_)
+        | ItemEnum::Primitive(_)
+        | ItemEnum::AssocConst { .. }
+        | ItemEnum::AssocType { .. } => (3, "item"),
     }
 }
 
@@ -856,7 +921,19 @@ fn member_namespace(kind: SymbolKind) -> (u8, &'static str) {
         SymbolKind::Field => (0, "field"),
         SymbolKind::TypeAlias => (1, "type"),
         SymbolKind::Constant => (2, "const"),
-        _ => (2, "method"),
+        SymbolKind::Unspecified
+        | SymbolKind::Module
+        | SymbolKind::Class
+        | SymbolKind::Interface
+        | SymbolKind::Function
+        | SymbolKind::Method
+        | SymbolKind::Property
+        | SymbolKind::Enum
+        | SymbolKind::Macro
+        | SymbolKind::Variable
+        | SymbolKind::Component
+        | SymbolKind::Event
+        | SymbolKind::Slot => (2, "method"),
     }
 }
 
@@ -875,7 +952,16 @@ fn summary_namespace(kind: &rustdoc_types::ItemKind) -> (u8, &'static str) {
         K::Macro => (2, "macro"),
         K::ProcAttribute => (2, "attr"),
         K::ProcDerive => (2, "derive"),
-        _ => (3, "item"),
+        K::ExternCrate
+        | K::Use
+        | K::StructField
+        | K::Variant
+        | K::Impl
+        | K::AssocConst
+        | K::AssocType
+        | K::Primitive
+        | K::Keyword
+        | K::Attribute => (3, "item"),
     }
 }
 
@@ -891,7 +977,13 @@ fn summary_kind(kind: &rustdoc_types::ItemKind) -> SymbolKind {
         K::TypeAlias | K::AssocType => SymbolKind::TypeAlias,
         K::Constant | K::Static | K::AssocConst => SymbolKind::Constant,
         K::Macro | K::ProcAttribute | K::ProcDerive => SymbolKind::Macro,
-        _ => SymbolKind::Unspecified,
+        K::ExternCrate
+        | K::Use
+        | K::StructField
+        | K::Impl
+        | K::Primitive
+        | K::Keyword
+        | K::Attribute => SymbolKind::Unspecified,
     }
 }
 
@@ -1029,7 +1121,10 @@ pub fn signature(item: &Item, name: &str) -> String {
             }
             text + ";"
         }
-        _ => name.to_string(),
+        ItemEnum::ExternCrate { .. }
+        | ItemEnum::Use(_)
+        | ItemEnum::Impl(_)
+        | ItemEnum::Primitive(_) => name.to_string(),
     }
 }
 
@@ -1082,7 +1177,20 @@ fn input(name: &str, type_: &Type) -> String {
                 let mutable = if *is_mutable { "mut " } else { "" };
                 return format!("&{lifetime}{mutable}self");
             }
-            _ => {}
+            Type::ResolvedPath(_)
+            | Type::DynTrait(_)
+            | Type::Generic(_)
+            | Type::Primitive(_)
+            | Type::FunctionPointer(_)
+            | Type::Tuple(_)
+            | Type::Slice(_)
+            | Type::Array { .. }
+            | Type::Pat { .. }
+            | Type::ImplTrait(_)
+            | Type::Infer
+            | Type::RawPointer { .. }
+            | Type::BorrowedRef { .. }
+            | Type::QualifiedPath { .. } => {}
         }
     }
     format!("{name}: {}", ty(type_))

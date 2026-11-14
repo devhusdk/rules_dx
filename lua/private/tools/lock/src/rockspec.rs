@@ -30,7 +30,7 @@ impl Value {
     pub fn text(&self) -> Option<&str> {
         match self {
             Self::Text(text) => Some(text),
-            _ => None,
+            Self::Flag(_) | Self::Nil | Self::Table(_) => None,
         }
     }
 
@@ -39,7 +39,7 @@ impl Value {
     pub fn table(&self) -> Option<&Table> {
         match self {
             Self::Table(table) => Some(table),
-            _ => None,
+            Self::Text(_) | Self::Flag(_) | Self::Nil => None,
         }
     }
 }

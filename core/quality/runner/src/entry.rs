@@ -291,7 +291,15 @@ mod tests {
             };
             match error {
                 RunnerError::Args { message } => assert!(!message.is_empty(), "{message}"),
-                other => panic!("unexpected error: {other:?}"),
+                other @ RunnerError::UnreadableSource { .. }
+                | other @ RunnerError::UnreadableSibling { .. }
+                | other @ RunnerError::UnreadableResolve { .. }
+                | other @ RunnerError::PipelineFailed { .. }
+                | other @ RunnerError::InvalidResult { .. }
+                | other @ RunnerError::UnwritableOutput { .. }
+                | other @ RunnerError::UnreadableToolFile { .. }
+                | other @ RunnerError::UnreadableRequest { .. }
+                | other @ RunnerError::BadRequest { .. } => panic!("unexpected error: {other:?}"),
             }
         }
     }
@@ -313,7 +321,15 @@ mod tests {
                 );
                 assert!(!detail.is_empty(), "{path}");
             }
-            other => panic!("unexpected error: {other:?}"),
+            other @ RunnerError::Args { .. }
+            | other @ RunnerError::UnreadableSource { .. }
+            | other @ RunnerError::UnreadableSibling { .. }
+            | other @ RunnerError::UnreadableResolve { .. }
+            | other @ RunnerError::PipelineFailed { .. }
+            | other @ RunnerError::InvalidResult { .. }
+            | other @ RunnerError::UnwritableOutput { .. }
+            | other @ RunnerError::UnreadableToolFile { .. }
+            | other @ RunnerError::BadRequest { .. } => panic!("unexpected error: {other:?}"),
         }
         let dir = tempfile::tempdir().expect("scratch");
         let malformed = dir.path().join("malformed.json");
@@ -326,7 +342,17 @@ mod tests {
         .expect_err("malformed request")
         {
             RunnerError::BadRequest { detail } => assert!(!detail.is_empty(), "{detail}"),
-            other => panic!("unexpected error: {other:?}"),
+            other @ RunnerError::Args { .. }
+            | other @ RunnerError::UnreadableSource { .. }
+            | other @ RunnerError::UnreadableSibling { .. }
+            | other @ RunnerError::UnreadableResolve { .. }
+            | other @ RunnerError::PipelineFailed { .. }
+            | other @ RunnerError::InvalidResult { .. }
+            | other @ RunnerError::UnwritableOutput { .. }
+            | other @ RunnerError::UnreadableToolFile { .. }
+            | other @ RunnerError::UnreadableRequest { .. } => {
+                panic!("unexpected error: {other:?}")
+            }
         }
     }
 
@@ -511,7 +537,13 @@ mod tests {
                     assert_eq!(workspace, "a.py");
                     assert!(!detail.is_empty(), "{error:?}");
                 }
-                other => panic!("unexpected error: {other:?}"),
+                other @ RunnerError::Args { .. }
+                | other @ RunnerError::PipelineFailed { .. }
+                | other @ RunnerError::InvalidResult { .. }
+                | other @ RunnerError::UnwritableOutput { .. }
+                | other @ RunnerError::UnreadableToolFile { .. }
+                | other @ RunnerError::UnreadableRequest { .. }
+                | other @ RunnerError::BadRequest { .. } => panic!("unexpected error: {other:?}"),
             }
             assert!(error.to_string().starts_with(expected), "{error}");
         }

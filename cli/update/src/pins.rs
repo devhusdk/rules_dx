@@ -175,7 +175,10 @@ fn sorted(value: &Value) -> Value {
             Value::Object(out)
         }
         Value::Array(items) => Value::Array(items.iter().map(sorted).collect()),
-        other => other.clone(),
+        other @ Value::Null
+        | other @ Value::Bool(_)
+        | other @ Value::Number(_)
+        | other @ Value::String(_) => other.clone(),
     }
 }
 

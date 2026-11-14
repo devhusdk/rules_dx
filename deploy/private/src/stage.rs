@@ -165,7 +165,10 @@ pub(crate) fn package_relative_paths(
                     Some(part) if !part.is_empty() => parts.push(part),
                     _ => return Err(bad(format!("{label}: non-UTF-8 path '{}'", src.display()))),
                 },
-                _ => {
+                std::path::Component::Prefix(_)
+                | std::path::Component::RootDir
+                | std::path::Component::CurDir
+                | std::path::Component::ParentDir => {
                     return Err(bad(format!(
                         "{label}: unsafe package path '{}'",
                         rel.display()

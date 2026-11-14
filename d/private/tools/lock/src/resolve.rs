@@ -211,11 +211,12 @@ pub fn parse_dependencies(manifest: &Value) -> Result<BTreeMap<String, Vec<Range
                 }
                 fields.get("version").and_then(Value::as_str).unwrap_or("*")
             }
-            _ => {
+            Value::Null | Value::Bool(_) | Value::Number(_) | Value::Array(_) => {
                 return Err(Error::new(format!("dependency {key} has no version")));
             }
         };
-        let range = Range::parse(text).map_err(|error| Error::new(format!("dependency {key}: {error}")))?;
+        let range =
+            Range::parse(text).map_err(|error| Error::new(format!("dependency {key}: {error}")))?;
         let ranges = deps.entry(name.to_owned()).or_default();
         if !ranges.contains(&range) {
             ranges.push(range);
@@ -265,8 +266,8 @@ impl<'a> Dub<'a> {
             .download
             .bytes(&url)
             .map_err(|error| Error::new(format!("{url}: {error}")))?;
-        let list: Vec<String> = serde_json::from_slice(&body)
-            .map_err(|error| Error::new(format!("{url}: {error}")))?;
+        let list: Vec<String> =
+            serde_json::from_slice(&body).map_err(|error| Error::new(format!("{url}: {error}")))?;
         Ok(list
             .into_iter()
             .filter_map(|text| Some((Version::parse(&text)?, text)))
@@ -282,7 +283,8 @@ impl<'a> Dub<'a> {
     ) -> Result<String, Error> {
         let prerelease = ranges.iter().any(Range::names_prerelease);
         let allowed = |version: &Version| {
-            (prerelease || version.pre.is_none()) && ranges.iter().all(|range| range.allows(version))
+            (prerelease || version.pre.is_none())
+                && ranges.iter().all(|range| range.allows(version))
         };
         if let Some(text) = selected
             && Version::parse(text).is_some_and(|version| allowed(&version))
@@ -299,7 +301,10 @@ impl<'a> Dub<'a> {
             .map(|(_, text)| text.clone())
             .ok_or_else(|| {
                 let wanted: Vec<&str> = ranges.iter().map(|range| range.text.as_str()).collect();
-                Error::new(format!("no version of {name} satisfies {}", wanted.join(" and ")))
+                Error::new(format!(
+                    "no version of {name} satisfies {}",
+                    wanted.join(" and ")
+                ))
             })
     }
 
@@ -310,7 +315,8 @@ impl<'a> Dub<'a> {
             .download
             .bytes(&url)
             .map_err(|error| failed(format!("{url}: {error}")))?;
-        let members = read_members(&bytes, &self.manifest).map_err(|error| failed(format!("{url}: {error}")))?;
+        let members = read_members(&bytes, &self.manifest)
+            .map_err(|error| failed(format!("{url}: {error}")))?;
         let tops: BTreeSet<&str> = members
             .names
             .iter()
@@ -334,16 +340,19 @@ impl<'a> Dub<'a> {
                 if strip_prefix.is_empty() {
                     Some(member.clone())
                 } else {
-                    member.strip_prefix(&format!("{strip_prefix}/")).map(str::to_owned)
+                    member
+                        .strip_prefix(&format!("{strip_prefix}/"))
+                        .map(str::to_owned)
                 }
             })
             .collect();
         let manifest: Value = if let Some(bytes) = members.files.get(&path(&self.manifest)) {
             parse_manifest(&self.manifest, bytes).map_err(failed)?
         } else if relative.iter().any(|member| member == "dub.sdl") {
-            return Err(failed(
-                format!("uses dub.sdl, which is not supported yet; only {} packages can be locked", self.manifest),
-            ));
+            return Err(failed(format!(
+                "uses dub.sdl, which is not supported yet; only {} packages can be locked",
+                self.manifest
+            )));
         } else {
             return Err(failed(format!("has no {}", self.manifest)));
         };
@@ -374,11 +383,15 @@ impl<'a> Dub<'a> {
                 .collect();
         }
         let source_files = strings("sourceFiles");
-        let source_files: Vec<String> = source_files.into_iter().map(|file| file.trim_start_matches("./").to_owned()).collect();
+        let source_files: Vec<String> = source_files
+            .into_iter()
+            .map(|file| file.trim_start_matches("./").to_owned())
+            .collect();
         if source_paths.is_empty() && source_files.is_empty() {
-            return Err(failed(
-                format!("has no sourcePaths or sourceFiles in {} and no source or src directory", self.manifest),
-            ));
+            return Err(failed(format!(
+                "has no sourcePaths or sourceFiles in {} and no source or src directory",
+                self.manifest
+            )));
         }
         let mut imports = strings("importPaths");
         if imports.is_empty() {
@@ -396,7 +409,11 @@ impl<'a> Dub<'a> {
         srcs.extend(source_files.clone());
         let mut provides = BTreeSet::new();
         for dir in &imports {
-            let prefix = if dir == "." { String::new() } else { format!("{dir}/") };
+            let prefix = if dir == "." {
+                String::new()
+            } else {
+                format!("{dir}/")
+            };
             for member in &relative {
                 let Some(rest) = member.strip_prefix(&prefix) else {
                     continue;
@@ -453,7 +470,8 @@ impl<'a> Dub<'a> {
 
 fn parse_manifest(name: &str, bytes: &[u8]) -> Result<Value, String> {
     let text = String::from_utf8_lossy(bytes);
-    serde_json::from_str(text.trim_start_matches('\u{feff}')).map_err(|error| format!("{name}: {error}"))
+    serde_json::from_str(text.trim_start_matches('\u{feff}'))
+        .map_err(|error| format!("{name}: {error}"))
 }
 
 /// The most bytes read from one archive member.
@@ -470,13 +488,17 @@ fn read_members(bytes: &[u8], manifest: &str) -> Result<Members, String> {
         names: BTreeSet::new(),
         files: BTreeMap::new(),
     };
-    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|error| error.to_string())?;
+    let mut archive =
+        zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|error| error.to_string())?;
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index).map_err(|error| error.to_string())?;
         if !entry.is_file() || entry.is_symlink() {
             continue;
         }
-        let name = entry.name().map_err(|error| error.to_string())?.into_owned();
+        let name = entry
+            .name()
+            .map_err(|error| error.to_string())?
+            .into_owned();
         let name = name.trim_start_matches("./").to_owned();
         let base = name.rsplit('/').next().unwrap_or(&name);
         let depth = name.matches('/').count();
@@ -538,11 +560,13 @@ const ROUNDS: usize = 64;
 impl Resolver for Dub<'_> {
     fn resolve(&self, scratch: &Scratch, old: Option<&Lock>) -> Result<Resolution, Error> {
         let read = |name: &str| {
-            std::fs::read_to_string(scratch.set().join(name)).map_err(|error| Error::new(format!("{name}: {error}")))
+            std::fs::read_to_string(scratch.set().join(name))
+                .map_err(|error| Error::new(format!("{name}: {error}")))
         };
         let manifest = parse_manifest(&self.manifest, read(&self.manifest)?.as_bytes())
             .map_err(|error| Error::new(format!("{}: {error}", self.manifest)))?;
-        let root = parse_dependencies(&manifest).map_err(|error| Error::new(format!("{}: {error}", self.manifest)))?;
+        let root = parse_dependencies(&manifest)
+            .map_err(|error| Error::new(format!("{}: {error}", self.manifest)))?;
         let previous = std::fs::read_to_string(scratch.set().join(&self.state))
             .map(|text| selections(&text))
             .unwrap_or_default();
@@ -578,13 +602,20 @@ impl Resolver for Dub<'_> {
             }
             let mut next: BTreeMap<String, String> = BTreeMap::new();
             for (name, ranges) in &wanted {
-                let selected = chosen.get(name).or_else(|| previous.get(name)).map(String::as_str);
+                let selected = chosen
+                    .get(name)
+                    .or_else(|| previous.get(name))
+                    .map(String::as_str);
                 let version = self.pick(name, ranges, selected, &mut listed)?;
                 let key = (name.clone(), version.clone());
                 if !described.contains_key(&key) {
                     let entry = match old.and_then(|lock| unchanged(lock, name, &version)) {
                         Some(package) => Described {
-                            nested: package.deps.iter().map(|dep| (dep.clone(), vec![any.clone()])).collect(),
+                            nested: package
+                                .deps
+                                .iter()
+                                .map(|dep| (dep.clone(), vec![any.clone()]))
+                                .collect(),
                             package: package.clone(),
                         },
                         None => self.describe(name, &version)?,

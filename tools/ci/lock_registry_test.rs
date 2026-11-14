@@ -150,14 +150,51 @@ fn banned_attr(name: &str) -> bool {
 fn string_literal(expr: &AstExpr) -> Option<&str> {
     match &expr.node {
         ExprP::Literal(AstLiteral::String(text)) => Some(&text.node),
-        _ => None,
+        ExprP::Tuple(_)
+        | ExprP::Dot(..)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Identifier(_)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::List(_)
+        | ExprP::Dict(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => None,
     }
 }
 
 fn identifier(expr: &AstExpr) -> Option<&str> {
     match &expr.node {
         ExprP::Identifier(ident) => Some(&ident.node.ident),
-        _ => None,
+        ExprP::Tuple(_)
+        | ExprP::Dot(..)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::List(_)
+        | ExprP::Dict(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => None,
     }
 }
 
@@ -188,7 +225,17 @@ fn globals(stmt: &AstStmt) -> BTreeMap<String, &AstExpr> {
                     out.insert(ident.node.ident.clone(), &assign.rhs);
                 }
             }
-            _ => {}
+            StmtP::Break
+            | StmtP::Continue
+            | StmtP::Pass
+            | StmtP::Return(_)
+            | StmtP::Expression(_)
+            | StmtP::AssignModify(..)
+            | StmtP::If(..)
+            | StmtP::IfElse(..)
+            | StmtP::For(_)
+            | StmtP::Def(_)
+            | StmtP::Load(_) => {}
         }
     }
     out
@@ -256,7 +303,7 @@ fn banned_tag_uses(path: &str, source: &str, dirs: &BTreeSet<String>) -> BTreeSe
             .iter()
             .filter_map(|arg| match &arg.node {
                 ArgumentP::Positional(value) => string_literal(value),
-                _ => None,
+                ArgumentP::Named(..) | ArgumentP::Args(_) | ArgumentP::KwArgs(_) => None,
             })
             .collect();
         if let [label, extension, ..] = positional.as_slice()
@@ -774,13 +821,23 @@ fn a_manifest_or_lock_name_outside_the_registry_fails() {
 fn a_registry_name_in_a_file_generated_from_the_registry_passes() {
     let tree = tree(
         &[
-            ("core/modules/langs.bzl", "\"\"\"Generated from every <lang>/lang.json by a test.\"\"\"\nX = \"composer.lock\"\n"),
-            ("php/private/php.bzl", "\"\"\"Hand written.\"\"\"\nX = \"composer.lock\"\n"),
+            (
+                "core/modules/langs.bzl",
+                "\"\"\"Generated from every <lang>/lang.json by a test.\"\"\"\nX = \"composer.lock\"\n",
+            ),
+            (
+                "php/private/php.bzl",
+                "\"\"\"Hand written.\"\"\"\nX = \"composer.lock\"\n",
+            ),
         ],
         &[("php/lang.json", PHP_LANG)],
         &[],
     );
-    assert!(found(&tree).iter().all(|line| !line.contains("langs.bzl")), "{:?}", found(&tree));
+    assert!(
+        found(&tree).iter().all(|line| !line.contains("langs.bzl")),
+        "{:?}",
+        found(&tree)
+    );
     assert!(found(&tree).contains(&"name php/private/php.bzl composer.lock".to_owned()));
 }
 

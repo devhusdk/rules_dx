@@ -235,7 +235,9 @@ mod tests {
     fn dirty_input_is_reformatted() {
         match format_source(Lang::Ocaml, "let   x=1\n") {
             Outcome::Changed(out) => assert_eq!(out, "let x = 1\n"),
-            other => panic!("unexpected {other:?}"),
+            other @ Outcome::Clean | other @ Outcome::Syntax { .. } | other @ Outcome::Error(_) => {
+                panic!("unexpected {other:?}")
+            }
         }
     }
 
@@ -253,7 +255,9 @@ mod tests {
     fn syntax_error_reports_position() {
         match format_source(Lang::Ocaml, "let x = 1\nlet = = 2\n") {
             Outcome::Syntax { line, .. } => assert_eq!(line, 2),
-            other => panic!("unexpected {other:?}"),
+            other @ Outcome::Clean | other @ Outcome::Changed(_) | other @ Outcome::Error(_) => {
+                panic!("unexpected {other:?}")
+            }
         }
     }
 

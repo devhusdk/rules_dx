@@ -189,7 +189,13 @@ fn parse_importer(
     let map = match value {
         yaml_serde::Value::Null => return Ok(entries),
         yaml_serde::Value::Mapping(map) => map,
-        _ => return Err(lock_error(format!("importer '{key}' must be a mapping"))),
+        yaml_serde::Value::Bool(_)
+        | yaml_serde::Value::Number(_)
+        | yaml_serde::Value::String(_)
+        | yaml_serde::Value::Sequence(_)
+        | yaml_serde::Value::Tagged(_) => {
+            return Err(lock_error(format!("importer '{key}' must be a mapping")));
+        }
     };
     for section in ["dependencies", "optionalDependencies", "devDependencies"] {
         let deps = match map.get(section) {

@@ -323,7 +323,7 @@ fn maven_pom_fields(pom: &[u8]) -> Result<std::collections::HashMap<String, Stri
                 }
             }
             Event::Eof => break,
-            _ => {}
+            Event::Comment(_) | Event::Decl(_) | Event::PI(_) | Event::DocType(_) => {}
         }
     }
     match root.as_deref() {

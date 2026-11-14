@@ -873,7 +873,10 @@ pub fn scaffold_dest_within_root(
                 dest.push(part);
                 pushed = true;
             }
-            _ => {
+            Component::Prefix(_)
+            | Component::RootDir
+            | Component::CurDir
+            | Component::ParentDir => {
                 return Err(AdoptError::ScaffoldEscapesRoot {
                     path: relative.to_owned(),
                 });

@@ -786,14 +786,48 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
                 Err(CPAN_PACKAGE_CHARSET)
             }
         }
-        _ => {
+        Ecosystem::Uv
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Nuget
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => {
             let charset = match ecosystem {
                 Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
                 Ecosystem::Bazel => BAZEL_PACKAGE_CHARSET,
                 Ecosystem::Ruby => RUBY_PACKAGE_CHARSET,
                 Ecosystem::PowerShell => POWERSHELL_PACKAGE_CHARSET,
                 Ecosystem::LuaRocks => LUAROCKS_PACKAGE_CHARSET,
-                _ => UV_PACKAGE_CHARSET,
+                Ecosystem::Uv
+                | Ecosystem::Npm
+                | Ecosystem::Cargo
+                | Ecosystem::Maven
+                | Ecosystem::Go
+                | Ecosystem::Cpan
+                | Ecosystem::Pub
+                | Ecosystem::Julia
+                | Ecosystem::Hex
+                | Ecosystem::Composer
+                | Ecosystem::Dub
+                | Ecosystem::Fpm
+                | Ecosystem::Zig
+                | Ecosystem::Opam
+                | Ecosystem::SwiftPm
+                | Ecosystem::Cabal
+                | Ecosystem::Ansible
+                | Ecosystem::Bicep => UV_PACKAGE_CHARSET,
             };
             if package.is_empty() {
                 return Err(charset);
@@ -1199,7 +1233,17 @@ pub fn check_backend_settings(
         }
         Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
         Ecosystem::Go => check_go_layout(workspace, set),
-        other => match other.lockfiles().first() {
+        other @ Ecosystem::Bazel
+        | other @ Ecosystem::Ruby
+        | other @ Ecosystem::PowerShell
+        | other @ Ecosystem::Nuget
+        | other @ Ecosystem::Pub
+        | other @ Ecosystem::Dub
+        | other @ Ecosystem::Fpm
+        | other @ Ecosystem::Zig
+        | other @ Ecosystem::LuaRocks
+        | other @ Ecosystem::SwiftPm
+        | other @ Ecosystem::Bicep => match other.lockfiles().first() {
             Some(lock) if other.lock_required() => check_pinned_lock(set, lock),
             _ => Ok(()),
         },
@@ -1592,7 +1636,7 @@ pub fn check_lock_ready(workspace: &Path, set: &ResolvedSet) -> Result<(), Depen
             };
             match hub.policy {
                 dx_module_bazel::RepinPolicy::Unset | dx_module_bazel::RepinPolicy::True => {}
-                _ => {
+                dx_module_bazel::RepinPolicy::False | dx_module_bazel::RepinPolicy::Computed => {
                     return Err(unsupported(
                         "fail_if_repin_required must stay true so a stale lock fails the check"
                             .to_owned(),
@@ -1617,7 +1661,28 @@ pub fn check_lock_ready(workspace: &Path, set: &ResolvedSet) -> Result<(), Depen
             }
             Ok(())
         }
-        _ => Ok(()),
+        Ecosystem::Uv
+        | Ecosystem::Npm
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Cargo
+        | Ecosystem::Nuget
+        | Ecosystem::Go
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => Ok(()),
     }
 }
 

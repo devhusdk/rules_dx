@@ -8,7 +8,13 @@ pub(super) fn plan_cargo_toml(
 ) -> Result<String, EditError> {
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
-        _ => {
+        WidenVersion::GitTag(_)
+        | WidenVersion::GitCommit(_)
+        | WidenVersion::Gem(_)
+        | WidenVersion::Cpan(_)
+        | WidenVersion::Opam(_)
+        | WidenVersion::Release(_)
+        | WidenVersion::Digest(_) => {
             return Err(EditError::UnsupportedManifest {
                 manifest: manifest.to_owned(),
                 reason: "expected exact semver".to_owned(),
@@ -98,7 +104,9 @@ pub(super) fn cargo_dep_shape(item: &toml_edit::Item) -> CargoDepShape {
         toml_edit::Item::Value(toml_edit::Value::String(_)) => CargoDepShape::Registry,
         toml_edit::Item::Value(toml_edit::Value::InlineTable(table)) => cargo_inline_shape(table),
         toml_edit::Item::Table(table) => cargo_table_shape(table),
-        _ => CargoDepShape::NoVersion,
+        toml_edit::Item::None | toml_edit::Item::Value(_) | toml_edit::Item::ArrayOfTables(_) => {
+            CargoDepShape::NoVersion
+        }
     }
 }
 
@@ -230,6 +238,8 @@ pub(super) fn cargo_set_version(table: &mut toml_edit::Table, package: &str, new
             *formatted.decor_mut() = decor;
             true
         }
-        _ => false,
+        toml_edit::Item::None | toml_edit::Item::Value(_) | toml_edit::Item::ArrayOfTables(_) => {
+            false
+        }
     }
 }

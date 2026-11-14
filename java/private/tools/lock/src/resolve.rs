@@ -72,14 +72,20 @@ fn text<'a>(table: &'a toml::Table, key: &str) -> Option<&'a str> {
     table.get(key).and_then(toml::Value::as_str)
 }
 
-fn coordinates(alias: &str, value: &toml::Value, versions: &toml::Table) -> Result<(String, Value), String> {
+fn coordinates(
+    alias: &str,
+    value: &toml::Value,
+    versions: &toml::Table,
+) -> Result<(String, Value), String> {
     let table = match value {
         toml::Value::String(coords) => {
             let mut parts = coords.split(':');
             let (Some(group), Some(artifact), Some(version), None) =
                 (parts.next(), parts.next(), parts.next(), parts.next())
             else {
-                return Err(format!("library {alias}: {coords} is not group:artifact:version"));
+                return Err(format!(
+                    "library {alias}: {coords} is not group:artifact:version"
+                ));
             };
             return Ok((
                 format!("{group}:{artifact}"),
@@ -87,9 +93,19 @@ fn coordinates(alias: &str, value: &toml::Value, versions: &toml::Table) -> Resu
             ));
         }
         toml::Value::Table(table) => table,
-        _ => return Err(format!("library {alias} is neither a string nor a table")),
+        toml::Value::Integer(_)
+        | toml::Value::Float(_)
+        | toml::Value::Boolean(_)
+        | toml::Value::Datetime(_)
+        | toml::Value::Array(_) => {
+            return Err(format!("library {alias} is neither a string nor a table"));
+        }
     };
-    let (group, artifact) = match (text(table, "module"), text(table, "group"), text(table, "name")) {
+    let (group, artifact) = match (
+        text(table, "module"),
+        text(table, "group"),
+        text(table, "name"),
+    ) {
         (Some(module), _, _) => module
             .split_once(':')
             .ok_or_else(|| format!("library {alias}: module {module} is not group:artifact"))?,
@@ -99,7 +115,8 @@ fn coordinates(alias: &str, value: &toml::Value, versions: &toml::Table) -> Resu
     let version = match table.get("version") {
         Some(toml::Value::String(version)) => version.as_str(),
         Some(toml::Value::Table(version)) => {
-            let reference = text(version, "ref").ok_or_else(|| format!("library {alias}: version has no ref"))?;
+            let reference = text(version, "ref")
+                .ok_or_else(|| format!("library {alias}: version has no ref"))?;
             versions
                 .get(reference)
                 .and_then(toml::Value::as_str)
@@ -124,10 +141,18 @@ fn coordinates(alias: &str, value: &toml::Value, versions: &toml::Table) -> Resu
 
 /// Renders the resolver's config file for one manifest.
 pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String> {
-    let parsed: toml::Table = manifest.parse().map_err(|error| format!("version catalog: {error}"))?;
+    let parsed: toml::Table = manifest
+        .parse()
+        .map_err(|error| format!("version catalog: {error}"))?;
     let empty = toml::Table::new();
-    let versions = parsed.get("versions").and_then(toml::Value::as_table).unwrap_or(&empty);
-    let libraries = parsed.get("libraries").and_then(toml::Value::as_table).unwrap_or(&empty);
+    let versions = parsed
+        .get("versions")
+        .and_then(toml::Value::as_table)
+        .unwrap_or(&empty);
+    let libraries = parsed
+        .get("libraries")
+        .and_then(toml::Value::as_table)
+        .unwrap_or(&empty);
     let excluded = parsed
         .get("excluded_artifacts")
         .and_then(toml::Value::as_array)
@@ -155,7 +180,11 @@ pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String>
             .as_object_mut()
             .and_then(|object| object.remove("bom"))
             .is_some();
-        if bom { boms.push(entry) } else { artifacts.push(entry) }
+        if bom {
+            boms.push(entry)
+        } else {
+            artifacts.push(entry)
+        }
     }
     let repositories = if repositories.is_empty() {
         vec!["https://repo1.maven.org/maven2/".to_owned()]
@@ -190,7 +219,8 @@ pub fn lock(tools: &Tools, request: &Request) -> Result<Outcome, String> {
         } else if request.check {
             Ok(Outcome::Stale)
         } else {
-            std::fs::write(&lock_path, &resolved).map_err(|error| format!("{}: {error}", lock_path.display()))?;
+            std::fs::write(&lock_path, &resolved)
+                .map_err(|error| format!("{}: {error}", lock_path.display()))?;
             Ok(Outcome::Written)
         }
     });

@@ -283,7 +283,11 @@ fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerEr
     result.map_err(|err| match err {
         // An incomplete analysis is not malformed output.
         ParseError::Incomplete { .. } => execution(tool_id, err.to_string()),
-        other => RunnerError::ToolOutput {
+        other @ ParseError::Json { .. }
+        | other @ ParseError::Shape { .. }
+        | other @ ParseError::UnknownFile { .. }
+        | other @ ParseError::ValeConfig { .. }
+        | other @ ParseError::TooLarge { .. } => RunnerError::ToolOutput {
             tool_id: tool_id.to_owned(),
             detail: other.to_string(),
         },
@@ -313,7 +317,17 @@ fn with_stderr(err: RunnerError, stderr: &[u8]) -> RunnerError {
             tool_id,
             detail: format!("{detail}: {tail}"),
         },
-        other => other,
+        other @ RunnerError::EmptyProducer
+        | other @ RunnerError::UnknownCapability { .. }
+        | other @ RunnerError::EmptyStages
+        | other @ RunnerError::EmptyToolId { .. }
+        | other @ RunnerError::UnknownTool { .. }
+        | other @ RunnerError::EmptyClassIds { .. }
+        | other @ RunnerError::EmptyStageSources { .. }
+        | other @ RunnerError::DuplicateFile { .. }
+        | other @ RunnerError::InvalidUtf8 { .. }
+        | other @ RunnerError::MissingFile { .. }
+        | other @ RunnerError::UnplaceableFinding { .. } => other,
     }
 }
 
@@ -432,7 +446,17 @@ impl RealBackend {
                 RunnerError::ToolExecution { tool_id, detail }
             }
             RunnerError::ToolOutput { tool_id, .. } => RunnerError::ToolOutput { tool_id, detail },
-            other => other,
+            other @ RunnerError::EmptyProducer
+            | other @ RunnerError::UnknownCapability { .. }
+            | other @ RunnerError::EmptyStages
+            | other @ RunnerError::EmptyToolId { .. }
+            | other @ RunnerError::UnknownTool { .. }
+            | other @ RunnerError::EmptyClassIds { .. }
+            | other @ RunnerError::EmptyStageSources { .. }
+            | other @ RunnerError::DuplicateFile { .. }
+            | other @ RunnerError::InvalidUtf8 { .. }
+            | other @ RunnerError::MissingFile { .. }
+            | other @ RunnerError::UnplaceableFinding { .. } => other,
         };
         with_stderr(err, &self.last_stderr.borrow())
     }

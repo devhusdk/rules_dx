@@ -260,7 +260,7 @@ fn rc_names() -> Vec<&'static str> {
         .flat_map(|rc| rc.files.iter())
         .filter_map(|(slot, _)| match slot {
             Rc::Extra(name) => Some(*name),
-            _ => None,
+            Rc::System | Rc::Workspace | Rc::Home => None,
         })
         .collect();
     names.sort_unstable();

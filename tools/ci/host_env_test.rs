@@ -165,7 +165,10 @@ fn scan_starlark(path: &str, source: &str, counts: &mut Counts) {
                 {
                     hit(counts, path, "default-shell-env");
                 }
-                _ => {}
+                ArgumentP::Positional(_)
+                | ArgumentP::Named(..)
+                | ArgumentP::Args(_)
+                | ArgumentP::KwArgs(_) => {}
             }
         }
     }

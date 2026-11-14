@@ -143,9 +143,19 @@ impl Scan {
                             self.requirement(path, 1);
                         }
                     }
-                    _ => {}
+                    AssignTargetP::Tuple(_) | AssignTargetP::Dot(..) => {}
                 },
-                _ => {}
+                StmtP::Break
+                | StmtP::Continue
+                | StmtP::Pass
+                | StmtP::Return(_)
+                | StmtP::Expression(_)
+                | StmtP::AssignModify(..)
+                | StmtP::Statements(_)
+                | StmtP::If(..)
+                | StmtP::IfElse(..)
+                | StmtP::For(_)
+                | StmtP::Load(_) => {}
             }
         }
         for expr in exprs(module.statement()) {
@@ -177,11 +187,31 @@ impl Scan {
                                     ));
                                 }
                             }
-                            _ => {}
+                            ArgumentP::Positional(_)
+                            | ArgumentP::Named(..)
+                            | ArgumentP::Args(_)
+                            | ArgumentP::KwArgs(_) => {}
                         }
                     }
                 }
-                _ => {
+                ExprP::Tuple(_)
+                | ExprP::Dot(..)
+                | ExprP::Index(_)
+                | ExprP::Index2(_)
+                | ExprP::Slice(..)
+                | ExprP::Identifier(_)
+                | ExprP::Lambda(_)
+                | ExprP::Literal(_)
+                | ExprP::Not(_)
+                | ExprP::Minus(_)
+                | ExprP::Plus(_)
+                | ExprP::BitNot(_)
+                | ExprP::Op(..)
+                | ExprP::If(_)
+                | ExprP::List(_)
+                | ExprP::ListComprehension(..)
+                | ExprP::DictComprehension(..)
+                | ExprP::FString(_) => {
                     if string(expr).is_some_and(tmp) {
                         hit(&mut self.counts, path, "tmp-path");
                     }
@@ -348,7 +378,7 @@ fn product_tokens(tokens: Vec<Token>) -> Vec<Token> {
                     }
                 }
                 Token::Punct(';') if depth == 0 => break,
-                _ => {}
+                Token::Word(_) | Token::Text(_) | Token::Punct(_) => {}
             }
         }
         skipped[start..at].fill(true);

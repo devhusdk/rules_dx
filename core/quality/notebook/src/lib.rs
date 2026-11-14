@@ -367,7 +367,7 @@ impl<'a> Notebook<'a> {
                     .map(|(c, _)| c)
                     .collect(),
             ),
-            _ => None,
+            Node::Object(..) | Node::Array(..) | Node::Lit(_) => None,
         }
     }
 

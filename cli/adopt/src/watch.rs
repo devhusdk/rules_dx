@@ -71,7 +71,11 @@ pub fn is_change(kind: &notify::EventKind) -> bool {
     match kind {
         EventKind::Access(AccessKind::Close(AccessMode::Write)) => true,
         EventKind::Access(_) => false,
-        _ => true,
+        EventKind::Any
+        | EventKind::Create(_)
+        | EventKind::Modify(_)
+        | EventKind::Remove(_)
+        | EventKind::Other => true,
     }
 }
 

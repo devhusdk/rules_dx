@@ -429,7 +429,7 @@ fn fake_route(
                 "Bearer realm=\"{}/token\",service=\"fake.registry\",scope=\"repository:x:pull\"",
                 state.origin
             ),
-            _ => "Basic realm=\"fake\"".to_owned(),
+            FakeChallenge::None | FakeChallenge::Basic => "Basic realm=\"fake\"".to_owned(),
         };
         return (
             401,

@@ -178,34 +178,32 @@ fn rejecting_flag(args: &[String], raw: &str) -> &'static str {
 }
 
 fn parse_error(error: clap::Error, args: &[String]) -> Vec<String> {
-    match error.kind() {
-        ErrorKind::UnknownArgument => {
-            vec![
-                format!(
-                    "unknown argument: {}",
-                    dx_output::unknown_token(&error, args)
-                ),
-                usage(),
-            ]
+    let kind = error.kind();
+    if kind == ErrorKind::UnknownArgument {
+        vec![
+            format!(
+                "unknown argument: {}",
+                dx_output::unknown_token(&error, args)
+            ),
+            usage(),
+        ]
+    } else if kind == ErrorKind::InvalidValue {
+        let flag = dx_output::missing_value_flag(&error);
+        vec![format!("missing value for {flag}"), usage()]
+    } else if kind == ErrorKind::ValueValidation {
+        if let Some(raw) = dx_output::rejected_value(&error) {
+            let flag = rejecting_flag(args, &raw);
+            return check_mapping(flag, &raw, &error);
         }
-        ErrorKind::InvalidValue => {
-            let flag = dx_output::missing_value_flag(&error);
-            vec![format!("missing value for {flag}"), usage()]
-        }
-        ErrorKind::ValueValidation => {
-            if let Some(raw) = dx_output::rejected_value(&error) {
-                let flag = rejecting_flag(args, &raw);
-                return check_mapping(flag, &raw, &error);
+        match empty_rejection(args) {
+            EmptyRejection::Attached(echoed) => {
+                vec![format!("unknown argument: {echoed}"), usage()]
             }
-            match empty_rejection(args) {
-                EmptyRejection::Attached(echoed) => {
-                    vec![format!("unknown argument: {echoed}"), usage()]
-                }
-                EmptyRejection::Separate(flag) => check_mapping(flag, "", &error),
-                EmptyRejection::Neither => check_mapping("--source", "", &error),
-            }
+            EmptyRejection::Separate(flag) => check_mapping(flag, "", &error),
+            EmptyRejection::Neither => check_mapping("--source", "", &error),
         }
-        _ => vec![dx_output::first_line(&error), usage()],
+    } else {
+        vec![dx_output::first_line(&error), usage()]
     }
 }
 

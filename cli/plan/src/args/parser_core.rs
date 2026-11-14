@@ -115,7 +115,26 @@ fn plain_words(command: Command) -> Vec<String> {
         }
         Command::Watch => words.extend(strings(&["run", "//:demo"])),
         Command::Completion => words.push("bash".to_owned()),
-        _ => {}
+        Command::Security
+        | Command::License
+        | Command::Lint
+        | Command::Typecheck
+        | Command::Format
+        | Command::Generate
+        | Command::Build
+        | Command::Test
+        | Command::Coverage
+        | Command::Bench
+        | Command::Check
+        | Command::Clean
+        | Command::Update
+        | Command::Sync
+        | Command::Init
+        | Command::Status
+        | Command::Docs
+        | Command::Worktree
+        | Command::Fuzz
+        | Command::Config => {}
     }
     words
 }

@@ -99,7 +99,7 @@ pub(super) fn plan_opam(
                 list_end = i;
                 break;
             }
-            _ => {}
+            Kind::Str | Kind::Op | Kind::Other(_) => {}
         }
     }
     let list = all
@@ -118,7 +118,7 @@ pub(super) fn plan_opam(
             {
                 hits.push(i)
             }
-            _ => {}
+            Kind::Str | Kind::Op | Kind::Other(_) => {}
         }
     }
     let index = match hits.as_slice() {
@@ -139,7 +139,7 @@ pub(super) fn plan_opam(
             match token.kind {
                 Kind::Open => depth += 1,
                 Kind::Close => depth -= 1,
-                _ => {}
+                Kind::Str | Kind::Op | Kind::Other(_) => {}
             }
             block.push(token);
             if depth == 0 {

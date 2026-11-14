@@ -125,7 +125,7 @@ impl Version {
             let right = other.parts.get(at).copied().unwrap_or((0, 0));
             match left.cmp(&right) {
                 Ordering::Equal => {}
-                unequal => return unequal,
+                unequal @ Ordering::Less | unequal @ Ordering::Greater => return unequal,
             }
         }
         Ordering::Equal

@@ -205,7 +205,7 @@ fn parse_xml(text: &str) -> Result<Node, String> {
                 push_text(&mut stack, &resolved);
             }
             Event::Eof => break,
-            _ => {}
+            Event::Comment(_) | Event::Decl(_) | Event::PI(_) | Event::DocType(_) => {}
         }
     }
     root.ok_or_else(|| "Doxygen XML has no root element".to_owned())

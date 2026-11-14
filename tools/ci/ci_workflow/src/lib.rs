@@ -136,7 +136,7 @@ pub fn matrix_refs(value: &Value, found: &mut Vec<String>) {
         }
         Value::Array(items) => items.iter().for_each(|item| matrix_refs(item, found)),
         Value::Object(map) => map.values().for_each(|item| matrix_refs(item, found)),
-        _ => {}
+        Value::Null | Value::Bool(_) | Value::Number(_) => {}
     }
 }
 
@@ -248,7 +248,7 @@ pub fn strings(path: &str) -> Vec<String> {
             Value::String(text) => out.push(text.clone()),
             Value::Array(items) => items.iter().for_each(|item| walk(item, out)),
             Value::Object(map) => map.values().for_each(|item| walk(item, out)),
-            _ => {}
+            Value::Null | Value::Bool(_) | Value::Number(_) => {}
         }
     }
     let mut out = Vec::new();

@@ -22,6 +22,7 @@ _QUALITY_KEYS = {
 _QUALITY_CONFIG = "default"
 
 _QUALITY_CONFIGS = {
+    "dart": "tool_overrides",
     "perl": "tool_overrides",
     "powershell": "tool_overrides",
     "ruby": "tool_overrides",

@@ -26,7 +26,7 @@ _friend_path_test = analysistest.make(
 )
 
 def kotlin_friend_path_test(name, library, associate):
-    """Asserts the kotlinc action of the kotlin_library `library` of this package has a jar of `associate` as a friend path."""
+    """Asserts the kotlinc action has a jar of `associate` as a friend path."""
     _friend_path_test(
         name = name,
         size = "small",

@@ -107,7 +107,7 @@ def kotlin_binary(name, *, srcs = None, visibility = None, **kwargs):
     dx_wrap_binary(name, _kt_jvm_binary, _kotlin_binary_forward, srcs, visibility = visibility, upstream_kwargs = kotlin_kotlinc_opts_with_warnings_as_errors(name, kwargs), **dx_without_warnings_attr(kwargs))
 
 def kotlin_test(name, *, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over kt_jvm_test. test_class is inferred from the name and srcs when unset; the dx test runner runs unless main_class is set. Warnings are errors unless warnings_as_errors is False."""
+    """Wraps kt_jvm_test with the dx test runner and warnings as errors."""
     _kotlin_declare_warnings_as_errors_opts(name, kwargs)
     package = native.package_name()
     upstream_kwargs = kotlin_test_entry_kwargs(name, srcs, package, kotlin_kotlinc_opts_with_warnings_as_errors(name, kwargs))
@@ -135,7 +135,7 @@ def kotlin_bench(name, *, srcs, deps = None, tags = None, **kwargs):
     jmh_bench(name, kotlin_library, java_jmh_test, srcs, deps or [], tags or [], kwargs, {"javac_opts": ":" + name + "_javac_opts"})
 
 def kotlin_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visibility = None, tags = None, **kwargs):
-    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`. target_class is inferred from the name or the single src when unset."""
+    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`."""
     target_class = jazzer_target_class("kotlin_fuzz_test", name, srcs, target_class, native.package_name(), ".kt")
     kt_javac_options(
         name = name + "_javac_opts",

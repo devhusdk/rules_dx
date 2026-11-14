@@ -82,7 +82,7 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 
 ## elvis, rules_d, rules_dart, rules_dotnet, rules_elixir, rules_erlang, rules_flutter, rules_fortran, rules_haskell, rules_ocaml, rules_ruby
 
-No action. `rules_dx` applies these patches in its own repository rules: `pic_link.patch`, `disabled_features.patch` (rules_d); `hermetic_tar.patch` (rules_dart); `engine_labels.patch`, `hermetic_pub.patch` (rules_flutter); `reproducible.patch`, `fsharp_signature.patch`, `nuget_group_prefix.patch`, `sdk_versions.patch`, `canonical_labels.patch` (rules_dotnet); `coverage_wrapper_no_report.patch`, `hermetic_haskell.patch`, `cabal_rules.patch`, `cabal_mingw_transition.patch`, `cc_wrapper_relpath_mount.patch`, `ghc_wrapper_runfiles_env.patch`, `cc_toolchain_config_info.patch`, `cabal_llvm_ar.patch`, `cc_wrapper_darwin_ffi.patch` (rules_haskell); `reproducible.patch`, `coverage.patch`, `rubyinstaller_archive.patch` (rules_ruby).
+No action. `rules_dx` applies these patches in its own repository rules: `pic_link.patch`, `disabled_features.patch` (rules_d); `hermetic_tar.patch` (rules_dart); `engine_labels.patch`, `hermetic_pub.patch` (rules_flutter); `reproducible.patch`, `fsharp_signature.patch`, `nuget_group_prefix.patch`, `sdk_versions.patch`, `canonical_labels.patch` (rules_dotnet); `coverage_wrapper_no_report.patch`, `hermetic_haskell.patch`, `cabal_rules.patch`, `cabal_mingw_transition.patch`, `cc_wrapper_relpath_mount.patch`, `ghc_wrapper_runfiles_env.patch`, `cc_toolchain_config_info.patch`, `cabal_llvm_ar.patch`, `cc_wrapper_darwin_ffi.patch`, `cabal_binary_dep_data.patch` (rules_haskell); `reproducible.patch`, `coverage.patch`, `rubyinstaller_archive.patch` (rules_ruby).
 
 ## kcov
 

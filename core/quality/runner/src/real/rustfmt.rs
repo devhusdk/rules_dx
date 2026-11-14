@@ -16,6 +16,16 @@ fn absolute_names(pairs: &[StagedPair]) -> Vec<String> {
         .collect()
 }
 
+/// The spelling rustfmt reports for a staged file: symlinks and short names resolved, no `\\?\` prefix.
+fn resolved_name(name: &str) -> Option<String> {
+    let canonical = std::fs::canonicalize(name).ok()?.to_string_lossy().into_owned();
+    let plain = match canonical.strip_prefix(r"\\?\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => rest.to_owned(),
+        _ => canonical,
+    };
+    (plain != name).then_some(plain)
+}
+
 fn failure(root: &Path, out: &ChildOutput, detail: Option<String>) -> RunnerError {
     let root = root.to_string_lossy().into_owned();
     let stderr = String::from_utf8_lossy(&out.stderr).trim().to_owned();
@@ -45,8 +55,29 @@ fn parse_staged(
     names: &[String],
     out: &ChildOutput,
 ) -> Result<Vec<FileFinding>, RunnerError> {
-    let known: Vec<&str> = names.iter().map(String::as_str).collect();
-    match parsers::parse_rustfmt(&out.stdout, &out.stderr, out.code, &known) {
+    let resolved: Vec<(String, &String)> = names
+        .iter()
+        .filter_map(|name| Some((resolved_name(name)?, name)))
+        .collect();
+    let known: Vec<&str> = names
+        .iter()
+        .map(String::as_str)
+        .chain(resolved.iter().map(|(resolved, _)| resolved.as_str()))
+        .collect();
+    match parsers::parse_rustfmt(&out.stdout, &out.stderr, out.code, &known).map(|found| {
+        found
+            .into_iter()
+            .map(|mut finding| {
+                if let Some((_, original)) = resolved
+                    .iter()
+                    .find(|(resolved, _)| *resolved == finding.file)
+                {
+                    finding.file.clone_from(original);
+                }
+                finding
+            })
+            .collect::<Vec<_>>()
+    }) {
         Ok(found) => Ok(found),
         Err(err) if out.code != Some(0) => {
             let detail = (matches!(err, ParseError::UnknownFile { .. })

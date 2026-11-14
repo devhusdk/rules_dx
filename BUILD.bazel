@@ -666,6 +666,7 @@ filegroup(
         "//fortran/private/quality:module_srcs",
         "//fortran/private/toolchain:module_srcs",
         "//fortran/private/tools/lock:module_srcs",
+        "//fortran/private:module_srcs",
         "//fortran:module_srcs",
         "//gazelle/astro:module_srcs",
         "//gazelle/avro:module_srcs",

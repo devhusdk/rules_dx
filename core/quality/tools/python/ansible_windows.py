@@ -6,6 +6,8 @@ import subprocess
 import sys
 import types
 
+POSIX_ID = 1000
+
 FCNTL_CONSTANTS = {
     "F_GETFD": 1,
     "F_SETFD": 2,
@@ -68,6 +70,16 @@ def _pwd_module():
     return module
 
 
+def _grp_module():
+    module = types.ModuleType("grp")
+
+    def missing(key):
+        raise KeyError(key)
+
+    module.__dict__.update(getgrgid=missing, getgrnam=missing, getgrall=lambda: [])
+    return module
+
+
 def _spawn_context(original):
     def get_context(method=None):
         return original("spawn" if method == "fork" else method)
@@ -94,6 +106,10 @@ def install(script, names):
     sys.modules.setdefault("fcntl", _fcntl_module())
     sys.modules.setdefault("termios", _termios_module())
     sys.modules.setdefault("pwd", _pwd_module())
+    sys.modules.setdefault("grp", _grp_module())
+    for name in ("getuid", "geteuid", "getgid", "getegid"):
+        if not hasattr(os, name):
+            setattr(os, name, lambda: POSIX_ID)
     multiprocessing.get_context = _spawn_context(multiprocessing.get_context)
     subprocess.Popen = _shim_popen(script, frozenset(names))
     os.environ.setdefault("USERNAME", "dx")

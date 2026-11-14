@@ -32,7 +32,7 @@ cli/shim/src/fetch.rs compat-word 19
 cli/shim/src/main.rs compat-word 1
 cli/shim/src/protocol.rs compat-word 13
 cli/shim/src/protocol_tests.rs compat-word 2
-cli/shim/src/run.rs compat-word 36
+cli/shim/src/run.rs compat-word 35
 cli/shim/tests/e2e.rs compat-word 32
 cli/shim/tests/fetch.rs compat-word 1
 cli/shim/tests/interop.rs compat-word 15

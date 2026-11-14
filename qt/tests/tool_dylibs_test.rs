@@ -40,7 +40,7 @@ fn normalize(path: &Path) -> PathBuf {
 }
 
 fn otool(flag: &str, image: &Path) -> String {
-    let done = Command::new("otool")
+    let done = Command::new("/usr/bin/otool")
         .arg(flag)
         .arg(image)
         .output()

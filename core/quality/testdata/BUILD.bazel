@@ -1268,12 +1268,10 @@ quality_family(
 
 quality_family(
     name = "tool_override_lua_family",
-    disabled = [
-        "audit",
-        "format",
-        "lint",
-    ],
+    disabled = ["audit"],
     family_id = "lua",
+    format = ["stylua"],
+    lint = ["selene"],
     typecheck = ["luals"],
 )
 

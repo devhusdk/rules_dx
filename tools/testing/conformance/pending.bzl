@@ -268,10 +268,6 @@ kubernetes lint_test *
 kubernetes lock_test *
 kubernetes pass_test *
 kubernetes runfiles_test *
-lua format_error_test *
-lua format_test *
-lua lint_error_test *
-lua lint_test *
 lua runfiles_test *
 make build_test *
 make coverage_test *

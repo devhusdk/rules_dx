@@ -29,7 +29,7 @@ impl Project {
     }
 
     fn write(&self, rel: &str, text: &str) -> PathBuf {
-        let path = self.root.join(rel);
+        let path = rel.split('/').fold(self.root.clone(), |acc, part| acc.join(part));
         std::fs::write(&path, text).expect("write");
         path
     }
@@ -102,7 +102,7 @@ fn warning_exits_2_and_error_exits_3() {
 #[test]
 fn missing_path_exits_64() {
     let p = Project::new("missing", "");
-    let out = p.analyze(&[&p.root.join("lib/none.dart")]);
+    let out = p.analyze(&[&p.root.join("lib").join("none.dart")]);
     assert_eq!(out.status.code(), Some(64));
 }
 

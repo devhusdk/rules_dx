@@ -97,12 +97,13 @@ mod tests {
 
     #[test]
     fn the_format_matches_the_parser_grammar() {
-        assert_eq!(PERLCRITIC_FORMAT.split('\t').count(), PERLCRITIC_FIELDS);
+        assert_eq!(PERLCRITIC_FORMAT.split(r"\t").count(), PERLCRITIC_FIELDS);
         assert_eq!(
-            PERLCRITIC_FORMAT.split('\t').next(),
+            PERLCRITIC_FORMAT.split(r"\t").next(),
             Some(PERLCRITIC_SENTINEL)
         );
-        assert!(PERLCRITIC_FORMAT.ends_with('\n'));
+        assert!(PERLCRITIC_FORMAT.ends_with(r"\n"));
+        assert!(!PERLCRITIC_FORMAT.contains(['\t', '\n', '\r']));
     }
 
     #[test]

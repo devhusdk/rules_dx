@@ -248,7 +248,8 @@ const PERLTIDY_FIX_ARGS: &[&str] = &[
 ];
 /// The sentinel, then tab-separated fields; the message is last. `%g` and `%L` are the physical
 /// file and line, so a `#line` directive cannot redirect a finding; `%c` is the visual column.
-pub const PERLCRITIC_FORMAT: &str = "dx\t%g\t%L\t%c\t%s\t%p\t%m\n";
+/// Perl::Critic expands the `\t` and `\n` escapes itself.
+pub const PERLCRITIC_FORMAT: &str = r"dx\t%g\t%L\t%c\t%s\t%p\t%m\n";
 /// Without a bound profile, `--noprofile` is first: it stops perlcritic reading `~/.perlcriticrc`,
 /// `./.perlcriticrc` and `$PERLCRITIC`. Severity 5 is the only level dx asks for, plus the
 /// unused-variable policy, which `--include` loads whatever its severity.

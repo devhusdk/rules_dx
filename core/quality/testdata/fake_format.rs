@@ -133,16 +133,15 @@ fn relpath(cwd: &Path, file: &str) -> String {
     rel.to_string_lossy().replace('\\', "/")
 }
 
-fn warn_rel(cwd: &str, file: &str) -> String {
-    let mut prefix = cwd.to_owned();
-    prefix.push('/');
-    if let Some(rest) = file.strip_prefix(&prefix) {
-        return rest.to_owned();
+fn warn_rel(cwd: &Path, file: &str) -> String {
+    let path = Path::new(file);
+    if let Ok(rest) = path.strip_prefix(cwd) {
+        return rest.to_string_lossy().into_owned();
     }
-    match file.rsplit('/').next() {
-        Some(base) => base.to_owned(),
-        None => file.to_owned(),
-    }
+    path.file_name().map_or_else(
+        || file.to_owned(),
+        |base| base.to_string_lossy().into_owned(),
+    )
 }
 
 fn is_dirty(path: &str) -> bool {
@@ -332,11 +331,10 @@ pub fn run(argv: &[String]) -> i32 {
         }
         Mode::Offenses => emit_offenses(&files),
         Mode::Warn => {
-            let cwd_text = cwd.to_string_lossy().into_owned();
             let mut dirty = false;
             for file in &files {
                 if is_dirty(file) {
-                    eprintln!("[warn] {}", warn_rel(&cwd_text, file));
+                    eprintln!("[warn] {}", warn_rel(&cwd, file));
                     dirty = true;
                 }
             }
@@ -376,6 +374,21 @@ pub fn run(argv: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn warn_rel_names_a_file_under_the_working_directory_relative_to_it() {
+        let cwd = std::env::temp_dir().join("scratch");
+        let file = cwd.join("matrix").join("dirty.xml");
+        let rel = warn_rel(&cwd, &file.to_string_lossy());
+        assert_eq!(Path::new(&rel), Path::new("matrix").join("dirty.xml"));
+    }
+
+    #[test]
+    fn warn_rel_names_an_outside_file_by_its_base_name() {
+        let cwd = std::env::temp_dir().join("scratch");
+        let file = std::env::temp_dir().join("other").join("dirty.xml");
+        assert_eq!(warn_rel(&cwd, &file.to_string_lossy()), "dirty.xml");
+    }
 
     #[test]
     fn every_diff_reporting_extension_keeps_its_own_header() {

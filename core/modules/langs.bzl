@@ -2387,7 +2387,7 @@ LANGS = json.decode("""{
           "real_php_typecheck_aspect"
         ]
       },
-      "bzl": "php/private/quality:php.bzl",
+      "bzl": "core/quality:families/php.bzl",
       "file_extensions": [
         ".php"
       ],

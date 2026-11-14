@@ -126,19 +126,16 @@ fn listed_options_file_reports_its_own_problems() {
     assert!(diagnostics(&unlisted).is_empty());
 }
 
+#[cfg(unix)]
 #[test]
 fn symlinked_scratch_reports_canonical_paths() {
     let p = Project::new("link", "");
     let bad = p.write("lib/e.dart", ERROR);
     let link = p.root.join("link");
-    #[cfg(unix)]
     std::os::unix::fs::symlink(&p.root, &link).expect("symlink");
-    #[cfg(unix)]
-    {
-        let out = p.analyze(&[&link.join("lib/e.dart")]);
-        let found = diagnostics(&out);
-        assert_eq!(found[0]["location"]["file"], bad.to_str().unwrap());
-    }
+    let out = p.analyze(&[&link.join("lib/e.dart")]);
+    let found = diagnostics(&out);
+    assert_eq!(found[0]["location"]["file"], bad.to_str().unwrap());
 }
 
 #[test]

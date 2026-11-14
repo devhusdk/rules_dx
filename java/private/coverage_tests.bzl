@@ -19,6 +19,6 @@ _coverage_env_on_test = _COVERAGE.on
 _coverage_env_off_test = _COVERAGE.off
 
 def jvm_coverage_env_test(name, target, main_class = DX_JVM_TEST_RUNNER):
-    """Asserts a JVM test sets JACOCO_MAIN_CLASS to main_class under coverage, which the Windows launcher leaves out."""
+    """Asserts a JVM test sets JACOCO_MAIN_CLASS under coverage."""
     _coverage_env_on_test(name = name, size = "small", target_under_test = target, main_class = main_class)
     _coverage_env_off_test(name = name + "_off", size = "small", target_under_test = target, main_class = main_class)

@@ -1,4 +1,4 @@
-"""Analysis tests that an MSVC sdist build runs cl.exe from the toolchain and fails on a non-Windows executor."""
+"""Analysis tests for the MSVC sdist build."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_py//uv/private/pep517_whl:cc_layer.bzl", "cc_layer_test_util")

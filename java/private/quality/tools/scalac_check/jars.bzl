@@ -1,4 +1,4 @@
-"""Exposes the Scala compiler and library jars of the registered rules_scala toolchain to a test."""
+"""Exposes the Scala compiler and library jars to a test."""
 
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//core/quality:jvm_check.bzl", "scalac_toolchain_jars")

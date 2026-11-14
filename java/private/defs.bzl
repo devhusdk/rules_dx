@@ -62,12 +62,12 @@ def java_library(name, srcs = None, visibility = None, **kwargs):
     dx_wrap(name, _java_library, _java_library_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
 
 def java_binary(name, *, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over java_binary. main_class is inferred from the name and srcs when unset. -Xlint:all is on; warnings are errors unless warnings_as_errors is False."""
+    """Wrapper over java_binary that infers main_class."""
     upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_warnings_as_errors(kwargs), "main_class")
     dx_wrap_binary(name, _java_binary, _java_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
 
 def java_test(name, *, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over java_test. test_class is inferred from the name and srcs when unset; the dx test runner runs unless use_testrunner = False. -Xlint:all is on; warnings are errors unless warnings_as_errors is False."""
+    """Wrapper over java_test that infers test_class."""
     upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_warnings_as_errors(kwargs), "test_class")
     main_class = java_test_main_class(name, srcs, native.package_name(), kwargs, DX_JVM_TEST_RUNNER)
     if kwargs.get("use_testrunner") == False and main_class != None:
@@ -97,7 +97,7 @@ def java_jmh_test(name, *, runtime_deps, **kwargs):
     )
 
 def java_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visibility = None, tags = None, **kwargs):
-    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`. target_class is inferred from the name or the single src when unset."""
+    """A Jazzer fuzz target plus a runner for dx fuzz."""
     target_class = jazzer_target_class("java_fuzz_test", name, srcs, target_class, native.package_name(), ".java")
     jazzer_fuzz(name, java_library, srcs, deps, target_class, visibility, tags, kwargs)
 

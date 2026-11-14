@@ -28,7 +28,7 @@ def _class_of(path):
     return None
 
 def jazzer_target_class(kind, name, srcs, target_class, package, ext):
-    """Returns target_class, else the class inferred from the src named <name><ext> or the single src, else from the package and name; fails when none."""
+    """Returns target_class, inferred from srcs or the package when unset."""
     if target_class:
         return target_class
     path = None
@@ -48,7 +48,7 @@ def jazzer_target_class(kind, name, srcs, target_class, package, ext):
     return inferred
 
 def jazzer_fuzz(name, library, srcs, deps, target_class, visibility, tags, kwargs, library_kwargs = {}):
-    """Declares the fuzz library, the Jazzer binary and the `<name>_run` runner. library is the language's library macro."""
+    """Declares the fuzz library, the Jazzer binary and the runner."""
     dx_fuzz_test(
         name,
         library,

@@ -155,11 +155,13 @@ pub fn compose_module(
     let setup = if repo_name == "rules_dx" {
         snippet.to_owned()
     } else {
-        snippet.replacen(
-            needle,
-            &format!("{needle}repo_name = {}, ", starlark_string(repo_name)),
-            1,
-        )
+        snippet
+            .replacen(
+                needle,
+                &format!("{needle}repo_name = {}, ", starlark_string(repo_name)),
+                1,
+            )
+            .replace("\"@rules_dx//", &format!("\"@{repo_name}//"))
     };
     let body = format!("{}\n{}", setup.trim_end(), fragment.trim_end());
     Ok(format!(
@@ -203,6 +205,17 @@ mod tests {
     use super::*;
 
     const SNIPPET: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\n";
+
+    #[test]
+    fn compose_module_points_snippet_labels_at_the_repo_name() {
+        let snippet = format!(
+            "{SNIPPET}dx_licenses = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")\n"
+        );
+        let module =
+            compose_module(&snippet, "m", "my_dx", "", Path::new("/src")).expect("composes");
+        assert!(module.contains("use_extension(\"@my_dx//core:extensions.bzl\""));
+        assert!(!module.contains("\"@rules_dx//"));
+    }
 
     #[test]
     fn local_override_repos_names_one_override() {

@@ -1,0 +1,6 @@
+{"packages": [
+  {"name": "PSReadLine", "version": "2.3.4"},
+  {"name": "Pester", "version": "5.5.0"},
+  {"name": "PSScriptAnalyzer", "version": "1.21.0"},
+  {"name": "Known", "version": "1.0.0"}
+]}

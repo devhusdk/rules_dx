@@ -91,15 +91,23 @@ pub fn parse_powershell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo
     Ok(deps)
 }
 
-/// Reads the installed modules, one `<name> <version>` per line (`Get-InstalledModule`
-/// output) under the lowercase name, as the manifest keys are. `#` starts a comment.
+/// Reads the lock: the name and version of each package under the lowercase name, as the
+/// manifest keys are.
 pub fn parse_powershell_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
+    let json: serde_json::Value = serde_json::from_str(&text).map_err(|error| {
+        DepcheckError::LockIo(std::io::Error::new(std::io::ErrorKind::InvalidData, error))
+    })?;
     let mut modules = BTreeMap::new();
-    for line in text.lines() {
-        let line = line.split('#').next().unwrap_or("").trim();
-        if let Some((name, version)) = line.split_once(char::is_whitespace) {
-            modules.insert(name.to_lowercase(), version.trim().to_owned());
+    for package in json
+        .get("packages")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        if let (Some(name), Some(version)) = (package["name"].as_str(), package["version"].as_str())
+        {
+            modules.insert(name.to_lowercase(), version.to_owned());
         }
     }
     Ok(modules)

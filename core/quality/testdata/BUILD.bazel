@@ -1268,12 +1268,10 @@ quality_family(
 
 quality_family(
     name = "tool_override_ruby_family",
-    disabled = [
-        "audit",
-        "format",
-        "lint",
-    ],
+    disabled = ["audit"],
     family_id = "ruby",
+    format = ["rubocop"],
+    lint = ["rubocop"],
     typecheck = ["sorbet"],
 )
 

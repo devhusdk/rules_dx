@@ -1213,7 +1213,8 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         "json",
         "--cache",
         "false",
-        "--fix-layout",
+        "--only",
+        "Layout",
         "--display-only-correctable",
     ];
     let mut want = vec![BIN];

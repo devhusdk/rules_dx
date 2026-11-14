@@ -23,6 +23,7 @@ _QUALITY_CONFIG = "default"
 
 _QUALITY_CONFIGS = {
     "perl": "tool_overrides",
+    "ruby": "tool_overrides",
 }
 
 _CONFORMANCE_QUALITY = Label("//tools/testing/conformance:conformance_quality")

@@ -177,6 +177,7 @@ single_version_override(
         "//patches/windows_support:hostarm64_packages.patch",
         "//patches/windows_support:dx_msvc_layout.patch",
         "//patches/windows_support:source_directory_headers.patch",
+        "//patches/windows_support:reproducible_extensions.patch",
     ],
     version = "0.4.1",
 )
@@ -3182,6 +3183,7 @@ _dx_windows_support(
         "//patches/windows_support:hostarm64_packages.patch",
         "//patches/windows_support:dx_msvc_layout.patch",
         "//patches/windows_support:source_directory_headers.patch",
+        "//patches/windows_support:reproducible_extensions.patch",
     ],
     strip_prefix = "windows_support-0.4.1",
     urls = ["https://github.com/hermeticbuild/windows_support/releases/download/v0.4.1/windows_support-v0.4.1.tar.gz"],

@@ -1060,6 +1060,10 @@ mod tests {
             )),
             "{module}"
         );
+        assert!(
+            module.contains("use_repo(typescript, \"npm_typescript\")"),
+            "{module}"
+        );
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         let again = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");

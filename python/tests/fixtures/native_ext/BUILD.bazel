@@ -1,10 +1,12 @@
-# gazelle:ignore
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("@rules_python//python/cc:py_extension.bzl", "py_extension")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
-load("//python:defs.bzl", "python_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//python:defs.bzl", "python_test")
+
+# gazelle:resolve python dxlinked :dxlinked
+# gazelle:resolve python dxnative :dxnative
 
 package(
     default_testonly = True,
@@ -35,6 +37,7 @@ py_extension(
     deps = [":dxhelper"],
 )
 
+# keep
 python_test(
     name = "native_ext_test",
     testonly = True,
@@ -104,6 +107,7 @@ real_source_target(
     tags = ["corpus"],
 )
 
+# keep
 cc_library(
     name = "native_ext",
     testonly = True,

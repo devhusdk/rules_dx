@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
 load("//core/modules:python.bzl", "PYTHON_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -7,6 +6,8 @@ load("//rust:defs.bzl", "rust_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":runtime_tests.bzl", "python_runtime_unit_tests")
 load(":soabi_tests.bzl", "soabi_test")
+
+# gazelle:dx_ignore_import python rpds
 
 package(default_visibility = ["//:__subpackages__"])
 

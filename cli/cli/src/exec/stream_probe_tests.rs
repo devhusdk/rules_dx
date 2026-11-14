@@ -1,4 +1,7 @@
-#![expect(unsafe_code, reason = "signal, process-group and pty tests call libc directly")]
+#![expect(
+    unsafe_code,
+    reason = "signal, process-group and pty tests call libc directly"
+)]
 
 use super::super::test_support::{closed_pipe, hang_up, reader_gone};
 use std::ffi::{CStr, CString};

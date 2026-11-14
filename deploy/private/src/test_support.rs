@@ -44,7 +44,10 @@ pub(crate) fn scratch_dir() -> tempfile::TempDir {
     tempfile::TempDir::new().expect("scratch")
 }
 
-#[expect(unsafe_code, reason = "set_var and remove_var are unsafe in edition 2024")]
+#[expect(
+    unsafe_code,
+    reason = "set_var and remove_var are unsafe in edition 2024"
+)]
 pub(crate) fn with_env<T>(vars: &[(&str, Option<&str>)], body: impl FnOnce() -> T) -> T {
     let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let mut saved: Vec<(&str, Option<String>)> = Vec::new();

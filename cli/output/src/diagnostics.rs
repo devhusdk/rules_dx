@@ -459,7 +459,10 @@ mod tests {
         assert_eq!(color_override(), prior_override);
     }
 
-    #[expect(unsafe_code, reason = "set_var and remove_var have no safe form in edition 2024")]
+    #[expect(
+        unsafe_code,
+        reason = "set_var and remove_var have no safe form in edition 2024"
+    )]
     #[test]
     fn no_color_env_lookup_sees_empty_values() {
         if let Some(raw) = std::env::var_os("DX_OUTPUT_NO_COLOR_CHILD") {

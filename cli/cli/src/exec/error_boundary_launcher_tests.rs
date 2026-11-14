@@ -1,4 +1,7 @@
-#![expect(unsafe_code, reason = "pipe and process-group tests call libc directly")]
+#![expect(
+    unsafe_code,
+    reason = "pipe and process-group tests call libc directly"
+)]
 
 use super::super::test_support::{Harness, hang_up};
 use quality_result::proto::FileSnapshot;

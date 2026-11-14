@@ -149,8 +149,7 @@ fn parent_in(table: &[(u32, u32, String)], own: u32) -> Option<u32> {
 
 #[cfg(unix)]
 fn parent_pid(preferred: Option<u32>) -> u32 {
-    outliving_ancestor(&ancestors(), preferred)
-        .unwrap_or_else(std::os::unix::process::parent_id)
+    outliving_ancestor(&ancestors(), preferred).unwrap_or_else(std::os::unix::process::parent_id)
 }
 
 #[cfg(windows)]

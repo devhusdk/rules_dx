@@ -210,7 +210,10 @@ mod interrupt {
     const SIGINT: c_int = 2;
     const SIGTERM: c_int = 15;
 
-    #[expect(unsafe_code, reason = "libc signal, unlink and _exit declarations for an async-signal-safe handler")]
+    #[expect(
+        unsafe_code,
+        reason = "libc signal, unlink and _exit declarations for an async-signal-safe handler"
+    )]
     unsafe extern "C" {
         fn signal(signum: c_int, handler: usize) -> usize;
         fn unlink(path: *const c_char) -> c_int;
@@ -219,7 +222,10 @@ mod interrupt {
 
     static PATH: AtomicPtr<c_char> = AtomicPtr::new(std::ptr::null_mut());
 
-    #[expect(unsafe_code, reason = "a signal handler may only call async-signal-safe libc functions")]
+    #[expect(
+        unsafe_code,
+        reason = "a signal handler may only call async-signal-safe libc functions"
+    )]
     extern "C" fn on_signal(signum: c_int) {
         let path = PATH.load(Ordering::SeqCst);
         if !path.is_null() {
@@ -260,7 +266,10 @@ mod interrupt {
         clippy::exit,
         reason = "a console control handler ends the process with the signal exit code"
     )]
-    #[expect(unsafe_code, reason = "a console control handler is an unsafe extern fn")]
+    #[expect(
+        unsafe_code,
+        reason = "a console control handler is an unsafe extern fn"
+    )]
     unsafe extern "system" fn on_ctrl(ctrl_type: u32) -> i32 {
         if let Some(path) = PATH.lock().ok().and_then(|p| p.clone()) {
             let _ = std::fs::remove_file(path);
@@ -268,7 +277,10 @@ mod interrupt {
         std::process::exit(128 + if ctrl_type == 0 { 2 } else { 15 })
     }
 
-    #[expect(unsafe_code, reason = "registering a console control handler calls a Win32 API")]
+    #[expect(
+        unsafe_code,
+        reason = "registering a console control handler calls a Win32 API"
+    )]
     pub fn watch(path: &Path) {
         static INSTALL: Once = Once::new();
         if let Ok(mut current) = PATH.lock() {

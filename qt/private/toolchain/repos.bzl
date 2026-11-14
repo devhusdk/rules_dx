@@ -1,9 +1,6 @@
 """Opt-in hermetic Qt SDK acquisition."""
 
 load("//cc/private/toolchain:pins.bzl", "VC_REDIST_VERSION")
-load("//core:host.bzl", "host_cell_of")
-load("//core:platform_support.bzl", "cells_support", "lang_cells")
-load("//core:seven_zip.bzl", "seven_zip_fetch")
 load(
     ":pins.bzl",
     "CELLS",
@@ -17,6 +14,7 @@ load(
     "RUNTIME_MIRROR",
     "RUNTIME_REPOSITORIES",
 )
+load(":seven_zip.bzl", "host_cell_of", "seven_zip_fetch")
 
 HUB_NAME = "dx_qt"
 
@@ -139,8 +137,6 @@ def cell_repository_name(cell):
 def qualified_cells(cells = CELLS):
     """Returns the cells with pinned archives and probe evidence."""
     return [cell for cell in sorted(cells.keys()) if cells[cell].blocker == ""]
-
-PLATFORM_SUPPORT = cells_support("//qt:defs.bzl", "QT_COMPATIBLE_WITH", CELLS, lang_cells("qt"), "//qt/private", "constraints", settings = {cell: Label("//qt/private/platforms:cell_" + cell) for cell in CELLS})
 
 def hub_targets():
     """Returns every target name the hub repository exposes."""

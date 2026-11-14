@@ -64,6 +64,7 @@ dx_conformance_suite(
         "package": "rspec",
         "stale": "Gemfile.stale.lock",
     },
+    not_applicable = {"cross_test": "ruby_binary is a script the interpreter runs; it has no object format"},
     passing_test = ":pass_subject_test",
 )
 

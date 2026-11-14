@@ -64,6 +64,7 @@ dx_conformance_suite(
         "package": "inspect",
         "stale": "luarocks.stale.lock.json",
     },
+    not_applicable = {"cross_test": "lua_binary is a script the interpreter runs; it has no object format"},
     passing_test = ":pass_subject_test",
 )
 

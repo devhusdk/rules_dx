@@ -101,33 +101,6 @@ fn row_labels_match_the_ci_tests_of_every_compiler_and_target_row() {
 }
 
 #[test]
-fn consumer_labels_match_the_consumer_tests_of_every_row() {
-    let source = RunfilesSource::create().expect("runfiles");
-    let facts = parse_facts(
-        &source
-            .read("tools/docs/support_matrix/facts.json")
-            .expect("facts"),
-    )
-    .expect("facts parse");
-    let labels: std::collections::BTreeMap<String, Vec<String>> =
-        serde_json::from_str(&source.read(CONSUMER_LABELS_PATH).expect("consumer labels"))
-            .expect("consumer labels parse");
-    for row in &facts.rows {
-        let mut want = row.consumer_tests.clone();
-        want.sort();
-        let have = labels.get(&row.name).cloned().unwrap_or_default();
-        let missing: Vec<_> = want.iter().filter(|l| !have.contains(l)).collect();
-        let extra: Vec<_> = have.iter().filter(|l| !want.contains(l)).collect();
-        assert!(
-            missing.is_empty() && extra.is_empty(),
-            "row {} differs from its consumer-row:{} tags; missing the tag: {missing:?}; tagged but not in consumer_tests: {extra:?}; run `bazel run //tools/docs/support_matrix:row_tests -- <platform>`",
-            row.name,
-            row.name
-        );
-    }
-}
-
-#[test]
 fn a_row_tag_naming_no_row_fails() {
     struct WithRow<'a>(&'a RunfilesSource);
     impl Source for WithRow<'_> {

@@ -95,6 +95,7 @@ pub fn observe(files: &[PathBuf]) -> Vec<String> {
 fn line(
     facts: &Value,
     row_labels: &Value,
+    consumer_labels: &Value,
     row: &Value,
     run: &Run,
     lockfile_sha256: &str,
@@ -119,7 +120,7 @@ fn line(
     let all_tests: Vec<&str> = ci_tests
         .iter()
         .copied()
-        .chain(labels(&row["consumer_tests"]))
+        .chain(labels(&consumer_labels[name]))
         .collect();
     for &label in &all_tests {
         let outcome = outcome_of(run.testlogs, label);
@@ -211,10 +212,11 @@ fn line(
     Ok(format!("{{{}}}", body.join(",")))
 }
 
-/// One evidence line per row of `facts` whose section is `compilers`; `row_labels` maps a row name to its tagged tests.
+/// One evidence line per row of `facts` whose section is `compilers`; `row_labels` and `consumer_labels` map a row name to its tagged tests.
 pub fn lines(
     facts: &Value,
     row_labels: &Value,
+    consumer_labels: &Value,
     run: &Run,
     observe: &dyn Fn(&[PathBuf]) -> Vec<String>,
 ) -> Result<Vec<String>, String> {
@@ -228,7 +230,7 @@ pub fn lines(
         .ok_or("facts hold no rows")?
         .iter()
         .filter(|row| row["section"] == "compilers")
-        .map(|row| line(facts, row_labels, row, run, &lockfile_sha256, observe))
+        .map(|row| line(facts, row_labels, consumer_labels, row, run, &lockfile_sha256, observe))
         .collect()
 }
 
@@ -240,10 +242,10 @@ fn var_or(name: &str, default: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| default.to_owned())
 }
 
-/// Appends the evidence lines to OUT. `args` is OUT PLATFORM FACTS ROW_LABELS.
+/// Appends the evidence lines to OUT. `args` is OUT PLATFORM FACTS ROW_LABELS CONSUMER_LABELS.
 pub fn append(args: &[String]) -> Result<(), String> {
-    let [out, platform, facts, row_labels] = args else {
-        return Err("usage: producers_bin --evidence OUT PLATFORM FACTS ROW_LABELS".to_owned());
+    let [out, platform, facts, row_labels, consumer_labels] = args else {
+        return Err("usage: producers_bin --evidence OUT PLATFORM FACTS ROW_LABELS CONSUMER_LABELS".to_owned());
     };
     let json_file = |path: &String| -> Result<Value, String> {
         std::fs::read_to_string(path)
@@ -252,7 +254,11 @@ pub fn append(args: &[String]) -> Result<(), String> {
                 serde_json::from_str(&found).map_err(|error| format!("parse {path}: {error}"))
             })
     };
-    let (facts, row_labels) = (json_file(facts)?, json_file(row_labels)?);
+    let (facts, row_labels, consumer_labels) = (
+        json_file(facts)?,
+        json_file(row_labels)?,
+        json_file(consumer_labels)?,
+    );
     let bazel = std::env::var("DX_BAZEL_VERSION").map_err(|_| "DX_BAZEL_VERSION is not set")?;
     let (bin, testlogs) = (
         var_or("DX_BIN", "bazel-bin"),
@@ -275,7 +281,7 @@ pub fn append(args: &[String]) -> Result<(), String> {
         sha: &var("GITHUB_SHA"),
         job: &job,
     };
-    let found = lines(&facts, &row_labels, &run, &observe)?;
+    let found = lines(&facts, &row_labels, &consumer_labels, &run, &observe)?;
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -296,14 +302,14 @@ mod tests {
 
     fn facts() -> Value {
         json!({"rows": [
-            {"name": "cc_a", "section": "compilers", "consumer_tests": ["//q:a3"],
+            {"name": "cc_a", "section": "compilers", 
              "identity": {"compiler": "a", "version": "1.2.3", "probe": "//p:probe_a",
                           "platform_probes": {"linux_arm64": "//p:probe_a_arm64"}}},
-            {"name": "cc_b", "section": "compilers", "consumer_tests": [],
+            {"name": "cc_b", "section": "compilers", 
              "identity": {"compiler": "b", "version": "", "probe": ""}},
-            {"name": "cc_m", "section": "compilers", "consumer_tests": [],
+            {"name": "cc_m", "section": "compilers", 
              "identity": {"compiler": "msvc", "version": "35728", "probe": ""}},
-            {"name": "other", "section": "languages", "consumer_tests": [], "identity": {}},
+            {"name": "other", "section": "languages", "identity": {}},
         ],
         "compiler_blockers": {"cc_a": {"windows_arm64": "waiting on a runner"},
                               "cc_m": {"windows_arm64": "waiting on a runner"}}})
@@ -311,6 +317,10 @@ mod tests {
 
     fn row_labels() -> Value {
         json!({"cc_a": ["//p:a1", "//p:a2"], "cc_b": ["//p:b1"], "cc_m": ["//p:m1"], "other": ["//p:o"]})
+    }
+
+    fn consumer_labels() -> Value {
+        json!({"cc_a": ["//q:a3"]})
     }
 
     fn log(root: &Path, label: &str, xml: &str) {
@@ -343,7 +353,7 @@ mod tests {
         };
         let observe =
             |_: &[std::path::PathBuf]| signatures.iter().map(|found| (*found).to_owned()).collect();
-        lines(&facts(), &row_labels(), &run, &observe)
+        lines(&facts(), &row_labels(), &consumer_labels(), &run, &observe)
             .expect("evidence lines")
             .iter()
             .map(|line| serde_json::from_str(line).expect("json line"))

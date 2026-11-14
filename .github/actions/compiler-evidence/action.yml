@@ -43,12 +43,13 @@ runs:
         export DX_BIN DX_TESTLOGS DX_PRODUCERS
         facts="${DX_BIN}/tools/docs/support_matrix/facts.json"
         labels="$PWD/tools/docs/support_matrix/row_labels.json"
+        consumer_labels="$PWD/tools/docs/support_matrix/consumer_labels.json"
         targets="$(cat "$RUNNER_TEMP/compiler-targets")"
         DX_EVIDENCE_COMMAND="bazel test --skip_incompatible_explicit_targets $* $targets"
         export DX_EVIDENCE_COMMAND
         DX_BAZEL_VERSION="$(bazel --version | tr -d '\r')"
         export DX_BAZEL_VERSION
-        "$DX_PRODUCERS" --evidence "$out" "$PLATFORM" "$facts" "$labels"
+        "$DX_PRODUCERS" --evidence "$out" "$PLATFORM" "$facts" "$labels" "$consumer_labels"
         {
           echo "#### Compiler evidence"
           echo "| row | version | probe compiler | target | observed producers | ran/total | outcome |"

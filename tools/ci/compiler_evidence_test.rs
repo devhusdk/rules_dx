@@ -21,6 +21,7 @@ fn evidence(root: &Path, command: &mut Command) -> std::process::Output {
         .arg("linux_x86_64")
         .arg(root.join("facts.json"))
         .arg(root.join("row_labels.json"))
+        .arg(root.join("consumer_labels.json"))
         .env("DX_BIN", root.join("bin"))
         .env("DX_TESTLOGS", root.join("logs"))
         .env("DX_LOCKFILE", root.join("MODULE.bazel.lock"))
@@ -33,9 +34,9 @@ fn evidence_mode_appends_a_line_per_compiler_row_from_its_environment() {
     let dir = scratch("compiler_evidence");
     let root = dir.path();
     let facts = json!({"rows": [
-        {"name": "cc_a", "section": "compilers", "consumer_tests": [],
+        {"name": "cc_a", "section": "compilers",
          "identity": {"compiler": "gcc", "version": "1.2.3", "probe": ""}},
-        {"name": "other", "section": "languages", "consumer_tests": [], "identity": {}},
+        {"name": "other", "section": "languages", "identity": {}},
     ]});
     write(root, "facts.json", &facts.to_string());
     write(
@@ -43,6 +44,7 @@ fn evidence_mode_appends_a_line_per_compiler_row_from_its_environment() {
         "row_labels.json",
         &json!({"cc_a": ["//p:a1"], "other": ["//p:o"]}).to_string(),
     );
+    write(root, "consumer_labels.json", "{}");
     write(
         root,
         "logs/p/a1/test.xml",
@@ -93,6 +95,7 @@ fn evidence_mode_fails_without_the_bazel_version() {
     let dir = scratch("compiler_evidence");
     write(dir.path(), "facts.json", "{\"rows\": []}");
     write(dir.path(), "row_labels.json", "{}");
+    write(dir.path(), "consumer_labels.json", "{}");
     let done = evidence(dir.path(), &mut producers_bin());
     assert!(!done.status.success(), "{done:?}");
     assert!(
@@ -110,7 +113,7 @@ fn the_action_sets_the_bazel_version_and_calls_producers_bin() {
     );
     assert!(action.contains("export DX_BAZEL_VERSION"), "{action}");
     assert!(
-        action.contains("\"$DX_PRODUCERS\" --evidence \"$out\" \"$PLATFORM\" \"$facts\" \"$labels\""),
+        action.contains("\"$DX_PRODUCERS\" --evidence \"$out\" \"$PLATFORM\" \"$facts\" \"$labels\" \"$consumer_labels\""),
         "{action}"
     );
     assert!(!action.contains("compiler_evidence.sh"), "{action}");

@@ -1,5 +1,5 @@
 //! `producers_bin` prints the compiler signatures of each file argument as a JSON object.
-//! `producers_bin --evidence OUT PLATFORM FACTS ROW_LABELS` appends the compiler evidence lines to OUT.
+//! `producers_bin --evidence OUT PLATFORM FACTS ROW_LABELS CONSUMER_LABELS` appends the compiler evidence lines to OUT.
 //! `producers_bin --lock-merge LOCKS_DIR OUT` merges the per-platform module locks into OUT.
 //! `producers_bin --blocker-refs OWNER/REPO` prints the references of a "Blocked on:" line on stdin.
 //! `producers_bin --review-paths [PREFIX_FILE]` prints the stdin paths that start with a listed prefix.

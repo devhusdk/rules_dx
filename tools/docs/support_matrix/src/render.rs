@@ -461,12 +461,12 @@ mod tests {
       "rows": [
         {"name": "go", "title": "Go", "section": "languages", "families": ["go"],
          "dead_code": [],
-         "ci_tests": [], "consumer_tests": [], "workflows": []},
+         "ci_tests": [], "workflows": []},
         {"name": "cc_llvm", "title": "LLVM", "section": "compilers", "families": [],
          "identity": {"driver": "gnu", "coverage": ""},
-         "ci_tests": [], "consumer_tests": [], "workflows": []},
+         "ci_tests": [], "workflows": []},
         {"name": "yaml", "title": "YAML", "section": "formats", "families": ["yaml"],
-         "ci_tests": [], "consumer_tests": [], "workflows": []}
+         "ci_tests": [], "workflows": []}
       ],
       "quality": {"go": {"lint": ["govet"], "format": ["gofumpt"], "typecheck": []},
                   "yaml": {"lint": ["yamllint"], "format": [], "typecheck": []}},

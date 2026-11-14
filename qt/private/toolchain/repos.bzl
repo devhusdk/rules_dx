@@ -1,6 +1,5 @@
 """Opt-in hermetic Qt SDK acquisition."""
 
-load("//cc/private/toolchain:pins.bzl", "VC_REDIST_VERSION")
 load(
     ":pins.bzl",
     "CELLS",
@@ -15,6 +14,8 @@ load(
     "RUNTIME_REPOSITORIES",
 )
 load(":seven_zip.bzl", "host_cell_of", "seven_zip_fetch")
+
+VC_REDIST_VERSION = "14.50.35710"
 
 HUB_NAME = "dx_qt"
 

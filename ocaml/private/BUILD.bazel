@@ -389,6 +389,7 @@ filegroup(
         "*.BUILD.bazel",
         "*.bzl",
         "BUILD.bazel",
+        "*.BUILD.bazel",
     ]),
     visibility = ["//:__subpackages__"],
 )

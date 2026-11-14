@@ -234,7 +234,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
             for (workspace, absolute) in pairs {
                 let real = std::fs::canonicalize(absolute)
                     .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
-                owned.push((real, absolute));
+                owned.push((dx_path::without_verbatim(&real), absolute));
             }
             let path_refs: Vec<&Path> = owned.iter().map(|(real, _)| real.as_path()).collect();
             let invocation = commands::gplint_check(&launch, &path_refs, cfg)

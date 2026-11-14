@@ -1200,6 +1200,14 @@ func TestGenerateESMJestOptionAndPreflight(t *testing.T) {
 	if test == nil || strings.Join(test.AttrStrings("node_options"), ",") != "--experimental-vm-modules" {
 		t.Fatalf("test = %v, want ESM node_options", test)
 	}
+	if test.Attr("config") != nil {
+		t.Errorf("config = %q without a jest config", test.AttrString("config"))
+	}
+	writeFixture(t, root, "libs/greet/jest.config.cjs", "module.exports = {};\n")
+	result, _ = generateAt(t, root, "libs/greet", "greet.test.ts", "jest.config.cjs")
+	if test = ruleOf(result, testKind, "greet_test"); test == nil || test.AttrString("config") != "jest.config.cjs" {
+		t.Fatalf("test = %v, want config jest.config.cjs", test)
+	}
 	writeFixture(t, root, "package.json", "{}\n")
 	result, l := generateAt(t, root, "libs/greet", "greet.test.ts")
 	if len(result.Gen) != 0 || len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], `add "jest-cli" and "jest-junit" to devDependencies in package.json`) {

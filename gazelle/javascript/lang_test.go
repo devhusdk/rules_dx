@@ -859,6 +859,41 @@ func TestGenerateTestPackageJSONFollowsRootManifest(t *testing.T) {
 	}
 }
 
+func TestGenerateTestESMOptionAndJestConfig(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"package.json":             "{\"type\": \"module\", \"devDependencies\": {\"jest-cli\": \"1\", \"jest-junit\": \"1\"}}\n",
+		"pkg/demo/jest.config.cjs": "module.exports = {};\n",
+		"pkg/demo/helper_test.js":  "export {};\n",
+	}, []string{"helper_test.js", "jest.config.cjs"})
+	var test *rule.Rule
+	for _, r := range result.Gen {
+		if r.Kind() == testKind {
+			test = r
+		}
+	}
+	if test == nil {
+		t.Fatalf("missing %s in %v", testKind, result.Gen)
+	}
+	if got := strings.Join(test.AttrStrings("node_options"), ","); got != "--experimental-vm-modules" {
+		t.Errorf("test node_options = %q, want the ESM option", got)
+	}
+	if got := test.AttrString("config"); got != "jest.config.cjs" {
+		t.Errorf("test config = %q, want jest.config.cjs", got)
+	}
+}
+
+func TestGenerateTestWithoutJestConfigOrESM(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"package.json":            "{\"devDependencies\": {\"jest-cli\": \"1\", \"jest-junit\": \"1\"}}\n",
+		"pkg/demo/helper_test.js": "module.exports = {};\n",
+	}, []string{"helper_test.js"})
+	for _, r := range result.Gen {
+		if r.Kind() == testKind && (r.Attr("config") != nil || r.Attr("node_options") != nil) {
+			t.Errorf("test %s sets config %v node_options %v", r.Name(), r.AttrString("config"), r.AttrStrings("node_options"))
+		}
+	}
+}
+
 func TestMergeKeepsHandSetPackageJSON(t *testing.T) {
 	info := testKindInfo()
 	if info.MergeableAttrs["package_json"] {

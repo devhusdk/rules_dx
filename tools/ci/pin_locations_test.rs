@@ -5,7 +5,7 @@ mod scan;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use scan::{add, calls, is_skipped, is_starlark, masked, Counts, Masked};
+use scan::{Counts, Masked, add, calls, is_skipped, is_starlark, masked};
 use starlark_syntax as _;
 use yaml_serde as _;
 
@@ -217,7 +217,10 @@ fn rebuilt_in_place(value: &serde_json::Value) -> usize {
             })
             .sum(),
         serde_json::Value::Array(items) => items.iter().map(rebuilt_in_place).sum(),
-        _ => 0,
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => 0,
     }
 }
 

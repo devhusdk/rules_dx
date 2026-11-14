@@ -81,7 +81,9 @@ pub fn color_enabled_for(mode: ColorMode) -> bool {
         ColorMode::Auto => {
             colors_allowed_for(mode, no_color_present(), console::colors_enabled_stderr())
         }
-        other => colors_allowed_for(other, false, false),
+        other @ ColorMode::Always | other @ ColorMode::Never => {
+            colors_allowed_for(other, false, false)
+        }
     }
 }
 

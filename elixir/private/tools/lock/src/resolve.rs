@@ -31,14 +31,14 @@ impl Term {
     pub fn text(&self) -> Option<&str> {
         match self {
             Self::Text(text) | Self::Atom(text) => Some(text),
-            _ => None,
+            Self::Tuple(_) | Self::List(_) | Self::Map(_) => None,
         }
     }
 
     fn items(&self) -> Option<&[Term]> {
         match self {
             Self::Tuple(items) | Self::List(items) => Some(items),
-            _ => None,
+            Self::Text(_) | Self::Atom(_) | Self::Map(_) => None,
         }
     }
 }

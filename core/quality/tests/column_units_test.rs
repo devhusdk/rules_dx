@@ -107,7 +107,9 @@ fn assert_sarif_lands(
     for (found, marker) in found.into_iter().zip(markers) {
         let encoding = match found.finding.encoding {
             ColumnEncoding::ScalarsTabs { .. } => ColumnEncoding::Scalars,
-            other => other,
+            other @ ColumnEncoding::Scalars
+            | other @ ColumnEncoding::Utf16
+            | other @ ColumnEncoding::Utf8 => other,
         };
         assert_eq!(encoding, expected, "{context}");
         let placed = place_finding(&found.finding, "fixture", text)

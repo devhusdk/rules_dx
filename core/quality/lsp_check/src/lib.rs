@@ -140,7 +140,10 @@ fn diagnostics_from(file: &Path, params: &Value) -> Vec<Diagnostic> {
             code: match &item["code"] {
                 Value::String(code) => code.clone(),
                 Value::Null => String::new(),
-                other => other.to_string(),
+                other @ Value::Bool(_)
+                | other @ Value::Number(_)
+                | other @ Value::Array(_)
+                | other @ Value::Object(_) => other.to_string(),
             },
             message: item["message"].as_str().unwrap_or("").to_string(),
         })

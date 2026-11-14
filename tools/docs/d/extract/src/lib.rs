@@ -279,7 +279,21 @@ fn symbol(
             Some(value) => format!("{name} = {value}"),
             None => name.clone(),
         },
-        _ => declaration(text, line as usize),
+        SymbolKind::Unspecified
+        | SymbolKind::Class
+        | SymbolKind::Interface
+        | SymbolKind::Function
+        | SymbolKind::Method
+        | SymbolKind::Field
+        | SymbolKind::Property
+        | SymbolKind::Constant
+        | SymbolKind::Enum
+        | SymbolKind::TypeAlias
+        | SymbolKind::Macro
+        | SymbolKind::Variable
+        | SymbolKind::Component
+        | SymbolKind::Event
+        | SymbolKind::Slot => declaration(text, line as usize),
     };
     let params = parameter_names(node)
         .into_iter()

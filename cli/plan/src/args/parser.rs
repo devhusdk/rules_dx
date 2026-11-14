@@ -666,7 +666,27 @@ fn parse_inner<S: AsRef<OsStr>>(
                     return Err(extra_positional(command, extra));
                 }
             }
-            _ => {}
+            Command::Security
+            | Command::License
+            | Command::Lint
+            | Command::Typecheck
+            | Command::Format
+            | Command::Generate
+            | Command::Build
+            | Command::Test
+            | Command::Coverage
+            | Command::Bench
+            | Command::Run
+            | Command::Deploy
+            | Command::Check
+            | Command::Clean
+            | Command::Update
+            | Command::Sync
+            | Command::Upgrade
+            | Command::Watch
+            | Command::Docs
+            | Command::Worktree
+            | Command::Fuzz => {}
         }
     }
     if output_from_flag && !output_supported(command, &output_name) {

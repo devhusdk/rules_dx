@@ -99,7 +99,9 @@ fn normalize_lexical(path: &Path) -> PathBuf {
                     out.push("..");
                 }
             }
-            other => out.push(other.as_os_str()),
+            other @ Component::Prefix(_)
+            | other @ Component::RootDir
+            | other @ Component::Normal(_) => out.push(other.as_os_str()),
         }
     }
     if out.as_os_str().is_empty() {
@@ -160,9 +162,32 @@ fn stdout_conflict(error: OutputError) -> ReportError {
         OutputError::ConflictingStdoutReport { mode } => {
             ReportError::StdoutReportConflictsMode { mode }
         }
-        unexpected => ReportError::UnexpectedOutputConflict {
-            detail: unexpected.to_string(),
-        },
+        unexpected @ OutputError::UnknownOutputMode { .. }
+        | unexpected @ OutputError::EmptyField { .. }
+        | unexpected @ OutputError::BadCommandMode { .. }
+        | unexpected @ OutputError::BadSeverity { .. }
+        | unexpected @ OutputError::BadSource { .. }
+        | unexpected @ OutputError::BadAvailability { .. }
+        | unexpected @ OutputError::BadValue { .. }
+        | unexpected @ OutputError::BadThreshold { .. }
+        | unexpected @ OutputError::BadColor { .. }
+        | unexpected @ OutputError::BadPath { .. }
+        | unexpected @ OutputError::BadDigest { .. }
+        | unexpected @ OutputError::BadEdit { .. }
+        | unexpected @ OutputError::RangeWithoutPath
+        | unexpected @ OutputError::InvertedRange
+        | unexpected @ OutputError::UnexpectedResolution
+        | unexpected @ OutputError::MissingReason { .. }
+        | unexpected @ OutputError::UnexpectedReason { .. }
+        | unexpected @ OutputError::NotAnEvent
+        | unexpected @ OutputError::UnregisteredEvent { .. }
+        | unexpected @ OutputError::UnsupportedSchema { .. }
+        | unexpected @ OutputError::Io { .. }
+        | unexpected @ OutputError::BadCorrelation { .. } => {
+            ReportError::UnexpectedOutputConflict {
+                detail: unexpected.to_string(),
+            }
+        }
     }
 }
 

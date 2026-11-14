@@ -181,7 +181,7 @@ pub fn parse_workflow_pins(content: &str) -> Result<WorkflowPins, WorkflowYamlEr
                 stack.pop();
                 advance(&mut stack);
             }
-            _ => {}
+            Event::Nothing | Event::StreamStart | Event::StreamEnd | Event::DocumentEnd => {}
         }
     }
     Ok(found)
@@ -238,7 +238,7 @@ fn scalar_span(content: &str, start: usize, end: usize, style: ScalarStyle) -> R
     let quote = match style {
         ScalarStyle::SingleQuoted => '\'',
         ScalarStyle::DoubleQuoted => '"',
-        _ => return start..end,
+        ScalarStyle::Plain | ScalarStyle::Literal | ScalarStyle::Folded => return start..end,
     };
     let Some(rest) = content.get(start..) else {
         return start..end;
@@ -299,7 +299,7 @@ pub fn replace_pin_reference(content: &str, pin: &UsesPin, sha: &str) -> Option<
         ScalarStyle::Plain => (0, 0),
         ScalarStyle::SingleQuoted => (1, 1),
         ScalarStyle::DoubleQuoted => (1, 1),
-        _ => return None,
+        ScalarStyle::Literal | ScalarStyle::Folded => return None,
     };
     let inner_end = raw.len().checked_sub(close)?;
     let inner = raw.get(open..inner_end)?;

@@ -339,7 +339,10 @@ fn dict_arguments_keep_literal_keys_and_values() {
     let call = &file.calls()[0];
     let text = |value: &Value| match value {
         Value::Str(literal) => literal.value.clone(),
-        other => panic!("not a string: {other:?}"),
+        other @ Value::List(_)
+        | other @ Value::Dict(_)
+        | other @ Value::Ident(_)
+        | other @ Value::Computed { .. } => panic!("not a string: {other:?}"),
     };
     let Some(Value::Dict(settings)) = call.arg("target_settings") else {
         panic!("target_settings is not a dict");
@@ -1275,10 +1278,7 @@ fn cpan_installs_follow_the_rules_dx_extension() {
         .collect();
     assert_eq!(
         found,
-        [
-            ("tools", "//perl:cpan.lock.json"),
-            ("dev", "//x:l.json"),
-        ]
+        [("tools", "//perl:cpan.lock.json"), ("dev", "//x:l.json"),]
     );
 }
 
@@ -1450,8 +1450,10 @@ fn insert_extension_block_renders_a_dict_argument() {
         "{out}"
     );
     let mut bad = tag("annotation", "crate", "*");
-    bad.args
-        .push(("env".to_owned(), Arg::Dict(vec![("A".to_owned(), "\"".to_owned())])));
+    bad.args.push((
+        "env".to_owned(),
+        Arg::Dict(vec![("A".to_owned(), "\"".to_owned())]),
+    ));
     assert!(
         file.insert_extension_block("npm", NPM_BZL, "npm", &[bad], &[])
             .is_err()

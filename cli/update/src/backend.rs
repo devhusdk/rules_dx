@@ -420,7 +420,26 @@ pub fn host_env_refusal(
         Ecosystem::Go => go::host_env_refusal(set, lookup),
         Ecosystem::Uv => uv::host_env_refusal(set, lookup),
         Ecosystem::Maven => maven::host_env_refusal(set, check, lookup),
-        _ => None,
+        Ecosystem::Npm
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Cargo
+        | Ecosystem::Nuget
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => None,
     }
 }
 

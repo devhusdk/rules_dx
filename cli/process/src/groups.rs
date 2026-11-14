@@ -179,7 +179,9 @@ mod sys {
     pub(super) fn settle_leader(read: super::Leader, gone: impl FnOnce() -> bool) -> super::Leader {
         match read {
             super::Leader::Unknown if gone() => super::Leader::Absent,
-            other => other,
+            other @ super::Leader::Present(_)
+            | other @ super::Leader::Absent
+            | other @ super::Leader::Unknown => other,
         }
     }
 

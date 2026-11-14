@@ -158,11 +158,10 @@ fn passes_other_attributes() {
 }
 
 /// Strict tier lints `.bazelrc` does not yet deny repo-wide. The list only shrinks.
-const PENDING: [&str; 4] = [
+const PENDING: [&str; 3] = [
     "clippy::indexing_slicing",
     "clippy::let_underscore_must_use",
     "clippy::string_slice",
-    "clippy::wildcard_enum_match_arm",
 ];
 
 /// The lints a file denies with `-D<lint>`, as `.bazelrc` flag lines or tier list lines.
@@ -205,7 +204,11 @@ fn strict_tier_denies_the_rust_safety_lints() {
         );
     }
     let snapshot = snapshot();
-    let bazelrc = denied(snapshot.get(".bazelrc").expect(".bazelrc is in the snapshot"));
+    let bazelrc = denied(
+        snapshot
+            .get(".bazelrc")
+            .expect(".bazelrc is in the snapshot"),
+    );
     let missing: Vec<&String> = strict
         .iter()
         .filter(|lint| !bazelrc.contains(lint) && !PENDING.contains(&lint.as_str()))

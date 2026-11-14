@@ -486,7 +486,17 @@ pub(super) fn in_file(err: RunnerError, name: &str) -> RunnerError {
             tool_id,
             detail: format!("{name}: {detail}"),
         },
-        other => other,
+        other @ RunnerError::EmptyProducer
+        | other @ RunnerError::UnknownCapability { .. }
+        | other @ RunnerError::EmptyStages
+        | other @ RunnerError::EmptyToolId { .. }
+        | other @ RunnerError::UnknownTool { .. }
+        | other @ RunnerError::EmptyClassIds { .. }
+        | other @ RunnerError::EmptyStageSources { .. }
+        | other @ RunnerError::DuplicateFile { .. }
+        | other @ RunnerError::InvalidUtf8 { .. }
+        | other @ RunnerError::MissingFile { .. }
+        | other @ RunnerError::UnplaceableFinding { .. } => other,
     }
 }
 
@@ -504,7 +514,17 @@ fn in_batch(err: RunnerError, index: usize, total: usize) -> RunnerError {
             tool_id,
             detail: format!("batch {index}/{total}: {detail}"),
         },
-        other => other,
+        other @ RunnerError::EmptyProducer
+        | other @ RunnerError::UnknownCapability { .. }
+        | other @ RunnerError::EmptyStages
+        | other @ RunnerError::EmptyToolId { .. }
+        | other @ RunnerError::UnknownTool { .. }
+        | other @ RunnerError::EmptyClassIds { .. }
+        | other @ RunnerError::EmptyStageSources { .. }
+        | other @ RunnerError::DuplicateFile { .. }
+        | other @ RunnerError::InvalidUtf8 { .. }
+        | other @ RunnerError::MissingFile { .. }
+        | other @ RunnerError::UnplaceableFinding { .. } => other,
     }
 }
 

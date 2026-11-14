@@ -326,7 +326,7 @@ fn is_empty(value: &Value) -> bool {
         Value::String(text) => text.is_empty(),
         Value::Array(items) => items.is_empty(),
         Value::Object(map) => map.is_empty(),
-        _ => false,
+        Value::Bool(_) | Value::Number(_) => false,
     }
 }
 
@@ -397,7 +397,9 @@ impl<'a> Php<'a> {
             .map(|lock| {
                 lock.packages
                     .iter()
-                    .filter_map(|package| Some((package.name.as_str(), parse_version(&package.version)?)))
+                    .filter_map(|package| {
+                        Some((package.name.as_str(), parse_version(&package.version)?))
+                    })
                     .collect()
             })
             .unwrap_or_default();
@@ -416,7 +418,10 @@ impl<'a> Php<'a> {
                 }
                 let constraint = Constraint::parse(&text)
                     .map_err(|error| Error::new(format!("{from} requires {name}: {error}")))?;
-                wanted.entry(name.clone()).or_default().push((from, constraint));
+                wanted
+                    .entry(name.clone())
+                    .or_default()
+                    .push((from, constraint));
                 if visited.insert(name.clone())
                     && let Some(package) = chosen.get(&name)
                 {
@@ -468,7 +473,9 @@ impl<'a> Php<'a> {
                 return Ok(chosen);
             }
         }
-        Err(Error::new("the requirements do not settle on one version each"))
+        Err(Error::new(
+            "the requirements do not settle on one version each",
+        ))
     }
 
     fn archive(&self, name: &str, entry: &Map<String, Value>) -> Result<Archive, Error> {
@@ -512,7 +519,12 @@ impl<'a> Php<'a> {
 }
 
 /// The package of `old` that is `name` at `version` with the archive URL `url`.
-fn unchanged<'l>(old: Option<&'l Lock>, name: &str, version: &str, url: &str) -> Option<&'l Package> {
+fn unchanged<'l>(
+    old: Option<&'l Lock>,
+    name: &str,
+    version: &str,
+    url: &str,
+) -> Option<&'l Package> {
     old?.packages.iter().find(|package| {
         package.name == name
             && package.version == version
@@ -616,8 +628,13 @@ impl Resolver for Php<'_> {
                 .filter(|(name, _)| is_platform(name))
                 .map(|(name, constraint)| (name, Value::String(constraint)))
                 .collect();
-            if required.is_empty() { json!([]) } else { Value::Object(required) }
-        };        let mut provided: BTreeMap<String, String> = BTreeMap::new();
+            if required.is_empty() {
+                json!([])
+            } else {
+                Value::Object(required)
+            }
+        };
+        let mut provided: BTreeMap<String, String> = BTreeMap::new();
         for (name, package) in &chosen {
             for key in ["replace", "provide"] {
                 for virtual_name in string_map(&package.entry, key).into_keys() {

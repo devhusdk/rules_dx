@@ -55,13 +55,16 @@ pub fn read_version_pins(root: &Path) -> Result<crate::LauncherPins, AdoptError>
 }
 
 fn read_pin_file(root: &Path) -> Result<String, AdoptError> {
-    std::fs::read_to_string(root.join(".dx/pins")).map_err(|e| match e.kind() {
-        std::io::ErrorKind::NotFound => AdoptError::MissingVersionPin {
-            command: crate::init_apply_command(root),
-        },
-        _ => AdoptError::ReadVersionPin {
-            detail: format!(".dx/pins: {e}"),
-        },
+    std::fs::read_to_string(root.join(".dx/pins")).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            AdoptError::MissingVersionPin {
+                command: crate::init_apply_command(root),
+            }
+        } else {
+            AdoptError::ReadVersionPin {
+                detail: format!(".dx/pins: {e}"),
+            }
+        }
     })
 }
 
@@ -361,7 +364,7 @@ pub(crate) mod consumer_setup {
     fn literal(value: &Value) -> Option<String> {
         match value {
             Value::Str(literal) => Some(literal.value.clone()),
-            _ => None,
+            Value::List(_) | Value::Dict(_) | Value::Ident(_) | Value::Computed { .. } => None,
         }
     }
 

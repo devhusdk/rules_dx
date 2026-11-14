@@ -166,7 +166,7 @@ fn field(all: &[Token], key: &str) -> Option<Vec<Token>> {
             Token::Word(word) if depth == 0 && (*word == wanted || *word == key) => {
                 return all.get(i + 1..).map(value);
             }
-            _ => {}
+            Token::Str(_) | Token::Word(_) => {}
         }
     }
     None
@@ -179,7 +179,7 @@ fn value(rest: &[Token]) -> Vec<Token> {
         match token {
             Token::Open(_) => depth += 1,
             Token::Close(_) => depth = depth.saturating_sub(1),
-            _ => {}
+            Token::Str(_) | Token::Word(_) => {}
         }
         if depth == 0 {
             return rest.iter().take(i + 1).cloned().collect();
@@ -229,7 +229,7 @@ fn depends(text: &str) -> Result<Vec<(String, String)>, Error> {
                 }
                 i += group.len();
             }
-            _ => i += 1,
+            Token::Word(_) | Token::Open(_) | Token::Close(_) => i += 1,
         }
     }
     Ok(out)
@@ -307,14 +307,16 @@ pub fn parse_url(text: &str) -> Result<Source, Error> {
         })
         .ok_or_else(|| Error::new("has a url section without src"))?;
     if !src.starts_with("https://") {
-        return Err(Error::new(format!("has the source {src}, which is not https")));
+        return Err(Error::new(format!(
+            "has the source {src}, which is not https"
+        )));
     }
     let sha256 = field(body, "checksum")
         .unwrap_or_default()
         .iter()
         .find_map(|token| match token {
             Token::Str(sum) => sum.strip_prefix("sha256=").map(str::to_owned),
-            _ => None,
+            Token::Word(_) | Token::Open(_) | Token::Close(_) => None,
         })
         .unwrap_or_default();
     Ok(Source { src, sha256 })
@@ -366,8 +368,8 @@ impl<'a> Opam<'a> {
                 continue;
             }
             let text = self.opam_file(name, version)?;
-            let source =
-                parse_url(&text).map_err(|error| Error::new(format!("{name} {version} {error}")))?;
+            let source = parse_url(&text)
+                .map_err(|error| Error::new(format!("{name} {version} {error}")))?;
             let mut deps = BTreeSet::new();
             let mut unpinned = BTreeSet::new();
             for dep in parse_depend_names(&text)? {
@@ -412,7 +414,9 @@ impl Resolver for Opam<'_> {
             .collect();
         names.sort();
         if names.is_empty() {
-            return Err(Error::new(format!("the set has no {LOCKED} file; run opam lock")));
+            return Err(Error::new(format!(
+                "the set has no {LOCKED} file; run opam lock"
+            )));
         }
         let mut pins = BTreeMap::new();
         for name in &names {

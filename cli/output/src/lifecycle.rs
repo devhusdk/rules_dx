@@ -67,7 +67,9 @@ pub fn with_correlation(event: Value, correlation: &str) -> Result<Value, Output
             );
             Ok(Value::Object(map))
         }
-        _ => Err(OutputError::NotAnEvent),
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) | Value::Array(_) => {
+            Err(OutputError::NotAnEvent)
+        }
     }
 }
 
@@ -1253,7 +1255,12 @@ pub fn write_event(writer: &mut dyn std::io::Write, event: &Value) -> Result<(),
             Some(Value::String(name)) => name,
             _ => return Err(OutputError::NotAnEvent),
         },
-        _ => return Err(OutputError::NotAnEvent),
+        Value::Null
+        | Value::Bool(_)
+        | Value::Number(_)
+        | Value::String(_)
+        | Value::Array(_)
+        | Value::Object(_) => return Err(OutputError::NotAnEvent),
     };
     if !EVENTS.contains(&name.as_str()) {
         return Err(OutputError::UnregisteredEvent {

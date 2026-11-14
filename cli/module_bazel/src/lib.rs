@@ -66,7 +66,9 @@ impl Call {
                 .iter()
                 .filter_map(|item| match item {
                     Value::Str(literal) => Some(literal.value.as_str()),
-                    _ => None,
+                    Value::List(_) | Value::Dict(_) | Value::Ident(_) | Value::Computed { .. } => {
+                        None
+                    }
                 })
                 .collect(),
             _ => Vec::new(),
@@ -749,7 +751,12 @@ impl ModuleFile {
                     for item in items {
                         match item {
                             Value::Str(literal) => artifacts.push(literal),
-                            _ => return Err(ModuleError::ComputedArtifacts { line: call.line }),
+                            Value::List(_)
+                            | Value::Dict(_)
+                            | Value::Ident(_)
+                            | Value::Computed { .. } => {
+                                return Err(ModuleError::ComputedArtifacts { line: call.line });
+                            }
                         }
                     }
                 }
@@ -794,7 +801,10 @@ impl ModuleFile {
                     for item in items {
                         match item {
                             Value::Str(literal) => manifests.push(literal),
-                            _ => return Err(computed),
+                            Value::List(_)
+                            | Value::Dict(_)
+                            | Value::Ident(_)
+                            | Value::Computed { .. } => return Err(computed),
                         }
                     }
                 }
@@ -1460,7 +1470,9 @@ impl ModuleFile {
         for item in items {
             match item {
                 Value::Str(literal) => last = Some(literal),
-                _ => return Err(ModuleError::ComputedArtifacts { line: call.line }),
+                Value::List(_) | Value::Dict(_) | Value::Ident(_) | Value::Computed { .. } => {
+                    return Err(ModuleError::ComputedArtifacts { line: call.line });
+                }
             }
         }
         let Some(last) = last else {
@@ -1755,13 +1767,22 @@ fn collect_calls(ast: &AstModule, stmt: &AstStmt, calls: &mut Vec<Call>) {
         StmtP::Assign(assign) => {
             let binding = match &assign.lhs.node {
                 AssignTargetP::Identifier(ident) => Some(ident.node.ident.clone()),
-                _ => None,
+                AssignTargetP::Tuple(_) | AssignTargetP::Index(_) | AssignTargetP::Dot(..) => None,
             };
             if let Some(call) = read_call(ast, &assign.rhs, binding) {
                 calls.push(call);
             }
         }
-        _ => {}
+        StmtP::Break
+        | StmtP::Continue
+        | StmtP::Pass
+        | StmtP::Return(_)
+        | StmtP::AssignModify(..)
+        | StmtP::If(..)
+        | StmtP::IfElse(..)
+        | StmtP::For(_)
+        | StmtP::Def(_)
+        | StmtP::Load(_) => {}
     }
 }
 
@@ -1795,7 +1816,24 @@ fn callee_name(expr: &AstExpr) -> Option<String> {
     match &expr.node {
         ExprP::Identifier(ident) => Some(ident.node.ident.clone()),
         ExprP::Dot(object, attr) => Some(format!("{}.{}", callee_name(object)?, attr.node)),
-        _ => None,
+        ExprP::Tuple(_)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::List(_)
+        | ExprP::Dict(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => None,
     }
 }
 
@@ -1813,7 +1851,23 @@ fn read_value(ast: &AstModule, expr: &AstExpr) -> Value {
                 .collect(),
         ),
         ExprP::Identifier(ident) => Value::Ident(ident.node.ident.clone()),
-        _ => Value::Computed {
+        ExprP::Tuple(_)
+        | ExprP::Dot(..)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => Value::Computed {
             line: line_of(ast, expr.span),
         },
     }

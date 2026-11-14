@@ -33,7 +33,11 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                         let optional = t.get("optional").map(toml_bool).unwrap_or(false);
                         (spec, optional, package_name(t))
                     }
-                    _ => ("*".to_owned(), false, String::new()),
+                    toml::Value::Integer(_)
+                    | toml::Value::Float(_)
+                    | toml::Value::Boolean(_)
+                    | toml::Value::Datetime(_)
+                    | toml::Value::Array(_) => ("*".to_owned(), false, String::new()),
                 };
                 put(
                     &mut deps,
@@ -77,7 +81,11 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                                 .unwrap_or_else(|| "*".to_owned()),
                             package_name(t),
                         ),
-                        _ => ("*".to_owned(), String::new()),
+                        toml::Value::Integer(_)
+                        | toml::Value::Float(_)
+                        | toml::Value::Boolean(_)
+                        | toml::Value::Datetime(_)
+                        | toml::Value::Array(_) => ("*".to_owned(), String::new()),
                     };
                     put(
                         &mut deps,

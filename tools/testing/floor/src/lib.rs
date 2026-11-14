@@ -94,10 +94,7 @@ pub fn parse_pairs(spec: &str) -> Result<Overrides, String> {
 }
 
 /// Parses `DX_CONSUMER_OVERRIDES`: empty, the keyword `tested`, or `module=version,...`.
-pub fn parse_overrides(
-    spec: &str,
-    table: &Table,
-) -> Result<Overrides, String> {
+pub fn parse_overrides(spec: &str, table: &Table) -> Result<Overrides, String> {
     let spec = spec.trim();
     if spec.is_empty() {
         return Ok(Overrides::new());
@@ -186,11 +183,7 @@ fn collect<'a>(node: &'a serde_json::Value, found: &mut Vec<&'a serde_json::Valu
 ///
 /// The expected version is the override when one is given, else the floor. A module that resolves higher is named together with the modules that requested the
 /// version it resolved to, from the `resolvedRequestedBy` field.
-pub fn check_graph(
-    graph: &str,
-    table: &Table,
-    overrides: &Overrides,
-) -> Vec<String> {
+pub fn check_graph(graph: &str, table: &Table, overrides: &Overrides) -> Vec<String> {
     let root: serde_json::Value = match serde_json::from_str(graph) {
         Ok(root) => root,
         Err(error) => return vec![format!("mod graph output is not JSON: {error}")],
@@ -227,7 +220,7 @@ pub fn check_graph(
         } else if version != expected {
             let direction = match compare_module_versions(version, expected) {
                 Ordering::Greater => "above",
-                _ => "below",
+                Ordering::Less | Ordering::Equal => "below",
             };
             let by = if requesters.is_empty() {
                 "unknown modules".to_owned()

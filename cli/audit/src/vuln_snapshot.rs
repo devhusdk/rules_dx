@@ -35,6 +35,10 @@ fn parse_opam_vulnerabilities(text: &str) -> serde_json::Result<Vec<osv::schema:
     serde_json::from_value(serde_json::Value::Array(entries))
 }
 
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "osv Ecosystem is non_exhaustive"
+)]
 fn ecosystem_to_set(ecosystem: &osv::schema::Ecosystem) -> Option<&'static str> {
     match ecosystem {
         osv::schema::Ecosystem::CratesIO => Some("cargo"),

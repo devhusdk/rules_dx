@@ -130,7 +130,9 @@ fn attribute(object: &Map<String, Value>, at: &str) -> Result<Option<Attribute>,
                 write: boolean(attribute, "write", &at)?,
             }))
         }
-        _ => Err(format!("{at} 'attribute' is neither null nor an object")),
+        Value::Bool(_) | Value::Number(_) | Value::String(_) | Value::Array(_) => {
+            Err(format!("{at} 'attribute' is neither null nor an object"))
+        }
     }
 }
 

@@ -255,13 +255,13 @@ fn strings(tokens: &[Token], at: usize) -> Option<(Vec<String>, usize)> {
         match tokens.get(at)? {
             Token::Punct(']') => return Some((values, at + 1)),
             Token::Str(value) => values.push(value.clone()),
-            _ => return None,
+            Token::Word(_) | Token::Punct(_) => return None,
         }
         at += 1;
         match tokens.get(at)? {
             Token::Punct(',') => at += 1,
             Token::Punct(']') => {}
-            _ => return None,
+            Token::Str(_) | Token::Word(_) | Token::Punct(_) => return None,
         }
     }
 }

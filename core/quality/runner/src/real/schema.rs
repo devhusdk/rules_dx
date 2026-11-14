@@ -351,7 +351,9 @@ fn lexical_normal(path: &Path) -> PathBuf {
             std::path::Component::ParentDir => {
                 out.pop();
             }
-            other => out.push(other.as_os_str()),
+            other @ std::path::Component::Prefix(_)
+            | other @ std::path::Component::RootDir
+            | other @ std::path::Component::Normal(_) => out.push(other.as_os_str()),
         }
     }
     out

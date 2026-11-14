@@ -32,7 +32,10 @@ fn bad_labels_fail_before_bazel_runs() {
 }
 
 #[test]
-#[expect(unsafe_code, reason = "the test clears and restores GITHUB_ENV under the env lock")]
+#[expect(
+    unsafe_code,
+    reason = "the test clears and restores GITHUB_ENV under the env lock"
+)]
 fn missing_github_env_without_print_or_file_is_a_usage_error() {
     let mut cli = cli("@dx_tools//:gitleaks", "DX_GITLEAKS_BIN");
     cli.print = false;
@@ -51,6 +54,13 @@ fn missing_github_env_without_print_or_file_is_a_usage_error() {
         dx_tool_resolve::ResolveError::Usage { detail } => {
             assert!(detail.contains("GITHUB_ENV"), "{detail}");
         }
-        other => panic!("a missing GITHUB_ENV must be a usage error: {other}"),
+        other @ dx_tool_resolve::ResolveError::CqueryFailed { .. }
+        | other @ dx_tool_resolve::ResolveError::NoArtifact { .. }
+        | other @ dx_tool_resolve::ResolveError::InfoFailed { .. }
+        | other @ dx_tool_resolve::ResolveError::MissingArtifact { .. }
+        | other @ dx_tool_resolve::ResolveError::MissingOutput { .. }
+        | other @ dx_tool_resolve::ResolveError::EnvWrite { .. } => {
+            panic!("a missing GITHUB_ENV must be a usage error: {other}")
+        }
     }
 }

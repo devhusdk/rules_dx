@@ -425,7 +425,9 @@ fn known_lexical<'a>(
         match part {
             Component::CurDir => {}
             Component::ParentDir => valid &= clean.pop(),
-            other => clean.push(other.as_os_str()),
+            other @ Component::Prefix(_)
+            | other @ Component::RootDir
+            | other @ Component::Normal(_) => clean.push(other.as_os_str()),
         }
     }
     files

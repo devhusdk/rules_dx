@@ -4,7 +4,7 @@ pub(crate) fn toml_string(value: &toml::Value) -> Option<String> {
         toml::Value::Integer(i) => Some(i.to_string()),
         toml::Value::Float(f) => Some(f.to_string()),
         toml::Value::Boolean(b) => Some(b.to_string()),
-        _ => None,
+        toml::Value::Datetime(_) | toml::Value::Array(_) | toml::Value::Table(_) => None,
     }
 }
 

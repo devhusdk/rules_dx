@@ -958,7 +958,9 @@ fn first_line_within(
             .lines()
             .next()
             .map(|line| line.trim().to_owned()),
-        _ => None,
+        lifecycle::ChildOutcome::Finished { .. }
+        | lifecycle::ChildOutcome::TimedOut
+        | lifecycle::ChildOutcome::OutputTooLarge { .. } => None,
     }
 }
 

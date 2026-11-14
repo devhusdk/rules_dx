@@ -620,7 +620,7 @@ pub fn qualify(
                     )));
                 }
             }
-            _ => {
+            Driver::Gnu | Driver::Unknown => {
                 if *exported != expected {
                     return Err(fail(format!(
                         "argv differs from the action argv: {}",

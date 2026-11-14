@@ -115,7 +115,7 @@ fn nuget_parse_nuspec(xml: &str) -> Result<(String, String), String> {
                 }
             }
             Event::Eof => break,
-            _ => {}
+            Event::Comment(_) | Event::Decl(_) | Event::PI(_) | Event::DocType(_) => {}
         }
     }
     let one = |name: &str, values: Vec<String>| -> Result<String, String> {

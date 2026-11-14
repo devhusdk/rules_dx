@@ -2,7 +2,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use starlark_syntax::syntax::ast::{ArgumentP, AssignTargetP, AstExpr, AstLiteral, AstStmt, ExprP, StmtP};
+use starlark_syntax::syntax::ast::{
+    ArgumentP, AssignTargetP, AstExpr, AstLiteral, AstStmt, ExprP, StmtP,
+};
 use starlark_syntax::syntax::module::AstModuleFields;
 use starlark_syntax::syntax::{AstModule, Dialect};
 
@@ -13,7 +15,13 @@ const PENDING: &str = "tools/testing/consumer/pending.txt";
 const FIXTURES: &str = "tools/testing/consumer/fixtures.bzl";
 
 /// Every kind a pending line may start with.
-const KINDS: [&str; 5] = ["dev-registration", "dev-repo", "fixture", "init", "override"];
+const KINDS: [&str; 5] = [
+    "dev-registration",
+    "dev-repo",
+    "fixture",
+    "init",
+    "override",
+];
 
 /// The directories whose files may name a repo that only a `dev_dependency` usage brings in.
 const DEV_DIRS: [&str; 3] = ["examples", "tests", "tools"];
@@ -57,21 +65,69 @@ fn statements(path: &str, source: &str) -> Vec<AstStmt> {
     let (_, statement, _, _) = ast.into_parts();
     match statement.node {
         StmtP::Statements(stmts) => stmts,
-        _ => vec![statement],
+        StmtP::Break
+        | StmtP::Continue
+        | StmtP::Pass
+        | StmtP::Return(_)
+        | StmtP::Expression(_)
+        | StmtP::Assign(_)
+        | StmtP::AssignModify(..)
+        | StmtP::If(..)
+        | StmtP::IfElse(..)
+        | StmtP::For(_)
+        | StmtP::Def(_)
+        | StmtP::Load(_) => vec![statement],
     }
 }
 
 fn string_literal(expr: &AstExpr) -> Option<&str> {
     match &expr.node {
         ExprP::Literal(AstLiteral::String(text)) => Some(text.node.as_str()),
-        _ => None,
+        ExprP::Tuple(_)
+        | ExprP::Dot(..)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Identifier(_)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::List(_)
+        | ExprP::Dict(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => None,
     }
 }
 
 fn identifier(expr: &AstExpr) -> Option<&str> {
     match &expr.node {
         ExprP::Identifier(ident) => Some(ident.node.ident.as_str()),
-        _ => None,
+        ExprP::Tuple(_)
+        | ExprP::Dot(..)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::List(_)
+        | ExprP::Dict(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => None,
     }
 }
 
@@ -93,7 +149,7 @@ impl<'a> Args<'a> {
                 ArgumentP::Named(key, value) => {
                     out.named.insert(key.node.as_str(), value);
                 }
-                _ => {}
+                ArgumentP::Args(_) | ArgumentP::KwArgs(_) => {}
             }
         }
         out
@@ -148,7 +204,17 @@ fn scan_root(source: &str) -> Root {
                 };
                 root_call(name, &Args::of(&args.args), &mut root);
             }
-            _ => {}
+            StmtP::Break
+            | StmtP::Continue
+            | StmtP::Pass
+            | StmtP::Return(_)
+            | StmtP::AssignModify(..)
+            | StmtP::Statements(_)
+            | StmtP::If(..)
+            | StmtP::IfElse(..)
+            | StmtP::For(_)
+            | StmtP::Def(_)
+            | StmtP::Load(_) => {}
         }
     }
     root
@@ -282,17 +348,66 @@ fn consumer_module_problems(path: &str, source: &str) -> Vec<String> {
                         ExprP::Identifier(name) if name.node.ident == "module" => true,
                         ExprP::Identifier(name) if name.node.ident == "bazel_dep" => {
                             args.text("name") == Some("rules_dx")
-                                && args.named.keys().all(|key| matches!(*key, "name" | "version"))
+                                && args
+                                    .named
+                                    .keys()
+                                    .all(|key| matches!(*key, "name" | "version"))
                         }
                         ExprP::Dot(object, tag) => {
                             tag.node == "accept" && identifier(object) == licenses.as_deref()
                         }
-                        _ => false,
+                        ExprP::Tuple(_)
+                        | ExprP::Call(..)
+                        | ExprP::Index(_)
+                        | ExprP::Index2(_)
+                        | ExprP::Slice(..)
+                        | ExprP::Identifier(_)
+                        | ExprP::Lambda(_)
+                        | ExprP::Literal(_)
+                        | ExprP::Not(_)
+                        | ExprP::Minus(_)
+                        | ExprP::Plus(_)
+                        | ExprP::BitNot(_)
+                        | ExprP::Op(..)
+                        | ExprP::If(_)
+                        | ExprP::List(_)
+                        | ExprP::Dict(_)
+                        | ExprP::ListComprehension(..)
+                        | ExprP::DictComprehension(..)
+                        | ExprP::FString(_) => false,
                     }
                 }
-                _ => false,
+                ExprP::Tuple(_)
+                | ExprP::Dot(..)
+                | ExprP::Index(_)
+                | ExprP::Index2(_)
+                | ExprP::Slice(..)
+                | ExprP::Identifier(_)
+                | ExprP::Lambda(_)
+                | ExprP::Literal(_)
+                | ExprP::Not(_)
+                | ExprP::Minus(_)
+                | ExprP::Plus(_)
+                | ExprP::BitNot(_)
+                | ExprP::Op(..)
+                | ExprP::If(_)
+                | ExprP::List(_)
+                | ExprP::Dict(_)
+                | ExprP::ListComprehension(..)
+                | ExprP::DictComprehension(..)
+                | ExprP::FString(_) => false,
             },
-            _ => false,
+            StmtP::Break
+            | StmtP::Continue
+            | StmtP::Pass
+            | StmtP::Return(_)
+            | StmtP::AssignModify(..)
+            | StmtP::Statements(_)
+            | StmtP::If(..)
+            | StmtP::IfElse(..)
+            | StmtP::For(_)
+            | StmtP::Def(_)
+            | StmtP::Load(_) => false,
         };
         if !allowed {
             out.push(format!(
@@ -313,7 +428,18 @@ fn fixture_load_problems(path: &str, source: &str) -> Vec<String> {
         .iter()
         .filter_map(|stmt| match &stmt.node {
             StmtP::Load(load) => Some(load.module.node.clone()),
-            _ => None,
+            StmtP::Break
+            | StmtP::Continue
+            | StmtP::Pass
+            | StmtP::Return(_)
+            | StmtP::Expression(_)
+            | StmtP::Assign(_)
+            | StmtP::AssignModify(..)
+            | StmtP::Statements(_)
+            | StmtP::If(..)
+            | StmtP::IfElse(..)
+            | StmtP::For(_)
+            | StmtP::Def(_) => None,
         })
         .filter(|module| {
             module
@@ -439,7 +565,9 @@ fn snapshot_tree() -> Tree {
     let langs = files
         .iter()
         .filter_map(|(path, text)| {
-            let lang = path.strip_suffix("/lang.json").filter(|lang| !lang.contains('/'))?;
+            let lang = path
+                .strip_suffix("/lang.json")
+                .filter(|lang| !lang.contains('/'))?;
             let manifest: dx_testing::serde_json::Value = dx_testing::serde_json::from_str(text)
                 .unwrap_or_else(|error| panic!("{path}: {error}"));
             let entry_points = manifest["entry_points"]
@@ -457,7 +585,9 @@ fn snapshot_tree() -> Tree {
         .map(|line| line.trim_end_matches('/').to_owned())
         .collect();
     Tree {
-        module: files.remove("MODULE.bazel").expect("MODULE.bazel is in the snapshot"),
+        module: files
+            .remove("MODULE.bazel")
+            .expect("MODULE.bazel is in the snapshot"),
         langs,
         sources: snapshot("DX_SOURCES_JSON"),
         consumer: snapshot("DX_CONSUMER_JSON"),
@@ -512,7 +642,8 @@ register_toolchains("//toy:all")
 
 const TOY_CONSUMER_MODULE: &str = "# dx: yours; dx adds its missing lines\nmodule(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
-const TOY_CONSUMER_BUILD: &str = "load(\"@rules_dx//toy:defs.bzl\", \"toy_library\")\n\ntoy_library(name = \"consumer\")\n";
+const TOY_CONSUMER_BUILD: &str =
+    "load(\"@rules_dx//toy:defs.bzl\", \"toy_library\")\n\ntoy_library(name = \"consumer\")\n";
 
 fn toy() -> Tree {
     let text = |pairs: &[(&str, &str)]| {
@@ -526,14 +657,26 @@ fn toy() -> Tree {
         langs: [("toy".to_owned(), true), ("notes".to_owned(), false)].into(),
         sources: text(&[
             ("toy/defs.bzl", "load(\"@toy_sdk//:defs.bzl\", \"sdk\")\n"),
-            ("toy/tests/BUILD.bazel", "x(data = [\"@toy_test_hub//:all\", \"@rules_probe\"])\n"),
-            ("tools/toy/BUILD.bazel", "x(data = [\"@toy_snapshot//:files.json\"])\n"),
-            ("examples/toy/BUILD.bazel", "x(data = [\"@mapped//:all\"])\n"),
+            (
+                "toy/tests/BUILD.bazel",
+                "x(data = [\"@toy_test_hub//:all\", \"@rules_probe\"])\n",
+            ),
+            (
+                "tools/toy/BUILD.bazel",
+                "x(data = [\"@toy_snapshot//:files.json\"])\n",
+            ),
+            (
+                "examples/toy/BUILD.bazel",
+                "x(data = [\"@mapped//:all\"])\n",
+            ),
             ("toy/tests/consumer/BUILD.bazel", TOY_CONSUMER_BUILD),
         ]),
         consumer: text(&[
             ("toy/tests/consumer/BUILD.bazel", TOY_CONSUMER_BUILD),
-            ("toy/tests/consumer/consumer.MODULE.bazel", TOY_CONSUMER_MODULE),
+            (
+                "toy/tests/consumer/consumer.MODULE.bazel",
+                TOY_CONSUMER_MODULE,
+            ),
             ("toy/tests/consumer/toy.toy", ""),
         ]),
         tested: ["toy".to_owned()].into(),

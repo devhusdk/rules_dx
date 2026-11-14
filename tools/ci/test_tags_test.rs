@@ -86,7 +86,7 @@ fn tags_target(target: &AstAssignTarget) -> bool {
     match &target.node {
         AssignTargetP::Identifier(ident) => names_tags(&ident.node.ident),
         AssignTargetP::Index(pair) => is_string(&pair.1, "tags"),
-        _ => false,
+        AssignTargetP::Tuple(_) | AssignTargetP::Dot(..) => false,
     }
 }
 
@@ -234,7 +234,25 @@ impl Walker<'_> {
                     }
                 }
             }
-            other => other.visit_expr(|child| self.expr(child, position, value.as_deref_mut())),
+            other @ ExprP::Tuple(_)
+            | other @ ExprP::Dot(..)
+            | other @ ExprP::Index(_)
+            | other @ ExprP::Index2(_)
+            | other @ ExprP::Slice(..)
+            | other @ ExprP::Lambda(_)
+            | other @ ExprP::Literal(_)
+            | other @ ExprP::Not(_)
+            | other @ ExprP::Minus(_)
+            | other @ ExprP::Plus(_)
+            | other @ ExprP::BitNot(_)
+            | other @ ExprP::Op(..)
+            | other @ ExprP::If(_)
+            | other @ ExprP::List(_)
+            | other @ ExprP::ListComprehension(..)
+            | other @ ExprP::DictComprehension(..)
+            | other @ ExprP::FString(_) => {
+                other.visit_expr(|child| self.expr(child, position, value.as_deref_mut()))
+            }
         }
     }
 

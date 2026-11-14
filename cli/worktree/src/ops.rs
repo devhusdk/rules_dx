@@ -1537,7 +1537,7 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
             state,
             reason: match held {
                 Hold::Waiting(reason) => Some(reason),
-                _ => None,
+                Hold::Free | Hold::Alive | Hold::Reclaimable => None,
             },
             server: server_in(&servers, &path),
             busy,

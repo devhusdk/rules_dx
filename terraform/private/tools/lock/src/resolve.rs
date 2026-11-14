@@ -172,7 +172,9 @@ fn source_address(name: &str, source: Option<&str>) -> Result<String, Error> {
     if valid {
         Ok(full)
     } else {
-        Err(Error::new(format!("provider {name}: source {source:?} has an invalid segment")))
+        Err(Error::new(format!(
+            "provider {name}: source {source:?} has an invalid segment"
+        )))
     }
 }
 
@@ -202,7 +204,7 @@ pub fn requirements(text: &str) -> Result<Vec<Requirement>, Error> {
             match token {
                 Token::Open => depth += 1,
                 Token::Close => depth -= 1,
-                _ => {}
+                Token::Word(_) | Token::Text(_) | Token::Equals => {}
             }
             if depth == 0 {
                 break;
@@ -251,7 +253,7 @@ fn entries(block: &[Token]) -> Result<Vec<Requirement>, Error> {
                                 }
                             }
                         }
-                        _ => {}
+                        Token::Word(_) | Token::Text(_) | Token::Equals => {}
                     }
                     cursor += 1;
                     if depth == 0 {
@@ -296,13 +298,19 @@ pub fn satisfies(version: &str, constraint: &str) -> Result<bool, Error> {
     let Some(have) = version_parts(version) else {
         return Ok(false);
     };
-    for clause in constraint.split(',').map(str::trim).filter(|clause| !clause.is_empty()) {
+    for clause in constraint
+        .split(',')
+        .map(str::trim)
+        .filter(|clause| !clause.is_empty())
+    {
         let (operator, number) = ["~>", ">=", "<=", "!=", "=", ">", "<"]
             .iter()
             .find_map(|operator| clause.strip_prefix(operator).map(|rest| (*operator, rest)))
             .unwrap_or(("=", clause));
         let Some(want) = version_parts(number) else {
-            return Err(Error::new(format!("version constraint {clause:?} is not understood")));
+            return Err(Error::new(format!(
+                "version constraint {clause:?} is not understood"
+            )));
         };
         let order = compare(&have, &want);
         let holds = match operator {
@@ -370,7 +378,11 @@ impl<'a> Terraform<'a> {
         format!("https://{HOST}/v1/providers/{path}")
     }
 
-    fn version(&self, source: &str, constraint: &str) -> Result<(String, Vec<(String, String)>), Error> {
+    fn version(
+        &self,
+        source: &str,
+        constraint: &str,
+    ) -> Result<(String, Vec<(String, String)>), Error> {
         let url = format!("{}/versions", Self::api(source));
         let listing = json(&self.registry.get(&url)?, &url)?;
         let mut best: Option<(Vec<u64>, String, Vec<(String, String)>)> = None;
@@ -400,13 +412,20 @@ impl<'a> Terraform<'a> {
                         .then(|| (os.to_owned(), arch.to_owned()))
                 })
                 .collect();
-            if !platforms.is_empty() && best.as_ref().is_none_or(|(have, _, _)| compare(&parts, have).is_gt()) {
+            if !platforms.is_empty()
+                && best
+                    .as_ref()
+                    .is_none_or(|(have, _, _)| compare(&parts, have).is_gt())
+            {
                 best = Some((parts, version.to_owned(), platforms));
             }
         }
-        best.map(|(_, version, platforms)| (version, platforms)).ok_or_else(|| {
-            Error::new(format!("{source}: no release satisfies {constraint:?} for a supported platform"))
-        })
+        best.map(|(_, version, platforms)| (version, platforms))
+            .ok_or_else(|| {
+                Error::new(format!(
+                    "{source}: no release satisfies {constraint:?} for a supported platform"
+                ))
+            })
     }
 
     fn package(&self, source: &str, constraint: &str) -> Result<Package, Error> {
@@ -419,7 +438,9 @@ impl<'a> Terraform<'a> {
             let download = json(&self.registry.get(&url)?, &url)?;
             let link = text(&download, "download_url", &url)?;
             if !link.starts_with("https://") {
-                return Err(Error::new(format!("{url}: download_url {link:?} is not https")));
+                return Err(Error::new(format!(
+                    "{url}: download_url {link:?} is not https"
+                )));
             }
             let platform = PLATFORMS
                 .iter()
@@ -454,10 +475,16 @@ fn read_requirements(scratch: &Scratch) -> Result<BTreeMap<String, BTreeSet<Stri
     files.sort();
     let mut found: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for file in files {
-        let shown = file.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        let shown = file
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
         let source = std::fs::read_to_string(&file)
             .map_err(|error| Error::new(format!("{shown}: {error}")))?;
-        for requirement in requirements(&source).map_err(|error| Error::new(format!("{shown}: {error}")))? {
+        for requirement in
+            requirements(&source).map_err(|error| Error::new(format!("{shown}: {error}")))?
+        {
             let constraints = found.entry(requirement.source).or_default();
             if !requirement.constraint.is_empty() {
                 constraints.insert(requirement.constraint);
@@ -470,7 +497,8 @@ fn read_requirements(scratch: &Scratch) -> Result<BTreeMap<String, BTreeSet<Stri
 /// The text of the state file for the resolved providers.
 #[must_use]
 pub fn state(packages: &[Package], constraints: &BTreeMap<String, BTreeSet<String>>) -> String {
-    let mut out = String::from("# This file is maintained automatically by the terraform lock step.\n");
+    let mut out =
+        String::from("# This file is maintained automatically by the terraform lock step.\n");
     for package in packages {
         out.push_str(&format!(
             "\nprovider \"{}\" {{\n  version = \"{}\"\n",
@@ -506,7 +534,9 @@ fn pinned(scratch: &Scratch, state: &str) -> BTreeMap<String, String> {
         if *token != Token::Word("provider".to_owned()) {
             continue;
         }
-        if let (Some(Token::Text(source)), Some(Token::Open)) = (tokens.get(cursor), tokens.get(cursor + 1)) {
+        if let (Some(Token::Text(source)), Some(Token::Open)) =
+            (tokens.get(cursor), tokens.get(cursor + 1))
+        {
             let mut probe = cursor + 2;
             while let Some(next) = tokens.get(probe) {
                 if *next == Token::Close {
@@ -531,10 +561,15 @@ impl Resolver for Terraform<'_> {
         let state_versions = pinned(scratch, &self.state);
         let mut packages = Vec::new();
         for (source, constraints) in &wanted {
-            let constraint = constraints.iter().map(String::as_str).collect::<Vec<_>>().join(", ");
+            let constraint = constraints
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+                .join(", ");
             let kept = old.and_then(|lock| {
                 lock.packages.iter().find(|package| {
-                    package.name == *source && satisfies(&package.version, &constraint).unwrap_or(false)
+                    package.name == *source
+                        && satisfies(&package.version, &constraint).unwrap_or(false)
                 })
             });
             let pin = state_versions
@@ -546,11 +581,8 @@ impl Resolver for Terraform<'_> {
                 (None, None) => self.package(source, &constraint)?,
             });
         }
-        std::fs::write(
-            scratch.set().join(&self.state),
-            state(&packages, &wanted),
-        )
-        .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
+        std::fs::write(scratch.set().join(&self.state), state(&packages, &wanted))
+            .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
         Ok(Resolution {
             groups: std::collections::BTreeMap::new(),
             packages,

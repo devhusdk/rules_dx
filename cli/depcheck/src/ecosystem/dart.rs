@@ -16,7 +16,11 @@ fn constraint(value: &yaml_serde::Value) -> String {
             .get("version")
             .and_then(yaml_serde::Value::as_str)
             .map_or("", str::trim),
-        _ => "",
+        yaml_serde::Value::Null
+        | yaml_serde::Value::Bool(_)
+        | yaml_serde::Value::Number(_)
+        | yaml_serde::Value::Sequence(_)
+        | yaml_serde::Value::Tagged(_) => "",
     };
     if text.is_empty() || text == "any" {
         "*".to_owned()

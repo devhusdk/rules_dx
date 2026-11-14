@@ -76,7 +76,7 @@ fn parses_library_archives_and_stubs() {
                 ]
             );
         }
-        other => panic!("{other:?}"),
+        other @ Step::Bootstrap { .. } | other @ Step::Build { .. } => panic!("{other:?}"),
     }
 }
 

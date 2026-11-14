@@ -313,7 +313,19 @@ fn refresh_selector(set: UpdateSet, package: &str) -> String {
         UpdateSet::Bazel | UpdateSet::Containers | UpdateSet::GithubActions | UpdateSet::Pins => {
             String::new()
         }
-        set => set.name().to_owned(),
+        set @ UpdateSet::Cabal
+        | set @ UpdateSet::Cargo
+        | set @ UpdateSet::Composer
+        | set @ UpdateSet::Cpan
+        | set @ UpdateSet::Go
+        | set @ UpdateSet::Hex
+        | set @ UpdateSet::Julia
+        | set @ UpdateSet::Maven
+        | set @ UpdateSet::NuGet
+        | set @ UpdateSet::Opam
+        | set @ UpdateSet::Pub
+        | set @ UpdateSet::Ruby
+        | set @ UpdateSet::SwiftPm => set.name().to_owned(),
     }
 }
 

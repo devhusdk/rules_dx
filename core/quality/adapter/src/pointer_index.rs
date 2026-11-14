@@ -182,7 +182,7 @@ pub fn scan_yaml(text: &str, captured: &[&str]) -> Result<Vec<Raw>, SyntaxAt> {
                 value_done(&mut stack);
                 None
             }
-            _ => None,
+            Event::Nothing | Event::StreamStart | Event::StreamEnd => None,
         };
         if let (Some(node), Some(raw)) = (node, current.as_mut()) {
             on_node(raw, &mut stack, node, at, line, col, captured)?;
@@ -292,7 +292,11 @@ pub fn toml_index(text: &str) -> Result<Index, SyntaxAt> {
         Err(err) => {
             let at = err.span().map_or(0, |span| span.start);
             let (line, column) = lines.at(at)?;
-            return Err(SyntaxAt::new(line as usize, column as usize - 1, err.message()));
+            return Err(SyntaxAt::new(
+                line as usize,
+                column as usize - 1,
+                err.message(),
+            ));
         }
     };
     let mut index = Index::root_only();
@@ -387,7 +391,11 @@ fn walk_value(
             Ok(())
         }
         toml_edit::Value::InlineTable(table) => walk_inline(table, pointer, at, lines, out),
-        _ => Ok(()),
+        toml_edit::Value::String(_)
+        | toml_edit::Value::Integer(_)
+        | toml_edit::Value::Float(_)
+        | toml_edit::Value::Boolean(_)
+        | toml_edit::Value::Datetime(_) => Ok(()),
     }
 }
 

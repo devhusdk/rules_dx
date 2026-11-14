@@ -84,7 +84,7 @@ fn value_problems(path: &str, value: &Value, schema: &Value, defs: &Value) -> Ve
                 }
             }
         }
-        _ => {}
+        Value::Null | Value::Bool(_) | Value::Number(_) => {}
     }
     problems
 }
@@ -166,7 +166,10 @@ fn schema_rejects_a_bad_setup() {
         "setup.hubs.hub: expected string",
         "setup.hubs.version: not in the schema",
     ] {
-        assert!(found.iter().any(|problem| problem == want), "{want}: {found:?}");
+        assert!(
+            found.iter().any(|problem| problem == want),
+            "{want}: {found:?}"
+        );
     }
 }
 
@@ -188,7 +191,10 @@ fn schema_rejects_a_hub_missing_any_key() {
     });
     let whole = serde_json::json!({"setup": {"hubs": [full.clone()]}});
     let found = schema_problems(&whole, &schema);
-    assert!(found.iter().all(|problem| !problem.starts_with("setup")), "{found:?}");
+    assert!(
+        found.iter().all(|problem| !problem.starts_with("setup")),
+        "{found:?}"
+    );
     for key in full.as_object().expect("entry").keys() {
         let mut entry = full.clone();
         entry.as_object_mut().expect("entry").remove(key);
@@ -212,15 +218,27 @@ fn every_hub_names_an_extension_its_own_language_exports() {
             let ecosystem = hub["ecosystem"].as_str().expect("ecosystem");
             let want = format!("@rules_dx//{}:extensions.bzl", dir.display());
             if hub["extension"] != want.as_str() {
-                found.push(format!("{}: {ecosystem} extension must be {want}", dir.display()));
+                found.push(format!(
+                    "{}: {ecosystem} extension must be {want}",
+                    dir.display()
+                ));
             }
-            let exports = std::fs::read_to_string(root.join(&dir).join("extensions.bzl"))
-                .unwrap_or_default();
-            if !exports.lines().any(|line| line.starts_with(&format!("{ecosystem} = "))) {
-                found.push(format!("{}/extensions.bzl exports no {ecosystem}", dir.display()));
+            let exports =
+                std::fs::read_to_string(root.join(&dir).join("extensions.bzl")).unwrap_or_default();
+            if !exports
+                .lines()
+                .any(|line| line.starts_with(&format!("{ecosystem} = ")))
+            {
+                found.push(format!(
+                    "{}/extensions.bzl exports no {ecosystem}",
+                    dir.display()
+                ));
             }
             if hub["lock"].is_null() && !hub["tag"].is_null() {
-                found.push(format!("{}: {ecosystem} has a tag but no lock", dir.display()));
+                found.push(format!(
+                    "{}: {ecosystem} has a tag but no lock",
+                    dir.display()
+                ));
             }
         }
     }
@@ -310,7 +328,10 @@ fn families_languages_json_lists_every_quality_docs_and_setup_entry() {
             }
         }
         if row.len() > 1 {
-            rows.push((manifest["name"].as_str().expect("name").to_owned(), Value::Object(row)));
+            rows.push((
+                manifest["name"].as_str().expect("name").to_owned(),
+                Value::Object(row),
+            ));
         }
     }
     rows.sort_by(|a, b| a.0.cmp(&b.0));
@@ -355,7 +376,14 @@ fn tools_files(dir: &Path) -> Vec<String> {
         return Vec::new();
     };
     entries
-        .map(|entry| entry.expect("entry").file_name().to_str().expect("utf8").to_owned())
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_str()
+                .expect("utf8")
+                .to_owned()
+        })
         .filter(|name| name.ends_with("_tools.bzl"))
         .collect()
 }
@@ -403,7 +431,10 @@ fn langs_bzl_is_generated_from_every_lang_json() {
         langs.insert(name, manifest);
     }
     let body = serde_json::to_string_pretty(&Value::Object(langs)).expect("serializes");
-    assert!(!body.contains('\\') && !body.contains("\"\"\""), "langs.bzl cannot embed escapes");
+    assert!(
+        !body.contains('\\') && !body.contains("\"\"\""),
+        "langs.bzl cannot embed escapes"
+    );
     let text = format!(
         "\"\"\"Generated from every <lang>/lang.json by //core/modules:lang_json_test; refresh with UPDATE_EXPECT=1.\"\"\"\n\nLANGS = json.decode(\"\"\"{body}\"\"\")\n"
     );
@@ -418,7 +449,11 @@ fn langs_bzl_is_generated_from_every_lang_json() {
 
 fn lang_aspects(manifest: &Value) -> Vec<(String, String)> {
     let mut found = Vec::new();
-    for (section, label_key) in [("aspects", "quality"), ("probes", "quality"), ("aspects", "docs")] {
+    for (section, label_key) in [
+        ("aspects", "quality"),
+        ("probes", "quality"),
+        ("aspects", "docs"),
+    ] {
         let Some(table) = manifest.get(label_key) else {
             continue;
         };
@@ -429,7 +464,7 @@ fn lang_aspects(manifest: &Value) -> Vec<(String, String)> {
                 .values()
                 .flat_map(|group| group.as_array().expect("group").iter())
                 .collect(),
-            _ => Vec::new(),
+            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => Vec::new(),
         };
         for name in names {
             found.push((label.clone(), name.as_str().expect("aspect").to_owned()));
@@ -443,7 +478,10 @@ fn loaded_names(text: &str) -> BTreeSet<(String, String)> {
     for line in text.lines().filter(|line| line.starts_with("load(")) {
         let mut quoted = line.split('"').skip(1).step_by(2);
         let label = quoted.next().expect("load label");
-        let (package, file) = label.trim_start_matches("//").split_once(':').expect("label");
+        let (package, file) = label
+            .trim_start_matches("//")
+            .split_once(':')
+            .expect("label");
         for name in quoted {
             loaded.insert((format!("{package}:{file}"), name.to_owned()));
         }
@@ -490,7 +528,10 @@ fn every_lang_aspect(root: &Path) -> BTreeSet<(String, String)> {
 }
 
 fn splice(text: &str, begin: &str, end: &str, body: &str) -> String {
-    let start = text.find(begin).unwrap_or_else(|| panic!("missing {begin:?}")) + begin.len();
+    let start = text
+        .find(begin)
+        .unwrap_or_else(|| panic!("missing {begin:?}"))
+        + begin.len();
     let stop = text.find(end).unwrap_or_else(|| panic!("missing {end:?}"));
     format!("{}{body}{}", &text[..start], &text[stop..])
 }
@@ -499,7 +540,8 @@ fn splice(text: &str, begin: &str, end: &str, body: &str) -> String {
 fn aspect_registration_is_generated_from_every_lang_json() {
     let root = dx_testing::rules_dx_source();
     let aspects = every_lang_aspect(&root);
-    let mut by_label: std::collections::BTreeMap<&str, Vec<&str>> = std::collections::BTreeMap::new();
+    let mut by_label: std::collections::BTreeMap<&str, Vec<&str>> =
+        std::collections::BTreeMap::new();
     for (label, name) in &aspects {
         by_label.entry(label).or_default().push(name);
     }
@@ -567,8 +609,12 @@ fn gazelle_lock_registry_is_generated_from_every_lang_json() {
     let actual = scratch.join("lock_registry.json");
     dx_testing::write_text(&actual, &text);
     let expected = dx_testing::resolve_runfiles("gazelle/common/lock_registry.json");
-    dx_testing::snapshot_diff(&expected, &actual, Some("gazelle/common/lock_registry.json"))
-        .expect("gazelle/common/lock_registry.json is generated from every lang.json");
+    dx_testing::snapshot_diff(
+        &expected,
+        &actual,
+        Some("gazelle/common/lock_registry.json"),
+    )
+    .expect("gazelle/common/lock_registry.json is generated from every lang.json");
 }
 
 #[test]
@@ -605,7 +651,9 @@ fn exported_names(defs: &str) -> BTreeSet<String> {
             Some(rest) => rest.split('(').next().unwrap_or(""),
             None => line.split_once(" = ").map_or("", |(name, _)| name),
         };
-        let valid = name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
+        let valid = name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
         if valid && name.starts_with(|c: char| c.is_ascii_lowercase()) {
             names.insert(name.to_owned());
         }
@@ -652,7 +700,9 @@ fn entry_points_list_every_rule_defs_bzl_exports() {
 
 #[test]
 fn exported_names_reads_defs_and_assignments() {
-    let names = exported_names("def a_rule(x):\n    pass\nb_rule = rule()\nInfo = provider()\nCONST = 1\ndef _private():\n");
+    let names = exported_names(
+        "def a_rule(x):\n    pass\nb_rule = rule()\nInfo = provider()\nCONST = 1\ndef _private():\n",
+    );
     assert_eq!(names.into_iter().collect::<Vec<_>>(), ["a_rule", "b_rule"]);
 }
 
@@ -681,8 +731,13 @@ fn pins_list_every_pins_json_under_the_language_dir() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
-const PLATFORMS: [&str; 5] =
-    ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"];
+const PLATFORMS: [&str; 5] = [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64",
+];
 
 fn unsupported_platforms(cell: &str) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
@@ -720,7 +775,9 @@ fn lang_json_platforms_equal_the_support_matrix() {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         let title = manifest["title"].as_str().expect("title").to_lowercase();
-        let Some(unsupported) = rows.get(&title) else { continue };
+        let Some(unsupported) = rows.get(&title) else {
+            continue;
+        };
         let want: BTreeSet<String> = PLATFORMS
             .iter()
             .filter(|p| !unsupported.contains(**p))
@@ -733,10 +790,17 @@ fn lang_json_platforms_equal_the_support_matrix() {
             .map(|p| p.as_str().expect("platform").to_owned())
             .collect();
         if want != have {
-            drift.push(format!("{}: lang.json {have:?}, support matrix {want:?}", dir.display()));
+            drift.push(format!(
+                "{}: lang.json {have:?}, support matrix {want:?}",
+                dir.display()
+            ));
         }
     }
-    assert!(drift.is_empty(), "lang.json platforms differ from docs/support-matrix.md:\n{}", drift.join("\n"));
+    assert!(
+        drift.is_empty(),
+        "lang.json platforms differ from docs/support-matrix.md:\n{}",
+        drift.join("\n")
+    );
 }
 
 #[test]
@@ -751,10 +815,17 @@ fn lang_json_platforms_are_not_empty_and_unsupported_names_only_missing_platform
         if platforms.is_empty() {
             problems.push(format!("{name}: platforms is empty"));
         }
-        let Some(unsupported) = manifest.get("unsupported").and_then(Value::as_object) else { continue };
+        let Some(unsupported) = manifest.get("unsupported").and_then(Value::as_object) else {
+            continue;
+        };
         for platform in unsupported.keys() {
-            if platforms.iter().any(|p| p.as_str() == Some(platform.as_str())) {
-                problems.push(format!("{name}: {platform} is in both platforms and unsupported"));
+            if platforms
+                .iter()
+                .any(|p| p.as_str() == Some(platform.as_str()))
+            {
+                problems.push(format!(
+                    "{name}: {platform} is in both platforms and unsupported"
+                ));
             }
         }
     }
@@ -795,7 +866,10 @@ fn conformance_quality_bzl(root: &Path) -> String {
         }
     }
     loads
-        .entry(("core/quality/testdata".to_owned(), "config_subject.bzl".to_owned()))
+        .entry((
+            "core/quality/testdata".to_owned(),
+            "config_subject.bzl".to_owned(),
+        ))
         .or_default()
         .insert("config_subject_rule".to_owned());
     let mut text = String::from(
@@ -803,7 +877,10 @@ fn conformance_quality_bzl(root: &Path) -> String {
     );
     for ((package, file), names) in &loads {
         let names: Vec<String> = names.iter().map(|n| format!("\"{n}\"")).collect();
-        text.push_str(&format!("load(\"//{package}:{file}\", {})\n", names.join(", ")));
+        text.push_str(&format!(
+            "load(\"//{package}:{file}\", {})\n",
+            names.join(", ")
+        ));
     }
     for (lang, kinds) in &subjects {
         for (kind, names) in kinds {

@@ -35,7 +35,23 @@ impl From<EditError> for AddError {
             EditError::UnsupportedManifest { manifest, reason } => {
                 AddError::UnsupportedManifest { manifest, reason }
             }
-            other => AddError::Update(other),
+            other @ EditError::Hubs { .. }
+            | other @ EditError::Empty
+            | other @ EditError::UnknownSelector { .. }
+            | other @ EditError::InvalidPackage { .. }
+            | other @ EditError::BareSet { .. }
+            | other @ EditError::NotAPackage { .. }
+            | other @ EditError::NotFound { .. }
+            | other @ EditError::Ambiguous { .. }
+            | other @ EditError::NeedsSha { .. }
+            | other @ EditError::PinsUnresolved { .. }
+            | other @ EditError::Version(_)
+            | other @ EditError::FloorNeedsReason
+            | other @ EditError::ReasonNeedsFloor
+            | other @ EditError::FloorNotBazelDep { .. }
+            | other @ EditError::UnsafeReason { .. }
+            | other @ EditError::FloorAboveTested { .. }
+            | other @ EditError::TestedBelowFloor { .. } => AddError::Update(other),
         }
     }
 }
@@ -107,7 +123,15 @@ impl AddRequest {
         }
         let version = match &self.version {
             WidenVersion::Semver(version) => version.to_string(),
-            _ => return Err(unsupported("expected exact semver".to_owned())),
+            WidenVersion::GitTag(_)
+            | WidenVersion::GitCommit(_)
+            | WidenVersion::Gem(_)
+            | WidenVersion::Cpan(_)
+            | WidenVersion::Opam(_)
+            | WidenVersion::Release(_)
+            | WidenVersion::Digest(_) => {
+                return Err(unsupported("expected exact semver".to_owned()));
+            }
         };
         if self.target.configured.as_ref().map(|set| set.kind) == Some(ConfiguredKind::Uv) {
             return plans::insert_pyproject_dependency(content, package, &version)
@@ -137,7 +161,10 @@ impl AddRequest {
             UpdateSet::Go => dx_gomod::insert_require(content, package, &format!("v{version}"))
                 .map_err(|error| match error {
                     dx_gomod::GoEditError::Invalid(reason) => unsupported(reason),
-                    other => unsupported(format!("{other:?}")),
+                    other @ dx_gomod::GoEditError::NotFound
+                    | other @ dx_gomod::GoEditError::Ambiguous(_) => {
+                        unsupported(format!("{other:?}"))
+                    }
                 }),
             UpdateSet::Cargo => plans::insert_cargo_dependency(content, package, &version)
                 .map_err(|error| unsupported(error.to_string())),

@@ -329,7 +329,9 @@ mod tests {
         let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         match scan_live_observation(&root.join("no-such-proc"), &dx_dir) {
             LiveObservation::Unavailable { reason } => assert!(!reason.is_empty()),
-            other => panic!("a missing proc root is unavailable, never idle: {other:?}"),
+            other @ LiveObservation::Known(_) | other @ LiveObservation::Unknown { .. } => {
+                panic!("a missing proc root is unavailable, never idle: {other:?}")
+            }
         }
         let _ = fs::remove_dir_all(&root);
     }
@@ -347,7 +349,9 @@ mod tests {
         fs::write(&blocker, "not a directory").expect("blocker file");
         match scan_live_observation(&blocker, &dx_dir) {
             LiveObservation::Unavailable { .. } => {}
-            other => panic!("a file proc root is unavailable, never idle: {other:?}"),
+            other @ LiveObservation::Known(_) | other @ LiveObservation::Unknown { .. } => {
+                panic!("a file proc root is unavailable, never idle: {other:?}")
+            }
         }
         let _ = fs::remove_dir_all(&root);
     }
@@ -373,7 +377,10 @@ mod tests {
         );
         match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => assert_eq!(live, LiveHexes::default()),
-            other => panic!("a listed proc root is known: {other:?}"),
+            other @ LiveObservation::Unknown { .. }
+            | other @ LiveObservation::Unavailable { .. } => {
+                panic!("a listed proc root is known: {other:?}")
+            }
         }
         let _ = fs::remove_dir_all(&root);
     }
@@ -406,7 +413,10 @@ mod tests {
         );
         let live = match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => live,
-            other => panic!("a listed proc root is known: {other:?}"),
+            other @ LiveObservation::Unknown { .. }
+            | other @ LiveObservation::Unavailable { .. } => {
+                panic!("a listed proc root is known: {other:?}")
+            }
         };
         assert_eq!(live.setup, vec![setup_hex_value]);
         assert_eq!(
@@ -457,7 +467,10 @@ mod tests {
         );
         let live = match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => live,
-            other => panic!("a listed proc root is known: {other:?}"),
+            other @ LiveObservation::Unknown { .. }
+            | other @ LiveObservation::Unavailable { .. } => {
+                panic!("a listed proc root is known: {other:?}")
+            }
         };
         assert!(live.setup.is_empty());
         assert_eq!(
@@ -498,7 +511,10 @@ mod tests {
         );
         let live = match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => live,
-            other => panic!("a listed proc root is known: {other:?}"),
+            other @ LiveObservation::Unknown { .. }
+            | other @ LiveObservation::Unavailable { .. } => {
+                panic!("a listed proc root is known: {other:?}")
+            }
         };
         assert!(live.setup.is_empty());
         assert_eq!(
@@ -579,7 +595,9 @@ mod tests {
                 assert_eq!(partial.setup, vec![hex]);
                 assert!(reason.contains("11"), "{reason}");
             }
-            other => panic!("an unreadable process is unknown: {other:?}"),
+            other @ LiveObservation::Known(_) | other @ LiveObservation::Unavailable { .. } => {
+                panic!("an unreadable process is unknown: {other:?}")
+            }
         }
     }
 
@@ -593,7 +611,9 @@ mod tests {
         fs::write(proc_root.join("12").join("fd"), "not a dir").expect("fd file");
         match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Unknown { reason, .. } => assert!(reason.contains("12"), "{reason}"),
-            other => panic!("an unreadable fd dir is unknown: {other:?}"),
+            other @ LiveObservation::Known(_) | other @ LiveObservation::Unavailable { .. } => {
+                panic!("an unreadable fd dir is unknown: {other:?}")
+            }
         }
     }
 
@@ -606,7 +626,10 @@ mod tests {
         fs::create_dir_all(proc_root.join("13")).expect("pid dir");
         match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => assert_eq!(live, LiveHexes::default()),
-            other => panic!("gone process is skipped: {other:?}"),
+            other @ LiveObservation::Unknown { .. }
+            | other @ LiveObservation::Unavailable { .. } => {
+                panic!("gone process is skipped: {other:?}")
+            }
         }
     }
 
@@ -641,7 +664,10 @@ mod tests {
         let dx_dir = dx_path::state::local_dir(&workspace_of(scratch.path()));
         match scan_live_observation(Path::new("/proc"), &dx_dir) {
             LiveObservation::Known(_) => {}
-            other => panic!("/proc is observable: {other:?}"),
+            other @ LiveObservation::Unknown { .. }
+            | other @ LiveObservation::Unavailable { .. } => {
+                panic!("/proc is observable: {other:?}")
+            }
         }
     }
 
@@ -859,7 +885,10 @@ mod tests {
         proc.files.insert(pid.join("maps"), maps.into_bytes());
         let live = match scan_with(&proc, &FakeProc::root(), &dx_dir) {
             LiveObservation::Known(live) => live,
-            other => panic!("a readable process is known: {other:?}"),
+            other @ LiveObservation::Unknown { .. }
+            | other @ LiveObservation::Unavailable { .. } => {
+                panic!("a readable process is known: {other:?}")
+            }
         };
         assert_eq!(
             live.generations,
@@ -901,7 +930,9 @@ mod tests {
                 assert_eq!(partial.setup, vec![hex]);
                 assert!(reason.contains("maps"), "{reason}");
             }
-            other => panic!("an unreadable maps file is unknown: {other:?}"),
+            other @ LiveObservation::Known(_) | other @ LiveObservation::Unavailable { .. } => {
+                panic!("an unreadable maps file is unknown: {other:?}")
+            }
         }
     }
 }

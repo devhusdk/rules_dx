@@ -185,7 +185,18 @@ fn scan(path: &str, source: &str) -> Scan {
 fn check_wrappers(ast: &AstModule, path: &str, stmt: &AstStmt, out: &mut Scan) {
     let stmts = match &stmt.node {
         StmtP::Statements(stmts) => stmts.iter().collect::<Vec<_>>(),
-        _ => vec![stmt],
+        StmtP::Break
+        | StmtP::Continue
+        | StmtP::Pass
+        | StmtP::Return(_)
+        | StmtP::Expression(_)
+        | StmtP::Assign(_)
+        | StmtP::AssignModify(..)
+        | StmtP::If(..)
+        | StmtP::IfElse(..)
+        | StmtP::For(_)
+        | StmtP::Def(_)
+        | StmtP::Load(_) => vec![stmt],
     };
     for stmt in stmts {
         let StmtP::Def(def) = &stmt.node else {
@@ -222,7 +233,18 @@ fn check_defs(ast: &AstModule, path: &str, stmt: &AstStmt, out: &mut Scan) {
     if let StmtP::Def(def) = &stmt.node {
         let first = match &def.body.node {
             StmtP::Statements(stmts) => stmts.first(),
-            _ => Some(&*def.body),
+            StmtP::Break
+            | StmtP::Continue
+            | StmtP::Pass
+            | StmtP::Return(_)
+            | StmtP::Expression(_)
+            | StmtP::Assign(_)
+            | StmtP::AssignModify(..)
+            | StmtP::If(..)
+            | StmtP::IfElse(..)
+            | StmtP::For(_)
+            | StmtP::Def(_)
+            | StmtP::Load(_) => Some(&*def.body),
         };
         if let Some(StmtP::Expression(expr)) = first.map(|s| &s.node) {
             if let ExprP::Literal(AstLiteral::String(text)) = &expr.node {
@@ -322,7 +344,10 @@ fn is_string(expr: &AstExpr, wanted: &str) -> bool {
 fn named_arg<'a>(args: &'a [AstArgument], key: &str) -> Option<&'a AstExpr> {
     args.iter().find_map(|arg| match &arg.node {
         ArgumentP::Named(arg_key, value) if arg_key.node == key => Some(value),
-        _ => None,
+        ArgumentP::Positional(_)
+        | ArgumentP::Named(..)
+        | ArgumentP::Args(_)
+        | ArgumentP::KwArgs(_) => None,
     })
 }
 

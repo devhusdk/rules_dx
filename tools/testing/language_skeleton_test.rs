@@ -9,9 +9,9 @@ use starlark_syntax::syntax::ast::{
     ArgumentP, AssignTargetP, AstExpr, AstLiteral, AstStmt, ExprP, ParameterP, StmtP,
 };
 use starlark_syntax::syntax::{AstModule, Dialect};
+use tempfile as _;
 #[cfg(windows)]
 use windows_sys as _;
-use tempfile as _;
 
 /// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/testing/language_skeleton_allowlist.txt";
@@ -94,7 +94,14 @@ const WRAPPER: &str = "core/wrapper.bzl";
 const WRAPS: [&str; 2] = ["dx_wrap_binary", "dx_wrap_test"];
 
 /// Tags that declare a development hub or test dependencies.
-const DEV_TAGS: [&str; 6] = ["annotation", "crates", "from_lock", "license", "lock", "provider"];
+const DEV_TAGS: [&str; 6] = [
+    "annotation",
+    "crates",
+    "from_lock",
+    "license",
+    "lock",
+    "provider",
+];
 
 /// The option only `core/platform.bzl` names.
 const PLATFORMS_OPTION: &str = "//command_line_option:platforms";
@@ -191,14 +198,50 @@ fn callee_name(callee: &AstExpr) -> String {
     match &callee.node {
         ExprP::Identifier(ident) => ident.node.ident.clone(),
         ExprP::Dot(_, name) => name.node.clone(),
-        _ => String::new(),
+        ExprP::Tuple(_)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::List(_)
+        | ExprP::Dict(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => String::new(),
     }
 }
 
 fn string_literal(expr: &AstExpr) -> Option<&str> {
     match &expr.node {
         ExprP::Literal(AstLiteral::String(text)) => Some(text.node.as_str()),
-        _ => None,
+        ExprP::Tuple(_)
+        | ExprP::Dot(..)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Identifier(_)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::List(_)
+        | ExprP::Dict(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => None,
     }
 }
 
@@ -222,7 +265,24 @@ fn rhs_of(expr: &AstExpr) -> Rhs {
     match &expr.node {
         ExprP::Identifier(ident) => Rhs::Name(ident.node.ident.clone()),
         ExprP::Call(callee, _) => Rhs::Call(callee_name(callee)),
-        _ => Rhs::Value,
+        ExprP::Tuple(_)
+        | ExprP::Dot(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::List(_)
+        | ExprP::Dict(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => Rhs::Value,
     }
 }
 
@@ -257,7 +317,7 @@ impl Scanner<'_> {
                     .filter_map(|param| match &param.node {
                         ParameterP::Normal(ident, ..) => Some(ident.node.ident.clone()),
                         ParameterP::KwArgs(..) => Some("**".to_owned()),
-                        _ => None,
+                        ParameterP::Slash | ParameterP::NoArgs | ParameterP::Args(..) => None,
                     })
                     .collect();
                 self.module.defs.insert(
@@ -326,7 +386,7 @@ impl Scanner<'_> {
             AssignTargetP::Tuple(targets) => {
                 let value = match rhs_of(rhs) {
                     Rhs::Call(callee) => Rhs::Call(callee),
-                    _ => Rhs::Value,
+                    Rhs::Name(_) | Rhs::Value => Rhs::Value,
                 };
                 for inner in targets {
                     if let AssignTargetP::Identifier(ident) = &inner.node {
@@ -336,7 +396,7 @@ impl Scanner<'_> {
                     }
                 }
             }
-            _ => {}
+            AssignTargetP::Index(_) | AssignTargetP::Dot(..) => {}
         }
     }
 
@@ -369,7 +429,23 @@ impl Scanner<'_> {
                     }
                 }
             }
-            _ => {}
+            ExprP::Tuple(_)
+            | ExprP::Dot(..)
+            | ExprP::Index(_)
+            | ExprP::Index2(_)
+            | ExprP::Slice(..)
+            | ExprP::Lambda(_)
+            | ExprP::Literal(_)
+            | ExprP::Not(_)
+            | ExprP::Minus(_)
+            | ExprP::Plus(_)
+            | ExprP::BitNot(_)
+            | ExprP::Op(..)
+            | ExprP::If(_)
+            | ExprP::List(_)
+            | ExprP::ListComprehension(..)
+            | ExprP::DictComprehension(..)
+            | ExprP::FString(_) => {}
         }
         expr.node.visit_expr(|child| self.expr(child));
     }
@@ -431,7 +507,7 @@ fn root_stmt(stmt: &AstStmt, root: &mut RootModule) {
                     ArgumentP::Named(key, value) if key.node == "dev_dependency" => {
                         dev = is_true(value);
                     }
-                    _ => {}
+                    ArgumentP::Named(..) | ArgumentP::Args(_) | ArgumentP::KwArgs(_) => {}
                 }
             }
             if let [label, name] = positional.as_slice() {
@@ -465,11 +541,21 @@ fn root_stmt(stmt: &AstStmt, root: &mut RootModule) {
                     ArgumentP::Named(key, _) if key.node == "dev_dependency" => {
                         root.registers_dev = true;
                     }
-                    _ => {}
+                    ArgumentP::Named(..) | ArgumentP::Args(_) | ArgumentP::KwArgs(_) => {}
                 }
             }
         }
-        _ => {}
+        StmtP::Break
+        | StmtP::Continue
+        | StmtP::Pass
+        | StmtP::Return(_)
+        | StmtP::AssignModify(..)
+        | StmtP::Statements(_)
+        | StmtP::If(..)
+        | StmtP::IfElse(..)
+        | StmtP::For(_)
+        | StmtP::Def(_)
+        | StmtP::Load(_) => {}
     }
 }
 

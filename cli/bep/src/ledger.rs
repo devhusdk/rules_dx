@@ -77,7 +77,10 @@ fn canonical(value: &Value) -> String {
             let items: Vec<String> = items.iter().map(canonical).collect();
             format!("[{}]", items.join(","))
         }
-        other => other.to_string(),
+        other @ Value::Null
+        | other @ Value::Bool(_)
+        | other @ Value::Number(_)
+        | other @ Value::String(_) => other.to_string(),
     }
 }
 

@@ -1,4 +1,5 @@
 load("//core:wrapper.bzl", "dx_src_path", "dx_without_warnings_attr")
+load("//java/private:coverage.bzl", "DX_JVM_TEST_RUNNER")
 
 _KOTLIN_TEST_ROOTS = [
     "src/test/java/",
@@ -46,3 +47,10 @@ def kotlin_test_entry_kwargs(name, srcs, package, kwargs):
     if test_class == None:
         return kwargs
     return dict(kwargs, test_class = test_class)
+
+def kotlin_test_main_class(test_class):
+    """Returns the select dict for kt_jvm_test main_class: the test class under Windows coverage, else the dx runner."""
+    return {
+        str(Label("//kotlin/private:windows_coverage")): test_class,
+        "//conditions:default": DX_JVM_TEST_RUNNER,
+    }

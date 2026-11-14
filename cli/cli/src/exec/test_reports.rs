@@ -81,7 +81,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     } else {
         Sources::default()
     };
-    let _ = std::fs::remove_file(bep);
+    std::fs::remove_file(bep).ok();
     let (events, stream_problem) = match read {
         Ok(read) => read,
         Err(error) => {
@@ -271,9 +271,9 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     *results_complete = complete && reports_ok;
     let no_tests = bazel_code == BAZEL_NO_TESTS && reported.is_empty();
     if no_tests {
-        let _ = writeln!(err, "dx: {CODE_NO_TESTS}: no test targets match the scope");
+        writeln!(err, "dx: {CODE_NO_TESTS}: no test targets match the scope").ok();
         if let Some(next) = super::guidance::next_action(CODE_NO_TESTS) {
-            let _ = writeln!(err, "{next}");
+            writeln!(err, "{next}").ok();
         }
     }
     if invocation.output == OutputMode::Json {

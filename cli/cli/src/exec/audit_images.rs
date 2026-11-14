@@ -180,7 +180,7 @@ fn scan_image(
         .run_hermetic(&argv, inputs.workspace, &[])
         .map_err(|error| DxError::infra(format!("cannot run trivy: {error}")))?;
     let text = std::fs::read_to_string(&report);
-    let _ = std::fs::remove_file(&report);
+    std::fs::remove_file(&report).ok();
     if status.code != Some(0) {
         return Err(DxError::failure(format!(
             "trivy exited with {:?}",

@@ -32,9 +32,9 @@ pub(crate) fn prune_and_warn(
     if output == OutputMode::Json {
         let event = notice_event(&NoticeEvent::warning(CODE_PRUNE_FAILED, &message));
         if emit_built(out, event).is_ok() {
-            let _ = flush_out(out);
+            flush_out(out).ok();
         }
     } else {
-        let _ = writeln!(err, "dx: {CODE_PRUNE_FAILED}: {message}");
+        writeln!(err, "dx: {CODE_PRUNE_FAILED}: {message}").ok();
     }
 }

@@ -164,8 +164,8 @@ pub(crate) fn build_index(
     let root = workspace.join(INDEX_DIR);
     let work = root.join("work");
     let out = root.join("index");
-    let _ = std::fs::remove_dir_all(&work);
-    let _ = std::fs::remove_dir_all(&out);
+    std::fs::remove_dir_all(&work).ok();
+    std::fs::remove_dir_all(&out).ok();
     std::fs::create_dir_all(&work)
         .map_err(|error| failed(format!("cannot create {}: {error}", work.display())))?;
     let page = work.join("README.md");

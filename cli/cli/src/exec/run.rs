@@ -370,7 +370,7 @@ fn run_targets(
     }
     for (target, plan) in targets.iter().zip(&plans) {
         if !json && !invocation.quiet {
-            let _ = writeln!(err, "{}", plan.summary);
+            writeln!(err, "{}", plan.summary).ok();
         }
         let app = match launcher.launch_app(out, err, &plan.argv) {
             Ok(Some(app)) => app,

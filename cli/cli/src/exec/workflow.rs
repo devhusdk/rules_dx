@@ -72,7 +72,7 @@ fn execute_checked(
             .any(|report| StandardFormat::parse(&report.format) == Some(StandardFormat::Results));
     let run_id = run_id(pid, nonce, temp_dir);
     if results_default {
-        let _ = std::fs::remove_file(results_path(workspace));
+        std::fs::remove_file(results_path(workspace)).ok();
     }
     let planned_reports = match plan_reports(
         workspace,
@@ -96,7 +96,7 @@ fn execute_checked(
         .any(|report| report.destination == Destination::Stdout);
     if results_default {
         let path = results_path(workspace);
-        let _ = std::fs::create_dir_all(dx_path::state::local_dir(workspace));
+        std::fs::create_dir_all(dx_path::state::local_dir(workspace)).ok();
         results_reports.push(PlannedReport {
             format: StandardFormat::Results,
             destination: Destination::File(path.to_string_lossy().into_owned()),
@@ -113,7 +113,29 @@ fn execute_checked(
             invocation.raw_bazel_options(),
             &invocation.bazel_startup_options,
         )),
-        _ => None,
+        Command::Security
+        | Command::License
+        | Command::Lint
+        | Command::Typecheck
+        | Command::Format
+        | Command::Generate
+        | Command::Build
+        | Command::Bench
+        | Command::Run
+        | Command::Deploy
+        | Command::Check
+        | Command::Clean
+        | Command::Update
+        | Command::Sync
+        | Command::Init
+        | Command::Upgrade
+        | Command::Status
+        | Command::Watch
+        | Command::Completion
+        | Command::Docs
+        | Command::Worktree
+        | Command::Fuzz
+        | Command::Config => None,
     };
     let resolved = match (invocation.command, &selection) {
         (Command::Build, _) => resolve(
@@ -232,7 +254,7 @@ fn execute_checked(
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
         Err(exit) => {
-            let _ = std::fs::remove_file(&bep);
+            std::fs::remove_file(&bep).ok();
             *host = true;
             return exit;
         }
@@ -249,19 +271,19 @@ fn execute_checked(
             action_counts,
         )
     {
-        let _ = std::fs::remove_file(&bep);
+        std::fs::remove_file(&bep).ok();
         return kept_child(err, bazel_code, exit);
     }
     if verb == WorkflowVerb::Build {
         if bazel_code != 0
             && let Err(exit) = report_build_failures(&bep, invocation.output, out, err)
         {
-            let _ = std::fs::remove_file(&bep);
+            std::fs::remove_file(&bep).ok();
             return kept_child(err, bazel_code, exit);
         }
         let groups = group_skipped(&read_skipped(&bep), invocation, workspace, query_runner);
         if let Err(exit) = skipped_notice(invocation.output, out, err, &groups) {
-            let _ = std::fs::remove_file(&bep);
+            std::fs::remove_file(&bep).ok();
             return kept_child(err, bazel_code, exit);
         }
         let reports = write_failure_reports(
@@ -273,7 +295,7 @@ fn execute_checked(
             out,
             err,
         );
-        let _ = std::fs::remove_file(&bep);
+        std::fs::remove_file(&bep).ok();
         let reports_ok = match reports {
             Ok(landed) => landed,
             Err(exit) => return kept_child(err, bazel_code, exit),
@@ -290,10 +312,11 @@ fn execute_checked(
             if code == 0 {
                 return exit;
             }
-            let _ = writeln!(
+            writeln!(
                 err,
                 "dx: could not write the final events to stdout; keeping exit {code}"
-            );
+            )
+            .ok();
             return code;
         }
         return code;
@@ -379,14 +402,14 @@ pub(super) fn announce_profile(
                 return emit_built(out, notice_event(&notice));
             }
             if invocation.chatty() {
-                let _ = writeln!(err, "dx: {message}");
+                writeln!(err, "dx: {message}").ok();
             }
             return Ok(());
         }
     };
     let report_file = profile_report::report_path(workspace);
     let value = report.json();
-    let _ = std::fs::write(&report_file, format!("{value}\n"));
+    std::fs::write(&report_file, format!("{value}\n")).ok();
     if invocation.output == OutputMode::Json {
         let notice = NoticeEvent {
             related_command: Some(invocation.command.name().to_owned()),
@@ -396,7 +419,7 @@ pub(super) fn announce_profile(
         return emit_built(out, notice_event(&notice));
     }
     if invocation.chatty() {
-        let _ = writeln!(err, "{}", report.text());
+        writeln!(err, "{}", report.text()).ok();
     }
     Ok(())
 }

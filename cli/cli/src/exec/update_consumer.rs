@@ -169,7 +169,26 @@ fn run_configured_target(
             | dependency_sets::DependencySetsError::UnsupportedGoLayout { .. } => {
                 dx_update::outcome::SetStatus::Unsupported
             }
-            _ => dx_update::outcome::SetStatus::Failed,
+            dependency_sets::DependencySetsError::Read { .. }
+            | dependency_sets::DependencySetsError::NotUtf8 { .. }
+            | dependency_sets::DependencySetsError::InvalidToml { .. }
+            | dependency_sets::DependencySetsError::Module { .. }
+            | dependency_sets::DependencySetsError::InvalidName { .. }
+            | dependency_sets::DependencySetsError::EscapingPath { .. }
+            | dependency_sets::DependencySetsError::InvalidManifest { .. }
+            | dependency_sets::DependencySetsError::DuplicateName { .. }
+            | dependency_sets::DependencySetsError::ConflictingOwnership { .. }
+            | dependency_sets::DependencySetsError::UnknownSelector { .. }
+            | dependency_sets::DependencySetsError::InvalidPackage { .. }
+            | dependency_sets::DependencySetsError::NoOwningSet { .. }
+            | dependency_sets::DependencySetsError::MissingFile { .. }
+            | dependency_sets::DependencySetsError::OutsideWorkspace { .. }
+            | dependency_sets::DependencySetsError::StaleJuliaLock { .. }
+            | dependency_sets::DependencySetsError::StaleCpanLock { .. }
+            | dependency_sets::DependencySetsError::StaleCabalLock { .. }
+            | dependency_sets::DependencySetsError::InvalidRepository { .. } => {
+                dx_update::outcome::SetStatus::Failed
+            }
         };
         record_named(
             attempted,
@@ -207,7 +226,28 @@ fn run_configured_target(
             npm: std::env::var(dx_update::backend::NPM_BIN_VAR).ok(),
             ..Default::default()
         },
-        _ => dx_update::backend::UvClosure::default(),
+        Ecosystem::Uv
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Cargo
+        | Ecosystem::Maven
+        | Ecosystem::Nuget
+        | Ecosystem::Go
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => dx_update::backend::UvClosure::default(),
     };
     let head = invocation.bazel_head();
     let planned = match mode {
@@ -306,7 +346,26 @@ fn run_configured_target(
                 "; the maven.install lock_file must be listed in the set's locks and MODULE.bazel must not change"
             }
             Ecosystem::Nuget => "; paket2bazel must only write into its scratch output folder",
-            _ => "",
+            Ecosystem::Uv
+            | Ecosystem::Npm
+            | Ecosystem::Bazel
+            | Ecosystem::Ruby
+            | Ecosystem::PowerShell
+            | Ecosystem::Go
+            | Ecosystem::Cpan
+            | Ecosystem::Pub
+            | Ecosystem::Julia
+            | Ecosystem::Hex
+            | Ecosystem::Composer
+            | Ecosystem::Dub
+            | Ecosystem::Fpm
+            | Ecosystem::Zig
+            | Ecosystem::LuaRocks
+            | Ecosystem::Opam
+            | Ecosystem::SwiftPm
+            | Ecosystem::Cabal
+            | Ecosystem::Ansible
+            | Ecosystem::Bicep => "",
         };
         record_named(
             attempted,
@@ -493,10 +552,10 @@ impl CheckGuard {
                     .map(|metadata| metadata.file_type().is_symlink())
                     .unwrap_or(false)
                 {
-                    let _ = std::fs::remove_file(&link);
+                    std::fs::remove_file(&link).ok();
                 }
                 if let Some(bytes) = &before {
-                    let _ = dx_atomic_fs::write_atomic(&stored, bytes);
+                    dx_atomic_fs::write_atomic(&stored, bytes).ok();
                 }
                 wrote.push(rel);
                 continue;
@@ -504,10 +563,11 @@ impl CheckGuard {
             if std::fs::read(&stored).ok() == before {
                 continue;
             }
-            let _ = match &before {
+            match &before {
                 Some(bytes) => dx_atomic_fs::write_atomic(&stored, bytes),
                 None => std::fs::remove_file(&stored),
-            };
+            }
+            .ok();
             wrote.push(rel);
         }
         (!wrote.is_empty()).then_some(wrote)

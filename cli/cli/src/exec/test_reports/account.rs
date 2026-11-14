@@ -525,7 +525,7 @@ pub(super) fn filtered_notice(
             )?;
         }
         OutputMode::Text { .. } => {
-            let _ = writeln!(err, "dx: tests_filtered: {message}");
+            writeln!(err, "dx: tests_filtered: {message}").ok();
         }
         _ => {}
     }

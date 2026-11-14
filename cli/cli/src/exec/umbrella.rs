@@ -294,7 +294,7 @@ impl PhaseCollector {
     fn cleanup(&self) {
         for phase in &self.phases {
             if let Some(capture) = &phase.capture {
-                let _ = std::fs::remove_file(&capture.path);
+                std::fs::remove_file(&capture.path).ok();
             }
         }
     }
@@ -355,7 +355,7 @@ fn explain_selection_stop(
         if !phase_err.is_empty() {
             return;
         }
-        let _ = writeln!(phase_err, "dx: {CODE_INVALID_SCOPE}: {message}");
+        writeln!(phase_err, "dx: {CODE_INVALID_SCOPE}: {message}").ok();
         return;
     }
     let Ok(event) = error_event(CODE_INVALID_SCOPE, &message, None, None, Some(phase)) else {
@@ -443,7 +443,7 @@ fn forward_phase(
     }
     if !readable {
         let message = format!("{phase} wrote an unreadable event");
-        let _ = writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}");
+        writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}").ok();
         emit_built(
             out,
             error_event(CODE_COLLECTION_FAILED, &message, None, None, Some(phase))
@@ -715,7 +715,7 @@ fn verify_fix(
             Err(_) => {
                 outcome.readable = false;
                 let message = format!("{verify_phase} events could not be forwarded");
-                let _ = writeln!(outcome.err, "dx: {CODE_COLLECTION_FAILED}: {message}");
+                writeln!(outcome.err, "dx: {CODE_COLLECTION_FAILED}: {message}").ok();
                 if let Err(exit) = announce_collection_failure(
                     &mut outcome.out,
                     request.common.output,
@@ -755,12 +755,13 @@ fn deliver_verification(
     if let Some(failed) = verification.failed_phase {
         announce_verification_failure(out, err, output, command, failed, &verification.skipped)?;
     } else if partial {
-        let _ = writeln!(
+        writeln!(
             err,
             "dx: verification passed after apply for {}; not re-checked, failed during apply: {}",
             verification.verified.join(", "),
             verification.apply_failed.join(", ")
-        );
+        )
+        .ok();
     }
     Ok(())
 }
@@ -781,7 +782,7 @@ fn announce_verification_failure(
             skipped.join(", ")
         ));
     }
-    let _ = writeln!(err, "dx: {CODE_VERIFICATION_FAILED}: {message}");
+    writeln!(err, "dx: {CODE_VERIFICATION_FAILED}: {message}").ok();
     if output != OutputMode::Json {
         return Ok(());
     }
@@ -1018,7 +1019,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                         effects: PhaseEffects::default(),
                     },
                     Err(message) => {
-                        let _ = writeln!(phase_env.err, "dx: {message}");
+                        writeln!(phase_env.err, "dx: {message}").ok();
                         PhaseRun {
                             code: 2,
                             kind: PhaseKind::Selection,
@@ -1108,7 +1109,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         .into_iter()
         .map(|(phase, reason)| {
             let message = format!("{phase} {reason}");
-            let _ = writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}");
+            writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}").ok();
             (phase, message)
         })
         .collect();
@@ -1160,7 +1161,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     if !matches!(request.common.output, OutputMode::Json)
         && (stop_code.is_some() || failed_code.is_some())
     {
-        let _ = writeln!(err, "dx: phases: {}", collector.summary());
+        writeln!(err, "dx: phases: {}", collector.summary()).ok();
     }
     let mut verify_forward_exit: Option<i32> = None;
     let mut verification_failed = false;
@@ -1223,7 +1224,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                 ..FinishedCounts::default()
             },
         );
-        let _ = write_event(out, &finished);
+        write_event(out, &finished).ok();
     }
     code
 }
@@ -1268,10 +1269,11 @@ pub(super) fn lint_commits(
     let range = format!("{base}..HEAD");
     let args = [&dx_update::conventional::LOG_ARGS[..], &[range.as_str()]].concat();
     let Some(log) = git(workspace, &args) else {
-        let _ = writeln!(
+        writeln!(
             err,
             "dx: warning: commits: cannot read the commits in {range}"
-        );
+        )
+        .ok();
         return Ok(false);
     };
     let bad = dx_update::conventional::lint(&log);
@@ -1286,7 +1288,7 @@ pub(super) fn lint_commits(
             };
             emit_built(out, correlated(notice_event(&notice), command, "commits"))?;
         } else {
-            let _ = writeln!(err, "dx: warning: commits: {message}");
+            writeln!(err, "dx: warning: commits: {message}").ok();
         }
     }
     Ok(!bad.is_empty())

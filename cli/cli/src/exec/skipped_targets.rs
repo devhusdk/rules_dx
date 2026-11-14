@@ -201,7 +201,7 @@ pub(crate) fn skipped_notice(
                 emit_built(out, notice_event(&notice))?;
             }
             OutputMode::Text { .. } => {
-                let _ = writeln!(err, "dx: {message}");
+                writeln!(err, "dx: {message}").ok();
             }
             _ => {}
         }

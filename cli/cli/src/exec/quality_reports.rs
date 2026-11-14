@@ -205,12 +205,13 @@ pub(crate) fn write_standard_reports(
                         planned.destination.display()
                     ))?;
                 } else if *output == OutputMode::Diff {
-                    let _ = writeln!(
+                    writeln!(
                         err,
                         "Wrote {} report to {}.",
                         planned.format.name(),
                         planned.destination.display()
-                    );
+                    )
+                    .ok();
                 }
             }
             Err(error) => {

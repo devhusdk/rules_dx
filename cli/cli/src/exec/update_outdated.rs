@@ -210,11 +210,12 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         return code;
     }
     for error in &found.errors {
-        let _ = writeln!(
+        writeln!(
             err,
             "dx: {CODE_UPDATE_OUTDATED_LOOKUP}: {}:{} ({})",
             error.set, error.package, error.reason
-        );
+        )
+        .ok();
     }
     exit
 }
@@ -249,7 +250,11 @@ fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, dx_error::DxError> {
         dx_process::capture::RunError::Spawn { source, .. } => {
             dx_error::DxError::infra(format!("cannot run bazel for the opam snapshot: {source}"))
         }
-        _ => dx_error::DxError::failure("bazel could not provide the opam-repository snapshot"),
+        dx_process::capture::RunError::TimedOut { .. }
+        | dx_process::capture::RunError::OutputTooLarge { .. }
+        | dx_process::capture::RunError::Failed { .. } => {
+            dx_error::DxError::failure("bazel could not provide the opam-repository snapshot")
+        }
     })?;
     let text = output.stdout_text();
     match text.lines().last().map(str::trim).filter(|l| !l.is_empty()) {
@@ -606,7 +611,11 @@ pub(super) fn collect(
                     pypi::outdated(name, &texts, only, prereleases, pypi::DEFAULT_BASE, fetch),
                 );
             }
-            _ => unsupported.push(name.to_owned()),
+            Ecosystem::PowerShell
+            | Ecosystem::Fpm
+            | Ecosystem::Zig
+            | Ecosystem::Ansible
+            | Ecosystem::Bicep => unsupported.push(name.to_owned()),
         }
     }
     found.errors.extend(read_errors);
@@ -1092,7 +1101,28 @@ fn outdated_hint(ecosystem: Ecosystem) -> String {
         Ecosystem::LuaRocks => {
             "edit the dependencies in the rockspec, then run dx update".to_owned()
         }
-        _ => "edit the dub manifest, then run dx update".to_owned(),
+        Ecosystem::Uv
+        | Ecosystem::Npm
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Cargo
+        | Ecosystem::Maven
+        | Ecosystem::Nuget
+        | Ecosystem::Go
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => "edit the dub manifest, then run dx update".to_owned(),
     }
 }
 

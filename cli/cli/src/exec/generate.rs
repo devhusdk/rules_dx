@@ -434,7 +434,7 @@ impl Wiring {
     }
 
     fn say(&mut self, err: &mut dyn Write, notice: dx_output::NoticeEvent) {
-        let _ = writeln!(err, "dx: {}", notice.message);
+        writeln!(err, "dx: {}", notice.message).ok();
         self.notices.push(notice);
     }
 
@@ -498,7 +498,7 @@ fn run_generate_request(
     let wiring = wire_module(request, &mut env);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
-    let _ = std::fs::remove_file(&patch);
+    std::fs::remove_file(&patch).ok();
     let plan = match plan_generate(
         &resolved,
         &request.bazel_options,
@@ -541,14 +541,14 @@ fn run_generate_request(
     ) {
         Ok(code) => code,
         Err(exit) => {
-            let _ = std::fs::remove_file(&intended);
-            let _ = std::fs::remove_file(&patch);
+            std::fs::remove_file(&intended).ok();
+            std::fs::remove_file(&patch).ok();
             *kind = PhaseKind::Host;
             return exit;
         }
     };
     let patch_written = std::fs::metadata(&patch).is_ok_and(|meta| meta.len() > 0);
-    let _ = std::fs::remove_file(&patch);
+    std::fs::remove_file(&patch).ok();
     let Some(witness) = std::fs::read(&intended).ok() else {
         if bazel_code != 0 {
             *kind = PhaseKind::from_bazel_exit(bazel_code, false);
@@ -689,7 +689,7 @@ fn run_generate_request(
             }
         }
         for line in refused_lines(&projected) {
-            let _ = writeln!(env.err, "{line}");
+            writeln!(env.err, "{line}").ok();
         }
     }
     *kind = next_kind;
@@ -699,7 +699,15 @@ fn run_generate_request(
 fn failed_generate(kind: PhaseKind) -> PhaseKind {
     match kind {
         PhaseKind::Incomplete | PhaseKind::Tool => PhaseKind::GenerateFailed,
-        other => other,
+        other @ PhaseKind::Clean
+        | other @ PhaseKind::Findings
+        | other @ PhaseKind::NonConvergence
+        | other @ PhaseKind::Selection
+        | other @ PhaseKind::Report
+        | other @ PhaseKind::Compile
+        | other @ PhaseKind::Host
+        | other @ PhaseKind::Cancelled
+        | other @ PhaseKind::GenerateFailed => other,
     }
 }
 

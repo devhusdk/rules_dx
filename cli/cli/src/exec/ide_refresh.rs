@@ -143,9 +143,9 @@ pub(crate) fn refresh_and_warn(
     let message = error.message();
     if output == OutputMode::Json {
         if emit_built(out, warning_event(message)).is_ok() {
-            let _ = flush_out(out);
+            flush_out(out).ok();
         }
     } else {
-        let _ = writeln!(err, "dx: {CODE_IDE_REFRESH_FAILED}: {message}");
+        writeln!(err, "dx: {CODE_IDE_REFRESH_FAILED}: {message}").ok();
     }
 }

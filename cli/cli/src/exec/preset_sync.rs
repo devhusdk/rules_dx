@@ -28,7 +28,29 @@ pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut d
     }
     let mode = match invocation.command {
         Command::Generate | Command::Check => Mode::Full,
-        _ => Mode::Fast,
+        Command::Security
+        | Command::License
+        | Command::Lint
+        | Command::Typecheck
+        | Command::Format
+        | Command::Build
+        | Command::Test
+        | Command::Coverage
+        | Command::Bench
+        | Command::Run
+        | Command::Deploy
+        | Command::Clean
+        | Command::Update
+        | Command::Sync
+        | Command::Init
+        | Command::Upgrade
+        | Command::Status
+        | Command::Watch
+        | Command::Completion
+        | Command::Docs
+        | Command::Worktree
+        | Command::Fuzz
+        | Command::Config => Mode::Fast,
     };
     match dx_generate::sync(workspace, mode, &mut dx_adopt::detected_families) {
         Ok(report) => {
@@ -36,11 +58,11 @@ pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut d
                 list.extend(report.written.iter().chain(&report.deleted).cloned());
             }
             for warning in report.warnings {
-                let _ = writeln!(err, "{warning}");
+                writeln!(err, "{warning}").ok();
             }
         }
         Err(error) => {
-            let _ = writeln!(err, "dx: warning: .dx not refreshed: {error}");
+            writeln!(err, "dx: warning: .dx not refreshed: {error}").ok();
         }
     }
 }

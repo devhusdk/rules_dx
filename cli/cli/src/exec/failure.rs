@@ -164,7 +164,19 @@ impl Failure {
             ResolveError::AmbiguousRunnable { .. } => ("ambiguous_runnable", operational_code()),
             ResolveError::NotDeployable { .. } => (CODE_NOT_DEPLOYABLE, pre_exec_code()),
             ResolveError::Config { .. } => ("invalid_config", pre_exec_code()),
-            _ => (CODE_INVALID_SCOPE, pre_exec_code()),
+            ResolveError::EmptyScope
+            | ResolveError::RelativeLabel { .. }
+            | ResolveError::ExternalScope { .. }
+            | ResolveError::OutsideWorkspace { .. }
+            | ResolveError::PathNotFound { .. }
+            | ResolveError::NoTargets { .. }
+            | ResolveError::NotFileOrDir { .. }
+            | ResolveError::NotAPackage { .. }
+            | ResolveError::UnsupportedName { .. }
+            | ResolveError::ChooseRunnable { .. }
+            | ResolveError::DeployCount { .. }
+            | ResolveError::DeployScope { .. }
+            | ResolveError::AllExcluded { .. } => (CODE_INVALID_SCOPE, pre_exec_code()),
         };
         let mut failure = Failure::new(code, &error.to_string(), exit);
         failure.phase = Some("resolve");
@@ -186,7 +198,26 @@ impl Failure {
                 failure.status = Some(*status);
                 failure.excerpt = excerpt.clone();
             }
-            _ => {}
+            ResolveError::EmptyScope
+            | ResolveError::RelativeLabel { .. }
+            | ResolveError::ExternalScope { .. }
+            | ResolveError::OutsideWorkspace { .. }
+            | ResolveError::PathNotFound { .. }
+            | ResolveError::NoTargets { .. }
+            | ResolveError::NotFileOrDir { .. }
+            | ResolveError::NotAPackage { .. }
+            | ResolveError::UnsupportedName { .. }
+            | ResolveError::NoOwner { .. }
+            | ResolveError::NoTests { .. }
+            | ResolveError::NoRunnable { .. }
+            | ResolveError::AmbiguousRunnable { .. }
+            | ResolveError::ChooseRunnable { .. }
+            | ResolveError::DeployCount { .. }
+            | ResolveError::DeployScope { .. }
+            | ResolveError::NotDeployable { .. }
+            | ResolveError::Config { .. }
+            | ResolveError::AllExcluded { .. }
+            | ResolveError::QueryFailed { .. } => {}
         }
         failure
     }
@@ -255,7 +286,7 @@ static USAGE_COMMAND: std::sync::OnceLock<dx_plan::args::Command> = std::sync::O
 
 /// Records the command whose usage a later argument error prints.
 pub fn set_usage_command(command: dx_plan::args::Command) {
-    let _ = USAGE_COMMAND.set(command);
+    USAGE_COMMAND.set(command).ok();
 }
 
 fn usage_text() -> String {
@@ -267,7 +298,7 @@ fn usage_text() -> String {
 
 /// Writes the cancellation line for a stop signal, closes the JSON stream, and returns its exit code.
 pub fn cancel(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, signo: i32) -> i32 {
-    let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
+    writeln!(err, "dx: cancelled: stopped by signal {signo}").ok();
     let exit = interrupted_code(signo);
     if output == OutputMode::Json {
         let failure =
@@ -312,7 +343,7 @@ fn panic_message(info: &std::panic::PanicHookInfo<'_>) -> String {
 
 fn write_panic_events(out: &mut dyn Write, message: &str) {
     let failure = Failure::new("internal_error", message, 101).without_usage();
-    let _ = emit_failure_events(out, &failure);
+    emit_failure_events(out, &failure).ok();
 }
 
 /// Makes a panic on the main thread close the JSON stream with `internal_error`.
@@ -327,7 +358,7 @@ pub fn install_panic_events() {
 }
 
 fn write_panic_hint(err: &mut dyn Write) {
-    let _ = writeln!(err, "dx: {}", dx_process::BUG_REPORT_HINT);
+    writeln!(err, "dx: {}", dx_process::BUG_REPORT_HINT).ok();
 }
 
 /// Prints where to report a bug after the default panic message.
@@ -350,22 +381,22 @@ pub fn report_failure(
         return cancel(output, out, err, signo);
     }
     if failure.shows_usage() || failure.code == CODE_INVALID_ARGUMENTS {
-        let _ = writeln!(err, "dx: {}", failure.message);
+        writeln!(err, "dx: {}", failure.message).ok();
     } else {
-        let _ = writeln!(err, "dx: {}: {}", failure.code, failure.message);
+        writeln!(err, "dx: {}: {}", failure.code, failure.message).ok();
     }
     if let Some(excerpt) = &failure.excerpt {
         for line in excerpt.text.lines() {
-            let _ = writeln!(err, "  {line}");
+            writeln!(err, "  {line}").ok();
         }
         if excerpt.truncated {
-            let _ = writeln!(err, "  (excerpt truncated)");
+            writeln!(err, "  (excerpt truncated)").ok();
         }
     }
     if failure.shows_usage() {
-        let _ = writeln!(err, "{}", usage_text());
+        writeln!(err, "{}", usage_text()).ok();
     } else if let Some(next) = next_hint(failure) {
-        let _ = writeln!(err, "{next}");
+        writeln!(err, "{next}").ok();
     }
     if output == OutputMode::Json
         && let Err(exit) = emit_failure_events(out, failure)

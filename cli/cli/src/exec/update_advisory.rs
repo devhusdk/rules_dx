@@ -288,7 +288,7 @@ fn open_pull_request(
         })?;
         Ok(format!("opened {}", created.trim()))
     })();
-    let _ = git(&["checkout", "-f", &base]);
+    git(&["checkout", "-f", &base]).ok();
     built
 }
 

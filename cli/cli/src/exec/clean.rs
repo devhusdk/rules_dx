@@ -140,7 +140,7 @@ fn remove_entry(path: &Path, display: &str, removed: &mut Vec<Removed>) -> io::R
     };
     match kind {
         EntryKind::Directory => fs::remove_dir_all(path)?,
-        _ => remove_managed(path)?,
+        EntryKind::Missing | EntryKind::File | EntryKind::Link => remove_managed(path)?,
     }
     removed.push(Removed {
         path: display.to_owned(),
@@ -172,9 +172,9 @@ fn remove_dead_leases(root: &Path, display: &str, removed: &mut Vec<Removed>) ->
             );
             remove_entry(&path, &shown, removed)?;
         }
-        let _ = fs::remove_dir(kind.path());
+        fs::remove_dir(kind.path()).ok();
     }
-    let _ = fs::remove_dir(root);
+    fs::remove_dir(root).ok();
     Ok(())
 }
 

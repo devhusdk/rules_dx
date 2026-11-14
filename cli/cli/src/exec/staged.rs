@@ -62,16 +62,16 @@ fn remove_tree(dir: &std::path::Path) {
                     use std::os::unix::fs::PermissionsExt;
                     permissions.set_mode(0o700);
                 }
-                let _ = std::fs::set_permissions(&path, permissions);
+                std::fs::set_permissions(&path, permissions).ok();
                 open_up(&path);
             }
         }
     }
     if let Ok(meta) = std::fs::metadata(dir) {
-        let _ = std::fs::set_permissions(dir, meta.permissions());
+        std::fs::set_permissions(dir, meta.permissions()).ok();
     }
     open_up(dir);
-    let _ = std::fs::remove_dir_all(dir);
+    std::fs::remove_dir_all(dir).ok();
 }
 
 pub(super) fn file_name(rel: &str) -> &str {

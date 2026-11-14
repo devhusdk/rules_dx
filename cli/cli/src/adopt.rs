@@ -33,7 +33,30 @@ pub(crate) fn from_adopt(prefix: &str, error: &dx_adopt::AdoptError) -> dx_error
     use dx_adopt::AdoptError as E;
     let message = match error {
         E::NotADirectory { path } => format!("{prefix}{path} is not a directory"),
-        _ => error.to_string(),
+        E::CreateParent { .. }
+        | E::WriteFile { .. }
+        | E::ReadFile { .. }
+        | E::ReadVersionPin { .. }
+        | E::MissingVersionPin { .. }
+        | E::ReadModuleFile { .. }
+        | E::LoadModuleFile { .. }
+        | E::ModulePin { .. }
+        | E::EmptyVersion
+        | E::InvalidVersionPin { .. }
+        | E::LauncherPins { .. }
+        | E::CreateDxDir { .. }
+        | E::WriteVersionPin { .. }
+        | E::WatchRefusesCi
+        | E::NotWatchable { .. }
+        | E::UnknownShell { .. }
+        | E::WatchSpawn { .. }
+        | E::WatchFailed { .. }
+        | E::InitInvalidDir { .. }
+        | E::InitInvalidModule { .. }
+        | E::ScaffoldEscapesRoot { .. }
+        | E::WorkspaceScan { .. }
+        | E::Generate { .. }
+        | E::InvalidDefaults { .. } => error.to_string(),
     };
     match error {
         E::InitInvalidDir { .. }
@@ -52,7 +75,15 @@ pub(crate) fn from_adopt(prefix: &str, error: &dx_adopt::AdoptError) -> dx_error
         | E::WriteVersionPin { .. }
         | E::WatchSpawn { .. }
         | E::WorkspaceScan { .. } => dx_error::DxError::infra(message),
-        _ => dx_error::DxError::failure(message),
+        E::MissingVersionPin { .. }
+        | E::LoadModuleFile { .. }
+        | E::ModulePin { .. }
+        | E::InvalidVersionPin { .. }
+        | E::LauncherPins { .. }
+        | E::WatchFailed { .. }
+        | E::ScaffoldEscapesRoot { .. }
+        | E::NotADirectory { .. }
+        | E::Generate { .. } => dx_error::DxError::failure(message),
     }
 }
 
@@ -76,7 +107,26 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
         Command::Status => status::execute_status(invocation, workspace, out, err),
         Command::Config => config::execute_config(invocation, workspace, out, err),
         Command::Completion => completion::execute_completion(invocation, out, err),
-        _ => pre_exec(invocation.output, out, err, "not an adoption command"),
+        Command::Security
+        | Command::License
+        | Command::Lint
+        | Command::Typecheck
+        | Command::Format
+        | Command::Generate
+        | Command::Build
+        | Command::Test
+        | Command::Coverage
+        | Command::Bench
+        | Command::Run
+        | Command::Deploy
+        | Command::Check
+        | Command::Clean
+        | Command::Update
+        | Command::Sync
+        | Command::Watch
+        | Command::Docs
+        | Command::Worktree
+        | Command::Fuzz => pre_exec(invocation.output, out, err, "not an adoption command"),
     }
 }
 

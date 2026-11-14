@@ -165,7 +165,7 @@ pub(super) fn guard_build_output(
             if output != OutputMode::Json
                 && let Some(note) = report.committed_skipped
             {
-                let _ = writeln!(err, "dx: build-output check: {note}");
+                writeln!(err, "dx: build-output check: {note}").ok();
             }
             None
         }
@@ -230,7 +230,7 @@ fn probe_shards(
         Ok(status) if status.code == Some(0) => Ok(read_probe_shards(&bep, workspace)),
         _ => Ok(None),
     };
-    let _ = std::fs::remove_file(&bep);
+    std::fs::remove_file(&bep).ok();
     shards
 }
 
@@ -485,7 +485,7 @@ fn run_quality_request(
     ) {
         Ok(code) => code,
         Err(exit) => {
-            let _ = std::fs::remove_file(&bep);
+            std::fs::remove_file(&bep).ok();
             *kind = PhaseKind::Host;
             return exit;
         }
@@ -500,7 +500,7 @@ fn run_quality_request(
         match report_build_failures(&bep, request.common.output, out, err) {
             Ok(reported) => (reported.compile_only, reported.build_stage),
             Err(exit) => {
-                let _ = std::fs::remove_file(&bep);
+                std::fs::remove_file(&bep).ok();
                 return exit;
             }
         }
@@ -520,7 +520,7 @@ fn run_quality_request(
     let mut collected = match collect_results(&bep, workspace, &repo_mapping) {
         Ok(collected) => collected,
         Err(error) => {
-            let _ = std::fs::remove_file(&bep);
+            std::fs::remove_file(&bep).ok();
             *kind = PhaseKind::Incomplete;
             return report_dx_error(
                 request.common.output,
@@ -535,11 +535,11 @@ fn run_quality_request(
         if request.common.output == OutputMode::Json {
             let notice = skip_notice(request.command.name(), &note);
             if let Err(exit) = emit_built(out, notice_event(&notice)) {
-                let _ = std::fs::remove_file(&bep);
+                std::fs::remove_file(&bep).ok();
                 return exit;
             }
         } else {
-            let _ = writeln!(err, "dx: note: {note}");
+            writeln!(err, "dx: note: {note}").ok();
         }
     }
     let link_requests = if request.online {
@@ -547,7 +547,7 @@ fn run_quality_request(
     } else {
         Vec::new()
     };
-    let _ = std::fs::remove_file(&bep);
+    std::fs::remove_file(&bep).ok();
     if !link_requests.is_empty() {
         let bazel = QueryBazel {
             query_runner,
@@ -615,13 +615,13 @@ fn run_quality_request(
                 return exit;
             }
         } else {
-            let _ = writeln!(err, "dx: {code}: {detail}");
+            writeln!(err, "dx: {code}: {detail}").ok();
             match recorded().filter(|hint| hint.code == code) {
                 Some(hint) => {
-                    let _ = writeln!(err, "{}", hint.next);
+                    writeln!(err, "{}", hint.next).ok();
                 }
                 None => {
-                    let _ = writeln!(err, "{}", rerun_hint(request, fix));
+                    writeln!(err, "{}", rerun_hint(request, fix)).ok();
                 }
             }
         }
@@ -742,7 +742,7 @@ fn run_quality_request(
 
     if !apply && !collected.changes.is_empty() {
         if matches!(request.common.output, OutputMode::Text { .. }) {
-            let _ = writeln!(err, "{}", apply_hint(request, collected.changes.len()));
+            writeln!(err, "{}", apply_hint(request, collected.changes.len())).ok();
         } else if request.common.output == OutputMode::Json {
             let notice = NoticeEvent {
                 related_command: Some(request.command.name().to_owned()),
@@ -762,7 +762,7 @@ fn run_quality_request(
             .any(|(_, reason)| *reason != REASON_INCOMPLETE_COLLECTION)
     {
         let action = "resolve the Not applied files listed above";
-        let _ = writeln!(err, "{}", rerun_hint(request, action));
+        writeln!(err, "{}", rerun_hint(request, action)).ok();
     }
     let reports_ok = match write_standard_reports(
         StandardReports {
@@ -803,7 +803,7 @@ fn run_quality_request(
         }
     }
     if matches!(request.common.output, OutputMode::Text { .. }) && collected.complete && !failed {
-        let _ = writeln!(err, "{}", findings_summary(&status, resolved.kept.len()));
+        writeln!(err, "{}", findings_summary(&status, resolved.kept.len())).ok();
     }
     for item in &collected.unstable {
         let detail = item.describe();
@@ -815,12 +815,13 @@ fn run_quality_request(
                 return exit;
             }
         } else {
-            let _ = writeln!(err, "dx: {CODE_NOT_CONVERGED}: {detail}");
-            let _ = writeln!(
+            writeln!(err, "dx: {CODE_NOT_CONVERGED}: {detail}").ok();
+            writeln!(
                 err,
                 "{}",
                 rerun_hint(request, "fix the conflicting tool configuration")
-            );
+            )
+            .ok();
         }
     }
     if let Some(detail) = collected.problem_detail() {
@@ -832,10 +833,10 @@ fn run_quality_request(
                 return exit;
             }
         } else {
-            let _ = writeln!(err, "dx: incomplete_results: {detail}");
+            writeln!(err, "dx: incomplete_results: {detail}").ok();
             if bazel_code == 0 {
                 let action = "make sure every target reports results";
-                let _ = writeln!(err, "{}", rerun_hint(request, action));
+                writeln!(err, "{}", rerun_hint(request, action)).ok();
             }
         }
     }

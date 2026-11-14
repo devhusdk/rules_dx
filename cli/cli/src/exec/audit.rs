@@ -127,7 +127,18 @@ impl From<&AuditError> for DxError {
             AuditError::AdvisoryPinFetch { .. } | AuditError::OfflineRequired { .. } => {
                 DxError::infra(message)
             }
-            _ => DxError::failure(message),
+            AuditError::NoOwningSet { .. }
+            | AuditError::NotUtf8 { .. }
+            | AuditError::AdvisoryUnsupported { .. }
+            | AuditError::AdvisoryUtf8 { .. }
+            | AuditError::AdvisoryParse { .. }
+            | AuditError::AdvisoryPinMissing { .. }
+            | AuditError::AdvisoryPinMismatch { .. }
+            | AuditError::LockMissing { .. }
+            | AuditError::LockParse { .. }
+            | AuditError::LockUnsupported { .. }
+            | AuditError::LicenseInvalid { .. }
+            | AuditError::SecurityInvalid(_) => DxError::failure(message),
         }
     }
 }
@@ -390,7 +401,26 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::cargo_lock(),
             Some(dx_adopt::dependency_sets::cargo_lock()),
         )),
-        _ => None,
+        dx_adopt::dependency_sets::Ecosystem::Uv
+        | dx_adopt::dependency_sets::Ecosystem::Npm
+        | dx_adopt::dependency_sets::Ecosystem::Bazel
+        | dx_adopt::dependency_sets::Ecosystem::Ruby
+        | dx_adopt::dependency_sets::Ecosystem::PowerShell
+        | dx_adopt::dependency_sets::Ecosystem::Go
+        | dx_adopt::dependency_sets::Ecosystem::Cpan
+        | dx_adopt::dependency_sets::Ecosystem::Pub
+        | dx_adopt::dependency_sets::Ecosystem::Julia
+        | dx_adopt::dependency_sets::Ecosystem::Hex
+        | dx_adopt::dependency_sets::Ecosystem::Composer
+        | dx_adopt::dependency_sets::Ecosystem::Dub
+        | dx_adopt::dependency_sets::Ecosystem::Fpm
+        | dx_adopt::dependency_sets::Ecosystem::Zig
+        | dx_adopt::dependency_sets::Ecosystem::LuaRocks
+        | dx_adopt::dependency_sets::Ecosystem::Opam
+        | dx_adopt::dependency_sets::Ecosystem::SwiftPm
+        | dx_adopt::dependency_sets::Ecosystem::Cabal
+        | dx_adopt::dependency_sets::Ecosystem::Ansible
+        | dx_adopt::dependency_sets::Ecosystem::Bicep => None,
     };
     if let Some((label, exact)) = expected {
         let parsed = locks.iter().any(|(rel, _)| {
@@ -576,7 +606,21 @@ pub(super) fn bazel_inputs_for_configured(
         AuditError::Read { rel, error } if error.kind() == std::io::ErrorKind::NotFound => {
             AuditError::LockMissing { rel }
         }
-        other => other,
+        other @ AuditError::NoOwningSet { .. }
+        | other @ AuditError::Read { .. }
+        | other @ AuditError::NotUtf8 { .. }
+        | other @ AuditError::AdvisoryUnsupported { .. }
+        | other @ AuditError::AdvisoryUtf8 { .. }
+        | other @ AuditError::AdvisoryParse { .. }
+        | other @ AuditError::AdvisoryPinMissing { .. }
+        | other @ AuditError::AdvisoryPinMismatch { .. }
+        | other @ AuditError::AdvisoryPinFetch { .. }
+        | other @ AuditError::LockMissing { .. }
+        | other @ AuditError::LockParse { .. }
+        | other @ AuditError::LockUnsupported { .. }
+        | other @ AuditError::LicenseInvalid { .. }
+        | other @ AuditError::SecurityInvalid(_)
+        | other @ AuditError::OfflineRequired { .. } => other,
     })?;
     let module_dir = module_rel.rsplit_once('/').map_or("", |(dir, _)| dir);
     let read_include = |label: &str| -> Result<String, dx_error::DxError> {
@@ -1529,7 +1573,29 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let family = match invocation.command {
         Command::Security => dx_audit::AuditFamily::Security,
         Command::License => dx_audit::AuditFamily::License,
-        _ => {
+        Command::Lint
+        | Command::Typecheck
+        | Command::Format
+        | Command::Generate
+        | Command::Build
+        | Command::Test
+        | Command::Coverage
+        | Command::Bench
+        | Command::Run
+        | Command::Deploy
+        | Command::Check
+        | Command::Clean
+        | Command::Update
+        | Command::Sync
+        | Command::Init
+        | Command::Upgrade
+        | Command::Status
+        | Command::Watch
+        | Command::Completion
+        | Command::Docs
+        | Command::Worktree
+        | Command::Fuzz
+        | Command::Config => {
             return pre_exec(
                 invocation.output,
                 out,
@@ -1929,7 +1995,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                         return exit;
                     }
                     for line in message.lines() {
-                        let _ = writeln!(err, "dx: {code}: audit {family_name}: {line}");
+                        writeln!(err, "dx: {code}: audit {family_name}: {line}").ok();
                     }
                 }
             }
@@ -1969,7 +2035,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     .copied()
                     .unwrap_or(CODE_AUDIT_FAILED);
                 for line in message.lines() {
-                    let _ = writeln!(err, "dx: {code}: audit {family_name}: {line}");
+                    writeln!(err, "dx: {code}: audit {family_name}: {line}").ok();
                 }
             }
         }

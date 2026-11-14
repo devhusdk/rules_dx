@@ -108,10 +108,11 @@ pub(super) fn collect_test_xml(
             match parse_cases(result, &bytes) {
                 Ok(cases) => {
                     if std::str::from_utf8(&bytes).is_err() {
-                        let _ = writeln!(
+                        writeln!(
                             err,
                             "dx: warning: {where_} has invalid UTF-8; replaced invalid bytes"
-                        );
+                        )
+                        .ok();
                     }
                     outcome.artifacts_collected += 1;
                     tally_cases(&mut outcome, &cases, &mut cases_seen);
@@ -315,7 +316,7 @@ pub(super) fn announce_no_collector(
                     notice_event(&NoticeEvent::info(CODE_NO_COVERAGE_COLLECTOR, message)),
                 )?;
             } else {
-                let _ = writeln!(err, "dx: {message}");
+                writeln!(err, "dx: {message}").ok();
             }
         }
         return Ok(true);
@@ -328,7 +329,7 @@ pub(super) fn announce_no_collector(
                 dx_output::error_event(CODE_NO_COVERAGE_COLLECTOR, &message, None, None, None),
             )?;
         } else {
-            let _ = writeln!(err, "dx: {CODE_NO_COVERAGE_COLLECTOR}: {message}");
+            writeln!(err, "dx: {CODE_NO_COVERAGE_COLLECTOR}: {message}").ok();
         }
     }
     Ok(tests.is_empty())

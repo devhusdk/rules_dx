@@ -18,6 +18,7 @@ swift_library(
 
 rust_test(
     name = "rust_link",
+    size = "small",
     srcs = ["rust_link.rs"],
     edition = "2024",
     link_deps = [":add"],

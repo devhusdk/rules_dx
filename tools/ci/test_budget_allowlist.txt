@@ -624,7 +624,7 @@ tools/ide/BUILD.bazel no-size 1
 tools/ide/BUILD.bazel size-medium 1
 tools/new_language/BUILD.bazel no-size 1
 tools/repin_all/BUILD.bazel no-size 1
-tools/testing/BUILD.bazel no-size 8
+tools/testing/BUILD.bazel no-size 7
 tools/testing/BUILD.bazel size-large 1
 tools/testing/floor/BUILD.bazel no-size 1
 tools/testing/hermetic/BUILD.bazel no-size 35

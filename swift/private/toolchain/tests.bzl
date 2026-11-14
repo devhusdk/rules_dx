@@ -35,14 +35,7 @@ _cross_runtime_test = analysistest.make(
 )
 
 def swift_cross_runtime_test(name, exec_cpu, target_cpu, **kwargs):
-    """Asserts a cross toolchain links the Swift runtime of the target cpu and runs the tools of the exec cpu.
-
-    Args:
-        name: The test name.
-        exec_cpu: The cpu the Swift tools run on.
-        target_cpu: The cpu the Swift tools build for.
-        **kwargs: Passed to the test.
-    """
+    """Asserts a cross toolchain links the target runtime and runs exec tools."""
     _cross_runtime_test(
         name = name,
         size = "small",
@@ -72,15 +65,7 @@ _tool_inputs_test = analysistest.make(
 )
 
 def swift_tool_inputs_test(name, cpu, target_under_test, size = "small", **kwargs):
-    """Asserts SwiftCompile takes the driver and the libraries the tools load through their runpath as inputs.
-
-    Args:
-        name: The test name.
-        cpu: The Linux cpu the Swift tools run on.
-        target_under_test: A swift_library built on that cpu.
-        size: The test size.
-        **kwargs: Passed to the test.
-    """
+    """Asserts SwiftCompile takes the driver and tool libraries as inputs."""
     _tool_inputs_test(
         name = name,
         size = size,
@@ -124,12 +109,7 @@ def _windows_pin_checks():
     return checks
 
 def swift_windows_extract_test(name, size):
-    """Asserts the Swift Windows installer and its extractor are pinned for both cells and the repository rule unpacks with them.
-
-    Args:
-        name: The test name.
-        size: The test size.
-    """
+    """Asserts the Windows installer and extractor are pinned."""
     starlark_test(
         name = name,
         size = size,
@@ -176,12 +156,7 @@ def _hub_checks():
     ]
 
 def swift_toolchain_hub_test(name, size):
-    """Asserts the dx_swift_toolchains hub declares every Swift toolchain in registration order.
-
-    Args:
-        name: The test name.
-        size: The test size.
-    """
+    """Asserts the hub declares every toolchain in order."""
     starlark_test(
         name = name,
         size = size,

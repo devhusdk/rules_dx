@@ -100,13 +100,7 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
     )
 
 def swift_linux_toolchain(name, exec_cpu, target_cpu):
-    """Declares the Swift toolchain that runs on one Linux cpu and builds for another or the same.
-
-    Args:
-        name: The swift_toolchain name.
-        exec_cpu: The cpu the Swift tools run on.
-        target_cpu: The cpu the Swift tools build for.
-    """
+    """Declares a Linux Swift toolchain for an exec and target cpu."""
     pair = exec_cpu + "_" + target_cpu
     libs = "@dx_swift_libs_linux_" + target_cpu
 

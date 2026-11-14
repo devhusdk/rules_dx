@@ -7,32 +7,14 @@ _EXEC = "//command_line_option:extra_execution_platforms"
 _TOOLCHAINS = "//command_line_option:extra_toolchains"
 
 def swift_exec_platform(platform, host_constraints):
-    """Returns the execution platform that builds for a platform.
-
-    Args:
-        platform: The target platform label string.
-        host_constraints: The constraint labels of the host.
-
-    Returns:
-        The Linux platform of the host cpu on a Linux host, else the target platform.
-    """
+    """Returns the execution platform that builds for a platform."""
     if "@platforms//os:linux" not in host_constraints:
         return platform
     cpu = "aarch64" if "@platforms//cpu:aarch64" in host_constraints else "x86_64"
     return str(Label("//swift/private/platforms:exec_linux_" + cpu))
 
 def swift_platform_settings(settings, attr, platforms, host_constraints = HOST_CONSTRAINTS):
-    """Returns the execution platforms and toolchains Swift targets build with.
-
-    Args:
-        settings: The incoming command line option values.
-        attr: The attributes of the rule being configured.
-        platforms: The one target platform, or [] for the command-line platform.
-        host_constraints: The constraint labels of the host.
-
-    Returns:
-        The new execution platforms and toolchains.
-    """
+    """Returns the execution platforms and toolchains for Swift."""
     toolchains = prepend_toolchains(attr._swift_extra_toolchains, settings[_TOOLCHAINS])
     if len(platforms) == 0:
         return {_EXEC: settings[_EXEC], _TOOLCHAINS: toolchains}

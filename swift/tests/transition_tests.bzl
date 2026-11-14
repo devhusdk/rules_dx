@@ -78,11 +78,7 @@ _idempotent_test = unittest.make(_idempotent_test_impl)
 _empty_test = unittest.make(_empty_test_impl)
 
 def transition_test_suite(name):
-    """Declares the transition tests.
-
-    Args:
-        name: The suite name.
-    """
+    """Declares the transition tests."""
     unittest.suite(
         name,
         _linux_test,

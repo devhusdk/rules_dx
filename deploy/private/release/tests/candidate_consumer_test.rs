@@ -156,7 +156,9 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     let case = nested::case("candidate_consumer");
     let root = case.root().to_path_buf();
     write(&root.join(".bazelversion"), &member(".bazelversion"));
-    let mut rc: Vec<u8> = dx_testing::preset_rc().into_bytes();
+    let mut rc: Vec<u8> = dx_testing::preset_rc()
+        .replace("@rules_dx//", "@my_dx//")
+        .into_bytes();
     rc.extend_from_slice(
         format!(
             "\ncommon --registry={}\ncommon --registry=https://bcr.bazel.build\n",

@@ -1,12 +1,11 @@
 """PHP toolchain pin and acquisition tests."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
-load("//core:rlocation.bzl", "runfiles_path")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
 load("//core:cells.bzl", "cell_cases", "cell_setting")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH")
-load("//php/private:php.bzl", "lit", "rf", "write_launcher")
+load("//php/private:php.bzl", "lit", "rf", "runfiles_path", "write_launcher")
 load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
 load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
 load("//php/private/toolchain:repos.bzl", "COVERAGE_BUILD", "COVERAGE_PREFIX", "VERSION_FILE", "hub_build", "runtime_build")

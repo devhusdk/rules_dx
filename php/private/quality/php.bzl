@@ -1,9 +1,9 @@
 """PHP real quality aspects."""
 
-load("//core:rlocation.bzl", "external_path")
-load("//php/private:providers.bzl", "PhpInfo")
 load("//core/quality:family_hooks.bzl", "stage", "without")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
+load("//php/private:php.bzl", "external_path")
+load("//php/private:providers.bzl", "PhpInfo")
 
 TOOLS = {
     "phpcs": {

@@ -226,6 +226,19 @@ pub fn plan_pnpm_tool(root: &Path) -> Result<LockHubs, AdoptError> {
     plan_with(root, |plan| plan.pnpm())
 }
 
+/// The `pnpm-workspace.yaml` written beside a wired pnpm lock whose settings have no `allowBuilds`.
+pub const PNPM_SETTINGS: &str = "packages:\n  - .\nallowBuilds: {}\n";
+
+/// The `pnpm-workspace.yaml` paths that the wired pnpm locks of `root` lack. Writes nothing.
+pub fn plan_pnpm_settings(root: &Path) -> Result<Vec<String>, AdoptError> {
+    let mut paths = Vec::new();
+    plan_with(root, |plan| {
+        paths = plan.pnpm_settings();
+        Ok(())
+    })?;
+    Ok(paths)
+}
+
 /// Plans the stanzas for the lock files at the root of `root`. Writes nothing.
 pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
     plan_with(root, |plan| {
@@ -292,6 +305,44 @@ struct Planner<'a> {
 impl Planner<'_> {
     fn exists(&self, rel: &str) -> bool {
         self.root.join(rel).is_file()
+    }
+
+    fn pnpm_settings(&self) -> Vec<String> {
+        let mut paths: Vec<String> = Vec::new();
+        for file in self.files {
+            for lock in file.npm_translate_locks().unwrap_or_default() {
+                let Some(path) = lock
+                    .pnpm_lock
+                    .and_then(|label| dx_module_bazel::label_path(label).ok())
+                else {
+                    continue;
+                };
+                let beside = |name: &str| match path.rsplit_once('/') {
+                    Some((dir, _)) => format!("{dir}/{name}"),
+                    None => name.to_owned(),
+                };
+                let workspace = beside("pnpm-workspace.yaml");
+                if !self.exists(&path)
+                    || self.exists(&workspace)
+                    || paths.contains(&workspace)
+                    || self.declares_pnpm_builds(&beside("package.json"))
+                {
+                    continue;
+                }
+                paths.push(workspace);
+            }
+        }
+        paths
+    }
+
+    fn declares_pnpm_builds(&self, manifest: &str) -> bool {
+        std::fs::read_to_string(self.root.join(manifest))
+            .ok()
+            .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+            .and_then(|json| json.get("pnpm").cloned())
+            .is_some_and(|pnpm| {
+                pnpm.get("allowBuilds").is_some() || pnpm.get("onlyBuiltDependencies").is_some()
+            })
     }
 
     fn report_missing_locks(&mut self) {
@@ -1276,6 +1327,46 @@ mod tests {
             plan(&[(t("{cargo:lock}"), ""), (t("{uv:lock}"), "")]),
             LockHubs::default()
         );
+    }
+
+    fn pnpm_settings(files: &[(&str, &str)]) -> Vec<String> {
+        let module = format!(
+            "{MODULE}\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:{}\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//apps/web:{}\")\nnpm.npm_translate_lock(name = \"ext\", pnpm_lock = \"@other//:{}\")\nuse_repo(npm, \"npm\", \"web\", \"ext\")\n",
+            lock_of("npm").expect("hub"),
+            lock_of("npm").expect("hub"),
+            lock_of("npm").expect("hub"),
+        );
+        let dir = scratch("pnpm_settings");
+        write(dir.path(), MODULE_FILE, &module);
+        for (rel, text) in files {
+            write(dir.path(), rel, text);
+        }
+        plan_pnpm_settings(dir.path()).expect("plan")
+    }
+
+    #[test]
+    fn a_wired_pnpm_lock_without_allow_builds_gets_pnpm_settings() {
+        assert_eq!(
+            pnpm_settings(&[(t("{npm:lock}"), ""), (t("apps/web/{npm:lock}"), "")]),
+            ["pnpm-workspace.yaml", "apps/web/pnpm-workspace.yaml"]
+        );
+        assert!(pnpm_settings(&[]).is_empty());
+        assert_eq!(
+            pnpm_settings(&[
+                (t("{npm:lock}"), ""),
+                ("pnpm-workspace.yaml", "packages: []\n"),
+                (t("apps/web/{npm:lock}"), ""),
+            ]),
+            ["apps/web/pnpm-workspace.yaml"]
+        );
+        for pnpm in ["allowBuilds\": {}", "onlyBuiltDependencies\": []"] {
+            let manifest = format!("{{\"pnpm\": {{\"{pnpm}}}}}");
+            assert!(
+                pnpm_settings(&[(t("{npm:lock}"), ""), (t("{npm:manifest}"), &manifest)])
+                    .is_empty(),
+                "{manifest}"
+            );
+        }
     }
 
     #[test]

@@ -102,12 +102,37 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
         "stanzas for the lock files at the root",
         hubs,
     );
+    wire_pnpm_settings(workspace, apply, env.err, &mut wiring);
     wire_avro_cpp(workspace, apply, env.err, &mut wiring);
     if seeded_cargo {
         fill_cargo_lock(request, env, &mut wiring);
     }
     wire_maven_locks(request, env, &mut wiring);
     wiring
+}
+
+/// Writes the `pnpm-workspace.yaml` with `allowBuilds` that rules_js requires beside each wired pnpm lock.
+fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mut Wiring) {
+    let paths = match dx_adopt::plan_pnpm_settings(workspace) {
+        Ok(paths) => paths,
+        Err(error) => {
+            wiring.failed(err, format!("pnpm settings not planned: {error}"));
+            return;
+        }
+    };
+    for path in paths {
+        if !apply {
+            wiring.pending(
+                err,
+                format!("would create {path} with allowBuilds; run dx generate --apply"),
+            );
+            continue;
+        }
+        match std::fs::write(workspace.join(&path), dx_adopt::PNPM_SETTINGS) {
+            Ok(()) => wiring.info(err, format!("wrote {path}")),
+            Err(error) => wiring.failed(err, format!("{path} not created: {error}")),
+        }
+    }
 }
 
 /// Creates the files and `MODULE.bazel` lines `avro_cc_library` needs.
@@ -814,6 +839,10 @@ mod tests {
             module.contains(&format!("pnpm_lock = \"//:{}\"", lock_of(Ecosystem::Npm))),
             "{module}"
         );
+        let settings = std::fs::read_to_string(harness.workspace.join("pnpm-workspace.yaml"))
+            .expect("pnpm settings");
+        assert_eq!(settings, dx_adopt::PNPM_SETTINGS);
+        assert!(err.contains("wrote pnpm-workspace.yaml"), "{err}");
     }
 
     #[test]

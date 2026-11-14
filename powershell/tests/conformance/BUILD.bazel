@@ -58,6 +58,7 @@ dx_conformance_suite(
     failing_pattern = "[-] {case}",
     failing_test = ":fail_subject_test",
     lang = "powershell",
+    not_applicable = {"cross_test": "powershell_binary is a script the interpreter runs; it has no object format"},
     passing_test = ":pass_subject_test",
 )
 

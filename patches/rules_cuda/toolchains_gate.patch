@@ -1,0 +1,10 @@
+--- a/cuda/private/template_helper.bzl
++++ b/cuda/private/template_helper.bzl
+@@ -409,6 +409,7 @@
+     lines.extend([
+         "    target_settings = [",
+         '        "@rules_cuda//cuda:is_enabled",',
++        '        "@@//config:toolchains_on",',
+         '        "{}",'.format(compiler_setting),
+         '        ":{}",'.format(version_setting),
+         "    ],",

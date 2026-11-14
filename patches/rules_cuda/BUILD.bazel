@@ -2,6 +2,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "msvc_dlink_crt.patch",
+    "toolchains_gate.patch",
 ])
 
 real_source_target(

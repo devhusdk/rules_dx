@@ -356,8 +356,10 @@ fn rules_dx_override(checkout: &Path) -> String {
     )
 }
 
-/// The top-level `archive_override` calls of the rules_dx root MODULE.bazel.
-pub fn archive_overrides(root_module: &str) -> Vec<String> {
+const OVERRIDE_CALLS: [&str; 2] = ["archive_override(", "single_version_override("];
+
+/// The top-level `archive_override` and `single_version_override` calls of the rules_dx root MODULE.bazel.
+pub fn root_overrides(root_module: &str) -> Vec<String> {
     let mut blocks = Vec::new();
     let mut open: Option<Vec<&str>> = None;
     for line in root_module.lines() {
@@ -366,7 +368,7 @@ pub fn archive_overrides(root_module: &str) -> Vec<String> {
             if line.trim_end() == ")" {
                 blocks.extend(open.take().map(|block| block.join("\n") + "\n"));
             }
-        } else if line.starts_with("archive_override(") {
+        } else if OVERRIDE_CALLS.iter().any(|call| line.starts_with(call)) {
             if line.trim_end().ends_with(')') {
                 blocks.push(format!("{line}\n"));
             } else {
@@ -429,7 +431,7 @@ pub fn consumer_module(
         starlark_string(CONSUMER_MODULE),
         snippet.trim_end(),
         rules_dx_override(checkout),
-        archive_overrides(root_module).concat(),
+        root_overrides(root_module).concat(),
     ))
 }
 
@@ -491,7 +493,7 @@ pub fn stage_consumer(
     std::fs::write(dir.join("MODULE.bazel"), module)
         .map_err(|error| format!("stage: cannot write MODULE.bazel: {error}"))?;
     let patches =
-        override_patches(&archive_overrides(&root)).map_err(|error| format!("stage: {error}"))?;
+        override_patches(&root_overrides(&root)).map_err(|error| format!("stage: {error}"))?;
     for (package, file) in patches {
         let build = dir.join(&package).join("BUILD.bazel");
         if !build.exists() {

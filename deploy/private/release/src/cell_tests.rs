@@ -319,6 +319,8 @@ fn stage(cell: Cell, members: Members) -> Fixture {
     .expect("root module");
     std::fs::create_dir_all(dir.path().join("checkout/patches/rules_a")).expect("patches");
     std::fs::write(dir.path().join("checkout/patches/rules_a/fix.patch"), "fix").expect("patch");
+    std::fs::create_dir_all(dir.path().join("checkout/patches/rules_b")).expect("patches");
+    std::fs::write(dir.path().join("checkout/patches/rules_b/b.patch"), "b").expect("patch");
     let archive = dir.path().join("out").join(cell.archive_name());
     let refs: Vec<(&str, &[u8], u32)> = members
         .iter()
@@ -1232,35 +1234,40 @@ fn consumer_module_composes_the_snippet_and_escapes_the_checkout() {
 }
 
 #[test]
-fn consumer_module_repeats_the_root_archive_overrides() {
+fn consumer_module_repeats_the_root_root_overrides() {
     let module = consumer_module(SNIPPET, ROOT_MODULE, Path::new("/src")).expect("module");
     assert!(
         module.ends_with(&format!(
-            "{}archive_override(\n    module_name = \"rules_a\",\n    patches = [\n        \"//patches/rules_a:fix.patch\",  # upstream: https://example.com/a\n    ],\n    urls = [\"https://example.com/a.tar.gz\"],\n)\n",
+            "{}archive_override(\n    module_name = \"rules_a\",\n    patches = [\n        \"//patches/rules_a:fix.patch\",  # upstream: https://example.com/a\n    ],\n    urls = [\"https://example.com/a.tar.gz\"],\n)\nsingle_version_override(\n    module_name = \"rules_b\",\n    patches = [\"//patches/rules_b:b.patch\"],\n)\n",
             "    path = \"/src\",\n)\n"
         )),
         "{module}"
     );
-    assert!(!module.contains("rules_b"), "{module}");
+    assert!(!module.contains("bazel_dep(name = \"rules_a\""), "{module}");
 }
 
 #[test]
-fn archive_overrides_reads_one_line_and_block_calls() {
-    let root =
-        "archive_override(module_name = \"x\", urls = [\"u\"])\n# archive_override(\nfoo()\n";
+fn root_overrides_reads_one_line_and_block_calls() {
+    let root = "archive_override(module_name = \"x\", urls = [\"u\"])\n# archive_override(\nfoo()\nsingle_version_override(module_name = \"y\")\n";
     assert_eq!(
-        archive_overrides(root),
-        ["archive_override(module_name = \"x\", urls = [\"u\"])\n"]
+        root_overrides(root),
+        [
+            "archive_override(module_name = \"x\", urls = [\"u\"])\n",
+            "single_version_override(module_name = \"y\")\n",
+        ]
     );
-    assert!(archive_overrides("").is_empty());
+    assert!(root_overrides("").is_empty());
 }
 
 #[test]
 fn override_patches_names_patch_files_and_rejects_others() {
-    let overrides = archive_overrides(ROOT_MODULE);
+    let overrides = root_overrides(ROOT_MODULE);
     assert_eq!(
         override_patches(&overrides).expect("patches"),
-        [("patches/rules_a".to_owned(), "fix.patch".to_owned())]
+        [
+            ("patches/rules_a".to_owned(), "fix.patch".to_owned()),
+            ("patches/rules_b".to_owned(), "b.patch".to_owned()),
+        ]
     );
     for bad in [
         "//patches/rules_a",
@@ -1331,6 +1338,10 @@ fn stage_consumer_renames_files_runs_init_and_restages_over_a_stale_dir() {
         "fix"
     );
     assert!(dir.join("patches/rules_a/BUILD.bazel").exists());
+    assert_eq!(
+        std::fs::read_to_string(dir.join("patches/rules_b/b.patch")).expect("patch"),
+        "b"
+    );
     assert_eq!(runner.calls.borrow().len(), 1);
     assert!(!dir.join(".bazelrc").exists());
 }

@@ -212,8 +212,12 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 	if onlySelf && args.File == nil && !hasOtherGen {
 		return plan
 	}
+	ownedElsewhere := func(typ string) bool {
+		r, ok := existing["corpus_"+typ]
+		return ok && r.Kind() != corpusKind
+	}
 	emit := func(typ, attr string, srcs []string) {
-		if len(srcs) == 0 {
+		if len(srcs) == 0 || ownedElsewhere(typ) {
 			return
 		}
 		r := rule.NewRule(corpusKind, "corpus_"+typ)
@@ -227,7 +231,7 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 		plan.gen = append(plan.gen, r)
 	}
 	emit("markdown", "markdown_srcs", collected["markdown"])
-	if len(collected["markdown"]) == 0 && len(siblings) > 0 {
+	if len(collected["markdown"]) == 0 && len(siblings) > 0 && !ownedElsewhere("markdown") {
 		r := rule.NewRule(corpusKind, "corpus_markdown")
 		r.SetAttr("markdown_siblings", siblings)
 		r.SetAttr("tags", corpusTags(existing["corpus_markdown"]))

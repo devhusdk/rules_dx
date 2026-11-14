@@ -178,7 +178,9 @@ LANGS = json.decode("""{
     "lockfiles": [],
     "manifests": [],
     "name": "apple",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "macos_arm64"
     ],

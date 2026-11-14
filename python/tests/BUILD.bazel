@@ -54,6 +54,21 @@ cc_toolchain_test(
 python_runtime_unit_tests(name = "runtime_unit")
 
 rust_test(
+    name = "interpreter_dylibs_test",
+    size = "small",
+    srcs = ["interpreter_dylibs_test.rs"],
+    data = [
+        "@llvm//tools:llvm-otool",
+        "@python_3_12_aarch64_apple_darwin//:files",
+    ],
+    env = {"LLVM_OTOOL": "$(rlocationpath @llvm//tools:llvm-otool)"},
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:aarch64",
+    ],
+)
+
+rust_test(
     name = "python_init_adopt_test",
     size = "small",
     srcs = ["python_init_adopt_test.rs"],

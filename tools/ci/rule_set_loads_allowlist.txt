@@ -20,5 +20,4 @@ qt/private/rust/BUILD.bazel foreign-load 1
 qt/private/toolchain/BUILD.bazel foreign-load 2
 qt/private/toolchain/cell_json.bzl foreign-load 2
 qt/private/toolchain/pins.bzl foreign-load 1
-qt/private/toolchain/repos.bzl foreign-load 1
 qt/private/toolchain/tool.bzl foreign-load 2

@@ -1245,6 +1245,17 @@ quality_family(
 )
 
 quality_family(
+    name = "tool_override_powershell_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "powershell",
+    format = ["psscriptanalyzer"],
+    lint = ["psscriptanalyzer"],
+)
+
+quality_family(
     name = "tool_override_dart_family",
     disabled = [
         "audit",

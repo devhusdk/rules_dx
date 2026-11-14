@@ -187,7 +187,7 @@ index 6e2a40e..271609e 100755
 +if is_windows and not os.environ["PATH"]:
 +    _ghc_root = os.path.dirname(os.path.dirname(os.path.abspath(os.environ["RULES_HASKELL_GHC_PATH"]))) if os.environ.get("RULES_HASKELL_GHC_PATH") else ""
 +    os.environ["PATH"] = os.pathsep.join([os.path.join(_ghc_root, "mingw", "bin"), os.path.join(_ghc_root, "bin")])
-+if is_windows and os.environ.get("CC_WRAPPER_CC_PATH"):
++if os.environ.get("CC_WRAPPER_CC_PATH") and (is_windows or os.path.isfile(os.environ["CC_WRAPPER_CC_PATH"])):
 +    os.environ["CC_WRAPPER_CC_PATH"] = os.path.abspath(os.environ["CC_WRAPPER_CC_PATH"])
  os.environ["RULES_HASKELL_GHC_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PATH", ""))
  os.environ["RULES_HASKELL_GHC_PKG_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PKG_PATH", ""))

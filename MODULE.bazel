@@ -1009,6 +1009,7 @@ dx_pins.archive(
         "//patches/rules_haskell:cc_toolchain_config_info.patch",
         "//patches/rules_haskell:cabal_llvm_ar.patch",
         "//patches/rules_haskell:cc_wrapper_darwin_ffi.patch",
+        "//patches/rules_haskell:cabal_binary_dep_data.patch",
     ],
     pins = "//haskell:pins.json",
 )
@@ -1686,6 +1687,12 @@ use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_docs", "dx_julia_format", "dx
 
 # floor: equals tested
 bazel_dep(name = "rules_perl", version = "2.1.0")
+single_version_override(
+    module_name = "rules_perl",
+    patch_strip = 1,
+    patches = ["//patches/rules_perl:macos_pod.patch"],
+    version = "2.1.0",
+)
 
 perl_tools_cpan = use_extension("//perl:extensions.bzl", "cpan")
 perl_tools_cpan.lock(

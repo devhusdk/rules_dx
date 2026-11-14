@@ -65,7 +65,18 @@ fn indirect_consumer(name: &str) -> Case {
         DEP,
         "bazel_dep(name = \"mid\", version = \"0.0.0\")\nlocal_path_override(module_name = \"mid\", path = \"mid\")\n",
     );
-    case.write("MODULE.bazel", &module);
+    case.write(
+        "MODULE.bazel",
+        &format!("{module}{}", nested::compose::rules_flutter_override()),
+    );
+    let rules = resolve_runfiles("MODULE.bazel");
+    let rules = std::path::absolute(&rules).unwrap_or_else(|error| panic!("{rules:?}: {error}"));
+    let rules = rules.parent().expect("rules_dx runfiles directory");
+    case.write("patches/rules_flutter/BUILD.bazel", "");
+    for patch in nested::compose::RULES_FLUTTER_PATCHES {
+        let rel = format!("patches/rules_flutter/{patch}.patch");
+        case.write(&rel, &dx_testing::read_text(&rules.join(&rel)));
+    }
     case.write(
         "mid/MODULE.bazel",
         &format!("module(name = \"mid\", version = \"0.0.0\")\n{DEP}"),

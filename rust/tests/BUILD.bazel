@@ -48,3 +48,12 @@ build_test(
         "//rust/private/quality/tools:selene",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

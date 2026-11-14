@@ -23,3 +23,12 @@ exports_files([
     "defs.bzl",
     "lang.json",
 ])
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

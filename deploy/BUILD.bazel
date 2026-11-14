@@ -44,10 +44,11 @@ rust_binary(
 
 filegroup(
     name = "module_srcs",
-    srcs = [
-        "//:module_srcs",
-        "//deploy/private:module_srcs",
-    ],
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]) + ["//deploy/private:module_srcs"],
+    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(

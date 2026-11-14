@@ -56,3 +56,12 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "BUILD.bazel",
+        "workflows/dx-update.yml",
+    ],
+    visibility = ["//:__subpackages__"],
+)

@@ -1,0 +1,129 @@
+load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
+load("@rules_cc//cc/toolchains/impl:documented_api.bzl", "cc_args_list")
+load(":search_path.bzl", "search_path")
+load(":toolchains.bzl", "clang_cl_toolchains")
+
+package(default_visibility = ["//visibility:public"])
+
+
+search_path(
+    name = "dynamic_crt_link_lib_path",
+    directories = [
+        "@llvm//runtimes/msvc:winsdk_ucrt_lib",
+        "@llvm//runtimes/msvc:winsdk_um_lib",
+        "@llvm//runtimes/msvc:msvc_common_support_libraries",
+        "@llvm//runtimes/msvc:msvc_com_support_libraries",
+        "@llvm//runtimes/msvc:msvc_dynamic_runtime_libraries",
+        "@llvm//runtimes/cxxstdlib:library_search_directory",
+    ],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+cc_args(
+    name = "dynamic_crt_link_lib_env",
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+    data = [":dynamic_crt_link_lib_path"],
+    env = {"LIB": "{lib}"},
+    format = {"lib": ":dynamic_crt_link_lib_path"},
+)
+
+search_path(
+    name = "dynamic_crt_hosted_link_lib_path",
+    directories = [
+        "@llvm//runtimes/msvc:winsdk_ucrt_lib",
+        "@llvm//runtimes/msvc:winsdk_um_lib",
+        "@llvm//runtimes/msvc:msvc_common_support_libraries",
+        "@llvm//runtimes/msvc:msvc_com_support_libraries",
+        "@llvm//runtimes/msvc:msvc_dynamic_runtime_libraries",
+    ],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+cc_args(
+    name = "dynamic_crt_hosted_link_lib_env",
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+    data = [":dynamic_crt_hosted_link_lib_path"],
+    env = {"LIB": "{lib}"},
+    format = {"lib": ":dynamic_crt_hosted_link_lib_path"},
+)
+
+search_path(
+    name = "static_crt_link_lib_path",
+    directories = [
+        "@llvm//runtimes/msvc:winsdk_ucrt_lib",
+        "@llvm//runtimes/msvc:winsdk_um_lib",
+        "@llvm//runtimes/msvc:msvc_common_support_libraries",
+        "@llvm//runtimes/msvc:msvc_com_support_libraries",
+        "@llvm//runtimes/msvc:msvc_static_runtime_libraries",
+        "@llvm//runtimes/cxxstdlib:library_search_directory",
+    ],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+cc_args(
+    name = "static_crt_link_lib_env",
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+    data = [":static_crt_link_lib_path"],
+    env = {"LIB": "{lib}"},
+    format = {"lib": ":static_crt_link_lib_path"},
+)
+
+search_path(
+    name = "static_crt_hosted_link_lib_path",
+    directories = [
+        "@llvm//runtimes/msvc:winsdk_ucrt_lib",
+        "@llvm//runtimes/msvc:winsdk_um_lib",
+        "@llvm//runtimes/msvc:msvc_common_support_libraries",
+        "@llvm//runtimes/msvc:msvc_com_support_libraries",
+        "@llvm//runtimes/msvc:msvc_static_runtime_libraries",
+    ],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+cc_args(
+    name = "static_crt_hosted_link_lib_env",
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+    data = [":static_crt_hosted_link_lib_path"],
+    env = {"LIB": "{lib}"},
+    format = {"lib": ":static_crt_hosted_link_lib_path"},
+)
+
+cc_args(
+    name = "empty_link_lib_env",
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+    env = {"LIB": "__hermetic_llvm_empty_lib__"},
+)
+
+cc_args_list(
+    name = "hosted_link_lib_env",
+    args = select({
+        "@llvm//toolchain/features/msvc:static_crt_config": [":static_crt_hosted_link_lib_env"],
+        "//conditions:default": [":dynamic_crt_hosted_link_lib_env"],
+    }),
+)
+
+cc_args_list(
+    name = "full_link_lib_env",
+    args = select({
+        "@llvm//toolchain/features/msvc:static_crt_config": [":static_crt_link_lib_env"],
+        "//conditions:default": [":dynamic_crt_link_lib_env"],
+    }),
+)
+
+cc_args_list(
+    name = "runtime_link_lib_env",
+    args = select({
+        "@llvm//toolchain:runtimes_stage1_hosted": [":hosted_link_lib_env"],
+        "//conditions:default": [":full_link_lib_env"],
+    }),
+)
+
+cc_args_list(
+    name = "link_lib_env",
+    args = select({
+        "@llvm//toolchain:runtimes_none": [":empty_link_lib_env"],
+        "//conditions:default": [":runtime_link_lib_env"],
+    }),
+)
+
+clang_cl_toolchains(link_lib_env = ":link_lib_env")

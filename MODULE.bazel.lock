@@ -621,10 +621,10 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
-    "//cc/private/toolchains/msvc:windows_support.bzl%msvc_runtime": {
+    "//cc/private/toolchain/msvc:windows_support.bzl%msvc_runtime": {
       "general": {
         "bzlTransitiveDigest": "VjZEPGa0h3YAXvEwBnyezMZl597S9UnVvuV+WPWAVvM=",
-        "usagesDigest": "QH6rMtAUCfP7ZQJT8uJ1pGrjflu6gu6uLCSDVoqlORo=",
+        "usagesDigest": "FADnLbDKuqRs95YrkxsqMRg/DV+TEi7JtwqETRTxLKE=",
         "recordedInputs": [
           "REPO_MAPPING:,dx_windows_support +http_archive+dx_windows_support",
           "REPO_MAPPING:+http_archive+dx_windows_support,bazel_tools bazel_tools"
@@ -657,10 +657,10 @@
         }
       }
     },
-    "//cc/private/toolchains/msvc:windows_support.bzl%windows_sdk": {
+    "//cc/private/toolchain/msvc:windows_support.bzl%windows_sdk": {
       "general": {
         "bzlTransitiveDigest": "VjZEPGa0h3YAXvEwBnyezMZl597S9UnVvuV+WPWAVvM=",
-        "usagesDigest": "2+4k2zUq+VwzyM48OcO7jWhl40u9oytfHtbSojT3+mQ=",
+        "usagesDigest": "Htv1r+vNINGMOp+Be7QkpoK14yNzDczQACiOMSSfYhM=",
         "recordedInputs": [
           "REPO_MAPPING:,dx_windows_support +http_archive+dx_windows_support",
           "REPO_MAPPING:+http_archive+dx_windows_support,bazel_tools bazel_tools"
@@ -80348,7 +80348,7 @@
     }
   },
   "facts": {
-    "//cc/private/toolchains/msvc:windows_support.bzl%msvc_runtime": {
+    "//cc/private/toolchain/msvc:windows_support.bzl%msvc_runtime": {
       "visual_studio_installer_manifest_v1": {
         "integrity": "sha256-qOhU+p8/uurCfXME4pfxZg1xN0ATid61fPeYPzPBb+8=",
         "request": {

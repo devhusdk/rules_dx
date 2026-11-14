@@ -3170,7 +3170,7 @@ _dx_windows_support(
     urls = ["https://github.com/hermeticbuild/windows_support/releases/download/v0.4.1/windows_support-v0.4.1.tar.gz"],
 )
 
-dx_msvc_runtime_ext = use_extension("//cc/private/toolchains/msvc:windows_support.bzl", "msvc_runtime")
+dx_msvc_runtime_ext = use_extension("//cc/private/toolchain/msvc:windows_support.bzl", "msvc_runtime")
 dx_msvc_runtime_ext.configure(
     msvc_version = "14.50.35717",
     visual_studio_installer_manifest_integrity = "sha256-qOhU+p8/uurCfXME4pfxZg1xN0ATid61fPeYPzPBb+8=",
@@ -3178,7 +3178,7 @@ dx_msvc_runtime_ext.configure(
 )
 use_repo(dx_msvc_runtime_ext, dx_msvc_runtime = "msvc_runtime")
 
-dx_windows_sdk_ext = use_extension("//cc/private/toolchains/msvc:windows_support.bzl", "windows_sdk")
+dx_windows_sdk_ext = use_extension("//cc/private/toolchain/msvc:windows_support.bzl", "windows_sdk")
 dx_windows_sdk_ext.configure(
     transformations = {
         "base/c/Include/10.0.26100.0/shared/driverspecs.h": "base/c/Include/10.0.26100.0/shared/DriverSpecs.h",

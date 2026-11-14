@@ -57,6 +57,14 @@ diff -ru a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
          out = ctx.actions.declare_symlink(site_packages_prefix + tl)
          target_prefix = target_prefix_by_sp.get(wheel_site_pkgs)
          if target_prefix == None:
+@@ -296,6 +296,6 @@
+     # layouts.
+     def _format_imp(imp):
+-        if imp in fully_covered_site_pkgs:
++        if not is_windows and imp in fully_covered_site_pkgs:
+             return None
+         if imp.endswith("site-packages") and imp not in known_layout_site_pkgs:
+             return _ADDSITEDIR_LINE.format(
 @@ -371,31 +371,43 @@
      # absolute target bakes in the build-host execroot path that does not
      # exist inside an OCI container, leaving a dangling symlink. The

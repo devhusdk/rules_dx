@@ -1,6 +1,5 @@
 """clang-cl cc_toolchains for MSVC targets whose link actions carry the hermetic LIB search path."""
 
-load("@bazel_features//:features.bzl", "bazel_features")
 load("@llvm//platforms:common.bzl", "MSVC_TARGET_STAGE0_SUPPORTED_EXECS", "WINDOWS_TARGETS")
 load("@llvm//toolchain:cc_toolchain.bzl", "cc_toolchain")
 load("@llvm//toolchain:merged_resource_directory.bzl", "merged_resource_directory")
@@ -96,7 +95,7 @@ def _tool_map(prefix, exec_os, exec_cpu):
     }
     validator = {
         "@rules_cc//cc/toolchains/actions:validate_static_library": ":" + prefix + "_static_library_validator",
-    } if bazel_features.cc.supports_starlarkified_toolchains else {}
+    }
 
     cc_tool_map(
         name = prefix + "_complete_tools",

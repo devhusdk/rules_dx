@@ -11,7 +11,6 @@ package(
 rust_test(
     name = "release_consumer_smoke_test",
     size = "small",
-    timeout = "moderate",
     testonly = True,
     srcs = [
         "candidate_consumer_test.rs",

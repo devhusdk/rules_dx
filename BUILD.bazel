@@ -1,6 +1,4 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
-
-# A shim over the dev hub @dx_npm, so consumers that load this package fetch no npm repos.
 load("@dx_npm_link//:defs.bzl", "npm_link_all_packages")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")

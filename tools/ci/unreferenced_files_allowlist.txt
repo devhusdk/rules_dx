@@ -15,7 +15,6 @@ core/quality/testdata/python_tiers/BUILD.bazel orphan-target 1
 core/quality/testdata/real_clean.bzl unloaded-bzl 1
 core/quality/testdata/tier_clean/clean.bzl unloaded-bzl 1
 core/quality/tests/fixtures/prose-docs/BUILD.bazel orphan-target 1
-csharp/BUILD.bazel orphan-target 1
 csharp/tests/fixtures/adopt-csharp/adopt-csharp.csproj unreferenced-fixture 1
 csharp/tests/fixtures/csharpier/BUILD.bazel orphan-target 1
 d/private/tools/BUILD.bazel orphan-target 1
@@ -54,14 +53,12 @@ go/tests/fixtures/staticcheck/BUILD.bazel orphan-target 2
 haskell/BUILD.bazel orphan-target 1
 haskell/private/tools/BUILD.bazel orphan-target 1
 haskell/tests/fixtures/stack/BUILD.bazel orphan-target 1
-java/tests/fixtures/adopt-java/pom.xml unreferenced-fixture 1
 java/tests/fixtures/java-app/billing/BUILD.bazel orphan-target 1
 javascript/private/quality/BUILD.bazel orphan-target 1
 javascript/tests/fixtures/node-app/registry/BUILD.bazel orphan-target 1
 julia/tests/fixtures/julia-app/archive/BUILD.bazel orphan-target 2
 julia/tests/fixtures/julia-app/cli/BUILD.bazel orphan-target 2
 julia/tests/fixtures/julia-app/stats/BUILD.bazel orphan-target 2
-kotlin/tests/fixtures/adopt-kotlin/pom.xml unreferenced-fixture 1
 kotlin/tests/fixtures/kotlin-app/grades/BUILD.bazel orphan-target 1
 lua/private/quality/BUILD.bazel orphan-target 1
 mdx/private/BUILD.bazel orphan-target 1

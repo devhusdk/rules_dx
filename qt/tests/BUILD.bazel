@@ -3,7 +3,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
 load("//qt/private:defs.bzl", "QT_SOURCE_SPECS", "qt_os_supplied_libraries")
 load("//qt/private/toolchain:pins.bzl", "QT_VERSION")
@@ -547,6 +547,19 @@ rust_test(
     ],
     env = {"LLVM_OTOOL": "$(rlocationpath @llvm//tools:llvm-otool)"},
     target_compatible_with = ["@platforms//os:macos"],
+)
+
+starlark_test(
+    name = "hub_load_test",
+    expected_observations = """subject +qt+dx_qt//:linux_x86_64
+aspect_field aspect_seen=True
+aspect_field field_count=0
+aspect_field has_subject=False
+aspect_field subject_label=+qt+dx_qt//:linux_x86_64
+aspect_field transitive_count=0
+""",
+    mode = "analysis",
+    subjects = ["@dx_qt//:linux_x86_64"],
 )
 
 real_source_target(

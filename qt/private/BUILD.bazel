@@ -3,6 +3,7 @@ load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
 load("//qt/private/toolchain:pins.bzl", "CELLS", "IDENTITIES")
 load("//qt/private/toolchain:repos.bzl", "qualified_cells")
 load(":corpus.bzl", "qt_corpus")
+load(":coverage.bzl", "qt_coverage_probe")
 load(":defs.bzl", "qt_os_supplied_libraries")
 
 package(default_visibility = [
@@ -10,6 +11,11 @@ package(default_visibility = [
     "//qt:__subpackages__",
     "//tools/ci:__pkg__",
 ])
+
+qt_coverage_probe(
+    name = "coverage_probe",
+    visibility = ["//:__subpackages__"],
+)
 
 constraint_setting(name = "unsupported_setting")
 
@@ -24,6 +30,7 @@ exports_files([
     "cells.bzl",
     "constants.bzl",
     "corpus.bzl",
+    "coverage.bzl",
     "defs.bzl",
     "generate.bzl",
     "providers.bzl",
@@ -54,6 +61,7 @@ qt_corpus(
         "cells.bzl",
         "constants.bzl",
         "corpus.bzl",
+        "coverage.bzl",
         "defs.bzl",
         "generate.bzl",
         "providers.bzl",

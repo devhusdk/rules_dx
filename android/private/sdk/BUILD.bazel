@@ -4,6 +4,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "emulator.bzl",
     "extensions.bzl",
     "repos.bzl",
 ])
@@ -12,6 +13,7 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "emulator.bzl",
         "extensions.bzl",
         "repos.bzl",
     ],

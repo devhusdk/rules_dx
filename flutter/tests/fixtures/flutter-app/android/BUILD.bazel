@@ -1,13 +1,10 @@
 load("@rules_dx//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start")
 load("@rules_dx//flutter:defs.bzl", "flutter_android_app")
-load("@rules_dx//flutter/private:defs.bzl", "FLUTTER_COMPATIBLE_WITH")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files(
     [
         "BUILD.bazel",
-        "interaction.sh",
     ],
     visibility = ["//tools/testing/hermetic:__pkg__"],
 )
@@ -47,25 +44,6 @@ android_adb_start(
 android_adb_log(
     name = "log",
     serial = "emulator-5554",
-)
-
-sh_test(
-    name = "interaction_test",
-    size = "medium",
-    srcs = ["interaction.sh"],
-    args = [
-        "emulator-5554",
-        "dk.devhus.flutterapp",
-        "io.flutter.embedding.android.FlutterActivity",
-        "$(locations :apk)",
-    ],
-    data = [":apk"],
-    tags = [
-        "exclusive",
-        "linux-kvm",
-        "manual",
-    ],
-    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
 )
 
 real_source_target(

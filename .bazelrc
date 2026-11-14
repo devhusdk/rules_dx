@@ -8,6 +8,7 @@ coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector
 
 common --local_resources=nested_bazel=2
 common --local_resources=msix_package_store=1
+common --local_resources=android_emulator=1
 test --test_env=DX_NESTED_BAZEL_HEAP
 test:nested_record --test_env=DX_NESTED_BAZEL_NETWORK=1
 common --registry=https://bcr.bazel.build

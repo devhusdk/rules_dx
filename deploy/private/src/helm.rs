@@ -65,7 +65,7 @@ fn stage_chart(
     resolve: &dyn Fn(&str) -> Option<PathBuf>,
     dir: &Path,
 ) -> Result<(), String> {
-    let _ = std::fs::remove_dir_all(dir);
+    drop(std::fs::remove_dir_all(dir));
     for file in files {
         let relative = Path::new(&file.path);
         let plain = relative
@@ -169,7 +169,7 @@ fn helm_push(
         ],
         None,
     );
-    let _ = std::fs::remove_file(helm.home.join("registry.json"));
+    drop(std::fs::remove_file(helm.home.join("registry.json")));
     if ok {
         println!(
             "helm_chart_deploy: pushed {} to {target}",
@@ -247,7 +247,7 @@ fn helm_main_with(
             .unwrap_or_default(),
     };
     let packages = outdir.join(format!("{name}-package"));
-    let _ = std::fs::remove_dir_all(&packages);
+    drop(std::fs::remove_dir_all(&packages));
     if let Err(error) = std::fs::create_dir_all(&packages) {
         eprintln!("helm_chart_deploy: {error}");
         return 1;
@@ -284,7 +284,7 @@ fn helm_main_with(
         return 0;
     };
     let pushed = helm_push(&helm, launch, &package, &user, &token);
-    let _ = std::fs::remove_dir_all(&helm.home);
+    drop(std::fs::remove_dir_all(&helm.home));
     i32::from(!pushed)
 }
 

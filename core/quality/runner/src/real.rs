@@ -691,7 +691,7 @@ impl SocketDir {
 
 impl Drop for SocketDir {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        drop(std::fs::remove_dir_all(&self.0));
     }
 }
 

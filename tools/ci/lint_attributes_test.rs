@@ -158,10 +158,8 @@ fn passes_other_attributes() {
 }
 
 /// Strict tier lints `.bazelrc` does not yet deny repo-wide. The list only shrinks.
-const PENDING: [&str; 3] = [
+const PENDING: [&str; 1] = [
     "clippy::indexing_slicing",
-    "clippy::let_underscore_must_use",
-    "clippy::string_slice",
 ];
 
 /// The lints a file denies with `-D<lint>`, as `.bazelrc` flag lines or tier list lines.

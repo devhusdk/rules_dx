@@ -513,7 +513,7 @@ fn finish(
             i32::from(!report.ok())
         }
         Err(error) => {
-            let _ = writeln!(err, "starlark_harness: {error}");
+            drop(writeln!(err, "starlark_harness: {error}"));
             1
         }
     }

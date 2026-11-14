@@ -63,9 +63,12 @@ fn located(line: &str) -> Option<(&str, &str, &str)> {
         _ => rest,
     };
     let text = after_column.strip_prefix(' ')?;
-    let position = line
-        .get(file.len()..)?
-        .get(..line.len().checked_sub(text.len())?.checked_sub(file.len())?)?;
+    let position = line.get(file.len()..)?.get(
+        ..line
+            .len()
+            .checked_sub(text.len())?
+            .checked_sub(file.len())?,
+    )?;
     Some((file, position, text))
 }
 
@@ -101,7 +104,8 @@ mod tests {
 
     #[test]
     fn erlc_reports_errors_without_a_severity_word() {
-        let text = "src/a.erl:4:10: syntax error before: 'end'\nsrc/a.erl:6:3: function f/0 undefined\n";
+        let text =
+            "src/a.erl:4:10: syntax error before: 'end'\nsrc/a.erl:6:3: function f/0 undefined\n";
         let found = parse_erlc(text.as_bytes(), Some(1), &[FILE]).expect("parsed");
         assert_eq!(found.len(), 2);
         assert_eq!(found[0].finding.severity, ToolSeverity::Error);

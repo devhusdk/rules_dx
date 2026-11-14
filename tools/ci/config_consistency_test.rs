@@ -27,7 +27,8 @@ fn toml_list(text: &str, key: &str) -> Vec<String> {
     for (index, line) in text.lines().skip(start).enumerate() {
         let line = line.split('#').next().unwrap_or_default().trim();
         let line = if index == 0 {
-            &line[prefix.len()..]
+            line.get(prefix.len()..)
+                .expect("string slice within bounds")
         } else {
             line
         };
@@ -64,17 +65,26 @@ fn json_object(text: &str, key: &str) -> String {
         .find(&marker)
         .unwrap_or_else(|| panic!("{key} is missing"));
     let open = start
-        + text[start..]
+        + text
+            .get(start..)
+            .expect("string slice within bounds")
             .find('{')
             .unwrap_or_else(|| panic!("{key} is no object"));
     let mut depth = 0_usize;
-    for (offset, ch) in text[open..].char_indices() {
+    for (offset, ch) in text
+        .get(open..)
+        .expect("string slice within bounds")
+        .char_indices()
+    {
         match ch {
             '{' => depth += 1,
             '}' => {
                 depth -= 1;
                 if depth == 0 {
-                    return text[open..open + offset + 1].to_owned();
+                    return text
+                        .get(open..open + offset + 1)
+                        .expect("string slice within bounds")
+                        .to_owned();
                 }
             }
             _ => {}
@@ -89,26 +99,36 @@ fn json_array(text: &str, key: &str) -> String {
         .find(&marker)
         .unwrap_or_else(|| panic!("{key} is missing"));
     let open = start
-        + text[start..]
+        + text
+            .get(start..)
+            .expect("string slice within bounds")
             .find('[')
             .unwrap_or_else(|| panic!("{key} is no array"));
     let close = open
-        + text[open..]
+        + text
+            .get(open..)
+            .expect("string slice within bounds")
             .find(']')
             .unwrap_or_else(|| panic!("{key} is unterminated"));
-    text[open..close + 1].to_owned()
+    text.get(open..close + 1)
+        .expect("string slice within bounds")
+        .to_owned()
 }
 
 fn json_strings(text: &str) -> Vec<String> {
     let mut found = Vec::new();
     let mut rest = text;
     while let Some(start) = rest.find('"') {
-        rest = &rest[start + 1..];
+        rest = rest.get(start + 1..).expect("string slice within bounds");
         let end = rest
             .find('"')
             .unwrap_or_else(|| panic!("{text} has a dangling quote"));
-        found.push(rest[..end].to_owned());
-        rest = &rest[end + 1..];
+        found.push(
+            rest.get(..end)
+                .expect("string slice within bounds")
+                .to_owned(),
+        );
+        rest = rest.get(end + 1..).expect("string slice within bounds");
     }
     found
 }
@@ -126,8 +146,13 @@ fn starlark_dict_keys(text: &str, name: &str) -> Vec<String> {
         .unwrap_or_else(|| panic!("{name} is missing"))
         + name.len()
         + 4;
-    let close = open + text[open..].find('}').expect("dict is unterminated");
-    json_strings(&text[open..close])
+    let close = open
+        + text
+            .get(open..)
+            .expect("string slice within bounds")
+            .find('}')
+            .expect("dict is unterminated");
+    json_strings(text.get(open..close).expect("string slice within bounds"))
 }
 
 fn starlark_list_items(text: &str, name: &str) -> Vec<String> {
@@ -136,8 +161,13 @@ fn starlark_list_items(text: &str, name: &str) -> Vec<String> {
         .find(&marker)
         .unwrap_or_else(|| panic!("{name} is missing"))
         + marker.len();
-    let close = open + text[open..].find(']').expect("list is unterminated");
-    json_strings(&text[open..close])
+    let close = open
+        + text
+            .get(open..)
+            .expect("string slice within bounds")
+            .find(']')
+            .expect("list is unterminated");
+    json_strings(text.get(open..close).expect("string slice within bounds"))
 }
 
 /// Tool ids the runner names in a `"<tool> requires a config"` error.
@@ -145,10 +175,14 @@ fn runner_config_refusals(source: &str) -> Vec<String> {
     let mut found = Vec::new();
     let mut rest = source;
     while let Some(at) = rest.find(" requires a config\"") {
-        let head = &rest[..at];
+        let head = rest.get(..at).expect("string slice within bounds");
         let open = head.rfind('"').expect("refusal literal opens with a quote");
-        found.push(head[open + 1..].to_owned());
-        rest = &rest[at + 1..];
+        found.push(
+            head.get(open + 1..)
+                .expect("string slice within bounds")
+                .to_owned(),
+        );
+        rest = rest.get(at + 1..).expect("string slice within bounds");
     }
     found.sort();
     found.dedup();
@@ -160,10 +194,12 @@ fn runner_tier_base_tools(source: &str) -> Vec<String> {
     let marker = "const TIER_BASE_TOOLS: &[&str] = &[";
     let open = source.find(marker).expect("TIER_BASE_TOOLS is missing") + marker.len();
     let close = open
-        + source[open..]
+        + source
+            .get(open..)
+            .expect("string slice within bounds")
             .find(']')
             .expect("TIER_BASE_TOOLS is unterminated");
-    json_strings(&source[open..close])
+    json_strings(source.get(open..close).expect("string slice within bounds"))
 }
 
 /// Tool ids whose generated config metadata sets `tier_base: true`.
@@ -646,12 +682,19 @@ fn coverage_floors(text: &str) -> Vec<String> {
         }
         let mut rest = line;
         while let Some(start) = rest.find("--min-coverage") {
-            let tail = rest[start + "--min-coverage".len()..].trim_start_matches([' ', '=']);
+            let tail = rest
+                .get(start + "--min-coverage".len()..)
+                .expect("string slice within bounds")
+                .trim_start_matches([' ', '=']);
             let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
             if end > 0 {
-                found.push(tail[..end].to_owned());
+                found.push(
+                    tail.get(..end)
+                        .expect("string slice within bounds")
+                        .to_owned(),
+                );
             }
-            rest = &tail[end..];
+            rest = tail.get(end..).expect("string slice within bounds");
         }
     }
     found.sort();
@@ -728,12 +771,18 @@ fn workflow_bazel_configs(text: &str) -> Vec<String> {
     let mut found = Vec::new();
     let mut rest = text;
     while let Some(start) = rest.find("--config=") {
-        let tail = &rest[start + "--config=".len()..];
+        let tail = rest
+            .get(start + "--config=".len()..)
+            .expect("string slice within bounds");
         let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
         if end > 0 {
-            found.push(tail[..end].to_owned());
+            found.push(
+                tail.get(..end)
+                    .expect("string slice within bounds")
+                    .to_owned(),
+            );
         }
-        rest = &tail[end..];
+        rest = tail.get(end..).expect("string slice within bounds");
     }
     found.sort();
     found.dedup();

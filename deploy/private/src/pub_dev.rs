@@ -316,7 +316,7 @@ fn pub_api_check(
             &work,
         )
     });
-    let _ = std::fs::remove_dir_all(&work);
+    drop(std::fs::remove_dir_all(&work));
     result
 }
 
@@ -579,7 +579,7 @@ pub fn pub_main_checked(
         secrets,
         &api_check,
     );
-    let _ = std::fs::remove_dir_all(&staging);
+    drop(std::fs::remove_dir_all(&staging));
     let version = match result {
         Ok(version) => version,
         Err(message) => {
@@ -643,7 +643,7 @@ fn pub_run_checked(
         registry_url,
         secrets.get("PUB_API_TOKEN"),
     );
-    let _ = std::fs::remove_dir_all(&cache);
+    drop(std::fs::remove_dir_all(&cache));
     published.map(|()| version)
 }
 

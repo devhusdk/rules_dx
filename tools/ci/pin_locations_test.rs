@@ -90,7 +90,11 @@ fn digests(text: &str) -> Vec<String> {
             }
             let run = &bytes[start..at];
             if run.len() == 64 && run.iter().all(|byte| is_hex(*byte)) {
-                out.push(text[start..at].to_ascii_lowercase());
+                out.push(
+                    text.get(start..at)
+                        .expect("string slice within bounds")
+                        .to_ascii_lowercase(),
+                );
             }
         } else {
             at += 1;

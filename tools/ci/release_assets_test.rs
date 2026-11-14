@@ -29,8 +29,14 @@ fn pins_version(pins: &str) -> String {
 
 fn pinned_assets(pins: &str) -> Vec<String> {
     let start = pins.find("SHA256 = {\n").expect("SHA256 map") + "SHA256 = {\n".len();
-    let end = pins[start..].find("\n}").expect("SHA256 map end") + start;
-    pins[start..end]
+    let end = pins
+        .get(start..)
+        .expect("string slice within bounds")
+        .find("\n}")
+        .expect("SHA256 map end")
+        + start;
+    pins.get(start..end)
+        .expect("string slice within bounds")
         .lines()
         .map(|line| {
             let (name, hash) = line

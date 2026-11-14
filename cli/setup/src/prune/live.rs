@@ -333,7 +333,7 @@ mod tests {
                 panic!("a missing proc root is unavailable, never idle: {other:?}")
             }
         }
-        let _ = fs::remove_dir_all(&root);
+        drop(fs::remove_dir_all(&root));
     }
 
     #[test]
@@ -353,7 +353,7 @@ mod tests {
                 panic!("a file proc root is unavailable, never idle: {other:?}")
             }
         }
-        let _ = fs::remove_dir_all(&root);
+        drop(fs::remove_dir_all(&root));
     }
 
     #[test]
@@ -382,7 +382,7 @@ mod tests {
                 panic!("a listed proc root is known: {other:?}")
             }
         }
-        let _ = fs::remove_dir_all(&root);
+        drop(fs::remove_dir_all(&root));
     }
 
     #[test]
@@ -432,7 +432,7 @@ mod tests {
                 },
             ]
         );
-        let _ = fs::remove_dir_all(&root);
+        drop(fs::remove_dir_all(&root));
     }
 
     #[test]
@@ -480,7 +480,7 @@ mod tests {
                 hex: env_hex,
             }]
         );
-        let _ = fs::remove_dir_all(&root);
+        drop(fs::remove_dir_all(&root));
     }
 
     #[test]
@@ -530,7 +530,7 @@ mod tests {
                 },
             ]
         );
-        let _ = fs::remove_dir_all(&root);
+        drop(fs::remove_dir_all(&root));
     }
 
     #[test]
@@ -549,7 +549,7 @@ mod tests {
         let plain = collect_inventory(&workspace, &[], &[]).expect("plain collect");
         assert_eq!(scanned.plan(), plain.plan());
         assert_eq!(scanned.plan().prune_setup_records, vec![stale_hex]);
-        let _ = fs::remove_dir_all(&root);
+        drop(fs::remove_dir_all(&root));
     }
 
     #[test]
@@ -571,7 +571,7 @@ mod tests {
         assert!(plan.prune_generations.is_empty());
         assert_eq!(plan.preserved_unobserved_setup_records, vec![stale_hex]);
         assert_eq!(plan.preserved_unobserved_generations.len(), 2);
-        let _ = fs::remove_dir_all(&root);
+        drop(fs::remove_dir_all(&root));
     }
 
     fn stage_unreadable_cwd(proc_root: &Path, pid: &str) {
@@ -734,7 +734,7 @@ mod tests {
                 .any(|generation| generation.hex == stale_env),
             "releasing the lease makes the generation prunable again"
         );
-        let _ = fs::remove_dir_all(&root);
+        drop(fs::remove_dir_all(&root));
     }
 
     const EPERM: i32 = 1;

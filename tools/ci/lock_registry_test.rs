@@ -365,7 +365,11 @@ fn hub_label(line: &str) -> bool {
         let name = rest
             .find(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-')))
             .unwrap_or(rest.len());
-        name > 0 && rest[name..].starts_with("//")
+        name > 0
+            && rest
+                .get(name..)
+                .expect("string slice within bounds")
+                .starts_with("//")
     })
 }
 

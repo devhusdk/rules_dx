@@ -198,7 +198,11 @@ fn the_search_index_is_served_at_both_bases() {
     let at_root = Server::start(root.clone(), "");
     let at_sub = Server::start(root.clone(), "rules_dx");
     let index = asset(&root, "searchindex.js").expect("find the search index");
-    let index = index.file_name().expect("index name").to_string_lossy().into_owned();
+    let index = index
+        .file_name()
+        .expect("index name")
+        .to_string_lossy()
+        .into_owned();
     let body = at_root.get(&format!("/{index}"));
     body.expect_ok("search index");
     assert!(
@@ -217,7 +221,7 @@ fn links(html: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut rest = html;
     while let Some(at) = rest.find("href=\"") {
-        let tail = &rest[at + 6..];
+        let tail = rest.get(at + 6..).expect("string slice within bounds");
         let Some((value, remainder)) = tail.split_once('"') else {
             break;
         };

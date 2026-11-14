@@ -73,8 +73,16 @@ fn tmp(text: &str) -> bool {
 fn tmp_line(line: &str) -> bool {
     let joins = |c: char| c.is_alphanumeric() || "_-.".contains(c);
     line.match_indices("/tmp").any(|(at, found)| {
-        let before = line[..at].chars().next_back();
-        let after = line[at + found.len()..].chars().next();
+        let before = line
+            .get(..at)
+            .expect("string slice within bounds")
+            .chars()
+            .next_back();
+        let after = line
+            .get(at + found.len()..)
+            .expect("string slice within bounds")
+            .chars()
+            .next();
         !before.is_some_and(|c| joins(c) || "/$}".contains(c)) && !after.is_some_and(joins)
     })
 }

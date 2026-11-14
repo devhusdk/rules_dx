@@ -494,10 +494,10 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
     }
     let archs = lipo.stdout.trim_end_matches('\n').to_owned();
 
-    let _ = std::fs::remove_dir_all(&out);
-    let _ = std::fs::remove_file(&out);
+    drop(std::fs::remove_dir_all(&out));
+    drop(std::fs::remove_file(&out));
     let notes = PathBuf::from(format!("{}.txt", out.display()));
-    let _ = std::fs::remove_file(&notes);
+    drop(std::fs::remove_file(&notes));
     if !tools.tool(DITTO, &[&text(&app), &text(&out)]).success() {
         return Err(usage(format!("cannot write {}", out.display())));
     }

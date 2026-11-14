@@ -601,7 +601,7 @@ mod tests {
     #[test]
     fn create_reports_unusable_parents() {
         let missing = std::env::temp_dir().join("dx-no-such-parent-9f2c1d");
-        let _ = std::fs::remove_dir_all(&missing);
+        drop(std::fs::remove_dir_all(&missing));
         assert!(Scratch::create(&missing.join("child")).is_err());
     }
 

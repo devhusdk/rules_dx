@@ -278,7 +278,7 @@ impl WatchSession {
                     .map_or(0, |since| since.as_nanos())
             ));
             if std::fs::write(&marker, b"").is_ok() {
-                let _ = std::fs::remove_file(&marker);
+                drop(std::fs::remove_file(&marker));
             }
         }
         let canonical_root = watch_root
@@ -627,7 +627,7 @@ mod tests {
         let writer = root.clone();
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(100));
-            let _ = std::fs::write(writer.join("during.txt"), "edit");
+            drop(std::fs::write(writer.join("during.txt"), "edit"));
         });
         std::thread::sleep(Duration::from_millis(600));
         let trigger = session.wait(Duration::from_secs(5)).expect("wait");

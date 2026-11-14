@@ -49,7 +49,10 @@ fn mentions(text: &str, dep: &str) -> bool {
     let needle = format!("@{dep}");
     text.match_indices(&needle).any(|(start, found)| {
         matches!(
-            text[start + found.len()..].chars().next(),
+            text.get(start + found.len()..)
+                .expect("string slice within bounds")
+                .chars()
+                .next(),
             Some('/' | '"' | ':' | '+')
         )
     })
@@ -110,7 +113,10 @@ fn needed_by(module: &ModuleFile, dep: &str) -> Vec<String> {
         return Vec::new();
     };
     let loads = format!("loads @{dep}");
-    module.source()[..call.span.start]
+    module
+        .source()
+        .get(..call.span.start)
+        .expect("string slice within bounds")
         .lines()
         .rev()
         .map(str::trim)

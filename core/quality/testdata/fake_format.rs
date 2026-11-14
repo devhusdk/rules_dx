@@ -32,7 +32,7 @@ struct Flags {
 
 fn extension_of(name: &str) -> &str {
     match name.rfind('.') {
-        Some(idx) => &name[idx + 1..],
+        Some(idx) => name.get(idx + 1..).expect("string slice within bounds"),
         None => name,
     }
 }
@@ -258,7 +258,7 @@ fn rewrite_fixed(path: &str) {
     let out = fixed_bytes(&bytes);
     let tmp = format!("{path}.dxtmp");
     if std::fs::write(&tmp, &out).is_ok() {
-        let _ = std::fs::rename(&tmp, path);
+        drop(std::fs::rename(&tmp, path));
     }
 }
 

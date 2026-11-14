@@ -251,9 +251,9 @@ fn parse_scoped(
                 kept.push(result);
             } else if result.get("level").and_then(Value::as_str) == Some("error") {
                 let rule = result
-                .get("ruleId")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
+                    .get("ruleId")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
                 let message = result
                     .pointer("/message/text")
                     .and_then(Value::as_str)

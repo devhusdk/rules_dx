@@ -27,7 +27,7 @@ fn a_lease_without_a_live_dx_stops_its_group() {
     )
     .expect("lease");
     let reaped = reap_in(&dir);
-    let _ = child.wait();
+    drop(child.wait());
     assert_eq!(reaped, vec![Reaped { pid: 424242, pgid }]);
     assert!(!group_alive(pgid));
     assert!(!dir.join("424242-0.lock").exists());
@@ -50,7 +50,7 @@ fn a_lease_held_by_a_live_dx_is_left_alone() {
     assert!(reap_in(&dir).is_empty());
     assert!(group_alive(pgid));
     sys::signal_group(pgid, 9);
-    let _ = child.wait();
+    drop(child.wait());
     drop(held);
 }
 
@@ -66,7 +66,7 @@ fn a_lease_for_a_finished_group_is_dropped_quietly() {
         .expect("probe");
     let pgid = child.id() as i32;
     let line = lease_line(pgid).expect("line");
-    let _ = child.wait();
+    drop(child.wait());
     std::fs::write(dir.join("424244-0.lock"), format!("{line}\n")).expect("lease");
     assert!(reap_in(&dir).is_empty());
     assert!(!dir.join("424244-0.lock").exists());
@@ -95,7 +95,7 @@ fn a_lease_naming_a_reused_group_number_is_dropped_without_a_signal() {
     let reaped = reap_in(&dir);
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
-    let _ = child.wait();
+    drop(child.wait());
     assert!(reaped.is_empty());
     assert!(alive, "an unrelated group must survive");
     assert!(!dir.join("424245-0.lock").exists());
@@ -114,7 +114,7 @@ fn a_lease_from_another_pid_namespace_is_left_alone() {
     assert!(reap_in(&dir).is_empty());
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
-    let _ = child.wait();
+    drop(child.wait());
     assert!(alive);
     assert!(path.exists());
 }
@@ -132,7 +132,7 @@ fn a_lease_dropped_with_its_group_still_running_leaves_nothing_to_reap() {
     assert!(reap_in(&dir).is_empty());
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
-    let _ = child.wait();
+    drop(child.wait());
     assert!(
         alive,
         "a clean exit must not hand the group to the next run"
@@ -388,7 +388,7 @@ fn a_lease_with_unknown_start_is_dropped_without_a_signal() {
     let reaped = reap_in(&dir);
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
-    let _ = child.wait();
+    drop(child.wait());
     assert!(reaped.is_empty());
     assert!(alive);
     assert!(!path.exists());
@@ -410,7 +410,7 @@ fn a_lease_from_another_boot_is_dropped_without_a_signal() {
     let reaped = reap_in(&dir);
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
-    let _ = child.wait();
+    drop(child.wait());
     assert!(reaped.is_empty());
     assert!(alive);
     assert!(!path.exists());
@@ -436,7 +436,7 @@ fn a_stop_is_written_to_the_reap_log() {
     )
     .expect("lease");
     reap_in(&dir);
-    let _ = child.wait();
+    drop(child.wait());
     let log = std::fs::read_to_string(dir.join("reaped.log")).expect("log");
     assert!(log.contains(&format!("stop reaper={}", std::process::id())));
     assert!(log.contains(&format!("pgid={pgid}")));
@@ -682,7 +682,7 @@ fn a_child_replaces_its_lease_text_before_spawn_returns() {
     let pgid = child.id() as i32;
     let start = sys::start_time(pgid);
     sys::signal_group(pgid, 9);
-    let _ = child.wait();
+    drop(child.wait());
     assert_eq!(
         text,
         format!("{}\n", lease_text(pgid, &start.expect("start")))

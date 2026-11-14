@@ -168,7 +168,7 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
     submit.extend(["--wait", "--timeout", timeout, "--output-format", "json"]);
     let submitted = tools.xcrun(&submit);
     let json = work.path().join("submit.json");
-    let _ = std::fs::write(&json, &submitted.stdout);
+    drop(std::fs::write(&json, &submitted.stdout));
     let id = value(tools, "id", &json).unwrap_or_default();
     let status = value(tools, "status", &json).unwrap_or_default();
     if id.is_empty() {
@@ -192,7 +192,7 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
     }
 
     let log = PathBuf::from(format!("{}.notary.json", app.display()));
-    let _ = std::fs::remove_file(&log);
+    drop(std::fs::remove_file(&log));
     let log_text = text(&log);
     let mut fetch = vec!["notarytool", "log", &id, &log_text];
     fetch.extend(&auth);

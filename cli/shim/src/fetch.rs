@@ -194,7 +194,7 @@ fn sweep_stale_parts(dir: &Path, asset: &str) {
             .ok()
             .and_then(|t| SystemTime::now().duration_since(t).ok());
         if age.is_some_and(|age| age > STALE_PART_AGE) {
-            let _ = std::fs::remove_file(entry.path());
+            drop(std::fs::remove_file(entry.path()));
         }
     }
 }
@@ -348,7 +348,7 @@ impl Drop for PartFile {
     fn drop(&mut self) {
         drop(self.file.take());
         interrupt::clear();
-        let _ = std::fs::remove_file(&self.path);
+        drop(std::fs::remove_file(&self.path));
     }
 }
 

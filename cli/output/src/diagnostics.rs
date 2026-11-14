@@ -56,11 +56,13 @@ pub fn init_diagnostics(verbose: bool) {
     } else {
         DEFAULT_LOG_FILTER
     });
-    let _ = fmt()
-        .with_env_filter(filter)
-        .with_writer(std::io::stderr)
-        .with_ansi(color_enabled())
-        .try_init();
+    drop(
+        fmt()
+            .with_env_filter(filter)
+            .with_writer(std::io::stderr)
+            .with_ansi(color_enabled())
+            .try_init(),
+    );
     tracing::debug!(verbose, "dx diagnostics initialised");
 }
 
@@ -484,7 +486,7 @@ mod tests {
         }
         let sentinel =
             std::env::temp_dir().join(format!("dx-output-no-color-{}", std::process::id()));
-        let _ = std::fs::remove_file(&sentinel);
+        drop(std::fs::remove_file(&sentinel));
         let before = std::env::var_os("NO_COLOR");
         let spawn = |mode: &str| {
             std::process::Command::new(std::env::current_exe().expect("test binary"))
@@ -509,7 +511,7 @@ mod tests {
             before,
             "child NO_COLOR mutation dies with the child"
         );
-        let _ = std::fs::remove_file(&sentinel);
+        drop(std::fs::remove_file(&sentinel));
     }
 
     #[test]

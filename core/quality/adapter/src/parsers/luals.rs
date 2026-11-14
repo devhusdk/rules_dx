@@ -98,7 +98,9 @@ fn same_path(left: &str, right: &str) -> bool {
     fn normal(path: &str) -> String {
         let mut out = path.replace('\\', "/");
         if out.as_bytes().get(1) == Some(&b':') {
-            out[..1].make_ascii_lowercase();
+            if let Some(drive) = out.get_mut(..1) {
+                drive.make_ascii_lowercase();
+            }
         }
         out
     }

@@ -481,7 +481,7 @@ fn nuget_api_check(
             )
             .map_err(|error| error.to_string())
         });
-    let _ = std::fs::remove_dir_all(&work);
+    drop(std::fs::remove_dir_all(&work));
     let output = output.map_err(|error| format!("nuget_deploy: ApiCompat: {error}"))?;
     let text = format!(
         "{}\n{}",

@@ -533,7 +533,11 @@ fn splice(text: &str, begin: &str, end: &str, body: &str) -> String {
         .unwrap_or_else(|| panic!("missing {begin:?}"))
         + begin.len();
     let stop = text.find(end).unwrap_or_else(|| panic!("missing {end:?}"));
-    format!("{}{body}{}", &text[..start], &text[stop..])
+    format!(
+        "{}{body}{}",
+        text.get(..start).expect("string slice within bounds"),
+        text.get(stop..).expect("string slice within bounds")
+    )
 }
 
 #[test]

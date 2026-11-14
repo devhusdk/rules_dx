@@ -207,7 +207,7 @@ impl Session {
                         }
                     }
                     Err(err) => {
-                        let _ = sender.send(Err(err));
+                        drop(sender.send(Err(err)));
                         break;
                     }
                 }
@@ -442,8 +442,8 @@ impl Session {
                 Some(_) => return Ok(()),
                 None if Instant::now() < deadline => thread::sleep(Duration::from_millis(25)),
                 None => {
-                    let _ = self.child.kill();
-                    let _ = self.child.wait();
+                    drop(self.child.kill());
+                    drop(self.child.wait());
                     return Err(Error::Timeout("lsp server exit".to_owned()));
                 }
             }
@@ -453,7 +453,7 @@ impl Session {
 
 impl Drop for Session {
     fn drop(&mut self) {
-        let _ = self.child.kill();
+        drop(self.child.kill());
     }
 }
 

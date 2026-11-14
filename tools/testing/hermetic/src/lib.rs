@@ -174,11 +174,7 @@ pub const SHIM_NAME: &str = if cfg!(windows) {
 
 /// The PATH of every action: the pinned coreutils applet directory on Unix, system directories only plus the shim directory on Windows.
 /// Bazel starts `cmd_ps` genrules as a bare `powershell.exe`, so its directory is listed too.
-pub fn action_path(
-    system_root: Option<&str>,
-    shim_dir: Option<&Path>,
-    applets: &Path,
-) -> String {
+pub fn action_path(system_root: Option<&str>, shim_dir: Option<&Path>, applets: &Path) -> String {
     if !cfg!(windows) {
         return applets.display().to_string();
     }
@@ -1112,13 +1108,13 @@ impl Drop for AclGroup {
 fn timeline(out: &Path, line: &str) {
     use std::io::Write;
     let logs = out.join("logs");
-    let _ = std::fs::create_dir_all(&logs);
+    drop(std::fs::create_dir_all(&logs));
     if let Ok(mut file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(logs.join("timeline.log"))
     {
-        let _ = writeln!(file, "{line}");
+        drop(writeln!(file, "{line}"));
     }
 }
 
@@ -1136,7 +1132,7 @@ pub fn copy_latest_profile(output_base: &Path, dest: &Path) {
         .filter_map(|entry| Some((entry.metadata().ok()?.modified().ok()?, entry.path())))
         .max_by_key(|(modified, _)| *modified);
     if let Some((_, path)) = newest {
-        let _ = std::fs::copy(path, dest);
+        drop(std::fs::copy(path, dest));
     }
 }
 
@@ -1260,7 +1256,7 @@ impl Session {
             return Vec::new();
         }
         let temp = self.root.join("tmp");
-        let _ = std::fs::create_dir_all(&temp);
+        drop(std::fs::create_dir_all(&temp));
         let mut env = vec![
             ("HOME".to_owned(), home.to_string_lossy().into_owned()),
             (
@@ -1608,9 +1604,9 @@ pub fn copy_test_logs(testlogs: &Path, dest: &Path) -> String {
         };
         let target = dest.join(rel);
         if let Some(parent) = target.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            drop(std::fs::create_dir_all(parent));
         }
-        let _ = std::fs::write(&target, &content);
+        drop(std::fs::write(&target, &content));
         let content = String::from_utf8_lossy(&content);
         let head: Vec<&str> = content.lines().take(40).collect();
         text.push_str(&format!(
@@ -2711,7 +2707,10 @@ fn run_all(
         PathBuf::new()
     } else {
         let files = dx_testing::env_files("DX_COREUTILS");
-        let dir = files.first().and_then(|file| file.parent()).ok_or("DX_COREUTILS is empty")?;
+        let dir = files
+            .first()
+            .and_then(|file| file.parent())
+            .ok_or("DX_COREUTILS is empty")?;
         std::path::absolute(dir).map_err(|error| format!("applet directory: {error}"))?
     };
     let path = action_path(

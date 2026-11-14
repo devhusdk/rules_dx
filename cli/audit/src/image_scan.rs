@@ -201,8 +201,8 @@ fn fetch_trivy_pin(pin: &AdvisoryPin, cache: &Path, offline: bool) -> Result<(),
     let archive = parent.join(format!("trivy.part{id}.tar.gz"));
     let partial = parent.join(format!("trivy.part{id}"));
     let result = install_trivy_pin(pin, local.as_deref(), &archive, &partial, cache);
-    let _ = std::fs::remove_file(&archive);
-    let _ = std::fs::remove_dir_all(&partial);
+    drop(std::fs::remove_file(&archive));
+    drop(std::fs::remove_dir_all(&partial));
     result
 }
 
@@ -240,7 +240,7 @@ fn install_trivy_pin(
             pin.sha256
         )));
     }
-    let _ = std::fs::remove_dir_all(partial);
+    drop(std::fs::remove_dir_all(partial));
     tar::Archive::new(flate2::read::GzDecoder::new(bytes.as_slice()))
         .unpack(partial)
         .map_err(|error| DxError::failure(format!("unpacking the trivy archive: {error}")))?;
@@ -319,7 +319,7 @@ mod tests {
 
     fn pinned_workspace(name: &str, tamper: bool) -> (PathBuf, PathBuf) {
         let dir = std::env::temp_dir().join(format!("dx-image-scan-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        drop(std::fs::remove_dir_all(&dir));
         let src = dir.join("src");
         std::fs::create_dir_all(src.join("db")).expect("cache dir");
         std::fs::write(src.join("db").join("metadata.json"), "{}").expect("metadata");

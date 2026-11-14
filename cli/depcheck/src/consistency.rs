@@ -190,7 +190,7 @@ fn report(
 ) -> Result<(), DxError> {
     if !failures.is_empty() {
         for failure in failures {
-            let _ = writeln!(stderr, "depcheck: FAIL: consistency: {failure}");
+            writeln!(stderr, "depcheck: FAIL: consistency: {failure}").unwrap_or_default();
         }
         return Err(DxError::failure(format!(
             "{} consistency failures ({})",
@@ -198,16 +198,17 @@ fn report(
             eco.name()
         )));
     }
-    let _ = writeln!(
+    writeln!(
         stdout,
         "depcheck: OK: consistency: {declared} declarations match lock ({})",
         eco.name()
-    );
+    )
+    .unwrap_or_default();
     Ok(())
 }
 
 pub(crate) fn reported(stderr: &mut dyn std::fmt::Write, error: DxError) -> DxError {
-    let _ = writeln!(stderr, "depcheck: ERROR: {error}");
+    writeln!(stderr, "depcheck: ERROR: {error}").unwrap_or_default();
     error
 }
 

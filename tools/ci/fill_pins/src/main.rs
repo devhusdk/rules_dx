@@ -96,7 +96,7 @@ fn run() -> Result<String, String> {
             Ok(format!("wrote {}", pins.display()))
         })
     };
-    let _ = std::fs::remove_dir_all(&scratch);
+    drop(std::fs::remove_dir_all(&scratch));
     message
 }
 

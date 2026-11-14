@@ -523,8 +523,10 @@ fn offline_bundle_knows_every_host_launcher() {
     let start = bzl
         .find("_LAUNCHERS = [")
         .expect("offline.bzl lists launchers");
-    let list = &bzl[start..];
-    let list = &list[..list.find(']').expect("launcher list is closed")];
+    let list = bzl.get(start..).expect("string slice within bounds");
+    let list = list
+        .get(..list.find(']').expect("launcher list is closed"))
+        .expect("string slice within bounds");
     let mut in_bzl: Vec<String> = list
         .split('"')
         .skip(1)

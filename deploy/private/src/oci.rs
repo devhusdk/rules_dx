@@ -70,14 +70,14 @@ pub fn oci_build_layout(
     let reference = format!("{registry}/{repository}:{tag}");
     let staged = oci_stage_layout(image_tar_src, &staging, &reference, os, architecture);
     if let Err(error) = staged {
-        let _ = std::fs::remove_dir_all(&staging);
+        drop(std::fs::remove_dir_all(&staging));
         return Err(error);
     }
     if layout.exists() {
         std::fs::remove_dir_all(&layout)?;
     }
     if let Err(error) = std::fs::rename(&staging, &layout) {
-        let _ = std::fs::remove_dir_all(&staging);
+        drop(std::fs::remove_dir_all(&staging));
         return Err(error);
     }
     Ok(layout)
@@ -998,7 +998,7 @@ fn oci_copy_layer(reader: impl Read, name: &str, blobs: Option<&Path>) -> io::Re
             Ok(layer)
         }
         Err(error) => {
-            let _ = std::fs::remove_file(&temp);
+            drop(std::fs::remove_file(&temp));
             Err(error)
         }
     }

@@ -302,7 +302,10 @@ mod tests {
     fn finds_the_entry_and_removes_its_line() {
         let build = lib_build();
         let (start, end) = locate(&build, "lib", "serde").expect("located");
-        assert_eq!(build[start..end], format!("\"{}\"", serde()));
+        assert_eq!(
+            build.get(start..end).expect("string slice within bounds"),
+            format!("\"{}\"", serde())
+        );
         let fixed = cut(&build, "lib", "serde").expect("cut");
         assert!(!fixed.contains("serde"));
         assert!(fixed.contains("\"//util:used\",\n    ],"));
@@ -336,7 +339,7 @@ mod tests {
         );
         let (start, end) = locate(build, "user", "dropped_helper").expect("located");
         assert_eq!(
-            &build[start..end],
+            build.get(start..end).expect("string slice within bounds"),
             "\"//core/quality/testdata/jvm_owned:dropped_helper\""
         );
         let fixed = cut(build, "user", "dropped_helper").expect("cut");
@@ -385,10 +388,16 @@ mod tests {
     fn locates_the_deps_key_else_the_name_line() {
         let full = lib_build();
         let (start, end) = locate_deps_list(&full, "lib").expect("located");
-        assert_eq!(&full[start..end], "deps = [");
+        assert_eq!(
+            full.get(start..end).expect("string slice within bounds"),
+            "deps = ["
+        );
         let build = "rust_library(\n    name = \"lib\",\n)\n";
         let (start, end) = locate_deps_list(build, "lib").expect("located");
-        assert_eq!(&build[start..end], "    name = \"lib\",");
+        assert_eq!(
+            build.get(start..end).expect("string slice within bounds"),
+            "    name = \"lib\","
+        );
     }
 
     #[test]

@@ -82,8 +82,8 @@ fn run(args: &[String]) -> Result<bool, String> {
     };
     let result = check(stdout, stdin, &absolute, &options);
     let exit = result.is_err().then(|| wait_briefly(&mut child));
-    let _ = child.kill();
-    let _ = child.wait();
+    drop(child.kill());
+    drop(child.wait());
     let found = result.map_err(|error| match exit.flatten() {
         Some(status) => format!("{error} (server exit: {status})"),
         None => format!("{error} (server still running)"),

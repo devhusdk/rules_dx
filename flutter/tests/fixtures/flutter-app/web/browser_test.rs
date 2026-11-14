@@ -57,8 +57,8 @@ fn respond(mut stream: TcpStream, root: &Path) {
         content_type(&path),
         body.len(),
     );
-    let _ = stream.write_all(head.as_bytes());
-    let _ = stream.write_all(&body);
+    drop(stream.write_all(head.as_bytes()));
+    drop(stream.write_all(&body));
 }
 
 fn serve(root: PathBuf) -> u16 {

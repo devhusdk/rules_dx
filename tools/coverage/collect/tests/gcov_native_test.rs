@@ -93,11 +93,11 @@ fn setup(name: &str) -> Run {
 
 fn collect(run: &Run) -> Output {
     let execroot = run.root.parent().unwrap().join("execroot");
-    let _ = fs::create_dir_all(&execroot);
-    let _ = std::os::unix::fs::symlink(
+    drop(fs::create_dir_all(&execroot));
+    drop(std::os::unix::fs::symlink(
         std::env::var("TEST_SRCDIR").unwrap(),
         execroot.join("external"),
-    );
+    ));
     Command::new(absolute(&std::env::var("COLLECT_NATIVE").unwrap()))
         .env("EXECROOT", execroot)
         .env("GCOV", &run.gcov)

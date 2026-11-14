@@ -153,7 +153,7 @@ pub fn conan_main(spec: &ConanLaunch<'_>, argv: &[String]) -> i32 {
         }
     };
     let result = conan_deploy_checked(&run, spec, &files, &staging);
-    let _ = std::fs::remove_dir_all(&staging);
+    drop(std::fs::remove_dir_all(&staging));
     match result {
         Ok(message) => {
             println!("{message}");

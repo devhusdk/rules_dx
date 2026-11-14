@@ -63,10 +63,12 @@ fn without_consumer_fixes(text: &str) -> String {
     let mut out = String::new();
     let mut rest = text;
     while let Some(start) = rest.find(marker) {
-        out.push_str(&rest[..start]);
-        let tail = &rest[start + marker.len()..];
+        out.push_str(rest.get(..start).expect("string slice within bounds"));
+        let tail = rest
+            .get(start + marker.len()..)
+            .expect("string slice within bounds");
         let digits = tail.bytes().take_while(u8::is_ascii_digit).count();
-        rest = &tail[digits..];
+        rest = tail.get(digits..).expect("string slice within bounds");
     }
     out.push_str(rest);
     out
@@ -82,7 +84,8 @@ fn issue_numbers(text: &str) -> usize {
             .take_while(|byte| byte.is_ascii_digit())
             .count();
         let after = bytes.get(start + 1 + digits);
-        let glued = start > 0 && (bytes[start - 1].is_ascii_alphanumeric() || bytes[start - 1] == b'&');
+        let glued =
+            start > 0 && (bytes[start - 1].is_ascii_alphanumeric() || bytes[start - 1] == b'&');
         if (3..=5).contains(&digits) && !glued && !after.is_some_and(u8::is_ascii_alphanumeric) {
             count += 1;
         }
@@ -90,7 +93,11 @@ fn issue_numbers(text: &str) -> usize {
     for marker in ["/issues/", "/pull/"] {
         count += text
             .match_indices(marker)
-            .filter(|(start, _)| bytes.get(start + marker.len()).is_some_and(u8::is_ascii_digit))
+            .filter(|(start, _)| {
+                bytes
+                    .get(start + marker.len())
+                    .is_some_and(u8::is_ascii_digit)
+            })
             .count();
     }
     count
@@ -173,18 +180,28 @@ fn attr_strings(source: &str, attr: &str) -> Vec<(String, bool)> {
     let bytes = source.as_bytes();
     let mut out = Vec::new();
     for (found, _) in source.match_indices(attr) {
-        let before_ok = found == 0 || !(bytes[found - 1].is_ascii_alphanumeric() || bytes[found - 1] == b'_');
-        let rest = source[found + attr.len()..].trim_start();
+        let before_ok =
+            found == 0 || !(bytes[found - 1].is_ascii_alphanumeric() || bytes[found - 1] == b'_');
+        let rest = source
+            .get(found + attr.len()..)
+            .expect("string slice within bounds")
+            .trim_start();
         if !before_ok || !rest.starts_with('=') || rest.starts_with("==") {
             continue;
         }
-        let value = &rest[1..];
+        let value = rest.get(1..).expect("string slice within bounds");
         let value_bytes = value.as_bytes();
         let (mut index, mut depth, mut glob_depth) = (0, 0_i32, None);
         while index < value_bytes.len() {
             match value_bytes[index] {
                 b'(' | b'[' | b'{' => {
-                    if value_bytes[index] == b'(' && value[..index].trim_end().ends_with("glob") {
+                    if value_bytes[index] == b'('
+                        && value
+                            .get(..index)
+                            .expect("string slice within bounds")
+                            .trim_end()
+                            .ends_with("glob")
+                    {
                         glob_depth.get_or_insert(depth);
                     }
                     depth += 1;
@@ -200,8 +217,18 @@ fn attr_strings(source: &str, attr: &str) -> Vec<(String, bool)> {
                 }
                 b',' if depth == 0 => break,
                 b'"' => {
-                    let end = value[index + 1..].find('"').map_or(value.len(), |offset| index + 1 + offset);
-                    out.push((value[index + 1..end].to_owned(), glob_depth.is_some()));
+                    let end = value
+                        .get(index + 1..)
+                        .expect("string slice within bounds")
+                        .find('"')
+                        .map_or(value.len(), |offset| index + 1 + offset);
+                    out.push((
+                        value
+                            .get(index + 1..end)
+                            .expect("string slice within bounds")
+                            .to_owned(),
+                        glob_depth.is_some(),
+                    ));
                     index = end;
                 }
                 _ => {}
@@ -232,7 +259,12 @@ fn linted(files: &BTreeMap<String, String>) -> BTreeSet<String> {
                 };
                 let Some(named) = named else { continue };
                 if glob {
-                    out.extend(pages.iter().filter(|page| glob_match(&named, page)).map(|page| (*page).clone()));
+                    out.extend(
+                        pages
+                            .iter()
+                            .filter(|page| glob_match(&named, page))
+                            .map(|page| (*page).clone()),
+                    );
                 } else {
                     out.insert(named);
                 }
@@ -255,9 +287,12 @@ fn link_targets(text: &str) -> Vec<String> {
             continue;
         }
         for (start, _) in line.match_indices("](") {
-            let rest = &line[start + 2..];
+            let rest = line.get(start + 2..).expect("string slice within bounds");
             let end = rest.find([')', ' ']).unwrap_or(rest.len());
-            let target = rest[..end].trim_matches(['<', '>']);
+            let target = rest
+                .get(..end)
+                .expect("string slice within bounds")
+                .trim_matches(['<', '>']);
             let file = target.split(['#', '?']).next().unwrap_or("");
             if !file.is_empty() && !target.contains("://") && !target.starts_with("mailto:") {
                 out.push(file.to_owned());
@@ -272,7 +307,10 @@ fn resolve(page: &str, target: &str) -> Option<String> {
     let mut parts: Vec<&str> = if target.starts_with('/') {
         Vec::new()
     } else {
-        parent(page).split('/').filter(|part| !part.is_empty()).collect()
+        parent(page)
+            .split('/')
+            .filter(|part| !part.is_empty())
+            .collect()
     };
     for part in target.split('/') {
         match part {
@@ -315,21 +353,41 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
                 text.clone()
             };
             add(&mut counts, path, "history-word", history_words(&told));
-            let design = path.strip_prefix("docs/design/").is_some_and(|name| !name.contains('/'));
+            let design = path
+                .strip_prefix("docs/design/")
+                .is_some_and(|name| !name.contains('/'));
             let words = text.split_whitespace().count();
             if design && words >= WORD_LIMIT {
                 add(&mut counts, path, WORD_LIMIT_KIND, words);
             }
-            add(&mut counts, path, "not-linted", usize::from(!linted.contains(path)));
+            add(
+                &mut counts,
+                path,
+                "not-linted",
+                usize::from(!linted.contains(path)),
+            );
             let dead = link_targets(text)
                 .iter()
-                .filter(|target| resolve(path, target).is_none_or(|file| !file.is_empty() && !known.contains(file.as_str())))
+                .filter(|target| {
+                    resolve(path, target)
+                        .is_none_or(|file| !file.is_empty() && !known.contains(file.as_str()))
+                })
                 .count();
             add(&mut counts, path, "dead-link", dead);
         } else if is_starlark(path) || path.ends_with(".rs") {
             let lines = comment_lines(path, text);
-            add(&mut counts, path, "issue-number", lines.iter().map(|line| issue_numbers(line)).sum());
-            add(&mut counts, path, "link-chain", lines.iter().map(|line| link_chains(line)).sum());
+            add(
+                &mut counts,
+                path,
+                "issue-number",
+                lines.iter().map(|line| issue_numbers(line)).sum(),
+            );
+            add(
+                &mut counts,
+                path,
+                "link-chain",
+                lines.iter().map(|line| link_chains(line)).sum(),
+            );
         }
     }
     counts
@@ -346,13 +404,17 @@ fn long_pages(found: &Counts, caps: &[(&str, usize)]) -> Vec<String> {
     for (path, words) in &hits {
         match caps.iter().find(|(capped, _)| capped == path) {
             None => problems.push(format!("{path}: {words} words; cut it under {WORD_LIMIT}")),
-            Some((_, cap)) if words > cap => problems.push(format!("{path}: {words} words, capped at {cap}; cut it")),
+            Some((_, cap)) if words > cap => {
+                problems.push(format!("{path}: {words} words, capped at {cap}; cut it"))
+            }
             Some(_) => {}
         }
     }
     for (path, _) in caps {
         if !hits.contains_key(path) {
-            problems.push(format!("{path}: under {WORD_LIMIT} words; delete its OVER_LIMIT entry"));
+            problems.push(format!(
+                "{path}: under {WORD_LIMIT} words; delete its OVER_LIMIT entry"
+            ));
         }
     }
     problems
@@ -361,10 +423,18 @@ fn long_pages(found: &Counts, caps: &[(&str, usize)]) -> Vec<String> {
 #[test]
 fn prose_rules_hold_outside_the_allowlist() {
     let files = shared::tree(&dx_testing::source_snapshot());
-    assert!(files.len() >= MIN_FILES, "only {} files in the snapshot", files.len());
+    assert!(
+        files.len() >= MIN_FILES,
+        "only {} files in the snapshot",
+        files.len()
+    );
     let mut found = scan(&files, &dx_testing::source_paths());
     let long = long_pages(&found, &OVER_LIMIT);
-    assert!(long.is_empty(), "design pages and the {WORD_LIMIT} word limit disagree:\n{}", long.join("\n"));
+    assert!(
+        long.is_empty(),
+        "design pages and the {WORD_LIMIT} word limit disagree:\n{}",
+        long.join("\n")
+    );
     found.retain(|(_, kind), _| kind != WORD_LIMIT_KIND);
     shared::settle(&found, "DX_ALLOWLIST", ALLOWLIST, &KINDS);
 }
@@ -398,13 +468,25 @@ mod tests {
 
     #[test]
     fn issue_numbers_are_detected_in_pages_comments_and_docstrings() {
-        assert_eq!(issue_numbers("fixed (#1234), see #12, #123456, a#123, &#123; and #999."), 2);
-        assert_eq!(issue_numbers("https://github.com/o/r/issues/12 and /pull/3 and /pull/x"), 2);
+        assert_eq!(
+            issue_numbers("fixed (#1234), see #12, #123456, a#123, &#123; and #999."),
+            2
+        );
+        assert_eq!(
+            issue_numbers("https://github.com/o/r/issues/12 and /pull/3 and /pull/x"),
+            2
+        );
         let found = hits(&[
             LINTED,
             ("a.md", "Fixed in #1234.\n"),
-            ("a.bzl", "\"\"\"Doc (#1234).\"\"\"\nX = \"#1234\"  # floor (#2283, #3736)\n"),
-            ("a.rs", "// see #4321\nconst X: &str = \"#1234\"; // LCOV_EXCL_LINE reason: x issue: #1234\n"),
+            (
+                "a.bzl",
+                "\"\"\"Doc (#1234).\"\"\"\nX = \"#1234\"  # floor (#2283, #3736)\n",
+            ),
+            (
+                "a.rs",
+                "// see #4321\nconst X: &str = \"#1234\"; // LCOV_EXCL_LINE reason: x issue: #1234\n",
+            ),
             ("fixtures/b.md", "Fixed in #1234.\n"),
         ]);
         assert_eq!(
@@ -421,31 +503,53 @@ mod tests {
     fn only_consumer_fix_tails_pass_in_the_patches_page() {
         let found = hits(&[
             LINTED,
-            ("patches/README.md", "| a | drop (#1234). Consumer fix: #5678 |\n| b | tracked in #9008 |\n"),
+            (
+                "patches/README.md",
+                "| a | drop (#1234). Consumer fix: #5678 |\n| b | tracked in #9008 |\n",
+            ),
             ("other.md", "Consumer fix: #5678\n"),
         ]);
         assert_eq!(
             found,
-            [hit("other.md", "issue-number", 1), hit("patches/README.md", "issue-number", 2)]
+            [
+                hit("other.md", "issue-number", 1),
+                hit("patches/README.md", "issue-number", 2)
+            ]
         );
     }
 
     #[test]
     fn link_chains_are_detected_in_comments_and_docstrings_only() {
         let found = hits(&[
-            ("a.bzl", "\"\"\"Doc. See: x. ADR 4.\"\"\"\nX = \"See: y\"  # Contract: z, policy: q\n"),
-            ("a.rs", "/// See: the page.\nconst X: &str = \"ADR\"; // BADR, ADRs\n"),
+            (
+                "a.bzl",
+                "\"\"\"Doc. See: x. ADR 4.\"\"\"\nX = \"See: y\"  # Contract: z, policy: q\n",
+            ),
+            (
+                "a.rs",
+                "/// See: the page.\nconst X: &str = \"ADR\"; // BADR, ADRs\n",
+            ),
         ]);
-        assert_eq!(found, [hit("a.bzl", "link-chain", 4), hit("a.rs", "link-chain", 1)]);
+        assert_eq!(
+            found,
+            [hit("a.bzl", "link-chain", 4), hit("a.rs", "link-chain", 1)]
+        );
     }
 
     #[test]
     fn history_words_are_detected_outside_the_replaces_section() {
         let readme = "# T\nIt Used To work.\n## What rules_dx replaces\nPreviously x.\n### More\nformerly\n## Next\nNo longer.\n";
-        let found = hits(&[LINTED, ("README.md", readme), ("docs/a.md", "The rationale: we decided, historically.\n")]);
+        let found = hits(&[
+            LINTED,
+            ("README.md", readme),
+            ("docs/a.md", "The rationale: we decided, historically.\n"),
+        ]);
         assert_eq!(
             found,
-            [hit("README.md", "history-word", 2), hit("docs/a.md", "history-word", 3)]
+            [
+                hit("README.md", "history-word", 2),
+                hit("docs/a.md", "history-word", 3)
+            ]
         );
     }
 
@@ -459,13 +563,27 @@ mod tests {
             ("docs/design/b.md", under.as_str()),
             ("docs/c.md", at.as_str()),
         ]);
-        assert_eq!(found, [hit("docs/design/a.md", WORD_LIMIT_KIND, WORD_LIMIT)]);
+        assert_eq!(
+            found,
+            [hit("docs/design/a.md", WORD_LIMIT_KIND, WORD_LIMIT)]
+        );
         let mut counts = Counts::new();
-        add(&mut counts, "docs/design/a.md", WORD_LIMIT_KIND, WORD_LIMIT + 5);
+        add(
+            &mut counts,
+            "docs/design/a.md",
+            WORD_LIMIT_KIND,
+            WORD_LIMIT + 5,
+        );
         assert_eq!(long_pages(&counts, &[]).len(), 1);
         assert!(long_pages(&counts, &[("docs/design/a.md", WORD_LIMIT + 5)]).is_empty());
-        assert_eq!(long_pages(&counts, &[("docs/design/a.md", WORD_LIMIT + 4)]).len(), 1);
-        assert_eq!(long_pages(&Counts::new(), &[("docs/design/a.md", WORD_LIMIT)]).len(), 1);
+        assert_eq!(
+            long_pages(&counts, &[("docs/design/a.md", WORD_LIMIT + 4)]).len(),
+            1
+        );
+        assert_eq!(
+            long_pages(&Counts::new(), &[("docs/design/a.md", WORD_LIMIT)]).len(),
+            1
+        );
         assert!(!KINDS.contains(&WORD_LIMIT_KIND));
         let (_, problems) = shared::parse_allowlist("docs/design/a.md word-limit 1\n", &KINDS);
         assert_eq!(problems.len(), 1, "{problems:?}");
@@ -486,7 +604,10 @@ mod tests {
         ]);
         assert_eq!(
             found,
-            [hit("docs/c.md", "not-linted", 1), hit("docs/guide/deep/e.md", "not-linted", 1)]
+            [
+                hit("docs/c.md", "not-linted", 1),
+                hit("docs/guide/deep/e.md", "not-linted", 1)
+            ]
         );
     }
 

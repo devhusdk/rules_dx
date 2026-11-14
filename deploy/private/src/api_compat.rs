@@ -476,7 +476,7 @@ mod tests {
     #[test]
     fn export_git_dir_writes_only_the_directory() {
         let root = std::env::temp_dir().join(format!("export-git-dir-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+        drop(std::fs::remove_dir_all(&root));
         let repo = root.join("repo");
         std::fs::create_dir_all(repo.join("pkg/src")).expect("dirs");
         std::fs::create_dir_all(repo.join("other")).expect("dirs");
@@ -550,6 +550,6 @@ mod tests {
         )
         .expect("status");
         assert!(status.stdout.is_empty(), "{:?}", status.stdout);
-        let _ = std::fs::remove_dir_all(&root);
+        drop(std::fs::remove_dir_all(&root));
     }
 }

@@ -349,7 +349,7 @@ fn pages_failure_text(output: &dx_process::capture::Captured, token: &str) -> St
 }
 
 fn pages_fail(err: &mut dyn std::io::Write, name: &str, message: &str) -> i32 {
-    let _ = writeln!(err, "cloudflare_pages_deploy: {name}: {message}");
+    drop(writeln!(err, "cloudflare_pages_deploy: {name}: {message}"));
     1
 }
 
@@ -412,20 +412,20 @@ fn pages_check_run(
         Err(message) => return pages_fail(err, launch.deploy_name, &message),
     };
     let bytes: u64 = files.iter().map(|file| file.size).sum();
-    let _ = writeln!(
+    drop(writeln!(
         out,
         "cloudflare_pages_deploy: checked {} (branch {}, {intent}, build_mode: {build_mode}); nothing uploaded",
         launch.project, launch.branch
-    );
-    let _ = writeln!(out, "  account: {}", launch.account_id);
-    let _ = writeln!(out, "  project: {}", launch.project);
-    let _ = writeln!(out, "  branch: {}", launch.branch);
-    let _ = writeln!(out, "  intent: {intent}");
-    let _ = writeln!(out, "  files: {} ({bytes} bytes)", files.len());
-    let _ = writeln!(
+    ));
+    drop(writeln!(out, "  account: {}", launch.account_id));
+    drop(writeln!(out, "  project: {}", launch.project));
+    drop(writeln!(out, "  branch: {}", launch.branch));
+    drop(writeln!(out, "  intent: {intent}"));
+    drop(writeln!(out, "  files: {} ({bytes} bytes)", files.len()));
+    drop(writeln!(
         out,
         "  publish: CLOUDFLARE_PUBLISH_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply"
-    );
+    ));
     0
 }
 
@@ -465,7 +465,7 @@ fn pages_deploy_with(
         }
     };
     let code = pages_deploy_staged(launch, &files, wrangler, env, &work, intent, out, err);
-    let _ = std::fs::remove_dir_all(&work);
+    drop(std::fs::remove_dir_all(&work));
     code
 }
 
@@ -532,10 +532,10 @@ fn pages_deploy_staged(
     if !output.success() {
         let code = output.code.unwrap_or(1);
         let tail = pages_failure_text(&output, &env.token);
-        let _ = writeln!(
+        drop(writeln!(
             err,
             "cloudflare_pages_deploy: {name}: wrangler failed with exit {code}; nothing is confirmed published\n{tail}"
-        );
+        ));
         return code;
     }
     let text = std::fs::read_to_string(&result_file).unwrap_or_default();
@@ -544,18 +544,18 @@ fn pages_deploy_staged(
         Err(message) => return pages_fail(err, name, &pages_redact(&message, &env.token)),
     };
     let bytes: u64 = files.iter().map(|file| file.size).sum();
-    let _ = writeln!(
+    drop(writeln!(
         out,
         "cloudflare_pages_deploy: deployed {} (branch {}, {}, build_mode: {})",
         launch.project, launch.branch, deployment.environment, env.build_mode
-    );
-    let _ = writeln!(out, "  account: {}", launch.account_id);
-    let _ = writeln!(out, "  project: {}", launch.project);
-    let _ = writeln!(out, "  branch: {}", launch.branch);
-    let _ = writeln!(out, "  intent: {}", deployment.environment);
-    let _ = writeln!(out, "  files: {} ({bytes} bytes)", files.len());
-    let _ = writeln!(out, "  deployment: {}", deployment.id);
-    let _ = writeln!(out, "  url: {}", deployment.url);
+    ));
+    drop(writeln!(out, "  account: {}", launch.account_id));
+    drop(writeln!(out, "  project: {}", launch.project));
+    drop(writeln!(out, "  branch: {}", launch.branch));
+    drop(writeln!(out, "  intent: {}", deployment.environment));
+    drop(writeln!(out, "  files: {} ({bytes} bytes)", files.len()));
+    drop(writeln!(out, "  deployment: {}", deployment.id));
+    drop(writeln!(out, "  url: {}", deployment.url));
     0
 }
 

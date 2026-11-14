@@ -142,7 +142,7 @@ impl Drop for Slot {
         if let Some(token) = self.token.take() {
             dx_process::clear_share_source(token);
         }
-        let _ = std::fs::remove_file(&self.holder);
+        drop(std::fs::remove_file(&self.holder));
     }
 }
 
@@ -512,10 +512,10 @@ impl Ticket {
     /// cannot remove a path a newer waiter has reused.
     fn leave(&mut self, between: impl FnOnce()) {
         if let Some(file) = self.file.take() {
-            let _ = std::fs::remove_file(want_path(&self.path));
-            let _ = std::fs::remove_file(label_path(&self.path));
+            drop(std::fs::remove_file(want_path(&self.path)));
+            drop(std::fs::remove_file(label_path(&self.path)));
             between();
-            let _ = std::fs::remove_file(&self.path);
+            drop(std::fs::remove_file(&self.path));
             drop(file);
         }
     }
@@ -532,7 +532,7 @@ impl Ticket {
     /// slot indices those tickets could use right now.
     fn ahead(&self, dir: &Path) -> (usize, Vec<Range<usize>>) {
         if let Some(file) = &self.file {
-            let _ = file.set_modified(SystemTime::now());
+            drop(file.set_modified(SystemTime::now()));
         }
         let mut count = 0;
         let mut forbidden: Vec<Range<usize>> = Vec::new();
@@ -678,22 +678,22 @@ fn enqueue_wanting(dir: &Path, label: &str, want: &Want) -> io::Result<Ticket> {
     for (number, path) in tickets(dir) {
         match dx_atomic_fs::lease::try_lock_file(&path, false) {
             Ok(Some(_dead)) => {
-                let _ = std::fs::remove_file(&path);
-                let _ = std::fs::remove_file(want_path(&path));
+                drop(std::fs::remove_file(&path));
+                drop(std::fs::remove_file(want_path(&path)));
             }
             _ => next = next.max(number + 1),
         }
     }
     sweep_orphan_wants(dir);
     let path = queue_dir(dir).join(format!("ticket-{next:020}.lock"));
-    let _ = std::fs::write(want_path(&path), want.render());
-    let _ = std::fs::write(label_path(&path), label);
+    drop(std::fs::write(want_path(&path), want.render()));
+    drop(std::fs::write(label_path(&path), label));
     let file = OpenOptions::new()
         .read(true)
         .write(true)
         .create_new(true)
         .open(&path)?;
-    let _ = (&file).write_all(label.as_bytes());
+    drop((&file).write_all(label.as_bytes()));
     let locked = dx_atomic_fs::lock_exclusive(&file, Duration::from_secs(1));
     let ticket = Ticket {
         number: next,
@@ -716,7 +716,7 @@ fn sweep_orphan_wants(dir: &Path) {
             .is_some_and(|ext| ext == "want" || ext == "label")
             && !path.with_extension("lock").exists()
         {
-            let _ = std::fs::remove_file(&path);
+            drop(std::fs::remove_file(&path));
         }
     }
 }
@@ -740,7 +740,7 @@ fn scan(
         match lock_slot(&path, false) {
             Ok(Some(file)) => {
                 let holder = holder_path(dir, index);
-                let _ = std::fs::write(&holder, label);
+                drop(std::fs::write(&holder, label));
                 let slot = Slot {
                     _file: file,
                     _reserve: Vec::new(),
@@ -857,7 +857,7 @@ fn take_extra(
     }
     let (taken, _) = scan(dir, extras, label, allowed);
     let slot = taken.ok().flatten()?;
-    let _ = std::fs::write(extra_mark(dir), label);
+    drop(std::fs::write(extra_mark(dir), label));
     Some(slot)
 }
 
@@ -1254,7 +1254,7 @@ impl Gate {
     /// Runs the reaper unless another waiter is reaping; `None` when the gate has no reaper.
     fn reap(&self, layout: &Layout) -> Option<usize> {
         let reaper = self.reaper.as_ref()?;
-        let _ = std::fs::create_dir_all(&self.dir);
+        drop(std::fs::create_dir_all(&self.dir));
         let Ok(Some(_lock)) = dx_atomic_fs::lease::try_lock_file(&self.dir.join("reap.lock"), true)
         else {
             return Some(0);
@@ -1480,7 +1480,7 @@ impl Gate {
                 let reaped = self.reap(&layout);
                 let (err, events) = &mut *out.borrow_mut();
                 let message = wait_message(holder) + &reaped_suffix(reaped.unwrap_or(0));
-                let _ = writeln!(err, "dx: {message}");
+                drop(writeln!(err, "dx: {message}"));
                 if json {
                     let mut event = notice_event(
                         command,
@@ -1510,7 +1510,7 @@ impl Gate {
                 }
                 let (err, events) = &mut *out.borrow_mut();
                 let message = format!("skipped build slot {}: {error}", path.display());
-                let _ = writeln!(err, "dx: {message}");
+                drop(writeln!(err, "dx: {message}"));
                 if json {
                     notice(
                         &mut **events,
@@ -1546,7 +1546,7 @@ impl Gate {
                     return Err(Stop::Busy(holder.clone()));
                 }
                 let message = format!("build slots disabled: {error}");
-                let _ = writeln!(err, "dx: {message}");
+                drop(writeln!(err, "dx: {message}"));
                 if json {
                     notice(
                         &mut *events,
@@ -1569,7 +1569,7 @@ impl Gate {
         else {
             return;
         };
-        let _ = writeln!(err, "dx: {message}");
+        drop(writeln!(err, "dx: {message}"));
         if self.json {
             notice(
                 events,
@@ -1731,8 +1731,8 @@ impl Warm for Warmth {
     }
 
     fn stop(&self, mut ping: Child) {
-        let _ = ping.kill();
-        let _ = ping.wait();
+        drop(ping.kill());
+        drop(ping.wait());
     }
 }
 
@@ -1831,8 +1831,8 @@ fn notice_event(command: Command, notice: dx_output::NoticeEvent) -> serde_json:
 }
 
 fn write_notice(events: &mut dyn Write, event: &serde_json::Value) {
-    let _ = dx_output::lifecycle::write_event(&mut *events, event);
-    let _ = events.flush();
+    drop(dx_output::lifecycle::write_event(&mut *events, event));
+    drop(events.flush());
 }
 
 /// The wait-line tail naming stopped servers; empty when none stopped.

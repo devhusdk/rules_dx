@@ -583,7 +583,7 @@
   "moduleExtensions": {
     "//cc:extensions.bzl%msvc_runtime": {
       "general": {
-        "bzlTransitiveDigest": "gsyM+tRVJUKpEF3IjwIA7PpTsHvVktVSXyXcAUOaYk8=",
+        "bzlTransitiveDigest": "Ol9u6trk80G77IK9T9Cshf+Ezbs0u/SU+VLb0EoHkMc=",
         "usagesDigest": "QFZYxbBhu0BikDPhHZ7XKafQgVfGccOUpD/jgZRAB8E=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_skylib bazel_skylib+",
@@ -624,7 +624,7 @@
     },
     "//cc:extensions.bzl%windows_sdk": {
       "general": {
-        "bzlTransitiveDigest": "gsyM+tRVJUKpEF3IjwIA7PpTsHvVktVSXyXcAUOaYk8=",
+        "bzlTransitiveDigest": "Ol9u6trk80G77IK9T9Cshf+Ezbs0u/SU+VLb0EoHkMc=",
         "usagesDigest": "C0ODeHKXYBSbKZDAAe0I+0xW8cElUNQcLH+axn0KeZ8=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_skylib bazel_skylib+",

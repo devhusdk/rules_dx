@@ -40,8 +40,7 @@ cc/private/clang_syntax_tests.bzl no-size 1
 cc/private/context/BUILD.bazel no-size 2
 cc/private/ide/BUILD.bazel no-size 2
 cc/private/toolchain/BUILD.bazel no-size 34
-cc/private/toolchain/external/BUILD.bazel no-size 5
-cc/private/toolchain/external/custom_gcc_tests.bzl no-size 1
+cc/private/toolchain/external/BUILD.bazel no-size 3
 cc/private/toolchain/external/tests.bzl no-size 1
 cc/private/toolchain/gcc_unsupported_tests.bzl no-size 1
 cc/private/toolchain/identity_tests.bzl no-size 9

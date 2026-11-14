@@ -35,7 +35,7 @@ bazel run //cc/private/context:qualify -- --target //cc/tests/fixtures/compilati
   --compiler msvc --output qualify-msvc.json   # Windows host
 bazel run //cc/private/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain \
   --output qualify-custom-gcc.json -- \
-  --extra_toolchains=//cc/private/toolchain/external:custom_gcc_x86_64   # linux_x86_64 host
+  --extra_toolchains=//cc/tests/fixtures/custom_gcc:custom_gcc_x86_64   # linux_x86_64 host
 ```
 
 Extra Bazel flags (for a custom toolchain) go after `--`. The evidence JSON records the
@@ -47,7 +47,7 @@ reported `1 compile command(s) qualified` for `probe_plain` with `--compiler llv
 with `--compiler msvc`.
 
 A consumer-registered custom toolchain is supported on `linux_x86_64`. With only
-`--extra_toolchains=//cc/private/toolchain/external:custom_gcc_x86_64` and no `--compiler`
+`--extra_toolchains=//cc/tests/fixtures/custom_gcc:custom_gcc_x86_64` and no `--compiler`
 (SHA 94f1917d6a3b, Bazel 9.3.1, `x86_64-linux-gcc (GCC) 16.2.0`), the qualifier reported
 `1 compile command(s) qualified` for `probe_plain` with driver `Gnu` and argv0 the
 custom archive's `gcc`. A command whose identity has an unknown driver, or none, fails

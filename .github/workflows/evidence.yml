@@ -366,7 +366,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p "$RUNNER_TEMP/evidence"
-          bazel run --noshow_progress //cc/private/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain --output "$RUNNER_TEMP/evidence/qualify-custom-gcc.json" -- --extra_toolchains=//cc/private/toolchain/external:custom_gcc_x86_64 2>&1 | tee "$RUNNER_TEMP/evidence/qualify-custom-gcc.log"
+          bazel run --noshow_progress //cc/private/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain --output "$RUNNER_TEMP/evidence/qualify-custom-gcc.json" -- --extra_toolchains=//cc/tests/fixtures/custom_gcc:custom_gcc_x86_64 2>&1 | tee "$RUNNER_TEMP/evidence/qualify-custom-gcc.log"
       - name: Build the APKs for the inspect tests
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |

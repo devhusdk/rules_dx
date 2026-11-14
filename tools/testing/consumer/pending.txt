@@ -1,4 +1,3 @@
-dev-repo custom_gcc_x86_64 cc/private/toolchain/external/BUILD.bazel
 fixture android
 fixture appimage
 fixture apple

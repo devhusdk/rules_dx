@@ -412,7 +412,6 @@ test-location cc/private/ide/BUILD.bazel
 test-location cc/private/toolchain/BUILD.bazel
 test-location cc/private/toolchain/action_tests.bzl
 test-location cc/private/toolchain/external/BUILD.bazel
-test-location cc/private/toolchain/external/custom_gcc_tests.bzl
 test-location cc/private/toolchain/gcc_unsupported_tests.bzl
 test-location cc/private/toolchain/identity_tests.bzl
 test-location cc/private/toolchain/msvc/BUILD.bazel

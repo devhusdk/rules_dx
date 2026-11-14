@@ -1,7 +1,7 @@
 """Qualified Qt cells as target compatibility and consumer archive settings."""
 
 load("//qt/private/toolchain:pins.bzl", "CELLS", "IDENTITIES")
-load("//qt/private/toolchain:repos.bzl", "PLATFORM_SUPPORT", "qualified_cells")
+load("//qt/private/toolchain:repos.bzl", "qualified_cells")
 
 def qt_consumer_identity(cell):
     """Returns the consumer_archive arch, os and min_runtime of one qualified Qt cell."""
@@ -19,7 +19,7 @@ _INCOMPATIBLE = Label("@platforms//:incompatible")
 _UNSUPPORTED = Label("//qt/private:unsupported")
 
 QT_COMPATIBLE_WITH = select(
-    {setting: [] for setting in PLATFORM_SUPPORT.settings} |
+    {setting: [] for setting in [_cell_setting(cell) for cell in sorted(CELLS)]} |
     {"//conditions:default": [_INCOMPATIBLE, _UNSUPPORTED]},
 )
 

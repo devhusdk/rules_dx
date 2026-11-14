@@ -1,7 +1,7 @@
 """Pinned Qt SDK, runtime closure and extractor identities; versions, mirrors and license texts are in pins.json."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
-load("//core:seven_zip.bzl", "SEVEN_ZIP_EXTRACTORS")
+load(":seven_zip.bzl", "SEVEN_ZIP_EXTRACTORS")
 load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
 load(":layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
 load(":layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")

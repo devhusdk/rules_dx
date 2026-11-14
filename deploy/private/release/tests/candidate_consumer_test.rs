@@ -54,7 +54,19 @@ struct RepoState {
     index: (u64, Option<std::time::SystemTime>),
 }
 
+fn has_git(root: &Path) -> bool {
+    root.join(".git").exists()
+}
+
 fn repo_state(root: &Path, sandbox: &Path) -> RepoState {
+    if !has_git(root) {
+        return RepoState {
+            head: String::new(),
+            branch: String::new(),
+            status: String::new(),
+            index: (0, None),
+        };
+    }
     let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, sandbox, args);
     let index = git(
         root,
@@ -77,39 +89,37 @@ fn repo_state(root: &Path, sandbox: &Path) -> RepoState {
 /// Returns the scratch git dir and the commit.
 fn snapshot_commit(root: &Path, scratch: &Path) -> (PathBuf, String) {
     let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, scratch, args);
-    let common = git(
-        root,
-        &["rev-parse", "--path-format=absolute", "--git-common-dir"],
-    );
     let git_dir = scratch.join("snapshot.git");
     std::fs::create_dir_all(&git_dir).unwrap_or_else(|error| panic!("mkdir: {error}"));
     git(&git_dir, &["init", "--bare", "--quiet", "."]);
-    write(
-        &git_dir.join("objects/info/alternates"),
-        format!("{common}/objects\n").as_bytes(),
-    );
-    let exclude = Path::new(&common).join("info/exclude");
-    if let Ok(bytes) = std::fs::read(&exclude) {
-        write(&git_dir.join("info/exclude"), &bytes);
-    }
+    let parent = has_git(root).then(|| {
+        let common = git(
+            root,
+            &["rev-parse", "--path-format=absolute", "--git-common-dir"],
+        );
+        write(
+            &git_dir.join("objects/info/alternates"),
+            format!("{common}/objects\n").as_bytes(),
+        );
+        if let Ok(bytes) = std::fs::read(Path::new(&common).join("info/exclude")) {
+            write(&git_dir.join("info/exclude"), &bytes);
+        }
+        git(root, &["rev-parse", "HEAD"])
+    });
     let tree_root = root.to_string_lossy().into_owned();
     git(&git_dir, &["config", "core.bare", "false"]);
     git(&git_dir, &["config", "core.worktree", tree_root.as_str()]);
-    let parent = git(root, &["rev-parse", "HEAD"]);
-    git(&git_dir, &["read-tree", parent.as_str()]);
+    if let Some(parent) = parent.as_deref() {
+        git(&git_dir, &["read-tree", parent]);
+    }
     git(&git_dir, &["add", "-A"]);
     let tree = git(&git_dir, &["write-tree"]);
-    let sha = git(
-        &git_dir,
-        &[
-            "commit-tree",
-            tree.as_str(),
-            "-p",
-            parent.as_str(),
-            "-m",
-            "candidate",
-        ],
-    );
+    let mut args = vec!["commit-tree", tree.as_str()];
+    if let Some(parent) = parent.as_deref() {
+        args.extend(["-p", parent]);
+    }
+    args.extend(["-m", "candidate"]);
+    let sha = git(&git_dir, &args);
     (git_dir, sha)
 }
 

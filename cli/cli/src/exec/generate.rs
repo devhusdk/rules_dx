@@ -106,7 +106,6 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
     if seeded_cargo {
         fill_cargo_lock(request, env, &mut wiring);
     }
-    wire_maven_locks(request, env, &mut wiring);
     wiring
 }
 
@@ -137,69 +136,6 @@ fn wire_avro_cpp(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mu
         } else {
             wiring.info(err, format!("wrote {}", edit.path));
         }
-    }
-}
-
-/// Creates what each root Maven lock needs: its package's `BUILD.bazel`, the root
-/// `dx_external` line, and a pinned lock when it is missing or empty.
-fn wire_maven_locks(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
-    let plan = match dx_adopt::plan_maven_locks(env.workspace) {
-        Ok(plan) => plan,
-        Err(error) => {
-            wiring.failed(env.err, format!("Maven locks not wired: {error}"));
-            return;
-        }
-    };
-    for note in &plan.notes {
-        wiring.info(env.err, note.clone());
-    }
-    let apply = request.applies();
-    for edit in &plan.edits {
-        if !apply {
-            wiring.pending(
-                env.err,
-                format!(
-                    "{} would gain what its Maven lock needs; run dx generate --apply",
-                    edit.path
-                ),
-            );
-        } else if let Err(error) = dx_adopt::write_edit_or_create(env.workspace, edit) {
-            wiring.failed(env.err, format!("Maven locks not wired: {error}"));
-        } else {
-            wiring.info(env.err, format!("wrote {}", edit.path));
-        }
-    }
-    for (lock, repository) in &plan.seeds {
-        if !apply {
-            wiring.pending(
-                env.err,
-                format!("would pin {lock}; run dx generate --apply"),
-            );
-            continue;
-        }
-        let empty = dx_adopt::ModuleEdit {
-            path: lock.clone(),
-            old: String::new(),
-            new: String::new(),
-        };
-        if let Err(error) = dx_adopt::write_edit_or_create(env.workspace, &empty) {
-            wiring.failed(env.err, format!("{lock} not created: {error}"));
-            continue;
-        }
-        let argv = dx_update::backend::maven_pin_argv(&request.bazel_head(), repository);
-        let vars = dx_update::backend::maven_env(true);
-        let pairs: Vec<(&str, &str)> = vars
-            .iter()
-            .map(|(key, value)| (key.as_str(), value.as_str()))
-            .collect();
-        report_seed(
-            env.workspace,
-            env.err,
-            wiring,
-            lock,
-            "the Maven pin",
-            env.runner.run(&argv, env.workspace, &pairs),
-        );
     }
 }
 
@@ -868,46 +804,25 @@ mod tests {
     }
 
     #[test]
-    fn generate_apply_wires_and_pins_a_maven_lock() {
+    fn generate_apply_runs_the_maven_resolver_for_a_missing_lock() {
         let mut harness = Harness::new("generate-maven-lock");
-        let maven = lock_of(Ecosystem::Maven);
-        harness.write_source(
-            "MODULE.bazel",
-            &format!("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"com.google.guava:guava:33.4.0-jre\"],\n    lock_file = \"//third_party:{maven}\",\n)\nuse_repo(maven, \"maven\")\n"),
-        );
+        let hub = dx_families::hub("maven").expect("setup.hubs entry maven");
+        harness.write_source(&hub.manifest, "");
         harness.write_source("BUILD.bazel", "");
         harness.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 1, "{out}{err}");
-        let read = |rel: &str| std::fs::read_to_string(harness.workspace.join(rel)).expect(rel);
-        assert_eq!(
-            read("third_party/BUILD.bazel"),
-            format!("exports_files([\"{maven}\"])\n")
-        );
-        assert_eq!(
-            read("BUILD.bazel"),
-            format!("# gazelle:dx_external maven third_party/{maven} maven\n")
-        );
-        assert_eq!(read(&format!("third_party/{maven}")), "");
-        let maven_pin = format!(
-            "@{}//:pin",
-            dx_families::hub("maven")
-                .expect("setup.hubs entry maven")
-                .hub
-        );
+        let resolver = hub.resolver.as_deref().expect("resolver");
         let builds = harness.build_argv.borrow();
-        let pin = builds
+        let run = builds
             .iter()
-            .position(|argv| argv.contains(&maven_pin))
-            .expect("maven pin");
-        assert!(builds[pin].iter().any(|arg| arg == "run"), "{builds:?}");
-        assert!(
-            harness.seen_env.borrow()[pin]
-                .contains(&("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned()))
-        );
+            .find(|argv| argv.iter().any(|arg| arg == resolver))
+            .expect("maven resolver run");
+        assert!(run.iter().any(|arg| arg == "run"), "{builds:?}");
         assert!(
             err.contains(&format!(
-                "dx: third_party/{maven} is still empty after the Maven pin"
+                "dx: {} is still empty",
+                hub.lock.as_deref().unwrap_or("")
             )),
             "{err}"
         );

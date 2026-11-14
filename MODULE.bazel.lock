@@ -621,6 +621,54 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
+    "//cc/private/toolchains/msvc:windows_support.bzl%windows_sdk": {
+      "general": {
+        "bzlTransitiveDigest": "JPC3uz4Qhn0a6P5eiXmow/+nMSkNRoGQW0cdy6qalLM=",
+        "usagesDigest": "2+4k2zUq+VwzyM48OcO7jWhl40u9oytfHtbSojT3+mQ=",
+        "recordedInputs": [
+          "REPO_MAPPING:,dx_windows_support +http_archive+dx_windows_support",
+          "REPO_MAPPING:+http_archive+dx_windows_support,bazel_tools bazel_tools"
+        ],
+        "generatedRepoSpecs": {
+          "windows_sdk": {
+            "repoRuleId": "@@+http_archive+dx_windows_support//windows/private/extensions:windows_sdk.bzl%_windows_sdk_repository",
+            "attributes": {
+              "windows_sdk_version": "10.0.26100.7705",
+              "windows_sdk_integrity": {
+                "Microsoft.Windows.SDK.CPP": "sha256-/0VWYL7gcadEcVqWZWZvopwHaBV509gVlZqe7FpVZCQ=",
+                "Microsoft.Windows.SDK.CPP.x64": "sha256-rWzpD/lAEGmdKVSLPCseUsieuBFD4hmRVdmlw4ABtSs=",
+                "Microsoft.Windows.SDK.CPP.arm64": "sha256-A7wMA9Q5zvhQdLvNQl+dXTptO0Z5Z6zSHaO6bf7q+mc="
+              },
+              "transformations": {
+                "base/c/Include/10.0.26100.0/shared/driverspecs.h": "base/c/Include/10.0.26100.0/shared/DriverSpecs.h",
+                "base/c/Include/10.0.26100.0/shared/specstrings.h": "base/c/Include/10.0.26100.0/shared/SpecStrings.h",
+                "base/c/Include/10.0.26100.0/um/ole2.h": "base/c/Include/10.0.26100.0/um/Ole2.h",
+                "base/c/Include/10.0.26100.0/um/olectl.h": "base/c/Include/10.0.26100.0/um/OleCtl.h",
+                "**/*.h": "lowercase",
+                "**/*.lib": "lowercase",
+                "**/*.Lib": "lowercase"
+              },
+              "architectures": [
+                "x64",
+                "arm64"
+              ],
+              "host_tools": [
+                "arm64",
+                "x64"
+              ]
+            }
+          }
+        },
+        "moduleExtensionMetadata": {
+          "explicitRootModuleDirectDeps": [
+            "windows_sdk"
+          ],
+          "explicitRootModuleDirectDevDeps": [],
+          "useAllRepos": "NO",
+          "reproducible": false
+        }
+      }
+    },
     "//dart:extensions.bzl%pub": {
       "general": {
         "bzlTransitiveDigest": "MCAkGWEocDiAr8gOmWX9RAc8IHnI6+Bq/NYs/pYVWdc=",

@@ -9,7 +9,7 @@ load(":repos.bzl", "HUB_NAME", "LICENSE", "LICENSE_URL", "hub_build")
 def _extension_impl(mctx):
     if accepted(mctx, LICENSE):
         files = {
-            "BUILD.bazel": hub_build(True, Label("@msvc_runtime//:BUILD.bazel").repo_name, Label("@windows_sdk//:BUILD.bazel").repo_name),
+            "BUILD.bazel": hub_build(True, Label("@dx_msvc_runtime//:BUILD.bazel").repo_name, Label("@dx_windows_sdk//:BUILD.bazel").repo_name),
             "NOTICE": "Microsoft Visual C++ and Windows SDK files, licensed under {}\nMSVC {}\nWindows SDK {}\n".format(LICENSE_URL, MSVC_TOOLSET_VERSION, WINDOWS_SDK_INCLUDE_VERSION),
             "REPO.bazel": "",
         }

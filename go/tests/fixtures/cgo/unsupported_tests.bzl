@@ -41,12 +41,7 @@ _RULES = {
 }
 
 def cgo_unsupported_toolchain_tests(name, target_under_test):
-    """Checks that cgo fails analysis on MSVC-driver and MSVC-ABI toolchains.
-
-    Args:
-      name: Name of the test suite.
-      target_under_test: A go_library with cgo enabled.
-    """
+    """Checks that cgo fails analysis on MSVC-driver and MSVC-ABI toolchains."""
     tests = []
     for case, (_, message) in _CASES.items():
         test = name + "_" + case

@@ -545,7 +545,6 @@ _NO_REMOTE_EXEC = "no-remote-exec"
 
 _TEST_BROWSER = str(Label("@rules_rust_wasm_bindgen//settings:test_browser"))
 
-# Qualified browser-test cells and their browser; every other cell is incompatible.
 _BROWSER_CELLS = {
     Label("//rust/private:browser_linux_x86_64"): "firefox",
 }

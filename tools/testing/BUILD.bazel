@@ -228,6 +228,7 @@ testing_rust_test(
 
 rust_test(
     name = "module_extension_srcs_test",
+    size = "small",
     srcs = [
         "module_extension_srcs_test.rs",
         "module_srcs_closure.rs",
@@ -249,6 +250,7 @@ rust_test(
 
 rust_test(
     name = "module_srcs_test",
+    size = "small",
     srcs = [
         "module_srcs_closure.rs",
         "module_srcs_test.rs",

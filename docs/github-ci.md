@@ -27,6 +27,7 @@
        uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@<commit>
        with:
          platforms: '["linux_x86_64"]'
+         deploy_dry_run: true
        secrets:
          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
          REMOTE_CACHE_HEADER: ${{ secrets.REMOTE_CACHE_HEADER }}
@@ -55,7 +56,7 @@
      workflow_dispatch: {}
    jobs:
      docs:
-       uses: devhusdk/rules_dx/.github/workflows/reusable-docs.yml@fe40d4a0654f5e28fed4d0c045c594917aa9d954
+       uses: devhusdk/rules_dx/.github/workflows/reusable-docs.yml@d971da0e0d70907d291b84c44e3306efda22efe3
        with:
          docs_scope: "//..."
          site: "//docs:site"

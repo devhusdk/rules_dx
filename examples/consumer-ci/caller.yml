@@ -11,6 +11,7 @@ jobs:
     uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@<commit>
     with:
       platforms: '["linux_x86_64"]'
+      deploy_dry_run: true
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
       REMOTE_CACHE_HEADER: ${{ secrets.REMOTE_CACHE_HEADER }}

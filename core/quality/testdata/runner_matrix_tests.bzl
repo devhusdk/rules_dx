@@ -1,5 +1,6 @@
 """Layer-2 full-matrix runner tests (snapshot workflow)."""
 
+load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//core:canonical.bzl", "is_canonical", "strip_canonical")
 load("//core:rlocation.bzl", "rlocation_path", "runfiles_path")
 load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
@@ -189,6 +190,9 @@ def _runner_matrix_test_impl(ctx):
     for launcher in ["julia_format", "pydoclint", "psscriptanalyzer"]:
         if launcher in tools:
             launcher_env.append({"key": "RUNFILES_DIR", "tool": launcher, "value": "$TEST_SRCDIR"})
+    for i, name in enumerate(ctx.attr.tool_names):
+        if JavaInfo in ctx.attr.tool_binaries[i]:
+            launcher_env.append({"key": "RUNFILES_DIR", "tool": name, "value": "$TEST_SRCDIR"})
     for launcher in ["eslint", "gplint", "graphql_eslint", "prettier", "redocly", "remark", "stylelint"]:
         if launcher in tools:
             launcher_env.append({"key": "JS_BINARY__NO_CD_BINDIR", "tool": launcher, "value": "1"})

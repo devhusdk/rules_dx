@@ -81,10 +81,12 @@ pub fn available_memory() -> Option<u64> {
 
 /// Physical memory reported by `hw.memsize`.
 #[cfg(target_os = "macos")]
+#[expect(unsafe_code, reason = "sysctlbyname has no safe std API")]
 pub fn available_memory() -> Option<u64> {
     let mut value: u64 = 0;
     let mut size = std::mem::size_of::<u64>();
     let name = c"hw.memsize";
+    // SAFETY: the name is NUL-terminated and `value` is writable for `size` bytes.
     let status = unsafe {
         libc::sysctlbyname(
             name.as_ptr(),
@@ -99,6 +101,7 @@ pub fn available_memory() -> Option<u64> {
 
 /// Physical memory reported by `GlobalMemoryStatusEx`.
 #[cfg(windows)]
+#[expect(unsafe_code, reason = "GlobalMemoryStatusEx is Win32 FFI")]
 pub fn available_memory() -> Option<u64> {
     #[repr(C)]
     struct MemoryStatus {
@@ -126,6 +129,7 @@ pub fn available_memory() -> Option<u64> {
         avail_virtual: 0,
         avail_extended: 0,
     };
+    // SAFETY: `status` is writable and its length field is set.
     let ok = unsafe { GlobalMemoryStatusEx(&mut status) };
     (ok != 0).then_some(status.total_phys)
 }

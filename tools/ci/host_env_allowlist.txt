@@ -293,7 +293,6 @@ tools/ci/docs_scope_test.rs shebang 1
 tools/ci/evidence_inputs.sh shebang 1
 tools/ci/pr_check.sh shebang 1
 tools/ci/release_cell.sh shebang 1
-tools/ci/upgrade_e2e.sh shebang 1
 tools/coverage/kcov/BUILD.bazel sh-rule 2
 tools/coverage/kcov/kcov.BUILD genrule 3
 tools/coverage/kcov/kcov_launcher.sh shebang 1

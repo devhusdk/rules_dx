@@ -3,6 +3,7 @@
 //! `producers_bin --lock-merge LOCKS_DIR OUT` merges the per-platform module locks into OUT.
 //! `producers_bin --blocker-refs OWNER/REPO` prints the references of a "Blocked on:" line on stdin.
 //! `producers_bin --review-paths [PREFIX_FILE]` prints the stdin paths that start with a listed prefix.
+//! `producers_bin --upgrade-e2e [--from VERSION] [--to VERSION] [--resolve-only]` upgrades a throwaway consumer between rules_dx versions and back.
 //! `producers_bin --table EVIDENCE_DIR OUT PLATFORM...` merges the evidence under a directory into OUT and prints the table.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
@@ -12,6 +13,7 @@ mod evidence;
 mod lock_merge;
 mod review_paths;
 mod table;
+mod upgrade_e2e;
 
 use dx_binfmt::producers;
 use std::collections::BTreeMap;
@@ -28,6 +30,11 @@ fn main() -> Result<(), String> {
         args.split_first().map(|(mode, rest)| (mode.as_str(), rest))
     {
         return blocker_refs::print(rest);
+    }
+    if let Some(("--upgrade-e2e", rest)) =
+        args.split_first().map(|(mode, rest)| (mode.as_str(), rest))
+    {
+        return upgrade_e2e::e2e(rest);
     }
     if let Some(("--review-paths", rest)) =
         args.split_first().map(|(mode, rest)| (mode.as_str(), rest))

@@ -15,6 +15,7 @@ rust_binary(
         "src/main.rs",
         "src/review_paths.rs",
         "src/table.rs",
+        "src/upgrade_e2e.rs",
     ],
     aliases = aliases(
         package_name = "tools/ci/ci_producers",

@@ -1,5 +1,4 @@
 // Generated from core/quality/real_aspect_labels.bzl.
-// Run `bazel run //cli/plan:update_registry_gen` to refresh it.
 
 pub const DOCS_ASPECTS: &[&str] = &[
     "tools/docs:aspect.bzl%real_docs_aspect",

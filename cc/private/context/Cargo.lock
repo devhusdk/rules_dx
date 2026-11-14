@@ -3602,6 +3602,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "maven_lock"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "tempfile",
+ "toml",
+]
+
+[[package]]
 name = "md-5"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

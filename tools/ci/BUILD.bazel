@@ -551,6 +551,7 @@ rust_test(
         "//bicep/private/quality:corpus_starlark",
         "//bicep/private/tools/lock:corpus_starlark",
         "//terraform/private/tools/lock:corpus_starlark",
+        "//java/private/tools/lock:corpus_starlark",
         "//cc/private:corpus_starlark",
         "//cc/private/toolchain:corpus_starlark",
         "//cli/exec_os:corpus_starlark",

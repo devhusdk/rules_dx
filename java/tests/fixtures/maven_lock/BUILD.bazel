@@ -1,0 +1,13 @@
+filegroup(
+    name = "repo",
+    srcs = glob(["repo/**"]),
+    visibility = ["//java/private/tools/lock:__pkg__"],
+)
+
+exports_files(
+    [
+        "golden.json",
+        "repo/com/example/lib/2.0/lib-2.0.pom",
+    ],
+    visibility = ["//java/private/tools/lock:__pkg__"],
+)

@@ -623,6 +623,7 @@ filegroup(
         "//d/private/tools/lock:module_srcs",
         "//dart:module_srcs",
         "//dart/private:module_srcs",
+        "//java/private/tools/lock:module_srcs",
         "//dart/private/bench:module_srcs",
         "//dart/private/quality:module_srcs",
         "//dart/private/tools:module_srcs",

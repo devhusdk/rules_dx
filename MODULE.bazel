@@ -327,6 +327,12 @@ single_version_override(
 bazel_dep(name = "rules_rust_prost", version = "0.75.0")
 # floor: equals tested
 bazel_dep(name = "rules_java", version = "9.9.0")
+single_version_override(
+    module_name = "rules_java",
+    patch_strip = 1,
+    patches = ["//patches/rules_java:toolchains_gate.patch"],
+    version = "9.9.0",
+)
 # floor: equals tested
 bazel_dep(name = "grpc-java", version = "1.84.0", dev_dependency = True, repo_name = "grpc-java")
 # 0.8.0 needs build-tools 35 and --tool_java_language_version=17.

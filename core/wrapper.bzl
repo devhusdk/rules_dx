@@ -79,6 +79,8 @@ def dx_forwarded_test_kwargs(kwargs):
             out[key] = kwargs[key]
     if ("args" in out or "env" in out) and kwargs.get("data", None) != None:
         out["data"] = kwargs["data"]
+    if "env" in out and kwargs.get("toolchains", None) != None:
+        out["toolchains"] = kwargs["toolchains"]
     if kwargs.get("exec_properties", None) != None:
         props = _dx_test_exec_properties(kwargs["exec_properties"])
         if props != None:
@@ -345,7 +347,7 @@ def _dx_coverage_runtime_providers(ctx, upstream, what, runtime, extra_quality_a
 def dx_run_env_attrs():
     """Returns the env and env_inherit attributes of a test or executable forwarder."""
     return {
-        "env": attr.string_dict(doc = "Environment variables set when the target runs. Values expand $(location) over data."),
+        "env": attr.string_dict(doc = "Environment variables set when the target runs. Values expand $(location) over data and make variables over toolchains."),
         "env_inherit": attr.string_list(doc = "Environment variable names passed through from the caller."),
     }
 
@@ -360,7 +362,10 @@ def dx_merge_run_environment(upstream_env, upstream_inherited, env, inherited):
 def dx_run_environment(ctx, base_info):
     """Returns RunEnvironmentInfo with base_info (or None) plus the forwarder's env and env_inherit."""
     data = getattr(ctx.attr, "data", [])
-    env = {key: ctx.expand_location(value, data) for key, value in getattr(ctx.attr, "env", {}).items()}
+    env = {
+        key: ctx.expand_make_variables("env", ctx.expand_location(value, data), {})
+        for key, value in getattr(ctx.attr, "env", {}).items()
+    }
     out = dx_merge_run_environment(
         base_info.environment if base_info != None else {},
         base_info.inherited_environment if base_info != None else [],
@@ -519,6 +524,8 @@ def dx_binary_run_kwargs(kwargs):
             out[key] = kwargs[key]
     if ("args" in out or "env" in out) and kwargs.get("data", None) != None:
         out["data"] = kwargs["data"]
+    if "env" in out and kwargs.get("toolchains", None) != None:
+        out["toolchains"] = kwargs["toolchains"]
     return out
 
 def dx_binary_forward_kwargs(kwargs):

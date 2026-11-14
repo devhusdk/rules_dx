@@ -537,20 +537,18 @@ maven_tools.install(
         "https://repo1.maven.org/maven2",
     ],
 )
+maven_tools.from_toml(
+    name = "dx_dokka",
+    libs_versions_toml = "//third_party/jvm:dokka/libs.versions.toml",
+)
 maven_tools.install(
     name = "dx_dokka",
-    artifacts = [
-        "org.jetbrains.dokka:analysis-kotlin-symbols:2.2.0",
-        "org.jetbrains.dokka:dokka-base:2.2.0",
-        "org.jetbrains.dokka:dokka-core:2.2.0",
-    ],
-    # Only the Kotlin toolchain's stdlib may be on the adapter's classpath.
     excluded_artifacts = [
         "org.jetbrains.kotlin:kotlin-stdlib",
         "org.jetbrains.kotlin:kotlin-stdlib-common",
     ],
     fail_if_repin_required = True,
-    lock_file = "//third_party/jvm:dokka_install.json",
+    lock_file = "//third_party/jvm:dokka/maven_install.json",
     repositories = [
         "https://maven-central.storage-download.googleapis.com/maven2",
         "https://repo1.maven.org/maven2",

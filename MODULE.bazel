@@ -1666,14 +1666,14 @@ use_repo(elixir, "dx_credo", "dx_elixir", "dx_elixir_toolchains")
 hex = use_extension("//elixir:extensions.bzl", "hex")
 hex.lock(
     name = "dx_benchee",
-    lock = "//elixir/private/bench:mix.lock",
+    lock = "//elixir/private/bench:hex.lock.json",
 )
 use_repo(hex, "dx_benchee")
 
 hex_dev = use_extension("//elixir:extensions.bzl", "hex", dev_dependency = True)
 hex_dev.lock(
     name = "elixir_app_deps",
-    lock = "//elixir/tests/fixtures/elixir_app:mix.lock",
+    lock = "//elixir/tests/fixtures/elixir_app:hex.lock.json",
 )
 use_repo(hex_dev, "elixir_app_deps")
 

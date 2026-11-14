@@ -405,6 +405,8 @@ hermetic_qualification(
 hermetic_qualification(
     name = "elixir",
     files = {
+        "//elixir/tests/fixtures/elixir_app:hex.lock.json": "elixir/tests/fixtures/elixir_app/hex.lock.json",
+        "//elixir/tests/fixtures/elixir_app:mix.exs": "elixir/tests/fixtures/elixir_app/mix.exs",
         "//elixir/tests/fixtures/elixir_app:mix.lock": "elixir/tests/fixtures/elixir_app/mix.lock",
         "//elixir/tests/fixtures/elixir_app/catalog:BUILD.bazel": "elixir/tests/fixtures/elixir_app/catalog/BUILD.bazel",
         "//elixir/tests/fixtures/elixir_app/catalog:lib/catalog.ex": "elixir/tests/fixtures/elixir_app/catalog/lib/catalog.ex",

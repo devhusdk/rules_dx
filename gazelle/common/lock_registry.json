@@ -65,8 +65,8 @@
   {
     "ecosystem": "hex",
     "hub": "hex",
-    "imports": "name",
-    "lock": "mix.lock",
+    "imports": "provides",
+    "lock": "hex.lock.json",
     "manifest": "mix.exs"
   },
   {

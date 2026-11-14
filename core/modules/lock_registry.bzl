@@ -66,10 +66,10 @@ LOCK_REGISTRY = {
     },
     "hex": {
         "hub": "hex",
-        "imports": "name",
-        "lock": "mix.lock",
+        "imports": "provides",
+        "lock": "hex.lock.json",
         "manifest": "mix.exs",
-        "state": None,
+        "state": "mix.lock",
     },
     "julia": {
         "hub": "julia",

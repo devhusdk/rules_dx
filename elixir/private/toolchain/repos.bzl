@@ -164,35 +164,3 @@ def hub_build(cells):
         toolchain = "@{}//:elixir".format(DIST_NAME),
         toolchain_type = str(Label("@rules_elixir//:toolchain_type")),
     ) for cell in cells])
-
-_APP_BUILD = """load("{defs}", "ELIXIR_COMPATIBLE_WITH", "elixir_app")
-
-elixir_app(
-    name = "erlang_app",
-    app_name = "{package}",
-    app_version = "{version}",
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
-    visibility = ["//visibility:public"],
-    deps = {deps},
-)
-"""
-
-_ALIAS = """alias(
-    name = "{package}",
-    actual = "@{repo}//:erlang_app",
-    visibility = ["//visibility:public"],
-)
-"""
-
-def mix_build(package, prefix):
-    """Returns the BUILD file of one package from a Mix lock."""
-    return _APP_BUILD.format(
-        defs = str(Label("//elixir/private:defs.bzl")),
-        deps = repr(["@{}_{}//:erlang_app".format(prefix, dep) for dep in package["deps"]]),
-        package = package["package"],
-        version = package["version"],
-    )
-
-def mix_hub_build(packages, prefix):
-    """Returns the hub BUILD file with one alias per package."""
-    return "\n".join([_ALIAS.format(package = p["package"], repo = prefix + "_" + p["package"]) for p in packages])

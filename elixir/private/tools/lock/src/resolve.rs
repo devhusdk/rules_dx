@@ -440,7 +440,7 @@ impl Hex {
             ecosystem: hub.ecosystem.clone(),
             manifest: vec![hub.manifest.clone(), "rebar.config".to_owned()],
             state: hub
-                .lock
+                .state
                 .iter()
                 .cloned()
                 .chain([REBAR_LOCK.to_owned()])

@@ -660,6 +660,7 @@ filegroup(
         "//flatbuffers/tests:module_srcs",
         "//flatbuffers:module_srcs",
         "//flutter:module_srcs",
+        "//elixir/private/lock:module_srcs",
         "//fortran/private/lock:module_srcs",
         "//fortran/private/quality:module_srcs",
         "//fortran/private/toolchain:module_srcs",

@@ -3,7 +3,7 @@ load("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_app")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["mix.lock"])
+exports_files(["hex.lock.json", "mix.exs", "mix.lock"])
 
 elixir_app(
     name = "dx_bench",
@@ -13,7 +13,7 @@ elixir_app(
     app_name = "dx_bench",
     app_version = "0.0.0",
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
-    deps = ["@dx_benchee//:benchee"],
+    deps = ["@dx_benchee//benchee"],
 )
 
 real_source_target(

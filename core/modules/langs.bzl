@@ -1011,7 +1011,7 @@ LANGS = json.decode("""{
     ],
     "family": "core",
     "lockfiles": [
-      "mix.lock"
+      "hex.lock.json"
     ],
     "manifests": [
       "mix.exs"
@@ -1049,11 +1049,11 @@ LANGS = json.decode("""{
           "ecosystem": "hex",
           "extension": "@rules_dx//elixir:extensions.bzl",
           "hub": "hex",
-          "imports": "name",
-          "lock": "mix.lock",
+          "imports": "provides",
+          "lock": "hex.lock.json",
           "manifest": "mix.exs",
-          "resolver": null,
-          "state": null,
+          "resolver": "@rules_dx//elixir/private/tools/lock",
+          "state": "mix.lock",
           "tag": "lock"
         }
       ]

@@ -14,7 +14,6 @@ exports_files([
     "nif_exports.lds",
     "plt_build.escript",
     "providers.bzl",
-    "rebar_lock.bzl",
     "rules_erlang.BUILD.bazel",
     "rules_erlang_private.BUILD.bazel",
 ])
@@ -28,8 +27,7 @@ real_source_target(
         "dialyzer.bzl",
         "kwargs.bzl",
         "providers.bzl",
-        "rebar_lock.bzl",
-        "rules_erlang.BUILD.bazel",
+            "rules_erlang.BUILD.bazel",
         "rules_erlang_private.BUILD.bazel",
     ],
     tags = ["corpus"],

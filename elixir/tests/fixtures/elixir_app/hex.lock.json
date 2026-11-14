@@ -1,0 +1,26 @@
+{
+  "ecosystem": "hex",
+  "inputs": {
+    "mix.exs": "43229a2856a9a8487ebeb134ef789071c999356810d0d96623521d1021fc6e1e",
+    "mix.lock": "39c87fe43e2284395e691f6e6aed6e132db6de8d815c9e89e579de19b5c5ccb0"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "c5eb0cab91f094599f94d55bc63409236a8ec69a21a67814529e8d5f6cc90b3b",
+          "urls": [
+            "https://repo.hex.pm/tarballs/jason-1.4.4.tar"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "jason",
+      "provides": [
+        "jason"
+      ],
+      "version": "1.4.4"
+    }
+  ],
+  "schema": 1
+}

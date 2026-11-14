@@ -3,30 +3,12 @@
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//erlang/private/toolchain:cells.bzl", "cell_cases", "cell_setting", "unknown_cells")
 load("//erlang/private/toolchain:pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "TOOL_SOURCES", "WINDOWS_DROPPED_PATHS")
-load("//erlang/private/toolchain:repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "is_windows_cell", "nif_compatible_cases", "nif_header_cases", "nif_include_dir", "rebar_build", "rebar_hub_build", "rebar_requirements")
+load("//erlang/private/toolchain:repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "is_windows_cell", "nif_compatible_cases", "nif_header_cases", "nif_include_dir")
 
 _SOURCE = "#" + """!/bin/sh
 ROOTDIR=%FINAL_ROOTDIR%
 export PROGNAME
 exec "$BINDIR/erlexec" ${1+"$@"}
-"""
-
-_REBAR = [
-    {"level": 0, "package": "cowboy", "sha256": "a", "version": "2.10.0"},
-    {"level": 1, "package": "cowlib", "sha256": "b", "version": "2.12.1"},
-]
-
-_METADATA = """{<<"name">>,<<"cowboy">>}.
-{<<"requirements">>,
- [[{<<"app">>,<<"cowlib">>},
-   {<<"optional">>,false},
-   {<<"requirement">>,<<"~> 2.12">>},
-   {<<"name">>,<<"cowlib">>}],
-  [{<<"app">>,<<"ranch">>},
-   {<<"optional">>,true},
-   {<<"requirement">>,<<"~> 1.8">>},
-   {<<"name">>,<<"ranch">>}]]}.
-{<<"version">>,<<"2.10.0">>}.
 """
 
 def _checks():
@@ -74,11 +56,6 @@ def _checks():
         expect_contains("erts mismatch handles none", erts_mismatch_message("1.2", []), "found: none"),
         expect_false("the hub names no rules_erlang target", "@rules_erlang" in hub_build()),
         expect_contains("the hub names the rules_erlang type", hub_build(), "//tools:toolchain_type"),
-        expect_equal("requirements are read from metadata", rebar_requirements(_METADATA), [{"name": "cowlib", "optional": False}, {"name": "ranch", "optional": True}]),
-        expect_equal("rebar packages link required locked packages", rebar_build("cowboy", "2.10.0", rebar_requirements(_METADATA), ["cowboy", "cowlib"], "hub").count("@hub_cowlib//:erlang_app"), 1),
-        expect_false("optional requirements missing from the lock are skipped", "ranch" in rebar_build("cowboy", "2.10.0", rebar_requirements(_METADATA), ["cowboy", "cowlib"], "hub")),
-        expect_false("unrequired locked packages are not linked", "@hub_" in rebar_build("cowlib", "2.12.1", [], ["cowboy", "cowlib"], "hub")),
-        expect_contains("rebar hub aliases every package", rebar_hub_build(_REBAR, "hub"), 'actual = "@hub_cowlib//:erlang_app"'),
         expect_true("wx is dropped", dropped_application("wx-2.5")),
         expect_false("crypto is kept", dropped_application("crypto-5.6")),
         expect_false("prefix is not enough", dropped_application("wxwidgets-1.0")),

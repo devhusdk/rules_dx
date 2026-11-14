@@ -80,7 +80,7 @@ pub fn rules_rust_override() -> String {
 }
 
 /// The patches of `//patches/llvm` that `llvm_override` names, without `.patch`.
-pub const LLVM_PATCHES: [&str; 10] = [
+pub const LLVM_PATCHES: [&str; 9] = [
     "libunwind_copy",
     "clang_cl_crt_default_lib",
     "clang_cl_profile_no_mingw",
@@ -90,10 +90,9 @@ pub const LLVM_PATCHES: [&str; 10] = [
     "stage0_runtime_features",
     "aarch64_outline_atomics",
     "macos_sdk_resolve_symlinks",
-    "toolchains_gate",
 ];
 
-/// Pins llvm 0.8.26 with the patches of the root MODULE.bazel.
+/// Pins llvm 0.8.26 with the patches of the root MODULE.bazel apart from `toolchains_gate`, whose `@@//config` labels name the root repository.
 pub fn llvm_override() -> String {
     let patches = LLVM_PATCHES
         .map(|name| format!("        \"//patches/llvm:{name}.patch\",\n"))

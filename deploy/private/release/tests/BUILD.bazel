@@ -45,7 +45,6 @@ rust_test(
         "//patches/llvm:macos_sdk_resolve_symlinks.patch",
         "//patches/llvm:msvc_source_directories.patch",
         "//patches/llvm:stage0_runtime_features.patch",
-        "//patches/llvm:toolchains_gate.patch",
         "//patches/llvm:unwatched_overlay_inputs.patch",
         "//patches/ring:clang_cl_aarch64_windows.patch",
         "//patches/ring:msvc_fiat_include_path.patch",

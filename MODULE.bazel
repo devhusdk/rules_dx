@@ -957,6 +957,7 @@ dx_pins.archive(
         "//patches/rules_haskell:cc_toolchain_config_info.patch",
         "//patches/rules_haskell:cabal_llvm_ar.patch",
         "//patches/rules_haskell:cc_wrapper_darwin_ffi.patch",
+        "//patches/rules_haskell:cabal_static_exe.patch",
     ],
     pins = "//haskell:pins.json",
 )

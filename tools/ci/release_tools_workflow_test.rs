@@ -13,7 +13,9 @@ const HOSTS: [(&str, &str); 4] = [
     ("windows-x86_64", "windows-latest"),
 ];
 
-const ASSETS: [&str; 3] = [
+const ASSETS: [&str; 5] = [
+    "dx-tool-nixfmt-1.5.0-LICENSE",
+    "dx-tool-nixfmt-1.5.0-linux-arm64",
     "dx-tool-deadnix-1.3.1-LICENSE",
     "dx-tool-selene-0.32.0-LICENSE",
     "dx-tool-deadnix-1.3.1-source.crate",
@@ -68,7 +70,7 @@ fn release_calls_the_tools_workflow_before_the_source_job() {
 fn release_writes_and_checks_the_tool_manifest() {
     let text = read_runfiles(RELEASE);
     assert!(text.contains("pattern: release-tool-*"));
-    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 11"));
+    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 13"));
     assert!(text.contains("sha256sum -c dx-tool-sha256sums.txt"));
     assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-tool-sha256sums.txt)"));
     for asset in ASSETS {

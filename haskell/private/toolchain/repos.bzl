@@ -268,6 +268,7 @@ cc_toolchain_config(name = "ghc_windows_mingw64_config", is_clang = True)
 _GMP_IMPORT = """cc_import(
     name = "gmp",
     shared_library = "{closure}/lib/libgmp.so.10",
+    static_library = "{closure}/lib/libgmp.a",
 )
 """
 
@@ -399,7 +400,7 @@ def _ghc_repo_impl(rctx):
         deb_closure(rctx, RUNTIME_MIRROR, cell.runtime, CLOSURE_DIR)
         rctx.symlink(CLOSURE_DIR + "/lib/libgmp.so.10", CLOSURE_DIR + "/lib/libgmp.so")
         for package in cell.runtime:
-            for soname in package.libraries:
+            for soname in [name for name in package.libraries if ".so" in name]:
                 rctx.symlink(CLOSURE_DIR + "/lib/" + soname, ghc_library_dir(rctx.attr.cell) + "/" + soname)
     rctx.file(LIBDIR + "/settings", ghc_settings(rctx.read(LIBDIR + "/settings")), executable = False)
     if cell.runtime:

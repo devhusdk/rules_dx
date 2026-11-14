@@ -150,12 +150,12 @@ fn mod_ignores_comments_that_belong_to_other_directives() {
 fn sum_keeps_the_highest_hashed_version() {
     let text =
         "# header\n\nx v0.9.0/go.mod h1:a\nsolo-token\nx v1.0.0 h1:b\nx v1.0.0/go.mod h1:c\n";
-    let packages = parse_sum(text);
+    let packages = parse_sum(text).unwrap();
     assert_eq!(packages.len(), 1);
     assert_eq!(packages["x"], "v1.0.0");
-    assert!(parse_sum("").is_empty());
+    assert!(parse_sum("").unwrap().is_empty());
     let pick =
-        |a: &str, b: &str| parse_sum(&format!("m {a} h1:x\nm {b} h1:y\nm {a} h1:x\n"))["m"].clone();
+        |a: &str, b: &str| parse_sum(&format!("m {a} h1:x\nm {b} h1:y\nm {a} h1:x\n")).unwrap()["m"].clone();
     assert_eq!(pick("v1.9.0", "v1.10.0"), "v1.10.0");
     assert_eq!(pick("v1.10.0", "v1.9.0"), "v1.10.0");
     assert_eq!(pick("v1.0.0-rc.1", "v1.0.0"), "v1.0.0");
@@ -178,7 +178,7 @@ fn sum_keeps_the_highest_hashed_version() {
 #[test]
 fn sum_falls_back_to_go_mod_only_versions() {
     let text = "a v1.0.0/go.mod h1:a\na v1.2.0/go.mod h1:b\nb v1.0.0 h1:c\nb v3.0.0/go.mod h1:d\n";
-    let packages = parse_sum(text);
+    let packages = parse_sum(text).unwrap();
     assert_eq!(packages["a"], "v1.2.0");
     assert_eq!(packages["b"], "v1.0.0");
 }

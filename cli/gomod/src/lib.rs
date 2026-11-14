@@ -1,5 +1,5 @@
 //! One reader for the Go manifest and sum file, shared by every Go dependency tool.
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, VecDeque};
@@ -45,11 +45,10 @@ pub struct GoReplacement {
 }
 
 /// The manifest file name of the `go` registry entry.
-fn manifest() -> &'static str {
-    match dx_families::hub("go") {
-        Some(hub) => &hub.manifest,
-        None => panic!("setup.hubs has no go entry"),
-    }
+fn manifest() -> Result<&'static str, String> {
+    dx_families::hub("go")
+        .map(|hub| hub.manifest.as_str())
+        .ok_or_else(|| "setup.hubs has no go entry".to_owned())
 }
 
 /// The manifest directives a dependency reader needs.
@@ -78,8 +77,9 @@ impl GoModFile {
 
 /// Reads a Go manifest, failing on syntax the Go toolchain rejects.
 pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
+    let manifest = manifest()?;
     let parsed =
-        GoMod::from_str(text).map_err(|detail| format!("invalid {}: {detail}", manifest()))?;
+        GoMod::from_str(text).map_err(|detail| format!("invalid {manifest}: {detail}"))?;
     let mut markers = requirement_markers(text);
     let require = parsed
         .require
@@ -104,13 +104,11 @@ pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
         {
             return Err(match &entry.version {
                 Some(version) => format!(
-                    "invalid {}: multiple replacements for {} {version}",
-                    manifest(),
+                    "invalid {manifest}: multiple replacements for {} {version}",
                     entry.module
                 ),
                 None => format!(
-                    "invalid {}: multiple replacements for {}",
-                    manifest(),
+                    "invalid {manifest}: multiple replacements for {}",
                     entry.module
                 ),
             });
@@ -126,7 +124,8 @@ pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
 
 /// Reads a Go sum file into module paths and their highest hashed version.
 // The sum file is a line grammar (`module version[/manifest] hash`), so it is split by line, not parsed.
-pub fn parse_sum(text: &str) -> BTreeMap<String, String> {
+pub fn parse_sum(text: &str) -> Result<BTreeMap<String, String>, String> {
+    let manifest = manifest()?;
     let mut hashed: BTreeMap<String, String> = BTreeMap::new();
     let mut manifest_only: BTreeMap<String, String> = BTreeMap::new();
     for line in text.lines() {
@@ -138,7 +137,7 @@ pub fn parse_sum(text: &str) -> BTreeMap<String, String> {
         let (Some(module), Some(version)) = (tokens.next(), tokens.next()) else {
             continue;
         };
-        let (version, map) = match version.strip_suffix(&format!("/{}", manifest())) {
+        let (version, map) = match version.strip_suffix(&format!("/{manifest}")) {
             Some(version) => (version, &mut manifest_only),
             None => (version, &mut hashed),
         };
@@ -156,7 +155,7 @@ pub fn parse_sum(text: &str) -> BTreeMap<String, String> {
     for (module, version) in manifest_only {
         hashed.entry(module).or_insert(version);
     }
-    hashed
+    Ok(hashed)
 }
 
 /// Parsed `vMAJOR.MINOR.PATCH[-pre][+build]`.

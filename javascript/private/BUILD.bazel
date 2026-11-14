@@ -65,6 +65,11 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
-    ]),
+    ]) + [
+        "bench_driver.mjs",
+        "framework_jest_config.cjs",
+        "fuzz_driver.cjs",
+        "vite_tool.mjs",
+    ],
     visibility = ["//:__subpackages__"],
 )

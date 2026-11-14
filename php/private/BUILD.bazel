@@ -24,6 +24,9 @@ filegroup(
         "BUILD.bazel",
         "patches/*.patch",
         "pcov.BUILD.bazel",
-    ]),
+    ]) + [
+        "BenchTest.php",
+        "tool.php",
+    ],
     visibility = ["//:__subpackages__"],
 )

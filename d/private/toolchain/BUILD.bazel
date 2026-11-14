@@ -43,6 +43,8 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
-    ]),
+    ]) + [
+        "msvc_iso_stdio.c",
+    ],
     visibility = ["//:__subpackages__"],
 )

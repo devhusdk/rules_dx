@@ -697,11 +697,10 @@ fn consumer_nuget_set_edits_paket_dependencies_only_and_names_the_follow_up() {
     let harness = Harness::new("update-consumer-nuget");
     harness.write_source(
         "MODULE.bazel",
-        "paket = use_extension(\"//dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n",
+        "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\", lock = \"//dotnet:nuget.lock.json\")\n",
     );
     let files = [
         ("dotnet/paket.lock", "NUGET\n"),
-        ("dotnet/deps/paket.main.bzl", "main\n"),
     ];
     harness.write_source("dotnet/paket.dependencies", PAKET_DEPS);
     for (rel, text) in files {

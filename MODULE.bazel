@@ -464,7 +464,6 @@ use_repo(
     "dotnet.apphost_packs",
     "dotnet.runtime_packs",
     "dotnet.targeting_packs",
-    "paket.paket2bazel_dependencies",
     "paket.rules_dotnet_nuget_packages",
 )
 

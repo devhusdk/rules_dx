@@ -17,24 +17,6 @@ fn no_head() -> dx_process::BazelHead {
 }
 
 #[test]
-fn rewrite_generated_points_nuget_repo_at_rules_dx() {
-    let mut run = StagedRun {
-        tool: StagedTool::Paket2Bazel,
-        argv_head: Vec::new(),
-        env: Vec::new(),
-        inputs: Vec::new(),
-        outputs: Vec::new(),
-    };
-    let input = b"a\nload(\"@rules_dotnet//dotnet:defs.bzl\", \"nuget_repo\")\nb\n".to_vec();
-    let want =
-        b"a\nload(\"@rules_dx//dotnet:extensions.bzl\", nuget_repo = \"dotnet_nuget_repo\")\nb\n"
-            .to_vec();
-    assert_eq!(run.rewrite_generated(input.clone()), want);
-    run.tool = StagedTool::GoModDownload;
-    assert_eq!(run.rewrite_generated(input.clone()), input);
-}
-
-#[test]
 fn backend_error_message_starts_with_code() {
     let set = "go".to_owned();
     for error in [
@@ -2033,111 +2015,48 @@ fn configured_cargo_refuses_offline_frozen_and_package_updates() {
 
 fn nuget_set() -> ResolvedSet {
     ResolvedSet {
-        name: "dotnet".to_owned(),
+        name: "nuget".to_owned(),
         ecosystem: Ecosystem::Nuget,
         dir: "third_party/dotnet".to_owned(),
         manifests: vec!["third_party/dotnet/paket.dependencies".to_owned()],
         locks: vec![
+            "third_party/dotnet/nuget.lock.json".to_owned(),
             "third_party/dotnet/paket.lock".to_owned(),
-            "third_party/dotnet/deps/paket.main.bzl".to_owned(),
         ],
         repository: None,
     }
 }
 
 #[test]
-fn configured_nuget_stages_paket2bazel_without_rules_dx_settings() {
-    let head = dx_process::BazelHead {
-        startup: vec!["--output_base=/ob".to_owned()],
-        options: vec!["--config=dx_build_dev".to_owned()],
-        settings: vec!["--@rules_dx//config:x=true".to_owned()],
-    };
+fn nuget_runs_the_lock_step_for_the_whole_set() {
     let set = nuget_set();
-    let expected = StagedRun {
-        tool: StagedTool::Paket2Bazel,
-        argv_head: [
-            dx_process::BazelHead {
-                settings: Vec::new(),
-                ..head.clone()
-            }
-            .argv("run"),
-            strings(&["@rules_dx//dotnet:paket2bazel", "--"]),
-        ]
-        .concat(),
-        env: Vec::new(),
-        inputs: vec![
-            "third_party/dotnet/paket.dependencies".to_owned(),
-            "third_party/dotnet/paket.lock".to_owned(),
-        ],
-        outputs: vec!["third_party/dotnet/deps/paket.main.bzl".to_owned()],
+    let closure = UvClosure::default();
+    let run = |request: &Selection, offline: bool, frozen: bool| {
+        plan_configured(ws(), &set, request, offline, frozen, &no_head(), &closure)
     };
-    let closure = UvClosure::default();
-    // Frozen is allowed: paket.lock never changes, so the run is a pinned fetch.
-    for frozen in [false, true] {
-        assert_eq!(
-            plan_configured(ws(), &set, &Selection::Full, false, frozen, &head, &closure),
-            Ok(BackendPlan::Staged(expected.clone()))
-        );
-        assert_eq!(
-            check_configured(ws(), &set, &Selection::Full, false, frozen, &head, &closure),
-            Ok(CheckPlan::Staged(expected.clone()))
-        );
-    }
-    assert!(expected.argv_head.contains(&"--output_base=/ob".to_owned()));
-    assert!(
-        !expected
-            .argv_head
-            .iter()
-            .any(|arg| arg.starts_with("--") && arg.contains("rules_dx"))
-    );
-    let argv = expected.argv(Path::new("/scratch/1")).expect("argv");
+    let BackendPlan::Run { argv, .. } = run(&Selection::Full, false, false).expect("plan") else {
+        panic!("expected a run");
+    };
     assert_eq!(
-        argv[expected.argv_head.len()..],
-        strings(&[
-            "--dependencies-file",
-            "/scratch/1/paket.dependencies",
-            "--output-folder",
-            "/scratch/1/out"
-        ])
+        argv[argv.len() - 5..].join(" "),
+        format!(
+            "run @rules_dx//csharp/private/tools/lock -- --dir {}",
+            dir_arg("third_party/dotnet")
+        )
     );
-}
-
-#[test]
-fn configured_nuget_requires_network_and_refuses_packages() {
-    let set = nuget_set();
-    let head = no_head();
-    let closure = UvClosure::default();
-    for frozen in [false, true] {
-        let offline = Err(BackendError::OfflineRequired {
-            set: "dotnet".to_owned(),
-        });
-        assert_eq!(
-            plan_configured(ws(), &set, &Selection::Full, true, frozen, &head, &closure),
-            offline
-        );
-        assert_eq!(
-            check_configured(ws(), &set, &Selection::Full, true, frozen, &head, &closure),
-            Err(BackendError::OfflineRequired {
-                set: "dotnet".to_owned()
-            })
-        );
-    }
-    let packages = Selection::Packages(vec!["Newtonsoft.Json".to_owned()]);
-    let unsupported = Err(BackendError::Unsupported {
-        set: "dotnet".to_owned(),
-        reason: nuget_pins_exact().expect("hub"),
-    });
-    assert_eq!(
-        plan_configured(ws(), &set, &packages, false, false, &head, &closure),
-        unsupported
-    );
-    assert_eq!(
-        check_configured(ws(), &set, &packages, false, false, &head, &closure),
-        Err(BackendError::Unsupported {
-            set: "dotnet".to_owned(),
-            reason: nuget_pins_exact().expect("hub"),
-        })
-    );
+    let named = Selection::Packages(vec!["Newtonsoft.Json".to_owned()]);
+    assert!(matches!(
+        run(&named, false, false),
+        Err(BackendError::Unsupported { .. })
+    ));
+    assert!(matches!(
+        run(&Selection::Full, true, false),
+        Err(BackendError::OfflineRequired { .. })
+    ));
+    assert!(matches!(
+        run(&Selection::Full, false, true),
+        Err(BackendError::FrozenLocked { .. })
+    ));
 }
 
 fn go_set() -> ResolvedSet {

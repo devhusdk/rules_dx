@@ -637,7 +637,7 @@ fn configured_nuget_sets_plan_the_nuget_family_once() {
     let families = planned_families(&[
         (
             "MODULE.bazel",
-            "main_extension = use_extension(\"//dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n",
+            "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\", lock = \"//dotnet:nuget.lock.json\")\n",
         ),
         ("dotnet/paket.dependencies", "source https://x\n"),
         ("dotnet/paket.lock", "NUGET\n"),

@@ -156,7 +156,8 @@ npm.npm_translate_lock(name = "npm-tools", pnpm_lock = "//javascript/private/qua
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//third_party/go:{go_mod}")
 
-paket = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")
+nuget = use_extension("//csharp:extensions.bzl", "nuget")
+nuget.lock(name = "nuget", lock = "//third_party/dotnet:nuget.lock.json")
 "#,
         cargo_lock = lock_of(Ecosystem::Cargo),
         cargo_manifest = manifest_of(Ecosystem::Cargo),
@@ -263,7 +264,7 @@ pub(super) fn write_maven_lock(harness: &Harness) {
 }
 
 pub(super) fn write_nuget_lock(harness: &Harness) {
-    harness.write_source("third_party/dotnet/deps/paket.main.bzl", "");
+    harness.write_source("third_party/dotnet/nuget.lock.json", "{}\n");
     harness.write_source(
         &format!(
             "third_party/dotnet/{}",
@@ -1230,7 +1231,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
         &["license", "//third_party/dotnet:dotnet"],
         &runner,
         &|harness| {
-            harness.write_source("third_party/dotnet/deps/paket.main.bzl", "");
+                    harness.write_source("third_party/dotnet/nuget.lock.json", "{}\n");
             harness.write_source(
                 &format!("third_party/dotnet/{}", dx_adopt::lock_hubs::state_of("nuget").expect("hub")),
                 "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    FSharp.Core (10.1.201)\n",

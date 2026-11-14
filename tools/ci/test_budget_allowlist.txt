@@ -308,7 +308,6 @@ examples/adopt-polyglot/widgets/BUILD.bazel no-size 1
 examples/shared-rust/BUILD.bazel no-size 13
 flatbuffers/tests/BUILD.bazel no-size 22
 flutter/tests/contract/BUILD.bazel no-size 1
-flutter/tests/fixtures/flutter-app/android/BUILD.bazel size-medium 1
 flutter/tests/fixtures/flutter-app/app/BUILD.bazel no-size 2
 flutter/tests/fixtures/flutter-app/web/BUILD.bazel no-size 1
 flutter/tests/negative/BUILD.bazel no-size 2
@@ -567,7 +566,7 @@ rust/tests/fixtures/consumer_wasm/acquisition.bzl no-size 1
 rust/tests/fixtures/consumer_web/BUILD.bazel no-size 2
 rust/tests/fixtures/cxx_identity/BUILD.bazel no-size 2
 rust/tests/fixtures/fuzz/BUILD.bazel no-size 2
-rust/tests/fixtures/hello/BUILD.bazel no-size 25
+rust/tests/fixtures/hello/BUILD.bazel no-size 24
 rust/tests/fixtures/native_call/BUILD.bazel no-size 25
 rust/tests/fixtures/shared-rust-checks/BUILD.bazel no-size 6
 rust/tests/fixtures/wasm_bindgen/BUILD.bazel no-size 12
@@ -598,7 +597,7 @@ terraform/tests/provider_tests.bzl no-size 1
 thrift/tests/BUILD.bazel no-size 7
 tools/bazelisk/BUILD.bazel no-size 1
 tools/bazelrc/BUILD.bazel no-size 1
-tools/ci/BUILD.bazel no-size 31
+tools/ci/BUILD.bazel no-size 30
 tools/ci/fill_pins/BUILD.bazel no-size 1
 tools/ci/repos_tests.bzl no-size 1
 tools/coverage/collect/BUILD.bazel no-size 2

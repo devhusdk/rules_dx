@@ -6,14 +6,12 @@ Every test target and test macro follows these rules.
 
 - Every test runs in the default set: `bazel test` on its package pattern selects it. A conformance subject is the one exception.
 - No test carries the `manual` tag.
-- A test that cannot run there is fixed or deleted.
 - A test for only some platforms says so with `target_compatible_with`, not a tag.
 
 ## Sandbox, remote execution and cache
 
 - Every test runs sandboxed, can run on a remote executor, and has its result cached.
 - No test carries `local`, `no-sandbox`, `no-cache`, `no-remote`, `external` or `requires-network`.
-- No test sets `local = True`.
 - A test reads only its declared inputs: never the checkout, the home directory or the network.
 - A test writes only under `TEST_TMPDIR` and its declared outputs.
 
@@ -26,7 +24,6 @@ Every test target and test macro follows these rules.
 ## Exclusive
 
 - `exclusive` is not allowed.
-- Tests that share a resource each get their own copy of it.
 - A resource that Bazel can count is declared with a `resources:<name>:<n>` tag.
 - `msix_package_store` is set in `.bazelrc`.
 
@@ -63,7 +60,6 @@ A test is the first of four kinds that can prove the behaviour.
 
 - The target is under 1 second per test.
 - A unit, analysis or in-graph fixture test starts no Bazel server.
-- A change that adds a nested test states its measured time.
 - `//tools/ci:test_budget_test` holds the budget: `docs/design/test-budget.md`.
 
 ## Expected failures
@@ -72,7 +68,7 @@ A test is the first of four kinds that can prove the behaviour.
 - A passing test runs that executable from runfiles and asserts its exit code and output.
 - An analysis failure is asserted with `failure_test` on the non-test target.
 - A language test that must fail is a conformance subject.
-- A compile that must fail is recorded by `compile_log` in `//tools/testing/hermetic:compilers.bzl`. An action replays the compile action of the fixture library and writes its exit code and output to a file. A passing test asserts both.
+- A compile that must fail is recorded by `compile_log` in `//tools/testing/hermetic:compilers.bzl`.
 
 ## Conformance
 
@@ -116,9 +112,7 @@ A test is the first of four kinds that can prove the behaviour.
 - A bench target is a test tagged `dx-bench`. It runs a bounded run that fits its size.
 - `dx bench` runs the same test and reads its `dx-bench.json`.
 - A fuzz target is a `testonly` binary tagged `dx-fuzz`. `dx fuzz` runs its `<name>_run` runner for a time budget.
-- A fuzz target that is a test runs a bounded number of cases.
 - No bench or fuzz macro adds `manual` to a target it declares.
-- A bench or fuzz target for only some platforms says so with `target_compatible_with`.
 
 - A workflow `run:` script holds no logic a test must run; gate logic is a GitHub expression or a Rust binary.
 

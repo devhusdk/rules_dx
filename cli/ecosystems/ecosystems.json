@@ -209,7 +209,6 @@
       "audit": true,
       "advisory_family": "hex",
       "uses_repository": false,
-      "lockfiles": ["mix.lock", "rebar.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Hex/all.zip",
       "license_audit": false,
       "lock_required": false

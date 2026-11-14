@@ -397,15 +397,6 @@ pub fn discover(
                 vec![in_dir(&dir, mix_lock()?)],
             )?);
         }
-        for rebar in module.rebar_locks().map_err(hub)? {
-            let dir = manifest_dir(std::slice::from_ref(&path(rebar.lock)?));
-            sets.push(hub_set(
-                rebar.name,
-                Ecosystem::Hex,
-                vec![in_dir(&dir, REBAR_CONFIG)],
-                vec![in_dir(&dir, REBAR_LOCK)],
-            )?);
-        }
         for tag in module.composer_locks().map_err(hub)? {
             let lock = path(tag.lock)?;
             let dir = manifest_dir(std::slice::from_ref(&lock));

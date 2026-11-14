@@ -1,0 +1,42 @@
+{
+  "ecosystem": "hex",
+  "inputs": {},
+  "packages": [
+    {
+      "archives": [],
+      "deps": [],
+      "name": "cowlib",
+      "provides": [
+        "cowlib"
+      ],
+      "version": "2.12.1"
+    },
+    {
+      "archives": [],
+      "deps": [],
+      "name": "hackney",
+      "provides": [
+        "hackney"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "archives": [],
+      "deps": [],
+      "name": "jsx",
+      "provides": [
+        "jsx"
+      ],
+      "version": "3.1.0"
+    },
+    {
+      "archives": [],
+      "deps": [],
+      "name": "ranch",
+      "provides": [
+        "ranch"
+      ],
+      "version": "1.8.0"
+    }
+  ]
+}

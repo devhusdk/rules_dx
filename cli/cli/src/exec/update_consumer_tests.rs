@@ -1609,12 +1609,12 @@ fn consumer_nuget_apply_writes_only_differing_declared_files() {
     assert!(!scratch_out(&runner).exists());
 }
 
-const HEX_MODULE: &str = "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+const HEX_MODULE: &str = "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//third_party/elixir:hex.lock.json\")\n";
 
 fn hex_harness(name: &str) -> Harness {
     let harness = consumer_harness(name, HEX_MODULE, false);
     harness.write_source("third_party/elixir/mix.exs", "defmodule App do\nend\n");
-    harness.write_source("third_party/elixir/mix.lock", "%{}\n");
+    harness.write_source("third_party/elixir/hex.lock.json", "%{}\n");
     harness
 }
 
@@ -1622,20 +1622,20 @@ fn hex_harness(name: &str) -> Harness {
 fn consumer_hex_check_reports_drift_and_apply_writes_only_mix_lock() {
     let harness = hex_harness("hex-apply");
     let runner = ScriptRunner::new(&[]);
-    stage(&runner, &[("mix.lock", "%{\"jason\" => 1}\n")]);
+    stage(&runner, &[("hex.lock.json", "%{\"jason\" => 1}\n")]);
     let (code, out, err) = run_with(&["update", "deps"], &runner, &harness);
     assert_ne!(code, 0, "{out}{err}");
     assert_eq!(
-        read_bytes(&harness, "third_party/elixir/mix.lock"),
+        read_bytes(&harness, "third_party/elixir/hex.lock.json"),
         b"%{}\n"
     );
 
     let runner = ScriptRunner::new(&[]);
-    stage(&runner, &[("mix.lock", "%{\"jason\" => 1}\n")]);
+    stage(&runner, &[("hex.lock.json", "%{\"jason\" => 1}\n")]);
     let (code, out, err) = run_with(&["update", "--apply", "deps"], &runner, &harness);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(
-        read_bytes(&harness, "third_party/elixir/mix.lock"),
+        read_bytes(&harness, "third_party/elixir/hex.lock.json"),
         b"%{\"jason\" => 1}\n"
     );
     assert_eq!(
@@ -1644,76 +1644,6 @@ fn consumer_hex_check_reports_drift_and_apply_writes_only_mix_lock() {
     );
     let launches = runner.launches.borrow();
     assert!(launches[0].argv.iter().any(|arg| arg == "deps.update"));
-}
-
-#[test]
-fn consumer_mixed_mix_and_rebar_run_checks_both_sets() {
-    let module = format!(
-        "{HEX_MODULE}erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n"
-    );
-    let harness = consumer_harness("hex-mixed", &module, false);
-    harness.write_source("third_party/elixir/mix.exs", "defmodule App do\nend\n");
-    harness.write_source("third_party/elixir/mix.lock", "%{}\n");
-    harness.write_source("third_party/erlang/rebar.config", "{deps, []}.\n");
-    harness.write_source("third_party/erlang/rebar.lock", "[].\n");
-    let runner = ScriptRunner::new(&[]);
-    stage(
-        &runner,
-        &[("mix.lock", "%{\"jason\" => 1}\n"), ("rebar.lock", "[].\n")],
-    );
-    let (code, out, err) = run_with(&["update"], &runner, &harness);
-    assert_ne!(code, 0, "{out}{err}");
-    let launches = runner.launches.borrow();
-    assert!(
-        launches
-            .iter()
-            .any(|l| l.argv.iter().any(|arg| arg == "deps.get"))
-    );
-    assert_eq!(
-        read_bytes(&harness, "third_party/erlang/rebar.lock"),
-        b"[].\n"
-    );
-}
-
-#[test]
-fn consumer_rebar_check_reports_drift_and_apply_writes_only_rebar_lock() {
-    let module = "erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n";
-    let harness = consumer_harness("rebar-apply", module, false);
-    harness.write_source("third_party/erlang/rebar.config", "{deps, []}.\n");
-    harness.write_source("third_party/erlang/rebar.lock", "[].\n");
-    let runner = ScriptRunner::new(&[]);
-    stage(&runner, &[("rebar.lock", "[{<<\"cowboy\">>,1}].\n")]);
-    let (code, out, err) = run_with(&["update", "erl"], &runner, &harness);
-    assert_ne!(code, 0, "{out}{err}");
-    assert_eq!(
-        read_bytes(&harness, "third_party/erlang/rebar.lock"),
-        b"[].\n"
-    );
-    assert!(
-        runner.launches.borrow()[0]
-            .argv
-            .iter()
-            .any(|arg| arg == "lock")
-    );
-
-    let runner = ScriptRunner::new(&[]);
-    stage(&runner, &[("rebar.lock", "[{<<\"cowboy\">>,1}].\n")]);
-    let (code, out, err) = run_with(&["update", "--apply", "erl"], &runner, &harness);
-    assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(
-        read_bytes(&harness, "third_party/erlang/rebar.lock"),
-        b"[{<<\"cowboy\">>,1}].\n"
-    );
-    assert_eq!(
-        read_bytes(&harness, "third_party/erlang/rebar.config"),
-        b"{deps, []}.\n"
-    );
-    assert!(
-        runner.launches.borrow()[0]
-            .argv
-            .iter()
-            .any(|arg| arg == "upgrade")
-    );
 }
 
 const OPAM_MODULE: &str = "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"ocaml_app\", lock = \"//ocaml/app:opam.lock.json\")\n";

@@ -455,36 +455,14 @@ fn pub_locks_become_pub_sets() {
 
 #[test]
 fn elixir_mix_tags_become_hex_sets() {
-    let module = "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+    let module = "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//third_party/elixir:hex.lock.json\")\n";
     let registry = discover(module, &|_: &str| Err("none".to_owned()))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("deps").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::Hex);
     assert_eq!(set.manifests, ["third_party/elixir/mix.exs"]);
-    assert_eq!(set.locks, ["third_party/elixir/mix.lock"]);
-}
-
-#[test]
-fn erlang_rebar_tags_become_rebar_hex_sets() {
-    let module = "erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
-    let registry = discover(module, &|_: &str| Err("none".to_owned()))
-        .expect("discovers")
-        .expect("registry");
-    let set = registry.find("deps").expect("set");
-    assert_eq!(set.ecosystem, Ecosystem::Hex);
-    assert_eq!(set.manifests, ["third_party/erlang/rebar.config"]);
-    assert_eq!(set.locks, ["third_party/erlang/rebar.lock"]);
-    let resolved = ResolvedSet::of(set);
-    assert_eq!(
-        hex_backend(&resolved).expect("hub"),
-        Some(HexBackend::Rebar3)
-    );
-    let mix = ResolvedSet {
-        locks: vec!["third_party/erlang/mix.lock".to_owned()],
-        ..resolved
-    };
-    assert_eq!(hex_backend(&mix).expect("hub"), Some(HexBackend::Mix));
+    assert_eq!(set.locks, ["third_party/elixir/hex.lock.json"]);
 }
 
 #[test]

@@ -156,10 +156,7 @@ fn lock_packages(eco: Language, lock: &Path) -> Result<Vec<String>, DepcheckErro
         Language::Zig => Ok(crate::parse_zig_lock(lock)?.into_keys().collect()),
         Language::Dart => crate::dart_lock_candidates(lock),
         Language::Php => Ok(crate::parse_php_lock(lock)?.into_keys().collect()),
-        Language::Elixir => Ok(crate::ecosystem::beam::parse_mix_lock(lock)?
-            .into_keys()
-            .collect()),
-        Language::Erlang => Ok(crate::ecosystem::beam::parse_rebar_lock(lock)?
+        Language::Elixir | Language::Erlang => Ok(crate::ecosystem::beam::parse_hex_lock(lock)?
             .into_keys()
             .collect()),
         Language::Fortran => Ok(crate::parse_fortran_lock(lock)?.into_keys().collect()),

@@ -233,6 +233,11 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
         use std::io::Write;
         let _ = writeln!(std::io::stderr(), "dx check rewrote BUILD.bazel:\n{build}");
     }
+    if check.status.code() != Some(0) {
+        use std::io::Write;
+        let diff = dx(&case, "generate", &["--diff", "//...", "--", policy]);
+        let _ = writeln!(std::io::stderr(), "dx generate --diff:\n{}", diff.combined());
+    }
     ok(&check, "dx check");
 
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]

@@ -1,6 +1,8 @@
-# gazelle:ignore
-load("//python:defs.bzl", "python_binary", "python_library", "python_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+
+# gazelle:resolve python click @dx_pypi_fixtures//click
+# gazelle:resolve python pytest @dx_pypi_fixtures//pytest
+load("//python:defs.bzl", "python_binary", "python_library", "python_test")
 
 package(default_visibility = [
     "//python/tests/analysis:__pkg__",
@@ -50,19 +52,20 @@ python_test(
     deps = [
         ":cli",
         "//python/tests/fixtures/python-service/ledger/core",
-        "@dx_pypi_fixtures//coverage",
+        "@dx_pypi_fixtures//click",
+        "@dx_pypi_fixtures//coverage",  # keep
         "@dx_pypi_fixtures//pytest",
     ],
 )
 
 python_test(
-    runner = "plain",
     name = "cli_unittest_test",
     srcs = ["cli_unittest_test.py"],
     data = [":ledger"],
     dep_group = "ledger",
     env = {"LEDGER_BIN": "$(rootpath :ledger)"},
     imports = ["../.."],
+    runner = "plain",
 )
 
 python_test(
@@ -73,13 +76,14 @@ python_test(
     env = {"BROKEN_BIN": "$(rootpath :broken)"},
     imports = ["../.."],
     deps = [
-        "@dx_pypi_fixtures//coverage",
+        "@dx_pypi_fixtures//coverage",  # keep
         "@dx_pypi_fixtures//pytest",
     ],
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = ["//:__pkg__"],

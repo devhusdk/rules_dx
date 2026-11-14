@@ -875,6 +875,9 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 		if dep == from || (spec.SkipDep != nil && spec.SkipDep(dep)) {
 			return
 		}
+		if dep.Repo == "" && !dep.Relative {
+			dep.Repo = from.Repo
+		}
 		deps[dep.Rel(from.Repo, from.Pkg).String()] = true
 	}
 	for _, ref := range refs {

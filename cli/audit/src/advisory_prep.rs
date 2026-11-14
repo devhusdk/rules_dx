@@ -162,7 +162,10 @@ pub fn convert_entries(
         match value {
             serde_json::Value::Array(items) => advisories.extend(items),
             serde_json::Value::Object(_) => advisories.push(value),
-            other => {
+            other @ (serde_json::Value::Null
+            | serde_json::Value::Bool(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::String(_)) => {
                 return Err(PrepError::BadEntry {
                     family: family.to_owned(),
                     name: name.clone(),

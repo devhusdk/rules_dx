@@ -871,10 +871,42 @@ mod tests {
     use super::*;
     use dx_test_scratch::{scratch, write};
 
+    #[test]
+    fn an_unknown_ecosystem_is_an_error_not_a_panic() {
+        for lookup in [lock_of, manifest_of, state_of] {
+            let error = lookup("no-such-ecosystem").expect_err("unknown");
+            assert!(
+                error
+                    .to_string()
+                    .contains("no setup.hubs entry for no-such-ecosystem"),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_hub_without_lock_or_state_is_an_error() {
+        let no_lock = dx_families::hubs()
+            .iter()
+            .find(|hub| hub.lock.is_none())
+            .expect("a hub without lock");
+        let error = lock_of(&no_lock.ecosystem).expect_err("no lock");
+        assert!(error.to_string().contains("has no lock"), "{error}");
+        let no_state = dx_families::hubs()
+            .iter()
+            .find(|hub| hub.state.is_none())
+            .expect("a hub without state");
+        let error = state_of(&no_state.ecosystem).expect_err("no state");
+        assert!(error.to_string().contains("has no state"), "{error}");
+    }
+
     fn t(template: &str) -> &'static str {
         let mut text = template.to_owned();
         for eco in ["cargo", "npm", "uv", "composer", "dub", "luarocks"] {
-            text = text.replace(&format!("{{{eco}:manifest}}"), manifest_of(eco).expect("hub"));
+            text = text.replace(
+                &format!("{{{eco}:manifest}}"),
+                manifest_of(eco).expect("hub"),
+            );
             text = text.replace(&format!("{{{eco}:lock}}"), lock_of(eco).expect("hub"));
         }
         Box::leak(text.into_boxed_str())
@@ -930,7 +962,10 @@ mod tests {
 
     #[test]
     fn pubspec_lock_gets_a_pub_deps_hub() {
-        let hubs = plan(&[(lock_of("pub").expect("hub"), ""), (manifest_of("pub").expect("hub"), "")]);
+        let hubs = plan(&[
+            (lock_of("pub").expect("hub"), ""),
+            (manifest_of("pub").expect("hub"), ""),
+        ]);
         let text = new_text(&hubs);
         assert!(!text.contains("bazel_dep(name = \"rules_dart\""), "{text}");
         assert!(
@@ -1023,7 +1058,11 @@ mod tests {
                 manifest_of("go").expect("hub")
             ),
         );
-        write(dir.path(), manifest_of("go").expect("hub"), "module example.com/app\n");
+        write(
+            dir.path(),
+            manifest_of("go").expect("hub"),
+            "module example.com/app\n",
+        );
         assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
     }
 
@@ -1053,7 +1092,7 @@ mod tests {
         for (rel, text) in files {
             write(dir.path(), rel, text);
         }
-        unlocked_manifests(dir.path())
+        unlocked_manifests(dir.path()).expect("hub")
     }
 
     #[test]
@@ -1515,7 +1554,10 @@ mod tests {
         let dir = maven_workspace(&[
             ("MODULE.bazel", &maven_module()),
             ("third_party/BUILD", ""),
-            (&format!("third_party/{}", lock_of("maven").expect("hub")), "{}"),
+            (
+                &format!("third_party/{}", lock_of("maven").expect("hub")),
+                "{}",
+            ),
             (
                 "BUILD.bazel",
                 "package(default_visibility = [\"//visibility:public\"])",
@@ -1532,7 +1574,10 @@ mod tests {
         );
 
         let module = maven_module().replace("//third_party:", "//:");
-        let dir = maven_workspace(&[("MODULE.bazel", &module), (lock_of("maven").expect("hub"), "{}")]);
+        let dir = maven_workspace(&[
+            ("MODULE.bazel", &module),
+            (lock_of("maven").expect("hub"), "{}"),
+        ]);
         assert_eq!(
             plan_maven_locks(dir.path()).expect("plan"),
             MavenLocks::default()

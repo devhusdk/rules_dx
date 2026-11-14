@@ -352,9 +352,11 @@ mod tests {
         assert!(cargo.contains("regex = \"1.5.0\""), "{cargo}");
         let npm = std::fs::read_to_string(root.join(format!("web/{npm_manifest}"))).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
-        assert!(update_unused::find_missing(root, &resolved, &NoQuery, &[])
+        assert!(
+            update_unused::find_missing(root, &resolved, &NoQuery, &[])
                 .expect("hubs")
-                .is_empty());
+                .is_empty()
+        );
         assert!(
             add_missing(root, &resolved, &registry, &NoQuery, &[])
                 .expect("again")

@@ -9,23 +9,26 @@ const FIXED_NAMES: &[(&str, &str, bool)] = &[
     ("Pipfile.lock", "pypi", false),
 ];
 
-static UNOWNED_NAMES: std::sync::LazyLock<Vec<(&'static str, &'static str, bool)>> =
-    std::sync::LazyLock::new(|| {
-        let mut names = FIXED_NAMES.to_vec();
-        names.push((dx_adopt::dependency_sets::composer_lock()?, "composer", true));
-        for (ecosystem, label) in [
-            (dx_ecosystems::Ecosystem::Hex, "hex"),
-            (dx_ecosystems::Ecosystem::Pub, "pub"),
-            (dx_ecosystems::Ecosystem::Cpan, "cpan"),
-        ] {
-            for lock in ecosystem.lockfiles() {
-                names.push((lock.as_str(), label, true));
-            }
+fn unowned_names() -> Result<Vec<(&'static str, &'static str, bool)>, dx_adopt::AdoptError> {
+    let mut names = FIXED_NAMES.to_vec();
+    names.push((
+        dx_adopt::dependency_sets::composer_lock()?,
+        "composer",
+        true,
+    ));
+    for (ecosystem, label) in [
+        (dx_ecosystems::Ecosystem::Hex, "hex"),
+        (dx_ecosystems::Ecosystem::Pub, "pub"),
+        (dx_ecosystems::Ecosystem::Cpan, "cpan"),
+    ] {
+        for lock in ecosystem.lockfiles() {
+            names.push((lock.as_str(), label, true));
         }
-        names.push((dx_ecosystems::Ecosystem::Zig.manifest_name(), "zig", true));
-        names.push((dx_adopt::dependency_sets::dub_selections()?, "dub", true));
-        names
-    });
+    }
+    names.push((dx_ecosystems::Ecosystem::Zig.manifest_name(), "zig", true));
+    names.push((dx_adopt::dependency_sets::dub_selections()?, "dub", true));
+    Ok(names)
+}
 
 const SKIPPED_DIRS: &[&str] = &["node_modules", dx_path::state::DX_DIR, ".git"];
 
@@ -51,14 +54,24 @@ impl UnownedLock {
 }
 
 /// Lock files under `workspace` that no entry of `owned` names, sorted by path.
-pub(super) fn find_unowned(workspace: &Path, owned: &[&str]) -> Vec<UnownedLock> {
+pub(super) fn find_unowned(
+    workspace: &Path,
+    owned: &[&str],
+) -> Result<Vec<UnownedLock>, dx_adopt::AdoptError> {
+    let names = unowned_names()?;
     let mut found = Vec::new();
-    walk(workspace, "", owned, &mut found);
+    walk(workspace, "", owned, &names, &mut found);
     found.sort_by(|a, b| a.path.cmp(&b.path));
-    found
+    Ok(found)
 }
 
-fn walk(dir: &Path, rel: &str, owned: &[&str], found: &mut Vec<UnownedLock>) {
+fn walk(
+    dir: &Path,
+    rel: &str,
+    owned: &[&str],
+    names: &[(&'static str, &'static str, bool)],
+    found: &mut Vec<UnownedLock>,
+) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
@@ -74,12 +87,11 @@ fn walk(dir: &Path, rel: &str, owned: &[&str], found: &mut Vec<UnownedLock>) {
         };
         if kind.is_dir() {
             if !name.starts_with("bazel-") && !SKIPPED_DIRS.contains(&name.as_str()) {
-                walk(&entry.path(), &path, owned, found);
+                walk(&entry.path(), &path, owned, names, found);
             }
         } else if kind.is_file()
             && !owned.contains(&path.as_str())
-            && let Some((_, ecosystem, _)) =
-                UNOWNED_NAMES.iter().find(|(known, _, _)| *known == name)
+            && let Some((_, ecosystem, _)) = names.iter().find(|(known, _, _)| *known == name)
         {
             found.push(UnownedLock {
                 path,
@@ -92,13 +104,17 @@ fn walk(dir: &Path, rel: &str, owned: &[&str], found: &mut Vec<UnownedLock>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{UNOWNED_NAMES, find_unowned};
+    use super::{find_unowned, unowned_names};
 
     const MATRIX: &str = include_str!("../../../../docs/support-matrix.md");
 
     #[test]
     fn locks_without_a_set_have_a_none_reason_in_the_matrix() {
-        for (name, _, _) in UNOWNED_NAMES.iter().filter(|(_, _, has_set)| !has_set) {
+        for (name, _, _) in unowned_names()
+            .expect("hub")
+            .iter()
+            .filter(|(_, _, has_set)| !has_set)
+        {
             let shown = MATRIX.lines().any(|line| {
                 line.contains(&format!("`{name}`"))
                     && (line.contains("none for ") || line.contains("| none:"))
@@ -130,7 +146,7 @@ mod tests {
             std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
             std::fs::write(path, "").expect("write");
         }
-        let found = find_unowned(dir.path(), &[format!("app/{pub_lock}").as_str()]);
+        let found = find_unowned(dir.path(), &[format!("app/{pub_lock}").as_str()]).expect("hub");
         let messages: Vec<String> = found.iter().map(|lock| lock.message()).collect();
         assert_eq!(
             messages,

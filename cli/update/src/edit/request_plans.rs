@@ -172,7 +172,10 @@ pub(super) fn plan_package_json(
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
-            return Err(EditError::unsupported_manifest("npm", "expected exact semver".to_owned()));
+            return Err(EditError::unsupported_manifest(
+                "npm",
+                "expected exact semver".to_owned(),
+            ));
         }
     };
     let unsupported = |reason: String| EditError::unsupported_manifest("npm", reason);

@@ -67,7 +67,10 @@ pub struct BuildOutputFinding {
 
 fn has_manifest(root: &Path, dir: &str) -> Result<bool, AdoptError> {
     let base = root.join(dir);
-    if SOURCE_MANIFESTS.iter().any(|name| base.join(name).is_file()) {
+    if SOURCE_MANIFESTS
+        .iter()
+        .any(|name| base.join(name).is_file())
+    {
         return Ok(true);
     }
     for eco in REGISTRY_MANIFESTS {
@@ -437,7 +440,11 @@ mod tests {
 
     fn names(root: &Path, paths: &[&str]) -> Vec<String> {
         let owned: Vec<(String, bool)> = paths.iter().map(|p| ((*p).to_owned(), true)).collect();
-        classify(root, &owned).into_iter().map(|f| f.path).collect()
+        classify(root, &owned)
+            .expect("hub")
+            .into_iter()
+            .map(|f| f.path)
+            .collect()
     }
 
     #[test]
@@ -494,7 +501,11 @@ mod tests {
     #[test]
     fn build_output_in_a_cargo_workspace_root_is_rejected() {
         let root = temp();
-        std::fs::write(root.join(manifest_of("cargo").expect("hub")), "[workspace]\n").expect("file");
+        std::fs::write(
+            root.join(manifest_of("cargo").expect("hub")),
+            "[workspace]\n",
+        )
+        .expect("file");
         let found = names(&root, &["build/out.o"]);
         assert_eq!(found, ["build/out.o"]);
     }
@@ -530,7 +541,8 @@ mod tests {
                 ("small.txt".to_owned(), true),
                 ("MODULE.bazel.lock".to_owned(), true),
             ],
-        );
+        )
+        .expect("hub");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].path, "big.bin");
         assert!(findings[0].reason.contains("dx.toml"));
@@ -575,7 +587,10 @@ mod tests {
         write(&root, "build/ci/Dockerfile", b"x");
         write(
             &root,
-            &format!("testdata/node_modules/pkg/{}", manifest_of("npm").expect("hub")),
+            &format!(
+                "testdata/node_modules/pkg/{}",
+                manifest_of("npm").expect("hub")
+            ),
             b"{}",
         );
         git(&root, &["add", "-f", "-A"]);

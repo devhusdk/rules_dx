@@ -267,7 +267,7 @@ pub(super) fn write_nuget_lock(harness: &Harness) {
     harness.write_source(
         &format!(
             "third_party/dotnet/{}",
-            dx_adopt::lock_hubs::state_of("nuget")
+            dx_adopt::lock_hubs::state_of("nuget").expect("hub")
         ),
         "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
     );
@@ -1232,7 +1232,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
         &|harness| {
             harness.write_source("third_party/dotnet/deps/paket.main.bzl", "");
             harness.write_source(
-                &format!("third_party/dotnet/{}", dx_adopt::lock_hubs::state_of("nuget")),
+                &format!("third_party/dotnet/{}", dx_adopt::lock_hubs::state_of("nuget").expect("hub")),
                 "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    FSharp.Core (10.1.201)\n",
             );
             harness.write_source(

@@ -92,6 +92,8 @@ pub(crate) enum AuditError {
         "offline_required: cannot obtain current advisory data for {set} without network: {detail} (re-run without --offline once connected)"
     )]
     OfflineRequired { set: String, detail: String },
+    #[error(transparent)]
+    Hub(#[from] dx_adopt::AdoptError),
 }
 
 impl AuditError {
@@ -114,7 +116,8 @@ impl AuditError {
             | AuditError::LockParse { .. }
             | AuditError::LockUnsupported { .. }
             | AuditError::LicenseInvalid { .. }
-            | AuditError::SecurityInvalid(_) => CODE_AUDIT_FAILED,
+            | AuditError::SecurityInvalid(_)
+            | AuditError::Hub(_) => CODE_AUDIT_FAILED,
         }
     }
 }
@@ -138,7 +141,8 @@ impl From<&AuditError> for DxError {
             | AuditError::LockParse { .. }
             | AuditError::LockUnsupported { .. }
             | AuditError::LicenseInvalid { .. }
-            | AuditError::SecurityInvalid(_) => DxError::failure(message),
+            | AuditError::SecurityInvalid(_)
+            | AuditError::Hub(_) => DxError::failure(message),
         }
     }
 }
@@ -394,12 +398,12 @@ fn parse_locked_for_configured(
     let expected = match set.ecosystem {
         dx_adopt::dependency_sets::Ecosystem::Maven => Some(("a maven .json lock", None)),
         dx_adopt::dependency_sets::Ecosystem::Nuget => Some((
-            dx_adopt::dependency_sets::paket_lock().expect("hub"),
-            Some(dx_adopt::dependency_sets::paket_lock().expect("hub")),
+            dx_adopt::dependency_sets::paket_lock()?,
+            Some(dx_adopt::dependency_sets::paket_lock()?),
         )),
         dx_adopt::dependency_sets::Ecosystem::Cargo => Some((
-            dx_adopt::dependency_sets::cargo_lock().expect("hub"),
-            Some(dx_adopt::dependency_sets::cargo_lock().expect("hub")),
+            dx_adopt::dependency_sets::cargo_lock()?,
+            Some(dx_adopt::dependency_sets::cargo_lock()?),
         )),
         dx_adopt::dependency_sets::Ecosystem::Uv
         | dx_adopt::dependency_sets::Ecosystem::Npm
@@ -446,14 +450,14 @@ fn parse_locked_for_configured(
             },
             dx_adopt::dependency_sets::Ecosystem::Ruby => dx_audit::locks::parse_gemfile_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Cpan => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::cpanfile_snapshot().expect("hub") => {
+                Some(name) if name == dx_adopt::dependency_sets::cpanfile_snapshot()? => {
                     dx_audit::locks::parse_cpanfile_snapshot(text)
                 }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Hex => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::mix_lock().expect("hub") => {
+                Some(name) if name == dx_adopt::dependency_sets::mix_lock()? => {
                     dx_audit::locks::parse_mix_lock(text)
                 }
                 Some(dx_adopt::dependency_sets::REBAR_LOCK) => {
@@ -464,25 +468,25 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::Ecosystem::Fpm => dx_audit::locks::parse_fpm_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Zig => Ok(Vec::new()),
             dx_adopt::dependency_sets::Ecosystem::Dub => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::dub_selections().expect("hub") => {
+                Some(name) if name == dx_adopt::dependency_sets::dub_selections()? => {
                     dx_audit::locks::parse_dub_selections(text)
                 }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Julia => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::julia_manifest().expect("hub") => {
+                Some(name) if name == dx_adopt::dependency_sets::julia_manifest()? => {
                     dx_audit::locks::parse_julia_manifest(text)
                 }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Composer => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::composer_lock().expect("hub") => {
+                Some(name) if name == dx_adopt::dependency_sets::composer_lock()? => {
                     dx_audit::locks::parse_composer_lock(text)
                 }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Cabal => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::cabal_freeze().expect("hub") => {
+                Some(name) if name == dx_adopt::dependency_sets::cabal_freeze()? => {
                     dx_audit::locks::parse_cabal_freeze(text)
                 }
                 Some(dx_adopt::dependency_sets::STACK_LOCK) => {
@@ -497,7 +501,7 @@ fn parse_locked_for_configured(
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::SwiftPm => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::package_resolved().expect("hub") => {
+                Some(name) if name == dx_adopt::dependency_sets::package_resolved()? => {
                     dx_audit::locks::parse_package_resolved(text)
                 }
                 _ => Ok(Vec::new()),
@@ -506,7 +510,7 @@ fn parse_locked_for_configured(
                 dx_audit::locks::parse_psgallery_lock(text)
             }
             dx_adopt::dependency_sets::Ecosystem::LuaRocks => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::luarocks_lock().expect("hub") => {
+                Some(name) if name == dx_adopt::dependency_sets::luarocks_lock()? => {
                     dx_audit::locks::parse_luarocks_lock(text)
                 }
                 _ => Ok(Vec::new()),
@@ -521,13 +525,13 @@ fn parse_locked_for_configured(
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Nuget => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::paket_lock().expect("hub") => {
+                Some(name) if name == dx_adopt::dependency_sets::paket_lock()? => {
                     dx_audit::locks::parse_paket_lock(text)
                 }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Cargo => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::cargo_lock().expect("hub") => {
+                Some(name) if name == dx_adopt::dependency_sets::cargo_lock()? => {
                     dx_audit::locks::parse_cargo_lock(text)
                 }
                 _ => Ok(Vec::new()),
@@ -620,7 +624,8 @@ pub(super) fn bazel_inputs_for_configured(
         | other @ AuditError::LockUnsupported { .. }
         | other @ AuditError::LicenseInvalid { .. }
         | other @ AuditError::SecurityInvalid(_)
-        | other @ AuditError::OfflineRequired { .. } => other,
+        | other @ AuditError::OfflineRequired { .. }
+        | other @ AuditError::Hub(_) => other,
     })?;
     let module_dir = module_rel.rsplit_once('/').map_or("", |(dir, _)| dir);
     let read_include = |label: &str| -> Result<String, dx_error::DxError> {
@@ -1664,6 +1669,20 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         .map(AuditTarget::Configured)
         .collect();
     let sets = targets;
+    let owned: Vec<&str> = registry
+        .sets
+        .iter()
+        .flat_map(|set| set.locks.iter().chain(&set.manifests))
+        .map(String::as_str)
+        .collect();
+    let unowned = if invocation.command == Command::Security {
+        match audit_uncovered::find_unowned(workspace, &owned) {
+            Ok(unowned) => unowned,
+            Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+        }
+    } else {
+        Vec::new()
+    };
     if invocation.output == OutputMode::Json {
         if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
             return exit;
@@ -1672,17 +1691,6 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         return exit;
     }
     let today = today_utc(audit_today);
-    let owned: Vec<&str> = registry
-        .sets
-        .iter()
-        .flat_map(|set| set.locks.iter().chain(&set.manifests))
-        .map(String::as_str)
-        .collect();
-    let unowned = if invocation.command == Command::Security {
-        audit_uncovered::find_unowned(workspace, &owned)
-    } else {
-        Vec::new()
-    };
     let mut outcomes: Vec<dx_audit::outcome::FamilyOutcome> = Vec::new();
     let mut diagnostics: Vec<DiagnosticEvent> = Vec::new();
     let mut sarif_tools: BTreeSet<String> = BTreeSet::new();

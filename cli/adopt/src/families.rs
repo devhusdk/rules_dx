@@ -3,7 +3,6 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-
 /// The quality families of `dx.toml` and the files that mean one is present: an extension with
 /// its dot, or an exact file name. Families found only by file content are left out.
 const QUALITY_FAMILIES: &[(&str, &[&str])] = &[

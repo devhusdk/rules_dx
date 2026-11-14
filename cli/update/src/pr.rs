@@ -231,11 +231,11 @@ mod tests {
     #[test]
     fn body_lists_packages_and_lock_changes() {
         let got = plan(&items()[..1]);
-        let text = body(&got[0], &[(cargo_lock().expect("hub").into(), 4, 2)]);
+        let text = body(&got[0], &[(cargo_lock().into(), 4, 2)]);
         assert!(text.contains(
             "- cargo:serde 1.0.0 -> 2.0.0 (https://crates.io/crates/serde, age unknown)"
         ));
-        assert!(text.contains(&format!("| {} | 4 | 2 |", cargo_lock().expect("hub"))));
+        assert!(text.contains(&format!("| {} | 4 | 2 |", cargo_lock())));
         assert!(!body(&got[0], &[]).contains("Lock file"));
     }
 
@@ -270,7 +270,7 @@ mod tests {
 
     #[test]
     fn numstat_keeps_the_locks_sets_own() {
-        let (cargo, swift) = (cargo_lock().expect("hub"), format!("ios/{}", resolved()));
+        let (cargo, swift) = (cargo_lock(), format!("ios/{}", resolved()));
         let text = format!(
             "4\t2\t{cargo}\n10\t1\tsrc/main.rs\n-\t-\timg.lock\n\
             3\t0\tweb/package-lock.json\n2\t1\t{swift}\n"

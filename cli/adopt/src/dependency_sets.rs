@@ -218,9 +218,7 @@ pub enum DependencySetsError {
         lock: String,
         detail: String,
     },
-    #[error(
-        "dependency set {name:?} has a stale {lock}: {detail}; run the cabal lock step"
-    )]
+    #[error("dependency set {name:?} has a stale {lock}: {detail}; run the cabal lock step")]
     StaleCabalLock {
         name: String,
         lock: String,

@@ -476,7 +476,10 @@ fn erlang_rebar_tags_become_rebar_hex_sets() {
     assert_eq!(set.manifests, ["third_party/erlang/rebar.config"]);
     assert_eq!(set.locks, ["third_party/erlang/rebar.lock"]);
     let resolved = ResolvedSet::of(set);
-    assert_eq!(hex_backend(&resolved).expect("hub"), Some(HexBackend::Rebar3));
+    assert_eq!(
+        hex_backend(&resolved).expect("hub"),
+        Some(HexBackend::Rebar3)
+    );
     let mix = ResolvedSet {
         locks: vec!["third_party/erlang/mix.lock".to_owned()],
         ..resolved

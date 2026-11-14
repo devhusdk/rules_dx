@@ -753,9 +753,9 @@ fn nuget_pins_exact() -> Result<&'static str, BackendError> {
         return Ok(text);
     }
     let text = format!(
-            "nuget pins are exact in {}; edit {}, run `paket update`, then `dx update <set>`",
-            dx_adopt::lock_hubs::state_of("nuget")?,
-            dx_adopt::lock_hubs::manifest_of("nuget")?
+        "nuget pins are exact in {}; edit {}, run `paket update`, then `dx update <set>`",
+        dx_adopt::lock_hubs::state_of("nuget")?,
+        dx_adopt::lock_hubs::manifest_of("nuget")?
     );
     Ok(TEXT.get_or_init(|| text))
 }
@@ -809,8 +809,8 @@ fn hex_lock_missing() -> Result<&'static str, BackendError> {
         return Ok(text);
     }
     let text = format!(
-            "a hex set must list {} in locks; rebar.lock sets are not refreshed",
-            dx_adopt::lock_hubs::lock_of("hex")?
+        "a hex set must list {} in locks; rebar.lock sets are not refreshed",
+        dx_adopt::lock_hubs::lock_of("hex")?
     );
     Ok(TEXT.get_or_init(|| text))
 }
@@ -821,8 +821,8 @@ fn hex_whole_lock() -> Result<&'static str, BackendError> {
         return Ok(text);
     }
     let text = format!(
-            "mix deps.get checks the whole {}; select the set without a package",
-            dx_adopt::lock_hubs::lock_of("hex")?
+        "mix deps.get checks the whole {}; select the set without a package",
+        dx_adopt::lock_hubs::lock_of("hex")?
     );
     Ok(TEXT.get_or_init(|| text))
 }
@@ -833,8 +833,8 @@ fn go_sum_missing() -> Result<&'static str, BackendError> {
         return Ok(text);
     }
     let text = format!(
-            "a go set must list {} in locks",
-            dx_adopt::lock_hubs::lock_of("go")?
+        "a go set must list {} in locks",
+        dx_adopt::lock_hubs::lock_of("go")?
     );
     Ok(TEXT.get_or_init(|| text))
 }
@@ -845,8 +845,8 @@ fn go_whole_graph() -> Result<&'static str, BackendError> {
         return Ok(text);
     }
     let text = format!(
-            "go sums cover the whole module graph; edit the require in {} and run `dx update <set>`",
-            dx_adopt::lock_hubs::manifest_of("go")?
+        "go sums cover the whole module graph; edit the require in {} and run `dx update <set>`",
+        dx_adopt::lock_hubs::manifest_of("go")?
     );
     Ok(TEXT.get_or_init(|| text))
 }

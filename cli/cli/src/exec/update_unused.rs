@@ -764,7 +764,7 @@ mod tests {
         let query = Labels(
             "@@rules_rust++crate+crates//serde-1.0.229:serde-1.0.229\n@@rules_rust++crate+crates//:cc\n",
         );
-        let found = find(root, &resolved, &query, &[]);
+        let found = find(root, &resolved, &query, &[]).expect("hubs");
         let names: Vec<&str> = found.iter().map(|u| u.name.as_str()).collect();
         assert_eq!(names, ["regex"]);
     }
@@ -777,7 +777,7 @@ mod tests {
             "[package]\nname = \"x\"\n\n[dependencies]\nripgrep = \"14\"\nregex = \"1\"\n";
         let resolved = cargo_set(root, manifest);
         let query = Labels("@@rules_rust++crate+crates//:ripgrep__rg\n");
-        let found = find(root, &resolved, &query, &[]);
+        let found = find(root, &resolved, &query, &[]).expect("hubs");
         let names: Vec<&str> = found.iter().map(|u| u.name.as_str()).collect();
         assert_eq!(names, ["regex"]);
     }
@@ -792,7 +792,7 @@ mod tests {
             "deps",
         );
         let query = Recorded(Default::default(), "@@m++crate+dx_crates//:cc\n");
-        assert!(find(root, &resolved, &query, &[]).is_empty());
+        assert!(find(root, &resolved, &query, &[]).expect("hubs").is_empty());
         let argv = query.0.lock().unwrap().join(" ");
         assert!(argv.contains("@deps//..."), "{argv}");
     }
@@ -806,7 +806,7 @@ mod tests {
             "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\nregex = \"1\"\n",
         );
         write(root, "rs/src/lib.rs", "use serde::Serialize;\n");
-        let found = find(root, &resolved, &Labels("//app:lib\n"), &[]);
+        let found = find(root, &resolved, &Labels("//app:lib\n"), &[]).expect("hubs");
         let names: Vec<&str> = found.iter().map(|u| u.name.as_str()).collect();
         assert_eq!(names, ["regex"]);
     }
@@ -819,13 +819,14 @@ mod tests {
         let resolved = cargo_set(root, manifest);
         let labels = at_hub("cargo", "@{hub}//:cc\n");
         let query = Labels(&labels);
-        let found = find(root, &resolved, &query, &[]);
+        let found = find(root, &resolved, &query, &[]).expect("hubs");
         let names: Vec<&str> = found.iter().map(|u| u.name.as_str()).collect();
         assert_eq!(names, ["regex"]);
     }
 
     fn unused_names(root: &Path, resolved: &[ResolvedTarget], labels: &str) -> Vec<String> {
         find(root, resolved, &Labels(labels), &[])
+            .expect("hubs")
             .into_iter()
             .map(|u| u.name)
             .collect()
@@ -895,13 +896,17 @@ mod tests {
             .expect("setup.hubs entry maven")
             .hub;
         let labels = format!("@{hub}//:com_google_guava_guava\n");
-        let found = find(root, &resolved, &Labels(&labels), &[]);
+        let found = find(root, &resolved, &Labels(&labels), &[]).expect("hubs");
         assert_eq!(found.len(), 1);
         assert_eq!(
             (found[0].name.as_str(), found[0].line),
             ("org.slf4j:slf4j-api", 6)
         );
-        assert!(find(root, &resolved, &NoQuery, &[]).is_empty());
+        assert!(
+            find(root, &resolved, &NoQuery, &[])
+                .expect("hubs")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -919,7 +924,10 @@ mod tests {
             &format!("dn/{}", manifest_of(Ecosystem::Nuget)),
         )];
         resolved[0].set.locks = vec![
-            format!("dn/{}", dx_adopt::lock_hubs::state_of("nuget").expect("hub")),
+            format!(
+                "dn/{}",
+                dx_adopt::lock_hubs::state_of("nuget").expect("hub")
+            ),
             "dn/deps/paket.main.bzl".to_owned(),
         ];
         assert_eq!(
@@ -941,7 +949,7 @@ mod tests {
             "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\nregex = \"1\"\n",
         );
         write(root, "rs/src/lib.rs", "use serde::Serialize;\n");
-        let found = find(root, &resolved, &NoQuery, &[]);
+        let found = find(root, &resolved, &NoQuery, &[]).expect("hubs");
         let names: Vec<&str> = found.iter().map(|u| u.name.as_str()).collect();
         assert_eq!(names, ["regex"]);
     }
@@ -980,7 +988,7 @@ mod tests {
                 &format!("web/{}", manifest_of(Ecosystem::Npm)),
             ),
         ];
-        let found = find(root, &resolved, &NoQuery, &[]);
+        let found = find(root, &resolved, &NoQuery, &[]).expect("hubs");
         let mut out = Vec::new();
         emit_text(&mut out, &found).unwrap();
         assert_eq!(
@@ -1005,6 +1013,7 @@ mod tests {
         let resolved = [target("go", Ecosystem::Go, manifest_of(Ecosystem::Go))];
         let names = |query: &dyn QueryRunner| -> Vec<String> {
             find(root, &resolved, query, &[])
+                .expect("hubs")
                 .into_iter()
                 .map(|u| u.name)
                 .collect()
@@ -1031,7 +1040,11 @@ mod tests {
             String::from_utf8_lossy(&out),
             "missing: crates: regex (used by //app:bin)\n"
         );
-        assert!(find_missing(root, &resolved, &NoQuery, &[]).expect("hubs").is_empty());
+        assert!(
+            find_missing(root, &resolved, &NoQuery, &[])
+                .expect("hubs")
+                .is_empty()
+        );
     }
 
     #[test]

@@ -1,3 +1,5 @@
+#![expect(unsafe_code, reason = "the fixture exists to call across the C FFI boundary")]
+
 use wasm_bindgen::prelude::*;
 
 pub fn greeting(name: &str) -> String {

@@ -1,3 +1,5 @@
+#![expect(unsafe_code, reason = "the fixture exists to call across the C FFI boundary")]
+
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 include!(concat!(env!("OUT_DIR"), "/build_probe.rs"));
 

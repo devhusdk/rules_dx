@@ -1,3 +1,5 @@
+#![expect(unsafe_code, reason = "exports an unmangled C symbol for the native linker fixture")]
+
 use std::ffi::{c_char, CStr};
 
 use shared_tasks::{reply, Board};
@@ -7,6 +9,7 @@ pub extern "C" fn shared_core_open(board: *const c_char) -> i32 {
     if board.is_null() {
         return -1;
     }
+    // SAFETY: the caller passes a non-null NUL-terminated string.
     let Ok(text) = unsafe { CStr::from_ptr(board) }.to_str() else {
         return -1;
     };

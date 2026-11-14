@@ -1,0 +1,10 @@
+--- a/crosstool/BUILD.toolchains
++++ b/crosstool/BUILD.toolchains
+@@ -14,6 +14,7 @@
+             "@platforms//cpu:" + cpu,
+         ],
+         target_compatible_with = APPLE_PLATFORMS_CONSTRAINTS[arch],
++        target_settings = ["@@//config:toolchains_on"],
+         toolchain = "%{label}".format(arch),
+         toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+         visibility = ["//visibility:public"],

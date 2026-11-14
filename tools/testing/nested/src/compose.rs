@@ -203,6 +203,24 @@ pub fn rules_flutter_override() -> String {
     )
 }
 
+/// The patches of `//patches/rules_julia` that `rules_julia_override` names, without `.patch`.
+pub const RULES_JULIA_PATCHES: [&str; 4] = [
+    "package_annotation_version",
+    "package_name",
+    "portable_cpu_target",
+    "template_action_input",
+];
+
+/// Pins rules_julia 0.8.0 with the patches of the root MODULE.bazel.
+pub fn rules_julia_override() -> String {
+    let patches = RULES_JULIA_PATCHES
+        .map(|name| format!("        \"//patches/rules_julia:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "single_version_override(\n    module_name = \"rules_julia\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.8.0\",\n)\n"
+    )
+}
+
 /// Drops the `module()` line and any comment or blank lines before it.
 fn without_module_line(snippet: &str) -> String {
     let mut lines = snippet.lines().peekable();
@@ -303,7 +321,8 @@ pub fn write_windows_support_patches(workspace: &Path, rules_dx: &Path) -> Resul
 /// Writes the files `rules_py_override` and `rules_flutter_override` name into the consumer.
 pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
     write_patches(workspace, rules_dx, "rules_py", &RULES_PY_PATCHES)?;
-    write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)
+    write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)?;
+    write_patches(workspace, rules_dx, "rules_julia", &RULES_JULIA_PATCHES)
 }
 
 #[cfg(test)]

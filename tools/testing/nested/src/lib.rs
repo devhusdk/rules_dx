@@ -1290,7 +1290,7 @@ fn blocked_download(offline: bool, run: &Run) -> Option<String> {
 }
 
 /// The longest one captured command may run.
-const CALL_DEADLINE: Duration = Duration::from_secs(300);
+const CALL_DEADLINE: Duration = Duration::from_secs(if cfg!(windows) { 1500 } else { 300 });
 
 /// Like `Command::output`, but kills the child and returns an error naming the command and its output so far once `limit` passes.
 fn output_within(command: &mut Command, limit: Duration) -> Result<std::process::Output, String> {

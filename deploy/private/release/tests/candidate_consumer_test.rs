@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::compose::{
-    llvm_override, protobuf_override, rules_flutter_override, rules_py_override,
+    llvm_override, protobuf_override, rules_flutter_override, rules_julia_override, rules_py_override,
     rules_rust_override, windows_support_override, write_llvm_patches, write_protobuf_patches,
     write_rules_py_patches, write_rules_rust_patches, write_windows_support_patches,
 };
@@ -114,10 +114,11 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     rc.extend_from_slice(crate::quickstart_consumer_test::WINDOWS_LICENCES.as_bytes());
     write(&root.join(".bazelrc"), &rc);
     let module = format!(
-        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n{}{}{}{}{}{}",
+        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n{}{}{}{}{}{}{}",
         candidate.version(),
         rules_py_override(),
         rules_flutter_override(),
+        rules_julia_override(),
         rules_rust_override(),
         llvm_override(),
         windows_support_override(),
@@ -159,10 +160,18 @@ fn dx(case: &Case, command: &str, args: &[&str]) -> Run {
         .into_owned();
     let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
     argv.extend_from_slice(args);
+    let mut env = vec![("HOME", home.as_str()), ("PATH", path.as_str())];
+    let bazel_sh = crate::quickstart_consumer_test::nested_env()
+        .into_iter()
+        .find(|(name, _)| *name == "BAZEL_SH")
+        .map(|(_, value)| value);
+    if let Some(bazel_sh) = bazel_sh.as_deref() {
+        env.push(("BAZEL_SH", bazel_sh));
+    }
     case.run(
         &resolve_runfiles(&rel),
         &argv,
-        &[("HOME", home.as_str()), ("PATH", path.as_str())],
+        &env,
     )
 }
 

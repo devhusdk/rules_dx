@@ -21,19 +21,7 @@ _direct_srcs_aspect = aspect(
 )
 
 def fortran_shard_action(ctx, own, package, stem, driver_tool, extract_tool):
-    """Runs FORD and the extractor for one Fortran library.
-
-    Args:
-      ctx: The rule or aspect context.
-      own: The Fortran files the library lists in its own srcs.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      driver_tool: The ford_dump executable.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the `json` and the `manifest`.
-    """
+    """Runs FORD and the extractor for one Fortran library."""
     own = sorted(own, key = lambda f: f.path)
     if not own:
         fail("fortran_doc_shard " + str(ctx.label) + ": lib lists no Fortran srcs")
@@ -129,14 +117,7 @@ docs_fortran_shard = rule(
 )
 
 def fortran_doc_shard(name, lib, package = "", **kwargs):
-    """Declares the DocIr shard of one Fortran library.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented fortran_library.
-      package: Package segment of every symbol id; defaults to the name of lib.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one Fortran library."""
     docs_fortran_shard(
         name = name,
         lib = lib,

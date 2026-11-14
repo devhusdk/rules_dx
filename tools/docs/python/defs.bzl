@@ -56,11 +56,7 @@ def python_doc_shard(name, library, package = "", docstyle = "google", **kwargs)
     )
 
 def python_docs(name, library, book_toml, prose, package = "", docstyle = "google", prose_route = "prose.md", source_url = "", **kwargs):
-    """Declares the shard of one Python library and the mdBook site that renders it.
-
-    The shard is `<name>_shard`; `bazel run //pkg:<name>` style builds use the
-    `docs_site` targets `<name>`, `<name>_docs` and `<name>_SUMMARY`.
-    """
+    """Declares the shard of one Python library and the mdBook site that renders it."""
     python_doc_shard(
         name = name + "_shard",
         library = library,

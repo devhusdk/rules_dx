@@ -6,22 +6,7 @@ load("//lua/private:providers.bzl", "LuaInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 def lua_shard_action(ctx, own, package, stem, runner, ldoc, penlight, filter, extract_tool):
-    """Runs LDoc and the extractor for one Lua library.
-
-    Args:
-      ctx: The rule or aspect context.
-      own: The .lua files the library lists in its own srcs.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      runner: The ldoc_main executable, a Lua runner with LuaFileSystem linked in.
-      ldoc: Files of the pinned LDoc.
-      penlight: Files of the pinned Penlight.
-      filter: The dx_ldoc_json.lua filter file.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the `doc_json` and the `manifest`.
-    """
+    """Runs LDoc and the extractor for one Lua library."""
     own = sorted([f for f in own if f.extension == "lua"], key = lambda f: f.path)
     if not own:
         fail("lua_doc_shard " + str(ctx.label) + ": lib lists no .lua srcs")
@@ -141,14 +126,7 @@ docs_lua_shard = rule(
 )
 
 def lua_doc_shard(name, lib, package = "", **kwargs):
-    """Declares the DocIr shard of one Lua library.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented lua_library.
-      package: Package segment of every symbol id; defaults to the name of lib.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one Lua library."""
     docs_lua_shard(
         name = name,
         lib = lib,

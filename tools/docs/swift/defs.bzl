@@ -5,19 +5,7 @@ load("//swift/private:providers.bzl", "SwiftDocsInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 def swift_shard_action(ctx, info, package, config, stem, extract_tool):
-    """Extracts the DocIr shard of one Swift library from its symbol graph and its own sources.
-
-    Args:
-      ctx: The rule or aspect context.
-      info: The library's SwiftDocsInfo; it must hold exactly one symbol graph.
-      package: Package segment of the shard's symbol ids.
-      config: Extra configuration identity recorded on every symbol.
-      stem: Output name prefix, relative to the target's package.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard` and the `srcs_manifest`.
-    """
+    """Extracts the DocIr shard of one Swift library from its symbol graph and its own sources."""
     if len(info.graphs) != 1:
         fail("swift_doc_shard " + str(ctx.label) + ": want exactly one symbol graph, got " + str(len(info.graphs)))
     graph = info.graphs[0]

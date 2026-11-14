@@ -44,22 +44,7 @@ def _yard_lib_dir(ctx, yard_files):
     fail(_where(ctx) + ": @dx_yard holds no lib/yard.rb")
 
 def ruby_shard_action(ctx, own, transitive_srcs, dep_infos, package, stem, yard_files, driver, extract_tool):
-    """Runs YARD and the extractor for one Ruby library.
-
-    Args:
-      ctx: The rule or aspect context; it must carry the Ruby toolchain.
-      own: The .rb files the library lists in its own srcs.
-      transitive_srcs: Every file the library reaches, for context.
-      dep_infos: The shard infos of the shards this one depends on.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      yard_files: The files of the pinned YARD.
-      driver: The yard_dump.rb file.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the `yard_json` and the `manifest`.
-    """
+    """Runs YARD and the extractor for one Ruby library."""
     own = sorted(own, key = lambda f: f.path)
     if not own:
         fail(_where(ctx) + ": lib lists no .rb srcs")
@@ -198,15 +183,7 @@ docs_ruby_shard = rule(
 )
 
 def ruby_doc_shard(name, lib, package = "", deps = [], **kwargs):
-    """Declares the DocIr shard of one Ruby library.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented ruby_library.
-      package: Package segment of every symbol id; defaults to the name of lib.
-      deps: ruby_doc_shard targets of libraries whose modules this one includes or extends.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one Ruby library."""
     docs_ruby_shard(
         name = name,
         lib = lib,

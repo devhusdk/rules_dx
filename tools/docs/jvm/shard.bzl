@@ -14,22 +14,7 @@ JVM_LANGUAGES = {
 }
 
 def jvm_shard_action(ctx, language, java_info, own, package, dep_shards, stem, adapter_tool, convert_tool):
-    """Runs the language adapter and the DocIr converter for one JVM library.
-
-    Args:
-      ctx: The rule or aspect context.
-      language: One of java, kotlin and scala.
-      java_info: The JavaInfo of the documented library.
-      own: The library's direct source files.
-      package: Package segment of the symbol ids.
-      dep_shards: DocIr shards of libraries this one links to.
-      stem: Output name prefix, relative to the target's package.
-      adapter_tool: The language's extraction executable.
-      convert_tool: The DocIr converter executable.
-
-    Returns:
-      A struct with the DocIr `shard`, `api_json` and `manifest` files.
-    """
+    """Runs the language adapter and the DocIr converter for one JVM library."""
     own_jars = {}
     compiled = []
     for output in java_info.java_outputs:
@@ -39,10 +24,8 @@ def jvm_shard_action(ctx, language, java_info, own, package, dep_shards, stem, a
         if output.class_jar:
             own_jars[output.class_jar.path] = True
 
-    # Compile jars are inputs only, so a library that does not compile fails first.
     classpath_jars = {f.path: f for f in java_info.transitive_compile_time_jars.to_list()}
     if language == "kotlin":
-        # The Kotlin toolchain adds its stdlib to a library's compile classpath only privately.
         for f in ctx.toolchains[KOTLIN_TOOLCHAIN].jvm_stdlibs.transitive_compile_time_jars.to_list():
             classpath_jars[f.path] = f
     classpath = sorted([

@@ -127,7 +127,6 @@ def starter_sources(name, language, files):
         srcs = ["consumers/cc_fixture/" + files["accepted"]],
     )
 
-    # manual: the compile fails; compile_log records it.
     cc_library(
         name = name + "_rejected",
         testonly = True,

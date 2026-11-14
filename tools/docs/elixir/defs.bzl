@@ -6,19 +6,7 @@ load("//tools/docs/beam:shard.bzl", "ELIXIR_DUMP_TOOL", "beam_dirs", "beam_shard
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 def elixir_shard_action(ctx, app, package, stem, runner, extract_tool):
-    """Runs Code.fetch_docs on the pinned Elixir and the extractor for one Elixir app.
-
-    Args:
-      ctx: The rule or aspect context; it must carry the coreutils toolchain.
-      app: The documented app, which provides ErlangAppInfo.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      runner: FilesToRunProvider of ELIXIR_DUMP_TOOL.
-      extract_tool: The beam_extract executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the dump `json` and the `manifest`, or None when the app lists no ex source.
-    """
+    """Runs Code.fetch_docs on the pinned Elixir and the extractor for one Elixir app."""
     srcs = beam_sources(app, ["ex"])
     if not srcs:
         return None
@@ -50,12 +38,5 @@ docs_elixir_shard = rule(
 )
 
 def elixir_doc_shard(name, app, package = "", **kwargs):
-    """Declares the DocIr shard of one Elixir app.
-
-    Args:
-      name: Name of the shard target.
-      app: The documented elixir_app.
-      package: Package segment of every symbol id; defaults to the app name.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one Elixir app."""
     docs_elixir_shard(name = name, app = app, package = package, **kwargs)

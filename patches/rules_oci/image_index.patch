@@ -35,16 +35,3 @@
 +        "@bazel_tools//tools/sh:toolchain_type",
      ],
  )
---- a/oci/private/image_index.sh.tpl
-+++ b/oci/private/image_index.sh.tpl
-@@ -36,7 +36,9 @@
-     local blob_image_relative_path="$3"
-     local dest_path="${output_path}/${blob_image_relative_path}"
-     mkdirp "$("${COREUTILS}" dirname "${dest_path}")"
--    "${COREUTILS}" cp --no-preserve=mode "${image_path}/${blob_image_relative_path}" "${dest_path}"
-+    if ! test -e "${dest_path}"; then
-+        "${COREUTILS}" cp --no-preserve=mode "${image_path}/${blob_image_relative_path}" "${dest_path}"
-+    fi
- }
- 
- function create_oci_layout() {

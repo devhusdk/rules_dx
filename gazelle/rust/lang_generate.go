@@ -901,17 +901,37 @@ func addImport(sets [2]map[string]bool, root string, test bool) {
 	sets[index][root] = true
 }
 
-func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
+func mergeStale(file *rule.File, rel string, files []string, result language.GenerateResult) language.GenerateResult {
 	desired := make(map[string]bool, len(result.Gen))
+	claimed := make(map[string]bool)
 	for _, r := range result.Gen {
 		desired[r.Kind()+"\x00"+r.Name()] = true
+		for _, src := range r.AttrStrings("srcs") {
+			claimed[path.Join(rel, src)] = true
+		}
 	}
-	stale := staleRules(file, desired)
+	unclaimed := make(map[string]bool, len(files))
+	for _, name := range files {
+		if !claimed[name] {
+			unclaimed[name] = true
+		}
+	}
+	stale := staleRules(file, desired, func(r *rule.Rule) bool {
+		for _, src := range r.AttrStrings("srcs") {
+			if unclaimed[path.Join(rel, src)] {
+				return true
+			}
+		}
+		return false
+	})
 	result.Empty = append(result.Empty, stale.Empty...)
 	return result
 }
 
-func staleRules(file *rule.File, desired map[string]bool) language.GenerateResult {
+// staleRules lists the owned rules generation no longer produces. A rule
+// for which keep reports true names a present source no generated rule
+// claims, so it is handwritten and stays.
+func staleRules(file *rule.File, desired map[string]bool, keep func(*rule.Rule) bool) language.GenerateResult {
 	var result language.GenerateResult
 	if file == nil {
 		return result
@@ -923,7 +943,7 @@ func staleRules(file *rule.File, desired map[string]bool) language.GenerateResul
 		if existing.Kind() == corpusKind && !isGeneratedCorpusName(existing.Name()) {
 			continue
 		}
-		if hasHandwrittenAttr(existing) {
+		if hasHandwrittenAttr(existing) || keep(existing) {
 			continue
 		}
 		empty := rule.NewRule(existing.Kind(), existing.Name())

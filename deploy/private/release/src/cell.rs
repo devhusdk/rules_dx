@@ -358,8 +358,24 @@ fn rules_dx_override(checkout: &Path) -> String {
 
 const OVERRIDE_CALLS: [&str; 2] = ["archive_override(", "single_version_override("];
 
-/// The top-level `archive_override` and `single_version_override` calls of the rules_dx root MODULE.bazel.
+fn string_arg<'a>(call: &'a str, key: &str) -> Option<&'a str> {
+    let rest = call.split_once(&format!("{key} = \""))?.1;
+    rest.split_once('"').map(|(value, _)| value)
+}
+
+/// The modules of the non-dev `bazel_dep` calls of the rules_dx root MODULE.bazel.
+fn shipped_deps(root_module: &str) -> Vec<&str> {
+    root_module
+        .lines()
+        .filter(|line| line.starts_with("bazel_dep(") && !line.contains("dev_dependency = True"))
+        .filter_map(|line| string_arg(line, "name"))
+        .collect()
+}
+
+/// The top-level `archive_override` and `single_version_override` calls of the rules_dx root
+/// MODULE.bazel whose module is a non-dev `bazel_dep` of it.
 pub fn root_overrides(root_module: &str) -> Vec<String> {
+    let shipped = shipped_deps(root_module);
     let mut blocks = Vec::new();
     let mut open: Option<Vec<&str>> = None;
     for line in root_module.lines() {
@@ -376,6 +392,9 @@ pub fn root_overrides(root_module: &str) -> Vec<String> {
             }
         }
     }
+    blocks.retain(|block| {
+        string_arg(block, "module_name").is_some_and(|module| shipped.contains(&module))
+    });
     blocks
 }
 

@@ -171,7 +171,7 @@ fn patch_machine_flips_every_container() {
     }
 }
 
-const ROOT_MODULE: &str = "module(name = \"rules_dx\")\n\nbazel_dep(name = \"rules_a\", version = \"1\")\narchive_override(\n    module_name = \"rules_a\",\n    patches = [\n        \"//patches/rules_a:fix.patch\",  # upstream: https://example.com/a\n    ],\n    urls = [\"https://example.com/a.tar.gz\"],\n)\n\nsingle_version_override(\n    module_name = \"rules_b\",\n    patches = [\"//patches/rules_b:b.patch\"],\n)\n";
+const ROOT_MODULE: &str = "module(name = \"rules_dx\")\n\nbazel_dep(name = \"rules_a\", version = \"1\")\nbazel_dep(name = \"rules_b\", version = \"1\")\nbazel_dep(name = \"rules_c\", version = \"1\", dev_dependency = True)\narchive_override(\n    module_name = \"rules_a\",\n    patches = [\n        \"//patches/rules_a:fix.patch\",  # upstream: https://example.com/a\n    ],\n    urls = [\"https://example.com/a.tar.gz\"],\n)\n\nsingle_version_override(\n    module_name = \"rules_b\",\n    patches = [\"//patches/rules_b:b.patch\"],\n)\nsingle_version_override(\n    module_name = \"rules_c\",\n    patches = [\"//patches/rules_c:c.patch\"],\n)\nsingle_version_override(\n    module_name = \"transitive\",\n)\n";
 
 const SNIPPET: &str =
     "module(name = \"my_project\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
@@ -1234,8 +1234,10 @@ fn consumer_module_composes_the_snippet_and_escapes_the_checkout() {
 }
 
 #[test]
-fn consumer_module_repeats_the_root_root_overrides() {
+fn consumer_module_repeats_the_root_overrides() {
     let module = consumer_module(SNIPPET, ROOT_MODULE, Path::new("/src")).expect("module");
+    assert!(!module.contains("rules_c"), "{module}");
+    assert!(!module.contains("transitive"), "{module}");
     assert!(
         module.ends_with(&format!(
             "{}archive_override(\n    module_name = \"rules_a\",\n    patches = [\n        \"//patches/rules_a:fix.patch\",  # upstream: https://example.com/a\n    ],\n    urls = [\"https://example.com/a.tar.gz\"],\n)\nsingle_version_override(\n    module_name = \"rules_b\",\n    patches = [\"//patches/rules_b:b.patch\"],\n)\n",
@@ -1248,7 +1250,7 @@ fn consumer_module_repeats_the_root_root_overrides() {
 
 #[test]
 fn root_overrides_reads_one_line_and_block_calls() {
-    let root = "archive_override(module_name = \"x\", urls = [\"u\"])\n# archive_override(\nfoo()\nsingle_version_override(module_name = \"y\")\n";
+    let root = "bazel_dep(name = \"x\")\nbazel_dep(name = \"y\")\narchive_override(module_name = \"x\", urls = [\"u\"])\n# archive_override(\nfoo()\nsingle_version_override(module_name = \"y\")\n";
     assert_eq!(
         root_overrides(root),
         [

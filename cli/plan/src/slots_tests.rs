@@ -1298,7 +1298,7 @@ fn a_second_taker_waits_until_the_first_drops() {
         let mut holders = Vec::new();
         let slot = acquire(&second_dir, 1, "tree-b", &mut |holder| {
             holders.push(holder.to_owned());
-            drop(sender.send(()));
+            sender.send(()).ok();
         })
         .expect("second");
         (slot.index, holders)
@@ -1516,7 +1516,7 @@ impl Write for Announce {
     fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
         self.buf.extend_from_slice(data);
         if let Some(signal) = self.signal.take() {
-            drop(signal.send(()));
+            signal.send(()).ok();
         }
         Ok(data.len())
     }

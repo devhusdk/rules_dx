@@ -1,3 +1,253 @@
+diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
+--- a/haskell/cabal.bzl
++++ b/haskell/cabal.bzl
+@@ -133,7 +133,7 @@
+ def _uniquify(xs):
+     return depset(xs).to_list()
+ 
+-def _cabal_toolchain_info(hs, cc, workspace_name, runghc):
++def _cabal_toolchain_info(hs, cc, workspace_name, runghc, darwin_tools):
+     """Yields a struct containing the toolchain information needed by the cabal wrapper"""
+ 
+     # If running on darwin but XCode is not installed (i.e., only the Command
+@@ -142,8 +142,8 @@
+     # TODO: remove this if Bazel fixes its behavior.
+     # Upstream ticket: https://github.com/bazelbuild/bazel/issues/5127.
+     ar = cc.tools.ar
+-    if paths.basename(ar) == "llvm-libtool-darwin":
+-        ar = paths.join(paths.dirname(ar), "llvm-ar")
++    if darwin_tools:
++        ar = darwin_tools.ar
+     elif paths.basename(ar) == "libtool":
+         ar = paths.join(paths.dirname(ar), "ar")
+ 
+@@ -164,6 +164,26 @@
+ def _python_dir(ctx):
+     return ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.interpreter.dirname
+ 
++def _darwin_tools(ctx, hs, cc):
++    if not hs.toolchain.is_darwin:
++        return None
++    return struct(
++        ar = ctx.file._llvm_ar.path,
++        otool = ctx.file._llvm_otool.path,
++        install_name_tool = ctx.file._llvm_install_name_tool.path,
++        xcode = paths.basename(cc.tools.ar) != "llvm-libtool-darwin",
++        files = depset([ctx.file._llvm_ar, ctx.file._llvm_otool, ctx.file._llvm_install_name_tool]),
++    )
++
++def _xcode_execution_info(ctx, hs, env):
++    if not hs.toolchain.is_darwin:
++        return {}
++    xcode_config = ctx.attr._xcode_config[apple_common.XcodeVersionConfig]
++    env.pop("SDKROOT", None)
++    env.update(apple_common.apple_host_system_env(xcode_config))
++    env.update(apple_common.target_apple_env(xcode_config, apple_common.platform.macos))
++    return xcode_config.execution_info()
++
+ def _prepare_cabal_inputs(
+         hs,
+         cc,
+@@ -188,6 +208,7 @@
+         transitive_haddocks,
+         generate_paths_module,
+         is_library = False,  # @unused
++        darwin_tools = None,
+         dynamic_file = None,
+         static_binary = True,
+         label = None):
+@@ -272,16 +293,13 @@
+     ]
+     extra_args = ["--flags=" + " ".join(flags)]
+ 
+-    if hs.toolchain.is_darwin:
+-        # assume `otool` and `install_name_tool` are available at the same location as `ar`
+-        ar_bindir = paths.dirname(cc.tools.ar)
+-
+-        extra_args.append("--ghc-option=-pgmotool=" + paths.join(ar_bindir, "otool"))
+-        extra_args.append("--ghc-option=-pgminstall_name_tool=" + paths.join(ar_bindir, "install_name_tool"))
+-        extra_args.append("--haddock-option=--optghc=-pgmotool=" + paths.join(ar_bindir, "otool"))
+-        extra_args.append("--haddock-option=--optghc=-pgminstall_name_tool=" + paths.join(ar_bindir, "install_name_tool"))
++    if darwin_tools:
++        extra_args.append("--ghc-option=-pgmotool=" + darwin_tools.otool)
++        extra_args.append("--ghc-option=-pgminstall_name_tool=" + darwin_tools.install_name_tool)
++        extra_args.append("--haddock-option=--optghc=-pgmotool=" + darwin_tools.otool)
++        extra_args.append("--haddock-option=--optghc=-pgminstall_name_tool=" + darwin_tools.install_name_tool)
+ 
+-    if not hs.toolchain.is_windows:
++    if not hs.toolchain.is_windows and not (darwin_tools and darwin_tools.xcode):
+         extra_args.append("--ghc-option=-optl-fuse-ld=lld")
+         extra_args.append("--ghc-option=-optlm-fuse-ld=lld")
+         extra_args.append("--hsc2hs-option=--lflag=-fuse-ld=lld")
+@@ -289,8 +307,6 @@
+     if hs.toolchain.is_darwin:
+         extra_args.extend(["--ghc-option=-optc" + flag for flag in cc.compiler_flags])
+         extra_args.extend(["--ghc-option=-optl" + flag for flag in cc.linker_flags])
+-        extra_args.append("--ghc-option=-pgmotool=" + paths.join(ar_bindir, "llvm-otool"))
+-        extra_args.append("--ghc-option=-pgminstall_name_tool=" + paths.join(ar_bindir, "llvm-install-name-tool"))
+ 
+     ghc_version = [int(x) for x in hs.toolchain.version.split(".")]
+     if dynamic_file:
+@@ -367,7 +383,7 @@
+         runghc_args = runghc_args,
+         extra_args = extra_args,
+         path_args = path_args,
+-        toolchain_info = _cabal_toolchain_info(hs, cc, workspace_name, runghc),
++        toolchain_info = _cabal_toolchain_info(hs, cc, workspace_name, runghc, darwin_tools),
+         generate_paths_module = generate_paths_module,
+         ghc_version = ghc_version,
+         cabal_basename = cabal.basename,
+@@ -573,6 +589,7 @@
+                 sibling = cabal,
+             )
+     attr_tools = [tool[DefaultInfo].files_to_run for tool in ctx.attr.tools]
++    darwin_tools = _darwin_tools(ctx, hs, cc)
+     c = _prepare_cabal_inputs(
+         hs,
+         cc,
+@@ -595,6 +612,7 @@
+         package_database = package_database,
+         verbose = ctx.attr.verbose,
+         is_library = True,
++        darwin_tools = darwin_tools,
+         generate_paths_module = ctx.attr.generate_paths_module,
+         dynamic_file = dynamic_library,
+         transitive_haddocks = _gather_transitive_haddocks(ctx.attr.deps) if with_haddock else depset([]),
+@@ -623,16 +641,18 @@
+         paths.append(c.env["PATH"])
+     paths.extend([t.executable.dirname for t in attr_tools])
+     c.env["PATH"] = join_path_list(hs.toolchain.is_windows, paths)
++    execution_requirements = _xcode_execution_info(ctx, hs, c.env)
+ 
+     ctx.actions.run(
+         executable = c.cabal_wrapper,
+         arguments = [json_args.path],
+-        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.files, depset(ctx.files._llvm_ar) if hs.toolchain.is_darwin else depset()]),
++        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.files, darwin_tools.files if darwin_tools else depset()]),
+         tools = attr_tools +
+                 [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
+                 hs.tools_config.tools_for_ghc,
+         outputs = outputs,
+         env = c.env,
++        execution_requirements = execution_requirements,
+         mnemonic = "HaskellCabalLibrary",
+         progress_message = "HaskellCabalLibrary {}".format(hs.label),
+     )
+@@ -802,12 +822,28 @@
+         ),
+         "_llvm_ar": attr.label(
+             cfg = "exec",
+-            allow_files = True,
++            allow_single_file = True,
+             default = Label("@llvm//tools:llvm-ar"),
+         ),
++        "_llvm_install_name_tool": attr.label(
++            cfg = "exec",
++            allow_single_file = True,
++            default = Label("@llvm//tools:llvm-install-name-tool"),
++        ),
++        "_llvm_otool": attr.label(
++            cfg = "exec",
++            allow_single_file = True,
++            default = Label("@llvm//tools:llvm-otool"),
++        ),
+         "_cc_toolchain": attr.label(
+             default = Label("@rules_cc//cc:current_cc_toolchain"),
+         ),
++        "_xcode_config": attr.label(
++            default = configuration_field(
++                name = "xcode_config_label",
++                fragment = "apple",
++            ),
++        ),
+         "verbose": attr.bool(
+             default = True,
+             doc = "Whether to show the output of the build",
+@@ -829,7 +865,7 @@
+         "@rules_haskell//haskell:toolchain",
+         "@rules_python//python:toolchain_type",
+     ],
+-    fragments = ["cpp"],
++    fragments = ["apple", "cpp"],
+     doc = """\
+ Use Cabal to build a library.
+ 
+@@ -922,6 +958,7 @@
+         sibling = cabal,
+     )
+     attr_tools = [tool[DefaultInfo].files_to_run for tool in ctx.attr.tools]
++    darwin_tools = _darwin_tools(ctx, hs, cc)
+     c = _prepare_cabal_inputs(
+         hs,
+         cc,
+@@ -943,6 +980,7 @@
+         runghc = ctx.executable._runghc,
+         package_database = package_database,
+         verbose = ctx.attr.verbose,
++        darwin_tools = darwin_tools,
+         generate_paths_module = ctx.attr.generate_paths_module,
+         dynamic_file = binary,
+         transitive_haddocks = _gather_transitive_haddocks(ctx.attr.deps) if hs.tools_config.supports_haddock else depset([]),
+@@ -955,10 +993,11 @@
+         hs.toolchain.is_windows,
+         [_python_dir(ctx)] + ([c.env["PATH"]] if "PATH" in c.env else []),
+     )
++    execution_requirements = _xcode_execution_info(ctx, hs, c.env)
+     ctx.actions.run(
+         executable = c.cabal_wrapper,
+         arguments = [json_args.path],
+-        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.files, depset(ctx.files._llvm_ar) if hs.toolchain.is_darwin else depset()]),
++        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.files, darwin_tools.files if darwin_tools else depset()]),
+         outputs = [
+             package_database,
+             binary,
+@@ -968,6 +1007,7 @@
+                 [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
+                 hs.tools_config.tools_for_ghc,
+         env = c.env,
++        execution_requirements = execution_requirements,
+         mnemonic = "HaskellCabalBinary",
+         progress_message = "HaskellCabalBinary {}".format(hs.label),
+     )
+@@ -1068,12 +1108,28 @@
+         ),
+         "_llvm_ar": attr.label(
+             cfg = "exec",
+-            allow_files = True,
++            allow_single_file = True,
+             default = Label("@llvm//tools:llvm-ar"),
+         ),
++        "_llvm_install_name_tool": attr.label(
++            cfg = "exec",
++            allow_single_file = True,
++            default = Label("@llvm//tools:llvm-install-name-tool"),
++        ),
++        "_llvm_otool": attr.label(
++            cfg = "exec",
++            allow_single_file = True,
++            default = Label("@llvm//tools:llvm-otool"),
++        ),
+         "_cc_toolchain": attr.label(
+             default = Label("@rules_cc//cc:current_cc_toolchain"),
+         ),
++        "_xcode_config": attr.label(
++            default = configuration_field(
++                name = "xcode_config_label",
++                fragment = "apple",
++            ),
++        ),
+         "verbose": attr.bool(
+             default = True,
+             doc = "Whether to show the output of the build",
+@@ -1083,7 +1139,7 @@
+         "@rules_haskell//haskell:toolchain",
+         "@rules_python//python:toolchain_type",
+     ],
+-    fragments = ["cpp"],
++    fragments = ["apple", "cpp"],
+     doc = """\
+ Use Cabal to build a binary.
+ 
 diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.tpl
 --- a/haskell/private/cc_wrapper.py.tpl
 +++ b/haskell/private/cc_wrapper.py.tpl
@@ -12,98 +262,3 @@ diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.t
          if self.linking:
              if is_temporary_output(self.output):
                  # GHC with Template Haskell or tools like hsc2hs builds
-diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
---- a/haskell/cabal.bzl
-+++ b/haskell/cabal.bzl
-@@ -164,6 +164,15 @@
- def _python_dir(ctx):
-     return ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.interpreter.dirname
- 
-+def _xcode_execution_info(ctx, hs, env):
-+    if not hs.toolchain.is_darwin:
-+        return {}
-+    xcode_config = ctx.attr._xcode_config[apple_common.XcodeVersionConfig]
-+    env.pop("SDKROOT", None)
-+    env.update(apple_common.apple_host_system_env(xcode_config))
-+    env.update(apple_common.target_apple_env(xcode_config, apple_common.platform.macos))
-+    return xcode_config.execution_info()
-+
- def _prepare_cabal_inputs(
-         hs,
-         cc,
-@@ -623,6 +632,7 @@
-         paths.append(c.env["PATH"])
-     paths.extend([t.executable.dirname for t in attr_tools])
-     c.env["PATH"] = join_path_list(hs.toolchain.is_windows, paths)
-+    execution_requirements = _xcode_execution_info(ctx, hs, c.env)
- 
-     ctx.actions.run(
-         executable = c.cabal_wrapper,
-@@ -633,6 +643,7 @@
-                 hs.tools_config.tools_for_ghc,
-         outputs = outputs,
-         env = c.env,
-+        execution_requirements = execution_requirements,
-         mnemonic = "HaskellCabalLibrary",
-         progress_message = "HaskellCabalLibrary {}".format(hs.label),
-     )
-@@ -808,6 +819,12 @@
-         "_cc_toolchain": attr.label(
-             default = Label("@rules_cc//cc:current_cc_toolchain"),
-         ),
-+        "_xcode_config": attr.label(
-+            default = configuration_field(
-+                name = "xcode_config_label",
-+                fragment = "apple",
-+            ),
-+        ),
-         "verbose": attr.bool(
-             default = True,
-             doc = "Whether to show the output of the build",
-@@ -829,7 +846,7 @@
-         "@rules_haskell//haskell:toolchain",
-         "@rules_python//python:toolchain_type",
-     ],
--    fragments = ["cpp"],
-+    fragments = ["apple", "cpp"],
-     doc = """\
- Use Cabal to build a library.
- 
-@@ -955,6 +972,7 @@
-         hs.toolchain.is_windows,
-         [_python_dir(ctx)] + ([c.env["PATH"]] if "PATH" in c.env else []),
-     )
-+    execution_requirements = _xcode_execution_info(ctx, hs, c.env)
-     ctx.actions.run(
-         executable = c.cabal_wrapper,
-         arguments = [json_args.path],
-@@ -968,6 +986,7 @@
-                 [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
-                 hs.tools_config.tools_for_ghc,
-         env = c.env,
-+        execution_requirements = execution_requirements,
-         mnemonic = "HaskellCabalBinary",
-         progress_message = "HaskellCabalBinary {}".format(hs.label),
-     )
-@@ -1074,6 +1093,12 @@
-         "_cc_toolchain": attr.label(
-             default = Label("@rules_cc//cc:current_cc_toolchain"),
-         ),
-+        "_xcode_config": attr.label(
-+            default = configuration_field(
-+                name = "xcode_config_label",
-+                fragment = "apple",
-+            ),
-+        ),
-         "verbose": attr.bool(
-             default = True,
-             doc = "Whether to show the output of the build",
-@@ -1083,7 +1108,7 @@
-         "@rules_haskell//haskell:toolchain",
-         "@rules_python//python:toolchain_type",
-     ],
--    fragments = ["cpp"],
-+    fragments = ["apple", "cpp"],
-     doc = """\
- Use Cabal to build a binary.
- 

@@ -21,7 +21,14 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      elif paths.basename(ar) == "libtool":
          ar = paths.join(paths.dirname(ar), "ar")
  
-@@ -164,6 +164,26 @@
+@@ -158,12 +158,32 @@
+         strip = cc.tools.strip,
+         is_windows = hs.toolchain.is_windows,
+         workspace = workspace_name,
+-        ghc_cc_args = ghc_cc_program_args(hs, "$CC", "$LD"),
++        ghc_cc_args = ghc_cc_program_args(hs, "$CC", "$CC" if darwin_tools and darwin_tools.xcode else "$LD"),
+     )
+ 
  def _python_dir(ctx):
      return ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.interpreter.dirname
  
@@ -79,16 +86,18 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          extra_args.append("--ghc-option=-optl-fuse-ld=lld")
          extra_args.append("--ghc-option=-optlm-fuse-ld=lld")
          extra_args.append("--hsc2hs-option=--lflag=-fuse-ld=lld")
-@@ -289,8 +307,6 @@
+@@ -289,8 +307,8 @@
      if hs.toolchain.is_darwin:
          extra_args.extend(["--ghc-option=-optc" + flag for flag in cc.compiler_flags])
          extra_args.extend(["--ghc-option=-optl" + flag for flag in cc.linker_flags])
 -        extra_args.append("--ghc-option=-pgmotool=" + paths.join(ar_bindir, "llvm-otool"))
 -        extra_args.append("--ghc-option=-pgminstall_name_tool=" + paths.join(ar_bindir, "llvm-install-name-tool"))
++        if darwin_tools and darwin_tools.xcode and "-target" in cc.linker_flags:
++            extra_args.append("--ghc-option=-optlm--target=" + cc.linker_flags[cc.linker_flags.index("-target") + 1])
  
      ghc_version = [int(x) for x in hs.toolchain.version.split(".")]
      if dynamic_file:
-@@ -367,7 +383,7 @@
+@@ -367,7 +385,7 @@
          runghc_args = runghc_args,
          extra_args = extra_args,
          path_args = path_args,
@@ -97,7 +106,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          generate_paths_module = generate_paths_module,
          ghc_version = ghc_version,
          cabal_basename = cabal.basename,
-@@ -573,6 +589,7 @@
+@@ -573,6 +591,7 @@
                  sibling = cabal,
              )
      attr_tools = [tool[DefaultInfo].files_to_run for tool in ctx.attr.tools]
@@ -105,7 +114,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      c = _prepare_cabal_inputs(
          hs,
          cc,
-@@ -595,6 +612,7 @@
+@@ -595,6 +614,7 @@
          package_database = package_database,
          verbose = ctx.attr.verbose,
          is_library = True,
@@ -113,7 +122,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          generate_paths_module = ctx.attr.generate_paths_module,
          dynamic_file = dynamic_library,
          transitive_haddocks = _gather_transitive_haddocks(ctx.attr.deps) if with_haddock else depset([]),
-@@ -623,16 +641,18 @@
+@@ -623,16 +643,18 @@
          paths.append(c.env["PATH"])
      paths.extend([t.executable.dirname for t in attr_tools])
      c.env["PATH"] = join_path_list(hs.toolchain.is_windows, paths)
@@ -133,7 +142,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          mnemonic = "HaskellCabalLibrary",
          progress_message = "HaskellCabalLibrary {}".format(hs.label),
      )
-@@ -802,12 +822,28 @@
+@@ -802,12 +824,28 @@
          ),
          "_llvm_ar": attr.label(
              cfg = "exec",
@@ -163,7 +172,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          "verbose": attr.bool(
              default = True,
              doc = "Whether to show the output of the build",
-@@ -829,7 +865,7 @@
+@@ -829,7 +867,7 @@
          "@rules_haskell//haskell:toolchain",
          "@rules_python//python:toolchain_type",
      ],
@@ -172,7 +181,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      doc = """\
  Use Cabal to build a library.
  
-@@ -922,6 +958,7 @@
+@@ -922,6 +960,7 @@
          sibling = cabal,
      )
      attr_tools = [tool[DefaultInfo].files_to_run for tool in ctx.attr.tools]
@@ -180,7 +189,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      c = _prepare_cabal_inputs(
          hs,
          cc,
-@@ -943,6 +980,7 @@
+@@ -943,6 +982,7 @@
          runghc = ctx.executable._runghc,
          package_database = package_database,
          verbose = ctx.attr.verbose,
@@ -188,7 +197,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          generate_paths_module = ctx.attr.generate_paths_module,
          dynamic_file = binary,
          transitive_haddocks = _gather_transitive_haddocks(ctx.attr.deps) if hs.tools_config.supports_haddock else depset([]),
-@@ -955,10 +993,11 @@
+@@ -955,10 +995,11 @@
          hs.toolchain.is_windows,
          [_python_dir(ctx)] + ([c.env["PATH"]] if "PATH" in c.env else []),
      )
@@ -201,7 +210,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          outputs = [
              package_database,
              binary,
-@@ -968,6 +1007,7 @@
+@@ -968,6 +1009,7 @@
                  [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
                  hs.tools_config.tools_for_ghc,
          env = c.env,
@@ -209,7 +218,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          mnemonic = "HaskellCabalBinary",
          progress_message = "HaskellCabalBinary {}".format(hs.label),
      )
-@@ -1068,12 +1108,28 @@
+@@ -1068,12 +1110,28 @@
          ),
          "_llvm_ar": attr.label(
              cfg = "exec",
@@ -239,7 +248,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          "verbose": attr.bool(
              default = True,
              doc = "Whether to show the output of the build",
-@@ -1083,7 +1139,7 @@
+@@ -1083,7 +1141,7 @@
          "@rules_haskell//haskell:toolchain",
          "@rules_python//python:toolchain_type",
      ],
@@ -251,7 +260,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
 diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.tpl
 --- a/haskell/private/cc_wrapper.py.tpl
 +++ b/haskell/private/cc_wrapper.py.tpl
-@@ -163,6 +163,10 @@
+@@ -163,6 +163,13 @@
  
          self.args = list(self._handle_args(args))
  
@@ -259,6 +268,19 @@ diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.t
 +            sysroot = self.args[self.args.index("-isysroot") + 1]
 +            self.args.extend(["-isystem", os.path.join(sysroot, "usr", "include", "ffi")])
 +
++        if is_darwin():
++            self.args = [arg for arg in self.args if arg not in ("-single_module", "-Wl,-single_module")]
++
          if self.linking:
              if is_temporary_output(self.output):
                  # GHC with Template Haskell or tools like hsc2hs builds
+@@ -599,7 +606,8 @@
+     """
+     if is_darwin():
+         # Reserve space in load commands for later replacement.
+-        args.append("-headerpad_max_install_names")
++        if "-r" not in args:
++            args.append("-headerpad_max_install_names")
+         rpaths, darwin_rewrites = darwin_shorten_rpaths(
+                 rpaths, libraries, output)
+     else:

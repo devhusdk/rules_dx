@@ -9,6 +9,7 @@ filegroup(
         "defs.bzl",
         "extensions.bzl",
         "//csharp/private:module_srcs",
+        "//csharp/private/lock:module_srcs",
         "//csharp/private/ide:module_srcs",
     ],
     visibility = ["//:__subpackages__"],

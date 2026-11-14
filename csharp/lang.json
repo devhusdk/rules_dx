@@ -12,6 +12,7 @@
     "paket.dependencies"
   ],
   "lockfiles": [
+    "nuget.lock.json",
     "paket.lock"
   ],
   "setup": {
@@ -19,13 +20,13 @@
       {
         "ecosystem": "nuget",
         "manifest": "paket.dependencies",
-        "lock": "paket.lock",
+        "lock": "nuget.lock.json",
         "state": "paket.lock",
         "extension": "@rules_dx//csharp:extensions.bzl",
-        "tag": null,
-        "hub": "paket.main",
-        "resolver": null,
-        "imports": "name"
+        "tag": "lock",
+        "hub": "nuget",
+        "resolver": "@rules_dx//csharp/private/tools/lock",
+        "imports": "provides"
       }
     ]
   },

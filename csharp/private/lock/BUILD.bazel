@@ -1,0 +1,106 @@
+load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load(":hub.bzl", "hub_name", "lock_hubs")
+
+package(default_visibility = ["//visibility:private"])
+
+_PACKAGE = {
+    "archives": [{
+        "sha256": "14cf409d76656727e4322d3ff006158533f042c494a464d3748f0007a48475d1",
+        "type": "zip",
+        "urls": ["https://api.nuget.org/v3-flatcontainer/alpha.core/1.2.0/alpha.core.1.2.0.nupkg"],
+    }],
+    "deps": ["Beta"],
+    "extra": {
+        "nuget_frameworks": ["net10.0"],
+        "nuget_sha512": "sha512-AA==",
+        "nuget_tools": {"net10.0": [{
+            "entrypoint": "a.dll",
+            "name": "a",
+            "runner": "dotnet",
+        }]},
+    },
+    "name": "Alpha.Core",
+    "provides": ["Alpha.Core"],
+    "version": "1.2.0",
+}
+
+_LOCK = {
+    "ecosystem": "nuget",
+    "groups": {
+        "docs": [],
+        "main": [_PACKAGE],
+        "tools": [_PACKAGE],
+    },
+    "packages": [],
+    "schema": 1,
+}
+
+starlark_test(
+    name = "hub_test",
+    size = "small",
+    checks = [
+        expect_equal(
+            "main is the hub",
+            hub_name("nuget", "main"),
+            "nuget",
+        ),
+        expect_equal(
+            "another group is a dotted hub",
+            hub_name("nuget", "tools"),
+            "nuget.tools",
+        ),
+        expect_equal(
+            "every group with packages is a hub",
+            sorted(lock_hubs("nuget", _LOCK).keys()),
+            [
+                "nuget",
+                "nuget.tools",
+            ],
+        ),
+        expect_equal(
+            "a package becomes a rules_dotnet nuget_repo package with deps per framework",
+            lock_hubs("nuget", _LOCK)["nuget"],
+            [{
+                "dependencies": {"net10.0": ["Beta"]},
+                "framework_list": [],
+                "id": "Alpha.Core",
+                "name": "Alpha.Core",
+                "sha512": "sha512-AA==",
+                "sources": ["https://api.nuget.org/v3/index.json"],
+                "targeting_pack_overrides": [],
+                "tools": {"net10.0": [{
+                    "entrypoint": "a.dll",
+                    "name": "a",
+                    "runner": "dotnet",
+                }]},
+                "version": "1.2.0",
+            }],
+        ),
+    ],
+    mode = "unit",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "hub.bzl",
+    ],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+exports_files(
+    ["hub.bzl"],
+    visibility = ["//:__subpackages__"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "BUILD.bazel",
+        "hub.bzl",
+    ],
+    visibility = ["//:__subpackages__"],
+)

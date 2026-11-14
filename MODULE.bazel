@@ -444,6 +444,20 @@ use_repo(
 
 register_toolchains("@dx_dotnet_toolchains//:all")
 
+nuget = use_extension("//csharp:extensions.bzl", "nuget")
+nuget.lock(
+    name = "nuget",
+    lock = "//third_party/dotnet:nuget.lock.json",
+)
+use_repo(
+    nuget,
+    "nuget",
+    "nuget.docs_csharp",
+    "nuget.docs_fsharp",
+    "nuget.fsharplint",
+    "nuget.referencetrimmer",
+)
+
 paket = use_extension("//third_party/dotnet:extension.bzl", "paket")
 use_repo(
     paket,

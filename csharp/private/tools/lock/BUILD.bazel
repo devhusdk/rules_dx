@@ -70,6 +70,7 @@ rust_test(
         "//cli/lock:dx_lock",
         "//tools/testing:dx_testing",
         "@crates//:tempfile",
+        "@crates//:zip",
     ],
 )
 

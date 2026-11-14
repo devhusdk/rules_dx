@@ -409,7 +409,7 @@ fn qualify_passes_the_host_binary_in_tar_gz_and_zip() {
                 format!("{exe_name} --version in {INSTALL_DIR}"),
                 format!("{exe_name} --version in {MOVED_DIR}"),
                 format!(
-                    "{exe_name} init --apply --workspace {} in consumer",
+                    "{exe_name} init --apply --no-generate --workspace {} in consumer",
                     fixture.inputs.work.join(CONSUMER_DIR).display()
                 ),
                 format!("{exe_name} build //... in consumer"),

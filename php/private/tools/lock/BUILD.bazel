@@ -1,5 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("//core/quality:fixtures.bzl", "real_source_target")
+load("//php/private/quality:corpus.bzl", "php_corpus")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -81,14 +81,14 @@ rust_test(
     ],
 )
 
-real_source_target(
+php_corpus(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
 )
 
-real_source_target(
+php_corpus(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],

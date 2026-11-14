@@ -14,7 +14,7 @@ def _configure_tag(request, accept_licenses):
         mirror = request.mirror,
     )
 
-def _declare(rule, name, artifact, kind, mirror, license_error):
+def _declare(rule, name, artifact, kind, mirror, license_error, **kwargs):
     """Declares one pinned archive repository."""
     url = url_for(artifact, mirror)
     rule(
@@ -26,6 +26,7 @@ def _declare(rule, name, artifact, kind, mirror, license_error):
         license_error = license_error,
         sha256 = artifact.sha256,
         url = url,
+        **kwargs
     )
 
 def _declare_app_sdk(request, license_error):
@@ -82,7 +83,7 @@ def _android_sdk_impl(module_ctx):
     if request.enabled:
         mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
         for platform in sorted(repos["ndk"].keys()):
-            _declare(android_ndk_repo, repos["ndk"][platform], NDK_ARTIFACTS[platform], "ndk", mirror, license_error)
+            _declare(android_ndk_repo, repos["ndk"][platform], NDK_ARTIFACTS[platform], "ndk", mirror, license_error, host = platform)
         for platform in sorted(repos["build_tools"].keys()):
             _declare(android_build_tools_repo, repos["build_tools"][platform], BUILD_TOOLS_ARTIFACTS[platform], "build-tools", mirror, license_error)
         for level in sorted(repos["platform"].keys()):

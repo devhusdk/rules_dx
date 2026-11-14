@@ -2,9 +2,7 @@
 
 load("//android/private/platforms:defs.bzl", "api_floor", "constraint_list")
 load("//android/private/platforms:validate.bzl", "android_cxx_runtime_errors", "android_ndk_revision_errors")
-load("//android/private/sdk:repos.bzl", "ANDROID_NDK_CLANG_VERSION", "ANDROID_NDK_REVISION", "NDK_PREBUILT", "ndk_repository_name")
-
-_QUALIFIED_HOST = "linux_x86_64"
+load("//android/private/sdk:repos.bzl", "ANDROID_NDK_CLANG_VERSION", "ANDROID_NDK_REVISION", "NDK_ARTIFACTS", "NDK_PREBUILT", "PLATFORM_CONSTRAINTS", "ndk_repository_name")
 
 def toolchain_repo_errors(revision, api_level, cxx_runtime):
     """Returns one error string per rejected toolchain repository selection."""
@@ -19,27 +17,27 @@ _TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
 
 _TUPLE_BUILD = """
 filegroup(
-    name = "compiler_files_{tuple}",
-    srcs = ["{ndk}:clang", "{ndk}:compiler_files", ":native_tools"],
+    name = "compiler_files_{tuple}_{host}",
+    srcs = ["{ndk}:clang", "{ndk}:compiler_files", ":native_tools_{host}"],
 )
 
 filegroup(
-    name = "linker_files_{tuple}",
-    srcs = ["{ndk}:clang", "{ndk}:ld_lld", "{ndk}:runtime_libs", "{ndk}:linker_files_{triple}", ":native_tools"],
+    name = "linker_files_{tuple}_{host}",
+    srcs = ["{ndk}:clang", "{ndk}:ld_lld", "{ndk}:runtime_libs", "{ndk}:linker_files_{triple}", ":native_tools_{host}"],
 )
 
 filegroup(
-    name = "all_files_{tuple}",
+    name = "all_files_{tuple}_{host}",
     srcs = [
-        ":compiler_files_{tuple}",
-        ":linker_files_{tuple}",
-        ":ar_files",
-        ":strip_files",
+        ":compiler_files_{tuple}_{host}",
+        ":linker_files_{tuple}_{host}",
+        ":ar_files_{host}",
+        ":strip_files_{host}",
     ],
 )
 
 ndk_cc_toolchain_config(
-    name = "config_{tuple}",
+    name = "config_{tuple}_{host}",
     api_level = {api_level},
     ar = "{ndk}:llvm_ar",
     clang = "{ndk}:clang",
@@ -55,45 +53,45 @@ ndk_cc_toolchain_config(
 )
 
 cc_toolchain(
-    name = "cc_toolchain_{tuple}",
-    all_files = ":all_files_{tuple}",
-    ar_files = ":ar_files",
-    compiler_files = ":compiler_files_{tuple}",
+    name = "cc_toolchain_{tuple}_{host}",
+    all_files = ":all_files_{tuple}_{host}",
+    ar_files = ":ar_files_{host}",
+    compiler_files = ":compiler_files_{tuple}_{host}",
     dwp_files = ":empty",
-    linker_files = ":linker_files_{tuple}",
+    linker_files = ":linker_files_{tuple}_{host}",
     objcopy_files = ":empty",
-    strip_files = ":strip_files",
+    strip_files = ":strip_files_{host}",
     supports_param_files = False,
-    toolchain_config = ":config_{tuple}",
+    toolchain_config = ":config_{tuple}_{host}",
     toolchain_identifier = "ndk-{tuple}-android",
 )
 
 toolchain(
-    name = "ndk_cc_toolchain_{tuple}",
-    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    name = "ndk_cc_toolchain_{tuple}_{host}",
+    exec_compatible_with = {exec_compatible_with},
     target_compatible_with = {compatible_with},
     target_settings = ["{toolchains_on}"],
-    toolchain = ":cc_toolchain_{tuple}",
+    toolchain = ":cc_toolchain_{tuple}_{host}",
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )
 """
 
-_COMMON_BUILD = """
-filegroup(name = "empty", srcs = [])
+_HOST_BUILD = """
+filegroup(name = "native_tools_{host}", srcs = [])
 
 filegroup(
-    name = "ar_files",
-    srcs = ["{ndk}:llvm_ar", ":native_tools"],
+    name = "ar_files_{host}",
+    srcs = ["{ndk}:llvm_ar", ":native_tools_{host}"],
+)
+
+config_setting(
+    name = "{host}",
+    constraint_values = {exec_compatible_with},
 )
 
 filegroup(
-    name = "llvm_readelf",
-    srcs = ["{ndk}:llvm_readelf"],
-)
-
-filegroup(
-    name = "strip_files",
-    srcs = ["{ndk}:llvm_strip", ":native_tools"],
+    name = "strip_files_{host}",
+    srcs = ["{ndk}:llvm_strip", ":native_tools_{host}"],
 )
 """
 
@@ -109,35 +107,50 @@ _TUPLE_CONSTRAINTS = {
     for name in ["device", "emulator"]
 }
 
-def toolchain_build(ndk_label, exec_root, api_level, cxx_runtime):
-    """Returns the BUILD text declaring both NDK cc toolchains."""
-    prebuilt = exec_root + "/" + NDK_PREBUILT
-    sysroot = prebuilt + "/sysroot"
+def _list(values):
+    return '["' + '", "'.join(values) + '"]'
+
+def toolchain_build(ndks, api_level, cxx_runtime):
+    """Returns the BUILD text declaring both NDK cc toolchains for every pinned exec host."""
     chunks = [
         'load("' + str(Label("@rules_cc//cc:defs.bzl")) + '", "cc_toolchain")',
         'load("' + str(Label("//android/private/toolchain:cc_toolchain_config.bzl")) + '", "ndk_cc_toolchain_config")',
         "",
         'package(default_visibility = ["//visibility:public"])',
         "",
-        _COMMON_BUILD.format(ndk = ndk_label),
+        'filegroup(name = "empty", srcs = [])',
     ]
-    chunks.append('filegroup(name = "native_tools", srcs = [])')
-    for name in ["device", "emulator"]:
-        triple = _TUPLE_TRIPLE[name]
-        chunks.append(_TUPLE_BUILD.format(
-            ndk = ndk_label,
-            tuple = name,
-            api_level = api_level,
-            clang_target = triple + str(api_level),
-            cpu = _TUPLE_CPU[name],
-            triple = triple,
-            cxx_runtime = cxx_runtime,
-            resource_dir = prebuilt + "/lib/clang/" + ANDROID_NDK_CLANG_VERSION + "/include",
-            cxx_include_dir = sysroot + "/usr/include/c++/v1",
-            ndk_sysroot = sysroot,
-            compatible_with = _TUPLE_CONSTRAINTS[name],
-            toolchains_on = _TOOLCHAINS_ON,
-        ))
+    for host in sorted(ndks.keys()):
+        ndk = ndks[host]
+        prebuilt = ndk.exec_root + "/" + NDK_PREBUILT[host]
+        sysroot = prebuilt + "/sysroot"
+        chunks.append(_HOST_BUILD.format(ndk = ndk.label, host = host, exec_compatible_with = _list(PLATFORM_CONSTRAINTS[host])))
+        for name in ["device", "emulator"]:
+            triple = _TUPLE_TRIPLE[name]
+            chunks.append(_TUPLE_BUILD.format(
+                ndk = ndk.label,
+                host = host,
+                tuple = name,
+                api_level = api_level,
+                clang_target = triple + str(api_level),
+                cpu = _TUPLE_CPU[name],
+                triple = triple,
+                cxx_runtime = cxx_runtime,
+                resource_dir = prebuilt + "/lib/clang/" + ANDROID_NDK_CLANG_VERSION + "/include",
+                cxx_include_dir = sysroot + "/usr/include/c++/v1",
+                ndk_sysroot = sysroot,
+                compatible_with = _TUPLE_CONSTRAINTS[name],
+                exec_compatible_with = _list(PLATFORM_CONSTRAINTS[host]),
+                toolchains_on = _TOOLCHAINS_ON,
+            ))
+    chunks.extend([
+        "alias(",
+        '    name = "llvm_readelf",',
+        "    actual = select({",
+    ] + ['        ":%s": "%s:llvm_readelf",' % (host, ndks[host].label) for host in sorted(ndks.keys())] + [
+        "    }),",
+        ")",
+    ])
     return "\n".join(chunks)
 
 def _android_ndk_toolchain_repo_impl(ctx):
@@ -145,13 +158,14 @@ def _android_ndk_toolchain_repo_impl(ctx):
     failures = toolchain_repo_errors(ANDROID_NDK_REVISION, api_level, ctx.attr.cxx_runtime)
     if len(failures) > 0:
         fail("; ".join(failures))
-    ndk = Label("@" + ndk_repository_name(_QUALIFIED_HOST) + "//:ndk_anchor")
-    ctx.file("BUILD.bazel", toolchain_build(
-        str(ndk).removesuffix(":ndk_anchor"),
-        ndk.workspace_root + "/extracted",
-        api_level,
-        ctx.attr.cxx_runtime,
-    ))
+    ndks = {}
+    for host in sorted(NDK_ARTIFACTS.keys()):
+        ndk = Label("@" + ndk_repository_name(host) + "//:ndk_anchor")
+        ndks[host] = struct(
+            label = str(ndk).removesuffix(":ndk_anchor"),
+            exec_root = ndk.workspace_root + "/extracted",
+        )
+    ctx.file("BUILD.bazel", toolchain_build(ndks, api_level, ctx.attr.cxx_runtime))
 
 android_ndk_toolchain_repo = repository_rule(
     implementation = _android_ndk_toolchain_repo_impl,

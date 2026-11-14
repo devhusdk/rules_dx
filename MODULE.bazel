@@ -2734,8 +2734,7 @@ _android_ndk_toolchain_repo(
 )
 
 register_toolchains(
-    "@android_ndk_toolchain//:ndk_cc_toolchain_device",
-    "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
+    "@android_ndk_toolchain//:all",
 )
 
 avro_cc = use_extension("//avro:extensions.bzl", "avro_cc")
@@ -2750,7 +2749,15 @@ _android_sdk_extension = use_extension("@rules_android//rules/android_sdk_reposi
 
 android_sdk = use_extension("//android:extensions.bzl", "android_sdk")
 android_sdk.configure(extra_packages = ["platform-tools"])
-use_repo(android_sdk, "dx_android_ndk_linux_x86_64", "dx_android_sdk", "dx_androidsdk")
+use_repo(
+    android_sdk,
+    "dx_android_ndk_linux_x86_64",
+    "dx_android_ndk_macos_arm64",
+    "dx_android_ndk_macos_x86_64",
+    "dx_android_ndk_windows_x86_64",
+    "dx_android_sdk",
+    "dx_androidsdk",
+)
 
 override_repo(
     _android_sdk_extension,

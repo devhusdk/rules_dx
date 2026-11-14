@@ -2232,19 +2232,55 @@ fn executable(path: &Path) -> Result<(), String> {
         .map_err(|err| format!("cannot mark {} executable: {err}", path.display()))
 }
 
+/// The ids of the `dx_licenses.accept(ids = [...])` tags in a module fragment.
+fn accepted_licenses(fragment: &str) -> Vec<String> {
+    let mut ids = Vec::new();
+    for line in fragment.lines() {
+        let Some(rest) = line.trim().strip_prefix("dx_licenses.accept(") else {
+            continue;
+        };
+        let body = rest.split(']').next().unwrap_or_default();
+        let list = body.split('[').nth(1).unwrap_or_default();
+        ids.extend(
+            list.split(',')
+                .map(|id| id.trim().trim_matches('"'))
+                .filter(|id| !id.is_empty())
+                .map(str::to_owned),
+        );
+    }
+    ids
+}
+
+fn without_license_tags(fragment: &str) -> String {
+    fragment
+        .lines()
+        .filter(|line| {
+            let line = line.trim();
+            !line.starts_with("dx_licenses.accept(") && !line.starts_with("dx_licenses = ")
+        })
+        .map(|line| format!("{line}\n"))
+        .collect()
+}
+
 fn run_init(manifest: &Manifest, workspace: &Path) -> Result<(), String> {
     let workspace_text = workspace.to_string_lossy().into_owned();
-    let init = dx_testing::run(
-        &manifest.dx,
-        &[
-            "init",
-            "--apply",
-            "--no-generate",
-            "--workspace",
-            &workspace_text,
-        ],
-        &[],
-    )
+    let mut args = vec![
+        "init".to_owned(),
+        "--apply".to_owned(),
+        "--no-generate".to_owned(),
+        "--workspace".to_owned(),
+        workspace_text,
+    ];
+    if let Some(path) = &manifest.module_fragment {
+        let fragment = std::fs::read_to_string(path)
+            .map_err(|err| format!("cannot read {}: {err}", path.display()))?;
+        for id in accepted_licenses(&fragment) {
+            args.push("--accept-license".to_owned());
+            args.push(id);
+        }
+    }
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    let init = dx_testing::run(&manifest.dx, &args, &[])
     .map_err(|err| format!("cannot run dx init: {err}"))?;
     if !init.status.success() {
         return Err(format!("dx init failed: {}", init.combined()));
@@ -2262,6 +2298,7 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         .ok_or("manifest needs a module_fragment")?;
     let fragment = std::fs::read_to_string(fragment_path)
         .map_err(|err| format!("cannot read {}: {err}", fragment_path.display()))?;
+    let fragment = without_license_tags(&fragment);
     let module = compose_module(
         &snippet,
         &manifest.module,

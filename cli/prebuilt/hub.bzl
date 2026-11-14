@@ -22,7 +22,6 @@ KNOWN_CPU = ["aarch64", "arm", "i386", "ppc64le", "riscv64", "s390x", "x86_32", 
 
 SOURCE_LABEL = "@rules_dx//cli/cli:dx"
 
-# dx runs these tools when started under their names, so a prebuilt dx stands in for each.
 SOURCE_TOOLS = {
     "codegen_shard_writer": "@rules_dx//cli/codegen_shard:codegen_shard_writer",
     "collect_native": "@rules_dx//tools/coverage/collect:collect_native",

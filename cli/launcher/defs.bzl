@@ -12,13 +12,13 @@ def target_is_windows(ctx):
     return ctx.target_platform_has_constraint(ctx.attr._windows_os[platform_common.ConstraintValueInfo])
 
 def native_launch_descriptor_path(exe_path):
-    """Returns the descriptor path of the native launcher at `exe_path`: `x.exe` and `x` become `x.launch`."""
+    """Returns the launcher descriptor path for `exe_path`."""
     if exe_path.endswith(".exe"):
         return exe_path[:-len(".exe")] + ".launch"
     return exe_path + ".launch"
 
 def write_native_launcher(ctx, descriptor_text, launcher_name = None):
-    """Writes `<name>` on Unix or `<name>.exe` on Windows (the native launcher) and `<name>.launch` (its descriptor)."""
+    """Writes the native launcher and its descriptor."""
     launcher = ctx.actions.declare_file((launcher_name or ctx.label.name) + (".exe" if target_is_windows(ctx) else ""))
     descriptor = ctx.actions.declare_file(ctx.label.name + ".launch")
     ctx.actions.write(descriptor, descriptor_text)

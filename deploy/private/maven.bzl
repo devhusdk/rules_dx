@@ -117,7 +117,7 @@ _maven_config = rule(
 )
 
 def maven_deploy(name, jar, pom, group, artifact = "", version = "", build_mode = "release", sources = None, javadoc = None, sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
-    """Publishes one jar plus its pom, and optional sources and javadoc jars, as a local-first Maven deployment."""
+    """Publishes one jar and its pom as a Maven deployment."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     group_error = maven_group_error(group)
     if group_error != "":

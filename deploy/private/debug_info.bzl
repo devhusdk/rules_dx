@@ -1,4 +1,4 @@
-"""Splits Linux ELF debug info from a binary and pairs macOS dSYM bundles and Windows PDBs with it."""
+"""Splits and pairs debug info with a binary."""
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("//core:native_coverage.bzl", "dx_toolchain_tool")
@@ -144,7 +144,7 @@ _dsym_pair = rule(
 )
 
 def dx_dsym(name, binary, **kwargs):
-    """Keeps the dSYM of a macOS cc_binary, checked against it; build the symbols output group to get it."""
+    """Keeps the dSYM of a macOS cc_binary."""
     kwargs.setdefault("target_compatible_with", ["@platforms//os:macos"])
     _dsym_pair(name = name, binary = binary, **kwargs)
 
@@ -219,6 +219,6 @@ _pdb_pair = rule(
 )
 
 def dx_pdb(name, binary, **kwargs):
-    """Keeps the PDB of a Windows cc_binary, checked against it; build the symbols output group to get it."""
+    """Keeps the PDB of a Windows cc_binary."""
     kwargs.setdefault("target_compatible_with", ["@platforms//os:windows"])
     _pdb_pair(name = name, binary = binary, **kwargs)

@@ -377,27 +377,6 @@ rust_test(
 )
 
 rust_test(
-    name = "release_cell_test",
-    size = "small",
-    srcs = ["release_cell_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "release_cell_test",
-    crate_root = "release_cell_test.rs",
-    data = [
-        "release_cell.sh",
-    ],
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + ["//tools/testing:dx_testing"],
-)
-
-rust_test(
     name = "review_paths_test",
     size = "small",
     srcs = ["review_paths_test.rs"],

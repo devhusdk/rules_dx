@@ -13,6 +13,7 @@ rust_binary(
         "src/evidence.rs",
         "src/lock_merge.rs",
         "src/main.rs",
+        "src/release_cell.rs",
         "src/review_paths.rs",
         "src/table.rs",
         "src/upgrade_e2e.rs",

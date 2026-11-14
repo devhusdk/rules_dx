@@ -56,7 +56,9 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           JOB: ${{ github.job }}
           SHA: ${{ github.sha }}
-        run: tools/ci/release_cell.sh "$RUNNER_TEMP/cell-out"
+        run: |
+          bazel build --noshow_progress //tools/ci/producers:producers_bin
+          "$(bazel info bazel-bin)/tools/ci/producers/producers_bin" --release-cell "$RUNNER_TEMP/cell-out"
       - name: Qualify exact owned line coverage
         env:
           CELL: ${{ matrix.name }}

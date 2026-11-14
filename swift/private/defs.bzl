@@ -20,7 +20,6 @@ load("//swift/private/platforms:support.bzl", _SWIFT_COMPATIBLE_WITH = "SWIFT_CO
 load("//swift/private/platforms:settings.bzl", "SWIFT_PLATFORM_SETTINGS", "swift_linux_platforms", "swift_platform_settings")
 load("//swift/private:providers.bzl", "SwiftDocsInfo")
 
-# Re-exported unchanged: BUILD files use them to expose C modules to Swift and to group libraries.
 swift_interop_hint = _swift_interop_hint
 swift_library_group = _swift_library_group
 

@@ -54,17 +54,6 @@ rust_test(
     ) + ["//tools/testing:dx_testing"],
 )
 
-rust_test(
-    name = "windows_diag_test",
-    srcs = ["windows_diag_test.rs"],
-    crate_name = "windows_diag_test",
-    crate_root = "windows_diag_test.rs",
-    data = [":dart"],
-    env = {"DART": "$(rootpath :dart)"},
-    target_compatible_with = DART_COMPATIBLE_WITH,
-    deps = ["//tools/testing:dx_testing"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

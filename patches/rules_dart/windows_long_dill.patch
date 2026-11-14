@@ -1,0 +1,14 @@
+diff -ruN a/dart/private/tools/test_runner.dart b/dart/private/tools/test_runner.dart
+--- a/dart/private/tools/test_runner.dart
++++ b/dart/private/tools/test_runner.dart
+@@ -36,7 +36,9 @@
+ 
+   final r = Runfiles.create();
+   final dart = r.rlocation(dartKey);
+-  final dill = r.rlocation(dillKey);
++  final dill = Platform.isWindows
++      ? File(r.rlocation(dillKey)).resolveSymbolicLinksSync()
++      : r.rlocation(dillKey);
+ 
+   // Empty counts as unset, so a test that starts another `dart_test` binary
+   // can keep its own runner settings from leaking into the child.

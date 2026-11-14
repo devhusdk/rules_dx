@@ -19,6 +19,10 @@ impl Project {
         let root = PathBuf::from(tmp).join(format!("dart_analyze_{}_{name}", std::process::id()));
         std::fs::create_dir_all(root.join("lib")).expect("mkdir");
         let root = std::fs::canonicalize(root).expect("canonicalize");
+        let root = match root.to_str().and_then(|path| path.strip_prefix(r"\\?\")) {
+            Some(path) => PathBuf::from(path),
+            None => root,
+        };
         let project = Self { root };
         project.write("analysis_options.yaml", options);
         project

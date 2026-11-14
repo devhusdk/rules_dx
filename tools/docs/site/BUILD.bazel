@@ -323,3 +323,13 @@ real_source_target(
         "Cargo.toml",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+        "user/*.bzl",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

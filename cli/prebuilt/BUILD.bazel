@@ -21,6 +21,7 @@ filegroup(
         "extension.bzl",
         "fail.bzl",
         "hub.bzl",
+        "hub_tests.bzl",
         "pins.bzl",
     ],
     visibility = ["//:__subpackages__"],

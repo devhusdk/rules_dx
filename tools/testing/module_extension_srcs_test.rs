@@ -1,6 +1,6 @@
 #[path = "module_srcs_closure.rs"]
 mod closure;
-use closure::{loads, missing_from_runfiles, resolve, Bzl};
+use closure::{in_runfiles, loads, missing_from_runfiles, resolve, Bzl};
 
 /// Labels of every `use_extension` call in `module` that is not a dev dependency.
 fn non_dev_labels(module: &str) -> Vec<String> {
@@ -67,5 +67,41 @@ fn module_srcs_carry_every_file_a_consumer_module_bazel_loads() {
         report.is_empty(),
         "//:module_srcs lacks files a consumer's MODULE.bazel loads; add their package's module_srcs:\n{}",
         report.join("\n")
+    );
+}
+
+#[test]
+fn module_srcs_carry_every_source_of_the_dx_binary_and_a_generated_policy() {
+    let closure = std::fs::read_to_string(dx_testing::resolve_runfiles(
+        &std::env::var("DX_SOURCE_CLOSURE").expect("DX_SOURCE_CLOSURE is set"),
+    ))
+    .expect("the dx source closure is in runfiles");
+    let mut missing = Vec::new();
+    let mut packages = std::collections::BTreeSet::new();
+    for line in closure.lines().filter(|line| !line.is_empty()) {
+        let (kind, label) = line.rsplit_once(' ').expect("label_kind lines end in a label");
+        let target = resolve(label, "").expect("the closure holds //-labels only");
+        if kind == "source file" && in_runfiles(&target.path).is_none() {
+            missing.push(format!("{} (a source of {label})", target.path));
+        }
+        packages.insert(target.package);
+    }
+    assert!(!packages.is_empty(), "the dx source closure is empty");
+    let entries = packages
+        .into_iter()
+        .map(|package| {
+            let path = if package.is_empty() {
+                "BUILD.bazel".to_owned()
+            } else {
+                format!("{package}/BUILD.bazel")
+            };
+            (Bzl { package, path }, "the dx source closure".to_owned())
+        })
+        .collect();
+    missing.extend(missing_from_runfiles(entries));
+    assert!(
+        missing.is_empty(),
+        "//:module_srcs lacks files that build //cli/cli:dx or a dx_generated_policy; add their package's module_srcs:\n{}",
+        missing.join("\n")
     );
 }

@@ -22,3 +22,9 @@ graphql_eslint_config(
     src = "strict.json",
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

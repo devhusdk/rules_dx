@@ -26,7 +26,7 @@
   "ninja": "1.13.2",
   "pkgconf": "3.0.10",
   "platforms": "1.1.0",
-  "protobuf": "36.2",
+  "protobuf": "37.0-rc3",
   "rules_android": "0.8.1",
   "rules_apple": "5.4.0",
   "rules_batch": "0.1.1",

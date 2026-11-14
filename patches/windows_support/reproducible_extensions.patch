@@ -1,0 +1,28 @@
+diff --git a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
+--- a/windows/private/extensions/msvc_runtime.bzl
++++ b/windows/private/extensions/msvc_runtime.bzl
+@@ -612,6 +612,7 @@
+ 
+     metadata_kwargs = {
+         "facts": {_INSTALLER_MANIFEST_FACTS_KEY: installer_manifest},
++        "reproducible": bool(config.visual_studio_installer_manifest_url and config.visual_studio_installer_manifest_integrity),
+     }
+     if module_ctx.root_module_has_non_dev_dependency:
+         metadata_kwargs["root_module_direct_deps"] = [repository_name]
+diff --git a/windows/private/extensions/windows_sdk.bzl b/windows/private/extensions/windows_sdk.bzl
+--- a/windows/private/extensions/windows_sdk.bzl
++++ b/windows/private/extensions/windows_sdk.bzl
+@@ -373,11 +373,13 @@
+         return module_ctx.extension_metadata(
+             root_module_direct_deps = [repository_name],
+             root_module_direct_dev_deps = [],
++            reproducible = bool(config.windows_sdk_integrity),
+         )
+     else:
+         return module_ctx.extension_metadata(
+             root_module_direct_deps = [],
+             root_module_direct_dev_deps = [repository_name],
++            reproducible = bool(config.windows_sdk_integrity),
+         )
+ 
+ windows_sdk = module_extension(

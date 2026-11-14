@@ -413,7 +413,7 @@ use_repo(ansible, "dx_ansible_test_collections")
 terraform = use_extension("//terraform:extensions.bzl", "terraform", dev_dependency = True)
 terraform.lock(
     name = "dx_terraform_providers",
-    lock = "//terraform/tests:lock/terraform.lock.json",
+    lock = "//terraform/tests/lock:terraform.lock.json",
 )
 use_repo(terraform, "dx_terraform_providers")
 

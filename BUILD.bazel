@@ -645,6 +645,7 @@ filegroup(
         "//dotnet/private/quality:module_srcs",
         "//dotnet/private:module_srcs",
         "//dotnet:module_srcs",
+        "//dx:module_srcs",
         "//elixir/private/bench:module_srcs",
         "//elixir/private/toolchain:module_srcs",
         "//elixir/private/tools/lock:module_srcs",

@@ -33,6 +33,15 @@ filegroup(
 )
 
 filegroup(
+    name = "module_srcs",
+    srcs = [
+        "BUILD.bazel",
+        "generate.bzl",
+    ],
+    visibility = ["//:__subpackages__"],
+)
+
+filegroup(
     name = "dx_reaches_tools_probe",
     srcs = ["//tools/visibility:layer_sentinel"],
     tags = ["manual"],

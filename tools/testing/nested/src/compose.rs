@@ -90,7 +90,7 @@ pub const LLVM_PATCHES: [&str; 10] = [
     "stage0_runtime_features",
     "aarch64_outline_atomics",
     "macos_sdk_resolve_symlinks",
-    "msvc_link_lib_env",
+    "toolchains_gate",
 ];
 
 /// Pins llvm 0.8.26 with the patches of the root MODULE.bazel.

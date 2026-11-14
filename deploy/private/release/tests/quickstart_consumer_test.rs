@@ -1,8 +1,8 @@
 //! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
 
 use dx_nested::compose::{
-    llvm_override, protobuf_override, rules_dx_override, rules_flutter_override, rules_julia_override,
-    rules_py_override, rules_rust_override, windows_support_override,
+    llvm_override, protobuf_override, rules_dx_override, rules_flutter_override,
+    rules_julia_override, rules_py_override, rules_rust_override, windows_support_override,
 };
 use dx_nested::{self as nested, Case, footprint, plain_fixture};
 use dx_release_tools::presubmit;
@@ -127,7 +127,8 @@ pub(crate) fn bazel(case: &Case, args: &[&str]) -> Run {
 pub(crate) const WINDOWS_LICENCES: &str = "startup:windows --windows_enable_symlinks\ncommon:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1\ncommon:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1\n";
 
 /// On Windows, the `.bazelrc` the consumer starts with: the preset's Windows lines, which a
-/// source-built dx needs before `dx init` writes the preset, and `WINDOWS_LICENCES`.
+/// source-built dx needs before `dx init` writes the preset, and `WINDOWS_LICENCES`. The
+/// quickstart cuts it back to `WINDOWS_LICENCES` before `dx init`.
 fn write_windows_rc(case: &Case) {
     if cfg!(windows) {
         let mut rc = String::from("common --enable_platform_specific_config\n");
@@ -230,6 +231,9 @@ fn the_readme_quickstart_runs_as_written() {
         &module,
         &read_text(&module).replace(&rules_py_override(), ""),
     );
+    if cfg!(windows) {
+        write_text(&case.root().join(".bazelrc"), WINDOWS_LICENCES);
+    }
     let root = case.root().to_string_lossy().into_owned();
     let env = nested_env();
     let mut pairs: Vec<(&str, &str)> = env

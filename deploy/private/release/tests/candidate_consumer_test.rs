@@ -4,9 +4,10 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::compose::{
-    llvm_override, protobuf_override, rules_flutter_override, rules_julia_override, rules_py_override,
-    rules_rust_override, windows_support_override, write_llvm_patches, write_protobuf_patches,
-    write_rules_py_patches, write_rules_rust_patches, write_windows_support_patches,
+    llvm_override, protobuf_override, rules_flutter_override, rules_julia_override,
+    rules_py_override, rules_rust_override, windows_support_override, write_llvm_patches,
+    write_protobuf_patches, write_rules_py_patches, write_rules_rust_patches,
+    write_windows_support_patches,
 };
 use dx_nested::{self as nested, Case};
 use dx_release_tools::candidate::{
@@ -28,6 +29,7 @@ rust_binary(
 
 rust_test(
     name = "app_test",
+    size = "small",
     srcs = ["app_test.rs"],
 )
 
@@ -168,11 +170,7 @@ fn dx(case: &Case, command: &str, args: &[&str]) -> Run {
     if let Some(bazel_sh) = bazel_sh.as_deref() {
         env.push(("BAZEL_SH", bazel_sh));
     }
-    case.run(
-        &resolve_runfiles(&rel),
-        &argv,
-        &env,
-    )
+    case.run(&resolve_runfiles(&rel), &argv, &env)
 }
 
 /// Names the step about to run on the uncaptured stderr, so a test killed mid-step shows it.
@@ -229,7 +227,13 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
 
     stage("dx check");
     let policy = "--@my_dx//config:workspace=//:policy";
-    ok(&dx(&case, "check", &["//...", "--", policy]), "dx check");
+    let check = dx(&case, "check", &["//...", "--", policy]);
+    let build = std::fs::read_to_string(case.root().join("BUILD.bazel")).unwrap_or_default();
+    if build != BUILD {
+        use std::io::Write;
+        let _ = writeln!(std::io::stderr(), "dx check rewrote BUILD.bazel:\n{build}");
+    }
+    ok(&check, "dx check");
 
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     assert_gcc_consumer(&case);

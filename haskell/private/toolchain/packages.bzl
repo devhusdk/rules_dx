@@ -138,7 +138,7 @@ def cabal_libraries(text):
         depends = _field_words(lines, ["build-depends"])
         libraries[name] = {
             "deps": sorted([sibling for sibling in named if sibling != name and sibling in depends]),
-            "empty": not _field_words(lines + imported, ["exposed-modules", "other-modules"]),
+            "empty": not _field_words(lines + imported, ["exposed-modules", "other-modules", "c-sources", "cxx-sources", "asm-sources", "cmm-sources"]),
         }
     return libraries
 

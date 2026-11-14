@@ -44,12 +44,7 @@ def _impl(ctx):
 _test = analysistest.make(_impl, attrs = {"windows": attr.bool()})
 
 def ruby_toolchain_contract_tests(name, size):
-    """Asserts the Ruby toolchain stays reproducible and keeps its bundle build options.
-
-    Args:
-        name: test name.
-        size: test size.
-    """
+    """Asserts the Ruby toolchain stays reproducible and keeps its bundle build options."""
     _probe(name = name + "_probe", tags = ["manual"])
     _test(
         name = name,

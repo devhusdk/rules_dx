@@ -1,12 +1,4 @@
-"""Forwards a dev-only npm hub's link macro, or stubs it out for consumers.
-
-rules_js only lets npm_link_all_packages run in the lockfile's own package.
-rules_dx keeps its test lock at the repo root, and consumers load that root
-package through @rules_dx//:dx. A direct load of the hub there would force
-the hub to be non-dev and make every consumer fetch it. This shim loads the
-real hub only when rules_dx is the root module. Otherwise its macro does
-nothing, so consumers never fetch the hub or its link repos.
-"""
+"""Forwards a dev-only npm hub's link macro, or stubs it out for consumers."""
 
 visibility(["//..."])
 

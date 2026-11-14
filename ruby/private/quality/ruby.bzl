@@ -40,7 +40,6 @@ SHARD_SPECS = {
 }
 
 def _sorbet_hook(target, _ctx, _resolved, _capability, _what, shared):
-    # Dependency sources are read for constants only; owned sources stay out.
     owned_paths = {f.path: True for f in shared.path_to_file.values()}
     tool_files = []
     inputs = []

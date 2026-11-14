@@ -260,17 +260,7 @@ _thrift_rust_srcs = rule(
 )
 
 def thrift_rust_library(name, library, crate_name = None, deps = None, codegen_path = None, **kwargs):
-    """One Rust crate with a module per schema of the library and everything it includes.
-
-    Args:
-      name: Name of the rust_library.
-      library: thrift_library to generate Rust for.
-      crate_name: Crate name dependents import; defaults to name.
-      deps: Extra Rust dependencies of the crate.
-      codegen_path: Logical directory of the generated files in the dx sync projection.
-      **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
-        and the like replace the defaults; srcs and deps are added to them.
-    """
+    """One Rust crate with a module per schema of the library and everything it includes."""
     deps = deps or []
     generated = name + "_generated"
     _thrift_rust_srcs(

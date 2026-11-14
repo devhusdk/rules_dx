@@ -1,10 +1,4 @@
-"""terraform: Terraform providers vendored with sha256 integrity.
-
-Each declared provider/target pair becomes a repository that unpacks the
-official provider zip into Terraform's unpacked filesystem-mirror layout. The
-sha256 is the hash of the zip, the same value as the `zh:` lock file entry.
-Nothing resolves over the network except the pinned download.
-"""
+"""terraform: Terraform providers vendored with sha256 integrity."""
 
 load("//core:repo.bzl", "hub_repo")
 
@@ -27,17 +21,7 @@ def _is_hex64(value):
     return True
 
 def provider_errors(source, version, sha256, urls):
-    """Validates one provider declaration.
-
-    Args:
-      source: Provider source address HOST/NAMESPACE/TYPE.
-      version: Provider version.
-      sha256: dict from target to hex digest.
-      urls: dict from target to download URL.
-
-    Returns:
-      A list of error strings.
-    """
+    """Validates one provider declaration."""
     errors = []
     if len(source.split("/")) != 3:
         errors.append("source %r must be HOST/NAMESPACE/TYPE" % source)
@@ -58,16 +42,7 @@ def provider_errors(source, version, sha256, urls):
     return errors
 
 def provider_conflict_message(name, first, second):
-    """Returns the error for two differing declarations of one provider.
-
-    Args:
-      name: Provider name.
-      first: Tuple of module label, source and version for the earlier declaration.
-      second: Same tuple for the later declaration.
-
-    Returns:
-      The error string naming both modules and their values.
-    """
+    """Returns the error for two differing declarations of one provider."""
     return "terraform: conflicting declarations of provider %r: %s declares %s %s, %s declares %s %s" % (name, first[0], first[1], first[2], second[0], second[1], second[2])
 
 def default_url(source, version, target):

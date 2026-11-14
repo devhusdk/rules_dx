@@ -44,7 +44,6 @@ def _phpstan_hook(target, ctx, resolved, _capability, _what, shared):
     if PhpInfo not in target:
         return without(resolved, "phpstan")
 
-    # Dependencies are scanned for symbols only; owned sources stay out.
     owned_paths = {f.path: True for f in shared.path_to_file.values()}
     info = target[PhpInfo]
     tool_files = []

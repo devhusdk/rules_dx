@@ -135,7 +135,7 @@ def starter_sources(name, language, files):
         tags = ["manual"],
     )
 
-def compiler_fixture(name, sources, compiler, rejected, target_compatible_with):
+def compiler_fixture(name, sources, compiler, rejected, target_compatible_with, producer = None):
     """Declares the in-graph fixture of one compiler over one starter_sources."""
     cc_toolchain_test(
         name = name + "_starter_test",
@@ -165,7 +165,7 @@ def compiler_fixture(name, sources, compiler, rejected, target_compatible_with):
         data = [name + "_artifacts", name + "_rejected_log"],
         env = {
             "DX_ARTIFACTS": "$(rootpaths %s_artifacts)" % name,
-            "DX_PRODUCER": COMPILER_PRODUCERS[compiler],
+            "DX_PRODUCER": producer or COMPILER_PRODUCERS[compiler],
             "DX_REJECTED": rejected,
             "DX_REJECTED_LOG": "$(rootpath %s_rejected_log)" % name,
         },

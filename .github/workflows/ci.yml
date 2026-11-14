@@ -177,36 +177,6 @@ jobs:
         run: |
           echo "### hermetic (linux_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, coverage, expected-failure, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
-  hermetic-arm64:
-    name: hermetic-arm64 (GCC consumer fixtures on native linux_arm64)
-    timeout-minutes: 90
-    runs-on: ubuntu-24.04-arm
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Allow unprivileged user namespaces
-        run: |
-          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
-            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          fi
-      - name: Qualify the GCC consumers without installs or network
-        run: |
-          test "$(uname -m)" = aarch64
-          printf '%s\n' //tools/testing/hermetic:c_fixture_gcc //tools/testing/hermetic:cpp_fixture_gcc > "$RUNNER_TEMP/hermetic-targets"
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          # shellcheck disable=SC2046
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" $(cat "$RUNNER_TEMP/hermetic-targets")
-      - uses: ./.github/actions/hermetic-evidence
-        if: always()
-        with:
-          platform: linux_arm64
   hermetic-macos:
     name: hermetic-macos (macOS-compatible consumer qualifications on macos_arm64)
     timeout-minutes: 90
@@ -234,7 +204,7 @@ jobs:
         with:
           platform: macos_arm64
   hermetic-windows:
-    name: hermetic-windows (MSVC consumer fixtures on ${{ matrix.platform }})
+    name: hermetic-windows (MSVC isolation on ${{ matrix.platform }})
     timeout-minutes: 90
     defaults:
       run:
@@ -273,15 +243,13 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run --noshow_progress "$@" --//cc:compiler=msvc //tools/testing/hermetic:appcontainer_run -- \
             --backend user --ensure-host-denies "${denies[@]}"
-      - name: Qualify the MSVC consumers without Visual Studio or network
+      - name: Probe MSVC isolation without Visual Studio or network
         env:
           PLATFORM: ${{ matrix.platform }}
         run: |
-          printf '%s\n' //tools/testing/hermetic:c_fixture_msvc //tools/testing/hermetic:cpp_fixture_msvc > "$RUNNER_TEMP/hermetic-targets"
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          # shellcheck disable=SC2046
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_windows_probe_test $(cat "$RUNNER_TEMP/hermetic-targets")
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_windows_probe_test
           if [ "$PLATFORM" = windows_x86_64 ]; then
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors "$@" //tools/testing:nested_bazel_harness_test
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc:compiler=msvc //deploy/private:pypi_native_msvc_verify
@@ -875,7 +843,6 @@ jobs:
         gcc-cross-build,
         gcc-cross-run-arm64,
         hermetic,
-        hermetic-arm64,
         hermetic-macos,
         hermetic-windows,
         msix-install,

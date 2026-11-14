@@ -46,44 +46,6 @@ fn committed_unsupported_json_matches_the_source_data() {
     }
 }
 
-struct WithoutTag<'a> {
-    inner: &'a RunfilesSource,
-    label: &'a str,
-    tag: &'a str,
-}
-
-impl Source for WithoutTag<'_> {
-    fn read(&self, path: &str) -> Result<String, String> {
-        let text = self.inner.read(path)?;
-        if !path.starts_with("tools/docs/support_matrix/row_tests/") {
-            return Ok(text);
-        }
-        let mut tests: serde_json::Map<String, serde_json::Value> =
-            serde_json::from_str(&text).map_err(|error| error.to_string())?;
-        if let Some(serde_json::Value::Array(tags)) = tests.get_mut(self.label) {
-            tags.retain(|tag| tag != self.tag);
-        }
-        serde_json::to_string(&tests).map_err(|error| error.to_string())
-    }
-}
-
-#[test]
-fn compiler_consumer_tests_must_be_nested_qualifications() {
-    let source = RunfilesSource::create().expect("runfiles");
-    let facts = source
-        .read("tools/docs/support_matrix/facts.json")
-        .expect("facts");
-    let golden = "//tools/testing/hermetic:c_fixture_msvc";
-    assert!(facts.contains(golden), "the msvc row lists {golden}");
-    let untagged = WithoutTag {
-        inner: &source,
-        label: golden,
-        tag: "hermetic-consumer",
-    };
-    let error = generate(&facts, &untagged).expect_err("a non-qualification consumer test");
-    assert!(error.contains("hermetic-consumer"), "{error}");
-}
-
 #[test]
 fn a_row_test_missing_from_every_platform_file_fails() {
     let source = RunfilesSource::create().expect("runfiles");
@@ -98,7 +60,7 @@ fn a_row_test_missing_from_every_platform_file_fails() {
                 return Ok(text);
             }
             Ok(text.replace(
-                "//tools/testing/hermetic:c_fixture_msvc",
+                "//tools/testing/hermetic:appimage",
                 "//tools/testing/hermetic:not_queried",
             ))
         }

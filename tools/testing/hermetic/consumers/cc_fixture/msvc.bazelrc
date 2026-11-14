@@ -1,2 +1,0 @@
-build --@rules_dx//cc:compiler=msvc
-common --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1

@@ -52,7 +52,6 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "gcc-cross-build",
         "gcc-cross-run-arm64",
         "hermetic",
-        "hermetic-arm64",
         "hermetic-macos",
         "hermetic-windows",
         "msix-install",

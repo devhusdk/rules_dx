@@ -1,3 +1,0 @@
-msvc = use_extension("@rules_dx//cc:extensions.bzl", "msvc")
-dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
-dx_licenses.accept(ids = ["visual-studio-build-tools"])

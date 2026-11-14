@@ -1,1 +1,0 @@
-build --@rules_dx//cc:compiler=gcc

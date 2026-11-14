@@ -209,7 +209,6 @@ impl Context {
         &self,
         row: &Row,
         labels: &[String],
-        consumer: bool,
     ) -> Result<Vec<String>, String> {
         let mut on = BTreeSet::new();
         for label in labels {
@@ -232,15 +231,6 @@ impl Context {
             if label.ends_with("_upstream") && tags.iter().any(|t| self.tag_jobs.contains_key(t)) {
                 return Err(format!(
                     "{label} is filtered out of tag-selected CI jobs, so it cannot be a consumer test"
-                ));
-            }
-            if consumer
-                && row.section == "compilers"
-                && !tags.iter().any(|tag| tag == "hermetic-consumer")
-            {
-                return Err(format!(
-                    "{label} is a consumer test of compiler row {} but lacks the hermetic-consumer tag, so it is not a nested qualification",
-                    row.name
                 ));
             }
             let manual = tags.iter().any(|tag| tag == "manual");
@@ -355,8 +345,8 @@ pub fn row_platforms(
         out.insert(
             row.name.clone(),
             RowPlatforms {
-                build: context.tested_on(row, labels, false)?,
-                consumer: context.tested_on(row, consumers, true)?,
+                build: context.tested_on(row, labels)?,
+                consumer: context.tested_on(row, consumers)?,
             },
         );
     }

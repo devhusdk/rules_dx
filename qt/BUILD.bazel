@@ -1,4 +1,4 @@
-load("//core/quality:fixtures.bzl", "real_source_target")
+load("//qt/private:corpus.bzl", "qt_corpus")
 load("//qt/private/toolchain:repos.bzl", "qualified_cells")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -88,7 +88,7 @@ platform(
     for cell in qualified_cells()
 ]
 
-real_source_target(
+qt_corpus(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
@@ -98,7 +98,7 @@ real_source_target(
     tags = ["corpus"],
 )
 
-real_source_target(
+qt_corpus(
     name = "corpus_markdown",
     markdown_srcs = ["README.md"],
     tags = ["corpus"],

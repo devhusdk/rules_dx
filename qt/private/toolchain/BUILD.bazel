@@ -1,7 +1,7 @@
 # gazelle:ignore
 
 load("//core:defs.bzl", "starlark_test")
-load("//core/quality:fixtures.bzl", "real_source_target")
+load("//qt/private:corpus.bzl", "qt_corpus")
 load(":cell_json.bzl", "qt_cell_data")
 
 package(default_visibility = ["//visibility:public"])
@@ -44,7 +44,7 @@ aspect_field transitive_count=0
 
 qt_cell_data()
 
-real_source_target(
+qt_corpus(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",

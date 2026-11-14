@@ -1,5 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("//core/quality:fixtures.bzl", "real_source_target")
+load("//qt/private:corpus.bzl", "qt_corpus")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
@@ -36,7 +36,7 @@ alias(
     actual = "@crates//:cxx_qt_runtime_files",
 )
 
-real_source_target(
+qt_corpus(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
@@ -57,7 +57,7 @@ rust_test(
     ),
 )
 
-real_source_target(
+qt_corpus(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],

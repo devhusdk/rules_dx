@@ -1,8 +1,8 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//core/quality:fixtures.bzl", "real_source_target")
 load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
 load("//qt/private/toolchain:pins.bzl", "CELLS", "IDENTITIES")
 load("//qt/private/toolchain:repos.bzl", "qualified_cells")
+load(":corpus.bzl", "qt_corpus")
 load(":defs.bzl", "qt_os_supplied_libraries")
 
 package(default_visibility = [
@@ -23,6 +23,7 @@ exports_files([
     "bundle.bzl",
     "cells.bzl",
     "constants.bzl",
+    "corpus.bzl",
     "defs.bzl",
     "generate.bzl",
     "providers.bzl",
@@ -44,7 +45,7 @@ exports_files([
     if CELLS[cell].layout.os == "linux" and IDENTITIES[cell] != None and CELLS[cell].needs != None
 ]
 
-real_source_target(
+qt_corpus(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
@@ -52,6 +53,7 @@ real_source_target(
         "bundle.bzl",
         "cells.bzl",
         "constants.bzl",
+        "corpus.bzl",
         "defs.bzl",
         "generate.bzl",
         "providers.bzl",

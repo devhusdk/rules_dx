@@ -10,11 +10,7 @@ package(
 perl_library(
     name = "conformance",
     testonly = True,
-    srcs = [
-        "lib/FormatDirty.pm",
-        "lib/Greet.pm",
-        "lib/LintDirty.pm",
-    ],
+    srcs = ["lib/Greet.pm"],
 )
 
 perl_library(

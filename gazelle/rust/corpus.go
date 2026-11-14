@@ -1,13 +1,18 @@
 package rust
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
+	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
@@ -93,6 +98,13 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 				fixtureOwned[src] = true
 			}
 		}
+	}
+	foreign, err := foreignCorpusFiles(args.Config, rel)
+	if err != nil {
+		plan.errs = append(plan.errs, err)
+	}
+	for src := range foreign {
+		fixtureOwned[src] = true
 	}
 	siblingSet := map[string]bool{}
 	if r, ok := existing["corpus_markdown"]; ok && r.Kind() == corpusKind {
@@ -256,4 +268,84 @@ func corpusTags(existing *rule.Rule) []string {
 	}
 	sort.Strings(tags)
 	return tags
+}
+
+var (
+	foreignCorpusMu  sync.Mutex
+	foreignCorpusIdx = map[string]map[string]map[string]bool{}
+)
+
+// foreignCorpusFiles returns the files of package rel that a language corpus
+// rule such as php_corpus lists by label from any package of the repository.
+func foreignCorpusFiles(c *config.Config, rel string) (map[string]bool, error) {
+	if c == nil || c.RepoRoot == "" {
+		return nil, nil
+	}
+	foreignCorpusMu.Lock()
+	defer foreignCorpusMu.Unlock()
+	index, ok := foreignCorpusIdx[c.RepoRoot]
+	if !ok {
+		var err error
+		index, err = indexForeignCorpus(c.RepoRoot)
+		if err != nil {
+			return nil, err
+		}
+		foreignCorpusIdx[c.RepoRoot] = index
+	}
+	return index[rel], nil
+}
+
+func indexForeignCorpus(root string) (map[string]map[string]bool, error) {
+	index := map[string]map[string]bool{}
+	err := filepath.WalkDir(root, func(name string, entry os.DirEntry, err error) error {
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+			return fmt.Errorf("rust: cannot index corpus rules under %s: %w", name, err)
+		}
+		base := entry.Name()
+		if entry.IsDir() {
+			if name != root && (strings.HasPrefix(base, ".") || strings.HasPrefix(base, "bazel-") || base == "node_modules") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if base != "BUILD.bazel" && base != "BUILD" {
+			return nil
+		}
+		data, err := os.ReadFile(name)
+		if err != nil {
+			return fmt.Errorf("rust: cannot read %s: %w", name, err)
+		}
+		if !bytes.Contains(data, []byte("_corpus(")) {
+			return nil
+		}
+		file, err := rule.LoadData(name, "", data)
+		if err != nil {
+			return nil
+		}
+		for _, r := range file.Rules {
+			if r.Kind() == corpusKind || !strings.HasSuffix(r.Kind(), "_corpus") {
+				continue
+			}
+			for _, attr := range r.AttrKeys() {
+				if !strings.HasSuffix(attr, "_srcs") {
+					continue
+				}
+				for _, src := range r.AttrStrings(attr) {
+					pkg, target, ok := strings.Cut(strings.TrimPrefix(src, "//"), ":")
+					if !strings.HasPrefix(src, "//") || !ok || target == "" {
+						continue
+					}
+					if index[pkg] == nil {
+						index[pkg] = map[string]bool{}
+					}
+					index[pkg][target] = true
+				}
+			}
+		}
+		return nil
+	})
+	return index, err
 }

@@ -25,6 +25,7 @@ php_corpus(
         "//php:extensions.bzl",
         "//php/private:BUILD.bazel",
         "//php/private:defs.bzl",
+        "//php/private:entry.bzl",
         "//php/private:pcov.BUILD.bazel",
         "//php/private:php.bzl",
         "//php/private:providers.bzl",

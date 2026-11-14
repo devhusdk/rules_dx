@@ -441,7 +441,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	sort.Strings(tests)
 	testOwns := ownsGeneratedTest(spec.Tests)
 	if len(sources) == 0 && len(headers) == 0 && len(tests) == 0 {
-		return MergeStaleOwned(args.File, language.GenerateResult{}, kinds, testOwns)
+		return MergeStaleOwned(args.File, language.GenerateResult{}, kinds, withoutNestedSources(args.Dir, testOwns))
 	}
 	hasLib := len(sources) > 0 || len(headers) > 0
 	var lib dirLibrary
@@ -551,6 +551,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			return testOwns(r) && (byName == nil || byName(r))
 		}
 	}
+	owns = withoutNestedSources(args.Dir, owns)
 	if owns != nil {
 		claimed := make(map[string]string, len(claimants))
 		for _, c := range claimants {
@@ -565,6 +566,24 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		}
 	}
 	return MergeStaleOwned(args.File, result, kinds, owns)
+}
+
+// withoutNestedSources narrows owns to rules that list no existing file in a
+// subdirectory of dir, which single-directory generation never produces.
+func withoutNestedSources(dir string, owns func(*rule.Rule) bool) func(*rule.Rule) bool {
+	return func(r *rule.Rule) bool {
+		for _, attr := range []string{"srcs", "hdrs"} {
+			for _, src := range r.AttrStrings(attr) {
+				if !strings.Contains(src, "/") || strings.HasPrefix(src, "//") || strings.HasPrefix(src, "@") {
+					continue
+				}
+				if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(src))); err == nil {
+					return false
+				}
+			}
+		}
+		return owns == nil || owns(r)
+	}
 }
 
 // dirLibrary is the directory library rule generateDirLibrary builds.

@@ -9,16 +9,23 @@ exports_files([
 ])
 
 filegroup(
-    name = "module_srcs",
+    name = "extension_srcs",
     srcs = [
         "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
-        "//:module_srcs",
         "//qt/private:module_srcs",
         "//qt/private/platforms:module_srcs",
         "//qt/private/rust:module_srcs",
         "//qt/private/sdk:module_srcs",
+    ],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        ":extension_srcs",
+        "//:module_srcs",
     ],
 )
 

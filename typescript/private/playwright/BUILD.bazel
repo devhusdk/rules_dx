@@ -17,3 +17,12 @@ js_library(
     name = "chromium_env",
     srcs = ["chromium_env.cjs"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

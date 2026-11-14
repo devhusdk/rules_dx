@@ -40,3 +40,12 @@ php_library(
     name = "toolchain",
     srcs = ["version_check.php"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

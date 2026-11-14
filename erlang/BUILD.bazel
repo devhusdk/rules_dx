@@ -3,15 +3,22 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//:__subpackages__"])
 
 filegroup(
-    name = "module_srcs",
+    name = "extension_srcs",
     srcs = [
         "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
-        "//:module_srcs",
         "//erlang/private:module_srcs",
         "//erlang/private/toolchain:module_srcs",
         "//erlang/private/tools:module_srcs",
+    ],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        ":extension_srcs",
+        "//:module_srcs",
     ],
 )
 

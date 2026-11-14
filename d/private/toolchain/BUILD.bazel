@@ -37,3 +37,12 @@ cc_library(
     target_compatible_with = ["@platforms//os:windows"],
     alwayslink = True,
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

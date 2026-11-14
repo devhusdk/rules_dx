@@ -15,3 +15,12 @@ exports_files(
     ["hub.bzl"],
     visibility = ["//:__subpackages__"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

@@ -13,7 +13,7 @@ use dx_release_tools::candidate::{
 };
 use dx_testing::{Run, resolve_runfiles, rules_dx_source};
 
-use crate::quickstart_consumer_test::ok;
+use crate::quickstart_consumer_test::{bazel, ok};
 
 const VERSION: &str = "1.2.3-rc1";
 
@@ -162,12 +162,6 @@ fn dx(case: &Case, command: &str, args: &[&str]) -> Run {
 fn stage(name: &str) {
     use std::io::Write;
     let _ = writeln!(std::io::stderr(), "candidate_consumer_test: {name}");
-}
-
-/// Runs nested Bazel with the `PATH` of `ldd_path`.
-fn bazel(case: &Case, args: &[&str]) -> Run {
-    let path = crate::quickstart_consumer_test::ldd_path();
-    case.bazel_with(args, &[("PATH", path.as_str())])
 }
 
 /// Consumes the archive through the registry and checks what Bazel fetched.

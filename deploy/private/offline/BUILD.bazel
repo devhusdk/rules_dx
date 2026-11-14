@@ -101,6 +101,15 @@ filegroup(
         "*.bzl",
         "BUILD.bazel",
         "Cargo.toml",
-    ]),
+    ]) + [
+        "bootstrap_test.rs",
+        "demo/bazelisk-darwin-amd64",
+        "demo/bazelisk-darwin-arm64",
+        "demo/bazelisk-linux-amd64",
+        "demo/bazelisk-linux-arm64",
+        "demo/bazelisk-windows-amd64.exe",
+        "demo/cargo.json",
+        "demo/cargo.meta.json",
+    ],
     visibility = ["//:__subpackages__"],
 )

@@ -340,6 +340,11 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
-    ]),
+    ]) + [
+        "extra_Info.plist",
+        "helper_Info.plist",
+        "main.m",
+        "part.m",
+    ],
     visibility = ["//:__subpackages__"],
 )

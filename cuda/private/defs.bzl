@@ -139,7 +139,7 @@ def cuda_library(name, srcs, cuda_archs, hdrs = None, visibility = None, tags = 
     )
 
 def cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = None, tags = None, target_compatible_with = None, **kwargs):
-    """Compiles .cu sources to relocatable device objects for the deps of an rdc cuda_library, cuda_binary or cuda_test."""
+    """Compiles .cu sources to relocatable device objects for the deps of an rdc cuda_library."""
     features = _cuda_features(kwargs.pop("features", None))
     compatible = cuda_target_compatible_with(target_compatible_with)
     _cuda_objects(
@@ -232,7 +232,7 @@ def cuda_gpu_env(min_compute_capability, min_driver):
     }
 
 def cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, min_compute_capability = None, min_driver = None, env = None, data = None, cuda_copts = None, **kwargs):
-    """Compiles .cu sources into a cc_test; min_compute_capability and min_driver make it a GPU test, cuda_copts go to nvcc."""
+    """Compiles .cu sources into a cc_test; min_compute_capability."""
     if (min_compute_capability == None) != (min_driver == None):
         fail("cuda_test //{}:{}: set both min_compute_capability and min_driver for a GPU test".format(native.package_name(), name))
     if min_compute_capability == None:

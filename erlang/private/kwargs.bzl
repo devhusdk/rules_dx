@@ -41,7 +41,7 @@ def erlang_default_erlc_opts(defaults):
     })
 
 def erlang_erlc_kwargs(kwargs, defaults):
-    """Returns erlang_kwargs with -Werror on erlc_opts following warnings_as_errors; apps with listed sources keep theirs."""
+    """Returns erlang_kwargs with -Werror on erlc_opts following warnings_as_errors."""
     if any([kwargs.get(attr) != None for attr in _PREBUILT_ATTRS]):
         return erlang_kwargs(kwargs)
     rest, flag = dx_warnings_as_errors(kwargs, _WERROR)
@@ -64,7 +64,7 @@ def nif_library_name(name):
     return "_lib" + name + ".so"
 
 def release_priv_path(package_path, short_path):
-    """Returns where one priv file lands below priv in a release: its path below the app's priv directory, else its file name."""
+    """Returns where one priv file lands below priv in a release: its path below the app's priv directory."""
     rel = short_path.removeprefix(package_path + "/") if package_path else short_path
     if rel.startswith("priv/"):
         return rel.removeprefix("priv/")

@@ -15,17 +15,7 @@ def cell_name(host, target):
     return "cc_toolchain_{}_{}".format(host, target)
 
 def cell_files(vc_repo, sdk_repo, host, target):
-    """Returns the labels of the msvc_runtime and windows_sdk files one cell needs.
-
-    Args:
-        vc_repo: Canonical name of the msvc_runtime repository.
-        sdk_repo: Canonical name of the windows_sdk repository.
-        host: Architecture the tools run on.
-        target: Architecture the tools build for.
-
-    Returns:
-        A list of label strings.
-    """
+    """Returns the labels of the msvc_runtime and windows_sdk files one cell needs."""
     vc = "@@{}//:".format(vc_repo)
     sdk = "@@{}//:".format(sdk_repo)
     return [
@@ -41,19 +31,7 @@ def cell_files(vc_repo, sdk_repo, host, target):
     ] + [sdk + "winsdk_bin_" + host]
 
 def hub_build(accepted, vc_repo = "", sdk_repo = "", msvc_version = MSVC_TOOLSET_VERSION, sdk_version = WINDOWS_SDK_INCLUDE_VERSION, redist_version = VC_REDIST_VERSION):
-    """Returns the BUILD text of the hub repository.
-
-    Args:
-        accepted: Whether the license is accepted.
-        vc_repo: Canonical name of the msvc_runtime repository.
-        sdk_repo: Canonical name of the windows_sdk repository.
-        msvc_version: MSVC toolset version directory.
-        sdk_version: Windows SDK Include directory name.
-        redist_version: Visual C++ redistributable version directory.
-
-    Returns:
-        The BUILD file text with one target per supported (host, target) cell.
-    """
+    """Returns the BUILD text of the hub repository."""
     text = 'load("{}", "dx_native_runtime")\n\npackage(default_visibility = ["//visibility:public"])\n\n'.format(str(Label("//deploy/private:native_runtime.bzl")))
     if accepted:
         text = 'load("{}", "msvc_cc_toolchain")\n'.format(str(Label(":toolchain.bzl"))) + text

@@ -4,11 +4,7 @@ load("//core:failure_test.bzl", "failure_test")
 load(":unavailable.bzl", "GCC_UNSUPPORTED")
 
 def gcc_unsupported_tests(name):
-    """Declares the test that the stub toolchain fails when used.
-
-    Args:
-        name: Test target name.
-    """
+    """Declares the test that the stub toolchain fails when used."""
     failure_test(
         name = name,
         target = ":gcc_unsupported_impl",

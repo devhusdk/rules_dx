@@ -18,11 +18,7 @@ def native_launch_descriptor_path(exe_path):
     return exe_path + ".launch"
 
 def write_native_launcher(ctx, descriptor_text, launcher_name = None):
-    """Writes `<name>` on Unix or `<name>.exe` on Windows (the native launcher) and `<name>.launch` (its descriptor).
-
-    `launcher_name` replaces `<name>` in the launcher file name for a rule that symlinks the launcher as `<name>` itself.
-    Returns the executable, the descriptor and the runfiles the launcher needs.
-    """
+    """Writes `<name>` on Unix or `<name>.exe` on Windows (the native launcher) and `<name>.launch` (its descriptor)."""
     launcher = ctx.actions.declare_file((launcher_name or ctx.label.name) + (".exe" if target_is_windows(ctx) else ""))
     descriptor = ctx.actions.declare_file(ctx.label.name + ".launch")
     ctx.actions.write(descriptor, descriptor_text)

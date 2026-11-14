@@ -1,7 +1,4 @@
-"""Creates @dx_prebuilt: the source dx when rules_dx is root, a pinned release binary otherwise.
-
-A consumer platform whose release asset has no pinned sha256 falls back to the source dx.
-"""
+"""Creates @dx_prebuilt: the source dx when rules_dx is root, a pinned release binary otherwise."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:repo.bzl", "hub_repo")

@@ -10,24 +10,7 @@ MSVC_CXX_CONFORMANCE_FLAGS = ["/Zc:__cplusplus", "/permissive-"]
 _SYSTEM_NAMES = {"x64": "x86_64-pc-windows-msvc", "arm64": "aarch64-pc-windows-msvc"}
 
 def msvc_cc_toolchain(name, msvc_version, sdk_version, vc_repo = "", sdk_repo = "", files = None, tmp = "C:\\Temp", exec_cpu = "x64", target_cpu = "x64", **kwargs):
-    """Declare a cc_toolchain that runs cl.exe from the msvc_runtime and windows_sdk layouts.
-
-    Without vc_repo or sdk_repo, that layout sits in this package. Supported
-    (exec_cpu, target_cpu) cells are x64 to x64, x64 to arm64 and arm64 to
-    arm64. C++ actions, not C actions, get MSVC_CXX_CONFORMANCE_FLAGS.
-
-    Args:
-        name: Name of the cc_toolchain.
-        msvc_version: MSVC toolset version directory under VC/Tools/MSVC.
-        sdk_version: Windows SDK version directory.
-        vc_repo: Canonical name of the msvc_runtime repository.
-        sdk_repo: Canonical name of the windows_sdk repository.
-        files: Labels of the toolchain files; defaults to a glob of the layout in this package.
-        tmp: Value for TMP and TEMP in compile and link actions. Bazel overrides it for local Windows actions.
-        exec_cpu: CPU the tools run on, "x64" or "arm64".
-        target_cpu: CPU the tools build for, "x64" or "arm64".
-        **kwargs: Passed to cc_toolchain, such as visibility.
-    """
+    """Declare a cc_toolchain that runs cl.exe from the msvc_runtime and windows_sdk layouts."""
     if (exec_cpu, target_cpu) not in SUPPORTED_CELLS:
         fail("msvc_cc_toolchain does not support exec_cpu = %r, target_cpu = %r" % (exec_cpu, target_cpu))
     package = native.repository_name().removeprefix("@")

@@ -115,7 +115,7 @@ def d_binary(name, *, srcs = None, visibility = None, **kwargs):
 D_COVERAGE_COLLECTOR = True
 
 def d_test(name, *, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over the rules_d d_test rule. srcs is required; -cov is added to dopts under bazel coverage."""
+    """Thin wrapper over the rules_d d_test rule."""
     if srcs == None:
         fail("d_test //" + native.package_name() + ":" + name + " needs srcs")
     kwargs = d_kwargs(kwargs)
@@ -124,7 +124,7 @@ def d_test(name, *, srcs = None, visibility = None, **kwargs):
     dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = quality_srcs, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = D_COVERAGE_COLLECTOR, **kwargs)
 
 def d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = None, linkopts = None, **kwargs):
-    """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`. srcs define LLVMFuzzerTestOneInput, for example with ldc.libfuzzer."""
+    """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
     flags = ["-fsanitize=fuzzer,address"]
     kwargs["target_compatible_with"] = (kwargs.get("target_compatible_with") or []) + D_COMPATIBLE_WITH
     dx_fuzz_test(name, d_binary, {"srcs": srcs, "dopts": flags + (dopts or []), "linkopts": flags + (linkopts or [])}, tags = tags, visibility = visibility, **kwargs)

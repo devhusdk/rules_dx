@@ -4,7 +4,7 @@ load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load(":tools.bzl", "TOOLS")
 
-_HEADER = """// Generated from core/quality/tools.bzl. Run `bazel run //core/quality:update_tools` to refresh it.
+_HEADER = """// Generated from core/quality/tools.bzl.
 
 pub const REAL_TOOLS: &[&str] = &[
 """
@@ -27,7 +27,7 @@ def tools_gen(name):
         additional_update_targets = ["//cli/generate:update_tools", "//core/quality/adapter:update_severity"],
     )
 
-_CONFIG_HEADER = """// Generated from core/quality/tools.bzl. Run `bazel run //core/quality:update_tools` to refresh it.
+_CONFIG_HEADER = """// Generated from core/quality/tools.bzl.
 
 pub struct ToolConfig {
     pub id: &'static str,
@@ -138,7 +138,7 @@ def config_tools_gen(name, visibility):
         visibility = visibility,
     )
 
-_SEVERITY_HEADER = """// Generated from core/quality/tools.bzl. Run `bazel run //core/quality:update_tools` to refresh it.
+_SEVERITY_HEADER = """// Generated from core/quality/tools.bzl.
 
 pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
 """

@@ -1,8 +1,4 @@
-"""The config_setting each CUDA cell matches.
-
-The labels are resolved here, in this module, so the cell helpers in @rules_dx never
-look for them in their own repository.
-"""
+"""The config_setting each CUDA cell matches."""
 
 load("//core:platform_support.bzl", "cells_support", "lang_cells")
 load("//core/modules:cuda.bzl", "CUDA_CELLS")

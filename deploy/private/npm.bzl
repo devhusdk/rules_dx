@@ -49,7 +49,7 @@ _npm_config = rule(
 )
 
 def npm_deploy(name, package = "", dist_tag = "latest", srcs = None, registry_url = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
-    """Packs files into a local npm feed with public or restricted access and a provenance policy. api_compat and api_baseline work as described under "Public API compatibility" in the README; the tool is api-extractor on the types entry."""
+    """Packs files into a local npm feed with public or restricted access and a provenance policy."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     package, _ = deploy_identity(name, package, "", npm_package_error, npm_package_error)
     tag_error = npm_tag_error(dist_tag)

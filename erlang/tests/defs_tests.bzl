@@ -133,10 +133,7 @@ _coverage_env_on_test = _COVERAGE.on
 _coverage_env_off_test = _COVERAGE.off
 
 def erlang_coverage_env_test(name, target, apps_dirs, source, native = False):
-    """Asserts an Erlang test points coverdata_to_lcov at its app sources under coverage, and only then.
-
-    With `native`, it also asserts the test collects LLVM coverage for the NIFs of its apps.
-    """
+    """Asserts an Erlang test points coverdata_to_lcov at its app sources under coverage, and only then."""
     _coverage_env_on_test(name = name, size = "small", target_under_test = target, apps_dirs = apps_dirs, source = source, native = native)
     _coverage_env_off_test(name = name + "_off", size = "small", target_under_test = target, apps_dirs = "")
 

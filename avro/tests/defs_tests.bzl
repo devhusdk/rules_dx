@@ -17,11 +17,7 @@ def _closure_impl(ctx):
 _closure_test = analysistest.make(_closure_impl)
 
 def avro_library_tests(name):
-    """Instantiates the avro_library analysis tests.
-
-    Args:
-      name: Name of the test suite.
-    """
+    """Instantiates the avro_library analysis tests."""
     avro_library(name = name + "_base", srcs = ["fixtures/closure/base.avsc"], tags = ["manual"])
     avro_library(name = name + "_top", srcs = ["fixtures/closure/top.avdl"], deps = [":" + name + "_base"], tags = ["manual"])
     _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top", size = "small")

@@ -6,7 +6,7 @@ _STATIC_RUNTIME = str(Label("//cuda/private/toolchain:static_runtime"))
 _RUNTIME = "@rules_cuda//cuda:runtime"
 
 def cuda_host_settings(settings):
-    """Returns the nvcc compile settings: the static runtime, and LLVM coverage maps for the host code under coverage."""
+    """Returns the nvcc compile settings: the static runtime."""
     out = {
         _STATIC_RUNTIME: True,
         _RUNTIME: Label("//cuda/private/toolchain:runtime"),

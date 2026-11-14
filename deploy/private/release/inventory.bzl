@@ -1,7 +1,4 @@
-"""Lists the third-party crates one Rust binary ships, with their license texts.
-
-For rules_dx's own release archives. Not a consumer API.
-"""
+"""Lists the third-party crates one Rust binary ships, with their license texts."""
 
 load("@rules_rust//rust:defs.bzl", "rust_common")
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
@@ -31,7 +28,7 @@ def license_text_name(basename):
     return False
 
 def license_text_member(name, crate = ""):
-    """Returns whether a crate file path is a license text: LICENSE* at the root, a file in LICENSES/, or a listed bundled text."""
+    """Returns whether a crate file path is a license text: LICENSE* at the root."""
     if name in _BUNDLED_TEXTS.get(crate, []):
         return True
     if "/" not in name:

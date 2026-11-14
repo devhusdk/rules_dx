@@ -51,16 +51,7 @@ def valid_sha256(text):
     return len(text) == 64 and all([c in _HEX for c in text.elems()])
 
 def plan_root(modules, ext = "dx_prebuilt"):
-    """Reads the module tags: returns struct(error, source, overrides).
-
-    Args:
-      modules: Structs with name, is_root and tags.asset / tags.from_source.
-      ext: The extension name the error texts use.
-
-    Returns:
-      A struct with the first error text (empty when fine), whether dx builds
-      from source, and the root module's asset overrides.
-    """
+    """Reads the module tags: returns struct(error, source, overrides)."""
     rules_dx_is_root = False
     from_source = False
     overrides = {}
@@ -87,21 +78,7 @@ def _supported(assets):
     return ", ".join(["{} {}".format(a.os, a.cpu) for a in assets])
 
 def plan_assets(version, pins, url_template, overrides, platforms = ASSET_PLATFORMS, exe = "dx", repo_prefix = "dx_prebuilt_", strip = "dx-"):
-    """Returns one struct per asset: its platform and, when pinned, a verified download.
-
-    Args:
-      version: The dx version the pins belong to.
-      pins: Release asset name to sha256; empty means unpinned.
-      url_template: Download URL with {version} and {asset}.
-      overrides: Asset name to struct(url, sha256, os, cpu) from root module tags.
-      platforms: Release asset name to (os, cpu).
-      exe: The file name the download is saved as, without .exe.
-      repo_prefix: The http_file repo name prefix, also the extension name with a trailing _.
-      strip: The asset name prefix the repo name drops.
-
-    Returns:
-      A list of structs sorted by asset name.
-    """
+    """Returns one struct per asset: its platform and, when pinned, a verified download."""
     ext = repo_prefix.removesuffix("_")
     names = sorted({name: None for name in list(pins.keys()) + list(overrides.keys())}.keys())
     planned = []
@@ -182,21 +159,7 @@ def _select(entries, default):
     return "\n".join(lines)
 
 def consumer_build(assets):
-    """Returns the hub BUILD text that selects a prebuilt dx by os and cpu.
-
-    A platform whose asset has no pinned sha256 builds dx from source:
-    nothing unverified is ever downloaded. With no pinned asset at all,
-    every platform builds from source; unsupported platforms fail only
-    once some asset is pinned.
-    The quality tools follow dx: they run the same prebuilt file under
-    their own names, and build from source where dx does.
-
-    Args:
-      assets: The structs plan_assets returns.
-
-    Returns:
-      The BUILD file content.
-    """
+    """Returns the hub BUILD text that selects a prebuilt dx by os and cpu."""
     if not [a for a in assets if a.repo]:
         return alias_build(SOURCE_LABEL)
     python_tools = _python_tool_aliases()

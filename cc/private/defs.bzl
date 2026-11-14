@@ -53,7 +53,7 @@ _LLVM_COVERAGE_FEATURES = ["llvm_coverage_map_format", "-gcc_coverage_map_format
 _COMPILER_FLAG = str(Label("//cc:compiler"))
 
 def cc_coverage_features(features, collect_code_coverage, compiler = ""):
-    """Returns the features a cc_test builds with: LLVM coverage maps only under coverage, an LLVM or unset compiler, and no `-coverage` or `-llvm_coverage_map_format` in `features`."""
+    """Returns the features a cc_test builds with: LLVM coverage maps only under coverage."""
     if not collect_code_coverage:
         return features
     if "-coverage" in features or "-llvm_coverage_map_format" in features:
@@ -92,7 +92,7 @@ def cc_coverage_unsupported(compiler):
     return "cc_test coverage needs an LLVM compiler (clang or clang-cl); the toolchain compiler is '%s'. Run without --collect_code_coverage or select an LLVM toolchain." % compiler
 
 def cc_coverage_mismatch(compiler, llvm_maps):
-    """Returns why a known non-LLVM compiler cannot use the LLVM coverage features the transition added, or an empty string."""
+    """Returns why a known non-LLVM compiler cannot use the LLVM coverage features the transition added."""
     if not llvm_maps or not compiler:
         return ""
     identity = cc_compiler_identity(compiler, "")
@@ -176,7 +176,7 @@ def cc_objc_library(name, visibility = None, **kwargs):
     _objc_library(name = name, visibility = visibility, **kwargs)
 
 def cc_binary(name, *, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over cc_binary. Linux adds -Wl,--build-id=sha1. Warnings are errors unless warnings_as_errors is False."""
+    """Minimal wrapper over cc_binary."""
     kwargs = _cc_kwargs(kwargs, srcs)
     linkopts = kwargs.pop("linkopts", None) or []
     build_id = select({
@@ -186,7 +186,7 @@ def cc_binary(name, *, srcs = None, visibility = None, **kwargs):
     dx_wrap_binary(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, linkopts = build_id + linkopts, **kwargs)
 
 def cc_test(name, *, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over cc_test. linkstatic defaults to true on macOS and Windows, else false. Under GCC, ASAN_OPTIONS=verify_asan_link_order=0 unless env sets it. Warnings are errors unless warnings_as_errors is False."""
+    """Minimal wrapper over cc_test."""
     kwargs = _cc_kwargs(kwargs, srcs)
     caller_env = kwargs.pop("env", None) or {}
     gcc_env = select({
@@ -202,7 +202,7 @@ def cc_test(name, *, srcs = None, visibility = None, **kwargs):
     dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, env = gcc_env | caller_env, **kwargs)
 
 def cc_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
-    """A libFuzzer binary with AddressSanitizer, or without the pinned libFuzzer linked to a standalone driver, plus a `<name>_run` runner for `dx fuzz`."""
+    """A libFuzzer binary with AddressSanitizer."""
     flags = select({
         Label("@llvm//config:fuzzer_enabled"): ["-fsanitize=fuzzer,address"],
         "//conditions:default": [],

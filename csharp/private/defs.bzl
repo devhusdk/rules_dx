@@ -97,7 +97,7 @@ def csharp_library(name, srcs = None, visibility = None, **kwargs):
     dx_wrap(name, _csharp_library, _csharp_library_forward, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = csharp_tfm_forward_kwargs(name, upstream), **kwargs)
 
 def csharp_binary(name, *, srcs = None, visibility = None, upstream_visibility = None, **kwargs):
-    """Binary with target_frameworks net10.0; warnings as errors follow the repo config unless warnings_as_errors is set; srcs optional."""
+    """Binary with target_frameworks net10.0; warnings as errors follow the repo config."""
     upstream = csharp_tfm_with_defaults(kwargs)
     dx_wrap_binary(name, _csharp_binary, _csharp_binary_forward, srcs, visibility = visibility, upstream_visibility = upstream_visibility, upstream_kwargs = upstream, extra_forward_kwargs = csharp_tfm_forward_kwargs(name, upstream), **kwargs)
 
@@ -119,5 +119,5 @@ def csharp_bench(name, *, srcs, deps = None, tags = None, **kwargs):
     )
 
 def csharp_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, **kwargs):
-    """A SharpFuzz harness plus a `<name>_run` runner for `dx fuzz`; the first-party libraries in deps are instrumented. Linux and macOS only."""
+    """A SharpFuzz harness plus a `<name>_run` runner for `dx fuzz`."""
     sharpfuzz_fuzz(name, csharp_binary, srcs, deps, visibility, tags, kwargs)

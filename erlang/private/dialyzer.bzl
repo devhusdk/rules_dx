@@ -29,7 +29,7 @@ def otp_action_tools(ctx, dialyzer, escript):
     return struct(executable = launchers[0], dialyzer = launchers[1].executable.path, inputs = applets.files, tools = [launchers[1]], path = applets.path)
 
 def dialyzer_plt_action(ctx, dialyzer, escript, driver, apps, plts, beams, code, out):
-    """Builds one PLT of OTP `apps` and `beams`, layered over `plts`; `dialyzer` and `escript` are otp_tool_binary targets."""
+    """Builds one PLT of OTP `apps` and `beams`."""
     otp = otp_action_tools(ctx, dialyzer, escript)
     args = ctx.actions.args()
     args.add(driver)

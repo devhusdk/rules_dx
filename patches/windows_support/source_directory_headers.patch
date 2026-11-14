@@ -12,6 +12,17 @@ diff --git a/windows/BUILD.bazel b/windows/BUILD.bazel
 +    visibility = ["//visibility:public"],
 +    deps = ["@bazel_skylib//rules/directory:providers"],
 +)
+diff --git a/windows/private/extensions/windows_sdk.bzl b/windows/private/extensions/windows_sdk.bzl
+--- a/windows/private/extensions/windows_sdk.bzl
++++ b/windows/private/extensions/windows_sdk.bzl
+@@ -247,6 +247,7 @@ def _windows_sdk_repository_impl(repository_ctx):
+         "BUILD.bazel",
+         repository_ctx.attr._build_file,
+         substitutions = {
++            "__SOURCE_DIRECTORY_HEADERS_BZL__": str(Label("//windows:source_directory_headers.bzl")),
+             "__WINSDK_DIR__": _SYSROOT_DIR,
+             "__WINSDK_INCLUDE_VERSION__": include_version,
+         },
 diff --git a/windows/private/extensions/windows_sdk.BUILD.bazel b/windows/private/extensions/windows_sdk.BUILD.bazel
 --- a/windows/private/extensions/windows_sdk.BUILD.bazel
 +++ b/windows/private/extensions/windows_sdk.BUILD.bazel
@@ -19,7 +30,7 @@ diff --git a/windows/private/extensions/windows_sdk.BUILD.bazel b/windows/privat
  
  load("@bazel_skylib//rules/directory:directory.bzl", "directory")
  load("@bazel_skylib//rules/directory:subdirectory.bzl", "subdirectory")
-+load("@dx_windows_support//windows:source_directory_headers.bzl", "source_directory_headers")
++load("__SOURCE_DIRECTORY_HEADERS_BZL__", "source_directory_headers")
  
  package(default_visibility = ["//visibility:public"])
  

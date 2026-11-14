@@ -627,7 +627,7 @@ tools/repin_all/BUILD.bazel no-size 1
 tools/testing/BUILD.bazel no-size 8
 tools/testing/BUILD.bazel size-large 1
 tools/testing/floor/BUILD.bazel no-size 1
-tools/testing/hermetic/BUILD.bazel no-size 39
+tools/testing/hermetic/BUILD.bazel no-size 35
 tools/testing/hermetic/BUILD.bazel timeout-eternal 1
 tools/testing/hermetic/BUILD.bazel timeout-long 1
 tools/testing/hermetic/compilers.bzl no-size 2

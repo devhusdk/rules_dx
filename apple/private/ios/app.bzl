@@ -462,7 +462,7 @@ def apple_ios_app(
         tags = None,
         testonly = False,
         visibility = None):
-    """Builds one upstream iOS application bundle over a Rust library cell, XCFramework imports, or a Swift @main module."""
+    """Builds one upstream iOS application bundle."""
     deployment = deployment or IOS_DEPLOYMENT
     xcode_version = xcode_version or XCODE_VERSION
     srcs = srcs or []

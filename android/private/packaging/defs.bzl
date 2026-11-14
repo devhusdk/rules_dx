@@ -279,7 +279,6 @@ def _has_select(values):
             return True
     return False
 
-# rules_android 0.8.0 reads its Starlark flag before this native option, so both are written.
 _NATIVE_PLATFORMS = "//command_line_option:android_platforms"
 _STARLARK_PLATFORMS = "@rules_android//flags:android_platforms"
 

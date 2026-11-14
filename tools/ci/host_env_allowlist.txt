@@ -188,8 +188,6 @@ elixir/tests/fixtures/elixir_app/catalog/BUILD.bazel genrule 1
 env/private/stubs/BUILD.bazel sh-rule 1
 env/private/stubs/BUILD.bazel shebang 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel sh-rule 1
-flutter/tests/fixtures/flutter-app/android/BUILD.bazel sh-rule 1
-flutter/tests/fixtures/flutter-app/android/interaction.sh shebang 1
 flutter/tests/fixtures/flutter-app/ios/simulator_smoke.sh shebang 1
 fortran/private/flang_rt.BUILD.bazel genrule 1
 fortran/tests/BUILD.bazel env-inherit 2

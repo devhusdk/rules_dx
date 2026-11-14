@@ -255,7 +255,6 @@ def _app(upstream_macro, defaults, name, testonly, visibility, kwargs):
     nifs = kwargs.pop("nifs", [])
     if nifs:
         if kwargs.get("srcs") != None:
-            # rules_erlang rejects extra_priv next to srcs, so list priv in full.
             extra = kwargs.pop("extra_priv", [])
             kwargs["priv"] = native.glob(["priv/**/*"], exclude = [e for e in extra if not _is_label(e)], allow_empty = True) + extra + nifs
         else:
@@ -280,7 +279,6 @@ def nif_linkopt_cases(version_script):
     return {
         str(Label("@platforms//os:linux")): ["-Wl,--version-script=$(execpath " + version_script + ")"],
         str(Label("@platforms//os:macos")): ["-Wl,-undefined,dynamic_lookup", "-Wl,-exported_symbol,_nif_init"],
-        # ERL_NIF_INIT already exports nif_init and linkshared already passes /DLL.
         str(Label("@platforms//os:windows")): [],
         "//conditions:default": [],
     }
@@ -521,7 +519,6 @@ def erlang_ct_suite_test(name, *, suite_name = "", visibility = None, **kwargs):
     suite = suite_name if suite_name != "" else name
     kwargs["ct_run_extra_args"] = ct_run_args(kwargs.get("ct_run_extra_args", []))
 
-    # ct_run_extra_args names the node, so rules_erlang must not add -hidden -sname.
     kwargs = dx_setdefaults(kwargs, {"auto_sname": False})
     _ct_suite(name = name + "_upstream", suite_name = suite, **dx_test_upstream_kwargs(kwargs))
     _erlang_forward_test(

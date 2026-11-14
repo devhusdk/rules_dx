@@ -107,7 +107,6 @@ def _dialyzer_hook(target, ctx, resolved, _capability, what, _shared):
     if DialyzerToolInfo not in tool_target:
         fail(what + ": dialyzer needs PLTs; set --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/private/tools:dialyzer")
 
-    # The tool's PLTs come first; a language's own follow, without repeating one.
     plts = []
     seen_plts = {}
     for plt in tool_target[DialyzerToolInfo].plts + target[BeamInfo].plts:

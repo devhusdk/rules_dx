@@ -14,7 +14,6 @@ def _credo_impl(ctx):
         for dep in app[ErlangAppInfo].deps:
             apps[dep[ErlangAppInfo].app_name] = dep[ErlangAppInfo]
 
-    # The toolchain's own Elixir stays authoritative; only tool ebins join the path.
     apps.pop("elixir", None)
     ebins = []
     files = []

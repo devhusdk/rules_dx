@@ -142,7 +142,6 @@ def _cc_library_impl(ctx):
     return [
         DefaultInfo(files = depset(own)),
         cc_info,
-        # Generated code owns no checked sources; it is not a cc_library to lint.
         dx_quality_sources([], [], str(ctx.label)),
     ] + codegen_library_providers(ctx, "capnp", "cpp", [codegen_tree_file(f) for f in own])
 

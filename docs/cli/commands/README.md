@@ -441,7 +441,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_cc_binary` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_cc_library` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_cc_test` |
-|  |  | `@rules_dx//qt:defs.bzl` | `qt_consumer_archive` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_frameworks` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_qml_module` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_rust_cc_library` |

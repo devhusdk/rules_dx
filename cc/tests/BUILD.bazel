@@ -146,6 +146,7 @@ test_suite(
     name = "fixture_tests",
     testonly = True,
     tests = [
+        "//cc/tests/fixtures/custom_gcc:custom_gcc",
         "//cc/tests/fixtures/googletest:greeter_test",
         "//cc/tests/fixtures/lcov_accounting:accounting_test",
         "//cc/tests/fixtures/lcov_accounting:partial_test",

@@ -42,6 +42,79 @@ fn seeded_consumer_resolves_python_interpreters_offline() {
     );
 }
 
+const DEP: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
+
+const PROBE: &str = r#"def _impl(_ctx):
+    return []
+
+probe = rule(
+    implementation = _impl,
+    toolchains = [
+        config_common.toolchain_type("@bazel_tools//tools/cpp:toolchain_type", mandatory = False),
+        config_common.toolchain_type("@bazel_tools//tools/jdk:runtime_toolchain_type", mandatory = False),
+    ],
+)
+"#;
+
+/// Starts a consumer whose only dependency is `mid`, a module that depends on rules_dx.
+fn indirect_consumer(name: &str) -> Case {
+    let case = nested::harness_consumer(name);
+    case.use_lock("harness");
+    let module = dx_testing::read_text(&case.root().join("MODULE.bazel"));
+    assert!(module.contains(DEP), "{module}");
+    let module = module.replace(
+        DEP,
+        "bazel_dep(name = \"mid\", version = \"0.0.0\")\nlocal_path_override(module_name = \"mid\", path = \"mid\")\n",
+    );
+    case.write("MODULE.bazel", &module);
+    case.write(
+        "mid/MODULE.bazel",
+        &format!("module(name = \"mid\", version = \"0.0.0\")\n{DEP}"),
+    );
+    case.write("mid/BUILD.bazel", "");
+    case.write(".bazelrc", "");
+    case.write("probe.bzl", PROBE);
+    case.write(
+        "BUILD.bazel",
+        "load(\":probe.bzl\", \"probe\")\n\nprobe(name = \"probe\")\n",
+    );
+    case
+}
+
+/// The `Selected` lines of the toolchain resolution of `//:probe` that name a rules_dx toolchain.
+fn selected_rules_dx(case: &Case, flags: &[&str]) -> Vec<String> {
+    let mut args = vec![
+        "cquery",
+        "--color=no",
+        "--curses=no",
+        "--toolchain_resolution_debug=.*",
+    ];
+    args.extend_from_slice(flags);
+    args.push("//:probe");
+    let run = case.bazel(&args);
+    assert!(run.status.success(), "{}", run.combined());
+    run.combined()
+        .lines()
+        .filter(|line| line.contains("Selected") && line.contains("rules_dx"))
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn an_indirect_consumer_resolves_no_gated_rules_dx_toolchain() {
+    if nested::recording() {
+        return;
+    }
+    let case = indirect_consumer("indirect");
+    let selected = selected_rules_dx(&case, &[]);
+    assert!(selected.is_empty(), "{selected:?}");
+    let enabled = selected_rules_dx(&case, &["--@rules_dx//config:toolchains=true"]);
+    assert!(
+        !enabled.is_empty(),
+        "the toolchains flag selected no rules_dx toolchain"
+    );
+}
+
 #[test]
 fn a_server_restart_refetches_no_repository() {
     if nested::recording() {
@@ -127,13 +200,24 @@ fn a_download_outside_the_cache_sets_fails_with_its_url() {
 fn nested_commands_see_no_host_path_and_a_home_under_the_test_tmpdir() {
     let tmpdir = std::path::PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
     let case = nested::case("environment");
-    std::fs::write(case.join("MODULE.bazel"), "module(name = \"environment\")\n")
-        .unwrap_or_else(|error| panic!("write MODULE.bazel: {error}"));
+    std::fs::write(
+        case.join("MODULE.bazel"),
+        "module(name = \"environment\")\n",
+    )
+    .unwrap_or_else(|error| panic!("write MODULE.bazel: {error}"));
     let run = case.bazel(&["info", "output_base"]);
     assert!(run.status.success(), "{}", run.combined());
     let output_base = std::path::PathBuf::from(run.stdout.trim());
-    assert!(output_base.starts_with(&tmpdir), "{}", output_base.display());
-    assert!(case.root().starts_with(&tmpdir), "{}", case.root().display());
+    assert!(
+        output_base.starts_with(&tmpdir),
+        "{}",
+        output_base.display()
+    );
+    assert!(
+        case.root().starts_with(&tmpdir),
+        "{}",
+        case.root().display()
+    );
     let environ = std::fs::read(format!("/proc/{}/environ", case.servers()[0])).expect("environ");
     let environ = String::from_utf8_lossy(&environ);
     let vars: Vec<&str> = environ.split('\0').collect();

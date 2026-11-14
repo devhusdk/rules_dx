@@ -1,23 +1,26 @@
-load("@gazelle//:def.bzl", "gazelle")
+load("@rules_go//go:def.bzl", "go_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_DX_COMMANDS", "VIS_DX_ROOTS")
-load(":generate.bzl", "GENERATE_EXCLUDES")
+load(":generate.bzl", "dx_generate")
 
 package(default_visibility = ["//visibility:private"])
 
-gazelle(
+dx_generate(
     name = "generate",
-    args = GENERATE_EXCLUDES,
-    gazelle = "@dx_gazelle//:gazelle",
     visibility = VIS_DX_COMMANDS,
 )
 
-gazelle(
+dx_generate(
     name = "generate_check",
-    args = GENERATE_EXCLUDES,
-    gazelle = "@dx_gazelle//:gazelle",
     mode = "diff",
     visibility = VIS_DX_COMMANDS,
+)
+
+go_binary(
+    name = "gazelle_launcher",
+    srcs = ["gazelle_launcher.go"],
+    pure = "on",
+    deps = ["@rules_go//go/runfiles"],
 )
 
 filegroup(
@@ -36,6 +39,7 @@ filegroup(
     name = "module_srcs",
     srcs = [
         "BUILD.bazel",
+        "gazelle_launcher.go",
         "generate.bzl",
     ],
     visibility = ["//:__subpackages__"],

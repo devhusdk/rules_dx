@@ -5,6 +5,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "README.md",
+    "pins.json",
 ])
 
 filegroup(
@@ -13,6 +14,7 @@ filegroup(
         "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
+        "pins.json",
         "//qt/private:module_srcs",
         "//qt/private/platforms:module_srcs",
         "//qt/private/rust:module_srcs",

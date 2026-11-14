@@ -1,7 +1,6 @@
 """Pinned Qt SDK, runtime closure and extractor identities."""
 
 load(":sdk_pins.bzl", "PINS")
-load(":seven_zip.bzl", "SEVEN_ZIP_EXTRACTORS")
 load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
 load(":layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
 load(":layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
@@ -65,9 +64,9 @@ IDENTITIES = {
     "windows_x86_64": WINDOWS_X86_64_IDENTITY,
 }
 
-EXTRACTORS = SEVEN_ZIP_EXTRACTORS
-
-LICENSE_TEXTS = {
-    key: struct(sha256 = entry["sha256"], url = entry["urls"][0])
-    for key, entry in _PINS["archives"].items()
-}
+def license_texts(pins):
+    """Returns the license texts of a decoded qt/pins.json keyed by their path under licenses/."""
+    return {
+        key: struct(sha256 = entry["sha256"], url = entry["urls"][0])
+        for key, entry in pins["archives"].items()
+    }

@@ -8,7 +8,6 @@ load("//qt/private/toolchain:layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
 load(
     "//qt/private/toolchain:pins.bzl",
     "CELLS",
-    "EXTRACTORS",
     "IDENTITIES",
     "LAYOUTS",
     "MODULES",
@@ -143,8 +142,6 @@ def _pin_checks():
         expect_equal("linux layout names libraries by soname", LINUX_LAYOUT.library("Core"), "libQt6Core.so.6"),
         expect_equal("macos layout names libraries by framework binary", MACOS_LAYOUT.library("Core"), "QtCore.framework/Versions/A/QtCore"),
         expect_equal("layouts name their link kind", [LINUX_LAYOUT.link, MACOS_LAYOUT.link], ["srcs", "framework"]),
-        expect_equal("extractor hosts", sorted(EXTRACTORS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
-        expect_equal("macos extractor binary", EXTRACTORS["macos_arm64"].binary, "7zz"),
         expect_equal("runtime mirror is the vault root", RUNTIME_MIRROR, "https://vault.almalinux.org"),
         expect_equal("library license", QT_LIBRARY_LICENSE, "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"),
         expect_equal("tool license", QT_TOOL_LICENSE, "LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0"),

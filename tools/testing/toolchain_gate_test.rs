@@ -33,6 +33,8 @@ const GATED: &[&str] = &[
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",
     "//tools/platforms:protoc_windows_arm64",
+    "@android_ndk_toolchain//:ndk_cc_toolchain_device",
+    "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
     "@cuda//toolchain/...",
     "@dx_dotnet_toolchains//:all",
     "@dx_haskell_toolchains//:all",
@@ -46,8 +48,6 @@ const GATED: &[&str] = &[
 
 /// Ungated registrations for shared toolchain types; entries are only removed.
 const UNGATED: &[&str] = &[
-    "@android_ndk_toolchain//:ndk_cc_toolchain_device",
-    "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
     "@local_config_apple_cc_toolchains//:all",
 ];
 

@@ -15,6 +15,8 @@ def toolchain_repo_errors(revision, api_level, cxx_runtime):
     errors.extend(android_cxx_runtime_errors(cxx_runtime))
     return errors
 
+_TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
+
 _TUPLE_BUILD = """
 filegroup(
     name = "compiler_files_{tuple}",
@@ -70,6 +72,7 @@ toolchain(
     name = "ndk_cc_toolchain_{tuple}",
     exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
     target_compatible_with = {compatible_with},
+    target_settings = ["{toolchains_on}"],
     toolchain = ":cc_toolchain_{tuple}",
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )
@@ -133,6 +136,7 @@ def toolchain_build(ndk_label, exec_root, api_level, cxx_runtime):
             cxx_include_dir = sysroot + "/usr/include/c++/v1",
             ndk_sysroot = sysroot,
             compatible_with = _TUPLE_CONSTRAINTS[name],
+            toolchains_on = _TOOLCHAINS_ON,
         ))
     return "\n".join(chunks)
 

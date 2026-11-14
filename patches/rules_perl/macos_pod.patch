@@ -1,0 +1,65 @@
+diff --git a/perl/deps.bzl b/perl/deps.bzl
+--- a/perl/deps.bzl
++++ b/perl/deps.bzl
+@@ -2,18 +2,25 @@
+ 
+ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+ load("//perl:repo.bzl", _perl_download = "perl_download")
++load("//perl/private:perl_version.bzl", "PERL_VERSION")
+ load(":platforms.bzl", "PLATFORMS", "perl_toolchain_labels")
+ 
+ perl_download = _perl_download
+ 
+ # buildifier: disable=unnamed-macro
+ def perl_repos():
++    pod = [platform for platform in PLATFORMS if platform.name == "x86_64_linux_gnu"][0]
+     for platform in PLATFORMS:
++        macos = platform.name.endswith("_macos")
+         perl_download(
+             name = "perl_%s" % platform.name,
+             strip_prefix = platform.strip_prefix,
+             integrity = platform.integrity,
+             urls = platform.urls,
++            pod_integrity = pod.integrity if macos else "",
++            pod_output = "lib/{}/Pod".format(PERL_VERSION) if macos else "",
++            pod_strip_prefix = "{}/lib/{}/Pod".format(pod.strip_prefix, PERL_VERSION) if macos else "",
++            pod_urls = pod.urls if macos else [],
+         )
+ 
+ # buildifier: disable=unnamed-macro
+diff --git a/perl/repo.bzl b/perl/repo.bzl
+--- a/perl/repo.bzl
++++ b/perl/repo.bzl
+@@ -41,6 +41,13 @@
+         sha256 = ctx.attr.sha256,
+         stripPrefix = ctx.attr.strip_prefix,
+     )
++    if ctx.attr.pod_urls:
++        ctx.download_and_extract(
++            ctx.attr.pod_urls,
++            output = ctx.attr.pod_output,
++            integrity = ctx.attr.pod_integrity,
++            stripPrefix = ctx.attr.pod_strip_prefix,
++        )
+ 
+     # The flags XS modules must be compiled with live in %Config, not in
+     # config.h (see PerlRuntimeInfo.ccflags); MakeMaker applies them to every
+@@ -103,6 +110,18 @@
+             mandatory = True,
+             doc = "List of mirror URLs where a Perl distribution archive can be downloaded",
+         ),
++        "pod_integrity": attr.string(
++            doc = "Integrity of the archive at `pod_urls`.",
++        ),
++        "pod_output": attr.string(
++            doc = "Directory the `Pod` modules from `pod_urls` are extracted to.",
++        ),
++        "pod_strip_prefix": attr.string(
++            doc = "Path of the `Pod` module directory inside the archive at `pod_urls`.",
++        ),
++        "pod_urls": attr.string_list(
++            doc = "A Perl distribution archive whose `Pod` modules are added to this one.",
++        ),
+         "_build_tpl": attr.label(
+             default = Label("@rules_perl//perl/private:BUILD.dist.bazel.tpl"),
+         ),

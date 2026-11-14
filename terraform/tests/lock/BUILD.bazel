@@ -1,6 +1,8 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//terraform:defs.bzl", "terraform_library")
 
+exports_files(["terraform.lock.json"])
+
 terraform_library(
     name = "terraform",
     srcs = ["main.tf"],

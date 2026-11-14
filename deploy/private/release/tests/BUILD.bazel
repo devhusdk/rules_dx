@@ -74,7 +74,6 @@ rust_test(
         "//patches/rules_rust:pipelined_rmeta_path.patch",
         "//patches/rules_rust:static_archive_link_arg.patch",
         "//patches/rules_rust:windows_exec_foreign_target_cc_linker.patch",
-        "//swift/tests:consumer_srcs",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",

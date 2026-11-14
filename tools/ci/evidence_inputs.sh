@@ -9,7 +9,7 @@ name='[A-Za-z0-9_.+@=,/-]'
 read -d '' -ra patterns <<< "${DX_SCOPE:-}" || true
 [ "${#patterns[@]}" -gt 0 ] || fail "scope must name at least one target pattern"
 for p in "${patterns[@]}"; do
-  [[ "$p" =~ ^(@rules_dx_${name}*)?//${name}*(:(\*|${name}+))?$ ]] || fail "scope holds '$p', which is not a target pattern"
+  [[ "$p" =~ ^//${name}*(:(\*|${name}+))?$ ]] || fail "scope holds '$p', which is not a target pattern"
 done
 
 task=${DX_TASK:-}

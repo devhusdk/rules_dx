@@ -598,6 +598,7 @@ def _toolchain_checks():
     checks.append(expect_contains("linker stages ndk runtime libs", pinned, '"@ndk_repo//:runtime_libs"'))
     checks.append(expect_contains("clang version constant", pinned, 'clang_resource_dir = "external/ndk_repo/extracted/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/18/include"'))
     checks.append(expect_contains("pinned clang is a label", pinned, 'clang = "@ndk_repo//:clang"'))
+    checks.append(expect_contains("toolchains are gated", pinned, 'target_settings = ["' + str(Label("//config:toolchains_on")) + '"]'))
     checks.append(expect_true("pinned has no parent paths", "../" not in pinned))
     return checks
 

@@ -17,7 +17,7 @@ class AnsibleLintMainTest(unittest.TestCase):
     """Windows guard and shim layout."""
 
     def test_windows_installs_posix_stand_ins(self):
-        """Windows gets fcntl, termios and pwd stand-ins and in-process ansible CLIs."""
+        """Windows gets fcntl, termios, pwd and grp stand-ins and in-process ansible CLIs."""
         seen = []
 
         class RecordingPopen:
@@ -27,13 +27,15 @@ class AnsibleLintMainTest(unittest.TestCase):
         with (
             mock.patch.dict(sys.modules),
             mock.patch.dict(os.environ, {}, clear=True),
+            mock.patch.dict(os.__dict__),
             mock.patch.object(subprocess, "Popen", RecordingPopen),
             mock.patch.object(
                 multiprocessing, "get_context", lambda method=None: method
             ),
         ):
-            for name in ("fcntl", "termios", "pwd"):
+            for name in ("fcntl", "termios", "pwd", "grp"):
                 sys.modules.pop(name, None)
+            os.__dict__.pop("getuid", None)
             ansible_windows.install(
                 "/x/ansible_lint_main.py", ansible_lint_main.SHIM_MODULES
             )
@@ -48,6 +50,9 @@ class AnsibleLintMainTest(unittest.TestCase):
             self.assertEqual(termios.TIOCGWINSZ, 0)
             with self.assertRaises(KeyError):
                 sys.modules["pwd"].getpwuid(0)
+            with self.assertRaises(KeyError):
+                sys.modules["grp"].getgrgid(0)
+            self.assertEqual(os.getuid(), ansible_windows.POSIX_ID)
             self.assertEqual(multiprocessing.get_context("fork"), "spawn")
             self.assertEqual(os.environ["USERNAME"], "dx")
             popen = subprocess.Popen
@@ -75,8 +80,10 @@ class AnsibleLintMainTest(unittest.TestCase):
             shims = ansible_lint_main.prepare_env(env)
             self.assertEqual(env["PATH"], shims)
             for name in ansible_lint_main.SHIM_MODULES:
-                mode = os.stat(os.path.join(shims, name)).st_mode
-                self.assertTrue(mode & stat.S_IXUSR, name)
+                path = os.path.join(shims, name)
+                self.assertTrue(os.path.isfile(path), name)
+                if os.name != "nt":
+                    self.assertTrue(os.stat(path).st_mode & stat.S_IXUSR, name)
             self.assertEqual(env["ANSIBLE_LINT_SKIP_SCHEMA_UPDATE"], "1")
             self.assertTrue(env["ANSIBLE_HOME"].startswith(tmp))
 

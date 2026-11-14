@@ -60,7 +60,11 @@ const RULE_SETS: [(&str, &[&str]); 3] = [
 ];
 
 /// The only rules_dx files a rule-set file may load, as `//` labels.
-const RULES_DX_ALLOW: [&str; 1] = ["//rust:defs.bzl"];
+const RULES_DX_ALLOW: [&str; 3] = [
+    "//core:wrapper.bzl",
+    "//core/quality:sources.bzl",
+    "//rust:defs.bzl",
+];
 
 /// External repos a rule-set file may load from.
 const EXTERNAL_ALLOW: [&str; 8] = [

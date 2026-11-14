@@ -132,10 +132,7 @@ mod tests {
     use super::*;
 
     fn field(number: u8, payload: &[u8]) -> Vec<u8> {
-        let mut out = vec![
-            (number << 3) | 2,
-            u8::try_from(payload.len()).expect("short"),
-        ];
+        let mut out = vec![(number << 3) | 2, u8::try_from(payload.len()).expect("short")];
         out.extend_from_slice(payload);
         out
     }
@@ -189,12 +186,7 @@ mod tests {
     #[test]
     fn falls_back_to_the_integrity_and_skips_unchecked_downloads() {
         let mut with_integrity = field(1, b"https://a/x");
-        with_integrity.extend(field(
-            5,
-            ["sha256-Tk6Uj7uFZLijo7PzGzz", "+z9y+0mP2eoEw+32y+KHwEGM="]
-                .concat()
-                .as_bytes(),
-        ));
+        with_integrity.extend(field(5, ["sha256-Tk6Uj7uFZLijo7PzGzz", "+z9y+0mP2eoEw+32y+KHwEGM="].concat().as_bytes()));
         let unchecked = field(1, b"https://c/z");
         let mut log = event(4, &with_integrity);
         log.extend(event(4, &unchecked));

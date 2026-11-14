@@ -1,7 +1,4 @@
-"""Clippy for dx lint: reports unused crate dependencies without changing the build configuration.
-
-The attrs follow rust_clippy_aspect in rules_rust 0.75.0 (rust/private/clippy.bzl); re-check them on every rules_rust upgrade.
-"""
+"""Clippy for dx lint that reports unused crate dependencies."""
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "use_cc_toolchain")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_action", "rust_common")

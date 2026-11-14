@@ -181,12 +181,7 @@ def _libstdcxx_impl(ctx):
 _libstdcxx_test = analysistest.make(_libstdcxx_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 
 def build_script_libstdcxx_test(name, target):
-    """Asserts a binary using the C++ build script links libstdc++ from the pinned GCC.
-
-    Args:
-        name: Name of the test.
-        target: A rust_test or rust_binary that depends on the build script.
-    """
+    """Asserts a binary using the C++ build script links libstdc++ from the pinned GCC."""
     _libstdcxx_test(
         name = name,
         size = "small",
@@ -202,12 +197,7 @@ def build_script_libstdcxx_test(name, target):
     )
 
 def build_script_compiler_tests(name, target):
-    """Asserts the build script runs with the pinned GCC under gcc and with LLVM under llvm, also on Windows x64.
-
-    Args:
-        name: Name of the test suite.
-        target: A rust_build_script that uses the cc toolchain.
-    """
+    """Asserts the build script runs with the pinned GCC and with LLVM."""
     tests = []
     for compiler, rule in [("gcc", _gcc_test), ("llvm", _llvm_test)]:
         test = "{}_{}".format(name, compiler)
@@ -285,12 +275,7 @@ _cross_gcc_test = analysistest.make(_cross_gcc_impl, config_settings = dict(_CRO
 _cross_llvm_test = analysistest.make(_cross_llvm_impl, config_settings = dict(_CROSS, **{_COMPILER: "llvm"}))
 
 def cross_build_script_identity_tests(name, target):
-    """Asserts a cross build script gets the target toolchain and HOST_* the exec toolchain.
-
-    Args:
-        name: Name of the test suite.
-        target: A rust_build_script that uses the cc toolchain.
-    """
+    """Asserts a cross build script gets the target toolchain and HOST_* the exec toolchain."""
     tests = []
     for compiler, rule in [("gcc", _cross_gcc_test), ("llvm", _cross_llvm_test)]:
         test = "{}_{}".format(name, compiler)
@@ -304,12 +289,7 @@ def cross_build_script_identity_tests(name, target):
     native.test_suite(name = name, tests = tests)
 
 def build_script_msvc_test(name, target):
-    """Asserts the build script runs with the provisioned cl.exe and lib.exe on Windows x64.
-
-    Args:
-        name: Name of the test.
-        target: A rust_build_script that uses the cc toolchain.
-    """
+    """Asserts the build script runs with the provisioned cl.exe and lib.exe on Windows x64."""
     _msvc_test(
         name = name,
         size = "small",
@@ -405,12 +385,7 @@ _link_windows_test = analysistest.make(_link_windows_impl, config_settings = {
 })
 
 def rust_link_windows_test(name, target):
-    """Asserts the Rust link step uses rust-lld and not clang-cl on Windows x64.
-
-    Args:
-        name: Name of the test.
-        target: A rust_test or rust_binary that links native code.
-    """
+    """Asserts the Rust link step uses rust-lld and not clang-cl on Windows x64."""
     _link_windows_test(
         name = name,
         size = "small",
@@ -429,13 +404,7 @@ def _static_archive_link_impl(ctx):
 _static_archive_link_test = analysistest.make(_static_archive_link_impl)
 
 def rust_static_archive_link_test(name, target, **kwargs):
-    """Asserts the Rust link step links the native static archive by path, not by name, on Linux.
-
-    Args:
-        name: Name of the test.
-        target: A rust_test or rust_binary that links native_c_upstream.
-        **kwargs: Forwarded to the test.
-    """
+    """Asserts the Rust link step links the native static archive by path, not by name, on Linux."""
     _static_archive_link_test(
         name = name,
         target_compatible_with = ["@platforms//os:linux"],
@@ -444,12 +413,7 @@ def rust_static_archive_link_test(name, target, **kwargs):
     )
 
 def rust_link_compiler_tests(name, target):
-    """Asserts the Rust link step uses the pinned GCC under gcc and not under llvm.
-
-    Args:
-        name: Name of the test suite.
-        target: A rust_test or rust_binary that links native code.
-    """
+    """Asserts the Rust link step uses the pinned GCC under gcc and not under llvm."""
     tests = []
     for compiler, rule in [("gcc", _link_gcc_test), ("llvm", _link_llvm_test)]:
         test = "{}_{}".format(name, compiler)
@@ -509,12 +473,7 @@ mixed_crt_actions = rule(
 )
 
 def rust_msvc_crt_mixed_actions_test(name, target):
-    """Asserts a /MD CppCompile action does not hide a later +crt-static Rustc action in the same target.
-
-    Args:
-        name: Name of the test.
-        target: A rust_binary linking a mixed_crt_actions target.
-    """
+    """Asserts a /MD CppCompile action does not hide a later +crt-static Rustc action in the same target."""
     _crt_mixed_actions_test(
         name = name,
         size = "small",
@@ -524,14 +483,7 @@ def rust_msvc_crt_mixed_actions_test(name, target):
     )
 
 def rust_msvc_crt_tests(name, ok, bad, target_flag):
-    """Asserts +crt-static Rust accepts /MT C deps and rejects /MD ones under cl.exe and clang-cl.
-
-    Args:
-        name: Name of the test suite.
-        ok: A rust_test whose C deps are compiled /MT.
-        bad: A rust_test with a C dep compiled /MD.
-        target_flag: A rust_test that sets +crt-static in its own rustc_flags.
-    """
+    """Asserts +crt-static Rust accepts /MT C deps and rejects /MD ones under cl.exe and clang-cl."""
     ok_name = name + "_ok"
     bad_name = name + "_bad"
     target_flag_name = name + "_target_flag"
@@ -555,14 +507,7 @@ def rust_msvc_crt_tests(name, ok, bad, target_flag):
     native.test_suite(name = name, tests = [ok_name, bad_name, target_flag_name, ok_llvm_name, bad_llvm_name])
 
 def rust_msvc_crt_library_tests(name, shared, static, cc_consumer):
-    """Asserts +crt-static Rust shared and static libraries reject /MD C deps on MSVC.
-
-    Args:
-        name: Name of the test suite.
-        shared: A rust_shared_library with a C dep compiled /MD.
-        static: A rust_static_library with a C dep compiled /MD.
-        cc_consumer: A cc_binary compiled /MD that links a +crt-static rust_static_library.
-    """
+    """Asserts +crt-static Rust shared and static libraries reject /MD C deps on MSVC."""
     tests = []
     for kind, target in [("shared", shared), ("static", static), ("cc_consumer", cc_consumer)]:
         test = "{}_{}_bad".format(name, kind)
@@ -577,12 +522,7 @@ def rust_msvc_crt_library_tests(name, shared, static, cc_consumer):
     native.test_suite(name = name, tests = tests)
 
 def build_script_msvc_coverage_test(name, target):
-    """Asserts Windows coverage builds build-script C, not C++, without ISO wide stdio.
-
-    Args:
-        name: Name of the test.
-        target: A rust_build_script that uses the cc toolchain.
-    """
+    """Asserts Windows coverage builds build-script C, not C++, without ISO wide stdio."""
     _msvc_coverage_test(
         name = name,
         size = "small",
@@ -603,12 +543,7 @@ _absolute_tool_test = analysistest.make(
 )
 
 def build_script_absolute_tool_test(name, target):
-    """Asserts a Windows drive-letter cc tool path reaches the build script without a ${pwd}/ prefix.
-
-    Args:
-        name: Name of the test.
-        target: A rust_build_script that uses the cc toolchain.
-    """
+    """Asserts a Windows drive-letter cc tool path reaches the build script without a ${pwd}/ prefix."""
     _absolute_tool_test(
         name = name,
         size = "small",

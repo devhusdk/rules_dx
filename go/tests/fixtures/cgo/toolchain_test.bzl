@@ -84,12 +84,7 @@ _llvm_test = _make("llvm")
 _gcc_test = _make("gcc")
 
 def cgo_toolchain_tests(name, target_under_test):
-    """Declares the LLVM and GCC toolchain tests and a suite over them.
-
-    Args:
-        name: Suite name; tests are named name_llvm and name_gcc.
-        target_under_test: Go target built with cgo.
-    """
+    """Declares the LLVM and GCC toolchain tests and a suite over them."""
     _llvm_test(
         name = name + "_llvm",
         target_compatible_with = ["@platforms//os:linux"],

@@ -33,12 +33,7 @@ _windows_arm64_test = _make("windows_arm64")
 _windows_x86_64_test = _make("windows_x86_64")
 
 def cross_link_tests(name, size = "small"):
-    """Checks that the Windows cross platforms take the clang-cl Rust link flags.
-
-    Args:
-      name: suite name and prefix of the declared targets.
-      size: size of the declared tests.
-    """
+    """Checks that the Windows cross platforms take the clang-cl Rust link flags."""
     probe = name + "_probe"
     _flags_probe(
         name = probe,

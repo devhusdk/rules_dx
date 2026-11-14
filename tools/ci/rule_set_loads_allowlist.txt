@@ -20,14 +20,12 @@ qt/BUILD.bazel foreign-load 1
 qt/private/BUILD.bazel foreign-load 5
 qt/private/archive.bzl foreign-load 1
 qt/private/bundle.bzl foreign-load 1
-qt/private/cells.bzl foreign-load 2
 qt/private/defs.bzl foreign-load 4
 qt/private/platforms/BUILD.bazel foreign-load 1
 qt/private/rust/BUILD.bazel foreign-load 1
 qt/private/text.bzl foreign-load 1
 qt/private/toolchain/BUILD.bazel foreign-load 2
 qt/private/toolchain/cell_json.bzl foreign-load 2
-qt/private/toolchain/extensions.bzl foreign-load 1
 qt/private/toolchain/pins.bzl foreign-load 2
 qt/private/toolchain/repos.bzl foreign-load 4
 qt/private/toolchain/tool.bzl foreign-load 2

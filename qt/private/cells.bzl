@@ -1,7 +1,5 @@
 """Qualified Qt cells as target compatibility and consumer archive settings."""
 
-load("//core:cells.bzl", "unsupported_constraint")
-load("//core:platform_support.bzl", "compatible_with")
 load("//qt/private/toolchain:pins.bzl", "CELLS", "IDENTITIES")
 load("//qt/private/toolchain:repos.bzl", "PLATFORM_SUPPORT", "qualified_cells")
 
@@ -16,11 +14,18 @@ _BUNDLE_CELLS = [cell for cell in _CONSUMER_CELLS if CELLS[cell].needs != None]
 def _cell_setting(cell):
     return Label("//qt/private/platforms:cell_" + cell)
 
-QT_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
+_INCOMPATIBLE = Label("@platforms//:incompatible")
+
+_UNSUPPORTED = Label("//qt/private:unsupported")
+
+QT_COMPATIBLE_WITH = select(
+    {setting: [] for setting in PLATFORM_SUPPORT.settings} |
+    {"//conditions:default": [_INCOMPATIBLE, _UNSUPPORTED]},
+)
 
 QT_BUNDLE_COMPATIBLE_WITH = select(
     {_cell_setting(cell): [] for cell in _BUNDLE_CELLS} |
-    {"//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//qt/private")]},
+    {"//conditions:default": [_INCOMPATIBLE, _UNSUPPORTED]},
 )
 
 QT_CONSUMER_MIN_RUNTIME = select(

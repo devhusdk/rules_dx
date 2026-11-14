@@ -1,6 +1,5 @@
 """Pure text builders for QML modules, qrc files and package paths."""
 
-load("//core:rlocation.bzl", "repo_relative_path")
 
 _PUNCTUATION = " !\"#$%&'()*+,.:;<=>?@[\\]^`{|}~"
 
@@ -59,9 +58,16 @@ def qt_qrc(prefix, entries):
     lines.extend(["  </qresource>", "</RCC>"])
     return "\n".join(lines) + "\n"
 
+def _repo_relative_path(short_path):
+    if short_path.startswith("../"):
+        rest = short_path[3:]
+        slash = rest.find("/")
+        return rest[slash + 1:] if slash >= 0 else ""
+    return short_path
+
 def qt_package_path(short_path, package):
     """Returns a short path relative to its package, or None outside it."""
-    path = repo_relative_path(short_path)
+    path = _repo_relative_path(short_path)
     if package == "":
         return path
     if not path.startswith(package + "/"):

@@ -96,6 +96,44 @@ pub(crate) fn ldd_path() -> String {
     dir.to_string_lossy().into_owned()
 }
 
+/// On Windows, the MSYS bash the nested Bazel runs shell rules with: `BAZEL_SH`, then Git's
+/// and MSYS2's default install.
+fn windows_bash() -> Option<String> {
+    let drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_owned());
+    let program_files =
+        std::env::var("ProgramFiles").unwrap_or_else(|_| format!(r"{drive}\Program Files"));
+    std::env::var("BAZEL_SH")
+        .ok()
+        .filter(|bash| !bash.is_empty())
+        .into_iter()
+        .chain([
+            format!(r"{program_files}\Git\usr\bin\bash.exe"),
+            format!(r"{drive}\msys64\usr\bin\bash.exe"),
+        ])
+        .find(|bash| std::path::Path::new(bash).is_file())
+}
+
+/// The environment of the nested commands: `PATH` is `ldd_path`, and on Windows `BAZEL_SH`
+/// names `windows_bash`.
+pub(crate) fn nested_env() -> Vec<(&'static str, String)> {
+    let mut env = vec![("PATH", ldd_path())];
+    if cfg!(windows) {
+        let bash = windows_bash().unwrap_or_else(|| panic!("no MSYS bash: set BAZEL_SH"));
+        env.push(("BAZEL_SH", bash));
+    }
+    env
+}
+
+/// Runs nested Bazel in `case` with `nested_env`.
+pub(crate) fn bazel(case: &Case, args: &[&str]) -> Run {
+    let env = nested_env();
+    let pairs: Vec<(&str, &str)> = env
+        .iter()
+        .map(|(key, value)| (*key, value.as_str()))
+        .collect();
+    case.bazel_with(args, &pairs)
+}
+
 /// The licence lines `docs/cli/commands/windows.md` has a Windows user add to `user.bazelrc`.
 pub(crate) const WINDOWS_LICENCES: &str = "common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1\ncommon:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1\n";
 
@@ -114,8 +152,7 @@ fn write_windows_rc(case: &Case) {
 }
 
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
-    let path = ldd_path();
-    let run = case.bazel_with(args, &[("PATH", path.as_str())]);
+    let run = bazel(case, args);
     ok(&run, what);
     run
 }
@@ -195,15 +232,13 @@ fn the_readme_quickstart_runs_as_written() {
         &read_text(&module).replace(&rules_py_override(), ""),
     );
     let root = case.root().to_string_lossy().into_owned();
-    let path = ldd_path();
-    let init = case.run(
-        &dx,
-        &["init", "--apply"],
-        &[
-            ("BUILD_WORKSPACE_DIRECTORY", root.as_str()),
-            ("PATH", path.as_str()),
-        ],
-    );
+    let env = nested_env();
+    let mut pairs: Vec<(&str, &str)> = env
+        .iter()
+        .map(|(key, value)| (*key, value.as_str()))
+        .collect();
+    pairs.push(("BUILD_WORKSPACE_DIRECTORY", root.as_str()));
+    let init = case.run(&dx, &["init", "--apply"], &pairs);
     ok(&init, "dx init --apply");
     run_in(
         &case,

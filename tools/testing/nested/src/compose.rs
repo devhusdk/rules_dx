@@ -53,9 +53,21 @@ pub fn rules_py_override() -> String {
 }
 
 /// The patches of `//patches/rules_rust` that `rules_rust_override` names, without `.patch`.
-pub const RULES_RUST_PATCHES: [&str; 1] = ["windows_exec_foreign_target_cc_linker"];
+pub const RULES_RUST_PATCHES: [&str; 11] = [
+    "clippy_metadata_inputs",
+    "pipelined_rmeta_path",
+    "crate_universe_root_lookup",
+    "msvc_pdb_output",
+    "static_archive_link_arg",
+    "crate_universe_lazy_host_tools",
+    "cargo_toml_env_vars_flag",
+    "exec_scope_universal",
+    "cargo_build_script_no_coverage",
+    "windows_exec_foreign_target_cc_linker",
+    "crate_universe_module_labels",
+];
 
-/// Pins rules_rust 0.75.0 with the Windows exec linker patch of the root MODULE.bazel.
+/// Pins rules_rust 0.75.0 with the patches of the root MODULE.bazel.
 pub fn rules_rust_override() -> String {
     let patches = RULES_RUST_PATCHES
         .map(|name| format!("        \"//patches/rules_rust:{name}.patch\",\n"))

@@ -6,7 +6,19 @@ ANDROID_NDK_RELEASE = "r27"
 
 ANDROID_NDK_CLANG_VERSION = "18"
 
-NDK_PREBUILT = "toolchains/llvm/prebuilt/linux-x86_64"
+NDK_PREBUILT = {
+    "linux_x86_64": "toolchains/llvm/prebuilt/linux-x86_64",
+    "macos_arm64": "toolchains/llvm/prebuilt/darwin-x86_64",
+    "macos_x86_64": "toolchains/llvm/prebuilt/darwin-x86_64",
+    "windows_x86_64": "toolchains/llvm/prebuilt/windows-x86_64",
+}
+
+NDK_TOOL_SUFFIX = {
+    "linux_x86_64": "",
+    "macos_arm64": "",
+    "macos_x86_64": "",
+    "windows_x86_64": ".exe",
+}
 
 NDK_TRIPLES = ["aarch64-linux-android", "x86_64-linux-android"]
 
@@ -53,6 +65,30 @@ NDK_ARTIFACTS = {
         sha1 = "5e5cd517bdb98d7e0faf2c494a3041291e71bdcc",
         sha256 = "2f17eb8bcbfdc40201c0b36e9a70826fcd2524ab7a2a235e2c71186c302da1dc",
         size = 663957918,
+    ),
+    "macos_arm64": struct(
+        anchor = "source.properties",
+        archive = "android-ndk-r27-darwin.zip",
+        directory = "android-ndk-r27",
+        sha1 = "1a4a8c39c018430ff170657fc1673d895f5e4570",
+        sha256 = "2f2ef00b22fe22c1c9c78fda1b38ea7ffa6528e25eac0b70a92f8cb0093143be",
+        size = 836135405,
+    ),
+    "macos_x86_64": struct(
+        anchor = "source.properties",
+        archive = "android-ndk-r27-darwin.zip",
+        directory = "android-ndk-r27",
+        sha1 = "1a4a8c39c018430ff170657fc1673d895f5e4570",
+        sha256 = "2f2ef00b22fe22c1c9c78fda1b38ea7ffa6528e25eac0b70a92f8cb0093143be",
+        size = 836135405,
+    ),
+    "windows_x86_64": struct(
+        anchor = "source.properties",
+        archive = "android-ndk-r27-windows.zip",
+        directory = "android-ndk-r27",
+        sha1 = "0ea2756e6815356831bda3af358cce4cdb6a981e",
+        sha256 = "342ceafd7581ae26a0bd650a5e0bbcd0aa2ee15eadfd7508b3dedeb1372d7596",
+        size = 781482169,
     ),
 }
 
@@ -134,6 +170,9 @@ PLATFORM_TOOLS_ARCHIVE_PREFIX = "platform-tools_r" + PLATFORM_TOOLS
 
 PLATFORM_CONSTRAINTS = {
     "linux_x86_64": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    "macos_arm64": ["@platforms//os:macos", "@platforms//cpu:arm64"],
+    "macos_x86_64": ["@platforms//os:macos", "@platforms//cpu:x86_64"],
+    "windows_x86_64": ["@platforms//os:windows", "@platforms//cpu:x86_64"],
 }
 
 HUB_NAME = "dx_android_sdk"
@@ -273,6 +312,8 @@ def _release_suffix(platform):
     parts = platform.split("_", 1)
     if parts[0] == "linux":
         return "linux.zip"
+    if parts[0] == "macos":
+        return "darwin.zip"
     return parts[0] + ".zip"
 
 def url_for(artifact, mirror = ""):
@@ -519,17 +560,23 @@ def hub_build(ndk_repos, build_tools_repos, bundletool_repo, *, platform_repo = 
     _hub_target(lines, "emulator", emulator_repos, "emulator", package_no_match_error("emulator"))
     return "\n".join(lines) + "\n"
 
-NDK_RUNTIME_LIBS = ["libxml2.so.2"]
+NDK_RUNTIME_LIBS = {
+    "linux_x86_64": ["lib/libxml2.so.2"],
+    "macos_arm64": ["lib/libc++.dylib", "lib/libxml2.2.dylib"],
+    "macos_x86_64": ["lib/libc++.dylib", "lib/libxml2.2.dylib"],
+    "windows_x86_64": ["bin/libwinpthread-1.dll", "bin/libxml2.dll"],
+}
 
-def ndk_toolchain_build(root):
-    """Returns the filegroups a cc toolchain needs from the NDK unpacked under root."""
-    prebuilt = root + "/" + NDK_PREBUILT
+def ndk_toolchain_build(root, host):
+    """Returns the filegroups a cc toolchain needs from one host's NDK unpacked under root."""
+    prebuilt = root + "/" + NDK_PREBUILT[host]
+    suffix = NDK_TOOL_SUFFIX[host]
     lines = []
     for name, tool in [("clang", "clang"), ("ld_lld", "ld.lld"), ("llvm_ar", "llvm-ar"), ("llvm_readelf", "llvm-readelf"), ("llvm_strip", "llvm-strip")]:
         lines.extend([
             "filegroup(",
             '    name = "%s",' % name,
-            '    srcs = ["%s/bin/%s"],' % (prebuilt, tool),
+            '    srcs = ["%s/bin/%s%s"],' % (prebuilt, tool, suffix),
             '    visibility = ["//visibility:public"],',
             ")",
             "",
@@ -537,7 +584,7 @@ def ndk_toolchain_build(root):
     lines.extend([
         "filegroup(",
         '    name = "runtime_libs",',
-        "    srcs = [%s]," % ", ".join(['"%s/lib/%s"' % (prebuilt, lib) for lib in NDK_RUNTIME_LIBS]),
+        "    srcs = [%s]," % ", ".join(['"%s/%s"' % (prebuilt, lib) for lib in NDK_RUNTIME_LIBS[host]]),
         '    visibility = ["//visibility:public"],',
         ")",
         "",
@@ -567,8 +614,8 @@ def ndk_toolchain_build(root):
         ])
     return "\n".join(lines)
 
-def ndk_build(anchor):
-    """Returns the BUILD file exposing one acquired NDK anchor."""
+def ndk_build(anchor, host):
+    """Returns the BUILD file exposing one host's acquired NDK anchor."""
     return "\n".join([
         "filegroup(",
         '    name = "ndk",',
@@ -582,7 +629,7 @@ def ndk_build(anchor):
         '    visibility = ["//visibility:public"],',
         ")",
         "",
-        ndk_toolchain_build("extracted"),
+        ndk_toolchain_build("extracted", host),
     ])
 
 def build_tools_build(anchor):
@@ -704,7 +751,7 @@ def _acquire(ctx, errors, build):
 
 def acquire_ndk(ctx):
     """Downloads, verifies, and extracts one pinned NDK archive."""
-    return _acquire(ctx, artifact_errors(), ndk_build)
+    return _acquire(ctx, artifact_errors(), lambda anchor: ndk_build(anchor, ctx.attr.host))
 
 def acquire_build_tools(ctx):
     """Downloads, verifies, and extracts one pinned build-tools archive."""
@@ -746,7 +793,13 @@ NDK_REPOSITORY_ATTRS = {
 
 android_ndk_repo = repository_rule(
     implementation = acquire_ndk,
-    attrs = NDK_REPOSITORY_ATTRS,
+    attrs = NDK_REPOSITORY_ATTRS | {
+        "host": attr.string(
+            doc = "Execution platform the NDK archive is built for.",
+            mandatory = True,
+            values = sorted(NDK_ARTIFACTS.keys()),
+        ),
+    },
 )
 
 android_build_tools_repo = repository_rule(

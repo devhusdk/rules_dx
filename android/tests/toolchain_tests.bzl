@@ -230,9 +230,19 @@ def _android_checks():
         "ndk;27.0.12077973",
     ]))
     checks.append(expect_equal("opt-in packages", OPT_IN_PACKAGES, ["platform-tools", "emulator"]))
-    checks.append(expect_equal("supported hosts", sorted(NDK_ARTIFACTS.keys()), ["linux_x86_64"]))
+    checks.append(expect_equal("supported hosts", sorted(NDK_ARTIFACTS.keys()), ["linux_x86_64", "macos_arm64", "macos_x86_64", "windows_x86_64"]))
     checks.append(expect_equal("artifact errors", artifact_errors(), []))
-    checks.append(expect_equal("ndk repositories", ndk_repositories(), {"linux_x86_64": "dx_android_ndk_linux_x86_64"}))
+    checks.append(expect_equal("ndk repositories", ndk_repositories(), {
+        "linux_x86_64": "dx_android_ndk_linux_x86_64",
+        "macos_arm64": "dx_android_ndk_macos_arm64",
+        "macos_x86_64": "dx_android_ndk_macos_x86_64",
+        "windows_x86_64": "dx_android_ndk_windows_x86_64",
+    }))
+    checks.append(expect_equal("windows ndk archive", NDK_ARTIFACTS["windows_x86_64"].archive, "android-ndk-r27-windows.zip"))
+    checks.append(expect_equal("windows ndk sha256", NDK_ARTIFACTS["windows_x86_64"].sha256, "342ceafd7581ae26a0bd650a5e0bbcd0aa2ee15eadfd7508b3dedeb1372d7596"))
+    checks.append(expect_equal("macos ndk archive", NDK_ARTIFACTS["macos_arm64"].archive, "android-ndk-r27-darwin.zip"))
+    checks.append(expect_equal("macos hosts share the universal archive", NDK_ARTIFACTS["macos_x86_64"], NDK_ARTIFACTS["macos_arm64"]))
+    checks.append(expect_equal("macos ndk sha256", NDK_ARTIFACTS["macos_arm64"].sha256, "2f2ef00b22fe22c1c9c78fda1b38ea7ffa6528e25eac0b70a92f8cb0093143be"))
     artifact = NDK_ARTIFACTS["linux_x86_64"]
     checks.append(expect_equal("ndk repository", ndk_repository_name("linux_x86_64"), "dx_android_ndk_linux_x86_64"))
     checks.append(expect_equal("ndk archive", artifact.archive, "android-ndk-r27-linux.zip"))
@@ -436,6 +446,27 @@ def _android_checks():
             '        "@platforms//cpu:x86_64",',
             "    ],",
             ")",
+            "config_setting(",
+            '    name = "macos_arm64",',
+            "    constraint_values = [",
+            '        "@platforms//os:macos",',
+            '        "@platforms//cpu:arm64",',
+            "    ],",
+            ")",
+            "config_setting(",
+            '    name = "macos_x86_64",',
+            "    constraint_values = [",
+            '        "@platforms//os:macos",',
+            '        "@platforms//cpu:x86_64",',
+            "    ],",
+            ")",
+            "config_setting(",
+            '    name = "windows_x86_64",',
+            "    constraint_values = [",
+            '        "@platforms//os:windows",',
+            '        "@platforms//cpu:x86_64",',
+            "    ],",
+            ")",
             "",
             "filegroup(",
             '    name = "ndk",',
@@ -528,10 +559,17 @@ def _android_checks():
     checks.append(expect_contains("build-tools build ships libc++", tools_build, '"extracted/lib64/libc++.so"'))
     checks.append(expect_contains("build-tools build exposes apksigner", tools_build, '"extracted/lib/apksigner.jar"'))
     checks.append(expect_contains("build-tools build exposes the anchor", tools_build, '"extracted/source.properties"'))
-    anchor_build = ndk_build("source.properties")
+    anchor_build = ndk_build("source.properties", "linux_x86_64")
     checks.append(expect_contains("ndk build exposes the anchor", anchor_build, "extracted/source.properties"))
     checks.append(expect_contains("ndk build declares runtime libs", anchor_build, 'name = "runtime_libs"'))
     checks.append(expect_contains("ndk build stages libxml2", anchor_build, "extracted/toolchains/llvm/prebuilt/linux-x86_64/lib/libxml2.so.2"))
+    windows_build = ndk_build("source.properties", "windows_x86_64")
+    checks.append(expect_contains("windows ndk exposes clang.exe", windows_build, '"extracted/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe"'))
+    checks.append(expect_contains("windows ndk exposes ld.lld.exe", windows_build, '"extracted/toolchains/llvm/prebuilt/windows-x86_64/bin/ld.lld.exe"'))
+    checks.append(expect_contains("windows ndk stages libxml2.dll", windows_build, "extracted/toolchains/llvm/prebuilt/windows-x86_64/bin/libxml2.dll"))
+    macos_build = ndk_build("source.properties", "macos_arm64")
+    checks.append(expect_contains("macos ndk exposes darwin clang", macos_build, '"extracted/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang"'))
+    checks.append(expect_contains("macos ndk stages libxml2", macos_build, "extracted/toolchains/llvm/prebuilt/darwin-x86_64/lib/libxml2.2.dylib"))
     pinned = app_sdk_layout(_request(api_level = 0))
     checks.append(expect_equal("app sdk dirs", [entry.dest for entry in pinned], ["build-tools/35.0.0", "platforms/android-34", "platform-tools"]))
     checks.append(expect_equal("app sdk build-tools archive", pinned[0].artifact.archive, "build-tools_r35_linux.zip"))
@@ -591,8 +629,19 @@ def _toolchain_checks():
         toolchain_repo_errors("27.0.12077973", 31, "system"),
         ["android: cxx_runtime 'system' is unknown: want shared, static, none"],
     ))
-    pinned = toolchain_build("@ndk_repo//", "external/ndk_repo/extracted", 31, "static")
+    pinned = toolchain_build({
+        "linux_x86_64": struct(label = "@ndk_repo//", exec_root = "external/ndk_repo/extracted"),
+        "windows_x86_64": struct(label = "@ndk_win//", exec_root = "external/ndk_win/extracted"),
+    }, 31, "static")
     checks.append(expect_contains("pinned tools are labels", pinned, '"@ndk_repo//:clang", "@ndk_repo//:compiler_files"'))
+    for host in ["linux_x86_64", "windows_x86_64"]:
+        for kind in ["device", "emulator"]:
+            checks.append(expect_contains("declares " + kind + " on " + host, pinned, 'name = "ndk_cc_toolchain_%s_%s",' % (kind, host)))
+    checks.append(expect_contains("linux exec host", pinned, 'exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],'))
+    checks.append(expect_contains("windows exec host", pinned, 'exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],'))
+    checks.append(expect_contains("windows clang is its own ndk", pinned, 'clang = "@ndk_win//:clang"'))
+    checks.append(expect_contains("windows resource dir", pinned, 'clang_resource_dir = "external/ndk_win/extracted/toolchains/llvm/prebuilt/windows-x86_64/lib/clang/18/include"'))
+    checks.append(expect_contains("readelf follows the host", pinned, '":windows_x86_64": "@ndk_win//:llvm_readelf",'))
     checks.append(expect_contains("device linker files", pinned, "@ndk_repo//:linker_files_aarch64-linux-android"))
     checks.append(expect_contains("emulator linker files", pinned, "@ndk_repo//:linker_files_x86_64-linux-android"))
     checks.append(expect_contains("linker stages ndk runtime libs", pinned, '"@ndk_repo//:runtime_libs"'))

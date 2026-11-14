@@ -227,8 +227,32 @@ testing_rust_test(
 )
 
 rust_test(
+    name = "module_extension_srcs_test",
+    srcs = [
+        "module_extension_srcs_test.rs",
+        "module_srcs_closure.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "module_extension_srcs_test",
+    crate_root = "module_extension_srcs_test.rs",
+    data = ["//:module_srcs"],
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_testing"],
+)
+
+rust_test(
     name = "module_srcs_test",
-    srcs = ["module_srcs_test.rs"],
+    srcs = [
+        "module_srcs_closure.rs",
+        "module_srcs_test.rs",
+    ],
     aliases = aliases(
         package_name = "tools/dx_testing",
         normal = True,

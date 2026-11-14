@@ -11,13 +11,21 @@ exports_files([
 ])
 
 filegroup(
-    name = "module_srcs",
+    name = "extension_srcs",
     srcs = [
+        "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
-        "//:module_srcs",
         "//haskell/private:module_srcs",
         "//haskell/private/toolchain:module_srcs",
+    ],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        ":extension_srcs",
+        "//:module_srcs",
     ],
 )
 

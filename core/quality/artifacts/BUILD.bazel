@@ -98,3 +98,12 @@ alias(
     actual = "@dx_tools//:trivy",
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

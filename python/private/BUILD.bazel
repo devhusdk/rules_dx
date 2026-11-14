@@ -256,3 +256,12 @@ real_source_target(
 )
 
 exports_files(["grpc_protoc.py"])
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

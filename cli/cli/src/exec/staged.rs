@@ -1,4 +1,4 @@
-//! Runs a staged generator (paket2bazel, go) on copies of a set's inputs in a scratch
+//! Runs a staged generator (go, mix, rebar3) on copies of a set's inputs in a scratch
 //! directory and reports which declared locks it would change. The caller decides what
 //! to do with the result, so both `dx update` forms share the same checks.
 
@@ -133,9 +133,7 @@ pub(super) fn run_staged_core(
             .and_then(std::fs::read)
             .and_then(|bytes| {
                 std::fs::write(inputs_dir.join(file_name(rel)), &bytes)?;
-                if inputs_dir != scratch.0 {
-                    staged_inputs.insert(file_name(rel).to_owned(), bytes);
-                }
+                staged_inputs.insert(file_name(rel).to_owned(), bytes);
                 Ok(())
             });
         if let Err(error) = copied {
@@ -170,12 +168,9 @@ pub(super) fn run_staged_core(
         Ok(entries) => {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().into_owned();
-                if !run.is_lock(&name) {
-                    continue;
-                }
                 match std::fs::read(entry.path()) {
                     Ok(bytes) => {
-                        generated.insert(name, run.rewrite_generated(bytes));
+                        generated.insert(name, bytes);
                     }
                     Err(error) => {
                         fail!("cannot read generated {name}: {error}");

@@ -3,8 +3,6 @@
 use dx_adopt::dependency_sets::{DependencySet, Ecosystem, discover};
 
 const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
-const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
-const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
 const EXPECTED_NAMES: &[&str] = &[
     "dart_apitool_deps",
@@ -62,10 +60,7 @@ const EXPECTED_NAMES: &[&str] = &[
 ];
 
 fn sets() -> Vec<DependencySet> {
-    let read = |rel: &str| match rel {
-        "third_party/dotnet/extension.bzl" => Ok(PAKET_EXTENSION.to_owned()),
-        other => Err(format!("{other} is not a test input")),
-    };
+    let read = |rel: &str| Err(format!("{rel} is not a test input"));
     discover(MODULE_BAZEL, &read)
         .expect("root MODULE.bazel hubs load")
         .expect("root MODULE.bazel declares hubs")
@@ -98,23 +93,18 @@ fn dx_crates_starts_with_the_manifest_beside_its_cargo_lock() {
 }
 
 #[test]
-fn nuget_locks_cover_every_paket_group() {
-    let mut groups = vec!["main".to_owned()];
-    for line in PAKET_DEPENDENCIES.lines() {
-        if let Some(group) = line.trim().strip_prefix("group ") {
-            groups.push(group.trim().to_owned());
-        }
-    }
-    let mut want = vec!["third_party/dotnet/paket.lock".to_owned()];
-    for group in &groups {
-        want.push(format!("third_party/dotnet/deps/paket.{group}.bzl"));
-    }
+fn nuget_set_pairs_the_manifest_with_both_locks() {
     let nuget = set("nuget");
     assert_eq!(nuget.manifests, ["third_party/dotnet/paket.dependencies"]);
     let mut got = nuget.locks;
     got.sort();
-    want.sort();
-    assert_eq!(got, want);
+    assert_eq!(
+        got,
+        [
+            "third_party/dotnet/nuget.lock.json",
+            "third_party/dotnet/paket.lock"
+        ]
+    );
 }
 
 #[test]

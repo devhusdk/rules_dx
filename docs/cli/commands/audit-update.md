@@ -471,7 +471,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `cpan.lock` of `@rules_dx//perl:extensions.bzl` | `name` | `cpanfile` beside the lock | `cpanfile.snapshot` and `cpan.lock.json` |
 | `pub.from_lock` of `@rules_dart//dart/pub:extensions.bzl`, `flutter.pub` of rules_flutter | `name` | `pubspec.yaml` beside the lock | `pubspec.lock` |
 | `julia.from_manifest` of `@rules_dx//julia:extensions.bzl` or `pkg.from_manifest` of `@rules_julia//julia/pkg:extensions.bzl` | `name` | `Project.toml` beside the lockfile | `Manifest.toml` and `Manifest.bazel.json` beside the lockfile |
-| rules_dotnet `paket` extension | `nuget` | `paket.dependencies` | `paket.lock`, `paket.<group>.bzl` |
+| `nuget.lock` tag of `@rules_dx//csharp:extensions.bzl` | `nuget` | `paket.dependencies` | `nuget.lock.json`, `paket.lock` |
 
 A `julia` set: `update --outdated` compares the `[deps]` packages of `Project.toml`, as locked in `Manifest.toml`, with the General registry, and `dx update <set>:<Package> <version>` edits the `[compat]` entry (see the julia section). `security` reads the versioned packages of `Manifest.toml` (format 2.0, stdlibs skipped) and matches them against the `Julia` advisories, and the layout check needs both locks to name the same versions. A `luarocks` set is pinned: `security` lists the rocks of `luarocks.lock.json` and reports the set as uncovered, and `update` runs `bazel run @rules_dx//lua/private/tools/lock -- --dir <set directory>`, which resolves the `dependencies` of the `*.rockspec` from luarocks.org and rewrites `luarocks.lock.json`. A `pub` set is pinned the same way: `security` reads the hosted packages of `pubspec.lock` and matches them against the `Pub` advisories. A `cpan` set is checked with `carton install --deployment`; `update --outdated` compares the `requires` modules of `cpanfile` with the latest release on MetaCPAN, and `security` reads the distributions of `cpanfile.snapshot` and matches them against the CPANSA advisories (see the `cpan` section). `dx update <set>:<Module> --apply` runs `carton update <Module>` and then the cpan lock step, so both files change together. The layout check fails when the distributions of `cpan.lock.json` differ from those of `cpanfile.snapshot`. A `uv.project` at the workspace root is named `<hub_name>`. A set's scopes are the directories of its manifests and locks, except `MODULE.bazel`. A path that names a manifest or lock, such as `//:cargo-bazel-lock.json`, selects only its owner. The scope `.` owns the root package: `//:x` and `//:` select sets scoped `.`; `//pkg:x` and `//pkg/...` never do. Overlapping scopes select every owner.
 
@@ -655,14 +655,16 @@ use_repo(maven, "maven")
 ### nuget
 
 ```starlark
-paket = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")
+nuget = use_extension("@rules_dx//csharp:extensions.bzl", "nuget")
+nuget.lock(
+    name = "nuget",
+    lock = "//third_party/dotnet:nuget.lock.json",
+)
 ```
 
-- The set is found from the `paket` extension in the root `MODULE.bazel`. Manifest is `paket.dependencies` in the parent of the extension folder. Locks are the `paket.lock` beside it and each `paket.<group>.bzl`. Every `source` must be http(s).
-- Dx copies both files to a scratch directory and runs `bazel run @rules_dx//dotnet:paket2bazel -- --dependencies-file <scratch>/paket.dependencies --output-folder <scratch>/out`. It never writes `paket.lock`.
-- A check compares generated files with the declared locks byte for byte. A difference, an undeclared generated file or a missing declared file fails the set and lists the paths. `--apply` writes only the differing declared files, and nothing when an undeclared or missing file turns up.
-- `--apply --frozen` runs. `--offline` fails with `offline_required` in both modes.
-- A set takes no `set:package` for update. Edit `paket.dependencies`, run `paket update`, then `dx update <set>`.
+- The set's manifest is `paket.dependencies` beside the lock. Its locks are `nuget.lock.json` and the `paket.lock` beside it.
+- An update runs `bazel run @rules_dx//csharp/private/tools/lock -- --dir <set dir>` and writes both locks.
+- `--apply --frozen` and `--offline` fail with `frozen_locked` and `offline_required`. A set takes no `set:package` for update.
 - `dx security` matches `paket.lock` against `.dx/local/advisory/nuget.json`. `dx license` needs `[[inventory]]` with `set = "nuget"`.
 
 ### cpan

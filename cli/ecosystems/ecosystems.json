@@ -120,7 +120,7 @@
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "nuget",
-      "check_backend": "nuget",
+      "check_backend": "pinned",
       "graph_only": true,
       "check": true,
       "update": true,

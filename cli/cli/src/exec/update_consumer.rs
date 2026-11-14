@@ -165,7 +165,6 @@ fn run_configured_target(
             | dependency_sets::DependencySetsError::MissingPinnedLock { .. }
             | dependency_sets::DependencySetsError::UnsupportedMavenHub { .. }
             | dependency_sets::DependencySetsError::UnsupportedCargoHub { .. }
-            | dependency_sets::DependencySetsError::UnsupportedNugetLayout { .. }
             | dependency_sets::DependencySetsError::UnsupportedGoLayout { .. } => {
                 dx_update::outcome::SetStatus::Unsupported
             }
@@ -346,7 +345,6 @@ fn run_configured_target(
             Ecosystem::Maven => {
                 "; the maven.install lock_file must be listed in the set's locks and MODULE.bazel must not change"
             }
-            Ecosystem::Nuget => "; paket2bazel must only write into its scratch output folder",
             Ecosystem::Uv
             | Ecosystem::Npm
             | Ecosystem::Bazel
@@ -359,6 +357,7 @@ fn run_configured_target(
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Dub
+            | Ecosystem::Nuget
             | Ecosystem::Fpm
             | Ecosystem::Zig
             | Ecosystem::LuaRocks

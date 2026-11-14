@@ -48,7 +48,6 @@ pub struct Run {
 /// The generator a [`StagedRun`] launches.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StagedTool {
-    Paket2Bazel,
     GoModDownload,
     MixDeps,
     Rebar3,
@@ -102,17 +101,6 @@ impl StagedRun {
     pub fn argv(&self, scratch: &Path) -> Result<Vec<String>, BackendError> {
         let mut argv = self.argv_head.clone();
         match self.tool {
-            StagedTool::Paket2Bazel => {
-                argv.push("--dependencies-file".to_owned());
-                argv.push(
-                    scratch
-                        .join(dx_adopt::lock_hubs::manifest_of("nuget")?)
-                        .to_string_lossy()
-                        .into_owned(),
-                );
-                argv.push("--output-folder".to_owned());
-                argv.push(scratch.join("out").to_string_lossy().into_owned());
-            }
             StagedTool::GoModDownload => {
                 argv.push("-C".to_owned());
                 argv.push(scratch.join("out").to_string_lossy().into_owned());
@@ -171,48 +159,15 @@ impl StagedRun {
     /// Names the tool in messages.
     pub fn tool_name(&self) -> &'static str {
         match self.tool {
-            StagedTool::Paket2Bazel => "paket2bazel",
             StagedTool::GoModDownload => "go",
             StagedTool::MixDeps => "mix",
             StagedTool::Rebar3 => "rebar3",
         }
     }
 
-    /// Whether a generated file is a lock; paket2bazel's per-group extensions are not.
-    pub fn is_lock(&self, name: &str) -> bool {
-        !(self.tool == StagedTool::Paket2Bazel && name.ends_with("_extension.bzl"))
-    }
-
-    /// A generated file's bytes as the consumer should store them.
-    pub fn rewrite_generated(&self, bytes: Vec<u8>) -> Vec<u8> {
-        if self.tool != StagedTool::Paket2Bazel {
-            return bytes;
-        }
-        const FROM: &[u8] = b"load(\"@rules_dotnet//dotnet:defs.bzl\", \"nuget_repo\")";
-        const TO: &[u8] =
-            b"load(\"@rules_dx//dotnet:extensions.bzl\", nuget_repo = \"dotnet_nuget_repo\")";
-        let mut out = Vec::with_capacity(bytes.len());
-        let mut rest = bytes.as_slice();
-        while let Some(at) = rest.windows(FROM.len()).position(|w| w == FROM) {
-            let Some((head, tail)) = rest.split_at_checked(at + FROM.len()) else {
-                break;
-            };
-            out.extend_from_slice(head.get(..at).unwrap_or_default());
-            out.extend_from_slice(TO);
-            rest = tail;
-        }
-        out.extend_from_slice(rest);
-        out
-    }
-
     /// The directory under `scratch` the inputs are copied into and the outputs are read from.
     pub fn inputs_dir(&self, scratch: &Path) -> std::path::PathBuf {
-        match self.tool {
-            StagedTool::Paket2Bazel => scratch.to_path_buf(),
-            StagedTool::GoModDownload | StagedTool::MixDeps | StagedTool::Rebar3 => {
-                scratch.join("out")
-            }
-        }
+        scratch.join("out")
     }
 }
 
@@ -733,7 +688,6 @@ pub fn check_configured(
         "bazel" => bazel::check(workspace, set, request, offline, head, closure),
         "cargo" => cargo::check(workspace, set, request, offline, head, closure),
         "maven" => maven::check(workspace, set, request, offline, head, closure),
-        "nuget" => nuget::check(workspace, set, request, offline, head, closure),
         "go" => go::check(workspace, set, request, offline, head, closure),
         "cpan" => cpan::check(workspace, set, request, offline, head, closure),
         "pub_dev" => pub_dev::check(workspace, set, request, offline, head, closure),
@@ -745,62 +699,6 @@ pub fn check_configured(
         "cabal" => cabal::check(workspace, set, request, offline, head, closure),
         _ => pinned::check(set, request),
     }
-}
-
-fn nuget_pins_exact() -> Result<&'static str, BackendError> {
-    static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    if let Some(text) = TEXT.get() {
-        return Ok(text);
-    }
-    let text = format!(
-        "nuget pins are exact in {}; edit {}, run `paket update`, then `dx update <set>`",
-        dx_adopt::lock_hubs::state_of("nuget")?,
-        dx_adopt::lock_hubs::manifest_of("nuget")?
-    );
-    Ok(TEXT.get_or_init(|| text))
-}
-
-/// Plans `paket2bazel` on a staged copy of the paket manifest and lock.
-fn nuget_staged(
-    set: &ResolvedSet,
-    head: &dx_process::BazelHead,
-    offline: bool,
-) -> Result<StagedRun, BackendError> {
-    // Paket has no offline switch, so dx cannot keep it off the network.
-    if offline {
-        return Err(BackendError::OfflineRequired {
-            set: set.name.clone(),
-        });
-    }
-    let pin_head = dx_process::BazelHead {
-        settings: Vec::new(),
-        ..head.clone()
-    };
-    let paket_lock = dependency_sets::paket_lock()?;
-    let lock = set
-        .locks
-        .iter()
-        .find(|lock| lock.rsplit('/').next() == Some(paket_lock))
-        .cloned()
-        .ok_or_else(|| BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "a nuget set must list its paket lock in locks",
-        })?;
-    let mut inputs = set.manifests.clone();
-    inputs.push(lock.clone());
-    let outputs = set
-        .locks
-        .iter()
-        .filter(|path| **path != lock)
-        .cloned()
-        .collect();
-    Ok(StagedRun {
-        tool: StagedTool::Paket2Bazel,
-        argv_head: bazel(&pin_head, "run", &["@rules_dx//dotnet:paket2bazel", "--"]),
-        env: Vec::new(),
-        inputs,
-        outputs,
-    })
 }
 
 fn hex_lock_missing() -> Result<&'static str, BackendError> {

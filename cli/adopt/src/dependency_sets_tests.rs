@@ -487,27 +487,19 @@ fn bundle_fetches_become_ruby_sets() {
 }
 
 #[test]
-fn paket_extensions_become_the_nuget_set() {
-    let module = "paket = use_extension(\"//third_party/dotnet:extension.bzl\", \"paket\")\n";
-    let bzl = "load(\"//third_party/dotnet/deps:paket.main.bzl\", \"main\")\nload(\":framework.bzl\", \"framework\")\nload(\"//third_party/dotnet/deps:paket.docs.bzl\", \"docs\")\n";
-    let registry = found(module, &[("third_party/dotnet/extension.bzl", bzl)]);
+fn nuget_lock_tags_become_the_nuget_set() {
+    let module = "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\", lock = \"//third_party/dotnet:nuget.lock.json\")\n";
+    let registry = found(module, &[]);
     let set = registry.find("nuget").expect("nuget");
     assert_eq!(set.ecosystem, Ecosystem::Nuget);
     assert_eq!(set.manifests, ["third_party/dotnet/paket.dependencies"]);
     assert_eq!(
         set.locks,
         [
+            "third_party/dotnet/nuget.lock.json",
             "third_party/dotnet/paket.lock",
-            "third_party/dotnet/deps/paket.docs.bzl",
-            "third_party/dotnet/deps/paket.main.bzl",
         ]
     );
-    let generated =
-        "main = use_extension(\"//x/deps:paket.main_extension.bzl\", \"main_extension\")\n";
-    let registry = found(generated, &[]);
-    let set = registry.find("nuget").expect("nuget");
-    assert_eq!(set.manifests, ["x/paket.dependencies"]);
-    assert_eq!(set.locks, ["x/paket.lock", "x/deps/paket.main.bzl"]);
 }
 
 #[test]
@@ -550,7 +542,7 @@ fn hub_problems_fail_closed() {
     ));
     assert!(matches!(
         discovered(
-            "paket = use_extension(\"//d:extension.bzl\", \"paket\")\n",
+            "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\")\n",
             &[]
         ),
         Err(DependencySetsError::Module { .. })
@@ -1692,8 +1684,8 @@ fn maven_check_needs_a_signed_lock_and_fail_if_repin_required() {
 }
 
 const NUGET_LOCKS: [&str; 2] = [
+    "third_party/dotnet/nuget.lock.json",
     "third_party/dotnet/paket.lock",
-    "third_party/dotnet/deps/paket.main.bzl",
 ];
 
 fn nuget_set(locks: &[&str]) -> DependencySet {
@@ -1704,32 +1696,6 @@ fn nuget_set(locks: &[&str]) -> DependencySet {
         strings(locks),
     )
     .expect("valid")
-}
-
-const NUGET_MODULE: &str = "module(name = \"consumer\")\n";
-
-fn nuget_workspace(
-    locks: &[&str],
-    module: &str,
-    dependencies: &str,
-) -> (dx_test_scratch::TempDir, ResolvedSet) {
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-nuget-");
-    let root = scratch.path();
-    std::fs::write(root.join("MODULE.bazel"), module).expect("module");
-    std::fs::create_dir_all(root.join("third_party/dotnet/deps")).expect("dir");
-    std::fs::write(
-        root.join("third_party/dotnet/paket.dependencies"),
-        dependencies,
-    )
-    .expect("dependencies");
-    (scratch, ResolvedSet::of(&nuget_set(locks)))
-}
-
-fn nuget_detail(result: Result<(), DependencySetsError>) -> String {
-    match result {
-        Err(DependencySetsError::UnsupportedNugetLayout { detail, .. }) => detail,
-        other => panic!("expected UnsupportedNugetLayout, got {other:?}"),
-    }
 }
 
 #[test]
@@ -1768,56 +1734,6 @@ fn nuget_sets_load_with_paket_manifests() {
             }),
             "{package}"
         );
-    }
-}
-
-#[test]
-fn nuget_layout_accepts_one_folder_of_groups() {
-    let (scratch, set) = nuget_workspace(
-        &NUGET_LOCKS,
-        NUGET_MODULE,
-        "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json\n",
-    );
-    assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
-}
-
-#[test]
-fn nuget_layout_refuses_what_staging_cannot_reproduce() {
-    let dependencies = "source https://api.nuget.org/v3/index.json\n";
-    let main = "third_party/dotnet/deps/paket.main.bzl";
-    let lock = "third_party/dotnet/paket.lock";
-    let notes: &[&str] = &[lock, "third_party/dotnet/deps/notes.txt"];
-    let other: &[&str] = &[lock, main, "third_party/dotnet/other/paket.docs.bzl"];
-    let extension: &[&str] = &[
-        lock,
-        main,
-        "third_party/dotnet/deps/paket.main_extension.bzl",
-    ];
-    let cases: [(&[&str], &str, &str, &str); 4] = [
-        (notes, NUGET_MODULE, dependencies, "neither paket.lock"),
-        (other, NUGET_MODULE, dependencies, "share one folder"),
-        (
-            extension,
-            NUGET_MODULE,
-            dependencies,
-            "paket2bazel extension",
-        ),
-        (
-            &NUGET_LOCKS,
-            NUGET_MODULE,
-            "source ../local-feed\n",
-            "not http(s)",
-        ),
-    ];
-    let (scratch, set) = nuget_workspace(&[main], NUGET_MODULE, dependencies);
-    assert!(matches!(
-        check_backend_settings(scratch.path(), &set),
-        Err(DependencySetsError::MissingPinnedLock { .. })
-    ));
-    for (locks, module, dependencies, want) in cases {
-        let (scratch, set) = nuget_workspace(locks, module, dependencies);
-        let detail = nuget_detail(check_backend_settings(scratch.path(), &set));
-        assert!(detail.contains(want), "{want}: {detail}");
     }
 }
 

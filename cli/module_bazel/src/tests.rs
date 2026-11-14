@@ -1332,16 +1332,19 @@ fn ansible_and_bicep_tags_follow_their_extensions() {
 }
 
 #[test]
-fn paket_extensions_are_main_repository_paket_loaders() {
+fn nuget_locks_are_the_nuget_extension_lock_tags() {
     let file = parse(
-        "paket = use_extension(\"//third_party/dotnet:extension.bzl\", \"paket\")\nmain = use_extension(\"//deps:paket.main_extension.bzl\", \"main_extension\")\nother = use_extension(\"//tools:extension.bzl\", \"other\")\nremote = use_extension(\"@x//:extension.bzl\", \"paket\")\n",
+        "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\", lock = \"//third_party/dotnet:nuget.lock.json\")\n",
     );
+    let locks: Vec<_> = file
+        .nuget_locks()
+        .expect("locks")
+        .iter()
+        .map(|entry| (entry.name, entry.lock))
+        .collect();
     assert_eq!(
-        file.paket_extensions(),
-        [
-            "//third_party/dotnet:extension.bzl",
-            "//deps:paket.main_extension.bzl"
-        ]
+        locks,
+        [("nuget", "//third_party/dotnet:nuget.lock.json")]
     );
 }
 

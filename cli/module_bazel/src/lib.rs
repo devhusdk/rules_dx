@@ -303,6 +303,14 @@ pub struct DubLock<'a> {
     pub line: usize,
 }
 
+/// One `nuget.lock` tag of the rules_dx nuget extension.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NugetLock<'a> {
+    pub name: &'a str,
+    pub lock: &'a str,
+    pub line: usize,
+}
+
 /// One `ansible.lock` tag of the rules_dx ansible extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnsibleCollections<'a> {
@@ -1105,6 +1113,22 @@ impl ModuleFile {
             .collect()
     }
 
+    /// Every `nuget.lock` tag of the rules_dx nuget extension in source order.
+    pub fn nuget_locks(&self) -> Result<Vec<NugetLock<'_>>, ModuleError> {
+        const TAG: &str = "nuget.lock";
+        let own = self.tags_of("//csharp:extensions.bzl".to_owned(), "nuget", "lock");
+        self.tags(RUBY_MODULE, "csharp:extensions.bzl", "nuget", "lock")
+            .chain(own)
+            .map(|call| {
+                Ok(NugetLock {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
     /// Every `zig.lock` tag of the rules_dx zig extension in source order.
     pub fn zig_locks(&self) -> Result<Vec<ZigLock<'_>>, ModuleError> {
         const TAG: &str = "zig.lock";
@@ -1187,21 +1211,6 @@ impl ModuleFile {
                     line: call.line,
                 })
             })
-            .collect()
-    }
-
-    /// The main-repository .bzl labels of `use_extension` calls that load paket groups:
-    /// an extension named `paket`, or a generated `paket.<group>_extension.bzl` file.
-    pub fn paket_extensions(&self) -> Vec<&str> {
-        self.extensions()
-            .into_iter()
-            .filter(|(label, name)| {
-                let file = label.rsplit([':', '/']).next().unwrap_or(label);
-                label.starts_with("//")
-                    && (*name == "paket"
-                        || (file.starts_with("paket.") && file.ends_with("_extension.bzl")))
-            })
-            .map(|(label, _)| label)
             .collect()
     }
 

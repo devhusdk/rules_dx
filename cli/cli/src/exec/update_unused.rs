@@ -94,14 +94,30 @@ fn uv_hub(workspace: &Path, manifest: &str) -> Option<String> {
     Some(project.hub_name.to_owned())
 }
 
-/// The `@paket.<group>` repositories of the generated `paket.<group>.bzl` locks.
-fn paket_hubs(locks: &[String]) -> Vec<String> {
-    locks
-        .iter()
-        .filter_map(|lock| lock.rsplit('/').next())
-        .filter_map(|file| file.strip_suffix(".bzl"))
-        .filter(|name| name.starts_with("paket."))
-        .map(|name| format!("@{name}"))
+/// The hub repositories of a nuget set: `@<name>` for `main`, `@<name>.<group>` for the others.
+fn nuget_hubs(workspace: &Path, set: &ResolvedSet) -> Vec<String> {
+    let Some(lock) = set.locks.iter().find(|lock| lock.ends_with(".lock.json")) else {
+        return Vec::new();
+    };
+    let Ok(text) = std::fs::read_to_string(workspace.join(lock)) else {
+        return Vec::new();
+    };
+    let Ok(serde_json::Value::Object(root)) = serde_json::from_str::<serde_json::Value>(&text)
+    else {
+        return Vec::new();
+    };
+    let Some(serde_json::Value::Object(groups)) = root.get("groups") else {
+        return Vec::new();
+    };
+    groups
+        .keys()
+        .map(|group| {
+            if group == "main" {
+                format!("@{}", set.name)
+            } else {
+                format!("@{}.{group}", set.name)
+            }
+        })
         .collect()
 }
 
@@ -145,7 +161,7 @@ fn used_labels(
         Ecosystem::Uv => format!("@{}//...", uv_hub(workspace, manifest)?),
         Ecosystem::Npm => format!("//{}:*", manifest_dir(manifest)),
         Ecosystem::Nuget => {
-            let hubs = paket_hubs(&target.set.locks);
+            let hubs = nuget_hubs(workspace, &target.set);
             if hubs.is_empty() {
                 return None;
             }
@@ -910,7 +926,7 @@ mod tests {
     }
 
     #[test]
-    fn nuget_set_asks_its_paket_hubs() {
+    fn nuget_set_asks_its_group_hubs() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
         write(
@@ -923,12 +939,17 @@ mod tests {
             Ecosystem::Nuget,
             &format!("dn/{}", manifest_of(Ecosystem::Nuget)),
         )];
+        write(
+            root,
+            "dn/nuget.lock.json",
+            "{\"groups\": {\"main\": {}, \"docs\": {}}}\n",
+        );
         resolved[0].set.locks = vec![
             format!(
                 "dn/{}",
                 dx_adopt::lock_hubs::state_of("nuget").expect("hub")
             ),
-            "dn/deps/paket.main.bzl".to_owned(),
+            "dn/nuget.lock.json".to_owned(),
         ];
         assert_eq!(
             unused_names(

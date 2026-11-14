@@ -114,15 +114,7 @@ def _field_words(lines, fields):
     return _words(" ".join(texts))
 
 def cabal_libraries(text):
-    """Returns the library stanzas of a .cabal file by name, "" for the main library.
-
-    Args:
-        text: The .cabal file content.
-
-    Returns:
-        A dict from library name to a dict with "deps", the sibling libraries it builds on,
-        and "empty", whether it and its imported common stanzas list no modules.
-    """
+    """Returns the library stanzas of a .cabal file by name, "" for the main library."""
     stanzas = {}
     commons = {}
     current = None

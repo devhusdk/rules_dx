@@ -3243,17 +3243,17 @@ fn run_all(
         );
         let shown = session.run(Probe {
             name: "refetch_rules".to_owned(),
-            net: Net::Denied,
+            net: Net::Allowed,
             home: &clean_home,
-            output_root: &warm,
-            repos: &repos,
+            output_root: &cold,
+            repos: &root.join("refetch_rules_repos"),
             command: "mod",
             targets,
             extra: vec!["--output=streamed_jsonproto".to_owned()],
             expect: Expect::Pass,
         })?;
         let rules = show_repo_rules(&shown.stdout);
-        let externals = external_dirs(&warm);
+        let externals = [external_dirs(&warm), external_dirs(&cold)].concat();
         refetched.retain(|context| !local_rule_repo(context, &rules, &externals));
     }
     if !refetched.is_empty() {

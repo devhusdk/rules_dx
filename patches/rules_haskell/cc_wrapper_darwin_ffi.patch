@@ -1,7 +1,28 @@
+diff --git a/haskell/BUILD.bazel b/haskell/BUILD.bazel
+--- a/haskell/BUILD.bazel
++++ b/haskell/BUILD.bazel
+@@ -164,3 +164,17 @@ filegroup(
+     ],
+     visibility = ["//visibility:public"],
+ )
++
++alias(
++    name = "darwin_sdk",
++    actual = select({
++        "@platforms//os:macos": "@macos_sdk//sysroot",
++        "//conditions:default": ":empty_sdk",
++    }),
++    visibility = ["//visibility:public"],
++)
++
++filegroup(
++    name = "empty_sdk",
++    srcs = [],
++)
 diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
 --- a/haskell/cabal.bzl
 +++ b/haskell/cabal.bzl
-@@ -133,7 +133,7 @@
+@@ -133,7 +133,7 @@ def _concat(sequences):
  def _uniquify(xs):
      return depset(xs).to_list()
  
@@ -10,7 +31,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      """Yields a struct containing the toolchain information needed by the cabal wrapper"""
  
      # If running on darwin but XCode is not installed (i.e., only the Command
-@@ -142,8 +142,8 @@
+@@ -142,8 +142,8 @@ def _cabal_toolchain_info(hs, cc, workspace_name, runghc):
      # TODO: remove this if Bazel fixes its behavior.
      # Upstream ticket: https://github.com/bazelbuild/bazel/issues/5127.
      ar = cc.tools.ar
@@ -21,7 +42,10 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      elif paths.basename(ar) == "libtool":
          ar = paths.join(paths.dirname(ar), "ar")
  
-@@ -158,12 +158,33 @@
+@@ -155,15 +155,37 @@ def _cabal_toolchain_info(hs, cc, workspace_name, runghc):
+         ar = ar,
+         cc = cc.tools.cc.executable.path,
+         ld = cc.tools.ld,
 -        strip = cc.tools.strip,
 +        strip = darwin_tools.strip if darwin_tools else cc.tools.strip,
          is_windows = hs.toolchain.is_windows,
@@ -42,7 +66,8 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
 +        install_name_tool = ctx.file._llvm_install_name_tool.path,
 +        strip = ctx.file._llvm_strip.path,
 +        xcode = paths.basename(cc.tools.ar) != "llvm-libtool-darwin",
-+        files = depset([ctx.file._llvm_ar, ctx.file._llvm_otool, ctx.file._llvm_install_name_tool, ctx.file._llvm_strip]),
++        ffi_include = paths.join(ctx.files._macos_sdk[0].path, "usr", "include", "ffi"),
++        files = depset([ctx.file._llvm_ar, ctx.file._llvm_otool, ctx.file._llvm_install_name_tool, ctx.file._llvm_strip] + ctx.files._macos_sdk),
 +    )
 +
 +def _xcode_execution_info(ctx, hs, env):
@@ -57,7 +82,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
  def _prepare_cabal_inputs(
          hs,
          cc,
-@@ -188,6 +209,7 @@
+@@ -188,6 +210,7 @@ def _prepare_cabal_inputs(
          transitive_haddocks,
          generate_paths_module,
          is_library = False,  # @unused
@@ -65,7 +90,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          dynamic_file = None,
          static_binary = True,
          label = None):
-@@ -272,16 +294,13 @@
+@@ -272,16 +295,13 @@ def _prepare_cabal_inputs(
      ]
      extra_args = ["--flags=" + " ".join(flags)]
  
@@ -88,7 +113,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          extra_args.append("--ghc-option=-optl-fuse-ld=lld")
          extra_args.append("--ghc-option=-optlm-fuse-ld=lld")
          extra_args.append("--hsc2hs-option=--lflag=-fuse-ld=lld")
-@@ -289,8 +308,8 @@
+@@ -289,8 +309,8 @@ def _prepare_cabal_inputs(
      if hs.toolchain.is_darwin:
          extra_args.extend(["--ghc-option=-optc" + flag for flag in cc.compiler_flags])
          extra_args.extend(["--ghc-option=-optl" + flag for flag in cc.linker_flags])
@@ -99,7 +124,16 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
  
      ghc_version = [int(x) for x in hs.toolchain.version.split(".")]
      if dynamic_file:
-@@ -367,7 +386,7 @@
+@@ -346,6 +366,8 @@ def _prepare_cabal_inputs(
+         "--extra-include-dirs=" + d
+         for d in direct_include_dirs.to_list()
+     ] + _uniquify(["--extra-lib-dirs=" + d for d in direct_lib_dirs])
++    if darwin_tools:
++        path_args.append("--extra-include-dirs=" + darwin_tools.ffi_include)
+     if with_profiling:
+         extra_args.append("--enable-profiling")
+ 
+@@ -367,7 +389,7 @@ def _prepare_cabal_inputs(
          runghc_args = runghc_args,
          extra_args = extra_args,
          path_args = path_args,
@@ -108,7 +142,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          generate_paths_module = generate_paths_module,
          ghc_version = ghc_version,
          cabal_basename = cabal.basename,
-@@ -573,6 +592,7 @@
+@@ -573,6 +595,7 @@ def _haskell_cabal_library_impl(ctx):
                  sibling = cabal,
              )
      attr_tools = [tool[DefaultInfo].files_to_run for tool in ctx.attr.tools]
@@ -116,7 +150,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      c = _prepare_cabal_inputs(
          hs,
          cc,
-@@ -595,6 +615,7 @@
+@@ -595,6 +618,7 @@ def _haskell_cabal_library_impl(ctx):
          package_database = package_database,
          verbose = ctx.attr.verbose,
          is_library = True,
@@ -124,7 +158,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          generate_paths_module = ctx.attr.generate_paths_module,
          dynamic_file = dynamic_library,
          transitive_haddocks = _gather_transitive_haddocks(ctx.attr.deps) if with_haddock else depset([]),
-@@ -623,16 +644,18 @@
+@@ -623,16 +647,18 @@ def _haskell_cabal_library_impl(ctx):
          paths.append(c.env["PATH"])
      paths.extend([t.executable.dirname for t in attr_tools])
      c.env["PATH"] = join_path_list(hs.toolchain.is_windows, paths)
@@ -144,7 +178,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          mnemonic = "HaskellCabalLibrary",
          progress_message = "HaskellCabalLibrary {}".format(hs.label),
      )
-@@ -802,12 +825,33 @@
+@@ -802,12 +828,38 @@ haskell_cabal_library = rule(
          ),
          "_llvm_ar": attr.label(
              cfg = "exec",
@@ -167,6 +201,11 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
 +            allow_single_file = True,
 +            default = Label("@llvm//tools:llvm-strip"),
 +        ),
++        "_macos_sdk": attr.label(
++            cfg = "exec",
++            allow_files = True,
++            default = Label("//haskell:darwin_sdk"),
++        ),
          "_cc_toolchain": attr.label(
              default = Label("@rules_cc//cc:current_cc_toolchain"),
          ),
@@ -179,7 +218,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          "verbose": attr.bool(
              default = True,
              doc = "Whether to show the output of the build",
-@@ -829,7 +873,7 @@
+@@ -829,7 +881,7 @@ haskell_cabal_library = rule(
          "@rules_haskell//haskell:toolchain",
          "@rules_python//python:toolchain_type",
      ],
@@ -188,7 +227,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      doc = """\
  Use Cabal to build a library.
  
-@@ -922,6 +966,7 @@
+@@ -922,6 +974,7 @@ def _haskell_cabal_binary_impl(ctx):
          sibling = cabal,
      )
      attr_tools = [tool[DefaultInfo].files_to_run for tool in ctx.attr.tools]
@@ -196,7 +235,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      c = _prepare_cabal_inputs(
          hs,
          cc,
-@@ -943,6 +988,7 @@
+@@ -943,6 +996,7 @@ def _haskell_cabal_binary_impl(ctx):
          runghc = ctx.executable._runghc,
          package_database = package_database,
          verbose = ctx.attr.verbose,
@@ -204,7 +243,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          generate_paths_module = ctx.attr.generate_paths_module,
          dynamic_file = binary,
          transitive_haddocks = _gather_transitive_haddocks(ctx.attr.deps) if hs.tools_config.supports_haddock else depset([]),
-@@ -955,10 +1001,11 @@
+@@ -955,10 +1009,11 @@ def _haskell_cabal_binary_impl(ctx):
          hs.toolchain.is_windows,
          [_python_dir(ctx)] + ([c.env["PATH"]] if "PATH" in c.env else []),
      )
@@ -217,7 +256,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          outputs = [
              package_database,
              binary,
-@@ -968,6 +1015,7 @@
+@@ -968,6 +1023,7 @@ def _haskell_cabal_binary_impl(ctx):
                  [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
                  hs.tools_config.tools_for_ghc,
          env = c.env,
@@ -225,7 +264,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          mnemonic = "HaskellCabalBinary",
          progress_message = "HaskellCabalBinary {}".format(hs.label),
      )
-@@ -1068,12 +1116,33 @@
+@@ -1068,12 +1124,38 @@ haskell_cabal_binary = rule(
          ),
          "_llvm_ar": attr.label(
              cfg = "exec",
@@ -248,6 +287,11 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
 +            allow_single_file = True,
 +            default = Label("@llvm//tools:llvm-strip"),
 +        ),
++        "_macos_sdk": attr.label(
++            cfg = "exec",
++            allow_files = True,
++            default = Label("//haskell:darwin_sdk"),
++        ),
          "_cc_toolchain": attr.label(
              default = Label("@rules_cc//cc:current_cc_toolchain"),
          ),
@@ -260,7 +304,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          "verbose": attr.bool(
              default = True,
              doc = "Whether to show the output of the build",
-@@ -1083,7 +1152,7 @@
+@@ -1083,7 +1165,7 @@ haskell_cabal_binary = rule(
          "@rules_haskell//haskell:toolchain",
          "@rules_python//python:toolchain_type",
      ],
@@ -272,21 +316,17 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
 diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.tpl
 --- a/haskell/private/cc_wrapper.py.tpl
 +++ b/haskell/private/cc_wrapper.py.tpl
-@@ -163,6 +163,13 @@
+@@ -163,6 +163,9 @@ class Args:
  
          self.args = list(self._handle_args(args))
  
-+        if is_darwin() and "-isysroot" in self.args:
-+            sysroot = self.args[self.args.index("-isysroot") + 1]
-+            self.args.extend(["-isystem", os.path.join(sysroot, "usr", "include", "ffi")])
-+
 +        if is_darwin():
 +            self.args = [arg for arg in self.args if arg not in ("-single_module", "-Wl,-single_module")]
 +
          if self.linking:
              if is_temporary_output(self.output):
                  # GHC with Template Haskell or tools like hsc2hs builds
-@@ -599,7 +606,8 @@
+@@ -599,7 +602,8 @@ def link(output, libraries, rpaths, args, library_paths=(), missing_library_path
      """
      if is_darwin():
          # Reserve space in load commands for later replacement.

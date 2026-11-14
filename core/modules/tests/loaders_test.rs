@@ -72,7 +72,7 @@ fn build_files(module: &ModuleFile) -> Vec<String> {
     module
         .calls()
         .iter()
-        .filter_map(|call| call.str("build_file"))
+        .filter_map(|call| call.str("build_file").or_else(|| call.str("build")))
         .filter_map(|label| label.strip_prefix("//"))
         .map(|label| label.replacen(':', "/", 1))
         .collect()
@@ -168,6 +168,9 @@ fn every_non_dev_bazel_dep_has_a_consumer() {
     );
     for path in build_files(&module) {
         let file = root.join(&path);
+        if path.ends_with(".build") {
+            continue;
+        }
         starlark.push(
             std::fs::read_to_string(&file).unwrap_or_else(|error| panic!("{file:?}: {error}")),
         );

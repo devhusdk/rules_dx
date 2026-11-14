@@ -126,8 +126,9 @@ pub(crate) fn bazel(case: &Case, args: &[&str]) -> Run {
 /// The symlink and licence lines `docs/cli/commands/windows.md` has a Windows user add to `.bazelrc` or `user.bazelrc`.
 pub(crate) const WINDOWS_LICENCES: &str = "startup:windows --windows_enable_symlinks\ncommon:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1\ncommon:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1\n";
 
-/// On Windows, the `.bazelrc` the consumer starts with: the preset's Windows lines, which a
-/// source-built dx needs before `dx init` writes the preset, and `WINDOWS_LICENCES`. The
+/// On Windows, the `.bazelrc` the consumer starts with: the preset's Windows lines and its
+/// `//config:toolchains` line, which a source-built dx needs before `dx init` writes the preset,
+/// and `WINDOWS_LICENCES`. The
 /// quickstart cuts it back to `WINDOWS_LICENCES` before `dx init`.
 fn write_windows_rc(case: &Case) {
     if cfg!(windows) {
@@ -135,7 +136,9 @@ fn write_windows_rc(case: &Case) {
         rc.extend(
             dx_testing::preset_rc()
                 .lines()
-                .filter(|line| line.contains(":windows "))
+                .filter(|line| {
+                    line.contains(":windows ") || line.ends_with("//config:toolchains=true")
+                })
                 .map(|line| format!("{line}\n")),
         );
         rc.push_str(WINDOWS_LICENCES);

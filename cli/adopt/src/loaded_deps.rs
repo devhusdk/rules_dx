@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use dx_module_bazel::ModuleFile;
+use dx_module_bazel::{Arg, ModuleFile, NewTag};
 
 use crate::AdoptError;
 use crate::load_graph::build_file_labels;
@@ -19,6 +19,7 @@ const RULES_DX: &str = "rules_dx";
 const TS_MODULE: &str = "aspect_rules_ts";
 const TS_COMPILER: &str = "npm_typescript";
 const TS_EXTENSION: &str = "typescript";
+const TS_BINDING: &str = "rules_ts";
 
 fn refuse(detail: impl std::fmt::Display) -> AdoptError {
     AdoptError::ModulePin {
@@ -63,19 +64,46 @@ pub fn plan_loaded_deps(root: &Path) -> Result<LockHubs, AdoptError> {
             label.starts_with(&ts_prefix) || label.starts_with(&format!("@{ts_prefix}"))
         });
     if loads_ts && !is_rules_dx_root(root) && !imports_ts_compiler(root, &text)? {
+        if !declared.contains(TS_MODULE) && !loaded.contains(TS_MODULE) {
+            new = ModuleFile::parse(&new)
+                .and_then(|file| file.insert_bazel_dep(TS_MODULE, dx_versions::ASPECT_RULES_TS_VERSION))
+                .map_err(refuse)?;
+            notes.push(format!(
+                "BUILD files load TypeScript rules; {MODULE_FILE} needs bazel_dep {TS_MODULE} {}",
+                dx_versions::ASPECT_RULES_TS_VERSION
+            ));
+        }
+        let ts_repo = ModuleFile::parse(&new)
+            .map_err(refuse)?
+            .repo_name(TS_MODULE)
+            .unwrap_or(TS_MODULE)
+            .to_owned();
+        let deps = NewTag {
+            name: "deps".to_owned(),
+            args: vec![
+                (
+                    "integrity".to_owned(),
+                    Arg::Str(dx_versions::TYPESCRIPT_INTEGRITY.to_owned()),
+                ),
+                (
+                    "version".to_owned(),
+                    Arg::Str(dx_versions::TYPESCRIPT_VERSION.to_owned()),
+                ),
+            ],
+        };
         new = ModuleFile::parse(&new)
             .and_then(|file| {
                 file.insert_extension_block(
+                    TS_BINDING,
+                    &format!("@{ts_repo}//ts:extensions.bzl"),
                     TS_EXTENSION,
-                    &format!("@{dx_repo}//{TS_EXTENSION}:extensions.bzl"),
-                    TS_EXTENSION,
-                    &[],
+                    &[deps],
                     &[TS_COMPILER],
                 )
             })
             .map_err(refuse)?;
         notes.push(format!(
-            "BUILD files load TypeScript rules; {MODULE_FILE} needs use_repo {TS_COMPILER} from the rules_dx {TS_EXTENSION} extension"
+            "BUILD files load TypeScript rules; {MODULE_FILE} needs use_repo {TS_COMPILER} from the {TS_MODULE} {TS_EXTENSION} extension"
         ));
     }
     let edit = (new != text).then(|| ModuleEdit {
@@ -156,15 +184,22 @@ mod tests {
         assert_eq!(
             edit.new,
             format!(
-                "{MODULE}bazel_dep(name = \"aspect_rules_js\", version = \"{}\")\nbazel_dep(name = \"aspect_rules_ts\", version = \"{}\")\n{TS_BLOCK}",
+                "{MODULE}bazel_dep(name = \"aspect_rules_js\", version = \"{}\")\nbazel_dep(name = \"aspect_rules_ts\", version = \"{}\")\n{}",
                 version("aspect_rules_js"),
                 version("aspect_rules_ts"),
+                ts_block(),
             )
         );
         assert_eq!(hubs.notes.len(), 3, "{:?}", hubs.notes);
     }
 
-    const TS_BLOCK: &str = "\ntypescript = use_extension(\"@rules_dx//typescript:extensions.bzl\", \"typescript\")\nuse_repo(typescript, \"npm_typescript\")\n";
+    fn ts_block() -> String {
+        format!(
+            "\nrules_ts = use_extension(\"@aspect_rules_ts//ts:extensions.bzl\", \"typescript\")\nrules_ts.deps(\n    integrity = \"{}\",\n    version = \"{}\",\n)\nuse_repo(rules_ts, \"npm_typescript\")\n",
+            dx_versions::TYPESCRIPT_INTEGRITY,
+            dx_versions::TYPESCRIPT_VERSION,
+        )
+    }
 
     #[test]
     fn rules_dx_typescript_loads_import_the_compiler_repository() {
@@ -176,7 +211,14 @@ mod tests {
             ),
         ]);
         let edit = hubs.edit.expect("edit");
-        assert_eq!(edit.new, format!("{MODULE}{TS_BLOCK}"));
+        assert_eq!(
+            edit.new,
+            format!(
+                "{MODULE}bazel_dep(name = \"aspect_rules_ts\", version = \"{}\")\n{}",
+                dx_versions::ASPECT_RULES_TS_VERSION,
+                ts_block(),
+            )
+        );
     }
 
     #[test]
@@ -190,7 +232,10 @@ mod tests {
         ] {
             let hubs = plan(&[
                 ("MODULE.bazel", module.as_str()),
-                ("ts.MODULE.bazel", TS_BLOCK),
+                (
+                    "ts.MODULE.bazel",
+                    "typescript = use_extension(\"@rules_dx//typescript:extensions.bzl\", \"typescript\")\nuse_repo(typescript, \"npm_typescript\")\n",
+                ),
                 (
                     "web/BUILD.bazel",
                     "load(\"@aspect_rules_ts//ts:defs.bzl\", \"ts_project\")\nload(\"@rules_dx//typescript:defs.bzl\", \"typescript_library\")\n",
@@ -199,7 +244,7 @@ mod tests {
             let new = hubs.edit.map(|edit| edit.new);
             assert!(
                 new.as_deref()
-                    .is_none_or(|text| !text.contains("typescript = use_extension")),
+                    .is_none_or(|text| !text.contains("rules_ts = use_extension")),
                 "{new:?}"
             );
         }

@@ -976,7 +976,7 @@ mod tests {
             "{module}"
         );
         assert!(
-            module.contains("use_repo(typescript, \"npm_typescript\")"),
+            module.contains("use_repo(rules_ts, \"npm_typescript\")"),
             "{module}"
         );
         let (code, out, err) = harness.run(&["generate", "--apply"]);

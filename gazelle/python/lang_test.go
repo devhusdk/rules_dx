@@ -1044,3 +1044,124 @@ py_unittest_test(name = "t", srcs = ["a.py", "a_test.py"])
 		t.Fatalf("generated %d rules, want only b", len(result.Gen))
 	}
 }
+
+func generateWithBuild(t *testing.T, files map[string]string, rel, build string, regular []string) language.GenerateResult {
+	t.Helper()
+	root := t.TempDir()
+	for name, content := range files {
+		writeFixture(t, root, name, content)
+	}
+	file, err := rule.LoadData("BUILD.bazel", rel, []byte(build))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, filepath.FromSlash(rel)),
+		Rel:          rel,
+		File:         file,
+		RegularFiles: regular,
+	})
+}
+
+func genByName(result language.GenerateResult) map[string]*rule.Rule {
+	out := make(map[string]*rule.Rule)
+	for _, r := range result.Gen {
+		out[r.Name()] = r
+	}
+	return out
+}
+
+func TestGenerateSkipsSourcesOfOtherPythonKinds(t *testing.T) {
+	result := generateWithBuild(t, map[string]string{
+		"pkg/demo/parse_fuzz.py":  "import atheris\n",
+		"pkg/demo/parse_bench.py": "import pytest\n",
+		"pkg/demo/b.py":           "x = 1\n",
+	}, "pkg/demo", `python_fuzz_test(name = "parse_fuzz", srcs = ["parse_fuzz.py"], main = "parse_fuzz.py")
+
+python_bench(name = "parse_bench", srcs = ["parse_bench.py"])
+`, []string{"parse_fuzz.py", "parse_bench.py", "b.py"})
+	gen := genByName(result)
+	if len(gen) != 1 || gen["b"] == nil || len(result.Empty) != 0 {
+		t.Fatalf("gen = %v, empty = %v, want only b", gen, result.Empty)
+	}
+}
+
+func TestGenerateTestKeepsHandwrittenSources(t *testing.T) {
+	result := generateWithBuild(t, map[string]string{
+		"pkg/demo/tool.py":      "import tool_util\n",
+		"pkg/demo/tool_util.py": "x = 1\n",
+		"pkg/demo/tool_test.py": "import unittest\nimport tool_util\n",
+	}, "pkg/demo", `python_binary(name = "tool", srcs = ["tool.py", "tool_util.py"])
+
+python_test(name = "tool_test", srcs = ["tool_test.py", "tool_util.py"], runner = "plain")
+
+exports_files(["tool_test.py"])
+`, []string{"tool.py", "tool_util.py", "tool_test.py"})
+	gen := genByName(result)
+	test := gen["tool_test"]
+	if len(gen) != 1 || test == nil {
+		t.Fatalf("gen = %v, want only tool_test", gen)
+	}
+	if got := strings.Join(test.AttrStrings("srcs"), ","); got != "tool_test.py,tool_util.py" {
+		t.Errorf("srcs = %q", got)
+	}
+	if got := importNames(t, result.Imports[0]); len(got) != 0 {
+		t.Errorf("refs = %v, want none", got)
+	}
+}
+
+func TestGenerateKeepsHandwrittenPackageSplit(t *testing.T) {
+	result := generateWithBuild(t, map[string]string{
+		"top/ledger/core/__init__.py":       "",
+		"top/ledger/core/catalog.py":        "from ledger.core import build_info\n",
+		"top/ledger/core/gen_build_info.py": "import json\n",
+	}, "top/ledger/core", `python_library(
+    name = "core",
+    srcs = ["__init__.py", "catalog.py", ":build_info_py"],
+    imports = ["../.."],
+)
+
+python_library(name = "gen_lib", srcs = ["gen_build_info.py"], imports = ["../.."])
+`, []string{"__init__.py", "catalog.py", "gen_build_info.py"})
+	gen := genByName(result)
+	if len(gen) != 2 || len(result.Empty) != 0 {
+		t.Fatalf("gen = %v, empty = %v, want core and gen_lib", gen, result.Empty)
+	}
+	if got := strings.Join(gen["core"].AttrStrings("srcs"), ","); got != "__init__.py,catalog.py,:build_info_py" {
+		t.Errorf("core srcs = %q", got)
+	}
+	if got := strings.Join(gen["gen_lib"].AttrStrings("srcs"), ","); got != "gen_build_info.py" {
+		t.Errorf("gen_lib srcs = %q", got)
+	}
+	if got := strings.Join(gen["core"].AttrStrings("imports"), ","); got != "../.." {
+		t.Errorf("imports = %q, want ../..", got)
+	}
+}
+
+func TestGenerateFixtureTestonlySkipsExistingRule(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "tests/fixtures/demo/a.py", "x = 1\n")
+	writeFixture(t, root, "tests/fixtures/demo/b.py", "y = 1\n")
+	file, err := rule.LoadData("BUILD.bazel", "tests/fixtures/demo", []byte(`python_library(name = "a", srcs = ["a.py"])
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &config.Config{RepoRoot: root}
+	common.SetFixtureTestonly(c, true)
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       c,
+		Dir:          filepath.Join(root, "tests", "fixtures", "demo"),
+		Rel:          "tests/fixtures/demo",
+		File:         file,
+		RegularFiles: []string{"a.py", "b.py"},
+	})
+	gen := genByName(result)
+	if gen["a"] == nil || gen["a"].Attr("testonly") != nil {
+		t.Errorf("existing a gained testonly")
+	}
+	if gen["b"] == nil || !gen["b"].AttrBool("testonly") {
+		t.Errorf("new b lacks testonly")
+	}
+}

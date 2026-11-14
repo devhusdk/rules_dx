@@ -127,3 +127,9 @@ cc_args_list(
 )
 
 clang_cl_toolchains(link_lib_env = ":link_lib_env")
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

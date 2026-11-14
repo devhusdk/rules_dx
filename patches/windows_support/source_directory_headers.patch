@@ -19,7 +19,7 @@ diff --git a/windows/private/extensions/windows_sdk.BUILD.bazel b/windows/privat
  
  load("@bazel_skylib//rules/directory:directory.bzl", "directory")
  load("@bazel_skylib//rules/directory:subdirectory.bzl", "subdirectory")
-+load("@windows_support//windows:source_directory_headers.bzl", "source_directory_headers")
++load("@dx_windows_support//windows:source_directory_headers.bzl", "source_directory_headers")
  
  package(default_visibility = ["//visibility:public"])
  

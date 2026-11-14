@@ -10,5 +10,3 @@ lua/private/toolchain/extensions.bzl foreign-load 1
 qt/private/BUILD.bazel foreign-load 1
 qt/private/archive.bzl foreign-load 1
 qt/private/bundle.bzl foreign-load 1
-qt/private/defs.bzl foreign-load 2
-qt/private/toolchain/BUILD.bazel foreign-load 1

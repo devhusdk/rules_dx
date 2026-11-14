@@ -142,7 +142,7 @@ pub(super) fn assert_hermetic(env: &[(OsString, OsString)]) {
 }
 
 /// Like `assert_hermetic`, but HOME/USERPROFILE may point inside the scratch
-/// tree. Only tools that need a scratch home (bicep) opt in.
+/// tree. Only tools that need a scratch home opt in.
 pub(super) fn assert_hermetic_scratch_home(env: &[(OsString, OsString)]) {
     assert_hermetic_with(env, true);
 }
@@ -782,7 +782,9 @@ pub(super) fn roundtrip_gplint(
     assert!(value("-c").is_file(), "config is materialized");
     let config = std::fs::read_to_string(value("-c")).expect("config is readable");
     let file = last_file(argv);
-    let real = std::fs::canonicalize(&file).expect("checked file is materialized");
+    let real = dx_path::without_verbatim(
+        &std::fs::canonicalize(&file).expect("checked file is materialized"),
+    );
     let text = std::fs::read_to_string(&file).expect("checked file is readable");
     if text.contains("BROKEN") {
         return Ok(ChildOutput {

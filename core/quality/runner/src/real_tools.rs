@@ -5182,6 +5182,15 @@ fn notebooks_only_settle_through_ruff() {
     );
 }
 
+#[test]
+fn latexindent_crlf_settles_to_the_source_line_ending() {
+    let crlf = "a\r\n\tb\r\n";
+    let lf = RealBackend::settle("latexindent", "a.tex", "a\nb\n", crlf.to_owned());
+    assert_eq!(lf.expect("lf"), "a\n\tb\n");
+    let kept = RealBackend::settle("latexindent", "a.tex", "a\r\nb\r\n", crlf.to_owned());
+    assert_eq!(kept.expect("crlf"), crlf);
+}
+
 const TYPST_DIRTY: &str = "#let   x = 1\n";
 const TYPST_CLEAN: &str = "#let x = 1\n";
 const TYPST_ERRONEOUS: &str = "#let x = (erroneous\n";
@@ -5832,7 +5841,15 @@ fn latexindent_tool(
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
+    assert_hermetic_scratch_home(env);
+    for name in ["HOME", "USERPROFILE"] {
+        let home = env
+            .iter()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| PathBuf::from(value))
+            .unwrap_or_else(|| panic!("{name} names the scratch home"));
+        assert!(home.is_dir(), "{name} {home:?} exists");
+    }
     let write = argv.iter().any(|arg| arg == "-w");
     assert!(write || argv.iter().any(|arg| arg == "-k"));
     let flag = |prefix: &str| {

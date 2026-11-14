@@ -87,7 +87,9 @@ mod tests {
     const LOCK: &str = r#"{"moduleExtensions":{"//a:b.bzl%x":{}}}"#;
 
     fn module(dep: &str) -> String {
-        format!("module(name = \"consumer\")\nbazel_dep(name = \"{dep}\", version = \"0.0.0\")\n")
+        format!(
+            "module(name = \"consumer\")\nbazel_dep(name = \"{dep}\", version = \"0.0.0\")\n"
+        )
     }
 
     fn external() -> tempfile::TempDir {
@@ -106,7 +108,15 @@ mod tests {
     fn check(dep: &str, files: &[&str], budget: &Value) -> Result<(), String> {
         let dir = external();
         let files: Vec<String> = files.iter().map(|file| (*file).to_owned()).collect();
-        check_fixture("lua", &module(dep), &files, GRAPH, LOCK, dir.path(), budget)
+        check_fixture(
+            "lua",
+            &module(dep),
+            &files,
+            GRAPH,
+            LOCK,
+            dir.path(),
+            budget,
+        )
     }
 
     #[test]

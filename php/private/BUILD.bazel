@@ -2,7 +2,6 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "label_string")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
-load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS")
 load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_descriptor", "env_flag", "ini_flags", "launcher_descriptor", "lit", "rf", "rf_prefixed", "runfiles_path")
 
@@ -13,6 +12,7 @@ package(default_visibility = [
 ])
 
 exports_files([
+    "BUILD.bazel",
     "BenchTest.php",
     "defs.bzl",
     "patches/pcov_user_opcode_handlers.patch",
@@ -206,18 +206,6 @@ dx_wrapper_contract_tests(
         ),
     ],
     file_classes = ["php"],
-)
-
-real_source_target(
-    name = "corpus_starlark",
-    starlark_srcs = [
-        "BUILD.bazel",
-        "defs.bzl",
-        "php.bzl",
-        "providers.bzl",
-        "pcov.BUILD.bazel",
-    ],
-    tags = ["corpus"],
 )
 
 filegroup(

@@ -13,11 +13,33 @@ exports_files([
 ])
 
 real_source_target(
+    name = "corpus_markdown",
+    markdown_srcs = ["//php:README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "php.bzl",
         "php_tools.bzl",
+        "//php:BUILD.bazel",
+        "//php:defs.bzl",
+        "//php:extensions.bzl",
+        "//php/private:BUILD.bazel",
+        "//php/private:defs.bzl",
+        "//php/private:pcov.BUILD.bazel",
+        "//php/private:php.bzl",
+        "//php/private:providers.bzl",
+        "//php/private/lock:BUILD.bazel",
+        "//php/private/lock:hub.bzl",
+        "//php/private/lock:repo.bzl",
+        "//php/private/toolchain:BUILD.bazel",
+        "//php/private/toolchain:cells.bzl",
+        "//php/private/toolchain:extensions.bzl",
+        "//php/private/toolchain:php.bzl",
+        "//php/private/toolchain:repos.bzl",
     ],
     tags = ["corpus"],
 )

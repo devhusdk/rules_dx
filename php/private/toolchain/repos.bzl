@@ -1,8 +1,6 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
 load("//cc/private/toolchain:pins.bzl", "VC_REDIST_VERSION")
-load("//core:repo.bzl", "digest_error")
-load("//core:toolchain.bzl", "toolchain_target")
 load(":cells.bzl", "PHP_CELLS")
 
 HUB_NAME = "dx_php_toolchains"
@@ -76,23 +74,34 @@ def runtime_build(version, interpreter = "php", pcov = False, coverage = ""):
         version_file = VERSION_FILE,
     )
 
+_HUB_TOOLCHAIN = """toolchain(
+    name = {name},
+    {constraint} = {constraints},
+    toolchain = {toolchain},
+    toolchain_type = {toolchain_type},
+)
+"""
+
 def hub_build(cells):
     """Returns the hub BUILD file: a runtime and an exec toolchain per cell."""
     content = []
     for cell in sorted(cells):
-        constraints = PHP_CELLS[cell].exec_compatible_with
+        constraints = repr(list(PHP_CELLS[cell].exec_compatible_with))
+        toolchain = repr("@{}//:php_toolchain".format(RUNTIME_PREFIX + cell))
         content.append("\n".join([
-            toolchain_target(
-                name = cell,
-                target_compatible_with = constraints,
-                toolchain = "@{}//:php_toolchain".format(RUNTIME_PREFIX + cell),
-                toolchain_type = TOOLCHAIN_TYPE,
+            _HUB_TOOLCHAIN.format(
+                name = repr(cell),
+                constraint = "target_compatible_with",
+                constraints = constraints,
+                toolchain = toolchain,
+                toolchain_type = repr(TOOLCHAIN_TYPE),
             ),
-            toolchain_target(
-                name = cell + "_exec",
-                exec_compatible_with = constraints,
-                toolchain = "@{}//:php_toolchain".format(RUNTIME_PREFIX + cell),
-                toolchain_type = EXEC_TOOLCHAIN_TYPE,
+            _HUB_TOOLCHAIN.format(
+                name = repr(cell + "_exec"),
+                constraint = "exec_compatible_with",
+                constraints = constraints,
+                toolchain = toolchain,
+                toolchain_type = repr(EXEC_TOOLCHAIN_TYPE),
             ),
         ]))
     return "\n".join(content)
@@ -112,9 +121,8 @@ def phar_build(file):
 def _coverage_runtime_impl(rctx):
     for pin in [rctx.attr.php, rctx.attr.pcov]:
         sha256, urls = pin[0], pin[1:]
-        error = digest_error(rctx.name, sha256, "")
-        if error:
-            fail(error)
+        if not sha256:
+            fail(rctx.name + ": set sha256; an archive without a digest is not pinned")
         rctx.download_and_extract(url = urls, sha256 = sha256, type = "zip")
     redist = rctx.path(rctx.attr._msvc_runtime.same_package_label("BUILD.bazel")).dirname.get_child("sysroot/Contents/VC/Redist/MSVC/{}/x64".format(VC_REDIST_VERSION))
     if redist.exists:

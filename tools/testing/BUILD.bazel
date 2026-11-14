@@ -325,6 +325,7 @@ _HARNESS_CONSUMER_DATA = [
     "//patches/rules_py:pep517_msvc.patch",
     "//patches/rules_py:py_cc_toolchain_platform.patch",
     "//patches/rules_py:venv_bin_files.patch",
+    "//patches/rules_py:win32_x86_32.patch",
 ]
 
 # size: large, nested Bazel consumer build

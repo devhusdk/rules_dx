@@ -1980,6 +1980,7 @@ archive_override(
         # upstream: https://github.com/aspect-build/rules_py/issues/1679
         "//patches/rules_py:external_repo_pytest_paths.patch",
         "//patches/rules_py:host_libc_glibc.patch",
+        "//patches/rules_py:win32_x86_32.patch",
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],

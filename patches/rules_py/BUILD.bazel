@@ -8,6 +8,7 @@ exports_files([
     "pep517_msvc.patch",
     "py_cc_toolchain_platform.patch",
     "venv_bin_files.patch",
+    "win32_x86_32.patch",
 ])
 
 real_source_target(

@@ -826,7 +826,6 @@ filegroup(
         "//terraform/private/quality:module_srcs",
         "//terraform/private/tools/lock:module_srcs",
         "//third_party/dotnet:module_srcs",
-        "//third_party/dotnet/deps:module_srcs",
         "//third_party/go:module_srcs",
         "//third_party/jvm:module_srcs",
         "//third_party/powershell:module_srcs",

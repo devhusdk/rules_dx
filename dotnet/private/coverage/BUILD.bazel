@@ -17,7 +17,7 @@ real_source_target(
 
 alias(
     name = "coverlet",
-    actual = "@paket.main//coverlet.console/tools:coverlet",
+    actual = "@nuget//coverlet.console/tools:coverlet",
     visibility = VIS_TOOLS_PUBLIC,
 )
 

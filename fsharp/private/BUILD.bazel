@@ -52,8 +52,8 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "existing core is not duplicated",
-            fsharp_with_core({"deps": ["@paket.main//fsharp.core"]})["deps"],
-            ["@paket.main//fsharp.core"],
+            fsharp_with_core({"deps": ["@nuget//fsharp.core"]})["deps"],
+            ["@nuget//fsharp.core"],
         ),
         expect_equal(
             "select deps are left alone",

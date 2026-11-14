@@ -10,9 +10,9 @@ fsharp_binary(
     srcs = ["Program.fs"],
     target_frameworks = [DOTNET_TOOL_FRAMEWORK],
     deps = [
-        "@paket.fsharplint//fsharp.compiler.service",
-        "@paket.fsharplint//fsharp.core",
-        "@paket.fsharplint//fsharplint.core",
+        "@nuget.fsharplint//fsharp.compiler.service",
+        "@nuget.fsharplint//fsharp.core",
+        "@nuget.fsharplint//fsharplint.core",
     ],
 )
 

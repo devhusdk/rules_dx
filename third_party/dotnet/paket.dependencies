@@ -4,10 +4,7 @@
 # pinned.NET test runner: xunit.v3 4.0.0 plus its
 # xunit.analyzers 2.0.0 companion from the 4.0.0 release notes (transitive
 # MTP/Microsoft.Extensions closure pins in paket.lock). The lock file
-# (paket.lock) is the pin; regenerate the hub with:
-#   bazel run @rules_dx//dotnet:paket2bazel -- --dependencies-file
-#   $PWD/third_party/dotnet/paket.dependencies --output-folder
-#   $PWD/third_party/dotnet/deps
+# (paket.lock) is the pin; nuget.lock.json is generated from it by dx lock.
 source https://api.nuget.org/v3/index.json
 framework: net10.0
 

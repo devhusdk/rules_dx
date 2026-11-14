@@ -119,7 +119,7 @@ fsharp_library(
         "Helper.fs",
         "Demo.fs",
     ],
-    deps = ["@paket.main//fsharp.core"],
+    deps = ["@nuget//fsharp.core"],
 )
 ```
 
@@ -138,21 +138,19 @@ for example `A.fs -> B.fs (B)`; split the directory or list `srcs` by hand. The
 
 ### NuGet packages
 
-Keep a `paket.dependencies` file in your module and generate the Bazel
-repository from it with rules_dotnet:
-
-```sh
-bazel run @rules_dx//dotnet:paket2bazel -- --dependencies-file third_party/dotnet/paket.dependencies --output-folder third_party/dotnet/deps
-```
-
-Load the generated extension in your `MODULE.bazel`:
+Keep a `paket.dependencies` file in your module and lock it with `dx lock`
+into `nuget.lock.json`. Declare the lock in your `MODULE.bazel`:
 
 ```python
-dotnet_nuget = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")
-use_repo(dotnet_nuget, "paket.main")
+nuget = use_extension("@rules_dx//csharp:extensions.bzl", "nuget")
+nuget.lock(
+    name = "nuget",
+    lock = "//third_party/dotnet:nuget.lock.json",
+)
+use_repo(nuget, "nuget")
 ```
 
-Depend on a package as `@paket.main//<lowercase package id>`. `dx update nuget`
+Depend on a package as `@nuget//<lowercase package id>`. `dx update nuget`
 bumps the pins.
 
 ## Quality

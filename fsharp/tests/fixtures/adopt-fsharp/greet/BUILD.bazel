@@ -9,7 +9,7 @@ fsharp_test(
     srcs = ["GreetTest.fs"],
     deps = [
         ":greet",
-        "@paket.main//fsharp.core",
+        "@nuget//fsharp.core",
     ],  # keep
 )
 
@@ -20,7 +20,7 @@ fsharp_library(
         "Greet.fs",
         "Helper.fs",
     ],
-    deps = ["@paket.main//fsharp.core"],  # keep
+    deps = ["@nuget//fsharp.core"],  # keep
 )
 
 real_source_target(

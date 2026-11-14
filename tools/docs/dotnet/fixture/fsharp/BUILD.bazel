@@ -17,7 +17,7 @@ fsharp_library(
     target_frameworks = ["net10.0"],
     deps = [
         "//tools/docs/dotnet/fixture/csharp:core",
-        "@paket.main//fsharp.core",
+        "@nuget//fsharp.core",
     ],
 )
 
@@ -29,7 +29,7 @@ fsharp_library(
     target_frameworks = ["net10.0"],
     deps = [
         "//tools/docs/dotnet/fixture/csharp:core",
-        "@paket.main//fsharp.core",
+        "@nuget//fsharp.core",
     ],
 )
 
@@ -41,7 +41,7 @@ fsharp_library(
     target_frameworks = ["net10.0"],
     deps = [
         "//tools/docs/dotnet/fixture/csharp:core",
-        "@paket.main//fsharp.core",
+        "@nuget//fsharp.core",
     ],
 )
 

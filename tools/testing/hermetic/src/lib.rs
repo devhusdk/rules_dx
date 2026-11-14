@@ -380,10 +380,9 @@ pub const REQUIRED_PROBES: &[&str] = &[
 /// Probes that run dx itself inside the isolation, once the manifest names coverage patterns.
 pub const DX_PROBES: &[&str] = &["dx_generate_check", "dx_coverage"];
 
-const BUILD_FLAGS: &[&str] = &[
-    "--noshow_progress",
-    "--color=no",
-    "--curses=no",
+const COMMON_FLAGS: &[&str] = &["--noshow_progress", "--color=no", "--curses=no"];
+
+const ACTION_FLAGS: &[&str] = &[
     "--incompatible_strict_action_env",
     "--sandbox_default_allow_network=false",
 ];
@@ -1306,13 +1305,19 @@ impl Session {
             probe.command.to_owned(),
             format!("--repository_cache={}", probe.repos.display()),
         ]);
-        argv.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        argv.extend(COMMON_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        let analyzes = probe.command != "mod";
+        if analyzes {
+            argv.extend(ACTION_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        }
         if dx_process::takes_shared_settings(probe.command) {
             argv.extend(dx_process::head_settings(&self.manifest.repo_name));
         }
         argv.extend(self.dx_verb_options(probe.home, probe.output_root, probe.command));
-        argv.extend(self.platform_flag());
-        argv.extend(self.shell_flag());
+        if analyzes {
+            argv.extend(self.platform_flag());
+            argv.extend(self.shell_flag());
+        }
         argv.extend(probe.extra.iter().cloned());
         if !probe.targets.is_empty() {
             argv.push("--".to_owned());
@@ -1418,7 +1423,12 @@ impl Session {
         if net == Net::Denied {
             args.push("--repository_disable_download".to_owned());
         }
-        args.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        args.extend(
+            COMMON_FLAGS
+                .iter()
+                .chain(ACTION_FLAGS)
+                .map(|flag| (*flag).to_owned()),
+        );
         args.extend(self.platform_flag());
         args.extend(self.shell_flag());
         if cfg!(windows) {
@@ -2400,6 +2410,170 @@ fn windows_output_base(output_root: &Path) -> String {
     root.get(..end).unwrap_or(&root).to_owned()
 }
 
+/// The workspace rules log `contexts` without the modules that `module` overrides with `local_path_override`.
+pub fn refetch_candidates(contexts: Vec<String>, module: &str) -> Vec<String> {
+    let local = dx_nested::compose::local_override_repos(module);
+    contexts
+        .into_iter()
+        .filter(|context| !local.contains(context))
+        .collect()
+}
+
+/// The `(bzl label, rule name)` of each repository in `bazel mod show_repo --output=streamed_jsonproto` output, by canonical name.
+pub fn show_repo_rules(stdout: &str) -> BTreeMap<String, (String, String)> {
+    stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter_map(|repo| {
+            let field = |key: &str| repo.get(key).and_then(Value::as_str).map(str::to_owned);
+            Some((
+                field("canonicalName")?,
+                (field("repoRuleBzlLabel")?, field("repoRuleName")?),
+            ))
+        })
+        .collect()
+}
+
+/// The `external` directories of the output bases under `output_root`.
+fn external_dirs(output_root: &Path) -> Vec<PathBuf> {
+    if cfg!(windows) {
+        return vec![PathBuf::from(windows_output_base(output_root)).join("external")];
+    }
+    std::fs::read_dir(output_root)
+        .map(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .map(|entry| entry.path().join("external"))
+                .filter(|external| external.is_dir())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The file of `.bzl` label `@@repo//package:file` under an `external` directory.
+pub fn external_bzl(external: &Path, label: &str) -> Option<PathBuf> {
+    let (repo, path) = label.strip_prefix("@@")?.split_once("//")?;
+    let (package, file) = path.split_once(':')?;
+    if repo.is_empty() {
+        return None;
+    }
+    Some(external.join(repo).join(package).join(file))
+}
+
+/// Whether the rule of the `repository @@name` context is declared with `local = True`.
+fn local_rule_repo(
+    context: &str,
+    rules: &BTreeMap<String, (String, String)>,
+    externals: &[PathBuf],
+) -> bool {
+    let Some((label, rule)) = context
+        .strip_prefix("repository @@")
+        .and_then(|name| rules.get(name))
+    else {
+        return false;
+    };
+    externals
+        .iter()
+        .filter_map(|external| external_bzl(external, label))
+        .find_map(|bzl| std::fs::read_to_string(bzl).ok())
+        .is_some_and(|source| declares_local_rule(&source, rule))
+}
+
+/// Whether `source` declares `rule` as `repository_rule(..., local = True)`, through top-level `rule = other` aliases.
+pub fn declares_local_rule(source: &str, rule: &str) -> bool {
+    let mut name = rule.to_owned();
+    for _ in 0..8 {
+        let Some(value) = top_level_value(source, &name) else {
+            return false;
+        };
+        if let Some(call) = value
+            .strip_prefix("repository_rule")
+            .and_then(|rest| rest.trim_start().strip_prefix('('))
+        {
+            return call_arguments(call)
+                .iter()
+                .any(|argument| argument.split_whitespace().collect::<String>() == "local=True");
+        }
+        let alias: String = value
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect();
+        if alias.is_empty() || alias == name {
+            return false;
+        }
+        name = alias;
+    }
+    false
+}
+
+/// The text after `name =` of the first top-level assignment to `name` in `source`.
+fn top_level_value<'a>(source: &'a str, name: &str) -> Option<&'a str> {
+    let mut start = 0usize;
+    for line in source.split_inclusive('\n') {
+        let end = start.saturating_add(line.len());
+        let value = line
+            .strip_prefix(name)
+            .map(|after| after.trim_start_matches([' ', '\t']))
+            .and_then(|after| after.strip_prefix('='))
+            .filter(|value| !value.starts_with('='));
+        if let Some(value) = value {
+            return source
+                .get(end.saturating_sub(value.len())..)
+                .map(str::trim_start);
+        }
+        start = end;
+    }
+    None
+}
+
+/// The top-level arguments of a call whose text starts after its `(`.
+fn call_arguments(call: &str) -> Vec<String> {
+    let mut arguments = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0usize;
+    let mut chars = call.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' | '\'' => {
+                current.push('"');
+                let second = chars.next_if_eq(&c).is_some();
+                let triple = second && chars.next_if_eq(&c).is_some();
+                if second && !triple {
+                    continue;
+                }
+                let mut run = 0u8;
+                while let Some(inner) = chars.next() {
+                    if inner == '\\' {
+                        chars.next();
+                        run = 0;
+                    } else if inner == c {
+                        run = run.saturating_add(1);
+                        if !triple || run == 3 {
+                            break;
+                        }
+                    } else {
+                        run = 0;
+                    }
+                }
+            }
+            '#' => while chars.next_if(|inner| *inner != '\n').is_some() {},
+            '(' | '[' | '{' => {
+                depth = depth.saturating_add(1);
+                current.push(c);
+            }
+            ')' | ']' | '}' if depth == 0 => break,
+            ')' | ']' | '}' => {
+                depth = depth.saturating_sub(1);
+                current.push(c);
+            }
+            ',' if depth == 0 => arguments.push(std::mem::take(&mut current)),
+            _ => current.push(c),
+        }
+    }
+    arguments.push(current);
+    arguments
+}
+
 /// The Windows bash path rules_shell detected in `output_base`, read from its generated BUILD.
 pub fn detected_windows_sh(output_base: &Path) -> Option<String> {
     let entries = std::fs::read_dir(output_base.join("external")).ok()?;
@@ -2711,7 +2885,10 @@ fn run_all(
         PathBuf::new()
     } else {
         let files = dx_testing::env_files("DX_COREUTILS");
-        let dir = files.first().and_then(|file| file.parent()).ok_or("DX_COREUTILS is empty")?;
+        let dir = files
+            .first()
+            .and_then(|file| file.parent())
+            .ok_or("DX_COREUTILS is empty")?;
         std::path::absolute(dir).map_err(|error| format!("applet directory: {error}"))?
     };
     let path = action_path(
@@ -3050,7 +3227,35 @@ fn run_all(
         )],
         expect: Expect::Pass,
     })?;
-    let refetched = dx_nested::record::contexts(&std::fs::read(&refetch_log).unwrap_or_default());
+    let module =
+        std::fs::read_to_string(session.workspace.join("MODULE.bazel")).unwrap_or_default();
+    let mut refetched = refetch_candidates(
+        dx_nested::record::contexts(&std::fs::read(&refetch_log).unwrap_or_default()),
+        &module,
+    );
+    if !refetched.is_empty() {
+        let mut targets = vec!["show_repo".to_owned()];
+        targets.extend(
+            refetched
+                .iter()
+                .filter_map(|context| context.strip_prefix("repository "))
+                .map(str::to_owned),
+        );
+        let shown = session.run(Probe {
+            name: "refetch_rules".to_owned(),
+            net: Net::Denied,
+            home: &clean_home,
+            output_root: &warm,
+            repos: &repos,
+            command: "mod",
+            targets,
+            extra: vec!["--output=streamed_jsonproto".to_owned()],
+            expect: Expect::Pass,
+        })?;
+        let rules = show_repo_rules(&shown.stdout);
+        let externals = external_dirs(&warm);
+        refetched.retain(|context| !local_rule_repo(context, &rules, &externals));
+    }
     if !refetched.is_empty() {
         return Err(format!(
             "a restarted server refetched repositories: {refetched:?}"

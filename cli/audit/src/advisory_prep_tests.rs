@@ -334,7 +334,7 @@ fn only_the_ecosystems_the_dependency_sets_need_are_prepared() {
 fn every_audited_set_names_locks_and_one_advisory_family() {
     let mut families: Vec<&str> = Vec::new();
     for set in AUDITED_SETS {
-        assert!(!is_empty_set(set), "{set} needs lock coverage");
+        assert!(!is_empty_set(set).unwrap(), "{set} needs lock coverage");
         if *set == "powershell" {
             assert_eq!(advisory::advisory_family(set), None);
             continue;
@@ -355,7 +355,7 @@ fn every_audited_set_names_locks_and_one_advisory_family() {
         "advisory prep must prepare every curated advisory set, and nothing else"
     );
     let workspace = workspace_with(
-        &vuln_locks("cargo")
+        &vuln_locks("cargo").unwrap()
             .iter()
             .map(String::as_str)
             .collect::<Vec<_>>(),

@@ -144,7 +144,7 @@ fn locked_registry_crates(
 }
 
 fn cargo_locks(workspace: &Path) -> Result<BTreeSet<String>, PrepError> {
-    let mut locks: BTreeSet<String> = dx_audit::backend::vuln_locks("cargo").into_iter().collect();
+    let mut locks: BTreeSet<String> = dx_audit::backend::vuln_locks("cargo")?.into_iter().collect();
     locks.extend(set_locks(workspace, Ecosystem::Cargo, cargo_lock())?);
     locks.retain(|rel| workspace.join(rel).is_file());
     Ok(locks)

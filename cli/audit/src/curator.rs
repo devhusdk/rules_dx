@@ -16,7 +16,7 @@ mod tests {
                 "{set} needs an advisory source"
             );
             assert!(
-                !crate::backend::vuln_locks(set).is_empty(),
+                !crate::backend::vuln_locks(set).unwrap().is_empty(),
                 "{set} needs lock coverage"
             );
         }

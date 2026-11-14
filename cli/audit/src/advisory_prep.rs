@@ -51,6 +51,8 @@ pub struct FetchPlan {
 pub enum PrepError {
     #[error("{PREP_CODE}: no advisory ecosystem covers set {set:?}")]
     UnsupportedSet { set: String },
+    #[error("{PREP_CODE}: setup.hubs has no {ecosystem} entry")]
+    MissingHub { ecosystem: String },
     #[error("{PREP_CODE}: {family} archive holds no JSON entry")]
     NoJsonEntries { family: String },
     #[error("{PREP_CODE}: {family} archive holds no advisory")]
@@ -109,13 +111,13 @@ pub const AUDITED_SETS: &[&str] = &[
 pub fn needed_families(workspace: &Path) -> Result<Vec<&'static str>, PrepError> {
     let mut families: Vec<&'static str> = Vec::new();
     for set in AUDITED_SETS {
-        if is_empty_set(set) {
+        if is_empty_set(set)? {
             continue;
         }
         let Some(family) = advisory::advisory_family(set) else {
             continue;
         };
-        if families.contains(&family) || !lock_is_present(workspace, set) {
+        if families.contains(&family) || !lock_is_present(workspace, set)? {
             continue;
         }
         families.push(family);
@@ -124,10 +126,10 @@ pub fn needed_families(workspace: &Path) -> Result<Vec<&'static str>, PrepError>
     Ok(families)
 }
 
-fn lock_is_present(workspace: &Path, set: &str) -> bool {
-    vuln_locks(set)
+fn lock_is_present(workspace: &Path, set: &str) -> Result<bool, PrepError> {
+    Ok(vuln_locks(set)?
         .iter()
-        .any(|rel| workspace.join(rel).is_file())
+        .any(|rel| workspace.join(rel).is_file()))
 }
 
 /// Merges archive entries into one canonical snapshot and the sidecar that binds it.

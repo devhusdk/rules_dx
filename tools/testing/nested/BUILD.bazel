@@ -13,6 +13,7 @@ rust_library(
         "src/compose.rs",
         "src/footprint.rs",
         "src/plain_consumer.rs",
+        "src/plain_fixture.rs",
         "src/lib.rs",
         "src/record.rs",
     ],

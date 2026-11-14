@@ -1,7 +1,7 @@
 //! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
 
 use dx_nested::compose::{rules_dx_override, rules_py_override};
-use dx_nested::{self as nested, Case, footprint};
+use dx_nested::{self as nested, Case, footprint, plain_fixture};
 use dx_release_tools::presubmit;
 use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
 
@@ -36,18 +36,6 @@ fn quickstart_files(readme: &str) -> Vec<(String, String)> {
         }
     }
     files
-}
-
-fn footprint_of(case: &Case) -> footprint::Footprint {
-    let graph = run_in(case, &["mod", "graph", "--output=json"], "mod graph");
-    let info = run_in(case, &["info", "output_base"], "info output_base");
-    let external = std::path::PathBuf::from(info.stdout.trim()).join("external");
-    footprint::measure(
-        &graph.stdout,
-        &read_text(&case.root().join("MODULE.bazel.lock")),
-        &external,
-    )
-    .unwrap_or_else(|error| panic!("{error}"))
 }
 
 /// Builds `@rules_dx//:dx` and returns the path of the binary.
@@ -152,7 +140,7 @@ fn the_readme_quickstart_runs_as_written() {
             .unwrap_or_else(|error| panic!("{budget_path}: {error}"));
     let mut failures = Vec::new();
     let mut within_budget = |stage: &str| {
-        let measured = footprint_of(&case);
+        let measured = plain_fixture::measure_case(&case);
         eprintln!("footprint {stage}: {}", measured.to_json());
         if cfg!(target_os = "linux")
             && let Err(error) = footprint::check_budget(&measured, &budget[stage])

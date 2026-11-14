@@ -1799,7 +1799,9 @@ LANGS = json.decode("""{
       "Project.toml"
     ],
     "name": "julia",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",

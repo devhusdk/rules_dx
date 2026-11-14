@@ -1,0 +1,12 @@
+{
+  "version": "0.8.0",
+  "archives": {
+    "rules_julia": {
+      "version": "0.8.0",
+      "sha256": "298424f537350d37142f1f056375a3c3cd65a3058ee4b7dcd555ed1c87df8684",
+      "urls": [
+        "https://github.com/periareon/rules_julia/releases/download/0.8.0/rules_julia-0.8.0.tar.gz"
+      ]
+    }
+  }
+}

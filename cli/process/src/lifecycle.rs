@@ -883,6 +883,10 @@ fn copy_out<R: io::Read + Send + 'static>(
 }
 
 #[cfg(unix)]
+#[expect(
+    unsafe_code,
+    reason = "terminal job control is libc fork, signal and tty calls"
+)]
 #[path = "terminal.rs"]
 mod terminal;
 
@@ -891,6 +895,10 @@ mod terminal;
 mod unix_backend;
 
 #[cfg(windows)]
+#[expect(
+    unsafe_code,
+    reason = "job objects, console handlers and thread snapshots are Win32 FFI"
+)]
 #[path = "lifecycle_windows.rs"]
 mod windows_backend;
 

@@ -66,6 +66,7 @@ impl GroupLease {
 
     /// Makes the spawned child write this lease for its own group before it execs.
     #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[expect(unsafe_code, reason = "Command::pre_exec is unsafe")]
     pub(crate) fn record_from_child(&self, command: &mut std::process::Command) {
         use std::os::fd::AsRawFd;
         use std::os::unix::process::CommandExt;
@@ -123,24 +124,33 @@ pub(crate) enum Leader {
 
 #[cfg(unix)]
 mod sys {
+    #[expect(unsafe_code, reason = "process group and signal calls are libc FFI")]
     unsafe extern "C" {
         fn kill(pid: i32, sig: i32) -> i32;
     }
 
+    #[expect(unsafe_code, reason = "process group and signal calls are libc FFI")]
     unsafe extern "C" {
         fn getpgrp() -> i32;
         fn getsid(pid: i32) -> i32;
-        fn getppid() -> i32;
         fn getpgid(pid: i32) -> i32;
     }
 
+    #[expect(unsafe_code, reason = "kill with signal 0 has no safe std API")]
     pub fn group_alive(pgid: i32) -> bool {
+        // SAFETY: kill with signal 0 only checks that the group exists.
         pgid > 1 && unsafe { kill(-pgid, 0) } == 0
     }
 
     /// Groups the running dx belongs to, which it must never stop.
+    #[expect(
+        unsafe_code,
+        reason = "getpgrp, getsid and getpgid have no safe std API"
+    )]
     pub fn own_groups() -> Vec<i32> {
-        unsafe { vec![getpgrp(), getsid(0), getpgid(getppid())] }
+        let parent = i32::try_from(std::os::unix::process::parent_id()).unwrap_or(0);
+        // SAFETY: these calls only read process ids and have no preconditions.
+        unsafe { vec![getpgrp(), getsid(0), getpgid(parent)] }
     }
 
     pub fn boot_id() -> String {
@@ -148,8 +158,10 @@ mod sys {
     }
 
     /// True when no process has `pid`; a zombie still counts as present.
+    #[expect(unsafe_code, reason = "kill with signal 0 has no safe std API")]
     pub fn gone(pid: i32) -> bool {
         const ESRCH: i32 = 3;
+        // SAFETY: kill with signal 0 only checks that the process exists.
         (unsafe { kill(pid, 0) }) != 0
             && std::io::Error::last_os_error().raw_os_error() == Some(ESRCH)
     }
@@ -183,8 +195,13 @@ mod sys {
 
     /// Writes the lease line of the calling process's own group into `fd`; runs between fork and exec.
     #[cfg(target_os = "linux")]
+    #[expect(
+        unsafe_code,
+        reason = "between fork and exec only raw libc I/O is async-signal-safe"
+    )]
     pub(super) fn write_own_lease(fd: i32, namespace: &str, boot: &str) {
         let mut stat = [0u8; 4096];
+        // SAFETY: the path is NUL-terminated, `stat` is writable for its length and the fd is closed here.
         let read = unsafe {
             let stat_fd = libc::open(
                 c"/proc/self/stat".as_ptr(),
@@ -213,7 +230,9 @@ mod sys {
     /// Writes the lease line of the calling process's own group into `fd`; runs between fork and exec.
     #[cfg(target_os = "macos")]
     pub(super) fn write_own_lease(fd: i32, namespace: &str, boot: &str) {
-        let pid = unsafe { libc::getpid() };
+        let Ok(pid) = libc::pid_t::try_from(std::process::id()) else {
+            return;
+        };
         let Some((secs, micros)) = crate::procs::start_timeval(pid) else {
             return;
         };
@@ -222,15 +241,20 @@ mod sys {
 
     /// Replaces the text of `fd` with the calling process's lease line, using only stack buffers.
     #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[expect(
+        unsafe_code,
+        reason = "between fork and exec only raw libc I/O is async-signal-safe"
+    )]
     fn write_lease_line(fd: i32, start: std::fmt::Arguments<'_>, namespace: &str, boot: &str) {
         use std::io::Write;
-        let pid = unsafe { libc::getpid() };
+        let pid = std::process::id();
         let mut line = [0u8; 1024];
         let mut cursor = std::io::Cursor::new(&mut line[..]);
         if writeln!(cursor, "{pid} {namespace} {start} {boot}").is_err() {
             return;
         }
         let len = cursor.position() as usize;
+        // SAFETY: `line` holds `len` initialized bytes and `fd` is the lease descriptor.
         unsafe {
             libc::ftruncate(fd, 0);
             libc::pwrite(fd, line.as_ptr().cast(), len, 0);
@@ -259,8 +283,10 @@ mod sys {
         start_time(pid).map_or(Leader::Unknown, Leader::Present)
     }
 
+    #[expect(unsafe_code, reason = "signalling a process group has no safe std API")]
     pub fn signal_group(pgid: i32, signo: i32) {
         if pgid > 1 {
+            // SAFETY: kill has no memory preconditions.
             unsafe {
                 kill(-pgid, signo);
             }

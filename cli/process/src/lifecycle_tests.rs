@@ -1101,6 +1101,7 @@ fn owned_child_gets_every_forwarded_sigint() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[expect(unsafe_code, reason = "getpgrp has no safe std API")]
 fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
     let scratch = dx_test_scratch::scratch("dx-lifecycle-");
     let sink = Sink::default();
@@ -1127,6 +1128,7 @@ fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
         .parse()
         .expect("pid");
     let pgid: i32 = fields.get(2).expect("pgrp").parse().expect("pgrp");
+    // SAFETY: getpgrp has no preconditions.
     assert_ne!(pgid, unsafe { libc::getpgrp() }, "{stat}");
     if !terminal_foreground() {
         assert_eq!(pgid, pid, "{stat}");
@@ -1802,7 +1804,9 @@ fn console_ctrl_c_and_break_act_as_sigint() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[expect(unsafe_code, reason = "the test sets errno through its libc location")]
 fn sending_a_signal_keeps_the_callers_errno() {
+    // SAFETY: __errno_location points at this thread's errno.
     unsafe { *libc::__errno_location() = libc::EINTR };
     backend::send(i32::MAX - 1, 15);
     assert_eq!(

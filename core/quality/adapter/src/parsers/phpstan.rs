@@ -79,8 +79,7 @@ pub fn parse_phpstan(
             &b.finding.rule_id,
         ))
     });
-    // Exit 1 whose only findings sit in a dependency's trait (reported in the context of
-    // an owned class) is not a failure of the owned sources.
+    // Findings only in a dependency's trait are not a failure.
     if findings.is_empty() && dependency_trait {
         return Ok(findings);
     }

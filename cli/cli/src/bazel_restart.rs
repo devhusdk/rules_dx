@@ -294,8 +294,7 @@ impl<R: Runner> Runner for RestartingRunner<R> {
         withdraw: Option<&dyn Fn() -> bool>,
         held: &[&std::fs::File],
     ) -> io::Result<Option<ChildStatus>> {
-        // Restarted clients may start a new Bazel server that would inherit the
-        // handles, so only the first attempt carries them.
+        // Only the first attempt carries the handles.
         let first = std::cell::Cell::new(true);
         self.attempts(argv, cwd, withdraw.unwrap_or(&|| false), &|argv| {
             let carried: &[&std::fs::File] = if first.replace(false) { held } else { &[] };

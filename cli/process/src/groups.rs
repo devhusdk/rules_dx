@@ -404,8 +404,7 @@ fn verdict(recorded: &Recorded, now: &Observed) -> Verdict {
         Leader::Present(start) if *start == recorded.start => Verdict::Stop,
         Leader::Present(_) => Verdict::Drop,
         Leader::Unknown => Verdict::Keep,
-        // A pid is not reused while its group exists, so a live group with a gone leader
-        // is still the recorded one.
+        // A live group with a gone leader is still the recorded one.
         Leader::Absent => Verdict::Stop,
     }
 }

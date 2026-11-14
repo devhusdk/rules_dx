@@ -241,8 +241,7 @@ fn cfg_selected_dependencies_keep_both_windows_architectures() {
         "{LOCKFILE} records no cfg-selected dependency group"
     );
     for (name, keys) in selects {
-        // A crate only an x86_64 cfg reaches (spin via heapless) has no aarch64 key on any
-        // OS, so its Windows x86_64 key is upstream gating, not a lost Windows ARM64 mapping.
+        // A crate reached only by an x86_64 cfg has no aarch64 key.
         let reaches_aarch64 = keys.iter().any(|key| key.starts_with("aarch64-"));
         if keys.contains(WINDOWS_X86) && reaches_aarch64 {
             assert!(

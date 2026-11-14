@@ -181,8 +181,6 @@ mod tests {
 
     #[test]
     fn empty_create_is_rejected() {
-        // git and patch both reject a header pair with no hunk, and the only plain hunk that
-        // applies writes a byte the file does not have.
         let patch = FilePatch {
             path: "empty/BUILD.bazel",
             kind: PatchKind::Create,

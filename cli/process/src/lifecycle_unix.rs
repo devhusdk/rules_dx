@@ -128,8 +128,7 @@ fn inherit_held(command: &mut Command, held: &[std::fs::File]) {
         return;
     }
     let fds: Vec<i32> = held.iter().map(AsRawFd::as_raw_fd).collect();
-    // SAFETY: the hook only calls fcntl on descriptors collected before
-    // the fork; it allocates nothing and takes no locks.
+    // SAFETY: the hook only calls fcntl on descriptors collected before the fork.
     unsafe {
         // LCOV_EXCL_START - reason: runs in the forked child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         command.pre_exec(move || {

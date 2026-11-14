@@ -261,8 +261,6 @@ pub(super) fn collect_lcov(
         evidence.record(problem.clone());
     }
     let no_collector = no_collector_labels(events);
-    // A run of only collector-less tests has no LCOV by design; the
-    // no_coverage_collector verdict names the cause instead of a missing-artifact gap.
     let gap = evidence_gap(
         lcov_documents.is_empty() && no_collector.is_empty(),
         &evidence,

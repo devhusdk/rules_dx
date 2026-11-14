@@ -69,8 +69,7 @@ impl TerminalJob {
             let _blocked = Blocked::new(&WATCHED);
             let pid = unsafe { libc::fork() };
             if pid == 0 {
-                // SAFETY: the forked copy runs only async-signal-safe libc
-                // calls and never returns.
+                // SAFETY: the forked copy runs only async-signal-safe libc calls.
                 unsafe { watch(parent, write.as_raw_fd()) }
             }
             pid

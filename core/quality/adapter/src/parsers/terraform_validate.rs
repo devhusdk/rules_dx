@@ -149,9 +149,7 @@ pub fn parse_terraform_init(
             Diagnostic::Unlocated { error: false, .. } => {}
         }
     }
-    // After the located errors init adds one range-less summary ("Terraform encountered
-    // problems during initialisation ..."), so range-less errors only matter when no located
-    // error explains the failure.
+    // Range-less errors matter only when no located error explains the failure.
     match code {
         Some(0) if unlocated.is_empty() => Ok(findings),
         Some(0) => Err(ParseError::shape(

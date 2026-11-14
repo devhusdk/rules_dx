@@ -207,8 +207,7 @@ impl RealBackend {
         let mut findings = Vec::new();
         let mut reported = Vec::new();
         for (root, dir, package) in &groups {
-            // Vet by import path so cue builds the real instance, which also unifies the staged
-            // same-package files of ancestor directories up to the module root.
+            // Vet by import path so cue builds the real instance.
             let rel = if root.is_empty() {
                 dir.as_str()
             } else {

@@ -142,8 +142,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 )?);
             let mut findings = Vec::new();
             for (workspace, absolute) in pairs {
-                // The run starts at the scratch root and names the file relative to it,
-                // so the compiler's import root is the scratch root and nothing above it.
+                // The compiler's import root is the scratch root.
                 let invocation =
                     commands::capnp_check(&call.tool.binary, Path::new(workspace), &root);
                 let out =

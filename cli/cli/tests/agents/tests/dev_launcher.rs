@@ -9,9 +9,6 @@ fn state(root: &Path) -> PathBuf {
 
 #[test]
 fn dev_launchers_keep_their_structure() {
-    // Behaviour (build, query, repin retry, hook hand-off, copy sync, signals)
-    // is covered by the fake-bazel tests in `sh` and `cmd` below. Only the
-    // shape that those tests cannot see is pinned here.
     let startup = WORKFLOW_STARTUP_OPTS.join(" ");
     let sh = std::fs::read_to_string(env_file("DX_LAUNCHER_SH")).expect("tools/dx");
     let cmd = std::fs::read_to_string(env_file("DX_LAUNCHER_CMD"))

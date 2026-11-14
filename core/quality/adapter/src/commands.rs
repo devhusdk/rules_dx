@@ -321,12 +321,10 @@ const CMAKELINT_TAIL: &[&str] = &["--"];
 const GERSEMI_CHECK_PREFIX: &[&str] = &["--check", "--diff", "--no-cache", "--no-color", "-w", "1"];
 const GERSEMI_FIX_PREFIX: &[&str] = &["-i", "--no-cache", "--no-color", "-w", "1"];
 const GERSEMI_TAIL: &[&str] = &["--"];
-// No `--diff` (it exits 0 for files that would change), no `--validate` (it runs the host
-// `make`), and never `update`.
+// No `--diff`, no `--validate`, never `update`.
 const MBAKE_CHECK_PREFIX: &[&str] = &["format", "--check"];
 const MBAKE_FIX_PREFIX: &[&str] = &["format"];
-// `--ignore-cache` keeps docstrfmt from reading or writing a cache under the home directory, and
-// `--exclude` replaces its default exclude globs so no path is skipped silently.
+// `--ignore-cache` and `--exclude` keep docstrfmt off the home directory and default globs.
 const DOCSTRFMT_CHECK_PREFIX: &[&str] = &["--check", "--ignore-cache", "--exclude", "**/.dx-never"];
 const DOCSTRFMT_FIX_PREFIX: &[&str] = &["--ignore-cache", "--exclude", "**/.dx-never"];
 const REGAL_LINT_PREFIX: &[&str] = &[

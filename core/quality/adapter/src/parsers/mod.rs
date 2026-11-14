@@ -1373,8 +1373,7 @@ mod tests {
             ),
             ["q.sql"]
         );
-        // `git diff` names the enclosing section after the counts, and every Go, C, Java,
-        // Ruby or Python hunk has one. The counts still end the hunk there.
+        // The counts still end the hunk before the section name.
         assert_eq!(
             super::diff_paths(
                 "--- a/k.go\n+++ b/k.go\n@@ -5,5 +5,5 @@ import \"fmt\"\n func main() {\n \tfmt.Println(\"a\")\n \tfmt.Println(\"b\")\n--- keep\n+--- other\n }\n"
@@ -1431,8 +1430,6 @@ mod tests {
             super::diff_paths("--- a/patch.orig\n+++ /dev/null\n@@ -1 +0,0 @@\n-a\n"),
             ["patch.orig"]
         );
-        // `gofumpt -d patch.orig` keeps its own copy at `patch.orig.orig`, so the new side is
-        // the file and the old side reduces to it.
         assert_eq!(
             super::diff_paths(
                 "diff patch.orig.orig patch.orig\n--- patch.orig.orig\n+++ patch.orig\n@@ -1 +1 @@\n-a\n+b\n"
@@ -1444,8 +1441,6 @@ mod tests {
             super::diff_paths("--- patch.orig.orig\n+++ /dev/null\n@@ -1 +0,0 @@\n-a\n"),
             ["patch.orig"]
         );
-        // The producers that write `<path>.orig` write it on the old side only, so the new side
-        // of a plain pair is already the file.
         assert_eq!(
             super::diff_paths("--- run.sh.orig\n+++ run.sh\n@@ -1 +1 @@\n-a\n+b\n"),
             ["run.sh"]

@@ -16,8 +16,7 @@ fn the_fixture_shard_documents_every_item_with_its_comment() {
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "protobuf");
     assert_eq!(shard.package, "shop");
-    // Comments are lost when protoc reads the library's own descriptor set, so an empty doc
-    // text anywhere means the build fed it back in.
+    // Comments are lost when protoc reads the descriptor set.
     for symbol in &shard.symbols {
         assert!(!symbol.doc_markdown.is_empty(), "{} has no doc", symbol.id);
     }

@@ -38,8 +38,7 @@ pub fn parse_latexindent(
             detail: line.to_owned(),
         });
     }
-    // The hermetic runner environment has no HOME, so latexindent warns once while it looks for
-    // a user settings file. That warning is expected and carries no result.
+    // The missing-HOME settings warning carries no result.
     let unexpected = diagnostics
         .lines()
         .map(str::trim)

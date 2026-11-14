@@ -371,8 +371,7 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
         args.push("--ignore-console-ctrl".to_owned());
     }
     if let Some(lock) = &plan.nested_server_lock {
-        // The descendant is a client that starts a detached server one
-        // level deeper, so the chain is wrapper -> client -> server.
+        // The chain is wrapper -> client -> server.
         args = vec![
             "--detached-descendant".to_owned(),
             "--descendant-own-group".to_owned(),

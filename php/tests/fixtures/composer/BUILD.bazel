@@ -1,4 +1,4 @@
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//php/private/quality:corpus.bzl", "php_corpus")
 load("@rules_dx//php:defs.bzl", "php_binary", "php_library", "php_test")
 load("@rules_dx//php/private:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("@rules_dx//php/private:php.bzl", "php_autoload_tree")
@@ -90,7 +90,7 @@ php_test(
     for copy in ("a", "b")
 ]
 
-real_source_target(
+php_corpus(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],

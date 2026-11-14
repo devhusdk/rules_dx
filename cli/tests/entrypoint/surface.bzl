@@ -1,6 +1,5 @@
 """A consumer repository that proves the supported surface avoids dev-only repos."""
 
-# dev_dependency repositories, which a consumer module cannot load from.
 DEV_ONLY_REPOS = [
     "cosign",
     "dx_qt",

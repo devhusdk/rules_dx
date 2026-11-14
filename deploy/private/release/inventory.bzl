@@ -186,7 +186,7 @@ _shipped_inventory = rule(
 )
 
 def shipped_inventory(name, app, runtimes = [], **kwargs):
-    """Declares `name` (the NOTICE manifest) and `name_texts` (the per-crate texts) for one Rust binary."""
+    """Declares the NOTICE manifest and texts for one Rust binary."""
     _shipped_inventory(name = name, app = app, runtimes = runtimes, **kwargs)
     if runtimes:
         native.filegroup(

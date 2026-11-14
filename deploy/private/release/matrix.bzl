@@ -7,7 +7,6 @@ load(":notice.bzl", "notice_bundle")
 
 RELEASE_MATRIX_SCHEMA = "release-matrix/v1"
 
-# Top-level archive members each runtime target ships. The Universal CRT is supplied by Windows.
 RUNTIME_MEMBERS = {
     "//cc/private/toolchain:msvc_vcruntime": [
         "msvcp140.dll",
@@ -138,7 +137,6 @@ def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx", pdb = "//c
         )
         symbols = release_cell_symbols(cell)
         if symbols:
-            # The entry keeps the PDB basename that /pdbaltpath:%_PDB% writes into the exe.
             native.genrule(
                 name = cell_name + "_pdb_archive",
                 srcs = [pdb],

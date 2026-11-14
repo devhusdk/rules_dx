@@ -2,7 +2,6 @@
 
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 
-# Keep in step with host_launcher in deploy/private/offline/bootstrap/src/lib.rs.
 _LAUNCHERS = [
     "bazelisk-darwin-amd64",
     "bazelisk-darwin-arm64",

@@ -80,7 +80,7 @@ _oci_config = rule(
 )
 
 def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", build_mode = "release", size_budget = None, sbom = None, scan = "fail", scan_severity = "HIGH", tags = None, visibility = None, testonly = False, target_compatible_with = None):
-    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image for `platform`."""
+    """Publishes one image archive or layout directory."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     effective_repo = repository if repository != "" else name
     if scan not in ["off", "warn", "fail"]:

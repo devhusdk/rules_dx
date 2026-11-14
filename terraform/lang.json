@@ -8,6 +8,7 @@
     "*.tf"
   ],
   "lockfiles": [
+    "terraform.lock.json",
     ".terraform.lock.hcl"
   ],
   "setup": {
@@ -15,13 +16,13 @@
       {
         "ecosystem": "terraform",
         "manifest": "*.tf",
-        "lock": null,
+        "lock": "terraform.lock.json",
         "state": ".terraform.lock.hcl",
         "extension": "@rules_dx//terraform:extensions.bzl",
-        "tag": null,
+        "tag": "lock",
         "hub": "dx_terraform_providers",
-        "resolver": null,
-        "imports": "name"
+        "resolver": "@rules_dx//terraform/private/tools/lock",
+        "imports": "provides"
       }
     ]
   },

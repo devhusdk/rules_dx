@@ -3126,6 +3126,7 @@ LANGS = json.decode("""{
     ],
     "family": "core",
     "lockfiles": [
+      "terraform.lock.json",
       ".terraform.lock.hcl"
     ],
     "manifests": [
@@ -3164,12 +3165,12 @@ LANGS = json.decode("""{
           "ecosystem": "terraform",
           "extension": "@rules_dx//terraform:extensions.bzl",
           "hub": "dx_terraform_providers",
-          "imports": "name",
-          "lock": null,
+          "imports": "provides",
+          "lock": "terraform.lock.json",
           "manifest": "*.tf",
-          "resolver": null,
+          "resolver": "@rules_dx//terraform/private/tools/lock",
           "state": ".terraform.lock.hcl",
-          "tag": null
+          "tag": "lock"
         }
       ]
     },

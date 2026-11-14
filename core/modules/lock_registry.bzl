@@ -141,6 +141,13 @@ LOCK_REGISTRY = {
         "manifest": "Package.swift",
         "state": "Package.resolved",
     },
+    "terraform": {
+        "hub": "dx_terraform_providers",
+        "imports": "provides",
+        "lock": "terraform.lock.json",
+        "manifest": "*.tf",
+        "state": ".terraform.lock.hcl",
+    },
     "uv": {
         "hub": "pypi",
         "imports": "name",

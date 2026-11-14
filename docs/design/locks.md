@@ -62,7 +62,7 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - `powershell` (powershell): `PSGallery.requirements.psd1`; none; `psgallery`.
 - `ansible` (ansible): `requirements.yml`; none; `ansible`.
 - `bicep` (bicep): `*.bicep`; none; `bicep`.
-- `terraform` (terraform): `*.tf`; `.terraform.lock.hcl`; `terraform`.
+- `terraform` (terraform): `*.tf`; `terraform.lock.json`, state `.terraform.lock.hcl`; resolver `@rules_dx//terraform/private/tools/lock`; imports `provides`; `dx_terraform_providers`.
 
 ## Manifest
 

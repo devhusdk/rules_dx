@@ -821,6 +821,7 @@ filegroup(
         "//swift/private:module_srcs",
         "//swift:module_srcs",
         "//terraform/private/quality:module_srcs",
+        "//terraform/private/tools/lock:module_srcs",
         "//terraform/private:module_srcs",
         "//third_party/dotnet/deps:module_srcs",
         "//third_party/dotnet:module_srcs",

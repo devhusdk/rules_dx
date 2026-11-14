@@ -16,6 +16,7 @@ package(default_visibility = VIS_CLI_DEPLOY_QUALITY_TOOLS + [
     "//php/private/tools/lock:__pkg__",
     "//powershell/private/tools/lock:__pkg__",
     "//swift/private/tools/lock:__pkg__",
+    "//terraform/private/tools/lock:__pkg__",
     "//zig/private/tools/lock:__pkg__",
 ])
 

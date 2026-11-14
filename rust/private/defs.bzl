@@ -173,6 +173,21 @@ _rust_forward_cc = dx_library_forward_rule(
     validate = dx_msvc_crt_validate,
 )
 
+_RUNTIME_DLLS_ATTR = {
+    "runtime_dlls": attr.label_list(
+        doc = "Shared libraries symlinked next to the executable, such as the Swift runtime DLLs of a linked swift_library.",
+        allow_files = [".dll"],
+    ),
+}
+
+def _runtime_dlls(ctx):
+    seen = {}
+    for dll in ctx.files.runtime_dlls:
+        if dll.basename in seen:
+            fail("runtime_dlls: {} and {} share the basename {}".format(seen[dll.basename].path, dll.path, dll.basename))
+        seen[dll.basename] = dll
+    return seen.values()
+
 _rust_forward_binary = dx_executable_forward_rule(
     _RUST,
     kind = "executable",
@@ -182,11 +197,12 @@ _rust_forward_binary = dx_executable_forward_rule(
         [_rust_common.crate_info],
         [_rust_common.test_crate_info],
     ],
-    extra_attrs = _LIBSTDCXX_ATTRS | {"wasm": attr.string(doc = "Wasm target, or empty.")},
+    extra_attrs = _LIBSTDCXX_ATTRS | _RUNTIME_DLLS_ATTR | {"wasm": attr.string(doc = "Wasm target, or empty.")},
     upstream_cfg = _rust_binary_transition,
     upstream_aspects = [dx_msvc_crt_aspect],
     validate = dx_msvc_crt_validate,
     runtime = "mandatory",
+    sibling_files = _runtime_dlls,
 )
 
 _rust_forward_test = dx_executable_forward_rule(
@@ -198,7 +214,7 @@ _rust_forward_test = dx_executable_forward_rule(
         [_rust_common.crate_info],
         [_rust_common.test_crate_info],
     ],
-    extra_attrs = dx_lcov_merger_attr() | _LIBSTDCXX_ATTRS | dx_native_coverage_attrs() | {
+    extra_attrs = dx_lcov_merger_attr() | _LIBSTDCXX_ATTRS | _RUNTIME_DLLS_ATTR | dx_native_coverage_attrs() | {
         "crate": attr.label(
             doc = "The crate under test, so format checks reach its files.",
             providers = [[_rust_common.crate_info], [_rust_common.test_crate_info]],
@@ -213,6 +229,7 @@ _rust_forward_test = dx_executable_forward_rule(
     coverage_providers = dx_native_test_coverage,
     toolchains = dx_native_coverage_toolchains(),
     runtime = "mandatory",
+    sibling_files = _runtime_dlls,
 )
 
 def rust_build_script(name, build_script_env = None, toolchains = None, use_cc_toolchain = None, **kwargs):
@@ -264,8 +281,9 @@ def rust_binary(
         edition = RUST_EDITION,
         visibility = None,
         wasm = None,
+        runtime_dlls = None,
         **kwargs):
-    """Minimal wrapper over rust_binary. edition defaults to 2024; crate_name defaults to the target name with - and / as _. srcs is required."""
+    """Minimal wrapper over rust_binary. runtime_dlls are symlinked next to the executable. edition defaults to 2024; crate_name defaults to the target name with - and / as _. srcs is required."""
     if srcs == None:
         fail("rust_binary //" + native.package_name() + ":" + name + " needs srcs")
     if wasm not in (None, "wasi", "browser"):
@@ -280,7 +298,7 @@ def rust_binary(
         srcs,
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True),
-        extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")) | {"wasm": wasm or ""},
+        extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")) | {"wasm": wasm or ""} | ({"runtime_dlls": runtime_dlls} if runtime_dlls != None else {}),
         **kwargs
     )
 
@@ -321,8 +339,9 @@ def rust_test(
         preopens = None,
         runtime = None,
         coverage_lib = None,
+        runtime_dlls = None,
         **kwargs):
-    """Minimal wrapper over rust_test. edition defaults to 2024."""
+    """Minimal wrapper over rust_test. runtime_dlls are symlinked next to the executable. edition defaults to 2024."""
     if wasm not in (None, "wasi", "browser"):
         fail("rust_test: wasm must be \"wasi\" or \"browser\", got " + repr(wasm))
     if wasm != "wasi" and (preopens != None or runtime != None):
@@ -364,6 +383,8 @@ def rust_test(
         forward_kwargs["crate"] = crate
     if coverage_lib != None:
         forward_kwargs["coverage_lib"] = coverage_lib
+    if runtime_dlls != None:
+        forward_kwargs["runtime_dlls"] = runtime_dlls
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, **kwargs)
 
 def rust_bench(

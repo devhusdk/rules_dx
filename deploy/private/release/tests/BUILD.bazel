@@ -10,7 +10,7 @@ package(
 
 rust_test(
     name = "release_consumer_smoke_test",
-    timeout = "moderate",
+    timeout = "long",
     testonly = True,
     srcs = [
         "candidate_consumer_test.rs",

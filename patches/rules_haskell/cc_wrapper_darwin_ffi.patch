@@ -12,3 +12,98 @@ diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.t
          if self.linking:
              if is_temporary_output(self.output):
                  # GHC with Template Haskell or tools like hsc2hs builds
+diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
+--- a/haskell/cabal.bzl
++++ b/haskell/cabal.bzl
+@@ -164,6 +164,15 @@
+ def _python_dir(ctx):
+     return ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.interpreter.dirname
+ 
++def _xcode_execution_info(ctx, hs, env):
++    if not hs.toolchain.is_darwin:
++        return {}
++    xcode_config = ctx.attr._xcode_config[apple_common.XcodeVersionConfig]
++    env.pop("SDKROOT", None)
++    env.update(apple_common.apple_host_system_env(xcode_config))
++    env.update(apple_common.target_apple_env(xcode_config, apple_common.platform.macos))
++    return xcode_config.execution_info()
++
+ def _prepare_cabal_inputs(
+         hs,
+         cc,
+@@ -623,6 +632,7 @@
+         paths.append(c.env["PATH"])
+     paths.extend([t.executable.dirname for t in attr_tools])
+     c.env["PATH"] = join_path_list(hs.toolchain.is_windows, paths)
++    execution_requirements = _xcode_execution_info(ctx, hs, c.env)
+ 
+     ctx.actions.run(
+         executable = c.cabal_wrapper,
+@@ -633,6 +643,7 @@
+                 hs.tools_config.tools_for_ghc,
+         outputs = outputs,
+         env = c.env,
++        execution_requirements = execution_requirements,
+         mnemonic = "HaskellCabalLibrary",
+         progress_message = "HaskellCabalLibrary {}".format(hs.label),
+     )
+@@ -808,6 +819,12 @@
+         "_cc_toolchain": attr.label(
+             default = Label("@rules_cc//cc:current_cc_toolchain"),
+         ),
++        "_xcode_config": attr.label(
++            default = configuration_field(
++                name = "xcode_config_label",
++                fragment = "apple",
++            ),
++        ),
+         "verbose": attr.bool(
+             default = True,
+             doc = "Whether to show the output of the build",
+@@ -829,7 +846,7 @@
+         "@rules_haskell//haskell:toolchain",
+         "@rules_python//python:toolchain_type",
+     ],
+-    fragments = ["cpp"],
++    fragments = ["apple", "cpp"],
+     doc = """\
+ Use Cabal to build a library.
+ 
+@@ -955,6 +972,7 @@
+         hs.toolchain.is_windows,
+         [_python_dir(ctx)] + ([c.env["PATH"]] if "PATH" in c.env else []),
+     )
++    execution_requirements = _xcode_execution_info(ctx, hs, c.env)
+     ctx.actions.run(
+         executable = c.cabal_wrapper,
+         arguments = [json_args.path],
+@@ -968,6 +986,7 @@
+                 [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
+                 hs.tools_config.tools_for_ghc,
+         env = c.env,
++        execution_requirements = execution_requirements,
+         mnemonic = "HaskellCabalBinary",
+         progress_message = "HaskellCabalBinary {}".format(hs.label),
+     )
+@@ -1074,6 +1093,12 @@
+         "_cc_toolchain": attr.label(
+             default = Label("@rules_cc//cc:current_cc_toolchain"),
+         ),
++        "_xcode_config": attr.label(
++            default = configuration_field(
++                name = "xcode_config_label",
++                fragment = "apple",
++            ),
++        ),
+         "verbose": attr.bool(
+             default = True,
+             doc = "Whether to show the output of the build",
+@@ -1083,7 +1108,7 @@
+         "@rules_haskell//haskell:toolchain",
+         "@rules_python//python:toolchain_type",
+     ],
+-    fragments = ["cpp"],
++    fragments = ["apple", "cpp"],
+     doc = """\
+ Use Cabal to build a binary.
+ 

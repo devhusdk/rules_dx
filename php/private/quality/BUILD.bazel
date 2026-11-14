@@ -1,4 +1,4 @@
-load("//core/quality:fixtures.bzl", "real_source_target")
+load(":corpus.bzl", "php_corpus")
 
 package(default_visibility = [
     "//core/modules:__pkg__",
@@ -8,20 +8,22 @@ package(default_visibility = [
 ])
 
 exports_files([
+    "corpus.bzl",
     "php.bzl",
     "php_tools.bzl",
 ])
 
-real_source_target(
+php_corpus(
     name = "corpus_markdown",
     markdown_srcs = ["//php:README.md"],
     tags = ["corpus"],
 )
 
-real_source_target(
+php_corpus(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "corpus.bzl",
         "php.bzl",
         "php_tools.bzl",
         "//php:BUILD.bazel",

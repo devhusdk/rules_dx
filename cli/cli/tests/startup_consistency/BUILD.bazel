@@ -13,6 +13,7 @@ real_source_target(
 
 rust_test(
     name = "startup_consistency_test",
+    size = "small",
     testonly = True,
     srcs = ["tests/startup_consistency.rs"],
     crate_name = "startup_consistency",

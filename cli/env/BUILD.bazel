@@ -52,6 +52,7 @@ rust_binary(
 
 rust_test(
     name = "dx_env_test",
+    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",

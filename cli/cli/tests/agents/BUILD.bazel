@@ -5,6 +5,7 @@ package(default_testonly = True)
 
 rust_test(
     name = "agents_test",
+    size = "small",
     testonly = True,
     srcs = ["tests/agents.rs"],
     crate_name = "agents",
@@ -28,6 +29,7 @@ rust_test(
 
 rust_test(
     name = "dev_launcher_test",
+    size = "small",
     testonly = True,
     srcs = ["tests/dev_launcher.rs"],
     crate_name = "dev_launcher",

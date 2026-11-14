@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI", "VIS_PUBLIC")
@@ -40,7 +40,10 @@ rust_library(
     crate_root = "src/lib.rs",
     # keep
     visibility = VIS_CLI,
-    deps = ["@crates//:serde_json"],
+    deps = all_crate_deps(
+        package_name = "cli/dx_coverage_summary",
+        normal = True,
+    ) + ["@crates//:serde_json"],
 )
 
 rust_test(

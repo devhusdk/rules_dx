@@ -29,6 +29,7 @@ rust_binary(
 
 rust_test(
     name = "d_coverage_launcher_bin_test",
+    size = "small",
     aliases = aliases(
         package_name = "d/private/d_coverage_launcher",
         normal = True,

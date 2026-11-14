@@ -20,6 +20,7 @@ exports_files(
 
 rust_test(
     name = "lsp_headless_clangd_test",
+    size = "small",
     srcs = ["lsp_headless_clangd_test.rs"],
     aliases = aliases(
         package_name = "tools/ide_tests",

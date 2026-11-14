@@ -343,6 +343,7 @@ rust_binary(
 
 rust_test(
     name = "dx_deploy_tools_test",
+    size = "small",
     srcs = [
         "src/api_compat.rs",
         "src/archive.rs",

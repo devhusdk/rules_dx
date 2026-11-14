@@ -16,6 +16,7 @@ rust_binary(
 
 rust_test(
     name = "fuzz_run_test",
+    size = "small",
     srcs = [
         "src/main.rs",
         "src/run.rs",

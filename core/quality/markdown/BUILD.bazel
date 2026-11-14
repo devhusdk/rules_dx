@@ -57,6 +57,7 @@ exports_files([
 
 rust_test(
     name = "quality_markdown_test",
+    size = "small",
     srcs = [
         "src/check.rs",
         "src/entry.rs",

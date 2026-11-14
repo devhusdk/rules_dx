@@ -36,6 +36,7 @@ cross_deployment(
 
 rust_test(
     name = "cross_archive_test",
+    size = "small",
     testonly = True,
     srcs = ["cross_archive_test.rs"],
     aliases = aliases(

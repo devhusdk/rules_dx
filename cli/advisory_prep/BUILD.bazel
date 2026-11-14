@@ -51,6 +51,7 @@ alias(
 
 rust_test(
     name = "dx_advisory_prep_test",
+    size = "small",
     srcs = [
         "src/archive.rs",
         "src/lib.rs",
@@ -87,6 +88,7 @@ rust_test(
 
 rust_test(
     name = "advisory_prep_bin_test",
+    size = "small",
     srcs = [
         "src/main.rs",
         "src/main_tests.rs",

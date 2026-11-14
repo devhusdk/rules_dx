@@ -24,6 +24,7 @@ rust_library(
 
 rust_test(
     name = "consumer_deps_test",
+    size = "small",
     srcs = ["consumer_deps_test.rs"],
     aliases = aliases(
         package_name = "core/modules_tests",
@@ -66,6 +67,7 @@ rust_test(
 
 rust_test(
     name = "oci_pins_test",
+    size = "small",
     srcs = ["oci_pins_test.rs"],
     aliases = aliases(
         package_name = "core/modules_tests",
@@ -87,6 +89,7 @@ rust_test(
 
 rust_test(
     name = "lang_json_test",
+    size = "small",
     srcs = ["lang_json_test.rs"],
     aliases = aliases(
         package_name = "core/modules_tests",
@@ -133,6 +136,7 @@ rust_test(
 
 rust_test(
     name = "python_budget_test",
+    size = "small",
     srcs = ["python_budget_test.rs"],
     aliases = aliases(
         package_name = "core/modules_tests",

@@ -21,6 +21,7 @@ rust_library(
 
 rust_test(
     name = "dx_preset_test",
+    size = "small",
     aliases = aliases(
         package_name = "tools/dx_preset",
         normal = True,

@@ -835,6 +835,12 @@ jobs:
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
       - uses: ./.github/actions/gate
+      - name: Check generated Rust BUILD files
+        if: ${{ !cancelled() }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          tools/dx generate //cli/... //core/... //deploy/... //examples/... //gazelle/... //rust/... //tools/... -- "$@"
       - name: Check generated BUILD files
         run: |
           # shellcheck disable=SC2086

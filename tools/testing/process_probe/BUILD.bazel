@@ -27,6 +27,7 @@ rust_binary(
 
 rust_test(
     name = "process_probe_test",
+    size = "small",
     srcs = ["probe_test.rs"],
     aliases = aliases(
         package_name = "tools/testing/process_probe",

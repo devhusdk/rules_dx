@@ -47,6 +47,7 @@ rust_binary(
 
 rust_test(
     name = "codegen_shard_test",
+    size = "small",
     aliases = aliases(
         package_name = "cli/codegen_shard",
         normal = True,

@@ -154,6 +154,7 @@ _CORPORA = [
 
 rust_test(
     name = "tiers_test",
+    size = "small",
     srcs = ["tiers_test.rs"],
     aliases = aliases(
         package_name = "core/quality/quality_tiers",

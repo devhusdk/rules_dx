@@ -47,6 +47,7 @@ offline_file_tests(
 
 rust_test(
     name = "bootstrap_test",
+    size = "small",
     srcs = ["bootstrap_test.rs"],
     aliases = aliases(
         package_name = "deploy/private/deploy_offline_tests",

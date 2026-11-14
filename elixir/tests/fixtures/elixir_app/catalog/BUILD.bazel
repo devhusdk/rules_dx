@@ -34,7 +34,7 @@ elixir_app(
     app_name = "catalog",
     app_version = "1.0.0",
     visibility = APPS,
-    deps = ["@elixir_app_deps//:jason"],
+    deps = ["@elixir_app_deps//jason"],
 )
 
 elixir_test(

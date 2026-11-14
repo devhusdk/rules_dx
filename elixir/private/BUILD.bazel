@@ -10,7 +10,6 @@ exports_files([
     "defs.bzl",
     "hex.bzl",
     "kwargs.bzl",
-    "mix_lock.bzl",
 ])
 
 real_source_target(
@@ -20,8 +19,7 @@ real_source_target(
         "defs.bzl",
         "hex.bzl",
         "kwargs.bzl",
-        "mix_lock.bzl",
-    ],
+        ],
     tags = ["corpus"],
 )
 

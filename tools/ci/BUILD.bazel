@@ -604,6 +604,7 @@ rust_test(
         "//examples/shared-rust:corpus_starlark",
         "//flutter/private:corpus_starlark",
         "//fortran/private:corpus_starlark",
+        "//elixir/private/lock:corpus_starlark",
         "//fortran/private/lock:corpus_starlark",
         "//fortran/private/quality:corpus_starlark",
         "//fortran/private/tools/lock:corpus_starlark",

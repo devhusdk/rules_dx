@@ -1,5 +1,3 @@
-parser elixir/private/mix_lock.bzl
-parser erlang/private/rebar_lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
 tag-attr terraform/extensions.bzl sha256
 tag-attr terraform/extensions.bzl version

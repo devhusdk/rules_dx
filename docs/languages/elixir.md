@@ -139,14 +139,11 @@ The build file declares the package as an `elixir_app` with
 `visibility = ["//visibility:public"]`. Depend on it as
 `@jason//:erlang_app`. A wrong digest fails the fetch.
 
-#### From mix.lock
+#### From hex.lock.json
 
-With `mix.lock` beside the root `mix.exs`, `dx generate --apply` adds the `hex.lock` stanza for the `@hex` hub to `MODULE.bazel`. It declares one `hex_package` per entry, with the last checksum as `sha256`, and the hub has one alias per package.
+With `mix.exs` and `mix.lock` or `rebar.lock` in the set, `dx lock` writes `hex.lock.json` and `dx generate --apply` adds the `hex.lock` stanza for the `@hex` hub to `MODULE.bazel`. The hub holds one `elixir_app` per locked package; `rebar.lock` packages have no dependencies.
 
-Depend on `@hex//:jason`. Each package is an `elixir_app` with its
-required Hex dependencies; optional ones are skipped. An entry that is not
-from `hexpm` (`:git`, `:path`) fails with a message naming it. Erlang
-`rebar.lock` is not read yet.
+Depend on `@hex//jason`. An entry that is not from `hexpm` (`:git`, `:path`) fails with a message naming it.
 
 ### Adopt a Mix project
 

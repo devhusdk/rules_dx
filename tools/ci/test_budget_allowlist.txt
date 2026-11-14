@@ -526,7 +526,6 @@ python/tests/fixtures/python-service/ledger/service/BUILD.bazel no-size 1
 python/tests/runtime_tests.bzl no-size 1
 python/tests/sdist_native/BUILD.bazel no-size 5
 python/tests/sdist_native/msvc/BUILD.bazel no-size 1
-qt/private/BUILD.bazel no-size 1
 qt/private/rust/BUILD.bazel no-size 1
 qt/private/toolchain/BUILD.bazel no-size 1
 qt/tests/BUILD.bazel no-size 8

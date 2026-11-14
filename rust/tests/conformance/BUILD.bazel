@@ -16,6 +16,22 @@ rust_library(
     edition = "2024",
 )
 
+rust_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.rs"],
+    crate_root = "lint_dirty.rs",
+    edition = "2024",
+    tags = ["manual"],
+)
+
+rust_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.rs"],
+    crate_root = "format_dirty.rs",
+    edition = "2024",
+    tags = ["manual"],
+)
+
 rust_binary(
     name = "hello",
     srcs = ["main.rs"],
@@ -87,6 +103,15 @@ dx_conformance_suite(
         "binary": ":runfiles_hello",
         "data": "data.txt",
         "expected": "hello runfiles",
+    },
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.rs",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 5,
+        "lint_rule": "clippy::len_zero",
+        "lint_source": "lint_dirty.rs",
     },
 )
 

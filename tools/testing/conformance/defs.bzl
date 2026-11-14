@@ -1,11 +1,27 @@
-"""Conformance suite: one language's build, pass and fail checks over a fixture."""
+"""Conformance suite: one language's build, test, coverage, lint, format and lock checks over a fixture."""
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("//core/modules:langs.bzl", "LANGS")
+load("//core/quality/testdata:config_subject.bzl", "config_results")
 load("//rust:defs.bzl", "rust_test")
 load(":pending.bzl", "PENDING")
+load(":quality.bzl", "QUALITY_SUBJECTS")
 
-TESTS = ["build_test", "coverage_test", "cross_test", "fail_test", "lock_test", "pass_test", "runfiles_test"]
+TESTS = ["build_test", "coverage_test", "cross_test", "fail_test", "format_error_test", "format_test", "lint_error_test", "lint_test", "lock_test", "pass_test", "runfiles_test"]
+
+_QUALITY_TESTS = {
+    "format": ["format_test", "format_error_test"],
+    "lint": ["lint_test", "lint_error_test"],
+}
+
+_QUALITY_KEYS = {
+    "format": ["clean", "format_dirty", "format_source"],
+    "lint": ["clean", "lint_dirty", "lint_line", "lint_rule", "lint_source"],
+}
+
+_QUALITY_CONFIG = "default"
+
+_CONFORMANCE_QUALITY = Label("//tools/testing/conformance:conformance_quality")
 
 _FLAG = Label("//tools/testing/conformance:subject")
 _PLATFORM_SETTINGS = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]
@@ -277,7 +293,7 @@ def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
         name = name,
         srcs = [Label("//tools/testing/conformance:runner_test.rs")],
         data = [":" + name + "_subject"],
-        deps = [Label("//tools/testing:dx_testing")],
+        deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
         env = {
             "DX_CONFORMANCE_MODE": "coverage",
             "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s_subject)" % name,
@@ -287,8 +303,63 @@ def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
         **kwargs
     )
 
-def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, not_applicable = {}, size = "small", **kwargs):
-    """Declares build_test, coverage_test, cross_test, pass_test, fail_test, lock_test and runfiles_test for one language.
+def _quality_kinds(lang, quality, not_applicable):
+    kinds = []
+    for kind in sorted(_QUALITY_TESTS):
+        runs = [_compatible_with(lang, test, not_applicable) != ["@platforms//:incompatible"] for test in _QUALITY_TESTS[kind]]
+        if not any(runs):
+            continue
+        if kind not in QUALITY_SUBJECTS.get(lang, {}):
+            fail("%s: %s tests need a lang.json quality.aspects %s entry, or a pending or not_applicable entry" % (lang, kind, kind))
+        for key in _QUALITY_KEYS[kind]:
+            if key not in quality:
+                fail("%s: quality needs %r" % (lang, key))
+        kinds.append(kind)
+    return kinds
+
+def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
+    labels = []
+    for kind in _quality_kinds(lang, quality, not_applicable):
+        clean, error = _QUALITY_TESTS[kind]
+        source = quality[kind + "_source"]
+        text = "%s %d" % (quality["lint_rule"], quality["lint_line"]) if kind == "lint" else ""
+        for test, fixture, mode in [(clean, quality["clean"], kind), (error, quality[kind + "_dirty"], kind + "_error")]:
+            QUALITY_SUBJECTS[lang][kind](
+                name = prefix + test + "_subject",
+                config = _QUALITY_CONFIG,
+                target = fixture,
+                testonly = True,
+                target_compatible_with = _compatible_with(lang, test, not_applicable),
+                visibility = ["//visibility:private"],
+            )
+            config_results(
+                name = prefix + test + "_results",
+                config = _QUALITY_CONFIG,
+                subject = ":" + prefix + test + "_subject",
+                testonly = True,
+                target_compatible_with = _compatible_with(lang, test, not_applicable),
+                visibility = ["//visibility:private"],
+            )
+            rust_test(
+                name = prefix + test,
+                srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+                data = [":" + prefix + test + "_results", source],
+                deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
+                env = {
+                    "DX_CONFORMANCE_MODE": mode,
+                    "DX_CONFORMANCE_SOURCE": "$(rlocationpath %s)" % source,
+                    "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s_results)" % (prefix + test),
+                    "DX_CONFORMANCE_TEXT": text,
+                },
+                size = size,
+                target_compatible_with = _compatible_with(lang, test, not_applicable),
+                **kwargs
+            )
+            labels.append(test)
+    return labels
+
+def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, size = "small", **kwargs):
+    """Declares build_test, coverage_test, cross_test, pass_test, fail_test, lock_test, runfiles_test, lint_test, lint_error_test, format_test and format_error_test for one language.
 
     Args:
       name: Prefix of the declared targets; empty for the bare test names.
@@ -302,6 +373,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
       covered_source: File name whose lines passing_test must cover; empty only when coverage_test is not applicable.
       lock: Inputs of lock_test: binary, expected, ecosystem, package, manifest, lockfile, stale. Empty only when lock_test is pending or not applicable.
       runfiles: Inputs of runfiles_test: binary, data (file name the binary carries as data), expected. Empty only when runfiles_test is pending or not applicable.
+      quality: Inputs of the lint and format tests: clean, the fixture library with no finding; lint_dirty, lint_source, lint_rule and lint_line, the library, file, rule and line of one lint finding; format_dirty and format_source, the library and its unformatted file. Keys of a kind whose tests are all pending or not applicable may be absent.
       not_applicable: Maps a test, or test:platform, to the reason it does not apply.
       size: Size of the declared tests.
       **kwargs: Forwarded to the declared tests.
@@ -329,6 +401,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     elif _compatible_with(lang, "runfiles_test", not_applicable) != ["@platforms//:incompatible"]:
         fail("%s: runfiles_test needs runfiles, or a pending or not_applicable entry" % lang)
     prefix = name + "_" if name else ""
+    quality_labels = _quality_tests(prefix, lang, quality, not_applicable, size, kwargs)
     dx_conformance_subject(
         name = prefix + "pass_subject",
         subject = passing_test,
@@ -372,7 +445,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     }
     _manifest(
         name = prefix + "manifest",
-        entries = json.encode(_entries(lang, {t: "//%s:%s%s" % (native.package_name(), prefix, t) for t in TESTS if (lock or t != "lock_test") and (runfiles or t != "runfiles_test")}, not_applicable)),
+        entries = json.encode(_entries(lang, {t: "//%s:%s%s" % (native.package_name(), prefix, t) for t in TESTS if (lock or t != "lock_test") and (runfiles or t != "runfiles_test") and (t in quality_labels or t not in _QUALITY_TESTS["lint"] + _QUALITY_TESTS["format"])}, not_applicable)),
         visibility = ["//:__subpackages__"],
     )
     for test, (subject, mode, text) in runs.items():
@@ -382,7 +455,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
             name = prefix + test,
             srcs = [Label("//tools/testing/conformance:runner_test.rs")],
             data = [subject],
-            deps = [Label("//tools/testing:dx_testing")],
+            deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
             env = _cross_select(lambda target: _env(mode, subject, target, failing_pattern)) if text == None else _env(mode, subject, text, failing_pattern),
             size = size,
             target_compatible_with = _compatible_with(lang, test, not_applicable),
@@ -394,7 +467,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
             name = prefix + "lock_test",
             srcs = [Label("//tools/testing/conformance:runner_test.rs")],
             data = [lock["binary"], lock["lockfile"], lock["manifest"], lock["stale"], Label("//cli/depcheck")],
-            deps = [Label("//tools/testing:dx_testing")],
+            deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
             env = {
                 "DX_CONFORMANCE_DEPCHECK": "$(rlocationpath %s)" % Label("//cli/depcheck"),
                 "DX_CONFORMANCE_ECOSYSTEM": lock["ecosystem"],
@@ -416,7 +489,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
             name = prefix + "runfiles_test",
             srcs = [Label("//tools/testing/conformance:runner_test.rs")],
             data = [runfiles["binary"]],
-            deps = [Label("//tools/testing:dx_testing")],
+            deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
             env = {
                 "DX_CONFORMANCE_ARGS": "_main/%s/%s" % (native.package_name(), runfiles["data"]),
                 "DX_CONFORMANCE_MODE": "runfiles",

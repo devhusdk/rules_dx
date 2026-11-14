@@ -2,11 +2,15 @@
 
 use serde_json::Value;
 
-const TESTS: [&str; 7] = [
+const TESTS: [&str; 11] = [
     "build_test",
     "coverage_test",
     "cross_test",
     "fail_test",
+    "format_error_test",
+    "format_test",
+    "lint_error_test",
+    "lint_test",
     "lock_test",
     "pass_test",
     "runfiles_test",

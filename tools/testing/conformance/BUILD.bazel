@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 load(":defs.bzl", "dx_conformance_manifest", "pending_langs", "suite_langs")
 load(":defs_tests.bzl", "conformance_defs_tests")
 
@@ -56,7 +56,24 @@ config_setting(
     ],
 )
 
-exports_files(["runner_test.rs"])
+# keep
+rust_library(
+    name = "conformance_quality",
+    testonly = True,
+    srcs = ["quality.rs"],
+    crate_name = "conformance_quality",
+    crate_root = "quality.rs",
+    edition = "2024",
+    deps = [
+        "//core/quality/result:quality_result",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+exports_files([
+    "quality.bzl",
+    "runner_test.rs",
+])
 
 conformance_defs_tests(
     name = "defs_test",
@@ -95,6 +112,7 @@ real_source_target(
         "defs.bzl",
         "defs_tests.bzl",
         "pending.bzl",
+        "quality.bzl",
     ],
     tags = ["corpus"],
 )

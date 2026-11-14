@@ -22,7 +22,7 @@ def rust_wrapper_registry_tests(name):
         extra_checks = [
             expect_equal("RUST class id", RUST, "rust"),
             expect_equal("rust is a known class", RUST in KNOWN_SEMANTIC_FILE_CLASSES, True),
-            expect_equal("msvc link flags", MSVC_LINK_FLAGS, ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]),
+            expect_equal("msvc link flags", MSVC_LINK_FLAGS, ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib", "-Clink-arg=/ignore:4099"]),
             expect_equal("clang-cl link flags", CLANG_CL_LINK_FLAGS, ["-Clink-arg=-DEFAULTLIB:libc++.lib"]),
             expect_equal("msvc opt link flags", MSVC_OPT_LINK_FLAGS, [
                 "-Clinker=$(execpath {})".format(Label("//rust/private/tools/msvc_paths:msvc_link")),

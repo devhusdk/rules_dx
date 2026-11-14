@@ -8,6 +8,10 @@ fn subject_matches_mode() {
         assert_image(&key, &text);
         return;
     }
+    if ["lint", "lint_error", "format", "format_error"].contains(&mode.as_str()) {
+        conformance_quality::check(&mode, &key, &text);
+        return;
+    }
     let mut subject = None;
     let mut subject_env = Vec::new();
     let mut subject_key = String::new();
@@ -499,11 +503,16 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
             }
         }
     }
-    let manifest = manifest_source(
-        std::env::var("RUNFILES_MANIFEST_FILE").ok(),
-        &std::env::var("RUNFILES_DIR").unwrap_or_default(),
-        &std::env::var("TEST_SRCDIR").unwrap_or_default(),
-    );
+    let tree = std::env::var("RUNFILES_DIR").unwrap_or_default();
+    let manifest = if std::path::Path::new(&tree).join("_main").is_dir() {
+        None
+    } else {
+        manifest_source(
+            std::env::var("RUNFILES_MANIFEST_FILE").ok(),
+            &tree,
+            &std::env::var("TEST_SRCDIR").unwrap_or_default(),
+        )
+    };
     if let Some(manifest) = manifest {
         std::fs::copy(&manifest, with_suffix(&staged, ".runfiles_manifest"))
             .expect("manifest must copy");

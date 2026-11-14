@@ -419,7 +419,7 @@ fn known_lexical<'a>(
     use std::path::{Component, PathBuf};
     let mut clean = PathBuf::new();
     let mut valid = true;
-    for part in Path::new(path).components() {
+    for part in Path::new(without_verbatim(path)).components() {
         match part {
             Component::CurDir => {}
             Component::ParentDir => valid &= clean.pop(),
@@ -434,6 +434,14 @@ fn known_lexical<'a>(
             tool,
             path: path.to_owned(),
         })
+}
+
+/// The path with a Windows `\\?\` drive prefix dropped.
+fn without_verbatim(path: &str) -> &str {
+    match path.strip_prefix(r"\\?\") {
+        Some(rest) if dx_path::drive_rooted(rest) => rest,
+        _ => path,
+    }
 }
 
 /// The lines a tool wrote, blank ones dropped and each one trimmed.
@@ -1128,6 +1136,13 @@ mod tests {
                 .to_string()
                 .contains("malformed location: no-colon-here")
         );
+    }
+
+    #[test]
+    fn without_verbatim_drops_only_the_drive_prefix() {
+        assert_eq!(super::without_verbatim(r"\\?\C:\a\b.rs"), r"C:\a\b.rs");
+        assert_eq!(super::without_verbatim(r"\\?\UNC\h\s"), r"\\?\UNC\h\s");
+        assert_eq!(super::without_verbatim("/s/a.rs"), "/s/a.rs");
     }
 
     #[test]

@@ -39,6 +39,32 @@ diff -ru a/py/private/py_venv/toolchains_resolver.bzl b/py/private/py_venv/toolc
 diff -ru a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
 --- a/py/private/py_venv/venv.bzl
 +++ b/py/private/py_venv/venv.bzl
+@@ -163,7 +163,7 @@
+     # site-packages. Wheels that carry only `console_scripts` (e.g. source-built
+     # scripts) leave `top_levels` empty: nothing is projected for them, so their
+     # `.pth` line must use `site.addsitedir` (see `_format_imp`).
+-    known_layout_site_pkgs = {w.site_packages_rfpath: True for w in wheels if w.top_levels}
++    known_layout_site_pkgs = {} if is_windows else {w.site_packages_rfpath: True for w in wheels if w.top_levels}
+ 
+     declared = []  # accumulator for all outputs
+ 
+@@ -177,7 +177,7 @@
+     # a cached per-wheel prefix rather than formatting every component.
+     site_packages_prefix = site_packages_rel + "/"
+     target_prefix_by_sp = {}
+-    for tl, wheel_site_pkgs in top_level_to_site_pkgs.items():
++    for tl, wheel_site_pkgs in ({} if is_windows else top_level_to_site_pkgs).items():
+         out = ctx.actions.declare_symlink(site_packages_prefix + tl)
+         target_prefix = target_prefix_by_sp.get(wheel_site_pkgs)
+         if target_prefix == None:
+@@ -296,6 +296,6 @@
+     # layouts.
+     def _format_imp(imp):
+-        if imp in fully_covered_site_pkgs:
++        if not is_windows and imp in fully_covered_site_pkgs:
+             return None
+         if imp.endswith("site-packages") and imp not in known_layout_site_pkgs:
+             return _ADDSITEDIR_LINE.format(
 @@ -371,31 +371,43 @@
      # absolute target bakes in the build-host execroot path that does not
      # exist inside an OCI container, leaving a dangling symlink. The

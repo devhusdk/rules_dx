@@ -20,22 +20,7 @@ def generated_families_error(name, families):
     return ""
 
 def dx_generated_policy(name, tier, families = None, defaults = True, disabled = [], configs = [], bases = {}, visibility = None):
-    """Declares a workspace policy whose unbound tier-active tools run on their tier base.
-
-    Args:
-        name: name of the policy target.
-        tier: tier of the workspace, `standard` or `strict`. Tools shared by several
-            families, such as typos and prettier, always use it.
-        families: dict from family ID to its spec: capability tool lists (`lint`, `typecheck`,
-            `format`, `audit`), `disabled` capabilities and a `tier`. Each key replaces only
-            that family of the curated defaults.
-        defaults: whether the curated default families apply. False uses only `families`.
-        disabled: curated family IDs to drop; needs `defaults`.
-        configs: native config targets the repo binds; they win over a base.
-        bases: tool ID to a base config target, replacing the tier base of `tier` for that
-            tool. The generator sets it for a tool whose families use another tier.
-        visibility: visibility of the policy target.
-    """
+    """Declares a workspace policy whose unbound tier-active tools run on their tier base."""
     if tier not in _TIERS:
         fail("dx_generated_policy (%s): tier must be one of %s, got %r" % (name, ", ".join(_TIERS), tier))
     tier_bases = {

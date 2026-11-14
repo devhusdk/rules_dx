@@ -1,8 +1,4 @@
-"""All quality tool rows, concatenated from the per-family rows and ordered by id.
-
-support.bzl, adapters.bzl and native_config.bzl derive their tables from TOOLS,
-and //core/quality:update_tools writes the Rust tool list from it.
-"""
+"""All quality tool rows, concatenated from the per-family rows and ordered by id."""
 
 load("//ansible/private/quality:ansible_tools.bzl", _ANSIBLE = "TOOLS")
 load("//erlang/private/quality:beam_tools.bzl", _BEAM = "TOOLS")

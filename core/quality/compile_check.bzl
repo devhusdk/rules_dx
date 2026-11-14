@@ -1,9 +1,4 @@
-"""Replays the compile actions of a Fortran, D, Haskell, OCaml, Swift or Zig target in a check-only form.
-
-The aspect reads the real upstream compile action (flags, include paths, module
-directories, compiler), rewrites its command line so nothing is produced, and runs it in
-a sandboxed action that records stderr and the exit code. The runner only parses them.
-"""
+"""Replays the compile actions of a Fortran, D, Haskell, OCaml, Swift or Zig target in a check-only form."""
 
 load("//core/quality:fortran_flags.bzl", "MODULE_FLAG_FORMAT")
 load("//core:resources.bzl", "dx_heavy_resources")
@@ -149,7 +144,6 @@ def swiftc_check_argv(argv, scratch):
             i += 1
             continue
         if arg == "-Xfrontend" and i < len(argv) and argv[i] in _SWIFTC_FRONTEND_DROP:
-            # -const-gather-protocols-file also takes a value, behind its own -Xfrontend.
             i += 1
             if argv[i - 1] == "-const-gather-protocols-file":
                 i += 2
@@ -312,7 +306,6 @@ def _compile_check_impl(target, ctx):
         return []
     attrs = ctx.rule.attr
 
-    # A ppx module compiles generated code, so a position in it is not a position in the source.
     ppx = getattr(attrs, "ppx", None) != None
     actions = [a for a in getattr(target, "actions", []) if a.mnemonic in _SPECS and (_SPECS[a.mnemonic].tool != "zig" or zig_replayable(a.argv)) and not (ppx and _SPECS[a.mnemonic].tool == "ocaml")]
     if len(actions) == 0:

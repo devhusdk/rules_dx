@@ -162,7 +162,6 @@ def _kotlin_plugins(attrs):
     plugins = {}
     configs = {}
     for t in targets:
-        # kapt and KSP generate sources the check cannot see, so it would report false errors.
         if JavaPluginInfo in t or KspPluginInfo in t:
             return None
         if KtCompilerPluginInfo in t:
@@ -278,10 +277,8 @@ def _scalac_check(target, ctx, attrs):
         return []
     options = ["-Wunused:all" if jars.scala3 else "-Wunused:_"] + list(toolchain.scalacopts) + list(getattr(attrs, "scalacopts", []))
 
-    # The semanticdb toolchain demotes unused warnings to info for scalafix; the last -Wconf wins, so this restores them.
     options.append("-Wconf:cat=unused:w")
 
-    # Make variables and $(location) in scalacopts are not expanded here, so the options would be wrong.
     if [o for o in options if "$(" in o]:
         return []
     deps = [d for d in getattr(attrs, "deps", []) if JavaInfo in d]
@@ -289,7 +286,6 @@ def _scalac_check(target, ctx, attrs):
     plugin_targets = list(toolchain.plugins) + list(getattr(attrs, "plugins", []))
     plugin_jars = depset(transitive = _scala_plugin_jars(plugin_targets))
 
-    # The dependency analyzer is a Scala 2 compiler plugin.
     implicit = [j.path for j in jars.library.to_list()]
     analyzer = None if jars.scala3 else _analyzer(target, ctx, attrs, implicit)
     analyzer_jars = []
@@ -391,7 +387,6 @@ jvm_check_aspect = aspect(
             executable = True,
             cfg = "exec",
         ),
-        # Built for the exec platform: its Java sources do not compile under the repo's -Werror javacopts.
         "_dependency_analyzer": attr.label(
             default = "@rules_scala//third_party/dependency_analyzer/src/main:dependency_analyzer",
             cfg = "exec",

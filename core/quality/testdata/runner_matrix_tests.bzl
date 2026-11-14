@@ -419,11 +419,7 @@ def matrix_case_platforms(case):
     return ["linux_x86_64"] + [flag for flag in PLATFORM_FLAGS if case.get(flag, False)]
 
 def matrix_case_tools(case):
-    """Returns the tool names one matrix case really executes, mirroring the tool binding in the rule impl.
-
-    `tool_names` run their binary; `rustfmt_from_toolchain` adds rustfmt. `upstream_tools` replay
-    recorded output and never run the tool, so they are not listed. Keep in sync with the impl.
-    """
+    """Returns the tool names one matrix case really executes, mirroring the tool binding in the rule impl."""
     tools = list(case.get("tool_names", []))
     if case.get("rustfmt_from_toolchain", False) and "rustfmt" not in tools:
         tools.append("rustfmt")
@@ -473,23 +469,7 @@ _FORWARDED_DEFAULTS = {
 }
 
 def matrix_case(name, capability, tool, binary, source_class, src = None, generated = None, config = None, platforms = SUPPORT_PLATFORMS, **extra):
-    """Returns one matrix case row.
-
-    Args:
-      name: Test name; the expected file is `:matrix/<name>.expected.txt`.
-      capability: lint, format or typecheck.
-      tool: The one tool the stage runs; it is also the only `tool_names` entry.
-      binary: Label of the tool executable.
-      source_class: Source class of the stage.
-      src: Label in this package staged as the single source; the stage path derives from it.
-      generated: One-entry dict of workspace path to content; the stage path is its key.
-      config: Label bound as the tool's config and toolfile.
-      platforms: Platform ids the case runs on; linux_x86_64 always runs.
-      **extra: Further case keys, taken as given.
-
-    Returns:
-      The case dict.
-    """
+    """Returns one matrix case row."""
     if (src == None) == (generated == None):
         fail("matrix_case " + name + ": set exactly one of src and generated")
     case = {

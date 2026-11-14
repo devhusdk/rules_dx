@@ -208,7 +208,6 @@ def cuda_tidy_argv(tidy, argv, src, config = ""):
             flags += [arg, argv[i]]
             i += 1
         elif arg in ["-Xcompiler", "--compiler-options"] and i < len(argv):
-            # Host compiler flags: only the ones clang shares survive.
             for part in argv[i].split(","):
                 if part.startswith("/"):
                     return struct(argv = [], error = "clang-tidy does not support nvcc with an MSVC host compiler (flag %s)" % part)
@@ -271,7 +270,6 @@ def _clang_syntax_impl(target, ctx):
 
     identity = cc_toolchain_identity(ctx)
     xcode_config = ctx.attr._xcode_config[XcodeVersionInfo]
-    # Declared headers are pruned from compile inputs, so the replay needs them back.
     headers = depset()
     if CcInfo in target:
         context = target[CcInfo].compilation_context
@@ -304,7 +302,6 @@ def _clang_syntax_impl(target, ctx):
         if argv == None:
             fail("clang_syntax: Bazel does not expose the command line of the %s action of %s" % (action.mnemonic, target.label))
         if action.mnemonic == "CudaCompile":
-            # nvcc compiles each source several times (pic/rdc variants); lint one.
             if i not in cuda_keep or tidy_error:
                 continue
             src = nvcc_syntax_source(list(argv))

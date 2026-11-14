@@ -65,12 +65,7 @@ _with_image_test = analysistest.make(_with_image_impl)
 _without_image_test = analysistest.make(_without_image_impl)
 
 def buf_breaking_analysis_tests(name, size):
-    """Instantiates the base image input tests as one suite.
-
-    Args:
-        name: suite name and test name prefix.
-        size: size of each test.
-    """
+    """Instantiates the base image input tests as one suite."""
     target = "//core/quality/tests/fixtures/consumer_policy:clean_protobuf"
     for suffix, config in [("_with_image", "buf_breaking_image"), ("_without_image", "shared"), ("_two_images", "buf_breaking_two_images")]:
         _subject(name = name + suffix + "_subject", config = config, target = target, testonly = True)

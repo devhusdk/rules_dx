@@ -152,7 +152,6 @@ def _real_source_target_impl(ctx):
     ]
     converters = {}
     if len(ctx.files.rst_srcs) > 0 and ctx.attr.rst2html:
-        # Mirrors rst_library: the owner carries the Vale converter.
         converters["rst2html"] = ctx.attr.rst2html[DefaultInfo].files_to_run
     if len(ctx.files.asciidoc_srcs) > 0 and ctx.attr.asciidoctor:
         converters["asciidoctor"] = ctx.attr.asciidoctor[DefaultInfo].files_to_run

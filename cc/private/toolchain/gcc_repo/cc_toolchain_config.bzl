@@ -17,8 +17,7 @@
 #
 # Vendored from gcc_toolchain 0.13.0 with patches/gcc_toolchain/*.patch applied.
 
-"""This module provides the cc_toolchain_config rule.
-"""
+"""This module provides the cc_toolchain_config rule."""
 
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load(

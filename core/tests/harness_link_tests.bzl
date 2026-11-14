@@ -15,11 +15,7 @@ def _impl(ctx):
 _harness_link_test = analysistest.make(_impl)
 
 def harness_link_tests(name):
-    """Instantiates the harness link analysis test.
-
-    Args:
-      name: Name of the test suite.
-    """
+    """Instantiates the harness link analysis test."""
     starlark_binary(
         name = name + "_subject",
         mode = "unit",

@@ -28,11 +28,7 @@ def _artifact_platforms():
     return by_tool
 
 def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, emulated = EMULATED_TOOLS, source_built = SOURCE_BUILT_TOOL_PLATFORMS):
-    """Returns claimed platforms with no artifact: no native pin, no inventoried emulated fallback and no source build.
-
-    A fallback only supplies an artifact for tools listed in the emulated inventory; it is never
-    evidence for the claim (see unproven_claims).
-    """
+    """Returns claimed platforms with no artifact: no native pin, no inventoried emulated fallback and no source build."""
     missing = []
     for platform in claimed:
         if platform in pinned or platform in source_built.get(tool, []):

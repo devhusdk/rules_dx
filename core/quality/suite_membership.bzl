@@ -12,12 +12,7 @@ def _normalize(label):
     return label
 
 def suite_membership_test(name, views = []):
-    """Declares a test over every rule declared before it in the package.
-
-    Args:
-      name: Name of the test.
-      views: Suites that slice tests already owned by another suite. They do not count towards the one-suite rule.
-    """
+    """Declares a test over every rule declared before it in the package."""
     rules = native.existing_rules()
     suites = {n: r for n, r in rules.items() if r["kind"] == "test_suite"}
     owners = {}

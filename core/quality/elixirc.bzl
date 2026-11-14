@@ -72,7 +72,6 @@ def _elixirc_impl(target, ctx):
     if toolchain == None or ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
         return []
 
-    # rules_elixir reads its toolchain from ctx.toolchains under its own label.
     elixir_ctx = struct(toolchains = {"//:toolchain_type": toolchain}, runfiles = ctx.runfiles)
     name = target.label.name
     deps_dir = "dx_elixirc/%s_deps" % name

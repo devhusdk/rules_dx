@@ -78,10 +78,8 @@ def _real_tool_launch(cfg, target, ctx, stage_tools, delegated, has_toolchain, w
                     extra[tool] = runtime_files(ctx)
             continue
         if kind == "file" and "fallback" in spec:
-            # An optional pin: the hub resolves an empty file set on platforms without an artifact.
             files = getattr(ctx.files, "_" + tool)
             if len(files) != 1:
-                # Unreachable for stages real_unavailable_tools already dropped.
                 fail(what + ": " + tool + " has no pinned artifact for this execution platform; set --@rules_dx//config:tool_" + tool + spec["fallback"])
             binaries[tool] = files[0]
         elif kind == "file":
@@ -92,7 +90,6 @@ def _real_tool_launch(cfg, target, ctx, stage_tools, delegated, has_toolchain, w
         elif kind == "executable":
             tool_target = getattr(ctx.attr, "_" + tool)
             if DxUnavailableToolInfo in tool_target:
-                # Unreachable for stages real_unavailable_tools already dropped.
                 fail(what + ": " + tool + " is unavailable on this execution platform")
             binaries[tool] = getattr(ctx.executable, "_" + tool)
             if spec.get("extra") == "files":
@@ -314,7 +311,6 @@ def real_resolved_stages(cfg, target, ctx, capability, what):
     if QualitySourcesInfo in target:
         direct_sources = target[QualitySourcesInfo].direct_sources
     else:
-        # Shares its sources with the forwarder, which reports them.
         if target.label.name.endswith("_upstream"):
             return ([], None, None)
         (recognized, derived, ownership_error) = real_upstream_direct_sources(cfg.source_recognizers, target, ctx)

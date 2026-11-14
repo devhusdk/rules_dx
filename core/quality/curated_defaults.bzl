@@ -52,7 +52,6 @@ CURATED_DEFAULTS = {
         "lint": ["hadolint", "typos"],
         "typecheck": [],
     },
-    # flang typecheck stays opt-in: it replays every compile action (heavy tier).
     "fortran": {
         "audit": [],
         "format": ["ffmt"],
@@ -77,7 +76,6 @@ CURATED_DEFAULTS = {
         "lint": ["typos"],
         "typecheck": [],
     },
-    # ghc typecheck stays opt-in: it replays every compile action (heavy tier).
     "haskell": {
         "audit": [],
         "format": [],
@@ -120,7 +118,6 @@ CURATED_DEFAULTS = {
         "lint": ["detekt", "typos"],
         "typecheck": ["kotlinc"],
     },
-    # helmfmt is pre-1.0 and prettier skips chart templates, so helm format stays opt-in.
     "helm": {
         "audit": [],
         "format": [],
@@ -145,14 +142,12 @@ CURATED_DEFAULTS = {
         "lint": ["lychee", "typos"],
         "typecheck": ["tsc"],
     },
-    # nixfmt does not build on Windows, so nix has no curated formatter.
     "nix": {
         "audit": [],
         "format": [],
         "lint": ["deadnix", "typos"],
         "typecheck": [],
     },
-    # ocaml typecheck stays opt-in: it replays every compile action (heavy tier).
     "ocaml": {
         "audit": [],
         "format": ["topiary"],

@@ -15,14 +15,7 @@ def _tier_bases(tier):
     ]
 
 def default_workspace_policy(name):
-    """Declares one default family per curated entry and the policy that lists them.
-
-    Every tool with a tier base runs on the base of //config:config_tier unless it
-    needs a config only the project can give.
-
-    Args:
-        name: name of the workspace policy target.
-    """
+    """Declares one default family per curated entry and the policy that lists them."""
     labels = []
     for family_id in sorted(CURATED_DEFAULTS.keys()):
         entry = CURATED_DEFAULTS[family_id]

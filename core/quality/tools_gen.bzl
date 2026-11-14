@@ -66,7 +66,6 @@ def _strs(values):
     return values
 
 def _field(name, value):
-    # Lays a field out the way rustfmt does, so the generated file is a fixpoint.
     if type(value) == "list":
         line = "        %s: &[%s],\n" % (name, ", ".join([_str(item) for item in value]))
         if len(line) <= 101:

@@ -355,10 +355,6 @@ rst lint_test *
 rst lock_test *
 rst pass_test *
 rst runfiles_test *
-ruby format_error_test *
-ruby format_test *
-ruby lint_error_test *
-ruby lint_test *
 ruby runfiles_test *
 scala cross_test *
 scala format_error_test *

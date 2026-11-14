@@ -305,7 +305,8 @@ const RUBOCOP_FORMAT_CHECK_ARGS: &[&str] = &[
     "json",
     "--cache",
     "false",
-    "--fix-layout",
+    "--only",
+    "Layout",
     "--display-only-correctable",
 ];
 const RUBOCOP_FORMAT_FIX_ARGS: &[&str] = &["--fix-layout", "--cache", "false"];

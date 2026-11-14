@@ -13,6 +13,20 @@ ruby_library(
     srcs = ["greet.rb"],  # keep
 )
 
+ruby_library(
+    name = "lint_dirty",
+    testonly = True,
+    srcs = ["lib/lint_dirty.rb"],
+    tags = ["manual"],
+)
+
+ruby_library(
+    name = "format_dirty",
+    testonly = True,
+    srcs = ["lib/format_dirty.rb"],
+    tags = ["manual"],
+)
+
 ruby_binary(
     name = "hello",
     srcs = ["main.rb"],
@@ -66,6 +80,15 @@ dx_conformance_suite(
     },
     not_applicable = {"cross_test": "ruby_binary is a script the interpreter runs; it has no object format"},
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "lib/format_dirty.rb",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 1,
+        "lint_rule": "Style/FrozenStringLiteralComment",
+        "lint_source": "lib/lint_dirty.rb",
+    },
 )
 
 real_source_target(

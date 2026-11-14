@@ -597,7 +597,7 @@ terraform/tests/provider_tests.bzl no-size 1
 thrift/tests/BUILD.bazel no-size 7
 tools/bazelisk/BUILD.bazel no-size 1
 tools/bazelrc/BUILD.bazel no-size 1
-tools/ci/BUILD.bazel no-size 31
+tools/ci/BUILD.bazel no-size 30
 tools/ci/fill_pins/BUILD.bazel no-size 1
 tools/ci/repos_tests.bzl no-size 1
 tools/coverage/collect/BUILD.bazel no-size 2

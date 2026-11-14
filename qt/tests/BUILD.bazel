@@ -536,6 +536,7 @@ rust_test(
     size = "small",
     srcs = ["tool_dylibs_test.rs"],
     data = [
+        "@llvm//tools:llvm-otool",
         "@dx_qt//:lrelease",
         "@dx_qt//:moc",
         "@dx_qt//:qmlformat",
@@ -544,6 +545,7 @@ rust_test(
         "@dx_qt//:rcc",
         "@dx_qt//:uic",
     ],
+    env = {"LLVM_OTOOL": "$(rlocationpath @llvm//tools:llvm-otool)"},
     target_compatible_with = ["@platforms//os:macos"],
 )
 

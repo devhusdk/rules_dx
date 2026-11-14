@@ -73,6 +73,9 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `rules_go` | 0.65.0 | `lock_extension.patch` | Root only. The `go_sdk` extension is not reproducible, so the lockfile keeps its result per platform |
 | `rules_oci` | 2.3.0 | `descriptor_image.patch` | On a Windows exec platform each layer descriptor action of `oci_image` gets its own `.bat` wrapper and lists `descriptor.sh` as a tool. Consumer fix: #11758 |
 | `rules_oci` | 2.3.0 | `descriptor_util.patch` | The Windows `.bat` wrapper takes a name and calls a script outside its own directory by its execroot path. Consumer fix: #11758 |
+| `rules_oci` | 2.3.0 | `image_index.patch` | `oci_image_index` wraps its shell launcher in a `.bat` on a Windows exec platform. Consumer fix: #11758 |
+| `rules_oci` | 2.3.0 | `image_index_blob.patch` | `oci_image_index` skips blobs already copied from a sibling image. Consumer fix: #11758 |
+| `rules_oci` | 2.3.0 | `image_layout.patch` | `oci_image` writes the base layout's `oci-layout` as a fresh file so regctl can rewrite it on Windows. Consumer fix: #11758 |
 | `rules_flutter` | 0.0.8 | `lock_extension.patch` | Root only. The `flutter` extension is not reproducible, so the lockfile keeps its result |
 
 ## elvis, rules_d, rules_dart, rules_dotnet, rules_elixir, rules_erlang, rules_flutter, rules_fortran, rules_haskell, rules_ocaml, rules_ruby

@@ -2,7 +2,7 @@
 
 load("@dx_pins_data//:pins.bzl", "PINS")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//php/tests:checks.bzl", "expect_contains", "expect_equal", "expect_true", "php_checks_test")
 load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/private:php.bzl", "lit", "rf", "runfiles_path", "write_launcher")
 load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
@@ -62,9 +62,8 @@ def _checks():
 
 def php_metadata_tests(name, size):
     """Declares the PHP toolchain metadata test."""
-    starlark_test(
+    php_checks_test(
         name = name,
-        mode = "load",
         checks = _checks(),
         size = size,
     )

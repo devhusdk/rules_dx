@@ -1341,6 +1341,10 @@ fn stage_consumer_renames_files_runs_init_and_restages_over_a_stale_dir() {
     );
     assert!(dir.join("patches/rules_a/BUILD.bazel").exists());
     assert_eq!(
+        std::fs::read_to_string(dir.join("config/BUILD.bazel")).expect("config"),
+        CONSUMER_CONFIG_BUILD
+    );
+    assert_eq!(
         std::fs::read_to_string(dir.join("patches/rules_b/b.patch")).expect("patch"),
         "b"
     );

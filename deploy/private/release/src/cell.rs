@@ -22,6 +22,14 @@ pub const CONSUMER_FILES: [(&str, &str); 2] = [
     ("lib.rs", "src/lib.rs"),
 ];
 
+/// The `//config` package the root-only `@@//config:toolchains_on` labels of the repeated patches name.
+pub const CONSUMER_CONFIG_BUILD: &str = "alias(
+    name = \"toolchains_on\",
+    actual = \"@rules_dx//config:toolchains_on\",
+    visibility = [\"//visibility:public\"],
+)
+";
+
 /// The Windows flags the repository `.bazelrc` sets: a short output root, symlinks and the MSVC EULAs.
 const WINDOWS_BAZELRC: &str = "startup --output_user_root=C:/bz
 startup --windows_enable_symlinks
@@ -526,6 +534,10 @@ pub fn stage_consumer(
             &format!("{package}/{file}"),
         )?;
     }
+    std::fs::create_dir_all(dir.join("config"))
+        .map_err(|error| format!("stage: cannot create config: {error}"))?;
+    std::fs::write(dir.join("config/BUILD.bazel"), CONSUMER_CONFIG_BUILD)
+        .map_err(|error| format!("stage: cannot write config/BUILD.bazel: {error}"))?;
     for (source, dest) in CONSUMER_FILES {
         copy(consumer.template.join(source), dest)?;
     }

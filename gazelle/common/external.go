@@ -73,7 +73,7 @@ var externalParsers = map[string]externalParser{
 	"nuget": {
 		Discover:    registryEntry("nuget").Lock,
 		DefaultRepo: registryEntry("nuget").Hub,
-		Parse:       parsePaketLockManifest,
+		Parse:       parseNugetLockManifest,
 	},
 	"npm": {
 		Discover: registryEntry("npm").Manifest,

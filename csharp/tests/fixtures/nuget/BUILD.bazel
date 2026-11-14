@@ -1,0 +1,28 @@
+# gazelle:ignore
+load("//csharp:defs.bzl", "csharp_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+csharp_test(
+    name = "main_group_test",
+    size = "small",
+    srcs = ["MainGroupTest.cs"],
+    deps = ["@nuget//google.protobuf"],
+)
+
+csharp_test(
+    name = "fsharplint_group_test",
+    size = "small",
+    srcs = ["FsharplintGroupTest.cs"],
+    deps = ["@nuget.fsharplint//newtonsoft.json"],
+)
+
+csharp_test(
+    name = "docs_csharp_group_test",
+    size = "small",
+    srcs = ["DocsCsharpGroupTest.cs"],
+    deps = ["@nuget.docs_csharp//markdig"],
+)

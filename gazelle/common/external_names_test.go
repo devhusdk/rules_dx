@@ -23,11 +23,12 @@ func TestNamedLockResolvesImports(t *testing.T) {
 		},
 		{
 			eco:      "nuget",
-			lockText: "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    Newtonsoft.Json (13.0.3)\n    Azure.Core (1.62)\n      Newtonsoft.Json (>= 13.0.3)\nGITHUB\n  remote: o/r\n    Missing.Namespace (abc)\n",
+			lockText: `{"ecosystem": "nuget", "groups": {"main": [{"name": "Newtonsoft.Json"}, {"name": "Azure.Core"}], "docs": [{"name": "Newtonsoft.Json"}, {"name": "Docfx.Common"}]}, "schema": 1}`,
 			imports: map[string]string{
 				"Newtonsoft.Json":      "@nuget//newtonsoft.json",
 				"Newtonsoft.Json.Linq": "@nuget//newtonsoft.json",
 				"Azure.Core":           "@nuget//azure.core",
+				"Docfx.Common":         "@nuget.docs//docfx.common",
 			},
 			unknown: "Missing.Namespace",
 		},

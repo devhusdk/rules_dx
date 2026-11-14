@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
@@ -18,6 +19,8 @@ type namedLockManifest struct {
 	candidates func(name string) []string
 	// perPackage places each package in its own Bazel package.
 	perPackage bool
+	// groupSuffix gives the hub name suffix of the group that holds a package.
+	groupSuffix map[string]string
 }
 
 // Lookup resolves name to the first candidate package the lock holds.
@@ -25,7 +28,7 @@ func (m *namedLockManifest) Lookup(repo, name string) ([]label.Label, string) {
 	for _, pkg := range m.candidates(name) {
 		if m.packages[pkg] {
 			if m.perPackage {
-				return []label.Label{{Repo: repo, Pkg: pkg, Name: pkg}}, ""
+				return []label.Label{{Repo: repo + m.groupSuffix[pkg], Pkg: pkg, Name: pkg}}, ""
 			}
 			return []label.Label{{Repo: repo, Name: pkg}}, ""
 		}
@@ -87,19 +90,42 @@ func nugetCandidates(name string) []string {
 	return out
 }
 
-var paketNugetSection = regexp.MustCompile(`(?m)^NUGET\n((?:[ \t]+.*\n?|\n)*)`)
-
-var paketLockEntry = regexp.MustCompile(`(?m)^ {4}(\S+) \(`)
-
-func parsePaketLockManifest(content []byte, path string) (externalManifest, error) {
-	m := &namedLockManifest{entry: registryEntry("nuget"), packages: map[string]bool{}, candidates: nugetCandidates, perPackage: true}
-	for _, section := range paketNugetSection.FindAllSubmatch(content, -1) {
-		for _, match := range paketLockEntry.FindAllSubmatch(section[1], -1) {
-			m.packages[strings.ToLower(string(match[1]))] = true
-		}
+func parseNugetLockManifest(content []byte, path string) (externalManifest, error) {
+	entry := registryEntry("nuget")
+	var lock struct {
+		Ecosystem string `json:"ecosystem"`
+		Groups    map[string][]struct {
+			Name string `json:"name"`
+		} `json:"groups"`
 	}
-	if len(m.packages) == 0 && !strings.Contains(string(content), "NUGET") {
-		return nil, fmt.Errorf("%s is not a %s", path, m.entry.Lock)
+	if err := json.Unmarshal(content, &lock); err != nil {
+		return nil, err
+	}
+	if lock.Ecosystem != entry.Ecosystem {
+		return nil, fmt.Errorf("%s is a lock of ecosystem %q, not %q", path, lock.Ecosystem, entry.Ecosystem)
+	}
+	m := &namedLockManifest{entry: entry, packages: map[string]bool{}, candidates: nugetCandidates, perPackage: true, groupSuffix: map[string]string{}}
+	groups := make([]string, 0, len(lock.Groups))
+	for group := range lock.Groups {
+		groups = append(groups, group)
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		if (groups[i] == "main") != (groups[j] == "main") {
+			return groups[i] == "main"
+		}
+		return groups[i] < groups[j]
+	})
+	for _, group := range groups {
+		for _, p := range lock.Groups[group] {
+			name := strings.ToLower(p.Name)
+			if m.packages[name] {
+				continue
+			}
+			m.packages[name] = true
+			if group != "main" {
+				m.groupSuffix[name] = "." + group
+			}
+		}
 	}
 	return m, nil
 }

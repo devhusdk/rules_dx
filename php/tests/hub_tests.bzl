@@ -1,6 +1,6 @@
 """The checks on the composer hub BUILD file."""
 
-load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//php/tests:checks.bzl", "expect_contains", "expect_equal", "php_checks_test")
 load("//php/private/lock:hub.bzl", "build_file")
 
 _WITH_DEPS = build_file({
@@ -28,9 +28,8 @@ def _checks():
 
 def php_hub_tests(name, size):
     """Declares the test that runs the composer hub checks."""
-    starlark_test(
+    php_checks_test(
         name = name,
-        mode = "load",
         checks = _checks(),
         size = size,
     )

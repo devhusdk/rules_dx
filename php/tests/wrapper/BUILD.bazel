@@ -190,4 +190,5 @@ dx_wrapper_contract_tests(
         ),
     ],
     file_classes = ["php"],
+    size = "small",
 )

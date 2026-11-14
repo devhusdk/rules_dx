@@ -4,7 +4,7 @@ diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
 @@ -1,5 +1,6 @@
  "Repository rule for fetching Ruby interpreters"
  
-+load("@rules_dx//core:seven_zip.bzl", "seven_zip_fetch")
++load("@rules_dx//qt/private/toolchain:seven_zip.bzl", "seven_zip_fetch")
  load("//ruby/private:portable_ruby_checksums.bzl", "PORTABLE_RUBY_CHECKSUMS", "PORTABLE_RUBY_DEFAULT_SUFFIXES")
  load(
      "//ruby/private/toolchain:platforms.bzl",

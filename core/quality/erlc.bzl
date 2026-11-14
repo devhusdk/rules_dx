@@ -38,7 +38,6 @@ def _erlc_impl(target, ctx):
     if toolchain == None or not hasattr(attrs, "dest"):
         return []
 
-    # rules_erlang reads its toolchain from ctx.toolchains under its own label.
     erlang_ctx = struct(toolchains = {"//tools:toolchain_type": toolchain}, runfiles = ctx.runfiles)
     name = target.label.name
     deps_dir = "dx_erlc/%s_deps" % name

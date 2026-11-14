@@ -46,7 +46,6 @@ def msvc_cc_toolchain(name, msvc_version, sdk_version, vc_repo = "", sdk_repo = 
         msvc_env_path = exec_paths(exec_layout.bin_dirs),
         msvc_env_include = exec_paths(exec_layout.include_dirs),
         msvc_env_lib = exec_paths(exec_layout.lib_dirs),
-        # Legacy tool_paths reject the ../ into other repos, so only the action configs name the tools.
         msvc_cl_path = layout.cl,
         msvc_ml_path = layout.ml or "msvc_arm64_toolchain_does_not_support_ml",
         msvc_link_path = layout.link,
@@ -61,7 +60,6 @@ def msvc_cc_toolchain(name, msvc_version, sdk_version, vc_repo = "", sdk_repo = 
         shorten_virtual_includes = True,
     )
     if files == None:
-        # Payloads spell Hostx64 and HostX64 both and glob is case sensitive, so take the whole bin directory.
         tool_dirs = {d.split("/bin/Host")[0] + "/bin" if "/bin/Host" in d else d: True for d in layout.bin_dirs}.keys()
         files = native.glob([p + "/**" for p in layout.include_dirs + layout.lib_dirs + list(tool_dirs)] + ["sysroot/Contents/VC/Auxiliary/Build/*.bat"], allow_empty = True)
     native.filegroup(

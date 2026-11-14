@@ -37,15 +37,7 @@ config_results = rule(
 )
 
 def config_subject_rule(aspects = [], providers = []):
-    """Returns a rule that builds its target under one TEST_CONFIGS entry and forwards the listed providers.
-
-    Args:
-        aspects: aspects applied to the target under the entry.
-        providers: providers of the target, with its aspects, that the subject forwards.
-
-    Returns:
-        A rule with the config and target attributes.
-    """
+    """Returns a rule that builds its target under one TEST_CONFIGS entry and forwards the listed providers."""
 
     def _impl(ctx):
         target = ctx.attr.target[0]

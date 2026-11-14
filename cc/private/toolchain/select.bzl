@@ -55,7 +55,6 @@ def _test_impl(ctx):
     upstream_runfiles = src[DefaultInfo].default_runfiles
     dll_srcs = [f for f in upstream_runfiles.files.to_list() if f.extension == "dll"]
     if dll_srcs:
-        # Windows loads DLLs from the executable's directory, so give each test its own.
         exe = ctx.actions.declare_file(ctx.label.name + "_bin/" + dx_symlink_executable_name(ctx.label.name, inner))
         ctx.actions.symlink(output = exe, target_file = inner, is_executable = True)
     else:

@@ -17,8 +17,7 @@
 #
 # Vendored from gcc_toolchain 0.13.0 with patches/gcc_toolchain/*.patch applied.
 
-"""This module provides the definitions for registering a GCC toolchain for C and C++.
-"""
+"""This module provides the definitions for registering a GCC toolchain for C and C++."""
 
 load("@bazel_skylib//lib:dicts.bzl", "dicts")
 load("@bazel_skylib//lib:paths.bzl", "paths")

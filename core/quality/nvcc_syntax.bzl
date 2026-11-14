@@ -112,7 +112,6 @@ def _nvcc_syntax_impl(target, ctx):
     if target.label.repo_name != "":
         return []
 
-    # Declared headers are pruned from the compile inputs, so the replay cannot use them.
     headers = depset()
     if CcInfo in target:
         context = target[CcInfo].compilation_context
@@ -143,7 +142,6 @@ def _nvcc_syntax_impl(target, ctx):
             arguments = ["--stderr", log.path, "--status", status.path, "--"] + rewritten.argv,
             inputs = all_inputs,
             outputs = [log, status],
-            # nvcc.profile leaves CICC_PATH and NVVMIR_LIBRARY_DIR to the environment.
             env = action.env,
             resource_set = dx_heavy_resources,
         )

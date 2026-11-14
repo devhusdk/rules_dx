@@ -25,12 +25,7 @@ _link_requests_test = analysistest.make(
 )
 
 def link_requests_analysis_tests(name, size):
-    """Instantiates the link request output group tests as one suite.
-
-    Args:
-        name: suite name and test name prefix.
-        size: size of each test.
-    """
+    """Instantiates the link request output group tests as one suite."""
     _link_requests_test(
         name = name + "_markdown",
         size = size,

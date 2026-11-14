@@ -93,12 +93,7 @@ _lossy_binary = rule(
 )
 
 def wrapper_forward_fixtures(name, hint):
-    """Instantiates library, binary and test wrappers that forward testonly, args, env and aspect_hints.
-
-    Args:
-        name: Prefix of the wrapper targets.
-        hint: Label used as an aspect hint.
-    """
+    """Instantiates library, binary and test wrappers that forward testonly, args, env and aspect_hints."""
     dx_wrap(
         name = name + "_lib",
         upstream_rule = _fake_library,
@@ -151,12 +146,7 @@ def wrapper_forward_fixtures(name, hint):
     )
 
 def wrapper_forward_tests(name, fixture):
-    """Instantiates the shared forward check over the fixtures, the lossy negative and the golden pin.
-
-    Args:
-        name: Prefix of the test targets.
-        fixture: Prefix passed to wrapper_forward_fixtures.
-    """
+    """Instantiates the shared forward check over the fixtures, the lossy negative and the golden pin."""
     dx_wrapper_contract_tests(
         name = name,
         wrappers = {

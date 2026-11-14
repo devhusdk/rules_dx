@@ -1,7 +1,4 @@
-"""Aspect and probe labels of the files in `core/quality/families/` and `tools/docs/`, per command.
-
-Language aspects and probes sit in the `quality` entry of each `<lang>/lang.json`.
-"""
+"""Aspect and probe labels of the files in `core/quality/families/` and `tools/docs/`, per command."""
 
 REAL_ASPECT_LABELS = {
     "lint": [

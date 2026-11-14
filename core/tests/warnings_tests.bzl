@@ -35,11 +35,7 @@ _flag_on_test = _make(True)
 _flag_off_test = _make(False)
 
 def warnings_tests(name):
-    """Declares the probes and the four flag and attribute combinations.
-
-    Args:
-      name: suite name and prefix of the declared targets.
-    """
+    """Declares the probes and the four flag and attribute combinations."""
     _probe_macro(name = name + "_unset")
     _probe_macro(name = name + "_true", warnings_as_errors = True)
     _probe_macro(name = name + "_false", warnings_as_errors = False)

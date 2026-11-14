@@ -1153,7 +1153,12 @@ fn opam_update_upgrades_then_relocks() {
         ["upgrade", "astring"]
     );
     assert_eq!(runs[1].argv[runs[1].argv.len() - 2..], ["lock", "app.opam"]);
-    assert!(runs[2].argv.iter().any(|a| a == "@rules_dx//ocaml/private/tools/lock"));
+    assert!(
+        runs[2]
+            .argv
+            .iter()
+            .any(|a| a == "@rules_dx//ocaml/private/tools/lock")
+    );
     assert!(
         runs[0]
             .argv
@@ -2085,7 +2090,7 @@ fn configured_nuget_stages_paket2bazel_without_rules_dx_settings() {
             .iter()
             .any(|arg| arg.starts_with("--") && arg.contains("rules_dx"))
     );
-    let argv = expected.argv(Path::new("/scratch/1"));
+    let argv = expected.argv(Path::new("/scratch/1")).expect("argv");
     assert_eq!(
         argv[expected.argv_head.len()..],
         strings(&[
@@ -2120,7 +2125,7 @@ fn configured_nuget_requires_network_and_refuses_packages() {
     let packages = Selection::Packages(vec!["Newtonsoft.Json".to_owned()]);
     let unsupported = Err(BackendError::Unsupported {
         set: "dotnet".to_owned(),
-        reason: nuget_pins_exact(),
+        reason: nuget_pins_exact().expect("hub"),
     });
     assert_eq!(
         plan_configured(ws(), &set, &packages, false, false, &head, &closure),
@@ -2130,7 +2135,7 @@ fn configured_nuget_requires_network_and_refuses_packages() {
         check_configured(ws(), &set, &packages, false, false, &head, &closure),
         Err(BackendError::Unsupported {
             set: "dotnet".to_owned(),
-            reason: nuget_pins_exact(),
+            reason: nuget_pins_exact().expect("hub"),
         })
     );
 }
@@ -2199,7 +2204,7 @@ fn configured_go_stages_go_mod_download_with_forced_env() {
         1
     );
     let scratch = Path::new("/scratch/1");
-    let argv = expected.argv(scratch);
+    let argv = expected.argv(scratch).expect("hub");
     assert_eq!(
         argv[expected.argv_head.len()..],
         strings(&["-C", "/scratch/1/out", "mod", "download", "all"])
@@ -2253,7 +2258,7 @@ fn rebar_check_stages_lock_and_update_names_the_packages() {
         panic!("staged check");
     };
     let scratch = Path::new("/scratch/1");
-    let argv = check.argv(scratch);
+    let argv = check.argv(scratch).expect("hub");
     let under = "--run_under=cd '/scratch/1/out' &&".to_owned();
     let target = argv
         .iter()
@@ -2342,7 +2347,7 @@ fn hex_check_stages_deps_get_and_update_names_the_packages() {
         panic!("staged check");
     };
     let scratch = Path::new("/scratch/1");
-    let argv = check.argv(scratch);
+    let argv = check.argv(scratch).expect("hub");
     let under = "--run_under=cd '/scratch/1/out' &&".to_owned();
     let target = argv
         .iter()
@@ -2368,7 +2373,7 @@ fn hex_check_stages_deps_get_and_update_names_the_packages() {
     else {
         panic!("staged update");
     };
-    let argv = update.argv(scratch);
+    let argv = update.argv(scratch).expect("hub");
     assert_eq!(
         argv[argv.len() - 4..],
         strings(&["--", "deps.update", "jason", "plug"])
@@ -2435,7 +2440,7 @@ fn configured_go_requires_network_and_refuses_packages() {
     let packages = Selection::Packages(vec!["github.com/google/go-cmp".to_owned()]);
     let want = BackendError::Unsupported {
         set: "gomods".to_owned(),
-        reason: go_whole_graph(),
+        reason: go_whole_graph().expect("hub"),
     };
     assert_eq!(
         plan_configured(ws(), &set, &packages, false, false, &head, &closure),

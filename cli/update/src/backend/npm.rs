@@ -19,7 +19,7 @@ pub(super) fn plan(
             set: set.name.clone(),
         });
     }
-    let backend = dependency_sets::npm_backend(set);
+    let backend = dependency_sets::npm_backend(set)?;
     let command = match (backend, request) {
         (Some(dependency_sets::NpmBackend::Yarn), Selection::Full) => {
             strings(&["install", "--mode=update-lockfile"])
@@ -67,7 +67,7 @@ pub(super) fn check(
 ) -> Result<CheckPlan, BackendError> {
     match request {
         Selection::Full => {
-            let backend = dependency_sets::npm_backend(set);
+            let backend = dependency_sets::npm_backend(set)?;
             let mut command = match backend {
                 Some(dependency_sets::NpmBackend::Yarn) => {
                     strings(&["install", "--immutable", "--mode=update-lockfile"])

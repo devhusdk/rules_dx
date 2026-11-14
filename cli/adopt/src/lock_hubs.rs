@@ -36,40 +36,29 @@ pub struct LockHubs {
     pub notes: Vec<String>,
 }
 
-#[expect(
-    clippy::panic,
-    reason = "the setup.hubs table is embedded in the binary and callers pass literal ecosystems"
-)]
-fn registry(ecosystem: &str) -> &'static Hub {
-    dx_families::hub(ecosystem).unwrap_or_else(|| panic!("no setup.hubs entry for {ecosystem}"))
+fn registry(ecosystem: &str) -> Result<&'static Hub, AdoptError> {
+    hub_of(ecosystem)
 }
 
 /// The lock file name of the `setup.hubs` entry of `ecosystem`.
-#[expect(
-    clippy::panic,
-    reason = "the setup.hubs table is embedded in the binary and callers pass literal ecosystems"
-)]
-pub fn lock_of(ecosystem: &str) -> &'static str {
-    registry(ecosystem)
+pub fn lock_of(ecosystem: &str) -> Result<&'static str, AdoptError> {
+    registry(ecosystem)?
         .lock
         .as_deref()
-        .unwrap_or_else(|| panic!("setup.hubs entry {ecosystem} has no lock"))
+        .ok_or_else(|| refuse(format!("setup.hubs entry {ecosystem} has no lock")))
 }
 
-pub fn manifest_of(ecosystem: &str) -> &'static str {
-    &registry(ecosystem).manifest
+/// The manifest file name of the `setup.hubs` entry of `ecosystem`.
+pub fn manifest_of(ecosystem: &str) -> Result<&'static str, AdoptError> {
+    Ok(&registry(ecosystem)?.manifest)
 }
 
 /// The state file name of the `setup.hubs` entry of `ecosystem`.
-#[expect(
-    clippy::panic,
-    reason = "the setup.hubs table is embedded in the binary and callers pass literal ecosystems"
-)]
-pub fn state_of(ecosystem: &str) -> &'static str {
-    registry(ecosystem)
+pub fn state_of(ecosystem: &str) -> Result<&'static str, AdoptError> {
+    registry(ecosystem)?
         .state
         .as_deref()
-        .unwrap_or_else(|| panic!("setup.hubs entry {ecosystem} has no state"))
+        .ok_or_else(|| refuse(format!("setup.hubs entry {ecosystem} has no state")))
 }
 
 fn hub_of(ecosystem: &str) -> Result<&'static Hub, AdoptError> {
@@ -144,35 +133,35 @@ fn build_script_cc_env_annotation() -> NewTag {
 /// The root manifests that `dx generate --apply` can lock: a cargo manifest without a cargo lock
 /// (an empty one counts as missing), a uv manifest without a uv lock, a pnpm manifest
 /// without a pnpm lock, and a composer, dub or luarocks manifest without its lock.
-pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
+pub fn unlocked_manifests(root: &Path) -> Result<Vec<&'static str>, AdoptError> {
     let mut out = Vec::new();
-    let cargo_lock = std::fs::metadata(root.join(lock_of("cargo")));
-    if root.join(manifest_of("cargo")).is_file() && cargo_lock.map_or(true, |meta| meta.len() == 0)
+    let cargo_lock = std::fs::metadata(root.join(lock_of("cargo")?));
+    if root.join(manifest_of("cargo")?).is_file() && cargo_lock.map_or(true, |meta| meta.len() == 0)
     {
-        out.push(manifest_of("cargo"));
+        out.push(manifest_of("cargo")?);
     }
-    let pyproject = std::fs::read_to_string(root.join(manifest_of("uv")))
+    let pyproject = std::fs::read_to_string(root.join(manifest_of("uv")?))
         .ok()
         .and_then(|text| text.parse::<toml::Table>().ok());
     if let Some(table) = pyproject {
         let tool = table.get("tool").and_then(|tool| tool.as_table());
         let other =
             tool.is_some_and(|tool| tool.contains_key("poetry") || tool.contains_key("pdm"));
-        if table.contains_key("project") && !other && !root.join(lock_of("uv")).exists() {
-            out.push(manifest_of("uv"));
+        if table.contains_key("project") && !other && !root.join(lock_of("uv")?).exists() {
+            out.push(manifest_of("uv")?);
         }
     }
-    if wants_pnpm_lock(root) {
-        out.push(manifest_of("npm"));
+    if wants_pnpm_lock(root)? {
+        out.push(manifest_of("npm")?);
     }
     for ecosystem in RESOLVER_LOCKS {
-        if root_match(root, manifest_of(ecosystem)).is_some()
-            && root_match(root, lock_of(ecosystem)).is_none()
+        if root_match(root, manifest_of(ecosystem)?).is_some()
+            && root_match(root, lock_of(ecosystem)?).is_none()
         {
-            out.push(manifest_of(ecosystem));
+            out.push(manifest_of(ecosystem)?);
         }
     }
-    out
+    Ok(out)
 }
 
 /// The ecosystems whose lock comes from the pinned resolver of their `setup.hubs` entry.
@@ -216,20 +205,20 @@ fn declares_dependency(path: &Path) -> bool {
     })
 }
 
-fn wants_pnpm_lock(root: &Path) -> bool {
-    let Ok(text) = std::fs::read_to_string(root.join(manifest_of("npm"))) else {
-        return false;
+fn wants_pnpm_lock(root: &Path) -> Result<bool, AdoptError> {
+    let Ok(text) = std::fs::read_to_string(root.join(manifest_of("npm")?)) else {
+        return Ok(false);
     };
     let declared = serde_json::from_str::<serde_json::Value>(&text)
         .ok()
         .and_then(|json| json.get("packageManager")?.as_str().map(str::to_owned))
         .is_some_and(|manager| manager.starts_with("pnpm@"));
-    let other_lock = ["package-lock.json", "yarn.lock", lock_of("npm")]
+    let other_lock = ["package-lock.json", "yarn.lock", lock_of("npm")?]
         .iter()
         .any(|lock| root.join(lock).exists());
     let workspace = root.join("pnpm-workspace.yaml").is_file();
-    let depends = declares_dependency(&root.join(manifest_of("npm")));
-    ((declared && depends) || workspace) && !other_lock
+    let depends = declares_dependency(&root.join(manifest_of("npm")?));
+    Ok(((declared && depends) || workspace) && !other_lock)
 }
 
 /// Plans the `pnpm` extension and hub repo that `bazel run` of the hermetic pnpm needs.
@@ -328,9 +317,9 @@ impl Planner<'_> {
         }
     }
 
-    fn report_extra_cargo_locks(&mut self) {
-        for dir in self.lock_dirs(lock_of("cargo"), manifest_of("cargo")) {
-            let label = dir_label(&dir, lock_of("cargo"));
+    fn report_extra_cargo_locks(&mut self) -> Result<(), AdoptError> {
+        for dir in self.lock_dirs(lock_of("cargo")?, manifest_of("cargo")?) {
+            let label = dir_label(&dir, lock_of("cargo")?);
             let named = self.files.iter().any(|file| {
                 file.cargo_hubs().is_ok_and(|hubs| {
                     hubs.iter()
@@ -340,25 +329,26 @@ impl Planner<'_> {
             if !dir.is_empty() && !named {
                 self.notes.push(format!(
                     "{dir}/{} is not wired; add a crate.from_cargo for it",
-                    lock_of("cargo")
+                    lock_of("cargo")?
                 ));
             }
         }
+        Ok(())
     }
 
     fn cargo(&mut self) -> Result<(), AdoptError> {
-        self.report_extra_cargo_locks();
-        if !self.exists(lock_of("cargo")) || !self.exists(manifest_of("cargo")) {
+        self.report_extra_cargo_locks()?;
+        if !self.exists(lock_of("cargo")?) || !self.exists(manifest_of("cargo")?) {
             return Ok(());
         }
         let cargo = hub_of("cargo")?;
-        let lock = root_label(lock_of("cargo"));
+        let lock = root_label(lock_of("cargo")?);
         let mut covered = false;
         for file in self.files {
             let Ok(hubs) = file.cargo_hubs() else {
                 self.notes.push(format!(
                     "a crate.from_cargo has computed arguments; {} not wired",
-                    lock_of("cargo")
+                    lock_of("cargo")?
                 ));
                 return Ok(());
             };
@@ -368,7 +358,7 @@ impl Planner<'_> {
                     self.notes.push(format!(
                         "crate.from_cargo \"{}\" reads another lock; {} not wired",
                         hub.name,
-                        lock_of("cargo")
+                        lock_of("cargo")?
                     ));
                     return Ok(());
                 }
@@ -377,7 +367,7 @@ impl Planner<'_> {
         if covered {
             return Ok(());
         }
-        let manifests = self.cargo_manifests();
+        let manifests = self.cargo_manifests()?;
         let tags = vec![
             tag(
                 "from_cargo",
@@ -392,8 +382,8 @@ impl Planner<'_> {
         self.add(cargo, &tags, &[cargo.hub.as_str()])
     }
 
-    fn cargo_manifests(&mut self) -> Vec<String> {
-        let manifest = manifest_of("cargo");
+    fn cargo_manifests(&mut self) -> Result<Vec<String>, AdoptError> {
+        let manifest = manifest_of("cargo")?;
         let mut manifests = vec![root_label(manifest)];
         let parsed = std::fs::read_to_string(self.root.join(manifest))
             .ok()
@@ -416,7 +406,7 @@ impl Planner<'_> {
                     .push(format!("{manifest} member \"{member}\" has no {manifest}"));
             }
         }
-        manifests
+        Ok(manifests)
     }
 
     /// Directories under the root (as `""` or `a/b`) holding `lock` next to `manifest`.
@@ -480,7 +470,7 @@ impl Planner<'_> {
 
     fn uv(&mut self) -> Result<(), AdoptError> {
         let uv = hub_of("uv")?;
-        let dirs = self.lock_dirs(lock_of("uv"), manifest_of("uv"));
+        let dirs = self.lock_dirs(lock_of("uv")?, manifest_of("uv")?);
         if dirs.is_empty() {
             return Ok(());
         }
@@ -493,7 +483,7 @@ impl Planner<'_> {
             let Ok(projects) = file.uv_projects() else {
                 self.notes.push(format!(
                     "a uv.project has computed arguments; {} not wired",
-                    lock_of("uv")
+                    lock_of("uv")?
                 ));
                 return Ok(());
             };
@@ -504,7 +494,7 @@ impl Planner<'_> {
         }
         let mut tags = Vec::new();
         for dir in dirs {
-            let lock = dir_label(&dir, lock_of("uv"));
+            let lock = dir_label(&dir, lock_of("uv")?);
             if named.contains(&lock) {
                 continue;
             }
@@ -512,7 +502,7 @@ impl Planner<'_> {
                 "project",
                 vec![
                     ("hub_name", string(&uv.hub)),
-                    ("pyproject", string(&dir_label(&dir, manifest_of("uv")))),
+                    ("pyproject", string(&dir_label(&dir, manifest_of("uv")?))),
                     ("lock", string(&lock)),
                 ],
             ));
@@ -528,10 +518,11 @@ impl Planner<'_> {
 
     fn npm(&mut self) -> Result<(), AdoptError> {
         let npm = hub_of("npm")?;
+        let npm_manifest = manifest_of("npm")?;
         let dirs: Vec<String> = self
-            .lock_dirs(lock_of("npm"), manifest_of("npm"))
+            .lock_dirs(lock_of("npm")?, npm_manifest)
             .into_iter()
-            .filter(|dir| declares_dependency(&self.root.join(dir).join(manifest_of("npm"))))
+            .filter(|dir| declares_dependency(&self.root.join(dir).join(npm_manifest)))
             .collect();
         if dirs.is_empty() {
             return Ok(());
@@ -541,7 +532,7 @@ impl Planner<'_> {
             let Ok(locks) = file.npm_translate_locks() else {
                 self.notes.push(format!(
                     "an npm.npm_translate_lock has computed arguments; {} not wired",
-                    lock_of("npm")
+                    lock_of("npm")?
                 ));
                 return Ok(());
             };
@@ -554,7 +545,7 @@ impl Planner<'_> {
         let mut tags = Vec::new();
         let mut hubs = Vec::new();
         for dir in dirs {
-            let lock = dir_label(&dir, lock_of("npm"));
+            let lock = dir_label(&dir, lock_of("npm")?);
             let hub = if dir.is_empty() {
                 npm.hub.clone()
             } else {
@@ -566,7 +557,7 @@ impl Planner<'_> {
             if existing.iter().any(|(name, _)| *name == hub) {
                 self.notes.push(format!(
                     "npm.npm_translate_lock \"{hub}\" reads another lock; {} in {} not wired",
-                    lock_of("npm"),
+                    lock_of("npm")?,
                     if dir.is_empty() { "." } else { &dir }
                 ));
                 continue;
@@ -586,7 +577,7 @@ impl Planner<'_> {
 
     fn pub_(&mut self) -> Result<(), AdoptError> {
         let pubs = hub_of("pub")?;
-        let dirs = self.lock_dirs(lock_of("pub"), &pubs.manifest);
+        let dirs = self.lock_dirs(lock_of("pub")?, &pubs.manifest);
         let Some(dir) = dirs.first() else {
             return Ok(());
         };
@@ -601,14 +592,14 @@ impl Planner<'_> {
         for other in dirs.iter().skip(1) {
             self.notes.push(format!(
                 "{other}/{} is not wired; add a pub.from_lock for it",
-                lock_of("pub")
+                lock_of("pub")?
             ));
         }
         let tags = vec![tag(
             "from_lock",
             vec![
                 ("name", string(&pubs.hub)),
-                ("lock", string(&dir_label(dir, lock_of("pub")))),
+                ("lock", string(&dir_label(dir, lock_of("pub")?))),
             ],
         )];
         self.add(pubs, &tags, &[pubs.hub.as_str()])
@@ -880,11 +871,43 @@ mod tests {
     use super::*;
     use dx_test_scratch::{scratch, write};
 
+    #[test]
+    fn an_unknown_ecosystem_is_an_error_not_a_panic() {
+        for lookup in [lock_of, manifest_of, state_of] {
+            let error = lookup("no-such-ecosystem").expect_err("unknown");
+            assert!(
+                error
+                    .to_string()
+                    .contains("no setup.hubs entry for no-such-ecosystem"),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_hub_without_lock_or_state_is_an_error() {
+        let no_lock = dx_families::hubs()
+            .iter()
+            .find(|hub| hub.lock.is_none())
+            .expect("a hub without lock");
+        let error = lock_of(&no_lock.ecosystem).expect_err("no lock");
+        assert!(error.to_string().contains("has no lock"), "{error}");
+        let no_state = dx_families::hubs()
+            .iter()
+            .find(|hub| hub.state.is_none())
+            .expect("a hub without state");
+        let error = state_of(&no_state.ecosystem).expect_err("no state");
+        assert!(error.to_string().contains("has no state"), "{error}");
+    }
+
     fn t(template: &str) -> &'static str {
         let mut text = template.to_owned();
         for eco in ["cargo", "npm", "uv", "composer", "dub", "luarocks"] {
-            text = text.replace(&format!("{{{eco}:manifest}}"), manifest_of(eco));
-            text = text.replace(&format!("{{{eco}:lock}}"), lock_of(eco));
+            text = text.replace(
+                &format!("{{{eco}:manifest}}"),
+                manifest_of(eco).expect("hub"),
+            );
+            text = text.replace(&format!("{{{eco}:lock}}"), lock_of(eco).expect("hub"));
         }
         Box::leak(text.into_boxed_str())
     }
@@ -939,11 +962,14 @@ mod tests {
 
     #[test]
     fn pubspec_lock_gets_a_pub_deps_hub() {
-        let hubs = plan(&[(lock_of("pub"), ""), (manifest_of("pub"), "")]);
+        let hubs = plan(&[
+            (lock_of("pub").expect("hub"), ""),
+            (manifest_of("pub").expect("hub"), ""),
+        ]);
         let text = new_text(&hubs);
         assert!(!text.contains("bazel_dep(name = \"rules_dart\""), "{text}");
         assert!(
-            text.contains(&format!("pub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:{}\",\n)\nuse_repo(pub, \"pub_deps\")\n", lock_of("pub"))),
+            text.contains(&format!("pub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:{}\",\n)\nuse_repo(pub, \"pub_deps\")\n", lock_of("pub").expect("hub"))),
             "{text}"
         );
     }
@@ -971,17 +997,17 @@ mod tests {
     fn maven_manifest_and_lock_get_a_from_toml_hub_with_no_coordinate() {
         let hubs = plan(&[
             (
-                manifest_of("maven"),
+                manifest_of("maven").expect("hub"),
                 "[libraries]\nguava = \"com.google.guava:guava:33.4.0-jre\"\n",
             ),
-            (lock_of("maven"), "{}"),
+            (lock_of("maven").expect("hub"), "{}"),
         ]);
         let text = new_text(&hubs);
         assert!(
             text.contains(&format!(
                 "maven.from_toml(\n    name = \"maven\",\n    libs_versions_toml = \"//:{}\",\n)\nmaven.install(\n    name = \"maven\",\n    lock_file = \"//:{}\",\n)\nuse_repo(maven, \"maven\")\n",
-                manifest_of("maven"),
-                lock_of("maven")
+                manifest_of("maven").expect("hub"),
+                lock_of("maven").expect("hub")
             )),
             "{text}"
         );
@@ -993,29 +1019,29 @@ mod tests {
         let dir = scratch("lock_hubs");
         let module = format!(
             "{MODULE}hex = use_extension(\"@rules_dx//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//:{}\")\nuse_repo(hex, \"deps\")\n",
-            lock_of("hex")
+            lock_of("hex").expect("hub")
         );
         write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), lock_of("hex"), "");
-        write(dir.path(), manifest_of("hex"), "");
+        write(dir.path(), lock_of("hex").expect("hub"), "");
+        write(dir.path(), manifest_of("hex").expect("hub"), "");
         assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
     }
 
     #[test]
     fn a_lock_tag_lock_without_its_manifest_is_ignored() {
-        let hubs = plan(&[(lock_of("hex"), "")]);
+        let hubs = plan(&[(lock_of("hex").expect("hub"), "")]);
         assert_eq!(hubs.edit, None);
     }
 
     #[test]
     fn go_mod_gets_a_go_from_file_tag() {
-        let hubs = plan(&[(manifest_of("go"), "module example.com/app\n")]);
+        let hubs = plan(&[(manifest_of("go").expect("hub"), "module example.com/app\n")]);
         let text = new_text(&hubs);
         assert!(
             text.contains(&format!(
                 "go = use_extension(\"@rules_dx//go:extensions.bzl\", \"go\")\ngo.from_file(go_mod = \"//:{}\")\n",
-                manifest_of("go")
-            )) || text.contains(&format!("go.from_file(\n    go_mod = \"//:{}\",\n)\n", manifest_of("go"))),
+                manifest_of("go").expect("hub")
+            )) || text.contains(&format!("go.from_file(\n    go_mod = \"//:{}\",\n)\n", manifest_of("go").expect("hub"))),
             "{text}"
         );
         assert!(!text.contains("use_repo"), "{text}");
@@ -1029,10 +1055,14 @@ mod tests {
             MODULE_FILE,
             &format!(
                 "{MODULE}go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//:{}\")\n",
-                manifest_of("go")
+                manifest_of("go").expect("hub")
             ),
         );
-        write(dir.path(), manifest_of("go"), "module example.com/app\n");
+        write(
+            dir.path(),
+            manifest_of("go").expect("hub"),
+            "module example.com/app\n",
+        );
         assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
     }
 
@@ -1044,17 +1074,17 @@ mod tests {
             MODULE_FILE,
             &format!(
                 "{MODULE}pub = use_extension(\"//dart:extensions.bzl\", \"pub\")\npub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:{}\",\n)\nuse_repo(pub, \"pub_deps\")\n",
-                lock_of("pub")
+                lock_of("pub").expect("hub")
             ),
         );
-        write(dir.path(), lock_of("pub"), "");
-        write(dir.path(), manifest_of("pub"), "");
+        write(dir.path(), lock_of("pub").expect("hub"), "");
+        write(dir.path(), manifest_of("pub").expect("hub"), "");
         assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
     }
 
     #[test]
     fn pubspec_lock_without_its_manifest_is_left_alone() {
-        assert_eq!(plan(&[(lock_of("pub"), "")]).edit, None);
+        assert_eq!(plan(&[(lock_of("pub").expect("hub"), "")]).edit, None);
     }
 
     fn unlocked(files: &[(&str, &str)]) -> Vec<&'static str> {
@@ -1062,7 +1092,7 @@ mod tests {
         for (rel, text) in files {
             write(dir.path(), rel, text);
         }
-        unlocked_manifests(dir.path())
+        unlocked_manifests(dir.path()).expect("hub")
     }
 
     #[test]
@@ -1252,7 +1282,7 @@ mod tests {
     fn a_hand_written_stanza_is_left_alone() {
         let module = format!(
             "{MODULE}\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"web\",\n    pnpm_lock = \"//:{}\",\n)\nuse_repo(npm, \"web\")\n",
-            lock_of("npm")
+            lock_of("npm").expect("hub")
         );
         let dir = scratch("lock_hubs_manual");
         write(dir.path(), MODULE_FILE, &module);
@@ -1347,8 +1377,8 @@ mod tests {
     fn a_stanza_for_a_gone_lock_is_reported_and_kept() {
         let module = format!(
             "{MODULE}\nuv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(\n    hub_name = \"pypi\",\n    lock = \"//svc:{}\",\n    pyproject = \"//svc:{}\",\n)\n",
-            lock_of("uv"),
-            manifest_of("uv")
+            lock_of("uv").expect("hub"),
+            manifest_of("uv").expect("hub")
         );
         let dir = scratch("lock_hubs_gone");
         write(dir.path(), MODULE_FILE, &module);
@@ -1453,14 +1483,14 @@ mod tests {
     fn maven_module() -> String {
         format!(
             "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"com.google.guava:guava:33.4.0-jre\"],\n    lock_file = \"//third_party:{}\",\n)\nuse_repo(maven, \"maven\")\n",
-            lock_of("maven")
+            lock_of("maven").expect("hub")
         )
     }
 
     fn maven_directive() -> String {
         format!(
             "# gazelle:dx_external maven third_party/{} maven\n",
-            lock_of("maven")
+            lock_of("maven").expect("hub")
         )
     }
 
@@ -1480,7 +1510,7 @@ mod tests {
         assert_eq!(
             plan.seeds,
             [(
-                format!("third_party/{}", lock_of("maven")),
+                format!("third_party/{}", lock_of("maven").expect("hub")),
                 "maven".to_owned()
             )]
         );
@@ -1490,7 +1520,7 @@ mod tests {
                 ModuleEdit {
                     path: "third_party/BUILD.bazel".to_owned(),
                     old: String::new(),
-                    new: format!("exports_files([\"{}\"])\n", lock_of("maven")),
+                    new: format!("exports_files([\"{}\"])\n", lock_of("maven").expect("hub")),
                 },
                 ModuleEdit {
                     path: "BUILD.bazel".to_owned(),
@@ -1510,7 +1540,7 @@ mod tests {
         }
         write(
             dir.path(),
-            &format!("third_party/{}", lock_of("maven")),
+            &format!("third_party/{}", lock_of("maven").expect("hub")),
             "{\"artifacts\": {}}",
         );
         assert_eq!(
@@ -1524,7 +1554,10 @@ mod tests {
         let dir = maven_workspace(&[
             ("MODULE.bazel", &maven_module()),
             ("third_party/BUILD", ""),
-            (&format!("third_party/{}", lock_of("maven")), "{}"),
+            (
+                &format!("third_party/{}", lock_of("maven").expect("hub")),
+                "{}",
+            ),
             (
                 "BUILD.bazel",
                 "package(default_visibility = [\"//visibility:public\"])",
@@ -1541,7 +1574,10 @@ mod tests {
         );
 
         let module = maven_module().replace("//third_party:", "//:");
-        let dir = maven_workspace(&[("MODULE.bazel", &module), (lock_of("maven"), "{}")]);
+        let dir = maven_workspace(&[
+            ("MODULE.bazel", &module),
+            (lock_of("maven").expect("hub"), "{}"),
+        ]);
         assert_eq!(
             plan_maven_locks(dir.path()).expect("plan"),
             MavenLocks::default()

@@ -146,10 +146,10 @@ fn package_validation_rejects_invalid_ecosystem_identities() {
             );
         }
     }
-    assert!(is_target_shape("unknown:a/b"));
-    assert!(is_target_shape("//x"));
-    assert!(is_target_shape("@r//:t"));
-    assert!(!is_target_shape("cargo:anyhow"));
+    assert!(is_target_shape("unknown:a/b").expect("hubs"));
+    assert!(is_target_shape("//x").expect("hubs"));
+    assert!(is_target_shape("@r//:t").expect("hubs"));
+    assert!(!is_target_shape("cargo:anyhow").expect("hubs"));
 }
 
 #[test]
@@ -557,18 +557,36 @@ fn invalid_versions_fail_without_widen() {
 #[test]
 fn summary_names_selector_version_and_next_step() {
     let update = UpdateRequest::parse_grammar("cargo:anyhow", "1.2.3").expect("cargo");
-    let summary = update.summary();
+    let summary = update.summary().expect("summary");
     assert!(summary.contains("cargo:anyhow"), "{summary}");
     assert!(summary.contains("1.2.3"), "{summary}");
     assert!(summary.contains("dx update cargo"), "{summary}");
     assert!(summary.contains("automatically"), "{summary}");
     let update = UpdateRequest::parse("bazel:rules_rust", "0.74.0").expect("bazel");
-    assert!(update.summary().contains("flag-diff"), "{summary}");
+    assert!(
+        update.summary().expect("summary").contains("flag-diff"),
+        "{summary}"
+    );
     let update = UpdateRequest::parse_grammar("maven:junit:junit", "4.13.3").expect("maven");
-    assert!(update.summary().contains("dx update maven"), "{summary}");
-    assert!(update.summary().contains("automatically"), "{summary}");
+    assert!(
+        update
+            .summary()
+            .expect("summary")
+            .contains("dx update maven"),
+        "{summary}"
+    );
+    assert!(
+        update.summary().expect("summary").contains("automatically"),
+        "{summary}"
+    );
     let update = UpdateRequest::parse_grammar("nuget:FSharp.Core", "10.1.202").expect("nuget");
-    assert!(update.summary().contains("dx update nuget"), "{summary}");
+    assert!(
+        update
+            .summary()
+            .expect("summary")
+            .contains("dx update nuget"),
+        "{summary}"
+    );
 }
 
 #[test]
@@ -1295,7 +1313,7 @@ fn configured_bazel_set_targets_its_own_module_bazel() {
     assert!(update.needs_update_refresh());
     assert!(update.target().needs_update_refresh());
     assert_eq!(update.target().refresh_command(), "bazel mod deps");
-    let summary = update.summary();
+    let summary = update.summary().expect("summary");
     assert!(
         summary.contains("refresh via `bazel mod deps`"),
         "{summary}"
@@ -1366,7 +1384,7 @@ fn cargo_errors_name_the_manifest_planned() {
         })
     );
     assert!(cargo
-        .summary()
+        .summary().expect("summary")
         .starts_with("Widen cargo:anyhow to 1.2.3 in every manifest of the crate.from_cargo hub in MODULE.bazel ("));
 }
 
@@ -1390,9 +1408,12 @@ fn a_tested_update_edits_only_the_override() {
     assert!(widened.contains("bazel_dep(name = \"rules_cc\", version = \"0.2.0\")"));
     assert!(widened.contains("//patches/rules_cc:fix.patch"));
     assert!(
-        update.summary().contains("tested override"),
+        update
+            .summary()
+            .expect("summary")
+            .contains("tested override"),
         "{}",
-        update.summary()
+        update.summary().expect("summary")
     );
 }
 
@@ -1409,7 +1430,11 @@ fn a_floor_update_edits_only_the_bazel_dep_and_its_comment() {
             )
             .replace("version = \"0.2.0\")", "version = \"0.2.3\")")
     );
-    assert!(update.summary().contains(" floor "), "{}", update.summary());
+    assert!(
+        update.summary().expect("summary").contains(" floor "),
+        "{}",
+        update.summary().expect("summary")
+    );
     let at_tested = floor("bazel:rules_cc", "0.2.5", "r");
     assert!(at_tested.plan_edit(SPLIT_DEP).is_ok());
 }
@@ -1563,9 +1588,10 @@ fn configured_cargo_maven_and_nuget_parse_their_own_grammar() {
     assert!(
         cargo
             .summary()
+            .expect("summary")
             .contains("every manifest of set set that declares the crate"),
         "{}",
-        cargo.summary()
+        cargo.summary().expect("summary")
     );
     let maven = configured(
         ConfiguredKind::Maven,
@@ -1586,13 +1612,13 @@ fn configured_cargo_maven_and_nuget_parse_their_own_grammar() {
     .expect("nuget");
     assert!(!nuget.needs_update_refresh());
     assert_eq!(
-        nuget.target().follow_up().as_deref(),
+        nuget.target().follow_up().expect("follow_up").as_deref(),
         Some("paket.lock is not re-resolved: run `paket update` in d, then `dx update set`")
     );
     assert!(
-        nuget.summary().contains("paket update"),
+        nuget.summary().expect("summary").contains("paket update"),
         "{}",
-        nuget.summary()
+        nuget.summary().expect("summary")
     );
     for kind in [
         ConfiguredKind::Cargo,

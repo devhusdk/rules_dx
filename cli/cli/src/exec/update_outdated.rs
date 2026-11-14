@@ -179,18 +179,24 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         ecosystems,
         ..
     } = collect(workspace, &resolved, &builtins, false, fetch);
-    let unused = update_unused::find(
+    let unused = match update_unused::find(
         workspace,
         &resolved,
         query_runner,
         &invocation.bazel_startup_options,
-    );
-    let missing = update_unused::find_missing(
+    ) {
+        Ok(found) => found,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
+    let missing = match update_unused::find_missing(
         workspace,
         &resolved,
         query_runner,
         &invocation.bazel_startup_options,
-    );
+    ) {
+        Ok(found) => found,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
     let findings_fail =
         dx_output::meets_threshold(dx_output::Severity::Warning, invocation.fail_on)
             && !(unused.is_empty() && missing.is_empty());
@@ -274,6 +280,24 @@ pub(super) struct Collected {
 }
 
 /// Looks up every resolved set and returns sorted, unique candidates.
+fn hub_name(
+    lookup: Result<&'static str, dx_adopt::AdoptError>,
+    set: &str,
+    read_errors: &mut Vec<dx_update::discover::LookupError>,
+) -> Option<&'static str> {
+    match lookup {
+        Ok(name) => Some(name),
+        Err(error) => {
+            read_errors.push(dx_update::discover::LookupError {
+                set: set.to_owned(),
+                package: String::new(),
+                reason: error.to_string(),
+            });
+            None
+        }
+    }
+}
+
 pub(super) fn collect(
     workspace: &Path,
     resolved: &[dependency_sets::ResolvedTarget],
@@ -366,11 +390,16 @@ pub(super) fn collect(
             Ecosystem::Composer => {
                 registries.insert(name.to_owned(), Registry::Packagist);
                 let texts = read_texts(workspace, name, &target.set.manifests, &mut read_errors);
+                let Some(lock_name) =
+                    hub_name(dependency_sets::composer_lock(), name, &mut read_errors)
+                else {
+                    continue;
+                };
                 let locks: Vec<String> = target
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with(dependency_sets::composer_lock()))
+                    .filter(|lock| lock.ends_with(lock_name))
                     .cloned()
                     .collect();
                 merge(
@@ -421,14 +450,18 @@ pub(super) fn collect(
             }
             Ecosystem::SwiftPm => {
                 registries.insert(name.to_owned(), Registry::SwiftUrl);
+                let Some(lock_name) = hub_name(
+                    dx_adopt::dependency_sets::package_resolved(),
+                    name,
+                    &mut read_errors,
+                ) else {
+                    continue;
+                };
                 let resolved: Vec<String> = target
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| {
-                        lock.rsplit('/').next()
-                            == Some(dx_adopt::dependency_sets::package_resolved())
-                    })
+                    .filter(|lock| lock.rsplit('/').next() == Some(lock_name))
                     .cloned()
                     .collect();
                 let texts = read_texts(workspace, name, &resolved, &mut read_errors);
@@ -483,11 +516,16 @@ pub(super) fn collect(
             }
             Ecosystem::Dub => {
                 registries.insert(name.to_owned(), Registry::CodeDlang);
+                let Some(lock_name) =
+                    hub_name(dependency_sets::dub_selections(), name, &mut read_errors)
+                else {
+                    continue;
+                };
                 let locks: Vec<String> = target
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with(dependency_sets::dub_selections()))
+                    .filter(|lock| lock.ends_with(lock_name))
                     .cloned()
                     .collect();
                 merge(
@@ -504,11 +542,16 @@ pub(super) fn collect(
             }
             Ecosystem::LuaRocks => {
                 registries.insert(name.to_owned(), Registry::LuaRocksOrg);
+                let Some(lock_name) =
+                    hub_name(dependency_sets::luarocks_lock(), name, &mut read_errors)
+                else {
+                    continue;
+                };
                 let locks: Vec<String> = target
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with(dependency_sets::luarocks_lock()))
+                    .filter(|lock| lock.ends_with(lock_name))
                     .cloned()
                     .collect();
                 let mut pins = Vec::new();
@@ -519,7 +562,7 @@ pub(super) fn collect(
                         }
                         Err(reason) => read_errors.push(dx_update::discover::LookupError {
                             set: name.to_owned(),
-                            package: dependency_sets::luarocks_lock().to_owned(),
+                            package: lock_name.to_owned(),
                             reason: reason.message().to_owned(),
                         }),
                     }

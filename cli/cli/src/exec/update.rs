@@ -76,7 +76,10 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
 
 /// Why update has nothing to do: a manifest generate has not locked yet, or no sets at all.
 pub(super) fn no_sets_message(workspace: &std::path::Path) -> String {
-    let unlocked = dx_adopt::unlocked_manifests(workspace);
+    let unlocked = match dx_adopt::unlocked_manifests(workspace) {
+        Ok(unlocked) => unlocked,
+        Err(error) => return format!("lock hubs not read: {error}"),
+    };
     if unlocked.is_empty() {
         "no dependency sets".to_owned()
     } else {
@@ -99,12 +102,15 @@ fn prune_unused(
         Ok(resolved) => resolved,
         Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
     };
-    let unused = update_unused::find(
+    let unused = match update_unused::find(
         workspace,
         &resolved,
         query_runner,
         &invocation.bazel_startup_options,
-    );
+    ) {
+        Ok(unused) => unused,
+        Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
+    };
     match update_prune::prune(workspace, &unused) {
         Ok(removed) => {
             for item in removed {
@@ -363,7 +369,8 @@ fn backend_error_status(
         dx_update::backend::BackendError::OfflineRequired { .. }
         | dx_update::backend::BackendError::FrozenLocked { .. }
         | dx_update::backend::BackendError::NonUtf8Path { .. }
-        | dx_update::backend::BackendError::BackendUnavailable { .. } => (
+        | dx_update::backend::BackendError::BackendUnavailable { .. }
+        | dx_update::backend::BackendError::Hubs { .. } => (
             dx_update::outcome::SetStatus::Failed,
             format!("failed to {verb} {name}: {error}"),
         ),

@@ -172,16 +172,13 @@ pub(super) fn plan_package_json(
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
-            return Err(EditError::UnsupportedManifest {
-                manifest: manifest_of("npm").to_owned(),
-                reason: "expected exact semver".to_owned(),
-            });
+            return Err(EditError::unsupported_manifest(
+                "npm",
+                "expected exact semver".to_owned(),
+            ));
         }
     };
-    let unsupported = |reason: String| EditError::UnsupportedManifest {
-        manifest: manifest_of("npm").to_owned(),
-        reason,
-    };
+    let unsupported = |reason: String| EditError::unsupported_manifest("npm", reason);
     let root: serde_json::Value = serde_json::from_str(content)
         .map_err(|_| unsupported("manifest is not valid JSON".to_owned()))?;
     if !root.is_object() {
@@ -219,7 +216,7 @@ pub(super) fn plan_package_json(
     }
     match (spans.len(), spans.first().copied()) {
         (0, _) => Err(EditError::NotFound {
-            manifest: manifest_of("npm").to_owned(),
+            manifest: manifest_of("npm")?.to_owned(),
             package: package.to_owned(),
         }),
         (1, Some(span_at)) => {
@@ -235,7 +232,7 @@ pub(super) fn plan_package_json(
             Ok(format!("{before}\"{new}\"{after}"))
         }
         (count, _) => Err(EditError::Ambiguous {
-            manifest: manifest_of("npm").to_owned(),
+            manifest: manifest_of("npm")?.to_owned(),
             package: package.to_owned(),
             count,
         }),
@@ -260,10 +257,7 @@ impl JsonScan<'_> {
     }
 
     fn bad() -> EditError {
-        EditError::UnsupportedManifest {
-            manifest: manifest_of("npm").to_owned(),
-            reason: "manifest is not valid JSON".to_owned(),
-        }
+        EditError::unsupported_manifest("npm", "manifest is not valid JSON".to_owned())
     }
 
     pub(crate) fn skip_ws(&mut self) {
@@ -1062,9 +1056,10 @@ pub(super) fn plan_julia_project(
         manifest: manifest.to_owned(),
         reason: reason.to_owned(),
     };
+    let julia_manifest = manifest_of("julia")?;
     let mut doc: toml_edit::DocumentMut = content
         .parse()
-        .map_err(|e| unsupported(&format!("invalid {}: {e}", manifest_of("julia"))))?;
+        .map_err(|e| unsupported(&format!("invalid {julia_manifest}: {e}")))?;
     let declared = doc
         .get("deps")
         .and_then(toml_edit::Item::as_table_like)
@@ -1487,23 +1482,23 @@ pub(super) fn plan_github_workflow(
     }
 }
 
-pub(super) fn is_target_shape(text: &str) -> bool {
+pub(super) fn is_target_shape(text: &str) -> Result<bool, EditError> {
     if text.starts_with("//") || text.starts_with('@') {
-        return true;
+        return Ok(true);
     }
     if text.contains('/') && !text.contains(':') {
-        return true;
+        return Ok(true);
     }
     if text.contains('/')
         && UpdateSet::parse(text.split_once(':').map_or("", |(head, _)| head)).is_none()
     {
-        return true;
+        return Ok(true);
     }
-    text == "..."
+    Ok(text == "..."
         || text == "MODULE.bazel"
         || text == ".bazelversion"
-        || text == manifest_of("npm")
-        || text == manifest_of("cargo")
+        || text == manifest_of("npm")?
+        || text == manifest_of("cargo")?)
 }
 
 const BAZEL_CHARSET: &str = "bazel modules use [A-Za-z0-9_.-] only (or .bazelversion)";

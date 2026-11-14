@@ -377,8 +377,11 @@ pub(crate) fn write_and_refresh(
     let manifest = manifest.as_str();
     if !request.needs_update_refresh() {
         let message = match request.follow_up() {
-            Some(follow_up) => format!("{} ({follow_up})", edit.edited),
-            None => format!(
+            Err(error) => {
+                return operational(invocation, out, err, verb.failure_code, &error.to_string());
+            }
+            Ok(Some(follow_up)) => format!("{} ({follow_up})", edit.edited),
+            Ok(None) => format!(
                 "{} (then run preset flag-diff review plus `bazel build //...`)",
                 edit.edited
             ),
@@ -460,7 +463,8 @@ pub(crate) fn write_and_refresh(
                 );
             }
             unavailable @ (dx_update::backend::BackendError::BackendUnavailable { .. }
-            | dx_update::backend::BackendError::NonUtf8Path { .. }) => {
+            | dx_update::backend::BackendError::NonUtf8Path { .. }
+            | dx_update::backend::BackendError::Hubs { .. }) => {
                 return refresh_failed(
                     edit,
                     invocation,

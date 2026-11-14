@@ -186,7 +186,8 @@ fn run_configured_target(
             | dependency_sets::DependencySetsError::StaleJuliaLock { .. }
             | dependency_sets::DependencySetsError::StaleCpanLock { .. }
             | dependency_sets::DependencySetsError::StaleCabalLock { .. }
-            | dependency_sets::DependencySetsError::InvalidRepository { .. } => {
+            | dependency_sets::DependencySetsError::InvalidRepository { .. }
+            | dependency_sets::DependencySetsError::Hubs { .. } => {
                 dx_update::outcome::SetStatus::Failed
             }
         };

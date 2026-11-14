@@ -14,7 +14,7 @@ pub(super) fn plan(
         Selection::Full => Ok(BackendPlan::Staged(nuget_staged(set, head, offline)?)),
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: nuget_pins_exact(),
+            reason: nuget_pins_exact()?,
         }),
     }
 }
@@ -31,7 +31,7 @@ pub(super) fn check(
         Selection::Full => Ok(CheckPlan::Staged(nuget_staged(set, head, offline)?)),
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: nuget_pins_exact(),
+            reason: nuget_pins_exact()?,
         }),
     }
 }

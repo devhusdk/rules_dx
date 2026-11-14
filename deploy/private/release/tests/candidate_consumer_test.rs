@@ -54,7 +54,19 @@ struct RepoState {
     index: (u64, Option<std::time::SystemTime>),
 }
 
+fn has_git(root: &Path) -> bool {
+    root.join(".git").exists()
+}
+
 fn repo_state(root: &Path, sandbox: &Path) -> RepoState {
+    if !has_git(root) {
+        return RepoState {
+            head: String::new(),
+            branch: String::new(),
+            status: String::new(),
+            index: (0, None),
+        };
+    }
     let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, sandbox, args);
     let index = git(
         root,
@@ -77,39 +89,37 @@ fn repo_state(root: &Path, sandbox: &Path) -> RepoState {
 /// Returns the scratch git dir and the commit.
 fn snapshot_commit(root: &Path, scratch: &Path) -> (PathBuf, String) {
     let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, scratch, args);
-    let common = git(
-        root,
-        &["rev-parse", "--path-format=absolute", "--git-common-dir"],
-    );
     let git_dir = scratch.join("snapshot.git");
     std::fs::create_dir_all(&git_dir).unwrap_or_else(|error| panic!("mkdir: {error}"));
     git(&git_dir, &["init", "--bare", "--quiet", "."]);
-    write(
-        &git_dir.join("objects/info/alternates"),
-        format!("{common}/objects\n").as_bytes(),
-    );
-    let exclude = Path::new(&common).join("info/exclude");
-    if let Ok(bytes) = std::fs::read(&exclude) {
-        write(&git_dir.join("info/exclude"), &bytes);
-    }
+    let parent = has_git(root).then(|| {
+        let common = git(
+            root,
+            &["rev-parse", "--path-format=absolute", "--git-common-dir"],
+        );
+        write(
+            &git_dir.join("objects/info/alternates"),
+            format!("{common}/objects\n").as_bytes(),
+        );
+        if let Ok(bytes) = std::fs::read(Path::new(&common).join("info/exclude")) {
+            write(&git_dir.join("info/exclude"), &bytes);
+        }
+        git(root, &["rev-parse", "HEAD"])
+    });
     let tree_root = root.to_string_lossy().into_owned();
     git(&git_dir, &["config", "core.bare", "false"]);
     git(&git_dir, &["config", "core.worktree", tree_root.as_str()]);
-    let parent = git(root, &["rev-parse", "HEAD"]);
-    git(&git_dir, &["read-tree", parent.as_str()]);
+    if let Some(parent) = parent.as_deref() {
+        git(&git_dir, &["read-tree", parent]);
+    }
     git(&git_dir, &["add", "-A"]);
     let tree = git(&git_dir, &["write-tree"]);
-    let sha = git(
-        &git_dir,
-        &[
-            "commit-tree",
-            tree.as_str(),
-            "-p",
-            parent.as_str(),
-            "-m",
-            "candidate",
-        ],
-    );
+    let mut args = vec!["commit-tree", tree.as_str()];
+    if let Some(parent) = parent.as_deref() {
+        args.extend(["-p", parent]);
+    }
+    args.extend(["-m", "candidate"]);
+    let sha = git(&git_dir, &args);
     (git_dir, sha)
 }
 
@@ -146,7 +156,9 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     let case = nested::case("candidate_consumer");
     let root = case.root().to_path_buf();
     write(&root.join(".bazelversion"), &member(".bazelversion"));
-    let mut rc: Vec<u8> = dx_testing::preset_rc().into_bytes();
+    let mut rc: Vec<u8> = dx_testing::preset_rc()
+        .replace("@rules_dx//", "@my_dx//")
+        .into_bytes();
     rc.extend_from_slice(
         format!(
             "\ncommon --registry={}\ncommon --registry=https://bcr.bazel.build\n",
@@ -257,7 +269,39 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     ok(&dx(&case, "check", &["//...", "--", policy]), "dx check");
 
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-    assert_gcc_consumer(&case);
+    {
+        assert_gcc_consumer(&case);
+        assert_swift_consumer(&case);
+    }
+}
+
+/// Builds and tests `swift/tests/consumer` on the unpatched BCR rules_swift.
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+fn assert_swift_consumer(case: &Case) {
+    stage("swift consumer");
+    for file in ["BUILD.bazel", "Greet.swift", "GreetTests.swift"] {
+        let text = dx_testing::read_runfiles(&format!("swift/tests/consumer/{file}"))
+            .replace("@rules_dx//", "@my_dx//");
+        write(&case.root().join("swift").join(file), text.as_bytes());
+    }
+    let module = dx_testing::read_text(&rules_dx_source().join("MODULE.bazel"));
+    let version = module
+        .split("bazel_dep(name = \"rules_swift\", version = \"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .expect("rules_swift version in MODULE.bazel");
+
+    let explain = case.bazel(&["mod", "explain", "rules_swift"]);
+    ok(&explain, "mod explain rules_swift");
+    assert!(
+        explain.stdout.contains(&format!("rules_swift@{version}")),
+        "{}",
+        explain.combined()
+    );
+    ok(
+        &case.bazel(&["test", "//swift:greet_tests", "--test_output=errors"]),
+        "swift test",
+    );
 }
 
 /// Builds with the hermetic GCC toolchain while host compilers on PATH fail.

@@ -1,7 +1,8 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
-load("//cc/private/toolchain:pins.bzl", "VC_REDIST_VERSION")
 load(":cells.bzl", "PHP_CELLS")
+
+VC_REDIST_VERSION = "14.50.35710"
 
 HUB_NAME = "dx_php_toolchains"
 
@@ -144,5 +145,60 @@ php_coverage_runtime = repository_rule(
         "pcov": attr.string_list(mandatory = True, doc = "The PCOV zip: its sha256 and then its URLs."),
         "php": attr.string_list(mandatory = True, doc = "The PHP zip: its sha256 and then its URLs."),
         "_msvc_runtime": attr.label(default = "@msvc_runtime//:BUILD.bazel", doc = "The hermetic MSVC redistributable."),
+    },
+)
+
+def _hub_impl(rctx):
+    rctx.file("REPO.bazel", "")
+    for path, content in rctx.attr.files.items():
+        rctx.file(path, content)
+    return rctx.repo_metadata(reproducible = True)
+
+php_hub = repository_rule(
+    implementation = _hub_impl,
+    doc = "Writes rendered files into a repository that downloads nothing.",
+    attrs = {
+        "files": attr.string_dict(doc = "Repository path to file content."),
+    },
+)
+
+def _archive_impl(rctx):
+    if not rctx.attr.sha256:
+        fail(rctx.name + ": set sha256; an archive without a digest is not pinned")
+    if rctx.attr.download_as:
+        rctx.download(url = rctx.attr.urls, output = rctx.attr.download_as, sha256 = rctx.attr.sha256)
+    else:
+        rctx.download_and_extract(
+            url = rctx.attr.urls,
+            sha256 = rctx.attr.sha256,
+            stripPrefix = rctx.attr.strip_prefix,
+            type = rctx.attr.type,
+        )
+    for inner in rctx.attr.inner:
+        rctx.extract(inner)
+        rctx.delete(inner)
+    missing = [path for path in rctx.attr.required if not rctx.path(path).exists]
+    if missing:
+        fail("{} archive does not ship {}".format(rctx.name, ", ".join(missing)))
+    rctx.file("REPO.bazel", "")
+    for path, content in rctx.attr.files.items():
+        rctx.file(path, content)
+    for patch in rctx.attr.patches:
+        rctx.patch(patch, strip = 1)
+    return rctx.repo_metadata(reproducible = True)
+
+php_archive = repository_rule(
+    implementation = _archive_impl,
+    doc = "Fetches one pinned archive, checks the required paths, writes rendered files and applies patches.",
+    attrs = {
+        "download_as": attr.string(doc = "File name to download to without extracting."),
+        "files": attr.string_dict(doc = "Repository path to file content."),
+        "inner": attr.string_list(doc = "Archives inside the downloaded one, extracted into the repository and then deleted."),
+        "patches": attr.label_list(doc = "Patches applied last with strip 1."),
+        "required": attr.string_list(doc = "Paths the archive must ship."),
+        "sha256": attr.string(mandatory = True, doc = "Archive digest."),
+        "strip_prefix": attr.string(doc = "Archive directory prefix to strip."),
+        "type": attr.string(doc = "Archive type when the URL does not show it."),
+        "urls": attr.string_list(mandatory = True, doc = "Archive URLs, tried in order."),
     },
 )

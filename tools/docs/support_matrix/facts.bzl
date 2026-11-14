@@ -11,9 +11,9 @@ load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPIL
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
-_ROW_KEYS = ["ci_tests", "compiler", "consumer_tests", "families", "name", "section", "title", "workflows"]
+_ROW_KEYS = ["ci_tests", "compiler", "families", "name", "section", "title", "workflows"]
 
-_BUILD_KEYS = ["ci_tests", "consumer_tests", "workflows"]
+_BUILD_KEYS = ["ci_tests", "workflows"]
 
 def _doc(name):
     if name not in DOC_TOOLS:
@@ -194,7 +194,6 @@ def support_matrix_facts_dict():
         "rows": [
             {
                 "ci_tests": row.get("ci_tests", []),
-                "consumer_tests": row.get("consumer_tests", []),
                 "dead_code": _dead_code(row),
                 "doc": _doc(row["name"]),
                 "doc_shard": _doc_shard(row["name"]),

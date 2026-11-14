@@ -6,6 +6,7 @@ exports_files([
     "host_tools.patch",
     "hostarm64_packages.patch",
     "pins.patch",
+    "reproducible_extensions.patch",
     "rules_dx_hosts.patch",
     "source_directory_headers.patch",
 ])

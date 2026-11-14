@@ -673,6 +673,8 @@ filegroup(
         "//gazelle/avro:module_srcs",
         "//gazelle/capnproto:module_srcs",
         "//gazelle/cc:module_srcs",
+        "//gazelle/common/treesitter:module_srcs",
+        "//gazelle/common:module_srcs",
         "//gazelle/csharp:module_srcs",
         "//gazelle/d:module_srcs",
         "//gazelle/dart:module_srcs",

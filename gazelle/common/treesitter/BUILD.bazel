@@ -16,3 +16,9 @@ go_test(
     pure = "on",
     deps = ["@com_github_odvcencio_gotreesitter//grammars/java"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

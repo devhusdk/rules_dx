@@ -1,4 +1,4 @@
-//! No Rust source allows a strict tier lint, and every `#[expect(...)]` gives a reason.
+//! No Rust source allows a strict tier lint, every `#[expect(...)]` gives a reason, and the repo-wide clippy flags carry the strict tier.
 
 #[expect(
     dead_code,
@@ -154,5 +154,72 @@ fn passes_other_attributes() {
             "#[allow(dead_code)]\n#[expect(clippy::panic, reason = \"r\")]\nfn f() { v.expect(\"x\"); let a = [1]; }"
         )
         .is_empty()
+    );
+}
+
+/// Strict tier lints `.bazelrc` does not yet deny repo-wide. The list only shrinks.
+const PENDING: [&str; 4] = [
+    "clippy::indexing_slicing",
+    "clippy::let_underscore_must_use",
+    "clippy::string_slice",
+    "clippy::wildcard_enum_match_arm",
+];
+
+/// The lints a file denies with `-D<lint>`, as `.bazelrc` flag lines or tier list lines.
+fn denied(text: &str) -> Vec<String> {
+    text.lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            line.strip_prefix("common --@rules_dx//config:clippy_flag=")
+                .unwrap_or(line)
+                .strip_prefix("-D")
+        })
+        .filter(|lint| *lint != "warnings")
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn strict_tier_denies_the_rust_safety_lints() {
+    let key = std::env::var("DX_STRICT_TXT").expect("DX_STRICT_TXT is set by the test");
+    let path = dx_testing::rlocation(&key).expect("strict.txt is a runfile");
+    let strict = denied(&dx_testing::read_text(&path));
+    for lint in [
+        "unsafe_code",
+        "clippy::unwrap_used",
+        "clippy::expect_used",
+        "clippy::panic",
+        "clippy::todo",
+        "clippy::unimplemented",
+        "clippy::indexing_slicing",
+    ] {
+        assert!(
+            strict.iter().any(|denied| denied == lint),
+            "the strict tier does not deny {lint}"
+        );
+    }
+    for lint in LINTS {
+        assert!(
+            strict.iter().any(|denied| denied == lint),
+            "LINTS names {lint}, which the strict tier does not deny"
+        );
+    }
+    let snapshot = snapshot();
+    let bazelrc = denied(snapshot.get(".bazelrc").expect(".bazelrc is in the snapshot"));
+    let missing: Vec<&String> = strict
+        .iter()
+        .filter(|lint| !bazelrc.contains(lint) && !PENDING.contains(&lint.as_str()))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        ".bazelrc must deny these strict tier lints: {missing:?}"
+    );
+    let done: Vec<&str> = PENDING
+        .into_iter()
+        .filter(|lint| bazelrc.iter().any(|denied| denied == lint))
+        .collect();
+    assert!(
+        done.is_empty(),
+        "remove these from PENDING, .bazelrc denies them: {done:?}"
     );
 }

@@ -94,7 +94,7 @@ fn outliving_ancestor(chain: &[(u32, String)], preferred: Option<u32>) -> Option
 #[cfg(unix)]
 fn ancestors() -> Vec<(u32, String)> {
     let mut chain = Vec::new();
-    let mut pid = u32::try_from(unsafe { libc::getppid() }).unwrap_or(0);
+    let mut pid = std::os::unix::process::parent_id();
     while pid >= 1 && chain.len() < 8 {
         let ps = |field: &str| {
             dx_process::probe("ps", ["-o", field, "-p", &pid.to_string()])
@@ -149,8 +149,7 @@ fn parent_in(table: &[(u32, u32, String)], own: u32) -> Option<u32> {
 
 #[cfg(unix)]
 fn parent_pid(preferred: Option<u32>) -> u32 {
-    outliving_ancestor(&ancestors(), preferred)
-        .unwrap_or_else(|| u32::try_from(unsafe { libc::getppid() }).unwrap_or(0))
+    outliving_ancestor(&ancestors(), preferred).unwrap_or_else(std::os::unix::process::parent_id)
 }
 
 #[cfg(windows)]

@@ -1,5 +1,10 @@
 //! Product core for the packaged Rust Android application.
 
+#![expect(
+    unsafe_code,
+    reason = "the activity loads unmangled C entry points and reads an asset buffer"
+)]
+
 use std::sync::atomic::{AtomicI32, Ordering};
 
 const ASSET_TEXT: &str = "hello from the packaged asset";
@@ -95,6 +100,7 @@ pub unsafe extern "C" fn app_asset_check(data: *const u8, len: usize) -> i32 {
     if data.is_null() {
         return 1;
     }
+    // SAFETY: the pointer and length describe a live byte buffer, or the pointer is null and checked first.
     let bytes = unsafe { std::slice::from_raw_parts(data, len) };
     i32::from(bytes.trim_ascii_end() != ASSET_TEXT.as_bytes())
 }
@@ -162,8 +168,11 @@ mod tests {
     fn asset_check_accepts_only_the_packaged_text() {
         let good = b"hello from the packaged asset\n";
         let bad = b"something else";
+        // SAFETY: the pointer and length describe a live byte buffer, or the pointer is null and checked first.
         assert_eq!(unsafe { app_asset_check(good.as_ptr(), good.len()) }, 0);
+        // SAFETY: the pointer and length describe a live byte buffer, or the pointer is null and checked first.
         assert_eq!(unsafe { app_asset_check(bad.as_ptr(), bad.len()) }, 1);
+        // SAFETY: the pointer and length describe a live byte buffer, or the pointer is null and checked first.
         assert_eq!(unsafe { app_asset_check(std::ptr::null(), 0) }, 1);
     }
 }

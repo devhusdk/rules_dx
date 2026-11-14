@@ -366,6 +366,7 @@ pub enum DeployConfig {
 /// Reads the deploy config named by `DX_DEPLOY_CONFIG`, then clears the variable.
 ///
 /// Clearing it keeps child processes from inheriting it.
+#[expect(unsafe_code, reason = "remove_var is unsafe in edition 2024")]
 pub fn load_deploy_config<T: DeserializeOwned>() -> Result<T, String> {
     let raw = std::env::var_os(DEPLOY_CONFIG_ENV);
     // SAFETY: the process is single-threaded here or the env lock is held.

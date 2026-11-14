@@ -455,17 +455,20 @@ fn own_group(command: &mut Command) {
 }
 
 #[cfg(windows)]
+#[expect(unsafe_code, reason = "handle inheritance has no safe std API")]
 fn own_group(command: &mut Command) {
     use std::os::windows::process::CommandExt;
     const DETACHED_PROCESS: u32 = 0x8;
     const CREATE_NEW_PROCESS_GROUP: u32 = 0x200;
     const HANDLE_FLAG_INHERIT: u32 = 0x1;
     const STD_HANDLES: [u32; 3] = [0xFFFF_FFF6, 0xFFFF_FFF5, 0xFFFF_FFF4];
+    // SAFETY: the declarations match the kernel32 signatures of these functions.
     unsafe extern "system" {
         fn GetStdHandle(which: u32) -> *mut std::ffi::c_void;
         fn SetHandleInformation(handle: *mut std::ffi::c_void, mask: u32, flags: u32) -> i32;
     }
     for which in STD_HANDLES {
+        // SAFETY: GetStdHandle takes a constant; the handle is checked before SetHandleInformation.
         unsafe {
             let handle = GetStdHandle(which);
             if !handle.is_null() && handle as isize != -1 {
@@ -480,11 +483,13 @@ fn own_group(command: &mut Command) {
 fn own_group(_command: &mut Command) {}
 
 #[cfg(windows)]
+#[expect(unsafe_code, reason = "console APIs have no safe std equivalent")]
 mod console {
     use std::ffi::c_void;
 
     const CTRL_C_EVENT: u32 = 0;
 
+    // SAFETY: the declarations match the kernel32 signatures of these functions.
     unsafe extern "system" {
         fn FreeConsole() -> i32;
         fn AttachConsole(pid: u32) -> i32;
@@ -497,6 +502,7 @@ mod console {
     }
 
     pub fn ignore_ctrl() -> Result<(), String> {
+        // SAFETY: handled is a static handler with the HANDLER_ROUTINE signature.
         if unsafe { SetConsoleCtrlHandler(handled as *const c_void, 1) } == 0 {
             return Err("cannot install the console handler".to_owned());
         }
@@ -504,6 +510,7 @@ mod console {
     }
 
     pub fn send_ctrl_c(pid: u32) -> Result<(), String> {
+        // SAFETY: the calls take only plain integers or null, and run in the short-lived helper.
         unsafe {
             FreeConsole();
             if AttachConsole(pid) == 0 {
@@ -524,19 +531,24 @@ mod console {
 static SIGINT_LOG: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "a signal handler calls libc write")]
 extern "C" fn count_sigint(_signo: i32) {
+    // SAFETY: the declaration matches the libc signature of write.
     unsafe extern "C" {
         fn write(fd: i32, buf: *const std::ffi::c_void, count: usize) -> isize;
     }
     let fd = SIGINT_LOG.load(std::sync::atomic::Ordering::SeqCst);
+    // SAFETY: fd is the open log descriptor stored at startup and the buffer is one byte.
     unsafe {
         write(fd, b"I".as_ptr().cast(), 1);
     }
 }
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "installing a handler needs libc signal")]
 fn start_counting_sigint(path: &str) -> io::Result<()> {
     use std::os::fd::IntoRawFd;
+    // SAFETY: the declaration matches the libc signature of signal.
     unsafe extern "C" {
         fn signal(signo: i32, handler: usize) -> usize;
     }
@@ -547,6 +559,7 @@ fn start_counting_sigint(path: &str) -> io::Result<()> {
         .append(true)
         .open(&staging)?;
     SIGINT_LOG.store(log.into_raw_fd(), std::sync::atomic::Ordering::SeqCst);
+    // SAFETY: count_sigint is an extern C handler that only calls write.
     unsafe {
         signal(SIGINT, count_sigint as *const () as usize);
     }
@@ -554,8 +567,13 @@ fn start_counting_sigint(path: &str) -> io::Result<()> {
 }
 
 #[cfg(unix)]
+#[expect(
+    unsafe_code,
+    reason = "terminal process group queries have no safe std API"
+)]
 fn holds_terminal() -> bool {
     use std::os::fd::AsRawFd;
+    // SAFETY: the declarations match the libc signatures of tcgetpgrp and getpgrp.
     unsafe extern "C" {
         fn tcgetpgrp(fd: i32) -> i32;
         fn getpgrp() -> i32;
@@ -563,8 +581,23 @@ fn holds_terminal() -> bool {
     let Ok(tty) = std::fs::File::open("/dev/tty") else {
         return false;
     };
+    // SAFETY: tty is an open descriptor for the duration of the call.
     let foreground = unsafe { tcgetpgrp(tty.as_raw_fd()) };
+    // SAFETY: getpgrp has no preconditions.
     foreground > 0 && foreground == unsafe { getpgrp() }
+}
+
+#[cfg(unix)]
+#[expect(unsafe_code, reason = "raise has no safe std API")]
+fn raise_signal(signo: i32) {
+    // SAFETY: the declaration matches the libc signature of raise.
+    unsafe extern "C" {
+        fn raise(sig: i32) -> i32;
+    }
+    // SAFETY: raise takes a plain signal number and has no memory preconditions.
+    unsafe {
+        raise(signo);
+    }
 }
 
 fn sleep_until_gate(plan: &Plan) {
@@ -773,12 +806,7 @@ fn main() {
     }
     #[cfg(unix)]
     if let Some(signo) = plan.raise_signal {
-        unsafe extern "C" {
-            fn raise(sig: i32) -> i32;
-        }
-        unsafe {
-            raise(signo);
-        }
+        raise_signal(signo);
     }
     #[cfg(not(unix))]
     if plan.raise_signal.is_some() {

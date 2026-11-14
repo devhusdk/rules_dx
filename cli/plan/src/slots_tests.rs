@@ -454,6 +454,7 @@ fn share_splits_the_host_over_held_slots() {
     assert_eq!(share(12, 19 << 30, 0, 0), (12, 19 << 10));
 }
 
+#[expect(unsafe_code, reason = "pre_exec has no safe form")]
 #[cfg(unix)]
 #[test]
 fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
@@ -2919,6 +2920,7 @@ fn ping_argv_carries_startup_options_before_the_info_verb() {
     );
 }
 
+#[expect(unsafe_code, reason = "kill has no safe std API")]
 #[cfg(unix)]
 #[test]
 fn a_real_ping_child_is_reaped_on_stop() {
@@ -2938,5 +2940,6 @@ fn a_real_ping_child_is_reaped_on_stop() {
     assert!(!warmth.finished(&mut child));
     let pid = i32::try_from(child.id()).expect("pid");
     warmth.stop(child);
+    // SAFETY: kill with signal 0 only checks that the process exists.
     assert_ne!(unsafe { libc::kill(pid, 0) }, 0);
 }

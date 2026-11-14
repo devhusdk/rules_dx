@@ -430,6 +430,7 @@ pub(crate) fn shutdown_argv(
 ///
 /// Bazel locks the output base with fcntl (OFD, else POSIX), which `flock` probes do not see on Linux.
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "fcntl F_GETLK has no safe std API")]
 pub(crate) fn lock_busy(file: &std::fs::File) -> Option<bool> {
     use std::os::fd::AsRawFd;
     // SAFETY: a zeroed `flock` is a valid value; every field the call reads is set below.
@@ -789,7 +790,9 @@ impl Host for SystemHost {
 }
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "getuid has no safe std API")]
 fn current_uid() -> Option<u32> {
+    // SAFETY: getuid has no preconditions.
     Some(unsafe { libc::getuid() })
 }
 
@@ -1171,6 +1174,7 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
+    #[expect(unsafe_code, reason = "F_OFD_SETLK has no safe std API")]
     fn the_idle_probe_sees_fcntl_locks_and_ignores_flock() {
         use std::os::fd::AsRawFd;
         let scratch = dx_test_scratch::scratch("dx-wt-idle-");

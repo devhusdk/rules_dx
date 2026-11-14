@@ -454,7 +454,9 @@ fn sigints_logged(log: &std::path::Path, expected: usize) -> Vec<u8> {
 
 #[cfg(unix)]
 #[test]
+#[expect(unsafe_code, reason = "kill has no safe std API")]
 fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
+    // SAFETY: the declaration matches the libc signature of kill.
     unsafe extern "C" {
         fn kill(pid: i32, signo: i32) -> i32;
     }
@@ -476,6 +478,7 @@ fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
         std::thread::sleep(Duration::from_millis(10));
     }
     for n in 1..=2 {
+        // SAFETY: kill takes plain integers and has no memory preconditions.
         assert_eq!(unsafe { kill(child.0.id() as i32, 2) }, 0);
         sigints_logged(&log, n);
     }

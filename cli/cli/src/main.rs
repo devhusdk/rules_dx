@@ -19,16 +19,24 @@ use dx_process::lifecycle::{self, EnvPolicy, StreamOutput, StreamSpec, StreamStd
 use dx_process::{discover_real, operational_code, pre_exec_code, stdout_io_code};
 
 #[cfg(unix)]
+#[expect(
+    unsafe_code,
+    reason = "a signal handler saves and restores errno through a raw pointer"
+)]
 extern "C" fn forward_to_child(signo: libc::c_int) {
     let errno = dx_process::errno_slot();
+    // SAFETY: `errno_slot` returns this thread's valid errno location.
     let saved = unsafe { *errno };
     lifecycle::forward_stop(signo);
+    // SAFETY: same location as above, still valid on this thread.
     unsafe { *errno = saved };
 }
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "sigaction has no safe std API")]
 fn install_forwarding() {
     for signo in lifecycle::STOP_SIGNALS {
+        // SAFETY: zeroed `sigaction` is valid; the handler only calls async-signal-safe functions.
         unsafe {
             let mut action: libc::sigaction = std::mem::zeroed();
             action.sa_sigaction = forward_to_child as *const () as libc::sighandler_t;
@@ -52,9 +60,11 @@ fn install_forwarding() {
 fn install_forwarding() {}
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "re-raising a signal has no safe std API")]
 fn die_by_signal(signo: i32) {
     if signo > 0 {
         let _cleaned = dx_plan::plan::clean_for_stop();
+        // SAFETY: restoring the default disposition and raising a signal has no memory effects.
         unsafe {
             libc::signal(signo, libc::SIG_DFL);
             libc::raise(signo);
@@ -160,6 +170,7 @@ fn usage_error(
     )
 }
 
+#[expect(unsafe_code, reason = "set_var is unsafe in edition 2024")]
 fn main() {
     if let Some(code) = run_as_tool() {
         std::process::exit(code);
@@ -195,6 +206,7 @@ fn run_as_tool() -> Option<i32> {
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md
 
+#[expect(unsafe_code, reason = "set_var is unsafe in edition 2024")]
 fn run() -> i32 {
     // LCOV_EXCL_START - reason: thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
@@ -273,7 +285,9 @@ fn run() -> i32 {
         let exists = |path: &Path| path.is_file();
         let read = |path: &Path| std::fs::read(path).ok();
         match resolve_bazel_sh(&|name| std::env::var_os(name), &exists, &read) {
+            // SAFETY: startup is single-threaded at this point.
             Ok(BazelSh::Set(bash)) => unsafe { std::env::set_var("BAZEL_SH", bash) },
+            // SAFETY: startup is single-threaded at this point.
             Ok(BazelSh::Unset) => unsafe { std::env::remove_var("BAZEL_SH") },
             Ok(BazelSh::Keep) => {}
             Err(error) => {

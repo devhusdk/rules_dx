@@ -1,3 +1,8 @@
+#![expect(
+    unsafe_code,
+    reason = "signal, process-group and pty tests call libc directly"
+)]
+
 use super::super::test_support::{closed_pipe, hang_up, reader_gone};
 use std::ffi::{CStr, CString};
 use std::fs;
@@ -95,6 +100,7 @@ static PTSNAME: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn open_pty() -> Pty {
     let _named = PTSNAME.lock().unwrap_or_else(|held| held.into_inner());
+    // SAFETY: master is the descriptor just opened and owned once; ptsname is read under PTSNAME.
     unsafe {
         let master = libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY);
         assert!(master >= 0, "posix_openpt: {}", io::Error::last_os_error());
@@ -111,6 +117,7 @@ fn open_pty() -> Pty {
 }
 
 fn in_terminal(command: &mut Command, slave: CString) {
+    // SAFETY: the pre_exec closure calls only async-signal-safe libc functions.
     unsafe {
         command.pre_exec(move || {
             if libc::setsid() < 0 {
@@ -232,6 +239,7 @@ impl Run {
 
     fn signal(&mut self, signo: i32) -> Instant {
         let pid = self.child.id() as i32;
+        // SAFETY: kill takes plain integers and has no memory preconditions.
         assert_eq!(unsafe { libc::kill(pid, signo) }, 0, "signal delivered");
         Instant::now()
     }
@@ -262,10 +270,12 @@ impl Drop for Run {
 }
 
 fn group_alive(pgid: i32) -> bool {
+    // SAFETY: kill takes plain integers and has no memory preconditions.
     unsafe { libc::kill(-pgid, 0) == 0 }
 }
 
 fn kill_group(pgid: i32) {
+    // SAFETY: kill takes plain integers and has no memory preconditions.
     unsafe {
         libc::kill(-pgid, libc::SIGKILL);
     }
@@ -432,6 +442,7 @@ fn a_stop_signal_to_dx_alone_stops_a_hanging_query_and_its_descendants() {
         wait_for_file(&mut run, &alive);
         assert!(group_alive(query), "{}", run.context());
         assert_eq!(
+            // SAFETY: getpgid takes a plain pid and has no memory preconditions.
             unsafe { libc::getpgid(query) },
             query,
             "the query must lead its own group\n{}",
@@ -514,6 +525,7 @@ fn wait_for_lease(run: &mut Run, pgid: i32) {
 /// Waits until dx has reaped `pid`.
 fn wait_until_reaped(run: &mut Run, pid: i32) {
     let deadline = Instant::now() + Duration::from_secs(30);
+    // SAFETY: kill takes plain integers and has no memory preconditions.
     while unsafe { libc::kill(pid, 0) } == 0 {
         if let Ok(Some(status)) = run.child.try_wait() {
             panic!("dx exited ({status:?}) early\n{}", run.context());
@@ -550,9 +562,11 @@ enum Sender {
 
 #[cfg(target_os = "linux")]
 fn queue_unattributed(pid: i32, signo: i32) {
+    // SAFETY: siginfo_t is plain C data for which all-zero is valid.
     let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
     info.si_signo = signo;
     info.si_code = libc::SI_QUEUE;
+    // SAFETY: info outlives the call and is the siginfo_t that rt_sigqueueinfo reads.
     let rc = unsafe { libc::syscall(libc::SYS_rt_sigqueueinfo, pid, signo, &info) };
     assert_eq!(rc, 0, "rt_sigqueueinfo: {}", io::Error::last_os_error());
 }
@@ -580,6 +594,7 @@ fn a_terminal_child_gets_sigint_once(sender: Sender) {
         Sender::Kill => {
             run.signal(libc::SIGINT);
         }
+        // SAFETY: kill takes plain integers and has no memory preconditions.
         Sender::GroupKill => unsafe {
             libc::kill(-(run.child.id() as i32), libc::SIGINT);
         },
@@ -592,6 +607,7 @@ fn a_terminal_child_gets_sigint_once(sender: Sender) {
     let expected = b"I";
     let status = run.exit();
     let counted = fs::read(&log).expect("sigint log");
+    // SAFETY: kill takes plain integers and has no memory preconditions.
     unsafe {
         libc::kill(-build_pgid, libc::SIGKILL);
     }
@@ -646,6 +662,7 @@ fn a_terminal_child_gets_sigint_once_from_unattributed() {
 
 #[cfg(target_os = "linux")]
 fn assert_foreground_build(run: &Run, pty: &Pty, build: i32) -> i32 {
+    // SAFETY: getpgid takes a plain pid and has no memory preconditions.
     let build_pgid = unsafe { libc::getpgid(build) };
     assert_ne!(
         build_pgid,
@@ -655,6 +672,7 @@ fn assert_foreground_build(run: &Run, pty: &Pty, build: i32) -> i32 {
     );
     assert_eq!(
         build_pgid,
+        // SAFETY: tcgetpgrp reads the pty master descriptor, which stays open for the call.
         unsafe { libc::tcgetpgrp(pty.master.as_raw_fd()) },
         "the build's group must hold the terminal\n{}",
         run.context()
@@ -684,6 +702,7 @@ fn a_terminal_build_resumes_after_ctrl_z() {
     let build_pgid = assert_foreground_build(&run, &pty, build);
     let dx = run.child.id() as i32;
     let mut held = 0;
+    // SAFETY: kill and waitpid take plain integers; held is a valid status out-pointer.
     unsafe {
         libc::kill(dx, libc::SIGSTOP);
         assert_eq!(libc::waitpid(dx, &mut held, libc::WUNTRACED), dx);
@@ -692,6 +711,7 @@ fn a_terminal_build_resumes_after_ctrl_z() {
     (&pty.master).write_all(b"\x1a").expect("ctrl-z");
     wait_until_stopped(build);
     fs::write(run.dir().join("gate"), b"").expect("open the gate");
+    // SAFETY: kill takes plain integers and has no memory preconditions.
     unsafe {
         libc::kill(dx, libc::SIGCONT);
     }
@@ -1073,6 +1093,7 @@ fn a_stdout_closed_before_the_start_event_starts_no_bazel() {
 fn an_ignored_hangup_does_not_stop_dx() {
     let scratch = dx_test_scratch::scratch("dx-stream-nohup-");
     let (mut command, gate) = gated_command(scratch.path(), 0);
+    // SAFETY: the pre_exec closure calls only signal, which is async-signal-safe.
     unsafe {
         command.pre_exec(|| {
             libc::signal(libc::SIGHUP, libc::SIG_IGN);
@@ -1089,6 +1110,7 @@ fn an_ignored_hangup_does_not_stop_dx() {
         std::thread::sleep(Duration::from_millis(20));
     }
     assert_eq!(bazel_starts(scratch.path()), 1);
+    // SAFETY: kill takes plain integers and has no memory preconditions.
     unsafe {
         libc::kill(child.id() as i32, libc::SIGHUP);
     }
@@ -1387,6 +1409,7 @@ fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
             let held = hold_all_slots(base);
             let (mut child, stdout, stderr) = spawn_waiting(base, words);
             let pid = i32::try_from(child.id()).expect("pid");
+            // SAFETY: kill takes plain integers and has no memory preconditions.
             assert_eq!(unsafe { libc::kill(pid, signo) }, 0, "{signo} {words:?}");
             let deadline = Instant::now() + Duration::from_secs(10);
             let status = loop {

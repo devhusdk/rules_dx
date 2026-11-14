@@ -32,6 +32,7 @@ fn bad_labels_fail_before_bazel_runs() {
 }
 
 #[test]
+#[expect(unsafe_code, reason = "the test clears and restores GITHUB_ENV under the env lock")]
 fn missing_github_env_without_print_or_file_is_a_usage_error() {
     let mut cli = cli("@dx_tools//:gitleaks", "DX_GITLEAKS_BIN");
     cli.print = false;

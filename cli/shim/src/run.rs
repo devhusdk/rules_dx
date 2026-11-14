@@ -172,10 +172,18 @@ fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
 #[cfg(windows)]
 fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
     // Register a handler that swallows Ctrl+C/Ctrl+Break for the shim only.
+    #[expect(
+        unsafe_code,
+        reason = "a console control handler is an unsafe extern fn"
+    )]
     unsafe extern "system" fn swallow_ctrl(_ctrl_type: u32) -> i32 {
         1
     }
     // SAFETY: registers a static function with no captured state.
+    #[expect(
+        unsafe_code,
+        reason = "registering a console control handler calls a Win32 API"
+    )]
     unsafe {
         windows_sys::Win32::System::Console::SetConsoleCtrlHandler(Some(swallow_ctrl), 1);
     }

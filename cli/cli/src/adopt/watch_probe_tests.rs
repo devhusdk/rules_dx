@@ -171,6 +171,7 @@ impl Probe {
         });
     }
 
+    #[expect(unsafe_code, reason = "kill has no safe std API")]
     fn signal(&mut self, signo: i32, group: bool) {
         self.signalled = Some(Instant::now());
         let pid = self.child.id() as i32;
@@ -220,6 +221,7 @@ fn assert_interrupted(status: ExitStatus) {
 }
 
 impl Drop for Probe {
+    #[expect(unsafe_code, reason = "kill has no safe std API")]
     fn drop(&mut self) {
         if let Ok(None) = self.child.try_wait() {
             // SAFETY: kill(2) takes plain integers and touches no memory.
@@ -231,6 +233,7 @@ impl Drop for Probe {
     }
 }
 
+#[expect(unsafe_code, reason = "kill has no safe std API")]
 fn alive(pid: i32) -> bool {
     // SAFETY: kill(2) takes plain integers and touches no memory.
     let exists = unsafe { libc::kill(pid, 0) } == 0;

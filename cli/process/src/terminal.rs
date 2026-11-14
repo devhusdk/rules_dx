@@ -57,16 +57,19 @@ impl TerminalJob {
             .write(true)
             .open("/dev/tty")
             .ok()?;
+        // SAFETY: getpgrp has no preconditions.
         let own = unsafe { libc::getpgrp() };
         if unsafe { libc::tcgetpgrp(tty.as_raw_fd()) } != own {
             return None;
         }
         let (read, write) = report_pipe()?;
+        // SAFETY: getpid has no preconditions.
         let parent = unsafe { libc::getpid() };
         WATCHER_PARENT.store(parent, Ordering::SeqCst);
         WATCHER_REPORT.store(write.as_raw_fd(), Ordering::SeqCst);
         let pid = {
             let _blocked = Blocked::new(&WATCHED);
+            // SAFETY: fork takes no arguments; the child immediately enters `watch`.
             let pid = unsafe { libc::fork() };
             if pid == 0 {
                 // SAFETY: the forked copy runs only async-signal-safe libc calls.
@@ -85,11 +88,13 @@ impl TerminalJob {
             report: read,
             _guard: guard,
         };
+        // SAFETY: setpgid and getpgid take plain pids and have no memory preconditions.
         if unsafe { libc::setpgid(pid, pid) } != 0 && unsafe { libc::getpgid(pid) } != pid {
             return None;
         }
         let handed = {
             let _blocked = Blocked::new(&[libc::SIGTTOU]);
+            // SAFETY: tcsetpgrp takes the open tty descriptor and a pid; SIGTTOU is blocked.
             unsafe { libc::tcsetpgrp(job.tty.as_raw_fd(), pid) == 0 }
         };
         handed.then_some(job)
@@ -103,6 +108,7 @@ impl TerminalJob {
     /// The next stop signal the terminal delivered to the group, if any.
     pub fn take_reported(&self) -> Option<i32> {
         let mut byte = 0u8;
+        // SAFETY: the report fd is open and byte is a valid one-byte buffer.
         let read = unsafe {
             libc::read(
                 self.report.as_raw_fd(),
@@ -116,6 +122,7 @@ impl TerminalJob {
     /// Returns every stop signal the group got before this call, once the watcher confirms it reported them all.
     pub fn settle(&self) -> Vec<i32> {
         let mut reported = Vec::new();
+        // SAFETY: kill takes plain integers and has no memory preconditions.
         if unsafe { libc::kill(self.group, SETTLE) } != 0 {
             return reported;
         }
@@ -126,10 +133,12 @@ impl TerminalJob {
                 events: libc::POLLIN,
                 revents: 0,
             };
+            // SAFETY: ready is one valid pollfd and the count passed is 1.
             if unsafe { libc::poll(&mut ready, 1, SETTLE_WAIT_MS) } <= 0 {
                 return reported;
             }
             let mut byte = 0u8;
+            // SAFETY: byte is a valid one-byte buffer for the length passed.
             let read = unsafe { libc::read(fd, std::ptr::addr_of_mut!(byte).cast(), 1) };
             match (read, byte) {
                 (1, SETTLED) => return reported,
@@ -142,7 +151,9 @@ impl TerminalJob {
     /// Follows a job-control stop of the child: hands the terminal back,
     /// stops this process like the shell expects, then resumes the group.
     pub fn tend(&self, child: i32) {
+        // SAFETY: siginfo_t is plain C data for which all-zero is valid.
         let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+        // SAFETY: info is a valid siginfo_t out-pointer for waitid.
         let waited = unsafe {
             libc::waitid(
                 libc::P_PID,
@@ -151,17 +162,21 @@ impl TerminalJob {
                 libc::WSTOPPED | libc::WNOHANG,
             )
         };
+        // SAFETY: waited == 0 means waitid filled info, so reading si_pid is valid.
         if waited != 0 || unsafe { info.si_pid() } == 0 || info.si_code != libc::CLD_STOPPED {
             return;
         }
+        // SAFETY: info was filled by waitid for a stopped child, so si_status is valid.
         if !JOB_STOPS.contains(&unsafe { info.si_status() }) {
             return;
         }
         self.hand_over(self.group, self.own);
+        // SAFETY: raise takes a signal number and has no memory preconditions.
         unsafe {
             libc::raise(libc::SIGTSTP);
         }
         self.hand_over(self.own, self.group);
+        // SAFETY: kill takes plain integers and has no memory preconditions.
         unsafe {
             libc::kill(-self.group, libc::SIGCONT);
         }
@@ -171,6 +186,7 @@ impl TerminalJob {
     fn hand_over(&self, from: i32, to: i32) {
         let _blocked = Blocked::new(&[libc::SIGTTOU]);
         let fd = self.tty.as_raw_fd();
+        // SAFETY: tcgetpgrp and tcsetpgrp take the open tty descriptor and plain pids.
         unsafe {
             if libc::tcgetpgrp(fd) == from {
                 libc::tcsetpgrp(fd, to);
@@ -182,6 +198,7 @@ impl TerminalJob {
 impl Drop for TerminalJob {
     fn drop(&mut self) {
         self.hand_over(self.group, self.own);
+        // SAFETY: kill and waitpid take plain pids; a null status pointer is permitted.
         unsafe {
             libc::kill(self.group, libc::SIGKILL);
             libc::waitpid(self.group, std::ptr::null_mut(), 0);
@@ -192,7 +209,9 @@ impl Drop for TerminalJob {
 
 /// Lets this thread write to the terminal while dx is in the background.
 pub fn allow_background_tty_writes() {
+    // SAFETY: sigset_t is plain C data for which all-zero is valid.
     let mut set: libc::sigset_t = unsafe { std::mem::zeroed() };
+    // SAFETY: set is a valid sigset_t and a null old-set pointer is permitted.
     unsafe {
         libc::sigemptyset(&mut set);
         libc::sigaddset(&mut set, libc::SIGTTOU);
@@ -207,8 +226,10 @@ struct Blocked {
 
 impl Blocked {
     fn new(signals: &[i32]) -> Blocked {
+        // SAFETY: sigset_t is plain C data for which all-zero is valid.
         let mut set: libc::sigset_t = unsafe { std::mem::zeroed() };
         let mut previous: libc::sigset_t = unsafe { std::mem::zeroed() };
+        // SAFETY: set and previous are valid sigset_t values for these calls.
         unsafe {
             libc::sigemptyset(&mut set);
             for &signo in signals {
@@ -222,6 +243,7 @@ impl Blocked {
 
 impl Drop for Blocked {
     fn drop(&mut self) {
+        // SAFETY: previous was saved by pthread_sigmask; a null old-set pointer is permitted.
         unsafe {
             libc::pthread_sigmask(libc::SIG_SETMASK, &self.previous, std::ptr::null_mut());
         }
@@ -231,13 +253,16 @@ impl Drop for Blocked {
 /// Fills `fds` with a close-on-exec, non-blocking pipe; false if the pipe failed.
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn raw_pipe(fds: &mut [i32; 2]) -> bool {
+    // SAFETY: fds points to two ints, as pipe2 requires.
     unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC | libc::O_NONBLOCK) == 0 }
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 fn raw_pipe(fds: &mut [i32; 2]) -> bool {
+    // SAFETY: fds points to two ints, as pipe requires.
     let piped = unsafe { libc::pipe(fds.as_mut_ptr()) } == 0;
     for &fd in fds.iter().filter(|_| piped) {
+        // SAFETY: fd is an open pipe descriptor owned by this function.
         unsafe {
             libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
             let flags = libc::fcntl(fd, libc::F_GETFL);
@@ -274,26 +299,33 @@ unsafe fn from_parent(info: *const libc::siginfo_t) -> bool {
     if info.is_null() {
         return false;
     }
+    // SAFETY: info was checked non-null and the caller passes a valid siginfo_t.
     let sender = unsafe { (*info).si_pid() };
     if sender != WATCHER_PARENT.load(Ordering::Relaxed) {
         return false;
     }
+    // SAFETY: info was checked non-null and the caller passes a valid siginfo_t.
     user_sent(unsafe { (*info).si_code })
 }
 
 extern "C" fn report_signal(signo: libc::c_int, info: *mut libc::siginfo_t, _: *mut libc::c_void) {
     let errno = crate::errno_slot();
+    // SAFETY: errno_slot returns this thread's errno, valid for reads and writes.
     let saved = unsafe { *errno };
     if !unsafe { from_parent(info) } {
         unsafe { report(signo) };
     }
+    // SAFETY: errno is the slot read above and still valid for writes.
     unsafe { *errno = saved };
 }
 
 extern "C" fn report_settled(_: libc::c_int, _: *mut libc::siginfo_t, _: *mut libc::c_void) {
     let errno = crate::errno_slot();
+    // SAFETY: errno_slot returns this thread's errno, valid for reads and writes.
     let saved = unsafe { *errno };
+    // SAFETY: sigset_t is plain C data for which all-zero is valid.
     let mut pending: libc::sigset_t = unsafe { std::mem::zeroed() };
+    // SAFETY: pending is a valid sigset_t; report only writes to the watcher pipe.
     unsafe {
         libc::sigemptyset(&mut pending);
         libc::sigpending(&mut pending);
@@ -309,6 +341,7 @@ extern "C" fn report_settled(_: libc::c_int, _: *mut libc::siginfo_t, _: *mut li
 
 unsafe fn report(signo: libc::c_int) {
     let byte = signo as u8;
+    // SAFETY: the pipe descriptor is open and byte is a valid one-byte buffer.
     unsafe {
         libc::write(
             WATCHER_REPORT.load(Ordering::Relaxed),
@@ -334,6 +367,7 @@ unsafe fn close_others(keep: i32) {
         };
         let mut closed = true;
         for (first, last) in ranges {
+            // SAFETY: close_range takes plain integers and only closes descriptors.
             if first <= last && unsafe { libc::syscall(libc::SYS_close_range, first, last, 0) } != 0
             {
                 closed = false;
@@ -343,8 +377,10 @@ unsafe fn close_others(keep: i32) {
             return;
         }
     }
+    // SAFETY: rlimit is plain C data for which all-zero is valid.
     let mut limit: libc::rlimit = unsafe { std::mem::zeroed() };
     let mut top = MAX_CLOSE;
+    // SAFETY: limit is a valid rlimit out-pointer.
     if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) } == 0
         && limit.rlim_cur < MAX_CLOSE as libc::rlim_t
     {
@@ -353,6 +389,7 @@ unsafe fn close_others(keep: i32) {
     let mut fd = 3;
     while fd < top {
         if fd != keep {
+            // SAFETY: the forked watcher uses no descriptor other than the kept report pipe.
             unsafe {
                 libc::close(fd);
             }
@@ -363,6 +400,7 @@ unsafe fn close_others(keep: i32) {
 
 /// The watcher's whole life: lead G, report stop signals, die with dx.
 unsafe fn watch(parent: i32, report: i32) -> ! {
+    // SAFETY: this runs only in the forked child and calls async-signal-safe functions.
     unsafe {
         libc::setpgid(0, 0);
         close_others(report);

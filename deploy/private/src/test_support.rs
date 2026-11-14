@@ -44,11 +44,16 @@ pub(crate) fn scratch_dir() -> tempfile::TempDir {
     tempfile::TempDir::new().expect("scratch")
 }
 
+#[expect(
+    unsafe_code,
+    reason = "set_var and remove_var are unsafe in edition 2024"
+)]
 pub(crate) fn with_env<T>(vars: &[(&str, Option<&str>)], body: impl FnOnce() -> T) -> T {
     let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let mut saved: Vec<(&str, Option<String>)> = Vec::new();
     for (key, value) in vars {
         saved.push((*key, std::env::var(key).ok()));
+        // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
         match value {
             Some(value) => unsafe { std::env::set_var(key, value) },
             None => unsafe { std::env::remove_var(key) },
@@ -56,6 +61,7 @@ pub(crate) fn with_env<T>(vars: &[(&str, Option<&str>)], body: impl FnOnce() -> 
     }
     let out = body();
     for (key, value) in saved {
+        // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
         match value {
             Some(value) => unsafe { std::env::set_var(key, value) },
             None => unsafe { std::env::remove_var(key) },

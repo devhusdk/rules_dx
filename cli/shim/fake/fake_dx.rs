@@ -34,7 +34,8 @@ fn main() {
             let err = std::process::Command::new("/bin/sh")
                 .args(["-c", "kill -TERM $$"])
                 .exec();
-            panic!("exec: {err}");
+            eprintln!("exec: {err}");
+            std::process::abort();
         }
         _ => {}
     }

@@ -463,6 +463,7 @@ fn slashed(path: &Path) -> String {
 }
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "kill has no safe std API")]
 mod signal {
     pub const SIGTERM: i32 = 15;
     pub const SIGKILL: i32 = 9;
@@ -475,6 +476,7 @@ mod signal {
         let Ok(pid) = i32::try_from(pid) else {
             return false;
         };
+        // SAFETY: kill only reads its integer arguments.
         unsafe { kill(pid, sig) == 0 }
     }
 
@@ -501,6 +503,7 @@ mod signal {
 }
 
 #[cfg(windows)]
+#[expect(unsafe_code, reason = "process handle APIs have no safe std equivalent")]
 mod signal {
     use std::ffi::c_void;
 
@@ -530,11 +533,14 @@ mod signal {
 
     /// Terminates `pid`; Windows has no graceful signal for a console-less server, so both kill.
     pub fn send(pid: u32, _sig: i32) -> bool {
+        // SAFETY: OpenProcess takes plain integers and returns null on failure.
         let handle = unsafe { OpenProcess(PROCESS_TERMINATE, 0, pid) };
         if handle.is_null() {
             return false;
         }
+        // SAFETY: handle is a live non-null process handle owned here.
         let done = unsafe { TerminateProcess(handle, 1) } != 0;
+        // SAFETY: handle is closed exactly once.
         unsafe {
             CloseHandle(handle);
         }
@@ -543,12 +549,15 @@ mod signal {
 
     /// A process is alive while its handle is unsignaled; an exit code of 259 cannot fool this.
     pub fn alive(pid: u32) -> bool {
+        // SAFETY: OpenProcess takes plain integers and returns null on failure.
         let handle =
             unsafe { OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
         if handle.is_null() {
             return false;
         }
+        // SAFETY: handle is a live non-null process handle owned here.
         let waited = unsafe { WaitForSingleObject(handle, 0) };
+        // SAFETY: handle is closed exactly once.
         unsafe {
             CloseHandle(handle);
         }
@@ -556,11 +565,14 @@ mod signal {
     }
 
     fn with_handle(pid: u32, act: unsafe extern "system" fn(Handle) -> i32) -> bool {
+        // SAFETY: OpenProcess takes plain integers and returns null on failure.
         let handle = unsafe { OpenProcess(PROCESS_SUSPEND_RESUME, 0, pid) };
         if handle.is_null() {
             return false;
         }
+        // SAFETY: act is NtSuspendProcess or NtResumeProcess on a live handle owned here.
         let status = unsafe { act(handle) };
+        // SAFETY: handle is closed exactly once.
         unsafe {
             CloseHandle(handle);
         }
@@ -1324,10 +1336,12 @@ static SERVER: Mutex<Option<Server>> = Mutex::new(None);
 static RELEASE: Once = Once::new();
 
 #[cfg(any(unix, windows))]
+#[expect(unsafe_code, reason = "atexit has no safe std API")]
 fn release_at_exit() {
     unsafe extern "C" {
         fn atexit(callback: extern "C" fn()) -> i32;
     }
+    // SAFETY: release_hook is a plain extern "C" fn with static lifetime.
     unsafe {
         atexit(release_hook);
     }

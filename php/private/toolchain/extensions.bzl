@@ -1,16 +1,14 @@
 """Module extension for php/private/toolchain."""
 
-load("@dx_pins_data//:pins.bzl", "PINS")
-load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":cells.bzl", "PHP_CELLS")
-load(":repos.bzl", "HEADERS_BUILD", "HUB_NAME", "COVERAGE_PREFIX", "RUNTIME_PREFIX", "SOURCES_BUILD", "VERSION_FILE", "hub_build", "phar_build", "php_coverage_runtime", "runtime_build")
+load(":repos.bzl", "HEADERS_BUILD", "HUB_NAME", "COVERAGE_PREFIX", "RUNTIME_PREFIX", "SOURCES_BUILD", "VERSION_FILE", "hub_build", "phar_build", "php_archive", "php_coverage_runtime", "php_hub", "runtime_build")
 
 
 _PHP_INCLUDES = ["include/php", "include/php/main", "include/php/Zend", "include/php/TSRM", "include/php/ext"]
 
 
 def _php_impl(mctx):
-    pins = PINS["dx_php"]
+    pins = json.decode(mctx.read(Label("//php:pins.json")))
     php_version = pins["version"]
     pcov = pins["pcov"]
     pcre2 = pins["pcre2"]
@@ -23,7 +21,7 @@ def _php_impl(mctx):
         )
     for cell in sorted(PHP_CELLS.keys()):
         coverage = COVERAGE_PREFIX + cell if cell in pins["coverage"] else ""
-        pinned_archive(
+        php_archive(
             name = RUNTIME_PREFIX + cell,
             files = {
                 "BUILD.bazel": runtime_build(php_version, PHP_CELLS[cell].interpreter, PHP_CELLS[cell].pcov, coverage),
@@ -34,7 +32,7 @@ def _php_impl(mctx):
             urls = pins["cells"][cell]["urls"],
         )
     for cell, headers in sorted(pins["headers"].items()):
-        pinned_archive(
+        php_archive(
             name = "dx_php_headers_" + cell,
             files = {"BUILD.bazel": HEADERS_BUILD.format(includes = repr(_PHP_INCLUDES))},
             inner = [headers["inner"]],
@@ -43,7 +41,7 @@ def _php_impl(mctx):
             type = "zip",
             urls = headers["urls"],
         )
-    pinned_archive(
+    php_archive(
         name = "dx_php_pcre2",
         files = {"BUILD.bazel": HEADERS_BUILD.format(includes = repr(["include"]))},
         inner = [pcre2["inner"]],
@@ -52,7 +50,7 @@ def _php_impl(mctx):
         type = "zip",
         urls = pcre2["urls"],
     )
-    pinned_archive(
+    php_archive(
         name = "dx_php_pcov",
         files = {"BUILD.bazel": mctx.read(Label("//php/private:pcov.BUILD.bazel"))},
         patches = [Label("//php/private:patches/pcov_user_opcode_handlers.patch")],
@@ -60,7 +58,7 @@ def _php_impl(mctx):
         sha256 = pcov["sha256"],
         urls = pcov["urls"],
     )
-    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(PHP_CELLS.keys())})
+    php_hub(name = HUB_NAME, files = {"BUILD.bazel": hub_build(PHP_CELLS.keys())})
     for name, file, pin in [
         ("dx_composer", "composer.phar", tools["composer"]),
         ("dx_phpunit", "phpunit.phar", tools["phpunit"]),
@@ -69,13 +67,13 @@ def _php_impl(mctx):
         ("dx_phpdocumentor", "phpDocumentor.phar", tools["phpdocumentor"]),
         ("dx_phpstan", "phpstan.phar", tools["phpstan"]),
     ]:
-        pinned_archive(name = name, download_as = file, files = {"BUILD.bazel": phar_build(file)}, sha256 = pin["sha256"], urls = pin["urls"])
+        php_archive(name = name, download_as = file, files = {"BUILD.bazel": phar_build(file)}, sha256 = pin["sha256"], urls = pin["urls"])
     for name, pin in [
         ("dx_unused_public", tools["unused_public"]),
         ("dx_webmozart_assert", tools["webmozart_assert"]),
         ("dx_phpstan_strict_rules", tools["phpstan_strict_rules"]),
     ]:
-        pinned_archive(
+        php_archive(
             name = name,
             files = {"BUILD.bazel": SOURCES_BUILD},
             required = ["src"],

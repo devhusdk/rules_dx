@@ -1,22 +1,25 @@
-load("@gazelle//:def.bzl", "gazelle")
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_DX_COMMANDS", "VIS_DX_ROOTS")
 load(":generate.bzl", "GENERATE_EXCLUDES")
 
 package(default_visibility = ["//visibility:private"])
 
-gazelle(
+native_binary(
     name = "generate",
-    args = GENERATE_EXCLUDES,
-    gazelle = "@dx_gazelle//:gazelle",
+    src = "@dx_gazelle//:gazelle",
+    args = ["update"] + GENERATE_EXCLUDES,
     visibility = VIS_DX_COMMANDS,
 )
 
-gazelle(
+native_binary(
     name = "generate_check",
-    args = GENERATE_EXCLUDES,
-    gazelle = "@dx_gazelle//:gazelle",
-    mode = "diff",
+    src = "@dx_gazelle//:gazelle",
+    args = [
+        "update",
+        "-mode",
+        "diff",
+    ] + GENERATE_EXCLUDES,
     visibility = VIS_DX_COMMANDS,
 )
 

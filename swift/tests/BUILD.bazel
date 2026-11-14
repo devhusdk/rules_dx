@@ -4,7 +4,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//powershell:defs.bzl", "powershell_test")
 load("//rust:defs.bzl", "rust_test")
 load("//swift/private:defs.bzl", "swift_kwargs")
-load("//swift/private/toolchain:tests.bzl", "swift_toolchain_hub_test", "swift_windows_extract_test")
+load("//swift/private/toolchain:tests.bzl", "swift_linux_repo_test", "swift_toolchain_hub_test", "swift_windows_extract_test")
 load(":host_swift_tests.bzl", "swift_host_descriptor_test")
 load(":hub_tests.bzl", "swift_hub_tests")
 load(":transition_tests.bzl", "transition_test_suite")
@@ -64,6 +64,11 @@ swift_host_descriptor_test(
 
 swift_toolchain_hub_test(
     name = "toolchain_hub_test",
+    size = "small",
+)
+
+swift_linux_repo_test(
+    name = "linux_repo_test",
     size = "small",
 )
 

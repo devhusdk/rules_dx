@@ -6,6 +6,7 @@ load("@rules_swift//swift:providers.bzl", "SwiftToolchainInfo")
 load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load(":extensions.bzl", "swift_hub")
+load(":toolchain.bzl", "SWIFT_LINUX_CPUS")
 
 def _link_flags(cc_info):
     return [
@@ -132,6 +133,34 @@ def swift_windows_extract_test(name, size):
                 "\"SystemRoot\": None,",
             ]),
             "//swift/private/toolchain:windows.bzl": "env = {\"PATH\": runtime, \"Path\": runtime},",
+        },
+    )
+
+def swift_linux_repo_test(name, size):
+    """Asserts the Linux repository declares every target the toolchain consumes."""
+    starlark_test(
+        name = name,
+        size = size,
+        mode = "load",
+        checks = [expect_true("linux cpus", len(SWIFT_LINUX_CPUS) == 2)],
+        file_checks = {
+            "//swift/private/toolchain:repos.bzl": "\n".join([
+                "name = \"files\",",
+                "name = \"swift_tool_inputs\",",
+                "name = \"linux_dynamic_runtime\",",
+                "name = \"linux_static_runtime\",",
+                "name = \"host_libs\",",
+                "name = \"runtime_libs\",",
+                "\"usr/bin/swift-driver\",",
+                "\"usr/bin/swift-frontend\",",
+                "\"libz.so.1\",",
+            ]),
+            "//swift/private/toolchain:toolchain.bzl": "\n".join([
+                "//:swift_tool_inputs",
+                "//:linux_dynamic_runtime",
+                "//:linux_static_runtime",
+                "//:host_libs",
+            ]),
         },
     )
 

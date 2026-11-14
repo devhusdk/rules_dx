@@ -1,6 +1,6 @@
 use quality_adapter::parsers;
 
-use super::check::ToolDef;
+use super::check::{ToolDef, without_scratch_root};
 use super::*;
 
 /// Schema and IDL compilers.
@@ -213,7 +213,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     parsers::parse_flatc(&out.stdout, &out.stderr, out.code, &[name.as_str()]),
                 )?;
                 declared_input_escape(call.tool_id, workspace, &root, &report.dependencies)?;
-                let scratch_prefix = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
                 for mut item in report.findings {
                     // Typecheck is the error-only view of the same flatc run.
                     if capability == "typecheck"
@@ -223,7 +222,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     }
                     item.file = absolute.to_string_lossy().into_owned();
                     // Messages name other schemas by scratch path; keep them workspace-relative.
-                    item.finding.message = item.finding.message.replace(&scratch_prefix, "");
+                    item.finding.message = without_scratch_root(&item.finding.message, &root);
                     findings.push(item);
                 }
             }

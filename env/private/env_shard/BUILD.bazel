@@ -49,6 +49,7 @@ rust_binary(
 
 rust_test(
     name = "env_shard_test",
+    size = "small",
     aliases = aliases(
         package_name = "env/private/env_shard",
         normal = True,

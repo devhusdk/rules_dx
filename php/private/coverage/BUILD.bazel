@@ -27,5 +27,6 @@ exports_files(
 
 rust_test(
     name = "coverage_test",
+    size = "small",
     crate = ":coverage_run",
 )

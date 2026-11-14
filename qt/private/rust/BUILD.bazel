@@ -44,6 +44,7 @@ qt_corpus(
 
 rust_test(
     name = "qt_rust_bridge_bin_test",
+    size = "small",
     aliases = aliases(
         package_name = "qt/private/qt_rust_bridge",
         normal = True,

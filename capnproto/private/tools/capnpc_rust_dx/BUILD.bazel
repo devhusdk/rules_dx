@@ -26,6 +26,7 @@ rust_binary(
 
 rust_test(
     name = "capnpc_rust_dx_test",
+    size = "small",
     aliases = aliases(
         package_name = "capnproto/private/tools/capnpc_rust_dx",
         normal = True,

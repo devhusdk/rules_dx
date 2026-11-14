@@ -11,7 +11,7 @@ load("//java/private:defs.bzl", "java_jmh_test")
 load("//java/private:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
 load("//java/private:jazzer.bzl", "jazzer_fuzz", "jazzer_target_class")
 load("//java/private:jmh.bzl", "jmh_bench")
-load(":kwargs.bzl", "kotlin_has_own_opts", "kotlin_kotlinc_opts_with_warnings_as_errors", "kotlin_test_entry_kwargs")
+load(":kwargs.bzl", "kotlin_has_own_opts", "kotlin_kotlinc_opts_with_warnings_as_errors", "kotlin_test_entry_kwargs", "kotlin_test_main_class")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
 
@@ -113,6 +113,9 @@ def kotlin_test(name, *, srcs = None, visibility = None, **kwargs):
     upstream_kwargs = kotlin_test_entry_kwargs(name, srcs, package, kotlin_kotlinc_opts_with_warnings_as_errors(name, kwargs))
     if upstream_kwargs.get("test_class") in (None, "") and upstream_kwargs.get("main_class") in (None, ""):
         fail("kotlin_test //{}:{}: cannot infer test_class from srcs; set test_class.".format(package, name))
+    forward_main_class = upstream_kwargs.get("main_class") or DX_JVM_TEST_RUNNER
+    if upstream_kwargs.get("main_class") in (None, ""):
+        upstream_kwargs = dict(upstream_kwargs, main_class = select(kotlin_test_main_class(upstream_kwargs["test_class"])))
     dx_wrap_test(
         name,
         _kt_jvm_test,
@@ -120,7 +123,7 @@ def kotlin_test(name, *, srcs = None, visibility = None, **kwargs):
         srcs,
         visibility = visibility,
         upstream_kwargs = upstream_kwargs,
-        extra_forward_kwargs = {"main_class": upstream_kwargs.get("main_class") or DX_JVM_TEST_RUNNER},
+        extra_forward_kwargs = {"main_class": forward_main_class},
         **dx_without_warnings_attr(kwargs)
     )
 

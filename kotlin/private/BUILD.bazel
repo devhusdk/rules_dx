@@ -4,7 +4,7 @@ load("//core:defs.bzl", "expect_equal", "label_string")
 load("//core:wrapper.bzl", "dx_warnings_as_errors")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "kotlin_warnings_as_errors_opts")
-load(":kwargs.bzl", "kotlin_kotlinc_opts_with_warnings_as_errors", "kotlin_test_class", "kotlin_test_entry_kwargs")
+load(":kwargs.bzl", "kotlin_kotlinc_opts_with_warnings_as_errors", "kotlin_test_class", "kotlin_test_entry_kwargs", "kotlin_test_main_class")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -22,6 +22,13 @@ kotlin_warnings_as_errors_opts(
     name = "warnings_as_errors",
     visibility = ["//visibility:public"],
     warnings_as_errors = dx_warnings_as_errors({}, True, False)[1],
+)
+
+config_setting(
+    name = "windows_coverage",
+    constraint_values = ["@platforms//os:windows"],
+    values = {"collect_code_coverage": "true"},
+    visibility = ["//visibility:public"],
 )
 
 exports_files([
@@ -154,6 +161,14 @@ dx_wrapper_contract_tests(
                 kotlin_kotlinc_opts_with_warnings_as_errors("FooTest", {}),
             )["kotlinc_opts"],
             str(label_string("//kotlin/private:warnings_as_errors")),
+        ),
+        expect_equal(
+            "windows coverage launches the test class",
+            kotlin_test_main_class("a.BTest"),
+            {
+                str(label_string("//kotlin/private:windows_coverage")): "a.BTest",
+                "//conditions:default": "com.google.testing.junit.runner.BazelTestRunner",
+            },
         ),
     ],
     file_classes = [

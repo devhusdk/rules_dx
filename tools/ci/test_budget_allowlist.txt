@@ -308,7 +308,6 @@ examples/adopt-polyglot/widgets/BUILD.bazel no-size 1
 examples/shared-rust/BUILD.bazel no-size 13
 flatbuffers/tests/BUILD.bazel no-size 22
 flutter/tests/contract/BUILD.bazel no-size 1
-flutter/tests/fixtures/flutter-app/android/BUILD.bazel size-medium 1
 flutter/tests/fixtures/flutter-app/app/BUILD.bazel no-size 2
 flutter/tests/fixtures/flutter-app/web/BUILD.bazel no-size 1
 flutter/tests/negative/BUILD.bazel no-size 2

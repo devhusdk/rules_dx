@@ -29,7 +29,7 @@ load("//rust:defs.bzl", "rust_test")
 
 rust_test(
     name = "interaction_test",
-    size = "medium",
+    size = "small",
     srcs = ["interaction_test.rs"],
     crate_root = "interaction_test.rs",
     data = [

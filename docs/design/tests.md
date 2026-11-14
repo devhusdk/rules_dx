@@ -6,7 +6,6 @@ Every test target and test macro follows these rules.
 
 - Every test runs in the default set: `bazel test` on its package pattern selects it. A conformance subject is the one exception.
 - No test carries the `manual` tag.
-- A test that cannot run there is fixed or deleted.
 - A test for only some platforms says so with `target_compatible_with`, not a tag.
 
 ## Sandbox, remote execution and cache
@@ -26,7 +25,6 @@ Every test target and test macro follows these rules.
 ## Exclusive
 
 - `exclusive` is not allowed.
-- Tests that share a resource each get their own copy of it.
 - A resource that Bazel can count is declared with a `resources:<name>:<n>` tag.
 - `msix_package_store` is set in `.bazelrc`.
 
@@ -63,7 +61,6 @@ A test is the first of four kinds that can prove the behaviour.
 
 - The target is under 1 second per test.
 - A unit, analysis or in-graph fixture test starts no Bazel server.
-- A change that adds a nested test states its measured time.
 - `//tools/ci:test_budget_test` holds the budget: `docs/design/test-budget.md`.
 
 ## Expected failures
@@ -72,7 +69,7 @@ A test is the first of four kinds that can prove the behaviour.
 - A passing test runs that executable from runfiles and asserts its exit code and output.
 - An analysis failure is asserted with `failure_test` on the non-test target.
 - A language test that must fail is a conformance subject.
-- A compile that must fail is recorded by `compile_log` in `//tools/testing/hermetic:compilers.bzl`. An action replays the compile action of the fixture library and writes its exit code and output to a file. A passing test asserts both.
+- A compile that must fail is recorded by `compile_log` in `//tools/testing/hermetic:compilers.bzl`.
 
 ## Conformance
 

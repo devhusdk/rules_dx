@@ -11,3 +11,9 @@ write_file(
     content = subpackages(include = ["**"]),
     visibility = ["//tools/ci:__pkg__"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

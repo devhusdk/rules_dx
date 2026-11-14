@@ -25,3 +25,9 @@ real_source_target(
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

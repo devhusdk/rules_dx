@@ -47,6 +47,7 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "Cargo.toml",
     ]) + ["//deploy/private:module_srcs"],
     visibility = ["//:__subpackages__"],
 )

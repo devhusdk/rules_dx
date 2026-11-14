@@ -68,6 +68,7 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "pins.json",
     ]),
     visibility = ["//:__subpackages__"],
 )

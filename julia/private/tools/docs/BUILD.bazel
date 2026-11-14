@@ -39,3 +39,9 @@ real_source_target(
         "Project.toml",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

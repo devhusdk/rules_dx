@@ -60,3 +60,9 @@ rust_test(
         "//cli/test_scratch:dx_test_scratch",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

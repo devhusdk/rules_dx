@@ -13,6 +13,7 @@ filegroup(
     srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "pins.json",
     ],
     visibility = ["//:__subpackages__"],
 )

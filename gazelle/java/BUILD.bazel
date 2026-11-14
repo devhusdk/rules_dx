@@ -88,3 +88,9 @@ real_source_target(
     visibility = ["//tools/ci:__pkg__"],
 )
 
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

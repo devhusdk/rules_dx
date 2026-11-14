@@ -93,3 +93,9 @@ dx_unavailable_tool(
     tool = "topiary",
 )
 
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

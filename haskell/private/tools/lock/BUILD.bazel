@@ -103,3 +103,9 @@ exports_files(
     ["Cargo.toml"],
     visibility = VIS_TOOLS_PUBLIC,
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

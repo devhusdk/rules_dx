@@ -753,3 +753,9 @@ rust_binary(
         normal = True,
     ) + [":dx_release_tools"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

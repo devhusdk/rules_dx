@@ -158,6 +158,7 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "Cargo.toml",
     ]),
     visibility = ["//:__subpackages__"],
 )

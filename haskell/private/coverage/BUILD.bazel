@@ -51,3 +51,9 @@ dx_haskell_coverage_tests(
     name = "haskell_coverage_test",
     target = ":greeter_test",
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

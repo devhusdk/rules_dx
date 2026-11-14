@@ -35,6 +35,7 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "swift_format.BUILD.bazel",
     ]),
     visibility = ["//:__subpackages__"],
 )

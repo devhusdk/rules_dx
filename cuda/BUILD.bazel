@@ -15,6 +15,7 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "pins.json",
     ]) + [
         "//cuda/private:module_srcs",
         "//cuda/private/toolchain:module_srcs",

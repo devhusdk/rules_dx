@@ -30,6 +30,8 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "java.BUILD.bazel",
+        "rust.BUILD.bazel",
     ]),
     visibility = ["//:__subpackages__"],
 )

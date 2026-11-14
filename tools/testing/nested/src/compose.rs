@@ -47,11 +47,96 @@ pub const RULES_PY_PATCHES: [&str; 8] = [
 /// Pins the patched rules_py the way the root MODULE.bazel does, until the BCR serves alpha.11.
 pub fn rules_py_override() -> String {
     let patches = RULES_PY_PATCHES
-    .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
-    .concat();
+        .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
+        .concat();
     format!(
         "archive_override(\n    module_name = \"rules_py\",\n    integrity = \"sha256-TlCUj7uFZKizo7HzVM2ex//f4wT2PGpf6x/bz7/Hgr0=\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"rules_py-2.0.0-alpha.11\",\n    urls = [\"https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz\"],\n)\n"
     )
+}
+
+/// The patches of `//patches/rules_rust` that `rules_rust_override` names, without `.patch`.
+pub const RULES_RUST_PATCHES: [&str; 11] = [
+    "clippy_metadata_inputs",
+    "pipelined_rmeta_path",
+    "crate_universe_root_lookup",
+    "msvc_pdb_output",
+    "static_archive_link_arg",
+    "crate_universe_lazy_host_tools",
+    "cargo_toml_env_vars_flag",
+    "exec_scope_universal",
+    "cargo_build_script_no_coverage",
+    "windows_exec_foreign_target_cc_linker",
+    "crate_universe_module_labels",
+];
+
+/// Pins rules_rust 0.75.0 with the patches of the root MODULE.bazel.
+pub fn rules_rust_override() -> String {
+    let patches = RULES_RUST_PATCHES
+        .map(|name| format!("        \"//patches/rules_rust:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "single_version_override(\n    module_name = \"rules_rust\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.75.0\",\n)\n"
+    )
+}
+
+/// The patches of `//patches/llvm` that `llvm_override` names, without `.patch`.
+pub const LLVM_PATCHES: [&str; 9] = [
+    "libunwind_copy",
+    "clang_cl_crt_default_lib",
+    "clang_cl_profile_no_mingw",
+    "unwatched_overlay_inputs",
+    "msvc_source_directories",
+    "lse_atomic_sources",
+    "stage0_runtime_features",
+    "aarch64_outline_atomics",
+    "macos_sdk_resolve_symlinks",
+];
+
+/// Pins llvm 0.8.26 with the patches of the root MODULE.bazel apart from `toolchains_gate`, whose `@@//config` labels name the root repository.
+pub fn llvm_override() -> String {
+    let patches = LLVM_PATCHES
+        .map(|name| format!("        \"//patches/llvm:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "single_version_override(\n    module_name = \"llvm\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.8.26\",\n)\n"
+    )
+}
+
+/// The patches of `//patches/windows_support` that `windows_support_override` names, without `.patch`.
+pub const WINDOWS_SUPPORT_PATCHES: [&str; 5] = [
+    "host_tools",
+    "rules_dx_hosts",
+    "hostarm64_packages",
+    "dx_msvc_layout",
+    "source_directory_headers",
+];
+
+/// Pins windows_support 0.4.1 with the patches of the root MODULE.bazel.
+pub fn windows_support_override() -> String {
+    let patches = WINDOWS_SUPPORT_PATCHES
+        .map(|name| format!("        \"//patches/windows_support:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "single_version_override(\n    module_name = \"windows_support\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.4.1\",\n)\n"
+    )
+}
+
+/// The patches of `//patches/protobuf` that `protobuf_override` names, without `.patch`.
+pub const PROTOBUF_PATCHES: [&str; 1] = ["no_crate_universe"];
+
+/// Pins protobuf 36.2 with the patches of the root MODULE.bazel.
+pub fn protobuf_override() -> String {
+    let patches = PROTOBUF_PATCHES
+        .map(|name| format!("        \"//patches/protobuf:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "single_version_override(\n    module_name = \"protobuf\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"36.2\",\n)\n"
+    )
+}
+
+/// Writes the files `protobuf_override` names into the consumer.
+pub fn write_protobuf_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
+    write_patches(workspace, rules_dx, "protobuf", &PROTOBUF_PATCHES)
 }
 
 /// The patches of `//patches/rules_flutter` that `rules_flutter_override` names, without `.patch`.
@@ -114,6 +199,24 @@ pub fn rules_flutter_override() -> String {
         .concat();
     format!(
         "archive_override(\n    module_name = \"rules_flutter\",\n    integrity = \"{integrity}\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"{strip_prefix}\",\n    urls = [\"{url}\"],\n)\n"
+    )
+}
+
+/// The patches of `//patches/rules_julia` that `rules_julia_override` names, without `.patch`.
+pub const RULES_JULIA_PATCHES: [&str; 4] = [
+    "package_annotation_version",
+    "package_name",
+    "portable_cpu_target",
+    "template_action_input",
+];
+
+/// Pins rules_julia 0.8.0 with the patches of the root MODULE.bazel.
+pub fn rules_julia_override() -> String {
+    let patches = RULES_JULIA_PATCHES
+        .map(|name| format!("        \"//patches/rules_julia:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "single_version_override(\n    module_name = \"rules_julia\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.8.0\",\n)\n"
     )
 }
 
@@ -194,10 +297,31 @@ fn write_patches(
     Ok(())
 }
 
+/// Writes the files `rules_rust_override` names into the consumer.
+pub fn write_rules_rust_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
+    write_patches(workspace, rules_dx, "rules_rust", &RULES_RUST_PATCHES)
+}
+
+/// Writes the files `llvm_override` names into the consumer.
+pub fn write_llvm_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
+    write_patches(workspace, rules_dx, "llvm", &LLVM_PATCHES)
+}
+
+/// Writes the files `windows_support_override` names into the consumer.
+pub fn write_windows_support_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
+    write_patches(
+        workspace,
+        rules_dx,
+        "windows_support",
+        &WINDOWS_SUPPORT_PATCHES,
+    )
+}
+
 /// Writes the files `rules_py_override` and `rules_flutter_override` name into the consumer.
 pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
     write_patches(workspace, rules_dx, "rules_py", &RULES_PY_PATCHES)?;
-    write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)
+    write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)?;
+    write_patches(workspace, rules_dx, "rules_julia", &RULES_JULIA_PATCHES)
 }
 
 #[cfg(test)]

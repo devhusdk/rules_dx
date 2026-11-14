@@ -83,10 +83,27 @@ const STRIPPED: &[&str] = &[
     "XML_OUTPUT_FILE",
 ];
 
+/// The nested root on Windows: `<drive>:\\dxn\\<hash of tmpdir>`, short enough that `CreateProcess` accepts the
+/// build-script working directories below the nested execroot (its limit is 260 characters).
+fn windows_root(tmpdir: &Path) -> PathBuf {
+    let hash = tmpdir
+        .to_string_lossy()
+        .to_lowercase()
+        .bytes()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
+        });
+    let mut root = PathBuf::new();
+    for component in tmpdir.components().take(2) {
+        root.push(component);
+    }
+    root.join("dxn").join(format!("{:08x}", hash >> 32))
+}
+
 /// Settings for the nested Bazel server of one test binary.
 #[derive(Clone, Debug)]
 pub struct Config {
-    /// The directory under `TEST_TMPDIR` holding the home, the output user root and the workspaces.
+    /// The directory holding the home, the output user root and the workspaces: under `TEST_TMPDIR`, or `<drive>:\dxn\<hash>` on Windows.
     pub root: PathBuf,
     pub bazel: PathBuf,
     pub heap: String,
@@ -111,9 +128,14 @@ impl Config {
         resolve: &dyn Fn(&str, &str) -> Result<PathBuf, String>,
     ) -> Result<Config, String> {
         let text = |name: &str| lookup(name).and_then(|v| v.to_str().map(str::to_owned));
-        let root = env_path(lookup, TMPDIR_ENV)
-            .ok_or_else(|| format!("{TMPDIR_ENV} is not set; a nested Bazel runs only inside a test"))?
-            .join("nested");
+        let tmpdir = env_path(lookup, TMPDIR_ENV).ok_or_else(|| {
+            format!("{TMPDIR_ENV} is not set; a nested Bazel runs only inside a test")
+        })?;
+        let root = if cfg!(windows) {
+            windows_root(&tmpdir)
+        } else {
+            tmpdir.join("nested")
+        };
         let heap = text("DX_NESTED_BAZEL_HEAP")
             .filter(|heap| !heap.is_empty())
             .unwrap_or_else(|| DEFAULT_HEAP.to_owned());
@@ -1005,6 +1027,9 @@ impl Server {
             workspace: None,
             reaper: None,
         };
+        if cfg!(windows) {
+            reset(&server.home)?;
+        }
         for dir in [server.home.join(WORKSPACES), server.home.join(HOME_DIR)] {
             std::fs::create_dir_all(&dir)
                 .map_err(|error| format!("cannot create {}: {error}", dir.display()))?;
@@ -1265,7 +1290,7 @@ fn blocked_download(offline: bool, run: &Run) -> Option<String> {
 }
 
 /// The longest one captured command may run.
-const CALL_DEADLINE: Duration = Duration::from_secs(300);
+const CALL_DEADLINE: Duration = Duration::from_secs(if cfg!(windows) { 1500 } else { 300 });
 
 /// Like `Command::output`, but kills the child and returns an error naming the command and its output so far once `limit` passes.
 fn output_within(command: &mut Command, limit: Duration) -> Result<std::process::Output, String> {

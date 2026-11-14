@@ -59,6 +59,8 @@ No scope means `//...`. Pass labels, patterns, files, or directories. A file run
 
 `--affected` on `test` and `coverage` runs only affected tests. With nothing affected, dx prints `no affected targets` and exits `0`.
 
+`dx test //...` in a workspace with no test targets prints `the workspace has no test targets` and exits `0`. Narrower patterns with no tests exit `1` with `no_tests`.
+
 Args after `--` go to Bazel. Bazel startup options after `--` exit `2`.
 
 ## Protected flags

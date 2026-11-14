@@ -1,13 +1,21 @@
 //! Builds a release candidate archive from the working tree and consumes it through a local
-//! registry in a nested Bazel workspace, with no override.
+//! registry in a nested Bazel workspace, with no rules_dx override.
 
 use std::path::{Path, PathBuf};
 
+use dx_nested::compose::{
+    llvm_override, protobuf_override, rules_flutter_override, rules_julia_override,
+    rules_py_override, rules_rust_override, windows_support_override, write_llvm_patches,
+    write_protobuf_patches, write_rules_py_patches, write_rules_rust_patches,
+    write_windows_support_patches,
+};
 use dx_nested::{self as nested, Case};
 use dx_release_tools::candidate::{
     Candidate, build_source_archive, file_url, source_archive_error, stage_local_registry,
 };
 use dx_testing::{Run, resolve_runfiles, rules_dx_source};
+
+use crate::quickstart_consumer_test::{bazel, ok};
 
 const VERSION: &str = "1.2.3-rc1";
 
@@ -21,6 +29,7 @@ rust_binary(
 
 rust_test(
     name = "app_test",
+    size = "small",
     srcs = ["app_test.rs"],
 )
 
@@ -94,7 +103,9 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     let case = nested::case("candidate_consumer");
     let root = case.root().to_path_buf();
     write(&root.join(".bazelversion"), &member(".bazelversion"));
-    let mut rc: Vec<u8> = dx_testing::preset_rc().into_bytes();
+    let mut rc: Vec<u8> = dx_testing::preset_rc()
+        .replace("@rules_dx//", "@my_dx//")
+        .into_bytes();
     rc.extend_from_slice(
         format!(
             "\ncommon --registry={}\ncommon --registry=https://bcr.bazel.build\n",
@@ -102,12 +113,26 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
         )
         .as_bytes(),
     );
+    rc.extend_from_slice(crate::quickstart_consumer_test::WINDOWS_LICENCES.as_bytes());
     write(&root.join(".bazelrc"), &rc);
     let module = format!(
-        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n",
-        candidate.version()
+        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n{}{}{}{}{}{}{}",
+        candidate.version(),
+        rules_py_override(),
+        rules_flutter_override(),
+        rules_julia_override(),
+        rules_rust_override(),
+        llvm_override(),
+        windows_support_override(),
+        protobuf_override(),
     );
-    assert!(!module.contains("override"), "{module}");
+    assert!(!module.contains("module_name = \"rules_dx\""), "{module}");
+    write_rules_py_patches(&root, &rules_dx_source()).unwrap_or_else(|error| panic!("{error}"));
+    write_rules_rust_patches(&root, &rules_dx_source()).unwrap_or_else(|error| panic!("{error}"));
+    write_llvm_patches(&root, &rules_dx_source()).unwrap_or_else(|error| panic!("{error}"));
+    write_protobuf_patches(&root, &rules_dx_source()).unwrap_or_else(|error| panic!("{error}"));
+    write_windows_support_patches(&root, &rules_dx_source())
+        .unwrap_or_else(|error| panic!("{error}"));
     write(&root.join("MODULE.bazel"), module.as_bytes());
     write(&root.join("BUILD.bazel"), BUILD.as_bytes());
     write(&root.join("main.rs"), b"fn main() {}\n");
@@ -137,21 +162,21 @@ fn dx(case: &Case, command: &str, args: &[&str]) -> Run {
         .into_owned();
     let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
     argv.extend_from_slice(args);
-    case.run(
-        &resolve_runfiles(&rel),
-        &argv,
-        &[("HOME", home.as_str()), ("PATH", path.as_str())],
-    )
+    let mut env = vec![("HOME", home.as_str()), ("PATH", path.as_str())];
+    let bazel_sh = crate::quickstart_consumer_test::nested_env()
+        .into_iter()
+        .find(|(name, _)| *name == "BAZEL_SH")
+        .map(|(_, value)| value);
+    if let Some(bazel_sh) = bazel_sh.as_deref() {
+        env.push(("BAZEL_SH", bazel_sh));
+    }
+    case.run(&resolve_runfiles(&rel), &argv, &env)
 }
 
 /// Names the step about to run on the uncaptured stderr, so a test killed mid-step shows it.
 fn stage(name: &str) {
     use std::io::Write;
     let _ = writeln!(std::io::stderr(), "candidate_consumer_test: {name}");
-}
-
-fn ok(run: &Run, what: &str) {
-    assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
 
 /// Consumes the archive through the registry and checks what Bazel fetched.
@@ -162,12 +187,12 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     let case = consumer(candidate, archive, &registry);
 
     stage("bazel build");
-    ok(&case.bazel(&["build", "//..."]), "build");
+    ok(&bazel(&case, &["build", "//..."]), "build");
     stage("bazel test");
-    ok(&case.bazel(&["test", "//..."]), "test");
+    ok(&bazel(&case, &["test", "//..."]), "test");
     stage("bazel mod");
 
-    let explain = case.bazel(&["mod", "explain", "rules_dx"]);
+    let explain = bazel(&case, &["mod", "explain", "rules_dx"]);
     ok(&explain, "mod explain");
     assert!(
         explain.stdout.contains(&format!("rules_dx@{VERSION}")),
@@ -175,7 +200,7 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
         explain.combined()
     );
 
-    let repo = case.bazel(&["mod", "show_repo", "@my_dx"]);
+    let repo = bazel(&case, &["mod", "show_repo", "@my_dx"]);
     ok(&repo, "mod show_repo");
     let shown = repo.stdout.clone();
     let registry_url = file_url(&registry);
@@ -190,7 +215,7 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     }
 
     stage("bazel info");
-    let base = case.bazel(&["info", "output_base"]);
+    let base = bazel(&case, &["info", "output_base"]);
     ok(&base, "info output_base");
     let fetched = Path::new(base.stdout.trim()).join("external/rules_dx+/MODULE.bazel");
     let staged = registry.join(format!("modules/rules_dx/{VERSION}/MODULE.bazel"));
@@ -202,7 +227,18 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
 
     stage("dx check");
     let policy = "--@my_dx//config:workspace=//:policy";
-    ok(&dx(&case, "check", &["//...", "--", policy]), "dx check");
+    let check = dx(&case, "check", &["//...", "--", policy]);
+    let build = std::fs::read_to_string(case.root().join("BUILD.bazel")).unwrap_or_default();
+    if build != BUILD {
+        use std::io::Write;
+        let _ = writeln!(std::io::stderr(), "dx check rewrote BUILD.bazel:\n{build}");
+    }
+    if check.status.code() != Some(0) {
+        use std::io::Write;
+        let diff = dx(&case, "generate", &["--diff", "//...", "--", policy]);
+        let _ = writeln!(std::io::stderr(), "dx generate --diff:\n{}", diff.combined());
+    }
+    ok(&check, "dx check");
 
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     assert_gcc_consumer(&case);
@@ -215,6 +251,9 @@ fn assert_gcc_consumer(case: &Case) {
 
     let gcc_dir = dx_test_scratch::scratch("candidate-gcc-shim");
     let shim = gcc_dir.path();
+    let ldd = Path::new(&crate::quickstart_consumer_test::ldd_path()).join("ldd");
+    std::os::unix::fs::symlink(&ldd, shim.join("ldd"))
+        .unwrap_or_else(|error| panic!("link ldd into {shim:?}: {error}"));
     for name in ["gcc", "g++", "cc", "c++"] {
         let path = shim.join(name);
         write(&path, b"#!/bin/sh\nexit 97\n");
@@ -232,15 +271,15 @@ fn assert_gcc_consumer(case: &Case) {
     let with = |head: &[&'static str], target: &'static str| -> Vec<&str> {
         head.iter().copied().chain(flags).chain([target]).collect()
     };
-    let root = case.bazel(&["info", "execution_root"]);
+    let root = bazel(case, &["info", "execution_root"]);
     ok(&root, "info execution_root");
 
     for (target, expected) in [
         ("//gcc:app", "gcc consumer\n"),
         ("//gcc:c_app", "gcc c consumer\n"),
     ] {
-        ok(&case.bazel(&with(&["build"], target)), "gcc build");
-        let files = case.bazel(&with(&["cquery", "--output=files"], target));
+        ok(&bazel(case, &with(&["build"], target)), "gcc build");
+        let files = bazel(case, &with(&["cquery", "--output=files"], target));
         ok(&files, "gcc cquery");
         let binary = Path::new(root.stdout.trim()).join(files.stdout.trim());
         let bytes = std::fs::read(&binary).unwrap_or_else(|error| panic!("{binary:?}: {error}"));

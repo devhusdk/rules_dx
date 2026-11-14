@@ -1,0 +1,17 @@
+load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_test")
+
+rust_binary(
+    name = "app",
+    srcs = ["main.rs"],
+)
+
+rust_test(
+    name = "app_test",
+    size = "small",
+    srcs = ["app_test.rs"],
+)
+
+rust_binary(
+    name = "removed",
+    srcs = ["removed.rs"],
+)

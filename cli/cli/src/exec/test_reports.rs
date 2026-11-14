@@ -88,6 +88,16 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             return report_dx_error(invocation.output, out, err, bep_error_code(&error), &error);
         }
     };
+    if verb == WorkflowVerb::Test
+        && bazel_code == BAZEL_NO_TESTS
+        && whole_repo
+        && failure_count == 0
+        && events.results.is_empty()
+        && events.skipped.is_empty()
+    {
+        *results_complete = true;
+        return no_tests_in_workspace(invocation.output, out, err, actions);
+    }
     let reader = FsArtifacts;
     let mut evidence = Evidence::default();
     if let Some(problem) = stream_problem {
@@ -335,6 +345,45 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         }
     }
     code
+}
+
+/// The workspace has no test targets: `dx test //...` passes with a notice.
+pub(super) fn no_tests_in_workspace(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    actions: Option<ActionCounts>,
+) -> i32 {
+    let message = "the workspace has no test targets";
+    match output {
+        OutputMode::Json => {
+            if let Err(exit) = emit_built(
+                out,
+                notice_event(&NoticeEvent::info(
+                    super::notice_codes::CODE_WORKSPACE_WITHOUT_TESTS,
+                    message,
+                )),
+            ) {
+                return exit;
+            }
+            let finished = command_finished(
+                0,
+                &FinishedCounts {
+                    results_complete: Some(true),
+                    actions,
+                    ..FinishedCounts::default()
+                },
+            );
+            if let Err(exit) = emit_event(out, &finished) {
+                return exit;
+            }
+        }
+        OutputMode::Text { .. } => {
+            writeln!(err, "dx: {message}").ok();
+        }
+        _ => {}
+    }
+    0
 }
 
 #[cfg(test)]

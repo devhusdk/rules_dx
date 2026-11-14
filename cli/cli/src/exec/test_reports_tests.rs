@@ -188,6 +188,36 @@ fn test_preserves_bazel_failure_code() {
 }
 
 #[test]
+fn test_of_a_workspace_without_tests_passes() {
+    let harness = Harness {
+        bazel_code: 4,
+        raw_bep: Some(Vec::new()),
+        ..Harness::new("test-no-tests-workspace")
+    };
+    let (code, out, err) = harness.run(&["test", "--output=text", "//..."]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(
+        err.contains("dx: the workspace has no test targets"),
+        "{err}"
+    );
+    assert!(!err.contains("no_tests"), "{err}");
+    assert!(!err.contains("incomplete_results"), "{err}");
+}
+
+#[test]
+fn test_of_a_workspace_without_tests_reports_a_notice_in_json() {
+    let harness = Harness {
+        bazel_code: 4,
+        raw_bep: Some(Vec::new()),
+        ..Harness::new("test-no-tests-workspace-json")
+    };
+    let (code, out, err) = harness.run(&["test", "--output=json", "//..."]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("\"workspace_without_tests\""), "{out}");
+    assert!(!out.contains("\"no_tests\""), "{out}");
+}
+
+#[test]
 fn coverage_lcov_file_report_succeeds() {
     let harness = Harness::new("cov-ok");
     let uri = write_bep_artifact(&harness, "coverage.dat", MINIMAL_LCOV.as_bytes());
@@ -2893,7 +2923,9 @@ fn test_label_pattern_without_tests_reports_no_tests() {
         bazel_code: 4,
         ..Harness::new("test-no-tests-pattern")
     };
-    let (code, out, err) = harness.run(&["test", "--output=json"]);
+    std::fs::create_dir_all(harness.workspace.join("a")).expect("mkdir");
+    std::fs::write(harness.workspace.join("a/BUILD.bazel"), "").expect("build");
+    let (code, out, err) = harness.run(&["test", "--output=json", "//a/..."]);
     assert_eq!(code, 4, "{out}{err}");
     let events = json_events(&out);
     assert!(

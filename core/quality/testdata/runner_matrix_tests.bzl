@@ -6,7 +6,7 @@ load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
 load("//core/quality:pipeline.bzl", "real_request_stage")
 load("//core/quality:support.bzl", "SUPPORT_PLATFORMS")
 load("//core/quality/private:native_config_impl.bzl", "native_config_scratch_rel", "staged_config_rel", "tier_base_dirs")
-load("//rust/private/toolchain:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
+load("//rust/private/toolchain:bindings.bzl", "rust_toolchain_runtime_files", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 def _single_file(target):
     files = target[DefaultInfo].files.to_list()
@@ -66,6 +66,7 @@ def _runner_matrix_test_impl(ctx):
             sibling_staged[directory + f.short_path[at + len(marker):]] = f
 
     tools = {}
+    tool_runtime = []
     for i, name in enumerate(ctx.attr.tool_names):
         tools[name] = _tool_executable(ctx.attr.tool_binaries[i])
     if ctx.attr.rustfmt_from_toolchain:
@@ -73,6 +74,7 @@ def _runner_matrix_test_impl(ctx):
             fail("runner_matrix_test: rustfmt_from_toolchain with an explicit rustfmt binary")
         _clippy_driver, rustfmt = rust_toolchain_tools(ctx)
         tools["rustfmt"] = rustfmt
+        tool_runtime = rust_toolchain_runtime_files(ctx)
 
     tool_files = []
     for i, tool in enumerate(ctx.attr.toolfile_tools):
@@ -231,6 +233,7 @@ def _runner_matrix_test_impl(ctx):
             list(staged.values()) +
             list(sibling_staged.values()) +
             list(tools.values()) +
+            tool_runtime +
             [_tool_executable(t) for t in ctx.attr.path_tool_binaries] +
             [f for (_tool, _rel, f) in tool_files] +
             [f for f in ctx.files.config_files] +

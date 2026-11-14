@@ -35,7 +35,7 @@ pub fn parse_go_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
 pub fn parse_go_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let mut pkgs = BTreeMap::new();
-    for (module, version) in dx_gomod::parse_sum(&text) {
+    for (module, version) in dx_gomod::parse_sum(&text).map_err(DepcheckError::LockParse)? {
         pkgs.entry(normalize_lower(&module)).or_insert(version);
     }
     Ok(pkgs)

@@ -1,3 +1,5 @@
+#![expect(unsafe_code, reason = "the fixture exists to call across the C FFI boundary")]
+
 use std::ffi::{c_char, CStr};
 
 pub const API_VERSION: i32 = 1;

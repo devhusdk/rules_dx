@@ -286,7 +286,9 @@ function Start-TimestampServer([int]$Status) {
 
 function Stop-TimestampServer($Server) {
     $Server.Http.Stop()
-    $served = Receive-Job -Job $Server.Job -Wait -AutoRemoveJob
+    $null = Wait-Job -Job $Server.Job
+    $served = Receive-Job -Job $Server.Job
+    Remove-Job -Job $Server.Job
     return [int]($served | Select-Object -Last 1)
 }
 

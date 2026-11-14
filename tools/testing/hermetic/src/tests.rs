@@ -2322,3 +2322,10 @@ fn fetch_fails_rejects_a_download() {
     let err = verify_evidence(&evidence, "abc123", &manifest).unwrap_err();
     assert!(err.contains("downloaded"), "{err}");
 }
+
+#[test]
+fn accepted_licenses_reads_the_fragment_tags() {
+    let fragment = "dx_licenses = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"a\", \"b-c\"])\n";
+    assert_eq!(accepted_licenses(fragment), ["a", "b-c"]);
+    assert!(accepted_licenses("msvc = use_extension(\"x\", \"msvc\")\n").is_empty());
+}

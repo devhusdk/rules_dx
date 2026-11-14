@@ -1,0 +1,2 @@
+[libraries]
+ch-epfl-scala-scalafix-cli-2-13-18 = { module = "ch.epfl.scala:scalafix-cli_2.13.18", version = "0.14.9" }

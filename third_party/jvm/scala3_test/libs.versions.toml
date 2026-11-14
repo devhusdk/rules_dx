@@ -1,0 +1,2 @@
+[libraries]
+org-scala-lang-scala3-compiler-3 = { module = "org.scala-lang:scala3-compiler_3", version = "3.3.9" }

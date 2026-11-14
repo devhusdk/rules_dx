@@ -7,6 +7,10 @@ exports_files([
     "libs.versions.toml",
     "maven_install.json",
     "rules_android_maven_install.json",
+    "scala3_test/libs.versions.toml",
+    "scala3_test/maven_install.json",
+    "scalafix/libs.versions.toml",
+    "scalafix/maven_install.json",
 ])
 
 real_source_target(
@@ -20,7 +24,11 @@ real_source_target(
 real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
-    toml_srcs = ["libs.versions.toml"],
+    toml_srcs = [
+        "libs.versions.toml",
+        "scala3_test/libs.versions.toml",
+        "scalafix/libs.versions.toml",
+    ],
 )
 
 filegroup(

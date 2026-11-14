@@ -7,11 +7,7 @@ package(default_visibility = [
     "//tools/ci:__pkg__",
 ])
 
-exports_files([
-    "corpus.bzl",
-    "php.bzl",
-    "php_tools.bzl",
-])
+exports_files(["corpus.bzl"])
 
 php_corpus(
     name = "corpus_markdown",
@@ -24,8 +20,6 @@ php_corpus(
     starlark_srcs = [
         "BUILD.bazel",
         "corpus.bzl",
-        "php.bzl",
-        "php_tools.bzl",
         "//php:BUILD.bazel",
         "//php:defs.bzl",
         "//php:extensions.bzl",

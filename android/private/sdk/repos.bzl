@@ -1,5 +1,7 @@
 """Opt-in Android NDK and build-tools acquisition."""
 
+load("@dx_pins_data//:pins.bzl", "DATA")
+
 ANDROID_NDK_REVISION = "27.0.12077973"
 
 ANDROID_NDK_RELEASE = "r27"
@@ -57,13 +59,15 @@ OPT_IN_PACKAGES = [
     "emulator",
 ]
 
+_NDK_PINS = DATA["dx_android"]["archives"]
+
 NDK_ARTIFACTS = {
     "linux_x86_64": struct(
         anchor = "source.properties",
         archive = "android-ndk-r27-linux.zip",
         directory = "android-ndk-r27",
         sha1 = "5e5cd517bdb98d7e0faf2c494a3041291e71bdcc",
-        sha256 = "2f17eb8bcbfdc40201c0b36e9a70826fcd2524ab7a2a235e2c71186c302da1dc",
+        sha256 = _NDK_PINS["android-ndk-r27-linux.zip"]["sha256"],
         size = 663957918,
     ),
     "macos_arm64": struct(
@@ -71,7 +75,7 @@ NDK_ARTIFACTS = {
         archive = "android-ndk-r27-darwin.zip",
         directory = "android-ndk-r27",
         sha1 = "1a4a8c39c018430ff170657fc1673d895f5e4570",
-        sha256 = "2f2ef00b22fe22c1c9c78fda1b38ea7ffa6528e25eac0b70a92f8cb0093143be",
+        sha256 = _NDK_PINS["android-ndk-r27-darwin.zip"]["sha256"],
         size = 836135405,
     ),
     "macos_x86_64": struct(
@@ -79,7 +83,7 @@ NDK_ARTIFACTS = {
         archive = "android-ndk-r27-darwin.zip",
         directory = "android-ndk-r27",
         sha1 = "1a4a8c39c018430ff170657fc1673d895f5e4570",
-        sha256 = "2f2ef00b22fe22c1c9c78fda1b38ea7ffa6528e25eac0b70a92f8cb0093143be",
+        sha256 = _NDK_PINS["android-ndk-r27-darwin.zip"]["sha256"],
         size = 836135405,
     ),
     "windows_x86_64": struct(
@@ -87,7 +91,7 @@ NDK_ARTIFACTS = {
         archive = "android-ndk-r27-windows.zip",
         directory = "android-ndk-r27",
         sha1 = "0ea2756e6815356831bda3af358cce4cdb6a981e",
-        sha256 = "342ceafd7581ae26a0bd650a5e0bbcd0aa2ee15eadfd7508b3dedeb1372d7596",
+        sha256 = _NDK_PINS["android-ndk-r27-windows.zip"]["sha256"],
         size = 781482169,
     ),
 }

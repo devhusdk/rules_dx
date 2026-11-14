@@ -179,6 +179,7 @@ single_version_override(
         "//patches/windows_support:hostarm64_packages.patch",
         "//patches/windows_support:dx_msvc_layout.patch",
         "//patches/windows_support:source_directory_headers.patch",
+        "//patches/windows_support:pins.patch",
     ],
     version = "0.4.1",
 )
@@ -686,6 +687,10 @@ dx_pins.data(
     pins = "//core/quality/artifacts:lock.json",
 )
 dx_pins.data(
+    name = "dx_android",
+    pins = "//android:pins.json",
+)
+dx_pins.data(
     name = "dx_cc_gcc",
     pins = "//cc:pins.json",
 )
@@ -717,6 +722,19 @@ dx_pins.pin(
 dx_pins.data(
     name = "dx_haskell",
     pins = "//haskell:pins.json",
+)
+dx_pins.archive(
+    name = "dx_windows_support",
+    key = "windows_support",
+    patches = [
+        "//patches/windows_support:host_tools.patch",
+        "//patches/windows_support:rules_dx_hosts.patch",
+        "//patches/windows_support:hostarm64_packages.patch",
+        "//patches/windows_support:dx_msvc_layout.patch",
+        "//patches/windows_support:source_directory_headers.patch",
+        "//patches/windows_support:pins.patch",
+    ],
+    pins = "//cc:pins.json",
 )
 dx_pins.archive(
     name = "dx_ldoc",
@@ -1263,6 +1281,7 @@ use_repo(
     "dx_swift_format_macos_arm64",
     "dx_thrift_commons_lang3",
     "dx_thrift_slf4j",
+    "dx_windows_support",
     "japicmp_jar",
     "kcov",
     "nfpm_linux_arm64",
@@ -3193,28 +3212,10 @@ use_repo(windows_msvc_runtime, "msvc_runtime")
 windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "windows_sdk")
 use_repo(windows_sdk_ext, "windows_sdk")
 
-_dx_windows_support = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-_dx_windows_support(
-    name = "dx_windows_support",
-    integrity = "sha256-mPpYLkzOEVCcePdg6Kx0q/dVhys7qQ3SVCcCTS5TqJA=",
-    patch_args = ["-p1"],
-    patches = [
-        "//patches/windows_support:host_tools.patch",
-        "//patches/windows_support:rules_dx_hosts.patch",
-        "//patches/windows_support:hostarm64_packages.patch",
-        "//patches/windows_support:dx_msvc_layout.patch",
-        "//patches/windows_support:source_directory_headers.patch",
-    ],
-    strip_prefix = "windows_support-0.4.1",
-    urls = ["https://github.com/hermeticbuild/windows_support/releases/download/v0.4.1/windows_support-v0.4.1.tar.gz"],
-)
-
 dx_msvc_runtime_ext = use_extension("//cc:extensions.bzl", "msvc_runtime")
 dx_msvc_runtime_ext.configure(
     msvc_version = "14.50.35717",
-    visual_studio_installer_manifest_integrity = "sha256-qOhU+p8/uurCfXME4pfxZg1xN0ATid61fPeYPzPBb+8=",
-    visual_studio_installer_manifest_url = "https://download.visualstudio.microsoft.com/download/pr/fdc37f6e-59f6-4054-838a-b476eeaa6ec3/1d82370739911457e0a2f6be15d8b5f569531b352b2eabb961429eea1e99e356/VisualStudio.vsman",
+    pins = "//cc:pins.json",
 )
 use_repo(dx_msvc_runtime_ext, dx_msvc_runtime = "msvc_runtime")
 
@@ -3229,11 +3230,7 @@ dx_windows_sdk_ext.configure(
         "**/*.lib": "lowercase",
         "**/*.Lib": "lowercase",
     },
-    windows_sdk_integrity = {
-        "Microsoft.Windows.SDK.CPP": "sha256-/0VWYL7gcadEcVqWZWZvopwHaBV509gVlZqe7FpVZCQ=",
-        "Microsoft.Windows.SDK.CPP.x64": "sha256-rWzpD/lAEGmdKVSLPCseUsieuBFD4hmRVdmlw4ABtSs=",
-        "Microsoft.Windows.SDK.CPP.arm64": "sha256-A7wMA9Q5zvhQdLvNQl+dXTptO0Z5Z6zSHaO6bf7q+mc=",
-    },
+    pins = "//cc:pins.json",
     windows_sdk_version = "10.0.26100.7705",
 )
 use_repo(dx_windows_sdk_ext, dx_windows_sdk = "windows_sdk")

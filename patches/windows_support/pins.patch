@@ -1,0 +1,69 @@
+diff --git a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
+--- a/windows/private/extensions/msvc_runtime.bzl
++++ b/windows/private/extensions/msvc_runtime.bzl
+@@ -591,12 +591,18 @@
+ def _msvc_runtime_extension_impl(module_ctx):
+     config = _read_configure_tag(module_ctx)
+     host_tools = _read_host_tools(module_ctx)
++    manifest_url = config.visual_studio_installer_manifest_url
++    manifest_integrity = config.visual_studio_installer_manifest_integrity
++    if config.pins:
++        pin = json.decode(module_ctx.read(config.pins))["visual_studio_installer_manifest"]
++        manifest_url = pin["url"]
++        manifest_integrity = pin["integrity"]
+ 
+     installer_manifest = _resolve_installer_manifest_from_module_facts(
+         module_ctx,
+         config.visual_studio_channel_url,
+-        config.visual_studio_installer_manifest_url,
+-        config.visual_studio_installer_manifest_integrity,
++        manifest_url,
++        manifest_integrity,
+         _INSTALLER_MANIFEST_FACTS_KEY,
+     )
+ 
+@@ -638,6 +644,10 @@
+             "visual_studio_installer_manifest_integrity": attr.string(
+                 doc = "Optional SRI integrity for the downloaded Visual Studio installer manifest.",
+             ),
++            "pins": attr.label(
++                allow_single_file = True,
++                doc = "JSON file whose visual_studio_installer_manifest url and integrity replace the two manifest attributes.",
++            ),
+         }),
+         "host_tools": tag_class(
+             attrs = {
+diff --git a/windows/private/extensions/windows_sdk.bzl b/windows/private/extensions/windows_sdk.bzl
+--- a/windows/private/extensions/windows_sdk.bzl
++++ b/windows/private/extensions/windows_sdk.bzl
+@@ -358,12 +358,15 @@
+ 
+ def _windows_sdk_extension_impl(module_ctx):
+     config = _read_configure_tag(module_ctx)
++    integrity = config.windows_sdk_integrity
++    if config.pins:
++        integrity = json.decode(module_ctx.read(config.pins))["windows_sdk_integrity"]
+ 
+     repository_name = "windows_sdk"
+     _windows_sdk_repository(
+         name = repository_name,
+         windows_sdk_version = config.windows_sdk_version,
+-        windows_sdk_integrity = config.windows_sdk_integrity,
++        windows_sdk_integrity = integrity,
+         transformations = config.transformations,
+         architectures = config.architectures,
+         host_tools = _read_host_tools(module_ctx),
+@@ -383,7 +386,12 @@
+ windows_sdk = module_extension(
+     implementation = _windows_sdk_extension_impl,
+     tag_classes = {
+-        "configure": tag_class(attrs = _WINDOWS_SDK_ATTR),
++        "configure": tag_class(attrs = _WINDOWS_SDK_ATTR | {
++            "pins": attr.label(
++                allow_single_file = True,
++                doc = "JSON file whose windows_sdk_integrity replaces the windows_sdk_integrity attribute.",
++            ),
++        }),
+         "host_tools": tag_class(
+             attrs = {
+                 "hosts": attr.string_list(

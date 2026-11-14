@@ -19,16 +19,7 @@ def ghc_library_dir(cell):
     return LIBDIR + "/" + CELLS[cell].ghc_libdir_triple + "-ghc-" + GHC_VERSION
 
 def cell_matches_host(cell, os_name, arch):
-    """Returns whether the cell's binaries run on the host.
-
-    Args:
-        cell: Cell key.
-        os_name: Host rctx.os.name.
-        arch: Host rctx.os.arch.
-
-    Returns:
-        True if the host can run the cell's bindist.
-    """
+    """Returns whether the cell's binaries run on the host."""
     host = CELLS[cell].host
     return any([os_name.lower().startswith(os) for os in host.os]) and arch in host.arch
 
@@ -379,7 +370,6 @@ def _drop_import_libs(rctx):
 def _ghc_repo_impl(rctx):
     cell = CELLS[rctx.attr.cell]
     if not cell_matches_host(rctx.attr.cell, rctx.os.name, rctx.os.arch):
-        # The bindist cannot run here; toolchain resolution picks the host's own cell.
         rctx.file("REPO.bazel", "")
         rctx.file("BUILD.bazel", _UNAVAILABLE_BUILD)
         return rctx.repo_metadata(reproducible = True)
@@ -459,14 +449,7 @@ ghc_repo = repository_rule(
 )
 
 def hub_files(cells = CELLS):
-    """Returns the hub files: the toolchains and cc toolchains at the root, the runtime closure aliases under lib.
-
-    Args:
-        cells: The cell table, so tests can unblock a cell.
-
-    Returns:
-        A dict from hub file path to its content.
-    """
+    """Returns the hub files: the toolchains and cc toolchains at the root, the runtime closure aliases under lib."""
     toolchains = []
     content = []
     arms = []

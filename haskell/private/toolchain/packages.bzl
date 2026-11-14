@@ -170,19 +170,7 @@ def package_deps(hub, lock, package):
     return sorted([dependency_label(hub, names, dep) for dep in package.get("extra", {}).get("cabal_deps", [])])
 
 def package_build(name, version, components, deps, tools, libraries):
-    """Returns the BUILD file of one package repository.
-
-    Args:
-        name: The package name.
-        version: The package version.
-        components: The cabal components of the package in the lock.
-        deps: The dependency labels of the package.
-        tools: The build tool labels of the package.
-        libraries: The library stanzas of the .cabal file, as returned by cabal_libraries.
-
-    Returns:
-        The BUILD file content.
-    """
+    """Returns the BUILD file of one package repository."""
     has_lib = "lib" in components
     sublibs = sorted([sub for sub in libraries if sub])
     lines = [
@@ -262,15 +250,7 @@ hackage_package = repository_rule(
 )
 
 def declare_packages(mctx, tag):
-    """Declares the repositories of one cabal.lock tag.
-
-    Args:
-        mctx: The module extension context.
-        tag: The lock tag with name and lock.
-
-    Returns:
-        The names of the repositories created.
-    """
+    """Declares the repositories of one cabal.lock tag."""
     lock = json.decode(mctx.read(tag.lock))
     problems = pin_problems(lock)
     if problems:

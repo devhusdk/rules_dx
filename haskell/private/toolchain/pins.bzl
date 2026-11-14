@@ -95,9 +95,7 @@ CELLS = {
         exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
         ghc = _archive("ghc__macos_arm64"),
         cabal = _archive("cabal__macos_arm64"),
-        # GMP is linked into the Darwin bindist, so there is no runtime closure.
         runtime = [],
-        # Ships the GMP LGPL text, which has no deb copyright file to come from.
         gmp_license = _GMP_LICENSE,
     ),
     "windows_x86_64": struct(
@@ -113,7 +111,6 @@ CELLS = {
         ghc = _archive("ghc__windows_x86_64"),
         cabal = _archive("cabal__windows_x86_64"),
         runtime = [],
-        # GMP is linked statically into the Windows bindist.
         gmp_license = _GMP_LICENSE,
         mingw_cc = True,
     ),

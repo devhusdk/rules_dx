@@ -51,7 +51,6 @@ def _cc_aspect_impl(target, ctx):
     info = target[FlatBuffersInfo]
     headers = []
 
-    # Each flag variant gets its own root so variants do not declare the same path.
     subdir = "_fbs_obj" if ctx.attr.gen_object_api else "_fbs"
     stage = _stage(ctx, subdir + "_stage/" + target.label.name, info)
     for src in info.direct_srcs:
@@ -95,7 +94,6 @@ def _cc_library_impl(ctx):
     return [
         DefaultInfo(files = depset(own_headers)),
         cc_info,
-        # Generated code owns no checked sources; it is not a cc_library to lint.
         dx_quality_sources([], [], str(ctx.label)),
         FlatBuffersCcStageInfo(
             stage_roots = depset(transitive = [info.stage_roots for info in aspect_infos]),

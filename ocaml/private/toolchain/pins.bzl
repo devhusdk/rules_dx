@@ -122,7 +122,6 @@ OCAML_CELLS = {
                 license_file = "info/zstd/licenses/LICENSE",
                 binary_placeholders = [],
             ),
-            # Static libzstd for dune-built executables; its build hash follows the zstd pin.
             struct(
                 name = "zstd-static",
                 archive = _archive("zstd-static__macos_arm64"),

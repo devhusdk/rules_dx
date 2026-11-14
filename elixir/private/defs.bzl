@@ -137,7 +137,6 @@ def elixir_app(name, visibility = None, testonly = False, **kwargs):
     tags = kwargs.pop("tags", None)
     nifs = kwargs.pop("nifs", [])
     if nifs:
-        # rules_erlang rejects extra_priv next to srcs, so list priv in full.
         kwargs["priv"] = nif_priv(kwargs, nifs)
         kwargs.pop("extra_priv", None)
     owned = app_sources(kwargs)

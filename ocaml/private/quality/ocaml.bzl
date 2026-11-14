@@ -53,7 +53,6 @@ SHARD_SPECS = {
 }
 
 def _zanuda_hook(target, ctx, resolved, _capability, what, _shared):
-    # A target with OCaml sources but no typed trees would lint nothing, so it fails analysis.
     if OCamlCmtInfo not in target:
         fail(what + ": zanuda needs OCamlCmtInfo, which only the dx ocaml_module and ocaml_signature rules provide")
     listed = {}
@@ -75,7 +74,6 @@ def _zanuda_hook(target, ctx, resolved, _capability, what, _shared):
     stdlib = ctx.files._ocaml_stdlib
     inputs.extend(stdlib)
 
-    # Relative to the execution root, like the binary; the runner makes it absolute.
     env = [real_request_tool_env("OCAMLLIB", stdlib[0].dirname)] if len(stdlib) > 0 else []
     return real_context(tool_files = tool_files, inputs = inputs, env = env)
 

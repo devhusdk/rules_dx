@@ -172,7 +172,6 @@ def _gcc_toolchain_impl(rctx):
     ])
     extra_cxxflags.extend(rctx.attr.extra_cxxflags)
 
-    # No sysroot -B/-L flags: relative paths make lld reject glibc's absolute linker-script entries.
     extra_ldflags = [
         lib.format(
             include_prefix = include_prefix,
@@ -208,22 +207,18 @@ def _gcc_toolchain_impl(rctx):
         binary_prefix = binary_prefix,
         include_prefix = include_prefix,
 
-        # Includes
         cxx_builtin_include_directories = _format_builtins(builtin_include_directories),
 
-        # Flags
         extra_cflags = _format_flags(extra_cflags),
         extra_cxxflags = _format_flags(extra_cxxflags),
         extra_ldflags = _format_flags(extra_ldflags),
         extra_asmflags = _format_flags(extra_asmflags),
 
-        # Features
         extra_enabled_features = [str(feature_label) for feature_label in rctx.attr.extra_enabled_features],
         extra_known_features = [str(feature_label) for feature_label in rctx.attr.extra_known_features],
 
         path_env = path_env,
 
-        # cc_toolchain attributes
         supports_param_files = 1 if rctx.attr.supports_param_files else 0,
         target_libc = rctx.attr.target_libc,
         target_system_name = "{}-linux-gnu".format(rctx.attr.target_arch),
@@ -396,7 +391,6 @@ def _gcc_toolchains_hub_impl(rctx):
             gcc_version_flag = gcc_version_flag,
         ))
 
-    # The default version matches both the empty flag and its explicit value.
     content.append(_HUB_DEFAULT_SETTING_TEMPLATE.format(suffix = _sanitize_version(default_gcc_version)))
 
     for gcc_version in sorted(toolchain_repos.keys()):
@@ -410,7 +404,6 @@ def _gcc_toolchains_hub_impl(rctx):
             toolchain_repo = toolchain_repos[gcc_version],
         ))
 
-    # Aliases under the hub name that follow the selected version.
     for target in _HUB_ALIASED_TARGETS:
         actual = {
             ":_gcc_version_" + _sanitize_version(gcc_version): "@{}//:{}".format(toolchain_repo, target)
@@ -474,7 +467,6 @@ def gcc_declare_toolchain(
     target_settings = kwargs.pop("target_settings", [])
     extra_target_settings = kwargs.pop("extra_target_settings", [])
 
-    # Left in kwargs so that the per-version repositories keep receiving it.
     repo_mapping = kwargs.get("repo_mapping", None)
 
     extra_cflags = kwargs.pop("extra_cflags", [])
@@ -507,11 +499,9 @@ def gcc_declare_toolchain(
 
     hub_kwargs = {}
 
-    # An explicitly empty target_compatible_with drops the default constraints.
     if target_compatible_with != None:
         hub_kwargs["target_compatible_with"] = target_compatible_with
 
-    # The hub BUILD file needs the same repository mapping as the per-version repositories.
     if repo_mapping != None:
         hub_kwargs["repo_mapping"] = repo_mapping
 
@@ -699,13 +689,11 @@ filegroup(
 filegroup(
     name = "include",
     srcs = glob([
-        # C includes
         "lib/gcc/{include_prefix}*/include/**",
         "lib/gcc/{include_prefix}*/include-fixed/**",
         "{include_prefix}include/**",
         "sysroot/usr/include/**",
 
-        # C++ includes
         "{include_prefix}include/c++/*/**",
         "include/c++/*/**",
     ], allow_empty=True),
@@ -745,7 +733,6 @@ filegroup(
         "**/libexec/gcc/**/collect2",
         "**/libexec/gcc/**/lto-wrapper",
         "**/libexec/gcc/**/lto1",
-        # These shared objects are needed at runtime by GCC when linked dynamically to them.
         "lib/libgmp.so*",
         "lib/libmpc.so*",
         "lib/libmpfr.so*",

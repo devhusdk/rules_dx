@@ -108,7 +108,6 @@ CELLS = {
         strip_prefix = _cell("windows_x86_64")["strip_prefix"],
         runtime = [],
     ),
-    # No arm64 OTP is published, so this is the x64 build running under Windows emulation.
     "windows_arm64": struct(
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64"],
         otp_sha256 = _cell("windows_arm64")["sha256"],

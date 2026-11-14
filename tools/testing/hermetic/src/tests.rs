@@ -2431,3 +2431,15 @@ fn declares_local_rule_reads_the_local_attribute() {
     assert!(!declares_local_rule(LOCAL_RULES, "missing"));
     assert!(!declares_local_rule(LOCAL_RULES, "host_platform"));
 }
+
+#[test]
+fn command_line_batches_stay_within_the_limit() {
+    let args: Vec<String> = ["aaaa", "bbbb", "cccc", "dd"].map(str::to_owned).to_vec();
+    assert_eq!(
+        command_line_batches(10, &args, 20),
+        [vec!["aaaa".to_owned(), "bbbb".to_owned()], vec!["cccc".to_owned(), "dd".to_owned()]]
+    );
+    assert_eq!(command_line_batches(10, &args, 100).len(), 1);
+    assert!(command_line_batches(10, &[], 20).is_empty());
+    assert_eq!(quoted_len("a b"), 8);
+}

@@ -170,6 +170,7 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
         )
         .as_bytes(),
     );
+    rc.extend_from_slice(crate::quickstart_consumer_test::WINDOWS_LICENCES.as_bytes());
     write(&root.join(".bazelrc"), &rc);
     let module = format!(
         "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n{}{}{}",

@@ -87,6 +87,23 @@ pub(crate) fn ldd_path() -> String {
     dir.to_string_lossy().into_owned()
 }
 
+/// The licence lines `docs/cli/commands/windows.md` has a Windows user add to `user.bazelrc`.
+pub(crate) const WINDOWS_LICENCES: &str = "common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1\ncommon:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1\n";
+
+/// On Windows, the `.bazelrc` the consumer starts with: the preset's Windows lines, which a
+/// source-built dx needs before `dx init` writes the preset, and `WINDOWS_LICENCES`.
+fn write_windows_rc(case: &Case) {
+    if cfg!(windows) {
+        let mut rc: String = dx_testing::preset_rc()
+            .lines()
+            .filter(|line| line.contains(":windows "))
+            .map(|line| format!("{line}\n"))
+            .collect();
+        rc.push_str(WINDOWS_LICENCES);
+        write_text(&case.root().join(".bazelrc"), &rc);
+    }
+}
+
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
     let path = ldd_path();
     let run = case.bazel_with(args, &[("PATH", path.as_str())]);
@@ -143,6 +160,7 @@ fn the_readme_quickstart_runs_as_written() {
 
     let case = nested::case("quickstart_readme");
     copy_rules_py_patches(&source, &case);
+    write_windows_rc(&case);
     for (name, text) in &files {
         let mut text = text.replace("<release>", "0.0.0");
         if name == "MODULE.bazel" {
@@ -231,6 +249,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
         &read_text(&source.join(".bazelversion")),
     );
     copy_rules_py_patches(&source, &case);
+    write_windows_rc(&case);
     let module = case.root().join("MODULE.bazel");
     write_text(
         &module,

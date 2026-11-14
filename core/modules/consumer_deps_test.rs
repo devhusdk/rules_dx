@@ -308,9 +308,14 @@ fn fixture_table(pins: &[(&str, &str, &str)]) -> Table {
         .collect()
 }
 
-fn good(dep: &str, over: &str) -> String {
+fn good(dep: &str, over: Option<&str>) -> String {
+    let over = over.map_or_else(String::new, |over| {
+        format!(
+            "single_version_override(\n    module_name = \"demo\",\n    version = \"{over}\",\n)\n"
+        )
+    });
     format!(
-        "# floor: equals tested\nbazel_dep(name = \"demo\", version = \"{dep}\")\nsingle_version_override(\n    module_name = \"demo\",\n    version = \"{over}\",\n)\n\nbazel_dep(name = \"dev\", version = \"9.0.0\", dev_dependency = True)\n"
+        "# floor: equals tested\nbazel_dep(name = \"demo\", version = \"{dep}\")\n{over}\nbazel_dep(name = \"dev\", version = \"9.0.0\", dev_dependency = True)\n"
     )
 }
 
@@ -318,7 +323,18 @@ fn good(dep: &str, over: &str) -> String {
 fn a_matching_fixture_passes() {
     assert_eq!(
         violations(
-            &good("1.2.0", "1.2.0"),
+            &good("1.2.0", Some("1.2.0")),
+            &fixture_table(&[("demo", "1.2.0", "1.2.0")])
+        ),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn a_fixture_without_an_override_passes() {
+    assert_eq!(
+        violations(
+            &good("1.2.0", None),
             &fixture_table(&[("demo", "1.2.0", "1.2.0")])
         ),
         Vec::<String>::new()
@@ -335,7 +351,7 @@ fn a_dep_at_its_tested_version_needs_no_override() {
 #[test]
 fn a_dx_version_is_rejected() {
     let demo = fixture_table(&[("demo", "1.2.0.dx.1", "1.2.0.dx.1")]);
-    let problems = violations(&good("1.2.0.dx.1", "1.2.0.dx.1"), &demo);
+    let problems = violations(&good("1.2.0.dx.1", Some("1.2.0.dx.1")), &demo);
     assert!(
         problems.iter().any(|problem| problem.contains("BCR versions only")),
         "{problems:?}"
@@ -351,39 +367,39 @@ fn disagreeing_fixtures_fail() {
         )
     };
     for (source, table, needle) in [
-        (good("1.1.0", "1.2.0"), demo.clone(), "but its floor is"),
+        (good("1.1.0", Some("1.2.0")), demo.clone(), "but its floor is"),
         (
-            good("1.2.0", "1.3.0"),
+            good("1.2.0", Some("1.3.0")),
             demo.clone(),
             "but its tested version is",
         ),
         (
-            good("1.2.0", "1.2.0"),
+            good("1.2.0", Some("1.2.0")),
             fixture_table(&[("demo", "1.2.0", "1.2.0"), ("gone", "1", "1")]),
             "has no non-dev bazel_dep",
         ),
         (
-            good("1.2.0", "1.2.0"),
+            good("1.2.0", Some("1.2.0")),
             Table::new(),
             "missing from CONSUMER_BAZEL_DEPS",
         ),
         (
-            good("1.2.0", "1.2.0").replace("# floor: equals tested\n", ""),
+            good("1.2.0", Some("1.2.0")).replace("# floor: equals tested\n", ""),
             demo.clone(),
             "has no `# floor: <reason>` comment",
         ),
         (
-            good("1.2.0", "1.2.0").replace("equals tested", "not yet searched"),
+            good("1.2.0", Some("1.2.0")).replace("equals tested", "not yet searched"),
             demo.clone(),
             "floor comment must start with \"equals tested\"",
         ),
         (
-            good("1.1.0", "1.2.0"),
+            good("1.1.0", Some("1.2.0")),
             fixture_table(&[("demo", "1.1.0", "1.2.0")]),
             "floor 1.1.0 != tested 1.2.0",
         ),
         (
-            good("1.3.0", "1.2.0"),
+            good("1.3.0", Some("1.2.0")),
             fixture_table(&[("demo", "1.3.0", "1.2.0")]),
             "is above tested",
         ),
@@ -555,7 +571,7 @@ fn every_bazel_dep_has_a_floor_comment_and_is_newest() {
 #[test]
 fn floor_and_newest_gaps_are_found() {
     let newest = newest(r#"{"demo": "1.2.0", "dev": "9.0.0"}"#);
-    let floored = good("1.2.0", "1.2.0").replace(
+    let floored = good("1.2.0", Some("1.2.0")).replace(
         "bazel_dep(name = \"dev\"",
         "# floor: dev only\nbazel_dep(name = \"dev\"",
     );
@@ -565,7 +581,7 @@ fn floor_and_newest_gaps_are_found() {
         gaps.into_iter().collect::<Vec<String>>()
     };
     assert_eq!(gaps(&floored), Vec::<String>::new());
-    assert_eq!(gaps(&good("1.2.0", "1.2.0")), ["dev no-floor"]);
+    assert_eq!(gaps(&good("1.2.0", Some("1.2.0"))), ["dev no-floor"]);
     for comment in [
         "# dev only: a fixture",
         "# floor:",
@@ -642,4 +658,78 @@ fn the_bazel_dep_allowlist_only_shrinks() {
             "{allowlist:?} {needle}: {problems:?}"
         );
     }
+}
+
+/// Every `bazel_dep` of `source` outside the non-registry overrides whose MODULE.bazel in the lock's `registryFileHashes` has a version above the declared one.
+fn lock_violations(source: &str, lock_json: &str) -> Vec<String> {
+    let module = match ModuleFile::parse(source) {
+        Ok(module) => module,
+        Err(error) => return vec![error.to_string()],
+    };
+    let lock: serde_json::Value = match serde_json::from_str(lock_json) {
+        Ok(lock) => lock,
+        Err(error) => return vec![format!("MODULE.bazel.lock: {error}")],
+    };
+    let Some(hashes) = lock["registryFileHashes"].as_object() else {
+        return vec!["MODULE.bazel.lock has no registryFileHashes".to_owned()];
+    };
+    let mut problems = Vec::new();
+    for call in module.calls_named("bazel_dep") {
+        let Some(name) = call.str("name") else {
+            continue;
+        };
+        let outside = NON_REGISTRY_OVERRIDES.iter().any(|kind| {
+            module
+                .calls_named(kind)
+                .any(|call| call.str("module_name") == Some(name))
+        });
+        let Ok(declared) = module.bazel_dep_version(name) else {
+            continue;
+        };
+        if outside {
+            continue;
+        }
+        let marker = format!("/modules/{name}/");
+        for key in hashes.keys() {
+            let Some((_, rest)) = key.split_once(&marker) else {
+                continue;
+            };
+            let Some(version) = rest.strip_suffix("/MODULE.bazel") else {
+                continue;
+            };
+            if compare_module_versions(version, &declared.value) == Ordering::Greater {
+                problems.push(format!(
+                    "bazel_dep {name:?} is {} but the lock resolves a module asking for {version}",
+                    declared.value
+                ));
+            }
+        }
+    }
+    problems
+}
+
+#[test]
+fn no_module_asks_for_more_than_the_root_declares() {
+    let problems = lock_violations(
+        &dx_testing::read_runfiles("MODULE.bazel"),
+        &dx_testing::read_runfiles("MODULE.bazel.lock"),
+    );
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn lock_versions_above_a_bazel_dep_are_found() {
+    let lock = r#"{"registryFileHashes": {
+        "https://bcr.bazel.build/modules/demo/1.2.0/MODULE.bazel": "a",
+        "https://bcr.bazel.build/modules/demo/1.3.0/MODULE.bazel": "b",
+        "https://bcr.bazel.build/modules/other/9.0.0/MODULE.bazel": "c"
+    }}"#;
+    let problems = lock_violations(&good("1.2.0", None), lock);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(problems[0].contains("asking for 1.3.0"), "{problems:?}");
+    let archived = format!(
+        "{}archive_override(module_name = \"demo\", urls = [\"u\"])\n",
+        good("1.2.0", None)
+    );
+    assert_eq!(lock_violations(&archived, lock), Vec::<String>::new());
 }

@@ -111,7 +111,7 @@ def versions_contract_tests(name):
                                "name = \"rules_perl\", version = \"" + _RULES_PERL_VERSION + "\"\n" +
                                "name = \"lua\", version = \"" + _LUA_VERSION + "\"\n" +
                                "name = \"avro-cpp\", version = \"" + _AVRO_CPP_VERSION + "\"\n" +
-                               "module_name = \"fmt\",\n    version = \"" + _FMT_VERSION + "\"\n" +
+                               "bazel_dep(name = \"fmt\", version = \"" + _FMT_VERSION + "\", dev_dependency = True)\n" +
                                "name = \"rules_py\", version = \"" + _RULES_PY_VERSION + "\"\n" +
                                "name = \"aspect_rules_js\", version = \"" + _ASPECT_RULES_JS_VERSION + "\"\n" +
                                "name = \"aspect_rules_ts\", version = \"" + _ASPECT_RULES_TS_VERSION + "\"\n" +

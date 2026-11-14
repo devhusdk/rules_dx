@@ -11,6 +11,7 @@ pub mod init_dir;
 pub mod launcher;
 pub mod licenses;
 pub mod load_graph;
+pub mod loaded_deps;
 pub mod lock_hubs;
 pub mod module_deps;
 pub mod module_pin;
@@ -49,6 +50,7 @@ pub use licenses::{
     render_license_accept,
 };
 pub use load_graph::{BzlImpact, bzl_impact, external_repos, module_inputs, repo_impact};
+pub use loaded_deps::plan_loaded_deps;
 pub use lock_hubs::{
     LockHubs, MavenLocks, RESOLVER_LOCKS, plan_lock_hubs, plan_maven_locks, plan_pnpm_tool,
     unlocked_manifests,

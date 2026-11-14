@@ -501,7 +501,7 @@ fn run_generate_request(
         Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };
     let apply = request.applies();
-    let wiring = wire_module(request, &mut env);
+    let mut wiring = wire_module(request, &mut env);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     std::fs::remove_file(&patch).ok();
@@ -602,6 +602,15 @@ fn run_generate_request(
             );
         }
     };
+    wire(
+        env.workspace,
+        apply,
+        env.err,
+        &mut wiring,
+        "loaded rule sets",
+        "a bazel_dep for each rule set the BUILD files load",
+        dx_adopt::plan_loaded_deps(env.workspace).map(|plan| (plan.notes, plan.edit)),
+    );
     let mut code = projected.exit_code(match gazelle {
         GazelleStatus::Failed(failed) => failed,
         GazelleStatus::Completed => 0,
@@ -989,6 +998,53 @@ mod tests {
         assert_eq!(code, 0, "{out}{err}");
         let after = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert_eq!(after, module);
+    }
+
+    fn loading_workspace(name: &str, mode: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source(
+            "MODULE.bazel",
+            "module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n",
+        );
+        harness.write_source(
+            "web/BUILD.bazel",
+            "load(\"@aspect_rules_ts//ts:defs.bzl\", \"ts_project\")\n",
+        );
+        harness.intended = Some(intended_witness(mode, true, "", ""));
+        harness
+    }
+
+    #[test]
+    fn generate_apply_declares_the_rule_sets_build_files_load() {
+        let harness = loading_workspace("generate-loaded-apply", "default");
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        let version = dx_adopt::preflight::RULES_DX_DEPS
+            .iter()
+            .find(|(name, _)| *name == "aspect_rules_ts")
+            .map(|(_, version)| *version)
+            .expect("pinned");
+        assert!(
+            module.contains(&format!(
+                "bazel_dep(name = \"aspect_rules_ts\", version = \"{version}\")"
+            )),
+            "{module}"
+        );
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let again = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        assert_eq!(again, module);
+    }
+
+    #[test]
+    fn generate_check_reports_an_undeclared_loaded_rule_set() {
+        let harness = loading_workspace("generate-loaded-check", "check");
+        let (code, out, err) = harness.run(&["generate"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("aspect_rules_ts"), "{err}");
+        let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        assert!(!module.contains("aspect_rules_ts"), "{module}");
     }
 
     #[test]

@@ -142,7 +142,15 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          generate_paths_module = generate_paths_module,
          ghc_version = ghc_version,
          cabal_basename = cabal.basename,
-@@ -573,6 +595,7 @@ def _haskell_cabal_library_impl(ctx):
+@@ -479,6 +501,7 @@ def _haskell_cabal_library_impl(ctx):
+     cc = cc_interop_info(
+         ctx,
+         override_cc_toolchain = hs.tools_config.maybe_exec_cc_toolchain,
++        unsupported_features = ["treat_warnings_as_errors"],
+     )
+ 
+     is_empty = False
+@@ -573,6 +596,7 @@ def _haskell_cabal_library_impl(ctx):
                  sibling = cabal,
              )
      attr_tools = [tool[DefaultInfo].files_to_run for tool in ctx.attr.tools]
@@ -150,7 +158,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      c = _prepare_cabal_inputs(
          hs,
          cc,
-@@ -595,6 +618,7 @@ def _haskell_cabal_library_impl(ctx):
+@@ -595,6 +619,7 @@ def _haskell_cabal_library_impl(ctx):
          package_database = package_database,
          verbose = ctx.attr.verbose,
          is_library = True,
@@ -158,7 +166,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          generate_paths_module = ctx.attr.generate_paths_module,
          dynamic_file = dynamic_library,
          transitive_haddocks = _gather_transitive_haddocks(ctx.attr.deps) if with_haddock else depset([]),
-@@ -623,16 +647,18 @@ def _haskell_cabal_library_impl(ctx):
+@@ -623,16 +648,18 @@ def _haskell_cabal_library_impl(ctx):
          paths.append(c.env["PATH"])
      paths.extend([t.executable.dirname for t in attr_tools])
      c.env["PATH"] = join_path_list(hs.toolchain.is_windows, paths)
@@ -178,7 +186,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          mnemonic = "HaskellCabalLibrary",
          progress_message = "HaskellCabalLibrary {}".format(hs.label),
      )
-@@ -802,12 +828,38 @@ haskell_cabal_library = rule(
+@@ -802,12 +829,38 @@ haskell_cabal_library = rule(
          ),
          "_llvm_ar": attr.label(
              cfg = "exec",
@@ -218,7 +226,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          "verbose": attr.bool(
              default = True,
              doc = "Whether to show the output of the build",
-@@ -829,7 +881,7 @@ haskell_cabal_library = rule(
+@@ -829,7 +882,7 @@ haskell_cabal_library = rule(
          "@rules_haskell//haskell:toolchain",
          "@rules_python//python:toolchain_type",
      ],
@@ -227,7 +235,15 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      doc = """\
  Use Cabal to build a library.
  
-@@ -922,6 +974,7 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -870,6 +923,7 @@ def _haskell_cabal_binary_impl(ctx):
+     cc = cc_interop_info(
+         ctx,
+         override_cc_toolchain = hs.tools_config.maybe_exec_cc_toolchain,
++        unsupported_features = ["treat_warnings_as_errors"],
+     )
+ 
+     ignore_setup = False
+@@ -922,6 +976,7 @@ def _haskell_cabal_binary_impl(ctx):
          sibling = cabal,
      )
      attr_tools = [tool[DefaultInfo].files_to_run for tool in ctx.attr.tools]
@@ -235,7 +251,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
      c = _prepare_cabal_inputs(
          hs,
          cc,
-@@ -943,6 +996,7 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -943,6 +998,7 @@ def _haskell_cabal_binary_impl(ctx):
          runghc = ctx.executable._runghc,
          package_database = package_database,
          verbose = ctx.attr.verbose,
@@ -243,7 +259,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          generate_paths_module = ctx.attr.generate_paths_module,
          dynamic_file = binary,
          transitive_haddocks = _gather_transitive_haddocks(ctx.attr.deps) if hs.tools_config.supports_haddock else depset([]),
-@@ -955,10 +1009,11 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -955,10 +1011,11 @@ def _haskell_cabal_binary_impl(ctx):
          hs.toolchain.is_windows,
          [_python_dir(ctx)] + ([c.env["PATH"]] if "PATH" in c.env else []),
      )
@@ -256,7 +272,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          outputs = [
              package_database,
              binary,
-@@ -968,6 +1023,7 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -968,6 +1025,7 @@ def _haskell_cabal_binary_impl(ctx):
                  [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
                  hs.tools_config.tools_for_ghc,
          env = c.env,
@@ -264,7 +280,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          mnemonic = "HaskellCabalBinary",
          progress_message = "HaskellCabalBinary {}".format(hs.label),
      )
-@@ -1068,12 +1124,38 @@ haskell_cabal_binary = rule(
+@@ -1068,12 +1126,38 @@ haskell_cabal_binary = rule(
          ),
          "_llvm_ar": attr.label(
              cfg = "exec",
@@ -304,7 +320,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          "verbose": attr.bool(
              default = True,
              doc = "Whether to show the output of the build",
-@@ -1083,7 +1165,7 @@ haskell_cabal_binary = rule(
+@@ -1083,7 +1167,7 @@ haskell_cabal_binary = rule(
          "@rules_haskell//haskell:toolchain",
          "@rules_python//python:toolchain_type",
      ],
@@ -316,7 +332,32 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
 diff --git a/haskell/cc.bzl b/haskell/cc.bzl
 --- a/haskell/cc.bzl
 +++ b/haskell/cc.bzl
-@@ -230,6 +230,11 @@ def ghc_cc_program_args(hs, cc, ld):
+@@ -41,13 +41,14 @@ CcInteropInfo = provider(
+     },
+ )
+ 
+-def cc_interop_info(ctx, override_cc_toolchain = None):
++def cc_interop_info(ctx, override_cc_toolchain = None, unsupported_features = []):
+     """Gather information from any CC dependencies.
+ 
+     *Internal function - do not use.*
+ 
+     Args:
+       ctx: Rule context.
++      unsupported_features: Features disabled on top of the rule's.
+ 
+     Returns:
+       CcInteropInfo: Information needed for CC interop.
+@@ -91,7 +92,7 @@ def cc_interop_info(ctx, override_cc_toolchain = None):
+         ctx = real_ctx,
+         cc_toolchain = cc_toolchain,
+         requested_features = ctx.features,
+-        unsupported_features = ctx.disabled_features,
++        unsupported_features = ctx.disabled_features + unsupported_features,
+     )
+     compile_variables = cc_common.create_compile_variables(
+         feature_configuration = feature_configuration,
+@@ -230,6 +231,11 @@ def ghc_cc_program_args(hs, cc, ld):
          args.append("-pgml-supports-no-pie")
      elif hs.toolchain.numeric_version >= [8, 10, 3]:
          args.append("-pgmc-supports-no-pie")

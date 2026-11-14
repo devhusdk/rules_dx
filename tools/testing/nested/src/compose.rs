@@ -79,6 +79,31 @@ pub fn rules_rust_override() -> String {
     )
 }
 
+/// The patches of `//patches/llvm` that `llvm_override` names, without `.patch`.
+pub const LLVM_PATCHES: [&str; 11] = [
+    "libunwind_copy",
+    "clang_cl_crt_default_lib",
+    "clang_cl_profile_no_mingw",
+    "unwatched_overlay_inputs",
+    "msvc_source_directories",
+    "lse_atomic_sources",
+    "stage0_runtime_features",
+    "aarch64_outline_atomics",
+    "macos_sdk_resolve_symlinks",
+    "msvc_link_lib_env",
+    "toolchains_gate",
+];
+
+/// Pins llvm 0.8.26 with the patches of the root MODULE.bazel.
+pub fn llvm_override() -> String {
+    let patches = LLVM_PATCHES
+        .map(|name| format!("        \"//patches/llvm:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "single_version_override(\n    module_name = \"llvm\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.8.26\",\n)\n"
+    )
+}
+
 /// The patches of `//patches/rules_flutter` that `rules_flutter_override` names, without `.patch`.
 pub const RULES_FLUTTER_PATCHES: [&str; 5] = [
     "lock_extension",
@@ -222,6 +247,11 @@ fn write_patches(
 /// Writes the files `rules_rust_override` names into the consumer.
 pub fn write_rules_rust_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
     write_patches(workspace, rules_dx, "rules_rust", &RULES_RUST_PATCHES)
+}
+
+/// Writes the files `llvm_override` names into the consumer.
+pub fn write_llvm_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
+    write_patches(workspace, rules_dx, "llvm", &LLVM_PATCHES)
 }
 
 /// Writes the files `rules_py_override` and `rules_flutter_override` name into the consumer.

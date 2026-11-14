@@ -30,11 +30,18 @@ impl Project {
         path
     }
 
-    /// Runs the analyzer with no HOME, as the quality runner does.
+    /// Runs the analyzer with the quality runner's environment and no HOME.
     fn analyze(&self, paths: &[&Path]) -> Output {
         let bin = env_file("DART");
-        Command::new(bin)
-            .env_clear()
+        let mut command = Command::new(bin);
+        command.env_clear();
+        for key in ["TMPDIR", "TEMP", "TMP"] {
+            command.env(key, &self.root);
+        }
+        if let Some(root) = std::env::var_os("SystemRoot") {
+            command.env("SystemRoot", root);
+        }
+        command
             .env("DART_SUPPRESS_ANALYTICS", "true")
             .arg("--suppress-analytics")
             .arg("analyze")

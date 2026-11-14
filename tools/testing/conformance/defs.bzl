@@ -21,6 +21,10 @@ _QUALITY_KEYS = {
 
 _QUALITY_CONFIG = "default"
 
+_QUALITY_CONFIGS = {
+    "perl": "tool_overrides",
+}
+
 _CONFORMANCE_QUALITY = Label("//tools/testing/conformance:conformance_quality")
 
 _FLAG = Label("//tools/testing/conformance:subject")
@@ -326,7 +330,7 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
         for test, fixture, mode in [(clean, quality["clean"], kind), (error, quality[kind + "_dirty"], kind + "_error")]:
             QUALITY_SUBJECTS[lang][kind](
                 name = prefix + test + "_subject",
-                config = _QUALITY_CONFIG,
+                config = _QUALITY_CONFIGS.get(lang, _QUALITY_CONFIG),
                 target = fixture,
                 testonly = True,
                 target_compatible_with = _compatible_with(lang, test, not_applicable),
@@ -334,7 +338,7 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
             )
             config_results(
                 name = prefix + test + "_results",
-                config = _QUALITY_CONFIG,
+                config = _QUALITY_CONFIGS.get(lang, _QUALITY_CONFIG),
                 subject = ":" + prefix + test + "_subject",
                 testonly = True,
                 target_compatible_with = _compatible_with(lang, test, not_applicable),

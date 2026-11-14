@@ -13,6 +13,20 @@ perl_library(
     srcs = ["lib/Greet.pm"],
 )
 
+perl_library(
+    name = "lint_dirty",
+    testonly = True,
+    srcs = ["lib/LintDirty.pm"],
+    tags = ["manual"],
+)
+
+perl_library(
+    name = "format_dirty",
+    testonly = True,
+    srcs = ["lib/FormatDirty.pm"],
+    tags = ["manual"],
+)
+
 perl_binary(
     name = "hello",
     srcs = ["main.pl"],
@@ -64,6 +78,15 @@ dx_conformance_suite(
     lang = "perl",
     not_applicable = {"cross_test": "perl_binary is a script the interpreter runs; it has no object format"},
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "lib/FormatDirty.pm",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 3,
+        "lint_rule": "TestingAndDebugging::RequireUseStrict",
+        "lint_source": "lib/LintDirty.pm",
+    },
 )
 
 real_source_target(

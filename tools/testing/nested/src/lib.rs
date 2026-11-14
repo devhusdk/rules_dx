@@ -112,7 +112,9 @@ impl Config {
     ) -> Result<Config, String> {
         let text = |name: &str| lookup(name).and_then(|v| v.to_str().map(str::to_owned));
         let root = env_path(lookup, TMPDIR_ENV)
-            .ok_or_else(|| format!("{TMPDIR_ENV} is not set; a nested Bazel runs only inside a test"))?
+            .ok_or_else(|| {
+                format!("{TMPDIR_ENV} is not set; a nested Bazel runs only inside a test")
+            })?
             .join("nested");
         let heap = text("DX_NESTED_BAZEL_HEAP")
             .filter(|heap| !heap.is_empty())
@@ -128,7 +130,10 @@ impl Config {
             None => None,
         };
         let mut cache = Vec::new();
-        for key in text(cache::MANIFESTS_ENV).unwrap_or_default().split_whitespace() {
+        for key in text(cache::MANIFESTS_ENV)
+            .unwrap_or_default()
+            .split_whitespace()
+        {
             let manifest = resolve(cache::MANIFESTS_ENV, key)?;
             let listed = std::fs::read_to_string(&manifest)
                 .map_err(|error| format!("cannot read {}: {error}", manifest.display()))?;
@@ -144,7 +149,9 @@ impl Config {
                 format!("{OUTPUTS_ENV} is not set; record mode runs only inside a test")
             })?;
             if shim.is_none() {
-                return Err(format!("{SHIM_ENV} is not set; record mode needs the native shim"));
+                return Err(format!(
+                    "{SHIM_ENV} is not set; record mode needs the native shim"
+                ));
             }
             Some(outputs.join("nested_cache"))
         };
@@ -463,6 +470,7 @@ fn slashed(path: &Path) -> String {
 }
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "kill has no safe std API")]
 mod signal {
     pub const SIGTERM: i32 = 15;
     pub const SIGKILL: i32 = 9;
@@ -501,6 +509,10 @@ mod signal {
 }
 
 #[cfg(windows)]
+#[expect(
+    unsafe_code,
+    reason = "process handle APIs have no safe std equivalent"
+)]
 mod signal {
     use std::ffi::c_void;
 
@@ -1005,7 +1017,10 @@ impl Server {
             cache::install(&repository_cache, &server.config.cache)?;
         }
         write(&downloader, DOWNLOADER)?;
-        write(&rc, &bazelrc(&server.config, &downloader, &repository_cache))?;
+        write(
+            &rc,
+            &bazelrc(&server.config, &downloader, &repository_cache),
+        )?;
         let launcher = server.config.shim.clone().ok_or_else(|| {
             format!(
                 "{SHIM_ENV} is not set; nested Bazel needs the native shim (add NESTED_BAZEL_DATA and NESTED_BAZEL_ENV)"
@@ -1324,6 +1339,7 @@ static SERVER: Mutex<Option<Server>> = Mutex::new(None);
 static RELEASE: Once = Once::new();
 
 #[cfg(any(unix, windows))]
+#[expect(unsafe_code, reason = "atexit has no safe std API")]
 fn release_at_exit() {
     unsafe extern "C" {
         fn atexit(callback: extern "C" fn()) -> i32;
@@ -1366,7 +1382,11 @@ pub fn recording() -> bool {
 
 fn read_dir_files(dir: &Path) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
-        .map(|entries| entries.filter_map(|entry| entry.ok().map(|e| e.path())).collect())
+        .map(|entries| {
+            entries
+                .filter_map(|entry| entry.ok().map(|e| e.path()))
+                .collect()
+        })
         .unwrap_or_default();
     files.sort();
     files
@@ -1391,7 +1411,9 @@ fn finish_record(server: &Server) -> Result<(), String> {
         let lock = std::fs::read_to_string(&path)
             .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
         if locks.get(stem).is_some_and(|seen| *seen != lock) {
-            return Err(format!("the lock {stem} was recorded twice with different content"));
+            return Err(format!(
+                "the lock {stem} was recorded twice with different content"
+            ));
         }
         let module_path = root.join("MODULE.bazel");
         let module = std::fs::read_to_string(&module_path)
@@ -1592,7 +1614,8 @@ pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
     capture(
         bazel_command_at(&home, root, args, &[]),
         "nested bazel",
-        offline)
+        offline,
+    )
 }
 
 impl Case {
@@ -1608,8 +1631,9 @@ impl Case {
             return;
         }
         let name = format!("{stem}.MODULE.bazel.lock");
-        let locks = std::env::var(LOCKS_ENV)
-            .unwrap_or_else(|_| panic!("{LOCKS_ENV} is not set; declare the test with nested_bazel_test(cache = ...)"));
+        let locks = std::env::var(LOCKS_ENV).unwrap_or_else(|_| {
+            panic!("{LOCKS_ENV} is not set; declare the test with nested_bazel_test(cache = ...)")
+        });
         for key in locks.split_whitespace() {
             let path = resolve_runfile(LOCKS_ENV, key).unwrap_or_else(|error| panic!("{error}"));
             if path.file_name().is_some_and(|file| *file == *name) {
@@ -1904,7 +1928,10 @@ mod tests {
         write_record_rc(&format!("{root}/rc\n{root}/missing/logs\n")).expect("record rc");
         assert!(dir.path().join("missing/logs").is_dir());
         let rc = std::fs::read_to_string(dir.path().join("rc")).expect("rc");
-        assert!(rc.contains("--experimental_workspace_rules_log_file="), "{rc}");
+        assert!(
+            rc.contains("--experimental_workspace_rules_log_file="),
+            "{rc}"
+        );
         assert!(rc.contains("missing/logs/"), "{rc}");
     }
 
@@ -2106,7 +2133,10 @@ mod tests {
         let manifest = fixture.dir.path().join("set.manifest");
         std::fs::write(&manifest, format!("{sha256} repo/file/file\n")).expect("manifest");
         let config = fixture.config(&[(cache::MANIFESTS_ENV, &manifest.to_string_lossy())]);
-        assert_eq!(config.cache, vec![(sha256, PathBuf::from("repo/file/file"))]);
+        assert_eq!(
+            config.cache,
+            vec![(sha256, PathBuf::from("repo/file/file"))]
+        );
         assert!(fixture.config(&[]).cache.is_empty());
     }
 
@@ -2114,16 +2144,8 @@ mod tests {
     fn the_config_is_offline_unless_the_network_is_asked_for() {
         let fixture = Fixture::new();
         assert!(fixture.config(&[]).offline);
-        assert!(
-            fixture
-                .config(&[("DX_NESTED_BAZEL_NETWORK", "")])
-                .offline
-        );
-        assert!(
-            !fixture
-                .config(&[("DX_NESTED_BAZEL_NETWORK", "1")])
-                .offline
-        );
+        assert!(fixture.config(&[("DX_NESTED_BAZEL_NETWORK", "")]).offline);
+        assert!(!fixture.config(&[("DX_NESTED_BAZEL_NETWORK", "1")]).offline);
     }
 
     #[test]
@@ -2131,17 +2153,10 @@ mod tests {
         let fixture = Fixture::new();
         assert_eq!(fixture.config(&[]).heap, "1536m");
         assert_eq!(
-            fixture
-                .config(&[("DX_NESTED_BAZEL_HEAP", "")])
-                .heap,
+            fixture.config(&[("DX_NESTED_BAZEL_HEAP", "")]).heap,
             "1536m"
         );
-        assert_eq!(
-            fixture
-                .config(&[("DX_NESTED_BAZEL_HEAP", "4g")])
-                .heap,
-            "4g"
-        );
+        assert_eq!(fixture.config(&[("DX_NESTED_BAZEL_HEAP", "4g")]).heap, "4g");
     }
 
     #[test]
@@ -2184,7 +2199,10 @@ mod tests {
 
         let mut command = Command::new("dx");
         apply_env_at(slot, &mut command, &[("HOME", "caller-home")], &[]);
-        assert_eq!(env_of(&command, "HOME"), Some(OsString::from("caller-home")));
+        assert_eq!(
+            env_of(&command, "HOME"),
+            Some(OsString::from("caller-home"))
+        );
         assert_eq!(env_of(&command, "USERPROFILE"), slot_home);
     }
 
@@ -2253,10 +2271,9 @@ mod tests {
             (TMPDIR_ENV, fixture.tmpdir().into_os_string()),
             (PINNED_ENV, OsString::from("nested_bazel_x/file/bazel")),
         ];
-        let error = Config::from_parts(
-            &lookup(all),
-            &|name, key| Err(format!("{name} {key} is not in the runfiles")),
-        )
+        let error = Config::from_parts(&lookup(all), &|name, key| {
+            Err(format!("{name} {key} is not in the runfiles"))
+        })
         .expect_err("unresolved pinned");
         assert_eq!(
             error,
@@ -2349,7 +2366,8 @@ mod tests {
         let run = capture(
             first.bazel_command(&root, &["info", "release"]),
             "bazel",
-            true);
+            true,
+        );
         assert!(run.status.success(), "{}", run.combined());
         let calls = std::fs::read_to_string(&log).expect("log");
         let user_root = first.user_root();
@@ -2385,7 +2403,8 @@ mod tests {
         let run = capture(
             server.bazel_command(&root, &["info", "release"]),
             "bazel",
-            true);
+            true,
+        );
         assert!(run.status.success(), "{}", run.combined());
         assert_eq!(
             std::fs::read_to_string(&log).expect("log"),
@@ -2429,9 +2448,7 @@ mod tests {
         let dir = scratch("nested-nopath-");
         let (bazel, _) = recorder(dir.path());
         let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("server");
-        let command = server
-            .command(&probe(), &[])
-            .expect("command");
+        let command = server.command(&probe(), &[]).expect("command");
         let run = capture(command, "env", false);
         let lines: Vec<&str> = run.stdout.lines().collect();
         let want_path = format!("PATH={}:/dx_no_path", server.home().join("bin").display());
@@ -2896,8 +2913,7 @@ mod portable_tests {
         wait_until("the stand-in", &|| {
             servers_in_workspaces(&workspaces).contains(&pid)
         });
-        let mut reaper = spawn_reaper(&bazel_wrapper_runfile(), owner.id(), &home)
-            .expect("reaper");
+        let mut reaper = spawn_reaper(&bazel_wrapper_runfile(), owner.id(), &home).expect("reaper");
         let log = || std::fs::read_to_string(home.join(REAPER_LOG)).unwrap_or_default();
         std::thread::sleep(Duration::from_millis(1500));
         let early = reaper.try_wait();

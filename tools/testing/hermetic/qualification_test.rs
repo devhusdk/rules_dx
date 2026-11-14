@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 #[test]
+#[expect(unsafe_code, reason = "set_var is unsafe in edition 2024")]
 fn consumer_qualifies_without_installs_or_network() {
     let rel =
         std::env::var("DX_HERMETIC_MANIFEST").expect("DX_HERMETIC_MANIFEST names the manifest");

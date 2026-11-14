@@ -455,6 +455,7 @@ fn own_group(command: &mut Command) {
 }
 
 #[cfg(windows)]
+#[expect(unsafe_code, reason = "handle inheritance has no safe std API")]
 fn own_group(command: &mut Command) {
     use std::os::windows::process::CommandExt;
     const DETACHED_PROCESS: u32 = 0x8;
@@ -480,6 +481,7 @@ fn own_group(command: &mut Command) {
 fn own_group(_command: &mut Command) {}
 
 #[cfg(windows)]
+#[expect(unsafe_code, reason = "console APIs have no safe std equivalent")]
 mod console {
     use std::ffi::c_void;
 
@@ -524,6 +526,7 @@ mod console {
 static SIGINT_LOG: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "a signal handler calls libc write")]
 extern "C" fn count_sigint(_signo: i32) {
     unsafe extern "C" {
         fn write(fd: i32, buf: *const std::ffi::c_void, count: usize) -> isize;
@@ -535,6 +538,7 @@ extern "C" fn count_sigint(_signo: i32) {
 }
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "installing a handler needs libc signal")]
 fn start_counting_sigint(path: &str) -> io::Result<()> {
     use std::os::fd::IntoRawFd;
     unsafe extern "C" {
@@ -554,6 +558,10 @@ fn start_counting_sigint(path: &str) -> io::Result<()> {
 }
 
 #[cfg(unix)]
+#[expect(
+    unsafe_code,
+    reason = "terminal process group queries have no safe std API"
+)]
 fn holds_terminal() -> bool {
     use std::os::fd::AsRawFd;
     unsafe extern "C" {
@@ -565,6 +573,18 @@ fn holds_terminal() -> bool {
     };
     let foreground = unsafe { tcgetpgrp(tty.as_raw_fd()) };
     foreground > 0 && foreground == unsafe { getpgrp() }
+}
+
+#[cfg(unix)]
+#[expect(unsafe_code, reason = "raise has no safe std API")]
+fn raise_signal(signo: i32) {
+    unsafe extern "C" {
+        fn raise(sig: i32) -> i32;
+    }
+    // SAFETY: raise takes a plain signal number and has no memory preconditions.
+    unsafe {
+        raise(signo);
+    }
 }
 
 fn sleep_until_gate(plan: &Plan) {
@@ -773,12 +793,7 @@ fn main() {
     }
     #[cfg(unix)]
     if let Some(signo) = plan.raise_signal {
-        unsafe extern "C" {
-            fn raise(sig: i32) -> i32;
-        }
-        unsafe {
-            raise(signo);
-        }
+        raise_signal(signo);
     }
     #[cfg(not(unix))]
     if plan.raise_signal.is_some() {

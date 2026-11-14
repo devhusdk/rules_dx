@@ -454,6 +454,7 @@ fn sigints_logged(log: &std::path::Path, expected: usize) -> Vec<u8> {
 
 #[cfg(unix)]
 #[test]
+#[expect(unsafe_code, reason = "kill has no safe std API")]
 fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
     unsafe extern "C" {
         fn kill(pid: i32, signo: i32) -> i32;

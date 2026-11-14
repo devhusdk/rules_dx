@@ -9,22 +9,6 @@ use dx_nested::compose::{
 use dx_nested::{self as nested, Case};
 use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
 
-const LOADED_MODULES: [&str; 2] = ["aspect_rules_js", "aspect_rules_ts"];
-
-fn loaded_module_deps(source_module: &str) -> String {
-    LOADED_MODULES
-        .map(|name| {
-            let head = format!("bazel_dep(name = \"{name}\", version = \"");
-            let version = source_module
-                .split_once(head.as_str())
-                .and_then(|(_, rest)| rest.split_once('"'))
-                .map(|(version, _)| version)
-                .unwrap_or_else(|| panic!("MODULE.bazel has no bazel_dep for {name}"));
-            format!("{head}{version}\")\n")
-        })
-        .concat()
-}
-
 fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
@@ -131,8 +115,7 @@ fn the_polyglot_example_adopts_and_tests_green() {
     write_text(
         &root.join("MODULE.bazel"),
         &format!(
-            "module(name = \"adopt_polyglot\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n{}{}{}{}",
-            loaded_module_deps(&read_text(&source.join("MODULE.bazel"))),
+            "module(name = \"adopt_polyglot\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n{}{}{}",
             rules_dx_override(&source),
             rules_py_override(),
             rules_flutter_override(),

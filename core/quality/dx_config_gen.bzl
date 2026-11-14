@@ -9,7 +9,6 @@ load(":real_aspect_labels.bzl", "REAL_ASPECT_LABELS", "REAL_PROBE_LABELS")
 load(":tools.bzl", "TOOLS")
 
 _HEADER = """// Generated from core/quality/curated_defaults.bzl and core/quality/tools.bzl.
-// Run `bazel run //cli/dx_config:update_curated_defaults` to refresh it.
 
 use crate::select::{CuratedFamily, Overlap};
 
@@ -61,7 +60,6 @@ def dx_config_gen(name):
     )
 
 _REGISTRY_HEADER = """// Generated from core/quality/real_aspect_labels.bzl.
-// Run `bazel run //cli/plan:update_registry_gen` to refresh it.
 
 """
 

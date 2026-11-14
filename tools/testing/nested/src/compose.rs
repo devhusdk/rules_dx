@@ -103,6 +103,25 @@ pub fn llvm_override() -> String {
     )
 }
 
+/// The patches of `//patches/windows_support` that `windows_support_override` names, without `.patch`.
+pub const WINDOWS_SUPPORT_PATCHES: [&str; 5] = [
+    "host_tools",
+    "rules_dx_hosts",
+    "hostarm64_packages",
+    "dx_msvc_layout",
+    "source_directory_headers",
+];
+
+/// Pins windows_support 0.4.1 with the patches of the root MODULE.bazel.
+pub fn windows_support_override() -> String {
+    let patches = WINDOWS_SUPPORT_PATCHES
+        .map(|name| format!("        \"//patches/windows_support:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "single_version_override(\n    module_name = \"windows_support\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.4.1\",\n)\n"
+    )
+}
+
 /// The patches of `//patches/rules_flutter` that `rules_flutter_override` names, without `.patch`.
 pub const RULES_FLUTTER_PATCHES: [&str; 5] = [
     "lock_extension",
@@ -251,6 +270,16 @@ pub fn write_rules_rust_patches(workspace: &Path, rules_dx: &Path) -> Result<(),
 /// Writes the files `llvm_override` names into the consumer.
 pub fn write_llvm_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
     write_patches(workspace, rules_dx, "llvm", &LLVM_PATCHES)
+}
+
+/// Writes the files `windows_support_override` names into the consumer.
+pub fn write_windows_support_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
+    write_patches(
+        workspace,
+        rules_dx,
+        "windows_support",
+        &WINDOWS_SUPPORT_PATCHES,
+    )
 }
 
 /// Writes the files `rules_py_override` and `rules_flutter_override` name into the consumer.

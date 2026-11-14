@@ -10,9 +10,14 @@ use serde_json::Value;
 
 const DIR: &str = "tools/docs/support_matrix";
 
-fn bazel(workspace: &Path, args: &[&str], flags: &[String]) -> Result<String, String> {
+fn bazel(
+    program: &str,
+    workspace: &Path,
+    args: &[&str],
+    flags: &[String],
+) -> Result<String, String> {
     let (verb, rest) = args.split_first().ok_or("no bazel verb")?;
-    let done = Command::new("bazel")
+    let done = Command::new(program)
         .current_dir(workspace)
         .arg(verb)
         .args(flags)
@@ -98,14 +103,15 @@ fn write_json(workspace: &Path, path: &str, value: &impl serde::Serialize) -> Re
 
 fn run() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
-    let platform = args
-        .next()
-        .ok_or("usage: row_tests <platform> [bazel flags]")?;
+    let usage = "usage: row_tests <bazel> <platform> [bazel flags]";
+    let program = args.next().ok_or(usage)?;
+    let platform = args.next().ok_or(usage)?;
     let flags: Vec<String> = args.collect();
     let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY")
         .ok_or("run with bazel run so BUILD_WORKSPACE_DIRECTORY is set")?;
     let workspace = Path::new(&workspace);
     let tagged = rules(&bazel(
+        &program,
         workspace,
         &[
             "query",
@@ -130,6 +136,7 @@ fn run() -> Result<(), String> {
     let platforms = format!("--platforms=//tools/platforms:{platform}");
     let starlark = format!("--starlark:expr={expr}");
     let compatible = bazel(
+        &program,
         workspace,
         &["cquery", &platforms, &query, "--output=starlark", &starlark],
         &flags,
@@ -142,6 +149,7 @@ fn run() -> Result<(), String> {
     if !compatible.is_empty() {
         let query = format!("set({})", compatible.join(" "));
         let found = rules(&bazel(
+            &program,
             workspace,
             &["query", &query, "--output=streamed_jsonproto"],
             &flags,

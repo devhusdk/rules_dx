@@ -23,6 +23,7 @@ _QUALITY_CONFIG = "default"
 
 _QUALITY_CONFIGS = {
     "dart": "tool_overrides",
+    "lua": "tool_overrides",
     "perl": "tool_overrides",
     "powershell": "tool_overrides",
     "ruby": "tool_overrides",

@@ -2616,7 +2616,6 @@ LANGS = json.decode("""{
       "qt_cc_test",
       "qt_rust_cc_library",
       "qt_bundle",
-      "qt_consumer_archive",
       "qt_rust_library"
     ],
     "family": "core",

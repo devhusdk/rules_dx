@@ -1,10 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
-load("//qt/private/toolchain:pins.bzl", "CELLS", "IDENTITIES")
-load("//qt/private/toolchain:repos.bzl", "qualified_cells")
 load(":corpus.bzl", "qt_corpus")
 load(":coverage.bzl", "qt_coverage_probe")
-load(":defs.bzl", "qt_os_supplied_libraries")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -39,24 +35,10 @@ exports_files([
     "validate.bzl",
 ])
 
-[
-    dx_native_runtime(
-        name = "os_runtime_" + cell,
-        provides = qt_os_supplied_libraries(CELLS[cell].needs.library),
-        redistribution = "os_supplied",
-        source = "operating system",
-        version = IDENTITIES[cell].min_runtime,
-        visibility = ["//visibility:public"],
-    )
-    for cell in qualified_cells()
-    if CELLS[cell].layout.os == "linux" and IDENTITIES[cell] != None and CELLS[cell].needs != None
-]
-
 qt_corpus(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
-        "archive.bzl",
         "bundle.bzl",
         "cells.bzl",
         "constants.bzl",

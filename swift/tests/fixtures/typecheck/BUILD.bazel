@@ -6,7 +6,6 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
-# `dx typecheck` reports no finding for :clean and one error at broken.swift:2:22 for :broken.
 # :broken cannot compile, so it stays out of wildcard builds.
 # keep
 swift_library(

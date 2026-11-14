@@ -362,3 +362,9 @@ starlark_test(
     mode = "analysis",
     subjects = [":exec_group_forwarder"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

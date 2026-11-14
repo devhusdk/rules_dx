@@ -94,3 +94,9 @@ sh_test(
         ":builtins_dump",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

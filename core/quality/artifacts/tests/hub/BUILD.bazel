@@ -16,3 +16,9 @@ real_source_target(
     tags = ["corpus"],
     visibility = VIS_QUALITY + ["//tools/ci:__pkg__"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

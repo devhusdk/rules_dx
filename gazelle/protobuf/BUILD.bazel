@@ -79,3 +79,9 @@ build_test(
         "//gazelle/protobuf/tests/roundtrip/cc_app",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

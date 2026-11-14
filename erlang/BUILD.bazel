@@ -8,6 +8,7 @@ filegroup(
         "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
+        "pins.json",
         "//erlang/private:module_srcs",
         "//erlang/private/toolchain:module_srcs",
         "//erlang/private/tools:module_srcs",

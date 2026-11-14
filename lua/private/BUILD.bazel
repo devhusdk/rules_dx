@@ -50,6 +50,12 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "ldoc.BUILD.bazel",
+        "luacov.BUILD.bazel",
+        "luacov_reporter_lcov.BUILD.bazel",
+        "luafilesystem.BUILD.bazel",
+        "luals.BUILD.bazel",
+        "penlight.BUILD.bazel",
     ]),
     visibility = ["//:__subpackages__"],
 )

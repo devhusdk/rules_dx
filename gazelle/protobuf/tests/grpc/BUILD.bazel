@@ -106,3 +106,10 @@ python_grpc_library(
 )
 
 proto_package_tests(name = "other_package_tests")
+
+filegroup(
+    name = "module_srcs",
+    testonly = False,
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

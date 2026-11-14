@@ -167,3 +167,9 @@ resolved_cc_toolchain(
         "@platforms//os:macos",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

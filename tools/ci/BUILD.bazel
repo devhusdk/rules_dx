@@ -1706,3 +1706,9 @@ rust_test(
         "@crates//:yaml_serde",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

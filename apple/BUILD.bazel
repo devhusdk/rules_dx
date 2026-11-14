@@ -12,6 +12,7 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "pins.json",
     ]) + [
         "//apple/private/bundle:module_srcs",
         "//apple/private/ios:module_srcs",

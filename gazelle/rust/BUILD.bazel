@@ -153,3 +153,9 @@ real_source_target(
     ],
 )
 
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

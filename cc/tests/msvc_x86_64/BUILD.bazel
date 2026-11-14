@@ -136,3 +136,10 @@ test_suite(
         ":producer_test",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    testonly = False,
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

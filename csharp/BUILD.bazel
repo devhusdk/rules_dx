@@ -5,12 +5,13 @@ package(default_visibility = ["//:__subpackages__"])
 filegroup(
     name = "module_srcs",
     srcs = [
+        "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
-        "//:module_srcs",
         "//csharp/private:module_srcs",
         "//csharp/private/ide:module_srcs",
     ],
+    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(

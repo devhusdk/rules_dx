@@ -50,3 +50,9 @@ go_test(
         "@gazelle//v2/rule",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

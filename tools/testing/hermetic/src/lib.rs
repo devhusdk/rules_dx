@@ -2456,6 +2456,35 @@ pub fn refetch_candidates(contexts: Vec<String>, module: &str) -> Vec<String> {
         .collect()
 }
 
+/// The longest command line a Windows run account accepts.
+pub const COMMAND_LINE_LIMIT: usize = 1024;
+
+/// The length of `arg` once quoted for CommandLineToArgvW.
+pub fn quoted_len(arg: &str) -> usize {
+    if !arg.is_empty() && !arg.contains([' ', '\t', '\n', '"']) {
+        return arg.encode_utf16().count();
+    }
+    arg.encode_utf16().count() * 2 + 2
+}
+
+/// Splits `args` into batches whose command line, after `base` characters, stays within `limit`.
+pub fn command_line_batches(base: usize, args: &[String], limit: usize) -> Vec<Vec<String>> {
+    let mut batches: Vec<Vec<String>> = Vec::new();
+    let mut length = base;
+    for arg in args {
+        let extra = quoted_len(arg) + 1;
+        match batches.last_mut() {
+            Some(batch) if length + extra <= limit => batch.push(arg.clone()),
+            _ => {
+                batches.push(vec![arg.clone()]);
+                length = base;
+            }
+        }
+        length += extra;
+    }
+    batches
+}
+
 /// The `(bzl label, rule name)` of each repository in `bazel mod show_repo --output=streamed_jsonproto` output, by canonical name.
 pub fn show_repo_rules(stdout: &str) -> BTreeMap<String, (String, String)> {
     stdout
@@ -3271,25 +3300,38 @@ fn run_all(
         &module,
     );
     if !refetched.is_empty() {
-        let mut targets = vec!["show_repo".to_owned()];
-        targets.extend(
-            refetched
-                .iter()
-                .filter_map(|context| context.strip_prefix("repository "))
-                .map(str::to_owned),
-        );
-        let shown = session.run(Probe {
-            name: "refetch_rules".to_owned(),
+        let names: Vec<String> = refetched
+            .iter()
+            .filter_map(|context| context.strip_prefix("repository "))
+            .map(str::to_owned)
+            .collect();
+        let rules_repos = root.join("refetch_rules_repos");
+        let refetch_probe = |name: String, targets: Vec<String>| Probe {
+            name,
             net: Net::Allowed,
             home: &clean_home,
             output_root: &cold,
-            repos: &root.join("refetch_rules_repos"),
+            repos: &rules_repos,
             command: "mod",
             targets,
             extra: vec!["--output=streamed_jsonproto".to_owned()],
             expect: Expect::Pass,
-        })?;
-        let rules = show_repo_rules(&shown.stdout);
+        };
+        let base = session
+            .bazel_tail(&refetch_probe(String::new(), vec!["show_repo".to_owned()]))
+            .iter()
+            .map(|arg| quoted_len(arg) + 1)
+            .sum();
+        let mut rules = BTreeMap::new();
+        for (index, batch) in command_line_batches(base, &names, COMMAND_LINE_LIMIT)
+            .into_iter()
+            .enumerate()
+        {
+            let mut targets = vec!["show_repo".to_owned()];
+            targets.extend(batch);
+            let shown = session.run(refetch_probe(format!("refetch_rules_{index}"), targets))?;
+            rules.extend(show_repo_rules(&shown.stdout));
+        }
         let externals = [external_dirs(&warm), external_dirs(&cold)].concat();
         refetched.retain(|context| !local_rule_repo(context, &rules, &externals));
     }

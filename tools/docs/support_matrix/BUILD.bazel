@@ -127,7 +127,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/docs/support_matrix",
         normal = True,
-    ),
+    ) + [
+        ":support_matrix",
+        "@crates//:serde_json",
+    ],
 )
 
 python_test(

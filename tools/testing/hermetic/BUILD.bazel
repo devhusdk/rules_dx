@@ -254,9 +254,9 @@ rust_test(
 
 hermetic_qualification(
     name = "cpp_rust",
-    consumer_rows = ["rust"],
     # macOS takes about 870s (run 42173489188), Linux 653s (run 42178777570).
     timeout = "eternal",
+    consumer_rows = ["rust"],
     coverage = [
         "//java/tests/fixtures/java-app/...",
         "//kotlin/tests/fixtures/kotlin-app/...",
@@ -658,8 +658,8 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "qt_tasks",
-    consumer_rows = ["qt"],
     srcs = ["//qt:module_srcs"],
+    consumer_rows = ["qt"],
     files = {
         "consumers/qt_tasks/consumer.bazelrc": ".bazelrc",
         "consumers/qt_tasks/root.BUILD.bazel": "BUILD.bazel",
@@ -952,8 +952,8 @@ rust_binary(
 
 hermetic_qualification(
     name = "qt_rust",
-    consumer_rows = ["qt"],
     srcs = ["//qt:module_srcs"],
+    consumer_rows = ["qt"],
     files = {
         "consumers/qt_rust/consumer.bazelrc": ".bazelrc",
         "consumers/qt_rust/root.BUILD.bazel": "BUILD.bazel",
@@ -990,7 +990,10 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "rust_wasi",
-    consumer_rows = ["rust", "wasi"],
+    consumer_rows = [
+        "rust",
+        "wasi",
+    ],
     failures = {"//examples/shared-rust:tasks_without_core": "error[E0432]: unresolved import `shared_tasks`"},
     files = {
         "consumers/rust_wasi/app.BUILD.bazel": "examples/shared-rust/BUILD.bazel",
@@ -1064,8 +1067,8 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "appimage",
-    consumer_rows = ["appimage"],
     compatible_with = LINUX_MACOS,
+    consumer_rows = ["appimage"],
     files = {
         "consumers/appimage/consumer.bazelrc": ".bazelrc",
         "//appimage/tests/fixtures/appimage-app/app:BUILD.bazel": "appimage/tests/fixtures/appimage-app/app/BUILD.bazel",

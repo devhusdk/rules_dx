@@ -7,7 +7,16 @@ use dx_nested::{self as nested, Case, footprint};
 use dx_release_tools::presubmit;
 use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, scratch_dir, write_text};
 
-fn ok(run: &Run, what: &str) {
+/// Asserts `run` passed; a failing run's last lines also go to the uncaptured stderr, so a test
+/// killed by its timeout still shows them.
+pub(crate) fn ok(run: &Run, what: &str) {
+    if run.status.code() != Some(0) {
+        use std::io::Write;
+        let combined = run.combined();
+        let lines: Vec<&str> = combined.lines().collect();
+        let tail = lines[lines.len().saturating_sub(80)..].join("\n");
+        let _ = writeln!(std::io::stderr(), "{what} failed:\n{tail}");
+    }
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
 

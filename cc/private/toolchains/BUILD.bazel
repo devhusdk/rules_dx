@@ -428,6 +428,19 @@ cc_toolchain_test(
 )
 
 cc_toolchain_test(
+    name = "gcc_arm64_tsan_test",
+    compiler = "gcc",
+    extra_features = ["tsan"],
+    size = "small",
+    tags = ["no-coverage"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    test = "//cc/tests/fixtures/sanitize:tsan_test",
+)
+
+cc_toolchain_test(
     name = "msvc_hello_test",
     compiler = "msvc",
     tags = ["row:cc_msvc"],
@@ -609,6 +622,7 @@ test_suite(
         ":gcc_arm64_hello_c_test",
         ":gcc_arm64_hello_test",
         ":gcc_arm64_shared_test",
+        ":gcc_arm64_tsan_test",
         ":gcc_arm64_ubsan_test",
         ":gcc_asan_test",
         ":gcc_coverage_env_test",

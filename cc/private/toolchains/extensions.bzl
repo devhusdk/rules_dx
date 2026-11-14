@@ -4,7 +4,7 @@ load("//cc/private/toolchains/gcc_repo:defs.bzl", "gcc_declare_toolchain")
 load(":pins.bzl", "GCC_GLIBC", "GCC_LINUX_AARCH64", "GCC_LINUX_X86_64", "GCC_LINUX_X86_64_TO_AARCH64", "GCC_VERSION")
 
 
-_LDFLAGS = ["-static-libasan", "-static-libubsan", "-lm"]
+_LDFLAGS = ["-static-libasan", "-static-libtsan", "-static-libubsan", "-lm"]
 
 
 _EXTRA_ENABLED = [str(Label("//cc/private/toolchains/gcc_features:dx_static_cxx_runtime"))]

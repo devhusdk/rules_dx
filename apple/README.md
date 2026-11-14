@@ -38,19 +38,7 @@ platform and minimum OS. Consumers get the archive, `hdrs`, and one
 | `simulator/arm64` | `aarch64-apple-ios-sim` | `iphonesimulator` |
 | `simulator/x86_64` | `x86_64-apple-ios` | `iphonesimulator` |
 
-Add the triples to `MODULE.bazel`:
-
-```python
-rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
-rust.toolchain(
-    edition = "2021",
-    extra_target_triples = [
-        "aarch64-apple-ios",
-        "aarch64-apple-ios-sim",
-        "x86_64-apple-ios",
-    ],
-)
-```
+`bazel_dep(name = "rules_dx")` brings the Rust toolchains for these triples.
 
 Outside an iOS build the library builds for its own cell at `deployment`
 (default 17.0, the SDK floor). Inside an app or framework it builds in
@@ -114,19 +102,6 @@ such as `rust_static_library`. `frameworks` takes XCFramework imports;
 see [Consume an XCFramework](#consume-an-xcframework). The app needs
 `library`, `frameworks`, `entry`, or a mix. Without `infoplists`, the app gets a
 default `Info.plist`.
-
-Your `MODULE.bazel` needs the Rust simulator triple:
-
-```python
-rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
-rust.toolchain(
-    edition = "2021",
-    extra_target_triples = ["aarch64-apple-ios-sim"],
-)
-use_repo(rust, "rust_toolchains")
-
-register_toolchains("@rust_toolchains//:all")
-```
 
 Build and test on a macOS host with Xcode:
 
@@ -224,7 +199,7 @@ bazel build //:ledger_device
 Device builds always sign ad hoc and embed the profile. They never read
 a keychain, even when `signing_certificate_name` is set. The build fails
 when the profile has expired, does not cover `bundle_id`, or does not
-allow an entitlement. Rust needs the `aarch64-apple-ios` triple.
+allow an entitlement.
 
 #### Simulator operations
 
@@ -348,19 +323,6 @@ apple_ios_xcframework(
 )
 ```
 
-Add every slice triple to the Rust toolchain:
-
-```python
-rust.toolchain(
-    edition = "2021",
-    extra_target_triples = [
-        "aarch64-apple-ios",
-        "aarch64-apple-ios-sim",
-        "x86_64-apple-ios",
-    ],
-)
-```
-
 Build on a macOS host with Xcode:
 
 ```sh
@@ -463,9 +425,12 @@ apple_macos_app(
 
 `platform` is optional and defaults to the current target platform. It names the
 platform the selection and check rules read the arch from; only `macos_arm64` is
-accepted. It does not change the platform the bundle is built for: build with
-`--platforms` or `--macos_cpus`. An x86_64 macOS target platform fails with
-"arch 'x86_64' is outside macos".
+accepted. The bundle always builds for macos/arm64. An x86_64 macOS target
+platform fails with "arch 'x86_64' is outside macos".
+
+`deployment` defaults to 14.0 for macOS apps and 17.0 for iOS apps and
+XCFrameworks. `xcode_version` defaults to 16.4. Both defaults are in
+`apple/pins.json`.
 
 `srcs` holds the native entry point. `library` is any target with
 `CcInfo` that links one static archive, such as `rust_static_library`.
@@ -490,7 +455,7 @@ register_toolchains("@rust_toolchains//:all")
 ```
 
 ```sh
-bazel build //:ledger --macos_cpus=arm64
+bazel build //:ledger
 bazel run //:ledger
 ```
 
@@ -534,7 +499,7 @@ Failures read:
 - `apple_macos_app: deployment '16.0' is above the Xcode 16 'macosx' ceiling 15.0`
 - `apple_macos_app: building signs ad hoc only; signing is a separate operation`
 - `apple_macos_app: srcs or library is required; pass the native entry point or a Rust static library`
-- `apple_macos_app: app declares macos/arm64 but this build targets macos/x86_64; pass --macos_cpus=arm64`
+- `apple_macos_app: app declares macos/arm64 but this build targets macos/x86_64; build the app target, which selects its cell`
 - `apple_macos_app: <file> loads host runtime <path>; embed it under Frameworks`
 
 ### macOS signing and notarization

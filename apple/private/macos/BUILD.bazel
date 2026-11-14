@@ -74,10 +74,10 @@ apple_macos_app(
     version = "1.0",
 )
 
-failure_test(
+build_test(
     name = "no_deployment_test",
-    expected_failure_substring = "apple_macos_app: deployment names the minimum macOS version",
-    target = ":no_deployment_selection",
+    target_compatible_with = ["@platforms//os:macos"],
+    targets = [":no_deployment_selection"],
 )
 
 apple_macos_app(

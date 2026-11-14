@@ -10,6 +10,7 @@ load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//apple/private/bundle:defs.bzl", "EXTRA_TOOLCHAINS_SETTING", "NO_PATH", "SIGNING_CERTIFICATE", "apple_extra_toolchains", "archives", "check_cell", "display", "flat_resources", "framework_binaries", "label_text", "resolved_xcode")
+load("//apple/private/bundle:pins.bzl", "IOS_DEPLOYMENT", "XCODE_VERSION")
 load("//core:resources.bzl", "dx_heavy_resources")
 load(":app_validate.bzl", "ios_app_errors", "ios_test_coverage_kwargs", "ios_test_errors", "ios_test_source_errors", "ios_xcframework_errors", "ios_xcframework_header_name_errors")
 load(
@@ -154,11 +155,7 @@ def _library_cell_impl(ctx):
     if got == "":
         fail("apple_ios_app: library cell {} builds for no iOS platform here; build the app target so rules_apple selects the cell".format(want))
     if got != want:
-        fail("apple_ios_app: app declares {} but this build targets {}; pass --ios_multi_cpus={}".format(
-            want,
-            got,
-            MULTI_CPUS[want],
-        ))
+        fail("apple_ios_app: app declares {} but this build targets {}; build the app target, which selects its cell".format(want, got))
     library = ctx.attr.library
     if library != None and AppleIosLibInfo in library and library[AppleIosLibInfo].cell != want:
         fail("apple_ios_app: library {} declares {} but the app builds {}".format(
@@ -466,6 +463,8 @@ def apple_ios_app(
         testonly = False,
         visibility = None):
     """Builds one upstream iOS application bundle over a Rust library cell, XCFramework imports, or a Swift @main module."""
+    deployment = deployment or IOS_DEPLOYMENT
+    xcode_version = xcode_version or XCODE_VERSION
     srcs = srcs or []
     deps = deps or []
     tags = tags or []
@@ -660,6 +659,7 @@ def apple_ios_app_test(
         visibility = None,
         **kwargs):
     """Runs XCTest cases inside one app on a declared simulator device and runtime."""
+    deployment = deployment or IOS_DEPLOYMENT
     srcs = srcs or []
     deps = deps or []
     tags = tags or []
@@ -898,6 +898,8 @@ def apple_ios_xcframework(
         testonly = False,
         visibility = None):
     """Builds and checks one XCFramework over a Rust static library and public headers."""
+    deployment = deployment or IOS_DEPLOYMENT
+    xcode_version = xcode_version or XCODE_VERSION
     deps = deps or []
     tags = tags or []
     module = bundle_name or name

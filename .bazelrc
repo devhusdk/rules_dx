@@ -100,10 +100,6 @@ common:rbe --remote_default_exec_properties=dockerUser=nobody
 common:rbe --remote_local_fallback
 common:rbe --strategy=TestRunner=remote,sandboxed,local
 
-# iOS simulator builds run debug code for arm64 simulators.
-build:ios_sim --compilation_mode=dbg
-build:ios_sim --ios_multi_cpus=sim_arm64
-
 build:linux --@rules_rust_wasm_bindgen//settings:test_browser=firefox
 
 build --//ruby/private/quality:rubocop=@bundle//bin:rubocop

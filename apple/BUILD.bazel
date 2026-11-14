@@ -4,6 +4,7 @@ exports_files([
     "README.md",
     "defs.bzl",
     "lang.json",
+    "pins.json",
 ])
 
 filegroup(

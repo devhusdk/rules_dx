@@ -7,7 +7,8 @@ load("@rules_apple//apple:versioning.bzl", "apple_bundle_version")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//apple/private/bundle:defs.bzl", "NO_PATH", "adhoc_signing_transition", "archives", "check_cell", "display", "flat_resources", "label_text", "resolved_xcode")
+load("//apple/private/bundle:defs.bzl", "EXTRA_TOOLCHAINS_SETTING", "NO_PATH", "SIGNING_CERTIFICATE", "apple_extra_toolchains", "archives", "check_cell", "display", "flat_resources", "label_text", "resolved_xcode")
+load("//apple/private/bundle:pins.bzl", "MACOS_DEPLOYMENT", "XCODE_VERSION")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load("//core:resources.bzl", "dx_heavy_resources")
@@ -99,7 +100,7 @@ def _macos_cell_impl(ctx):
     if got == "":
         fail("apple_macos_app: library cell {} builds for no macOS platform here; build the app target so rules_apple selects the cell".format(_CELL))
     if got != _CELL:
-        fail("apple_macos_app: app declares {} but this build targets {}; pass --macos_cpus=arm64".format(_CELL, got))
+        fail("apple_macos_app: app declares {} but this build targets {}; build the app target, which selects its cell".format(_CELL, got))
     xcode_config, xcode = resolved_xcode(ctx, "apple_macos_app", "app")
     inputs = []
     cc_infos = []
@@ -260,13 +261,34 @@ def _macos_app_check_impl(ctx):
         OutputGroupInfo(**groups),
     ]
 
+_MACOS_CPUS = "//command_line_option:macos_cpus"
+
+_MACOS_MINIMUM_OS = "//command_line_option:macos_minimum_os"
+
+_XCODE_VERSION_SETTING = "//command_line_option:xcode_version"
+
+def _macos_cell_transition_impl(settings, attr):
+    return {
+        EXTRA_TOOLCHAINS_SETTING: apple_extra_toolchains(settings[EXTRA_TOOLCHAINS_SETTING]),
+        SIGNING_CERTIFICATE: "-",
+        _MACOS_CPUS: ["arm64"],
+        _MACOS_MINIMUM_OS: attr.deployment,
+        _XCODE_VERSION_SETTING: attr.xcode_version,
+    }
+
+_macos_cell_transition = transition(
+    implementation = _macos_cell_transition_impl,
+    inputs = [EXTRA_TOOLCHAINS_SETTING],
+    outputs = [EXTRA_TOOLCHAINS_SETTING, SIGNING_CERTIFICATE, _MACOS_CPUS, _MACOS_MINIMUM_OS, _XCODE_VERSION_SETTING],
+)
+
 _macos_app_check = rule(
     implementation = _macos_app_check_impl,
     doc = "Checks one upstream macOS application bundle and forwards it with its identity.",
     attrs = {
         "app": attr.label(
-            doc = "The upstream macos_application, built ad hoc signed.",
-            cfg = adhoc_signing_transition,
+            doc = "The upstream macos_application, built ad hoc signed for macos/arm64.",
+            cfg = _macos_cell_transition,
             mandatory = True,
             providers = [AppleBundleInfo],
         ),
@@ -278,7 +300,7 @@ _macos_app_check = rule(
         "plugins": attr.label_list(doc = "Plugins the bundle must hold under PlugIns.", allow_files = True),
         "resources": attr.label_list(doc = "Resource files the bundle must hold.", allow_files = True),
         "version": attr.string(doc = "Bundle version string of the app.", mandatory = True),
-        "xcode_version": attr.string(doc = "Xcode version the app build is pinned to.", default = ""),
+        "xcode_version": attr.string(doc = "Xcode version the app build is pinned to.", mandatory = True),
         "_check": attr.label(
             default = Label("//apple/private/tools/ops:apple_ops"),
             cfg = "exec",
@@ -321,6 +343,8 @@ def apple_macos_app(
         testonly = False,
         visibility = None):
     """Builds one upstream macOS application over a Rust library, checked and ad hoc signed."""
+    deployment = deployment or MACOS_DEPLOYMENT
+    xcode_version = xcode_version or XCODE_VERSION
     srcs = srcs or []
     deps = deps or []
     tags = tags or []

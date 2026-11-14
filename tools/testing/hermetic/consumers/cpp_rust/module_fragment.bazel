@@ -4,7 +4,7 @@ bazel_dep(name = "rules_cc", version = "0.2.28")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "rules_scala", version = "7.4.1")
 
-dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses = use_extension("@my_dx//core:extensions.bzl", "dx_licenses")
 dx_licenses.accept(ids = ["visual-studio-build-tools"])
 
 scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")

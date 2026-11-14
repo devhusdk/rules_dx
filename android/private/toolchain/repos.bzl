@@ -111,13 +111,7 @@ def _list(values):
     return '["' + '", "'.join(values) + '"]'
 
 def toolchain_build(ndks, api_level, cxx_runtime):
-    """Returns the BUILD text declaring both NDK cc toolchains for every pinned exec host.
-
-    Args:
-      ndks: {host: struct(label, exec_root)} naming each host's NDK repository.
-      api_level: Android API level the toolchains default to.
-      cxx_runtime: C++ runtime linkage.
-    """
+    """Returns the BUILD text declaring both NDK cc toolchains for every pinned exec host."""
     chunks = [
         'load("' + str(Label("@rules_cc//cc:defs.bzl")) + '", "cc_toolchain")',
         'load("' + str(Label("//android/private/toolchain:cc_toolchain_config.bzl")) + '", "ndk_cc_toolchain_config")',

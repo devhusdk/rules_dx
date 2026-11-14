@@ -59,6 +59,7 @@ impl TerminalJob {
             .ok()?;
         // SAFETY: getpgrp has no preconditions.
         let own = unsafe { libc::getpgrp() };
+        // SAFETY: tty is an open descriptor.
         if unsafe { libc::tcgetpgrp(tty.as_raw_fd()) } != own {
             return None;
         }
@@ -228,6 +229,7 @@ impl Blocked {
     fn new(signals: &[i32]) -> Blocked {
         // SAFETY: sigset_t is plain C data for which all-zero is valid.
         let mut set: libc::sigset_t = unsafe { std::mem::zeroed() };
+        // SAFETY: sigset_t is plain C data for which all-zero is valid.
         let mut previous: libc::sigset_t = unsafe { std::mem::zeroed() };
         // SAFETY: set and previous are valid sigset_t values for these calls.
         unsafe {
@@ -312,7 +314,9 @@ extern "C" fn report_signal(signo: libc::c_int, info: *mut libc::siginfo_t, _: *
     let errno = crate::errno_slot();
     // SAFETY: errno_slot returns this thread's errno, valid for reads and writes.
     let saved = unsafe { *errno };
+    // SAFETY: info is the siginfo_t the kernel passed to this handler.
     if !unsafe { from_parent(info) } {
+        // SAFETY: report is async-signal-safe and signo is the delivered signal.
         unsafe { report(signo) };
     }
     // SAFETY: errno is the slot read above and still valid for writes.

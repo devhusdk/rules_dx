@@ -471,6 +471,7 @@ mod tests {
             // SAFETY: this child runs only this test, so no other thread reads the environment.
             unsafe { std::env::set_var("NO_COLOR", "") }
             assert!(!no_color_present(), "an empty NO_COLOR is ignored");
+            // SAFETY: this child runs only this test, so no other thread reads the environment.
             unsafe { std::env::set_var("NO_COLOR", "1") }
             assert!(no_color_present(), "a non-empty NO_COLOR counts");
             // SAFETY: this child runs only this test, so no other thread reads the environment.

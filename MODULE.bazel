@@ -929,6 +929,7 @@ dx_pins.archive(
         "//patches/rules_dotnet:nuget_group_prefix.patch",
         "//patches/rules_dotnet:sdk_versions.patch",
         "//patches/rules_dotnet:canonical_labels.patch",
+        "//patches/rules_dotnet:toolchains_gate.patch",
     ],
     pins = "//dotnet:pins.json",
 )
@@ -1095,6 +1096,7 @@ dx_pins.archive(
         "//patches/rules_ruby:reproducible.patch",
         "//patches/rules_ruby:coverage.patch",
         "//patches/rules_ruby:rubyinstaller_archive.patch",
+        "//patches/rules_ruby:toolchains_gate.patch",
     ],
     pins = "//ruby:pins.json",
 )

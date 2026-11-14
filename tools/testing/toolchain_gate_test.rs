@@ -28,26 +28,26 @@ const GATED: &[&str] = &[
     "//cc/private/toolchains:msvc_windows_arm64",
     "//cc/private/toolchains:msvc_windows_x86_64",
     "//cc/private/toolchains:msvc_windows_x86_64_to_arm64",
+    "//java/private/toolchain:all",
     "//kotlin/private/toolchain:unused_deps",
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",
     "//tools/platforms:protoc_windows_arm64",
+    "@dx_dotnet_toolchains//:all",
     "@dx_haskell_toolchains//:all",
     "@dx_python_toolchains//:all",
     "@dx_swift_toolchains//:all",
+    "@ruby_toolchains//:all",
 ];
 
 /// Ungated registrations for shared toolchain types; entries are only removed.
 const UNGATED: &[&str] = &[
-    "//java/private/toolchain:all",
     "@android_ndk_toolchain//:ndk_cc_toolchain_device",
     "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
     "@cuda//toolchain/...",
-    "@dx_dotnet_toolchains//:all",
     "@llvm//toolchain:all",
     "@local_config_apple_cc_toolchains//:all",
     "@python_interpreters//:all",
-    "@ruby_toolchains//:all",
     "@rust_toolchains//:all",
 ];
 

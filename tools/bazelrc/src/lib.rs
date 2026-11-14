@@ -31,10 +31,16 @@ const UPSTREAM_FLAGS: [Flag; 3] = [
     ),
 ];
 
-const TOOLCHAIN_FLAGS: [Flag; 1] = [(
-    "common --@rules_dx//config:toolchains=true",
-    "Resolve the toolchains rules_dx registers for shared toolchain types.",
-)];
+const TOOLCHAIN_FLAGS: [Flag; 2] = [
+    (
+        "common --@rules_dx//config:toolchains=true",
+        "Resolve the toolchains rules_dx registers for shared toolchain types.",
+    ),
+    (
+        "common --experimental_propagate_custom_flag=@rules_dx//config:toolchains",
+        "Resolve those toolchains for tools built in the exec configuration.",
+    ),
+];
 
 const COVERAGE_FLAGS: [Flag; 7] = [
     (
@@ -761,6 +767,7 @@ mod tests {
                 "test --test_output=errors",
                 "test --test_verbose_timeout_warnings",
                 "common --@rules_dx//config:toolchains=true",
+                "common --experimental_propagate_custom_flag=@rules_dx//config:toolchains",
                 "common --enable_platform_specific_config",
                 "coverage --test_env=GENERATE_LLVM_LCOV=1",
                 "coverage --combined_report=lcov",
@@ -888,8 +895,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 57);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 57);
+        assert_eq!(total, 58);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 58);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -981,7 +988,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 57);
+        assert_eq!(flags.len(), 58);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

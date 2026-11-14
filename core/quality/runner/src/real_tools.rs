@@ -5832,7 +5832,15 @@ fn latexindent_tool(
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
+    assert_hermetic_scratch_home(env);
+    for name in ["HOME", "USERPROFILE"] {
+        let home = env
+            .iter()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| PathBuf::from(value))
+            .unwrap_or_else(|| panic!("{name} names the scratch home"));
+        assert!(home.is_dir(), "{name} {home:?} exists");
+    }
     let write = argv.iter().any(|arg| arg == "-w");
     assert!(write || argv.iter().any(|arg| arg == "-k"));
     let flag = |prefix: &str| {

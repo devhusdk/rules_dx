@@ -142,7 +142,7 @@ pub(super) fn assert_hermetic(env: &[(OsString, OsString)]) {
 }
 
 /// Like `assert_hermetic`, but HOME/USERPROFILE may point inside the scratch
-/// tree. Only tools that need a scratch home (bicep) opt in.
+/// tree. Only tools that need a scratch home opt in.
 pub(super) fn assert_hermetic_scratch_home(env: &[(OsString, OsString)]) {
     assert_hermetic_with(env, true);
 }

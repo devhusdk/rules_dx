@@ -139,7 +139,7 @@ fn empty_report_unchecked(argv: &[OsString], _cwd: &Path) -> io::Result<ChildOut
     })
 }
 
-/// `empty_report` for bicep, the only tool launched with a scratch HOME.
+/// `empty_report` for the tools launched with a scratch HOME.
 fn empty_report_scratch_home(
     argv: &[OsString],
     cwd: &Path,
@@ -177,7 +177,7 @@ fn staticcheck_reads_the_unitchecker_report_of_the_go_aspect() {
 #[test]
 pub(super) fn every_real_tool_reaches_a_check_arm() {
     for &tool_id in REAL_TOOLS {
-        let spawn = if tool_id == "bicep" {
+        let spawn = if matches!(tool_id, "bicep" | "latexindent") {
             empty_report_scratch_home
         } else {
             empty_report
@@ -243,7 +243,12 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
             "mbake" => bound_tool(".bake.toml", b""),
             _ => plain_tool(),
         };
-        let backend = backend_for(tool_id, tool, empty_report);
+        let spawn = if tool_id == "latexindent" {
+            empty_report_scratch_home
+        } else {
+            empty_report
+        };
+        let backend = backend_for(tool_id, tool, spawn);
         let fixed = backend
             .apply_fix(tool_id, "a.txt", "x\n", "format")
             .expect("fix round reaches the tool");

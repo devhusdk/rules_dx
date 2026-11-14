@@ -475,6 +475,13 @@ pub(super) fn without_scratch_url(message: &str, root: &Path) -> String {
     message.replace(&format!("file:///{root}/"), "")
 }
 
+/// Drops the scratch directory from paths in a message, spelled with either separator.
+pub(super) fn without_scratch_root(message: &str, root: &Path) -> String {
+    let native = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
+    let forward = native.replace('\\', "/");
+    message.replace(&native, "").replace(&forward, "")
+}
+
 /// Names the file whose output failed to parse.
 pub(super) fn in_file(err: RunnerError, name: &str) -> RunnerError {
     match err {
@@ -583,5 +590,36 @@ mod cue_package_clause_tests {
             "app"
         );
         assert_eq!(cue_package_clause("x: 1\n"), "");
+    }
+}
+
+#[cfg(test)]
+mod scratch_root_tests {
+    use super::without_scratch_root;
+    use std::path::Path;
+
+    #[test]
+    fn scratch_root_is_dropped_in_the_native_spelling() {
+        let root = if cfg!(windows) {
+            r"D:\s\dx-scratch-a"
+        } else {
+            "/s/dx-scratch-a"
+        };
+        let sep = std::path::MAIN_SEPARATOR;
+        let message = format!("originally at: {root}{sep}m{sep}a.fbs:2");
+        assert_eq!(
+            without_scratch_root(&message, Path::new(root)),
+            format!("originally at: m{sep}a.fbs:2")
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn verbatim_scratch_root_is_dropped_in_forward_slashes() {
+        let root = Path::new(r"\\?\D:\s\dx-scratch-a");
+        assert_eq!(
+            without_scratch_root("at: //?/D:/s/dx-scratch-a/m/a.fbs:2", root),
+            "at: m/a.fbs:2"
+        );
     }
 }

@@ -178,8 +178,8 @@ name = "workflow_pins_test"
 path = "workflow_pins_test.rs"
 
 [[test]]
-name = "upgrade_e2e_test"
-path = "upgrade_e2e_test.rs"
+name = "release_cell_test"
+path = "release_cell_test.rs"
 
 [[test]]
 name = "zero_compat_test"

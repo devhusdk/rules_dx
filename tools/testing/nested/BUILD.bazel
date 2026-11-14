@@ -12,6 +12,7 @@ rust_library(
         "src/cache.rs",
         "src/compose.rs",
         "src/footprint.rs",
+        "src/plain_consumer.rs",
         "src/lib.rs",
         "src/record.rs",
     ],

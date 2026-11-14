@@ -262,4 +262,12 @@ mod tests {
         assert!(error.contains("no budget is set"), "{error}");
         assert!(error.contains("\"modules\":10"), "{error}");
     }
+
+    #[test]
+    fn a_budget_file_with_the_documented_keys_is_accepted() {
+        let text =
+            r#"{"modules": 10, "lock_bytes": 1000, "lock_extensions": 4, "external_repos": 20}"#;
+        let parsed: Value = serde_json::from_str(text).expect("json");
+        assert_eq!(check_budget(&footprint(), &parsed), Ok(()));
+    }
 }

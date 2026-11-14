@@ -222,8 +222,14 @@ single_version_override(
 bazel_dep(name = "gazelle", version = "0.54.0")
 # floor: equals tested
 bazel_dep(name = "rules_shell", version = "0.8.0")
-# floor: equals tested
+# floor: equals tested; Apple C++ toolchains register behind //config:toolchains (#12601)
 bazel_dep(name = "apple_support", version = "2.12.0")
+single_version_override(
+    module_name = "apple_support",
+    patch_strip = 1,
+    patches = ["//patches/apple_support:toolchains_gate.patch"],
+    version = "2.12.0",
+)
 # floor: equals tested
 bazel_dep(name = "rules_apple", version = "5.4.0")
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")

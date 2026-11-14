@@ -40,6 +40,7 @@ const GATED: &[&str] = &[
     "@dx_haskell_toolchains//:all",
     "@dx_python_toolchains//:all",
     "@dx_swift_toolchains//:all",
+    "@local_config_apple_cc_toolchains//:all",
     "@llvm//toolchain:all",
     "@python_interpreters//:all",
     "@ruby_toolchains//:all",
@@ -48,7 +49,6 @@ const GATED: &[&str] = &[
 
 /// Ungated registrations for shared toolchain types; entries are only removed.
 const UNGATED: &[&str] = &[
-    "@local_config_apple_cc_toolchains//:all",
 ];
 
 /// Labels of every `register_toolchains` call that is not `dev_dependency = True`.

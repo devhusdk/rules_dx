@@ -28,6 +28,7 @@ const GATED: &[&str] = &[
     "//cc/private/toolchain:msvc_windows_arm64",
     "//cc/private/toolchain:msvc_windows_x86_64",
     "//cc/private/toolchain:msvc_windows_x86_64_to_arm64",
+    "//cc/private/toolchain/clang_cl:all",
     "//java/private/toolchain:all",
     "//kotlin/private/toolchain:unused_deps",
     "//scala/private/toolchain:semanticdb",

@@ -1,7 +1,7 @@
 //! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
 
 use dx_nested::compose::{
-    llvm_override, rules_dx_override, rules_flutter_override, rules_py_override,
+    llvm_override, protobuf_override, rules_dx_override, rules_flutter_override, rules_py_override,
     rules_rust_override, windows_support_override,
 };
 use dx_nested::{self as nested, Case, footprint, plain_fixture};
@@ -130,11 +130,13 @@ pub(crate) const WINDOWS_LICENCES: &str = "common:windows --repo_env=BAZEL_MSVC_
 /// source-built dx needs before `dx init` writes the preset, and `WINDOWS_LICENCES`.
 fn write_windows_rc(case: &Case) {
     if cfg!(windows) {
-        let mut rc: String = dx_testing::preset_rc()
-            .lines()
-            .filter(|line| line.contains(":windows "))
-            .map(|line| format!("{line}\n"))
-            .collect();
+        let mut rc = String::from("common --enable_platform_specific_config\n");
+        rc.extend(
+            dx_testing::preset_rc()
+                .lines()
+                .filter(|line| line.contains(":windows "))
+                .map(|line| format!("{line}\n")),
+        );
         rc.push_str(WINDOWS_LICENCES);
         write_text(&case.root().join(".bazelrc"), &rc);
     }
@@ -153,6 +155,7 @@ fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
         "rules_flutter",
         "rules_rust",
         "llvm",
+        "protobuf",
         "windows_support",
         "ring",
         "gomod-parser",
@@ -207,6 +210,7 @@ fn the_readme_quickstart_runs_as_written() {
             text.push_str(&rules_flutter_override());
             text.push_str(&rules_rust_override());
             text.push_str(&llvm_override());
+            text.push_str(&protobuf_override());
             text.push_str(&windows_support_override());
             text.push_str(&rules_dx_override(&source));
         }
@@ -296,6 +300,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
             + &rules_flutter_override()
             + &rules_rust_override()
             + &llvm_override()
+            + &protobuf_override()
             + &windows_support_override()),
     );
 

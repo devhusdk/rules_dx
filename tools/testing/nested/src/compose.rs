@@ -122,6 +122,24 @@ pub fn windows_support_override() -> String {
     )
 }
 
+/// The patches of `//patches/protobuf` that `protobuf_override` names, without `.patch`.
+pub const PROTOBUF_PATCHES: [&str; 1] = ["no_crate_universe"];
+
+/// Pins protobuf 36.2 with the patches of the root MODULE.bazel.
+pub fn protobuf_override() -> String {
+    let patches = PROTOBUF_PATCHES
+        .map(|name| format!("        \"//patches/protobuf:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "single_version_override(\n    module_name = \"protobuf\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"36.2\",\n)\n"
+    )
+}
+
+/// Writes the files `protobuf_override` names into the consumer.
+pub fn write_protobuf_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
+    write_patches(workspace, rules_dx, "protobuf", &PROTOBUF_PATCHES)
+}
+
 /// The patches of `//patches/rules_flutter` that `rules_flutter_override` names, without `.patch`.
 pub const RULES_FLUTTER_PATCHES: [&str; 5] = [
     "lock_extension",

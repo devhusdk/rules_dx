@@ -1,0 +1,193 @@
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "label_string")
+load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS")
+load("//php/private:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
+load("//php/private:php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_descriptor", "env_flag", "ini_flags", "launcher_descriptor", "lit", "rf", "rf_prefixed", "runfiles_path")
+
+package(default_visibility = ["//visibility:private"])
+
+_BINARY = [
+    lit("-d"),
+    rf_prefixed("auto_prepend_file=", "_main/t.php/vendor/autoload.php"),
+    rf("_main/t.php/app/main.php"),
+]
+
+_TEST = [
+    rf("phpunit/phpunit.phar"),
+    lit("--bootstrap"),
+    rf("_main/t.php/vendor/autoload.php"),
+    lit("--no-configuration"),
+    lit("--fail-on-empty-test-suite"),
+    lit("--do-not-cache-test-index"),
+    env_flag("--log-junit", "XML_OUTPUT_FILE"),
+]
+
+_SELECT = select({"//conditions:default": []})
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    extra_checks = [
+        expect_equal(
+            "one php class owns every source",
+            PHP_SOURCE_SPECS,
+            [(
+                "php",
+                ["php"],
+            )],
+        ),
+        expect_equal(
+            "wrappers accept only PHP sources",
+            PHP_SOURCE_EXTS,
+            [".php"],
+        ),
+        expect_equal(
+            "main leads the owned sources",
+            dx_entry_quality_srcs(
+                "main.php",
+                ["src/A.php"],
+            ),
+            [
+                "main.php",
+                "src/A.php",
+            ],
+        ),
+        expect_equal(
+            "main listed in srcs is owned once",
+            dx_entry_quality_srcs(
+                "main.php",
+                [
+                    "main.php",
+                    "src/A.php",
+                ],
+            ),
+            [
+                "main.php",
+                "src/A.php",
+            ],
+        ),
+        expect_equal(
+            "autoload files are owned once",
+            dx_entry_quality_srcs(
+                None,
+                ["a.php"],
+                [
+                    "a.php",
+                    "f.php",
+                ],
+            ),
+            [
+                "a.php",
+                "f.php",
+            ],
+        ),
+        expect_equal(
+            "no main and no srcs owns nothing",
+            dx_entry_quality_srcs(None, None),
+            [],
+        ),
+        expect_equal(
+            "main defaults to the target name with .php",
+            dx_infer_main(
+                "php_binary",
+                "hello",
+                None,
+                [
+                    "src/A.php",
+                    "hello.php",
+                ],
+                dx_main_candidates("hello", ".php"),
+            ),
+            "hello.php",
+        ),
+        expect_equal(
+            "the only src is main when no name matches",
+            dx_infer_main(
+                "php_binary",
+                "hello",
+                None,
+                ["run.php"],
+                dx_main_candidates("hello", ".php"),
+            ),
+            "run.php",
+        ),
+        expect_equal(
+            "the deferred class skips quality",
+            PHP_DEFERRED_SKIP_TAGS,
+            ["no-format"],
+        ),
+        expect_equal(
+            "targets build on the pinned cells",
+            type(PHP_COMPATIBLE_WITH),
+            "select",
+        ),
+        expect_equal(
+            "suffixes are identifiers",
+            autoloader_suffix(label_string("//app/cli:hello-world")),
+            "Dx_main_app_cli_hello_world",
+        ),
+        expect_equal(
+            "root-package suffixes keep the empty package",
+            autoloader_suffix(label_string("//:hello")),
+            "Dx_main__hello",
+        ),
+        expect_equal(
+            "ini flags sort by key",
+            ini_flags({
+                "z": "1",
+                "a": "b=c",
+            }),
+            [
+                "-d",
+                "a=b=c",
+                "-d",
+                "z=1",
+            ],
+        ),
+        expect_equal(
+            "workspace runfiles",
+            runfiles_path(
+                "_main",
+                "app/x.php",
+            ),
+            "_main/app/x.php",
+        ),
+        expect_equal(
+            "external runfiles",
+            runfiles_path(
+                "_main",
+                "../dep+/x.php",
+            ),
+            "dep+/x.php",
+        ),
+        expect_equal(
+            "the coverage descriptor runs the coverage runner with the tree, pcov, php, the ini flags and the tokens",
+            coverage_descriptor(
+                "_main/tools/coverage_run",
+                "_main/t.php",
+                "pcov+/pcov.so",
+                "php+/php",
+                {"a": "b c"},
+                _TEST,
+            ),
+            "program=_main/tools/coverage_run\npath=_main/t.php\npath=pcov+/pcov.so\npath=php+/php\narg=-n\narg=-d\narg=a=b c\narg=--\npath=phpunit/phpunit.phar\narg=--bootstrap\npath=_main/t.php/vendor/autoload.php\narg=--no-configuration\narg=--fail-on-empty-test-suite\narg=--do-not-cache-test-index\nenv_flag=--log-junit\tXML_OUTPUT_FILE\n",
+        ),
+        expect_equal(
+            "the descriptor names the program, ini flags and tokens",
+            launcher_descriptor(
+                "php+/php",
+                {
+                    "z": "1",
+                    "a": "b c",
+                },
+                _BINARY,
+            ),
+            "program=php+/php\narg=-n\narg=-d\narg=a=b c\narg=-d\narg=z=1\narg=-d\nprefixed=auto_prepend_file=\t_main/t.php/vendor/autoload.php\npath=_main/t.php/app/main.php\n",
+        ),
+        expect_contains(
+            "the descriptor keeps the junit variable",
+            launcher_descriptor("p", {}, _TEST),
+            "env_flag=--log-junit\tXML_OUTPUT_FILE\n",
+        ),
+    ],
+    file_classes = ["php"],
+)

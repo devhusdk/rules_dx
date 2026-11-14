@@ -3,7 +3,9 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use dx_nested::compose::rules_dx_override;
+use dx_nested::compose::{
+    rules_dx_override, rules_flutter_override, rules_py_override, write_rules_py_patches,
+};
 use dx_nested::{self as nested, Case};
 use dx_testing::{read_text, resolve_runfiles, rules_dx_source, write_text, Run};
 
@@ -87,10 +89,13 @@ fn the_polyglot_example_adopts_and_tests_green() {
     write_text(
         &root.join("MODULE.bazel"),
         &format!(
-            "module(name = \"adopt_polyglot\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n{}",
-            rules_dx_override(&source)
+            "module(name = \"adopt_polyglot\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n{}{}{}",
+            rules_dx_override(&source),
+            rules_py_override(),
+            rules_flutter_override(),
         ),
     );
+    write_rules_py_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));
 
     ok(&dx(&case, &["init", "--apply"]), "dx init --apply");
     ok(&dx(&case, &["generate", "--apply"]), "dx generate --apply");

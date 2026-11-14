@@ -1,6 +1,6 @@
 """The composer hub: one repository whose packages are built from the lock."""
 
-load("//core:pins.bzl", "lock_repos", "lock_tag")
+load(":repo.bzl", "lock_repos", "lock_tag")
 
 _PHP_BZL = str(Label("//php/private:php.bzl"))
 

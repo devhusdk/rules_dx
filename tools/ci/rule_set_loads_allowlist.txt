@@ -8,12 +8,11 @@ lua/private/runtime/BUILD.bazel foreign-load 2
 lua/private/toolchain/BUILD.bazel foreign-load 2
 lua/private/toolchain/extensions.bzl foreign-load 1
 php/BUILD.bazel foreign-load 1
-php/private/BUILD.bazel foreign-load 5
+php/private/BUILD.bazel foreign-load 4
 php/private/defs.bzl foreign-load 5
 php/private/lock/BUILD.bazel foreign-load 1
-php/private/lock/hub.bzl foreign-load 1
-php/private/php.bzl foreign-load 3
-php/private/toolchain/BUILD.bazel foreign-load 2
+php/private/php.bzl foreign-load 1
+php/private/toolchain/BUILD.bazel foreign-load 1
 qt/BUILD.bazel foreign-load 1
 qt/private/BUILD.bazel foreign-load 5
 qt/private/archive.bzl foreign-load 1

@@ -4,19 +4,19 @@ set -euo pipefail
 api="tools/docs/site/user/api.bzl"
 query='attr(visibility, "//visibility:public", kind("^(rust_library|_rust_forward) rule$", //...)) except filter("(^|/)(fixtures?|tests?|examples?)(/|:)", //...) except attr(testonly, 1, //...)'
 
-listed="$(sed -n '/^PUBLIC_RUST_CRATES = \[/,/^\]/p' "$api" | grep -o '"//[^"]*"' | tr -d '"' | sort -u)"
+listed="$(sed -n '/^PUBLIC_RUST_CRATES = \[/,/^\]/p' "$api" | grep -o '"//[^"]*"' | tr -d '"' | LC_ALL=C sort -u)"
 if [ -z "$listed" ]; then
   echo "no PUBLIC_RUST_CRATES entries found in $api" >&2
   exit 2
 fi
 
-queried="$(bazel query --noshow_progress --output=label "$@" "$query" | sort -u)"
+queried="$(bazel query --noshow_progress --output=label "$@" "$query" | LC_ALL=C sort -u)"
 if [ -z "$queried" ]; then
   echo "the query found no public rust libraries; the guard query is broken" >&2
   exit 2
 fi
 
-missing="$(comm -23 <(printf '%s\n' "$queried") <(printf '%s\n' "$listed"))"
+missing="$(LC_ALL=C comm -23 <(printf '%s\n' "$queried") <(printf '%s\n' "$listed"))"
 if [ -n "$missing" ]; then
   echo "public rust_library targets missing from PUBLIC_RUST_CRATES in $api:" >&2
   printf '%s\n' "$missing" | sed 's/^/  /' >&2

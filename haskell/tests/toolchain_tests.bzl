@@ -177,6 +177,7 @@ def _checks():
         expect_equal("cabal libraries name every library stanza with its sibling deps", {name: library["deps"] for name, library in libraries.items()}, {"grammar": [], "frontend": ["grammar"], "tabular": ["grammar"], "": ["frontend", "tabular"]}),
         expect_equal("libraries without modules are empty", sorted([name for name, library in libraries.items() if library["empty"]]), ["", "tabular"]),
         expect_contains("an empty library builds with empty cabal args", happy, 'haddock = False,\n    cabal_args = ":empty_library",'),
+        expect_equal("a library with only c sources is not empty", cabal_libraries("name: a\nlibrary\n  include-dirs: cbits\n  c-sources:\n    cbits/a.c\n"), {"": {"deps": [], "empty": False}}),
         expect_equal("a cabal file without sublibraries has only the main library", cabal_libraries("name: a\nlibrary\n  build-depends: base\n  exposed-modules: A\n"), {"": {"deps": [], "empty": False}}),
         expect_contains("a sublibrary builds as its own component", happy, 'name = "happy-lib-lib-frontend",\n    package_name = "happy-lib",\n    version = "2.1.7",\n    haddock = False,\n    sublibrary_name = "frontend",'),
         expect_contains("a sublibrary depends on its siblings", happy, 'deps = ["@hub_base//:base", ":happy-lib-lib-grammar"],'),

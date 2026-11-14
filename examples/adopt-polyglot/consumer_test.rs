@@ -23,7 +23,10 @@ cc_binary(
 )
 "#;
 
-/// Copies the example sources, without the BUILD files that `dx generate` writes.
+/// The include prefix of the C++ sources in rules_dx.
+const WORKSPACE_INCLUDE: &str = "#include \"examples/adopt-polyglot/";
+
+/// Copies the example sources, without the BUILD files that `dx generate` writes, with C++ includes rooted at `to`.
 fn copy_sources(from: &Path, to: &Path) {
     let entries = std::fs::read_dir(from).unwrap_or_else(|error| panic!("read {from:?}: {error}"));
     for entry in entries {
@@ -35,8 +38,16 @@ fn copy_sources(from: &Path, to: &Path) {
         } else if name != "BUILD.bazel" && name != "README.md" {
             let target = to.join(&name);
             std::fs::create_dir_all(to).unwrap_or_else(|error| panic!("mkdir {to:?}: {error}"));
-            std::fs::copy(&path, &target)
-                .unwrap_or_else(|error| panic!("copy {path:?} to {target:?}: {error}"));
+            let bytes =
+                std::fs::read(&path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
+            let bytes = match path.extension().and_then(|ext| ext.to_str()) {
+                Some("cc" | "h") => String::from_utf8_lossy(&bytes)
+                    .replace(WORKSPACE_INCLUDE, "#include \"")
+                    .into_bytes(),
+                _ => bytes,
+            };
+            std::fs::write(&target, bytes)
+                .unwrap_or_else(|error| panic!("write {target:?}: {error}"));
         }
     }
 }

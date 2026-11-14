@@ -46,6 +46,17 @@ impl Device {
         text
     }
 
+    fn wait_online(&self) {
+        for _ in 0..60 {
+            let output = self.run(&["get-state"]);
+            if String::from_utf8_lossy(&output.stdout).trim() == "device" {
+                return;
+            }
+            sleep(Duration::from_secs(1));
+        }
+        panic!("{} is not online", self.serial);
+    }
+
     fn ui(&self) -> String {
         let dumped = self.run(&["shell", "uiautomator", "dump", "/sdcard/dx_ui.xml"]);
         if !dumped.status.success() {
@@ -99,12 +110,7 @@ fn tap_on_add_item_changes_the_count() {
         adb: pick("DX_ADB", |path| path.ends_with("/adb")),
         serial,
     };
-    assert_eq!(
-        device.text(&["get-state"]).trim(),
-        "device",
-        "{} is not online",
-        device.serial
-    );
+    device.wait_online();
     assert_eq!(
         device.text(&["shell", "getprop", "ro.kernel.qemu"]).trim(),
         "1",

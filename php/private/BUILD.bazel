@@ -226,6 +226,8 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "*.BUILD.bazel",
+        "patches/*.patch",
     ]),
     visibility = ["//:__subpackages__"],
 )

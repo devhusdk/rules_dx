@@ -139,7 +139,7 @@ fn the_polyglot_example_adopts_and_tests_green() {
     );
 
     let module = read_text(&root.join("MODULE.bazel"));
-    for call in ["crate.from_cargo", "uv.project", "npm_translate_lock"] {
+    for call in ["cargo.from_cargo", "uv.project", "npm_translate_lock"] {
         assert_eq!(
             module.matches(call).count(),
             1,

@@ -753,7 +753,7 @@ fn lock_name(eco: Language) -> &'static str {
         Language::D => "dub.selections.json",
         Language::Haskell => "cabal.project.freeze",
         Language::Swift => "Package.resolved",
-        Language::Powershell => "installed_modules.txt",
+        Language::Powershell => "powershell.lock.json",
         Language::Ocaml => "opam.locked",
     }
 }
@@ -3275,7 +3275,7 @@ fn powershell_manifest_reads_names_and_pins() {
 fn powershell_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("powershell/mixed");
     let manifest = base.join("Hello.psd1");
-    let lock = base.join("installed_modules.txt");
+    let lock = base.join("powershell.lock.json");
     assert_eq!(consistency(Language::Powershell, "mixed"), 0);
     let unused = find_unused(Language::Powershell, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
@@ -3293,12 +3293,15 @@ fn powershell_fixture_reports_unused_and_missing() {
 fn powershell_consistency_flags_old_install() {
     let dir = tempfile::tempdir().expect("scratch");
     let psd1 = dir.path().join("M.psd1");
-    let lock = dir.path().join("installed_modules.txt");
+    let lock = dir.path().join("powershell.lock.json");
     write_file(
         &psd1,
         "@{ RequiredModules = @(@{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }) }\n",
     );
-    write_file(&lock, "pester 4.10.1\n");
+    write_file(
+        &lock,
+        r#"{"packages": [{"name": "Pester", "version": "4.10.1"}]}"#,
+    );
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(

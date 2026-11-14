@@ -324,7 +324,6 @@ powershell format_error_test *
 powershell format_test *
 powershell lint_error_test *
 powershell lint_test *
-powershell lock_test *
 powershell runfiles_test *
 python runfiles_test *
 qt build_test *

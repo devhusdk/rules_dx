@@ -22,6 +22,12 @@ powershell_binary(
     deps = [":conformance"],
 )
 
+powershell_binary(
+    name = "lock_hello",
+    srcs = ["lock_main.ps1"],
+    deps = ["//powershell:pester"],
+)
+
 powershell_test(
     name = "pass_subject_test",
     size = "small",
@@ -59,6 +65,15 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "powershell",
     not_applicable = {"cross_test": "powershell_binary is a script the interpreter runs; it has no object format"},
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "powershell",
+        "expected": "hello lock",
+        "lockfile": "//third_party/powershell:powershell.lock.json",
+        "manifest": "lock.psd1",
+        "package": "Pester",
+        "stale": "powershell.stale.lock.json",
+    },
     passing_test = ":pass_subject_test",
 )
 

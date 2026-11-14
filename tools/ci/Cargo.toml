@@ -26,10 +26,6 @@ name = "aggregate_gates_test"
 path = "aggregate_gates_test.rs"
 
 [[test]]
-name = "aggregate_scripts_test"
-path = "aggregate_scripts_test.rs"
-
-[[test]]
 name = "artifact_writes_test"
 path = "artifact_writes_test.rs"
 

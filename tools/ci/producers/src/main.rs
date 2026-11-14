@@ -3,6 +3,7 @@
 //! `producers_bin --lock-merge LOCKS_DIR OUT` merges the per-platform module locks into OUT.
 //! `producers_bin --blocker-refs OWNER/REPO` prints the references of a "Blocked on:" line on stdin.
 //! `producers_bin --review-paths [PREFIX_FILE]` prints the stdin paths that start with a listed prefix.
+//! `producers_bin --table EVIDENCE_DIR OUT PLATFORM...` merges the evidence under a directory into OUT and prints the table.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -10,19 +11,18 @@ mod blocker_refs;
 mod evidence;
 mod lock_merge;
 mod review_paths;
+mod table;
 
 use dx_binfmt::producers;
 use std::collections::BTreeMap;
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if let Some(("--evidence", rest)) = args.split_first().map(|(mode, rest)| (mode.as_str(), rest))
-    {
-        return evidence::append(rest);
-    }
-    if let Some(("--lock-merge", rest)) = args.split_first().map(|(mode, rest)| (mode.as_str(), rest))
-    {
-        return lock_merge::merge(rest);
+    match args.split_first().map(|(mode, rest)| (mode.as_str(), rest)) {
+        Some(("--evidence", rest)) => return evidence::append(rest),
+        Some(("--table", rest)) => return table::print(rest),
+        Some(("--lock-merge", rest)) => return lock_merge::merge(rest),
+        _ => {}
     }
     if let Some(("--blocker-refs", rest)) =
         args.split_first().map(|(mode, rest)| (mode.as_str(), rest))

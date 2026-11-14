@@ -156,7 +156,7 @@ def _swift_forward_kwargs(platforms):
     }
 
 def _swift_runtime_kwargs(kwargs, platforms):
-    """Returns the forwarder kwargs that ship the sysroot's shared libraries with a swift_test, so no host library is needed."""
+    """Returns the forwarder kwargs that ship the sysroot shared libraries with a swift_test."""
     out = _swift_forward_kwargs(platforms)
     out["data"] = dx_append_flags(kwargs, "data", [Label("//swift/private/toolchain:runtime_libs")])["data"]
     return out

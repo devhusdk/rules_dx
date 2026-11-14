@@ -4,7 +4,6 @@ ANDROID_NDK_REVISION = "27.0.12077973"
 
 ANDROID_NDK_RELEASE = "r27"
 
-# Directory name under lib/clang in the pinned NDK.
 ANDROID_NDK_CLANG_VERSION = "18"
 
 NDK_PREBUILT = "toolchains/llvm/prebuilt/linux-x86_64"
@@ -129,7 +128,6 @@ NDK_ARCHIVE_PREFIX = "android-ndk-" + ANDROID_NDK_RELEASE
 
 BUILD_TOOLS_ARCHIVE_PREFIX = "build-tools_r" + BUILD_TOOLS.split(".")[0]
 
-# Google joins build-tools archive names with "_" since r35.
 BUILD_TOOLS_ARCHIVE_SEPARATOR = "_"
 
 PLATFORM_TOOLS_ARCHIVE_PREFIX = "platform-tools_r" + PLATFORM_TOOLS
@@ -144,7 +142,6 @@ APP_SDK_HUB_NAME = "dx_androidsdk"
 
 APP_SDK_FILES_NAME = APP_SDK_HUB_NAME + "_files"
 
-# Targets of @androidsdk the light hub forwards to the files repo.
 APP_SDK_FORWARDED = [
     "sdk",
     "sdk-%d",
@@ -522,7 +519,6 @@ def hub_build(ndk_repos, build_tools_repos, bundletool_repo, *, platform_repo = 
     _hub_target(lines, "emulator", emulator_repos, "emulator", package_no_match_error("emulator"))
     return "\n".join(lines) + "\n"
 
-# readelf -d bin/ld.lld: NEEDED entries resolved through RUNPATH $ORIGIN/../lib.
 NDK_RUNTIME_LIBS = ["libxml2.so.2"]
 
 def ndk_toolchain_build(root):

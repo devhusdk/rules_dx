@@ -120,7 +120,7 @@ _warnings_off_test = analysistest.make(
 )
 
 def swift_warnings_as_errors_tests(name, target_under_test, **kwargs):
-    """Asserts the SwiftCompile action of target_under_test passes -warnings-as-errors exactly when //config:warnings_as_errors is true."""
+    """Asserts the SwiftCompile action passes -warnings-as-errors when the flag is true."""
     _warnings_on_test(name = name + "_on", size = "small", target_under_test = target_under_test, **kwargs)
     _warnings_off_test(name = name + "_off", size = "small", target_under_test = target_under_test, **kwargs)
     native.test_suite(name = name, tests = [name + "_on", name + "_off"], **kwargs)

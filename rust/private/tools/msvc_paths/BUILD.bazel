@@ -9,13 +9,14 @@ _RUSTC_FLAGS = select({
     "//conditions:default": [],
 })
 
+# keep: only msvc_link and msvc_lib depend on it
 rust_library(
     name = "msvc_paths",
     srcs = ["src/lib.rs"],
     crate_name = "msvc_paths",
     crate_root = "src/lib.rs",
     edition = "2024",
-    visibility = ["//visibility:public"],
+    visibility = ["//visibility:private"],
 )
 
 rust_binary(

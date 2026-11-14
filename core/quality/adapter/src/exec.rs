@@ -43,10 +43,18 @@ pub struct Scratch {
 
 #[cfg(windows)]
 fn canonical_root(dir: &Path) -> io::Result<PathBuf> {
-    Ok(dir.to_str().map_or_else(
-        || dir.to_owned(),
-        |text| PathBuf::from(text.replace('/', "\\")),
-    ))
+    let full = dir.canonicalize()?;
+    let drive = full
+        .to_str()
+        .and_then(|text| text.strip_prefix(r"\\?\"))
+        .filter(|rest| dx_path::drive_rooted(rest))
+        .map(PathBuf::from);
+    Ok(drive.unwrap_or_else(|| {
+        dir.to_str().map_or_else(
+            || dir.to_owned(),
+            |text| PathBuf::from(text.replace('/', "\\")),
+        )
+    }))
 }
 
 #[cfg(not(windows))]
@@ -642,6 +650,20 @@ mod tests {
         let forward = PathBuf::from(parent_tmp.path().to_string_lossy().replace('\\', "/"));
         let scratch = Scratch::create(&forward).expect("scratch");
         assert!(!scratch.root().to_string_lossy().contains('/'));
+        scratch.close().expect("close");
+        parent_tmp.close().expect("cleanup");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn scratch_root_is_the_long_drive_path() {
+        let parent_tmp = tempfile::tempdir().expect("parent");
+        let scratch = Scratch::create(parent_tmp.path()).expect("scratch");
+        let root = scratch.root().to_string_lossy().into_owned();
+        assert!(!root.starts_with(r"\\?\"), "{root}");
+        assert!(dx_path::drive_rooted(&root), "{root}");
+        let long = scratch.root().canonicalize().expect("canonical");
+        assert_eq!(long.to_string_lossy().strip_prefix(r"\\?\"), Some(root.as_str()));
         scratch.close().expect("close");
         parent_tmp.close().expect("cleanup");
     }

@@ -193,7 +193,6 @@ fn skip_names() -> BTreeSet<&'static str> {
         "build.zig.zon.lock",
         "JuliaProject.toml",
         "JuliaManifest.toml",
-        "rebar.lock",
         "stack.yaml.lock",
         "opam.locked",
     ]

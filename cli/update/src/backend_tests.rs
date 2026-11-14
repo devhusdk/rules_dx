@@ -2231,7 +2231,7 @@ fn hex_set() -> ResolvedSet {
         ecosystem: Ecosystem::Hex,
         dir: "third_party/elixir".to_owned(),
         manifests: vec!["third_party/elixir/mix.exs".to_owned()],
-        locks: vec!["third_party/elixir/mix.lock".to_owned()],
+        locks: vec!["third_party/elixir/hex.lock.json".to_owned()],
         repository: None,
     }
 }
@@ -2357,10 +2357,10 @@ fn hex_check_stages_deps_get_and_update_names_the_packages() {
         argv[target + 1..],
         strings(&["@rules_dx//elixir/private/tools:mix", "--", "deps.get"])
     );
-    assert_eq!(check.outputs, ["third_party/elixir/mix.lock"]);
+    assert_eq!(check.outputs, ["third_party/elixir/hex.lock.json"]);
     assert_eq!(
         check.inputs,
-        ["third_party/elixir/mix.exs", "third_party/elixir/mix.lock"]
+        ["third_party/elixir/mix.exs", "third_party/elixir/hex.lock.json"]
     );
     let env = check.env(scratch);
     assert!(env.contains(&("MIX_HOME".to_owned(), "/scratch/1/mix_home".to_owned())));

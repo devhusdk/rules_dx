@@ -112,7 +112,7 @@ fn lock_and_source_columns_match_the_audit_column() {
 
 #[test]
 fn lookups_resolve_rows() {
-    assert_eq!(Ecosystem::Hex.lockfiles(), ["mix.lock", "rebar.lock"]);
+    assert_eq!(Ecosystem::Hex.lockfiles(), ["hex.lock.json"]);
     assert_eq!(Ecosystem::Npm.lockfiles()[0], "pnpm-lock.yaml");
     assert_eq!(Ecosystem::Maven.lockfiles()[0], "maven_install.json");
     assert_eq!(advisory_family_named("rubygems"), Some("rubygems"));

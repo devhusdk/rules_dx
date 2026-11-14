@@ -359,14 +359,6 @@ pub struct MixLock<'a> {
     pub line: usize,
 }
 
-/// One `erlang.rebar` tag of rules_dx or this repository.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RebarLock<'a> {
-    pub name: &'a str,
-    pub lock: &'a str,
-    pub line: usize,
-}
-
 /// A parsed MODULE.bazel with its top-level calls in source order.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleFile {
@@ -997,23 +989,6 @@ impl ModuleFile {
             .chain(own)
             .map(|call| {
                 Ok(MixLock {
-                    name: required(call, TAG, "name")?,
-                    lock: required(call, TAG, "lock")?,
-                    line: call.line,
-                })
-            })
-            .collect()
-    }
-
-    /// Every `erlang.rebar` tag of rules_dx or this repository's `//erlang:extensions.bzl`.
-    pub fn rebar_locks(&self) -> Result<Vec<RebarLock<'_>>, ModuleError> {
-        const TAG: &str = "erlang.rebar";
-        let external = self.tags(RUBY_MODULE, "erlang:extensions.bzl", "erlang", "rebar");
-        let own = self.tags_of("//erlang:extensions.bzl".to_owned(), "erlang", "rebar");
-        external
-            .chain(own)
-            .map(|call| {
-                Ok(RebarLock {
                     name: required(call, TAG, "name")?,
                     lock: required(call, TAG, "lock")?,
                     line: call.line,

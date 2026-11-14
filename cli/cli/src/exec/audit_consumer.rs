@@ -1074,7 +1074,7 @@ source = { registry = "https://pypi.org/simple" }
         harness.write_source(
             &format!("third_party/elixir/{}", lock_name(Ecosystem::Hex)),
             &format!(
-                "%{{\n  \"plug\": {{:hex, :plug, \"{version}\", \"h\", [:mix], [], \"hexpm\", \"h2\"}},\n}}\n"
+                "{{\"ecosystem\":\"hex\",\"packages\":[{{\"name\":\"plug\",\"version\":\"{version}\"}}]}}"
             ),
         );
         harness
@@ -1098,23 +1098,6 @@ source = { registry = "https://pypi.org/simple" }
         let (code, out, err) = run_with(&["security", "--output=json", "swiftpm"], &runner, &fixed);
         assert_eq!(code, 0, "{out}{err}");
         assert!(!out.contains("vuln/GHSA"), "{out}");
-    }
-
-    #[test]
-    fn consumer_rebar_set_reports_a_vulnerable_lock() {
-        let module = "erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
-        let harness = consumer_harness("rebar-vuln", module, false);
-        harness.write_source("third_party/erlang/rebar.config", "{deps, [plug]}.\n");
-        harness.write_source(
-            "third_party/erlang/rebar.lock",
-            "{\"1.2.0\",\n[{<<\"plug\">>,{pkg,<<\"plug\">>,<<\"1.15.0\">>},0}]}.\n[\n{pkg_hash,[\n {<<\"plug\">>, <<\"AA\">>}]},\n{pkg_hash_ext,[\n {<<\"plug\">>, <<\"BB\">>}]}\n].\n",
-        );
-        write_advisory(&harness, "hex", HEX_ADVISORY);
-        let runner = clean_runner();
-        let (code, out, err) = run_with(&["security", "--output=json", "deps"], &runner, &harness);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(out.contains("vuln/GHSA-hex-0001"), "{out}");
-        assert!(out.contains("third_party/erlang/rebar.lock"), "{out}");
     }
 
     #[test]

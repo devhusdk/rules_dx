@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS")
 load("//php/private:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//php/private:php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_descriptor", "env_flag", "ini_flags", "launcher_descriptor", "lit", "rf", "rf_prefixed", "runfiles_path")
@@ -25,6 +26,7 @@ _SELECT = select({"//conditions:default": []})
 
 php_checks_test(
     name = "wrapper_contract_tests",
+    size = "small",
     checks = [
         expect_equal(
             "one php class owns every source",
@@ -188,5 +190,11 @@ php_checks_test(
             "env_flag=--log-junit\tXML_OUTPUT_FILE\n",
         ),
     ],
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

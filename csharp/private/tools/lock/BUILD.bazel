@@ -34,8 +34,8 @@ rust_binary(
     crate_name = "nuget_lock_bin",
     crate_root = "src/main.rs",
     data = [
-        "@dx_paket//file",
         "@dx_dotnet_x86_64-unknown-linux-gnu//:runtime",
+        "@dx_paket//file",
     ],
     env = {
         "DOTNET": "$(rlocationpath @dx_dotnet_x86_64-unknown-linux-gnu//:runtime)",

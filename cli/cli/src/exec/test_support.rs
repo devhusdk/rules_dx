@@ -1369,6 +1369,7 @@ pub(crate) fn failed_action(
 #[cfg(unix)]
 /// Reports whether the pipe behind `writer` has no reader left in any process.
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "poll has no safe std API")]
 pub(crate) fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
     let mut fd = libc::pollfd {
         fd: writer.as_raw_fd(),

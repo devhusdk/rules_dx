@@ -180,6 +180,7 @@ single_version_override(
         "//patches/windows_support:dx_msvc_layout.patch",
         "//patches/windows_support:source_directory_headers.patch",
         "//patches/windows_support:pins.patch",
+        "//patches/windows_support:reproducible_extensions.patch",
     ],
     version = "0.4.1",
 )
@@ -730,6 +731,7 @@ dx_pins.archive(
         "//patches/windows_support:dx_msvc_layout.patch",
         "//patches/windows_support:source_directory_headers.patch",
         "//patches/windows_support:pins.patch",
+        "//patches/windows_support:reproducible_extensions.patch",
     ],
     pins = "//cc:pins.json",
 )

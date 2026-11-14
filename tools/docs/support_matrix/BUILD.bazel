@@ -114,6 +114,22 @@ rust_binary(
     ) + [":support_matrix"],
 )
 
+rust_binary(
+    name = "row_tests",
+    testonly = True,
+    srcs = ["src/row_tests.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/support_matrix",
+        normal = True,
+    ),
+    crate_name = "row_tests",
+    crate_root = "src/row_tests.rs",
+    deps = all_crate_deps(
+        package_name = "tools/docs/support_matrix",
+        normal = True,
+    ),
+)
+
 python_test(
     name = "macro_rows_test",
     srcs = ["macro_rows.py"],

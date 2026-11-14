@@ -104,7 +104,7 @@ fn a_row_test_missing_from_every_platform_file_fails() {
         }
     }
     let error = generate(&facts, &Renamed(&source)).expect_err("an unqueried row test");
-    assert!(error.contains("row_tests.sh"), "{error}");
+    assert!(error.contains("support_matrix:row_tests"), "{error}");
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn row_labels_match_the_ci_tests_of_every_compiler_and_target_row() {
         let extra: Vec<_> = have.iter().filter(|l| !want.contains(l)).collect();
         assert!(
             missing.is_empty() && extra.is_empty(),
-            "row {} differs from its row:{} tags; missing the tag: {missing:?}; tagged but not in ci_tests: {extra:?}; run `tools/docs/support_matrix/row_tests.sh <platform>`",
+            "row {} differs from its row:{} tags; missing the tag: {missing:?}; tagged but not in ci_tests: {extra:?}; run `bazel run //tools/docs/support_matrix:row_tests -- <platform>`",
             row.name,
             row.name
         );
@@ -158,7 +158,7 @@ fn consumer_labels_match_the_consumer_tests_of_every_row() {
         let extra: Vec<_> = have.iter().filter(|l| !want.contains(l)).collect();
         assert!(
             missing.is_empty() && extra.is_empty(),
-            "row {} differs from its consumer-row:{} tags; missing the tag: {missing:?}; tagged but not in consumer_tests: {extra:?}; run `tools/docs/support_matrix/row_tests.sh <platform>`",
+            "row {} differs from its consumer-row:{} tags; missing the tag: {missing:?}; tagged but not in consumer_tests: {extra:?}; run `bazel run //tools/docs/support_matrix:row_tests -- <platform>`",
             row.name,
             row.name
         );
@@ -186,7 +186,7 @@ fn a_row_tag_naming_no_row_fails() {
         .expect("facts");
     let error = generate(&facts, &WithRow(&source)).expect_err("a row tag naming no row");
     assert!(
-        error.contains("no_such_row") && error.contains("row_tests.sh"),
+        error.contains("no_such_row") && error.contains("support_matrix:row_tests"),
         "{error}"
     );
 }

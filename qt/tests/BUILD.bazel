@@ -2,7 +2,6 @@
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
 load("//qt/private/sdk:pins.bzl", "QT_VERSION")
 load("//qt:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module", "qt_rust_library")
@@ -529,19 +528,10 @@ qt_metadata_tests(
 
 qt_rules_tests(name = "rules_test")
 
-sh_test(
+rust_test(
     name = "tool_dylibs_test",
     size = "small",
-    srcs = ["tool_dylibs_test.sh"],
-    args = [
-        "bin/lrelease",
-        "bin/qmlformat",
-        "bin/qmllint",
-        "libexec/moc",
-        "libexec/qmltyperegistrar",
-        "libexec/rcc",
-        "libexec/uic",
-    ],
+    srcs = ["tool_dylibs_test.rs"],
     data = [
         "@dx_qt//:lrelease",
         "@dx_qt//:moc",

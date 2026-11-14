@@ -21,8 +21,8 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `rules_scala` | 7.4.1 | `manifest_only_wrapper.patch` | The `scala_binary` launcher finds its java wrapper through `RUNFILES_MANIFEST_FILE` when the runfiles directory does not have it, and sets `TEST_SRCDIR` from `JAVA_RUNFILES` when only that is set. Consumer fix: #11417 |
 | `rules_perl` | 2.1.0 | `macos_pod.patch` | The macOS perl repos also extract `lib/<version>/Pod` from the `x86_64-linux-gnu` archive, which the portable-perl 20260929 macOS archives lack, so Perl::Critic and Pod::Usage load on macOS. Consumer fix: #12728 |
 | `rules_cuda` | 0.4.0 | `msvc_dlink_crt.patch` | `nvcc -dlink` on Windows gets the same `/MD` or `/MT` and `-ccbin` host compiler as the compile action, so rdc links do not mix LIBCMT with the dynamic CRT. Consumer fix: #11418 |
-| `protobuf` | 36.2 | `no_crate_universe.patch` | Drops protobuf's own `crate_universe` use so it does not clash with `dx_crates`. Consumer fix: #11418 |
 | `grpc` | 1.85.1 | `pip_parse_no_310.patch` | Root only. grpc's pip hub skips python 3.10, which has no aarch64-pc-windows-msvc runtime, so windows_arm64 lock refresh evaluates |
+| `grpc` | 1.85.1 | `upb_reflection_cc.patch` | Root only. Targets that depend on `@com_google_protobuf//upb/reflection` also depend on `upb/reflection:reflection_cc`, which has `def.hpp` and `message.hpp` from protobuf 37.0 on |
 | `protoc-gen-validate` | 1.2.1.bcr.2 | `pip_parse_no_39_310.patch` | Root only. pgv's pip hub skips python 3.9 and 3.10, which have no aarch64-pc-windows-msvc runtime |
 | `rules_dart` | 0.8.1 | `coverage.patch` | `dart_test` writes LCOV under `bazel coverage`: the test launcher passes `--coverage` to `package:test` and converts the report. Consumer fix: #11417 |
 | `rules_dart` | 0.8.1 | `external_pkgsrcs.patch` | Sources of packages from an external repository are staged into `.pkgsrcs`, which `copy_to_directory` otherwise drops. Consumer fix: #11417 |

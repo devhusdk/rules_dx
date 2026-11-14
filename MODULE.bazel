@@ -305,13 +305,7 @@ bazel_dep(name = "bazel_skylib", version = "1.9.2")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 
 # floor: equals tested
-bazel_dep(name = "protobuf", version = "36.2")
-single_version_override(
-    module_name = "protobuf",
-    patch_strip = 1,
-    patches = ["//patches/protobuf:no_crate_universe.patch"],
-    version = "36.2",
-)
+bazel_dep(name = "protobuf", version = "37.0-rc3")
 
 # floor: equals tested
 bazel_dep(name = "grpc", version = "1.85.1", dev_dependency = True)
@@ -319,7 +313,10 @@ single_version_override(
     module_name = "grpc",
     patch_cmds = ["rm -rf src/core/ext/upb-gen/google/protobuf src/core/ext/upbdefs-gen/google/protobuf"],
     patch_strip = 1,
-    patches = ["//patches/grpc:pip_parse_no_310.patch"],
+    patches = [
+        "//patches/grpc:pip_parse_no_310.patch",
+        "//patches/grpc:upb_reflection_cc.patch",
+    ],
     version = "1.85.1",
 )
 

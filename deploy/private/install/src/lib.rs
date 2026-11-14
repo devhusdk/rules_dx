@@ -1277,6 +1277,7 @@ mod tests {
     }
 
     #[test]
+    #[expect(unsafe_code, reason = "set_var and remove_var are unsafe in edition 2024")]
     fn system_verifier_bin_names_follow_env_overrides() {
         if let Some(raw) = std::env::var_os("DX_INSTALL_VERIFY_CHILD") {
             let raw = raw.to_string_lossy().into_owned();

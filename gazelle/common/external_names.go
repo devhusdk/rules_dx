@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -54,15 +55,23 @@ func hexCandidates(name string) []string {
 	return out
 }
 
-var hexLockEntry = regexp.MustCompile(`(?m)^\s*"([^"]+)":\s*\{:hex,`)
-
 func parseHexLockManifest(content []byte, path string) (externalManifest, error) {
-	m := &namedLockManifest{entry: registryEntry("hex"), packages: map[string]bool{}, candidates: hexCandidates}
-	for _, match := range hexLockEntry.FindAllSubmatch(content, -1) {
-		m.packages[string(match[1])] = true
+	entry := registryEntry("hex")
+	var lock struct {
+		Ecosystem string `json:"ecosystem"`
+		Packages  []struct {
+			Name string `json:"name"`
+		} `json:"packages"`
 	}
-	if len(m.packages) == 0 && !strings.Contains(string(content), "%{") {
-		return nil, fmt.Errorf("%s is not a %s", path, m.entry.Lock)
+	if err := json.Unmarshal(content, &lock); err != nil {
+		return nil, err
+	}
+	if lock.Ecosystem != entry.Ecosystem {
+		return nil, fmt.Errorf("%s is a lock of ecosystem %q, not %q", path, lock.Ecosystem, entry.Ecosystem)
+	}
+	m := &namedLockManifest{entry: entry, packages: map[string]bool{}, candidates: hexCandidates, perPackage: true}
+	for _, p := range lock.Packages {
+		m.packages[p.Name] = true
 	}
 	return m, nil
 }

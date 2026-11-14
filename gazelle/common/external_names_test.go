@@ -13,16 +13,11 @@ func TestNamedLockResolvesImports(t *testing.T) {
 	}{
 		{
 			eco: "hex",
-			lockText: `%{
-  "jason": {:hex, :jason, "1.4.4", "aa", [:mix], [], "hexpm", "bb"},
-  "phoenix_live_view": {:hex, :phoenix_live_view, "1.0.0", "aa", [:mix], [], "hexpm", "bb"},
-  "local": {:git, "https://example.com/x.git", "abc", []},
-}
-`,
+			lockText: `{"ecosystem": "hex", "packages": [{"name": "jason", "provides": ["jason"]}, {"name": "phoenix_live_view", "provides": ["phoenix_live_view"]}], "schema": 1}`,
 			imports: map[string]string{
-				"Jason":                   "@hex//:jason",
-				"Jason.Encoder":           "@hex//:jason",
-				"Phoenix.LiveView.Router": "@hex//:phoenix_live_view",
+				"Jason":                   "@hex//jason",
+				"Jason.Encoder":           "@hex//jason",
+				"Phoenix.LiveView.Router": "@hex//phoenix_live_view",
 			},
 			unknown: "Local",
 		},

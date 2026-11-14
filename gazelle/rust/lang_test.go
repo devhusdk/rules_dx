@@ -1199,6 +1199,29 @@ func TestCorpusKeepsExistingTagsAndCollectsNamedBuildFiles(t *testing.T) {
 	}
 }
 
+func TestCorpusLeavesTargetsOwnedByOtherKinds(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "BUILD.bazel", "")
+	writeFixture(t, root, "README.md", "")
+	file, err := rule.LoadData(filepath.Join(root, "BUILD.bazel"), "", []byte("qt_corpus(\n    name = \"corpus_markdown\",\n)\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := planCorpus(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          root,
+		File:         file,
+		RegularFiles: []string{"BUILD.bazel", "README.md"},
+	}, false)
+	got := map[string]bool{}
+	for _, r := range plan.gen {
+		got[r.Name()] = true
+	}
+	if got["corpus_markdown"] || !got["corpus_starlark"] {
+		t.Errorf("generated %v, want corpus_starlark only", got)
+	}
+}
+
 func withSubdirs(args language.GenerateArgs) language.GenerateArgs {
 	entries, err := os.ReadDir(args.Dir)
 	if err != nil {

@@ -28,7 +28,7 @@ Every test target and test macro follows these rules.
 - `exclusive` is not allowed.
 - Tests that share a resource each get their own copy of it.
 - A resource that Bazel can count is declared with a `resources:<name>:<n>` tag.
-- `msix_package_store` is the Windows package store; `.bazelrc` sets it to 1 and the msix install tests each carry `resources:msix_package_store:1`.
+- `msix_package_store` is set in `.bazelrc`.
 
 ## Devices
 

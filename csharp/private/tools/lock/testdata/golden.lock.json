@@ -1,0 +1,78 @@
+{
+  "ecosystem": "nuget",
+  "groups": {
+    "main": [
+      {
+        "archives": [
+          {
+            "sha256": "14cf409d76656727e4322d3ff006158533f042c494a464d3748f0007a48475d1",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/alpha.core/1.2.0/alpha.core.1.2.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_sha512": "sha512-KIlO6EGJvF0uWFSLC/FlIqFUE9vRtiYvLPvhCRBsQLEXdgzz1G4CJAzMb5yCXkzHNnL4AZDnP4D7b6Em2Xdqng=="
+        },
+        "name": "Alpha.Core",
+        "provides": [
+          "Alpha.Core"
+        ],
+        "version": "1.2.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "aa1f0dddf44f6dc9e2da9137ebb4d5feaf49d3f57a77e1218a9661185409e856",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/beta/2.0.0/beta.2.0.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Alpha.Core"
+        ],
+        "extra": {
+          "nuget_sha512": "sha512-KQk/s917z2L/RquSnv1eRM5Aw9y9N8875OMLejsr0J1ZfqRCLJqp59IQT8CD0BfI8bPWjzJDxZknfQWmpWlnjQ=="
+        },
+        "name": "Beta",
+        "provides": [
+          "Beta",
+          "Beta.Extra"
+        ],
+        "version": "2.0.0"
+      }
+    ],
+    "tools": [
+      {
+        "archives": [
+          {
+            "sha256": "14cf409d76656727e4322d3ff006158533f042c494a464d3748f0007a48475d1",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/alpha.core/1.2.0/alpha.core.1.2.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_sha512": "sha512-KIlO6EGJvF0uWFSLC/FlIqFUE9vRtiYvLPvhCRBsQLEXdgzz1G4CJAzMb5yCXkzHNnL4AZDnP4D7b6Em2Xdqng=="
+        },
+        "name": "Alpha.Core",
+        "provides": [
+          "Alpha.Core"
+        ],
+        "version": "1.2.0"
+      }
+    ]
+  },
+  "inputs": {
+    "paket.dependencies": "c8222f379dc429dc1a0bd3e8f07db0a925b5c1499b3421182da8db61d92c71f0",
+    "paket.lock": "78242c6c73132b837dab016b634522df71b8495232a3c3c633d2f02f67cfd6d3"
+  },
+  "packages": [],
+  "schema": 1
+}

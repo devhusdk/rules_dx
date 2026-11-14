@@ -1,5 +1,5 @@
 {
-  "checksum": "4284d3b6d608d4b25baa017524b8f07584c77e2ce044fd8a16d5257b161fd54b",
+  "checksum": "90dd1eb3ec38a4b333ee29b69bc68565cd91e51a4c9178c636c86c29f3a83c2b",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -17484,6 +17484,51 @@
       ],
       "version": "0.50.3"
     },
+    "nuget_lock 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "base64 0.22.1",
+            "target": "base64"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "sha2 0.10.9",
+            "target": "sha2"
+          },
+          {
+            "id": "zip 9.1.2",
+            "target": "zip"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "nuget_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "nuget_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "nuget_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "num 0.4.3": {
       "common_attrs": {
         "crate_features": [
@@ -33098,6 +33143,7 @@
     "lua_extract 0.0.0": "tools/docs/lua/lua_extract",
     "lua_lock 0.0.0": "lua/private/tools/lua_lock",
     "modules_tests 0.0.0": "core/modules_tests",
+    "nuget_lock 0.0.0": "csharp/private/tools/nuget_lock",
     "ocaml_extract 0.0.0": "tools/docs/ocaml/ocaml_extract",
     "opam_lock 0.0.0": "ocaml/private/tools/opam_lock",
     "openapi_codegen_preflight 0.0.0": "api_spec/private/openapi_codegen_preflight",

@@ -715,6 +715,10 @@ impl Resolver for Php<'_> {
         });
         std::fs::write(scratch.set().join(&self.state), to_php_json(&state))
             .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
-        Ok(Resolution { packages })
+        Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
+            packages,
+            ..Resolution::default()
+        })
     }
 }

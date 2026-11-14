@@ -256,14 +256,34 @@ impl Inputs {
 }
 
 /// The digest of `wanted` in `old` when the package name, version and archive URLs are the same.
-fn kept<'a>(old: Option<&'a Lock>, package: &Package, wanted: &Archive) -> Option<&'a str> {
-    old?.packages
-        .iter()
+fn kept<'a>(old: Option<&'a [Package]>, package: &Package, wanted: &Archive) -> Option<&'a str> {
+    old?.iter()
         .find(|entry| entry.name == package.name && entry.version == package.version)?
         .archives
         .iter()
         .find(|archive| archive.urls == wanted.urls)
         .map(|archive| archive.sha256.as_str())
+}
+
+/// Fills every empty archive digest of `packages` from `old`, else from a download.
+fn fill_digests(
+    packages: &mut [Package],
+    old: Option<&[Package]>,
+    fetch: &dyn Fetch,
+) -> Result<(), Error> {
+    for entry in packages.iter_mut() {
+        let snapshot = entry.clone();
+        for wanted in &mut entry.archives {
+            if !wanted.sha256.is_empty() {
+                continue;
+            }
+            wanted.sha256 = match kept(old, &snapshot, wanted) {
+                Some(digest) => digest.to_owned(),
+                None => fetched(fetch, &snapshot, wanted)?,
+            };
+        }
+    }
+    Ok(())
 }
 
 fn fetched(fetch: &dyn Fetch, package: &Package, archive: &Archive) -> Result<String, Error> {
@@ -316,20 +336,29 @@ pub fn run(
         std::fs::write(scratch.set().join(name), read(&dir.join(name))?)
             .map_err(|error| Error::new(format!("{name}: {error}")))?;
     }
-    let seed = old.as_ref().map(|lock| Lock {
-        packages: lock
-            .packages
+    let kept_packages = |packages: &[Package]| -> Vec<Package> {
+        packages
             .iter()
             .filter(|package| !args.upgrade.contains(&package.name))
             .cloned()
+            .collect()
+    };
+    let seed = old.as_ref().map(|lock| Lock {
+        packages: kept_packages(&lock.packages),
+        groups: lock
+            .groups
+            .iter()
+            .map(|(group, packages)| (group.clone(), kept_packages(packages)))
             .collect(),
         ..lock.clone()
     });
+    let resolution = resolver.resolve(&scratch, seed.as_ref())?;
     let mut lock = Lock {
         schema: SCHEMA,
         ecosystem: spec.ecosystem.clone(),
         inputs: BTreeMap::new(),
-        packages: resolver.resolve(&scratch, seed.as_ref())?.packages,
+        packages: resolution.packages,
+        groups: resolution.groups,
     };
     lock.normalize();
     let problems = lock.shape_problems();
@@ -339,27 +368,17 @@ pub fn run(
             problems.join("\n")
         )));
     }
-    let mut digests = Vec::new();
-    for (package, entry) in lock.packages.iter().enumerate() {
-        for (archive, wanted) in entry.archives.iter().enumerate() {
-            if !wanted.sha256.is_empty() {
-                continue;
-            }
-            let digest = match kept(old.as_ref(), entry, wanted) {
-                Some(digest) => digest.to_owned(),
-                None => fetched(fetch, entry, wanted)?,
-            };
-            digests.push((package, archive, digest));
-        }
-    }
-    for (package, archive, digest) in digests {
-        if let Some(wanted) = lock
-            .packages
-            .get_mut(package)
-            .and_then(|entry| entry.archives.get_mut(archive))
-        {
-            wanted.sha256 = digest;
-        }
+    fill_digests(
+        &mut lock.packages,
+        old.as_ref().map(|old| old.packages.as_slice()),
+        fetch,
+    )?;
+    for (group, packages) in &mut lock.groups {
+        let previous = old
+            .as_ref()
+            .and_then(|old| old.groups.get(group))
+            .map(Vec::as_slice);
+        fill_digests(packages, previous, fetch)?;
     }
     let state = named_files(scratch.set(), &spec.state)?;
     for name in &state {

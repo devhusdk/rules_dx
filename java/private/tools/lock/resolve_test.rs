@@ -65,3 +65,11 @@ fn a_library_without_a_version_fails() {
     let error = config("[libraries]\nx = { module = \"a:b\" }\n", &[]).expect_err("no version");
     assert_eq!(error, "library x has no version");
 }
+
+#[test]
+fn excluded_artifacts_become_global_exclusions() {
+    let manifest = format!("excluded_artifacts = [\"org.example:skip\"]\n\n{MANIFEST}");
+    let rendered = config(&manifest, &[]).expect("config");
+    let parsed: serde_json::Value = serde_json::from_str(&rendered).expect("json");
+    assert_eq!(parsed["globalExclusions"], serde_json::json!(["org.example:skip"]));
+}

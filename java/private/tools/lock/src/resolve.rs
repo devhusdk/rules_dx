@@ -128,6 +128,21 @@ pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String>
     let empty = toml::Table::new();
     let versions = parsed.get("versions").and_then(toml::Value::as_table).unwrap_or(&empty);
     let libraries = parsed.get("libraries").and_then(toml::Value::as_table).unwrap_or(&empty);
+    let excluded = parsed
+        .get("excluded_artifacts")
+        .and_then(toml::Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .map(|item| {
+                    item.as_str()
+                        .map(str::to_owned)
+                        .ok_or_else(|| "excluded_artifacts holds only group:artifact strings".to_owned())
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?
+        .unwrap_or_default();
     let mut artifacts = Vec::new();
     let mut boms = Vec::new();
     let mut entries = libraries
@@ -151,7 +166,7 @@ pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String>
         "repositories": repositories,
         "artifacts": artifacts,
         "boms": boms,
-        "globalExclusions": [],
+        "globalExclusions": excluded,
         "fetchSources": false,
         "fetchJavadoc": false,
     });

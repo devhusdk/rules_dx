@@ -1,0 +1,9 @@
+excluded_artifacts = [
+    "org.jetbrains.kotlin:kotlin-stdlib",
+    "org.jetbrains.kotlin:kotlin-stdlib-common",
+]
+
+[libraries]
+org-jetbrains-dokka-analysis-kotlin-symbols = { module = "org.jetbrains.dokka:analysis-kotlin-symbols", version = "2.2.0" }
+org-jetbrains-dokka-dokka-base = { module = "org.jetbrains.dokka:dokka-base", version = "2.2.0" }
+org-jetbrains-dokka-dokka-core = { module = "org.jetbrains.dokka:dokka-core", version = "2.2.0" }

@@ -310,10 +310,6 @@ ocaml lint_error_test *
 ocaml lint_test *
 ocaml lock_test *
 ocaml runfiles_test *
-perl format_error_test *
-perl format_test *
-perl lint_error_test *
-perl lint_test *
 perl runfiles_test *
 php format_error_test *
 php format_test *

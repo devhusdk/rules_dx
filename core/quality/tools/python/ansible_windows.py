@@ -1,6 +1,9 @@
 """POSIX stand-ins that let ansible-core and ansible-lint run on a Windows host."""
 
 import ctypes
+import importlib.abc
+import importlib.machinery
+import importlib.util
 import multiprocessing
 import os
 import subprocess
@@ -9,6 +12,13 @@ import types
 import unicodedata
 
 POSIX_ID = 1000
+
+SOURCE_FIXES = {
+    "ansible.parsing.dataloader": (
+        "% (os.path.sep, os.path.sep))",
+        "% (re.escape(os.path.sep), re.escape(os.path.sep)))",
+    ),
+}
 
 FCNTL_CONSTANTS = {
     "F_GETFD": 1,
@@ -117,6 +127,26 @@ def _library_loader(original):
     return load_library
 
 
+class _FixedSourceLoader(importlib.machinery.SourceFileLoader):
+    def source_to_code(self, data, path, *, _optimize=-1):
+        old, new = SOURCE_FIXES[self.name]
+        source = importlib.util.decode_source(data)
+        if old not in source:
+            raise ImportError("%s no longer contains %r" % (self.name, old))
+        return super().source_to_code(source.replace(old, new), path)
+
+
+class _SourceFixFinder(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        if fullname not in SOURCE_FIXES:
+            return None
+        spec = importlib.machinery.PathFinder.find_spec(fullname, path)
+        if spec is None or not spec.origin:
+            return spec
+        spec.loader = _FixedSourceLoader(fullname, spec.origin)
+        return spec
+
+
 def _spawn_context(original):
     def get_context(method=None):
         return original("spawn" if method == "fork" else method)
@@ -147,6 +177,7 @@ def install(script, names):
     for name in ("getuid", "geteuid", "getgid", "getegid"):
         if not hasattr(os, name):
             setattr(os, name, lambda: POSIX_ID)
+    sys.meta_path.insert(0, _SourceFixFinder())
     ctypes.cdll.LoadLibrary = _library_loader(ctypes.cdll.LoadLibrary)
     multiprocessing.get_context = _spawn_context(multiprocessing.get_context)
     subprocess.Popen = _shim_popen(script, frozenset(names))

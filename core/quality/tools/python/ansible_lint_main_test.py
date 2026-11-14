@@ -86,6 +86,33 @@ class AnsibleLintMainTest(unittest.TestCase):
             ],
         )
 
+    def test_windows_dataloader_escapes_the_path_separator(self):
+        """ansible.parsing.dataloader compiles RE_TASKS with a backslash separator."""
+        with tempfile.TemporaryDirectory() as root:
+            package = os.path.join(root, "ansible", "parsing")
+            os.makedirs(package)
+            for directory in (os.path.dirname(package), package):
+                open(os.path.join(directory, "__init__.py"), "w").close()
+            with open(os.path.join(package, "dataloader.py"), "w") as handle:
+                handle.write(
+                    "import os\nimport re\n"
+                    "RE_TASKS = re.compile('(?:^|%s)+tasks%s?$' "
+                    "% (os.path.sep, os.path.sep))\n"
+                )
+            with (
+                mock.patch.dict(sys.modules),
+                mock.patch.object(sys, "path", [root] + sys.path),
+                mock.patch.object(
+                    sys, "meta_path", [ansible_windows._SourceFixFinder()] + sys.meta_path
+                ),
+                mock.patch.object(os.path, "sep", "\\"),
+            ):
+                for name in list(sys.modules):
+                    if name == "ansible" or name.startswith("ansible."):
+                        sys.modules.pop(name, None)
+                dataloader = importlib.import_module("ansible.parsing.dataloader")
+                self.assertTrue(dataloader.RE_TASKS.search("roles\\web\\tasks"))
+
     def test_shims_on_path(self):
         """The four ansible shims are executable and PATH points at them."""
         with tempfile.TemporaryDirectory() as tmp:

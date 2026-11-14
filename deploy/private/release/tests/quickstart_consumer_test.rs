@@ -1,7 +1,7 @@
 //! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
 
 use dx_nested::compose::{
-    rules_dx_override, rules_flutter_override, rules_py_override, rules_rust_override,
+    llvm_override, rules_dx_override, rules_flutter_override, rules_py_override, rules_rust_override,
 };
 use dx_nested::{self as nested, Case, footprint};
 use dx_release_tools::presubmit;
@@ -163,6 +163,7 @@ fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
         "rules_py",
         "rules_flutter",
         "rules_rust",
+        "llvm",
         "ring",
         "gomod-parser",
     ] {
@@ -215,6 +216,7 @@ fn the_readme_quickstart_runs_as_written() {
             text.push_str(&rules_py_override());
             text.push_str(&rules_flutter_override());
             text.push_str(&rules_rust_override());
+            text.push_str(&llvm_override());
             text.push_str(&rules_dx_override(&source));
         }
         write_text(&case.root().join(name), &text);
@@ -301,7 +303,8 @@ fn bcr_test_module_runs_its_presubmit_targets() {
             + &rules_dx_override(&source)
             + &rules_py_override()
             + &rules_flutter_override()
-            + &rules_rust_override()),
+            + &rules_rust_override()
+            + &llvm_override()),
     );
 
     let host = presubmit::host_platforms();

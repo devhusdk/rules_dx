@@ -1,12 +1,31 @@
 """Core PHP rules: php_library, php_binary and php_test on the pinned PHP, Composer and PHPUnit."""
 
-load("//core:rlocation.bzl", "external_path", "runfiles_path")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
-load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE", "TOOLCHAIN_TYPE")
 load(":providers.bzl", "PhpInfo")
 
 PHP_SOURCE_EXTS = [".php"]
+
+def runfiles_path(workspace_name, short_path):
+    """Returns one file's path below the runfiles root."""
+    if short_path.startswith("../"):
+        return short_path[3:]
+    return workspace_name + "/" + short_path
+
+def external_path(short_path):
+    """Returns a File.short_path below the autoload root: external/<repo>/... for other repositories."""
+    if short_path.startswith("../"):
+        return "external/" + short_path[3:]
+    return short_path
+
+def _no_coverage_transition_impl(_settings, _attr):
+    return {"//command_line_option:collect_code_coverage": False}
+
+no_coverage_transition = transition(
+    implementation = _no_coverage_transition_impl,
+    inputs = [],
+    outputs = ["//command_line_option:collect_code_coverage"],
+)
 
 _TOOL = Label("//php/private:tool.php")
 

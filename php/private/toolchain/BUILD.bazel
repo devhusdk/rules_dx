@@ -1,7 +1,6 @@
 load("@rules_dx//php:defs.bzl", "php_library")
-load("//core:cells.bzl", "cell_settings", "unsupported_value")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":cells.bzl", "PHP_CELLS")
+load(":cells.bzl", "PHP_CELLS", "cell_settings", "unsupported_value")
 
 package(default_visibility = ["//visibility:public"])
 

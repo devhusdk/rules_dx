@@ -19,6 +19,7 @@ rust_library(
     srcs = [":versions_rs"],
     crate_name = "dx_versions",
     crate_root = ":versions_rs",
+    visibility = ["//cli/adopt:__pkg__"],
 )
 
 rust_test(

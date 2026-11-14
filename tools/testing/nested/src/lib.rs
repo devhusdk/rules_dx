@@ -6,6 +6,7 @@ pub mod cache;
 pub mod compose;
 pub mod footprint;
 pub mod plain_consumer;
+pub mod plain_fixture;
 pub mod record;
 
 use std::cell::{Ref, RefCell};

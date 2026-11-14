@@ -1,7 +1,8 @@
 //! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
 
 use dx_nested::compose::{
-    llvm_override, rules_dx_override, rules_flutter_override, rules_py_override, rules_rust_override,
+    llvm_override, rules_dx_override, rules_flutter_override, rules_py_override,
+    rules_rust_override,
 };
 use dx_nested::{self as nested, Case, footprint};
 use dx_release_tools::presubmit;

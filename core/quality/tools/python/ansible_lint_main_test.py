@@ -1,5 +1,6 @@
 """Tests for the ansible-lint entry point."""
 
+import ctypes
 import importlib
 import multiprocessing
 import os
@@ -29,6 +30,7 @@ class AnsibleLintMainTest(unittest.TestCase):
             mock.patch.dict(sys.modules),
             mock.patch.dict(os.environ, {}, clear=True),
             mock.patch.dict(os.__dict__),
+            mock.patch.dict(ctypes.cdll.__dict__),
             mock.patch.object(subprocess, "Popen", RecordingPopen),
             mock.patch.object(
                 multiprocessing, "get_context", lambda method=None: method
@@ -57,6 +59,12 @@ class AnsibleLintMainTest(unittest.TestCase):
                 sys.modules["pwd"].getpwuid(0)
             with self.assertRaises(KeyError):
                 sys.modules["grp"].getgrgid(0)
+            libc = ctypes.cdll.LoadLibrary(None)
+            self.assertEqual(libc.wcswidth("ab\u754c", 10), 4)
+            self.assertEqual(libc.wcswidth("a\x1b", 10), -1)
+            self.assertEqual(libc.wcwidth("\u0301"), 0)
+            with self.assertRaises(AttributeError):
+                libc.crypt_r
             self.assertEqual(os.getuid(), ansible_windows.POSIX_ID)
             self.assertEqual(multiprocessing.get_context("fork"), "spawn")
             self.assertEqual(os.environ["USERNAME"], "dx")

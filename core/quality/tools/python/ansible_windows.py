@@ -1,10 +1,12 @@
 """POSIX stand-ins that let ansible-core and ansible-lint run on a Windows host."""
 
+import ctypes
 import multiprocessing
 import os
 import subprocess
 import sys
 import types
+import unicodedata
 
 POSIX_ID = 1000
 
@@ -88,6 +90,33 @@ def _grp_module():
     return module
 
 
+def _wcwidth(char):
+    if char == "\0" or unicodedata.combining(char):
+        return 0
+    if unicodedata.category(char) in ("Cc", "Cs"):
+        return -1
+    return 2 if unicodedata.east_asian_width(char) in ("W", "F") else 1
+
+
+def _wcswidth(text, limit):
+    total = 0
+    for char in text[:limit]:
+        width = _wcwidth(char)
+        if width < 0:
+            return -1
+        total += width
+    return total
+
+
+def _library_loader(original):
+    def load_library(name, *args, **kwargs):
+        if name is None:
+            return types.SimpleNamespace(wcwidth=_wcwidth, wcswidth=_wcswidth)
+        return original(name, *args, **kwargs)
+
+    return load_library
+
+
 def _spawn_context(original):
     def get_context(method=None):
         return original("spawn" if method == "fork" else method)
@@ -118,6 +147,7 @@ def install(script, names):
     for name in ("getuid", "geteuid", "getgid", "getegid"):
         if not hasattr(os, name):
             setattr(os, name, lambda: POSIX_ID)
+    ctypes.cdll.LoadLibrary = _library_loader(ctypes.cdll.LoadLibrary)
     multiprocessing.get_context = _spawn_context(multiprocessing.get_context)
     subprocess.Popen = _shim_popen(script, frozenset(names))
     os.environ.setdefault("USERNAME", "dx")

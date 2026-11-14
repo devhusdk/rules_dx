@@ -20,6 +20,7 @@ const BICEP_CONFIG_REL: &str = "bicepconfig.json";
 const BICEP_HOME_REL: &str = "dx-bicep/home";
 const PKL_LSP_HOME_REL: &str = ".dx-pkl-lsp/home";
 const HELMFMT_HOME_REL: &str = "dx-helmfmt/home";
+const LATEXINDENT_HOME_REL: &str = "dx-latexindent/home";
 /// The request env key naming the provider mirror roots, joined with `|`.
 const TERRAFORM_PLUGIN_DIRS_ENV: &str = "DX_TERRAFORM_PLUGIN_DIRS";
 const TERRAFORM_EMPTY_MIRROR_REL: &str = "dx-terraform/empty-mirror";
@@ -585,6 +586,18 @@ impl RealBackend {
             for name in ["HOME", "USERPROFILE"] {
                 env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
                 env.push((OsString::from(name), home.clone().into_os_string()));
+            }
+        }
+        if tool_id == "latexindent" {
+            let home = scratch.root().join(LATEXINDENT_HOME_REL);
+            std::fs::create_dir_all(&home)
+                .map_err(|err| execution(tool_id, format!("latexindent home: {err}")))?;
+            for name in ["HOME", "USERPROFILE"] {
+                env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
+                env.push((OsString::from(name), home.clone().into_os_string()));
+            }
+            if cfg!(windows) {
+                env.push((OsString::from("LC_ALL"), OsString::from("C")));
             }
         }
         if tool_id == "pkl_lsp" {

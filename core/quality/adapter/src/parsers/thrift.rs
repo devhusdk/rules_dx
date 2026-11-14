@@ -143,7 +143,10 @@ pub fn parse_thrift(
                 format!("malformed finding: {trimmed}"),
             ));
         }
-        let Some(file) = files.iter().find(|file| **file == found.path) else {
+        let Some(file) = files
+            .iter()
+            .find(|file| super::same_drive_path(file, found.path))
+        else {
             continue;
         };
         // The include pass and the type pass print the same warning.
@@ -173,7 +176,10 @@ pub fn parse_thrift(
             ));
         }
         errors += 1;
-        if let Some(file) = files.iter().find(|file| **file == at.path) {
+        if let Some(file) = files
+            .iter()
+            .find(|file| super::same_drive_path(file, at.path))
+        {
             own_errors += 1;
             findings.push(finding(file, ToolSeverity::Error, at.line, &message));
         } else if foreign_error.is_none() {
@@ -300,6 +306,18 @@ Program: /s/pkg/a.thrift\n"
         assert_eq!(report.findings[0].finding.message, "syntax error");
         assert_eq!(report.findings[0].finding.start.line, 2);
         assert_eq!(report.findings[0].finding.severity, ToolSeverity::Error);
+    }
+
+    #[test]
+    fn drive_path_in_forward_slashes_is_the_checked_file() {
+        let file = r"D:\s\pkg\a.thrift";
+        let out = b"Scanning D:/s/pkg/a.thrift for includes\n";
+        let err = b"[ERROR:D:/s/pkg/a.thrift:2] (last token was '')\nsyntax error\n\
+[FAILURE:D:/s/pkg/a.thrift:2] Parser error during include pass.";
+        let report = parse_thrift(out, err, Some(1), &[file]).expect("findings");
+        assert_eq!(report.findings.len(), 2);
+        assert!(report.findings.iter().all(|found| found.file == file));
+        assert_eq!(report.findings[0].finding.message, "syntax error");
     }
 
     #[test]

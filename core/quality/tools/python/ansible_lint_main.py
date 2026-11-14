@@ -9,11 +9,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from tool_bootstrap import import_tool, site_packages
 
-WINDOWS_MESSAGE = (
-    "ansible_lint: no upstream Windows build (windows_x86_64 is unsupported); "
-    "remove ansible_lint from this family on Windows"
-)
-WINDOWS_EXIT = 69
 COLLECTIONS_FLAG = "--dx-collections-path"
 SHIM_MODULES = {
     "ansible": "ansible.cli.adhoc",
@@ -50,7 +45,7 @@ def write_shims(directory, script):
 
 def prepare_env(environ, collections=None):
     """Exports import roots, shim PATH, cache dirs and the collections path into environ."""
-    tmp = environ.get("TMPDIR") or "/tmp"
+    tmp = environ.get("TMPDIR") or environ.get("TEMP") or "/tmp"
     sites = [str(site) for site in site_packages()]
     existing = environ.get("PYTHONPATH")
     if existing:
@@ -75,8 +70,9 @@ def main(argv=None):
     """Runs ansible-lint, or one ansible shim when invoked as a dispatcher."""
     argv = list(sys.argv[1:] if argv is None else argv)
     if os.name == "nt":
-        print(WINDOWS_MESSAGE, file=sys.stderr)
-        return WINDOWS_EXIT
+        import ansible_windows
+
+        ansible_windows.install(os.path.abspath(__file__), SHIM_MODULES)
     if argv[:1] == ["--ansible-shim"]:
         return shim_main(argv[1], argv[2:])
     collections = None

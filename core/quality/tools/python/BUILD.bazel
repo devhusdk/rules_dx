@@ -196,6 +196,7 @@ py_binary(
     name = "ansible_lint",
     srcs = [
         "ansible_lint_main.py",
+        "ansible_windows.py",
         "tool_bootstrap.py",
     ],
     dep_group = "dx-python-tools",
@@ -233,6 +234,7 @@ py_unittest_test(
     srcs = [
         "ansible_lint_main.py",
         "ansible_lint_main_test.py",
+        "ansible_windows.py",
         "tool_bootstrap.py",
     ],
 )

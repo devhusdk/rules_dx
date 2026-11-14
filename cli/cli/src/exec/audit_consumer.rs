@@ -771,7 +771,7 @@ source = { registry = "https://pypi.org/simple" }
     fn consumer_composer_set_reads_its_composer_lock_and_the_packagist_snapshot() {
         let harness = consumer_harness("composer-vuln", COMPOSER_MODULE, false);
         harness.write_source(
-            &format!("apps/php/{}", dx_adopt::dependency_sets::composer_lock()),
+            &format!("apps/php/{}", dx_adopt::dependency_sets::composer_lock().expect("hub")),
             COMPOSER_LOCK,
         );
         harness.write_source("apps/php/vendor.lock.json", "{}");
@@ -784,7 +784,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(
             out.contains(&format!(
                 "apps/php/{}",
-                dx_adopt::dependency_sets::composer_lock()
+                dx_adopt::dependency_sets::composer_lock().expect("hub")
             )),
             "{out}"
         );
@@ -1220,7 +1220,7 @@ source = { registry = "https://pypi.org/simple" }
             "source https://api.nuget.org/v3/index.json\nnuget Example.Lib\n",
         );
         harness.write_source(
-            &format!("dn/{}", dx_adopt::lock_hubs::state_of("nuget")),
+            &format!("dn/{}", dx_adopt::lock_hubs::state_of("nuget").expect("hub")),
             "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    Example.Lib (1.1)\n",
         );
         harness.write_source("dn/deps/paket.main.bzl", "main\n");
@@ -1236,7 +1236,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("GHSA-nuget-0001"), "{out}");
         assert!(
-            out.contains(&format!("dn/{}", dx_adopt::lock_hubs::state_of("nuget"))),
+            out.contains(&format!("dn/{}", dx_adopt::lock_hubs::state_of("nuget").expect("hub"))),
             "{out}"
         );
     }

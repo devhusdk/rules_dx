@@ -476,12 +476,12 @@ fn erlang_rebar_tags_become_rebar_hex_sets() {
     assert_eq!(set.manifests, ["third_party/erlang/rebar.config"]);
     assert_eq!(set.locks, ["third_party/erlang/rebar.lock"]);
     let resolved = ResolvedSet::of(set);
-    assert_eq!(hex_backend(&resolved), Some(HexBackend::Rebar3));
+    assert_eq!(hex_backend(&resolved).expect("hub"), Some(HexBackend::Rebar3));
     let mix = ResolvedSet {
         locks: vec!["third_party/erlang/mix.lock".to_owned()],
         ..resolved
     };
-    assert_eq!(hex_backend(&mix), Some(HexBackend::Mix));
+    assert_eq!(hex_backend(&mix).expect("hub"), Some(HexBackend::Mix));
 }
 
 #[test]
@@ -1177,13 +1177,13 @@ fn npm_sets_need_their_own_pnpm_lock_and_no_parent_pnpm_workspace() {
     )
     .expect("root-only workspace");
     assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
-    assert!(npm_ignore_workspace(&workspace, &frontend));
+    assert!(npm_ignore_workspace(&workspace, &frontend).expect("hub"));
     std::fs::write(
         workspace.join("apps/web/pnpm-workspace.yaml"),
         "packages: []\n",
     )
     .expect("own workspace");
-    assert!(!npm_ignore_workspace(&workspace, &frontend));
+    assert!(!npm_ignore_workspace(&workspace, &frontend).expect("hub"));
     let scratch = npm_workspace("members");
     let workspace = scratch.path().to_path_buf();
     std::fs::write(
@@ -1191,7 +1191,7 @@ fn npm_sets_need_their_own_pnpm_lock_and_no_parent_pnpm_workspace() {
         "packages: [\"apps/*\"]\n",
     )
     .expect("members workspace");
-    assert!(!npm_ignore_workspace(&workspace, &frontend));
+    assert!(!npm_ignore_workspace(&workspace, &frontend).expect("hub"));
     let scratch = npm_workspace("other-lock");
     let workspace = scratch.path().to_path_buf();
     let mut other = frontend.clone();
@@ -1211,7 +1211,7 @@ fn npm_sets_need_their_own_pnpm_lock_and_no_parent_pnpm_workspace() {
     ] {
         other.locks = vec![lock.to_owned()];
         assert_eq!(check_backend_settings(&workspace, &other), Ok(()), "{lock}");
-        assert_eq!(npm_backend(&other), Some(backend));
+        assert_eq!(npm_backend(&other).expect("hub"), Some(backend));
     }
 }
 

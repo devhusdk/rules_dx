@@ -179,18 +179,24 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         ecosystems,
         ..
     } = collect(workspace, &resolved, &builtins, false, fetch);
-    let unused = update_unused::find(
+    let unused = match update_unused::find(
         workspace,
         &resolved,
         query_runner,
         &invocation.bazel_startup_options,
-    );
-    let missing = update_unused::find_missing(
+    ) {
+        Ok(found) => found,
+        Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
+    };
+    let missing = match update_unused::find_missing(
         workspace,
         &resolved,
         query_runner,
         &invocation.bazel_startup_options,
-    );
+    ) {
+        Ok(found) => found,
+        Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
+    };
     let findings_fail =
         dx_output::meets_threshold(dx_output::Severity::Warning, invocation.fail_on)
             && !(unused.is_empty() && missing.is_empty());
@@ -370,7 +376,7 @@ pub(super) fn collect(
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with(dependency_sets::composer_lock()))
+                    .filter(|lock| lock.ends_with(dependency_sets::composer_lock()?))
                     .cloned()
                     .collect();
                 merge(
@@ -427,7 +433,7 @@ pub(super) fn collect(
                     .iter()
                     .filter(|lock| {
                         lock.rsplit('/').next()
-                            == Some(dx_adopt::dependency_sets::package_resolved())
+                            == Some(dx_adopt::dependency_sets::package_resolved()?)
                     })
                     .cloned()
                     .collect();
@@ -487,7 +493,7 @@ pub(super) fn collect(
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with(dependency_sets::dub_selections()))
+                    .filter(|lock| lock.ends_with(dependency_sets::dub_selections()?))
                     .cloned()
                     .collect();
                 merge(
@@ -508,7 +514,7 @@ pub(super) fn collect(
                     .set
                     .locks
                     .iter()
-                    .filter(|lock| lock.ends_with(dependency_sets::luarocks_lock()))
+                    .filter(|lock| lock.ends_with(dependency_sets::luarocks_lock()?))
                     .cloned()
                     .collect();
                 let mut pins = Vec::new();
@@ -519,7 +525,7 @@ pub(super) fn collect(
                         }
                         Err(reason) => read_errors.push(dx_update::discover::LookupError {
                             set: name.to_owned(),
-                            package: dependency_sets::luarocks_lock().to_owned(),
+                            package: dependency_sets::luarocks_lock()?.to_owned(),
                             reason: reason.message().to_owned(),
                         }),
                     }

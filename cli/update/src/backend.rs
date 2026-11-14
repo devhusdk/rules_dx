@@ -99,14 +99,14 @@ const UV_HOST_ENV_REASON: &str = "unset UV_INDEX_URL, UV_EXTRA_INDEX_URL, UV_DEF
 
 impl StagedRun {
     /// The full command for a scratch directory (an absolute path).
-    pub fn argv(&self, scratch: &Path) -> Vec<String> {
+    pub fn argv(&self, scratch: &Path) -> Result<Vec<String>, BackendError> {
         let mut argv = self.argv_head.clone();
         match self.tool {
             StagedTool::Paket2Bazel => {
                 argv.push("--dependencies-file".to_owned());
                 argv.push(
                     scratch
-                        .join(dx_adopt::lock_hubs::manifest_of("nuget"))
+                        .join(dx_adopt::lock_hubs::manifest_of("nuget")?)
                         .to_string_lossy()
                         .into_owned(),
                 );
@@ -129,7 +129,7 @@ impl StagedRun {
                 argv.insert(target, under);
             }
         }
-        argv
+        Ok(argv)
     }
 
     /// The environment for a scratch directory: the planned env plus what the tool forces.
@@ -218,6 +218,8 @@ impl StagedRun {
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum BackendError {
+    #[error("{detail}")]
+    Hubs { detail: String },
     #[error("unsupported selective update for {set}: {reason}")]
     Unsupported { set: String, reason: &'static str },
     #[error(
@@ -258,6 +260,7 @@ impl BackendError {
             BackendError::FrozenLocked { .. } => "frozen_locked",
             BackendError::NonUtf8Path { .. } => "invalid_path",
             BackendError::BackendUnavailable { .. } => "backend_unavailable",
+            BackendError::Hubs { .. } => "setup_hubs",
         }
     }
 }
@@ -266,7 +269,8 @@ impl From<BackendError> for DxError {
     fn from(error: BackendError) -> Self {
         match error {
             BackendError::BackendUnavailable { .. } => DxError::infra(error.to_string()),
-            BackendError::Unsupported { .. }
+            BackendError::Hubs { .. }
+            | BackendError::Unsupported { .. }
             | BackendError::OfflineRequired { .. }
             | BackendError::FrozenLocked { .. }
             | BackendError::NonUtf8Path { .. } => DxError::failure(error.to_string()),
@@ -348,7 +352,7 @@ fn configured_node_argv(
     command: &[String],
 ) -> Result<Option<Vec<String>>, BackendError> {
     let dir = set_dir(workspace, set)?;
-    match dependency_sets::npm_backend(set) {
+    match dependency_sets::npm_backend(set)? {
         Some(dependency_sets::NpmBackend::Yarn) => {
             let yarn = node_tool(
                 set,
@@ -541,7 +545,7 @@ fn configured_pnpm_argv(
     command: &[String],
 ) -> Result<Vec<String>, BackendError> {
     let dir = set_dir(workspace, set)?;
-    let ignore = dependency_sets::npm_ignore_workspace(workspace, set);
+    let ignore = dependency_sets::npm_ignore_workspace(workspace, set)?;
     Ok(pnpm_run_argv(head, offline, &dir, ignore, command))
 }
 
@@ -743,15 +747,17 @@ pub fn check_configured(
     }
 }
 
-fn nuget_pins_exact() -> &'static str {
+fn nuget_pins_exact() -> Result<&'static str, BackendError> {
     static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    TEXT.get_or_init(|| {
-        format!(
+    if let Some(text) = TEXT.get() {
+        return Ok(text);
+    }
+    let text = format!(
             "nuget pins are exact in {}; edit {}, run `paket update`, then `dx update <set>`",
-            dx_adopt::lock_hubs::state_of("nuget"),
-            dx_adopt::lock_hubs::manifest_of("nuget")
-        )
-    })
+            dx_adopt::lock_hubs::state_of("nuget")?,
+            dx_adopt::lock_hubs::manifest_of("nuget")?
+    );
+    Ok(TEXT.get_or_init(|| text))
 }
 
 /// Plans `paket2bazel` on a staged copy of the paket manifest and lock.
@@ -770,10 +776,11 @@ fn nuget_staged(
         settings: Vec::new(),
         ..head.clone()
     };
+    let paket_lock = dependency_sets::paket_lock()?;
     let lock = set
         .locks
         .iter()
-        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::paket_lock()))
+        .find(|lock| lock.rsplit('/').next() == Some(paket_lock))
         .cloned()
         .ok_or_else(|| BackendError::Unsupported {
             set: set.name.clone(),
@@ -796,44 +803,52 @@ fn nuget_staged(
     })
 }
 
-fn hex_lock_missing() -> &'static str {
+fn hex_lock_missing() -> Result<&'static str, BackendError> {
     static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    TEXT.get_or_init(|| {
-        format!(
+    if let Some(text) = TEXT.get() {
+        return Ok(text);
+    }
+    let text = format!(
             "a hex set must list {} in locks; rebar.lock sets are not refreshed",
-            dx_adopt::lock_hubs::lock_of("hex")
-        )
-    })
+            dx_adopt::lock_hubs::lock_of("hex")?
+    );
+    Ok(TEXT.get_or_init(|| text))
 }
 
-fn hex_whole_lock() -> &'static str {
+fn hex_whole_lock() -> Result<&'static str, BackendError> {
     static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    TEXT.get_or_init(|| {
-        format!(
+    if let Some(text) = TEXT.get() {
+        return Ok(text);
+    }
+    let text = format!(
             "mix deps.get checks the whole {}; select the set without a package",
-            dx_adopt::lock_hubs::lock_of("hex")
-        )
-    })
+            dx_adopt::lock_hubs::lock_of("hex")?
+    );
+    Ok(TEXT.get_or_init(|| text))
 }
 
-fn go_sum_missing() -> &'static str {
+fn go_sum_missing() -> Result<&'static str, BackendError> {
     static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    TEXT.get_or_init(|| {
-        format!(
+    if let Some(text) = TEXT.get() {
+        return Ok(text);
+    }
+    let text = format!(
             "a go set must list {} in locks",
-            dx_adopt::lock_hubs::lock_of("go")
-        )
-    })
+            dx_adopt::lock_hubs::lock_of("go")?
+    );
+    Ok(TEXT.get_or_init(|| text))
 }
 
-fn go_whole_graph() -> &'static str {
+fn go_whole_graph() -> Result<&'static str, BackendError> {
     static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    TEXT.get_or_init(|| {
-        format!(
+    if let Some(text) = TEXT.get() {
+        return Ok(text);
+    }
+    let text = format!(
             "go sums cover the whole module graph; edit the require in {} and run `dx update <set>`",
-            dx_adopt::lock_hubs::manifest_of("go")
-        )
-    })
+            dx_adopt::lock_hubs::manifest_of("go")?
+    );
+    Ok(TEXT.get_or_init(|| text))
 }
 
 /// Plans `go mod download all` on a staged copy of the go manifest and sum file.
@@ -852,14 +867,16 @@ fn go_staged(
         settings: Vec::new(),
         ..head.clone()
     };
+    let go_sum = dx_adopt::lock_hubs::lock_of("go")?;
+    let sum_missing = go_sum_missing()?;
     let sum = set
         .locks
         .iter()
-        .find(|lock| lock.rsplit('/').next() == Some(dx_adopt::lock_hubs::lock_of("go")))
+        .find(|lock| lock.rsplit('/').next() == Some(go_sum))
         .cloned()
         .ok_or_else(|| BackendError::Unsupported {
             set: set.name.clone(),
-            reason: go_sum_missing(),
+            reason: sum_missing,
         })?;
     let mut inputs = set.manifests.clone();
     inputs.push(sum.clone());
@@ -872,8 +889,8 @@ fn go_staged(
     })
 }
 
-fn is_rebar(set: &ResolvedSet) -> bool {
-    dependency_sets::hex_backend(set) == Some(dependency_sets::HexBackend::Rebar3)
+fn is_rebar(set: &ResolvedSet) -> Result<bool, BackendError> {
+    Ok(dependency_sets::hex_backend(set)? == Some(dependency_sets::HexBackend::Rebar3))
 }
 
 /// Plans a mix deps command on a staged copy of the hex manifest and lock, with the pinned Elixir
@@ -894,14 +911,16 @@ fn hex_staged(
         settings: Vec::new(),
         ..head.clone()
     };
+    let mix_lock = dependency_sets::mix_lock()?;
+    let lock_missing = hex_lock_missing()?;
     let lock = set
         .locks
         .iter()
-        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::mix_lock()))
+        .find(|lock| lock.rsplit('/').next() == Some(mix_lock))
         .cloned()
         .ok_or_else(|| BackendError::Unsupported {
             set: set.name.clone(),
-            reason: hex_lock_missing(),
+            reason: lock_missing,
         })?;
     let mut inputs = set.manifests.clone();
     inputs.push(lock.clone());
@@ -1111,7 +1130,7 @@ fn swift_argv(
     let mode = if apply { "apply" } else { "check" };
     let under = format!(
         "--run_under=sh -c 'state={}; {SWIFT_SCRIPT}' sh {} {mode}",
-        dx_adopt::lock_hubs::state_of("swiftpm"),
+        dx_adopt::lock_hubs::state_of("swiftpm")?,
         dx_process::shell::quote(&dir)
     );
     let mut argv = bazel(
@@ -1206,6 +1225,14 @@ fn bazel(head: &dx_process::BazelHead, verb: &str, args: &[&str]) -> Vec<String>
     let mut argv = head.argv(verb);
     argv.extend(strings(args));
     argv
+}
+
+impl From<dx_adopt::AdoptError> for BackendError {
+    fn from(error: dx_adopt::AdoptError) -> Self {
+        Self::Hubs {
+            detail: error.to_string(),
+        }
+    }
 }
 
 #[cfg(test)]

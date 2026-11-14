@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::process::Command;
 
+use crate::AdoptError;
 use crate::git_changes::{
     ChangeKind, DEFAULT_BRANCH_CANDIDATES, dedupe_changes, parse_name_status_nul,
 };
@@ -64,30 +65,33 @@ pub struct BuildOutputFinding {
     pub reason: String,
 }
 
-fn has_manifest(root: &Path, dir: &str) -> bool {
+fn has_manifest(root: &Path, dir: &str) -> Result<bool, AdoptError> {
     let base = root.join(dir);
-    SOURCE_MANIFESTS
-        .iter()
-        .any(|name| base.join(name).is_file())
-        || REGISTRY_MANIFESTS
-            .iter()
-            .any(|eco| base.join(manifest_of(eco)).is_file())
+    if SOURCE_MANIFESTS.iter().any(|name| base.join(name).is_file()) {
+        return Ok(true);
+    }
+    for eco in REGISTRY_MANIFESTS {
+        if base.join(manifest_of(eco)?).is_file() {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
-fn cargo_build_dir(root: &Path, parent: &[&str]) -> bool {
+fn cargo_build_dir(root: &Path, parent: &[&str]) -> Result<bool, AdoptError> {
     let Ok(manifest) =
-        std::fs::read_to_string(root.join(parent.join("/")).join(manifest_of("cargo")))
+        std::fs::read_to_string(root.join(parent.join("/")).join(manifest_of("cargo")?))
     else {
-        return false;
+        return Ok(false);
     };
-    manifest.lines().any(|line| {
+    Ok(manifest.lines().any(|line| {
         line.split_once('=').is_some_and(|(key, value)| {
             key.trim() == "build" && value.trim().trim_matches('"').starts_with("build/")
         })
-    })
+    }))
 }
 
-fn output_dir(root: &Path, path: &str) -> Option<String> {
+fn output_dir(root: &Path, path: &str) -> Result<Option<String>, AdoptError> {
     let parts: Vec<&str> = path.split('/').collect();
     for (index, part) in parts.iter().enumerate().take(parts.len().saturating_sub(1)) {
         let Some(prefix) = parts.get(..=index) else {
@@ -95,19 +99,19 @@ fn output_dir(root: &Path, path: &str) -> Option<String> {
         };
         let dir = prefix.join("/");
         if part.starts_with("bazel-") && index == 0 {
-            return Some(dir);
+            return Ok(Some(dir));
         }
         if BUILD_OUTPUT_DIRS.contains(part) {
-            return Some(dir);
+            return Ok(Some(dir));
         }
         if *part == "build"
-            && !has_manifest(root, &dir)
-            && !cargo_build_dir(root, parts.get(..index).unwrap_or_default())
+            && !has_manifest(root, &dir)?
+            && !cargo_build_dir(root, parts.get(..index).unwrap_or_default())?
         {
-            return Some(dir);
+            return Ok(Some(dir));
         }
     }
-    None
+    Ok(None)
 }
 
 fn allowed(root: &Path) -> Vec<String> {
@@ -130,11 +134,22 @@ fn allowed(root: &Path) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn is_lock_file(path: &str) -> bool {
+fn is_lock_file(path: &str) -> Result<bool, AdoptError> {
     let name = path.rsplit('/').next().unwrap_or(path);
-    LOCK_FILES.contains(&name)
-        || REGISTRY_LOCKS.iter().any(|eco| lock_of(eco) == name)
-        || REGISTRY_STATES.iter().any(|eco| state_of(eco) == name)
+    if LOCK_FILES.contains(&name) {
+        return Ok(true);
+    }
+    for eco in REGISTRY_LOCKS {
+        if lock_of(eco)? == name {
+            return Ok(true);
+        }
+    }
+    for eco in REGISTRY_STATES {
+        if state_of(eco)? == name {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn is_allowed(allow: &[String], path: &str) -> bool {
@@ -147,7 +162,10 @@ fn is_allowed(allow: &[String], path: &str) -> bool {
     })
 }
 
-fn classify_kinds(root: &Path, paths: &[(String, bool)]) -> Vec<(BuildOutputFinding, bool)> {
+fn classify_kinds(
+    root: &Path,
+    paths: &[(String, bool)],
+) -> Result<Vec<(BuildOutputFinding, bool)>, AdoptError> {
     let allow = allowed(root);
     let mut findings = Vec::new();
     let mut seen_dirs = BTreeSet::new();
@@ -155,7 +173,7 @@ fn classify_kinds(root: &Path, paths: &[(String, bool)]) -> Vec<(BuildOutputFind
         if is_allowed(&allow, path) {
             continue;
         }
-        if *added && let Some(dir) = output_dir(root, path) {
+        if *added && let Some(dir) = output_dir(root, path)? {
             if seen_dirs.insert(dir.clone()) {
                 findings.push((
                     BuildOutputFinding {
@@ -170,7 +188,7 @@ fn classify_kinds(root: &Path, paths: &[(String, bool)]) -> Vec<(BuildOutputFind
         if let Ok(meta) = std::fs::symlink_metadata(root.join(path))
             && meta.is_file()
             && meta.len() > MAX_FILE_BYTES
-            && !is_lock_file(path)
+            && !is_lock_file(path)?
         {
             findings.push((
                 BuildOutputFinding {
@@ -184,15 +202,18 @@ fn classify_kinds(root: &Path, paths: &[(String, bool)]) -> Vec<(BuildOutputFind
             ));
         }
     }
-    findings
+    Ok(findings)
 }
 
 /// Classifies changed paths as build output or oversized files. The flag marks added paths.
-pub fn classify(root: &Path, paths: &[(String, bool)]) -> Vec<BuildOutputFinding> {
-    classify_kinds(root, paths)
+pub fn classify(
+    root: &Path,
+    paths: &[(String, bool)],
+) -> Result<Vec<BuildOutputFinding>, AdoptError> {
+    Ok(classify_kinds(root, paths)?
         .into_iter()
         .map(|(finding, _)| finding)
-        .collect()
+        .collect())
 }
 
 /// Result of scanning a change.
@@ -346,7 +367,7 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
     }
     paths.sort();
     paths.dedup_by(|next, current| next.0 == current.0);
-    let found = classify_kinds(root, &paths);
+    let found = classify_kinds(root, &paths).map_err(|error| DxError::infra(error.to_string()))?;
     let oversized: Vec<String> = found
         .iter()
         .filter(|(_, size)| *size)
@@ -462,7 +483,7 @@ mod tests {
         let root = temp();
         std::fs::create_dir_all(root.join("crate")).expect("dir");
         std::fs::write(
-            root.join("crate").join(manifest_of("cargo")),
+            root.join("crate").join(manifest_of("cargo").expect("hub")),
             "[package]\nbuild = \"build/script.rs\"\n",
         )
         .expect("file");
@@ -473,7 +494,7 @@ mod tests {
     #[test]
     fn build_output_in_a_cargo_workspace_root_is_rejected() {
         let root = temp();
-        std::fs::write(root.join(manifest_of("cargo")), "[workspace]\n").expect("file");
+        std::fs::write(root.join(manifest_of("cargo").expect("hub")), "[workspace]\n").expect("file");
         let found = names(&root, &["build/out.o"]);
         assert_eq!(found, ["build/out.o"]);
     }
@@ -554,7 +575,7 @@ mod tests {
         write(&root, "build/ci/Dockerfile", b"x");
         write(
             &root,
-            &format!("testdata/node_modules/pkg/{}", manifest_of("npm")),
+            &format!("testdata/node_modules/pkg/{}", manifest_of("npm").expect("hub")),
             b"{}",
         );
         git(&root, &["add", "-f", "-A"]);

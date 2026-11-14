@@ -149,7 +149,8 @@ pub(super) fn add_missing(
     query: &dyn QueryRunner,
     startup: &[String],
 ) -> Result<Vec<Added>, DxError> {
-    let items = update_unused::find_missing(workspace, resolved, query, startup);
+    let items = update_unused::find_missing(workspace, resolved, query, startup)
+        .map_err(|error| DxError::failure(error.to_string()))?;
     declare(workspace, resolved, items, fetch, false)
 }
 
@@ -351,7 +352,9 @@ mod tests {
         assert!(cargo.contains("regex = \"1.5.0\""), "{cargo}");
         let npm = std::fs::read_to_string(root.join(format!("web/{npm_manifest}"))).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
-        assert!(update_unused::find_missing(root, &resolved, &NoQuery, &[]).is_empty());
+        assert!(update_unused::find_missing(root, &resolved, &NoQuery, &[])
+                .expect("hubs")
+                .is_empty());
         assert!(
             add_missing(root, &resolved, &registry, &NoQuery, &[])
                 .expect("again")

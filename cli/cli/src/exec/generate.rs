@@ -56,7 +56,13 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
     let mut wiring = Wiring::default();
     let workspace = env.workspace;
     let apply = request.applies();
-    let unlocked = dx_adopt::unlocked_manifests(workspace);
+    let unlocked = match dx_adopt::unlocked_manifests(workspace) {
+        Ok(unlocked) => unlocked,
+        Err(error) => {
+            wiring.failed(env.err, format!("lock hubs not read: {error}"));
+            return wiring;
+        }
+    };
     let mut seeded_cargo = false;
     for manifest in &unlocked {
         let lock = lock_for(manifest);

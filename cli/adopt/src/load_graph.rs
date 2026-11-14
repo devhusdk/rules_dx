@@ -1080,9 +1080,9 @@ mod tests {
     fn module_inputs_collect_tag_repo_rule_override_and_include_labels() {
         let scratch = dx_test_scratch::scratch("dx-module-inputs-");
         let root = scratch.path();
-        let npm_lock = lock_of("npm");
-        let npm_manifest = manifest_of("npm");
-        let go_manifest = manifest_of("go");
+        let npm_lock = lock_of("npm").expect("hub");
+        let npm_manifest = manifest_of("npm").expect("hub");
+        let go_manifest = manifest_of("go").expect("hub");
         write(
             root,
             "MODULE.bazel",
@@ -1159,7 +1159,7 @@ mod tests {
         assert_eq!(input_paths(root), (Vec::new(), false));
         let split = format!(
             "npm.npm_translate_lock(pnpm_lock = \"//:\" + \"{}\")",
-            lock_of("npm")
+            lock_of("npm").expect("hub")
         );
         for tag in [
             "npm.npm_translate_lock(pnpm_lock = LOCK)",

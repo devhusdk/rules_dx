@@ -3,7 +3,6 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use crate::lock_hubs::manifest_of;
 
 /// The quality families of `dx.toml` and the files that mean one is present: an extension with
 /// its dot, or an exact file name. Families found only by file content are left out.
@@ -80,7 +79,7 @@ pub fn detected_families(root: &Path) -> BTreeSet<String> {
         })
         .map(|(id, _)| (*id).to_owned())
         .collect();
-    if names.contains(manifest_of("go")) {
+    if dx_families::hub("go").is_some_and(|hub| names.contains(hub.manifest.as_str())) {
         found.insert("go_module".to_owned());
     }
     found

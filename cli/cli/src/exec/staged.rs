@@ -142,7 +142,10 @@ pub(super) fn run_staged_core(
             fail!("cannot stage {rel}: {error}");
         }
     }
-    let argv = run.argv(&scratch.0);
+    let argv = match run.argv(&scratch.0) {
+        Ok(argv) => argv,
+        Err(error) => fail!("{error}"),
+    };
     let ran = launch(&argv, &run.env(&scratch.0)).map_err(StagedError::Exit)?;
     if let Some(wrote) = ran.wrote {
         return Err(StagedError::Failed {

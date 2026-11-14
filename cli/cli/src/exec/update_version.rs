@@ -87,8 +87,12 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
             return report_dx_error(invocation.output, out, err, code, &error);
         }
     };
+    let request_summary = match request.summary() {
+        Ok(summary) => summary,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
     let summary = frozen_summary(
-        offline_summary(request.summary(), invocation.offline),
+        offline_summary(request_summary, invocation.offline),
         invocation.frozen,
     );
     let verbose = invocation.chatty();

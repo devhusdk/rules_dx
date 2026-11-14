@@ -12,7 +12,7 @@ const FIXED_NAMES: &[(&str, &str, bool)] = &[
 static UNOWNED_NAMES: std::sync::LazyLock<Vec<(&'static str, &'static str, bool)>> =
     std::sync::LazyLock::new(|| {
         let mut names = FIXED_NAMES.to_vec();
-        names.push((dx_adopt::dependency_sets::composer_lock(), "composer", true));
+        names.push((dx_adopt::dependency_sets::composer_lock()?, "composer", true));
         for (ecosystem, label) in [
             (dx_ecosystems::Ecosystem::Hex, "hex"),
             (dx_ecosystems::Ecosystem::Pub, "pub"),
@@ -23,7 +23,7 @@ static UNOWNED_NAMES: std::sync::LazyLock<Vec<(&'static str, &'static str, bool)
             }
         }
         names.push((dx_ecosystems::Ecosystem::Zig.manifest_name(), "zig", true));
-        names.push((dx_adopt::dependency_sets::dub_selections(), "dub", true));
+        names.push((dx_adopt::dependency_sets::dub_selections()?, "dub", true));
         names
     });
 
@@ -113,8 +113,8 @@ mod tests {
     #[test]
     fn reports_unowned_locks_and_skips_owned_and_vendored_dirs() {
         let dir = tempfile::tempdir().expect("tempdir");
-        let dub = dx_adopt::dependency_sets::dub_selections();
-        let composer = dx_adopt::dependency_sets::composer_lock();
+        let dub = dx_adopt::dependency_sets::dub_selections().expect("hub");
+        let composer = dx_adopt::dependency_sets::composer_lock().expect("hub");
         let mix = &dx_ecosystems::Ecosystem::Hex.lockfiles()[0];
         let pub_lock = &dx_ecosystems::Ecosystem::Pub.lockfiles()[0];
         for rel in [

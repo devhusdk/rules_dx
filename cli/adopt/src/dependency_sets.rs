@@ -1,21 +1,22 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+use crate::AdoptError;
 use crate::lock_hubs::{lock_of, manifest_of, state_of};
 
 pub use dx_ecosystems::{Ecosystem, SUPPORTED_ECOSYSTEMS};
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
-pub fn cargo_lock() -> &'static str {
+pub fn cargo_lock() -> Result<&'static str, AdoptError> {
     lock_of("cargo")
 }
 
-pub fn cpanfile_snapshot() -> &'static str {
+pub fn cpanfile_snapshot() -> Result<&'static str, AdoptError> {
     state_of("cpan")
 }
 
-pub fn mix_lock() -> &'static str {
+pub fn mix_lock() -> Result<&'static str, AdoptError> {
     lock_of("hex")
 }
 
@@ -23,42 +24,42 @@ pub const REBAR_CONFIG: &str = "rebar.config";
 
 pub const REBAR_LOCK: &str = "rebar.lock";
 
-pub fn julia_manifest() -> &'static str {
+pub fn julia_manifest() -> Result<&'static str, AdoptError> {
     state_of("julia")
 }
 
 /// The dub state file name.
-pub fn dub_selections() -> &'static str {
+pub fn dub_selections() -> Result<&'static str, AdoptError> {
     state_of("dub")
 }
 
 /// The dub manifest names, preferred first.
-fn dub_manifests() -> impl Iterator<Item = &'static str> {
-    std::iter::once(manifest_of("dub"))
-        .chain(Ecosystem::Dub.alt_manifests().iter().map(String::as_str))
+fn dub_manifests() -> Result<impl Iterator<Item = &'static str>, AdoptError> {
+    Ok(std::iter::once(manifest_of("dub")?)
+        .chain(Ecosystem::Dub.alt_manifests().iter().map(String::as_str)))
 }
 
 /// The luarocks lock file name.
-pub fn luarocks_lock() -> &'static str {
+pub fn luarocks_lock() -> Result<&'static str, AdoptError> {
     lock_of("luarocks")
 }
 
 /// The composer state file name.
-pub fn composer_lock() -> &'static str {
+pub fn composer_lock() -> Result<&'static str, AdoptError> {
     state_of("composer")
 }
 
-pub fn package_resolved() -> &'static str {
+pub fn package_resolved() -> Result<&'static str, AdoptError> {
     state_of("swiftpm")
 }
 
-pub fn cabal_freeze() -> &'static str {
+pub fn cabal_freeze() -> Result<&'static str, AdoptError> {
     state_of("cabal")
 }
 
 pub const STACK_LOCK: &str = "stack.yaml.lock";
 
-pub fn paket_lock() -> &'static str {
+pub fn paket_lock() -> Result<&'static str, AdoptError> {
     state_of("nuget")
 }
 
@@ -128,6 +129,8 @@ impl ResolvedSet {
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum DependencySetsError {
+    #[error("{detail}")]
+    Hubs { detail: String },
     #[error("could not read {rel}: {detail}")]
     Read { rel: String, detail: String },
     #[error("could not read {rel}: not valid UTF-8")]
@@ -333,7 +336,7 @@ pub fn discover(
                 continue;
             };
             let lock = path(lock)?;
-            let manifest = beside(&lock, manifest_of("npm"));
+            let manifest = beside(&lock, manifest_of("npm")?);
             sets.push(hub_set(
                 npm.name,
                 Ecosystem::Npm,
@@ -357,7 +360,7 @@ pub fn discover(
         }
         for go in module.go_deps_files().map_err(hub)? {
             let manifest = path(go.go_mod)?;
-            let lock = beside(&manifest, lock_of("go"));
+            let lock = beside(&manifest, lock_of("go")?);
             sets.push(hub_set("go", Ecosystem::Go, vec![manifest], vec![lock])?);
         }
         for bundle in module.bundle_fetches().map_err(hub)? {
@@ -374,8 +377,8 @@ pub fn discover(
             sets.push(hub_set(
                 cpan.name,
                 Ecosystem::Cpan,
-                vec![in_dir(&dir, manifest_of("cpan"))],
-                vec![in_dir(&dir, cpanfile_snapshot()), lock],
+                vec![in_dir(&dir, manifest_of("cpan")?)],
+                vec![in_dir(&dir, cpanfile_snapshot()?), lock],
             )?);
         }
         for pub_lock in module.pub_locks().map_err(hub)? {
@@ -383,8 +386,8 @@ pub fn discover(
             sets.push(hub_set(
                 pub_lock.name,
                 Ecosystem::Pub,
-                vec![in_dir(&dir, manifest_of("pub"))],
-                vec![in_dir(&dir, lock_of("pub"))],
+                vec![in_dir(&dir, manifest_of("pub")?)],
+                vec![in_dir(&dir, lock_of("pub")?)],
             )?);
         }
         for entry in module.mix_locks().map_err(hub)? {
@@ -392,8 +395,8 @@ pub fn discover(
             sets.push(hub_set(
                 entry.name,
                 Ecosystem::Hex,
-                vec![in_dir(&dir, manifest_of("hex"))],
-                vec![in_dir(&dir, mix_lock())],
+                vec![in_dir(&dir, manifest_of("hex")?)],
+                vec![in_dir(&dir, mix_lock()?)],
             )?);
         }
         for rebar in module.rebar_locks().map_err(hub)? {
@@ -411,15 +414,15 @@ pub fn discover(
             sets.push(hub_set(
                 tag.name,
                 Ecosystem::Composer,
-                vec![in_dir(&dir, manifest_of("composer"))],
-                vec![lock, in_dir(&dir, composer_lock())],
+                vec![in_dir(&dir, manifest_of("composer")?)],
+                vec![lock, in_dir(&dir, composer_lock()?)],
             )?);
         }
         for fpm in module.fpm_locks().map_err(hub)? {
             let lock = path(fpm.lock)?;
             let manifest = in_dir(
                 &manifest_dir(std::slice::from_ref(&lock)),
-                manifest_of("fpm"),
+                manifest_of("fpm")?,
             );
             sets.push(hub_set(
                 fpm.name,
@@ -431,15 +434,16 @@ pub fn discover(
         for dub in module.dub_locks().map_err(hub)? {
             let lock = path(dub.lock)?;
             let dir = manifest_dir(std::slice::from_ref(&lock));
-            let manifest = dub_manifests()
+            let dub_manifest = manifest_of("dub")?;
+            let manifest = dub_manifests()?
                 .map(|file| in_dir(&dir, file))
                 .find(|candidate| read(candidate).is_ok())
-                .unwrap_or_else(|| in_dir(&dir, manifest_of("dub")));
+                .unwrap_or_else(|| in_dir(&dir, dub_manifest));
             sets.push(hub_set(
                 dub.name,
                 Ecosystem::Dub,
                 vec![manifest],
-                vec![lock, in_dir(&dir, dub_selections())],
+                vec![lock, in_dir(&dir, dub_selections()?)],
             )?);
         }
         for zig in module.zig_locks().map_err(hub)? {
@@ -448,7 +452,7 @@ pub fn discover(
             sets.push(hub_set(
                 zig.name,
                 Ecosystem::Zig,
-                vec![in_dir(&dir, manifest_of("zig"))],
+                vec![in_dir(&dir, manifest_of("zig")?)],
                 vec![lock],
             )?);
         }
@@ -472,7 +476,7 @@ pub fn discover(
         for haskell in module.haskell_packages().map_err(hub)? {
             let deps = path(haskell.lock)?;
             let dir = manifest_dir(std::slice::from_ref(&deps));
-            let mut locks = vec![in_dir(&dir, cabal_freeze()), deps];
+            let mut locks = vec![in_dir(&dir, cabal_freeze()?), deps];
             let stack = in_dir(&dir, STACK_LOCK);
             if read(&stack).is_ok() {
                 locks.push(stack);
@@ -480,7 +484,7 @@ pub fn discover(
             sets.push(hub_set(
                 haskell.name,
                 Ecosystem::Cabal,
-                vec![in_dir(&dir, manifest_of("cabal"))],
+                vec![in_dir(&dir, manifest_of("cabal")?)],
                 locks,
             )?);
         }
@@ -490,7 +494,7 @@ pub fn discover(
             sets.push(hub_set(
                 ansible.name,
                 Ecosystem::Ansible,
-                vec![in_dir(&dir, manifest_of("ansible"))],
+                vec![in_dir(&dir, manifest_of("ansible")?)],
                 vec![lock],
             )?);
         }
@@ -500,7 +504,7 @@ pub fn discover(
             sets.push(hub_set(
                 bicep.name,
                 Ecosystem::Bicep,
-                vec![in_dir(&dir, manifest_of("bicep"))],
+                vec![in_dir(&dir, manifest_of("bicep")?)],
                 vec![lock],
             )?);
         }
@@ -509,10 +513,10 @@ pub fn discover(
             sets.push(hub_set(
                 julia.name,
                 Ecosystem::Julia,
-                vec![in_dir(&dir, manifest_of("julia"))],
+                vec![in_dir(&dir, manifest_of("julia")?)],
                 vec![
-                    in_dir(&dir, julia_manifest()),
-                    in_dir(&dir, lock_of("julia")),
+                    in_dir(&dir, julia_manifest()?),
+                    in_dir(&dir, lock_of("julia")?),
                 ],
             )?);
         }
@@ -521,8 +525,8 @@ pub fn discover(
             sets.push(hub_set(
                 swift.name,
                 Ecosystem::SwiftPm,
-                vec![beside(&lock, manifest_of("swiftpm"))],
-                vec![beside(&lock, package_resolved()), lock],
+                vec![beside(&lock, manifest_of("swiftpm")?)],
+                vec![beside(&lock, package_resolved()?), lock],
             )?);
         }
         let mut groups = BTreeSet::new();
@@ -532,12 +536,12 @@ pub fn discover(
         if let Some(first) = groups.first() {
             let folder = manifest_dir(std::slice::from_ref(first));
             let parent = manifest_dir(std::slice::from_ref(&folder));
-            let mut locks = vec![in_dir(&parent, paket_lock())];
+            let mut locks = vec![in_dir(&parent, paket_lock()?)];
             locks.extend(groups);
             sets.push(hub_set(
                 "nuget",
                 Ecosystem::Nuget,
-                vec![in_dir(&parent, manifest_of("nuget"))],
+                vec![in_dir(&parent, manifest_of("nuget")?)],
                 locks,
             )?);
         }
@@ -1235,9 +1239,9 @@ pub fn check_backend_settings(
         Ecosystem::Uv => check_uv_settings(workspace, set),
         Ecosystem::Npm => check_npm_layout(workspace, set),
         Ecosystem::Cpan => check_cpan_layout(workspace, set),
-        Ecosystem::Hex => match hex_backend(set) {
+        Ecosystem::Hex => match hex_backend(set)? {
             Some(_) => Ok(()),
-            None => check_pinned_lock(set, mix_lock()),
+            None => check_pinned_lock(set, mix_lock()?),
         },
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Composer => check_composer_layout(set),
@@ -1245,7 +1249,7 @@ pub fn check_backend_settings(
         Ecosystem::Ansible => check_ansible_layout(set),
         Ecosystem::Cabal => check_cabal_layout(workspace, set),
         Ecosystem::Cargo => {
-            check_pinned_lock(set, cargo_lock())?;
+            check_pinned_lock(set, cargo_lock()?)?;
             check_cargo_hub(workspace, set).map(|_| ())
         }
         Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
@@ -1260,7 +1264,7 @@ pub fn check_backend_settings(
 
 /// A cabal set keeps its state file and its json lock on the same versions.
 fn check_cabal_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    check_pinned_lock(set, cabal_freeze())?;
+    check_pinned_lock(set, cabal_freeze()?)?;
     let Some(sidecar) = set.locks.iter().find(|lock| lock.ends_with(".json")) else {
         return Ok(());
     };
@@ -1269,7 +1273,7 @@ fn check_cabal_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
         lock: sidecar.clone(),
         detail,
     };
-    let freeze = in_dir(&set.dir, cabal_freeze());
+    let freeze = in_dir(&set.dir, cabal_freeze()?);
     let read = |file: &str| {
         std::fs::read_to_string(workspace.join(file))
             .map_err(|error| stale(format!("cannot read {file}: {error}")))
@@ -1328,7 +1332,7 @@ pub fn target_label_in(workspace: &Path, dir: &str, rule: &str) -> Option<String
 }
 
 fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    check_pinned_lock(set, cpanfile_snapshot())?;
+    check_pinned_lock(set, cpanfile_snapshot()?)?;
     let Some(lock) = cpan_json_lock(set) else {
         return Ok(());
     };
@@ -1337,7 +1341,7 @@ fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
         lock: lock.clone(),
         detail,
     };
-    let snapshot = in_dir(&set.dir, cpanfile_snapshot());
+    let snapshot = in_dir(&set.dir, cpanfile_snapshot()?);
     let snapshot_text = std::fs::read_to_string(workspace.join(&snapshot))
         .map_err(|error| stale(format!("cannot read {snapshot}: {error}")))?;
     let lock_text = std::fs::read_to_string(workspace.join(lock))
@@ -1379,10 +1383,10 @@ fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
 }
 
 fn check_julia_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    check_pinned_lock(set, julia_manifest())?;
-    check_pinned_lock(set, lock_of("julia"))?;
-    let manifest = in_dir(&set.dir, julia_manifest());
-    let bazel = in_dir(&set.dir, lock_of("julia"));
+    check_pinned_lock(set, julia_manifest()?)?;
+    check_pinned_lock(set, lock_of("julia")?)?;
+    let manifest = in_dir(&set.dir, julia_manifest()?);
+    let bazel = in_dir(&set.dir, lock_of("julia")?);
     let stale = |lock: &str, detail: String| DependencySetsError::StaleJuliaLock {
         name: set.name.clone(),
         lock: lock.to_owned(),
@@ -1444,7 +1448,7 @@ fn check_julia_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
 }
 
 fn check_composer_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    check_pinned_lock(set, composer_lock())
+    check_pinned_lock(set, composer_lock()?)
 }
 
 /// The name `@<name>` resolves the set's crate_universe hub by in the root module.
@@ -1519,10 +1523,10 @@ fn check_cargo_hub(workspace: &Path, set: &ResolvedSet) -> Result<String, Depend
         unsupported("the crate.from_cargo tag needs a literal cargo_lockfile".to_owned())
     })?;
     let declared = dx_module_bazel::label_path(label).map_err(unsupported)?;
-    if declared != in_dir(&set.dir, cargo_lock()) {
+    if declared != in_dir(&set.dir, cargo_lock()?) {
         return Err(unsupported(format!(
             "cargo_lockfile {label} is not the set's {} (want {declared})",
-            in_dir(&set.dir, cargo_lock())
+            in_dir(&set.dir, cargo_lock()?)
         )));
     }
     if let Some(label) = hub.lockfile {
@@ -1679,12 +1683,13 @@ fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
         name: set.name.clone(),
         detail,
     };
-    check_pinned_lock(set, paket_lock())?;
+    check_pinned_lock(set, paket_lock()?)?;
     let mut folders = BTreeSet::new();
     let mut groups = 0;
     for lock in &set.locks {
         let (folder, file) = lock.rsplit_once('/').unwrap_or((".", lock));
-        if file == paket_lock() {
+        let paket = paket_lock()?;
+        if file == paket {
             continue;
         }
         let group = file
@@ -1692,8 +1697,7 @@ fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
             .and_then(|rest| rest.strip_suffix(".bzl"))
             .ok_or_else(|| {
                 unsupported(format!(
-                    "lock {lock} is neither {} nor a generated paket.<group>.bzl file",
-                    paket_lock()
+                    "lock {lock} is neither {paket} nor a generated paket.<group>.bzl file"
                 ))
             })?;
         if group.is_empty() {
@@ -1727,8 +1731,8 @@ fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
                 if !(rest.starts_with("http://") || rest.starts_with("https://")) {
                     return Err(unsupported(format!(
                         "{manifest} source {rest:?} is not http(s); staging copies only {} and {}",
-                        manifest_of("nuget"),
-                        paket_lock()
+                        manifest_of("nuget")?,
+                        paket_lock()?
                     )));
                 }
             }
@@ -1743,8 +1747,8 @@ fn check_go_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependency
         name: set.name.clone(),
         detail,
     };
-    check_pinned_lock(set, lock_of("go"))?;
-    let sum = in_dir(&set.dir, lock_of("go"));
+    check_pinned_lock(set, lock_of("go")?)?;
+    let sum = in_dir(&set.dir, lock_of("go")?);
     if !matches!(set.locks.as_slice(), [lock] if *lock == sum) {
         return Err(unsupported(format!(
             "locks must list exactly {sum} (the run writes the lock only)"
@@ -1829,15 +1833,15 @@ pub enum NpmBackend {
 }
 
 /// Picks the backend from the locks beside the manifest; pnpm wins over yarn over npm.
-pub fn npm_backend(set: &ResolvedSet) -> Option<NpmBackend> {
-    [
-        (lock_of("npm"), NpmBackend::Pnpm),
+pub fn npm_backend(set: &ResolvedSet) -> Result<Option<NpmBackend>, AdoptError> {
+    Ok([
+        (lock_of("npm")?, NpmBackend::Pnpm),
         (YARN_LOCK, NpmBackend::Yarn),
         (NPM_LOCK, NpmBackend::Npm),
     ]
     .into_iter()
     .find(|(file, _)| set.locks.contains(&in_dir(&set.dir, file)))
-    .map(|(_, backend)| backend)
+    .map(|(_, backend)| backend))
 }
 
 /// The package manager a configured hex set runs, chosen by the lock its `locks` list.
@@ -1848,24 +1852,24 @@ pub enum HexBackend {
 }
 
 /// Picks the backend from the locks beside the manifest.
-pub fn hex_backend(set: &ResolvedSet) -> Option<HexBackend> {
-    [
-        (mix_lock(), HexBackend::Mix),
+pub fn hex_backend(set: &ResolvedSet) -> Result<Option<HexBackend>, AdoptError> {
+    Ok([
+        (mix_lock()?, HexBackend::Mix),
         (REBAR_LOCK, HexBackend::Rebar3),
     ]
     .into_iter()
     .find(|(file, _)| set.locks.contains(&in_dir(&set.dir, file)))
-    .map(|(_, backend)| backend)
+    .map(|(_, backend)| backend))
 }
 
 fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    let lock = in_dir(&set.dir, lock_of("npm"));
+    let lock = in_dir(&set.dir, lock_of("npm")?);
     let unsupported = |detail: String| DependencySetsError::UnsupportedNpmLayout {
         name: set.name.clone(),
         dir: set.dir.clone(),
         detail,
     };
-    let backend = npm_backend(set).ok_or_else(|| {
+    let backend = npm_backend(set)?.ok_or_else(|| {
         unsupported(format!(
             "locks must include {lock}, {}, or {}",
             in_dir(&set.dir, YARN_LOCK),
@@ -1905,10 +1909,10 @@ fn nearest_parent_pnpm_workspace(workspace: &Path, set: &ResolvedSet) -> Option<
 
 /// Whether pnpm runs for this set need `--ignore-workspace`: the set has no
 /// workspace file of its own and the nearest parent workspace lists only `.`.
-pub fn npm_ignore_workspace(workspace: &Path, set: &ResolvedSet) -> bool {
-    set.ecosystem == Ecosystem::Npm
-        && npm_backend(set) == Some(NpmBackend::Pnpm)
-        && nearest_parent_pnpm_workspace(workspace, set).is_some_and(|(_, root_only)| root_only)
+pub fn npm_ignore_workspace(workspace: &Path, set: &ResolvedSet) -> Result<bool, AdoptError> {
+    Ok(set.ecosystem == Ecosystem::Npm
+        && npm_backend(set)? == Some(NpmBackend::Pnpm)
+        && nearest_parent_pnpm_workspace(workspace, set).is_some_and(|(_, root_only)| root_only))
 }
 
 /// The `packages` globs of a `pnpm-workspace.yaml`, read without a YAML parser.
@@ -1961,7 +1965,7 @@ fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
             });
         }
         if current != set.dir {
-            let parent = format!("{prefix}{}", manifest_of("uv"));
+            let parent = format!("{prefix}{}", manifest_of("uv")?);
             if uv_workspace_root(&workspace.join(&parent)) {
                 return Err(DependencySetsError::UnsupportedSettings {
                     name: set.name.clone(),
@@ -2027,3 +2031,11 @@ fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
 #[cfg(test)]
 #[path = "dependency_sets_tests.rs"]
 mod tests;
+
+impl From<AdoptError> for DependencySetsError {
+    fn from(error: AdoptError) -> Self {
+        Self::Hubs {
+            detail: error.to_string(),
+        }
+    }
+}

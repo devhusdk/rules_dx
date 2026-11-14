@@ -9,8 +9,9 @@ pub(super) fn plan(
     head: &dx_process::BazelHead,
     _closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
+    let rebar = is_rebar(set)?;
     match request {
-        request if is_rebar(set) => {
+        request if rebar => {
             if frozen {
                 return Err(BackendError::FrozenLocked {
                     set: set.name.clone(),
@@ -55,14 +56,15 @@ pub(super) fn check(
     head: &dx_process::BazelHead,
     _closure: &UvClosure,
 ) -> Result<CheckPlan, BackendError> {
+    let rebar = is_rebar(set)?;
     match request {
-        Selection::Full if is_rebar(set) => Ok(CheckPlan::Staged(rebar_staged(
+        Selection::Full if rebar => Ok(CheckPlan::Staged(rebar_staged(
             set,
             head,
             offline,
             &["lock".to_owned()],
         )?)),
-        Selection::Packages(_) if is_rebar(set) => Err(BackendError::Unsupported {
+        Selection::Packages(_) if rebar => Err(BackendError::Unsupported {
             set: set.name.clone(),
             reason: "rebar3 lock checks the whole rebar.lock; select the set without a package",
         }),
@@ -75,7 +77,7 @@ pub(super) fn check(
         )?)),
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: hex_whole_lock(),
+            reason: hex_whole_lock()?,
         }),
     }
 }

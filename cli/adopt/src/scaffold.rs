@@ -1406,7 +1406,9 @@ mod tests {
             );
         }
         assert!(
-            crate::unlocked_manifests(root).is_empty(),
+            crate::unlocked_manifests(root)
+                .expect("unlocked")
+                .is_empty(),
             "generate would seed a lock file"
         );
         let hubs = crate::plan_lock_hubs(root).expect("lock hubs");

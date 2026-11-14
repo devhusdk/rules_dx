@@ -2085,7 +2085,7 @@ fn configured_nuget_stages_paket2bazel_without_rules_dx_settings() {
             .iter()
             .any(|arg| arg.starts_with("--") && arg.contains("rules_dx"))
     );
-    let argv = expected.argv(Path::new("/scratch/1"));
+    let argv = expected.argv(Path::new("/scratch/1")).expect("argv");
     assert_eq!(
         argv[expected.argv_head.len()..],
         strings(&[
@@ -2120,7 +2120,7 @@ fn configured_nuget_requires_network_and_refuses_packages() {
     let packages = Selection::Packages(vec!["Newtonsoft.Json".to_owned()]);
     let unsupported = Err(BackendError::Unsupported {
         set: "dotnet".to_owned(),
-        reason: nuget_pins_exact(),
+        reason: nuget_pins_exact().expect("hub"),
     });
     assert_eq!(
         plan_configured(ws(), &set, &packages, false, false, &head, &closure),
@@ -2130,7 +2130,7 @@ fn configured_nuget_requires_network_and_refuses_packages() {
         check_configured(ws(), &set, &packages, false, false, &head, &closure),
         Err(BackendError::Unsupported {
             set: "dotnet".to_owned(),
-            reason: nuget_pins_exact(),
+            reason: nuget_pins_exact().expect("hub"),
         })
     );
 }
@@ -2435,7 +2435,7 @@ fn configured_go_requires_network_and_refuses_packages() {
     let packages = Selection::Packages(vec!["github.com/google/go-cmp".to_owned()]);
     let want = BackendError::Unsupported {
         set: "gomods".to_owned(),
-        reason: go_whole_graph(),
+        reason: go_whole_graph().expect("hub"),
     };
     assert_eq!(
         plan_configured(ws(), &set, &packages, false, false, &head, &closure),

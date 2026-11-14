@@ -131,6 +131,8 @@ pub enum EditPlanOutcome {
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum EditError {
+    #[error("{detail}")]
+    Hubs { detail: String },
     #[error("empty update selector or version; expected `dx update <set:package> <version>`")]
     Empty,
     #[error("unknown update selector {selector:?}; expected {} as `set:package` (e.g. bazel:rules_cc)", UpdateSet::builtin_names().join("|"))]
@@ -244,20 +246,23 @@ impl DepTarget {
     }
 
     /// What the user must do after the edit when nothing re-resolves the lock.
-    pub fn follow_up(&self) -> Option<String> {
-        let set = self.configured.as_ref()?;
-        (set.kind == ConfiguredKind::Nuget).then(|| {
-            let dir = set
-                .manifests
-                .first()
-                .and_then(|manifest| manifest.rsplit_once('/'))
-                .map_or(".", |(dir, _)| dir);
-            format!(
-                "{} is not re-resolved: run `paket update` in {dir}, then `dx update {}`",
-                dx_adopt::lock_hubs::state_of("nuget"),
-                set.name
-            )
-        })
+    pub fn follow_up(&self) -> Result<Option<String>, EditError> {
+        let Some(set) = self.configured.as_ref() else {
+            return Ok(None);
+        };
+        if set.kind != ConfiguredKind::Nuget {
+            return Ok(None);
+        }
+        let dir = set
+            .manifests
+            .first()
+            .and_then(|manifest| manifest.rsplit_once('/'))
+            .map_or(".", |(dir, _)| dir);
+        Ok(Some(format!(
+            "{} is not re-resolved: run `paket update` in {dir}, then `dx update {}`",
+            dx_adopt::lock_hubs::state_of("nuget")?,
+            set.name
+        )))
     }
 
     /// The command that refreshes this dependency's lock, as shown to the user.
@@ -541,8 +546,8 @@ impl UpdateRequest {
         }
     }
 
-    pub fn summary(&self) -> String {
-        let through = if let Some(follow_up) = self.target().follow_up() {
+    pub fn summary(&self) -> Result<String, EditError> {
+        let through = if let Some(follow_up) = self.target().follow_up()? {
             follow_up
         } else if self.needs_update_refresh() {
             format!(
@@ -573,11 +578,11 @@ impl UpdateRequest {
             }
             _ => "",
         };
-        format!(
+        Ok(format!(
             "Widen {}{what} to {} in {place} ({through})",
             self.selector,
             self.version.display(),
-        )
+        ))
     }
 
     pub fn plan_edit(&self, content: &str) -> Result<String, EditError> {
@@ -657,7 +662,7 @@ pub fn parse_selector(selector: &str) -> Result<(UpdateSet, String), EditError> 
     if selector.is_empty() {
         return Err(EditError::Empty);
     }
-    if is_target_shape(selector) {
+    if is_target_shape(selector)? {
         return Err(EditError::NotAPackage {
             target: selector.to_owned(),
         });
@@ -785,3 +790,23 @@ use pyproject::plan_pyproject_toml;
 #[cfg(test)]
 #[path = "request_tests.rs"]
 mod tests;
+
+impl EditError {
+    pub(crate) fn unsupported_manifest(hub: &str, reason: impl Into<String>) -> Self {
+        match dx_adopt::lock_hubs::manifest_of(hub) {
+            Ok(manifest) => Self::UnsupportedManifest {
+                manifest: manifest.to_owned(),
+                reason: reason.into(),
+            },
+            Err(error) => error.into(),
+        }
+    }
+}
+
+impl From<dx_adopt::AdoptError> for EditError {
+    fn from(error: dx_adopt::AdoptError) -> Self {
+        Self::Hubs {
+            detail: error.to_string(),
+        }
+    }
+}

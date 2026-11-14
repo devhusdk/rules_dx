@@ -155,14 +155,14 @@ mod tests {
     use dx_adopt::lock_hubs::lock_of;
 
     fn cargo_lock() -> String {
-        format!("rust/tests/fixtures/hello/{}", lock_of("cargo"))
+        format!("rust/tests/fixtures/hello/{}", lock_of("cargo").expect("hub"))
     }
 
     fn builtin_locks() -> BTreeMap<String, Vec<String>> {
         BTreeMap::from([
-            ("cargo".to_owned(), vec![cargo_lock()]),
-            ("maven".to_owned(), vec![lock_of("maven").to_owned()]),
-            ("npm".to_owned(), vec![lock_of("npm").to_owned()]),
+            ("cargo".to_owned(), vec![cargo_lock().expect("hub")]),
+            ("maven".to_owned(), vec![lock_of("maven").expect("hub").to_owned()]),
+            ("npm".to_owned(), vec![lock_of("npm").expect("hub").to_owned()]),
         ])
     }
 
@@ -204,11 +204,11 @@ mod tests {
             .expect("failed report plans recovery");
         assert_eq!(plan.retry_sets, vec!["maven".to_owned()]);
         assert_eq!(plan.retry_command, "dx update --apply maven");
-        assert!(plan.restore_paths.contains(&lock_of("npm").to_owned()));
-        assert!(plan.restore_paths.contains(&cargo_lock()));
+        assert!(plan.restore_paths.contains(&lock_of("npm").expect("hub").to_owned()));
+        assert!(plan.restore_paths.contains(&cargo_lock().expect("hub")));
         let restore = plan.restore_command.expect("kept successes restore");
         assert!(restore.starts_with("git checkout -- "));
-        assert!(restore.contains(lock_of("npm")));
+        assert!(restore.contains(lock_of("npm").expect("hub")));
         assert!(plan.message.contains("dx update --apply maven"));
         assert!(plan.message.contains("idempotent"));
     }
@@ -305,7 +305,7 @@ mod tests {
             ],
             overall_failure: true,
         };
-        let uv_lock = format!("apps/frontend/{}", lock_of("uv"));
+        let uv_lock = format!("apps/frontend/{}", lock_of("uv").expect("hub"));
         let locks = BTreeMap::from([("uv".to_owned(), vec![uv_lock.clone()])]);
         let plan = plan(&report, RetryMode::Apply, &locks).expect("recovery");
         assert_eq!(

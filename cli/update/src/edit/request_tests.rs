@@ -146,10 +146,10 @@ fn package_validation_rejects_invalid_ecosystem_identities() {
             );
         }
     }
-    assert!(is_target_shape("unknown:a/b"));
-    assert!(is_target_shape("//x"));
-    assert!(is_target_shape("@r//:t"));
-    assert!(!is_target_shape("cargo:anyhow"));
+    assert!(is_target_shape("unknown:a/b").expect("hubs"));
+    assert!(is_target_shape("//x").expect("hubs"));
+    assert!(is_target_shape("@r//:t").expect("hubs"));
+    assert!(!is_target_shape("cargo:anyhow").expect("hubs"));
 }
 
 #[test]

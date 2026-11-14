@@ -394,12 +394,12 @@ fn parse_locked_for_configured(
     let expected = match set.ecosystem {
         dx_adopt::dependency_sets::Ecosystem::Maven => Some(("a maven .json lock", None)),
         dx_adopt::dependency_sets::Ecosystem::Nuget => Some((
-            dx_adopt::dependency_sets::paket_lock(),
-            Some(dx_adopt::dependency_sets::paket_lock()),
+            dx_adopt::dependency_sets::paket_lock().expect("hub"),
+            Some(dx_adopt::dependency_sets::paket_lock().expect("hub")),
         )),
         dx_adopt::dependency_sets::Ecosystem::Cargo => Some((
-            dx_adopt::dependency_sets::cargo_lock(),
-            Some(dx_adopt::dependency_sets::cargo_lock()),
+            dx_adopt::dependency_sets::cargo_lock().expect("hub"),
+            Some(dx_adopt::dependency_sets::cargo_lock().expect("hub")),
         )),
         dx_adopt::dependency_sets::Ecosystem::Uv
         | dx_adopt::dependency_sets::Ecosystem::Npm
@@ -446,14 +446,14 @@ fn parse_locked_for_configured(
             },
             dx_adopt::dependency_sets::Ecosystem::Ruby => dx_audit::locks::parse_gemfile_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Cpan => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::cpanfile_snapshot() => {
+                Some(name) if name == dx_adopt::dependency_sets::cpanfile_snapshot().expect("hub") => {
                     dx_audit::locks::parse_cpanfile_snapshot(text)
                 }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Hex => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::mix_lock() => {
+                Some(name) if name == dx_adopt::dependency_sets::mix_lock().expect("hub") => {
                     dx_audit::locks::parse_mix_lock(text)
                 }
                 Some(dx_adopt::dependency_sets::REBAR_LOCK) => {
@@ -464,25 +464,25 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::Ecosystem::Fpm => dx_audit::locks::parse_fpm_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Zig => Ok(Vec::new()),
             dx_adopt::dependency_sets::Ecosystem::Dub => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::dub_selections() => {
+                Some(name) if name == dx_adopt::dependency_sets::dub_selections().expect("hub") => {
                     dx_audit::locks::parse_dub_selections(text)
                 }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Julia => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::julia_manifest() => {
+                Some(name) if name == dx_adopt::dependency_sets::julia_manifest().expect("hub") => {
                     dx_audit::locks::parse_julia_manifest(text)
                 }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Composer => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::composer_lock() => {
+                Some(name) if name == dx_adopt::dependency_sets::composer_lock().expect("hub") => {
                     dx_audit::locks::parse_composer_lock(text)
                 }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Cabal => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::cabal_freeze() => {
+                Some(name) if name == dx_adopt::dependency_sets::cabal_freeze().expect("hub") => {
                     dx_audit::locks::parse_cabal_freeze(text)
                 }
                 Some(dx_adopt::dependency_sets::STACK_LOCK) => {
@@ -497,7 +497,7 @@ fn parse_locked_for_configured(
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::SwiftPm => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::package_resolved() => {
+                Some(name) if name == dx_adopt::dependency_sets::package_resolved().expect("hub") => {
                     dx_audit::locks::parse_package_resolved(text)
                 }
                 _ => Ok(Vec::new()),
@@ -506,7 +506,7 @@ fn parse_locked_for_configured(
                 dx_audit::locks::parse_psgallery_lock(text)
             }
             dx_adopt::dependency_sets::Ecosystem::LuaRocks => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::luarocks_lock() => {
+                Some(name) if name == dx_adopt::dependency_sets::luarocks_lock().expect("hub") => {
                     dx_audit::locks::parse_luarocks_lock(text)
                 }
                 _ => Ok(Vec::new()),
@@ -521,13 +521,13 @@ fn parse_locked_for_configured(
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Nuget => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::paket_lock() => {
+                Some(name) if name == dx_adopt::dependency_sets::paket_lock().expect("hub") => {
                     dx_audit::locks::parse_paket_lock(text)
                 }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Cargo => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::cargo_lock() => {
+                Some(name) if name == dx_adopt::dependency_sets::cargo_lock().expect("hub") => {
                     dx_audit::locks::parse_cargo_lock(text)
                 }
                 _ => Ok(Vec::new()),

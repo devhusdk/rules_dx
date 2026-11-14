@@ -19,13 +19,17 @@ impl Project {
         let root = PathBuf::from(tmp).join(format!("dart_analyze_{}_{name}", std::process::id()));
         std::fs::create_dir_all(root.join("lib")).expect("mkdir");
         let root = std::fs::canonicalize(root).expect("canonicalize");
+        let root = match root.to_str().and_then(|path| path.strip_prefix(r"\\?\")) {
+            Some(path) => PathBuf::from(path),
+            None => root,
+        };
         let project = Self { root };
         project.write("analysis_options.yaml", options);
         project
     }
 
     fn write(&self, rel: &str, text: &str) -> PathBuf {
-        let path = self.root.join(rel);
+        let path = rel.split('/').fold(self.root.clone(), |acc, part| acc.join(part));
         std::fs::write(&path, text).expect("write");
         path
     }
@@ -98,7 +102,7 @@ fn warning_exits_2_and_error_exits_3() {
 #[test]
 fn missing_path_exits_64() {
     let p = Project::new("missing", "");
-    let out = p.analyze(&[&p.root.join("lib/none.dart")]);
+    let out = p.analyze(&[&p.root.join("lib").join("none.dart")]);
     assert_eq!(out.status.code(), Some(64));
 }
 

@@ -1438,6 +1438,7 @@ single_version_override(
     patches = [
         "//patches/rules_dart:coverage.patch",
         "//patches/rules_dart:external_pkgsrcs.patch",
+        "//patches/rules_dart:windows_long_dill.patch",
     ],
     version = "0.8.1",
 )

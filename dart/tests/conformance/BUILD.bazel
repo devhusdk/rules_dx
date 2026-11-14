@@ -14,6 +14,20 @@ dart_library(
     srcs = ["lib/greet.dart"],
 )
 
+dart_library(
+    name = "lint_dirty",
+    package_name = "conformance_lint_dirty",
+    srcs = ["lib/lint_dirty.dart"],
+    tags = ["manual"],
+)
+
+dart_library(
+    name = "format_dirty",
+    package_name = "conformance_format_dirty",
+    srcs = ["lib/format_dirty.dart"],
+    tags = ["manual"],
+)
+
 dart_binary(
     name = "hello",
     main = "main.dart",
@@ -68,5 +82,14 @@ dx_conformance_suite(
     },
     not_applicable = {"cross_test:windows_x86_64": "dart supports no other windows platform"},
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "lib/format_dirty.dart",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 2,
+        "lint_rule": "unused_local_variable",
+        "lint_source": "lib/lint_dirty.dart",
+    },
     size = "small",
 )

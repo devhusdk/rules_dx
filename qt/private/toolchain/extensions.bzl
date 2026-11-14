@@ -1,8 +1,21 @@
 """The qt module extension."""
 
-load("//core:repo.bzl", "hub_repo")
 load(":pins.bzl", "MODULES", "QT_VERSION")
 load(":repos.bzl", "HUB_NAME", "default_request", "cell_repository_name", "cell_spec", "consumer_cells", "effective_cells", "hub_build", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors", "resolve_modules")
+
+def _qt_hub_impl(rctx):
+    rctx.file("REPO.bazel", "")
+    for path, content in rctx.attr.files.items():
+        rctx.file(path, content)
+    return rctx.repo_metadata(reproducible = True)
+
+_qt_hub = repository_rule(
+    implementation = _qt_hub_impl,
+    doc = "Writes the rendered Qt hub files into a repository that downloads nothing.",
+    attrs = {
+        "files": attr.string_dict(doc = "Repository path to file content."),
+    },
+)
 
 def _merge(requests):
     """Returns the one request the configure tags of every module add up to."""
@@ -75,7 +88,7 @@ def _qt_impl(module_ctx):
             modules = resolve_modules(MODULES.keys()),
             runtime_mirror = request.runtime_mirror,
         )
-    hub_repo(
+    _qt_hub(
         name = HUB_NAME,
         files = {"BUILD.bazel": hub_build(
             cells,

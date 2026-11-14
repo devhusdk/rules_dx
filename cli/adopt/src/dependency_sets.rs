@@ -1236,6 +1236,7 @@ pub fn check_backend_settings(
         other @ Ecosystem::Bazel
         | other @ Ecosystem::Ruby
         | other @ Ecosystem::PowerShell
+        | other @ Ecosystem::Nuget
         | other @ Ecosystem::Pub
         | other @ Ecosystem::Dub
         | other @ Ecosystem::Fpm

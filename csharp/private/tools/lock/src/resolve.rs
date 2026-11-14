@@ -367,11 +367,62 @@ pub fn sha512(bytes: &[u8]) -> String {
     )
 }
 
+/// The pinned Paket and the dotnet host that runs it.
+#[derive(Clone, Debug)]
+pub struct Paket {
+    /// The `dotnet` host executable.
+    pub dotnet: std::path::PathBuf,
+    /// The Paket `.nupkg`.
+    pub nupkg: std::path::PathBuf,
+}
+
+impl Paket {
+    /// Writes the state file of the set in `scratch.set()`.
+    ///
+    /// # Errors
+    /// Fails when the package cannot be unpacked or Paket fails.
+    pub fn install(&self, scratch: &Scratch) -> Result<(), Error> {
+        let failed = |error: &dyn std::fmt::Display| Error::new(format!("paket: {error}"));
+        let root = scratch.tmp().join("paket");
+        let file = std::fs::File::open(&self.nupkg).map_err(|error| failed(&error))?;
+        zip::ZipArchive::new(file)
+            .map_err(|error| failed(&error))?
+            .extract(&root)
+            .map_err(|error| failed(&error))?;
+        let dll = std::fs::read_dir(root.join("tools"))
+            .map_err(|error| failed(&error))?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path().join("any").join("paket.dll"))
+            .find(|path| path.is_file())
+            .ok_or_else(|| failed(&"the package has no paket.dll"))?;
+        let output = scratch
+            .command(&self.dotnet)
+            .env("DOTNET_ROLL_FORWARD", "Major")
+            .env("DOTNET_NOLOGO", "1")
+            .env("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
+            .env("DOTNET_GENERATE_ASPNET_CERTIFICATE", "false")
+            .env("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1")
+            .arg(&dll)
+            .arg("install")
+            .output()
+            .map_err(|error| failed(&error))?;
+        if output.status.success() {
+            return Ok(());
+        }
+        Err(failed(&format!(
+            "install failed:\n{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )))
+    }
+}
+
 /// The nuget resolver.
 pub struct Nuget<'a> {
     manifest: String,
     state: String,
     download: &'a dyn Download,
+    paket: Option<Paket>,
 }
 
 impl<'a> Nuget<'a> {
@@ -382,7 +433,15 @@ impl<'a> Nuget<'a> {
             manifest: spec.manifest.first().cloned().unwrap_or_default(),
             state: spec.state.first().cloned().unwrap_or_default(),
             download,
+            paket: None,
         }
+    }
+
+    /// Runs `paket` to write the state file before it is read.
+    #[must_use]
+    pub fn with_paket(mut self, paket: Paket) -> Self {
+        self.paket = Some(paket);
+        self
     }
 
     /// The lock step values of the registry entry.
@@ -484,6 +543,9 @@ impl Resolver for Nuget<'_> {
             std::fs::read_to_string(scratch.set().join(name))
                 .map_err(|error| Error::new(format!("{name}: {error}")))
         };
+        if let Some(paket) = &self.paket {
+            paket.install(scratch)?;
+        }
         let manifest = read(&self.manifest)?;
         let wanted = manifest_groups(&manifest)
             .map_err(|error| Error::new(format!("{}: {error}", self.manifest)))?;

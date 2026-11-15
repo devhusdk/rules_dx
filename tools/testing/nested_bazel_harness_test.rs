@@ -91,13 +91,13 @@ fn indirect_consumer(name: &str) -> Case {
     case
 }
 
-/// The `Selected` lines of the toolchain resolution of `//:probe` that name a rules_dx toolchain.
-fn selected_rules_dx(case: &Case, flags: &[&str]) -> Vec<String> {
+/// The `Selected` lines of the C++ toolchain resolution of `//:probe`.
+fn selected_cc(case: &Case, flags: &[&str]) -> Vec<String> {
     let mut args = vec![
         "cquery",
         "--color=no",
         "--curses=no",
-        "--toolchain_resolution_debug=.*",
+        "--toolchain_resolution_debug=@bazel_tools//tools/cpp:toolchain_type",
     ];
     args.extend_from_slice(flags);
     args.push("//:probe");
@@ -105,7 +105,7 @@ fn selected_rules_dx(case: &Case, flags: &[&str]) -> Vec<String> {
     assert!(run.status.success(), "{}", run.combined());
     run.combined()
         .lines()
-        .filter(|line| line.contains("Selected") && line.contains("rules_dx"))
+        .filter(|line| line.contains("Selected") && line.contains("tools/cpp:toolchain_type"))
         .map(str::to_owned)
         .collect()
 }
@@ -113,12 +113,15 @@ fn selected_rules_dx(case: &Case, flags: &[&str]) -> Vec<String> {
 #[test]
 fn an_indirect_consumer_resolves_no_gated_rules_dx_toolchain() {
     let case = indirect_consumer("indirect");
-    let selected = selected_rules_dx(&case, &[]);
-    assert!(selected.is_empty(), "{selected:?}");
-    let enabled = selected_rules_dx(&case, &["--@@rules_dx+//config:toolchains=true"]);
+    let selected = selected_cc(&case, &[]);
     assert!(
-        !enabled.is_empty(),
-        "the toolchains flag selected no rules_dx toolchain"
+        !selected.is_empty() && selected.iter().all(|line| line.contains("local_config_cc")),
+        "{selected:?}"
+    );
+    let enabled = selected_cc(&case, &["--@@rules_dx+//config:toolchains=true"]);
+    assert!(
+        !enabled.is_empty() && enabled.iter().all(|line| !line.contains("local_config_cc")),
+        "{enabled:?}"
     );
 }
 

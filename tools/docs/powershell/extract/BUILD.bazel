@@ -56,6 +56,8 @@ rust_binary(
     ) + [
         ":dx_docs_powershell_extract",
         "//tools/docs/ir/ir:documentation_ir",
+        "@crates//:serde",
+        "@crates//:serde_json",
     ],
 )
 

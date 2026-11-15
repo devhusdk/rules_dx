@@ -48,6 +48,7 @@ rust_binary(
     ) + [
         ":dx_docs_jvm_convert",
         "//tools/docs/ir/ir:documentation_ir",
+        "@crates//:serde_json",
     ],
 )
 

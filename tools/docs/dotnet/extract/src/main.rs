@@ -2,6 +2,9 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use serde as _;
+use serde_json as _;
+use sha2 as _;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

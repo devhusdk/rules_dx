@@ -2,6 +2,9 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use serde as _;
+use serde_json as _;
+use yaml_serde as _;
 use std::path::Path;
 use std::process::ExitCode;
 

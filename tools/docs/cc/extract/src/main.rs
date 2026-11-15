@@ -2,6 +2,7 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use quick_xml as _;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

@@ -1,5 +1,6 @@
 //! Checks that the fixture shard carries the comments of the fixture's .proto files.
 
+use dx_testing as _;
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
 use documentation_ir::validate_shard;
 use shard_test_support::shard;

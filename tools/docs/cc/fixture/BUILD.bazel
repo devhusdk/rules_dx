@@ -15,6 +15,7 @@ cc_library(
     hdrs = ["include/shapes.h"],
     features = ["parse_headers"],
     includes = ["include"],
+    tags = ["no-lint"],
 )
 
 cc_doc_shard(

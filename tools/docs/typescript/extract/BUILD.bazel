@@ -54,6 +54,7 @@ rust_binary(
     ) + [
         ":dx_docs_typescript_extract",
         "//tools/docs/ir/ir:documentation_ir",
+        "@crates//:serde_json",
     ],
 )
 

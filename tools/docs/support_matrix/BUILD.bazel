@@ -91,6 +91,7 @@ rust_test(
         normal_dev = True,
     ) + [
         ":support_matrix",
+        "@crates//:serde",
         "@crates//:serde_json",
         "@rules_rust//rust/runfiles",
     ],
@@ -111,7 +112,11 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/docs/support_matrix",
         normal = True,
-    ) + [":support_matrix"],
+    ) + [
+        ":support_matrix",
+        "@crates//:serde",
+        "@crates//:serde_json",
+    ],
 )
 
 rust_binary(

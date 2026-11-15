@@ -42,7 +42,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_aggregate",
         normal = True,
-    ) + [":dx_site_aggregate"],
+    ) + [
+        ":dx_site_aggregate",
+        "@crates//:serde_json",
+    ],
 )
 
 rust_test(

@@ -115,7 +115,7 @@ fn an_indirect_consumer_resolves_no_gated_rules_dx_toolchain() {
     let case = indirect_consumer("indirect");
     let selected = selected_rules_dx(&case, &[]);
     assert!(selected.is_empty(), "{selected:?}");
-    let enabled = selected_rules_dx(&case, &["--@rules_dx//config:toolchains=true"]);
+    let enabled = selected_rules_dx(&case, &["--@@rules_dx+//config:toolchains=true"]);
     assert!(
         !enabled.is_empty(),
         "the toolchains flag selected no rules_dx toolchain"

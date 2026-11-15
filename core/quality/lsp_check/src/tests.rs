@@ -213,10 +213,7 @@ fn uri_for_unc_path_names_the_host() {
         file_uri(Path::new("\\\\?\\UNC\\h\\s\\c.pkl")),
         "file://h/s/c.pkl"
     );
-    assert_eq!(
-        file_uri(Path::new("\\\\h\\s\\c.pkl")),
-        "file://h/s/c.pkl"
-    );
+    assert_eq!(file_uri(Path::new("\\\\h\\s\\c.pkl")), "file://h/s/c.pkl");
 }
 
 #[test]

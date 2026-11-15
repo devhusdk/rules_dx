@@ -1,6 +1,6 @@
 //! `dx update advisory`: moves the advisory pins in `.dx/pins` to the newest published release.
 
-use super::common::*;
+use super::common::{Env, check_stdout_write, emit_built, report_dx_error};
 use super::update_outdated::registry_fetch;
 use super::update_pr::{
     ACTIONS_PR_REFUSAL, BOT_EMAIL, BOT_NAME, Tools, WORKFLOW_SKIP, open_update_prs, program, push,

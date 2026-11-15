@@ -1,4 +1,4 @@
-use super::common::*;
+use super::common::{Env, check_stdout_write, emit_built, pre_exec, report_dx_error};
 use super::update_outdated::{Collected, collect, registry_fetch, registry_for, split_builtin};
 use dx_adopt::dependency_sets::{self, Selection};
 use dx_error::DxError;
@@ -345,10 +345,9 @@ pub(super) fn program(program: &Path, root: &Path, args: &[&str]) -> Result<Stri
         dx_process::capture::RunError::Failed { stderr, .. } => {
             DxError::failure(format!("{label} failed: {}", tail(&stderr)))
         }
-        other @
-(dx_process::capture::RunError::Spawn { .. } |
-dx_process::capture::RunError::TimedOut { .. } |
-dx_process::capture::RunError::OutputTooLarge { .. }) => {
+        other @ (dx_process::capture::RunError::Spawn { .. }
+        | dx_process::capture::RunError::TimedOut { .. }
+        | dx_process::capture::RunError::OutputTooLarge { .. }) => {
             DxError::infra(format!("{label}: {other}"))
         }
     })
@@ -524,7 +523,9 @@ pub(super) fn open_update_prs(
         .flatten()
         .filter_map(|pr| {
             let head = pr.get("headRefName")?.as_str()?;
-            let cross = pr.get("isCrossRepository").and_then(serde_json::Value::as_bool);
+            let cross = pr
+                .get("isCrossRepository")
+                .and_then(serde_json::Value::as_bool);
             if !head.starts_with("dx-update/") || cross == Some(true) {
                 return None;
             }
@@ -853,7 +854,7 @@ mod tests {
             &fx.origin,
             &["rev-parse", "--verify", "dx-update/cargo"],
         );
-        assert!(!pushed.trim().is_empty());
+        assert!(!pushed.trim().is_empty(), "expected non-empty");
         assert_eq!(
             dx_test_scratch::git(&fx.work, &fx.work, &["rev-parse", "--abbrev-ref", "HEAD"]).trim(),
             "main"
@@ -1116,7 +1117,7 @@ mod tests {
         assert!(!argv.contains("pr create") && !argv.contains("pr edit"));
         let remote =
             dx_test_scratch::git(&fx.origin, &fx.origin, &["branch", "--list", "dx-update/*"]);
-        assert!(remote.trim().is_empty());
+        assert!(remote.trim().is_empty(), "{:?}", remote.trim());
         assert_eq!(
             dx_test_scratch::git(&fx.work, &fx.work, &["status", "--porcelain"]).trim(),
             ""
@@ -1246,7 +1247,7 @@ mod tests {
             &fx.origin,
             &["rev-parse", "--verify", "dx-update/cargo"],
         );
-        assert!(!pushed.trim().is_empty());
+        assert!(!pushed.trim().is_empty(), "expected non-empty");
     }
 
     #[test]

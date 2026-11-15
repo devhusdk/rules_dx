@@ -1,4 +1,12 @@
-use super::*;
+use super::{
+    BTreeMap, BufReader, CODE_COVERAGE_BELOW_MINIMUM, CODE_COVERAGE_SOURCES,
+    CODE_COVERAGE_SOURCES_INCOMPLETE, CellAccount, Destination, Invocation, JunitCase, NoticeEvent,
+    OutputMode, Path, QueryRunner, Sources, StandardFormat, TestCounts, TestEvents, TestOutcome,
+    WorkflowVerb, Write, collect_test_events, emit_built, filtered_notice, is_failed, notice_event,
+    output_locations, render_junit, report_event, report_failed_with_next, test_outcome_event,
+    write_report_document,
+};
+use std::fmt::Write as _;
 
 /// Prints each outcome in the run's output mode and counts the ones that were not superseded.
 pub(super) fn emit_outcomes(
@@ -86,11 +94,11 @@ pub(super) fn write_failed_line(err: &mut dyn Write, outcome: &TestOutcome) {
                 .join(", "),
         );
         if failing.len() > TEXT_CASE_LIMIT {
-            line.push_str(&format!(" and {} more", failing.len() - TEXT_CASE_LIMIT));
+            write!(line, " and {} more", failing.len() - TEXT_CASE_LIMIT).ok();
         }
     }
     if let Some(log) = &outcome.log_path {
-        line.push_str(&format!(" (log: {log})"));
+        write!(line, " (log: {log})").ok();
     }
     writeln!(err, "{line}").ok();
 }

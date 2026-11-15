@@ -299,7 +299,11 @@ mod tests {
                 language: None
             }]
         );
-        assert!(group_with(&[], JSON, fake_query).is_empty());
+        assert!(
+            group_with(&[], JSON, fake_query).is_empty(),
+            "{:?}",
+            group_with(&[], JSON, fake_query)
+        );
     }
 
     #[test]
@@ -321,7 +325,10 @@ mod tests {
 
     #[test]
     fn committed_unsupported_json_parses() {
-        assert!(!known_languages(UNSUPPORTED_JSON).is_empty());
+        assert!(
+            !known_languages(UNSUPPORTED_JSON).is_empty(),
+            "expected non-empty"
+        );
     }
 
     fn generic(count: usize) -> Vec<SkipGroup> {
@@ -341,7 +348,7 @@ mod tests {
             err,
             "dx: skipped 2 targets incompatible with this platform (docs/support-matrix.md)\n"
         );
-        assert!(out.is_empty());
+        assert!(out.is_empty(), "{out:?}");
     }
 
     #[test]

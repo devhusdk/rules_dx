@@ -83,7 +83,7 @@ impl InitFile {
             Kind::Launcher | Kind::Generated => Ownership::Whole,
             Kind::Hooks => Ownership::Keys,
             Kind::AgentsBlock => Ownership::Block,
-            }
+        }
     }
 }
 

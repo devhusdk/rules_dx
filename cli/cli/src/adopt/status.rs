@@ -640,11 +640,7 @@ mod tests {
         );
         assert!(check.detail.contains("tools/dx"), "{}", check.detail);
         let (code, _out, err) = run(
-            &invocation(&[
-                "init",
-                "--apply",
-                "--agents=claude,codex,gemini,copilot",
-            ]),
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
         );
         assert_eq!(code, 0, "{err}");
@@ -749,7 +745,7 @@ mod tests {
         assert_eq!(code, 0);
         let text = out;
         let events = json_events(&text);
-        assert!(!events.is_empty());
+        assert!(!events.is_empty(), "expected non-empty");
         for event in &events {
             assert!(event.get("schema").is_some(), "{event}");
             assert!(event.get("event").is_some(), "{event}");
@@ -771,7 +767,7 @@ mod tests {
             })
             .expect("pin status event");
         assert_eq!(status["severity"], serde_json::json!("info"));
-        assert!(err.is_empty());
+        assert!(err.is_empty(), "{err:?}");
     }
 
     fn status_with(files: &[(&str, &str)], words: &[&str]) -> String {
@@ -1069,7 +1065,7 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         let events = json_events(&out);
         let capabilities = crate::adopt::test_support::events_of_kind(&events, "capability");
-        assert!(capabilities.is_empty());
+        assert!(capabilities.is_empty(), "{capabilities:?}");
     }
 
     #[test]

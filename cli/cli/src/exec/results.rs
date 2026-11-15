@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::path::Path;
 
 use dx_output::{DiagnosticEvent, Origin, RelatedEvent, Severity, Snapshot};
@@ -38,7 +39,9 @@ fn build_dep_fix(dep: &proto::BuildDep) -> Option<Option<Insert>> {
     if !dep.missing {
         return Some(None);
     }
-    let label = if let Some(label) = build_deps::short_label(&dep.package, &dep.label, None) { label } else {
+    let label = if let Some(label) = build_deps::short_label(&dep.package, &dep.label, None) {
+        label
+    } else {
         build_deps::canonical_repo(&dep.label)?;
         dep.label.clone()
     };
@@ -101,17 +104,19 @@ impl Unstable {
     pub(crate) fn describe(&self) -> String {
         let mut text = self.label.clone();
         if self.producer.trim_start_matches("@@") != self.label {
-            text.push_str(&format!(" ({})", self.producer));
+            write!(text, " ({})", self.producer).ok();
         }
         if let Some(configuration) = &self.configuration {
-            text.push_str(&format!(" in configuration {configuration}"));
+            write!(text, " in configuration {configuration}").ok();
         }
-        text.push_str(&format!(
+        write!(
+            text,
             " did not converge: {} after {} round(s) of {}",
             self.convergence,
             self.rounds,
             self.tools.join(", ")
-        ));
+        )
+        .ok();
         text
     }
 }
@@ -988,7 +993,7 @@ mod tests {
             &[announce.clone(), done.clone(), LAST_EVENT.to_owned()],
         );
         assert!(clean.complete, "{:?}", clean.problems);
-        assert!(clean.tools.is_empty());
+        assert!(clean.tools.is_empty(), "{:?}", clean.tools);
         let missing = collect(&harness, &[announce, LAST_EVENT.to_owned()]);
         assert!(!missing.complete);
     }
@@ -1138,7 +1143,7 @@ mod tests {
         let once = collect(&harness, &lines[..3]);
         let twice = collect(&harness, &lines);
         assert_eq!(once.initial.len(), twice.initial.len());
-        assert!(!twice.initial.is_empty());
+        assert!(!twice.initial.is_empty(), "expected non-empty");
     }
 
     #[test]

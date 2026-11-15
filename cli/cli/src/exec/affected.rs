@@ -10,6 +10,7 @@ use dx_plan::resolve::{
     quote_set, resolve_affected, run_label_query_file, shallow_clone,
 };
 use serde_json::{Value, json};
+use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -110,11 +111,13 @@ impl AffectedPlan {
             self.changed_files.len()
         );
         if !self.skipped_external.is_empty() {
-            line.push_str(&format!(
+            write!(
+                line,
                 "\ndx: affected: skipping {} external-repo tests: {}",
                 self.skipped_external.len(),
                 self.skipped_external.join(", ")
-            ));
+            )
+            .ok();
         }
         line
     }
@@ -848,7 +851,11 @@ mod tests {
             generate_scope(dir.path(), &files(&["MODULE.bazel.lock", "svc/a.py"])),
             ["//svc/..."]
         );
-        assert!(generate_scope(dir.path(), &files(&["MODULE.bazel.lock"])).is_empty());
+        assert!(
+            generate_scope(dir.path(), &files(&["MODULE.bazel.lock"])).is_empty(),
+            "{:?}",
+            generate_scope(dir.path(), &files(&["MODULE.bazel.lock"]))
+        );
         assert_eq!(
             generate_scope(dir.path(), &files(&["MODULE.bazel", "svc/a.py"])),
             ["//..."]
@@ -1057,7 +1064,7 @@ mod tests {
         let dir = repo();
         let (plan, runner) = run(dir.path(), Command::Test, &[]);
         assert!(plan.empty());
-        assert!(plan.changed_files.is_empty());
+        assert!(plan.changed_files.is_empty(), "{:?}", plan.changed_files);
         assert!(runner.expressions.borrow().is_empty());
     }
 
@@ -1073,7 +1080,7 @@ mod tests {
         let (plan, runner) = run(root, Command::Build, &[&graph]);
         assert_eq!(plan.changed_files, ["a/a.txt", "a/b.txt", "a/new.txt"]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
-        assert!(plan.widened.is_empty());
+        assert!(plan.widened.is_empty(), "{:?}", plan.widened);
         assert_eq!(runner.expressions.borrow().len(), 1);
     }
 
@@ -1142,7 +1149,7 @@ mod tests {
         let graph = graph();
         let (plan, _) = run(root, Command::Lint, &[&graph]);
         assert_eq!(plan.changed_files, ["a/a.txt", "a/c.txt"]);
-        assert!(plan.widened.is_empty());
+        assert!(plan.widened.is_empty(), "{:?}", plan.widened);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
     }
 
@@ -1405,7 +1412,7 @@ mod tests {
         write(dir.path(), "a/key.txt", "secret\n");
         let graph = graph();
         let (plan, _) = run(dir.path(), Command::Security, &[&graph]);
-        assert!(plan.targets.is_empty());
+        assert!(plan.targets.is_empty(), "{:?}", plan.targets);
         assert!(!plan.empty());
     }
 
@@ -1413,7 +1420,7 @@ mod tests {
     fn security_with_no_changes_is_empty() {
         let dir = repo();
         let (plan, _) = run(dir.path(), Command::Security, &[]);
-        assert!(plan.changed_files.is_empty());
+        assert!(plan.changed_files.is_empty(), "{:?}", plan.changed_files);
         assert!(!plan.unscoped);
         assert!(plan.empty());
     }
@@ -1613,7 +1620,7 @@ mod tests {
         let graph = graph();
         let (plan, _) = run(&workspace, Command::Build, &[&graph]);
         assert_eq!(plan.changed_files, ["a/a.txt"]);
-        assert!(plan.widened.is_empty());
+        assert!(plan.widened.is_empty(), "{:?}", plan.widened);
     }
 
     #[test]

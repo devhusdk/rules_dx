@@ -1147,12 +1147,7 @@ mod sh {
     /// into `workspace`, a real `bazel-out/.../bin/cli`, `workspace/bazel-bin`
     /// pointing at that bin directory, and the `DO_NOT_BUILD_HERE` marker.
     /// Returns the execroot `_main` directory.
-    fn execroot(
-        base: &Path,
-        name: &str,
-        workspace: &Path,
-        marker: Option<&str>,
-    ) -> PathBuf {
+    fn execroot(base: &Path, name: &str, workspace: &Path, marker: Option<&str>) -> PathBuf {
         use std::os::unix::fs::symlink;
         let ob = base.join(name);
         let main = ob.join("execroot/_main");
@@ -1250,7 +1245,7 @@ mod sh {
         let out = child.wait_with_output().expect("launcher exits");
         let err = String::from_utf8_lossy(&out.stderr).into_owned();
         assert_eq!(out.status.signal(), Some(signo), "{err}");
-        assert!(out.stdout.is_empty());
+        assert!(out.stdout.is_empty(), "{:?}", out.stdout);
         assert!(!err.contains("running the previous dx"), "{err}");
         assert!(!err.contains("bazel build //:dx failed"), "{err}");
         let files = repo.state_files();

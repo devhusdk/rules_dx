@@ -60,7 +60,11 @@ fn json_mixed_applied_and_not_applied_fail_together() {
     assert!(changes[0].get("reason").is_none());
     assert_eq!(changes[1]["effect"], serde_json::json!("refused"));
     assert_eq!(changes[1]["reason"], serde_json::json!("stale_source"));
-    assert!(events_of_kind(&events, "mutation").is_empty());
+    assert!(
+        events_of_kind(&events, "mutation").is_empty(),
+        "{:?}",
+        events_of_kind(&events, "mutation")
+    );
     let finished = event(&events, "command_finished");
     assert_eq!(finished["exit_code"], serde_json::json!(1));
     assert_eq!(
@@ -886,7 +890,11 @@ fn main_repo_missing_dep_runs_no_repo_mapping() {
     let harness = missing_and_unused_dep("missing-no-mapping-call", "@@//q:needed");
     let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
     assert_eq!(code, 0, "{out}");
-    assert!(mapping_call(&harness).is_empty());
+    assert!(
+        mapping_call(&harness).is_empty(),
+        "{:?}",
+        mapping_call(&harness)
+    );
 }
 
 #[test]

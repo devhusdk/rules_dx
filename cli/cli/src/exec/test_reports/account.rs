@@ -1,4 +1,10 @@
-use super::*;
+use super::{
+    ActionCounts, ArtifactReader, BTreeMap, CODE_TESTS_FILTERED, Invocation, JunitCase,
+    JunitMessage, NoticeEvent, OutputLocations, OutputMode, Path, PlannedReport, QueryRunner,
+    ReportError, TestCase, TestEvents, TestOutcome, TestResultFile, TestResultRecord, WorkflowVerb,
+    Write, emit_built, notice_event, parse_test_xml, test_result_record,
+};
+use std::fmt::Write as _;
 
 /// Returns one exec path spelled without the build directory, so a report reads the same on every host.
 pub(super) fn stable_exec_path(exec_path: &Path) -> String {
@@ -179,9 +185,7 @@ pub(super) fn result_outcome(status: Option<&str>, summary: Option<&str>) -> Str
 }
 
 /// Indexes `testSummary` overall statuses by target and configuration.
-pub(super) fn summary_statuses(
-    events: &TestEvents,
-) -> BTreeMap<(&str, Option<&str>), &str> {
+pub(super) fn summary_statuses(events: &TestEvents) -> BTreeMap<(&str, Option<&str>), &str> {
     let mut statuses = BTreeMap::new();
     for summary in &events.summaries {
         if let Some(status) = summary.overall_status.as_deref() {
@@ -515,7 +519,7 @@ pub(super) fn filtered_notice(
         labels.join(", ")
     );
     if more > 0 {
-        message.push_str(&format!(" and {more} more"));
+        write!(message, " and {more} more").ok();
     }
     match output {
         OutputMode::Json => {

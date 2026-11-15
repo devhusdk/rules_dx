@@ -1,7 +1,15 @@
 use super::bazel_hint::{recorded, refine};
 use super::breaking_base;
 use super::build_failures::report_build_failures;
-use super::common::*;
+use super::common::{
+    ActionTally, BAZEL_INTERRUPTED, CODE_ANALYSIS_FAILED, CODE_BAZEL_FAILED, CODE_BAZEL_SIGNALLED,
+    CODE_DIFF_FAILED, CODE_INVALID_ARGUMENTS, CODE_NOT_CONVERGED, CODE_UNREADABLE_BEP, Env,
+    Failure, FileChange, LatchedOut, PhaseEffects, PhaseKind, PhaseRun,
+    REASON_INCOMPLETE_COLLECTION, SourceRead, bazel_exit_event, bazel_failure_code, bep_error_code,
+    check_stdout_write, collect_output_account, emit_built, emit_event, findings_summary,
+    operational_output, pre_exec, read_actions, report_dx_error, report_failure, resolve_failed,
+    run_bazel_output, server_died, warn_scope_excluded,
+};
 use super::guidance::{apply_hint, rerun_hint};
 use super::link_check;
 use super::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
@@ -217,7 +225,9 @@ fn probe_shards(
         bep_text,
         &request.bazel_startup_options,
         consumer,
-    ) else { return Ok(None) };
+    ) else {
+        return Ok(None);
+    };
     let status = runner.run(&plan.argv, workspace, &[]);
     *probe_counts = read_actions(&bep, actions);
     let shards = match &status {

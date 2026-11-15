@@ -1,4 +1,8 @@
-use super::common::*;
+use super::common::{
+    CODE_DIFF_FAILED, CODE_GENERATION_FAILED, CODE_INVALID_RESULT, Env, PhaseEffects, PhaseKind,
+    PhaseRun, bazel_failure_code, check_stdout_write, emit_bazel_exit, emit_built, emit_event,
+    kept_child, operational_output, pre_exec, resolve_failed, run_bazel_output,
+};
 use dx_adopt::dependency_sets::Ecosystem;
 use dx_output::{
     FinishedCounts, OutputMode, change_value, command_finished, command_started, notice_value,
@@ -675,10 +679,15 @@ fn run_generate_request(
 fn failed_generate(kind: PhaseKind) -> PhaseKind {
     match kind {
         PhaseKind::Incomplete | PhaseKind::Tool => PhaseKind::GenerateFailed,
-        other @
-(PhaseKind::Clean | PhaseKind::Findings | PhaseKind::NonConvergence |
-PhaseKind::Selection | PhaseKind::Report | PhaseKind::Compile |
-PhaseKind::Host | PhaseKind::Cancelled | PhaseKind::GenerateFailed) => other,
+        other @ (PhaseKind::Clean
+        | PhaseKind::Findings
+        | PhaseKind::NonConvergence
+        | PhaseKind::Selection
+        | PhaseKind::Report
+        | PhaseKind::Compile
+        | PhaseKind::Host
+        | PhaseKind::Cancelled
+        | PhaseKind::GenerateFailed) => other,
     }
 }
 
@@ -1416,9 +1425,12 @@ mod tests {
             .get(GENERATE_ENV_INTENDED)
             .copied()
             .expect("witness path");
-        assert!(Path::new(intended)
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("json")), "{intended}");
+        assert!(
+            Path::new(intended)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("json")),
+            "{intended}"
+        );
         assert_eq!(
             std::fs::read(intended).expect("witness bytes"),
             harness.intended.expect("canned witness"),

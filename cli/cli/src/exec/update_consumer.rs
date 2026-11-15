@@ -613,14 +613,15 @@ impl<'a> UvTools<'a> {
     fn closure(&mut self) -> dx_update::backend::UvClosure {
         use dx_update::backend as be;
         let runner = self.runner;
-        let (uv, uv_detail) = if let Some(done) = self.uv.take() { done } else {
+        let (uv, uv_detail) = if let Some(done) = self.uv.take() {
+            done
+        } else {
             let (path, detail) = self.resolve(be::UV_BIN_VAR, be::UV_LABEL);
             let path = path.filter(|path| {
                 runner
                     .tool_version(std::path::Path::new(path))
                     .is_some_and(|line| {
-                        let name_and_version: Vec<&str> =
-                            line.split_whitespace().take(2).collect();
+                        let name_and_version: Vec<&str> = line.split_whitespace().take(2).collect();
                         name_and_version.join(" ") == be::UV_VERSION_LINE
                     })
             });

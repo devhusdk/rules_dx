@@ -1,4 +1,4 @@
-use super::*;
+use super::Path;
 use dx_error::DxError;
 
 const OWNER_NOTE: &str =

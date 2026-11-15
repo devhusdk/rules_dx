@@ -1,4 +1,9 @@
-use super::common::*;
+use super::common::{
+    CODE_AUDIT_ACCEPTED, CODE_AUDIT_FAILED, CODE_INVALID_ARGUMENTS, CODE_INVALID_RESULT,
+    CODE_OFFLINE_REQUIRED, Env, audit_clean_code, check_stdout_write, emit_built, emit_event,
+    frozen_summary, offline_summary, pre_exec, report_dx_error, report_failed, text_finding,
+    write_report_document,
+};
 use super::pinned_tool::QueryBazel;
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_error::DxError;
@@ -11,6 +16,7 @@ use dx_plan::args::{Command, Invocation};
 use dx_plan::reports::{Destination, plan_reports};
 use dx_plan::resolve::QueryRunner;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -106,7 +112,10 @@ impl AuditError {
             }
             AuditError::AdvisoryUnsupported { .. }
             | AuditError::AdvisoryUtf8 { .. }
-            | AuditError::AdvisoryParse { .. } | AuditError::AdvisoryPinFetch { .. } => dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED,
+            | AuditError::AdvisoryParse { .. }
+            | AuditError::AdvisoryPinFetch { .. } => {
+                dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED
+            }
             AuditError::OfflineRequired { .. } => CODE_OFFLINE_REQUIRED,
             AuditError::NoOwningSet { .. }
             | AuditError::Read { .. }
@@ -428,9 +437,14 @@ fn parse_locked_for_configured(
     if let Some((label, exact)) = expected {
         let parsed = locks.iter().any(|(rel, _)| {
             let name = rel.rsplit('/').next().unwrap_or(rel);
-            exact.map_or_else(|| Path::new(name)
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("json")), |want| name == want)
+            exact.map_or_else(
+                || {
+                    Path::new(name)
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+                },
+                |want| name == want,
+            )
         });
         if !parsed {
             return Err(AuditError::LockUnsupported {
@@ -459,7 +473,8 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Hex => dx_audit::locks::parse_hex_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Fpm => dx_audit::locks::parse_fpm_lock(text),
-            dx_adopt::dependency_sets::Ecosystem::Zig | dx_adopt::dependency_sets::Ecosystem::Bazel
+            dx_adopt::dependency_sets::Ecosystem::Zig
+            | dx_adopt::dependency_sets::Ecosystem::Bazel
             | dx_adopt::dependency_sets::Ecosystem::Ansible
             | dx_adopt::dependency_sets::Ecosystem::Bicep => Ok(Vec::new()),
             dx_adopt::dependency_sets::Ecosystem::Dub => match rel.rsplit('/').next() {
@@ -513,9 +528,13 @@ fn parse_locked_for_configured(
             // The versions live in the manifest; the lock only holds hashes (see the builtin set).
             dx_adopt::dependency_sets::Ecosystem::Go => dx_audit::locks::go_locked_packages(text),
             dx_adopt::dependency_sets::Ecosystem::Maven => match rel.rsplit('/').next() {
-                Some(name) if Path::new(name)
-                    .extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("json")) => dx_audit::locks::parse_maven_install(text),
+                Some(name)
+                    if Path::new(name)
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("json")) =>
+                {
+                    dx_audit::locks::parse_maven_install(text)
+                }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Nuget => match rel.rsplit('/').next() {
@@ -545,7 +564,8 @@ fn parse_locked_for_configured(
     all.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     all.dedup_by(|b, a| a.name == b.name && a.version == b.version);
     let fallback = locks
-        .first().map_or_else(|| "unknown lockfile".to_owned(), |(rel, _)| rel.clone());
+        .first()
+        .map_or_else(|| "unknown lockfile".to_owned(), |(rel, _)| rel.clone());
     Ok((
         all,
         LockPaths {
@@ -602,23 +622,28 @@ pub(super) fn bazel_inputs_for_configured(
         AuditError::Read { rel, error } if error.kind() == std::io::ErrorKind::NotFound => {
             AuditError::LockMissing { rel }
         }
-        other @
-(AuditError::NoOwningSet { .. } | AuditError::Read { .. } |
-AuditError::NotUtf8 { .. } | AuditError::AdvisoryUnsupported { .. } |
-AuditError::AdvisoryUtf8 { .. } | AuditError::AdvisoryParse { .. } |
-AuditError::AdvisoryPinMissing { .. } | AuditError::AdvisoryPinMismatch { .. }
-| AuditError::AdvisoryPinFetch { .. } | AuditError::LockMissing { .. } |
-AuditError::LockParse { .. } | AuditError::LockUnsupported { .. } |
-AuditError::LicenseInvalid { .. } | AuditError::SecurityInvalid(_) |
-AuditError::OfflineRequired { .. } | AuditError::Hub(_)) => other,
+        other @ (AuditError::NoOwningSet { .. }
+        | AuditError::Read { .. }
+        | AuditError::NotUtf8 { .. }
+        | AuditError::AdvisoryUnsupported { .. }
+        | AuditError::AdvisoryUtf8 { .. }
+        | AuditError::AdvisoryParse { .. }
+        | AuditError::AdvisoryPinMissing { .. }
+        | AuditError::AdvisoryPinMismatch { .. }
+        | AuditError::AdvisoryPinFetch { .. }
+        | AuditError::LockMissing { .. }
+        | AuditError::LockParse { .. }
+        | AuditError::LockUnsupported { .. }
+        | AuditError::LicenseInvalid { .. }
+        | AuditError::SecurityInvalid(_)
+        | AuditError::OfflineRequired { .. }
+        | AuditError::Hub(_)) => other,
     })?;
     let module_dir = module_rel.rsplit_once('/').map_or("", |(dir, _)| dir);
     let read_include = |label: &str| -> Result<String, DxError> {
-        let rel =
-            dx_module_bazel::include_rel(module_dir, label).map_err(DxError::failure)?;
-        read_workspace_text(workspace, &rel).map_err(|error| {
-            DxError::failure(format!("cannot read included {label}: {error}"))
-        })
+        let rel = dx_module_bazel::include_rel(module_dir, label).map_err(DxError::failure)?;
+        read_workspace_text(workspace, &rel)
+            .map_err(|error| DxError::failure(format!("cannot read included {label}: {error}")))
     };
     let inventory = dx_audit::locks::parse_bazel_inputs(&module_text, &lock_text, &read_include)
         .map_err(|detail| AuditError::LockParse {
@@ -634,9 +659,7 @@ fn bazel_coverage_diagnostic(
     lock_rel: &str,
 ) -> DiagnosticEvent {
     let inputs = &inventory.inputs;
-    let count = |source: BazelSource| {
-        inputs.iter().filter(|input| input.source == source).count()
-    };
+    let count = |source: BazelSource| inputs.iter().filter(|input| input.source == source).count();
     use dx_audit::locks::BazelSource;
     let mut message = format!(
         "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule, {} module extension); no advisory source maps Bazel module or archive identities",
@@ -651,11 +674,12 @@ fn bazel_coverage_diagnostic(
         count(BazelSource::Extension),
     );
     if !inventory.unrecorded_extensions.is_empty() {
-        message.push_str(&format!(
+        write!(
+            message,
             "; {} root module extensions have no entry in {lock_rel} (reproducible, or the lock is stale), so their repos are not listed: {}",
             inventory.unrecorded_extensions.len(),
             inventory.unrecorded_extensions.join(", ")
-        ));
+        ).ok();
     }
     DiagnosticEvent {
         rule: Some(format!(
@@ -1345,8 +1369,10 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             }
         }
         if !problems.is_empty() {
-            let first = problems
-                .first().map_or_else(|| "exception validation failed".to_owned(), ToString::to_string);
+            let first = problems.first().map_or_else(
+                || "exception validation failed".to_owned(),
+                ToString::to_string,
+            );
             if incomplete.is_none() {
                 incomplete = Some(format!("failed to assess {label}: {first}"));
             }
@@ -2050,12 +2076,12 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
 
 #[path = "audit_accept.rs"]
 mod audit_accept;
-use audit_accept::*;
+use audit_accept::{Acceptance, LicenseCandidate, VulnCandidate, accept_license, accept_security};
 #[path = "audit_images.rs"]
 mod audit_images;
 #[path = "audit_license.rs"]
 mod audit_license;
-use audit_license::*;
+use audit_license::run_license;
 #[path = "audit_cyclonedx.rs"]
 mod audit_cyclonedx;
 #[path = "audit_spdx.rs"]

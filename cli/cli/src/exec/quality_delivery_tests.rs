@@ -54,7 +54,7 @@ fn a_failed_start_event_starts_no_child_and_no_mutation() {
             assert_eq!(code, want, "{command} {kind:?}");
             assert_eq!(launches(&h), 0, "{command} {kind:?}");
             assert_eq!(source(&h), b"x = 1\n", "{command} {kind:?}");
-            assert!(sink.bytes.is_empty());
+            assert!(sink.bytes.is_empty(), "{:?}", sink.bytes);
         }
     }
 }
@@ -135,7 +135,7 @@ fn a_failed_diff_never_returns_success() {
         let mut sink = Sink::new(Fault::WriteFails(kind), 1);
         let (code, _) = run(&h, &["format", "--diff"], &mut sink);
         assert_eq!(code, want, "{kind:?}");
-        assert!(sink.bytes.is_empty());
+        assert!(sink.bytes.is_empty(), "{:?}", sink.bytes);
         assert_eq!(source(&h), b"x = 1\n");
     }
 }
@@ -166,7 +166,7 @@ fn partial_writes_deliver_the_whole_diff() {
     let (code, _) = run(&h, &["format", "--diff"], &mut sink);
     assert_eq!(code, want);
     assert_eq!(sink.bytes, whole.bytes);
-    assert!(!sink.bytes.is_empty());
+    assert!(!sink.bytes.is_empty(), "expected non-empty");
 }
 
 #[test]

@@ -1,4 +1,6 @@
-use super::common::*;
+use super::common::{
+    CODE_OFFLINE_REQUIRED, Env, check_stdout_write, emit_built, operational, pre_exec,
+};
 use super::update_unused::{self, Missing, Unused};
 use dx_adopt::dependency_sets::{self, Ecosystem, Selection};
 use dx_error::DxError;
@@ -450,11 +452,9 @@ pub(super) fn collect(
             }
             Ecosystem::SwiftPm => {
                 registries.insert(name.to_owned(), Registry::SwiftUrl);
-                let Some(lock_name) = hub_name(
-                    dependency_sets::package_resolved(),
-                    name,
-                    &mut read_errors,
-                ) else {
+                let Some(lock_name) =
+                    hub_name(dependency_sets::package_resolved(), name, &mut read_errors)
+                else {
                     continue;
                 };
                 let resolved: Vec<String> = target
@@ -703,7 +703,8 @@ pub(super) fn cabal_files(workspace: &Path, projects: &[String]) -> Vec<String> 
             let file = entry.file_name().to_string_lossy().into_owned();
             if Path::new(&file)
                 .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("cabal")) {
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("cabal"))
+            {
                 files.push(if dir.is_empty() {
                     file
                 } else {
@@ -1266,7 +1267,11 @@ mod tests {
             false,
             &DirFetch(dir.path().to_owned()),
         );
-        assert!(collected.found.candidates.is_empty());
+        assert!(
+            collected.found.candidates.is_empty(),
+            "{:?}",
+            collected.found.candidates
+        );
         assert_eq!(collected.found.errors.len(), 1);
         assert_eq!(collected.found.errors[0].set, "web");
         assert_eq!(collected.found.errors[0].package, gone);
@@ -1455,7 +1460,11 @@ mod tests {
         assert_eq!(candidate.set, "containers");
         assert_eq!(candidate.package, "distroless_static");
         assert_eq!((&candidate.current, &candidate.latest), (&old, &new));
-        assert!(collected.found.errors.is_empty());
+        assert!(
+            collected.found.errors.is_empty(),
+            "{:?}",
+            collected.found.errors
+        );
     }
 
     #[test]
@@ -1479,7 +1488,11 @@ mod tests {
         let collected = collect(&root, &[], &builtins, false, &DirFetch(root.join("mirror")));
         let written = std::fs::read_to_string(root.join(BCR_NEWEST_FILE));
         drop(std::fs::remove_dir_all(&root));
-        assert!(collected.found.errors.is_empty());
+        assert!(
+            collected.found.errors.is_empty(),
+            "{:?}",
+            collected.found.errors
+        );
         assert_eq!(
             written.expect("snapshot"),
             "{\n  \"rules_cc\": \"0.2.0\"\n}\n"

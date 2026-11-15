@@ -137,7 +137,11 @@ fn stack_fixture_lock_is_audited() {
 
 #[test]
 fn zig_locks_carry_no_versions_to_audit() {
-    assert!(locked_names(Ecosystem::Zig, "native/zig.lock.json", "{}").is_empty());
+    assert!(
+        locked_names(Ecosystem::Zig, "native/zig.lock.json", "{}").is_empty(),
+        "{:?}",
+        locked_names(Ecosystem::Zig, "native/zig.lock.json", "{}")
+    );
 }
 
 struct Recorder(RefCell<Vec<Vec<String>>>);

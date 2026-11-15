@@ -1,4 +1,9 @@
-use super::common::*;
+use super::common::{
+    AppExit, CODE_APPLICATION_FAILED, CODE_INVALID_ARGUMENTS, Env, app_exited_line,
+    app_signalled_line, bazel_exit_event, bazel_failure_code, emit_built, emit_event, kept_child,
+    pre_exec, report_dx_error, resolve_failed, run_bazel, run_bazel_app,
+    run_bazel_app_withdrawable, run_bazel_withdrawable,
+};
 use dx_output::{FinishedCounts, OutputMode, command_finished, command_started, operation_event};
 use dx_plan::args::Invocation;
 use dx_plan::plan::{BuildPlan, plan_run, plan_run_build};
@@ -392,6 +397,7 @@ fn run_targets(
 mod tests {
     use super::super::test_support::*;
     use super::*;
+    use super::super::failure::Failure;
     use dx_plan::args::Command;
     use dx_plan::args::parse;
     use dx_plan::resolve::ResolveError;

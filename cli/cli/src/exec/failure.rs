@@ -152,7 +152,8 @@ impl Failure {
             ResolveError::QueryFailed {
                 failure: QueryFailure::Prepare { .. },
                 ..
-            } | ResolveError::EmptyScope
+            }
+            | ResolveError::EmptyScope
             | ResolveError::RelativeLabel { .. }
             | ResolveError::ExternalScope { .. }
             | ResolveError::OutsideWorkspace { .. }
@@ -176,7 +177,7 @@ impl Failure {
             ResolveError::AmbiguousRunnable { .. } => ("ambiguous_runnable", operational_code()),
             ResolveError::NotDeployable { .. } => (CODE_NOT_DEPLOYABLE, pre_exec_code()),
             ResolveError::Config { .. } => ("invalid_config", pre_exec_code()),
-            };
+        };
         let mut failure = Failure::new(code, &error.to_string(), exit);
         failure.phase = Some("resolve");
         match error {
@@ -471,7 +472,7 @@ mod tests {
             cancel(OutputMode::Text { quiet: false }, &mut out, &mut err, 2),
             130
         );
-        assert!(out.is_empty());
+        assert!(out.is_empty(), "{out:?}");
     }
 
     #[test]
@@ -742,7 +743,7 @@ mod tests {
             &failure,
         );
         assert_eq!(code, 2);
-        assert!(out.is_empty());
+        assert!(out.is_empty(), "{out:?}");
         let err = String::from_utf8(err).expect("utf8");
         assert_eq!(
             err,

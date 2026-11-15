@@ -496,9 +496,9 @@ mod tests {
         let metrics = include_str!("testdata/bazel_build_metrics.json");
         let mut report = build(trace, None, None).expect("report");
         report.totals = dx_bep::collect_build_totals(metrics.as_bytes());
-        assert!(!report.critical.is_empty());
+        assert!(!report.critical.is_empty(), "expected non-empty");
         assert!(report.critical_micros > 0);
-        assert!(!report.slowest.is_empty());
+        assert!(!report.slowest.is_empty(), "expected non-empty");
         assert!(report.fetches > 0);
         let totals = report.totals.as_ref().expect("totals");
         assert!(totals.critical_path_ms.unwrap_or(0) > 0);

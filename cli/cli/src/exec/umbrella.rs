@@ -1,4 +1,9 @@
-use super::common::*;
+use super::common::{
+    ActionTally, BAZEL_TESTS_FAILED, CODE_COLLECTION_FAILED, CODE_COMMIT_NOT_CONVENTIONAL,
+    CODE_UMBRELLA_PHASE_FINDINGS, CODE_UMBRELLA_PHASE_SKIPPED, CODE_VERIFICATION_FAILED, Env,
+    LatchedOut, PhaseEffects, PhaseKind, PhaseRun, check_stdout_write, emit_built, emit_event,
+    pre_exec, report_failed, write_report_file,
+};
 use super::failure::CODE_INVALID_SCOPE;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
@@ -16,6 +21,7 @@ use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner};
 use dx_process::{Runner, interrupted};
 use serde_json::{Value, json};
 use serde_sarif::sarif::Sarif;
+use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -710,7 +716,9 @@ fn verify_fix(
             (&phase_out, &phase_err),
             code,
         );
-        if let Ok(readable) = forwarded { outcome.readable &= readable } else {
+        if let Ok(readable) = forwarded {
+            outcome.readable &= readable
+        } else {
             outcome.readable = false;
             let message = format!("{verify_phase} events could not be forwarded");
             writeln!(outcome.err, "dx: {CODE_COLLECTION_FAILED}: {message}").ok();
@@ -774,10 +782,7 @@ fn announce_verification_failure(
 ) -> Result<(), i32> {
     let mut message = format!("{phase} failed verification after apply");
     if !skipped.is_empty() {
-        message.push_str(&format!(
-            "; verification skipped for {}",
-            skipped.join(", ")
-        ));
+        write!(message, "; verification skipped for {}", skipped.join(", ")).ok();
     }
     writeln!(err, "dx: {CODE_VERIFICATION_FAILED}: {message}").ok();
     if output != OutputMode::Json {

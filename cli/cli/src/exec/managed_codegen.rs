@@ -1,4 +1,4 @@
-use super::common::*;
+use super::common::{ExecError, collect_targets};
 use super::managed_staging::{ensure_generation_dir, symlink_leaf};
 use dx_atomic_fs::lease::SharedLease;
 use dx_path::{PathProblem, WorkspaceRelativePath};
@@ -53,7 +53,11 @@ fn resolve_logical_entries(
     let mut entries = Vec::with_capacity(projection.len());
     for entry in projection {
         let path = logical_path(&entry.logical_path).map_err(invalid_plan)?;
-        let replaces = if entry.replaces.is_empty() { None } else { Some(logical_path(&entry.replaces).map_err(invalid_plan)?) };
+        let replaces = if entry.replaces.is_empty() {
+            None
+        } else {
+            Some(logical_path(&entry.replaces).map_err(invalid_plan)?)
+        };
         if replaces.as_ref().is_some_and(|declared| *declared != path) {
             return Err(invalid_plan(format!(
                 "entry {} carries a replacement contract for {}, want the logical path itself",

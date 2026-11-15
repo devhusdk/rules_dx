@@ -7,6 +7,7 @@ use dx_output::{
     BuildFailureEvent, FailureDiagnostic, FailureRelated, NoticeEvent, OutputMode,
     build_failure_event, notice_event,
 };
+use std::fmt::Write as _;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 
@@ -222,10 +223,12 @@ fn add_skip_reason(event: &mut BuildFailureEvent) {
         return;
     };
     if let Some(message) = &mut event.message {
-        message.push_str(&format!(
+        write!(
+            message,
             "\n{} is not supported on this platform: {} (docs/support-matrix.md)",
             language.title, language.reason
-        ));
+        )
+        .ok();
     }
 }
 
@@ -240,47 +243,47 @@ fn describe(event: &BuildFailureEvent) -> String {
         event.category
     );
     if let Some(mnemonic) = &event.mnemonic {
-        text.push_str(&format!(", {mnemonic}"));
+        write!(text, ", {mnemonic}").ok();
     }
     text.push(')');
     if event.count > 1 {
-        text.push_str(&format!(" x{}", event.count));
+        write!(text, " x{}", event.count).ok();
     }
     if let Some(message) = &event.message {
-        text.push_str(&format!(": {message}"));
+        write!(text, ": {message}").ok();
     }
     for diagnostic in &event.diagnostics {
-        text.push_str(&format!("\n  {}", diagnostic.severity));
+        write!(text, "\n  {}", diagnostic.severity).ok();
         if let Some(code) = &diagnostic.code {
-            text.push_str(&format!("[{code}]"));
+            write!(text, "[{code}]").ok();
         }
-        text.push_str(&format!(": {}", diagnostic.message));
+        write!(text, ": {}", diagnostic.message).ok();
         if let Some(path) = &diagnostic.path {
-            text.push_str(&format!(" ({path}"));
+            write!(text, " ({path}").ok();
             if let Some(line) = diagnostic.line {
-                text.push_str(&format!(":{line}"));
+                write!(text, ":{line}").ok();
                 if let Some(column) = diagnostic.column {
-                    text.push_str(&format!(":{column}"));
+                    write!(text, ":{column}").ok();
                 }
             }
             text.push(')');
         }
         for related in &diagnostic.related {
-            text.push_str(&format!("\n    {}: {}", related.role, related.message));
+            write!(text, "\n    {}: {}", related.role, related.message).ok();
             if let Some(path) = &related.path {
-                text.push_str(&format!(" ({path}"));
+                write!(text, " ({path}").ok();
                 if let Some(line) = related.line {
-                    text.push_str(&format!(":{line}"));
+                    write!(text, ":{line}").ok();
                     if let Some(column) = related.column {
-                        text.push_str(&format!(":{column}"));
+                        write!(text, ":{column}").ok();
                     }
                 }
                 text.push(')');
             }
             if let Some(replacement) = &related.replacement {
-                text.push_str(&format!(" suggests `{replacement}`"));
+                write!(text, " suggests `{replacement}`").ok();
                 if let Some(applicability) = &related.applicability {
-                    text.push_str(&format!(" [{applicability}]"));
+                    write!(text, " [{applicability}]").ok();
                 }
             }
         }
@@ -668,7 +671,11 @@ mod tests {
         let merged = dedupe(vec![a, b]);
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].count, 2);
-        assert!(merged[0].diagnostics[0].related.is_empty());
+        assert!(
+            merged[0].diagnostics[0].related.is_empty(),
+            "{:?}",
+            merged[0].diagnostics[0].related
+        );
     }
 
     #[test]
@@ -790,7 +797,7 @@ mod tests {
         let harness = with_bep("bf-malformed", 9, vec!["not json".to_owned()]);
         let (code, out, _) = harness.run(&["build", "--output=json"]);
         assert_eq!(code, 9, "{out}");
-        assert!(failures_of(&out).is_empty());
+        assert!(failures_of(&out).is_empty(), "{:?}", failures_of(&out));
         let events = json_events(&out);
         assert_eq!(event(&events, "command_finished")["exit_code"], 9);
     }
@@ -802,7 +809,7 @@ mod tests {
         harness.skip_bep = true;
         let (code, out, _) = harness.run(&["build", "--output=json"]);
         assert_eq!(code, 2, "{out}");
-        assert!(failures_of(&out).is_empty());
+        assert!(failures_of(&out).is_empty(), "{:?}", failures_of(&out));
         let events = json_events(&out);
         assert_eq!(
             events_of_kind(&events, "notice")[0]["code"],
@@ -836,7 +843,7 @@ mod tests {
         let harness = Harness::new("bf-ok");
         let (code, out, _) = harness.run(&["build", "--output=json"]);
         assert_eq!(code, 0);
-        assert!(failures_of(&out).is_empty());
+        assert!(failures_of(&out).is_empty(), "{:?}", failures_of(&out));
     }
 
     #[test]
@@ -1055,7 +1062,7 @@ mod tests {
             ),
             Err(128 + 13)
         );
-        assert!(err.is_empty());
+        assert!(err.is_empty(), "{err:?}");
     }
 
     #[test]

@@ -548,7 +548,10 @@ fn npm_env() -> Vec<(String, String)> {
     ]
 }
 
-#[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test compares against the backend argv"
+)]
 fn npm_call(
     harness: &Harness,
     startup: &[String],
@@ -970,7 +973,10 @@ fn cargo_harness(name: &str) -> Harness {
     harness
 }
 
-#[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test compares against the backend argv"
+)]
 fn cargo_call(startup: &[String], offline: bool, repository: &str) -> Vec<String> {
     let mut argv = dx_process::startup_argv(startup);
     argv.push("fetch".to_owned());
@@ -1298,7 +1304,10 @@ fn maven_harness(name: &str) -> Harness {
     harness
 }
 
-#[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test compares against the backend argv"
+)]
 fn maven_pin_call(repository: &str) -> Vec<String> {
     let mut argv = dx_process::startup_argv(&[]);
     argv.push("run".to_owned());
@@ -1624,7 +1633,10 @@ fn consumer_go_check_runs_go_in_scratch_with_forced_env_and_cleans_up() {
     let launches = runner.launches.borrow();
     assert_eq!(launches.len(), 1);
     let argv = &launches[0].argv;
-    #[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the test compares against the backend argv"
+    )]
     let mut head = dx_process::startup_argv(&[]);
     head.extend(strings_of(&[
         "run",
@@ -2125,10 +2137,7 @@ fn consumer_cabal_check_runs_the_lock_step_in_check_mode() {
     assert_eq!(code, 0, "{out}{err}");
     let launches = runner.launches.borrow();
     assert_eq!(launches.len(), 1, "{launches:?}");
-    assert_eq!(
-        launches[0].argv.last().map(String::as_str),
-        Some("--check")
-    );
+    assert_eq!(launches[0].argv.last().map(String::as_str), Some("--check"));
     assert_eq!(cabal_bytes(&harness), before);
 }
 

@@ -1,4 +1,8 @@
-use super::common::*;
+use super::common::{
+    CODE_MANAGED_COMMIT_FAILED, CODE_MANAGED_NO_CAPABILITY, CODE_UNREADABLE_BEP, Env,
+    bazel_exit_event, bazel_failure_code, check_stdout_write, emit_built, emit_event, kept_child,
+    operational, pre_exec, read_actions, report_dx_error, resolve_failed, run_bazel,
+};
 use super::managed_prepare::{map_commit_error, prepare_error_code, prepare_managed_sides};
 use dx_output::{
     ActionCounts, FinishedCounts, OutputMode, command_finished, command_started, operation_event,
@@ -117,7 +121,8 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         std::fs::remove_file(&bep).ok();
         if json {
             let scope_text = op_scope
-                .as_deref().map_or_else(|| "//...".to_owned(), |scope| scope.join(" "));
+                .as_deref()
+                .map_or_else(|| "//...".to_owned(), |scope| scope.join(" "));
             if let Err(exit) = emit_built(
                 out,
                 bazel_exit_event(

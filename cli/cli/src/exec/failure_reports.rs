@@ -1,5 +1,5 @@
 use super::build_failures::to_event;
-use super::common::*;
+use super::common::{emit_built, report_failed, write_report_document};
 use dx_bep::{BuildFailure, StderrRef, collect_build_failures};
 use dx_output::{OutputMode, build_failure_event, report_event};
 use dx_plan::args::Invocation;
@@ -132,9 +132,7 @@ fn document(bep: &Path, bazel_code: i32) -> (String, bool) {
     let truncated = omitted > 0
         || records.iter().any(|record| {
             matches!(
-                record
-                    .pointer("/stderr/status")
-                    .and_then(Value::as_str),
+                record.pointer("/stderr/status").and_then(Value::as_str),
                 Some("truncated" | "omitted_limit")
             )
         });

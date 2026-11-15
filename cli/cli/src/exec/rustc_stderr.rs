@@ -425,7 +425,7 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].file, None);
         assert_eq!(found[0].line, None);
-        assert!(found[0].related.is_empty());
+        assert!(found[0].related.is_empty(), "{:?}", found[0].related);
     }
 
     #[test]

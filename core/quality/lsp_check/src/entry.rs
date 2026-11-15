@@ -9,7 +9,7 @@ const USAGE: &str = "usage: lsp_check [--language-id ID] [--quiet-ms N] [--timeo
 fn parse(args: &[String]) -> Result<(Options, Vec<String>, Vec<PathBuf>), String> {
     let mut options = Options {
         quiet: Duration::from_millis(1500),
-        timeout: Duration::from_secs(120),
+        timeout: Duration::from_secs(45),
         language_id: String::new(),
     };
     let mut rest = args.iter();

@@ -3,7 +3,10 @@ use quality_adapter::{commands, parsers};
 
 use super::check::{CheckCall, ToolDef, in_file, real_launcher};
 use super::single_run::paths;
-use super::{RealBackend, RunnerError, PathBuf, Path, execution, parsed, PKL_LSP_HOME_REL, RealTool, with_stderr, JULIALINT_STANDARD};
+use super::{
+    JULIALINT_STANDARD, PKL_LSP_HOME_REL, Path, PathBuf, RealBackend, RealTool, RunnerError,
+    execution, parsed, with_stderr,
+};
 
 /// The bundled standard phpcs runs when the consumer binds no config.
 const PHPCS_STANDARD: &str = "PSR12";
@@ -310,7 +313,9 @@ fn julialint(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFind
     std::fs::create_dir_all(&work)
         .map_err(|err| execution(tool_id, format!("stage julialint work dir: {err}")))?;
     let report = work.join("report.json");
-    let config = if let Some(path) = call.config { path.to_path_buf() } else {
+    let config = if let Some(path) = call.config {
+        path.to_path_buf()
+    } else {
         let path = work.join("JuliaLint.toml");
         std::fs::write(&path, JULIALINT_STANDARD)
             .map_err(|err| execution(tool_id, format!("stage julialint config: {err}")))?;
@@ -646,7 +651,10 @@ fn credo(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>
     Ok(findings)
 }
 
-fn mix_format(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
+fn mix_format(
+    backend: &RealBackend,
+    call: &CheckCall<'_>,
+) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -728,7 +736,10 @@ fn rubocop(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFindin
     )
 }
 
-fn lint_family(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
+fn lint_family(
+    backend: &RealBackend,
+    call: &CheckCall<'_>,
+) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;

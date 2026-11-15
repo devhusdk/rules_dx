@@ -3,7 +3,11 @@ use std::path::{Path, PathBuf};
 
 use quality_adapter::exec::{MirrorContents, MirrorFile};
 
-use super::{BICEP_HOME_REL, RealTool, RealBackend, BICEP_CONFIG_REL, SELENE_STD_FILE, SELENE_STD_BYTES, StagedScratch, RunnerError, fresh_scratch, execution, write_all, Scratch, missing_tier_base, parent_rel, StagedPair};
+use super::{
+    BICEP_CONFIG_REL, BICEP_HOME_REL, RealBackend, RealTool, RunnerError, SELENE_STD_BYTES,
+    SELENE_STD_FILE, Scratch, StagedPair, StagedScratch, execution, fresh_scratch,
+    missing_tier_base, parent_rel, write_all,
+};
 
 /// Tools that never run without a bound config: the runner has no default of its own, so the
 /// tier base the policy binds is the only one.
@@ -270,6 +274,10 @@ impl RealBackend {
         })
     }
 
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     pub(super) fn config_abs(
         &self,
         tool_id: &str,
@@ -315,7 +323,7 @@ impl RealBackend {
         let jars = |prefix: &'static str| {
             tool.tool_files
                 .iter()
-                .filter(move |(rel, _)| rel.starts_with(prefix) && rel.ends_with(".jar"))
+                .filter(move |(rel, _)| rel.starts_with(prefix) && super::has_extension(rel, "jar"))
                 .map(|(rel, _)| scratch.root().join(rel))
         };
         let semanticdb = scratch.root().join("dx-scalafix").join("semanticdb");

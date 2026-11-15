@@ -1,7 +1,7 @@
 use quality_adapter::{commands, parsers};
 
 use super::check::ToolDef;
-use super::{RealBackend, parsed, PathBuf, execution, Path, RunnerError, reanchor};
+use super::{Path, PathBuf, RealBackend, RunnerError, execution, parsed, reanchor};
 
 /// Python linters, formatters and notebook checks.
 pub(super) const TOOLS: &[ToolDef] = &[

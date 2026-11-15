@@ -1,7 +1,7 @@
 use quality_adapter::{commands, parsers};
 
 use super::check::ToolDef;
-use super::{Path, RealBackend, parsed, missing_tier_base, PathBuf, execution, reanchor};
+use super::{Path, PathBuf, RealBackend, execution, missing_tier_base, parsed, reanchor};
 
 /// JVM and .NET formatters and linters.
 pub(super) const TOOLS: &[ToolDef] = &[
@@ -272,7 +272,9 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 let staged = |prefix: &str| -> Vec<PathBuf> {
                     tool.tool_files
                         .iter()
-                        .filter(|(rel, _)| rel.starts_with(prefix) && rel.ends_with(".jar"))
+                        .filter(|(rel, _)| {
+                            rel.starts_with(prefix) && super::has_extension(rel, "jar")
+                        })
                         .map(|(rel, _)| scratch.root().join(rel))
                         .collect()
                 };

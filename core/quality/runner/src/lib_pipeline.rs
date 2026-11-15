@@ -1,6 +1,7 @@
 use super::*;
 use crate::synthetic::{self, apply_synthetic, collect_diagnostics, per_path};
 use quality_result::{decode_validated, encode_validated, proto::Severity, validate};
+use std::fmt::Write as _;
 
 fn stage(tool: &str, classes: &[&str], sources: &[&str]) -> StageSpec {
     StageSpec {
@@ -371,7 +372,10 @@ fn convergence_scales_linearly_in_rounds_and_files() {
         terminal.get(&last).expect("last file staged"),
         &format!(
             "v0{}",
-            (1..=ROUNDS).map(|n| format!("+{n}")).collect::<String>()
+            (1..=ROUNDS).fold(String::new(), |mut text, n| {
+                write!(text, "+{n}").unwrap();
+                text
+            })
         )
     );
 }
@@ -419,8 +423,14 @@ fn synthetic_fallback_is_identity() {
 
 #[test]
 fn non_diagnosing_tools_collect_no_diagnostics() {
-    assert_eq!(collect_diagnostics("fmt-a", "src/lib.rs", "BAD"), [] as [Diagnostic; 0]);
-    assert_eq!(collect_diagnostics("unknown-tool", "src/lib.rs", "BAD"), [] as [Diagnostic; 0]);
+    assert_eq!(
+        collect_diagnostics("fmt-a", "src/lib.rs", "BAD"),
+        [] as [Diagnostic; 0]
+    );
+    assert_eq!(
+        collect_diagnostics("unknown-tool", "src/lib.rs", "BAD"),
+        [] as [Diagnostic; 0]
+    );
 }
 
 #[test]
@@ -698,7 +708,6 @@ fn diagnostics_sort_includes_severity_and_rule() {
             unfixable_reason: String::new(),
             build_dep: None,
             related: Vec::new(),
-            ..Default::default()
         }
     }
     let canonical = vec![
@@ -758,7 +767,8 @@ fn assemble_replacements_follow_sorted_path_order_for_atomic_apply() {
         assert_eq!(edits.edits.len(), 1);
         let edit = &edits.edits[0];
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
+        spliced
+            .extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
         spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         assert_eq!(&spliced, terminal_body.as_bytes());

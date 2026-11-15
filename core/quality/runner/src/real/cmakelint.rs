@@ -4,7 +4,7 @@ use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
 use super::check::ToolDef;
-use super::{RealBackend, RealTool, StagedScratch, RunnerError, execution, parsed};
+use super::{RealBackend, RealTool, RunnerError, StagedScratch, execution, parsed};
 
 const DEFAULT_CONFIG_REL: &str = "dx-cmakelint-default/.cmakelintrc";
 const DEFAULT_CONFIG_BYTES: &[u8] = include_bytes!("../../../tiers/cmakelint/standard.cmakelintrc");

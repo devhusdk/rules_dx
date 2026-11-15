@@ -2,7 +2,10 @@ use quality_adapter::parsers::{self, FileFinding};
 
 use super::check::{CheckCall, ToolDef, in_file};
 use super::schema::without_verbatim;
-use super::{Path, RealBackend, Invocation, RunnerError, execution, hint_dir, commands, parsed, PathBuf, ffmt_accepts, fortran_free_form};
+use super::{
+    Invocation, Path, PathBuf, RealBackend, RunnerError, commands, execution, ffmt_accepts,
+    fortran_free_form, hint_dir, parsed,
+};
 
 fn paths<'a>(call: &'a CheckCall<'a>) -> (Vec<&'a Path>, Vec<String>) {
     let refs = call
@@ -53,7 +56,10 @@ fn per_file(
     Ok(merged)
 }
 
-fn buildifier(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
+fn buildifier(
+    backend: &RealBackend,
+    call: &CheckCall<'_>,
+) -> Result<Vec<FileFinding>, RunnerError> {
     let tool = call.tool;
     let cwd_rel = RealBackend::cwd_rel(call.tool_id, tool.config_rel.as_deref());
     let hint = hint_dir(tool.config_rel.as_deref(), &cwd_rel);
@@ -206,7 +212,7 @@ fn dart(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>,
             .position(|name| *name == item.file)
             .and_then(|at| names.get(at))
         {
-            item.file = name.clone();
+            item.file.clone_from(name);
         }
         item.finding.message = item.finding.message.replace(&scratch_prefix, "");
         owned.push(item);

@@ -195,7 +195,7 @@ fn run_as_tool() -> Option<i32> {
     let tool = tool_for(&args.next()?)?;
     let args: Vec<String> = args.map(|arg| arg.to_string_lossy().into_owned()).collect();
     Some(match tool {
-        Tool::Runner => quality_runner::entry::run_cli(args),
+        Tool::Runner => quality_runner::entry::run_cli(&args),
         Tool::Markdown => quality_markdown::entry::run_process(&args),
         Tool::Notebook => quality_notebook::entry::run_process(&args),
         Tool::LspCheck => lsp_check::entry::run_process(&args),

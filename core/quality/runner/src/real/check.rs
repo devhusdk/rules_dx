@@ -3,7 +3,11 @@ use std::path::{Path, PathBuf};
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
-use super::{RealTool, StagedScratch, RealBackend, RunnerError, execution, Scratch, tier_lines, ZANUDA_STANDARD, ZANUDA_STRICT, parsed, dependency_failure, TERRAFORM_PLUGIN_DIRS_ENV, TERRAFORM_EMPTY_MIRROR_REL, Invocation, ChildOutput, spawn_argv};
+use super::{
+    ChildOutput, Invocation, RealBackend, RealTool, RunnerError, Scratch, StagedScratch,
+    TERRAFORM_EMPTY_MIRROR_REL, TERRAFORM_PLUGIN_DIRS_ENV, ZANUDA_STANDARD, ZANUDA_STRICT,
+    dependency_failure, execution, parsed, spawn_argv, tier_lines,
+};
 
 /// What a tool module needs to launch one check.
 pub(super) struct CheckCall<'a> {
@@ -94,7 +98,7 @@ impl RealBackend {
             .collect();
         let mut lines = Vec::with_capacity(pairs.len());
         for (workspace, absolute) in pairs {
-            let kind = if workspace.ends_with(".mli") {
+            let kind = if super::has_extension(workspace, "mli") {
                 ("intf", "cmti")
             } else {
                 ("impl", "cmt")
@@ -359,7 +363,7 @@ impl RealBackend {
         let sources: Vec<(String, PathBuf)> = staged
             .pairs
             .iter()
-            .filter(|(ws, _)| ws.ends_with(".tf") || ws.ends_with(".tf.json"))
+            .filter(|(ws, _)| super::has_extension(ws, "tf") || ws.ends_with(".tf.json"))
             .cloned()
             .collect();
         let mut findings: Vec<FileFinding> = Vec::new();
@@ -493,13 +497,17 @@ pub(super) fn in_file(err: RunnerError, name: &str) -> RunnerError {
             tool_id,
             detail: format!("{name}: {detail}"),
         },
-        other @
-(RunnerError::EmptyProducer | RunnerError::UnknownCapability { .. } |
-RunnerError::EmptyStages | RunnerError::EmptyToolId { .. } |
-RunnerError::UnknownTool { .. } | RunnerError::EmptyClassIds { .. } |
-RunnerError::EmptyStageSources { .. } | RunnerError::DuplicateFile { .. } |
-RunnerError::InvalidUtf8 { .. } | RunnerError::MissingFile { .. } |
-RunnerError::UnplaceableFinding { .. }) => other,
+        other @ (RunnerError::EmptyProducer
+        | RunnerError::UnknownCapability { .. }
+        | RunnerError::EmptyStages
+        | RunnerError::EmptyToolId { .. }
+        | RunnerError::UnknownTool { .. }
+        | RunnerError::EmptyClassIds { .. }
+        | RunnerError::EmptyStageSources { .. }
+        | RunnerError::DuplicateFile { .. }
+        | RunnerError::InvalidUtf8 { .. }
+        | RunnerError::MissingFile { .. }
+        | RunnerError::UnplaceableFinding { .. }) => other,
     }
 }
 
@@ -517,13 +525,17 @@ fn in_batch(err: RunnerError, index: usize, total: usize) -> RunnerError {
             tool_id,
             detail: format!("batch {index}/{total}: {detail}"),
         },
-        other @
-(RunnerError::EmptyProducer | RunnerError::UnknownCapability { .. } |
-RunnerError::EmptyStages | RunnerError::EmptyToolId { .. } |
-RunnerError::UnknownTool { .. } | RunnerError::EmptyClassIds { .. } |
-RunnerError::EmptyStageSources { .. } | RunnerError::DuplicateFile { .. } |
-RunnerError::InvalidUtf8 { .. } | RunnerError::MissingFile { .. } |
-RunnerError::UnplaceableFinding { .. }) => other,
+        other @ (RunnerError::EmptyProducer
+        | RunnerError::UnknownCapability { .. }
+        | RunnerError::EmptyStages
+        | RunnerError::EmptyToolId { .. }
+        | RunnerError::UnknownTool { .. }
+        | RunnerError::EmptyClassIds { .. }
+        | RunnerError::EmptyStageSources { .. }
+        | RunnerError::DuplicateFile { .. }
+        | RunnerError::InvalidUtf8 { .. }
+        | RunnerError::MissingFile { .. }
+        | RunnerError::UnplaceableFinding { .. }) => other,
     }
 }
 

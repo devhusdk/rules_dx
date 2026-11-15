@@ -2,7 +2,7 @@ use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
 use super::check::ToolDef;
-use super::{RealBackend, RealTool, StagedScratch, RunnerError, Path, execution, parsed};
+use super::{Path, RealBackend, RealTool, RunnerError, StagedScratch, execution, parsed};
 
 /// Where the Haskell family stages the `.hie` files of the target.
 const HIE_REL: &str = "weeder.hie";

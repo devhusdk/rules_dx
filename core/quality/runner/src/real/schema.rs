@@ -1,7 +1,7 @@
 use quality_adapter::parsers;
 
 use super::check::{ToolDef, without_scratch_root};
-use super::{RealBackend, commands, execution, parsed, PathBuf, Path, RunnerError};
+use super::{Path, PathBuf, RealBackend, RunnerError, commands, execution, parsed};
 
 /// Schema and IDL compilers.
 pub(super) const TOOLS: &[ToolDef] = &[
@@ -350,9 +350,9 @@ fn lexical_normal(path: &Path) -> PathBuf {
             std::path::Component::ParentDir => {
                 out.pop();
             }
-            other @
-(std::path::Component::Prefix(_) | std::path::Component::RootDir |
-std::path::Component::Normal(_)) => out.push(other.as_os_str()),
+            other @ (std::path::Component::Prefix(_)
+            | std::path::Component::RootDir
+            | std::path::Component::Normal(_)) => out.push(other.as_os_str()),
         }
     }
     out
@@ -502,7 +502,10 @@ mod declared_input_tests {
             err.to_string()
                 .contains("is outside the declared inputs of pkg/a.avdl")
         );
-        assert_eq!(avdl_imports_outside("import schema \"b.avsc\";", &file, &root), [] as [String; 0]);
+        assert_eq!(
+            avdl_imports_outside("import schema \"b.avsc\";", &file, &root),
+            [] as [String; 0]
+        );
     }
 
     #[test]

@@ -3,7 +3,7 @@ use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
 use super::check::ToolDef;
-use super::{Path, execution, parsed, reanchor, RealBackend, missing_tier_base, PathBuf};
+use super::{Path, PathBuf, RealBackend, execution, missing_tier_base, parsed, reanchor};
 
 /// The standard tier's kinds, used when the consumer binds no `markdown_check` config.
 const MARKDOWN_CHECK_DEFAULT_KINDS: &str =

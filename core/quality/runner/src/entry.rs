@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::{
     FileInput,
@@ -52,7 +52,7 @@ fn unreadable_source(workspace: String, detail: String) -> RunnerError {
 /// order. An empty directory stages nothing.
 fn read_tool_directory(
     rel: &str,
-    dir: &std::path::Path,
+    dir: &Path,
     out: &mut Vec<(String, Vec<u8>)>,
 ) -> std::io::Result<()> {
     let mut children: Vec<std::fs::DirEntry> =
@@ -73,12 +73,12 @@ fn read_tool_directory(
 fn real_tool(
     tool_id: &str,
     entry: &RequestTool,
-    cwd: Option<PathBuf>,
+    cwd: Option<&Path>,
 ) -> Result<RealTool, RunnerError> {
     let binary = entry
         .binary
         .clone()
-        .map(|binary| absolute(cwd.clone(), binary))
+        .map(|binary| absolute(cwd, binary))
         .unwrap_or_default();
     let mut tool_files = Vec::with_capacity(entry.files.len());
     for (rel, exec) in &entry.files {
@@ -87,9 +87,8 @@ fn real_tool(
             tool: tool_id.to_owned(),
             detail: error.to_string(),
         };
-        if std::path::Path::new(exec).is_dir() {
-            read_tool_directory(rel, std::path::Path::new(exec), &mut tool_files)
-                .map_err(unreadable)?;
+        if Path::new(exec).is_dir() {
+            read_tool_directory(rel, Path::new(exec), &mut tool_files).map_err(unreadable)?;
         } else {
             tool_files.push((rel.clone(), std::fs::read(exec).map_err(unreadable)?));
         }
@@ -105,21 +104,26 @@ fn real_tool(
         upstream_diagnostics: entry
             .upstream
             .iter()
-            .map(|exec| absolute(cwd.clone(), exec.clone()))
+            .map(|exec| absolute(cwd, exec.clone()))
             .collect(),
         path_tools: entry
             .path_tools
             .iter()
-            .map(|(name, binary)| (name.clone(), absolute(cwd.clone(), binary.clone())))
+            .map(|(name, binary)| (name.clone(), absolute(cwd, binary.clone())))
             .collect(),
         search_paths: entry
             .search_paths
             .iter()
-            .map(|dir| site_packages(absolute(cwd.clone(), dir.clone())))
+            .map(|dir| site_packages(absolute(cwd, dir.clone())))
             .collect(),
     })
 }
 
+/// Returns the result of the call.
+///
+/// # Errors
+///
+/// Returns the error describing the first step that failed.
 pub fn run_request(
     request_path: &str,
     output: &str,
@@ -139,10 +143,11 @@ pub fn run_request(
     let resolve_files = read_inputs(&request.resolves, unreadable_resolve)?;
     let mut tools: BTreeMap<String, RealTool> = BTreeMap::new();
     for (tool_id, entry) in &request.tools {
-        tools.insert(tool_id.clone(), real_tool(tool_id, entry, cwd.clone())?);
+        tools.insert(tool_id.clone(), real_tool(tool_id, entry, cwd.as_deref())?);
     }
     let scratch_parent = request
-        .scratch_parent.map_or_else(std::env::temp_dir, PathBuf::from);
+        .scratch_parent
+        .map_or_else(std::env::temp_dir, PathBuf::from);
     let backend = RealBackend::new(tools, scratch_parent)
         .with_shard(shard.unwrap_or_default())
         .with_unsafe_fixes(request.unsafe_fixes);
@@ -161,7 +166,7 @@ pub fn run_request(
     let bytes = encode_validated(&result).map_err(|error| RunnerError::InvalidResult {
         detail: error.to_string(),
     })?;
-    dx_atomic_fs::write_atomic(std::path::Path::new(output), &bytes).map_err(|error| {
+    dx_atomic_fs::write_atomic(Path::new(output), &bytes).map_err(|error| {
         RunnerError::UnwritableOutput {
             output: output.to_owned(),
             detail: error.to_string(),
@@ -194,7 +199,7 @@ fn read_inputs(
     Ok(inputs)
 }
 
-fn absolute(cwd: Option<PathBuf>, path: PathBuf) -> PathBuf {
+fn absolute(cwd: Option<&Path>, path: PathBuf) -> PathBuf {
     if path.is_absolute() {
         path
     } else {
@@ -234,9 +239,9 @@ struct Cli {
 }
 
 /// Runs `quality_runner` with its arguments (without the program name) and returns the exit code.
-pub fn run_cli(args: Vec<String>) -> i32 {
+pub fn run_cli(args: &[String]) -> i32 {
     dx_output::init_diagnostics(false);
-    match parse_args(&args)
+    match parse_args(args)
         .and_then(|cli| run_request(&cli.request, &cli.output, cli.shard.as_deref()))
     {
         Ok(()) => 0,
@@ -283,18 +288,20 @@ mod tests {
             vec!["--request", "r.json"],
             vec!["--output", "o.pb"],
         ] {
-            let error = match parse_args(&owned(&argv)) {
-                Ok(_) => panic!("{argv:?} must fail"),
-                Err(error) => error,
+            let Err(error) = parse_args(&owned(&argv)) else {
+                panic!("{argv:?} must fail")
             };
             match error {
                 RunnerError::Args { message } => assert!(!message.is_empty(), "{message}"),
-                other @
-(RunnerError::UnreadableSource { .. } | RunnerError::UnreadableSibling { .. }
-| RunnerError::UnreadableResolve { .. } | RunnerError::PipelineFailed { .. } |
-RunnerError::InvalidResult { .. } | RunnerError::UnwritableOutput { .. } |
-RunnerError::UnreadableToolFile { .. } | RunnerError::UnreadableRequest { .. }
-| RunnerError::BadRequest { .. }) => panic!("unexpected error: {other:?}"),
+                other @ (RunnerError::UnreadableSource { .. }
+                | RunnerError::UnreadableSibling { .. }
+                | RunnerError::UnreadableResolve { .. }
+                | RunnerError::PipelineFailed { .. }
+                | RunnerError::InvalidResult { .. }
+                | RunnerError::UnwritableOutput { .. }
+                | RunnerError::UnreadableToolFile { .. }
+                | RunnerError::UnreadableRequest { .. }
+                | RunnerError::BadRequest { .. }) => panic!("unexpected error: {other:?}"),
             }
         }
     }
@@ -316,12 +323,15 @@ RunnerError::UnreadableToolFile { .. } | RunnerError::UnreadableRequest { .. }
                 );
                 assert!(!detail.is_empty(), "{path}");
             }
-            other @
-(RunnerError::Args { .. } | RunnerError::UnreadableSource { .. } |
-RunnerError::UnreadableSibling { .. } | RunnerError::UnreadableResolve { .. }
-| RunnerError::PipelineFailed { .. } | RunnerError::InvalidResult { .. } |
-RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
-| RunnerError::BadRequest { .. }) => panic!("unexpected error: {other:?}"),
+            other @ (RunnerError::Args { .. }
+            | RunnerError::UnreadableSource { .. }
+            | RunnerError::UnreadableSibling { .. }
+            | RunnerError::UnreadableResolve { .. }
+            | RunnerError::PipelineFailed { .. }
+            | RunnerError::InvalidResult { .. }
+            | RunnerError::UnwritableOutput { .. }
+            | RunnerError::UnreadableToolFile { .. }
+            | RunnerError::BadRequest { .. }) => panic!("unexpected error: {other:?}"),
         }
         let dir = tempfile::tempdir().expect("scratch");
         let malformed = dir.path().join("malformed.json");
@@ -334,12 +344,15 @@ RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
         .expect_err("malformed request")
         {
             RunnerError::BadRequest { detail } => assert!(!detail.is_empty(), "{detail}"),
-            other @
-(RunnerError::Args { .. } | RunnerError::UnreadableSource { .. } |
-RunnerError::UnreadableSibling { .. } | RunnerError::UnreadableResolve { .. }
-| RunnerError::PipelineFailed { .. } | RunnerError::InvalidResult { .. } |
-RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
-| RunnerError::UnreadableRequest { .. }) => {
+            other @ (RunnerError::Args { .. }
+            | RunnerError::UnreadableSource { .. }
+            | RunnerError::UnreadableSibling { .. }
+            | RunnerError::UnreadableResolve { .. }
+            | RunnerError::PipelineFailed { .. }
+            | RunnerError::InvalidResult { .. }
+            | RunnerError::UnwritableOutput { .. }
+            | RunnerError::UnreadableToolFile { .. }
+            | RunnerError::UnreadableRequest { .. }) => {
                 panic!("unexpected error: {other:?}")
             }
         }
@@ -405,7 +418,7 @@ RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
             search_paths: vec![venv.clone()],
             path_tools: Vec::new(),
         };
-        let tool = real_tool("ruff", &entry, cwd.clone()).expect("tool");
+        let tool = real_tool("ruff", &entry, cwd.as_deref()).expect("tool");
         assert_eq!(tool.binary, PathBuf::from("/work/bin/ruff"));
         assert_eq!(tool.config_rel.as_deref(), Some("ruff.toml"));
         assert_eq!(tool.edition.as_deref(), Some("3.9"));
@@ -437,7 +450,7 @@ RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
             search_paths: Vec::new(),
             path_tools: Vec::new(),
         };
-        let tool = real_tool("ty", &upstream_only, cwd.clone()).expect("upstream only");
+        let tool = real_tool("ty", &upstream_only, cwd.as_deref()).expect("upstream only");
         assert_eq!(tool.binary, PathBuf::new());
         assert_eq!(tool.upstream_diagnostics, [PathBuf::from("/abs/ty.diag")]);
         let missing = RequestTool {
@@ -447,7 +460,7 @@ RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
             )],
             ..upstream_only
         };
-        match real_tool("ty", &missing, cwd) {
+        match real_tool("ty", &missing, cwd.as_deref()) {
             Err(RunnerError::UnreadableToolFile { rel, tool, detail }) => {
                 assert_eq!(rel, "ty.toml");
                 assert_eq!(tool, "ty");
@@ -461,7 +474,7 @@ RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
     #[test]
     fn relative_paths_resolve_against_the_workspace_only_when_known() {
         assert_eq!(
-            absolute(Some(PathBuf::from("/work")), PathBuf::from("bin/ruff")),
+            absolute(Some(Path::new("/work")), PathBuf::from("bin/ruff")),
             PathBuf::from("/work/bin/ruff")
         );
         assert_eq!(
@@ -469,7 +482,7 @@ RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
             PathBuf::from("bin/ruff")
         );
         assert_eq!(
-            absolute(Some(PathBuf::from("/work")), PathBuf::from("/usr/bin/ruff")),
+            absolute(Some(Path::new("/work")), PathBuf::from("/usr/bin/ruff")),
             PathBuf::from("/usr/bin/ruff")
         );
     }
@@ -510,9 +523,10 @@ RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
 
     #[test]
     fn a_missing_input_names_the_role_that_could_not_read_it() {
+        type Unreadable = fn(String, String) -> RunnerError;
         let missing = std::env::temp_dir().join("quality_runner_absent_input.py");
         let mappings = [("a.py".to_owned(), missing.display().to_string())];
-        let cases: [(fn(String, String) -> RunnerError, &str); 3] = [
+        let cases: [(Unreadable, &str); 3] = [
             (unreadable_source, "cannot read \"a.py\""),
             (unreadable_sibling, "cannot read sibling \"a.py\""),
             (unreadable_resolve, "cannot read resolve \"a.py\""),
@@ -526,11 +540,13 @@ RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
                     assert_eq!(workspace, "a.py");
                     assert!(!detail.is_empty(), "{error:?}");
                 }
-                other @
-(RunnerError::Args { .. } | RunnerError::PipelineFailed { .. } |
-RunnerError::InvalidResult { .. } | RunnerError::UnwritableOutput { .. } |
-RunnerError::UnreadableToolFile { .. } | RunnerError::UnreadableRequest { .. }
-| RunnerError::BadRequest { .. }) => panic!("unexpected error: {other:?}"),
+                other @ (RunnerError::Args { .. }
+                | RunnerError::PipelineFailed { .. }
+                | RunnerError::InvalidResult { .. }
+                | RunnerError::UnwritableOutput { .. }
+                | RunnerError::UnreadableToolFile { .. }
+                | RunnerError::UnreadableRequest { .. }
+                | RunnerError::BadRequest { .. }) => panic!("unexpected error: {other:?}"),
             }
             assert!(error.to_string().starts_with(expected), "{error}");
         }

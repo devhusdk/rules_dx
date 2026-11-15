@@ -5,7 +5,7 @@ use quality_adapter::parsers::FileFinding;
 use quality_adapter::{ColumnEncoding, Finding, TextPosition, ToolSeverity, commands, parsers};
 
 use super::check::ToolDef;
-use super::{RealBackend, RealTool, StagedScratch, RunnerError, execution, parsed};
+use super::{RealBackend, RealTool, RunnerError, StagedScratch, execution, parsed};
 
 const EMPTY_CONFIG_REL: &str = "dx-cfn-lint/empty.yaml";
 
@@ -54,8 +54,7 @@ impl RealBackend {
         let config_path = if let Some(path) = config {
             let text = std::fs::read_to_string(path)
                 .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
-            cloudformation_preflight::check_config(&text)
-                .map_err(|err| execution(tool_id, err))?;
+            cloudformation_preflight::check_config(&text).map_err(|err| execution(tool_id, err))?;
             path.to_path_buf()
         } else {
             let empty = scratch

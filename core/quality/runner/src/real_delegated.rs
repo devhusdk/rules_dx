@@ -128,11 +128,11 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
 
 fn empty_report(
     argv: &[OsString],
-    _cwd: &Path,
+    cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    empty_report_unchecked(argv, _cwd)
+    empty_report_unchecked(argv, cwd)
 }
 
 fn empty_report_unchecked(argv: &[OsString], _cwd: &Path) -> io::Result<ChildOutput> {
@@ -364,7 +364,10 @@ fn jsonnet_lint_behavior(
 pub(super) fn jsonnet_lint_reports_problems_and_never_trusts_a_failed_run() {
     let backend = backend_for("jsonnet_lint", plain_tool(), jsonnet_lint_behavior);
     let lint = |text: &str| backend.diagnose("jsonnet_lint", "lint", &single("a.jsonnet", text));
-    assert_eq!(lint("{}\n").expect("check"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        lint("{}\n").expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let warned = lint("local x = 1; unused\n").expect("check");
     assert_eq!(warned.len(), 1);
     assert_eq!(warned[0].message, "Unused variable: x");
@@ -403,12 +406,18 @@ fn fortitude_behavior(
 pub(super) fn fortitude_reports_findings_skips_fixed_form_and_never_trusts_a_failed_run() {
     let backend = backend_for("fortitude", plain_tool(), fortitude_behavior);
     let lint = |name: &str, text: &str| backend.diagnose("fortitude", "lint", &single(name, text));
-    assert_eq!(lint("a.f90", "program p\n").expect("check"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        lint("a.f90", "program p\n").expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let warned = lint("a.f90", "program implicit\n").expect("check");
     assert_eq!(warned.len(), 1);
     assert_eq!(warned[0].rule_id, "C001");
     // Fixed-form sources are not handed to the tool, so even a crash text is not run.
-    assert_eq!(lint("a.f", "crash\n").expect("check"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        lint("a.f", "crash\n").expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     assert!(lint("a.f90", "crash\n").is_err());
 }
 
@@ -443,7 +452,7 @@ fn zanuda_behavior(
         assert!(cmt.is_absolute() && cmt.exists(), "{line}");
         assert_eq!(
             fields[0],
-            if fields[1].ends_with(".mli") {
+            if has_extension(fields[1], "mli") {
                 "intf"
             } else {
                 "impl"
@@ -452,10 +461,8 @@ fn zanuda_behavior(
         let text = std::fs::read_to_string(fields[1]).expect("read staged source");
         crash |= text.contains("crash");
         if text.contains("smells") {
-            report.push_str(&format!(
-                r#"{{"message":"smells bad\n","location":{{"path":"{}","range":{{"start":{{"line":2,"column":1}}}}}},"severity":"INFO","code":{{"value":"if_bool","url":"u"}}}}"#,
-                json_escape(fields[1])
-            ));
+            write!(report, r#"{{"message":"smells bad\n","location":{{"path":"{}","range":{{"start":{{"line":2,"column":1}}}}}},"severity":"INFO","code":{{"value":"if_bool","url":"u"}}}}"#,
+                json_escape(fields[1])).unwrap();
             report.push('\n');
         }
     }
@@ -498,8 +505,8 @@ pub(super) fn zanuda_reads_the_staged_typed_trees_and_never_trusts_a_failed_run(
     };
     // A clean run, and a finding mapped back onto the owned file.
     assert_eq!(
-        lint(&[("pkg/a.ml", "let x = 1\n")])
-            .expect("check"), [] as [quality_result::proto::Diagnostic; 0]
+        lint(&[("pkg/a.ml", "let x = 1\n")]).expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let warned = lint(&[
         ("pkg/a.ml", "let x = 1\nsmells\n"),
@@ -569,7 +576,10 @@ fn hlint_behavior(
 pub(super) fn hlint_reports_findings_with_the_staged_default_and_never_trusts_a_failed_run() {
     let backend = backend_for("hlint", bound_tool("cfg/hlint.yaml", b""), hlint_behavior);
     let lint = |text: &str| backend.diagnose("hlint", "lint", &single("A.hs", text));
-    assert_eq!(lint("main = pure ()\n").expect("check"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        lint("main = pure ()\n").expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let warned = lint("f = redundant\n").expect("check");
     assert_eq!(warned.len(), 1);
     assert_eq!(warned[0].rule_id, "Use id");
@@ -611,7 +621,10 @@ fn zig_ast_check_behavior(
 pub(super) fn zig_ast_check_runs_one_process_per_file_and_never_trusts_a_failed_run() {
     let backend = backend_for("zig_ast_check", plain_tool(), zig_ast_check_behavior);
     let lint = |text: &str| backend.diagnose("zig_ast_check", "lint", &single("a.zig", text));
-    assert_eq!(lint("const a = 1;\n").expect("check"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        lint("const a = 1;\n").expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let warned = lint("unused\n").expect("check");
     assert_eq!(warned.len(), 1);
     assert_eq!(warned[0].rule_id, "ast_check");
@@ -671,7 +684,10 @@ fn julialint_behavior(
 pub(super) fn julialint_maps_findings_and_never_trusts_a_failed_run() {
     let backend = backend_for("julialint", plain_tool(), julialint_behavior);
     let lint = |text: &str| backend.diagnose("julialint", "lint", &single("a.jl", text));
-    assert_eq!(lint("x = 1\n").expect("check"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        lint("x = 1\n").expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let found = lint("f() = missing\n").expect("check");
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].path, "a.jl");
@@ -756,15 +772,18 @@ pub(super) fn pkl_lsp_maps_findings_and_needs_both_companions() {
     };
     let backend = backend_for("pkl_lsp", tool, pkl_lsp_behavior);
     let lint = |text: &str| backend.diagnose("pkl_lsp", "lint", &single("a.pkl", text));
-    assert_eq!(lint("x = 1\n").expect("check"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        lint("x = 1\n").expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let found = lint("local unused = 1\n").expect("check");
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].path, "a.pkl");
     assert_eq!(found[0].rule_id, "unused");
     assert!(lint("crash\n").is_err());
-    for kept in 0..companions.len() {
+    for companion in &companions {
         let partial = RealTool {
-            path_tools: vec![companions[kept].clone()],
+            path_tools: vec![companion.clone()],
             ..plain_tool()
         };
         let backend = backend_for("pkl_lsp", partial, pkl_lsp_behavior);
@@ -848,7 +867,10 @@ fn dart_behavior(
 pub(super) fn dart_formats_without_a_home_and_never_trusts_a_silent_exit() {
     let backend = backend_for("dart", plain_tool(), dart_behavior);
     let check = |text: &str| backend.diagnose("dart", "format", &single("a.dart", text));
-    assert_eq!(check("void main() {}\n").expect("check"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        check("void main() {}\n").expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let dirty = check("void main() { }\n").expect("check");
     assert_eq!(dirty.len(), 1);
     assert_eq!(dirty[0].message, "file is not formatted");
@@ -928,7 +950,10 @@ pub(super) fn dart_analyze_splits_lint_from_typecheck_and_never_trusts_a_bad_run
     let run = |capability: &str, text: &str| {
         backend.diagnose("dart", capability, &single("a.dart", text))
     };
-    assert_eq!(run("lint", "ok\n").expect("lint"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        run("lint", "ok\n").expect("lint"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let lint = run("lint", "both\n").expect("lint");
     let types = run("typecheck", "both\n").expect("typecheck");
     assert_eq!(lint.len(), 1);
@@ -980,7 +1005,10 @@ fn xmllint_behavior(
 pub(super) fn xmllint_reports_parse_errors_and_never_trusts_a_failed_run() {
     let backend = backend_for("xmllint", plain_tool(), xmllint_behavior);
     let lint = |text: &str| backend.diagnose("xmllint", "lint", &single("a.xml", text));
-    assert_eq!(lint("<a/>\n").expect("check"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        lint("<a/>\n").expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let broken = lint("broken\n").expect("check");
     assert_eq!(broken.len(), 1);
     assert_eq!(broken[0].rule_id, "parser");
@@ -1013,7 +1041,10 @@ fn tinymist_behavior(
 pub(super) fn tinymist_lints_each_file_and_never_trusts_a_failed_run() {
     let backend = backend_for("tinymist", plain_tool(), tinymist_behavior);
     let lint = |text: &str| backend.diagnose("tinymist", "lint", &single("a.typ", text));
-    assert_eq!(lint("= Title\n").expect("check"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        lint("= Title\n").expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let found = lint("#broken\n").expect("check");
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].rule_id, "tinymist/lint");
@@ -1125,7 +1156,10 @@ fn perlcritic_behavior(
 pub(super) fn perlcritic_lints_and_never_trusts_an_exit_that_disagrees_with_its_output() {
     let backend = backend_for("perlcritic", plain_tool(), perlcritic_behavior);
     let lint = |text: &str| backend.diagnose("perlcritic", "lint", &single("a.pl", text));
-    assert_eq!(lint("use strict;\n").expect("check"), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        lint("use strict;\n").expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let found = lint("# no strict\n").expect("check");
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].rule_id, "TestingAndDebugging::RequireUseStrict");
@@ -1184,9 +1218,8 @@ pub(super) fn opa_format_reports_unformatted_files_and_parse_errors() {
     let backend = backend_for("opa", plain_tool(), opa_behavior);
     let clean = single("a.rego", "package a\n\nx := 1\n");
     assert_eq!(
-        backend
-            .diagnose("opa", "format", &clean)
-            .expect("clean"), [] as [quality_result::proto::Diagnostic; 0]
+        backend.diagnose("opa", "format", &clean).expect("clean"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let findings = backend
         .diagnose(
@@ -1219,9 +1252,8 @@ pub(super) fn opa_typecheck_reports_errors_and_never_counts_noise_as_clean() {
     let backend = backend_for("opa", plain_tool(), opa_behavior);
     let clean = single("a.rego", "package a\n\nx := 1\n");
     assert_eq!(
-        backend
-            .diagnose("opa", "typecheck", &clean)
-            .expect("clean"), [] as [quality_result::proto::Diagnostic; 0]
+        backend.diagnose("opa", "typecheck", &clean).expect("clean"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let findings = backend
         .diagnose(
@@ -1302,7 +1334,8 @@ pub(super) fn regal_lint_reports_errors_and_warnings_and_never_counts_noise_as_c
     assert_eq!(
         backend
             .diagnose("regal", "lint", &single("p/a.rego", "package p\n"))
-            .expect("clean"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("clean"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let findings = backend
         .diagnose(
@@ -2439,8 +2472,8 @@ fn rustc_unused_dependency_is_a_diagnostic_without_a_path() {
         );
     }
     assert_eq!(
-        delegated::build_dep_diagnostics("shellcheck", &tool)
-            .expect("diagnostics"), [] as [quality_result::proto::Diagnostic; 0]
+        delegated::build_dep_diagnostics("shellcheck", &tool).expect("diagnostics"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -2472,8 +2505,8 @@ fn scalac_unused_dependency_is_a_diagnostic_without_a_path() {
     );
     tool.upstream_diagnostics.pop();
     assert_eq!(
-        delegated::build_dep_diagnostics("scalac", &tool)
-            .expect("diagnostics"), [] as [quality_result::proto::Diagnostic; 0]
+        delegated::build_dep_diagnostics("scalac", &tool).expect("diagnostics"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 

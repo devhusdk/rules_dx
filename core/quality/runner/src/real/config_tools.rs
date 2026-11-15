@@ -1,7 +1,10 @@
 use quality_adapter::{TextPosition, commands, parsers};
 
 use super::check::{ToolDef, group_by_parent, without_scratch_url};
-use super::{RealBackend, parsed, execution, Path, reanchor, dependency_failure, PathBuf, DEADNIX_STANDARD, staging, RealTool, RunnerError};
+use super::{
+    DEADNIX_STANDARD, Path, PathBuf, RealBackend, RealTool, RunnerError, dependency_failure,
+    execution, parsed, reanchor, staging,
+};
 
 /// Config, policy and text tools that build their own invocation and parse.
 pub(super) const TOOLS: &[ToolDef] = &[
@@ -300,7 +303,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     &[name.as_str(), base],
                 );
                 for mut found in parsed(tool_id, report)? {
-                    found.file = name.clone();
+                    found.file.clone_from(name);
                     findings.push(found);
                 }
             }

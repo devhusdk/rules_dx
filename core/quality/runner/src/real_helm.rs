@@ -30,11 +30,11 @@ fn helm_fake(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    LOG.with(|log| log.borrow_mut().push(args.clone()));
+    LOG.with(|log| log.borrow_mut().push(words.clone()));
     ENVS.with(|envs| {
         envs.borrow_mut().push(
             env.iter()
@@ -53,7 +53,7 @@ fn helm_fake(
         stdout,
         stderr: Vec::new(),
     };
-    match args[1].as_str() {
+    match words[1].as_str() {
         "lint" => Ok(ChildOutput {
             code: Some(if mode == 4 { 2 } else { 0 }),
             stdout: Vec::new(),
@@ -72,7 +72,7 @@ fn helm_fake(
         "template" if mode == 3 => Ok(ok(rendered("charts/sub/templates/x.yaml"))),
         "template" => Ok(ok(rendered("templates/deploy.yaml"))),
         _ => {
-            let docs: Vec<&String> = args.iter().filter(|a| a.contains("dx-kubeconform")).collect();
+            let docs: Vec<&String> = words.iter().filter(|a| a.contains("dx-kubeconform")).collect();
             let resources: Vec<_> = docs
                 .iter()
                 .filter(|_| mode != 0)

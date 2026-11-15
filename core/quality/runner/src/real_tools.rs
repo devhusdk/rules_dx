@@ -12,6 +12,7 @@ use quality_adapter::parsers;
 use quality_result::MAX_COMPLETED_ROUNDS;
 use quality_result::encode_validated;
 use quality_result::proto::Convergence;
+use std::cell::RefCell;
 
 #[test]
 fn escaping_paths_fail_the_action() {
@@ -50,7 +51,7 @@ fn unusable_scratch_parent_fails_the_action() {
         argv_limit: commands::windows_argv_limit,
         shard: String::new(),
         unsafe_fixes: false,
-        last_stderr: Default::default(),
+        last_stderr: RefCell::default(),
     };
     let err = backend
         .diagnose("rustfmt", "format", &single("src/main.rs", "x\n"))
@@ -278,7 +279,8 @@ fn keep_sorted_lint_reports_and_fix_sorts() {
                 "lint",
                 &single("notes.txt", KEEP_SORTED_CLEAN)
             )
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("keep_sorted", "notes.txt", KEEP_SORTED_DIRTY, "lint")
@@ -287,7 +289,8 @@ fn keep_sorted_lint_reports_and_fix_sorts() {
     assert_eq!(
         backend
             .diagnose("keep_sorted", "lint", &single("notes.txt", &fixed))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -302,7 +305,10 @@ fn keep_sorted_lint_pipeline_fixes_dirty_files_to_stable() {
     assert_eq!(result.completed_rounds, 2);
     assert_eq!(result.initial_diagnostics.len(), 1);
     assert_eq!(result.initial_diagnostics[0].tool_id, "keep_sorted");
-    assert_eq!(result.terminal_diagnostics, [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        result.terminal_diagnostics,
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     assert_eq!(result.replacements.len(), 1);
     assert_eq!(result.replacements[0].path, "notes.txt");
     assert!(encode_validated(&result).is_ok());
@@ -412,7 +418,8 @@ fn ruff_lint_reports_and_fix_rereads_on_exit_one() {
     assert_eq!(
         backend
             .diagnose("ruff", "lint", &single("a.py", "x = 1\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -569,7 +576,8 @@ fn ty_reports_and_is_check_only() {
     assert_eq!(
         backend
             .diagnose("ty", "typecheck", &single("a.py", "x: int = 1\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let text = "x: int = BADTYPE\n";
     assert_eq!(
@@ -601,7 +609,8 @@ fn pydoclint_reports_and_is_check_only() {
                 "lint",
                 &single("a.py", "\"\"\"Module.\"\"\"\n")
             )
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let text = "def foo():\n    NODOC\n";
     assert_eq!(
@@ -629,7 +638,8 @@ fn biome_lint_runs_with_the_bound_config() {
     assert_eq!(
         backend
             .diagnose("biome", "lint", &single("src/a.js", "const x = 1;\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -676,7 +686,8 @@ fn biome_format_reports_and_fix_rewrites() {
     assert_eq!(
         backend
             .diagnose("biome", "format", &single("src/a.js", "const x = 1;\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -714,7 +725,8 @@ fn eslint_reports_and_fix_rereads_on_exit_1() {
     assert_eq!(
         backend
             .diagnose("eslint", "lint", &single("src/a.js", "const x = 1;\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -777,7 +789,8 @@ fn graphql_eslint_reports_findings_and_never_fixes() {
                 "lint",
                 &single("api/query.graphql", "{ user { id } }\n")
             )
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -857,7 +870,8 @@ fn gplint_reports_findings_with_the_bound_config_and_never_fixes() {
                 "lint",
                 &single("features/a.feature", "Feature: a\n  Scenario: s\n")
             )
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let dirty = "Feature:\n  Scenario: s\n    Given x\n";
     assert_eq!(
@@ -883,7 +897,8 @@ fn gplint_consumer_config_replaces_the_defaults() {
                 "lint",
                 &single("features/a.feature", "Feature:\n  Scenario: s\n")
             )
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -1163,7 +1178,8 @@ fn prettier_reports_relative_and_fix_rewrites() {
     assert_eq!(
         backend
             .diagnose("prettier", "format", &single("src/a.js", "const x = 1;\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -1263,18 +1279,18 @@ fn prettier_config_argv_ending(
     _env: &[(OsString, OsString)],
     suffix: &str,
 ) -> io::Result<ChildOutput> {
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    let bound: Vec<&str> = args
+    let bound: Vec<&str> = words
         .iter()
         .filter_map(|arg| arg.strip_prefix("--dx-config="))
         .collect();
     assert_eq!(bound.len(), 1, "hinted config passes one --dx-config");
     for reserved in ["--config", "--no-config", "--ignore-path"] {
         assert!(
-            !args
+            !words
                 .iter()
                 .any(|arg| arg == reserved || arg.starts_with(&format!("{reserved}="))),
             "{reserved} is owned by the prettier shim"
@@ -1530,7 +1546,8 @@ fn ruff_format_clean_and_unterminated_fix() {
     assert_eq!(
         backend
             .diagnose("ruff", "format", &single("a.py", "x = 1\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("ruff", "a.py", "x = 1  ", "format")
@@ -1661,7 +1678,9 @@ impl SpawnCount {
             .0
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let at = if let Some(at) = all.iter().position(|(id, _)| *id == me) { at } else {
+        let at = if let Some(at) = all.iter().position(|(id, _)| *id == me) {
+            at
+        } else {
             all.push((me, 0));
             all.len() - 1
         };
@@ -2152,8 +2171,14 @@ fn buf_breaking_runs_only_with_a_base_image_and_honours_reserved() {
     let found = run(REMOVED, Some(&image));
     assert_eq!(found.len(), 1, "{found:?}");
     assert_eq!(found[0].rule_id, "FIELD_NO_DELETE");
-    assert_eq!(run(RESERVED, Some(&image)), [] as [quality_result::proto::Diagnostic; 0]);
-    assert_eq!(run(REMOVED, None), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(
+        run(RESERVED, Some(&image)),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
+    assert_eq!(
+        run(REMOVED, None),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
 }
 
 fn hadolint_config_arg(argv: &[OsString]) -> PathBuf {
@@ -2253,7 +2278,8 @@ fn hadolint_check_runs_with_the_bound_config_and_is_check_only() {
                 "lint",
                 &single("img/Dockerfile", "FROM ubuntu:24.04\n")
             )
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -2393,7 +2419,8 @@ fn checkmake_check_runs_with_the_bound_config_and_is_check_only() {
     assert_eq!(
         backend
             .diagnose("checkmake", "lint", &single("Makefile", "X = 1\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -2530,7 +2557,8 @@ fn gersemi_check_runs_with_the_bound_config_and_check_never_writes() {
     assert_eq!(
         backend
             .diagnose("gersemi", "format", &single("CMakeLists.txt", "GOOD\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -2548,7 +2576,8 @@ fn gersemi_fix_rewrites_and_a_recheck_is_clean() {
     assert_eq!(
         backend
             .diagnose("gersemi", "format", &single("CMakeLists.txt", &fixed))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -2713,7 +2742,8 @@ fn mbake_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
     assert_eq!(
         backend
             .diagnose("mbake", "format", &single("Makefile", "GOOD\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("mbake", "Makefile", "BAD\n", "format")
@@ -2764,7 +2794,7 @@ fn ffmt_run(
     for file in &files {
         let lower = file.to_ascii_lowercase();
         assert!(
-            !lower.ends_with(".f") && !lower.ends_with(".f08"),
+            !has_extension(&lower, "f") && !has_extension(&lower, "f08"),
             "{file} never reaches ffmt"
         );
     }
@@ -2776,7 +2806,7 @@ fn ffmt_run(
             continue;
         }
         if check {
-            dirty.push_str(&format!("{file}\n"));
+            writeln!(dirty, "{file}").unwrap();
         } else {
             std::fs::write(file, text.replace("BAD", "GOOD")).expect("fix writes back");
         }
@@ -2826,7 +2856,8 @@ fn ffmt_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
     assert_eq!(
         backend
             .diagnose("ffmt", "format", &single("a.f90", "GOOD\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("ffmt", "a.f90", "BAD\n", "format")
@@ -2846,7 +2877,8 @@ fn ffmt_never_receives_fixed_form_or_f08_sources_on_check_or_fix() {
     assert_eq!(
         backend
             .diagnose("ffmt", "format", &ffmt_files(&["a.f", "b.F", "c.f08"]))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     for name in ["a.f", "b.F", "c.f08", "d.F08"] {
         let text = backend
@@ -2957,7 +2989,8 @@ fn elvis_check_runs_with_the_bound_config_and_is_check_only() {
     assert_eq!(
         backend
             .diagnose("elvis", "lint", &single("lib/src/a.erl", "-module(a).\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -3001,7 +3034,8 @@ fn redocly_reports_root_findings_and_never_fixes() {
     assert_eq!(
         backend
             .diagnose("redocly", "lint", &redocly_files(REDOCLY_ROOT))
-            .expect("clean"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("clean"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let dupe = format!("{REDOCLY_ROOT}# dupe\n");
     let findings = backend
@@ -3175,7 +3209,7 @@ fn multi_rustfmt(log: &SpawnLog, argv: &[OsString], cwd: &Path) -> io::Result<Ch
         let fixed = trimmed(&bytes);
         if fixed != bytes {
             if check {
-                stdout.push_str(&format!("Diff in {}:1:\n-x  \n+x\n", file.display()));
+                write!(stdout, "Diff in {}:1:\n-x  \n+x\n", file.display()).unwrap();
             } else {
                 std::fs::write(file, fixed).expect("fix writes back");
             }
@@ -3328,7 +3362,7 @@ fn assert_keeps_without_scratch(tool_id: &str, tool: RealTool, capability: &str)
         argv_limit: commands::windows_argv_limit,
         shard: String::new(),
         unsafe_fixes: false,
-        last_stderr: Default::default(),
+        last_stderr: RefCell::default(),
     };
     let spec = stage(tool_id, &["any"], &["a.txt", "b.txt"]);
     let current = BTreeMap::from([
@@ -3420,7 +3454,8 @@ fn trivy_config_reports_a_dockerfile_without_a_user() {
                 "lint",
                 &single("Dockerfile", "FROM scratch\nUSER 1000\n")
             )
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -3605,23 +3640,23 @@ fn kubeconform_fake(
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     KUBECONFORM_SPAWNS.bump();
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
     assert_eq!(
-        args[..4],
+        words[..4],
         ["-output", "json", "-summary=false", "-kubernetes-version"]
     );
     assert!(
-        !args
+        !words
             .iter()
             .any(|arg| arg.contains("ignore-missing-schemas"))
     );
-    let locations: Vec<&String> = args
+    let locations: Vec<&String> = words
         .iter()
-        .zip(args.iter().skip(1))
+        .zip(words.iter().skip(1))
         .filter(|(flag, _)| *flag == "-schema-location")
         .map(|(_, value)| value)
         .collect();
@@ -3633,7 +3668,7 @@ fn kubeconform_fake(
         Path::new(core).join("pod-v1.json").is_file(),
         "schemas are staged beside the config: {core}"
     );
-    let docs: Vec<&String> = args
+    let docs: Vec<&String> = words
         .iter()
         .filter(|arg| arg.contains("dx-kubeconform"))
         .collect();
@@ -3790,13 +3825,13 @@ fn cfn_lint_fake(
         assert!(env.iter().all(|(key, _)| key != denied), "{denied} leaked");
     }
     CFN_LINT_SPAWNS.bump();
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
     assert_eq!(
-        args[..5],
+        words[..5],
         [
             "--format",
             "json",
@@ -3805,10 +3840,10 @@ fn cfn_lint_fake(
             "--config-file"
         ]
     );
-    assert!(Path::new(&args[5]).is_file(), "config file exists");
-    assert_eq!(args[6], "--");
+    assert!(Path::new(&words[5]).is_file(), "config file exists");
+    assert_eq!(words[6], "--");
     let mut entries = Vec::new();
-    for name in &args[7..] {
+    for name in &words[7..] {
         if std::fs::read_to_string(name)?.contains("Bogus") {
             entries.push(format!(
                 r#"{{"Filename":"{name}","Level":"Error","Location":{{"End":{{"ColumnNumber":12,"LineNumber":6}},"Path":null,"Start":{{"ColumnNumber":7,"LineNumber":6}}}},"Message":"Additional properties are not allowed ('Bogus' was unexpected)","Rule":{{"Id":"E3002"}}}}"#,
@@ -4030,12 +4065,12 @@ fn bicep_fake(
     let config = std::fs::read_to_string(root.join("bicepconfig.json"))?;
     assert!(config.contains("cacheRootDirectory"), "{config}");
     assert!(config.contains("dx-bicep"), "{config}");
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    let file = args.last().expect("one file").clone();
+    let file = words.last().expect("one file").clone();
     assert!(Path::new(&file).starts_with(&root), "file in scratch");
     let text = std::fs::read_to_string(&file)?;
     let ok = |stdout: String| {
@@ -4045,10 +4080,10 @@ fn bicep_fake(
             stderr: Vec::new(),
         })
     };
-    match args[0].as_str() {
+    match words[0].as_str() {
         "format" => {
             let formatted = text.replace("  ", " ");
-            if args.iter().any(|arg| arg == "--stdout") {
+            if words.iter().any(|arg| arg == "--stdout") {
                 ok(formatted)
             } else {
                 std::fs::write(&file, formatted)?;
@@ -4057,7 +4092,7 @@ fn bicep_fake(
         }
         "lint" => {
             assert_eq!(
-                args[..4],
+                words[..4],
                 ["lint", "--no-restore", "--diagnostics-format", "sarif"]
             );
             if text.contains("= \n") {
@@ -4238,7 +4273,8 @@ fn bicep_format_compares_stdout_and_fix_rewrites_the_file() {
     assert_eq!(
         backend
             .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_CLEAN))
-            .expect("clean"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("clean"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let findings = backend
         .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_DIRTY))
@@ -4275,7 +4311,8 @@ fn bicep_format_fails_on_a_syntax_error_but_not_on_other_lint_errors() {
     assert_eq!(
         backend
             .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_REGISTRY))
-            .expect("registry"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("registry"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -4331,22 +4368,24 @@ fn cmakelint_fake(
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     CMAKELINT_SPAWNS.bump();
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    let config = args[0].strip_prefix("--config=").expect("config flag");
+    let config = words[0].strip_prefix("--config=").expect("config flag");
     assert!(Path::new(config).is_file(), "config file exists");
-    assert_eq!(args[1], "--");
+    assert_eq!(words[1], "--");
     let configured = std::fs::read_to_string(config)?;
     let mut stdout = String::new();
     let mut total = 0;
-    for name in &args[2..] {
+    for name in &words[2..] {
         if std::fs::read_to_string(name)?.contains("SET(") {
-            stdout.push_str(&format!(
-                "{name}:2: Command must be lowercase [readability/wonkycase]\n"
-            ));
+            writeln!(
+                stdout,
+                "{name}:2: Command must be lowercase [readability/wonkycase]"
+            )
+            .unwrap();
             total += 1;
         }
     }
@@ -4540,26 +4579,26 @@ fn sqlfluff_fake(
     assert_hermetic(env);
     assert!(env.iter().all(|(key, _)| key != "HOME"), "HOME leaked");
     SQLFLUFF_SPAWNS.bump();
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    assert_eq!(args[..3], ["lint", "--format", "json"]);
-    let config_at = args
+    assert_eq!(words[..3], ["lint", "--format", "json"]);
+    let config_at = words
         .iter()
         .position(|arg| arg == "--config")
         .expect("--config");
     assert!(
-        Path::new(&args[config_at + 1]).is_file(),
+        Path::new(&words[config_at + 1]).is_file(),
         "config file exists"
     );
-    assert_eq!(args[config_at + 2], "--dialect");
-    assert_eq!(args[config_at + 4], "--ignore-local-config");
-    let separator = args.iter().position(|arg| arg == "--").expect("separator");
+    assert_eq!(words[config_at + 2], "--dialect");
+    assert_eq!(words[config_at + 4], "--ignore-local-config");
+    let separator = words.iter().position(|arg| arg == "--").expect("separator");
     let mut entries = Vec::new();
     let mut dirty = false;
-    for name in &args[separator + 1..] {
+    for name in &words[separator + 1..] {
         let violations = if std::fs::read_to_string(name)?.contains("a,b") {
             dirty = true;
             r#"{"start_line_no":1,"start_line_pos":9,"code":"LT01","description":"Expected single whitespace.","name":"layout.spacing","warning":false}"#
@@ -4706,7 +4745,7 @@ fn sqlfluff_has_no_delegated_mode() {
 }
 
 thread_local! {
-    static SQLFLUFF_FORMAT_ARGV: std::cell::RefCell<Vec<Vec<String>>> = const { std::cell::RefCell::new(Vec::new()) };
+    static SQLFLUFF_FORMAT_ARGV: RefCell<Vec<Vec<String>>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Records each argv, then behaves as `sqlfluff format` (rewrites `a,b`) or as the lint fake.
@@ -4715,20 +4754,20 @@ fn sqlfluff_format_fake(
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    SQLFLUFF_FORMAT_ARGV.with(|log| log.borrow_mut().push(args.clone()));
-    if args[0] != "format" {
+    SQLFLUFF_FORMAT_ARGV.with(|log| log.borrow_mut().push(words.clone()));
+    if words[0] != "format" {
         return sqlfluff_fake(argv, cwd, env);
     }
-    assert_eq!(args[1], "--config");
-    assert_eq!(args[3], "--dialect");
-    assert_eq!(args[5], "--ignore-local-config");
-    let separator = args.iter().position(|arg| arg == "--").expect("separator");
-    for name in &args[separator + 1..] {
+    assert_eq!(words[1], "--config");
+    assert_eq!(words[3], "--dialect");
+    assert_eq!(words[5], "--ignore-local-config");
+    let separator = words.iter().position(|arg| arg == "--").expect("separator");
+    for name in &words[separator + 1..] {
         let text = std::fs::read_to_string(name)?;
         std::fs::write(name, text.replace("a,b", "a, b"))?;
     }
@@ -4757,10 +4796,7 @@ fn sqlfluff_format_check_lints_with_only_the_format_rules() {
         .iter()
         .position(|arg| arg == "--rules")
         .expect("--rules");
-    assert_eq!(
-        argv[at + 1],
-        commands::SQLFLUFF_FORMAT_RULES
-    );
+    assert_eq!(argv[at + 1], commands::SQLFLUFF_FORMAT_RULES);
     let clean = backend
         .diagnose("sqlfluff", "format", &single("db/a.sql", SQL_CLEAN))
         .expect("diagnosed");
@@ -4768,8 +4804,8 @@ fn sqlfluff_format_check_lints_with_only_the_format_rules() {
 }
 
 thread_local! {
-    static SQLFLUFF_DIALECT_RUNS: std::cell::RefCell<Vec<(String, Vec<String>)>> =
-        const { std::cell::RefCell::new(Vec::new()) };
+    static SQLFLUFF_DIALECT_RUNS: RefCell<Vec<(String, Vec<String>)>> =
+        const { RefCell::new(Vec::new()) };
 }
 
 /// Records each run's `--dialect` and file names, and reports every file clean.
@@ -4778,16 +4814,16 @@ fn sqlfluff_dialect_fake(
     _cwd: &Path,
     _env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    let at = args
+    let at = words
         .iter()
         .position(|arg| arg == "--dialect")
         .expect("--dialect");
-    let separator = args.iter().position(|arg| arg == "--").expect("separator");
-    let names: Vec<String> = args[separator + 1..].to_vec();
+    let separator = words.iter().position(|arg| arg == "--").expect("separator");
+    let names: Vec<String> = words[separator + 1..].to_vec();
     let entries: Vec<String> = names
         .iter()
         .map(|name| {
@@ -4801,7 +4837,7 @@ fn sqlfluff_dialect_fake(
         .iter()
         .map(|name| name.rsplit(['/', '\\']).next().unwrap_or(name).to_owned())
         .collect();
-    SQLFLUFF_DIALECT_RUNS.with(|log| log.borrow_mut().push((args[at + 1].clone(), files)));
+    SQLFLUFF_DIALECT_RUNS.with(|log| log.borrow_mut().push((words[at + 1].clone(), files)));
     Ok(ChildOutput {
         code: Some(0),
         stdout: format!("[{}]", entries.join(",")).into_bytes(),
@@ -4913,7 +4949,7 @@ fn sqlfluff_format_fix_rewrites_and_lint_fix_stays_check_only() {
 }
 
 thread_local! {
-    static SQLFLUFF_NESTED_ARGV: std::cell::RefCell<Vec<Vec<String>>> = const { std::cell::RefCell::new(Vec::new()) };
+    static SQLFLUFF_NESTED_ARGV: RefCell<Vec<Vec<String>>> = const { RefCell::new(Vec::new()) };
 }
 
 fn sqlfluff_nested_fake(
@@ -4921,14 +4957,14 @@ fn sqlfluff_nested_fake(
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    SQLFLUFF_NESTED_ARGV.with(|log| log.borrow_mut().push(args.clone()));
-    assert!(args.iter().any(|arg| arg == "--ignore-local-config"));
-    if args[0] == "format" {
+    SQLFLUFF_NESTED_ARGV.with(|log| log.borrow_mut().push(words.clone()));
+    assert!(words.iter().any(|arg| arg == "--ignore-local-config"));
+    if words[0] == "format" {
         return sqlfluff_format_fake(argv, cwd, env);
     }
     sqlfluff_fake(argv, cwd, env)
@@ -5086,7 +5122,8 @@ fn ruff_notebook_fix_splices_only_the_edited_cell() {
     assert_eq!(
         backend
             .diagnose("ruff", "lint", &single("n.ipynb", &fixed))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -5201,14 +5238,16 @@ fn typstyle_tool(
             .into_owned();
         let body = std::fs::read_to_string(path).expect("read staged typst file");
         if body.contains("erroneous") {
-            stderr.push_str(&format!(
-                "warn: Failed to parse {shown}. The source is erroneous.\n"
-            ));
+            writeln!(
+                stderr,
+                "warn: Failed to parse {shown}. The source is erroneous."
+            )
+            .unwrap();
         } else if body.contains("   ") {
             if write {
                 std::fs::write(path, body.replace("   ", " ")).expect("rewrite typst file");
             } else {
-                stdout.push_str(&format!("Would reformat: {shown}\n"));
+                writeln!(stdout, "Would reformat: {shown}").unwrap();
                 code = 1;
             }
         }
@@ -5258,7 +5297,8 @@ fn typstyle_check_reports_dirty_files_by_workspace_path() {
     assert_eq!(
         backend
             .diagnose("typstyle", "format", &single("docs/b.typ", TYPST_CLEAN))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -5272,7 +5312,8 @@ fn typstyle_apply_rewrites_the_owned_file_and_the_recheck_is_clean() {
     assert_eq!(
         backend
             .diagnose("typstyle", "format", &single("docs/a.typ", &fixed))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -5321,12 +5362,10 @@ fn fake_nixfmt(
         let name = file.to_string_lossy().into_owned();
         let text = std::fs::read_to_string(file)?;
         if text.contains("BROKEN") {
-            stderr.push_str(&format!(
-                "{name}:1:7:\n  |\n1 | {{ a = ; }}\n  |       ^^^^\nunexpected \";\"\nexpecting expression\n\n"
-            ));
+            write!(stderr, "{name}:1:7:\n  |\n1 | {{ a = ; }}\n  |       ^^^^\nunexpected \";\"\nexpecting expression\n\n").unwrap();
         } else if text != NIXFMT_CLEAN {
             if check {
-                stderr.push_str(&format!("{name}: not formatted\n"));
+                writeln!(stderr, "{name}: not formatted").unwrap();
             } else {
                 std::fs::write(file, NIXFMT_CLEAN)?;
             }
@@ -5362,18 +5401,16 @@ fn fake_helmfmt(
     for file in files {
         let name = file.to_string_lossy().replace('\\', "/");
         assert!(
-            name.contains("/templates/") || name.ends_with(".tpl"),
+            name.contains("/templates/") || has_extension(&name, "tpl"),
             "helmfmt was given {name}"
         );
         let name = file.to_string_lossy().into_owned();
         let text = std::fs::read_to_string(file)?;
         if text.contains("BROKEN") {
-            stderr.push_str(&format!(
-                "[ERROR]  Invalid syntax {name}: invalid template syntax: template: validation:2: unexpected EOF\n"
-            ));
+            writeln!(stderr, "[ERROR]  Invalid syntax {name}: invalid template syntax: template: validation:2: unexpected EOF").unwrap();
         } else if text != HELMFMT_CLEAN {
             if check {
-                stderr.push_str(&format!("[UNFORMATTED] {name}\n"));
+                writeln!(stderr, "[UNFORMATTED] {name}").unwrap();
             } else {
                 std::fs::write(file, HELMFMT_CLEAN)?;
             }
@@ -5465,7 +5502,8 @@ fn helmfmt_formats_only_chart_templates() {
                 "format",
                 &chart_with("c/templates/d.yaml", HELMFMT_CLEAN)
             )
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -5475,7 +5513,8 @@ fn helmfmt_formats_only_chart_templates() {
                 &chart_with("c/templates/_helpers.tpl", HELMFMT_DIRTY)
             )
             .expect("diagnosed")
-            .len(), 1
+            .len(),
+        1
     );
 }
 
@@ -5486,7 +5525,8 @@ fn helmfmt_leaves_files_outside_templates_alone() {
     assert_eq!(
         backend
             .diagnose("helmfmt", "format", &files)
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -5549,12 +5589,12 @@ fn fake_topiary(
         let name = file.to_string_lossy().into_owned();
         let text = std::fs::read_to_string(file)?;
         if text.contains("BROKEN") {
-            stderr.push_str(&format!("{name}:1:5: syntax error\n"));
+            writeln!(stderr, "{name}:1:5: syntax error").unwrap();
         } else if text != TOPIARY_CLEAN {
             if write {
                 std::fs::write(file, TOPIARY_CLEAN)?;
             } else {
-                dirty.push_str(&format!("{name}\n"));
+                writeln!(dirty, "{name}").unwrap();
             }
         }
     }
@@ -5582,7 +5622,8 @@ fn topiary_reports_a_dirty_file_and_fix_rewrites_it() {
     assert_eq!(
         backend
             .diagnose("topiary", "format", &single("a.mli", TOPIARY_CLEAN))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("topiary", "a.ml", "let   x=1\n", "format")
@@ -5690,7 +5731,8 @@ fn nixfmt_reports_a_dirty_file_and_fix_rewrites_it() {
     assert_eq!(
         backend
             .diagnose("nixfmt", "format", &single("a.nix", NIXFMT_CLEAN))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("nixfmt", "a.nix", "{a=1;}\n", "format")
@@ -5699,7 +5741,8 @@ fn nixfmt_reports_a_dirty_file_and_fix_rewrites_it() {
     assert_eq!(
         backend
             .diagnose("nixfmt", "format", &single("a.nix", &fixed))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -5811,15 +5854,17 @@ fn latexindent_tool(
 ) -> io::Result<ChildOutput> {
     assert_hermetic_scratch_home(env);
     for name in ["HOME", "USERPROFILE"] {
-        let home = env
-            .iter()
-            .find(|(key, _)| key == name).map_or_else(|| panic!("{name} names the scratch home"), |(_, value)| PathBuf::from(value));
+        let home = env.iter().find(|(key, _)| key == name).map_or_else(
+            || panic!("{name} names the scratch home"),
+            |(_, value)| PathBuf::from(value),
+        );
         assert!(home.is_dir(), "{name} {home:?} exists");
     }
     let write = argv.iter().any(|arg| arg == "-w");
     assert!(write || argv.iter().any(|arg| arg == "-k"));
     let flag = |prefix: &str| {
-        argv.iter().find_map(|arg| arg.to_str()?.strip_prefix(prefix).map(PathBuf::from))
+        argv.iter()
+            .find_map(|arg| arg.to_str()?.strip_prefix(prefix).map(PathBuf::from))
     };
     let log = flag("-g=").expect("log goes to an explicit file");
     let cruft = flag("-c=").expect("backups go to an explicit directory");
@@ -5919,7 +5964,8 @@ fn latexindent_check_reports_dirty_files_by_workspace_path() {
     assert_eq!(
         backend
             .diagnose("latexindent", "format", &single("docs/b.tex", LATEX_CLEAN))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -5933,7 +5979,8 @@ fn latexindent_apply_rewrites_the_owned_file_and_the_recheck_is_clean() {
     assert_eq!(
         backend
             .diagnose("latexindent", "format", &single("docs/a.tex", &fixed))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -6055,7 +6102,8 @@ fn chktex_clean_file_has_no_findings() {
     assert_eq!(
         backend
             .diagnose("chktex", "lint", &single("docs/b.tex", LATEX_CLEAN))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -6080,8 +6128,10 @@ fn detekt_fake(
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let value = |flag: &str| {
-        argv.windows(2)
-            .find(|pair| pair[0] == flag).map_or_else(|| panic!("detekt passes {flag}"), |pair| pair[1].to_string_lossy().into_owned())
+        argv.windows(2).find(|pair| pair[0] == flag).map_or_else(
+            || panic!("detekt passes {flag}"),
+            |pair| pair[1].to_string_lossy().into_owned(),
+        )
     };
     let config = value("--config");
     assert!(
@@ -6252,7 +6302,8 @@ fn notebook_outputs_fix_strips_only_outputs_and_counts() {
     assert_eq!(
         backend
             .diagnose("notebook_outputs", "lint", &single("n.ipynb", &fixed))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -6479,7 +6530,7 @@ fn dialyzer_elixir_report(
     let beams = dialyzer_listed_beams(&text);
     assert_eq!(beams.len(), 2, "{beams:?}");
     assert!(
-        beams.iter().all(|b| b.ends_with(".beam")),
+        beams.iter().all(|b| has_extension(b, "beam")),
         "only beams are analysed: {beams:?}"
     );
     Ok(ChildOutput {
@@ -6601,7 +6652,8 @@ fn phpcs_passes_the_default_standard_and_maps_paths_back() {
     assert_eq!(
         backend
             .diagnose("phpcs", "lint", &single("lib/clean.php", "<?php\n"))
-            .expect("clean"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("clean"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -6972,7 +7024,8 @@ fn phpstan_writes_its_config_keeps_owned_findings_and_maps_paths_back() {
     assert_eq!(
         backend
             .diagnose("phpstan", "typecheck", &single("lib/clean.php", "<?php\n"))
-            .expect("clean"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("clean"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -7132,19 +7185,19 @@ fn pkl_eval_fake(
     _cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    let args: Vec<String> = argv[1..]
+    let words: Vec<String> = argv[1..]
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    assert_eq!(args[0], "eval");
+    assert_eq!(words[0], "eval");
     for flag in ["--no-cache", "--no-project", "--root-dir"] {
-        assert!(args.iter().any(|arg| arg == flag), "{flag} in {args:?}");
+        assert!(words.iter().any(|arg| arg == flag), "{flag} in {words:?}");
     }
-    let modules = &args[args.iter().position(|a| a == "--root-dir").unwrap() + 2..];
-    let load_only = args.iter().any(|arg| arg == "-x");
-    let module = PathBuf::from(args.last().expect("module"));
+    let modules = &words[words.iter().position(|a| a == "--root-dir").unwrap() + 2..];
+    let load_only = words.iter().any(|arg| arg == "-x");
+    let module = PathBuf::from(words.last().expect("module"));
     assert!(module.is_absolute() && module.extension().is_some_and(|e| e == "pkl"));
-    assert!(modules.len() == if load_only { 3 } else { 1 }, "{args:?}");
+    assert!(modules.len() == if load_only { 3 } else { 1 }, "{words:?}");
     for key in ["HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"] {
         assert!(
             env.iter()
@@ -7230,8 +7283,8 @@ fn pkl_typecheck_dependency_failure_is_an_execution_error() {
 }
 
 thread_local! {
-    static TERRAFORM_CALLS: std::cell::RefCell<Vec<Vec<String>>> =
-        const { std::cell::RefCell::new(Vec::new()) };
+    static TERRAFORM_CALLS: RefCell<Vec<Vec<String>>> =
+        const { RefCell::new(Vec::new()) };
 }
 
 fn terraform_calls() -> Vec<Vec<String>> {
@@ -7244,11 +7297,11 @@ fn terraform_fake(
     _cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    let args: Vec<String> = argv[1..]
+    let words: Vec<String> = argv[1..]
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    TERRAFORM_CALLS.with(|calls| calls.borrow_mut().push(args.clone()));
+    TERRAFORM_CALLS.with(|calls| calls.borrow_mut().push(words.clone()));
     assert_hermetic(env);
     let value = |key: &str| {
         env.iter()
@@ -7272,7 +7325,7 @@ fn terraform_fake(
             "socket-safe TMPDIR, got {tmp:?}"
         );
     }
-    let dir = PathBuf::from(args[0].strip_prefix("-chdir=").expect("chdir comes first"));
+    let dir = PathBuf::from(words[0].strip_prefix("-chdir=").expect("chdir comes first"));
     let text = std::fs::read_to_string(dir.join("main.tf")).unwrap_or_default();
     let located = |severity: &str, file: &str| {
         format!(
@@ -7280,9 +7333,9 @@ fn terraform_fake(
             file = json_escape(file)
         )
     };
-    match args[1].as_str() {
+    match words[1].as_str() {
         "init" => {
-            assert!(args.iter().any(|arg| arg == "-json"));
+            assert!(words.iter().any(|arg| arg == "-json"));
             if text.contains("NOPROVIDER") {
                 let line = r#"{"type":"diagnostic","diagnostic":{"severity":"error","summary":"Failed to query available provider packages","detail":"d"}}"#;
                 return Ok(ChildOutput {
@@ -7524,7 +7577,8 @@ fn typos_lint_reports_and_fix_corrects() {
     assert_eq!(
         backend
             .diagnose("typos", "lint", &single("notes.txt", "say the word\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("typos", "notes.txt", "say teh word\n", "lint")
@@ -7550,10 +7604,8 @@ fn lychee_fake(
         if text.contains("BROKEN") {
             let name = file.to_string_lossy().replace('\\', "/");
             let slashes = if root.starts_with('/') { "//" } else { "///" };
-            broken.push_str(&format!(
-                "\"{name}\":[{{\"url\":\"file:{slashes}{root}/gone.md\",\"status\":{{\"text\":\"File not found\"}},\"span\":{{\"line\":2,\"column\":3}}}}]",
-name = json_escape(&name), root = json_escape(&root)
-            ));
+            write!(broken, "\"{name}\":[{{\"url\":\"file:{slashes}{root}/gone.md\",\"status\":{{\"text\":\"File not found\"}},\"span\":{{\"line\":2,\"column\":3}}}}]",
+name = json_escape(&name), root = json_escape(&root)).unwrap();
         }
     }
     let code = if broken.is_empty() { 0 } else { 2 };
@@ -7577,7 +7629,8 @@ fn lychee_reports_broken_links_with_scratch_free_messages() {
     assert_eq!(
         backend
             .diagnose("lychee", "lint", &single("docs/a.md", "fine\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -7627,7 +7680,8 @@ fn actionlint_reports_an_undefined_context_property() {
     assert_eq!(
         backend
             .diagnose("actionlint", "lint", &single(path, "name: ci\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -7674,7 +7728,8 @@ fn zizmor_reports_an_unpinned_action() {
     assert_eq!(
         backend
             .diagnose("zizmor", "lint", &single(path, "name: ci\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -7699,7 +7754,8 @@ fn lychee_goes_online_when_the_request_sets_the_env() {
     assert_eq!(
         backend
             .diagnose("lychee", "lint", &single("docs/a.md", "fine\n"))
-            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
+            .expect("diagnosed"),
+        [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 

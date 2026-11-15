@@ -4,7 +4,11 @@ use quality_adapter::exec::MirrorContents;
 use crate::StageSpec;
 use quality_adapter::launch::ResolvedTool;
 
-use super::{BTreeSet, BTreeMap, Path, Invocation, RunnerError, RealTool, execution, missing_tier_base, Scratch, MirrorFile, PathBuf, write_all, RealBackend, ffmt_accepts, fresh_scratch, cleaned, hint_dir};
+use super::{
+    BTreeMap, BTreeSet, Invocation, MirrorFile, Path, PathBuf, RealBackend, RealTool, RunnerError,
+    Scratch, cleaned, execution, ffmt_accepts, fresh_scratch, hint_dir, missing_tier_base,
+    write_all,
+};
 
 /// Empty stand-ins for the other known files with these extensions.
 #[cfg(test)]
@@ -809,6 +813,11 @@ impl<'a> FixSession<'a> {
 }
 
 impl RealBackend {
+    /// Returns the result of the call.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error describing the first step that failed.
     #[cfg(test)]
     pub fn apply_fix(
         &self,
@@ -820,6 +829,11 @@ impl RealBackend {
         self.apply_fix_in_context(tool_id, path, text, capability, &BTreeSet::new())
     }
 
+    /// Returns the result of the call.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error describing the first step that failed.
     #[cfg(test)]
     pub fn apply_fix_in_context(
         &self,
@@ -856,7 +870,7 @@ impl RealBackend {
         if tool_id == "latexindent" && !before.contains('\r') {
             return Ok(fixed.replace("\r\n", "\n"));
         }
-        if !path.ends_with(".ipynb") {
+        if !super::has_extension(path, "ipynb") {
             return Ok(fixed);
         }
         if tool_id == "notebook_outputs" {

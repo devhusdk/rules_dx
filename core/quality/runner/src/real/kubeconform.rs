@@ -5,7 +5,7 @@ use quality_adapter::parsers::{FileFinding, KubeconformTarget};
 use quality_adapter::{ColumnEncoding, Finding, TextPosition, ToolSeverity, commands, parsers};
 
 use super::check::ToolDef;
-use super::{RealBackend, RealTool, StagedScratch, RunnerError, execution, parsed, Scratch};
+use super::{RealBackend, RealTool, RunnerError, Scratch, StagedScratch, execution, parsed};
 
 const DOCS_REL: &str = "dx-kubeconform/docs";
 

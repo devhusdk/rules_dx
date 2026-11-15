@@ -12,14 +12,14 @@ const SKIPPED_DIRS: &[&str] = &["node_modules", "target", ".git"];
 const UNLISTED_OK_DIRS: &[&str] = &["testdata", "fixtures", "examples"];
 
 fn walk(dir: &Path, root: &Path, found: &mut BTreeSet<String>) {
-    let entries = std::fs::read_dir(dir).unwrap_or_else(|error| panic!("read {dir:?}: {error}"));
+    let entries = std::fs::read_dir(dir).unwrap_or_else(|error| panic!("read {}: {error}", dir.display()));
     for entry in entries {
-        let entry = entry.unwrap_or_else(|error| panic!("entry in {dir:?}: {error}"));
+        let entry = entry.unwrap_or_else(|error| panic!("entry in {}: {error}", dir.display()));
         let name = entry.file_name().to_string_lossy().into_owned();
         let path = entry.path();
         let kind = entry
             .file_type()
-            .unwrap_or_else(|error| panic!("type of {path:?}: {error}"));
+            .unwrap_or_else(|error| panic!("type of {}: {error}", path.display()));
         if kind.is_dir() {
             if name.starts_with("bazel-") || SKIPPED_DIRS.contains(&name.as_str()) {
                 continue;

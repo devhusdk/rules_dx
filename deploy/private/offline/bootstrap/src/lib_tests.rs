@@ -1,5 +1,6 @@
 //! Tests for the offline bootstrap helpers.
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use super::{
@@ -193,13 +194,17 @@ fn pin_advisory(advisory: &Path) {
         .expect("advisory dir")
         .flatten()
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
-        .filter(|name| name.ends_with(".json"))
+        .filter(|name| {
+            Path::new(name)
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("json"))
+        })
         .collect();
     names.sort();
     let mut text = String::new();
     for name in names {
         let sum = dx_digest::sha256_file_hex(&advisory.join(&name)).expect("digest");
-        text.push_str(&format!("{sum}  {name}\n"));
+        writeln!(text, "{sum}  {name}").expect("write to string");
     }
     std::fs::write(advisory.join("SHA256SUMS"), text).expect("manifest");
 }
@@ -582,7 +587,7 @@ fn an_old_staging_file_from_an_interrupted_install_is_removed() {
     std::fs::create_dir_all(&bin).expect("bin dir");
     let stale = bin.join(".bazel.abc.tmp");
     std::fs::write(&stale, b"partial").expect("stale file");
-    let long_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 60 * 60);
+    let long_ago = std::time::SystemTime::now() - std::time::Duration::from_hours(2);
     std::fs::File::options()
         .write(true)
         .open(&stale)

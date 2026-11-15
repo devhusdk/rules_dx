@@ -1,11 +1,21 @@
 use super::*;
 
+#[expect(clippy::cast_possible_truncation, reason = "fixture sizes are small")]
+fn le32(n: usize) -> [u8; 4] {
+    (n as u32).to_le_bytes()
+}
+
+#[expect(clippy::cast_possible_truncation, reason = "fixture offsets are small")]
+fn index(n: u64) -> usize {
+    n as usize
+}
+
 fn elf(machine: u16, id: Option<&[u8]>) -> Vec<u8> {
     let shstrtab = b"\0.shstrtab\0.note.gnu.build-id\0";
     let mut note = Vec::new();
     if let Some(id) = id {
         note.extend_from_slice(&4u32.to_le_bytes());
-        note.extend_from_slice(&(id.len() as u32).to_le_bytes());
+        note.extend_from_slice(&le32(id.len()));
         note.extend_from_slice(&3u32.to_le_bytes());
         note.extend_from_slice(b"GNU\0");
         note.extend_from_slice(id);
@@ -28,7 +38,7 @@ fn elf(machine: u16, id: Option<&[u8]>) -> Vec<u8> {
     b[62..64].copy_from_slice(&1u16.to_le_bytes());
     b.extend_from_slice(shstrtab);
     b.extend_from_slice(&note);
-    b.resize(sh_off as usize, 0);
+    b.resize(index(sh_off), 0);
     b.extend_from_slice(&[0u8; 64]);
     let section = |name: u32, kind: u32, off: u64, size: u64| {
         let mut s = vec![0u8; 64];
@@ -99,7 +109,7 @@ fn macho(cputype: u32, filetype: u32, uuid: Option<[u8; 16]>) -> Vec<u8> {
     b.extend_from_slice(&0u32.to_le_bytes());
     b.extend_from_slice(&filetype.to_le_bytes());
     b.extend_from_slice(&u32::from(uuid.is_some()).to_le_bytes());
-    b.extend_from_slice(&(cmds.len() as u32).to_le_bytes());
+    b.extend_from_slice(&le32(cmds.len()));
     b.extend_from_slice(&0u32.to_le_bytes());
     b.extend_from_slice(&0u32.to_le_bytes());
     b.extend_from_slice(&cmds);
@@ -195,9 +205,9 @@ fn msf(info: Option<(&[u8; 16], u32)>, dbi: Option<(u32, u16)>) -> Vec<u8> {
         s[58..60].copy_from_slice(&machine.to_le_bytes());
         streams[3] = s;
     }
-    let mut dir = (streams.len() as u32).to_le_bytes().to_vec();
+    let mut dir = le32(streams.len()).to_vec();
     for s in &streams {
-        dir.extend_from_slice(&(s.len() as u32).to_le_bytes());
+        dir.extend_from_slice(&le32(s.len()));
     }
     let mut data = Vec::new();
     let mut next = 3u32;
@@ -211,9 +221,9 @@ fn msf(info: Option<(&[u8; 16], u32)>, dbi: Option<(u32, u16)>) -> Vec<u8> {
     }
     let mut b = vec![0u8; BLOCK * 3];
     b[..MSF_MAGIC.len()].copy_from_slice(MSF_MAGIC);
-    b[32..36].copy_from_slice(&(BLOCK as u32).to_le_bytes());
+    b[32..36].copy_from_slice(&le32(BLOCK));
     b[40..44].copy_from_slice(&next.to_le_bytes());
-    b[44..48].copy_from_slice(&(dir.len() as u32).to_le_bytes());
+    b[44..48].copy_from_slice(&le32(dir.len()));
     b[52..56].copy_from_slice(&1u32.to_le_bytes());
     b[BLOCK..BLOCK + 4].copy_from_slice(&2u32.to_le_bytes());
     b[BLOCK * 2..BLOCK * 2 + dir.len()].copy_from_slice(&dir);

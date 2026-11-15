@@ -9,6 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub const ADVISORY_SETS: [&str; 6] = ["cargo", "npm", "maven", "nuget", "go", "rubygems"];
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> String {
     "usage: bootstrap-offline --bundle DIR [--install-dir DIR] [--workspace DIR]".to_string()
 }
@@ -31,13 +32,16 @@ pub enum Command {
 }
 
 /// Parses argv, or returns the plain refusal text of a bad argument.
+///
+/// # Errors
+///
+/// Returns the refusal text when an argument is not recognised.
 pub fn parse_args(args: &[String]) -> Result<Command, String> {
     let mut options = Options {
         bundle: None,
         install_dir: String::new(),
         workspace: std::env::current_dir()
-            .map(|p| p.to_string_lossy().into_owned())
-            .unwrap_or_else(|_| ".".to_string()),
+            .map_or_else(|_| ".".to_string(), |p| p.to_string_lossy().into_owned()),
     };
     let mut install_dir = None;
     let mut index = 0;
@@ -50,7 +54,7 @@ pub fn parse_args(args: &[String]) -> Result<Command, String> {
             "--install-dir" => install_dir = args.get(index + 1).cloned(),
             "--workspace" => {
                 if let Some(value) = args.get(index + 1) {
-                    options.workspace = value.clone();
+                    options.workspace.clone_from(value);
                 }
             }
             "-h" | "--help" => return Ok(Command::Help),
@@ -67,6 +71,7 @@ pub fn parse_args(args: &[String]) -> Result<Command, String> {
 }
 
 /// Returns `bin` under `HOME`, else under `USERPROFILE` on native Windows.
+#[must_use]
 pub fn default_install_dir(home: Option<&str>, profile: Option<&str>) -> Option<String> {
     let base = home
         .filter(|h| !h.is_empty())
@@ -81,6 +86,7 @@ pub fn default_install_dir(home: Option<&str>, profile: Option<&str>) -> Option<
 }
 
 /// Returns the launcher file name this host needs from the bundle.
+#[must_use]
 pub fn host_launcher(os: &str, arch: &str) -> Option<&'static str> {
     match (os, arch) {
         ("linux", "x86_64") => Some("bazelisk-linux-amd64"),
@@ -93,11 +99,11 @@ pub fn host_launcher(os: &str, arch: &str) -> Option<&'static str> {
 }
 
 /// Returns today's date as `YYYY-MM-DD` in UTC.
+#[must_use]
 pub fn today_utc() -> String {
     let days = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() / 86_400)
-        .unwrap_or(0) as i64;
+        .map_or(0, |d| i64::try_from(d.as_secs() / 86_400).unwrap_or(0));
     let (year, month, day) = civil_from_days(days);
     format!("{year:04}-{month:02}-{day:02}")
 }
@@ -115,16 +121,18 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
     let year = year_of_era + era * 400;
     let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
     let shifted_month = (5 * day_of_year + 2) / 153;
-    let day = (day_of_year - (153 * shifted_month + 2) / 5 + 1) as u32;
-    let month = if shifted_month < 10 {
+    let day = u32::try_from(day_of_year - (153 * shifted_month + 2) / 5 + 1).unwrap_or(1);
+    let month = u32::try_from(if shifted_month < 10 {
         shifted_month + 3
     } else {
         shifted_month - 9
-    } as u32;
+    })
+    .unwrap_or(1);
     (if month <= 2 { year + 1 } else { year }, month, day)
 }
 
 /// Returns whether one value is a real calendar day written `YYYY-MM-DD`.
+#[must_use]
 pub fn is_plain_date(value: &str) -> bool {
     let bytes = value.as_bytes();
     if !value.is_ascii()
@@ -160,6 +168,7 @@ pub fn is_plain_date(value: &str) -> bool {
 /// This is not a JSON reader: it takes `"key"`, optional whitespace, a colon,
 /// optional whitespace and a quoted value with no backslash. It matches the
 /// pretty and compact forms `advisory_prep` writes. The first match wins.
+#[must_use]
 pub fn recorded_field(text: &str, key: &str) -> Option<String> {
     let needle = format!("\"{key}\"");
     let mut from = 0usize;
@@ -194,6 +203,7 @@ pub fn manifest_entry(line: &str) -> Option<(String, String)> {
 }
 
 /// Returns the digest the manifest pins for one file name.
+#[must_use]
 pub fn pinned(manifest: &str, name: &str) -> Option<String> {
     manifest.lines().find_map(|line| {
         let (want, named) = manifest_entry(line)?;
@@ -202,6 +212,7 @@ pub fn pinned(manifest: &str, name: &str) -> Option<String> {
 }
 
 /// Returns the refusal text, or an empty string when the bootstrap succeeded.
+#[must_use]
 pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
     let Some(raw) = options.bundle.as_deref().filter(|b| !b.is_empty()) else {
         return "missing --bundle DIR (vendored offline bundle)".to_string();
@@ -276,87 +287,31 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
     }
     let mut count = 0usize;
     for snapshot in &snapshots {
-        let Some(set) = snapshot
-            .file_stem()
-            .map(|s| s.to_string_lossy().into_owned())
-        else {
-            continue;
-        };
-        if !ADVISORY_SETS.contains(&set.as_str()) {
-            return format!("bundle carries unknown advisory set: {set}");
+        match bind_snapshot(
+            snapshot,
+            &advisory,
+            &advisory_manifest,
+            &url,
+            &populated,
+            today,
+        ) {
+            Ok(true) => count += 1,
+            Ok(false) => {}
+            Err(refusal) => return refusal,
         }
-        let named = format!("{set}.json");
-        if pinned(&advisory_manifest, &named).is_none() {
-            return format!(
-                "manifest does not pin advisory snapshot: {named} (in {})",
-                advisory.join("SHA256SUMS").display()
-            );
-        }
-        let sha = digest(snapshot);
-        let identity = format!("{set}.meta.json");
-        let identity_path = advisory.join(&identity);
-        if !identity_path.is_file() {
-            return format!(
-                "bundle has no recorded date for advisory snapshot: {named} \
-                 (want advisory/{identity})"
-            );
-        }
-        if pinned(&advisory_manifest, &identity).is_none() {
-            return format!(
-                "manifest does not pin advisory identity: {identity} (in {})",
-                advisory.join("SHA256SUMS").display()
-            );
-        }
-        let recorded = read(&identity_path);
-        let retrieved = match recorded_field(&recorded, "retrieved_at") {
-            Some(date) if is_plain_date(&date) => date,
-            _ => {
-                return format!(
-                    "advisory identity {identity} has no valid retrieved_at; want YYYY-MM-DD"
-                );
-            }
-        };
-        if retrieved.as_str() > today {
-            return format!(
-                "advisory identity {identity} retrieved_at {retrieved} is after today {today}; \
-                 check this host's clock or rebuild the bundle"
-            );
-        }
-        match recorded_field(&recorded, "sha256") {
-            Some(bound) if bound == sha => {}
-            Some(bound) => {
-                return format!(
-                    "advisory identity {identity} is for other bytes: \
-                     sha256 {bound} but {named} is {sha}"
-                );
-            }
-            None => return format!("advisory identity {identity} has no sha256"),
-        }
-        let meta = format!(
-            "{{\"set\": \"{set}\", \"url\": \"{url}/advisory/{named}\", \
-             \"sha256\": \"{sha}\", \"retrieved_at\": \"{retrieved}\", \
-             \"path\": \".dx/local/advisory/{named}\"}}"
-        );
-        if let Err(detail) = publish_set(snapshot, &populated, &set, &meta, write) {
-            return detail;
-        }
-        count += 1;
     }
-    for identity in &identities {
-        let stem = identity.trim_end_matches(".meta.json");
-        if !snapshots
-            .iter()
-            .any(|path| path.file_stem().is_some_and(|s| s == stem))
-        {
-            return format!(
-                "advisory identity {identity} has no snapshot; want advisory/{stem}.json"
-            );
-        }
+    if let Some(refusal) = orphan_identity(&identities, &snapshots) {
+        return refusal;
     }
     if count == 0 {
         return "bundle carries no advisory snapshots".to_string();
     }
 
+    report(&installed, &got, count, &populated);
+    String::new()
+}
+
+fn report(installed: &Path, got: &str, count: usize, populated: &Path) {
     println!(
         "bootstrap-offline: installed {} (sha256 {got}, no network)",
         installed.display()
@@ -369,7 +324,91 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
         "bootstrap-offline: first Bazel module/toolchain fetch still needs network once; \
          steady-state offline after"
     );
-    String::new()
+}
+
+fn bind_snapshot(
+    snapshot: &Path,
+    advisory: &Path,
+    advisory_manifest: &str,
+    url: &str,
+    populated: &Path,
+    today: &str,
+) -> Result<bool, String> {
+    let Some(set) = snapshot
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+    else {
+        return Ok(false);
+    };
+    if !ADVISORY_SETS.contains(&set.as_str()) {
+        return Err(format!("bundle carries unknown advisory set: {set}"));
+    }
+    let named = format!("{set}.json");
+    if pinned(advisory_manifest, &named).is_none() {
+        return Err(format!(
+            "manifest does not pin advisory snapshot: {named} (in {})",
+            advisory.join("SHA256SUMS").display()
+        ));
+    }
+    let sha = digest(snapshot);
+    let identity = format!("{set}.meta.json");
+    let identity_path = advisory.join(&identity);
+    if !identity_path.is_file() {
+        return Err(format!(
+            "bundle has no recorded date for advisory snapshot: {named} \
+             (want advisory/{identity})"
+        ));
+    }
+    if pinned(advisory_manifest, &identity).is_none() {
+        return Err(format!(
+            "manifest does not pin advisory identity: {identity} (in {})",
+            advisory.join("SHA256SUMS").display()
+        ));
+    }
+    let recorded = read(&identity_path);
+    let retrieved = match recorded_field(&recorded, "retrieved_at") {
+        Some(date) if is_plain_date(&date) => date,
+        _ => {
+            return Err(format!(
+                "advisory identity {identity} has no valid retrieved_at; want YYYY-MM-DD"
+            ));
+        }
+    };
+    if retrieved.as_str() > today {
+        return Err(format!(
+            "advisory identity {identity} retrieved_at {retrieved} is after today {today}; \
+             check this host's clock or rebuild the bundle"
+        ));
+    }
+    match recorded_field(&recorded, "sha256") {
+        Some(bound) if bound == sha => {}
+        Some(bound) => {
+            return Err(format!(
+                "advisory identity {identity} is for other bytes: \
+                 sha256 {bound} but {named} is {sha}"
+            ));
+        }
+        None => return Err(format!("advisory identity {identity} has no sha256")),
+    }
+    let meta = format!(
+        "{{\"set\": \"{set}\", \"url\": \"{url}/advisory/{named}\", \
+         \"sha256\": \"{sha}\", \"retrieved_at\": \"{retrieved}\", \
+         \"path\": \".dx/local/advisory/{named}\"}}"
+    );
+    publish_set(snapshot, populated, &set, &meta, write)?;
+    Ok(true)
+}
+
+fn orphan_identity(identities: &[String], snapshots: &[PathBuf]) -> Option<String> {
+    identities.iter().find_map(|identity| {
+        let stem = identity.trim_end_matches(".meta.json");
+        let has_snapshot = snapshots
+            .iter()
+            .any(|path| path.file_stem().is_some_and(|s| s == stem));
+        (!has_snapshot).then(|| {
+            format!("advisory identity {identity} has no snapshot; want advisory/{stem}.json")
+        })
+    })
 }
 
 fn is_identity(path: &Path) -> bool {
@@ -413,7 +452,10 @@ fn install(source: &Path, install_dir: &str, asset: &str, want: &str) -> Result<
     let dir = Path::new(install_dir);
     std::fs::create_dir_all(dir)
         .map_err(|error| format!("cannot create {install_dir}: {error}"))?;
-    let name = if asset.ends_with(".exe") {
+    let name = if Path::new(asset)
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("exe"))
+    {
         "bazel.exe"
     } else {
         "bazel"

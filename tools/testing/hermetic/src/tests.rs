@@ -653,6 +653,11 @@ fn the_consumer_materializes_from_dx_init() {
     for patch in dx_nested::compose::RULES_FLUTTER_PATCHES {
         std::fs::write(flutter.join(format!("{patch}.patch")), "").unwrap();
     }
+    let julia = source.join("patches/rules_julia");
+    std::fs::create_dir_all(&julia).unwrap();
+    for patch in dx_nested::compose::RULES_JULIA_PATCHES {
+        std::fs::write(julia.join(format!("{patch}.patch")), "").unwrap();
+    }
     let protobuf = source.join("patches/protobuf");
     std::fs::create_dir_all(&protobuf).unwrap();
     std::fs::write(protobuf.join("fix.patch"), "").unwrap();

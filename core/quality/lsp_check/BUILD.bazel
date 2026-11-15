@@ -12,7 +12,10 @@ rust_library(
     ],
     crate_name = "lsp_check",
     crate_root = "src/lib.rs",
-    deps = ["@crates//:serde_json"],
+    deps = [
+        "//cli/path:dx_path",
+        "@crates//:serde_json",
+    ],
 )
 
 rust_binary(
@@ -36,6 +39,7 @@ rust_test(
     crate_name = "lsp_check",
     crate_root = "src/lib.rs",
     deps = [
+        "//cli/path:dx_path",
         "//cli/test_scratch:dx_test_scratch",
         "@crates//:serde_json",
     ],

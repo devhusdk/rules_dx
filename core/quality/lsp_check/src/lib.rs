@@ -45,8 +45,13 @@ impl Diagnostic {
 
 #[must_use]
 pub fn file_uri(path: &Path) -> String {
-    let text = path.to_string_lossy().replace('\\', "/");
-    let mut uri = String::from("file://");
+    let text = dx_path::without_verbatim(path)
+        .to_string_lossy()
+        .replace('\\', "/");
+    let mut uri = String::from("file:");
+    if !text.starts_with("//") {
+        uri.push_str("//");
+    }
     if !text.starts_with('/') {
         uri.push('/');
     }

@@ -200,6 +200,26 @@ fn uri_for_windows_path_has_an_empty_authority() {
 }
 
 #[test]
+fn uri_for_verbatim_windows_path_drops_the_prefix() {
+    assert_eq!(
+        file_uri(Path::new("\\\\?\\C:\\a b\\c.pkl")),
+        "file:///C:/a%20b/c.pkl"
+    );
+}
+
+#[test]
+fn uri_for_unc_path_names_the_host() {
+    assert_eq!(
+        file_uri(Path::new("\\\\?\\UNC\\h\\s\\c.pkl")),
+        "file://h/s/c.pkl"
+    );
+    assert_eq!(
+        file_uri(Path::new("\\\\h\\s\\c.pkl")),
+        "file://h/s/c.pkl"
+    );
+}
+
+#[test]
 fn uri_escapes_spaces() {
     assert_eq!(file_uri(Path::new("/a b/c.pkl")), "file:///a%20b/c.pkl");
 }

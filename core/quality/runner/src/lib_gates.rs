@@ -24,7 +24,7 @@ fn diagnostic_envelope_rejected_by_validate_gate() {
     let stages = vec![stage("lint-a", &["rust"], &["src/lib.rs"])];
     let files = vec![file("src/lib.rs", "BAD\n")];
     let valid = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
-    assert!(!valid.initial_diagnostics.is_empty());
+    assert_ne!(valid.initial_diagnostics, [] as [Diagnostic; 0]);
     assert!(validate(&valid).is_ok());
     let mut bad_severity = valid.clone();
     bad_severity.initial_diagnostics[0].severity = Severity::Unspecified as i32;
@@ -53,7 +53,7 @@ fn unstable_envelope_with_replacements_rejected_by_validate_gate() {
     let files = vec![file("src/lib.rs", "BAD\n")];
     let valid = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(valid.convergence, Convergence::Stable as i32);
-    assert!(!valid.replacements.is_empty());
+    assert_ne!(valid.replacements, [] as [FileEdits; 0]);
     assert!(validate(&valid).is_ok());
     let mut limited = valid.clone();
     limited.convergence = Convergence::IterationLimit as i32;
@@ -155,7 +155,7 @@ fn file_modes_do_not_alter_pipeline_outputs() {
     let clean = vec![file("src/lib.rs", "GOOD\n")];
     let clean_result =
         synthetic::run_pipeline("//core/quality:test", "lint", &stages, &clean).unwrap();
-    assert!(clean_result.replacements.is_empty());
+    assert_eq!(clean_result.replacements, [] as [FileEdits; 0]);
     assert_ne!(manifests[0], encode_validated(&clean_result).unwrap());
 }
 
@@ -581,7 +581,7 @@ fn unchanged_terminal_reuses_initial_diagnostics() {
     initial[0].unfixable_reason.clear();
     assert_eq!(initial, result.terminal_diagnostics);
     assert_eq!(result.initial_diagnostics.len(), 1);
-    assert!(result.replacements.is_empty());
+    assert_eq!(result.replacements, [] as [FileEdits; 0]);
     assert!(encode_validated(&result).is_ok());
 }
 
@@ -639,7 +639,7 @@ fn dirty_tracking_matches_full_rerun() {
         apply: Fixer,
     ) -> (BTreeMap<String, String>, u32, Convergence) {
         let mut current = initial.clone();
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = HashSet::new();
         let mut prev_id = state_digest(initial);
         seen.insert(prev_id);
         for round in 1..=max_rounds {

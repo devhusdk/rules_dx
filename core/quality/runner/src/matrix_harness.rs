@@ -2,8 +2,8 @@
 //!
 //! The Starlark rule writes one JSON manifest per case and runs this binary as
 //! the test executable. The harness resolves every input through its own
-//! runfiles, invokes the quality runner and the print_result printer as child
-//! processes, validates the result with quality_result, checks the printed
+//! runfiles, invokes the quality runner and the `print_result` printer as child
+//! processes, validates the result with `quality_result`, checks the printed
 //! golden bytes, and stages snapshot updates. No Bash, python3, diff, cp, or
 //! mkdir processes are launched.
 
@@ -245,6 +245,7 @@ fn display(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
+#[must_use]
 pub fn substitute_test_srcdir(value: &str, test_srcdir: &str) -> String {
     value.replace(TEST_SRCDIR_TOKEN, test_srcdir)
 }
@@ -323,7 +324,7 @@ fn request_mappings(mappings: &[(String, PathBuf)]) -> Vec<RequestMapping> {
         .collect()
 }
 
-/// Encodes the resolved case as a quality_runner `--request` document.
+/// Encodes the resolved case as a `quality_runner` `--request` document.
 pub fn build_request(
     resolved: &Resolved,
     scratch_parent: &Path,
@@ -586,6 +587,7 @@ pub fn check_printed(text: &str, stages: usize) -> Result<(), HarnessError> {
     Ok(())
 }
 
+#[must_use]
 pub fn render_diff(expected: &[u8], actual: &[u8]) -> String {
     let expected_text = String::from_utf8_lossy(expected);
     let actual_text = String::from_utf8_lossy(actual);
@@ -860,6 +862,7 @@ fn run() -> Result<(), HarnessError> {
 }
 
 /// The runner's error message without the log prefix, newline-terminated.
+#[must_use]
 pub fn runner_error_text(stderr: &str) -> Option<String> {
     const MARKER: &str = "quality_runner: ";
     let line = stderr.lines().rev().find(|line| line.contains(MARKER))?;
@@ -869,6 +872,7 @@ pub fn runner_error_text(stderr: &str) -> Option<String> {
 
 /// Replaces each per-run scratch directory under `scratch_parent` with a stable token,
 /// spelling the rest of the path with forward slashes.
+#[must_use]
 pub fn normalize_scratch(text: &str, scratch_parent: &str) -> String {
     let flat = text.replace('\\', "/");
     let prefix = format!(
@@ -1238,7 +1242,7 @@ mod tests {
                 "/runfiles/matrix_lib.rs".to_owned()
             )]
         );
-        assert!(request.resolves.is_empty());
+        assert_eq!(request.resolves, [] as [(String, String); 0]);
         assert_eq!(request.scratch_parent.as_deref(), Some("/tmp/scratch"));
         let rustfmt = &request.tools["rustfmt"];
         assert_eq!(rustfmt.binary, Some(PathBuf::from("/runfiles/rustfmt")));
@@ -1251,8 +1255,8 @@ mod tests {
                 "/runfiles/rustfmt.toml".to_owned()
             )]
         );
-        assert!(rustfmt.upstream.is_empty());
-        assert!(rustfmt.search_paths.is_empty());
+        assert_eq!(rustfmt.upstream, [] as [PathBuf; 0]);
+        assert_eq!(rustfmt.search_paths, [] as [PathBuf; 0]);
         let clippy = &request.tools["clippy"];
         assert_eq!(clippy.binary, None);
         assert_eq!(clippy.upstream, [PathBuf::from("/runfiles/clippy.diag")]);

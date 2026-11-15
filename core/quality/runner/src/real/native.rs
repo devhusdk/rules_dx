@@ -2,7 +2,7 @@ use quality_adapter::parsers::{self, FileFinding};
 
 use super::check::{CheckCall, ToolDef, in_file};
 use super::schema::without_verbatim;
-use super::*;
+use super::{Path, RealBackend, Invocation, RunnerError, execution, hint_dir, commands, parsed, PathBuf, ffmt_accepts, fortran_free_form};
 
 fn paths<'a>(call: &'a CheckCall<'a>) -> (Vec<&'a Path>, Vec<String>) {
     let refs = call
@@ -214,7 +214,7 @@ fn dart(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Run
     Ok(owned)
 }
 
-/// Tools for C, C++, Go, Qt, Fortran, D, Typst, Swift, Dart, Julia, Zig, LaTeX, CMake and Make.
+/// Tools for C, C++, Go, Qt, Fortran, D, Typst, Swift, Dart, Julia, Zig, LaTeX, `CMake` and Make.
 pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "buildifier",

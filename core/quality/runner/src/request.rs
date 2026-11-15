@@ -913,10 +913,9 @@ mod tests {
         );
         let without =
             doc(json!({"binary": "bin/clang_tidy", "files": [], "env": [], "upstream": []}));
-        assert!(
+        assert_eq!(
             parse_real_request(&without).expect("parses").tools["clang_tidy"]
-                .args
-                .is_empty()
+                .args, [] as [String; 0]
         );
     }
 

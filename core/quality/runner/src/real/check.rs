@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
-use super::*;
+use super::{RealTool, StagedScratch, RealBackend, RunnerError, execution, Scratch, tier_lines, ZANUDA_STANDARD, ZANUDA_STRICT, parsed, dependency_failure, TERRAFORM_PLUGIN_DIRS_ENV, TERRAFORM_EMPTY_MIRROR_REL, Invocation, ChildOutput, spawn_argv};
 
 /// What a tool module needs to launch one check.
 pub(super) struct CheckCall<'a> {
@@ -493,17 +493,13 @@ pub(super) fn in_file(err: RunnerError, name: &str) -> RunnerError {
             tool_id,
             detail: format!("{name}: {detail}"),
         },
-        other @ RunnerError::EmptyProducer
-        | other @ RunnerError::UnknownCapability { .. }
-        | other @ RunnerError::EmptyStages
-        | other @ RunnerError::EmptyToolId { .. }
-        | other @ RunnerError::UnknownTool { .. }
-        | other @ RunnerError::EmptyClassIds { .. }
-        | other @ RunnerError::EmptyStageSources { .. }
-        | other @ RunnerError::DuplicateFile { .. }
-        | other @ RunnerError::InvalidUtf8 { .. }
-        | other @ RunnerError::MissingFile { .. }
-        | other @ RunnerError::UnplaceableFinding { .. } => other,
+        other @
+(RunnerError::EmptyProducer | RunnerError::UnknownCapability { .. } |
+RunnerError::EmptyStages | RunnerError::EmptyToolId { .. } |
+RunnerError::UnknownTool { .. } | RunnerError::EmptyClassIds { .. } |
+RunnerError::EmptyStageSources { .. } | RunnerError::DuplicateFile { .. } |
+RunnerError::InvalidUtf8 { .. } | RunnerError::MissingFile { .. } |
+RunnerError::UnplaceableFinding { .. }) => other,
     }
 }
 
@@ -521,17 +517,13 @@ fn in_batch(err: RunnerError, index: usize, total: usize) -> RunnerError {
             tool_id,
             detail: format!("batch {index}/{total}: {detail}"),
         },
-        other @ RunnerError::EmptyProducer
-        | other @ RunnerError::UnknownCapability { .. }
-        | other @ RunnerError::EmptyStages
-        | other @ RunnerError::EmptyToolId { .. }
-        | other @ RunnerError::UnknownTool { .. }
-        | other @ RunnerError::EmptyClassIds { .. }
-        | other @ RunnerError::EmptyStageSources { .. }
-        | other @ RunnerError::DuplicateFile { .. }
-        | other @ RunnerError::InvalidUtf8 { .. }
-        | other @ RunnerError::MissingFile { .. }
-        | other @ RunnerError::UnplaceableFinding { .. } => other,
+        other @
+(RunnerError::EmptyProducer | RunnerError::UnknownCapability { .. } |
+RunnerError::EmptyStages | RunnerError::EmptyToolId { .. } |
+RunnerError::UnknownTool { .. } | RunnerError::EmptyClassIds { .. } |
+RunnerError::EmptyStageSources { .. } | RunnerError::DuplicateFile { .. } |
+RunnerError::InvalidUtf8 { .. } | RunnerError::MissingFile { .. } |
+RunnerError::UnplaceableFinding { .. }) => other,
     }
 }
 

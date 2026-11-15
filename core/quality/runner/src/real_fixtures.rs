@@ -78,7 +78,7 @@ pub(super) fn upstream_file(name: &str, body: &str) -> tempfile::NamedTempFile {
         .prefix(format!("dx-delegated-{name}-").as_str())
         .tempfile_in(std::env::temp_dir())
         .expect("claim upstream fixture");
-    std::io::Write::write_all(&mut file, body.as_bytes())
+    io::Write::write_all(&mut file, body.as_bytes())
         .expect("write upstream diagnostics fixture");
     file
 }
@@ -108,7 +108,7 @@ pub(super) fn backend_for(tool_id: &str, tool: RealTool, spawn: Spawn) -> RealBa
         tools,
         scratch_parent: std::env::temp_dir(),
         spawn,
-        argv_limit: quality_adapter::commands::windows_argv_limit,
+        argv_limit: commands::windows_argv_limit,
         shard: String::new(),
         unsafe_fixes: false,
         last_stderr: Default::default(),
@@ -189,7 +189,7 @@ fn assert_hermetic_with(env: &[(OsString, OsString)], allow_scratch_home: bool) 
                 .iter()
                 .filter(|(key, _)| folded(key) == denied)
                 .all(|(_, value)| {
-                    std::path::Path::new(value).starts_with(std::path::Path::new(&tmpdir))
+                    Path::new(value).starts_with(Path::new(&tmpdir))
                 });
         assert!(
             scratch_home || env.iter().all(|(key, _)| folded(key) != denied),
@@ -363,7 +363,7 @@ pub(super) fn module_rustfmt(
         std::fs::write(file, fixed).expect("fix writes back");
     }
     Ok(ChildOutput {
-        code: Some(if stdout.is_empty() { 0 } else { 1 }),
+        code: Some(i32::from(!stdout.is_empty())),
         stdout: stdout.into_bytes(),
         stderr: Vec::new(),
     })
@@ -531,7 +531,7 @@ pub(super) fn keep_sorted_behavior(
     let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
     if mode == "fix" {
         if let Some((start, end, mut block)) = keep_sorted_block(&text) {
-            block.sort();
+            block.sort_unstable();
             let mut lines: Vec<&str> = text.lines().collect();
             lines.splice(start + 1..end, block);
             let mut fixed = lines.join("\n");
@@ -555,7 +555,7 @@ pub(super) fn keep_sorted_behavior(
         });
     };
     let mut sorted = block.clone();
-    sorted.sort();
+    sorted.sort_unstable();
     if sorted == block {
         return Ok(ChildOutput {
             code: Some(0),
@@ -606,7 +606,7 @@ pub(super) fn keep_sorted_multi_behavior(
             continue;
         };
         let mut sorted = block.clone();
-        sorted.sort();
+        sorted.sort_unstable();
         if sorted == block {
             continue;
         }

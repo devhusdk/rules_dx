@@ -1,7 +1,7 @@
 use quality_adapter::parsers;
 
 use super::check::{CheckCall, ToolDef};
-use super::*;
+use super::{Path, RealBackend, Invocation, RunnerError, execution, commands, parsed};
 
 pub(super) fn paths<'a>(call: &'a CheckCall<'a>) -> (Vec<&'a Path>, Vec<String>) {
     let refs = call

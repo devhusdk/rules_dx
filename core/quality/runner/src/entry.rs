@@ -142,9 +142,7 @@ pub fn run_request(
         tools.insert(tool_id.clone(), real_tool(tool_id, entry, cwd.clone())?);
     }
     let scratch_parent = request
-        .scratch_parent
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
+        .scratch_parent.map_or_else(std::env::temp_dir, PathBuf::from);
     let backend = RealBackend::new(tools, scratch_parent)
         .with_shard(shard.unwrap_or_default())
         .with_unsafe_fixes(request.unsafe_fixes);
@@ -291,15 +289,12 @@ mod tests {
             };
             match error {
                 RunnerError::Args { message } => assert!(!message.is_empty(), "{message}"),
-                other @ RunnerError::UnreadableSource { .. }
-                | other @ RunnerError::UnreadableSibling { .. }
-                | other @ RunnerError::UnreadableResolve { .. }
-                | other @ RunnerError::PipelineFailed { .. }
-                | other @ RunnerError::InvalidResult { .. }
-                | other @ RunnerError::UnwritableOutput { .. }
-                | other @ RunnerError::UnreadableToolFile { .. }
-                | other @ RunnerError::UnreadableRequest { .. }
-                | other @ RunnerError::BadRequest { .. } => panic!("unexpected error: {other:?}"),
+                other @
+(RunnerError::UnreadableSource { .. } | RunnerError::UnreadableSibling { .. }
+| RunnerError::UnreadableResolve { .. } | RunnerError::PipelineFailed { .. } |
+RunnerError::InvalidResult { .. } | RunnerError::UnwritableOutput { .. } |
+RunnerError::UnreadableToolFile { .. } | RunnerError::UnreadableRequest { .. }
+| RunnerError::BadRequest { .. }) => panic!("unexpected error: {other:?}"),
             }
         }
     }
@@ -321,15 +316,12 @@ mod tests {
                 );
                 assert!(!detail.is_empty(), "{path}");
             }
-            other @ RunnerError::Args { .. }
-            | other @ RunnerError::UnreadableSource { .. }
-            | other @ RunnerError::UnreadableSibling { .. }
-            | other @ RunnerError::UnreadableResolve { .. }
-            | other @ RunnerError::PipelineFailed { .. }
-            | other @ RunnerError::InvalidResult { .. }
-            | other @ RunnerError::UnwritableOutput { .. }
-            | other @ RunnerError::UnreadableToolFile { .. }
-            | other @ RunnerError::BadRequest { .. } => panic!("unexpected error: {other:?}"),
+            other @
+(RunnerError::Args { .. } | RunnerError::UnreadableSource { .. } |
+RunnerError::UnreadableSibling { .. } | RunnerError::UnreadableResolve { .. }
+| RunnerError::PipelineFailed { .. } | RunnerError::InvalidResult { .. } |
+RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
+| RunnerError::BadRequest { .. }) => panic!("unexpected error: {other:?}"),
         }
         let dir = tempfile::tempdir().expect("scratch");
         let malformed = dir.path().join("malformed.json");
@@ -342,15 +334,12 @@ mod tests {
         .expect_err("malformed request")
         {
             RunnerError::BadRequest { detail } => assert!(!detail.is_empty(), "{detail}"),
-            other @ RunnerError::Args { .. }
-            | other @ RunnerError::UnreadableSource { .. }
-            | other @ RunnerError::UnreadableSibling { .. }
-            | other @ RunnerError::UnreadableResolve { .. }
-            | other @ RunnerError::PipelineFailed { .. }
-            | other @ RunnerError::InvalidResult { .. }
-            | other @ RunnerError::UnwritableOutput { .. }
-            | other @ RunnerError::UnreadableToolFile { .. }
-            | other @ RunnerError::UnreadableRequest { .. } => {
+            other @
+(RunnerError::Args { .. } | RunnerError::UnreadableSource { .. } |
+RunnerError::UnreadableSibling { .. } | RunnerError::UnreadableResolve { .. }
+| RunnerError::PipelineFailed { .. } | RunnerError::InvalidResult { .. } |
+RunnerError::UnwritableOutput { .. } | RunnerError::UnreadableToolFile { .. }
+| RunnerError::UnreadableRequest { .. }) => {
                 panic!("unexpected error: {other:?}")
             }
         }
@@ -537,13 +526,11 @@ mod tests {
                     assert_eq!(workspace, "a.py");
                     assert!(!detail.is_empty(), "{error:?}");
                 }
-                other @ RunnerError::Args { .. }
-                | other @ RunnerError::PipelineFailed { .. }
-                | other @ RunnerError::InvalidResult { .. }
-                | other @ RunnerError::UnwritableOutput { .. }
-                | other @ RunnerError::UnreadableToolFile { .. }
-                | other @ RunnerError::UnreadableRequest { .. }
-                | other @ RunnerError::BadRequest { .. } => panic!("unexpected error: {other:?}"),
+                other @
+(RunnerError::Args { .. } | RunnerError::PipelineFailed { .. } |
+RunnerError::InvalidResult { .. } | RunnerError::UnwritableOutput { .. } |
+RunnerError::UnreadableToolFile { .. } | RunnerError::UnreadableRequest { .. }
+| RunnerError::BadRequest { .. }) => panic!("unexpected error: {other:?}"),
             }
             assert!(error.to_string().starts_with(expected), "{error}");
         }

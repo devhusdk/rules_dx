@@ -4,7 +4,7 @@ use quality_adapter::exec::MirrorContents;
 use crate::StageSpec;
 use quality_adapter::launch::ResolvedTool;
 
-use super::*;
+use super::{BTreeSet, BTreeMap, Path, Invocation, RunnerError, RealTool, execution, missing_tier_base, Scratch, MirrorFile, PathBuf, write_all, RealBackend, ffmt_accepts, fresh_scratch, cleaned, hint_dir};
 
 /// Empty stand-ins for the other known files with these extensions.
 #[cfg(test)]
@@ -808,7 +808,7 @@ impl<'a> FixSession<'a> {
     }
 }
 
-impl super::RealBackend {
+impl RealBackend {
     #[cfg(test)]
     pub fn apply_fix(
         &self,
@@ -1018,7 +1018,7 @@ impl super::RealBackend {
             let invocation =
                 commands::sqlfluff_format_fix(&tool.binary, &files, &run.config, run.dialect);
             let out = self.run(tool_id, tool, &invocation, scratch)?;
-            fixed &= matches!(out.code, Some(0) | Some(1));
+            fixed &= matches!(out.code, Some(0 | 1));
         }
         Ok(if fixed { Outcome::Fixed } else { Outcome::Kept })
     }
@@ -1057,7 +1057,7 @@ impl super::RealBackend {
             }
             Route::Rustfmt => super::rustfmt::fix_outcome(scratch.root(), names, &out),
             Route::Scalafix => {
-                if matches!(out.code, Some(0) | Some(64)) {
+                if matches!(out.code, Some(0 | 64)) {
                     Outcome::Fixed
                 } else {
                     Outcome::Kept
@@ -1065,7 +1065,7 @@ impl super::RealBackend {
             }
             // Violations that remain after the rewrite exit 2.
             Route::AnsibleLint => {
-                if matches!(out.code, Some(0) | Some(2) | Some(8)) {
+                if matches!(out.code, Some(0 | 2 | 8)) {
                     Outcome::Fixed
                 } else {
                     Outcome::Kept

@@ -5,7 +5,7 @@ use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers, sqlfluff_config, sqlfluff_preflight};
 
 use super::check::ToolDef;
-use super::*;
+use super::{RealTool, RunnerError, execution, Scratch, missing_tier_base, RealBackend, StagedScratch, parsed};
 
 /// One sqlfluff run: a config, a dialect and the files they apply to.
 struct ConfigRun {

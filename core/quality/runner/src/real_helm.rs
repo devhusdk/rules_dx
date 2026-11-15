@@ -148,7 +148,7 @@ fn log() -> Vec<Vec<String>> {
 #[test]
 fn helm_runs_lint_template_then_kubeconform_offline() {
     let findings = run(0, helm_tool(Some(CONTEXT), true)).expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
     let calls = log();
     let verbs: Vec<&str> = calls.iter().map(|call| call[1].as_str()).collect();
     assert_eq!(verbs, ["lint", "template", "-output"]);

@@ -3,12 +3,12 @@ use quality_adapter::{commands, parsers};
 
 use super::check::{CheckCall, ToolDef, in_file, real_launcher};
 use super::single_run::paths;
-use super::*;
+use super::{RealBackend, RunnerError, PathBuf, Path, execution, parsed, PKL_LSP_HOME_REL, RealTool, with_stderr, JULIALINT_STANDARD};
 
 /// The bundled standard phpcs runs when the consumer binds no config.
 const PHPCS_STANDARD: &str = "PSR12";
 
-/// The rule level PHPStan runs at when the consumer binds no config.
+/// The rule level `PHPStan` runs at when the consumer binds no config.
 const PHPSTAN_LEVEL: u8 = 5;
 
 /// BEAM, PHP, Ruby, Lua and Haskell tools with their own launch and parse.
@@ -310,14 +310,11 @@ fn julialint(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>
     std::fs::create_dir_all(&work)
         .map_err(|err| execution(tool_id, format!("stage julialint work dir: {err}")))?;
     let report = work.join("report.json");
-    let config = match call.config {
-        Some(path) => path.to_path_buf(),
-        None => {
-            let path = work.join("JuliaLint.toml");
-            std::fs::write(&path, JULIALINT_STANDARD)
-                .map_err(|err| execution(tool_id, format!("stage julialint config: {err}")))?;
-            path
-        }
+    let config = if let Some(path) = call.config { path.to_path_buf() } else {
+        let path = work.join("JuliaLint.toml");
+        std::fs::write(&path, JULIALINT_STANDARD)
+            .map_err(|err| execution(tool_id, format!("stage julialint config: {err}")))?;
+        path
     };
     let invocation = commands::julialint_check(&tool.binary, &work, &report, &config, &refs);
     let out = backend.run(tool_id, tool, &invocation, scratch)?;
@@ -739,9 +736,7 @@ fn lint_family(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFindin
     let config = call.config;
     let (refs, names) = paths(call);
     let strs: Vec<&str> = names.iter().map(String::as_str).collect();
-    if !tool.upstream_diagnostics.is_empty() {
-        backend.check_file_family_delegated(tool_id, tool, pairs)
-    } else {
+    if tool.upstream_diagnostics.is_empty() {
         let invocation = match tool_id {
             "rubocop" => commands::rubocop_check(&tool.binary, &refs, config),
             "yamllint" => commands::yamllint_check(&tool.binary, &refs, config),
@@ -776,11 +771,13 @@ fn lint_family(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFindin
                 &out.stderr,
                 out.code,
                 &strs,
-                config.and_then(std::path::Path::to_str),
+                config.and_then(Path::to_str),
             ),
             "hadolint" => parsers::parse_hadolint(&out.stdout, &out.stderr, out.code, &strs),
             _ => parsers::parse_shellcheck(&out.stdout, out.code, &strs),
         };
         parsed(tool_id, report)
+    } else {
+        backend.check_file_family_delegated(tool_id, tool, pairs)
     }
 }

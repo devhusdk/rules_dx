@@ -4,7 +4,7 @@ use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
 use super::check::ToolDef;
-use super::*;
+use super::{RealBackend, RealTool, StagedScratch, RunnerError, execution, parsed};
 
 const DEFAULT_CONFIG_REL: &str = "dx-cmakelint-default/.cmakelintrc";
 const DEFAULT_CONFIG_BYTES: &[u8] = include_bytes!("../../../tiers/cmakelint/standard.cmakelintrc");
@@ -46,7 +46,7 @@ pub(super) const TOOL: ToolDef = ToolDef {
 };
 
 impl RealBackend {
-    /// Lints every staged CMake file in one cmakelint run, with a preflighted config.
+    /// Lints every staged `CMake` file in one cmakelint run, with a preflighted config.
     pub(super) fn check_cmakelint(
         &self,
         tool_id: &str,
@@ -64,25 +64,22 @@ impl RealBackend {
             return Ok(Vec::new());
         }
         let scratch = &staged.scratch;
-        let config_path = match config {
-            Some(path) => {
-                let text = std::fs::read_to_string(path)
-                    .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
-                check_config(&text).map_err(|err| execution(tool_id, err))?;
-                path.to_path_buf()
-            }
-            None => {
-                let default = scratch
-                    .resolve(Path::new(DEFAULT_CONFIG_REL))
+        let config_path = if let Some(path) = config {
+            let text = std::fs::read_to_string(path)
+                .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
+            check_config(&text).map_err(|err| execution(tool_id, err))?;
+            path.to_path_buf()
+        } else {
+            let default = scratch
+                .resolve(Path::new(DEFAULT_CONFIG_REL))
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")))?;
+            if let Some(parent) = default.parent() {
+                std::fs::create_dir_all(parent)
                     .map_err(|err| execution(tool_id, format!("scratch config: {err}")))?;
-                if let Some(parent) = default.parent() {
-                    std::fs::create_dir_all(parent)
-                        .map_err(|err| execution(tool_id, format!("scratch config: {err}")))?;
-                }
-                std::fs::write(&default, DEFAULT_CONFIG_BYTES)
-                    .map_err(|err| execution(tool_id, format!("scratch config: {err}")))?;
-                default
             }
+            std::fs::write(&default, DEFAULT_CONFIG_BYTES)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")))?;
+            default
         };
         let linted: Vec<&Path> = staged
             .pairs

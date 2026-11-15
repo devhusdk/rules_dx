@@ -3,9 +3,9 @@ use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
 use super::check::ToolDef;
-use super::*;
+use super::{Path, execution, parsed, reanchor, RealBackend, missing_tier_base, PathBuf};
 
-/// The standard tier's kinds, used when the consumer binds no markdown_check config.
+/// The standard tier's kinds, used when the consumer binds no `markdown_check` config.
 const MARKDOWN_CHECK_DEFAULT_KINDS: &str =
     include_str!("../../../tiers/markdown_check/standard.txt");
 

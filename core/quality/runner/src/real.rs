@@ -284,11 +284,10 @@ fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerEr
     result.map_err(|err| match err {
         // An incomplete analysis is not malformed output.
         ParseError::Incomplete { .. } => execution(tool_id, err.to_string()),
-        other @ ParseError::Json { .. }
-        | other @ ParseError::Shape { .. }
-        | other @ ParseError::UnknownFile { .. }
-        | other @ ParseError::ValeConfig { .. }
-        | other @ ParseError::TooLarge { .. } => RunnerError::ToolOutput {
+        other @
+(ParseError::Json { .. } | ParseError::Shape { .. } |
+ParseError::UnknownFile { .. } | ParseError::ValeConfig { .. } |
+ParseError::TooLarge { .. }) => RunnerError::ToolOutput {
             tool_id: tool_id.to_owned(),
             detail: other.to_string(),
         },
@@ -318,17 +317,13 @@ fn with_stderr(err: RunnerError, stderr: &[u8]) -> RunnerError {
             tool_id,
             detail: format!("{detail}: {tail}"),
         },
-        other @ RunnerError::EmptyProducer
-        | other @ RunnerError::UnknownCapability { .. }
-        | other @ RunnerError::EmptyStages
-        | other @ RunnerError::EmptyToolId { .. }
-        | other @ RunnerError::UnknownTool { .. }
-        | other @ RunnerError::EmptyClassIds { .. }
-        | other @ RunnerError::EmptyStageSources { .. }
-        | other @ RunnerError::DuplicateFile { .. }
-        | other @ RunnerError::InvalidUtf8 { .. }
-        | other @ RunnerError::MissingFile { .. }
-        | other @ RunnerError::UnplaceableFinding { .. } => other,
+        other @
+(RunnerError::EmptyProducer | RunnerError::UnknownCapability { .. } |
+RunnerError::EmptyStages | RunnerError::EmptyToolId { .. } |
+RunnerError::UnknownTool { .. } | RunnerError::EmptyClassIds { .. } |
+RunnerError::EmptyStageSources { .. } | RunnerError::DuplicateFile { .. } |
+RunnerError::InvalidUtf8 { .. } | RunnerError::MissingFile { .. } |
+RunnerError::UnplaceableFinding { .. }) => other,
     }
 }
 
@@ -394,6 +389,7 @@ fn parent_rel(rel: &str) -> String {
 }
 
 impl RealBackend {
+    #[must_use]
     pub fn new(tools: BTreeMap<String, RealTool>, scratch_parent: PathBuf) -> Self {
         Self {
             tools,
@@ -447,17 +443,13 @@ impl RealBackend {
                 RunnerError::ToolExecution { tool_id, detail }
             }
             RunnerError::ToolOutput { tool_id, .. } => RunnerError::ToolOutput { tool_id, detail },
-            other @ RunnerError::EmptyProducer
-            | other @ RunnerError::UnknownCapability { .. }
-            | other @ RunnerError::EmptyStages
-            | other @ RunnerError::EmptyToolId { .. }
-            | other @ RunnerError::UnknownTool { .. }
-            | other @ RunnerError::EmptyClassIds { .. }
-            | other @ RunnerError::EmptyStageSources { .. }
-            | other @ RunnerError::DuplicateFile { .. }
-            | other @ RunnerError::InvalidUtf8 { .. }
-            | other @ RunnerError::MissingFile { .. }
-            | other @ RunnerError::UnplaceableFinding { .. } => other,
+            other @
+(RunnerError::EmptyProducer | RunnerError::UnknownCapability { .. } |
+RunnerError::EmptyStages | RunnerError::EmptyToolId { .. } |
+RunnerError::UnknownTool { .. } | RunnerError::EmptyClassIds { .. } |
+RunnerError::EmptyStageSources { .. } | RunnerError::DuplicateFile { .. } |
+RunnerError::InvalidUtf8 { .. } | RunnerError::MissingFile { .. } |
+RunnerError::UnplaceableFinding { .. }) => other,
         };
         with_stderr(err, &self.last_stderr.borrow())
     }
@@ -899,7 +891,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("real-out");
         let already = [out(&scratch).join("bin").join("tool").into_os_string()];
         assert_eq!(absolute_argv(&already)[0], already[0]);
-        assert!(absolute_argv(&[]).is_empty());
+        assert_eq!(absolute_argv(&[]), [] as [OsString; 0]);
     }
 
     /// The planned spawn carries the absolute binary the guard and the batches measure.
@@ -969,7 +961,8 @@ mod tests {
     /// The Python launchers read wheels from the manifest on every platform.
     #[test]
     fn python_tools_read_their_own_manifest_everywhere() {
-        for tool_id in ["pydoclint"] {
+        {
+            let tool_id = "pydoclint";
             assert!(reads_own_manifest(tool_id), "{tool_id}");
         }
     }

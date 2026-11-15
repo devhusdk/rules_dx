@@ -10,7 +10,7 @@ use crate::{
 };
 
 use super::real_fix::FixSession;
-use super::*;
+use super::{RealBackend, StagedScratch, delegated, cleaned};
 
 impl RealBackend {
     #[cfg(test)]

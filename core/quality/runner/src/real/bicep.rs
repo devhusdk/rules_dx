@@ -2,7 +2,7 @@ use quality_adapter::commands;
 use quality_adapter::parsers::{self, FileFinding};
 
 use super::check::ToolDef;
-use super::*;
+use super::{RealBackend, RealTool, StagedScratch, RunnerError, execution, parsed};
 
 /// What a `br:` module reference means for the user; Bicep itself only says "not restored".
 const UNRESTORED_HINT: &str =

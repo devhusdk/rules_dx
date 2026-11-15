@@ -3,7 +3,7 @@ use quality_adapter::parsers::{self, FileFinding, jvm_unused_deps, rust_unused_d
 use quality_result::proto::{BuildDep, Diagnostic, Severity};
 
 use super::check::ToolDef;
-use super::*;
+use super::{RealTool, RunnerError, execution, parsed, PathBuf, RealBackend, reanchor};
 
 /// Tools that only replay what their compiler already reported.
 pub(super) const TOOLS: &[ToolDef] = &[
@@ -349,7 +349,7 @@ fn scalac_inputs(tool_id: &str, tool: &RealTool) -> Result<ScalacInputs, RunnerE
     Ok(Some((read(map)?, read(log)?)))
 }
 
-/// The C# `deps` entries that ReferenceTrimmer reports as unused in every target framework.
+/// The C# `deps` entries that `ReferenceTrimmer` reports as unused in every target framework.
 fn csharp_unused(
     tool_id: &str,
     tool: &RealTool,

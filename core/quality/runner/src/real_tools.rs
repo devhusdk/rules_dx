@@ -42,7 +42,7 @@ fn unusable_scratch_parent_fails_the_action() {
         tools: BTreeMap::from([("rustfmt".to_owned(), rustfmt_tool())]),
         scratch_parent: PathBuf::from("/nonexistent-dx-scratch-parent"),
         spawn: roundtrip_rustfmt,
-        argv_limit: quality_adapter::commands::windows_argv_limit,
+        argv_limit: commands::windows_argv_limit,
         shard: String::new(),
         unsafe_fixes: false,
         last_stderr: Default::default(),
@@ -205,7 +205,7 @@ fn check_ok_fix_poisons(
     if argv.iter().any(|arg| arg == "--check") {
         let bytes = std::fs::read(&file).expect("checked file is materialized");
         if bytes == b"POISON\n" {
-            return Err(io::Error::new(io::ErrorKind::Other, "poisoned terminal"));
+            return Err(io::Error::other("poisoned terminal"));
         }
         return Ok(ChildOutput {
             code: Some(0),
@@ -266,25 +266,23 @@ fn keep_sorted_lint_reports_and_fix_sorts() {
         (Some(20), Some(20))
     );
     assert!(!findings[0].fixable);
-    assert!(
+    assert_eq!(
         backend
             .diagnose(
                 "keep_sorted",
                 "lint",
                 &single("notes.txt", KEEP_SORTED_CLEAN)
             )
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("keep_sorted", "notes.txt", KEEP_SORTED_DIRTY, "lint")
         .expect("fixed");
     assert_eq!(fixed, KEEP_SORTED_CLEAN);
-    assert!(
+    assert_eq!(
         backend
             .diagnose("keep_sorted", "lint", &single("notes.txt", &fixed))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -299,7 +297,7 @@ fn keep_sorted_lint_pipeline_fixes_dirty_files_to_stable() {
     assert_eq!(result.completed_rounds, 2);
     assert_eq!(result.initial_diagnostics.len(), 1);
     assert_eq!(result.initial_diagnostics[0].tool_id, "keep_sorted");
-    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.terminal_diagnostics, [] as [quality_result::proto::Diagnostic; 0]);
     assert_eq!(result.replacements.len(), 1);
     assert_eq!(result.replacements[0].path, "notes.txt");
     assert!(encode_validated(&result).is_ok());
@@ -406,11 +404,10 @@ fn ruff_lint_reports_and_fix_rereads_on_exit_one() {
         .apply_fix("ruff", "a.py", "import os\n# UNFIXABLE\n", "lint")
         .expect("fixed");
     assert_eq!(fixed, "# UNFIXABLE\n");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("ruff", "lint", &single("a.py", "x = 1\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -564,11 +561,10 @@ fn ty_reports_and_is_check_only() {
         findings[0].severity,
         quality_result::proto::Severity::Error as i32
     );
-    assert!(
+    assert_eq!(
         backend
             .diagnose("ty", "typecheck", &single("a.py", "x: int = 1\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let text = "x: int = BADTYPE\n";
     assert_eq!(
@@ -593,15 +589,14 @@ fn pydoclint_reports_and_is_check_only() {
     assert_eq!(findings[0].tool_id, "pydoclint");
     assert_eq!(findings[0].rule_id, "DOC201");
     assert_eq!(findings[0].path, "a.py");
-    assert!(
+    assert_eq!(
         backend
             .diagnose(
                 "pydoclint",
                 "lint",
                 &single("a.py", "\"\"\"Module.\"\"\"\n")
             )
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let text = "def foo():\n    NODOC\n";
     assert_eq!(
@@ -626,11 +621,10 @@ fn biome_lint_runs_with_the_bound_config() {
     assert_eq!(findings[0].tool_id, "biome");
     assert_eq!(findings[0].rule_id, "lint/correctness/noUnusedVariables");
     assert_eq!(findings[0].path, "src/a.js");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("biome", "lint", &single("src/a.js", "const x = 1;\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -674,11 +668,10 @@ fn biome_format_reports_and_fix_rewrites() {
     assert_eq!(findings[0].tool_id, "biome");
     assert_eq!(findings[0].rule_id, "");
     assert_eq!(findings[0].path, "src/a.js");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("biome", "format", &single("src/a.js", "const x = 1;\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -713,11 +706,10 @@ fn eslint_reports_and_fix_rereads_on_exit_1() {
     assert_eq!(findings[0].tool_id, "eslint");
     assert_eq!(findings[0].rule_id, "no-unused-vars");
     assert_eq!(findings[0].path, "src/a.js");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("eslint", "lint", &single("src/a.js", "const x = 1;\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -773,15 +765,14 @@ fn graphql_eslint_reports_findings_and_never_fixes() {
         "@graphql-eslint/fields-on-correct-type"
     );
     assert_eq!(findings[0].path, "api/query.graphql");
-    assert!(
+    assert_eq!(
         backend
             .diagnose(
                 "graphql_eslint",
                 "lint",
                 &single("api/query.graphql", "{ user { id } }\n")
             )
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -854,15 +845,14 @@ fn gplint_reports_findings_with_the_bound_config_and_never_fixes() {
     assert_eq!(findings[0].tool_id, "gplint");
     assert_eq!(findings[0].rule_id, "no-unnamed-features");
     assert_eq!(findings[0].path, "features/a.feature");
-    assert!(
+    assert_eq!(
         backend
             .diagnose(
                 "gplint",
                 "lint",
                 &single("features/a.feature", "Feature: a\n  Scenario: s\n")
             )
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let dirty = "Feature:\n  Scenario: s\n    Given x\n";
     assert_eq!(
@@ -881,15 +871,14 @@ fn gplint_consumer_config_replaces_the_defaults() {
         ..plain_tool()
     };
     let backend = backend_for("gplint", tool, roundtrip_gplint);
-    assert!(
+    assert_eq!(
         backend
             .diagnose(
                 "gplint",
                 "lint",
                 &single("features/a.feature", "Feature:\n  Scenario: s\n")
             )
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -990,7 +979,7 @@ fn selene_user_shipped_std_is_not_shadowed() {
 
 #[test]
 fn tools_without_a_bound_config_never_get_a_runner_default() {
-    for &tool_id in super::staging::TIER_BASE_TOOLS {
+    for &tool_id in staging::TIER_BASE_TOOLS {
         let backend = backend_for(tool_id, plain_tool(), missing_spawn);
         let empty = BTreeMap::new();
         let staged = backend
@@ -1166,11 +1155,10 @@ fn prettier_reports_relative_and_fix_rewrites() {
     assert_eq!(findings[0].tool_id, "prettier");
     assert_eq!(findings[0].rule_id, "");
     assert_eq!(findings[0].path, "src/a.js");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("prettier", "format", &single("src/a.js", "const x = 1;\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -1309,7 +1297,7 @@ fn prettier_hinted_config_reaches_the_tool() {
     let findings = backend
         .diagnose("prettier", "format", &single("src/a.js", "const x = 1;\n"))
         .expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -1324,7 +1312,7 @@ fn prettier_external_config_reaches_the_tool() {
     let findings = backend
         .diagnose("prettier", "format", &single("src/a.js", "const x = 1;\n"))
         .expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -1534,11 +1522,10 @@ fn ty_garbage(
 #[test]
 fn ruff_format_clean_and_unterminated_fix() {
     let backend = backend_for("ruff", plain_tool(), roundtrip_ruff);
-    assert!(
+    assert_eq!(
         backend
             .diagnose("ruff", "format", &single("a.py", "x = 1\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("ruff", "a.py", "x = 1  ", "format")
@@ -1595,7 +1582,7 @@ fn json_reporting_fixtures_escape_a_path_that_names_a_backslash() {
     std::fs::write(&file, "import os\nlet unusedVar = 1;\n").expect("write backslash fixture");
     let absolute = file.to_string_lossy().into_owned();
     let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
-    let env = quality_adapter::exec::hermetic_env(dir.path(), &[], &ambient);
+    let env = exec::hermetic_env(dir.path(), &[], &ambient);
     let path = file.as_os_str().to_owned();
     let buildifier_argv = [OsString::from("buildifier"), path.clone()];
     let eslint_argv = [
@@ -1668,13 +1655,10 @@ impl SpawnCount {
         let mut all = self
             .0
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let at = match all.iter().position(|(id, _)| *id == me) {
-            Some(at) => at,
-            None => {
-                all.push((me, 0));
-                all.len() - 1
-            }
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let at = if let Some(at) = all.iter().position(|(id, _)| *id == me) { at } else {
+            all.push((me, 0));
+            all.len() - 1
         };
         act(&mut all[at].1)
     }
@@ -1713,8 +1697,8 @@ fn batched_keep_sorted(
 }
 
 fn assert_within_budget(argv: &[OsString]) {
-    let budget = quality_adapter::commands::argv_budget(&argv[0]);
-    let (bytes, units) = quality_adapter::commands::argv_cost(argv);
+    let budget = commands::argv_budget(&argv[0]);
+    let (bytes, units) = commands::argv_cost(argv);
     assert!(bytes <= budget, "spawn carries {bytes} argv bytes");
     assert!(units <= budget, "spawn carries {units} argv units");
 }
@@ -1766,8 +1750,8 @@ fn batched_launcher(
 ) -> io::Result<ChildOutput> {
     LAUNCHER_SPAWNS.bump();
     assert_eq!(
-        quality_adapter::commands::argv_budget(&argv[0]),
-        quality_adapter::commands::LAUNCHER_BATCH_BUDGET
+        commands::argv_budget(&argv[0]),
+        commands::LAUNCHER_BATCH_BUDGET
     );
     assert_within_budget(argv);
     ruff_multi_behavior(argv, cwd, env)
@@ -1802,7 +1786,7 @@ fn ruff_large_selection_runs_batched() {
         );
         let paths: Vec<&str> = first.iter().map(|found| found.path.as_str()).collect();
         let mut ordered = paths.clone();
-        ordered.sort();
+        ordered.sort_unstable();
         assert_eq!(paths, ordered, "merged findings stay ordered");
         let second = backend
             .diagnose("ruff", capability, &files)
@@ -1897,7 +1881,7 @@ fn flaky_keep_sorted(
 ) -> io::Result<ChildOutput> {
     let at = FLAKY_SPAWNS.bump();
     if at == 1 {
-        return Err(io::Error::new(io::ErrorKind::Other, "terminal gone"));
+        return Err(io::Error::other("terminal gone"));
     }
     keep_sorted_multi_behavior(argv, cwd, env)
 }
@@ -1936,7 +1920,7 @@ fn keep_sorted_large_selection_runs_batched_with_a_stable_merge() {
     assert_eq!(first.len(), 150, "every other file is dirty");
     let paths: Vec<&str> = first.iter().map(|found| found.path.as_str()).collect();
     let mut ordered = paths.clone();
-    ordered.sort();
+    ordered.sort_unstable();
     assert_eq!(paths, ordered, "merged findings stay ordered");
     let second = backend
         .diagnose("keep_sorted", "lint", &files)
@@ -1969,8 +1953,8 @@ fn keep_sorted_batches_match_single_file_results() {
     }
     let mut merged_paths: Vec<&str> = merged.iter().map(|found| found.path.as_str()).collect();
     let mut single_paths: Vec<&str> = singles.iter().map(|found| found.path.as_str()).collect();
-    merged_paths.sort();
-    single_paths.sort();
+    merged_paths.sort_unstable();
+    single_paths.sort_unstable();
     assert_eq!(merged_paths, single_paths);
     assert_eq!(merged.len(), 60);
 }
@@ -2163,8 +2147,8 @@ fn buf_breaking_runs_only_with_a_base_image_and_honours_reserved() {
     let found = run(REMOVED, Some(&image));
     assert_eq!(found.len(), 1, "{found:?}");
     assert_eq!(found[0].rule_id, "FIELD_NO_DELETE");
-    assert!(run(RESERVED, Some(&image)).is_empty());
-    assert!(run(REMOVED, None).is_empty());
+    assert_eq!(run(RESERVED, Some(&image)), [] as [quality_result::proto::Diagnostic; 0]);
+    assert_eq!(run(REMOVED, None), [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 fn hadolint_config_arg(argv: &[OsString]) -> PathBuf {
@@ -2257,15 +2241,14 @@ fn hadolint_check_runs_with_the_bound_config_and_is_check_only() {
     assert_eq!(findings[0].tool_id, "hadolint");
     assert_eq!(findings[0].rule_id, "DL4006");
     assert_eq!(findings[0].path, "img/Dockerfile");
-    assert!(
+    assert_eq!(
         backend
             .diagnose(
                 "hadolint",
                 "lint",
                 &single("img/Dockerfile", "FROM ubuntu:24.04\n")
             )
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -2402,11 +2385,10 @@ fn checkmake_check_runs_with_the_bound_config_and_is_check_only() {
     assert_eq!(findings[0].tool_id, "checkmake");
     assert_eq!(findings[0].rule_id, "minphony");
     assert_eq!(findings[0].path, "Makefile");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("checkmake", "lint", &single("Makefile", "X = 1\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -2540,11 +2522,10 @@ fn gersemi_check_runs_with_the_bound_config_and_check_never_writes() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "gersemi");
     assert_eq!(findings[0].path, "CMakeLists.txt");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("gersemi", "format", &single("CMakeLists.txt", "GOOD\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -2559,11 +2540,10 @@ fn gersemi_fix_rewrites_and_a_recheck_is_clean() {
         .apply_fix("gersemi", "CMakeLists.txt", GERSEMI_DIRTY, "format")
         .expect("fixed");
     assert_eq!(fixed, "GOOD\n");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("gersemi", "format", &single("CMakeLists.txt", &fixed))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -2725,11 +2705,10 @@ fn mbake_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "mbake");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("mbake", "format", &single("Makefile", "GOOD\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("mbake", "Makefile", "BAD\n", "format")
@@ -2839,11 +2818,10 @@ fn ffmt_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "ffmt");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("ffmt", "format", &single("a.f90", "GOOD\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("ffmt", "a.f90", "BAD\n", "format")
@@ -2860,11 +2838,10 @@ fn ffmt_never_receives_fixed_form_or_f08_sources_on_check_or_fix() {
         .expect("diagnosed");
     assert_eq!(findings.len(), 1, "{findings:?}");
     // Nothing left to format skips the run: the stand-in asserts it gets a file.
-    assert!(
+    assert_eq!(
         backend
             .diagnose("ffmt", "format", &ffmt_files(&["a.f", "b.F", "c.f08"]))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     for name in ["a.f", "b.F", "c.f08", "d.F08"] {
         let text = backend
@@ -2972,11 +2949,10 @@ fn elvis_check_runs_with_the_bound_config_and_is_check_only() {
     assert_eq!(findings[0].tool_id, "elvis");
     assert_eq!(findings[0].rule_id, "no_debug_call");
     assert_eq!(findings[0].path, "lib/src/sub/a.erl");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("elvis", "lint", &single("lib/src/a.erl", "-module(a).\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -3017,11 +2993,10 @@ fn redocly_reports_root_findings_and_never_fixes() {
         bound_tool("cfg/redocly.yaml", b""),
         roundtrip_redocly,
     );
-    assert!(
+    assert_eq!(
         backend
             .diagnose("redocly", "lint", &redocly_files(REDOCLY_ROOT))
-            .expect("clean")
-            .is_empty()
+            .expect("clean"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let dupe = format!("{REDOCLY_ROOT}# dupe\n");
     let findings = backend
@@ -3285,7 +3260,7 @@ fn batch_fix_failure_falls_back_to_single_files() {
     current.insert(broken.clone(), "BROKEN  \n".to_owned());
     let backend = backend_for("shfmt", plain_tool(), partial_shfmt);
     let known = BTreeSet::new();
-    let mut session = super::real_fix::FixSession::new(&backend, "format", &known);
+    let mut session = real_fix::FixSession::new(&backend, "format", &known);
     let fixed = session
         .fix(0, &spec, &current, &spec.source_paths)
         .expect("fallback fixes");
@@ -3320,7 +3295,7 @@ fn large_fix_selection_splits_within_argv_budget() {
     let (spec, current) = sh_stage(300, 120);
     let backend = backend_for("shfmt", plain_tool(), budget_shfmt);
     let known = BTreeSet::new();
-    let mut session = super::real_fix::FixSession::new(&backend, "format", &known);
+    let mut session = real_fix::FixSession::new(&backend, "format", &known);
     let fixed = session
         .fix(0, &spec, &current, &spec.source_paths)
         .expect("batches fix");
@@ -3345,7 +3320,7 @@ fn assert_keeps_without_scratch(tool_id: &str, tool: RealTool, capability: &str)
         tools: BTreeMap::from([(tool_id.to_owned(), tool)]),
         scratch_parent: parent.path().to_path_buf(),
         spawn: never_spawns,
-        argv_limit: quality_adapter::commands::windows_argv_limit,
+        argv_limit: commands::windows_argv_limit,
         shard: String::new(),
         unsafe_fixes: false,
         last_stderr: Default::default(),
@@ -3356,7 +3331,7 @@ fn assert_keeps_without_scratch(tool_id: &str, tool: RealTool, capability: &str)
         ("b.txt".to_owned(), "b  \n".to_owned()),
     ]);
     let known = BTreeSet::new();
-    let mut session = super::real_fix::FixSession::new(&backend, capability, &known);
+    let mut session = real_fix::FixSession::new(&backend, capability, &known);
     let fixed = session
         .fix(0, &spec, &current, &spec.source_paths)
         .expect("kept");
@@ -3379,7 +3354,7 @@ fn format_only_tool_outside_format_makes_no_scratch() {
     assert_keeps_without_scratch("prettier", plain_tool(), "lint");
     let backend = backend_for("graphql_eslint", plain_tool(), never_spawns);
     let known = BTreeSet::new();
-    let mut session = super::real_fix::FixSession::new(&backend, "lint", &known);
+    let mut session = real_fix::FixSession::new(&backend, "lint", &known);
     let spec = stage("graphql_eslint", &["graphql"], &["a.graphql"]);
     let current = single("a.graphql", "type A\n");
     let err = session
@@ -3433,15 +3408,14 @@ fn trivy_config_reports_a_dockerfile_without_a_user() {
     assert_eq!(findings[0].tool_id, "trivy_config");
     assert_eq!(findings[0].rule_id, "DS-0002");
     assert_eq!(findings[0].path, "Dockerfile");
-    assert!(
+    assert_eq!(
         backend
             .diagnose(
                 "trivy_config",
                 "lint",
                 &single("Dockerfile", "FROM scratch\nUSER 1000\n")
             )
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -3524,7 +3498,7 @@ fn deadnix_tool(
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    assert!(!files.is_empty());
+    assert_ne!(files, [] as [String; 0]);
     let edit = argv.iter().any(|arg| arg == "--edit");
     let mut lines = Vec::new();
     for file in &files {
@@ -3658,7 +3632,7 @@ fn kubeconform_fake(
         .iter()
         .filter(|arg| arg.contains("dx-kubeconform"))
         .collect();
-    assert!(!docs.is_empty());
+    assert_ne!(docs, [] as [&String; 0]);
     let mut resources = Vec::new();
     for doc in docs {
         let body = std::fs::read_to_string(doc).expect("read staged document");
@@ -3744,7 +3718,7 @@ fn kubeconform_clean_manifests_are_clean() {
             &single("k8s/pod.yaml", "apiVersion: v1\nkind: Pod\n"),
         )
         .expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -3833,7 +3807,7 @@ fn cfn_lint_fake(
         if std::fs::read_to_string(name)?.contains("Bogus") {
             entries.push(format!(
                 r#"{{"Filename":"{name}","Level":"Error","Location":{{"End":{{"ColumnNumber":12,"LineNumber":6}},"Path":null,"Start":{{"ColumnNumber":7,"LineNumber":6}}}},"Message":"Additional properties are not allowed ('Bogus' was unexpected)","Rule":{{"Id":"E3002"}}}}"#,
-name = json_escape(&name)
+name = json_escape(name)
             ));
         }
     }
@@ -3920,7 +3894,7 @@ fn cfn_lint_always_passes_a_config_file() {
     let findings = backend
         .diagnose("cfn_lint", "lint", &single("infra/a.yaml", CFN_CLEAN))
         .expect("the standard tier config is written when none is bound");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -4004,7 +3978,7 @@ fn bicep_sarif(file: &str, rule: &str, level: &str, line: u64, column: u64) -> S
     };
     format!(
         r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"bicep"}}}},"results":[{{"ruleId":"{rule}",{level}"message":{{"text":"{text}"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"file://{file}"}},"region":{{"startLine":{line},"charOffset":{column}}}}}}}]}}],"columnKind":"utf16CodeUnits"}}]}}"#,
-        file = json_escape(&file)
+        file = json_escape(file)
     )
 }
 
@@ -4227,7 +4201,7 @@ fn bicep_staged_registry_file_lands_in_the_home_cache() {
     let findings = backend_for("bicep", tool, cached)
         .diagnose("bicep", "lint", &single("infra/a.bicep", BICEP_CLEAN))
         .expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -4246,7 +4220,7 @@ fn bicep_bound_config_is_written_at_the_scratch_root() {
     let findings = backend
         .diagnose("bicep", "lint", &single("infra/a.bicep", BICEP_CLEAN))
         .expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -4256,11 +4230,10 @@ fn bicep_format_compares_stdout_and_fix_rewrites_the_file() {
         bound_tool("cfg/bicepconfig.json", b"{}"),
         bicep_fake,
     );
-    assert!(
+    assert_eq!(
         backend
             .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_CLEAN))
-            .expect("clean")
-            .is_empty()
+            .expect("clean"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let findings = backend
         .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_DIRTY))
@@ -4294,11 +4267,10 @@ fn bicep_format_fails_on_a_syntax_error_but_not_on_other_lint_errors() {
             .contains("infra/a.bicep:1:20 does not parse"),
         "{err}"
     );
-    assert!(
+    assert_eq!(
         backend
             .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_REGISTRY))
-            .expect("registry")
-            .is_empty()
+            .expect("registry"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -4461,7 +4433,7 @@ fn cmakelint_unbound_config_uses_the_standard_tier() {
             &single("CMakeLists.txt", CMAKELINT_CLEAN),
         )
         .expect("the standard tier config is written when none is bound");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -4591,7 +4563,7 @@ fn sqlfluff_fake(
         };
         entries.push(format!(
             r#"{{"filepath":"{name}","violations":[{violations}],"statistics":{{}},"timings":{{}}}}"#,
-name = json_escape(&name)
+name = json_escape(name)
         ));
     }
     Ok(ChildOutput {
@@ -4782,12 +4754,12 @@ fn sqlfluff_format_check_lints_with_only_the_format_rules() {
         .expect("--rules");
     assert_eq!(
         argv[at + 1],
-        quality_adapter::commands::SQLFLUFF_FORMAT_RULES
+        commands::SQLFLUFF_FORMAT_RULES
     );
     let clean = backend
         .diagnose("sqlfluff", "format", &single("db/a.sql", SQL_CLEAN))
         .expect("diagnosed");
-    assert!(clean.is_empty());
+    assert_eq!(clean, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 thread_local! {
@@ -4816,7 +4788,7 @@ fn sqlfluff_dialect_fake(
         .map(|name| {
             format!(
                 r#"{{"filepath":"{name}","violations":[],"statistics":{{}},"timings":{{}}}}"#,
-                name = json_escape(&name)
+                name = json_escape(name)
             )
         })
         .collect();
@@ -5106,11 +5078,10 @@ fn ruff_notebook_fix_splices_only_the_edited_cell() {
     );
     assert_eq!(fixed, expected);
     assert!(serde_json::from_str::<serde_json::Value>(&fixed).is_ok());
-    assert!(
+    assert_eq!(
         backend
             .diagnose("ruff", "lint", &single("n.ipynb", &fixed))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -5131,7 +5102,7 @@ fn ruff_notebook_batched_fix_handles_two_notebooks_and_a_python_file() {
         ("c.py".to_owned(), "import os\nx = 1\n".to_owned()),
     ]);
     let known = BTreeSet::new();
-    let mut session = super::real_fix::FixSession::new(&backend, "lint", &known);
+    let mut session = real_fix::FixSession::new(&backend, "lint", &known);
     let fixed = session
         .fix(0, &spec, &current, &spec.source_paths)
         .expect("fixed");
@@ -5279,11 +5250,10 @@ fn typstyle_check_reports_dirty_files_by_workspace_path() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "typstyle");
     assert_eq!(findings[0].path, "docs/a.typ");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("typstyle", "format", &single("docs/b.typ", TYPST_CLEAN))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -5294,11 +5264,10 @@ fn typstyle_apply_rewrites_the_owned_file_and_the_recheck_is_clean() {
         .apply_fix("typstyle", "docs/a.typ", TYPST_DIRTY, "format")
         .expect("fixed");
     assert_eq!(fixed, TYPST_CLEAN);
-    assert!(
+    assert_eq!(
         backend
             .diagnose("typstyle", "format", &single("docs/a.typ", &fixed))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -5359,7 +5328,7 @@ fn fake_nixfmt(
         }
     }
     Ok(ChildOutput {
-        code: Some(if stderr.is_empty() { 0 } else { 1 }),
+        code: Some(i32::from(!stderr.is_empty())),
         stdout: Vec::new(),
         stderr: stderr.into_bytes(),
     })
@@ -5406,7 +5375,7 @@ fn fake_helmfmt(
         }
     }
     Ok(ChildOutput {
-        code: Some(if stderr.is_empty() { 0 } else { 1 }),
+        code: Some(i32::from(!stderr.is_empty())),
         stdout: Vec::new(),
         stderr: stderr.into_bytes(),
     })
@@ -5484,17 +5453,16 @@ fn helmfmt_formats_only_chart_templates() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "helmfmt");
     assert_eq!(findings[0].path, "c/templates/d.yaml");
-    assert!(
+    assert_eq!(
         backend
             .diagnose(
                 "helmfmt",
                 "format",
                 &chart_with("c/templates/d.yaml", HELMFMT_CLEAN)
             )
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
-    assert!(
+    assert_eq!(
         backend
             .diagnose(
                 "helmfmt",
@@ -5502,8 +5470,7 @@ fn helmfmt_formats_only_chart_templates() {
                 &chart_with("c/templates/_helpers.tpl", HELMFMT_DIRTY)
             )
             .expect("diagnosed")
-            .len()
-            == 1
+            .len(), 1
     );
 }
 
@@ -5511,11 +5478,10 @@ fn helmfmt_formats_only_chart_templates() {
 fn helmfmt_leaves_files_outside_templates_alone() {
     let backend = backend_for("helmfmt", plain_tool(), fake_helmfmt);
     let files = chart_with("c/other/d.yaml", HELMFMT_DIRTY);
-    assert!(
+    assert_eq!(
         backend
             .diagnose("helmfmt", "format", &files)
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     assert_eq!(
         backend
@@ -5528,7 +5494,7 @@ fn helmfmt_leaves_files_outside_templates_alone() {
 #[test]
 fn helmfmt_fix_rewrites_a_template_and_a_syntax_error_stays() {
     let backend = backend_for("helmfmt", plain_tool(), fake_helmfmt);
-    let known = std::collections::BTreeSet::from(["c/Chart.yaml".to_owned()]);
+    let known = BTreeSet::from(["c/Chart.yaml".to_owned()]);
     assert_eq!(
         backend
             .apply_fix_in_context(
@@ -5587,10 +5553,10 @@ fn fake_topiary(
             }
         }
     }
-    let code = if !stderr.is_empty() {
-        2
-    } else {
+    let code = if stderr.is_empty() {
         i32::from(!dirty.is_empty())
+    } else {
+        2
     };
     Ok(ChildOutput {
         code: Some(code),
@@ -5608,11 +5574,10 @@ fn topiary_reports_a_dirty_file_and_fix_rewrites_it() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "topiary");
     assert_eq!(findings[0].path, "a.ml");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("topiary", "format", &single("a.mli", TOPIARY_CLEAN))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("topiary", "a.ml", "let   x=1\n", "format")
@@ -5717,21 +5682,19 @@ fn nixfmt_reports_a_dirty_file_and_fix_rewrites_it() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "nixfmt");
     assert_eq!(findings[0].path, "a.nix");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("nixfmt", "format", &single("a.nix", NIXFMT_CLEAN))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("nixfmt", "a.nix", "{a=1;}\n", "format")
         .expect("fixed");
     assert_eq!(fixed, NIXFMT_CLEAN);
-    assert!(
+    assert_eq!(
         backend
             .diagnose("nixfmt", "format", &single("a.nix", &fixed))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -5845,17 +5808,13 @@ fn latexindent_tool(
     for name in ["HOME", "USERPROFILE"] {
         let home = env
             .iter()
-            .find(|(key, _)| key == name)
-            .map(|(_, value)| PathBuf::from(value))
-            .unwrap_or_else(|| panic!("{name} names the scratch home"));
+            .find(|(key, _)| key == name).map_or_else(|| panic!("{name} names the scratch home"), |(_, value)| PathBuf::from(value));
         assert!(home.is_dir(), "{name} {home:?} exists");
     }
     let write = argv.iter().any(|arg| arg == "-w");
     assert!(write || argv.iter().any(|arg| arg == "-k"));
     let flag = |prefix: &str| {
-        argv.iter()
-            .filter_map(|arg| arg.to_str()?.strip_prefix(prefix).map(PathBuf::from))
-            .next()
+        argv.iter().find_map(|arg| arg.to_str()?.strip_prefix(prefix).map(PathBuf::from))
     };
     let log = flag("-g=").expect("log goes to an explicit file");
     let cruft = flag("-c=").expect("backups go to an explicit directory");
@@ -5952,11 +5911,10 @@ fn latexindent_check_reports_dirty_files_by_workspace_path() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "latexindent");
     assert_eq!(findings[0].path, "docs/a.tex");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("latexindent", "format", &single("docs/b.tex", LATEX_CLEAN))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -5967,11 +5925,10 @@ fn latexindent_apply_rewrites_the_owned_file_and_the_recheck_is_clean() {
         .apply_fix("latexindent", "docs/a.tex", LATEX_DIRTY, "format")
         .expect("fixed");
     assert_eq!(fixed, LATEX_CLEAN);
-    assert!(
+    assert_eq!(
         backend
             .diagnose("latexindent", "format", &single("docs/a.tex", &fixed))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -6020,7 +5977,7 @@ fn chktex_tool(
     assert!(flag("-q").is_some() && flag("-I0").is_some());
     assert_eq!(
         argv[flag("-f").expect("format flag") + 1],
-        OsString::from(quality_adapter::commands::CHKTEX_FORMAT)
+        OsString::from(commands::CHKTEX_FORMAT)
     );
     let file = PathBuf::from(argv.last().expect("one file"));
     let dirty = std::fs::read_to_string(&file)?.contains("\\ref");
@@ -6090,11 +6047,10 @@ fn chktex_reports_findings_by_workspace_path_per_file() {
 #[test]
 fn chktex_clean_file_has_no_findings() {
     let backend = backend_for("chktex", plain_tool(), chktex_tool);
-    assert!(
+    assert_eq!(
         backend
             .diagnose("chktex", "lint", &single("docs/b.tex", LATEX_CLEAN))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -6120,9 +6076,7 @@ fn detekt_fake(
     assert_hermetic(env);
     let value = |flag: &str| {
         argv.windows(2)
-            .find(|pair| pair[0] == flag)
-            .map(|pair| pair[1].to_string_lossy().into_owned())
-            .unwrap_or_else(|| panic!("detekt passes {flag}"))
+            .find(|pair| pair[0] == flag).map_or_else(|| panic!("detekt passes {flag}"), |pair| pair[1].to_string_lossy().into_owned())
     };
     let config = value("--config");
     assert!(
@@ -6171,7 +6125,7 @@ fn detekt_reports_an_unused_private_function_as_warning() {
     let clean = backend
         .diagnose("detekt", "lint", &single("src/A.kt", "package a\n"))
         .expect("detekt clean");
-    assert!(clean.is_empty());
+    assert_eq!(clean, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 fn credo_fake(
@@ -6231,7 +6185,7 @@ fn credo_reports_findings_as_warnings_with_the_bound_config() {
     let clean = backend
         .diagnose("credo", "lint", &single("lib/a.ex", "ok\n"))
         .expect("clean");
-    assert!(clean.is_empty());
+    assert_eq!(clean, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -6290,11 +6244,10 @@ fn notebook_outputs_fix_strips_only_outputs_and_counts() {
         .apply_fix("notebook_outputs", "n.ipynb", NOTEBOOK_DIRTY, "lint")
         .expect("fixed");
     assert_eq!(fixed, outputs_stripped());
-    assert!(
+    assert_eq!(
         backend
             .diagnose("notebook_outputs", "lint", &single("n.ipynb", &fixed))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -6580,7 +6533,7 @@ fn dialyzer_skips_an_app_without_beams() {
     let findings = backend
         .diagnose("dialyzer", "typecheck", &single("lib/a.ex", "x\n"))
         .expect("skipped");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -6640,11 +6593,10 @@ fn phpcs_passes_the_default_standard_and_maps_paths_back() {
             "phpcs/PSR12.Files.FileHeader.SpacingAfterTagBlock"
         )]
     );
-    assert!(
+    assert_eq!(
         backend
             .diagnose("phpcs", "lint", &single("lib/clean.php", "<?php\n"))
-            .expect("clean")
-            .is_empty()
+            .expect("clean"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -7012,11 +6964,10 @@ fn phpstan_writes_its_config_keeps_owned_findings_and_maps_paths_back() {
         .map(|f| (f.path.as_str(), f.rule_id.as_str()))
         .collect();
     assert_eq!(seen, vec![("lib/bad.php", "phpstan/return.type")]);
-    assert!(
+    assert_eq!(
         backend
             .diagnose("phpstan", "typecheck", &single("lib/clean.php", "<?php\n"))
-            .expect("clean")
-            .is_empty()
+            .expect("clean"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -7091,7 +7042,7 @@ fn ansible_lint_collection_roots_reach_argv_from_external_repos() {
     let findings = backend
         .diagnose("ansible_lint", "lint", &single("site.yml", "---\n"))
         .expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -7100,7 +7051,7 @@ fn ansible_lint_without_collections_gets_no_flag() {
     let findings = backend
         .diagnose("ansible_lint", "lint", &single("site.yml", "---\n"))
         .expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -7321,7 +7272,7 @@ fn terraform_fake(
     let located = |severity: &str, file: &str| {
         format!(
             r#"{{"severity":"{severity}","summary":"Boom","detail":"d","range":{{"filename":"{file}","start":{{"line":2,"column":3,"byte":1}},"end":{{"line":2,"column":6,"byte":4}}}}}}"#,
-            file = json_escape(&file)
+            file = json_escape(file)
         )
     };
     match args[1].as_str() {
@@ -7565,11 +7516,10 @@ fn typos_lint_reports_and_fix_corrects() {
     assert_eq!(findings[0].tool_id, "typos");
     assert_eq!(findings[0].message, "`teh` should be `the`");
     assert_eq!(findings[0].path, "notes.txt");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("typos", "lint", &single("notes.txt", "say the word\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
         .apply_fix("typos", "notes.txt", "say teh word\n", "lint")
@@ -7619,11 +7569,10 @@ fn lychee_reports_broken_links_with_scratch_free_messages() {
     assert_eq!(findings[0].tool_id, "lychee");
     assert_eq!(findings[0].path, "docs/a.md");
     assert_eq!(findings[0].message, "gone.md: File not found");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("lychee", "lint", &single("docs/a.md", "fine\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -7670,11 +7619,10 @@ fn actionlint_reports_an_undefined_context_property() {
             .message
             .contains("property \"foo\" is not defined in object type")
     );
-    assert!(
+    assert_eq!(
         backend
             .diagnose("actionlint", "lint", &single(path, "name: ci\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -7718,11 +7666,10 @@ fn zizmor_reports_an_unpinned_action() {
     assert_eq!(findings[0].tool_id, "zizmor");
     assert_eq!(findings[0].path, path);
     assert_eq!(findings[0].rule_id, "unpinned-uses");
-    assert!(
+    assert_eq!(
         backend
             .diagnose("zizmor", "lint", &single(path, "name: ci\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 
@@ -7744,11 +7691,10 @@ fn lychee_goes_online_when_the_request_sets_the_env() {
     let mut tool = plain_tool();
     tool.extra_env = vec![("DX_LINT_ONLINE".to_owned(), "1".to_owned())];
     let backend = backend_for("lychee", tool, lychee_online_fake);
-    assert!(
+    assert_eq!(
         backend
             .diagnose("lychee", "lint", &single("docs/a.md", "fine\n"))
-            .expect("diagnosed")
-            .is_empty()
+            .expect("diagnosed"), [] as [quality_result::proto::Diagnostic; 0]
     );
 }
 

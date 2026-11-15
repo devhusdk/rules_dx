@@ -6,7 +6,7 @@ use quality_adapter::{TextPosition, commands, parsers};
 
 use super::check::ToolDef;
 use super::kubeconform::preflight_finding;
-use super::*;
+use super::{RealBackend, RealTool, StagedScratch, RunnerError, execution, parsed};
 
 const CONTEXT_REL: &str = "dx-helm/context.json";
 const STATE_REL: &str = "dx-helm";
@@ -200,17 +200,14 @@ impl RealBackend {
             let workspace = join_rel(&context.chart_root, &file.path);
             let known = absolute_of(&workspace);
             let owner = known.is_some();
-            let (workspace, absolute) = match known {
-                Some(absolute) => (workspace, absolute),
-                None => {
-                    let absolute = absolute_of(&chart_yaml).ok_or_else(|| {
-                        execution(
-                            tool_id,
-                            format!("{chart_yaml} is not among the staged files"),
-                        )
-                    })?;
-                    (chart_yaml.clone(), absolute)
-                }
+            let (workspace, absolute) = if let Some(absolute) = known { (workspace, absolute) } else {
+                let absolute = absolute_of(&chart_yaml).ok_or_else(|| {
+                    execution(
+                        tool_id,
+                        format!("{chart_yaml} is not among the staged files"),
+                    )
+                })?;
+                (chart_yaml.clone(), absolute)
             };
             let checked = kubernetes_preflight::check_file(&file.path, file.text.as_bytes());
             let entry = (

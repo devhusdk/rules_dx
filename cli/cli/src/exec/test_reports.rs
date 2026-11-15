@@ -377,7 +377,7 @@ pub(super) fn no_tests_in_workspace(
         OutputMode::Text { .. } => {
             writeln!(err, "dx: {message}").ok();
         }
-        _ => {}
+        OutputMode::Diff => {}
     }
     0
 }

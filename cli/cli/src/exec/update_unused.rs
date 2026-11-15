@@ -518,8 +518,12 @@ fn missing_hubs(
         for (key, label) in &used {
             let name = key.trim_start_matches(':');
             if known.contains(key)
-                || name.ends_with(".bzl")
-                || name.ends_with(".bazel")
+                || Path::new(name)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
+                || Path::new(name)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("bazel"))
                 || excepted.iter().any(|e| e == name)
             {
                 continue;

@@ -232,8 +232,7 @@ impl RunMode {
 
     fn command_text(self) -> &'static str {
         match self {
-            RunMode::Update => "dx update",
-            RunMode::Check => "dx update",
+            RunMode::Update | RunMode::Check => "dx update",
         }
     }
 

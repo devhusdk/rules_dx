@@ -701,7 +701,9 @@ pub(super) fn cabal_files(workspace: &Path, projects: &[String]) -> Vec<String> 
         };
         for entry in entries.flatten() {
             let file = entry.file_name().to_string_lossy().into_owned();
-            if file.ends_with(".cabal") {
+            if Path::new(&file)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("cabal")) {
                 files.push(if dir.is_empty() {
                     file
                 } else {

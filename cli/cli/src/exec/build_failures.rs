@@ -303,7 +303,7 @@ fn unavailable(
             writeln!(err, "dx: build_events_incomplete: {detail}").ok();
             Ok(())
         }
-        _ => Ok(()),
+        OutputMode::Diff => Ok(()),
     }
 }
 
@@ -349,7 +349,7 @@ pub(crate) fn report_build_failures(
             OutputMode::Text { .. } => {
                 writeln!(err, "{}", describe(event)).ok();
             }
-            _ => {}
+            OutputMode::Diff => {}
         }
     }
     if let Some(problem) = &collected.problem {

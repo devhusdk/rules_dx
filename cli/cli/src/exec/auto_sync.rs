@@ -42,7 +42,7 @@ pub(crate) fn after_success(invocation: &Invocation, env: Env<'_>) {
     };
     let mut sync = invocation.clone();
     sync.command = Command::Sync;
-    sync.targets = record.targets.clone();
+    sync.targets.clone_from(&record.targets);
     sync.reports.clear();
     sync.affected = false;
     sync.affected_handoff = None;

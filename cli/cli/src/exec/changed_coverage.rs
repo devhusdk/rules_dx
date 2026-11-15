@@ -102,7 +102,7 @@ fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
         dx_version: dx_adopt::DX_VERSION.to_owned(),
     };
     let Some(account) = gate.account else {
-        event.result = "incomplete".to_owned();
+        "incomplete".clone_into(&mut event.result);
         return Verdict {
             event,
             error: Some((
@@ -123,7 +123,7 @@ fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
         Err(PlanError::Resolve(error)) => return unavailable(event, error.to_string()),
     };
     event.base = branch;
-    event.merge_base = merge_base.clone();
+    event.merge_base.clone_from(&merge_base);
     let added = match changed_lines(gate.workspace, gate.runner, &merge_base) {
         Ok(added) => added,
         Err(error) => return unavailable(event, error.message().to_owned()),
@@ -139,7 +139,7 @@ fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
         return unavailable(event, changed.errors.join("; "));
     }
     let result = changed.result(minimum);
-    event.result = result.name().to_owned();
+    result.name().clone_into(&mut event.result);
     event.covered_lines = changed.covered_lines;
     event.eligible_lines = changed.eligible_lines;
     event.uncovered = changed
@@ -147,7 +147,7 @@ fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
         .iter()
         .map(|line| (line.path.clone(), line.line))
         .collect();
-    event.uninstrumented = changed.uninstrumented.clone();
+    event.uninstrumented.clone_from(&changed.uninstrumented);
     let against = format!("against merge-base {merge_base}");
     let (covered, eligible) = (changed.covered_lines, changed.eligible_lines);
     let (error, lines) = match result {

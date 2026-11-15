@@ -41,11 +41,11 @@ fn install_forwarding() {
             let mut action: libc::sigaction = std::mem::zeroed();
             action.sa_sigaction = forward_to_child as *const () as libc::sighandler_t;
             action.sa_flags = libc::SA_RESTART;
-            libc::sigemptyset(&mut action.sa_mask);
+            libc::sigemptyset(&raw mut action.sa_mask);
             let mut inherited: libc::sigaction = std::mem::zeroed();
-            libc::sigaction(signo, &action, &mut inherited);
+            libc::sigaction(signo, &raw const action, &raw mut inherited);
             if signo == libc::SIGHUP && inherited.sa_sigaction == libc::SIG_IGN {
-                libc::sigaction(signo, &inherited, std::ptr::null_mut());
+                libc::sigaction(signo, &raw const inherited, std::ptr::null_mut());
             }
         }
     }
@@ -469,7 +469,7 @@ fn run() -> i32 {
                 ci: dx_process::is_ci(),
                 audit_today: audit_today.as_deref(),
                 actions: &actions,
-                proc_root: std::path::Path::new("/proc"),
+                proc_root: Path::new("/proc"),
                 edit_commit_json: edit_commit_json.as_deref(),
             },
         )

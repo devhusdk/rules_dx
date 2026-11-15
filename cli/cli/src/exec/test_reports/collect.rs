@@ -150,7 +150,7 @@ pub(super) fn collect_test_xml(
             && outcome.outcome == "passed"
             && outcome.cases_total == Some(0)
         {
-            outcome.outcome = "no_cases".to_owned();
+            "no_cases".clone_into(&mut outcome.outcome);
         }
         attach_log(&mut outcome, result, reader);
         outcome.cases = cases_seen;

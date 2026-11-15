@@ -527,7 +527,7 @@ pub(super) fn filtered_notice(
         OutputMode::Text { .. } => {
             writeln!(err, "dx: tests_filtered: {message}").ok();
         }
-        _ => {}
+        OutputMode::Diff => {}
     }
     Ok(())
 }
@@ -606,7 +606,7 @@ pub(super) fn parse_cases(
     let mut cases = parse_test_xml(bytes, shard, attempt)?;
     for case in &mut cases {
         case.run = result.run.saturating_sub(1);
-        case.configuration = result.configuration.clone();
+        case.configuration.clone_from(&result.configuration);
     }
     Ok(cases)
 }

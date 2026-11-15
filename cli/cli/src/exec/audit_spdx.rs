@@ -1,4 +1,4 @@
-use dx_audit::locks::{BAZEL_SET, LicensedPackage};
+use dx_audit::locks::LicensedPackage;
 
 /// Builds the SPDX 2.3 document for one `dx license` run: a root package for the scope and one
 /// package per resolved dependency, in the order given.
@@ -18,7 +18,7 @@ pub(super) fn license_spdx(
         &["Tool: dx-license"],
     );
     if let Some(info) = document.creation_info.as_mut() {
-        info.created = created.to_owned();
+        created.clone_into(&mut info.created);
     }
     let root = "SPDXRef-Root";
     document.packages.push(dx_sbom::SpdxPackage {
@@ -99,7 +99,6 @@ pub(super) fn purl(package: &LicensedPackage) -> String {
         "hex" => "hex",
         "pub" => "pub",
         "cpan" => "cpan",
-        BAZEL_SET => "generic",
         _ => "generic",
     };
     let name = if kind == "maven" {

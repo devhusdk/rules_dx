@@ -1095,7 +1095,7 @@ fn frozen_widen_needed_fails_before_any_manifest_write() {
         ]);
         assert_eq!(code, 1, "{selector}: {out}{err}");
         assert!(
-            err.contains(&format!("dx: {}: ", CODE_FROZEN_LOCKED)),
+            err.contains(&format!("dx: {CODE_FROZEN_LOCKED}: ")),
             "{selector}: {err}"
         );
         assert!(

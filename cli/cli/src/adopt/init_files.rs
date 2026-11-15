@@ -78,14 +78,12 @@ impl InitFile {
                 }
                 FileKind::Generated => Ownership::Whole,
             },
-            Kind::Launcher => Ownership::Whole,
-            Kind::Preset => Ownership::Lines,
+            Kind::Preset | Kind::ClaudeImport | Kind::CopilotInstructions => Ownership::Lines,
             Kind::Generated if self.path == "BUILD.bazel" => Ownership::Block,
-            Kind::Generated => Ownership::Whole,
+            Kind::Launcher | Kind::Generated => Ownership::Whole,
             Kind::Hooks => Ownership::Keys,
             Kind::AgentsBlock => Ownership::Block,
-            Kind::ClaudeImport | Kind::CopilotInstructions => Ownership::Lines,
-        }
+            }
     }
 }
 

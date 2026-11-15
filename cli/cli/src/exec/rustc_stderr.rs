@@ -371,7 +371,7 @@ fn parse_rendered(text: &str) -> Vec<ActionDiagnostic> {
         });
         if let Some(label) = label {
             let mut item = rendered_related("label", label);
-            item.file = file.clone();
+            item.file.clone_from(&file);
             item.line = source_line;
             push_related(last, item);
         }

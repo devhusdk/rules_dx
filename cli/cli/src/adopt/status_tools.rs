@@ -70,16 +70,13 @@ pub(crate) fn managed_tools_check(workspace: &Path) -> StatusCheck {
             REFRESH,
         );
     }
-    let values = match std::fs::read_to_string(dir.join(ENV_VALUES_FILE)) {
-        Ok(text) => text,
-        Err(_) => {
+    let Ok(values) = std::fs::read_to_string(dir.join(ENV_VALUES_FILE)) else {
             return tools(
                 "error",
                 format!("unavailable: environment {short} has no readable {ENV_VALUES_FILE}"),
                 REFRESH,
             );
-        }
-    };
+        };
     let keys: BTreeMap<String, String> = match serde_json::from_str(&values) {
         Ok(keys) => keys,
         Err(error) => {

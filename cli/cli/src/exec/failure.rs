@@ -152,19 +152,7 @@ impl Failure {
             ResolveError::QueryFailed {
                 failure: QueryFailure::Prepare { .. },
                 ..
-            } => (CODE_INVALID_SCOPE, pre_exec_code()),
-            ResolveError::QueryFailed {
-                failure: QueryFailure::DiskFull { status, .. },
-                ..
-            } => (CODE_DISK_FULL, *status),
-            ResolveError::QueryFailed { .. } => (CODE_QUERY_FAILED, pre_exec_code()),
-            ResolveError::NoOwner { .. } => (CODE_NO_OWNER, pre_exec_code()),
-            ResolveError::NoTests { .. } => (CODE_NO_TESTS, operational_code()),
-            ResolveError::NoRunnable { .. } => ("no_runnable", operational_code()),
-            ResolveError::AmbiguousRunnable { .. } => ("ambiguous_runnable", operational_code()),
-            ResolveError::NotDeployable { .. } => (CODE_NOT_DEPLOYABLE, pre_exec_code()),
-            ResolveError::Config { .. } => ("invalid_config", pre_exec_code()),
-            ResolveError::EmptyScope
+            } | ResolveError::EmptyScope
             | ResolveError::RelativeLabel { .. }
             | ResolveError::ExternalScope { .. }
             | ResolveError::OutsideWorkspace { .. }
@@ -177,7 +165,18 @@ impl Failure {
             | ResolveError::DeployCount { .. }
             | ResolveError::DeployScope { .. }
             | ResolveError::AllExcluded { .. } => (CODE_INVALID_SCOPE, pre_exec_code()),
-        };
+            ResolveError::QueryFailed {
+                failure: QueryFailure::DiskFull { status, .. },
+                ..
+            } => (CODE_DISK_FULL, *status),
+            ResolveError::QueryFailed { .. } => (CODE_QUERY_FAILED, pre_exec_code()),
+            ResolveError::NoOwner { .. } => (CODE_NO_OWNER, pre_exec_code()),
+            ResolveError::NoTests { .. } => (CODE_NO_TESTS, operational_code()),
+            ResolveError::NoRunnable { .. } => ("no_runnable", operational_code()),
+            ResolveError::AmbiguousRunnable { .. } => ("ambiguous_runnable", operational_code()),
+            ResolveError::NotDeployable { .. } => (CODE_NOT_DEPLOYABLE, pre_exec_code()),
+            ResolveError::Config { .. } => ("invalid_config", pre_exec_code()),
+            };
         let mut failure = Failure::new(code, &error.to_string(), exit);
         failure.phase = Some("resolve");
         match error {
@@ -186,7 +185,7 @@ impl Failure {
                 ..
             } => {
                 failure.status = *status;
-                failure.excerpt = excerpt.clone();
+                failure.excerpt.clone_from(excerpt);
             }
             ResolveError::QueryFailed {
                 failure:
@@ -196,7 +195,7 @@ impl Failure {
                 ..
             } => {
                 failure.status = Some(*status);
-                failure.excerpt = excerpt.clone();
+                failure.excerpt.clone_from(excerpt);
             }
             ResolveError::EmptyScope
             | ResolveError::RelativeLabel { .. }

@@ -1416,7 +1416,9 @@ mod tests {
             .get(GENERATE_ENV_INTENDED)
             .copied()
             .expect("witness path");
-        assert!(intended.ends_with(".json"), "{intended}");
+        assert!(Path::new(intended)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json")), "{intended}");
         assert_eq!(
             std::fs::read(intended).expect("witness bytes"),
             harness.intended.expect("canned witness"),

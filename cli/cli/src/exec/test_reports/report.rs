@@ -390,7 +390,7 @@ pub(super) fn coverage_sources(
             OutputMode::Text { .. } => {
                 writeln!(err, "dx: {code}: {message}").ok();
             }
-            _ => {}
+            OutputMode::Diff => {}
         }
     }
     Ok(errors.is_empty())

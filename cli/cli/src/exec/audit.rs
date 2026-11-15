@@ -100,14 +100,13 @@ impl AuditError {
     /// Returns the error code reported for this failure.
     pub(crate) fn code(&self) -> &'static str {
         match self {
-            AuditError::AdvisoryUnsupported { .. }
-            | AuditError::AdvisoryUtf8 { .. }
-            | AuditError::AdvisoryParse { .. } => dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED,
             AuditError::AdvisoryPinMissing { .. } => dx_audit::advisory::CODE_ADVISORY_PIN_MISSING,
             AuditError::AdvisoryPinMismatch { .. } => {
                 dx_audit::advisory::CODE_ADVISORY_PIN_MISMATCH
             }
-            AuditError::AdvisoryPinFetch { .. } => dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED,
+            AuditError::AdvisoryUnsupported { .. }
+            | AuditError::AdvisoryUtf8 { .. }
+            | AuditError::AdvisoryParse { .. } | AuditError::AdvisoryPinFetch { .. } => dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED,
             AuditError::OfflineRequired { .. } => CODE_OFFLINE_REQUIRED,
             AuditError::NoOwningSet { .. }
             | AuditError::Read { .. }
@@ -429,7 +428,9 @@ fn parse_locked_for_configured(
     if let Some((label, exact)) = expected {
         let parsed = locks.iter().any(|(rel, _)| {
             let name = rel.rsplit('/').next().unwrap_or(rel);
-            exact.map_or_else(|| name.ends_with(".json"), |want| name == want)
+            exact.map_or_else(|| Path::new(name)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("json")), |want| name == want)
         });
         if !parsed {
             return Err(AuditError::LockUnsupported {
@@ -458,7 +459,9 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Hex => dx_audit::locks::parse_hex_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Fpm => dx_audit::locks::parse_fpm_lock(text),
-            dx_adopt::dependency_sets::Ecosystem::Zig => Ok(Vec::new()),
+            dx_adopt::dependency_sets::Ecosystem::Zig | dx_adopt::dependency_sets::Ecosystem::Bazel
+            | dx_adopt::dependency_sets::Ecosystem::Ansible
+            | dx_adopt::dependency_sets::Ecosystem::Bicep => Ok(Vec::new()),
             dx_adopt::dependency_sets::Ecosystem::Dub => match rel.rsplit('/').next() {
                 Some(name) if name == dx_adopt::dependency_sets::dub_selections()? => {
                     dx_audit::locks::parse_dub_selections(text)
@@ -507,13 +510,12 @@ fn parse_locked_for_configured(
                 }
                 _ => Ok(Vec::new()),
             },
-            dx_adopt::dependency_sets::Ecosystem::Bazel
-            | dx_adopt::dependency_sets::Ecosystem::Ansible
-            | dx_adopt::dependency_sets::Ecosystem::Bicep => Ok(Vec::new()),
             // The versions live in the manifest; the lock only holds hashes (see the builtin set).
             dx_adopt::dependency_sets::Ecosystem::Go => dx_audit::locks::go_locked_packages(text),
             dx_adopt::dependency_sets::Ecosystem::Maven => match rel.rsplit('/').next() {
-                Some(name) if name.ends_with(".json") => dx_audit::locks::parse_maven_install(text),
+                Some(name) if Path::new(name)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("json")) => dx_audit::locks::parse_maven_install(text),
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Nuget => match rel.rsplit('/').next() {
@@ -1331,7 +1333,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             .filter(|exception| exception.set == label)
             .map(|exception| {
                 let mut exception = (*exception).clone();
-                exception.set = exception_set.clone();
+                exception.set.clone_from(&exception_set);
                 exception
             })
             .collect();
@@ -1344,7 +1346,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         }
         if !problems.is_empty() {
             let first = problems
-                .first().map_or_else(|| "exception validation failed".to_owned(), std::string::ToString::to_string);
+                .first().map_or_else(|| "exception validation failed".to_owned(), ToString::to_string);
             if incomplete.is_none() {
                 incomplete = Some(format!("failed to assess {label}: {first}"));
             }
@@ -1741,7 +1743,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     ));
                 }
                 sarif_tools.insert("license".to_owned());
-                licensed = result.licensed.clone();
+                licensed.clone_from(&result.licensed);
                 diagnostics.extend(result.diagnostics.clone());
                 if result.status == dx_audit::outcome::FamilyStatus::Incomplete {
                     any_incomplete = true;

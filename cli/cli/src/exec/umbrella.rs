@@ -710,22 +710,19 @@ fn verify_fix(
             (&phase_out, &phase_err),
             code,
         );
-        match forwarded {
-            Ok(readable) => outcome.readable &= readable,
-            Err(_) => {
-                outcome.readable = false;
-                let message = format!("{verify_phase} events could not be forwarded");
-                writeln!(outcome.err, "dx: {CODE_COLLECTION_FAILED}: {message}").ok();
-                if let Err(exit) = announce_collection_failure(
-                    &mut outcome.out,
-                    request.common.output,
-                    command,
-                    &verify_phase,
-                    &message,
-                ) {
-                    outcome.ended = Some(exit);
-                    break;
-                }
+        if let Ok(readable) = forwarded { outcome.readable &= readable } else {
+            outcome.readable = false;
+            let message = format!("{verify_phase} events could not be forwarded");
+            writeln!(outcome.err, "dx: {CODE_COLLECTION_FAILED}: {message}").ok();
+            if let Err(exit) = announce_collection_failure(
+                &mut outcome.out,
+                request.common.output,
+                command,
+                &verify_phase,
+                &message,
+            ) {
+                outcome.ended = Some(exit);
+                break;
             }
         }
         if code != 0 {

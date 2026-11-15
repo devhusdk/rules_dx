@@ -416,7 +416,9 @@ fn configured_cargo_licenses(
 ) -> Vec<dx_audit::locks::LicensedPackage> {
     let bazel_text = locks
         .iter()
-        .find(|(rel, _)| rel.ends_with(".json"))
+        .find(|(rel, _)| Path::new(rel)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json")))
         .map_or("", |(_, text)| text.as_str());
     let mut licensed = dx_audit::locks::cargo_licenses(bazel_text, locked);
     let inventoried: BTreeMap<(String, String), String> =
@@ -428,7 +430,7 @@ fn configured_cargo_licenses(
         if let Some(license) = inventoried.get(&(entry.name.clone(), entry.version.clone()))
             && license != "UNKNOWN"
         {
-            entry.license = license.clone();
+            entry.license.clone_from(license);
         }
     }
     licensed
@@ -455,7 +457,7 @@ fn configured_npm_licenses(
         if let Some(license) = inventoried.get(&(entry.name.clone(), entry.version.clone()))
             && license != "UNKNOWN"
         {
-            entry.license = license.clone();
+            entry.license.clone_from(license);
         }
     }
     licensed

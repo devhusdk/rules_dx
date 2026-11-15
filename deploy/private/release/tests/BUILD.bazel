@@ -71,7 +71,6 @@ rust_test(
         "//patches/rules_rust:clippy_metadata_inputs.patch",
         "//patches/rules_rust:crate_universe_lazy_host_tools.patch",
         "//patches/rules_rust:crate_universe_module_labels.patch",
-        "//patches/rules_rust:crate_universe_root_lookup.patch",
         "//patches/rules_rust:exec_scope_universal.patch",
         "//patches/rules_rust:msvc_pdb_output.patch",
         "//patches/rules_rust:pipelined_rmeta_path.patch",

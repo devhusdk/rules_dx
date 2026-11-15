@@ -58,10 +58,9 @@ pub fn rules_py_override() -> String {
 }
 
 /// The patches of `//patches/rules_rust` that `rules_rust_override` names, without `.patch`.
-pub const RULES_RUST_PATCHES: [&str; 11] = [
+pub const RULES_RUST_PATCHES: [&str; 10] = [
     "clippy_metadata_inputs",
     "pipelined_rmeta_path",
-    "crate_universe_root_lookup",
     "msvc_pdb_output",
     "static_archive_link_arg",
     "crate_universe_lazy_host_tools",

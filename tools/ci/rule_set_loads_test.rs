@@ -6,7 +6,7 @@ mod scan;
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use scan::{add, calls, is_skipped, is_starlark, masked, Counts};
+use scan::{Counts, add, calls, is_skipped, is_starlark, masked};
 use starlark_syntax as _;
 use yaml_serde as _;
 
@@ -101,8 +101,11 @@ fn rule_set_of(path: &str) -> Option<&'static str> {
 fn first_literal(args: &str) -> Option<&str> {
     let args = args.trim_start();
     let quote = args.chars().next().filter(|c| *c == '"' || *c == '\'')?;
-    let rest = &args[1..];
-    Some(&rest[..rest.find(quote)?])
+    let rest = args.get(1..).expect("string slice within bounds");
+    Some(
+        rest.get(..rest.find(quote)?)
+            .expect("string slice within bounds"),
+    )
 }
 
 /// A load label as `//pkg:file` for rules_dx files and relative loads, or `@repo//pkg:file` for other repos.
@@ -226,7 +229,12 @@ fn rule_set_files_load_only_what_the_allowlist_permits() {
         scanned >= MIN_FILES,
         "only {scanned} rule-set files in the snapshot"
     );
-    for needed in ["php/defs.bzl", "lua/defs.bzl", "qt/defs.bzl", "rust/defs.bzl"] {
+    for needed in [
+        "php/defs.bzl",
+        "lua/defs.bzl",
+        "qt/defs.bzl",
+        "rust/defs.bzl",
+    ] {
         assert!(
             files.iter().any(|(path, _)| path == needed),
             "the snapshot has no {needed}"
@@ -277,7 +285,10 @@ fn a_disallowed_load_is_counted_and_named() {
 #[test]
 fn files_outside_the_rule_sets_are_not_scanned() {
     let (counts, _) = scan_files(&fixture(&[
-        ("php/private/quality/php.bzl", "load(\"//core:x.bzl\", \"x\")\n"),
+        (
+            "php/private/quality/php.bzl",
+            "load(\"//core:x.bzl\", \"x\")\n",
+        ),
         ("php/tests/t.bzl", "load(\"//core:x.bzl\", \"x\")\n"),
     ]));
     assert!(counts.is_empty());
@@ -285,20 +296,21 @@ fn files_outside_the_rule_sets_are_not_scanned() {
 
 #[test]
 fn a_stale_allowlist_line_is_named() {
-    let (counts, _) = scan_files(&fixture(&[("lua/defs.bzl", "load(\"//lua/private:lua.bzl\", \"l\")\n")]));
-    let problems = scan::problems(
-        &counts,
-        "lua/defs.bzl foreign-load 1\n",
-        &KINDS,
-        ALLOWLIST,
-    );
+    let (counts, _) = scan_files(&fixture(&[(
+        "lua/defs.bzl",
+        "load(\"//lua/private:lua.bzl\", \"l\")\n",
+    )]));
+    let problems = scan::problems(&counts, "lua/defs.bzl foreign-load 1\n", &KINDS, ALLOWLIST);
     assert_eq!(problems.len(), 1);
     assert!(problems[0].contains("spare line `lua/defs.bzl foreign-load`"));
 }
 
 #[test]
 fn a_new_violation_is_named() {
-    let (counts, _) = scan_files(&fixture(&[("qt/defs.bzl", "load(\"//core:x.bzl\", \"x\")\n")]));
+    let (counts, _) = scan_files(&fixture(&[(
+        "qt/defs.bzl",
+        "load(\"//core:x.bzl\", \"x\")\n",
+    )]));
     let problems = scan::problems(&counts, "", &KINDS, ALLOWLIST);
     assert_eq!(
         problems,

@@ -178,10 +178,6 @@ name = "workflow_pins_test"
 path = "workflow_pins_test.rs"
 
 [[test]]
-name = "release_cell_test"
-path = "release_cell_test.rs"
-
-[[test]]
 name = "zero_compat_test"
 path = "zero_compat_test.rs"
 

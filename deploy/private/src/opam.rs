@@ -138,11 +138,13 @@ impl Github<'_> {
         let mut response = result.map_err(|error| pages_redact(&error.to_string(), self.token))?;
         let status = response.status().as_u16();
         let mut text = Vec::new();
-        let _ = response
-            .body_mut()
-            .as_reader()
-            .take(1 << 20)
-            .read_to_end(&mut text);
+        drop(
+            response
+                .body_mut()
+                .as_reader()
+                .take(1 << 20)
+                .read_to_end(&mut text),
+        );
         let text = pages_redact(&String::from_utf8_lossy(&text), self.token);
         if !(200..300).contains(&status) {
             return Err(format!("{method} {path}: HTTP {status}: {}", text.trim()));

@@ -1052,8 +1052,8 @@ struct Probe(std::process::Child);
 #[cfg(unix)]
 impl Drop for Probe {
     fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
+        drop(self.0.kill());
+        drop(self.0.wait());
     }
 }
 
@@ -1611,7 +1611,7 @@ fn streamed_held_parent_main() {
         StreamGroup::Owned,
     );
     spec.held = vec![held_lease(&dir.join("lease.lock"))];
-    let _ = run_streamed(spec, STREAM_BUDGET, &never);
+    drop(run_streamed(spec, STREAM_BUDGET, &never));
     // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 }
 
@@ -1635,7 +1635,7 @@ fn crash_held_parent(
     let alive = scratch.path().join("alive.lock");
     wait_alive(&alive);
     parent.kill().expect("crash the held parent");
-    let _ = parent.wait();
+    drop(parent.wait());
     let lease = scratch.path().join("lease.lock");
     (scratch, lease, alive)
 }

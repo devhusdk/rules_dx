@@ -29,7 +29,9 @@ impl Project {
     }
 
     fn write(&self, rel: &str, text: &str) -> PathBuf {
-        let path = rel.split('/').fold(self.root.clone(), |acc, part| acc.join(part));
+        let path = rel
+            .split('/')
+            .fold(self.root.clone(), |acc, part| acc.join(part));
         std::fs::write(&path, text).expect("write");
         path
     }
@@ -155,7 +157,7 @@ fn columns_count_utf16_units() {
     // `  var s = '<U+1F600>'; int x = ` puts the literal after one astral char (2 UTF-16 units).
     let line = ASTRAL.lines().nth(1).expect("line");
     let scalars = line.find("'a'").expect("literal");
-    let before = &line[..scalars];
+    let before = line.get(..scalars).expect("string slice within bounds");
     let utf16 = before.encode_utf16().count() as u64 + 1;
     assert_eq!(invalid["location"]["range"]["start"]["column"], utf16);
 }

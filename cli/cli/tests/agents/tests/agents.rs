@@ -84,7 +84,9 @@ fn run_env(
 fn block(text: &str) -> String {
     let start = text.find("<!-- dx:begin -->").expect("begin marker");
     let end = text.find("<!-- dx:end -->").expect("end marker") + "<!-- dx:end -->".len();
-    text[start..end].replace("\r\n", "\n")
+    text.get(start..end)
+        .expect("string slice within bounds")
+        .replace("\r\n", "\n")
 }
 
 fn init(root: &Path, env: &Env) {

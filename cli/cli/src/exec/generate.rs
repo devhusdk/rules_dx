@@ -102,11 +102,36 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
         "stanzas for the lock files at the root",
         hubs,
     );
+    wire_pnpm_settings(workspace, apply, env.err, &mut wiring);
     wire_avro_cpp(workspace, apply, env.err, &mut wiring);
     if seeded_cargo {
         fill_cargo_lock(request, env, &mut wiring);
     }
     wiring
+}
+
+/// Writes the `pnpm-workspace.yaml` with `allowBuilds` that rules_js requires beside each wired pnpm lock.
+fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mut Wiring) {
+    let paths = match dx_adopt::plan_pnpm_settings(workspace) {
+        Ok(paths) => paths,
+        Err(error) => {
+            wiring.failed(err, format!("pnpm settings not planned: {error}"));
+            return;
+        }
+    };
+    for path in paths {
+        if !apply {
+            wiring.pending(
+                err,
+                format!("would create {path} with allowBuilds; run dx generate --apply"),
+            );
+            continue;
+        }
+        match std::fs::write(workspace.join(&path), dx_adopt::PNPM_SETTINGS) {
+            Ok(()) => wiring.info(err, format!("wrote {path}")),
+            Err(error) => wiring.failed(err, format!("{path} not created: {error}")),
+        }
+    }
 }
 
 /// Creates the files and `MODULE.bazel` lines `avro_cc_library` needs.
@@ -437,7 +462,7 @@ fn run_generate_request(
         Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };
     let apply = request.applies();
-    let wiring = wire_module(request, &mut env);
+    let mut wiring = wire_module(request, &mut env);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     std::fs::remove_file(&patch).ok();
@@ -538,6 +563,15 @@ fn run_generate_request(
             );
         }
     };
+    wire(
+        env.workspace,
+        apply,
+        env.err,
+        &mut wiring,
+        "loaded rule sets",
+        "a bazel_dep for each rule set the BUILD files load",
+        dx_adopt::plan_loaded_deps(env.workspace).map(|plan| (plan.notes, plan.edit)),
+    );
     let mut code = projected.exit_code(match gazelle {
         GazelleStatus::Failed(failed) => failed,
         GazelleStatus::Completed => 0,
@@ -741,6 +775,10 @@ mod tests {
             module.contains(&format!("pnpm_lock = \"//:{}\"", lock_of(Ecosystem::Npm))),
             "{module}"
         );
+        let settings = std::fs::read_to_string(harness.workspace.join("pnpm-workspace.yaml"))
+            .expect("pnpm settings");
+        assert_eq!(settings, dx_adopt::PNPM_SETTINGS);
+        assert!(err.contains("wrote pnpm-workspace.yaml"), "{err}");
     }
 
     #[test]
@@ -904,6 +942,57 @@ mod tests {
         assert_eq!(code, 0, "{out}{err}");
         let after = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert_eq!(after, module);
+    }
+
+    fn loading_workspace(name: &str, mode: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source(
+            "MODULE.bazel",
+            "module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n",
+        );
+        harness.write_source(
+            "web/BUILD.bazel",
+            "load(\"@aspect_rules_ts//ts:defs.bzl\", \"ts_project\")\n",
+        );
+        harness.intended = Some(intended_witness(mode, true, "", ""));
+        harness
+    }
+
+    #[test]
+    fn generate_apply_declares_the_rule_sets_build_files_load() {
+        let harness = loading_workspace("generate-loaded-apply", "default");
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        let version = dx_adopt::preflight::RULES_DX_DEPS
+            .iter()
+            .find(|(name, _)| *name == "aspect_rules_ts")
+            .map(|(_, version)| *version)
+            .expect("pinned");
+        assert!(
+            module.contains(&format!(
+                "bazel_dep(name = \"aspect_rules_ts\", version = \"{version}\")"
+            )),
+            "{module}"
+        );
+        assert!(
+            module.contains("use_repo(rules_ts, \"npm_typescript\")"),
+            "{module}"
+        );
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let again = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        assert_eq!(again, module);
+    }
+
+    #[test]
+    fn generate_check_reports_an_undeclared_loaded_rule_set() {
+        let harness = loading_workspace("generate-loaded-check", "check");
+        let (code, out, err) = harness.run(&["generate"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("aspect_rules_ts"), "{err}");
+        let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        assert!(!module.contains("aspect_rules_ts"), "{module}");
     }
 
     #[test]

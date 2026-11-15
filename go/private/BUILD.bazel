@@ -28,6 +28,7 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "bench_run.sh",
     ]),
     visibility = ["//:__subpackages__"],
 )

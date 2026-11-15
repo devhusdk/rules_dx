@@ -22,6 +22,14 @@ pub const CONSUMER_FILES: [(&str, &str); 2] = [
     ("lib.rs", "src/lib.rs"),
 ];
 
+/// The `//config` package the root-only `@@//config:toolchains_on` labels of the repeated patches name.
+pub const CONSUMER_CONFIG_BUILD: &str = "alias(
+    name = \"toolchains_on\",
+    actual = \"@rules_dx//config:toolchains_on\",
+    visibility = [\"//visibility:public\"],
+)
+";
+
 /// The Windows flags the repository `.bazelrc` sets: a short output root, symlinks and the MSVC EULAs.
 const WINDOWS_BAZELRC: &str = "startup --output_user_root=C:/bz
 startup --windows_enable_symlinks
@@ -356,8 +364,74 @@ fn rules_dx_override(checkout: &Path) -> String {
     )
 }
 
+const OVERRIDE_CALLS: [&str; 2] = ["archive_override(", "single_version_override("];
+
+fn string_arg<'a>(call: &'a str, key: &str) -> Option<&'a str> {
+    let rest = call.split_once(&format!("{key} = \""))?.1;
+    rest.split_once('"').map(|(value, _)| value)
+}
+
+/// The modules of the non-dev `bazel_dep` calls of the rules_dx root MODULE.bazel.
+fn shipped_deps(root_module: &str) -> Vec<&str> {
+    root_module
+        .lines()
+        .filter(|line| line.starts_with("bazel_dep(") && !line.contains("dev_dependency = True"))
+        .filter_map(|line| string_arg(line, "name"))
+        .collect()
+}
+
+/// The top-level `archive_override` and `single_version_override` calls of the rules_dx root
+/// MODULE.bazel whose module is a non-dev `bazel_dep` of it.
+pub fn root_overrides(root_module: &str) -> Vec<String> {
+    let shipped = shipped_deps(root_module);
+    let mut blocks = Vec::new();
+    let mut open: Option<Vec<&str>> = None;
+    for line in root_module.lines() {
+        if let Some(block) = open.as_mut() {
+            block.push(line);
+            if line.trim_end() == ")" {
+                blocks.extend(open.take().map(|block| block.join("\n") + "\n"));
+            }
+        } else if OVERRIDE_CALLS.iter().any(|call| line.starts_with(call)) {
+            if line.trim_end().ends_with(')') {
+                blocks.push(format!("{line}\n"));
+            } else {
+                open = Some(vec![line]);
+            }
+        }
+    }
+    blocks.retain(|block| {
+        string_arg(block, "module_name").is_some_and(|module| shipped.contains(&module))
+    });
+    blocks
+}
+
+/// The `(package, file)` of each `//patches/...` label in `overrides`.
+pub fn override_patches(overrides: &[String]) -> Result<Vec<(String, String)>, String> {
+    let mut patches = Vec::new();
+    for block in overrides {
+        for label in block.split('"').skip(1).step_by(2) {
+            let Some(label) = label.strip_prefix("//") else {
+                continue;
+            };
+            let Some((package, file)) = label.split_once(':') else {
+                return Err(format!("override patch //{label} has no target"));
+            };
+            if !package.starts_with("patches/") || file.contains('/') {
+                return Err(format!("override patch //{label} is outside //patches"));
+            }
+            patches.push((package.to_owned(), file.to_owned()));
+        }
+    }
+    Ok(patches)
+}
+
 /// Builds the consumer MODULE.bazel from the `dx init` snippet and the rules_dx checkout.
-pub fn consumer_module(init_module: &str, checkout: &Path) -> Result<String, String> {
+pub fn consumer_module(
+    init_module: &str,
+    root_module: &str,
+    checkout: &Path,
+) -> Result<String, String> {
     let mut kept = Vec::new();
     let mut in_module = false;
     for line in init_module.lines() {
@@ -380,10 +454,11 @@ pub fn consumer_module(init_module: &str, checkout: &Path) -> Result<String, Str
         return Err("dx init snippet already carries a local_path_override".to_owned());
     }
     Ok(format!(
-        "module(name = {})\n\n{}\n{}",
+        "module(name = {})\n\n{}\n{}{}",
         starlark_string(CONSUMER_MODULE),
         snippet.trim_end(),
         rules_dx_override(checkout),
+        root_overrides(root_module).concat(),
     ))
 }
 
@@ -425,16 +500,44 @@ pub fn stage_consumer(
     ran(
         runner,
         exe,
-        &["init", "--apply", "--workspace", &workspace],
+        &[
+            "init",
+            "--apply",
+            "--no-generate",
+            "--workspace",
+            &workspace,
+        ],
         &dir,
     )
     .map_err(|error| format!("stage: {error}"))?;
     let written = std::fs::read_to_string(dir.join("MODULE.bazel"))
         .map_err(|error| format!("stage: dx init wrote no MODULE.bazel: {error}"))?;
-    let module =
-        consumer_module(&written, &consumer.checkout).map_err(|error| format!("stage: {error}"))?;
+    let root_path = consumer.checkout.join("MODULE.bazel");
+    let root = std::fs::read_to_string(&root_path)
+        .map_err(|error| format!("stage: cannot read {}: {error}", root_path.display()))?;
+    let module = consumer_module(&written, &root, &consumer.checkout)
+        .map_err(|error| format!("stage: {error}"))?;
     std::fs::write(dir.join("MODULE.bazel"), module)
         .map_err(|error| format!("stage: cannot write MODULE.bazel: {error}"))?;
+    let patches =
+        override_patches(&root_overrides(&root)).map_err(|error| format!("stage: {error}"))?;
+    for (package, file) in patches {
+        let build = dir.join(&package).join("BUILD.bazel");
+        if !build.exists() {
+            std::fs::create_dir_all(dir.join(&package))
+                .map_err(|error| format!("stage: cannot create {package}: {error}"))?;
+            std::fs::write(&build, "")
+                .map_err(|error| format!("stage: cannot write {}: {error}", build.display()))?;
+        }
+        copy(
+            consumer.checkout.join(&package).join(&file),
+            &format!("{package}/{file}"),
+        )?;
+    }
+    std::fs::create_dir_all(dir.join("config"))
+        .map_err(|error| format!("stage: cannot create config: {error}"))?;
+    std::fs::write(dir.join("config/BUILD.bazel"), CONSUMER_CONFIG_BUILD)
+        .map_err(|error| format!("stage: cannot write config/BUILD.bazel: {error}"))?;
     for (source, dest) in CONSUMER_FILES {
         copy(consumer.template.join(source), dest)?;
     }

@@ -106,7 +106,7 @@ fn main() {
     if let Err(e) = result {
         if let Ok(a) = parse(&args) {
             for p in [&a.stripped, &a.debug, &a.manifest] {
-                let _ = std::fs::remove_file(p);
+                drop(std::fs::remove_file(p));
             }
         }
         eprintln!("split: {e}");

@@ -882,14 +882,14 @@ mod tests {
                 FakeLocation::RelativeQuery,
                 format!(
                     "/v2/demo/app/blobs/uploads/u1?_state=abc&digest=sha256%3A{}",
-                    &blobs[0][7..]
+                    &blobs[0].get(7..).expect("string slice within bounds")
                 ),
             ),
             (
                 FakeLocation::Absolute,
                 format!(
                     "/v2/demo/app/blobs/uploads/u1?digest=sha256%3A{}",
-                    &blobs[0][7..]
+                    &blobs[0].get(7..).expect("string slice within bounds")
                 ),
             ),
         ] {

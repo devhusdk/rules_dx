@@ -253,9 +253,9 @@ fn walk(dir: &Path, root: &Path, out: &mut BTreeMap<String, PathBuf>) -> Result<
 
 pub fn pack(request: &Request) -> Result<(), String> {
     let work = PathBuf::from(format!("{}.work", request.image.display()));
-    let _ = fs::remove_dir_all(&work);
+    drop(fs::remove_dir_all(&work));
     let result = pack_in(request, &work);
-    let _ = fs::remove_dir_all(&work);
+    drop(fs::remove_dir_all(&work));
     result
 }
 

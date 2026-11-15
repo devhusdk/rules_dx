@@ -210,7 +210,7 @@ fn write(path: &Path, bytes: &[u8]) -> Result<(), Error> {
     let sibling = PathBuf::from(sibling);
     std::fs::write(&sibling, bytes).map_err(failed)?;
     std::fs::rename(&sibling, path).map_err(|error| {
-        let _ = std::fs::remove_file(&sibling);
+        drop(std::fs::remove_file(&sibling));
         failed(error)
     })
 }

@@ -148,7 +148,8 @@ jobs:
           export CELL="dx-${DX_PLATFORM/_/-}"
           out="$RUNNER_TEMP/evidence/release-cell"
           status=0
-          tools/ci/release_cell.sh "$out" || status=$?
+          bazel build --noshow_progress //tools/ci/producers:producers_bin
+          "$(bazel info bazel-bin)/tools/ci/producers/producers_bin" --release-cell "$out" || status=$?
           cp "$RUNNER_TEMP"/rebuilt-* "$out/" 2>/dev/null || true
           exit "$status"
       - name: Use the BuildBuddy remote cache

@@ -11,6 +11,7 @@ pub mod init_dir;
 pub mod launcher;
 pub mod licenses;
 pub mod load_graph;
+pub mod loaded_deps;
 pub mod lock_hubs;
 pub mod module_deps;
 pub mod module_pin;
@@ -49,7 +50,11 @@ pub use licenses::{
     render_license_accept,
 };
 pub use load_graph::{BzlImpact, bzl_impact, external_repos, module_inputs, repo_impact};
-pub use lock_hubs::{LockHubs, RESOLVER_LOCKS, plan_lock_hubs, plan_pnpm_tool, unlocked_manifests};
+pub use loaded_deps::plan_loaded_deps;
+pub use lock_hubs::{
+    LockHubs, PNPM_SETTINGS, RESOLVER_LOCKS, plan_lock_hubs, plan_pnpm_settings, plan_pnpm_tool,
+    unlocked_manifests,
+};
 pub use module_deps::{is_rules_dx_root, module_deps};
 pub use module_pin::{ModuleEdit, plan_rules_dx_version, write_edit_or_create, write_module_edit};
 pub use ownership::Ownership;

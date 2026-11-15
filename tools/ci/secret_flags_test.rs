@@ -66,7 +66,10 @@ fn is_upload(step: &Value) -> bool {
 #[test]
 fn no_remote_header_carries_a_secret() {
     for path in ci_files() {
-        for line in ci_workflow::strings(&path).iter().flat_map(|text| text.lines()) {
+        for line in ci_workflow::strings(&path)
+            .iter()
+            .flat_map(|text| text.lines())
+        {
             let at = path.as_str();
             if line.contains("remote_header") {
                 assert!(
@@ -127,10 +130,15 @@ fn workflow_helper_steps_use_the_pinned_action() {
                 if step["name"] == HELPER_STEP {
                     helpers += 1;
                     assert!(
-                        step["uses"].as_str().is_some_and(|uses| uses.starts_with(&remote)),
+                        step["uses"]
+                            .as_str()
+                            .is_some_and(|uses| uses.starts_with(&remote)),
                         "{path} job {id} helper must use {remote}<sha>"
                     );
-                    assert!(step["run"].is_null(), "{path} job {id} helper runs a script");
+                    assert!(
+                        step["run"].is_null(),
+                        "{path} job {id} helper runs a script"
+                    );
                 }
             }
         }
@@ -256,7 +264,10 @@ fn every_upload_follows_a_matching_scan() {
                     .or_else(|| scan["env"]["DX_UPLOAD_PATH"].as_str())
                     .expect("scan path");
                 let expected = match upload_path.find('*') {
-                    Some(star) => upload_path[..star].trim_end_matches('/'),
+                    Some(star) => upload_path
+                        .get(..star)
+                        .expect("string slice within bounds")
+                        .trim_end_matches('/'),
                     None => upload_path,
                 };
                 assert_eq!(scanned, expected, "{at} scans another path than it uploads");
@@ -292,7 +303,11 @@ fn every_upload_follows_a_matching_scan() {
 
 fn keep_system_vars(command: &mut Command) {
     for (key, value) in std::env::vars_os() {
-        if key.to_string_lossy().to_ascii_lowercase().starts_with("system") {
+        if key
+            .to_string_lossy()
+            .to_ascii_lowercase()
+            .starts_with("system")
+        {
             command.env(key, value);
         }
     }
@@ -306,7 +321,11 @@ fn run_node(dir: &Path, env: &[(&str, &str)]) -> (i32, String) {
         .env_clear();
     keep_system_vars(&mut command);
     for (key, value) in env {
-        let key = if *key == "DX_UPLOAD_PATH" { "INPUT_PATH" } else { key };
+        let key = if *key == "DX_UPLOAD_PATH" {
+            "INPUT_PATH"
+        } else {
+            key
+        };
         command.env(key, value);
     }
     let done = command.output().expect("run node");
@@ -547,11 +566,17 @@ fn hermetic_verify_runs_only_while_the_job_is_succeeding() {
     );
     for step in parse(action)["runs"]["steps"].as_array().unwrap() {
         let run = step["run"].as_str().unwrap_or_default();
-        assert!(!run.contains("|| true"), "{action} swallows a failure: {run}");
+        assert!(
+            !run.contains("|| true"),
+            "{action} swallows a failure: {run}"
+        );
     }
     let compiler = parse(".github/actions/compiler-evidence/action.yml");
     for step in compiler["runs"]["steps"].as_array().unwrap() {
         let run = step["run"].as_str().unwrap_or_default();
-        assert!(!run.contains("|| true"), "compiler-evidence swallows a failure: {run}");
+        assert!(
+            !run.contains("|| true"),
+            "compiler-evidence swallows a failure: {run}"
+        );
     }
 }

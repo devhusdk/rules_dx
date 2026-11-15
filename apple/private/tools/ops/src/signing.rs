@@ -350,7 +350,7 @@ pub fn read_identity(
                 ],
             )
             .success();
-    let _ = std::fs::remove_file(&pem);
+    drop(std::fs::remove_file(&pem));
     if !exported || std::fs::metadata(&p12).map_or(true, |meta| meta.len() == 0) {
         return Err(unreadable());
     }

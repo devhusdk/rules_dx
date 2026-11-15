@@ -175,7 +175,7 @@ where
                 }
                 Ok(None) => return,
                 Err(error) => {
-                    let _ = sender.send(Err(error.to_string()));
+                    drop(sender.send(Err(error.to_string())));
                     return;
                 }
             }
@@ -279,11 +279,14 @@ where
         }
     }
 
-    let _ = send(
+    drop(send(
         &mut server_in,
         json!({"jsonrpc": "2.0", "id": 2, "method": "shutdown"}),
-    );
-    let _ = send(&mut server_in, json!({"jsonrpc": "2.0", "method": "exit"}));
+    ));
+    drop(send(
+        &mut server_in,
+        json!({"jsonrpc": "2.0", "method": "exit"}),
+    ));
     Ok(latest.into_values().flatten().collect())
 }
 

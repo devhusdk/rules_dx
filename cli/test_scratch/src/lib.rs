@@ -116,7 +116,7 @@ fn output_within(
         std::thread::spawn(move || {
             let mut bytes = Vec::new();
             if let Some(mut stream) = stream {
-                let _ = stream.read_to_end(&mut bytes);
+                drop(stream.read_to_end(&mut bytes));
             }
             bytes
         })
@@ -128,8 +128,8 @@ fn output_within(
         match child.try_wait().map_err(|err| err.to_string())? {
             Some(status) => break status,
             None if start.elapsed() >= limit => {
-                let _ = child.kill();
-                let _ = child.wait();
+                drop(child.kill());
+                drop(child.wait());
                 return Err(format!(
                     "did not finish within {}s and was killed",
                     limit.as_secs()

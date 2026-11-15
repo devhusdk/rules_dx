@@ -252,6 +252,6 @@ mod tests {
                 .iter()
                 .any(|generation| generation.hex == "latest" || generation.hex == "not-hex")
         );
-        let _ = fs::remove_dir_all(&root);
+        drop(fs::remove_dir_all(&root));
     }
 }

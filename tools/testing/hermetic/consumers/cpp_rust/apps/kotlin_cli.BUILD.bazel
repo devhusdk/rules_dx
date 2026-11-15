@@ -21,6 +21,7 @@ kotlin_binary(
 
 kotlin_test(
     name = "cli_test",
+    size = "small",
     srcs = ["CliTest.kt"],
     test_class = "cli.CliTest",
     deps = [
@@ -40,6 +41,7 @@ sh_test(
 
 kotlin_test(
     name = "consumer_choice_test",
+    size = "small",
     srcs = ["ConsumerChoiceTest.kt"],
     test_class = "cli.ConsumerChoiceTest",
     deps = [

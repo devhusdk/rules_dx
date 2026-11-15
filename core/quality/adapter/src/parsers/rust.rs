@@ -422,8 +422,8 @@ mod tests {
                 .expect("parsed")
                 .is_empty()
         );
-        let err = parse_clippy(outside.as_bytes(), Some(1), &["/s/x.rs"])
-            .expect_err("unplaced failure");
+        let err =
+            parse_clippy(outside.as_bytes(), Some(1), &["/s/x.rs"]).expect_err("unplaced failure");
         assert!(err.to_string().contains("elsewhere"));
         let config = diagnostic(
             "\"`dx_process::startup_argv_with` does not refer to a reachable function\"",

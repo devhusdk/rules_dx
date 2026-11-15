@@ -31,6 +31,7 @@ kotlin_library(
 
 kotlin_test(
     name = "grade_reader_test",
+    size = "small",
     srcs = ["GradeReaderTest.kt"],
     test_class = "grades.GradeReaderTest",
     deps = [
@@ -41,6 +42,7 @@ kotlin_test(
 
 kotlin_test(
     name = "stats_test",
+    size = "small",
     srcs = ["StatsTest.kt"],
     test_class = "grades.StatsTest",
     deps = [
@@ -52,6 +54,7 @@ kotlin_test(
 
 kotlin_test(
     name = "classpath_test",
+    size = "small",
     srcs = ["ClasspathTest.kt"],
     test_class = "grades.ClasspathTest",
     deps = [

@@ -662,9 +662,18 @@ impl Tree {
         let skip = dir.len() + 1;
         let mut out = BTreeMap::new();
         for path in self.under(dir) {
-            match path[skip..].split_once('/') {
+            match path
+                .get(skip..)
+                .expect("string slice within bounds")
+                .split_once('/')
+            {
                 Some((name, _)) => out.insert(name.to_owned(), true),
-                None => out.insert(path[skip..].to_owned(), false),
+                None => out.insert(
+                    path.get(skip..)
+                        .expect("string slice within bounds")
+                        .to_owned(),
+                    false,
+                ),
             };
         }
         out
@@ -826,7 +835,11 @@ fn check_entries(tree: &Tree, lang: &str, found: &mut Found) {
 fn check_private_names(tree: &Tree, lang: &str, found: &mut Found) {
     let private = format!("{lang}/private");
     for dir in tree.dirs(&private) {
-        let rest: Vec<&str> = dir[private.len() + 1..].split('/').collect();
+        let rest: Vec<&str> = dir
+            .get(private.len() + 1..)
+            .expect("string slice within bounds")
+            .split('/')
+            .collect();
         let tool_testdata = matches!(rest.as_slice(), ["tools", _, "testdata"]);
         if BANNED_PRIVATE.contains(&basename(&dir)) && !tool_testdata {
             found.add(
@@ -1031,7 +1044,11 @@ fn check_test_location(tree: &Tree, lang: &str, found: &mut Found) {
     }
     let private = format!("{lang}/private");
     for path in tree.under(&private) {
-        let rest: Vec<&str> = path[private.len() + 1..].split('/').collect();
+        let rest: Vec<&str> = path
+            .get(private.len() + 1..)
+            .expect("string slice within bounds")
+            .split('/')
+            .collect();
         if matches!(rest.as_slice(), ["tools", _, ..]) {
             continue;
         }
@@ -1094,7 +1111,11 @@ fn referenced_fixtures(tree: &Tree) -> BTreeSet<String> {
                 .iter()
                 .position(|byte| !is_word(*byte) && *byte != b'-')
                 .map_or(bytes.len(), |index| after + index);
-            add(&text[start..at], &text[after..end], end);
+            add(
+                text.get(start..at).expect("string slice within bounds"),
+                text.get(after..end).expect("string slice within bounds"),
+                end,
+            );
         }
         let dir = parent(path);
         let Some(lang) = dir
@@ -1110,7 +1131,11 @@ fn referenced_fixtures(tree: &Tree) -> BTreeSet<String> {
                     .iter()
                     .position(|byte| !is_word(*byte) && *byte != b'-')
                     .map_or(bytes.len(), |index| after + index);
-                add(lang, &text[after..end], end);
+                add(
+                    lang,
+                    text.get(after..end).expect("string slice within bounds"),
+                    end,
+                );
             }
         }
     }

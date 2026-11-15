@@ -90,7 +90,11 @@ fn declared_triples() -> BTreeSet<String> {
         .filter_map(|line| {
             let rest = line.trim().strip_prefix('"')?;
             let end = rest.find('"')?;
-            Some(rest[..end].to_owned())
+            Some(
+                rest.get(..end)
+                    .expect("string slice within bounds")
+                    .to_owned(),
+            )
         })
         .collect()
 }

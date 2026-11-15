@@ -54,7 +54,6 @@ fn script(workspace: &str, driver: &str) -> String {
     )
 }
 
-
 #[cfg(windows)]
 fn cmd_quote(text: &str) -> String {
     text.replace('%', "%%")

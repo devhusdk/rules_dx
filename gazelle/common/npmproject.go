@@ -78,6 +78,20 @@ func RootDeclares(repoRoot string, names ...string) bool {
 	return true
 }
 
+// JestConfigs are the jest config file names a package can hold, in the
+// order jest picks them.
+var JestConfigs = []string{"jest.config.js", "jest.config.mjs", "jest.config.cjs", "jest.config.json"}
+
+// JestConfig returns the jest config file in pkg, or "".
+func JestConfig(repoRoot, pkg string) string {
+	for _, name := range JestConfigs {
+		if hasFile(repoRoot, path.Join(pkg, name)) {
+			return name
+		}
+	}
+	return ""
+}
+
 // JestPreflight returns the message for a root manifest that cannot run
 // generated jest tests, or "".
 func JestPreflight(repoRoot string) string {

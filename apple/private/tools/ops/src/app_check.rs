@@ -144,7 +144,7 @@ pub fn sha256(data: &[u8]) -> String {
     }
     let mut hex = String::new();
     for word in state {
-        let _ = write!(hex, "{word:08x}");
+        write!(hex, "{word:08x}").unwrap_or_default();
     }
     hex
 }
@@ -536,13 +536,13 @@ pub fn run(tools: &Tools, args: &[String]) -> Outcome {
     let identity = args.first().map_or("", String::as_str);
     let scratch = PathBuf::from(format!("{identity}.scratch"));
     let tmp = PathBuf::from(format!("{identity}.tmp"));
-    let _ = std::fs::remove_dir_all(&scratch);
+    drop(std::fs::remove_dir_all(&scratch));
     let result = verify(tools, args, &scratch, &tmp);
-    let _ = std::fs::remove_dir_all(&scratch);
+    drop(std::fs::remove_dir_all(&scratch));
     if result.is_err() {
-        let _ = std::fs::remove_file(&tmp);
+        drop(std::fs::remove_file(&tmp));
         if let Some(out) = args.get(1) {
-            let _ = std::fs::remove_file(out);
+            drop(std::fs::remove_file(out));
         }
     }
     result.map(|()| 0)

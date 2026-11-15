@@ -257,3 +257,80 @@ fn module_srcs_carry_every_package_a_consumer_module_bazel_names() {
         report.join("\n")
     );
 }
+
+/// Quoted strings of `text` that look like a file name of the package, directory parts allowed.
+fn quoted_file_names(text: &str) -> std::collections::BTreeSet<String> {
+    let mut names = std::collections::BTreeSet::new();
+    for line in text.lines().filter(|line| !line.trim_start().starts_with('#')) {
+        for (index, piece) in line.split('"').enumerate() {
+            let plain = piece
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-' | '/'));
+            if index % 2 == 1 && plain && piece.contains('.') && !piece.ends_with(".bzl") {
+                names.insert(piece.to_owned());
+            }
+        }
+    }
+    names
+}
+
+/// Collects the packages named `private`, or below one, that hold a BUILD file.
+fn private_packages(
+    root: &std::path::Path,
+    dir: &std::path::Path,
+    inside: bool,
+    found: &mut Vec<String>,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !path.is_dir() || name.starts_with('.') || name.starts_with("bazel-") {
+            continue;
+        }
+        let below = inside || name == "private";
+        if below && path.join("BUILD.bazel").is_file() {
+            let rel = path.strip_prefix(root).expect("a package below the root");
+            found.push(rel.to_string_lossy().replace('\\', "/"));
+        }
+        if inside || dir == root || name == "private" {
+            private_packages(root, &path, below, found);
+        }
+    }
+}
+
+#[test]
+fn quoted_file_names_skip_bzl_comments_and_labels() {
+    let text = "# \"note.txt\"\nexports_files([\"a.mjs\", \"defs.bzl\", \"//x:y.cjs\", \"BUILD.bazel\"])\n";
+    let names: Vec<String> = quoted_file_names(text).into_iter().collect();
+    assert_eq!(names, ["BUILD.bazel", "a.mjs"]);
+}
+
+#[test]
+fn module_srcs_carry_every_non_starlark_file_a_private_package_references() {
+    let root = dx_testing::rules_dx_source();
+    let mut packages = Vec::new();
+    private_packages(&root, &root, false, &mut packages);
+    assert!(!packages.is_empty(), "no private packages found below {root:?}");
+    let mut missing = Vec::new();
+    for package in packages {
+        if in_runfiles(&format!("{package}/BUILD.bazel")).is_none() {
+            continue;
+        }
+        let build = std::fs::read_to_string(root.join(&package).join("BUILD.bazel"))
+            .unwrap_or_else(|error| panic!("{package}/BUILD.bazel: {error}"));
+        for name in quoted_file_names(&build) {
+            let rel = format!("{package}/{name}");
+            if root.join(&rel).is_file() && in_runfiles(&rel).is_none() {
+                missing.push(format!("{rel} (referenced by {package}/BUILD.bazel)"));
+            }
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "a private package's module_srcs lacks files its rules reference; add them to that module_srcs:\n{}",
+        missing.join("\n")
+    );
+}

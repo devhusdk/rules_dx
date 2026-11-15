@@ -44,7 +44,11 @@ fn quickstart_files(readme: &str) -> Vec<(String, String)> {
         } else if in_section && line.starts_with("```") {
             body = Some(String::new());
         } else if in_section && line.starts_with('`') && line.ends_with("`:") {
-            name = Some(line[1..line.len() - 2].to_owned());
+            name = Some(
+                line.get(1..line.len() - 2)
+                    .expect("string slice within bounds")
+                    .to_owned(),
+            );
         }
     }
     files

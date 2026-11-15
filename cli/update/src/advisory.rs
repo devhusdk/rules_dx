@@ -181,19 +181,20 @@ pub fn pr_body(release: &Release, diff: &[String], new_findings: &[String]) -> S
     );
     text.push_str("```diff\n");
     for line in diff {
-        let _ = writeln!(text, "{line}");
+        writeln!(text, "{line}").unwrap_or_default();
     }
     text.push_str("```\n\n");
     if new_findings.is_empty() {
         text.push_str("`dx security` reports no advisory that the old snapshots did not.\n");
     } else {
-        let _ = writeln!(
+        writeln!(
             text,
             "New advisories in `dx security` ({}):\n",
             new_findings.len()
-        );
+        )
+        .unwrap_or_default();
         for finding in new_findings {
-            let _ = writeln!(text, "- {finding}");
+            writeln!(text, "- {finding}").unwrap_or_default();
         }
     }
     text

@@ -119,11 +119,11 @@ pub fn run(options: &Options) -> String {
     };
     let partial = format!("{}.partial", options.out);
     if let Err(error) = fs::write(&partial, bytes) {
-        let _ = fs::remove_file(&partial);
+        drop(fs::remove_file(&partial));
         return format!("cannot write '{}': {error}", options.out);
     }
     if let Err(error) = fs::rename(&partial, &options.out) {
-        let _ = fs::remove_file(&partial);
+        drop(fs::remove_file(&partial));
         return format!("cannot write '{}': {error}", options.out);
     }
     String::new()

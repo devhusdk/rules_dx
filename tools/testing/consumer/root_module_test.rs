@@ -300,7 +300,9 @@ fn named_repos<'a>(text: &str, known: &BTreeSet<&'a str>) -> BTreeSet<&'a str> {
             end += 1;
         }
         let closes = matches!(bytes.get(end), Some(b'/' | b'"' | b'\''));
-        if closes && let Some(repo) = known.get(&text[start..end]) {
+        if closes
+            && let Some(repo) = known.get(text.get(start..end).expect("string slice within bounds"))
+        {
             out.insert(*repo);
         }
         at = end.max(start);
@@ -412,7 +414,9 @@ fn consumer_module_problems(path: &str, source: &str) -> Vec<String> {
         if !allowed {
             out.push(format!(
                 "{path}: holds more than module, the rules_dx bazel_dep and license tags: {}",
-                source[stmt.span.begin().get() as usize..stmt.span.end().get() as usize]
+                source
+                    .get(stmt.span.begin().get() as usize..stmt.span.end().get() as usize)
+                    .expect("string slice within bounds")
                     .lines()
                     .next()
                     .unwrap_or_default()

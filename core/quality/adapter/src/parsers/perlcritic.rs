@@ -40,8 +40,15 @@ fn shape(detail: String) -> ParseError {
 fn violation(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
     let bad = |detail: &str| shape(format!("{detail}: {line}"));
     let fields: Vec<&str> = line.splitn(PERLCRITIC_FIELDS, '\t').collect();
-    let [sentinel, path, line_text, column_text, severity_text, policy, message] =
-        fields.as_slice()
+    let [
+        sentinel,
+        path,
+        line_text,
+        column_text,
+        severity_text,
+        policy,
+        message,
+    ] = fields.as_slice()
     else {
         return Err(bad("line outside the pinned format"));
     };

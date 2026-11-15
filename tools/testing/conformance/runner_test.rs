@@ -349,8 +349,14 @@ fn failure_line_substitutes_case() {
 
 fn launcher_stem(name: &str) -> &str {
     match name.len().checked_sub(4) {
-        Some(cut) if name.is_char_boundary(cut) && name[cut..].eq_ignore_ascii_case(".exe") => {
-            &name[..cut]
+        Some(cut)
+            if name.is_char_boundary(cut)
+                && name
+                    .get(cut..)
+                    .expect("string slice within bounds")
+                    .eq_ignore_ascii_case(".exe") =>
+        {
+            name.get(..cut).expect("string slice within bounds")
         }
         _ => name,
     }
@@ -434,7 +440,10 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
     let mut lines = Vec::new();
     let mut pending = vec![root.to_path_buf()];
     while let Some(dir) = pending.pop() {
-        for entry in std::fs::read_dir(&dir).expect("runfiles must be readable").flatten() {
+        for entry in std::fs::read_dir(&dir)
+            .expect("runfiles must be readable")
+            .flatten()
+        {
             let path = entry.path();
             if path.is_dir() {
                 pending.push(path);
@@ -442,7 +451,11 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
                 if rel == std::path::Path::new("MANIFEST") {
                     continue;
                 }
-                lines.push(format!("{} {}", rel.to_string_lossy(), real.to_string_lossy()));
+                lines.push(format!(
+                    "{} {}",
+                    rel.to_string_lossy(),
+                    real.to_string_lossy()
+                ));
             }
         }
     }

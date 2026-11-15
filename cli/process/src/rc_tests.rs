@@ -677,11 +677,13 @@ fn a_live_share_source_is_read_on_every_call() {
 fn a_poisoned_share_lock_is_left_alone() {
     let _guard = SHARE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     set_share(Some(SHARE_4));
-    let _ = std::thread::spawn(|| {
-        let _held = SHARE.write().expect("lock");
-        panic!("poison the share lock");
-    })
-    .join();
+    drop(
+        std::thread::spawn(|| {
+            let _held = SHARE.write().expect("lock");
+            panic!("poison the share lock");
+        })
+        .join(),
+    );
     assert!(SHARE.is_poisoned());
     set_share(None);
     clear_share(&SHARE_4);

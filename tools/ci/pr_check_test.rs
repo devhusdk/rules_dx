@@ -78,8 +78,10 @@ fn windows_arm64_set_targets_the_platform() {
     let start = script
         .find("preflight-windows-arm64() {")
         .expect("windows_arm64 set");
-    let body = &script[start..];
-    let body = &body[..body.find("\n}\n").expect("end of set")];
+    let body = script.get(start..).expect("string slice within bounds");
+    let body = body
+        .get(..body.find("\n}\n").expect("end of set"))
+        .expect("string slice within bounds");
     assert!(body.contains("--platforms=@llvm//platforms:windows_aarch64"));
     assert!(body.contains("--skip_incompatible_explicit_targets"));
     assert!(body.contains("//dart/private/tools:all"));
@@ -91,8 +93,10 @@ fn windows_arm64_set_or_blocklist_covers_ci_preflight() {
     let start = script
         .find("preflight-windows-arm64() {")
         .expect("windows_arm64 set");
-    let body = &script[start..];
-    let body = &body[..body.find("\n}\n").expect("end of set")];
+    let body = script.get(start..).expect("string slice within bounds");
+    let body = body
+        .get(..body.find("\n}\n").expect("end of set"))
+        .expect("string slice within bounds");
     let blocked = script
         .lines()
         .find(|line| line.starts_with("WINDOWS_ARM64_BLOCKED="))

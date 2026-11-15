@@ -1,25 +1,117 @@
 """Tests for the ansible-lint entry point."""
 
-import io
+import ctypes
+import importlib
+import multiprocessing
 import os
 import stat
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
 
 import ansible_lint_main
+import ansible_windows
 
 
 class AnsibleLintMainTest(unittest.TestCase):
     """Windows guard and shim layout."""
 
-    def test_windows_guard(self):
-        """Windows exits 69 with the actionable message."""
-        err = io.StringIO()
-        with mock.patch.object(os, "name", "nt"), mock.patch("sys.stderr", err):
-            code = ansible_lint_main.main([])
-        self.assertEqual(code, 69)
-        self.assertIn("windows_x86_64 is unsupported", err.getvalue())
+    def test_windows_installs_posix_stand_ins(self):
+        """Windows gets fcntl, termios, pwd and grp stand-ins and in-process ansible CLIs."""
+        seen = []
+
+        class RecordingPopen:
+            def __init__(self, args, *_rest, **_kwargs):
+                seen.append(list(args))
+
+        with (
+            mock.patch.dict(sys.modules),
+            mock.patch.dict(os.environ, {}, clear=True),
+            mock.patch.dict(os.__dict__),
+            mock.patch.dict(ctypes.cdll.__dict__),
+            mock.patch.object(subprocess, "Popen", RecordingPopen),
+            mock.patch.object(
+                multiprocessing, "get_context", lambda method=None: method
+            ),
+        ):
+            for name in ("fcntl", "termios", "pwd", "grp"):
+                sys.modules.pop(name, None)
+            os.__dict__.pop("getuid", None)
+            ansible_windows.install(
+                "/x/ansible_lint_main.py", ansible_lint_main.SHIM_MODULES
+            )
+            fcntl = sys.modules["fcntl"]
+            self.assertIsNone(fcntl.flock(0, fcntl.LOCK_EX))
+            self.assertEqual(fcntl.fcntl(0, fcntl.F_GETFD), 0)
+            with self.assertRaises(OSError):
+                fcntl.ioctl(1, 0)
+            termios = sys.modules["termios"]
+            with self.assertRaises(termios.error):
+                termios.tcgetattr(0)
+            self.assertEqual(termios.TIOCGWINSZ, 0)
+            self.assertFalse(hasattr(termios, "__all__"))
+            sys.modules.pop("tty", None)
+            tty = importlib.import_module("tty")
+            self.assertIs(tty.error, termios.error)
+            with self.assertRaises(KeyError):
+                sys.modules["pwd"].getpwuid(0)
+            with self.assertRaises(KeyError):
+                sys.modules["grp"].getgrgid(0)
+            libc = ctypes.cdll.LoadLibrary(None)
+            self.assertEqual(libc.wcswidth("ab\u754c", 10), 4)
+            self.assertEqual(libc.wcswidth("a\x1b", 10), -1)
+            self.assertEqual(libc.wcwidth("\u0301"), 0)
+            with self.assertRaises(AttributeError):
+                libc.crypt_r
+            self.assertEqual(os.getuid(), ansible_windows.POSIX_ID)
+            self.assertEqual(multiprocessing.get_context("fork"), "spawn")
+            self.assertEqual(os.environ["USERNAME"], "dx")
+            popen = subprocess.Popen
+            popen(["ansible-playbook", "--syntax-check", "site.yml"])
+            popen(["/usr/bin/git", "status"])
+        self.assertEqual(
+            seen,
+            [
+                [
+                    sys.executable,
+                    "/x/ansible_lint_main.py",
+                    "--ansible-shim",
+                    "ansible-playbook",
+                    "--syntax-check",
+                    "site.yml",
+                ],
+                ["/usr/bin/git", "status"],
+            ],
+        )
+
+    def test_windows_dataloader_escapes_the_path_separator(self):
+        """ansible.parsing.dataloader compiles RE_TASKS with a backslash separator."""
+        with tempfile.TemporaryDirectory() as root:
+            package = os.path.join(root, "ansible", "parsing")
+            os.makedirs(package)
+            for directory in (os.path.dirname(package), package):
+                open(os.path.join(directory, "__init__.py"), "w").close()
+            with open(os.path.join(package, "dataloader.py"), "w") as handle:
+                handle.write(
+                    "import os\nimport re\n"
+                    "RE_TASKS = re.compile('(?:^|%s)+tasks%s?$' "
+                    "% (os.path.sep, os.path.sep))\n"
+                )
+            with (
+                mock.patch.dict(sys.modules),
+                mock.patch.object(sys, "path", [root] + sys.path),
+                mock.patch.object(
+                    sys, "meta_path", [ansible_windows._SourceFixFinder()] + sys.meta_path
+                ),
+                mock.patch.object(os.path, "sep", "\\"),
+            ):
+                for name in list(sys.modules):
+                    if name == "ansible" or name.startswith("ansible."):
+                        sys.modules.pop(name, None)
+                dataloader = importlib.import_module("ansible.parsing.dataloader")
+                self.assertTrue(dataloader.RE_TASKS.search("roles\\web\\tasks"))
 
     def test_shims_on_path(self):
         """The four ansible shims are executable and PATH points at them."""
@@ -28,8 +120,10 @@ class AnsibleLintMainTest(unittest.TestCase):
             shims = ansible_lint_main.prepare_env(env)
             self.assertEqual(env["PATH"], shims)
             for name in ansible_lint_main.SHIM_MODULES:
-                mode = os.stat(os.path.join(shims, name)).st_mode
-                self.assertTrue(mode & stat.S_IXUSR, name)
+                path = os.path.join(shims, name)
+                self.assertTrue(os.path.isfile(path), name)
+                if os.name != "nt":
+                    self.assertTrue(os.stat(path).st_mode & stat.S_IXUSR, name)
             self.assertEqual(env["ANSIBLE_LINT_SKIP_SCHEMA_UPDATE"], "1")
             self.assertTrue(env["ANSIBLE_HOME"].startswith(tmp))
 
@@ -70,14 +164,20 @@ class AnsibleLintMainTest(unittest.TestCase):
         self.assertNotIn("ANSIBLE_COLLECTIONS_PATH", env)
         self.assertNotIn("ANSIBLE_COLLECTIONS_PATHS", env)
 
-    def test_windows_guard_precedes_the_flag(self):
-        """The Windows guard still exits 69 when the flag is present."""
+    def test_windows_installs_stand_ins_before_the_flag(self):
+        """Windows installs the stand-ins, then still honours the collections flag."""
+        installed = []
         with (
             mock.patch.object(os, "name", "nt"),
-            mock.patch("sys.stderr", io.StringIO()),
+            mock.patch.object(
+                ansible_windows, "install", lambda *args: installed.append(args)
+            ),
         ):
-            code = ansible_lint_main.main(["--dx-collections-path", "/a"])
-        self.assertEqual(code, 69)
+            argv, env = self.run_main(["--dx-collections-path", "/a", "site.yml"], {})
+        self.assertEqual(len(installed), 1)
+        self.assertEqual(installed[0][1], ansible_lint_main.SHIM_MODULES)
+        self.assertEqual(argv, ["ansible-lint", "site.yml"])
+        self.assertEqual(env["ANSIBLE_COLLECTIONS_PATH"], "/a")
 
 
 if __name__ == "__main__":

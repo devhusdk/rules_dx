@@ -29,7 +29,9 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "package.json",
         "pnpm-lock.yaml",
+        "pnpm-workspace.yaml",
     ]),
     visibility = ["//:__subpackages__"],
 )

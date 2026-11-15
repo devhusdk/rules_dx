@@ -44,7 +44,7 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
 /// Links every top-level entry of the locked wheels into `site-packages`, so the editor can import them.
 fn write_site_packages(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let target = ctx.dir.join(SITE_PACKAGES);
-    let _ = std::fs::remove_dir_all(&target);
+    drop(std::fs::remove_dir_all(&target));
     std::fs::create_dir_all(&target).map_err(|error| {
         DxError::from_io(format!("creating {}: {error}", target.display()), &error)
     })?;

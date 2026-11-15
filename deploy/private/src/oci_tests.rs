@@ -37,7 +37,10 @@ fn oci_layout_builds_index() {
         "registry.example.invalid/demo/app:1.2.3"
     );
     let digest = parsed["manifests"][0]["digest"].as_str().expect("digest");
-    let manifest = layout.join("blobs").join("sha256").join(&digest[7..]);
+    let manifest = layout
+        .join("blobs")
+        .join("sha256")
+        .join(digest.get(7..).expect("string slice within bounds"));
     let manifest_bytes = std::fs::read(&manifest).expect("manifest");
     assert!(!manifest_bytes.contains(&b'\n'), "manifest is compact");
     assert_eq!(parsed["manifests"][0]["size"], manifest_bytes.len());
@@ -1068,7 +1071,10 @@ fn oci_layout_rejects_unusable_registry_repository_and_tag() {
 fn oci_layout_json(layout: &Path) -> (serde_json::Value, serde_json::Value) {
     let blobs = layout.join("blobs").join("sha256");
     let read = |digest: &str| {
-        let body = std::fs::read_to_string(blobs.join(&digest[7..])).expect("blob");
+        let body = std::fs::read_to_string(
+            blobs.join(digest.get(7..).expect("string slice within bounds")),
+        )
+        .expect("blob");
         serde_json::from_str::<serde_json::Value>(&body).expect("json")
     };
     let index = std::fs::read_to_string(layout.join("index.json")).expect("index");
@@ -1119,7 +1125,10 @@ fn oci_layout_diff_id_is_the_uncompressed_digest() {
             tar_digest.as_str(),
             "{name}"
         );
-        let stored = layout.join("blobs").join("sha256").join(&blob_digest[7..]);
+        let stored = layout
+            .join("blobs")
+            .join("sha256")
+            .join(blob_digest.get(7..).expect("string slice within bounds"));
         assert_eq!(std::fs::read(stored).expect("blob"), *bytes, "{name}");
     }
 }
@@ -1415,8 +1424,13 @@ fn oci_layout_platform_matches_the_artifact_bytes() {
         .expect("layout");
         let (manifest, config) = oci_layout_json(&layout);
         let blob = manifest["layers"][0]["digest"].as_str().expect("digest");
-        let stored = std::fs::read(layout.join("blobs").join("sha256").join(&blob[7..]))
-            .expect("layer blob");
+        let stored = std::fs::read(
+            layout
+                .join("blobs")
+                .join("sha256")
+                .join(blob.get(7..).expect("string slice within bounds")),
+        )
+        .expect("layer blob");
         let mut archive = tar::Archive::new(stored.as_slice());
         let mut entry = archive
             .entries()
@@ -1796,7 +1810,12 @@ fn oci_live_push_output_has_no_credentials() {
     assert!(text.contains("oci_deploy: pushed registry.invalid/demo/app:1.2.3@sha256:"));
     assert!(text.contains(registry::OCI_BAD_CREDENTIALS), "{text}");
     let basic = crate::http::basic_auth("me", FAKE_SECRET);
-    for secret in [FAKE_SECRET, FAKE_TOKEN, basic.as_str(), &basic[6..]] {
+    for secret in [
+        FAKE_SECRET,
+        FAKE_TOKEN,
+        basic.as_str(),
+        basic.get(6..).expect("string slice within bounds"),
+    ] {
         assert!(!text.contains(secret), "{text}");
     }
 }

@@ -220,7 +220,7 @@ pub fn run_command_with_input(
         let input = input.to_vec();
         std::thread::spawn(move || {
             use std::io::Write as _;
-            let _ = stdin.write_all(&input);
+            drop(stdin.write_all(&input));
         });
     }
     let limit = capture.max_bytes;
@@ -356,7 +356,7 @@ fn drain_pipe<R: io::Read + Send + 'static>(
     let (tx, rx) = mpsc::channel();
     match pipe {
         None => {
-            let _ = tx.send(Vec::new());
+            drop(tx.send(Vec::new()));
         }
         Some(mut pipe) => {
             std::thread::spawn(move || {
@@ -373,7 +373,7 @@ fn drain_pipe<R: io::Read + Send + 'static>(
                         Err(_) => break,
                     }
                 }
-                let _ = tx.send(buf);
+                drop(tx.send(buf));
             });
         }
     }
@@ -567,9 +567,9 @@ impl Forwarding {
 
     fn clear(&mut self) {
         if let Some(slot) = self.slot.take() {
-            let _ =
-                slot.target
-                    .compare_exchange(self.target, 0, Ordering::SeqCst, Ordering::SeqCst);
+            slot.target
+                .compare_exchange(self.target, 0, Ordering::SeqCst, Ordering::SeqCst)
+                .unwrap_or_else(|current| current);
         }
         self.target = 0;
     }
@@ -874,10 +874,10 @@ fn copy_out<R: io::Read + Send + 'static>(
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         backend::allow_background_tty_writes();
-        let _ = io::copy(&mut pipe, &mut sink);
-        let _ = sink.flush();
+        drop(io::copy(&mut pipe, &mut sink));
+        drop(sink.flush());
         drop(pipe);
-        let _ = tx.send(());
+        tx.send(()).unwrap_or_default();
     });
     rx
 }

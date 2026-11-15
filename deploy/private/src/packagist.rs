@@ -58,11 +58,13 @@ fn packagist_live_update(package: &str, repository_url: &str, username: &str, to
         Ok(mut response) => {
             let status = response.status().as_u16();
             let mut text = Vec::new();
-            let _ = response
-                .body_mut()
-                .as_reader()
-                .take(2048)
-                .read_to_end(&mut text);
+            drop(
+                response
+                    .body_mut()
+                    .as_reader()
+                    .take(2048)
+                    .read_to_end(&mut text),
+            );
             let text = String::from_utf8_lossy(&text).replace(token, "***");
             if (200..300).contains(&status) {
                 println!("packagist_deploy: update requested for {package} (HTTP {status})");

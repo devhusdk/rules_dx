@@ -22,9 +22,11 @@ pub struct Reaped {
 
 /// Sets the managed root that holds this worktree's group leases; the first call wins.
 pub fn set_lease_root(root: &Path) {
-    let _ = LEASE_DIR.set(
-        root.join(dx_atomic_fs::lease::LEASES_DIR_NAME)
-            .join(GROUPS_DIR_NAME),
+    drop(
+        LEASE_DIR.set(
+            root.join(dx_atomic_fs::lease::LEASES_DIR_NAME)
+                .join(GROUPS_DIR_NAME),
+        ),
     );
 }
 
@@ -84,19 +86,19 @@ impl GroupLease {
 
     fn write_line(&self, line: Option<String>) {
         let mut file = &self.file;
-        let _ = file.set_len(0);
-        let _ = file.seek(SeekFrom::Start(0));
+        drop(file.set_len(0));
+        drop(file.seek(SeekFrom::Start(0)));
         let Some(line) = line else {
             return;
         };
-        let _ = writeln!(file, "{line}");
-        let _ = file.flush();
+        drop(writeln!(file, "{line}"));
+        drop(file.flush());
     }
 }
 
 impl Drop for GroupLease {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
+        drop(std::fs::remove_file(&self.path));
     }
 }
 
@@ -454,7 +456,7 @@ const LOG_CAP: u64 = 64 * 1024;
 fn log_decision(dir: &Path, what: &str, pid: u32, recorded: &Recorded, now: &Observed) {
     let log = dir.join(LOG_NAME);
     if std::fs::metadata(&log).is_ok_and(|meta| meta.len() > LOG_CAP) {
-        let _ = std::fs::rename(&log, dir.join(format!("{LOG_NAME}.1")));
+        drop(std::fs::rename(&log, dir.join(format!("{LOG_NAME}.1"))));
     }
     let cmdline = sys::cmdline(recorded.pgid);
     let secs = std::time::SystemTime::now()
@@ -473,7 +475,7 @@ fn log_decision(dir: &Path, what: &str, pid: u32, recorded: &Recorded, now: &Obs
         .append(true)
         .open(&log)
     {
-        let _ = file.write_all(line.as_bytes());
+        drop(file.write_all(line.as_bytes()));
     }
 }
 
@@ -495,7 +497,7 @@ fn reap_with(dir: &Path, observe: fn(&Recorded) -> Observed, stop: fn(&Recorded)
             continue;
         };
         let mut text = String::new();
-        let _ = file.read_to_string(&mut text);
+        drop(file.read_to_string(&mut text));
         match parse_lease(&text) {
             Some(recorded) => {
                 let now = observe(&recorded);
@@ -516,7 +518,7 @@ fn reap_with(dir: &Path, observe: fn(&Recorded) -> Observed, stop: fn(&Recorded)
                         });
                     }
                 }
-                let _ = std::fs::remove_file(&path);
+                drop(std::fs::remove_file(&path));
             }
             None => {
                 let old = entry
@@ -526,7 +528,7 @@ fn reap_with(dir: &Path, observe: fn(&Recorded) -> Observed, stop: fn(&Recorded)
                     .and_then(|time| time.elapsed().ok())
                     .is_some_and(|age| age >= STALE_EMPTY);
                 if old {
-                    let _ = std::fs::remove_file(&path);
+                    drop(std::fs::remove_file(&path));
                 }
             }
         }

@@ -15,7 +15,7 @@ fn is_pattern(pattern: &str) -> bool {
         let end = after
             .find(|c: char| !(c.is_ascii_alphanumeric() || "_.+-".contains(c)))
             .unwrap_or(after.len());
-        rest = &after[end..];
+        rest = after.get(end..).expect("string slice within bounds");
     }
     let Some(rest) = rest.strip_prefix("//") else {
         return false;

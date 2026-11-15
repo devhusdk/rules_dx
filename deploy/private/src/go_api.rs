@@ -208,12 +208,12 @@ pub(crate) fn go_api_check(
     }
     if worktree.is_some() {
         let tree = work.join("tree");
-        let _ = git(
+        drop(git(
             workspace,
             &["worktree", "remove", "--force", &tree.to_string_lossy()],
-        );
+        ));
     }
-    let _ = std::fs::remove_dir_all(&work);
+    drop(std::fs::remove_dir_all(&work));
     checked.map(|()| outcomes)
 }
 

@@ -64,7 +64,8 @@ fn below<'a>(path: &'a str, dir: &str) -> &'a str {
     if dir.is_empty() {
         path
     } else {
-        &path[dir.len() + 1..]
+        path.get(dir.len() + 1..)
+            .expect("string slice within bounds")
     }
 }
 
@@ -115,17 +116,28 @@ fn labels_in(text: &str, out: &mut BTreeSet<String>) {
         if start > 0 && matches!(bytes[start - 1], b':' | b'/') {
             continue;
         }
-        let rest = &text[start + 2..];
+        let rest = text.get(start + 2..).expect("string slice within bounds");
         let package_end = rest
             .find(|letter: char| !(letter.is_ascii_alphanumeric() || "_./+-".contains(letter)))
             .unwrap_or(rest.len());
-        let package = rest[..package_end].trim_end_matches('.');
-        let name = match rest[package_end..].strip_prefix(':') {
+        let package = rest
+            .get(..package_end)
+            .expect("string slice within bounds")
+            .trim_end_matches('.');
+        let name = match rest
+            .get(package_end..)
+            .expect("string slice within bounds")
+            .strip_prefix(':')
+        {
             Some(tail) => {
                 let end = tail
-                    .find(|letter: char| !(letter.is_ascii_alphanumeric() || "_./+=,@~#-".contains(letter)))
+                    .find(|letter: char| {
+                        !(letter.is_ascii_alphanumeric() || "_./+=,@~#-".contains(letter))
+                    })
                     .unwrap_or(tail.len());
-                tail[..end].trim_end_matches(['.', ','])
+                tail.get(..end)
+                    .expect("string slice within bounds")
+                    .trim_end_matches(['.', ','])
             }
             None => base(package),
         };
@@ -151,9 +163,10 @@ fn call_bodies(segments: &[Segment], name: &str) -> Vec<Vec<Segment>> {
         let mut from = 0;
         for (index, byte) in text.bytes().enumerate() {
             if byte == b'(' {
-                let head = &text[..index];
+                let head = text.get(..index).expect("string slice within bounds");
                 let opens = head.ends_with(name)
-                    && (head.len() == name.len() || !ident_byte(head.as_bytes()[head.len() - name.len() - 1]));
+                    && (head.len() == name.len()
+                        || !ident_byte(head.as_bytes()[head.len() - name.len() - 1]));
                 if body.is_none() && opens {
                     body = Some((depth, Vec::new()));
                     from = index + 1;
@@ -165,7 +178,10 @@ fn call_bodies(segments: &[Segment], name: &str) -> Vec<Vec<Segment>> {
                     let (_, mut parts) = body.take().expect("an open call");
                     parts.push(Segment {
                         piece: Piece::Code,
-                        text: text[from..index].to_owned(),
+                        text: text
+                            .get(from..index)
+                            .expect("string slice within bounds")
+                            .to_owned(),
                     });
                     out.push(parts);
                 }
@@ -174,7 +190,10 @@ fn call_bodies(segments: &[Segment], name: &str) -> Vec<Vec<Segment>> {
         if let Some((_, parts)) = body.as_mut() {
             parts.push(Segment {
                 piece: Piece::Code,
-                text: text[from..].to_owned(),
+                text: text
+                    .get(from..)
+                    .expect("string slice within bounds")
+                    .to_owned(),
             });
         }
     }
@@ -185,7 +204,8 @@ fn call_bodies(segments: &[Segment], name: &str) -> Vec<Vec<Segment>> {
 fn string_after<'a>(body: &'a [Segment], lead: &str) -> Option<&'a str> {
     body.windows(2).find_map(|pair| {
         let tail = pair[0].text.trim_end();
-        let leads = pair[0].piece == Piece::Code && (tail.ends_with(lead) || tail.ends_with(&lead.replace(' ', "")));
+        let leads = pair[0].piece == Piece::Code
+            && (tail.ends_with(lead) || tail.ends_with(&lead.replace(' ', "")));
         (leads && pair[1].piece != Piece::Comment).then_some(pair[1].text.as_str())
     })
 }
@@ -228,7 +248,11 @@ impl Index {
     fn nearest(&self, dir: &str, names: &[&str]) -> String {
         ancestors(dir)
             .into_iter()
-            .find(|candidate| names.iter().any(|name| self.known.contains(&join(candidate, name))))
+            .find(|candidate| {
+                names
+                    .iter()
+                    .any(|name| self.known.contains(&join(candidate, name)))
+            })
             .unwrap_or("")
             .to_owned()
     }
@@ -245,24 +269,41 @@ impl Index {
             let literal = segment.text.as_str();
             labels_in(literal, &mut self.labels);
             if literal.contains('*') {
-                self.globs.entry(dir.to_owned()).or_default().push(literal.to_owned());
+                self.globs
+                    .entry(dir.to_owned())
+                    .or_default()
+                    .push(literal.to_owned());
             }
-            *self.exact.entry(dir.to_owned()).or_default().entry(literal.to_owned()).or_default() += 1;
+            *self
+                .exact
+                .entry(dir.to_owned())
+                .or_default()
+                .entry(literal.to_owned())
+                .or_default() += 1;
             if is_build(path) {
-                *self.build_exact.entry(dir.to_owned()).or_default().entry(literal.to_owned()).or_default() += 1;
+                *self
+                    .build_exact
+                    .entry(dir.to_owned())
+                    .or_default()
+                    .entry(literal.to_owned())
+                    .or_default() += 1;
             }
-            let before = position.checked_sub(1).map_or("", |at| segments[at].text.trim_end());
+            let before = position
+                .checked_sub(1)
+                .map_or("", |at| segments[at].text.trim_end());
             if !LOADERS.iter().any(|loader| before.ends_with(loader)) {
                 continue;
             }
             if let Some((_, label)) = literal.split_once("//") {
                 let file = label.replacen(':', "/", 1);
-                self.loads.insert(join(&workspace, file.trim_start_matches('/')));
+                self.loads
+                    .insert(join(&workspace, file.trim_start_matches('/')));
                 if literal.starts_with('@') {
                     self.loads.insert(file.trim_start_matches('/').to_owned());
                 }
             } else {
-                self.loads.insert(join(&package, literal.trim_start_matches(':')));
+                self.loads
+                    .insert(join(&package, literal.trim_start_matches(':')));
             }
         }
     }
@@ -277,11 +318,15 @@ impl Index {
                 Piece::Code => {
                     let words: Vec<&str> = segment
                         .text
-                        .split(|letter: char| !(letter.is_ascii_alphanumeric() || letter == '_' || letter == ';'))
+                        .split(|letter: char| {
+                            !(letter.is_ascii_alphanumeric() || letter == '_' || letter == ';')
+                        })
                         .filter(|word| !word.is_empty())
                         .collect();
                     for pair in words.windows(2) {
-                        let Some(name) = pair[1].strip_suffix(';') else { continue };
+                        let Some(name) = pair[1].strip_suffix(';') else {
+                            continue;
+                        };
                         if pair[0] != "mod" {
                             continue;
                         }
@@ -293,15 +338,22 @@ impl Index {
                     }
                 }
                 Piece::Text | Piece::Doc => {
-                    let literal = segment.text.trim_start_matches("./").trim_start_matches("_main/");
+                    let literal = segment
+                        .text
+                        .trim_start_matches("./")
+                        .trim_start_matches("_main/");
                     labels_in(literal, &mut self.labels);
-                    let before = position.checked_sub(1).map_or("", |at| segments[at].text.trim_end());
+                    let before = position
+                        .checked_sub(1)
+                        .map_or("", |at| segments[at].text.trim_end());
                     if before.ends_with("#[path =") || before.ends_with("#[path=") {
                         self.mods.extend(normal(dir, literal));
                     }
                     let pathlike = literal.len() < 200
                         && (literal.contains('/') || literal.contains('.'))
-                        && !literal.contains(|letter: char| letter.is_whitespace() || "{}\\\"".contains(letter));
+                        && !literal.contains(|letter: char| {
+                            letter.is_whitespace() || "{}\\\"".contains(letter)
+                        });
                     if !pathlike {
                         continue;
                     }
@@ -334,13 +386,18 @@ impl Index {
                     return true;
                 }
                 if exact.is_some_and(|map| {
-                    map.contains_key(rel) || map.contains_key(&format!(":{rel}")) || map.contains_key(&format!("{rel}/"))
+                    map.contains_key(rel)
+                        || map.contains_key(&format!(":{rel}"))
+                        || map.contains_key(&format!("{rel}/"))
                 }) {
                     return true;
                 }
             }
             let rel = below(path, package);
-            if globs.is_some_and(|list| list.iter().any(|glob| glob_match(glob.trim_start_matches(':'), rel))) {
+            if globs.is_some_and(|list| {
+                list.iter()
+                    .any(|glob| glob_match(glob.trim_start_matches(':'), rel))
+            }) {
                 return true;
             }
         }
@@ -365,7 +422,9 @@ impl Index {
         let segments = shared::starlark_segments(text);
         let mut names: Vec<String> = Vec::new();
         for body in call_bodies(&segments, "filegroup") {
-            let tagged = body.iter().any(|part| part.piece == Piece::Text && part.text == "corpus");
+            let tagged = body
+                .iter()
+                .any(|part| part.piece == Piece::Text && part.text == "corpus");
             if let (Some(name), false) = (string_after(&body, "name ="), tagged) {
                 names.push(name.to_owned());
             }
@@ -382,10 +441,18 @@ impl Index {
             }
         }
         let used = |name: &String| {
-            let own = self.build_exact.get(package).and_then(|map| map.get(name)).copied().unwrap_or(0);
+            let own = self
+                .build_exact
+                .get(package)
+                .and_then(|map| map.get(name))
+                .copied()
+                .unwrap_or(0);
             own >= 2
                 || self.labels.contains(&format!("{package}:{name}"))
-                || self.exact.get(package).is_some_and(|map| map.contains_key(&format!(":{name}")))
+                || self
+                    .exact
+                    .get(package)
+                    .is_some_and(|map| map.contains_key(&format!(":{name}")))
         };
         names.iter().filter(|name| !used(name)).count()
     }
@@ -400,11 +467,24 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
         directories.entry(parent(path)).or_default().push(path);
         let fixture = in_fixture_tree(path);
         if path.ends_with(".bzl") {
-            let loaded = index.loads.contains(path) || index.labels.contains(&format!("{}:{}", parent(path), base(path)));
-            add(&mut counts, path, "unloaded-bzl", usize::from(!loaded && !public_entry(path)));
+            let loaded = index.loads.contains(path)
+                || index
+                    .labels
+                    .contains(&format!("{}:{}", parent(path), base(path)));
+            add(
+                &mut counts,
+                path,
+                "unloaded-bzl",
+                usize::from(!loaded && !public_entry(path)),
+            );
         }
         if fixture && !is_build(path) {
-            add(&mut counts, path, "unreferenced-fixture", usize::from(!index.referenced(path)));
+            add(
+                &mut counts,
+                path,
+                "unreferenced-fixture",
+                usize::from(!index.referenced(path)),
+            );
         }
         if path.ends_with(".rs") && !fixture {
             let built = index.starlark_names(path) || index.mods.contains(path);
@@ -412,7 +492,12 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
         }
         if is_build(path) && index.nearest(parent(path), &["MODULE.bazel"]).is_empty() {
             if let Some(text) = files.get(path) {
-                add(&mut counts, path, "orphan-target", index.orphans(path, text));
+                add(
+                    &mut counts,
+                    path,
+                    "orphan-target",
+                    index.orphans(path, text),
+                );
             }
         }
     }
@@ -430,7 +515,11 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
 #[test]
 fn no_unreferenced_file_outside_the_allowlist() {
     let files = shared::tree(&dx_testing::source_snapshot());
-    assert!(files.len() >= MIN_FILES, "only {} files in the snapshot", files.len());
+    assert!(
+        files.len() >= MIN_FILES,
+        "only {} files in the snapshot",
+        files.len()
+    );
     let paths = dx_testing::source_paths();
     shared::settle(&scan(&files, &paths), "DX_ALLOWLIST", ALLOWLIST, &KINDS);
 }
@@ -460,8 +549,14 @@ mod tests {
     #[test]
     fn a_bzl_file_nobody_loads_is_detected() {
         let found = hits(&[
-            ("MODULE.bazel", "x = use_extension(\"//a:extensions.bzl\", \"x\")\ny = use_repo_rule(\"//a/private:repo.bzl\", \"y\")\n"),
-            ("a/BUILD.bazel", "load(\":used.bzl\", \"u\")\nload(\"//a/private:deep.bzl\", \"d\")\nload(\"@rules_dx//a/private:named.bzl\", \"n\")\n"),
+            (
+                "MODULE.bazel",
+                "x = use_extension(\"//a:extensions.bzl\", \"x\")\ny = use_repo_rule(\"//a/private:repo.bzl\", \"y\")\n",
+            ),
+            (
+                "a/BUILD.bazel",
+                "load(\":used.bzl\", \"u\")\nload(\"//a/private:deep.bzl\", \"d\")\nload(\"@rules_dx//a/private:named.bzl\", \"n\")\n",
+            ),
             ("a/defs.bzl", ""),
             ("a/extensions.bzl", ""),
             ("a/used.bzl", ""),
@@ -475,7 +570,10 @@ mod tests {
         ]);
         assert_eq!(
             found,
-            [hit("a/private/defs.bzl", "unloaded-bzl", 1), hit("a/unused.bzl", "unloaded-bzl", 1)]
+            [
+                hit("a/private/defs.bzl", "unloaded-bzl", 1),
+                hit("a/unused.bzl", "unloaded-bzl", 1)
+            ]
         );
     }
 
@@ -520,7 +618,10 @@ mod tests {
             ("a/a.txt", ""),
             ("a/b.txt", ""),
             ("a/c.txt", ""),
-            ("b/BUILD.bazel", "t(data = [\"//a:used\"], env = {\"X\": \"$(rootpath //a:a.txt)\"})\n"),
+            (
+                "b/BUILD.bazel",
+                "t(data = [\"//a:used\"], env = {\"X\": \"$(rootpath //a:a.txt)\"})\n",
+            ),
             ("b/nested/MODULE.bazel", ""),
             ("b/nested/BUILD.bazel", "filegroup(name = \"inner\")\n"),
         ]);
@@ -530,8 +631,14 @@ mod tests {
     #[test]
     fn a_rust_file_no_srcs_or_mod_reaches_is_detected() {
         let found = hits(&[
-            ("a/BUILD.bazel", "t(srcs = [\"src/lib.rs\"] + glob([\"tests/*.rs\"]))\n"),
-            ("a/src/lib.rs", "mod one;\npub mod two;\n#[path = \"odd/three.rs\"]\nmod three;\n// mod four;\n"),
+            (
+                "a/BUILD.bazel",
+                "t(srcs = [\"src/lib.rs\"] + glob([\"tests/*.rs\"]))\n",
+            ),
+            (
+                "a/src/lib.rs",
+                "mod one;\npub mod two;\n#[path = \"odd/three.rs\"]\nmod three;\n// mod four;\n",
+            ),
             ("a/src/one.rs", "mod inner;\n"),
             ("a/src/one/inner.rs", ""),
             ("a/src/two/mod.rs", ""),
@@ -545,7 +652,10 @@ mod tests {
     #[test]
     fn a_directory_no_package_reaches_is_detected() {
         let found = hits(&[
-            ("a/BUILD.bazel", "t(srcs = glob([\"globbed/**\"]) + [\"listed/a.txt\"])\n"),
+            (
+                "a/BUILD.bazel",
+                "t(srcs = glob([\"globbed/**\"]) + [\"listed/a.txt\"])\n",
+            ),
             ("a/globbed/deep/a.txt", ""),
             ("a/listed/a.txt", ""),
             ("a/stray/a.txt", ""),
@@ -566,12 +676,20 @@ mod tests {
     #[test]
     fn labels_calls_and_paths_are_read() {
         let mut labels = BTreeSet::new();
-        labels_in("$(rootpath //a/b:c.txt) @rules_dx//d //e/f. https://x.test/y", &mut labels);
-        assert_eq!(labels.into_iter().collect::<Vec<_>>(), ["a/b:c.txt", "d:d", "e/f:f"]);
+        labels_in(
+            "$(rootpath //a/b:c.txt) @rules_dx//d //e/f. https://x.test/y",
+            &mut labels,
+        );
+        assert_eq!(
+            labels.into_iter().collect::<Vec<_>>(),
+            ["a/b:c.txt", "d:d", "e/f:f"]
+        );
         assert_eq!(normal("a/b", "../c/./d.rs").as_deref(), Some("a/c/d.rs"));
         assert_eq!(normal("a", "../../c"), None);
         assert_eq!(ancestors("a/b"), ["a/b", "a", ""]);
-        assert!(in_fixture_tree("go/tests/fixtures/a") && in_fixture_tree("tools/docs/x/fixture/a"));
+        assert!(
+            in_fixture_tree("go/tests/fixtures/a") && in_fixture_tree("tools/docs/x/fixture/a")
+        );
         assert!(!in_fixture_tree("go/tests/a") && !in_fixture_tree("tools/ci/a.rs"));
     }
 }

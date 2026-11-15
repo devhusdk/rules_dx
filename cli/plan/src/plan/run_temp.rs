@@ -97,7 +97,7 @@ pub fn remove_stale_run_dirs(base: &Path) {
         let path = entry.path();
         if let Ok(Some(lock)) = dx_atomic_fs::lease::try_lock_file(&path.join(OWNER_LOCK), false) {
             drop(lock);
-            let _ = std::fs::remove_dir_all(&path);
+            drop(std::fs::remove_dir_all(&path));
         }
     }
 }
@@ -113,7 +113,7 @@ pub fn remove_on_stop(path: &Path) {
 pub fn clean_for_stop() -> MutexGuard<'static, Option<PathBuf>> {
     let mut slot = STOP_CLEANUP.lock().unwrap_or_else(PoisonError::into_inner);
     if let Some(path) = slot.take() {
-        let _ = std::fs::remove_dir_all(path);
+        drop(std::fs::remove_dir_all(path));
     }
     slot
 }

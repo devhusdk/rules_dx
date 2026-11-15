@@ -251,8 +251,8 @@ impl Run {
                 return status;
             }
             if Instant::now() >= deadline {
-                let _ = self.child.kill();
-                let _ = self.child.wait();
+                drop(self.child.kill());
+                drop(self.child.wait());
                 panic!("dx did not exit\n{}", self.context());
             }
             std::thread::sleep(Duration::from_millis(20));
@@ -263,8 +263,8 @@ impl Run {
 impl Drop for Run {
     fn drop(&mut self) {
         if let Ok(None) = self.child.try_wait() {
-            let _ = self.child.kill();
-            let _ = self.child.wait();
+            drop(self.child.kill());
+            drop(self.child.wait());
         }
     }
 }
@@ -1335,8 +1335,8 @@ fn spawn_waiting(base: &Path, words: &[&str]) -> (Child, PathBuf, PathBuf) {
         .contains("waiting for a build slot")
     {
         if Instant::now() >= deadline || matches!(child.try_wait(), Ok(Some(_))) {
-            let _ = child.kill();
-            let _ = child.wait();
+            drop(child.kill());
+            drop(child.wait());
             panic!(
                 "dx never waited for a slot {words:?}\n{}",
                 fs::read_to_string(&stderr).unwrap_or_default()
@@ -1418,8 +1418,8 @@ fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
                     break status;
                 }
                 if Instant::now() >= deadline {
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    drop(child.kill());
+                    drop(child.wait());
                     panic!("dx ignored signal {signo} {words:?}");
                 }
                 std::thread::sleep(Duration::from_millis(10));

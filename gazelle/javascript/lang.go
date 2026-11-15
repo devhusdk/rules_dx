@@ -229,6 +229,8 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 
 	plain := common.CustomRunnerTests(args.File, args.OtherGen, testKind, "jest")
 	hasRootPackageJSON := rootPackageJSONExists(args.Config.RepoRoot)
+	esm := common.IsESMPackage(args.Config.RepoRoot, args.Rel)
+	jestConfig := common.JestConfig(args.Config.RepoRoot, args.Rel)
 	var libraries []string
 	for _, p := range plans {
 		if p.test {
@@ -244,6 +246,12 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			r.SetAttr("node_modules", rootNodeModules)
 			if hasRootPackageJSON {
 				r.SetAttr("package_json", rootPackageJSON)
+			}
+			if esm {
+				r.SetAttr("node_options", []string{"--experimental-vm-modules"})
+			}
+			if jestConfig != "" {
+				r.SetAttr("config", jestConfig)
 			}
 			result.Gen = append(result.Gen, r)
 			result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))

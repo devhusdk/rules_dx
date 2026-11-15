@@ -329,7 +329,7 @@ pub fn rubygems_main(
             ))
         }
     });
-    let _ = std::fs::remove_dir_all(&staging);
+    drop(std::fs::remove_dir_all(&staging));
     match result {
         Ok(message) => {
             println!("{message}");

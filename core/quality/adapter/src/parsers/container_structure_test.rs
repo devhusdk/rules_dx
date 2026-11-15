@@ -95,18 +95,13 @@ mod tests {
     const FAILED: &str = r#"{"Pass":1,"Fail":2,"Total":3,"Duration":0,"Results":[{"Name":"File Existence Test: bin","Pass":false,"Errors":["no such file"],"Duration":0},{"Name":"Metadata Test","Pass":false,"Errors":["entrypoint differs","user differs"],"Duration":0},{"Name":"License Test","Pass":true,"Duration":0}]}"#;
 
     fn parse(stdout: &str, code: i32) -> Result<Vec<FileFinding>, ParseError> {
-        parse_container_structure_test(
-            stdout.as_bytes(),
-            b"",
-            Some(code),
-            "image",
-            "BUILD.bazel",
-        )
+        parse_container_structure_test(stdout.as_bytes(), b"", Some(code), "image", "BUILD.bazel")
     }
 
     #[test]
     fn a_passing_run_has_no_findings() {
-        let passing = r#"{"Pass":1,"Fail":0,"Total":1,"Results":[{"Name":"Metadata Test","Pass":true}]}"#;
+        let passing =
+            r#"{"Pass":1,"Fail":0,"Total":1,"Results":[{"Name":"Metadata Test","Pass":true}]}"#;
         assert!(parse(passing, 0).expect("parsed").is_empty());
     }
 

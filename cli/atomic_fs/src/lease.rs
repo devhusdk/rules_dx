@@ -226,7 +226,7 @@ mod tests {
             &"A".repeat(64),
             &"g".repeat(64),
             "../escape",
-            &HEX_A[..63],
+            HEX_A.get(..63).expect("string slice within bounds"),
         ] {
             assert!(
                 lease_path(&base, GenerationUse::Environment, bad).is_err(),

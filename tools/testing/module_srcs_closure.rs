@@ -43,18 +43,31 @@ pub fn resolve(label: &str, package: &str) -> Option<Bzl> {
 pub fn loads(text: &str) -> Vec<String> {
     let mut found = Vec::new();
     for (start, _) in text.match_indices("load(") {
-        let line_start = text[..start].rfind('\n').map_or(0, |at| at + 1);
-        let prefix = &text[line_start..start];
+        let line_start = text
+            .get(..start)
+            .expect("string slice within bounds")
+            .rfind('\n')
+            .map_or(0, |at| at + 1);
+        let prefix = text
+            .get(line_start..start)
+            .expect("string slice within bounds");
         if !prefix.trim().is_empty() {
             continue;
         }
-        let rest = text[start + "load(".len()..].trim_start();
+        let rest = text
+            .get(start + "load(".len()..)
+            .expect("string slice within bounds")
+            .trim_start();
         let Some(quote) = rest.chars().next().filter(|c| *c == '"' || *c == '\'') else {
             continue;
         };
-        let body = &rest[1..];
+        let body = rest.get(1..).expect("string slice within bounds");
         if let Some(end) = body.find(quote) {
-            found.push(body[..end].to_owned());
+            found.push(
+                body.get(..end)
+                    .expect("string slice within bounds")
+                    .to_owned(),
+            );
         }
     }
     found

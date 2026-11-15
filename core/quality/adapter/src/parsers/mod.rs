@@ -2023,8 +2023,8 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        let _ = super::helm::parse_helm_template_error(input, "", files);
-        let _ = super::helm::split_rendered(input);
+        drop(super::helm::parse_helm_template_error(input, "", files));
+        drop(super::helm::split_rendered(input));
         super::helm::parse_helm_lint(input, code, "", files)
     }
 

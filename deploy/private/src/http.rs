@@ -33,7 +33,7 @@ pub fn upload_agent_with_proxy(proxy: Option<ureq::Proxy>) -> ureq::Agent {
 fn agent_config(
     proxy: Option<ureq::Proxy>,
 ) -> ureq::config::ConfigBuilder<ureq::typestate::AgentScope> {
-    let _ = rustls::crypto::ring::default_provider().install_default();
+    drop(rustls::crypto::ring::default_provider().install_default());
     let tls = ureq::tls::TlsConfig::builder()
         .provider(ureq::tls::TlsProvider::Rustls)
         .root_certs(ureq::tls::RootCerts::PlatformVerifier)
@@ -102,7 +102,11 @@ pub fn basic_auth(user: &str, pass: &str) -> String {
     format!("Basic {token}")
 }
 
-const UNRESERVED: &AsciiSet = &NON_ALPHANUMERIC.remove(b'-').remove(b'.').remove(b'_').remove(b'~');
+const UNRESERVED: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'.')
+    .remove(b'_')
+    .remove(b'~');
 
 /// Percent-encodes one query value, keeping only unreserved characters.
 pub fn query_escape(value: &str) -> String {

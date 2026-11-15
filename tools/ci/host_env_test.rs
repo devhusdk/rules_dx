@@ -75,7 +75,8 @@ fn host_path(text: &str) -> bool {
     PATH_VARS.iter().any(|var| text.contains(var))
         || ROOTED_DIRS.iter().any(|dir| {
             text.match_indices(dir).any(|(at, _)| {
-                text[..at]
+                text.get(..at)
+                    .expect("string slice within bounds")
                     .chars()
                     .next_back()
                     .is_none_or(|c| c == '(' || PATH_STARTS.contains(&c))

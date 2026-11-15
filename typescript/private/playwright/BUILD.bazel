@@ -23,6 +23,10 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
-    ]),
+    ]) + [
+        "chromium_env.cjs",
+        "pins.cjs",
+        "runner.cjs",
+    ],
     visibility = ["//:__subpackages__"],
 )

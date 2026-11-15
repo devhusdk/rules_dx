@@ -261,7 +261,7 @@ fn run(args: &[String]) -> Result<i32, Failure> {
 
     let work = make_work_dir().map_err(|error| (1, format!("fuzz runner: temp dir: {error}")))?;
     let result = execute(engine, &bin, &target, &options, &work);
-    let _ = fs::remove_dir_all(&work);
+    drop(fs::remove_dir_all(&work));
     result
 }
 

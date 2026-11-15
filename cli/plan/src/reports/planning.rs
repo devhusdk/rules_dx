@@ -147,7 +147,7 @@ fn probe_case_insensitive(dir: &Path) -> std::io::Result<bool> {
         .create_new(true)
         .open(&probe)?;
     let found = dir.join(lower.to_uppercase()).exists();
-    let _ = std::fs::remove_file(&probe);
+    drop(std::fs::remove_file(&probe));
     Ok(found)
 }
 

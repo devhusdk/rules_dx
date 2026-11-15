@@ -340,6 +340,9 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			if esm {
 				r.SetAttr("node_options", []string{"--experimental-vm-modules"})
 			}
+			if cfg := common.JestConfig(repoRoot, args.Rel); cfg != "" {
+				r.SetAttr("config", cfg)
+			}
 			result.Gen = append(result.Gen, r)
 			result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
 			continue

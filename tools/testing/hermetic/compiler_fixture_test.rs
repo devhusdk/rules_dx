@@ -9,10 +9,10 @@ fn plain(text: &str) -> String {
     let mut out = String::new();
     let mut rest = text;
     while let Some(start) = rest.find("\x1b[") {
-        out.push_str(&rest[..start]);
-        let tail = &rest[start + 2..];
+        out.push_str(rest.get(..start).expect("string slice within bounds"));
+        let tail = rest.get(start + 2..).expect("string slice within bounds");
         let end = tail.find('m').map_or(tail.len(), |at| at + 1);
-        rest = &tail[end..];
+        rest = tail.get(end..).expect("string slice within bounds");
     }
     out.push_str(rest);
     out

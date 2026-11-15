@@ -22,6 +22,7 @@ java_binary(
 
 java_test(
     name = "cli_test",
+    size = "small",
     srcs = ["CliTest.java"],
     test_class = "cli.CliTest",
     deps = [":cli"],
@@ -38,6 +39,7 @@ sh_test(
 
 java_test(
     name = "consumer_choice_test",
+    size = "small",
     srcs = ["ConsumerChoiceTest.java"],
     test_class = "cli.ConsumerChoiceTest",
     deps = [":cli"],

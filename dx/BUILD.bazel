@@ -1,26 +1,26 @@
-load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("@rules_go//go:def.bzl", "go_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_DX_COMMANDS", "VIS_DX_ROOTS")
-load(":generate.bzl", "GENERATE_EXCLUDES")
+load(":generate.bzl", "dx_generate")
 
 package(default_visibility = ["//visibility:private"])
 
-native_binary(
+dx_generate(
     name = "generate",
-    src = "@dx_gazelle//:gazelle",
-    args = ["update"] + GENERATE_EXCLUDES,
     visibility = VIS_DX_COMMANDS,
 )
 
-native_binary(
+dx_generate(
     name = "generate_check",
-    src = "@dx_gazelle//:gazelle",
-    args = [
-        "update",
-        "-mode",
-        "diff",
-    ] + GENERATE_EXCLUDES,
+    mode = "diff",
     visibility = VIS_DX_COMMANDS,
+)
+
+go_binary(
+    name = "gazelle_launcher",
+    srcs = ["gazelle_launcher.go"],
+    pure = "on",
+    deps = ["@rules_go//go/runfiles"],
 )
 
 filegroup(
@@ -33,6 +33,16 @@ filegroup(
     name = "codegen",
     srcs = [],
     visibility = VIS_DX_ROOTS,
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "BUILD.bazel",
+        "gazelle_launcher.go",
+        "generate.bzl",
+    ],
+    visibility = ["//:__subpackages__"],
 )
 
 filegroup(

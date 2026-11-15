@@ -613,7 +613,7 @@ fn sleep_until_gate(plan: &Plan) {
 
 fn fail(code: i32, message: &str) -> ! {
     let mut err = io::stderr();
-    let _ = writeln!(err, "process_probe: {message}");
+    drop(writeln!(err, "process_probe: {message}"));
     std::process::exit(code);
 }
 
@@ -737,8 +737,8 @@ fn main() {
         Ok(plan) => plan,
         Err(message) => {
             let mut err = io::stderr();
-            let _ = writeln!(err, "process_probe: {message}");
-            let _ = err.write_all(USAGE.as_bytes());
+            drop(writeln!(err, "process_probe: {message}"));
+            drop(err.write_all(USAGE.as_bytes()));
             std::process::exit(EXIT_USAGE);
         }
     };

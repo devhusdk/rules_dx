@@ -119,7 +119,12 @@ fn assert_sarif_lands(
             .take(found.finding.start.line as usize - 1)
             .map(str::len)
             .sum::<usize>();
-        let want = line_start + text[line_start..].find(marker).expect("marker on line");
+        let want = line_start
+            + text
+                .get(line_start..)
+                .expect("string slice within bounds")
+                .find(marker)
+                .expect("marker on line");
         assert_eq!(
             placed.start_byte,
             Some(want as u64),

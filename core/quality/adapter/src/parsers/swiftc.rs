@@ -51,7 +51,11 @@ mod tests {
 
     #[test]
     fn swiftc_clean_and_silent_failure() {
-        assert!(parse_swiftc(b"", Some(0), &[FILE]).expect("clean").is_empty());
+        assert!(
+            parse_swiftc(b"", Some(0), &[FILE])
+                .expect("clean")
+                .is_empty()
+        );
         assert!(parse_swiftc(b"", Some(1), &[FILE]).is_err());
         assert!(parse_swiftc(b"", None, &[FILE]).is_err());
         assert!(parse_swiftc(b"error: no location\n", Some(1), &[FILE]).is_err());

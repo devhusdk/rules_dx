@@ -1,4 +1,4 @@
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//php/private/quality:corpus.bzl", "php_corpus")
 load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS")
 load("//php/private:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//php/private:php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_descriptor", "env_flag", "ini_flags", "launcher_descriptor", "lit", "rf", "rf_prefixed", "runfiles_path")
@@ -192,7 +192,7 @@ php_checks_test(
     ],
 )
 
-real_source_target(
+php_corpus(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],

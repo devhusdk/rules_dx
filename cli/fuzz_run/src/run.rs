@@ -285,6 +285,9 @@ fn execute(
     let spawn = |args: Vec<String>, cwd: Option<&Path>| -> Result<i32, Failure> {
         let mut command = Command::new(bin);
         command.args(args);
+        if engine == Engine::Go {
+            command.env("GO_TEST_WRAP", "0");
+        }
         if engine == Engine::Dotnet
             && std::env::var_os("RUNFILES_DIR").is_none()
             && let Some(parent) = std::env::current_dir()

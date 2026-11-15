@@ -125,6 +125,12 @@ _MSVC_TIDY_UNSUPPORTED = {
     "ZW": "C++/CX",
 }
 
+def _uses_xcode(argv):
+    for arg in argv:
+        if "__BAZEL_XCODE_" in arg:
+            return True
+    return False
+
 def _toolchain_compile_env(ctx):
     cc_toolchain = cc_toolchain_info(ctx)
     if cc_toolchain == None:
@@ -337,8 +343,9 @@ def _clang_syntax_impl(target, ctx):
         ctx.actions.write(output = driver, content = identity.driver)
         base_env = toolchain_env | dict(action.env)
         requirements = {}
-        if action.mnemonic == "ObjcCompile":
+        if action.mnemonic == "ObjcCompile" or _uses_xcode(argv):
             requirements = dict(xcode_config.execution_info())
+            base_env = base_env | apple_common.apple_host_system_env(xcode_config) | apple_common.target_apple_env(xcode_config, ctx.fragments.apple.single_arch_platform)
         capture = ["--stderr", log.path, "--status", status.path, "--"]
         if identity.driver == "msvc":
             capture = ["--stdout", log.path] + capture
@@ -389,7 +396,7 @@ clang_syntax_aspect = aspect(
     implementation = _clang_syntax_impl,
     doc = "Replays the compile actions of a C/C++/Objective-C target with -fsyntax-only.",
     attr_aspects = ["upstream"],
-    fragments = ["cpp"],
+    fragments = ["apple", "cpp"],
     toolchains = [config_common.toolchain_type(CC_TOOLCHAIN_TYPE, mandatory = False)],
     attrs = apple_support.action_required_attrs() | {
         "_policy": attr.label(

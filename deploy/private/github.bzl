@@ -1,6 +1,6 @@
 """Draft-only GitHub Release publisher for dx deploy."""
 
-load("//deploy/private/release:signing.bzl", "SIGNING_COSIGN_VERSION", "CosignInfo")
+load("//deploy/private/release:signing.bzl", "CosignInfo", "SIGNING_COSIGN_VERSION")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")

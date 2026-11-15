@@ -159,12 +159,23 @@ pub fn verify_argv(
     identity: &str,
     issuer: &str,
 ) -> Vec<String> {
+    verify_flag_argv(cosign, asset, bundle, "--certificate-identity", identity, issuer)
+}
+
+fn verify_flag_argv(
+    cosign: &str,
+    asset: &str,
+    bundle: &str,
+    flag: &str,
+    identity: &str,
+    issuer: &str,
+) -> Vec<String> {
     vec![
         cosign.to_owned(),
         "verify-blob".to_owned(),
         "--bundle".to_owned(),
         bundle.to_owned(),
-        "--certificate-identity".to_owned(),
+        flag.to_owned(),
         identity.to_owned(),
         "--certificate-oidc-issuer".to_owned(),
         issuer.to_owned(),
@@ -181,9 +192,14 @@ pub fn verify_regexp_argv(
     regexp: &str,
     issuer: &str,
 ) -> Vec<String> {
-    let mut argv = verify_argv(cosign, asset, bundle, regexp, issuer);
-    argv[4] = "--certificate-identity-regexp".to_owned();
-    argv
+    verify_flag_argv(
+        cosign,
+        asset,
+        bundle,
+        "--certificate-identity-regexp",
+        regexp,
+        issuer,
+    )
 }
 
 /// The `GitVersion` line of `cosign version`.

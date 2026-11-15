@@ -59,9 +59,9 @@ pub(crate) fn headings(text: &str, starts: &[usize]) -> Vec<Heading> {
     let mut open: Option<(usize, u32, bool, String)> = None;
     for (event, range) in Parser::new_ext(text, Options::empty()).into_offset_iter() {
         match event {
-            Event::Start(Tag::BlockQuote(_)) | Event::Start(Tag::Item) => depth += 1,
-            Event::End(TagEnd::BlockQuote(_)) | Event::End(TagEnd::Item) => {
-                depth = depth.saturating_sub(1)
+            Event::Start(Tag::BlockQuote(_) | Tag::Item) => depth += 1,
+            Event::End(TagEnd::BlockQuote(_) | TagEnd::Item) => {
+                depth = depth.saturating_sub(1);
             }
             Event::Start(Tag::Heading { level, .. }) => {
                 open = Some((
@@ -115,7 +115,7 @@ pub(crate) fn line_starts(text: &str) -> Vec<usize> {
 }
 
 pub(crate) fn line_of(starts: &[usize], offset: usize) -> u32 {
-    starts.partition_point(|start| *start <= offset) as u32
+    u32::try_from(starts.partition_point(|start| *start <= offset)).unwrap_or(u32::MAX)
 }
 
 pub(crate) struct CodeRegion {
@@ -125,9 +125,9 @@ pub(crate) struct CodeRegion {
 }
 
 pub(crate) fn code_regions(text: &str, starts: &[usize]) -> Vec<CodeRegion> {
-    let mut regions = Vec::new();
     // (start_line, info, opening fence (char, len), end of opening line, last text end)
     type Open = (u32, Option<String>, Option<(char, usize)>, usize, usize);
+    let mut regions = Vec::new();
     let mut open: Option<Open> = None;
     for (event, range) in Parser::new_ext(text, Options::empty()).into_offset_iter() {
         match event {
@@ -205,6 +205,7 @@ pub(crate) fn code_regions(text: &str, starts: &[usize]) -> Vec<CodeRegion> {
 }
 
 /// Slug a heading the way GitHub does: lowercase, keep letters, marks, digits, `-` and `_`, and turn each space into `-`.
+#[must_use]
 pub fn slug(text: &str) -> String {
     text.to_lowercase()
         .chars()

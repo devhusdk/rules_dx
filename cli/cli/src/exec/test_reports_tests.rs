@@ -1,13 +1,14 @@
+use std::fmt::Write as _;
 #[test]
 fn log_tail_keeps_last_forty_lines() {
     let text: String = (1..=50).map(|n| format!("line {n}\n")).collect();
     let want: Vec<String> = (11..=50).map(|n| format!("line {n}")).collect();
-    assert_eq!(super::log_tail(text.as_bytes()), Some(want.join("\n")));
+    assert_eq!(super::account::log_tail(text.as_bytes()), Some(want.join("\n")));
 }
 
 #[test]
 fn log_tail_returns_short_logs_whole() {
-    assert_eq!(super::log_tail(b"a\nb\nc\n"), Some("a\nb\nc".to_owned()));
+    assert_eq!(super::account::log_tail(b"a\nb\nc\n"), Some("a\nb\nc".to_owned()));
 }
 
 #[test]
@@ -15,8 +16,8 @@ fn log_tail_drops_partial_first_line_when_capped() {
     let lines: Vec<String> = (0..40)
         .map(|n| format!("{n:02}{}", "x".repeat(298)))
         .collect();
-    let tail = super::log_tail(lines.join("\n").as_bytes()).unwrap();
-    assert!(tail.len() <= super::LOG_TAIL_BYTES);
+    let tail = super::account::log_tail(lines.join("\n").as_bytes()).unwrap();
+    assert!(tail.len() <= super::account::LOG_TAIL_BYTES);
     let got: Vec<&str> = tail.split('\n').collect();
     assert!(got.iter().all(|l| l.len() == 300));
     assert_eq!(
@@ -31,19 +32,19 @@ fn log_tail_drops_partial_first_line_when_capped() {
 
 #[test]
 fn log_tail_cuts_one_oversize_multibyte_line_at_char_boundary() {
-    let tail = super::log_tail("日".repeat(3500).as_bytes()).unwrap();
-    assert!(!tail.is_empty() && tail.len() <= super::LOG_TAIL_BYTES);
+    let tail = super::account::log_tail("日".repeat(3500).as_bytes()).unwrap();
+    assert!(!tail.is_empty() && tail.len() <= super::account::LOG_TAIL_BYTES);
 }
 
 #[test]
 fn log_tail_is_none_for_blank_input() {
-    assert_eq!(super::log_tail(b""), None);
-    assert_eq!(super::log_tail(b"  \n\t\n\n"), None);
+    assert_eq!(super::account::log_tail(b""), None);
+    assert_eq!(super::account::log_tail(b"  \n\t\n\n"), None);
 }
 
 #[test]
 fn log_tail_tolerates_invalid_utf8() {
-    assert!(super::log_tail(b"ok\n\xff\xfe bad\n").is_some());
+    assert!(super::account::log_tail(b"ok\n\xff\xfe bad\n").is_some());
 }
 
 use super::super::test_support::*;
@@ -563,11 +564,9 @@ fn script_checkout(harness: &Harness) {
     harness
         .query
         .script_checkout_git(0, "src/a.py\0src/orphan.py\0src/BUILD.bazel\0");
-    harness.query.script_graph(&[graph_rule(
-        "//src:lib",
-        &["//src:a.py"],
-        &[],
-    )]);
+    harness
+        .query
+        .script_graph(&[graph_rule("//src:lib", &["//src:a.py"], &[])]);
 }
 
 #[test]
@@ -2535,7 +2534,7 @@ fn located(xml: &str) -> Vec<(Option<String>, Option<u64>)> {
     cases
         .iter()
         .map(|case| {
-            let found = super::test_case(case);
+            let found = super::account::test_case(case);
             (found.file, found.line)
         })
         .collect()
@@ -2580,7 +2579,7 @@ fn parse_cases_stamps_run_and_configuration() {
         files: Vec::new(),
     };
     let cases = super::parse_cases(&result, MINIMAL_TEST_XML.as_bytes()).expect("cases");
-    assert!(!cases.is_empty());
+    assert!(!cases.is_empty(), "expected non-empty");
     for case in &cases {
         assert_eq!(case.run, 1);
         assert_eq!(case.configuration.as_deref(), Some("cfg"));
@@ -2613,7 +2612,7 @@ fn coverage_summary_prints_the_total_and_the_worst_files() {
     assert!(!String::from_utf8(err).unwrap().contains("dx: coverage 65"));
     let mut err = Vec::new();
     super::coverage_summary(&account, true, dx_output::OutputMode::Json, &mut err);
-    assert!(err.is_empty());
+    assert!(err.is_empty(), "{err:?}");
 }
 
 #[test]
@@ -3579,7 +3578,7 @@ fn failing_case_past_the_case_limit_is_still_reported() {
     let harness = Harness::new("test-late-failure");
     let mut xml = String::from("<testsuites><testsuite name=\"s\">");
     for index in 0..1500 {
-        xml.push_str(&format!("<testcase name=\"case{index}\"/>"));
+        write!(xml, "<testcase name=\"case{index}\"/>").ok();
     }
     xml.push_str("<testcase name=\"late\"><failure message=\"late boom\"/></testcase>");
     xml.push_str("</testsuite></testsuites>");
@@ -3714,11 +3713,13 @@ fn case_detail_is_bounded_and_says_so() {
     let harness = Harness::new("test-case-bounds");
     let long = "é".repeat(3000);
     let mut xml = String::from("<testsuites><testsuite name=\"s\">");
-    xml.push_str(&format!(
+    write!(
+        xml,
         "<testcase name=\"long\"><failure message=\"{long}\"/></testcase>"
-    ));
+    )
+    .ok();
     for index in 0..1000 {
-        xml.push_str(&format!("<testcase name=\"case{index}\"/>"));
+        write!(xml, "<testcase name=\"case{index}\"/>").ok();
     }
     xml.push_str("</testsuite></testsuites>");
     let uri = write_bep_artifact(&harness, "many.xml", xml.as_bytes());

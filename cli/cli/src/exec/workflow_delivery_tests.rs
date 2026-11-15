@@ -2,12 +2,7 @@ use super::super::delivery_sink::{Fault, Sink};
 use super::super::test_support::*;
 use std::io;
 
-fn run(
-    name: &str,
-    words: &[&str],
-    codes: &[Option<i32>],
-    sink: &mut Sink,
-) -> (ProbeRun, String) {
+fn run(name: &str, words: &[&str], codes: &[Option<i32>], sink: &mut Sink) -> (ProbeRun, String) {
     let harness = Harness::new(name);
     let inv = invocation(words);
     let mut err = Vec::new();
@@ -30,7 +25,7 @@ fn a_failed_start_event_schedules_no_work() {
         );
         assert_eq!(run.code, want, "{kind:?}");
         assert!(run.argv.is_empty(), "no child starts: {:?}", run.argv);
-        assert!(sink.bytes.is_empty());
+        assert!(sink.bytes.is_empty(), "{:?}", sink.bytes);
     }
 }
 

@@ -121,7 +121,11 @@ fn run_and_deploy_share_the_startup_prefix() {
 fn query_and_shutdown_share_the_startup_prefix() {
     local();
     assert_eq!(dx_process::startup_argv(&startup()), ["bazel", OUTPUT_BASE]);
-    assert!(dx_process::current().startup_opts().is_empty());
+    assert!(
+        dx_process::current().startup_opts().is_empty(),
+        "{:?}",
+        dx_process::current().startup_opts()
+    );
     let query = SelectionContext::unconfigured(&startup())
         .selection_argv("query", &[], "//a:x")
         .expect("query argv");

@@ -1,4 +1,4 @@
-use super::common::*;
+use super::common::{check_stdout_write, emit_built};
 use dx_adopt::dependency_sets::{
     Ecosystem, HexBackend, ResolvedSet, ResolvedTarget, Selection, cargo_fetch_repository,
     hex_backend,
@@ -812,7 +812,11 @@ mod tests {
             "deps",
         );
         let query = Recorded(Default::default(), "@@m++crate+dx_crates//:cc\n");
-        assert!(find(root, &resolved, &query, &[]).expect("hubs").is_empty());
+        assert!(
+            find(root, &resolved, &query, &[]).expect("hubs").is_empty(),
+            "{:?}",
+            find(root, &resolved, &query, &[]).expect("hubs")
+        );
         let argv = query.0.lock().unwrap().join(" ");
         assert!(argv.contains("@deps//..."), "{argv}");
     }
@@ -925,7 +929,9 @@ mod tests {
         assert!(
             find(root, &resolved, &NoQuery, &[])
                 .expect("hubs")
-                .is_empty()
+                .is_empty(),
+            "{:?}",
+            find(root, &resolved, &NoQuery, &[]).expect("hubs")
         );
     }
 
@@ -1068,7 +1074,9 @@ mod tests {
         assert!(
             find_missing(root, &resolved, &NoQuery, &[])
                 .expect("hubs")
-                .is_empty()
+                .is_empty(),
+            "{:?}",
+            find_missing(root, &resolved, &NoQuery, &[]).expect("hubs")
         );
     }
 

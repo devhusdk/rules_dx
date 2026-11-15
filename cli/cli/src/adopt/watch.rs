@@ -239,7 +239,9 @@ fn watch(
         ) {
             return match stop {
                 dx_plan::slots::Stop::Signal(signo) => stopped(progress, out, err, signo),
-                busy @ dx_plan::slots::Stop::Busy(_) => crate::exec::slot_stop(iteration.output, out, err, busy),
+                busy @ dx_plan::slots::Stop::Busy(_) => {
+                    crate::exec::slot_stop(iteration.output, out, err, busy)
+                }
             };
         }
         let held = phase.slot().map(|slot| slot.runner(runner));
@@ -285,7 +287,9 @@ fn watch(
         }
         let mut change = pending.into_inner();
         loop {
-            let paths = if let Some(change) = change.take() { change } else {
+            let paths = if let Some(change) = change.take() {
+                change
+            } else {
                 if let Some(signo) = stop() {
                     return stopped(progress, out, err, signo);
                 }
@@ -321,7 +325,9 @@ fn build_iteration(invocation: &Invocation) -> Result<Invocation, DxError> {
         .first()
         .map(String::as_str)
         .unwrap_or_default();
-    let Some(command) = Command::parse(wrapped) else { return Err(DxError::usage(format!("not watchable: {wrapped}"))) };
+    let Some(command) = Command::parse(wrapped) else {
+        return Err(DxError::usage(format!("not watchable: {wrapped}")));
+    };
     let mut iteration = invocation.clone();
     iteration.command = command;
     iteration.targets = invocation.targets.get(1..).unwrap_or_default().to_vec();
@@ -973,7 +979,11 @@ mod tests {
             ["--hi".to_owned()],
             "app args ride the cloned invocation"
         );
-        assert!(release.raw_bazel_options().is_empty());
+        assert!(
+            release.raw_bazel_options().is_empty(),
+            "{:?}",
+            release.raw_bazel_options()
+        );
         assert!(dx_plan::args::parse(&["watch", "--debug", "lint", "//..."]).is_err());
     }
 
@@ -1034,7 +1044,7 @@ mod tests {
             build_iteration(&invocation(&["watch", "test", "--affected"])).expect("test iteration");
         assert_eq!(iteration.command, Command::Test);
         assert!(iteration.affected);
-        assert!(iteration.targets.is_empty());
+        assert!(iteration.targets.is_empty(), "{:?}", iteration.targets);
     }
 
     #[test]

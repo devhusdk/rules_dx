@@ -10,6 +10,7 @@ use dx_plan::reports::Destination;
 use dx_plan::resolve::QueryRunner;
 use dx_process::{Runner, broken_pipe_code, operational_code, pre_exec_code, stdout_io_code};
 use std::cell::Cell;
+use std::fmt::Write as _;
 use std::io::{self, BufReader, Write};
 use std::path::Path;
 
@@ -586,11 +587,11 @@ pub(crate) fn findings_summary(diagnostics: &[DiagnosticEvent], targets: usize) 
     let fixable = diagnostics.iter().filter(|d| d.fixable).count();
     let mut line = format!("{errors} error(s), {warnings} warning(s)");
     if infos > 0 {
-        line.push_str(&format!(", {infos} info"));
+        write!(line, ", {infos} info").ok();
     }
-    line.push_str(&format!(" in {} file(s)", files.len()));
+    write!(line, " in {} file(s)", files.len()).ok();
     if fixable > 0 {
-        line.push_str(&format!(", {fixable} fixable with --apply"));
+        write!(line, ", {fixable} fixable with --apply").ok();
     }
     line
 }
@@ -621,10 +622,10 @@ fn text_finding_colored(record: &FindingRecord, color: bool) -> String {
     if diagnostic.fixable {
         line.push_str(" (fixable)");
     } else if let Some(reason) = &diagnostic.unfixable_reason {
-        line.push_str(&format!(" (not fixable: {reason})"));
+        write!(line, " (not fixable: {reason})").ok();
     }
     if record.count > 1 {
-        line.push_str(&format!(" (x{})", record.count));
+        write!(line, " (x{})", record.count).ok();
     }
     for (index, item) in diagnostic.related.iter().enumerate() {
         line.push_str("\n  ");

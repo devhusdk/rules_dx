@@ -1,8 +1,11 @@
 use std::ffi::OsStr;
+use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use super::common::*;
+use super::common::{
+    Env, Failure, check_stdout_write, emit_built, emit_event, report_failure, set_field,
+};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, SlotEvent, SummaryEvent, command_finished,
     command_started, notice_event, slot_event, summary_event,
@@ -390,7 +393,8 @@ fn list_lines(listing: &Listing) -> Vec<String> {
     let mut lines = Vec::new();
     for row in &listing.rows {
         let slot = row
-            .slot.map_or_else(|| "-".to_owned(), |slot| slot.to_string());
+            .slot
+            .map_or_else(|| "-".to_owned(), |slot| slot.to_string());
         let mut state = match row.reason {
             Some(reason) => format!("{} ({reason})", row.state.name()),
             None => row.state.name().to_owned(),
@@ -417,10 +421,10 @@ fn list_lines(listing: &Listing) -> Vec<String> {
         size(listing.servers_rss_bytes)
     );
     if let Some(bytes) = listing.disk_bytes {
-        totals.push_str(&format!(", {} across slots", size(bytes)));
+        write!(totals, ", {} across slots", size(bytes)).ok();
     }
     if let Some(bytes) = listing.disk_cache_bytes {
-        totals.push_str(&format!(", {} disk cache", size(bytes)));
+        write!(totals, ", {} disk cache", size(bytes)).ok();
     }
     lines.push(totals);
     lines
@@ -1625,7 +1629,11 @@ mod tests {
             let object = event.as_object().expect("object");
             assert_eq!(event["event"], "slot", "{event}");
             assert_eq!(event["path"], path, "{event}");
-            assert_eq!(object.get("slot").and_then(serde_json::Value::as_u64), slot, "{event}");
+            assert_eq!(
+                object.get("slot").and_then(serde_json::Value::as_u64),
+                slot,
+                "{event}"
+            );
             assert_eq!(
                 object.get("branch").and_then(|v| v.as_str()),
                 branch,
@@ -1855,7 +1863,7 @@ mod tests {
         let blocked = r#"{"tool_input":{"command":"git worktree add ../x"}}"#;
         let (code, _, err) = hook(HookKind::Guard, blocked, dir.path());
         assert_eq!(code, 2, "{err}");
-        assert!(!err.is_empty());
+        assert!(!err.is_empty(), "expected non-empty");
         let (code, out, err) = hook(
             HookKind::Guard,
             r#"{"tool_input":{"command":"ls"}}"#,
@@ -1870,7 +1878,7 @@ mod tests {
         let payload = r#"{"hook_event_name":"PreToolUse","session_id":"c1","timestamp":"2026-11-05T00:00:00.000Z","cwd":"/r","tool_name":"Bash","tool_input":{"command":"git worktree remove ../x"}}"#;
         let (code, _, err) = hook(HookKind::Guard, payload, dir.path());
         assert_eq!(code, 2, "{err}");
-        assert!(!err.is_empty());
+        assert!(!err.is_empty(), "expected non-empty");
     }
 
     #[test]

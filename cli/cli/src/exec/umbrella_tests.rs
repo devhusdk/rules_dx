@@ -1485,7 +1485,8 @@ fn fix_apply_does_not_recheck_the_failed_phase() {
     let events = json_events(&out);
     assert!(
         events.iter().all(|event| event["correlation"]
-            .as_str().is_none_or(|correlation| correlation != "verify/typecheck")),
+            .as_str()
+            .is_none_or(|correlation| correlation != "verify/typecheck")),
         "{out}"
     );
     assert_eq!(
@@ -1851,7 +1852,11 @@ fn check_json_correlates_one_phase_start_per_phase() {
     let (code, out, err) = harness.run(&["check", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");
     let events = json_events(&out);
-    assert!(events_of_kind(&events, "operation").is_empty());
+    assert!(
+        events_of_kind(&events, "operation").is_empty(),
+        "{:?}",
+        events_of_kind(&events, "operation")
+    );
     let started = events_of_kind(&events, "phase_started");
     let described: Vec<(&str, &str, &str)> = started
         .iter()
@@ -2354,8 +2359,12 @@ fn collector_merges_a_complete_run_deterministically() {
     }
     collector.collect();
     assert!(collector.complete(), "{:?}", collector.reasons());
-    assert!(collector.collection_failures().is_empty());
-    assert!(collector.skipped().is_empty());
+    assert!(
+        collector.collection_failures().is_empty(),
+        "{:?}",
+        collector.collection_failures()
+    );
+    assert!(collector.skipped().is_empty(), "{:?}", collector.skipped());
     assert_eq!(collector.reasons(), Vec::<String>::new());
     let document = collector.document();
     assert_eq!(document, collector.document(), "same input, same bytes");
@@ -2412,13 +2421,17 @@ fn test_phase_results_complete_follows_kind() {
     };
     let findings = collect(3, PhaseKind::Findings);
     assert!(findings.complete(), "{:?}", findings.reasons());
-    assert!(findings.reasons().is_empty());
+    assert!(findings.reasons().is_empty(), "{:?}", findings.reasons());
     assert_eq!(findings.with_findings(), vec!["test"]);
     for code in [1, 3] {
         let incomplete = collect(code, PhaseKind::Incomplete);
         assert!(!incomplete.complete());
         assert_eq!(incomplete.reasons(), vec!["test failed".to_owned()]);
-        assert!(incomplete.with_findings().is_empty());
+        assert!(
+            incomplete.with_findings().is_empty(),
+            "{:?}",
+            incomplete.with_findings()
+        );
     }
 }
 
@@ -2733,8 +2746,7 @@ fn collector_keeps_what_a_failed_phase_wrote() {
         collector.collect();
         assert_eq!(collector.collection_failures(), expected);
         assert!(!collector.complete());
-        let document: Value =
-            serde_json::from_str(&collector.document()).expect("JSON");
+        let document: Value = serde_json::from_str(&collector.document()).expect("JSON");
         assert_eq!(
             document["runs"].as_array().expect("runs").len(),
             usize::from(path == &good)
@@ -3241,7 +3253,7 @@ fn phase_kind_stops_on_selection_host_cancel_or_failed_generate() {
     ] {
         assert!(kind.continues(false), "{kind:?}");
         assert!(kind.continues(true), "{kind:?}");
-        assert!(!kind.stop_reason().is_empty());
+        assert!(!kind.stop_reason().is_empty(), "expected non-empty");
     }
     for kind in [
         PhaseKind::Selection,
@@ -3251,7 +3263,7 @@ fn phase_kind_stops_on_selection_host_cancel_or_failed_generate() {
     ] {
         assert!(!kind.continues(false), "{kind:?}");
         assert!(!kind.continues(true), "{kind:?}");
-        assert!(!kind.stop_reason().is_empty());
+        assert!(!kind.stop_reason().is_empty(), "expected non-empty");
     }
     assert!(PhaseKind::Compile.continues(false));
     assert!(!PhaseKind::Compile.continues(true));

@@ -201,14 +201,18 @@ mod tests {
         assert!(
             crate::adopt::test_support::drift_of(root)
                 .missing
-                .is_empty()
+                .is_empty(),
+            "{:?}",
+            crate::adopt::test_support::drift_of(root).missing
         );
         let layer = root.join(".dx/bazelrc/resources.bazelrc");
         std::fs::remove_file(&layer).expect("rm");
         assert!(
             crate::adopt::test_support::drift_of(root)
                 .missing
-                .is_empty()
+                .is_empty(),
+            "{:?}",
+            crate::adopt::test_support::drift_of(root).missing
         );
         assert_eq!(init(root).0, 0);
         assert!(layer.exists());

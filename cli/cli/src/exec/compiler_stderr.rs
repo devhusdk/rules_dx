@@ -168,7 +168,11 @@ mod tests {
     #[test]
     fn notes_and_plain_text_are_skipped() {
         let text = "In file included from a.c:1:\na.c:2:3: note: declared here\nmake failed: 2\n";
-        assert!(parse(text.as_bytes()).is_empty());
+        assert!(
+            parse(text.as_bytes()).is_empty(),
+            "{:?}",
+            parse(text.as_bytes())
+        );
     }
 
     #[test]

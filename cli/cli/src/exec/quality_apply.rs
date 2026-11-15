@@ -210,7 +210,7 @@ mod tests {
             b"BAD\n"
         );
         assert!(outcome.applied.is_empty());
-        assert!(outcome.not_applied.is_empty());
+        assert!(outcome.not_applied.is_empty(), "{:?}", outcome.not_applied);
     }
 
     #[test]

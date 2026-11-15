@@ -93,7 +93,11 @@ mod tests {
     #[test]
     fn matching_exception_drops_the_finding() {
         let text = exception("DS-0002", "app/Dockerfile", TOOL, "*", "2027-01-01");
-        assert!(run(Some(&text), sample()).is_empty());
+        assert!(
+            run(Some(&text), sample()).is_empty(),
+            "{:?}",
+            run(Some(&text), sample())
+        );
     }
 
     #[test]
@@ -103,7 +107,8 @@ mod tests {
             finding(TOOL, "DS-0002", "app/Dockerfile"),
             finding(TOOL, "DS-0002", "web/Dockerfile"),
         ];
-        assert!(run(Some(&text), findings).is_empty());
+        let out = run(Some(&text), findings);
+        assert!(out.is_empty(), "{out:?}");
     }
 
     #[test]
@@ -148,7 +153,11 @@ mod tests {
             "*",
             "2027-01-01",
         );
-        assert!(run(Some(&text), findings.clone()).is_empty());
+        assert!(
+            run(Some(&text), findings.clone()).is_empty(),
+            "{:?}",
+            run(Some(&text), findings.clone())
+        );
         let other = exception("DS-0002", "BUILD.bazel", TOOL, "*", "2027-01-01");
         assert_eq!(run(Some(&other), findings.clone()), findings);
     }

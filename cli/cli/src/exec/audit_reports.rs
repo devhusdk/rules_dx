@@ -46,8 +46,8 @@ fn secrets_launch_failure_is_incomplete_without_a_clean_result() {
         0,
         false,
     );
-    assert!(findings.is_empty());
-    assert!(diagnostics.is_empty());
+    assert!(findings.is_empty(), "{findings:?}");
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
     assert!(
         incomplete
             .expect("incomplete")
@@ -259,7 +259,11 @@ fn security_policy_read_failures_and_absent_file_are_explicit() {
         super::load_security_policy(&harness.workspace)
             .expect("absent file")
             .exceptions
-            .is_empty()
+            .is_empty(),
+        "{:?}",
+        super::load_security_policy(&harness.workspace)
+            .expect("absent file")
+            .exceptions
     );
     let path = harness.workspace.join("security.toml");
     std::fs::write(&path, " \n").expect("empty");
@@ -267,7 +271,11 @@ fn security_policy_read_failures_and_absent_file_are_explicit() {
         super::load_security_policy(&harness.workspace)
             .expect("empty file")
             .exceptions
-            .is_empty()
+            .is_empty(),
+        "{:?}",
+        super::load_security_policy(&harness.workspace)
+            .expect("empty file")
+            .exceptions
     );
     std::fs::write(&path, [0xff]).expect("invalid utf8");
     assert!(matches!(
@@ -469,7 +477,7 @@ fn scan_secrets(harness: &Harness) -> (Vec<String>, Vec<dx_output::DiagnosticEve
         3,
         false,
     );
-    assert!(findings.is_empty());
+    assert!(findings.is_empty(), "{findings:?}");
     assert_eq!(incomplete, None);
     let calls = runner.calls.borrow();
     assert_eq!(calls.len(), 1, "{calls:?}");
@@ -536,7 +544,7 @@ fn secrets_scan_without_user_config_scopes_the_default_rules() {
     assert!(written.contains("[extend]"), "{written}");
     assert!(written.contains("base.toml"), "{written}");
     assert!(!written.contains("useDefault"), "{written}");
-    assert!(diagnostics.is_empty());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
 }
 
 #[test]
@@ -735,7 +743,10 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
         let by_package = sarif_paths(&harness, report, driver);
         assert_eq!(
             by_package.get("pnpmonly").map(String::as_str),
-            dx_ecosystems::Ecosystem::Npm.lockfiles().first().map(String::as_str),
+            dx_ecosystems::Ecosystem::Npm
+                .lockfiles()
+                .first()
+                .map(String::as_str),
             "{command}: {by_package:?}"
         );
     }

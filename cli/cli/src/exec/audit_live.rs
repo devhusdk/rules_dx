@@ -2,6 +2,7 @@ use super::super::test_support::*;
 use dx_adopt::dependency_sets::Ecosystem;
 use dx_process::{ChildStatus, Runner};
 use std::cell::RefCell;
+use std::fmt::Write as _;
 use std::io;
 use std::path::Path;
 use std::rc::Rc;
@@ -836,7 +837,7 @@ fn security_exception(set: &str, package: &str, versions: &str, expires: &str) -
         ("reason", "reviewed"),
         ("expires", expires),
     ] {
-        text.push_str(&format!("{key} = {value:?}\n"));
+        writeln!(text, "{key} = {value:?}").ok();
     }
     text
 }
@@ -1235,10 +1236,10 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
         &["license", "//third_party/dotnet:dotnet"],
         &runner,
         &|harness| {
-                    harness.write_source(
-        &format!("third_party/dotnet/{}", lock_of(Ecosystem::Nuget)),
-        "{}\n",
-    );
+            harness.write_source(
+                &format!("third_party/dotnet/{}", lock_of(Ecosystem::Nuget)),
+                "{}\n",
+            );
             harness.write_source(
                 &format!("third_party/dotnet/{}", dx_adopt::lock_hubs::state_of("nuget").expect("hub")),
                 "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    FSharp.Core (10.1.201)\n",

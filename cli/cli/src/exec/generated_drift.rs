@@ -147,7 +147,11 @@ mod tests {
     #[test]
     fn a_clean_checkout_passes() {
         let scratch = committed();
-        assert!(rules(scratch.path(), &[]).is_empty());
+        assert!(
+            rules(scratch.path(), &[]).is_empty(),
+            "{:?}",
+            rules(scratch.path(), &[])
+        );
     }
 
     #[test]
@@ -182,6 +186,10 @@ mod tests {
         let root = scratch.path();
         dx_test_scratch::git(root, root, &["rm", "--quiet", "--cached", "-r", ".dx"]);
         dx_test_scratch::write(root, BASE, "edited\n");
-        assert!(rules(root, &[BASE.to_owned()]).is_empty());
+        assert!(
+            rules(root, &[BASE.to_owned()]).is_empty(),
+            "{:?}",
+            rules(root, &[BASE.to_owned()])
+        );
     }
 }

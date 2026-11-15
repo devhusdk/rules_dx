@@ -3,7 +3,10 @@
 use std::io::Write;
 use std::path::Path;
 
-use super::common::*;
+use super::common::{
+    Env, app_signalled_line, emit_event, emit_started, pre_exec, resolve_failed, run_bazel_app,
+    set_field,
+};
 use dx_output::{FinishedCounts, NoticeEvent, OutputMode, command_finished, notice_value};
 use dx_plan::args::grammar::fuzz_seconds;
 use dx_plan::args::{BuildMode, Invocation};

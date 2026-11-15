@@ -312,7 +312,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 1);
-        assert!(out.is_empty());
+        assert!(out.is_empty(), "{out:?}");
 
         let inv = invocation(&["status", "--quiet"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-status-");
@@ -326,6 +326,6 @@ mod tests {
         .expect("module");
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(!out.is_empty());
+        assert!(!out.is_empty(), "expected non-empty");
     }
 }

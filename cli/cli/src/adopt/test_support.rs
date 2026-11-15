@@ -176,7 +176,7 @@ mod tests {
         let result = NullQuery.run_query(&[], Path::new("/")).expect("query");
         assert_eq!(result.code, Some(0));
         assert_eq!(result.stdout, b"//a:one\n");
-        assert!(result.stderr.is_empty());
+        assert!(result.stderr.is_empty(), "{:?}", result.stderr);
     }
 
     #[test]

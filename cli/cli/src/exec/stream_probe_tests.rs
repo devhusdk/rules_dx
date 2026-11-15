@@ -99,7 +99,9 @@ struct Pty {
 static PTSNAME: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn open_pty() -> Pty {
-    let _named = PTSNAME.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _named = PTSNAME
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     // SAFETY: master is the descriptor just opened and owned once; ptsname is read under PTSNAME.
     unsafe {
         let master = libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY);
@@ -504,7 +506,8 @@ fn recorded_groups(run: &Run) -> Vec<i32> {
 fn wait_for_lease(run: &mut Run, pgid: i32) {
     let deadline = Instant::now() + Duration::from_secs(30);
     while !recorded_groups(run).contains(&pgid) {
-        assert!(!cfg!(target_os = "linux"), 
+        assert!(
+            !cfg!(target_os = "linux"),
             "no lease records group {pgid} while it runs\n{}",
             run.context()
         );

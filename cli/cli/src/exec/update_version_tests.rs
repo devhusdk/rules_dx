@@ -1,5 +1,6 @@
 use super::super::test_support::*;
 use super::*;
+use super::super::common::CODE_FROZEN_LOCKED;
 
 const HELLO_CARGO: &str = "rust/tests/fixtures/hello/Cargo.toml";
 
@@ -199,7 +200,9 @@ fn consumer_cpan_set_widens_the_cpanfile_and_refreshes() {
         runs[0]
     );
     assert!(
-        runs[1].iter().any(|arg| arg == "@rules_dx//perl/private/tools/lock"),
+        runs[1]
+            .iter()
+            .any(|arg| arg == "@rules_dx//perl/private/tools/lock"),
         "{:?}",
         runs[1]
     );
@@ -699,9 +702,7 @@ fn consumer_nuget_set_edits_paket_dependencies_only_and_names_the_follow_up() {
         "MODULE.bazel",
         "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\", lock = \"//dotnet:nuget.lock.json\")\n",
     );
-    let files = [
-        ("dotnet/paket.lock", "NUGET\n"),
-    ];
+    let files = [("dotnet/paket.lock", "NUGET\n")];
     harness.write_source("dotnet/paket.dependencies", PAKET_DEPS);
     for (rel, text) in files {
         harness.write_source(rel, text);
@@ -755,7 +756,10 @@ const GO_FILES: [(&str, &str); 4] = [
 struct GoRunner {
     code: Option<i32>,
     writes: Vec<(&'static str, String)>,
-    #[expect(clippy::type_complexity, reason = "the tuple is local to this function")]
+    #[expect(
+        clippy::type_complexity,
+        reason = "the tuple is local to this function"
+    )]
     launches: std::cell::RefCell<Vec<(Vec<String>, std::path::PathBuf, Vec<(String, String)>)>>,
     scratch: std::cell::RefCell<Option<std::path::PathBuf>>,
 }
@@ -846,7 +850,10 @@ fn consumer_go_set_widens_require_and_refreshes_go_sum_in_a_scratch_dir() {
     assert_eq!(launches.len(), 1, "{launches:?}");
     let (argv, cwd, env) = &launches[0];
     let at = argv.iter().position(|arg| arg == "-C").expect("-C");
-    #[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the test compares against the backend argv"
+    )]
     let mut head = dx_process::startup_argv(&[]);
     head.extend(
         [
@@ -1863,10 +1870,7 @@ fn default_check_json_reports_drift_without_writing() {
         "check must not write"
     );
     let events = json_events(&out);
-    assert_eq!(
-        event(&events, "error")["code"],
-        CODE_UPDATE_WIDEN_FAILED
-    );
+    assert_eq!(event(&events, "error")["code"], CODE_UPDATE_WIDEN_FAILED);
     assert_eq!(
         events.last().expect("finished")["exit_code"],
         serde_json::json!(1)

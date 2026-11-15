@@ -251,12 +251,7 @@ fn configured_nuget_set_adds_without_claiming_a_refresh() {
     );
     assert!(!out.contains("refreshed"), "{out}");
     assert!(read(&harness, "dotnet/paket.dependencies").contains("Serilog"));
-    assert_unchanged(
-        &harness,
-        &[
-            ("dotnet/paket.lock", "NUGET\n"),
-            ],
-    );
+    assert_unchanged(&harness, &[("dotnet/paket.lock", "NUGET\n")]);
     assert!(harness.build_argv.borrow().is_empty());
 }
 

@@ -1,4 +1,4 @@
-use super::common::*;
+use super::common::{CODE_ADD_DECLARED, CODE_UPDATE_WIDEN_FAILED, operational, report_dx_error};
 use super::dep_edit;
 use dx_error::DxError;
 use dx_plan::args::Invocation;
@@ -131,10 +131,9 @@ fn plan_insert(
         declared @ dx_update::edit::AddError::Declared { .. } => {
             DxError::failure(declared.to_string())
         }
-        other @
-(dx_update::edit::AddError::UnsupportedSet { .. } |
-dx_update::edit::AddError::UnsupportedManifest { .. } |
-dx_update::edit::AddError::Update(_)) => {
+        other @ (dx_update::edit::AddError::UnsupportedSet { .. }
+        | dx_update::edit::AddError::UnsupportedManifest { .. }
+        | dx_update::edit::AddError::Update(_)) => {
             DxError::failure(format!("failed to add {}: {other}", request.selector))
         }
     })

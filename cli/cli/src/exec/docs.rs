@@ -1,4 +1,8 @@
-use super::common::*;
+use super::common::{
+    Env, bazel_exit_event, bazel_failure_code, bep_error_code, check_stdout_write,
+    collect_output_account, emit_built, emit_event, kept_child, operational, pre_exec,
+    report_dx_error, resolve_failed, run_bazel,
+};
 use super::docs_index::{CODE_INDEX_FAILED, build_index, built_shards, execution_root};
 use dx_output::{FinishedCounts, OutputMode, command_finished, command_started, operation_event};
 use dx_plan::args::Invocation;
@@ -459,7 +463,7 @@ mod tests {
         harness.raw_bep = Some(shards_bep(&harness, true));
         let (code, out, err) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(tool_runs(&harness).is_empty());
+        assert!(tool_runs(&harness).is_empty(), "{:?}", tool_runs(&harness));
         assert!(!harness.workspace.join(".dx/local/docs").exists());
     }
 
@@ -469,7 +473,7 @@ mod tests {
         harness.raw_bep = Some(Vec::new());
         let (code, out, err) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(tool_runs(&harness).is_empty());
+        assert!(tool_runs(&harness).is_empty(), "{:?}", tool_runs(&harness));
     }
 
     fn script_site_tree(harness: &mut Harness, rel: &str) {
@@ -521,7 +525,7 @@ mod tests {
         let harness = Harness::new("docs-missing-scope");
         let (code, _, err) = harness.run(&["docs", "missing.md"]);
         assert_eq!(code, 2);
-        assert!(!err.is_empty());
+        assert!(!err.is_empty(), "expected non-empty");
         assert!(harness.seen_env.borrow().is_empty());
     }
 

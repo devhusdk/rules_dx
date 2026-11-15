@@ -1,4 +1,7 @@
-use super::common::*;
+use super::common::{
+    AppExit, CODE_DEPLOY_NEEDS_HUMAN, Env, Failure, app_signalled_line, pre_exec, report_failure,
+    resolve_failed, run_bazel, run_bazel_app,
+};
 use dx_plan::args::{BuildMode, Command, DX_BUILD_MODE_ENV, Invocation, resolve_build_mode};
 use dx_plan::plan::{plan_deploy_build, plan_deploy_run, shell_join};
 use dx_plan::reports::plan_reports;

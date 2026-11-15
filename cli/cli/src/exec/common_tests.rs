@@ -25,7 +25,7 @@ fn actions_line_formats_action_counts() {
     let tally = ActionTally::default();
     let mut err = Vec::new();
     print_actions(OutputMode::Text { quiet: false }, &tally, &mut err);
-    assert!(err.is_empty());
+    assert!(err.is_empty(), "{err:?}");
     let counts = ActionCounts {
         created: 50,
         executed: 3,
@@ -37,7 +37,7 @@ fn actions_line_formats_action_counts() {
     tally.record(counts);
     print_actions(OutputMode::Json, &tally, &mut err);
     print_actions(OutputMode::Text { quiet: true }, &tally, &mut err);
-    assert!(err.is_empty());
+    assert!(err.is_empty(), "{err:?}");
     print_actions(OutputMode::Text { quiet: false }, &tally, &mut err);
     assert_eq!(
         String::from_utf8(err).expect("utf8"),
@@ -765,7 +765,10 @@ fn change_event_is_deterministic_and_reconstructs_candidate() {
     assert_eq!(first.path, "src/lib.rs");
     assert_eq!(first.path, second.path);
     assert_eq!(first.source_digest, second.source_digest);
-    assert_eq!(first.source_digest, Some(dx_digest::to_hex(&digest(original))));
+    assert_eq!(
+        first.source_digest,
+        Some(dx_digest::to_hex(&digest(original)))
+    );
     assert_eq!(first.edits.len(), 1);
     assert_eq!(first.edits[0].start, 0);
     assert_eq!(first.edits[0].end, original.len() as u64);
@@ -857,7 +860,7 @@ fn report_failed_writes_the_line_and_only_json_emits_the_event() {
         String::from_utf8(err).unwrap(),
         "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n"
     );
-    assert!(out.is_empty());
+    assert!(out.is_empty(), "{out:?}");
 
     let mut out = Vec::new();
     let mut err = Vec::new();
@@ -869,7 +872,7 @@ fn report_failed_writes_the_line_and_only_json_emits_the_event() {
         String::from_utf8(err).unwrap(),
         "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n"
     );
-    assert!(out.is_empty());
+    assert!(out.is_empty(), "{out:?}");
 
     let mut out = Vec::new();
     let mut err = Vec::new();
@@ -997,7 +1000,7 @@ fn write_report_document_honours_the_destination() {
         std::fs::read_to_string(dir.path().join("out.sarif")).expect("report"),
         "{}\n"
     );
-    assert!(out.is_empty());
+    assert!(out.is_empty(), "{out:?}");
 
     write_report_document(&mut out, dir.path(), &Destination::Stdout, "{}").expect("stdout");
     assert_eq!(String::from_utf8(out).expect("utf8"), "{}\n");

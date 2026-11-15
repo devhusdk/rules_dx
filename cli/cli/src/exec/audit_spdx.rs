@@ -63,7 +63,11 @@ pub(super) fn license_spdx(
 pub(super) fn created_time(epoch: Option<&str>, today: &str) -> String {
     epoch
         .and_then(|text| text.trim().parse::<i64>().ok())
-        .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0)).map_or_else(|| format!("{today}T00:00:00Z"), |time| time.format("%Y-%m-%dT%H:%M:%SZ").to_string())
+        .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0))
+        .map_or_else(
+            || format!("{today}T00:00:00Z"),
+            |time| time.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        )
 }
 
 pub(super) fn license_value(license: &str) -> String {

@@ -1,5 +1,11 @@
 use super::build_failures::report_build_failures;
-use super::common::*;
+use super::common::{
+    BAZEL_NO_TESTS, CODE_COVERAGE_BELOW_MINIMUM, CODE_COVERAGE_SOURCES,
+    CODE_COVERAGE_SOURCES_INCOMPLETE, CODE_NO_COVERAGE_COLLECTOR, CODE_TESTS_FAILED,
+    CODE_TESTS_FILTERED, CODE_WORKSPACE_WITHOUT_TESTS, FsArtifacts, bazel_exit_event,
+    bazel_failure_code, bep_error_code, collect_output_account, emit_built, emit_event, kept_child,
+    report_dx_error, report_failed_with_next, write_report_document,
+};
 use super::coverage_candidate::{Candidate, Unavailable, candidate, tracked_orphans};
 use super::failure::CODE_NO_TESTS;
 use super::failure_reports::write_failure_reports;
@@ -26,12 +32,23 @@ use std::path::Path;
 
 mod account;
 use account::BAZEL_TESTS_FAILED;
-use account::*;
+use account::{
+    Evidence, Summaries, account_stream, attach_log, evidence_gap, filtered_notice,
+    final_coverage_attempts, is_coverage_file, is_coverage_output, is_failed,
+    mark_superseded_attempts, outcome_for, parse_cases, read_or_record, result_where,
+    results_document, stable_exec_path, summary_statuses, tally_cases,
+};
 pub(crate) use account::{TestReportsRequest, output_locations};
 mod collect;
-use collect::*;
+use collect::{
+    Collected, Sources, announce_no_collector, collect_lcov, collect_sources, collect_test_xml,
+};
 mod report;
-use report::*;
+use report::{
+    ReportSink, account_sources, announce_incomplete, coverage_event, coverage_sources,
+    coverage_summary, coverage_threshold, emit_outcomes, read_events, render_report,
+    sources_report,
+};
 
 pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let TestReportsRequest {
@@ -273,7 +290,11 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     };
     let code = if bazel_code != 0 {
         bazel_code
-    } else { i32::from(!(complete && reports_ok && threshold_ok && collector_ok && sources_ok && changed_ok)) };
+    } else {
+        i32::from(
+            !(complete && reports_ok && threshold_ok && collector_ok && sources_ok && changed_ok),
+        )
+    };
     *results_complete = complete && reports_ok;
     let no_tests = bazel_code == BAZEL_NO_TESTS && reported.is_empty();
     if no_tests {
@@ -355,10 +376,7 @@ pub(super) fn no_tests_in_workspace(
         OutputMode::Json => {
             if let Err(exit) = emit_built(
                 out,
-                notice_event(&NoticeEvent::info(
-                    CODE_WORKSPACE_WITHOUT_TESTS,
-                    message,
-                )),
+                notice_event(&NoticeEvent::info(CODE_WORKSPACE_WITHOUT_TESTS, message)),
             ) {
                 return exit;
             }

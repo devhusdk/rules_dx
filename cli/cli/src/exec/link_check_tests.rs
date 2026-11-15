@@ -97,7 +97,7 @@ fn run_reports_a_failed_request_as_a_problem() {
     let outcome = run(&requests, &roots(), dir.path(), "t", &|_, _| {
         Err("boom".to_owned())
     });
-    assert!(outcome.results.is_empty());
+    assert!(outcome.results.is_empty(), "{:?}", outcome.results);
     assert_eq!(outcome.problems.len(), 1);
     assert!(outcome.problems[0].contains("pkg/a-request.json"));
     assert!(outcome.problems[0].contains("boom"));

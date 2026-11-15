@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::io::Write;
 
 use crate::exec::common::{check_stdout_write, emit_built, emit_event, refusal, report_dx_error};
@@ -99,11 +100,11 @@ impl Target {
         }
         command.push_str(" --apply");
         if let Some(ci) = self.ci {
-            command.push_str(&format!(" --ci={}", ci_name(ci)));
+            write!(command, " --ci={}", ci_name(ci)).ok();
         }
         if !self.agents.is_empty() {
             let names: Vec<&str> = self.agents.iter().map(|agent| agent.name()).collect();
-            command.push_str(&format!(" --agents={}", names.join(",")));
+            write!(command, " --agents={}", names.join(",")).ok();
         }
         command
     }
@@ -380,12 +381,12 @@ fn render_creation_plan(prefix: &str, paths: &[&String], apply: &str) -> String 
     }
     let mut text = format!("would create {} files:\n", paths.len());
     for (group, files) in &groups {
-        text.push_str(&format!("  {group}\n"));
+        writeln!(text, "  {group}").ok();
         for file in files {
-            text.push_str(&format!("    {file}\n"));
+            writeln!(text, "    {file}").ok();
         }
     }
-    text.push_str(&format!("run `{apply}` to create them\n"));
+    writeln!(text, "run `{apply}` to create them").ok();
     text
 }
 

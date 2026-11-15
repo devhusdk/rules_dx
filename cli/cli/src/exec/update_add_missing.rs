@@ -355,7 +355,9 @@ mod tests {
         assert!(
             update_unused::find_missing(root, &resolved, &NoQuery, &[])
                 .expect("hubs")
-                .is_empty()
+                .is_empty(),
+            "{:?}",
+            update_unused::find_missing(root, &resolved, &NoQuery, &[]).expect("hubs")
         );
         assert!(
             add_missing(root, &resolved, &registry, &NoQuery, &[])

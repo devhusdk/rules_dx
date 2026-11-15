@@ -33,7 +33,7 @@ fn a_failed_start_event_starts_no_child_and_no_selection() {
         assert_eq!(code, want, "{kind:?}");
         assert_eq!(launches(&h), 0, "{kind:?}");
         assert!(!selected(&h));
-        assert!(sink.bytes.is_empty());
+        assert!(sink.bytes.is_empty(), "{:?}", sink.bytes);
     }
 }
 
@@ -86,7 +86,11 @@ fn a_failure_on_the_last_event_keeps_the_applied_selection() {
 fn a_failed_selection_line_never_returns_success() {
     let mut full = Sink::new(Fault::None, 0);
     assert_eq!(
-        run(&Harness::new("m-text-count"), &["sync", "--output=text"], &mut full),
+        run(
+            &Harness::new("m-text-count"),
+            &["sync", "--output=text"],
+            &mut full
+        ),
         0
     );
     for (kind, want) in KINDS {

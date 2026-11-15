@@ -53,6 +53,10 @@ fn read(bytes: &[u8], what: &str) -> Result<Elf, String> {
 }
 
 /// Returns the shared build-id and arch, or says why the two files do not match.
+///
+/// # Errors
+///
+/// Returns an error when the files cannot be parsed or their build ids or architectures differ.
 pub fn check_pair(binary: &[u8], debug: &[u8]) -> Result<Pair, String> {
     let bin = read(binary, "binary")?;
     let dbg = read(debug, "debug file")?;
@@ -96,6 +100,10 @@ fn macho_uuid(bytes: &[u8], what: &str) -> Result<([u8; 16], String), String> {
 }
 
 /// Returns the shared UUID and arch, or says why the binary and dSYM do not match.
+///
+/// # Errors
+///
+/// Returns an error when either file is not a Mach-O file or the UUIDs or architectures differ.
 pub fn check_dsym(binary: &[u8], dwarf: &[u8]) -> Result<DsymPair, String> {
     let (bin_uuid, bin_arch) = macho_uuid(binary, "binary")?;
     let (dsym_uuid, dsym_arch) = macho_uuid(dwarf, "dSYM")?;
@@ -116,6 +124,10 @@ pub fn check_dsym(binary: &[u8], dwarf: &[u8]) -> Result<DsymPair, String> {
 }
 
 /// The one DWARF file inside a dSYM bundle, at Contents/Resources/DWARF/.
+///
+/// # Errors
+///
+/// Returns an error when the bundle has no DWARF file or more than one.
 pub fn dwarf_file(bundle: &Path) -> Result<PathBuf, String> {
     let dir = bundle.join("Contents/Resources/DWARF");
     let entries = std::fs::read_dir(&dir)
@@ -135,6 +147,10 @@ pub fn dwarf_file(bundle: &Path) -> Result<PathBuf, String> {
 }
 
 /// The manifest for a binary and its dSYM bundle: UUID, arch, binary digest and the dsymutil version.
+///
+/// # Errors
+///
+/// Returns an error when a file cannot be read or the pair does not match.
 pub fn dsym_manifest(
     binary: &Path,
     bundle: &Path,
@@ -154,7 +170,7 @@ pub fn dsym_manifest(
     }))
 }
 
-/// What a PE file says about its PDB: the CodeView record and the machine.
+/// What a PE file says about its PDB: the `CodeView` record and the machine.
 #[derive(Debug, PartialEq, Eq)]
 pub struct PeId {
     pub guid: [u8; 16],
@@ -188,7 +204,11 @@ fn u32_at(b: &[u8], at: usize) -> Option<u32> {
     Some(u32::from_le_bytes(b.get(at..at + 4)?.try_into().ok()?))
 }
 
-/// Reads the CodeView GUID, age and path, the machine and the linker version of a PE file.
+/// Reads the `CodeView` GUID, age and path, the machine and the linker version of a PE file.
+///
+/// # Errors
+///
+/// Returns an error when the bytes are not a PE file with a `CodeView` record.
 pub fn pe_codeview(bytes: &[u8]) -> Result<PeId, String> {
     let file =
         object::File::parse(bytes).map_err(|e| format!("binary is not a readable PE file: {e}"))?;
@@ -210,7 +230,7 @@ pub fn pe_codeview(bytes: &[u8]) -> Result<PeId, String> {
         age: cv.age(),
         path: String::from_utf8_lossy(cv.path()).into_owned(),
         machine,
-        linker_version: format!("{}.{}", major, minor),
+        linker_version: format!("{major}.{minor}"),
     })
 }
 
@@ -263,6 +283,10 @@ fn msf_streams(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
 }
 
 /// Reads the GUID, age and machine of a PDB from its MSF info and DBI streams.
+///
+/// # Errors
+///
+/// Returns an error when the bytes are not a valid MSF file.
 pub fn pdb_identity(bytes: &[u8]) -> Result<PdbId, String> {
     let streams = msf_streams(bytes)?;
     let info = streams.get(1).filter(|s| s.len() >= 28);
@@ -280,6 +304,10 @@ pub fn pdb_identity(bytes: &[u8]) -> Result<PdbId, String> {
 }
 
 /// Returns the shared GUID, age and arch, or says why the PE file and PDB do not match.
+///
+/// # Errors
+///
+/// Returns an error when the GUIDs, ages or machines differ.
 pub fn compare_pdb(pe: &PeId, pdb: &PdbId) -> Result<PdbPair, String> {
     if pe.guid != pdb.guid {
         return Err(format!(
@@ -314,11 +342,19 @@ pub fn compare_pdb(pe: &PeId, pdb: &PdbId) -> Result<PdbPair, String> {
 }
 
 /// Checks a PE file against its PDB.
+///
+/// # Errors
+///
+/// Returns an error when either file cannot be parsed or the pair does not match.
 pub fn check_pdb(binary: &[u8], pdb: &[u8]) -> Result<PdbPair, String> {
     compare_pdb(&pe_codeview(binary)?, &pdb_identity(pdb)?)
 }
 
-/// The manifest for a PE file and its PDB: GUID, age, arch, binary digest, PDB name, CodeView path and linker version.
+/// The manifest for a PE file and its PDB: GUID, age, arch, binary digest, PDB name, `CodeView` path and linker version.
+///
+/// # Errors
+///
+/// Returns an error when a file cannot be read or the pair does not match.
 pub fn pdb_manifest(binary: &Path, pdb: &Path) -> Result<serde_json::Value, String> {
     let bin = std::fs::read(binary).map_err(|e| format!("{}: {e}", binary.display()))?;
     let dbg = std::fs::read(pdb).map_err(|e| format!("{}: {e}", pdb.display()))?;

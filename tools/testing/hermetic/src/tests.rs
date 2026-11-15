@@ -658,8 +658,15 @@ fn the_consumer_materializes_from_dx_init() {
     for patch in dx_nested::compose::RULES_JULIA_PATCHES {
         std::fs::write(julia.join(format!("{patch}.patch")), "").unwrap();
     }
+    let protobuf = source.join("patches/protobuf");
+    std::fs::create_dir_all(&protobuf).unwrap();
+    std::fs::write(protobuf.join("fix.patch"), "").unwrap();
+    let protobuf_override = "single_version_override(\n    module_name = \"protobuf\",\n    patches = [\"//patches/protobuf:fix.patch\"],\n)\n";
+    std::fs::write(source.join("MODULE.bazel"), protobuf_override).unwrap();
     materialize(&manifest, &workspace, &source, "cc").unwrap();
     let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap();
+    assert!(module.contains(protobuf_override), "{module}");
+    assert!(workspace.join("patches/protobuf/fix.patch").is_file());
     for needle in [
         "module(name = \"hermetic_consumer\")",
         "bazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = ",
@@ -2455,7 +2462,10 @@ fn command_line_batches_stay_within_the_limit() {
     let args: Vec<String> = ["aaaa", "bbbb", "cccc", "dd"].map(str::to_owned).to_vec();
     assert_eq!(
         command_line_batches(10, &args, 20),
-        [vec!["aaaa".to_owned(), "bbbb".to_owned()], vec!["cccc".to_owned(), "dd".to_owned()]]
+        [
+            vec!["aaaa".to_owned(), "bbbb".to_owned()],
+            vec!["cccc".to_owned(), "dd".to_owned()]
+        ]
     );
     assert_eq!(command_line_batches(10, &args, 100).len(), 1);
     assert!(command_line_batches(10, &[], 20).is_empty());

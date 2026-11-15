@@ -764,6 +764,7 @@ filegroup(
         "//patches/gotreesitter:module_srcs",
         "//patches/kcov:module_srcs",
         "//patches/libfuzzer_dotnet:module_srcs",
+        "//patches/protobuf:module_srcs",
         "//patches/rules_d:module_srcs",
         "//patches/rules_dart:module_srcs",
         "//patches/rules_dotnet:module_srcs",

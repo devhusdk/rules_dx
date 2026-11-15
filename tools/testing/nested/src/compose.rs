@@ -326,6 +326,61 @@ pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), S
     write_patches(workspace, rules_dx, "rules_julia", &RULES_JULIA_PATCHES)
 }
 
+/// The modules whose root MODULE.bazel `single_version_override` the consumer repeats.
+pub const ROOT_PATCHED_MODULES: [&str; 1] = ["protobuf"];
+
+/// The `single_version_override` of `module` in `root_module` when it applies `//patches/` files.
+pub fn root_patch_override(root_module: &str, module: &str) -> Option<String> {
+    let start = format!(
+        "single_version_override(\n    module_name = {},\n",
+        starlark_string(module)
+    );
+    let at = root_module.find(&start)?;
+    let len = root_module.get(at..)?.find("\n)\n")? + 3;
+    let block = root_module.get(at..at + len)?;
+    block.contains("\"//patches/").then(|| block.to_owned())
+}
+
+/// The `(package, file)` of each `"//patches/<package>:<file>"` label in `block`.
+pub fn patch_labels(block: &str) -> Vec<(String, String)> {
+    block
+        .split("\"//patches/")
+        .skip(1)
+        .filter_map(|rest| {
+            let label = rest.split('"').next()?;
+            let (package, file) = label.split_once(':')?;
+            Some((package.to_owned(), file.to_owned()))
+        })
+        .collect()
+}
+
+/// Copies the patches of each `ROOT_PATCHED_MODULES` override of `rules_dx`'s MODULE.bazel into `workspace`.
+///
+/// Returns those overrides.
+pub fn write_root_patch_overrides(workspace: &Path, rules_dx: &Path) -> Result<String, String> {
+    let path = rules_dx.join("MODULE.bazel");
+    let root_module = std::fs::read_to_string(&path)
+        .map_err(|err| format!("cannot read {}: {err}", path.display()))?;
+    let mut overrides = String::new();
+    for module in ROOT_PATCHED_MODULES {
+        let Some(block) = root_patch_override(&root_module, module) else {
+            continue;
+        };
+        for (package, file) in patch_labels(&block) {
+            let dir = workspace.join("patches").join(&package);
+            std::fs::create_dir_all(&dir)
+                .map_err(|err| format!("cannot create {}: {err}", dir.display()))?;
+            std::fs::write(dir.join("BUILD.bazel"), "")
+                .map_err(|err| format!("cannot write {}: {err}", dir.display()))?;
+            let from = rules_dx.join("patches").join(&package).join(&file);
+            std::fs::copy(&from, dir.join(&file))
+                .map_err(|err| format!("cannot copy {}: {err}", from.display()))?;
+        }
+        overrides.push_str(&block);
+    }
+    Ok(overrides)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -396,6 +451,42 @@ mod tests {
     fn module_pins_rules_py_once() {
         let module = compose_module(SNIPPET, "m", "rules_dx", "", Path::new("/s")).unwrap();
         assert_eq!(module.matches("module_name = \"rules_py\"").count(), 1);
+    }
+
+    #[test]
+    fn root_patch_override_takes_the_patched_block() {
+        let root = "bazel_dep(name = \"protobuf\", version = \"36.2\")\nsingle_version_override(\n    module_name = \"protobuf\",\n    patch_strip = 1,\n    patches = [\"//patches/protobuf:no_crate_universe.patch\"],\n    version = \"36.2\",\n)\nsingle_version_override(\n    module_name = \"grpc\",\n    version = \"1.0\",\n)\n";
+        let block = root_patch_override(root, "protobuf").unwrap();
+        assert_eq!(
+            block,
+            "single_version_override(\n    module_name = \"protobuf\",\n    patch_strip = 1,\n    patches = [\"//patches/protobuf:no_crate_universe.patch\"],\n    version = \"36.2\",\n)\n"
+        );
+        assert_eq!(
+            patch_labels(&block),
+            [("protobuf".to_owned(), "no_crate_universe.patch".to_owned())]
+        );
+        assert_eq!(root_patch_override(root, "grpc"), None);
+        assert_eq!(root_patch_override(root, "absent"), None);
+    }
+
+    #[test]
+    fn root_patch_overrides_copy_their_patches() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("src");
+        let workspace = dir.path().join("ws");
+        std::fs::create_dir_all(source.join("patches/protobuf")).unwrap();
+        std::fs::write(source.join("patches/protobuf/fix.patch"), "diff").unwrap();
+        let block = "single_version_override(\n    module_name = \"protobuf\",\n    patches = [\"//patches/protobuf:fix.patch\"],\n)\n";
+        std::fs::write(source.join("MODULE.bazel"), block).unwrap();
+        assert_eq!(
+            write_root_patch_overrides(&workspace, &source).unwrap(),
+            block
+        );
+        assert_eq!(
+            std::fs::read_to_string(workspace.join("patches/protobuf/fix.patch")).unwrap(),
+            "diff"
+        );
+        assert!(workspace.join("patches/protobuf/BUILD.bazel").is_file());
     }
 
     #[test]

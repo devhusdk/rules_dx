@@ -1,4 +1,4 @@
-//! Every option in the root .bazelrc is named in tools/ci/root_bazelrc_allowlist.txt, and the list only shrinks.
+//! Every option in the root .bazelrc is named in `tools/ci/root_bazelrc_allowlist.txt`, and the list only shrinks.
 
 use std::collections::BTreeSet;
 

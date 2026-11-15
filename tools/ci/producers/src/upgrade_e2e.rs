@@ -1,5 +1,6 @@
-//! Upgrades a throwaway consumer from one rules_dx version to another and back, running tests after each step.
+//! Upgrades a throwaway consumer from one `rules_dx` version to another and back, running tests after each step.
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -195,10 +196,12 @@ fn scenario(root: &Path, work: &Path, from: &str, to: &str, local: bool) -> Resu
     run("bazel", &["test", "//..."], work)?;
     if local {
         let mut text = read(&module)?;
-        text.push_str(&format!(
-            "\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n",
+        writeln!(
+            text,
+            "\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")",
             root.display()
-        ));
+        )
+        .unwrap_or_default();
         std::fs::write(&module, text).map_err(|error| error.to_string())?;
     }
     for version in [to, from] {
@@ -225,18 +228,18 @@ pub fn e2e(args: &[String]) -> Result<(), String> {
             &root,
         )?;
         let versions = unyanked(&metadata)?;
-        match resolve(&from, &to, &versions) {
-            Some((f, t)) => (from, to) = (f, t),
-            None => {
-                let message = "upgrade-e2e: not enough rules_dx versions on the BCR to resolve the missing input";
-                return match std::env::var("GITHUB_EVENT_NAME").as_deref() {
-                    Ok("workflow_dispatch" | "release") => Err(message.to_string()),
-                    _ => {
-                        println!("{message}");
-                        Ok(())
-                    }
-                };
+        if let Some((f, t)) = resolve(&from, &to, &versions) {
+            (from, to) = (f, t);
+        } else {
+            let message = "upgrade-e2e: not enough rules_dx versions on the BCR to resolve the missing input";
+            if matches!(
+                std::env::var("GITHUB_EVENT_NAME").as_deref(),
+                Ok("workflow_dispatch" | "release")
+            ) {
+                return Err(message.to_string());
             }
+            println!("{message}");
+            return Ok(());
         }
     }
     if resolve_only {
@@ -276,28 +279,28 @@ mod tests {
         resolve(from, to, &unyanked(META).expect("metadata"))
     }
 
-    fn pair(from: &str, to: &str) -> Option<(String, String)> {
-        Some((from.to_string(), to.to_string()))
+    fn pair(from: &str, to: &str) -> (String, String) {
+        (from.to_string(), to.to_string())
     }
 
     #[test]
     fn no_inputs_use_the_last_two_unyanked_versions() {
-        assert_eq!(resolved("", ""), pair("1.1.0", "1.2.0"));
+        assert_eq!(resolved("", ""), Some(pair("1.1.0", "1.2.0")));
     }
 
     #[test]
     fn a_lone_from_resolves_to_from_the_bcr() {
-        assert_eq!(resolved("1.0.0", ""), pair("1.0.0", "1.2.0"));
+        assert_eq!(resolved("1.0.0", ""), Some(pair("1.0.0", "1.2.0")));
     }
 
     #[test]
     fn a_lone_to_resolves_from_from_the_bcr() {
-        assert_eq!(resolved("", "local"), pair("1.1.0", "local"));
+        assert_eq!(resolved("", "local"), Some(pair("1.1.0", "local")));
     }
 
     #[test]
     fn both_inputs_need_no_versions() {
-        assert_eq!(resolve("1.0.0", "1.1.0", &[]), pair("1.0.0", "1.1.0"));
+        assert_eq!(resolve("1.0.0", "1.1.0", &[]), Some(pair("1.0.0", "1.1.0")));
     }
 
     #[test]

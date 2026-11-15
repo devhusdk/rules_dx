@@ -1,5 +1,6 @@
-//! Docs and comments outside fixtures, testdata and third_party carry no issue number, link chain or history word, design pages stay under the word limit, and every page is linted and links to tracked files, outside tools/ci/prose_rules_allowlist.txt.
+//! Docs and comments outside fixtures, testdata and `third_party` carry no issue number, link chain or history word, design pages stay under the word limit, and every page is linted and links to tracked files, outside `tools/ci/prose_rules_allowlist.txt`.
 
+use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json as _;
@@ -241,7 +242,7 @@ fn attr_strings(source: &str, attr: &str) -> Vec<(String, bool)> {
 
 /// Every Markdown path a `markdown_srcs` or `markdown_siblings` value in a BUILD file names.
 fn linted(files: &BTreeMap<String, String>) -> BTreeSet<String> {
-    let pages: Vec<&String> = files.keys().filter(|path| path.ends_with(".md")).collect();
+    let pages: Vec<&String> = files.keys().filter(|path| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md"))).collect();
     let mut out = BTreeSet::new();
     for (path, source) in files {
         if !matches!(path.rsplit('/').next(), Some("BUILD" | "BUILD.bazel")) {
@@ -340,7 +341,7 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
         if under(path, &SKIPPED_DIRS) {
             continue;
         }
-        if path.ends_with(".md") {
+        if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md")) {
             let numbered = if path == CONSUMER_FIX_PAGE {
                 without_consumer_fixes(text)
             } else {
@@ -374,7 +375,7 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
                 })
                 .count();
             add(&mut counts, path, "dead-link", dead);
-        } else if is_starlark(path) || path.ends_with(".rs") {
+        } else if is_starlark(path) || Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) {
             let lines = comment_lines(path, text);
             add(
                 &mut counts,
@@ -405,7 +406,7 @@ fn long_pages(found: &Counts, caps: &[(&str, usize)]) -> Vec<String> {
         match caps.iter().find(|(capped, _)| capped == path) {
             None => problems.push(format!("{path}: {words} words; cut it under {WORD_LIMIT}")),
             Some((_, cap)) if words > cap => {
-                problems.push(format!("{path}: {words} words, capped at {cap}; cut it"))
+                problems.push(format!("{path}: {words} words, capped at {cap}; cut it"));
             }
             Some(_) => {}
         }
@@ -575,7 +576,7 @@ mod tests {
             WORD_LIMIT + 5,
         );
         assert_eq!(long_pages(&counts, &[]).len(), 1);
-        assert!(long_pages(&counts, &[("docs/design/a.md", WORD_LIMIT + 5)]).is_empty());
+        assert_eq!(long_pages(&counts, &[("docs/design/a.md", WORD_LIMIT + 5)]), Vec::<String>::new());
         assert_eq!(
             long_pages(&counts, &[("docs/design/a.md", WORD_LIMIT + 4)]).len(),
             1

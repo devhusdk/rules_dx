@@ -1,5 +1,6 @@
-//! BUILD, .bzl and Rust files outside third_party and patches carry no deprecated attr, in-module alias, re-export file, compat word or version conditional, outside tools/ci/zero_compat_allowlist.txt.
+//! BUILD, .bzl and Rust files outside `third_party` and patches carry no deprecated attr, in-module alias, re-export file, compat word or version conditional, outside `tools/ci/zero_compat_allowlist.txt`.
 
+use std::path::Path;
 use std::collections::BTreeMap;
 
 use serde_json as _;
@@ -219,7 +220,7 @@ fn public_entry(path: &str) -> bool {
     matches!(parts.as_slice(), [_, "defs.bzl" | "extensions.bzl"])
 }
 
-/// How many Rust lines compare against a rules_dx version.
+/// How many Rust lines compare against a `rules_dx` version.
 fn rust_version_comparisons(segments: &[Segment]) -> usize {
     skeleton(segments)
         .lines()
@@ -253,9 +254,9 @@ fn scan(files: &BTreeMap<String, String>) -> Counts {
                 .map(|probe| count_from_boundary(&code, probe))
                 .sum();
             add(&mut counts, path, "version-conditional", probes);
-            let reexport = path.ends_with(".bzl") && !public_entry(path) && reexports(&segments);
+            let reexport = Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("bzl")) && !public_entry(path) && reexports(&segments);
             add(&mut counts, path, "reexport", usize::from(reexport));
-        } else if path.ends_with(".rs") {
+        } else if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) {
             let segments = shared::rust_segments(text);
             add(&mut counts, path, "compat-word", compat_words(text));
             add(

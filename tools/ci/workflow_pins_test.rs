@@ -189,7 +189,7 @@ fn recorded_digests() -> Vec<(String, String)> {
 fn every_reusable_workflow_matches_the_digest_recorded_for_the_starter_pin() {
     let records = recorded_digests();
     let mut recorded: Vec<&str> = records.iter().map(|(path, _)| path.as_str()).collect();
-    recorded.sort();
+    recorded.sort_unstable();
     let mut expected: Vec<String> = REUSABLE
         .iter()
         .map(|name| format!(".github/workflows/{name}"))

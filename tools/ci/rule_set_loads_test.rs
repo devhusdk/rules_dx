@@ -1,4 +1,4 @@
-//! Rule-set files load only same-language files, a fixed set of external repos and `RULES_DX_ALLOW`, and nothing in `RULES_DX_ALLOW` reaches them, outside tools/ci/rule_set_loads_allowlist.txt.
+//! Rule-set files load only same-language files, a fixed set of external repos and `RULES_DX_ALLOW`, and nothing in `RULES_DX_ALLOW` reaches them, outside `tools/ci/rule_set_loads_allowlist.txt`.
 
 #[path = "guard_rules/scan.rs"]
 #[expect(dead_code, reason = "the test uses a subset of the shared module")]
@@ -59,7 +59,7 @@ const RULE_SETS: [(&str, &[&str]); 3] = [
     ),
 ];
 
-/// The only rules_dx files a rule-set file may load, as `//` labels.
+/// The only `rules_dx` files a rule-set file may load, as `//` labels.
 const RULES_DX_ALLOW: [&str; 3] = [
     "//core:wrapper.bzl",
     "//core/quality:sources.bzl",
@@ -101,14 +101,11 @@ fn rule_set_of(path: &str) -> Option<&'static str> {
 fn first_literal(args: &str) -> Option<&str> {
     let args = args.trim_start();
     let quote = args.chars().next().filter(|c| *c == '"' || *c == '\'')?;
-    let rest = args.get(1..).expect("string slice within bounds");
-    Some(
-        rest.get(..rest.find(quote)?)
-            .expect("string slice within bounds"),
-    )
+    let rest = args.get(1..)?;
+    rest.get(..rest.find(quote)?)
 }
 
-/// A load label as `//pkg:file` for rules_dx files and relative loads, or `@repo//pkg:file` for other repos.
+/// A load label as `//pkg:file` for `rules_dx` files and relative loads, or `@repo//pkg:file` for other repos.
 fn normalize(label: &str, dir: &str) -> String {
     if let Some(rest) = label.strip_prefix(':') {
         return format!("//{dir}:{rest}");

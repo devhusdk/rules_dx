@@ -38,7 +38,7 @@ fn has_jq() -> bool {
         .is_ok_and(|output| output.status.success())
 }
 
-/// Runs evidence_inputs.sh and returns what it wrote to GITHUB_OUTPUT, or None when it rejects the inputs.
+/// Runs `evidence_inputs.sh` and returns what it wrote to `GITHUB_OUTPUT`, or None when it rejects the inputs.
 #[cfg(unix)]
 fn script(inputs: &[(&str, &str)], jq: bool) -> Option<String> {
     let dir = dx_test_scratch::scratch("evidence-inputs");
@@ -59,27 +59,32 @@ fn script(inputs: &[(&str, &str)], jq: bool) -> Option<String> {
     output.status.success().then_some(written)
 }
 
-/// Validates with evidence_inputs/src/lib.rs and checks that the script agrees with and without jq.
+/// Validates with `evidence_inputs/src/lib.rs` and checks that the script agrees with and without jq.
 fn check(inputs: &[(&str, &str)]) -> Result<Vec<(String, String)>, String> {
     let validated = validate(|name| lookup(inputs, name).to_string()).map(|done| done.outputs);
     #[cfg(unix)]
-    {
-        let expected = validated.as_ref().ok().map(|outputs| {
-            outputs
-                .iter()
-                .map(|(key, value)| format!("{key}={value}\n"))
-                .collect::<String>()
-        });
-        let modes: &[bool] = if has_jq() { &[false, true] } else { &[false] };
-        for &jq in modes {
-            assert_eq!(
-                script(inputs, jq),
-                expected,
-                "{SCRIPT} (jq: {jq}) disagrees with evidence_inputs/src/lib.rs on {inputs:?}"
-            );
-        }
-    }
+    script_agrees(inputs, &validated);
     validated
+}
+
+#[cfg(unix)]
+/// Asserts that the script prints what `validated` holds, with and without jq.
+fn script_agrees(inputs: &[(&str, &str)], validated: &Result<Vec<(String, String)>, String>) {
+    let expected = validated.as_ref().ok().map(|outputs| {
+        outputs
+            .iter()
+            .map(|(key, value)| format!("{key}={value}\n"))
+            .collect::<Vec<String>>()
+            .concat()
+    });
+    let modes: &[bool] = if has_jq() { &[false, true] } else { &[false] };
+    for &jq in modes {
+        assert_eq!(
+            script(inputs, jq),
+            expected,
+            "{SCRIPT} (jq: {jq}) disagrees with evidence_inputs/src/lib.rs on {inputs:?}"
+        );
+    }
 }
 
 fn run(scope: &str, platforms: &str, timeout: &str) -> Result<Vec<(String, String)>, String> {

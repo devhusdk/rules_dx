@@ -15,7 +15,7 @@ const GATE: &str = "ci";
 
 const AGGREGATE: &str = "dx-ci";
 
-/// Runs a gate on every dependency outcome, except a cancelled run outside merge_group.
+/// Runs a gate on every dependency outcome, except a cancelled run outside `merge_group`.
 const GATE_IF: &str = "${{ !cancelled() || github.event_name == 'merge_group' }}";
 
 /// Fails a gate when any needed job failed, was cancelled or was skipped.
@@ -132,7 +132,7 @@ fn job_needs(workflow: &str, id: &str, job: &Value) -> Vec<String> {
                     .to_owned()
             })
             .collect(),
-        other @ Value::Bool(_) | other @ Value::Number(_) | other @ Value::Object(_) => {
+        other @ (Value::Bool(_) | Value::Number(_) | Value::Object(_)) => {
             panic!("{workflow} job {id} needs is neither a name nor a list: {other}")
         }
     }
@@ -432,7 +432,7 @@ fn the_ruleset_requires_the_gate_job_name() {
         json!(["~DEFAULT_BRANCH"])
     );
     assert_eq!(
-        ruleset["rules"].as_array().map(|rules| rules.len()),
+        ruleset["rules"].as_array().map(Vec::len),
         Some(1)
     );
     let rule = &ruleset["rules"][0];

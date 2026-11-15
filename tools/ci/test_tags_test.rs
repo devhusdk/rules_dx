@@ -1,4 +1,4 @@
-//! No test carries a banned tag outside tools/ci/test_tags_allowlist.txt, and the allowlist holds no spare entry.
+//! No test carries a banned tag outside `tools/ci/test_tags_allowlist.txt`, and the allowlist holds no spare entry.
 
 mod test_calls;
 
@@ -234,24 +234,24 @@ impl Walker<'_> {
                     }
                 }
             }
-            other @ ExprP::Tuple(_)
-            | other @ ExprP::Dot(..)
-            | other @ ExprP::Index(_)
-            | other @ ExprP::Index2(_)
-            | other @ ExprP::Slice(..)
-            | other @ ExprP::Lambda(_)
-            | other @ ExprP::Literal(_)
-            | other @ ExprP::Not(_)
-            | other @ ExprP::Minus(_)
-            | other @ ExprP::Plus(_)
-            | other @ ExprP::BitNot(_)
-            | other @ ExprP::Op(..)
-            | other @ ExprP::If(_)
-            | other @ ExprP::List(_)
-            | other @ ExprP::ListComprehension(..)
-            | other @ ExprP::DictComprehension(..)
-            | other @ ExprP::FString(_) => {
-                other.visit_expr(|child| self.expr(child, position, value.as_deref_mut()))
+            other @ (ExprP::Tuple(_)
+            | ExprP::Dot(..)
+            | ExprP::Index(_)
+            | ExprP::Index2(_)
+            | ExprP::Slice(..)
+            | ExprP::Lambda(_)
+            | ExprP::Literal(_)
+            | ExprP::Not(_)
+            | ExprP::Minus(_)
+            | ExprP::Plus(_)
+            | ExprP::BitNot(_)
+            | ExprP::Op(..)
+            | ExprP::If(_)
+            | ExprP::List(_)
+            | ExprP::ListComprehension(..)
+            | ExprP::DictComprehension(..)
+            | ExprP::FString(_)) => {
+                other.visit_expr(|child| self.expr(child, position, value.as_deref_mut()));
             }
         }
     }
@@ -316,7 +316,7 @@ fn carriers(files: &BTreeMap<String, FileScan>) -> BTreeMap<String, BTreeSet<Str
 
 /// Banned tag occurrences across `files`, keyed by path and tag.
 fn occurrences(files: &BTreeMap<String, FileScan>) -> Counts {
-    let tests = test_callees(files.values().map(|scan| &scan.callees));
+    let tests = test_callees(&files.values().map(|scan| &scan.callees).collect::<Vec<_>>());
     let carried = carriers(files);
     let mut counts = Counts::new();
     for (path, scan) in files {
@@ -479,7 +479,7 @@ starlark_test(name = "d", checks = [expect_equal("x", f(), {"tags": [DX_UPSTREAM
 
 #[test]
 fn test_rules_and_the_macros_that_call_them_are_tests() {
-    let defs = r#"
+    let defs = r"
 _probe = rule(implementation = _impl, test = True)
 
 def probe(name, **kwargs):
@@ -490,7 +490,7 @@ def wrapped(name, **kwargs):
 
 def plain(name, **kwargs):
     native.filegroup(name = name, **kwargs)
-"#;
+";
     let build = r#"
 wrapped(name = "a", tags = ["manual"])
 plain(name = "b", tags = ["manual"])

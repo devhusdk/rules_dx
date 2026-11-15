@@ -1,8 +1,10 @@
-//! Every download carries a digest, every digest lives in a pins.json, no pin is written twice and no reference is mutable, outside tools/ci/pin_locations_allowlist.txt.
+//! Every download carries a digest, every digest lives in a pins.json, no pin is written twice and no reference is mutable, outside `tools/ci/pin_locations_allowlist.txt`.
 
 #[path = "guard_rules/scan.rs"]
 mod scan;
 
+use std::fmt::Write as _;
+use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
 
 use scan::{Counts, Masked, add, calls, is_skipped, is_starlark, masked};
@@ -64,7 +66,7 @@ fn sri_hex(base64: &[u8]) -> Option<String> {
         held += 6;
         if held >= 8 {
             held -= 8;
-            out.push_str(&format!("{:02x}", (bits >> held) & 0xff));
+            write!(out, "{:02x}", (bits >> held) & 0xff).unwrap_or_default();
         }
     }
     Some(out)
@@ -76,12 +78,14 @@ fn digests(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut at = 0;
     while at < bytes.len() {
-        if bytes[at..].starts_with(b"sha256-") && bytes.len() >= at + 51 && bytes[at + 50] == b'=' {
-            if let Some(hex) = sri_hex(&bytes[at + 7..at + 50]) {
-                out.push(hex);
-                at += 51;
-                continue;
-            }
+        if bytes[at..].starts_with(b"sha256-")
+            && bytes.len() >= at + 51
+            && bytes[at + 50] == b'='
+            && let Some(hex) = sri_hex(&bytes[at + 7..at + 50])
+        {
+            out.push(hex);
+            at += 51;
+            continue;
         }
         if bytes[at].is_ascii_alphanumeric() {
             let start = at;
@@ -264,7 +268,7 @@ fn scan_files(files: &[(String, String)]) -> Counts {
             continue;
         }
         let pins = name == "pins.json";
-        let rust = name.ends_with(".rs");
+        let rust = Path::new(name).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs"));
         if !pins && !rust && !is_starlark(path) {
             continue;
         }
@@ -347,7 +351,7 @@ fn pins_have_one_location_outside_the_allowlist() {
         );
     }
     assert!(
-        files.iter().any(|(path, _)| path.ends_with(".rs")),
+        files.iter().any(|(path, _)| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))),
         "the snapshot has no .rs file"
     );
     let found = scan_files(&files);

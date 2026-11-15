@@ -3,7 +3,7 @@ use docs_scope::lint_argv;
 const PROBE: &str = "DX_SCOPE_EXECUTED";
 
 fn args(items: &[&str]) -> Vec<String> {
-    items.iter().map(|s| s.to_string()).collect()
+    items.iter().map(ToString::to_string).collect()
 }
 
 #[test]

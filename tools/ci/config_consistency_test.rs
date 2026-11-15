@@ -549,7 +549,7 @@ fn is_comment(line: &str) -> bool {
     line.trim_start().starts_with('#')
 }
 
-/// Returns the name of the dx state directory, read from its constant in dx_path.
+/// Returns the name of the dx state directory, read from its constant in `dx_path`.
 fn dx_dir_name() -> String {
     const SOURCE: &str = "cli/path/src/state.rs";
     const PREFIX: &str = "pub const DX_DIR: &str = \"";
@@ -651,7 +651,7 @@ fn label_chars(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || matches!(ch, '/' | ':' | '_' | '.' | '-')
 }
 
-/// The three preset layers as the generator renders them for rules_dx, in import order.
+/// The three preset layers as the generator renders them for `rules_dx`, in import order.
 fn preset_layers() -> Vec<(String, String)> {
     dx_preset::Layer::ALL
         .iter()
@@ -838,7 +838,7 @@ fn preset_configs_need_no_doc_stanza() {
 /// Configs the starter fixtures define in the generated workspace's own `.bazelrc`.
 const STARTER_CONFIGS: &[&str] = &["android"];
 
-/// Configs only rules_dx's own evidence workflow passes, defined in the root `.bazelrc`.
+/// Configs only `rules_dx`'s own evidence workflow passes, defined in the root `.bazelrc`.
 const REPO_ONLY_CONFIGS: &[&str] = &["rbe"];
 
 #[test]

@@ -14,6 +14,7 @@ pub mod entry;
 pub mod real;
 pub mod request;
 
+#[must_use]
 pub fn max_rounds_for_capability(capability: &str) -> u32 {
     if matches!(capability, "audit" | "typecheck") {
         1

@@ -55,16 +55,16 @@ fn assemble_covers_insertion_deletion_and_multibyte_boundaries() {
         assert_eq!(edits.edits.len(), 1, "{label}");
         let edit = &edits.edits[0];
         assert!(
-            original.is_char_boundary(edit.start_byte as usize),
+            original.is_char_boundary(usize::try_from(edit.start_byte).unwrap()),
             "{label}"
         );
-        assert!(original.is_char_boundary(edit.end_byte as usize), "{label}");
+        assert!(original.is_char_boundary(usize::try_from(edit.end_byte).unwrap()), "{label}");
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..edit.start_byte as usize]);
+        spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
-        spliced.extend_from_slice(&original.as_bytes()[edit.end_byte as usize..]);
+        spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         assert_eq!(&spliced, terminal_body.as_bytes(), "{label}");
-        assert!(quality_result::validate(&result).is_ok(), "{label}");
+        assert!(validate(&result).is_ok(), "{label}");
     }
 }
 
@@ -88,8 +88,8 @@ fn source_declaration_reorder_yields_identical_manifests() {
     first_sources.sort();
     second_sources.sort();
     assert_eq!(first_sources, second_sources);
-    assert!(quality_result::validate(&first).is_ok());
-    assert!(quality_result::validate(&second).is_ok());
+    assert!(validate(&first).is_ok());
+    assert!(validate(&second).is_ok());
 }
 
 #[test]
@@ -116,11 +116,11 @@ fn stale_source_digest_mismatch_must_reject_write() {
     assert_ne!(digest(stale.as_bytes()).to_vec(), edits.original_digest);
     let edit = &edits.edits[0];
     let mut spliced = Vec::new();
-    spliced.extend_from_slice(&b"BAD\n"[..edit.start_byte as usize]);
+    spliced.extend_from_slice(&b"BAD\n"[..usize::try_from(edit.start_byte).unwrap()]);
     spliced.extend_from_slice(&edit.replacement);
-    spliced.extend_from_slice(&b"BAD\n"[edit.end_byte as usize..]);
+    spliced.extend_from_slice(&b"BAD\n"[usize::try_from(edit.end_byte).unwrap()..]);
     assert_eq!(&spliced, b"GOOD\n");
-    assert!(quality_result::validate(&result).is_ok());
+    assert!(validate(&result).is_ok());
 }
 
 #[test]
@@ -147,7 +147,7 @@ fn mutation_outcome_depends_on_bytes_not_git_status() {
     let clean = vec![file("src/lib.rs", "GOOD\n")];
     let clean_result =
         synthetic::run_pipeline("//core/quality:test", "lint", &stages, &clean).unwrap();
-    assert!(clean_result.replacements.is_empty());
+    assert_eq!(clean_result.replacements, [] as [FileEdits; 0]);
     assert_ne!(manifests[0], encode_validated(&clean_result).unwrap());
 }
 
@@ -180,13 +180,13 @@ fn check_mode_must_fail_on_replacements_without_diagnostics() {
     let files = vec![file("src/main.py", "x  \n")];
     let result = synthetic::run_pipeline("//core/quality:test", "format", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
-    assert!(result.initial_diagnostics.is_empty());
-    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.initial_diagnostics, [] as [Diagnostic; 0]);
+    assert_eq!(result.terminal_diagnostics, [] as [Diagnostic; 0]);
     assert_eq!(result.replacements.len(), 1);
     assert_eq!(result.replacements[0].edits[0].start_byte, 1);
     assert_eq!(result.replacements[0].edits[0].end_byte, 3);
-    assert!(result.replacements[0].edits[0].replacement.is_empty());
-    assert!(!result.replacements.is_empty());
+    assert_eq!(result.replacements[0].edits[0].replacement, [] as [u8; 0]);
+    assert_ne!(result.replacements, [] as [FileEdits; 0]);
     assert!(validate(&result).is_ok());
 }
 
@@ -242,7 +242,7 @@ fn env_permutations_do_not_alter_pipeline_outputs() {
     let clean = vec![file("src/lib.rs", "GOOD\n")];
     let clean_result =
         synthetic::run_pipeline("//core/quality:test", "lint", &stages, &clean).unwrap();
-    assert!(clean_result.replacements.is_empty());
+    assert_eq!(clean_result.replacements, [] as [FileEdits; 0]);
     assert_ne!(manifests[0], encode_validated(&clean_result).unwrap());
 }
 
@@ -271,7 +271,7 @@ fn checkout_paths_do_not_alter_pipeline_outputs() {
     let clean = vec![file("src/lib.rs", "GOOD\n")];
     let clean_result =
         synthetic::run_pipeline("//core/quality:test", "lint", &stages, &clean).unwrap();
-    assert!(clean_result.replacements.is_empty());
+    assert_eq!(clean_result.replacements, [] as [FileEdits; 0]);
     assert_ne!(manifests[0], encode_validated(&clean_result).unwrap());
 }
 
@@ -336,7 +336,7 @@ fn adjacent_edits_coalesce_to_single_whole_file_candidate() {
     assert_eq!(result.initial_diagnostics[0].end_byte, Some(3));
     assert_eq!(result.initial_diagnostics[1].start_byte, Some(3));
     assert_eq!(result.initial_diagnostics[1].end_byte, Some(6));
-    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.terminal_diagnostics, [] as [Diagnostic; 0]);
     assert_eq!(result.replacements.len(), 1);
     let edits = &result.replacements[0];
     assert_eq!(edits.path, "src/lib.rs");
@@ -348,9 +348,9 @@ fn adjacent_edits_coalesce_to_single_whole_file_candidate() {
     let original = "BADBAD\n".as_bytes();
     let replacement = &edits.edits[0].replacement;
     let mut spliced = Vec::new();
-    spliced.extend_from_slice(&original[..edits.edits[0].start_byte as usize]);
+    spliced.extend_from_slice(&original[..usize::try_from(edits.edits[0].start_byte).unwrap()]);
     spliced.extend_from_slice(replacement);
-    spliced.extend_from_slice(&original[edits.edits[0].end_byte as usize..]);
+    spliced.extend_from_slice(&original[usize::try_from(edits.edits[0].end_byte).unwrap()..]);
     assert_eq!(spliced, b"GOODGOOD\n");
     assert!(validate(&result).is_ok());
 }
@@ -426,8 +426,8 @@ fn tool_selection_reorder_yields_identical_manifests() {
     first_stages.sort();
     second_stages.sort();
     assert_eq!(first_stages, second_stages);
-    assert!(quality_result::validate(&first).is_ok());
-    assert!(quality_result::validate(&second).is_ok());
+    assert!(validate(&first).is_ok());
+    assert!(validate(&second).is_ok());
 }
 
 #[test]
@@ -444,7 +444,7 @@ fn shared_source_across_owners_converges_without_duplication() {
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 2);
     assert_eq!(result.initial_diagnostics.len(), 2);
-    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.terminal_diagnostics, [] as [Diagnostic; 0]);
     assert_eq!(result.replacements.len(), 2);
     let shared = result
         .replacements
@@ -458,9 +458,9 @@ fn shared_source_across_owners_converges_without_duplication() {
     assert_eq!(&shared.edits[0].replacement, b"GOO");
     let original = "BAD shared\n".as_bytes();
     let mut spliced = Vec::new();
-    spliced.extend_from_slice(&original[..shared.edits[0].start_byte as usize]);
+    spliced.extend_from_slice(&original[..usize::try_from(shared.edits[0].start_byte).unwrap()]);
     spliced.extend_from_slice(&shared.edits[0].replacement);
-    spliced.extend_from_slice(&original[shared.edits[0].end_byte as usize..]);
+    spliced.extend_from_slice(&original[usize::try_from(shared.edits[0].end_byte).unwrap()..]);
     assert_eq!(spliced, b"GOOD shared\n");
     assert!(validate(&result).is_ok());
 }
@@ -504,8 +504,8 @@ fn iteration_limit_with_mixed_stable_and_growing_files_emits_none() {
         (completed, convergence),
     )
     .unwrap();
-    assert!(result.replacements.is_empty());
-    assert!(quality_result::validate(&result).is_ok());
+    assert_eq!(result.replacements, [] as [FileEdits; 0]);
+    assert!(validate(&result).is_ok());
 }
 
 #[test]
@@ -519,7 +519,7 @@ fn chained_mutating_stages_see_virtual_snapshot() {
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 2);
     assert_eq!(result.initial_diagnostics.len(), 1);
-    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.terminal_diagnostics, [] as [Diagnostic; 0]);
     assert_eq!(result.replacements.len(), 1);
     let edits = &result.replacements[0];
     assert_eq!(edits.path, "src/lib.rs");
@@ -530,9 +530,9 @@ fn chained_mutating_stages_see_virtual_snapshot() {
     assert_eq!(&edits.edits[0].replacement, b"GOOD");
     let original = "BAD   \n".as_bytes();
     let mut spliced = Vec::new();
-    spliced.extend_from_slice(&original[..edits.edits[0].start_byte as usize]);
+    spliced.extend_from_slice(&original[..usize::try_from(edits.edits[0].start_byte).unwrap()]);
     spliced.extend_from_slice(&edits.edits[0].replacement);
-    spliced.extend_from_slice(&original[edits.edits[0].end_byte as usize..]);
+    spliced.extend_from_slice(&original[usize::try_from(edits.edits[0].end_byte).unwrap()..]);
     assert_eq!(spliced, b"GOOD\n");
     assert!(validate(&result).is_ok());
     let reversed = vec![

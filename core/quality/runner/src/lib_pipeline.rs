@@ -1,6 +1,7 @@
 use super::*;
 use crate::synthetic::{self, apply_synthetic, collect_diagnostics, per_path};
 use quality_result::{decode_validated, encode_validated, proto::Severity, validate};
+use std::fmt::Write as _;
 
 fn stage(tool: &str, classes: &[&str], sources: &[&str]) -> StageSpec {
     StageSpec {
@@ -36,7 +37,7 @@ fn stable_fix_is_valid_and_deterministic() {
         result.terminal_snapshot[0].digest
     );
     assert_eq!(result.initial_diagnostics.len(), 2);
-    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.terminal_diagnostics, [] as [Diagnostic; 0]);
     assert!(result.initial_diagnostics.iter().all(|d| d.fixable));
     assert_eq!(result.replacements.len(), 1);
     let edits = &result.replacements[0];
@@ -59,9 +60,9 @@ fn clean_inputs_converge_in_one_round_without_replacements() {
     let result = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 1);
-    assert!(result.initial_diagnostics.is_empty());
-    assert!(result.terminal_diagnostics.is_empty());
-    assert!(result.replacements.is_empty());
+    assert_eq!(result.initial_diagnostics, [] as [Diagnostic; 0]);
+    assert_eq!(result.terminal_diagnostics, [] as [Diagnostic; 0]);
+    assert_eq!(result.replacements, [] as [FileEdits; 0]);
     assert_eq!(
         result.original_snapshot[0].digest,
         result.terminal_snapshot[0].digest
@@ -76,7 +77,7 @@ fn format_trims_trailing_whitespace_idempotently() {
     let result = synthetic::run_pipeline("//core/quality:test", "format", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 2);
-    assert!(result.initial_diagnostics.is_empty());
+    assert_eq!(result.initial_diagnostics, [] as [Diagnostic; 0]);
     assert_eq!(result.replacements.len(), 1);
     assert_eq!(result.replacements[0].edits[0].start_byte, 1);
     assert_eq!(result.replacements[0].edits[0].end_byte, 6);
@@ -114,7 +115,7 @@ fn diagnostic_only_tool_reports_without_edits() {
     assert!(!diagnostic.fixable);
     assert_eq!(diagnostic.unfixable_reason, "no_change");
     assert_eq!(result.terminal_diagnostics.len(), 1);
-    assert!(result.replacements.is_empty());
+    assert_eq!(result.replacements, [] as [FileEdits; 0]);
     assert!(encode_validated(&result).is_ok());
 }
 
@@ -161,8 +162,8 @@ fn empty_file_has_no_findings() {
     let files = vec![file("src/lib.rs", "")];
     let result = synthetic::run_pipeline("//core/quality:test", "format", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
-    assert!(result.initial_diagnostics.is_empty());
-    assert!(result.replacements.is_empty());
+    assert_eq!(result.initial_diagnostics, [] as [Diagnostic; 0]);
+    assert_eq!(result.replacements, [] as [FileEdits; 0]);
     assert!(encode_validated(&result).is_ok());
 }
 
@@ -371,7 +372,10 @@ fn convergence_scales_linearly_in_rounds_and_files() {
         terminal.get(&last).expect("last file staged"),
         &format!(
             "v0{}",
-            (1..=ROUNDS).map(|n| format!("+{n}")).collect::<String>()
+            (1..=ROUNDS).fold(String::new(), |mut text, n| {
+                write!(text, "+{n}").unwrap();
+                text
+            })
         )
     );
 }
@@ -419,8 +423,14 @@ fn synthetic_fallback_is_identity() {
 
 #[test]
 fn non_diagnosing_tools_collect_no_diagnostics() {
-    assert!(collect_diagnostics("fmt-a", "src/lib.rs", "BAD").is_empty());
-    assert!(collect_diagnostics("unknown-tool", "src/lib.rs", "BAD").is_empty());
+    assert_eq!(
+        collect_diagnostics("fmt-a", "src/lib.rs", "BAD"),
+        [] as [Diagnostic; 0]
+    );
+    assert_eq!(
+        collect_diagnostics("unknown-tool", "src/lib.rs", "BAD"),
+        [] as [Diagnostic; 0]
+    );
 }
 
 #[test]
@@ -455,7 +465,7 @@ fn convergence_reports_missing_stage_path_without_panicking() {
 
 #[test]
 fn stage_subset_reports_missing_path_without_panicking() {
-    let stages = vec![stage("lint-a", &["rust"], &["src/missing.rs"])];
+    let stages = [stage("lint-a", &["rust"], &["src/missing.rs"])];
     let files = BTreeMap::new();
     assert_eq!(
         stage_subset(&stages[0], &files),
@@ -502,9 +512,9 @@ fn state_digest_independent_of_insertion_order() {
     let mut forward = BTreeMap::new();
     forward.insert("src/a.rs".to_owned(), "GOOD\n".to_owned());
     forward.insert("src/b.rs".to_owned(), "GOOD GOOD\n".to_owned());
-    forward.insert("src/c.rs".to_owned(), "".to_owned());
+    forward.insert("src/c.rs".to_owned(), String::new());
     let mut backward = BTreeMap::new();
-    backward.insert("src/c.rs".to_owned(), "".to_owned());
+    backward.insert("src/c.rs".to_owned(), String::new());
     backward.insert("src/b.rs".to_owned(), "GOOD GOOD\n".to_owned());
     backward.insert("src/a.rs".to_owned(), "GOOD\n".to_owned());
     assert_eq!(state_digest(&forward), state_digest(&backward));
@@ -574,11 +584,11 @@ fn assemble_emits_replacements_only_when_stable() {
     let applied = format!(
         "{}{}{}",
         original
-            .get(..edits.edits[0].start_byte as usize)
+            .get(..usize::try_from(edits.edits[0].start_byte).unwrap())
             .expect("prefix"),
         String::from_utf8_lossy(&edits.edits[0].replacement),
         original
-            .get(edits.edits[0].end_byte as usize..)
+            .get(usize::try_from(edits.edits[0].end_byte).unwrap()..)
             .expect("suffix")
     );
     assert_eq!(applied, "GOOD\n");
@@ -593,7 +603,7 @@ fn assemble_emits_replacements_only_when_stable() {
         (1, Convergence::Stable),
     )
     .unwrap();
-    assert!(unchanged.replacements.is_empty());
+    assert_eq!(unchanged.replacements, [] as [FileEdits; 0]);
 
     let oscillating = assemble(
         "//core/quality:test",
@@ -605,7 +615,7 @@ fn assemble_emits_replacements_only_when_stable() {
         (10, Convergence::Oscillation),
     )
     .unwrap();
-    assert!(oscillating.replacements.is_empty());
+    assert_eq!(oscillating.replacements, [] as [FileEdits; 0]);
 }
 
 #[test]
@@ -641,8 +651,8 @@ fn changing_tenth_round_fails_without_eleventh_invocation() {
         (completed, convergence),
     )
     .unwrap();
-    assert!(result.replacements.is_empty());
-    assert!(quality_result::validate(&result).is_ok());
+    assert_eq!(result.replacements, [] as [FileEdits; 0]);
+    assert!(validate(&result).is_ok());
 }
 
 #[test]
@@ -679,7 +689,7 @@ fn full_round_revert_reports_oscillation_not_stability() {
         (completed, convergence),
     )
     .unwrap();
-    assert!(result.replacements.is_empty());
+    assert_eq!(result.replacements, [] as [FileEdits; 0]);
     assert!(validate(&result).is_ok());
 }
 
@@ -698,7 +708,6 @@ fn diagnostics_sort_includes_severity_and_rule() {
             unfixable_reason: String::new(),
             build_dep: None,
             related: Vec::new(),
-            ..Default::default()
         }
     }
     let canonical = vec![
@@ -758,12 +767,13 @@ fn assemble_replacements_follow_sorted_path_order_for_atomic_apply() {
         assert_eq!(edits.edits.len(), 1);
         let edit = &edits.edits[0];
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..edit.start_byte as usize]);
+        spliced
+            .extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
-        spliced.extend_from_slice(&original.as_bytes()[edit.end_byte as usize..]);
+        spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         assert_eq!(&spliced, terminal_body.as_bytes());
     }
     let prefix: Vec<&str> = paths.iter().take(2).copied().collect();
     assert_eq!(prefix, vec!["src/a.rs", "src/b.rs"]);
-    assert!(quality_result::validate(&result).is_ok());
+    assert!(validate(&result).is_ok());
 }

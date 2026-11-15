@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{OsStr, OsString};
+use std::fmt::Write as _;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -94,6 +95,11 @@ pub struct RealBackend {
     last_stderr: std::cell::RefCell<Vec<u8>>,
 }
 
+/// Returns the result of the call.
+///
+/// # Errors
+///
+/// Returns the error describing the first step that failed.
 pub fn real_spawn(
     argv: &[OsString],
     cwd: &Path,
@@ -183,11 +189,11 @@ fn unix_shim(binary: &str, env: &[(String, String)]) -> String {
     use dx_process::shell::quote;
     let mut out = String::from("#!/bin/sh\n");
     for (key, value) in env {
-        out.push_str(&format!("{key}={}\nexport {key}\n", quote(value)));
+        write!(out, "{key}={}\nexport {key}\n", quote(value)).ok();
     }
     // The child PATH is only the shim dir.
     out.push_str("unset PATH\n");
-    out.push_str(&format!("exec {} \"$@\"\n", quote(binary)));
+    writeln!(out, "exec {} \"$@\"", quote(binary)).ok();
     out
 }
 
@@ -202,13 +208,13 @@ fn windows_shim(binary: &str, env: &[(String, String)]) -> Result<String, String
         if bad(key) || bad(value) {
             return Err(format!("unsafe character in {key} value"));
         }
-        out.push_str(&format!("set \"{key}={value}\"\r\n"));
+        write!(out, "set \"{key}={value}\"\r\n").ok();
     }
     if bad(binary) {
         return Err("unsafe character in launcher path".to_owned());
     }
     out.push_str("set \"PATH=\"\r\n");
-    out.push_str(&format!("\"{binary}\" %*\r\n"));
+    write!(out, "\"{binary}\" %*\r\n").ok();
     Ok(out)
 }
 
@@ -284,11 +290,11 @@ fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerEr
     result.map_err(|err| match err {
         // An incomplete analysis is not malformed output.
         ParseError::Incomplete { .. } => execution(tool_id, err.to_string()),
-        other @ ParseError::Json { .. }
-        | other @ ParseError::Shape { .. }
-        | other @ ParseError::UnknownFile { .. }
-        | other @ ParseError::ValeConfig { .. }
-        | other @ ParseError::TooLarge { .. } => RunnerError::ToolOutput {
+        other @ (ParseError::Json { .. }
+        | ParseError::Shape { .. }
+        | ParseError::UnknownFile { .. }
+        | ParseError::ValeConfig { .. }
+        | ParseError::TooLarge { .. }) => RunnerError::ToolOutput {
             tool_id: tool_id.to_owned(),
             detail: other.to_string(),
         },
@@ -318,17 +324,17 @@ fn with_stderr(err: RunnerError, stderr: &[u8]) -> RunnerError {
             tool_id,
             detail: format!("{detail}: {tail}"),
         },
-        other @ RunnerError::EmptyProducer
-        | other @ RunnerError::UnknownCapability { .. }
-        | other @ RunnerError::EmptyStages
-        | other @ RunnerError::EmptyToolId { .. }
-        | other @ RunnerError::UnknownTool { .. }
-        | other @ RunnerError::EmptyClassIds { .. }
-        | other @ RunnerError::EmptyStageSources { .. }
-        | other @ RunnerError::DuplicateFile { .. }
-        | other @ RunnerError::InvalidUtf8 { .. }
-        | other @ RunnerError::MissingFile { .. }
-        | other @ RunnerError::UnplaceableFinding { .. } => other,
+        other @ (RunnerError::EmptyProducer
+        | RunnerError::UnknownCapability { .. }
+        | RunnerError::EmptyStages
+        | RunnerError::EmptyToolId { .. }
+        | RunnerError::UnknownTool { .. }
+        | RunnerError::EmptyClassIds { .. }
+        | RunnerError::EmptyStageSources { .. }
+        | RunnerError::DuplicateFile { .. }
+        | RunnerError::InvalidUtf8 { .. }
+        | RunnerError::MissingFile { .. }
+        | RunnerError::UnplaceableFinding { .. }) => other,
     }
 }
 
@@ -394,6 +400,7 @@ fn parent_rel(rel: &str) -> String {
 }
 
 impl RealBackend {
+    #[must_use]
     pub fn new(tools: BTreeMap<String, RealTool>, scratch_parent: PathBuf) -> Self {
         Self {
             tools,
@@ -416,7 +423,7 @@ impl RealBackend {
     /// Names the shard that runs this backend, for error messages.
     #[must_use]
     pub fn with_shard(mut self, shard: &str) -> Self {
-        self.shard = shard.to_owned();
+        shard.clone_into(&mut self.shard);
         self
     }
 
@@ -447,17 +454,17 @@ impl RealBackend {
                 RunnerError::ToolExecution { tool_id, detail }
             }
             RunnerError::ToolOutput { tool_id, .. } => RunnerError::ToolOutput { tool_id, detail },
-            other @ RunnerError::EmptyProducer
-            | other @ RunnerError::UnknownCapability { .. }
-            | other @ RunnerError::EmptyStages
-            | other @ RunnerError::EmptyToolId { .. }
-            | other @ RunnerError::UnknownTool { .. }
-            | other @ RunnerError::EmptyClassIds { .. }
-            | other @ RunnerError::EmptyStageSources { .. }
-            | other @ RunnerError::DuplicateFile { .. }
-            | other @ RunnerError::InvalidUtf8 { .. }
-            | other @ RunnerError::MissingFile { .. }
-            | other @ RunnerError::UnplaceableFinding { .. } => other,
+            other @ (RunnerError::EmptyProducer
+            | RunnerError::UnknownCapability { .. }
+            | RunnerError::EmptyStages
+            | RunnerError::EmptyToolId { .. }
+            | RunnerError::UnknownTool { .. }
+            | RunnerError::EmptyClassIds { .. }
+            | RunnerError::EmptyStageSources { .. }
+            | RunnerError::DuplicateFile { .. }
+            | RunnerError::InvalidUtf8 { .. }
+            | RunnerError::MissingFile { .. }
+            | RunnerError::UnplaceableFinding { .. }) => other,
         };
         with_stderr(err, &self.last_stderr.borrow())
     }
@@ -543,7 +550,7 @@ impl RealBackend {
                 .map_err(|err| execution(tool_id, format!("socket dir: {err}")))?;
             for (key, value) in &mut env {
                 if key == "TMPDIR" || key == "TEMP" || key == "TMP" {
-                    *value = short.path().as_os_str().to_owned();
+                    short.path().as_os_str().clone_into(value);
                 }
             }
             Some(short)
@@ -738,6 +745,12 @@ fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
     argv
 }
 
+fn has_extension(path: impl AsRef<Path>, extension: &str) -> bool {
+    path.as_ref()
+        .extension()
+        .is_some_and(|found| found == extension)
+}
+
 mod bicep;
 mod cfn_lint;
 mod check;
@@ -869,11 +882,15 @@ mod tests {
 
     #[test]
     fn an_output_error_carries_the_tool_stderr_tail() {
+        use std::fmt::Write as _;
         let error = || RunnerError::ToolOutput {
             tool_id: "fsharplint".to_owned(),
             detail: "exit 1 (want 0)".to_owned(),
         };
-        let stderr: String = (1..=25).map(|n| format!("line {n}\n")).collect();
+        let stderr = (1..=25).fold(String::new(), |mut text, n| {
+            writeln!(text, "line {n}").unwrap();
+            text
+        });
         let RunnerError::ToolOutput { detail, .. } = super::with_stderr(error(), stderr.as_bytes())
         else {
             panic!("kind changed");
@@ -899,7 +916,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("real-out");
         let already = [out(&scratch).join("bin").join("tool").into_os_string()];
         assert_eq!(absolute_argv(&already)[0], already[0]);
-        assert!(absolute_argv(&[]).is_empty());
+        assert_eq!(absolute_argv(&[]), [] as [OsString; 0]);
     }
 
     /// The planned spawn carries the absolute binary the guard and the batches measure.
@@ -969,7 +986,8 @@ mod tests {
     /// The Python launchers read wheels from the manifest on every platform.
     #[test]
     fn python_tools_read_their_own_manifest_everywhere() {
-        for tool_id in ["pydoclint"] {
+        {
+            let tool_id = "pydoclint";
             assert!(reads_own_manifest(tool_id), "{tool_id}");
         }
     }

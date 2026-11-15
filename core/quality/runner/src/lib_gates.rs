@@ -24,7 +24,7 @@ fn diagnostic_envelope_rejected_by_validate_gate() {
     let stages = vec![stage("lint-a", &["rust"], &["src/lib.rs"])];
     let files = vec![file("src/lib.rs", "BAD\n")];
     let valid = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
-    assert!(!valid.initial_diagnostics.is_empty());
+    assert_ne!(valid.initial_diagnostics, [] as [Diagnostic; 0]);
     assert!(validate(&valid).is_ok());
     let mut bad_severity = valid.clone();
     bad_severity.initial_diagnostics[0].severity = Severity::Unspecified as i32;
@@ -53,7 +53,7 @@ fn unstable_envelope_with_replacements_rejected_by_validate_gate() {
     let files = vec![file("src/lib.rs", "BAD\n")];
     let valid = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(valid.convergence, Convergence::Stable as i32);
-    assert!(!valid.replacements.is_empty());
+    assert_ne!(valid.replacements, [] as [FileEdits; 0]);
     assert!(validate(&valid).is_ok());
     let mut limited = valid.clone();
     limited.convergence = Convergence::IterationLimit as i32;
@@ -86,9 +86,9 @@ fn newline_variants_yield_distinct_manifests() {
         assert_eq!(result.replacements[0].edits.len(), 1);
         let edit = &result.replacements[0].edits[0];
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&body.as_bytes()[..edit.start_byte as usize]);
+        spliced.extend_from_slice(&body.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
-        spliced.extend_from_slice(&body.as_bytes()[edit.end_byte as usize..]);
+        spliced.extend_from_slice(&body.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         assert_eq!(&spliced, terminals[index].as_bytes());
         assert!(validate(&result).is_ok());
         manifests.push(encode_validated(&result).unwrap());
@@ -155,7 +155,7 @@ fn file_modes_do_not_alter_pipeline_outputs() {
     let clean = vec![file("src/lib.rs", "GOOD\n")];
     let clean_result =
         synthetic::run_pipeline("//core/quality:test", "lint", &stages, &clean).unwrap();
-    assert!(clean_result.replacements.is_empty());
+    assert_eq!(clean_result.replacements, [] as [FileEdits; 0]);
     assert_ne!(manifests[0], encode_validated(&clean_result).unwrap());
 }
 
@@ -319,9 +319,9 @@ fn interruption_leaves_no_partially_written_file() {
         let terminal_body = terminal.get(&edits.path).expect("staged path");
         let edit = &edits.edits[0];
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..edit.start_byte as usize]);
+        spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
-        spliced.extend_from_slice(&original.as_bytes()[edit.end_byte as usize..]);
+        spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         assert_eq!(&spliced, terminal_body.as_bytes());
     }
     let paths: Vec<&str> = result
@@ -336,9 +336,9 @@ fn interruption_leaves_no_partially_written_file() {
             let original = initial.get(&edits.path).expect("staged path");
             let edit = &edits.edits[0];
             let mut spliced = Vec::new();
-            spliced.extend_from_slice(&original.as_bytes()[..edit.start_byte as usize]);
+            spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
             spliced.extend_from_slice(&edit.replacement);
-            spliced.extend_from_slice(&original.as_bytes()[edit.end_byte as usize..]);
+            spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
             state.insert(edits.path.clone(), String::from_utf8(spliced).unwrap());
         }
         for (path, body) in &state {
@@ -352,9 +352,9 @@ fn interruption_leaves_no_partially_written_file() {
         let original = initial.get(&edits.path).expect("staged path");
         let edit = &edits.edits[0];
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..edit.start_byte as usize]);
+        spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
-        spliced.extend_from_slice(&original.as_bytes()[edit.end_byte as usize..]);
+        spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         full.insert(edits.path.clone(), String::from_utf8(spliced).unwrap());
     }
     assert_eq!(full, terminal);
@@ -546,18 +546,18 @@ fn minimal_edits_trim_common_prefix_and_suffix() {
         assert_eq!(edit.end_byte, end, "{original:?}");
         assert_eq!(edit.replacement, replacement.as_bytes(), "{original:?}");
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..edit.start_byte as usize]);
+        spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
-        spliced.extend_from_slice(&original.as_bytes()[edit.end_byte as usize..]);
+        spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         assert_eq!(&spliced, terminal_body.as_bytes(), "{original:?}");
     }
     let edit = minimal_edit("héllo BAD 🌍\n", "héllo GOOD 🌍\n");
-    assert!("héllo BAD 🌍\n".is_char_boundary(edit.start_byte as usize));
-    assert!("héllo BAD 🌍\n".is_char_boundary(edit.end_byte as usize));
+    assert!("héllo BAD 🌍\n".is_char_boundary(usize::try_from(edit.start_byte).unwrap()));
+    assert!("héllo BAD 🌍\n".is_char_boundary(usize::try_from(edit.end_byte).unwrap()));
     let mut spliced = Vec::new();
-    spliced.extend_from_slice(&"héllo BAD 🌍\n".as_bytes()[..edit.start_byte as usize]);
+    spliced.extend_from_slice(&"héllo BAD 🌍\n".as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
     spliced.extend_from_slice(&edit.replacement);
-    spliced.extend_from_slice(&"héllo BAD 🌍\n".as_bytes()[edit.end_byte as usize..]);
+    spliced.extend_from_slice(&"héllo BAD 🌍\n".as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
     assert_eq!(&spliced, "héllo GOOD 🌍\n".as_bytes());
 }
 
@@ -581,7 +581,7 @@ fn unchanged_terminal_reuses_initial_diagnostics() {
     initial[0].unfixable_reason.clear();
     assert_eq!(initial, result.terminal_diagnostics);
     assert_eq!(result.initial_diagnostics.len(), 1);
-    assert!(result.replacements.is_empty());
+    assert_eq!(result.replacements, [] as [FileEdits; 0]);
     assert!(encode_validated(&result).is_ok());
 }
 
@@ -639,7 +639,7 @@ fn dirty_tracking_matches_full_rerun() {
         apply: Fixer,
     ) -> (BTreeMap<String, String>, u32, Convergence) {
         let mut current = initial.clone();
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = HashSet::new();
         let mut prev_id = state_digest(initial);
         seen.insert(prev_id);
         for round in 1..=max_rounds {

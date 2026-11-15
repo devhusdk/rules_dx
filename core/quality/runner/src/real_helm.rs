@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unnecessary_wraps,
+    reason = "fakes implement the spawn function-pointer signature"
+)]
+
 use std::cell::{Cell, RefCell};
 
 use super::real_fixtures::*;
@@ -25,11 +30,11 @@ fn helm_fake(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    LOG.with(|log| log.borrow_mut().push(args.clone()));
+    LOG.with(|log| log.borrow_mut().push(words.clone()));
     ENVS.with(|envs| {
         envs.borrow_mut().push(
             env.iter()
@@ -48,7 +53,7 @@ fn helm_fake(
         stdout,
         stderr: Vec::new(),
     };
-    match args[1].as_str() {
+    match words[1].as_str() {
         "lint" => Ok(ChildOutput {
             code: Some(if mode == 4 { 2 } else { 0 }),
             stdout: Vec::new(),
@@ -67,7 +72,7 @@ fn helm_fake(
         "template" if mode == 3 => Ok(ok(rendered("charts/sub/templates/x.yaml"))),
         "template" => Ok(ok(rendered("templates/deploy.yaml"))),
         _ => {
-            let docs: Vec<&String> = args.iter().filter(|a| a.contains("dx-kubeconform")).collect();
+            let docs: Vec<&String> = words.iter().filter(|a| a.contains("dx-kubeconform")).collect();
             let resources: Vec<_> = docs
                 .iter()
                 .filter(|_| mode != 0)
@@ -148,7 +153,7 @@ fn log() -> Vec<Vec<String>> {
 #[test]
 fn helm_runs_lint_template_then_kubeconform_offline() {
     let findings = run(0, helm_tool(Some(CONTEXT), true)).expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
     let calls = log();
     let verbs: Vec<&str> = calls.iter().map(|call| call[1].as_str()).collect();
     assert_eq!(verbs, ["lint", "template", "-output"]);

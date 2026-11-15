@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unnecessary_wraps,
+    reason = "fakes implement the spawn function-pointer signature"
+)]
+
 use super::real_fixtures::*;
 use super::*;
 use crate::FileInput;
@@ -19,9 +24,7 @@ pub(super) fn markdown_links(
             let bytes = std::fs::read(absolute).expect("checked file is materialized");
             let text = String::from_utf8(bytes).expect("checked bytes are UTF-8");
             if text.contains("BROKEN") {
-                out.push_str(&format!(
-                    "{{\"path\":\"{workspace}\",\"line\":2,\"kind\":\"heading-hierarchy\",\"message\":\"link target nope.md does not match a checked source\"}}\n"
-                ));
+                writeln!(out, "{{\"path\":\"{workspace}\",\"line\":2,\"kind\":\"heading-hierarchy\",\"message\":\"link target nope.md does not match a checked source\"}}").unwrap();
             }
             index += 1;
         }
@@ -169,7 +172,10 @@ pub(super) fn rustfmt_pipeline_fixes_dirty_files_to_stable() {
         result.initial_diagnostics[0].message,
         "file is not formatted"
     );
-    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(
+        result.terminal_diagnostics,
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     assert!(result.initial_diagnostics.iter().all(|d| d.fixable));
     assert_eq!(result.replacements.len(), 1);
     assert_eq!(result.replacements[0].edits[0].start_byte, 1);
@@ -190,7 +196,10 @@ pub(super) fn rustfmt_fix_keeps_module_siblings_available() {
         .expect("real pipeline");
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.initial_diagnostics.len(), 1);
-    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(
+        result.terminal_diagnostics,
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     assert_eq!(result.replacements.len(), 1);
     assert_eq!(result.replacements[0].path, "src/lib.rs");
 }
@@ -218,7 +227,10 @@ pub(super) fn rustfmt_crate_root_with_unformatted_modules_is_fixable_for_every_p
     assert_eq!(forwarder.convergence, Convergence::Stable as i32);
     assert_eq!(forwarder.initial_diagnostics.len(), 2);
     assert!(forwarder.initial_diagnostics.iter().all(|d| d.fixable));
-    assert!(forwarder.terminal_diagnostics.is_empty());
+    assert_eq!(
+        forwarder.terminal_diagnostics,
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     let paths: BTreeSet<&str> = forwarder
         .replacements
         .iter()
@@ -258,7 +270,10 @@ pub(super) fn rustfmt_supporting_modules_resolve_but_are_never_owned() {
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.initial_diagnostics.len(), 1);
     assert_eq!(result.initial_diagnostics[0].path, "src/lib.rs");
-    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(
+        result.terminal_diagnostics,
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     assert_eq!(result.replacements.len(), 1);
     assert_eq!(result.replacements[0].path, "src/lib.rs");
 }
@@ -448,7 +463,10 @@ pub(super) fn vale_pipeline_reports_without_rewriting() {
     );
     assert!(!result.initial_diagnostics[0].fixable);
     assert_eq!(result.terminal_diagnostics.len(), 1);
-    assert!(result.replacements.is_empty());
+    assert_eq!(
+        result.replacements,
+        [] as [quality_result::proto::FileEdits; 0]
+    );
     assert!(encode_validated(&result).is_ok());
 }
 
@@ -482,7 +500,10 @@ pub(super) fn markdown_check_pipeline_is_stable_without_rewriting() {
     assert_eq!(result.initial_diagnostics.len(), 1);
     assert_eq!(result.initial_diagnostics[0].tool_id, "markdown_check");
     assert_eq!(result.terminal_diagnostics.len(), 1);
-    assert!(result.replacements.is_empty());
+    assert_eq!(
+        result.replacements,
+        [] as [quality_result::proto::FileEdits; 0]
+    );
     assert!(encode_validated(&result).is_ok());
 }
 
@@ -502,9 +523,7 @@ pub(super) fn markdown_sibling_links(
             let bytes = std::fs::read(absolute).expect("checked file is materialized");
             let text = String::from_utf8(bytes).expect("checked bytes are UTF-8");
             if text.contains("BROKEN") && !seen_sibling {
-                out.push_str(&format!(
-                    "{{\"path\":\"{workspace}\",\"line\":2,\"kind\":\"heading-hierarchy\",\"message\":\"link target nope.md does not match a checked source\"}}\n"
-                ));
+                writeln!(out, "{{\"path\":\"{workspace}\",\"line\":2,\"kind\":\"heading-hierarchy\",\"message\":\"link target nope.md does not match a checked source\"}}").unwrap();
             }
             index += 1;
         }
@@ -539,7 +558,7 @@ pub(super) fn markdown_siblings_reach_the_checker_invocation() {
             &siblings,
         )
         .expect("diagnosed");
-    assert!(with.is_empty());
+    assert_eq!(with, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -557,12 +576,21 @@ pub(super) fn markdown_siblings_stay_out_of_snapshots_and_stages() {
         &backend,
     )
     .expect("real pipeline");
-    assert!(result.initial_diagnostics.is_empty());
-    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(
+        result.initial_diagnostics,
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
+    assert_eq!(
+        result.terminal_diagnostics,
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     assert_eq!(result.original_snapshot.len(), 1);
     assert_eq!(result.original_snapshot[0].path, "doc/guide.md");
     assert_eq!(result.terminal_snapshot.len(), 1);
-    assert!(result.replacements.is_empty());
+    assert_eq!(
+        result.replacements,
+        [] as [quality_result::proto::FileEdits; 0]
+    );
     assert!(encode_validated(&result).is_ok());
 }
 
@@ -585,7 +613,10 @@ fn resolve_inputs_are_staged_but_never_become_quality_sources() {
     .expect("resolve pipeline");
     assert_eq!(result.original_snapshot.len(), 1);
     assert_eq!(result.original_snapshot[0].path, "doc/guide.md");
-    assert!(result.initial_diagnostics.is_empty());
+    assert_eq!(
+        result.initial_diagnostics,
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     for duplicate in [
         vec![file("doc/guide.md", "duplicate")],
         vec![file("LICENSE", "duplicate")],
@@ -742,7 +773,7 @@ pub(super) fn buildifier_format_keeps_only_format_findings() {
         .diagnose("buildifier", "format", &single("a.bzl", "x = 1\n"))
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
-    assert!(findings[0].rule_id.is_empty());
+    assert_eq!(findings[0].rule_id, "");
     assert_eq!(findings[0].message, "file is not formatted");
 }
 
@@ -839,7 +870,10 @@ pub(super) fn taplo_pipeline_formats_a_config_source_to_stable() {
     let result = run_real_pipeline("//core/quality:test", "format", &stages, &files, &backend)
         .expect("real pipeline");
     assert_eq!(result.convergence, Convergence::Stable as i32);
-    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(
+        result.terminal_diagnostics,
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
     assert_eq!(result.initial_diagnostics.len(), 1);
     assert!(result.initial_diagnostics.iter().all(|d| d.fixable));
     assert_eq!(result.replacements.len(), 1);
@@ -862,7 +896,7 @@ pub(super) fn rustfmt_hinted_config_reaches_the_tool() {
             &single("src/main.rs", "fn main() {}\n"),
         )
         .expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -919,7 +953,7 @@ pub(super) fn rustfmt_caller_edition_reaches_the_tool() {
             &single("src/main.rs", "fn main() {}\n"),
         )
         .expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -965,7 +999,7 @@ pub(super) fn gofumpt_check_and_fix_share_the_caller_lang() {
     let findings = backend
         .diagnose("gofumpt", "format", &single("a.go", "package a\n"))
         .expect("diagnosed");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
     backend
         .apply_fix("gofumpt", "a.go", "package a\n", "format")
         .expect("fixed");
@@ -1090,7 +1124,7 @@ pub(super) fn clippy_delegated_empty_file_reports_no_findings() {
         )
         .expect("diagnosed");
     std::fs::remove_file(&path).expect("remove upstream fixture");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]
@@ -1200,7 +1234,7 @@ pub(super) fn rustc_delegated_empty_file_reports_no_findings() {
         )
         .expect("diagnosed");
     std::fs::remove_file(&path).expect("remove upstream fixture");
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [quality_result::proto::Diagnostic; 0]);
 }
 
 #[test]

@@ -3,7 +3,7 @@ use quality_adapter::parsers::{self, FileFinding, jvm_unused_deps, rust_unused_d
 use quality_result::proto::{BuildDep, Diagnostic, Severity};
 
 use super::check::ToolDef;
-use super::*;
+use super::{PathBuf, RealBackend, RealTool, RunnerError, execution, parsed, reanchor};
 
 /// Tools that only replay what their compiler already reported.
 pub(super) const TOOLS: &[ToolDef] = &[
@@ -349,7 +349,7 @@ fn scalac_inputs(tool_id: &str, tool: &RealTool) -> Result<ScalacInputs, RunnerE
     Ok(Some((read(map)?, read(log)?)))
 }
 
-/// The C# `deps` entries that ReferenceTrimmer reports as unused in every target framework.
+/// The C# `deps` entries that `ReferenceTrimmer` reports as unused in every target framework.
 fn csharp_unused(
     tool_id: &str,
     tool: &RealTool,
@@ -378,6 +378,10 @@ fn csharp_unused(
 }
 
 impl RealBackend {
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     pub(super) fn check_clippy_delegated(
         &self,
         tool_id: &str,
@@ -404,6 +408,10 @@ impl RealBackend {
         Ok(findings)
     }
 
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     pub(super) fn check_rustc_delegated(
         &self,
         tool_id: &str,
@@ -507,6 +515,10 @@ impl RealBackend {
     }
 
     /// Parses the per-TFM compiler logs of the C# or F# aspect and merges them.
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     fn check_dotnet_log(
         &self,
         tool_id: &str,
@@ -579,6 +591,10 @@ impl RealBackend {
     ///
     /// A failed driver fails its Bazel action, so the log's own exit status carries javac's result
     /// and the process exit status is always zero here.
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     pub(super) fn check_jvm_log_delegated(
         &self,
         tool_id: &str,
@@ -630,6 +646,10 @@ impl RealBackend {
         Ok(findings)
     }
 
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     pub(super) fn check_go_analysis_delegated(
         &self,
         tool_id: &str,
@@ -665,6 +685,10 @@ impl RealBackend {
         Ok(findings)
     }
 
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     pub(super) fn check_tsc_delegated(
         &self,
         tool_id: &str,
@@ -718,6 +742,10 @@ impl RealBackend {
         Ok(findings)
     }
 
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     pub(super) fn check_fsharplint_delegated(
         &self,
         tool_id: &str,
@@ -744,6 +772,10 @@ impl RealBackend {
         Ok(findings)
     }
 
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     pub(super) fn check_qmllint_delegated(
         &self,
         tool_id: &str,
@@ -771,6 +803,10 @@ impl RealBackend {
         Ok(findings)
     }
 
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     pub(super) fn check_clang_tidy_delegated(
         &self,
         tool_id: &str,
@@ -831,6 +867,10 @@ impl RealBackend {
     }
 
     /// Reads the logs and exit codes of a compile-replay aspect (`<prefix>/<stem>/exit`).
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     fn check_compile_replay_delegated(
         &self,
         tool_id: &str,
@@ -949,6 +989,10 @@ impl RealBackend {
         )
     }
 
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     pub(super) fn check_staticcheck_delegated(
         &self,
         tool_id: &str,
@@ -977,6 +1021,10 @@ impl RealBackend {
         Ok(findings)
     }
 
+    #[expect(
+        clippy::unused_self,
+        reason = "same receiver shape as the sibling tool methods"
+    )]
     pub(super) fn check_file_family_delegated(
         &self,
         tool_id: &str,

@@ -5,7 +5,10 @@ use quality_adapter::parsers::{self, FileFinding};
 
 use super::check::ToolDef;
 use super::real_fix::Outcome;
-use super::*;
+use super::{
+    Invocation, ParseError, Path, RealBackend, RealTool, RunnerError, Scratch, StagedPair,
+    StagedScratch, execution, missing_tier_base, parsed,
+};
 
 const TOOL_ID: &str = "rustfmt";
 

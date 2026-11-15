@@ -4,7 +4,11 @@ use quality_adapter::exec::MirrorContents;
 use crate::StageSpec;
 use quality_adapter::launch::ResolvedTool;
 
-use super::*;
+use super::{
+    BTreeMap, BTreeSet, Invocation, MirrorFile, Path, PathBuf, RealBackend, RealTool, RunnerError,
+    Scratch, cleaned, execution, ffmt_accepts, fresh_scratch, hint_dir, missing_tier_base,
+    write_all,
+};
 
 /// Empty stand-ins for the other known files with these extensions.
 #[cfg(test)]
@@ -808,7 +812,12 @@ impl<'a> FixSession<'a> {
     }
 }
 
-impl super::RealBackend {
+impl RealBackend {
+    /// Returns the result of the call.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error describing the first step that failed.
     #[cfg(test)]
     pub fn apply_fix(
         &self,
@@ -820,6 +829,11 @@ impl super::RealBackend {
         self.apply_fix_in_context(tool_id, path, text, capability, &BTreeSet::new())
     }
 
+    /// Returns the result of the call.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error describing the first step that failed.
     #[cfg(test)]
     pub fn apply_fix_in_context(
         &self,
@@ -856,7 +870,7 @@ impl super::RealBackend {
         if tool_id == "latexindent" && !before.contains('\r') {
             return Ok(fixed.replace("\r\n", "\n"));
         }
-        if !path.ends_with(".ipynb") {
+        if !super::has_extension(path, "ipynb") {
             return Ok(fixed);
         }
         if tool_id == "notebook_outputs" {
@@ -1018,7 +1032,7 @@ impl super::RealBackend {
             let invocation =
                 commands::sqlfluff_format_fix(&tool.binary, &files, &run.config, run.dialect);
             let out = self.run(tool_id, tool, &invocation, scratch)?;
-            fixed &= matches!(out.code, Some(0) | Some(1));
+            fixed &= matches!(out.code, Some(0 | 1));
         }
         Ok(if fixed { Outcome::Fixed } else { Outcome::Kept })
     }
@@ -1039,8 +1053,7 @@ impl super::RealBackend {
         let invocation = self.fix_invocation(route, tool_id, tool, refs, scratch)?;
         let out = self.run(tool_id, tool, &invocation, scratch)?;
         Ok(match route {
-            Route::Keep => Outcome::Kept,
-            Route::Sqlfluff => Outcome::Kept,
+            Route::Keep | Route::Sqlfluff => Outcome::Kept,
             Route::Spec { format, .. } => {
                 let crash = fix_spec(tool_id, format)
                     .and_then(|spec| spec.crash_stderr)
@@ -1057,7 +1070,7 @@ impl super::RealBackend {
             }
             Route::Rustfmt => super::rustfmt::fix_outcome(scratch.root(), names, &out),
             Route::Scalafix => {
-                if matches!(out.code, Some(0) | Some(64)) {
+                if matches!(out.code, Some(0 | 64)) {
                     Outcome::Fixed
                 } else {
                     Outcome::Kept
@@ -1065,7 +1078,7 @@ impl super::RealBackend {
             }
             // Violations that remain after the rewrite exit 2.
             Route::AnsibleLint => {
-                if matches!(out.code, Some(0) | Some(2) | Some(8)) {
+                if matches!(out.code, Some(0 | 2 | 8)) {
                     Outcome::Fixed
                 } else {
                     Outcome::Kept
@@ -1085,14 +1098,7 @@ impl super::RealBackend {
                     ))
                 }
             }
-            Route::SwiftFormat => {
-                if out.code == Some(0) {
-                    Outcome::Fixed
-                } else {
-                    Outcome::Kept
-                }
-            }
-            Route::Perltidy => {
+            Route::SwiftFormat | Route::Perltidy => {
                 if out.code == Some(0) {
                     Outcome::Fixed
                 } else {

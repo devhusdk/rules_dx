@@ -22,7 +22,6 @@ pub(crate) fn apply_synthetic(tool_id: &str, text: &str) -> String {
     match tool_id {
         "lint-a" => text.replace("BAD", "GOOD"),
         "fmt-a" => trim_trailing_whitespace(text),
-        "lint-b" => text.to_owned(),
         _ => text.to_owned(),
     }
 }

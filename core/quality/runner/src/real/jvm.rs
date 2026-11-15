@@ -1,7 +1,7 @@
 use quality_adapter::{commands, parsers};
 
 use super::check::ToolDef;
-use super::*;
+use super::{Path, PathBuf, RealBackend, execution, missing_tier_base, parsed, reanchor};
 
 /// JVM and .NET formatters and linters.
 pub(super) const TOOLS: &[ToolDef] = &[
@@ -151,9 +151,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 .map(|(_, absolute)| absolute.as_path())
                 .collect();
             {
-                if !tool.upstream_diagnostics.is_empty() {
-                    backend.check_fsharplint_delegated(tool_id, tool, pairs)
-                } else {
+                if tool.upstream_diagnostics.is_empty() {
                     let inputs = RealBackend::fsharplint_context(tool_id, tool, scratch, pairs)?;
                     let compile: Vec<&Path> = inputs.compile.iter().map(PathBuf::as_path).collect();
                     let references: Vec<&Path> = inputs.refs.iter().map(PathBuf::as_path).collect();
@@ -170,6 +168,8 @@ pub(super) const TOOLS: &[ToolDef] = &[
                         tool_id,
                         parsers::parse_fsharplint(&out.stdout, out.code, &strs),
                     )
+                } else {
+                    backend.check_fsharplint_delegated(tool_id, tool, pairs)
                 }
             }
         },
@@ -272,7 +272,9 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 let staged = |prefix: &str| -> Vec<PathBuf> {
                     tool.tool_files
                         .iter()
-                        .filter(|(rel, _)| rel.starts_with(prefix) && rel.ends_with(".jar"))
+                        .filter(|(rel, _)| {
+                            rel.starts_with(prefix) && super::has_extension(rel, "jar")
+                        })
                         .map(|(rel, _)| scratch.root().join(rel))
                         .collect()
                 };

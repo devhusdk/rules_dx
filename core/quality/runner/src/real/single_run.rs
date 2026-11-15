@@ -1,7 +1,7 @@
 use quality_adapter::parsers;
 
 use super::check::{CheckCall, ToolDef};
-use super::*;
+use super::{Invocation, Path, RealBackend, RunnerError, commands, execution, parsed};
 
 pub(super) fn paths<'a>(call: &'a CheckCall<'a>) -> (Vec<&'a Path>, Vec<String>) {
     let refs = call
@@ -21,7 +21,7 @@ pub(super) fn paths<'a>(call: &'a CheckCall<'a>) -> (Vec<&'a Path>, Vec<String>)
 
 fn run(
     backend: &RealBackend,
-    call: &CheckCall,
+    call: &CheckCall<'_>,
     invocation: &Invocation,
 ) -> Result<quality_adapter::exec::ChildOutput, RunnerError> {
     backend.run(call.tool_id, call.tool, invocation, &call.staged.scratch)

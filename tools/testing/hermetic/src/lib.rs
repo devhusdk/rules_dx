@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
 
-use dx_nested::compose::{compose_module, write_rules_py_patches};
+use dx_nested::compose::{compose_module, write_root_patch_overrides, write_rules_py_patches};
 use serde_json::{Value, json};
 
 use dx_digest::sha256_hex;
@@ -2268,7 +2268,7 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         &manifest.repo_name,
         &fragment,
         source,
-    )?;
+    )? + &write_root_patch_overrides(workspace, source)?;
     // A floor search resolves candidate versions: DX_CONSUMER_OVERRIDES=module=version,...
     let module = match std::env::var(dx_floor::OVERRIDES_ENV) {
         Ok(spec) if !spec.trim().is_empty() => {

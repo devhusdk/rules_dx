@@ -1,4 +1,4 @@
-//! Offline checks dx runs on CloudFormation templates before cfn-lint sees them.
+//! Offline checks dx runs on `CloudFormation` templates before cfn-lint sees them.
 //!
 //! A `cloudformation_template` target owns plain YAML and JSON files, so dx decides whether
 //! each file is a template and refuses a cfn-lint config that loads code or reads other files.
@@ -7,7 +7,7 @@ use saphyr_parser::{Event, Parser};
 
 /// A file that does not parse as YAML or JSON, or is too large or not UTF-8.
 pub const RULE_SYNTAX: &str = "dx/cloudformation-syntax";
-/// A file that is not a CloudFormation template.
+/// A file that is not a `CloudFormation` template.
 pub const RULE_ROOT: &str = "dx/cloudformation-root";
 /// A template whose own cfn-lint metadata sets an option dx does not allow, or a path cfn-lint would glob.
 pub const RULE_CONFIG: &str = "dx/cloudformation-config";
@@ -252,8 +252,15 @@ fn scan_json(text: &str) -> Result<Scanned, Problem> {
 }
 
 /// Whether the file is read as JSON: a `.json` file, or a `.template` that opens with `{`.
+fn has_extension(path: &str, extension: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .is_some_and(|ext| ext == extension)
+}
+
 fn is_json(path: &str, text: &str) -> bool {
-    path.ends_with(".json") || (path.ends_with(".template") && text.trim_start().starts_with('{'))
+    has_extension(path, "json")
+        || (has_extension(path, "template") && text.trim_start().starts_with('{'))
 }
 
 fn decode(bytes: &[u8]) -> Result<&str, Problem> {
@@ -272,6 +279,7 @@ fn decode(bytes: &[u8]) -> Result<&str, Problem> {
 ///
 /// A file passes when it has a root `AWSTemplateFormatVersion`, or a root `Resources` mapping
 /// with an entry whose `Type` starts with `AWS::`.
+#[must_use]
 pub fn check_template(path: &str, bytes: &[u8]) -> Option<Problem> {
     if path.contains(['*', '?', '[']) {
         return Some(Problem {
@@ -327,6 +335,10 @@ pub fn check_template(path: &str, bytes: &[u8]) -> Option<Problem> {
 }
 
 /// Refuses a cfn-lint config with any key outside the allowlist.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn check_config(text: &str) -> Result<(), String> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let scanned = scan_yaml(text)

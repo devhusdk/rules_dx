@@ -1,6 +1,6 @@
 //! Offline check dx runs on a sqlfluff config before sqlfluff sees it.
 //!
-//! The dialect comes from the sql_library or the file suffix and reaches sqlfluff as `--dialect`,
+//! The dialect comes from the `sql_library` or the file suffix and reaches sqlfluff as `--dialect`,
 //! so a config must not set one. Templaters that run project code or reach outside the config are refused.
 
 /// The dialects sqlfluff 4.4.0 lists in `sqlfluff dialects`; update with the pin.
@@ -32,7 +32,7 @@ pub const DIALECTS: &[&str] = &[
     "teradata",
     "trino",
     "tsql",
-    "vertica",
+    "vertical",
 ];
 
 /// The templaters that need no project code or dependency beyond the pinned wheels.
@@ -49,6 +49,10 @@ const BANNED_KEYS: &[&str] = &[
 const BANNED_SECTIONS: &[&str] = &["sqlfluff:templater:dbt", "sqlfluff:templater:python"];
 
 /// The sqlfluff dialect for a `sql_library` dialect name or file suffix, or the reason it has none.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn dialect_from_sql_library(name: &str) -> Result<&'static str, String> {
     let dialect = match name {
         "bigquery" => "bigquery",
@@ -75,6 +79,7 @@ pub fn dialect_from_sql_library(name: &str) -> Result<&'static str, String> {
 }
 
 /// The `sql_library` dialect a file name carries as `name.<dialect>.sql`, if any.
+#[must_use]
 pub fn suffix_dialect(basename: &str) -> Option<&str> {
     let mut parts = basename.rsplit('.');
     if parts.next()? != "sql" {
@@ -86,6 +91,10 @@ pub fn suffix_dialect(basename: &str) -> Option<&str> {
 }
 
 /// Refuses a sqlfluff config that sets a dialect or a templater dx does not allow.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn check_config(text: &str) -> Result<(), String> {
     check(text)
 }
@@ -162,6 +171,10 @@ fn check(text: &str) -> Result<(), String> {
 
 /// Refuses inline `-- sqlfluff:...` directives in a SQL file that set a banned key, because
 /// sqlfluff applies them without the config checks above.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn check_inline_config(sql: &str) -> Result<(), String> {
     for (index, raw) in sql.lines().enumerate() {
         let mut line = raw.trim_start();

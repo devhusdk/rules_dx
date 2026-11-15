@@ -41,6 +41,9 @@ struct FantomasRange {
     start_column: u64,
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_fantomas(
     stdout: &[u8],
     code: Option<i32>,
@@ -176,7 +179,7 @@ mod tests {
             Path::new("/scratch"),
         )
         .expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_fantomas(b"", Some(99), &["x"], Path::new("/scratch")).is_err());
         assert!(
             parse_fantomas(

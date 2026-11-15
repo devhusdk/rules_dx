@@ -73,6 +73,10 @@ fn located(line: &str) -> Option<(&str, &str, &str)> {
 }
 
 /// `erlc` output. A nonzero exit that printed no diagnostic is an error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_erlc(
     output: &[u8],
     code: Option<i32>,
@@ -120,7 +124,7 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].file, FILE);
         let twice = parse_erlc(text.as_bytes(), Some(0), &["x/a.erl", "y/a.erl"]).expect("parsed");
-        assert!(twice.is_empty());
+        assert!(twice.is_empty(), "{twice:?}");
     }
 
     #[test]
@@ -134,18 +138,16 @@ mod tests {
     #[test]
     fn erlc_drops_foreign_warnings_and_fails_on_foreign_errors() {
         let warning = "include/b.hrl:1:1: Warning: function g/0 is unused\n";
-        assert!(
-            parse_erlc(warning.as_bytes(), Some(0), &[FILE])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_erlc(warning.as_bytes(), Some(0), &[FILE]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         let error = "include/b.hrl:1:1: syntax error before: '.'\n";
         assert!(parse_erlc(error.as_bytes(), Some(1), &[FILE]).is_err());
     }
 
     #[test]
     fn erlc_fails_closed() {
-        assert!(parse_erlc(b"", Some(0), &[FILE]).expect("clean").is_empty());
+        let actual = parse_erlc(b"", Some(0), &[FILE]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_erlc(b"", Some(1), &[FILE]).is_err());
         assert!(parse_erlc(b"", None, &[FILE]).is_err());
         assert!(parse_erlc(b"compile failed\n", Some(1), &[FILE]).is_err());

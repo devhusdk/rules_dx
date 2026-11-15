@@ -44,6 +44,10 @@ fn first_line(bytes: &[u8]) -> String {
 /// error findings. Every passed file must appear in the report: sqlfluff skips a file above
 /// `large_file_skip_byte_limit` or matched by an ignore file without reporting it, and a skipped
 /// file is never a clean one.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_sqlfluff(
     stdout: &[u8],
     stderr: &[u8],
@@ -143,15 +147,12 @@ mod tests {
 
     const CLEAN: &str = r#"[{"filepath":"/s/sql/a.sql","violations":[]},{"filepath":"/s/sql/b.sql","violations":[]}]"#;
 
-    const PARSE: &str = r#"[{"filepath":"/s/sql/a.sql","violations":[]},{"filepath":"/s/sql/b.sql","violations":[{"start_line_no":1,"start_line_pos":1,"code":"PRS","description":"Line 1, Position 1: Found unparsable section: 'selec from ('","name":"","warning":false,"start_file_pos":0,"end_line_no":1,"end_line_pos":13,"end_file_pos":12}]}]"#;
+    const PARSE: &str = r#"[{"filepath":"/s/sql/a.sql","violations":[]},{"filepath":"/s/sql/b.sql","violations":[{"start_line_no":1,"start_line_pos":1,"code":"PRS","description":"Line 1, Position 1: Found unparsable section: 'select from ('","name":"","warning":false,"start_file_pos":0,"end_line_no":1,"end_line_pos":13,"end_file_pos":12}]}]"#;
 
     #[test]
     fn sqlfluff_is_clean_when_every_file_is_reported_without_violations() {
-        assert!(
-            parse_sqlfluff(CLEAN.as_bytes(), b"", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_sqlfluff(CLEAN.as_bytes(), b"", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

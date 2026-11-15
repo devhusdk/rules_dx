@@ -78,6 +78,10 @@ fn finding(
 /// 0 clean, 1 failure with the reason in JSON `errors`, 2 issues found. An `errors` entry
 /// with a range (HCL diagnostics) is an error finding on that file; one without a range
 /// (config, plugin or internal failure) fails the run, so it is never read as clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_tflint(
     stdout: &[u8],
     code: Option<i32>,
@@ -192,7 +196,8 @@ mod tests {
     #[test]
     fn clean_run_is_clean() {
         let out = br#"{"issues":[],"errors":[]}"#;
-        assert!(parse_tflint(out, Some(0), FILES).expect("clean").is_empty());
+        let actual = parse_tflint(out, Some(0), FILES).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

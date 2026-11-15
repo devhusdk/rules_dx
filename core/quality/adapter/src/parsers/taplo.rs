@@ -83,6 +83,9 @@ fn taplo_location(location: &str) -> Result<(&str, u64, u64), ParseError> {
     }
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_taplo_lint(
     stderr: &[u8],
     code: Option<i32>,
@@ -119,6 +122,9 @@ pub fn parse_taplo_lint(
     Ok(findings)
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_taplo_format_check(
     stderr: &[u8],
     code: Option<i32>,
@@ -172,11 +178,9 @@ mod tests {
             TextPosition { line: 2, column: 5 }
         );
         assert_eq!(findings[0].finding.message, "invalid TOML: expected value");
-        assert!(
-            parse_taplo_lint(b" INFO collect\n", Some(0), &["/s/clean.toml"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual =
+            parse_taplo_lint(b" INFO collect\n", Some(0), &["/s/clean.toml"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_taplo_lint(b" INFO collect\n", Some(1), &["/s/clean.toml"]).is_err());
     }
 

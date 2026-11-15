@@ -104,6 +104,10 @@ fn finding(
 /// Parses the checkstyle-format report written by `--report xml:<path>`.
 ///
 /// Exit 2 is detekt's "issues found"; any other non-zero exit is a failed run.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_detekt(
     report: &[u8],
     code: Option<i32>,
@@ -127,7 +131,7 @@ pub fn parse_detekt(
     let mut current: Option<String> = None;
     loop {
         match reader.read_event() {
-            Ok(Event::Start(element)) | Ok(Event::Empty(element)) => {
+            Ok(Event::Start(element) | Event::Empty(element)) => {
                 match element.local_name().as_ref() {
                     b"checkstyle" => rooted = true,
                     b"file" => {
@@ -196,7 +200,7 @@ mod tests {
     #[test]
     fn detekt_clean_run_has_no_findings() {
         let findings = parse_detekt(CLEAN.as_bytes(), Some(0), &["src/A.kt"]).expect("parsed");
-        assert!(findings.is_empty());
+        assert!(findings.is_empty(), "{findings:?}");
     }
 
     #[test]

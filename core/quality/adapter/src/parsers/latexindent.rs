@@ -13,6 +13,10 @@ const FATAL: &str = "FATAL:";
 ///
 /// Exit 0 is only clean with an empty stderr, so a crash that still ends at exit 0 is never read
 /// as clean, and exit 1 needs a document on stdout.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_latexindent(
     stdout: &[u8],
     stderr: &[u8],
@@ -82,8 +86,10 @@ mod tests {
 
     #[test]
     fn latexindent_exit_zero_is_clean_even_for_an_empty_document() {
-        assert!(parse(DOC, "", 0).expect("parsed").is_empty());
-        assert!(parse("", "", 0).expect("parsed").is_empty());
+        let actual = parse(DOC, "", 0).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = parse("", "", 0).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

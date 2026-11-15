@@ -31,6 +31,10 @@ fn severity(value: u64) -> Result<ToolSeverity, ParseError> {
 /// `lsp_check` prints one JSON object per diagnostic and exits 0 when there are none, 1 when
 /// there are some. Any other exit, bad JSON, a file that was not passed, or an exit that
 /// disagrees with the lines is an error here and never a clean result.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_pkl_lsp(
     stdout: &[u8],
     code: Option<i32>,
@@ -95,11 +99,8 @@ mod tests {
 
     #[test]
     fn pkl_lsp_is_clean_on_no_output_and_exit_zero() {
-        assert!(
-            parse_pkl_lsp(b"", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_pkl_lsp(b"", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -140,7 +141,7 @@ mod tests {
         assert!(parse_pkl_lsp(zero.as_bytes(), Some(1), &FILES).is_err());
         let odd = DIRTY.replace("\"severity\":2", "\"severity\":9");
         assert!(parse_pkl_lsp(odd.as_bytes(), Some(1), &FILES).is_err());
-        let extra = DIRTY.replace("}", ",\"x\":1}");
+        let extra = DIRTY.replace('}', ",\"x\":1}");
         assert!(parse_pkl_lsp(extra.as_bytes(), Some(1), &FILES).is_err());
     }
 }

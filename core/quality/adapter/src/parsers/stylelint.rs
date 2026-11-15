@@ -1,6 +1,9 @@
 use super::{FileFinding, ParseError, check_output_size, code_name, known, point};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_stylelint(
     stdout: &[u8],
     code: Option<i32>,
@@ -29,7 +32,7 @@ pub fn parse_stylelint(
             })?;
         let checked = known(TOOL, files, source)?;
         reported.push(checked);
-        if entry.get("ignored").and_then(|v| v.as_bool()) == Some(true) {
+        if entry.get("ignored").and_then(serde_json::Value::as_bool) == Some(true) {
             return Err(ParseError::Shape {
                 tool: TOOL,
                 detail: format!("{checked} was ignored, so it was not checked"),
@@ -54,67 +57,7 @@ pub fn parse_stylelint(
                 detail: "missing warnings".to_owned(),
             })?;
         for warn in warnings {
-            let line =
-                warn.get("line")
-                    .and_then(|v| v.as_u64())
-                    .ok_or_else(|| ParseError::Shape {
-                        tool: TOOL,
-                        detail: "missing line".to_owned(),
-                    })?;
-            let col =
-                warn.get("column")
-                    .and_then(|v| v.as_u64())
-                    .ok_or_else(|| ParseError::Shape {
-                        tool: TOOL,
-                        detail: "missing column".to_owned(),
-                    })?;
-            let rule = warn
-                .get("rule")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_owned();
-            let text = warn
-                .get("text")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_owned();
-            if text.is_empty() {
-                return Err(ParseError::Shape {
-                    tool: TOOL,
-                    detail: "missing text".to_owned(),
-                });
-            }
-            let severity = match warn.get("severity").and_then(|v| v.as_str()) {
-                Some("error") => ToolSeverity::Error,
-                Some("warning") => ToolSeverity::Warning,
-                other => {
-                    return Err(ParseError::Shape {
-                        tool: TOOL,
-                        detail: format!("unknown severity {other:?}"),
-                    });
-                }
-            };
-            if line == 0 || col == 0 {
-                return Err(ParseError::Shape {
-                    tool: TOOL,
-                    detail: "positions must be nonzero".to_owned(),
-                });
-            }
-            let (start, end) = point(line, col);
-            findings.push(FileFinding {
-                file: checked.to_owned(),
-                finding: Finding {
-                    tool_id: TOOL.to_owned(),
-                    rule_id: rule,
-                    message: text,
-                    severity,
-                    start,
-                    end,
-                    suggestions: Vec::new(),
-                    encoding: ColumnEncoding::Utf16,
-                    related: Vec::new(),
-                },
-            });
+            findings.push(warning_finding(warn, checked)?);
         }
     }
     if let Some(missing) = files.iter().find(|file| !reported.contains(file)) {
@@ -132,6 +75,71 @@ pub fn parse_stylelint(
     Ok(findings)
 }
 
+fn warning_finding(warn: &serde_json::Value, checked: &str) -> Result<FileFinding, ParseError> {
+    const TOOL: &str = "stylelint";
+    let line = warn
+        .get("line")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| ParseError::Shape {
+            tool: TOOL,
+            detail: "missing line".to_owned(),
+        })?;
+    let col = warn
+        .get("column")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| ParseError::Shape {
+            tool: TOOL,
+            detail: "missing column".to_owned(),
+        })?;
+    let rule = warn
+        .get("rule")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_owned();
+    let text = warn
+        .get("text")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_owned();
+    if text.is_empty() {
+        return Err(ParseError::Shape {
+            tool: TOOL,
+            detail: "missing text".to_owned(),
+        });
+    }
+    let severity = match warn.get("severity").and_then(|v| v.as_str()) {
+        Some("error") => ToolSeverity::Error,
+        Some("warning") => ToolSeverity::Warning,
+        other => {
+            return Err(ParseError::Shape {
+                tool: TOOL,
+                detail: format!("unknown severity {other:?}"),
+            });
+        }
+    };
+    if line == 0 || col == 0 {
+        return Err(ParseError::Shape {
+            tool: TOOL,
+            detail: "positions must be nonzero".to_owned(),
+        });
+    }
+    let (start, end) = point(line, col);
+    Ok(FileFinding {
+        file: checked.to_owned(),
+        finding: Finding {
+            tool_id: TOOL.to_owned(),
+            rule_id: rule,
+            message: text,
+            severity,
+            start,
+            end,
+            suggestions: Vec::new(),
+            encoding: ColumnEncoding::Utf16,
+            related: Vec::new(),
+        },
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,7 +151,7 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.rule_id, "color-no-invalid-hex");
         let clean = parse_stylelint(CLEAN.as_bytes(), Some(0), &["style.css"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_stylelint(b"", Some(2), &["style.css"]).is_err());
         assert!(parse_stylelint(DIRTY.as_bytes(), Some(2), &["other.css"]).is_err());
         assert!(parse_stylelint(&[0xff], Some(0), &["x"]).is_err());

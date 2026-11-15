@@ -6,14 +6,18 @@ const TOOL: &str = "phpstan";
 
 /// Findings from `phpstan analyse --error-format=json`, on exit 0 (clean) or 1 (findings).
 ///
-/// PHPStan keys `files` by the path it analysed, so `files` holds the paths of the owned
-/// sources as PHPStan reports them (a trait error's `<file> (in context of ...)` key is read as
+/// `PHPStan` keys `files` by the path it analysed, so `files` holds the paths of the owned
+/// sources as `PHPStan` reports them (a trait error's `<file> (in context of ...)` key is read as
 /// the trait file, and when only dependency traits report, the owned sources are clean); an entry for any other file belongs to a dependency and is
 /// dropped. A clean run prints `"files": []`, an empty array rather than an object. The
 /// top-level `errors` array carries errors that are not tied to a file (a bad config, an
 /// unreadable path) and is never clean, whatever the exit code says. Any other exit code (255
 /// for a crash, none for a signal) fails the run. The rule is the error's `identifier`, `error`
-/// when PHPStan gave none, and a `tip` joins the message.
+/// when `PHPStan` gave none, and a `tip` joins the message.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_phpstan(
     stdout: &[u8],
     code: Option<i32>,
@@ -101,6 +105,7 @@ const UNUSED_PUBLIC: [&str; 3] = [
 ];
 
 /// Under `dx unused` only the unused-public rules count, and they are warnings.
+#[must_use]
 pub fn keep_unused_public(findings: Vec<FileFinding>) -> Vec<FileFinding> {
     findings
         .into_iter()
@@ -221,11 +226,8 @@ mod tests {
     #[test]
     fn phpstan_clean_run_has_no_findings() {
         let out = br#"{"totals":{"errors":0,"file_errors":0},"files":[],"errors":[]}"#;
-        assert!(
-            parse_phpstan(out, Some(0), &["/s/a.php"])
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_phpstan(out, Some(0), &["/s/a.php"]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -242,7 +244,7 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].file, "/s/t.php");
         let dep_only = parse_phpstan(out, Some(1), &["/s/a.php"]).expect("dependency only");
-        assert!(dep_only.is_empty());
+        assert!(dep_only.is_empty(), "{dep_only:?}");
     }
 
     #[test]

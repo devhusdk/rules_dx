@@ -5,6 +5,10 @@ use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
 /// `yamllint -f parsable` prints `<path>:<line>:<column>: [<level>] <message> (<rule>)`.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_yamllint(
     stdout: &[u8],
     code: Option<i32>,
@@ -78,7 +82,7 @@ mod tests {
     #[test]
     fn yamllint_rejects_output_outside_the_grammar() {
         let clean = parse_yamllint(b"", Some(0), &["Sample.yaml"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_yamllint(b"", Some(1), &["Sample.yaml"]).is_err());
         assert!(parse_yamllint(DIRTY.as_bytes(), Some(1), &["other.yaml"]).is_err());
         assert!(

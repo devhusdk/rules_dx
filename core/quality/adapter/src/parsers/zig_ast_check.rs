@@ -9,6 +9,10 @@ const TOOL: &str = "zig_ast_check";
 ///
 /// Fails closed: exit 1 without a diagnostic for a passed file is a usage or IO failure
 /// (`unable to open file`), never a clean run. `note:` lines are context, not findings.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_zig_ast_check(
     stdout: &[u8],
     stderr: &[u8],
@@ -92,11 +96,8 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(
-            parse_zig_ast_check(b"", b"", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_zig_ast_check(b"", b"", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

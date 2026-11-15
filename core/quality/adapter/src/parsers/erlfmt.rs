@@ -14,6 +14,10 @@ const NOISE: &[&str] = &[
 ];
 
 /// Findings from `erlfmt --check`: `[warn] path` lines are unformatted files, `path:line:col: message` lines are errors.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_erlfmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -114,11 +118,8 @@ mod tests {
         assert_eq!(findings[0].file, "src/dirty.erl");
         assert_eq!(findings[0].finding.message, "file is not formatted");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
-        assert!(
-            parse_erlfmt(b"", CLEAN.as_bytes(), Some(0), &files)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_erlfmt(b"", CLEAN.as_bytes(), Some(0), &files).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_erlfmt(b"", CLEAN.as_bytes(), Some(1), &files).is_err());
         assert!(parse_erlfmt(b"", DIRTY.as_bytes(), Some(0), &files).is_err());
         assert!(matches!(

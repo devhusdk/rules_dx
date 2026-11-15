@@ -20,6 +20,9 @@ struct FSharpLintRecord {
     end_column: u64,
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_fsharplint(
     stdout: &[u8],
     code: Option<i32>,
@@ -108,7 +111,7 @@ mod tests {
         assert_eq!(findings[0].finding.rule_id, "FL0036");
         assert_eq!(findings[1].finding.rule_id, "FL0034");
         let clean = parse_fsharplint(b"", Some(0), &["/s/Sample.fs"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_fsharplint(LINT.as_bytes(), Some(1), &["/s/Sample.fs"]).is_err());
         assert!(parse_fsharplint(LINT.as_bytes(), Some(0), &["/s/other.fs"]).is_err());
         let syntax = "{\"path\": \"/s/Sample.fs\", \"severity\": \"error\", \"rule\": \"FS0010\", \"message\": \"Unexpected symbol\", \"startLine\": 2, \"startColumn\": 9, \"endLine\": 2, \"endColumn\": 10}\n";

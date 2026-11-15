@@ -1,5 +1,8 @@
 use super::{FileFinding, ParseError, Spelling, listed_paths};
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_google_java_format(
     stdout: &[u8],
     code: Option<i32>,
@@ -28,7 +31,7 @@ mod tests {
         assert_eq!(findings[0].file, "/s/Dirty.java");
         assert_eq!(findings[0].finding.message, "file is not formatted");
         let clean = parse_google_java_format(b"", Some(0), &["/s/Dirty.java"]).expect("clean");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_google_java_format(b"", Some(1), &["/s/Dirty.java"]).is_err());
         assert!(parse_google_java_format(b"/s/other.java\n", Some(1), &["/s/Dirty.java"]).is_err());
         assert!(parse_google_java_format(&[0xff], Some(1), &["/s/Dirty.java"]).is_err());

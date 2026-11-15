@@ -13,6 +13,10 @@ const ERRONEOUS: &str = ". The source is erroneous.";
 /// A file with a syntax error is reported on stderr as `warn: Failed to parse <path>. The source
 /// is erroneous.` and the exit code stays 0 (or 1 beside a dirty file), in check and in `-i` mode.
 /// Paths are spelled from the working directory. Exit 2 is an execution error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_typstyle(
     stdout: &[u8],
     stderr: &[u8],
@@ -129,7 +133,8 @@ mod tests {
 
     #[test]
     fn typstyle_clean_is_empty() {
-        assert!(parse("", "", 0).expect("parsed").is_empty());
+        let actual = parse("", "", 0).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

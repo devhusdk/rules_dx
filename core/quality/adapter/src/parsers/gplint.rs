@@ -4,6 +4,10 @@ use crate::{ColumnEncoding, Finding, LINE_END, TextPosition, ToolSeverity};
 /// Parses `gplint -f json`. Every requested file must be named exactly once, because gplint
 /// treats arguments as globs and silently drops what does not match, and because it exits 0
 /// with no output when it crashes.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_gplint(
     stdout: &[u8],
     code: Option<i32>,
@@ -53,10 +57,13 @@ pub fn parse_gplint(
         for error in errors {
             let line = error
                 .get("line")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .ok_or_else(|| shape("missing line"))?
                 .max(1); // empty files report line 0
-            let column = error.get("column").and_then(|v| v.as_u64()).unwrap_or(0);
+            let column = error
+                .get("column")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0);
             let rule = error
                 .get("rule")
                 .and_then(|v| v.as_str())
@@ -68,7 +75,7 @@ pub fn parse_gplint(
                 .filter(|text| !text.is_empty())
                 .ok_or_else(|| shape("missing message"))?
                 .to_owned();
-            let severity = match error.get("level").and_then(|v| v.as_u64()) {
+            let severity = match error.get("level").and_then(serde_json::Value::as_u64) {
                 Some(2) => {
                     saw_error = true;
                     ToolSeverity::Error
@@ -142,11 +149,8 @@ mod tests {
         let findings = parse_gplint(DIRTY.as_bytes(), Some(1), FILES).expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.rule_id, "no-unnamed-features");
-        assert!(
-            parse_gplint(CLEAN.as_bytes(), Some(0), FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_gplint(CLEAN.as_bytes(), Some(0), FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

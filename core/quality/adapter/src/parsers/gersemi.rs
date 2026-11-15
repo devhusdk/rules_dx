@@ -23,6 +23,10 @@ const EXIT_FAILED: i32 = 123;
 /// missing config as exit 1 with a bare message, and an unsupported `.gersemirc` key as a message
 /// on stderr with the normal exit code. A file that failed to parse is reported as that and never
 /// as unformatted or clean, whatever else the batch holds.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_gersemi(
     stdout: &[u8],
     stderr: &[u8],
@@ -230,11 +234,8 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(
-            parse_gersemi(b"", b"", Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_gersemi(b"", b"", Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -300,21 +301,15 @@ mod tests {
     #[test]
     fn unknown_command_warnings_are_neither_findings_nor_errors() {
         let stderr = "Warning: unknown command 'foo' used at:\n/w/a.cmake:1:1\n\n";
-        assert!(
-            parse_gersemi(b"", stderr.as_bytes(), Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_gersemi(b"", stderr.as_bytes(), Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
     fn unknown_command_warnings_with_many_call_sites_are_skipped() {
         let stderr = "Warning: unknown command 'foo' used at:\n/w/a.cmake:1:1\n/w/a.cmake:7:1\n/w/b.cmake:2:3\n\nWarning: unknown command 'bar' used at:\n/w/a.cmake:9:1\n\n";
-        assert!(
-            parse_gersemi(b"", stderr.as_bytes(), Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_gersemi(b"", stderr.as_bytes(), Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

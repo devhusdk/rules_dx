@@ -16,6 +16,10 @@ const DIALECT: Dialect = Dialect {
 };
 
 /// `ldc2 -o- -verror-style=gnu` output. A nonzero exit that printed no diagnostic is an error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ldc(
     output: &[u8],
     code: Option<i32>,
@@ -71,7 +75,8 @@ mod tests {
 
     #[test]
     fn ldc_fails_closed() {
-        assert!(parse_ldc(b"", Some(0), &[FILE]).expect("clean").is_empty());
+        let actual = parse_ldc(b"", Some(0), &[FILE]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_ldc(b"", Some(1), &[FILE]).is_err());
         assert!(parse_ldc(b"", None, &[FILE]).is_err());
         assert!(parse_ldc(b"Error: no location\n", Some(1), &[FILE]).is_err());
@@ -81,10 +86,7 @@ mod tests {
             Err(ParseError::UnknownFile { .. })
         ));
         let foreign_warning = "d/b.d:1:1: Warning: noise\n";
-        assert!(
-            parse_ldc(foreign_warning.as_bytes(), Some(0), &[FILE])
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_ldc(foreign_warning.as_bytes(), Some(0), &[FILE]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 }

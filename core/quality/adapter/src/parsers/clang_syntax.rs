@@ -76,6 +76,10 @@ pub(super) fn split_rule(message: &str) -> (String, String) {
 /// Parses `clang -fsyntax-only` (or GCC) text diagnostics. Notes, include stacks and
 /// the trailing "N errors generated." summary carry no finding; a failing exit with
 /// no located diagnostic is an error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_clang_syntax(
     stderr: &[u8],
     code: Option<i32>,
@@ -137,7 +141,12 @@ fn unplaced_stderr(text: &[&str]) -> String {
         .map(|line| line.trim())
         .filter(|line| !line.is_empty())
         .collect();
-    let shown = kept.iter().take(SHOWN).copied().collect::<Vec<_>>().join(" | ");
+    let shown = kept
+        .iter()
+        .take(SHOWN)
+        .copied()
+        .collect::<Vec<_>>()
+        .join(" | ");
     match kept.len() {
         0 => "empty".to_owned(),
         n if n > SHOWN => format!("{shown} | ... {} more lines", n - SHOWN),
@@ -185,11 +194,8 @@ mod tests {
         );
         let empty = parse_clang_syntax(b"", Some(1), &[FILE]).expect_err("no output");
         assert!(empty.to_string().contains("(stderr: empty)"), "{empty}");
-        assert!(
-            parse_clang_syntax(b"", Some(0), &[FILE])
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_clang_syntax(b"", Some(0), &[FILE]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

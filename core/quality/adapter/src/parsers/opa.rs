@@ -34,6 +34,10 @@ struct Location {
 /// `FILE:ROW: rego_parse_error: MESSAGE` lines to stderr when the file does not parse. The first
 /// differing line is reported; a parse error is an error finding. Anything else is an error,
 /// never clean. A CRLF file differs from the LF output on every line, so it is reported.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_opa_fmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -118,6 +122,10 @@ pub fn parse_opa_fmt(
 /// writes `{"errors":[{message, code, location:{file, row, col}}]}` to stderr, not stdout. Columns
 /// count Unicode scalar values from 1. Any other exit, output on a clean run, non-JSON output, an
 /// empty error list or an error without a location is an error, never clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_opa_check(
     stdout: &[u8],
     stderr: &[u8],
@@ -186,11 +194,8 @@ mod tests {
     #[test]
     fn fmt_clean_and_dirty() {
         let clean = b"package a\n\nx := 1\n";
-        assert!(
-            parse_opa_fmt(clean, b"", Some(0), clean, "/s/a.rego")
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_opa_fmt(clean, b"", Some(0), clean, "/s/a.rego").expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
         let dirty = b"package a\n\nx :=   1\n";
         let found = parse_opa_fmt(clean, b"", Some(0), dirty, "/s/a.rego").expect("ok");
         assert_eq!(found.len(), 1);
@@ -233,11 +238,8 @@ mod tests {
 
     #[test]
     fn check_clean_run_has_no_findings() {
-        assert!(
-            parse_opa_check(b"", b"", Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_opa_check(b"", b"", Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

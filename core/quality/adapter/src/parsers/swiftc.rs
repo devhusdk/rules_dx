@@ -17,6 +17,10 @@ const DIALECT: Dialect = Dialect {
 };
 
 /// `swiftc -typecheck` output. A nonzero exit that printed no diagnostic is an error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_swiftc(
     output: &[u8],
     code: Option<i32>,
@@ -51,11 +55,8 @@ mod tests {
 
     #[test]
     fn swiftc_clean_and_silent_failure() {
-        assert!(
-            parse_swiftc(b"", Some(0), &[FILE])
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_swiftc(b"", Some(0), &[FILE]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_swiftc(b"", Some(1), &[FILE]).is_err());
         assert!(parse_swiftc(b"", None, &[FILE]).is_err());
         assert!(parse_swiftc(b"error: no location\n", Some(1), &[FILE]).is_err());

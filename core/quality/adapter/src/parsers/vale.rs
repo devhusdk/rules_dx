@@ -28,6 +28,9 @@ fn vale_severity(level: &str) -> Result<ToolSeverity, ParseError> {
     }
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_vale(
     stdout: &[u8],
     code: Option<i32>,
@@ -181,11 +184,8 @@ mod tests {
                 })
             )
         );
-        assert!(
-            parse_vale(b"{}", Some(0), &["/s/vale/clean.md"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_vale(b"{}", Some(0), &["/s/vale/clean.md"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

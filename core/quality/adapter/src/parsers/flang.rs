@@ -17,6 +17,10 @@ const DIALECT: Dialect = Dialect {
 };
 
 /// `flang -fsyntax-only` output. A nonzero exit that printed no diagnostic is an error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_flang(
     output: &[u8],
     code: Option<i32>,
@@ -74,11 +78,8 @@ mod tests {
 
     #[test]
     fn flang_fails_closed() {
-        assert!(
-            parse_flang(b"", Some(0), &[FILE])
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_flang(b"", Some(0), &[FILE]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_flang(b"", Some(1), &[FILE]).is_err());
         assert!(parse_flang(b"", None, &[FILE]).is_err());
         assert!(parse_flang(b"segfault\n", Some(139), &[FILE]).is_err());

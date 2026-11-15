@@ -18,6 +18,9 @@ fn position(value: &serde_json::Value, key: &str) -> Result<u64, ParseError> {
         .ok_or_else(|| ParseError::shape(TOOL, format!("missing {key}")))
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_psscriptanalyzer(
     stdout: &[u8],
     code: Option<i32>,
@@ -96,6 +99,10 @@ fn report_entries(stdout: &[u8], code: Option<i32>) -> Result<Vec<serde_json::Va
 
 /// Parses the `--format-check` report: an unformatted file is one fixable finding, a file that
 /// does not parse is an error at each parse failure, and a failed run is never clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_psscriptanalyzer_format(
     stdout: &[u8],
     code: Option<i32>,
@@ -141,7 +148,7 @@ pub fn parse_psscriptanalyzer_format(
         match entry.get("formatted").and_then(serde_json::Value::as_bool) {
             Some(true) => {}
             Some(false) => {
-                findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Utf16))
+                findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Utf16));
             }
             None => return Err(ParseError::shape(TOOL, "missing formatted")),
         }
@@ -168,7 +175,7 @@ mod tests {
         assert_eq!(findings[0].finding.start.line, 4);
         let clean =
             parse_psscriptanalyzer(CLEAN.as_bytes(), Some(0), &["Sample.ps1"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
     }
 
     #[test]

@@ -79,6 +79,10 @@ fn is_summary(line: &str) -> bool {
 /// Diagnostics in other files (dependencies, generated sources) are dropped. Location-less
 /// diagnostics (`error TS5083: ...`) and a failing exit with no diagnostic in `files` are errors,
 /// so a project that does not typecheck is never reported clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_tsc_format(
     tool: &'static str,
     stdout: &[u8],
@@ -122,6 +126,9 @@ pub fn parse_tsc_format(
     Ok(findings)
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_tsc(
     stdout: &[u8],
     code: Option<i32>,
@@ -199,7 +206,8 @@ mod tests {
         assert!(parse_tsc(REAL.as_bytes(), Some(2), &["other.ts"]).is_err());
         assert!(parse_tsc(b"", Some(2), &FILES).is_err());
         assert!(parse_tsc(b"", None, &FILES).is_err());
-        assert!(parse_tsc(b"", Some(0), &FILES).expect("clean").is_empty());
+        let actual = parse_tsc(b"", Some(0), &FILES).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -294,7 +302,7 @@ mod tests {
 
     #[test]
     fn the_found_summary_is_ignored_and_the_tool_id_is_a_parameter() {
-        let text = format!("{}Found 4 errors in 2 files.\n", REAL);
+        let text = format!("{REAL}Found 4 errors in 2 files.\n");
         let found = parse_tsc_format("vue_tsc", text.as_bytes(), Some(2), &FILES).expect("parsed");
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].finding.tool_id, "vue_tsc");

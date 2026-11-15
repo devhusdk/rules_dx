@@ -22,6 +22,10 @@ fn position(value: &serde_json::Value, key: &str) -> Result<u64, ParseError> {
 }
 
 /// Parses `hadolint -f json`: stdout is one JSON array of findings, whatever the exit code says.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_hadolint(
     stdout: &[u8],
     stderr: &[u8],
@@ -114,9 +118,9 @@ mod tests {
     #[test]
     fn hadolint_clean_run_is_clean() {
         let clean = parse_hadolint(b"[]", b"", Some(0), &["Dockerfile"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         let spaced = parse_hadolint(b"\n[]\n", b"", Some(0), &["Dockerfile"]).expect("parsed");
-        assert!(spaced.is_empty());
+        assert!(spaced.is_empty(), "{spaced:?}");
     }
 
     #[test]

@@ -1,6 +1,9 @@
 use super::{FileFinding, ParseError, check_output_size, sarif::parse_sarif};
 use crate::ColumnEncoding;
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_pmd(
     stdout: &[u8],
     code: Option<i32>,
@@ -26,7 +29,7 @@ mod tests {
         let clean =
             r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"PMD"}},"results":[]}]}"#;
         let clean = parse_pmd(clean.as_bytes(), Some(0), &["/s/Dirty.java"]).expect("clean");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_pmd(b"not json", Some(1), &["/s/Dirty.java"]).is_err());
     }
 }

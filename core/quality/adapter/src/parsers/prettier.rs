@@ -7,6 +7,9 @@ use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "prettier";
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_prettier_check(
     stderr: &[u8],
     code: Option<i32>,
@@ -19,6 +22,10 @@ pub fn parse_prettier_check(
 /// used only to place a `prettier-plugin-svelte` syntax error, whose code frame numbers the lines
 /// of a copy with every `<script>` and `<style>` body collapsed onto one line. Without the source,
 /// or when the frame does not match exactly one place in it, the error stays at 1:1.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_prettier_check_with_sources(
     stderr: &[u8],
     code: Option<i32>,
@@ -344,7 +351,7 @@ mod tests {
         assert_eq!(findings[0].file, "src/a.js");
         assert_eq!(findings[0].finding.message, "file is not formatted");
         let clean = parse_prettier_check(b"", Some(0), &["src/a.js"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_prettier_check(b"", Some(1), &["src/a.js"]).is_err());
         assert!(parse_prettier_check(b"unexpected\n", Some(1), &["src/a.js"]).is_err());
         assert!(parse_prettier_check(stderr.as_bytes(), Some(1), &["src/other.js"]).is_err());
@@ -363,7 +370,7 @@ mod tests {
             &["src/a.js"],
         )
         .expect("parsed");
-        assert!(clean_noise.is_empty());
+        assert!(clean_noise.is_empty(), "{clean_noise:?}");
     }
 
     #[test]

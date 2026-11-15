@@ -71,6 +71,10 @@ fn is_lint(kind: &str) -> Result<bool, ParseError> {
 /// code must agree with the worst severity: 0 for info or nothing, 2 for warnings, 3 for errors.
 /// The lint and typecheck views share one run and partition it by diagnostic type. A lint the
 /// analyzer reports at info level is a warning here; hints stay info.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_dart_analyze(
     stdout: &[u8],
     stderr: &[u8],
@@ -193,7 +197,8 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(run(&[], 0, DartAnalyzeView::Lint).unwrap().is_empty());
+        let actual = run(&[], 0, DartAnalyzeView::Lint).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

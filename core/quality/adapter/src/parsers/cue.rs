@@ -10,6 +10,10 @@ use crate::ToolSeverity;
 const TOOL: &str = "cue";
 
 /// Exit 0 is clean. Exit 1 prints a diff for unformatted files or locates syntax errors on stderr.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_cue(
     stdout: &[u8],
     stderr: &[u8],
@@ -87,6 +91,10 @@ fn syntax_errors(stderr: &str, files: &[&str], cwd: &Path) -> Result<Vec<FileFin
 /// a message line, then indented `path:row:col` positions. Each block becomes one finding at its
 /// first position inside `owned`, else at its first position inside `known` (a dependency, which
 /// the caller drops or reports). Any other outcome is an error, never clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_cue_vet(
     stdout: &[u8],
     stderr: &[u8],
@@ -172,7 +180,9 @@ fn within_file(file: &str, row: u64, column: u64) -> (u64, u64) {
     let rows: Vec<&str> = text.lines().collect();
     let last = rows.len().max(1) as u64;
     let row = row.clamp(1, last);
-    let width = rows.get(row as usize - 1).map_or(0, |line| line.len()) as u64;
+    let width = rows
+        .get(usize::try_from(row).map_or(0, |row| row - 1))
+        .map_or(0, |line| line.len()) as u64;
     (row, column.clamp(1, width + 1))
 }
 
@@ -203,7 +213,7 @@ mod tests {
         assert_eq!(findings[0].file, "/tmp/dx-scratch/other/o.cue");
         assert_eq!(findings[0].finding.message, "file is not formatted");
         let clean = parse_cue(b"", b"", Some(0), &files(), scratch()).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
     }
 
     #[test]
@@ -262,7 +272,8 @@ mod tests {
     fn vet_is_clean_only_on_silent_exit_zero() {
         let owned = ["/tmp/dx-scratch/main.cue"];
         let ok = parse_cue_vet(b"", b"", Some(0), &owned, &vet_files(), scratch());
-        assert!(ok.expect("clean").is_empty());
+        let actual = ok.expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_cue_vet(b"", b"x\n", Some(0), &owned, &vet_files(), scratch()).is_err());
         assert!(parse_cue_vet(b"", b"", Some(1), &owned, &vet_files(), scratch()).is_err());
         assert!(

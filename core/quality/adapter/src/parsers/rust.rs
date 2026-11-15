@@ -51,6 +51,9 @@ fn clippy_level(tool: &'static str, level: &str) -> Result<ToolSeverity, ParseEr
     }
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_clippy(
     stderr: &[u8],
     code: Option<i32>,
@@ -60,6 +63,9 @@ pub fn parse_clippy(
     parse_rust_diagnostics("clippy", stderr, code, files)
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_rustc(
     stderr: &[u8],
     code: Option<i32>,
@@ -343,11 +349,8 @@ mod tests {
         assert_eq!(broken[0].finding.rule_id, "");
         assert_eq!(broken[0].finding.severity, ToolSeverity::Error);
 
-        assert!(
-            parse_clippy(b"", Some(0), &["/s/clean.rs"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_clippy(b"", Some(0), &["/s/clean.rs"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         let err = parse_clippy(
             CLIPPY_LINT.lines().nth(1).expect("summary").as_bytes(),
             Some(1),
@@ -379,11 +382,8 @@ mod tests {
                 })
             )
         );
-        assert!(
-            parse_rustc(b"", Some(0), &["/s/clean.rs"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_rustc(b"", Some(0), &["/s/clean.rs"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         let err = parse_rustc(
             RUSTC_TYPE_ERROR.lines().nth(1).expect("summary").as_bytes(),
             Some(1),
@@ -397,18 +397,12 @@ mod tests {
     #[test]
     fn clippy_rejects_bytes_lines_and_unplaced_diagnostics() {
         assert!(parse_clippy(b"\xff", Some(1), &["/s/x.rs"]).is_err());
-        assert!(
-            parse_clippy(b"  \n", Some(0), &["/s/x.rs"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_clippy(b"  \n", Some(0), &["/s/x.rs"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_clippy(b"hello\n", Some(0), &["/s/x.rs"]).is_err());
         let artifact = "{\"$message_type\": \"artifact\", \"x\": 1}\n";
-        assert!(
-            parse_clippy(artifact.as_bytes(), Some(0), &["/s/x.rs"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_clippy(artifact.as_bytes(), Some(0), &["/s/x.rs"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         let bare = "{\"$message_type\": \"diagnostic\"}\n";
         assert!(parse_clippy(bare.as_bytes(), Some(0), &["/s/x.rs"]).is_err());
         let outside = diagnostic(
@@ -417,11 +411,8 @@ mod tests {
             &span("/other.rs", 1, 1, true),
             "",
         );
-        assert!(
-            parse_clippy(outside.as_bytes(), Some(0), &["/s/x.rs"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_clippy(outside.as_bytes(), Some(0), &["/s/x.rs"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         let err =
             parse_clippy(outside.as_bytes(), Some(1), &["/s/x.rs"]).expect_err("unplaced failure");
         assert!(err.to_string().contains("elsewhere"));
@@ -446,22 +437,24 @@ mod tests {
 
     #[test]
     fn clippy_marks_maybe_incorrect_suggestions_unsafe() {
-        let maybe = format!(concat!(
-            r#"{{"message": "maybe", "code": null, "level": "help", "spans": ["#,
-            r#"{{"file_name": "/s/x.rs", "byte_start": 0, "byte_end": 1, "#,
+        let maybe = concat!(
+            r#"{"message": "maybe", "code": null, "level": "help", "spans": ["#,
+            r#"{"file_name": "/s/x.rs", "byte_start": 0, "byte_end": 1, "#,
             r#""line_start": 1, "line_end": 1, "column_start": 1, "column_end": 2, "#,
             r#""is_primary": true, "text": [], "label": null, "#,
             r#""suggested_replacement": "y", "suggestion_applicability": "MaybeIncorrect", "#,
-            r#""expansion": null}}], "children": [], "rendered": null}}"#
-        ));
-        let plain = format!(concat!(
-            r#"{{"message": "plain", "code": null, "level": "help", "spans": ["#,
-            r#"{{"file_name": "/s/x.rs", "byte_start": 0, "byte_end": 1, "#,
+            r#""expansion": null}], "children": [], "rendered": null}"#
+        )
+        .to_string();
+        let plain = concat!(
+            r#"{"message": "plain", "code": null, "level": "help", "spans": ["#,
+            r#"{"file_name": "/s/x.rs", "byte_start": 0, "byte_end": 1, "#,
             r#""line_start": 1, "line_end": 1, "column_start": 1, "column_end": 2, "#,
             r#""is_primary": true, "text": [], "label": null, "#,
             r#""suggested_replacement": null, "suggestion_applicability": null, "#,
-            r#""expansion": null}}], "children": [], "rendered": null}}"#
-        ));
+            r#""expansion": null}], "children": [], "rendered": null}"#
+        )
+        .to_string();
         let secondary = span("/s/x.rs", 2, 3, false);
         let line = diagnostic(
             "\"lint\"",
@@ -487,14 +480,15 @@ mod tests {
                 applicability: FixApplicability::Unsafe,
             }]
         );
-        let inverted = format!(concat!(
-            r#"{{"message": "fix", "code": null, "level": "help", "spans": ["#,
-            r#"{{"file_name": "/s/x.rs", "byte_start": 5, "byte_end": 2, "#,
+        let inverted = concat!(
+            r#"{"message": "fix", "code": null, "level": "help", "spans": ["#,
+            r#"{"file_name": "/s/x.rs", "byte_start": 5, "byte_end": 2, "#,
             r#""line_start": 1, "line_end": 1, "column_start": 1, "column_end": 2, "#,
             r#""is_primary": true, "text": [], "label": null, "#,
             r#""suggested_replacement": "y", "suggestion_applicability": "MachineApplicable", "#,
-            r#""expansion": null}}], "children": [], "rendered": null}}"#
-        ));
+            r#""expansion": null}], "children": [], "rendered": null}"#
+        )
+        .to_string();
         let bad = diagnostic(
             "\"lint\"",
             "warning",
@@ -551,6 +545,7 @@ mod tests {
     fn rust_without_context_has_no_related_items() {
         let findings =
             parse_clippy(CLIPPY_BROKEN.as_bytes(), Some(1), &["/s/broken.rs"]).expect("parsed");
-        assert!(findings[0].finding.related.is_empty());
+        let actual = &findings[0].finding.related;
+        assert!(actual.is_empty(), "{actual:?}");
     }
 }

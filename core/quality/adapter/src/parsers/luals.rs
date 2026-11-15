@@ -8,11 +8,15 @@ const TOOL: &str = "luals";
 ///
 /// The report is a JSON object that maps the `file://` URI of each file with diagnostics to a
 /// list of LSP diagnostics; a clean run writes an empty array (an empty object is read the
-/// same way). The exit code says nothing about findings (LuaLS exits 0 with them), so the
+/// same way). The exit code says nothing about findings (`LuaLS` exits 0 with them), so the
 /// caller must treat a missing report as a failed run. `files` holds the paths of the owned
 /// sources as the run spells them; an entry for any other file (a library or dependency
-/// module) is dropped. The rule is `luals/<code>`, `luals/error` when LuaLS gave no code;
+/// module) is dropped. The rule is `luals/<code>`, `luals/error` when `LuaLS` gave no code;
 /// severity 1 is an error, 2 a warning and 3 or 4 (information, hint) info.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_luals(stdout: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
     let text = as_text(TOOL, stdout)?;
     let report: serde_json::Value = serde_json::from_str(text.trim())
@@ -97,10 +101,10 @@ fn one(path: &str, entry: &serde_json::Value) -> Result<FileFinding, ParseError>
 fn same_path(left: &str, right: &str) -> bool {
     fn normal(path: &str) -> String {
         let mut out = path.replace('\\', "/");
-        if out.as_bytes().get(1) == Some(&b':') {
-            if let Some(drive) = out.get_mut(..1) {
-                drive.make_ascii_lowercase();
-            }
+        if out.as_bytes().get(1) == Some(&b':')
+            && let Some(drive) = out.get_mut(..1)
+        {
+            drive.make_ascii_lowercase();
         }
         out
     }
@@ -179,17 +183,12 @@ mod tests {
 
     #[test]
     fn luals_clean_reports_have_no_findings() {
-        assert!(parse_luals(b"[]", &["/s/a.lua"]).expect("array").is_empty());
-        assert!(
-            parse_luals(b"{}", &["/s/a.lua"])
-                .expect("object")
-                .is_empty()
-        );
-        assert!(
-            parse_luals(REPORT.as_bytes(), &["/s/other.lua"])
-                .expect("library only")
-                .is_empty()
-        );
+        let actual = parse_luals(b"[]", &["/s/a.lua"]).expect("array");
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = parse_luals(b"{}", &["/s/a.lua"]).expect("object");
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = parse_luals(REPORT.as_bytes(), &["/s/other.lua"]).expect("library only");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

@@ -29,6 +29,10 @@ fn place(value: &serde_json::Value, key: &str) -> Result<(u64, u64), ParseError>
 }
 
 /// Parses `cfn-lint --format json --non-zero-exit-code informational`: the exit code is a bitmask of the levels reported.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_cfn_lint(
     stdout: &[u8],
     stderr: &[u8],
@@ -146,11 +150,8 @@ mod tests {
 
     #[test]
     fn clean_run_is_clean() {
-        assert!(
-            parse_cfn_lint(b"[]\n", b"", Some(0), &files())
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_cfn_lint(b"[]\n", b"", Some(0), &files()).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

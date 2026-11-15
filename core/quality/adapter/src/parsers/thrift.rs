@@ -82,6 +82,10 @@ fn undefined_type(line: &str) -> bool {
 /// checked file. Output the grammar cannot read is never clean: exit 0 allows
 /// warnings only, exit 1 needs an error line (a usage error also exits 1 and
 /// has none), and anything else, including a signal, is a shape error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_thrift(
     stdout: &[u8],
     stderr: &[u8],
@@ -274,7 +278,7 @@ Generating \"json\"\n"
     #[test]
     fn clean_run_lists_every_scanned_file() {
         let report = parse_thrift(&clean(), b"", Some(0), &[FILE]).expect("clean");
-        assert!(report.findings.is_empty());
+        assert!(report.findings.is_empty(), "{:?}", report.findings);
         assert_eq!(report.dependencies, ["/s/pkg/a.thrift", "/s/pkg/b.thrift"]);
     }
 

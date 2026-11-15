@@ -15,6 +15,10 @@ const PARSE_FAILURE: &str = "Could not format because the source could not be pa
 /// error. The exit code must agree with the output: 0 is clean, 1 lists changed files, and 65 is a
 /// parse failure with a located error. The summary must account for every checked file, so a file
 /// the tool never reached cannot pass.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_dart_format(
     stdout: &[u8],
     stderr: &[u8],
@@ -187,16 +191,14 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].file, "/s/dirty.dart");
         assert_eq!(findings[0].finding.message, "file is not formatted");
-        assert!(
-            parse_dart_format(
-                b"Formatted 2 files (0 changed) in 0 seconds.\n",
-                b"",
-                Some(0),
-                files
-            )
-            .expect("parsed")
-            .is_empty()
-        );
+        let actual = parse_dart_format(
+            b"Formatted 2 files (0 changed) in 0 seconds.\n",
+            b"",
+            Some(0),
+            files,
+        )
+        .expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -291,11 +293,8 @@ mod tests {
             )
             .is_err()
         );
-        assert!(
-            parse_dart_format(CLEAN.as_bytes(), b"", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_dart_format(CLEAN.as_bytes(), b"", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

@@ -30,6 +30,9 @@ struct BuildifierPosition {
     column: u64,
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_buildifier(
     stdout: &[u8],
     stderr: &[u8],
@@ -144,11 +147,9 @@ mod tests {
                 Some(TextPosition { line: 1, column: 2 })
             )
         );
-        assert!(
-            parse_buildifier(BUILDIFIER_CLEAN.as_bytes(), b"", &["/s/clean.bzl"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual =
+            parse_buildifier(BUILDIFIER_CLEAN.as_bytes(), b"", &["/s/clean.bzl"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

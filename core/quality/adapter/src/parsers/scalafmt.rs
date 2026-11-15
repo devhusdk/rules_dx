@@ -2,6 +2,9 @@ use std::path::Path;
 
 use super::{FileFinding, ParseError, Spelling, code_name, listed_paths};
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_scalafmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -10,20 +13,17 @@ pub fn parse_scalafmt(
     cwd: &Path,
 ) -> Result<Vec<FileFinding>, ParseError> {
     match code {
-        Some(0) | Some(1) => {
-            listed_paths("scalafmt", stdout, code, files, &[], Spelling::Below(cwd)).and_then(
-                |findings| {
-                    if code == Some(0) && !findings.is_empty() {
-                        Err(ParseError::Shape {
-                            tool: "scalafmt",
-                            detail: "exit 0 with listed files".to_owned(),
-                        })
-                    } else {
-                        Ok(findings)
-                    }
-                },
-            )
-        }
+        Some(0 | 1) => listed_paths("scalafmt", stdout, code, files, &[], Spelling::Below(cwd))
+            .and_then(|findings| {
+                if code == Some(0) && !findings.is_empty() {
+                    Err(ParseError::Shape {
+                        tool: "scalafmt",
+                        detail: "exit 0 with listed files".to_owned(),
+                    })
+                } else {
+                    Ok(findings)
+                }
+            }),
         other => {
             let text = String::from_utf8_lossy(stderr);
             let lines: Vec<&str> = text
@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn scalafmt_clean_run_lists_nothing() {
         let clean = parse_scalafmt(b"", b"", Some(0), &files(), scratch()).expect("clean");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
     }
 
     #[test]

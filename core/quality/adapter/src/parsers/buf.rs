@@ -32,6 +32,9 @@ fn posix_directories(kind: &str, message: String) -> String {
     }
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_buf_lint(
     stdout: &[u8],
     code: Option<i32>,
@@ -166,6 +169,9 @@ pub fn parse_buf_lint(
     Ok(findings)
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_buf_format(
     stdout: &[u8],
     stderr: &[u8],
@@ -199,16 +205,16 @@ mod tests {
         let expected = r#"Files with package "a.b" must be within a directory "a/b" relative to root but were in directory "c/d"."#;
         let quoted = r#"Files with package "a.b" must be within a directory "a\\b" relative to root but were in directory "c\\d"."#;
         assert_eq!(
-            super::posix_directories("PACKAGE_DIRECTORY_MATCH", quoted.to_owned()),
+            posix_directories("PACKAGE_DIRECTORY_MATCH", quoted.to_owned()),
             expected
         );
         let plain = r#"Files with package "a.b" must be within a directory "a\b" relative to root but were in directory "c\d"."#;
         assert_eq!(
-            super::posix_directories("PACKAGE_DIRECTORY_MATCH", plain.to_owned()),
+            posix_directories("PACKAGE_DIRECTORY_MATCH", plain.to_owned()),
             expected
         );
         assert_eq!(
-            super::posix_directories("FIELD_LOWER_SNAKE_CASE", r"a\b".to_owned()),
+            posix_directories("FIELD_LOWER_SNAKE_CASE", r"a\b".to_owned()),
             r"a\b"
         );
     }
@@ -233,7 +239,7 @@ mod tests {
         assert_eq!(findings[0].finding.rule_id, "PACKAGE_DIRECTORY_MATCH");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
         let clean = parse_buf_lint(b"", Some(0), &["proto/hello.proto"], &[]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_buf_lint(LINT.as_bytes(), Some(0), &["proto/hello.proto"], &[]).is_err());
         assert!(parse_buf_lint(b"", Some(1), &["proto/hello.proto"], &[]).is_err());
         assert!(parse_buf_lint(LINT.as_bytes(), Some(1), &["proto/hello.proto"], &[]).is_err());
@@ -305,7 +311,7 @@ mod tests {
         assert_eq!(findings[0].finding.message, "file is not formatted");
         let clean =
             parse_buf_format(formatted, b"", Some(0), formatted, "a.proto").expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_buf_format(formatted, b"", Some(1), formatted, "a.proto").is_err());
         let failed = parse_buf_format(
             b"",

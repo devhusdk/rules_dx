@@ -86,6 +86,10 @@ fn checked<'a>(file: &str, files: &[&'a str]) -> Option<&'a str> {
 /// finding. A located diagnostic in a file outside `files` is dropped. A linker or driver
 /// diagnostic with no source location is reported at the first checked file. A failing
 /// exit with no finding is an error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_msvc_syntax(
     stdout: &[u8],
     code: Option<i32>,
@@ -99,19 +103,16 @@ pub fn parse_msvc_syntax(
         let Some(severity) = found.severity else {
             continue;
         };
-        let (file, (line_no, column)) = match found.position {
-            Some(position) => {
-                let Some(file) = checked(found.file, files) else {
-                    continue;
-                };
-                (file, position)
-            }
-            None => {
-                let Some(file) = files.first().copied() else {
-                    continue;
-                };
-                (file, (1, 1))
-            }
+        let (file, (line_no, column)) = if let Some(position) = found.position {
+            let Some(file) = checked(found.file, files) else {
+                continue;
+            };
+            (file, position)
+        } else {
+            let Some(file) = files.first().copied() else {
+                continue;
+            };
+            (file, (1, 1))
         };
         findings.push(finding(
             TOOL,
@@ -207,18 +208,16 @@ mod tests {
     fn a_foreign_file_is_dropped_and_fails_closed() {
         let text = "C:\\other\\c.h(2): error C2143: syntax error\n";
         assert!(parse(text, 2).is_err());
-        assert!(
-            parse(&text.replace("error", "warning"), 0)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse(&text.replace("error", "warning"), 0).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
     fn a_malformed_line_is_not_a_diagnostic() {
         let text =
             "src/a.cpp(x,y): error C2065: nope\nsrc/a.cpp(1,2): error 2065: nope\nerror C1: x\n";
-        assert!(parse(text, 0).expect("clean").is_empty());
+        let actual = parse(text, 0).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse(text, 2).is_err());
     }
 
@@ -226,7 +225,8 @@ mod tests {
     fn a_tool_failure_without_a_diagnostic_fails_closed() {
         let text = "cl : Command line error D8021 : invalid numeric argument '/Wx'\n";
         assert!(parse(text, 2).is_err());
-        assert!(parse("", 0).expect("clean").is_empty());
+        let actual = parse("", 0).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

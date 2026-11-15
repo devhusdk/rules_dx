@@ -18,7 +18,6 @@ apple/private/macos/BUILD.bazel no-size 19
 apple/private/macos/app_tests.bzl no-size 1
 apple/private/signing/BUILD.bazel no-size 3
 apple/private/signing/signing_tests.bzl no-size 1
-apple/tests/BUILD.bazel no-size 1
 apple/tests/fixtures/macos_bundle/BUILD.bazel no-size 1
 apple/tests/fixtures/macos_ledger/BUILD.bazel no-size 1
 apple/tests/fixtures/shared_core/BUILD.bazel no-size 1
@@ -32,11 +31,9 @@ astro/tests/app_config/BUILD.bazel no-size 1
 avro/tests/BUILD.bazel no-size 6
 bicep/tests/BUILD.bazel no-size 3
 bicep/tests/defs_tests.bzl no-size 1
-capnproto/private/tools/capnpc_rust_dx/BUILD.bazel no-size 1
 capnproto/tests/BUILD.bazel no-size 11
 cc/private/BUILD.bazel no-size 2
 cc/private/clang_syntax_tests.bzl no-size 1
-cc/private/context/BUILD.bazel no-size 2
 cc/private/ide/BUILD.bazel no-size 2
 cc/private/toolchain/BUILD.bazel no-size 34
 cc/private/toolchain/external/BUILD.bazel no-size 3
@@ -46,7 +43,6 @@ cc/private/toolchain/identity_tests.bzl no-size 9
 cc/private/toolchain/msvc/BUILD.bazel no-size 5
 cc/private/toolchain/msvc/repos_tests.bzl no-size 3
 cc/private/toolchain/msvc/tests.bzl no-size 4
-cc/tests/BUILD.bazel no-size 4
 cc/tests/fixtures/adopt-cpp/greet/BUILD.bazel no-size 1
 cc/tests/fixtures/adopt-cpp/solo/BUILD.bazel no-size 1
 cc/tests/fixtures/args/BUILD.bazel flaky 1
@@ -76,9 +72,7 @@ cc/tests/fixtures/prebuilt_interop/BUILD.bazel no-size 1
 cc/tests/fixtures/sanitize/BUILD.bazel no-size 6
 cc/tests/fixtures/shared/BUILD.bazel no-size 2
 cc/tests/fixtures/strict_generation/BUILD.bazel no-size 1
-cc/tests/gcc_linux_x86_64/BUILD.bazel no-size 4
 cc/tests/msvc_cross/BUILD.bazel no-size 1
-cc/tests/msvc_x86_64/BUILD.bazel no-size 3
 cc/tests/tags/BUILD.bazel no-size 2
 cli/cli/BUILD.bazel no-size 2
 cli/env/BUILD.bazel no-size 2
@@ -170,10 +164,9 @@ csharp/tests/fixtures/fuzz/BUILD.bazel no-size 8
 csharp/tests/fixtures/hello/BUILD.bazel no-size 2
 csharp/tests/fixtures/profiles/BUILD.bazel no-size 1
 csharp/tests/fixtures/proto/BUILD.bazel no-size 1
-csharp/tests/fixtures/roslyn/BUILD.bazel no-size 1
 csharp/tests/fixtures/xunit/BUILD.bazel no-size 2
 cuda/private/BUILD.bazel no-size 1
-cuda/tests/BUILD.bazel no-size 32
+cuda/tests/BUILD.bazel no-size 28
 cuda/tests/fixtures/coverage/BUILD.bazel no-size 1
 cuda/tests/fixtures/cuda-app/checks/BUILD.bazel no-size 2
 cuda/tests/fixtures/cuda-app/gpu/BUILD.bazel no-size 1
@@ -188,7 +181,6 @@ d/tests/fixtures/d-app/source/cli/BUILD.bazel no-size 1
 d/tests/fixtures/fuzz/BUILD.bazel no-size 6
 d/tests/fixtures/hello/BUILD.bazel no-size 2
 dart/private/BUILD.bazel no-size 1
-dart/private/tools/BUILD.bazel no-size 2
 dart/tests/BUILD.bazel no-size 1
 dart/tests/bench/BUILD.bazel no-size 2
 dart/tests/codegen/BUILD.bazel no-size 1
@@ -256,7 +248,6 @@ elixir/tests/negative/BUILD.bazel no-size 3
 elixir/tests/runtime/BUILD.bazel no-size 3
 elixir/tests/tags/BUILD.bazel no-size 1
 env/BUILD.bazel no-size 12
-env/private/env_shard/BUILD.bazel no-size 1
 env/private/plan_tests.bzl no-size 2
 env/tests/defs_tests.bzl no-size 5
 erlang/private/toolchain/BUILD.bazel no-size 2
@@ -389,7 +380,6 @@ java/tests/fixtures/bench/BUILD.bazel size-large 1
 java/tests/fixtures/bench/BUILD.bazel timeout-long 1
 java/tests/fixtures/fuzz/BUILD.bazel no-size 6
 java/tests/fixtures/hello/BUILD.bazel no-size 5
-java/tests/fixtures/java-app/cli/BUILD.bazel no-size 1
 java/tests/fixtures/java-app/diagnostics/BUILD.bazel no-size 2
 java/tests/fixtures/junit/BUILD.bazel no-size 1
 java/tests/fixtures/no_srcs/BUILD.bazel no-size 3
@@ -409,10 +399,10 @@ javascript/tests/fixtures/node-app/registry/BUILD.bazel no-size 2
 javascript/tests/fixtures/skip_tags/BUILD.bazel no-size 4
 javascript/tests/fixtures/web_app/BUILD.bazel no-size 14
 javascript/tests/typecheck/BUILD.bazel no-size 1
-julia/private/tools/BUILD.bazel no-size 2
+julia/private/tools/BUILD.bazel no-size 1
 julia/private/tools/docs/BUILD.bazel no-size 1
-julia/private/tools/jet/BUILD.bazel no-size 2
-julia/private/tools/lint/BUILD.bazel no-size 2
+julia/private/tools/jet/BUILD.bazel no-size 1
+julia/private/tools/lint/BUILD.bazel no-size 1
 julia/tests/BUILD.bazel no-size 1
 julia/tests/fixtures/bench/BUILD.bazel no-size 3
 julia/tests/fixtures/hello/BUILD.bazel no-size 8
@@ -433,7 +423,6 @@ kotlin/tests/fixtures/custom_opts/BUILD.bazel no-size 3
 kotlin/tests/fixtures/fuzz/BUILD.bazel no-size 2
 kotlin/tests/fixtures/hello/BUILD.bazel no-size 5
 kotlin/tests/fixtures/junit/BUILD.bazel no-size 1
-kotlin/tests/fixtures/kotlin-app/cli/BUILD.bazel no-size 1
 kotlin/tests/fixtures/kotlin-app/diagnostics/BUILD.bazel no-size 2
 kotlin/tests/fixtures/kotlin-app/grades/BUILD.bazel no-size 3
 kotlin/tests/fixtures/no_srcs/BUILD.bazel no-size 3
@@ -474,7 +463,6 @@ perl/tests/fixtures/perl-app/cli/BUILD.bazel no-size 1
 perl/tests/fixtures/perl-app/report/BUILD.bazel no-size 1
 perl/tests/negative/BUILD.bazel no-size 3
 perl/tests/runtime/BUILD.bazel no-size 2
-php/private/coverage/BUILD.bazel no-size 1
 php/tests/bench/BUILD.bazel no-size 2
 php/tests/fixtures/hello/BUILD.bazel no-size 1
 php/tests/negative/BUILD.bazel no-size 3
@@ -499,8 +487,6 @@ python/tests/fixtures/python-service/ledger/service/BUILD.bazel no-size 1
 python/tests/runtime_tests.bzl no-size 1
 python/tests/sdist_native/BUILD.bazel no-size 5
 python/tests/sdist_native/msvc/BUILD.bazel no-size 1
-qt/private/rust/BUILD.bazel no-size 1
-qt/private/toolchain/BUILD.bazel no-size 1
 qt/tests/BUILD.bazel no-size 8
 qt/tests/fixtures/qt-app/app/BUILD.bazel no-size 3
 qt/tests/fixtures/qt-rust/app/BUILD.bazel no-size 2
@@ -508,7 +494,6 @@ qt/tests/fixtures/qt-rust/ledger/BUILD.bazel no-size 1
 qt/tests/fixtures/qt-tasks/app/BUILD.bazel no-size 2
 qt/tests/rules_tests.bzl no-size 20
 qt/tests/tags/BUILD.bazel no-size 2
-rego/private/launcher/BUILD.bazel no-size 1
 rego/tests/BUILD.bazel no-size 4
 rst/tests/BUILD.bazel no-size 1
 ruby/private/coverage/extensions.bzl no-size 1
@@ -605,7 +590,6 @@ typescript/tests/fixtures/fuzz/BUILD.bazel no-size 4
 typescript/tests/fixtures/hello/BUILD.bazel no-size 3
 typescript/tests/fixtures/playwright/BUILD.bazel no-size 1
 typescript/tests/fixtures/proto/BUILD.bazel no-size 1
-typescript/tests/fixtures/scoped/BUILD.bazel no-size 1
 typescript/tests/tags/BUILD.bazel no-size 1
 typescript/tests/typecheck_profiles/BUILD.bazel no-size 1
 vue/tests/app/BUILD.bazel no-size 4

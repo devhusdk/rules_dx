@@ -252,18 +252,18 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
 fn assert_gcc_consumer(case: &Case) {
     use std::os::unix::fs::PermissionsExt;
 
-    let gcc_dir = dx_test_scratch::scratch("candidate-gcc-shim");
-    let shim = gcc_dir.path();
+    let gcc_dir = dx_test_scratch::scratch("candidate-gcc-bin");
+    let bin = gcc_dir.path();
     let ldd = Path::new(&crate::quickstart_consumer_test::ldd_path()).join("ldd");
-    std::os::unix::fs::symlink(&ldd, shim.join("ldd"))
-        .unwrap_or_else(|error| panic!("link ldd into {shim:?}: {error}"));
+    std::os::unix::fs::symlink(&ldd, bin.join("ldd"))
+        .unwrap_or_else(|error| panic!("link ldd into {bin:?}: {error}"));
     for name in ["gcc", "g++", "cc", "c++"] {
-        let path = shim.join(name);
+        let path = bin.join(name);
         write(&path, b"#!/bin/sh\nexit 97\n");
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
             .unwrap_or_else(|error| panic!("chmod {path:?}: {error}"));
     }
-    let path = format!("PATH={}", shim.display());
+    let path = format!("PATH={}", bin.display());
     let repo_env = format!("--repo_env={path}");
     let action_env = format!("--action_env={path}");
     let flags = [
@@ -293,7 +293,7 @@ fn assert_gcc_consumer(case: &Case) {
 
         let output = std::process::Command::new(&binary)
             .env_clear()
-            .env("PATH", shim)
+            .env("PATH", bin)
             .output()
             .unwrap_or_else(|error| panic!("run {binary:?}: {error}"));
         assert!(

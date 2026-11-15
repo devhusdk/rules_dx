@@ -941,7 +941,7 @@ mod tests {
         )];
         write(
             root,
-            "dn/nuget.lock.json",
+            &format!("dn/{}", Ecosystem::Nuget.lockfiles()[0]),
             "{\"groups\": {\"main\": {}, \"docs\": {}}}\n",
         );
         resolved[0].set.locks = vec![
@@ -949,7 +949,7 @@ mod tests {
                 "dn/{}",
                 dx_adopt::lock_hubs::state_of("nuget").expect("hub")
             ),
-            "dn/nuget.lock.json".to_owned(),
+            format!("dn/{}", Ecosystem::Nuget.lockfiles()[0]),
         ];
         assert_eq!(
             unused_names(

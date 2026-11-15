@@ -74,12 +74,12 @@ pub(crate) fn ldd_path() -> String {
     {
         let link = dir.join("ldd");
         if !link.exists() {
-            let path = std::env::var_os("PATH").unwrap_or_default();
-            let ldd = std::env::split_paths(&path)
-                .map(|entry| entry.join("ldd"))
+            let ldd = ["/usr/bin/ldd", "/bin/ldd"]
+                .into_iter()
+                .map(std::path::Path::new)
                 .find(|candidate| candidate.is_file())
-                .unwrap_or_else(|| panic!("no ldd on the test PATH {path:?}"));
-            if let Err(error) = std::os::unix::fs::symlink(&ldd, &link)
+                .unwrap_or_else(|| panic!("no host ldd in /usr/bin or /bin"));
+            if let Err(error) = std::os::unix::fs::symlink(ldd, &link)
                 && !link.exists()
             {
                 panic!("{}: {error}", link.display());

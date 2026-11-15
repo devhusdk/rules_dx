@@ -1602,7 +1602,6 @@ rules_julia = use_extension("//julia/private/toolchain:extensions.bzl", "rules_j
 use_repo(rules_julia, "rules_julia")
 
 julia = use_extension("//julia:extensions.bzl", "toolchain")
-julia.toolchain(version = "1.12.5")
 use_repo(julia, "julia_toolchains")
 
 register_toolchains("@julia_toolchains//:all")

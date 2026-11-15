@@ -6,7 +6,7 @@ package(default_visibility = ["//visibility:private"])
 
 _PACKAGE = {
     "archives": [{
-        "sha256": "14cf409d76656727e4322d3ff006158533f042c494a464d3748f0007a48475d1",
+        "sha256": "a" * 64,
         "type": "zip",
         "urls": ["https://api.nuget.org/v3-flatcontainer/alpha.core/1.2.0/alpha.core.1.2.0.nupkg"],
     }],

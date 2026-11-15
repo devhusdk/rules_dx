@@ -54,7 +54,6 @@ haskell/BUILD.bazel orphan-target 1
 haskell/private/tools/BUILD.bazel orphan-target 1
 haskell/tests/fixtures/stack/BUILD.bazel orphan-target 1
 java/tests/fixtures/java-app/billing/BUILD.bazel orphan-target 1
-javascript/private/quality/BUILD.bazel orphan-target 1
 javascript/tests/fixtures/node-app/registry/BUILD.bazel orphan-target 1
 julia/tests/fixtures/julia-app/archive/BUILD.bazel orphan-target 2
 julia/tests/fixtures/julia-app/cli/BUILD.bazel orphan-target 2

@@ -14,8 +14,6 @@ fn scope(targets: &[&str]) -> ResolvedScope {
 
 #[test]
 fn apply_drops_covered_labels_and_subtracts_patterns() {
-    let exclude = strings(&["//third_party/...", "//vendor:blob"]);
-    // (targets, typed scopes, targets after, excluded, kept)
     type Case = (
         &'static [&'static str],
         &'static [&'static str],
@@ -23,6 +21,8 @@ fn apply_drops_covered_labels_and_subtracts_patterns() {
         &'static [&'static str],
         &'static [&'static str],
     );
+    let exclude = strings(&["//third_party/...", "//vendor:blob"]);
+    // (targets, typed scopes, targets after, excluded, kept)
     let cases: [Case; 5] = [
         (
             &["//..."],
@@ -83,7 +83,7 @@ fn an_external_repo_target_is_never_excluded() {
     )
     .expect("apply");
     assert_eq!(got.targets, strings(&["@dep//:lib"]));
-    assert!(got.excluded.is_empty());
+    assert_eq!(got.excluded, [] as [String; 0]);
 }
 
 #[test]

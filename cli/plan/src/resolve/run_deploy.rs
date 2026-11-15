@@ -82,6 +82,9 @@ fn is_run_pattern(label: &str) -> bool {
     label.contains("...") || label.contains('*')
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn resolve_run(
     scopes: &[String],
     workspace: &Path,
@@ -199,7 +202,7 @@ pub const DEPLOYMENTS_QUERY: &str = "kind(dx_deployment, //...)";
 pub const RELEASE_DEPLOYMENTS_QUERY: &str =
     r#"attr(tags, "[\\[ ]release[,\\]]", kind(dx_deployment, //...))"#;
 
-/// Lists the repo's dx_deployment labels, marking the ones tagged release. Empty when the
+/// Lists the repo's `dx_deployment` labels, marking the ones tagged release. Empty when the
 /// queries fail or find nothing.
 pub fn deploy_label_hint(
     workspace: &Path,
@@ -219,6 +222,7 @@ pub fn deploy_label_hint(
     format_deploy_labels(&all, &release)
 }
 
+#[must_use]
 pub fn format_deploy_labels(all: &[String], release: &[String]) -> String {
     if all.is_empty() {
         return String::new();
@@ -234,6 +238,9 @@ pub fn format_deploy_labels(all: &[String], release: &[String]) -> String {
     text
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn resolve_deploy(scopes: &[String]) -> Result<String, ResolveError> {
     let [scope] = scopes else {
         return Err(ResolveError::DeployCount {
@@ -295,6 +302,9 @@ fn deploy_query_argv(label: &str, startup_options: &[String]) -> Result<Vec<Stri
         })
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn check_deployable(
     label: &str,
     workspace: &Path,
@@ -319,13 +329,11 @@ pub fn check_deployable(
         .find(|line| !line.is_empty())
         .ok_or_else(|| malformed("cquery returned no deploy observation"))?;
     let mut parts = line.split('|');
-    let (has, build_mode_raw, app_raw, exe) =
-        match (parts.next(), parts.next(), parts.next(), parts.next()) {
-            (Some(has), Some(build_mode), Some(app), Some(exe)) => (has, build_mode, app, exe),
-            _ => {
-                return Err(malformed("cquery returned a malformed deploy observation"));
-            }
-        };
+    let (Some(has), Some(build_mode_raw), Some(app_raw), Some(exe)) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        return Err(malformed("cquery returned a malformed deploy observation"));
+    };
     let size_budget = parts.next().unwrap_or("").to_owned();
     let size_stamp = parts.next().unwrap_or("").to_owned();
     let sbom = parts.next().unwrap_or("").to_owned();
@@ -452,7 +460,12 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let labels: Vec<String> = (0..12).map(|i| format!("//app:b{i:02}")).collect();
         let listing = labels.join("\n") + "\n";
-        let flags: String = labels.iter().map(|l| format!("@@{l}|True\n")).collect();
+        let flags = labels
+            .iter()
+            .map(|l| format!("@@{l}|True"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n";
         let query = FakeQuery::new(vec![FakeQuery::ok(&listing), FakeQuery::ok(&flags)]);
         let err = resolve_run(&[], &workspace, &query, &[]).expect_err("many");
         let text = err.to_string();
@@ -663,8 +676,8 @@ mod tests {
             FakeQuery::ok("//a:two\n//a:one\n"),
             FakeQuery::ok("@@//a:two|True\n@@//a:one|True\n"),
         ]);
-        dx_test_scratch::write(&workspace, "a/BUILD.bazel", "");
-        dx_test_scratch::write(&workspace, "b/BUILD.bazel", "");
+        write(&workspace, "a/BUILD.bazel", "");
+        write(&workspace, "b/BUILD.bazel", "");
         let got = resolve_run(&strings(&["//b/...", "//a/..."]), &workspace, &query, &[])
             .expect("cross-pattern");
         assert_eq!(
@@ -678,7 +691,7 @@ mod tests {
             FakeQuery::ok("//a:bin\n//a:other\n"),
             FakeQuery::ok("@@//a:bin|True\n@@//a:other|True\n"),
         ]);
-        dx_test_scratch::write(&workspace, "a/BUILD.bazel", "");
+        write(&workspace, "a/BUILD.bazel", "");
         let got =
             resolve_run(&strings(&["//a:bin", "//a/..."]), &workspace, &query, &[]).expect("dedup");
         assert_eq!(got, strings(&["//a:bin", "//a:other"]));
@@ -794,10 +807,12 @@ mod tests {
         let candidates: Vec<String> = (0..4000)
             .map(|index| format!("//services/pkg_{index}:binary_target"))
             .collect();
-        let probe: String = candidates
+        let probe = candidates
             .iter()
-            .map(|label| format!("{label}|True\n"))
-            .collect();
+            .map(|label| format!("{label}|True"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n";
         let query = FakeQuery::new(vec![FakeQuery::ok(&probe)]);
         let got = filter_executables(&candidates, Path::new("/work"), &query, &[]).expect("probe");
         assert_eq!(got.len(), candidates.len());

@@ -16,6 +16,7 @@ pub struct CommandSpec {
 }
 
 impl CommandSpec {
+    #[must_use]
     pub fn accepts_report(&self, format: &str) -> bool {
         StandardFormat::parse(format).is_some_and(|parsed| self.reports.contains(&parsed))
     }
@@ -67,6 +68,15 @@ fn with_languages(
     all.get(&(command, probes)).copied().unwrap_or(core)
 }
 
+#[must_use]
+#[expect(
+    clippy::match_same_arms,
+    reason = "one arm per command keeps each command spec independent"
+)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear sequence of steps read top to bottom"
+)]
 pub fn spec(command: Command) -> CommandSpec {
     match command {
         Command::Lint => CommandSpec {
@@ -203,7 +213,8 @@ pub struct Consumer<'a> {
 
 /// The aspects of `command` that fit the consumer: those of core files and of the languages whose
 /// files it has.
-pub fn aspects_for(command: Command, consumer: Consumer) -> Vec<&'static str> {
+#[must_use]
+pub fn aspects_for(command: Command, consumer: Consumer<'_>) -> Vec<&'static str> {
     spec(command)
         .aspects
         .iter()
@@ -214,7 +225,8 @@ pub fn aspects_for(command: Command, consumer: Consumer) -> Vec<&'static str> {
 
 /// The probes of `command` that fit the consumer, chosen as its aspects are. Empty for a command
 /// without a probe.
-pub fn probes_for(command: Command, consumer: Consumer) -> Vec<&'static str> {
+#[must_use]
+pub fn probes_for(command: Command, consumer: Consumer<'_>) -> Vec<&'static str> {
     spec(command)
         .probes
         .iter()
@@ -225,7 +237,7 @@ pub fn probes_for(command: Command, consumer: Consumer) -> Vec<&'static str> {
 
 /// Whether the file that defines `label` is a core file or one the consumer's `lang.json` entry
 /// asks for.
-fn wanted(label: &str, consumer: Consumer) -> bool {
+fn wanted(label: &str, consumer: Consumer<'_>) -> bool {
     let file = label.split_once('%').map_or(label, |(file, _)| file);
     if let Some(language) = dx_families::quality_languages()
         .iter()
@@ -288,7 +300,7 @@ mod tests {
         assert!(labels.contains(&dx_codegen::aspect_label(super::super::rules_dx_repo())));
         assert!(labels.contains(&dx_env_plan::aspect_label(super::super::rules_dx_repo())));
         let mut sorted = labels.clone();
-        sorted.sort();
+        sorted.sort_unstable();
         sorted.dedup();
         assert_eq!(labels, sorted);
     }
@@ -332,7 +344,10 @@ mod tests {
         );
         assert!(probes.contains(&"rust/private/quality:rust.bzl%real_rust_lint_probe_aspect"));
         assert!(probes.contains(&"swift/private/quality:swift.bzl%real_swift_lint_probe_aspect"));
-        assert!(probes_for(Command::Docs, consumer(&extensions)).is_empty());
+        assert_eq!(
+            probes_for(Command::Docs, consumer(&extensions)),
+            [] as [&str; 0]
+        );
     }
 
     #[test]
@@ -402,7 +417,7 @@ mod tests {
                 assert!(owners <= 1, "{label}");
             }
             let mut sorted: Vec<&str> = entry.aspects.iter().chain(entry.probes).copied().collect();
-            sorted.sort();
+            sorted.sort_unstable();
             let before = sorted.len();
             sorted.dedup();
             assert_eq!(before, sorted.len(), "{command:?} lists a label twice");
@@ -583,7 +598,7 @@ mod tests {
         assert_eq!(&entry.aspects[..core.0.len()], core.0);
         assert_eq!(&entry.probes[..core.1.len()], core.1);
         let language_aspects: Vec<&str> = entry.aspects[core.0.len()..].to_vec();
-        assert!(!language_aspects.is_empty());
+        assert_ne!(language_aspects, [] as [&str; 0]);
         for label in language_aspects.iter().chain(&entry.probes[core.1.len()..]) {
             let file = label.split_once('%').expect("label has a name").0;
             assert!(
@@ -605,9 +620,9 @@ mod tests {
         assert_eq!(typecheck.reports, &[StandardFormat::Sarif]);
         let format = spec(Command::Format);
         assert_core_then_languages(&format);
-        assert!(format.reports.is_empty());
+        assert_eq!(format.reports, []);
         let build = spec(Command::Build);
-        assert!(build.aspects.is_empty());
+        assert_eq!(build.aspects, [] as [String; 0]);
         assert_eq!(build.reports, &[StandardFormat::Failures]);
         let test = spec(Command::Test);
         assert_eq!(
@@ -634,24 +649,24 @@ mod tests {
             docs.aspects
                 .contains(&"tools/docs/go:aspect.bzl%real_go_docs_aspect")
         );
-        assert!(docs.probes.is_empty());
-        assert!(docs.reports.is_empty());
+        assert_eq!(docs.probes, [] as [String; 0]);
+        assert_eq!(docs.reports, []);
         let run = spec(Command::Run);
-        assert!(run.aspects.is_empty());
-        assert!(run.reports.is_empty());
+        assert_eq!(run.aspects, [] as [String; 0]);
+        assert_eq!(run.reports, []);
         let generate = spec(Command::Generate);
-        assert!(generate.aspects.is_empty());
-        assert!(generate.reports.is_empty());
+        assert_eq!(generate.aspects, [] as [String; 0]);
+        assert_eq!(generate.reports, []);
         let clean = spec(Command::Clean);
-        assert!(clean.aspects.is_empty());
-        assert!(clean.reports.is_empty());
+        assert_eq!(clean.aspects, [] as [String; 0]);
+        assert_eq!(clean.reports, []);
         let env = spec(Command::Sync);
-        assert!(env.aspects.is_empty());
-        assert!(env.reports.is_empty());
+        assert_eq!(env.aspects, [] as [String; 0]);
+        assert_eq!(env.reports, []);
         assert!(Command::Sync.is_managed());
         for command in [Command::Security, Command::License] {
             let entry = spec(command);
-            assert!(entry.aspects.is_empty());
+            assert_eq!(entry.aspects, [] as [String; 0]);
         }
         assert_eq!(spec(Command::Security).reports, &[StandardFormat::Sarif]);
         assert_eq!(
@@ -663,8 +678,8 @@ mod tests {
             ]
         );
         let update = spec(Command::Update);
-        assert!(update.aspects.is_empty());
-        assert!(update.reports.is_empty());
+        assert_eq!(update.aspects, [] as [String; 0]);
+        assert_eq!(update.reports, []);
     }
 
     #[test]

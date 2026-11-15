@@ -77,6 +77,7 @@ fn query_options(options: &[String]) -> Vec<String> {
 }
 
 impl SelectionContext {
+    #[must_use]
     pub fn unconfigured(startup: &[String]) -> Self {
         SelectionContext {
             configured: false,
@@ -86,6 +87,7 @@ impl SelectionContext {
         }
     }
 
+    #[must_use]
     pub fn unconfigured_with_options(bazel_options: &[String], startup: &[String]) -> Self {
         SelectionContext {
             configured: false,
@@ -96,6 +98,7 @@ impl SelectionContext {
     }
 
     #[cfg(test)]
+    #[must_use]
     pub fn for_tests_configured(bazel_options: &[String], startup: &[String]) -> Self {
         SelectionContext {
             configured: true,
@@ -105,6 +108,7 @@ impl SelectionContext {
         }
     }
 
+    #[must_use]
     pub fn for_test_execution(
         build_mode: BuildMode,
         bazel_options: &[String],
@@ -118,10 +122,12 @@ impl SelectionContext {
         }
     }
 
+    #[must_use]
     pub fn configured(&self) -> bool {
         self.configured
     }
 
+    #[must_use]
     pub fn unconfigured_view(&self) -> SelectionContext {
         SelectionContext {
             configured: false,
@@ -129,6 +135,7 @@ impl SelectionContext {
         }
     }
 
+    #[must_use]
     pub fn provenance(&self) -> &'static str {
         if self.configured {
             "configured"
@@ -137,6 +144,9 @@ impl SelectionContext {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn filtered_options(&self) -> Result<Vec<String>, DxError> {
         crate::args::filter_build_mode_configs(&self.options, self.build_mode)
     }
@@ -156,6 +166,9 @@ impl SelectionContext {
         crate::plan::bazel_argv(verb, &options, required, &[], &[], &self.startup)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn selection_argv(
         &self,
         verb: &str,
@@ -180,6 +193,7 @@ impl SelectionContext {
     }
 
     #[cfg(test)]
+    #[must_use]
     pub fn redacted_detail(&self) -> String {
         let mut parts = Vec::new();
         if let Some(build_mode) = self.build_mode {

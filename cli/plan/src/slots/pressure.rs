@@ -33,6 +33,7 @@ pub struct HostPressure {
 
 impl HostPressure {
     /// A reader that, without PSI, calls `MemAvailable` below `low_available` high pressure.
+    #[must_use]
     pub fn new(low_available: u64) -> Self {
         Self { low_available }
     }
@@ -85,6 +86,7 @@ fn macos_level() -> Option<i32> {
 }
 
 /// Judges a macOS pressure level: 1 is normal, 2 is warn, 4 is critical. Other values have no signal.
+#[must_use]
 pub fn judge_level(level: i32) -> Option<bool> {
     match level {
         1 => Some(false),
@@ -114,6 +116,7 @@ pub struct PressurePause {
 }
 
 impl PressurePause {
+    #[must_use]
     pub fn new(cap: Duration) -> Self {
         Self {
             cap,
@@ -136,12 +139,14 @@ impl PressurePause {
     }
 
     /// Whether the cap has passed.
+    #[must_use]
     pub fn expired(&self) -> bool {
         self.expired
     }
 }
 
 /// Reads `some avg10` from `/proc/pressure/memory` text.
+#[must_use]
 pub fn parse_psi(text: &str) -> Option<f64> {
     let line = text.lines().find(|line| line.starts_with("some "))?;
     line.split_whitespace()

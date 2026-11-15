@@ -41,6 +41,9 @@ fn extra_positional(command: Command, token: &str) -> ArgsError {
     unsupported(command, token)
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None)
 }
@@ -57,7 +60,7 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let mut index = 0;
     while let Some(word) = words.get(index).copied() {
         let next = words.get(index + 1).copied();
-        if let Some(option) = super::grammar::option_at(word, next) {
+        if let Some(option) = grammar::option_at(word, next) {
             if matches!(option.name.as_str(), "--output" | "-o") && option.value.is_some() {
                 seen = option.value;
             }
@@ -86,13 +89,13 @@ fn output_supported(command: Command, name: &str) -> bool {
 fn resolve_output_name(
     command: Option<Command>,
     flag: Option<&str>,
-    env: Option<String>,
+    env: Option<&str>,
     agent: bool,
 ) -> String {
     if let Some(flag) = flag {
         return flag.to_owned();
     }
-    if let Some(value) = env.as_deref()
+    if let Some(value) = env
         && command.is_none_or(|command| output_supported(command, value))
     {
         return value.to_owned();
@@ -120,10 +123,11 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
         dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
     };
     let agent = !is_ci && dx_adopt::defaults::is_agent(env_get);
-    resolve_output_name(command, None, env, agent) == "json"
+    resolve_output_name(command, None, env.as_deref(), agent) == "json"
 }
 
 /// Whether the command runs without MODULE.bazel discovery.
+#[must_use]
 pub fn is_discovery_exempt(command: Command) -> bool {
     matches!(
         command,
@@ -178,6 +182,9 @@ fn wrapped_invocation<S: AsRef<OsStr>>(
     }))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_with<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -209,10 +216,9 @@ fn validate_worktree(targets: &[String]) -> Result<(), ArgsError> {
         return Ok(());
     };
     let (min, max) = match sub.as_str() {
-        "add" | "path" => (2, 2),
+        "add" | "path" | "hook" => (2, 2),
         "release" => (1, 2),
         "list" | "prune" => (1, 1),
-        "hook" => (2, 2),
         other => return Err(unsupported(command, other)),
     };
     if targets.len() < min {
@@ -236,6 +242,9 @@ fn validate_worktree(targets: &[String]) -> Result<(), ArgsError> {
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_with_ci<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -255,6 +264,7 @@ pub fn parse_with_ci<S: AsRef<OsStr>>(
 }
 
 /// Whether CI ignores this environment default.
+#[must_use]
 pub fn ci_ignores_env(name: &str, is_ci: bool) -> bool {
     is_ci
         && matches!(
@@ -300,10 +310,15 @@ fn resolve_build_slots_wait(
         .ok_or(ArgsError::BadBuildSlotsWait { origin, value })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear sequence of steps read top to bottom"
+)]
 fn parse_inner<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
 ) -> Result<Invocation, ArgsError> {
+    use dx_adopt::defaults as invocation_defaults;
     if let Some(error) = super::help::help_verb_error_in(args) {
         return Err(error);
     }
@@ -396,7 +411,6 @@ fn parse_inner<S: AsRef<OsStr>>(
             option: "--workspace".to_owned(),
         });
     }
-    use dx_adopt::defaults as invocation_defaults;
     let workspace = flag_workspace;
     let agent = invocation_defaults::is_agent(env_get);
     let output_from_flag = output.is_some();
@@ -405,7 +419,7 @@ fn parse_inner<S: AsRef<OsStr>>(
     let output_name = resolve_output_name(
         Some(command),
         output.as_deref(),
-        invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
+        invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV).as_deref(),
         agent && !apply_without_output_flag,
     );
     let fail_on_name = fail_on.unwrap_or_else(|| "warning".to_owned());
@@ -810,6 +824,10 @@ mod startup_tests {
     use dx_testing::cli::strings;
 
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one linear sequence of steps read top to bottom"
+    )]
     fn early_output_flag_reads_the_last_spelling_before_passthrough() {
         assert_eq!(
             early_output_flag(&strings(&["lint", "--output=json"])),

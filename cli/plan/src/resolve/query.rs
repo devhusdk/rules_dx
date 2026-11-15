@@ -2,6 +2,7 @@ use std::path::Path;
 
 use super::{QueryFailure, QueryRunner, ResolveError, parse_owners};
 
+#[must_use]
 pub fn quote_set(items: &[String]) -> String {
     let mut sorted: Vec<&String> = items.iter().collect();
     sorted.sort();
@@ -37,6 +38,9 @@ pub(crate) fn run_label_query(
 }
 
 #[expect(clippy::disallowed_methods, reason = "query takes no build settings")]
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run_label_query_file(
     expression: &str,
     label: &str,
@@ -77,6 +81,21 @@ mod tests {
 
     #[test]
     fn randomized_query_order_yields_identical_argv() {
+        struct Capturing {
+            output: QueryResult,
+            seen: RefCell<Vec<Vec<String>>>,
+        }
+        impl QueryRunner for Capturing {
+            fn run_query(&self, argv: &[String], cwd: &Path) -> std::io::Result<QueryResult> {
+                self.seen.borrow_mut().push(argv.to_vec());
+                let _ = cwd;
+                Ok(QueryResult {
+                    code: self.output.code,
+                    stdout: self.output.stdout.clone(),
+                    stderr: self.output.stderr.clone(),
+                })
+            }
+        }
         let forward = strings(&["//pkg:b.py", "//pkg:a.py", "//pkg:c.py"]);
         let reversed = strings(&["//pkg:c.py", "//pkg:a.py", "//pkg:b.py"]);
         let rotated = strings(&["//pkg:a.py", "//pkg:c.py", "//pkg:b.py"]);
@@ -95,21 +114,6 @@ mod tests {
         }
         assert_eq!(parsed[0], parsed[1]);
         assert_eq!(parsed[0], parsed[2]);
-        struct Capturing {
-            output: QueryResult,
-            seen: RefCell<Vec<Vec<String>>>,
-        }
-        impl QueryRunner for Capturing {
-            fn run_query(&self, argv: &[String], cwd: &Path) -> std::io::Result<QueryResult> {
-                self.seen.borrow_mut().push(argv.to_vec());
-                let _ = cwd;
-                Ok(QueryResult {
-                    code: self.output.code,
-                    stdout: self.output.stdout.clone(),
-                    stderr: self.output.stderr.clone(),
-                })
-            }
-        }
         let workspace = dx_test_scratch::scratch("dx-resolve-test-query-order-")
             .path()
             .to_path_buf();

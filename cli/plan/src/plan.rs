@@ -46,7 +46,7 @@ static RULES_DX_REPO: OnceLock<String> = OnceLock::new();
 
 static LAYER_SETS_DIAGNOSTICS: OnceLock<bool> = OnceLock::new();
 
-/// Records the name the workspace MODULE.bazel (and the files it includes) gives rules_dx.
+/// Records the name the workspace MODULE.bazel (and the files it includes) gives `rules_dx`.
 pub fn set_rules_dx_repo(workspace: &Path) {
     let repo = dx_module_bazel::rules_dx_repo(workspace);
     LAYER_SETS_DIAGNOSTICS
@@ -56,6 +56,7 @@ pub fn set_rules_dx_repo(workspace: &Path) {
 }
 
 /// Whether the root `.bazelrc` imports a current correctness layer, which sets the diagnostics flags.
+#[must_use]
 pub fn correctness_layer_imported(workspace: &Path, repo: &str) -> bool {
     let rc_text = std::fs::read_to_string(workspace.join(".bazelrc")).unwrap_or_default();
     [dx_preset::CONSUMER_DIR].into_iter().any(|dir| {
@@ -76,22 +77,25 @@ pub fn correctness_layer_imported(workspace: &Path, repo: &str) -> bool {
     })
 }
 
-/// Returns the recorded name for rules_dx, or `rules_dx`.
+/// Returns the recorded name for `rules_dx`, or `rules_dx`.
 pub(crate) fn rules_dx_repo() -> &'static str {
     RULES_DX_REPO.get().map_or(RULES_DX, String::as_str)
 }
 
-/// Returns the name a MODULE.bazel source gives rules_dx, ignoring any includes.
+/// Returns the name a MODULE.bazel source gives `rules_dx`, ignoring any includes.
+#[must_use]
 pub fn rules_dx_repo_of(module_text: &str) -> String {
     dx_module_bazel::rules_dx_repo_of(module_text)
 }
 
-/// Returns a label in the rules_dx repository.
+/// Returns a label in the `rules_dx` repository.
+#[must_use]
 pub fn rules_dx_label(rest: &str) -> String {
     format!("@{}//{rest}", rules_dx_repo())
 }
 
 /// Returns the shared settings for a Bazel command, spelled with `repo`.
+#[must_use]
 pub fn settings_for(repo: &str, bazel_command: &str) -> Vec<String> {
     settings_in(repo, bazel_command, layer_sets_diagnostics())
 }
@@ -109,6 +113,7 @@ fn settings_in(repo: &str, bazel_command: &str, layered: bool) -> Vec<String> {
 }
 
 /// Returns the settings every build-like Bazel command shares.
+#[must_use]
 pub fn shared_settings(bazel_command: &str) -> Vec<String> {
     settings_for(rules_dx_repo(), bazel_command)
 }
@@ -127,6 +132,10 @@ pub(crate) fn build_mode_options(
 }
 
 /// Builds a Bazel argv with the shared settings and their guards.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn bazel_argv(
     bazel_command: &str,
     user_options: &[String],
@@ -372,8 +381,8 @@ mod tests {
         for verb in dx_process::SHARED_SETTINGS_VERBS {
             assert_eq!(settings_for("rules_dx", verb), BAZEL_SETTINGS, "{verb}");
         }
-        assert!(settings_for("my_dx", "query").is_empty());
-        assert!(settings_for("my_dx", "fetch").is_empty());
+        assert_eq!(settings_for("my_dx", "query"), [] as [String; 0]);
+        assert_eq!(settings_for("my_dx", "fetch"), [] as [String; 0]);
     }
 
     #[test]

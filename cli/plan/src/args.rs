@@ -95,6 +95,7 @@ pub enum ArgsError {
 }
 
 /// Build the scope error that matches the token.
+#[must_use]
 pub fn scope_error(scope: &str) -> ArgsError {
     if scope.is_empty() {
         ArgsError::EmptyScope
@@ -145,6 +146,10 @@ pub use parser::{
 
 /// Assert that a parse failure is clap-rendered and names every needle.
 #[cfg(test)]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "callers hand over the error from a temporary"
+)]
 pub(crate) fn assert_usage<D: std::fmt::Debug>(words: D, error: ArgsError, needles: &[&str]) {
     let ArgsError::Usage { text } = &error else {
         panic!("words: {words:?}: want Usage, got {error:?}");

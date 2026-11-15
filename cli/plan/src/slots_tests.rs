@@ -47,7 +47,7 @@ fn slot_holder_helper() {
 }
 
 fn wait_for(path: &Path, what: &str) {
-    let start = std::time::Instant::now();
+    let start = Instant::now();
     while !path.exists() {
         assert!(start.elapsed() < Duration::from_secs(30), "{what}");
         std::thread::sleep(Duration::from_millis(25));
@@ -78,7 +78,7 @@ fn another_pass<T>(dir: &Path, waiter: &std::thread::JoinHandle<T>) {
     }
 }
 
-fn spawn_holder(dir: &Path) -> std::process::Child {
+fn spawn_holder(dir: &Path) -> Child {
     let child = Process::new(std::env::current_exe().expect("exe"))
         .arg("slots::tests::slot_holder_helper")
         .arg("--exact")
@@ -475,12 +475,12 @@ fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
         unsafe {
             cmd.pre_exec(move || {
                 let byte = 1u8;
-                libc::write(fd, (&byte as *const u8).cast(), 1);
+                libc::write(fd, (&raw const byte).cast(), 1);
                 let nap = libc::timespec {
                     tv_sec: 0,
                     tv_nsec: 150_000_000,
                 };
-                libc::nanosleep(&nap, std::ptr::null_mut());
+                libc::nanosleep(&raw const nap, std::ptr::null_mut());
                 Ok(())
             });
         }
@@ -705,7 +705,8 @@ fn rules_dx_reserve_ignores_the_environment() {
 fn auto_gate_reserve_is_the_shared_reserve_range() {
     for gib in [4_u64, 8, 12, 16, 24, 64] {
         let memory = gib << 30;
-        let reserved = u64::from(DEFAULT_NESTED_BAZEL_SLOTS as u16) * BYTES_PER_NESTED_BAZEL;
+        let reserved = u64::from(u16::try_from(DEFAULT_NESTED_BAZEL_SLOTS).expect("slots fit u16"))
+            * BYTES_PER_NESTED_BAZEL;
         let size = sizing(BuildSlots::Auto, memory, reserved).expect("sizing");
         let range = dx_process::slot_pool::reserve_range(memory, DEFAULT_NESTED_BAZEL_SLOTS);
         assert_eq!(size.count..size.pool, range, "{gib} GiB");
@@ -719,7 +720,7 @@ fn a_consumer_gate_leaves_the_held_reserve_alone() {
     let memory = 16_u64 << 30;
     let reserve = dx_process::slot_pool::reserve_range(memory, DEFAULT_NESTED_BAZEL_SLOTS);
     let held = dx_process::slot_pool::hold_reserve(&dir, reserve.clone());
-    assert!(held.busy.is_empty());
+    assert_eq!(held.busy, [] as [usize; 0]);
     let count = reserve.start;
     let slots: Vec<Slot> = (0..count)
         .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("slot"))
@@ -1200,7 +1201,7 @@ fn a_phase_takes_once() {
         let (mut err, mut events) = (Vec::new(), Vec::new());
         assert!(phase.need(true, &mut err, &mut events).unwrap().is_some());
         assert!(phase.need(true, &mut err, &mut events).unwrap().is_some());
-        assert!(err.is_empty());
+        assert_eq!(err, [] as [u8; 0]);
     });
 }
 
@@ -1320,7 +1321,7 @@ fn waiters_get_slots_in_arrival_order() {
     let scratch = dx_test_scratch::scratch("dx-slots-order-");
     let dir = scratch.path().join("slots");
     let held = try_take(&dir, 1, "first").expect("try").expect("free");
-    let order = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let order = Arc::new(Mutex::new(Vec::new()));
     let mut notices = Vec::new();
     let mut waiters = Vec::new();
     for id in 0..3 {
@@ -1355,7 +1356,7 @@ fn waiters_get_slots_in_arrival_order() {
             "first, 2 ahead in line".to_owned(),
         ]
     );
-    assert!(tickets(&dir).is_empty());
+    assert_eq!(tickets(&dir), [] as [(u64, PathBuf); 0]);
 }
 
 #[test]
@@ -1393,7 +1394,7 @@ fn an_unlocked_ticket_does_not_block_and_is_swept() {
     let slot = acquire(&dir, 1, "a", &mut |_| panic!("must not wait")).expect("slot");
     assert_eq!(slot.index, 0);
     assert!(!dead.exists());
-    assert!(tickets(&dir).is_empty());
+    assert_eq!(tickets(&dir), [] as [(u64, PathBuf); 0]);
 }
 
 #[test]
@@ -1419,7 +1420,7 @@ fn a_dropped_ticket_leaves_no_file() {
     let scratch = dx_test_scratch::scratch("dx-slots-drop-");
     let dir = scratch.path().join("slots");
     drop(enqueue(&dir, "").expect("ticket"));
-    assert!(tickets(&dir).is_empty());
+    assert_eq!(tickets(&dir), [] as [(u64, PathBuf); 0]);
 }
 
 #[test]
@@ -1513,7 +1514,7 @@ impl Announce {
 }
 
 impl Write for Announce {
-    fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         self.buf.extend_from_slice(data);
         if let Some(signal) = self.signal.take() {
             signal.send(()).ok();
@@ -1521,7 +1522,7 @@ impl Write for Announce {
         Ok(data.len())
     }
 
-    fn flush(&mut self) -> std::io::Result<()> {
+    fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
 }
@@ -2223,7 +2224,7 @@ fn unopenable_slots_print_one_disabled_line_and_one_json_notice() {
             assert!(lines.contains("build_slots_disabled"));
             assert!(lines.contains("\"severity\":\"warning\""));
         } else {
-            assert!(lines.is_empty());
+            assert_eq!(lines, "");
         }
     }
 }
@@ -2259,7 +2260,7 @@ fn a_waiter_polls_while_it_waits_and_stops_once_it_takes_the_slot() {
     let scratch = dx_test_scratch::scratch("dx-slots-poll-");
     let dir = scratch.path().join("slots");
     let first = acquire(&dir, 1, "tree-a", &mut |_| {}).expect("first");
-    let polls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let polls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let seen = polls.clone();
     let waiter_dir = dir.clone();
     let waiter = std::thread::spawn(move || {
@@ -2382,7 +2383,7 @@ fn a_free_slot_is_taken_even_with_a_zero_wait() {
     let scratch = dx_test_scratch::scratch("dx-slots-free-");
     let dir = scratch.path().join("slots");
     let gate = Gate::new(dir, 1, "/w/me".to_owned(), false).waiting_at_most(Some(Duration::ZERO));
-    assert!(take_gate(&gate).0.index == 0);
+    assert_eq!(take_gate(&gate).0.index, 0);
 }
 
 #[test]
@@ -2452,7 +2453,7 @@ fn another_reaping_waiter_skips_the_reap() {
     let (gate, calls) = recording(Gate::new(dir.clone(), 1, "/w/me".to_owned(), true), 3);
     let (err, events) = wait_behind_holder(&dir, gate);
     drop(busy);
-    assert!(calls.lock().expect("reaps").is_empty());
+    assert_eq!(calls.lock().expect("reaps").len(), 0);
     assert_eq!(err.trim(), format!("dx: {}", wait_message("/w/holder")));
     assert_eq!(wait_notice(&events)["reaped_servers"], 0);
 }
@@ -2465,7 +2466,7 @@ fn a_free_slot_never_reaps() {
         1,
     );
     let (_slot, err, events) = take_gate(&gate);
-    assert!(calls.lock().expect("reaps").is_empty());
+    assert_eq!(calls.lock().expect("reaps").len(), 0);
     assert!(err.is_empty() && events.is_empty());
 }
 

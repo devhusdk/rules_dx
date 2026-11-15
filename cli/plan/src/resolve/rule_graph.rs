@@ -89,6 +89,9 @@ fn matches_scope(scope: &str, label: &str) -> bool {
 }
 
 impl RuleGraph {
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn load(
         workspace: &Path,
         runner: &dyn QueryRunner,
@@ -216,6 +219,7 @@ impl RuleGraph {
     /// The workspace-relative paths of every main-repo label some rule uses as an input.
     ///
     /// The query is unconfigured, so every `select()` branch and every manual rule counts.
+    #[must_use]
     pub fn main_repo_input_paths(&self) -> HashSet<String> {
         self.users
             .keys()
@@ -232,6 +236,7 @@ impl RuleGraph {
     }
 
     /// Rules the scopes name or match, without their users and without manual rules.
+    #[must_use]
     pub fn selected(&self, scopes: &[String]) -> Vec<String> {
         let mut rules: Vec<String> = self
             .inputs
@@ -249,11 +254,13 @@ impl RuleGraph {
     }
 
     /// Rules affected by the scopes, without manual rules.
+    #[must_use]
     pub fn affected(&self, scopes: &[String]) -> Vec<String> {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
     }
 
     /// The `dx_deployment` rules tagged `release` that the scopes reach, keeping manual rules.
+    #[must_use]
     pub fn deployments(&self, scopes: &[String]) -> Vec<String> {
         let mut rules = self.reached_of_kind(scopes, |kind| kind == "dx_deployment");
         rules.retain(|rule| self.release.contains(rule));
@@ -570,7 +577,7 @@ mod tests {
             graph.deployments(&strings(&["//app:main.rs"])),
             ["//app:deploy"]
         );
-        assert!(graph.deployments(&[]).is_empty());
+        assert_eq!(graph.deployments(&[]), [] as [String; 0]);
     }
 
     #[test]
@@ -581,15 +588,17 @@ mod tests {
             graph.reached_of_kind(&seeds, |kind| kind == "rust_binary"),
             ["//gen:bin"]
         );
-        assert!(
+        assert_eq!(
             graph
                 .reached_of_kind(&seeds, |kind| kind == "toolchain")
-                .is_empty()
+                .len(),
+            0
         );
-        assert!(
+        assert_eq!(
             graph
                 .reached_of_kind(&[], |kind| kind == "rust_binary")
-                .is_empty()
+                .len(),
+            0
         );
     }
 
@@ -668,10 +677,11 @@ mod tests {
                 "{label}"
             );
         }
-        assert!(
+        assert_eq!(
             graph
                 .dependents_of_kind("@other//pkg:schema", dx_codegen::is_library_kind)
-                .is_empty()
+                .len(),
+            0
         );
     }
 
@@ -688,10 +698,11 @@ mod tests {
     #[test]
     fn unknown_labels_have_no_shards() {
         let graph = shard_graph();
-        assert!(
+        assert_eq!(
             graph
                 .dependents_of_kind("//gone:schema", dx_codegen::is_library_kind)
-                .is_empty()
+                .len(),
+            0
         );
     }
 
@@ -773,11 +784,7 @@ mod tests {
         assert!(package.contains(&"//c:t".to_owned()), "{package:?}");
         assert!(!package.contains(&"//c:m".to_owned()), "{package:?}");
         assert!(!package.contains(&"//a:t".to_owned()), "{package:?}");
-        assert!(
-            graph
-                .selected(&strings(&["//a:a.rs", "@@x+//:y"]))
-                .is_empty()
-        );
+        assert_eq!(graph.selected(&strings(&["//a:a.rs", "@@x+//:y"])).len(), 0);
     }
 
     #[test]
@@ -791,14 +798,17 @@ mod tests {
         assert!(candidates.contains(&"//a:t".to_owned()), "{candidates:?}");
         assert!(candidates.contains(&"//c:t".to_owned()), "{candidates:?}");
         assert!(!candidates.contains(&"//c:m".to_owned()), "{candidates:?}");
-        assert!(graph.test_candidates(&strings(&["//x:gone"])).is_empty());
+        assert_eq!(
+            graph.test_candidates(&strings(&["//x:gone"])),
+            [] as [String; 0]
+        );
     }
 
     #[test]
     fn package_scopes_seed_every_rule_they_hold() {
         let graph = sample();
         assert_eq!(graph.affected(&strings(&["//d/..."])), ["//d:lone"]);
-        assert!(graph.affected(&strings(&["//e/..."])).is_empty());
+        assert_eq!(graph.affected(&strings(&["//e/..."])), [] as [String; 0]);
         assert_eq!(graph.affected(&strings(&["//d:all"])), ["//d:lone"]);
         assert_eq!(graph.affected(&strings(&["//c/..."])), ["//c:t"]);
         assert_eq!(graph.affected(&strings(&["//b:*"])), ["//b:t"]);
@@ -808,7 +818,10 @@ mod tests {
     fn owners_are_the_direct_users_of_a_file() {
         let graph = sample();
         assert_eq!(graph.owners_of(&strings(&["//a:a.txt"])), ["//a:lib"]);
-        assert!(graph.owners_of(&strings(&["//a:nobody.txt"])).is_empty());
+        assert_eq!(
+            graph.owners_of(&strings(&["//a:nobody.txt"])),
+            [] as [String; 0]
+        );
         let owners = strings(&["//a:lib"]);
         assert!(graph.inputs_of(&owners).contains("//a:a.txt"));
     }

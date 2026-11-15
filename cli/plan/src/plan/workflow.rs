@@ -24,6 +24,7 @@ pub const BENCH_FLAGS: [&str; 5] = [
 ];
 
 /// The `--aspects` flag that writes the coverage source manifests.
+#[must_use]
 pub fn coverage_sources_aspect_flag() -> String {
     format!(
         "--aspects={}",
@@ -103,6 +104,9 @@ pub fn workflow_protected(verb: WorkflowVerb) -> Vec<ProtectedFlag> {
     protected
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn plan_workflow(
     verb: WorkflowVerb,
     resolved: &ResolvedScope,
@@ -452,7 +456,7 @@ mod tests {
             &[],
         )
         .expect_err("test keeps the build_mode conflict");
-        assert!(err.kind() == ErrorKind::Usage);
+        assert_eq!(err.kind(), ErrorKind::Usage);
     }
 
     #[test]

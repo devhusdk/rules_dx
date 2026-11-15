@@ -1,4 +1,5 @@
 use std::ffi::OsStr;
+use std::fmt::Write as _;
 
 use super::ArgsError;
 use super::command::Command;
@@ -95,7 +96,7 @@ pub(crate) fn unknown_command_text(word: &str) -> String {
         || format!("unknown command {word:?}"),
         |error| super::tokenizer::without_usage(&error.render().to_string()),
     );
-    out.push_str(&format!("\nAvailable commands: {}", names.join("|")));
+    write!(out, "\nAvailable commands: {}", names.join("|")).ok();
     out
 }
 
@@ -103,7 +104,7 @@ pub(crate) fn render_top_help() -> String {
     use clap::CommandFactory;
     let mut out = String::new();
     if let Some(about) = Cli::command().get_about() {
-        out.push_str(&format!("dx - {about}\n\n"));
+        write!(out, "dx - {about}\n\n").ok();
     }
     out.push_str(&Cli::command().render_long_help().to_string());
     out.push_str(&render_env_help());
@@ -115,8 +116,8 @@ fn render_env_help() -> String {
     let mut out = String::new();
     out.push_str("\nEnvironment:\n");
     for (env, flag, shape) in ENV_DEFAULTS {
-        out.push_str(&format!("  {env}=<{shape}>\n"));
-        out.push_str(&format!("      Default for {flag}.\n"));
+        writeln!(out, "  {env}=<{shape}>").ok();
+        writeln!(out, "      Default for {flag}.").ok();
     }
     out.push_str(
         "  <auto|n|off> sizes build slots from memory, takes exactly n (1-1024), or takes none.\n",
@@ -151,6 +152,7 @@ pub(crate) fn exit_codes(command: Command) -> &'static str {
 }
 
 /// Whether `dx <command>` can launch Bazel and so preserve its exit code.
+#[must_use]
 pub fn runs_bazel(command: Command) -> bool {
     !matches!(
         command,
@@ -165,6 +167,7 @@ pub fn runs_bazel(command: Command) -> bool {
     )
 }
 
+#[must_use]
 pub fn usage_banner() -> String {
     let commands = Command::pipe_list();
     format!(
@@ -295,7 +298,7 @@ fn examples_text(command: Command) -> String {
     for (owner, lines) in EXAMPLES {
         if *owner == command {
             for line in *lines {
-                out.push_str(&format!("  dx {line}\n"));
+                writeln!(out, "  dx {line}").ok();
             }
         }
     }
@@ -510,6 +513,7 @@ mod tests {
 
     #[test]
     fn per_command_help_names_owned_flags_and_reconciles_bazel_naming() {
+        use clap::ValueEnum;
         let clean = match parse(&strings(&["clean", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("clean --help: want Help, got {other:?}"),
@@ -561,7 +565,6 @@ mod tests {
             other => panic!("build --help: want Help, got {other:?}"),
         };
         assert!(build.contains("--debug"), "build flags:\n{build}");
-        use clap::ValueEnum;
         for command in Command::value_variants() {
             let text = render_command_help(*command);
             assert_eq!(

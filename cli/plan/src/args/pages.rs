@@ -21,6 +21,7 @@ pub struct HelpSurface {
 
 impl Command {
     /// The page under `docs/cli/commands/` that documents this command.
+    #[must_use]
     pub fn page(self) -> &'static str {
         match self {
             Command::Security | Command::License | Command::Update => "audit-update.md",
@@ -48,6 +49,7 @@ impl Command {
 }
 
 /// The numbers on the `Exit codes:` line of one rendered help text.
+#[must_use]
 pub fn exit_codes_in(help: &str) -> Vec<String> {
     let mut codes = Vec::new();
     for line in help.lines() {
@@ -117,6 +119,7 @@ fn collect(
 }
 
 /// `dx` itself, then every command and subcommand the grammar knows.
+#[must_use]
 pub fn help_surface() -> Vec<HelpSurface> {
     let mut root = super::grammar::cli_command();
     root.build();
@@ -144,7 +147,7 @@ mod tests {
     fn exit_codes_are_read_from_the_exit_codes_line_only() {
         let help = "Usage: dx watch\n  --jobs 4\nExit codes: 2 usage errors; 1 failures; 141 when stdout closes; 2 again.\n";
         assert_eq!(exit_codes_in(help), ["2", "1", "141"]);
-        assert!(exit_codes_in("Usage: dx 7\n").is_empty());
+        assert_eq!(exit_codes_in("Usage: dx 7\n"), [] as [String; 0]);
     }
 
     #[test]

@@ -44,7 +44,7 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
     } else if kind == clap::error::ErrorKind::DisplayVersion {
         use clap::CommandFactory;
         ArgsError::Help {
-            text: Cli::command().render_version().to_string(),
+            text: Cli::command().render_version().clone(),
         }
     } else if kind == clap::error::ErrorKind::UnknownArgument {
         unsupported_option(args, error).unwrap_or_else(usage)

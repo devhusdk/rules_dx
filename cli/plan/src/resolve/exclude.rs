@@ -11,6 +11,10 @@ use dx_config::conventions::pattern_covers;
 use super::{ResolveError, ResolvedScope, quote_set};
 
 /// The exclude patterns of `workspace/dx.toml`; none when the file is missing.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn load(workspace: &Path) -> Result<Vec<String>, ResolveError> {
     match dx_config::load(workspace) {
         Ok(config) => Ok(config
@@ -23,12 +27,17 @@ pub fn load(workspace: &Path) -> Result<Vec<String>, ResolveError> {
 }
 
 /// Whether any exclude pattern covers `label`.
+#[must_use]
 pub fn covered(exclude: &[String], label: &str) -> bool {
     exclude.iter().any(|pattern| pattern_covers(pattern, label))
 }
 
 /// Drops excluded targets, keeps the ones named in `explicit`, and records the
 /// patterns Bazel must subtract from what is left.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn apply(
     mut resolved: ResolvedScope,
     exclude: &[String],
@@ -74,6 +83,7 @@ pub fn apply(
 
 /// The labels for a Bazel command line: targets, then `-pattern` for each exclude,
 /// then the explicitly named targets an exclude would otherwise remove.
+#[must_use]
 pub fn bazel_labels(resolved: &ResolvedScope) -> Vec<String> {
     let mut labels: Vec<String> = resolved
         .targets
@@ -92,6 +102,7 @@ pub fn bazel_labels(resolved: &ResolvedScope) -> Vec<String> {
 }
 
 /// The query expression for the targets, with the excludes subtracted.
+#[must_use]
 pub fn query_set(resolved: &ResolvedScope) -> String {
     let plain: Vec<String> = resolved
         .targets

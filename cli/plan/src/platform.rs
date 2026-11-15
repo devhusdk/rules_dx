@@ -1,3 +1,4 @@
+#[must_use]
 pub fn qualified_hosts() -> &'static [(&'static str, &'static str)] {
     &[
         ("linux", "x86_64"),
@@ -8,6 +9,7 @@ pub fn qualified_hosts() -> &'static [(&'static str, &'static str)] {
     ]
 }
 
+#[must_use]
 pub fn canonical_os(raw: &str) -> Option<&'static str> {
     let lowered = raw.to_lowercase();
     match lowered.as_str() {
@@ -18,6 +20,7 @@ pub fn canonical_os(raw: &str) -> Option<&'static str> {
     }
 }
 
+#[must_use]
 pub fn canonical_cpu(raw: &str) -> Option<&'static str> {
     let lowered = raw.to_lowercase();
     match lowered.as_str() {
@@ -27,6 +30,7 @@ pub fn canonical_cpu(raw: &str) -> Option<&'static str> {
     }
 }
 
+#[must_use]
 pub fn platform_key(os_raw: &str, cpu_raw: &str) -> Option<String> {
     match (canonical_os(os_raw), canonical_cpu(cpu_raw)) {
         (Some(os), Some(cpu)) => Some(format!("{os}_{cpu}")),
@@ -34,6 +38,7 @@ pub fn platform_key(os_raw: &str, cpu_raw: &str) -> Option<String> {
     }
 }
 
+#[must_use]
 pub fn supported_execution_keys() -> Vec<String> {
     qualified_hosts()
         .iter()
@@ -64,6 +69,7 @@ fn qualified_host_list() -> String {
     }
 }
 
+#[must_use]
 pub fn refusal(os: &str, arch: &str) -> Option<String> {
     match platform_key(os, arch) {
         Some(key) if supported_execution_keys().contains(&key) => None,
@@ -74,7 +80,7 @@ pub fn refusal(os: &str, arch: &str) -> Option<String> {
     }
 }
 
-/// An x86_64 process on an Apple silicon Mac (Rosetta) runs on arm64 hardware.
+/// An `x86_64` process on an Apple silicon Mac (Rosetta) runs on arm64 hardware.
 pub fn effective_arch<'a>(
     os: &str,
     arch: &'a str,
@@ -103,6 +109,7 @@ fn read_sysctl(key: &str) -> Option<String> {
     String::from_utf8(output.stdout).ok()
 }
 
+#[must_use]
 pub fn host_refusal() -> Option<String> {
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;

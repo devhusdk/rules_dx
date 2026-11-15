@@ -21,7 +21,7 @@ pub struct AffectedSelection {
     pub graph: Option<RuleGraph>,
 }
 
-fn git_failure(what: &str, detail: String) -> dx_error::DxError {
+fn git_failure(what: &str, detail: &str) -> dx_error::DxError {
     dx_error::DxError::infra(format!("git {what} failed: {detail}"))
 }
 
@@ -43,6 +43,7 @@ fn git_dir_of(workspace: &Path) -> Option<std::path::PathBuf> {
     Some(workspace.join(gitdir_path))
 }
 
+#[must_use]
 pub fn shallow_clone(workspace: &Path) -> bool {
     let Some(git_dir) = git_dir_of(workspace) else {
         return false;
@@ -56,14 +57,19 @@ pub fn shallow_clone(workspace: &Path) -> bool {
     git_dir.join(commondir.trim()).join("shallow").is_file()
 }
 
+#[must_use]
 pub fn shallow_error() -> String {
     "git history is shallow: fetch full history with `git fetch --unshallow` or pass explicit scopes".to_owned()
 }
 
+#[must_use]
 pub fn missing_base_shallow_error() -> String {
     "git history is shallow and the base branch is missing: set `fetch-depth: 0` in actions/checkout, run `git fetch origin <base>`, or pass --base".to_owned()
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn diff_name_status(
     git: &Path,
     workspace: &Path,
@@ -74,16 +80,19 @@ pub fn diff_name_status(
     argv.extend(extra.iter().cloned());
     let result = runner
         .run_query(&argv, workspace)
-        .map_err(|error| git_failure("diff", error.to_string()))?;
+        .map_err(|error| git_failure("diff", &error.to_string()))?;
     if result.code != Some(0) {
         if shallow_clone(workspace) {
             return Err(dx_error::DxError::failure(shallow_error()));
         }
-        return Err(git_failure("diff", first_diagnostic(&result.stderr)));
+        return Err(git_failure("diff", &first_diagnostic(&result.stderr)));
     }
     dx_adopt::parse_name_status_nul(&result.stdout)
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn merge_base(
     git: &Path,
     workspace: &Path,
@@ -99,23 +108,23 @@ pub fn merge_base(
     );
     let result = runner
         .run_query(&argv, workspace)
-        .map_err(|error| git_failure("merge-base", error.to_string()))?;
+        .map_err(|error| git_failure("merge-base", &error.to_string()))?;
     if result.code != Some(0) {
         if shallow_clone(workspace) {
             return Err(dx_error::DxError::failure(shallow_error()));
         }
-        return Err(git_failure("merge-base", first_diagnostic(&result.stderr)));
+        return Err(git_failure("merge-base", &first_diagnostic(&result.stderr)));
     }
     let text = std::str::from_utf8(&result.stdout)
-        .map_err(|_| git_failure("merge-base", "output is not UTF-8".to_owned()))?;
+        .map_err(|_| git_failure("merge-base", "output is not UTF-8"))?;
     let mut lines = text.lines().map(str::trim).filter(|line| !line.is_empty());
     let base = lines
         .next()
-        .ok_or_else(|| git_failure("merge-base", "output names no base commit".to_owned()))?;
+        .ok_or_else(|| git_failure("merge-base", "output names no base commit"))?;
     if lines.next().is_some() {
         return Err(git_failure(
             "merge-base",
-            "output names more than one base commit".to_owned(),
+            "output names more than one base commit",
         ));
     }
     Ok(base.to_owned())
@@ -150,6 +159,9 @@ fn parse_untracked(output: &[u8]) -> Result<Vec<dx_adopt::GitChange>, dx_error::
     Ok(changes)
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn collect_working_tree(
     git: &Path,
     workspace: &Path,
@@ -186,9 +198,9 @@ pub fn collect_working_tree(
     );
     let result = runner
         .run_query(&argv, workspace)
-        .map_err(|error| git_failure("ls-files", error.to_string()))?;
+        .map_err(|error| git_failure("ls-files", &error.to_string()))?;
     if result.code != Some(0) {
-        return Err(git_failure("ls-files", first_diagnostic(&result.stderr)));
+        return Err(git_failure("ls-files", &first_diagnostic(&result.stderr)));
     }
     let untracked = parse_untracked(&result.stdout)?;
     let mut changes = staged;
@@ -197,6 +209,9 @@ pub fn collect_working_tree(
     Ok(dx_adopt::dedupe_changes(changes))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn collect_range(
     git: &Path,
     workspace: &Path,
@@ -227,13 +242,13 @@ fn run_git_lines(
     what: &str,
     args: &[String],
 ) -> Result<Vec<String>, dx_error::DxError> {
-    let mut argv = vec![git.to_string_lossy().into_owned()];
-    argv.extend(args.iter().cloned());
+    let mut command_line = vec![git.to_string_lossy().into_owned()];
+    command_line.extend(args.iter().cloned());
     let result = runner
-        .run_query(&argv, workspace)
-        .map_err(|error| git_failure(what, error.to_string()))?;
+        .run_query(&command_line, workspace)
+        .map_err(|error| git_failure(what, &error.to_string()))?;
     if result.code != Some(0) {
-        return Err(git_failure(what, first_diagnostic(&result.stderr)));
+        return Err(git_failure(what, &first_diagnostic(&result.stderr)));
     }
     let text = std::str::from_utf8(&result.stdout).map_err(|_| {
         dx_error::DxError::failure(
@@ -261,6 +276,9 @@ fn repo_relative(prefix: &str, path: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn local_override_changes(
     git: &Path,
     workspace: &Path,
@@ -343,7 +361,7 @@ pub fn local_override_changes(
             })
         })
         .collect();
-    paths.sort();
+    paths.sort_unstable();
     paths.dedup();
     Ok(paths)
 }
@@ -446,7 +464,10 @@ fn is_workspace_input(path: &str, rc_files: &BTreeSet<String>) -> bool {
 
 fn is_lock_input(path: &str, hubs: &[Hub]) -> bool {
     let name = file_name_of(path);
-    (name.ends_with(".lock") && name != "MODULE.bazel.lock")
+    (Path::new(name)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("lock"))
+        && name != "MODULE.bazel.lock")
         || lock_inputs::classify(path, hubs) != LockKind::Unknown
 }
 
@@ -478,8 +499,8 @@ impl ModuleInputPaths {
 /// Lock and manifest inputs of the crate extension are handled by the lock
 /// narrowing; other tags (such as `crate.annotation` patches and
 /// `additive_build_file`) change repo contents and widen like any input.
-fn is_crate_lock_input(extension: &Option<(String, String)>, tag: &str) -> bool {
-    extension.as_ref().is_some_and(|(bzl, name)| {
+fn is_crate_lock_input(extension: Option<&(String, String)>, tag: &str) -> bool {
+    extension.is_some_and(|(bzl, name)| {
         lock_inputs::is_crate_extension(bzl, name) && matches!(tag, "from_cargo" | "from_specs")
     })
 }
@@ -510,7 +531,7 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
                     None => segments_ok = false,
                 }
             }
-            if is_crate_lock_input(&file.extension, &file.tag) {
+            if is_crate_lock_input(file.extension.as_ref(), &file.tag) {
                 continue;
             }
             let name = file_name_of(&file.path);
@@ -552,17 +573,17 @@ pub(crate) fn show_at_base(
     ];
     let result = runner
         .run_query(&argv, workspace)
-        .map_err(|error| git_failure("show", error.to_string()))?;
+        .map_err(|error| git_failure("show", &error.to_string()))?;
     if result.code != Some(0) {
         let stderr = String::from_utf8_lossy(&result.stderr);
         if stderr.contains("does not exist") || stderr.contains("exists on disk, but not in") {
             return Ok(None);
         }
-        return Err(git_failure("show", first_diagnostic(&result.stderr)));
+        return Err(git_failure("show", &first_diagnostic(&result.stderr)));
     }
     String::from_utf8(result.stdout)
         .map(Some)
-        .map_err(|_| git_failure("show", "output is not UTF-8".to_owned()))
+        .map_err(|_| git_failure("show", "output is not UTF-8"))
 }
 
 fn lock_change(
@@ -631,6 +652,10 @@ fn module_text(
     Ok((before, head))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear sequence of steps read top to bottom"
+)]
 fn module_change(
     paths: &[String],
     workspace: &Path,
@@ -775,7 +800,9 @@ fn is_build_input(path: &str) -> bool {
 }
 
 fn is_starlark_module(path: &str) -> bool {
-    path.ends_with(".bzl") || path.ends_with(".scl")
+    Path::new(path)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl") || ext.eq_ignore_ascii_case("scl"))
 }
 
 fn package_all(label: &str) -> String {
@@ -888,6 +915,13 @@ fn widen_impact(
     }
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear sequence of steps read top to bottom"
+)]
 pub fn resolve_affected(
     changes: &[dx_adopt::GitChange],
     workspace: &Path,
@@ -994,12 +1028,12 @@ pub fn resolve_affected(
             }
         }
     }
-    bzl_paths.sort();
+    bzl_paths.sort_unstable();
     bzl_paths.dedup();
     if !bzl_paths.is_empty() {
         widen_bzl_changes(&bzl_paths, workspace, aspect_labels, &mut widened);
     }
-    lock_paths.sort();
+    lock_paths.sort_unstable();
     lock_paths.dedup();
     let mut narrowed: Vec<(String, Vec<(String, LockChange)>)> = Vec::new();
     for path in lock_paths {
@@ -1009,17 +1043,17 @@ pub fn resolve_affected(
                 "//...".to_owned(),
                 reason.message().to_owned(),
             ),
-            Ok(changed) => {
+            Ok(narrowing) => {
                 match cache.file_label(workspace, &path, &path) {
                     Ok(label) => candidates.push((path.clone(), label, Fallback::Keep)),
                     Err(ResolveError::NotAPackage { .. }) => {}
                     Err(error) => return Err(error),
                 }
-                narrowed.push((path, changed));
+                narrowed.push((path, narrowing));
             }
         }
     }
-    module_paths.sort();
+    module_paths.sort_unstable();
     module_paths.dedup();
     let mut update = None;
     if !module_paths.is_empty() {
@@ -1289,7 +1323,7 @@ mod tests {
         assert_eq!(selection.widened.len(), 1);
         assert_eq!(selection.widened[0].scope, "//pkg:all");
         assert_eq!(selection.widened[0].reason, "deleted pkg/gone.py");
-        assert!(!selection.widened.is_empty());
+        assert_ne!(selection.widened, [] as [WidenedScope; 0]);
         assert!(selection.graph.is_some());
         assert_eq!(query.calls().len(), 1);
     }
@@ -1310,7 +1344,7 @@ mod tests {
         )
         .expect("deleted resolves");
         assert_eq!(selection.targets, strings(&["//pkg:lib"]));
-        assert!(selection.widened.is_empty());
+        assert_eq!(selection.widened, [] as [WidenedScope; 0]);
     }
 
     #[test]
@@ -1425,7 +1459,7 @@ mod tests {
                 repos: Vec::new(),
             }]
         );
-        assert!(!selection.widened.is_empty());
+        assert_ne!(selection.widened, [] as [WidenedScope; 0]);
         assert_eq!(query.calls().len(), 1, "one graph query");
         assert!(selection.graph.is_some());
     }
@@ -1457,7 +1491,7 @@ mod tests {
             .iter()
             .map(|widened| widened.reason.as_str())
             .collect();
-        reasons.sort();
+        reasons.sort_unstable();
         assert_eq!(
             reasons,
             vec!["build file pkg/BUILD.bazel", "unowned pkg/a.py"]
@@ -1578,7 +1612,7 @@ mod tests {
             let selection = resolve_affected(
                 &[change(changed, dx_adopt::ChangeKind::Modified)],
                 &workspace,
-                &crate::resolve::NeverQuery,
+                &NeverQuery,
                 &[],
                 &[],
                 None,
@@ -1603,7 +1637,7 @@ mod tests {
         let selection = resolve_affected(
             &[change("tools/ci.bazelrc", dx_adopt::ChangeKind::Modified)],
             &workspace,
-            &crate::resolve::NeverQuery,
+            &NeverQuery,
             &["--bazelrc=tools/ci.bazelrc".to_owned()],
             &[],
             None,
@@ -1640,7 +1674,7 @@ mod tests {
             let selection = resolve_affected(
                 &[change(changed, dx_adopt::ChangeKind::Modified)],
                 &workspace,
-                &crate::resolve::NeverQuery,
+                &NeverQuery,
                 &[],
                 &[],
                 None,
@@ -1680,7 +1714,7 @@ mod tests {
         )
         .expect("owned");
         assert_eq!(selection.targets, strings(&["//consumers/x:t"]));
-        assert!(selection.widened.is_empty());
+        assert_eq!(selection.widened, [] as [WidenedScope; 0]);
     }
 
     #[test]
@@ -1702,7 +1736,7 @@ mod tests {
             &NeverQuery,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("module input widens");
         assert_eq!(selection.targets, strings(&["//..."]), "{changed}");
@@ -1807,7 +1841,7 @@ mod tests {
                 &query,
                 &[],
                 &[],
-                base(),
+                Some(base()),
             )
             .expect("ordinary file");
             assert_eq!(selection.targets, strings(&[owner]), "{changed}");
@@ -1917,8 +1951,8 @@ mod tests {
         ])
     }
 
-    fn base() -> Option<(&'static Path, &'static str)> {
-        Some((Path::new("git"), "base"))
+    fn base() -> (&'static Path, &'static str) {
+        (Path::new("git"), "base")
     }
 
     #[test]
@@ -1935,7 +1969,7 @@ mod tests {
             &query,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("lock narrows");
         assert_eq!(
@@ -1996,6 +2030,10 @@ mod tests {
         hash
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "callers build the update in the call"
+    )]
     fn edit_workspace(prefix: &str, update: Update) -> EditWorkspace {
         let scratch = dx_test_scratch::scratch(prefix);
         let workspace = scratch.path();
@@ -2092,7 +2130,7 @@ mod tests {
             query,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("update resolves")
     }
@@ -2222,7 +2260,7 @@ mod tests {
             &query,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("update resolves");
         assert_eq!(selection.targets, strings(&["//..."]));
@@ -2305,7 +2343,7 @@ mod tests {
             &NeverQuery,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("nested module widens");
         assert_eq!(selection.targets, strings(&["//..."]));
@@ -2340,7 +2378,7 @@ mod tests {
             &query,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("lock widens");
         assert_eq!(
@@ -2403,7 +2441,7 @@ mod tests {
             &query,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("pnpm lock narrows");
         assert_eq!(
@@ -2437,7 +2475,7 @@ mod tests {
             &query,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("lock narrows");
         assert!(selection.targets.is_empty(), "{:?}", selection.targets);
@@ -2481,7 +2519,7 @@ mod tests {
             &query,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("lock narrows");
         assert_eq!(
@@ -2505,12 +2543,12 @@ mod tests {
             &NeverQuery,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("unknown lock widens");
         assert_eq!(selection.targets, strings(&["//..."]));
         assert_eq!(selection.widened[0].reason, "workspace input x.lock");
-        assert!(selection.widened[0].repos.is_empty());
+        assert_eq!(selection.widened[0].repos, [] as [String; 0]);
     }
 
     #[test]
@@ -2525,8 +2563,8 @@ mod tests {
             "fatal: path '{}' exists on disk, but not in 'base'\n",
             lock_of(Ecosystem::Cargo)
         ))]);
-        let selection =
-            resolve_affected(&modified, workspace, &added, &[], &[], base()).expect("added widens");
+        let selection = resolve_affected(&modified, workspace, &added, &[], &[], Some(base()))
+            .expect("added widens");
         assert_eq!(selection.targets, strings(&["//..."]));
         assert_eq!(
             selection.widened[0].reason,
@@ -2534,7 +2572,7 @@ mod tests {
         );
 
         let unparsable = FakeQuery::new(vec![FakeQuery::ok("not toml [[[")]);
-        let selection = resolve_affected(&modified, workspace, &unparsable, &[], &[], base())
+        let selection = resolve_affected(&modified, workspace, &unparsable, &[], &[], Some(base()))
             .expect("unparsable widens");
         assert_eq!(selection.targets, strings(&["//..."]));
         assert!(
@@ -2547,8 +2585,8 @@ mod tests {
         );
 
         let broken = FakeQuery::new(vec![FakeQuery::failed("fatal: bad object base\n")]);
-        let selection =
-            resolve_affected(&modified, workspace, &broken, &[], &[], base()).expect("git widens");
+        let selection = resolve_affected(&modified, workspace, &broken, &[], &[], Some(base()))
+            .expect("git widens");
         assert_eq!(
             selection.widened[0].reason,
             format!(
@@ -2574,7 +2612,7 @@ mod tests {
             &NeverQuery,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("deleted widens");
         assert_eq!(selection.targets, strings(&["//..."]));
@@ -2606,7 +2644,7 @@ mod tests {
             &query,
             &[],
             &[],
-            base(),
+            Some(base()),
         )
         .expect("owned lock narrows");
         assert_eq!(
@@ -2645,7 +2683,7 @@ mod tests {
                 None,
             )
             .expect("affected");
-            assert!(affected.widened.is_empty());
+            assert_eq!(affected.widened, [] as [WidenedScope; 0]);
             assert_eq!(affected_query.calls().len(), 1);
             assert!(affected.graph.is_some());
             affected_targets.push(affected.targets);
@@ -2898,7 +2936,7 @@ mod tests {
             &[],
         );
         assert!(selection.targets.is_empty(), "{:?}", selection.targets);
-        assert!(selection.widened.is_empty());
+        assert_eq!(selection.widened, [] as [WidenedScope; 0]);
     }
 
     #[test]
@@ -2914,7 +2952,7 @@ mod tests {
             &[],
         );
         assert_eq!(selection.targets, strings(&["//tools:defs"]));
-        assert!(selection.widened.is_empty());
+        assert_eq!(selection.widened, [] as [WidenedScope; 0]);
     }
 
     #[test]
@@ -3074,8 +3112,8 @@ mod tests {
             &[],
         );
         assert!(selection.targets.is_empty(), "{:?}", selection.targets);
-        assert!(selection.widened.is_empty());
-        assert!(query.calls().is_empty());
+        assert_eq!(selection.widened, [] as [WidenedScope; 0]);
+        assert_eq!(query.calls(), [] as [(Vec<String>, std::path::PathBuf); 0]);
     }
 
     #[test]
@@ -3235,7 +3273,7 @@ mod tests {
         let changes =
             collect_working_tree(Path::new("/hermetic/git"), &workspace, &query).expect("collect");
         let mut paths: Vec<&str> = changes.iter().map(|change| change.path.as_str()).collect();
-        paths.sort();
+        paths.sort_unstable();
         assert_eq!(paths, vec!["pkg/a.py", "pkg/b.py", "pkg/c.py"]);
         let untracked = changes
             .iter()
@@ -3452,7 +3490,7 @@ mod tests {
         let changes =
             local_override_changes(Path::new("/hermetic/git"), &workspace, &NeverQuery, "base")
                 .expect("no overrides");
-        assert!(changes.is_empty());
+        assert_eq!(changes, [] as [String; 0]);
     }
 
     #[test]
@@ -3557,7 +3595,7 @@ mod tests {
         let changes =
             local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "base")
                 .expect("outside repo");
-        assert!(changes.is_empty());
+        assert_eq!(changes, [] as [String; 0]);
         assert_eq!(query.calls().len(), 1);
     }
 }

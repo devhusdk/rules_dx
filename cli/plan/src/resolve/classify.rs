@@ -31,6 +31,7 @@ fn normalize_rel(raw: &str) -> Result<String, ResolveError> {
 
 /// The workspace-relative files and directories named when every scope is a path.
 /// A scope with a label gives `None`: its whole target is wanted.
+#[must_use]
 pub fn path_filter(scopes: &[String], workspace: &Path) -> Option<Vec<String>> {
     let mut paths = Vec::new();
     for raw in scopes {
@@ -45,6 +46,7 @@ pub fn path_filter(scopes: &[String], workspace: &Path) -> Option<Vec<String>> {
 }
 
 /// Whether `path` is one of `filter` or lies under one. An empty entry is the workspace root.
+#[must_use]
 pub fn path_in_filter(path: &str, filter: &[String]) -> bool {
     filter.iter().any(|entry| {
         entry.is_empty()
@@ -63,6 +65,7 @@ fn dir_pattern(rel: &str) -> String {
     }
 }
 
+#[must_use]
 pub fn first_line(bytes: &[u8]) -> String {
     dx_output::first_diagnostic_line(bytes, 300, "no Bazel diagnostic")
 }

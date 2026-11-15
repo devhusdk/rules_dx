@@ -43,6 +43,7 @@ pub struct ProjectedManifest {
 }
 
 impl ProjectedManifest {
+    #[must_use]
     pub fn creates(&self) -> u64 {
         self.files
             .iter()
@@ -50,6 +51,7 @@ impl ProjectedManifest {
             .count() as u64
     }
 
+    #[must_use]
     pub fn modifies(&self) -> u64 {
         self.files
             .iter()
@@ -57,6 +59,7 @@ impl ProjectedManifest {
             .count() as u64
     }
 
+    #[must_use]
     pub fn applied(&self) -> u64 {
         self.files
             .iter()
@@ -64,6 +67,7 @@ impl ProjectedManifest {
             .count() as u64
     }
 
+    #[must_use]
     pub fn not_applied(&self) -> u64 {
         self.files
             .iter()
@@ -71,6 +75,7 @@ impl ProjectedManifest {
             .count() as u64
     }
 
+    #[must_use]
     pub fn sorted_files(&self) -> Vec<&ProjectedFile> {
         let mut ordered: Vec<&ProjectedFile> = self.files.iter().collect();
         ordered.sort_by(|a, b| a.change.path.as_bytes().cmp(b.change.path.as_bytes()));
@@ -78,6 +83,7 @@ impl ProjectedManifest {
     }
 
     /// What happened to one file and why, proposed when nothing was written.
+    #[must_use]
     pub fn effect_of(file: &ProjectedFile) -> (ChangeEffect, Option<&str>) {
         match file.outcome {
             None => (ChangeEffect::Proposed, None),
@@ -86,6 +92,7 @@ impl ProjectedManifest {
         }
     }
 
+    #[must_use]
     pub fn finished_counts(&self) -> FinishedCounts {
         FinishedCounts {
             results_complete: Some(self.results_complete),
@@ -103,6 +110,7 @@ impl ProjectedManifest {
         }
     }
 
+    #[must_use]
     pub fn exit_code(&self, bazel_code: i32) -> i32 {
         if bazel_code != 0 {
             return bazel_code;
@@ -111,15 +119,14 @@ impl ProjectedManifest {
             return 1;
         }
         if self.is_check {
-            if self.files.is_empty() { 0 } else { 1 }
-        } else if self.not_applied() > 0 {
-            1
+            i32::from(!self.files.is_empty())
         } else {
-            0
+            i32::from(self.not_applied() > 0)
         }
     }
 }
 
+#[must_use]
 pub fn manifest_is_check(manifest: &GenerationManifest) -> bool {
     manifest.mode == Mode::Check as i32
 }
@@ -142,6 +149,14 @@ fn map_outcome(
 }
 
 /// Projects a manifest the boundary already validated.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear sequence of steps read top to bottom"
+)]
 pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error> {
     let is_check = manifest_is_check(manifest);
     let results_complete = manifest
@@ -246,6 +261,9 @@ pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error
     })
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn render_diff(projected: &ProjectedManifest) -> Result<String, DiffError> {
     let sorted = projected.sorted_files();
     let patches: Vec<FilePatch<'_>> = sorted
@@ -263,6 +281,7 @@ pub fn render_diff(projected: &ProjectedManifest) -> Result<String, DiffError> {
     render_patch(&patches)
 }
 
+#[must_use]
 pub fn text_lines(projected: &ProjectedManifest) -> Vec<String> {
     let mut lines = Vec::with_capacity(projected.files.len() + projected.notices.len());
     for file in projected.sorted_files() {
@@ -289,6 +308,7 @@ pub fn text_lines(projected: &ProjectedManifest) -> Vec<String> {
     lines
 }
 
+#[must_use]
 pub fn refused_lines(projected: &ProjectedManifest) -> Vec<String> {
     projected
         .sorted_files()
@@ -551,13 +571,13 @@ mod tests {
             ancestor_owned: vec![],
         };
         let projected = project(&manifest).unwrap();
-        assert!(projected.files.is_empty());
-        assert!(projected.notices.is_empty());
+        assert_eq!(projected.files, [] as [ProjectedFile; 0]);
+        assert_eq!(projected.notices, [] as [NoticeEvent; 0]);
         assert_eq!(projected.creates(), 0);
         assert_eq!(projected.modifies(), 0);
         assert_eq!(projected.applied(), 0);
         assert_eq!(projected.not_applied(), 0);
-        assert!(projected.sorted_files().is_empty());
+        assert_eq!(projected.sorted_files(), [] as [&ProjectedFile; 0]);
         assert_eq!(text_lines(&projected), Vec::<String>::new());
         assert_eq!(render_diff(&projected).unwrap(), "");
         assert_eq!(

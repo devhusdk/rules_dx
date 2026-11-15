@@ -1,6 +1,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":fuzzer_build.bzl", "fuzzer_build")
 
 sh_test(
     name = "libunwind_copy_test",
@@ -18,6 +19,25 @@ sh_test(
     args = ["$(rootpath @llvm//runtimes/msvc:BUILD.bazel)"],
     data = ["@llvm//runtimes/msvc:BUILD.bazel"],
     target_compatible_with = ["@platforms//os:linux"],
+)
+
+sh_test(
+    name = "msvc_fuzzer_test",
+    size = "small",
+    srcs = ["msvc_fuzzer_test.sh"],
+    args = ["$(rootpath //patches/llvm:msvc_fuzzer.patch)"],
+    data = ["//patches/llvm:msvc_fuzzer.patch"],
+)
+
+fuzzer_build(
+    name = "msvc_fuzzer_runtimes",
+    target_compatible_with = ["@platforms//os:windows"],
+    deps = [
+        "@llvm//runtimes:resource_directory_default",
+        "@llvm//runtimes/compiler-rt:clang_rt.fuzzer.static",
+        "@llvm//runtimes/compiler-rt:clang_rt.fuzzer_interceptors.static",
+        "@llvm//runtimes/compiler-rt:clang_rt.fuzzer_no_main.static",
+    ],
 )
 
 platform_transition_filegroup(

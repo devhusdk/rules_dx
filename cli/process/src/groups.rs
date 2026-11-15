@@ -22,9 +22,11 @@ pub struct Reaped {
 
 /// Sets the managed root that holds this worktree's group leases; the first call wins.
 pub fn set_lease_root(root: &Path) {
-    let _ = LEASE_DIR.set(
-        root.join(dx_atomic_fs::lease::LEASES_DIR_NAME)
-            .join(GROUPS_DIR_NAME),
+    drop(
+        LEASE_DIR.set(
+            root.join(dx_atomic_fs::lease::LEASES_DIR_NAME)
+                .join(GROUPS_DIR_NAME),
+        ),
     );
 }
 
@@ -66,6 +68,7 @@ impl GroupLease {
 
     /// Makes the spawned child write this lease for its own group before it execs.
     #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[expect(unsafe_code, reason = "Command::pre_exec is unsafe")]
     pub(crate) fn record_from_child(&self, command: &mut std::process::Command) {
         use std::os::fd::AsRawFd;
         use std::os::unix::process::CommandExt;
@@ -83,19 +86,19 @@ impl GroupLease {
 
     fn write_line(&self, line: Option<String>) {
         let mut file = &self.file;
-        let _ = file.set_len(0);
-        let _ = file.seek(SeekFrom::Start(0));
+        drop(file.set_len(0));
+        drop(file.seek(SeekFrom::Start(0)));
         let Some(line) = line else {
             return;
         };
-        let _ = writeln!(file, "{line}");
-        let _ = file.flush();
+        drop(writeln!(file, "{line}"));
+        drop(file.flush());
     }
 }
 
 impl Drop for GroupLease {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
+        drop(std::fs::remove_file(&self.path));
     }
 }
 
@@ -123,24 +126,33 @@ pub(crate) enum Leader {
 
 #[cfg(unix)]
 mod sys {
+    #[expect(unsafe_code, reason = "process group and signal calls are libc FFI")]
     unsafe extern "C" {
         fn kill(pid: i32, sig: i32) -> i32;
     }
 
+    #[expect(unsafe_code, reason = "process group and signal calls are libc FFI")]
     unsafe extern "C" {
         fn getpgrp() -> i32;
         fn getsid(pid: i32) -> i32;
-        fn getppid() -> i32;
         fn getpgid(pid: i32) -> i32;
     }
 
+    #[expect(unsafe_code, reason = "kill with signal 0 has no safe std API")]
     pub fn group_alive(pgid: i32) -> bool {
+        // SAFETY: kill with signal 0 only checks that the group exists.
         pgid > 1 && unsafe { kill(-pgid, 0) } == 0
     }
 
     /// Groups the running dx belongs to, which it must never stop.
+    #[expect(
+        unsafe_code,
+        reason = "getpgrp, getsid and getpgid have no safe std API"
+    )]
     pub fn own_groups() -> Vec<i32> {
-        unsafe { vec![getpgrp(), getsid(0), getpgid(getppid())] }
+        let parent = i32::try_from(std::os::unix::process::parent_id()).unwrap_or(0);
+        // SAFETY: these calls only read process ids and have no preconditions.
+        unsafe { vec![getpgrp(), getsid(0), getpgid(parent)] }
     }
 
     pub fn boot_id() -> String {
@@ -148,8 +160,10 @@ mod sys {
     }
 
     /// True when no process has `pid`; a zombie still counts as present.
+    #[expect(unsafe_code, reason = "kill with signal 0 has no safe std API")]
     pub fn gone(pid: i32) -> bool {
         const ESRCH: i32 = 3;
+        // SAFETY: kill with signal 0 only checks that the process exists.
         (unsafe { kill(pid, 0) }) != 0
             && std::io::Error::last_os_error().raw_os_error() == Some(ESRCH)
     }
@@ -167,7 +181,9 @@ mod sys {
     pub(super) fn settle_leader(read: super::Leader, gone: impl FnOnce() -> bool) -> super::Leader {
         match read {
             super::Leader::Unknown if gone() => super::Leader::Absent,
-            other => other,
+            other @ super::Leader::Present(_)
+            | other @ super::Leader::Absent
+            | other @ super::Leader::Unknown => other,
         }
     }
 
@@ -183,8 +199,13 @@ mod sys {
 
     /// Writes the lease line of the calling process's own group into `fd`; runs between fork and exec.
     #[cfg(target_os = "linux")]
+    #[expect(
+        unsafe_code,
+        reason = "between fork and exec only raw libc I/O is async-signal-safe"
+    )]
     pub(super) fn write_own_lease(fd: i32, namespace: &str, boot: &str) {
         let mut stat = [0u8; 4096];
+        // SAFETY: the path is NUL-terminated, `stat` is writable for its length and the fd is closed here.
         let read = unsafe {
             let stat_fd = libc::open(
                 c"/proc/self/stat".as_ptr(),
@@ -213,7 +234,9 @@ mod sys {
     /// Writes the lease line of the calling process's own group into `fd`; runs between fork and exec.
     #[cfg(target_os = "macos")]
     pub(super) fn write_own_lease(fd: i32, namespace: &str, boot: &str) {
-        let pid = unsafe { libc::getpid() };
+        let Ok(pid) = libc::pid_t::try_from(std::process::id()) else {
+            return;
+        };
         let Some((secs, micros)) = crate::procs::start_timeval(pid) else {
             return;
         };
@@ -222,15 +245,20 @@ mod sys {
 
     /// Replaces the text of `fd` with the calling process's lease line, using only stack buffers.
     #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[expect(
+        unsafe_code,
+        reason = "between fork and exec only raw libc I/O is async-signal-safe"
+    )]
     fn write_lease_line(fd: i32, start: std::fmt::Arguments<'_>, namespace: &str, boot: &str) {
         use std::io::Write;
-        let pid = unsafe { libc::getpid() };
+        let pid = std::process::id();
         let mut line = [0u8; 1024];
         let mut cursor = std::io::Cursor::new(&mut line[..]);
         if writeln!(cursor, "{pid} {namespace} {start} {boot}").is_err() {
             return;
         }
         let len = cursor.position() as usize;
+        // SAFETY: `line` holds `len` initialized bytes and `fd` is the lease descriptor.
         unsafe {
             libc::ftruncate(fd, 0);
             libc::pwrite(fd, line.as_ptr().cast(), len, 0);
@@ -259,8 +287,10 @@ mod sys {
         start_time(pid).map_or(Leader::Unknown, Leader::Present)
     }
 
+    #[expect(unsafe_code, reason = "signalling a process group has no safe std API")]
     pub fn signal_group(pgid: i32, signo: i32) {
         if pgid > 1 {
+            // SAFETY: kill has no memory preconditions.
             unsafe {
                 kill(-pgid, signo);
             }
@@ -426,7 +456,7 @@ const LOG_CAP: u64 = 64 * 1024;
 fn log_decision(dir: &Path, what: &str, pid: u32, recorded: &Recorded, now: &Observed) {
     let log = dir.join(LOG_NAME);
     if std::fs::metadata(&log).is_ok_and(|meta| meta.len() > LOG_CAP) {
-        let _ = std::fs::rename(&log, dir.join(format!("{LOG_NAME}.1")));
+        drop(std::fs::rename(&log, dir.join(format!("{LOG_NAME}.1"))));
     }
     let cmdline = sys::cmdline(recorded.pgid);
     let secs = std::time::SystemTime::now()
@@ -445,7 +475,7 @@ fn log_decision(dir: &Path, what: &str, pid: u32, recorded: &Recorded, now: &Obs
         .append(true)
         .open(&log)
     {
-        let _ = file.write_all(line.as_bytes());
+        drop(file.write_all(line.as_bytes()));
     }
 }
 
@@ -467,7 +497,7 @@ fn reap_with(dir: &Path, observe: fn(&Recorded) -> Observed, stop: fn(&Recorded)
             continue;
         };
         let mut text = String::new();
-        let _ = file.read_to_string(&mut text);
+        drop(file.read_to_string(&mut text));
         match parse_lease(&text) {
             Some(recorded) => {
                 let now = observe(&recorded);
@@ -488,7 +518,7 @@ fn reap_with(dir: &Path, observe: fn(&Recorded) -> Observed, stop: fn(&Recorded)
                         });
                     }
                 }
-                let _ = std::fs::remove_file(&path);
+                drop(std::fs::remove_file(&path));
             }
             None => {
                 let old = entry
@@ -498,7 +528,7 @@ fn reap_with(dir: &Path, observe: fn(&Recorded) -> Observed, stop: fn(&Recorded)
                     .and_then(|time| time.elapsed().ok())
                     .is_some_and(|age| age >= STALE_EMPTY);
                 if old {
-                    let _ = std::fs::remove_file(&path);
+                    drop(std::fs::remove_file(&path));
                 }
             }
         }

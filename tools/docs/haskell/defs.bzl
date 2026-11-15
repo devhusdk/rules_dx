@@ -7,25 +7,12 @@ load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 HASKELL_TOOLCHAIN = "@rules_haskell//haskell:toolchain"
 
 def haskell_shard_action(ctx, info, package, config, stem, extract_tool):
-    """Runs `haddock --hoogle` over a Haskell library's own sources and extracts its DocIr shard.
-
-    Args:
-      ctx: The rule or aspect context; it must carry the rules_haskell toolchain.
-      info: The library's HaskellInfo, for its compile flags, package databases and interfaces.
-      package: Package name haddock writes the Hoogle file for, and the shard's symbol id segment.
-      config: Extra configuration identity recorded on every symbol.
-      stem: Output name prefix, relative to the target's package.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the haddock `hoogle` tree and the `srcs_manifest`.
-    """
+    """Runs `haddock --hoogle` over a Haskell library's own sources and extracts its DocIr shard."""
     toolchain = ctx.toolchains[HASKELL_TOOLCHAIN]
     own = sorted(info.source_files.to_list(), key = lambda f: f.path)
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own]))
 
-    # The bindist ships no `lib/html`; naming a stylesheet skips haddock's theme lookup.
     css = ctx.actions.declare_file(stem + ".haddock.css")
     ctx.actions.write(css, "")
     hoogle = ctx.actions.declare_directory(stem + ".hoogle")
@@ -47,7 +34,6 @@ def haskell_shard_action(ctx, info, package, config, stem, extract_tool):
         "RULES_HASKELL_GHC_PATH": toolchain.tools.ghc.path,
         "RULES_HASKELL_GHC_PKG_PATH": toolchain.tools.ghc_pkg.path,
         "RULES_HASKELL_LIBDIR_PATH": toolchain.libdir_path,
-        # haddock issue 894: concurrent haddock runs race on the shared temp dir.
         "TEMP": tmp.path,
         "TMP": tmp.path,
         "TMPDIR": tmp.path,

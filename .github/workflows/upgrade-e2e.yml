@@ -39,4 +39,6 @@ jobs:
         env:
           FROM: ${{ inputs.from }}
           TO: ${{ inputs.to }}
-        run: tools/ci/upgrade_e2e.sh --from "$FROM" --to "$TO"
+        run: |
+          bazel build --noshow_progress //tools/ci/producers:producers_bin
+          "$(bazel info bazel-bin)/tools/ci/producers/producers_bin" --upgrade-e2e --from "$FROM" --to "$TO"

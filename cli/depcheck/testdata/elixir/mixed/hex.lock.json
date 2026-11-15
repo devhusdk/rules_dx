@@ -1,0 +1,42 @@
+{
+  "ecosystem": "hex",
+  "inputs": {},
+  "packages": [
+    {
+      "archives": [],
+      "deps": [],
+      "name": "ex_doc",
+      "provides": [
+        "ex_doc"
+      ],
+      "version": "0.31.0"
+    },
+    {
+      "archives": [],
+      "deps": [],
+      "name": "jason",
+      "provides": [
+        "jason"
+      ],
+      "version": "1.4.1"
+    },
+    {
+      "archives": [],
+      "deps": [],
+      "name": "plug",
+      "provides": [
+        "plug"
+      ],
+      "version": "1.15.0"
+    },
+    {
+      "archives": [],
+      "deps": [],
+      "name": "telemetry",
+      "provides": [
+        "telemetry"
+      ],
+      "version": "1.2.1"
+    }
+  ]
+}

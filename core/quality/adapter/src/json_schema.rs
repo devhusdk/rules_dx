@@ -236,7 +236,11 @@ pub fn declared_schema(bytes: &[u8], filetype: Filetype) -> Option<String> {
     match filetype {
         Filetype::Json => match serde_json::from_str::<Value>(text).ok()? {
             Value::Object(map) => map.get("$schema")?.as_str().map(str::to_owned),
-            _ => None,
+            Value::Null
+            | Value::Bool(_)
+            | Value::Number(_)
+            | Value::String(_)
+            | Value::Array(_) => None,
         },
         Filetype::Yaml => {
             let mut leading = true;
@@ -418,7 +422,7 @@ impl Walk {
                     self.visit(member, &here);
                 }
             }
-            _ => {}
+            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
         }
     }
 }

@@ -1,11 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 
-alias(
-    name = "paket2bazel",
-    actual = "@rules_dotnet//tools/paket2bazel",
-    visibility = ["//visibility:public"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

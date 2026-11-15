@@ -44,6 +44,9 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
-    ]),
+    ]) + [
+        "pack.ps1",
+        "sign.ps1",
+    ],
     visibility = ["//:__subpackages__"],
 )

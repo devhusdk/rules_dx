@@ -164,8 +164,17 @@ fn a_crate_without_public_items_fails_without_a_shard() {
     let json = fixture_json();
     let marker = "\"is_crate\":true,\"items\":[";
     let start = json.find(marker).expect("crate root module") + marker.len();
-    let end = start + json[start..].find(']').expect("item list end");
-    let empty = format!("{}{}", &json[..start], &json[end..]);
+    let end = start
+        + json
+            .get(start..)
+            .expect("string slice within bounds")
+            .find(']')
+            .expect("item list end");
+    let empty = format!(
+        "{}{}",
+        json.get(..start).expect("string slice within bounds"),
+        json.get(end..).expect("string slice within bounds")
+    );
     let dir_tmp = scratch("extract-empty", &empty, &fixture_srcs());
     let dir = dir_tmp.path();
     let run = standard(dir);

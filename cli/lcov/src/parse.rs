@@ -159,7 +159,10 @@ pub fn parse_lcov(report: &str) -> Result<BTreeMap<String, FileHits>, LcovError>
                             line: line.to_string(),
                         });
                     }
-                    _ => {
+                    lcov::record::ParseRecordError::FieldNotFound(_)
+                    | lcov::record::ParseRecordError::TooManyFields
+                    | lcov::record::ParseRecordError::ParseIntError(..)
+                    | lcov::record::ParseRecordError::UnknownRecord => {
                         return Err(LcovError::MalformedHitCount {
                             path,
                             line: line.to_string(),
@@ -313,7 +316,10 @@ pub fn validate_lcov_report(report: &str) -> Result<(), LcovError> {
                             line: line.to_string(),
                         });
                     }
-                    _ => {
+                    lcov::record::ParseRecordError::FieldNotFound(_)
+                    | lcov::record::ParseRecordError::TooManyFields
+                    | lcov::record::ParseRecordError::ParseIntError(..)
+                    | lcov::record::ParseRecordError::UnknownRecord => {
                         return Err(LcovError::MalformedHitCount {
                             path,
                             line: line.to_string(),

@@ -56,11 +56,13 @@ pub fn init_diagnostics(verbose: bool) {
     } else {
         DEFAULT_LOG_FILTER
     });
-    let _ = fmt()
-        .with_env_filter(filter)
-        .with_writer(std::io::stderr)
-        .with_ansi(color_enabled())
-        .try_init();
+    drop(
+        fmt()
+            .with_env_filter(filter)
+            .with_writer(std::io::stderr)
+            .with_ansi(color_enabled())
+            .try_init(),
+    );
     tracing::debug!(verbose, "dx diagnostics initialised");
 }
 
@@ -81,7 +83,9 @@ pub fn color_enabled_for(mode: ColorMode) -> bool {
         ColorMode::Auto => {
             colors_allowed_for(mode, no_color_present(), console::colors_enabled_stderr())
         }
-        other => colors_allowed_for(other, false, false),
+        other @ ColorMode::Always | other @ ColorMode::Never => {
+            colors_allowed_for(other, false, false)
+        }
     }
 }
 
@@ -459,15 +463,22 @@ mod tests {
         assert_eq!(color_override(), prior_override);
     }
 
+    #[expect(
+        unsafe_code,
+        reason = "set_var and remove_var have no safe form in edition 2024"
+    )]
     #[test]
     fn no_color_env_lookup_sees_empty_values() {
         if let Some(raw) = std::env::var_os("DX_OUTPUT_NO_COLOR_CHILD") {
             let raw = raw.to_string_lossy().into_owned();
             let (_, sentinel) = raw.split_once(':').expect("mode:path");
+            // SAFETY: this child runs only this test, so no other thread reads the environment.
             unsafe { std::env::set_var("NO_COLOR", "") }
             assert!(!no_color_present(), "an empty NO_COLOR is ignored");
+            // SAFETY: this child runs only this test, so no other thread reads the environment.
             unsafe { std::env::set_var("NO_COLOR", "1") }
             assert!(no_color_present(), "a non-empty NO_COLOR counts");
+            // SAFETY: this child runs only this test, so no other thread reads the environment.
             unsafe { std::env::remove_var("NO_COLOR") }
             assert!(!no_color_present(), "removing NO_COLOR restores absence");
             std::fs::write(sentinel, b"ok").expect("sentinel");
@@ -475,7 +486,7 @@ mod tests {
         }
         let sentinel =
             std::env::temp_dir().join(format!("dx-output-no-color-{}", std::process::id()));
-        let _ = std::fs::remove_file(&sentinel);
+        drop(std::fs::remove_file(&sentinel));
         let before = std::env::var_os("NO_COLOR");
         let spawn = |mode: &str| {
             std::process::Command::new(std::env::current_exe().expect("test binary"))
@@ -500,7 +511,7 @@ mod tests {
             before,
             "child NO_COLOR mutation dies with the child"
         );
-        let _ = std::fs::remove_file(&sentinel);
+        drop(std::fs::remove_file(&sentinel));
     }
 
     #[test]

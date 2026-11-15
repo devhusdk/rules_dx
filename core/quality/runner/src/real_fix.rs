@@ -845,13 +845,17 @@ impl super::RealBackend {
 
     /// Decides which bytes a fix may return for one file. Notebooks never take
     /// the tool's raw rewrite: Ruff re-indents the JSON, sorts its keys and adds
-    /// cell ids, so only the edited code-cell sources are copied back.
+    /// cell ids, so only the edited code-cell sources are copied back. The
+    /// Windows latexindent writes CRLF, so an LF source keeps LF.
     pub(super) fn settle(
         tool_id: &str,
         path: &str,
         before: &str,
         fixed: String,
     ) -> Result<String, RunnerError> {
+        if tool_id == "latexindent" && !before.contains('\r') {
+            return Ok(fixed.replace("\r\n", "\n"));
+        }
         if !path.ends_with(".ipynb") {
             return Ok(fixed);
         }

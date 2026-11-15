@@ -309,13 +309,13 @@
           {
             "ecosystem": "nuget",
             "extension": "@rules_dx//csharp:extensions.bzl",
-            "hub": "paket.main",
-            "imports": "name",
-            "lock": "paket.lock",
+            "hub": "nuget",
+            "imports": "provides",
+            "lock": "nuget.lock.json",
             "manifest": "paket.dependencies",
-            "resolver": null,
+            "resolver": "@rules_dx//csharp/private/tools/lock",
             "state": "paket.lock",
-            "tag": null
+            "tag": "lock"
           }
         ]
       }
@@ -543,11 +543,11 @@
             "ecosystem": "hex",
             "extension": "@rules_dx//elixir:extensions.bzl",
             "hub": "hex",
-            "imports": "name",
-            "lock": "mix.lock",
+            "imports": "provides",
+            "lock": "hex.lock.json",
             "manifest": "mix.exs",
-            "resolver": null,
-            "state": null,
+            "resolver": "@rules_dx//elixir/private/tools/lock",
+            "state": "mix.lock",
             "tag": "lock"
           }
         ]
@@ -834,7 +834,7 @@
             "imports": "provides",
             "lock": "maven_install.json",
             "manifest": "libs.versions.toml",
-            "resolver": null,
+            "resolver": "@rules_dx//java/private/tools/lock",
             "state": null,
             "tag": "from_toml"
           }
@@ -1242,7 +1242,7 @@
             "real_php_typecheck_aspect"
           ]
         },
-        "bzl": "php/private/quality:php.bzl",
+        "bzl": "core/quality:families/php.bzl",
         "file_extensions": [
           ".php"
         ],
@@ -1663,12 +1663,12 @@
             "ecosystem": "terraform",
             "extension": "@rules_dx//terraform:extensions.bzl",
             "hub": "dx_terraform_providers",
-            "imports": "name",
-            "lock": null,
+            "imports": "provides",
+            "lock": "terraform.lock.json",
             "manifest": "*.tf",
-            "resolver": null,
+            "resolver": "@rules_dx//terraform/private/tools/lock",
             "state": ".terraform.lock.hcl",
-            "tag": null
+            "tag": "lock"
           }
         ]
       }

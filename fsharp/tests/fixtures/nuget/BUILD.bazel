@@ -1,0 +1,37 @@
+# gazelle:ignore
+load("//fsharp:defs.bzl", "fsharp_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+fsharp_test(
+    name = "main_group_test",
+    size = "small",
+    srcs = ["MainGroupTest.fs"],
+    deps = [
+        "@nuget//fsharp.core",
+        "@nuget//google.protobuf",
+    ],
+)
+
+fsharp_test(
+    name = "fsharplint_group_test",
+    size = "small",
+    srcs = ["FsharplintGroupTest.fs"],
+    deps = [
+        "@nuget.fsharplint//fsharp.core",
+        "@nuget.fsharplint//newtonsoft.json",
+    ],
+)
+
+fsharp_test(
+    name = "docs_fsharp_group_test",
+    size = "small",
+    srcs = ["DocsFsharpGroupTest.fs"],
+    deps = [
+        "@nuget.docs_fsharp//fsharp.core",
+        "@nuget.docs_fsharp//system.collections.immutable",
+    ],
+)

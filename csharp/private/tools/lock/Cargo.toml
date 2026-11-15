@@ -1,0 +1,28 @@
+[package]
+license = "Apache-2.0"
+name = "nuget_lock"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "nuget_lock"
+path = "src/resolve.rs"
+
+[[bin]]
+name = "nuget_lock_bin"
+path = "src/main.rs"
+
+[[test]]
+name = "resolve_test"
+path = "resolve_test.rs"
+
+[dependencies]
+base64 = "0.22"
+serde_json = "1"
+sha2 = "0.10"
+zip = { version = "9", default-features = false, features = [
+  "deflate-flate2-zlib",
+] }
+
+[dev-dependencies]
+tempfile = "3"

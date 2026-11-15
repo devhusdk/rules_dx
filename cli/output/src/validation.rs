@@ -57,7 +57,29 @@ impl OutputError {
     pub fn is_broken_pipe(&self) -> bool {
         match self {
             OutputError::Io { kind, .. } => *kind == std::io::ErrorKind::BrokenPipe,
-            _ => false,
+            OutputError::UnknownOutputMode { .. }
+            | OutputError::ConflictingStdoutReport { .. }
+            | OutputError::SecondStdoutReport
+            | OutputError::EmptyField { .. }
+            | OutputError::BadCommandMode { .. }
+            | OutputError::BadSeverity { .. }
+            | OutputError::BadSource { .. }
+            | OutputError::BadAvailability { .. }
+            | OutputError::BadValue { .. }
+            | OutputError::BadThreshold { .. }
+            | OutputError::BadColor { .. }
+            | OutputError::BadPath { .. }
+            | OutputError::BadDigest { .. }
+            | OutputError::BadEdit { .. }
+            | OutputError::RangeWithoutPath
+            | OutputError::InvertedRange
+            | OutputError::UnexpectedResolution
+            | OutputError::MissingReason { .. }
+            | OutputError::UnexpectedReason { .. }
+            | OutputError::NotAnEvent
+            | OutputError::UnregisteredEvent { .. }
+            | OutputError::UnsupportedSchema { .. }
+            | OutputError::BadCorrelation { .. } => false,
         }
     }
 }

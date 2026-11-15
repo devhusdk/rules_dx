@@ -538,6 +538,10 @@ impl Resolver for Swift<'_> {
             });
         }
         packages.extend(kept);
-        Ok(Resolution { packages })
+        Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
+            packages,
+            ..Resolution::default()
+        })
     }
 }

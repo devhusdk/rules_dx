@@ -443,7 +443,7 @@ fn urls_of(call: &Call) -> Result<Vec<String>, DxError> {
             for item in items {
                 match item {
                     Value::Str(text) => urls.push(text.value.clone()),
-                    _ => {
+                    Value::List(_) | Value::Dict(_) | Value::Ident(_) | Value::Computed { .. } => {
                         return Err(DxError::failure(format!(
                             "{} at MODULE.bazel line {} has a computed url",
                             call.name, call.line
@@ -688,7 +688,10 @@ fn extension_input(
         attributes.get(*key).is_some_and(|value| match value {
             serde_json::Value::Array(items) => !items.is_empty(),
             serde_json::Value::Object(items) => !items.is_empty(),
-            _ => false,
+            serde_json::Value::Null
+            | serde_json::Value::Bool(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::String(_) => false,
         })
     });
     Ok(Some(BazelInput {

@@ -2396,6 +2396,7 @@ real_source_target(
         "pub_tests.bzl",
         "pypi.bzl",
         "pypi_tests.bzl",
+        "qt.bzl",
         "rubygems.bzl",
         "rubygems_tests.bzl",
         "native_probe.bzl",

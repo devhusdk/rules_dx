@@ -52,7 +52,7 @@ impl Browser {
     ) -> Result<Self, Launch> {
         let port = control_port();
         let home = profile.join(format!("attempt-{attempt}"));
-        let _ = std::fs::remove_dir_all(&home);
+        drop(std::fs::remove_dir_all(&home));
         std::fs::create_dir_all(&home).map_err(|error| {
             Launch::Fatal(format!(
                 "browser: cannot create the profile '{}': {error}",
@@ -92,8 +92,8 @@ impl Browser {
         let control = match wait_for_control(&mut child, &log, port, deadline) {
             Ok(control) => control,
             Err(error) => {
-                let _ = child.kill();
-                let _ = child.wait();
+                drop(child.kill());
+                drop(child.wait());
                 return Err(error);
             }
         };
@@ -251,9 +251,9 @@ impl Browser {
 
 impl Drop for Browser {
     fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-        let _ = std::fs::remove_dir_all(&self.profile);
+        drop(self.child.kill());
+        drop(self.child.wait());
+        drop(std::fs::remove_dir_all(&self.profile));
     }
 }
 
@@ -342,7 +342,7 @@ fn wait_for_control(
         }
         let last = match TcpStream::connect(("127.0.0.1", port)) {
             Ok(stream) => {
-                let _ = stream.set_nodelay(true);
+                drop(stream.set_nodelay(true));
                 return Ok(stream);
             }
             Err(error) => error.to_string(),

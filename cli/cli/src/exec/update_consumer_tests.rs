@@ -1456,42 +1456,6 @@ fn consumer_maven_failing_pin_fails_only_its_own_set() {
     assert_eq!(runner.launches.borrow().len(), 2);
 }
 
-const NUGET_FILES: [&str; 6] = [
-    "MODULE.bazel",
-    "third_party/dotnet/paket.dependencies",
-    "third_party/dotnet/paket.lock",
-    "third_party/dotnet/deps/paket.main.bzl",
-    "third_party/dotnet_tools/paket.lock",
-    "third_party/dotnet_tools/deps/paket.tools.bzl",
-];
-
-fn nuget_harness(name: &str) -> Harness {
-    let harness = consumer_harness(
-        name,
-        &format!(
-            "{UV_MODULE}paket = use_extension(\"//third_party/dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n"
-        ),
-        true,
-    );
-    for dir in ["dotnet", "dotnet_tools"] {
-        harness.write_source(
-            &format!("third_party/{dir}/paket.dependencies"),
-            "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json\n",
-        );
-        harness.write_source(&format!("third_party/{dir}/paket.lock"), "NUGET\n");
-    }
-    harness.write_source("third_party/dotnet/deps/paket.main.bzl", "main\n");
-    harness.write_source("third_party/dotnet_tools/deps/paket.tools.bzl", "tools\n");
-    harness
-}
-
-fn nuget_bytes(harness: &Harness) -> Vec<Vec<u8>> {
-    NUGET_FILES
-        .iter()
-        .map(|rel| read_bytes(harness, rel))
-        .collect()
-}
-
 fn stage(runner: &ScriptRunner, files: &[(&str, &str)]) {
     runner.staged_outputs.borrow_mut().extend(
         files
@@ -1500,121 +1464,16 @@ fn stage(runner: &ScriptRunner, files: &[(&str, &str)]) {
     );
 }
 
-/// The `--output-folder` the single recorded launch ran with.
-fn scratch_out(runner: &ScriptRunner) -> std::path::PathBuf {
-    let launches = runner.launches.borrow();
-    let argv = &launches[0].argv;
-    let at = argv
-        .iter()
-        .position(|arg| arg == "--output-folder")
-        .expect("folder");
-    std::path::PathBuf::from(&argv[at + 1])
-}
-
-#[test]
-fn consumer_nuget_check_without_drift_is_current_and_cleans_scratch() {
-    let harness = nuget_harness("nuget-current");
-    let before = nuget_bytes(&harness);
-    let runner = ScriptRunner::new(&[]);
-    stage(
-        &runner,
-        &[
-            ("paket.main.bzl", "main\n"),
-            ("paket.main_extension.bzl", "ext\n"),
-        ],
-    );
-    let (code, out, err) = run_with(&["update", "nuget"], &runner, &harness);
-    assert_eq!(code, 0, "{out}{err}");
-    assert!(out.contains("nuget lockfile current"), "{out}");
-    let launches = runner.launches.borrow();
-    assert_eq!(launches.len(), 1);
-    let argv = &launches[0].argv;
-    #[expect(clippy::disallowed_methods, reason = "the test compares against the backend argv")]
-    let mut head = dx_process::startup_argv(&[]);
-    head.extend(strings_of(&[
-        "run",
-        "--config=dx_build_dev",
-        "@rules_dx//dotnet:paket2bazel",
-        "--",
-        "--dependencies-file",
-    ]));
-    assert_eq!(argv[..head.len()], head[..], "{argv:?}");
-    assert_eq!(argv.len(), head.len() + 3);
-    assert_eq!(argv[head.len() + 1], "--output-folder");
-    assert_eq!(launches[0].cwd, harness.workspace);
-    assert!(launches[0].env.is_empty());
-    assert!(!launches[0].hermetic);
-    let deps = std::path::Path::new(&argv[head.len()]);
-    assert!(!deps.starts_with(&harness.workspace), "{deps:?}");
-    assert!(!deps.exists(), "scratch must be removed: {deps:?}");
-    assert_eq!(nuget_bytes(&harness), before);
-}
-
 fn strings_of(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
 }
 
-#[test]
-fn consumer_nuget_check_with_drift_fails_listing_files_and_writes_nothing() {
-    let harness = nuget_harness("nuget-drift");
-    let before = nuget_bytes(&harness);
-    let runner = ScriptRunner::new(&[]);
-    stage(
-        &runner,
-        &[
-            ("paket.main.bzl", "new\n"),
-            ("paket.main_extension.bzl", "ext\n"),
-        ],
-    );
-    let (code, out, err) = run_with(&["update", "nuget"], &runner, &harness);
-    assert_eq!(code, 1, "{out}{err}");
-    assert!(
-        err.contains("stale generated locks: third_party/dotnet/deps/paket.main.bzl;"),
-        "{err}"
-    );
-    assert!(!err.contains("paket.main_extension.bzl"), "{err}");
-    assert!(!out.contains("lockfile current"), "{out}");
-    assert_eq!(nuget_bytes(&harness), before);
-}
-
-#[test]
-fn consumer_nuget_apply_writes_only_differing_declared_files() {
-    let harness = nuget_harness("nuget-apply");
-    let before = nuget_bytes(&harness);
-    let runner = ScriptRunner::new(&[]);
-    stage(
-        &runner,
-        &[
-            ("paket.main.bzl", "new\n"),
-            ("paket.main_extension.bzl", "ext\n"),
-        ],
-    );
-    let (code, out, err) = run_with(&["update", "--apply", "nuget"], &runner, &harness);
-    assert_eq!(code, 0, "{out}{err}");
-    assert!(out.contains("updated nuget"), "{out}");
-    let after = nuget_bytes(&harness);
-    for (index, rel) in NUGET_FILES.iter().enumerate() {
-        if *rel == "third_party/dotnet/deps/paket.main.bzl" {
-            assert_eq!(after[index], b"new\n", "{rel}");
-        } else {
-            assert_eq!(after[index], before[index], "{rel}");
-        }
-    }
-    assert!(
-        !harness
-            .workspace
-            .join("third_party/dotnet/deps/paket.main_extension.bzl")
-            .exists()
-    );
-    assert!(!scratch_out(&runner).exists());
-}
-
-const HEX_MODULE: &str = "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+const HEX_MODULE: &str = "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//third_party/elixir:hex.lock.json\")\n";
 
 fn hex_harness(name: &str) -> Harness {
     let harness = consumer_harness(name, HEX_MODULE, false);
     harness.write_source("third_party/elixir/mix.exs", "defmodule App do\nend\n");
-    harness.write_source("third_party/elixir/mix.lock", "%{}\n");
+    harness.write_source("third_party/elixir/hex.lock.json", "%{}\n");
     harness
 }
 
@@ -1622,20 +1481,20 @@ fn hex_harness(name: &str) -> Harness {
 fn consumer_hex_check_reports_drift_and_apply_writes_only_mix_lock() {
     let harness = hex_harness("hex-apply");
     let runner = ScriptRunner::new(&[]);
-    stage(&runner, &[("mix.lock", "%{\"jason\" => 1}\n")]);
+    stage(&runner, &[("hex.lock.json", "%{\"jason\" => 1}\n")]);
     let (code, out, err) = run_with(&["update", "deps"], &runner, &harness);
     assert_ne!(code, 0, "{out}{err}");
     assert_eq!(
-        read_bytes(&harness, "third_party/elixir/mix.lock"),
+        read_bytes(&harness, "third_party/elixir/hex.lock.json"),
         b"%{}\n"
     );
 
     let runner = ScriptRunner::new(&[]);
-    stage(&runner, &[("mix.lock", "%{\"jason\" => 1}\n")]);
+    stage(&runner, &[("hex.lock.json", "%{\"jason\" => 1}\n")]);
     let (code, out, err) = run_with(&["update", "--apply", "deps"], &runner, &harness);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(
-        read_bytes(&harness, "third_party/elixir/mix.lock"),
+        read_bytes(&harness, "third_party/elixir/hex.lock.json"),
         b"%{\"jason\" => 1}\n"
     );
     assert_eq!(
@@ -1644,76 +1503,6 @@ fn consumer_hex_check_reports_drift_and_apply_writes_only_mix_lock() {
     );
     let launches = runner.launches.borrow();
     assert!(launches[0].argv.iter().any(|arg| arg == "deps.update"));
-}
-
-#[test]
-fn consumer_mixed_mix_and_rebar_run_checks_both_sets() {
-    let module = format!(
-        "{HEX_MODULE}erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n"
-    );
-    let harness = consumer_harness("hex-mixed", &module, false);
-    harness.write_source("third_party/elixir/mix.exs", "defmodule App do\nend\n");
-    harness.write_source("third_party/elixir/mix.lock", "%{}\n");
-    harness.write_source("third_party/erlang/rebar.config", "{deps, []}.\n");
-    harness.write_source("third_party/erlang/rebar.lock", "[].\n");
-    let runner = ScriptRunner::new(&[]);
-    stage(
-        &runner,
-        &[("mix.lock", "%{\"jason\" => 1}\n"), ("rebar.lock", "[].\n")],
-    );
-    let (code, out, err) = run_with(&["update"], &runner, &harness);
-    assert_ne!(code, 0, "{out}{err}");
-    let launches = runner.launches.borrow();
-    assert!(
-        launches
-            .iter()
-            .any(|l| l.argv.iter().any(|arg| arg == "deps.get"))
-    );
-    assert_eq!(
-        read_bytes(&harness, "third_party/erlang/rebar.lock"),
-        b"[].\n"
-    );
-}
-
-#[test]
-fn consumer_rebar_check_reports_drift_and_apply_writes_only_rebar_lock() {
-    let module = "erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n";
-    let harness = consumer_harness("rebar-apply", module, false);
-    harness.write_source("third_party/erlang/rebar.config", "{deps, []}.\n");
-    harness.write_source("third_party/erlang/rebar.lock", "[].\n");
-    let runner = ScriptRunner::new(&[]);
-    stage(&runner, &[("rebar.lock", "[{<<\"cowboy\">>,1}].\n")]);
-    let (code, out, err) = run_with(&["update", "erl"], &runner, &harness);
-    assert_ne!(code, 0, "{out}{err}");
-    assert_eq!(
-        read_bytes(&harness, "third_party/erlang/rebar.lock"),
-        b"[].\n"
-    );
-    assert!(
-        runner.launches.borrow()[0]
-            .argv
-            .iter()
-            .any(|arg| arg == "lock")
-    );
-
-    let runner = ScriptRunner::new(&[]);
-    stage(&runner, &[("rebar.lock", "[{<<\"cowboy\">>,1}].\n")]);
-    let (code, out, err) = run_with(&["update", "--apply", "erl"], &runner, &harness);
-    assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(
-        read_bytes(&harness, "third_party/erlang/rebar.lock"),
-        b"[{<<\"cowboy\">>,1}].\n"
-    );
-    assert_eq!(
-        read_bytes(&harness, "third_party/erlang/rebar.config"),
-        b"{deps, []}.\n"
-    );
-    assert!(
-        runner.launches.borrow()[0]
-            .argv
-            .iter()
-            .any(|arg| arg == "upgrade")
-    );
 }
 
 const OPAM_MODULE: &str = "opam = use_extension(\"//ocaml:extensions.bzl\", \"opam\")\nopam.lock(name = \"ocaml_app\", lock = \"//ocaml/app:opam.lock.json\")\n";
@@ -1785,113 +1574,6 @@ fn consumer_hex_offline_needs_network_and_launches_nothing() {
     let (code, out, err) = run_with(&["update", "--offline", "deps"], &runner, &harness);
     assert_ne!(code, 0, "{out}{err}");
     assert!(runner.launches.borrow().is_empty());
-}
-
-#[test]
-fn consumer_nuget_undeclared_or_missing_output_fails_and_writes_nothing() {
-    for (name, files, want) in [
-        (
-            "undeclared",
-            vec![
-                ("paket.main.bzl", "new\n"),
-                ("paket.main_extension.bzl", "ext2\n"),
-                ("paket.extra.bzl", "x\n"),
-            ],
-            "not declared in locks: paket.extra.bzl",
-        ),
-        (
-            "missing",
-            vec![("paket.main_extension.bzl", "ext\n")],
-            "did not generate declared locks: third_party/dotnet/deps/paket.main.bzl",
-        ),
-    ] {
-        let harness = nuget_harness(&format!("nuget-{name}"));
-        let before = nuget_bytes(&harness);
-        let runner = ScriptRunner::new(&[]);
-        stage(&runner, &files);
-        let (code, out, err) = run_with(&["update", "--apply", "nuget"], &runner, &harness);
-        assert_eq!(code, 1, "{name}: {out}{err}");
-        assert!(err.contains(want), "{name}: {err}");
-        assert_eq!(nuget_bytes(&harness), before, "{name}");
-    }
-}
-
-#[test]
-fn consumer_nuget_failing_run_writes_nothing() {
-    let harness = nuget_harness("nuget-fail");
-    let before = nuget_bytes(&harness);
-    let key = ScriptRunner::key_for(&strings_of(&["paket2bazel"]));
-    let runner = ScriptRunner::new(&[(key.as_str(), Some(1))]);
-    stage(
-        &runner,
-        &[
-            ("paket.main.bzl", "new\n"),
-            ("paket.main_extension.bzl", "ext\n"),
-        ],
-    );
-    let (code, out, err) = run_with(&["update", "--apply", "nuget"], &runner, &harness);
-    assert_eq!(code, 1, "{out}{err}");
-    assert!(
-        format!("{out}{err}").contains("failed to update nuget"),
-        "{out}{err}"
-    );
-    assert_eq!(nuget_bytes(&harness), before);
-}
-
-#[test]
-fn consumer_nuget_offline_is_required_and_frozen_apply_runs() {
-    let harness = nuget_harness("nuget-offline");
-    for argv in [
-        vec!["update", "--offline", "nuget"],
-        vec!["update", "--apply", "--offline", "nuget"],
-        vec!["update", "--apply", "nuget:Newtonsoft.Json"],
-    ] {
-        let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&argv, &runner, &harness);
-        assert_ne!(code, 0, "{argv:?}: {out}{err}");
-        assert!(runner.launches.borrow().is_empty(), "{argv:?}");
-        assert!(
-            !format!("{out}{err}").contains("lockfile current"),
-            "{argv:?}"
-        );
-    }
-    let runner = ScriptRunner::new(&[]);
-    let (_, out, err) = run_with(&["update", "--offline", "nuget"], &runner, &harness);
-    assert!(
-        format!("{out}{err}").contains("offline_required"),
-        "{out}{err}"
-    );
-    let runner = ScriptRunner::new(&[]);
-    stage(
-        &runner,
-        &[
-            ("paket.main.bzl", "main\n"),
-            ("paket.main_extension.bzl", "ext\n"),
-        ],
-    );
-    let (code, out, err) = run_with(
-        &["update", "--apply", "--frozen", "nuget"],
-        &runner,
-        &harness,
-    );
-    assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(runner.launches.borrow().len(), 1);
-}
-
-#[test]
-fn consumer_nuget_layout_refusal_never_launches() {
-    let harness = nuget_harness("nuget-layout");
-    harness.write_source(
-        "third_party/dotnet/paket.dependencies",
-        "source ../local-feed\n",
-    );
-    for mode in ["--output=text", "--apply"] {
-        let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", mode, "nuget"], &runner, &harness);
-        assert_ne!(code, 0, "{out}{err}");
-        assert!(runner.launches.borrow().is_empty());
-        assert!(format!("{out}{err}").contains("not http(s)"), "{out}{err}");
-    }
 }
 
 const GO_FILES: [&str; 3] = [

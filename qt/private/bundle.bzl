@@ -1,8 +1,7 @@
 """qt_bundle: the Qt runtime of one binary as a deployable archive."""
 
-load("//deploy/private:native_runtime.bzl", "NativeRuntimeInfo")
 load("//qt/private/toolchain:needs.bzl", "QtNeedsInfo")
-load("//qt/private/toolchain:pins.bzl", "QT_VERSION", "RUNTIME_PLUGINS")
+load("//qt/private/toolchain:pins.bzl", "RUNTIME_PLUGINS")
 load(":cells.bzl", "QT_BUNDLE_COMPATIBLE_WITH")
 load(":constants.bzl", "QT_REPOSITORY")
 load(":text.bzl", "qt_framework_path", "qt_module_path")
@@ -115,31 +114,6 @@ def _qt_bundle_impl(ctx):
         staged.append(out)
     return [DefaultInfo(files = depset(staged))]
 
-def _qt_bundle_runtime_impl(ctx):
-    prefix = "/" + ctx.attr.bundle.label.name + "/"
-    dlls = [f for f in ctx.attr.bundle[DefaultInfo].files.to_list() if qt_runtime_members([f.path.rpartition(prefix)[2]])]
-    if len(dlls) == 0:
-        return [
-            DefaultInfo(),
-            NativeRuntimeInfo(name = ctx.label.name, version = QT_VERSION, source = "Qt", redistribution = "os_supplied", files = [], notice = None, provides = []),
-        ]
-    conf = ctx.actions.declare_file(ctx.label.name + "/qt.conf")
-    ctx.actions.write(conf, QT_CONF)
-    files = dlls + [conf]
-    return [
-        DefaultInfo(files = depset(files)),
-        NativeRuntimeInfo(name = ctx.label.name, version = QT_VERSION, source = "Qt", redistribution = "app_local", files = files, notice = ctx.files.license_files[0], provides = []),
-    ]
-
-_qt_bundle_runtime = rule(
-    implementation = _qt_bundle_runtime_impl,
-    doc = "The Qt DLLs of a qt_bundle and a qt.conf for consumer_archive runtime; empty where the bundle has no DLLs.",
-    attrs = {
-        "bundle": attr.label(mandatory = True, providers = [DefaultInfo], doc = "qt_bundle to read the DLLs from."),
-        "license_files": attr.label_list(allow_files = True, doc = "License texts, the first is the notice."),
-    },
-)
-
 _qt_bundle = rule(
     implementation = _qt_bundle_impl,
     doc = "Stages the linked shared libraries (Windows DLLs under bin/), their dependencies, QML modules, plugins and licenses one Qt binary runs with.",
@@ -176,12 +150,4 @@ def qt_bundle(name, binary, qml_modules = [], licenses = [], display = [], plugi
         qml_modules = qml_modules,
         runtime_plugins = [qt + "//:plugins_" + plugin for plugin in plugins],
         **kwargs
-    )
-    _qt_bundle_runtime(
-        name = name + "_runtime",
-        bundle = name,
-        license_files = [qt + "//:licenses"],
-        target_compatible_with = kwargs["target_compatible_with"],
-        visibility = kwargs.get("visibility"),
-        tags = kwargs.get("tags"),
     )

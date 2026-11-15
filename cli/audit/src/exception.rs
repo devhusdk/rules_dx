@@ -168,7 +168,11 @@ pub fn validate_uncovered(
             set: acceptance.set.clone(),
             value,
         },
-        other => other,
+        other @ ExceptionProblem::MissingField { .. }
+        | other @ ExceptionProblem::MissingUncoveredField { .. }
+        | other @ ExceptionProblem::UncoveredInvalidDate { .. }
+        | other @ ExceptionProblem::UncoveredExpired { .. }
+        | other @ ExceptionProblem::Obsolete { .. } => other,
     })
 }
 
@@ -179,7 +183,11 @@ pub fn check_expiry(expires: &str, today: &str) -> Result<(), ExceptionProblem> 
             ExceptionProblem::Expired { expires, today }
         }
         ConventionProblem::InvalidDate { value } => ExceptionProblem::InvalidDate { value },
-        other => ExceptionProblem::InvalidDate {
+        other @ ConventionProblem::MissingSchemaVersion
+        | other @ ConventionProblem::BadSchemaVersion { .. }
+        | other @ ConventionProblem::UnsupportedSchemaVersion { .. }
+        | other @ ConventionProblem::EmptyField { .. }
+        | other @ ConventionProblem::BadPattern { .. } => ExceptionProblem::InvalidDate {
             value: other.to_string(),
         },
     })

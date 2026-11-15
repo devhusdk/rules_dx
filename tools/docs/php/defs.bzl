@@ -21,20 +21,7 @@ _direct_srcs_aspect = aspect(
 )
 
 def php_shard_action(ctx, own, package, stem, phar, driver, extract_tool):
-    """Runs phpDocumentor and the extractor for one PHP library.
-
-    Args:
-      ctx: The rule or aspect context; it must carry the PHP exec toolchain.
-      own: The .php files the library lists in its own srcs.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      phar: The pinned phpDocumentor.phar file.
-      driver: The php_dump.php file.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the `php_json`, the `manifest` and `own`.
-    """
+    """Runs phpDocumentor and the extractor for one PHP library."""
     own = sorted(own, key = lambda f: f.path)
     if not own:
         fail("php_doc_shard " + str(ctx.label) + ": lib lists no .php srcs")
@@ -134,14 +121,7 @@ docs_php_shard = rule(
 )
 
 def php_doc_shard(name, lib, package = "", **kwargs):
-    """Declares the DocIr shard of one PHP library.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented php_library.
-      package: Package segment of every symbol id; defaults to the name of lib.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one PHP library."""
     docs_php_shard(
         name = name,
         lib = lib,

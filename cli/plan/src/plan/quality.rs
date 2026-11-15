@@ -396,7 +396,7 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
                 continue;
             }
             Pending::Env(name) | Pending::Keyed(name) => safe.push(format!("--{name}")),
-            _ => {}
+            Pending::None | Pending::Secret => {}
         }
         let name = provenance_option_name(option).to_lowercase();
         if provenance_env_names().contains(&name.as_str()) {

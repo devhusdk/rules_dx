@@ -64,11 +64,7 @@ pub fn install(cache: &Path, files: &[(String, PathBuf)]) -> Result<(), String> 
                 .map_err(|error| format!("cannot create {}: {error}", parent.display()))?;
         }
         place(src, &dst).map_err(|error| {
-            format!(
-                "cannot put {} at {}: {error}",
-                src.display(),
-                dst.display()
-            )
+            format!("cannot put {} at {}: {error}", src.display(), dst.display())
         })?;
     }
     Ok(())

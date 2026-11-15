@@ -21,20 +21,7 @@ _direct_srcs_aspect = aspect(
 )
 
 def d_shard_action(ctx, info, own, package, config, stem, extract_tool):
-    """Runs `ldc2 -D -X` over a D library's own sources and extracts its DocIr shard.
-
-    Args:
-      ctx: The rule or aspect context; it must carry the D toolchain.
-      info: The library's DInfo, for its import paths and dependency sources.
-      own: The .d and .di files the library lists in its own srcs.
-      package: Package segment of the shard's symbol ids.
-      config: Extra configuration identity recorded on every symbol.
-      stem: Output name prefix, relative to the target's package.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the compiler `api_json` and the `srcs_manifest`.
-    """
+    """Runs `ldc2 -D -X` over a D library's own sources and extracts its DocIr shard."""
     own = sorted(own, key = lambda f: f.path)
     toolchain = ctx.toolchains[D_TOOLCHAIN].d_toolchain_info
     compiler = toolchain.d_compiler[DefaultInfo].files_to_run

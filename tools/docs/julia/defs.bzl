@@ -5,21 +5,7 @@ load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 def julia_shard_action(ctx, own, transitive_srcs, module, package, stem, driver, extract_tool):
-    """Runs the Documenter driver and the extractor for one Julia library.
-
-    Args:
-      ctx: The rule or aspect context.
-      own: The .jl files the library lists in its own srcs.
-      transitive_srcs: Every .jl file the library reaches; their directories form the load path.
-      module: Name of the library's root module, which is the name of the library.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      driver: The doc_dump executable, a julia_binary that carries Documenter.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the `doc_json` and the `manifest`.
-    """
+    """Runs the Documenter driver and the extractor for one Julia library."""
     own = sorted([f for f in own if f.extension == "jl"], key = lambda f: f.path)
     if not own:
         fail("julia_doc_shard " + str(ctx.label) + ": lib lists no .jl srcs")
@@ -113,15 +99,7 @@ docs_julia_shard = rule(
 )
 
 def julia_doc_shard(name, lib, module = "", package = "", **kwargs):
-    """Declares the DocIr shard of one Julia library.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented julia_library, named after its root module.
-      module: Name of the root module; defaults to the name of lib.
-      package: Package segment of every symbol id; defaults to the module name.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one Julia library."""
     docs_julia_shard(
         name = name,
         lib = lib,

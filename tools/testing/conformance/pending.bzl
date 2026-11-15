@@ -142,10 +142,6 @@ d lint_error_test *
 d lint_test *
 d lock_test *
 d runfiles_test *
-dart format_error_test *
-dart format_test *
-dart lint_error_test *
-dart lint_test *
 dart runfiles_test *
 dockerfile build_test *
 dockerfile coverage_test *
@@ -272,10 +268,6 @@ kubernetes lint_test *
 kubernetes lock_test *
 kubernetes pass_test *
 kubernetes runfiles_test *
-lua format_error_test *
-lua format_test *
-lua lint_error_test *
-lua lint_test *
 lua runfiles_test *
 make build_test *
 make coverage_test *
@@ -316,10 +308,6 @@ php format_test *
 php lint_error_test *
 php lint_test *
 php runfiles_test *
-powershell format_error_test *
-powershell format_test *
-powershell lint_error_test *
-powershell lint_test *
 powershell runfiles_test *
 python runfiles_test *
 qt build_test *

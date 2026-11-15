@@ -45,6 +45,7 @@ julia_pkg_resolve_test(
 
 rust_test(
     name = "jet_cli_test",
+    size = "small",
     srcs = ["jet_cli_test.rs"],
     aliases = aliases(
         package_name = "julia/private/tools/julia_jet",

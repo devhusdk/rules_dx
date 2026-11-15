@@ -175,7 +175,10 @@ fn sorted(value: &Value) -> Value {
             Value::Object(out)
         }
         Value::Array(items) => Value::Array(items.iter().map(sorted).collect()),
-        other => other.clone(),
+        other @ Value::Null
+        | other @ Value::Bool(_)
+        | other @ Value::Number(_)
+        | other @ Value::String(_) => other.clone(),
     }
 }
 
@@ -350,7 +353,7 @@ mod tests {
     #[test]
     fn listed_reads_json_pins_of_each_lang_json() {
         let root = std::env::temp_dir().join(format!("dx-pins-listed-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+        drop(std::fs::remove_dir_all(&root));
         std::fs::create_dir_all(root.join("b")).unwrap();
         std::fs::create_dir_all(root.join("a")).unwrap();
         std::fs::write(

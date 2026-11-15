@@ -1,3 +1,5 @@
+#![expect(unsafe_code, reason = "exports an unmangled C symbol for the native linker fixture")]
+
 use std::ffi::{c_char, CStr};
 
 #[unsafe(no_mangle)]
@@ -5,6 +7,7 @@ pub extern "C" fn share_total(text: *const c_char) -> i64 {
     if text.is_null() {
         return -1;
     }
+    // SAFETY: the caller passes a non-null NUL-terminated string.
     let Ok(text) = unsafe { CStr::from_ptr(text) }.to_str() else {
         return -1;
     };

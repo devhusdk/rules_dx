@@ -138,9 +138,11 @@ fn serve_links() -> String {
             } else {
                 "404 Not Found"
             };
-            let _ = stream.write_all(
-                format!("HTTP/1.1 {status}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
-                    .as_bytes(),
+            drop(
+                stream.write_all(
+                    format!("HTTP/1.1 {status}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                        .as_bytes(),
+                ),
             );
         }
     });

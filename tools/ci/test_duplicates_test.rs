@@ -91,7 +91,7 @@ impl Walker<'_> {
                 self.stmt(&each.body);
             }
             StmtP::Return(Some(expr)) | StmtP::Expression(expr) => self.expr(expr),
-            _ => {}
+            StmtP::Break | StmtP::Continue | StmtP::Pass | StmtP::Return(_) | StmtP::Load(_) => {}
         }
     }
 
@@ -104,7 +104,10 @@ impl Walker<'_> {
         self.scan.callees.call(self.def.as_deref(), &callee_text);
         let name = args.args.iter().find_map(|arg| match &arg.node {
             ArgumentP::Named(key, value) if key.node == "name" => string(value),
-            _ => None,
+            ArgumentP::Positional(_)
+            | ArgumentP::Named(..)
+            | ArgumentP::Args(_)
+            | ArgumentP::KwArgs(_) => None,
         });
         if let (Some(name), None) = (name, &self.def) {
             self.scan.calls.push(Call {

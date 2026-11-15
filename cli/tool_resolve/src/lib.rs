@@ -38,7 +38,12 @@ impl From<ResolveError> for dx_error::DxError {
         let message = error.to_string();
         match error {
             ResolveError::Usage { .. } => Self::usage(message),
-            _ => Self::infra(message),
+            ResolveError::CqueryFailed { .. }
+            | ResolveError::NoArtifact { .. }
+            | ResolveError::InfoFailed { .. }
+            | ResolveError::MissingArtifact { .. }
+            | ResolveError::MissingOutput { .. }
+            | ResolveError::EnvWrite { .. } => Self::infra(message),
         }
     }
 }
@@ -63,7 +68,9 @@ fn run_detail(bin: &Path, error: &dx_process::capture::RunError) -> String {
         dx_process::capture::RunError::Spawn { source, .. } => {
             format!("could not run {}: {source}", bin.display())
         }
-        other => other.to_string(),
+        other @ dx_process::capture::RunError::TimedOut { .. }
+        | other @ dx_process::capture::RunError::OutputTooLarge { .. }
+        | other @ dx_process::capture::RunError::Failed { .. } => other.to_string(),
     }
 }
 

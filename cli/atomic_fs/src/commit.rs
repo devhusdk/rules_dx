@@ -127,7 +127,10 @@ fn write_holder(root: &ManagedRoot) {
         .to_string_lossy()
         .into_owned();
     let text = format!("dx {command} (pid {})", std::process::id());
-    let _ = std::fs::write(root.dir().join(COMMIT_HOLDER_FILE_NAME), text);
+    drop(std::fs::write(
+        root.dir().join(COMMIT_HOLDER_FILE_NAME),
+        text,
+    ));
 }
 
 fn read_holder(root: &ManagedRoot) -> Option<String> {

@@ -10,6 +10,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 rust_test(
     name = "driver_policy_test",
+    size = "small",
     testonly = True,
     srcs = ["driver_policy.rs"],
     aliases = aliases(
@@ -44,6 +45,7 @@ rust_test(
 
 rust_test(
     name = "foreign_cmake_log_test",
+    size = "small",
     testonly = True,
     srcs = ["foreign_cmake_log.rs"],
     aliases = aliases(
@@ -73,6 +75,7 @@ rust_test(
 
 rust_test(
     name = "foreign_cmake_msvc_log_test",
+    size = "small",
     testonly = True,
     srcs = ["foreign_cmake_msvc_log.rs"],
     aliases = aliases(
@@ -94,6 +97,7 @@ rust_test(
 
 rust_test(
     name = "foreign_cmake_cross_test",
+    size = "small",
     testonly = True,
     srcs = ["foreign_cmake_cross.rs"],
     aliases = aliases(
@@ -146,7 +150,7 @@ test_suite(
     name = "fixture_tests",
     testonly = True,
     tests = [
-        "//cc/tests/fixtures/custom_gcc:custom_gcc",
+        "//cc/tests/fixtures/custom_gcc",
         "//cc/tests/fixtures/googletest:greeter_test",
         "//cc/tests/fixtures/lcov_accounting:accounting_test",
         "//cc/tests/fixtures/lcov_accounting:partial_test",

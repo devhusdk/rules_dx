@@ -19,7 +19,9 @@ LANGS = json.decode("""{
     "lockfiles": [],
     "manifests": [],
     "name": "android",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -617,6 +619,7 @@ LANGS = json.decode("""{
     ],
     "family": "core",
     "lockfiles": [
+      "nuget.lock.json",
       "paket.lock"
     ],
     "manifests": [
@@ -637,13 +640,13 @@ LANGS = json.decode("""{
         {
           "ecosystem": "nuget",
           "extension": "@rules_dx//csharp:extensions.bzl",
-          "hub": "paket.main",
-          "imports": "name",
-          "lock": "paket.lock",
+          "hub": "nuget",
+          "imports": "provides",
+          "lock": "nuget.lock.json",
           "manifest": "paket.dependencies",
-          "resolver": null,
+          "resolver": "@rules_dx//csharp/private/tools/lock",
           "state": "paket.lock",
-          "tag": null
+          "tag": "lock"
         }
       ]
     },
@@ -1011,7 +1014,7 @@ LANGS = json.decode("""{
     ],
     "family": "core",
     "lockfiles": [
-      "mix.lock"
+      "hex.lock.json"
     ],
     "manifests": [
       "mix.exs"
@@ -1049,11 +1052,11 @@ LANGS = json.decode("""{
           "ecosystem": "hex",
           "extension": "@rules_dx//elixir:extensions.bzl",
           "hub": "hex",
-          "imports": "name",
-          "lock": "mix.lock",
+          "imports": "provides",
+          "lock": "hex.lock.json",
           "manifest": "mix.exs",
-          "resolver": null,
-          "state": null,
+          "resolver": "@rules_dx//elixir/private/tools/lock",
+          "state": "mix.lock",
           "tag": "lock"
         }
       ]
@@ -1646,7 +1649,7 @@ LANGS = json.decode("""{
           "imports": "provides",
           "lock": "maven_install.json",
           "manifest": "libs.versions.toml",
-          "resolver": null,
+          "resolver": "@rules_dx//java/private/tools/lock",
           "state": null,
           "tag": "from_toml"
         }
@@ -1796,7 +1799,9 @@ LANGS = json.decode("""{
       "Project.toml"
     ],
     "name": "julia",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -2384,7 +2389,7 @@ LANGS = json.decode("""{
           "real_php_typecheck_aspect"
         ]
       },
-      "bzl": "php/private/quality:php.bzl",
+      "bzl": "core/quality:families/php.bzl",
       "file_extensions": [
         ".php"
       ],
@@ -2613,7 +2618,6 @@ LANGS = json.decode("""{
       "qt_cc_test",
       "qt_rust_cc_library",
       "qt_bundle",
-      "qt_consumer_archive",
       "qt_rust_library"
     ],
     "family": "core",
@@ -3126,6 +3130,7 @@ LANGS = json.decode("""{
     ],
     "family": "core",
     "lockfiles": [
+      "terraform.lock.json",
       ".terraform.lock.hcl"
     ],
     "manifests": [
@@ -3164,12 +3169,12 @@ LANGS = json.decode("""{
           "ecosystem": "terraform",
           "extension": "@rules_dx//terraform:extensions.bzl",
           "hub": "dx_terraform_providers",
-          "imports": "name",
-          "lock": null,
+          "imports": "provides",
+          "lock": "terraform.lock.json",
           "manifest": "*.tf",
-          "resolver": null,
+          "resolver": "@rules_dx//terraform/private/tools/lock",
           "state": ".terraform.lock.hcl",
-          "tag": null
+          "tag": "lock"
         }
       ]
     },

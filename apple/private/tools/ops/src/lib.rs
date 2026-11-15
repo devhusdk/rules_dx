@@ -123,12 +123,14 @@ pub fn run(args: &[String]) -> u8 {
 }
 
 /// The process group of this process.
+#[expect(unsafe_code, reason = "getpgrp has no safe std API")]
 fn own_group() -> i32 {
     // SAFETY: getpgrp has no arguments and cannot fail.
     unsafe { libc::getpgrp() }
 }
 
 /// Whether the process group `group` still has a process.
+#[expect(unsafe_code, reason = "kill has no safe std API")]
 fn group_alive(group: i32) -> bool {
     // SAFETY: kill with signal 0 only checks that the group exists.
     let rc = unsafe { libc::kill(-group, 0) };

@@ -1074,7 +1074,7 @@ source = { registry = "https://pypi.org/simple" }
         harness.write_source(
             &format!("third_party/elixir/{}", lock_name(Ecosystem::Hex)),
             &format!(
-                "%{{\n  \"plug\": {{:hex, :plug, \"{version}\", \"h\", [:mix], [], \"hexpm\", \"h2\"}},\n}}\n"
+                "{{\"ecosystem\":\"hex\",\"packages\":[{{\"name\":\"plug\",\"version\":\"{version}\"}}]}}"
             ),
         );
         harness
@@ -1098,23 +1098,6 @@ source = { registry = "https://pypi.org/simple" }
         let (code, out, err) = run_with(&["security", "--output=json", "swiftpm"], &runner, &fixed);
         assert_eq!(code, 0, "{out}{err}");
         assert!(!out.contains("vuln/GHSA"), "{out}");
-    }
-
-    #[test]
-    fn consumer_rebar_set_reports_a_vulnerable_lock() {
-        let module = "erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
-        let harness = consumer_harness("rebar-vuln", module, false);
-        harness.write_source("third_party/erlang/rebar.config", "{deps, [plug]}.\n");
-        harness.write_source(
-            "third_party/erlang/rebar.lock",
-            "{\"1.2.0\",\n[{<<\"plug\">>,{pkg,<<\"plug\">>,<<\"1.15.0\">>},0}]}.\n[\n{pkg_hash,[\n {<<\"plug\">>, <<\"AA\">>}]},\n{pkg_hash_ext,[\n {<<\"plug\">>, <<\"BB\">>}]}\n].\n",
-        );
-        write_advisory(&harness, "hex", HEX_ADVISORY);
-        let runner = clean_runner();
-        let (code, out, err) = run_with(&["security", "--output=json", "deps"], &runner, &harness);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(out.contains("vuln/GHSA-hex-0001"), "{out}");
-        assert!(out.contains("third_party/erlang/rebar.lock"), "{out}");
     }
 
     #[test]
@@ -1205,7 +1188,7 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     const NUGET_MODULE: &str =
-        "paket = use_extension(\"//dn/deps:paket.main_extension.bzl\", \"main_extension\")\n";
+        "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\", lock = \"//dn:nuget.lock.json\")\n";
 
     const NUGET_ADVISORY: &str = r#"[{
         "id": "GHSA-nuget-0001",
@@ -1218,6 +1201,7 @@ source = { registry = "https://pypi.org/simple" }
 
     fn nuget_harness(name: &str) -> Harness {
         let harness = consumer_harness(name, NUGET_MODULE, false);
+        harness.write_source("dn/nuget.lock.json", "{}\n");
         harness.write_source(
             &format!("dn/{}", manifest_of(Ecosystem::Nuget)),
             "source https://api.nuget.org/v3/index.json\nnuget Example.Lib\n",
@@ -1229,7 +1213,6 @@ source = { registry = "https://pypi.org/simple" }
             ),
             "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    Example.Lib (1.1)\n",
         );
-        harness.write_source("dn/deps/paket.main.bzl", "main\n");
         harness
     }
 

@@ -3,7 +3,7 @@ load("@rules_dx//fsharp:defs.bzl", "fsharp_binary", "fsharp_library", "fsharp_te
 fsharp_library(
     name = "demo-app",
     srcs = ["Library.fs"],
-    deps = ["@paket.main//fsharp.core"],
+    deps = ["@nuget//fsharp.core"],
 )
 
 fsharp_binary(
@@ -11,7 +11,7 @@ fsharp_binary(
     srcs = ["Program.fs"],
     deps = [
         ":demo-app",
-        "@paket.main//fsharp.core",
+        "@nuget//fsharp.core",
     ],
 )
 
@@ -20,6 +20,6 @@ fsharp_test(
     srcs = ["HelloTest.fs"],
     deps = [
         ":demo-app",
-        "@paket.main//fsharp.core",
+        "@nuget//fsharp.core",
     ],
 )

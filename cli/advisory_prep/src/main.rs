@@ -86,7 +86,7 @@ fn main() -> ExitCode {
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(error) => {
-            let _ = error.print();
+            drop(error.print());
             return if error.use_stderr() {
                 dx_error::ErrorKind::Usage.into()
             } else {

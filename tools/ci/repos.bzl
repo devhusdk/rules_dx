@@ -24,12 +24,7 @@ def skipped(path, entry, ignored):
     return entry.is_dir and entry.is_link
 
 def walk(ignored, readdir):
-    """Returns the directories listed and the files found under the root, as sorted root-relative paths.
-
-    Args:
-      ignored: The paths ignored_paths returns.
-      readdir: Function from a root-relative directory, "" for the root, to its entries, each a struct of name, is_dir and is_link.
-    """
+    """Returns the directories listed and the files found under the root, as sorted root-relative paths."""
     directories = []
     found = []
     pending = [""]

@@ -456,11 +456,11 @@ pub fn policy_families(text: &str) -> BTreeMap<String, BTreeMap<String, Vec<Stri
                             .into_iter()
                             .filter_map(|tool| match tool {
                                 Value::Str(tool) => Some(tool),
-                                _ => None,
+                                Value::List(_) | Value::Dict(_) => None,
                             })
                             .collect(),
                     )),
-                    _ => None,
+                    Value::Str(_) | Value::List(_) | Value::Dict(_) => None,
                 })
                 .collect();
             Some((family, capabilities))

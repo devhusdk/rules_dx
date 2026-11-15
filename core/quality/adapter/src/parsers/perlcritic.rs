@@ -40,8 +40,15 @@ fn shape(detail: String) -> ParseError {
 fn violation(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
     let bad = |detail: &str| shape(format!("{detail}: {line}"));
     let fields: Vec<&str> = line.splitn(PERLCRITIC_FIELDS, '\t').collect();
-    let [sentinel, path, line_text, column_text, severity_text, policy, message] =
-        fields.as_slice()
+    let [
+        sentinel,
+        path,
+        line_text,
+        column_text,
+        severity_text,
+        policy,
+        message,
+    ] = fields.as_slice()
     else {
         return Err(bad("line outside the pinned format"));
     };
@@ -97,12 +104,13 @@ mod tests {
 
     #[test]
     fn the_format_matches_the_parser_grammar() {
-        assert_eq!(PERLCRITIC_FORMAT.split('\t').count(), PERLCRITIC_FIELDS);
+        assert_eq!(PERLCRITIC_FORMAT.split(r"\t").count(), PERLCRITIC_FIELDS);
         assert_eq!(
-            PERLCRITIC_FORMAT.split('\t').next(),
+            PERLCRITIC_FORMAT.split(r"\t").next(),
             Some(PERLCRITIC_SENTINEL)
         );
-        assert!(PERLCRITIC_FORMAT.ends_with('\n'));
+        assert!(PERLCRITIC_FORMAT.ends_with(r"\n"));
+        assert!(!PERLCRITIC_FORMAT.contains(['\t', '\n', '\r']));
     }
 
     #[test]

@@ -193,7 +193,6 @@ fn skip_names() -> BTreeSet<&'static str> {
         "build.zig.zon.lock",
         "JuliaProject.toml",
         "JuliaManifest.toml",
-        "rebar.lock",
         "stack.yaml.lock",
         "opam.locked",
     ]
@@ -734,7 +733,7 @@ pub fn cmd_usage(
     }
     if !failures.is_empty() {
         for failure in &failures {
-            let _ = writeln!(stderr, "depcheck: FAIL: usage: {failure}");
+            writeln!(stderr, "depcheck: FAIL: usage: {failure}").unwrap_or_default();
         }
         return Err(DxError::failure(format!(
             "{} usage failures ({})",
@@ -742,11 +741,12 @@ pub fn cmd_usage(
             eco.name()
         )));
     }
-    let _ = writeln!(
+    writeln!(
         stdout,
         "depcheck: OK: usage: {} declarations used in owning scope ({})",
         deps.len(),
         eco.name()
-    );
+    )
+    .unwrap_or_default();
     Ok(())
 }

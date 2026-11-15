@@ -1,12 +1,11 @@
 # gazelle:exclude Dependent.php
-load("@rules_dx//core:failure_test.bzl", "failure_test")
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//php/private/quality:corpus.bzl", "php_corpus")
 load("@rules_dx//php:defs.bzl", "php_binary", "php_library")
-load("//php/tests/negative:negative_tests.bzl", "php_autoload_input_test")
+load("//php/tests/negative:negative_tests.bzl", "php_autoload_input_test", "php_failure_test")
 
 package(default_visibility = ["//visibility:public"])
 
-real_source_target(
+php_corpus(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = [
@@ -33,7 +32,7 @@ php_library(
     deps = [":not_php"],  # keep
 )
 
-failure_test(
+php_failure_test(
     name = "dependency_without_php_info_fails_test",
     expected_failure_substring = "does not have mandatory providers: 'PhpInfo'",
     target = ":wrong_dep",

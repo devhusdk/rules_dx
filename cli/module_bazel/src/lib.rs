@@ -66,7 +66,9 @@ impl Call {
                 .iter()
                 .filter_map(|item| match item {
                     Value::Str(literal) => Some(literal.value.as_str()),
-                    _ => None,
+                    Value::List(_) | Value::Dict(_) | Value::Ident(_) | Value::Computed { .. } => {
+                        None
+                    }
                 })
                 .collect(),
             _ => Vec::new(),
@@ -303,6 +305,14 @@ pub struct DubLock<'a> {
     pub line: usize,
 }
 
+/// One `nuget.lock` tag of the rules_dx nuget extension.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NugetLock<'a> {
+    pub name: &'a str,
+    pub lock: &'a str,
+    pub line: usize,
+}
+
 /// One `ansible.lock` tag of the rules_dx ansible extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnsibleCollections<'a> {
@@ -354,14 +364,6 @@ pub struct PubLock<'a> {
 /// One `hex.lock` tag of rules_dx or this repository.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MixLock<'a> {
-    pub name: &'a str,
-    pub lock: &'a str,
-    pub line: usize,
-}
-
-/// One `erlang.rebar` tag of rules_dx or this repository.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RebarLock<'a> {
     pub name: &'a str,
     pub lock: &'a str,
     pub line: usize,
@@ -749,7 +751,12 @@ impl ModuleFile {
                     for item in items {
                         match item {
                             Value::Str(literal) => artifacts.push(literal),
-                            _ => return Err(ModuleError::ComputedArtifacts { line: call.line }),
+                            Value::List(_)
+                            | Value::Dict(_)
+                            | Value::Ident(_)
+                            | Value::Computed { .. } => {
+                                return Err(ModuleError::ComputedArtifacts { line: call.line });
+                            }
                         }
                     }
                 }
@@ -794,7 +801,10 @@ impl ModuleFile {
                     for item in items {
                         match item {
                             Value::Str(literal) => manifests.push(literal),
-                            _ => return Err(computed),
+                            Value::List(_)
+                            | Value::Dict(_)
+                            | Value::Ident(_)
+                            | Value::Computed { .. } => return Err(computed),
                         }
                     }
                 }
@@ -1005,23 +1015,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `erlang.rebar` tag of rules_dx or this repository's `//erlang:extensions.bzl`.
-    pub fn rebar_locks(&self) -> Result<Vec<RebarLock<'_>>, ModuleError> {
-        const TAG: &str = "erlang.rebar";
-        let external = self.tags(RUBY_MODULE, "erlang:extensions.bzl", "erlang", "rebar");
-        let own = self.tags_of("//erlang:extensions.bzl".to_owned(), "erlang", "rebar");
-        external
-            .chain(own)
-            .map(|call| {
-                Ok(RebarLock {
-                    name: required(call, TAG, "name")?,
-                    lock: required(call, TAG, "lock")?,
-                    line: call.line,
-                })
-            })
-            .collect()
-    }
-
     /// Every `lock` tag of the rules_dx composer extension in source order.
     pub fn composer_locks(&self) -> Result<Vec<ComposerLock<'_>>, ModuleError> {
         const TAG: &str = "php:extensions.bzl composer lock";
@@ -1130,6 +1123,22 @@ impl ModuleFile {
             .collect()
     }
 
+    /// Every `nuget.lock` tag of the rules_dx nuget extension in source order.
+    pub fn nuget_locks(&self) -> Result<Vec<NugetLock<'_>>, ModuleError> {
+        const TAG: &str = "nuget.lock";
+        let own = self.tags_of("//csharp:extensions.bzl".to_owned(), "nuget", "lock");
+        self.tags(RUBY_MODULE, "csharp:extensions.bzl", "nuget", "lock")
+            .chain(own)
+            .map(|call| {
+                Ok(NugetLock {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
     /// Every `zig.lock` tag of the rules_dx zig extension in source order.
     pub fn zig_locks(&self) -> Result<Vec<ZigLock<'_>>, ModuleError> {
         const TAG: &str = "zig.lock";
@@ -1212,21 +1221,6 @@ impl ModuleFile {
                     line: call.line,
                 })
             })
-            .collect()
-    }
-
-    /// The main-repository .bzl labels of `use_extension` calls that load paket groups:
-    /// an extension named `paket`, or a generated `paket.<group>_extension.bzl` file.
-    pub fn paket_extensions(&self) -> Vec<&str> {
-        self.extensions()
-            .into_iter()
-            .filter(|(label, name)| {
-                let file = label.rsplit([':', '/']).next().unwrap_or(label);
-                label.starts_with("//")
-                    && (*name == "paket"
-                        || (file.starts_with("paket.") && file.ends_with("_extension.bzl")))
-            })
-            .map(|(label, _)| label)
             .collect()
     }
 
@@ -1476,7 +1470,9 @@ impl ModuleFile {
         for item in items {
             match item {
                 Value::Str(literal) => last = Some(literal),
-                _ => return Err(ModuleError::ComputedArtifacts { line: call.line }),
+                Value::List(_) | Value::Dict(_) | Value::Ident(_) | Value::Computed { .. } => {
+                    return Err(ModuleError::ComputedArtifacts { line: call.line });
+                }
             }
         }
         let Some(last) = last else {
@@ -1771,13 +1767,22 @@ fn collect_calls(ast: &AstModule, stmt: &AstStmt, calls: &mut Vec<Call>) {
         StmtP::Assign(assign) => {
             let binding = match &assign.lhs.node {
                 AssignTargetP::Identifier(ident) => Some(ident.node.ident.clone()),
-                _ => None,
+                AssignTargetP::Tuple(_) | AssignTargetP::Index(_) | AssignTargetP::Dot(..) => None,
             };
             if let Some(call) = read_call(ast, &assign.rhs, binding) {
                 calls.push(call);
             }
         }
-        _ => {}
+        StmtP::Break
+        | StmtP::Continue
+        | StmtP::Pass
+        | StmtP::Return(_)
+        | StmtP::AssignModify(..)
+        | StmtP::If(..)
+        | StmtP::IfElse(..)
+        | StmtP::For(_)
+        | StmtP::Def(_)
+        | StmtP::Load(_) => {}
     }
 }
 
@@ -1811,7 +1816,24 @@ fn callee_name(expr: &AstExpr) -> Option<String> {
     match &expr.node {
         ExprP::Identifier(ident) => Some(ident.node.ident.clone()),
         ExprP::Dot(object, attr) => Some(format!("{}.{}", callee_name(object)?, attr.node)),
-        _ => None,
+        ExprP::Tuple(_)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::List(_)
+        | ExprP::Dict(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => None,
     }
 }
 
@@ -1829,7 +1851,23 @@ fn read_value(ast: &AstModule, expr: &AstExpr) -> Value {
                 .collect(),
         ),
         ExprP::Identifier(ident) => Value::Ident(ident.node.ident.clone()),
-        _ => Value::Computed {
+        ExprP::Tuple(_)
+        | ExprP::Dot(..)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => Value::Computed {
             line: line_of(ast, expr.span),
         },
     }

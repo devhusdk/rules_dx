@@ -23,6 +23,15 @@ struct BufLintRecord {
     message: String,
 }
 
+/// A `PACKAGE_DIRECTORY_MATCH` message with its directories in `/` separators.
+fn posix_directories(kind: &str, message: String) -> String {
+    if kind == "PACKAGE_DIRECTORY_MATCH" {
+        message.replace("\\\\", "/").replace('\\', "/")
+    } else {
+        message
+    }
+}
+
 pub fn parse_buf_lint(
     stdout: &[u8],
     code: Option<i32>,
@@ -98,12 +107,17 @@ pub fn parse_buf_lint(
             continue;
         }
         let checked = known(TOOL, files, &record.path)?;
+        let message = if cfg!(windows) {
+            posix_directories(&record.kind, record.message)
+        } else {
+            record.message
+        };
         findings.push(FileFinding {
             file: checked.to_owned(),
             finding: Finding {
                 tool_id: TOOL.to_owned(),
                 rule_id: record.kind,
-                message: record.message,
+                message,
                 severity: ToolSeverity::Error,
                 start: TextPosition {
                     line: start_line,
@@ -179,6 +193,25 @@ mod tests {
     use super::*;
 
     const LINT: &str = "{\"path\": \"proto/hello.proto\", \"start_line\": 4, \"start_column\": 3, \"end_line\": 4, \"end_column\": 12, \"type\": \"PACKAGE_DIRECTORY_MATCH\", \"message\": \"Files with package foo must be in a directory foo.\"}\n";
+
+    #[test]
+    fn package_directory_match_directories_use_forward_slashes() {
+        let expected = r#"Files with package "a.b" must be within a directory "a/b" relative to root but were in directory "c/d"."#;
+        let quoted = r#"Files with package "a.b" must be within a directory "a\\b" relative to root but were in directory "c\\d"."#;
+        assert_eq!(
+            super::posix_directories("PACKAGE_DIRECTORY_MATCH", quoted.to_owned()),
+            expected
+        );
+        let plain = r#"Files with package "a.b" must be within a directory "a\b" relative to root but were in directory "c\d"."#;
+        assert_eq!(
+            super::posix_directories("PACKAGE_DIRECTORY_MATCH", plain.to_owned()),
+            expected
+        );
+        assert_eq!(
+            super::posix_directories("FIELD_LOWER_SNAKE_CASE", r"a\b".to_owned()),
+            r"a\b"
+        );
+    }
 
     #[test]
     fn buf_lint_counts_a_tab_as_eight_columns() {

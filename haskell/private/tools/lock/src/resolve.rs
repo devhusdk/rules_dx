@@ -746,6 +746,7 @@ impl Resolver for Cabal {
         std::fs::remove_dir_all(set.join("dist-newstyle"))
             .map_err(|error| Error::new(format!("dist-newstyle: {error}")))?;
         Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
             packages: packages(&plan, &found)?,
         })
     }

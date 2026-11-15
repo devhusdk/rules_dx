@@ -1,6 +1,6 @@
-load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//php:defs.bzl", "php_bench")
+load("//php/private/quality:corpus.bzl", "php_corpus")
+load(":bench_tests.bzl", "php_runner_attr_test")
 
 package(
     default_testonly = True,
@@ -12,14 +12,17 @@ php_bench(
     srcs = ["SumBench.php"],
 )
 
-real_source_target(
+php_corpus(
     name = "corpus_starlark",
     testonly = True,
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "bench_tests.bzl",
+    ],
     tags = ["corpus"],
 )
 
-dx_runner_attr_test(
+php_runner_attr_test(
     name = "sum_bench_default_size",
     expected = {"size": "small"},
     runner = "sum_bench",

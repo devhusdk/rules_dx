@@ -60,6 +60,14 @@ workspace_policy(
             "//conditions:default": ["//core/quality/tiers/pmd:standard"],
         }) +
         select({
+            "//config:config_tier_strict": ["//core/quality/tiers/selene:strict"],
+            "//conditions:default": ["//core/quality/tiers/selene:standard"],
+        }) +
+        select({
+            "//config:config_tier_strict": ["//core/quality/tiers/stylua:strict"],
+            "//conditions:default": ["//core/quality/tiers/stylua:standard"],
+        }) +
+        select({
             "//config:config_tier_strict": ["//core/quality/tiers/scalafix:strict"],
             "//conditions:default": ["//core/quality/tiers/scalafix:standard"],
         }) +
@@ -140,6 +148,7 @@ workspace_policy(
         "//core/quality/testdata:tool_override_julia_family",
         "//core/quality/testdata:tool_override_perl_family",
         "//core/quality/testdata:tool_override_php_family",
+        "//core/quality/testdata:tool_override_powershell_family",
         "//core/quality/testdata:tool_override_ruby_family",
         "//core/quality/testdata:tool_override_zig_family",
     ],

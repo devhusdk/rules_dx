@@ -238,11 +238,10 @@ fn configured_nuget_set_adds_without_claiming_a_refresh() {
     let harness = Harness::new("update-add-consumer-nuget");
     harness.write_source(
         "MODULE.bazel",
-        "paket = use_extension(\"//dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n",
+        "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\", lock = \"//dotnet:nuget.lock.json\")\n",
     );
     harness.write_source("dotnet/paket.dependencies", PAKET_DEPS);
     harness.write_source("dotnet/paket.lock", "NUGET\n");
-    harness.write_source("dotnet/deps/paket.main.bzl", "main\n");
     let (code, out, err) =
         harness.run(&["update", "nuget:Serilog", "3.0.0", "--offline", "--apply"]);
     assert_eq!(code, 0, "{out}{err}");
@@ -256,8 +255,7 @@ fn configured_nuget_set_adds_without_claiming_a_refresh() {
         &harness,
         &[
             ("dotnet/paket.lock", "NUGET\n"),
-            ("dotnet/deps/paket.main.bzl", "main\n"),
-        ],
+            ],
     );
     assert!(harness.build_argv.borrow().is_empty());
 }

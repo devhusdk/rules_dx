@@ -49,6 +49,7 @@ struct Fixed(Vec<Package>);
 impl Resolver for Fixed {
     fn resolve(&self, _: &Scratch, _: Option<&Lock>) -> Result<Resolution, Error> {
         Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
             packages: self.0.clone(),
         })
     }
@@ -68,6 +69,7 @@ impl Resolver for Remembers {
         });
         self.0.borrow_mut().push(names);
         Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
             packages: vec![package("alpha", "alpha-1.2.0.pkg")],
         })
     }
@@ -516,6 +518,7 @@ impl Resolver for Parts {
         names.sort();
         self.0.replace(names);
         Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
             packages: Vec::new(),
         })
     }

@@ -15,7 +15,6 @@ PLATFORMS = [
 
 SECTIONS = ["languages", "targets", "compilers", "formats"]
 
-# The tool api_compat runs per publishing rule; "not available" where no maintained free API diff tool exists.
 API_COMPAT_TOOLS = {
     "conan_deploy": "not available",
     "cpan_deploy": "not available",
@@ -244,7 +243,6 @@ ROWS = [
     {"name": "yaml", "section": "formats", "title": "YAML"},
 ]
 
-# One entry per row that carries per-language columns. Every row in the languages section must give deps and doc; facts.bzl fails on a gap instead of printing n/a.
 NO_DOC = struct(tool = "", shard = "")
 
 def _language(name, bench = None, fuzz = None, deps = None, doc = None, dead_code = None, unsupported = None, not_applicable = None):
@@ -596,13 +594,10 @@ NOT_LANGUAGES = [
     "tools",
 ]
 
-# A compiler row and platform that the row targets but whose evidence is still waiting on something, with the reason.
 COMPILER_BLOCKERS = {}
 
-# The identity test of each compiler that has one.
 COMPILER_PROBES = {"gcc": "//cc/private/toolchain:identity_gcc", "llvm": "//cc/private/toolchain:identity", "msvc": "//cc/private/toolchain:identity_msvc"}
 
-# The identity test of a compiler on a platform where its COMPILER_PROBES test does not run.
 COMPILER_PLATFORM_PROBES = {
     "gcc": {"linux_arm64": "//cc/private/toolchain:identity_gcc_arm64_native"},
     "msvc": {"windows_arm64": "//cc/private/toolchain:identity_msvc_arm64_native"},

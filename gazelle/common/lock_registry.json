@@ -65,8 +65,8 @@
   {
     "ecosystem": "hex",
     "hub": "hex",
-    "imports": "name",
-    "lock": "mix.lock",
+    "imports": "provides",
+    "lock": "hex.lock.json",
     "manifest": "mix.exs"
   },
   {
@@ -99,9 +99,9 @@
   },
   {
     "ecosystem": "nuget",
-    "hub": "paket.main",
-    "imports": "name",
-    "lock": "paket.lock",
+    "hub": "nuget",
+    "imports": "provides",
+    "lock": "nuget.lock.json",
     "manifest": "paket.dependencies"
   },
   {
@@ -138,6 +138,13 @@
     "imports": "provides",
     "lock": "swiftpm.lock.json",
     "manifest": "Package.swift"
+  },
+  {
+    "ecosystem": "terraform",
+    "hub": "dx_terraform_providers",
+    "imports": "provides",
+    "lock": "terraform.lock.json",
+    "manifest": "*.tf"
   },
   {
     "ecosystem": "uv",

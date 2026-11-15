@@ -12,6 +12,7 @@ pub(crate) const CODE_CHANGES_PROPOSED: &str = "changes_proposed";
 pub(crate) const CODE_TOOL_SKIPPED: &str = "tool_skipped";
 pub(crate) const CODE_TESTS_FILTERED: &str = "tests_filtered";
 pub(crate) const CODE_TARGETS_SKIPPED: &str = "targets_skipped";
+pub(crate) const CODE_WORKSPACE_WITHOUT_TESTS: &str = "workspace_without_tests";
 pub(crate) const CODE_INIT_PLAN_PARTIAL: &str = "init_plan_partial";
 pub(crate) const CODE_INIT_ABSENT: &str = "init_absent";
 pub(crate) const CODE_IDE_REFRESH_FAILED: &str = "ide_refresh_failed";

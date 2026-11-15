@@ -13,14 +13,7 @@ _VISIBILITY = """    visibility = [
 """
 
 def hub_languages(labels):
-    """Returns the registered language labels without duplicates, ordered by name, with dispatch last.
-
-    Args:
-      labels: Label objects from every dx_gazelle.language tag.
-
-    Returns:
-      The ordered Label objects.
-    """
+    """Returns the registered language labels without duplicates, ordered by name, with dispatch last."""
     unique = {}
     for label in labels:
         if label != DISPATCH:
@@ -28,18 +21,7 @@ def hub_languages(labels):
     return sorted(unique.values(), key = lambda label: label.name) + [DISPATCH]
 
 def builds_from_source(plan, modules):
-    """Returns whether gazelle builds from source instead of using the release binary.
-
-    The release binary holds only the languages rules_dx registers, so a
-    language from any other module needs a source build.
-
-    Args:
-      plan: The struct plan_root returns.
-      modules: Structs with name and tags.language.
-
-    Returns:
-      True when gazelle builds from source.
-    """
+    """Returns whether gazelle builds from source instead of using the release binary."""
     return plan.source or any([m.name != "rules_dx" and m.tags.language for m in modules])
 
 def _gazelle_binary(name, labels, visibility):
@@ -54,14 +36,7 @@ def _gazelle_binary(name, labels, visibility):
 """.format(name = name, languages = languages, visibility = visibility)
 
 def render_hub_build(labels):
-    """Renders the BUILD file with one gazelle_binary of the given languages.
-
-    Args:
-      labels: Label objects from every dx_gazelle.language tag.
-
-    Returns:
-      The BUILD file text.
-    """
+    """Renders the BUILD file with one gazelle_binary of the given languages."""
     return 'load("@gazelle//:def.bzl", "gazelle_binary")\n\n' + _gazelle_binary("gazelle", labels, _VISIBILITY)
 
 def unsupported_message(assets):
@@ -82,20 +57,7 @@ def _select(entries, default):
     return "\n".join(lines)
 
 def prebuilt_build(assets, labels):
-    """Renders the BUILD file that selects a prebuilt gazelle by os and cpu.
-
-    The select runs in the exec configuration of the gazelle rule, so it
-    picks the binary for the machine that runs it. A platform whose asset
-    has no pin builds gazelle from source; with every asset pinned, nothing
-    loads @gazelle, so no Go toolchain is fetched.
-
-    Args:
-      assets: The structs plan_assets returns, at least one pinned.
-      labels: Label objects from every dx_gazelle.language tag.
-
-    Returns:
-      The BUILD file text.
-    """
+    """Renders the BUILD file that selects a prebuilt gazelle by os and cpu."""
     source = [a for a in assets if not a.repo]
     lines = ['load("@bazel_skylib//rules:native_binary.bzl", "native_binary")']
     if source:

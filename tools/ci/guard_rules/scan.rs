@@ -214,12 +214,20 @@ pub fn calls<'a>(source: &'a Masked, name: &str) -> Vec<CallArgs<'a>> {
     let needle = format!("{name}(");
     let mut out = Vec::new();
     let mut from = 0;
-    while let Some(found) = source.mask[from..].find(&needle) {
+    while let Some(found) = source
+        .mask
+        .get(from..)
+        .expect("string slice within bounds")
+        .find(&needle)
+    {
         let start = from + found;
         let open = start + needle.len();
         from = open;
         if !name.starts_with('.') {
-            let before = &source.mask[..start];
+            let before = source
+                .mask
+                .get(..start)
+                .expect("string slice within bounds");
             let prefix = before.trim_end_matches('_');
             if prefix
                 .bytes()
@@ -242,8 +250,14 @@ pub fn calls<'a>(source: &'a Masked, name: &str) -> Vec<CallArgs<'a>> {
         }
         let close = if depth == 0 { end - 1 } else { end };
         out.push(CallArgs {
-            code: &source.code[open..close],
-            mask: &source.mask[open..close],
+            code: source
+                .code
+                .get(open..close)
+                .expect("string slice within bounds"),
+            mask: source
+                .mask
+                .get(open..close)
+                .expect("string slice within bounds"),
         });
     }
     out
@@ -266,10 +280,24 @@ impl CallArgs<'_> {
         starts.push(mask.len() + 1);
         starts.windows(2).find_map(|pair| {
             let (start, end) = (pair[0], (pair[1] - 1).min(mask.len()));
-            let (name, _) = self.mask[start..end].split_once('=')?;
+            let (name, _) = self
+                .mask
+                .get(start..end)
+                .expect("string slice within bounds")
+                .split_once('=')?;
             let value_at = start + name.len() + 1;
-            (name.trim() == key && !self.mask[value_at..end].starts_with('='))
-                .then(|| self.code[value_at..end].trim())
+            (name.trim() == key
+                && !self
+                    .mask
+                    .get(value_at..end)
+                    .expect("string slice within bounds")
+                    .starts_with('='))
+            .then(|| {
+                self.code
+                    .get(value_at..end)
+                    .expect("string slice within bounds")
+                    .trim()
+            })
         })
     }
 }

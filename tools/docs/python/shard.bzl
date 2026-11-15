@@ -16,20 +16,7 @@ def python_package_name_ok(package):
     return bool(package) and package.replace("_", "a").isalnum() and not package[0].isdigit()
 
 def python_shard_action(ctx, info, package, docstyle, stem, driver_tool, extract_tool):
-    """Runs griffe and the extractor for one Python library.
-
-    Args:
-        ctx: The rule or aspect context.
-        info: The PyInfo of the documented library.
-        package: Top-level package to document.
-        docstyle: Docstring convention griffe parses.
-        stem: Output name prefix, relative to the target's package.
-        driver_tool: The griffe dump executable.
-        extract_tool: The DocIr extractor executable.
-
-    Returns:
-        A struct with the DocIr `shard`, the `json` and `manifest` files, or None when the library has no source for the package.
-    """
+    """Runs griffe and the extractor for one Python library."""
     if not python_package_name_ok(package):
         fail("python_doc_shard " + str(ctx.label) + ": '" + package + "' is not a Python package name; set package")
     imports = sorted(info.imports.to_list(), key = lambda root: -len(root))

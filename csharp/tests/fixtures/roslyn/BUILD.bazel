@@ -36,6 +36,7 @@ csharp_library(
 
 rust_test(
     name = "roslyn_aggregation_test",
+    size = "small",
     testonly = True,
     srcs = ["roslyn_aggregation_test.rs"],
     aliases = aliases(

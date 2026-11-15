@@ -24,7 +24,7 @@
         "extension": "@rules_dx//java:extensions.bzl",
         "tag": "from_toml",
         "hub": "maven",
-        "resolver": null,
+        "resolver": "@rules_dx//java/private/tools/lock",
         "imports": "provides"
       }
     ]

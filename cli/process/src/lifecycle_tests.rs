@@ -45,8 +45,9 @@ fn controlled_launch_delivers_only_the_declared_environment() {
     match run(&spec).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        outcome => panic!("controlled probe must exit zero, got {outcome:?}"),
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        outcome @ ChildOutcome::TimedOut | outcome @ ChildOutcome::OutputTooLarge { .. } => {
+            panic!("controlled probe must exit zero, got {outcome:?}")
+        } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -64,8 +65,9 @@ fn inherited_launch_keeps_the_parent_environment() {
     match run(&spec).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        outcome => panic!("inherited probe must see TEST_SRCDIR, got {outcome:?}"),
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        outcome @ ChildOutcome::TimedOut | outcome @ ChildOutcome::OutputTooLarge { .. } => {
+            panic!("inherited probe must see TEST_SRCDIR, got {outcome:?}")
+        } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -85,8 +87,9 @@ fn inherited_launch_forwards_extra_entries() {
     match run(&spec).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        outcome => panic!("extra entry must reach the child, got {outcome:?}"),
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        outcome @ ChildOutcome::TimedOut | outcome @ ChildOutcome::OutputTooLarge { .. } => {
+            panic!("extra entry must reach the child, got {outcome:?}")
+        } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -115,8 +118,9 @@ fn exit_code_and_both_streams_round_trip() {
             assert_eq!(stderr, b"err:\0");
         }
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        outcome => panic!("probe must finish with code 5, got {outcome:?}"),
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        outcome @ ChildOutcome::TimedOut | outcome @ ChildOutcome::OutputTooLarge { .. } => {
+            panic!("probe must finish with code 5, got {outcome:?}")
+        } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -131,8 +135,9 @@ fn signal_exit_is_distinct_from_an_exit_code() {
     match run(&first).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit, Exit::Code(3)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        outcome => panic!("probe must exit 3, got {outcome:?}"),
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        outcome @ ChildOutcome::TimedOut | outcome @ ChildOutcome::OutputTooLarge { .. } => {
+            panic!("probe must exit 3, got {outcome:?}")
+        } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
     assert_eq!(Exit::Code(0).code(), Some(0));
     assert_eq!(Exit::Signal(15).code(), None);
@@ -175,8 +180,9 @@ fn a_signaled_child_reports_its_signal() {
     match run(&spec).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit, Exit::Signal(15)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        outcome => panic!("raised signal must surface, got {outcome:?}"),
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        outcome @ ChildOutcome::TimedOut | outcome @ ChildOutcome::OutputTooLarge { .. } => {
+            panic!("raised signal must surface, got {outcome:?}")
+        } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -525,8 +531,9 @@ fn an_owned_run_ends_an_attached_descendant_after_a_clean_exit() {
     match run_within(&spec, INTERACTIVE).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        outcome => panic!("the probe must finish, got {outcome:?}"),
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        outcome @ ChildOutcome::TimedOut | outcome @ ChildOutcome::OutputTooLarge { .. } => {
+            panic!("the probe must finish, got {outcome:?}")
+        } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
     assert_released(&lock);
 }
@@ -572,8 +579,9 @@ fn large_output_drains_without_a_timeout() {
             assert!(stderr.is_empty());
         }
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        outcome => panic!("megabyte must drain, got {outcome:?}"),
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        outcome @ ChildOutcome::TimedOut | outcome @ ChildOutcome::OutputTooLarge { .. } => {
+            panic!("megabyte must drain, got {outcome:?}")
+        } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -589,8 +597,9 @@ fn output_past_the_caller_limit_reports_the_limit() {
     match run(&spec).expect("oversize is an outcome") {
         ChildOutcome::OutputTooLarge { limit } => assert_eq!(limit, 16),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        outcome => panic!("oversize must report the limit, got {outcome:?}"),
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        outcome @ ChildOutcome::Finished { .. } | outcome @ ChildOutcome::TimedOut => {
+            panic!("oversize must report the limit, got {outcome:?}")
+        } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -1043,8 +1052,8 @@ struct Probe(std::process::Child);
 #[cfg(unix)]
 impl Drop for Probe {
     fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
+        drop(self.0.kill());
+        drop(self.0.wait());
     }
 }
 
@@ -1101,6 +1110,7 @@ fn owned_child_gets_every_forwarded_sigint() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[expect(unsafe_code, reason = "getpgrp has no safe std API")]
 fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
     let scratch = dx_test_scratch::scratch("dx-lifecycle-");
     let sink = Sink::default();
@@ -1127,6 +1137,7 @@ fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
         .parse()
         .expect("pid");
     let pgid: i32 = fields.get(2).expect("pgrp").parse().expect("pgrp");
+    // SAFETY: getpgrp has no preconditions.
     assert_ne!(pgid, unsafe { libc::getpgrp() }, "{stat}");
     if !terminal_foreground() {
         assert_eq!(pgid, pid, "{stat}");
@@ -1600,7 +1611,7 @@ fn streamed_held_parent_main() {
         StreamGroup::Owned,
     );
     spec.held = vec![held_lease(&dir.join("lease.lock"))];
-    let _ = run_streamed(spec, STREAM_BUDGET, &never);
+    drop(run_streamed(spec, STREAM_BUDGET, &never));
     // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 }
 
@@ -1624,7 +1635,7 @@ fn crash_held_parent(
     let alive = scratch.path().join("alive.lock");
     wait_alive(&alive);
     parent.kill().expect("crash the held parent");
-    let _ = parent.wait();
+    drop(parent.wait());
     let lease = scratch.path().join("lease.lock");
     (scratch, lease, alive)
 }
@@ -1767,8 +1778,9 @@ fn a_prepared_command_keeps_its_removed_variable_out_of_the_child() {
     match outcome {
         ChildOutcome::Finished { stdout, .. } => assert_eq!(stdout, b"unset"),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        other => panic!("unexpected outcome {other:?}"),
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        other @ ChildOutcome::TimedOut | other @ ChildOutcome::OutputTooLarge { .. } => {
+            panic!("unexpected outcome {other:?}")
+        } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -1802,7 +1814,9 @@ fn console_ctrl_c_and_break_act_as_sigint() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[expect(unsafe_code, reason = "the test sets errno through its libc location")]
 fn sending_a_signal_keeps_the_callers_errno() {
+    // SAFETY: __errno_location points at this thread's errno.
     unsafe { *libc::__errno_location() = libc::EINTR };
     backend::send(i32::MAX - 1, 15);
     assert_eq!(

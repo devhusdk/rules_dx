@@ -140,7 +140,10 @@ fn diagnostics_from(file: &Path, params: &Value) -> Vec<Diagnostic> {
             code: match &item["code"] {
                 Value::String(code) => code.clone(),
                 Value::Null => String::new(),
-                other => other.to_string(),
+                other @ Value::Bool(_)
+                | other @ Value::Number(_)
+                | other @ Value::Array(_)
+                | other @ Value::Object(_) => other.to_string(),
             },
             message: item["message"].as_str().unwrap_or("").to_string(),
         })
@@ -172,7 +175,7 @@ where
                 }
                 Ok(None) => return,
                 Err(error) => {
-                    let _ = sender.send(Err(error.to_string()));
+                    drop(sender.send(Err(error.to_string())));
                     return;
                 }
             }
@@ -276,11 +279,14 @@ where
         }
     }
 
-    let _ = send(
+    drop(send(
         &mut server_in,
         json!({"jsonrpc": "2.0", "id": 2, "method": "shutdown"}),
-    );
-    let _ = send(&mut server_in, json!({"jsonrpc": "2.0", "method": "exit"}));
+    ));
+    drop(send(
+        &mut server_in,
+        json!({"jsonrpc": "2.0", "method": "exit"}),
+    ));
     Ok(latest.into_values().flatten().collect())
 }
 

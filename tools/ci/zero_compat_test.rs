@@ -38,7 +38,9 @@ const SKIPPED_DIRS: [&str; 2] = ["third_party", "patches"];
 const VERSION_PROBES: [&str; 3] = ["native.bazel_version", "bazel_features.", "hasattr(native,"];
 
 /// Rust spellings that compare two values.
-const COMPARISONS: [&str; 9] = [" < ", " > ", " <= ", " >= ", ".cmp(", ".lt(", ".gt(", ".le(", ".ge("];
+const COMPARISONS: [&str; 9] = [
+    " < ", " > ", " <= ", " >= ", ".cmp(", ".lt(", ".gt(", ".le(", ".ge(",
+];
 
 /// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 3000;
@@ -52,8 +54,13 @@ fn compat_words(text: &str) -> usize {
     let mut count = 0;
     let mut word = String::new();
     let mut previous_lower = false;
-    for letter in text.replace(OWN_NAME, "").chars().chain(std::iter::once(' ')) {
-        let breaks = !letter.is_ascii_alphabetic() || (letter.is_ascii_uppercase() && previous_lower);
+    for letter in text
+        .replace(OWN_NAME, "")
+        .chars()
+        .chain(std::iter::once(' '))
+    {
+        let breaks =
+            !letter.is_ascii_alphabetic() || (letter.is_ascii_uppercase() && previous_lower);
         if breaks {
             count += usize::from(COMPAT_WORDS.contains(&word.as_str()));
             word.clear();
@@ -93,13 +100,20 @@ fn starlark_deprecations(segments: &[Segment]) -> usize {
     let set = code
         .match_indices("deprecation")
         .filter(|(start, word)| {
-            let rest = code[start + word.len()..].trim_start();
-            (*start == 0 || !ident_byte(bytes[start - 1])) && rest.starts_with('=') && !rest.starts_with("==")
+            let rest = code
+                .get(start + word.len()..)
+                .expect("string slice within bounds")
+                .trim_start();
+            (*start == 0 || !ident_byte(bytes[start - 1]))
+                && rest.starts_with('=')
+                && !rest.starts_with("==")
         })
         .count();
     let said = segments
         .iter()
-        .filter(|segment| segment.piece == Piece::Doc && segment.text.to_lowercase().contains("deprecated"))
+        .filter(|segment| {
+            segment.piece == Piece::Doc && segment.text.to_lowercase().contains("deprecated")
+        })
         .count();
     set + said
 }
@@ -129,7 +143,12 @@ fn in_module_aliases(segments: &[Segment]) -> usize {
                 let text = segment.text.as_str();
                 for (index, byte) in text.bytes().enumerate() {
                     if byte == b'(' {
-                        if alias_depth.is_none() && text[..index].ends_with("alias") {
+                        if alias_depth.is_none()
+                            && text
+                                .get(..index)
+                                .expect("string slice within bounds")
+                                .ends_with("alias")
+                        {
                             let start = index - "alias".len();
                             let dotted = start > 0 && text.as_bytes()[start - 1] == b'.';
                             if dotted || start == 0 || !ident_byte(text.as_bytes()[start - 1]) {
@@ -179,7 +198,10 @@ fn reexports(segments: &[Segment]) -> bool {
         if text.starts_with("load(") {
             loads += 1;
         } else if let Some((left, right)) = text.split_once('=') {
-            if !is_name(left.trim()) || !is_name(right.trim()) || matches!(right.trim(), "True" | "False" | "None") {
+            if !is_name(left.trim())
+                || !is_name(right.trim())
+                || matches!(right.trim(), "True" | "False" | "None")
+            {
                 return false;
             }
             assigns += 1;
@@ -202,7 +224,8 @@ fn rust_version_comparisons(segments: &[Segment]) -> usize {
     skeleton(segments)
         .lines()
         .filter(|line| {
-            line.to_lowercase().contains("rules_dx_version") && COMPARISONS.iter().any(|sign| line.contains(sign))
+            line.to_lowercase().contains("rules_dx_version")
+                && COMPARISONS.iter().any(|sign| line.contains(sign))
         })
         .count()
 }
@@ -218,17 +241,35 @@ fn scan(files: &BTreeMap<String, String>) -> Counts {
             let segments = shared::starlark_segments(text);
             let code = skeleton(&segments);
             add(&mut counts, path, "compat-word", compat_words(text));
-            add(&mut counts, path, "deprecated-attr", starlark_deprecations(&segments));
+            add(
+                &mut counts,
+                path,
+                "deprecated-attr",
+                starlark_deprecations(&segments),
+            );
             add(&mut counts, path, "alias", in_module_aliases(&segments));
-            let probes = VERSION_PROBES.iter().map(|probe| count_from_boundary(&code, probe)).sum();
+            let probes = VERSION_PROBES
+                .iter()
+                .map(|probe| count_from_boundary(&code, probe))
+                .sum();
             add(&mut counts, path, "version-conditional", probes);
             let reexport = path.ends_with(".bzl") && !public_entry(path) && reexports(&segments);
             add(&mut counts, path, "reexport", usize::from(reexport));
         } else if path.ends_with(".rs") {
             let segments = shared::rust_segments(text);
             add(&mut counts, path, "compat-word", compat_words(text));
-            add(&mut counts, path, "deprecated-attr", skeleton(&segments).matches("#[deprecated").count());
-            add(&mut counts, path, "version-conditional", rust_version_comparisons(&segments));
+            add(
+                &mut counts,
+                path,
+                "deprecated-attr",
+                skeleton(&segments).matches("#[deprecated").count(),
+            );
+            add(
+                &mut counts,
+                path,
+                "version-conditional",
+                rust_version_comparisons(&segments),
+            );
         }
     }
     counts
@@ -237,7 +278,11 @@ fn scan(files: &BTreeMap<String, String>) -> Counts {
 #[test]
 fn no_compat_code_outside_the_allowlist() {
     let files = shared::tree(&dx_testing::source_snapshot());
-    assert!(files.len() >= MIN_FILES, "only {} files in the snapshot", files.len());
+    assert!(
+        files.len() >= MIN_FILES,
+        "only {} files in the snapshot",
+        files.len()
+    );
     shared::settle(&scan(&files), "DX_ALLOWLIST", ALLOWLIST, &KINDS);
 }
 
@@ -263,9 +308,18 @@ mod tests {
     #[test]
     fn deprecated_attrs_are_detected() {
         let found = hits(&[
-            ("a/BUILD.bazel", "t(name = \"a\", deprecation = \"gone\")\nu(x = undeprecation == 1)\n"),
-            ("a/r.bzl", "r = rule(attrs = {\"x\": attr.string(doc = \"Deprecated: use y.\")})\n"),
-            ("a/x.rs", "#[deprecated(note = \"x\")]\nfn f() {}\nconst T: &str = \"#[deprecated]\";\n"),
+            (
+                "a/BUILD.bazel",
+                "t(name = \"a\", deprecation = \"gone\")\nu(x = undeprecation == 1)\n",
+            ),
+            (
+                "a/r.bzl",
+                "r = rule(attrs = {\"x\": attr.string(doc = \"Deprecated: use y.\")})\n",
+            ),
+            (
+                "a/x.rs",
+                "#[deprecated(note = \"x\")]\nfn f() {}\nconst T: &str = \"#[deprecated]\";\n",
+            ),
         ]);
         assert_eq!(
             found,
@@ -293,8 +347,14 @@ mod tests {
             ("a/private/r.bzl", reexport),
             ("a/defs.bzl", reexport),
             ("a/extensions.bzl", reexport),
-            ("a/private/call.bzl", "load(\"//a:b.bzl\", \"x\")\ny = x()\n"),
-            ("a/private/flag.bzl", "load(\"//a:b.bzl\", \"x\")\ny = True\n"),
+            (
+                "a/private/call.bzl",
+                "load(\"//a:b.bzl\", \"x\")\ny = x()\n",
+            ),
+            (
+                "a/private/flag.bzl",
+                "load(\"//a:b.bzl\", \"x\")\ny = True\n",
+            ),
             ("a/private/loads.bzl", "load(\"//a:b.bzl\", \"x\")\n"),
             ("a/private/consts.bzl", "x = y\n"),
         ]);
@@ -303,17 +363,35 @@ mod tests {
 
     #[test]
     fn compat_words_are_detected_as_whole_words_of_identifiers_strings_and_comments() {
-        assert_eq!(compat_words("legacy_mode LegacyMode isLegacy \"a shim\" // backward compat"), 6);
-        assert_eq!(compat_words("target_compatible_with compatibility_level bazel_compatibility"), 0);
-        assert_eq!(compat_words("shims backwards legacyx compatible incompat"), 0);
-        assert_eq!(compat_words("zero_compat_test zero_compat_allowlist.txt"), 0);
+        assert_eq!(
+            compat_words("legacy_mode LegacyMode isLegacy \"a shim\" // backward compat"),
+            6
+        );
+        assert_eq!(
+            compat_words("target_compatible_with compatibility_level bazel_compatibility"),
+            0
+        );
+        assert_eq!(
+            compat_words("shims backwards legacyx compatible incompat"),
+            0
+        );
+        assert_eq!(
+            compat_words("zero_compat_test zero_compat_allowlist.txt"),
+            0
+        );
         let found = hits(&[
             ("a/x.bzl", "X = [\"legacy\"]  # deprecated\n"),
             ("a/x.rs", "fn shim_path() {}\n"),
             ("patches/x.bzl", "LEGACY = 1\n"),
             (SELF, "const X: &str = \"legacy\";\n"),
         ]);
-        assert_eq!(found, [hit("a/x.bzl", "compat-word", 2), hit("a/x.rs", "compat-word", 1)]);
+        assert_eq!(
+            found,
+            [
+                hit("a/x.bzl", "compat-word", 2),
+                hit("a/x.rs", "compat-word", 1)
+            ]
+        );
     }
 
     #[test]
@@ -323,7 +401,10 @@ mod tests {
         let found = hits(&[("a/x.bzl", bzl), ("a/x.rs", rust)]);
         assert_eq!(
             found,
-            [hit("a/x.bzl", "version-conditional", 3), hit("a/x.rs", "version-conditional", 1)]
+            [
+                hit("a/x.bzl", "version-conditional", 3),
+                hit("a/x.rs", "version-conditional", 1)
+            ]
         );
     }
 }

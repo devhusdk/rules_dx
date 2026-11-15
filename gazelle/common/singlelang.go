@@ -249,6 +249,12 @@ func (*SingleLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 func (l *SingleLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	l.generated.Add(args.Rel)
 	result := dropKept(args.File, l.spec.Generate(args, l.spec.Kinds, l))
+	if args.File == nil && len(result.Gen) > 0 {
+		if owner, ok := AncestorOwner(args.Config, args.Rel); ok {
+			NoticeAncestorOwned(args.Rel, owner)
+			return language.GenerateResult{}
+		}
+	}
 	if ShouldSetVisibility(args) {
 		for _, r := range result.Gen {
 			if (r.Kind() == l.spec.LibraryKind || slices.Contains(l.spec.IndexKinds, r.Kind())) && r.Attr("visibility") == nil {

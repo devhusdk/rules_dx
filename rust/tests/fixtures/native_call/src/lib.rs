@@ -1,3 +1,8 @@
+#![expect(
+    unsafe_code,
+    reason = "the fixture exists to call across the C FFI boundary"
+)]
+
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 include!(concat!(env!("OUT_DIR"), "/build_probe.rs"));
 
@@ -11,10 +16,12 @@ pub fn stamped() -> u32 {
 }
 
 pub fn add(left: i32, right: i32) -> i32 {
+    // SAFETY: native_add takes plain integers and has no other preconditions.
     unsafe { native_add(left, right) }
 }
 
 pub fn offset() -> i32 {
+    // SAFETY: native_offset takes no arguments and has no preconditions.
     unsafe { native_offset() }
 }
 
@@ -25,6 +32,7 @@ pub enum DivError {
 
 pub fn div(numer: i32, denom: i32) -> Result<i32, DivError> {
     let mut err = 0;
+    // SAFETY: native_div takes plain integers and err is a valid i32 out-pointer.
     let value = unsafe { native_div(numer, denom, &mut err) };
     if err == 0 {
         Ok(value)

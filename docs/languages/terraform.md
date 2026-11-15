@@ -55,6 +55,7 @@ Manifests:
 
 Lockfiles:
 
+- `terraform.lock.json`
 - `.terraform.lock.hcl`
 
 ## Platforms

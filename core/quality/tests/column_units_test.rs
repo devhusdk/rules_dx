@@ -107,7 +107,9 @@ fn assert_sarif_lands(
     for (found, marker) in found.into_iter().zip(markers) {
         let encoding = match found.finding.encoding {
             ColumnEncoding::ScalarsTabs { .. } => ColumnEncoding::Scalars,
-            other => other,
+            other @ ColumnEncoding::Scalars
+            | other @ ColumnEncoding::Utf16
+            | other @ ColumnEncoding::Utf8 => other,
         };
         assert_eq!(encoding, expected, "{context}");
         let placed = place_finding(&found.finding, "fixture", text)
@@ -117,7 +119,12 @@ fn assert_sarif_lands(
             .take(found.finding.start.line as usize - 1)
             .map(str::len)
             .sum::<usize>();
-        let want = line_start + text[line_start..].find(marker).expect("marker on line");
+        let want = line_start
+            + text
+                .get(line_start..)
+                .expect("string slice within bounds")
+                .find(marker)
+                .expect("marker on line");
         assert_eq!(
             placed.start_byte,
             Some(want as u64),

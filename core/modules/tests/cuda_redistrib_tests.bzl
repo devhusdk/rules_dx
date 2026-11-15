@@ -4,12 +4,7 @@ load("//core:defs.bzl", "starlark_test")
 load("//core/modules:cuda.bzl", _CUDA_CELLS = "CUDA_CELLS")
 
 def cuda_redistrib_tests(name, size):
-    """Fails when a pinned CUDA component is missing from the redistributable manifest.
-
-    Args:
-        name: Test target name.
-        size: Test size.
-    """
+    """Fails when a pinned CUDA component is missing from the redistributable manifest."""
     redist_prefix = "https://developer.download.nvidia.com/compute/cuda/redist/"
     starlark_test(
         name = name,

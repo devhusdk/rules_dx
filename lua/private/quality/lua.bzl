@@ -45,7 +45,6 @@ SHARD_SPECS = {
 }
 
 def _luals_hook(target, ctx, _resolved, _capability, _what, shared):
-    # Dependency modules become the library; owned sources stay out of it.
     owned_paths = {f.path: True for f in shared.path_to_file.values()}
     infos = [target[LuaInfo]] if LuaInfo in target else [dep[LuaInfo] for dep in getattr(ctx.rule.attr, "deps", []) if LuaInfo in dep]
     tool_files = []

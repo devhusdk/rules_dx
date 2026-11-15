@@ -1,4 +1,4 @@
-"""Qualified Qt cells as target compatibility and consumer archive settings."""
+"""Qualified Qt cells as target compatibility settings."""
 
 load("//qt/private/toolchain:pins.bzl", "CELLS", "IDENTITIES")
 load("//qt/private/toolchain:repos.bzl", "qualified_cells")
@@ -26,18 +26,4 @@ QT_COMPATIBLE_WITH = select(
 QT_BUNDLE_COMPATIBLE_WITH = select(
     {_cell_setting(cell): [] for cell in _BUNDLE_CELLS} |
     {"//conditions:default": [_INCOMPATIBLE, _UNSUPPORTED]},
-)
-
-QT_CONSUMER_MIN_RUNTIME = select(
-    {_cell_setting(cell): qt_consumer_identity(cell).min_runtime for cell in _CONSUMER_CELLS} |
-    {"//conditions:default": ""},
-)
-
-_RUNTIME_CELLS = [cell for cell in _BUNDLE_CELLS if CELLS[cell].layout.os == "linux"]
-_WINDOWS_CELLS = [cell for cell in _BUNDLE_CELLS if CELLS[cell].layout.os == "windows"]
-
-QT_CONSUMER_RUNTIME = select(
-    {_cell_setting(cell): [Label("//qt/private:os_runtime_" + cell)] for cell in _RUNTIME_CELLS} |
-    {_cell_setting(cell): [Label("//cc/private/toolchain:msvc_vcruntime")] for cell in _WINDOWS_CELLS} |
-    {"//conditions:default": []},
 )

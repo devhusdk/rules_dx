@@ -9,6 +9,7 @@ exports_files([
     "defs.bzl",
     "extensions.bzl",
     "lang.json",
+    "pins.json",
 ])
 
 int_setting(
@@ -85,6 +86,7 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "pins.json",
     ]) + [
         "//android/private/library:module_srcs",
         "//android/private/packaging:module_srcs",

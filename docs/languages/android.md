@@ -311,14 +311,14 @@ Build and check the fixture bundles on a qualified host:
 
 ```sh
 bazel build //android/tests/fixtures/rust_apk:app_apk_aab_file \
-    --extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator
+    --extra_toolchains=@android_ndk_toolchain//:all
 bazel test //android/tests/fixtures/rust_apk:check_app_aab_test \
     //android/tests/fixtures/rust_apk:check_aab_missing_abi_test \
     //android/tests/fixtures/rust_apk:check_aab_missing_resource_test \
     //android/tests/fixtures/rust_apk:inspect_aab_test \
     //android/tests/fixtures/rust_apk:inspect_custom_aab_test \
     --test_env=ANDROID_HOME \
-    --extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator
+    --extra_toolchains=@android_ndk_toolchain//:all
 ```
 
 The inspect tests read the package, version, SDK floors and library

@@ -1,0 +1,31 @@
+--- a/haskell/cabal.bzl
++++ b/haskell/cabal.bzl
+@@ -965,6 +965,19 @@
+         "_install/{}_data".format(hs.label.name),
+         sibling = cabal,
+     )
++    dep_data_dirs = []
++    if not hs.toolchain.is_windows:
++        dep_data_names = {}
++        for dep in ctx.attr.deps:
++            for dep_data in dep[DefaultInfo].default_runfiles.files.to_list():
++                if not dep_data.is_directory or not dep_data.basename.endswith("_data") or dep_data.dirname.split("/")[-1] != "_install":
++                    continue
++                if dep_data.dirname == data_dir.dirname or dep_data.basename in dep_data_names:
++                    continue
++                dep_data_names[dep_data.basename] = True
++                dep_data_link = hs.actions.declare_directory("_install/" + dep_data.basename, sibling = cabal)
++                ctx.actions.symlink(output = dep_data_link, target_file = dep_data)
++                dep_data_dirs.append(dep_data_link)
+     attr_tools = [tool[DefaultInfo].files_to_run for tool in ctx.attr.tools]
+     darwin_tools = _darwin_tools(ctx, hs, cc)
+     c = _prepare_cabal_inputs(
+@@ -1040,7 +1053,7 @@
+         files = depset([binary]),
+         executable = binary,
+         runfiles = ctx.runfiles(
+-            files = [data_dir],
++            files = [data_dir] + dep_data_dirs,
+             transitive_files = c.runfiles,
+             collect_default = True,
+         ),

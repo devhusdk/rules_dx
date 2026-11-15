@@ -132,7 +132,9 @@ fn job_needs(workflow: &str, id: &str, job: &Value) -> Vec<String> {
                     .to_owned()
             })
             .collect(),
-        other => panic!("{workflow} job {id} needs is neither a name nor a list: {other}"),
+        other @ Value::Bool(_) | other @ Value::Number(_) | other @ Value::Object(_) => {
+            panic!("{workflow} job {id} needs is neither a name nor a list: {other}")
+        }
     }
 }
 
@@ -711,7 +713,8 @@ fn issue_label_jobs_read_gh_output_before_searching_it() {
     for id in ["blocked-issues", "unreviewed-merges"] {
         let script = ci_workflow::scripts(workflow, id);
         assert!(
-            script.contains("comments=$(gh ") && script.contains(r#"[[ "$comments" != *"$marker"* ]]"#),
+            script.contains("comments=$(gh ")
+                && script.contains(r#"[[ "$comments" != *"$marker"* ]]"#),
             "{workflow} job {id} must test the reminder marker against the comments it has read in full"
         );
     }

@@ -84,11 +84,29 @@ fn scan_starlark(path: &str, source: &str, counts: &mut Counts) {
                 let first = args.args.first().and_then(|arg| match &arg.node {
                     ArgumentP::Positional(value) => Some(value),
                     ArgumentP::Named(key, value) if key.node == "arguments" => Some(value),
-                    _ => None,
+                    ArgumentP::Named(..) | ArgumentP::Args(_) | ArgumentP::KwArgs(_) => None,
                 });
                 let program = first.and_then(|value| match &value.node {
                     ExprP::List(items) => items.first().and_then(string),
-                    _ => None,
+                    ExprP::Tuple(_)
+                    | ExprP::Dot(..)
+                    | ExprP::Call(..)
+                    | ExprP::Index(_)
+                    | ExprP::Index2(_)
+                    | ExprP::Slice(..)
+                    | ExprP::Identifier(_)
+                    | ExprP::Lambda(_)
+                    | ExprP::Literal(_)
+                    | ExprP::Not(_)
+                    | ExprP::Minus(_)
+                    | ExprP::Plus(_)
+                    | ExprP::BitNot(_)
+                    | ExprP::Op(..)
+                    | ExprP::If(_)
+                    | ExprP::Dict(_)
+                    | ExprP::ListComprehension(..)
+                    | ExprP::DictComprehension(..)
+                    | ExprP::FString(_) => None,
                 });
                 if program.is_some_and(bare_name) {
                     hit(counts, path, "rctx-execute-by-name");

@@ -33,7 +33,11 @@ pub fn rule_settings(ext: &str, keys: &[&str], text: &str) -> Option<RuleSetting
 fn scalar(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),
-        other => other.to_string(),
+        other @ Value::Null
+        | other @ Value::Bool(_)
+        | other @ Value::Number(_)
+        | other @ Value::Array(_)
+        | other @ Value::Object(_) => other.to_string(),
     }
 }
 
@@ -67,7 +71,7 @@ fn collect(
                 .or_default()
                 .insert(scalar(scalar_value));
         }
-        _ => {}
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
     }
 }
 

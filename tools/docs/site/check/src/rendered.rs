@@ -428,7 +428,7 @@ pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> String {
 pub fn route_report(rendered: &Rendered) -> String {
     let mut text = String::new();
     for page in pages(rendered.root.as_path()) {
-        let _ = writeln!(
+        writeln!(
             text,
             "{}: title={} headings={} code={} highlighted={} lists={} tables={}",
             page.route,
@@ -438,7 +438,8 @@ pub fn route_report(rendered: &Rendered) -> String {
             page.highlighted,
             page.list_items,
             page.tables
-        );
+        )
+        .unwrap_or_default();
     }
     text
 }

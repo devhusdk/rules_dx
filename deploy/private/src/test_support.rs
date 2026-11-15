@@ -33,8 +33,8 @@ pub(crate) fn static_registry(files: impl FnOnce(&str) -> Vec<(String, Vec<u8>)>
                 "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
                 body.len()
             );
-            let _ = stream.write_all(reply.as_bytes());
-            let _ = stream.write_all(&body);
+            drop(stream.write_all(reply.as_bytes()));
+            drop(stream.write_all(&body));
         }
     });
     origin
@@ -44,20 +44,28 @@ pub(crate) fn scratch_dir() -> tempfile::TempDir {
     tempfile::TempDir::new().expect("scratch")
 }
 
+#[expect(
+    unsafe_code,
+    reason = "set_var and remove_var are unsafe in edition 2024"
+)]
 pub(crate) fn with_env<T>(vars: &[(&str, Option<&str>)], body: impl FnOnce() -> T) -> T {
     let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let mut saved: Vec<(&str, Option<String>)> = Vec::new();
     for (key, value) in vars {
         saved.push((*key, std::env::var(key).ok()));
         match value {
+            // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
             Some(value) => unsafe { std::env::set_var(key, value) },
+            // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
             None => unsafe { std::env::remove_var(key) },
         }
     }
     let out = body();
     for (key, value) in saved {
         match value {
+            // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
             Some(value) => unsafe { std::env::set_var(key, value) },
+            // SAFETY: ENV_LOCK is held, so no other helper user mutates the environment concurrently.
             None => unsafe { std::env::remove_var(key) },
         }
     }
@@ -383,7 +391,7 @@ fn fake_serve(mut stream: std::net::TcpStream, state: &std::sync::Mutex<FakeStat
     }
     text.push_str("\r\n");
     text.push_str(&reply);
-    let _ = stream.write_all(text.as_bytes());
+    drop(stream.write_all(text.as_bytes()));
 }
 
 fn fake_route(
@@ -421,7 +429,7 @@ fn fake_route(
                 "Bearer realm=\"{}/token\",service=\"fake.registry\",scope=\"repository:x:pull\"",
                 state.origin
             ),
-            _ => "Basic realm=\"fake\"".to_owned(),
+            FakeChallenge::None | FakeChallenge::Basic => "Basic realm=\"fake\"".to_owned(),
         };
         return (
             401,

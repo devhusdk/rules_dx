@@ -1,22 +1,28 @@
 """Shared 7-Zip extractor pin tests."""
 
-load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core:host.bzl", "host_cell_of")
-load("//core:seven_zip.bzl", "SEVEN_ZIP_EXTRACTORS")
+load("//qt/private/toolchain:seven_zip.bzl", "seven_zip_extractors")
 
-_HEX = "0123456789abcdef"
+_SHA256 = "0" * 64
 
-def _is_sha256(value):
-    return len(value) == 64 and all([c in _HEX for c in value.elems()])
+_WINDOWS = {"archive": None, "binary": "7zr.exe", "sha256": _SHA256, "urls": ["https://example.com/7zr.exe", "https://mirror.example.com/7zr.exe"]}
+
+_PINS = {
+    "seven_zip": {
+        "linux_x86_64": {"archive": "7z-linux-x64.tar.xz", "binary": "7zzs", "sha256": _SHA256, "urls": ["https://example.com/7z-linux-x64.tar.xz"]},
+        "windows_arm64": _WINDOWS,
+        "windows_x86_64": _WINDOWS,
+    },
+}
 
 def _checks():
+    extractors = seven_zip_extractors(_PINS)
     return [
-        expect_equal("pinned hosts", sorted(SEVEN_ZIP_EXTRACTORS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
-        expect_true("https urls", all([e.url.startswith("https://") for e in SEVEN_ZIP_EXTRACTORS.values()])),
-        expect_true("sha256 digests", all([_is_sha256(e.sha256) for e in SEVEN_ZIP_EXTRACTORS.values()])),
-        expect_equal("windows hosts are single files", [SEVEN_ZIP_EXTRACTORS[h].archive for h in ["windows_arm64", "windows_x86_64"]], [None, None]),
-        expect_equal("windows binary", SEVEN_ZIP_EXTRACTORS["windows_x86_64"].binary, "7zr.exe"),
-        expect_equal("windows arm64 runs the x86 binary", SEVEN_ZIP_EXTRACTORS["windows_arm64"], SEVEN_ZIP_EXTRACTORS["windows_x86_64"]),
+        expect_equal("pinned hosts", sorted(extractors.keys()), ["linux_x86_64", "windows_arm64", "windows_x86_64"]),
+        expect_equal("archive extractor", extractors["linux_x86_64"], struct(archive = "7z-linux-x64.tar.xz", binary = "7zzs", sha256 = _SHA256, url = "https://example.com/7z-linux-x64.tar.xz")),
+        expect_equal("single file extractor takes the first url", extractors["windows_x86_64"], struct(archive = None, binary = "7zr.exe", sha256 = _SHA256, url = "https://example.com/7zr.exe")),
+        expect_equal("windows arm64 runs the x86 binary", extractors["windows_arm64"], extractors["windows_x86_64"]),
         expect_equal("hosts", [
             host_cell_of("Windows 11", "amd64"),
             host_cell_of("windows", "aarch64"),

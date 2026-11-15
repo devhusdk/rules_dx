@@ -1,3 +1,8 @@
+#![expect(
+    unsafe_code,
+    reason = "the fixture exists to call across the C FFI boundary"
+)]
+
 use std::ffi::{c_char, CStr};
 
 pub const API_VERSION: i32 = 1;
@@ -8,6 +13,7 @@ pub const ERROR_EMPTY: i32 = 3;
 
 pub enum AbiStore {}
 
+// SAFETY: the declarations match the C signatures of the abi library.
 unsafe extern "C" {
     fn abi_api_version() -> i32;
     fn abi_build_id() -> *const c_char;
@@ -25,6 +31,7 @@ pub struct Store {
 
 impl Store {
     pub fn create(capacity: i32) -> Option<Store> {
+        // SAFETY: abi_create takes plain integers and a null result is handled.
         let raw = unsafe { abi_create(API_VERSION, capacity) };
         if raw.is_null() {
             None
@@ -34,10 +41,12 @@ impl Store {
     }
 
     pub fn api_version() -> i32 {
+        // SAFETY: abi_api_version has no preconditions.
         unsafe { abi_api_version() }
     }
 
     pub fn build_id() -> String {
+        // SAFETY: abi_build_id returns a static NUL-terminated string.
         unsafe {
             CStr::from_ptr(abi_build_id())
                 .to_string_lossy()
@@ -46,15 +55,18 @@ impl Store {
     }
 
     pub fn arch_bits() -> i32 {
+        // SAFETY: abi_arch_bits has no preconditions.
         unsafe { abi_arch_bits() }
     }
 
     pub fn push(&mut self, value: i32) -> i32 {
+        // SAFETY: self.raw is a live store from abi_create, exclusively borrowed.
         unsafe { abi_push(self.raw, value) }
     }
 
     pub fn pop(&mut self) -> Result<i32, i32> {
         let mut out = 0;
+        // SAFETY: self.raw is a live store and out is a valid i32 out-pointer.
         let rc = unsafe { abi_pop(self.raw, &mut out) };
         if rc == ERROR_OK {
             Ok(out)
@@ -64,6 +76,7 @@ impl Store {
     }
 
     pub fn len(&self) -> i32 {
+        // SAFETY: self.raw is a live store from abi_create.
         unsafe { abi_len(self.raw) }
     }
 
@@ -74,6 +87,7 @@ impl Store {
 
 impl Drop for Store {
     fn drop(&mut self) {
+        // SAFETY: self.raw came from abi_create and is destroyed once, in drop.
         unsafe { abi_destroy(self.raw) }
     }
 }

@@ -637,7 +637,7 @@ fn configured_nuget_sets_plan_the_nuget_family_once() {
     let families = planned_families(&[
         (
             "MODULE.bazel",
-            "main_extension = use_extension(\"//dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n",
+            "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\", lock = \"//dotnet:nuget.lock.json\")\n",
         ),
         ("dotnet/paket.dependencies", "source https://x\n"),
         ("dotnet/paket.lock", "NUGET\n"),
@@ -715,7 +715,7 @@ struct Planted(std::path::PathBuf);
 #[cfg(unix)]
 impl Drop for Planted {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
+        drop(std::fs::remove_file(&self.0));
     }
 }
 
@@ -728,7 +728,7 @@ fn a_planted_file_at_the_old_temp_path_has_no_effect() {
         .parent()
         .expect("temp file has a parent")
         .join("dx-advisory-cargo.zip");
-    let _ = std::fs::remove_file(&old);
+    drop(std::fs::remove_file(&old));
     let _guard = Planted(old.clone());
     let (one, _) = two_archives();
 

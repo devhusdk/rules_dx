@@ -199,3 +199,25 @@ func TestGenerateKeepsHandwrittenTestsWithoutSources(t *testing.T) {
 		t.Errorf("empty = %v, want none", result.Empty)
 	}
 }
+
+func TestGenerateLeavesModulesAnotherLibraryOwns(t *testing.T) {
+	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte(`perl_library(name = "lint_dirty", srcs = ["lib/LintDirty.pm"])`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	writeFixture(t, root, map[string]string{
+		"pkg/lib/Greet.pm":     "1;\n",
+		"pkg/lib/LintDirty.pm": "1;\n",
+	})
+	result := NewLanguage().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg"), Rel: "pkg", File: file})
+	for _, r := range result.Gen {
+		if r.Name() == "pkg" {
+			if got := strings.Join(r.AttrStrings("srcs"), ","); got != "lib/Greet.pm" {
+				t.Errorf("library srcs = %q, want lib/Greet.pm", got)
+			}
+			return
+		}
+	}
+	t.Fatalf("no pkg library in %v", result.Gen)
+}

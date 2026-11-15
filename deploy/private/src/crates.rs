@@ -259,7 +259,7 @@ fn crates_package_check(
     let checked = crates_stage(mapped, &staging)
         .map_err(|error| format!("crates_deploy: {error}"))
         .and_then(|()| cargo_package_list(program, &staging.join(manifest_name())));
-    let _ = std::fs::remove_dir_all(&staging);
+    drop(std::fs::remove_dir_all(&staging));
     checked
 }
 
@@ -346,14 +346,14 @@ fn crates_api_check(
         match export_git_dir(&workspace_dir(), crate_dir, &tag, &dest, manifest_name()) {
             Ok(true) => {}
             Ok(false) => {
-                let _ = std::fs::remove_dir_all(&dest);
+                drop(std::fs::remove_dir_all(&dest));
                 return Ok(Outcome::Skipped(format!(
                     "no {} at {crate_dir} in {tag}",
                     manifest_name()
                 )));
             }
             Err(error) => {
-                let _ = std::fs::remove_dir_all(&dest);
+                drop(std::fs::remove_dir_all(&dest));
                 return Err(format!("crates_deploy: api compat: {error}"));
             }
         }
@@ -377,7 +377,7 @@ fn crates_api_check(
         Ok(dir) => dir,
         Err(error) => {
             if let Some(dir) = &export_dir {
-                let _ = std::fs::remove_dir_all(dir);
+                drop(std::fs::remove_dir_all(dir));
             }
             return Err(format!("crates_deploy: {error}"));
         }
@@ -395,9 +395,9 @@ fn crates_api_check(
                 .args(&baseline_args);
             run_publish(&mut cmd).map_err(|error| format!("crates_deploy: {error}"))
         });
-    let _ = std::fs::remove_dir_all(&staging);
+    drop(std::fs::remove_dir_all(&staging));
     if let Some(dir) = &export_dir {
-        let _ = std::fs::remove_dir_all(dir);
+        drop(std::fs::remove_dir_all(dir));
     }
     let output = ran?;
     let text = format!(
@@ -566,7 +566,7 @@ pub fn crates_main_checked(
             version,
             secrets.get("CRATES_API_TOKEN"),
         );
-        let _ = std::fs::remove_dir_all(&staging);
+        drop(std::fs::remove_dir_all(&staging));
         match published {
             Ok(()) => {
                 println!("crates_deploy: published {crate_name} {version}");

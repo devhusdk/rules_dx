@@ -67,7 +67,10 @@ impl WorkflowVerb {
     pub fn bazel_command(self) -> &'static str {
         match self {
             WorkflowVerb::Bench => "test",
-            other => other.name(),
+            other @ WorkflowVerb::Build
+            | other @ WorkflowVerb::Test
+            | other @ WorkflowVerb::Coverage
+            | other @ WorkflowVerb::Run => other.name(),
         }
     }
 

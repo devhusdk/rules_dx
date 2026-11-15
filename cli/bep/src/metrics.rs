@@ -284,7 +284,9 @@ mod tests {
 
     #[test]
     fn metrics_skips_cut_off_action_counts_line() {
-        let cut = &FULL[..FULL.len() / 2];
+        let cut = FULL
+            .get(..FULL.len() / 2)
+            .expect("string slice within bounds");
         assert_eq!(collect(&[r#"{"id":{"started":{}}}"#, cut]), None);
         assert!(collect(&[FULL, cut]).is_some());
     }
@@ -305,7 +307,9 @@ mod tests {
     fn metrics_skips_cut_off_bytes_received_line() {
         let line =
             r#"{"buildMetrics":{"networkMetrics":{"systemNetworkStats":{"bytesRecv":"7"}}}}"#;
-        let cut = &line[..line.len() - 8];
+        let cut = line
+            .get(..line.len() - 8)
+            .expect("string slice within bounds");
         assert_eq!(collect_bytes_received(cut.as_bytes()), None);
         let both = format!("{cut}\n{line}");
         assert_eq!(collect_bytes_received(both.as_bytes()), Some(7));

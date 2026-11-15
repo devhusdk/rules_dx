@@ -102,12 +102,36 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
         "stanzas for the lock files at the root",
         hubs,
     );
+    wire_pnpm_settings(workspace, apply, env.err, &mut wiring);
     wire_avro_cpp(workspace, apply, env.err, &mut wiring);
     if seeded_cargo {
         fill_cargo_lock(request, env, &mut wiring);
     }
-    wire_maven_locks(request, env, &mut wiring);
     wiring
+}
+
+/// Writes the `pnpm-workspace.yaml` with `allowBuilds` that rules_js requires beside each wired pnpm lock.
+fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mut Wiring) {
+    let paths = match dx_adopt::plan_pnpm_settings(workspace) {
+        Ok(paths) => paths,
+        Err(error) => {
+            wiring.failed(err, format!("pnpm settings not planned: {error}"));
+            return;
+        }
+    };
+    for path in paths {
+        if !apply {
+            wiring.pending(
+                err,
+                format!("would create {path} with allowBuilds; run dx generate --apply"),
+            );
+            continue;
+        }
+        match std::fs::write(workspace.join(&path), dx_adopt::PNPM_SETTINGS) {
+            Ok(()) => wiring.info(err, format!("wrote {path}")),
+            Err(error) => wiring.failed(err, format!("{path} not created: {error}")),
+        }
+    }
 }
 
 /// Creates the files and `MODULE.bazel` lines `avro_cc_library` needs.
@@ -137,69 +161,6 @@ fn wire_avro_cpp(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mu
         } else {
             wiring.info(err, format!("wrote {}", edit.path));
         }
-    }
-}
-
-/// Creates what each root Maven lock needs: its package's `BUILD.bazel`, the root
-/// `dx_external` line, and a pinned lock when it is missing or empty.
-fn wire_maven_locks(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
-    let plan = match dx_adopt::plan_maven_locks(env.workspace) {
-        Ok(plan) => plan,
-        Err(error) => {
-            wiring.failed(env.err, format!("Maven locks not wired: {error}"));
-            return;
-        }
-    };
-    for note in &plan.notes {
-        wiring.info(env.err, note.clone());
-    }
-    let apply = request.applies();
-    for edit in &plan.edits {
-        if !apply {
-            wiring.pending(
-                env.err,
-                format!(
-                    "{} would gain what its Maven lock needs; run dx generate --apply",
-                    edit.path
-                ),
-            );
-        } else if let Err(error) = dx_adopt::write_edit_or_create(env.workspace, edit) {
-            wiring.failed(env.err, format!("Maven locks not wired: {error}"));
-        } else {
-            wiring.info(env.err, format!("wrote {}", edit.path));
-        }
-    }
-    for (lock, repository) in &plan.seeds {
-        if !apply {
-            wiring.pending(
-                env.err,
-                format!("would pin {lock}; run dx generate --apply"),
-            );
-            continue;
-        }
-        let empty = dx_adopt::ModuleEdit {
-            path: lock.clone(),
-            old: String::new(),
-            new: String::new(),
-        };
-        if let Err(error) = dx_adopt::write_edit_or_create(env.workspace, &empty) {
-            wiring.failed(env.err, format!("{lock} not created: {error}"));
-            continue;
-        }
-        let argv = dx_update::backend::maven_pin_argv(&request.bazel_head(), repository);
-        let vars = dx_update::backend::maven_env(true);
-        let pairs: Vec<(&str, &str)> = vars
-            .iter()
-            .map(|(key, value)| (key.as_str(), value.as_str()))
-            .collect();
-        report_seed(
-            env.workspace,
-            env.err,
-            wiring,
-            lock,
-            "the Maven pin",
-            env.runner.run(&argv, env.workspace, &pairs),
-        );
     }
 }
 
@@ -501,7 +462,7 @@ fn run_generate_request(
         Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };
     let apply = request.applies();
-    let wiring = wire_module(request, &mut env);
+    let mut wiring = wire_module(request, &mut env);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     std::fs::remove_file(&patch).ok();
@@ -602,6 +563,15 @@ fn run_generate_request(
             );
         }
     };
+    wire(
+        env.workspace,
+        apply,
+        env.err,
+        &mut wiring,
+        "loaded rule sets",
+        "a bazel_dep for each rule set the BUILD files load",
+        dx_adopt::plan_loaded_deps(env.workspace).map(|plan| (plan.notes, plan.edit)),
+    );
     let mut code = projected.exit_code(match gazelle {
         GazelleStatus::Failed(failed) => failed,
         GazelleStatus::Completed => 0,
@@ -805,6 +775,10 @@ mod tests {
             module.contains(&format!("pnpm_lock = \"//:{}\"", lock_of(Ecosystem::Npm))),
             "{module}"
         );
+        let settings = std::fs::read_to_string(harness.workspace.join("pnpm-workspace.yaml"))
+            .expect("pnpm settings");
+        assert_eq!(settings, dx_adopt::PNPM_SETTINGS);
+        assert!(err.contains("wrote pnpm-workspace.yaml"), "{err}");
     }
 
     #[test]
@@ -868,46 +842,25 @@ mod tests {
     }
 
     #[test]
-    fn generate_apply_wires_and_pins_a_maven_lock() {
+    fn generate_apply_runs_the_maven_resolver_for_a_missing_lock() {
         let mut harness = Harness::new("generate-maven-lock");
-        let maven = lock_of(Ecosystem::Maven);
-        harness.write_source(
-            "MODULE.bazel",
-            &format!("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"com.google.guava:guava:33.4.0-jre\"],\n    lock_file = \"//third_party:{maven}\",\n)\nuse_repo(maven, \"maven\")\n"),
-        );
+        let hub = dx_families::hub("maven").expect("setup.hubs entry maven");
+        harness.write_source(&hub.manifest, "");
         harness.write_source("BUILD.bazel", "");
         harness.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 1, "{out}{err}");
-        let read = |rel: &str| std::fs::read_to_string(harness.workspace.join(rel)).expect(rel);
-        assert_eq!(
-            read("third_party/BUILD.bazel"),
-            format!("exports_files([\"{maven}\"])\n")
-        );
-        assert_eq!(
-            read("BUILD.bazel"),
-            format!("# gazelle:dx_external maven third_party/{maven} maven\n")
-        );
-        assert_eq!(read(&format!("third_party/{maven}")), "");
-        let maven_pin = format!(
-            "@{}//:pin",
-            dx_families::hub("maven")
-                .expect("setup.hubs entry maven")
-                .hub
-        );
+        let resolver = hub.resolver.as_deref().expect("resolver");
         let builds = harness.build_argv.borrow();
-        let pin = builds
+        let run = builds
             .iter()
-            .position(|argv| argv.contains(&maven_pin))
-            .expect("maven pin");
-        assert!(builds[pin].iter().any(|arg| arg == "run"), "{builds:?}");
-        assert!(
-            harness.seen_env.borrow()[pin]
-                .contains(&("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned()))
-        );
+            .find(|argv| argv.iter().any(|arg| arg == resolver))
+            .expect("maven resolver run");
+        assert!(run.iter().any(|arg| arg == "run"), "{builds:?}");
         assert!(
             err.contains(&format!(
-                "dx: third_party/{maven} is still empty after the Maven pin"
+                "dx: {} is still empty",
+                hub.lock.as_deref().unwrap_or("")
             )),
             "{err}"
         );
@@ -989,6 +942,57 @@ mod tests {
         assert_eq!(code, 0, "{out}{err}");
         let after = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert_eq!(after, module);
+    }
+
+    fn loading_workspace(name: &str, mode: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source(
+            "MODULE.bazel",
+            "module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n",
+        );
+        harness.write_source(
+            "web/BUILD.bazel",
+            "load(\"@aspect_rules_ts//ts:defs.bzl\", \"ts_project\")\n",
+        );
+        harness.intended = Some(intended_witness(mode, true, "", ""));
+        harness
+    }
+
+    #[test]
+    fn generate_apply_declares_the_rule_sets_build_files_load() {
+        let harness = loading_workspace("generate-loaded-apply", "default");
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        let version = dx_adopt::preflight::RULES_DX_DEPS
+            .iter()
+            .find(|(name, _)| *name == "aspect_rules_ts")
+            .map(|(_, version)| *version)
+            .expect("pinned");
+        assert!(
+            module.contains(&format!(
+                "bazel_dep(name = \"aspect_rules_ts\", version = \"{version}\")"
+            )),
+            "{module}"
+        );
+        assert!(
+            module.contains("use_repo(rules_ts, \"npm_typescript\")"),
+            "{module}"
+        );
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let again = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        assert_eq!(again, module);
+    }
+
+    #[test]
+    fn generate_check_reports_an_undeclared_loaded_rule_set() {
+        let harness = loading_workspace("generate-loaded-check", "check");
+        let (code, out, err) = harness.run(&["generate"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("aspect_rules_ts"), "{err}");
+        let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        assert!(!module.contains("aspect_rules_ts"), "{module}");
     }
 
     #[test]

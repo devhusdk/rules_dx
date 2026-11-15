@@ -85,16 +85,16 @@ fn serve(stream: TcpStream, routes: &Mutex<HashMap<String, Reply>>) {
         .cloned()
         .unwrap_or(Reply::Status(404));
     let mut out = stream;
-    let _ = match reply {
+    drop(match reply {
         Reply::Ok(body) => respond(&mut out, 200, &body, body.len()),
         Reply::Truncated(body, claimed) => respond(&mut out, 200, &body, claimed),
         Reply::Status(code) => respond(&mut out, code, b"", 0),
         Reply::Stall => {
-            let _ = respond_partial(&mut out);
+            drop(respond_partial(&mut out));
             std::thread::sleep(std::time::Duration::from_secs(60));
             Ok(())
         }
-    };
+    });
 }
 
 fn respond(out: &mut TcpStream, code: u16, body: &[u8], length: usize) -> std::io::Result<()> {

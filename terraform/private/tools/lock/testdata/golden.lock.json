@@ -1,0 +1,35 @@
+{
+  "ecosystem": "terraform",
+  "inputs": {
+    ".terraform.lock.hcl": "2e03ceb9633367d027f36cec934d346e2015f3efecd854be11ce284fc5072225",
+    "main.tf": "e21af9f29c87f2649977c3c054a070230b6aba57c3cec054681ca94f30feaed5",
+    "second.tf": "0cdea2e44ecf9bf885d6cc1c7da50a33926f4bb606040fb821c7017255e217b5"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "platform": "linux_x86_64",
+          "sha256": "9d32ac3619cfc93eb3c4f423492a8e0f79db05fec58e449dee9b2d5873d5f69f",
+          "urls": [
+            "https://releases.hashicorp.com/terraform-provider-null/3.2.4/terraform-provider-null_3.2.4_linux_amd64.zip"
+          ]
+        },
+        {
+          "platform": "macos_arm64",
+          "sha256": "c43723e8cc65bcdf5e0c92581dcbbdcbdcf18b8d2037406a5f2033b1e22de442",
+          "urls": [
+            "https://releases.hashicorp.com/terraform-provider-null/3.2.4/terraform-provider-null_3.2.4_darwin_arm64.zip"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "registry.terraform.io/hashicorp/null",
+      "provides": [
+        "registry.terraform.io/hashicorp/null"
+      ],
+      "version": "3.2.4"
+    }
+  ],
+  "schema": 1
+}

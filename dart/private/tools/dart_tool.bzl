@@ -8,7 +8,6 @@ def _dart_tool_impl(ctx):
     aot_runtime = False
     core_lib = False
     for f in sdk.tool_files.to_list():
-        # dart resolves its snapshots, dartaotruntime and lib/ beside its own path.
         if not f.path.startswith(root):
             continue
         rel = f.path[len(root):]

@@ -42,6 +42,7 @@ java_test(
 
 rust_test(
     name = "exit_codes_test",
+    size = "small",
     testonly = True,
     srcs = ["exit_codes_test.rs"],
     aliases = aliases(

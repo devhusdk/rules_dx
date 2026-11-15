@@ -612,6 +612,33 @@ pub fn external_repos(
         .collect())
 }
 
+/// The external repositories the workspace's BUILD files load from directly.
+pub fn build_file_repos(workspace: &Path) -> Result<BTreeSet<String>, DxError> {
+    Ok(build_file_labels(workspace)?
+        .iter()
+        .filter_map(|label| label_repo(label).map(str::to_owned))
+        .collect())
+}
+
+/// The external labels the workspace's BUILD files load directly.
+pub fn build_file_labels(workspace: &Path) -> Result<BTreeSet<String>, DxError> {
+    let names = module_roots(workspace)?.names;
+    let mut out = BTreeSet::new();
+    for (rel, _) in build_files(workspace)? {
+        let Some(source) = read(workspace, &rel)? else {
+            continue;
+        };
+        let labels =
+            load_labels(&source).map_err(|error| DxError::failure(format!("{rel}: {error}")))?;
+        for label in labels {
+            if label_repo(&label).is_some_and(|repo| !main_repo(repo, &names)) {
+                out.insert(label);
+            }
+        }
+    }
+    Ok(out)
+}
+
 /// How a changed .bzl file reaches the build.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BzlImpact {

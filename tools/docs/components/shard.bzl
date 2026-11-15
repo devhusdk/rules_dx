@@ -17,21 +17,7 @@ def component_config(language, tsconfig, entry_points):
     return "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + META_SCHEMA + ";" + COMPONENT_LANGUAGES[language].tools + ";typescript=" + TYPESCRIPT_VERSION
 
 def component_shard_action(ctx, extract, meta, shard, language, package, source_prefix, config):
-    """Converts one dx-component-meta/1 JSON into a DocIr shard.
-
-    Args:
-        ctx: The rule or aspect context.
-        extract: The component extractor executable.
-        meta: The dx-component-meta/1 JSON file.
-        shard: The declared DocIr shard output.
-        language: Language segment of the symbol ids.
-        package: Package segment of the symbol ids.
-        source_prefix: Repo-relative directory of the project.
-        config: Configuration identity recorded on every symbol.
-
-    Returns:
-        The DocsShardInfo of the shard.
-    """
+    """Converts one dx-component-meta/1 JSON into a DocIr shard."""
     args = ctx.actions.args()
     args.add("--meta", meta)
     args.add("--out", shard)

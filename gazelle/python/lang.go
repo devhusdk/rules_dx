@@ -163,6 +163,41 @@ func packageDepth(root, rel string) int {
 	return depth
 }
 
+// existingDepth returns the depth that the imports attr of the existing
+// python rules names, when they all agree on one.
+func existingDepth(file *rule.File, rel string) (int, bool) {
+	if file == nil {
+		return 0, false
+	}
+	depth := -1
+	for _, r := range file.Rules {
+		if !isPythonKind(r.Kind()) || r.Kind() == ruffKind {
+			continue
+		}
+		imports := r.AttrStrings("imports")
+		if len(imports) == 0 {
+			continue
+		}
+		d := 0
+		if imports[0] != "." {
+			for _, part := range strings.Split(imports[0], "/") {
+				if part != ".." {
+					return 0, false
+				}
+				d++
+			}
+		}
+		if depth >= 0 && d != depth {
+			return 0, false
+		}
+		depth = d
+	}
+	if depth < 0 || (rel == "" && depth > 0) || depth > len(strings.Split(rel, "/")) {
+		return 0, false
+	}
+	return depth, true
+}
+
 func lastParts(rel string, n int) string {
 	parts := strings.Split(rel, "/")
 	return strings.Join(parts[len(parts)-n:], "/")
@@ -245,6 +280,9 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 
 	depth := packageDepth(args.Config.RepoRoot, args.Rel)
+	if d, ok := existingDepth(args.File, args.Rel); ok {
+		depth = d
+	}
 	pkgDotted := ""
 	if depth > 0 {
 		pkgDotted = strings.ReplaceAll(lastParts(args.Rel, depth), "/", ".")
@@ -262,6 +300,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 	var plans []plan
 	pkgIdx := -1
+	pkgName, _ := common.Normalize(path.Base(args.Rel))
 	owned := ownedSources(args.File)
 	for _, src := range sources {
 		if owned[src] {
@@ -283,6 +322,20 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 		entry := !IsTestFile(src) && IsEntryFile(src)
 		if inPackage(src) {
+			if owner := ownerName(args.File, libraryKind, src); owner != "" && owner != pkgName {
+				idx := slices.IndexFunc(plans, func(p plan) bool { return p.name == owner && !p.test })
+				if idx < 0 {
+					plans = append(plans, plan{name: owner})
+					idx = len(plans) - 1
+				}
+				split := &plans[idx]
+				split.srcs = append(split.srcs, srcs...)
+				split.refs = append(split.refs, refs...)
+				if split.main == "" {
+					split.main = src
+				}
+				continue
+			}
 			if pkgIdx < 0 {
 				name, err := common.Normalize(path.Base(args.Rel))
 				if err != nil {
@@ -352,7 +405,10 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			}
 		}
 		r := rule.NewRule(kind, p.name)
-		r.SetAttr("srcs", p.srcs)
+		existing := existingRule(args.File, kind, p.name)
+		srcs := keptSources(args, existing, owned, p.srcs)
+		refs = dropLocalRefs(refs, srcs[len(p.srcs):], pkgDotted)
+		r.SetAttr("srcs", srcs)
 		r.SetAttr("imports", imports)
 		if p.plain {
 			r.SetAttr("runner", "plain")
@@ -382,7 +438,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		if hints := withRuffHint(args.Config, existingRule(args.File, r.Kind(), r.Name()), ruff, args.Rel); len(hints) > 0 {
 			r.SetAttr("aspect_hints", hints)
 		}
-		if r.Kind() != testKind && common.FixtureTestonly(args.Config, args.Rel) {
+		if r.Kind() != testKind && common.FixtureTestonly(args.Config, args.Rel) && existingRule(args.File, r.Kind(), r.Name()) == nil {
 			r.SetAttr("testonly", true)
 		}
 	}
@@ -460,14 +516,54 @@ func claimKind(c Claimant) string {
 	return libraryKind
 }
 
-var foreignKinds = map[string]bool{
-	"py_library": true, "py_binary": true, "py_test": true,
-	"py_unittest_test": true, "py_pytest_main": true, "py_pytest_test": true,
+// keptSources returns srcs plus the entries of the existing rule's srcs that
+// generation does not produce: labels, and existing files another rule owns.
+func keptSources(args language.GenerateArgs, existing *rule.Rule, owned map[string]bool, srcs []string) []string {
+	if existing == nil {
+		return srcs
+	}
+	out := slices.Clone(srcs)
+	for _, src := range existing.AttrStrings("srcs") {
+		if slices.Contains(out, src) {
+			continue
+		}
+		if strings.HasPrefix(src, ":") || strings.HasPrefix(src, "//") || strings.HasPrefix(src, "@") {
+			out = append(out, src)
+			continue
+		}
+		if !owned[src] {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(src))); err == nil {
+			out = append(out, src)
+		}
+	}
+	return out
+}
+
+// dropLocalRefs drops the refs to modules that srcs provides.
+func dropLocalRefs(refs []common.ImportRef, srcs []string, pkgDotted string) []common.ImportRef {
+	var modules []string
+	for _, src := range srcs {
+		if !strings.HasSuffix(src, ".py") || strings.Contains(src, ":") {
+			continue
+		}
+		module := strings.ReplaceAll(strings.TrimSuffix(src, ".py"), "/", ".")
+		if pkgDotted != "" {
+			module = pkgDotted + "." + module
+		}
+		modules = append(modules, module)
+	}
+	return slices.DeleteFunc(slices.Clone(refs), func(ref common.ImportRef) bool {
+		return slices.ContainsFunc(modules, func(m string) bool {
+			return ref.Spec == m || strings.HasPrefix(ref.Spec, m+".")
+		})
+	})
 }
 
 // ownedSources lists the sources that rules other than generated ones own:
-// rules_py and rules_python rules, exports_files, binary srcs, and the non-test
-// sources of tests.
+// other py_ and python_ rules, exports_files, binary srcs, and
+// the non-test sources of tests.
 func ownedSources(file *rule.File) map[string]bool {
 	owned := make(map[string]bool)
 	if file == nil {
@@ -480,7 +576,7 @@ func ownedSources(file *rule.File) map[string]bool {
 			srcs = append(srcs, m)
 		}
 		switch {
-		case foreignKinds[r.Kind()]:
+		case !isPythonKind(r.Kind()) && (strings.HasPrefix(r.Kind(), "py_") || strings.HasPrefix(r.Kind(), "python_")):
 			for _, s := range srcs {
 				owned[s] = true
 			}
@@ -497,11 +593,16 @@ func ownedSources(file *rule.File) map[string]bool {
 		}
 	}
 	for s := range handwritten {
-		if ownerName(file, libraryKind, s) == "" {
+		if ownerName(file, libraryKind, s) == "" && (!IsTestFile(s) || ownerName(file, testKind, s) == "") {
 			owned[s] = true
 		}
 	}
 	return owned
+}
+
+func isPythonKind(kind string) bool {
+	_, ok := pythonKinds[kind]
+	return ok
 }
 
 func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {

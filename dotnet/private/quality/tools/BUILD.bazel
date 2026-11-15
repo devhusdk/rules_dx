@@ -4,12 +4,12 @@ package(default_visibility = ["//:__subpackages__"])
 
 alias(
     name = "csharpier",
-    actual = "@paket.main//csharpier/tools:csharpier",
+    actual = "@nuget//csharpier/tools:csharpier",
 )
 
 alias(
     name = "fantomas",
-    actual = "@paket.main//fantomas/tools:fantomas",
+    actual = "@nuget//fantomas/tools:fantomas",
 )
 
 real_source_target(

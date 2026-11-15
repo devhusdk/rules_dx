@@ -72,7 +72,30 @@ fn native_ignores(eco: Language, manifest: &Path) -> BTreeSet<String> {
                 .and_then(|v| v.get("per_rule_ignores"))
                 .and_then(|v| v.get("DEP002")),
         ),
-        _ => Vec::new(),
+        Language::Js
+        | Language::Ts
+        | Language::Go
+        | Language::Java
+        | Language::Kotlin
+        | Language::Scala
+        | Language::Csharp
+        | Language::Fsharp
+        | Language::Cc
+        | Language::Ruby
+        | Language::Perl
+        | Language::Zig
+        | Language::Julia
+        | Language::Dart
+        | Language::Php
+        | Language::Elixir
+        | Language::Erlang
+        | Language::Fortran
+        | Language::D
+        | Language::Haskell
+        | Language::Swift
+        | Language::Powershell
+        | Language::Lua
+        | Language::Ocaml => Vec::new(),
     };
     names
         .iter()

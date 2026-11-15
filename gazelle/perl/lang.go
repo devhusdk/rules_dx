@@ -113,6 +113,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
 		return language.GenerateResult{}
 	}
+	srcs = withoutOwned(args.File, libName, srcs)
 	var claimants []common.Claimant
 	if len(srcs) > 0 {
 		claimants = append(claimants, common.Claimant{Name: libName, Source: args.Rel, Kind: LibraryKind})
@@ -156,6 +157,29 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		}
 	}
 	return common.MergeStaleOwned(args.File, result, kinds, ownsStale(args, libName))
+}
+
+// withoutOwned drops the srcs another perl_library in file already lists.
+func withoutOwned(file *rule.File, libName string, srcs []string) []string {
+	if file == nil {
+		return srcs
+	}
+	owned := make(map[string]bool)
+	for _, r := range file.Rules {
+		if r.Kind() != LibraryKind || r.Name() == libName {
+			continue
+		}
+		for _, src := range r.AttrStrings("srcs") {
+			owned[src] = true
+		}
+	}
+	kept := srcs[:0:0]
+	for _, src := range srcs {
+		if !owned[src] {
+			kept = append(kept, src)
+		}
+	}
+	return kept
 }
 
 // ownsStale reports whether generation could have produced r: it is the

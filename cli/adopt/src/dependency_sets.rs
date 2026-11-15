@@ -236,8 +236,6 @@ pub enum DependencySetsError {
         repository: String,
         detail: String,
     },
-    #[error("dependency set {name:?} cannot run paket2bazel: {detail}")]
-    UnsupportedNugetLayout { name: String, detail: String },
     #[error("dependency set {name:?} cannot run go mod download: {detail}")]
     UnsupportedGoLayout { name: String, detail: String },
     #[error(
@@ -397,15 +395,6 @@ pub fn discover(
                 vec![in_dir(&dir, mix_lock()?)],
             )?);
         }
-        for rebar in module.rebar_locks().map_err(hub)? {
-            let dir = manifest_dir(std::slice::from_ref(&path(rebar.lock)?));
-            sets.push(hub_set(
-                rebar.name,
-                Ecosystem::Hex,
-                vec![in_dir(&dir, REBAR_CONFIG)],
-                vec![in_dir(&dir, REBAR_LOCK)],
-            )?);
-        }
         for tag in module.composer_locks().map_err(hub)? {
             let lock = path(tag.lock)?;
             let dir = manifest_dir(std::slice::from_ref(&lock));
@@ -527,20 +516,14 @@ pub fn discover(
                 vec![beside(&lock, package_resolved()?), lock],
             )?);
         }
-        let mut groups = BTreeSet::new();
-        for label in module.paket_extensions() {
-            groups.extend(paket_groups(label, read)?);
-        }
-        if let Some(first) = groups.first() {
-            let folder = manifest_dir(std::slice::from_ref(first));
-            let parent = manifest_dir(std::slice::from_ref(&folder));
-            let mut locks = vec![in_dir(&parent, paket_lock()?)];
-            locks.extend(groups);
+        for nuget in module.nuget_locks().map_err(hub)? {
+            let lock = path(nuget.lock)?;
+            let dir = manifest_dir(std::slice::from_ref(&lock));
             sets.push(hub_set(
-                "nuget",
+                nuget.name,
                 Ecosystem::Nuget,
-                vec![in_dir(&parent, manifest_of("nuget")?)],
-                locks,
+                vec![in_dir(&dir, manifest_of("nuget")?)],
+                vec![lock, in_dir(&dir, paket_lock()?)],
             )?);
         }
     }
@@ -550,42 +533,6 @@ pub fn discover(
     check_conflicts(&sets)?;
     sets.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(Some(Registry { sets }))
-}
-
-/// The generated `paket.<group>.bzl` files a paket extension label loads.
-fn paket_groups(
-    label: &str,
-    read: &dyn Fn(&str) -> Result<String, String>,
-) -> Result<Vec<String>, DependencySetsError> {
-    let module_error = |detail: String| DependencySetsError::Module { detail };
-    let bzl = dx_module_bazel::label_path(label).map_err(module_error)?;
-    let package = manifest_dir(std::slice::from_ref(&bzl));
-    let file = bzl.rsplit('/').next().unwrap_or(&bzl);
-    if let Some(group) = file
-        .strip_prefix("paket.")
-        .and_then(|rest| rest.strip_suffix("_extension.bzl"))
-    {
-        return Ok(vec![in_dir(&package, &format!("paket.{group}.bzl"))]);
-    }
-    let text = read(&bzl).map_err(module_error)?;
-    let loads =
-        dx_module_bazel::load_labels(&text).map_err(|error| module_error(error.to_string()))?;
-    let mut groups = Vec::new();
-    for load in loads {
-        let target = match load.strip_prefix(':') {
-            Some(name) => in_dir(&package, name),
-            None if load.starts_with("//") => {
-                dx_module_bazel::label_path(&load).map_err(module_error)?
-            }
-            None => continue,
-        };
-        let name = target.rsplit('/').next().unwrap_or(&target);
-        if name.starts_with("paket.") && name.ends_with(".bzl") && !name.ends_with("_extension.bzl")
-        {
-            groups.push(target);
-        }
-    }
-    Ok(groups)
 }
 
 fn beside(file: &str, name: &str) -> String {
@@ -839,14 +786,48 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
                 Err(CPAN_PACKAGE_CHARSET)
             }
         }
-        _ => {
+        Ecosystem::Uv
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Nuget
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => {
             let charset = match ecosystem {
                 Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
                 Ecosystem::Bazel => BAZEL_PACKAGE_CHARSET,
                 Ecosystem::Ruby => RUBY_PACKAGE_CHARSET,
                 Ecosystem::PowerShell => POWERSHELL_PACKAGE_CHARSET,
                 Ecosystem::LuaRocks => LUAROCKS_PACKAGE_CHARSET,
-                _ => UV_PACKAGE_CHARSET,
+                Ecosystem::Uv
+                | Ecosystem::Npm
+                | Ecosystem::Cargo
+                | Ecosystem::Maven
+                | Ecosystem::Go
+                | Ecosystem::Cpan
+                | Ecosystem::Pub
+                | Ecosystem::Julia
+                | Ecosystem::Hex
+                | Ecosystem::Composer
+                | Ecosystem::Dub
+                | Ecosystem::Fpm
+                | Ecosystem::Zig
+                | Ecosystem::Opam
+                | Ecosystem::SwiftPm
+                | Ecosystem::Cabal
+                | Ecosystem::Ansible
+                | Ecosystem::Bicep => UV_PACKAGE_CHARSET,
             };
             if package.is_empty() {
                 return Err(charset);
@@ -1251,9 +1232,18 @@ pub fn check_backend_settings(
             check_cargo_hub(workspace, set).map(|_| ())
         }
         Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
-        Ecosystem::Nuget => check_nuget_layout(workspace, set),
         Ecosystem::Go => check_go_layout(workspace, set),
-        other => match other.lockfiles().first() {
+        other @ Ecosystem::Bazel
+        | other @ Ecosystem::Ruby
+        | other @ Ecosystem::PowerShell
+        | other @ Ecosystem::Nuget
+        | other @ Ecosystem::Pub
+        | other @ Ecosystem::Dub
+        | other @ Ecosystem::Fpm
+        | other @ Ecosystem::Zig
+        | other @ Ecosystem::LuaRocks
+        | other @ Ecosystem::SwiftPm
+        | other @ Ecosystem::Bicep => match other.lockfiles().first() {
             Some(lock) if other.lock_required() => check_pinned_lock(set, lock),
             _ => Ok(()),
         },
@@ -1646,7 +1636,7 @@ pub fn check_lock_ready(workspace: &Path, set: &ResolvedSet) -> Result<(), Depen
             };
             match hub.policy {
                 dx_module_bazel::RepinPolicy::Unset | dx_module_bazel::RepinPolicy::True => {}
-                _ => {
+                dx_module_bazel::RepinPolicy::False | dx_module_bazel::RepinPolicy::Computed => {
                     return Err(unsupported(
                         "fail_if_repin_required must stay true so a stale lock fails the check"
                             .to_owned(),
@@ -1671,72 +1661,29 @@ pub fn check_lock_ready(workspace: &Path, set: &ResolvedSet) -> Result<(), Depen
             }
             Ok(())
         }
-        _ => Ok(()),
+        Ecosystem::Uv
+        | Ecosystem::Npm
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Cargo
+        | Ecosystem::Nuget
+        | Ecosystem::Go
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => Ok(()),
     }
-}
-
-/// Refuses a nuget set whose `paket2bazel` run could not stay inside the declared locks.
-fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    let unsupported = |detail: String| DependencySetsError::UnsupportedNugetLayout {
-        name: set.name.clone(),
-        detail,
-    };
-    check_pinned_lock(set, paket_lock()?)?;
-    let mut folders = BTreeSet::new();
-    let mut groups = 0;
-    for lock in &set.locks {
-        let (folder, file) = lock.rsplit_once('/').unwrap_or((".", lock));
-        let paket = paket_lock()?;
-        if file == paket {
-            continue;
-        }
-        let group = file
-            .strip_prefix("paket.")
-            .and_then(|rest| rest.strip_suffix(".bzl"))
-            .ok_or_else(|| {
-                unsupported(format!(
-                    "lock {lock} is neither {paket} nor a generated paket.<group>.bzl file"
-                ))
-            })?;
-        if group.is_empty() {
-            return Err(unsupported(format!("lock {lock} names no paket group")));
-        }
-        if group.ends_with("_extension") {
-            return Err(unsupported(format!(
-                "lock {lock} is a paket2bazel extension; dx does not manage it, so drop it from locks"
-            )));
-        }
-        folders.insert(folder.to_owned());
-        groups += 1;
-    }
-    if groups == 0 {
-        return Err(unsupported(
-            "locks list no generated paket.<group>.bzl files".to_owned(),
-        ));
-    }
-    if folders.len() != 1 {
-        return Err(unsupported(
-            "generated paket .bzl locks must share one folder".to_owned(),
-        ));
-    }
-    for manifest in &set.manifests {
-        let text = std::fs::read_to_string(workspace.join(manifest))
-            .map_err(|error| unsupported(format!("cannot read {manifest}: {error}")))?;
-        for line in text.lines() {
-            let line = line.trim();
-            if let Some(rest) = line.strip_prefix("source ") {
-                let rest = rest.trim();
-                if !(rest.starts_with("http://") || rest.starts_with("https://")) {
-                    return Err(unsupported(format!(
-                        "{manifest} source {rest:?} is not http(s); staging copies only {} and {}",
-                        manifest_of("nuget")?,
-                        paket_lock()?
-                    )));
-                }
-            }
-        }
-    }
-    Ok(())
 }
 
 /// Refuses a go set whose staged `go mod download all` could not stay inside the declared locks.

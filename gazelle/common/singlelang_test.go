@@ -1747,3 +1747,15 @@ func TestGenerateSingleFileSweepsOnlyOwnedRules(t *testing.T) {
 		t.Errorf("Empty = %v, want [gone]", empty)
 	}
 }
+
+func TestAncestorOwnerReadsEveryAttribute(t *testing.T) {
+	cfg, root := externalConfig(t)
+	cfg.ValidBuildFileNames = []string{"BUILD.bazel"}
+	dotFile(t, root, "suite/BUILD.bazel", "suite(\n    name = \"conformance\",\n    quality = {\"lint_source\": \"lib/dirty.rb\"},\n)\n")
+	if owner, ok := AncestorOwner(cfg, "suite/lib"); !ok || owner != "//suite:conformance" {
+		t.Errorf("AncestorOwner(suite/lib) = %q, %v; want //suite:conformance", owner, ok)
+	}
+	if owner, ok := AncestorOwner(cfg, "suite/other"); ok {
+		t.Errorf("AncestorOwner(suite/other) = %q, want none", owner)
+	}
+}

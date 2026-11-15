@@ -1,12 +1,4 @@
-"""Runs dune inside Bazel actions with the pinned native OCaml toolchain.
-
-`dx_dune_bootstrap` builds dune from its own sources once; `dx_dune_build`
-builds one executable of a dune workspace and `ocaml_dune_library` builds one
-library package as OCaml providers that `ocaml_module` and `ocaml_test` take in
-`deps`. The actions use only the pinned conda OCaml tree, the resolved C
-toolchain and the pinned coreutils; dune's cache and the
-network are off.
-"""
+"""Runs dune inside Bazel actions with the pinned native OCaml toolchain."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")

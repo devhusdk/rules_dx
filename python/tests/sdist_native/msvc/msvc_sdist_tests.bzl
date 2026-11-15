@@ -54,13 +54,7 @@ _runs_cl_test = analysistest.make(
 _linux_exec_test = failure_test_rule(_SETTINGS)
 
 def msvc_sdist_tests(name, sdist, tool):
-    """Declares the stub sdist build and its two analysis tests.
-
-    Args:
-        name: Name of the test suite.
-        sdist: Stub sdist archive.
-        tool: Stub build tool.
-    """
+    """Declares the stub sdist build and its two analysis tests."""
     fixture = name + "_fixture"
     pep517_native_whl(
         name = fixture,

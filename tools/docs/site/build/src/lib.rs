@@ -198,12 +198,12 @@ pub fn run(options: &Options) -> String {
     }
     let staging = stage(&book, options, &pages);
     if let Err(error) = staging {
-        let _ = fs::remove_dir_all(&scratch);
+        drop(fs::remove_dir_all(&scratch));
         return error;
     }
     let out = absolute(&options.out);
     if let Some(parent) = out.parent() {
-        let _ = fs::create_dir_all(parent);
+        drop(fs::create_dir_all(parent));
     }
     let build = Command::new(&options.mdbook)
         .arg("build")
@@ -211,7 +211,7 @@ pub fn run(options: &Options) -> String {
         .arg(&out)
         .arg(&book)
         .output();
-    let _ = fs::remove_dir_all(&scratch);
+    drop(fs::remove_dir_all(&scratch));
     let build = match build {
         Ok(build) => build,
         Err(error) => return format!("cannot run mdbook '{}': {error}", options.mdbook),
@@ -349,7 +349,7 @@ fn scratch_dir() -> PathBuf {
 
 fn scratch_is_usable(scratch: &Path) -> bool {
     if scratch.exists() {
-        let _ = fs::remove_dir_all(scratch);
+        drop(fs::remove_dir_all(scratch));
     }
     fs::create_dir_all(scratch).is_ok()
 }

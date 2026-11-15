@@ -6,16 +6,19 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY_TOOLS")
 package(default_visibility = VIS_CLI_DEPLOY_QUALITY_TOOLS + [
     "//ansible/private/tools/lock:__pkg__",
     "//bicep/private/tools/lock:__pkg__",
+    "//csharp/private/tools/lock:__pkg__",
     "//d/private/tools/lock:__pkg__",
     "//elixir/private/tools/lock:__pkg__",
     "//fortran/private/tools/lock:__pkg__",
     "//haskell/private/tools/lock:__pkg__",
+    "//java/private/tools/lock:__pkg__",
     "//lua/private/tools/lock:__pkg__",
     "//ocaml/private/tools/lock:__pkg__",
     "//perl/private/tools/lock:__pkg__",
     "//php/private/tools/lock:__pkg__",
     "//powershell/private/tools/lock:__pkg__",
     "//swift/private/tools/lock:__pkg__",
+    "//terraform/private/tools/lock:__pkg__",
     "//zig/private/tools/lock:__pkg__",
 ])
 

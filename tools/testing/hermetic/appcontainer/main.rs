@@ -4,8 +4,16 @@
 mod args;
 
 #[cfg(windows)]
+#[expect(
+    unsafe_code,
+    reason = "Win32 AppContainer and job object APIs have no safe wrapper"
+)]
 mod sys;
 #[cfg(windows)]
+#[expect(
+    unsafe_code,
+    reason = "Win32 account, service and WFP APIs have no safe wrapper"
+)]
 mod user;
 
 #[cfg(windows)]

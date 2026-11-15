@@ -132,7 +132,9 @@ fn returns(
                 doc,
             }))
         }
-        _ => Err(format!("{at} 'returns' is neither null nor an object")),
+        Value::Bool(_) | Value::Number(_) | Value::String(_) | Value::Array(_) => {
+            Err(format!("{at} 'returns' is neither null nor an object"))
+        }
     }
 }
 

@@ -53,6 +53,7 @@ rust_library(
 
 rust_test(
     name = "cc_context_test",
+    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",
@@ -98,6 +99,7 @@ real_source_target(
 
 rust_test(
     name = "context_clang_tidy_test",
+    size = "small",
     srcs = ["tests/context_clang_tidy.rs"],
     aliases = aliases(
         package_name = "cc/private/cc_context",

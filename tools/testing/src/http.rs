@@ -66,8 +66,8 @@ fn answer(mut stream: TcpStream, seen: &RequestLog, respond: &dyn Fn(&str) -> Op
         "HTTP/1.1 {status}\r\nContent-Length: {}\r\nContent-Type: {kind}\r\nConnection: close\r\n\r\n",
         body.len()
     );
-    let _ = stream.write_all(header.as_bytes());
+    drop(stream.write_all(header.as_bytes()));
     if method != "HEAD" {
-        let _ = stream.write_all(&body);
+        drop(stream.write_all(&body));
     }
 }

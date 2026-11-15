@@ -1,6 +1,6 @@
 load("@rules_dx//php:defs.bzl", "php_library")
-load("//core/quality:fixtures.bzl", "real_source_target")
 load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH")
+load("//php/private/quality:corpus.bzl", "php_corpus")
 load(":composer.bzl", "composer_tool")
 load(":phpcs.bzl", "phpcs_tool")
 load(":phpstan.bzl", "phpstan_tool")
@@ -29,7 +29,7 @@ phpstan_tool(
     target_compatible_with = PHP_COMPATIBLE_WITH,
 )
 
-real_source_target(
+php_corpus(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",

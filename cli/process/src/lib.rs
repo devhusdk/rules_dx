@@ -14,6 +14,10 @@ pub mod lifecycle;
 #[cfg(unix)]
 pub mod procs;
 #[cfg(windows)]
+#[expect(
+    unsafe_code,
+    reason = "the process table and command lines are read through Win32 and ntdll FFI"
+)]
 #[path = "procs_windows.rs"]
 pub mod procs;
 #[cfg(test)]
@@ -36,12 +40,15 @@ pub use stderr_tail::last_bazel_stderr;
 
 /// This thread's `errno`, for a signal handler to save on entry and restore on exit.
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "the errno location is only exposed by libc")]
 pub fn errno_slot() -> *mut libc::c_int {
     #[cfg(any(target_os = "linux", target_os = "android"))]
+    // SAFETY: __errno_location has no preconditions.
     unsafe {
         libc::__errno_location()
     }
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    // SAFETY: __error has no preconditions.
     unsafe {
         libc::__error()
     }
@@ -817,6 +824,7 @@ pub fn disk_space(path: &Path) -> Option<DiskSpace> {
 }
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "statvfs has no safe std API")]
 fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
     use std::os::unix::ffi::OsStrExt;
 
@@ -826,7 +834,9 @@ fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
 
     let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
     let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+    // SAFETY: `path` is NUL-terminated and `stat` is writable for one statvfs.
     (unsafe { libc::statvfs(path.as_ptr(), stat.as_mut_ptr()) } == 0).then_some(())?;
+    // SAFETY: statvfs returned 0, so it filled `stat`.
     let stat = unsafe { stat.assume_init() };
     let unit = widen(stat.f_frsize);
     let total = widen(stat.f_blocks)
@@ -838,6 +848,7 @@ fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
 }
 
 #[cfg(not(unix))]
+#[expect(unsafe_code, reason = "GetDiskFreeSpaceExW is Win32 FFI")]
 fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
     use std::os::windows::ffi::OsStrExt;
 
@@ -856,6 +867,7 @@ fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
     }
     wide.push(0);
     let (mut free, mut total, mut total_free) = (0u64, 0u64, 0u64);
+    // SAFETY: `wide` is NUL-terminated and the three outputs are writable u64s.
     let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut free, &mut total, &mut total_free) };
     if ok == 0 || total == 0 {
         return None;
@@ -946,7 +958,9 @@ fn first_line_within(
             .lines()
             .next()
             .map(|line| line.trim().to_owned()),
-        _ => None,
+        lifecycle::ChildOutcome::Finished { .. }
+        | lifecycle::ChildOutcome::TimedOut
+        | lifecycle::ChildOutcome::OutputTooLarge { .. } => None,
     }
 }
 
@@ -972,7 +986,7 @@ pub fn make_writable(path: &Path) {
         )]
         permissions.set_readonly(false);
     }
-    let _ = std::fs::set_permissions(path, permissions);
+    drop(std::fs::set_permissions(path, permissions));
     if metadata.is_dir() {
         for entry in std::fs::read_dir(path).into_iter().flatten().flatten() {
             make_writable(&entry.path());
@@ -984,7 +998,7 @@ pub fn make_writable(path: &Path) {
 pub fn remove_tree(path: &Path) -> bool {
     if std::fs::remove_dir_all(path).is_err() {
         make_writable(path);
-        let _ = std::fs::remove_dir_all(path);
+        drop(std::fs::remove_dir_all(path));
     }
     !path.exists()
 }

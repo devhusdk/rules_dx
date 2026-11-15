@@ -13,6 +13,7 @@ dart_tool(
 
 rust_test(
     name = "format_cli_test",
+    size = "small",
     srcs = ["format_cli_test.rs"],
     aliases = aliases(
         package_name = "dart/private/dart_tools",
@@ -36,6 +37,7 @@ rust_test(
 
 rust_test(
     name = "analyze_cli_test",
+    size = "small",
     srcs = ["analyze_cli_test.rs"],
     aliases = aliases(
         package_name = "dart/private/dart_tools",

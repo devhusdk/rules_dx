@@ -31,14 +31,14 @@ impl Term {
     pub fn text(&self) -> Option<&str> {
         match self {
             Self::Text(text) | Self::Atom(text) => Some(text),
-            _ => None,
+            Self::Tuple(_) | Self::List(_) | Self::Map(_) => None,
         }
     }
 
     fn items(&self) -> Option<&[Term]> {
         match self {
             Self::Tuple(items) | Self::List(items) => Some(items),
-            _ => None,
+            Self::Text(_) | Self::Atom(_) | Self::Map(_) => None,
         }
     }
 }
@@ -440,7 +440,7 @@ impl Hex {
             ecosystem: hub.ecosystem.clone(),
             manifest: vec![hub.manifest.clone(), "rebar.config".to_owned()],
             state: hub
-                .lock
+                .state
                 .iter()
                 .cloned()
                 .chain([REBAR_LOCK.to_owned()])
@@ -462,6 +462,10 @@ impl Resolver for Hex {
                 "the set has no {mix} or {REBAR_LOCK}; run mix deps.get or rebar3 lock first"
             )));
         };
-        Ok(Resolution { packages })
+        Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
+            packages,
+            ..Resolution::default()
+        })
     }
 }

@@ -121,7 +121,9 @@ pub fn nuget_compare(left: &str, right: &str) -> std::cmp::Ordering {
             for (left_part, right_part) in left_version.parts.iter().zip(&right_version.parts) {
                 match compare_nuget_numeric(left_part, right_part) {
                     std::cmp::Ordering::Equal => continue,
-                    other => return other,
+                    other @ (std::cmp::Ordering::Less | std::cmp::Ordering::Greater) => {
+                        return other;
+                    }
                 }
             }
             match (left_version.prerelease, right_version.prerelease) {
@@ -134,10 +136,13 @@ pub fn nuget_compare(left: &str, right: &str) -> std::cmp::Ordering {
                             (
                                 NugetPrereleaseLabel::Numeric(left_num),
                                 NugetPrereleaseLabel::Numeric(right_num),
-                            ) => match compare_nuget_numeric(left_num, right_num) {
-                                std::cmp::Ordering::Equal => continue,
-                                other => return other,
-                            },
+                            ) => {
+                                match compare_nuget_numeric(left_num, right_num) {
+                                    std::cmp::Ordering::Equal => continue,
+                                    other @ (std::cmp::Ordering::Less
+                                    | std::cmp::Ordering::Greater) => return other,
+                                }
+                            }
                             (NugetPrereleaseLabel::Numeric(_), NugetPrereleaseLabel::Alpha(_)) => {
                                 return std::cmp::Ordering::Less;
                             }
@@ -147,10 +152,13 @@ pub fn nuget_compare(left: &str, right: &str) -> std::cmp::Ordering {
                             (
                                 NugetPrereleaseLabel::Alpha(left_text),
                                 NugetPrereleaseLabel::Alpha(right_text),
-                            ) => match left_text.cmp(right_text) {
-                                std::cmp::Ordering::Equal => continue,
-                                other => return other,
-                            },
+                            ) => {
+                                match left_text.cmp(right_text) {
+                                    std::cmp::Ordering::Equal => continue,
+                                    other @ (std::cmp::Ordering::Less
+                                    | std::cmp::Ordering::Greater) => return other,
+                                }
+                            }
                         }
                     }
                     left_labels.len().cmp(&right_labels.len())

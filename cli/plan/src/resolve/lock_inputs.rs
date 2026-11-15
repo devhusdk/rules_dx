@@ -491,7 +491,10 @@ fn collect_ids<'a>(value: &'a serde_json::Value, out: &mut Vec<&'a str>) {
                 collect_ids(item, out);
             }
         }
-        _ => {}
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {}
     }
 }
 
@@ -576,7 +579,10 @@ fn collect_aliases<'a>(value: &'a serde_json::Value, out: &mut Vec<(&'a str, &'a
                 collect_aliases(item, out);
             }
         }
-        _ => {}
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {}
     }
 }
 

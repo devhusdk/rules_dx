@@ -44,7 +44,24 @@
       "urls": [
         "https://github.com/fmtlib/fmt/archive/refs/tags/12.2.1.tar.gz"
       ]
+    },
+    "windows_support": {
+      "sha256": "98fa582e4cce11509c78f760e8ac74abf755872b3ba90dd25427024d2e53a890",
+      "strip_prefix": "windows_support-0.4.1",
+      "urls": [
+        "https://github.com/hermeticbuild/windows_support/releases/download/v0.4.1/windows_support-v0.4.1.tar.gz"
+      ],
+      "version": "0.4.1"
     }
   },
-  "version": "16.2.0"
+  "version": "16.2.0",
+  "visual_studio_installer_manifest": {
+    "integrity": "sha256-qOhU+p8/uurCfXME4pfxZg1xN0ATid61fPeYPzPBb+8=",
+    "url": "https://download.visualstudio.microsoft.com/download/pr/fdc37f6e-59f6-4054-838a-b476eeaa6ec3/1d82370739911457e0a2f6be15d8b5f569531b352b2eabb961429eea1e99e356/VisualStudio.vsman"
+  },
+  "windows_sdk_integrity": {
+    "Microsoft.Windows.SDK.CPP": "sha256-/0VWYL7gcadEcVqWZWZvopwHaBV509gVlZqe7FpVZCQ=",
+    "Microsoft.Windows.SDK.CPP.x64": "sha256-rWzpD/lAEGmdKVSLPCseUsieuBFD4hmRVdmlw4ABtSs=",
+    "Microsoft.Windows.SDK.CPP.arm64": "sha256-A7wMA9Q5zvhQdLvNQl+dXTptO0Z5Z6zSHaO6bf7q+mc="
+  }
 }

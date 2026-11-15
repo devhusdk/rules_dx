@@ -7,7 +7,6 @@ load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 _EXECUTABLES = ["doxygen", "doxygen.exe"]
 
-# Settings that keep the run reproducible and the XML limited to the listed headers.
 _DOXYFILE = [
     "ALPHABETICAL_INDEX = NO",
     "CLASS_GRAPH = NO",
@@ -50,31 +49,11 @@ def _doxygen_executable(files):
     return None
 
 def doxygen_available(files):
-    """Returns whether the pinned Doxygen has a build for this host.
-
-    Args:
-      files: The files of the @dx_doxygen tool filegroup.
-
-    Returns:
-      True when the filegroup holds a Doxygen executable.
-    """
+    """Returns whether the pinned Doxygen has a build for this host."""
     return _doxygen_executable(files) != None
 
 def cc_shard_action(ctx, language, headers, package, stem, doxygen_files, extract_tool):
-    """Runs Doxygen over the public headers of one library, then the extractor.
-
-    Args:
-      ctx: The rule or aspect context.
-      language: `cc` or `cuda`, the first segment of every symbol id.
-      headers: The public header files the library lists.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      doxygen_files: The files of the pinned Doxygen.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the Doxygen `xml` tree and the `manifest`.
-    """
+    """Runs Doxygen over the public headers of one library, then the extractor."""
     headers = sorted({f.path: f for f in headers}.values(), key = lambda f: f.path)
     if not headers:
         fail(_where(ctx) + ": lib lists no public headers")
@@ -164,23 +143,9 @@ docs_cc_shard = _cc_shard_rule("cc", "C or C++")
 docs_cuda_shard = _cc_shard_rule("cuda", "CUDA")
 
 def cc_doc_shard(name, lib, package = "", **kwargs):
-    """Declares the DocIr shard of one C or C++ library.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented cc_library; its public hdrs are documented.
-      package: Package segment of every symbol id; defaults to the name of lib.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one C or C++ library."""
     docs_cc_shard(name = name, lib = lib, package = package, **kwargs)
 
 def cuda_doc_shard(name, lib, package = "", **kwargs):
-    """Declares the DocIr shard of one CUDA library.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented cuda_library; its public hdrs are documented.
-      package: Package segment of every symbol id; defaults to the name of lib.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one CUDA library."""
     docs_cuda_shard(name = name, lib = lib, package = package, **kwargs)

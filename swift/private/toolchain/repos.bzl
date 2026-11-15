@@ -1,7 +1,7 @@
 """Repository rules for the Swift Linux and Windows toolchains."""
 
 load("//core:host.bzl", "host_cell")
-load("//core:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
+load("//qt/private/toolchain:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 
 _SWIFT_LINUX_BUILD = """package(default_visibility = ["//visibility:public"])
 

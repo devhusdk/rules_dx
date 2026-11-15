@@ -1713,7 +1713,7 @@ fn a_slot_whose_busy_file_cannot_be_opened_lists_as_busy() {
     let host = FakeHost::new();
     host.live(20);
     ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    let _ = std::fs::remove_file(pool.busy_path(1));
+    drop(std::fs::remove_file(pool.busy_path(1)));
     std::fs::create_dir(pool.busy_path(1)).expect("busy file that cannot be opened");
     assert!(pool.busy(1));
     let listing = ops::list(&pool, &host, false).expect("list");
@@ -3418,7 +3418,7 @@ mod hooks {
     fn blocked_in(command: &str, cwd: &str, caller: &str) -> Option<String> {
         match in_foreign_slot(command, cwd, caller, &Cell::new(0)) {
             hook::Guard::Block(line) => Some(line),
-            _ => None,
+            hook::Guard::Allow | hook::Guard::Rewrite(_) | hook::Guard::Ask(_) => None,
         }
     }
 
@@ -3604,7 +3604,7 @@ mod hooks {
     fn blocked(command: &str) -> Option<String> {
         match guard(&serde_json::json!({"tool_input": {"command": command}})) {
             hook::Guard::Block(line) => Some(line),
-            _ => None,
+            hook::Guard::Allow | hook::Guard::Rewrite(_) | hook::Guard::Ask(_) => None,
         }
     }
 
@@ -5854,7 +5854,7 @@ fn git_run_with_input_handles_stdin_larger_than_a_pipe_buffer() {
     let main = fixture.main.clone();
     std::thread::spawn(move || {
         let args = ["check-ignore", "-z", "--stdin"];
-        let _ = sender.send(crate::git::run_with_input(&main, &args, &input));
+        drop(sender.send(crate::git::run_with_input(&main, &args, &input)));
     });
     let result = receiver
         .recv_timeout(std::time::Duration::from_secs(60))

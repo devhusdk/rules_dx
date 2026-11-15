@@ -34,7 +34,6 @@ def _platform_test(platform):
         config_settings = _COVERAGE | {"//command_line_option:platforms": str(Label(platform))},
     )
 
-# An analysis rule fixes its platform when it is defined, so every platform a caller can name is defined here.
 _fortran_linux_test = _platform_test("//fortran/private:linux_x86_64")
 _zig_linux_test = _platform_test("//zig/private:kcov_linux_x86_64")
 _zig_macos_test = _platform_test("//zig/private:kcov_macos_arm64")

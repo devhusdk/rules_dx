@@ -206,7 +206,7 @@ roslyn_aspect = aspect(
             doc = "Runs one program with its streams and exit code written to files.",
         ),
         "_reference_trimmer": attr.label(
-            default = "@paket.referencetrimmer//referencetrimmer:files",
+            default = "@nuget.referencetrimmer//referencetrimmer:files",
             allow_files = True,
             doc = "ReferenceTrimmer analyzer that reports the deps no source uses.",
         ),

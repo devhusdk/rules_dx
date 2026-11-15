@@ -454,6 +454,7 @@ fn share_splits_the_host_over_held_slots() {
     assert_eq!(share(12, 19 << 30, 0, 0), (12, 19 << 10));
 }
 
+#[expect(unsafe_code, reason = "pre_exec has no safe form")]
 #[cfg(unix)]
 #[test]
 fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
@@ -507,8 +508,8 @@ fn held_counts_locked_slots_and_the_caller() {
     let mut child = spawn_holder(&dir);
     assert_eq!(held(&dir, 0..3, 1), 2);
     assert_eq!(held(&dir, 0..3, 0), 1);
-    let _ = child.kill();
-    let _ = child.wait();
+    drop(child.kill());
+    drop(child.wait());
     std::fs::write(holder_path(&dir, 2), "gone").expect("stale holder");
     assert!(holder_path(&dir, 0).exists());
     assert_eq!(held(&dir, 0..3, 1), 1);
@@ -1297,7 +1298,7 @@ fn a_second_taker_waits_until_the_first_drops() {
         let mut holders = Vec::new();
         let slot = acquire(&second_dir, 1, "tree-b", &mut |holder| {
             holders.push(holder.to_owned());
-            let _ = sender.send(());
+            sender.send(()).ok();
         })
         .expect("second");
         (slot.index, holders)
@@ -1515,7 +1516,7 @@ impl Write for Announce {
     fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
         self.buf.extend_from_slice(data);
         if let Some(signal) = self.signal.take() {
-            let _ = signal.send(());
+            signal.send(()).ok();
         }
         Ok(data.len())
     }
@@ -2919,6 +2920,7 @@ fn ping_argv_carries_startup_options_before_the_info_verb() {
     );
 }
 
+#[expect(unsafe_code, reason = "kill has no safe std API")]
 #[cfg(unix)]
 #[test]
 fn a_real_ping_child_is_reaped_on_stop() {
@@ -2938,5 +2940,6 @@ fn a_real_ping_child_is_reaped_on_stop() {
     assert!(!warmth.finished(&mut child));
     let pid = i32::try_from(child.id()).expect("pid");
     warmth.stop(child);
+    // SAFETY: kill with signal 0 only checks that the process exists.
     assert_ne!(unsafe { libc::kill(pid, 0) }, 0);
 }

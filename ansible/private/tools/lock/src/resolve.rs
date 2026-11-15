@@ -147,6 +147,10 @@ impl Resolver for Ansible {
                 ..Package::default()
             })
             .collect();
-        Ok(Resolution { packages })
+        Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
+            packages,
+            ..Resolution::default()
+        })
     }
 }

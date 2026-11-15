@@ -20,14 +20,14 @@ pub fn link(dir: &Path, name: &str, target: &Path) -> io::Result<()> {
 
 fn place(dir: &Path, name: &str, target: &Path, kind: PointerKind) -> io::Result<()> {
     let temp = dir.join(format!(".{name}.{}.tmp", std::process::id()));
-    let _ = remove(&temp);
+    drop(remove(&temp));
     create_pointer(target, &temp, kind)?;
     let final_path = dir.join(name);
     if cfg!(windows) {
-        let _ = remove(&final_path);
+        drop(remove(&final_path));
     }
     std::fs::rename(&temp, &final_path).inspect_err(|_| {
-        let _ = remove(&temp);
+        drop(remove(&temp));
     })
 }
 

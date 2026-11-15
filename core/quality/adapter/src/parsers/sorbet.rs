@@ -60,9 +60,7 @@ pub fn parse_sorbet(
             .and_then(|at| message.split_at_checked(at))
             .and_then(|(head, from)| Some((head, from.strip_prefix(URL_PREFIX)?)));
         let (message, rule) = match url {
-            Some((head, tail)) if !tail.is_empty() => {
-                (head.trim_end(), format!("sorbet/{tail}"))
-            }
+            Some((head, tail)) if !tail.is_empty() => (head.trim_end(), format!("sorbet/{tail}")),
             _ => (message, "sorbet/error".to_owned()),
         };
         findings.push(finding(

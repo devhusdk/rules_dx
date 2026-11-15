@@ -5,11 +5,7 @@ load("//python:defs.bzl", "python_grpc_library")
 load("//typescript/private:proto.bzl", "ts_proto_srcs")
 
 def proto_package_tests(name):
-    """Instantiates the tests that reject a proto_library from another package.
-
-    Args:
-      name: Name of the test suite.
-    """
+    """Instantiates the tests that reject a proto_library from another package."""
     python_grpc_library(
         name = name + "_py",
         proto = "//typescript/tests/fixtures/proto:user_proto",

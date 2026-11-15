@@ -337,7 +337,10 @@ impl Driver {
         self.run_with(yard_lib, own, &srcs, &deps, cwd, home, plugin_lib)
     }
 
-    #[expect(clippy::too_many_arguments, reason = "each argument is a distinct input of the call")]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each argument is a distinct input of the call"
+    )]
     fn run_with(
         &self,
         yard_lib: &Path,
@@ -568,7 +571,13 @@ fn the_converter_rejects_a_new_format_and_truncated_json() {
             json.replace("\"format\": 1,", "\"format\": 2,"),
             "format 2 is not supported",
         ),
-        ("cut.json", json[..json.len() / 2].to_owned(), "malformed"),
+        (
+            "cut.json",
+            json.get(..json.len() / 2)
+                .expect("string slice within bounds")
+                .to_owned(),
+            "malformed",
+        ),
     ] {
         std::fs::write(dir.join(name), text).expect("write");
         let (code, stderr) = extract(&dir.join(name), &out);

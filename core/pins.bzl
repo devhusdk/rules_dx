@@ -66,6 +66,11 @@ def lock_problems(lock):
     packages = lock.get("packages")
     if type(packages) != "list":
         return problems + ["has no packages list"]
+    for group, closure in lock.get("groups", {}).items():
+        if type(closure) != "list":
+            problems.append("group %s has no packages list" % group)
+            continue
+        packages = packages + closure
     for package in packages:
         name = package.get("name", "")
         if not name:

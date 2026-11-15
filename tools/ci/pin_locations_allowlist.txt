@@ -1,7 +1,7 @@
-MODULE.bazel digest-outside-pins 56
+MODULE.bazel digest-outside-pins 52
 MODULE.bazel duplicate-pin 8
 MODULE.bazel no-digest 1
-android/private/sdk/repos.bzl digest-outside-pins 9
+android/private/sdk/repos.bzl digest-outside-pins 8
 appimage/private/packer/src/lib.rs digest-outside-pins 1
 appimage/private/packer/src/lib.rs duplicate-pin 1
 cc/pins.json duplicate-pin 1
@@ -31,14 +31,12 @@ cli/update/src/advisory.rs digest-outside-pins 2
 cli/update/src/advisory.rs duplicate-pin 2
 cli/update/src/discover/containers.rs digest-outside-pins 2
 cli/update/src/discover/containers.rs duplicate-pin 2
-cli/update/src/discover/hex.rs digest-outside-pins 2
 cli/update/src/edit/version.rs digest-outside-pins 2
 core/jammy_runtime.bzl digest-outside-pins 12
 core/modules/versions.bzl digest-outside-pins 6
 core/modules/versions.bzl duplicate-pin 6
 core/pins.bzl no-digest 1
 core/quality/artifacts/ocaml_duniverse.bzl digest-outside-pins 34
-core/seven_zip.bzl digest-outside-pins 4
 core/toolchain.bzl no-digest 1
 deploy/private/BUILD.bazel mutable-ref 2
 deploy/private/image.bzl mutable-ref 1

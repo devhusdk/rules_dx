@@ -16,6 +16,20 @@ powershell_library(
     ],
 )
 
+powershell_library(
+    name = "lint_dirty",
+    testonly = True,
+    srcs = ["lib/LintDirty.psm1"],
+    tags = ["manual"],
+)
+
+powershell_library(
+    name = "format_dirty",
+    testonly = True,
+    srcs = ["lib/FormatDirty.psm1"],
+    tags = ["manual"],
+)
+
 powershell_binary(
     name = "hello",
     srcs = ["main.ps1"],
@@ -64,7 +78,6 @@ dx_conformance_suite(
     failing_pattern = "[-] {case}",
     failing_test = ":fail_subject_test",
     lang = "powershell",
-    not_applicable = {"cross_test": "powershell_binary is a script the interpreter runs; it has no object format"},
     lock = {
         "binary": ":lock_hello",
         "ecosystem": "powershell",
@@ -74,7 +87,17 @@ dx_conformance_suite(
         "package": "Pester",
         "stale": "powershell.stale.lock.json",
     },
+    not_applicable = {"cross_test": "powershell_binary is a script the interpreter runs; it has no object format"},
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "lib/FormatDirty.psm1",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 4,
+        "lint_rule": "PSAvoidUsingWriteHost",
+        "lint_source": "lib/LintDirty.psm1",
+    },
 )
 
 real_source_target(

@@ -93,7 +93,7 @@ pub fn body(plan: &GroupPlan, numstat: &[(String, u64, u64)]) -> String {
             ""
         };
         let pre = if c.prerelease { ", prerelease" } else { "" };
-        let _ = write!(
+        write!(
             text,
             "- {}:{} {} -> {} ({}{age}{pre})",
             c.set,
@@ -101,25 +101,26 @@ pub fn body(plan: &GroupPlan, numstat: &[(String, u64, u64)]) -> String {
             c.current,
             c.latest,
             item.registry.url(&c.package)
-        );
+        )
+        .unwrap_or_default();
         if let (Some(repo), true) = (&c.repo, item.untagged) {
-            let _ = write!(text, ": [releases](https://github.com/{repo}/releases)");
+            write!(text, ": [releases](https://github.com/{repo}/releases)").unwrap_or_default();
         } else if let Some(repo) = &c.repo {
             let (old, new) = c
                 .tags
                 .clone()
                 .unwrap_or_else(|| (c.current.clone(), c.latest.clone()));
-            let _ = write!(
+            write!(
                 text,
                 ": [compare](https://github.com/{repo}/compare/{old}...{new}), [release](https://github.com/{repo}/releases/tag/{new})"
-            );
+            ).unwrap_or_default();
         }
         text.push('\n');
     }
     if !numstat.is_empty() {
         text.push_str("\n| Lock file | Added | Removed |\n| --- | --- | --- |\n");
         for (file, added, removed) in numstat {
-            let _ = writeln!(text, "| {file} | {added} | {removed} |");
+            writeln!(text, "| {file} | {added} | {removed} |").unwrap_or_default();
         }
     }
     text

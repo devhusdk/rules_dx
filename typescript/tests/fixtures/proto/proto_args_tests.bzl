@@ -16,10 +16,5 @@ def _impl(ctx):
 _test = analysistest.make(_impl)
 
 def proto_args_tests(name, target):
-    """Declares the descriptor set argv test.
-
-    Args:
-        name: Name of the test.
-        target: ts_proto_srcs target to inspect.
-    """
+    """Declares the descriptor set argv test."""
     _test(name = name, size = "small", target_under_test = target)

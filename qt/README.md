@@ -45,15 +45,22 @@ under `lib/`, the fonts under `fonts/` (an app must point `FONTCONFIG_FILE` at `
 license texts under `licenses/`. `lib/` holds the libraries the
 binary links, the libraries those need, and the ones the shipped QML
 plugins need. Pass it to `qt_consumer_archive` as a
-resource:
+resource. `qt_consumer_archive` and `qt_bundle_runtime` load from
+`@rules_dx//deploy:defs.bzl`:
 
 ```python
-load("@rules_dx//qt:defs.bzl", "qt_bundle", "qt_consumer_archive")
+load("@rules_dx//deploy:defs.bzl", "qt_bundle_runtime", "qt_consumer_archive")
+load("@rules_dx//qt:defs.bzl", "qt_bundle")
 
 qt_bundle(
     name = "runtime",
     binary = ":app",
     plugins = ["imageformats"],
+)
+
+qt_bundle_runtime(
+    name = "runtime_runtime",
+    bundle = ":runtime",
 )
 
 qt_consumer_archive(
@@ -65,7 +72,7 @@ qt_consumer_archive(
 )
 ```
 
-`<name>_runtime` holds the Windows DLLs and a `qt.conf` that points Qt at
+`qt_bundle_runtime` holds the Windows DLLs of a `qt_bundle` and a `qt.conf` that points Qt at
 `resources/`, so `consumer_archive` puts them next to the executable. It ships
 nothing on cells without DLLs.
 

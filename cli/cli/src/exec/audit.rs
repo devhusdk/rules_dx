@@ -456,15 +456,7 @@ fn parse_locked_for_configured(
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
-            dx_adopt::dependency_sets::Ecosystem::Hex => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::mix_lock()? => {
-                    dx_audit::locks::parse_mix_lock(text)
-                }
-                Some(dx_adopt::dependency_sets::REBAR_LOCK) => {
-                    dx_audit::locks::parse_rebar_lock(text)
-                }
-                _ => Ok(Vec::new()),
-            },
+            dx_adopt::dependency_sets::Ecosystem::Hex => dx_audit::locks::parse_hex_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Fpm => dx_audit::locks::parse_fpm_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Zig => Ok(Vec::new()),
             dx_adopt::dependency_sets::Ecosystem::Dub => match rel.rsplit('/').next() {

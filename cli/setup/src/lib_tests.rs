@@ -336,7 +336,7 @@ fn fresh_install_noop_and_replacement() {
         PathBuf::from(setup_hex(&pair('3', '4')))
     );
     assert!(!setups.join("current.next").exists());
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -356,7 +356,7 @@ fn workspace_path_with_spaces_commits() {
         read_current_pair(&workspace).expect("read"),
         Some(pair('a', 'b'))
     );
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -384,7 +384,7 @@ fn prepared_commits_carry_forward_under_one_lock() {
         read_current_pair(&workspace).expect("read"),
         Some(pair('1', '2'))
     );
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -408,7 +408,7 @@ fn prepared_without_capability_fails_before_mutation() {
     .unwrap_err();
     assert_eq!(error, CommitError::NoCapability);
     assert_eq!(read_current_pair(&workspace).expect("read"), None);
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -446,7 +446,7 @@ fn record_mismatch_preserves_current() {
         read_current_pair(&workspace).expect("read"),
         Some(pair('1', '2'))
     );
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -497,7 +497,7 @@ fn unmanaged_current_states_fail_closed() {
         read_current_pair(&workspace).expect("read"),
         Some(pair('1', '2'))
     );
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -535,7 +535,7 @@ fn digest_spoofed_pointer_fails_closed() {
         read_current_pair(&workspace),
         Err(CommitError::CurrentInvalid { .. })
     ));
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -560,7 +560,7 @@ fn stale_staged_pointer_is_reclaimed() {
         CommitOutcome::InstalledFresh
     );
     assert!(!setups.join("current.next").exists());
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -580,7 +580,7 @@ fn workspace_missing_fails() {
         commit_pair(&missing, &pair('1', '2')),
         Err(CommitError::WorkspaceRoot { .. })
     ));
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -610,7 +610,7 @@ fn busy_lock_fails_after_deadline() {
         "{text}"
     );
     drop(_held);
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -630,7 +630,7 @@ fn lock_open_failure_aborts() {
         commit_pair_with_timeout(&workspace, &pair('1', '2'), Duration::from_secs(1)),
         Err(CommitError::LockFailed { .. })
     ));
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -672,7 +672,7 @@ fn concurrent_commits_serialize_with_idempotent_reuse() {
         .expect("selected");
     assert!(wanted.contains(&selected));
     assert!(!setups.join("current.next").exists());
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]
@@ -708,7 +708,7 @@ fn staged_directory_preserves_current() {
         commit_ok(&workspace, &pair('3', '4')),
         CommitOutcome::InstalledReplacement
     );
-    let _ = fs::remove_dir_all(&root);
+    drop(fs::remove_dir_all(&root));
 }
 
 #[test]

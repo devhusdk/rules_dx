@@ -8,14 +8,7 @@ load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 ODOC_CONFIG = "odoc=" + DATA["dx_quality_pins"]["sources"]["odoc"]["version"]
 
 def ocaml_typed_trees(info):
-    """Returns the typed tree odoc reads for each module of an OCamlCmtInfo: the .cmti, else the .cmt, once per module name.
-
-    Args:
-      info: The OCamlCmtInfo of a module or signature target.
-
-    Returns:
-      A list of .cmti and .cmt files.
-    """
+    """Returns the typed tree odoc reads for each module of an OCamlCmtInfo: the .cmti, else the .cmt, once per module name."""
     chosen = {}
     for entry in info.owned:
         for tree in [entry.cmt, entry.cmti]:
@@ -27,31 +20,11 @@ def ocaml_typed_trees(info):
     return [chosen[name] for name in sorted(chosen)]
 
 def ocaml_odoc_available(tool):
-    """Returns whether an odoc tool attribute is the real executable and not the unavailable stub.
-
-    Args:
-      tool: The odoc tool target.
-
-    Returns:
-      True when odoc runs on the execution platform.
-    """
+    """Returns whether an odoc tool attribute is the real executable and not the unavailable stub."""
     return DxUnavailableToolInfo not in tool
 
 def ocaml_shard_action(ctx, trees, package, config, stem, odoc, extract_tool):
-    """Runs odoc compile, link and html-generate and the DocIr extractor for typed trees.
-
-    Args:
-      ctx: The rule or aspect context.
-      trees: The .cmti and .cmt files to document.
-      package: Package segment of the shard's symbol ids and the odoc package.
-      config: Configuration identity recorded on every symbol.
-      stem: Output name prefix, relative to the target's package.
-      odoc: The odoc executable.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard` and the `html` page trees.
-    """
+    """Runs odoc compile, link and html-generate and the DocIr extractor for typed trees."""
     if not trees:
         fail("ocaml_doc_shard " + str(ctx.label) + ": no .cmti or .cmt files")
     compiled = []
@@ -158,15 +131,7 @@ docs_ocaml_shard = rule(
 )
 
 def ocaml_doc_shard(name, lib, package = "", config = ODOC_CONFIG, **kwargs):
-    """Declares the DocIr shard of one OCaml module or signature.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented ocaml_module, ocaml_signature or ocaml_library.
-      package: Package segment of every symbol id; defaults to the name of lib.
-      config: Configuration identity recorded on every symbol.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one OCaml module or signature."""
     docs_ocaml_shard(
         name = name,
         lib = lib,

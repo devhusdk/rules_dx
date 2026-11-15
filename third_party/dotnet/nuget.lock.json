@@ -1,0 +1,4669 @@
+{
+  "ecosystem": "nuget",
+  "groups": {
+    "docs_csharp": [
+      {
+        "archives": [
+          {
+            "sha256": "0842d051df21b4f317f343002cd10c62b13b8b6de16f8b9aaea096d6f4ff7e23",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/docfx.common/2.81.0/docfx.common.2.81.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Docfx.Plugins",
+          "Docfx.YamlSerialization",
+          "Spectre.Console"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-YrzsjUzsrVpzQ6Hvr7B0+uzH0v6FjdOKE8bc2Ie/rd6l9w1DRtPSbOmIDDEUM7o5pCUmjqFWcj0QaAkKXS22kw=="
+        },
+        "name": "Docfx.Common",
+        "provides": [
+          "Docfx.Common"
+        ],
+        "version": "2.81.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "a3289457f6f8ceabc87748fa82720a36493e00d627c01bc496b6c3ce531c1fd2",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/docfx.datacontracts.common/2.81.0/docfx.datacontracts.common.2.81.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Docfx.Common",
+          "Spectre.Console"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-x8z0aE8LS99K9leOR8szymuLQjv2rgkyofwZkeqtEaDAcG+P9/Lyndm8MWHugqVWSNLFaBm0FdFcsK+QC0nuwQ=="
+        },
+        "name": "Docfx.DataContracts.Common",
+        "provides": [
+          "Docfx.DataContracts.Common"
+        ],
+        "version": "2.81.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "7ede0c4f8ed5a9ca288880061ee7c8129f5902e979409bbcfe3e07b9f129a54f",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/docfx.dotnet/2.81.0/docfx.dotnet.2.81.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Docfx.Common",
+          "Docfx.DataContracts.Common",
+          "Docfx.Glob",
+          "Docfx.Plugins",
+          "Docfx.YamlSerialization",
+          "HtmlAgilityPack",
+          "ICSharpCode.Decompiler",
+          "Markdig",
+          "Microsoft.Build",
+          "Microsoft.CodeAnalysis",
+          "Microsoft.CodeAnalysis.CSharp",
+          "Microsoft.CodeAnalysis.CSharp.Workspaces",
+          "Microsoft.CodeAnalysis.Common",
+          "Microsoft.CodeAnalysis.VisualBasic",
+          "Microsoft.CodeAnalysis.VisualBasic.Workspaces",
+          "Microsoft.CodeAnalysis.Workspaces.Common",
+          "Microsoft.CodeAnalysis.Workspaces.MSBuild",
+          "OneOf"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-Nlfn8PJPMYfHdrAi3Dy6AJnuuI+jlXwg5qpi48BOVh56d6XuVYfdQVOyJzFq29uPPPag8WKGUzeLzca+MgCaCg=="
+        },
+        "name": "Docfx.Dotnet",
+        "provides": [
+          "Docfx.Dotnet"
+        ],
+        "version": "2.81.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f21d153b1bddfe3495effd9cdb15325cae30fc6eb0f7b65bc4b484696b98f2ec",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/docfx.glob/2.81.0/docfx.glob.2.81.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Docfx.Common",
+          "Spectre.Console"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-3zKbNcZvtILFAq4345qsgv8P77URmtloDyLZU2OqDNRL4rEmqgUTTYzfx4qWgaDfewZP2UzsgmUACglRORjipA=="
+        },
+        "name": "Docfx.Glob",
+        "provides": [
+          "Docfx.Glob"
+        ],
+        "version": "2.81.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "fdbb9ee34b6051b4c3e0f6da56771aa61577761e484de87a64c3ac7eaa2810a6",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/docfx.plugins/2.81.0/docfx.plugins.2.81.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Newtonsoft.Json"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-9TfSwZvpX1oB4g84mq1+2YRccFUWStU1LOqC85vdYqHHRkDJRC/2utF7fa1HYbonQz9YLWJn5PNn7hwXwt/r8w=="
+        },
+        "name": "Docfx.Plugins",
+        "provides": [
+          "Docfx.Plugins"
+        ],
+        "version": "2.81.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f5a0711c771f81c2da6a2c326c42ba0270b5e0fc3e7f9f7050055cffabb7da40",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/docfx.yamlserialization/2.81.0/docfx.yamlserialization.2.81.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "YamlDotNet"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-rCy88nHceAU9+u7wq1/MAFzijsNHBjWXL7XMX2fV+7B36RFM7MOlQxk35A3jijS1+qTVGyLBIq4rxuov7VFiGA=="
+        },
+        "name": "Docfx.YamlSerialization",
+        "provides": [
+          "Docfx.YamlSerialization"
+        ],
+        "version": "2.81.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "fc3f549e1c86eff1ee6e7ad872a7c0f5ac21cee093d0f606f8270b3e937afcce",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/htmlagilitypack/1.13.1/htmlagilitypack.1.13.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-1HTfFgii/+VNi3YpqwpGOR60ILJ34h387PLiZwMHBP4EkfteQzHN2ku4K1gvQGmzr2I/f1rTKmZoo2MusouECg=="
+        },
+        "name": "HtmlAgilityPack",
+        "provides": [
+          "HtmlAgilityPack"
+        ],
+        "version": "1.13.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "99f95210d8c3a1fd40bfd33d44b18441c97857891e55f1f7a88c72feec49e851",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/humanizer.core/3.0.10/humanizer.core.3.0.10.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-86jRQVvMLU7xxsdHrK87TSqu5kL0lg4EiRjvTBglkrtLw242dMON4vTrFbGKr2CRjqbThBuIpodF2MWbCFKZYA=="
+        },
+        "name": "Humanizer.Core",
+        "provides": [
+          "Humanizer"
+        ],
+        "version": "3.0.10"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "e29000428db534f834bb074b795a178ef21dece652505f1d05d4310ca5f48b3b",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/icsharpcode.decompiler/11.2.0.10050/icsharpcode.decompiler.11.2.0.10050.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "System.Collections.Immutable",
+          "System.Reflection.Metadata"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-mVtVUmZ/m+4f7bF/ip87H+qq51bhoEW7+pzcewtnP3Oabv6YV1L6AV+DgN9/zTeYp0216S66cr9a1EcL6kEWGQ=="
+        },
+        "name": "ICSharpCode.Decompiler",
+        "provides": [
+          "ICSharpCode.Decompiler"
+        ],
+        "version": "11.2.0.10050"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "00d13218676f9508cb75fdfe3a3632deef97aea32fc26310caf508539ac4d9cd",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/markdig/1.5.0/markdig.1.5.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-7JdhA8MrToJLAVQ80gRBZb/POGfAycVY7n+huIZ6Gdx4dxmc+lvR2YX0u/8CryvM9oH8dzSFslSy9VnKX92/zA=="
+        },
+        "name": "Markdig",
+        "provides": [
+          "Markdig"
+        ],
+        "version": "1.5.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "fb9352e6211df8509094861281e627547956e3a81fbba41b6af1d829bae5c80b",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.bcl.asyncinterfaces/10.0.14/microsoft.bcl.asyncinterfaces.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-pqw7v/9Q8d5nH6LbjD4u9yUvSJkFXj26Y9fIJ4GT3NE/yombWuW0YhJHLgSmHtw6/fxSlsIm2+Yo1xMTN6D1TQ=="
+        },
+        "name": "Microsoft.Bcl.AsyncInterfaces",
+        "provides": [
+          "Microsoft.Bcl.AsyncInterfaces"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "8ddf7d69dfd904fbc31d139f1cea53453ead4a4336627facce2deaf3ae9bbc95",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.build/18.9.6/microsoft.build.18.9.6.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Build.Framework",
+          "System.Configuration.ConfigurationManager",
+          "System.Diagnostics.EventLog",
+          "System.Reflection.MetadataLoadContext",
+          "System.Security.Cryptography.ProtectedData"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-RFkvcSYHbgZuHt7fKQiDJIBhrC95Km/dADULJclCtGxPgGz8jRXjrCfuKzLKg3VG4vGUp6Km/UuHZs0UPMu0eg=="
+        },
+        "name": "Microsoft.Build",
+        "provides": [
+          "Microsoft.Build"
+        ],
+        "version": "18.9.6"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "49f23ba1b973485f868136eda394061bb89d427c1af912a0fffa0c96072e609d",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.build.framework/18.9.6/microsoft.build.framework.18.9.6.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.NET.StringTools"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-F+eN+lwW7zTn3iUBe67HuIH4Kt3zESTayBxLZ25FyAB9I2JFooucF9pO+JXovOPy8geJMqJrc8/NeHpZFSxRVQ=="
+        },
+        "name": "Microsoft.Build.Framework",
+        "provides": [
+          "Microsoft.Build.Framework"
+        ],
+        "version": "18.9.6"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "66599a97e71b9263b1a8e2166768b30c61cb9aff8d2c1424df693d5b67a29146",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis/5.9.0/microsoft.codeanalysis.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Humanizer.Core",
+          "Microsoft.Bcl.AsyncInterfaces",
+          "Microsoft.CodeAnalysis.Analyzers",
+          "Microsoft.CodeAnalysis.CSharp.Workspaces",
+          "Microsoft.CodeAnalysis.VisualBasic.Workspaces",
+          "System.Buffers",
+          "System.Collections.Immutable",
+          "System.Composition",
+          "System.IO.Pipelines",
+          "System.Memory",
+          "System.Numerics.Vectors",
+          "System.Reflection.Metadata",
+          "System.Runtime.CompilerServices.Unsafe",
+          "System.Text.Encoding.CodePages",
+          "System.Threading.Channels",
+          "System.Threading.Tasks.Extensions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-Qnbotnv25on8glf7gQqft1/VrLAXM/s7Ac2wndlDKIu6jirIBKuHv7cqelqRVUqxK5V0uHQY+oiGHfDVxe1GfQ=="
+        },
+        "name": "Microsoft.CodeAnalysis",
+        "provides": [],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "3a1ff7ec1de65781d47c9c60742f7163a4e9ce9c09c701cd8202ded9a20d4995",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.analyzers/5.9.0/microsoft.codeanalysis.analyzers.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-ktyaB3RA4bupvge2hEB02C8aezUvLXT/JXC5Mn4O7iFGRsp4d2+em4Vt/l+rl1GGB018oZZ3uv9xJjNXqzRFwQ=="
+        },
+        "name": "Microsoft.CodeAnalysis.Analyzers",
+        "provides": [],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "7602c3dbaa122268f3b26c6cc0dd02eb9224dea9442ed27af5c3fe56d643993f",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.csharp/5.9.0/microsoft.codeanalysis.csharp.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.CodeAnalysis.Analyzers",
+          "Microsoft.CodeAnalysis.Common"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-pjIhVe62OXX1os6tkUW0lJ3eTmveLnq0YojCJoztOjEpE3ho6UFAm8gaHpM/tTLPutoWh6OQyDg52zAUalN2IQ=="
+        },
+        "name": "Microsoft.CodeAnalysis.CSharp",
+        "provides": [
+          "Microsoft.CodeAnalysis.CSharp",
+          "Microsoft.CodeAnalysis.CSharp.resources"
+        ],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f568b37cdd24377194ff20e517968dae87f9adc0308f5924a63bc59a2fc86daf",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.csharp.workspaces/5.9.0/microsoft.codeanalysis.csharp.workspaces.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Humanizer.Core",
+          "Microsoft.CodeAnalysis.Analyzers",
+          "Microsoft.CodeAnalysis.CSharp",
+          "Microsoft.CodeAnalysis.Common",
+          "Microsoft.CodeAnalysis.Workspaces.Common",
+          "System.Composition"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-AuK941gtF5rQIr76H1523fERaxLgHkviF7xOloVAIfiOrOhzS6gigDA47g4aOdC5Z55BqDNWrciEYFScKX2Lzg=="
+        },
+        "name": "Microsoft.CodeAnalysis.CSharp.Workspaces",
+        "provides": [
+          "Microsoft.CodeAnalysis.CSharp.Workspaces",
+          "Microsoft.CodeAnalysis.CSharp.Workspaces.resources"
+        ],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "77efd4715c24c8cd6b36f9b92980a2f5a86e4a7b53648d4f1ca3b79a3933a429",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.common/5.9.0/microsoft.codeanalysis.common.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.CodeAnalysis.Analyzers"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-zJKrcLzk55lrfCwd/VNpMitaxQqPuip674vavVni5EfVnrsiqupS7xBqltKi37VF9zPd4gZ6LcgUuoBwQp6fRw=="
+        },
+        "name": "Microsoft.CodeAnalysis.Common",
+        "provides": [
+          "Microsoft.CodeAnalysis",
+          "Microsoft.CodeAnalysis.resources"
+        ],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "99d250903d2ee9dd27c18ebafc67aabefb3adf875f72ca8327d5ca2f885f27a0",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.visualbasic/5.9.0/microsoft.codeanalysis.visualbasic.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.CodeAnalysis.Analyzers",
+          "Microsoft.CodeAnalysis.Common"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-ecASEtMrKfluChzNbmITBgqmEM6mnJUpFOUr5S/RPpWAvatgu5ffy4FvHWs35B7ehsOmD46WedAuYlHrl3cN+w=="
+        },
+        "name": "Microsoft.CodeAnalysis.VisualBasic",
+        "provides": [
+          "Microsoft.CodeAnalysis.VisualBasic",
+          "Microsoft.CodeAnalysis.VisualBasic.resources"
+        ],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "faf74373a85bd34ccbb55ffef1e04262aee84f247617b503bfb49cb8f8ad6d40",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.visualbasic.workspaces/5.9.0/microsoft.codeanalysis.visualbasic.workspaces.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Humanizer.Core",
+          "Microsoft.CodeAnalysis.Analyzers",
+          "Microsoft.CodeAnalysis.Common",
+          "Microsoft.CodeAnalysis.VisualBasic",
+          "Microsoft.CodeAnalysis.Workspaces.Common",
+          "System.Composition"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-nWtiQrmt7F6dux38+YYZBSUhQDJadfjZ/o3UQbVXUCuD/FPjdNDOpzrQBsLhMO/NVqcGDPE12LXbWmt7US9BuA=="
+        },
+        "name": "Microsoft.CodeAnalysis.VisualBasic.Workspaces",
+        "provides": [
+          "Microsoft.CodeAnalysis.VisualBasic.Workspaces",
+          "Microsoft.CodeAnalysis.VisualBasic.Workspaces.resources"
+        ],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f87f124f57d177b34ca3168e12bf1781050048cfde84ea0e9e3207dfc1d5921e",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.workspaces.common/5.9.0/microsoft.codeanalysis.workspaces.common.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Humanizer.Core",
+          "Microsoft.CodeAnalysis.Analyzers",
+          "Microsoft.CodeAnalysis.Common",
+          "System.Composition"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-J3v7QCm9H6WsJhlZvoIghdEqWfWDkG1rMHU1qGTHVWhNXtfK0L82401asfzN60rFV7rsT4AjQKHE+LJ5XA+qlA=="
+        },
+        "name": "Microsoft.CodeAnalysis.Workspaces.Common",
+        "provides": [
+          "Microsoft.CodeAnalysis.Workspaces",
+          "Microsoft.CodeAnalysis.Workspaces.resources"
+        ],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "2f8cb42826f48e33dc0e18c1aea4ccd7ef0c9a20844bfdda3665a762c449ef11",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.workspaces.msbuild/5.9.0/microsoft.codeanalysis.workspaces.msbuild.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Humanizer.Core",
+          "Microsoft.Build.Framework",
+          "Microsoft.CodeAnalysis.Analyzers",
+          "Microsoft.CodeAnalysis.Workspaces.Common",
+          "Microsoft.Extensions.DependencyInjection",
+          "Microsoft.Extensions.Logging",
+          "Microsoft.Extensions.Logging.Abstractions",
+          "Microsoft.Extensions.Options",
+          "Microsoft.Extensions.Primitives",
+          "Microsoft.VisualStudio.SolutionPersistence",
+          "System.Composition"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-PKdiaZ9K7VzKWUt9IEqI4cXqSHhbdbTQCzGpCOcVjeJ+6BrWj8A0WgUndXbdWroueevR9fPfbjzPfCNU7X+QiQ=="
+        },
+        "name": "Microsoft.CodeAnalysis.Workspaces.MSBuild",
+        "provides": [
+          "Microsoft.CodeAnalysis.ExternalAccess.RazorCompiler",
+          "Microsoft.CodeAnalysis.Workspaces.MSBuild",
+          "Microsoft.CodeAnalysis.Workspaces.MSBuild.Contracts",
+          "Microsoft.CodeAnalysis.Workspaces.MSBuild.resources"
+        ],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "114e01934b637009d55b4d3d68eb06a22eb1b6fffbe70db094427638fe772d49",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.dependencyinjection/10.0.14/microsoft.extensions.dependencyinjection.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.DependencyInjection.Abstractions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-1+/NPfu9dMgYhNlndjKMxmCycnT29xLUwb0LRqauXXStVi4U0FqSBlqqR6vXtjL0alzLDSMSCpvro3aknqv/RA=="
+        },
+        "name": "Microsoft.Extensions.DependencyInjection",
+        "provides": [
+          "Microsoft.Extensions.DependencyInjection"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "79ac1e48098662b052291e5e0829d37f8efa65a7b54427ec10541699595caddf",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.dependencyinjection.abstractions/10.0.14/microsoft.extensions.dependencyinjection.abstractions.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-Di8PFxjp08vKyonp2pbr2F0SvkWJt3B9v7H/5NESNUebvQJrE4usSVdSTM6nVIQr7cF6obpSm5hXDMU3+X50Og=="
+        },
+        "name": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "provides": [
+          "Microsoft.Extensions.DependencyInjection.Abstractions"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "fdc4934f3857482c2a1cffd49c1d0bf402f10b11b00933a6fc622e81b5252474",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.logging/10.0.14/microsoft.extensions.logging.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.DependencyInjection",
+          "Microsoft.Extensions.Logging.Abstractions",
+          "Microsoft.Extensions.Options"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-Su71SotCYl6sHUXga8IrkGkHGr+NekqPnXd3G+bqDOFuaZs31UprqYony4tEr4WcQOqiuMXsV+VLpDawi6bQSQ=="
+        },
+        "name": "Microsoft.Extensions.Logging",
+        "provides": [
+          "Microsoft.Extensions.Logging"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "a4a2c273c7b08411a4ead0b0bcc5e1ac3c0312ca1bb6d2f8d69c5648d00b17e0",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.logging.abstractions/10.0.14/microsoft.extensions.logging.abstractions.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.DependencyInjection.Abstractions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-AxQQ1pBzZur4SkRixQSkXpbM3P/kBH9BS+XvOshgkjw0bha+981X62R9zvs1GD5W3AVCQNEfm5I8/hicDSTouQ=="
+        },
+        "name": "Microsoft.Extensions.Logging.Abstractions",
+        "provides": [
+          "Microsoft.Extensions.Logging.Abstractions"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "2a94af58b7bd28f973da6388e0a4281d68d46efc192f2ee9b66e29576198e82b",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.options/10.0.14/microsoft.extensions.options.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.DependencyInjection.Abstractions",
+          "Microsoft.Extensions.Primitives"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-NQJlE55aoetEJdcYHj0JMzw+P9b6ToDyWd3En1qnTg33cQpmAx0PSqcdo5KopJzfHWnU0sJTRp7RiYXSK7W9KA=="
+        },
+        "name": "Microsoft.Extensions.Options",
+        "provides": [
+          "Microsoft.Extensions.Options"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f2ed5d5c56c6fd4cf0e4237da121e76f3d1492e963f37796d5c5e2dc687eee2c",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.primitives/10.0.14/microsoft.extensions.primitives.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-iTALlkkPsiOteMMvtgCNYX5dLSBhD9I/5oa50ZbKI9V7ndwp9J/kCKGSdD0WEexFdm+vczMUdBdY2WOLrGl8mA=="
+        },
+        "name": "Microsoft.Extensions.Primitives",
+        "provides": [
+          "Microsoft.Extensions.Primitives"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "47f748612d2333230b24336786f6cacf72a798568d9ac0e2130fcc21495379fe",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.net.stringtools/18.9.6/microsoft.net.stringtools.18.9.6.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-FFgZCUYJjhweXyVI+FC65Ql+xdQFLVQwKzpDg1tgkN8gIXMeogVXTmxcAFOg0gNAknn/wjmzCmzoQJpZACwFUQ=="
+        },
+        "name": "Microsoft.NET.StringTools",
+        "provides": [
+          "Microsoft.NET.StringTools"
+        ],
+        "version": "18.9.6"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "29918fb4e5dee87bfc46b91cb20a0b29347268249c2294046b6361341de2397c",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.visualstudio.solutionpersistence/1.0.52/microsoft.visualstudio.solutionpersistence.1.0.52.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-lHyMm5j5wRwVaC3vlCWrFH2FGy2SpFUZqLvYhzwf1cEUIQCUChU960h8kteFSf01ZkLSgJwrznmspwjW8kPtrA=="
+        },
+        "name": "Microsoft.VisualStudio.SolutionPersistence",
+        "provides": [
+          "Microsoft.VisualStudio.SolutionPersistence"
+        ],
+        "version": "1.0.52"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f09081d457405baf35a973fa0c50d6bf272ed683f2568c5a620a49da952f6529",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.4/newtonsoft.json.13.0.4.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-bR+v+E/yJ6g7GV2uXw2OrUSjYYfjLkOLC8JD4kCS23msLapnKtdJPBJA75fwHH++ErIffeIqzYITLxAur4KAXA=="
+        },
+        "name": "Newtonsoft.Json",
+        "provides": [
+          "Newtonsoft.Json"
+        ],
+        "version": "13.0.4"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "b455b2f0983f5d525f54e75d8d7782022ceafc05258c9aeae89f0f17a02b6125",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/oneof/3.0.271/oneof.3.0.271.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-7RDmnFKnYfVkxojbb1UTZhaCcRf7KQYFV6T1Z3t5gNF+vaPr5xcHmnzvzHEao3UOg016G/BEZnHvIK8ag4UlUQ=="
+        },
+        "name": "OneOf",
+        "provides": [
+          "OneOf"
+        ],
+        "version": "3.0.271"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "3912dae8d5646ac922d1760fe0c83e06dc4eee4b8864d38e1851b5b891ebc30c",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/spectre.console/0.57.2/spectre.console.0.57.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Spectre.Console.Ansi"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-kMSmL1BZn5ikX74rSvNDA4zP2YV6GJFAU8dhAzCOTkvl2tosq4D3YX+HygbQGzNR0cG5NW1B+SdqUUAIPvde0g=="
+        },
+        "name": "Spectre.Console",
+        "provides": [
+          "Spectre.Console"
+        ],
+        "version": "0.57.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "a4bf214836d6d02cbd8e9afd1cab1f50fcd8d56bd63fb974567770a711d68c2c",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/spectre.console.ansi/0.57.2/spectre.console.ansi.0.57.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-pnSNAJ/G4M95ktegypSMnjRU7K6M9gJ/hgfY+N9IWgoJ0RrEGR8H6xDJ7QKAcPVToEUxwXnYfb8qaJBsEDBjRg=="
+        },
+        "name": "Spectre.Console.Ansi",
+        "provides": [
+          "Spectre.Console.Ansi"
+        ],
+        "version": "0.57.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "b00451e91d016fbec091ad1e361f3a7015e1d91d4047f7e48a74455b2a673d79",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.buffers/4.6.1/system.buffers.4.6.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-qve/dFwECwehSWlZmpkrrlIeATCvo/Hw2koyMrUVcDBy5gXAQrnwX8pHEoqgj8DgkrWuWW1DrQbFqoMbo+Fvrg=="
+        },
+        "name": "System.Buffers",
+        "provides": [
+          "System.Buffers"
+        ],
+        "version": "4.6.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "ae295dafa95728eca04110ed7d43ed939ae47693bd09aa85a3671b5eab499207",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.collections.immutable/10.0.14/system.collections.immutable.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-DKHARxWl5SpA4fBYs4yjXt8eKBVd+pzmAsp9ThdZCu/x+ppdCDv2NaPT7yapbAOSfDMb+OQteEucnM4+VwyD1g=="
+        },
+        "name": "System.Collections.Immutable",
+        "provides": [
+          "System.Collections.Immutable"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "378259c2fcfb9beba7636a9e99f75d3b9f17a74abd8f41bf9379e5f09362a39e",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.composition/10.0.14/system.composition.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "System.Composition.AttributedModel",
+          "System.Composition.Convention",
+          "System.Composition.Hosting",
+          "System.Composition.Runtime",
+          "System.Composition.TypedParts"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-biq1sQxS+OPDvqhq96Gm/xzxZIWYajUSgsofbI4woXm0bJFysijzmPvNvOLChTl+khdGum6kZExztxKzUOQAkA=="
+        },
+        "name": "System.Composition",
+        "provides": [],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "2c66642b135df03b6eae147d16ad08da133832b916cc66d14357b5204229de50",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.composition.attributedmodel/10.0.14/system.composition.attributedmodel.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-FCmUTZCmDsP4b3c6BgdGYP+NAYGmXKyoyU04jd5/W5D5aDfi+TO33qBeg3J7l7Kf6WAmuXd6jtZVTQ5W24RRdg=="
+        },
+        "name": "System.Composition.AttributedModel",
+        "provides": [
+          "System.Composition.AttributedModel"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "ce7ce342259d78a0605a9600585d633554ca067551003c3a47599bd5c214b120",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.composition.convention/10.0.14/system.composition.convention.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "System.Composition.AttributedModel"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-cDj6A739lawCG9nrgZy1T+JNgsvOIcgY75V/zvb5ukbaDs9e9x7tko5Y+Uj9tAyrDsiKdgHOXevvLDync2SkAg=="
+        },
+        "name": "System.Composition.Convention",
+        "provides": [
+          "System.Composition.Convention"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "e45443594e8a6c8b903e3057ddfab9fe1f4923c6e097d8e87c6a1b8f95597ef2",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.composition.hosting/10.0.14/system.composition.hosting.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "System.Composition.Runtime"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-6zQ/mmjEj6c6iIk7srpMPk512z+jJb2Z2O3BFZsuH87Cx4yZHlh0CHGwBKGTxN26IEil5dpVQsx4VxUPpDluqg=="
+        },
+        "name": "System.Composition.Hosting",
+        "provides": [
+          "System.Composition.Hosting"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "2b21e08a3a3fcce9c8d7c385939009bf7b97314d148fd902a13cd856e65e6ac0",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.composition.runtime/10.0.14/system.composition.runtime.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-jCAowGdUm81WkH9iu8k14CVdbygyyjwNBiiCAIfR/nOW6tAndcQFHwLcBxnM/t5yIVsj48dyEozdus11nSAiTA=="
+        },
+        "name": "System.Composition.Runtime",
+        "provides": [
+          "System.Composition.Runtime"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "ae513be72797ab5fcc7a8ba37c6735bab8b756296b5572b2f6bf5adf3fa5663e",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.composition.typedparts/10.0.14/system.composition.typedparts.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "System.Composition.AttributedModel",
+          "System.Composition.Hosting",
+          "System.Composition.Runtime"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-9lnNOjdo01Emtk65xN9ORB5VbosEe05WmscRDUOf9VEwI9XLgtEOk3ggIJ/j2qDwx9DeuAWEEQQw42vVO5Dpfw=="
+        },
+        "name": "System.Composition.TypedParts",
+        "provides": [
+          "System.Composition.TypedParts"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "fe2538855e750ab15e8c83f81b79e86a555700736041b0d1f51c4090826c239b",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.configuration.configurationmanager/10.0.14/system.configuration.configurationmanager.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "System.Diagnostics.EventLog",
+          "System.Security.Cryptography.ProtectedData"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-tZ5hk8TWAC7K5sCXWCwlKvbsxqGSTj/VhqJZsS23HmJvdNPQAuiEalnMz9v88pE+J4HgurnMCCc4ztVFNH6Z/A=="
+        },
+        "name": "System.Configuration.ConfigurationManager",
+        "provides": [
+          "System.Configuration.ConfigurationManager"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "4cd2dc9d7f59b136c445a99838e218ebd4cafe53a02977e8cb5325971357b37e",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.diagnostics.eventlog/10.0.14/system.diagnostics.eventlog.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-WZsvZuSO/NFiSI1rb5eNgBGhM9Ipnaxr2pVdOSkWhOIJLVIiByYY6xoQcRQ+DhM+H+uu/f13xkkDkoL9On/A3w=="
+        },
+        "name": "System.Diagnostics.EventLog",
+        "provides": [
+          "System.Diagnostics.EventLog"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "cc153aae0db94e775e985f907c2bed88bad3d3e8c1660597412ca37905560037",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.io.pipelines/10.0.14/system.io.pipelines.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-fPZZ4zqCS6QooHASZmX+3OjJuX5yWbympp5s8kxvny+cNFOxtOhGjzndxjYPnAXBSHmcwD1sNPVEOsRkApEqUg=="
+        },
+        "name": "System.IO.Pipelines",
+        "provides": [
+          "System.IO.Pipelines"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "26078aeb758c9ae985e8bf851f973026061da6a5eb4837204d0c2d2204c72955",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.memory/4.6.3/system.memory.4.6.3.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-NXcNYlWoXe5cz9sb8Huo6x2dCZVYkhwKtgE00n/MoI8V4ZI/7/t+EI5bOhQFlZfFjjqM8+U6prjU/aARt7H/tA=="
+        },
+        "name": "System.Memory",
+        "provides": [
+          "System.Memory"
+        ],
+        "version": "4.6.3"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "2bc500a86dcb02f2032d6d877f9e2d6e9e4a79080e57239b4198679d4031f2c7",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.numerics.vectors/4.6.1/system.numerics.vectors.4.6.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-/rkvpUeUPlCY/2qYVQKiUsj5IKaXZcy2+SQAGAfemAdyEF5AgIgYOFNSTMWDXo09JWFX9HB+wV1yCyi2Mwi3TA=="
+        },
+        "name": "System.Numerics.Vectors",
+        "provides": [
+          "System.Numerics.Vectors"
+        ],
+        "version": "4.6.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "56cd31a7687fbfc72666309e876ce2da57a696d02038d54ee34945a2d651ac52",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.reflection.metadata/10.0.14/system.reflection.metadata.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-434B/Nt8cTcu5HBw+Xa2jGkac+fDW/irP3btIIHpvLn0y0Kq1OjOBHtJi7aastPzCbi10+M8ZWMQ0Us8pF7G0w=="
+        },
+        "name": "System.Reflection.Metadata",
+        "provides": [
+          "System.Reflection.Metadata"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "ec922f6845446182345fdc4d2c457762dc8b0042bea13f05a393a8450d5962fa",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.reflection.metadataloadcontext/10.0.14/system.reflection.metadataloadcontext.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-BFejUL7USYKdxTaOZZn4hQYuvItdux+prmUFIwJv3w6XcigYnXMEcWoONfM4s+/ww2MrxY1fRzPxUm/yHVMs1A=="
+        },
+        "name": "System.Reflection.MetadataLoadContext",
+        "provides": [
+          "System.Reflection.MetadataLoadContext"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "5f6a7f53af3465f92beb6da873ebe0e496206c313313b98badee4355a6b25937",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.runtime.compilerservices.unsafe/6.1.2/system.runtime.compilerservices.unsafe.6.1.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-t2aXWJZBkAkRrTOnw31OBELKEVSDD5YvC3O5dXaHFsR66/nRTKm1y3Iq6NwFI5u5IlKrWYfdan66V+GKKkY8hQ=="
+        },
+        "name": "System.Runtime.CompilerServices.Unsafe",
+        "provides": [
+          "System.Runtime.CompilerServices.Unsafe"
+        ],
+        "version": "6.1.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "6ada18646ef345d3e43e25ea52973d5cba98cf9103df14df0a18feb685fa7f35",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.security.cryptography.protecteddata/10.0.14/system.security.cryptography.protecteddata.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-EotZMnndtZUr8irzX5KlhhPIa4kWTeejPTEAr3s77mhkkTIxEZImt9u6AnaA8L/LhXZHi33PxO1UKUO0JRlk5g=="
+        },
+        "name": "System.Security.Cryptography.ProtectedData",
+        "provides": [
+          "System.Security.Cryptography.ProtectedData"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "1a8116490a47195d1575c804887088e252fa93681b966438b08a8828a842548a",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.text.encoding.codepages/10.0.14/system.text.encoding.codepages.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-XjHLD3vpI/OvAmx8+/RJacDPPYEaRewBMFNTx9MAffS5U2TEgIA3BK6a0CRSrKs8ppJVbrWhGYPsBIcktWmlFQ=="
+        },
+        "name": "System.Text.Encoding.CodePages",
+        "provides": [
+          "System.Text.Encoding.CodePages"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "7831451a38fa4e6c2fb05988252c9632fc4baeacaf9e6f88fcdd53cff60bdfa8",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.threading.channels/10.0.14/system.threading.channels.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-Wn06c1tlU4HJS/u37ALu8gbtWd9x7wfY0MGcmzpUeEPuwsBHfaUbN+Vspxf09RKgbqcwKd/UaQ+0sXoDFtndoQ=="
+        },
+        "name": "System.Threading.Channels",
+        "provides": [
+          "System.Threading.Channels"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "1abc92c7517a021ead7e79d0b7f3c70be75bce0fac7cfe3b38e157d32245ff1a",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.threading.tasks.extensions/4.6.3/system.threading.tasks.extensions.4.6.3.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-zWRHXIBnbfzQE1SamNoW9X5NjEcW/JNAtvVxGKd3bcg71wQVmoI3pDq+WUa2A+temXSNCm7707hmAFwwcYlK0A=="
+        },
+        "name": "System.Threading.Tasks.Extensions",
+        "provides": [
+          "System.Threading.Tasks.Extensions"
+        ],
+        "version": "4.6.3"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "59ffe65ade67ad9d886267f877b634a450363cb81b94e19db9ca4c36461416f6",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/yamldotnet/18.1.0/yamldotnet.18.1.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-uexuIxt7kIGaWlp+Kj5VTtEAEiBflxLokLafpX9XDQKb2jaTddiolLlHbFcXZrmFxe6va0dLrpu51HtZQnSrzg=="
+        },
+        "name": "YamlDotNet",
+        "provides": [
+          "YamlDotNet"
+        ],
+        "version": "18.1.0"
+      }
+    ],
+    "docs_fsharp": [
+      {
+        "archives": [
+          {
+            "sha256": "eecc648f57b0d9da5e9bbabefd94866e8e94ca11f47c661b146f583fd7282815",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/fsharp.compiler.service/43.12.204/fsharp.compiler.service.43.12.204.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "FSharp.Core",
+          "System.Buffers",
+          "System.Collections.Immutable",
+          "System.Diagnostics.DiagnosticSource",
+          "System.Memory",
+          "System.Reflection.Emit",
+          "System.Reflection.Metadata",
+          "System.Runtime.CompilerServices.Unsafe"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-xVbzkHsIkvG9017PGgAJCbjnodWQ9yhQqpXcJcl/Fci8tR+2wJHPsZ8OFTSljBiO+JQudaYnM1N7bHeBituiFw=="
+        },
+        "name": "FSharp.Compiler.Service",
+        "provides": [
+          "FSharp.Compiler.Service",
+          "FSharp.Compiler.Service.resources",
+          "FSharp.DependencyManager.Nuget",
+          "FSharp.DependencyManager.Nuget.resources"
+        ],
+        "version": "43.12.204"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "c2bd968bc37ddbffe2aeff1c3f4f3d49fe58d10d81621304fd897aeae435bef4",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/fsharp.core/10.1.204/fsharp.core.10.1.204.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-2pWScTUNae9yIjiLvMLaUSeVpNMrn5/eLEpwd5jahpGxKdmBp7f48odiuNbcsNVUaiWSuKd+xllcqCr2MVKaNg=="
+        },
+        "name": "FSharp.Core",
+        "provides": [
+          "FSharp.Core",
+          "FSharp.Core.resources"
+        ],
+        "version": "10.1.204"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "be1b8d06b7935e4aefd2f6313cd8831843daca25d1d16d245ffd91c5fbf0883f",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/fsharp.formatting/22.2.0/fsharp.formatting.22.2.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "FSharp.Compiler.Service"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-uwYyhznhbk9DN86ypmK+hqkiv0De69mUCl/YI67I0DTPdYfNtrcA08rIEXH+YdTE4/VYE2hKcLIHGmKWHkCWZA=="
+        },
+        "name": "FSharp.Formatting",
+        "provides": [
+          "FSharp.Formatting",
+          "FSharp.Formatting.ApiDocs",
+          "FSharp.Formatting.CSharpFormat",
+          "FSharp.Formatting.CodeFormat",
+          "FSharp.Formatting.Common",
+          "FSharp.Formatting.Literate",
+          "FSharp.Formatting.Markdown"
+        ],
+        "version": "22.2.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "b00451e91d016fbec091ad1e361f3a7015e1d91d4047f7e48a74455b2a673d79",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.buffers/4.6.1/system.buffers.4.6.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-qve/dFwECwehSWlZmpkrrlIeATCvo/Hw2koyMrUVcDBy5gXAQrnwX8pHEoqgj8DgkrWuWW1DrQbFqoMbo+Fvrg=="
+        },
+        "name": "System.Buffers",
+        "provides": [
+          "System.Buffers"
+        ],
+        "version": "4.6.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "ae295dafa95728eca04110ed7d43ed939ae47693bd09aa85a3671b5eab499207",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.collections.immutable/10.0.14/system.collections.immutable.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-DKHARxWl5SpA4fBYs4yjXt8eKBVd+pzmAsp9ThdZCu/x+ppdCDv2NaPT7yapbAOSfDMb+OQteEucnM4+VwyD1g=="
+        },
+        "name": "System.Collections.Immutable",
+        "provides": [
+          "System.Collections.Immutable"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "690fd513399d55bf2c1644ef112b4a24b51a55104e4d40f8934b0d46a24df7c4",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.diagnostics.diagnosticsource/10.0.14/system.diagnostics.diagnosticsource.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-aaw1WMdhVPk/IIG3l8N/RPabEpJJMYFprsrwkqUB8OnpTb1cbD/xO94/BvShGEu5vahnt1JMWKfGzzPMXNQAzg=="
+        },
+        "name": "System.Diagnostics.DiagnosticSource",
+        "provides": [
+          "System.Diagnostics.DiagnosticSource"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "26078aeb758c9ae985e8bf851f973026061da6a5eb4837204d0c2d2204c72955",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.memory/4.6.3/system.memory.4.6.3.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-NXcNYlWoXe5cz9sb8Huo6x2dCZVYkhwKtgE00n/MoI8V4ZI/7/t+EI5bOhQFlZfFjjqM8+U6prjU/aARt7H/tA=="
+        },
+        "name": "System.Memory",
+        "provides": [
+          "System.Memory"
+        ],
+        "version": "4.6.3"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "170fc24910fec1a8c7d4ca9f292dd0fec22b507ec63782be17e0f1ebc50f3488",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.reflection.emit/4.7.0/system.reflection.emit.4.7.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-EMAyW5k6MdmTxYre7l8cb9f/Zhc78ivw0pXSm/sw8OAewwQqzqxeJFu2LY+/7WPOAq33TgTPVYEeDPPVQbiXqQ=="
+        },
+        "name": "System.Reflection.Emit",
+        "provides": [
+          "System.Reflection.Emit"
+        ],
+        "version": "4.7.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "56cd31a7687fbfc72666309e876ce2da57a696d02038d54ee34945a2d651ac52",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.reflection.metadata/10.0.14/system.reflection.metadata.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-434B/Nt8cTcu5HBw+Xa2jGkac+fDW/irP3btIIHpvLn0y0Kq1OjOBHtJi7aastPzCbi10+M8ZWMQ0Us8pF7G0w=="
+        },
+        "name": "System.Reflection.Metadata",
+        "provides": [
+          "System.Reflection.Metadata"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "5f6a7f53af3465f92beb6da873ebe0e496206c313313b98badee4355a6b25937",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.runtime.compilerservices.unsafe/6.1.2/system.runtime.compilerservices.unsafe.6.1.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-t2aXWJZBkAkRrTOnw31OBELKEVSDD5YvC3O5dXaHFsR66/nRTKm1y3Iq6NwFI5u5IlKrWYfdan66V+GKKkY8hQ=="
+        },
+        "name": "System.Runtime.CompilerServices.Unsafe",
+        "provides": [
+          "System.Runtime.CompilerServices.Unsafe"
+        ],
+        "version": "6.1.2"
+      }
+    ],
+    "fsharplint": [
+      {
+        "archives": [
+          {
+            "sha256": "0454d416c7540ed3dfdd8ed862c2071a74774b2915784e8c00ddcd447bfe4307",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/fparsec/1.1.1/fparsec.1.1.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "FSharp.Core"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-soocyKT9LUsACt9osKn/tqpy7CzdUVe+tHY1NGEirGH22sDgsG3oUo7XM24h6YgZGP0Y02WFUH6++zM2xXtsdg=="
+        },
+        "name": "FParsec",
+        "provides": [
+          "FParsec",
+          "FParsecCS"
+        ],
+        "version": "1.1.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "618a363bcef765adee5d775e3850a42004e817c4f169ed56d9de4fb89dddcbf6",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/fsharp.compiler.service/43.9.201/fsharp.compiler.service.43.9.201.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "FSharp.Core",
+          "System.Buffers",
+          "System.Collections.Immutable",
+          "System.Diagnostics.DiagnosticSource",
+          "System.Memory",
+          "System.Reflection.Emit",
+          "System.Reflection.Metadata",
+          "System.Runtime.CompilerServices.Unsafe"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-BFRnThYrK2FLzv91mGgYOtQa40HjWtLu+8ILcmd8ZxRHLVyO0rgDeWwktFkSKYmL2Rdgd3Emce1eZeTEZUELdg=="
+        },
+        "name": "FSharp.Compiler.Service",
+        "provides": [
+          "FSharp.Compiler.Service",
+          "FSharp.Compiler.Service.resources",
+          "FSharp.DependencyManager.Nuget",
+          "FSharp.DependencyManager.Nuget.resources"
+        ],
+        "version": "43.9.201"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "e0541c9590a3cea451cb7a3e29d8e0cab9195e7b226c3c5ac6229d86e080aa1d",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/fsharp.control.reactive/6.1.2/fsharp.control.reactive.6.1.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "FSharp.Core",
+          "System.Reactive"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-aJ0dAMi3428eoyvb5WfjwOPGmVDuI4ZkLEvaPdLrd+h4va+lMv/GyveHXrDi/syVQ2M03Oq8VxDgIHYmWVjcnA=="
+        },
+        "name": "FSharp.Control.Reactive",
+        "provides": [
+          "FSharp.Control.Reactive"
+        ],
+        "version": "6.1.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "dfc63440583f927a20489b710d5a555caa399f8cc0a3ccda7df793ead6e16a19",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/fsharp.core/9.0.201/fsharp.core.9.0.201.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-+gl/uaw30UFzcQ0eQFpWT6LgLCQa7zp1IiL+uqLiAZQjqyMWsX7oPRQkfBUNOCRWXore6BR5WRpQypKcYIAuBQ=="
+        },
+        "name": "FSharp.Core",
+        "provides": [
+          "FSharp.Core",
+          "FSharp.Core.resources"
+        ],
+        "version": "9.0.201"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "7e97ecbf210a6b14c5d77bccf43c6d2daeb55d7b06cefbc1f11023849005eee0",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/fsharplint.core/0.27.0/fsharplint.core.0.27.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "FParsec",
+          "FSharp.Compiler.Service",
+          "FSharpx.Collections",
+          "Ionide.ProjInfo",
+          "Ionide.ProjInfo.FCS",
+          "Ionide.ProjInfo.ProjectSystem",
+          "Microsoft.Build",
+          "Microsoft.Build.Framework",
+          "Microsoft.Build.Locator",
+          "Microsoft.Build.Tasks.Core",
+          "Microsoft.Build.Utilities.Core"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-wV08mJphDbdzBS8IhzgLgnkaLelC5aIsLQMeV5MrEUjMwMUt5MZ5azDAfRfIhSQJ7h5UVTqIrzbEXUlZWH/s/g=="
+        },
+        "name": "FSharpLint.Core",
+        "provides": [
+          "FSharpLint.Core"
+        ],
+        "version": "0.27.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "0a60c27f1d7d54db61a991e9858cb038ad1ab6dc722633a1bb6b2b34a4a4cb5d",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/fsharpx.collections/3.1.0/fsharpx.collections.3.1.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "FSharp.Core"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-tWdzAv+7BnWfyNkQe14G8SHBMhBrNAfAgbyWWffRilH28153+n+I8RzbWwIoPJC3O5q217SxIN9rbPg4dI45qA=="
+        },
+        "name": "FSharpx.Collections",
+        "provides": [
+          "FSharpx.Collections"
+        ],
+        "version": "3.1.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "63ad3a7a6ca227e6604b9347e7bf16511c9269573fca8d8e03bad66ce1f9ee30",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/ionide.projinfo/0.70.2/ionide.projinfo.0.70.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "FSharp.Core",
+          "Microsoft.VisualStudio.SolutionPersistence",
+          "SemanticVersioning"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-cY6WybDVY9YyT7i6fMtbVfAhVRuG9L4CdnA0vaxP34y9cgDMRHTR6NU1vkAeNNQZWsY7kBXoyTP3Xlsk7oFb9g=="
+        },
+        "name": "Ionide.ProjInfo",
+        "provides": [
+          "Ionide.ProjInfo"
+        ],
+        "version": "0.70.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "b9f0e4bf3b50642b464dd7a0b081486e2c564ef209c26370862b3691bd8e154f",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/ionide.projinfo.fcs/0.70.2/ionide.projinfo.fcs.0.70.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "FSharp.Compiler.Service",
+          "FSharp.Core",
+          "Ionide.ProjInfo"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-FdZ/xi/WkweWPO7VYBQopRIMvp+YoXthd4x5wGiyQSIcMcF/8+KcDQl91YOMCGcfwzWdaeEHe2xwi5VsPHFQSA=="
+        },
+        "name": "Ionide.ProjInfo.FCS",
+        "provides": [
+          "Ionide.ProjInfo.FCS"
+        ],
+        "version": "0.70.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "dc2faf9fb44e8065b18da1da00269410d61c02df6362b9eab8179b4367a8d72d",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/ionide.projinfo.projectsystem/0.70.2/ionide.projinfo.projectsystem.0.70.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "FSharp.Control.Reactive",
+          "Ionide.ProjInfo.FCS",
+          "Newtonsoft.Json"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-dkP8L6yAN7xC5fpILbGOhT2NAVBRkvw6dSDVBShp7UTPMGU9H0UrgbmT1hUQjsDM6/wHFrB2Rmr3IJOQh+ctlw=="
+        },
+        "name": "Ionide.ProjInfo.ProjectSystem",
+        "provides": [
+          "Ionide.ProjInfo.ProjectSystem"
+        ],
+        "version": "0.70.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "59d4d03beae8b990abc5aea33b3aa64d5fd4b8536627c13c49f4585f67b74b5e",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.build/17.14.28/microsoft.build.17.14.28.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Build.Framework",
+          "Microsoft.NET.StringTools",
+          "System.Configuration.ConfigurationManager",
+          "System.Diagnostics.EventLog",
+          "System.Reflection.MetadataLoadContext",
+          "System.Security.Cryptography.ProtectedData"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-/J3DY36eYjSi/NYf/m4fS4HlxN8Zy+bCsopJUN0j4NNnrws4NR9ueWd0HKyhWEYYUa29Q1kjG1uKSGN1jBWg4g=="
+        },
+        "name": "Microsoft.Build",
+        "provides": [
+          "Microsoft.Build"
+        ],
+        "version": "17.14.28"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "ed1cc4c888a9ba669fc0b5b5c4dd6adb7d75e0d69f1ba3d3d3e4400c494db223",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.build.framework/17.14.28/microsoft.build.framework.17.14.28.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-Gj4C8LNilfH6u6xu7QI/y0tkJCp3yQQpde/3qeK8E2FOfrZ4ENOoG/r2eKZws15bN6HPj09PhaJoqBhdbJdLpA=="
+        },
+        "name": "Microsoft.Build.Framework",
+        "provides": [
+          "Microsoft.Build.Framework"
+        ],
+        "version": "17.14.28"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "d5e635849f6db518e3e67a7d0c8b771939deac3234c13a03fc2352dc0ec10502",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.build.locator/1.11.2/microsoft.build.locator.1.11.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-V9NBM0pTNNciX7gYCK9P8l2nppJ7YlnsMv4WbvjNO3sWnz2BErDUuil6PsAOLM5GmDzdbVrmhBdu43pSGIU/WA=="
+        },
+        "name": "Microsoft.Build.Locator",
+        "provides": [
+          "Microsoft.Build.Locator"
+        ],
+        "version": "1.11.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "33dcd15d88a31f61ed2e54576eb50ad5ad4b43dce44fe0c2f5998c8a2559c2fd",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.build.tasks.core/17.14.28/microsoft.build.tasks.core.17.14.28.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Build.Framework",
+          "Microsoft.Build.Utilities.Core",
+          "Microsoft.NET.StringTools",
+          "System.CodeDom",
+          "System.Collections.Immutable",
+          "System.Configuration.ConfigurationManager",
+          "System.Diagnostics.EventLog",
+          "System.Formats.Nrbf",
+          "System.Resources.Extensions",
+          "System.Security.Cryptography.Pkcs",
+          "System.Security.Cryptography.ProtectedData",
+          "System.Security.Cryptography.Xml"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-IbiAS8CdBA89mvqSm1P1RqL5PrRxs85c1WyJD1YOmpbKbSZkTzEp4FAXhBYi2zOkrOSCpX5pD5IjKtLWSHWa/w=="
+        },
+        "name": "Microsoft.Build.Tasks.Core",
+        "provides": [
+          "Microsoft.Build.Tasks.Core"
+        ],
+        "version": "17.14.28"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "5457cef94a724e9c365ffaa2082382633bcc2eebbb07e5d5492a496502e43f35",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.build.utilities.core/17.14.28/microsoft.build.utilities.core.17.14.28.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Build.Framework",
+          "Microsoft.NET.StringTools",
+          "System.Collections.Immutable",
+          "System.Configuration.ConfigurationManager",
+          "System.Diagnostics.EventLog",
+          "System.Security.Cryptography.ProtectedData"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-A5uyO5HysGJRFR3IjjVKJ0Y69USn3E5Vlt/h51yID5Ynts4zHdh5ZELeU1gCoeF8i3tE21gO2u+QQLqQlb/iUg=="
+        },
+        "name": "Microsoft.Build.Utilities.Core",
+        "provides": [
+          "Microsoft.Build.Utilities.Core"
+        ],
+        "version": "17.14.28"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "533444caf0f1922390e1c10e4395028e4c171ab95d20309c6de7c40933c68d72",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.net.stringtools/17.14.28/microsoft.net.stringtools.17.14.28.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-oJDGPNoVuWOmKTPpFK0lJnVwbLMRsm2oxgxBFOMKBYzSZtmiS0kcoednhArAeAicV2aSUFiuor1pw7JK/p2LwQ=="
+        },
+        "name": "Microsoft.NET.StringTools",
+        "provides": [
+          "Microsoft.NET.StringTools"
+        ],
+        "version": "17.14.28"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "29918fb4e5dee87bfc46b91cb20a0b29347268249c2294046b6361341de2397c",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.visualstudio.solutionpersistence/1.0.52/microsoft.visualstudio.solutionpersistence.1.0.52.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-lHyMm5j5wRwVaC3vlCWrFH2FGy2SpFUZqLvYhzwf1cEUIQCUChU960h8kteFSf01ZkLSgJwrznmspwjW8kPtrA=="
+        },
+        "name": "Microsoft.VisualStudio.SolutionPersistence",
+        "provides": [
+          "Microsoft.VisualStudio.SolutionPersistence"
+        ],
+        "version": "1.0.52"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f09081d457405baf35a973fa0c50d6bf272ed683f2568c5a620a49da952f6529",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.4/newtonsoft.json.13.0.4.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-bR+v+E/yJ6g7GV2uXw2OrUSjYYfjLkOLC8JD4kCS23msLapnKtdJPBJA75fwHH++ErIffeIqzYITLxAur4KAXA=="
+        },
+        "name": "Newtonsoft.Json",
+        "provides": [
+          "Newtonsoft.Json"
+        ],
+        "version": "13.0.4"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "40152a64c5cd8adb21741a154286b7691b4cb18bcf08bea718b2b47d2889e5b6",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/semanticversioning/3.0.0/semanticversioning.3.0.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-8gB/4dhNkyexVTefHoSW4qgP74U6iTd/uANtSf5cZEYlN8gFCzNxsWLv3I210iOOKKTaETJZ//X/NqLYWCgRKA=="
+        },
+        "name": "SemanticVersioning",
+        "provides": [
+          "SemanticVersioning"
+        ],
+        "version": "3.0.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "b00451e91d016fbec091ad1e361f3a7015e1d91d4047f7e48a74455b2a673d79",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.buffers/4.6.1/system.buffers.4.6.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-qve/dFwECwehSWlZmpkrrlIeATCvo/Hw2koyMrUVcDBy5gXAQrnwX8pHEoqgj8DgkrWuWW1DrQbFqoMbo+Fvrg=="
+        },
+        "name": "System.Buffers",
+        "provides": [
+          "System.Buffers"
+        ],
+        "version": "4.6.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "1c213ada91bb426ed51d8b6381f6f82785de96f3f2ca3d59c6c37fa8b3c11249",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.codedom/10.0.13/system.codedom.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-trBk7teI6456R9Bx165/Ekiz9QvV3OPfeXaEHvgInWseuH92RCGFDQEXHJZjsc7gQGh9G/rsPWrx7nop1rWURA=="
+        },
+        "name": "System.CodeDom",
+        "provides": [
+          "System.CodeDom"
+        ],
+        "version": "10.0.13"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "74c7c3ab2dcce3385482c7504bacfb0ba051aefaae0be7e09c1297b894f80616",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.collections.immutable/10.0.13/system.collections.immutable.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-BDjn4cl3QEWm5drGNNob3x8aXHjv960OscQRMzqwKwihZvudgPfJKfkqYJj4/O/Nr7ll02zl8iwBwswyiX5AHg=="
+        },
+        "name": "System.Collections.Immutable",
+        "provides": [
+          "System.Collections.Immutable"
+        ],
+        "version": "10.0.13"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "db736c19b833841cbcb46597310b023b5f627c9b3e1ee82ceaaa5c323d64718d",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.configuration.configurationmanager/10.0.13/system.configuration.configurationmanager.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "System.Diagnostics.EventLog",
+          "System.Security.Cryptography.ProtectedData"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-gqNalhV+r6PqmAhYK1U2wzgvVzriP1XM3ib4Tx8wc73TQNA2yrKIbh5rm7r9UeXKgNpo45+pBz3Ay4FQF0MLfQ=="
+        },
+        "name": "System.Configuration.ConfigurationManager",
+        "provides": [
+          "System.Configuration.ConfigurationManager"
+        ],
+        "version": "10.0.13"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "ac122d8764d5e807750f699020c8c89395b8275577b9453eeece8616bbd33952",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.diagnostics.diagnosticsource/10.0.13/system.diagnostics.diagnosticsource.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-F+hq74FfrkIxNsGbb2ImUbKWg4lwNA5HINrpk/1xdHMRMToHXxmWpx3+RG8KMaeJs0HmOYdlclTPG0nxKjst6g=="
+        },
+        "name": "System.Diagnostics.DiagnosticSource",
+        "provides": [
+          "System.Diagnostics.DiagnosticSource"
+        ],
+        "version": "10.0.13"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "0f9acf5968cd1cdac7c8e82a5d4f2aa254d8cce29ccd912bf8129850ee444fc9",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.diagnostics.eventlog/10.0.13/system.diagnostics.eventlog.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-DwAONGl3vt0DZ4Wu9lfveTpQAaZ9op44sgzO4SbgJmEr5Qe+Ml7FcCZuoywrO/BOA2Obce7F6DEHaOhdbIR/9A=="
+        },
+        "name": "System.Diagnostics.EventLog",
+        "provides": [
+          "System.Diagnostics.EventLog"
+        ],
+        "version": "10.0.13"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "e552c3869ea2bed3780626b7b179137a7443d06357ecc898c74a9ec12ac25be6",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.formats.nrbf/10.0.13/system.formats.nrbf.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-tNCbw4VLVfspbYtRaD6kKwXfD7FzkGbDZ42eVklOOWk7W8i9ZAJDtDIyJeyFJ6m+2fmES3MUmz/+TUyHY2yQow=="
+        },
+        "name": "System.Formats.Nrbf",
+        "provides": [
+          "System.Formats.Nrbf"
+        ],
+        "version": "10.0.13"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "26078aeb758c9ae985e8bf851f973026061da6a5eb4837204d0c2d2204c72955",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.memory/4.6.3/system.memory.4.6.3.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-NXcNYlWoXe5cz9sb8Huo6x2dCZVYkhwKtgE00n/MoI8V4ZI/7/t+EI5bOhQFlZfFjjqM8+U6prjU/aARt7H/tA=="
+        },
+        "name": "System.Memory",
+        "provides": [
+          "System.Memory"
+        ],
+        "version": "4.6.3"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "181dd260ccf04334781a14b896ae295f591a0ea8567d112f68076af10fa7cf93",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.reactive/7.0.0/system.reactive.7.0.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-TjocOw5Z4ujD2GvNADQUtiD54HnAFN7btuKYjWE9+2G3+EbyOvrK725KK/3Sm+Bvi79JidXzaIPL7v2bT9PnDw=="
+        },
+        "name": "System.Reactive",
+        "provides": [
+          "System.Reactive"
+        ],
+        "version": "7.0.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "170fc24910fec1a8c7d4ca9f292dd0fec22b507ec63782be17e0f1ebc50f3488",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.reflection.emit/4.7.0/system.reflection.emit.4.7.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-EMAyW5k6MdmTxYre7l8cb9f/Zhc78ivw0pXSm/sw8OAewwQqzqxeJFu2LY+/7WPOAq33TgTPVYEeDPPVQbiXqQ=="
+        },
+        "name": "System.Reflection.Emit",
+        "provides": [
+          "System.Reflection.Emit"
+        ],
+        "version": "4.7.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "52fd0102ab85e3fa81a3be77cc20773199834c6c2386a60bc5b4cc685f91f6f4",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.reflection.metadata/10.0.13/system.reflection.metadata.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-LuP6e9lb8l1ExlpxQxllDjFR6eyKvrkipghokbS2jYRoFrxTyUbfQs7md0iI7a3EJBH5XhhsP8vTxJFJK8BIvg=="
+        },
+        "name": "System.Reflection.Metadata",
+        "provides": [
+          "System.Reflection.Metadata"
+        ],
+        "version": "10.0.13"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "003076a358bae43093ada1843f4edb8380609a375edce05607513e593f1ca2f2",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.reflection.metadataloadcontext/10.0.13/system.reflection.metadataloadcontext.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-ExhpMln4qyr8RD5X5fH4XGmuWP9O1Ji4oI10nQI8kuxRrG4LFL+tYoBamB4bWc0oszpZgYezxNz7ebA+0ZWNzw=="
+        },
+        "name": "System.Reflection.MetadataLoadContext",
+        "provides": [
+          "System.Reflection.MetadataLoadContext"
+        ],
+        "version": "10.0.13"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "fb2e66362fce72a00fdee9ebe4fe2c08f95e013a991a9c2dc68dca4c2fdb2909",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.resources.extensions/10.0.13/system.resources.extensions.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "System.Formats.Nrbf"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-34X1ShztSsBR3VAjylWA28KsNlWiCy5X2FkFBXzzis/zfW6IZoxxIzO8VLp5IjLFiaF3NbPHVymIHSf18ZY+yQ=="
+        },
+        "name": "System.Resources.Extensions",
+        "provides": [
+          "System.Resources.Extensions"
+        ],
+        "version": "10.0.13"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "5f6a7f53af3465f92beb6da873ebe0e496206c313313b98badee4355a6b25937",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.runtime.compilerservices.unsafe/6.1.2/system.runtime.compilerservices.unsafe.6.1.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-t2aXWJZBkAkRrTOnw31OBELKEVSDD5YvC3O5dXaHFsR66/nRTKm1y3Iq6NwFI5u5IlKrWYfdan66V+GKKkY8hQ=="
+        },
+        "name": "System.Runtime.CompilerServices.Unsafe",
+        "provides": [
+          "System.Runtime.CompilerServices.Unsafe"
+        ],
+        "version": "6.1.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "54ed24578ead34b5b50d259084243432f11733e2754b8b196e799d3418d304a7",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.security.cryptography.pkcs/10.0.13/system.security.cryptography.pkcs.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-KH692n1QlH41LGLCit1xASxg9QEky9VY8NODv6gzV/eUHFXVTvRDLJyssMGaMxS9WfIXyJnSLgxeI8P8+ddLig=="
+        },
+        "name": "System.Security.Cryptography.Pkcs",
+        "provides": [
+          "System.Security.Cryptography.Pkcs"
+        ],
+        "version": "10.0.13"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "b0b44ace8b5decc129b96dcc6281c7ea238975dd18493f525f0dd2a04da98d6d",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.security.cryptography.protecteddata/10.0.13/system.security.cryptography.protecteddata.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-FvE5JY5jBIf8v/4kwCp3wJY0bOoe/mZ8nH0Gj1I0uT7uK+WTtMSOsoJR8TM2NyJ27uTN9o0npdb5SE3TbvZ2hg=="
+        },
+        "name": "System.Security.Cryptography.ProtectedData",
+        "provides": [
+          "System.Security.Cryptography.ProtectedData"
+        ],
+        "version": "10.0.13"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "6ec31ecbc9f51102d9fb7ff0e9607ae7699bf203299a4702a31d5273322a4e89",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.security.cryptography.xml/10.0.13/system.security.cryptography.xml.10.0.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "System.Security.Cryptography.Pkcs"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-EbyfQrOFyfNTZkEtkSKD++bF6wLwoKT4kGrrXV8lCHaqLQrwPuxm9cGOnXzXxCA5z7mZD6C5wmYSJP/WdzXh5Q=="
+        },
+        "name": "System.Security.Cryptography.Xml",
+        "provides": [
+          "System.Security.Cryptography.Xml"
+        ],
+        "version": "10.0.13"
+      }
+    ],
+    "main": [
+      {
+        "archives": [
+          {
+            "sha256": "f227e1b14d58dbb9775bfc57e1d6f74b6de0bdf62a4773ee57e550b2779b1d46",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/azure.core/1.62.0/azure.core.1.62.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Bcl.AsyncInterfaces",
+          "Microsoft.Extensions.Configuration.Abstractions",
+          "Microsoft.Extensions.Hosting.Abstractions",
+          "Microsoft.Identity.Client",
+          "Microsoft.Identity.Client.Extensions.Msal",
+          "System.ClientModel",
+          "System.Memory.Data"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-79NnBrMPsmETTTy33de5iaKEcO2V8lHzt8JJWMd72XgG6Ea0FP3yA3Kc8ygBcxZI1p17uZ3/WWIT6uQc5jW3Xw=="
+        },
+        "name": "Azure.Core",
+        "provides": [
+          "Azure.Core"
+        ],
+        "version": "1.62.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "47712e11f5016aa55617b4330b8943e4ef1fb1f9875bbb5857ae9fcaeee57a0d",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/azure.identity/1.21.0/azure.identity.1.21.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Azure.Core"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-iDKQt23oDf1LGPA6AJC/0kKDm30cKFNXa6GfkIwWHfg8M+U/Vvt+7jE/RbFcC/6g7YTLzWhm4nxEXBWNWV56oA=="
+        },
+        "name": "Azure.Identity",
+        "provides": [
+          "Azure.Identity"
+        ],
+        "version": "1.21.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "d07bde931d2ff8eeeead76a40e5ee7ebd8d8e58b3ddfd3a8f09a4295860e2c4b",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/azure.monitor.opentelemetry.exporter/1.9.0/azure.monitor.opentelemetry.exporter.1.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Azure.Core",
+          "OpenTelemetry.Extensions.Hosting",
+          "OpenTelemetry.PersistentStorage.FileSystem"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-YjQ4ISedMwr5VZjbNhgV8RX4HpileDKQclkgjFCVUN/1MSDZnGEn/ktR8Y/qy8exUoeaBA8ba1qHxH2foVBtMw=="
+        },
+        "name": "Azure.Monitor.OpenTelemetry.Exporter",
+        "provides": [
+          "Azure.Monitor.OpenTelemetry.Exporter"
+        ],
+        "version": "1.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "a7c3800476e3ab709b791e50686f1d98d80305282efa305179753ed2ad76bb58",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/benchmarkdotnet/0.15.8/benchmarkdotnet.0.15.8.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "BenchmarkDotNet.Annotations",
+          "CommandLineParser",
+          "Gee.External.Capstone",
+          "Iced",
+          "Microsoft.CodeAnalysis.CSharp",
+          "Microsoft.Diagnostics.Runtime",
+          "Microsoft.Diagnostics.Tracing.TraceEvent",
+          "Microsoft.DotNet.PlatformAbstractions",
+          "Perfolizer",
+          "System.Management"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-QUZ5ClSA06aLdm+kC7nbpOE2Jlhu7loBg8q8gLDV5wBuQ1aPN7Ns+eHxei1mvgsklDT663a/sJlSxMKAfdFcJw=="
+        },
+        "name": "BenchmarkDotNet",
+        "provides": [
+          "BenchmarkDotNet"
+        ],
+        "version": "0.15.8"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f667dc3ee1e4eae8b62f945923b5340fc0cbbcbafb2460248b037badb76d4f76",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/benchmarkdotnet.annotations/0.15.8/benchmarkdotnet.annotations.0.15.8.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-DFLX2cXJSDNQMO3yJzaKjGZNNxSf5tlLTyIKvzIW8NbGNG4LtM/LbQLvZ/9UEINZ4wArXNq1DPEw29E4vISs7w=="
+        },
+        "name": "BenchmarkDotNet.Annotations",
+        "provides": [
+          "BenchmarkDotNet.Annotations"
+        ],
+        "version": "0.15.8"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "02953dcb5c97eb475a4a33e4dca60305e27b5d9072296f21b1ef4d45919c8dea",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/commandlineparser/2.9.1/commandlineparser.2.9.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-TzZORclmjH58xqkitIjz+lIwM8INekMmlPCmrwXOUo6gSB2DdeL08QMsaZA0e0gDzpoOSAaMb+FexG+xJU8IXQ=="
+        },
+        "name": "CommandLineParser",
+        "provides": [
+          "CommandLine"
+        ],
+        "version": "2.9.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "373c5d44980bfb9450a549bc63a31cd30eec6a4c6a4e1bfaa87a4ffaed31e71d",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/fsharp.core/10.1.201/fsharp.core.10.1.201.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-p0vqeLdOwZfjz4hvh8GWjI7jJSX2UPqXIlW0Odn2+oJZx14jY2lBhwppbrtujcfSt6nNJRBVU4n068AUezaHdw=="
+        },
+        "name": "FSharp.Core",
+        "provides": [
+          "FSharp.Core",
+          "FSharp.Core.resources"
+        ],
+        "version": "10.1.201"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "c1d613fc5f122cbef638856ffd0fe17cb31f86558c9e10cd0935b1fb05a53e85",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/gee.external.capstone/2.3.0/gee.external.capstone.2.3.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-kHnVcF1ZHDuBkSey4Ldj2sq7ISMU6flrL2MvYrRanz4cII8TbfkaSDTdGDijisL9IWHOi1Rf5w+AeLZvxmxKqA=="
+        },
+        "name": "Gee.External.Capstone",
+        "provides": [
+          "Gee.External.Capstone"
+        ],
+        "version": "2.3.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "1182590db175f9057707857a1df48b217226d0732716cd353fa4aa4683d38dcb",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/google.protobuf/3.36.2/google.protobuf.3.36.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-EmqX4khA/D63NGBn4GYxc6wJjrCeJqx6dbk6rFBudIR987jsq5r1YGRWRrLwyy7qDu4y1/5To/pdDbWwEgekpA=="
+        },
+        "name": "Google.Protobuf",
+        "provides": [
+          "Google.Protobuf"
+        ],
+        "version": "3.36.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "c65e44c7303749f6fb30531e42a8a7e9bfb401c1c12e66ac0d337c45bc736fe5",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/iced/1.22.0/iced.1.22.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-3CwASgoW5jyy/ewYab4XNn2youPgM7kecBWTWEGy9CTVU9pQISmHia5MhPR1nbZuj3/RsQZQtpQmQETUi9oKug=="
+        },
+        "name": "Iced",
+        "provides": [
+          "Iced"
+        ],
+        "version": "1.22.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "2b6089992ccb3e7c577c53dc2124c1655669a9e5e8bb2580eebd132917ad422b",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.applicationinsights/3.1.2/microsoft.applicationinsights.3.1.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Azure.Monitor.OpenTelemetry.Exporter"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-eL1lr6Q5DZ7+q7kZ9X4/kXDZk7okLQyCVoG6U4nEDUVi/X8IcpRrOiCdmC89IoekpEzMYug/Ulvptoguh5ye1g=="
+        },
+        "name": "Microsoft.ApplicationInsights",
+        "provides": [
+          "Microsoft.ApplicationInsights"
+        ],
+        "version": "3.1.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "60c3bb90cf31fdea8845de44c6f81564677da4f4d4e304398f83cd2a1b243fae",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.bcl.asyncinterfaces/10.0.12/microsoft.bcl.asyncinterfaces.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-m2tUG+p7LlbW+o4iU7GchyFTqDBF+b4v0ByvD6+h1RtfXf6huewd+/au73Gjy0u4DENikSBd9EQ90YQkEI2biA=="
+        },
+        "name": "Microsoft.Bcl.AsyncInterfaces",
+        "provides": [
+          "Microsoft.Bcl.AsyncInterfaces"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "3a1ff7ec1de65781d47c9c60742f7163a4e9ce9c09c701cd8202ded9a20d4995",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.analyzers/5.9.0/microsoft.codeanalysis.analyzers.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-ktyaB3RA4bupvge2hEB02C8aezUvLXT/JXC5Mn4O7iFGRsp4d2+em4Vt/l+rl1GGB018oZZ3uv9xJjNXqzRFwQ=="
+        },
+        "name": "Microsoft.CodeAnalysis.Analyzers",
+        "provides": [],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "7602c3dbaa122268f3b26c6cc0dd02eb9224dea9442ed27af5c3fe56d643993f",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.csharp/5.9.0/microsoft.codeanalysis.csharp.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.CodeAnalysis.Analyzers",
+          "Microsoft.CodeAnalysis.Common"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-pjIhVe62OXX1os6tkUW0lJ3eTmveLnq0YojCJoztOjEpE3ho6UFAm8gaHpM/tTLPutoWh6OQyDg52zAUalN2IQ=="
+        },
+        "name": "Microsoft.CodeAnalysis.CSharp",
+        "provides": [
+          "Microsoft.CodeAnalysis.CSharp",
+          "Microsoft.CodeAnalysis.CSharp.resources"
+        ],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "77efd4715c24c8cd6b36f9b92980a2f5a86e4a7b53648d4f1ca3b79a3933a429",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.common/5.9.0/microsoft.codeanalysis.common.5.9.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.CodeAnalysis.Analyzers"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-zJKrcLzk55lrfCwd/VNpMitaxQqPuip674vavVni5EfVnrsiqupS7xBqltKi37VF9zPd4gZ6LcgUuoBwQp6fRw=="
+        },
+        "name": "Microsoft.CodeAnalysis.Common",
+        "provides": [
+          "Microsoft.CodeAnalysis",
+          "Microsoft.CodeAnalysis.resources"
+        ],
+        "version": "5.9.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "2d7a5660c581ac7cf23adc7f65e8f79af0b7442c4b53be04d6ee200cc152eabb",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.diagnostics.netcore.client/0.2.750501/microsoft.diagnostics.netcore.client.0.2.750501.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Logging.Abstractions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-sfvm/iIkUeduVjCLgBMkntWG0vhJoUUpq6Fquh/fkBLzZQ6wBXIYmezDy5c2w28Frt7kG/o7Yu7uSD8hvHGx9g=="
+        },
+        "name": "Microsoft.Diagnostics.NETCore.Client",
+        "provides": [
+          "Microsoft.Diagnostics.NETCore.Client"
+        ],
+        "version": "0.2.750501"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "17c84b6aa5eacda66775f3550aebd99686c27099ebfe7ae78b37efa2ed6c8aea",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.diagnostics.runtime/4.2.751201/microsoft.diagnostics.runtime.4.2.751201.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Azure.Identity",
+          "Microsoft.Diagnostics.NETCore.Client",
+          "Microsoft.Security.AntiSSRF"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-2VVNxVfcpHN9sv/SrKJdEnLR0BZyLycwfvMGlLVOicTQkhfT6xN76ikQ9AiE4h+8ZqHkCnXlCYtdGwaGPhN+Dw=="
+        },
+        "name": "Microsoft.Diagnostics.Runtime",
+        "provides": [
+          "Microsoft.Diagnostics.Runtime"
+        ],
+        "version": "4.2.751201"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "8a32c09930d363b63056cf795a2e029204fcb062addcca39fe125068bcae47d9",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.diagnostics.tracing.traceevent/4.0.0/microsoft.diagnostics.tracing.traceevent.4.0.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Diagnostics.NETCore.Client",
+          "Microsoft.Win32.Registry",
+          "System.Collections.Immutable",
+          "System.Reflection.Metadata",
+          "System.Reflection.TypeExtensions",
+          "System.Runtime.CompilerServices.Unsafe",
+          "System.Text.Json"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-m3jYQGAOqzws4yOPHs3fhVA33qnasiYbwKk2ZhrhBouOJQa/yU+WfGLi+Klj+7dWB6tUjqgZg1dloE8AZ7Em5A=="
+        },
+        "name": "Microsoft.Diagnostics.Tracing.TraceEvent",
+        "provides": [
+          "Dia2Lib",
+          "Microsoft.Diagnostics.FastSerialization",
+          "Microsoft.Diagnostics.Tracing.TraceEvent",
+          "TraceReloggerLib"
+        ],
+        "version": "4.0.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "45f336a978aa7626a63e45ebe080e435cd0865217d89366fe2ea2efc4ef3352d",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.platformabstractions/3.1.6/microsoft.dotnet.platformabstractions.3.1.6.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-Vbh/VEh0aGvtloiZU7fpnkNCa3mw+sMcxFLg9KJ8pcwIUiwKyWe/nfZJ98BBN6XiVT0TStedXB5pV4NnwrS0xg=="
+        },
+        "name": "Microsoft.DotNet.PlatformAbstractions",
+        "provides": [
+          "Microsoft.DotNet.PlatformAbstractions"
+        ],
+        "version": "3.1.6"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "d06de9d376ee3d28b0fec645b396993a3eb7b04fbc1ef7091654a08d9e1e72cb",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.configuration/10.0.12/microsoft.extensions.configuration.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Configuration.Abstractions",
+          "Microsoft.Extensions.Primitives"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-2IfERnC6VSvQ4XyMfXMZMO334BCHD7ifkNN1KkyA7fdIXRjMQmPenR25EuRNj4dZ8h0wwtEtlFpr+ppKkiOUWw=="
+        },
+        "name": "Microsoft.Extensions.Configuration",
+        "provides": [
+          "Microsoft.Extensions.Configuration"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f7397df285cb2a34c88a6929710c0b8ed84913382e2ae708f734060bc091ce51",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.configuration.abstractions/10.0.12/microsoft.extensions.configuration.abstractions.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Primitives"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-TZ4PJHUuUpM8ck2v6La2r23Hbvs5BAuWZKKn7/S10SBpHAAYXiRrfoBuOF3MCUH4ds7Tys7uScFCwK30a8crZg=="
+        },
+        "name": "Microsoft.Extensions.Configuration.Abstractions",
+        "provides": [
+          "Microsoft.Extensions.Configuration.Abstractions"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "fe267b1321b7e183183ed3042071bcaf5e3ad244a83e1d27fb055071367eba48",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.configuration.binder/10.0.12/microsoft.extensions.configuration.binder.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Configuration",
+          "Microsoft.Extensions.Configuration.Abstractions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-hX7WQh+3+FYIhWq9Edz5hXgbpn+aQRRGXJpUQ4h9E6tZTdPkQ6dtDOyCssCXZlv/oq9PieQKFKdgUhsNEP8jpQ=="
+        },
+        "name": "Microsoft.Extensions.Configuration.Binder",
+        "provides": [
+          "Microsoft.Extensions.Configuration.Binder"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "b789356d63f3d533430487b310222bf5eb89869c28e7a7bba1c9edaaf1209d66",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.configuration.environmentvariables/10.0.12/microsoft.extensions.configuration.environmentvariables.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Configuration",
+          "Microsoft.Extensions.Configuration.Abstractions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-IoLmJ7bwLXRRULKqDfpCvwGK6AAE4OL7u9LsyjMg9QIyESrortT1fF6Vjvsq4AuejY0y/hEJXFkHG5uvFa8HmA=="
+        },
+        "name": "Microsoft.Extensions.Configuration.EnvironmentVariables",
+        "provides": [
+          "Microsoft.Extensions.Configuration.EnvironmentVariables"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "b979c630191f6c48b548cad866d8224a0ed0e6e7be0aba87f454b57597b63779",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.dependencyinjection/10.0.12/microsoft.extensions.dependencyinjection.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.DependencyInjection.Abstractions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-4bTS7TpB4aMRxegFpYgsp9HDI0TvFC6bt2n9SsyJ9xLy6ZEspW2ji7bQ7dKguG2w5LbsJtFiWz+wiPZgpmQ/KQ=="
+        },
+        "name": "Microsoft.Extensions.DependencyInjection",
+        "provides": [
+          "Microsoft.Extensions.DependencyInjection"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "4664fab0ac4b56b8935333f59ee9e7801c8ab96de7c57cb3b6eb8192a5a61c55",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.dependencyinjection.abstractions/10.0.12/microsoft.extensions.dependencyinjection.abstractions.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-kTf3x6w7DOuNj6kS0kL8oEGSSXJnqiPm3G+ddUfVB743EaO5Np8CX3r9pQp0ovBY7/J+KY0JLbwuhC02nFQO1g=="
+        },
+        "name": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "provides": [
+          "Microsoft.Extensions.DependencyInjection.Abstractions"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "5ece1e660e3f707cb2d8bda190329406434b5faab45d5ee6ea8e51c93c744ec0",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.diagnostics.abstractions/10.0.12/microsoft.extensions.diagnostics.abstractions.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.DependencyInjection.Abstractions",
+          "Microsoft.Extensions.Options"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-8i5OD/g0Xj8Q1TizgLzs6h/M7sF+CUT2JzgNuUnFBf5qHF0/jk84HCnk4mpG+t0QyFKdRB4aJ+/mLEpLhJ5sVg=="
+        },
+        "name": "Microsoft.Extensions.Diagnostics.Abstractions",
+        "provides": [
+          "Microsoft.Extensions.Diagnostics.Abstractions"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "49dad2381a98e644f68b711106f06c01db62c7fc3b4b1e79799ba770d0d4d9e7",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.fileproviders.abstractions/10.0.12/microsoft.extensions.fileproviders.abstractions.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Primitives"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-uvXk5vVWju5qjSCOQCiuXi0bDoy7kI9Ds1XRpIPl0PTpgWA+sAanC6j3fR2H6lw9KHHdwdgp4oCUvN417a4Saw=="
+        },
+        "name": "Microsoft.Extensions.FileProviders.Abstractions",
+        "provides": [
+          "Microsoft.Extensions.FileProviders.Abstractions"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "535354f24c323122edbbc3a090f7c00e201effb88ab10db043e537a2023da70f",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.hosting.abstractions/10.0.12/microsoft.extensions.hosting.abstractions.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Configuration.Abstractions",
+          "Microsoft.Extensions.DependencyInjection.Abstractions",
+          "Microsoft.Extensions.Diagnostics.Abstractions",
+          "Microsoft.Extensions.FileProviders.Abstractions",
+          "Microsoft.Extensions.Logging.Abstractions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-F31e9IMQm70ywZhUsXWzAx5x51989XK6CJ9FxPK5MpD/nxRzu6qAt8MT0ZfV7wl+38v60dx2GZny6cs0LJc+OQ=="
+        },
+        "name": "Microsoft.Extensions.Hosting.Abstractions",
+        "provides": [
+          "Microsoft.Extensions.Hosting.Abstractions"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "539919dc90956d273ac67d24e99ae7d92a893848b6efd368c1d0e61e5bc955a9",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.logging/10.0.12/microsoft.extensions.logging.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.DependencyInjection",
+          "Microsoft.Extensions.Logging.Abstractions",
+          "Microsoft.Extensions.Options"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-7Dee3dIOa04MmZo+XN/FjjaVu2Q0ywIEYHJPhqve5hnu/XnXf9aed+8OBVGx93NeVZhLxDo+zeuemG7NlPHHjQ=="
+        },
+        "name": "Microsoft.Extensions.Logging",
+        "provides": [
+          "Microsoft.Extensions.Logging"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "34eaaa60afb61ed3d86e2e2669eae0c690d0e237e8a7066ba5bdb45a386709e7",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.logging.abstractions/10.0.12/microsoft.extensions.logging.abstractions.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.DependencyInjection.Abstractions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-6U8g6MRgR1JhFCr4XnlPJIjgKh9Fhh30wwUnuFvnaeJqpgx6c1J4BA5RnPNaMm7vE1zN/QOR+nTSTNswgInX2w=="
+        },
+        "name": "Microsoft.Extensions.Logging.Abstractions",
+        "provides": [
+          "Microsoft.Extensions.Logging.Abstractions"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "41b895b70fa521fe2d3d8c356943f2d2432594dc5b78dee1601ce79ac40b9bb7",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.logging.configuration/10.0.12/microsoft.extensions.logging.configuration.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Configuration",
+          "Microsoft.Extensions.Configuration.Abstractions",
+          "Microsoft.Extensions.Configuration.Binder",
+          "Microsoft.Extensions.DependencyInjection.Abstractions",
+          "Microsoft.Extensions.Logging",
+          "Microsoft.Extensions.Logging.Abstractions",
+          "Microsoft.Extensions.Options",
+          "Microsoft.Extensions.Options.ConfigurationExtensions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-QrNq2MoHpOzDM85mkbBRJZ9Whv8L1/eqsO1NWES5lWT98WlTz2RUyGM83GrkG3ebOwUuwhA5bcpM+RA0sMQh1A=="
+        },
+        "name": "Microsoft.Extensions.Logging.Configuration",
+        "provides": [
+          "Microsoft.Extensions.Logging.Configuration"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "eec90916f11d84ea41e942b59cbf82f1e32726d87e99be7ee2b2424e31570ff7",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.options/10.0.12/microsoft.extensions.options.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.DependencyInjection.Abstractions",
+          "Microsoft.Extensions.Primitives"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-AVPXba8q1GXeRiVr4SVu4YX0iBU+Tn59ObvD2uWkkWOwKoVPZ+HQMpen7TCiA9xpwHGMNqt381z1iWA6nokngQ=="
+        },
+        "name": "Microsoft.Extensions.Options",
+        "provides": [
+          "Microsoft.Extensions.Options"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "71cbb9b3b179ee51d5416b3b8602d7109bdfc61ae741c0c3903fe4959e2ed7e1",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.options.configurationextensions/10.0.12/microsoft.extensions.options.configurationextensions.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Configuration.Abstractions",
+          "Microsoft.Extensions.Configuration.Binder",
+          "Microsoft.Extensions.DependencyInjection.Abstractions",
+          "Microsoft.Extensions.Options",
+          "Microsoft.Extensions.Primitives"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-geP3An4Gv41CXftA64EmzzkZrUpqYAefpTcHBV0UvM28tydQAhMDNNmh4xYpp2KdHhpwsoZgbzug96QrolVzMQ=="
+        },
+        "name": "Microsoft.Extensions.Options.ConfigurationExtensions",
+        "provides": [
+          "Microsoft.Extensions.Options.ConfigurationExtensions"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "97ee742afe0cb0634558262f925cc112b5882d09db8d169575e559031da63922",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.primitives/10.0.12/microsoft.extensions.primitives.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-G4hMZ9wJv75ufnnBkHAHbqiywfMGfeyfz/aiBZoLeg5vVgEqZPPAT/nLFb/Pk+/mGCAIRi3i0WfGHTcVDN9lCg=="
+        },
+        "name": "Microsoft.Extensions.Primitives",
+        "provides": [
+          "Microsoft.Extensions.Primitives"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f17744f920e9f890f0922ca9069256b13c1c35af4fc1fca8cb20ac140bb3c8cf",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.identity.client/4.90.0/microsoft.identity.client.4.90.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.IdentityModel.Abstractions",
+          "System.Diagnostics.DiagnosticSource"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-e5xtlLy0gGkv+DPyI3es6FbGeP3mxdsmBg6K9ayMmxNcysWlA4ox7haR5i6De4HyzydJ43k3DHLlwIxpXNd6sw=="
+        },
+        "name": "Microsoft.Identity.Client",
+        "provides": [
+          "Microsoft.Identity.Client"
+        ],
+        "version": "4.90.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "4aa9dd89af3bb0c94570757be0cd3b7702923737967e684174f6c7937dc1fc02",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.identity.client.extensions.msal/4.90.0/microsoft.identity.client.extensions.msal.4.90.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Identity.Client",
+          "System.Security.Cryptography.ProtectedData"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-8TINxuq2piigg/nVg8JZdz3gIvxFrs5LBkAi4SXZjf+vNFSCw0JbypGlTQkuIKK8pfEvoCf+KwafJOxexYBBMQ=="
+        },
+        "name": "Microsoft.Identity.Client.Extensions.Msal",
+        "provides": [
+          "Microsoft.Identity.Client.Extensions.Msal"
+        ],
+        "version": "4.90.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "ce27e9a50dc831c519bf2a69d01ecb2c04a18c649fda3511780de34674cf0bbb",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.identitymodel.abstractions/8.23.0/microsoft.identitymodel.abstractions.8.23.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-K55EAlOs+XhBbFOC58Y52/Tbe5a2GdnJpzhesCy/XUAAaCnF8RW6SlCxmuSOmR31kPMtw+lQ1Ybt0MEgiU92UQ=="
+        },
+        "name": "Microsoft.IdentityModel.Abstractions",
+        "provides": [
+          "Microsoft.IdentityModel.Abstractions"
+        ],
+        "version": "8.23.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "4c55987f600f08d016828c37a20bbfb67adc2afc2508a8636be591443e7a98ab",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.security.antissrf/1.0.1/microsoft.security.antissrf.1.0.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-ZOTpxZ1Tv0tol2J2+TpSrlZWhG//s7Yz2CP4gX8ycCMB1svzTm7UyEvV47HjfLxmzHwwkJdKKV9PX7wIYWUFmw=="
+        },
+        "name": "Microsoft.Security.AntiSSRF",
+        "provides": [
+          "Microsoft.Security.AntiSSRF"
+        ],
+        "version": "1.0.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "fdc508edfbba0741f92d0c298b4688129c200b979ae1d057debc5f88565c458a",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.testing.extensions.telemetry/2.5.2/microsoft.testing.extensions.telemetry.2.5.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.ApplicationInsights",
+          "Microsoft.Testing.Platform"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-mjcqGEmWh1AMnzP9MkRQ1/b8lveKyGvgi3859bwvfNkTfrZRNVDfgtK2vk0Dzdv4LcSHPPCY5NO9DTi/gzjJnA=="
+        },
+        "name": "Microsoft.Testing.Extensions.Telemetry",
+        "provides": [
+          "Microsoft.Testing.Extensions.Telemetry",
+          "Microsoft.Testing.Extensions.Telemetry.resources"
+        ],
+        "version": "2.5.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "915a82acf3d3af17ca0ff856adb8a536d01a134a443a462946d9564a08b22e9d",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.testing.extensions.trxreport.abstractions/2.5.2/microsoft.testing.extensions.trxreport.abstractions.2.5.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Testing.Platform"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-dPverw8jfCHdXrjtv13/pbfEZiXS0rKesm4XLRkALjG0dqqKUd1b+lYOokGDDsa3EJdP1j9xmVChbMdBsuasKA=="
+        },
+        "name": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
+        "provides": [
+          "Microsoft.Testing.Extensions.TrxReport.Abstractions"
+        ],
+        "version": "2.5.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "9ac2d8d4ff97a506eeba446ba1bc5b7a77e882d1823fb45373a60dfd0b7d2463",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.testing.platform/2.5.2/microsoft.testing.platform.2.5.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-6KqAjSgMFVifUOEbuRkb1bgaeX7X18JChpM++NWW1uABpcm5ZlcS3lCn9EVMvTX6+E2PYQMWhAMT7+QeGtH9eg=="
+        },
+        "name": "Microsoft.Testing.Platform",
+        "provides": [
+          "Microsoft.Testing.Platform",
+          "Microsoft.Testing.Platform.resources"
+        ],
+        "version": "2.5.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "04616888e7eee8e5e6e042354eeb41f5ad34d60bfb015681596a372a0f904e64",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.testing.platform.msbuild/2.5.2/microsoft.testing.platform.msbuild.2.5.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Testing.Platform"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-CK+ktqmocJsi7B+LNaVshZxv7CacVh4Nyj7tvsjuxmFea52OdzmxJ7EV7tcFyICfqSqxPmQ1lemoX/bc7NORdA=="
+        },
+        "name": "Microsoft.Testing.Platform.MSBuild",
+        "provides": [
+          "Microsoft.Testing.Extensions.MSBuild",
+          "Microsoft.Testing.Extensions.MSBuild.resources"
+        ],
+        "version": "2.5.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f64ca53c67ca65ce7cc85a8d29aefbb2da2672836731e1115e8cd62730dc5080",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/microsoft.win32.registry/5.0.0/microsoft.win32.registry.5.0.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "System.Security.AccessControl",
+          "System.Security.Principal.Windows"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-Rx5mVnzlnMhkda7OeBXQUmEmTOEU4MFoi6JVHdUUlJAfpy3XqPdPjo8PPbp0r4WV8XdVLzwGq7S/znZpIZcHbg=="
+        },
+        "name": "Microsoft.Win32.Registry",
+        "provides": [
+          "Microsoft.Win32.Registry"
+        ],
+        "version": "5.0.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "8a042b14c772b796417310ab93e7b3899ec1cf97615e28a18593029a8b401fc4",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/opentelemetry/1.19.0/opentelemetry.1.19.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Configuration.EnvironmentVariables",
+          "Microsoft.Extensions.Diagnostics.Abstractions",
+          "Microsoft.Extensions.Logging.Configuration",
+          "OpenTelemetry.Api.ProviderBuilderExtensions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-+wQIbqr+l+GCbnN6C40ptCkEHC1h4Gh1+5sTMFIzLLHrwlMoxlavC/XVdJYSpjTXI8UJGjkG+8sq1VdS/JkdPA=="
+        },
+        "name": "OpenTelemetry",
+        "provides": [
+          "OpenTelemetry"
+        ],
+        "version": "1.19.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "344d2b270a8c1ea4374507f41bd0c374bbc7aa44f7832518bd2d81ae33f6b530",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/opentelemetry.api/1.19.0/opentelemetry.api.1.19.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-1QZ42s8g/C+yyRHNXNXOu6NOOVGbs+H8VGKUDo5pWSQkxvJSBw2Hdco0rxUYfhiElqNMpuMoQqkstHuyv37Q9g=="
+        },
+        "name": "OpenTelemetry.Api",
+        "provides": [
+          "OpenTelemetry.Api"
+        ],
+        "version": "1.19.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "c16fa7da20458e366f819778311125c6b7959cccf1c03e039c88541cc63c721c",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/opentelemetry.api.providerbuilderextensions/1.19.0/opentelemetry.api.providerbuilderextensions.1.19.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.DependencyInjection.Abstractions",
+          "OpenTelemetry.Api"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-HVPEGNgejQMsUiNNt2g3y84c6HLvv8VAUMnQ65ltZ7Aax/zdhL2KpdDQ6ZZHfI5r3nzxj65a6cFxxzmVUm1cZA=="
+        },
+        "name": "OpenTelemetry.Api.ProviderBuilderExtensions",
+        "provides": [
+          "OpenTelemetry.Api.ProviderBuilderExtensions"
+        ],
+        "version": "1.19.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f7a25bdc66657e0bf2e094eb47986832cb72c3e2262d30d3cb9d4ccd99665013",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/opentelemetry.extensions.hosting/1.19.0/opentelemetry.extensions.hosting.1.19.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Hosting.Abstractions",
+          "OpenTelemetry"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-WH2uoofIGu7wuNkY9VCUbBzk0Og8qMGfoDIMJ7SMRhGGfCfXy2qtaw6Dj0eA3Gyd8Meu/dKR4zv9AIgUBZwRlw=="
+        },
+        "name": "OpenTelemetry.Extensions.Hosting",
+        "provides": [
+          "OpenTelemetry.Extensions.Hosting"
+        ],
+        "version": "1.19.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "c8db6b6d40880b15f65c74c72762fea481d3be14ac7b63cf8f94fece278300af",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/opentelemetry.persistentstorage.abstractions/1.1.1/opentelemetry.persistentstorage.abstractions.1.1.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-W9bNui+0KkH9eSZiVmUnlHyQZAHA8BigjmK6weE8XMaJKbmmBduLyVaKBazpNLGEjiODhC3SpNn/lFXEeal+og=="
+        },
+        "name": "OpenTelemetry.PersistentStorage.Abstractions",
+        "provides": [
+          "OpenTelemetry.PersistentStorage.Abstractions"
+        ],
+        "version": "1.1.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "de304ebd5caa1c8b95d3bf2ceed08715c6ce8bc5cd25d719705dea3c7a0bcd76",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/opentelemetry.persistentstorage.filesystem/1.1.1/opentelemetry.persistentstorage.filesystem.1.1.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "OpenTelemetry.PersistentStorage.Abstractions"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-KXgnJn37OxRkkauFAnjhNmkkYKscnmnTzhk4PejQitP6FTZNKJjN0ZTbgpPB9TaSvHBIyo849xtK3i9eIcml1A=="
+        },
+        "name": "OpenTelemetry.PersistentStorage.FileSystem",
+        "provides": [
+          "OpenTelemetry.PersistentStorage.FileSystem"
+        ],
+        "version": "1.1.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "a8e242eaa1943e46856c54940935814da03f9598204f56b31e1315f5bc1f5f28",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/perfolizer/0.6.1/perfolizer.0.6.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Pragmastat"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-ZEl6E48b3hYKSS7L5W2Iwp99RGD21j4+NsosvWGrRzpdPTlwH0UbhfA2xp9ptrVJhBh1AjOfjud8qsVkY9fKEA=="
+        },
+        "name": "Perfolizer",
+        "provides": [
+          "Perfolizer"
+        ],
+        "version": "0.6.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "e946de215844919144d015a775a1c701e866811d74dba224ea73e5ac7e58b399",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/pragmastat/3.2.4/pragmastat.3.2.4.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-oj+1XqDcl7Cf0P/y1RqPKb8U/rbuMgUCC5z9lpnrS4ZjnOHbD0Cnc3YyTJfbyK8SrcumyrmmZcmKYNqJR9/tCA=="
+        },
+        "name": "Pragmastat",
+        "provides": [
+          "Pragmastat"
+        ],
+        "version": "3.2.4"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "08ea22ffb1b0b0bcebe088a78017ae1ad8d6ce339c8f8ce8c860d6a728ff25ac",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/sharpfuzz/2.3.0/sharpfuzz.2.3.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "SharpFuzz.Common",
+          "System.Memory",
+          "dnlib"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-iyYwYYUcxU3w/vx1mn8oTHmC9M5i/k7SgKyYLvTYvzqTP6Fmnal0g2Oc/lqRacFPw2rP9fqlhJhiaVQ8xc3usA=="
+        },
+        "name": "SharpFuzz",
+        "provides": [
+          "SharpFuzz"
+        ],
+        "version": "2.3.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "ffb1892f3787ff186364f4039965c9adeaca42a0dd994511295bf4ba8c5f5b03",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/sharpfuzz.commandline/2.3.0/sharpfuzz.commandline.2.3.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-PYIWK/JhQktryh2uxnpUeYaenHvN7Tcpx/RYh5BuHW650zwHLIqM5G9SgwWd/NOoV0+d1UkQ54WCr432Xk07iA==",
+          "nuget_tools": {
+            "net10.0": [
+              {
+                "entrypoint": "SharpFuzz.CommandLine.dll",
+                "name": "sharpfuzz",
+                "runner": "dotnet"
+              }
+            ],
+            "net8.0": [
+              {
+                "entrypoint": "SharpFuzz.CommandLine.dll",
+                "name": "sharpfuzz",
+                "runner": "dotnet"
+              }
+            ],
+            "net9.0": [
+              {
+                "entrypoint": "SharpFuzz.CommandLine.dll",
+                "name": "sharpfuzz",
+                "runner": "dotnet"
+              }
+            ]
+          }
+        },
+        "name": "SharpFuzz.CommandLine",
+        "provides": [],
+        "version": "2.3.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "a7db820b3a89fb6acc5824224e4c61b191074c4114f276aa44af5e64aad06418",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/sharpfuzz.common/2.2.0/sharpfuzz.common.2.2.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-pV34AzJNn0HOa3Q08saxv7jgCrM726JHML3GUKF7McGz1X+WNqiRGirO1ArUzqEfqmd8FbPvnyaffYEoZFPhuw=="
+        },
+        "name": "SharpFuzz.Common",
+        "provides": [
+          "SharpFuzz.Common"
+        ],
+        "version": "2.2.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "431e52106cbad62f4d18897f7ea093fdd1969bdac6946581a4167f7e42587744",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.clientmodel/1.16.0/system.clientmodel.1.16.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Extensions.Configuration.Abstractions",
+          "Microsoft.Extensions.Hosting.Abstractions",
+          "Microsoft.Extensions.Logging.Abstractions",
+          "System.Memory.Data"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-vJQ7Qu9tcfZAVmVFuKZE7ZwrZ5xql8FuX37blNBY18N4jd2r9udrgN/IF929gT1ehZZZ4OmYMCY4CkkcJMJ1LQ=="
+        },
+        "name": "System.ClientModel",
+        "provides": [
+          "System.ClientModel"
+        ],
+        "version": "1.16.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "899689130588ae67ef4e4347f6a5778637df3fc17914c55dbd84369a44a3e3c0",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.codedom/10.0.14/system.codedom.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-9J1SLG9POd+Ppd+z4PJm1qRaK5o9KivYfpI04va3WgbElyg88dGOFwSutPcMUaxfms/HT2K/RWJNfCxsfDE4OQ=="
+        },
+        "name": "System.CodeDom",
+        "provides": [
+          "System.CodeDom"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "ae295dafa95728eca04110ed7d43ed939ae47693bd09aa85a3671b5eab499207",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.collections.immutable/10.0.14/system.collections.immutable.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-DKHARxWl5SpA4fBYs4yjXt8eKBVd+pzmAsp9ThdZCu/x+ppdCDv2NaPT7yapbAOSfDMb+OQteEucnM4+VwyD1g=="
+        },
+        "name": "System.Collections.Immutable",
+        "provides": [
+          "System.Collections.Immutable"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "274a955a69a8730d592e9f7fc25011d6d28ab6beaf3497ad1eb446a28a5d19dc",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.diagnostics.diagnosticsource/10.0.12/system.diagnostics.diagnosticsource.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-DT/fAN9Q59F3hR3xiyWGNATu0zo2sdjPFHNUe7MX0o8IlJE1Tlv+PZ7+LboCn5IWBDj/9OEmzHMyAjllrH6G4w=="
+        },
+        "name": "System.Diagnostics.DiagnosticSource",
+        "provides": [
+          "System.Diagnostics.DiagnosticSource"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "6261bd1cd3251401d57384971a39ac953faeea13176c819899794b3850f0d010",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.management/10.0.14/system.management.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "System.CodeDom"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-PhlzxiCGYImsTRg4qIzcSj2mMJoB12I82JskyAMvfNhTxrBeTtdwtAovxhYwvLP3jyBnwwIF3xQ1/oS9z7GG5Q=="
+        },
+        "name": "System.Management",
+        "provides": [
+          "System.Management"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "26078aeb758c9ae985e8bf851f973026061da6a5eb4837204d0c2d2204c72955",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.memory/4.6.3/system.memory.4.6.3.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-NXcNYlWoXe5cz9sb8Huo6x2dCZVYkhwKtgE00n/MoI8V4ZI/7/t+EI5bOhQFlZfFjjqM8+U6prjU/aARt7H/tA=="
+        },
+        "name": "System.Memory",
+        "provides": [
+          "System.Memory"
+        ],
+        "version": "4.6.3"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "a452884e77c7cab6626b2ce6bd4982cd65d32dd160516362b0a01a78278f8f40",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.memory.data/10.0.12/system.memory.data.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-mzyCyUcogHsXCOGwrAQZnlIFwgb5CsSfIBp9OenktoqrABA3U4n3nrg0T3oQbVwoVIXppfoOyfr+gs2Dx7aO5A=="
+        },
+        "name": "System.Memory.Data",
+        "provides": [
+          "System.Memory.Data"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "56cd31a7687fbfc72666309e876ce2da57a696d02038d54ee34945a2d651ac52",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.reflection.metadata/10.0.14/system.reflection.metadata.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-434B/Nt8cTcu5HBw+Xa2jGkac+fDW/irP3btIIHpvLn0y0Kq1OjOBHtJi7aastPzCbi10+M8ZWMQ0Us8pF7G0w=="
+        },
+        "name": "System.Reflection.Metadata",
+        "provides": [
+          "System.Reflection.Metadata"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "184b42197c2d3a79187a3495f937e5f83ab21aae634d4695c8bf5e32ea4c1c13",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.reflection.typeextensions/4.7.0/system.reflection.typeextensions.4.7.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-Q/fczHO357fqTntQPZBSwhstHCcZFvgqOwBnkO+lhMyS2pYBDtXyfRQblK3SYXN8GXHOEJzjNM5Tr12zp73c6A=="
+        },
+        "name": "System.Reflection.TypeExtensions",
+        "provides": [
+          "System.Reflection.TypeExtensions"
+        ],
+        "version": "4.7.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "5f6a7f53af3465f92beb6da873ebe0e496206c313313b98badee4355a6b25937",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.runtime.compilerservices.unsafe/6.1.2/system.runtime.compilerservices.unsafe.6.1.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-t2aXWJZBkAkRrTOnw31OBELKEVSDD5YvC3O5dXaHFsR66/nRTKm1y3Iq6NwFI5u5IlKrWYfdan66V+GKKkY8hQ=="
+        },
+        "name": "System.Runtime.CompilerServices.Unsafe",
+        "provides": [
+          "System.Runtime.CompilerServices.Unsafe"
+        ],
+        "version": "6.1.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "462e26f796417e8a4350655a85bbd4233b94cbd0f7150c1c5e9acfd88e885141",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.security.accesscontrol/6.0.1/system.security.accesscontrol.6.0.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-4b66cLRfjMWuBv3s82Xwu1tYua9tfHmsz+8VtafHu+9l4Qz58plBjrQTqshv/vqg6rnZFlDOd8w5jTkPBZftQg=="
+        },
+        "name": "System.Security.AccessControl",
+        "provides": [
+          "System.Security.AccessControl"
+        ],
+        "version": "6.0.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "1a7141d14f254a9b10b5b996f265cac139be666eea133635f53ba0385bc4d674",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.security.cryptography.protecteddata/10.0.12/system.security.cryptography.protecteddata.10.0.12.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-0lPPVHxz1FehhxRGtqCgUZIkhWbHWpbazv9lpsezx/yx8eK+HIRNxSe+JeuSxS2lKi5ODx5c9nIeZZ4+dAjHIQ=="
+        },
+        "name": "System.Security.Cryptography.ProtectedData",
+        "provides": [
+          "System.Security.Cryptography.ProtectedData"
+        ],
+        "version": "10.0.12"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "081390c25f6f78592b28ada853c24514488a221fe9f9a24efaaf5373643ff3d6",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.security.principal.windows/5.0.0/system.security.principal.windows.5.0.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-RKkgqq8ishctQTGbtXqyuOGkUx1fAhkqb1OoHYdRJRlbYLoLWkSkWYHRN/17DzplsSlZtf2Xr8BXjNhO8nRnzQ=="
+        },
+        "name": "System.Security.Principal.Windows",
+        "provides": [
+          "System.Security.Principal.Windows"
+        ],
+        "version": "5.0.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "efb4116efc788602d167da9bc086c65d97cb32fd4624110eb00e3ff88e57c8c8",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/system.text.json/10.0.14/system.text.json.10.0.14.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-swrFDRqf2gCM/hIHRjbMnbD5bYeh2s9esC6RSE9Qr8uAyLqPqNVcqTO1Tns4WEkMQ2r7Lyz22Idh8kV/oUOJHw=="
+        },
+        "name": "System.Text.Json",
+        "provides": [
+          "System.Text.Json"
+        ],
+        "version": "10.0.14"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "b01e98cead98a7888745b5f2a48c4e71d4b5372e6c70e751b81cc8ccf4af0a76",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/coverlet.console/10.1.0/coverlet.console.10.1.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-ftOr8bYcRKYCFjVdOkmR+qlj52jZh8+0fcNaDPDG9p+Owr0INE3QRmqLvMmqwdbWOkWK8d0frG8eYYho+gtDRQ==",
+          "nuget_tools": {
+            "net10.0": [
+              {
+                "entrypoint": "coverlet.console.dll",
+                "name": "coverlet",
+                "runner": "dotnet"
+              }
+            ],
+            "net8.0": [
+              {
+                "entrypoint": "coverlet.console.dll",
+                "name": "coverlet",
+                "runner": "dotnet"
+              }
+            ],
+            "net9.0": [
+              {
+                "entrypoint": "coverlet.console.dll",
+                "name": "coverlet",
+                "runner": "dotnet"
+              }
+            ]
+          }
+        },
+        "name": "coverlet.console",
+        "provides": [],
+        "version": "10.1.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "87089e1284137004f2299219ec241258034f06ffa9112860e9c0d75391087b15",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/csharpier/1.3.0/csharpier.1.3.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-07rdXsZ1fQlMTpru8gSJd3VM72jFnj9TaOL1+TaojQambf8iMTZ98S4hZzr2MBeFlDHaqM6iRnD+G0lzCdBH/g==",
+          "nuget_tools": {
+            "net10.0": [
+              {
+                "entrypoint": "CSharpier.dll",
+                "name": "csharpier",
+                "runner": "dotnet"
+              }
+            ],
+            "net8.0": [
+              {
+                "entrypoint": "CSharpier.dll",
+                "name": "csharpier",
+                "runner": "dotnet"
+              }
+            ],
+            "net9.0": [
+              {
+                "entrypoint": "CSharpier.dll",
+                "name": "csharpier",
+                "runner": "dotnet"
+              }
+            ]
+          }
+        },
+        "name": "csharpier",
+        "provides": [],
+        "version": "1.3.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "63bc2f9579568204cc8b30fa9f6700a231bcf868a8032e09118887af3eafee58",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/dnlib/4.5.0/dnlib.4.5.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-FOHTH74NB/Zr08Foh8BiPIQYEP+QjbxGRTEwkgbkTbSUPJpJKplKrwXjpEQFwPrDwIwPAmaoo4YTNLV9sv65Ug=="
+        },
+        "name": "dnlib",
+        "provides": [
+          "dnlib"
+        ],
+        "version": "4.5.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "193c41974c98ca57bc79769626e47e11fbecbbb47a1c15b2a0b28802ba721310",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/fantomas/8.1.1/fantomas.8.1.1.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-JLnK8iSo3+0ItX4f5IApAApVnMCXm3kbyANMQUdR/w8ryIeMDT6Nk2p65xFsYWyMPF78CNPyJMisHTbbzS+AhA==",
+          "nuget_tools": {
+            "net10.0": [
+              {
+                "entrypoint": "fantomas.dll",
+                "name": "fantomas",
+                "runner": "dotnet"
+              }
+            ]
+          }
+        },
+        "name": "fantomas",
+        "provides": [],
+        "version": "8.1.1"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "66d3c3b642e1f1ceaa702c0e1d8901d918268bf177690bc270a34d680b23d225",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/xunit.analyzers/2.2.0/xunit.analyzers.2.2.0.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-oGNwquEwEWjZ+Y1Hkkn89NXHZfZ89QT2lWQ4qZ62q5SlNXANwMfdT7FK0v/7AMR2gHOrzlQpgp1GHKpZhmCbhw=="
+        },
+        "name": "xunit.analyzers",
+        "provides": [],
+        "version": "2.2.0"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "5b166770769b3d2aa7164b7c10200e4094c1e959a0914ee64617a81e0b70541e",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/xunit.v3/4.0.2/xunit.v3.4.0.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "xunit.v3.mtp-v2"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-jPqJKMQnhWCysQkAPjU8E4t3ejl/EOCd3ENcU/biyvtNuRncK+fDFDEw4Ixp6Gh83k5f5FBTH/RzTxaY18jSQg=="
+        },
+        "name": "xunit.v3",
+        "provides": [],
+        "version": "4.0.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "f82e735f8fd36464a979ca954bd67ac231bc6788c68f72e60c0c8fd1442f1648",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/xunit.v3.assert/4.0.2/xunit.v3.assert.4.0.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-/LNPM/flmirdCeQpvnBjG+cqmmJfwDmZMOcEdPTOpe/m5H4YUhQqvZpt7qc6LZ7RZMH3ILxDRWQPuiNQMdGStw=="
+        },
+        "name": "xunit.v3.assert",
+        "provides": [
+          "xunit.v3.assert"
+        ],
+        "version": "4.0.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "16796161ae73e4fcae92fc255cccfea7e4253d36a8776711cd237bb96f8d2179",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/xunit.v3.common/4.0.2/xunit.v3.common.4.0.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Bcl.AsyncInterfaces"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-DUTzm+tsHSksbFHpweqmuZzJLdUGub/3eATQsuMT7nGGQLTbhAomkFbJ8pTC1BfVjTMldZvJsmK881YRNiAyYA=="
+        },
+        "name": "xunit.v3.common",
+        "provides": [
+          "xunit.v3.common"
+        ],
+        "version": "4.0.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "784ed0c6555880636dc3dcf84b27559bcd27f150242c7eff79e6a50d19913d72",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/xunit.v3.core.mtp-v2/4.0.2/xunit.v3.core.mtp-v2.4.0.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Testing.Extensions.Telemetry",
+          "Microsoft.Testing.Extensions.TrxReport.Abstractions",
+          "Microsoft.Testing.Platform",
+          "Microsoft.Testing.Platform.MSBuild",
+          "xunit.v3.extensibility.core",
+          "xunit.v3.runner.inproc.console"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-u5fn3bF2TZwvJiHA10nDL8FulIPZGdUzaFhP4K2tcK1Rf+ioEZPR2zRxwal1x6BL8qnBLYkjB3SjhuCZOq71lQ=="
+        },
+        "name": "xunit.v3.core.mtp-v2",
+        "provides": [
+          "xunit.v3.mtp-v2"
+        ],
+        "version": "4.0.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "d48b164079004ca0507e16bae2756de9239f803999ac723957d377d49e319b7b",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/xunit.v3.extensibility.core/4.0.2/xunit.v3.extensibility.core.4.0.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "xunit.v3.common"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-ykwWImyXV4nRDceLmylynYSoD+gP/Cs8KTDIhiG+n8H0jlOJXseC3oTYUaCOOZtn2R0XiGCt9/qT7gcfFlqqhQ=="
+        },
+        "name": "xunit.v3.extensibility.core",
+        "provides": [
+          "xunit.v3.core"
+        ],
+        "version": "4.0.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "e8d378854775e4787114eb9a411b55f2a3e4020792d7c633113e26d9438cbfa5",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/xunit.v3.mtp-v2/4.0.2/xunit.v3.mtp-v2.4.0.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "xunit.analyzers",
+          "xunit.v3.assert",
+          "xunit.v3.core.mtp-v2"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-OesFiVVe38QnAO3W7WhSvq1l7rNFS/Kf9ioQXmQ4zkV6fRAsI+RhWz1apRw6s70K2BLk4lq6ql10FKNeAkOyUQ=="
+        },
+        "name": "xunit.v3.mtp-v2",
+        "provides": [],
+        "version": "4.0.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "d4e4d47314f4a7b8f5690ae3cb3b2e36899443f097173c40764a97bd072d80e3",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/xunit.v3.runner.common/4.0.2/xunit.v3.runner.common.4.0.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "Microsoft.Win32.Registry",
+          "System.Security.AccessControl",
+          "xunit.v3.common"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-yqAKEnxozX74OKRRUchG/QVFdwhchqUKiym6wme6hTzbHhGy1kgmBZHXgH0y+etUxLJFCY2Q+F8vk4ce0RAxlg=="
+        },
+        "name": "xunit.v3.runner.common",
+        "provides": [
+          "xunit.v3.runner.common"
+        ],
+        "version": "4.0.2"
+      },
+      {
+        "archives": [
+          {
+            "sha256": "240090d90d5229d9782185425f889307edcabfe683c589d1e7856fd630c076cd",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/xunit.v3.runner.inproc.console/4.0.2/xunit.v3.runner.inproc.console.4.0.2.nupkg"
+            ]
+          }
+        ],
+        "deps": [
+          "xunit.v3.extensibility.core",
+          "xunit.v3.runner.common"
+        ],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-xy9wIIPRqkaxu3c6RIBd9vZEPSLf8mZP/kWs8gdaMINwpBZNtis6ceKR0gYkHVEBtzW4640r58b9qO87hhsG8g=="
+        },
+        "name": "xunit.v3.runner.inproc.console",
+        "provides": [
+          "xunit.v3.runner.inproc.console"
+        ],
+        "version": "4.0.2"
+      }
+    ],
+    "referencetrimmer": [
+      {
+        "archives": [
+          {
+            "sha256": "eb9cd6b848d26fb0855be6c41951a16c747f4678aea784512510154b30e1f8d0",
+            "type": "zip",
+            "urls": [
+              "https://api.nuget.org/v3-flatcontainer/referencetrimmer/3.5.13/referencetrimmer.3.5.13.nupkg"
+            ]
+          }
+        ],
+        "deps": [],
+        "extra": {
+          "nuget_frameworks": [
+            "net10.0"
+          ],
+          "nuget_sha512": "sha512-NpYr/Zcyj/5TjDL1ulf3EK2mfZdZA6auPKFw2usiVjI+m3an+gnrpGibujjPuRKFRNr3fBMgo55ehSpdvid6tQ=="
+        },
+        "name": "ReferenceTrimmer",
+        "provides": [],
+        "version": "3.5.13"
+      }
+    ]
+  },
+  "inputs": {
+    "paket.dependencies": "7f7ab5827fd9485a14d98d5bfa9d39ebb9169241c8d9c70ad5cbc6d81774ccaa",
+    "paket.lock": "45e0f18aa459d9caf5cd7507ebc2613249cdf52079da898a2ade705659b2f190"
+  },
+  "packages": [],
+  "schema": 1
+}

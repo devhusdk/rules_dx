@@ -83,6 +83,7 @@ pub(crate) fn check(code: u32, what: &str) -> Result<(), String> {
 /// The user's default environment, used to fill in what the parent lacks.
 pub(crate) fn user_defaults() -> Result<Vec<(String, String)>, String> {
     let mut token: HANDLE = null_mut();
+    // SAFETY: token is a valid out-pointer and GetCurrentProcess returns a pseudo handle.
     if unsafe {
         OpenProcessToken(
             GetCurrentProcess(),
@@ -94,7 +95,9 @@ pub(crate) fn user_defaults() -> Result<Vec<(String, String)>, String> {
         return Err("cannot open the process token".to_owned());
     }
     let mut block: *mut c_void = null_mut();
+    // SAFETY: block is a valid out-pointer and token is the open token from above.
     let created = unsafe { CreateEnvironmentBlock(&mut block, token, 0) };
+    // SAFETY: token is open and closed once, here.
     unsafe { CloseHandle(token) };
     if created == 0 {
         return Err(format!(
@@ -104,6 +107,7 @@ pub(crate) fn user_defaults() -> Result<Vec<(String, String)>, String> {
     }
     let mut vars = Vec::new();
     let mut at = block as *const u16;
+    // SAFETY: block came from CreateEnvironmentBlock, is double-NUL terminated and destroyed once.
     unsafe {
         loop {
             let mut len = 0;
@@ -133,6 +137,7 @@ pub(crate) fn user_defaults() -> Result<Vec<(String, String)>, String> {
 fn profile_sid(name: &str) -> Result<*mut c_void, String> {
     let wname = wide(name);
     let mut sid: *mut c_void = null_mut();
+    // SAFETY: wname is NUL-terminated and sid is a valid out-pointer.
     let hr = unsafe {
         CreateAppContainerProfile(
             wname.as_ptr(),
@@ -144,6 +149,7 @@ fn profile_sid(name: &str) -> Result<*mut c_void, String> {
         )
     };
     if hr == ALREADY_EXISTS {
+        // SAFETY: wname is NUL-terminated and sid is a valid out-pointer.
         let hr = unsafe { DeriveAppContainerSidFromAppContainerName(wname.as_ptr(), &mut sid) };
         if hr < 0 {
             return Err(format!("cannot derive the container SID (HRESULT {hr:#x})"));
@@ -176,6 +182,7 @@ fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), Stri
     let mut old: *mut ACL = null_mut();
     let mut descriptor: *mut c_void = null_mut();
     check(
+        // SAFETY: wpath is NUL-terminated and old and descriptor are valid out-pointers.
         unsafe {
             GetNamedSecurityInfoW(
                 wpath.as_ptr(),
@@ -204,11 +211,13 @@ fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), Stri
     };
     let mut merged: *mut ACL = null_mut();
     let result = check(
+        // SAFETY: entry is valid, old came from the ACL read and merged is a valid out-pointer.
         unsafe { SetEntriesInAclW(1, &entry, old, &mut merged) },
         "building the ACL",
     )
     .and_then(|()| {
         check(
+            // SAFETY: wpath is NUL-terminated and merged is the ACL built above.
             unsafe {
                 SetNamedSecurityInfoW(
                     wpath.as_ptr(),
@@ -223,6 +232,7 @@ fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), Stri
             &format!("setting the ACL of {path}"),
         )
     });
+    // SAFETY: merged and descriptor were allocated by the ACL calls above and are freed once.
     unsafe {
         LocalFree(merged as _);
         LocalFree(descriptor as _);
@@ -235,6 +245,7 @@ pub(crate) fn with_acl_lock<T>(
     name: &str,
     work: impl FnOnce() -> Result<T, String>,
 ) -> Result<T, String> {
+    // SAFETY: the wide name outlives the call and a null mutex is handled below.
     let mutex = unsafe { CreateMutexW(null(), 0, wide(name).as_ptr()) };
     if mutex.is_null() {
         return Err(format!(
@@ -242,8 +253,10 @@ pub(crate) fn with_acl_lock<T>(
             std::io::Error::last_os_error()
         ));
     }
+    // SAFETY: mutex is the valid handle created above.
     unsafe { WaitForSingleObject(mutex, INFINITE) };
     let result = work();
+    // SAFETY: mutex is owned here, released and closed once.
     unsafe {
         ReleaseMutex(mutex);
         CloseHandle(mutex);
@@ -258,6 +271,7 @@ fn set_traverse(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
     let mut old: *mut ACL = null_mut();
     let mut descriptor: *mut c_void = null_mut();
     check(
+        // SAFETY: wpath is NUL-terminated and old and descriptor are valid out-pointers.
         unsafe {
             GetNamedSecurityInfoW(
                 wpath.as_ptr(),
@@ -275,15 +289,18 @@ fn set_traverse(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
     let entry = trustee_entry(sid, FILE_LIST_TRAVERSE, mode);
     let mut merged: *mut ACL = null_mut();
     let result = check(
+        // SAFETY: entry is valid, old came from the ACL read and merged is a valid out-pointer.
         unsafe { SetEntriesInAclW(1, &entry, old, &mut merged) },
         &format!("building the ACL of {path}"),
     )
     .and_then(|()| {
         let mut control = 0u16;
         let mut revision = 0u32;
+        // SAFETY: SECURITY_DESCRIPTOR is plain C data for which all-zero is valid.
         let mut fresh: SECURITY_DESCRIPTOR = unsafe { std::mem::zeroed() };
         let target = &mut fresh as *mut _ as *mut c_void;
         let keep = SE_DACL_PROTECTED | SE_DACL_AUTO_INHERITED;
+        // SAFETY: descriptor was read above and target points to the local security descriptor.
         let ok = unsafe {
             GetSecurityDescriptorControl(descriptor, &mut control, &mut revision) != 0
                 && InitializeSecurityDescriptor(target, SECURITY_DESCRIPTOR_REVISION) != 0
@@ -300,6 +317,7 @@ fn set_traverse(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
             ))
         }
     });
+    // SAFETY: merged and descriptor were allocated by the ACL calls above and are freed once.
     unsafe {
         LocalFree(merged as _);
         LocalFree(descriptor as _);
@@ -335,6 +353,7 @@ fn set_mount_manager(sid: *mut c_void, mode: i32) -> Result<(), String> {
     let mut old: *mut ACL = null_mut();
     let mut descriptor: *mut c_void = null_mut();
     check(
+        // SAFETY: handle is the open mount manager device; old and descriptor are out-pointers.
         unsafe {
             GetSecurityInfo(
                 handle,
@@ -352,11 +371,13 @@ fn set_mount_manager(sid: *mut c_void, mode: i32) -> Result<(), String> {
     let entry = trustee_entry(sid, FILE_LIST_TRAVERSE, mode);
     let mut merged: *mut ACL = null_mut();
     let result = check(
+        // SAFETY: entry is valid, old came from the ACL read and merged is a valid out-pointer.
         unsafe { SetEntriesInAclW(1, &entry, old, &mut merged) },
         &format!("building the ACL of {MOUNT_MANAGER}"),
     )
     .and_then(|()| {
         check(
+            // SAFETY: handle is the open device handle and merged is the ACL built above.
             unsafe {
                 SetSecurityInfo(
                     handle,
@@ -371,6 +392,7 @@ fn set_mount_manager(sid: *mut c_void, mode: i32) -> Result<(), String> {
             &format!("setting the ACL of {MOUNT_MANAGER}"),
         )
     });
+    // SAFETY: merged and descriptor were allocated by the ACL calls above and are freed once.
     unsafe {
         LocalFree(merged as _);
         LocalFree(descriptor as _);
@@ -379,12 +401,15 @@ fn set_mount_manager(sid: *mut c_void, mode: i32) -> Result<(), String> {
 }
 
 pub(crate) fn kill_on_close_job() -> Result<HANDLE, String> {
+    // SAFETY: CreateJobObjectW accepts null attributes and name; a null result is checked.
     let job = unsafe { CreateJobObjectW(null(), null()) };
     if job.is_null() {
         return Err("cannot create the job object".to_owned());
     }
+    // SAFETY: the extended limit structure is plain C data for which all-zero is valid.
     let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { std::mem::zeroed() };
     info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    // SAFETY: job is valid and info is an extended limit structure of the size passed.
     let ok = unsafe {
         SetInformationJobObject(
             job,
@@ -404,6 +429,7 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
     if config.net {
         for text in NET_CAPABILITIES {
             let mut cap: *mut c_void = null_mut();
+            // SAFETY: the wide string outlives the call and cap is a valid out-pointer.
             if unsafe { ConvertStringSidToSidW(wide(text).as_ptr(), &mut cap) } == 0 {
                 return Err(format!("cannot convert capability SID {text}"));
             }
@@ -425,12 +451,15 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
     };
 
     let mut size = 0usize;
+    // SAFETY: a null list with a valid size out-pointer only queries the required size.
     unsafe { InitializeProcThreadAttributeList(null_mut(), 1, 0, &mut size) };
     let mut buffer = vec![0u8; size];
     let list = buffer.as_mut_ptr() as *mut c_void;
+    // SAFETY: list points to a buffer of the size reported by the query.
     if unsafe { InitializeProcThreadAttributeList(list, 1, 0, &mut size) } == 0 {
         return Err("cannot initialize the attribute list".to_owned());
     }
+    // SAFETY: list is initialised and security outlives the call with the size passed.
     if unsafe {
         UpdateProcThreadAttribute(
             list,
@@ -446,9 +475,11 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
         return Err("cannot set the security capabilities".to_owned());
     }
 
+    // SAFETY: STARTUPINFOEXW is plain C data for which all-zero is valid.
     let mut startup: STARTUPINFOEXW = unsafe { std::mem::zeroed() };
     startup.StartupInfo.cb = std::mem::size_of::<STARTUPINFOEXW>() as u32;
     startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+    // SAFETY: GetStdHandle takes plain constants and has no preconditions.
     unsafe {
         startup.StartupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
         startup.StartupInfo.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -466,7 +497,9 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
         .collect();
     let (environment, filled) = environment(&parent, &user_defaults()?);
     let mut line = wide(&command_line(&config.command));
+    // SAFETY: PROCESS_INFORMATION is plain C data for which all-zero is valid.
     let mut info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
+    // SAFETY: line is a writable NUL-terminated string; the other pointers are valid for the call.
     let created = unsafe {
         CreateProcessW(
             null(),
@@ -481,8 +514,10 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
             &mut info,
         )
     };
+    // SAFETY: list was initialised above and is deleted once.
     unsafe { DeleteProcThreadAttributeList(list) };
     for cap in &capabilities {
+        // SAFETY: cap.Sid was allocated by ConvertStringSidToSidW and is freed once.
         unsafe { LocalFree(cap.Sid as _) };
     }
     if created == 0 {
@@ -493,15 +528,18 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
             filled.join(", ")
         ));
     }
+    // SAFETY: job and info.hProcess are valid handles.
     if unsafe { AssignProcessToJobObject(job, info.hProcess) } == 0 {
         return Err("cannot put the command in the job object".to_owned());
     }
+    // SAFETY: info holds the live handles from CreateProcess; hThread is closed once.
     unsafe {
         ResumeThread(info.hThread);
         CloseHandle(info.hThread);
         WaitForSingleObject(info.hProcess, INFINITE);
     }
     let mut code = 1u32;
+    // SAFETY: info.hProcess is live, code is a valid out-pointer and the handle is closed once.
     unsafe {
         GetExitCodeProcess(info.hProcess, &mut code);
         CloseHandle(info.hProcess);
@@ -540,6 +578,7 @@ pub fn run(config: &Config) -> Result<i32, String> {
     if outcome.is_ok() {
         outcome = kill_on_close_job().and_then(|job| {
             let code = spawn(config, sid, job);
+            // SAFETY: job is the valid handle from kill_on_close_job, closed once here.
             unsafe { CloseHandle(job) };
             code
         });
@@ -557,6 +596,7 @@ pub fn run(config: &Config) -> Result<i32, String> {
     {
         eprintln!("appcontainer_run: {err}");
     }
+    // SAFETY: the profile name outlives the call and sid is freed once.
     unsafe {
         DeleteAppContainerProfile(wide(&config.name).as_ptr());
         LocalFree(sid);

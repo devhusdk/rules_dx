@@ -83,10 +83,27 @@ const STRIPPED: &[&str] = &[
     "XML_OUTPUT_FILE",
 ];
 
+/// The nested root on Windows: `<drive>:\\dxn\\<hash of tmpdir>`, short enough that `CreateProcess` accepts the
+/// build-script working directories below the nested execroot (its limit is 260 characters).
+fn windows_root(tmpdir: &Path) -> PathBuf {
+    let hash = tmpdir
+        .to_string_lossy()
+        .to_lowercase()
+        .bytes()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
+        });
+    let mut root = PathBuf::new();
+    for component in tmpdir.components().take(2) {
+        root.push(component);
+    }
+    root.join("dxn").join(format!("{:08x}", hash >> 32))
+}
+
 /// Settings for the nested Bazel server of one test binary.
 #[derive(Clone, Debug)]
 pub struct Config {
-    /// The directory under `TEST_TMPDIR` holding the home, the output user root and the workspaces.
+    /// The directory holding the home, the output user root and the workspaces: under `TEST_TMPDIR`, or `<drive>:\dxn\<hash>` on Windows.
     pub root: PathBuf,
     pub bazel: PathBuf,
     pub heap: String,
@@ -111,9 +128,14 @@ impl Config {
         resolve: &dyn Fn(&str, &str) -> Result<PathBuf, String>,
     ) -> Result<Config, String> {
         let text = |name: &str| lookup(name).and_then(|v| v.to_str().map(str::to_owned));
-        let root = env_path(lookup, TMPDIR_ENV)
-            .ok_or_else(|| format!("{TMPDIR_ENV} is not set; a nested Bazel runs only inside a test"))?
-            .join("nested");
+        let tmpdir = env_path(lookup, TMPDIR_ENV).ok_or_else(|| {
+            format!("{TMPDIR_ENV} is not set; a nested Bazel runs only inside a test")
+        })?;
+        let root = if cfg!(windows) {
+            windows_root(&tmpdir)
+        } else {
+            tmpdir.join("nested")
+        };
         let heap = text("DX_NESTED_BAZEL_HEAP")
             .filter(|heap| !heap.is_empty())
             .unwrap_or_else(|| DEFAULT_HEAP.to_owned());
@@ -128,7 +150,10 @@ impl Config {
             None => None,
         };
         let mut cache = Vec::new();
-        for key in text(cache::MANIFESTS_ENV).unwrap_or_default().split_whitespace() {
+        for key in text(cache::MANIFESTS_ENV)
+            .unwrap_or_default()
+            .split_whitespace()
+        {
             let manifest = resolve(cache::MANIFESTS_ENV, key)?;
             let listed = std::fs::read_to_string(&manifest)
                 .map_err(|error| format!("cannot read {}: {error}", manifest.display()))?;
@@ -144,7 +169,9 @@ impl Config {
                 format!("{OUTPUTS_ENV} is not set; record mode runs only inside a test")
             })?;
             if shim.is_none() {
-                return Err(format!("{SHIM_ENV} is not set; record mode needs the native shim"));
+                return Err(format!(
+                    "{SHIM_ENV} is not set; record mode needs the native shim"
+                ));
             }
             Some(outputs.join("nested_cache"))
         };
@@ -406,7 +433,7 @@ fn clean_old_shims(dir: &Path, dst: &Path) {
     for entry in entries.filter_map(Result::ok) {
         if entry.file_name().to_string_lossy().starts_with(&name) {
             make_file_writable(&entry.path());
-            let _ = std::fs::remove_file(entry.path());
+            drop(std::fs::remove_file(entry.path()));
         }
     }
 }
@@ -420,7 +447,7 @@ fn make_file_writable(path: &Path) {
                 reason = "the file must be writable"
             )]
             permissions.set_readonly(false);
-            let _ = std::fs::set_permissions(path, permissions);
+            drop(std::fs::set_permissions(path, permissions));
         }
     }
 }
@@ -463,6 +490,7 @@ fn slashed(path: &Path) -> String {
 }
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "kill has no safe std API")]
 mod signal {
     pub const SIGTERM: i32 = 15;
     pub const SIGKILL: i32 = 9;
@@ -475,6 +503,7 @@ mod signal {
         let Ok(pid) = i32::try_from(pid) else {
             return false;
         };
+        // SAFETY: kill only reads its integer arguments.
         unsafe { kill(pid, sig) == 0 }
     }
 
@@ -501,6 +530,10 @@ mod signal {
 }
 
 #[cfg(windows)]
+#[expect(
+    unsafe_code,
+    reason = "process handle APIs have no safe std equivalent"
+)]
 mod signal {
     use std::ffi::c_void;
 
@@ -530,11 +563,14 @@ mod signal {
 
     /// Terminates `pid`; Windows has no graceful signal for a console-less server, so both kill.
     pub fn send(pid: u32, _sig: i32) -> bool {
+        // SAFETY: OpenProcess takes plain integers and returns null on failure.
         let handle = unsafe { OpenProcess(PROCESS_TERMINATE, 0, pid) };
         if handle.is_null() {
             return false;
         }
+        // SAFETY: handle is a live non-null process handle owned here.
         let done = unsafe { TerminateProcess(handle, 1) } != 0;
+        // SAFETY: handle is closed exactly once.
         unsafe {
             CloseHandle(handle);
         }
@@ -543,12 +579,15 @@ mod signal {
 
     /// A process is alive while its handle is unsignaled; an exit code of 259 cannot fool this.
     pub fn alive(pid: u32) -> bool {
+        // SAFETY: OpenProcess takes plain integers and returns null on failure.
         let handle =
             unsafe { OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
         if handle.is_null() {
             return false;
         }
+        // SAFETY: handle is a live non-null process handle owned here.
         let waited = unsafe { WaitForSingleObject(handle, 0) };
+        // SAFETY: handle is closed exactly once.
         unsafe {
             CloseHandle(handle);
         }
@@ -556,11 +595,14 @@ mod signal {
     }
 
     fn with_handle(pid: u32, act: unsafe extern "system" fn(Handle) -> i32) -> bool {
+        // SAFETY: OpenProcess takes plain integers and returns null on failure.
         let handle = unsafe { OpenProcess(PROCESS_SUSPEND_RESUME, 0, pid) };
         if handle.is_null() {
             return false;
         }
+        // SAFETY: act is NtSuspendProcess or NtResumeProcess on a live handle owned here.
         let status = unsafe { act(handle) };
+        // SAFETY: handle is closed exactly once.
         unsafe {
             CloseHandle(handle);
         }
@@ -993,6 +1035,9 @@ impl Server {
             workspace: None,
             reaper: None,
         };
+        if cfg!(windows) {
+            reset(&server.home)?;
+        }
         for dir in [server.home.join(WORKSPACES), server.home.join(HOME_DIR)] {
             std::fs::create_dir_all(&dir)
                 .map_err(|error| format!("cannot create {}: {error}", dir.display()))?;
@@ -1005,7 +1050,10 @@ impl Server {
             cache::install(&repository_cache, &server.config.cache)?;
         }
         write(&downloader, DOWNLOADER)?;
-        write(&rc, &bazelrc(&server.config, &downloader, &repository_cache))?;
+        write(
+            &rc,
+            &bazelrc(&server.config, &downloader, &repository_cache),
+        )?;
         let launcher = server.config.shim.clone().ok_or_else(|| {
             format!(
                 "{SHIM_ENV} is not set; nested Bazel needs the native shim (add NESTED_BAZEL_DATA and NESTED_BAZEL_ENV)"
@@ -1066,7 +1114,7 @@ impl Server {
         if let Some(root) = self.workspace.as_ref().filter(|root| root.is_dir())
             && !self.servers().is_empty()
         {
-            let _ = self.bazel_command(root, &["shutdown"]).output();
+            drop(self.bazel_command(root, &["shutdown"]).output());
         }
         kill_slot_servers(&self.user_root(), &self.home.join(WORKSPACES))
     }
@@ -1220,8 +1268,8 @@ impl Drop for Server {
     fn drop(&mut self) {
         let left = self.shutdown();
         if let Some(mut reaper) = self.reaper.take() {
-            let _ = reaper.kill();
-            let _ = reaper.wait();
+            drop(reaper.kill());
+            drop(reaper.wait());
         }
         if !left.is_empty() {
             eprintln!("nested Bazel servers survived shutdown: {left:?}");
@@ -1253,7 +1301,7 @@ fn blocked_download(offline: bool, run: &Run) -> Option<String> {
 }
 
 /// The longest one captured command may run.
-const CALL_DEADLINE: Duration = Duration::from_secs(300);
+const CALL_DEADLINE: Duration = Duration::from_secs(if cfg!(windows) { 1500 } else { 300 });
 
 /// Like `Command::output`, but kills the child and returns an error naming the command and its output so far once `limit` passes.
 fn output_within(command: &mut Command, limit: Duration) -> Result<std::process::Output, String> {
@@ -1269,7 +1317,7 @@ fn output_within(command: &mut Command, limit: Duration) -> Result<std::process:
         std::thread::spawn(move || {
             let mut bytes = Vec::new();
             if let Some(mut stream) = stream {
-                let _ = stream.read_to_end(&mut bytes);
+                drop(stream.read_to_end(&mut bytes));
             }
             bytes
         })
@@ -1281,8 +1329,8 @@ fn output_within(command: &mut Command, limit: Duration) -> Result<std::process:
         match child.try_wait().map_err(|error| error.to_string())? {
             Some(status) => break status,
             None if start.elapsed() >= limit => {
-                let _ = child.kill();
-                let _ = child.wait();
+                drop(child.kill());
+                drop(child.wait());
                 let tail = |bytes: Vec<u8>| {
                     let text = String::from_utf8_lossy(&bytes).into_owned();
                     let keep = text.len().saturating_sub(4000);
@@ -1324,10 +1372,12 @@ static SERVER: Mutex<Option<Server>> = Mutex::new(None);
 static RELEASE: Once = Once::new();
 
 #[cfg(any(unix, windows))]
+#[expect(unsafe_code, reason = "atexit has no safe std API")]
 fn release_at_exit() {
     unsafe extern "C" {
         fn atexit(callback: extern "C" fn()) -> i32;
     }
+    // SAFETY: release_hook is a plain extern "C" fn with static lifetime.
     unsafe {
         atexit(release_hook);
     }
@@ -1366,7 +1416,11 @@ pub fn recording() -> bool {
 
 fn read_dir_files(dir: &Path) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
-        .map(|entries| entries.filter_map(|entry| entry.ok().map(|e| e.path())).collect())
+        .map(|entries| {
+            entries
+                .filter_map(|entry| entry.ok().map(|e| e.path()))
+                .collect()
+        })
         .unwrap_or_default();
     files.sort();
     files
@@ -1391,7 +1445,9 @@ fn finish_record(server: &Server) -> Result<(), String> {
         let lock = std::fs::read_to_string(&path)
             .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
         if locks.get(stem).is_some_and(|seen| *seen != lock) {
-            return Err(format!("the lock {stem} was recorded twice with different content"));
+            return Err(format!(
+                "the lock {stem} was recorded twice with different content"
+            ));
         }
         let module_path = root.join("MODULE.bazel");
         let module = std::fs::read_to_string(&module_path)
@@ -1592,14 +1648,15 @@ pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
     capture(
         bazel_command_at(&home, root, args, &[]),
         "nested bazel",
-        offline)
+        offline,
+    )
 }
 
 impl Case {
     /// Puts the checked-in lock `stem` into the workspace; in record mode removes it and records the workspace.
     pub fn use_lock(&self, stem: &str) {
         if recording() {
-            let _ = std::fs::remove_file(self.root.join("MODULE.bazel.lock"));
+            drop(std::fs::remove_file(self.root.join("MODULE.bazel.lock")));
             let mut roots = RECORDED.lock().unwrap_or_else(PoisonError::into_inner);
             let entry = (stem.to_owned(), self.root.clone());
             if !roots.contains(&entry) {
@@ -1608,8 +1665,9 @@ impl Case {
             return;
         }
         let name = format!("{stem}.MODULE.bazel.lock");
-        let locks = std::env::var(LOCKS_ENV)
-            .unwrap_or_else(|_| panic!("{LOCKS_ENV} is not set; declare the test with nested_bazel_test(cache = ...)"));
+        let locks = std::env::var(LOCKS_ENV).unwrap_or_else(|_| {
+            panic!("{LOCKS_ENV} is not set; declare the test with nested_bazel_test(cache = ...)")
+        });
         for key in locks.split_whitespace() {
             let path = resolve_runfile(LOCKS_ENV, key).unwrap_or_else(|error| panic!("{error}"));
             if path.file_name().is_some_and(|file| *file == *name) {
@@ -1669,7 +1727,7 @@ impl Case {
         self.shutdown_server();
         let tmpdir = PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
         let log = tmpdir.join(log);
-        let _ = std::fs::remove_file(&log);
+        drop(std::fs::remove_file(&log));
         let flag = format!("--experimental_workspace_rules_log_file={}", log.display());
         let mut full = args.to_vec();
         full.push(&flag);
@@ -1904,7 +1962,10 @@ mod tests {
         write_record_rc(&format!("{root}/rc\n{root}/missing/logs\n")).expect("record rc");
         assert!(dir.path().join("missing/logs").is_dir());
         let rc = std::fs::read_to_string(dir.path().join("rc")).expect("rc");
-        assert!(rc.contains("--experimental_workspace_rules_log_file="), "{rc}");
+        assert!(
+            rc.contains("--experimental_workspace_rules_log_file="),
+            "{rc}"
+        );
         assert!(rc.contains("missing/logs/"), "{rc}");
     }
 
@@ -2041,7 +2102,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("dx-nested-config-{}", std::process::id()));
         write_rules_dx_config(&dir);
         let build = std::fs::read_to_string(dir.join("config/BUILD.bazel")).unwrap_or_default();
-        let _ = std::fs::remove_dir_all(&dir);
+        drop(std::fs::remove_dir_all(&dir));
         for (name, _) in RULES_DX_FLAGS {
             assert!(build.contains(&format!("name = \"{name}\"")), "{build}");
         }
@@ -2106,7 +2167,10 @@ mod tests {
         let manifest = fixture.dir.path().join("set.manifest");
         std::fs::write(&manifest, format!("{sha256} repo/file/file\n")).expect("manifest");
         let config = fixture.config(&[(cache::MANIFESTS_ENV, &manifest.to_string_lossy())]);
-        assert_eq!(config.cache, vec![(sha256, PathBuf::from("repo/file/file"))]);
+        assert_eq!(
+            config.cache,
+            vec![(sha256, PathBuf::from("repo/file/file"))]
+        );
         assert!(fixture.config(&[]).cache.is_empty());
     }
 
@@ -2114,16 +2178,8 @@ mod tests {
     fn the_config_is_offline_unless_the_network_is_asked_for() {
         let fixture = Fixture::new();
         assert!(fixture.config(&[]).offline);
-        assert!(
-            fixture
-                .config(&[("DX_NESTED_BAZEL_NETWORK", "")])
-                .offline
-        );
-        assert!(
-            !fixture
-                .config(&[("DX_NESTED_BAZEL_NETWORK", "1")])
-                .offline
-        );
+        assert!(fixture.config(&[("DX_NESTED_BAZEL_NETWORK", "")]).offline);
+        assert!(!fixture.config(&[("DX_NESTED_BAZEL_NETWORK", "1")]).offline);
     }
 
     #[test]
@@ -2131,17 +2187,10 @@ mod tests {
         let fixture = Fixture::new();
         assert_eq!(fixture.config(&[]).heap, "1536m");
         assert_eq!(
-            fixture
-                .config(&[("DX_NESTED_BAZEL_HEAP", "")])
-                .heap,
+            fixture.config(&[("DX_NESTED_BAZEL_HEAP", "")]).heap,
             "1536m"
         );
-        assert_eq!(
-            fixture
-                .config(&[("DX_NESTED_BAZEL_HEAP", "4g")])
-                .heap,
-            "4g"
-        );
+        assert_eq!(fixture.config(&[("DX_NESTED_BAZEL_HEAP", "4g")]).heap, "4g");
     }
 
     #[test]
@@ -2184,7 +2233,10 @@ mod tests {
 
         let mut command = Command::new("dx");
         apply_env_at(slot, &mut command, &[("HOME", "caller-home")], &[]);
-        assert_eq!(env_of(&command, "HOME"), Some(OsString::from("caller-home")));
+        assert_eq!(
+            env_of(&command, "HOME"),
+            Some(OsString::from("caller-home"))
+        );
         assert_eq!(env_of(&command, "USERPROFILE"), slot_home);
     }
 
@@ -2253,10 +2305,9 @@ mod tests {
             (TMPDIR_ENV, fixture.tmpdir().into_os_string()),
             (PINNED_ENV, OsString::from("nested_bazel_x/file/bazel")),
         ];
-        let error = Config::from_parts(
-            &lookup(all),
-            &|name, key| Err(format!("{name} {key} is not in the runfiles")),
-        )
+        let error = Config::from_parts(&lookup(all), &|name, key| {
+            Err(format!("{name} {key} is not in the runfiles"))
+        })
         .expect_err("unresolved pinned");
         assert_eq!(
             error,
@@ -2349,7 +2400,8 @@ mod tests {
         let run = capture(
             first.bazel_command(&root, &["info", "release"]),
             "bazel",
-            true);
+            true,
+        );
         assert!(run.status.success(), "{}", run.combined());
         let calls = std::fs::read_to_string(&log).expect("log");
         let user_root = first.user_root();
@@ -2385,7 +2437,8 @@ mod tests {
         let run = capture(
             server.bazel_command(&root, &["info", "release"]),
             "bazel",
-            true);
+            true,
+        );
         assert!(run.status.success(), "{}", run.combined());
         assert_eq!(
             std::fs::read_to_string(&log).expect("log"),
@@ -2429,9 +2482,7 @@ mod tests {
         let dir = scratch("nested-nopath-");
         let (bazel, _) = recorder(dir.path());
         let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("server");
-        let command = server
-            .command(&probe(), &[])
-            .expect("command");
+        let command = server.command(&probe(), &[]).expect("command");
         let run = capture(command, "env", false);
         let lines: Vec<&str> = run.stdout.lines().collect();
         let want_path = format!("PATH={}:/dx_no_path", server.home().join("bin").display());
@@ -2483,7 +2534,7 @@ mod tests {
 
     fn stop(mut child: Child, workspaces: &Path) {
         assert!(kill_servers_in_workspaces(workspaces).is_empty());
-        let _ = child.wait();
+        drop(child.wait());
     }
 
     #[test]
@@ -2499,7 +2550,7 @@ mod tests {
                 && servers_in_workspaces(&outside_root) == vec![other_pid]
         });
         assert!(kill_servers_in_workspaces(&workspaces).is_empty());
-        let _ = stray.wait();
+        drop(stray.wait());
         assert!(!alive(stray_pid));
         assert!(alive(other_pid));
         stop(other, &outside_root);
@@ -2513,7 +2564,7 @@ mod tests {
         let pid = stray.id();
         wait_until("the stand-in", || server.servers() == vec![pid]);
         assert!(server.shutdown().is_empty());
-        let _ = stray.wait();
+        drop(stray.wait());
         assert!(!alive(pid));
     }
 
@@ -2525,7 +2576,7 @@ mod tests {
         let pid = stray.id();
         wait_until("the stand-in", || server.servers() == vec![pid]);
         drop(server);
-        let _ = stray.wait();
+        drop(stray.wait());
         assert!(!alive(pid));
     }
 
@@ -2540,7 +2591,7 @@ mod tests {
             servers_in_workspaces(&dir.path().join("w")) == vec![pid]
         });
         let server = Server::acquire(config(dir.path(), &probe())).expect("acquire");
-        let _ = stray.wait();
+        drop(stray.wait());
         assert!(!alive(pid));
         drop(server);
     }
@@ -2562,10 +2613,10 @@ mod tests {
         std::thread::sleep(Duration::from_millis(1500));
         assert!(alive(pid));
         owner.kill().expect("kill owner");
-        let _ = owner.wait();
+        drop(owner.wait());
         wait_until("the reaper to stop the stand-in", || !alive(pid));
-        let _ = stray.wait();
-        let _ = reaper.wait();
+        drop(stray.wait());
+        drop(reaper.wait());
     }
 
     #[cfg(unix)]
@@ -2593,7 +2644,7 @@ mod tests {
                 .is_some_and(|t| t.iter().any(|(p, s, _)| *p == pid && *s == 'Z'))
         });
         assert!(!Processes::from_ps().alive(pid));
-        let _ = child.wait();
+        drop(child.wait());
     }
 }
 
@@ -2896,8 +2947,7 @@ mod portable_tests {
         wait_until("the stand-in", &|| {
             servers_in_workspaces(&workspaces).contains(&pid)
         });
-        let mut reaper = spawn_reaper(&bazel_wrapper_runfile(), owner.id(), &home)
-            .expect("reaper");
+        let mut reaper = spawn_reaper(&bazel_wrapper_runfile(), owner.id(), &home).expect("reaper");
         let log = || std::fs::read_to_string(home.join(REAPER_LOG)).unwrap_or_default();
         std::thread::sleep(Duration::from_millis(1500));
         let early = reaper.try_wait();
@@ -2988,8 +3038,8 @@ mod suspend_tests {
         assert_eq!(size(&file), held, "the child kept running while suspended");
         assert!(frozen.resume());
         assert!(wait_for_growth(&file, held), "the child did not restart");
-        let _ = child.kill();
-        let _ = child.wait();
+        drop(child.kill());
+        drop(child.wait());
     }
 
     #[test]
@@ -3003,16 +3053,16 @@ mod suspend_tests {
         let held = size(&file);
         drop(frozen);
         assert!(wait_for_growth(&file, held), "the child did not restart");
-        let _ = child.kill();
-        let _ = child.wait();
+        drop(child.kill());
+        drop(child.wait());
     }
 
     #[test]
     fn suspending_a_dead_pid_fails() {
         let mut child = heartbeat(&std::env::temp_dir().join("nested-suspend-dead"));
         let pid = child.id();
-        let _ = child.kill();
-        let _ = child.wait();
+        drop(child.kill());
+        drop(child.wait());
         assert!(suspend(pid).is_err());
     }
 }

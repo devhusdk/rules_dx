@@ -27,8 +27,10 @@ single_version_override(
 
 # floor: equals tested
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.75.0")
+
 # floor: equals tested
 bazel_dep(name = "rules_cc", version = "0.2.28")
+
 # floor: equals tested; dev only, consumers opt in through the avro_cc extension
 bazel_dep(name = "avro-cpp", version = "1.12.0.bcr.1", dev_dependency = True)
 single_version_override(
@@ -177,6 +179,7 @@ single_version_override(
         "//patches/windows_support:hostarm64_packages.patch",
         "//patches/windows_support:dx_msvc_layout.patch",
         "//patches/windows_support:source_directory_headers.patch",
+        "//patches/windows_support:pins.patch",
     ],
     version = "0.4.1",
 )
@@ -185,6 +188,7 @@ bazel_dep(name = "googletest", version = "1.18.0.bcr.1", dev_dependency = True)
 
 # floor: equals tested
 bazel_dep(name = "google_benchmark", version = "1.10.0")
+
 # floor: equals tested
 bazel_dep(name = "rules_python", version = "2.4.6")
 
@@ -201,8 +205,10 @@ single_version_override(
 
 # floor: equals tested; kcov links libdw and libelf (#7327)
 bazel_dep(name = "elfutils", version = "0.195")
+
 # floor: equals tested; elfutils needs 1.3.2 (#7327)
 bazel_dep(name = "zlib", version = "1.3.2.bcr.3")
+
 # floor: equals tested
 bazel_dep(name = "rules_go", version = "0.65.0")
 
@@ -219,9 +225,11 @@ single_version_override(
 
 # floor: equals tested; forced by rules_dart 0.8.1 MVS (#1783)
 bazel_dep(name = "gazelle", version = "0.54.0")
+
 # floor: equals tested
 bazel_dep(name = "rules_shell", version = "0.8.0")
-# floor: equals tested; Apple C++ toolchains register behind //config:toolchains (#12601)
+
+# floor: equals tested
 bazel_dep(name = "apple_support", version = "2.12.0")
 single_version_override(
     module_name = "apple_support",
@@ -229,8 +237,10 @@ single_version_override(
     patches = ["//patches/apple_support:toolchains_gate.patch"],
     version = "2.12.0",
 )
+
 # floor: equals tested
 bazel_dep(name = "rules_apple", version = "5.4.0")
+
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
 
@@ -287,10 +297,13 @@ go_sdk.download(
 
 # floor: equals tested
 bazel_dep(name = "platforms", version = "1.1.0")
+
 # floor: equals tested
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
+
 # floor: equals tested
 bazel_dep(name = "rules_proto", version = "7.1.0")
+
 # floor: equals tested
 bazel_dep(name = "protobuf", version = "36.2")
 single_version_override(
@@ -325,6 +338,7 @@ single_version_override(
 
 # floor: equals tested
 bazel_dep(name = "rules_rust_prost", version = "0.75.0")
+
 # floor: equals tested
 bazel_dep(name = "rules_java", version = "9.9.0")
 single_version_override(
@@ -333,8 +347,10 @@ single_version_override(
     patches = ["//patches/rules_java:toolchains_gate.patch"],
     version = "9.9.0",
 )
+
 # floor: equals tested
 bazel_dep(name = "grpc-java", version = "1.84.0", dev_dependency = True, repo_name = "grpc-java")
+
 # 0.8.0 needs build-tools 35 and --tool_java_language_version=17.
 # floor: equals tested; patched for key-rotation bundles (#3739)
 bazel_dep(name = "rules_android", version = "0.8.1")
@@ -395,21 +411,15 @@ ansible.lock(
 use_repo(ansible, "dx_ansible_test_collections")
 
 terraform = use_extension("//terraform:extensions.bzl", "terraform", dev_dependency = True)
-terraform.provider(
-    name = "null",
-    sha256 = {
-        "darwin_arm64": "c43723e8cc65bcdf5e0c92581dcbbdcbdcf18b8d2037406a5f2033b1e22de442",
-        "linux_amd64": "9d32ac3619cfc93eb3c4f423492a8e0f79db05fec58e449dee9b2d5873d5f69f",
-        "linux_arm64": "85e33ab43e0e1726e5f97a874b8e24820b6565ff8076523cc2922ba671492991",
-        "windows_amd64": "ed0fe2acdb61330b01841fa790be00ec6beaac91d41f311fb8254f74eb6a711f",
-    },
-    source = "registry.terraform.io/hashicorp/null",
-    version = "3.2.4",
+terraform.lock(
+    name = "dx_terraform_providers",
+    lock = "//terraform/tests/lock:terraform.lock.json",
 )
 use_repo(terraform, "dx_terraform_providers")
 
 # floor: equals tested; forced by rules_dart 0.8.1 MVS (#1783)
 bazel_dep(name = "bazel_lib", version = "3.7.2")
+
 dotnet = use_extension("//dotnet:extensions.bzl", "dotnet")
 dotnet.toolchain(
     name = "dx_dotnet",
@@ -434,23 +444,32 @@ use_repo(
 
 register_toolchains("@dx_dotnet_toolchains//:all")
 
+nuget = use_extension("//csharp:extensions.bzl", "nuget")
+nuget.lock(
+    name = "nuget",
+    lock = "//third_party/dotnet:nuget.lock.json",
+)
+use_repo(
+    nuget,
+    "nuget",
+    "nuget.docs_csharp",
+    "nuget.docs_fsharp",
+    "nuget.fsharplint",
+    "nuget.referencetrimmer",
+)
+
 paket = use_extension("//third_party/dotnet:extension.bzl", "paket")
 use_repo(
     paket,
     "dotnet.apphost_packs",
     "dotnet.runtime_packs",
     "dotnet.targeting_packs",
-    "paket.docs_csharp",
-    "paket.docs_fsharp",
-    "paket.fsharplint",
-    "paket.main",
-    "paket.paket2bazel_dependencies",
-    "paket.referencetrimmer",
     "paket.rules_dotnet_nuget_packages",
 )
 
 # floor: equals tested
 bazel_dep(name = "rules_jvm_external", version = "7.2")
+
 maven = use_extension(
     "@rules_jvm_external//:extensions.bzl",
     "maven",
@@ -483,12 +502,14 @@ maven.install(
     ],
 )
 
-# The Scala 3 compiler for scalac_check_test only; 3.3 is the LTS line rules_scala defaults to.
+maven.from_toml(
+    name = "dx_scala3_test",
+    libs_versions_toml = "//third_party/jvm:scala3_test/libs.versions.toml",
+)
 maven.install(
     name = "dx_scala3_test",
-    artifacts = ["org.scala-lang:scala3-compiler_3:3.3.9"],
     fail_if_repin_required = True,
-    lock_file = "//third_party/jvm:scala3_test_install.json",
+    lock_file = "//third_party/jvm:scala3_test/maven_install.json",
     repositories = [
         "https://maven-central.storage-download.googleapis.com/maven2",
         "https://repo1.maven.org/maven2",
@@ -497,30 +518,31 @@ maven.install(
 use_repo(maven, "dx_scala3_test", "maven", "rules_android_maven")
 
 maven_tools = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven_tools.from_toml(
+    name = "dx_scalafix",
+    libs_versions_toml = "//third_party/jvm:scalafix/libs.versions.toml",
+)
 maven_tools.install(
     name = "dx_scalafix",
-    artifacts = ["ch.epfl.scala:scalafix-cli_2.13.18:0.14.9"],
     fail_if_repin_required = True,
-    lock_file = "//third_party/jvm:scalafix_install.json",
+    lock_file = "//third_party/jvm:scalafix/maven_install.json",
     repositories = [
         "https://maven-central.storage-download.googleapis.com/maven2",
         "https://repo1.maven.org/maven2",
     ],
 )
+maven_tools.from_toml(
+    name = "dx_dokka",
+    libs_versions_toml = "//third_party/jvm:dokka/libs.versions.toml",
+)
 maven_tools.install(
     name = "dx_dokka",
-    artifacts = [
-        "org.jetbrains.dokka:analysis-kotlin-symbols:2.2.0",
-        "org.jetbrains.dokka:dokka-base:2.2.0",
-        "org.jetbrains.dokka:dokka-core:2.2.0",
-    ],
-    # Only the Kotlin toolchain's stdlib may be on the adapter's classpath.
     excluded_artifacts = [
         "org.jetbrains.kotlin:kotlin-stdlib",
         "org.jetbrains.kotlin:kotlin-stdlib-common",
     ],
     fail_if_repin_required = True,
-    lock_file = "//third_party/jvm:dokka_install.json",
+    lock_file = "//third_party/jvm:dokka/maven_install.json",
     repositories = [
         "https://maven-central.storage-download.googleapis.com/maven2",
         "https://repo1.maven.org/maven2",
@@ -676,6 +698,10 @@ dx_pins.data(
     pins = "//core/quality/artifacts:lock.json",
 )
 dx_pins.data(
+    name = "dx_android",
+    pins = "//android:pins.json",
+)
+dx_pins.data(
     name = "dx_cc_gcc",
     pins = "//cc:pins.json",
 )
@@ -699,6 +725,10 @@ dx_pins.data(
     name = "dx_fortran",
     pins = "//fortran:pins.json",
 )
+dx_pins.data(
+    name = "dx_julia",
+    pins = "//julia:pins.json",
+)
 dx_pins.pin(
     name = "dx_swift_format_macos_arm64",
     build = "//swift/private:swift_format.BUILD.bazel",
@@ -707,6 +737,19 @@ dx_pins.pin(
 dx_pins.data(
     name = "dx_haskell",
     pins = "//haskell:pins.json",
+)
+dx_pins.archive(
+    name = "dx_windows_support",
+    key = "windows_support",
+    patches = [
+        "//patches/windows_support:host_tools.patch",
+        "//patches/windows_support:rules_dx_hosts.patch",
+        "//patches/windows_support:hostarm64_packages.patch",
+        "//patches/windows_support:dx_msvc_layout.patch",
+        "//patches/windows_support:source_directory_headers.patch",
+        "//patches/windows_support:pins.patch",
+    ],
+    pins = "//cc:pins.json",
 )
 dx_pins.archive(
     name = "dx_ldoc",
@@ -732,10 +775,6 @@ dx_pins.archive(
     name = "dx_penlight",
     build = "//lua/private:penlight.BUILD.bazel",
     pins = "//lua:pins.json",
-)
-dx_pins.data(
-    name = "dx_qt_sdk",
-    pins = "//qt:pins.json",
 )
 dx_pins.data(
     name = "dx_ruby_coverage",
@@ -836,6 +875,10 @@ dx_pins.archive(
         "//patches/rules_flutter:flutter_3_47_9.patch",
     ],
     pins = "//flutter:pins.json",
+)
+dx_pins.archive(
+    name = "dx_paket",
+    pins = "//dotnet:pins.json",
 )
 dx_pins.archive(
     name = "dx_libfuzzer_dotnet",
@@ -970,6 +1013,7 @@ dx_pins.archive(
         "//patches/rules_haskell:cc_toolchain_config_info.patch",
         "//patches/rules_haskell:cabal_llvm_ar.patch",
         "//patches/rules_haskell:cc_wrapper_darwin_ffi.patch",
+        "//patches/rules_haskell:cabal_binary_dep_data.patch",
     ],
     pins = "//haskell:pins.json",
 )
@@ -1240,6 +1284,7 @@ use_repo(
     "dx_luacov_reporter_lcov",
     "dx_luafilesystem",
     "dx_luals",
+    "dx_paket",
     "dx_patchelf",
     "dx_penlight",
     "dx_pins_data",
@@ -1257,6 +1302,7 @@ use_repo(
     "dx_swift_format_macos_arm64",
     "dx_thrift_commons_lang3",
     "dx_thrift_slf4j",
+    "dx_windows_support",
     "japicmp_jar",
     "kcov",
     "nfpm_linux_arm64",
@@ -1362,6 +1408,7 @@ register_toolchains("@ruby_toolchains//:all")
 
 # floor: equals tested
 bazel_dep(name = "rules_zig", version = "0.17.0")
+
 # floor: equals tested
 bazel_dep(name = "rules_swift", version = "4.2.2")
 single_version_override(
@@ -1378,6 +1425,7 @@ single_version_override(
 
 # floor: equals tested
 bazel_dep(name = "bazel_linux_packages", version = "0.4.1")
+
 apt = use_extension("@bazel_linux_packages//apt:extensions.bzl", "apt")
 apt.index_integrity(
     integrities = {
@@ -1449,6 +1497,7 @@ single_version_override(
     patches = [
         "//patches/rules_dart:coverage.patch",
         "//patches/rules_dart:external_pkgsrcs.patch",
+        "//patches/rules_dart:windows_long_dill.patch",
     ],
     version = "0.8.1",
 )
@@ -1545,31 +1594,26 @@ pub_tools.from_lock(
 )
 use_repo(pub_tools, "dart_apitool_deps", "dx_dart_bench_deps")
 
-# floor: equals tested; patched (#5006)
-bazel_dep(name = "rules_julia", version = "0.8.0")
-single_version_override(
-    module_name = "rules_julia",
-    patch_strip = 1,
-    patches = [
-        "//patches/rules_julia:package_annotation_version.patch",
-        "//patches/rules_julia:package_name.patch",
-        "//patches/rules_julia:portable_cpu_target.patch",
-        "//patches/rules_julia:template_action_input.patch",
-    ],
-    version = "0.8.0",
-)
+# floor: equals tested
+bazel_dep(name = "toml.bzl", version = "0.5.0")
 
-julia = use_extension("@rules_julia//julia:extensions.bzl", "julia")
+rules_julia = use_extension("//julia/private/toolchain:extensions.bzl", "rules_julia")
+use_repo(rules_julia, "rules_julia")
+
+julia = use_extension("//julia:extensions.bzl", "toolchain")
 julia.toolchain(version = "1.12.5")
+use_repo(julia, "julia_toolchains")
 
-julia_pkg_dev = use_extension("@rules_julia//julia/pkg:extensions.bzl", "pkg", dev_dependency = True)
+register_toolchains("@julia_toolchains//:all")
+
+julia_pkg_dev = use_extension("//julia:extensions.bzl", "julia", dev_dependency = True)
 julia_pkg_dev.from_manifest(
     name = "julia_app_pkgs",
     lockfile = "//julia/tests/fixtures/julia-app/third_party:Manifest.bazel.json",
 )
 use_repo(julia_pkg_dev, julia_app_deps = "julia_app_pkgs")
 
-julia_pkg = use_extension("@rules_julia//julia/pkg:extensions.bzl", "pkg")
+julia_pkg = use_extension("//julia:extensions.bzl", "julia")
 julia_pkg.from_manifest(
     name = "dx_julia_coverage",
     lockfile = "//julia/private/coverage:Manifest.bazel.json",
@@ -1642,6 +1686,13 @@ use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_docs", "dx_julia_format", "dx
 
 # floor: equals tested
 bazel_dep(name = "rules_perl", version = "2.1.0")
+single_version_override(
+    module_name = "rules_perl",
+    patch_strip = 1,
+    patches = ["//patches/rules_perl:macos_pod.patch"],
+    version = "2.1.0",
+)
+
 perl_tools_cpan = use_extension("//perl:extensions.bzl", "cpan")
 perl_tools_cpan.lock(
     name = "dx_perl_cpan",
@@ -1670,14 +1721,14 @@ use_repo(elixir, "dx_credo", "dx_elixir", "dx_elixir_toolchains")
 hex = use_extension("//elixir:extensions.bzl", "hex")
 hex.lock(
     name = "dx_benchee",
-    lock = "//elixir/private/bench:mix.lock",
+    lock = "//elixir/private/bench:hex.lock.json",
 )
 use_repo(hex, "dx_benchee")
 
 hex_dev = use_extension("//elixir:extensions.bzl", "hex", dev_dependency = True)
 hex_dev.lock(
     name = "elixir_app_deps",
-    lock = "//elixir/tests/fixtures/elixir_app:mix.lock",
+    lock = "//elixir/tests/fixtures/elixir_app:hex.lock.json",
 )
 use_repo(hex_dev, "elixir_app_deps")
 
@@ -1835,6 +1886,7 @@ single_version_override(
 
 # floor: equals tested
 bazel_dep(name = "rules_pkg", version = "1.3.0")
+
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci.pull(
     name = "distroless_static",
@@ -1936,6 +1988,7 @@ archive_override(
         # upstream: https://github.com/aspect-build/rules_py/issues/1679
         "//patches/rules_py:external_repo_pytest_paths.patch",
         "//patches/rules_py:host_libc_glibc.patch",
+        "//patches/rules_py:win32_x86_32.patch",
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],
@@ -1943,12 +1996,16 @@ archive_override(
 
 # floor: equals tested
 bazel_dep(name = "aspect_rules_js", version = "3.6.0")
+
 # floor: equals tested
 bazel_dep(name = "aspect_rules_ts", version = "3.10.1")
+
 # floor: equals tested
 bazel_dep(name = "aspect_rules_jest", version = "0.26.0")
+
 # floor: equals tested
 bazel_dep(name = "rules_nodejs", version = "6.7.7")
+
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
 use_repo(
     node,
@@ -2519,9 +2576,12 @@ crate.from_cargo(
         "//swift/private/tools/lock:Cargo.toml",
         "//zig/private/tools/lock:Cargo.toml",
         "//d/private/tools/lock:Cargo.toml",
+        "//csharp/private/tools/lock:Cargo.toml",
+        "//java/private/tools/lock:Cargo.toml",
         "//php/private/tools/lock:Cargo.toml",
         "//ansible/private/tools/lock:Cargo.toml",
         "//bicep/private/tools/lock:Cargo.toml",
+        "//terraform/private/tools/lock:Cargo.toml",
         "//powershell/private/tools/lock:Cargo.toml",
         "//fortran/private/tools/lock:Cargo.toml",
         "//elixir/private/tools/lock:Cargo.toml",
@@ -2734,8 +2794,7 @@ _android_ndk_toolchain_repo(
 )
 
 register_toolchains(
-    "@android_ndk_toolchain//:ndk_cc_toolchain_device",
-    "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
+    "@android_ndk_toolchain//:all",
 )
 
 avro_cc = use_extension("//avro:extensions.bzl", "avro_cc")
@@ -2750,7 +2809,15 @@ _android_sdk_extension = use_extension("@rules_android//rules/android_sdk_reposi
 
 android_sdk = use_extension("//android:extensions.bzl", "android_sdk")
 android_sdk.configure(extra_packages = ["platform-tools"])
-use_repo(android_sdk, "dx_android_ndk_linux_x86_64", "dx_android_sdk", "dx_androidsdk")
+use_repo(
+    android_sdk,
+    "dx_android_ndk_linux_x86_64",
+    "dx_android_ndk_macos_arm64",
+    "dx_android_ndk_macos_x86_64",
+    "dx_android_ndk_windows_x86_64",
+    "dx_android_sdk",
+    "dx_androidsdk",
+)
 
 override_repo(
     _android_sdk_extension,
@@ -3170,28 +3237,10 @@ use_repo(windows_msvc_runtime, "msvc_runtime")
 windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "windows_sdk")
 use_repo(windows_sdk_ext, "windows_sdk")
 
-_dx_windows_support = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-_dx_windows_support(
-    name = "dx_windows_support",
-    integrity = "sha256-mPpYLkzOEVCcePdg6Kx0q/dVhys7qQ3SVCcCTS5TqJA=",
-    patch_args = ["-p1"],
-    patches = [
-        "//patches/windows_support:host_tools.patch",
-        "//patches/windows_support:rules_dx_hosts.patch",
-        "//patches/windows_support:hostarm64_packages.patch",
-        "//patches/windows_support:dx_msvc_layout.patch",
-        "//patches/windows_support:source_directory_headers.patch",
-    ],
-    strip_prefix = "windows_support-0.4.1",
-    urls = ["https://github.com/hermeticbuild/windows_support/releases/download/v0.4.1/windows_support-v0.4.1.tar.gz"],
-)
-
 dx_msvc_runtime_ext = use_extension("//cc:extensions.bzl", "msvc_runtime")
 dx_msvc_runtime_ext.configure(
     msvc_version = "14.50.35717",
-    visual_studio_installer_manifest_integrity = "sha256-qOhU+p8/uurCfXME4pfxZg1xN0ATid61fPeYPzPBb+8=",
-    visual_studio_installer_manifest_url = "https://download.visualstudio.microsoft.com/download/pr/fdc37f6e-59f6-4054-838a-b476eeaa6ec3/1d82370739911457e0a2f6be15d8b5f569531b352b2eabb961429eea1e99e356/VisualStudio.vsman",
+    pins = "//cc:pins.json",
 )
 use_repo(dx_msvc_runtime_ext, dx_msvc_runtime = "msvc_runtime")
 
@@ -3206,11 +3255,7 @@ dx_windows_sdk_ext.configure(
         "**/*.lib": "lowercase",
         "**/*.Lib": "lowercase",
     },
-    windows_sdk_integrity = {
-        "Microsoft.Windows.SDK.CPP": "sha256-/0VWYL7gcadEcVqWZWZvopwHaBV509gVlZqe7FpVZCQ=",
-        "Microsoft.Windows.SDK.CPP.x64": "sha256-rWzpD/lAEGmdKVSLPCseUsieuBFD4hmRVdmlw4ABtSs=",
-        "Microsoft.Windows.SDK.CPP.arm64": "sha256-A7wMA9Q5zvhQdLvNQl+dXTptO0Z5Z6zSHaO6bf7q+mc=",
-    },
+    pins = "//cc:pins.json",
     windows_sdk_version = "10.0.26100.7705",
 )
 use_repo(dx_windows_sdk_ext, dx_windows_sdk = "windows_sdk")

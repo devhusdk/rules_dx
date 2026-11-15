@@ -746,8 +746,7 @@ fn lock_name(eco: Language) -> &'static str {
         Language::Julia => "Manifest.toml",
         Language::Dart => "pubspec.lock",
         Language::Php => "composer.lock",
-        Language::Elixir => "mix.lock",
-        Language::Erlang => "rebar.lock",
+        Language::Elixir | Language::Erlang => "hex.lock.json",
         Language::Fortran => "fpm.lock.json",
         Language::Lua => "luarocks.lock.json",
         Language::D => "dub.selections.json",
@@ -1776,7 +1775,7 @@ fn find_usages_walks_odd_files() {
         let mode = std::fs::Permissions::from_mode(0o000);
         std::fs::set_permissions(&locked, mode).expect("chmod");
         let odd = dir.path().join(std::ffi::OsStr::from_bytes(b"bad\xff"));
-        let _ = std::fs::write(&odd, "fn odd() {}\n");
+        drop(std::fs::write(&odd, "fn odd() {}\n"));
     }
     let rust_hits =
         find_usages(Language::Rust, dir.path(), &["codegen".to_owned()]).expect("usages");

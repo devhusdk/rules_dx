@@ -90,7 +90,15 @@ pub(crate) fn headings(text: &str, starts: &[usize]) -> Vec<Heading> {
                     });
                 }
             }
-            _ => {}
+            Event::Start(_)
+            | Event::End(_)
+            | Event::InlineMath(_)
+            | Event::DisplayMath(_)
+            | Event::Html(_)
+            | Event::InlineHtml(_)
+            | Event::FootnoteReference(_)
+            | Event::Rule
+            | Event::TaskListMarker(_) => {}
         }
     }
     out
@@ -179,7 +187,18 @@ pub(crate) fn code_regions(text: &str, starts: &[usize]) -> Vec<CodeRegion> {
                     });
                 }
             }
-            _ => {}
+            Event::Start(_)
+            | Event::End(_)
+            | Event::Code(_)
+            | Event::InlineMath(_)
+            | Event::DisplayMath(_)
+            | Event::Html(_)
+            | Event::InlineHtml(_)
+            | Event::FootnoteReference(_)
+            | Event::SoftBreak
+            | Event::HardBreak
+            | Event::Rule
+            | Event::TaskListMarker(_) => {}
         }
     }
     regions
@@ -205,7 +224,25 @@ pub fn slug(text: &str) -> String {
                 | GeneralCategory::DecimalNumber
                 | GeneralCategory::LetterNumber
                 | GeneralCategory::ConnectorPunctuation => Some(c),
-                _ => None,
+                GeneralCategory::OtherNumber
+                | GeneralCategory::DashPunctuation
+                | GeneralCategory::OpenPunctuation
+                | GeneralCategory::ClosePunctuation
+                | GeneralCategory::InitialPunctuation
+                | GeneralCategory::FinalPunctuation
+                | GeneralCategory::OtherPunctuation
+                | GeneralCategory::MathSymbol
+                | GeneralCategory::CurrencySymbol
+                | GeneralCategory::ModifierSymbol
+                | GeneralCategory::OtherSymbol
+                | GeneralCategory::SpaceSeparator
+                | GeneralCategory::LineSeparator
+                | GeneralCategory::ParagraphSeparator
+                | GeneralCategory::Control
+                | GeneralCategory::Format
+                | GeneralCategory::Surrogate
+                | GeneralCategory::PrivateUse
+                | GeneralCategory::Unassigned => None,
             },
         })
         .collect()

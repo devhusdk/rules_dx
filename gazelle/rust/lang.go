@@ -396,8 +396,12 @@ func (l *rustLang) finish(args language.GenerateArgs, result language.GenerateRe
 		l.fail(common.InPackage(args.Rel), "rust: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
-	merged := mergeStale(args.File, result)
-	return merged
+	files, err := sourceFiles(args.Dir, args.Rel)
+	if err != nil {
+		l.fail(common.InPackage(args.Rel), "rust: %s: %v", args.Rel, err)
+		return language.GenerateResult{}
+	}
+	return mergeStale(args.File, args.Rel, withoutExcluded(files, args), result)
 }
 
 // setCoverageLib points a self-contained unit test at its library, so

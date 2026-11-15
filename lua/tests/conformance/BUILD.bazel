@@ -14,6 +14,18 @@ lua_library(
     strip_import_prefix = "/lua/tests/conformance",
 )
 
+lua_library(
+    name = "lint_dirty",
+    srcs = ["lib/lint_dirty.lua"],
+    tags = ["manual"],
+)
+
+lua_library(
+    name = "format_dirty",
+    srcs = ["lib/format_dirty.lua"],
+    tags = ["manual"],
+)
+
 lua_binary(
     name = "hello",
     main = "main.lua",
@@ -66,6 +78,15 @@ dx_conformance_suite(
     },
     not_applicable = {"cross_test": "lua_binary is a script the interpreter runs; it has no object format"},
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "lib/format_dirty.lua",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 1,
+        "lint_rule": "unused_variable",
+        "lint_source": "lib/lint_dirty.lua",
+    },
 )
 
 real_source_target(

@@ -183,7 +183,22 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         let signature_text = if object.signatures.is_empty() {
             match object.kind {
                 SymbolKind::Module => format!("module {}", object.path),
-                _ => object.path.clone(),
+                SymbolKind::Unspecified
+                | SymbolKind::Class
+                | SymbolKind::Interface
+                | SymbolKind::Function
+                | SymbolKind::Method
+                | SymbolKind::Field
+                | SymbolKind::Property
+                | SymbolKind::Constant
+                | SymbolKind::Enum
+                | SymbolKind::EnumVariant
+                | SymbolKind::TypeAlias
+                | SymbolKind::Macro
+                | SymbolKind::Variable
+                | SymbolKind::Component
+                | SymbolKind::Event
+                | SymbolKind::Slot => object.path.clone(),
             }
         } else {
             object.signatures.join("\n")

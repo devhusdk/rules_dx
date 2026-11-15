@@ -5,6 +5,7 @@ load(":toolchain_tests.bzl", "apple_ios_tests")
 
 rust_test(
     name = "path_test",
+    size = "small",
     testonly = True,
     srcs = ["path_test.rs"],
     aliases = aliases(

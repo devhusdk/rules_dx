@@ -21,7 +21,7 @@ The APK targets are `manual` and need the Android SDK.
 
 ```sh
 export ANDROID_HOME=$HOME/Android/Sdk ANDROID_NDK_REVISION=27.2.12479018
-NDK=--extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator
+NDK=--extra_toolchains=@android_ndk_toolchain//:all
 bazel test $NDK --test_env=ANDROID_HOME \
   //android/tests/fixtures/adopt-android/app:check_apk_test \
   //android/tests/fixtures/adopt-android/app:inspect_apk_test

@@ -31,33 +31,27 @@ pub(crate) fn without_usage(text: &str) -> String {
 }
 
 fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError {
-    match error.kind() {
-        clap::error::ErrorKind::DisplayHelp => {
-            let text = match help::help_command_in(args) {
-                Some(command) => help::render_command_help(command),
-                None => help::render_top_help(),
-            };
-            ArgsError::Help { text }
+    let kind = error.kind();
+    let usage = || ArgsError::Usage {
+        text: without_usage(&error.render().to_string()),
+    };
+    if kind == clap::error::ErrorKind::DisplayHelp {
+        let text = match help::help_command_in(args) {
+            Some(command) => help::render_command_help(command),
+            None => help::render_top_help(),
+        };
+        ArgsError::Help { text }
+    } else if kind == clap::error::ErrorKind::DisplayVersion {
+        use clap::CommandFactory;
+        ArgsError::Help {
+            text: Cli::command().render_version().to_string(),
         }
-        clap::error::ErrorKind::DisplayVersion => {
-            use clap::CommandFactory;
-            ArgsError::Help {
-                text: Cli::command().render_version().to_string(),
-            }
-        }
-        clap::error::ErrorKind::UnknownArgument => {
-            unsupported_option(args, error).unwrap_or_else(|| ArgsError::Usage {
-                text: without_usage(&error.render().to_string()),
-            })
-        }
-        clap::error::ErrorKind::InvalidValue => {
-            output_value_error(args, error).unwrap_or_else(|| ArgsError::Usage {
-                text: without_usage(&error.render().to_string()),
-            })
-        }
-        _ => ArgsError::Usage {
-            text: without_usage(&error.render().to_string()),
-        },
+    } else if kind == clap::error::ErrorKind::UnknownArgument {
+        unsupported_option(args, error).unwrap_or_else(usage)
+    } else if kind == clap::error::ErrorKind::InvalidValue {
+        output_value_error(args, error).unwrap_or_else(usage)
+    } else {
+        usage()
     }
 }
 

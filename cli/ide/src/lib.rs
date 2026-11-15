@@ -270,7 +270,9 @@ fn write_state(
 fn remove_stale(workspace: &Path, all: &[&Plugin], active: &[&Plugin]) {
     for plugin in all {
         if !active.iter().any(|a| a.name == plugin.name) {
-            let _ = std::fs::remove_dir_all(workspace.join(IDE_DIR).join(plugin.name));
+            drop(std::fs::remove_dir_all(
+                workspace.join(IDE_DIR).join(plugin.name),
+            ));
         }
     }
 }

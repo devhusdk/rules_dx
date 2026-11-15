@@ -49,8 +49,10 @@ static LAYER_SETS_DIAGNOSTICS: OnceLock<bool> = OnceLock::new();
 /// Records the name the workspace MODULE.bazel (and the files it includes) gives rules_dx.
 pub fn set_rules_dx_repo(workspace: &Path) {
     let repo = dx_module_bazel::rules_dx_repo(workspace);
-    let _ = LAYER_SETS_DIAGNOSTICS.set(correctness_layer_imported(workspace, &repo));
-    let _ = RULES_DX_REPO.set(repo);
+    LAYER_SETS_DIAGNOSTICS
+        .set(correctness_layer_imported(workspace, &repo))
+        .unwrap_or_default();
+    drop(RULES_DX_REPO.set(repo));
 }
 
 /// Whether the root `.bazelrc` imports a current correctness layer, which sets the diagnostics flags.

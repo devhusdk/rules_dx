@@ -80,6 +80,15 @@ fn fpm_lock_packages_are_audited() {
 }
 
 #[test]
+fn hex_lock_packages_are_audited() {
+    let text = r#"{"ecosystem": "hex", "packages": [{"name": "plug", "version": "1.15.0"}]}"#;
+    assert_eq!(
+        locked_names(Ecosystem::Hex, "third_party/elixir/hex.lock.json", text),
+        [("plug".to_owned(), "1.15.0".to_owned())]
+    );
+}
+
+#[test]
 fn opam_set_audits_the_opam_locked_files_only() {
     let set = ResolvedSet {
         name: "app_opam".to_owned(),

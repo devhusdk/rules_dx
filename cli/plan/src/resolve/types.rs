@@ -394,7 +394,25 @@ mod tests {
     fn failure(result: Result<QueryResult, ResolveError>) -> QueryFailure {
         match result.expect_err("failed") {
             ResolveError::QueryFailed { failure, .. } => failure,
-            other => panic!("{other}"),
+            other @ ResolveError::EmptyScope
+            | other @ ResolveError::RelativeLabel { .. }
+            | other @ ResolveError::ExternalScope { .. }
+            | other @ ResolveError::OutsideWorkspace { .. }
+            | other @ ResolveError::PathNotFound { .. }
+            | other @ ResolveError::NoTargets { .. }
+            | other @ ResolveError::NotFileOrDir { .. }
+            | other @ ResolveError::NotAPackage { .. }
+            | other @ ResolveError::UnsupportedName { .. }
+            | other @ ResolveError::NoOwner { .. }
+            | other @ ResolveError::NoTests { .. }
+            | other @ ResolveError::NoRunnable { .. }
+            | other @ ResolveError::AmbiguousRunnable { .. }
+            | other @ ResolveError::ChooseRunnable { .. }
+            | other @ ResolveError::DeployCount { .. }
+            | other @ ResolveError::DeployScope { .. }
+            | other @ ResolveError::NotDeployable { .. }
+            | other @ ResolveError::Config { .. }
+            | other @ ResolveError::AllExcluded { .. } => panic!("{other}"),
         }
     }
 

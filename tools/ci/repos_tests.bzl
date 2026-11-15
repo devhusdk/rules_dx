@@ -6,7 +6,6 @@ load(":repos.bzl", "consumer_fixture_file", "ignored_paths", "skipped", "walk")
 _BAZELIGNORE = """node_modules
 .claude/
 .dx/local
-# Disposable trees, also in .gitignore.
 .tmp
 
 bin

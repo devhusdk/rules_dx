@@ -674,7 +674,20 @@ mod tests {
                     assert!(fixed.is_empty(), "{command:?} takes no candidates");
                     assert!(!labels, "{command:?} takes no labels");
                 }
-                _ => {
+                Command::Lint
+                | Command::Typecheck
+                | Command::Format
+                | Command::Generate
+                | Command::Build
+                | Command::Test
+                | Command::Coverage
+                | Command::Bench
+                | Command::Run
+                | Command::Deploy
+                | Command::Check
+                | Command::Sync
+                | Command::Docs
+                | Command::Fuzz => {
                     assert!(fixed.is_empty(), "{command:?} takes no fixed tasks");
                     assert!(labels, "{command:?} must accept label scopes");
                 }

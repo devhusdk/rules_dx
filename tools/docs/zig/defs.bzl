@@ -19,20 +19,7 @@ _direct_srcs_aspect = aspect(
 )
 
 def zig_shard_action(ctx, own, package, config, stem, dump_tool, extract_tool):
-    """Dumps a Zig library's own sources with `std.zig.Ast` and extracts its DocIr shard.
-
-    Args:
-      ctx: The rule or aspect context.
-      own: The .zig files the library lists in its own srcs; the main file comes first.
-      package: Package segment of the shard's symbol ids.
-      config: Extra configuration identity recorded on every symbol.
-      stem: Output name prefix, relative to the target's package.
-      dump_tool: The `zig_doc_dump` executable.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the parser `dump` and the `srcs_manifest`.
-    """
+    """Dumps a Zig library's own sources with `std.zig.Ast` and extracts its DocIr shard."""
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own]))
 

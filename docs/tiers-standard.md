@@ -733,7 +733,8 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
       { "ignore": ["at-rule-preludes", "declaration-values"] }
     ],
     "syntax-string-no-invalid": true,
-    "unit-no-unknown": true
+    "unit-no-unknown": true,
+    "value-no-invalid": true
   },
   "overrides": [
     { "files": ["*.scss"], "customSyntax": "postcss-scss" },
@@ -778,6 +779,7 @@ extend-exclude = ["*.lock", "*.min.js", "*.svg"]
 Source: dx. Native file: `.yamlfmt`.
 
 ```yaml
+line_ending: lf
 formatter:
   type: basic
   indent: 2

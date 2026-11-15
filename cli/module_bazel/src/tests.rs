@@ -339,7 +339,10 @@ fn dict_arguments_keep_literal_keys_and_values() {
     let call = &file.calls()[0];
     let text = |value: &Value| match value {
         Value::Str(literal) => literal.value.clone(),
-        other => panic!("not a string: {other:?}"),
+        other @ Value::List(_)
+        | other @ Value::Dict(_)
+        | other @ Value::Ident(_)
+        | other @ Value::Computed { .. } => panic!("not a string: {other:?}"),
     };
     let Some(Value::Dict(settings)) = call.arg("target_settings") else {
         panic!("target_settings is not a dict");
@@ -1275,10 +1278,7 @@ fn cpan_installs_follow_the_rules_dx_extension() {
         .collect();
     assert_eq!(
         found,
-        [
-            ("tools", "//perl:cpan.lock.json"),
-            ("dev", "//x:l.json"),
-        ]
+        [("tools", "//perl:cpan.lock.json"), ("dev", "//x:l.json"),]
     );
 }
 
@@ -1332,16 +1332,19 @@ fn ansible_and_bicep_tags_follow_their_extensions() {
 }
 
 #[test]
-fn paket_extensions_are_main_repository_paket_loaders() {
+fn nuget_locks_are_the_nuget_extension_lock_tags() {
     let file = parse(
-        "paket = use_extension(\"//third_party/dotnet:extension.bzl\", \"paket\")\nmain = use_extension(\"//deps:paket.main_extension.bzl\", \"main_extension\")\nother = use_extension(\"//tools:extension.bzl\", \"other\")\nremote = use_extension(\"@x//:extension.bzl\", \"paket\")\n",
+        "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\", lock = \"//third_party/dotnet:nuget.lock.json\")\n",
     );
+    let locks: Vec<_> = file
+        .nuget_locks()
+        .expect("locks")
+        .iter()
+        .map(|entry| (entry.name, entry.lock))
+        .collect();
     assert_eq!(
-        file.paket_extensions(),
-        [
-            "//third_party/dotnet:extension.bzl",
-            "//deps:paket.main_extension.bzl"
-        ]
+        locks,
+        [("nuget", "//third_party/dotnet:nuget.lock.json")]
     );
 }
 
@@ -1447,8 +1450,10 @@ fn insert_extension_block_renders_a_dict_argument() {
         "{out}"
     );
     let mut bad = tag("annotation", "crate", "*");
-    bad.args
-        .push(("env".to_owned(), Arg::Dict(vec![("A".to_owned(), "\"".to_owned())])));
+    bad.args.push((
+        "env".to_owned(),
+        Arg::Dict(vec![("A".to_owned(), "\"".to_owned())]),
+    ));
     assert!(
         file.insert_extension_block("npm", NPM_BZL, "npm", &[bad], &[])
             .is_err()
@@ -1531,7 +1536,7 @@ fn build_files_parse_with_load_statements() {
 #[test]
 fn mix_locks_follow_the_elixir_mix_tag() {
     let file = parse(
-        "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//app:mix.lock\")\nother = use_extension(\"//other:repos.bzl\", \"elixir\")\nother.mix(name = \"x\", lock = \"//x:mix.lock\")\n",
+        "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//app:hex.lock.json\")\nother = use_extension(\"//other:repos.bzl\", \"elixir\")\nother.mix(name = \"x\", lock = \"//x:mix.lock\")\n",
     );
     let found: Vec<_> = file
         .mix_locks()
@@ -1539,21 +1544,7 @@ fn mix_locks_follow_the_elixir_mix_tag() {
         .iter()
         .map(|entry| (entry.name, entry.lock))
         .collect();
-    assert_eq!(found, [("deps", "//app:mix.lock")]);
-}
-
-#[test]
-fn rebar_locks_follow_the_erlang_rebar_tag() {
-    let file = parse(
-        "erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//app:rebar.lock\")\nother = use_extension(\"//other:repos.bzl\", \"erlang\")\nother.rebar(name = \"x\", lock = \"//x:rebar.lock\")\n",
-    );
-    let found: Vec<_> = file
-        .rebar_locks()
-        .expect("locks")
-        .iter()
-        .map(|entry| (entry.name, entry.lock))
-        .collect();
-    assert_eq!(found, [("deps", "//app:rebar.lock")]);
+    assert_eq!(found, [("deps", "//app:hex.lock.json")]);
 }
 
 #[test]

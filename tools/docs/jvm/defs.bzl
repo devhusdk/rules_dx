@@ -99,15 +99,7 @@ docs_java_shard = _jvm_shard_rule(
 )
 
 def java_doc_shard(name, lib, package = "", deps = [], **kwargs):
-    """Declares the DocIr shard of one Java library.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented java_library.
-      package: Package segment of every symbol id; defaults to the name of lib.
-      deps: java_doc_shard targets of libraries whose types this one extends or links to.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one Java library."""
     docs_java_shard(
         name = name,
         lib = lib,
@@ -125,15 +117,7 @@ docs_kotlin_shard = _jvm_shard_rule(
 )
 
 def kotlin_doc_shard(name, lib, package = "", deps = [], **kwargs):
-    """Declares the DocIr shard of one Kotlin library.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented kotlin_library; its srcs must all be .kt files.
-      package: Package segment of every symbol id; defaults to the name of lib.
-      deps: Doc shard targets of libraries whose types this one extends or links to.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one Kotlin library."""
     docs_kotlin_shard(
         name = name,
         lib = lib,
@@ -150,15 +134,7 @@ docs_scala_shard = _jvm_shard_rule(
 )
 
 def scala_doc_shard(name, lib, package = "", deps = [], **kwargs):
-    """Declares the DocIr shard of one Scala 2.13 library.
-
-    Args:
-      name: Name of the shard target.
-      lib: The documented scala_library; its srcs must all be .scala files.
-      package: Package segment of every symbol id; defaults to the name of lib.
-      deps: Doc shard targets of libraries whose types this one extends or links to.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one Scala 2.13 library."""
     docs_scala_shard(
         name = name,
         lib = lib,

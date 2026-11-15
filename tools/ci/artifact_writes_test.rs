@@ -13,7 +13,10 @@ const IN_PLACE: &str = "std::fs::write(";
 fn production(writer: &str) -> String {
     let text = read_runfiles(writer);
     match text.find("#[cfg(test)]") {
-        Some(at) => text[..at].to_owned(),
+        Some(at) => text
+            .get(..at)
+            .expect("string slice within bounds")
+            .to_owned(),
         None => text,
     }
 }

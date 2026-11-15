@@ -4,14 +4,13 @@ load(
     ":pins.bzl",
     "CELLS",
     "CLOSURES",
-    "EXTRACTORS",
     "LAYOUTS",
-    "LICENSE_TEXTS",
     "MODULES",
     "QT_MIRROR",
     "QT_VERSION",
     "RUNTIME_MIRROR",
     "RUNTIME_REPOSITORIES",
+    "license_texts",
 )
 load(":seven_zip.bzl", "host_cell_of", "seven_zip_fetch")
 
@@ -194,7 +193,7 @@ def _archive_errors(cell, key, archive, release):
     return errors
 
 def host_key(os, arch):
-    """Returns the EXTRACTORS key of one host from Bazel's os name and arch."""
+    """Returns the host cell of one host from Bazel's os name and arch."""
     return host_cell_of(os, arch)
 
 def cell_errors(cell, entry):
@@ -288,6 +287,17 @@ def runtime_errors(cell, runtime):
             errors.append("cell '" + cell + "' license text '" + key + "' is not a relative path")
     return errors
 
+def license_text_errors(texts):
+    """Returns one error string per license text that is not pinned by an https url and sha256."""
+    errors = []
+    for key in sorted(texts.keys()):
+        text = texts[key]
+        if not text.url.startswith("https://"):
+            errors.append("license text '" + key + "' does not use https")
+        if not _is_sha256(text.sha256):
+            errors.append("license text '" + key + "' sha256 is not 64 hex characters")
+    return errors
+
 def pin_errors(cells = CELLS):
     """Returns one error string per pin that is not ready to acquire."""
     errors = []
@@ -299,7 +309,7 @@ def pin_errors(cells = CELLS):
         for required in MODULES[name].requires:
             if required not in MODULES:
                 errors.append("module '" + name + "' requires unknown module '" + required + "'")
-    texts = dict(LICENSE_TEXTS)
+    texts = {}
     for cell in qualified_cells(cells):
         runtime = cells[cell].runtime
         if runtime == None:
@@ -307,16 +317,7 @@ def pin_errors(cells = CELLS):
         errors.extend(runtime_errors(cell, runtime))
         for key in runtime.license_texts:
             texts[cell + ": " + key] = runtime.license_texts[key]
-    for key in sorted(texts.keys()):
-        text = texts[key]
-        if not text.url.startswith("https://"):
-            errors.append("license text '" + key + "' does not use https")
-        if not _is_sha256(text.sha256):
-            errors.append("license text '" + key + "' sha256 is not 64 hex characters")
-    for host in sorted(EXTRACTORS.keys()):
-        extractor = EXTRACTORS[host]
-        if not extractor.url.startswith("https://") or not _is_sha256(extractor.sha256):
-            errors.append("extractor '" + host + "' is not pinned by an https url and sha256")
+    errors.extend(license_text_errors(texts))
     return errors
 
 def resolve_modules(modules):
@@ -767,7 +768,7 @@ def cell_build(cell, modules, rules_cc, unsupported, needs, cells = CELLS, tool 
     return "\n".join(lines)
 
 def _extract(ctx, extractor, archive, output, links = False):
-    command = [str(ctx.path(_EXTRACT + "/7zip/" + extractor.binary)), "x", "-y", "-bd", "-o" + output]
+    command = [extractor, "x", "-y", "-bd", "-o" + output]
     if links:
         command.append("-snld20")
     result = ctx.execute(command + [str(archive)])
@@ -863,16 +864,13 @@ def _place_font(ctx):
 
 def _qt_cell_repo_impl(ctx):
     cells = _cell_table(ctx)
-    errors = pin_errors(cells)
+    texts = license_texts(json.decode(ctx.read(ctx.attr._pins)))
+    errors = pin_errors(cells) + license_text_errors(texts)
     if len(errors) > 0:
         fail("qt: " + "; ".join(errors))
-    host = host_key(ctx.os.name, ctx.os.arch)
-    if host not in EXTRACTORS:
-        fail("qt: the pinned extractor runs on " + ", ".join(sorted(EXTRACTORS.keys())) + " hosts only, not " + ctx.os.name + " " + ctx.os.arch)
-    extractor = EXTRACTORS[host]
     entry = cells[ctx.attr.cell]
     layout = entry.layout
-    seven_zip_fetch(ctx, _EXTRACT + "/7zip")
+    extractor = seven_zip_fetch(ctx, _EXTRACT + "/7zip")
     for key in _archive_keys(entry) + ctx.attr.modules:
         url = url_for(ctx.attr.cell, key, ctx.attr.mirror, cells)
         archive = _EXTRACT + "/" + entry.archives[key].archive
@@ -883,10 +881,10 @@ def _qt_cell_repo_impl(ctx):
             _move_real(ctx, _EXTRACT + "/" + key + "/" + path, path)
     for library in layout.icu_libraries:
         _move_real(ctx, _EXTRACT + "/icu/" + library, "lib/" + library)
-    for key in sorted(LICENSE_TEXTS.keys()):
+    for key in sorted(texts.keys()):
         if key.startswith("icu/") and len(layout.icu_libraries) == 0:
             continue
-        ctx.download(url = LICENSE_TEXTS[key].url, output = "licenses/" + key, sha256 = LICENSE_TEXTS[key].sha256)
+        ctx.download(url = texts[key].url, output = "licenses/" + key, sha256 = texts[key].sha256)
     if entry.runtime != None:
         _acquire_runtime(ctx, extractor, cells)
     if layout.os == "windows":
@@ -943,5 +941,6 @@ qt_cell_repo = repository_rule(
             default = "",
         ),
         "_launcher": attr.label(default = "//qt/private/toolchain:launcher.c"),
+        "_pins": attr.label(default = "//qt:pins.json"),
     },
 )

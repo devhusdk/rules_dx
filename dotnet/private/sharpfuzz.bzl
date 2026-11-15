@@ -4,7 +4,7 @@ load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo",
 load("//core:fuzz.bzl", "dx_fuzz_target")
 
 SHARPFUZZ = [
-    Label("@paket.main//sharpfuzz"),
+    Label("@nuget//sharpfuzz"),
 ]
 
 _SUPPORTED = select({
@@ -73,7 +73,7 @@ dx_sharpfuzz_aspect = aspect(
             cfg = "exec",
         ),
         "_sharpfuzz": attr.label(
-            default = Label("@paket.main//sharpfuzz.commandline/tools:sharpfuzz"),
+            default = Label("@nuget//sharpfuzz.commandline/tools:sharpfuzz"),
             executable = True,
             cfg = "exec",
         ),

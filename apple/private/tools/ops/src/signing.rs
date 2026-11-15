@@ -7,6 +7,7 @@ use crate::util::{Env, Failure, exit_code, usage};
 use crate::xcode::{OPENSSL, PLUTIL, SECURITY, Tools};
 
 /// Makes every file this operation creates private to the user.
+#[expect(unsafe_code, reason = "umask has no safe std API")]
 pub fn private_files() {
     // SAFETY: umask has no failure mode and only changes the creation mask of this process.
     unsafe {
@@ -349,7 +350,7 @@ pub fn read_identity(
                 ],
             )
             .success();
-    let _ = std::fs::remove_file(&pem);
+    drop(std::fs::remove_file(&pem));
     if !exported || std::fs::metadata(&p12).map_or(true, |meta| meta.len() == 0) {
         return Err(unreadable());
     }

@@ -248,7 +248,8 @@ const PERLTIDY_FIX_ARGS: &[&str] = &[
 ];
 /// The sentinel, then tab-separated fields; the message is last. `%g` and `%L` are the physical
 /// file and line, so a `#line` directive cannot redirect a finding; `%c` is the visual column.
-pub const PERLCRITIC_FORMAT: &str = "dx\t%g\t%L\t%c\t%s\t%p\t%m\n";
+/// Perl::Critic expands the `\t` and `\n` escapes itself.
+pub const PERLCRITIC_FORMAT: &str = r"dx\t%g\t%L\t%c\t%s\t%p\t%m\n";
 /// Without a bound profile, `--noprofile` is first: it stops perlcritic reading `~/.perlcriticrc`,
 /// `./.perlcriticrc` and `$PERLCRITIC`. Severity 5 is the only level dx asks for, plus the
 /// unused-variable policy, which `--include` loads whatever its severity.
@@ -285,6 +286,7 @@ const TERRAFORM_INIT_ARGS: &[&str] = &[
 const TERRAFORM_VALIDATE_ARGS: &[&str] = &["validate", "-json", "-no-color"];
 const YAMLFMT_CHECK_ARGS: &[&str] = &["-lint", "-q"];
 const YAMLFMT_FIX_ARGS: &[&str] = &[];
+const YAMLFMT_DEFAULT_ARGS: &[&str] = &["-formatter", "line_ending=lf"];
 const SHFMT_CHECK_ARGS: &[&str] = &["-d"];
 const SHFMT_FIX_ARGS: &[&str] = &["-w"];
 const DJLINT_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
@@ -2298,13 +2300,22 @@ pub fn terraform_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TERRAFORM_FIX_ARGS, files, "")
 }
 
+/// The yamlfmt flags for a run without a config: LF line endings.
+fn yamlfmt_defaults(config: Option<&Path>) -> &'static [&'static str] {
+    if config.is_some() {
+        SCALAFMT_EMPTY
+    } else {
+        YAMLFMT_DEFAULT_ARGS
+    }
+}
+
 pub fn yamlfmt_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
         YAMLFMT_CHECK_ARGS,
         "-conf",
         config,
-        SCALAFMT_EMPTY,
+        yamlfmt_defaults(config),
         files,
         "",
     )
@@ -2316,7 +2327,7 @@ pub fn yamlfmt_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Inv
         YAMLFMT_FIX_ARGS,
         "-conf",
         config,
-        SCALAFMT_EMPTY,
+        yamlfmt_defaults(config),
         files,
         "",
     )

@@ -1,151 +1,30 @@
 use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
-#[derive(Debug, Eq, PartialEq)]
-enum Token {
-    Str(String),
-    Atom(String),
-    Open,
-    Close,
-    Other,
-}
-
-/// Splits Elixir or Erlang terms into strings, atoms and brackets; everything else is `Other`.
-fn tokenize(text: &str, name: &str) -> Result<Vec<Token>, DxError> {
-    let chars: Vec<char> = text.chars().collect();
-    let mut tokens = Vec::new();
-    let mut depth = 0usize;
-    let mut i = 0;
-    while let Some(&current) = chars.get(i) {
-        match current {
-            '#' => {
-                while chars.get(i).is_some_and(|&c| c != '\n') {
-                    i += 1;
-                }
-            }
-            '"' => {
-                let (value, next) = read_string(&chars, i, name)?;
-                tokens.push(Token::Str(value));
-                i = next;
-            }
-            ':' if chars.get(i + 1) == Some(&'"') => {
-                let (value, next) = read_string(&chars, i + 1, name)?;
-                tokens.push(Token::Atom(value));
-                i = next;
-            }
-            ':' => {
-                let start = i + 1;
-                i = start;
-                while chars
-                    .get(i)
-                    .is_some_and(|&c| c.is_alphanumeric() || "_@?!".contains(c))
-                {
-                    i += 1;
-                }
-                if i > start
-                    && let Some(atom) = chars.get(start..i)
-                {
-                    tokens.push(Token::Atom(atom.iter().collect()));
-                }
-            }
-            '{' | '[' => {
-                depth += 1;
-                tokens.push(Token::Open);
-                i += 1;
-            }
-            '}' | ']' => {
-                depth = depth.checked_sub(1).ok_or_else(|| {
-                    DxError::failure(format!("invalid {name}: unbalanced brackets"))
-                })?;
-                tokens.push(Token::Close);
-                i += 1;
-            }
-            c => {
-                if !c.is_whitespace() && c != ',' {
-                    tokens.push(Token::Other);
-                }
-                i += 1;
-            }
-        }
-    }
-    if depth != 0 {
-        return Err(DxError::failure(format!(
-            "invalid {name}: unbalanced brackets"
-        )));
-    }
-    Ok(tokens)
-}
-
-fn read_string(chars: &[char], quote: usize, name: &str) -> Result<(String, usize), DxError> {
-    let mut value = String::new();
-    let mut i = quote + 1;
-    while let Some(&current) = chars.get(i) {
-        match current {
-            '\\' => {
-                i += 1;
-                if let Some(c) = chars.get(i) {
-                    value.push(*c);
-                }
-            }
-            '"' => return Ok((value, i + 1)),
-            c => value.push(c),
-        }
-        i += 1;
-    }
-    Err(DxError::failure(format!(
-        "invalid {name}: unterminated string"
-    )))
-}
-
-/// Reads the `{:hex, :name, "version", ...}` entries of a lock; git and path entries are skipped.
-pub fn parse_mix_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
-    let tokens = tokenize(text, "lock")?;
-    if !text.trim_start().starts_with("%{") {
-        return Err(DxError::failure("invalid lock: expected a map"));
-    }
+/// Reads the packages of a hex lock.
+pub fn parse_hex_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let value: serde_json::Value = serde_json::from_str(text)
+        .map_err(|error| DxError::failure(format!("invalid hex lock: {error}")))?;
+    let packages = value
+        .get("packages")
+        .and_then(|value| value.as_array())
+        .ok_or_else(|| DxError::failure("invalid hex lock: missing packages"))?;
     let mut out = Vec::new();
-    for window in tokens.windows(4) {
-        if let [
-            Token::Open,
-            Token::Atom(kind),
-            Token::Atom(package),
-            Token::Str(version),
-        ] = window
-            && kind == "hex"
-        {
-            out.push(LockedPackage::new(
-                "hex",
-                package.as_str(),
-                version.as_str(),
+    for package in packages {
+        let field = |key: &str| {
+            package
+                .get(key)
+                .and_then(|value| value.as_str())
+                .unwrap_or("")
+                .trim()
+        };
+        let (name, version) = (field("name"), field("version"));
+        if name.is_empty() || version.is_empty() {
+            return Err(DxError::failure(
+                "invalid hex lock: package without a version",
             ));
         }
-    }
-    out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
-    Ok(out)
-}
-
-/// Reads the `{pkg, <<"name">>, <<"version">>}` entries of a rebar.lock.
-pub fn parse_rebar_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
-    let mut out = Vec::new();
-    let mut rest = text;
-    while let Some(at) = rest.find("{pkg,") {
-        rest = rest.get(at + "{pkg,".len()..).unwrap_or_default();
-        let mut names = Vec::new();
-        let mut cursor = rest;
-        while names.len() < 2 {
-            let open = cursor.find("<<\"").ok_or_else(|| {
-                DxError::failure("invalid rebar.lock: pkg entry without name and version")
-            })?;
-            let body = cursor.get(open + 3..).unwrap_or_default();
-            let close = body
-                .find("\">>")
-                .ok_or_else(|| DxError::failure("invalid rebar.lock: unterminated binary"))?;
-            names.push(body.get(..close).unwrap_or_default().to_owned());
-            cursor = body.get(close + 3..).unwrap_or_default();
-        }
-        if let [name, version] = names.as_slice() {
-            out.push(LockedPackage::new("hex", name.as_str(), version.as_str()));
-        }
+        out.push(LockedPackage::new("hex", name, version));
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     Ok(out)

@@ -11,8 +11,7 @@ android_ndk_toolchain_repo(
 )
 
 register_toolchains(
-    "@android_ndk_toolchain//:ndk_cc_toolchain_device",
-    "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
+    "@android_ndk_toolchain//:all",
 )
 
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")

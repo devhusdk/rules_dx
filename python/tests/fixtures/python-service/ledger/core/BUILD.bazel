@@ -1,6 +1,8 @@
-# gazelle:ignore
-load("//python:defs.bzl", "python_binary", "python_library", "python_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+
+# gazelle:resolve python click @dx_pypi_fixtures//click
+# gazelle:resolve python pytest @dx_pypi_fixtures//pytest
+load("//python:defs.bzl", "python_binary", "python_library", "python_test")
 
 package(default_visibility = [
     "//python/tests/analysis:__pkg__",
@@ -50,13 +52,12 @@ python_test(
     imports = ["../.."],
     deps = [
         ":core",
-        "@dx_pypi_fixtures//coverage",
+        "@dx_pypi_fixtures//coverage",  # keep
         "@dx_pypi_fixtures//pytest",
     ],
 )
 
 python_test(
-    runner = "plain",
     name = "build_info_test",
     srcs = ["build_info_test.py"],
     dep_group = "ledger",
@@ -65,6 +66,7 @@ python_test(
         "UV_OFFLINE": "1",
     },
     imports = ["../.."],
+    runner = "plain",
     deps = [
         ":core",
         ":gen_lib",
@@ -74,6 +76,7 @@ python_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = ["//:__pkg__"],

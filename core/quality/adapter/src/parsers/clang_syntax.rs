@@ -1,4 +1,4 @@
-use super::{FileFinding, ParseError, finding, lines, require_findings};
+use super::{FileFinding, ParseError, code_name, finding, lines};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
@@ -84,7 +84,8 @@ pub fn parse_clang_syntax(
     const TOOL: &str = "clang_syntax";
     let mut findings = Vec::new();
     let mut chain: Vec<(&str, u64)> = Vec::new();
-    for line in lines(TOOL, stderr)? {
+    let text = lines(TOOL, stderr)?;
+    for line in text.iter().copied() {
         if let Some(entry) = include_entry(line) {
             chain.push(entry);
             continue;
@@ -115,8 +116,33 @@ pub fn parse_clang_syntax(
             ColumnEncoding::Utf8,
         ));
     }
-    require_findings(TOOL, &findings, code)?;
+    if findings.is_empty() && code != Some(0) {
+        return Err(ParseError::shape(
+            TOOL,
+            format!(
+                "exit {} with no diagnostics (stderr: {})",
+                code_name(code),
+                unplaced_stderr(&text)
+            ),
+        ));
+    }
     Ok(findings)
+}
+
+/// The first stderr lines of a failing run that produced no checked-file finding.
+fn unplaced_stderr(text: &[&str]) -> String {
+    const SHOWN: usize = 20;
+    let kept: Vec<&str> = text
+        .iter()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .collect();
+    let shown = kept.iter().take(SHOWN).copied().collect::<Vec<_>>().join(" | ");
+    match kept.len() {
+        0 => "empty".to_owned(),
+        n if n > SHOWN => format!("{shown} | ... {} more lines", n - SHOWN),
+        _ => shown,
+    }
 }
 
 #[cfg(test)]
@@ -146,14 +172,19 @@ mod tests {
     #[test]
     fn failing_exit_without_a_diagnostic_is_an_error() {
         assert!(parse_clang_syntax(b"", Some(1), &[FILE]).is_err());
+        let err = parse_clang_syntax(
+            b"clang: error: no such file or directory: 'x.c'\n",
+            Some(1),
+            &[FILE],
+        )
+        .expect_err("driver error");
         assert!(
-            parse_clang_syntax(
-                b"clang: error: no such file or directory: 'x.c'\n",
-                Some(1),
-                &[FILE]
-            )
-            .is_err()
+            err.to_string()
+                .contains("exit 1 with no diagnostics (stderr: clang: error: no such file or directory: 'x.c')"),
+            "{err}"
         );
+        let empty = parse_clang_syntax(b"", Some(1), &[FILE]).expect_err("no output");
+        assert!(empty.to_string().contains("(stderr: empty)"), "{empty}");
         assert!(
             parse_clang_syntax(b"", Some(0), &[FILE])
                 .expect("clean")

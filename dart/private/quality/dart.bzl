@@ -92,7 +92,6 @@ def _dart_hook(target, ctx, _resolved, capability, what, _shared):
             reserved.append((stub_path, "generated pubspec stub collides with the staged source " + stub_path))
 
     def _with_config(hint, config_rel):
-        # dart format reads the nearest analysis_options.yaml.
         options = dart_options
         tool_files = []
         inputs = []

@@ -55,13 +55,16 @@ pub fn read_version_pins(root: &Path) -> Result<crate::LauncherPins, AdoptError>
 }
 
 fn read_pin_file(root: &Path) -> Result<String, AdoptError> {
-    std::fs::read_to_string(root.join(".dx/pins")).map_err(|e| match e.kind() {
-        std::io::ErrorKind::NotFound => AdoptError::MissingVersionPin {
-            command: crate::init_apply_command(root),
-        },
-        _ => AdoptError::ReadVersionPin {
-            detail: format!(".dx/pins: {e}"),
-        },
+    std::fs::read_to_string(root.join(".dx/pins")).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            AdoptError::MissingVersionPin {
+                command: crate::init_apply_command(root),
+            }
+        } else {
+            AdoptError::ReadVersionPin {
+                detail: format!(".dx/pins: {e}"),
+            }
+        }
     })
 }
 
@@ -99,7 +102,7 @@ pub fn refresh_stale_pins(
     if !has_all_hashes(&pins) {
         return;
     }
-    let _ = write_version_pins(root, module_version, &pins);
+    drop(write_version_pins(root, module_version, &pins));
 }
 
 /// `refresh_stale_pins` for the running binary: the `BUILD_WORKSPACE_DIRECTORY`
@@ -361,7 +364,7 @@ pub(crate) mod consumer_setup {
     fn literal(value: &Value) -> Option<String> {
         match value {
             Value::Str(literal) => Some(literal.value.clone()),
-            _ => None,
+            Value::List(_) | Value::Dict(_) | Value::Ident(_) | Value::Computed { .. } => None,
         }
     }
 
@@ -656,7 +659,7 @@ mod tests {
         assert!(parse_module_dependency("bazel_dep(name = \"rules_dx\"", &no_includes).is_err());
         let root =
             std::env::temp_dir().join(format!("dx-adopt-moduledep-{}-missing", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+        drop(std::fs::remove_dir_all(&root));
         std::fs::create_dir_all(&root).expect("dir");
         assert!(matches!(
             read_module_dependency(&root),
@@ -667,7 +670,7 @@ mod tests {
             read_module_dependency(&root),
             Err(AdoptError::ReadModuleFile { .. })
         ));
-        let _ = std::fs::remove_dir_all(&root);
+        drop(std::fs::remove_dir_all(&root));
     }
 
     #[test]

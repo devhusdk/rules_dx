@@ -46,6 +46,7 @@ consumer_archive(
 
 rust_test(
     name = "archive_test",
+    size = "small",
     testonly = True,
     srcs = ["archive_test.rs"],
     aliases = aliases(
@@ -67,6 +68,7 @@ rust_test(
 
 rust_test(
     name = "imports_test",
+    size = "small",
     testonly = True,
     srcs = ["imports_test.rs"],
     aliases = aliases(
@@ -93,6 +95,7 @@ rust_test(
 
 rust_test(
     name = "producer_test",
+    size = "small",
     testonly = True,
     srcs = ["producer_test.rs"],
     aliases = aliases(

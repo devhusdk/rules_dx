@@ -42,7 +42,7 @@ Upstream class, as ecosystem (languages): manifest; lock; hub.
 - `npm` (javascript, typescript, astro, mdx, svelte, vue): `package.json`; `pnpm-lock.yaml`; `npm`.
 - `pub` (dart, flutter): `pubspec.yaml`; `pubspec.lock`; `pub`.
 - `go` (go): `go.mod`; `go.sum`; `*`.
-- `maven` (java, kotlin, scala): `libs.versions.toml`; `maven_install.json`; `maven`.
+- `maven` (java, kotlin, scala): `libs.versions.toml`; `maven_install.json`; resolver `@rules_dx//java/private/tools/lock`; `maven`.
 - `julia` (julia): `Project.toml`; `Manifest.bazel.json`; `julia`.
 
 dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosystem>.lock.json`.
@@ -62,7 +62,7 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - `powershell` (powershell): `PSGallery.requirements.psd1`; none; `psgallery`.
 - `ansible` (ansible): `requirements.yml`; none; `ansible`.
 - `bicep` (bicep): `*.bicep`; none; `bicep`.
-- `terraform` (terraform): `*.tf`; `.terraform.lock.hcl`; `terraform`.
+- `terraform` (terraform): `*.tf`; `terraform.lock.json`, state `.terraform.lock.hcl`; resolver `@rules_dx//terraform/private/tools/lock`; imports `provides`; `dx_terraform_providers`.
 
 ## Manifest
 
@@ -84,6 +84,12 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - `provides` lists the package's import names.
 - Other ecosystem data is under `extra`; the schema lists its keys per ecosystem.
 - Keys are sorted, so the same inputs and registry state give the same bytes.
+
+## Groups
+
+- A `nuget.lock.json` holds one exact-version closure per Paket group under the top key `groups`, which maps the group name to its packages; its `packages` is empty.
+- Each group is its own hub: the `main` group is the set's hub name, another group is `<hub>.<group>`.
+- A package of a group is `@<group hub>//<name>`.
 
 ## Extension
 
@@ -119,6 +125,7 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - A dx class lock is stale when an `inputs` file has another sha256. For the upstream class the resolver's frozen mode decides.
 - The step runs the resolver rules_dx pins by sha256, starts no host program (see `host-tools.md`) and keeps the resolver's home, cache and config in a scratch directory.
 - `//cli/lock` is the only writer of `<ecosystem>.lock.json`.
+- The `maven` resolver runs the rules_jvm_external Maven resolver with the pinned JDK. It reads `libs.versions.toml` and writes `maven_install.json`.
 - A step whose `inputs` match makes no network request. A package with unchanged name, version and URLs keeps its entry with no download.
 
 ## Imports

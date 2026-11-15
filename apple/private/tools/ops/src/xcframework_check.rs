@@ -319,7 +319,7 @@ fn verify(tools: &Tools, args: &[String], work: &Path, tmp: &Path) -> Result<(),
         }
     }
 
-    let _ = std::fs::remove_dir_all(work);
+    drop(std::fs::remove_dir_all(work));
     write(tmp, std::fs::write(tmp, text))?;
     write(Path::new(out), std::fs::copy(archive_path, out).map(|_| ()))?;
     write(Path::new(report), std::fs::rename(tmp, report))
@@ -332,13 +332,13 @@ pub fn run(tools: &Tools, args: &[String]) -> Outcome {
     let report = args.first().map_or("", String::as_str);
     let work = PathBuf::from(format!("{report}.unpacked"));
     let tmp = PathBuf::from(format!("{report}.tmp"));
-    let _ = std::fs::remove_dir_all(&work);
+    drop(std::fs::remove_dir_all(&work));
     let result = verify(tools, args, &work, &tmp);
-    let _ = std::fs::remove_dir_all(&work);
+    drop(std::fs::remove_dir_all(&work));
     if result.is_err() {
-        let _ = std::fs::remove_file(&tmp);
+        drop(std::fs::remove_file(&tmp));
         if let Some(out) = args.get(1) {
-            let _ = std::fs::remove_file(out);
+            drop(std::fs::remove_file(out));
         }
     }
     result.map(|()| 0)

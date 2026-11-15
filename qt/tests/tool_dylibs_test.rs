@@ -40,7 +40,9 @@ fn normalize(path: &Path) -> PathBuf {
 }
 
 fn otool(flag: &str, image: &Path) -> String {
-    let done = Command::new("/usr/bin/otool")
+    let runfiles = std::env::var_os("RUNFILES_DIR").expect("RUNFILES_DIR");
+    let llvm_otool = std::env::var_os("LLVM_OTOOL").expect("LLVM_OTOOL");
+    let done = Command::new(PathBuf::from(runfiles).join(llvm_otool))
         .arg(flag)
         .arg(image)
         .output()

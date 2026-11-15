@@ -5,20 +5,7 @@ load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 def avro_shard_action(ctx, srcs, imports, avro_tools, package, stem, extract_tool):
-    """Runs avro-tools on each .avdl and the extractor over every schema of one avro_library.
-
-    Args:
-      ctx: The rule or aspect context.
-      srcs: The .avsc and .avdl files the library lists in its own srcs.
-      imports: Every schema the library reaches, so .avdl imports resolve.
-      avro_tools: The FilesToRunProvider of the pinned avro-tools (//config:tool_avro).
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`.
-    """
+    """Runs avro-tools on each .avdl and the extractor over every schema of one avro_library."""
     if not srcs:
         fail("avro_doc_shard " + str(ctx.label) + ": avro_library lists no schema srcs")
     extract = ctx.actions.args()
@@ -29,7 +16,6 @@ def avro_shard_action(ctx, srcs, imports, avro_tools, package, stem, extract_too
         if not src.is_source:
             extract.add("--generated", source)
         if src.extension == "avdl":
-            # idl2schemata writes one .avsc per named type; messages stay in the .avdl.
             tree = ctx.actions.declare_directory("%s.%s.schemata" % (stem, src.basename))
             args = ctx.actions.args()
             args.add_all(["idl2schemata", src, tree.path])
@@ -98,14 +84,7 @@ docs_avro_shard = rule(
 )
 
 def avro_doc_shard(name, avro, package = "", **kwargs):
-    """Declares the DocIr shard of one avro_library.
-
-    Args:
-      name: Name of the shard target.
-      avro: The documented avro_library.
-      package: Package segment of every symbol id; defaults to the name of avro.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one avro_library."""
     docs_avro_shard(
         name = name,
         avro = avro,

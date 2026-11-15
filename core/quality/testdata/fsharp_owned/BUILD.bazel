@@ -22,7 +22,7 @@ fsharp_library(
     name = "clean",
     testonly = True,
     srcs = ["Clean.fs"],
-    deps = ["@paket.main//fsharp.core"],
+    deps = ["@nuget//fsharp.core"],
 )
 
 fsharp_library(
@@ -30,5 +30,5 @@ fsharp_library(
     testonly = True,
     srcs = ["Dirty.fs"],
     tags = ["manual"],
-    deps = ["@paket.main//fsharp.core"],
+    deps = ["@nuget//fsharp.core"],
 )

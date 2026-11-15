@@ -16,6 +16,15 @@
     "packages": {
       "type": "array",
       "items": {"$ref": "#/$defs/package"}
+    },
+    "groups": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Za-z0-9_.-]+$"},
+      "additionalProperties": {
+        "type": "array",
+        "items": {"$ref": "#/$defs/package"}
+      }
     }
   },
   "$defs": {
@@ -100,6 +109,7 @@
             "string_imports": {"$ref": "#/$defs/strings"}
           }
         },
+        "nuget_sha512": {"type": "string", "pattern": "^sha512-[A-Za-z0-9+/]{86}==$"},
         "lua_modules": {
           "type": "object",
           "minProperties": 1,

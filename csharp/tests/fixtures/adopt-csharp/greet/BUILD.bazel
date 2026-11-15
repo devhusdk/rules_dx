@@ -11,7 +11,7 @@ csharp_test(
     srcs = ["GreetTest.cs"],
     deps = [
         ":greet",
-        "@paket.main//xunit.v3.assert",
+        "@nuget//xunit.v3.assert",
     ],  # keep
 )
 

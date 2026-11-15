@@ -1,15 +1,23 @@
+#![expect(
+    unsafe_code,
+    reason = "the fixture exists to call across the C FFI boundary"
+)]
+
 include!(concat!(env!("OUT_DIR"), "/cc_probe.rs"));
 
+// SAFETY: the declarations match the C and C++ signatures of the fixture library.
 unsafe extern "C" {
     fn native_cc_c_value() -> i32;
     fn native_cc_cxx_value() -> i32;
 }
 
 pub fn c_value() -> i32 {
+    // SAFETY: native_cc_c_value takes no arguments and has no preconditions.
     unsafe { native_cc_c_value() }
 }
 
 pub fn cxx_value() -> i32 {
+    // SAFETY: native_cc_cxx_value takes no arguments and has no preconditions.
     unsafe { native_cc_cxx_value() }
 }
 

@@ -29,7 +29,10 @@ fn dx_crates_manifest_dirs() -> Vec<String> {
         .take_while(|line| !line.trim_start().starts_with(']'))
         .filter_map(|line| {
             let label = line.trim().strip_prefix('"')?;
-            let label = label[..label.find('"')?].strip_prefix("//")?;
+            let label = label
+                .get(..label.find('"')?)
+                .expect("string slice within bounds")
+                .strip_prefix("//")?;
             let dir = label.strip_suffix(":Cargo.toml")?;
             Some(dir.to_owned())
         })

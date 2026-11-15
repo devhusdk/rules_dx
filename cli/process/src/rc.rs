@@ -466,7 +466,7 @@ fn sets_local_resource(token: &str, next: Option<&str>, resource: &str) -> bool 
 
 /// Sets the policy for this process; the first call wins.
 pub fn configure(policy: RcPolicy) {
-    let _ = CURRENT.set(policy);
+    drop(CURRENT.set(policy));
 }
 
 /// Sets the policy for this process from the real environment and files.

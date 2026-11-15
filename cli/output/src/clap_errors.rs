@@ -10,10 +10,12 @@ pub fn invalid_token(error: &clap::Error) -> String {
 
 pub fn rejected_value(error: &clap::Error) -> Option<String> {
     let invalid = error.get(clap::error::ContextKind::InvalidValue)?;
-    let raw = match invalid {
-        clap::error::ContextValue::String(value) => value.clone(),
-        clap::error::ContextValue::Strings(values) => values.first().cloned().unwrap_or_default(),
-        _ => String::new(),
+    let raw = if let clap::error::ContextValue::String(value) = invalid {
+        value.clone()
+    } else if let clap::error::ContextValue::Strings(values) = invalid {
+        values.first().cloned().unwrap_or_default()
+    } else {
+        String::new()
     };
     if raw.is_empty() { None } else { Some(raw) }
 }
@@ -41,20 +43,19 @@ pub fn missing_value_flag(error: &clap::Error) -> String {
 }
 
 pub fn parse_error(error: &clap::Error, args: &[String]) -> String {
-    match error.kind() {
-        clap::error::ErrorKind::UnknownArgument => {
-            let mut message = format!("unknown flag {:?}", unknown_token(error, args));
-            if let Some(clap::error::ContextValue::String(arg)) =
-                error.get(clap::error::ContextKind::SuggestedArg)
-            {
-                message.push_str(&format!("; did you mean {arg}?"));
-            }
-            message
+    let kind = error.kind();
+    if kind == clap::error::ErrorKind::UnknownArgument {
+        let mut message = format!("unknown flag {:?}", unknown_token(error, args));
+        if let Some(clap::error::ContextValue::String(arg)) =
+            error.get(clap::error::ContextKind::SuggestedArg)
+        {
+            message.push_str(&format!("; did you mean {arg}?"));
         }
-        clap::error::ErrorKind::InvalidValue => {
-            format!("missing value for {}", missing_value_flag(error))
-        }
-        _ => first_line(error),
+        message
+    } else if kind == clap::error::ErrorKind::InvalidValue {
+        format!("missing value for {}", missing_value_flag(error))
+    } else {
+        first_line(error)
     }
 }
 

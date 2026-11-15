@@ -85,11 +85,17 @@ fn leaf_expr(req: &spdx::expression::ExpressionReq) -> LicenseExpr {
 fn merge_or(lhs: LicenseExpr, rhs: LicenseExpr) -> LicenseExpr {
     let mut disjuncts = match lhs {
         LicenseExpr::Or(items) => items,
-        other => vec![other],
+        other @ (LicenseExpr::Ident(_)
+        | LicenseExpr::And(_)
+        | LicenseExpr::With { .. }
+        | LicenseExpr::Unknown) => vec![other],
     };
     match rhs {
         LicenseExpr::Or(mut items) => disjuncts.append(&mut items),
-        other => disjuncts.push(other),
+        other @ (LicenseExpr::Ident(_)
+        | LicenseExpr::And(_)
+        | LicenseExpr::With { .. }
+        | LicenseExpr::Unknown) => disjuncts.push(other),
     }
     LicenseExpr::Or(disjuncts)
 }
@@ -97,11 +103,17 @@ fn merge_or(lhs: LicenseExpr, rhs: LicenseExpr) -> LicenseExpr {
 fn merge_and(lhs: LicenseExpr, rhs: LicenseExpr) -> LicenseExpr {
     let mut conjuncts = match lhs {
         LicenseExpr::And(items) => items,
-        other => vec![other],
+        other @ (LicenseExpr::Ident(_)
+        | LicenseExpr::Or(_)
+        | LicenseExpr::With { .. }
+        | LicenseExpr::Unknown) => vec![other],
     };
     match rhs {
         LicenseExpr::And(mut items) => conjuncts.append(&mut items),
-        other => conjuncts.push(other),
+        other @ (LicenseExpr::Ident(_)
+        | LicenseExpr::Or(_)
+        | LicenseExpr::With { .. }
+        | LicenseExpr::Unknown) => conjuncts.push(other),
     }
     LicenseExpr::And(conjuncts)
 }

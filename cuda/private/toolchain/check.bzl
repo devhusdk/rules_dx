@@ -141,7 +141,7 @@ def in_component(path, name):
 def toolkit_errors(nvcc_path, toolkit_path, version):
     """Returns errors for a CUDA toolchain that is not the pinned nvcc toolkit."""
     if toolkit_path.startswith("/") or not in_component(nvcc_path, "nvcc"):
-        return ["dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '" + nvcc_path + "'); use the cuda extension from @rules_dx//cuda:extensions.bzl and remove your own cuda.redist_json and cuda.toolkit tags"]
+        return ["dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '" + nvcc_path + "'); remove your own rules_cuda cuda.redist_json and cuda.toolkit tags"]
     if version != CUDA_VERSION:
         return ["dx_cuda: the CUDA toolkit is " + version + "; dx CUDA targets need " + CUDA_VERSION]
     return []
@@ -149,10 +149,10 @@ def toolkit_errors(nvcc_path, toolkit_path, version):
 def component_errors(name, paths):
     """Returns errors for a library component whose files are not from the pinned redistributable."""
     if not paths:
-        return ["dx_cuda: component '" + name + "' has no files; use the cuda extension from @rules_dx//cuda:extensions.bzl and remove your own cuda.redist_json tag"]
+        return ["dx_cuda: component '" + name + "' has no files; remove your own rules_cuda cuda.redist_json tag"]
     for path in paths:
         if not in_component(path, name):
-            return ["dx_cuda: component '" + name + "' is not the pinned redistributable (file '" + path + "'); use the cuda extension from @rules_dx//cuda:extensions.bzl and remove your own cuda.redist_json and cuda.toolkit tags"]
+            return ["dx_cuda: component '" + name + "' is not the pinned redistributable (file '" + path + "'); remove your own rules_cuda cuda.redist_json and cuda.toolkit tags"]
     return []
 
 def _check_impl(ctx):

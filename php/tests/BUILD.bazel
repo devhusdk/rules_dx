@@ -1,4 +1,4 @@
-load("//core/quality:fixtures.bzl", "real_source_target")
+load("//php/private/quality:corpus.bzl", "php_corpus")
 load(":hub_tests.bzl", "php_hub_tests")
 load(":toolchain_tests.bzl", "php_metadata_tests", "php_version_test")
 
@@ -19,11 +19,12 @@ php_version_test(
     size = "small",
 )
 
-real_source_target(
+php_corpus(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
+        "checks.bzl",
         "hub_tests.bzl",
         "toolchain_tests.bzl",
     ],

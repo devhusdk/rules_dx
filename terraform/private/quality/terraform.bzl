@@ -50,7 +50,6 @@ def _terraform_hook(target, ctx, resolved, capability, what, shared):
     if capability != "typecheck":
         return real_context()
 
-    # Providers are offline mirrors passed as -plugin-dir values.
     pairs = default_files_hook(["tf", "json", "hcl"])(target, ctx, resolved, capability, what, shared).resolve_pairs
     mirror_roots = {}
     provider_files = []
@@ -59,7 +58,6 @@ def _terraform_hook(target, ctx, resolved, capability, what, shared):
             mirror_roots[provider.mirror_root] = True
             provider_files.extend(provider.files.to_list())
 
-    # Relative to the execution root; the runner makes each root absolute. May be empty.
     env = [real_request_tool_env("DX_TERRAFORM_PLUGIN_DIRS", "|".join(sorted(mirror_roots.keys())))]
     return real_context(early_inputs = provider_files, resolve_pairs = pairs, env = env)
 

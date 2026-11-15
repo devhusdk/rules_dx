@@ -241,7 +241,21 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
                 SymbolKind::Function | SymbolKind::Method => {
                     format!("function {name}.{short}{args}")
                 }
-                _ => format!("{name}.{short}"),
+                SymbolKind::Unspecified
+                | SymbolKind::Module
+                | SymbolKind::Class
+                | SymbolKind::Interface
+                | SymbolKind::Field
+                | SymbolKind::Property
+                | SymbolKind::Constant
+                | SymbolKind::Enum
+                | SymbolKind::EnumVariant
+                | SymbolKind::TypeAlias
+                | SymbolKind::Macro
+                | SymbolKind::Variable
+                | SymbolKind::Component
+                | SymbolKind::Event
+                | SymbolKind::Slot => format!("{name}.{short}"),
             };
             symbols.push(symbol(
                 format!("{prefix}{}.{}", qualified(&name), qualified(short)),

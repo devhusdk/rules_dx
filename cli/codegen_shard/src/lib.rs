@@ -83,7 +83,15 @@ fn check_exec_path(producer: &str, path: &str) -> Result<(), Error> {
             path,
             reason,
         },
-        other => other,
+        other @ Error::Decode(_)
+        | other @ Error::EmptyProducer
+        | other @ Error::BadProducer { .. }
+        | other @ Error::EmptyLanguage { .. }
+        | other @ Error::EmptyEntries { .. }
+        | other @ Error::BadExecPath { .. }
+        | other @ Error::BadReplaces { .. }
+        | other @ Error::DuplicateLogicalPath { .. }
+        | other @ Error::NotReadOnly { .. } => other,
     })
 }
 
@@ -99,7 +107,15 @@ fn check_replaces(
     if let Err(error) = check_path(producer, replaces) {
         let (path, reason) = match error {
             Error::BadPath { path, reason, .. } => (path, reason),
-            other => return Err(other),
+            other @ Error::Decode(_)
+            | other @ Error::EmptyProducer
+            | other @ Error::BadProducer { .. }
+            | other @ Error::EmptyLanguage { .. }
+            | other @ Error::EmptyEntries { .. }
+            | other @ Error::BadExecPath { .. }
+            | other @ Error::BadReplaces { .. }
+            | other @ Error::DuplicateLogicalPath { .. }
+            | other @ Error::NotReadOnly { .. } => return Err(other),
         };
         return Err(Error::BadReplaces {
             producer: producer.to_owned(),

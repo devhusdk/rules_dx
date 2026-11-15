@@ -619,7 +619,28 @@ mod tests {
             Command::Upgrade => owned(&["--to", "0.2.0"]),
             Command::Completion => owned(&["bash"]),
             Command::Watch => owned(&["lint"]),
-            _ => Vec::new(),
+            Command::Security
+            | Command::License
+            | Command::Lint
+            | Command::Typecheck
+            | Command::Format
+            | Command::Generate
+            | Command::Build
+            | Command::Test
+            | Command::Coverage
+            | Command::Bench
+            | Command::Run
+            | Command::Deploy
+            | Command::Check
+            | Command::Clean
+            | Command::Update
+            | Command::Sync
+            | Command::Init
+            | Command::Status
+            | Command::Docs
+            | Command::Worktree
+            | Command::Fuzz
+            | Command::Config => Vec::new(),
         }
     }
 

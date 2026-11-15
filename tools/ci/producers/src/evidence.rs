@@ -61,7 +61,7 @@ fn probe_lines(value: &Value, out: &mut Vec<String>) {
         }
         Value::Array(items) => items.iter().for_each(|item| probe_lines(item, out)),
         Value::Object(fields) => fields.values().for_each(|item| probe_lines(item, out)),
-        _ => {}
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
     }
 }
 
@@ -230,7 +230,17 @@ pub fn lines(
         .ok_or("facts hold no rows")?
         .iter()
         .filter(|row| row["section"] == "compilers")
-        .map(|row| line(facts, row_labels, consumer_labels, row, run, &lockfile_sha256, observe))
+        .map(|row| {
+            line(
+                facts,
+                row_labels,
+                consumer_labels,
+                row,
+                run,
+                &lockfile_sha256,
+                observe,
+            )
+        })
         .collect()
 }
 
@@ -245,7 +255,10 @@ fn var_or(name: &str, default: &str) -> String {
 /// Appends the evidence lines to OUT. `args` is OUT PLATFORM FACTS ROW_LABELS CONSUMER_LABELS.
 pub fn append(args: &[String]) -> Result<(), String> {
     let [out, platform, facts, row_labels, consumer_labels] = args else {
-        return Err("usage: producers_bin --evidence OUT PLATFORM FACTS ROW_LABELS CONSUMER_LABELS".to_owned());
+        return Err(
+            "usage: producers_bin --evidence OUT PLATFORM FACTS ROW_LABELS CONSUMER_LABELS"
+                .to_owned(),
+        );
     };
     let json_file = |path: &String| -> Result<Value, String> {
         std::fs::read_to_string(path)

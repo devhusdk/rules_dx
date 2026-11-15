@@ -20,7 +20,11 @@ pub fn parse_luals(stdout: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, Pa
     let by_uri = match &report {
         serde_json::Value::Array(empty) if empty.is_empty() => return Ok(Vec::new()),
         serde_json::Value::Object(map) => map,
-        _ => {
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_)
+        | serde_json::Value::Array(_) => {
             return Err(ParseError::shape(
                 TOOL,
                 "report is not an object".to_owned(),
@@ -94,7 +98,9 @@ fn same_path(left: &str, right: &str) -> bool {
     fn normal(path: &str) -> String {
         let mut out = path.replace('\\', "/");
         if out.as_bytes().get(1) == Some(&b':') {
-            out[..1].make_ascii_lowercase();
+            if let Some(drive) = out.get_mut(..1) {
+                drive.make_ascii_lowercase();
+            }
         }
         out
     }

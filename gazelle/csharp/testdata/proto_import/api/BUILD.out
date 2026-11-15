@@ -15,6 +15,6 @@ csharp_proto_library(
     visibility = ["//visibility:public"],
     deps = [
         "//common:common_proto_cs",
-        "@paket.main//google.protobuf",
+        "@nuget//google.protobuf",
     ],
 )

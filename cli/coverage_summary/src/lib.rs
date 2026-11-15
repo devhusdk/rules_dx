@@ -58,7 +58,11 @@ pub fn marker(cell: &str) -> String {
 fn text(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),
-        other => other.to_string(),
+        other @ Value::Null
+        | other @ Value::Bool(_)
+        | other @ Value::Number(_)
+        | other @ Value::Array(_)
+        | other @ Value::Object(_) => other.to_string(),
     }
 }
 
@@ -70,9 +74,9 @@ fn events(ndjson: &str) -> Vec<Value> {
 }
 
 fn gate_line(events: &[Value]) -> Option<String> {
-    let below = events.iter().find(|event| {
-        event["event"] == "error" && event["code"] == "coverage_below_minimum"
-    });
+    let below = events
+        .iter()
+        .find(|event| event["event"] == "error" && event["code"] == "coverage_below_minimum");
     if let Some(event) = below {
         return Some(text(&event["message"]));
     }

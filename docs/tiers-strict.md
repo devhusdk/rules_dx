@@ -1444,7 +1444,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "selector-pseudo-class-no-unknown": [
        true,
        {
-@@ -60,12 +77,14 @@
+@@ -60,13 +77,15 @@
      ],
      "selector-pseudo-element-no-unknown": true,
      "selector-type-no-unknown": [true, { "ignore": ["custom-elements"] }],
@@ -1454,8 +1454,9 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
        { "ignore": ["at-rule-preludes", "declaration-values"] }
      ],
      "syntax-string-no-invalid": true,
--    "unit-no-unknown": true
-+    "unit-no-unknown": true,
+     "unit-no-unknown": true,
+-    "value-no-invalid": true
++    "value-no-invalid": true,
 +    "value-no-vendor-prefix": true
    },
    "overrides": [

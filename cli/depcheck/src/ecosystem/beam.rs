@@ -73,20 +73,22 @@ pub fn parse_elixir_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
     Ok(deps)
 }
 
-/// mix lock entries as `name -> version`; git and path entries carry no version.
-pub fn parse_mix_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
+/// Hex lock packages as `name -> version`.
+pub fn parse_hex_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
-    let hex_re = regex::Regex::new(r#"^\s*"([^"]+)":\s*\{:hex,\s*:[^,\s]+,\s*"([^"]+)""#)
-        .map_err(DepcheckError::LockRegex)?;
-    let git_re =
-        regex::Regex::new(r#"^\s*"([^"]+)":\s*\{:git,"#).map_err(DepcheckError::LockRegex)?;
+    let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;
     let mut pkgs = BTreeMap::new();
-    for line in text.lines() {
-        if let Some(caps) = hex_re.captures(line) {
-            pkgs.insert(normalize_lower(&caps[1]), caps[2].to_owned());
-        } else if let Some(caps) = git_re.captures(line) {
-            pkgs.insert(normalize_lower(&caps[1]), "*".to_owned());
-        }
+    for package in data
+        .get("packages")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+    {
+        let Some(name) = package.get("name").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        let version = package.get("version").and_then(|v| v.as_str()).unwrap_or("0");
+        pkgs.insert(normalize_lower(name), version.to_owned());
     }
     Ok(pkgs)
 }
@@ -168,22 +170,4 @@ pub fn parse_erlang_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
         }
     }
     Ok(deps)
-}
-
-/// `rebar.lock` entries as `name -> version`; git entries carry no version.
-pub fn parse_rebar_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
-    let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
-    let pkg_re =
-        regex::Regex::new(r#"\{<<"([^"]+)">>\s*,\s*\{pkg\s*,\s*<<"[^"]+">>\s*,\s*<<"([^"]+)">>"#)
-            .map_err(DepcheckError::LockRegex)?;
-    let git_re = regex::Regex::new(r#"\{<<"([^"]+)">>\s*,\s*\{git\s*,"#)
-        .map_err(DepcheckError::LockRegex)?;
-    let mut pkgs = BTreeMap::new();
-    for caps in pkg_re.captures_iter(&text) {
-        pkgs.insert(normalize_lower(&caps[1]), caps[2].to_owned());
-    }
-    for caps in git_re.captures_iter(&text) {
-        pkgs.insert(normalize_lower(&caps[1]), "*".to_owned());
-    }
-    Ok(pkgs)
 }

@@ -47,7 +47,11 @@ mod tests {
     fn object() -> Map<String, Value> {
         match json!({"s": "a", "n": 3, "b": true, "l": ["x", "y"], "m": [1]}) {
             Value::Object(map) => map,
-            _ => Map::new(),
+            Value::Null
+            | Value::Bool(_)
+            | Value::Number(_)
+            | Value::String(_)
+            | Value::Array(_) => Map::new(),
         }
     }
 

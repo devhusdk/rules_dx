@@ -115,7 +115,7 @@ fn nuget_parse_nuspec(xml: &str) -> Result<(String, String), String> {
                 }
             }
             Event::Eof => break,
-            _ => {}
+            Event::Comment(_) | Event::Decl(_) | Event::PI(_) | Event::DocType(_) => {}
         }
     }
     let one = |name: &str, values: Vec<String>| -> Result<String, String> {
@@ -481,7 +481,7 @@ fn nuget_api_check(
             )
             .map_err(|error| error.to_string())
         });
-    let _ = std::fs::remove_dir_all(&work);
+    drop(std::fs::remove_dir_all(&work));
     let output = output.map_err(|error| format!("nuget_deploy: ApiCompat: {error}"))?;
     let text = format!(
         "{}\n{}",

@@ -182,7 +182,7 @@ fn scan_yaml(text: &str) -> Result<Scanned, Problem> {
                 stack.pop();
                 value_done(&mut stack);
             }
-            _ => {}
+            Event::Nothing | Event::StreamStart | Event::StreamEnd | Event::DocumentEnd => {}
         }
     }
     Ok(out)

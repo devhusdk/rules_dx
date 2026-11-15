@@ -55,7 +55,7 @@ impl Write for Sink {
                 self.bytes.push(buf[0]);
                 Ok(1)
             }
-            _ => {
+            Fault::None | Fault::WriteFails(_) | Fault::FlushFails(_) | Fault::OneByteWrites => {
                 self.bytes.extend_from_slice(buf);
                 Ok(buf.len())
             }
@@ -65,7 +65,7 @@ impl Write for Sink {
     fn flush(&mut self) -> io::Result<()> {
         match self.fault {
             Fault::FlushFails(kind) => Err(io::Error::from(kind)),
-            _ => Ok(()),
+            Fault::None | Fault::WriteFails(_) | Fault::OneByteWrites => Ok(()),
         }
     }
 }

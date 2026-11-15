@@ -94,7 +94,7 @@ fn outliving_ancestor(chain: &[(u32, String)], preferred: Option<u32>) -> Option
 #[cfg(unix)]
 fn ancestors() -> Vec<(u32, String)> {
     let mut chain = Vec::new();
-    let mut pid = u32::try_from(unsafe { libc::getppid() }).unwrap_or(0);
+    let mut pid = std::os::unix::process::parent_id();
     while pid >= 1 && chain.len() < 8 {
         let ps = |field: &str| {
             dx_process::probe("ps", ["-o", field, "-p", &pid.to_string()])
@@ -149,8 +149,7 @@ fn parent_in(table: &[(u32, u32, String)], own: u32) -> Option<u32> {
 
 #[cfg(unix)]
 fn parent_pid(preferred: Option<u32>) -> u32 {
-    outliving_ancestor(&ancestors(), preferred)
-        .unwrap_or_else(|| u32::try_from(unsafe { libc::getppid() }).unwrap_or(0))
+    outliving_ancestor(&ancestors(), preferred).unwrap_or_else(std::os::unix::process::parent_id)
 }
 
 #[cfg(windows)]
@@ -476,12 +475,15 @@ impl Pool {
             &self.meta_dir().join("pool.lock"),
             self.lock_wait,
         )
-        .map_err(|error| match error.kind() {
-            std::io::ErrorKind::WouldBlock => WorktreeError::refused(
-                "pool_busy",
-                "another dx worktree command holds the pool lock; run the command again",
-            ),
-            _ => WorktreeError::io(error),
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::WouldBlock {
+                WorktreeError::refused(
+                    "pool_busy",
+                    "another dx worktree command holds the pool lock; run the command again",
+                )
+            } else {
+                WorktreeError::io(error)
+            }
         })
     }
 
@@ -520,7 +522,7 @@ impl Pool {
     }
 
     pub(crate) fn remove(&self, slot: u32) {
-        let _ = std::fs::remove_file(self.record_path(slot));
+        drop(std::fs::remove_file(self.record_path(slot)));
     }
 
     /// The slot a path is, or is inside.
@@ -546,7 +548,7 @@ impl Pool {
             }
         }
         if !gone.is_empty() {
-            let _ = git::run(&self.main, &["worktree", "prune"]);
+            drop(git::run(&self.main, &["worktree", "prune"]));
         }
         gone
     }
@@ -584,11 +586,12 @@ pub fn lease_for_dir(dir: &Path) -> Option<(PathBuf, Record)> {
 }
 
 fn busy_error(error: &std::io::Error, slot: u32) -> dx_error::DxError {
-    match error.kind() {
-        std::io::ErrorKind::WouldBlock => dx_error::DxError::failure(format!(
+    if error.kind() == std::io::ErrorKind::WouldBlock {
+        dx_error::DxError::failure(format!(
             "slot {slot} is being switched by dx worktree; run the command again"
-        )),
-        _ => dx_error::DxError::from_io(format!("cannot lock slot {slot}: {error}"), error),
+        ))
+    } else {
+        dx_error::DxError::from_io(format!("cannot lock slot {slot}: {error}"), error)
     }
 }
 
@@ -662,7 +665,7 @@ fn claim_marker(marker: &Path, bytes: &[u8]) -> std::io::Result<bool> {
     let staged = marker.with_extension(format!("claim-{}-{claim}", std::process::id()));
     std::fs::write(&staged, bytes)?;
     let linked = std::fs::hard_link(&staged, marker);
-    let _ = std::fs::remove_file(&staged);
+    drop(std::fs::remove_file(&staged));
     match linked {
         Ok(()) => Ok(true),
         Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),

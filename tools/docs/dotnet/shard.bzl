@@ -109,10 +109,7 @@ def dotnet_docs_problem(info, language):
     return None
 
 def dotnet_shard_action(ctx, info, package, stem, driver, extract):
-    """Declares the actions that turn one library into a DocIr shard.
-
-    Returns a struct with shard, api_json and manifest.
-    """
+    """Declares the actions that turn one library into a DocIr shard."""
     language = info.language
     label = {"csharp": "C#", "fsharp": "F#"}[language]
     references = [ref for ref in info.dep_refs]

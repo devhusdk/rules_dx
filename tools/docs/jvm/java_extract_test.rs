@@ -357,7 +357,13 @@ fn the_converter_rejects_bad_records() {
             json.replacen("\"format\":1,", "\"format\":2,", 1),
             "format Some(2) is not supported",
         ),
-        ("cut.json", json[..json.len() / 2].to_owned(), "malformed"),
+        (
+            "cut.json",
+            json.get(..json.len() / 2)
+                .expect("string slice within bounds")
+                .to_owned(),
+            "malformed",
+        ),
         (
             "moved.json",
             json.replace("shapes/Shape.java", "shapes/Elsewhere.java"),

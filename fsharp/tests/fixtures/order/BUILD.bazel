@@ -14,7 +14,7 @@ fsharp_library(
         "Helper.fs",
         "Demo.fs",
     ],
-    deps = ["@paket.main//fsharp.core"],
+    deps = ["@nuget//fsharp.core"],
 )
 
 # keep
@@ -23,7 +23,7 @@ fsharp_test(
     srcs = ["OrderTest.fs"],
     deps = [
         ":order_lib",
-        "@paket.main//fsharp.core",
+        "@nuget//fsharp.core",
     ],
 )
 

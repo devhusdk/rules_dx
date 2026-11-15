@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://hex.pm";
 
-/// Checks each hexpm package of the lock files against the API at `base`.
+/// Checks each package of the lock files against the API at `base`.
 pub fn outdated(
     set: &str,
     lockfiles: &[String],
@@ -31,57 +31,20 @@ pub fn outdated(
     })
 }
 
-/// Reads `(package, version)` of every `{pkg,<<"package">>,<<"version">>}` entry of a
-/// rebar.lock; git entries carry no hex release and are skipped.
-fn rebar_packages(lock: &str) -> Vec<(String, String)> {
-    let mut out = Vec::new();
-    let mut rest = lock;
-    while let Some((_, after)) = rest.split_once("{pkg,") {
-        rest = after;
-        let mut names = Vec::new();
-        let mut cursor = rest;
-        while names.len() < 2 {
-            let Some((_, body)) = cursor.split_once("<<\"") else {
-                break;
-            };
-            let Some((name, after)) = body.split_once("\">>") else {
-                break;
-            };
-            names.push(name.to_owned());
-            cursor = after;
-        }
-        if let [package, version] = names.as_slice() {
-            out.push((package.clone(), version.clone()));
-        }
-    }
-    out
-}
-
-/// Reads `(package, version)` of every `{:hex, :package, "version", ...}` entry on the
-/// default hexpm repository of a hex lock, and every pkg entry of a rebar.lock; git entries
-/// and other repositories are skipped.
+/// Reads `(package, version)` of every package of a hex lock.
 fn locked_packages(lock: &str) -> Vec<(String, String)> {
-    let mut out = rebar_packages(lock);
-    for line in lock.lines() {
-        let Some((_, tuple)) = line.trim().split_once("{:hex,") else {
-            continue;
-        };
-        let mut fields = tuple.split(',').map(str::trim);
-        let (Some(package), Some(version)) = (fields.next(), fields.next()) else {
-            continue;
-        };
-        let repo = tuple
-            .trim_end_matches([',', '}', ' '])
-            .rsplit(',')
-            .nth(1)
-            .map(str::trim);
-        if repo != Some("\"hexpm\"") {
-            continue;
-        }
-        let package = package.trim_start_matches(':').trim_matches('"');
-        out.push((package.to_owned(), version.trim_matches('"').to_owned()));
-    }
-    out
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(lock) else {
+        return Vec::new();
+    };
+    json.get("packages")
+        .and_then(serde_json::Value::as_array)
+        .map_or(&[][..], Vec::as_slice)
+        .iter()
+        .filter_map(|package| {
+            let field = |key: &str| package.get(key).and_then(serde_json::Value::as_str);
+            Some((field("name")?.to_owned(), field("version")?.to_owned()))
+        })
+        .collect()
 }
 
 fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), DxError> {
@@ -123,14 +86,11 @@ fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), DxE
 mod tests {
     use super::*;
 
-    const LOCK: &str = r#"%{
-  "jason": {:hex, :jason, "1.4.0", "e855647bc964a44e2f67df589ccf49105ae039d4179db7f6271dfd3843dc27e6", [:mix], [{:decimal, "~> 2.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm", "79a3791085b2a0f743ca04cec0f7be26443738779d09302e01318f97bdb82121"},
-  "current": {:hex, :current, "2.0.0", "aa", [:mix], [], "hexpm", "bb"},
-  "pre": {:hex, :pre, "1.0.0", "aa", [:mix], [], "hexpm", "bb"},
-  "private": {:hex, :private, "1.0.0", "aa", [:mix], [], "acme", "bb"},
-  "from_git": {:git, "https://github.com/acme/from_git.git", "abc", []},
-}
-"#;
+    const LOCK: &str = r#"{"ecosystem":"hex","packages":[
+  {"name":"jason","version":"1.4.0"},
+  {"name":"current","version":"2.0.0"},
+  {"name":"pre","version":"1.0.0"}
+]}"#;
 
     fn api(url: &str) -> Result<String, DxError> {
         let name = url
@@ -146,25 +106,14 @@ mod tests {
     }
 
     #[test]
-    fn rebar_lock_pkg_entries_are_locked_packages() {
-        let lock = "{\"1.2.0\",\n[{<<\"cowboy\">>,{pkg,<<\"cowboy\">>,<<\"2.10.0\">>},0},\n {<<\"g\">>,{git,\"https://x/g.git\",{ref,\"abc\"}},0},\n {<<\"cowlib\">>,{pkg,<<\"cowlib\">>,<<\"2.12.1\">>},1}]}.\n";
-        assert_eq!(
-            locked_packages(lock),
-            [
-                ("cowboy".to_owned(), "2.10.0".to_owned()),
-                ("cowlib".to_owned(), "2.12.1".to_owned())
-            ]
-        );
-    }
-
-    #[test]
-    fn reads_only_hexpm_entries() {
+    fn reads_every_locked_package() {
         let names: Vec<_> = locked_packages(LOCK).into_iter().map(|(n, _)| n).collect();
         assert_eq!(names, ["jason", "current", "pre"]);
+        assert!(locked_packages("not json").is_empty());
     }
 
     #[test]
-    fn lists_outdated_and_skips_current_and_other_sources() {
+    fn lists_outdated_and_skips_current() {
         let found = outdated("deps", &[LOCK.to_owned()], &[], false, DEFAULT_BASE, &api);
         let listed: Vec<_> = found
             .candidates

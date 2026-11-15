@@ -6,14 +6,6 @@ load("//core:defs.bzl", "expect_equal")
 load("//elixir/private:defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_sources", "elixir_escript_headers", "helper_first", "nif_priv")
 load("//elixir/private:kwargs.bzl", "elixir_app_kwargs", "elixir_app_mod_entry", "elixir_kwargs")
 load("//elixir/private:hex.bzl", "hex_metadata_entry", "hex_tarball_url")
-load("//elixir/private:mix_lock.bzl", "mix_lock_packages")
-
-_MIX_LOCK = """%{
-  # comment: with "quotes"
-  "decimal": {:hex, :decimal, "2.1.1", "inner1", [:mix], [], "hexpm", "outer1"},
-  "jason": {:hex, :jason, "1.4.4", "inner2", [:mix], [{:decimal, "~> 2.0", [hex: :decimal, repo: "hexpm", optional: false]}, {:opt, "~> 1.0", [hex: :opt_pkg, repo: "hexpm", optional: true]}], "hexpm", "outer2"},
-}
-"""
 
 def _glob(patterns, exclude = [], **_kwargs):
     return [",".join(patterns) + "!" + ",".join(exclude)]
@@ -49,8 +41,6 @@ def elixir_wrapper_contract_tests(name):
             expect_equal("apps compile on the Elixir cells", ELIXIR_CELLS, ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]),
             expect_equal("hex tarballs come from repo.hex.pm", hex_tarball_url("jason", "1.4.4"), "https://repo.hex.pm/tarballs/jason-1.4.4.tar"),
             expect_equal("hex metadata names the release", hex_metadata_entry("version", "1.4.4"), '{<<"version">>,<<"1.4.4">>}.'),
-            expect_equal("mix.lock hex entries become pins", [(p["package"], p["version"], p["sha256"]) for p in mix_lock_packages(_MIX_LOCK)], [("decimal", "2.1.1", "outer1"), ("jason", "1.4.4", "outer2")]),
-            expect_equal("mix.lock keeps required deps only", [p["deps"] for p in mix_lock_packages(_MIX_LOCK)], [[], ["decimal"]]),
         ],
     )
 

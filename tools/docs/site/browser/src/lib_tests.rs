@@ -172,8 +172,8 @@ fn a_browser_that_never_opens_its_port_reports_the_timeout() {
         port,
         Instant::now() + Duration::from_secs(1),
     );
-    let _ = child.kill();
-    let _ = child.wait();
+    drop(child.kill());
+    drop(child.wait());
     let Err(Launch::Retry(error)) = result else {
         panic!("a silent browser must time out as retryable");
     };

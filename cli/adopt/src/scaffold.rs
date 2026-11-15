@@ -228,7 +228,7 @@ pub const CONSUMER_WORKFLOW_REPO: &str = "rules_dx";
 
 pub const CONSUMER_WORKFLOW_PATH: &str = ".github/workflows/reusable-consumer.yml";
 
-pub const CONSUMER_WORKFLOW_PIN: &str = "fe40d4a0654f5e28fed4d0c045c594917aa9d954";
+pub const CONSUMER_WORKFLOW_PIN: &str = "d971da0e0d70907d291b84c44e3306efda22efe3";
 
 pub const RELEASE_WORKFLOW_PATH: &str = ".github/workflows/reusable-release.yml";
 
@@ -310,7 +310,7 @@ pub fn render_consumer_caller() -> String {
 
 pub fn render_consumer_caller_for(branch: &str) -> String {
     let body = format!(
-        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      remote_cache: ${{{{ vars.DX_REMOTE_CACHE }}}}\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n      REMOTE_CACHE_HEADER: ${{{{ secrets.REMOTE_CACHE_HEADER }}}}\n    permissions:\n      actions: read\n      contents: write\n      pull-requests: write\n",
+        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      remote_cache: ${{{{ vars.DX_REMOTE_CACHE }}}}\n      deploy_dry_run: true\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n      REMOTE_CACHE_HEADER: ${{{{ secrets.REMOTE_CACHE_HEADER }}}}\n    permissions:\n      actions: read\n      contents: write\n      pull-requests: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
@@ -873,7 +873,10 @@ pub fn scaffold_dest_within_root(
                 dest.push(part);
                 pushed = true;
             }
-            _ => {
+            Component::Prefix(_)
+            | Component::RootDir
+            | Component::CurDir
+            | Component::ParentDir => {
                 return Err(AdoptError::ScaffoldEscapesRoot {
                     path: relative.to_owned(),
                 });
@@ -1694,7 +1697,7 @@ mod tests {
             assert_eq!(super::detect_default_branch(&dir), "trunk");
             assert!(render_consumer_caller_for("trunk").contains("branches: [trunk]"));
         }
-        let _ = std::fs::remove_dir_all(&dir);
+        drop(std::fs::remove_dir_all(&dir));
         assert_eq!(
             super::detect_default_branch(std::path::Path::new("/nonexistent-dx-dir")),
             "main"
@@ -1704,7 +1707,7 @@ mod tests {
     #[test]
     fn ignores_origin_head_pointing_at_missing_branch() {
         let dir = std::env::temp_dir().join(format!("dx-adopt-stale-head-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        drop(std::fs::remove_dir_all(&dir));
         std::fs::create_dir_all(&dir).expect("temp dir");
         let git = |args: &[&str]| {
             dx_process::capture::run_checked(
@@ -1723,7 +1726,7 @@ mod tests {
         {
             assert_eq!(super::detect_default_branch(&dir), "trunk");
         }
-        let _ = std::fs::remove_dir_all(&dir);
+        drop(std::fs::remove_dir_all(&dir));
     }
 
     #[test]
@@ -1756,6 +1759,7 @@ mod tests {
         );
         for required in [
             "merge_group:\n    types: [checks_requested]",
+            "with:\n      remote_cache: ${{ vars.DX_REMOTE_CACHE }}\n      deploy_dry_run: true",
             "secrets:\n      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}",
             "permissions:",
             "actions: read",

@@ -116,6 +116,7 @@ struct UnicodeString {
 }
 
 #[link(name = "ntdll", kind = "raw-dylib")]
+// SAFETY: the declarations match the ntdll signatures of these functions.
 unsafe extern "system" {
     fn NtQuerySystemInformation(class: u32, info: *mut c_void, len: u32, out: *mut u32) -> i32;
     fn NtQueryObject(handle: HANDLE, class: u32, info: *mut c_void, len: u32, out: *mut u32)
@@ -123,6 +124,7 @@ unsafe extern "system" {
 }
 
 #[link(name = "advapi32", kind = "raw-dylib")]
+// SAFETY: the declarations match the advapi32 signatures of these functions.
 unsafe extern "system" {
     fn OpenSCManagerW(machine: *const u16, database: *const u16, access: u32) -> HANDLE;
     fn OpenServiceW(manager: HANDLE, name: *const u16, access: u32) -> HANDLE;
@@ -165,15 +167,18 @@ impl Drop for Session {
         }
         if !self.dns_port.is_null() {
             let _ = set_port_access(self.dns_port, self.sid(), REVOKE_ACCESS);
+            // SAFETY: dns_port is the duplicated handle this session owns, closed once here.
             unsafe { CloseHandle(self.dns_port) };
         }
         if self.created {
             if !self.sid_text.is_empty() {
                 delete_profile(&self.sid_text);
             }
+            // SAFETY: user is a NUL-terminated wide name and null selects the local server.
             unsafe { NetUserDel(null(), self.user.as_ptr()) };
         }
         if !self.engine.is_null() {
+            // SAFETY: engine is the open filtering engine handle, closed once here.
             unsafe { FwpmEngineClose0(self.engine) };
         }
     }
@@ -181,9 +186,12 @@ impl Drop for Session {
 
 /// Kills what is left in the job and waits until it is empty, so the profile is no longer in use.
 fn end_job(job: HANDLE) {
+    // SAFETY: the accounting structure is plain C data for which all-zero is valid.
     let mut info: JOBOBJECT_BASIC_ACCOUNTING_INFORMATION = unsafe { std::mem::zeroed() };
+    // SAFETY: job is a valid job handle.
     unsafe { TerminateJobObject(job, 1) };
     for _ in 0..100 {
+        // SAFETY: job is valid and info is the accounting structure of the size passed.
         let ok = unsafe {
             QueryInformationJobObject(
                 job,
@@ -198,6 +206,7 @@ fn end_job(job: HANDLE) {
         }
         std::thread::sleep(Duration::from_millis(100));
     }
+    // SAFETY: job is owned here and closed once.
     unsafe { CloseHandle(job) };
 }
 
@@ -208,6 +217,7 @@ fn delete_profile(sid: &str) {
     let sid = wide(sid);
     let mut err = None;
     for _ in 0..60 {
+        // SAFETY: sid is a NUL-terminated wide string and null selects the local machine.
         if unsafe { DeleteProfileW(sid.as_ptr(), null(), null()) } != 0 {
             return;
         }
@@ -225,6 +235,7 @@ fn delete_profile(sid: &str) {
 
 fn random_password() -> Result<String, String> {
     let mut bytes = [0u8; 24];
+    // SAFETY: bytes is a valid buffer of the length passed.
     if !unsafe { RtlGenRandom(bytes.as_mut_ptr() as *mut c_void, bytes.len() as u32) } {
         return Err("cannot get random bytes for the account password".to_owned());
     }
@@ -245,6 +256,7 @@ fn create_user(session: &mut Session, password: &str) -> Result<(), String> {
         usri1_script_path: null_mut(),
     };
     let mut bad = 0u32;
+    // SAFETY: info is a valid USER_INFO_1 whose strings outlive the call; bad is an out-pointer.
     let code = unsafe { NetUserAdd(null(), 1, &info as *const _ as *const u8, &mut bad) };
     if code == ERROR_ACCESS_DENIED {
         return Err(
@@ -266,6 +278,7 @@ fn add_member(user: &[u16], group: &str, what: &str) -> Result<(), String> {
     let info = LOCALGROUP_MEMBERS_INFO_3 {
         lgrmi3_domainandname: member.as_mut_ptr(),
     };
+    // SAFETY: info outlives the call and holds a member name, as level 3 requires.
     let code = unsafe {
         NetLocalGroupAddMembers(
             null(),
@@ -283,6 +296,7 @@ fn add_member(user: &[u16], group: &str, what: &str) -> Result<(), String> {
 
 fn account_sid(name: &[u16]) -> Result<Vec<u8>, String> {
     let (mut sid_len, mut domain_len, mut kind) = (0u32, 0u32, 0i32);
+    // SAFETY: name is NUL-terminated and the null buffers only request the required sizes.
     unsafe {
         LookupAccountNameW(
             null(),
@@ -296,6 +310,7 @@ fn account_sid(name: &[u16]) -> Result<Vec<u8>, String> {
     };
     let mut sid = vec![0u8; sid_len as usize];
     let mut domain = vec![0u16; domain_len as usize];
+    // SAFETY: sid and domain are buffers of the lengths passed and name is NUL-terminated.
     let found = unsafe {
         LookupAccountNameW(
             null(),
@@ -320,9 +335,11 @@ fn account_sid(name: &[u16]) -> Result<Vec<u8>, String> {
 fn look_up_sid(session: &mut Session) -> Result<(), String> {
     session.sid = account_sid(&session.user)?;
     let mut text: *mut u16 = null_mut();
+    // SAFETY: session.sid() is a valid SID and text is a valid out-pointer.
     if unsafe { ConvertSidToStringSidW(session.sid(), &mut text) } == 0 {
         return Err("cannot print the account SID".to_owned());
     }
+    // SAFETY: text is a NUL-terminated string from ConvertSidToStringSidW, freed once.
     unsafe {
         let mut len = 0;
         while *text.add(len) != 0 {
@@ -342,6 +359,7 @@ fn add_filter(
     conditions: &mut [FWPM_FILTER_CONDITION0],
 ) -> Result<(), String> {
     let mut name = wide("dx hermetic");
+    // SAFETY: FWPM_FILTER0 is plain C data for which all-zero is valid.
     let mut filter: FWPM_FILTER0 = unsafe { std::mem::zeroed() };
     filter.displayData.name = name.as_mut_ptr();
     filter.layerKey = layer;
@@ -354,6 +372,7 @@ fn add_filter(
     filter.action.r#type = action;
     let mut id = 0u64;
     check(
+        // SAFETY: engine is open and filter, whose pointers outlive the call, is initialised.
         unsafe { FwpmFilterAdd0(engine, &filter, null_mut(), &mut id) },
         "adding a network filter",
     )
@@ -361,11 +380,13 @@ fn add_filter(
 
 /// Blocks every connect and accept of the account except loopback, until the engine closes.
 fn block_network(session: &mut Session) -> Result<(), String> {
+    // SAFETY: FWPM_SESSION0 is plain C data for which all-zero is valid.
     let mut wfp: FWPM_SESSION0 = unsafe { std::mem::zeroed() };
     let mut label = wide("dx hermetic");
     wfp.displayData.name = label.as_mut_ptr();
     wfp.flags = FWPM_SESSION_FLAG_DYNAMIC;
     check(
+        // SAFETY: wfp and session.engine are valid and label outlives the call.
         unsafe {
             FwpmEngineOpen0(
                 null(),
@@ -380,6 +401,7 @@ fn block_network(session: &mut Session) -> Result<(), String> {
 
     let sddl = wide(&format!("O:LSD:(A;;CC;;;{})", session.sid_text));
     let mut descriptor: *mut c_void = null_mut();
+    // SAFETY: sddl is NUL-terminated and descriptor is a valid out-pointer.
     if unsafe {
         ConvertStringSecurityDescriptorToSecurityDescriptorW(
             sddl.as_ptr(),
@@ -392,11 +414,13 @@ fn block_network(session: &mut Session) -> Result<(), String> {
         return Err("cannot build the account match for the network filters".to_owned());
     }
     let mut blob = FWP_BYTE_BLOB {
+        // SAFETY: descriptor was just returned by the conversion above.
         size: unsafe { GetSecurityDescriptorLength(descriptor) },
         data: descriptor as *mut u8,
     };
     let blob_ptr: *mut FWP_BYTE_BLOB = &mut blob;
     let for_user = || {
+        // SAFETY: FWPM_FILTER_CONDITION0 is plain C data for which all-zero is valid.
         let mut condition: FWPM_FILTER_CONDITION0 = unsafe { std::mem::zeroed() };
         condition.fieldKey = FWPM_CONDITION_ALE_USER_ID;
         condition.matchType = FWP_MATCH_EQUAL;
@@ -407,6 +431,7 @@ fn block_network(session: &mut Session) -> Result<(), String> {
         condition
     };
     let loopback = || {
+        // SAFETY: FWPM_FILTER_CONDITION0 is plain C data for which all-zero is valid.
         let mut condition: FWPM_FILTER_CONDITION0 = unsafe { std::mem::zeroed() };
         condition.fieldKey = FWPM_CONDITION_FLAGS;
         condition.matchType = FWP_MATCH_FLAGS_ALL_SET;
@@ -419,6 +444,7 @@ fn block_network(session: &mut Session) -> Result<(), String> {
         condition
     };
     let dns = || {
+        // SAFETY: FWPM_FILTER_CONDITION0 is plain C data for which all-zero is valid.
         let mut condition: FWPM_FILTER_CONDITION0 = unsafe { std::mem::zeroed() };
         condition.fieldKey = FWPM_CONDITION_IP_REMOTE_PORT;
         condition.matchType = FWP_MATCH_EQUAL;
@@ -470,6 +496,7 @@ fn block_network(session: &mut Session) -> Result<(), String> {
                 )
             });
     }
+    // SAFETY: descriptor was allocated by the conversion above and is freed once.
     unsafe { LocalFree(descriptor as _) };
     result
 }
@@ -479,6 +506,7 @@ fn enable_debug_privilege() -> Result<(), String> {
         LowPart: 0,
         HighPart: 0,
     };
+    // SAFETY: the wide name outlives the call and luid is a valid out-pointer.
     if unsafe { LookupPrivilegeValueW(null(), wide("SeDebugPrivilege").as_ptr(), &mut luid) } == 0 {
         return Err("cannot look up SeDebugPrivilege".to_owned());
     }
@@ -490,13 +518,16 @@ fn enable_debug_privilege() -> Result<(), String> {
         }],
     };
     let mut token: HANDLE = null_mut();
+    // SAFETY: token is a valid out-pointer and GetCurrentProcess returns a pseudo handle.
     if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &mut token) } == 0 {
         return Err("cannot open the process token".to_owned());
     }
+    // SAFETY: token is open and privileges outlives the call; the previous-state pointers are null.
     let enabled = unsafe {
         AdjustTokenPrivileges(token, 0, &privileges, 0, null_mut(), null_mut()) != 0
             && GetLastError() != ERROR_NOT_ALL_ASSIGNED
     };
+    // SAFETY: token is open and closed once.
     unsafe { CloseHandle(token) };
     if enabled {
         Ok(())
@@ -506,14 +537,17 @@ fn enable_debug_privilege() -> Result<(), String> {
 }
 
 fn dns_client_pid() -> Result<u32, String> {
+    // SAFETY: null machine and database name are allowed; a null result is checked.
     let manager = unsafe { OpenSCManagerW(null(), null(), SC_MANAGER_CONNECT) };
     if manager.is_null() {
         return Err("cannot open the service manager".to_owned());
     }
+    // SAFETY: manager is open and the wide name outlives the call; a null result is checked.
     let service = unsafe { OpenServiceW(manager, wide("Dnscache").as_ptr(), SERVICE_QUERY_STATUS) };
     let mut status = [0u32; 9];
     let mut needed = 0u32;
     let ok = !service.is_null()
+        // SAFETY: service is non-null and status is a buffer of the size passed.
         && unsafe {
             QueryServiceStatusEx(
                 service,
@@ -523,6 +557,7 @@ fn dns_client_pid() -> Result<u32, String> {
                 &mut needed,
             )
         } != 0;
+    // SAFETY: service and manager are open handles, each closed once.
     unsafe {
         if !service.is_null() {
             CloseServiceHandle(service);
@@ -539,6 +574,7 @@ fn handle_entries() -> Result<Vec<HandleEntry>, String> {
     let mut buffer = vec![0u64; 1 << 17];
     loop {
         let len = (buffer.len() * 8) as u32;
+        // SAFETY: buffer is valid for len bytes and the query accepts a null return length.
         let status = unsafe {
             NtQuerySystemInformation(
                 SYSTEM_EXTENDED_HANDLE_INFORMATION,
@@ -557,8 +593,10 @@ fn handle_entries() -> Result<Vec<HandleEntry>, String> {
             ));
         }
         let count = buffer.first().copied().unwrap_or(0) as usize;
+        // SAFETY: the query filled buffer, so the entries start two words in.
         let first = unsafe { buffer.as_ptr().add(2) } as *const HandleEntry;
         return Ok((0..count)
+            // SAFETY: at is below count, so the read stays inside the entries the query wrote.
             .map(|at| unsafe { std::ptr::read(first.add(at)) })
             .collect());
     }
@@ -567,6 +605,7 @@ fn handle_entries() -> Result<Vec<HandleEntry>, String> {
 /// The UNICODE_STRING that NtQueryObject puts at the start of both the name and the type.
 fn object_text(handle: HANDLE, class: u32) -> Option<String> {
     let mut buffer = vec![0u64; 512];
+    // SAFETY: buffer is valid for the byte length passed and handle is an open handle.
     let status = unsafe {
         NtQueryObject(
             handle,
@@ -579,10 +618,12 @@ fn object_text(handle: HANDLE, class: u32) -> Option<String> {
     if status < 0 {
         return None;
     }
+    // SAFETY: the query wrote a UNICODE_STRING at the start of buffer, which is 8-byte aligned.
     let text = unsafe { &*(buffer.as_ptr() as *const UnicodeString) };
     if text.buffer.is_null() {
         return Some(String::new());
     }
+    // SAFETY: text.buffer points into buffer and holds length / 2 u16 values.
     let chars = unsafe { std::slice::from_raw_parts(text.buffer, text.length as usize / 2) };
     Some(String::from_utf16_lossy(chars))
 }
@@ -591,6 +632,7 @@ fn object_text(handle: HANDLE, class: u32) -> Option<String> {
 fn find_dns_port() -> Result<HANDLE, String> {
     let pid = dns_client_pid()?;
     let entries = handle_entries()?;
+    // SAFETY: OpenProcess takes plain integers and a null result is checked.
     let process = unsafe { OpenProcess(PROCESS_DUP_HANDLE, 0, pid) };
     if process.is_null() {
         return Err(format!(
@@ -602,6 +644,7 @@ fn find_dns_port() -> Result<HANDLE, String> {
     let mut found: HANDLE = null_mut();
     for entry in entries.iter().filter(|entry| entry.pid == pid as usize) {
         let mut copy: HANDLE = null_mut();
+        // SAFETY: process and the source handle are valid and copy is a valid out-pointer.
         let duplicated = unsafe {
             DuplicateHandle(
                 process,
@@ -625,8 +668,10 @@ fn find_dns_port() -> Result<HANDLE, String> {
             }
             seen.push(name);
         }
+        // SAFETY: copy is a handle duplicated above and closed once.
         unsafe { CloseHandle(copy) };
     }
+    // SAFETY: process is open and closed once.
     unsafe { CloseHandle(process) };
     if found.is_null() {
         return Err(format!(
@@ -639,6 +684,7 @@ fn find_dns_port() -> Result<HANDLE, String> {
 /// Adds (or removes) the account's entries on an ALPC port, under a machine-wide lock so
 /// concurrent runs do not lose each other's entries.
 fn set_port_access(port: HANDLE, sid: *mut c_void, mode: i32) -> Result<(), String> {
+    // SAFETY: the wide name outlives the call and a null mutex is handled below.
     let lock = unsafe { CreateMutexW(null(), 0, wide(DNS_PORT_LOCK).as_ptr()) };
     if lock.is_null() {
         return Err(format!(
@@ -646,12 +692,14 @@ fn set_port_access(port: HANDLE, sid: *mut c_void, mode: i32) -> Result<(), Stri
             std::io::Error::last_os_error()
         ));
     }
+    // SAFETY: lock is the valid mutex handle created above.
     unsafe { WaitForSingleObject(lock, INFINITE) };
     let mut old: *mut ACL = null_mut();
     let mut descriptor: *mut c_void = null_mut();
     let mut merged: *mut ACL = null_mut();
     let entry = trustee_entry(sid, PORT_ALL_ACCESS, mode);
     let result = check(
+        // SAFETY: port is an open handle; old and descriptor are valid out-pointers.
         unsafe {
             GetSecurityInfo(
                 port,
@@ -676,12 +724,14 @@ fn set_port_access(port: HANDLE, sid: *mut c_void, mode: i32) -> Result<(), Stri
     })
     .and_then(|()| {
         check(
+            // SAFETY: entry is valid, old is non-null and merged is a valid out-pointer.
             unsafe { SetEntriesInAclW(1, &entry, old, &mut merged) },
             "building the ACL of the DNSResolver port",
         )
     })
     .and_then(|()| {
         check(
+            // SAFETY: port is an open handle and merged is the ACL built above.
             unsafe {
                 SetSecurityInfo(
                     port,
@@ -696,6 +746,7 @@ fn set_port_access(port: HANDLE, sid: *mut c_void, mode: i32) -> Result<(), Stri
             "setting the ACL of the DNSResolver port (the duplicated handle needs WRITE_DAC)",
         )
     });
+    // SAFETY: merged and descriptor are freed once; lock is owned, released and closed once.
     unsafe {
         LocalFree(merged as _);
         LocalFree(descriptor as _);
@@ -712,6 +763,7 @@ fn deny_dns_client(session: &mut Session) -> Result<(), String> {
     enable_debug_privilege()?;
     let pid = dns_client_pid()?;
     let port = find_dns_port()?;
+    // SAFETY: port is the open handle from find_dns_port, closed once on this failure path.
     set_port_access(port, session.sid(), DENY_ACCESS).inspect_err(|_| unsafe {
         CloseHandle(port);
     })?;
@@ -731,9 +783,11 @@ fn check_dns_client(session: &Session) -> Result<(), String> {
 }
 
 fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, String> {
+    // SAFETY: STARTUPINFOW is plain C data for which all-zero is valid.
     let mut startup: STARTUPINFOW = unsafe { std::mem::zeroed() };
     startup.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
     startup.dwFlags = STARTF_USESTDHANDLES;
+    // SAFETY: GetStdHandle takes plain constants and has no preconditions.
     unsafe {
         startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
         startup.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -752,9 +806,11 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
     let cwd = wide(&cwd.to_string_lossy());
     check_dns_client(session)?;
     let mut line = wide(&logon_command_line(&config.command)?);
+    // SAFETY: PROCESS_INFORMATION is plain C data for which all-zero is valid.
     let mut info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
     let mut attempts = 0;
     let created = loop {
+        // SAFETY: the strings are NUL-terminated and outlive the call; line is writable.
         let created = unsafe {
             CreateProcessWithLogonW(
                 session.user.as_ptr(),
@@ -771,6 +827,7 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
             )
         };
         // The secondary logon service answers ERROR_SERVICE_ALREADY_RUNNING while another logon is in flight.
+        // SAFETY: GetLastError has no preconditions.
         let busy = unsafe { GetLastError() } == 1056;
         attempts += 1;
         if created != 0 || !busy || attempts >= 20 {
@@ -785,24 +842,31 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
             std::io::Error::last_os_error()
         ));
     }
+    // SAFETY: session.job and info.hProcess are valid handles.
     if unsafe { AssignProcessToJobObject(session.job, info.hProcess) } == 0 {
+        // SAFETY: info.hThread is the live handle from CreateProcessWithLogonW, closed once.
         unsafe { CloseHandle(info.hThread) };
+        // SAFETY: info.hProcess is the live handle from CreateProcessWithLogonW, closed once.
         unsafe { CloseHandle(info.hProcess) };
         return Err("cannot put the command in the job object".to_owned());
     }
     let mut code = 1u32;
+    // SAFETY: info holds the live handles from CreateProcessWithLogonW; hThread is closed once.
     unsafe {
         ResumeThread(info.hThread);
         CloseHandle(info.hThread);
     }
     let mut outcome = Ok(());
+    // SAFETY: info.hProcess is a live process handle.
     while unsafe { WaitForSingleObject(info.hProcess, 1000) } == WAIT_TIMEOUT {
         if let Err(err) = check_dns_client(session) {
+            // SAFETY: session.job is a valid job handle.
             unsafe { TerminateJobObject(session.job, 1) };
             outcome = Err(err);
             break;
         }
     }
+    // SAFETY: info.hProcess is live, code is a valid out-pointer and the handle is closed once.
     unsafe {
         WaitForSingleObject(info.hProcess, INFINITE);
         GetExitCodeProcess(info.hProcess, &mut code);
@@ -892,6 +956,7 @@ fn create_group(group: &str) -> Result<Vec<u16>, String> {
     let info = LOCALGROUP_INFO_0 {
         lgrpi0_name: info_name.as_mut_ptr(),
     };
+    // SAFETY: info is a valid LOCALGROUP_INFO_0 whose name outlives the call.
     let code = unsafe { NetLocalGroupAdd(null(), 0, &info as *const _ as *const u8, null_mut()) };
     if code == ERROR_ACCESS_DENIED {
         return Err(
@@ -1020,6 +1085,7 @@ pub fn teardown_group(config: &Config) -> Result<i32, String> {
             Err(err) => failed.push(err),
         }
     }
+    // SAFETY: name is a NUL-terminated wide string and null selects the local server.
     let code = unsafe { NetLocalGroupDel(null(), name.as_ptr()) };
     if let Err(err) = check(code, &format!("deleting the local group {group}")) {
         failed.push(err);
@@ -1118,6 +1184,7 @@ fn remove_stale_groups(config: &Config, own: &str) {
             );
             continue;
         }
+        // SAFETY: name is a NUL-terminated wide string and null selects the local server.
         let code = unsafe { NetLocalGroupDel(null(), name.as_ptr()) };
         if let Err(err) = check(code, &format!("deleting the stale local group {group}")) {
             eprintln!("appcontainer_run: warning: {err}");
@@ -1131,6 +1198,7 @@ fn local_groups() -> Result<Vec<String>, String> {
     loop {
         let mut buffer: *mut u8 = null_mut();
         let (mut read, mut total) = (0u32, 0u32);
+        // SAFETY: buffer, read, total and resume are valid out-pointers.
         let code = unsafe {
             NetLocalGroupEnum(
                 null(),
@@ -1144,14 +1212,17 @@ fn local_groups() -> Result<Vec<String>, String> {
         };
         if !buffer.is_null() {
             if code == 0 || code == ERROR_MORE_DATA {
+                // SAFETY: buffer holds read LOCALGROUP_INFO_0 entries written by NetLocalGroupEnum.
                 let entries = unsafe {
                     std::slice::from_raw_parts(buffer as *const LOCALGROUP_INFO_0, read as usize)
                 };
                 for entry in entries {
+                    // SAFETY: each lgrpi0_name is a NUL-terminated string inside the enum buffer.
                     let name = unsafe { wide_text(entry.lgrpi0_name) };
                     names.push(name);
                 }
             }
+            // SAFETY: buffer was allocated by NetLocalGroupEnum and is freed once.
             unsafe { NetApiBufferFree(buffer as *const c_void) };
         }
         if code != ERROR_MORE_DATA {
@@ -1164,20 +1235,26 @@ fn local_groups() -> Result<Vec<String>, String> {
 /// Reads a NUL-terminated UTF-16 string.
 unsafe fn wide_text(text: *const u16) -> String {
     let mut len = 0;
+    // SAFETY: the caller guarantees text is NUL-terminated, so len stays in bounds.
     while unsafe { *text.add(len) } != 0 {
         len += 1;
     }
+    // SAFETY: text is valid for len u16 values, as counted above.
     String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(text, len) })
 }
 
 /// Whether `pid` may still run. Only a pid Windows does not know counts as gone, so a process
 /// we may not open is treated as alive.
 fn process_alive(pid: u32) -> bool {
+    // SAFETY: OpenProcess takes plain integers and a null result is checked.
     let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
     if process.is_null() {
+        // SAFETY: GetLastError has no preconditions.
         return unsafe { GetLastError() } != ERROR_INVALID_PARAMETER;
     }
+    // SAFETY: process is the open handle from OpenProcess.
     let running = unsafe { WaitForSingleObject(process, 0) } == WAIT_TIMEOUT;
+    // SAFETY: process is open and closed once.
     unsafe { CloseHandle(process) };
     running
 }
@@ -1187,6 +1264,7 @@ fn read_acl(path: &str) -> Result<(*mut ACL, *mut c_void), String> {
     let mut acl: *mut ACL = null_mut();
     let mut descriptor: *mut c_void = null_mut();
     check(
+        // SAFETY: wide(path) outlives the call and acl and descriptor are valid out-pointers.
         unsafe {
             GetNamedSecurityInfoW(
                 wide(path).as_ptr(),
@@ -1210,17 +1288,21 @@ fn own_entries(acl: *mut ACL, sid: *const c_void) -> Vec<(u32, u8)> {
     if acl.is_null() {
         return found;
     }
+    // SAFETY: acl was checked non-null and points to a valid ACL header.
     for index in (0..unsafe { (*acl).AceCount } as u32).rev() {
         let mut ace: *mut c_void = null_mut();
+        // SAFETY: acl is valid, index is below AceCount and ace is a valid out-pointer.
         if unsafe { GetAce(acl, index, &mut ace) } == 0 {
             continue;
         }
         let ace = ace as *mut ACCESS_ALLOWED_ACE;
+        // SAFETY: GetAce returned a valid ACE pointer, which starts with an ACE header.
         let header = unsafe { (*ace).Header };
         if matches!(
             header.AceType,
             ACCESS_ALLOWED_ACE_TYPE | ACCESS_DENIED_ACE_TYPE
         ) && u32::from(header.AceFlags) & INHERITED_ACE == 0
+            // SAFETY: ace has a SID at SidStart and sid points to a valid SID.
             && unsafe { EqualSid(&raw mut (*ace).SidStart as *mut c_void, sid as *mut c_void) } != 0
         {
             found.push((index, header.AceType));
@@ -1234,6 +1316,7 @@ fn has_explicit_deny(path: &str, sid: &[u8]) -> Result<bool, String> {
     let denied = own_entries(acl, sid.as_ptr() as *const c_void)
         .iter()
         .any(|(_, kind)| *kind == ACCESS_DENIED_ACE_TYPE);
+    // SAFETY: descriptor was allocated by read_acl and is freed once.
     unsafe { LocalFree(descriptor as _) };
     Ok(denied)
 }
@@ -1249,12 +1332,14 @@ fn remove_access_locked(path: &str, sid: *mut c_void) -> Result<(), String> {
     let (acl, descriptor) = read_acl(path)?;
     let mut removed = false;
     for (index, _) in own_entries(acl, sid) {
+        // SAFETY: acl is valid and index came from own_entries on it.
         if unsafe { DeleteAce(acl, index) } != 0 {
             removed = true;
         }
     }
     let result = if removed {
         check(
+            // SAFETY: wpath outlives the call and acl is the DACL read from the same path.
             unsafe {
                 SetNamedSecurityInfoW(
                     wpath.as_ptr(),
@@ -1271,6 +1356,7 @@ fn remove_access_locked(path: &str, sid: *mut c_void) -> Result<(), String> {
     } else {
         Ok(())
     };
+    // SAFETY: descriptor was allocated by read_acl and is freed once.
     unsafe { LocalFree(descriptor as _) };
     result
 }

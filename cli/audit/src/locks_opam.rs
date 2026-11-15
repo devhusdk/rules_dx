@@ -20,7 +20,7 @@ pub fn parse_opam_locked(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         let name = match token {
             Token::Close(']') => break,
             Token::Text(name) => name,
-            _ => {
+            Token::Word(_) | Token::Open(_) | Token::Close(_) => {
                 index += 1;
                 continue;
             }
@@ -37,7 +37,7 @@ pub fn parse_opam_locked(text: &str) -> Result<Vec<LockedPackage>, DxError> {
                     Token::Text(found) if after_equals && version.is_none() => {
                         version = Some(found.clone());
                     }
-                    _ => {}
+                    Token::Text(_) | Token::Word(_) | Token::Open(_) | Token::Close(_) => {}
                 }
                 after_equals = *token == Token::Word("=".to_owned());
                 index += 1;
@@ -83,7 +83,7 @@ fn depends_start(tokens: &[Token]) -> Option<usize> {
             Token::Word(word) if depth == 0 && word == "depends:" => {
                 return (tokens.get(index + 1) == Some(&Token::Open('['))).then_some(index + 2);
             }
-            _ => {}
+            Token::Text(_) | Token::Word(_) => {}
         }
     }
     None

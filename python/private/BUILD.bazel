@@ -262,6 +262,9 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
-    ]),
+    ]) + [
+        "dx_bench_plugin.py",
+        "grpc_protoc.py",
+    ],
     visibility = ["//:__subpackages__"],
 )

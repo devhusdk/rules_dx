@@ -36,6 +36,8 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
-    ]),
+    ]) + [
+        "Invoke-Analyzer.ps1",
+    ],
     visibility = ["//:__subpackages__"],
 )

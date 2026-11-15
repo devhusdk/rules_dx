@@ -10,11 +10,12 @@ import (
 	"sync"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+	"github.com/bazelbuild/buildtools/build"
 	"github.com/bazelbuild/bazel-gazelle/config"
 )
 
-// AncestorOwner finds a rule in a package above rel whose srcs name a file
-// under rel by relative path. It returns the rule's label, such as
+// AncestorOwner finds a rule in a package above rel whose attributes name a
+// file under rel by relative path. It returns the rule's label, such as
 // "//tests:mixed".
 func AncestorOwner(c *config.Config, rel string) (string, bool) {
 	for dir := path.Dir(rel); rel != "" && rel != "."; dir = path.Dir(dir) {
@@ -27,10 +28,8 @@ func AncestorOwner(c *config.Config, rel string) (string, bool) {
 				continue
 			}
 			for _, r := range file.Rules {
-				for _, src := range r.AttrStrings("srcs") {
-					if strings.HasPrefix(path.Join(dir, src), rel+"/") {
-						return fmt.Sprintf("//%s:%s", dir, r.Name()), true
-					}
+				if namesUnder(r, dir, rel) {
+					return fmt.Sprintf("//%s:%s", dir, r.Name()), true
 				}
 			}
 			break
@@ -40,6 +39,21 @@ func AncestorOwner(c *config.Config, rel string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func namesUnder(r *rule.Rule, dir, rel string) bool {
+	found := false
+	for _, key := range r.AttrKeys() {
+		build.Walk(r.Attr(key), func(x build.Expr, _ []build.Expr) {
+			if str, ok := x.(*build.StringExpr); ok && strings.HasPrefix(path.Join(dir, str.Value), rel+"/") {
+				found = true
+			}
+		})
+		if found {
+			return true
+		}
+	}
+	return false
 }
 
 // AncestorOwnedNotice records that no BUILD file is created in Package

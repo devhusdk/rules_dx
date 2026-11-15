@@ -463,7 +463,7 @@ fn pypi_upload(
         (registry_url, token, signer),
         &version,
     );
-    let _ = std::fs::remove_dir_all(stage);
+    drop(std::fs::remove_dir_all(stage));
     code
 }
 
@@ -694,7 +694,7 @@ fn pypi_api_check(
         }
         Err(outcome) => Ok(outcome),
     };
-    let _ = std::fs::remove_dir_all(&work);
+    drop(std::fs::remove_dir_all(&work));
     outcome
 }
 

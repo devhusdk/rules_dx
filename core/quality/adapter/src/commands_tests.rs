@@ -1666,6 +1666,7 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         vec![BIN, "fmt", "--color", "off", "/scratch/sample.zig"]
     );
     let perl = Path::new("/scratch/sample.pl");
+    let perl_format = PERLCRITIC_FORMAT.replace('\\', "/");
     assert_eq!(
         argv_strings(&perlcritic_check(Path::new(BIN), &[perl], None)),
         vec![
@@ -1676,7 +1677,7 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "--nocolor",
             "--quiet",
             "--verbose",
-            PERLCRITIC_FORMAT,
+            perl_format.as_str(),
             "/scratch/sample.pl"
         ]
     );
@@ -1693,7 +1694,7 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "--nocolor",
             "--quiet",
             "--verbose",
-            PERLCRITIC_FORMAT,
+            perl_format.as_str(),
             "/scratch/sample.pl"
         ]
     );
@@ -1986,11 +1987,18 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     let yaml = Path::new("/scratch/Sample.yaml");
     assert_eq!(
         argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml], None)),
-        vec![BIN, "-lint", "-q", "/scratch/Sample.yaml"]
+        vec![
+            BIN,
+            "-lint",
+            "-q",
+            "-formatter",
+            "line_ending=lf",
+            "/scratch/Sample.yaml"
+        ]
     );
     assert_eq!(
         argv_strings(&yamlfmt_fix(Path::new(BIN), &[yaml], None)),
-        vec![BIN, "/scratch/Sample.yaml"]
+        vec![BIN, "-formatter", "line_ending=lf", "/scratch/Sample.yaml"]
     );
     let conf = Path::new("/scratch/conf.yaml");
     assert_eq!(

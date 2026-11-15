@@ -88,7 +88,18 @@ impl From<DepcheckError> for dx_error::DxError {
             DepcheckError::ManifestIo(ref source) | DepcheckError::LockIo(ref source) => {
                 Self::from_io(error.to_string(), source)
             }
-            _ => Self::failure(error.to_string()),
+            DepcheckError::ManifestToml(_)
+            | DepcheckError::ManifestJson(_)
+            | DepcheckError::ManifestRegex(_)
+            | DepcheckError::ManifestParse(_)
+            | DepcheckError::LockToml(_)
+            | DepcheckError::LockJson(_)
+            | DepcheckError::LockRegex(_)
+            | DepcheckError::LockParse(_)
+            | DepcheckError::SourcesRegex(_)
+            | DepcheckError::JvmEntry
+            | DepcheckError::CcEntry
+            | DepcheckError::NoMavenCoords => Self::failure(error.to_string()),
         }
     }
 }

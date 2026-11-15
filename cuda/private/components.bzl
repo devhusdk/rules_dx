@@ -22,7 +22,6 @@ def _impl(ctx):
     if errors:
         fail("\n".join(errors))
 
-    # Pinned external redistributable; dx owns none of its sources.
     return providers + [QualitySourcesInfo(direct_sources = {})]
 
 cuda_component_library = rule(

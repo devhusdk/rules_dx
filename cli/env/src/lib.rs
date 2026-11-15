@@ -247,7 +247,7 @@ pub fn probe_symlink(dir: &Path) -> io::Result<()> {
         Err(e) => return Err(e),
     }
     symlink_entry(&PathBuf::from("symlink.target"), &link)?;
-    let _ = fs::remove_file(&link);
+    drop(fs::remove_file(&link));
     Ok(())
 }
 
@@ -316,7 +316,7 @@ pub fn refresh(
     commit_swap(&bin_dir, &prev_dir, &stage_dir, &|from, to| {
         fs::rename(from, to)
     })?;
-    let _ = fs::remove_dir_all(&prev_dir);
+    drop(fs::remove_dir_all(&prev_dir));
     if fresh {
         Ok(RefreshOutcome::InstalledFresh)
     } else {
@@ -501,7 +501,7 @@ fn commit_swap(
 
 fn clean_stage(stage_dir: &Path) {
     if stage_dir.exists() {
-        let _ = fs::remove_dir_all(stage_dir);
+        drop(fs::remove_dir_all(stage_dir));
     }
 }
 

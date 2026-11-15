@@ -340,7 +340,11 @@ pub fn validate_platforms(text: &str) -> Result<Vec<String>, String> {
     for item in &items {
         match item {
             Json::Str(label) => labels.push(label.clone()),
-            other => {
+            other @ Json::Null
+            | other @ Json::Bool
+            | other @ Json::Number
+            | other @ Json::Array(_)
+            | other @ Json::Object => {
                 return Err(format!(
                     "{PLATFORMS_ENV} holds a JSON {}, not a platform label string. {hint}",
                     other.type_name()

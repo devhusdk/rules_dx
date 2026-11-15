@@ -18,22 +18,7 @@ def _within(path, root):
     return None
 
 def dart_shard_action(ctx, info, package, stem, extract_tool):
-    """Runs `dart doc` from the pinned Dart SDK and the extractor for one library.
-
-    The library's package and its transitive packages are staged as symlinks
-    under one tree with a generated `package_config.json`, so the action reads
-    nothing from the host and needs no `pub get`.
-
-    Args:
-      ctx: The rule or aspect context; it must carry the Dart toolchain.
-      info: The DartInfo of the documented library.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      extract_tool: The DocIr extractor executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the `index` file and the `html` tree.
-    """
+    """Runs `dart doc` from the pinned Dart SDK and the extractor for one library."""
     sdk = ctx.toolchains[_DART_TOOLCHAIN].dart_sdk_info
     packages = {}
     for pkg in info.transitive_packages.to_list():

@@ -8,7 +8,13 @@ pub(super) fn plan_bazelversion(
 ) -> Result<String, EditError> {
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
-        _ => {
+        WidenVersion::GitTag(_)
+        | WidenVersion::GitCommit(_)
+        | WidenVersion::Gem(_)
+        | WidenVersion::Cpan(_)
+        | WidenVersion::Opam(_)
+        | WidenVersion::Release(_)
+        | WidenVersion::Digest(_) => {
             return Err(EditError::UnsupportedManifest {
                 manifest: ".bazelversion".to_owned(),
                 reason: "expected exact semver".to_owned(),
@@ -46,7 +52,13 @@ pub(super) fn plan_module_bazel(
     use std::cmp::Ordering;
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
-        _ => {
+        WidenVersion::GitTag(_)
+        | WidenVersion::GitCommit(_)
+        | WidenVersion::Gem(_)
+        | WidenVersion::Cpan(_)
+        | WidenVersion::Opam(_)
+        | WidenVersion::Release(_)
+        | WidenVersion::Digest(_) => {
             return Err(EditError::UnsupportedManifest {
                 manifest: "MODULE.bazel".to_owned(),
                 reason: "expected exact semver".to_owned(),
@@ -157,10 +169,29 @@ fn module_error(package: &str) -> impl Fn(dx_module_bazel::ModuleError) -> EditE
             package: package.to_owned(),
             count,
         },
-        other => EditError::UnsupportedManifest {
-            manifest: "MODULE.bazel".to_owned(),
-            reason: other.to_string(),
-        },
+        other @ dx_module_bazel::ModuleError::Syntax { .. }
+        | other @ dx_module_bazel::ModuleError::StarlarkSyntax { .. }
+        | other @ dx_module_bazel::ModuleError::ComputedName { .. }
+        | other @ dx_module_bazel::ModuleError::MissingVersion { .. }
+        | other @ dx_module_bazel::ModuleError::ComputedVersion { .. }
+        | other @ dx_module_bazel::ModuleError::ComputedArtifacts { .. }
+        | other @ dx_module_bazel::ModuleError::ComputedCargoHub { .. }
+        | other @ dx_module_bazel::ModuleError::ComputedMavenHub { .. }
+        | other @ dx_module_bazel::ModuleError::ComputedHub { .. }
+        | other @ dx_module_bazel::ModuleError::UnsafeString { .. }
+        | other @ dx_module_bazel::ModuleError::AlreadyDeclared { .. }
+        | other @ dx_module_bazel::ModuleError::NoInsertPoint { .. }
+        | other @ dx_module_bazel::ModuleError::OverrideNotFound { .. }
+        | other @ dx_module_bazel::ModuleError::OverrideAmbiguous { .. }
+        | other @ dx_module_bazel::ModuleError::OverrideComputedName { .. }
+        | other @ dx_module_bazel::ModuleError::OverrideMissingVersion { .. }
+        | other @ dx_module_bazel::ModuleError::OverrideComputedVersion { .. }
+        | other @ dx_module_bazel::ModuleError::UnsafeComment { .. } => {
+            EditError::UnsupportedManifest {
+                manifest: "MODULE.bazel".to_owned(),
+                reason: other.to_string(),
+            }
+        }
     }
 }
 
@@ -171,7 +202,13 @@ pub(super) fn plan_package_json(
 ) -> Result<String, EditError> {
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
-        _ => {
+        WidenVersion::GitTag(_)
+        | WidenVersion::GitCommit(_)
+        | WidenVersion::Gem(_)
+        | WidenVersion::Cpan(_)
+        | WidenVersion::Opam(_)
+        | WidenVersion::Release(_)
+        | WidenVersion::Digest(_) => {
             return Err(EditError::unsupported_manifest(
                 "npm",
                 "expected exact semver".to_owned(),
@@ -371,7 +408,13 @@ pub(super) fn plan_go_mod(
 ) -> Result<String, EditError> {
     let new = match version {
         WidenVersion::Semver(version) => format!("v{version}"),
-        _ => {
+        WidenVersion::GitTag(_)
+        | WidenVersion::GitCommit(_)
+        | WidenVersion::Gem(_)
+        | WidenVersion::Cpan(_)
+        | WidenVersion::Opam(_)
+        | WidenVersion::Release(_)
+        | WidenVersion::Digest(_) => {
             return Err(EditError::UnsupportedManifest {
                 manifest: manifest.to_owned(),
                 reason: "expected exact semver".to_owned(),
@@ -1123,7 +1166,13 @@ pub(super) fn plan_maven_module_bazel(
 ) -> Result<String, EditError> {
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
-        _ => {
+        WidenVersion::GitTag(_)
+        | WidenVersion::GitCommit(_)
+        | WidenVersion::Gem(_)
+        | WidenVersion::Cpan(_)
+        | WidenVersion::Opam(_)
+        | WidenVersion::Release(_)
+        | WidenVersion::Digest(_) => {
             return Err(EditError::UnsupportedManifest {
                 manifest: manifest.to_owned(),
                 reason: "expected exact semver".to_owned(),
@@ -1187,7 +1236,13 @@ pub(super) fn plan_paket_dependencies(
     let manifest_path = manifest;
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
-        _ => {
+        WidenVersion::GitTag(_)
+        | WidenVersion::GitCommit(_)
+        | WidenVersion::Gem(_)
+        | WidenVersion::Cpan(_)
+        | WidenVersion::Opam(_)
+        | WidenVersion::Release(_)
+        | WidenVersion::Digest(_) => {
             return Err(EditError::UnsupportedManifest {
                 manifest: manifest_path.to_owned(),
                 reason: "expected exact semver".to_owned(),

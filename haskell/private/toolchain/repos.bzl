@@ -227,7 +227,6 @@ filegroup(
 )
 {cc}"""
 
-# The bundled mingw clang as a C toolchain, selected only by the hub's gated toolchains.
 _MINGW_CC_LOADS = """load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
 load("@rules_haskell//haskell:cc_toolchain_config.bzl", "cc_toolchain_config")
 """

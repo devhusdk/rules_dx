@@ -33,6 +33,8 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
-    ]),
+    ]) + [
+        "version_check.php",
+    ],
     visibility = ["//:__subpackages__"],
 )

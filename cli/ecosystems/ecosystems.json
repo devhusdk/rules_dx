@@ -120,7 +120,7 @@
       "alt_manifests": [],
       "shared_manifest": false,
       "plan_backend": "nuget",
-      "check_backend": "nuget",
+      "check_backend": "pinned",
       "graph_only": true,
       "check": true,
       "update": true,
@@ -209,7 +209,6 @@
       "audit": true,
       "advisory_family": "hex",
       "uses_repository": false,
-      "lockfiles": ["mix.lock", "rebar.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Hex/all.zip",
       "license_audit": false,
       "lock_required": false

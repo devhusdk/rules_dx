@@ -1,5 +1,10 @@
 //! C interface that the Android activity and native callers link against.
 
+#![expect(
+    unsafe_code,
+    reason = "the C interface exports unmangled symbols that read and write caller buffers"
+)]
+
 use std::sync::{Mutex, MutexGuard};
 
 use shared_tasks::{Board, asset_report, reply};
@@ -19,6 +24,7 @@ unsafe fn text<'a>(data: *const u8, len: usize) -> Option<&'a str> {
         }
         &[][..]
     } else {
+        // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
         unsafe { std::slice::from_raw_parts(data, len) }
     };
     std::str::from_utf8(bytes).ok()
@@ -27,6 +33,7 @@ unsafe fn text<'a>(data: *const u8, len: usize) -> Option<&'a str> {
 unsafe fn copy_out(value: &str, out: *mut u8, cap: usize) -> usize {
     if !out.is_null() && cap > 0 {
         let count = value.len().min(cap - 1);
+        // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
         unsafe {
             std::ptr::copy_nonoverlapping(value.as_ptr(), out, count);
             *out.add(count) = 0;
@@ -42,6 +49,7 @@ unsafe fn copy_out(value: &str, out: *mut u8, cap: usize) -> usize {
 /// `data` must point to `len` readable bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tasks_load(data: *const u8, len: usize) -> i32 {
+    // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
     let Some(loaded) = unsafe { text(data, len) }.and_then(|text| Board::load(text).ok()) else {
         return -1;
     };
@@ -58,11 +66,14 @@ pub unsafe extern "C" fn tasks_load(data: *const u8, len: usize) -> i32 {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tasks_apply(data: *const u8, len: usize, out: *mut u8, cap: usize) -> i32 {
     let mut guard = board();
+    // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
     let (Some(command), Some(current)) = (unsafe { text(data, len) }, guard.as_mut()) else {
+        // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
         unsafe { copy_out("err:no_board", out, cap) };
         return -1;
     };
     let answer = reply(current, command);
+    // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
     unsafe { copy_out(&answer, out, cap) };
     i32::from(answer.starts_with("err:"))
 }
@@ -75,6 +86,7 @@ pub unsafe extern "C" fn tasks_apply(data: *const u8, len: usize, out: *mut u8, 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tasks_summary(out: *mut u8, cap: usize) -> usize {
     match board().as_ref() {
+        // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
         Some(current) => unsafe { copy_out(&current.summary().to_string(), out, cap) },
         None => 0,
     }
@@ -94,6 +106,7 @@ pub unsafe extern "C" fn tasks_asset_report(
     out: *mut u8,
     cap: usize,
 ) -> usize {
+    // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
     let Some(name) = (unsafe { text(name, name_len) }) else {
         return 0;
     };
@@ -103,8 +116,10 @@ pub unsafe extern "C" fn tasks_asset_report(
     let bytes = if data.is_null() {
         &[][..]
     } else {
+        // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
         unsafe { std::slice::from_raw_parts(data, len) }
     };
+    // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
     unsafe { copy_out(&asset_report(name, bytes), out, cap) }
 }
 
@@ -114,6 +129,7 @@ mod tests {
 
     fn summary() -> String {
         let mut buf = [0u8; 64];
+        // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
         let len = unsafe { tasks_summary(buf.as_mut_ptr(), buf.len()) };
         String::from_utf8(buf[..len].to_vec()).expect("utf8 summary")
     }
@@ -121,6 +137,7 @@ mod tests {
     fn apply(command: &str) -> (i32, String) {
         let mut buf = [0u8; 64];
         let code =
+            // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
             unsafe { tasks_apply(command.as_ptr(), command.len(), buf.as_mut_ptr(), buf.len()) };
         let end = buf.iter().position(|b| *b == 0).expect("nul terminated");
         (code, String::from_utf8(buf[..end].to_vec()).expect("utf8"))
@@ -129,21 +146,25 @@ mod tests {
     #[test]
     fn c_interface_drives_the_board() {
         let seed = "[x] One\n[ ] Two @notes.txt\n";
+        // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
         assert_eq!(unsafe { tasks_load(seed.as_ptr(), seed.len()) }, 2);
         assert_eq!(summary(), "tasks=2 done=1 open=1 assets=1");
         assert_eq!(apply("add Three"), (0, "ok:added 3".to_owned()));
         assert_eq!(apply("done 9"), (1, "err:no_such_task".to_owned()));
         assert_eq!(summary(), "tasks=3 done=1 open=2 assets=1");
         let bad = "nope";
+        // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
         assert_eq!(unsafe { tasks_load(bad.as_ptr(), bad.len()) }, -1);
         assert_eq!(summary(), "tasks=3 done=1 open=2 assets=1");
         let mut small = [0u8; 4];
+        // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
         let len = unsafe { tasks_summary(small.as_mut_ptr(), small.len()) };
         assert_eq!(len, "tasks=3 done=1 open=2 assets=1".len());
         assert_eq!(&small, b"tas\0");
         let name = "a.txt";
         let data = b"Wikipedia";
         let mut out = [0u8; 64];
+        // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
         let len = unsafe {
             tasks_asset_report(
                 name.as_ptr(),

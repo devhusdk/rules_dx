@@ -377,28 +377,6 @@ rust_test(
 )
 
 rust_test(
-    name = "upgrade_e2e_test",
-    size = "small",
-    srcs = ["upgrade_e2e_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "upgrade_e2e_test",
-    crate_root = "upgrade_e2e_test.rs",
-    data = [
-        "release_cell.sh",
-        "upgrade_e2e.sh",
-    ],
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + ["//tools/testing:dx_testing"],
-)
-
-rust_test(
     name = "review_paths_test",
     size = "small",
     srcs = ["review_paths_test.rs"],
@@ -591,6 +569,7 @@ rust_test(
         "//dotnet/private/quality/tools/fsharplint:corpus_starlark",
         "//elixir/private:corpus_starlark",
         "//elixir/private/bench:corpus_starlark",
+        "//elixir/private/lock:corpus_starlark",
         "//elixir/private/toolchain:corpus_starlark",
         "//elixir/private/tools:corpus_starlark",
         "//elixir/private/tools/lock:corpus_starlark",
@@ -617,6 +596,7 @@ rust_test(
         "//java/private/quality:corpus_starlark",
         "//java/private/quality/tools:corpus_starlark",
         "//java/private/toolchain:corpus_starlark",
+        "//java/private/tools/lock:corpus_starlark",
         "//java/tests:corpus_starlark",
         "//javascript/private:corpus_starlark",
         "//javascript/private/quality:corpus_starlark",
@@ -669,6 +649,7 @@ rust_test(
         "//swift/private/tools:corpus_starlark",
         "//terraform/private:corpus_starlark",
         "//terraform/private/quality:corpus_starlark",
+        "//terraform/private/tools/lock:corpus_starlark",
         "//tools/docs/go:corpus_starlark",
         "//tools/docs/ir:corpus_starlark",
         "//tools/docs/javascript:corpus_starlark",
@@ -973,6 +954,7 @@ rust_test(
         "//cli/tests/entrypoint:corpus_starlark",
         "//core/quality/artifacts/acquire_test:corpus_starlark",
         "//core/quality/artifacts/tests/hub:corpus_starlark",
+        "//csharp/private/tools/lock:corpus_starlark",
         "//cuda/private/toolchain:corpus_starlark",
         "//d/private/lock:corpus_starlark",
         "//d/private/toolchain:corpus_starlark",
@@ -1066,6 +1048,7 @@ rust_test(
     crate_name = "lint_attributes_test",
     crate_root = "lint_attributes_test.rs",
     data = [
+        "//core/quality/tiers/clippy:strict.txt",
         "@dx_test_tags_sources//:code.json",
         "@dx_test_tags_sources//:files.json",
         "@dx_test_tags_sources//:sources.json",
@@ -1074,6 +1057,7 @@ rust_test(
         "DX_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:code.json)",
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
         "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+        "DX_STRICT_TXT": "$(rlocationpath //core/quality/tiers/clippy:strict.txt)",
     },
     deps = all_crate_deps(
         package_name = "tools/ci_tests",

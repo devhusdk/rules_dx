@@ -4,6 +4,7 @@ exports_files([
     "coverage.patch",
     "external_pkgsrcs.patch",
     "hermetic_tar.patch",
+    "windows_long_dill.patch",
 ])
 
 real_source_target(

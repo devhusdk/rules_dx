@@ -32,8 +32,12 @@ struct Generated {
     source: Vec<u8>,
 }
 
+#[expect(
+    unsafe_code,
+    reason = "std::env::set_var is unsafe; cxx-qt reads CLANG_FORMAT_BINARY in-process"
+)]
 fn main() -> ExitCode {
-    // SAFETY: the process is single-threaded here or the env lock is held.
+    // SAFETY: main has not spawned any thread yet, so nothing reads the environment concurrently.
     unsafe { std::env::set_var("CLANG_FORMAT_BINARY", "") };
     let args: Vec<String> = std::env::args().skip(1).collect();
     match run(&args) {

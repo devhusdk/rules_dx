@@ -76,7 +76,7 @@ impl Attr {
     fn text(&self) -> Option<&str> {
         match self {
             Self::Text(text) => Some(text),
-            _ => None,
+            Self::Unset | Self::Other => None,
         }
     }
 }
@@ -142,7 +142,14 @@ fn returns(stmt: &AstStmt) -> bool {
         StmtP::If(_, body) => returns(body),
         StmtP::IfElse(_, branches) => returns(&branches.0) || returns(&branches.1),
         StmtP::For(each) => returns(&each.body),
-        _ => false,
+        StmtP::Break
+        | StmtP::Continue
+        | StmtP::Pass
+        | StmtP::Expression(_)
+        | StmtP::Assign(_)
+        | StmtP::AssignModify(..)
+        | StmtP::Def(_)
+        | StmtP::Load(_) => false,
     }
 }
 
@@ -311,7 +318,7 @@ fn budget(files: &BTreeMap<String, FileScan>) -> Counts {
                 Attr::Text(size) if size == "small" && !matches!(call.timeout, Attr::Unset) => {
                     add("small-timeout".to_owned());
                 }
-                _ => {}
+                Attr::Unset | Attr::Text(_) | Attr::Other => {}
             }
             if let Some(timeout) = call.timeout.text()
                 && TIMEOUTS.contains(&timeout)

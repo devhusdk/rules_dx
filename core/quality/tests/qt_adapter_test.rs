@@ -347,7 +347,9 @@ fn qmllint_columns_count_utf16_units() {
     let found = parsed.expect("parsed");
     assert_eq!(found.len(), 1);
     let finding = &found[0].finding;
-    let before = &line[..line.find("foo").expect("foo")];
+    let before = line
+        .get(..line.find("foo").expect("foo"))
+        .expect("string slice within bounds");
     let utf16 = before.encode_utf16().count() as u64 + 1;
     assert_ne!(utf16, before.chars().count() as u64 + 1);
     assert_eq!(finding.encoding, quality_adapter::ColumnEncoding::Utf16);

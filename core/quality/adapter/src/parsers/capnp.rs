@@ -152,7 +152,8 @@ pub fn parse_capnp(
         }
         let Some(file) = files
             .iter()
-            .find(|file| **file == found.path.replace('\\', "/")) else {
+            .find(|file| **file == found.path.replace('\\', "/"))
+        else {
             if found.severity == ToolSeverity::Error && foreign_error.is_none() {
                 foreign_error = Some(format!(
                     "{}:{}:{}: {}",

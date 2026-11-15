@@ -23,7 +23,9 @@ fn lexical(path: &Path) -> Option<String> {
                     return None;
                 }
             }
-            other => clean.push(other.as_os_str()),
+            other @ Component::Prefix(_)
+            | other @ Component::RootDir
+            | other @ Component::Normal(_) => clean.push(other.as_os_str()),
         }
     }
     Some(dx_path::posix(&clean))

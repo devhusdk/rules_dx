@@ -367,7 +367,7 @@ impl<'a> Notebook<'a> {
                     .map(|(c, _)| c)
                     .collect(),
             ),
-            _ => None,
+            Node::Object(..) | Node::Array(..) | Node::Lit(_) => None,
         }
     }
 
@@ -805,7 +805,11 @@ mod tests {
         let text = nb(&code("\"a = 1\\nb = 2\\n\""), "{}");
         let (line, col) = locate(&text, 1, 2, 1).unwrap();
         let raw = text.lines().nth(line as usize - 1).unwrap();
-        assert!(raw[col as usize - 1..].starts_with("b = 2\\n\"}"));
+        assert!(
+            raw.get(col as usize - 1..)
+                .expect("string slice within bounds")
+                .starts_with("b = 2\\n\"}")
+        );
     }
 
     #[test]
@@ -840,7 +844,11 @@ mod tests {
         let text = nb(&code("[]"), "{}");
         let (line, col) = locate(&text, 1, 1, 1).unwrap();
         let raw = text.lines().nth(line as usize - 1).unwrap();
-        assert_eq!(&raw[col as usize - 1..col as usize], "]");
+        assert_eq!(
+            raw.get(col as usize - 1..col as usize)
+                .expect("string slice within bounds"),
+            "]"
+        );
     }
 
     #[test]
@@ -917,7 +925,13 @@ mod tests {
         let out = splice_sources(&original, &rewritten).unwrap();
         assert!(!out.contains("\"id\""));
         assert!(out.contains("\"# hi\""));
-        assert!(out.starts_with(&original[..original.find("\"import os").unwrap()]));
+        assert!(
+            out.starts_with(
+                original
+                    .get(..original.find("\"import os").unwrap())
+                    .expect("string slice within bounds")
+            )
+        );
         assert!(out.contains("[\n  \"x = 1\"\n ]") || out.contains("\"x = 1\""));
         let again = splice_sources(&out, &rewritten).unwrap();
         assert_eq!(again, out);
@@ -974,9 +988,9 @@ mod tests {
         let index = Notebook::parse(&text).unwrap().index();
         let cell = &index[0];
         let (s, e) = cell.outputs.unwrap();
-        assert_eq!(&text[s..e], "[]");
+        assert_eq!(text.get(s..e).expect("string slice within bounds"), "[]");
         let (s, e) = cell.execution_count.unwrap();
-        assert_eq!(&text[s..e], "null");
+        assert_eq!(text.get(s..e).expect("string slice within bounds"), "null");
     }
 
     #[test]

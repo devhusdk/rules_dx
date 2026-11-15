@@ -37,6 +37,7 @@ load(
     _pypi_deploy = "pypi_deploy",
     _rubygems_deploy = "rubygems_deploy",
 )
+load("//deploy/private:qt.bzl", _qt_bundle_runtime = "qt_bundle_runtime", _qt_consumer_archive = "qt_consumer_archive")
 load("//deploy/private/offline:offline.bzl", _offline_bundle = "offline_bundle")
 
 DxDeployInfo = _DxDeployInfo
@@ -73,4 +74,6 @@ offline_bundle = _offline_bundle
 packagist_deploy = _packagist_deploy
 pub_deploy = _pub_deploy
 pypi_deploy = _pypi_deploy
+qt_bundle_runtime = _qt_bundle_runtime
+qt_consumer_archive = _qt_consumer_archive
 rubygems_deploy = _rubygems_deploy

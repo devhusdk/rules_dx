@@ -317,7 +317,7 @@ fn only_the_ecosystems_the_dependency_sets_need_are_prepared() {
     );
     let one_of_many = workspace_with(&["package-lock.json"]);
     assert_eq!(families_of(one_of_many.path()), vec!["npm"]);
-    let shared = workspace_with(&["pnpm-lock.yaml", "third_party/dotnet/paket.lock"]);
+    let shared = workspace_with(&["pnpm-lock.yaml", "third_party/dotnet/nuget.lock.json"]);
     assert_eq!(families_of(shared.path()), vec!["npm", "nuget"]);
     let ruby = workspace_with(&[
         "third_party/ruby/Gemfile.lock",

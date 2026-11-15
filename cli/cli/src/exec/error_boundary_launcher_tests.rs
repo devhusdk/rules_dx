@@ -1,3 +1,8 @@
+#![expect(
+    unsafe_code,
+    reason = "pipe and process-group tests call libc directly"
+)]
+
 use super::super::test_support::{Harness, hang_up};
 use quality_result::proto::FileSnapshot;
 use std::fs;
@@ -132,9 +137,9 @@ impl Consumer {
 
     fn command(&self, args: &[&str], env: &[(&str, &str)], bazel: bool) -> Command {
         let bin = self.base.join(if bazel { "bin" } else { "nobin" });
-        let _ = fs::remove_file(self.log());
-        let _ = fs::remove_file(self.base.join("bazel.log.gate"));
-        let _ = fs::remove_file(self.base.join("bazel.log.started"));
+        drop(fs::remove_file(self.log()));
+        drop(fs::remove_file(self.base.join("bazel.log.gate")));
+        drop(fs::remove_file(self.base.join("bazel.log.started")));
         let mut command = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"));
         command
             .args(args)
@@ -173,8 +178,11 @@ impl Consumer {
 
     fn run_closed_stdout(&self, args: &[&str], env: &[(&str, &str)]) -> Outcome {
         let mut fds = [0; 2];
+        // SAFETY: fds holds two ints, as pipe requires.
         assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0, "pipe");
+        // SAFETY: fds[0] is the read end just created and is closed once.
         unsafe { libc::close(fds[0]) };
+        // SAFETY: fds[1] is the write end just created and owned by nothing else.
         let stdout = unsafe { <Stdio as std::os::fd::FromRawFd>::from_raw_fd(fds[1]) };
         let output = self
             .command(args, env, true)
@@ -232,6 +240,7 @@ impl Consumer {
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_secs(90));
             if !watchdog.load(Ordering::SeqCst) {
+                // SAFETY: kill takes plain integers and has no memory preconditions.
                 unsafe { libc::kill(-pgid, libc::SIGKILL) };
             }
         });
@@ -255,6 +264,7 @@ impl Consumer {
         fs::write(self.base.join("bazel.log.gate"), "").expect("gate");
         let output = child.wait_with_output().expect("dx stops");
         done.store(true, Ordering::SeqCst);
+        // SAFETY: kill takes plain integers and has no memory preconditions.
         unsafe { libc::kill(-pgid, libc::SIGKILL) };
         Outcome {
             status: output.status,
@@ -266,7 +276,7 @@ impl Consumer {
 
     fn run_cancelled(&self, args: &[&str], env: &[(&str, &str)], signo: i32) -> Outcome {
         let started = self.base.join("bazel.log.started");
-        let _ = fs::remove_file(&started);
+        drop(fs::remove_file(&started));
         let child = self
             .command(args, env, true)
             .stdout(Stdio::piped())
@@ -280,8 +290,10 @@ impl Consumer {
             std::thread::sleep(Duration::from_millis(20));
         }
         let pgid = child.id() as i32;
+        // SAFETY: kill takes plain integers and has no memory preconditions.
         assert_eq!(unsafe { libc::kill(-pgid, signo) }, 0, "signal delivered");
         let output = child.wait_with_output().expect("dx stops");
+        // SAFETY: kill takes plain integers and has no memory preconditions.
         unsafe { libc::kill(-pgid, libc::SIGKILL) };
         Outcome {
             status: output.status,

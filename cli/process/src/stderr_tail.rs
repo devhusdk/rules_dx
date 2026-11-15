@@ -86,11 +86,13 @@ fn keep_ui(argv: &[String], columns: Option<u16>, no_color: bool) -> Vec<String>
 }
 
 #[cfg(unix)]
+#[expect(unsafe_code, reason = "TIOCGWINSZ has no safe std API")]
 fn terminal_columns() -> Option<u16> {
     use std::os::fd::AsRawFd;
     if !io::stderr().is_terminal() {
         return None;
     }
+    // SAFETY: winsize is plain data; all zeros is a valid value.
     let mut size: libc::winsize = unsafe { std::mem::zeroed() };
     // SAFETY: TIOCGWINSZ fills the winsize we own for a valid open descriptor.
     let ok = unsafe { libc::ioctl(io::stderr().as_raw_fd(), libc::TIOCGWINSZ, &mut size) } == 0;

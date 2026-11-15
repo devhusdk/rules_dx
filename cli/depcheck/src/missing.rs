@@ -156,10 +156,7 @@ fn lock_packages(eco: Language, lock: &Path) -> Result<Vec<String>, DepcheckErro
         Language::Zig => Ok(crate::parse_zig_lock(lock)?.into_keys().collect()),
         Language::Dart => crate::dart_lock_candidates(lock),
         Language::Php => Ok(crate::parse_php_lock(lock)?.into_keys().collect()),
-        Language::Elixir => Ok(crate::ecosystem::beam::parse_mix_lock(lock)?
-            .into_keys()
-            .collect()),
-        Language::Erlang => Ok(crate::ecosystem::beam::parse_rebar_lock(lock)?
+        Language::Elixir | Language::Erlang => Ok(crate::ecosystem::beam::parse_hex_lock(lock)?
             .into_keys()
             .collect()),
         Language::Fortran => Ok(crate::parse_fortran_lock(lock)?.into_keys().collect()),
@@ -172,7 +169,13 @@ fn lock_packages(eco: Language, lock: &Path) -> Result<Vec<String>, DepcheckErro
         Language::Powershell => Ok(crate::parse_powershell_lock(lock)?.into_keys().collect()),
         Language::Lua => Ok(crate::parse_lua_lock(lock)?.into_keys().collect()),
         Language::Ocaml => Ok(crate::parse_ocaml_lock(lock)?.into_keys().collect()),
-        _ => Ok(Vec::new()),
+        Language::Go
+        | Language::Java
+        | Language::Kotlin
+        | Language::Scala
+        | Language::Csharp
+        | Language::Fsharp
+        | Language::Cc => Ok(Vec::new()),
     }
 }
 
@@ -228,7 +231,16 @@ pub fn find_missing(
             .first()
             .map_or("", String::as_str),
         Language::Ocaml => dx_families::hub("opam").map_or("", |hub| hub.manifest.as_str()),
-        _ => Ecosystem::Npm.manifest_name(),
+        Language::Js
+        | Language::Ts
+        | Language::Go
+        | Language::Java
+        | Language::Kotlin
+        | Language::Scala
+        | Language::Csharp
+        | Language::Fsharp
+        | Language::Cc
+        | Language::Powershell => Ecosystem::Npm.manifest_name(),
     };
     let found = crate::usage::find_first_imports(eco, sources, nested, &candidates)?;
     Ok(found

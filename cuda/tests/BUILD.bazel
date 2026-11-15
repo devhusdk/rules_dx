@@ -20,6 +20,7 @@ package(default_visibility = ["//visibility:private"])
 
 rust_test(
     name = "saxpy_device_code_test",
+    size = "small",
     testonly = True,
     srcs = ["saxpy_device_code_test.rs"],
     aliases = aliases(
@@ -55,6 +56,7 @@ cuda_test(
 
 rust_test(
     name = "rdc_device_code_test",
+    size = "small",
     testonly = True,
     srcs = ["rdc_device_code_test.rs"],
     aliases = aliases(
@@ -182,6 +184,7 @@ with_gpu_device(
 
 rust_test(
     name = "saxpy_gpu_unavailable_test",
+    size = "small",
     testonly = True,
     srcs = ["saxpy_gpu_unavailable_test.rs"],
     aliases = aliases(
@@ -223,6 +226,7 @@ failure_test(
 
 rust_test(
     name = "cublas_device_code_test",
+    size = "small",
     testonly = True,
     srcs = ["cublas_device_code_test.rs"],
     aliases = aliases(

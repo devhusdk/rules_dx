@@ -149,8 +149,6 @@ impl ScriptRunner {
             .find_map(|arg| arg.strip_prefix('@')?.strip_suffix("//:pin"))
         {
             format!("consumer-maven:{repository}")
-        } else if argv.iter().any(|arg| arg.contains("paket2bazel")) {
-            "nuget".to_owned()
         } else if argv.contains(&"@rules_dx//go/private/tools:go".to_owned()) {
             "go".to_owned()
         } else if argv.contains(&"uv".to_owned())

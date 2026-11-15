@@ -164,7 +164,7 @@ fn scan(text: &str) -> Result<Scanned, Problem> {
             Event::MappingEnd | Event::SequenceEnd => {
                 stack.pop();
             }
-            _ => {}
+            Event::Nothing | Event::StreamStart | Event::StreamEnd | Event::DocumentEnd => {}
         }
     }
     Ok(out)
@@ -408,7 +408,7 @@ pub fn check_config(text: &str) -> Result<(), String> {
             Event::MappingEnd | Event::SequenceEnd => {
                 stack.pop();
             }
-            _ => {}
+            Event::Nothing | Event::StreamStart | Event::StreamEnd | Event::DocumentEnd => {}
         }
     }
     Ok(())

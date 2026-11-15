@@ -2,34 +2,37 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load("//terraform:extensions.bzl", "default_url", "provider_conflict_message", "provider_errors")
+load("//terraform:extensions.bzl", "PLATFORM_TARGETS", "TARGETS", "hub_build", "hub_providers", "provider_repos")
 load("//terraform/private:providers.bzl", "TerraformModuleInfo", "provider_mirror_root")
 
 _SHA = "a" * 64
 _SRC = "registry.terraform.io/hashicorp/null"
 
 def provider_unit_tests(name):
-    """Declares unit tests of the extension tag validation."""
+    """Declares unit tests of the lock to hub translation."""
+    lock = {"packages": [{
+        "archives": [
+            {"platform": "linux_x86_64", "sha256": _SHA, "urls": ["https://e.invalid/l.zip"]},
+            {"platform": "macos_arm64", "sha256": _SHA, "urls": ["https://e.invalid/m.zip"]},
+        ],
+        "name": _SRC,
+        "version": "3.2.4",
+    }]}
     starlark_test(name = name, mode = "unit", checks = [
-        expect_equal("valid", provider_errors(_SRC, "3.2.4", {"linux_amd64": _SHA}, {}), []),
-        expect_equal("bad hex", "64 lowercase hex" in provider_errors(_SRC, "3.2.4", {"linux_amd64": "xyz"}, {})[0], True),
-        expect_equal("upper hex", len(provider_errors(_SRC, "3.2.4", {"linux_amd64": "A" * 64}, {})), 1),
-        expect_equal("unknown target", "unknown target" in provider_errors(_SRC, "3.2.4", {"plan9_amd64": _SHA}, {})[0], True),
-        expect_equal("url needed", len(provider_errors("registry.example.com/acme/x", "1", {"linux_amd64": _SHA}, {})), 1),
-        expect_equal("url ok", provider_errors("registry.example.com/acme/x", "1", {"linux_amd64": _SHA}, {"linux_amd64": "https://e.invalid/x.zip"}), []),
-        expect_equal("url without sha", len(provider_errors(_SRC, "1", {"linux_amd64": _SHA}, {"linux_arm64": "u"})), 1),
-        expect_equal("bad source", len(provider_errors("null", "1", {"linux_amd64": _SHA}, {})) > 0, True),
-        expect_equal("no sha", len(provider_errors(_SRC, "1", {}, {})), 1),
-        expect_equal(
-            "conflict names modules",
-            [m in provider_conflict_message("null", ("a 1.0", _SRC, "3.2.4"), ("b 2.0", _SRC, "3.2.3")) for m in ["a 1.0", "b 2.0", "3.2.4", "3.2.3"]],
-            [True, True, True, True],
-        ),
-        expect_equal(
-            "default url",
-            default_url(_SRC, "3.2.4", "linux_amd64"),
-            "https://releases.hashicorp.com/terraform-provider-null/3.2.4/terraform-provider-null_3.2.4_linux_amd64.zip",
-        ),
+        expect_equal("repos", sorted(provider_repos("hub", lock).keys()), ["hub_null_darwin_arm64", "hub_null_linux_amd64"]),
+        expect_equal("repo attributes", provider_repos("hub", lock)["hub_null_linux_amd64"], {
+            "sha256": _SHA,
+            "source": _SRC,
+            "target": "linux_amd64",
+            "urls": ["https://e.invalid/l.zip"],
+            "version": "3.2.4",
+        }),
+        expect_equal("hub entries", hub_providers("hub", lock), {"null": {
+            "repos": {"darwin_arm64": "hub_null_darwin_arm64", "linux_amd64": "hub_null_linux_amd64"},
+            "source": _SRC,
+        }}),
+        expect_equal("every platform maps to a target", sorted(PLATFORM_TARGETS.values()), sorted(TARGETS.keys())),
+        expect_equal("hub build selects per target", "@hub_null_linux_amd64//:provider" in hub_build(hub_providers("hub", lock)), True),
         expect_equal("mirror root", provider_mirror_root("a/b/" + _SRC + "/3.2.4/linux_amd64/tf", _SRC, "3.2.4", "linux_amd64"), "a/b"),
         expect_equal("mirror root mismatch", provider_mirror_root("a/tf", _SRC, "3.2.4", "linux_amd64"), None),
     ])

@@ -1,0 +1,23 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
+load("//deploy/private:qt.bzl", "QT_OS_RUNTIME_CELLS")
+load("//qt/private:bundle.bzl", "qt_os_supplied_libraries")
+load("//qt/private/toolchain:pins.bzl", "CELLS", "IDENTITIES")
+
+[
+    dx_native_runtime(
+        name = "os_runtime_" + cell,
+        provides = qt_os_supplied_libraries(CELLS[cell].needs.library),
+        redistribution = "os_supplied",
+        source = "operating system",
+        version = IDENTITIES[cell].min_runtime,
+        visibility = ["//visibility:public"],
+    )
+    for cell in QT_OS_RUNTIME_CELLS
+]
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -34,8 +34,7 @@ const GATED: &[&str] = &[
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",
     "//tools/platforms:protoc_windows_arm64",
-    "@android_ndk_toolchain//:ndk_cc_toolchain_device",
-    "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
+    "@android_ndk_toolchain//:all",
     "@cuda//toolchain/...",
     "@dx_dotnet_toolchains//:all",
     "@dx_haskell_toolchains//:all",
@@ -49,19 +48,20 @@ const GATED: &[&str] = &[
 ];
 
 /// Ungated registrations for shared toolchain types; entries are only removed.
-const UNGATED: &[&str] = &[
-];
+const UNGATED: &[&str] = &[];
 
 /// Labels of every `register_toolchains` call that is not `dev_dependency = True`.
 fn registered(module: &str) -> BTreeSet<String> {
     let mut labels = BTreeSet::new();
     let mut rest = module;
     while let Some(start) = rest.find("register_toolchains(") {
-        let body = &rest[start + "register_toolchains(".len()..];
+        let body = rest
+            .get(start + "register_toolchains(".len()..)
+            .expect("string slice within bounds");
         let end = body
             .find(')')
             .unwrap_or_else(|| panic!("unterminated register_toolchains call"));
-        let call = &body[..end];
+        let call = body.get(..end).expect("string slice within bounds");
         if !call.contains("dev_dependency") {
             for (index, part) in call.split('"').enumerate() {
                 if index % 2 == 1 {
@@ -69,7 +69,7 @@ fn registered(module: &str) -> BTreeSet<String> {
                 }
             }
         }
-        rest = &body[end..];
+        rest = body.get(end..).expect("string slice within bounds");
     }
     labels
 }

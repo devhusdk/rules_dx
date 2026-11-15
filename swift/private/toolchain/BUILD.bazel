@@ -127,6 +127,9 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
-    ]),
+    ]) + [
+        "extract_windows.ps1",
+        "libc_single_threaded.c",
+    ],
     visibility = ["//:__subpackages__"],
 )

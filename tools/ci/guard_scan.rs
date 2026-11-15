@@ -96,7 +96,24 @@ pub fn callee_name(callee: &AstExpr) -> &str {
     match &callee.node {
         ExprP::Identifier(ident) => &ident.node.ident,
         ExprP::Dot(_, name) => &name.node,
-        _ => "",
+        ExprP::Tuple(_)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::List(_)
+        | ExprP::Dict(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => "",
     }
 }
 
@@ -104,7 +121,26 @@ pub fn callee_name(callee: &AstExpr) -> &str {
 pub fn string(expr: &AstExpr) -> Option<&str> {
     match &expr.node {
         ExprP::Literal(AstLiteral::String(text)) => Some(&text.node),
-        _ => None,
+        ExprP::Tuple(_)
+        | ExprP::Dot(..)
+        | ExprP::Call(..)
+        | ExprP::Index(_)
+        | ExprP::Index2(_)
+        | ExprP::Slice(..)
+        | ExprP::Identifier(_)
+        | ExprP::Lambda(_)
+        | ExprP::Literal(_)
+        | ExprP::Not(_)
+        | ExprP::Minus(_)
+        | ExprP::Plus(_)
+        | ExprP::BitNot(_)
+        | ExprP::Op(..)
+        | ExprP::If(_)
+        | ExprP::List(_)
+        | ExprP::Dict(_)
+        | ExprP::ListComprehension(..)
+        | ExprP::DictComprehension(..)
+        | ExprP::FString(_) => None,
     }
 }
 

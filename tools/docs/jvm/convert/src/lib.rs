@@ -91,7 +91,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     let temp = out.with_extension("tmp");
     fs::write(&temp, bytes).map_err(|error| format!("cannot write {}: {error}", temp.display()))?;
     fs::rename(&temp, out).map_err(|error| {
-        let _ = fs::remove_file(&temp);
+        drop(fs::remove_file(&temp));
         format!("cannot write {}: {error}", options.out)
     })
 }

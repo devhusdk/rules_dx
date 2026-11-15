@@ -183,6 +183,10 @@ impl Resolver for Cpan {
             .ok_or_else(|| Error::new("cpan has no state file"))?;
         let packages = packages(&read(&hub.manifest)?, &read(state)?)
             .map_err(|error| Error::new(format!("{state}: {error}")))?;
-        Ok(Resolution { packages })
+        Ok(Resolution {
+            groups: std::collections::BTreeMap::new(),
+            packages,
+            ..Resolution::default()
+        })
     }
 }

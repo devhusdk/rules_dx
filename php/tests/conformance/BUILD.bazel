@@ -1,4 +1,4 @@
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//php/private/quality:corpus.bzl", "php_corpus")
 
 # gazelle:exclude bin
 load("//php:defs.bzl", "php_binary", "php_library", "php_test")
@@ -54,6 +54,7 @@ dx_conformance_suite(
     failing_case = "testCase",
     failing_pattern = "FailTest::{case}",
     failing_test = ":fail_subject_test",
+    lang = "php",
     lock = {
         "binary": ":lock_hello",
         "ecosystem": "php",
@@ -63,12 +64,11 @@ dx_conformance_suite(
         "package": "psr/http-factory",
         "stale": "composer.stale.lock",
     },
-    lang = "php",
     not_applicable = {"cross_test": "php_binary is a script the interpreter runs; it has no object format"},
     passing_test = ":pass_subject_test",
 )
 
-real_source_target(
+php_corpus(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],

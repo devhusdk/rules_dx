@@ -261,7 +261,13 @@ mod tests {
                     std::cmp::Ordering::Less
                 );
             }
-            _ => panic!("prerelease is semver"),
+            WidenVersion::GitTag(_)
+            | WidenVersion::GitCommit(_)
+            | WidenVersion::Gem(_)
+            | WidenVersion::Cpan(_)
+            | WidenVersion::Opam(_)
+            | WidenVersion::Release(_)
+            | WidenVersion::Digest(_) => panic!("prerelease is semver"),
         }
         assert!(is_stable(&"1.2.3".parse().expect("stable")));
     }

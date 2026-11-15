@@ -12,11 +12,11 @@ csharp_binary(
     target_frameworks = [DOTNET_TOOL_FRAMEWORK],
     visibility = ["//tools/docs/dotnet:__pkg__"],
     deps = [
-        "@paket.docs_csharp//docfx.common",
-        "@paket.docs_csharp//docfx.dotnet",
-        "@paket.docs_csharp//docfx.yamlserialization",
-        "@paket.docs_csharp//microsoft.codeanalysis.common",
-        "@paket.docs_csharp//microsoft.codeanalysis.csharp",
+        "@nuget.docs_csharp//docfx.common",
+        "@nuget.docs_csharp//docfx.dotnet",
+        "@nuget.docs_csharp//docfx.yamlserialization",
+        "@nuget.docs_csharp//microsoft.codeanalysis.common",
+        "@nuget.docs_csharp//microsoft.codeanalysis.csharp",
     ],
 )
 

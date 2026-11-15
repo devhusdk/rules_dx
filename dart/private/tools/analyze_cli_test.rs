@@ -19,13 +19,19 @@ impl Project {
         let root = PathBuf::from(tmp).join(format!("dart_analyze_{}_{name}", std::process::id()));
         std::fs::create_dir_all(root.join("lib")).expect("mkdir");
         let root = std::fs::canonicalize(root).expect("canonicalize");
+        let root = match root.to_str().and_then(|path| path.strip_prefix(r"\\?\")) {
+            Some(path) => PathBuf::from(path),
+            None => root,
+        };
         let project = Self { root };
         project.write("analysis_options.yaml", options);
         project
     }
 
     fn write(&self, rel: &str, text: &str) -> PathBuf {
-        let path = self.root.join(rel);
+        let path = rel
+            .split('/')
+            .fold(self.root.clone(), |acc, part| acc.join(part));
         std::fs::write(&path, text).expect("write");
         path
     }
@@ -98,7 +104,7 @@ fn warning_exits_2_and_error_exits_3() {
 #[test]
 fn missing_path_exits_64() {
     let p = Project::new("missing", "");
-    let out = p.analyze(&[&p.root.join("lib/none.dart")]);
+    let out = p.analyze(&[&p.root.join("lib").join("none.dart")]);
     assert_eq!(out.status.code(), Some(64));
 }
 
@@ -126,19 +132,16 @@ fn listed_options_file_reports_its_own_problems() {
     assert!(diagnostics(&unlisted).is_empty());
 }
 
+#[cfg(unix)]
 #[test]
 fn symlinked_scratch_reports_canonical_paths() {
     let p = Project::new("link", "");
     let bad = p.write("lib/e.dart", ERROR);
     let link = p.root.join("link");
-    #[cfg(unix)]
     std::os::unix::fs::symlink(&p.root, &link).expect("symlink");
-    #[cfg(unix)]
-    {
-        let out = p.analyze(&[&link.join("lib/e.dart")]);
-        let found = diagnostics(&out);
-        assert_eq!(found[0]["location"]["file"], bad.to_str().unwrap());
-    }
+    let out = p.analyze(&[&link.join("lib/e.dart")]);
+    let found = diagnostics(&out);
+    assert_eq!(found[0]["location"]["file"], bad.to_str().unwrap());
 }
 
 #[test]
@@ -154,7 +157,7 @@ fn columns_count_utf16_units() {
     // `  var s = '<U+1F600>'; int x = ` puts the literal after one astral char (2 UTF-16 units).
     let line = ASTRAL.lines().nth(1).expect("line");
     let scalars = line.find("'a'").expect("literal");
-    let before = &line[..scalars];
+    let before = line.get(..scalars).expect("string slice within bounds");
     let utf16 = before.encode_utf16().count() as u64 + 1;
     assert_eq!(invalid["location"]["range"]["start"]["column"], utf16);
 }

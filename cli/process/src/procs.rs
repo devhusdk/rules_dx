@@ -1,6 +1,7 @@
 //! Native process probes: liveness, the process table and command lines.
 
 /// Whether `pid` names a running process.
+#[expect(unsafe_code, reason = "kill with signal 0 has no safe std API")]
 pub fn pid_alive(pid: u32) -> bool {
     let Ok(pid) = libc::pid_t::try_from(pid) else {
         return false;
@@ -28,6 +29,7 @@ pub fn start_time(pid: u32) -> Option<String> {
 /// The kernel start time of `pid` as seconds and microseconds, read without allocating.
 /// `p_starttime` is the first field of the `kinfo_proc` that `KERN_PROC_PID` returns.
 #[cfg(target_os = "macos")]
+#[expect(unsafe_code, reason = "sysctl KERN_PROC_PID has no safe std API")]
 pub(crate) fn start_timeval(pid: libc::pid_t) -> Option<(i64, i64)> {
     let mut info = [0u64; 128];
     let mut len = std::mem::size_of_val(&info);

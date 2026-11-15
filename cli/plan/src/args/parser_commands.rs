@@ -237,7 +237,30 @@ fn an_output_mode_is_gated_exactly_where_the_registry_declares_it() {
         for (flag, name, supported) in OUTPUT_MODES {
             let words = match command {
                 Command::Watch => strings(&["watch", "lint", flag]),
-                _ => owned_option_words(command, &[flag]),
+                Command::Security
+                | Command::License
+                | Command::Lint
+                | Command::Typecheck
+                | Command::Format
+                | Command::Generate
+                | Command::Build
+                | Command::Test
+                | Command::Coverage
+                | Command::Bench
+                | Command::Run
+                | Command::Deploy
+                | Command::Check
+                | Command::Clean
+                | Command::Update
+                | Command::Sync
+                | Command::Init
+                | Command::Upgrade
+                | Command::Status
+                | Command::Completion
+                | Command::Docs
+                | Command::Worktree
+                | Command::Fuzz
+                | Command::Config => owned_option_words(command, &[flag]),
             };
             match parse(&words) {
                 Ok(got) => {

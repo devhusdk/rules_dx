@@ -575,9 +575,16 @@ fn a_ruby_api_page_renders_its_signature_docs_source_and_relations() {
     let index = read_asset(&root, "searchindex.js");
     let mut urls = BTreeSet::new();
     for (start, _) in index.match_indices("\"api/ruby/") {
-        let rest = &index[start + 1..];
+        let rest = index.get(start + 1..).expect("string slice within bounds");
         let end = rest.find('"').expect("closed string");
-        urls.insert(rest[..end].split('#').next().expect("url").to_string());
+        urls.insert(
+            rest.get(..end)
+                .expect("string slice within bounds")
+                .split('#')
+                .next()
+                .expect("url")
+                .to_string(),
+        );
     }
     assert!(!urls.is_empty(), "the search index names no Ruby page");
     for url in urls {
@@ -643,9 +650,16 @@ fn a_java_api_page_renders_its_signature_docs_source_and_relations() {
     let index = read_asset(&root, "searchindex.js");
     let mut urls = BTreeSet::new();
     for (start, _) in index.match_indices("\"api/java/") {
-        let rest = &index[start + 1..];
+        let rest = index.get(start + 1..).expect("string slice within bounds");
         let end = rest.find('"').expect("closed string");
-        urls.insert(rest[..end].split('#').next().expect("url").to_string());
+        urls.insert(
+            rest.get(..end)
+                .expect("string slice within bounds")
+                .split('#')
+                .next()
+                .expect("url")
+                .to_string(),
+        );
     }
     assert!(!urls.is_empty(), "the search index names no Java page");
     for url in urls {
@@ -714,9 +728,15 @@ fn every_api_url_in_the_search_index_is_a_page() {
     let index = read_asset(&root, "searchindex.js");
     let mut urls = BTreeSet::new();
     for (start, _) in index.match_indices("\"api/") {
-        let rest = &index[start + 1..];
+        let rest = index.get(start + 1..).expect("string slice within bounds");
         let end = rest.find('"').expect("closed string");
-        let url = rest[..end].split('#').next().expect("url").to_string();
+        let url = rest
+            .get(..end)
+            .expect("string slice within bounds")
+            .split('#')
+            .next()
+            .expect("url")
+            .to_string();
         urls.insert(url);
     }
     assert!(!urls.is_empty(), "the search index names no API page");

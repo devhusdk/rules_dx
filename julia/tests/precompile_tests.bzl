@@ -24,13 +24,7 @@ _precompile_test = analysistest.make(
 )
 
 def julia_precompile_test(name, target, package = ""):
-    """Asserts the upstream julia_library target runs a JuliaPrecompile action.
-
-    Args:
-        name: Test name.
-        target: Label of the upstream julia_library.
-        package: Optional module name the single precompile action must pass as --package.
-    """
+    """Asserts the upstream julia_library target runs a JuliaPrecompile action."""
     _precompile_test(
         name = name,
         size = "small",
@@ -52,13 +46,7 @@ _forwarded_info_test = analysistest.make(
 )
 
 def julia_forwarded_info_test(name, target, package):
-    """Asserts the dx julia_library forwards JuliaInfo with the module name.
-
-    Args:
-        name: Test name.
-        target: Label of the dx julia_library.
-        package: Expected module name (JuliaInfo.app_name).
-    """
+    """Asserts the dx julia_library forwards JuliaInfo with the module name."""
     _forwarded_info_test(
         name = name,
         size = "small",

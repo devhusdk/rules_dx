@@ -6,20 +6,7 @@ load("//tools/docs/beam:shard.bzl", "ESCRIPT_TOOL", "beam_shard_action", "beam_s
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 def erlang_shard_action(ctx, app, package, stem, runner, driver, extract_tool):
-    """Runs edoc from the pinned OTP and the extractor for one Erlang app.
-
-    Args:
-      ctx: The rule or aspect context; it must carry the coreutils toolchain.
-      app: The documented app, which provides ErlangAppInfo.
-      package: Package segment of the shard's symbol ids.
-      stem: Output name prefix, relative to the target's package.
-      runner: FilesToRunProvider of ESCRIPT_TOOL.
-      driver: The edoc_dump.escript file.
-      extract_tool: The beam_extract executable.
-
-    Returns:
-      A struct with the DocIr `shard`, the dump `json` and the `manifest`, or None when the app lists no erl source.
-    """
+    """Runs edoc from the pinned OTP and the extractor for one Erlang app."""
     srcs = beam_sources(app, ["erl"])
     if not srcs:
         return None
@@ -52,12 +39,5 @@ docs_erlang_shard = rule(
 )
 
 def erlang_doc_shard(name, app, package = "", **kwargs):
-    """Declares the DocIr shard of one Erlang app.
-
-    Args:
-      name: Name of the shard target.
-      app: The documented erlang_app.
-      package: Package segment of every symbol id; defaults to the app name.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one Erlang app."""
     docs_erlang_shard(name = name, app = app, package = package, **kwargs)

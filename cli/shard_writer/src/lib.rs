@@ -62,26 +62,26 @@ fn command<K: ShardKind>() -> Command {
 }
 
 fn parse_error<K: ShardKind>(error: clap::Error, args: &[String]) -> String {
-    match error.kind() {
-        ErrorKind::UnknownArgument => {
-            format!(
-                "unknown argument {:?}\n{}",
-                dx_output::unknown_token(&error, args),
-                K::USAGE
-            )
+    let kind = error.kind();
+    if kind == ErrorKind::UnknownArgument {
+        format!(
+            "unknown argument {:?}\n{}",
+            dx_output::unknown_token(&error, args),
+            K::USAGE
+        )
+    } else if kind == ErrorKind::InvalidValue {
+        K::USAGE.to_owned()
+    } else if kind == ErrorKind::ValueValidation {
+        let raw = dx_output::rejected_value(&error).unwrap_or_default();
+        match parse_entry_value::<K>(&raw) {
+            Err(message) => message,
+            // LCOV_EXCL_START - reason: clap reports the value it rejected, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+            Ok(_) => dx_output::first_line(&error),
+            // LCOV_EXCL_STOP - reason: end clap reports the value it rejected, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         }
-        ErrorKind::InvalidValue => K::USAGE.to_owned(),
-        ErrorKind::ValueValidation => {
-            let raw = dx_output::rejected_value(&error).unwrap_or_default();
-            match parse_entry_value::<K>(&raw) {
-                Err(message) => message,
-                // LCOV_EXCL_START - reason: clap reports the value it rejected, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                Ok(_) => dx_output::first_line(&error),
-                // LCOV_EXCL_STOP - reason: end clap reports the value it rejected, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            }
-        }
+    } else {
         // LCOV_EXCL_START - reason: clap kinds this command cannot raise, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        _ => dx_output::first_line(&error),
+        dx_output::first_line(&error)
         // LCOV_EXCL_STOP - reason: end clap kinds this command cannot raise, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     }
 }

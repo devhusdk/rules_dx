@@ -64,8 +64,7 @@ fn load_lock(eco: Language, lock: &Path) -> Result<LockVersions, DepcheckError> 
         Language::Julia => single(julia::parse_julia_lock(lock)),
         Language::Dart => dart::parse_dart_lock(lock),
         Language::Php => single(php::parse_php_lock(lock)),
-        Language::Elixir => single(beam::parse_mix_lock(lock)),
-        Language::Erlang => single(beam::parse_rebar_lock(lock)),
+        Language::Elixir | Language::Erlang => single(beam::parse_hex_lock(lock)),
         Language::Fortran => single(fortran::parse_fortran_lock(lock)),
         Language::D => single(dlang::parse_d_lock(lock)),
         Language::Haskell => single(haskell::parse_haskell_lock(lock)),
@@ -191,7 +190,7 @@ fn report(
 ) -> Result<(), DxError> {
     if !failures.is_empty() {
         for failure in failures {
-            let _ = writeln!(stderr, "depcheck: FAIL: consistency: {failure}");
+            writeln!(stderr, "depcheck: FAIL: consistency: {failure}").unwrap_or_default();
         }
         return Err(DxError::failure(format!(
             "{} consistency failures ({})",
@@ -199,16 +198,17 @@ fn report(
             eco.name()
         )));
     }
-    let _ = writeln!(
+    writeln!(
         stdout,
         "depcheck: OK: consistency: {declared} declarations match lock ({})",
         eco.name()
-    );
+    )
+    .unwrap_or_default();
     Ok(())
 }
 
 pub(crate) fn reported(stderr: &mut dyn std::fmt::Write, error: DxError) -> DxError {
-    let _ = writeln!(stderr, "depcheck: ERROR: {error}");
+    writeln!(stderr, "depcheck: ERROR: {error}").unwrap_or_default();
     error
 }
 

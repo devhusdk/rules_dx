@@ -66,10 +66,10 @@ LOCK_REGISTRY = {
     },
     "hex": {
         "hub": "hex",
-        "imports": "name",
-        "lock": "mix.lock",
+        "imports": "provides",
+        "lock": "hex.lock.json",
         "manifest": "mix.exs",
-        "state": None,
+        "state": "mix.lock",
     },
     "julia": {
         "hub": "julia",
@@ -100,9 +100,9 @@ LOCK_REGISTRY = {
         "state": None,
     },
     "nuget": {
-        "hub": "paket.main",
-        "imports": "name",
-        "lock": "paket.lock",
+        "hub": "nuget",
+        "imports": "provides",
+        "lock": "nuget.lock.json",
         "manifest": "paket.dependencies",
         "state": "paket.lock",
     },
@@ -140,6 +140,13 @@ LOCK_REGISTRY = {
         "lock": "swiftpm.lock.json",
         "manifest": "Package.swift",
         "state": "Package.resolved",
+    },
+    "terraform": {
+        "hub": "dx_terraform_providers",
+        "imports": "provides",
+        "lock": "terraform.lock.json",
+        "manifest": "*.tf",
+        "state": ".terraform.lock.hcl",
     },
     "uv": {
         "hub": "pypi",

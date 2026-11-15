@@ -12,20 +12,20 @@
     "mix.exs"
   ],
   "lockfiles": [
-    "mix.lock"
+    "hex.lock.json"
   ],
   "setup": {
     "hubs": [
       {
         "ecosystem": "hex",
         "manifest": "mix.exs",
-        "lock": "mix.lock",
-        "state": null,
+        "lock": "hex.lock.json",
+        "state": "mix.lock",
         "extension": "@rules_dx//elixir:extensions.bzl",
         "tag": "lock",
         "hub": "hex",
-        "resolver": null,
-        "imports": "name"
+        "resolver": "@rules_dx//elixir/private/tools/lock",
+        "imports": "provides"
       }
     ]
   },

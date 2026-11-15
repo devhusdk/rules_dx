@@ -6,7 +6,7 @@ use std::path::Path;
 use dx_module_bazel::{ModuleFile, Value};
 use dx_testing::{read_text, runfiles_root};
 
-/// Repositories every consumer has: the rules_dx repo name from `defs.bzl`, the
+/// Repositories every consumer has: the `rules_dx` repo name from `defs.bzl`, the
 /// `rules_dx` module itself, and the ones Bazel provides.
 const DEFAULT_REPOS: &[&str] = &["my_dx", "rules_dx", "platforms", "bazel_tools"];
 
@@ -72,7 +72,8 @@ fn declared(fragment: &str) -> BTreeSet<String> {
 }
 
 fn build_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
-    let entries = std::fs::read_dir(dir).unwrap_or_else(|error| panic!("{dir:?}: {error}"));
+    let entries =
+        std::fs::read_dir(dir).unwrap_or_else(|error| panic!("{}: {error}", dir.display()));
     for entry in entries.map(|entry| entry.expect("directory entry").path()) {
         if entry.is_dir() {
             build_files(&entry, out);

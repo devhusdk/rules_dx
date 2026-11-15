@@ -1,6 +1,7 @@
 //! The repository cache of a nested Bazel: built from declared downloads, and listed from a consumer lock.
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 /// The variable naming the runfiles keys of the `nested_repository_cache` manifests, space separated.
@@ -14,6 +15,10 @@ fn is_sha256(text: &str) -> bool {
 }
 
 /// Parses a manifest: one `<sha256> <runfiles key>` per line.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn parse_manifest(text: &str) -> Result<Vec<(String, String)>, String> {
     let mut entries = Vec::new();
     for line in text.lines().filter(|line| !line.trim().is_empty()) {
@@ -28,6 +33,7 @@ pub fn parse_manifest(text: &str) -> Result<Vec<(String, String)>, String> {
 }
 
 /// The place Bazel looks up a download with `sha256` in the repository cache at `cache`.
+#[must_use]
 pub fn entry(cache: &Path, sha256: &str) -> PathBuf {
     cache
         .join("content_addressable")
@@ -48,6 +54,10 @@ fn place(src: &Path, dst: &Path) -> std::io::Result<()> {
 }
 
 /// Builds the repository cache at `cache` from `files`, each a sha256 and the file that has it.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn install(cache: &Path, files: &[(String, PathBuf)]) -> Result<(), String> {
     std::fs::create_dir_all(cache)
         .map_err(|error| format!("cannot create {}: {error}", cache.display()))?;
@@ -82,6 +92,7 @@ fn base64_value(byte: u8) -> Option<u32> {
 }
 
 /// Turns a `sha256-<base64>` integrity into the hex sha256.
+#[must_use]
 pub fn integrity_hex(integrity: &str) -> Option<String> {
     let encoded = integrity.strip_prefix("sha256-")?.trim_end_matches('=');
     let mut bits = 0u32;
@@ -92,7 +103,7 @@ pub fn integrity_hex(integrity: &str) -> Option<String> {
         count += 6;
         if count >= 8 {
             count -= 8;
-            hex.push_str(&format!("{:02x}", (bits >> count) & 0xff));
+            write!(hex, "{:02x}", (bits >> count) & 0xff).ok();
         }
     }
     is_sha256(&hex).then_some(hex)
@@ -122,6 +133,10 @@ pub fn archive_overrides(module: &str) -> Vec<(String, String)> {
 /// Renders the cache list of a consumer: every registry file of `lock`, plus every module archive,
 /// patch, overlay file and `archive_override` archive that `fetched` holds.
 ///
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 /// `fetched` returns the bytes of a download by sha256, read from the repository cache of an online run.
 pub fn list(
     lock: &str,
@@ -180,8 +195,10 @@ pub fn list(
     }
     Ok(entries
         .iter()
-        .map(|(url, sha256)| format!("{url} {sha256}\n"))
-        .collect())
+        .fold(String::new(), |mut list, (url, sha256)| {
+            writeln!(list, "{url} {sha256}").ok();
+            list
+        }))
 }
 
 #[cfg(test)]
@@ -249,7 +266,10 @@ mod tests {
             archive_overrides(&module),
             vec![("https://example.com/a.tar.gz".to_owned(), A.to_owned())]
         );
-        assert!(archive_overrides("module(name = \"m\")\n").is_empty());
+        assert_eq!(
+            archive_overrides("module(name = \"m\")\n"),
+            [] as [(String, String); 0]
+        );
     }
 
     #[test]

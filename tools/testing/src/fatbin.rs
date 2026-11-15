@@ -49,6 +49,10 @@ fn to_usize(value: u64) -> Result<usize, String> {
 }
 
 /// Decodes every fatbin in a section payload into its entries.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn fatbin_entries(data: &[u8]) -> Result<Vec<Entry>, String> {
     let mut entries = Vec::new();
     let mut at = 0;
@@ -197,6 +201,10 @@ fn elf_device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {
 }
 
 /// Returns the members of a System V or GNU ar archive.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn archive_members(bytes: &[u8]) -> Result<Vec<(String, &[u8])>, String> {
     let mut members = Vec::new();
     let mut long_names: &[u8] = &[];
@@ -378,6 +386,7 @@ fn object_device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {
 }
 
 /// Sorts and deduplicates device-code entries for comparison.
+#[must_use]
 pub fn sorted(mut entries: Vec<Entry>) -> Vec<Entry> {
     entries.sort();
     entries.dedup();
@@ -386,6 +395,10 @@ pub fn sorted(mut entries: Vec<Entry>) -> Vec<Entry> {
 
 /// Returns the device code embedded in an ELF, COFF or PE file, or in every object member of an
 /// ar archive.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {
     if bytes.starts_with(b"!<arch>\n") {
         let mut entries = Vec::new();
@@ -437,7 +450,11 @@ fn pe_imports(bytes: &[u8]) -> Result<Vec<String>, String> {
     Ok(needed)
 }
 
-/// Returns the DT_NEEDED entries of an ELF file or the imported DLL names of a PE file.
+/// Returns the `DT_NEEDED` entries of an ELF file or the imported DLL names of a PE file.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn needed_libraries(bytes: &[u8]) -> Result<Vec<String>, String> {
     if is_pe_image(bytes) {
         return pe_imports(bytes);
@@ -465,6 +482,10 @@ pub fn needed_libraries(bytes: &[u8]) -> Result<Vec<String>, String> {
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "fixture sizes fit the narrower header fields"
+)]
 mod tests {
     use super::*;
 
@@ -513,7 +534,7 @@ mod tests {
         }
         let names_at = out.len() as u64;
         out.extend(&names);
-        while out.len() % 8 != 0 {
+        while !out.len().is_multiple_of(8) {
             out.push(0);
         }
         let shoff = out.len() as u64;
@@ -809,7 +830,7 @@ mod tests {
             needed_libraries(&binary).unwrap(),
             vec!["KERNEL32.dll", "cudart64_13.dll"]
         );
-        assert!(device_code(&binary).unwrap().is_empty());
+        assert_eq!(device_code(&binary).unwrap(), [] as [Entry; 0]);
     }
 
     #[test]

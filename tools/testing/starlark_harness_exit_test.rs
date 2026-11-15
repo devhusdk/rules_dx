@@ -52,7 +52,7 @@ fn run_case(name: &str, expected: &str, actual: &str) -> Output {
         "STARLARK_HARNESS_MANIFEST",
         "_main/pkg/case.starlark_manifest.json",
     )
-    .current_dir(&dir);
+    .current_dir(dir);
     let child = spawn_copy(&exe, &mut cmd);
     child
         .wait_with_output()
@@ -99,15 +99,14 @@ fn a_missing_manifest_env_exits_one() {
     let dir = scratch.path();
     let exe = dir.join(format!("probe_test{}", std::env::consts::EXE_SUFFIX));
     let mut cmd = Command::new(&exe);
-    cmd.env_remove("STARLARK_HARNESS_MANIFEST")
-        .current_dir(&dir);
+    cmd.env_remove("STARLARK_HARNESS_MANIFEST").current_dir(dir);
     let child = spawn_copy(&exe, &mut cmd);
     let output = child
         .wait_with_output()
         .unwrap_or_else(|err| panic!("cannot wait for {}: {err}", exe.display()));
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(output.status.code(), Some(1), "{stderr}");
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, [] as [u8; 0]);
     assert!(
         stderr.starts_with("starlark_harness: missing environment"),
         "{stderr}"

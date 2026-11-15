@@ -6,6 +6,7 @@ fn starlark_string(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
+#[must_use]
 pub fn rules_dx_override(rules_dx: &Path) -> String {
     format!(
         "local_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
@@ -14,6 +15,7 @@ pub fn rules_dx_override(rules_dx: &Path) -> String {
 }
 
 /// The workspace rules log contexts of the modules that `module` overrides with `local_path_override`.
+#[must_use]
 pub fn local_override_repos(module: &str) -> Vec<String> {
     module
         .split("local_path_override(")
@@ -44,7 +46,8 @@ pub const RULES_PY_PATCHES: [&str; 8] = [
     "win32_x86_32",
 ];
 
-/// Pins the patched rules_py the way the root MODULE.bazel does, until the BCR serves alpha.11.
+/// Pins the patched `rules_py` the way the root MODULE.bazel does, until the BCR serves alpha.11.
+#[must_use]
 pub fn rules_py_override() -> String {
     let patches = RULES_PY_PATCHES
         .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
@@ -69,7 +72,8 @@ pub const RULES_RUST_PATCHES: [&str; 11] = [
     "crate_universe_module_labels",
 ];
 
-/// Pins rules_rust 0.75.0 with the patches of the root MODULE.bazel.
+/// Pins `rules_rust` 0.75.0 with the patches of the root MODULE.bazel.
+#[must_use]
 pub fn rules_rust_override() -> String {
     let patches = RULES_RUST_PATCHES
         .map(|name| format!("        \"//patches/rules_rust:{name}.patch\",\n"))
@@ -94,6 +98,7 @@ pub const LLVM_PATCHES: [&str; 10] = [
 ];
 
 /// Pins llvm 0.8.26 with the patches of the root MODULE.bazel apart from `toolchains_gate`, whose `@@//config` labels name the root repository.
+#[must_use]
 pub fn llvm_override() -> String {
     let patches = LLVM_PATCHES
         .map(|name| format!("        \"//patches/llvm:{name}.patch\",\n"))
@@ -112,7 +117,8 @@ pub const WINDOWS_SUPPORT_PATCHES: [&str; 5] = [
     "source_directory_headers",
 ];
 
-/// Pins windows_support 0.4.1 with the patches of the root MODULE.bazel.
+/// Pins `windows_support` 0.4.1 with the patches of the root MODULE.bazel.
+#[must_use]
 pub fn windows_support_override() -> String {
     let patches = WINDOWS_SUPPORT_PATCHES
         .map(|name| format!("        \"//patches/windows_support:{name}.patch\",\n"))
@@ -126,6 +132,7 @@ pub fn windows_support_override() -> String {
 pub const PROTOBUF_PATCHES: [&str; 1] = ["no_crate_universe"];
 
 /// Pins protobuf 36.2 with the patches of the root MODULE.bazel.
+#[must_use]
 pub fn protobuf_override() -> String {
     let patches = PROTOBUF_PATCHES
         .map(|name| format!("        \"//patches/protobuf:{name}.patch\",\n"))
@@ -136,6 +143,10 @@ pub fn protobuf_override() -> String {
 }
 
 /// Writes the files `protobuf_override` names into the consumer.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn write_protobuf_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
     write_patches(workspace, rules_dx, "protobuf", &PROTOBUF_PATCHES)
 }
@@ -149,7 +160,7 @@ pub const RULES_FLUTTER_PATCHES: [&str; 5] = [
     "ios_target_compatible_with",
 ];
 
-/// The `flutter/pins.json` that holds the rules_flutter pin.
+/// The `flutter/pins.json` that holds the `rules_flutter` pin.
 const FLUTTER_PINS: &str = include_str!("../../../../flutter/pins.json");
 
 /// The `sha256-` integrity of a lowercase hex SHA-256.
@@ -179,7 +190,11 @@ fn sha256_integrity(hex: &str) -> String {
     out
 }
 
-/// Pins the patched rules_flutter the way the root MODULE.bazel does, from `flutter/pins.json`.
+/// Pins the patched `rules_flutter` the way the root MODULE.bazel does, from `flutter/pins.json`.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn rules_flutter_override() -> String {
     let pins: serde_json::Value = serde_json::from_str(FLUTTER_PINS)
         .unwrap_or_else(|error| panic!("flutter/pins.json: {error}"));
@@ -211,7 +226,8 @@ pub const RULES_JULIA_PATCHES: [&str; 4] = [
     "template_action_input",
 ];
 
-/// Pins rules_julia 0.8.0 with the patches of the root MODULE.bazel.
+/// Pins `rules_julia` 0.8.0 with the patches of the root MODULE.bazel.
+#[must_use]
 pub fn rules_julia_override() -> String {
     let patches = RULES_JULIA_PATCHES
         .map(|name| format!("        \"//patches/rules_julia:{name}.patch\",\n"))
@@ -243,6 +259,10 @@ fn without_module_line(snippet: &str) -> String {
 /// Its `module()` line is replaced by one named `module`.
 ///
 /// The fragment is appended.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn compose_module(
     snippet: &str,
     module: &str,
@@ -301,16 +321,28 @@ fn write_patches(
 }
 
 /// Writes the files `rules_rust_override` names into the consumer.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn write_rules_rust_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
     write_patches(workspace, rules_dx, "rules_rust", &RULES_RUST_PATCHES)
 }
 
 /// Writes the files `llvm_override` names into the consumer.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn write_llvm_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
     write_patches(workspace, rules_dx, "llvm", &LLVM_PATCHES)
 }
 
 /// Writes the files `windows_support_override` names into the consumer.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn write_windows_support_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
     write_patches(
         workspace,
@@ -321,6 +353,10 @@ pub fn write_windows_support_patches(workspace: &Path, rules_dx: &Path) -> Resul
 }
 
 /// Writes the files `rules_py_override` and `rules_flutter_override` name into the consumer.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
     write_patches(workspace, rules_dx, "rules_py", &RULES_PY_PATCHES)?;
     write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)?;
@@ -419,13 +455,13 @@ mod tests {
 
     #[test]
     fn local_override_repos_is_empty_without_overrides() {
-        assert!(local_override_repos(SNIPPET).is_empty());
+        assert_eq!(local_override_repos(SNIPPET), [] as [String; 0]);
     }
 
     #[test]
     fn local_override_repos_ignores_archive_overrides() {
         let module = "archive_override(\n    module_name = \"rules_flutter\",\n    urls = [\"https://x\"],\n)\n";
-        assert!(local_override_repos(module).is_empty());
+        assert_eq!(local_override_repos(module), [] as [String; 0]);
     }
 
     #[test]

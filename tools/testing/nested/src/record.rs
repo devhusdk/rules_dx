@@ -85,6 +85,7 @@ fn download(message: &[u8], integrity: u64) -> Option<(String, String)> {
 }
 
 /// The `(url, sha256)` of every download with a checksum in a delimited `WorkspaceEvent` log.
+#[must_use]
 pub fn downloads(log: &[u8]) -> Vec<(String, String)> {
     let mut found = BTreeSet::new();
     let mut reader = Reader { bytes: log };
@@ -108,6 +109,7 @@ pub fn downloads(log: &[u8]) -> Vec<(String, String)> {
 }
 
 /// The sorted, unique `WorkspaceEvent.context` values of a delimited log: the repository rules that ran.
+#[must_use]
 pub fn contexts(log: &[u8]) -> Vec<String> {
     let mut found = BTreeSet::new();
     let mut reader = Reader { bytes: log };
@@ -165,7 +167,7 @@ mod tests {
         log.extend(with(b"@@a//:r"));
         log.extend(with(b"@@x//:r"));
         assert_eq!(contexts(&log), ["@@a//:r", "@@x//:r"]);
-        assert!(contexts(&[]).is_empty());
+        assert_eq!(contexts(&[]), [] as [String; 0]);
     }
 
     #[test]

@@ -8,6 +8,7 @@ const RUNFILES_ENV: [&str; 3] = [
     "RUNFILES_MANIFEST_ONLY",
 ];
 
+#[must_use]
 pub fn runtime_argv(
     declared_env: &BTreeMap<String, String>,
     preopens: &[(PathBuf, String)],
@@ -79,6 +80,11 @@ fn command(
 
 /// Runs one module under the runtime with only the declared args, env and preopens.
 /// The runtime, module and preopened files are runfiles or absolute paths.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn run(
     runtime: &Path,
     module: &Path,
@@ -91,6 +97,11 @@ pub fn run(
 }
 
 /// Runs one module like `run`, with inherited stdio, and returns its exit code.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn run_inherited(
     runtime: &Path,
     module: &Path,

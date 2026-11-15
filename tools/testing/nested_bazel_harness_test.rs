@@ -1,4 +1,4 @@
-//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk, a locked consumer resolves rules_dx extensions from its repository cache sets, and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed, which the probe proves the guard catches.
+//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk, a locked consumer resolves `rules_dx` extensions from its repository cache sets, and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed, which the probe proves the guard catches.
 
 use std::time::{Duration, Instant};
 
@@ -6,7 +6,7 @@ use dx_nested as nested;
 use dx_testing::{read_runfiles, resolve_runfiles, run};
 use {dx_nested::Case, dx_testing::rlocation};
 
-/// The facts key rules_py's `python_interpreters` extension stores its SHA256SUMS under.
+/// The facts key `rules_py`'s `python_interpreters` extension stores its SHA256SUMS under.
 const PYTHON_FACTS: &str = "@@rules_py+//py:extensions.bzl%python_interpreters";
 
 /// Starts the harness consumer with its checked-in lock.
@@ -127,13 +127,24 @@ fn a_download_outside_the_cache_sets_fails_with_its_url() {
 fn nested_commands_see_no_host_path_and_a_home_under_the_test_tmpdir() {
     let tmpdir = std::path::PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
     let case = nested::case("environment");
-    std::fs::write(case.join("MODULE.bazel"), "module(name = \"environment\")\n")
-        .unwrap_or_else(|error| panic!("write MODULE.bazel: {error}"));
+    std::fs::write(
+        case.join("MODULE.bazel"),
+        "module(name = \"environment\")\n",
+    )
+    .unwrap_or_else(|error| panic!("write MODULE.bazel: {error}"));
     let run = case.bazel(&["info", "output_base"]);
     assert!(run.status.success(), "{}", run.combined());
     let output_base = std::path::PathBuf::from(run.stdout.trim());
-    assert!(output_base.starts_with(&tmpdir), "{}", output_base.display());
-    assert!(case.root().starts_with(&tmpdir), "{}", case.root().display());
+    assert!(
+        output_base.starts_with(&tmpdir),
+        "{}",
+        output_base.display()
+    );
+    assert!(
+        case.root().starts_with(&tmpdir),
+        "{}",
+        case.root().display()
+    );
     let environ = std::fs::read(format!("/proc/{}/environ", case.servers()[0])).expect("environ");
     let environ = String::from_utf8_lossy(&environ);
     let vars: Vec<&str> = environ.split('\0').collect();

@@ -837,10 +837,10 @@ fn windows_denies_drop_grants_their_parents_and_repeats() {
 fn windows_denies_are_empty_when_the_grants_cover_everything() {
     let fake = fake_host();
     let (mut isolation, _) = planned_with_home(&fake);
-    assert!(!isolation.windows_denies().is_empty());
+    assert_ne!(isolation.windows_denies(), [] as [PathBuf; 0]);
     isolation.grants = vec![fake.dir.path().to_path_buf()];
     isolation.grants.extend(isolation.tools.clone());
-    assert!(isolation.windows_denies().is_empty());
+    assert_eq!(isolation.windows_denies(), [] as [PathBuf; 0]);
 }
 
 #[cfg(target_os = "linux")]
@@ -862,7 +862,7 @@ fn plan_with_keep_covering_every_sdk_masks_none() {
     let keep = fake.host.sdk_candidates.clone();
     let isolation =
         Isolation::plan_with(&fake.host, &fake.dir.path().join("shim"), &keep, None).unwrap();
-    assert!(isolation.sdk_dirs.is_empty());
+    assert_eq!(isolation.sdk_dirs, [] as [PathBuf; 0]);
     assert!(isolation.home_dirs.is_empty() && isolation.home_files.is_empty());
 }
 
@@ -991,7 +991,7 @@ fn each_output_root_has_its_own_dx_disk_cache() {
         cache("/q/warm", "coverage"),
         ["--disk_cache=/q/warm_cache/dx/disk-cache"]
     );
-    assert!(cache("/q/cold", "cquery").is_empty());
+    assert_eq!(cache("/q/cold", "cquery"), [] as [String; 0]);
 }
 
 #[test]
@@ -1087,7 +1087,10 @@ fn dx_startup_options_carry_the_windows_roots() {
             Ok(token)
         );
     }
-    assert!(dx_startup_options(Path::new("/q/cold"), false).is_empty());
+    assert_eq!(
+        dx_startup_options(Path::new("/q/cold"), false),
+        [] as [String; 0]
+    );
 }
 
 #[test]
@@ -1404,7 +1407,7 @@ fn host_names_this_machine() {
     let host = host();
     assert_eq!(host["os"], json!(std::env::consts::OS));
     assert_eq!(host["arch"], json!(std::env::consts::ARCH));
-    assert!(!host["kernel"].as_str().unwrap().is_empty());
+    assert_ne!(host["kernel"].as_str().unwrap(), "");
 }
 
 #[test]
@@ -1957,7 +1960,10 @@ fn copy_test_logs_keeps_layout_and_returns_heads() {
     let logs = dir.path().join("bazel-testlogs");
     let case = logs.join("javascript/cli/exit_codes_test");
     std::fs::create_dir_all(&case).unwrap();
-    let body: String = (1..=50).map(|n| format!("line {n}\n")).collect();
+    let body: String = (1..=50).fold(String::new(), |mut body, n| {
+        writeln!(body, "line {n}").ok();
+        body
+    });
     std::fs::write(case.join("test.log"), body).unwrap();
     std::fs::write(case.join("test.xml"), "<testsuites/>").unwrap();
     let dest = dir.path().join("out/testlogs");
@@ -2004,7 +2010,7 @@ fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {
         canon(local.join("Programs").join("Python").join("Python311")),
     ];
     assert_eq!(dirs, want);
-    assert!(windows_tool_dirs(None, None).is_empty());
+    assert_eq!(windows_tool_dirs(None, None), [] as [PathBuf; 0]);
 }
 
 #[test]
@@ -2057,7 +2063,12 @@ fn action_path_is_system_only() {
             "/q/applets"
         );
     }
-    assert_eq!(SHIM_NAME.ends_with(".cmd"), cfg!(windows));
+    assert_eq!(
+        Path::new(SHIM_NAME)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("cmd")),
+        cfg!(windows)
+    );
 }
 
 #[test]
@@ -2087,7 +2098,7 @@ fn windows_msvc_denies_lists_the_existing_visual_studio_and_sdk_trees() {
         windows_msvc_denies(Some(&pf), Some(&pf)),
         [pf.join("Microsoft Visual Studio")]
     );
-    assert!(windows_msvc_denies(None, None).is_empty());
+    assert_eq!(windows_msvc_denies(None, None), [] as [PathBuf; 0]);
 }
 
 #[test]
@@ -2120,7 +2131,7 @@ fn only_the_windows_ambient_probe_takes_the_isolated_path() {
         assert!(leak_flags(name).is_empty(), "{name}");
     }
     if !cfg!(windows) {
-        assert!(leak_flags("ambient_tool").is_empty());
+        assert_eq!(leak_flags("ambient_tool"), [] as [String; 0]);
     }
 }
 

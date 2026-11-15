@@ -37,7 +37,7 @@ fn fixture(lang: &str) -> BTreeMap<String, String> {
         .unwrap_or_else(|error| panic!("DX_CONSUMER_JSON: {error}"));
     let files: BTreeMap<String, String> =
         dx_testing::serde_json::from_str(&dx_testing::read_text(&snapshot))
-            .unwrap_or_else(|error| panic!("{snapshot:?}: {error}"));
+            .unwrap_or_else(|error| panic!("{}: {error}", snapshot.display()));
     let prefix = format!("{lang}/tests/consumer/");
     files
         .into_iter()
@@ -58,11 +58,14 @@ fn workspace(files: &BTreeMap<String, String>) -> PathBuf {
 
 fn init(root: &Path) -> dx_testing::Run {
     let home = root.with_file_name("home");
-    std::fs::create_dir_all(&home).unwrap_or_else(|error| panic!("{home:?}: {error}"));
+    std::fs::create_dir_all(&home).unwrap_or_else(|error| panic!("{}: {error}", home.display()));
     let home = dx_testing::path_text(&home);
     let dx = dx_testing::env_file("DX_BIN");
     let bin = root.with_file_name("bin");
-    dx_testing::fake_generate_bazel_path(&bin, &dx_testing::env_file("DX_FAKE_GENERATE"));
+    drop(dx_testing::fake_generate_bazel_path(
+        &bin,
+        &dx_testing::env_file("DX_FAKE_GENERATE"),
+    ));
     let bin = dx_testing::path_text(&bin);
     let gazelle = dx_testing::resolve_runfiles(&dx_testing::env_text("DX_GAZELLE_BIN"));
     let gazelle = dx_testing::path_text(&gazelle);
@@ -74,8 +77,12 @@ fn init(root: &Path) -> dx_testing::Run {
         ("HOME", home.as_str()),
         ("USERPROFILE", home.as_str()),
     ];
-    let mut command = dx_testing::command_for(&dx, &envs).unwrap_or_else(|error| panic!("{dx:?}: {error}"));
-    command.current_dir(root).args(["init", "--apply", "--workspace"]).arg(root);
+    let mut command = dx_testing::command_for(&dx, &envs)
+        .unwrap_or_else(|error| panic!("{}: {error}", dx.display()));
+    command
+        .current_dir(root)
+        .args(["init", "--apply", "--workspace"])
+        .arg(root);
     dx_testing::run_command(&mut command, Duration::from_secs(60))
         .unwrap_or_else(|error| panic!("dx init --apply: {error}"))
 }

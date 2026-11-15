@@ -236,7 +236,9 @@ fn module_srcs_carry_every_package_a_consumer_module_bazel_names() {
                 },
                 format!("{label} in MODULE.bazel"),
             ));
-            let starlark = target.path.ends_with(".bzl")
+            let starlark = std::path::Path::new(&target.path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
                 || (target.path.ends_with("BUILD.bazel") && !target.path.ends_with(".BUILD.bazel"));
             if starlark {
                 entries.insert((target, format!("{label} in MODULE.bazel")));
@@ -261,12 +263,21 @@ fn module_srcs_carry_every_package_a_consumer_module_bazel_names() {
 /// Quoted strings of `text` that look like a file name of the package, directory parts allowed.
 fn quoted_file_names(text: &str) -> std::collections::BTreeSet<String> {
     let mut names = std::collections::BTreeSet::new();
-    for line in text.lines().filter(|line| !line.trim_start().starts_with('#')) {
+    for line in text
+        .lines()
+        .filter(|line| !line.trim_start().starts_with('#'))
+    {
         for (index, piece) in line.split('"').enumerate() {
             let plain = piece
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-' | '/'));
-            if index % 2 == 1 && plain && piece.contains('.') && !piece.ends_with(".bzl") {
+            if index % 2 == 1
+                && plain
+                && piece.contains('.')
+                && !std::path::Path::new(piece)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
+            {
                 names.insert(piece.to_owned());
             }
         }
@@ -313,7 +324,10 @@ fn module_srcs_carry_every_non_starlark_file_a_private_package_references() {
     let root = dx_testing::rules_dx_source();
     let mut packages = Vec::new();
     private_packages(&root, &root, false, &mut packages);
-    assert!(!packages.is_empty(), "no private packages found below {root:?}");
+    assert!(
+        !packages.is_empty(),
+        "no private packages found below {root:?}"
+    );
     let mut missing = Vec::new();
     for package in packages {
         if in_runfiles(&format!("{package}/BUILD.bazel")).is_none() {

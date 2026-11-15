@@ -27,14 +27,17 @@ fn union_lists(lists: &[(String, String)]) -> Result<String, String> {
                 .split_once(' ')
                 .ok_or_else(|| format!("{origin}: malformed line `{line}`"))?;
             let (url, sha) = (url.trim(), sha.trim());
-            if let Some(previous) = merged.insert(url, sha) {
-                if previous != sha {
-                    return Err(format!("{origin}: {url} has sha256 {sha} and {previous}"));
-                }
+            if let Some(previous) = merged.insert(url, sha)
+                && previous != sha
+            {
+                return Err(format!("{origin}: {url} has sha256 {sha} and {previous}"));
             }
         }
     }
-    Ok(merged.iter().map(|(url, sha)| format!("{url} {sha}\n")).collect())
+    Ok(merged
+        .iter()
+        .map(|(url, sha)| format!("{url} {sha}\n"))
+        .collect())
 }
 
 /// Returns the one lock text shared by all hosts; differing locks are an error.
@@ -49,7 +52,8 @@ fn same_lock(locks: &[(String, String)]) -> Result<String, String> {
 }
 
 fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| fail(&format!("cannot read {}: {error}", path.display())))
+    std::fs::read_to_string(path)
+        .unwrap_or_else(|error| fail(&format!("cannot read {}: {error}", path.display())))
 }
 
 fn merge(workspace: &Path, dirs: &[PathBuf]) {
@@ -80,19 +84,25 @@ fn merge(workspace: &Path, dirs: &[PathBuf]) {
                 .collect()
         };
         let list = union_lists(&collect(".txt")).unwrap_or_else(|error| fail(&error));
-        let lock = same_lock(&collect(".MODULE.bazel.lock")).unwrap_or_else(|error| fail(&format!("{set} lock: {error}")));
-        for (name, text) in [(format!("{set}.txt"), list), (format!("{set}.MODULE.bazel.lock"), lock)] {
+        let lock = same_lock(&collect(".MODULE.bazel.lock"))
+            .unwrap_or_else(|error| fail(&format!("{set} lock: {error}")));
+        for (name, text) in [
+            (format!("{set}.txt"), list),
+            (format!("{set}.MODULE.bazel.lock"), lock),
+        ] {
             let dst = target.join(&name);
-            std::fs::write(&dst, text).unwrap_or_else(|error| fail(&format!("cannot write {}: {error}", dst.display())));
+            std::fs::write(&dst, text)
+                .unwrap_or_else(|error| fail(&format!("cannot write {}: {error}", dst.display())));
             println!("wrote {DIR}/{name}");
         }
     }
 }
 
 fn main() {
-    let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| fail("run with `bazel run //tools/testing:nested_cache_update -- <test label>...`"));
+    let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY").map_or_else(
+        || fail("run with `bazel run //tools/testing:nested_cache_update -- <test label>...`"),
+        PathBuf::from,
+    );
     let labels: Vec<String> = std::env::args().skip(1).collect();
     if labels.first().map(String::as_str) == Some("--from") {
         let dirs: Vec<PathBuf> = labels[1..].iter().map(PathBuf::from).collect();
@@ -107,7 +117,10 @@ fn main() {
     }
     let parts: Vec<(&str, &str)> = labels
         .iter()
-        .map(|label| split_label(label).unwrap_or_else(|| fail(&format!("{label} is not a //package:name label"))))
+        .map(|label| {
+            split_label(label)
+                .unwrap_or_else(|| fail(&format!("{label} is not a //package:name label")))
+        })
         .collect();
     let test_command = format!(
         "bazel test {} --config=nested_record --nocache_test_results --nozip_undeclared_test_outputs --test_tag_filters= --build_tag_filters=",
@@ -121,8 +134,12 @@ fn main() {
             .join(name)
             .join("test.outputs")
             .join("nested_cache");
-        let entries = std::fs::read_dir(&recorded)
-            .unwrap_or_else(|error| fail(&format!("{} recorded nothing: {error}; run `{test_command}` first", recorded.display())));
+        let entries = std::fs::read_dir(&recorded).unwrap_or_else(|error| {
+            fail(&format!(
+                "{} recorded nothing: {error}; run `{test_command}` first",
+                recorded.display()
+            ))
+        });
         for entry in entries.filter_map(Result::ok) {
             let dst = target.join(entry.file_name());
             std::fs::copy(entry.path(), &dst)
@@ -142,7 +159,11 @@ mod tests {
 
     #[test]
     fn union_keys_by_url_and_sorts() {
-        let merged = union_lists(&[list("https://b x\nhttps://a y\n"), list("https://c z\nhttps://a y\n")]).unwrap();
+        let merged = union_lists(&[
+            list("https://b x\nhttps://a y\n"),
+            list("https://c z\nhttps://a y\n"),
+        ])
+        .unwrap();
         assert_eq!(merged, "https://a y\nhttps://b x\nhttps://c z\n");
     }
 

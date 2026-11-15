@@ -17,6 +17,11 @@ pub const FIXTURES_DIR: &str = "tools/testing/starters/fixtures";
 ///
 /// Each fixture file drops its `.fixture` suffix. `MODULE.bazel` and `.bazelrc` are appended to
 /// what `dx init` wrote; every other file is written as is. Returns the project root.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str, files: &str) -> PathBuf {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let output = Command::new(dx_testing::resolve_runfiles(&rel))
@@ -56,12 +61,12 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str, files: &str) 
             .strip_suffix(".fixture")
             .unwrap_or_else(|| panic!("{file} lacks the .fixture suffix"));
         let source = dx_testing::resolve_runfiles(file);
-        let body =
-            std::fs::read(&source).unwrap_or_else(|error| panic!("read {source:?}: {error}"));
+        let body = std::fs::read(&source)
+            .unwrap_or_else(|error| panic!("read {}: {error}", source.display()));
         let target = root.join(dest);
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)
-                .unwrap_or_else(|error| panic!("mkdir {parent:?}: {error}"));
+                .unwrap_or_else(|error| panic!("mkdir {}: {error}", parent.display()));
         }
         let body = if matches!(dest, "MODULE.bazel" | ".bazelrc") {
             let mut head = std::fs::read(&target).unwrap_or_default();
@@ -74,7 +79,8 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str, files: &str) 
         } else {
             body
         };
-        std::fs::write(&target, body).unwrap_or_else(|error| panic!("write {target:?}: {error}"));
+        std::fs::write(&target, body)
+            .unwrap_or_else(|error| panic!("write {}: {error}", target.display()));
         copied += 1;
     }
     let duplicated: Vec<&&str> = own.iter().filter(|path| shared.contains(path)).collect();
@@ -82,9 +88,6 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str, files: &str) 
         duplicated.is_empty(),
         "{fixture} repeats files of its common layers: {duplicated:?}"
     );
-    assert!(
-        copied > 0,
-        "no {fixture} files in the list: {files}"
-    );
+    assert!(copied > 0, "no {fixture} files in the list: {files}");
     root
 }

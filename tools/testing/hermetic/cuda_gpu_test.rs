@@ -8,7 +8,7 @@ fn parse_facts(log: &str) -> Result<Value, String> {
         .lines()
         .find_map(|line| line.trim().strip_prefix("dx-gpu-facts: "))
         .ok_or_else(|| "no dx-gpu-facts line in the test log".to_owned())?;
-    dx_testing::serde_json::from_str(line).map_err(|error| format!("facts are not JSON: {error}"))
+    serde_json::from_str(line).map_err(|error| format!("facts are not JSON: {error}"))
 }
 
 /// Checks the facts report a passing run on a real device with every check ok.

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::{ExitCode, Stdio};
 use std::time::{Duration, Instant};
 
-const PIN_DEADLINE: Duration = Duration::from_secs(1800);
+const PIN_DEADLINE: Duration = Duration::from_mins(30);
 
 fn tail(path: &Path) -> String {
     let text = std::fs::read_to_string(path).unwrap_or_default();

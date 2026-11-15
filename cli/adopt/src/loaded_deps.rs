@@ -173,7 +173,7 @@ mod tests {
             ("MODULE.bazel", MODULE),
             (
                 "web/BUILD.bazel",
-                "load(\"@aspect_rules_js//js:defs.bzl\", \"js_library\")\nload(\"@npm//:defs.bzl\", \"npm_link_all_packages\")\n",
+                "load(\"@aspect_rules_js//js:defs.bzl\", \"js_library\")\nload(\"@vendored//:defs.bzl\", \"npm_link_all_packages\")\n",
             ),
             (
                 "ts/BUILD",

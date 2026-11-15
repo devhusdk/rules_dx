@@ -325,7 +325,7 @@ impl Planner<'_> {
                 if !self.exists(&path)
                     || self.exists(&workspace)
                     || paths.contains(&workspace)
-                    || self.declares_pnpm_builds(&beside("package.json"))
+                    || dx_families::hub("npm").is_some_and(|hub| self.declares_pnpm_builds(&beside(&hub.manifest)))
                 {
                     continue;
                 }

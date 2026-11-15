@@ -262,3 +262,23 @@ fn vm_init_error_on_stdout_is_reported() {
             .contains("Error occurred during initialization of VM")
     );
 }
+
+#[test]
+fn exception_headers_keep_first_causes_without_frames() {
+    let stderr = "Nov 15 INFO starting\n\
+java.lang.IllegalStateException: boom\n\
+\tat org.pkl.lsp.A.b(A.kt:1)\n\
+Caused by: java.nio.file.InvalidPathException: bad path\n\
+\tat org.pkl.lsp.C.d(C.kt:2)\n\
+java.lang.IllegalStateException: boom\n\
+kotlin.UninitializedPropertyAccessException: lateinit\n";
+    assert_eq!(
+        exception_headers(stderr, 2),
+        vec![
+            "java.lang.IllegalStateException: boom".to_string(),
+            "Caused by: java.nio.file.InvalidPathException: bad path".to_string(),
+        ]
+    );
+    assert_eq!(exception_headers(stderr, 8).len(), 3);
+    assert!(exception_headers("\tat x.Error(E.kt:1)\n", 8).is_empty());
+}

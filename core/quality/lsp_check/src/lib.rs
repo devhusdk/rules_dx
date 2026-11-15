@@ -71,6 +71,27 @@ pub fn file_uri(path: &Path) -> String {
     uri
 }
 
+/// Exception header lines from a JVM server's stderr, without stack frames,
+/// first occurrence only, at most `limit` lines.
+#[must_use]
+pub fn exception_headers(stderr: &str, limit: usize) -> Vec<String> {
+    let mut headers: Vec<String> = Vec::new();
+    for line in stderr.lines() {
+        let line = line.trim_end();
+        let trimmed = line.trim_start();
+        let header = trimmed.starts_with("Caused by:")
+            || (!line.starts_with(char::is_whitespace)
+                && (trimmed.contains("Exception") || trimmed.contains("Error")));
+        if header && !trimmed.starts_with("at ") && !headers.iter().any(|seen| seen == trimmed) {
+            headers.push(trimmed.to_string());
+            if headers.len() == limit {
+                break;
+            }
+        }
+    }
+    headers
+}
+
 /// Writes one framed LSP message.
 ///
 /// # Errors

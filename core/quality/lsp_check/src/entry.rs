@@ -1,6 +1,8 @@
-use crate::{Options, check};
+use crate::{Options, check, exception_headers};
+use std::io::{BufRead, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 const USAGE: &str = "usage: lsp_check [--language-id ID] [--quiet-ms N] [--timeout-ms N] \
@@ -74,19 +76,46 @@ fn run(args: &[String]) -> Result<bool, String> {
         .args(program_args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|error| format!("start {program}: {error}"))?;
-    let (Some(stdin), Some(stdout)) = (child.stdin.take(), child.stdout.take()) else {
+    let (Some(stdin), Some(stdout), Some(stderr)) =
+        (child.stdin.take(), child.stdout.take(), child.stderr.take())
+    else {
         return Err("server pipes unavailable".to_string());
     };
+    let server_stderr = Arc::new(Mutex::new(String::new()));
+    let collected = Arc::clone(&server_stderr);
+    let drain = std::thread::spawn(move || {
+        let mut reader = std::io::BufReader::new(stderr);
+        let mut line = Vec::new();
+        while reader.read_until(b'\n', &mut line).unwrap_or(0) > 0 {
+            drop(std::io::stderr().write_all(&line));
+            if let Ok(mut text) = collected.lock() {
+                text.push_str(&String::from_utf8_lossy(&line));
+            }
+            line.clear();
+        }
+    });
     let result = check(stdout, stdin, &absolute, &options);
     let exit = result.is_err().then(|| wait_briefly(&mut child));
     drop(child.kill());
     drop(child.wait());
-    let found = result.map_err(|error| match exit.flatten() {
-        Some(status) => format!("{error} (server exit: {status})"),
-        None => format!("{error} (server still running)"),
+    drop(drain.join());
+    let headers = server_stderr
+        .lock()
+        .map(|text| exception_headers(&text, 8))
+        .unwrap_or_default();
+    let found = result.map_err(|error| {
+        let mut message = match exit.flatten() {
+            Some(status) => format!("{error} (server exit: {status})"),
+            None => format!("{error} (server still running)"),
+        };
+        for header in headers {
+            message.push_str("\nserver exception: ");
+            message.push_str(&header);
+        }
+        message
     })?;
     for (diagnostic, original) in found.iter().map(|d| {
         let original = absolute

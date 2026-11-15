@@ -69,7 +69,7 @@ fn module_lines(edit: &dx_adopt::ModuleEdit, to: &str) -> Vec<String> {
 
 const REFRESH: &str = "bazel mod deps --lockfile_mode=update";
 
-/// Finds the version in the old text of the rules_dx `bazel_dep` file.
+/// Finds the version in the old text of the `rules_dx` `bazel_dep` file.
 fn current_version(text: &str) -> String {
     dx_module_bazel::ModuleFile::parse(text)
         .ok()
@@ -172,7 +172,7 @@ fn hand_off(
     }
 }
 
-/// Looks up the newest stable rules_dx in the Bazel registry.
+/// Looks up the newest stable `rules_dx` in the Bazel registry.
 fn latest_release(fetch: &dyn dx_update::discover::Fetch) -> Result<String, DxError> {
     dx_update::discover::bcr::latest_stable(
         "rules_dx",

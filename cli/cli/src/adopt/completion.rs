@@ -10,7 +10,7 @@ pub(crate) fn execute_completion(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let shell = invocation.targets.first().map(String::as_str).unwrap_or("");
+    let shell = invocation.targets.first().map_or("", String::as_str);
     if !dx_plan::args::COMPLETION_SHELLS.contains(&shell) {
         return pre_exec(
             invocation.output,

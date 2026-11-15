@@ -29,11 +29,13 @@ const SIGNATURES: &[&str] = &[
 ];
 
 /// The wait before restart number `n` (1-based), without jitter.
+#[must_use]
 pub fn backoff(n: u32) -> Duration {
     Duration::from_secs(if n <= 1 { 2 } else { 5 })
 }
 
 /// The path of the build event file named in `argv`.
+#[must_use]
 pub fn bep_path_of(argv: &[String]) -> Option<&str> {
     let prefix = format!("--{}=", dx_plan::plan::BEP_FLAG_NAME);
     argv.iter()
@@ -50,6 +52,7 @@ pub enum Evidence<'a> {
 }
 
 /// Reports whether a call that ended with `code` may run again.
+#[must_use]
 pub fn restartable(code: Option<i32>, evidence: Evidence<'_>) -> bool {
     if code != Some(RESTART_EXIT) {
         return false;
@@ -295,7 +298,7 @@ impl<R: Runner> Runner for RestartingRunner<R> {
         held: &[&std::fs::File],
     ) -> io::Result<Option<ChildStatus>> {
         // Only the first attempt carries the handles.
-        let first = std::cell::Cell::new(true);
+        let first = Cell::new(true);
         self.attempts(argv, cwd, withdraw.unwrap_or(&|| false), &|argv| {
             let carried: &[&std::fs::File] = if first.replace(false) { held } else { &[] };
             self.inner.run_app(argv, cwd, env, withdraw, carried)

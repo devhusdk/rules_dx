@@ -549,8 +549,7 @@ impl CheckGuard {
                 // The check swapped in a link that leaves the workspace or points elsewhere.
                 let link = workspace.join(&rel);
                 if std::fs::symlink_metadata(&link)
-                    .map(|metadata| metadata.file_type().is_symlink())
-                    .unwrap_or(false)
+                    .is_ok_and(|metadata| metadata.file_type().is_symlink())
                 {
                     std::fs::remove_file(&link).ok();
                 }

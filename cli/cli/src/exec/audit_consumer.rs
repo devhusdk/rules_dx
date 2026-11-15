@@ -550,9 +550,9 @@ source = { registry = "https://pypi.org/simple" }
                 .iter()
                 .map(|target| target.set.name.as_str())
                 .collect();
-            update_names.sort();
+            update_names.sort_unstable();
             let mut audit_names: Vec<&str> = audit.iter().map(|set| set.name.as_str()).collect();
-            audit_names.sort();
+            audit_names.sort_unstable();
             assert_eq!(update_names, audit_names, "{selector}");
         }
     }

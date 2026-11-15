@@ -811,7 +811,7 @@ impl Write for FailingWriter {
 
 #[test]
 fn stdout_helpers_map_broken_pipe_to_141() {
-    assert_eq!(dx_process::broken_pipe_code(), 128 + 13);
+    assert_eq!(broken_pipe_code(), 128 + 13);
     let broken = io::Error::new(io::ErrorKind::BrokenPipe, "broken pipe");
     assert_eq!(stdout_io_code(&broken), 128 + 13);
     let other = io::Error::other("boom");

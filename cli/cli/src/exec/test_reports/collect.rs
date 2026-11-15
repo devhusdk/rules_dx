@@ -225,7 +225,7 @@ pub(super) fn collect_lcov(
                     lcov_documents.push(String::from_utf8_lossy(&bytes).into_owned());
                 }
                 Err(error) => {
-                    if bytes.iter().all(|b| b.is_ascii_whitespace()) {
+                    if bytes.iter().all(u8::is_ascii_whitespace) {
                         outcome.artifacts_collected += 1;
                         continue;
                     }
@@ -302,7 +302,7 @@ pub(super) fn announce_no_collector(
     strict: bool,
 ) -> Result<bool, i32> {
     if !strict {
-        let mut counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+        let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
         for (_, language) in tests {
             *counts.entry(language.as_str()).or_default() += 1;
         }

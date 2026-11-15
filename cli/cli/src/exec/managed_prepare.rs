@@ -11,12 +11,12 @@ pub(crate) fn map_commit_error(error: dx_setup::CommitError) -> dx_error::DxErro
         dx_setup::CommitError::NoCapability => dx_error::DxError::failure(
             "selected scope provides neither environment nor codegen capability",
         ),
-        other @ dx_setup::CommitError::WorkspaceRoot { .. }
-        | other @ dx_setup::CommitError::Busy { .. }
-        | other @ dx_setup::CommitError::LockFailed { .. }
-        | other @ dx_setup::CommitError::CurrentInvalid { .. }
-        | other @ dx_setup::CommitError::RecordMismatch { .. }
-        | other @ dx_setup::CommitError::Install { .. } => {
+        other @
+(dx_setup::CommitError::WorkspaceRoot { .. } | dx_setup::CommitError::Busy {
+.. } | dx_setup::CommitError::LockFailed { .. } |
+dx_setup::CommitError::CurrentInvalid { .. } |
+dx_setup::CommitError::RecordMismatch { .. } |
+dx_setup::CommitError::Install { .. }) => {
             dx_error::DxError::failure(other.to_string())
         }
     }

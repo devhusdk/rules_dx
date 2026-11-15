@@ -51,7 +51,7 @@ fn depcheck_language(set: &ResolvedSet) -> Result<Option<Language>, dx_adopt::Ad
     Ok(Language::of_ecosystem(set.ecosystem, prefer))
 }
 
-/// Crate name behind a label of a crate_universe hub: `serde-1.0.229` is `serde`, `cc` stays, and
+/// Crate name behind a label of a `crate_universe` hub: `serde-1.0.229` is `serde`, `cc` stays, and
 /// the binary target `ripgrep__rg` of a tool crate is `ripgrep`.
 fn crate_name(label: &str) -> Option<String> {
     let (repository, rest) = label.split_once("//")?;

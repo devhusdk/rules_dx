@@ -9,6 +9,7 @@ fn temp_var() -> &'static str {
     }
 }
 
+#[must_use]
 pub fn temp_path_not_utf8() -> String {
     format!(
         "temporary event path is not UTF-8; set {} to a directory with a UTF-8 path",
@@ -16,6 +17,7 @@ pub fn temp_path_not_utf8() -> String {
     )
 }
 
+#[must_use]
 pub fn temp_dir_failure(base: &Path, error: &io::Error) -> String {
     let var = temp_var();
     format!(
@@ -24,6 +26,7 @@ pub fn temp_dir_failure(base: &Path, error: &io::Error) -> String {
     )
 }
 
+#[must_use]
 pub fn working_dir_failure(error: &io::Error) -> String {
     format!("cannot read working directory: {error}; cd into an existing directory")
 }

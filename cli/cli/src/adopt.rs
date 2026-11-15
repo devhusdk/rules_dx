@@ -91,6 +91,7 @@ fn summaries_suppressed(invocation: &Invocation) -> bool {
     invocation.quiet || matches!(invocation.output, OutputMode::Text { quiet: true })
 }
 
+#[must_use]
 pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
     let AdoptEnv {
         workspace,

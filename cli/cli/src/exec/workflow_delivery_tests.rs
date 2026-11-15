@@ -7,7 +7,7 @@ fn run(
     words: &[&str],
     codes: &[Option<i32>],
     sink: &mut Sink,
-) -> (super::super::test_support::ProbeRun, String) {
+) -> (ProbeRun, String) {
     let harness = Harness::new(name);
     let inv = invocation(words);
     let mut err = Vec::new();

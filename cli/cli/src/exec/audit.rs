@@ -364,7 +364,7 @@ fn fetch_pinned(url: &str) -> Result<Vec<u8>, DxError> {
     std::fs::read(&file).map_err(|error| DxError::from_io(format!("{url}: {error}"), &error))
 }
 
-const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
+const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_mins(15);
 
 fn no_dependency_sets() -> String {
     let cargo = dx_ecosystems::Ecosystem::Cargo;
@@ -543,9 +543,7 @@ fn parse_locked_for_configured(
     all.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     all.dedup_by(|b, a| a.name == b.name && a.version == b.version);
     let fallback = locks
-        .first()
-        .map(|(rel, _)| rel.clone())
-        .unwrap_or_else(|| "unknown lockfile".to_owned());
+        .first().map_or_else(|| "unknown lockfile".to_owned(), |(rel, _)| rel.clone());
     Ok((
         all,
         LockPaths {
@@ -602,29 +600,22 @@ pub(super) fn bazel_inputs_for_configured(
         AuditError::Read { rel, error } if error.kind() == std::io::ErrorKind::NotFound => {
             AuditError::LockMissing { rel }
         }
-        other @ AuditError::NoOwningSet { .. }
-        | other @ AuditError::Read { .. }
-        | other @ AuditError::NotUtf8 { .. }
-        | other @ AuditError::AdvisoryUnsupported { .. }
-        | other @ AuditError::AdvisoryUtf8 { .. }
-        | other @ AuditError::AdvisoryParse { .. }
-        | other @ AuditError::AdvisoryPinMissing { .. }
-        | other @ AuditError::AdvisoryPinMismatch { .. }
-        | other @ AuditError::AdvisoryPinFetch { .. }
-        | other @ AuditError::LockMissing { .. }
-        | other @ AuditError::LockParse { .. }
-        | other @ AuditError::LockUnsupported { .. }
-        | other @ AuditError::LicenseInvalid { .. }
-        | other @ AuditError::SecurityInvalid(_)
-        | other @ AuditError::OfflineRequired { .. }
-        | other @ AuditError::Hub(_) => other,
+        other @
+(AuditError::NoOwningSet { .. } | AuditError::Read { .. } |
+AuditError::NotUtf8 { .. } | AuditError::AdvisoryUnsupported { .. } |
+AuditError::AdvisoryUtf8 { .. } | AuditError::AdvisoryParse { .. } |
+AuditError::AdvisoryPinMissing { .. } | AuditError::AdvisoryPinMismatch { .. }
+| AuditError::AdvisoryPinFetch { .. } | AuditError::LockMissing { .. } |
+AuditError::LockParse { .. } | AuditError::LockUnsupported { .. } |
+AuditError::LicenseInvalid { .. } | AuditError::SecurityInvalid(_) |
+AuditError::OfflineRequired { .. } | AuditError::Hub(_)) => other,
     })?;
     let module_dir = module_rel.rsplit_once('/').map_or("", |(dir, _)| dir);
-    let read_include = |label: &str| -> Result<String, dx_error::DxError> {
+    let read_include = |label: &str| -> Result<String, DxError> {
         let rel =
-            dx_module_bazel::include_rel(module_dir, label).map_err(dx_error::DxError::failure)?;
+            dx_module_bazel::include_rel(module_dir, label).map_err(DxError::failure)?;
         read_workspace_text(workspace, &rel).map_err(|error| {
-            dx_error::DxError::failure(format!("cannot read included {label}: {error}"))
+            DxError::failure(format!("cannot read included {label}: {error}"))
         })
     };
     let inventory = dx_audit::locks::parse_bazel_inputs(&module_text, &lock_text, &read_include)
@@ -641,7 +632,7 @@ fn bazel_coverage_diagnostic(
     lock_rel: &str,
 ) -> DiagnosticEvent {
     let inputs = &inventory.inputs;
-    let count = |source: dx_audit::locks::BazelSource| {
+    let count = |source: BazelSource| {
         inputs.iter().filter(|input| input.source == source).count()
     };
     use dx_audit::locks::BazelSource;
@@ -983,7 +974,7 @@ fn run_secrets(
                 }
             },
         },
-        Some(1) | Some(2) => match sarif_text {
+        Some(1 | 2) => match sarif_text {
             None => (
                 Vec::new(),
                 Some("secrets auditor reported leaks-or-errors without a SARIF report".to_owned()),
@@ -1224,7 +1215,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     let uncovered: Vec<&str> = sets
         .iter()
         .filter(|target| !target.advisory_covered())
-        .map(|target| target.name())
+        .map(AuditTarget::name)
         .collect();
     let mut accepted_uncovered: Vec<&str> = Vec::new();
     let mut exception_problems: Vec<String> = Vec::new();
@@ -1353,9 +1344,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         }
         if !problems.is_empty() {
             let first = problems
-                .first()
-                .map(|problem| problem.to_string())
-                .unwrap_or_else(|| "exception validation failed".to_owned());
+                .first().map_or_else(|| "exception validation failed".to_owned(), std::string::ToString::to_string);
             if incomplete.is_none() {
                 incomplete = Some(format!("failed to assess {label}: {first}"));
             }

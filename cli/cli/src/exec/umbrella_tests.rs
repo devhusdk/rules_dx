@@ -333,7 +333,7 @@ fn staged_runner(
     verify_from: usize,
 ) -> StagedRunner {
     let staged = harness.staged_artifacts();
-    let files: Vec<serde_json::Value> = staged
+    let files: Vec<Value> = staged
         .iter()
         .map(|(artifact, _)| {
             serde_json::json!({"uri": format!("file://{}", artifact.to_string_lossy())})
@@ -407,8 +407,8 @@ fn fix_apply_format_edit_then_verify(
 }
 
 /// Reads one merged SARIF document out of a harness workspace.
-fn merged_runs(harness: &Harness) -> Vec<serde_json::Value> {
-    let document: serde_json::Value =
+fn merged_runs(harness: &Harness) -> Vec<Value> {
+    let document: Value =
         serde_json::from_slice(&std::fs::read(harness.workspace.join("out.sarif")).expect("sarif"))
             .expect("SARIF JSON");
     assert_eq!(document["version"], serde_json::json!("2.1.0"));
@@ -416,7 +416,7 @@ fn merged_runs(harness: &Harness) -> Vec<serde_json::Value> {
         document["$schema"],
         serde_json::json!("https://json.schemastore.org/sarif-2.1.0.json")
     );
-    document["runs"].as_array().expect("runs").to_vec()
+    document["runs"].as_array().expect("runs").clone()
 }
 
 #[test]
@@ -552,7 +552,7 @@ fn check_json_sums_action_counts_across_phases() {
     let (code, out, err) = harness.run(&["check", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");
     let events = json_events(&out);
-    let phases: Vec<&serde_json::Value> = events
+    let phases: Vec<&Value> = events
         .iter()
         .filter(|event| event["event"] == "phase_finished" && event.get("actions").is_some())
         .collect();
@@ -1484,9 +1484,8 @@ fn fix_apply_does_not_recheck_the_failed_phase() {
     );
     let events = json_events(&out);
     assert!(
-        events.iter().all(|event| !event["correlation"]
-            .as_str()
-            .is_some_and(|correlation| correlation == "verify/typecheck")),
+        events.iter().all(|event| event["correlation"]
+            .as_str().is_none_or(|correlation| correlation != "verify/typecheck")),
         "{out}"
     );
     assert_eq!(
@@ -1673,7 +1672,7 @@ fn umbrella_sarif_merges_executed_phases_in_order() {
         event(&events, "command_finished")["results_complete"],
         serde_json::json!(true)
     );
-    let document: serde_json::Value =
+    let document: Value =
         serde_json::from_slice(&std::fs::read(harness.workspace.join("out.sarif")).expect("sarif"))
             .expect("SARIF JSON");
     assert_eq!(
@@ -1719,7 +1718,7 @@ fn fix_sarif_covers_only_executed_phases() {
         serde_json::json!(false),
         "a run stopped at lint leaves the report incomplete"
     );
-    let document: serde_json::Value =
+    let document: Value =
         serde_json::from_slice(&std::fs::read(harness.workspace.join("out.sarif")).expect("sarif"))
             .expect("SARIF JSON");
     assert_eq!(
@@ -1758,7 +1757,7 @@ fn umbrella_sarif_skips_phase_that_could_not_render() {
         ),
         "{out}"
     );
-    let document: serde_json::Value =
+    let document: Value =
         serde_json::from_slice(&std::fs::read(harness.workspace.join("out.sarif")).expect("sarif"))
             .expect("SARIF JSON");
     assert!(
@@ -2314,7 +2313,7 @@ fn collector_classifies_every_capture_state() {
         ]
     );
     assert!(!collector.complete());
-    let document: serde_json::Value = serde_json::from_str(&collector.document()).expect("JSON");
+    let document: Value = serde_json::from_str(&collector.document()).expect("JSON");
     assert_eq!(document["runs"].as_array().expect("runs").len(), 1);
 
     for path in [&good, &bad, &missing] {
@@ -2360,7 +2359,7 @@ fn collector_merges_a_complete_run_deterministically() {
     assert_eq!(collector.reasons(), Vec::<String>::new());
     let document = collector.document();
     assert_eq!(document, collector.document(), "same input, same bytes");
-    let parsed: serde_json::Value = serde_json::from_str(&document).expect("JSON");
+    let parsed: Value = serde_json::from_str(&document).expect("JSON");
     let runs = parsed["runs"].as_array().expect("runs");
     assert_eq!(runs.len(), 2);
     assert_eq!(runs[0]["tool"]["driver"]["name"], "lint-tool");
@@ -2734,7 +2733,7 @@ fn collector_keeps_what_a_failed_phase_wrote() {
         collector.collect();
         assert_eq!(collector.collection_failures(), expected);
         assert!(!collector.complete());
-        let document: serde_json::Value =
+        let document: Value =
             serde_json::from_str(&collector.document()).expect("JSON");
         assert_eq!(
             document["runs"].as_array().expect("runs").len(),
@@ -2986,7 +2985,7 @@ impl<R: Runner> Runner for StaleBuild<R> {
 }
 
 /// The phase names a JSON umbrella run started, in order.
-fn started_phases(events: &[serde_json::Value]) -> Vec<String> {
+fn started_phases(events: &[Value]) -> Vec<String> {
     events_of_kind(events, "phase_started")
         .iter()
         .map(|event| event["phase"].as_str().expect("phase").to_owned())
@@ -3067,7 +3066,7 @@ fn fix_apply_reruns_generate_only_after_a_quality_write() {
         vec!["generate", "format", "lint", "typecheck", "rerun/generate"],
         "{out}"
     );
-    let rerun: Vec<&serde_json::Value> = events
+    let rerun: Vec<&Value> = events
         .iter()
         .filter(|event| event["correlation"] == "check/rerun/generate")
         .collect();

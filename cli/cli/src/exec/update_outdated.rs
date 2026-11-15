@@ -230,10 +230,10 @@ fn first_lock(ecosystem: Ecosystem) -> &'static str {
     ecosystem.lockfiles().first().map_or("", String::as_str)
 }
 
-const BAZEL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1800);
+const BAZEL_TIMEOUT: Duration = Duration::from_mins(30);
 
 /// Finds the pinned opam-repository snapshot checkout through the pinned opam wrapper.
-fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, dx_error::DxError> {
+fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, DxError> {
     if let Some(dir) = std::env::var_os(OPAM_SNAPSHOT_ENV) {
         return Ok(PathBuf::from(dir));
     }
@@ -254,18 +254,18 @@ fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, dx_error::DxError> {
     )
     .map_err(|error| match error {
         dx_process::capture::RunError::Spawn { source, .. } => {
-            dx_error::DxError::infra(format!("cannot run bazel for the opam snapshot: {source}"))
+            DxError::infra(format!("cannot run bazel for the opam snapshot: {source}"))
         }
         dx_process::capture::RunError::TimedOut { .. }
         | dx_process::capture::RunError::OutputTooLarge { .. }
         | dx_process::capture::RunError::Failed { .. } => {
-            dx_error::DxError::failure("bazel could not provide the opam-repository snapshot")
+            DxError::failure("bazel could not provide the opam-repository snapshot")
         }
     })?;
     let text = output.stdout_text();
     match text.lines().last().map(str::trim).filter(|l| !l.is_empty()) {
         Some(dir) => Ok(PathBuf::from(dir)),
-        None => Err(dx_error::DxError::failure(
+        None => Err(DxError::failure(
             "the opam wrapper printed no snapshot directory",
         )),
     }
@@ -451,7 +451,7 @@ pub(super) fn collect(
             Ecosystem::SwiftPm => {
                 registries.insert(name.to_owned(), Registry::SwiftUrl);
                 let Some(lock_name) = hub_name(
-                    dx_adopt::dependency_sets::package_resolved(),
+                    dependency_sets::package_resolved(),
                     name,
                     &mut read_errors,
                 ) else {
@@ -679,7 +679,7 @@ pub(super) fn registry_for(
     registries: &BTreeMap<String, Registry>,
     candidate: &Candidate,
 ) -> Option<Registry> {
-    if candidate.set == dx_update::discover::github::ACTIONS_SET {
+    if candidate.set == github::ACTIONS_SET {
         return Some(Registry::GitHub);
     }
     if candidate.set == dx_update::pins::SET {
@@ -778,7 +778,7 @@ fn run_builtins(builtins: &Builtins, workspace: &Path, fetch: &dyn Fetch, found:
                         &path,
                         &text,
                         github::DEFAULT_BASE,
-                        dx_update::discover::ruby::DEFAULT_BASE,
+                        ruby::DEFAULT_BASE,
                         fetch,
                     ),
                 ),

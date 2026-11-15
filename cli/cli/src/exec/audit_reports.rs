@@ -442,7 +442,7 @@ fn audit_stdout_reports_are_single_machine_documents() {
         let (code, out, err) = run_with(&[family, &report], &AuditRunner::clean(), &|h| {
             clean_workspace_with_advisories(h);
         });
-        assert_eq!(code, if family == "license" { 1 } else { 0 }, "{out}{err}");
+        assert_eq!(code, i32::from(family == "license"), "{out}{err}");
         let value: serde_json::Value = serde_json::from_str(&out).expect("one JSON document");
         assert_eq!(value["version"], "2.1.0");
     }

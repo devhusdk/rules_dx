@@ -3,7 +3,7 @@ use dx_sbom::cyclonedx::{CdxComponent, CycloneDxDocument, license_choices};
 
 use super::audit_spdx::{id_part, license_value, purl};
 
-/// Builds the CycloneDX 1.6 document for one `dx license` run: a root component for the scope and
+/// Builds the `CycloneDX` 1.6 document for one `dx license` run: a root component for the scope and
 /// one library per resolved dependency, in the order given.
 pub(super) fn license_cyclonedx(
     scopes: &[String],

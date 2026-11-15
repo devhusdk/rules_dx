@@ -301,7 +301,7 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
             problem = Some(problem_check(
                 "workspace",
                 format!("cannot list the workspace: {error}"),
-            ))
+            ));
         }
     }
     let configs = match dx_generate::bound_configs(config.as_ref(), &families, &root_files) {
@@ -639,8 +639,8 @@ mod tests {
             ("init", "warn")
         );
         assert!(check.detail.contains("tools/dx"), "{}", check.detail);
-        let (code, _out, err) = crate::adopt::test_support::run(
-            &crate::adopt::test_support::invocation(&[
+        let (code, _out, err) = run(
+            &invocation(&[
                 "init",
                 "--apply",
                 "--agents=claude,codex,gemini,copilot",
@@ -1228,7 +1228,7 @@ mod tests {
 
     struct BrokenPipeWriter;
 
-    impl io::Write for BrokenPipeWriter {
+    impl Write for BrokenPipeWriter {
         fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
             Err(io::Error::new(io::ErrorKind::BrokenPipe, "broken pipe"))
         }

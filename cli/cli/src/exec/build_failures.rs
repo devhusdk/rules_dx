@@ -307,7 +307,7 @@ fn unavailable(
     }
 }
 
-/// What report_build_failures found in one event file.
+/// What `report_build_failures` found in one event file.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct ReportedFailures {
     pub(crate) count: usize,

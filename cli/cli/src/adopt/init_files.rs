@@ -247,7 +247,7 @@ fn sync_generated(
     Ok(())
 }
 
-/// Refuses when `MODULE.bazel` asks for another rules_dx than this dx binary.
+/// Refuses when `MODULE.bazel` asks for another `rules_dx` than this dx binary.
 fn check_module_version(root: &Path) -> Result<(), DxError> {
     match dx_adopt::module_rules_dx_version(root) {
         Some(pinned)

@@ -99,7 +99,7 @@ struct Pty {
 static PTSNAME: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn open_pty() -> Pty {
-    let _named = PTSNAME.lock().unwrap_or_else(|held| held.into_inner());
+    let _named = PTSNAME.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     // SAFETY: master is the descriptor just opened and owned once; ptsname is read under PTSNAME.
     unsafe {
         let master = libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY);
@@ -504,12 +504,10 @@ fn recorded_groups(run: &Run) -> Vec<i32> {
 fn wait_for_lease(run: &mut Run, pgid: i32) {
     let deadline = Instant::now() + Duration::from_secs(30);
     while !recorded_groups(run).contains(&pgid) {
-        if cfg!(target_os = "linux") {
-            panic!(
-                "no lease records group {pgid} while it runs\n{}",
-                run.context()
-            );
-        }
+        assert!(!cfg!(target_os = "linux"), 
+            "no lease records group {pgid} while it runs\n{}",
+            run.context()
+        );
         if let Ok(Some(status)) = run.child.try_wait() {
             panic!("dx exited ({status:?}) early\n{}", run.context());
         }
@@ -706,7 +704,7 @@ fn a_terminal_build_resumes_after_ctrl_z() {
     // SAFETY: kill and waitpid take plain integers; held is a valid status out-pointer.
     unsafe {
         libc::kill(dx, libc::SIGSTOP);
-        assert_eq!(libc::waitpid(dx, &mut held, libc::WUNTRACED), dx);
+        assert_eq!(libc::waitpid(dx, &raw mut held, libc::WUNTRACED), dx);
     }
     assert!(libc::WIFSTOPPED(held), "{held}\n{}", run.context());
     (&pty.master).write_all(b"\x1a").expect("ctrl-z");
@@ -1126,7 +1124,7 @@ fn a_stdout_closed_after_the_start_event_fails_the_completion() {
     use std::io::Read;
     for (child_exit, want) in [(0, 141), (3, 3)] {
         let scratch = dx_test_scratch::scratch("dx-stream-closed-");
-        let (mut reader, writer) = std::io::pipe().expect("pipe");
+        let (mut reader, writer) = io::pipe().expect("pipe");
         let probe = writer.try_clone().expect("pipe clone");
         let (mut command, gate) = gated_command(scratch.path(), child_exit);
         let stderr = scratch.path().join("stderr");
@@ -1213,7 +1211,7 @@ fn quality_with_stdout_closed_after_the_start_event_ends_with_141() {
     use std::io::Read;
     for words in QUALITY_WORDS {
         let scratch = dx_test_scratch::scratch("dx-quality-closed-");
-        let (mut reader, writer) = std::io::pipe().expect("pipe");
+        let (mut reader, writer) = io::pipe().expect("pipe");
         let probe = writer.try_clone().expect("pipe clone");
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         let source = write_source(scratch.path());

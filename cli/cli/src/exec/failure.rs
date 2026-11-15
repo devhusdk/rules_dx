@@ -411,7 +411,7 @@ mod tests {
     #[test]
     fn the_panic_hint_names_the_bug_template_and_dx_version() {
         let mut err = Vec::new();
-        super::write_panic_hint(&mut err);
+        write_panic_hint(&mut err);
         let text = String::from_utf8(err).unwrap();
         assert!(text.contains("issues/new?template=bug_report.md"));
         assert!(text.contains("dx version"));
@@ -419,18 +419,18 @@ mod tests {
 
     #[test]
     fn the_error_event_carries_the_next_step_of_a_known_code() {
-        let failure = super::Failure::new("disk_full", "no space", 1);
-        let event = super::error_event_of(&failure).unwrap();
+        let failure = Failure::new("disk_full", "no space", 1);
+        let event = error_event_of(&failure).unwrap();
         let next = event["next"].as_str().unwrap();
         assert!(next.starts_with("free disk space"), "{next}");
-        let plain = super::Failure::new("no_such_code", "x", 1);
-        assert!(super::error_event_of(&plain).unwrap().get("next").is_none());
+        let plain = Failure::new("no_such_code", "x", 1);
+        assert!(error_event_of(&plain).unwrap().get("next").is_none());
     }
 
     #[test]
     fn cancel_names_the_signal_and_closes_the_json_stream() {
         let (mut out, mut err) = (Vec::new(), Vec::new());
-        let code = super::cancel(OutputMode::Json, &mut out, &mut err, 15);
+        let code = cancel(OutputMode::Json, &mut out, &mut err, 15);
         assert_eq!(
             String::from_utf8(err).unwrap(),
             "dx: cancelled: stopped by signal 15\n"
@@ -451,7 +451,7 @@ mod tests {
     fn a_busy_slot_wait_fails_with_slots_busy_and_closes_the_json_stream() {
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let stop = dx_plan::slots::Stop::Busy("pid 7".to_owned());
-        let code = super::slot_stop(OutputMode::Json, &mut out, &mut err, stop);
+        let code = slot_stop(OutputMode::Json, &mut out, &mut err, stop);
         assert_eq!(code, 1);
         let events: Vec<serde_json::Value> = String::from_utf8(out)
             .unwrap()
@@ -469,7 +469,7 @@ mod tests {
     fn cancel_in_text_mode_writes_nothing_to_stdout() {
         let (mut out, mut err) = (Vec::new(), Vec::new());
         assert_eq!(
-            super::cancel(OutputMode::Text { quiet: false }, &mut out, &mut err, 2),
+            cancel(OutputMode::Text { quiet: false }, &mut out, &mut err, 2),
             130
         );
         assert!(out.is_empty());
@@ -478,7 +478,7 @@ mod tests {
     #[test]
     fn a_panic_writes_internal_error_and_exit_101() {
         let mut out = Vec::new();
-        super::write_panic_events(&mut out, "dx panicked at x.rs:1: boom");
+        write_panic_events(&mut out, "dx panicked at x.rs:1: boom");
         let lines: Vec<serde_json::Value> = String::from_utf8(out)
             .unwrap()
             .lines()

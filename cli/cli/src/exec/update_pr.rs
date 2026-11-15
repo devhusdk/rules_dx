@@ -345,9 +345,10 @@ pub(super) fn program(program: &Path, root: &Path, args: &[&str]) -> Result<Stri
         dx_process::capture::RunError::Failed { stderr, .. } => {
             DxError::failure(format!("{label} failed: {}", tail(&stderr)))
         }
-        other @ dx_process::capture::RunError::Spawn { .. }
-        | other @ dx_process::capture::RunError::TimedOut { .. }
-        | other @ dx_process::capture::RunError::OutputTooLarge { .. } => {
+        other @
+(dx_process::capture::RunError::Spawn { .. } |
+dx_process::capture::RunError::TimedOut { .. } |
+dx_process::capture::RunError::OutputTooLarge { .. }) => {
             DxError::infra(format!("{label}: {other}"))
         }
     })
@@ -523,7 +524,7 @@ pub(super) fn open_update_prs(
         .flatten()
         .filter_map(|pr| {
             let head = pr.get("headRefName")?.as_str()?;
-            let cross = pr.get("isCrossRepository").and_then(|v| v.as_bool());
+            let cross = pr.get("isCrossRepository").and_then(serde_json::Value::as_bool);
             if !head.starts_with("dx-update/") || cross == Some(true) {
                 return None;
             }

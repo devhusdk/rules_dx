@@ -136,6 +136,7 @@ fn lease_refusal_for(
 }
 
 /// Runs one command with stdout latched on its first write failure.
+#[must_use]
 pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
@@ -451,7 +452,7 @@ mod tests {
             .position(|word| *word == "--")
             .unwrap_or(words.len());
         words.insert(at, output);
-        let mut inv = super::test_support::invocation(&words);
+        let mut inv = invocation(&words);
         inv.agent = agent;
         let harness = Harness::new(&format!("agent-quiet-{}", words[0]));
         if words[0] == "bench" {

@@ -180,7 +180,7 @@ pub(super) fn result_outcome(status: Option<&str>, summary: Option<&str>) -> Str
 
 /// Indexes `testSummary` overall statuses by target and configuration.
 pub(super) fn summary_statuses(
-    events: &dx_bep::TestEvents,
+    events: &TestEvents,
 ) -> BTreeMap<(&str, Option<&str>), &str> {
     let mut statuses = BTreeMap::new();
     for summary in &events.summaries {

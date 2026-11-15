@@ -68,7 +68,7 @@ pub(crate) fn execute_watch(invocation: &Invocation, env: Env<'_>) -> i32 {
         env,
         None,
         &dx_process::interrupted,
-        |session, timeout| session.wait(timeout),
+        dx_adopt::watch::WatchSession::wait,
     )
 }
 

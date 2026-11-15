@@ -339,8 +339,8 @@ mod sh {
     }
 
     struct SourceRepo {
-        base: std::path::PathBuf,
-        root: std::path::PathBuf,
+        base: PathBuf,
+        root: PathBuf,
         _guard: TempDir,
     }
 
@@ -382,7 +382,7 @@ mod sh {
     }
 
     impl SourceRepo {
-        fn root(&self) -> std::path::PathBuf {
+        fn root(&self) -> PathBuf {
             self.root.clone()
         }
 
@@ -1152,7 +1152,7 @@ mod sh {
         name: &str,
         workspace: &Path,
         marker: Option<&str>,
-    ) -> std::path::PathBuf {
+    ) -> PathBuf {
         use std::os::unix::fs::symlink;
         let ob = base.join(name);
         let main = ob.join("execroot/_main");

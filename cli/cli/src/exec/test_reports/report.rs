@@ -81,7 +81,7 @@ pub(super) fn write_failed_line(err: &mut dyn Write, outcome: &TestOutcome) {
             &failing
                 .iter()
                 .take(TEXT_CASE_LIMIT)
-                .cloned()
+                .copied()
                 .collect::<Vec<_>>()
                 .join(", "),
         );
@@ -307,7 +307,7 @@ pub(super) fn account_sources(
     sources: &Sources,
     lcov_documents: &[String],
     workspace: &Path,
-) -> dx_lcov::CellAccount {
+) -> CellAccount {
     dx_lcov::account(&sources.manifests, lcov_documents, &|path| {
         std::fs::read(workspace.join(path))
             .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
@@ -318,8 +318,8 @@ pub(super) fn account_sources(
 }
 
 /// The `sources` report: the cell's owned sources with dispositions and the production sources the report never saw.
-pub(super) fn sources_report(sources: &Sources, account: &dx_lcov::CellAccount) -> String {
-    let owned: std::collections::BTreeMap<&str, &str> = account
+pub(super) fn sources_report(sources: &Sources, account: &CellAccount) -> String {
+    let owned: BTreeMap<&str, &str> = account
         .files
         .iter()
         .map(|(path, disposition)| {
@@ -355,7 +355,7 @@ pub(super) fn sources_report(sources: &Sources, account: &dx_lcov::CellAccount) 
 /// With `enforce` (`--min-coverage`) each gap is a JSON `error` event instead of a warning notice.
 pub(super) fn coverage_sources(
     sources: &Sources,
-    account: &dx_lcov::CellAccount,
+    account: &CellAccount,
     output: OutputMode,
     enforce: bool,
     out: &mut dyn Write,

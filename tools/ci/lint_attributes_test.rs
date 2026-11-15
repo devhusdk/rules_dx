@@ -175,7 +175,7 @@ fn denied(text: &str) -> Vec<String> {
 }
 
 #[test]
-fn strict_tier_denies_the_rust_safety_lints() {
+fn strict_tier_and_bazelrc_deny_the_same_rust_lints() {
     let key = std::env::var("DX_STRICT_TXT").expect("DX_STRICT_TXT is set by the test");
     let path = dx_testing::rlocation(&key).expect("strict.txt is a runfile");
     let strict = denied(&dx_testing::read_text(&path));
@@ -212,6 +212,14 @@ fn strict_tier_denies_the_rust_safety_lints() {
     assert!(
         missing.is_empty(),
         ".bazelrc must deny these strict tier lints: {missing:?}"
+    );
+    let extra: Vec<&String> = bazelrc
+        .iter()
+        .filter(|lint| !strict.contains(lint))
+        .collect();
+    assert!(
+        extra.is_empty(),
+        "the strict tier must deny these .bazelrc lints: {extra:?}"
     );
     let done: Vec<&str> = PENDING
         .into_iter()

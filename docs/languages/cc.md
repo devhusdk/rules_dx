@@ -40,7 +40,7 @@ The upstream objc_library under the caller's name, so rules_apple and rules_swif
 cc_binary(name, *, srcs = None, visibility = None, **kwargs)
 ```
 
-Minimal wrapper over cc_binary. Linux adds -Wl,--build-id=sha1. Warnings are errors unless warnings_as_errors is False.
+Minimal wrapper over cc_binary.
 
 ### `cc_test`
 
@@ -48,7 +48,7 @@ Minimal wrapper over cc_binary. Linux adds -Wl,--build-id=sha1. Warnings are err
 cc_test(name, *, srcs = None, visibility = None, **kwargs)
 ```
 
-Minimal wrapper over cc_test. linkstatic defaults to true on macOS and Windows, else false. Under GCC, ASAN_OPTIONS=verify_asan_link_order=0 unless env sets it. Warnings are errors unless warnings_as_errors is False.
+Minimal wrapper over cc_test.
 
 ### `cc_fuzz_test`
 
@@ -56,7 +56,7 @@ Minimal wrapper over cc_test. linkstatic defaults to true on macOS and Windows, 
 cc_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs)
 ```
 
-A libFuzzer binary with AddressSanitizer, or without the pinned libFuzzer linked to a standalone driver, plus a `<name>_run` runner for `dx fuzz`.
+A libFuzzer binary with AddressSanitizer.
 
 ### `cc_bench`
 
@@ -81,12 +81,6 @@ cc_doc_shard(name, lib, package = "", **kwargs)
 ```
 
 Declares the DocIr shard of one C or C++ library.
-
-Args:
-  name: Name of the shard target.
-  lib: The documented cc_library; its public hdrs are documented.
-  package: Package segment of every symbol id; defaults to the name of lib.
-  **kwargs: Common attributes such as tags and visibility.
 
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 

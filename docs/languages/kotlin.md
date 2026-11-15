@@ -40,7 +40,7 @@ Minimal wrapper over kt_jvm_binary. Warnings are errors unless warnings_as_error
 kotlin_test(name, *, srcs = None, visibility = None, **kwargs)
 ```
 
-Minimal wrapper over kt_jvm_test. test_class is inferred from the name and srcs when unset; the dx test runner runs unless main_class is set. Warnings are errors unless warnings_as_errors is False.
+Wraps kt_jvm_test with the dx test runner and warnings as errors.
 
 ### `kotlin_bench`
 
@@ -56,7 +56,7 @@ Runs the JMH benchmarks in Kotlin srcs and writes dx-bench.json for dx bench.
 kotlin_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visibility = None, tags = None, **kwargs)
 ```
 
-A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`. target_class is inferred from the name or the single src when unset.
+A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`.
 
 ## API docs
 
@@ -73,13 +73,6 @@ kotlin_doc_shard(name, lib, package = "", deps = [], **kwargs)
 ```
 
 Declares the DocIr shard of one Kotlin library.
-
-Args:
-  name: Name of the shard target.
-  lib: The documented kotlin_library; its srcs must all be .kt files.
-  package: Package segment of every symbol id; defaults to the name of lib.
-  deps: Doc shard targets of libraries whose types this one extends or links to.
-  **kwargs: Common attributes such as tags and visibility.
 
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 

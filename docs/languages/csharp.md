@@ -40,7 +40,7 @@ Minimal wrapper over csharp_library; target_frameworks defaults to net10.0 and w
 csharp_binary(name, *, srcs = None, visibility = None, upstream_visibility = None, **kwargs)
 ```
 
-Binary with target_frameworks net10.0; warnings as errors follow the repo config unless warnings_as_errors is set; srcs optional.
+Binary with target_frameworks net10.0; warnings as errors follow the repo config.
 
 ### `csharp_test`
 
@@ -64,7 +64,7 @@ A csharp_test that runs the [Benchmark] classes in srcs with BenchmarkDotNet and
 csharp_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, **kwargs)
 ```
 
-A SharpFuzz harness plus a `<name>_run` runner for `dx fuzz`; the first-party libraries in deps are instrumented. Linux and macOS only.
+A SharpFuzz harness plus a `<name>_run` runner for `dx fuzz`.
 
 ## API docs
 
@@ -100,6 +100,7 @@ Manifests:
 
 Lockfiles:
 
+- `nuget.lock.json`
 - `paket.lock`
 
 ## Platforms

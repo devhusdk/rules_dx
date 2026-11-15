@@ -32,7 +32,7 @@ Minimal wrapper over py_library.
 python_binary(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
-Minimal wrapper over py_binary. main is name.py, else the single src; several srcs need a name.py match. main is linted unless it is an external label.
+Wrapper over py_binary that infers main.
 
 ### `python_test`
 
@@ -40,7 +40,7 @@ Minimal wrapper over py_binary. main is name.py, else the single src; several sr
 python_test(name, *, srcs = None, main = None, runner = "pytest", visibility = None, **kwargs)
 ```
 
-Wrapper over py_pytest_test, or py_test when runner = "plain". runner defaults to "pytest"; plain infers main as python_binary does.
+Wrapper over py_pytest_test, or py_test for the plain runner.
 
 ### `python_fuzz_test`
 
@@ -48,7 +48,7 @@ Wrapper over py_pytest_test, or py_test when runner = "plain". runner defaults t
 python_fuzz_test(name, *, srcs = None, visibility = None, tags = None, **kwargs)
 ```
 
-A python_binary that calls atheris plus a `<name>_run` runner for `dx fuzz`. Needs the atheris wheel: linux x86_64 only.
+An atheris fuzz binary plus a runner for dx fuzz.
 
 ### `python_bench`
 

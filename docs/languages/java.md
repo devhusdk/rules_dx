@@ -32,7 +32,7 @@ Minimal wrapper over java_library.
 java_binary(name, *, srcs = None, visibility = None, **kwargs)
 ```
 
-Minimal wrapper over java_binary. main_class is inferred from the name and srcs when unset. -Xlint:all is on; warnings are errors unless warnings_as_errors is False.
+Wrapper over java_binary that infers main_class.
 
 ### `java_test`
 
@@ -40,7 +40,7 @@ Minimal wrapper over java_binary. main_class is inferred from the name and srcs 
 java_test(name, *, srcs = None, visibility = None, **kwargs)
 ```
 
-Minimal wrapper over java_test. test_class is inferred from the name and srcs when unset; the dx test runner runs unless use_testrunner = False. -Xlint:all is on; warnings are errors unless warnings_as_errors is False.
+Wrapper over java_test that infers test_class.
 
 ### `java_fuzz_test`
 
@@ -48,7 +48,7 @@ Minimal wrapper over java_test. test_class is inferred from the name and srcs wh
 java_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visibility = None, tags = None, **kwargs)
 ```
 
-A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`. target_class is inferred from the name or the single src when unset.
+A Jazzer fuzz target plus a runner for dx fuzz.
 
 ### `java_bench`
 
@@ -73,13 +73,6 @@ java_doc_shard(name, lib, package = "", deps = [], **kwargs)
 ```
 
 Declares the DocIr shard of one Java library.
-
-Args:
-  name: Name of the shard target.
-  lib: The documented java_library.
-  package: Package segment of every symbol id; defaults to the name of lib.
-  deps: java_doc_shard targets of libraries whose types this one extends or links to.
-  **kwargs: Common attributes such as tags and visibility.
 
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 

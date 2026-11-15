@@ -40,7 +40,7 @@ ct_suite run by dx bench: dx_bench:run in the suite runs erlperf and writes dx-b
 erlang_bytecode(name, srcs, visibility = None, **kwargs)
 ```
 
-Thin wrapper over rules_erlang erlang_bytecode. Adds -Werror to erlc_opts following warnings_as_errors.
+Thin wrapper over rules_erlang erlang_bytecode.
 
 ### `erlang_ct_suite_test`
 
@@ -48,7 +48,7 @@ Thin wrapper over rules_erlang erlang_bytecode. Adds -Werror to erlc_opts follow
 erlang_ct_suite_test(name, *, suite_name = "", visibility = None, **kwargs)
 ```
 
-Thin wrapper over the rules_erlang ct_suite macro. Adds -sname undefined and -start_epmd false unless ct_run_extra_args sets -sname or -name.
+Thin wrapper over the rules_erlang ct_suite macro.
 
 ### `erlang_erlc_opts`
 
@@ -60,7 +60,7 @@ No documentation.
 erlang_escript_archive(name, visibility = None, **kwargs)
 ```
 
-Thin wrapper over rules_erlang escript_archive. Runs on the pinned OTP runtime; fails when an app ships NIFs.
+Thin wrapper over rules_erlang escript_archive.
 
 ### `erlang_eunit_test`
 
@@ -114,12 +114,6 @@ erlang_doc_shard(name, app, package = "", **kwargs)
 ```
 
 Declares the DocIr shard of one Erlang app.
-
-Args:
-  name: Name of the shard target.
-  app: The documented erlang_app.
-  package: Package segment of every symbol id; defaults to the app name.
-  **kwargs: Common attributes such as tags and visibility.
 
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 

@@ -102,13 +102,6 @@ ocaml_doc_shard(name, lib, package = "", config = ODOC_CONFIG, **kwargs)
 
 Declares the DocIr shard of one OCaml module or signature.
 
-Args:
-  name: Name of the shard target.
-  lib: The documented ocaml_module, ocaml_signature or ocaml_library.
-  package: Package segment of every symbol id; defaults to the name of lib.
-  config: Configuration identity recorded on every symbol.
-  **kwargs: Common attributes such as tags and visibility.
-
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 `ocaml_doc_shard` (`@rules_dx//tools/docs/ocaml:defs.bzl`) turns an `ocaml_module`, `ocaml_signature` or `ocaml_library` into a DocIr shard with the pinned odoc 3.2.2, built from the tools duniverse on linux_x86_64, linux_arm64 and macos_arm64. Other platforms skip OCaml in the docs aspect. The `config` attribute is the identity recorded on every symbol as `ocaml.config`; it defaults to `odoc=3.2.2`.

@@ -232,8 +232,7 @@ impl RunMode {
 
     fn command_text(self) -> &'static str {
         match self {
-            RunMode::Update => "dx update",
-            RunMode::Check => "dx update",
+            RunMode::Update | RunMode::Check => "dx update",
         }
     }
 
@@ -444,9 +443,7 @@ fn emit_update_json(
         match outcome.status {
             dx_update::outcome::ReportedStatus::Updated => {
                 let message = details
-                    .get(set_name)
-                    .map(|detail| detail.message.clone())
-                    .unwrap_or_else(|| format!("updated {set_name}"));
+                    .get(set_name).map_or_else(|| format!("updated {set_name}"), |detail| detail.message.clone());
                 let built = notice_event(&NoticeEvent {
                     related_command: Some("update".to_owned()),
                     scope: Some(vec![set_name.to_owned()]),
@@ -475,8 +472,7 @@ fn emit_update_json(
                 };
                 let message = details
                     .get(set_name)
-                    .map(|detail| detail.message.clone())
-                    .unwrap_or(fallback);
+                    .map_or(fallback, |detail| detail.message.clone());
                 if let Err(exit) = emit_built(
                     out,
                     notice_event(&NoticeEvent {
@@ -491,9 +487,7 @@ fn emit_update_json(
             }
             dx_update::outcome::ReportedStatus::Unsupported => {
                 let message = details
-                    .get(set_name)
-                    .map(|detail| detail.message.clone())
-                    .unwrap_or_else(|| format!("cannot update {set_name}"));
+                    .get(set_name).map_or_else(|| format!("cannot update {set_name}"), |detail| detail.message.clone());
                 if let Err(exit) = emit_built(
                     out,
                     error_event(
@@ -511,9 +505,7 @@ fn emit_update_json(
             }
             dx_update::outcome::ReportedStatus::Failed => {
                 let message = details
-                    .get(set_name)
-                    .map(|detail| detail.message.clone())
-                    .unwrap_or_else(|| format!("failed to update {set_name}"));
+                    .get(set_name).map_or_else(|| format!("failed to update {set_name}"), |detail| detail.message.clone());
                 let code = details
                     .get(set_name)
                     .and_then(|detail| detail.failure_code)

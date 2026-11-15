@@ -50,7 +50,7 @@ pub(super) fn report(
 mod tests {
     use crate::adopt::init_files::{self, InitFile, Kind};
 
-    fn plan(root: &std::path::Path) -> Vec<InitFile> {
+    fn plan(root: &Path) -> Vec<InitFile> {
         init_files::plan(root, "my_project", true, &Agent::ALL).expect("plan")
     }
 
@@ -331,7 +331,7 @@ mod tests {
         assert_eq!(full_init(root).0, 0);
         assert_eq!(
             crate::adopt::test_support::drift_of(root),
-            crate::adopt::init_files::Drift::default()
+            init_files::Drift::default()
         );
         std::fs::write(root.join(".claude/settings.json"), "{}\n").expect("settings");
         std::fs::write(root.join("AGENTS.md"), "# Mine\n").expect("agents");

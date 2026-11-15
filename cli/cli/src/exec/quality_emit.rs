@@ -234,8 +234,7 @@ pub(crate) fn emit_findings(
                         not_applied
                             .iter()
                             .find(|(path, _)| path == &change.path)
-                            .map(|(_, reason)| *reason)
-                            .unwrap_or(REASON_INCOMPLETE_COLLECTION),
+                            .map_or(REASON_INCOMPLETE_COLLECTION, |(_, reason)| *reason),
                     ),
                 )
             };

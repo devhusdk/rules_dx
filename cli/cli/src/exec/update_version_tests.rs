@@ -3,7 +3,7 @@ use super::*;
 
 const HELLO_CARGO: &str = "rust/tests/fixtures/hello/Cargo.toml";
 
-/// A root MODULE.bazel whose dx_crates hub reads the given Cargo.toml labels.
+/// A root MODULE.bazel whose `dx_crates` hub reads the given Cargo.toml labels.
 fn cargo_module(labels: &[&str]) -> String {
     let manifests = labels
         .iter()
@@ -1048,7 +1048,7 @@ fn unreadable_and_non_utf8_manifests_fail_without_refresh() {
                     .lines()
                     .map(|line| serde_json::from_str(line).expect("event"))
                     .collect();
-                assert_eq!(events[1]["code"], super::CODE_UPDATE_WIDEN_FAILED);
+                assert_eq!(events[1]["code"], CODE_UPDATE_WIDEN_FAILED);
                 assert_eq!(events.last().expect("finished")["exit_code"], 1);
             }
         }
@@ -1095,7 +1095,7 @@ fn frozen_widen_needed_fails_before_any_manifest_write() {
         ]);
         assert_eq!(code, 1, "{selector}: {out}{err}");
         assert!(
-            err.contains(&format!("dx: {}: ", super::CODE_FROZEN_LOCKED)),
+            err.contains(&format!("dx: {CODE_FROZEN_LOCKED}: ")),
             "{selector}: {err}"
         );
         assert!(
@@ -1116,7 +1116,7 @@ fn frozen_widen_needed_fails_before_any_manifest_write() {
             "{selector}: frozen launches nothing"
         );
         let events = json_events(&out);
-        assert_eq!(event(&events, "error")["code"], super::CODE_FROZEN_LOCKED);
+        assert_eq!(event(&events, "error")["code"], CODE_FROZEN_LOCKED);
         let finished = events.last().expect("finished");
         assert_eq!(finished["event"], "command_finished");
         assert_eq!(finished["exit_code"], 1);
@@ -1322,7 +1322,7 @@ fn gha_tag_is_resolved_through_the_fetch() {
 
 #[test]
 fn gha_tag_fetch_error_and_offline_resolve_nothing() {
-    let failing = |_: &str| Err(dx_error::DxError::failure("HTTP 404"));
+    let failing = |_: &str| Err(DxError::failure("HTTP 404"));
     let (code, message) =
         resolve_gha_tag_request(&tag_request(), None, false, &failing).expect_err("error");
     assert_eq!(code, CODE_UPDATE_WIDEN_FAILED);
@@ -1330,7 +1330,7 @@ fn gha_tag_fetch_error_and_offline_resolve_nothing() {
     let calls = std::cell::Cell::new(0);
     let counting = |_: &str| {
         calls.set(calls.get() + 1);
-        Err(dx_error::DxError::failure("unused"))
+        Err(DxError::failure("unused"))
     };
     let (code, _) =
         resolve_gha_tag_request(&tag_request(), None, true, &counting).expect_err("error");
@@ -1865,7 +1865,7 @@ fn default_check_json_reports_drift_without_writing() {
     let events = json_events(&out);
     assert_eq!(
         event(&events, "error")["code"],
-        super::CODE_UPDATE_WIDEN_FAILED
+        CODE_UPDATE_WIDEN_FAILED
     );
     assert_eq!(
         events.last().expect("finished")["exit_code"],

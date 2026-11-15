@@ -17,6 +17,7 @@ pub enum Tool {
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
+#[must_use]
 pub fn tool_for(argv0: &OsStr) -> Option<Tool> {
     match Path::new(argv0).file_stem()?.to_str()? {
         "quality_runner" => Some(Tool::Runner),

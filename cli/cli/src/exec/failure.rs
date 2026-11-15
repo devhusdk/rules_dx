@@ -152,19 +152,7 @@ impl Failure {
             ResolveError::QueryFailed {
                 failure: QueryFailure::Prepare { .. },
                 ..
-            } => (CODE_INVALID_SCOPE, pre_exec_code()),
-            ResolveError::QueryFailed {
-                failure: QueryFailure::DiskFull { status, .. },
-                ..
-            } => (CODE_DISK_FULL, *status),
-            ResolveError::QueryFailed { .. } => (CODE_QUERY_FAILED, pre_exec_code()),
-            ResolveError::NoOwner { .. } => (CODE_NO_OWNER, pre_exec_code()),
-            ResolveError::NoTests { .. } => (CODE_NO_TESTS, operational_code()),
-            ResolveError::NoRunnable { .. } => ("no_runnable", operational_code()),
-            ResolveError::AmbiguousRunnable { .. } => ("ambiguous_runnable", operational_code()),
-            ResolveError::NotDeployable { .. } => (CODE_NOT_DEPLOYABLE, pre_exec_code()),
-            ResolveError::Config { .. } => ("invalid_config", pre_exec_code()),
-            ResolveError::EmptyScope
+            } | ResolveError::EmptyScope
             | ResolveError::RelativeLabel { .. }
             | ResolveError::ExternalScope { .. }
             | ResolveError::OutsideWorkspace { .. }
@@ -177,7 +165,18 @@ impl Failure {
             | ResolveError::DeployCount { .. }
             | ResolveError::DeployScope { .. }
             | ResolveError::AllExcluded { .. } => (CODE_INVALID_SCOPE, pre_exec_code()),
-        };
+            ResolveError::QueryFailed {
+                failure: QueryFailure::DiskFull { status, .. },
+                ..
+            } => (CODE_DISK_FULL, *status),
+            ResolveError::QueryFailed { .. } => (CODE_QUERY_FAILED, pre_exec_code()),
+            ResolveError::NoOwner { .. } => (CODE_NO_OWNER, pre_exec_code()),
+            ResolveError::NoTests { .. } => (CODE_NO_TESTS, operational_code()),
+            ResolveError::NoRunnable { .. } => ("no_runnable", operational_code()),
+            ResolveError::AmbiguousRunnable { .. } => ("ambiguous_runnable", operational_code()),
+            ResolveError::NotDeployable { .. } => (CODE_NOT_DEPLOYABLE, pre_exec_code()),
+            ResolveError::Config { .. } => ("invalid_config", pre_exec_code()),
+            };
         let mut failure = Failure::new(code, &error.to_string(), exit);
         failure.phase = Some("resolve");
         match error {
@@ -186,7 +185,7 @@ impl Failure {
                 ..
             } => {
                 failure.status = *status;
-                failure.excerpt = excerpt.clone();
+                failure.excerpt.clone_from(excerpt);
             }
             ResolveError::QueryFailed {
                 failure:
@@ -196,7 +195,7 @@ impl Failure {
                 ..
             } => {
                 failure.status = Some(*status);
-                failure.excerpt = excerpt.clone();
+                failure.excerpt.clone_from(excerpt);
             }
             ResolveError::EmptyScope
             | ResolveError::RelativeLabel { .. }
@@ -411,7 +410,7 @@ mod tests {
     #[test]
     fn the_panic_hint_names_the_bug_template_and_dx_version() {
         let mut err = Vec::new();
-        super::write_panic_hint(&mut err);
+        write_panic_hint(&mut err);
         let text = String::from_utf8(err).unwrap();
         assert!(text.contains("issues/new?template=bug_report.md"));
         assert!(text.contains("dx version"));
@@ -419,18 +418,18 @@ mod tests {
 
     #[test]
     fn the_error_event_carries_the_next_step_of_a_known_code() {
-        let failure = super::Failure::new("disk_full", "no space", 1);
-        let event = super::error_event_of(&failure).unwrap();
+        let failure = Failure::new("disk_full", "no space", 1);
+        let event = error_event_of(&failure).unwrap();
         let next = event["next"].as_str().unwrap();
         assert!(next.starts_with("free disk space"), "{next}");
-        let plain = super::Failure::new("no_such_code", "x", 1);
-        assert!(super::error_event_of(&plain).unwrap().get("next").is_none());
+        let plain = Failure::new("no_such_code", "x", 1);
+        assert!(error_event_of(&plain).unwrap().get("next").is_none());
     }
 
     #[test]
     fn cancel_names_the_signal_and_closes_the_json_stream() {
         let (mut out, mut err) = (Vec::new(), Vec::new());
-        let code = super::cancel(OutputMode::Json, &mut out, &mut err, 15);
+        let code = cancel(OutputMode::Json, &mut out, &mut err, 15);
         assert_eq!(
             String::from_utf8(err).unwrap(),
             "dx: cancelled: stopped by signal 15\n"
@@ -451,7 +450,7 @@ mod tests {
     fn a_busy_slot_wait_fails_with_slots_busy_and_closes_the_json_stream() {
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let stop = dx_plan::slots::Stop::Busy("pid 7".to_owned());
-        let code = super::slot_stop(OutputMode::Json, &mut out, &mut err, stop);
+        let code = slot_stop(OutputMode::Json, &mut out, &mut err, stop);
         assert_eq!(code, 1);
         let events: Vec<serde_json::Value> = String::from_utf8(out)
             .unwrap()
@@ -469,7 +468,7 @@ mod tests {
     fn cancel_in_text_mode_writes_nothing_to_stdout() {
         let (mut out, mut err) = (Vec::new(), Vec::new());
         assert_eq!(
-            super::cancel(OutputMode::Text { quiet: false }, &mut out, &mut err, 2),
+            cancel(OutputMode::Text { quiet: false }, &mut out, &mut err, 2),
             130
         );
         assert!(out.is_empty());
@@ -478,7 +477,7 @@ mod tests {
     #[test]
     fn a_panic_writes_internal_error_and_exit_101() {
         let mut out = Vec::new();
-        super::write_panic_events(&mut out, "dx panicked at x.rs:1: boom");
+        write_panic_events(&mut out, "dx panicked at x.rs:1: boom");
         let lines: Vec<serde_json::Value> = String::from_utf8(out)
             .unwrap()
             .lines()

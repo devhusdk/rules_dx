@@ -167,9 +167,7 @@ fn hook_commands(settings: &str) -> Vec<(String, String)> {
 fn hook(commands: &[(String, String)], event: &str) -> String {
     commands
         .iter()
-        .find(|(name, _)| name == event)
-        .map(|(_, command)| command.clone())
-        .unwrap_or_else(|| panic!("no {event} hook"))
+        .find(|(name, _)| name == event).map_or_else(|| panic!("no {event} hook"), |(_, command)| command.clone())
 }
 
 fn cache_dx(env: &Env) {

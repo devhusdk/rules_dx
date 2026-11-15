@@ -87,12 +87,12 @@ pub(crate) struct Harness {
     #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     /// The working directory of each launch `FakeRunner` records in `build_argv`.
-    pub(crate) seen_cwd: Rc<RefCell<Vec<std::path::PathBuf>>>,
+    pub(crate) seen_cwd: Rc<RefCell<Vec<PathBuf>>>,
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) audit_today: Option<String>,
     pub(crate) actions: ActionTally,
     /// Process table root `dx clean` observes; point at a missing dir to make observation unknown.
-    pub(crate) proc_root: std::path::PathBuf,
+    pub(crate) proc_root: PathBuf,
     /// Commit JSON path injected for update GitHub tag resolution.
     pub(crate) edit_commit_json: Option<String>,
     /// The shards the fake shard probe names; `None` makes the probe exit 1 so dx passes every shard.
@@ -316,7 +316,7 @@ impl Harness {
             free_disk_bytes: None,
             audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
             actions: ActionTally::default(),
-            proc_root: std::path::PathBuf::from("/proc"),
+            proc_root: PathBuf::from("/proc"),
             edit_commit_json: None,
             probe_shards: None,
             probe_code: None,
@@ -635,7 +635,7 @@ impl Harness {
         self.env_with(runner, out, err)
     }
 
-    pub(crate) fn env_with<'a, O: std::io::Write, E: std::io::Write>(
+    pub(crate) fn env_with<'a, O: io::Write, E: io::Write>(
         &'a self,
         runner: &'a dyn Runner,
         out: &'a mut O,
@@ -660,7 +660,7 @@ impl Harness {
     }
 
     /// Runs one invocation against arbitrary streams and returns its exit code.
-    pub(crate) fn run_streams<R: Runner, O: std::io::Write, E: std::io::Write>(
+    pub(crate) fn run_streams<R: Runner, O: io::Write, E: io::Write>(
         &self,
         inv: &Invocation,
         runner: &R,
@@ -694,7 +694,7 @@ impl Harness {
     }
 
     /// Like `probe_with`, writing to the given streams; `out` in the result stays empty.
-    pub(crate) fn probe_streams<O: std::io::Write, E: std::io::Write>(
+    pub(crate) fn probe_streams<O: io::Write, E: io::Write>(
         &self,
         inv: &Invocation,
         codes: &[Option<i32>],
@@ -783,7 +783,7 @@ pub(crate) struct FakeRunner {
     #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     /// The working directory of each launch `FakeRunner` records in `build_argv`.
-    pub(crate) seen_cwd: Rc<RefCell<Vec<std::path::PathBuf>>>,
+    pub(crate) seen_cwd: Rc<RefCell<Vec<PathBuf>>>,
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) probe_shards: Option<Vec<String>>,
     pub(crate) probe_code: Option<i32>,
@@ -795,7 +795,7 @@ pub(crate) struct FakeRunner {
 }
 
 impl FakeRunner {
-    /// Answers one shard probe: a dx_shards file naming `probe_shards`, or exit 1 when unset.
+    /// Answers one shard probe: a `dx_shards` file naming `probe_shards`, or exit 1 when unset.
     fn run_shard_probe(&self, argv: &[String]) -> io::Result<ChildStatus> {
         self.probe_argv.borrow_mut().push(argv.to_vec());
         if let Some(code) = self.probe_code {
@@ -1006,7 +1006,7 @@ pub(crate) fn write_bep_artifact(harness: &Harness, name: &str, bytes: &[u8]) ->
     format!("file://{}", path.display())
 }
 
-/// Writes a few lines for every source a coverage manifest names, so LCOV_EXCL scanning can read it.
+/// Writes a few lines for every source a coverage manifest names, so `LCOV_EXCL` scanning can read it.
 pub(crate) fn write_manifest_sources(harness: &Harness, manifest: &str) {
     for path in manifest.lines().filter_map(|line| {
         line.strip_prefix("prod source ")
@@ -1377,7 +1377,7 @@ pub(crate) fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
         revents: 0,
     };
     // SAFETY: `fd` is a live pollfd and the count is 1.
-    let ready = unsafe { libc::poll(&mut fd, 1, timeout_ms) };
+    let ready = unsafe { libc::poll(&raw mut fd, 1, timeout_ms) };
     ready > 0 && fd.revents & (libc::POLLERR | libc::POLLHUP) != 0
 }
 
@@ -1408,7 +1408,7 @@ pub(crate) fn closed_pipe() -> io::PipeWriter {
 }
 
 /// An empty process table, so live observation succeeds and sees no readers.
-pub(crate) fn quiet_proc(harness: &Harness) -> std::path::PathBuf {
+pub(crate) fn quiet_proc(harness: &Harness) -> PathBuf {
     let proc_root = harness.workspace.join("quiet-proc");
     std::fs::create_dir_all(&proc_root).expect("empty process table");
     proc_root

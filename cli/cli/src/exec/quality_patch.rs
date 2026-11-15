@@ -22,36 +22,26 @@ pub(crate) fn render_diff_patch(
 ) -> Result<String, PatchError> {
     let mut owned: Vec<(String, String, String)> = Vec::with_capacity(changes.len());
     for change in changes {
-        let original = match sources.get(&change.path) {
-            Some(SourceRead::Bytes(bytes)) => bytes,
-            _ => {
+        let Some(SourceRead::Bytes(original)) = sources.get(&change.path) else {
                 return Err(PatchError::MissingSource {
                     path: change.path.clone(),
                 });
-            }
-        };
-        let original_text = match std::str::from_utf8(original) {
-            Ok(text) => text,
-            Err(_) => {
+            };
+        let Ok(original_text) = std::str::from_utf8(original) else {
                 return Err(PatchError::NonUtf8Source {
                     path: change.path.clone(),
                 });
-            }
-        };
+            };
         let Some(candidate) = apply_to_bytes(original, &change.edits) else {
             return Err(PatchError::Unappliable {
                 path: change.path.clone(),
             });
         };
-        let candidate_text = match String::from_utf8(candidate) {
-            Ok(text) => text,
-            // LCOV_EXCL_START - reason: utf8 candidate, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            Err(_) => {
+        let Ok(candidate_text) = String::from_utf8(candidate) else {
                 return Err(PatchError::NonUtf8Candidate {
                     path: change.path.clone(),
                 });
-            } // LCOV_EXCL_STOP - reason: end utf8 candidate, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        };
+            };
         owned.push((
             change.path.clone(),
             original_text.to_owned(),

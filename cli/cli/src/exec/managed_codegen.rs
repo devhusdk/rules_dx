@@ -53,10 +53,7 @@ fn resolve_logical_entries(
     let mut entries = Vec::with_capacity(projection.len());
     for entry in projection {
         let path = logical_path(&entry.logical_path).map_err(invalid_plan)?;
-        let replaces = match entry.replaces.is_empty() {
-            true => None,
-            false => Some(logical_path(&entry.replaces).map_err(invalid_plan)?),
-        };
+        let replaces = if entry.replaces.is_empty() { None } else { Some(logical_path(&entry.replaces).map_err(invalid_plan)?) };
         if replaces.as_ref().is_some_and(|declared| *declared != path) {
             return Err(invalid_plan(format!(
                 "entry {} carries a replacement contract for {}, want the logical path itself",

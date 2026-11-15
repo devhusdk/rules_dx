@@ -390,9 +390,7 @@ fn list_lines(listing: &Listing) -> Vec<String> {
     let mut lines = Vec::new();
     for row in &listing.rows {
         let slot = row
-            .slot
-            .map(|slot| slot.to_string())
-            .unwrap_or_else(|| "-".to_owned());
+            .slot.map_or_else(|| "-".to_owned(), |slot| slot.to_string());
         let mut state = match row.reason {
             Some(reason) => format!("{} ({reason})", row.state.name()),
             None => row.state.name().to_owned(),
@@ -409,7 +407,7 @@ fn list_lines(listing: &Listing) -> Vec<String> {
             row.holder.as_deref().unwrap_or("-"),
             state,
             if row.server { "server" } else { "no server" },
-            row.disk_bytes.map(size).unwrap_or_else(|| "-".to_owned()),
+            row.disk_bytes.map_or_else(|| "-".to_owned(), size),
             row.path.display()
         ));
     }
@@ -753,7 +751,7 @@ fn kept_external_line(item: &ops::PruneKept) -> String {
 }
 
 fn prune_exit(apply: bool, plan: &PrunePlan) -> i32 {
-    if apply || plan.is_empty() { 0 } else { 1 }
+    i32::from(!(apply || plan.is_empty()))
 }
 
 fn read_stdin() -> String {
@@ -1627,14 +1625,14 @@ mod tests {
             let object = event.as_object().expect("object");
             assert_eq!(event["event"], "slot", "{event}");
             assert_eq!(event["path"], path, "{event}");
-            assert_eq!(object.get("slot").and_then(|v| v.as_u64()), slot, "{event}");
+            assert_eq!(object.get("slot").and_then(serde_json::Value::as_u64), slot, "{event}");
             assert_eq!(
                 object.get("branch").and_then(|v| v.as_str()),
                 branch,
                 "{event}"
             );
             assert_eq!(
-                object.get("disk_bytes").and_then(|v| v.as_u64()),
+                object.get("disk_bytes").and_then(serde_json::Value::as_u64),
                 bytes,
                 "{event}"
             );

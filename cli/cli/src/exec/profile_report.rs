@@ -241,7 +241,7 @@ impl Report {
         match self.bytes_downloaded {
             Some(bytes) => lines.push(format!("dx: downloaded {}", megabytes(bytes))),
             None => {
-                lines.push("dx: downloaded unknown (Bazel reported no network usage)".to_owned())
+                lines.push("dx: downloaded unknown (Bazel reported no network usage)".to_owned());
             }
         }
         if let Some(totals) = &self.totals {

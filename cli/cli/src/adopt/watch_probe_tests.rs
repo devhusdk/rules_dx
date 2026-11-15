@@ -322,7 +322,9 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
                 && args.iter().filter(|arg| **arg == "--jobs=4").count() == 1
                 && args.iter().filter(|arg| **arg == "--apply").count() == 1
                 && bep.len() == 1
-                && bep[0].ends_with(".json")
+                && Path::new(bep[0])
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
                 && args.last() == Some(&"//..."),
             "the -- payload reaches Bazel unchanged: {line}"
         );

@@ -1018,7 +1018,7 @@ pub(super) fn audit_live_pinned_snapshot_ignores_a_newer_upstream_advisory() {
 
 #[test]
 pub(super) fn audit_live_pinned_snapshot_is_fetched_into_the_cache_on_a_miss() {
-    let cache_rel = std::cell::RefCell::new(String::new());
+    let cache_rel = RefCell::new(String::new());
     let (code, out, err) = run_with(
         &["security", "//cc/private/context:hello"],
         &AuditRunner::clean(),

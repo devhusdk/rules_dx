@@ -303,11 +303,11 @@ fn unavailable(
             writeln!(err, "dx: build_events_incomplete: {detail}").ok();
             Ok(())
         }
-        _ => Ok(()),
+        OutputMode::Diff => Ok(()),
     }
 }
 
-/// What report_build_failures found in one event file.
+/// What `report_build_failures` found in one event file.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct ReportedFailures {
     pub(crate) count: usize,
@@ -349,7 +349,7 @@ pub(crate) fn report_build_failures(
             OutputMode::Text { .. } => {
                 writeln!(err, "{}", describe(event)).ok();
             }
-            _ => {}
+            OutputMode::Diff => {}
         }
     }
     if let Some(problem) = &collected.problem {

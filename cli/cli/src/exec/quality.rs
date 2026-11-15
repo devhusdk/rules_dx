@@ -210,17 +210,14 @@ fn probe_shards(
     let Some(bep_text) = bep.to_str() else {
         return Ok(None);
     };
-    let plan = match plan_probe(
+    let Ok(Some(plan)) = plan_probe(
         request.command,
         resolved,
         &request.bazel_options,
         bep_text,
         &request.bazel_startup_options,
         consumer,
-    ) {
-        Ok(Some(plan)) => plan,
-        Ok(None) | Err(_) => return Ok(None),
-    };
+    ) else { return Ok(None) };
     let status = runner.run(&plan.argv, workspace, &[]);
     *probe_counts = read_actions(&bep, actions);
     let shards = match &status {

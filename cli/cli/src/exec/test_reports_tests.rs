@@ -563,7 +563,7 @@ fn script_checkout(harness: &Harness) {
     harness
         .query
         .script_checkout_git(0, "src/a.py\0src/orphan.py\0src/BUILD.bazel\0");
-    harness.query.script_graph(&[dx_testing::cli::graph_rule(
+    harness.query.script_graph(&[graph_rule(
         "//src:lib",
         &["//src:a.py"],
         &[],

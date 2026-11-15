@@ -16,7 +16,9 @@ pub(super) fn prune(workspace: &Path, unused: &[Unused]) -> Result<Vec<Unused>, 
             .map_err(|e| DxError::from_io(format!("{manifest}: {e}"), &e))?;
         let mut lines: Vec<String> = text.split_inclusive('\n').map(str::to_owned).collect();
         items.sort_by_key(|item| std::cmp::Reverse(item.line));
-        let json = manifest.ends_with(".json");
+        let json = Path::new(manifest)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"));
         let mut changed = false;
         for item in items {
             if !item

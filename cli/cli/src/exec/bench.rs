@@ -249,15 +249,12 @@ fn render_table(label: &str, results: &[Measurement], baseline: Option<&Baseline
                 let found = baseline
                     .find(label, &row.name)
                     .and_then(|base| delta(row, base));
-                match found {
-                    Some(found) => {
-                        cells.push(found.baseline.to_string());
-                        cells.push(format!("{:+.1}", found.percent));
-                    }
-                    None => {
-                        cells.push("-".to_owned());
-                        cells.push("-".to_owned());
-                    }
+                if let Some(found) = found {
+                    cells.push(found.baseline.to_string());
+                    cells.push(format!("{:+.1}", found.percent));
+                } else {
+                    cells.push("-".to_owned());
+                    cells.push("-".to_owned());
                 }
             }
             cells

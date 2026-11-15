@@ -20,7 +20,7 @@ fn dx_with_env(root: &Path, home: &Path, args: &[&str], env: &[(&str, &str)]) ->
     let bin = env_file("DX_BIN");
     let path = dx_testing::fake_generate_bazel_path(
         &home.parent().expect("base").join("fake-bin"),
-        &dx_testing::env_file("DX_FAKE_GENERATE"),
+        &env_file("DX_FAKE_GENERATE"),
     );
     let output = Command::new(bin)
         .env("PATH", path)

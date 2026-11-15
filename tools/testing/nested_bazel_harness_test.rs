@@ -51,7 +51,6 @@ probe = rule(
     implementation = _impl,
     toolchains = [
         config_common.toolchain_type("@bazel_tools//tools/cpp:toolchain_type", mandatory = False),
-        config_common.toolchain_type("@bazel_tools//tools/jdk:runtime_toolchain_type", mandatory = False),
     ],
 )
 "#;

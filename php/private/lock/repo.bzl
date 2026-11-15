@@ -12,13 +12,30 @@ def lock_problems(lock):
     packages = lock.get("packages")
     if type(packages) != "list":
         return problems + ["has no packages list"]
+    if lock.get("ecosystem") != "composer":
+        problems.append("has ecosystem %r, not composer" % lock.get("ecosystem"))
+    names = {}
     for package in packages:
+        if type(package) == "dict" and package.get("name"):
+            names[package["name"]] = names.get(package["name"], 0) + 1
+    for package in packages:
+        if type(package) != "dict":
+            problems.append("has a package that is not a JSON object")
+            continue
         name = package.get("name", "")
         if not name:
             problems.append("has a package without a name")
             continue
+        if names[name] > 1:
+            problems.append("package %s appears %d times" % (name, names[name]))
         if not package.get("version"):
             problems.append("package %s has no version" % name)
+        extra = package.get("extra", {})
+        if type(extra) != "dict" or type(extra.get("composer_manifest")) != "dict":
+            problems.append("package %s has no composer_manifest object" % name)
+        for dep in package.get("deps", []):
+            if dep not in names:
+                problems.append("package %s depends on %s, which is not in the lock" % (name, dep))
         for archive in package.get("archives", []):
             digest = archive.get("sha256", "")
             if len(digest) != 64 or any([char not in _HEX for char in digest.elems()]):
@@ -26,6 +43,8 @@ def lock_problems(lock):
             urls = archive.get("urls", [])
             if not urls or any([not url.startswith("https://") for url in urls]):
                 problems.append("package %s has an archive without https urls" % name)
+            if type(archive.get("strip_prefix", "")) != "string":
+                problems.append("package %s has an archive whose strip_prefix is not a string" % name)
     return problems
 
 def _lock_repo_impl(rctx):

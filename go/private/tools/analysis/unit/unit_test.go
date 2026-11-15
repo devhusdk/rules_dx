@@ -214,7 +214,13 @@ func TestExternalTestPackageIsSeparatePass(t *testing.T) {
 	}
 	files := map[string]bool{}
 	for _, d := range list {
-		files[strings.SplitN(d["posn"], ":", 2)[0]] = true
+		file := d["posn"]
+		for range 2 {
+			if i := strings.LastIndex(file, ":"); i >= 0 {
+				file = file[:i]
+			}
+		}
+		files[file] = true
 	}
 	if len(list) != 2 || !files[internal] || !files[external] {
 		t.Fatalf("want one finding in each package, got %s", raw)

@@ -73,3 +73,6 @@ npm.npm_translate_lock(
     pnpm_lock = "//javascript/tests/fixtures/node-app:pnpm-lock.yaml",
 )
 use_repo(npm, "npm_consumer_app")
+
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["visual-studio-build-tools"])

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
 
-use dx_nested::compose::{compose_module, write_rules_py_patches};
+use dx_nested::compose::{compose_module, write_root_patch_overrides, write_rules_py_patches};
 use serde_json::{Value, json};
 
 use dx_digest::sha256_hex;
@@ -376,10 +376,9 @@ pub const REQUIRED_PROBES: &[&str] = &[
 /// Probes that run dx itself inside the isolation, once the manifest names coverage patterns.
 pub const DX_PROBES: &[&str] = &["dx_generate_check", "dx_coverage"];
 
-const BUILD_FLAGS: &[&str] = &[
-    "--noshow_progress",
-    "--color=no",
-    "--curses=no",
+const COMMON_FLAGS: &[&str] = &["--noshow_progress", "--color=no", "--curses=no"];
+
+const ACTION_FLAGS: &[&str] = &[
     "--incompatible_strict_action_env",
     "--sandbox_default_allow_network=false",
 ];
@@ -1302,13 +1301,19 @@ impl Session {
             probe.command.to_owned(),
             format!("--repository_cache={}", probe.repos.display()),
         ]);
-        argv.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        argv.extend(COMMON_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        let analyzes = probe.command != "mod";
+        if analyzes {
+            argv.extend(ACTION_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        }
         if dx_process::takes_shared_settings(probe.command) {
             argv.extend(dx_process::head_settings(&self.manifest.repo_name));
         }
         argv.extend(self.dx_verb_options(probe.home, probe.output_root, probe.command));
-        argv.extend(self.platform_flag());
-        argv.extend(self.shell_flag());
+        if analyzes {
+            argv.extend(self.platform_flag());
+            argv.extend(self.shell_flag());
+        }
         argv.extend(probe.extra.iter().cloned());
         if !probe.targets.is_empty() {
             argv.push("--".to_owned());
@@ -1414,7 +1419,12 @@ impl Session {
         if net == Net::Denied {
             args.push("--repository_disable_download".to_owned());
         }
-        args.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        args.extend(
+            COMMON_FLAGS
+                .iter()
+                .chain(ACTION_FLAGS)
+                .map(|flag| (*flag).to_owned()),
+        );
         args.extend(self.platform_flag());
         args.extend(self.shell_flag());
         if cfg!(windows) {
@@ -2218,19 +2228,55 @@ fn executable(path: &Path) -> Result<(), String> {
         .map_err(|err| format!("cannot mark {} executable: {err}", path.display()))
 }
 
+/// The ids of the `dx_licenses.accept(ids = [...])` tags in a module fragment.
+fn accepted_licenses(fragment: &str) -> Vec<String> {
+    let mut ids = Vec::new();
+    for line in fragment.lines() {
+        let Some(rest) = line.trim().strip_prefix("dx_licenses.accept(") else {
+            continue;
+        };
+        let body = rest.split(']').next().unwrap_or_default();
+        let list = body.split('[').nth(1).unwrap_or_default();
+        ids.extend(
+            list.split(',')
+                .map(|id| id.trim().trim_matches('"'))
+                .filter(|id| !id.is_empty())
+                .map(str::to_owned),
+        );
+    }
+    ids
+}
+
+fn without_license_tags(fragment: &str) -> String {
+    fragment
+        .lines()
+        .filter(|line| {
+            let line = line.trim();
+            !line.starts_with("dx_licenses.accept(") && !line.starts_with("dx_licenses = ")
+        })
+        .map(|line| format!("{line}\n"))
+        .collect()
+}
+
 fn run_init(manifest: &Manifest, workspace: &Path) -> Result<(), String> {
     let workspace_text = workspace.to_string_lossy().into_owned();
-    let init = dx_testing::run(
-        &manifest.dx,
-        &[
-            "init",
-            "--apply",
-            "--no-generate",
-            "--workspace",
-            &workspace_text,
-        ],
-        &[],
-    )
+    let mut args = vec![
+        "init".to_owned(),
+        "--apply".to_owned(),
+        "--no-generate".to_owned(),
+        "--workspace".to_owned(),
+        workspace_text,
+    ];
+    if let Some(path) = &manifest.module_fragment {
+        let fragment = std::fs::read_to_string(path)
+            .map_err(|err| format!("cannot read {}: {err}", path.display()))?;
+        for id in accepted_licenses(&fragment) {
+            args.push("--accept-license".to_owned());
+            args.push(id);
+        }
+    }
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    let init = dx_testing::run(&manifest.dx, &args, &[])
     .map_err(|err| format!("cannot run dx init: {err}"))?;
     if !init.status.success() {
         return Err(format!("dx init failed: {}", init.combined()));
@@ -2248,13 +2294,14 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         .ok_or("manifest needs a module_fragment")?;
     let fragment = std::fs::read_to_string(fragment_path)
         .map_err(|err| format!("cannot read {}: {err}", fragment_path.display()))?;
+    let fragment = without_license_tags(&fragment);
     let module = compose_module(
         &snippet,
         &manifest.module,
         &manifest.repo_name,
         &fragment,
         source,
-    )?;
+    )? + &write_root_patch_overrides(workspace, source)?;
     // A floor search resolves candidate versions: DX_CONSUMER_OVERRIDES=module=version,...
     let module = match std::env::var(dx_floor::OVERRIDES_ENV) {
         Ok(spec) if !spec.trim().is_empty() => {
@@ -2394,6 +2441,199 @@ fn windows_output_base(output_root: &Path) -> String {
         .and_then(|rest| rest.chars().next())
         .map_or(name, |c| name + c.len_utf8());
     root.get(..end).unwrap_or(&root).to_owned()
+}
+
+/// The workspace rules log `contexts` without the modules that `module` overrides with `local_path_override`.
+pub fn refetch_candidates(contexts: Vec<String>, module: &str) -> Vec<String> {
+    let local = dx_nested::compose::local_override_repos(module);
+    contexts
+        .into_iter()
+        .filter(|context| !local.contains(context))
+        .collect()
+}
+
+/// The longest command line a Windows run account accepts.
+pub const COMMAND_LINE_LIMIT: usize = 1024;
+
+/// The length of `arg` once quoted for CommandLineToArgvW.
+pub fn quoted_len(arg: &str) -> usize {
+    if !arg.is_empty() && !arg.contains([' ', '\t', '\n', '"']) {
+        return arg.encode_utf16().count();
+    }
+    arg.encode_utf16().count() * 2 + 2
+}
+
+/// Splits `args` into batches whose command line, after `base` characters, stays within `limit`.
+pub fn command_line_batches(base: usize, args: &[String], limit: usize) -> Vec<Vec<String>> {
+    let mut batches: Vec<Vec<String>> = Vec::new();
+    let mut length = base;
+    for arg in args {
+        let extra = quoted_len(arg) + 1;
+        match batches.last_mut() {
+            Some(batch) if length + extra <= limit => batch.push(arg.clone()),
+            _ => {
+                batches.push(vec![arg.clone()]);
+                length = base;
+            }
+        }
+        length += extra;
+    }
+    batches
+}
+
+/// The `(bzl label, rule name)` of each repository in `bazel mod show_repo --output=streamed_jsonproto` output, by canonical name.
+pub fn show_repo_rules(stdout: &str) -> BTreeMap<String, (String, String)> {
+    stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter_map(|repo| {
+            let field = |key: &str| repo.get(key).and_then(Value::as_str).map(str::to_owned);
+            Some((
+                field("canonicalName")?,
+                (field("repoRuleBzlLabel")?, field("repoRuleName")?),
+            ))
+        })
+        .collect()
+}
+
+/// The `external` directories of the output bases under `output_root`.
+fn external_dirs(output_root: &Path) -> Vec<PathBuf> {
+    if cfg!(windows) {
+        return vec![PathBuf::from(windows_output_base(output_root)).join("external")];
+    }
+    std::fs::read_dir(output_root)
+        .map(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .map(|entry| entry.path().join("external"))
+                .filter(|external| external.is_dir())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The file of `.bzl` label `@@repo//package:file` under an `external` directory.
+pub fn external_bzl(external: &Path, label: &str) -> Option<PathBuf> {
+    let (repo, path) = label.strip_prefix("@@")?.split_once("//")?;
+    let (package, file) = path.split_once(':')?;
+    if repo.is_empty() {
+        return None;
+    }
+    Some(external.join(repo).join(package).join(file))
+}
+
+/// Whether the rule of the `repository @@name` context is declared with `local = True`.
+fn local_rule_repo(
+    context: &str,
+    rules: &BTreeMap<String, (String, String)>,
+    externals: &[PathBuf],
+) -> bool {
+    let Some((label, rule)) = context
+        .strip_prefix("repository @@")
+        .and_then(|name| rules.get(name))
+    else {
+        return false;
+    };
+    externals
+        .iter()
+        .filter_map(|external| external_bzl(external, label))
+        .find_map(|bzl| std::fs::read_to_string(bzl).ok())
+        .is_some_and(|source| declares_local_rule(&source, rule))
+}
+
+/// Whether `source` declares `rule` as `repository_rule(..., local = True)`, through top-level `rule = other` aliases.
+pub fn declares_local_rule(source: &str, rule: &str) -> bool {
+    let mut name = rule.to_owned();
+    for _ in 0..8 {
+        let Some(value) = top_level_value(source, &name) else {
+            return false;
+        };
+        if let Some(call) = value
+            .strip_prefix("repository_rule")
+            .and_then(|rest| rest.trim_start().strip_prefix('('))
+        {
+            return call_arguments(call)
+                .iter()
+                .any(|argument| argument.split_whitespace().collect::<String>() == "local=True");
+        }
+        let alias: String = value
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect();
+        if alias.is_empty() || alias == name {
+            return false;
+        }
+        name = alias;
+    }
+    false
+}
+
+/// The text after `name =` of the first top-level assignment to `name` in `source`.
+fn top_level_value<'a>(source: &'a str, name: &str) -> Option<&'a str> {
+    let mut start = 0usize;
+    for line in source.split_inclusive('\n') {
+        let end = start.saturating_add(line.len());
+        let value = line
+            .strip_prefix(name)
+            .map(|after| after.trim_start_matches([' ', '\t']))
+            .and_then(|after| after.strip_prefix('='))
+            .filter(|value| !value.starts_with('='));
+        if let Some(value) = value {
+            return source
+                .get(end.saturating_sub(value.len())..)
+                .map(str::trim_start);
+        }
+        start = end;
+    }
+    None
+}
+
+/// The top-level arguments of a call whose text starts after its `(`.
+fn call_arguments(call: &str) -> Vec<String> {
+    let mut arguments = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0usize;
+    let mut chars = call.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' | '\'' => {
+                current.push('"');
+                let second = chars.next_if_eq(&c).is_some();
+                let triple = second && chars.next_if_eq(&c).is_some();
+                if second && !triple {
+                    continue;
+                }
+                let mut run = 0u8;
+                while let Some(inner) = chars.next() {
+                    if inner == '\\' {
+                        chars.next();
+                        run = 0;
+                    } else if inner == c {
+                        run = run.saturating_add(1);
+                        if !triple || run == 3 {
+                            break;
+                        }
+                    } else {
+                        run = 0;
+                    }
+                }
+            }
+            '#' => while chars.next_if(|inner| *inner != '\n').is_some() {},
+            '(' | '[' | '{' => {
+                depth = depth.saturating_add(1);
+                current.push(c);
+            }
+            ')' | ']' | '}' if depth == 0 => break,
+            ')' | ']' | '}' => {
+                depth = depth.saturating_sub(1);
+                current.push(c);
+            }
+            ',' if depth == 0 => arguments.push(std::mem::take(&mut current)),
+            _ => current.push(c),
+        }
+    }
+    arguments.push(current);
+    arguments
 }
 
 /// The Windows bash path rules_shell detected in `output_base`, read from its generated BUILD.
@@ -3049,7 +3289,48 @@ fn run_all(
         )],
         expect: Expect::Pass,
     })?;
-    let refetched = dx_nested::record::contexts(&std::fs::read(&refetch_log).unwrap_or_default());
+    let module =
+        std::fs::read_to_string(session.workspace.join("MODULE.bazel")).unwrap_or_default();
+    let mut refetched = refetch_candidates(
+        dx_nested::record::contexts(&std::fs::read(&refetch_log).unwrap_or_default()),
+        &module,
+    );
+    if !refetched.is_empty() {
+        let names: Vec<String> = refetched
+            .iter()
+            .filter_map(|context| context.strip_prefix("repository "))
+            .map(str::to_owned)
+            .collect();
+        let rules_repos = root.join("refetch_rules_repos");
+        let refetch_probe = |name: String, targets: Vec<String>| Probe {
+            name,
+            net: Net::Allowed,
+            home: &clean_home,
+            output_root: &cold,
+            repos: &rules_repos,
+            command: "mod",
+            targets,
+            extra: vec!["--output=streamed_jsonproto".to_owned()],
+            expect: Expect::Pass,
+        };
+        let base = session
+            .bazel_tail(&refetch_probe(String::new(), vec!["show_repo".to_owned()]))
+            .iter()
+            .map(|arg| quoted_len(arg) + 1)
+            .sum();
+        let mut rules = BTreeMap::new();
+        for (index, batch) in command_line_batches(base, &names, COMMAND_LINE_LIMIT)
+            .into_iter()
+            .enumerate()
+        {
+            let mut targets = vec!["show_repo".to_owned()];
+            targets.extend(batch);
+            let shown = session.run(refetch_probe(format!("refetch_rules_{index}"), targets))?;
+            rules.extend(show_repo_rules(&shown.stdout));
+        }
+        let externals = [external_dirs(&warm), external_dirs(&cold)].concat();
+        refetched.retain(|context| !local_rule_repo(context, &rules, &externals));
+    }
     if !refetched.is_empty() {
         return Err(format!(
             "a restarted server refetched repositories: {refetched:?}"

@@ -973,9 +973,32 @@ fn compare_golden(resolved: &Resolved, name: &str, actual: &[u8]) -> Result<(), 
     Ok(())
 }
 
+/// The failure text with every control character other than newline and tab escaped.
+pub fn printable_failure(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for ch in text.chars() {
+        if ch == '\n' || ch == '\t' || !ch.is_control() {
+            out.push(ch);
+        } else {
+            out.extend(ch.escape_default());
+        }
+    }
+    out
+}
+
 fn main() {
     if let Err(error) = run() {
-        eprintln!("matrix FAIL: {error}");
+        let text = error.to_string();
+        if let Ok(dir) = std::env::var(UNDECLARED_ENV)
+            && !dir.is_empty()
+        {
+            let path = PathBuf::from(dir).join("matrix_failure.txt");
+            if let Err(write_error) = std::fs::write(&path, &text) {
+                println!("cannot write {}: {write_error}", display(&path));
+            }
+        }
+        println!("matrix FAIL: {}", printable_failure(&text));
+        eprintln!("matrix FAIL: {}", printable_failure(&text));
         std::process::exit(1);
     }
 }
@@ -984,6 +1007,14 @@ fn main() {
 mod tests {
     use super::*;
     use prost::Message;
+
+    #[test]
+    fn printable_failure_escapes_control_characters() {
+        assert_eq!(
+            printable_failure("a\u{0}b\r\n\tc\u{1b}[0m"),
+            "a\\u{0}b\\r\n\tc\\u{1b}[0m"
+        );
+    }
 
     fn mapping(workspace: &str, key: &str) -> serde_json::Value {
         serde_json::json!({"workspace": workspace, "key": key})

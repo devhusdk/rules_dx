@@ -33,9 +33,7 @@ fn convergence_name(value: i32) -> &'static str {
 }
 
 fn opt_number(value: Option<u64>) -> String {
-    value
-        .map(|v| v.to_string())
-        .unwrap_or_else(|| "-".to_owned())
+    value.map_or_else(|| "-".to_owned(), |v| v.to_string())
 }
 
 fn rule_name(rule: &str) -> &str {
@@ -88,12 +86,9 @@ fn main() {
         tracing::error!("usage: print_result OUT.pb");
         std::process::exit(2);
     }
-    let path = match cli.input {
-        Some(path) => path,
-        None => {
-            tracing::error!("usage: print_result OUT.pb");
-            std::process::exit(2);
-        }
+    let Some(path) = cli.input else {
+        tracing::error!("usage: print_result OUT.pb");
+        std::process::exit(2);
     };
     let bytes = match std::fs::read(&path) {
         Ok(bytes) => bytes,

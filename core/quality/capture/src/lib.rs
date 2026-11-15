@@ -38,6 +38,11 @@ fn value(flag: &str, args: &mut impl Iterator<Item = String>) -> Result<String, 
     args.next().ok_or_else(|| format!("{flag} needs a value"))
 }
 
+/// Parses the capture command line.
+///
+/// # Errors
+///
+/// Returns the message for an unknown or incomplete argument.
 pub fn parse(args: Vec<String>) -> Result<Request, String> {
     let mut request = Request::default();
     let mut args = args.into_iter();
@@ -71,7 +76,11 @@ pub fn parse(args: Vec<String>) -> Result<Request, String> {
 }
 
 /// Replaces the Bazel execution root and Xcode placeholders in `args`.
-pub fn expand_bazel(args: &[String], values: &Placeholders) -> Result<Vec<String>, String> {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn expand_bazel(args: &[String], values: &Placeholders<'_>) -> Result<Vec<String>, String> {
     let mut out = Vec::with_capacity(args.len());
     for arg in args {
         let mut arg = arg.replace(EXECUTION_ROOT, values.execution_root);
@@ -161,7 +170,11 @@ fn spawn(request: &Request, command: &[String]) -> Result<i32, String> {
 }
 
 /// Runs `request` and returns the exit code of this process.
-pub fn run(request: &Request, values: &Placeholders) -> Result<i32, String> {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn run(request: &Request, values: &Placeholders<'_>) -> Result<i32, String> {
     if let Some(message) = &request.fail {
         eprintln!("{message}");
         return Ok(1);

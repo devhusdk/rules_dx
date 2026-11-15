@@ -15,6 +15,7 @@ const CONTEXT: usize = 3;
 
 /// The unified diff of `old` and `new` under `--- old_name` and `+++ new_name`; empty when equal.
 /// Inputs that are not UTF-8 are reported as differing binary files.
+#[must_use]
 pub fn unified(old_name: &str, new_name: &str, old: &[u8], new: &[u8]) -> Vec<u8> {
     if old == new {
         return Vec::new();
@@ -33,6 +34,10 @@ pub fn unified(old_name: &str, new_name: &str, old: &[u8], new: &[u8]) -> Vec<u8
 }
 
 /// Runs `diff -u OLD NEW`, writing the diff to `out`. Returns the exit code.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(args: &[OsString], out: &mut dyn Write) -> Result<i32, String> {
     let [flag, old, new] = args else {
         return Err(USAGE.to_owned());
@@ -61,6 +66,7 @@ pub fn run(args: &[OsString], out: &mut dyn Write) -> Result<i32, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn text(old: &str, new: &str) -> String {
         String::from_utf8(unified("a", "b", old.as_bytes(), new.as_bytes())).expect("utf-8")
@@ -108,14 +114,14 @@ mod tests {
         );
     }
 
-    fn args(items: &[&std::path::Path]) -> Vec<OsString> {
+    fn args(items: &[&Path]) -> Vec<OsString> {
         std::iter::once(OsString::from("-u"))
             .chain(items.iter().map(|path| path.as_os_str().to_owned()))
             .collect()
     }
 
-    fn scratch() -> std::path::PathBuf {
-        std::path::PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"))
+    fn scratch() -> PathBuf {
+        PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"))
     }
 
     #[test]

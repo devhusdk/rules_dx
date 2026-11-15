@@ -37,6 +37,7 @@ impl From<String> for MarkdownError {
     }
 }
 
+#[must_use]
 pub fn check_markdown(text: &str) -> CheckOutcome {
     let mut outcome = CheckOutcome::default();
 
@@ -89,6 +90,7 @@ pub(crate) struct FindingLine<'a> {
     pub(crate) kind: &'static str,
     pub(crate) message: &'a str,
 }
+#[must_use]
 pub fn kind_id(kind: FindingKind) -> &'static str {
     match kind {
         FindingKind::HeadingHierarchy => "heading-hierarchy",
@@ -177,33 +179,33 @@ fn rejecting_flag(args: &[String], raw: &str) -> &'static str {
     "--source"
 }
 
-fn parse_error(error: clap::Error, args: &[String]) -> Vec<String> {
+fn parse_error(error: &clap::Error, args: &[String]) -> Vec<String> {
     let kind = error.kind();
     if kind == ErrorKind::UnknownArgument {
         vec![
             format!(
                 "unknown argument: {}",
-                dx_output::unknown_token(&error, args)
+                dx_output::unknown_token(error, args)
             ),
             usage(),
         ]
     } else if kind == ErrorKind::InvalidValue {
-        let flag = dx_output::missing_value_flag(&error);
+        let flag = dx_output::missing_value_flag(error);
         vec![format!("missing value for {flag}"), usage()]
     } else if kind == ErrorKind::ValueValidation {
-        if let Some(raw) = dx_output::rejected_value(&error) {
+        if let Some(raw) = dx_output::rejected_value(error) {
             let flag = rejecting_flag(args, &raw);
-            return check_mapping(flag, &raw, &error);
+            return check_mapping(flag, &raw, error);
         }
         match empty_rejection(args) {
             EmptyRejection::Attached(echoed) => {
                 vec![format!("unknown argument: {echoed}"), usage()]
             }
-            EmptyRejection::Separate(flag) => check_mapping(flag, "", &error),
-            EmptyRejection::Neither => check_mapping("--source", "", &error),
+            EmptyRejection::Separate(flag) => check_mapping(flag, "", error),
+            EmptyRejection::Neither => check_mapping("--source", "", error),
         }
     } else {
-        vec![dx_output::first_line(&error), usage()]
+        vec![dx_output::first_line(error), usage()]
     }
 }
 
@@ -211,7 +213,7 @@ fn parse_args(args: &[String]) -> Result<Cli, Vec<String>> {
     Cli::try_parse_from(
         std::iter::once("quality_markdown").chain(args.iter().map(|arg| arg as &str)),
     )
-    .map_err(|error| parse_error(error, args))
+    .map_err(|error| parse_error(&error, args))
 }
 
 fn parse_mapping(flag: &'static str, raw: &str) -> Result<Mapping, String> {
@@ -298,12 +300,9 @@ pub fn run_cli(
                 return 2;
             }
         };
-        let text = match String::from_utf8(bytes) {
-            Ok(text) => text,
-            Err(_) => {
-                print_err(&format!("not UTF-8: {ws}"));
-                return 2;
-            }
+        let Ok(text) = String::from_utf8(bytes) else {
+            print_err(&format!("not UTF-8: {ws}"));
+            return 2;
         };
         texts.insert(ws.clone(), text);
     }

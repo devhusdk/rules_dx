@@ -303,6 +303,10 @@ fn member<'n>(node: &'n Node, key: &str) -> Option<&'n Node> {
 
 impl<'a> Notebook<'a> {
     /// Parses a notebook without checking its format version or language.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn parse(text: &'a str) -> Result<Self, NotebookError> {
         serde_json::from_str::<serde_json::Value>(text)
             .map_err(|err| NotebookError::Json(err.to_string()))?;
@@ -434,6 +438,7 @@ impl<'a> Notebook<'a> {
     }
 
     /// Per-cell spans, in file order.
+    #[must_use]
     pub fn index(&self) -> Vec<CellIndex> {
         self.cells
             .iter()
@@ -472,6 +477,7 @@ impl<'a> Notebook<'a> {
     /// IPython line magics and shell escapes become `pass`, cell magics are blanked, and a
     /// one-line prelude declares the names IPython injects. Returns `None` when a code cell
     /// has no readable source.
+    #[must_use]
     pub fn python_script(&self) -> Option<PythonScript> {
         let mut source = String::from(PYTHON_PRELUDE);
         source.push('\n');
@@ -511,6 +517,7 @@ impl<'a> Notebook<'a> {
     /// a 1-based line and scalar column in the notebook file. A row or column
     /// past the end clamps to the end of the cell source; anything else out of
     /// range returns `None`.
+    #[must_use]
     pub fn locate(&self, cell: u64, row: u64, column: u64) -> Option<(u64, u64)> {
         let index = usize::try_from(cell.checked_sub(1)?).ok()?;
         let target = self.cells.get(index)?;
@@ -565,6 +572,10 @@ fn source_span(source: &Source) -> Span {
 }
 
 /// Checks that `text` is an nbformat 4 notebook in any language.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn validate(text: &str) -> Result<Info, NotebookError> {
     let notebook = Notebook::parse(text)?;
     Ok(Info {
@@ -573,6 +584,10 @@ pub fn validate(text: &str) -> Result<Info, NotebookError> {
 }
 
 /// Checks that `text` is an nbformat 4 notebook in Python.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn preflight(text: &str) -> Result<Info, NotebookError> {
     let notebook = Notebook::parse(text)?;
     if let Some(language) = notebook.python {
@@ -584,6 +599,7 @@ pub fn preflight(text: &str) -> Result<Info, NotebookError> {
 }
 
 /// One-shot form of [`Notebook::locate`].
+#[must_use]
 pub fn locate(text: &str, cell: u64, row: u64, column: u64) -> Option<(u64, u64)> {
     Notebook::parse(text).ok()?.locate(cell, row, column)
 }
@@ -667,6 +683,10 @@ fn render_lines(original: &str, source: &Source, new_text: &str, eol: &str) -> S
 
 /// Copies the sources of changed code cells from `rewritten` into
 /// `original` and leaves every other byte alone.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn splice_sources(original: &str, rewritten: &str) -> Result<String, NotebookError> {
     let before = Notebook::parse(original)?;
     let after = Notebook::parse(rewritten)?;
@@ -758,6 +778,7 @@ pub struct PythonScript {
 
 impl PythonScript {
     /// Maps a script line to `(cell, row)` inside that cell; `None` for the prelude.
+    #[must_use]
     pub fn cell_row(&self, line: u64) -> Option<(u64, u64)> {
         let cell = self.cells.iter().rev().find(|c| c.first_line <= line)?;
         Some((cell.cell, line - cell.first_line + 1))

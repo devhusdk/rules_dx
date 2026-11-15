@@ -19,6 +19,7 @@ pub enum StandardFormat {
 }
 
 impl StandardFormat {
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             StandardFormat::Sarif => "sarif",
@@ -32,6 +33,7 @@ impl StandardFormat {
         }
     }
 
+    #[must_use]
     pub fn parse(text: &str) -> Option<Self> {
         match text {
             "sarif" => Some(StandardFormat::Sarif),
@@ -47,6 +49,7 @@ impl StandardFormat {
     }
 }
 
+#[must_use]
 pub fn format_names(formats: &[StandardFormat]) -> Vec<&'static str> {
     formats.iter().map(|format| format.name()).collect()
 }
@@ -58,6 +61,7 @@ pub enum Destination {
 }
 
 impl Destination {
+    #[must_use]
     pub fn display(&self) -> &str {
         match self {
             Destination::Stdout => "-",
@@ -73,6 +77,7 @@ pub struct PlannedReport {
     pub path: Option<PathBuf>,
 }
 
+#[must_use]
 pub fn resolve_destination(workspace: &Path, raw: &str) -> PathBuf {
     let candidate = Path::new(raw);
     let joined = if candidate.is_absolute() {
@@ -99,9 +104,9 @@ fn normalize_lexical(path: &Path) -> PathBuf {
                     out.push("..");
                 }
             }
-            other @ Component::Prefix(_)
-            | other @ Component::RootDir
-            | other @ Component::Normal(_) => out.push(other.as_os_str()),
+            other @ (Component::Prefix(_) | Component::RootDir | Component::Normal(_)) => {
+                out.push(other.as_os_str())
+            }
         }
     }
     if out.as_os_str().is_empty() {
@@ -162,35 +167,36 @@ fn stdout_conflict(error: OutputError) -> ReportError {
         OutputError::ConflictingStdoutReport { mode } => {
             ReportError::StdoutReportConflictsMode { mode }
         }
-        unexpected @ OutputError::UnknownOutputMode { .. }
-        | unexpected @ OutputError::EmptyField { .. }
-        | unexpected @ OutputError::BadCommandMode { .. }
-        | unexpected @ OutputError::BadSeverity { .. }
-        | unexpected @ OutputError::BadSource { .. }
-        | unexpected @ OutputError::BadAvailability { .. }
-        | unexpected @ OutputError::BadValue { .. }
-        | unexpected @ OutputError::BadThreshold { .. }
-        | unexpected @ OutputError::BadColor { .. }
-        | unexpected @ OutputError::BadPath { .. }
-        | unexpected @ OutputError::BadDigest { .. }
-        | unexpected @ OutputError::BadEdit { .. }
-        | unexpected @ OutputError::RangeWithoutPath
-        | unexpected @ OutputError::InvertedRange
-        | unexpected @ OutputError::UnexpectedResolution
-        | unexpected @ OutputError::MissingReason { .. }
-        | unexpected @ OutputError::UnexpectedReason { .. }
-        | unexpected @ OutputError::NotAnEvent
-        | unexpected @ OutputError::UnregisteredEvent { .. }
-        | unexpected @ OutputError::UnsupportedSchema { .. }
-        | unexpected @ OutputError::Io { .. }
-        | unexpected @ OutputError::BadCorrelation { .. } => {
-            ReportError::UnexpectedOutputConflict {
-                detail: unexpected.to_string(),
-            }
-        }
+        unexpected @ (OutputError::UnknownOutputMode { .. }
+        | OutputError::EmptyField { .. }
+        | OutputError::BadCommandMode { .. }
+        | OutputError::BadSeverity { .. }
+        | OutputError::BadSource { .. }
+        | OutputError::BadAvailability { .. }
+        | OutputError::BadValue { .. }
+        | OutputError::BadThreshold { .. }
+        | OutputError::BadColor { .. }
+        | OutputError::BadPath { .. }
+        | OutputError::BadDigest { .. }
+        | OutputError::BadEdit { .. }
+        | OutputError::RangeWithoutPath
+        | OutputError::InvertedRange
+        | OutputError::UnexpectedResolution
+        | OutputError::MissingReason { .. }
+        | OutputError::UnexpectedReason { .. }
+        | OutputError::NotAnEvent
+        | OutputError::UnregisteredEvent { .. }
+        | OutputError::UnsupportedSchema { .. }
+        | OutputError::Io { .. }
+        | OutputError::BadCorrelation { .. }) => ReportError::UnexpectedOutputConflict {
+            detail: unexpected.to_string(),
+        },
     }
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn plan_reports(
     workspace: &Path,
     command: Command,
@@ -423,14 +429,19 @@ mod tests {
                 supported: vec![],
             })
         );
-        assert!(
+        assert_eq!(
             plan_reports(workspace.path(), Command::Format, &[], &text_mode())
                 .expect("plan")
-                .is_empty()
+                .len(),
+            0
         );
     }
 
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one linear sequence of steps read top to bottom"
+    )]
     fn error_display_reports_variant() {
         assert_eq!(
             stdout_conflict(OutputError::SecondStdoutReport),
@@ -664,7 +675,7 @@ mod tests {
                 "{command:?} {format} must stay unsupported"
             );
         }
-        assert!(spec(Command::Format).reports.is_empty());
+        assert_eq!(spec(Command::Format).reports, []);
     }
 
     #[test]

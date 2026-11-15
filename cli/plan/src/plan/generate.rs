@@ -4,6 +4,7 @@ use dx_process::describe_scope;
 use super::{BuildPlan, bazel_argv, rules_dx_label, workflow_scope_labels};
 use crate::resolve::ResolvedScope;
 
+#[must_use]
 pub fn generate_target(check: bool) -> String {
     rules_dx_label(if check {
         "dx:generate_check"
@@ -85,6 +86,7 @@ pub fn generate_package_scope(targets: &[String]) -> Vec<String> {
     kept.into_iter().map(|dir| format!("//{dir}/...")).collect()
 }
 
+#[must_use]
 pub fn generate_scope_elements(resolved: &ResolvedScope) -> Vec<GenerateScopeElement> {
     let (_, labels) = workflow_scope_labels(resolved);
     labels
@@ -96,6 +98,7 @@ pub fn generate_scope_elements(resolved: &ResolvedScope) -> Vec<GenerateScopeEle
         .collect()
 }
 
+#[must_use]
 pub fn generate_scope_json(resolved: &ResolvedScope) -> String {
     let items: Vec<serde_json::Value> = generate_scope_elements(resolved)
         .iter()
@@ -106,6 +109,7 @@ pub fn generate_scope_json(resolved: &ResolvedScope) -> String {
     serde_json::Value::Array(items).to_string()
 }
 
+#[must_use]
 pub fn generate_traversal_dirs(resolved: &ResolvedScope) -> Vec<String> {
     let mut dirs: Vec<String> = generate_scope_elements(resolved)
         .into_iter()
@@ -132,6 +136,9 @@ pub fn generate_exclude_dirs(resolved: &ResolvedScope) -> Vec<String> {
     dirs
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn plan_generate(
     resolved: &ResolvedScope,
     bazel_options: &[String],
@@ -396,7 +403,7 @@ mod tests {
             generate_package_scope(&strings(&["@ext//p:t", "//b:y"])),
             strings(&["//..."])
         );
-        assert!(generate_package_scope(&[]).is_empty());
+        assert_eq!(generate_package_scope(&[]), [] as [String; 0]);
     }
 
     #[test]

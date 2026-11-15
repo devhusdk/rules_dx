@@ -53,6 +53,7 @@ pub enum WorkflowVerb {
 }
 
 impl WorkflowVerb {
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             WorkflowVerb::Build => "build",
@@ -64,16 +65,18 @@ impl WorkflowVerb {
     }
 
     /// The Bazel command this verb runs; `bench` is `bazel test` over the tagged tests.
+    #[must_use]
     pub fn bazel_command(self) -> &'static str {
         match self {
             WorkflowVerb::Bench => "test",
-            other @ WorkflowVerb::Build
-            | other @ WorkflowVerb::Test
-            | other @ WorkflowVerb::Coverage
-            | other @ WorkflowVerb::Run => other.name(),
+            other @ (WorkflowVerb::Build
+            | WorkflowVerb::Test
+            | WorkflowVerb::Coverage
+            | WorkflowVerb::Run) => other.name(),
         }
     }
 
+    #[must_use]
     pub fn collects_reports(self) -> bool {
         matches!(
             self,
@@ -510,6 +513,7 @@ static CONFIG: CommandMeta = CommandMeta {
 };
 
 impl Command {
+    #[must_use]
     pub fn meta(self) -> &'static CommandMeta {
         match self {
             Command::Security => &SECURITY,
@@ -540,6 +544,7 @@ impl Command {
         }
     }
 
+    #[must_use]
     pub fn pipe_list() -> String {
         use clap::ValueEnum;
         Self::value_variants()
@@ -549,34 +554,45 @@ impl Command {
             .join("|")
     }
 
+    #[must_use]
     pub fn scope_policy(self) -> &'static str {
         self.meta().scope_policy
     }
 
+    #[must_use]
     pub fn name(self) -> &'static str {
         self.meta().name
     }
 
+    #[must_use]
     pub fn parse(text: &str) -> Option<Self> {
         use clap::ValueEnum;
         Self::from_str(text, false).ok()
     }
 
+    #[must_use]
     pub fn workflow_verb(self) -> Option<WorkflowVerb> {
         self.meta().workflow_verb
     }
 
+    #[must_use]
     pub fn is_managed(self) -> bool {
         self.meta().is_managed
     }
 
+    #[must_use]
     pub fn is_adoption(self) -> bool {
         self.meta().is_adoption
     }
 
     /// The output formats the command offers.
+    #[must_use]
     pub fn output_caps(self) -> OutputCaps {
-        use Command::*;
+        use Command::{
+            Bench, Build, Check, Clean, Completion, Config, Coverage, Deploy, Docs, Format, Fuzz,
+            Generate, Init, License, Lint, Run, Security, Status, Sync, Test, Typecheck, Update,
+            Upgrade, Watch, Worktree,
+        };
         let (json, streamed) = match self {
             Completion | Deploy => (false, false),
             Lint | Typecheck | Format | Generate | Build | Test | Coverage | Bench | Run
@@ -593,40 +609,48 @@ impl Command {
     }
 
     /// Whether `dx <command> --output json` is accepted.
+    #[must_use]
     pub fn supports_json(self) -> bool {
         self.output_caps().json
     }
 
     /// Whether the grammar lets `dx <command> --diff` parse.
+    #[must_use]
     pub fn supports_diff(self) -> bool {
         super::grammar::accepts_long(self, "diff")
     }
 
     /// Whether `--here` applies; watch passes it to the command it wraps.
+    #[must_use]
     pub fn supports_here(self) -> bool {
         super::grammar::accepts_long(self, "here") && self != Command::Watch
     }
 
     /// Whether the grammar lets `dx <command> --apply` parse.
+    #[must_use]
     pub fn supports_apply(self) -> bool {
         super::grammar::accepts_long(self, "apply")
     }
 
     /// Whether `--fail-on` applies; watch passes it to the command it wraps.
+    #[must_use]
     pub fn supports_fail_on(self) -> bool {
         super::grammar::accepts_long(self, "fail-on")
             && !matches!(self, Command::Watch | Command::Bench)
     }
 
+    #[must_use]
     pub fn describe(self) -> &'static str {
         self.meta().describe
     }
 
+    #[must_use]
     pub fn usage(self) -> &'static str {
         self.meta().usage
     }
 
     /// The leading positionals the usage line spells with angle brackets, or none when it names none.
+    #[must_use]
     pub fn required_slot(self) -> Option<&'static str> {
         let rest = self.usage().strip_prefix("Usage: dx ")?.split_once(' ')?.1;
         let mut slot: Option<(usize, usize)> = None;
@@ -653,6 +677,7 @@ impl Command {
         (!slot.is_empty()).then_some(slot)
     }
 
+    #[must_use]
     pub fn scopes_text(self) -> &'static str {
         self.meta().scopes
     }
@@ -1169,13 +1194,13 @@ mod tests {
             assert_eq!(entry.scope_policy, entry.command.scope_policy());
         }
         let mut seen: Vec<Command> = Vec::new();
-        for entry in COMMANDS.iter() {
+        for entry in &COMMANDS {
             assert!(!seen.contains(&entry.command), "duplicate table entry");
             seen.push(entry.command);
-            assert!(!entry.name.is_empty());
-            assert!(!entry.describe.is_empty());
-            assert!(!entry.usage.is_empty());
-            assert!(!entry.scopes.is_empty());
+            assert_ne!(entry.name, "");
+            assert_ne!(entry.describe, "");
+            assert_ne!(entry.usage, "");
+            assert_ne!(entry.scopes, "");
         }
     }
 

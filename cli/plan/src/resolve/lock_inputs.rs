@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 
 use dx_adopt::dependency_sets::Ecosystem;
 use dx_module_bazel::{Call, ModuleFile, Value};
@@ -26,6 +27,10 @@ pub(crate) struct LockChange {
 
 /// One `crate.from_cargo` hub with the lock files it reads.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent on/off options, one per command line flag"
+)]
 pub(crate) struct Hub {
     pub(crate) name: String,
     pub(crate) cargo_lockfile: String,
@@ -112,7 +117,7 @@ const NPM_EXTENSION_BZL: &str = "npm:extensions.bzl";
 const CARGO_HUB_BZL: &str = "//rust:extensions.bzl";
 const NPM_HUB_BZL: &str = "//javascript:extensions.bzl";
 
-/// Whether `use_extension(bzl, name)` is the crate_universe extension or the rules_dx `cargo` hub.
+/// Whether `use_extension(bzl, name)` is the `crate_universe` extension or the `rules_dx` `cargo` hub.
 pub(crate) fn is_crate_extension(bzl: &str, name: &str) -> bool {
     (bzl.ends_with(CRATE_EXTENSION_BZL) && name == "crate")
         || (bzl.ends_with(CARGO_HUB_BZL) && name == "cargo")
@@ -180,6 +185,10 @@ fn workspace_path(label: &str) -> Result<String, dx_error::DxError> {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear sequence of steps read top to bottom"
+)]
 pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError> {
     let module = ModuleFile::parse(module_text)
         .map_err(|error| dx_error::DxError::failure(error.to_string()))?;
@@ -586,7 +595,7 @@ fn collect_aliases<'a>(value: &'a serde_json::Value, out: &mut Vec<(&'a str, &'a
     }
 }
 
-/// Hub alias names rules_rust renders besides the plain crate names, each with
+/// Hub alias names `rules_rust` renders besides the plain crate names, each with
 /// the crates it points at.
 fn hub_aliases(
     lock: &serde_json::Map<String, serde_json::Value>,
@@ -831,9 +840,7 @@ fn requirement_lines(text: &str) -> BTreeMap<String, String> {
         let name = pip_name(line.get(..end).unwrap_or_default());
         if !name.is_empty() {
             let rest = line.get(end..).unwrap_or_default();
-            out.entry(name.clone())
-                .or_default()
-                .push_str(&format!("{name}{rest}\n"));
+            writeln!(out.entry(name.clone()).or_default(), "{name}{rest}").ok();
         }
     };
     for raw in text.lines() {
@@ -1187,7 +1194,7 @@ fn changed_gems(base: &str, head: &str) -> Result<LockChange, dx_error::DxError>
     })
 }
 
-/// Labels of a bundle repo; rules_ruby names its per-gem targets and repos
+/// Labels of a bundle repo; `rules_ruby` names its per-gem targets and repos
 /// differently across versions, so any label in the repo counts as a user.
 pub(crate) fn gem_seeds<'a>(labels: impl Iterator<Item = &'a str>, hub: &str) -> Vec<String> {
     let mut out: Vec<String> = labels
@@ -1355,12 +1362,10 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     fn lock(packages: &[(&str, &str, &[&str])]) -> String {
         let mut out = String::from("version = 3\n");
         for (name, version, deps) in packages {
-            out.push_str(&format!(
-                "\n[[package]]\nname = \"{name}\"\nversion = \"{version}\"\nsource = \"{REGISTRY}\"\n"
-            ));
+            write!(out, "\n[[package]]\nname = \"{name}\"\nversion = \"{version}\"\nsource = \"{REGISTRY}\"\n").ok();
             if !deps.is_empty() {
                 let list: Vec<String> = deps.iter().map(|dep| format!(" \"{dep}\",")).collect();
-                out.push_str(&format!("dependencies = [\n{}\n]\n", list.join("\n")));
+                write!(out, "dependencies = [\n{}\n]\n", list.join("\n")).ok();
             }
         }
         out
@@ -1432,11 +1437,12 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         };
         let change = changed_gems(&lock("13.0.0"), &lock("13.1.0")).expect("diff");
         assert_eq!(change.crates, crates(&[("rake", &["13.0.0", "13.1.0"])]));
-        assert!(
+        assert_eq!(
             changed_gems(&lock("1"), &lock("1"))
                 .expect("same")
                 .crates
-                .is_empty()
+                .len(),
+            0
         );
     }
 
@@ -1818,9 +1824,11 @@ npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:{}")
     fn pnpm_lock(packages: &[(&str, &str)], settings: &str) -> String {
         let mut out = format!("lockfileVersion: '9.0'\n\nsettings:\n  {settings}\n\npackages:\n");
         for (name, version) in packages {
-            out.push_str(&format!(
+            write!(
+                out,
                 "\n  {name}@{version}:\n    resolution: {{integrity: sha512-abc}}\n"
-            ));
+            )
+            .ok();
         }
         out
     }
@@ -1840,7 +1848,7 @@ npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:{}")
         assert_ne!(dx, upstream);
         assert!(!dx.contains("@rules_rust//") && !dx.contains("@aspect_rules_js//"));
         let hubs = crate_hubs(&dx).expect("hubs");
-        assert!(!hubs.is_empty());
+        assert_ne!(hubs, [] as [Hub; 0]);
         assert_eq!(hubs, crate_hubs(&upstream).expect("hubs"));
         assert!(is_crate_extension("//rust:extensions.bzl", "cargo"));
         assert!(!is_crate_extension(

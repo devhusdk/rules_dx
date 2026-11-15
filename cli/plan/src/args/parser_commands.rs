@@ -106,8 +106,10 @@ fn an_owned_option_is_accepted_only_by_its_owner() {
                     "dx {} accepts {option}, which {owners:?} own: {words:?}",
                     command.name()
                 ),
-                Err(ArgsError::UnsupportedOption { option: named, .. })
-                | Err(ArgsError::UnknownOption { option: named, .. }) => {
+                Err(
+                    ArgsError::UnsupportedOption { option: named, .. }
+                    | ArgsError::UnknownOption { option: named, .. },
+                ) => {
                     assert!(
                         !owners.contains(&command.name()),
                         "dx {} owns {option} but rejects it: {words:?}",
@@ -418,7 +420,7 @@ fn run_rejects_machine_output_and_reports() {
     assert_eq!(got.command, Command::Run);
     assert_eq!(got.targets, vec!["//app:bin".to_owned()]);
     assert_eq!(got.app_args(), ["--port=8080".to_owned()]);
-    assert!(got.bazel_options.is_empty());
+    assert_eq!(got.bazel_options, [] as [String; 0]);
 }
 
 #[test]
@@ -432,9 +434,9 @@ fn run_bazel_options_route_apart_from_app_args() {
     ]))
     .expect("parse run");
     assert_eq!(got.bazel_options, strings(&["--jobs=4", "--config=ci"]));
-    assert!(got.app_args().is_empty());
+    assert_eq!(got.app_args(), [] as [&str; 0]);
     let got = parse(&strings(&["run", "//a", "--", "--bazel-option=x"])).expect("app arg");
-    assert!(got.bazel_options.is_empty());
+    assert_eq!(got.bazel_options, [] as [String; 0]);
     assert_eq!(got.app_args(), strings(&["--bazel-option=x"]));
     let got = parse(&strings(&[
         "run",
@@ -666,10 +668,10 @@ fn docs_check_serve_port_parse() {
         assert!(
             matches!(
                 parse(&strings(&words)),
-                Err(ArgsError::UnsupportedOption { .. })
-                    | Err(ArgsError::MissingValue { .. })
-                    | Err(ArgsError::UnknownOption { .. })
-                    | Err(ArgsError::Usage { .. })
+                Err(ArgsError::UnsupportedOption { .. }
+                    | ArgsError::MissingValue { .. }
+                    | ArgsError::UnknownOption { .. }
+                    | ArgsError::Usage { .. })
             ),
             "words: {words:?}"
         );
@@ -708,8 +710,8 @@ fn managed_commands_parse_repo_and_exact_scopes() {
         let command = "sync";
         let got = parse(&strings(&[command])).expect("parse");
         assert!(got.command.is_managed());
-        assert!(got.targets.is_empty());
-        assert!(got.bazel_options.is_empty());
+        assert_eq!(got.targets, [] as [String; 0]);
+        assert_eq!(got.bazel_options, [] as [String; 0]);
         let got = parse(&strings(&[command, "//a:one", "--", "--jobs=4"])).expect("scoped parse");
         assert_eq!(got.targets, strings(&["//a:one"]));
         assert_eq!(got.bazel_options, strings(&["--jobs=4"]));
@@ -731,11 +733,11 @@ fn managed_commands_parse_repo_and_exact_scopes() {
         assert!(
             matches!(
                 parse(&strings(&words)),
-                Err(ArgsError::EmptyScope)
-                    | Err(ArgsError::RelativeLabel { .. })
-                    | Err(ArgsError::InvalidScope { .. })
-                    | Err(ArgsError::UnknownOption { .. })
-                    | Err(ArgsError::Usage { .. })
+                Err(ArgsError::EmptyScope
+                    | ArgsError::RelativeLabel { .. }
+                    | ArgsError::InvalidScope { .. }
+                    | ArgsError::UnknownOption { .. }
+                    | ArgsError::Usage { .. })
             ),
             "words: {words:?}"
         );

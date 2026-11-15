@@ -8,6 +8,7 @@ pub enum BuildMode {
 }
 
 impl BuildMode {
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             BuildMode::Debug => "debug",
@@ -16,6 +17,7 @@ impl BuildMode {
         }
     }
 
+    #[must_use]
     pub fn config(self) -> &'static str {
         match self {
             BuildMode::Debug => "dx_build_debug",
@@ -24,10 +26,12 @@ impl BuildMode {
         }
     }
 
+    #[must_use]
     pub fn config_flag(self) -> String {
         format!("--config={}", self.config())
     }
 
+    #[must_use]
     pub fn default_for(command: Command) -> Self {
         if command.meta().default_release {
             BuildMode::Release
@@ -36,6 +40,7 @@ impl BuildMode {
         }
     }
 
+    #[must_use]
     pub fn parse_attr(value: &str) -> Option<Self> {
         match value {
             "debug" => Some(BuildMode::Debug),
@@ -48,6 +53,7 @@ impl BuildMode {
 
 pub const DX_BUILD_MODE_ENV: &str = "DX_BUILD_MODE";
 
+#[must_use]
 pub fn resolve_build_mode(
     flag: Option<BuildMode>,
     attr: Option<BuildMode>,

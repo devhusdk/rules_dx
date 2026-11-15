@@ -14,6 +14,7 @@ pub(crate) fn strip_configuration(line: &str) -> &str {
     }
 }
 
+#[must_use]
 pub fn set_expression(labels: &[String]) -> String {
     let quoted: Vec<String> = labels.iter().map(|label| quote_label(label)).collect();
     format!("set({})", quoted.join(" "))
@@ -50,6 +51,9 @@ fn run_labels(
     Ok(labels)
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 #[cfg(test)]
 pub fn map_owners_to_tests_with_selection(
     owners: &[String],
@@ -274,7 +278,7 @@ mod tests {
             &SelectionContext::unconfigured(&[]),
         )
         .expect("map");
-        assert!(got.is_empty());
+        assert_eq!(got, [] as [String; 0]);
     }
 
     #[test]

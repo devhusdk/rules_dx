@@ -11,6 +11,9 @@ use serde_sarif::sarif::{
     Result as SarifResult, ResultLevel, Run, Sarif, Tool, ToolComponent,
 };
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn byte_to_line(path: &str, text: &str, offset: u64) -> Result<(u64, u64), ReportError> {
     let bad = || ReportError::BadOffset {
         path: path.to_owned(),
@@ -19,23 +22,28 @@ pub fn byte_to_line(path: &str, text: &str, offset: u64) -> Result<(u64, u64), R
     if offset > text.len() as u64 {
         return Err(bad());
     }
-    let offset_usize = offset as usize;
+    let Ok(offset_usize) = usize::try_from(offset) else {
+        return Err(bad());
+    };
     if !text.is_char_boundary(offset_usize) {
         return Err(bad());
     }
     if text.len() >= u32::MAX as usize {
         let prefix = text.get(..offset_usize).unwrap_or_default();
-        let line = prefix.as_bytes().iter().filter(|&&b| b == b'\n').count() as u64 + 1;
+        let line = prefix.matches('\n').count() as u64 + 1;
         let column = prefix.rsplit('\n').next().unwrap_or("").chars().count() as u64 + 1;
         return Ok((line, column));
     }
     let index = LineIndex::new(text);
-    let size = TextSize::from(offset as u32);
+    let Ok(offset_u32) = u32::try_from(offset) else {
+        return Err(bad());
+    };
+    let size = TextSize::from(offset_u32);
     let line_col = index.try_line_col(size).ok_or_else(bad)?;
     let wide = index
         .to_wide(WideEncoding::Utf32, line_col)
         .ok_or_else(bad)?;
-    Ok((wide.line as u64 + 1, wide.col as u64 + 1))
+    Ok((u64::from(wide.line) + 1, u64::from(wide.col) + 1))
 }
 
 fn check_shape(finding: &DiagnosticEvent) -> Result<(), ReportError> {
@@ -103,10 +111,10 @@ fn locate(
         let (start_line, start_column) = byte_to_line(path, text, start)?;
         let (end_line, end_column) = byte_to_line(path, text, end)?;
         let region = Region::builder()
-            .start_line(start_line as i64)
-            .start_column(start_column as i64)
-            .end_line(end_line as i64)
-            .end_column(end_column as i64)
+            .start_line(start_line.cast_signed())
+            .start_column(start_column.cast_signed())
+            .end_line(end_line.cast_signed())
+            .end_column(end_column.cast_signed())
             .build();
         let physical = PhysicalLocation::builder()
             .artifact_location(artifact)
@@ -134,7 +142,7 @@ fn related_locations(
         let mut location = locate(item.path.as_ref(), item.range, finding.snapshot, snapshots)
             .or_else(|_| locate(item.path.as_ref(), None, finding.snapshot, snapshots))?
             .unwrap_or_else(|| Location::builder().build());
-        location.id = Some(index as i64);
+        location.id = Some(i64::try_from(index).unwrap_or(i64::MAX));
         let text = if item.role.is_empty() {
             item.message.clone()
         } else {
@@ -260,6 +268,9 @@ fn result(
     Ok(built)
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn render_sarif(
     tools: &[String],
     findings: &[DiagnosticEvent],
@@ -269,6 +280,9 @@ pub fn render_sarif(
     render_sarif_with_failures(tools, findings, snapshots, complete, &BTreeMap::new())
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn render_sarif_with_failures(
     tools: &[String],
     findings: &[DiagnosticEvent],
@@ -307,7 +321,7 @@ pub fn render_sarif_with_failures(
                 .rule
                 .as_deref()
                 .and_then(|rule| rules.binary_search(&rule).ok())
-                .map(|position| position as i64);
+                .map(|position| i64::try_from(position).unwrap_or(i64::MAX));
             results.push(result(finding, snapshots, index)?);
         }
         let descriptors = rules
@@ -332,7 +346,7 @@ pub fn render_sarif_with_failures(
                     .map(|text| {
                         Notification::builder()
                             .message(Message::builder().text(text.clone()).build())
-                            .level(serde_json::Value::String("error".to_owned()))
+                            .level(Value::String("error".to_owned()))
                             .build()
                     })
                     .collect()
@@ -349,7 +363,7 @@ pub fn render_sarif_with_failures(
     let document = Sarif::builder()
         .schema("https://json.schemastore.org/sarif-2.1.0.json".to_owned())
         .runs(runs)
-        .version(serde_json::Value::String("2.1.0".to_owned()))
+        .version(Value::String("2.1.0".to_owned()))
         .build();
     Ok(dx_fingerprint::to_json(&document)?)
 }
@@ -604,7 +618,8 @@ mod tests {
             .as_array()
             .expect("rules");
         assert_eq!(rules, &vec![json!({"id": "lint-tool/rule"})]);
-        let index = lint_results[0]["ruleIndex"].as_u64().expect("ruleIndex") as usize;
+        let index = usize::try_from(lint_results[0]["ruleIndex"].as_u64().expect("ruleIndex"))
+            .expect("ruleIndex fits usize");
         assert_eq!(rules[index]["id"], lint_results[0]["ruleId"]);
         assert_eq!(runs[1]["results"][0]["level"], json!("error"));
         assert!(runs[1]["results"][0].get("locations").is_none());
@@ -837,12 +852,9 @@ mod tests {
             .expect("empty render");
         let typed_empty: Sarif = serde_json::from_str(&empty).expect("typed empty");
         assert_eq!(typed_empty.runs.len(), 1);
-        assert!(
-            typed_empty.runs[0]
-                .results
-                .as_ref()
-                .expect("results")
-                .is_empty()
+        assert_eq!(
+            typed_empty.runs[0].results.as_ref().expect("results").len(),
+            0
         );
 
         let snapshots = BTreeMap::new();

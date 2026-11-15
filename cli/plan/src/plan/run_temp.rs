@@ -2,16 +2,19 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
+#[must_use]
 pub fn bep_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {
     temp_dir.join(format!("dx-bep-{pid}-{nonce}.json"))
 }
 
+#[must_use]
 pub fn results_path(workspace: &Path) -> PathBuf {
     dx_path::state::local_dir(workspace).join(dx_path::state::RESULTS)
 }
 
 /// Identifies one run: `{pid}-{nonce}-{suffix}`, the suffix being the random part of the
 /// `dx-run-{pid}-XXXXXX` temp dir name (omitted when the dir has another name).
+#[must_use]
 pub fn run_id(pid: u32, nonce: u64, temp_dir: &Path) -> String {
     let suffix = temp_dir
         .file_name()
@@ -27,10 +30,12 @@ pub fn run_id(pid: u32, nonce: u64, temp_dir: &Path) -> String {
     }
 }
 
+#[must_use]
 pub fn intended_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {
     temp_dir.join(format!("dx-generate-{pid}-{nonce}.json"))
 }
 
+#[must_use]
 pub fn patch_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {
     temp_dir.join(format!("dx-generate-{pid}-{nonce}.patch"))
 }
@@ -50,11 +55,16 @@ pub struct RunTempDir {
 }
 
 impl RunTempDir {
+    #[must_use]
     pub fn path(&self) -> &Path {
         self.dir.path()
     }
 
     /// Releases the owner lock and removes the directory, tolerating a sweeper that won the race.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn close(self) -> std::io::Result<()> {
         drop(self.owner);
         match self.dir.close() {
@@ -64,6 +74,9 @@ impl RunTempDir {
     }
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn create_run_temp_dir(base: &Path, pid: u32) -> std::io::Result<(RunTempDir, u64)> {
     let dir = tempfile::Builder::new()
         .prefix(&format!("dx-run-{pid}-"))

@@ -3,6 +3,9 @@ use std::path::Path;
 use super::rule_graph::RuleGraph;
 use super::{QueryRunner, ResolveError};
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn expand_codegen_roots(
     label: &str,
     workspace: &Path,
@@ -94,7 +97,12 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
-            graph_rule_of_kind("//schema:lib", "capnproto_library", &["//schema:a.capnp"], &[]),
+            graph_rule_of_kind(
+                "//schema:lib",
+                "capnproto_library",
+                &["//schema:a.capnp"],
+                &[],
+            ),
             graph_rule_of_kind(
                 "//schema:lib_cc",
                 "capnproto_cc_library",
@@ -114,7 +122,12 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-rs-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
-            graph_rule_of_kind("//schema:lib", "capnproto_library", &["//schema:a.capnp"], &[]),
+            graph_rule_of_kind(
+                "//schema:lib",
+                "capnproto_library",
+                &["//schema:a.capnp"],
+                &[],
+            ),
             graph_rule_of_kind(
                 "//schema:lib_rs_generated",
                 "_capnp_rust_srcs",
@@ -137,7 +150,12 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-java-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
-            graph_rule_of_kind("//schema:lib", "capnproto_library", &["//schema:a.capnp"], &[]),
+            graph_rule_of_kind(
+                "//schema:lib",
+                "capnproto_library",
+                &["//schema:a.capnp"],
+                &[],
+            ),
             graph_rule_of_kind(
                 "//schema:lib_java",
                 "capnproto_java_library",

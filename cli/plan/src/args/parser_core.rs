@@ -13,11 +13,11 @@ fn bare_command_parses_with_defaults() {
     assert!(!got.quiet);
     assert!(!got.verbose);
     assert_eq!(got.output, OutputMode::Text { quiet: false });
-    assert!(got.reports.is_empty());
+    assert_eq!(got.reports, [] as [ReportRequest; 0]);
     assert_eq!(got.fail_on, Threshold::Warning);
-    assert!(got.targets.is_empty());
-    assert!(got.bazel_options.is_empty());
-    assert!(got.bazel_startup_options.is_empty());
+    assert_eq!(got.targets, [] as [String; 0]);
+    assert_eq!(got.bazel_options, [] as [String; 0]);
+    assert_eq!(got.bazel_startup_options, [] as [String; 0]);
 }
 
 #[test]
@@ -213,8 +213,8 @@ fn generate_parses_repo_wide_with_bazel_options() {
     let got = parse(&strings(&["generate"])).expect("parse");
     assert_eq!(got.command, Command::Generate);
     assert_eq!(got.output, OutputMode::Text { quiet: false });
-    assert!(got.targets.is_empty());
-    assert!(got.bazel_options.is_empty());
+    assert_eq!(got.targets, [] as [String; 0]);
+    assert_eq!(got.bazel_options, [] as [String; 0]);
     let scoped = parse(&strings(&["generate", "//a:one", "--", "--jobs=4"])).expect("parse");
     assert_eq!(scoped.command, Command::Generate);
     assert_eq!(scoped.targets, strings(&["//a:one"]));
@@ -293,7 +293,7 @@ fn short_options_after_the_separator_belong_to_the_payload() {
     let got = parse(&strings(&["run", "//app:bin", "--", "-v", "-q", "-o", "x"])).expect("parse");
     assert!(!got.verbose && !got.quiet);
     assert_eq!(got.app_args(), strings(&["-v", "-q", "-o", "x"]));
-    assert!(got.bazel_options.is_empty());
+    assert_eq!(got.bazel_options, [] as [String; 0]);
 }
 
 #[test]
@@ -571,7 +571,7 @@ fn audit_update_parse_and_reject_unsupported_options() {
     assert_eq!(security.command.name(), "security");
     assert!(!security.command.is_adoption());
     assert!(!security.command.is_managed());
-    assert!(security.targets.is_empty());
+    assert_eq!(security.targets, [] as [String; 0]);
     let license = parse(&strings(&["license", "//a:one"])).expect("parse license scope");
     assert_eq!(license.command, Command::License);
     assert_eq!(license.targets, vec!["//a:one".to_owned()]);
@@ -851,11 +851,11 @@ fn accept_needs_a_reason_and_an_expiry() {
 fn lint_online_sets_the_request_flag_and_no_build_option() {
     let got = parse(&strings(&["lint", "--online"])).expect("parse");
     assert!(got.online);
-    assert!(got.bazel_options.is_empty());
+    assert_eq!(got.bazel_options, [] as [String; 0]);
     assert!(got.quality_request().expect("quality").online);
     let plain = parse(&strings(&["lint"])).expect("parse");
     assert!(!plain.online);
-    assert!(plain.bazel_options.is_empty());
+    assert_eq!(plain.bazel_options, [] as [String; 0]);
 }
 
 #[test]

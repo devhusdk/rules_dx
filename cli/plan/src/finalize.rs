@@ -204,6 +204,13 @@ fn gazelle_status(
     }
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear sequence of steps read top to bottom"
+)]
 pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
     let payload: IntendedPayload = serde_json::from_slice(input.intended_json)
         .map_err(|err| FinalizeError::Malformed(format!("invalid intended JSON: {err}")))?;
@@ -431,14 +438,14 @@ mod tests {
         assert_eq!(manifest.mode, Mode::Default as i32);
         let file = manifest.files.first().unwrap();
         assert_eq!(file.outcome, WriteOutcome::Applied as i32);
-        assert!(file.failure_code.is_empty());
+        assert_eq!(file.failure_code, "");
         assert_eq!(generation_result::candidate(file).unwrap(), b"xyz\n");
         assert!(matches!(
             file.change,
             Some(file_result::Change::Modification(_))
         ));
         let Some(file_result::Change::Modification(modification)) = &file.change else {
-            unreachable!("expected modification change"); // LCOV_EXCL_LINE - reason: unreachable arm, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+            panic!("expected modification change"); // LCOV_EXCL_LINE - reason: unreachable arm, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         };
         assert_eq!(modification.original_content, b"abc\n");
         assert_eq!(
@@ -504,7 +511,7 @@ mod tests {
         assert_eq!(manifest.mode, Mode::Check as i32);
         let file = manifest.files.first().unwrap();
         assert_eq!(file.outcome, WriteOutcome::Unspecified as i32);
-        assert!(file.failure_code.is_empty());
+        assert_eq!(file.failure_code, "");
         assert_eq!(manifest.scopes[0].results_complete, Some(true));
     }
 
@@ -524,7 +531,7 @@ mod tests {
         assert_eq!(manifest.scopes[0].results_complete, Some(true));
         let file = manifest.files.first().expect("witness file");
         assert_eq!(file.outcome, WriteOutcome::Unspecified as i32);
-        assert!(file.failure_code.is_empty());
+        assert_eq!(file.failure_code, "");
         assert_eq!(manifest.ignored_imports.len(), 1);
     }
 
@@ -578,7 +585,7 @@ mod tests {
                 intended_json: json,
                 workspace: dir.path(),
                 check,
-                bazel_code: if completed { 0 } else { 1 },
+                bazel_code: i32::from(!completed),
                 patch_written: false,
             })
             .unwrap_err()
@@ -866,6 +873,7 @@ mod tests {
 
     #[test]
     fn gazelle_status_explains_only_a_witnessed_check_diff() {
+        use super::GazelleStatus::{Completed, Failed};
         let dir = workspace_with(b"");
         std::fs::create_dir_all(dir.path().join("a")).unwrap();
         std::fs::write(dir.path().join("a/BUILD.bazel"), b"x\n").unwrap();
@@ -881,7 +889,6 @@ mod tests {
             .unwrap()
             .gazelle
         };
-        use super::GazelleStatus::{Completed, Failed};
         for (mode, result, code, patch, want) in [
             ("check", "diff_found", 1, true, Completed),
             ("check", "diff_found", 1, false, Failed(1)),
@@ -962,11 +969,11 @@ mod tests {
                 .any(|edit| edit.replacement.is_empty())
         );
         let applied = generation_result::candidate(file).unwrap();
-        assert!(!applied.is_empty());
+        assert_ne!(applied, [] as [u8; 0]);
         assert_ne!(applied, modification.original_content);
         assert!(manifest.files.iter().any(|file| file.scope_index > 0));
         let first = manifest.ignored_imports.first().expect("ignored imports");
-        assert!(!first.import.is_empty());
+        assert_ne!(first.import, "");
         assert!(
             manifest
                 .ignored_imports
@@ -1010,7 +1017,7 @@ mod tests {
             let finalized = run_failed(&failed_payload(mode, false, true), check, 1).unwrap();
             assert_eq!(finalized.gazelle, GazelleStatus::Failed(1));
             let manifest = finalized.manifest;
-            assert!(manifest.files.is_empty());
+            assert_eq!(manifest.files, [] as [FileResult; 0]);
             assert_eq!(manifest.scopes[0].results_complete, Some(false));
             let got: Vec<_> = manifest
                 .errors
@@ -1072,7 +1079,7 @@ mod tests {
             let finalized = run_failed(json.as_bytes(), check, 1)
                 .unwrap_or_else(|err| panic!("Go-emitted failure does not finalize: {err}"));
             assert_eq!(finalized.gazelle, GazelleStatus::Failed(1));
-            assert!(!finalized.manifest.errors.is_empty());
+            assert_ne!(finalized.manifest.errors, [] as [GenerationError; 0]);
         }
     }
 }

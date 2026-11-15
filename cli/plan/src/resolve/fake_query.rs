@@ -126,7 +126,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "")]
     fn empty_queue_panics() {
         let query = FakeQuery::new(Vec::new());
         drop(query.run_query(&strings(&["a"]), Path::new("/w")));
@@ -167,7 +167,7 @@ mod tests {
         let query = FakeQuery::new(vec![FakeQuery::ok("")]);
         let argv = strings(&["query", "--query_file=/dx/no/such/query/file"]);
         assert!(query.run_query(&argv, Path::new("/w")).is_err());
-        assert!(query.calls().is_empty());
+        assert_eq!(query.calls(), [] as [(Vec<String>, PathBuf); 0]);
     }
 
     #[test]

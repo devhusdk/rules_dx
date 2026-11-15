@@ -273,6 +273,7 @@ fn strict_help_verb_redirects_to_generated_help() {
 
 #[test]
 fn strict_help_is_generated_from_the_same_grammar() {
+    const GLOBAL_LONGS: [&str; 4] = ["workspace", "quiet", "verbose", "color"];
     use clap::ValueEnum;
     let text = match parse(&strings(&["--help"])) {
         Err(ArgsError::Help { text }) => text,
@@ -289,7 +290,6 @@ fn strict_help_is_generated_from_the_same_grammar() {
         );
     }
     let grammar = super::super::grammar::cli_command();
-    const GLOBAL_LONGS: [&str; 4] = ["workspace", "quiet", "verbose", "color"];
     for command in Command::value_variants() {
         let sub = grammar
             .find_subcommand(command.name())

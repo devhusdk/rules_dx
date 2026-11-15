@@ -17,7 +17,7 @@ pub(super) struct CheckCall<'a> {
 /// A tool that owns its launch and parse in its own module.
 pub(super) struct ToolDef {
     pub id: &'static str,
-    pub run: fn(&RealBackend, &CheckCall) -> Result<Vec<FileFinding>, RunnerError>,
+    pub run: fn(&RealBackend, &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError>,
 }
 
 pub(super) const TOOL_DEFS: &[&ToolDef] = &[

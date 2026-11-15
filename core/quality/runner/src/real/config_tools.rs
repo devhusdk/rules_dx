@@ -696,7 +696,7 @@ fn helm_chart_root(tool: &RealTool) -> Option<String> {
 /// lands on the chart file it names. Lines refer to the rendered manifest, so they reset to 1.
 fn scan_chart(
     backend: &RealBackend,
-    call: &super::check::CheckCall,
+    call: &super::check::CheckCall<'_>,
     cache: &Path,
     severities: &[&str],
     chart_root: &str,
@@ -904,7 +904,7 @@ fn copy_layout(from: &Path, to: &Path) -> std::io::Result<()> {
 /// scanned together. ARM lines do not map to Bicep lines, so findings land on line 1.
 fn scan_bicep(
     backend: &RealBackend,
-    call: &super::check::CheckCall,
+    call: &super::check::CheckCall<'_>,
     cache: &Path,
     severities: &[&str],
     bicep: &Path,

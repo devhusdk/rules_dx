@@ -22,7 +22,7 @@ fn paths<'a>(call: &'a CheckCall<'a>) -> (Vec<&'a Path>, Vec<String>) {
 
 fn run(
     backend: &RealBackend,
-    call: &CheckCall,
+    call: &CheckCall<'_>,
     invocation: &Invocation,
 ) -> Result<quality_adapter::exec::ChildOutput, RunnerError> {
     backend.run(call.tool_id, call.tool, invocation, &call.staged.scratch)
@@ -40,7 +40,7 @@ fn need_config<'a>(call: &CheckCall<'a>) -> Result<&'a Path, RunnerError> {
 /// Runs one process per file, parsing each file's output on its own.
 fn per_file(
     backend: &RealBackend,
-    call: &CheckCall,
+    call: &CheckCall<'_>,
     build: impl Fn(&Path) -> Invocation,
     parse: impl Fn(&quality_adapter::exec::ChildOutput, &str) -> Result<Vec<FileFinding>, RunnerError>,
 ) -> Result<Vec<FileFinding>, RunnerError> {
@@ -53,7 +53,7 @@ fn per_file(
     Ok(merged)
 }
 
-fn buildifier(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn buildifier(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool = call.tool;
     let cwd_rel = RealBackend::cwd_rel(call.tool_id, tool.config_rel.as_deref());
     let hint = hint_dir(tool.config_rel.as_deref(), &cwd_rel);
@@ -83,7 +83,7 @@ fn buildifier(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding
     Ok(kept)
 }
 
-fn qmlformat(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn qmlformat(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let mut findings = Vec::new();
     for (workspace, absolute) in &call.staged.pairs {
         let invocation =
@@ -120,7 +120,7 @@ fn lf_only(bytes: &[u8]) -> Vec<u8> {
     kept
 }
 
-fn qmllint(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn qmllint(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let view = if call.capability == "typecheck" {
         parsers::QmllintView::Typecheck
     } else {
@@ -146,7 +146,7 @@ fn qmllint(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
     )
 }
 
-fn dart(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn dart(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let (refs, names) = paths(call);
     let strs: Vec<&str> = names.iter().map(String::as_str).collect();

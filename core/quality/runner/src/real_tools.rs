@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unnecessary_wraps,
+    reason = "fakes implement the spawn function-pointer signature"
+)]
+
 use super::real_core::*;
 use super::real_fixtures::*;
 use super::*;
@@ -905,7 +910,7 @@ fn shfmt_editorconfig_bytes(tool: &RealTool) -> Vec<u8> {
     assert_eq!(found.len(), 1, "one .editorconfig");
     match &found[0].contents {
         MirrorContents::Bytes(bytes) => bytes.clone(),
-        _ => panic!("bytes"),
+        MirrorContents::Link(_) => panic!("bytes"),
     }
 }
 
@@ -7319,7 +7324,7 @@ fn terraform_fake(
                 count == 0
             );
             Ok(ChildOutput {
-                code: Some(count as i32),
+                code: Some(i32::try_from(count).unwrap()),
                 stdout: out.into_bytes(),
                 stderr: Vec::new(),
             })

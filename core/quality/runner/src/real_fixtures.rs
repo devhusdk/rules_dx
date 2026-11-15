@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unnecessary_wraps,
+    reason = "fakes implement the spawn function-pointer signature"
+)]
+
 use std::ffi::OsStr;
 
 use super::*;

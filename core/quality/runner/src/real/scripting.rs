@@ -99,7 +99,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
     },
 ];
 
-fn dialyzer(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn dialyzer(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -157,7 +157,7 @@ fn dialyzer(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>,
     Ok(findings)
 }
 
-fn phpcs(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn phpcs(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -200,7 +200,7 @@ fn phpcs(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Ru
     Ok(findings)
 }
 
-fn jet(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn jet(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -254,7 +254,7 @@ fn jet(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Runn
     Ok(findings)
 }
 
-fn pkl_lsp(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn pkl_lsp(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -300,7 +300,7 @@ fn pkl_lsp(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
     .map_err(|err| with_stderr(err, &out.stderr))
 }
 
-fn julialint(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn julialint(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -334,7 +334,7 @@ fn julialint(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>
     parsed(tool_id, parsers::parse_julialint(&body, out.code, &strs))
 }
 
-fn luals(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn luals(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -425,7 +425,7 @@ fn luals(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Ru
     Ok(findings)
 }
 
-fn phpstan(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn phpstan(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -496,7 +496,7 @@ fn phpstan(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
     Ok(findings)
 }
 
-fn sorbet(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn sorbet(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -518,7 +518,7 @@ fn sorbet(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, R
     parsed(tool_id, parsers::parse_sorbet(&out.stderr, out.code, &strs))
 }
 
-fn perltidy(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn perltidy(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -540,7 +540,7 @@ fn perltidy(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>,
     Ok(findings)
 }
 
-fn elvis(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn elvis(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -586,7 +586,7 @@ fn elvis(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Ru
     Ok(findings)
 }
 
-fn erlfmt(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn erlfmt(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -600,7 +600,7 @@ fn erlfmt(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, R
     )
 }
 
-fn credo(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn credo(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -646,7 +646,7 @@ fn credo(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Ru
     Ok(findings)
 }
 
-fn mix_format(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn mix_format(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -663,7 +663,7 @@ fn mix_format(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding
     )
 }
 
-fn selene(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn selene(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -675,7 +675,7 @@ fn selene(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, R
     parsed(tool_id, parsers::parse_selene(&out.stdout, out.code, &strs))
 }
 
-fn stylua(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn stylua(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -690,7 +690,7 @@ fn stylua(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, R
     )
 }
 
-fn ormolu(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn ormolu(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
@@ -711,7 +711,7 @@ fn ormolu(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, R
     Ok(merged)
 }
 
-fn rubocop(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn rubocop(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     if call.capability != "format" {
         return lint_family(backend, call);
     }
@@ -728,7 +728,7 @@ fn rubocop(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
     )
 }
 
-fn lint_family(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn lint_family(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;

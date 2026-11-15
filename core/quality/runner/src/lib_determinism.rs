@@ -55,14 +55,14 @@ fn assemble_covers_insertion_deletion_and_multibyte_boundaries() {
         assert_eq!(edits.edits.len(), 1, "{label}");
         let edit = &edits.edits[0];
         assert!(
-            original.is_char_boundary(edit.start_byte as usize),
+            original.is_char_boundary(usize::try_from(edit.start_byte).unwrap()),
             "{label}"
         );
-        assert!(original.is_char_boundary(edit.end_byte as usize), "{label}");
+        assert!(original.is_char_boundary(usize::try_from(edit.end_byte).unwrap()), "{label}");
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..edit.start_byte as usize]);
+        spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
-        spliced.extend_from_slice(&original.as_bytes()[edit.end_byte as usize..]);
+        spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         assert_eq!(&spliced, terminal_body.as_bytes(), "{label}");
         assert!(validate(&result).is_ok(), "{label}");
     }
@@ -116,9 +116,9 @@ fn stale_source_digest_mismatch_must_reject_write() {
     assert_ne!(digest(stale.as_bytes()).to_vec(), edits.original_digest);
     let edit = &edits.edits[0];
     let mut spliced = Vec::new();
-    spliced.extend_from_slice(&b"BAD\n"[..edit.start_byte as usize]);
+    spliced.extend_from_slice(&b"BAD\n"[..usize::try_from(edit.start_byte).unwrap()]);
     spliced.extend_from_slice(&edit.replacement);
-    spliced.extend_from_slice(&b"BAD\n"[edit.end_byte as usize..]);
+    spliced.extend_from_slice(&b"BAD\n"[usize::try_from(edit.end_byte).unwrap()..]);
     assert_eq!(&spliced, b"GOOD\n");
     assert!(validate(&result).is_ok());
 }
@@ -348,9 +348,9 @@ fn adjacent_edits_coalesce_to_single_whole_file_candidate() {
     let original = "BADBAD\n".as_bytes();
     let replacement = &edits.edits[0].replacement;
     let mut spliced = Vec::new();
-    spliced.extend_from_slice(&original[..edits.edits[0].start_byte as usize]);
+    spliced.extend_from_slice(&original[..usize::try_from(edits.edits[0].start_byte).unwrap()]);
     spliced.extend_from_slice(replacement);
-    spliced.extend_from_slice(&original[edits.edits[0].end_byte as usize..]);
+    spliced.extend_from_slice(&original[usize::try_from(edits.edits[0].end_byte).unwrap()..]);
     assert_eq!(spliced, b"GOODGOOD\n");
     assert!(validate(&result).is_ok());
 }
@@ -458,9 +458,9 @@ fn shared_source_across_owners_converges_without_duplication() {
     assert_eq!(&shared.edits[0].replacement, b"GOO");
     let original = "BAD shared\n".as_bytes();
     let mut spliced = Vec::new();
-    spliced.extend_from_slice(&original[..shared.edits[0].start_byte as usize]);
+    spliced.extend_from_slice(&original[..usize::try_from(shared.edits[0].start_byte).unwrap()]);
     spliced.extend_from_slice(&shared.edits[0].replacement);
-    spliced.extend_from_slice(&original[shared.edits[0].end_byte as usize..]);
+    spliced.extend_from_slice(&original[usize::try_from(shared.edits[0].end_byte).unwrap()..]);
     assert_eq!(spliced, b"GOOD shared\n");
     assert!(validate(&result).is_ok());
 }
@@ -530,9 +530,9 @@ fn chained_mutating_stages_see_virtual_snapshot() {
     assert_eq!(&edits.edits[0].replacement, b"GOOD");
     let original = "BAD   \n".as_bytes();
     let mut spliced = Vec::new();
-    spliced.extend_from_slice(&original[..edits.edits[0].start_byte as usize]);
+    spliced.extend_from_slice(&original[..usize::try_from(edits.edits[0].start_byte).unwrap()]);
     spliced.extend_from_slice(&edits.edits[0].replacement);
-    spliced.extend_from_slice(&original[edits.edits[0].end_byte as usize..]);
+    spliced.extend_from_slice(&original[usize::try_from(edits.edits[0].end_byte).unwrap()..]);
     assert_eq!(spliced, b"GOOD\n");
     assert!(validate(&result).is_ok());
     let reversed = vec![

@@ -574,11 +574,11 @@ fn assemble_emits_replacements_only_when_stable() {
     let applied = format!(
         "{}{}{}",
         original
-            .get(..edits.edits[0].start_byte as usize)
+            .get(..usize::try_from(edits.edits[0].start_byte).unwrap())
             .expect("prefix"),
         String::from_utf8_lossy(&edits.edits[0].replacement),
         original
-            .get(edits.edits[0].end_byte as usize..)
+            .get(usize::try_from(edits.edits[0].end_byte).unwrap()..)
             .expect("suffix")
     );
     assert_eq!(applied, "GOOD\n");
@@ -758,9 +758,9 @@ fn assemble_replacements_follow_sorted_path_order_for_atomic_apply() {
         assert_eq!(edits.edits.len(), 1);
         let edit = &edits.edits[0];
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..edit.start_byte as usize]);
+        spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
-        spliced.extend_from_slice(&original.as_bytes()[edit.end_byte as usize..]);
+        spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         assert_eq!(&spliced, terminal_body.as_bytes());
     }
     let prefix: Vec<&str> = paths.iter().take(2).copied().collect();

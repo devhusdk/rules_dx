@@ -1039,8 +1039,7 @@ impl RealBackend {
         let invocation = self.fix_invocation(route, tool_id, tool, refs, scratch)?;
         let out = self.run(tool_id, tool, &invocation, scratch)?;
         Ok(match route {
-            Route::Keep => Outcome::Kept,
-            Route::Sqlfluff => Outcome::Kept,
+            Route::Keep | Route::Sqlfluff => Outcome::Kept,
             Route::Spec { format, .. } => {
                 let crash = fix_spec(tool_id, format)
                     .and_then(|spec| spec.crash_stderr)
@@ -1085,14 +1084,7 @@ impl RealBackend {
                     ))
                 }
             }
-            Route::SwiftFormat => {
-                if out.code == Some(0) {
-                    Outcome::Fixed
-                } else {
-                    Outcome::Kept
-                }
-            }
-            Route::Perltidy => {
+            Route::SwiftFormat | Route::Perltidy => {
                 if out.code == Some(0) {
                     Outcome::Fixed
                 } else {

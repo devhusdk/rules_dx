@@ -1,5 +1,6 @@
 //! Blocker references: the issues and pull requests named on a "Blocked on:" line.
 
+use std::fmt::Write as _;
 use std::io::Read;
 
 fn name_len(text: &str) -> usize {
@@ -74,16 +75,16 @@ pub fn refs(local_repo: &str, line: &str) -> String {
         let owner = parts.next().unwrap_or_default();
         let repo = parts.next().unwrap_or_default();
         let number = parts.next_back().unwrap_or_default();
-        out.push_str(&format!("{owner}/{repo} {number} {url}\n"));
+        writeln!(out, "{owner}/{repo} {number} {url}").unwrap_or_default();
     }
     let (shorts, rest) = take(&rest, short_len);
     for short in shorts {
         let (repo, number) = short.split_once('#').unwrap_or_default();
-        out.push_str(&format!("{repo} {number} {short}\n"));
+        writeln!(out, "{repo} {number} {short}").unwrap_or_default();
     }
     let (bares, _) = take(&rest, bare_len);
     for bare in bares {
-        out.push_str(&format!("{local_repo} {} {bare}\n", bare.strip_prefix('#').unwrap_or_default()));
+        writeln!(out, "{local_repo} {} {bare}", bare.strip_prefix('#').unwrap_or_default()).unwrap_or_default();
     }
     out
 }

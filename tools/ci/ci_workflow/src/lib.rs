@@ -9,7 +9,12 @@ use dx_testing::read_runfiles;
 static NULL: Value = Value::Null;
 
 /// Returns the parsed workflow `text`, named `name` in failures, which must be valid Actions YAML.
+///
+/// # Panics
+///
+/// Panics when the workflow is missing or does not have the expected shape.
 #[track_caller]
+#[must_use]
 pub fn parse(name: &str, text: &str) -> Value {
     match yaml_serde::from_str(text) {
         Ok(document) => document,
@@ -19,6 +24,7 @@ pub fn parse(name: &str, text: &str) -> Value {
 
 /// Returns the parsed workflow at `path`, which must be valid Actions YAML.
 #[track_caller]
+#[must_use]
 pub fn document(path: &str) -> Value {
     parse(path, &read_runfiles(path))
 }
@@ -66,15 +72,14 @@ pub fn step_code(step: &Value) -> Vec<&str> {
         .get("uses")
         .and_then(Value::as_str)
         .is_some_and(|uses| uses.starts_with("actions/github-script@"));
-    if is_script {
-        if let Some(script) = step.pointer("/with/script").and_then(Value::as_str) {
-            code.push(script);
-        }
+    if is_script && let Some(script) = step.pointer("/with/script").and_then(Value::as_str) {
+        code.push(script);
     }
     code
 }
 
 /// Returns the permissions a job holds: its own, else the workflow's.
+#[must_use]
 pub fn effective_permissions<'a>(document: &'a Value, job: &'a Value) -> &'a Value {
     job.get("permissions")
         .or_else(|| document.get("permissions"))
@@ -141,7 +146,12 @@ pub fn matrix_refs(value: &Value, found: &mut Vec<String>) {
 }
 
 /// Returns one job of the workflow at `path`, which must declare it.
+///
+/// # Panics
+///
+/// Panics when the workflow is missing or does not have the expected shape.
 #[track_caller]
+#[must_use]
 pub fn job(path: &str, name: &str) -> Value {
     let document = document(path);
     let jobs = document.get("jobs").unwrap_or(&NULL);
@@ -152,6 +162,10 @@ pub fn job(path: &str, name: &str) -> Value {
 }
 
 /// Returns the steps of one job, which must declare some.
+///
+/// # Panics
+///
+/// Panics when the workflow is missing or does not have the expected shape.
 #[track_caller]
 pub fn steps(path: &str, name: &str) -> Vec<Value> {
     let Some(found) = job(path, name)
@@ -165,7 +179,12 @@ pub fn steps(path: &str, name: &str) -> Vec<Value> {
 }
 
 /// Returns the `run` scripts of one job, joined.
+///
+/// # Panics
+///
+/// Panics when the workflow is missing or does not have the expected shape.
 #[track_caller]
+#[must_use]
 pub fn scripts(path: &str, name: &str) -> String {
     steps(path, name)
         .iter()
@@ -175,7 +194,12 @@ pub fn scripts(path: &str, name: &str) -> String {
 }
 
 /// Returns one string value of a parsed workflow.
+///
+/// # Panics
+///
+/// Panics when the workflow is missing or does not have the expected shape.
 #[track_caller]
+#[must_use]
 pub fn text_at(value: &Value, what: &str) -> String {
     let Some(text) = value.as_str() else {
         panic!("{what} is not a string: {value}");
@@ -184,6 +208,10 @@ pub fn text_at(value: &Value, what: &str) -> String {
 }
 
 /// Returns every job of the workflow at `path` with its id, sorted by id.
+///
+/// # Panics
+///
+/// Panics when the workflow is missing or does not have the expected shape.
 #[track_caller]
 pub fn jobs(path: &str) -> Vec<(String, Value)> {
     let document = document(path);
@@ -197,7 +225,12 @@ pub fn jobs(path: &str) -> Vec<(String, Value)> {
 }
 
 /// Returns the trigger table of a workflow, whichever way the parser keys `on`.
+///
+/// # Panics
+///
+/// Panics when the workflow is missing or does not have the expected shape.
 #[track_caller]
+#[must_use]
 pub fn triggers(path: &str) -> Value {
     let document = document(path);
     if let Some(on) = document.get("on").filter(|on| on.is_object()) {
@@ -207,7 +240,12 @@ pub fn triggers(path: &str) -> Value {
 }
 
 /// Returns `on.workflow_call` of the reusable workflow at `path`, which must declare it.
+///
+/// # Panics
+///
+/// Panics when the workflow is missing or does not have the expected shape.
 #[track_caller]
+#[must_use]
 pub fn workflow_call(path: &str) -> Value {
     let triggers = triggers(path);
     let Some(found) = triggers
@@ -220,6 +258,7 @@ pub fn workflow_call(path: &str) -> Value {
 }
 
 /// Returns the called workflow file name of a `uses` value, when it names a reusable workflow.
+#[must_use]
 pub fn called_workflow(uses: &str) -> Option<String> {
     if !uses.contains("/.github/workflows/") {
         return None;
@@ -230,6 +269,7 @@ pub fn called_workflow(uses: &str) -> Option<String> {
 
 /// Returns (job id, called workflow file name, job) for every job that calls a reusable workflow.
 #[track_caller]
+#[must_use]
 pub fn reusable_calls(path: &str) -> Vec<(String, String, Value)> {
     jobs(path)
         .into_iter()
@@ -242,6 +282,7 @@ pub fn reusable_calls(path: &str) -> Vec<(String, String, Value)> {
 
 /// Returns every string value of the workflow at `path`, so scans skip comments and keys.
 #[track_caller]
+#[must_use]
 pub fn strings(path: &str) -> Vec<String> {
     fn walk(value: &Value, out: &mut Vec<String>) {
         match value {

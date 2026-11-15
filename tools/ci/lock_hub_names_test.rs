@@ -1,5 +1,6 @@
-//! No non-test Go or Rust file names a lock hub repository (`@<hub>//`, `@<hub>"` or `"<hub>//`) outside tools/ci/lock_hub_names_allowlist.txt, and the allowlist holds no spare line.
+//! No non-test Go or Rust file names a lock hub repository (`@<hub>//`, `@<hub>"` or `"<hub>//`) outside `tools/ci/lock_hub_names_allowlist.txt`, and the allowlist holds no spare line.
 
+use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::Value;
@@ -56,7 +57,7 @@ fn violations(
     rust: &BTreeMap<String, String>,
     lock_scan: &BTreeMap<String, String>,
 ) -> BTreeSet<String> {
-    let go = lock_scan.iter().filter(|(path, _)| path.ends_with(".go"));
+    let go = lock_scan.iter().filter(|(path, _)| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("go")));
     let mut out = BTreeSet::new();
     for (path, source) in rust.iter().chain(go) {
         for hub in hubs.iter().filter(|hub| names_hub(source, hub)) {
@@ -143,7 +144,7 @@ fn the_tree_matches_the_allowlist() {
     );
     let go = lock_scan
         .keys()
-        .filter(|path| path.ends_with(".go"))
+        .filter(|path| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("go")))
         .count();
     assert!(
         go >= MIN_GO,

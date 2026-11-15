@@ -1,7 +1,8 @@
-//! No Rust code or repository rule starts a host program by name outside tools/ci/host_program_allowlist.txt, and the allowlist holds no spare entry.
+//! No Rust code or repository rule starts a host program by name outside `tools/ci/host_program_allowlist.txt`, and the allowlist holds no spare entry.
 
 mod guard_scan;
 
+use std::path::Path;
 use guard_scan::{Counts, Token, callee_name, exprs, hit, is_starlark, parse, rust_tokens, string};
 use starlark_syntax::syntax::ast::{ArgumentP, ExprP};
 use yaml_serde as _;
@@ -121,7 +122,7 @@ fn scan_starlark(path: &str, source: &str, counts: &mut Counts) {
 fn scan(path: &str, source: &str, counts: &mut Counts) {
     if is_starlark(path) {
         scan_starlark(path, source, counts);
-    } else if path.ends_with(".rs") {
+    } else if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) {
         scan_rust(path, source, counts);
     }
 }
@@ -163,14 +164,18 @@ fn the_tree_matches_the_allowlist() {
 
 #[test]
 fn the_lexer_drops_comments_and_keeps_string_text() {
-    let source = r###"
+    #[expect(
+        clippy::needless_raw_string_hashes,
+        reason = "the source holds a raw string that ends in a quote and a hash"
+    )]
+    let source = r##"
 // "line"
 /* "block" /* "nested" */ */
 let a = "plain \"quoted\"\n";
 let b = r#"raw "inner""#;
 let c = b"bytes";
 let d: &'static str = 'x'.to_string() + '\''.to_string();
-"###;
+"##;
     let tokens: Vec<Token> = rust_tokens(source)
         .into_iter()
         .filter(|token| !matches!(token, Token::Punct(_)))

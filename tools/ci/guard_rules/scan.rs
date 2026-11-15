@@ -30,7 +30,7 @@ pub fn is_skipped(path: &str) -> bool {
 /// True when `path` names a BUILD, MODULE.bazel or .bzl file.
 pub fn is_starlark(path: &str) -> bool {
     let name = path.rsplit('/').next().unwrap_or(path);
-    name == "BUILD" || name == "BUILD.bazel" || name == "MODULE.bazel" || name.ends_with(".bzl")
+    name == "BUILD" || name == "BUILD.bazel" || name == "MODULE.bazel" || Path::new(name).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
 }
 
 /// Every file under `root` as a sorted `(relative path, text)` list.
@@ -39,7 +39,7 @@ pub fn tree(root: &Path) -> Vec<(String, String)> {
     let mut pending = vec![root.to_path_buf()];
     while let Some(dir) = pending.pop() {
         let entries =
-            std::fs::read_dir(&dir).unwrap_or_else(|error| panic!("read_dir {dir:?}: {error}"));
+            std::fs::read_dir(&dir).unwrap_or_else(|error| panic!("read_dir {}: {error}", dir.display()));
         for entry in entries {
             let path = entry.expect("readable dir entry").path();
             if path.is_dir() {
@@ -51,7 +51,7 @@ pub fn tree(root: &Path) -> Vec<(String, String)> {
                     .to_string_lossy()
                     .replace('\\', "/");
                 let text = std::fs::read_to_string(&path)
-                    .unwrap_or_else(|error| panic!("read {path:?}: {error}"));
+                    .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
                 out.push((rel, text));
             }
         }
@@ -65,7 +65,7 @@ pub fn render(counts: &Counts) -> String {
     counts
         .iter()
         .map(|((path, kind), count)| format!("{path} {kind} {count}\n"))
-        .collect()
+        .collect::<Vec<String>>().concat()
 }
 
 /// Parses `<path> <kind> <count>` lines, or names every malformed, unsorted or repeated line.

@@ -33,7 +33,7 @@ fn gazelle_manifest() -> String {
         .iter()
         .enumerate()
         .map(|(n, asset)| format!("{}  {asset}\n", hash(n + 11)))
-        .collect()
+        .collect::<Vec<String>>().concat()
 }
 
 fn release_dir(text: &str, bundle: bool) -> TempDir {
@@ -50,6 +50,7 @@ fn release_dir(text: &str, bundle: bool) -> TempDir {
     dir
 }
 
+#[expect(clippy::unnecessary_wraps, reason = "fill_pins::fill takes a fallible verifier")]
 fn ok(_: &Path, _: &Path) -> Result<(), String> {
     Ok(())
 }
@@ -108,7 +109,7 @@ fn the_gazelle_manifest_needs_exactly_its_five_lines() {
             good.lines()
                 .skip(1)
                 .map(|l| format!("{l}\n"))
-                .collect::<String>(),
+                .collect::<Vec<String>>().concat(),
             "is missing",
         ),
         (format!("{good}{first}\n"), "listed twice"),
@@ -164,7 +165,7 @@ fn refuses_a_missing_asset_line() {
         .lines()
         .skip(2)
         .map(|l| format!("{l}\n"))
-        .collect();
+        .collect::<Vec<String>>().concat();
     let dir = release_dir(&text, true);
     assert!(fill_pins::fill("v1.2.3", dir.path(), PINS, REPO, ok).is_err());
 }
@@ -198,6 +199,7 @@ fn filled() -> String {
     fill_pins::fill("v1.2.3", dir.path(), PINS, REPO, ok).unwrap()
 }
 
+#[expect(clippy::unnecessary_wraps, reason = "fill_pins::check takes a fallible fetcher")]
 fn nothing() -> Result<(), String> {
     Ok(())
 }

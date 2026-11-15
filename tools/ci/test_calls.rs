@@ -125,14 +125,14 @@ impl Callees {
 }
 
 /// Names that are tests without a test word: test rules, and macros that call a test.
-pub fn test_callees<'a>(files: impl Iterator<Item = &'a Callees> + Clone) -> BTreeSet<String> {
+pub fn test_callees(files: &[&Callees]) -> BTreeSet<String> {
     let mut tests = BTreeSet::new();
-    for file in files.clone() {
+    for file in files {
         tests.extend(file.test_rules.iter().cloned());
     }
     loop {
         let mut grew = false;
-        for file in files.clone() {
+        for file in files {
             for (def, callees) in &file.defs {
                 if tests.contains(def) {
                     continue;

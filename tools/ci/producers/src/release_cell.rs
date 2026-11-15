@@ -144,6 +144,56 @@ fn same_bytes(left: &Path, right: &Path) -> Result<bool, String> {
     Ok(read(left)? == read(right)?)
 }
 
+/// Builds the cell again from an empty output base and returns the rebuilt archive and the `qualify` symbol arguments.
+fn rebuild_cell(
+    env: &Env,
+    out: &Path,
+    symbols: Option<&str>,
+    pdb: &str,
+    gazelle_asset: &str,
+    archive_name: &str,
+) -> Result<(PathBuf, Vec<String>), String> {
+    // The determinism input is a second, independent build: its own output base, no caches.
+    let rebuild_base = env.temp.join("rebuild-base");
+    std::fs::remove_dir_all(&rebuild_base).unwrap_or_default();
+    let rebuild = Bazel {
+        base: Some(rebuild_base),
+    };
+    let no_cache = ["--disk_cache=", "--remote_cache="];
+    let mut rebuilt_targets = vec![format!("{RELEASE}:dx_host_cell")];
+    if symbols.is_some() {
+        rebuilt_targets.push(pdb.to_owned());
+    }
+    let rebuilt_targets: Vec<&str> = rebuilt_targets.iter().map(String::as_str).collect();
+    rebuild.build(&no_cache, &rebuilt_targets)?;
+    let rebuild_root = rebuild.execution_root()?;
+    let rebuilt_archive = env.temp.join(format!("rebuilt-{archive_name}"));
+    copy(
+        &rebuild.file(&rebuild_root, &[], &format!("{RELEASE}:dx_host_cell"))?,
+        &rebuilt_archive,
+    )?;
+    let mut qualify_symbols = Vec::new();
+    if let Some(symbols) = symbols {
+        let rebuilt_symbols = env.temp.join(format!("rebuilt-{symbols}"));
+        copy(&rebuild.file(&rebuild_root, &[], pdb)?, &rebuilt_symbols)?;
+        qualify_symbols = vec![
+            "--symbols".to_string(),
+            out.join(symbols).display().to_string(),
+            "--symbols-rebuild".to_string(),
+            rebuilt_symbols.display().to_string(),
+        ];
+    }
+    let mut gazelle_build = vec![PURE];
+    gazelle_build.extend_from_slice(&no_cache);
+    rebuild.build(&gazelle_build, &[GAZELLE])?;
+    let rebuilt_gazelle = rebuild.file(&rebuild_root, &[PURE], GAZELLE)?;
+    if !same_bytes(&out.join(gazelle_asset), &rebuilt_gazelle)? {
+        return Err(format!("{gazelle_asset} differs between two builds"));
+    }
+    rebuild.run(&["shutdown"])?;
+    Ok((rebuilt_archive, qualify_symbols))
+}
+
 fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
     let main = Bazel { base: None };
     let symbols = symbols_name(&env.cell);
@@ -199,44 +249,14 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
         )?;
     }
 
-    // The determinism input is a second, independent build: its own output base, no caches.
-    let rebuild_base = env.temp.join("rebuild-base");
-    let _ = std::fs::remove_dir_all(&rebuild_base);
-    let rebuild = Bazel {
-        base: Some(rebuild_base),
-    };
-    let no_cache = ["--disk_cache=", "--remote_cache="];
-    let mut rebuilt_targets = vec![format!("{RELEASE}:dx_host_cell")];
-    if symbols.is_some() {
-        rebuilt_targets.push(pdb.clone());
-    }
-    let rebuilt_targets: Vec<&str> = rebuilt_targets.iter().map(String::as_str).collect();
-    rebuild.build(&no_cache, &rebuilt_targets)?;
-    let rebuild_root = rebuild.execution_root()?;
-    let rebuilt_archive = env.temp.join(format!("rebuilt-{archive_name}"));
-    copy(
-        &rebuild.file(&rebuild_root, &[], &format!("{RELEASE}:dx_host_cell"))?,
-        &rebuilt_archive,
+    let (rebuilt_archive, qualify_symbols) = rebuild_cell(
+        env,
+        out,
+        symbols.as_deref(),
+        &pdb,
+        &gazelle_asset,
+        &archive_name,
     )?;
-    let mut qualify_symbols = Vec::new();
-    if let Some(symbols) = &symbols {
-        let rebuilt_symbols = env.temp.join(format!("rebuilt-{symbols}"));
-        copy(&rebuild.file(&rebuild_root, &[], &pdb)?, &rebuilt_symbols)?;
-        qualify_symbols = vec![
-            "--symbols".to_string(),
-            out.join(symbols).display().to_string(),
-            "--symbols-rebuild".to_string(),
-            rebuilt_symbols.display().to_string(),
-        ];
-    }
-    let mut gazelle_build = vec![PURE];
-    gazelle_build.extend_from_slice(&no_cache);
-    rebuild.build(&gazelle_build, &[GAZELLE])?;
-    let rebuilt_gazelle = rebuild.file(&rebuild_root, &gazelle_flags, GAZELLE)?;
-    if !same_bytes(&out.join(&gazelle_asset), &rebuilt_gazelle)? {
-        return Err(format!("{gazelle_asset} differs between two builds"));
-    }
-    rebuild.run(&["shutdown"])?;
 
     let mut qualify = Command::new(&tool);
     qualify
@@ -293,7 +313,7 @@ pub fn cell(args: &[String]) -> Result<(), String> {
     };
     let env = Env::read()?;
     let out = PathBuf::from(out);
-    let _ = std::fs::remove_dir_all(&out);
+    std::fs::remove_dir_all(&out).unwrap_or_default();
     std::fs::create_dir_all(&out).map_err(|error| format!("create {}: {error}", out.display()))?;
     build_cell(&env, &out)
 }

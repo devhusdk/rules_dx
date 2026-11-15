@@ -64,12 +64,12 @@ fn problems(workflow: &Value, cells: &[(String, String, String)]) -> Vec<String>
             problems.push(format!("{name}: unknown runner label {runner:?}"));
             continue;
         };
-        if let Some((_, cell_os, cell_machine)) = cells.iter().find(|(cell, _, _)| cell == name) {
-            if (*os, *machine) != (cell_os.as_str(), cell_machine.as_str()) {
-                problems.push(format!(
-                    "{name}: runner {runner:?} is {os}/{machine}, the cell is {cell_os}/{cell_machine}"
-                ));
-            }
+        if let Some((_, cell_os, cell_machine)) = cells.iter().find(|(cell, _, _)| cell == name)
+            && (*os, *machine) != (cell_os.as_str(), cell_machine.as_str())
+        {
+            problems.push(format!(
+                "{name}: runner {runner:?} is {os}/{machine}, the cell is {cell_os}/{cell_machine}"
+            ));
         }
     }
     problems
@@ -85,10 +85,10 @@ fn policy_problems(workflow: &Value) -> Vec<String> {
         } else {
             problems.push(format!("job {id} sets no permissions of its own"));
         }
-        if let Some(strategy) = job.get("strategy") {
-            if strategy["fail-fast"] != Value::Bool(false) {
-                problems.push(format!("job {id} must set fail-fast: false"));
-            }
+        if let Some(strategy) = job.get("strategy")
+            && strategy["fail-fast"] != Value::Bool(false)
+        {
+            problems.push(format!("job {id} must set fail-fast: false"));
         }
     }
     for (scope, permissions) in scopes {
@@ -140,7 +140,8 @@ fn workflow_with(entries: &[(&str, &str)]) -> Value {
     let rows: String = entries
         .iter()
         .map(|(name, runner)| format!("          - name: {name}\n            runner: {runner}\n"))
-        .collect();
+        .collect::<Vec<String>>()
+        .concat();
     parse(&format!(
         "jobs:\n  cell:\n    strategy:\n      matrix:\n        include:\n{rows}"
     ))

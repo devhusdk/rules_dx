@@ -1,4 +1,4 @@
-//! No test goes over the size and time budget outside tools/ci/test_budget_allowlist.txt, and tools/testing/nested_smoke.txt lists every nested test.
+//! No test goes over the size and time budget outside `tools/ci/test_budget_allowlist.txt`, and `tools/testing/nested_smoke.txt` lists every nested test.
 
 mod test_calls;
 
@@ -301,7 +301,7 @@ fn unsized_macro(callee: &str) -> bool {
 
 /// Budget hits across `files`, keyed by path and kind.
 fn budget(files: &BTreeMap<String, FileScan>) -> Counts {
-    let tests = test_callees(files.values().map(|scan| &scan.callees));
+    let tests = test_callees(&files.values().map(|scan| &scan.callees).collect::<Vec<_>>());
     let mut counts = Counts::new();
     for (path, scan) in files {
         let mut add = |kind: String| {
@@ -440,7 +440,7 @@ fn tests_tagged(
     files: &BTreeMap<String, FileScan>,
     hit: fn(&[String]) -> bool,
 ) -> BTreeSet<String> {
-    let tests = test_callees(files.values().map(|scan| &scan.callees));
+    let tests = test_callees(&files.values().map(|scan| &scan.callees).collect::<Vec<_>>());
     let constants = nested_constants(files, hit);
     let macros = nested_macros(files, &constants, hit);
     let mut labels = BTreeSet::new();

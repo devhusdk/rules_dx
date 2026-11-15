@@ -22,8 +22,10 @@ fn dx_crates_manifest_dirs() -> Vec<String> {
     let start = lines[name..]
         .iter()
         .position(|line| line.trim_start().starts_with("manifests = ["))
-        .map(|offset| name + offset)
-        .unwrap_or_else(|| panic!("dx_crates sets no manifests"));
+        .map_or_else(
+            || panic!("dx_crates sets no manifests"),
+            |offset| name + offset,
+        );
     lines[start + 1..]
         .iter()
         .take_while(|line| !line.trim_start().starts_with(']'))

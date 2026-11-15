@@ -379,6 +379,8 @@ fn assert_no_secret_printed(name: &str, output: &str) {
     }
 }
 
+type CacheCase<'a> = (&'a str, &'a [(&'a str, &'a str)], Option<&'a str>, i32, Option<&'a str>);
+
 #[test]
 fn scan_finds_every_cache_secret() {
     let key = ("BUILDBUDDY_API_KEY", "k3y");
@@ -386,7 +388,7 @@ fn scan_finds_every_cache_secret() {
     let empty = ("REMOTE_CACHE_HEADER", "x-t=");
     let no_equals = ("REMOTE_CACHE_HEADER", "novalue");
     let no_value = Some("has no value");
-    let cases: &[(&str, &[(&str, &str)], Option<&str>, i32, Option<&str>)] = &[
+    let cases: &[CacheCase<'_>] = &[
         ("nothing set", &[], Some("k3y s3cr3t"), 0, None),
         ("key found", &[key], Some("has k3y"), 1, None),
         ("key clean", &[key], Some("clean"), 0, None),
@@ -494,6 +496,8 @@ fn run_helper_node(dir: &Path, env: &[(&str, &str)]) -> (i32, String, String) {
     (done.status.code().unwrap_or(-1), output, written)
 }
 
+type HelperCase<'a> = (&'a str, &'a [(&'a str, &'a str)], i32, Option<&'a str>);
+
 #[test]
 fn helper_action_writes_a_working_helper() {
     let key = ("BUILDBUDDY_API_KEY", "k3y");
@@ -506,7 +510,7 @@ fn helper_action_writes_a_working_helper() {
         "DX_REMOTE_CACHE_ARG",
         "--remote_cache=grpcs://u@cache.example.com:443",
     );
-    let cases: &[(&str, &[(&str, &str)], i32, Option<&str>)] = &[
+    let cases: &[HelperCase<'_>] = &[
         ("key only", &[key], 0, Some("remote.buildbuddy.io=")),
         (
             "key with a custom cache",

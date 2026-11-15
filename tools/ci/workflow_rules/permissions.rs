@@ -50,7 +50,7 @@ const MARKERS: &[(&str, &[&str])] = &[
     ),
 ];
 
-/// Scopes that act through OIDC, so a step needs no GITHUB_TOKEN to use them.
+/// Scopes that act through OIDC, so a step needs no `GITHUB_TOKEN` to use them.
 const TOKENLESS: &[&str] = &["id-token"];
 
 const TOKEN_NEEDLES: &[&str] = &["github.token", "secrets.GITHUB_TOKEN"];

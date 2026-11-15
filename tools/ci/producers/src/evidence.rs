@@ -22,7 +22,7 @@ fn text(value: &Value) -> &str {
     value.as_str().unwrap_or_default()
 }
 
-fn labels<'a>(array: &'a Value) -> Vec<&'a str> {
+fn labels(array: &Value) -> Vec<&str> {
     array
         .as_array()
         .into_iter()
@@ -92,12 +92,22 @@ pub fn observe(files: &[PathBuf]) -> Vec<String> {
         .collect()
 }
 
+/// The blocker recorded in `facts` for the compiler row `name` on `platform`, or an empty string.
+fn blocker_of<'a>(facts: &'a Value, name: &str, platform: &str) -> &'a str {
+    facts
+        .get("compiler_blockers")
+        .and_then(|blockers| blockers.get(name))
+        .and_then(|blockers| blockers.get(platform))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+}
+
 fn line(
     facts: &Value,
     row_labels: &Value,
     consumer_labels: &Value,
     row: &Value,
-    run: &Run,
+    run: &Run<'_>,
     lockfile_sha256: &str,
     observe: &dyn Fn(&[PathBuf]) -> Vec<String>,
 ) -> Result<String, String> {
@@ -105,14 +115,11 @@ fn line(
     let identity = &row["identity"];
     let flag = text(&identity["compiler"]);
     let version = text(&identity["version"]);
-    let probe = match identity
+    let probe = identity
         .get("platform_probes")
         .and_then(|probes| probes.get(run.platform))
         .and_then(Value::as_str)
-    {
-        Some(probe) => probe,
-        None => text(&identity["probe"]),
-    };
+        .unwrap_or_else(|| text(&identity["probe"]));
 
     let ci_tests = labels(&row_labels[name]);
     let mut tests = Map::new();
@@ -172,12 +179,7 @@ fn line(
     if flag == "msvc" && outcome == "passed" && !files.is_empty() && observed.is_empty() {
         outcome = "mismatch";
     }
-    let blocker = facts
-        .get("compiler_blockers")
-        .and_then(|blockers| blockers.get(name))
-        .and_then(|blockers| blockers.get(run.platform))
-        .and_then(Value::as_str)
-        .unwrap_or_default();
+    let blocker = blocker_of(facts, name, run.platform);
     let tested_outcome = outcome;
     if !blocker.is_empty() && (outcome == "passed" || outcome == "skipped") {
         outcome = "blocked";
@@ -217,7 +219,7 @@ pub fn lines(
     facts: &Value,
     row_labels: &Value,
     consumer_labels: &Value,
-    run: &Run,
+    run: &Run<'_>,
     observe: &dyn Fn(&[PathBuf]) -> Vec<String>,
 ) -> Result<Vec<String>, String> {
     let lockfile_sha256 = if run.lockfile.is_file() {
@@ -252,7 +254,7 @@ fn var_or(name: &str, default: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| default.to_owned())
 }
 
-/// Appends the evidence lines to OUT. `args` is OUT PLATFORM FACTS ROW_LABELS CONSUMER_LABELS.
+/// Appends the evidence lines to `OUT`. `args` is `OUT` `PLATFORM` `FACTS` `ROW_LABELS` `CONSUMER_LABELS`.
 pub fn append(args: &[String]) -> Result<(), String> {
     let [out, platform, facts, row_labels, consumer_labels] = args else {
         return Err(

@@ -1,7 +1,8 @@
-//! No action leaves the sandbox, reaches the network or shares /tmp outside tools/ci/sandbox_escape_allowlist.txt, the allowlist holds no spare entry, and no test file calls `env::temp_dir`.
+//! No action leaves the sandbox, reaches the network or shares /tmp outside `tools/ci/sandbox_escape_allowlist.txt`, the allowlist holds no spare entry, and no test file calls `env::temp_dir`.
 
 mod guard_scan;
 
+use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
 
 use guard_scan::{Counts, Token, callee_name, exprs, hit, is_starlark, parse, rust_tokens, string};
@@ -167,62 +168,66 @@ impl Scan {
             }
         }
         for expr in exprs(module.statement()) {
-            match &expr.node {
-                ExprP::Dict(entries) => {
-                    let keys = entries
-                        .iter()
-                        .filter(|(key, _)| string(key).is_some_and(banned))
-                        .count();
-                    self.requirement(path, keys);
-                }
-                ExprP::Call(callee, args) => {
-                    for arg in &args.args {
-                        match &arg.node {
-                            ArgumentP::Named(key, value)
-                                if key.node == "execution_requirements" =>
-                            {
-                                self.requirement(path, local_keys(value));
-                            }
-                            ArgumentP::Named(key, value) if key.node == "tags" => {
-                                let mut inner = Vec::new();
-                                collect_strings(value, &mut inner);
-                                let tags = inner.iter().filter(|tag| BANNED.contains(tag)).count();
-                                if tags > 0 {
-                                    self.tagged.push((
-                                        path.to_owned(),
-                                        callee_name(callee).to_owned(),
-                                        tags,
-                                    ));
-                                }
-                            }
-                            ArgumentP::Positional(_)
-                            | ArgumentP::Named(..)
-                            | ArgumentP::Args(_)
-                            | ArgumentP::KwArgs(_) => {}
+            self.expression(path, expr);
+        }
+    }
+
+    fn expression(&mut self, path: &str, expr: &AstExpr) {
+        match &expr.node {
+            ExprP::Dict(entries) => {
+                let keys = entries
+                    .iter()
+                    .filter(|(key, _)| string(key).is_some_and(banned))
+                    .count();
+                self.requirement(path, keys);
+            }
+            ExprP::Call(callee, args) => {
+                for arg in &args.args {
+                    match &arg.node {
+                        ArgumentP::Named(key, value)
+                            if key.node == "execution_requirements" =>
+                        {
+                            self.requirement(path, local_keys(value));
                         }
+                        ArgumentP::Named(key, value) if key.node == "tags" => {
+                            let mut inner = Vec::new();
+                            collect_strings(value, &mut inner);
+                            let tags = inner.iter().filter(|tag| BANNED.contains(tag)).count();
+                            if tags > 0 {
+                                self.tagged.push((
+                                    path.to_owned(),
+                                    callee_name(callee).to_owned(),
+                                    tags,
+                                ));
+                            }
+                        }
+                        ArgumentP::Positional(_)
+                        | ArgumentP::Named(..)
+                        | ArgumentP::Args(_)
+                        | ArgumentP::KwArgs(_) => {}
                     }
                 }
-                ExprP::Tuple(_)
-                | ExprP::Dot(..)
-                | ExprP::Index(_)
-                | ExprP::Index2(_)
-                | ExprP::Slice(..)
-                | ExprP::Identifier(_)
-                | ExprP::Lambda(_)
-                | ExprP::Literal(_)
-                | ExprP::Not(_)
-                | ExprP::Minus(_)
-                | ExprP::Plus(_)
-                | ExprP::BitNot(_)
-                | ExprP::Op(..)
-                | ExprP::If(_)
-                | ExprP::List(_)
-                | ExprP::ListComprehension(..)
-                | ExprP::DictComprehension(..)
-                | ExprP::FString(_) => {
-                    if string(expr).is_some_and(tmp) {
-                        hit(&mut self.counts, path, "tmp-path");
-                    }
+            }
+            ExprP::Tuple(_)
+            | ExprP::Dot(..)
+            | ExprP::Index(_)
+            | ExprP::Index2(_)
+            | ExprP::Slice(..)
+            | ExprP::Identifier(_)
+            | ExprP::Lambda(_)
+            | ExprP::Literal(_)
+            | ExprP::Not(_)
+            | ExprP::Minus(_)
+            | ExprP::Plus(_)
+            | ExprP::BitNot(_)
+            | ExprP::Op(..)
+            | ExprP::If(_)
+            | ExprP::List(_)
+            | ExprP::ListComprehension(..)
+            | ExprP::DictComprehension(..)
+            | ExprP::FString(_) => {
+                if string(expr).is_some_and(tmp) {
+                    hit(&mut self.counts, path, "tmp-path");
                 }
             }
         }
@@ -280,7 +285,7 @@ impl Scan {
     fn file(&mut self, path: &str, source: &str) {
         if is_starlark(path) {
             self.starlark(path, source);
-        } else if path.ends_with(".rs") {
+        } else if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) {
             self.rust(path, source);
         } else {
             self.lines(path, source);

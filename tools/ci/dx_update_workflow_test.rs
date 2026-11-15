@@ -24,7 +24,7 @@ fn name_of(step: &serde_json::Value) -> &str {
     step["name"].as_str().unwrap_or_default()
 }
 
-/// Returns the step-scoped GH_TOKEN, or an empty string.
+/// Returns the step-scoped `GH_TOKEN`, or an empty string.
 fn step_token(step: &serde_json::Value) -> &str {
     step["env"]["GH_TOKEN"].as_str().unwrap_or_default()
 }

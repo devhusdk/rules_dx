@@ -16,7 +16,7 @@ const QUALIFIED_TRIPLES: [&str; 5] = [
     "x86_64-unknown-linux-gnu",
 ];
 
-/// The triples crate_universe covered before dx qualified Windows ARM64.
+/// The triples `crate_universe` covered before dx qualified Windows ARM64.
 const PRESERVED_TRIPLES: [&str; 7] = [
     "aarch64-apple-darwin",
     "aarch64-unknown-linux-gnu",
@@ -71,7 +71,7 @@ const PLATFORM_CONDITIONS: [(&str, &[&str]); 12] = [
     ("cfg(windows)", &[WINDOWS_ARM, WINDOWS_X86]),
 ];
 
-/// Dependency groups crate_universe renders as a select when a cfg gates a dependency.
+/// Dependency groups `crate_universe` renders as a select when a cfg gates a dependency.
 const DEP_GROUPS: [&str; 4] = ["deps", "dev_deps", "proc_macro_deps", "proc_macro_dev_deps"];
 
 fn declared_triples() -> BTreeSet<String> {
@@ -207,8 +207,10 @@ fn every_qualified_platform_keeps_its_generated_mapping() {
         let actual = resolved
             .iter()
             .find(|(name, _)| name == condition)
-            .map(|(_, triples)| triples.as_slice())
-            .unwrap_or_else(|| panic!("{LOCKFILE} records no {condition} condition"));
+            .map_or_else(
+                || panic!("{LOCKFILE} records no {condition} condition"),
+                |(_, triples)| triples.as_slice(),
+            );
         assert_eq!(
             actual, expected,
             "{condition} resolved to the wrong triples"

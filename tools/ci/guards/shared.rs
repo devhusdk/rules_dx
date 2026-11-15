@@ -113,7 +113,7 @@ pub fn settle(found: &Counts, variable: &str, allowlist: &str, kinds: &[&str]) {
 
 fn walk(root: &Path, dir: &Path, out: &mut BTreeMap<String, String>) {
     let entries =
-        std::fs::read_dir(dir).unwrap_or_else(|error| panic!("read_dir {dir:?}: {error}"));
+        std::fs::read_dir(dir).unwrap_or_else(|error| panic!("read_dir {}: {error}", dir.display()));
     for entry in entries {
         let path = entry.expect("readable dir entry").path();
         if path.is_dir() {
@@ -149,8 +149,8 @@ pub fn under(path: &str, names: &[&str]) -> bool {
 pub fn is_starlark(path: &str) -> bool {
     let name = path.rsplit('/').next().unwrap_or(path);
     matches!(name, "BUILD" | "BUILD.bazel" | "MODULE.bazel")
-        || name.ends_with(".bzl")
-        || name.ends_with(".BUILD")
+        || Path::new(name).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
+        || Path::new(name).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("BUILD"))
         || name.ends_with(".BUILD.bazel")
 }
 
@@ -295,13 +295,12 @@ fn raw_string(bytes: &[u8], index: usize) -> Option<(usize, usize)> {
 
 /// The length of the char literal that opens at `index`, or `None` for a lifetime.
 fn char_literal(source: &str, index: usize) -> Option<usize> {
-    let rest = source.get(index + 1..).expect("string slice within bounds");
+    let rest = source.get(index + 1..)?;
     if let Some(escaped) = rest.strip_prefix('\\') {
         return escaped.get(1..)?.find('\'').map(|offset| offset + 4);
     }
     let first = rest.chars().next()?;
-    rest.get(first.len_utf8()..)
-        .expect("string slice within bounds")
+    rest.get(first.len_utf8()..)?
         .starts_with('\'')
         .then_some(first.len_utf8() + 2)
 }
@@ -532,7 +531,7 @@ mod tests {
             Some("a alias 1\n")
         );
         let (allowed, _) = parse_allowlist(&dx_testing::read_text(&file), &["alias"]);
-        assert!(differences(&found, &allowed).is_empty());
+        assert_eq!(differences(&found, &allowed), Vec::<String>::new());
     }
 
     #[test]

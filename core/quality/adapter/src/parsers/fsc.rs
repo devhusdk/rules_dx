@@ -110,6 +110,10 @@ fn owned<'a>(path: &str, files: &[&'a str]) -> Option<&'a str> {
 /// Parses `fsc --flaterrors` diagnostics. A located error in a file the target does
 /// not own, an error that names no file, and a failing exit without a kept error are
 /// all errors, never a pass.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_fsc(
     output: &[u8],
     code: Option<i32>,
@@ -251,7 +255,8 @@ mod tests {
 
     #[test]
     fn a_clean_exit_with_no_output_is_clean() {
-        assert!(parse("", 0).expect("clean").is_empty());
+        let actual = parse("", 0).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
         assert_eq!(
             parse("fs/a.fs(1,1): warning FS0025: x\n", 0)
                 .expect("warned")

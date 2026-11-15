@@ -1,10 +1,10 @@
-//! No repos.bzl calls module_extension(): module extensions live in the sibling extensions.bzl.
+//! No repos.bzl calls `module_extension()`: module extensions live in the sibling extensions.bzl.
 
 use std::path::{Path, PathBuf};
 
 use dx_testing::runfiles_root;
 
-/// True when a line that is not a comment calls module_extension(.
+/// True when a line that is not a comment calls `module_extension`(.
 fn calls_module_extension(source: &str) -> bool {
     source
         .lines()

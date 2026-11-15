@@ -8,6 +8,10 @@ const TOOL: &str = "jsonnetfmt";
 
 /// `--test` lists each file it would rewrite on stdout and exits 2, and reports the first
 /// syntax error as `<path>:<line>:<column> <message>` on stderr with exit 1.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_jsonnetfmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -106,7 +110,7 @@ mod tests {
         assert_eq!(findings[0].file, "/s/jsonnet/Sample.jsonnet");
         assert_eq!(findings[0].finding.message, "file is not formatted");
         let clean = parse_jsonnetfmt(b"", b"", Some(0), &FILES).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
     }
 
     #[test]

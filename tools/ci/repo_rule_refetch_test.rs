@@ -1,8 +1,9 @@
-//! No repository rule or module extension refetches: none is configure or local, reads the environment, watches a path or omits reproducible metadata, outside tools/ci/repo_rule_refetch_allowlist.txt.
+//! No repository rule or module extension refetches: none is configure or local, reads the environment, watches a path or omits reproducible metadata, outside `tools/ci/repo_rule_refetch_allowlist.txt`.
 
 #[path = "guard_rules/scan.rs"]
 mod scan;
 
+use std::path::Path;
 use scan::{CallArgs, Counts, Masked, add, calls, is_skipped, is_starlark, masked};
 use serde_json as _;
 use starlark_syntax as _;
@@ -69,10 +70,7 @@ fn body<'a>(source: &'a Masked, name: &str) -> Option<&'a str> {
         .match_indices(&header)
         .map(|(at, _)| at)
         .find(|at| *at == 0 || source.mask.as_bytes()[at - 1] == b'\n')?;
-    let rest = source
-        .mask
-        .get(start..)
-        .expect("string slice within bounds");
+    let rest = source.mask.get(start..)?;
     let mut end = 0;
     for (index, line) in rest.split_inclusive('\n').enumerate() {
         if index > 0 && !line.trim().is_empty() && !line.starts_with([' ', '\t', ')']) {
@@ -80,7 +78,7 @@ fn body<'a>(source: &'a Masked, name: &str) -> Option<&'a str> {
         }
         end += line.len();
     }
-    Some(rest.get(..end).expect("string slice within bounds"))
+    rest.get(..end)
 }
 
 /// The implementation named by a `repository_rule` or `module_extension` call.
@@ -152,7 +150,7 @@ fn watches(source: &Masked) -> usize {
 fn scan_files(files: &[(String, String)]) -> Counts {
     let mut counts = Counts::new();
     for (path, text) in files {
-        if !path.ends_with(".bzl") || !is_starlark(path) || is_skipped(path) {
+        if !Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("bzl")) || !is_starlark(path) || is_skipped(path) {
             continue;
         }
         let source = masked(text);

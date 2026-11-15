@@ -84,6 +84,10 @@ fn invalid_files(stderr: &[u8]) -> Result<Vec<serde_json::Value>, ParseError> {
 /// no issues and no unparsable files, 1 for at least one of either, and 2 when the run
 /// halted or crashed. Anything else, a missing or malformed summary line, or an exit code
 /// that disagrees with the report is an error, so a file Credo dropped is never read as clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_credo(
     stdout: &[u8],
     stderr: &[u8],
@@ -169,7 +173,7 @@ mod tests {
     #[test]
     fn clean_run_is_clean() {
         let found = parse_credo(br#"{"issues":[]}"#, NONE, Some(0), FILES).expect("clean");
-        assert!(found.is_empty());
+        assert!(found.is_empty(), "{found:?}");
     }
 
     #[test]
@@ -180,7 +184,8 @@ mod tests {
         assert_eq!(found[0].finding.rule_id, "credo/Readability.ModuleDoc");
         assert_eq!(found[0].finding.severity, ToolSeverity::Warning);
         assert_eq!(found[0].finding.start.column, 11);
-        assert!(found[0].finding.suggestions.is_empty());
+        let actual = &found[0].finding.suggestions;
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

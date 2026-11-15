@@ -2,14 +2,15 @@
 //!
 //! The Starlark rule writes one JSON manifest per case and runs this binary as
 //! the test executable. The harness resolves every input through its own
-//! runfiles, invokes the quality runner and the print_result printer as child
-//! processes, validates the result with quality_result, checks the printed
+//! runfiles, invokes the quality runner and the `print_result` printer as child
+//! processes, validates the result with `quality_result`, checks the printed
 //! golden bytes, and stages snapshot updates. No Bash, python3, diff, cp, or
 //! mkdir processes are launched.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -166,6 +167,11 @@ fn lookup(resolver: &Resolver, key: &str) -> Result<PathBuf, HarnessError> {
         })
 }
 
+/// Returns the result of the call.
+///
+/// # Errors
+///
+/// Returns the error describing the first step that failed.
 pub fn parse_manifest(bytes: &[u8], path: &str) -> Result<Manifest, HarnessError> {
     let manifest: Manifest =
         serde_json::from_slice(bytes).map_err(|error| HarnessError::BadManifest {
@@ -189,6 +195,11 @@ pub fn parse_manifest(bytes: &[u8], path: &str) -> Result<Manifest, HarnessError
     Ok(manifest)
 }
 
+/// Returns the result of the call.
+///
+/// # Errors
+///
+/// Returns the error describing the first step that failed.
 pub fn resolve_manifest(resolver: &Resolver, manifest: Manifest) -> Result<Resolved, HarnessError> {
     let runner = lookup(resolver, &manifest.runner_key)?;
     let printer = lookup(resolver, &manifest.printer_key)?;
@@ -245,6 +256,7 @@ fn display(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
+#[must_use]
 pub fn substitute_test_srcdir(value: &str, test_srcdir: &str) -> String {
     value.replace(TEST_SRCDIR_TOKEN, test_srcdir)
 }
@@ -323,7 +335,11 @@ fn request_mappings(mappings: &[(String, PathBuf)]) -> Vec<RequestMapping> {
         .collect()
 }
 
-/// Encodes the resolved case as a quality_runner `--request` document.
+/// Encodes the resolved case as a `quality_runner` `--request` document.
+///
+/// # Errors
+///
+/// Returns the error describing the first step that failed.
 pub fn build_request(
     resolved: &Resolved,
     scratch_parent: &Path,
@@ -410,6 +426,11 @@ pub struct ChildOutput {
     pub stderr: String,
 }
 
+/// Returns the result of the call.
+///
+/// # Errors
+///
+/// Returns the error describing the first step that failed.
 pub fn run_child(program: &Path, argv: &[String], role: &str) -> Result<ChildOutput, HarnessError> {
     let mut command = Command::new(program);
     command.args(argv);
@@ -442,6 +463,11 @@ fn capability_value(capability: &str) -> Option<i32> {
     }
 }
 
+/// Returns the result of the call.
+///
+/// # Errors
+///
+/// Returns the error describing the first step that failed.
 pub fn validate_result(bytes: &[u8], manifest: &Manifest) -> Result<(), HarnessError> {
     let result = decode_validated(bytes).map_err(|error| HarnessError::InvalidResult {
         detail: error.to_string(),
@@ -504,6 +530,11 @@ fn body_rows(lines: &[&str], prefix: &str) -> usize {
         .count()
 }
 
+/// Returns the result of the call.
+///
+/// # Errors
+///
+/// Returns the error describing the first step that failed.
 pub fn check_printed(text: &str, stages: usize) -> Result<(), HarnessError> {
     let lines: Vec<&str> = text.split('\n').collect();
     let body: Vec<&str> = if text.ends_with('\n') {
@@ -586,6 +617,7 @@ pub fn check_printed(text: &str, stages: usize) -> Result<(), HarnessError> {
     Ok(())
 }
 
+#[must_use]
 pub fn render_diff(expected: &[u8], actual: &[u8]) -> String {
     let expected_text = String::from_utf8_lossy(expected);
     let actual_text = String::from_utf8_lossy(actual);
@@ -624,19 +656,19 @@ pub fn render_diff(expected: &[u8], actual: &[u8]) -> String {
         if shown >= MAX_DIFF_LINES {
             break;
         }
-        out.push_str(&format!("-{}: {line}\n", prefix + index + 1));
+        writeln!(out, "-{}: {line}", prefix + index + 1).ok();
         shown += 1;
     }
     for (index, line) in actual_mid.iter().enumerate() {
         if shown >= MAX_DIFF_LINES {
             break;
         }
-        out.push_str(&format!("+{}: {line}\n", prefix + index + 1));
+        writeln!(out, "+{}: {line}", prefix + index + 1).ok();
         shown += 1;
     }
     let hidden = (expected_mid.len() + actual_mid.len()).saturating_sub(shown);
     if hidden > 0 {
-        out.push_str(&format!("... {hidden} more differing lines\n"));
+        writeln!(out, "... {hidden} more differing lines").ok();
     }
     out
 }
@@ -659,6 +691,11 @@ fn update_dir() -> PathBuf {
     PathBuf::from("/tmp")
 }
 
+/// Returns the result of the call.
+///
+/// # Errors
+///
+/// Returns the error describing the first step that failed.
 pub fn stage_update(actual: &[u8], update_file: &str) -> Result<PathBuf, HarnessError> {
     let dir = update_dir();
     std::fs::create_dir_all(&dir).map_err(|error| HarnessError::UnwritableUpdate {
@@ -807,11 +844,11 @@ fn run() -> Result<(), HarnessError> {
     })?;
     let manifest = parse_manifest(&bytes, &display(&manifest_path))?;
     let name = manifest.name.clone();
-    let resolved = resolve_manifest(&resolver, manifest)?;
-    let manifest_ref = &resolved.manifest;
+    let plan = resolve_manifest(&resolver, manifest)?;
+    let manifest_ref = &plan.manifest;
     let paths = work_paths()?;
     plant_ambient_files(&paths.scratch_parent, &manifest_ref.ambient_files)?;
-    let request = build_request(&resolved, &paths.scratch_parent, &test_srcdir(&resolver))?;
+    let request = build_request(&plan, &paths.scratch_parent, &test_srcdir(&resolver))?;
     std::fs::write(&paths.request, request).map_err(|error| HarnessError::UnwritableWorkdir {
         path: display(&paths.request),
         detail: error.to_string(),
@@ -822,7 +859,7 @@ fn run() -> Result<(), HarnessError> {
         "--output".to_owned(),
         display(&paths.out_pb),
     ];
-    let runner_out = run_child(&resolved.runner, &argv, "runner")?;
+    let runner_out = run_child(&plan.runner, &argv, "runner")?;
     if manifest_ref.runner_failure {
         if runner_out.status.starts_with("exit 0") {
             return Err(HarnessError::RunnerFailed {
@@ -837,14 +874,14 @@ fn run() -> Result<(), HarnessError> {
                 ),
             })?;
         let actual = normalize_scratch(&actual, &display(&paths.scratch_parent));
-        return compare_golden(&resolved, &name, actual.as_bytes());
+        return compare_golden(&plan, &name, actual.as_bytes());
     }
     if !runner_out.status.starts_with("exit 0") {
         return Err(HarnessError::RunnerFailed {
             detail: format!("runner {}: {}", runner_out.status, runner_out.stderr),
         });
     }
-    let printer_out = run_child(&resolved.printer, &[display(&paths.out_pb)], "printer")?;
+    let printer_out = run_child(&plan.printer, &[display(&paths.out_pb)], "printer")?;
     if !printer_out.status.starts_with("exit 0") {
         return Err(HarnessError::PrinterFailed {
             detail: format!("printer {}: {}", printer_out.status, printer_out.stderr),
@@ -856,10 +893,11 @@ fn run() -> Result<(), HarnessError> {
     validate_result(&out_bytes, manifest_ref)?;
     let actual = String::from_utf8_lossy(&printer_out.stdout).into_owned();
     check_printed(&actual, manifest_ref.stages.len())?;
-    compare_golden(&resolved, &name, &printer_out.stdout)
+    compare_golden(&plan, &name, &printer_out.stdout)
 }
 
 /// The runner's error message without the log prefix, newline-terminated.
+#[must_use]
 pub fn runner_error_text(stderr: &str) -> Option<String> {
     const MARKER: &str = "quality_runner: ";
     let line = stderr.lines().rev().find(|line| line.contains(MARKER))?;
@@ -869,6 +907,7 @@ pub fn runner_error_text(stderr: &str) -> Option<String> {
 
 /// Replaces each per-run scratch directory under `scratch_parent` with a stable token,
 /// spelling the rest of the path with forward slashes.
+#[must_use]
 pub fn normalize_scratch(text: &str, scratch_parent: &str) -> String {
     let flat = text.replace('\\', "/");
     let prefix = format!(
@@ -973,8 +1012,11 @@ mod tests {
             "update_file": "matrix_probe.expected.update",
             "update_hint": "core/quality/testdata/matrix/matrix_probe.expected.txt",
         });
-        for (key, value) in extra.as_object().expect("extra is an object") {
-            doc[key] = value.clone();
+        let serde_json::Value::Object(extra) = extra else {
+            panic!("extra is an object");
+        };
+        for (key, value) in extra {
+            doc[key] = value;
         }
         serde_json::to_vec(&doc).expect("skeleton encodes")
     }
@@ -1238,7 +1280,7 @@ mod tests {
                 "/runfiles/matrix_lib.rs".to_owned()
             )]
         );
-        assert!(request.resolves.is_empty());
+        assert_eq!(request.resolves, [] as [(String, String); 0]);
         assert_eq!(request.scratch_parent.as_deref(), Some("/tmp/scratch"));
         let rustfmt = &request.tools["rustfmt"];
         assert_eq!(rustfmt.binary, Some(PathBuf::from("/runfiles/rustfmt")));
@@ -1251,8 +1293,8 @@ mod tests {
                 "/runfiles/rustfmt.toml".to_owned()
             )]
         );
-        assert!(rustfmt.upstream.is_empty());
-        assert!(rustfmt.search_paths.is_empty());
+        assert_eq!(rustfmt.upstream, [] as [PathBuf; 0]);
+        assert_eq!(rustfmt.search_paths, [] as [PathBuf; 0]);
         let clippy = &request.tools["clippy"];
         assert_eq!(clippy.binary, None);
         assert_eq!(clippy.upstream, [PathBuf::from("/runfiles/clippy.diag")]);

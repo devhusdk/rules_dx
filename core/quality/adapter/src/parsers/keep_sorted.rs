@@ -7,6 +7,9 @@ use super::{
 };
 use crate::ToolSeverity;
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_keep_sorted(
     stdout: &[u8],
     code: Option<i32>,
@@ -55,6 +58,9 @@ struct KeepSortedReport {
     message: String,
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_keep_sorted_lint(
     stdout: &[u8],
     code: Option<i32>,
@@ -62,7 +68,7 @@ pub fn parse_keep_sorted_lint(
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "keep_sorted";
     check_output_size(TOOL, stdout)?;
-    if stdout.iter().all(|byte| byte.is_ascii_whitespace()) {
+    if stdout.iter().all(u8::is_ascii_whitespace) {
         require_findings(TOOL, &[], code)?;
         return Ok(Vec::new());
     }
@@ -114,7 +120,7 @@ mod tests {
             parse_keep_sorted(DIRTY.as_bytes(), Some(1), &["notes.txt"]).expect("parsed");
         assert_eq!(findings.len(), 1);
         let clean = parse_keep_sorted(b"", Some(0), &["notes.txt"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_keep_sorted(b"", Some(1), &["notes.txt"]).is_err());
         assert!(parse_keep_sorted(DIRTY.as_bytes(), Some(1), &["other.txt"]).is_err());
         assert!(parse_keep_sorted(&[0xff], Some(1), &["x"]).is_err());
@@ -131,7 +137,7 @@ mod tests {
         assert_eq!(findings[0].finding.start.line, 2);
         assert_eq!(findings[0].finding.start.column, 1);
         let clean = parse_keep_sorted_lint(b"", Some(0), &["notes.txt"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_keep_sorted_lint(b"", Some(1), &["notes.txt"]).is_err());
         assert!(parse_keep_sorted_lint(b"{<error", Some(1), &["notes.txt"]).is_err());
         assert!(parse_keep_sorted_lint(DIRECT_DIRTY.as_bytes(), Some(1), &["other.txt"]).is_err());

@@ -1,11 +1,12 @@
 //! Compiler evidence table: merges evidence lines into one markdown table of compiler row x platform.
 
+use std::fmt::Write as _;
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 fn jsonl_files(dir: &Path, found: &mut Vec<PathBuf>) -> Result<(), String> {
-    let entries = std::fs::read_dir(dir).map_err(|error| format!("read {dir:?}: {error}"))?;
+    let entries = std::fs::read_dir(dir).map_err(|error| format!("read {}: {error}", dir.display()))?;
     for entry in entries {
         let path = entry.map_err(|error| error.to_string())?.path();
         if path.is_dir() {
@@ -24,7 +25,7 @@ fn merged_lines(dir: &Path) -> Result<Vec<String>, String> {
     let mut lines = Vec::new();
     for file in files {
         let text =
-            std::fs::read_to_string(&file).map_err(|error| format!("read {file:?}: {error}"))?;
+            std::fs::read_to_string(&file).map_err(|error| format!("read {}: {error}", file.display()))?;
         lines.extend(
             text.lines()
                 .map(|line| line.replace('\r', ""))
@@ -81,7 +82,7 @@ fn render(lines: &[Value], platforms: &[String]) -> String {
             .iter()
             .map(|platform| cell(lines, row, platform))
             .collect();
-        out.push_str(&format!("| {row} | {} |\n", cells.join(" | ")));
+        writeln!(out, "| {row} | {} |", cells.join(" | ")).unwrap_or_default();
     }
     out
 }

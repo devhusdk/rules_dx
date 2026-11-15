@@ -9,6 +9,10 @@ use crate::ToolSeverity;
 const TOOL: &str = "terraform";
 
 /// Exit 0 is clean, 3 lists unformatted files, and 2 reports located syntax errors.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_terraform(
     stdout: &[u8],
     stderr: &[u8],
@@ -17,7 +21,7 @@ pub fn parse_terraform(
     cwd: &Path,
 ) -> Result<Vec<FileFinding>, ParseError> {
     match code {
-        Some(0) | Some(3) => listed_paths(TOOL, stdout, code, files, &[], Spelling::Below(cwd)),
+        Some(0 | 3) => listed_paths(TOOL, stdout, code, files, &[], Spelling::Below(cwd)),
         Some(2) => syntax_errors(stderr, files, cwd),
         _ => Err(ParseError::Shape {
             tool: TOOL,
@@ -110,7 +114,7 @@ mod tests {
         assert_eq!(findings[0].file, "/tmp/dx-scratch/sub/main.tf");
         assert_eq!(findings[1].file, "/tmp/dx-scratch/sub/Other.tf");
         let clean = parse_terraform(b"", b"", Some(0), &files(), scratch()).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_terraform(b"", b"", Some(3), &files(), scratch()).is_err());
         assert!(parse_terraform(&[0xff], b"", Some(0), &["x"], scratch()).is_err());
     }

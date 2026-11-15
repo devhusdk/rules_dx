@@ -1,5 +1,8 @@
 use super::{FileFinding, ParseError, Spelling, listed_paths};
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ktfmt(
     stdout: &[u8],
     code: Option<i32>,
@@ -18,7 +21,7 @@ mod tests {
         let findings = parse_ktfmt(stdout.as_bytes(), Some(1), &["/s/Dirty.kt"]).expect("parsed");
         assert_eq!(findings[0].finding.message, "file is not formatted");
         let clean = parse_ktfmt(b"", Some(0), &["/s/Dirty.kt"]).expect("clean");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_ktfmt(b"", Some(1), &["/s/Dirty.kt"]).is_err());
         assert!(parse_ktfmt(b"/s/other.kt\n", Some(1), &["/s/Dirty.kt"]).is_err());
     }

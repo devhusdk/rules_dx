@@ -32,7 +32,7 @@ Thin wrapper over the rules_haskell haskell_library macro.
 haskell_binary(name, *, srcs = None, visibility = None, **kwargs)
 ```
 
-Thin wrapper over the rules_haskell haskell_binary macro. ghcopts default to the strict or standard profile set and GMP is added to deps. Warnings are errors unless warnings_as_errors is False.
+Wraps the rules_haskell haskell_binary macro with strict ghcopts and GMP in deps.
 
 ### `haskell_test`
 
@@ -40,7 +40,7 @@ Thin wrapper over the rules_haskell haskell_binary macro. ghcopts default to the
 haskell_test(name, *, srcs = None, visibility = None, **kwargs)
 ```
 
-Thin wrapper over the rules_haskell haskell_test macro. ghcopts default to the strict or standard profile set and GMP is added to deps. Warnings are errors unless warnings_as_errors is False.
+Wraps the rules_haskell haskell_test macro with strict ghcopts and GMP in deps.
 
 ### `haskell_bench`
 

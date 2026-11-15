@@ -110,7 +110,7 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
     wiring
 }
 
-/// Writes the `pnpm-workspace.yaml` with `allowBuilds` that rules_js requires beside each wired pnpm lock.
+/// Writes the `pnpm-workspace.yaml` with `allowBuilds` that `rules_js` requires beside each wired pnpm lock.
 fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mut Wiring) {
     let paths = match dx_adopt::plan_pnpm_settings(workspace) {
         Ok(paths) => paths,
@@ -288,7 +288,7 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wir
     );
 }
 
-/// Fills the empty cargo lock with the crate_universe repin `dx update` runs.
+/// Fills the empty cargo lock with the `crate_universe` repin `dx update` runs.
 fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let hub = dx_families::hub("cargo").map_or("", |hub| hub.hub.as_str());
     let argv = dx_update::backend::configured_fetch_argv(&request.bazel_head(), hub, false);
@@ -675,15 +675,10 @@ fn run_generate_request(
 fn failed_generate(kind: PhaseKind) -> PhaseKind {
     match kind {
         PhaseKind::Incomplete | PhaseKind::Tool => PhaseKind::GenerateFailed,
-        other @ PhaseKind::Clean
-        | other @ PhaseKind::Findings
-        | other @ PhaseKind::NonConvergence
-        | other @ PhaseKind::Selection
-        | other @ PhaseKind::Report
-        | other @ PhaseKind::Compile
-        | other @ PhaseKind::Host
-        | other @ PhaseKind::Cancelled
-        | other @ PhaseKind::GenerateFailed => other,
+        other @
+(PhaseKind::Clean | PhaseKind::Findings | PhaseKind::NonConvergence |
+PhaseKind::Selection | PhaseKind::Report | PhaseKind::Compile |
+PhaseKind::Host | PhaseKind::Cancelled | PhaseKind::GenerateFailed) => other,
     }
 }
 
@@ -1421,7 +1416,9 @@ mod tests {
             .get(GENERATE_ENV_INTENDED)
             .copied()
             .expect("witness path");
-        assert!(intended.ends_with(".json"), "{intended}");
+        assert!(Path::new(intended)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json")), "{intended}");
         assert_eq!(
             std::fs::read(intended).expect("witness bytes"),
             harness.intended.expect("canned witness"),

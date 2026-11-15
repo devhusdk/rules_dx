@@ -20,7 +20,7 @@ fn affected_is_accepted_by_the_scope_taking_commands() {
         let words = [command.name(), "--affected"];
         let invocation = parse(&strings(&words)).expect("parses");
         assert!(invocation.affected, "{}", command.name());
-        assert!(invocation.targets.is_empty());
+        assert_eq!(invocation.targets, [] as [String; 0]);
     }
 }
 
@@ -83,7 +83,7 @@ fn since_needs_affected() {
 fn deploy_takes_affected_and_since_but_no_label() {
     let invocation = parse(&strings(&["deploy", "--affected", "--since=main"])).expect("parses");
     assert!(invocation.affected);
-    assert!(invocation.targets.is_empty());
+    assert_eq!(invocation.targets, [] as [String; 0]);
     assert_eq!(
         parse(&strings(&["deploy", "--affected", "//a:b"])),
         Err(ArgsError::ConflictingAffected)

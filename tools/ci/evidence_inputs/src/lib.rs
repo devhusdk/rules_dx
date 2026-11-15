@@ -71,31 +71,9 @@ fn quoted(items: &[String]) -> String {
     format!("[{}]", items.join(", "))
 }
 
-/// Returns the workflow outputs for valid inputs, or the reason one input is rejected.
-pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
-    let scope_text = get("DX_SCOPE");
-    let patterns: Vec<&str> = scope_text.split_whitespace().collect();
-    if patterns.is_empty() {
-        return Err("scope must name at least one target pattern".into());
-    }
-    for pattern in &patterns {
-        if !is_pattern(pattern) {
-            return Err(format!(
-                "scope holds '{pattern}', which is not a target pattern; \
-                 write patterns such as //pkg/... or //pkg:target"
-            ));
-        }
-    }
-    let scope = patterns.join(" ");
-    let task = get("DX_TASK");
-    if !TASKS.contains(&task.as_str()) {
-        let tasks: Vec<String> = TASKS.iter().map(|t| t.to_string()).collect();
-        return Err(format!(
-            "task must be one of {}, got '{task}'",
-            quoted(&tasks)
-        ));
-    }
-    let Ok(parsed) = serde_json::from_str::<Value>(&get("DX_PLATFORMS")) else {
+/// Returns the platform names in `text`, a JSON array of distinct known platforms.
+fn parse_platforms(text: &str) -> Result<Vec<String>, String> {
+    let Ok(parsed) = serde_json::from_str::<Value>(text) else {
         return Err("platforms must be a JSON array".into());
     };
     let Value::Array(list) = &parsed else {
@@ -139,9 +117,41 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
             ));
         }
     }
+    Ok(platforms)
+}
+
+/// Returns the workflow outputs for valid inputs, or the reason one input is rejected.
+///
+/// # Errors
+///
+/// Returns `Err` with the diagnostic when the input is rejected.
+pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
+    let scope_text = get("DX_SCOPE");
+    let patterns: Vec<&str> = scope_text.split_whitespace().collect();
+    if patterns.is_empty() {
+        return Err("scope must name at least one target pattern".into());
+    }
+    for pattern in &patterns {
+        if !is_pattern(pattern) {
+            return Err(format!(
+                "scope holds '{pattern}', which is not a target pattern; \
+                 write patterns such as //pkg/... or //pkg:target"
+            ));
+        }
+    }
+    let scope = patterns.join(" ");
+    let task = get("DX_TASK");
+    if !TASKS.contains(&task.as_str()) {
+        let tasks: Vec<String> = TASKS.iter().map(ToString::to_string).collect();
+        return Err(format!(
+            "task must be one of {}, got '{task}'",
+            quoted(&tasks)
+        ));
+    }
+    let platforms = parse_platforms(&get("DX_PLATFORMS"))?;
     let displays = get("DX_DISPLAYS");
     if !displays.is_empty() && !DISPLAYS.contains(&displays.as_str()) {
-        let shown: Vec<String> = DISPLAYS.iter().map(|d| d.to_string()).collect();
+        let shown: Vec<String> = DISPLAYS.iter().map(ToString::to_string).collect();
         return Err(format!(
             "displays must be one of {}, got '{displays}'",
             quoted(&shown)

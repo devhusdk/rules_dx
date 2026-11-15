@@ -183,6 +183,9 @@ fn convert(
     Ok(findings)
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_qmllint(
     stdout: &[u8],
     code: Option<i32>,
@@ -214,6 +217,10 @@ pub fn parse_qmllint(
 }
 
 /// Parses one saved report; it may cover only some of the files.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_qmllint_report(
     stdout: &[u8],
     files: &[&str],
@@ -291,7 +298,7 @@ mod tests {
     #[test]
     fn clean_reports_need_exit_zero() {
         let clean = lint(CLEAN.as_bytes(), Some(0), &["clean.qml"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(lint(CLEAN.as_bytes(), Some(255), &["clean.qml"]).is_err());
     }
 
@@ -347,7 +354,7 @@ mod tests {
                 .contains("no report for other.qml")
         );
         let twice = CLEAN.replace(
-            "]",
+            ']',
             ",{\"filename\":\"clean.qml\",\"success\":true,\"warnings\":[]}]",
         );
         assert!(lint(twice.as_bytes(), Some(0), &["clean.qml"]).is_err());
@@ -380,7 +387,8 @@ mod tests {
         assert_eq!(warned.len(), 1);
         assert!(lint_report(b"", &["warn.qml"]).is_err());
         let partial = lint_report(CLEAN.as_bytes(), &["clean.qml", "other.qml"]);
-        assert!(partial.expect("one report per source").is_empty());
+        let actual = partial.expect("one report per source");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -411,7 +419,7 @@ mod tests {
             QmllintView::Lint,
         )
         .expect("parsed");
-        assert!(import.is_empty());
+        assert!(import.is_empty(), "{import:?}");
         let report = parse_qmllint_report(IMPORT.as_bytes(), &["imp.qml"], QmllintView::Typecheck)
             .expect("parsed");
         assert_eq!(report.len(), 3);

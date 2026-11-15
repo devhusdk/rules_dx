@@ -34,6 +34,7 @@ pub const DISK_LOW_CODE: &str = "disk_low";
 pub const SLOT_MAX_IDLE_SECS: u64 = 300;
 
 /// The `--max_idle_secs` for the server of `workspace`: short inside a `dx worktree` slot, `None` elsewhere.
+#[must_use]
 pub fn slot_idle_secs(workspace: &Path) -> Option<u64> {
     dx_worktree::lease_for_dir(workspace).map(|_| SLOT_MAX_IDLE_SECS)
 }
@@ -42,6 +43,7 @@ pub fn slot_idle_secs(workspace: &Path) -> Option<u64> {
 pub const SLOT_MEMORY_ENV: &str = "DX_BUILD_SLOT_MEMORY";
 
 /// Reads a slot memory size in bytes; `None` for zero or anything unreadable.
+#[must_use]
 pub fn parse_slot_memory(value: &str) -> Option<u64> {
     let value = value.trim().to_ascii_lowercase();
     let (digits, unit) = if let Some(digits) = value.strip_suffix('g') {
@@ -101,7 +103,7 @@ const REAP_MIN_IDLE: Duration = Duration::from_secs(120);
 #[derive(Debug)]
 pub struct Slot {
     _file: File,
-    _reserve: Vec<File>,
+    reserve: Vec<File>,
     holder: PathBuf,
     pub index: usize,
     sizing: Option<Arc<ShareSizing>>,
@@ -131,6 +133,7 @@ impl ShareSizing {
 
 impl Slot {
     /// The share this slot gets now, split over the slots held at this moment.
+    #[must_use]
     pub fn share(&self) -> Option<dx_process::LocalShare> {
         self.sizing.as_ref().map(|sizing| sizing.share())
     }
@@ -229,7 +232,7 @@ impl dx_process::Runner for SlotEnv<'_> {
         cwd: &Path,
         env: &[(&str, &str)],
         withdraw: Option<&dyn Fn() -> bool>,
-        held: &[&std::fs::File],
+        held: &[&File],
     ) -> io::Result<Option<dx_process::ChildStatus>> {
         let share = self.share_env();
         self.inner
@@ -250,6 +253,7 @@ impl dx_process::Runner for SlotEnv<'_> {
 }
 
 /// Reports whether the command starts Bazel work.
+#[must_use]
 pub fn needs_slot(command: Command) -> bool {
     matches!(
         command,
@@ -270,7 +274,7 @@ pub fn needs_slot(command: Command) -> bool {
     )
 }
 
-/// Memory kept for nested Bazel test servers; only the rules_dx workspace runs them.
+/// Memory kept for nested Bazel test servers; only the `rules_dx` workspace runs them.
 pub fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>) -> u64 {
     if !workspace.join("cli/cli/BUILD.bazel").is_file() {
         return 0;
@@ -291,6 +295,7 @@ pub fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>
 }
 
 /// Slots for remote-execution runs on a machine with `memory` bytes, `reserved` of them kept aside.
+#[must_use]
 pub fn remote_slot_count(memory: u64, reserved: u64) -> usize {
     usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_REMOTE_SLOT)
         .unwrap_or(MAX_SLOTS)
@@ -319,6 +324,7 @@ impl Sizing {
 ///
 /// `Auto` sizes from memory. `Count(n)` takes exactly `n`, keeps the reserve's width above `n`,
 /// and adds no remote extras. `Off` has no gate.
+#[must_use]
 pub fn sizing(setting: BuildSlots, memory: u64, reserved: u64) -> Option<Sizing> {
     match setting {
         BuildSlots::Off => None,
@@ -343,6 +349,7 @@ pub fn sizing(setting: BuildSlots, memory: u64, reserved: u64) -> Option<Sizing>
 }
 
 /// The build slot setting to use: the one given, else `Auto` inside a `dx worktree` slot and `Off` elsewhere.
+#[must_use]
 pub fn effective_setting(set: Option<BuildSlots>, workspace: &Path) -> BuildSlots {
     set.unwrap_or_else(|| {
         if dx_worktree::lease_for_dir(workspace).is_some() {
@@ -354,6 +361,7 @@ pub fn effective_setting(set: Option<BuildSlots>, workspace: &Path) -> BuildSlot
 }
 
 /// One slot's share of `cpus` and of `memory` bytes less `reserved`, split over `held` slots.
+#[must_use]
 pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_process::LocalShare {
     let held = u64::try_from(held.max(1)).unwrap_or(u64::MAX);
     dx_process::LocalShare {
@@ -385,7 +393,7 @@ pub fn share_report(
         per_slot_scaled(memory, per_slot),
         per_slot_scaled(reserved, per_slot),
     )?;
-    let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
+    let cpus = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
     let cpus = u64::try_from(cpus).unwrap_or(1);
     // `usize::MAX` is no slot, so `held` counts every held slot plus the new run.
     let with_new = held(&dir, size.counted(), usize::MAX);
@@ -397,6 +405,7 @@ pub fn share_report(
 }
 
 /// Lists the `slot-N.lock` files in `dir` that dx cannot open, without creating or locking anything.
+#[must_use]
 pub fn unusable_slot_files(dir: &Path) -> Vec<(PathBuf, io::Error)> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
@@ -722,6 +731,10 @@ fn sweep_orphan_wants(dir: &Path) {
 }
 
 /// Takes a free slot without waiting; ignores the line of waiters.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
     scan(dir, 0..count, label, &|_| true).0
 }
@@ -743,7 +756,7 @@ fn scan(
                 drop(std::fs::write(&holder, label));
                 let slot = Slot {
                     _file: file,
-                    _reserve: Vec::new(),
+                    reserve: Vec::new(),
                     holder,
                     index,
                     sizing: None,
@@ -765,6 +778,10 @@ fn scan(
 }
 
 /// Takes a slot in arrival order, calling `on_wait` once when it must wait; errors only when no slot file opens.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn acquire(
     dir: &Path,
     count: usize,
@@ -905,6 +922,10 @@ impl Admission<'static> {
 /// One pressure reading per poll, taken only when something needs it.
 struct Reading<'a> {
     pressure: Option<&'a dyn Pressure>,
+    #[expect(
+        clippy::option_option,
+        reason = "the outer option is whether the probe ran, the inner whether it found pressure"
+    )]
     value: std::cell::Cell<Option<Option<bool>>>,
 }
 
@@ -920,7 +941,7 @@ impl<'a> Reading<'a> {
         if let Some(value) = self.value.get() {
             return value;
         }
-        let value = self.pressure.and_then(|pressure| pressure.high());
+        let value = self.pressure.and_then(Pressure::high);
         self.value.set(Some(value));
         value
     }
@@ -986,7 +1007,7 @@ fn pass_ahead(
             .flatten()
     });
     let mut slot = taken?;
-    slot._reserve = held;
+    slot.reserve = held;
     Some(slot)
 }
 
@@ -1062,7 +1083,7 @@ fn acquire_reserving(
                     })?
                 });
                 if let Some(mut slot) = taken {
-                    slot._reserve = held;
+                    slot.reserve = held;
                     return Ok(slot);
                 }
             }
@@ -1131,6 +1152,7 @@ fn stopped(signo: i32) -> io::Error {
 }
 
 /// The one line printed while waiting.
+#[must_use]
 pub fn wait_message(holder: &str) -> String {
     format!(
         "waiting for a build slot (held by {holder}); see dx status, or set --build-slots or DX_BUILD_SLOTS"
@@ -1138,6 +1160,7 @@ pub fn wait_message(holder: &str) -> String {
 }
 
 /// Reads `MemAvailable` from `/proc/meminfo` text, in bytes.
+#[must_use]
 pub fn parse_mem_available(text: &str) -> Option<u64> {
     let line = text
         .lines()
@@ -1231,6 +1254,7 @@ impl Gate {
     }
 
     /// Plans each local slot to use `bytes` of memory.
+    #[must_use]
     pub fn slot_memory(self, bytes: u64) -> Self {
         Gate {
             slot_bytes: bytes,
@@ -1239,11 +1263,13 @@ impl Gate {
     }
 
     /// Gives up on a slot after waiting this long; zero fails when none is free at once.
+    #[must_use]
     pub fn waiting_at_most(self, wait: Option<Duration>) -> Self {
         Gate { wait, ..self }
     }
 
     /// Runs `reap` once per wait, before the wait notice, with the workspaces to keep and the bytes to free.
+    #[must_use]
     pub fn reaping(self, reap: impl Fn(&[PathBuf], u64) -> usize + Send + Sync + 'static) -> Self {
         Gate {
             reaper: Some(Reaper(Arc::new(reap))),
@@ -1268,7 +1294,8 @@ impl Gate {
         Some((reaper.0)(&keep, target))
     }
 
-    /// Runs `reclaim` each time a slot is taken, reporting any message it returns as a disk_low warning.
+    /// Runs `reclaim` each time a slot is taken, reporting any message it returns as a `disk_low` warning.
+    #[must_use]
     pub fn reclaiming(self, reclaim: impl Fn() -> Option<String> + Send + Sync + 'static) -> Self {
         Gate {
             reclaimer: Some(Reclaimer(Arc::new(reclaim))),
@@ -1277,6 +1304,7 @@ impl Gate {
     }
 
     /// Gives each taken slot a share of `cpus` and of `memory` bytes less `reserved`.
+    #[must_use]
     pub fn sharing(self, cpus: u64, memory: u64, reserved: u64) -> Self {
         Gate {
             resources: Some(Resources {
@@ -1289,6 +1317,7 @@ impl Gate {
     }
 
     /// Spans `pool` slots, keeping those above `count` for nested Bazel servers.
+    #[must_use]
     pub fn reserving(self, pool: usize) -> Self {
         Gate {
             pool: pool.max(self.count),
@@ -1297,6 +1326,7 @@ impl Gate {
     }
 
     /// Adds `extras` remote-only slots above the pool; only a `remote` gate takes them.
+    #[must_use]
     pub fn extra(self, extras: usize, remote: bool) -> Self {
         Gate {
             extras,
@@ -1315,6 +1345,7 @@ impl Gate {
     }
 
     /// Reads memory pressure from `pressure` before taking a base or extra slot.
+    #[must_use]
     pub fn with_pressure(self, pressure: Arc<dyn Pressure>) -> Self {
         Gate { pressure, ..self }
     }
@@ -1379,7 +1410,7 @@ impl Gate {
             startup.as_deref().unwrap_or_default(),
             bazel_options,
         );
-        let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
+        let cpus = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
         let cpus = u64::try_from(cpus).unwrap_or(1);
         let paths = dx_process::rc::startup_output_paths(
             env_get,
@@ -1428,6 +1459,10 @@ impl Gate {
     }
 
     /// Holds a slot for the whole process when the command starts Bazel work.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn hold(
         &self,
         command: Command,
@@ -1441,6 +1476,10 @@ impl Gate {
     }
 
     /// Takes a slot, waiting with one notice when none is free, then reclaims disk; `Err` carries the stop signal.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn take(
         &self,
         command: Command,
@@ -1560,7 +1599,7 @@ impl Gate {
         }
     }
 
-    /// Runs the reclaimer, printing one line and, in JSON mode, one disk_low notice when it reports.
+    /// Runs the reclaimer, printing one line and, in JSON mode, one `disk_low` notice when it reports.
     fn reclaim(&self, command: Command, err: &mut dyn Write, events: &mut dyn Write) {
         let Some(message) = self
             .reclaimer
@@ -1715,9 +1754,9 @@ impl Warm for Warmth {
 
     fn ping(&self) -> Option<Child> {
         let argv = self.ping_argv();
-        let (program, args) = argv.split_first()?;
+        let (program, rest) = argv.split_first()?;
         std::process::Command::new(program)
-            .args(args)
+            .args(rest)
             .current_dir(&self.workspace)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -1884,6 +1923,7 @@ pub struct Phase {
 
 impl Phase {
     /// Starts a phase for `command` holding nothing.
+    #[must_use]
     pub fn new(command: Command) -> Self {
         Phase {
             command,
@@ -1893,6 +1933,10 @@ impl Phase {
     }
 
     /// Takes the slot on the first call with `needed`; never asks twice, even after none was granted.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn need(
         &mut self,
         needed: bool,
@@ -1907,6 +1951,7 @@ impl Phase {
     }
 
     /// The slot held now, if any.
+    #[must_use]
     pub fn slot(&self) -> Option<&Slot> {
         self.slot.as_ref()
     }

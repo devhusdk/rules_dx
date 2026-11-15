@@ -63,6 +63,9 @@ fn canonical_root(dir: &Path) -> io::Result<PathBuf> {
 }
 
 impl Scratch {
+    /// # Errors
+    ///
+    /// Returns an I/O error when the filesystem or process operation fails.
     pub fn create(parent: &Path) -> io::Result<Scratch> {
         let dir = tempfile::Builder::new()
             .prefix("dx-scratch-")
@@ -71,10 +74,14 @@ impl Scratch {
         Ok(Scratch { dir, root })
     }
 
+    #[must_use]
     pub fn root(&self) -> &Path {
         &self.root
     }
 
+    /// # Errors
+    ///
+    /// Returns an I/O error when the filesystem or process operation fails.
     pub fn resolve(&self, rel: &Path) -> io::Result<PathBuf> {
         let root = self.root.as_path();
         let raw = rel.as_os_str().as_encoded_bytes();
@@ -127,6 +134,9 @@ impl Scratch {
         Ok(absolute)
     }
 
+    /// # Errors
+    ///
+    /// Returns an I/O error when the filesystem or process operation fails.
     pub fn materialize(&self, files: &[MirrorFile]) -> io::Result<Vec<StagedFile>> {
         let root = self.root.as_path();
         let mut staged = Vec::with_capacity(files.len());
@@ -171,6 +181,9 @@ impl Scratch {
         Ok(staged)
     }
 
+    /// # Errors
+    ///
+    /// Returns an I/O error when the filesystem or process operation fails.
     pub fn close(self) -> io::Result<()> {
         self.dir.close()
     }
@@ -221,6 +234,7 @@ pub struct ChildOutput {
 
 const WINDOWS_AMBIENT_KEYS: &[&str] = &["SystemRoot"];
 
+#[must_use]
 pub fn hermetic_env(
     scratch: &Path,
     extra: &[(OsString, OsString)],
@@ -286,6 +300,9 @@ fn build_env(
 
 pub const SPAWN_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// # Errors
+///
+/// Returns an I/O error when the filesystem or process operation fails.
 pub fn spawn(
     argv: &[impl AsRef<OsStr>],
     cwd: &Path,
@@ -294,6 +311,9 @@ pub fn spawn(
     spawn_with_timeout(argv, cwd, env, SPAWN_TIMEOUT)
 }
 
+/// # Errors
+///
+/// Returns an I/O error when the filesystem or process operation fails.
 pub fn spawn_with_timeout(
     argv: &[impl AsRef<OsStr>],
     cwd: &Path,
@@ -380,7 +400,7 @@ mod tests {
         );
         let closure = staged
             .iter()
-            .find(|file| file.mirror_rel == PathBuf::from("taplo.toml"))
+            .find(|file| file.mirror_rel == *"taplo.toml")
             .expect("staged closure entry");
         let linked = std::fs::symlink_metadata(root.join("taplo.toml"))
             .expect("metadata")
@@ -663,7 +683,10 @@ mod tests {
         assert!(!root.starts_with(r"\\?\"), "{root}");
         assert!(dx_path::drive_rooted(&root), "{root}");
         let long = scratch.root().canonicalize().expect("canonical");
-        assert_eq!(long.to_string_lossy().strip_prefix(r"\\?\"), Some(root.as_str()));
+        assert_eq!(
+            long.to_string_lossy().strip_prefix(r"\\?\"),
+            Some(root.as_str())
+        );
         scratch.close().expect("close");
         parent_tmp.close().expect("cleanup");
     }
@@ -856,7 +879,7 @@ mod tests {
         assert_eq!(
             windows
                 .iter()
-                .filter(|(key, _)| fold_env_key(key, true) == OsString::from("SYSTEMROOT"))
+                .filter(|(key, _)| fold_env_key(key, true) == "SYSTEMROOT")
                 .count(),
             1,
             "exactly one system root"
@@ -888,7 +911,7 @@ mod tests {
         assert_eq!(value_of(&env, "Path"), Some(OsString::from("/first")));
         assert_eq!(
             env.iter()
-                .filter(|(key, _)| fold_env_key(key, true) == OsString::from("PATH"))
+                .filter(|(key, _)| fold_env_key(key, true) == "PATH")
                 .count(),
             1,
             "one PATH folding"
@@ -1160,7 +1183,7 @@ mod tests {
         .expect("large output");
         assert_eq!(out.code, Some(0));
         assert_eq!(out.stdout, vec![0u8; 1_048_576]);
-        assert!(out.stderr.is_empty());
+        assert!(out.stderr.is_empty(), "{:?}", out.stderr);
     }
 
     #[test]

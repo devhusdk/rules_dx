@@ -58,6 +58,10 @@ fn is_noise(line: &str) -> bool {
 /// reported once, because nvcc prints each device diagnostic once per `-gencode`.
 /// Diagnostics in files outside `files` are dropped (EDG prints no include chain); a
 /// failing exit with no located finding (`nvcc fatal`, an unlocated ptxas error) is an error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_nvcc_syntax(
     stderr: &[u8],
     code: Option<i32>,
@@ -162,7 +166,8 @@ mod tests {
     fn nvcc_fatal_without_a_finding_fails_closed() {
         assert!(parse("nvcc fatal   : Unknown option '--bogus'\n", 1).is_err());
         assert!(parse("ptxas /tmp/tmpxft_1.ptx, line 5; error   : bad\n", 1).is_err());
-        assert!(parse("", 0).expect("clean").is_empty());
+        let actual = parse("", 0).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -178,7 +183,7 @@ mod tests {
         let text = "other/c.cuh(2): error: boom\n";
         assert!(parse(text, 1).is_err());
         let warned = parse(text.replace("error", "warning").as_str(), 0).expect("parsed");
-        assert!(warned.is_empty());
+        assert!(warned.is_empty(), "{warned:?}");
     }
 
     #[test]

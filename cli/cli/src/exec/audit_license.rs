@@ -66,8 +66,8 @@ pub(super) fn run_license(
     let mut incomplete: Option<String> = None;
     let mut licensed_all: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
     let mut lock_paths: BTreeMap<String, LockPaths> = BTreeMap::new();
-    let mut notice_present: std::collections::BTreeMap<(String, String, String), bool> =
-        std::collections::BTreeMap::new();
+    let mut notice_present: BTreeMap<(String, String, String), bool> =
+        BTreeMap::new();
     let mut bazel_seen: std::collections::BTreeSet<(String, String)> =
         std::collections::BTreeSet::new();
     let mut bazel_lock_of: BTreeMap<(String, String), String> = BTreeMap::new();
@@ -75,7 +75,7 @@ pub(super) fn run_license(
     let uncovered: Vec<&str> = sets
         .iter()
         .filter(|target| !target.lock_covered())
-        .map(|target| target.name())
+        .map(AuditTarget::name)
         .collect();
     for target in sets {
         let AuditTarget::Configured(set) = target;
@@ -280,8 +280,7 @@ pub(super) fn run_license(
         if fails && meets_audit_threshold(level, fail_on) {
             let lock_path = lock_paths
                 .get(&licensed.set)
-                .map(|paths| paths.of(&licensed.name, &licensed.version))
-                .unwrap_or("unknown lockfile");
+                .map_or("unknown lockfile", |paths| paths.of(&licensed.name, &licensed.version));
             finding_count += 1;
             diagnostics.push(DiagnosticEvent {
                 rule: Some(format!("license/{}", licensed.license)),
@@ -311,8 +310,7 @@ pub(super) fn run_license(
         if notice_fails && meets_audit_threshold("error", fail_on) {
             let lock_path = lock_paths
                 .get(&licensed.set)
-                .map(|paths| paths.of(&licensed.name, &licensed.version))
-                .unwrap_or("unknown lockfile");
+                .map_or("unknown lockfile", |paths| paths.of(&licensed.name, &licensed.version));
             finding_count += 1;
             diagnostics.push(DiagnosticEvent {
                 rule: Some("license/missing-notice-text".to_owned()),
@@ -418,9 +416,10 @@ fn configured_cargo_licenses(
 ) -> Vec<dx_audit::locks::LicensedPackage> {
     let bazel_text = locks
         .iter()
-        .find(|(rel, _)| rel.ends_with(".json"))
-        .map(|(_, text)| text.as_str())
-        .unwrap_or("");
+        .find(|(rel, _)| Path::new(rel)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json")))
+        .map_or("", |(_, text)| text.as_str());
     let mut licensed = dx_audit::locks::cargo_licenses(bazel_text, locked);
     let inventoried: BTreeMap<(String, String), String> =
         dx_audit::locks::inventory_licenses(locked, inventory, "cargo")
@@ -431,7 +430,7 @@ fn configured_cargo_licenses(
         if let Some(license) = inventoried.get(&(entry.name.clone(), entry.version.clone()))
             && license != "UNKNOWN"
         {
-            entry.license = license.clone();
+            entry.license.clone_from(license);
         }
     }
     licensed
@@ -458,7 +457,7 @@ fn configured_npm_licenses(
         if let Some(license) = inventoried.get(&(entry.name.clone(), entry.version.clone()))
             && license != "UNKNOWN"
         {
-            entry.license = license.clone();
+            entry.license.clone_from(license);
         }
     }
     licensed

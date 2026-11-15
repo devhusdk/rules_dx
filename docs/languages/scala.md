@@ -74,13 +74,6 @@ scala_doc_shard(name, lib, package = "", deps = [], **kwargs)
 
 Declares the DocIr shard of one Scala 2.13 library.
 
-Args:
-  name: Name of the shard target.
-  lib: The documented scala_library; its srcs must all be .scala files.
-  package: Package segment of every symbol id; defaults to the name of lib.
-  deps: Doc shard targets of libraries whose types this one extends or links to.
-  **kwargs: Common attributes such as tags and visibility.
-
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Tools

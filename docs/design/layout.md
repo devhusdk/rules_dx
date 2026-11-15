@@ -36,8 +36,6 @@ Each language owns one top-level directory.
 - `private/` holds everything else. Users never load from it.
 - `tests/` holds the language tests and fixtures. Starlark test suites and `testdata/` live there, instantiated from `tests/BUILD.bazel`, not in `private/`.
 - Starlark suites are named `tests/defs_tests.bzl` for rule and macro analysis tests, `tests/failure_tests.bzl` for expected analysis failures, and `tests/toolchain_tests.bzl` for pin and hub checks.
-- New language code goes in `<lang>/`.
-- Each language keeps its own `bench_run.sh`.
 
 ## Labels
 
@@ -121,7 +119,6 @@ examples/   tested examples
 - It drives quality registration, the dx ecosystem registry, `dx init`, the support matrix and the per-language docs.
 - Its `quality` entry names the aspect file, aspects and probes. dx loads the file when the workspace has a file with one of `file_extensions` or named one of `file_names` alone or before a dot, or always when `every_workspace` is set.
 - `cli/families/languages.json` is generated from the `quality` and `docs` entries. The dx plan registry reads it.
-- Family values only group languages. They create no module, directory or label.
 
 ## Tool pins
 
@@ -131,7 +128,7 @@ examples/   tested examples
 - One shared extension in `core/` reads every `pins.json`.
 - `dx update` rewrites the files. Nobody edits them by hand.
 - The manifest `pins` field names the language's pin files.
-- A language never ships its own pin-reading extension. A rule-set module reads its own `pins.json` with its own extension, and `dx update` rewrites it in that module's repo.
+- A rule-set module reads its own `pins.json` with its own extension, and `dx update` rewrites it in that module's repo.
 - `//tools/ci:pin_locations_test` guards this. `tools/ci/pin_locations_allowlist.txt` lists what is left and only shrinks.
 
 ## Generated files

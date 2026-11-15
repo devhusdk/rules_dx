@@ -8,6 +8,10 @@ const ERRORS: &str = "encountered the following formatting errors:";
 
 /// `yamlfmt -lint -q` lists unformatted files after a header and parse failures as
 /// `<path>: <message>` lines after another, both on stderr.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_yamlfmt(
     stderr: &[u8],
     code: Option<i32>,
@@ -99,7 +103,7 @@ mod tests {
         assert_eq!(findings[0].file, "Sample.yaml");
         assert_eq!(findings[1].file, "Other.yaml");
         let clean = parse_yamlfmt(b"", Some(0), &["Sample.yaml"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_yamlfmt(b"", Some(1), &["Sample.yaml"]).is_err());
         assert!(parse_yamlfmt(DIRTY.as_bytes(), Some(1), &["Sample.yaml"]).is_err());
         assert!(parse_yamlfmt(&[0xff], Some(0), &["x"]).is_err());

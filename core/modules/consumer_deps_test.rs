@@ -1,4 +1,4 @@
-//! The root MODULE.bazel agrees with the CONSUMER_BAZEL_DEPS floor and tested table, and every bazel_dep carries one floor comment and is at its newest version in core/modules/bcr_newest.json, outside core/modules/bazel_dep_allowlist.txt.
+//! The root `MODULE.bazel` agrees with the `CONSUMER_BAZEL_DEPS` floor and tested table, and every `bazel_dep` carries one floor comment and is at its newest version in `core/modules/bcr_newest.json`, outside `core/modules/bazel_dep_allowlist.txt`.
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
@@ -8,7 +8,7 @@ use dx_module_bazel::{ModuleError, ModuleFile, Value, compare_module_versions};
 /// Modules released together whose floors must move together.
 const SAME_FLOOR: &[&[&str]] = &[&["rules_rust", "rules_rust_wasm_bindgen"]];
 
-/// Non-dev `bazel_dep`s that carry no floor or single_version_override yet; each is
+/// Non-dev `bazel_dep`s that carry no floor or `single_version_override` yet; each is
 /// only a transitive need of a root extension.
 const UNPINNED: &[&str] = &[
     "bazel_features",
@@ -133,7 +133,7 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
 
 /// Every `bazel_dep` in `source` on a table module that is not at its floor.
 ///
-/// Hermetic consumers build their MODULE.bazel from a fragment with rules_dx as a non-root
+/// Hermetic consumers build their `MODULE.bazel` from a fragment with `rules_dx` as a non-root
 /// module, so the root `single_version_override`s do not apply to them. A fragment that pins a
 /// consumer dep above its floor would hide a floor that no longer holds.
 fn fragment_violations(source: &str, label: &str, table: &Table) -> Vec<String> {
@@ -146,12 +146,12 @@ fn fragment_violations(source: &str, label: &str, table: &Table) -> Vec<String> 
         let (Some(name), Some(version)) = (call.str("name"), call.str("version")) else {
             continue;
         };
-        if let Some((floor, _)) = table.get(name) {
-            if version != floor {
-                problems.push(format!(
-                    "{label}: bazel_dep {name:?} is {version} but its floor is {floor}"
-                ));
-            }
+        if let Some((floor, _)) = table.get(name)
+            && version != floor
+        {
+            problems.push(format!(
+                "{label}: bazel_dep {name:?} is {version} but its floor is {floor}"
+            ));
         }
     }
     problems
@@ -196,7 +196,7 @@ fn consumer_fragments_pin_consumer_deps_at_their_floors() {
 fn a_fragment_above_its_floor_fails() {
     let table = fixture_table(&[("demo", "1.2.0", "1.2.0")]);
     let at_floor = "bazel_dep(name = \"demo\", version = \"1.2.0\")\nbazel_dep(name = \"other\", version = \"9\")\n";
-    assert!(fragment_violations(at_floor, "f", &table).is_empty());
+    assert_eq!(fragment_violations(at_floor, "f", &table), Vec::<String>::new());
     let problems = fragment_violations(&at_floor.replace("1.2.0", "1.4.0"), "f", &table);
     assert_eq!(problems.len(), 1, "{problems:?}");
     assert!(
@@ -216,8 +216,8 @@ fn root_module_matches_the_consumer_table() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
-/// Root-only go_deps tags on a usage that consumers inherit, and a go_repository
-/// whose version or sum disagrees with go.sum.
+/// Root-only `go_deps` tags on a usage that consumers inherit, and a `go_repository`
+/// whose version or sum disagrees with `go.sum`.
 fn go_deps_violations(source: &str, go_sum: &str) -> Vec<String> {
     const ROOT_ONLY: &[&str] = &[
         "module_override",
@@ -280,7 +280,7 @@ fn go_deps_override_and_stale_go_repository_are_rejected() {
     let go_sum = "example.com/m v1.0.0 h1:abc=\n";
     let good = "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\n\
         go_repository(name = \"m\", importpath = \"example.com/m\", version = \"v1.0.0\", sum = \"h1:abc=\")\n";
-    assert!(go_deps_violations(good, go_sum).is_empty());
+    assert_eq!(go_deps_violations(good, go_sum), Vec::<String>::new());
     let overridden = format!("{good}go_deps.module_override(path = \"example.com/m\")\n");
     let problems = go_deps_violations(&overridden, go_sum);
     assert_eq!(problems.len(), 1, "{problems:?}");
@@ -433,8 +433,9 @@ const NON_REGISTRY_OVERRIDES: [&str; 3] =
 /// True when the comment lines directly above line `line` of `source` are one `# floor: <reason>` line.
 fn has_one_floor_comment(source: &str, line: usize) -> bool {
     let lines: Vec<&str> = source.lines().collect();
-    let comments: Vec<&str> = lines[..line.saturating_sub(1).min(lines.len())]
+    let comments: Vec<&str> = lines
         .iter()
+        .take(line.saturating_sub(1))
         .rev()
         .take_while(|above| above.starts_with('#'))
         .copied()
@@ -563,7 +564,7 @@ fn every_bazel_dep_has_a_floor_comment_and_is_newest() {
         "{}\n\nwanted {BAZEL_DEP_ALLOWLIST}:\n{}",
         problems.join("\n"),
         gaps.iter()
-            .map(|gap| format!("{gap}\n"))
+            .flat_map(|gap| [gap.as_str(), "\n"])
             .collect::<String>()
     );
 }

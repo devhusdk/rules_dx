@@ -78,14 +78,12 @@ impl InitFile {
                 }
                 FileKind::Generated => Ownership::Whole,
             },
-            Kind::Launcher => Ownership::Whole,
-            Kind::Preset => Ownership::Lines,
+            Kind::Preset | Kind::ClaudeImport | Kind::CopilotInstructions => Ownership::Lines,
             Kind::Generated if self.path == "BUILD.bazel" => Ownership::Block,
-            Kind::Generated => Ownership::Whole,
+            Kind::Launcher | Kind::Generated => Ownership::Whole,
             Kind::Hooks => Ownership::Keys,
             Kind::AgentsBlock => Ownership::Block,
-            Kind::ClaudeImport | Kind::CopilotInstructions => Ownership::Lines,
-        }
+            }
     }
 }
 
@@ -247,7 +245,7 @@ fn sync_generated(
     Ok(())
 }
 
-/// Refuses when `MODULE.bazel` asks for another rules_dx than this dx binary.
+/// Refuses when `MODULE.bazel` asks for another `rules_dx` than this dx binary.
 fn check_module_version(root: &Path) -> Result<(), DxError> {
     match dx_adopt::module_rules_dx_version(root) {
         Some(pinned)

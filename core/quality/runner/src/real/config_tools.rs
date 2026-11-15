@@ -1,7 +1,10 @@
 use quality_adapter::{TextPosition, commands, parsers};
 
 use super::check::{ToolDef, group_by_parent, without_scratch_url};
-use super::*;
+use super::{
+    DEADNIX_STANDARD, Path, PathBuf, RealBackend, RealTool, RunnerError, dependency_failure,
+    execution, parsed, reanchor, staging,
+};
 
 /// Config, policy and text tools that build their own invocation and parse.
 pub(super) const TOOLS: &[ToolDef] = &[
@@ -300,7 +303,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     &[name.as_str(), base],
                 );
                 for mut found in parsed(tool_id, report)? {
-                    found.file = name.clone();
+                    found.file.clone_from(name);
                     findings.push(found);
                 }
             }
@@ -467,7 +470,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     .any(|(ws, _)| ws == path)
                     || scratch.root().join(path).is_file()
             };
-            let templates: Vec<(String, std::path::PathBuf)> = staged
+            let templates: Vec<(String, PathBuf)> = staged
                 .pairs
                 .iter()
                 .filter(|(ws, _)| commands::is_helm_template(ws, known))
@@ -661,9 +664,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let tool = call.tool;
             let pairs = &call.staged.pairs;
             let scratch = &call.staged.scratch;
-            if !tool.upstream_diagnostics.is_empty() {
-                backend.check_file_family_delegated(tool_id, tool, pairs)
-            } else {
+            if tool.upstream_diagnostics.is_empty() {
                 backend.check_files(
                     tool_id,
                     tool,
@@ -677,12 +678,14 @@ pub(super) const TOOLS: &[ToolDef] = &[
                         )
                     },
                 )
+            } else {
+                backend.check_file_family_delegated(tool_id, tool, pairs)
             }
         },
     },
 ];
 
-/// The chart root from the helm context the aspect stages for a helm_library target.
+/// The chart root from the helm context the aspect stages for a `helm_library` target.
 fn helm_chart_root(tool: &RealTool) -> Option<String> {
     let (_, bytes) = tool
         .tool_files
@@ -696,7 +699,7 @@ fn helm_chart_root(tool: &RealTool) -> Option<String> {
 /// lands on the chart file it names. Lines refer to the rendered manifest, so they reset to 1.
 fn scan_chart(
     backend: &RealBackend,
-    call: &super::check::CheckCall,
+    call: &super::check::CheckCall<'_>,
     cache: &Path,
     severities: &[&str],
     chart_root: &str,
@@ -904,7 +907,7 @@ fn copy_layout(from: &Path, to: &Path) -> std::io::Result<()> {
 /// scanned together. ARM lines do not map to Bicep lines, so findings land on line 1.
 fn scan_bicep(
     backend: &RealBackend,
-    call: &super::check::CheckCall,
+    call: &super::check::CheckCall<'_>,
     cache: &Path,
     severities: &[&str],
     bicep: &Path,

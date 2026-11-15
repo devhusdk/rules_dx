@@ -319,7 +319,7 @@ pub(crate) fn plan(
     if !overrides.is_empty() {
         selection.targets = vec!["//...".to_owned()];
     }
-    plan.widened = selection.widened.clone();
+    plan.widened.clone_from(&selection.widened);
     if selection.targets.iter().any(|target| target == "//...") {
         if command == Command::Check {
             plan.tests = vec!["//...".to_owned()];
@@ -620,7 +620,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         return code;
     }
-    next.targets = plan.targets.clone();
+    next.targets.clone_from(&plan.targets);
     next.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         tests: plan.tests.clone(),
         base: Some(plan.base.clone()),

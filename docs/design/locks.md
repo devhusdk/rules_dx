@@ -14,7 +14,6 @@ This page fixes how languages lock, fetch and resolve third-party packages. Tool
 - The entry holds `ecosystem`, `manifest`, `lock`, `state`, `extension`, `tag`, `hub`, `resolver` and `imports`.
 - `hub` is a repository name, or `*` for one repository per package.
 - Code reads these values through the generated registry. No other source file states them.
-- `lockfiles` lists only locks of this registry.
 - An ecosystem with no hub extension is not listed in `ecosystems`; a language with empty `ecosystems` has no set.
 
 ## Foreign formats
@@ -99,7 +98,6 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - No tag has a `sha256`, `integrity`, `digest`, `digests`, `checksums`, `version` or `url` attribute.
 - No package is declared with `use_repo_rule` or one tag per package.
 - `lock_hub` in `core/pins.bzl` makes every dx class extension; the language passes one function returning a package's BUILD file.
-- `lock_hub` reads the lock with `json.decode`. No Starlark code parses another lock format.
 - An archive is downloaded only with the lock's digest. A package without one fails the extension.
 - Module extension facts hold only values derived from sha256-pinned inputs. An extension runs no resolver and returns `reproducible = True`.
 
@@ -113,9 +111,7 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 ## Stanza
 
 - `dx init --apply` and `dx generate --apply` write the `use_extension`, tag and `use_repo` lines for each set whose lock no stanza names.
-- One planner loop over the registry writes them; no planner code names an ecosystem.
 - The stanza names only `@rules_dx` labels and adds no `bazel_dep`.
-- A second run plans nothing. No doc asks a user to type a stanza.
 
 ## Lock step
 
@@ -124,7 +120,6 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - `dx generate --apply` runs the step for a set with a missing or stale lock, `dx update` to move versions, `dx check` with `--check`.
 - A dx class lock is stale when an `inputs` file has another sha256. For the upstream class the resolver's frozen mode decides.
 - The step runs the resolver rules_dx pins by sha256, starts no host program (see `host-tools.md`) and keeps the resolver's home, cache and config in a scratch directory.
-- `//cli/lock` is the only writer of `<ecosystem>.lock.json`.
 - The `maven` resolver runs the rules_jvm_external Maven resolver with the pinned JDK. It reads `libs.versions.toml` and writes `maven_install.json`.
 - A step whose `inputs` match makes no network request. A package with unchanged name, version and URLs keeps its entry with no download.
 
@@ -135,10 +130,6 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - `imports` is `name`, where the ecosystem's fixed rule maps an import to a package name, or `provides`, where the longest matching entry wins.
 - Every dx class ecosystem uses `provides`. One Gazelle parser reads every dx lock.
 - An import of a locked package needs no `# gazelle:resolve` line. An import no lock provides fails generation and names the manifest to edit.
-
-## rules_dx itself
-
-- rules_dx locks its own sets with the same registry, lock step and stanza writer; its `MODULE.bazel` holds no registry package digest.
 
 ## Checks
 

@@ -10,6 +10,10 @@ const UNFORMATTED_HEADER: &str = "The following files are not formatted:";
 const FAILED_PREFIX: &str = "mix format failed for file: ";
 
 /// Findings from `mix format --check-formatted`: listed unformatted files, or the one file it could not parse.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_mix_format(
     stdout: &[u8],
     stderr: &[u8],
@@ -227,11 +231,8 @@ mod tests {
     #[test]
     fn mix_format_rejects_unshaped_output() {
         let files = ["/s/b.ex"];
-        assert!(
-            parse_mix_format(b"", b"", Some(0), &files, cwd())
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_mix_format(b"", b"", Some(0), &files, cwd()).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(
             parse_mix_format(
                 b"",

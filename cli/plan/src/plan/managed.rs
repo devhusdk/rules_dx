@@ -4,6 +4,9 @@ use dx_process::ProtectedFlag;
 use super::{BuildPlan, bep_guards, bep_options};
 use crate::args::Command;
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn plan_managed(
     command: Command,
     scope: &dx_setup::SetupScope,
@@ -37,6 +40,9 @@ pub fn plan_managed(
     Ok(BuildPlan { argv, summary })
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn plan_managed_with_roots(
     command: Command,
     roots: &[String],
@@ -316,7 +322,7 @@ mod tests {
             &[],
         )
         .expect_err("startup option must fail");
-        assert!(err.kind() == ErrorKind::Usage);
+        assert_eq!(err.kind(), ErrorKind::Usage);
     }
 
     #[test]

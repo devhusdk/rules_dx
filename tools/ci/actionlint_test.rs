@@ -121,7 +121,7 @@ fn every_shipped_workflow_passes_actionlint() {
     );
     let staged = stage(&files);
     let root = staged.path();
-    let run = lint(&root, &targets);
+    let run = lint(root, &targets);
     assert!(
         run.status.success(),
         "actionlint rejected {} workflows:\n{}",
@@ -136,7 +136,7 @@ fn the_invalid_fixture_reports_every_semantic_failure() {
     let targets = workflows(&files);
     let staged = stage(&files);
     let root = staged.path();
-    let run = lint(&root, &targets);
+    let run = lint(root, &targets);
     let reported = findings(&run);
     assert!(
         !run.status.success(),

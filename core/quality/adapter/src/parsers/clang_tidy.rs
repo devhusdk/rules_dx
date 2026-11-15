@@ -37,6 +37,9 @@ fn checked_file<'a>(files: &[&'a str], path: &str) -> Option<&'a str> {
         .find(|f| !f.starts_with('/') && path.ends_with(&format!("/{}", f.replace('\\', "/"))))
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_clang_tidy(
     stderr: &[u8],
     code: Option<i32>,
@@ -137,7 +140,7 @@ mod tests {
         );
         let clean = parse_clang_tidy(b"", Some(0), &["cc/tests/fixtures/clang_tidy/Sample.c"])
             .expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(
             parse_clang_tidy(b"", Some(1), &["cc/tests/fixtures/clang_tidy/Sample.c"]).is_err()
         );

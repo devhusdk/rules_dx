@@ -1,5 +1,6 @@
-//! Every .bzl file is loaded, every fixture file and Rust file is named by a target or a test, every filegroup and exported file has a user, and every directory belongs to a package, outside tools/ci/unreferenced_files_allowlist.txt.
+//! Every .bzl file is loaded, every fixture file and Rust file is named by a target or a test, every filegroup and exported file has a user, and every directory belongs to a package, outside `tools/ci/unreferenced_files_allowlist.txt`.
 
+use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json as _;
@@ -237,7 +238,7 @@ impl Index {
         for (path, text) in files {
             if is_starlark(path) {
                 index.starlark(path, text);
-            } else if path.ends_with(".rs") {
+            } else if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) {
                 index.rust(path, text);
             }
         }
@@ -358,10 +359,10 @@ impl Index {
                         continue;
                     }
                     for home in ancestors(dir) {
-                        if let Some(named) = normal(home, literal) {
-                            if self.known.contains(&named) {
-                                self.rust_paths.insert(named);
-                            }
+                        if let Some(named) = normal(home, literal)
+                            && self.known.contains(&named)
+                        {
+                            self.rust_paths.insert(named);
                         }
                     }
                 }
@@ -466,7 +467,7 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
     for path in paths {
         directories.entry(parent(path)).or_default().push(path);
         let fixture = in_fixture_tree(path);
-        if path.ends_with(".bzl") {
+        if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("bzl")) {
             let loaded = index.loads.contains(path)
                 || index
                     .labels
@@ -486,19 +487,20 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
                 usize::from(!index.referenced(path)),
             );
         }
-        if path.ends_with(".rs") && !fixture {
+        if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) && !fixture {
             let built = index.starlark_names(path) || index.mods.contains(path);
             add(&mut counts, path, "unbuilt-rust", usize::from(!built));
         }
-        if is_build(path) && index.nearest(parent(path), &["MODULE.bazel"]).is_empty() {
-            if let Some(text) = files.get(path) {
-                add(
-                    &mut counts,
-                    path,
-                    "orphan-target",
-                    index.orphans(path, text),
-                );
-            }
+        if is_build(path)
+            && index.nearest(parent(path), &["MODULE.bazel"]).is_empty()
+            && let Some(text) = files.get(path)
+        {
+            add(
+                &mut counts,
+                path,
+                "orphan-target",
+                index.orphans(path, text),
+            );
         }
     }
     for (dir, members) in directories {
@@ -531,7 +533,7 @@ mod tests {
     fn hits(entries: &[(&str, &str)]) -> Vec<(String, String, usize)> {
         let files: BTreeMap<String, String> = entries
             .iter()
-            .filter(|(path, _)| is_starlark(path) || path.ends_with(".rs"))
+            .filter(|(path, _)| is_starlark(path) || Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")))
             .map(|(path, text)| ((*path).to_owned(), (*text).to_owned()))
             .collect();
         let mut paths: Vec<String> = entries.iter().map(|(path, _)| (*path).to_owned()).collect();

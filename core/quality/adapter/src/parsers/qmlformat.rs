@@ -1,6 +1,9 @@
 use super::{FileFinding, ParseError, rewrite_format};
 use crate::ColumnEncoding;
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_qmlformat(
     stdout: &[u8],
     code: Option<i32>,
@@ -30,7 +33,7 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].file, "a.qml");
         let clean = parse_qmlformat(FORMATTED, Some(0), FORMATTED, "a.qml").expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_qmlformat(FORMATTED, Some(1), FORMATTED, "a.qml").is_err());
         assert!(parse_qmlformat(FORMATTED, None, FORMATTED, "a.qml").is_err());
         assert!(parse_qmlformat(&[0xff], Some(0), b"", "a.qml").is_err());

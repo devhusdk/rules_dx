@@ -66,13 +66,6 @@ ruby_doc_shard(name, lib, package = "", deps = [], **kwargs)
 
 Declares the DocIr shard of one Ruby library.
 
-Args:
-  name: Name of the shard target.
-  lib: The documented ruby_library.
-  package: Package segment of every symbol id; defaults to the name of lib.
-  deps: ruby_doc_shard targets of libraries whose modules this one includes or extends.
-  **kwargs: Common attributes such as tags and visibility.
-
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Tools

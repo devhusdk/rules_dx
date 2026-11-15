@@ -34,6 +34,10 @@ struct Dep {
 }
 
 /// Names every dependency in `map` that none of the used jars of `jdeps` belongs to.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_unused_dependencies(
     tool: &'static str,
     map: &[u8],
@@ -69,6 +73,7 @@ pub struct MissingDependency {
 }
 
 impl MissingDependency {
+    #[must_use]
     pub fn message(&self) -> String {
         format!(
             "`{}` is used by `{}` but is not in its deps",
@@ -78,6 +83,10 @@ impl MissingDependency {
 }
 
 /// Names every transitive dependency in `map` whose jar the compiler used, once per label.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_missing_dependencies(
     tool: &'static str,
     map: &[u8],
@@ -119,6 +128,10 @@ const SCALAC_UNUSED_DEP_CODE: &str = "scalac.unused.dep";
 /// Names every dependency in `map` that the scalac log reports as unused.
 ///
 /// The warning reads `Target '<label>' is specified as a dependency to <target> but isn't used`.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_scalac_unused_dependencies(
     map: &[u8],
     log: &[u8],
@@ -164,6 +177,10 @@ const SCALAC_MISSING_DEP_CODE: &str = "scalac.missing.dep";
 /// Names every transitive dependency in `map` that the scalac log reports as used but not listed.
 ///
 /// The warning reads `Target '<label>' is used but isn't explicitly declared, please add it to the deps.`
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_scalac_missing_dependencies(
     map: &[u8],
     log: &[u8],
@@ -208,7 +225,7 @@ pub fn parse_scalac_missing_dependencies(
 }
 
 /// Reads the `Dependencies` message of a jdeps file and returns the paths not marked unused.
-/// Kotlin marks an idle jar UNUSED (2) where JavaBuilder writes 3.
+/// Kotlin marks an idle jar UNUSED (2) where `JavaBuilder` writes 3.
 fn used_jars(bytes: &[u8]) -> Result<BTreeSet<String>, String> {
     const NOT_USED: [u64; 2] = [2, 3];
     let mut used = BTreeSet::new();
@@ -283,10 +300,10 @@ mod tests {
     use super::*;
 
     fn dependency(path: &str, kind: u8) -> Vec<u8> {
-        let mut inner = vec![0x0a, path.len() as u8];
+        let mut inner = vec![0x0a, u8::try_from(path.len()).expect("short path")];
         inner.extend(path.as_bytes());
         inner.extend([0x10, kind]);
-        let mut out = vec![0x0a, inner.len() as u8];
+        let mut out = vec![0x0a, u8::try_from(inner.len()).expect("short message")];
         out.extend(inner);
         out
     }
@@ -321,7 +338,7 @@ mod tests {
         jdeps.extend(dependency("a.jar", 0));
         jdeps.extend(dependency("b.jar", 1));
         let found = parse_unused_dependencies("javac", MAP.as_bytes(), &jdeps).unwrap();
-        assert!(found.is_empty());
+        assert!(found.is_empty(), "{found:?}");
     }
 
     #[test]
@@ -353,12 +370,9 @@ mod tests {
     fn jar_of_a_direct_dep_or_export_is_not_missing() {
         let jdeps = dependency("a.jar", 0);
         let found = parse_missing_dependencies("javac", INDIRECT_MAP.as_bytes(), &jdeps).unwrap();
-        assert!(found.is_empty());
-        assert!(
-            parse_missing_dependencies("javac", MAP.as_bytes(), &jdeps)
-                .unwrap()
-                .is_empty()
-        );
+        assert!(found.is_empty(), "{found:?}");
+        let actual = parse_missing_dependencies("javac", MAP.as_bytes(), &jdeps).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     fn scalac_log(entries: &[(&str, &str)]) -> Vec<u8> {
@@ -414,20 +428,14 @@ mod tests {
             "scalac.unused.dep",
             "Target '//z:other' is specified as a dependency to //p:lib but isn't used",
         )]);
-        assert!(
-            parse_scalac_unused_dependencies(MAP.as_bytes(), &log)
-                .unwrap()
-                .is_empty()
-        );
+        let actual = parse_scalac_unused_dependencies(MAP.as_bytes(), &log).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
     fn scalac_other_warnings_are_ignored() {
         let log = scalac_log(&[("scalac", "Target '//b:idle' is something else")]);
-        assert!(
-            parse_scalac_unused_dependencies(MAP.as_bytes(), &log)
-                .unwrap()
-                .is_empty()
-        );
+        let actual = parse_scalac_unused_dependencies(MAP.as_bytes(), &log).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
     }
 }

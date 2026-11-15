@@ -85,13 +85,13 @@ fn render(leaves: &Leaves) -> String {
     }
     let mut out = String::new();
     for (section, keys) in sections {
-        out.push_str(&format!("[{section}]\n"));
+        out.push_str(&["[", &section, "]\n"].concat());
         for (key, value) in keys {
             let value = value.replace('\n', "\n    ");
             if value.is_empty() {
-                out.push_str(&format!("{key} =\n"));
+                out.push_str(&[&key, " =\n"].concat());
             } else {
-                out.push_str(&format!("{key} = {value}\n"));
+                out.push_str(&[&key, " = ", &value, "\n"].concat());
             }
         }
         out.push('\n');
@@ -100,6 +100,10 @@ fn render(leaves: &Leaves) -> String {
 }
 
 /// Merges config layers leaf by leaf; a later layer wins.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn merge(layers: &[&str]) -> Result<String, String> {
     let mut merged = Leaves::new();
     for text in layers {
@@ -126,6 +130,10 @@ fn depth(dir: &str) -> usize {
 
 /// Groups files by the chain of nested configs above them and merges each chain over the bound
 /// config. `nested` holds `(config rel, text)`; a config applies to files below its directory.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn group(
     bound: &str,
     nested: &[(String, String)],

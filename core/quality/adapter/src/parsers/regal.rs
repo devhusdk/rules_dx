@@ -38,6 +38,10 @@ struct Location {
 
 /// `regal lint --format json --fail-level warning` exits 0 clean, 2 on warnings only and 3 on any error.
 /// Any other exit, non-JSON output, a count mismatch or an exit that disagrees with the levels is an error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_regal(
     stdout: &[u8],
     stderr: &[u8],
@@ -161,11 +165,8 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(
-            parse_regal(CLEAN.as_bytes(), b"", Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_regal(CLEAN.as_bytes(), b"", Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -218,10 +219,7 @@ mod tests {
     #[test]
     fn ignored_files_may_scan_fewer() {
         let partial = CLEAN.replace("\"files_scanned\":2", "\"files_scanned\":1");
-        assert!(
-            parse_regal(partial.as_bytes(), b"", Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_regal(partial.as_bytes(), b"", Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 }

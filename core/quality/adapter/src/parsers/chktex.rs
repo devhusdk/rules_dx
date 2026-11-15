@@ -13,6 +13,10 @@ const FIELDS: usize = 6;
 /// `Message` lines never raise it. The exit must therefore equal the worst printed level, so a
 /// crash or a mismatch is never read as a clean run. Any stderr text is an error, and an
 /// unreadable file is an incomplete run. The column is chktex's 1-based byte offset.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_chktex(
     stdout: &[u8],
     stderr: &[u8],
@@ -125,7 +129,8 @@ mod tests {
 
     #[test]
     fn chktex_clean_run() {
-        assert!(run("", "", Some(0)).expect("parsed").is_empty());
+        let actual = run("", "", Some(0)).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

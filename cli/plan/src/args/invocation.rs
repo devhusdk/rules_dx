@@ -29,6 +29,7 @@ pub enum OperationMode {
 }
 
 impl OperationMode {
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             OperationMode::Check => "check",
@@ -111,39 +112,47 @@ pub struct UmbrellaRequest {
 }
 
 impl CommonOptions {
+    #[must_use]
     pub fn chatty(&self) -> bool {
         dx_text_visible(&self.output) && !self.quiet
     }
 }
 
 impl QualityRequest {
+    #[must_use]
     pub fn operation(&self) -> OperationMode {
         self.mode
     }
 
+    #[must_use]
     pub fn applies(&self) -> bool {
         self.mode == OperationMode::Apply
     }
 
+    #[must_use]
     pub fn chatty(&self) -> bool {
         self.common.chatty()
     }
 }
 
 impl GenerateRequest {
+    #[must_use]
     pub fn operation(&self) -> OperationMode {
         self.mode
     }
 
+    #[must_use]
     pub fn applies(&self) -> bool {
         self.mode == OperationMode::Apply
     }
 
+    #[must_use]
     pub fn chatty(&self) -> bool {
         self.common.chatty()
     }
 
     /// The startup flags and build mode config a generate Bazel call starts with.
+    #[must_use]
     pub fn bazel_head(&self) -> dx_process::BazelHead {
         dx_process::BazelHead {
             startup: self.bazel_startup_options.clone(),
@@ -154,14 +163,19 @@ impl GenerateRequest {
 }
 
 impl UmbrellaRequest {
+    #[must_use]
     pub fn operation(&self) -> OperationMode {
         self.mode
     }
 
+    #[must_use]
     pub fn applies(&self) -> bool {
         self.mode == OperationMode::Apply
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn phase_quality_request(
         &self,
         phase: Command,
@@ -170,10 +184,14 @@ impl UmbrellaRequest {
         self.quality_request(phase, self.mode, reports)
     }
 
+    #[must_use]
     pub fn phase_generate_request(&self, reports: Vec<ReportRequest>) -> GenerateRequest {
         self.generate_request(self.mode, reports)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn verify_quality_request(
         &self,
         phase: Command,
@@ -183,6 +201,7 @@ impl UmbrellaRequest {
         Ok(request)
     }
 
+    #[must_use]
     pub fn verify_generate_request(&self) -> GenerateRequest {
         self.generate_request(OperationMode::Check, Vec::new())
     }
@@ -254,6 +273,10 @@ impl UmbrellaRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent on/off options, one per command line flag"
+)]
 pub struct Invocation {
     pub command: Command,
     pub apply: bool,
@@ -325,7 +348,7 @@ pub struct Invocation {
     pub allow_major: bool,
     /// `dx update --max-prs`: open dx-update pull requests allowed; 5 when absent.
     pub max_prs: Option<u16>,
-    /// `dx update --floor`: edit the bazel_dep floor instead of the tested override.
+    /// `dx update --floor`: edit the `bazel_dep` floor instead of the tested override.
     pub floor: bool,
     /// `dx update --reason`: why the floor is the oldest supported version.
     pub reason: Option<String>,
@@ -372,12 +395,14 @@ pub const AGENT_QUIET_FLAGS: [&str; 6] = [
 
 impl Invocation {
     /// Whether `dx update` names one `<set:package> <version>` to widen or add.
+    #[must_use]
     pub fn edits_version(&self) -> bool {
         self.command == Command::Update
             && matches!(self.targets.as_slice(), [_, version] if is_version(version))
     }
 
     /// Bazel UI flags that silence progress output in agent JSON sessions and piped runs; `-v` keeps Bazel output.
+    #[must_use]
     pub fn agent_quiet_flags(&self) -> Vec<String> {
         let agent_json = self.agent && self.output == OutputMode::Json;
         if (agent_json || self.piped) && !self.verbose {
@@ -391,6 +416,7 @@ impl Invocation {
     }
 
     /// Bazel options for the run: agent JSON sessions and piped runs get no progress output.
+    #[must_use]
     pub fn quiet_bazel_options(&self) -> Vec<String> {
         let mut options = self.agent_quiet_flags();
         options.extend(self.bazel_options.iter().cloned());
@@ -398,16 +424,19 @@ impl Invocation {
     }
 
     /// Bazel options as typed, without agent quiet flags; not for build argv.
+    #[must_use]
     pub fn raw_bazel_options(&self) -> &[String] {
         &self.bazel_options
     }
 
     /// The `--` payload `dx run` and `dx deploy` hand to the app.
+    #[must_use]
     pub fn app_args(&self) -> &[String] {
         &self.app_args
     }
 
     /// The `command_started` mode: check unless `--apply` authorizes writing.
+    #[must_use]
     pub fn started_mode(&self) -> &'static str {
         if self.command.supports_apply() && !self.applies() {
             "check"
@@ -417,6 +446,7 @@ impl Invocation {
     }
 
     /// The operation the flags authorize: explicit `--apply` opts into mutation, else check. `dx sync` always applies.
+    #[must_use]
     pub fn operation(&self) -> OperationMode {
         if self.apply || self.command == Command::Sync {
             OperationMode::Apply
@@ -426,10 +456,12 @@ impl Invocation {
     }
 
     /// Whether the flags authorize writing sources: explicit `--apply` only.
+    #[must_use]
     pub fn applies(&self) -> bool {
         self.operation() == OperationMode::Apply
     }
 
+    #[must_use]
     pub fn build_mode_flag(&self) -> Option<BuildMode> {
         if self.debug {
             Some(BuildMode::Debug)
@@ -440,6 +472,7 @@ impl Invocation {
         }
     }
 
+    #[must_use]
     pub fn build_mode(&self) -> BuildMode {
         resolve_build_mode(
             self.build_mode_flag(),
@@ -449,6 +482,7 @@ impl Invocation {
     }
 
     /// The startup flags and build mode config every update Bazel call starts with.
+    #[must_use]
     pub fn bazel_head(&self) -> dx_process::BazelHead {
         dx_process::BazelHead {
             startup: self.bazel_startup_options.clone(),
@@ -458,10 +492,12 @@ impl Invocation {
     }
 
     /// Reports whether chatty dx text prints: text output, no `--quiet`.
+    #[must_use]
     pub fn chatty(&self) -> bool {
         dx_text_visible(&self.output) && !self.quiet
     }
 
+    #[must_use]
     pub fn common_options(&self) -> CommonOptions {
         CommonOptions {
             output: self.output,
@@ -474,6 +510,9 @@ impl Invocation {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn quality_request(&self) -> Result<QualityRequest, dx_error::DxError> {
         if !matches!(
             self.command,
@@ -499,6 +538,9 @@ impl Invocation {
         })
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn generate_request(&self) -> Result<GenerateRequest, dx_error::DxError> {
         if self.command != Command::Generate {
             return Err(dx_error::DxError::usage(format!(
@@ -517,10 +559,14 @@ impl Invocation {
     }
 
     /// Reports whether the targets came from an affected plan.
+    #[must_use]
     pub fn is_affected_plan(&self) -> bool {
         self.affected_handoff.is_some()
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn umbrella_request(&self) -> Result<UmbrellaRequest, dx_error::DxError> {
         if self.command != Command::Check {
             return Err(dx_error::DxError::usage(format!(
@@ -540,7 +586,7 @@ impl Invocation {
                 test.include_edits = false;
                 test.max_findings = None;
                 test.unsafe_fixes = false;
-                test.targets = tests.clone();
+                test.targets.clone_from(tests);
                 test.affected_handoff = None;
                 Some(Box::new(test))
             }
@@ -579,6 +625,9 @@ impl Invocation {
     }
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn here_scope(
     workspace: &std::path::Path,
     cwd: &std::path::Path,
@@ -628,6 +677,9 @@ pub fn here_scope(
     Ok(parts.join("/"))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn apply_here(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -657,6 +709,7 @@ pub fn apply_here(
 }
 
 /// One stderr line for a bare scoped command run below the workspace root.
+#[must_use]
 pub fn bare_scope_note(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -711,7 +764,7 @@ mod tests {
         assert_eq!(head.startup, vec!["--output_base=/ob".to_owned()]);
         assert_eq!(head.options, vec!["--config=dx_build_dev".to_owned()]);
         assert_eq!(head.settings, crate::plan::shared_settings("build"));
-        assert!(!head.settings.is_empty());
+        assert_ne!(head.settings, [] as [String; 0]);
     }
 
     fn invocation_for(command: Command, targets: &[&str]) -> Invocation {
@@ -1037,7 +1090,7 @@ mod tests {
         let mut plain = invocation_for(Command::Lint, &[]);
         plain.here = false;
         let resolved = apply_here(&plain, workspace, subdir).expect("passthrough");
-        assert!(resolved.targets.is_empty());
+        assert_eq!(resolved.targets, [] as [String; 0]);
         assert!(!resolved.here);
     }
 
@@ -1148,7 +1201,7 @@ mod tests {
         assert_eq!(request.bazel_options, vec!["--jobs=4".to_owned()]);
         assert_eq!(
             request.fail_on,
-            dx_output::Threshold::Error,
+            Threshold::Error,
             "severity rides the typed request"
         );
     }
@@ -1194,11 +1247,11 @@ mod tests {
     #[test]
     fn piped_runs_are_quiet_unless_verbose() {
         let mut inv = parsed(&["build"]);
-        assert!(inv.quiet_bazel_options().is_empty());
+        assert_eq!(inv.quiet_bazel_options(), [] as [String; 0]);
         inv.piped = true;
         assert_eq!(inv.quiet_bazel_options(), quiet_flags());
         inv.verbose = true;
-        assert!(inv.quiet_bazel_options().is_empty());
+        assert_eq!(inv.quiet_bazel_options(), [] as [String; 0]);
     }
 
     #[test]
@@ -1218,15 +1271,15 @@ mod tests {
             agent(&["build", "--output=json"]).agent_quiet_flags(),
             quiet_flags()
         );
-        assert!(
-            agent(&["build", "--output=text"])
-                .agent_quiet_flags()
-                .is_empty()
+        assert_eq!(
+            agent(&["build", "--output=text"]).agent_quiet_flags().len(),
+            0
         );
-        assert!(
+        assert_eq!(
             parsed(&["build", "--output=json"])
                 .agent_quiet_flags()
-                .is_empty()
+                .len(),
+            0
         );
     }
 
@@ -1288,7 +1341,7 @@ mod tests {
         assert_eq!(phase.command, Command::Lint);
         assert_eq!(phase.mode, OperationMode::Apply);
         assert_eq!(phase.targets, vec!["//a:one".to_owned()]);
-        assert_eq!(phase.fail_on, dx_output::Threshold::Error);
+        assert_eq!(phase.fail_on, Threshold::Error);
         assert!(
             umbrella
                 .phase_quality_request(Command::Generate, Vec::new())
@@ -1309,7 +1362,7 @@ mod tests {
             .expect("recheck");
         assert_eq!(recheck.mode, OperationMode::Check);
         assert!(!recheck.applies());
-        assert!(recheck.common.reports.is_empty());
+        assert_eq!(recheck.common.reports, [] as [ReportRequest; 0]);
         let generate = umbrella.verify_generate_request();
         assert_eq!(generate.mode, OperationMode::Check);
         assert!(!generate.applies());

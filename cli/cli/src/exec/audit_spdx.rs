@@ -1,4 +1,4 @@
-use dx_audit::locks::{BAZEL_SET, LicensedPackage};
+use dx_audit::locks::LicensedPackage;
 
 /// Builds the SPDX 2.3 document for one `dx license` run: a root package for the scope and one
 /// package per resolved dependency, in the order given.
@@ -18,7 +18,7 @@ pub(super) fn license_spdx(
         &["Tool: dx-license"],
     );
     if let Some(info) = document.creation_info.as_mut() {
-        info.created = created.to_owned();
+        created.clone_into(&mut info.created);
     }
     let root = "SPDXRef-Root";
     document.packages.push(dx_sbom::SpdxPackage {
@@ -63,9 +63,7 @@ pub(super) fn license_spdx(
 pub(super) fn created_time(epoch: Option<&str>, today: &str) -> String {
     epoch
         .and_then(|text| text.trim().parse::<i64>().ok())
-        .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0))
-        .map(|time| time.format("%Y-%m-%dT%H:%M:%SZ").to_string())
-        .unwrap_or_else(|| format!("{today}T00:00:00Z"))
+        .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0)).map_or_else(|| format!("{today}T00:00:00Z"), |time| time.format("%Y-%m-%dT%H:%M:%SZ").to_string())
 }
 
 pub(super) fn license_value(license: &str) -> String {
@@ -101,7 +99,6 @@ pub(super) fn purl(package: &LicensedPackage) -> String {
         "hex" => "hex",
         "pub" => "pub",
         "cpan" => "cpan",
-        BAZEL_SET => "generic",
         _ => "generic",
     };
     let name = if kind == "maven" {

@@ -115,9 +115,7 @@ pub(crate) fn project_status(
     has_changes: bool,
 ) -> (Vec<DiagnosticEvent>, bool) {
     let mut status: Vec<DiagnosticEvent> = Vec::new();
-    if !apply {
-        status.extend(initial.iter().cloned());
-    } else {
+    if apply {
         status.extend(
             terminal
                 .iter()
@@ -159,6 +157,8 @@ pub(crate) fn project_status(
             status.push(unmatched);
         }
         dx_output::sort_diagnostics(&mut status);
+    } else {
+        status.extend(initial.iter().cloned());
     }
     let failing = status
         .iter()

@@ -9,6 +9,10 @@ const TOOL: &str = "julialint";
 /// Each line is `{"v":1,"file":..,"line":..,"col":..,"severity":..,"rule":..,"message":..}`.
 /// The rule is `julialint/<rule>`. The driver only reports the files it was given, so a
 /// line for any other file, a bad line, an unknown version or a nonzero exit fails the run.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_julialint(
     report: &[u8],
     code: Option<i32>,
@@ -119,11 +123,8 @@ mod tests {
 
     #[test]
     fn julialint_empty_reports_have_no_findings() {
-        assert!(
-            parse_julialint(b"", Some(0), &["a.jl"])
-                .expect("empty")
-                .is_empty()
-        );
+        let actual = parse_julialint(b"", Some(0), &["a.jl"]).expect("empty");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

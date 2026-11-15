@@ -7,7 +7,7 @@ use quality_adapter::parsers::FileFinding;
 use quality_adapter::{ColumnEncoding, Finding, TextPosition, ToolSeverity, commands, parsers};
 
 use super::check::ToolDef;
-use super::*;
+use super::{RealBackend, RealTool, RunnerError, StagedPair, StagedScratch, execution, parsed};
 
 /// One preflight problem as an error finding on the root it was found from.
 fn preflight_finding(root: &Path, problem: Problem) -> FileFinding {

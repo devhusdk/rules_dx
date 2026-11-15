@@ -10,6 +10,10 @@ const TOOL: &str = "nixfmt";
 /// megaparsec continuation lines. Anything else (stray text, an unowned path, a colour-coded
 /// warning, an uncaught exception) is a shape error and never reads as clean. Exit 2 is SIGINT
 /// and any other exit, or no exit, is an error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_nixfmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -153,7 +157,8 @@ mod tests {
 
     #[test]
     fn nixfmt_clean_is_empty() {
-        assert!(run("", Some(0)).expect("ok").is_empty());
+        let actual = run("", Some(0)).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use quality_adapter::{commands, parsers};
 
 use super::check::ToolDef;
-use super::*;
+use super::{Path, PathBuf, RealBackend, RunnerError, execution, parsed, reanchor};
 
 /// Python linters, formatters and notebook checks.
 pub(super) const TOOLS: &[ToolDef] = &[
@@ -137,7 +137,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                         dirs.push(extra.clone());
                     }
                 }
-                let dir_refs: Vec<&Path> = dirs.iter().map(|dir| dir.as_path()).collect();
+                let dir_refs: Vec<&Path> = dirs.iter().map(PathBuf::as_path).collect();
                 let invocation = commands::ty_check(&tool.binary, &ty_refs, &dir_refs, call.config);
                 let out = backend.run(tool_id, tool, &invocation, scratch)?;
                 let workspaces: Vec<&str> = checked_pairs

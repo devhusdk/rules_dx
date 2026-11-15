@@ -97,7 +97,7 @@ pub(crate) fn without_libtest_harness(
         .map_err(|error| {
             ResolveError::query(
                 &expr,
-                dx_plan::resolve::QueryFailure::Prepare {
+                QueryFailure::Prepare {
                     detail: error.to_string(),
                 },
             )

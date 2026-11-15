@@ -44,7 +44,7 @@ fn capture_stderr(failure: &BuildFailure, structured: bool, budget: &mut u64) ->
     let Ok(file) = std::fs::File::open(path) else {
         return unavailable("unreadable");
     };
-    let size = file.metadata().map(|meta| meta.len()).unwrap_or(0);
+    let size = file.metadata().map_or(0, |meta| meta.len());
     if structured {
         return Capture {
             status: "structured",
@@ -134,7 +134,7 @@ fn document(bep: &Path, bazel_code: i32) -> (String, bool) {
             matches!(
                 record
                     .pointer("/stderr/status")
-                    .and_then(serde_json::Value::as_str),
+                    .and_then(Value::as_str),
                 Some("truncated" | "omitted_limit")
             )
         });

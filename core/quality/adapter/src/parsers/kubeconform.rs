@@ -170,6 +170,10 @@ fn resource_findings(
 /// Parses `kubeconform -output json -summary=false`: a `resources` list, or one object each.
 ///
 /// Exit 1 needs a failing result and exit 0 must not have one; anything else fails closed.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_kubeconform(
     stdout: &[u8],
     stderr: &[u8],
@@ -233,7 +237,7 @@ mod tests {
         check_file("m.yaml", MANIFEST.as_bytes()).documents
     }
 
-    fn target<'a>(documents: &'a [Document]) -> Vec<KubeconformTarget<'a>> {
+    fn target(documents: &[Document]) -> Vec<KubeconformTarget<'_>> {
         vec![KubeconformTarget {
             reported: "/s/dx-kubeconform/docs/0.yaml",
             file: "/s/k8s/m.yaml",
@@ -264,18 +268,14 @@ mod tests {
     fn kubeconform_clean_run_is_clean() {
         let documents = docs();
         for stdout in ["", "{\n  \"resources\": []\n}", "{\"resources\":null}"] {
-            assert!(
-                parse_kubeconform(stdout.as_bytes(), b"", Some(0), &target(&documents))
-                    .expect("parsed")
-                    .is_empty()
-            );
+            let actual = parse_kubeconform(stdout.as_bytes(), b"", Some(0), &target(&documents))
+                .expect("parsed");
+            assert!(actual.is_empty(), "{actual:?}");
         }
         let valid = r#"{"filename":"/s/dx-kubeconform/docs/0.yaml","kind":"Deployment","name":"web","version":"apps/v1","status":"statusValid","msg":""}"#;
-        assert!(
-            parse_kubeconform(valid.as_bytes(), b"", Some(0), &target(&documents))
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual =
+            parse_kubeconform(valid.as_bytes(), b"", Some(0), &target(&documents)).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

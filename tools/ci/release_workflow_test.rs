@@ -23,7 +23,7 @@ fn gate_names(field: &str) -> Vec<String> {
 
 /// Returns the names one gate field declares in one source file.
 fn declared(path: &Path, field: &str) -> Vec<String> {
-    let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {path:?}: {e}"));
+    let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let mut names = Vec::new();
     for line in text.lines() {
         let Some(rest) = line.trim().strip_prefix(&format!("{field}: ")) else {

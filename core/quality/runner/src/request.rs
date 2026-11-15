@@ -342,6 +342,11 @@ fn check_tool(
     })
 }
 
+/// Returns the result of the call.
+///
+/// # Errors
+///
+/// Returns the error describing the first step that failed.
 pub fn parse_real_request(bytes: &[u8]) -> Result<RealRequest, RequestError> {
     let doc: RequestDoc = serde_json::from_slice(bytes).map_err(|error| RequestError::Json {
         detail: error.to_string(),
@@ -445,17 +450,17 @@ mod tests {
         sources: serde_json::Value,
         tools: serde_json::Value,
     ) -> Vec<u8> {
-        serde_json::to_vec(&json!({
+        let mut document = json!({
             "schema_version": 1,
             "producer": "//pkg:target",
             "capability": "lint",
-            "stages": stages,
-            "sources": sources,
             "siblings": [],
             "resolves": [],
-            "tools": tools,
-        }))
-        .expect("skeleton encodes")
+        });
+        document["stages"] = stages;
+        document["sources"] = sources;
+        document["tools"] = tools;
+        serde_json::to_vec(&document).expect("skeleton encodes")
     }
 
     fn stage(tool: &str, classes: &[&str], sources: &[String]) -> serde_json::Value {
@@ -913,10 +918,9 @@ mod tests {
         );
         let without =
             doc(json!({"binary": "bin/clang_tidy", "files": [], "env": [], "upstream": []}));
-        assert!(
-            parse_real_request(&without).expect("parses").tools["clang_tidy"]
-                .args
-                .is_empty()
+        assert_eq!(
+            parse_real_request(&without).expect("parses").tools["clang_tidy"].args,
+            [] as [String; 0]
         );
     }
 

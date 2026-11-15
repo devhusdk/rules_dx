@@ -6,6 +6,9 @@ const TOOL: &str = "csharpier";
 const UNFORMATTED: &str = " - Was not formatted.";
 const SYNTAX: &str = " - Was not formatted due to syntax errors.";
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_csharpier(
     stderr: &[u8],
     code: Option<i32>,
@@ -106,7 +109,7 @@ mod tests {
         assert_eq!(findings[0].file, FILE);
         assert_eq!(findings[0].finding.message, "file is not formatted");
         let clean = parse_csharpier(b"", Some(0), &[FILE]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_csharpier(b"", Some(1), &[FILE]).is_err());
         assert!(parse_csharpier(DIRTY.as_bytes(), Some(1), &["/s/Other.cs"]).is_err());
         assert!(parse_csharpier(&[0xff], Some(1), &[FILE]).is_err());

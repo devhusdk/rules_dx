@@ -7,6 +7,10 @@ use crate::ToolSeverity;
 const TOOL: &str = "djlint";
 
 /// Fails when djlint reports a bad configuration or skipped the file, since both exit 0.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn djlint_ran(stderr: &[u8]) -> Result<(), ParseError> {
     let text = String::from_utf8_lossy(stderr);
     if let Some(line) = text
@@ -25,6 +29,10 @@ pub fn djlint_ran(stderr: &[u8]) -> Result<(), ParseError> {
 }
 
 /// Parses `djlint --lint --quiet` findings.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_djlint(
     stdout: &[u8],
     code: Option<i32>,
@@ -54,7 +62,7 @@ pub fn parse_djlint(
             ColumnEncoding::Scalars,
         ));
     }
-    let want = if findings.is_empty() { 0 } else { 1 };
+    let want = i32::from(!findings.is_empty());
     if code != Some(want) {
         return Err(ParseError::shape(
             TOOL,
@@ -65,6 +73,10 @@ pub fn parse_djlint(
 }
 
 /// Parses `djlint --check` output.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_djlint_format(
     stdout: &[u8],
     code: Option<i32>,
@@ -93,7 +105,7 @@ pub fn parse_djlint_format(
             format!("{count} files counted but {} named", changed.len()),
         ));
     }
-    let want = if count == 0 { 0 } else { 1 };
+    let want = i32::from(count != 0);
     if code != Some(want) {
         return Err(ParseError::shape(
             TOOL,
@@ -189,7 +201,8 @@ mod tests {
         assert_eq!(found[1].file, "/s/templates/page.html");
         assert_eq!(found[1].finding.severity, ToolSeverity::Warning);
         assert_eq!(found[1].finding.start.line, 2);
-        assert!(parse_djlint(b"", Some(0), FILES).expect("clean").is_empty());
+        let actual = parse_djlint(b"", Some(0), FILES).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
     #[test]
     fn lint_rejects_output_outside_the_grammar() {
@@ -216,11 +229,8 @@ mod tests {
         assert_eq!(found[0].file, "/s/templates/page.html");
         assert_eq!(found[0].finding.message, "file is not formatted");
         let clean = b"Checking 2/2 files\n\n\n0 files would be updated.\n\n";
-        assert!(
-            parse_djlint_format(clean, Some(0), FILES)
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_djlint_format(clean, Some(0), FILES).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
     #[test]
     fn format_rejects_output_outside_the_grammar() {

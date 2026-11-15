@@ -273,11 +273,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     };
     let code = if bazel_code != 0 {
         bazel_code
-    } else if complete && reports_ok && threshold_ok && collector_ok && sources_ok && changed_ok {
-        0
-    } else {
-        1
-    };
+    } else { i32::from(!(complete && reports_ok && threshold_ok && collector_ok && sources_ok && changed_ok)) };
     *results_complete = complete && reports_ok;
     let no_tests = bazel_code == BAZEL_NO_TESTS && reported.is_empty();
     if no_tests {
@@ -360,7 +356,7 @@ pub(super) fn no_tests_in_workspace(
             if let Err(exit) = emit_built(
                 out,
                 notice_event(&NoticeEvent::info(
-                    super::notice_codes::CODE_WORKSPACE_WITHOUT_TESTS,
+                    CODE_WORKSPACE_WITHOUT_TESTS,
                     message,
                 )),
             ) {
@@ -381,7 +377,7 @@ pub(super) fn no_tests_in_workspace(
         OutputMode::Text { .. } => {
             writeln!(err, "dx: {message}").ok();
         }
-        _ => {}
+        OutputMode::Diff => {}
     }
     0
 }

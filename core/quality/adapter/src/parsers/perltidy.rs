@@ -12,6 +12,10 @@ const TOOL: &str = "perltidy";
 /// input and describes the problem on stderr as `file:LINE: message`, which becomes one syntax
 /// finding at the first such line (line 1 when none parses). Any other exit, or empty output for
 /// non-empty input, is an error, never a clean file.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_perltidy(
     stdout: &[u8],
     stderr: &[u8],
@@ -23,9 +27,7 @@ pub fn parse_perltidy(
     let stderr = as_text(TOOL, stderr)?;
     match code {
         Some(2) => Ok(vec![syntax_finding(stderr, file)]),
-        Some(0) | Some(1) => {
-            rewrite_format(TOOL, stdout, Some(0), input, file, ColumnEncoding::Utf8)
-        }
+        Some(0 | 1) => rewrite_format(TOOL, stdout, Some(0), input, file, ColumnEncoding::Utf8),
         other => Err(ParseError::Shape {
             tool: TOOL,
             detail: format!("exit {} (want 0, 1 or 2)", code_name(other)),
@@ -89,8 +91,10 @@ mod tests {
 
     #[test]
     fn perltidy_is_clean_when_output_matches_input() {
-        assert!(run(TIDY, b"", 0, TIDY).expect("parsed").is_empty());
-        assert!(run(b"", b"", 0, b"").expect("parsed").is_empty());
+        let actual = run(TIDY, b"", 0, TIDY).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = run(b"", b"", 0, b"").expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

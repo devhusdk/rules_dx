@@ -12,6 +12,10 @@ const TOOL: &str = "dialyzer";
 /// in a sandbox, relative to the execroot, or a bare basename for `+deterministic` Erlang beams),
 /// so a reported path is resolved to the owned path it ends with; a warning in a file nothing owned
 /// matches belongs to a dependency and is dropped. Exit 1 is dialyzer failing to analyse.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_dialyzer(
     stdout: &[u8],
     code: Option<i32>,
@@ -235,8 +239,8 @@ mod tests {
 
     #[test]
     fn dialyzer_reports_unknown_types() {
-        let out = "  Proceeding with analysis...\nUnknown types:\n  foo:t/0 (nd.erl:3:14)\n done in 0m0.05s\n";
-        let found = parse_dialyzer(out.as_bytes(), Some(2), &["nd.erl"]).expect("parsed");
+        let out = "  Proceeding with analysis...\nUnknown types:\n  foo:t/0 (and.erl:3:14)\n done in 0m0.05s\n";
+        let found = parse_dialyzer(out.as_bytes(), Some(2), &["and.erl"]).expect("parsed");
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].finding.rule_id, "unknown_type");
         assert_eq!(found[0].finding.start.column, 14);
@@ -254,17 +258,14 @@ mod tests {
     #[test]
     fn dialyzer_clean_run_has_no_findings() {
         let out = "  Proceeding with analysis...\n done in 0m0.03s\ndone (passed successfully)\n";
-        assert!(
-            parse_dialyzer(out.as_bytes(), Some(0), &["a.erl"])
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_dialyzer(out.as_bytes(), Some(0), &["a.erl"]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
     fn dialyzer_failure_names_the_beam() {
         let out = "  Proceeding with analysis...\ndialyzer: Analysis failed with error:\nCould not scan the following file(s):\n  Could not get Core Erlang code for: /s/nd.beam\n\nLast messages in the log cache:\n  Reading files and computing callgraph... \n";
-        let err = parse_dialyzer(out.as_bytes(), Some(1), &["nd.erl"]).expect_err("failed");
+        let err = parse_dialyzer(out.as_bytes(), Some(1), &["and.erl"]).expect_err("failed");
         assert!(err.to_string().contains("/s/nd.beam"), "{err}");
         assert!(!err.to_string().contains("log cache"), "{err}");
         assert!(parse_dialyzer(b"", None, &[]).is_err());

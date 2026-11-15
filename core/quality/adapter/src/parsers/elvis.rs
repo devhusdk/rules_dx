@@ -11,6 +11,10 @@ const FAILED: &str = "Elvis: linting failed";
 const ERROR: &str = "Error: ";
 
 /// Findings from `elvis --output-format parsable rock`: one `File:Line:Rule:Message` per line, on exit 0 or 1.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_elvis(
     stdout: &[u8],
     stderr: &[u8],
@@ -150,16 +154,10 @@ mod tests {
                 .len(),
             2
         );
-        assert!(
-            parse_elvis(b"", b"", Some(0), &files)
-                .expect("parsed")
-                .is_empty()
-        );
-        assert!(
-            parse_elvis(b"\n", b"\n", Some(0), &files)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_elvis(b"", b"", Some(0), &files).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = parse_elvis(b"\n", b"\n", Some(0), &files).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

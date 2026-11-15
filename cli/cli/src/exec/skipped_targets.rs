@@ -203,7 +203,7 @@ pub(crate) fn skipped_notice(
             OutputMode::Text { .. } => {
                 writeln!(err, "dx: {message}").ok();
             }
-            _ => {}
+            OutputMode::Diff => {}
         }
     }
     Ok(())

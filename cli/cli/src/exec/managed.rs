@@ -117,9 +117,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         std::fs::remove_file(&bep).ok();
         if json {
             let scope_text = op_scope
-                .as_deref()
-                .map(|scope| scope.join(" "))
-                .unwrap_or_else(|| "//...".to_owned());
+                .as_deref().map_or_else(|| "//...".to_owned(), |scope| scope.join(" "));
             if let Err(exit) = emit_built(
                 out,
                 bazel_exit_event(

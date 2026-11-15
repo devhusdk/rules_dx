@@ -75,6 +75,7 @@ single_version_override(
         "//patches/llvm:aarch64_outline_atomics.patch",
         "//patches/llvm:macos_sdk_resolve_symlinks.patch",
         "//patches/llvm:toolchains_gate.patch",
+        "//patches/llvm:msvc_fuzzer.patch",
     ],
     version = "0.8.26",
 )
@@ -1595,7 +1596,6 @@ rules_julia = use_extension("//julia/private/toolchain:extensions.bzl", "rules_j
 use_repo(rules_julia, "rules_julia")
 
 julia = use_extension("//julia:extensions.bzl", "toolchain")
-julia.toolchain(version = "1.12.5")
 use_repo(julia, "julia_toolchains")
 
 register_toolchains("@julia_toolchains//:all")

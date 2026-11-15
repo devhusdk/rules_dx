@@ -24,14 +24,14 @@ fn parse(args: &[String]) -> Result<(Options, Vec<String>, Vec<PathBuf>), String
             "--quiet-ms" => {
                 options.quiet = Duration::from_millis(
                     value("--quiet-ms")?.parse().map_err(|_| "bad --quiet-ms")?,
-                )
+                );
             }
             "--timeout-ms" => {
                 options.timeout = Duration::from_millis(
                     value("--timeout-ms")?
                         .parse()
                         .map_err(|_| "bad --timeout-ms")?,
-                )
+                );
             }
             "--" => break,
             other => return Err(format!("unknown argument {other}")),
@@ -55,7 +55,7 @@ fn wait_briefly(child: &mut std::process::Child) -> Option<std::process::ExitSta
         if let Ok(Some(status)) = child.try_wait() {
             return Some(status);
         }
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::thread::sleep(Duration::from_millis(50));
     }
     None
 }
@@ -105,8 +105,9 @@ fn run(args: &[String]) -> Result<bool, String> {
 
 // LCOV_EXCL_START - reason: thin shim, issue: 6553, policy: docs/cli/commands/build-test-coverage.md
 /// Runs `lsp_check` on the given arguments and returns the exit code.
-pub fn run_process(args: Vec<String>) -> i32 {
-    match run(&args) {
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    match run(args) {
         Ok(true) => 0,
         Ok(false) => 1,
         Err(error) => {

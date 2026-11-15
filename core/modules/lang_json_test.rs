@@ -1,6 +1,7 @@
 //! Every language dir with a lang.json satisfies a lang.json that satisfies lang.schema.json.
 
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
@@ -47,7 +48,10 @@ fn value_problems(path: &str, value: &Value, schema: &Value, defs: &Value) -> Ve
     }
     match value {
         Value::String(text) => {
-            let min = schema["minLength"].as_u64().unwrap_or(0) as usize;
+            let min = schema["minLength"]
+                .as_u64()
+                .and_then(|n| usize::try_from(n).ok())
+                .unwrap_or(0);
             if text.len() < min {
                 problems.push(format!("{path}: empty string"));
             }
@@ -549,13 +553,11 @@ fn aspect_registration_is_generated_from_every_lang_json() {
     for (label, name) in &aspects {
         by_label.entry(label).or_default().push(name);
     }
-    let loads: String = by_label
-        .iter()
-        .map(|(label, names)| {
-            let symbols: Vec<String> = names.iter().map(|n| format!("_{n} = \"{n}\"")).collect();
-            format!("load(\"//{label}\", {})\n", symbols.join(", "))
-        })
-        .collect();
+    let mut loads = String::new();
+    for (label, names) in &by_label {
+        let symbols: Vec<String> = names.iter().map(|n| format!("_{n} = \"{n}\"")).collect();
+        writeln!(loads, "load(\"//{label}\", {})", symbols.join(", ")).expect("write to String");
+    }
     let exports: Vec<String> = aspects.iter().map(|(_, n)| format!("{n} = _{n}")).collect();
     let exports = format!("{}\n", exports.join("\n\n"));
     let current = dx_testing::read_runfiles("core/quality/testdata/all_languages.bzl");
@@ -627,14 +629,14 @@ fn starlark_lock_registry_is_generated_from_every_lang_json() {
         "\"\"\"Generated from every <lang>/lang.json setup.hubs entry with a lock.\"\"\"\n\nLOCK_REGISTRY = {\n",
     );
     for entry in lock_registry_entries() {
-        text.push_str(&format!("    {}: {{\n", entry["ecosystem"]));
+        writeln!(text, "    {}: {{", entry["ecosystem"]).expect("write to String");
         for key in ["hub", "imports", "lock", "manifest", "state"] {
             let value = if entry[key].is_null() {
                 "None".to_owned()
             } else {
                 entry[key].to_string()
             };
-            text.push_str(&format!("        \"{key}\": {value},\n"));
+            writeln!(text, "        \"{key}\": {value},").expect("write to String");
         }
         text.push_str("    },\n");
     }
@@ -881,24 +883,28 @@ fn conformance_quality_bzl(root: &Path) -> String {
     );
     for ((package, file), names) in &loads {
         let names: Vec<String> = names.iter().map(|n| format!("\"{n}\"")).collect();
-        text.push_str(&format!(
-            "load(\"//{package}:{file}\", {})\n",
+        writeln!(
+            text,
+            "load(\"//{package}:{file}\", {})",
             names.join(", ")
-        ));
+        )
+        .expect("write to String");
     }
     for (lang, kinds) in &subjects {
         for (kind, names) in kinds {
-            text.push_str(&format!(
+            write!(
+                text,
                 "\n{lang}_{kind}_subject = config_subject_rule([{}], [OutputGroupInfo])\n",
                 names.join(", ")
-            ));
+            )
+            .expect("write to String");
         }
     }
     text.push_str("\nQUALITY_SUBJECTS = {\n");
     for (lang, kinds) in &subjects {
-        text.push_str(&format!("    \"{lang}\": {{\n"));
+        writeln!(text, "    \"{lang}\": {{").expect("write to String");
         for (kind, _) in kinds {
-            text.push_str(&format!("        \"{kind}\": {lang}_{kind}_subject,\n"));
+            writeln!(text, "        \"{kind}\": {lang}_{kind}_subject,").expect("write to String");
         }
         text.push_str("    },\n");
     }

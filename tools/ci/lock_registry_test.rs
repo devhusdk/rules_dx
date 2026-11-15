@@ -1,5 +1,6 @@
-//! The tree breaks no rule of the Checks section of docs/design/locks.md outside tools/ci/lock_registry_allowlist.txt, and the allowlist holds no spare line.
+//! The tree breaks no rule of the Checks section of docs/design/locks.md outside `tools/ci/lock_registry_allowlist.txt`, and the allowlist holds no spare line.
 
+use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::Value;
@@ -401,7 +402,7 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
         .filter(|name| !name.contains('*') && *name != "MODULE.bazel")
         .collect();
     for (path, source) in &tree.sources {
-        if !path.ends_with(".bzl") || test_path(path) {
+        if !Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("bzl")) || test_path(path) {
             continue;
         }
         if lock_parser(path, source) {
@@ -424,14 +425,14 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
         }
     }
     for (path, source) in &tree.lock_scan {
-        if path.ends_with(".go") {
+        if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("go")) {
             for name in stated_names(source).intersection(&names) {
                 out.insert(format!("name {path} {name}"));
             }
         }
     }
     for (path, source) in tree.files.iter().chain(&tree.lock_scan) {
-        if path.ends_with(".go")
+        if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("go"))
             || (path.rsplit('/').next() != Some("MODULE.bazel")
                 && !path.ends_with(".fixture")
                 && !path.ends_with("module_fragment.bazel"))
@@ -443,7 +444,7 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
         }
     }
     for (path, text) in &tree.files {
-        if !path.ends_with(".md") {
+        if !Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md")) {
             continue;
         }
         let lines = text

@@ -3,7 +3,7 @@
 //! `producers_bin --lock-merge LOCKS_DIR OUT` merges the per-platform module locks into OUT.
 //! `producers_bin --blocker-refs OWNER/REPO` prints the references of a "Blocked on:" line on stdin.
 //! `producers_bin --review-paths [PREFIX_FILE]` prints the stdin paths that start with a listed prefix.
-//! `producers_bin --upgrade-e2e [--from VERSION] [--to VERSION] [--resolve-only]` upgrades a throwaway consumer between rules_dx versions and back.
+//! `producers_bin --upgrade-e2e [--from VERSION] [--to VERSION] [--resolve-only]` upgrades a throwaway consumer between `rules_dx` versions and back.
 //! `producers_bin --release-cell OUT` builds and qualifies the release cell named by CELL and the workflow environment.
 //! `producers_bin --table EVIDENCE_DIR OUT PLATFORM...` merges the evidence under a directory into OUT and prints the table.
 

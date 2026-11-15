@@ -3,6 +3,7 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use std::fmt::Write as _;
 use dx_adopt::{LauncherPins, RELEASE_ASSETS};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -12,6 +13,7 @@ pub const GAZELLE_MANIFEST: &str = "dx-gazelle-sha256sums.txt";
 pub const BUNDLE: &str = "dx-sha256sums.txt.sigstore.json";
 
 /// The gazelle release asset beside each dx release asset.
+#[must_use]
 pub fn gazelle_assets() -> Vec<String> {
     RELEASE_ASSETS
         .iter()
@@ -20,6 +22,10 @@ pub fn gazelle_assets() -> Vec<String> {
 }
 
 /// Reads both manifests from `dir`, checks each with `verify`, and returns the new `pins.bzl` text.
+///
+/// # Errors
+///
+/// Returns `Err` with the diagnostic when a manifest or the pins are invalid.
 pub fn fill(
     tag: &str,
     dir: &Path,
@@ -46,6 +52,10 @@ pub fn fill(
 
 /// Fills `pins_bzl` from manifest texts that the caller has already trusted.
 /// The release URL points at `repo`, written `OWNER/NAME`.
+///
+/// # Errors
+///
+/// Returns `Err` with the diagnostic when a manifest or the pins are invalid.
 pub fn fill_from_manifest(
     tag: &str,
     manifest_text: &str,
@@ -68,6 +78,10 @@ pub fn fill_from_manifest(
 
 /// Parses `dx-gazelle-sha256sums.txt`: exactly one `<hash>  <asset>` line per
 /// gazelle asset, hash as 64 lowercase hex, nothing else.
+///
+/// # Errors
+///
+/// Returns `Err` with the diagnostic when a manifest or the pins are invalid.
 pub fn parse_gazelle_manifest(text: &str) -> Result<BTreeMap<String, String>, String> {
     let assets = gazelle_assets();
     let mut hashes = BTreeMap::new();
@@ -134,6 +148,10 @@ fn rewrite_repo(pins_bzl: &str, repo: &str) -> Result<String, String> {
 /// Passes when `pins_bzl` is all empty, or when its hashes equal the verified manifests in `dir`.
 /// With `filled`, all-empty pins fail.
 /// `fetch` runs only when there are pins to compare.
+///
+/// # Errors
+///
+/// Returns `Err` with the diagnostic when a manifest or the pins are invalid.
 pub fn check(
     tag: &str,
     dir: &Path,
@@ -210,7 +228,7 @@ fn rewrite(pins_bzl: &str, hashes: &BTreeMap<String, String>) -> Result<String, 
                 let ending = line
                     .strip_prefix(line.trim_end_matches(['\r', '\n']))
                     .ok_or_else(|| format!("{asset} pin line has no ending"))?;
-                out.push_str(&format!("    \"{asset}\": \"{hash}\",{ending}"));
+                write!(out, "    \"{asset}\": \"{hash}\",{ending}").unwrap_or_default();
                 replaced += 1;
             }
             None => out.push_str(line),

@@ -6,6 +6,10 @@ const TOOL: &str = "ormolu";
 
 /// Exit 0 is clean and 100 prints the file name and a diff on stderr. Any other exit is a
 /// failure that names `file:line:col` on stderr, and one that does not is a shape error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ormolu(
     stdout: &[u8],
     stderr: &[u8],
@@ -94,16 +98,13 @@ fn locate<'a>(line: &str, files: &[&'a str]) -> Option<(&'a str, u64, u64)> {
             .is_some_and(|rest| rest.starts_with(':'))
     })?;
     let rest = line.strip_prefix(*file)?.strip_prefix(':')?;
-    let (row, column) = match rest.strip_prefix('(') {
-        Some(span) => {
-            let (row, after) = span.split_once(',')?;
-            (row, after.split(')').next()?)
-        }
-        None => {
-            let mut parts = rest.split(':');
-            let row = parts.next()?;
-            (row, parts.next()?.split(['-', ' ']).next()?)
-        }
+    let (row, column) = if let Some(span) = rest.strip_prefix('(') {
+        let (row, after) = span.split_once(',')?;
+        (row, after.split(')').next()?)
+    } else {
+        let mut parts = rest.split(':');
+        let row = parts.next()?;
+        (row, parts.next()?.split(['-', ' ']).next()?)
     };
     let row: u64 = row.parse().ok()?;
     let column: u64 = column.parse().ok()?;
@@ -120,11 +121,8 @@ mod tests {
 
     #[test]
     fn ormolu_clean_is_empty() {
-        assert!(
-            parse_ormolu(b"", b"", Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_ormolu(b"", b"", Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

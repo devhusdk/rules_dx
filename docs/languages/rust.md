@@ -29,18 +29,18 @@ Minimal wrapper over rust_library.
 ### `rust_binary`
 
 ```python
-rust_binary(name, *, srcs = None, crate_name = None, edition = RUST_EDITION, visibility = None, wasm = None, **kwargs)
+rust_binary(name, *, srcs = None, crate_name = None, edition = RUST_EDITION, visibility = None, wasm = None, runtime_dlls = None, **kwargs)
 ```
 
-Minimal wrapper over rust_binary. edition defaults to 2024; crate_name defaults to the target name with - and / as _. srcs is required.
+Minimal wrapper over rust_binary. runtime_dlls are symlinked next to the executable. edition defaults to 2024; crate_name defaults to the target name with - and / as _. srcs is required.
 
 ### `rust_test`
 
 ```python
-rust_test(name, *, srcs = None, crate = None, edition = RUST_EDITION, visibility = None, wasm = None, preopens = None, runtime = None, coverage_lib = None, **kwargs)
+rust_test(name, *, srcs = None, crate = None, edition = RUST_EDITION, visibility = None, wasm = None, preopens = None, runtime = None, coverage_lib = None, runtime_dlls = None, **kwargs)
 ```
 
-Minimal wrapper over rust_test. edition defaults to 2024.
+Minimal wrapper over rust_test. runtime_dlls are symlinked next to the executable. edition defaults to 2024.
 
 ### `rust_bench`
 

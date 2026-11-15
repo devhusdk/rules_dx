@@ -32,7 +32,7 @@ Minimal wrapper over js_library for Astro components.
 astro_build(name, srcs, config, node_modules, package_json = None, public = None, ssr_entry = None, deps = None, visibility = None, **kwargs)
 ```
 
-Builds one Astro site into a bundled web app tree and an optional SSR tree. The config is a package-relative file path.
+Builds one Astro site into a bundled web app tree and an optional SSR tree.
 
 ### `astro_test`
 
@@ -40,7 +40,7 @@ Builds one Astro site into a bundled web app tree and an optional SSR tree. The 
 astro_test(name, *, srcs, node_modules, data = None, **kwargs)
 ```
 
-Runs jest over Astro components, compiled by the linked @astrojs/compiler-rs. Coverage maps back to the .astro sources.
+Runs jest over Astro components, compiled by the linked @astrojs/compiler-rs.
 
 ## API docs
 
@@ -57,12 +57,6 @@ astro_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, packa
 ```
 
 Declares a component metadata run over one Astro project and its DocIr shard.
-
-The metadata comes from the pinned `@astrojs/compiler` and the TypeScript checker,
-run through an isolated launcher: `astro.config.*` and other consumer JavaScript never
-run. Only the consumer's `astro` package is read from `node_modules`, for its type
-declarations. Entry points are `.astro` files. Symbol ids are
-`astro:<package>:<Component>` plus `.prop_` and `.slot_` members.
 
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 

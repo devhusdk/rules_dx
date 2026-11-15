@@ -62,6 +62,7 @@ fn shard_name(aspect: &str) -> &str {
 const CORE_SHARDS: [&str; 3] = ["real_lint", "real_format", "real_typecheck"];
 
 /// The registry aspects to pass: all of them, or the core ones plus the shards the probe named.
+#[must_use]
 pub fn select_aspects(
     aspects: Vec<&'static str>,
     shards: Option<&BTreeSet<String>>,
@@ -86,6 +87,9 @@ pub(crate) fn setting_name(option: &str) -> Result<String, DxError> {
     Ok(name.to_owned())
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn protected_flags(required: &[String]) -> Result<Vec<ProtectedFlag>, DxError> {
     let keep_going = required
         .iter()
@@ -137,6 +141,9 @@ pub(crate) fn workflow_bazel_labels(resolved: &ResolvedScope) -> (Scope, Vec<Str
     }
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn plan_build(
     command: Command,
     resolved: &ResolvedScope,
@@ -168,13 +175,17 @@ pub struct Selection<'a> {
 }
 
 /// Plans the quality build over the aspects `selection` keeps.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn plan_build_with(
     command: Command,
     resolved: &ResolvedScope,
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
-    selection: Selection,
+    selection: Selection<'_>,
 ) -> Result<BuildPlan, DxError> {
     let aspects = match selection.consumer {
         Some(consumer) => aspects_for(command, consumer),
@@ -194,12 +205,16 @@ pub fn plan_build_with(
 }
 
 /// Plans the docs build: the docs aspect over the scope, with the site manifests beside the results.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn plan_docs(
     resolved: &ResolvedScope,
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
-    consumer: Option<Consumer>,
+    consumer: Option<Consumer<'_>>,
 ) -> Result<BuildPlan, DxError> {
     let aspects = match consumer {
         Some(consumer) => aspects_for(Command::Docs, consumer),
@@ -223,13 +238,17 @@ pub fn plan_docs(
 }
 
 /// Plans the shard probe; its argv matches `plan_build`'s apart from the aspects, output group and event file.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn plan_probe(
     command: Command,
     resolved: &ResolvedScope,
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
-    consumer: Option<Consumer>,
+    consumer: Option<Consumer<'_>>,
 ) -> Result<Option<BuildPlan>, DxError> {
     let probes = match consumer {
         Some(consumer) => probes_for(command, consumer),
@@ -372,6 +391,7 @@ enum Pending {
 }
 
 /// Splits Bazel options into ones safe to echo and redacted stand-ins for secrets.
+#[must_use]
 pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<String>) {
     let mut safe = Vec::new();
     let mut withheld = Vec::new();
@@ -469,6 +489,10 @@ mod tests {
     use dx_error::ErrorKind;
 
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one linear sequence of steps read top to bottom"
+    )]
     fn partition_provenance_options_cases() {
         let cases: &[(&[&str], &[&str], &[&str])] = &[
             (
@@ -898,10 +922,10 @@ mod tests {
         )
         .expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
-        let labels: Vec<String> = crate::plan::registry::spec(Command::Lint)
+        let labels: Vec<String> = spec(Command::Lint)
             .aspects
             .iter()
-            .map(|label| crate::plan::rules_dx_label(label))
+            .map(|label| rules_dx_label(label))
             .collect();
         let aspects = format!("--aspects={}", labels.join(","));
         assert_eq!(
@@ -1285,7 +1309,7 @@ mod tests {
             &[],
         )
         .expect_err("startup option must fail");
-        assert!(err.kind() == ErrorKind::Usage);
+        assert_eq!(err.kind(), ErrorKind::Usage);
     }
 
     #[test]
@@ -1298,7 +1322,7 @@ mod tests {
         );
         assert_eq!(
             parse(&strings(&["format", "--report=sarif=out.sarif"])),
-            Err(crate::args::ArgsError::UnsupportedOption {
+            Err(ArgsError::UnsupportedOption {
                 command: "format",
                 option: "--report=sarif=out.sarif".to_owned(),
             })

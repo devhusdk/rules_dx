@@ -52,6 +52,10 @@ fn split_line<'a>(line: &'a str, files: &[&'a str]) -> Option<(&'a str, u64, &'a
 /// decides from the exit code alone. The run only counts when stderr carries exactly one
 /// `Total Errors: N` summary, N equals the number of parsed findings, the exit code agrees
 /// with that count, and every stdout line is a finding for one of the known files.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_cmakelint(
     stdout: &[u8],
     stderr: &[u8],
@@ -151,11 +155,8 @@ mod tests {
 
     #[test]
     fn cmakelint_clean_run_is_clean() {
-        assert!(
-            run("", "Total Errors: 0\n", Some(0))
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = run("", "Total Errors: 0\n", Some(0)).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

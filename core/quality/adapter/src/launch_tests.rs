@@ -81,7 +81,7 @@ fn resolve_preserves_host_bytes_verbatim() {
     ];
     let files = [Path::new("/scratch/dir=x/a;b,c.js")];
     let invocation = launch.resolve(&args, &files).expect("resolves");
-    assert_eq!(&invocation.argv[1..1 + args.len()], args.as_slice());
+    assert_eq!(&invocation.argv[1..=args.len()], args.as_slice());
     assert_eq!(
         invocation.argv.last().expect("file"),
         &files[0].as_os_str().to_owned()

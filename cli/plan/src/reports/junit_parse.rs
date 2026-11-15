@@ -10,6 +10,9 @@ fn junit_error(detail: impl Into<String>) -> ReportError {
     }
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_test_xml(
     bytes: &[u8],
     shard: u32,
@@ -66,7 +69,7 @@ pub fn parse_test_xml(
             cases.push(JunitCase {
                 name: case.name.as_str().to_owned(),
                 classname: case.classname.as_ref().map(|c| c.as_str().to_owned()),
-                time: case.time.map(|d| d.as_secs_f64()).unwrap_or(0.0),
+                time: case.time.map_or(0.0, |d| d.as_secs_f64()),
                 failure,
                 error,
                 skipped,
@@ -115,7 +118,7 @@ fn deserialize_report(text: &str) -> Result<quick_junit::Report, ReportError> {
     }
 }
 
-/// Replaces numeric character references such as `&#xA;` with their characters, which quick_junit rejects.
+/// Replaces numeric character references such as `&#xA;` with their characters, which `quick_junit` rejects.
 fn decode_numeric_references(text: &str) -> Cow<'_, str> {
     if !text.contains("&#") {
         return Cow::Borrowed(text);
@@ -136,22 +139,19 @@ fn decode_numeric_references(text: &str) -> Cow<'_, str> {
                     .filter(|c| matches!(c, '\t' | '\n' | '\r') || *c >= ' ')?;
                 Some((c, after))
             });
-        match decoded {
-            Some((c, after)) => {
-                match c {
-                    '&' => out.push_str("&amp;"),
-                    '<' => out.push_str("&lt;"),
-                    '>' => out.push_str("&gt;"),
-                    '"' => out.push_str("&quot;"),
-                    '\'' => out.push_str("&apos;"),
-                    _ => out.push(c),
-                }
-                rest = after;
+        if let Some((c, after)) = decoded {
+            match c {
+                '&' => out.push_str("&amp;"),
+                '<' => out.push_str("&lt;"),
+                '>' => out.push_str("&gt;"),
+                '"' => out.push_str("&quot;"),
+                '\'' => out.push_str("&apos;"),
+                _ => out.push(c),
             }
-            None => {
-                out.push_str("&#");
-                rest = tail;
-            }
+            rest = after;
+        } else {
+            out.push_str("&#");
+            rest = tail;
         }
     }
     out.push_str(rest);

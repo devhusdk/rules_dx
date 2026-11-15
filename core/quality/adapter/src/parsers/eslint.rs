@@ -38,6 +38,9 @@ fn eslint_severity(tool: &'static str, severity: u64) -> Result<ToolSeverity, Pa
     }
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_eslint(
     stdout: &[u8],
     code: Option<i32>,
@@ -47,6 +50,10 @@ pub fn parse_eslint(
 }
 
 /// Parses graphql-eslint JSON, which must report every requested file.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_graphql_eslint(
     stdout: &[u8],
     code: Option<i32>,
@@ -90,7 +97,7 @@ fn parse_eslint_json(
             }
             let rule_id = match (&message.rule_id, message.fatal) {
                 (Some(rule), _) if !rule.is_empty() => rule.clone(),
-                (Some(_), _) | (None, _) if message.fatal == Some(true) => String::new(),
+                (Some(_) | None, _) if message.fatal == Some(true) => String::new(),
                 _ => {
                     return Err(ParseError::Shape {
                         tool,
@@ -171,7 +178,7 @@ mod tests {
         assert_eq!((end.line, end.column), (1, 16));
         let clean =
             parse_eslint(ESLINT_CLEAN.as_bytes(), Some(0), &["/s/clean.js"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_eslint(ESLINT_CLEAN.as_bytes(), Some(1), &["/s/clean.js"]).is_err());
         let fatal_null = r#"[{"filePath":"/s/broken.js","messages":[{"ruleId":null,"fatal":true,"severity":2,"message":"Parsing error: Unexpected token","line":2,"column":1}],"errorCount":1}]"#;
         let findings =
@@ -228,7 +235,7 @@ mod tests {
     fn graphql_eslint_reports_clean_and_dirty_files() {
         let files = ["/s/api/query.graphql"];
         let clean = parse_graphql_eslint(GRAPHQL_CLEAN.as_bytes(), Some(0), &files).expect("clean");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         let findings =
             parse_graphql_eslint(GRAPHQL_DIRTY.as_bytes(), Some(1), &files).expect("dirty");
         assert_eq!(findings.len(), 1);
@@ -282,7 +289,7 @@ mod tests {
             &["/s/clean.js", "/s/b.js"],
         )
         .expect("eslint keeps its contract");
-        assert!(findings.is_empty());
+        assert!(findings.is_empty(), "{findings:?}");
         let dirty =
             parse_eslint(ESLINT_DIRTY.as_bytes(), Some(1), &["/s/dirty.js"]).expect("dirty");
         assert_eq!(dirty[0].finding.tool_id, "eslint");

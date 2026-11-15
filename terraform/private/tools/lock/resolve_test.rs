@@ -114,7 +114,7 @@ fn a_provider_without_a_release_fails() {
 #[test]
 fn sources_off_the_public_registry_fail() {
     assert!(requirements("terraform { required_providers { x = { source = \"example.com/a/b\" } } }").is_err());
-    let found = requirements("terraform { required_providers { aws = \"~> 5.0\" } }").expect("legacy form");
+    let found = requirements("terraform { required_providers { aws = \"~> 5.0\" } }").expect("tilde constraint");
     assert_eq!(found.len(), 1);
 }
 

@@ -550,9 +550,9 @@ source = { registry = "https://pypi.org/simple" }
                 .iter()
                 .map(|target| target.set.name.as_str())
                 .collect();
-            update_names.sort();
+            update_names.sort_unstable();
             let mut audit_names: Vec<&str> = audit.iter().map(|set| set.name.as_str()).collect();
-            audit_names.sort();
+            audit_names.sort_unstable();
             assert_eq!(update_names, audit_names, "{selector}");
         }
     }
@@ -1187,8 +1187,12 @@ source = { registry = "https://pypi.org/simple" }
         }
     }
 
-    const NUGET_MODULE: &str =
-        "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\", lock = \"//dn:nuget.lock.json\")\n";
+    fn nuget_module() -> String {
+        format!(
+            "nuget = use_extension(\"//csharp:extensions.bzl\", \"nuget\")\nnuget.lock(name = \"nuget\", lock = \"//dn:{}\")\n",
+            Ecosystem::Nuget.lockfiles()[0]
+        )
+    }
 
     const NUGET_ADVISORY: &str = r#"[{
         "id": "GHSA-nuget-0001",
@@ -1200,8 +1204,8 @@ source = { registry = "https://pypi.org/simple" }
     }]"#;
 
     fn nuget_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, NUGET_MODULE, false);
-        harness.write_source("dn/nuget.lock.json", "{}\n");
+        let harness = consumer_harness(name, &nuget_module(), false);
+        harness.write_source(&format!("dn/{}", Ecosystem::Nuget.lockfiles()[0]), "{}\n");
         harness.write_source(
             &format!("dn/{}", manifest_of(Ecosystem::Nuget)),
             "source https://api.nuget.org/v3/index.json\nnuget Example.Lib\n",

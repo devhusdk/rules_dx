@@ -24,6 +24,10 @@ fn position(value: &serde_json::Value, key: &str) -> Result<u64, ParseError> {
 
 /// Parses `actionlint -format '{{json .}}'`: one JSON array, or `null` when nothing was found.
 /// Exit 1 means findings; 2 and 3 are usage and fatal errors. Paths are spelled from `cwd`.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_actionlint(
     stdout: &[u8],
     stderr: &[u8],
@@ -90,16 +94,12 @@ mod tests {
 
     #[test]
     fn actionlint_clean_run_is_clean() {
-        assert!(
-            parse_actionlint(b"null", b"", Some(0), &[FILE], Path::new(""))
-                .expect("parsed")
-                .is_empty()
-        );
-        assert!(
-            parse_actionlint(b"[]\n", b"", Some(0), &[FILE], Path::new(""))
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual =
+            parse_actionlint(b"null", b"", Some(0), &[FILE], Path::new("")).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual =
+            parse_actionlint(b"[]\n", b"", Some(0), &[FILE], Path::new("")).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

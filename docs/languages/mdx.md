@@ -58,11 +58,6 @@ mdx_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], **kwargs)
 
 Declares a component metadata run over one MDX project and its DocIr shard.
 
-MDX files are compiled and parsed with the pinned `@mdx-js/mdx`, never run. ESM
-exports are typed by the TypeScript checker. Props are the `props.<name>` reads in
-expressions. Symbol ids are `mdx:<package>:<Name>` plus `.prop_` and `.exposed_`
-members. Put type packages the exports import in `deps`.
-
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Tools

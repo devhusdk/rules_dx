@@ -20,6 +20,7 @@ impl Agent {
     pub const ALL: [Self; 4] = [Self::Claude, Self::Codex, Self::Gemini, Self::Copilot];
 
     /// The word `--agents` takes for this agent.
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             Self::Claude => "claude",
@@ -71,6 +72,7 @@ fn percent(raw: &str) -> Result<u32, dx_error::DxError> {
 }
 
 /// The seconds in a fuzz budget such as `90`, `90s`, `5m` or `1h`.
+#[must_use]
 pub fn fuzz_seconds(raw: &str) -> Option<u64> {
     let (digits, unit) = match raw.strip_suffix(['s', 'm', 'h']) {
         Some(digits) => (digits, raw.chars().last()),
@@ -107,6 +109,10 @@ fn after_help_of(command: super::command::Command) -> String {
 
 /// Every flag the normalized invocation carries, whether or not one command takes it.
 #[derive(Debug, Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent on/off options, one per command line flag"
+)]
 pub(crate) struct Flags {
     pub(crate) workspace: Option<OsString>,
     pub(crate) quiet: bool,
@@ -689,7 +695,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Edit the bazel_dep floor instead of the tested override (needs a version and --reason).
+    /// Edit the `bazel_dep` floor instead of the tested override (needs a version and --reason).
     FloorFlag, {
         #[arg(long, overrides_with = "floor")]
         floor: bool,
@@ -762,7 +768,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Measure disk use per slot and mark slots past DX_WORKTREE_MAX_SLOTS prunable (list only, slow).
+    /// Measure disk use per slot and mark slots past `DX_WORKTREE_MAX_SLOTS` prunable (list only, slow).
     DiskFlag, {
         #[arg(long, overrides_with = "disk")]
         disk: bool,
@@ -1100,6 +1106,7 @@ command_args! {
         since: SinceFlag,
     };
     /// The flags `dx coverage` accepts.
+    #[expect(clippy::struct_field_names, reason = "the fields are the clap argument ids")]
     Coverage => 8, BazelTail, {
         output: OutputFlag,
         fail_on: FailOnFlag,
@@ -1149,6 +1156,7 @@ command_args! {
         since: SinceFlag,
     };
     /// The flags `dx clean` accepts.
+    #[expect(clippy::struct_field_names, reason = "the fields are the clap argument ids")]
     Clean => 13, NoScopeTail, {
         output: OutputFlag,
         clean_bazel: CleanBazelFlag,
@@ -1244,6 +1252,7 @@ pub(crate) struct Cli {
     pub(crate) verb: Option<Verb>,
 }
 
+#[must_use]
 pub fn cli_command() -> clap::Command {
     use clap::CommandFactory;
     let cwd = dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
@@ -1257,6 +1266,10 @@ pub fn cli_command() -> clap::Command {
 }
 
 /// Renders the section 1 man page for the dx command.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn man_page() -> std::io::Result<Vec<u8>> {
     let mut buffer = Vec::new();
     clap_mangen::Man::new(cli_command())
@@ -1423,6 +1436,7 @@ fn collect_hyphen_options(
 }
 
 /// The long names the grammar gives the flags that belong to some commands only.
+#[must_use]
 pub fn advertised_flags(command: super::command::Command) -> Vec<String> {
     let sub = subcommand_args(command);
     let mut flags = Vec::new();
@@ -1440,6 +1454,7 @@ pub fn advertised_flags(command: super::command::Command) -> Vec<String> {
 }
 
 /// Whether `dx <command>` parses `--<long>`, hidden arguments included.
+#[must_use]
 pub fn accepts_long(command: super::command::Command, long: &str) -> bool {
     subcommand_args(command)
         .get_arguments()
@@ -1447,6 +1462,7 @@ pub fn accepts_long(command: super::command::Command, long: &str) -> bool {
 }
 
 /// Whether the grammar lets `dx <command> -- <bazel-options>` through.
+#[must_use]
 pub fn advertises_passthrough(command: super::command::Command) -> bool {
     subcommand_args(command)
         .get_arguments()
@@ -1783,7 +1799,7 @@ mod tests {
     #[test]
     fn every_command_names_its_own_registry_entry() {
         let root = cli_command();
-        for entry in COMMANDS.iter() {
+        for entry in &COMMANDS {
             let built = root
                 .get_subcommands()
                 .find(|sub| sub.get_name() == entry.name)

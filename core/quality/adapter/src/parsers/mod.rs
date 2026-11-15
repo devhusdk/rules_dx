@@ -306,6 +306,9 @@ impl ParseError {
 
 pub const MAX_OUTPUT_BYTES: usize = 8 * 1024 * 1024;
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn check_output_size(tool: &'static str, bytes: &[u8]) -> Result<(), ParseError> {
     if bytes.len() > MAX_OUTPUT_BYTES {
         return Err(ParseError::TooLarge {
@@ -425,9 +428,9 @@ fn known_lexical<'a>(
         match part {
             Component::CurDir => {}
             Component::ParentDir => valid &= clean.pop(),
-            other @ Component::Prefix(_)
-            | other @ Component::RootDir
-            | other @ Component::Normal(_) => clean.push(other.as_os_str()),
+            other @ (Component::Prefix(_) | Component::RootDir | Component::Normal(_)) => {
+                clean.push(other.as_os_str())
+            }
         }
     }
     files
@@ -725,7 +728,7 @@ impl DiffExit {
     }
 }
 
-/// Report the offenses in the RuboCop JSON grammar, used by `rubocop`.
+/// Report the offenses in the `RuboCop` JSON grammar, used by `rubocop`.
 pub(super) fn rubocop_json(
     tool: &'static str,
     stdout: &[u8],
@@ -747,7 +750,7 @@ pub(super) fn rubocop_json(
         .lines()
         .map(|line| mix_format::strip_ansi(line).trim().to_owned())
         .collect();
-    if !matches!(code, Some(0) | Some(1)) {
+    if !matches!(code, Some(0 | 1)) {
         let first = lines
             .iter()
             .find(|line| !line.is_empty())
@@ -790,7 +793,7 @@ pub(super) fn rubocop_json(
             let line = off
                 .get("location")
                 .and_then(|l| l.get("line"))
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .ok_or_else(|| ParseError::Shape {
                     tool,
                     detail: "missing line".to_owned(),
@@ -798,7 +801,7 @@ pub(super) fn rubocop_json(
             let col = off
                 .get("location")
                 .and_then(|l| l.get("column"))
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .ok_or_else(|| ParseError::Shape {
                     tool,
                     detail: "missing column".to_owned(),
@@ -820,8 +823,8 @@ pub(super) fn rubocop_json(
                 .unwrap_or("")
                 .to_owned();
             let severity = match off.get("severity").and_then(|v| v.as_str()) {
-                Some("error") | Some("fatal") => ToolSeverity::Error,
-                Some("warning") | Some("convention") | Some("refactor") => ToolSeverity::Warning,
+                Some("error" | "fatal") => ToolSeverity::Error,
+                Some("warning" | "convention" | "refactor") => ToolSeverity::Warning,
                 Some("info") => ToolSeverity::Info,
                 other => {
                     return Err(ParseError::Shape {
@@ -862,7 +865,8 @@ pub(super) fn rubocop_json(
     Ok(findings)
 }
 
-/// Find the stderr line that shows a RuboCop cop crashed, shared by the check and fix paths.
+/// Find the stderr line that shows a `RuboCop` cop crashed, shared by the check and fix paths.
+#[must_use]
 pub fn rubocop_crash(stderr: &[u8]) -> Option<String> {
     let stderr = String::from_utf8_lossy(stderr);
     let lines: Vec<String> = stderr
@@ -877,7 +881,7 @@ pub fn rubocop_crash(stderr: &[u8]) -> Option<String> {
         .cloned()
 }
 
-/// Whether a stderr line is RuboCop's `N error(s) occurred:` crash summary.
+/// Whether a stderr line is `RuboCop`'s `N error(s) occurred:` crash summary.
 fn rubocop_error_summary(line: &str) -> bool {
     let Some((count, rest)) = line.split_once(' ') else {
         return false;
@@ -912,7 +916,7 @@ fn diff_format(
             detail: format!("exit {} with diff markers", code_name(code)),
         });
     }
-    unformatted(tool, files, paths)
+    unformatted(tool, files, &paths)
 }
 
 /// How a tool spells a path it listed.
@@ -1003,7 +1007,7 @@ fn as_text<'a>(tool: &'static str, bytes: &'a [u8]) -> Result<&'a str, ParseErro
 fn unformatted(
     tool: &'static str,
     files: &[&str],
-    paths: Vec<String>,
+    paths: &[String],
 ) -> Result<Vec<FileFinding>, ParseError> {
     paths
         .iter()
@@ -1055,7 +1059,8 @@ mod tests {
             lines("tsc", b"  a.rs:1:1: x  \n\n\t\n b.rs:2:2: y\n").expect("read"),
             vec!["a.rs:1:1: x", "b.rs:2:2: y"]
         );
-        assert!(lines("tsc", b"\n \n").expect("read").is_empty());
+        let actual = lines("tsc", b"\n \n").expect("read");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(matches!(
             lines("tsc", &[0xff]),
             Err(ParseError::Shape { tool: "tsc", .. })
@@ -1288,7 +1293,7 @@ mod tests {
                 rule_id: "R1".to_owned(),
                 message: "msg".to_owned(),
                 severity: ToolSeverity::Error,
-                start: crate::TextPosition { line: 3, column: 4 },
+                start: TextPosition { line: 3, column: 4 },
                 end: None,
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
@@ -1462,7 +1467,8 @@ mod tests {
             ["new.go"]
         );
         // A bare `.orig` reduces to nothing rather than an empty path.
-        assert!(super::diff_paths("--- .orig\n@@ -1 +1 @@\n-a\n+b\n").is_empty());
+        let actual = super::diff_paths("--- .orig\n@@ -1 +1 @@\n-a\n+b\n");
+        assert!(actual.is_empty(), "{actual:?}");
         // A `git diff` pair names the file, so a real `.orig` file is a path like any other.
         assert_eq!(
             super::diff_paths("--- a/.orig\n+++ b/.orig\n@@ -1 +1 @@\n-a\n+b\n"),
@@ -1535,7 +1541,7 @@ mod tests {
         let diff = b"--- a/x.go.orig\n+++ a/x.go\n@@ -1 +1 @@\n-a\n+b\n";
         let err = super::diff_format("t", diff, Some(0), &["x.go"], super::DiffExit::Zero)
             .expect_err("a/x.go was never checked");
-        assert!(matches!(err, super::ParseError::UnknownFile { path, .. } if path == "a/x.go"));
+        assert!(matches!(err, ParseError::UnknownFile { path, .. } if path == "a/x.go"));
         let findings = super::diff_format("t", diff, Some(0), &["a/x.go"], super::DiffExit::Zero)
             .expect("parsed");
         assert_eq!(findings.len(), 1);
@@ -1588,11 +1594,8 @@ mod tests {
             super::DiffExit::ZeroOrOne,
             super::DiffExit::One,
         ] {
-            assert!(
-                super::diff_format("t", b"", Some(0), &["x.go"], exit)
-                    .expect("clean")
-                    .is_empty()
-            );
+            let actual = super::diff_format("t", b"", Some(0), &["x.go"], exit).expect("clean");
+            assert!(actual.is_empty(), "{actual:?}");
         }
     }
 
@@ -1610,7 +1613,7 @@ mod tests {
         );
         assert!(matches!(
             super::listed_paths("t", b"y.go\n", Some(1), &["x.go"], &[], Spelling::Exact),
-            Err(super::ParseError::UnknownFile { path, .. }) if path == "y.go"
+            Err(ParseError::UnknownFile { path, .. }) if path == "y.go"
         ));
     }
 
@@ -1627,18 +1630,16 @@ mod tests {
         )
         .expect("parsed");
         assert_eq!(findings.len(), 1);
-        assert!(
-            super::listed_paths(
-                "t",
-                b"HEADER: none\n",
-                Some(0),
-                &["x.go"],
-                &["HEADER: none"],
-                Spelling::Exact
-            )
-            .expect("clean")
-            .is_empty()
-        );
+        let actual = super::listed_paths(
+            "t",
+            b"HEADER: none\n",
+            Some(0),
+            &["x.go"],
+            &["HEADER: none"],
+            Spelling::Exact,
+        )
+        .expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -1656,7 +1657,7 @@ mod tests {
         }
         assert!(matches!(
             super::listed_paths("t", &[0xff], Some(1), &["x.go"], &[], Spelling::Exact),
-            Err(super::ParseError::Shape { .. })
+            Err(ParseError::Shape { .. })
         ));
     }
 
@@ -1677,7 +1678,7 @@ mod tests {
         assert_eq!(findings[0].file, "/w/sub/x.tf");
         assert!(matches!(
             super::listed_paths("t", b"sub/x.tf\n", Some(3), &files, &[], Spelling::Exact),
-            Err(super::ParseError::UnknownFile { .. })
+            Err(ParseError::UnknownFile { .. })
         ));
         assert!(matches!(
             super::listed_paths(
@@ -1688,8 +1689,13 @@ mod tests {
                 &[],
                 Spelling::Below(cwd)
             ),
-            Err(super::ParseError::UnknownFile { .. })
+            Err(ParseError::UnknownFile { .. })
         ));
+    }
+
+    fn below(state: &mut u64, bound: usize) -> usize {
+        let bound = u64::try_from(bound).expect("bound fits in u64");
+        usize::try_from(xorshift(state) % bound).expect("value below a usize bound")
     }
 
     fn xorshift(state: &mut u64) -> u64 {
@@ -1791,13 +1797,13 @@ mod tests {
         b"\xff\xfe\x00",
     ];
 
-    type FuzzFn = fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<super::FileFinding>, ParseError>;
+    type FuzzFn = fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, ParseError>;
 
     fn fuzz_biome_lint(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::biome::parse_biome_lint(input, code, files)
     }
 
@@ -1805,7 +1811,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::biome::parse_biome_format(input, code, files)
     }
 
@@ -1813,7 +1819,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::buf::parse_buf_lint(input, code, files, &[])
     }
 
@@ -1821,7 +1827,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::buf::parse_buf_format(
             input,
             b"",
@@ -1835,7 +1841,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::clang_format::parse_clang_format(input, code, files)
     }
 
@@ -1843,7 +1849,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::clang_syntax::parse_clang_syntax(input, code, files)
     }
 
@@ -1851,7 +1857,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::clang_tidy::parse_clang_tidy(input, code, files)
     }
 
@@ -1859,7 +1865,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::csharpier::parse_csharpier(input, code, files)
     }
 
@@ -1867,15 +1873,15 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::cue::parse_cue(input, input, code, files, std::path::Path::new("/"))
+    ) -> Result<Vec<FileFinding>, ParseError> {
+        super::cue::parse_cue(input, input, code, files, Path::new("/"))
     }
 
     fn fuzz_djlint(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::djlint::parse_djlint(input, code, files)
     }
 
@@ -1883,7 +1889,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::djlint::parse_djlint_format(input, code, files)
     }
 
@@ -1891,7 +1897,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::go_analysis::parse_go_analysis("govet", input, code, files)
     }
 
@@ -1899,7 +1905,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::go_analysis::parse_gotype("gotype", input, code, files)
     }
 
@@ -1907,7 +1913,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::eslint::parse_eslint(input, code, files)
     }
 
@@ -1915,7 +1921,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::eslint::parse_graphql_eslint(input, code, files)
     }
 
@@ -1923,7 +1929,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         let root = files.first().copied().unwrap_or("/scratch/openapi.yaml");
         super::redocly::parse_redocly(input, code, root, Path::new("/"), files)
     }
@@ -1932,7 +1938,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::fantomas::parse_fantomas(input, code, files, Path::new("/scratch"))
     }
 
@@ -1940,7 +1946,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         let both = super::flatc::parse_flatc(input, input, code, files)?;
         Ok(both.findings)
     }
@@ -1949,7 +1955,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::avro::parse_avro(input, input, code, files)
     }
 
@@ -1957,7 +1963,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         let both = super::thrift::parse_thrift(input, input, code, files)?;
         Ok(both.findings)
     }
@@ -1966,7 +1972,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::topiary::parse_topiary(input, code, files)
     }
 
@@ -1974,7 +1980,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::ffmt::parse_ffmt(input, code, files)
     }
 
@@ -1982,7 +1988,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::fortitude::parse_fortitude(input, code, files)
     }
 
@@ -1990,7 +1996,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::fsc::parse_fsc(input, code, files)
     }
 
@@ -1998,7 +2004,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::fsharplint::parse_fsharplint(input, code, files)
     }
 
@@ -2006,7 +2012,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::gofumpt::parse_gofumpt(input, code, files)
     }
 
@@ -2014,7 +2020,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::google_java_format::parse_google_java_format(input, code, files)
     }
 
@@ -2022,7 +2028,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         drop(super::helm::parse_helm_template_error(input, "", files));
         drop(super::helm::split_rendered(input));
         super::helm::parse_helm_lint(input, code, "", files)
@@ -2032,7 +2038,7 @@ mod tests {
         input: &[u8],
         _code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::jet::parse_jet(input, files)
     }
 
@@ -2040,7 +2046,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::julialint::parse_julialint(input, code, files)
     }
 
@@ -2048,7 +2054,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::jsonnet_lint::parse_jsonnet_lint(input, input, code, files)
     }
 
@@ -2056,7 +2062,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::jsonnetfmt::parse_jsonnetfmt(input, input, code, files)
     }
 
@@ -2064,7 +2070,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::keep_sorted::parse_keep_sorted(input, code, files)
     }
 
@@ -2072,7 +2078,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::keep_sorted::parse_keep_sorted_lint(input, code, files)
     }
 
@@ -2080,7 +2086,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::ktfmt::parse_ktfmt(input, code, files)
     }
 
@@ -2088,7 +2094,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::lychee::parse_lychee(input, input, code, files)
     }
 
@@ -2096,7 +2102,7 @@ mod tests {
         input: &[u8],
         _code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::luals::parse_luals(input, files)
     }
 
@@ -2104,7 +2110,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::markdown::parse_markdown_findings(input, code, files)
     }
 
@@ -2112,7 +2118,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::notebook_outputs::parse_notebook_outputs(input, code, files)
     }
 
@@ -2120,7 +2126,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::modfmt::parse_modfmt(input, code, files)
     }
 
@@ -2128,7 +2134,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::nixfmt::parse_nixfmt(input, input, code, files)
     }
 
@@ -2136,7 +2142,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::msvc_syntax::parse_msvc_syntax(input, code, files)
     }
 
@@ -2144,7 +2150,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::nvcc_syntax::parse_nvcc_syntax(input, code, files)
     }
 
@@ -2152,7 +2158,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::ormolu::parse_ormolu(input, input, code, files)
     }
 
@@ -2160,15 +2166,15 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::cue::parse_cue_vet(input, input, code, files, files, std::path::Path::new("/"))
+    ) -> Result<Vec<FileFinding>, ParseError> {
+        super::cue::parse_cue_vet(input, input, code, files, files, Path::new("/"))
     }
 
     fn fuzz_bicep_lint(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::bicep::parse_bicep_lint(input, code, files)
     }
 
@@ -2176,7 +2182,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::bicep::parse_bicep_format(
             input,
             b"",
@@ -2190,7 +2196,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::ocaml_compile::parse_ocaml_compile(input, code, files)
     }
 
@@ -2198,7 +2204,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::opa::parse_opa_fmt(
             input,
             input,
@@ -2212,7 +2218,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::opa::parse_opa_check(input, input, code, files)
     }
 
@@ -2220,7 +2226,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::perlcritic::parse_perlcritic(input, code, files)
     }
 
@@ -2228,7 +2234,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::perltidy::parse_perltidy(
             input,
             input,
@@ -2242,7 +2248,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::pkl::parse_pkl_eval(input, input, code, files)
     }
 
@@ -2250,7 +2256,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::pkl_lsp::parse_pkl_lsp(input, code, files)
     }
 
@@ -2258,7 +2264,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::pkl::parse_pkl(input, input, code, files)
     }
 
@@ -2266,7 +2272,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::phpcs::parse_phpcs(input, code, files)
     }
 
@@ -2274,7 +2280,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::phpstan::parse_phpstan(input, code, files)
     }
 
@@ -2282,7 +2288,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::pmd::parse_pmd(input, code, files)
     }
 
@@ -2290,7 +2296,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::prettier::parse_prettier_check(input, code, files)
     }
 
@@ -2298,7 +2304,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::psscriptanalyzer::parse_psscriptanalyzer(input, code, files)
     }
 
@@ -2306,7 +2312,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::psscriptanalyzer::parse_psscriptanalyzer_format(input, code, files)
     }
 
@@ -2314,7 +2320,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::pydoclint::parse_pydoclint(input, code, files)
     }
 
@@ -2322,7 +2328,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::qmlformat::parse_qmlformat(input, code, b"", files.first().copied().unwrap_or(""))
     }
 
@@ -2330,7 +2336,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::detekt::parse_detekt(input, code, files)
     }
 
@@ -2338,7 +2344,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::credo::parse_credo(input, b"dx-credo: {\"invalid\":[]}\n", code, files)
     }
 
@@ -2346,7 +2352,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::elvis::parse_elvis(input, b"", code, files)
     }
 
@@ -2354,7 +2360,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::flang::parse_flang(input, code, files)
     }
 
@@ -2362,7 +2368,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::ghc::parse_ghc(input, code, files)
     }
 
@@ -2370,7 +2376,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::erlc::parse_erlc(input, code, files)
     }
 
@@ -2378,7 +2384,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::elixirc::parse_elixirc(input, code, files)
     }
 
@@ -2386,7 +2392,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::ldc::parse_ldc(input, code, files)
     }
 
@@ -2394,7 +2400,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::dialyzer::parse_dialyzer(input, code, files)
     }
 
@@ -2402,7 +2408,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::erlfmt::parse_erlfmt(b"", input, code, files)
     }
 
@@ -2410,15 +2416,15 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::mix_format::parse_mix_format(b"", input, code, files, std::path::Path::new("/"))
+    ) -> Result<Vec<FileFinding>, ParseError> {
+        super::mix_format::parse_mix_format(b"", input, code, files, Path::new("/"))
     }
 
     fn fuzz_dart_format(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::dart_format::parse_dart_format(input, input, code, files)
     }
 
@@ -2426,7 +2432,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::dart_analyze::parse_dart_analyze(
             input,
             b"",
@@ -2441,7 +2447,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::julia_format::parse_julia_format(input, input, code, files)
     }
 
@@ -2449,7 +2455,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::zanuda::parse_zanuda(input, code, files)
     }
 
@@ -2457,7 +2463,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::zig_compile::parse_zig_compile(input, code, files)
     }
 
@@ -2465,7 +2471,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::zig_ast_check::parse_zig_ast_check(input, input, code, files)
     }
 
@@ -2473,7 +2479,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::swift_format::parse_swift_format(
             input,
             input,
@@ -2487,7 +2493,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::swiftc::parse_swiftc(input, code, files)
     }
 
@@ -2495,7 +2501,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::swift_lint::parse_swift_lint(input, input, code, files)
     }
 
@@ -2503,7 +2509,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::zig_fmt::parse_zig_fmt(input, input, code, files)
     }
 
@@ -2511,7 +2517,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         let lint =
             super::qmllint::parse_qmllint(input, code, files, super::qmllint::QmllintView::Lint);
         let types = super::qmllint::parse_qmllint(
@@ -2530,7 +2536,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::roslyn::parse_csc(input, code, files)
     }
 
@@ -2538,7 +2544,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::jvm_diagnostics::parse_jvm_diagnostics("javac", input, code, files)
     }
 
@@ -2546,7 +2552,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::roslyn::parse_roslyn(input, code, files)
     }
 
@@ -2554,7 +2560,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::deadnix::parse_deadnix(input, input, code, files)
     }
 
@@ -2562,7 +2568,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::ansible_lint::parse_ansible_lint(input, input, code, files)
     }
 
@@ -2570,7 +2576,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::capnp::parse_capnp(input, code, files)
     }
 
@@ -2578,7 +2584,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::cfn_lint::parse_cfn_lint(input, input, code, files)
     }
 
@@ -2586,7 +2592,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         let targets: Vec<super::KubeconformTarget<'_>> = files
             .iter()
             .map(|file| super::KubeconformTarget {
@@ -2602,7 +2608,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         let targets: Vec<super::CheckJsonschemaTarget<'_>> = files
             .iter()
             .map(|file| super::CheckJsonschemaTarget {
@@ -2619,7 +2625,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::checkmake::parse_checkmake(input, input, code, files, None)
     }
 
@@ -2627,7 +2633,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::cmakelint::parse_cmakelint(input, input, code, files)
     }
 
@@ -2635,7 +2641,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::gplint::parse_gplint(input, code, files)
     }
 
@@ -2643,7 +2649,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::docstrfmt::parse_docstrfmt(input, input, code, files)
     }
 
@@ -2651,7 +2657,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::mbake::parse_mbake(input, input, code, files)
     }
 
@@ -2659,7 +2665,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::gersemi::parse_gersemi(input, input, code, files)
     }
 
@@ -2667,7 +2673,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::trivy_config::parse_trivy_config(input, input, code, files)
     }
 
@@ -2675,7 +2681,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         let file = files.first().copied().unwrap_or("BUILD.bazel");
         super::container_structure_test::parse_container_structure_test(
             input, input, code, "image", file,
@@ -2686,7 +2692,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         let file = files.first().copied().unwrap_or("BUILD.bazel");
         super::trivy_image_config::parse_trivy_image_config(
             input, input, code, "image", "image", file,
@@ -2697,7 +2703,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::tflint::parse_tflint(input, code, files)
     }
 
@@ -2705,7 +2711,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::actionlint::parse_actionlint(input, input, code, files, Path::new(""))
     }
 
@@ -2713,7 +2719,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::zizmor::parse_zizmor(input, input, code, files)
     }
 
@@ -2721,7 +2727,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::hadolint::parse_hadolint(input, input, code, files)
     }
 
@@ -2729,7 +2735,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::weeder::parse_weeder(input, input, code, files)
     }
 
@@ -2737,7 +2743,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::helmfmt::parse_helmfmt(input, input, code, files)
     }
 
@@ -2745,7 +2751,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::hlint::parse_hlint(input, input, code, files)
     }
 
@@ -2753,7 +2759,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::rubocop::parse_rubocop(input, input, code, files, Path::new(""))
     }
 
@@ -2761,7 +2767,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::ruff::parse_ruff(input, code, files, &[])
     }
 
@@ -2769,7 +2775,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::ruff::parse_ruff_format(input, code, files, &[])
     }
 
@@ -2777,7 +2783,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::rust::parse_clippy(input, code, files)
     }
 
@@ -2785,7 +2791,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::rust::parse_rustc(input, code, files)
     }
 
@@ -2793,7 +2799,7 @@ mod tests {
         input: &[u8],
         _code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::buildifier::parse_buildifier(input, input, files)
     }
 
@@ -2801,7 +2807,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::rustfmt::parse_rustfmt(input, input, code, files)
     }
 
@@ -2809,7 +2815,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::sarif::parse_sarif("fuzz", input, code, files, ColumnEncoding::Utf16)
     }
 
@@ -2817,7 +2823,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::scalafix::parse_scalafix(input, b"", code, files)
     }
 
@@ -2825,15 +2831,15 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::scalafmt::parse_scalafmt(input, b"", code, files, std::path::Path::new("/"))
+    ) -> Result<Vec<FileFinding>, ParseError> {
+        super::scalafmt::parse_scalafmt(input, b"", code, files, Path::new("/"))
     }
 
     fn fuzz_shellcheck(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::shellcheck::parse_shellcheck(input, code, files)
     }
 
@@ -2841,7 +2847,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::selene::parse_selene(input, code, files)
     }
 
@@ -2849,7 +2855,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::sorbet::parse_sorbet(input, code, files)
     }
 
@@ -2857,7 +2863,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::shfmt::parse_shfmt(input, code, files)
     }
 
@@ -2865,7 +2871,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::spotbugs::parse_spotbugs(input, code, files)
     }
 
@@ -2873,7 +2879,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::sqlfluff::parse_sqlfluff(input, input, code, files)
     }
 
@@ -2881,7 +2887,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::staticcheck::parse_staticcheck(input, code, files)
     }
 
@@ -2889,7 +2895,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::regal::parse_regal(input, input, code, files)
     }
 
@@ -2897,7 +2903,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::remark::parse_remark(input, input, code, files)
     }
 
@@ -2905,7 +2911,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::stylelint::parse_stylelint(input, code, files)
     }
 
@@ -2913,7 +2919,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::stylua::parse_stylua(input, input, code, files)
     }
 
@@ -2921,7 +2927,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::taplo::parse_taplo_lint(input, code, files)
     }
 
@@ -2929,7 +2935,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::taplo::parse_taplo_format_check(input, code, files)
     }
 
@@ -2937,42 +2943,31 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::terraform::parse_terraform(input, input, code, files, std::path::Path::new("/"))
+    ) -> Result<Vec<FileFinding>, ParseError> {
+        super::terraform::parse_terraform(input, input, code, files, Path::new("/"))
     }
 
     fn fuzz_terraform_init(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::terraform_validate::parse_terraform_init(
-            input,
-            input,
-            code,
-            std::path::Path::new("/"),
-            files,
-        )
+    ) -> Result<Vec<FileFinding>, ParseError> {
+        super::terraform_validate::parse_terraform_init(input, input, code, Path::new("/"), files)
     }
 
     fn fuzz_terraform_validate(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::terraform_validate::parse_terraform_validate(
-            input,
-            code,
-            std::path::Path::new("/"),
-            files,
-        )
+    ) -> Result<Vec<FileFinding>, ParseError> {
+        super::terraform_validate::parse_terraform_validate(input, code, Path::new("/"), files)
     }
 
     fn fuzz_tsc(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::tsc::parse_tsc(input, code, files)
     }
 
@@ -2980,7 +2975,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::ty::parse_ty(input, code, files)
     }
 
@@ -2988,7 +2983,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::chktex::parse_chktex(input, input, code, files)
     }
 
@@ -2996,7 +2991,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::latexindent::parse_latexindent(input, input, code, files)
     }
 
@@ -3004,7 +2999,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::tinymist::parse_tinymist(input, input, code, files)
     }
 
@@ -3012,7 +3007,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::typos::parse_typos(input, code, files)
     }
 
@@ -3020,15 +3015,15 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::typstyle::parse_typstyle(input, input, code, files, std::path::Path::new("/"))
+    ) -> Result<Vec<FileFinding>, ParseError> {
+        super::typstyle::parse_typstyle(input, input, code, files, Path::new("/"))
     }
 
     fn fuzz_vale(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::vale::parse_vale(input, code, files)
     }
 
@@ -3036,7 +3031,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::xmllint::parse_xmllint(input, code, files)
     }
 
@@ -3044,7 +3039,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::yamlfmt::parse_yamlfmt(input, code, files)
     }
 
@@ -3052,7 +3047,7 @@ mod tests {
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::yamllint::parse_yamllint(input, code, files)
     }
 
@@ -3060,7 +3055,7 @@ mod tests {
         input: &[u8],
         _code: Option<i32>,
         _files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::jvm_unused_deps::parse_unused_dependencies("javac", input, input).map(|_| Vec::new())
     }
 
@@ -3068,7 +3063,7 @@ mod tests {
         input: &[u8],
         _code: Option<i32>,
         _files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::jvm_unused_deps::parse_missing_dependencies("javac", input, input)
             .map(|_| Vec::new())
     }
@@ -3077,7 +3072,7 @@ mod tests {
         input: &[u8],
         _code: Option<i32>,
         _files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::jvm_unused_deps::parse_scalac_unused_dependencies(input, input).map(|_| Vec::new())
     }
 
@@ -3085,7 +3080,7 @@ mod tests {
         input: &[u8],
         _code: Option<i32>,
         _files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::jvm_unused_deps::parse_scalac_missing_dependencies(input, input).map(|_| Vec::new())
     }
 
@@ -3093,7 +3088,7 @@ mod tests {
         input: &[u8],
         _code: Option<i32>,
         _files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
+    ) -> Result<Vec<FileFinding>, ParseError> {
         super::rust_unused_deps::parse_unused_dependencies(input).map(|_| Vec::new())
     }
 
@@ -3270,13 +3265,14 @@ mod tests {
             let mut input = seed.to_vec();
             match xorshift(&mut state) % 3 {
                 0 => {
-                    let keep = (xorshift(&mut state) as usize) % (input.len() + 1);
+                    let keep = below(&mut state, input.len() + 1);
                     input.truncate(keep);
                 }
                 1 => {
                     if !input.is_empty() {
-                        let at = (xorshift(&mut state) as usize) % input.len();
-                        input[at] ^= (xorshift(&mut state) & 0xFF) as u8;
+                        let at = below(&mut state, input.len());
+                        input[at] ^=
+                            u8::try_from(xorshift(&mut state) & 0xFF).expect("masked to a byte");
                     }
                 }
                 _ => {

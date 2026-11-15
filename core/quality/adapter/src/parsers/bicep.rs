@@ -12,6 +12,10 @@ const TOOL: &str = "bicep";
 /// Bicep writes the 1-based column as the region's `charOffset`, which SARIF defines as an
 /// offset from the start of the file, and never writes `startColumn`; it is moved to
 /// `startColumn` before the shared SARIF parser reads it.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_bicep_lint(
     stdout: &[u8],
     code: Option<i32>,
@@ -65,6 +69,7 @@ const BICEP_SYNTAX_CODES: &[&str] = &[
 ];
 
 /// The first error-level lint finding in `file` that is a lexer or parser diagnostic.
+#[must_use]
 pub fn bicep_syntax_error<'a>(findings: &'a [FileFinding], file: &str) -> Option<&'a FileFinding> {
     findings.iter().find(|found| {
         found.file == file
@@ -78,6 +83,10 @@ pub fn bicep_syntax_error<'a>(findings: &'a [FileFinding], file: &str) -> Option
 /// report them on stderr with a nonzero exit, that is an error here too. The first differing
 /// line is reported. A nonzero exit, a signal, or empty output for a non-empty file is an
 /// error, never clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_bicep_format(
     stdout: &[u8],
     stderr: &[u8],
@@ -190,11 +199,8 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(
-            parse_bicep_lint(&sarif(""), Some(0), &[FILE])
-                .unwrap()
-                .is_empty()
-        );
+        let actual = parse_bicep_lint(&sarif(""), Some(0), &[FILE]).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -256,11 +262,8 @@ mod tests {
     #[test]
     fn format_clean_and_unformatted() {
         let source = b"param x string\n";
-        assert!(
-            parse_bicep_format(source, b"", Some(0), source, FILE)
-                .unwrap()
-                .is_empty()
-        );
+        let actual = parse_bicep_format(source, b"", Some(0), source, FILE).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
         let found = parse_bicep_format(source, b"", Some(0), b"param   x string\n", FILE).unwrap();
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].finding.start.line, 1);
@@ -273,10 +276,7 @@ mod tests {
         assert!(parse_bicep_format(b"", b"", Some(0), b"param x string\n", FILE).is_err());
         assert!(parse_bicep_format(b"param x string\n", b"", Some(1), b"", FILE).is_err());
         assert!(parse_bicep_format(b"param x string\n", b"", None, b"", FILE).is_err());
-        assert!(
-            parse_bicep_format(b"", b"", Some(0), b"", FILE)
-                .unwrap()
-                .is_empty()
-        );
+        let actual = parse_bicep_format(b"", b"", Some(0), b"", FILE).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
     }
 }

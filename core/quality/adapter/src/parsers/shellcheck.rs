@@ -4,6 +4,9 @@ use super::{
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_shellcheck(
     stdout: &[u8],
     code: Option<i32>,
@@ -19,8 +22,7 @@ pub fn parse_shellcheck(
             .ok_or_else(|| missing(TOOL, "level", line))?;
         let severity = match level.trim() {
             "error" => ToolSeverity::Error,
-            "warning" => ToolSeverity::Warning,
-            "info" | "note" | "style" => ToolSeverity::Warning,
+            "warning" | "info" | "note" | "style" => ToolSeverity::Warning,
             _ => return Err(missing(TOOL, "level", line)),
         };
         let rest = rest.trim();
@@ -61,7 +63,7 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.rule_id, "SC2086");
         let clean = parse_shellcheck(b"", Some(0), &["run.sh"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_shellcheck(b"", Some(1), &["run.sh"]).is_err());
         assert!(parse_shellcheck(DIRTY.as_bytes(), Some(1), &["other.sh"]).is_err());
         assert!(parse_shellcheck(&[0xff], Some(1), &["x"]).is_err());

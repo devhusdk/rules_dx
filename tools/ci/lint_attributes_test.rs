@@ -6,6 +6,7 @@
 )]
 mod guard_scan;
 
+use std::path::Path;
 use guard_scan::{Token, rust_tokens, snapshot};
 use yaml_serde as _;
 
@@ -113,7 +114,7 @@ fn problems(source: &str) -> Vec<String> {
 fn no_source_allows_a_strict_lint_or_expects_without_reason() {
     let found: Vec<String> = snapshot()
         .iter()
-        .filter(|(path, _)| path.ends_with(".rs"))
+        .filter(|(path, _)| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")))
         .flat_map(|(path, source)| {
             problems(source)
                 .into_iter()
@@ -149,12 +150,9 @@ fn flags_expect_without_reason() {
 
 #[test]
 fn passes_other_attributes() {
-    assert!(
-        problems(
+    assert_eq!(problems(
             "#[allow(dead_code)]\n#[expect(clippy::panic, reason = \"r\")]\nfn f() { v.expect(\"x\"); let a = [1]; }"
-        )
-        .is_empty()
-    );
+        ), Vec::<String>::new());
 }
 
 /// Strict tier lints `.bazelrc` does not yet deny repo-wide. The list only shrinks.

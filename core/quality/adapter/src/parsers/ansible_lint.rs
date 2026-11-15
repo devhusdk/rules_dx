@@ -28,13 +28,17 @@ fn forced_error(rule: &str) -> bool {
 }
 
 /// Parses `ansible-lint -f sarif`; only exit 0 (clean) and 2 (violations) are accepted.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ansible_lint(
     stdout: &[u8],
     stderr: &[u8],
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    if !matches!(code, Some(0) | Some(2)) {
+    if !matches!(code, Some(0 | 2)) {
         return Err(ParseError::Incomplete {
             tool: TOOL,
             detail: format!("exit {}: {}", code_name(code), last_line(stderr)),
@@ -86,7 +90,7 @@ mod tests {
     #[test]
     fn clean_run() {
         let out = parse_ansible_lint(log("").as_bytes(), b"", Some(0), &FILES).expect("clean");
-        assert!(out.is_empty());
+        assert!(out.is_empty(), "{out:?}");
     }
 
     #[test]

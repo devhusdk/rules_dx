@@ -54,19 +54,6 @@ capnproto_rust_library(name, library, crate_name = None, deps = None, codegen_pa
 
 Rust crate for one capnproto_library.
 
-The crate's deps must mirror the library's direct deps: one capnproto_rust_library
-per capnproto_library the schemas import. Imports of a dependency's schemas become
-::dep_crate::x_capnp paths. /capnp/schema.capnp maps to the capnp crate.
-
-Args:
-  name: Name of the rust_library.
-  library: capnproto_library whose schemas the crate owns.
-  crate_name: Crate name dependents import; defaults to name.
-  deps: capnproto_rust_library targets of the library's direct capnp deps.
-  codegen_path: Logical directory of the generated files in the dx sync projection.
-  **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
-    and the like replace the defaults; srcs and deps are added to them.
-
 ## Tools
 
 None.

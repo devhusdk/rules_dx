@@ -68,7 +68,7 @@ pub(crate) fn execute_watch(invocation: &Invocation, env: Env<'_>) -> i32 {
         env,
         None,
         &dx_process::interrupted,
-        |session, timeout| session.wait(timeout),
+        dx_adopt::watch::WatchSession::wait,
     )
 }
 
@@ -239,7 +239,7 @@ fn watch(
         ) {
             return match stop {
                 dx_plan::slots::Stop::Signal(signo) => stopped(progress, out, err, signo),
-                busy => crate::exec::slot_stop(iteration.output, out, err, busy),
+                busy @ dx_plan::slots::Stop::Busy(_) => crate::exec::slot_stop(iteration.output, out, err, busy),
             };
         }
         let held = phase.slot().map(|slot| slot.runner(runner));
@@ -285,21 +285,18 @@ fn watch(
         }
         let mut change = pending.into_inner();
         loop {
-            let paths = match change.take() {
-                Some(change) => change,
-                None => {
-                    if let Some(signo) = stop() {
-                        return stopped(progress, out, err, signo);
-                    }
-                    if quiet
-                        .as_mut()
-                        .is_some_and(|quiet| quiet.missed_save(Instant::now()))
-                        && let Err(exit) = progress.say(&mut *out, &mut *err, POLL_HINT)
-                    {
-                        return exit;
-                    }
-                    (wait.borrow_mut())(&session, WATCH_POLL)
+            let paths = if let Some(change) = change.take() { change } else {
+                if let Some(signo) = stop() {
+                    return stopped(progress, out, err, signo);
                 }
+                if quiet
+                    .as_mut()
+                    .is_some_and(|quiet| quiet.missed_save(Instant::now()))
+                    && let Err(exit) = progress.say(&mut *out, &mut *err, POLL_HINT)
+                {
+                    return exit;
+                }
+                (wait.borrow_mut())(&session, WATCH_POLL)
             };
             match paths {
                 Ok(paths) if paths.is_empty() => {}
@@ -324,10 +321,7 @@ fn build_iteration(invocation: &Invocation) -> Result<Invocation, DxError> {
         .first()
         .map(String::as_str)
         .unwrap_or_default();
-    let command = match Command::parse(wrapped) {
-        Some(command) => command,
-        None => return Err(DxError::usage(format!("not watchable: {wrapped}"))),
-    };
+    let Some(command) = Command::parse(wrapped) else { return Err(DxError::usage(format!("not watchable: {wrapped}"))) };
     let mut iteration = invocation.clone();
     iteration.command = command;
     iteration.targets = invocation.targets.get(1..).unwrap_or_default().to_vec();

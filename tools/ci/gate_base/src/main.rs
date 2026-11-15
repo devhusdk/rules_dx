@@ -1,4 +1,4 @@
-//! `gate_base_bin` pins origin/main for the affected checks and writes GATE_BASE to GITHUB_ENV.
+//! `gate_base_bin` pins origin/main for the affected checks and writes `GATE_BASE` to `GITHUB_ENV`.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -12,7 +12,7 @@ fn env(name: &str) -> String {
 fn run() -> Result<String, String> {
     if let Some(dir) = std::env::var_os("BUILD_WORKING_DIRECTORY") {
         std::env::set_current_dir(&dir)
-            .map_err(|error| format!("cannot enter {dir:?}: {error}"))?;
+            .map_err(|error| format!("cannot enter {}: {error}", dir.display()))?;
     }
     let event = Event {
         name: env("EVENT_NAME"),

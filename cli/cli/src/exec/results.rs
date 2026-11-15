@@ -38,12 +38,9 @@ fn build_dep_fix(dep: &proto::BuildDep) -> Option<Option<Insert>> {
     if !dep.missing {
         return Some(None);
     }
-    let label = match build_deps::short_label(&dep.package, &dep.label, None) {
-        Some(label) => label,
-        None => {
-            build_deps::canonical_repo(&dep.label)?;
-            dep.label.clone()
-        }
+    let label = if let Some(label) = build_deps::short_label(&dep.package, &dep.label, None) { label } else {
+        build_deps::canonical_repo(&dep.label)?;
+        dep.label.clone()
     };
     Some(Some(Insert {
         target: dep.target.clone(),
@@ -216,7 +213,7 @@ impl Collected {
             .chain(staged.terminal.iter_mut())
             .flat_map(|diagnostic| diagnostic.origins.iter_mut())
         {
-            origin.target = label.to_owned();
+            label.clone_into(&mut origin.target);
         }
         for tool in staged.tools {
             if !self.tools.contains(&tool) {
@@ -600,8 +597,8 @@ pub(crate) fn collect_results_in(
         }
         tools.extend(staged.tools.iter().cloned());
         for mut item in staged.unstable {
-            item.label = target.label.clone();
-            item.configuration = target.configuration.clone();
+            item.label.clone_from(&target.label);
+            item.configuration.clone_from(&target.configuration);
             unstable.push(item);
         }
         for (path, digest) in &staged.originals {

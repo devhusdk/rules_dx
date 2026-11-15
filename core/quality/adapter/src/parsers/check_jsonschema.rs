@@ -105,6 +105,10 @@ fn finding(file: &str, rule: &str, message: String, line: u64, column: u64) -> F
 /// Fails closed: exit 0 needs `status: ok` over exactly the files handed in, exit 1 needs a
 /// failing report that accounts for every handed-in file, and exit 1 without a JSON report
 /// (an invalid schema or a failed `$ref`) is a process error carrying stderr.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_check_jsonschema(
     stdout: &[u8],
     stderr: &[u8],
@@ -224,7 +228,7 @@ pub fn parse_check_jsonschema(
 mod tests {
     use super::*;
 
-    fn targets<'a>(bytes: &'a [u8]) -> Vec<CheckJsonschemaTarget<'a>> {
+    fn targets(bytes: &[u8]) -> Vec<CheckJsonschemaTarget<'_>> {
         vec![
             CheckJsonschemaTarget {
                 reported: "/s/a.json",

@@ -150,7 +150,7 @@ fn scan_sources(sources: &[(&str, &str)]) -> BTreeMap<String, FileScan> {
 
 /// One line per test call that repeats an earlier call of the same BUILD file.
 fn duplicates(files: &BTreeMap<String, FileScan>) -> Vec<String> {
-    let tests = test_callees(files.values().map(|scan| &scan.callees));
+    let tests = test_callees(&files.values().map(|scan| &scan.callees).collect::<Vec<_>>());
     let mut out = Vec::new();
     for (path, scan) in files.iter().filter(|(path, _)| build_file(path)) {
         let mut seen: BTreeMap<(&str, &Vec<String>), &str> = BTreeMap::new();

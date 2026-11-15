@@ -159,7 +159,7 @@ jobs:
 
 #[test]
 fn missing_timeouts_are_flagged() {
-    let text = r#"
+    let text = r"
 jobs:
   bare:
     steps: []
@@ -171,7 +171,7 @@ jobs:
     steps: []
   reusable:
     uses: ./.github/workflows/x.yml
-"#;
+";
     let found = jobs_without_timeout("t.yml", &parse("t.yml", text));
     assert_eq!(found, ["t.yml: job bare"]);
 }

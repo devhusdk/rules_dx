@@ -1,5 +1,8 @@
 use super::ReportError;
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn validate_lcov(bytes: &[u8]) -> Result<(), ReportError> {
     let invalid = |detail: String| ReportError::InvalidLcov { detail };
     let text =

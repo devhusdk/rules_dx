@@ -23,9 +23,9 @@ fn lexical(path: &Path) -> Option<String> {
                     return None;
                 }
             }
-            other @ Component::Prefix(_)
-            | other @ Component::RootDir
-            | other @ Component::Normal(_) => clean.push(other.as_os_str()),
+            other @ (Component::Prefix(_) | Component::RootDir | Component::Normal(_)) => {
+                clean.push(other.as_os_str())
+            }
         }
     }
     Some(dx_path::posix(&clean))
@@ -50,8 +50,7 @@ fn staged_file<'a>(cwd: &Path, staged: &[&'a str], reference: &str) -> Option<&'
 fn display(cwd: &Path, file: &str) -> String {
     Path::new(file)
         .strip_prefix(cwd)
-        .map(dx_path::posix)
-        .unwrap_or_else(|_| dx_path::posix(Path::new(file)))
+        .map_or_else(|_| dx_path::posix(Path::new(file)), dx_path::posix)
 }
 
 /// Findings from one `redocly lint --format=json` run over the single root `root`.
@@ -60,6 +59,10 @@ fn display(cwd: &Path, file: &str) -> String {
 /// paths. A problem in a fragment lands on the root at line 1, prefixed with the fragment
 /// location, since a fragment is never an owned source. Output that does not account for
 /// every counted problem, or names an unstaged file, is never read as clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_redocly(
     stdout: &[u8],
     code: Option<i32>,
@@ -213,7 +216,8 @@ mod tests {
 
     #[test]
     fn redocly_clean_report_is_empty() {
-        assert!(parse(&report(0, 0, ""), Some(0)).expect("clean").is_empty());
+        let actual = parse(&report(0, 0, ""), Some(0)).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

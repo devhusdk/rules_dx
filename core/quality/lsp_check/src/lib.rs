@@ -30,6 +30,7 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
+    #[must_use]
     pub fn to_json(&self) -> Value {
         json!({
             "file": self.file.to_string_lossy(),
@@ -42,6 +43,7 @@ impl Diagnostic {
     }
 }
 
+#[must_use]
 pub fn file_uri(path: &Path) -> String {
     let text = path.to_string_lossy().replace('\\', "/");
     let mut uri = String::from("file://");
@@ -52,21 +54,34 @@ pub fn file_uri(path: &Path) -> String {
     for (i, byte) in text.bytes().enumerate() {
         match byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'/' | b'-' | b'_' | b'.' | b'~' => {
-                uri.push(byte as char)
+                uri.push(byte as char);
             }
             b':' if drive && i == 1 => uri.push(':'),
-            _ => uri.push_str(&format!("%{byte:02X}")),
+            _ => {
+                use std::fmt::Write as _;
+                write!(uri, "%{byte:02X}").ok();
+            }
         }
     }
     uri
 }
 
+/// Writes one framed LSP message.
+///
+/// # Errors
+///
+/// Returns the I/O error from writing or flushing.
 pub fn write_message(out: &mut impl Write, message: &Value) -> std::io::Result<()> {
     let body = message.to_string();
     write!(out, "Content-Length: {}\r\n\r\n{}", body.len(), body)?;
     out.flush()
 }
 
+/// Reads one framed LSP message.
+///
+/// # Errors
+///
+/// Returns the I/O error from reading or a malformed frame.
 pub fn read_message(input: &mut impl BufRead) -> std::io::Result<Option<Value>> {
     let mut length = None;
     loop {
@@ -140,10 +155,10 @@ fn diagnostics_from(file: &Path, params: &Value) -> Vec<Diagnostic> {
             code: match &item["code"] {
                 Value::String(code) => code.clone(),
                 Value::Null => String::new(),
-                other @ Value::Bool(_)
-                | other @ Value::Number(_)
-                | other @ Value::Array(_)
-                | other @ Value::Object(_) => other.to_string(),
+                other
+                @ (Value::Bool(_) | Value::Number(_) | Value::Array(_) | Value::Object(_)) => {
+                    other.to_string()
+                }
             },
             message: item["message"].as_str().unwrap_or("").to_string(),
         })
@@ -153,6 +168,10 @@ fn diagnostics_from(file: &Path, params: &Value) -> Vec<Diagnostic> {
 /// Drives one server session. `files` must be absolute paths.
 /// Fails if the server exits early or does not publish for every file
 /// before the timeout.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn check<R, W>(
     server_out: R,
     mut server_in: W,

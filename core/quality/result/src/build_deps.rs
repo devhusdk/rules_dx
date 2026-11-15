@@ -64,6 +64,7 @@ fn find_list(
 }
 
 /// Byte range of the quoted entry of `deps` in the rule named `target` that names `dependency`.
+#[must_use]
 pub fn locate(text: &str, target: &str, dependency: &str) -> Option<(usize, usize)> {
     let (rule, rule_end) = find_rule(text, target)?;
     let (_, open, close) = find_list(text, rule, rule_end, "deps")?;
@@ -73,6 +74,7 @@ pub fn locate(text: &str, target: &str, dependency: &str) -> Option<(usize, usiz
 }
 
 /// Whether the rule named `target` has `"dx-keep"` in its `tags`, which exempts it from dep checks.
+#[must_use]
 pub fn has_keep_tag(text: &str, target: &str) -> bool {
     let Some((rule, rule_end)) = find_rule(text, target) else {
         return false;
@@ -96,7 +98,6 @@ fn literals(body: &str, offset: usize) -> Vec<(usize, usize)> {
                 out.push((offset + start, offset + at + 1));
                 open = None;
             }
-            (Some(_), _) => {}
             (None, '\n') => comment = false,
             (None, '#') => comment = true,
             (None, '"') if !comment => open = Some(at),
@@ -118,6 +119,7 @@ fn target_name(label: &str) -> &str {
 }
 
 /// The bytes to delete: the whole line when the entry is alone on it, else the entry and its comma.
+#[must_use]
 pub fn removal(text: &str, start: usize, end: usize) -> (usize, usize) {
     let mut cut_end = end;
     if from_(text, cut_end).starts_with(',') {
@@ -140,6 +142,7 @@ pub fn removal(text: &str, start: usize, end: usize) -> (usize, usize) {
 }
 
 /// Byte range of the `deps = [` key of the rule named `target`, else of its `name =` line.
+#[must_use]
 pub fn locate_deps_list(text: &str, target: &str) -> Option<(usize, usize)> {
     let (rule, rule_end) = find_rule(text, target)?;
     if let Some((key, open, _)) = find_list(text, rule, rule_end, "deps") {
@@ -154,6 +157,7 @@ pub fn locate_deps_list(text: &str, target: &str) -> Option<(usize, usize)> {
 
 /// The offset and text that add `label` as the last entry of the target's `deps`.
 /// None when the target has no `deps` list or already lists the label.
+#[must_use]
 pub fn insertion(text: &str, target: &str, label: &str) -> Option<(usize, String)> {
     let (rule, rule_end) = find_rule(text, target)?;
     let (_, open, close) = find_list(text, rule, rule_end, "deps")?;
@@ -193,6 +197,7 @@ pub fn insertion(text: &str, target: &str, label: &str) -> Option<(usize, String
 
 /// The repo of a canonical external label such as `@@+maven+maven//:guava`. Main-repo labels
 /// give None.
+#[must_use]
 pub fn canonical_repo(label: &str) -> Option<&str> {
     let rest = label.strip_prefix("@@")?;
     let (repo, _) = rest.split_once("//")?;
@@ -202,6 +207,7 @@ pub fn canonical_repo(label: &str) -> Option<&str> {
 /// The label as written in a BUILD file of `package`.
 /// A canonical external label is written by its apparent name, so it needs `apparent`, a map
 /// from canonical to apparent repo name; without a name for the repo the result is None.
+#[must_use]
 pub fn short_label(
     package: &str,
     label: &str,

@@ -147,7 +147,7 @@ mod tests {
             std::fs::write(path, "").expect("write");
         }
         let found = find_unowned(dir.path(), &[format!("app/{pub_lock}").as_str()]).expect("hub");
-        let messages: Vec<String> = found.iter().map(|lock| lock.message()).collect();
+        let messages: Vec<String> = found.iter().map(super::UnownedLock::message).collect();
         assert_eq!(
             messages,
             [

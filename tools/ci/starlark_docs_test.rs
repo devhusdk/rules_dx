@@ -1,4 +1,4 @@
-//! Every non-test rule(), aspect() and public attr in rules_dx has a one-line doc.
+//! Every non-test `rule()`, `aspect()` and public attr in `rules_dx` has a one-line doc.
 
 use std::path::{Path, PathBuf};
 
@@ -17,7 +17,7 @@ const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_par
 /// Name suffixes of public wrappers whose parameters after `name` must be keyword-only.
 const WRAPPER_SUFFIXES: [&str; 5] = ["_binary", "_test", "_bench", "_fuzz_test", "_application"];
 
-/// Packages whose :corpus_starlark is in the test data.
+/// Packages whose :`corpus_starlark` is in the test data.
 const PACKAGES: &[&str] = &[
     "android/private/library",
     "android/private/packaging",
@@ -151,7 +151,7 @@ fn skipped(path: &str) -> bool {
             .any(|segment| SKIPPED_SEGMENTS.contains(&segment))
 }
 
-/// The rule() and aspect() calls and public attrs in `source` that lack a usable doc, as `path:line: ...`.
+/// The `rule()` and `aspect()` calls and public attrs in `source` that lack a usable doc, as `path:line: ...`.
 fn findings(path: &str, source: &str) -> Vec<String> {
     scan(path, source).findings
 }
@@ -246,16 +246,15 @@ fn check_defs(ast: &AstModule, path: &str, stmt: &AstStmt, out: &mut Scan) {
             | StmtP::Def(_)
             | StmtP::Load(_) => Some(&*def.body),
         };
-        if let Some(StmtP::Expression(expr)) = first.map(|s| &s.node) {
-            if let ExprP::Literal(AstLiteral::String(text)) = &expr.node {
-                if text.node.trim().contains('\n') {
-                    out.findings.push(format!(
-                        "{path}:{}: def {} has a multi-line docstring; use one plain line",
-                        line_of(ast, expr),
-                        def.name.node.ident
-                    ));
-                }
-            }
+        if let Some(StmtP::Expression(expr)) = first.map(|s| &s.node)
+            && let ExprP::Literal(AstLiteral::String(text)) = &expr.node
+            && text.node.trim().contains('\n')
+        {
+            out.findings.push(format!(
+                "{path}:{}: def {} has a multi-line docstring; use one plain line",
+                line_of(ast, expr),
+                def.name.node.ident
+            ));
         }
     }
     stmt.node
@@ -270,7 +269,7 @@ fn walk(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) {
     expr.node.visit_expr(|child| walk(ast, path, child, out));
 }
 
-/// Checks a rule() or aspect() call; false when it is a test rule whose inline attrs are exempt.
+/// Checks a `rule()` or `aspect()` call; false when it is a test rule whose inline attrs are exempt.
 fn check_call(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) -> bool {
     let ExprP::Call(callee, args) = &expr.node else {
         return true;
@@ -488,27 +487,24 @@ fn an_aspect_without_doc_is_reported() {
 
 #[test]
 fn a_test_rule_is_exempt() {
-    assert!(
-        findings(
+    assert_eq!(findings(
             "pkg/defs.bzl",
             "x = rule(implementation = _impl, test = True)\n"
-        )
-        .is_empty()
-    );
+        ), Vec::<String>::new());
 }
 
 #[test]
 fn the_attr_key_is_exempt_only_in_a_tool_descriptor() {
     let descriptor =
         "T = {\"x\": {\"attr\": attr.label(), \"kind\": \"file\", \"shard\": \"py\"}}\n";
-    assert!(findings("pkg/defs.bzl", descriptor).is_empty());
+    assert_eq!(findings("pkg/defs.bzl", descriptor), Vec::<String>::new());
     let plain = "T = {\"attr\": attr.label()}\n";
     assert_eq!(findings("pkg/defs.bzl", plain).len(), 1);
 }
 
 #[test]
 fn a_call_without_implementation_is_ignored() {
-    assert!(findings("pkg/defs.bzl", "def f(rule):\n    rule(name = \"x\")\n").is_empty());
+    assert_eq!(findings("pkg/defs.bzl", "def f(rule):\n    rule(name = \"x\")\n"), Vec::<String>::new());
 }
 
 #[test]
@@ -532,7 +528,7 @@ fn a_multi_line_def_docstring_is_reported() {
 #[test]
 fn a_one_line_def_docstring_is_accepted() {
     let source = "def f():\n    \"\"\"One.\"\"\"\n    return 1\n";
-    assert!(findings("pkg/defs.bzl", source).is_empty());
+    assert_eq!(findings("pkg/defs.bzl", source), Vec::<String>::new());
 }
 
 #[test]
@@ -548,15 +544,15 @@ fn an_empty_doc_is_reported() {
 fn a_computed_doc_counts() {
     let source =
         "def f(what):\n    return rule(implementation = _impl, doc = \"Builds \" + what)\n";
-    assert!(findings("pkg/defs.bzl", source).is_empty());
+    assert_eq!(findings("pkg/defs.bzl", source), Vec::<String>::new());
 }
 
 #[test]
 fn a_tests_path_is_skipped() {
     let source = "x = rule(implementation = _impl)\n";
-    assert!(findings("pkg/tests/defs.bzl", source).is_empty());
-    assert!(findings("pkg/defs_tests.bzl", source).is_empty());
-    assert!(findings("third_party/x/defs.bzl", source).is_empty());
+    assert_eq!(findings("pkg/tests/defs.bzl", source), Vec::<String>::new());
+    assert_eq!(findings("pkg/defs_tests.bzl", source), Vec::<String>::new());
+    assert_eq!(findings("third_party/x/defs.bzl", source), Vec::<String>::new());
 }
 
 #[test]
@@ -572,13 +568,13 @@ fn an_attr_without_doc_is_reported() {
 fn a_private_attr_is_exempt() {
     let source =
         "x = rule(implementation = _impl, doc = \"X.\", attrs = {\"_tool\": attr.label()})\n";
-    assert!(findings("pkg/defs.bzl", source).is_empty());
+    assert_eq!(findings("pkg/defs.bzl", source), Vec::<String>::new());
 }
 
 #[test]
 fn a_test_rule_inline_attr_is_exempt() {
     let source = "x = rule(implementation = _i, test = True, attrs = {\"x\": attr.label()})\n";
-    assert!(findings("pkg/defs.bzl", source).is_empty());
+    assert_eq!(findings("pkg/defs.bzl", source), Vec::<String>::new());
 }
 
 #[test]
@@ -611,7 +607,7 @@ fn an_attr_with_kwargs_still_needs_doc() {
 #[test]
 fn a_non_attr_dict_value_is_ignored() {
     let source = "_A = {\"x\": \"s\", \"y\": foo.label()}\n";
-    assert!(findings("pkg/defs.bzl", source).is_empty());
+    assert_eq!(findings("pkg/defs.bzl", source), Vec::<String>::new());
 }
 
 #[test]
@@ -632,20 +628,20 @@ fn a_positional_parameter_with_a_default_is_reported() {
 #[test]
 fn a_keyword_only_wrapper_is_accepted() {
     let source = "def x_binary(name, *, srcs = []):\n    pass\ndef y_bench(name = \"b\", *, srcs = []):\n    pass\ndef z_fuzz_test(name, **kwargs):\n    pass\n";
-    assert!(findings("pkg/defs.bzl", source).is_empty());
+    assert_eq!(findings("pkg/defs.bzl", source), Vec::<String>::new());
 }
 
 #[test]
 fn a_wrapper_with_only_name_is_accepted() {
-    assert!(findings("pkg/defs.bzl", "def x_test(name):\n    pass\n").is_empty());
+    assert_eq!(findings("pkg/defs.bzl", "def x_test(name):\n    pass\n"), Vec::<String>::new());
 }
 
 #[test]
 fn a_private_wrapper_is_ignored() {
-    assert!(findings("pkg/defs.bzl", "def _x_test(name, srcs):\n    pass\n").is_empty());
+    assert_eq!(findings("pkg/defs.bzl", "def _x_test(name, srcs):\n    pass\n"), Vec::<String>::new());
 }
 
 #[test]
 fn a_def_outside_defs_bzl_is_ignored() {
-    assert!(findings("pkg/other.bzl", "def x_test(name, srcs):\n    pass\n").is_empty());
+    assert_eq!(findings("pkg/other.bzl", "def x_test(name, srcs):\n    pass\n"), Vec::<String>::new());
 }

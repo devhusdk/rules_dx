@@ -26,6 +26,7 @@ pub enum LaunchError {
     MissingProgram { tool: String },
 }
 
+#[must_use]
 pub fn policy_for(tool_id: &str) -> RunfilesPolicy {
     match tool_id {
         "asciidoctor" | "eslint" | "gplint" | "graphql_eslint" | "prettier" | "redocly"
@@ -35,6 +36,7 @@ pub fn policy_for(tool_id: &str) -> RunfilesPolicy {
 }
 
 impl ResolvedTool {
+    #[must_use]
     pub fn direct(tool_id: &str, program: &Path) -> Self {
         Self {
             program: program.to_owned(),
@@ -45,6 +47,7 @@ impl ResolvedTool {
         }
     }
 
+    #[must_use]
     pub fn javascript(tool_id: &str, program: &Path) -> Self {
         Self {
             program: program.to_owned(),
@@ -55,19 +58,23 @@ impl ResolvedTool {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns [`LaunchError`] when the tool cannot be launched.
     pub fn resolve(&self, args: &[OsString], files: &[&Path]) -> Result<Invocation, LaunchError> {
         if self.program.as_os_str().is_empty() {
             return Err(LaunchError::MissingProgram {
                 tool: self.tool_id.clone(),
             });
         }
-        let mut argv = Vec::with_capacity(1 + self.argv_prefix.len() + args.len() + files.len());
-        argv.push(self.program.as_os_str().to_owned());
-        argv.extend(self.argv_prefix.iter().cloned());
-        argv.extend(args.iter().cloned());
-        argv.extend(files.iter().map(|path| path.as_os_str().to_owned()));
+        let mut command_line =
+            Vec::with_capacity(1 + self.argv_prefix.len() + args.len() + files.len());
+        command_line.push(self.program.as_os_str().to_owned());
+        command_line.extend(self.argv_prefix.iter().cloned());
+        command_line.extend(args.iter().cloned());
+        command_line.extend(files.iter().map(|path| path.as_os_str().to_owned()));
         Ok(Invocation {
-            argv,
+            argv: command_line,
             cwd_rel: self.cwd_rel.clone(),
         })
     }

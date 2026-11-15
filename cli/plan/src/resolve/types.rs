@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -11,9 +12,16 @@ pub struct QueryResult {
 }
 
 pub trait QueryRunner {
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult>;
 
     /// Runs one capturing `bazel info` for output roots.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     fn run_info(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
         self.run_query(argv, cwd)
     }
@@ -30,6 +38,10 @@ pub struct NeverQuery;
 
 #[cfg(test)]
 impl QueryRunner for NeverQuery {
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "any query in a resolve test is a bug"
+    )]
     fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
         panic!("resolve tests must not run queries");
     }
@@ -219,6 +231,7 @@ impl QueryFailure {
     }
 
     /// The failure of a query that never started.
+    #[must_use]
     pub fn launch(error: &io::Error) -> Self {
         let mut detail = error.to_string();
         if error.kind() == io::ErrorKind::NotFound {
@@ -251,6 +264,7 @@ impl QueryFailure {
 
 impl ResolveError {
     /// A failed query named by its expression.
+    #[must_use]
     pub fn query(label: &str, failure: QueryFailure) -> Self {
         ResolveError::QueryFailed {
             label: label.to_owned(),
@@ -283,6 +297,10 @@ impl ResolveError {
     }
 
     /// Runs one query and turns a launch error or an unsuccessful exit into a typed failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn run(
         runner: &dyn QueryRunner,
         argv: &[String],
@@ -305,7 +323,7 @@ impl ResolveError {
 fn list_with_more(candidates: &[String], total: usize) -> String {
     let mut text = candidates.join(", ");
     if total > candidates.len() {
-        text.push_str(&format!(", and {} more", total - candidates.len()));
+        write!(text, ", and {} more", total - candidates.len()).ok();
     }
     text
 }
@@ -394,25 +412,25 @@ mod tests {
     fn failure(result: Result<QueryResult, ResolveError>) -> QueryFailure {
         match result.expect_err("failed") {
             ResolveError::QueryFailed { failure, .. } => failure,
-            other @ ResolveError::EmptyScope
-            | other @ ResolveError::RelativeLabel { .. }
-            | other @ ResolveError::ExternalScope { .. }
-            | other @ ResolveError::OutsideWorkspace { .. }
-            | other @ ResolveError::PathNotFound { .. }
-            | other @ ResolveError::NoTargets { .. }
-            | other @ ResolveError::NotFileOrDir { .. }
-            | other @ ResolveError::NotAPackage { .. }
-            | other @ ResolveError::UnsupportedName { .. }
-            | other @ ResolveError::NoOwner { .. }
-            | other @ ResolveError::NoTests { .. }
-            | other @ ResolveError::NoRunnable { .. }
-            | other @ ResolveError::AmbiguousRunnable { .. }
-            | other @ ResolveError::ChooseRunnable { .. }
-            | other @ ResolveError::DeployCount { .. }
-            | other @ ResolveError::DeployScope { .. }
-            | other @ ResolveError::NotDeployable { .. }
-            | other @ ResolveError::Config { .. }
-            | other @ ResolveError::AllExcluded { .. } => panic!("{other}"),
+            other @ (ResolveError::EmptyScope
+            | ResolveError::RelativeLabel { .. }
+            | ResolveError::ExternalScope { .. }
+            | ResolveError::OutsideWorkspace { .. }
+            | ResolveError::PathNotFound { .. }
+            | ResolveError::NoTargets { .. }
+            | ResolveError::NotFileOrDir { .. }
+            | ResolveError::NotAPackage { .. }
+            | ResolveError::UnsupportedName { .. }
+            | ResolveError::NoOwner { .. }
+            | ResolveError::NoTests { .. }
+            | ResolveError::NoRunnable { .. }
+            | ResolveError::AmbiguousRunnable { .. }
+            | ResolveError::ChooseRunnable { .. }
+            | ResolveError::DeployCount { .. }
+            | ResolveError::DeployScope { .. }
+            | ResolveError::NotDeployable { .. }
+            | ResolveError::Config { .. }
+            | ResolveError::AllExcluded { .. }) => panic!("{other}"),
         }
     }
 

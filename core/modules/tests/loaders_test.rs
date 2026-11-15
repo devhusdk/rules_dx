@@ -1,4 +1,4 @@
-//! Every non-dev bazel_dep of the root module has a consumer in the shipped tree.
+//! Every non-dev `bazel_dep` of the root module has a consumer in the shipped tree.
 
 use std::path::Path;
 
@@ -21,7 +21,7 @@ const NEEDED_MARKER: &str = "# needed:";
 
 fn shipped_starlark(root: &Path, dir: &Path, found: &mut Vec<String>) {
     let entries =
-        std::fs::read_dir(dir).unwrap_or_else(|error| panic!("read_dir {dir:?}: {error}"));
+        std::fs::read_dir(dir).unwrap_or_else(|error| panic!("read_dir {}: {error}", dir.display()));
     for entry in entries.filter_map(Result::ok) {
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -37,10 +37,13 @@ fn shipped_starlark(root: &Path, dir: &Path, found: &mut Vec<String>) {
                 continue;
             }
             shipped_starlark(root, &path, found);
-        } else if name.ends_with(".bzl") || name == "BUILD.bazel" {
-            if let Ok(text) = std::fs::read_to_string(&path) {
-                found.push(text);
-            }
+        } else if (Path::new(&name)
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("bzl"))
+            || name == "BUILD.bazel")
+            && let Ok(text) = std::fs::read_to_string(&path)
+        {
+            found.push(text);
         }
     }
 }
@@ -174,7 +177,10 @@ fn every_non_dev_bazel_dep_has_a_consumer() {
     );
     for path in build_files(&module) {
         let file = root.join(&path);
-        if path.ends_with(".build") {
+        if Path::new(&path)
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("build"))
+        {
             continue;
         }
         starlark.push(
@@ -199,7 +205,7 @@ fn a_dep_without_a_consumer_fails() {
 #[test]
 fn a_dev_dep_needs_no_consumer() {
     let module = parse("bazel_dep(name = \"demo\", version = \"1\", dev_dependency = True)\n");
-    assert!(unused(&module, &[]).is_empty());
+    assert_eq!(unused(&module, &[]), Vec::<String>::new());
 }
 
 #[test]
@@ -208,7 +214,7 @@ fn a_non_dev_extension_is_a_consumer() {
     let used = parse(&format!(
         "{dep}ext = use_extension(\"@demo//:extensions.bzl\", \"ext\")\n"
     ));
-    assert!(unused(&used, &[]).is_empty());
+    assert_eq!(unused(&used, &[]), Vec::<String>::new());
     let dev = parse(&format!(
         "{dep}ext = use_extension(\"@demo//:extensions.bzl\", \"ext\", dev_dependency = True)\n"
     ));
@@ -225,7 +231,7 @@ fn a_patched_override_is_a_consumer() {
     let patched = parse(&format!(
         "{dep}single_version_override(module_name = \"demo\", patches = [\"//patches/demo:a.patch\"], version = \"1\")\n"
     ));
-    assert!(unused(&patched, &[]).is_empty());
+    assert_eq!(unused(&patched, &[]), Vec::<String>::new());
     let pinned = parse(&format!(
         "{dep}single_version_override(module_name = \"demo\", version = \"1\")\n"
     ));
@@ -237,7 +243,7 @@ fn a_needed_line_counts_only_for_an_imported_repo() {
     let dep = "# needed: @loader (ext extension) loads @demo\nbazel_dep(name = \"demo\", version = \"1\")\n";
     let ext = "ext = use_extension(\"//:extensions.bzl\", \"ext\")\n";
     let imported = parse(&format!("{dep}{ext}use_repo(ext, \"loader\")\n"));
-    assert!(unused(&imported, &[]).is_empty());
+    assert_eq!(unused(&imported, &[]), Vec::<String>::new());
     let missing = parse(&format!("{dep}{ext}use_repo(ext, \"other\")\n"));
     assert_eq!(unused(&missing, &[]).len(), 1);
     let detached = parse(&format!(

@@ -65,6 +65,10 @@ fn dirty_fields(notebook: &Notebook<'_>) -> Vec<(usize, &'static str, Span)> {
 }
 
 /// Lists the code cells that keep outputs or an execution count.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn output_findings(text: &str) -> Result<Vec<OutputFinding>, NotebookError> {
     let notebook = Notebook::parse(text)?;
     crate::validate(text)?;
@@ -90,6 +94,10 @@ pub fn output_findings(text: &str) -> Result<Vec<OutputFinding>, NotebookError> 
 
 /// Clears `outputs` to `[]` and `execution_count` to `null` in code cells,
 /// leaving every other byte untouched.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn strip_outputs(text: &str) -> Result<String, NotebookError> {
     let notebook = Notebook::parse(text)?;
     crate::validate(text)?;

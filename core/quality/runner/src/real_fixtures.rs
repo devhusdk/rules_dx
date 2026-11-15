@@ -1,7 +1,13 @@
+#![expect(
+    clippy::unnecessary_wraps,
+    reason = "fakes implement the spawn function-pointer signature"
+)]
+
 use std::ffi::OsStr;
 
 use super::*;
 use crate::{FileInput, StageSpec};
+use std::cell::RefCell;
 
 pub(super) type Spawn = SpawnFn;
 
@@ -78,8 +84,7 @@ pub(super) fn upstream_file(name: &str, body: &str) -> tempfile::NamedTempFile {
         .prefix(format!("dx-delegated-{name}-").as_str())
         .tempfile_in(std::env::temp_dir())
         .expect("claim upstream fixture");
-    std::io::Write::write_all(&mut file, body.as_bytes())
-        .expect("write upstream diagnostics fixture");
+    io::Write::write_all(&mut file, body.as_bytes()).expect("write upstream diagnostics fixture");
     file
 }
 
@@ -108,10 +113,10 @@ pub(super) fn backend_for(tool_id: &str, tool: RealTool, spawn: Spawn) -> RealBa
         tools,
         scratch_parent: std::env::temp_dir(),
         spawn,
-        argv_limit: quality_adapter::commands::windows_argv_limit,
+        argv_limit: commands::windows_argv_limit,
         shard: String::new(),
         unsafe_fixes: false,
-        last_stderr: Default::default(),
+        last_stderr: RefCell::default(),
     }
 }
 
@@ -188,9 +193,7 @@ fn assert_hermetic_with(env: &[(OsString, OsString)], allow_scratch_home: bool) 
             && env
                 .iter()
                 .filter(|(key, _)| folded(key) == denied)
-                .all(|(_, value)| {
-                    std::path::Path::new(value).starts_with(std::path::Path::new(&tmpdir))
-                });
+                .all(|(_, value)| Path::new(value).starts_with(Path::new(&tmpdir)));
         assert!(
             scratch_home || env.iter().all(|(key, _)| folded(key) != denied),
             "{denied} never leaks"
@@ -349,7 +352,7 @@ pub(super) fn module_rustfmt(
             continue;
         }
         if check {
-            stdout.push_str(&format!("Diff in {}:1:\n-x  \n+x\n", file.display()));
+            write!(stdout, "Diff in {}:1:\n-x  \n+x\n", file.display()).unwrap();
             continue;
         }
         let mut fixed = Vec::with_capacity(bytes.len());
@@ -363,7 +366,7 @@ pub(super) fn module_rustfmt(
         std::fs::write(file, fixed).expect("fix writes back");
     }
     Ok(ChildOutput {
-        code: Some(if stdout.is_empty() { 0 } else { 1 }),
+        code: Some(i32::from(!stdout.is_empty())),
         stdout: stdout.into_bytes(),
         stderr: Vec::new(),
     })
@@ -405,10 +408,12 @@ pub(super) fn unclosed_rustfmt(
     for file in &tree {
         let text = std::fs::read_to_string(file).expect("module is materialized");
         if text.contains("( {") {
-            stderr.push_str(&format!(
+            write!(
+                stderr,
                 "error: this file contains an unclosed delimiter\n --> {}:1:4\n",
                 file.display()
-            ));
+            )
+            .unwrap();
         }
     }
     if stderr.is_empty() {
@@ -531,7 +536,7 @@ pub(super) fn keep_sorted_behavior(
     let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
     if mode == "fix" {
         if let Some((start, end, mut block)) = keep_sorted_block(&text) {
-            block.sort();
+            block.sort_unstable();
             let mut lines: Vec<&str> = text.lines().collect();
             lines.splice(start + 1..end, block);
             let mut fixed = lines.join("\n");
@@ -555,7 +560,7 @@ pub(super) fn keep_sorted_behavior(
         });
     };
     let mut sorted = block.clone();
-    sorted.sort();
+    sorted.sort_unstable();
     if sorted == block {
         return Ok(ChildOutput {
             code: Some(0),
@@ -606,7 +611,7 @@ pub(super) fn keep_sorted_multi_behavior(
             continue;
         };
         let mut sorted = block.clone();
-        sorted.sort();
+        sorted.sort_unstable();
         if sorted == block {
             continue;
         }
@@ -1312,12 +1317,12 @@ pub(super) fn roundtrip_redocly(
         has("REDOCLY_SUPPRESS_UPDATE_NOTICE", "true"),
         "update notices are off"
     );
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
     assert_eq!(
-        args[1..5],
+        words[1..5],
         [
             "lint",
             "--format=json",
@@ -1325,7 +1330,7 @@ pub(super) fn roundtrip_redocly(
             "--lint-config=error"
         ]
     );
-    let config = args
+    let config = words
         .windows(2)
         .find(|pair| pair[0] == "--config")
         .map(|pair| PathBuf::from(&pair[1]))
@@ -1411,12 +1416,12 @@ pub(super) fn ruff_notebook_behavior(
     let files: Vec<String> = argv
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
-        .filter(|arg| arg.ends_with(".py") || arg.ends_with(".ipynb"))
+        .filter(|arg| has_extension(arg, "py") || has_extension(arg, "ipynb"))
         .collect();
     let mut entries = Vec::new();
     for file in &files {
         let text = std::fs::read_to_string(file).expect("staged file is readable");
-        if file.ends_with(".ipynb") {
+        if has_extension(file, "ipynb") {
             let mut notebook: serde_json::Value = serde_json::from_str(&text).expect("notebook");
             let count = notebook["cells"].as_array().map_or(0, Vec::len);
             for at in 0..count {
@@ -1479,7 +1484,7 @@ pub(super) fn ruff_notebook_behavior(
 /// Runs the real `quality_notebook` CLI logic over the staged files, so the
 /// fake spawn behaves like the shipped tool.
 fn notebook_outputs_cli(argv: &[OsString]) -> ChildOutput {
-    let args: Vec<String> = argv
+    let words: Vec<String> = argv
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .skip_while(|arg| arg != "outputs")
@@ -1487,7 +1492,7 @@ fn notebook_outputs_cli(argv: &[OsString]) -> ChildOutput {
     let mut stdout = String::new();
     let mut stderr = String::new();
     let code = quality_notebook::run_cli(
-        &args,
+        &words,
         &|path| std::fs::read(path),
         &mut |path, bytes| std::fs::write(path, bytes),
         &mut |line| {

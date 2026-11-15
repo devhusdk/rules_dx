@@ -110,6 +110,10 @@ fn dependencies(stdout: &str) -> Result<Vec<String>, ParseError> {
 /// Warnings are findings. Output the grammar cannot read is never clean: a
 /// nonzero exit needs an error finding, a zero exit allows warnings only, and
 /// any other stderr line is a shape error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_flatc(
     stdout: &[u8],
     stderr: &[u8],
@@ -183,14 +187,13 @@ pub fn parse_flatc(
                 format!("{errors} error(s) with exit 0"),
             ));
         }
-        Some(0) => {}
         Some(1) if own_errors == 0 => {
             return Err(ParseError::shape(
                 TOOL,
                 "exit 1 with no error finding in the checked files".to_owned(),
             ));
         }
-        Some(1) => {}
+        Some(0 | 1) => {}
         other => {
             return Err(ParseError::shape(
                 TOOL,
@@ -219,7 +222,7 @@ mod tests {
     fn clean_run_lists_dependencies_with_continuations_joined() {
         let out = b"/s/out/a_generated.h: \\\n /s/b.fbs \\\n /s/a.fbs\n";
         let report = parse_flatc(out, b"", Some(0), &[FILE]).expect("clean");
-        assert!(report.findings.is_empty());
+        assert!(report.findings.is_empty(), "{:?}", report.findings);
         assert_eq!(report.dependencies, ["/s/b.fbs", "/s/a.fbs"]);
     }
 
@@ -238,7 +241,7 @@ mod tests {
                 column: 19
             }
         );
-        assert!(report.dependencies.is_empty());
+        assert!(report.dependencies.is_empty(), "{:?}", report.dependencies);
     }
 
     #[test]
@@ -286,7 +289,7 @@ mod tests {
         let out = b"/s/o/a_generated.h: \\\n /s/dep.fbs \\\n /s/a.fbs\n";
         let err = b"warning:\n  /s/dep.fbs:2: 5: warning: field names should be lowercase\n";
         let report = parse_flatc(out, err, Some(0), &[FILE]).expect("clean");
-        assert!(report.findings.is_empty());
+        assert!(report.findings.is_empty(), "{:?}", report.findings);
         assert_eq!(report.dependencies, ["/s/dep.fbs", "/s/a.fbs"]);
     }
 

@@ -1,4 +1,4 @@
-//! Offline checks dx runs on OpenAPI and AsyncAPI documents before Redocly sees them.
+//! Offline checks dx runs on `OpenAPI` and `AsyncAPI` documents before Redocly sees them.
 //!
 //! Redocly follows `$ref` over the network and lets a config turn `no-unresolved-refs`
 //! off, so dx owns the version gate, the remote-ref ban and the missing-ref check.
@@ -209,7 +209,8 @@ fn root_problem(keys: &[(String, Option<String>)]) -> Option<String> {
     }
 }
 
-/// The problem with a root that is not an OpenAPI 3.0, 3.1 or 3.2 document, for code generation.
+/// The problem with a root that is not an `OpenAPI` 3.0, 3.1 or 3.2 document, for code generation.
+#[must_use]
 pub fn openapi_root_problem(text: &str) -> Option<Problem> {
     let message = match scan(text) {
         Err(problem) => return Some(problem),
@@ -233,6 +234,7 @@ pub fn openapi_root_problem(text: &str) -> Option<Problem> {
 }
 
 /// Whether a `$ref` names a URL (`scheme:` or `//host`) rather than a relative file.
+#[must_use]
 pub fn is_remote(reference: &str) -> bool {
     if reference.starts_with("//") || reference.starts_with("\\\\") {
         return true;
@@ -248,6 +250,10 @@ pub fn is_remote(reference: &str) -> bool {
 }
 
 /// The staged workspace path a relative `$ref` in `from` names, or why it names none.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn ref_target(from: &str, reference: &str) -> Result<Option<String>, String> {
     let path = reference.split('#').next().unwrap_or_default();
     if path.is_empty() {
@@ -278,6 +284,7 @@ pub fn ref_target(from: &str, reference: &str) -> Result<Option<String>, String>
 ///
 /// `docs` maps each staged workspace path (roots, refs and dep files) to its text.
 /// A problem in a fragment is placed on the root at line 1 and names the fragment.
+#[must_use]
 pub fn check_root(root: &str, docs: &BTreeMap<String, String>) -> Vec<Problem> {
     let mut problems = Vec::new();
     let mut seen: BTreeSet<String> = BTreeSet::new();
@@ -358,6 +365,10 @@ pub fn check_root(root: &str, docs: &BTreeMap<String, String>) -> Vec<Problem> {
 }
 
 /// Rejects a Redocly config that loads plugins, sends resolve headers, or extends a non-builtin ruleset.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn check_config(text: &str) -> Result<(), String> {
     let mut stack: Vec<Frame> = Vec::new();
     let mut documents = 0usize;
@@ -525,7 +536,8 @@ mod tests {
                 "Pet:\n  $ref: '#/Other'\nOther: {}\n",
             ),
         ]);
-        assert!(check_root("api/root.yaml", &files).is_empty());
+        let actual = check_root("api/root.yaml", &files);
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -569,7 +581,8 @@ mod tests {
             ("r.yaml", "openapi: 3.1.0\nx:\n  $ref: a.yaml\n"),
             ("a.yaml", "y:\n  $ref: r.yaml\n"),
         ]);
-        assert!(check_root("r.yaml", &files).is_empty());
+        let actual = check_root("r.yaml", &files);
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

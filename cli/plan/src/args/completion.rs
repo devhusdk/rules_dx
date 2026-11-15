@@ -40,6 +40,10 @@ const QUERY_STARTUP_OPTS: &[&str] = &["--noblock_for_lock"];
 const QUERY_MAX_BYTES: usize = 256 * 1024;
 
 /// Serve the shell request in COMPLETE, and report whether there was one.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn try_complete() -> Result<bool, dx_error::DxError> {
     clap_complete::CompleteEnv::with_factory(super::grammar::cli_command)
         .try_complete(
@@ -68,7 +72,7 @@ fn with_request(mut command: clap::Command, request: Request) -> clap::Command {
     let prior = prior_scopes(&request.words);
     let request = Arc::new(request);
     let selection: Arc<OnceLock<Selection>> = Arc::new(OnceLock::new());
-    for entry in COMMANDS.iter() {
+    for entry in &COMMANDS {
         let completer = ArgValueCompleter::new(ScopeCompleter {
             command: entry.command,
             prior: prior.clone(),
@@ -92,6 +96,10 @@ fn with_request(mut command: clap::Command, request: Request) -> clap::Command {
 }
 
 /// Render the script one shell runs to ask dx for candidates.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn render_completion(shell: &str) -> Result<String, ArgsError> {
     let unknown = || ArgsError::UnknownShell {
         shell: shell.to_owned(),
@@ -115,6 +123,7 @@ pub fn render_completion(shell: &str) -> Result<String, ArgsError> {
 }
 
 /// Whether a rendered script calls back into dx for this shell.
+#[must_use]
 pub fn registers_callback(script: &str, shell: &str) -> bool {
     !script.is_empty() && script.contains(COMPLETE_VAR) && script.contains(shell)
 }
@@ -479,7 +488,7 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
     }
     let ignores = read_bazelignore(workspace);
     let mut patterns: Vec<String> = Vec::new();
-    let mut stack: Vec<std::path::PathBuf> = vec![workspace.to_path_buf()];
+    let mut stack: Vec<PathBuf> = vec![workspace.to_path_buf()];
     let mut visited: usize = 0;
     while let Some(dir) = stack.pop() {
         if visited >= MAX_VISITED_DIRS || patterns.len() >= MAX_PACKAGE_DIRS {
@@ -497,16 +506,14 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
                 continue;
             }
         }
-        let entries = match std::fs::read_dir(&dir) {
-            Ok(entries) => entries,
-            Err(_) => continue,
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
         };
         let mut has_build = false;
-        let mut subdirs: Vec<std::path::PathBuf> = Vec::new();
+        let mut subdirs: Vec<PathBuf> = Vec::new();
         for entry in entries {
-            let entry = match entry {
-                Ok(entry) => entry,
-                Err(_) => continue,
+            let Ok(entry) = entry else {
+                continue;
             };
             let name = entry.file_name().to_string_lossy().into_owned();
             if name.starts_with('.') || name.starts_with("bazel-") {
@@ -516,9 +523,8 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
                 has_build = true;
                 continue;
             }
-            let file_type = match entry.file_type() {
-                Ok(file_type) => file_type,
-                Err(_) => continue,
+            let Ok(file_type) = entry.file_type() else {
+                continue;
             };
             if file_type.is_symlink() {
                 continue;
@@ -616,7 +622,7 @@ mod tests {
     #[test]
     fn a_workspace_without_hubs_declares_no_sets() {
         let scratch = workspace_with_package();
-        assert!(declared_sets(scratch.path()).is_empty());
+        assert_eq!(declared_sets(scratch.path()), [] as [String; 0]);
     }
 
     #[test]
@@ -632,7 +638,7 @@ mod tests {
             );
             match command {
                 Command::Security | Command::License => {
-                    assert!(fixed.is_empty());
+                    assert_eq!(fixed, [] as [String; 0]);
                     assert!(labels);
                 }
                 Command::Watch => {
@@ -959,13 +965,22 @@ mod tests {
             label_candidates_from_workspace(root, "//pkg/a", 100),
             vec!["//pkg/a/..."]
         );
-        assert!(label_candidates_from_workspace(root, "@repo//...", 100).is_empty());
-        assert!(label_candidates_from_workspace(root, "src/main.rs", 100).is_empty());
+        assert_eq!(
+            label_candidates_from_workspace(root, "@repo//...", 100),
+            [] as [String; 0]
+        );
+        assert_eq!(
+            label_candidates_from_workspace(root, "src/main.rs", 100),
+            [] as [String; 0]
+        );
         assert_eq!(
             label_candidates_from_workspace(root, "//", 1),
             vec!["//pkg/a/..."]
         );
-        assert!(label_candidates_from_workspace(root, "//pkg:target", 100).is_empty());
+        assert_eq!(
+            label_candidates_from_workspace(root, "//pkg:target", 100),
+            [] as [String; 0]
+        );
     }
 
     #[cfg(unix)]
@@ -1245,7 +1260,10 @@ mod tests {
             vec!["//z/...".to_owned()]
         );
         std::fs::create_dir_all(root.join("a/1997")).expect("mkdir");
-        assert!(label_candidates_from_workspace(root, "", 100).is_empty());
+        assert_eq!(
+            label_candidates_from_workspace(root, "", 100),
+            [] as [String; 0]
+        );
     }
 
     #[test]
@@ -1299,10 +1317,10 @@ mod tests {
         assert_eq!(got, vec!["//pkg:two".to_owned()]);
         assert_eq!(seen.borrow().as_slice(), ["//pkg".to_owned()]);
         let none = target_candidates_with_query(scratch.path(), "//pkg/...", 100, query);
-        assert!(none.is_empty());
+        assert_eq!(none, [] as [String; 0]);
         assert_eq!(seen.borrow().len(), 1, "patterns run no query");
         let empty = target_candidates_with_query(scratch.path(), "@repo//pkg:one", 100, query);
-        assert!(empty.is_empty());
+        assert_eq!(empty, [] as [String; 0]);
         assert_eq!(seen.borrow().len(), 1, "external runs no query");
     }
 
@@ -1311,7 +1329,7 @@ mod tests {
         let failing = |_: &Path, _: &str| Vec::new();
         let scratch = workspace_with_packages(&["pkg"]);
         let got = target_candidates_with_query(scratch.path(), "//pkg:missing", 100, failing);
-        assert!(got.is_empty());
+        assert_eq!(got, [] as [String; 0]);
         let patterns = label_candidates_from_workspace(scratch.path(), "", 100);
         assert!(
             patterns.iter().any(|value| value == "//pkg/..."),
@@ -1517,7 +1535,7 @@ mod tests {
             &["--stdout-text=//pkg:one\n", "--exit-code=7"],
             QUERY_MAX_BYTES,
         );
-        assert!(run_label_query(&failing).is_empty());
+        assert_eq!(run_label_query(&failing), [] as [String; 0]);
     }
 
     #[test]
@@ -1529,7 +1547,7 @@ mod tests {
             matches!(outcome, Ok(ChildOutcome::OutputTooLarge { .. })),
             "output past pipe capacity must drain while the child runs: {outcome:?}"
         );
-        assert!(run_label_query(&spec).is_empty());
+        assert_eq!(run_label_query(&spec), [] as [String; 0]);
         assert!(started.elapsed() < HANG_GUARD, "{:?}", started.elapsed());
     }
 
@@ -1546,7 +1564,7 @@ mod tests {
             QUERY_MAX_BYTES,
         );
         let started = std::time::Instant::now();
-        assert!(run_label_query(&spec).is_empty());
+        assert_eq!(run_label_query(&spec), [] as [String; 0]);
         assert!(started.elapsed() < HANG_GUARD, "{:?}", started.elapsed());
         dx_testing::assert_alive_lock_released(&lock);
     }
@@ -1565,7 +1583,7 @@ mod tests {
             QUERY_MAX_BYTES,
         );
         let started = std::time::Instant::now();
-        assert!(run_label_query(&spec).is_empty());
+        assert_eq!(run_label_query(&spec), [] as [String; 0]);
         assert!(started.elapsed() < HANG_GUARD, "{:?}", started.elapsed());
         dx_testing::assert_alive_lock_released(&lock);
     }
@@ -1574,6 +1592,6 @@ mod tests {
     fn query_output_keeps_only_whole_label_lines() {
         let got = parse_labels(b"//a:two\n//a:one\n//a:one\nWARNING: noise here\n\n");
         assert_eq!(got, vec!["//a:one", "//a:two"]);
-        assert!(parse_labels(&[0xff, 0xfe]).is_empty());
+        assert_eq!(parse_labels(&[0xff, 0xfe]), [] as [String; 0]);
     }
 }

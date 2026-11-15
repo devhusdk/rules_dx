@@ -14,7 +14,7 @@ fn sarif_severity(level: Option<ResultLevel>) -> ToolSeverity {
     match level {
         None | Some(ResultLevel::Warning) => ToolSeverity::Warning,
         Some(ResultLevel::Error) => ToolSeverity::Error,
-        Some(ResultLevel::Note) | Some(ResultLevel::None) => ToolSeverity::Info,
+        Some(ResultLevel::Note | ResultLevel::None) => ToolSeverity::Info,
     }
 }
 
@@ -131,15 +131,12 @@ fn percent_decoded(path: &str) -> String {
             .then(|| path.get(at + 1..at + 3))
             .flatten()
             .and_then(|hex| u8::from_str_radix(hex, 16).ok());
-        match escaped {
-            Some(byte) => {
-                out.push(byte);
-                at += 3;
-            }
-            None => {
-                out.push(current);
-                at += 1;
-            }
+        if let Some(byte) = escaped {
+            out.push(byte);
+            at += 3;
+        } else {
+            out.push(current);
+            at += 1;
         }
     }
     String::from_utf8_lossy(&out).into_owned()
@@ -221,8 +218,8 @@ fn start(tool: &'static str, region: &Region) -> Result<TextPosition, ParseError
         });
     }
     Ok(TextPosition {
-        line: line as u64,
-        column: column as u64,
+        line: line.unsigned_abs(),
+        column: column.unsigned_abs(),
     })
 }
 
@@ -234,7 +231,9 @@ fn end(
     if region.end_line.is_none() && region.end_column.is_none() {
         return Ok(None);
     }
-    let line = region.end_line.unwrap_or(start.line as i64);
+    let line = region
+        .end_line
+        .unwrap_or(i64::try_from(start.line).unwrap_or(i64::MAX));
     if let Some(column) = region.end_column
         && (line < 1 || column < 1)
     {
@@ -243,15 +242,15 @@ fn end(
             detail: format!("bad end position {line}:{column}"),
         });
     }
-    if line < 1 || (line as u64) < start.line {
+    if line < 1 || line.unsigned_abs() < start.line {
         return Err(ParseError::Shape {
             tool,
             detail: format!("end line {line} precedes start line {}", start.line),
         });
     }
     Ok(Some(TextPosition {
-        line: line as u64,
-        column: region.end_column.map_or(LINE_END, |column| column as u64),
+        line: line.unsigned_abs(),
+        column: region.end_column.map_or(LINE_END, i64::unsigned_abs),
     }))
 }
 
@@ -307,16 +306,21 @@ fn check_invocations(tool: &'static str, invocations: &[Invocation]) -> Result<(
             "invocation was not successful".to_owned()
         };
         if let Some(message) = &invocation.process_start_failure_message {
-            detail.push_str(&format!(": {message}"));
+            detail.push_str(": ");
+            detail.push_str(message);
         }
         if !errors.is_empty() {
-            detail.push_str(&format!(": {}", errors.join("; ")));
+            detail.push_str(": ");
+            detail.push_str(&errors.join("; "));
         }
         return Err(ParseError::Incomplete { tool, detail });
     }
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_sarif(
     tool: &'static str,
     stdout: &[u8],
@@ -527,7 +531,7 @@ mod tests {
             ColumnEncoding::Utf16,
         )
         .expect("clean");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(
             parse_sarif(
                 TOOL,
@@ -674,11 +678,8 @@ mod tests {
             r#"{"executionSuccessful":true,"toolExecutionNotifications":[{"level":"warning","message":{"text":"w"}},{"level":"note","message":{"text":"n"}}]}"#,
             "",
         );
-        assert!(
-            parse_sarif(TOOL, &ok, Some(0), &files, ColumnEncoding::Utf16)
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_sarif(TOOL, &ok, Some(0), &files, ColumnEncoding::Utf16).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
         let found = with_invocation(r#"{"executionSuccessful":true}"#, FINDING);
         assert_eq!(
             parse_sarif(TOOL, &found, Some(1), &files, ColumnEncoding::Utf16)
@@ -690,7 +691,7 @@ mod tests {
 
     #[test]
     fn a_windows_uri_resolves_to_the_native_file_name() {
-        let sep = std::path::MAIN_SEPARATOR;
+        let sep = MAIN_SEPARATOR;
         let drive = format!("C:{sep}src{sep}a.cs");
         let rooted = format!("{sep}src{sep}a.cs");
         let relative = format!("src{sep}a.cs");
@@ -732,7 +733,7 @@ mod tests {
 
     #[test]
     fn a_percent_encoded_uri_resolves_to_the_native_file_name() {
-        let sep = std::path::MAIN_SEPARATOR;
+        let sep = MAIN_SEPARATOR;
         let drive = format!("C:{sep}src{sep}my file.cs");
         let stdout = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///C:/src/my%20file.cs"},"region":{"startLine":3}}}]}"#,
@@ -801,7 +802,7 @@ mod tests {
 
     #[test]
     fn a_drive_relative_uri_names_no_other_file() {
-        let sep = std::path::MAIN_SEPARATOR;
+        let sep = MAIN_SEPARATOR;
         assert!(!drive_rooted("a:b/c.cs"));
         assert!(!drive_rooted("C:notes/notes.md"));
         assert_eq!(
@@ -912,6 +913,10 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn sarif_resolves_relative_and_level_defaults_part2() {
         let empty_msg = log(
             r#"{"ruleId":"R","level":"warning","message":{"text":""},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"startColumn":1}}}]}"#,
         );

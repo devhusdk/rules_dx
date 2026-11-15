@@ -1,5 +1,6 @@
-//! Every command page under docs/cli/commands documents the commands, flags and exit codes that `dx <command> --help` prints and no other flag, outside tools/ci/command_docs_allowlist.txt.
+//! Every command page under docs/cli/commands documents the commands, flags and exit codes that `dx <command> --help` prints and no other flag, outside `tools/ci/command_docs_allowlist.txt`.
 
+use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_plan::args::{HelpFlag, HelpSurface, help_surface};
@@ -198,8 +199,8 @@ fn command_pages_match_help_outside_the_allowlist() {
         return;
     }
     if let Some(dir) = std::env::var_os("TEST_UNDECLARED_OUTPUTS_DIR") {
-        let text: String = found.iter().map(|line| format!("{line}\n")).collect();
-        dx_testing::write_text(&std::path::Path::new(&dir).join("command_docs_allowlist.txt"), &text);
+        let text: String = found.iter().map(|line| format!("{line}\n")).collect::<Vec<String>>().concat();
+        dx_testing::write_text(&Path::new(&dir).join("command_docs_allowlist.txt"), &text);
     }
     panic!(
         "{ALLOWLIST} and the pages disagree ({} problems):\n{}",

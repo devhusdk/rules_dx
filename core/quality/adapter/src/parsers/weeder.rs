@@ -22,6 +22,10 @@ fn weed(line: &str) -> Option<(&str, u64, u64, &str)> {
 ///
 /// Weeds are reported as info. A line that is not a weed, or a weed in a file that was not
 /// passed, is an error and never a clean run.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_weeder(
     stdout: &[u8],
     stderr: &[u8],
@@ -88,7 +92,8 @@ mod tests {
 
     #[test]
     fn weeder_is_clean_on_empty_output_and_exit_zero() {
-        assert!(parse("", 0).expect("parsed").is_empty());
+        let actual = parse("", 0).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -110,7 +115,8 @@ mod tests {
     #[test]
     fn weeder_ignores_unmatched_root_notices() {
         let out = "no declaration matches roots entry \"^Main\\\\.main$\"\n";
-        assert!(parse(out, 0).expect("parsed").is_empty());
+        let actual = parse(out, 0).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

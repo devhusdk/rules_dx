@@ -37,12 +37,11 @@ fn locate(line: &str) -> Option<Located<'_>> {
         let Some((head, message)) = line.split_once(kind) else {
             continue;
         };
-        let (path, line, column) = match with_column(head) {
-            Some(found) => found,
-            None => {
-                let (path, row) = head.rsplit_once(':')?;
-                (path, number(row)?, 1)
-            }
+        let (path, line, column) = if let Some(found) = with_column(head) {
+            found
+        } else {
+            let (path, row) = head.rsplit_once(':')?;
+            (path, number(row)?, 1)
         };
         return Some(Located {
             path,
@@ -99,12 +98,16 @@ fn finding(
 
 /// Parses the stderr of one `capnp compile -o-` run over the checked files.
 ///
-/// The CodeGeneratorRequest on stdout is binary and never read. Findings in
+/// The `CodeGeneratorRequest` on stdout is binary and never read. Findings in
 /// imported schemas belong to their own targets, so only the checked files
 /// report here. Output the grammar cannot read is never clean: exit 0 allows
 /// warnings only, exit 1 needs an error in a checked file (or the compiler's
 /// uncaught-exception banner, reported on the first checked file), and
 /// anything else, including a signal, is a shape error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_capnp(
     stderr: &[u8],
     code: Option<i32>,
@@ -228,11 +231,8 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(
-            parse_capnp(b"", Some(0), &[FILE])
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_capnp(b"", Some(0), &[FILE]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

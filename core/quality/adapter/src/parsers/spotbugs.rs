@@ -10,7 +10,7 @@ fn file_name(path: &str) -> Option<&str> {
     Path::new(path).file_name()?.to_str()
 }
 
-/// The checked file a package-relative SpotBugs URI names when its directory does not
+/// The checked file a package-relative `SpotBugs` URI names when its directory does not
 /// follow the package.
 fn package_relative(uri: &str, files: &[&str]) -> Option<String> {
     if uri.starts_with('/') || uri.contains(':') || uri.split('/').any(|part| part == "..") {
@@ -52,6 +52,9 @@ fn relocate(locations: Option<&mut Vec<Location>>, files: &[&str]) {
     }
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_spotbugs(
     stdout: &[u8],
     code: Option<i32>,
@@ -82,7 +85,7 @@ mod tests {
         let clean =
             r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"SpotBugs"}},"results":[]}]}"#;
         let clean = parse_spotbugs(clean.as_bytes(), Some(0), &["/s/Dirty.java"]).expect("clean");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         let missing = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"SpotBugs"}},"results":[],"invocations":[{"executionSuccessful":false,"toolConfigurationNotifications":[{"level":"error","message":{"text":"Classes needed for analysis were missing: [example.Dependency]"}}]}]}]}"#;
         let err = parse_spotbugs(missing.as_bytes(), Some(0), &["/s/Dirty.java"])
             .expect_err("incomplete");

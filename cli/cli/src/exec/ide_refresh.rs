@@ -76,7 +76,7 @@ impl BazelBuild<'_> {
 }
 
 impl dx_ide::Runner for BazelBuild<'_> {
-    fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, dx_error::DxError> {
+    fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, DxError> {
         let labels: Vec<String> = labels
             .iter()
             .map(|label| dx_plan::plan::rules_dx_label(label))
@@ -88,17 +88,17 @@ impl dx_ide::Runner for BazelBuild<'_> {
         &self,
         labels: &[String],
         group: &str,
-    ) -> Result<Vec<PathBuf>, dx_error::DxError> {
+    ) -> Result<Vec<PathBuf>, DxError> {
         self.build_files(labels, &[format!("--output_groups={group}")])
     }
 
-    fn aquery(&self, expr: &str) -> Result<String, dx_error::DxError> {
+    fn aquery(&self, expr: &str) -> Result<String, DxError> {
         let options = ["--output=jsonproto".to_owned()];
         let argv = self.argv("aquery", &options, &[expr.to_owned()])?;
         self.run(&argv)
     }
 
-    fn execution_root(&self) -> Result<PathBuf, dx_error::DxError> {
+    fn execution_root(&self) -> Result<PathBuf, DxError> {
         self.info("execution_root")
     }
 }
@@ -108,15 +108,15 @@ pub(crate) fn refresh(
     workspace: &Path,
     query_runner: &dyn QueryRunner,
     startup: &[String],
-) -> Option<dx_error::DxError> {
+) -> Option<DxError> {
     let bazel = BazelBuild {
         query_runner,
         workspace,
         startup,
     };
     match dx_ide::refresh(workspace, &bazel) {
-        Ok(report) => report.warning().map(dx_error::DxError::failure),
-        Err(error) => Some(dx_error::DxError::new(
+        Ok(report) => report.warning().map(DxError::failure),
+        Err(error) => Some(DxError::new(
             error.kind(),
             format!("ide refresh failed: {error}"),
         )),

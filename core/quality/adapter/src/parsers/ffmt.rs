@@ -16,6 +16,10 @@ const TOOL: &str = "ffmt";
 ///
 /// Anything other than exit 0 with no output, or exit 1 with at least one path that this run
 /// named, is an error and never a clean result.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ffmt(
     stdout: &[u8],
     code: Option<i32>,
@@ -59,7 +63,8 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(parse_ffmt(b"", Some(0), &FILES).expect("ok").is_empty());
+        let actual = parse_ffmt(b"", Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

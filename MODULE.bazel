@@ -74,7 +74,6 @@ single_version_override(
         "//patches/llvm:stage0_runtime_features.patch",
         "//patches/llvm:aarch64_outline_atomics.patch",
         "//patches/llvm:macos_sdk_resolve_symlinks.patch",
-        "//patches/llvm:toolchains_gate.patch",
         "//patches/llvm:msvc_fuzzer.patch",
     ],
     version = "0.8.26",
@@ -592,7 +591,7 @@ register_toolchains("@local_config_apple_cc_toolchains//:all")
 
 register_toolchains("//cc/private/toolchain/clang_cl:all")
 
-register_toolchains("@llvm//toolchain:all")
+register_toolchains("//cc/private/toolchain/llvm:all")
 
 # A consumer-declared GCC distribution, selected only through --extra_toolchains in tests.
 gcc_toolchains = use_extension("@gcc_toolchain//toolchain:module_extensions.bzl", "gcc_toolchains", dev_dependency = True)

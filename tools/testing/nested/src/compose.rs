@@ -97,7 +97,7 @@ pub const LLVM_PATCHES: [&str; 10] = [
     "msvc_fuzzer",
 ];
 
-/// Pins llvm 0.8.26 with the patches of the root MODULE.bazel apart from `toolchains_gate`, whose `@@//config` labels name the root repository.
+/// Pins llvm 0.8.26 with the patches of the root MODULE.bazel.
 #[must_use]
 pub fn llvm_override() -> String {
     let patches = LLVM_PATCHES

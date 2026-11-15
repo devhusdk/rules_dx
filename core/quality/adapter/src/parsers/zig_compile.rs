@@ -7,6 +7,10 @@ const TOOL: &str = "zig";
 ///
 /// Fails closed: a nonzero exit without an error for an owned file, or an error in a file
 /// that is not owned, is never a clean run.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_zig_compile(
     output: &[u8],
     code: Option<i32>,
@@ -53,11 +57,8 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(
-            parse_zig_compile(b"", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_zig_compile(b"", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

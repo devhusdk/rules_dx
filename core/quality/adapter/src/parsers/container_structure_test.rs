@@ -6,6 +6,10 @@ const TOOL: &str = "container_structure_test";
 /// Parses `container-structure-test test --output json`: each failed entry of `Results` is one
 /// finding per error, on `file` line 1, naming the image `name`. The rule is the test kind before
 /// the colon of the entry name, such as `File Existence Test`.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_container_structure_test(
     stdout: &[u8],
     stderr: &[u8],
@@ -102,7 +106,8 @@ mod tests {
     fn a_passing_run_has_no_findings() {
         let passing =
             r#"{"Pass":1,"Fail":0,"Total":1,"Results":[{"Name":"Metadata Test","Pass":true}]}"#;
-        assert!(parse(passing, 0).expect("parsed").is_empty());
+        let actual = parse(passing, 0).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

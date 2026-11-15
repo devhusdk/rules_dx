@@ -32,6 +32,10 @@ fn split_posn(posn: &str) -> Option<(&str, u64, u64)> {
 /// Parses the `-json` output of a stock unitchecker driver (govet, staticcheck, errcheck).
 ///
 /// The rule id is the analyzer name. An analyzer `{error}` entry is a parse error, never clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_go_analysis(
     tool: &'static str,
     stdout: &[u8],
@@ -42,6 +46,10 @@ pub fn parse_go_analysis(
 }
 
 /// Parses the `dx_gotype` driver report, whose `syntax` and `typecheck` entries are errors.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_gotype(
     tool: &'static str,
     stdout: &[u8],
@@ -127,16 +135,10 @@ mod tests {
 
     #[test]
     fn clean_and_empty_are_clean_only_on_zero() {
-        assert!(
-            parse_go_analysis("govet", b"", Some(0), &[])
-                .unwrap()
-                .is_empty()
-        );
-        assert!(
-            parse_go_analysis("govet", br#"{"p":{}}"#, Some(0), &[])
-                .unwrap()
-                .is_empty()
-        );
+        let actual = parse_go_analysis("govet", b"", Some(0), &[]).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = parse_go_analysis("govet", br#"{"p":{}}"#, Some(0), &[]).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_go_analysis("govet", b"", Some(1), &[]).is_err());
         assert!(parse_go_analysis("govet", b"", None, &[]).is_err());
     }
@@ -184,11 +186,8 @@ mod tests {
 
     #[test]
     fn gotype_clean_and_context_failures() {
-        assert!(
-            parse_gotype("gotype", br#"{"p":{}}"#, Some(0), &[])
-                .unwrap()
-                .is_empty()
-        );
+        let actual = parse_gotype("gotype", br#"{"p":{}}"#, Some(0), &[]).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_gotype("gotype", b"", Some(1), &[]).is_err());
         let err = br#"{"p":{"typecheck":{"error":"missing export data"}}}"#;
         assert!(parse_gotype("gotype", err, Some(0), &[]).is_err());

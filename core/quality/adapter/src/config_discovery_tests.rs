@@ -21,6 +21,12 @@ enum How {
 use How::{Arg, NoAutoConfig, Staged};
 
 fn table() -> Vec<(&'static str, How)> {
+    let mut rows = table_head();
+    rows.extend(table_tail());
+    rows
+}
+
+fn table_head() -> Vec<(&'static str, How)> {
     vec![
         ("ansible_lint", Staged("config in the staged context")),
         (
@@ -100,6 +106,11 @@ fn table() -> Vec<(&'static str, How)> {
             "markdown_check",
             Staged("rules file staged and passed by the runner"),
         ),
+    ]
+}
+
+fn table_tail() -> Vec<(&'static str, How)> {
+    vec![
         ("docstrfmt", Arg(|b, f, c| docstrfmt_check(b, &[f], c))),
         ("mbake", Arg(|b, f, c| mbake_check(b, &[f], c))),
         (
@@ -116,7 +127,7 @@ fn table() -> Vec<(&'static str, How)> {
         ("pmd", Arg(|b, f, c| pmd_check(b, &[f], c))),
         (
             "prettier",
-            NoAutoConfig(|b, f| prettier_flags(b, f), "--no-editorconfig"),
+            NoAutoConfig(prettier_flags, "--no-editorconfig"),
         ),
         (
             "psscriptanalyzer",

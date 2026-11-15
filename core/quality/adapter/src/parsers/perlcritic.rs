@@ -7,11 +7,15 @@ const TOOL: &str = "perlcritic";
 
 /// Findings from one batched `perlcritic` run in the fixed tab-separated format.
 ///
-/// Every stdout line must carry the format's sentinel and name one of `files`. Perl::Critic exits
+/// Every stdout line must carry the format's sentinel and name one of `files`. `Perl::Critic` exits
 /// 2 exactly when it printed a violation, so exit 0 with lines, exit 2 without lines and any
 /// other exit (1: no files, 3: a file could not be critiqued) are errors, never a clean run.
 /// Lines are the physical file and line, so `#line` directives cannot redirect a finding. The
-/// column is Perl::Critic's visual column: 1-based with tabs expanded to multiples of 8.
+/// column is `Perl::Critic`'s visual column: 1-based with tabs expanded to multiples of 8.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_perlcritic(
     stdout: &[u8],
     code: Option<i32>,
@@ -115,7 +119,8 @@ mod tests {
 
     #[test]
     fn perlcritic_is_clean_on_exit_zero_without_lines() {
-        assert!(run(b"", 0).expect("parsed").is_empty());
+        let actual = run(b"", 0).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

@@ -60,6 +60,10 @@ fn primary(entry: &serde_json::Value) -> Result<(&str, TextPosition), ParseError
 
 /// Parses `zizmor --format json`: one JSON array. Exit 0 is clean and 10 to 14 mean findings
 /// at the given highest severity; anything else is a failure.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_zizmor(
     stdout: &[u8],
     stderr: &[u8],
@@ -127,11 +131,8 @@ mod tests {
 
     #[test]
     fn zizmor_clean_run_is_clean() {
-        assert!(
-            parse_zizmor(b"[]", b"", Some(0), &[FILE])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_zizmor(b"[]", b"", Some(0), &[FILE]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -159,7 +160,7 @@ mod tests {
     fn zizmor_skips_ignored_findings() {
         let ignored = DIRTY.replace("\"ignored\":false", "\"ignored\":true");
         let findings = parse_zizmor(ignored.as_bytes(), b"", Some(0), &[FILE]).expect("parsed");
-        assert!(findings.is_empty());
+        assert!(findings.is_empty(), "{findings:?}");
     }
 
     #[test]

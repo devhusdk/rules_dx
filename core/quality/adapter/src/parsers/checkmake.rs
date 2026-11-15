@@ -54,6 +54,10 @@ fn finding(
 /// defaults when the config is unreadable, so this never decides from the exit code alone:
 /// the run only counts when stderr confirms it loaded exactly `config`. `--debug` is what
 /// makes checkmake log that. Pass `config: None` only for already-validated delegated JSON.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_checkmake(
     stdout: &[u8],
     stderr: &[u8],
@@ -181,7 +185,8 @@ mod tests {
 
     #[test]
     fn checkmake_clean_run_is_clean() {
-        assert!(run(b"", &stderr(""), Some(0)).expect("clean").is_empty());
+        let actual = run(b"", &stderr(""), Some(0)).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -261,6 +266,7 @@ mod tests {
             &["Makefile"],
             Some(r"C:\s\checkmake.ini"),
         );
-        assert!(findings.expect("clean").is_empty());
+        let actual = findings.expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 }

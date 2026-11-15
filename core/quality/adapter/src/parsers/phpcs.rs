@@ -13,6 +13,10 @@ const TOOL: &str = "phpcs";
 /// counted messages, and a message from phpcs itself (`Internal.Exception`,
 /// `Internal.Tokenizer.Exception`) means the file was not checked, so it fails the run too. The
 /// rule is `phpcs/<source>`, the severity follows the message `type`.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_phpcs(
     stdout: &[u8],
     code: Option<i32>,
@@ -75,30 +79,28 @@ pub fn parse_phpcs(
             ),
         ));
     }
-    match (code, findings.is_empty()) {
-        // Exit 0 can come with findings; the totals check is the guard.
-        (Some(1..=3), true) => Err(ParseError::shape(
+    // Exit 0 can come with findings; the totals check is the guard.
+    if matches!(code, Some(1..=3)) && findings.is_empty() {
+        return Err(ParseError::shape(
             TOOL,
             format!("exit {} with no diagnostics", code_name(code)),
-        )),
-        _ => {
-            findings.sort_by(|a, b| {
-                (
-                    &a.file,
-                    a.finding.start.line,
-                    a.finding.start.column,
-                    &a.finding.rule_id,
-                )
-                    .cmp(&(
-                        &b.file,
-                        b.finding.start.line,
-                        b.finding.start.column,
-                        &b.finding.rule_id,
-                    ))
-            });
-            Ok(findings)
-        }
+        ));
     }
+    findings.sort_by(|a, b| {
+        (
+            &a.file,
+            a.finding.start.line,
+            a.finding.start.column,
+            &a.finding.rule_id,
+        )
+            .cmp(&(
+                &b.file,
+                b.finding.start.line,
+                b.finding.start.column,
+                &b.finding.rule_id,
+            ))
+    });
+    Ok(findings)
 }
 
 fn one(path: &str, message: &serde_json::Value) -> Result<(FileFinding, bool), ParseError> {
@@ -217,13 +219,11 @@ mod tests {
     #[test]
     fn phpcs_clean_run_has_no_findings() {
         let out = br#"{"totals":{"errors":0,"warnings":0,"fixable":0},"files":[]}"#;
-        assert!(
-            parse_phpcs(out, Some(0), &["/s/a.php"])
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_phpcs(out, Some(0), &["/s/a.php"]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
         let empty = br#"{"totals":{"errors":0,"warnings":0,"fixable":0},"files":{}}"#;
-        assert!(parse_phpcs(empty, Some(0), &[]).expect("clean").is_empty());
+        let actual = parse_phpcs(empty, Some(0), &[]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

@@ -18,6 +18,10 @@ const URL_PREFIX: &str = " https://srb.help/";
 /// the run spells them; a header for any other file belongs to a dependency and is dropped.
 /// The rule is `sorbet/<code>`, `sorbet/error` when the URL is missing; every finding is an
 /// error, and Sorbet gives no column, so it is 1. Any other exit code fails the run.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_sorbet(
     output: &[u8],
     code: Option<i32>,
@@ -174,16 +178,12 @@ mod tests {
 
     #[test]
     fn sorbet_clean_and_dependency_only_runs_have_no_findings() {
-        assert!(
-            parse_sorbet(b"No errors! Great job.\n", Some(0), &["/s/a.rb"])
-                .expect("clean")
-                .is_empty()
-        );
-        assert!(
-            parse_sorbet(ERRORS.as_bytes(), Some(100), &["/s/other.rb"])
-                .expect("dependency only")
-                .is_empty()
-        );
+        let actual =
+            parse_sorbet(b"No errors! Great job.\n", Some(0), &["/s/a.rb"]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual =
+            parse_sorbet(ERRORS.as_bytes(), Some(100), &["/s/other.rb"]).expect("dependency only");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

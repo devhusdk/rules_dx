@@ -114,6 +114,10 @@ fn one(
 /// Parses `helm lint --quiet`: `[ERROR] <path>: <message>` blocks with indented continuations.
 ///
 /// `[INFO]` is dropped. Exit 1 needs an `[ERROR]` and exit 0 must not have one.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_helm_lint(
     stdout: &[u8],
     code: Option<i32>,
@@ -201,6 +205,10 @@ pub fn parse_helm_lint(
 /// Turns a `helm template` render failure on stderr into one finding on the owning template.
 ///
 /// Stderr without any `Error:` line is outside the grammar and fails closed.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_helm_template_error(
     stderr: &[u8],
     chart_dir: &str,
@@ -247,6 +255,10 @@ pub fn parse_helm_template_error(
 /// Splits `helm template` output at its `# Source: <chart>/<path>` markers.
 ///
 /// The first path segment is the chart name from Chart.yaml, not the directory, so it is cut.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn split_rendered(stdout: &[u8]) -> Result<Vec<RenderedFile>, ParseError> {
     let text = as_text(TOOL, stdout)?;
     let mut groups: Vec<RenderedFile> = Vec::new();
@@ -263,7 +275,6 @@ pub fn split_rendered(stdout: &[u8]) -> Result<Vec<RenderedFile>, ParseError> {
                 text: String::new(),
             });
         } else if line == "---" {
-            continue;
         } else if let Some(group) = groups.last_mut() {
             group.text.push_str(line);
             group.text.push('\n');
@@ -316,21 +327,15 @@ mod tests {
         assert!(parse_helm_lint(b"", Some(2), "c", FILES).is_err());
         assert!(parse_helm_lint(b"", None, "c", FILES).is_err());
         assert!(parse_helm_lint(b"weird\n", Some(0), "c", FILES).is_err());
-        assert!(
-            parse_helm_lint(b"", Some(0), "c", FILES)
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_helm_lint(b"", Some(0), "c", FILES).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
     fn helm_lint_drops_info_only_output() {
         let out = b"[INFO] Chart.yaml: icon is recommended\n";
-        assert!(
-            parse_helm_lint(out, Some(0), "c", FILES)
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_helm_lint(out, Some(0), "c", FILES).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -371,6 +376,7 @@ mod tests {
         assert_eq!(groups[1].path, "charts/sub/templates/b.yaml");
         assert!(split_rendered(b"stray: 1\n").is_err());
         assert!(split_rendered(b"# Source: demo\n").is_err());
-        assert!(split_rendered(b"").expect("empty").is_empty());
+        let actual = split_rendered(b"").expect("empty");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 }

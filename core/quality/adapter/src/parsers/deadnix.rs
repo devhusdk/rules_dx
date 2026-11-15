@@ -21,6 +21,10 @@ fn number(value: &serde_json::Value, key: &str) -> Result<Option<u64>, ParseErro
 /// A result with a line is dead code. A result without one is a parse or IO failure, which
 /// deadnix reports with exit 0 even under `--fail`: a parse failure becomes a `syntax` error
 /// finding and an IO failure fails closed.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_deadnix(
     stdout: &[u8],
     stderr: &[u8],
@@ -141,11 +145,8 @@ mod tests {
 
     #[test]
     fn deadnix_clean_run_is_clean() {
-        assert!(
-            parse_deadnix(b"", b"", Some(0), &["a.nix"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_deadnix(b"", b"", Some(0), &["a.nix"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

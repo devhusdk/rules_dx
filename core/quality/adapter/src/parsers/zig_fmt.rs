@@ -4,6 +4,10 @@ use super::{FileFinding, ParseError, Spelling, code_name, listed_paths};
 const TOOL: &str = "zig_fmt";
 
 /// Findings from `zig fmt --check`: listed files are unformatted, `path:line:col: error:` lines are syntax errors.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_zig_fmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -41,11 +45,8 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].file, "src/dirty.zig");
         assert_eq!(findings[0].finding.message, "file is not formatted");
-        assert!(
-            parse_zig_fmt(b"", b"", Some(0), &files)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_zig_fmt(b"", b"", Some(0), &files).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_zig_fmt(b"", b"", Some(1), &files).is_err());
         assert!(parse_zig_fmt(b"other.zig\n", b"", Some(1), &files).is_err());
         assert!(parse_zig_fmt(&[0xff], b"", Some(0), &files).is_err());

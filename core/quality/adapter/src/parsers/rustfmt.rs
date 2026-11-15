@@ -5,6 +5,9 @@ use super::{
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_rustfmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -151,11 +154,8 @@ mod tests {
         );
         assert!(broken[0].finding.message.starts_with("error:"));
 
-        assert!(
-            parse_rustfmt(b"", b"", Some(0), &["/s/clean.rs"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_rustfmt(b"", b"", Some(0), &["/s/clean.rs"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_rustfmt(b"", b"", Some(1), &["/s/clean.rs"]).is_err());
         assert!(
             parse_rustfmt(b"Diff in /s/other.rs:1:\n", b"", Some(1), &["/s/clean.rs"]).is_err()
@@ -177,11 +177,9 @@ mod tests {
                 "header: {header}"
             );
         }
-        assert!(
-            parse_rustfmt(b"", b" --> /s/x.rs:1:1\n", Some(0), &["/s/x.rs"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual =
+            parse_rustfmt(b"", b" --> /s/x.rs:1:1\n", Some(0), &["/s/x.rs"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(
             parse_rustfmt(
                 b"",

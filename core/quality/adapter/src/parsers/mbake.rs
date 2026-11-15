@@ -21,6 +21,10 @@ const TOOL: &str = "mbake";
 /// result, not the wording of the prose. Anything outside that shape, including any `Error:`
 /// line, is an error and never a clean run. `--diff` is not used: it exits 0 even for files that
 /// would change.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_mbake(
     stdout: &[u8],
     stderr: &[u8],
@@ -96,16 +100,10 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(
-            parse_mbake(CLEAN.as_bytes(), b"", Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
-        assert!(
-            parse_mbake(b"", b"", Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_mbake(CLEAN.as_bytes(), b"", Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = parse_mbake(b"", b"", Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -121,11 +119,8 @@ mod tests {
     #[test]
     fn advisories_alone_are_clean() {
         let out = "/w/b.mk:3: Warning: Missing final newline\n";
-        assert!(
-            parse_mbake(out.as_bytes(), b"", Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_mbake(out.as_bytes(), b"", Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

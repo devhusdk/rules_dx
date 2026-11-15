@@ -192,7 +192,7 @@ const ORMOLU_FIX_ARGS: &[&str] = &[
 ];
 const PKL_CHECK_ARGS: &[&str] = &["format", "--diff-name-only"];
 /// Offline, cache-free evaluation: only `pkl:` and `file:` modules load, so `package:` and
-/// `https:` imports fail instead of reaching the network, and `--no-project` ignores any PklProject.
+/// `https:` imports fail instead of reaching the network, and `--no-project` ignores any `PklProject`.
 const PKL_EVAL_ARGS: &[&str] = &[
     "eval",
     "--no-cache",
@@ -248,7 +248,7 @@ const PERLTIDY_FIX_ARGS: &[&str] = &[
 ];
 /// The sentinel, then tab-separated fields; the message is last. `%g` and `%L` are the physical
 /// file and line, so a `#line` directive cannot redirect a finding; `%c` is the visual column.
-/// Perl::Critic expands the `\t` and `\n` escapes itself.
+/// `Perl::Critic` expands the `\t` and `\n` escapes itself.
 pub const PERLCRITIC_FORMAT: &str = r"dx\t%g\t%L\t%c\t%s\t%p\t%m\n";
 /// Without a bound profile, `--noprofile` is first: it stops perlcritic reading `~/.perlcriticrc`,
 /// `./.perlcriticrc` and `$PERLCRITIC`. Severity 5 is the only level dx asks for, plus the
@@ -399,12 +399,12 @@ const FSHARPLINT_CONFIG_FLAG: &[&str] = &["--config"];
 const SCALAFIX_CHECK_FLAGS: &[&str] = &["--check", "--no-stale-semanticdb"];
 
 fn invocation(binary: &Path, args: &[&str], files: &[&Path], cwd_rel: &str) -> Invocation {
-    let mut argv = Vec::with_capacity(1 + args.len() + files.len());
-    argv.push(binary.as_os_str().to_owned());
-    argv.extend(args.iter().map(OsString::from));
-    argv.extend(files.iter().map(|path| path.as_os_str().to_owned()));
+    let mut command_line = Vec::with_capacity(1 + args.len() + files.len());
+    command_line.push(binary.as_os_str().to_owned());
+    command_line.extend(args.iter().map(OsString::from));
+    command_line.extend(files.iter().map(|path| path.as_os_str().to_owned()));
     Invocation {
-        argv,
+        argv: command_line,
         cwd_rel: cwd_rel.to_owned(),
     }
 }
@@ -496,6 +496,7 @@ fn cwd_invocation(
     }
 }
 
+#[must_use]
 pub fn buildifier_check(
     binary: &Path,
     files: &[&Path],
@@ -510,6 +511,7 @@ pub fn buildifier_check(
     )
 }
 
+#[must_use]
 pub fn buildifier_fix(binary: &Path, files: &[&Path], config_dir_rel: Option<&str>) -> Invocation {
     cwd_invocation(
         binary,
@@ -540,6 +542,7 @@ pub fn rustfmt(
     assemble(binary, head, files, "")
 }
 
+#[must_use]
 pub fn taplo_lint(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -554,6 +557,7 @@ pub fn taplo_lint(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invo
 
 /// Validates TOML against the schema each file names with `#:schema` or the
 /// config's `[[rule]]` tables; no catalog is consulted.
+#[must_use]
 pub fn taplo_typecheck(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -704,6 +708,7 @@ pub fn ruff_format_check(
     assemble(binary, head, files, cwd_rel)
 }
 
+#[must_use]
 pub fn ruff_format_fix(
     binary: &Path,
     files: &[&Path],
@@ -734,6 +739,7 @@ pub fn ty_check(
     assemble(binary, head, files, "")
 }
 
+#[must_use]
 pub fn pydoclint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -748,6 +754,7 @@ pub fn pydoclint_check(binary: &Path, files: &[&Path], config: Option<&Path>) ->
 
 /// Weeder reads every `.hie` file under the directory and reports unused declarations. Naming the
 /// config keeps it from searching the cwd for `weeder.toml`.
+#[must_use]
 pub fn weeder_check(binary: &Path, config: &Path, hie_dir: &Path) -> Invocation {
     Invocation {
         argv: vec![
@@ -775,6 +782,7 @@ pub fn biome_lint_check(binary: &Path, files: &[&Path], config_dir: &Path) -> In
     assemble(binary, head, files, "")
 }
 
+#[must_use]
 pub fn biome_format_check(binary: &Path, files: &[&Path], config_dir: &Path) -> Invocation {
     let head = biome_base(binary, BIOME_FORMAT_SUBCOMMAND, config_dir);
     assemble(binary, head, files, "")
@@ -800,6 +808,9 @@ pub fn biome_lint_fix(
     assemble(binary, head, files, "")
 }
 
+/// # Errors
+///
+/// Returns [`LaunchError`] when the tool cannot be launched.
 pub fn eslint_check(
     launch: &ResolvedTool,
     files: &[&Path],
@@ -810,6 +821,9 @@ pub fn eslint_check(
     launch.resolve(&args, files)
 }
 
+/// # Errors
+///
+/// Returns [`LaunchError`] when the tool cannot be launched.
 pub fn eslint_fix(
     launch: &ResolvedTool,
     files: &[&Path],
@@ -836,6 +850,9 @@ fn prettier_args(config: Option<&Path>, tail: &[&str]) -> Vec<OsString> {
     args
 }
 
+/// # Errors
+///
+/// Returns [`LaunchError`] when the tool cannot be launched.
 pub fn prettier_check(
     launch: &ResolvedTool,
     files: &[&Path],
@@ -844,6 +861,9 @@ pub fn prettier_check(
     launch.resolve(&prettier_args(config, PRETTIER_CHECK_TAIL), files)
 }
 
+/// # Errors
+///
+/// Returns [`LaunchError`] when the tool cannot be launched.
 pub fn prettier_fix(
     launch: &ResolvedTool,
     files: &[&Path],
@@ -862,6 +882,9 @@ fn remark_args(tail: &[&str], settings: Option<&Path>) -> Vec<OsString> {
     args
 }
 
+/// # Errors
+///
+/// Returns [`LaunchError`] when the tool cannot be launched.
 pub fn remark_check(
     launch: &ResolvedTool,
     files: &[&Path],
@@ -870,6 +893,9 @@ pub fn remark_check(
     launch.resolve(&remark_args(REMARK_CHECK_TAIL, settings), files)
 }
 
+/// # Errors
+///
+/// Returns [`LaunchError`] when the tool cannot be launched.
 pub fn remark_fix(
     launch: &ResolvedTool,
     files: &[&Path],
@@ -878,6 +904,7 @@ pub fn remark_fix(
     launch.resolve(&remark_args(REMARK_FIX_TAIL, settings), files)
 }
 
+#[must_use]
 pub fn markdown_check(
     binary: &Path,
     sources: &[(&str, &Path)],
@@ -910,6 +937,7 @@ pub fn markdown_check(
     }
 }
 
+#[must_use]
 pub fn scalafmt_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -922,6 +950,7 @@ pub fn scalafmt_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> 
     )
 }
 
+#[must_use]
 pub fn scalafmt_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -962,6 +991,9 @@ fn scalafix_invocation(
     Ok(assemble(binary, head, files, ""))
 }
 
+/// # Errors
+///
+/// Returns an error when a path entry cannot be joined into the search path.
 pub fn scalafix_check(
     binary: &Path,
     files: &[&Path],
@@ -970,6 +1002,9 @@ pub fn scalafix_check(
     scalafix_invocation(binary, files, context, true)
 }
 
+/// # Errors
+///
+/// Returns an error when a path entry cannot be joined into the search path.
 pub fn scalafix_fix(
     binary: &Path,
     files: &[&Path],
@@ -978,6 +1013,7 @@ pub fn scalafix_fix(
     scalafix_invocation(binary, files, context, false)
 }
 
+#[must_use]
 pub fn csharpier_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -990,6 +1026,7 @@ pub fn csharpier_check(binary: &Path, files: &[&Path], config: Option<&Path>) ->
     )
 }
 
+#[must_use]
 pub fn csharpier_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -1002,10 +1039,12 @@ pub fn csharpier_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> I
     )
 }
 
+#[must_use]
 pub fn fantomas_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, FANTOMAS_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn fantomas_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, FANTOMAS_FIX_ARGS, files, "")
 }
@@ -1047,6 +1086,7 @@ pub fn fsharplint_check(
     assemble(binary, head, files, "")
 }
 
+#[must_use]
 pub fn clang_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_joined(
         binary,
@@ -1059,6 +1099,7 @@ pub fn clang_format_check(binary: &Path, files: &[&Path], config: Option<&Path>)
     )
 }
 
+#[must_use]
 pub fn clang_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_joined(
         binary,
@@ -1071,10 +1112,12 @@ pub fn clang_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -
     )
 }
 
+#[must_use]
 pub fn gofumpt_check(binary: &Path, files: &[&Path], lang: &str) -> Invocation {
     gofumpt(binary, GOFUMPT_CHECK_ARGS, files, lang)
 }
 
+#[must_use]
 pub fn gofumpt_fix(binary: &Path, files: &[&Path], lang: &str) -> Invocation {
     gofumpt(binary, GOFUMPT_FIX_ARGS, files, lang)
 }
@@ -1108,6 +1151,7 @@ pub fn clang_tidy_check(
     assemble(binary, head, files, "")
 }
 
+#[must_use]
 pub fn staticcheck_check(
     binary: &Path,
     files: &[&Path],
@@ -1122,18 +1166,22 @@ pub fn staticcheck_check(
     )
 }
 
+#[must_use]
 pub fn google_java_format_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, GOOGLE_JAVA_FORMAT_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn google_java_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, GOOGLE_JAVA_FORMAT_FIX_ARGS, files, "")
 }
 
+#[must_use]
 pub fn ktfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KTFMT_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn ktfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KTFMT_FIX_ARGS, files, "")
 }
@@ -1153,6 +1201,9 @@ pub fn pmd_check(binary: &Path, files: &[&Path], ruleset: &Path) -> Invocation {
     }
 }
 
+/// # Errors
+///
+/// Returns an error when a path entry cannot be joined into the search path.
 pub fn spotbugs_check(
     binary: &Path,
     files: &[&Path],
@@ -1209,11 +1260,14 @@ pub fn dialyzer_check(
 }
 
 /// The `--input_list_file` contents for `dialyzer_check`: one beam path per line.
+#[must_use]
 pub fn dialyzer_input_list(beams: &[&Path]) -> String {
-    beams
-        .iter()
-        .map(|beam| format!("{}\n", beam.display()))
-        .collect()
+    let mut out = String::new();
+    for beam in beams {
+        out.push_str(&beam.display().to_string());
+        out.push('\n');
+    }
+    out
 }
 
 /// `phpcs` over the owned sources, JSON on stdout. `standard` is a ruleset file or a bundled
@@ -1259,10 +1313,11 @@ pub fn luals_check(
     }
 }
 
-/// The generated LuaLS config. The consumer's settings (a flat `.luarc.json` object) come
+/// The generated `LuaLS` config. The consumer's settings (a flat `.luarc.json` object) come
 /// first; the keys below always win: the Lua version, the library directory, no diagnostics
 /// in libraries and the ignored staging directories. Without a consumer config the
-/// diagnostics are LuaLS's defaults.
+/// diagnostics are `LuaLS`'s defaults.
+#[must_use]
 pub fn luals_luarc(
     consumer: Option<&serde_json::Value>,
     library: Option<&Path>,
@@ -1323,10 +1378,11 @@ pub fn phpstan_check(
     }
 }
 
-/// The generated PHPStan config: the consumer's, when there is one, is included first so the
+/// The generated `PHPStan` config: the consumer's, when there is one, is included first so the
 /// values below (the cache directory, the scan directories, one process) always win.
 /// Without a consumer config the analysis runs at `level`, with the unused-public extension from
 /// `extension` when it is staged.
+#[must_use]
 pub fn phpstan_neon(
     consumer: Option<&Path>,
     level: u8,
@@ -1361,7 +1417,9 @@ pub fn phpstan_neon(
         out.push_str("    unused_public:\n        methods: true\n        constants: true\n        properties: true\n");
     }
     if consumer.is_none() {
-        out.push_str(&format!("    level: {level}\n"));
+        out.push_str("    level: ");
+        out.push_str(&level.to_string());
+        out.push('\n');
     }
     out.push_str("    tmpDir: ");
     out.push_str(&quote(tmp_dir));
@@ -1379,6 +1437,7 @@ pub fn phpstan_neon(
 }
 
 /// `--config` replaces detekt's own defaults; the XML report is the only write.
+#[must_use]
 pub fn detekt_check(binary: &Path, files: &[&Path], config: &Path, report: &Path) -> Invocation {
     let mut report_arg = OsString::from("xml:");
     report_arg.push(report);
@@ -1410,29 +1469,30 @@ fn buf(
     root: &Path,
     files: &[&Path],
 ) -> Invocation {
-    let mut argv = Vec::with_capacity(4 + args.len() + 2 * files.len());
-    argv.push(binary.as_os_str().to_owned());
-    argv.extend(args.iter().map(OsString::from));
+    let mut command_line = Vec::with_capacity(4 + args.len() + 2 * files.len());
+    command_line.push(binary.as_os_str().to_owned());
+    command_line.extend(args.iter().map(OsString::from));
     if let Some(config) = config {
-        argv.push(OsString::from(BUF_CONFIG_FLAG));
-        argv.push(config.as_os_str().to_owned());
+        command_line.push(OsString::from(BUF_CONFIG_FLAG));
+        command_line.push(config.as_os_str().to_owned());
     }
     for file in files {
-        argv.push(OsString::from(BUF_PATH_FLAG));
-        argv.push(file.as_os_str().to_owned());
+        command_line.push(OsString::from(BUF_PATH_FLAG));
+        command_line.push(file.as_os_str().to_owned());
     }
-    argv.push(root.as_os_str().to_owned());
+    command_line.push(root.as_os_str().to_owned());
     Invocation {
-        argv,
+        argv: command_line,
         cwd_rel: String::new(),
     }
 }
 
 /// Validates one schema with `capnp compile -o-`, which parses it and its
-/// imports and writes a CodeGeneratorRequest to stdout only on success.
+/// imports and writes a `CodeGeneratorRequest` to stdout only on success.
 /// `rel_file` is relative to `root` and the run starts there, so the standard
 /// import path is off and `root` is the only import root (`..` and absolute
 /// imports cannot leave it).
+#[must_use]
 pub fn capnp_check(binary: &Path, rel_file: &Path, root: &Path) -> Invocation {
     Invocation {
         argv: vec![
@@ -1453,6 +1513,7 @@ pub fn capnp_check(binary: &Path, rel_file: &Path, root: &Path) -> Invocation {
 /// Validates one schema with `flatc -M --cpp`, which parses it, prints its
 /// dependency list and writes nothing. Includes resolve next to the schema
 /// first, then under `root`.
+#[must_use]
 pub fn flatc_check(binary: &Path, file: &Path, root: &Path, out: &Path) -> Invocation {
     Invocation {
         argv: vec![
@@ -1474,6 +1535,7 @@ pub fn flatc_check(binary: &Path, file: &Path, root: &Path, out: &Path) -> Invoc
 /// missing include is only a warning and the run would pass. `-v` makes the
 /// compiler list every file it scans, which the runner checks against the
 /// declared inputs, and `root` is the only include search path.
+#[must_use]
 pub fn thrift_check(binary: &Path, file: &Path, root: &Path, out: &Path) -> Invocation {
     Invocation {
         argv: vec![
@@ -1495,6 +1557,7 @@ pub fn thrift_check(binary: &Path, file: &Path, root: &Path, out: &Path) -> Invo
 /// Checks one schema with avro-tools and writes only under `out`. An `.avdl`
 /// runs `idl2schemata`. An `.avsc` runs `compile schema` over `deps` and then
 /// the file; avro-tools needs absolute paths for both.
+#[must_use]
 pub fn avro_check(binary: &Path, file: &Path, deps: &[&Path], out: &Path) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
     if file.extension().is_some_and(|ext| ext == "avdl") {
@@ -1512,6 +1575,7 @@ pub fn avro_check(binary: &Path, file: &Path, deps: &[&Path], out: &Path) -> Inv
     }
 }
 
+#[must_use]
 pub fn buf_lint_check(
     binary: &Path,
     files: &[&Path],
@@ -1539,6 +1603,7 @@ pub fn buf_build_check(
 
 /// Runs `buf breaking` on `root` against a base image built with
 /// `buf build '.git#ref=<sha>' -o <image>`.
+#[must_use]
 pub fn buf_breaking_check(
     binary: &Path,
     against: &Path,
@@ -1554,6 +1619,7 @@ pub fn buf_breaking_check(
     invocation
 }
 
+#[must_use]
 pub fn buf_format_check(
     binary: &Path,
     files: &[&Path],
@@ -1563,14 +1629,17 @@ pub fn buf_format_check(
     buf(binary, BUF_FORMAT_CHECK_ARGS, config, root, files)
 }
 
+#[must_use]
 pub fn buf_format_fix(binary: &Path, files: &[&Path], root: &Path) -> Invocation {
     buf(binary, BUF_FORMAT_FIX_ARGS, None, root, files)
 }
 
+#[must_use]
 pub fn qmlformat_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(binary, QMLFORMAT_CHECK_ARGS, "-s", config, &[], files, "")
 }
 
+#[must_use]
 pub fn qmlformat_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(binary, QMLFORMAT_FIX_ARGS, "-s", config, &[], files, "")
 }
@@ -1594,21 +1663,25 @@ pub fn qmllint_check(
     assemble(binary, head, files, "")
 }
 
+#[must_use]
 pub fn cue_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, CUE_CHECK_ARGS, files, "")
 }
 
 /// One vet of the files of a single package. Imports resolve from the module at `cwd_rel`.
 /// `-c=false` keeps schema-only (non-concrete) packages from failing as incomplete.
+#[must_use]
 pub fn cue_vet(binary: &Path, files: &[&Path], cwd_rel: &str) -> Invocation {
     fixed(binary, CUE_VET_ARGS, files, cwd_rel)
 }
 
+#[must_use]
 pub fn cue_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, CUE_FIX_ARGS, files, "")
 }
 
 /// One batched lint. It prints nothing when every file is clean.
+#[must_use]
 pub fn jsonnet_lint_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, &[], files, "")
 }
@@ -1616,6 +1689,7 @@ pub fn jsonnet_lint_check(binary: &Path, files: &[&Path]) -> Invocation {
 /// One batched lint over explicit free-form files. It prints `[]` when every file is clean.
 /// Without a bound config `--isolated` keeps fortitude from reading any; fortitude rejects the
 /// two flags together.
+#[must_use]
 pub fn fortitude_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     let prefix: &[&str] = if config.is_some() {
         &["check"]
@@ -1635,30 +1709,36 @@ pub fn fortitude_check(binary: &Path, files: &[&Path], config: Option<&Path>) ->
 
 /// `ffmt --check` prints one unformatted path per line and exits 1; `config_dir_rel` is the
 /// directory that holds the staged `ffmt.toml`.
+#[must_use]
 pub fn ffmt_check(binary: &Path, files: &[&Path], config_dir_rel: &str) -> Invocation {
     fixed(binary, FFMT_CHECK_ARGS, files, config_dir_rel)
 }
 
+#[must_use]
 pub fn ffmt_fix(binary: &Path, files: &[&Path], config_dir_rel: &str) -> Invocation {
     fixed(binary, FFMT_FIX_ARGS, files, config_dir_rel)
 }
 
 /// One batched well-formedness check. It prints nothing when every file is clean.
+#[must_use]
 pub fn xmllint_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, XMLLINT_CHECK_ARGS, files, "")
 }
 
 /// `dx_topiary` prints one unformatted path per line and exits 1.
+#[must_use]
 pub fn topiary_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, &[], files, "")
 }
 
+#[must_use]
 pub fn topiary_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TOPIARY_FIX_ARGS, files, "")
 }
 
 /// One batched run of the pkl-lsp server under `lsp_check`. `home` is a scratch directory the
 /// server may write its caches to.
+#[must_use]
 pub fn pkl_lsp_check(
     lsp_check: &Path,
     java: &Path,
@@ -1686,10 +1766,12 @@ pub fn pkl_lsp_check(
     }
 }
 
+#[must_use]
 pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JSONNETFMT_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn jsonnetfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JSONNETFMT_FIX_ARGS, files, "")
 }
@@ -1705,15 +1787,18 @@ pub fn tinymist_lint(binary: &Path, root: &Path, file: &Path) -> Invocation {
 }
 
 /// `typstyle --check`; no `-q`, which would hide the `Would reformat` lines.
+#[must_use]
 pub fn typstyle_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TYPSTYLE_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn typstyle_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TYPSTYLE_FIX_ARGS, files, "")
 }
 
 /// `chktex` on one file in the fixed colon-separated format. It never writes.
+#[must_use]
 pub fn chktex_check(binary: &Path, file: &Path) -> Invocation {
     fixed(binary, CHKTEX_CHECK_ARGS, &[file], "")
 }
@@ -1721,6 +1806,7 @@ pub fn chktex_check(binary: &Path, file: &Path) -> Invocation {
 /// `latexindent -k` on one file. The log and the backups go to `cruft` (an absolute directory in
 /// the scratch tree) so nothing lands next to the source. The config is passed as `-l=<file>`
 /// only when bound: a bare `-l` would auto-load a `localSettings.yaml` from the source directory.
+#[must_use]
 pub fn latexindent_check(
     binary: &Path,
     file: &Path,
@@ -1731,6 +1817,7 @@ pub fn latexindent_check(
 }
 
 /// `latexindent -w` on one file; the backup `.bak` goes to `cruft`.
+#[must_use]
 pub fn latexindent_fix(
     binary: &Path,
     file: &Path,
@@ -1772,11 +1859,13 @@ fn flag_value(flag: &str, path: &Path) -> OsString {
 }
 
 /// `zig ast-check` takes exactly one file per process.
+#[must_use]
 pub fn zig_ast_check(binary: &Path, file: &Path) -> Invocation {
     fixed(binary, ZIG_AST_CHECK_ARGS, &[file], "")
 }
 
 /// `swift-format format` takes one file here and writes the formatted text to stdout.
+#[must_use]
 pub fn swift_format_check(binary: &Path, file: &Path, config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -1789,6 +1878,7 @@ pub fn swift_format_check(binary: &Path, file: &Path, config: Option<&Path>) -> 
     )
 }
 
+#[must_use]
 pub fn swift_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -1802,6 +1892,7 @@ pub fn swift_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -
 }
 
 /// One batched lint; `--strict` makes every finding exit 1.
+#[must_use]
 pub fn swift_lint(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -1814,16 +1905,19 @@ pub fn swift_lint(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invo
     )
 }
 
+#[must_use]
 pub fn zig_fmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ZIG_FMT_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn zig_fmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ZIG_FMT_FIX_ARGS, files, "")
 }
 
 /// `dart format` reads each file's language version from the `.dart_tool/package_config.json`
 /// staged at the scratch root, and `formatter:` options from the `analysis_options.yaml` beside it.
+#[must_use]
 pub fn dart_format_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DART_FORMAT_CHECK_ARGS, files, "")
 }
@@ -1831,6 +1925,7 @@ pub fn dart_format_check(binary: &Path, files: &[&Path]) -> Invocation {
 /// One analyzer run over the options file and the sources, all absolute. The options file is
 /// listed so a broken `include:` or unknown lint surfaces, and `--cache` keeps the analyzer off
 /// the (unset) HOME.
+#[must_use]
 pub fn dart_analyze(
     binary: &Path,
     cache_dir: &Path,
@@ -1852,6 +1947,7 @@ pub fn dart_analyze(
     }
 }
 
+#[must_use]
 pub fn dart_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DART_FORMAT_FIX_ARGS, files, "")
 }
@@ -1872,6 +1968,7 @@ pub fn jet_check(binary: &Path, config: &Path, scratch: &Path, report: &Path) ->
 }
 
 /// `lint.jl --scratch DIR --report OUT --config JuliaLint.toml FILE...`; the report is the only write.
+#[must_use]
 pub fn julialint_check(
     binary: &Path,
     scratch: &Path,
@@ -1893,20 +1990,24 @@ pub fn julialint_check(
     }
 }
 
+#[must_use]
 pub fn julia_format_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JULIA_FORMAT_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn julia_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JULIA_FORMAT_FIX_ARGS, files, "")
 }
 
 /// perltidy `--standard-output` takes one file and writes the formatted text to stdout.
+#[must_use]
 pub fn perltidy_check(binary: &Path, file: &Path, config: Option<&Path>) -> Invocation {
     perltidy(binary, PERLTIDY_CHECK_ARGS, &[file], config)
 }
 
 /// `-b -bext=/` rewrites in place without a backup; `-se` keeps `.ERR` files from appearing.
+#[must_use]
 pub fn perltidy_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     perltidy(binary, PERLTIDY_FIX_ARGS, files, config)
 }
@@ -1923,7 +2024,7 @@ fn perltidy(binary: &Path, args: &[&str], files: &[&Path], config: Option<&Path>
     assemble(binary, head, files, "")
 }
 
-/// One batched check; Perl::Critic has no autofix. A bound profile replaces the default
+/// One batched check; `Perl::Critic` has no autofix. A bound profile replaces the default
 /// severity and policy selection; the output flags stay.
 pub fn perlcritic_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     let mut head = vec![binary.as_os_str().to_owned()];
@@ -1938,16 +2039,19 @@ pub fn perlcritic_check(binary: &Path, files: &[&Path], config: Option<&Path>) -
     assemble(binary, head, files, "")
 }
 
+#[must_use]
 pub fn erlfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ERLFMT_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn erlfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ERLFMT_FIX_ARGS, files, "")
 }
 
 /// Always `--config-file <config>`: Credo otherwise reads `.credo.exs` from every parent
 /// directory. The dx driver adds `--format json` and picks the exit code.
+#[must_use]
 pub fn credo_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     let mut argv = vec![
         binary.as_os_str().to_owned(),
@@ -1962,6 +2066,7 @@ pub fn credo_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation 
 }
 
 /// Always `--config <config>`: elvis checks only the files its config globs match, from the cwd.
+#[must_use]
 pub fn elvis_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
         binary,
@@ -1975,10 +2080,12 @@ pub fn elvis_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation 
 }
 
 /// `--dot-formatter` names the bound file, so mix never reads a `.formatter.exs` of its own.
+#[must_use]
 pub fn mix_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     mix_format(binary, MIX_FORMAT_CHECK_ARGS, files, config)
 }
 
+#[must_use]
 pub fn mix_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     mix_format(binary, &[], files, config)
 }
@@ -2000,7 +2107,7 @@ fn mix_format(binary: &Path, args: &[&str], files: &[&Path], config: Option<&Pat
 /// and values files stay with prettier.
 pub fn is_helm_template(path: &str, has_file: impl Fn(&str) -> bool) -> bool {
     let path = path.replace('\\', "/");
-    if path.ends_with(".tpl") {
+    if Path::new(&path).extension().is_some_and(|ext| ext == "tpl") {
         return true;
     }
     let mut dir = path.as_str();
@@ -2024,32 +2131,39 @@ pub fn is_helm_template(path: &str, has_file: impl Fn(&str) -> bool) -> bool {
 }
 
 /// Explicit chart template paths only.
+#[must_use]
 pub fn helmfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, HELMFMT_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn helmfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, HELMFMT_FIX_ARGS, files, "")
 }
 
 /// Explicit owned `.nix` paths only: the default RFC style at width 100, no `--follow-symlinks`
 /// (which would write through a link into the source tree) and no style flags.
+#[must_use]
 pub fn nixfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, NIXFMT_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn nixfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, &[], files, "")
 }
 
+#[must_use]
 pub fn ormolu_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ORMOLU_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn ormolu_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ORMOLU_FIX_ARGS, files, "")
 }
 
+#[must_use]
 pub fn pkl_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, PKL_CHECK_ARGS, files, "")
 }
@@ -2073,24 +2187,29 @@ pub fn pkl_eval(binary: &Path, module: &Path, root: &Path, load_only: bool) -> I
     assemble(binary, head, &[module], "")
 }
 
+#[must_use]
 pub fn pkl_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, PKL_FIX_ARGS, files, "")
 }
 
+#[must_use]
 pub fn opa_fmt_check(binary: &Path, file: &Path) -> Invocation {
     fixed(binary, OPA_FMT_CHECK_ARGS, &[file], "")
 }
 
+#[must_use]
 pub fn opa_fmt_fix(binary: &Path, file: &Path) -> Invocation {
     fixed(binary, OPA_FMT_FIX_ARGS, &[file], "")
 }
 
+#[must_use]
 pub fn opa_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, OPA_CHECK_ARGS, files, "")
 }
 
 /// Check-only: selene has no autofix. `--no-exclude` because the runner stages only files it
 /// means to lint; `--config` is optional so selene otherwise looks in the scratch root.
+#[must_use]
 pub fn selene_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -2123,6 +2242,7 @@ pub fn zanuda_check(binary: &Path, list: &Path, out: &Path, disabled: &[&str]) -
     }
 }
 
+#[must_use]
 pub fn stylua_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -2136,6 +2256,7 @@ pub fn stylua_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> In
 }
 
 /// Always `--config <config>`: gersemi otherwise searches upward from each file for a `.gersemirc`.
+#[must_use]
 pub fn gersemi_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
         binary,
@@ -2148,6 +2269,7 @@ pub fn gersemi_check(binary: &Path, files: &[&Path], config: &Path) -> Invocatio
     )
 }
 
+#[must_use]
 pub fn gersemi_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
         binary,
@@ -2162,6 +2284,7 @@ pub fn gersemi_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation 
 
 /// Always `--config <config>`: mbake otherwise reads `~/.bake.toml` or the working directory's
 /// `.bake.toml`.
+#[must_use]
 pub fn mbake_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
         binary,
@@ -2174,6 +2297,7 @@ pub fn mbake_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation 
     )
 }
 
+#[must_use]
 pub fn mbake_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
         binary,
@@ -2187,6 +2311,7 @@ pub fn mbake_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
 }
 
 /// Always `--pyproject-config <config>`: docstrfmt otherwise searches upward for a Python project file.
+#[must_use]
 pub fn docstrfmt_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
         binary,
@@ -2199,6 +2324,7 @@ pub fn docstrfmt_check(binary: &Path, files: &[&Path], config: &Path) -> Invocat
     )
 }
 
+#[must_use]
 pub fn docstrfmt_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
         binary,
@@ -2211,6 +2337,7 @@ pub fn docstrfmt_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocatio
     )
 }
 
+#[must_use]
 pub fn stylua_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -2223,14 +2350,17 @@ pub fn stylua_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invo
     )
 }
 
+#[must_use]
 pub fn modfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, MODFMT_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn modfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, MODFMT_FIX_ARGS, files, "")
 }
 
+#[must_use]
 pub fn terraform_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TERRAFORM_CHECK_ARGS, files, "")
 }
@@ -2275,6 +2405,7 @@ fn chdir_flag(dir: &Path) -> OsString {
 /// `./.tflint.hcl` and `~/.tflint.hcl` never load. `--call-module-type=none` stops it
 /// reading local module sources outside the mirror. Exit codes (v0.66.0 `cmd/cli.go`):
 /// 0 clean, 1 failure (JSON `errors`), 2 issues found.
+#[must_use]
 pub fn tflint_check(binary: &Path, dir_rel: &str, files: &[&Path], config: &Path) -> Invocation {
     let mut argv = vec![
         binary.as_os_str().to_owned(),
@@ -2296,6 +2427,7 @@ pub fn tflint_check(binary: &Path, dir_rel: &str, files: &[&Path], config: &Path
     }
 }
 
+#[must_use]
 pub fn terraform_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TERRAFORM_FIX_ARGS, files, "")
 }
@@ -2309,6 +2441,7 @@ fn yamlfmt_defaults(config: Option<&Path>) -> &'static [&'static str] {
     }
 }
 
+#[must_use]
 pub fn yamlfmt_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -2321,6 +2454,7 @@ pub fn yamlfmt_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> I
     )
 }
 
+#[must_use]
 pub fn yamlfmt_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -2333,22 +2467,27 @@ pub fn yamlfmt_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Inv
     )
 }
 
+#[must_use]
 pub fn shfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, SHFMT_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn shfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, SHFMT_FIX_ARGS, files, "")
 }
 
+#[must_use]
 pub fn djlint_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     djlint(binary, DJLINT_FORMAT_CHECK_ARGS, files, config)
 }
 
+#[must_use]
 pub fn djlint_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     djlint(binary, DJLINT_FORMAT_FIX_ARGS, files, config)
 }
 
+#[must_use]
 pub fn djlint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     djlint(binary, DJLINT_CHECK_PREFIX, files, config)
 }
@@ -2362,6 +2501,9 @@ fn djlint(binary: &Path, prefix: &[&str], files: &[&Path], config: Option<&Path>
     optional_flag(binary, prefix, "--configuration", config, suffix, files, "")
 }
 
+/// # Errors
+///
+/// Returns [`LaunchError`] when the tool cannot be launched.
 pub fn gplint_check(
     launch: &ResolvedTool,
     files: &[&Path],
@@ -2373,6 +2515,9 @@ pub fn gplint_check(
     launch.resolve(&args, files)
 }
 
+/// # Errors
+///
+/// Returns [`LaunchError`] when the tool cannot be launched.
 pub fn stylelint_check(
     launch: &ResolvedTool,
     files: &[&Path],
@@ -2384,6 +2529,9 @@ pub fn stylelint_check(
     launch.resolve(&args, files)
 }
 
+/// # Errors
+///
+/// Returns [`LaunchError`] when the tool cannot be launched.
 pub fn graphql_eslint_check(
     launch: &ResolvedTool,
     files: &[&Path],
@@ -2401,6 +2549,10 @@ pub fn graphql_eslint_check(
 }
 
 /// One `graphql_eslint --typecheck` run: schema validity and operation validation through graphql-js.
+///
+/// # Errors
+///
+/// Returns [`LaunchError`] when the tool cannot be launched.
 pub fn graphql_typecheck(
     launch: &ResolvedTool,
     files: &[&Path],
@@ -2422,6 +2574,10 @@ pub fn graphql_typecheck(
 pub const REDOCLY_MAX_PROBLEMS: &str = "1000000";
 
 /// One `redocly lint` over a single API root, with a JSON report on stdout.
+///
+/// # Errors
+///
+/// Returns [`LaunchError`] when the tool cannot be launched.
 pub fn redocly_check(
     launch: &ResolvedTool,
     root: &Path,
@@ -2438,6 +2594,7 @@ pub fn redocly_check(
     launch.resolve(&args, &[root])
 }
 
+#[must_use]
 pub fn rubocop_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -2450,6 +2607,7 @@ pub fn rubocop_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> I
     )
 }
 
+#[must_use]
 pub fn rubocop_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -2462,6 +2620,7 @@ pub fn rubocop_format_check(binary: &Path, files: &[&Path], config: Option<&Path
     )
 }
 
+#[must_use]
 pub fn rubocop_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -2475,6 +2634,7 @@ pub fn rubocop_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>)
 }
 
 /// `--autocorrect` applies only the cops rubocop marks safe; `--autocorrect-all` adds the unsafe ones.
+#[must_use]
 pub fn rubocop_lint_fix(
     binary: &Path,
     files: &[&Path],
@@ -2489,6 +2649,7 @@ pub fn rubocop_lint_fix(
     optional_flag(binary, args, "--config", config, SCALAFMT_EMPTY, files, "")
 }
 
+#[must_use]
 pub fn psscriptanalyzer_check(
     binary: &Path,
     files: &[&Path],
@@ -2506,6 +2667,7 @@ pub fn psscriptanalyzer_check(
 }
 
 /// `Invoke-Formatter` in report mode: one JSON entry per file, never a write.
+#[must_use]
 pub fn psscriptanalyzer_format_check(
     binary: &Path,
     files: &[&Path],
@@ -2523,6 +2685,7 @@ pub fn psscriptanalyzer_format_check(
 }
 
 /// `Invoke-Formatter` in write mode: rewrites changed files and exits non-zero on any unparsed file.
+#[must_use]
 pub fn psscriptanalyzer_format_fix(
     binary: &Path,
     files: &[&Path],
@@ -2614,22 +2777,26 @@ pub fn ansible_lint_fix(
 }
 
 /// `format --newline-kind LF --stdout FILE`: prints the formatted file; Bicep has no check mode.
+#[must_use]
 pub fn bicep_format_check(binary: &Path, file: &Path) -> Invocation {
     fixed(binary, BICEP_FORMAT_CHECK_ARGS, &[file], "")
 }
 
 /// `format --newline-kind LF FILE` rewrites the file in place.
+#[must_use]
 pub fn bicep_format_fix(binary: &Path, file: &Path) -> Invocation {
     fixed(binary, BICEP_FORMAT_FIX_ARGS, &[file], "")
 }
 
 /// `build --no-restore --stdout FILE`: prints the ARM JSON template for one Bicep file.
+#[must_use]
 pub fn bicep_build_stdout(binary: &Path, file: &Path) -> Invocation {
     fixed(binary, BICEP_BUILD_ARGS, &[file], "")
 }
 
 /// `lint --no-restore --diagnostics-format sarif FILE`; `--no-restore` keeps a `br:` module
 /// from being fetched, so an unrestored reference is an error diagnostic.
+#[must_use]
 pub fn bicep_lint_check(binary: &Path, file: &Path) -> Invocation {
     fixed(binary, BICEP_LINT_ARGS, &[file], "")
 }
@@ -2700,6 +2867,7 @@ fn sqlfluff_invocation(
 }
 
 /// `sqlfluff lint --format json` with every rule.
+#[must_use]
 pub fn sqlfluff_check(binary: &Path, files: &[&Path], config: &Path, dialect: &str) -> Invocation {
     sqlfluff_invocation(
         binary,
@@ -2711,6 +2879,7 @@ pub fn sqlfluff_check(binary: &Path, files: &[&Path], config: &Path, dialect: &s
 }
 
 /// `sqlfluff lint --format json` limited to the rules `sqlfluff format` applies.
+#[must_use]
 pub fn sqlfluff_format_check(
     binary: &Path,
     files: &[&Path],
@@ -2727,6 +2896,7 @@ pub fn sqlfluff_format_check(
 }
 
 /// `sqlfluff format` in place.
+#[must_use]
 pub fn sqlfluff_format_fix(
     binary: &Path,
     files: &[&Path],
@@ -2740,6 +2910,7 @@ pub fn sqlfluff_format_fix(
 ///
 /// `--dx-ref-map` is read by dx's wrapper, which serves pinned `$ref` targets from disk and
 /// refuses every other download. `-vv` makes the JSON report list every checked file.
+#[must_use]
 pub fn check_jsonschema_check(
     binary: &Path,
     ref_map: &Path,
@@ -2765,6 +2936,7 @@ pub fn check_jsonschema_check(
     assemble(binary, head, files, "")
 }
 
+#[must_use]
 pub fn yamllint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     match config {
         Some(_) => optional_flag(
@@ -2789,6 +2961,7 @@ pub fn yamllint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> 
 }
 
 /// `--rcfile=<config>` when one is declared, else `--norc`; never both, as `--norc` drops an explicit rcfile.
+#[must_use]
 pub fn shellcheck_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     let suffix = if config.is_some() {
         &[][..]
@@ -2807,6 +2980,7 @@ pub fn shellcheck_check(binary: &Path, files: &[&Path], config: Option<&Path>) -
 }
 
 /// Always `--config-file <config>`: without it regal searches upward for `.regal/`, which is not hermetic.
+#[must_use]
 pub fn regal_lint(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     required_flag(
         binary,
@@ -2821,6 +2995,7 @@ pub fn regal_lint(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
 
 /// Always `--hint=<config>`: without it hlint searches the cwd and its parents for `.hlint.yaml`.
 /// A config holding `[]` keeps the built-in hints.
+#[must_use]
 pub fn hlint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     let mut flag = OsString::from("--hint=");
     flag.push(config.as_os_str());
@@ -2833,6 +3008,7 @@ pub fn hlint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation 
     assemble(binary, head, files, "")
 }
 
+#[must_use]
 pub fn actionlint_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ACTIONLINT_PREFIX, files, "")
 }
@@ -2848,6 +3024,7 @@ pub fn zizmor_check(binary: &Path, files: &[&Path], persona: &str) -> Invocation
 }
 
 /// Always `--config <config>`: without it hadolint reads the cwd, XDG and HOME configs.
+#[must_use]
 pub fn hadolint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
         binary,
@@ -2914,6 +3091,7 @@ pub fn container_structure_test_check(
 
 /// Always `--config <config>`: checkmake otherwise falls back to `$HOME/checkmake.ini`.
 /// `--debug` makes it log the config it loaded, which the parser requires.
+#[must_use]
 pub fn checkmake_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
         binary,
@@ -2959,6 +3137,7 @@ pub fn deadnix_check(
     assemble(binary, head, files, "")
 }
 
+#[must_use]
 pub fn deadnix_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DEADNIX_FIX_ARGS, files, "")
 }
@@ -3015,6 +3194,10 @@ fn schema_dir(base: &Path, key: &str, rel: &str) -> Result<PathBuf, String> {
 }
 
 /// Parses a kubeconform config; its schema directories resolve against the config's directory.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn kubeconform_config(config: &Path, bytes: &[u8]) -> Result<KubeconformConfig, String> {
     let name = config
         .file_name()
@@ -3068,6 +3251,10 @@ fn schema_location(dir: &Path, template: &str) -> Result<String, String> {
 }
 
 /// Exactly two local schema locations; never `-ignore-missing-schemas`. `strict` is the strict tier.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn kubeconform_check(
     binary: &Path,
     config: &KubeconformConfig,
@@ -3100,6 +3287,7 @@ pub fn kubeconform_check(
 }
 
 /// `helm lint <chart> --quiet --kube-version V -f <values>...`; never fetches dependencies.
+#[must_use]
 pub fn helm_lint(
     binary: &Path,
     chart_dir: &Path,
@@ -3119,6 +3307,7 @@ pub fn helm_lint(
 }
 
 /// `helm template <release> <chart> --namespace NS --kube-version V -f <values>...`.
+#[must_use]
 pub fn helm_template(
     binary: &Path,
     release: &str,
@@ -3149,26 +3338,32 @@ fn helm_values(head: &mut Vec<OsString>, values: &[&Path]) {
     }
 }
 
+#[must_use]
 pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KEEP_SORTED_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn typos_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(binary, &[], "--config", config, TYPOS_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn typos_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(binary, &[], "--config", config, TYPOS_FIX_ARGS, files, "")
 }
 
+#[must_use]
 pub fn notebook_outputs_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, NOTEBOOK_OUTPUTS_CHECK_ARGS, files, "")
 }
 
+#[must_use]
 pub fn notebook_outputs_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, NOTEBOOK_OUTPUTS_FIX_ARGS, files, "")
 }
 
+#[must_use]
 pub fn keep_sorted_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KEEP_SORTED_FIX_ARGS, files, "")
 }
@@ -3185,7 +3380,7 @@ pub const LAUNCHER_BATCH_BUDGET: usize = 6_000;
 /// cmd.exe command-line limit of 8,191 characters, less room for quoting.
 pub const LAUNCHER_COMMAND_LINE_LIMIT: usize = 8_000;
 
-/// CreateProcess command-line limit of 32,767 characters, less room for quoting.
+/// `CreateProcess` command-line limit of 32,767 characters, less room for quoting.
 pub const WINDOWS_COMMAND_LINE_LIMIT: usize = 32_000;
 
 /// How a tool carries its input files across the process boundary.
@@ -3196,6 +3391,7 @@ pub enum ArgTransport {
 }
 
 /// The transport a tool proved: Batched tools report each file independently of the others.
+#[must_use]
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
         "actionlint" | "helmfmt" | "keep_sorted" | "typos" | "lychee" | "notebook_outputs"
@@ -3214,6 +3410,7 @@ pub fn is_batch_launcher(program: &OsStr) -> bool {
 }
 
 /// The batch budget for spawns of one program.
+#[must_use]
 pub fn argv_budget(program: &OsStr) -> usize {
     if is_batch_launcher(program) {
         LAUNCHER_BATCH_BUDGET
@@ -3223,6 +3420,7 @@ pub fn argv_budget(program: &OsStr) -> usize {
 }
 
 /// The Windows command-line limit for spawns of one program.
+#[must_use]
 pub fn windows_argv_limit(program: &OsStr) -> Option<usize> {
     if is_batch_launcher(program) {
         Some(LAUNCHER_COMMAND_LINE_LIMIT)
@@ -3232,6 +3430,7 @@ pub fn windows_argv_limit(program: &OsStr) -> Option<usize> {
 }
 
 /// The host's command-line limit for one program: the Windows rule on Windows, none elsewhere.
+#[must_use]
 pub fn native_argv_limit(program: &OsStr) -> Option<usize> {
     if cfg!(windows) {
         windows_argv_limit(program)
@@ -3244,6 +3443,7 @@ pub fn native_argv_limit(program: &OsStr) -> Option<usize> {
 ///
 /// Byte length bounds Unix argv while UTF-16 units bound the Windows command line. Lossy
 /// text keeps the estimate on the safe side for names outside Unicode.
+#[must_use]
 pub fn argv_sizes(arg: &OsStr) -> (usize, usize) {
     let bytes = arg.as_encoded_bytes().len();
     let units = arg.to_string_lossy().encode_utf16().count();
@@ -3251,6 +3451,7 @@ pub fn argv_sizes(arg: &OsStr) -> (usize, usize) {
 }
 
 /// The argv cost of a whole command line in bytes and UTF-16 code units, one separator each.
+#[must_use]
 pub fn argv_cost(argv: &[OsString]) -> (usize, usize) {
     let mut bytes = 0usize;
     let mut units = 0usize;
@@ -3267,6 +3468,7 @@ pub fn argv_cost(argv: &[OsString]) -> (usize, usize) {
 /// Batches keep input order, pass files as separate argv entries with no shell, and put an
 /// oversized single file in a batch of its own. An empty selection keeps one empty batch so
 /// callers spawn exactly as before.
+#[must_use]
 pub fn plan_batches<'a>(head: &[OsString], files: &[&'a Path]) -> Vec<Vec<&'a Path>> {
     let budget = head
         .first()
@@ -3275,6 +3477,7 @@ pub fn plan_batches<'a>(head: &[OsString], files: &[&'a Path]) -> Vec<Vec<&'a Pa
 }
 
 /// Splits input files against an explicit budget for tests.
+#[must_use]
 pub fn plan_batches_with_budget<'a>(
     head: &[OsString],
     files: &[&'a Path],
@@ -3309,6 +3512,10 @@ pub fn plan_batches_with_budget<'a>(
 /// Each file costs what it adds to the built argv, so per-file flags count against the
 /// budget. Batches keep input order, an oversized file runs alone, and an empty selection
 /// keeps one empty batch.
+///
+/// # Errors
+///
+/// Returns the error produced by the callback.
 pub fn plan_invocation_batches<'a, E>(
     files: &[&'a Path],
     build: impl Fn(&[&Path]) -> Result<Invocation, E>,
@@ -3322,6 +3529,10 @@ pub fn plan_invocation_batches<'a, E>(
 }
 
 /// Splits input files against an explicit budget for tests.
+///
+/// # Errors
+///
+/// Returns the error produced by the callback.
 pub fn plan_invocation_batches_with_budget<'a, E>(
     files: &[&'a Path],
     build: impl Fn(&[&Path]) -> Result<Invocation, E>,

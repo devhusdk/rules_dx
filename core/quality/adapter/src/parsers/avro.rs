@@ -48,6 +48,10 @@ fn idl_position(message: &str) -> Option<(u64, u64)> {
 /// A failed run prints a Java exception. Its message becomes one error on the
 /// first checked file. Exit 0 is clean. Exit 1 without an exception line, or
 /// any other exit, is a shape error and never clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_avro(
     stdout: &[u8],
     stderr: &[u8],
@@ -118,6 +122,7 @@ pub fn parse_avro(
 }
 
 /// The paths an `.avdl` source imports, as written.
+#[must_use]
 pub fn avdl_imports(source: &str) -> Vec<String> {
     let mut paths = Vec::new();
     for line in source.lines() {
@@ -155,11 +160,8 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(
-            parse("Input files to compile:\n  /s/a.avsc\n", Some(0))
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse("Input files to compile:\n  /s/a.avsc\n", Some(0)).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

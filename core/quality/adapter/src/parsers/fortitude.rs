@@ -48,6 +48,10 @@ fn position(what: &str, at: &Position) -> Result<TextPosition, ParseError> {
 /// unreadable files (`E000`) are diagnostics in the same array, so they are findings, not
 /// failures to run. Any other exit (2 is a usage error) or an exit that disagrees with the array
 /// is an error here and never a clean result.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_fortitude(
     stdout: &[u8],
     code: Option<i32>,
@@ -108,11 +112,8 @@ mod tests {
 
     #[test]
     fn fortitude_is_clean_on_an_empty_array_and_exit_zero() {
-        assert!(
-            parse_fortitude(b"[]", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_fortitude(b"[]", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

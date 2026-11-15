@@ -21,6 +21,9 @@ fn is_caret(line: &str) -> bool {
     !trimmed.is_empty() && trimmed.bytes().all(|b| b == b'^')
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_clang_format(
     stderr: &[u8],
     code: Option<i32>,
@@ -89,7 +92,7 @@ mod tests {
         assert_eq!(findings[0].finding.start.column, 11);
         let clean = parse_clang_format(b"", Some(0), &["cc/tests/fixtures/clang_format/Sample.c"])
             .expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(
             parse_clang_format(b"", Some(1), &["cc/tests/fixtures/clang_format/Sample.c"]).is_err()
         );

@@ -96,6 +96,10 @@ fn finding(
 /// exit may only be 0, 1 or 4, a non-zero exit needs a finding, and a clean exit needs empty
 /// stderr. Any line that is not a header, an unreadable-file notice or the context of a header
 /// is an error here and never a clean result.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_xmllint(
     stderr: &[u8],
     code: Option<i32>,
@@ -160,11 +164,8 @@ mod tests {
 
     #[test]
     fn xmllint_is_clean_on_exit_zero_and_empty_stderr() {
-        assert!(
-            parse_xmllint(b"", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_xmllint(b"", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

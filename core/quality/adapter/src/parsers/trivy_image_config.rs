@@ -40,6 +40,10 @@ fn entries<'a>(
 /// `Results[].Secrets[]` are the findings. Every finding lands on `file` line 1 and names the image
 /// `name`; a secret found in a layer file also names that file. CRITICAL and HIGH are errors, MEDIUM
 /// warnings, LOW and UNKNOWN info.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_trivy_image_config(
     stdout: &[u8],
     stderr: &[u8],
@@ -124,9 +128,11 @@ mod tests {
 
     #[test]
     fn a_clean_run_has_no_results() {
-        assert!(parse("{\"SchemaVersion\":2}").expect("parsed").is_empty());
+        let actual = parse("{\"SchemaVersion\":2}").expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         let passing = r#"{"Results":[{"Target":"/out/image","Misconfigurations":null}]}"#;
-        assert!(parse(passing).expect("parsed").is_empty());
+        let actual = parse(passing).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

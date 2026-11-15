@@ -43,6 +43,7 @@ pub struct UnusedDependency {
 }
 
 impl UnusedDependency {
+    #[must_use]
     pub fn message(&self) -> String {
         format!(
             "`{}` is in deps of `{}` but no source uses it",
@@ -52,6 +53,10 @@ impl UnusedDependency {
 }
 
 /// Reads the diagnostics and `dx_crate_deps` lines and names every unused dependency once.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_unused_dependencies(stream: &[u8]) -> Result<Vec<UnusedDependency>, ParseError> {
     let tool = "rustc";
     let text = std::str::from_utf8(stream).map_err(|err| ParseError::Shape {
@@ -153,6 +158,6 @@ mod tests {
     #[test]
     fn ignores_crates_without_a_dep_entry() {
         let found = parse_unused_dependencies(stream("other").as_bytes()).expect("parsed");
-        assert!(found.is_empty());
+        assert!(found.is_empty(), "{found:?}");
     }
 }

@@ -1,5 +1,8 @@
 use super::{FileFinding, ParseError, Spelling, listed_paths};
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_modfmt(
     stdout: &[u8],
     code: Option<i32>,
@@ -21,7 +24,7 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].file, "app.mod");
         let clean = parse_modfmt(b"", Some(0), &["app.mod"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_modfmt(b"", Some(1), &["app.mod"]).is_err());
         assert!(parse_modfmt(DIRTY.as_bytes(), Some(1), &["other.mod"]).is_err());
         assert!(parse_modfmt(&[0xff], Some(0), &["x"]).is_err());

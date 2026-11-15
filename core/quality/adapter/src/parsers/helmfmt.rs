@@ -12,6 +12,10 @@ const SYNTAX: &str = "Invalid syntax ";
 /// template errors alike. Exit 1 is read from stderr records: `[UNFORMATTED] <path>` and
 /// `[ERROR]  [Invalid syntax ]<path>: <message>`, followed by a blank line and a count line. Anything
 /// else is a shape error and never reads as clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_helmfmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -123,12 +127,10 @@ mod tests {
     #[test]
     fn helmfmt_clean_is_empty() {
         let clean = b"All 3 file(s) are properly formatted\n";
-        assert!(
-            parse_helmfmt(clean, b"", Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
-        assert!(run("", Some(0)).expect("ok").is_empty());
+        let actual = parse_helmfmt(clean, b"", Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = run("", Some(0)).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

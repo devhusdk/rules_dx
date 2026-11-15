@@ -8,6 +8,10 @@ use super::{FileFinding, ParseError, as_text, finding, require_findings};
 const TOOL: &str = "ghc";
 
 /// `ghc -fno-code -fdiagnostics-as-json` output: one JSON diagnostic per stderr line.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ghc(
     output: &[u8],
     code: Option<i32>,
@@ -201,7 +205,7 @@ mod tests {
     #[test]
     fn ghc_skips_non_json_lines_on_a_clean_run() {
         let found = parse_ghc(b"[1 of 1] Compiling A\n", Some(0), &[FILE]).expect("parsed");
-        assert!(found.is_empty());
+        assert!(found.is_empty(), "{found:?}");
     }
 
     #[test]

@@ -245,7 +245,8 @@ mod tests {
 
     #[test]
     fn read_fails_closed() {
-        assert!(run("", 0).expect("clean").is_empty());
+        let actual = run("", 0).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(run("", 1).is_err());
         assert!(read(&DIALECT, b"", None, &[FILE]).is_err());
         assert!(run("src/a.c:1:1: warning: odd\n", 1).is_err());

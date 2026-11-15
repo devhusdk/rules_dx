@@ -11,6 +11,10 @@ const TOOL: &str = "jet";
 /// deepest frame inside an owned file; a report with no owned frame is dropped. The rule
 /// is `jet/<kind>` and the severity is error. `files` holds the owned paths as the run
 /// spells them.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_jet(report: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
     let text = as_text(TOOL, report)?;
     let mut findings: Vec<FileFinding> = Vec::new();
@@ -123,12 +127,10 @@ mod tests {
 
     #[test]
     fn jet_empty_reports_have_no_findings() {
-        assert!(parse_jet(b"", &["/s/a.jl"]).expect("empty").is_empty());
-        assert!(
-            parse_jet(REPORT.as_bytes(), &["/s/other.jl"])
-                .expect("other")
-                .is_empty()
-        );
+        let actual = parse_jet(b"", &["/s/a.jl"]).expect("empty");
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = parse_jet(REPORT.as_bytes(), &["/s/other.jl"]).expect("other");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

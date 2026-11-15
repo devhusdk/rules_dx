@@ -10,6 +10,10 @@ const TOOL: &str = "swift_lint";
 /// Every stderr line must be `file:LINE:COL: error: message` for one of `files`. A message that
 /// starts with `[Rule]` is a style finding named by that rule; any other message is a syntax
 /// error. Exit 0 with lines, exit 1 without lines and any other exit are errors, never a clean run.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_swift_lint(
     stdout: &[u8],
     stderr: &[u8],
@@ -99,11 +103,8 @@ mod tests {
 
     #[test]
     fn swift_lint_is_clean_on_exit_zero_without_lines() {
-        assert!(
-            parse_swift_lint(b"", b"", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_swift_lint(b"", b"", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

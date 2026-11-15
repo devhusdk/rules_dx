@@ -31,6 +31,9 @@ fn pydoclint_violation(line: &str) -> Result<(u64, &str, String), ParseError> {
     Ok((number, rule, message.to_owned()))
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_pydoclint(
     stderr: &[u8],
     code: Option<i32>,
@@ -108,11 +111,8 @@ mod tests {
             (TextPosition { line: 4, column: 1 }, None)
         );
         assert_eq!(findings[1].finding.rule_id, "DOC201");
-        assert!(
-            parse_pydoclint(b"", Some(0), &["/s/a.py"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_pydoclint(b"", Some(0), &["/s/a.py"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_pydoclint(b"", Some(1), &["/s/a.py"]).is_err());
         assert!(parse_pydoclint(stderr.as_bytes(), Some(1), &["/s/other.py"]).is_err());
         assert!(parse_pydoclint(b"    4: DOC101: msg\n", Some(1), &["/s/a.py"]).is_err());

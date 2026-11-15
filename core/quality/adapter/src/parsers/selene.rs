@@ -61,6 +61,10 @@ fn position(line: u64, column: u64) -> Result<TextPosition, ParseError> {
 /// with no diagnostics is a tool failure (missing file, bad std or config) and is an error, as is
 /// any other exit, any non-JSON line and any finding for a file that was not passed. A parse
 /// error is a diagnostic with code `parse_error`, so it is a finding.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_selene(
     stdout: &[u8],
     code: Option<i32>,
@@ -141,17 +145,11 @@ mod tests {
 
     #[test]
     fn selene_is_clean_on_no_output_and_exit_zero() {
-        assert!(
-            parse_selene(b"", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_selene(b"", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         let summary = br#"{"type":"Summary","errors":0,"warnings":0,"parse_errors":0}"#;
-        assert!(
-            parse_selene(summary, Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_selene(summary, Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

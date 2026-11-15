@@ -18,6 +18,10 @@ const TOOL: &str = "docstrfmt";
 /// - an unreadable file or invalid config prints other lines and `Done, but ...`.
 ///
 /// Anything outside that shape is an error and never a clean run.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_docstrfmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -118,11 +122,8 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(
-            parse_docstrfmt(b"", CLEAN.as_bytes(), Some(0), &FILES)
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_docstrfmt(b"", CLEAN.as_bytes(), Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

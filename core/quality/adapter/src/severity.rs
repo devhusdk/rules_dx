@@ -9,6 +9,7 @@ pub struct ToolSeverityMap {
 }
 
 /// Returns the mapped severity for a rule, or `parsed` when the tool has no matching entry.
+#[must_use]
 pub fn resolve(
     table: &[(&str, ToolSeverityMap)],
     tool_id: &str,

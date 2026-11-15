@@ -11,7 +11,8 @@ const PARSE_ERROR: &str = "Parse error";
 #[serde(rename_all = "camelCase")]
 struct Hint {
     severity: String,
-    hint: String,
+    #[serde(rename = "hint")]
+    message: String,
     file: String,
     start_line: u64,
     start_column: u64,
@@ -34,17 +35,17 @@ fn severity(value: &str) -> Result<ToolSeverity, ParseError> {
 }
 
 fn message(hint: &Hint) -> String {
-    if hint.hint.starts_with(PARSE_ERROR) {
-        return hint.hint.clone();
+    if hint.message.starts_with(PARSE_ERROR) {
+        return hint.message.clone();
     }
     match (hint.from.as_deref(), hint.to.as_deref()) {
         (Some(from), Some(to)) if !from.is_empty() => {
-            format!("{}: found `{}`, perhaps `{}`", hint.hint, from, to)
+            format!("{}: found `{}`, perhaps `{}`", hint.message, from, to)
         }
         (Some(from), None) if !from.is_empty() => {
-            format!("{}: found `{}`, perhaps remove it", hint.hint, from)
+            format!("{}: found `{}`, perhaps remove it", hint.message, from)
         }
-        _ => hint.hint.clone(),
+        _ => hint.message.clone(),
     }
 }
 
@@ -52,6 +53,10 @@ fn message(hint: &Hint) -> String {
 /// non-empty array and exit 1 otherwise. A parse error is a hint with severity `Error`. A missing
 /// file or an undecodable file also exits 1 but prints no array, and a missing system library
 /// exits 127 with a loader message on stderr; all of those are errors here and never clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_hlint(
     stdout: &[u8],
     stderr: &[u8],
@@ -93,10 +98,10 @@ pub fn parse_hlint(
             line: hint.end_line,
             column: hint.end_column,
         });
-        let rule_id = if hint.hint.starts_with(PARSE_ERROR) {
+        let rule_id = if hint.message.starts_with(PARSE_ERROR) {
             PARSE_ERROR.to_owned()
         } else {
-            hint.hint.clone()
+            hint.message.clone()
         };
         findings.push(FileFinding {
             file: checked.to_owned(),
@@ -136,7 +141,8 @@ mod tests {
 
     #[test]
     fn hlint_is_clean_on_an_empty_array_and_exit_zero() {
-        assert!(parse("[]", 0).expect("parsed").is_empty());
+        let actual = parse("[]", 0).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

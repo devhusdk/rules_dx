@@ -156,6 +156,9 @@ fn is_compiler_rule(run: &Value, result: &Value) -> bool {
         .is_some_and(|digits| !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()))
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_roslyn(
     sarif: &[u8],
     code: Option<i32>,
@@ -165,6 +168,10 @@ pub fn parse_roslyn(
 }
 
 /// Compiler diagnostics (CS*) only, taken from the same SARIF log as roslyn.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_csc(
     sarif: &[u8],
     code: Option<i32>,
@@ -299,10 +306,14 @@ struct MappedDep {
     refs: Vec<String>,
 }
 
-/// Names the direct dependencies whose every reference assembly ReferenceTrimmer reports as unused.
+/// Names the direct dependencies whose every reference assembly `ReferenceTrimmer` reports as unused.
 ///
-/// `map` is the aspect's list of direct dependencies. ReferenceTrimmer words each finding
+/// `map` is the aspect's list of direct dependencies. `ReferenceTrimmer` words each finding
 /// "Reference <label> can be removed", with the label the aspect wrote as the spec.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_unused_references(
     sarif: &[u8],
     map: &[u8],
@@ -399,7 +410,7 @@ mod tests {
             &["csharp/tests/fixtures/roslyn/Sample.cs"],
         )
         .expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_exit_zero(SINGLE.as_bytes(), &["other.cs"]).is_err());
         assert!(parse_exit_zero(b"not json", &["x"]).is_err());
         assert!(parse_exit_zero(&[0xff], &["x"]).is_err());
@@ -647,7 +658,7 @@ mod tests {
     fn csc_ignores_analyzer_only_failures() {
         let log = r#"{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "csc"}}, "results": [{"ruleId": "CA2000", "level": "error", "message": {"text": "x"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "a.cs"}, "region": {"startLine": 1, "startColumn": 1}}}]}]}]}"#;
         let found = parse_csc(log.as_bytes(), Some(1), &["a.cs"]).expect("clean");
-        assert!(found.is_empty());
+        assert!(found.is_empty(), "{found:?}");
     }
 
     #[test]
@@ -695,7 +706,7 @@ mod tests {
     fn reference_trimmer_keeps_a_dependency_with_one_used_assembly() {
         let log = trimmer(&["Reference @@//app:pair can be removed"]);
         let found = parse_unused_references(log.as_bytes(), DEPS.as_bytes()).expect("parsed");
-        assert!(found.is_empty());
+        assert!(found.is_empty(), "{found:?}");
         let both = trimmer(&[
             "Reference @@//app:pair can be removed",
             "Reference @@//app:pair can be removed",
@@ -708,7 +719,7 @@ mod tests {
     fn reference_trimmer_results_are_not_roslyn_failures() {
         let log = trimmer(&["Reference @@//app:unused can be removed"]);
         let findings = parse_exit_zero(log.as_bytes(), &["a.cs"]).expect("parsed");
-        assert!(findings.is_empty());
+        assert!(findings.is_empty(), "{findings:?}");
     }
 
     #[test]

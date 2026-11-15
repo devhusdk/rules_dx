@@ -47,6 +47,10 @@ fn position(line: u64) -> Result<TextPosition, ParseError> {
 /// any exit other than 0 is an error, as is a finding with no rule id, a line below 1, a
 /// malformed line and a finding for a file that was not listed. zanuda prints every finding as
 /// `INFO`; the level carries no information, so each finding is a warning.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_zanuda(
     report: &[u8],
     code: Option<i32>,
@@ -107,11 +111,8 @@ mod tests {
 
     #[test]
     fn zanuda_is_clean_on_an_empty_report() {
-        assert!(
-            parse_zanuda(b"", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_zanuda(b"", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

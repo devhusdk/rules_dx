@@ -7,6 +7,10 @@ const TOOL: &str = "lychee";
 ///
 /// Failed links sit under `error_map` (`fail_map` before 0.20) and `timeout_map`, keyed by
 /// the file lychee was given.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_lychee(
     stdout: &[u8],
     stderr: &[u8],
@@ -110,7 +114,7 @@ mod tests {
     fn lychee_clean_run_is_clean() {
         let found =
             parse_lychee(CLEAN.as_bytes(), b"", Some(0), &["/s/README.md"]).expect("parsed");
-        assert!(found.is_empty());
+        assert!(found.is_empty(), "{found:?}");
     }
 
     #[test]

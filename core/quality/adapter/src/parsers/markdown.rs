@@ -11,18 +11,21 @@ struct MarkdownLine {
     message: String,
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_markdown_findings(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "markdown_check";
-    check_output_size(TOOL, stdout)?;
     const KINDS: &[&str] = &[
         "heading-hierarchy",
         "missing-code-fence-language",
         "unclosed-code-fence",
     ];
+    check_output_size(TOOL, stdout)?;
     if code != Some(0) {
         return Err(ParseError::Shape {
             tool: TOOL,
@@ -98,12 +101,10 @@ mod tests {
             (TextPosition { line: 3, column: 1 }, None)
         );
         assert_eq!(findings[1].finding.rule_id, "unclosed-code-fence");
-        assert!(findings[0].finding.suggestions.is_empty());
-        assert!(
-            parse_markdown_findings(b"\n", Some(0), &["doc/guide.md"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = &findings[0].finding.suggestions;
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = parse_markdown_findings(b"\n", Some(0), &["doc/guide.md"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

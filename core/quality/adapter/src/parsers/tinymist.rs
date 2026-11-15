@@ -10,6 +10,10 @@ const RULE_ID: &str = "tinymist/lint";
 /// tool exits 1 when it printed any. Diagnostics for files outside `files` (modules the file
 /// imports) are dropped, but they still count as output. Exit 0 with output, exit 1 without
 /// output, any other exit and any line outside the format are errors, never a clean run.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_tinymist(
     stdout: &[u8],
     stderr: &[u8],
@@ -108,7 +112,8 @@ mod tests {
 
     #[test]
     fn tinymist_clean_is_empty() {
-        assert!(parse("", 0).expect("parsed").is_empty());
+        let actual = parse("", 0).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -146,7 +151,7 @@ mod tests {
     #[test]
     fn tinymist_drops_files_that_were_not_passed() {
         let out = parse("/s/lib.typ:1:1: error: bad\n", 1).expect("parsed");
-        assert!(out.is_empty());
+        assert!(out.is_empty(), "{out:?}");
     }
 
     #[test]

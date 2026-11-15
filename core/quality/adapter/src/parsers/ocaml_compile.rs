@@ -20,6 +20,10 @@ struct Pending {
 /// indented lines. Columns are 0-based bytes. Fails closed: a diagnostic in a file that is
 /// not owned, a nonzero exit without an error for an owned file, and exit 0 with an error
 /// are never a clean run.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ocaml_compile(
     output: &[u8],
     code: Option<i32>,
@@ -185,11 +189,8 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(
-            parse_ocaml_compile(b"", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_ocaml_compile(b"", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

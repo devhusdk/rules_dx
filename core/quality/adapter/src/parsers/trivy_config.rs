@@ -13,6 +13,10 @@ fn text<'a>(value: &'a serde_json::Value, key: &str) -> Result<&'a str, ParseErr
 
 /// Parses `trivy config --format json --exit-code 0`: one report whose `Results[].Misconfigurations[]`
 /// are the findings. CRITICAL and HIGH are errors, MEDIUM warnings, LOW and UNKNOWN info.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_trivy_config(
     stdout: &[u8],
     stderr: &[u8],
@@ -106,13 +110,10 @@ mod tests {
     fn a_clean_run_has_no_results() {
         let clean = parse_trivy_config(b"{\"SchemaVersion\":2}", b"", Some(0), &["Dockerfile"])
             .expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         let passing = br#"{"Results":[{"Target":"Dockerfile","Misconfigurations":null}]}"#;
-        assert!(
-            parse_trivy_config(passing, b"", Some(0), &["Dockerfile"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_trivy_config(passing, b"", Some(0), &["Dockerfile"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

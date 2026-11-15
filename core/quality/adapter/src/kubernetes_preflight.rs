@@ -42,6 +42,7 @@ pub struct Document {
 
 impl Document {
     /// The position of a JSON pointer, falling back to its nearest known ancestor.
+    #[must_use]
     pub fn locate(&self, pointer: &str) -> (u64, u64) {
         let mut at = pointer;
         loop {
@@ -72,12 +73,12 @@ fn syntax(line: usize, col: usize, detail: &str) -> Problem {
     }
 }
 
-fn syntax_at(err: SyntaxAt) -> Problem {
+fn syntax_at(err: &SyntaxAt) -> Problem {
     syntax(err.line, err.col, &err.detail)
 }
 
 fn scan_yaml(text: &str) -> Result<Vec<Raw>, Problem> {
-    scan(text, CAPTURED).map_err(syntax_at)
+    scan(text, CAPTURED).map_err(|err| syntax_at(&err))
 }
 
 fn decode(bytes: &[u8]) -> Result<(&str, usize), Problem> {
@@ -163,7 +164,7 @@ fn json_document(text: &str, bom: usize) -> Result<Option<Document>, Problem> {
             ..Document::default()
         },
     };
-    document.text = text.to_owned();
+    text.clone_into(&mut document.text);
     document.api_version = field("/apiVersion");
     document.kind = field("/kind");
     document.name = field("/metadata/name");
@@ -171,6 +172,7 @@ fn json_document(text: &str, bom: usize) -> Result<Option<Document>, Problem> {
 }
 
 /// Splits one owned file into the documents kubeconform checks and the problems it never sees.
+#[must_use]
 pub fn check_file(path: &str, bytes: &[u8]) -> Preflight {
     let mut out = Preflight::default();
     let (text, bom) = match decode(bytes) {
@@ -180,7 +182,10 @@ pub fn check_file(path: &str, bytes: &[u8]) -> Preflight {
             return out;
         }
     };
-    let documents = if path.ends_with(".json") {
+    let documents = if std::path::Path::new(path)
+        .extension()
+        .is_some_and(|ext| ext == "json")
+    {
         json_document(text, bom).map(|document| document.map(|d| (d, false)).into_iter().collect())
     } else {
         yaml_documents(text, bom)
@@ -280,8 +285,10 @@ mod tests {
         let checked = check_file("m.yaml", b"---\n---\napiVersion: v1\nkind: Pod\n---\n");
         assert!(checked.problems.is_empty(), "{:?}", checked.problems);
         assert_eq!(checked.documents.len(), 1);
-        assert!(check_file("m.yaml", b"").documents.is_empty());
-        assert!(check_file("m.yaml", b"# only\n").documents.is_empty());
+        let actual = check_file("m.yaml", b"").documents;
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = check_file("m.yaml", b"# only\n").documents;
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -292,7 +299,7 @@ mod tests {
         assert_eq!(checked.problems[0].rule, RULE_NOT_MANIFEST);
         assert_eq!(checked.problems[0].line, 4);
         let only_kind = check_file("m.yaml", b"kind: Pod\n");
-        assert!(only_kind.problems.is_empty());
+        assert!(only_kind.problems.is_empty(), "{:?}", only_kind.problems);
         assert_eq!(only_kind.documents.len(), 1);
         let list = check_file("m.yaml", b"- a\n");
         assert_eq!(list.problems[0].rule, RULE_NOT_MANIFEST);
@@ -321,7 +328,7 @@ mod tests {
     fn syntax_errors_are_located() {
         let checked = check_file("m.yaml", b"apiVersion: v1\nkind: [\n");
         assert_eq!(checked.problems[0].rule, RULE_SYNTAX);
-        assert!(checked.documents.is_empty());
+        assert!(checked.documents.is_empty(), "{:?}", checked.documents);
         let checked = check_file("p.json", b"{\n  \"a\": }");
         assert_eq!(checked.problems[0].rule, RULE_SYNTAX);
         assert_eq!(checked.problems[0].line, 2);

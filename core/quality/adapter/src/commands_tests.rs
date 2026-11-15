@@ -1058,6 +1058,12 @@ fn structured_checks_encode_pinned_shapes() {
             "/scratch"
         ]
     );
+}
+
+#[test]
+fn structured_checks_encode_pinned_shapes_part2() {
+    let proto = Path::new("/scratch/proto/hello.proto");
+    let root = Path::new("/scratch");
     let fix = buf_format_fix(Path::new(BIN), &[proto], root);
     assert_eq!(
         argv_strings(&fix),
@@ -1238,6 +1244,11 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     assert!(safe.contains(&"--autocorrect".to_owned()), "{safe:?}");
     let all = argv_strings(&rubocop_lint_fix(Path::new(BIN), &[rb], None, true));
     assert!(all.contains(&"--autocorrect-all".to_owned()), "{all:?}");
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part2() {
+    let rb = Path::new("/scratch/Sample.rb");
     assert_eq!(
         argv_strings(&rubocop_format_fix(
             Path::new(BIN),
@@ -1300,6 +1311,12 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/Makefile"
         ]
     );
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part3() {
+    let make = Path::new("/scratch/Makefile");
+    let mbake_config = Path::new("/scratch/.bake.toml");
     assert_eq!(
         argv_strings(&mbake_fix(Path::new(BIN), &[make], mbake_config)),
         vec![
@@ -1363,6 +1380,11 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         )),
         selene_configured
     );
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part4() {
+    let lua = Path::new("/scratch/sample.lua");
     let zanuda = zanuda_check(
         Path::new(BIN),
         Path::new("/scratch/dx-zanuda/list.tsv"),
@@ -1432,6 +1454,12 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     let ffmt_files = [Path::new("/scratch/a.f90")];
     let ffmt_check_argv = ffmt_check(Path::new(BIN), &ffmt_files, "dx-ffmt-default");
     assert_eq!(ffmt_check_argv.cwd_rel, "dx-ffmt-default");
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part5() {
+    let ffmt_files = [Path::new("/scratch/a.f90")];
+    let ffmt_check_argv = ffmt_check(Path::new(BIN), &ffmt_files, "dx-ffmt-default");
     assert_eq!(
         argv_strings(&ffmt_check_argv),
         vec![
@@ -1493,6 +1521,10 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/a.f90"
         ]
     );
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part6() {
     assert_eq!(
         argv_strings(&xmllint_check(
             Path::new(BIN),
@@ -1563,6 +1595,11 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&typstyle_check(Path::new(BIN), &[typst])),
         vec![BIN, "--check", "/scratch/sample.typ"]
     );
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part7() {
+    let typst = Path::new("/scratch/sample.typ");
     assert_eq!(
         argv_strings(&typstyle_fix(Path::new(BIN), &[typst])),
         vec![BIN, "-i", "/scratch/sample.typ"]
@@ -1628,6 +1665,11 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/lib/a.dart"
         ]
     );
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part8() {
+    let dart = Path::new("/scratch/lib/a.dart");
     assert_eq!(
         argv_strings(&dart_analyze(
             Path::new(BIN),
@@ -1698,6 +1740,10 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/sample.pl"
         ]
     );
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part9() {
     let julia = Path::new("/scratch/sample.jl");
     assert_eq!(
         argv_strings(&julia_format_check(Path::new(BIN), &[julia])),
@@ -1766,6 +1812,12 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/sample.swift"
         ]
     );
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part10() {
+    let swift = Path::new("/scratch/sample.swift");
+    let swift_config = Some(Path::new("/scratch/.swift-format"));
     assert_eq!(
         argv_strings(&swift_lint(Path::new(BIN), &[swift], swift_config)),
         vec![
@@ -1836,6 +1888,11 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&helmfmt_check(Path::new(BIN), &[template])),
         vec![BIN, "--check", "--files", "/scratch/chart/templates/a.yaml"]
     );
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part11() {
+    let template = Path::new("/scratch/chart/templates/a.yaml");
     assert_eq!(
         argv_strings(&helmfmt_fix(Path::new(BIN), &[template])),
         vec![BIN, "--files", "/scratch/chart/templates/a.yaml"]
@@ -1903,6 +1960,10 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/main.bicep"
         ]
     );
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part12() {
     let rego = Path::new("/scratch/policy/a.rego");
     assert_eq!(
         argv_strings(&opa_fmt_check(Path::new(BIN), rego)),
@@ -1965,6 +2026,12 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/templates/a.html"
         ]
     );
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part13() {
+    let html = Path::new("/scratch/templates/a.html");
+    let djlint_conf = Path::new("/scratch/djlint.toml");
     assert_eq!(
         argv_strings(&djlint_format_check(
             Path::new(BIN),
@@ -2027,6 +2094,11 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/Sample.yaml"
         ]
     );
+}
+
+#[test]
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part14() {
+    let yaml = Path::new("/scratch/Sample.yaml");
     assert_eq!(
         argv_strings(&yamllint_check(Path::new(BIN), &[yaml], None)),
         vec![
@@ -2398,6 +2470,10 @@ fn file_family_lint_checks_are_check_only() {
             "/scratch/Sample.rb"
         ]
     );
+}
+
+#[test]
+fn file_family_lint_checks_are_check_only_part2() {
     let ps = Path::new("/scratch/Sample.ps1");
     assert_eq!(
         argv_strings(&psscriptanalyzer_check(Path::new(BIN), &[ps], None)),
@@ -2466,6 +2542,10 @@ fn file_family_lint_checks_are_check_only() {
             "/s/A.hs"
         ]
     );
+}
+
+#[test]
+fn file_family_lint_checks_are_check_only_part3() {
     let workflow = Path::new("/scratch/.github/workflows/ci.yml");
     assert_eq!(
         argv_strings(&actionlint_check(Path::new(BIN), &[workflow])),
@@ -2529,6 +2609,10 @@ fn file_family_lint_checks_are_check_only() {
             "/scratch/Makefile"
         ]
     );
+}
+
+#[test]
+fn file_family_lint_checks_are_check_only_part4() {
     assert_eq!(
         argv_strings(&tflint_check(
             Path::new(BIN),
@@ -2595,6 +2679,12 @@ fn file_family_lint_checks_are_check_only() {
             "/scratch/notes.txt"
         ]
     );
+}
+
+#[test]
+fn file_family_lint_checks_are_check_only_part5() {
+    let txt = Path::new("/scratch/notes.txt");
+    let config = Some(Path::new("/scratch/typos.toml"));
     assert_eq!(
         argv_strings(&typos_fix(Path::new(BIN), &[txt], config)),
         vec![
@@ -2688,7 +2778,7 @@ fn fixed_args_match_recorded_invocations() {
     ];
     for (args, invocation) in cases {
         let mut expected = vec![BIN.to_owned()];
-        expected.extend(args.iter().map(|arg| arg.to_string()));
+        expected.extend(args.iter().map(ToString::to_string));
         expected.push(FILE.to_owned());
         assert_eq!(argv_strings(invocation), expected);
         assert_eq!(invocation.cwd_rel, "");
@@ -2710,7 +2800,7 @@ fn batch_cost(head: &[OsString], batch: &[&Path]) -> (usize, usize) {
     let mut units = 0usize;
     for arg in head
         .iter()
-        .map(|part| part.as_os_str())
+        .map(OsString::as_os_str)
         .chain(batch.iter().map(|file| file.as_os_str()))
     {
         let (argument_bytes, argument_units) = argv_sizes(arg);
@@ -2736,7 +2826,7 @@ fn batches_keep_input_order_under_a_small_budget() {
     let roundtrip: Vec<&Path> = batches.iter().flatten().copied().collect();
     assert_eq!(roundtrip, refs);
     for batch in &batches {
-        assert!(!batch.is_empty());
+        assert!(!batch.is_empty(), "{batch:?}");
         let (bytes, units) = batch_cost(&head, batch);
         assert!(bytes <= 80, "bytes {bytes} fit");
         assert!(units <= 80, "units {units} fit");
@@ -2758,7 +2848,8 @@ fn an_empty_selection_keeps_one_spawn() {
     let head = vec![OsString::from("/bin/tool")];
     let batches: Vec<Vec<&Path>> = plan_batches(&head, &[]);
     assert_eq!(batches.len(), 1);
-    assert!(batches[0].is_empty());
+    let actual = &batches[0];
+    assert!(actual.is_empty(), "{actual:?}");
 }
 
 #[test]
@@ -2801,9 +2892,11 @@ fn windows_limit_is_tighter_for_launchers() {
         windows_argv_limit(OsStr::new("tool.exe")),
         Some(WINDOWS_COMMAND_LINE_LIMIT)
     );
-    assert!(ARGV_BATCH_BUDGET < WINDOWS_COMMAND_LINE_LIMIT);
-    assert!(LAUNCHER_BATCH_BUDGET < LAUNCHER_COMMAND_LINE_LIMIT);
-    assert!(LAUNCHER_COMMAND_LINE_LIMIT < WINDOWS_COMMAND_LINE_LIMIT);
+    const {
+        assert!(ARGV_BATCH_BUDGET < WINDOWS_COMMAND_LINE_LIMIT);
+        assert!(LAUNCHER_BATCH_BUDGET < LAUNCHER_COMMAND_LINE_LIMIT);
+        assert!(LAUNCHER_COMMAND_LINE_LIMIT < WINDOWS_COMMAND_LINE_LIMIT);
+    }
     assert_eq!(
         native_argv_limit(OsStr::new("tool")).is_some(),
         cfg!(windows)
@@ -2952,6 +3045,10 @@ fn spotbugs_check_rejects_aux_jar_that_cannot_be_joined() {
     assert!(spotbugs_check(Path::new(BIN), &[colon_target], &[], "default", None).is_ok());
 }
 
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "the signature must match the fallible callback it is passed as"
+)]
 fn infallible(invocation: Invocation) -> Result<Invocation, std::convert::Infallible> {
     Ok(invocation)
 }

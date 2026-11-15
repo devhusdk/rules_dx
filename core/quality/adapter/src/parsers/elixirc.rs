@@ -64,10 +64,13 @@ fn normalized(text: &str, files: &[&str]) -> Result<String, ParseError> {
                 continue;
             };
             pending = None;
-            out.push_str(&format!(
-                "{}:{number}:{column}: {word}: {message}\n",
-                checked_path(path, files)
-            ));
+            out.push_str(
+                &[
+                    checked_path(path, files),
+                    &format!(":{number}:{column}: {word}: {message}\n"),
+                ]
+                .concat(),
+            );
         }
     }
     match pending {
@@ -81,6 +84,10 @@ fn unlocated(message: &str) -> ParseError {
 }
 
 /// `elixirc` output. A nonzero exit that printed no diagnostic is an error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_elixirc(
     output: &[u8],
     code: Option<i32>,
@@ -173,22 +180,16 @@ mod tests {
 
     #[test]
     fn elixirc_drops_foreign_warnings_and_fails_on_foreign_errors() {
-        assert!(
-            parse_elixirc(WARNINGS.as_bytes(), Some(0), &["lib/y.ex"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_elixirc(WARNINGS.as_bytes(), Some(0), &["lib/y.ex"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         let error = "    error: undefined function foo/1\n    └─ lib/other.ex:3:5: E.f/1\n";
         assert!(parse_elixirc(error.as_bytes(), Some(1), &[FILE]).is_err());
     }
 
     #[test]
     fn elixirc_fails_closed() {
-        assert!(
-            parse_elixirc(b"", Some(0), &[FILE])
-                .expect("clean")
-                .is_empty()
-        );
+        let actual = parse_elixirc(b"", Some(0), &[FILE]).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_elixirc(b"", Some(1), &[FILE]).is_err());
         assert!(parse_elixirc(b"", None, &[FILE]).is_err());
         assert!(parse_elixirc(b"compile failed\n", Some(1), &[FILE]).is_err());

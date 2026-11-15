@@ -16,6 +16,7 @@ pub struct SyntaxAt {
 }
 
 impl SyntaxAt {
+    #[must_use]
     pub fn new(line: usize, col: usize, detail: &str) -> Self {
         Self {
             line,
@@ -26,6 +27,7 @@ impl SyntaxAt {
 }
 
 /// Escapes one JSON pointer reference token.
+#[must_use]
 pub fn escape(token: &str) -> String {
     token.replace('~', "~0").replace('/', "~1")
 }
@@ -42,6 +44,7 @@ pub enum Frame {
     },
 }
 
+#[derive(Clone, Copy)]
 pub enum Node<'a> {
     Scalar(&'a str, ScalarStyle),
     Map,
@@ -65,10 +68,14 @@ pub fn value_done(stack: &mut [Frame]) {
     }
 }
 
+#[must_use]
 pub fn is_null(value: &str, style: ScalarStyle) -> bool {
     style == ScalarStyle::Plain && matches!(value, "" | "~" | "null" | "Null" | "NULL")
 }
 
+/// # Errors
+///
+/// Returns the position of the first syntax error.
 pub fn on_node(
     raw: &mut Raw,
     stack: &mut Vec<Frame>,
@@ -137,11 +144,13 @@ pub struct Offsets<'a> {
 }
 
 impl<'a> Offsets<'a> {
+    #[must_use]
     pub fn new(text: &'a str) -> Self {
         let table = (!text.is_ascii()).then(|| text.char_indices().map(|(at, _)| at).collect());
         Self { text, table }
     }
 
+    #[must_use]
     pub fn byte(&self, char_index: usize) -> usize {
         match &self.table {
             None => char_index.min(self.text.len()),
@@ -150,6 +159,9 @@ impl<'a> Offsets<'a> {
     }
 }
 
+/// # Errors
+///
+/// Returns the position of the first syntax error.
 pub fn scan_yaml(text: &str, captured: &[&str]) -> Result<Vec<Raw>, SyntaxAt> {
     let mut done = Vec::new();
     let mut current: Option<Raw> = None;
@@ -202,6 +214,7 @@ pub struct Index {
 
 impl Index {
     /// The position of a JSON pointer, falling back to its nearest known ancestor.
+    #[must_use]
     pub fn locate(&self, pointer: &str) -> (u64, u64) {
         let mut at = pointer;
         loop {
@@ -236,6 +249,10 @@ impl Index {
 }
 
 /// Indexes every document of a YAML stream.
+///
+/// # Errors
+///
+/// Returns the position of the first syntax error.
 pub fn yaml_documents(text: &str) -> Result<Vec<Index>, SyntaxAt> {
     Ok(scan_yaml(text, &[])?
         .into_iter()
@@ -245,6 +262,7 @@ pub fn yaml_documents(text: &str) -> Result<Vec<Index>, SyntaxAt> {
 
 /// Indexes a JSON text. JSON is read through the YAML scanner; when that fails the
 /// index only knows the root, so lookups land on line 1.
+#[must_use]
 pub fn json_index(text: &str) -> Index {
     match scan_yaml(text, &[]) {
         Ok(mut raws) if raws.len() == 1 => Index::from_raw(raws.remove(0)),
@@ -285,6 +303,10 @@ impl<'a> Lines<'a> {
 }
 
 /// Indexes a TOML text. Tables, arrays of tables (`/a/0`), dotted and inline keys are covered.
+///
+/// # Errors
+///
+/// Returns the position of the first syntax error.
 pub fn toml_index(text: &str) -> Result<Index, SyntaxAt> {
     let lines = Lines::new(text);
     let doc = match toml_edit::Document::parse(text) {
@@ -293,8 +315,8 @@ pub fn toml_index(text: &str) -> Result<Index, SyntaxAt> {
             let at = err.span().map_or(0, |span| span.start);
             let (line, column) = lines.at(at)?;
             return Err(SyntaxAt::new(
-                line as usize,
-                column as usize - 1,
+                usize::try_from(line).unwrap_or(usize::MAX),
+                usize::try_from(column).map_or(0, |column| column - 1),
                 err.message(),
             ));
         }
@@ -321,8 +343,8 @@ fn walk_table(
     lines: &Lines<'_>,
     out: &mut BTreeMap<String, (u64, u64)>,
 ) -> Result<(), SyntaxAt> {
-    for (name, item) in table.iter() {
-        let key_at = table.key(name).and_then(|key| key.span());
+    for (name, item) in table {
+        let key_at = table.key(name).and_then(toml_edit::Key::span);
         let at = start(key_at.or_else(|| item.span()), lines, parent)?;
         walk_item(item, &format!("{pointer}/{}", escape(name)), at, lines, out)?;
     }
@@ -336,8 +358,8 @@ fn walk_inline(
     lines: &Lines<'_>,
     out: &mut BTreeMap<String, (u64, u64)>,
 ) -> Result<(), SyntaxAt> {
-    for (name, value) in table.iter() {
-        let key_at = table.key(name).and_then(|key| key.span());
+    for (name, value) in table {
+        let key_at = table.key(name).and_then(toml_edit::Key::span);
         let at = start(key_at.or_else(|| value.span()), lines, parent)?;
         walk_value(
             value,

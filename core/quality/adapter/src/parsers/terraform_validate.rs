@@ -115,6 +115,10 @@ fn tail(stderr: &[u8]) -> String {
 /// Only `diagnostic` lines matter. An error with a range is a finding (init reports HCL
 /// syntax and configuration errors this way). A failing exit with no located error, such as a
 /// provider missing from the mirror, fails the run so it is never read as clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_terraform_init(
     stdout: &[u8],
     stderr: &[u8],
@@ -174,6 +178,10 @@ pub fn parse_terraform_init(
 /// The three signals must agree. A located diagnostic is a finding. A range-less error
 /// (a failure outside any file) fails the run. A range-less warning is dropped: it has no
 /// file to report on and does not change validity.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_terraform_validate(
     stdout: &[u8],
     code: Option<i32>,
@@ -207,7 +215,7 @@ pub fn parse_terraform_validate(
         .get("diagnostics")
         .and_then(serde_json::Value::as_array)
         .ok_or_else(|| ParseError::shape(TOOL, "missing diagnostics"))?;
-    let expected = if valid { 0 } else { 1 };
+    let expected = i32::from(!valid);
     if code != Some(expected) || valid != (error_count == 0) {
         return Err(ParseError::shape(
             TOOL,
@@ -274,7 +282,7 @@ mod tests {
     fn clean_validate_is_empty() {
         let out = validate_json(true, 0, "");
         let found = parse_terraform_validate(out.as_bytes(), Some(0), dir(), KNOWN).unwrap();
-        assert!(found.is_empty());
+        assert!(found.is_empty(), "{found:?}");
     }
 
     #[test]
@@ -344,7 +352,7 @@ mod tests {
     fn rangeless_warning_is_dropped() {
         let out = validate_json(true, 0, &diag("warning", "Deprecated", None));
         let found = parse_terraform_validate(out.as_bytes(), Some(0), dir(), KNOWN).unwrap();
-        assert!(found.is_empty());
+        assert!(found.is_empty(), "{found:?}");
     }
 
     #[test]
@@ -382,7 +390,7 @@ mod tests {
     fn clean_init_ignores_other_line_types() {
         let out = r#"{"@level":"info","@message":"Terraform has been successfully initialized!","type":"init_output"}"#;
         let found = parse_terraform_init(out.as_bytes(), b"", Some(0), dir(), KNOWN).unwrap();
-        assert!(found.is_empty());
+        assert!(found.is_empty(), "{found:?}");
     }
 
     #[test]

@@ -3,6 +3,10 @@ use std::path::Path;
 use super::{FileFinding, ParseError, rubocop_json};
 
 /// Parses `rubocop --format json`, naming files as given or relative to `cwd`.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_rubocop(
     stdout: &[u8],
     stderr: &[u8],
@@ -30,7 +34,7 @@ mod tests {
         assert_eq!(findings[0].finding.rule_id, "Style/StringLiterals");
         let clean =
             parse_rubocop(CLEAN.as_bytes(), b"", Some(0), &["Sample.rb"], root).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(parse_rubocop(b"", b"", Some(1), &["Sample.rb"], root).is_err());
         assert!(parse_rubocop(DIRTY.as_bytes(), b"", Some(1), &["other.rb"], root).is_err());
         assert!(parse_rubocop(&[0xff], b"", Some(0), &["x"], root).is_err());

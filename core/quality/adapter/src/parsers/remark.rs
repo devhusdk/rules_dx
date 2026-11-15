@@ -6,6 +6,9 @@ use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "remark";
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_remark(
     stdout: &[u8],
     stderr: &[u8],
@@ -60,7 +63,7 @@ fn unformatted(stdout: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseE
         let checked = known(TOOL, files, file)?;
         let formatted = entry
             .get("formatted")
-            .and_then(|v| v.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .ok_or_else(|| ParseError::shape(TOOL, format!("missing formatted for {file}")))?;
         if !formatted {
             findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Utf16));
@@ -108,11 +111,8 @@ mod tests {
         assert_eq!(findings[0].finding.start.line, 1);
         assert_eq!(findings[0].finding.start.column, 1);
         let clean = br#"[{"file":"/s/docs/a.mdx","formatted":true}]"#;
-        assert!(
-            parse_remark(clean, b"", Some(0), &[FILE])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_remark(clean, b"", Some(0), &[FILE]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

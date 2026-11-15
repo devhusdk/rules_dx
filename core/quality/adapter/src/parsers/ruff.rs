@@ -103,7 +103,11 @@ impl<'a> Mapper<'a> {
         let start = ruff_position(tool, "start", &diagnostic.location)?;
         let end = ruff_position(tool, "end", &diagnostic.end_location)?;
         let Some(cell) = diagnostic.cell else {
-            if checked.ends_with(".ipynb") && (start.line, start.column) != (1, 1) {
+            if std::path::Path::new(checked)
+                .extension()
+                .is_some_and(|ext| ext == "ipynb")
+                && (start.line, start.column) != (1, 1)
+            {
                 return Err(ParseError::Shape {
                     tool,
                     detail: format!("{checked}: notebook diagnostic without a cell"),
@@ -133,6 +137,9 @@ impl<'a> Mapper<'a> {
     }
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ruff(
     stdout: &[u8],
     code: Option<i32>,
@@ -175,6 +182,9 @@ pub fn parse_ruff(
     Ok(findings)
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ruff_format(
     stdout: &[u8],
     code: Option<i32>,
@@ -251,12 +261,10 @@ mod tests {
                 })
             )
         );
-        assert!(findings[0].finding.suggestions.is_empty());
-        assert!(
-            parse_ruff(b"[]", Some(0), &["/s/dirty.py"], &[])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = &findings[0].finding.suggestions;
+        assert!(actual.is_empty(), "{actual:?}");
+        let actual = parse_ruff(b"[]", Some(0), &["/s/dirty.py"], &[]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(parse_ruff(b"[]", Some(1), &["/s/dirty.py"], &[]).is_err());
         assert!(parse_ruff(RUFF_LINT_DIRTY.as_bytes(), Some(1), &["/s/other.py"], &[]).is_err());
         assert!(parse_ruff(b"not json", Some(1), &["/s/dirty.py"], &[]).is_err());
@@ -278,11 +286,8 @@ mod tests {
                 Some(TextPosition { line: 5, column: 7 })
             )
         );
-        assert!(
-            parse_ruff_format(b"[]", Some(0), &["/s/dirty.py"], &[])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_ruff_format(b"[]", Some(0), &["/s/dirty.py"], &[]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         assert!(
             parse_ruff_format(RUFF_LINT_DIRTY.as_bytes(), Some(1), &["/s/dirty.py"], &[]).is_err()
         );

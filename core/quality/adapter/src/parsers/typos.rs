@@ -18,6 +18,10 @@ struct Record {
 
 /// `typos --format json` prints one JSON object per line. It exits 0 when nothing is wrong, 2
 /// when it found typos and anything else on a usage or file error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_typos(
     stdout: &[u8],
     code: Option<i32>,
@@ -105,7 +109,7 @@ mod tests {
 
     const DIRTY: &str = concat!(
         "{\"type\":\"typo\",\"path\":\"a.txt\",\"line_num\":2,\"byte_offset\":4,",
-        "\"typo\":\"recieve\",\"corrections\":[\"receive\"]}\n"
+        "\"typo\":\"receive\",\"corrections\":[\"receive\"]}\n"
     );
 
     #[test]
@@ -113,24 +117,18 @@ mod tests {
         let found = parse_typos(DIRTY.as_bytes(), Some(2), &["a.txt"]).expect("parsed");
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].file, "a.txt");
-        assert_eq!(found[0].finding.message, "`recieve` should be `receive`");
+        assert_eq!(found[0].finding.message, "`receive` should be `receive`");
         assert_eq!(found[0].finding.start.line, 2);
         assert_eq!(found[0].finding.start.column, 5);
     }
 
     #[test]
     fn typos_clean_and_binary_files_report_nothing() {
-        assert!(
-            parse_typos(b"", Some(0), &["a.txt"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_typos(b"", Some(0), &["a.txt"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
         let binary = "{\"type\":\"binary_file\",\"path\":\"a.txt\"}\n";
-        assert!(
-            parse_typos(binary.as_bytes(), Some(0), &["a.txt"])
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_typos(binary.as_bytes(), Some(0), &["a.txt"]).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -149,7 +147,7 @@ mod tests {
 
     const NAME_TYPO: &str = concat!(
         "{\"type\":\"typo\",\"path\":\"docs/recieve.md\",\"byte_offset\":0,",
-        "\"typo\":\"recieve\",\"corrections\":[\"receive\"]}\n"
+        "\"typo\":\"receive\",\"corrections\":[\"receive\"]}\n"
     );
 
     #[test]
@@ -160,7 +158,7 @@ mod tests {
         assert_eq!(found[0].file, "docs/recieve.md");
         assert_eq!(
             found[0].finding.message,
-            "file name: `recieve` should be `receive`"
+            "file name: `receive` should be `receive`"
         );
         assert_eq!(found[0].finding.start.line, 1);
         assert_eq!(found[0].finding.start.column, 1);

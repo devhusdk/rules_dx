@@ -25,6 +25,7 @@ pub enum ToolSeverity {
 }
 
 impl ToolSeverity {
+    #[must_use]
     pub fn proto(self) -> i32 {
         match self {
             ToolSeverity::Warning => Severity::Warning as i32,
@@ -74,6 +75,7 @@ pub struct Related {
 }
 
 impl Related {
+    #[must_use]
     pub fn new(role: &str, message: &str) -> Self {
         Related {
             role: role.to_owned(),
@@ -139,6 +141,9 @@ pub struct PlacementText<'a> {
 }
 
 impl<'a> PlacementText<'a> {
+    /// # Errors
+    ///
+    /// Returns [`PlaceError`] when the diagnostic cannot be placed.
     pub fn new(text: &'a str) -> Result<Self, PlaceError> {
         check_placeable(text.len() as u64)?;
         Ok(PlacementText {
@@ -147,6 +152,7 @@ impl<'a> PlacementText<'a> {
         })
     }
 
+    #[must_use]
     pub fn line_col_to_byte(
         &self,
         line: u64,
@@ -162,6 +168,7 @@ impl<'a> PlacementText<'a> {
         Some((start + column_to_offset(body, column - 1, encoding)?) as u64)
     }
 
+    #[must_use]
     pub fn line_end_to_byte(&self, line: u64) -> Option<u64> {
         if line == 1 && self.text.is_empty() {
             return Some(0);
@@ -185,6 +192,7 @@ impl<'a> PlacementText<'a> {
     }
 }
 
+#[must_use]
 pub fn line_col_to_byte(
     text: &str,
     line: u64,
@@ -199,19 +207,19 @@ pub fn line_col_to_byte(
 /// Column units occupied after `ch`, given `seen` units before it.
 fn column_step(seen: u64, ch: char, encoding: ColumnEncoding) -> u64 {
     match encoding {
-        ColumnEncoding::Scalars => seen + 1,
         ColumnEncoding::Utf8 => seen + ch.len_utf8() as u64,
         ColumnEncoding::Utf16 => seen + ch.len_utf16() as u64,
         ColumnEncoding::ScalarsTabs { width } if ch == '\t' => {
             let w = if width == 0 { 8 } else { u64::from(width) };
             (seen / w + 1) * w
         }
-        ColumnEncoding::ScalarsTabs { .. } => seen + 1,
+        ColumnEncoding::Scalars | ColumnEncoding::ScalarsTabs { .. } => seen + 1,
     }
 }
 
 /// Width of `body` in `encoding` units, so `width + 1` is the column just
 /// past its last character.
+#[must_use]
 pub fn column_width(body: &str, encoding: ColumnEncoding) -> u64 {
     body.chars()
         .fold(0, |seen, ch| column_step(seen, ch, encoding))
@@ -231,14 +239,21 @@ fn column_to_offset(body: &str, units: u64, encoding: ColumnEncoding) -> Option<
     (seen == units).then_some(body.len())
 }
 
+#[must_use]
 pub fn line_end_to_byte(text: &str, line: u64) -> Option<u64> {
     PlacementText::new(text).ok()?.line_end_to_byte(line)
 }
 
+/// # Errors
+///
+/// Returns [`PlaceError`] when the diagnostic cannot be placed.
 pub fn place_finding(finding: &Finding, path: &str, text: &str) -> Result<Diagnostic, PlaceError> {
     place_finding_with(finding, path, &PlacementText::new(text)?, |_| None)
 }
 
+/// # Errors
+///
+/// Returns [`PlaceError`] when the diagnostic cannot be placed.
 pub fn place_finding_with<'t>(
     finding: &Finding,
     path: &str,
@@ -524,7 +539,10 @@ mod tests {
             "end position precedes start position"
         );
         assert_eq!(
-            PlaceError::TextTooLarge { bytes: 4294967295 }.to_string(),
+            PlaceError::TextTooLarge {
+                bytes: 4_294_967_295
+            }
+            .to_string(),
             "text of 4294967295 bytes is too large to place: the limit is 4294967294 bytes"
         );
     }
@@ -722,7 +740,7 @@ mod tests {
     #[test]
     fn indexed_text_places_many_findings_like_a_line_walk() {
         let text: String = (0..50_000)
-            .map(|n| format!("line {n} caf\u{e9}\r\n"))
+            .map(|n| ["line ", &n.to_string(), " caf\u{e9}\r\n"].concat())
             .collect();
         let starts: Vec<usize> = std::iter::once(0)
             .chain(text.match_indices('\n').map(|(at, _)| at + 1))

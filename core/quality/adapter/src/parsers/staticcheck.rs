@@ -25,6 +25,9 @@ fn position(value: &serde_json::Value, what: &str) -> Result<TextPosition, Parse
     Ok(TextPosition { line, column })
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_staticcheck(
     stdout: &[u8],
     code: Option<i32>,
@@ -163,7 +166,7 @@ mod tests {
         assert_eq!(retrailed.len(), 1);
         let clean = parse_staticcheck(b"", Some(0), &["go/tests/fixtures/staticcheck/Sample.go"])
             .expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(
             parse_staticcheck(b"", Some(1), &["go/tests/fixtures/staticcheck/Sample.go"]).is_err()
         );

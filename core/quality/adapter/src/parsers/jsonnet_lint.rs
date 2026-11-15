@@ -11,6 +11,10 @@ const TRAILER: &str = "Problems found!";
 /// problem to stderr as `<path>:<line>:<column>[-<column>] <message>`, each followed by the
 /// offending source line, then `Problems found!`. Exit 1 is a failure to run (an unreadable file)
 /// and carries no location, so it is an error here and never a clean result.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_jsonnet_lint(
     stdout: &[u8],
     stderr: &[u8],
@@ -83,11 +87,8 @@ mod tests {
 
     #[test]
     fn jsonnet_lint_is_clean_on_exit_zero_with_no_output() {
-        assert!(
-            parse_jsonnet_lint(b"", b"", Some(0), &FILES)
-                .expect("parsed")
-                .is_empty()
-        );
+        let actual = parse_jsonnet_lint(b"", b"", Some(0), &FILES).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

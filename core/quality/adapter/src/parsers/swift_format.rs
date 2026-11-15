@@ -19,6 +19,10 @@ const SYNTAX: Dialect = Dialect {
 /// Exit 0 means the file parsed, so stdout is compared with the input and a difference is one
 /// finding. Exit 1 means a syntax error: each `file:LINE:COL: error: message` stderr line becomes
 /// one syntax finding. Any other exit, or exit 1 without such a line, is an error.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_swift_format(
     stdout: &[u8],
     stderr: &[u8],
@@ -45,7 +49,7 @@ fn syntax_errors(
 ) -> Result<Vec<FileFinding>, ParseError> {
     let mut found = read(&SYNTAX, stderr, code, &[file])?;
     for finding in &mut found {
-        finding.finding.rule_id = "syntax".to_owned();
+        "syntax".clone_into(&mut finding.finding.rule_id);
     }
     Ok(found)
 }
@@ -70,7 +74,8 @@ mod tests {
 
     #[test]
     fn swift_format_is_clean_when_output_matches_input() {
-        assert!(run(TIDY, b"", 0, TIDY).expect("parsed").is_empty());
+        let actual = run(TIDY, b"", 0, TIDY).expect("parsed");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

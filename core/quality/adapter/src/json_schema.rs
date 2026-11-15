@@ -34,6 +34,7 @@ pub enum Filetype {
 
 impl Filetype {
     /// The value of `--force-filetype`.
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             Self::Json => "json",
@@ -43,6 +44,7 @@ impl Filetype {
     }
 
     /// The filetype a workspace path is read as, from its extension.
+    #[must_use]
     pub fn from_path(path: &str) -> Option<Self> {
         let ext = path.rsplit_once('.')?.1.to_ascii_lowercase();
         match ext.as_str() {
@@ -121,6 +123,10 @@ fn check_url(url: &str) -> Result<(), String> {
 }
 
 /// Reads the config. Every schema path is relative to the config's own directory.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn parse_config(path: &Path, bytes: &[u8]) -> Result<Config, String> {
     let shown = path.display();
     let raw: RawConfig = serde_json::from_slice(bytes)
@@ -289,6 +295,7 @@ pub fn declared_schema(bytes: &[u8], filetype: Filetype) -> Option<String> {
 /// Groups files by (schema, filetype). A file is picked by a glob, or by declaring a
 /// `$schema` URL equal to a declared `url`. Undeclared or relative `$schema` values are
 /// ignored. Each (file, schema) pair is validated once.
+#[must_use]
 pub fn select(config: &Config, candidates: &[Candidate<'_>]) -> Vec<Group> {
     let mut groups: BTreeMap<(usize, Filetype), BTreeSet<String>> = BTreeMap::new();
     for candidate in candidates {
@@ -318,6 +325,10 @@ pub fn select(config: &Config, candidates: &[Candidate<'_>]) -> Vec<Group> {
 }
 
 /// Fails unless the schema's `$schema` is a supported draft. A missing `$schema` is 2020-12.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn draft_gate(path: &str, schema: &Value) -> Result<(), String> {
     let Some(object) = schema.as_object() else {
         return Ok(());
@@ -351,6 +362,7 @@ pub struct RefMap {
 
 impl RefMap {
     /// The JSON object the `--dx-ref-map` wrapper reads.
+    #[must_use]
     pub fn to_json(&self) -> String {
         let map: BTreeMap<&str, String> = self
             .map
@@ -378,7 +390,7 @@ fn spellings(uri: &str) -> Vec<String> {
     out
 }
 
-fn join(base: &Option<Url>, reference: &str) -> Option<Url> {
+fn join(base: Option<&Url>, reference: &str) -> Option<Url> {
     match base {
         Some(base) => base.join(reference).ok(),
         None => Url::parse(reference).ok(),
@@ -395,12 +407,12 @@ struct Walk {
 }
 
 impl Walk {
-    fn visit(&mut self, value: &Value, base: &Option<Url>) {
+    fn visit(&mut self, value: &Value, base: Option<&Url>) {
         match value {
             Value::Array(items) => items.iter().for_each(|item| self.visit(item, base)),
             Value::Object(map) => {
                 let id_key = if self.draft4 { "id" } else { "$id" };
-                let mut here = base.clone();
+                let mut here = base.cloned();
                 if let Some(id) = map.get(id_key).and_then(Value::as_str)
                     && let Some(next) = join(base, id)
                 {
@@ -410,7 +422,7 @@ impl Walk {
                 for (key, member) in map {
                     if REF_KEYWORDS.contains(&key.as_str()) {
                         if let Some(reference) = member.as_str()
-                            && let Some(target) = join(&here, reference)
+                            && let Some(target) = join(here.as_ref(), reference)
                         {
                             self.refs.push(target);
                         }
@@ -419,7 +431,7 @@ impl Walk {
                     if DATA_KEYWORDS.contains(&key.as_str()) {
                         continue;
                     }
-                    self.visit(member, &here);
+                    self.visit(member, here.as_ref());
                 }
             }
             Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
@@ -431,6 +443,10 @@ impl Walk {
 ///
 /// Any http(s) `$ref`, `$dynamicRef` or `$recursiveRef` target, resolved against the nearest
 /// `$id`, that has no checked-in copy fails here, before the tool could download it.
+///
+/// # Errors
+///
+/// Returns a message describing why the input was rejected.
 pub fn prepare(
     config: &Config,
     read: &dyn Fn(&Path) -> std::io::Result<Vec<u8>>,
@@ -472,7 +488,7 @@ pub fn prepare(
             ids: Vec::new(),
             refs: Vec::new(),
         };
-        walk.visit(&value, &None);
+        walk.visit(&value, None);
         if let Some(url) = &resource.url {
             claim(url, &resource.path)?;
         }
@@ -513,6 +529,7 @@ pub fn prepare(
 /// A JSON path in the grammar `jsonschema` prints, as a JSON pointer.
 ///
 /// Accepts `$`, `.name` for `[a-zA-Z][a-zA-Z0-9_]*`, `[N]` and `['esc\'aped']`.
+#[must_use]
 pub fn pointer_of(json_path: &str) -> Option<String> {
     let mut rest = json_path.strip_prefix('$')?;
     let mut pointer = String::new();
@@ -574,6 +591,7 @@ fn strip_bom(bytes: &[u8]) -> Result<&str, SyntaxAt> {
 /// The syntax problem a file has as `filetype`, with its position, or `None` when it parses.
 ///
 /// Multi-document YAML is reported as a dx message: `check-jsonschema` reads one document.
+#[must_use]
 pub fn syntax_problem(bytes: &[u8], filetype: Filetype) -> Option<(u64, u64, String)> {
     let text = match strip_bom(bytes) {
         Ok(text) => text,
@@ -602,6 +620,10 @@ pub fn syntax_problem(bytes: &[u8], filetype: Filetype) -> Option<(u64, u64, Str
 }
 
 /// The pointer index of a file read as `filetype`.
+///
+/// # Errors
+///
+/// Returns the position of the first syntax error.
 pub fn index_for(bytes: &[u8], filetype: Filetype) -> Result<Index, SyntaxAt> {
     let text = strip_bom(bytes)?;
     match filetype {
@@ -617,6 +639,7 @@ pub fn index_for(bytes: &[u8], filetype: Filetype) -> Result<Index, SyntaxAt> {
 /// The one-based line and char-based column of a `jsonschema` JSON path in a file.
 ///
 /// A path that cannot be read, or a file that does not parse, lands on line 1.
+#[must_use]
 pub fn locate(bytes: &[u8], filetype: Filetype, json_path: &str) -> (u64, u64) {
     let Some(pointer) = pointer_of(json_path) else {
         return (1, 1);
@@ -774,7 +797,7 @@ mod tests {
     #[test]
     fn id_relative_ref_to_a_pinned_dep_is_allowed() {
         let a =
-            r##"{"$id":"https://e.test/s/a.json","properties":{"n":{"$ref":"dep.json#/defs/x"}}}"##;
+            r#"{"$id":"https://e.test/s/a.json","properties":{"n":{"$ref":"dep.json#/defs/x"}}}"#;
         let map = prep(ID_CONFIG, &[("cfg/a.json", a), ("cfg/dep.json", "{}")]).expect("ok");
         assert_eq!(
             map.map["https://e.test/s/dep.json"],
@@ -802,7 +825,7 @@ mod tests {
 
     #[test]
     fn dynamic_and_local_refs() {
-        let a = r##"{"properties":{"n":{"$ref":"dep.json"},"m":{"$dynamicRef":"https://nowhere.test/z"}}}"##;
+        let a = r#"{"properties":{"n":{"$ref":"dep.json"},"m":{"$dynamicRef":"https://nowhere.test/z"}}}"#;
         let err = prep(ID_CONFIG, &[("cfg/a.json", a), ("cfg/dep.json", "{}")]).unwrap_err();
         assert!(err.contains("https://nowhere.test/z"), "{err}");
         let ok = r##"{"properties":{"n":{"$ref":"dep.json"},"m":{"$ref":"#/properties/n"}}}"##;

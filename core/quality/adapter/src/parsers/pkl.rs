@@ -6,6 +6,10 @@ const TOOL: &str = "pkl";
 const TRAILER: &str = "An error occurred during formatting.";
 
 /// Exit 0 is clean, 11 lists unformatted files, and 1 lists them and reports located errors.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_pkl(
     stdout: &[u8],
     stderr: &[u8],
@@ -107,6 +111,10 @@ fn split_location(message: &str) -> (&str, u64, u64) {
 /// `pkl eval` of one module. Exit 0 with no output on stderr is clean. Exit 1 prints one
 /// `Pkl Error` block; its first `at ... (file:///path, line N)` frame is the finding, which may
 /// sit in an imported file. Every other exit or output shape is an error, never clean.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_pkl_eval(
     stdout: &[u8],
     stderr: &[u8],
@@ -191,7 +199,7 @@ fn frame_location(frame: &str) -> Option<(String, u64)> {
         }
         _ => path,
     };
-    if !path.starts_with('/') && !path.as_bytes().get(1).is_some_and(|c| *c == b':') {
+    if !path.starts_with('/') && path.as_bytes().get(1).is_none_or(|c| *c != b':') {
         return None;
     }
     Some((path, row.parse().ok()?))
@@ -243,7 +251,8 @@ mod tests {
         assert_eq!(findings.len(), 2);
         assert_eq!(findings[0].file, "/s/main.pkl");
         assert_eq!(findings[0].finding.message, "file is not formatted");
-        assert!(parse_pkl(b"", b"", Some(0), &FILES).expect("ok").is_empty());
+        let actual = parse_pkl(b"", b"", Some(0), &FILES).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]
@@ -321,11 +330,8 @@ mod tests {
 
     #[test]
     fn eval_clean_is_exit_zero_with_quiet_stderr() {
-        assert!(
-            parse_pkl_eval(b"x = 1\n", b"", Some(0), &KNOWN)
-                .expect("ok")
-                .is_empty()
-        );
+        let actual = parse_pkl_eval(b"x = 1\n", b"", Some(0), &KNOWN).expect("ok");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

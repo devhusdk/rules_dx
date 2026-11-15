@@ -1,5 +1,8 @@
 use super::{DiffExit, FileFinding, ParseError, diff_format};
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_gofumpt(
     stdout: &[u8],
     code: Option<i32>,
@@ -27,7 +30,7 @@ mod tests {
         assert_eq!(findings[0].finding.message, "file is not formatted");
         let clean =
             parse_gofumpt(b"", Some(0), &["go/tests/fixtures/gofumpt/Sample.go"]).expect("parsed");
-        assert!(clean.is_empty());
+        assert!(clean.is_empty(), "{clean:?}");
         assert!(
             parse_gofumpt(
                 DIRTY.as_bytes(),

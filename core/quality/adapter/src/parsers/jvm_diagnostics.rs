@@ -47,6 +47,10 @@ struct Diagnostic {
 /// `code` is the driver's own exit status. The compiler's status is inside the log. Findings
 /// outside `files` (generated sources, unlocated notes) are dropped, but a failed compile that
 /// leaves no error among the kept findings is an execution error, never a clean result.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_jvm_diagnostics(
     tool: &'static str,
     bytes: &[u8],
@@ -161,7 +165,7 @@ mod tests {
             .replace("\"javac\"", "\"scalac\"")
             .into_bytes();
         let found = parse_jvm_diagnostics("scalac", &scala_log, Some(0), &["s/A.scala"]).unwrap();
-        assert!(found.is_empty());
+        assert!(found.is_empty(), "{found:?}");
     }
 
     #[test]
@@ -219,17 +223,12 @@ mod tests {
 
     #[test]
     fn clean_log_is_clean_and_other_files_are_dropped() {
-        assert!(
-            parse_jvm_diagnostics("javac", &log(0, ""), Some(0), &[])
-                .unwrap()
-                .is_empty()
-        );
+        let actual = parse_jvm_diagnostics("javac", &log(0, ""), Some(0), &[]).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
         let body = entry("gen/B.java", 2, "warning", "compiler.warn.y");
-        assert!(
-            parse_jvm_diagnostics("javac", &log(0, &body), Some(0), &["j/A.java"])
-                .unwrap()
-                .is_empty()
-        );
+        let actual =
+            parse_jvm_diagnostics("javac", &log(0, &body), Some(0), &["j/A.java"]).unwrap();
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

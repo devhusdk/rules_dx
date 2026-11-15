@@ -144,6 +144,9 @@ fn patch_finding(file: &str, hunk: &Hunk) -> FileFinding {
     }
 }
 
+/// # Errors
+///
+/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_scalafix(
     stdout: &[u8],
     stderr: &[u8],
@@ -345,7 +348,8 @@ mod tests {
         let out = "/s/app/V.scala:4:19: info: [DisableSyntax.null] null\n  val y = null\n          ^^^^\n";
         let findings = parse(out, 0).expect("parsed");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
-        assert!(parse("", 0).expect("clean").is_empty());
+        let actual = parse("", 0).expect("clean");
+        assert!(actual.is_empty(), "{actual:?}");
     }
 
     #[test]

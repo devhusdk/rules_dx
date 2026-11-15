@@ -40,7 +40,7 @@ Compiles .cu sources with nvcc and links them into a cc_binary; cuda_copts go to
 cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, min_compute_capability = None, min_driver = None, env = None, data = None, cuda_copts = None, **kwargs)
 ```
 
-Compiles .cu sources into a cc_test; min_compute_capability and min_driver make it a GPU test, cuda_copts go to nvcc.
+Compiles .cu sources into a cc_test; min_compute_capability.
 
 ### `cuda_objects`
 
@@ -48,7 +48,7 @@ Compiles .cu sources into a cc_test; min_compute_capability and min_driver make 
 cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = None, tags = None, target_compatible_with = None, **kwargs)
 ```
 
-Compiles .cu sources to relocatable device objects for the deps of an rdc cuda_library, cuda_binary or cuda_test.
+Compiles .cu sources to relocatable device objects for the deps of an rdc cuda_library.
 
 ### `cuda_component_library`
 
@@ -74,12 +74,6 @@ cuda_doc_shard(name, lib, package = "", **kwargs)
 ```
 
 Declares the DocIr shard of one CUDA library.
-
-Args:
-  name: Name of the shard target.
-  lib: The documented cuda_library; its public hdrs are documented.
-  package: Package segment of every symbol id; defaults to the name of lib.
-  **kwargs: Common attributes such as tags and visibility.
 
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 

@@ -58,14 +58,6 @@ vue_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package
 
 Declares a component metadata run over one Vue project and its DocIr shard.
 
-The metadata comes from the pinned `vue-component-meta`, run through an isolated
-launcher: `vueCompilerOptions.plugins` (also inherited ones) is rejected, and no
-Vite config or other consumer JavaScript runs. Only the consumer's `vue` package
-is read from `node_modules`, for its type declarations. Entry points are `.vue`
-files whose default export is the component. Symbol ids are
-`vue:<package>:<Component>` plus `.prop_`, `.event_`, `.slot_` and `.exposed_`
-members.
-
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Tools

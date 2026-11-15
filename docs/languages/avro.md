@@ -67,12 +67,6 @@ avro_doc_shard(name, avro, package = "", **kwargs)
 
 Declares the DocIr shard of one avro_library.
 
-Args:
-  name: Name of the shard target.
-  avro: The documented avro_library.
-  package: Package segment of every symbol id; defaults to the name of avro.
-  **kwargs: Common attributes such as tags and visibility.
-
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Tools

@@ -58,12 +58,6 @@ fortran_doc_shard(name, lib, package = "", **kwargs)
 
 Declares the DocIr shard of one Fortran library.
 
-Args:
-  name: Name of the shard target.
-  lib: The documented fortran_library.
-  package: Package segment of every symbol id; defaults to the name of lib.
-  **kwargs: Common attributes such as tags and visibility.
-
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 `dx docs` documents every `fortran_library` that lists its own sources, with no

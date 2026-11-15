@@ -24,7 +24,7 @@ load("@rules_dx//apple:defs.bzl", "apple_ios_app", "apple_ios_app_test", "apple_
 apple_ios_app(name, library = None, frameworks = [], entry = None, srcs = None, hdrs = [], deps = None, platform = None, bundle_id = "", version = "", deployment = "", xcode_version = "", resources = [], infoplists = [], families = ["iphone"], entitlements = None, provisioning_profile = None, tags = None, testonly = False, visibility = None)
 ```
 
-Builds one upstream iOS application bundle over a Rust library cell, XCFramework imports, or a Swift @main module.
+Builds one upstream iOS application bundle.
 
 ### `apple_ios_app_test`
 

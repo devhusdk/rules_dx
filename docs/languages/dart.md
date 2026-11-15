@@ -68,7 +68,7 @@ Thin wrapper over dart_test. main is name.dart, then test/name.dart, else the si
 dart_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs)
 ```
 
-A dart_test run by dx bench: `main` calls runBenchmarks from package:dx_bench with BenchmarkBase objects, which writes dx-bench.json.
+A dart_test run by dx bench: `main` calls runBenchmarks from package:dx_bench with BenchmarkBase objects.
 
 ### `dart_config`
 

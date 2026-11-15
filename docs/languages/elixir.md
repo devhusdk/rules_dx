@@ -40,7 +40,7 @@ elixir_test run by dx bench: DxBench.run in srcs runs Benchee and writes dx-benc
 elixir_escript_archive(name, visibility = None, **kwargs)
 ```
 
-Thin wrapper over rules_erlang escript_archive. Runs on the pinned OTP runtime; fails when an app ships NIFs.
+Thin wrapper over rules_erlang escript_archive.
 
 ### `elixir_escript_headers`
 
@@ -56,7 +56,7 @@ Returns elixir_escript_archive headers that start one Elixir module in a UTF-8 V
 elixir_test(name, *, srcs = None, visibility = None, **kwargs)
 ```
 
-Thin wrapper over the rules_elixir ex_unit_test rule. srcs is required; test_helper.exs is loaded first and coverage loads through elixir_opts.
+Thin wrapper over the rules_elixir ex_unit_test rule.
 
 ## API docs
 
@@ -73,12 +73,6 @@ elixir_doc_shard(name, app, package = "", **kwargs)
 ```
 
 Declares the DocIr shard of one Elixir app.
-
-Args:
-  name: Name of the shard target.
-  app: The documented elixir_app.
-  package: Package segment of every symbol id; defaults to the app name.
-  **kwargs: Common attributes such as tags and visibility.
 
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
@@ -102,7 +96,7 @@ Manifests:
 
 Lockfiles:
 
-- `mix.lock`
+- `hex.lock.json`
 
 ## Platforms
 

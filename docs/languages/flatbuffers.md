@@ -54,20 +54,6 @@ flatbuffers_rust_library(name, library, crate_name = None, deps = None, root = N
 
 Rust crate for one root schema and its include closure.
 
-flatc --rust --gen-all emits the whole closure into one file, so the crate
-is per root, not per flatbuffers_library. The runtime comes from the pinned
-flatbuffers archive.
-
-Args:
-  name: Name of the rust_library.
-  library: flatbuffers_library that owns the root schema.
-  crate_name: Crate name dependents import; defaults to name.
-  deps: Extra Rust dependencies of the crate.
-  root: Root schema label; optional when the library owns one schema.
-  codegen_path: Logical directory of the generated files in the dx sync projection.
-  **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
-    and the like replace the defaults; srcs and deps are added to them.
-
 ### `flatbuffers_conform_test`
 
 ```python
@@ -75,18 +61,6 @@ flatbuffers_conform_test(name, library, baseline, root = None, baseline_root = N
 ```
 
 Fails the build when library breaks compatibility with baseline.
-
-Runs flatc --conform. flatc stops at the first error and skips deleted
-tables and enums and renamed tables. The binary schema it writes can serve
-as the next snapshot.
-
-Args:
-  name: Name of the test.
-  library: flatbuffers_library to check.
-  baseline: flatbuffers_library holding the previous schema.
-  root: Root schema of library; optional when it owns one schema.
-  baseline_root: Root schema of baseline; optional when it owns one schema.
-  **kwargs: Passed to the build_test (tags, visibility, size).
 
 ## Tools
 

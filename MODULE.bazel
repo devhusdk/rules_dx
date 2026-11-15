@@ -75,6 +75,7 @@ single_version_override(
         "//patches/llvm:aarch64_outline_atomics.patch",
         "//patches/llvm:macos_sdk_resolve_symlinks.patch",
         "//patches/llvm:toolchains_gate.patch",
+        "//patches/llvm:msvc_fuzzer.patch",
     ],
     version = "0.8.26",
 )

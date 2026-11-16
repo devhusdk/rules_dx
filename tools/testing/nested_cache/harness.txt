@@ -239,8 +239,8 @@ https://bcr.bazel.build/modules/protobuf/32.1/MODULE.bazel 89cd2866a9cb07fee9ff7
 https://bcr.bazel.build/modules/protobuf/33.1/MODULE.bazel 982c8a0cceab4d790076f72b7677faf836b0dfadc2b66a34aab7232116c4ae39
 https://bcr.bazel.build/modules/protobuf/33.4/MODULE.bazel 114775b816b38b6d0ca620450d6b02550c60ceedfdc8d9a229833b34a223dc42
 https://bcr.bazel.build/modules/protobuf/34.0.bcr.1/MODULE.bazel 74e541b0ba877813da786a11707d4e394433c157841d5111a36be0d44b907931
-https://bcr.bazel.build/modules/protobuf/36.2/MODULE.bazel 7c2b9060f7770778a606e2147e69a17465e2a08c61bfb337eaf2da61aaf62b5f
-https://bcr.bazel.build/modules/protobuf/36.2/source.json f9167721eeaa0f65b255aa30f1eb7d7655617d8d63823c3c48521159cf67672f
+https://bcr.bazel.build/modules/protobuf/37.0-rc3/MODULE.bazel a06e875ef86cf2c380f702d900a5c6351c2e8858883a07a2b7c8055fad353c19
+https://bcr.bazel.build/modules/protobuf/37.0-rc3/source.json 8a62d15c95ede5c19a3388a7b2be1db65e6acaeef1441552cd02e95238ab4bb5
 https://bcr.bazel.build/modules/pybind11_bazel/2.11.1/MODULE.bazel 88af1c246226d87e65be78ed49ecd1e6f5e98648558c14ce99176da041dc378e
 https://bcr.bazel.build/modules/pybind11_bazel/2.12.0/MODULE.bazel e6f4c20442eaa7c90d7190d8dc539d0ab422f95c65a57cc59562170c58ae3d34
 https://bcr.bazel.build/modules/pybind11_bazel/3.0.0/MODULE.bazel a2bfa6020ed603a00d944161c63173c7f109774e99bee0c2cd8dbf24159f8134
@@ -417,6 +417,7 @@ https://bcr.bazel.build/modules/rules_python/1.6.3/MODULE.bazel a7b80c42cb3de5ee
 https://bcr.bazel.build/modules/rules_python/1.7.0/MODULE.bazel d01f995ecd137abf30238ad9ce97f8fc3ac57289c8b24bd0bf53324d937a14f8
 https://bcr.bazel.build/modules/rules_python/1.8.0/MODULE.bazel c151c025dbcc93d8f62ab68ecc313c9176a868a0e6386981bf2a12aec77cbe7b
 https://bcr.bazel.build/modules/rules_python/1.9.0/MODULE.bazel afc3a05f29f09f2d3ee95ad99a145250dab41a2b2d8d6f82cc91936b3213282c
+https://bcr.bazel.build/modules/rules_python/2.3.0/MODULE.bazel 45379a115e826bdd98f1b959d181acccedce8de70d9448ecc0b26640c8e49ec4
 https://bcr.bazel.build/modules/rules_python/2.4.6/MODULE.bazel edd87d5af3d4cc3c6e233c4450209bad2f4d6124d24c647670ee8062cfdf822e
 https://bcr.bazel.build/modules/rules_python/2.4.6/patches/module_dot_bazel_version.patch 712a4c1f5bb302f3866eac53f14187fb1e3b896244e37ef1da2dacaae82962b7
 https://bcr.bazel.build/modules/rules_python/2.4.6/source.json 2e5154205999e263cdee7399111b09acfb9361a205f29e95af93f9423be674d6
@@ -522,7 +523,9 @@ https://github.com/bats-core/bats-core/archive/v1.10.0.tar.gz a1a9f7875aa4b6a948
 https://github.com/bazel-contrib/bazel-lib/releases/download/v2.22.5/bazel-lib-v2.22.5.tar.gz 94e192033ca8027f26de71c9000a67ef9c73695c2b88e2c559045170917ead0c
 https://github.com/bazel-contrib/bazel-lib/releases/download/v3.7.2/bazel-lib-v3.7.2.tar.gz c75f8c375f9f2c73a565dba188f91a4e8d7ca16dd2b6152d3886c26bbf1c6532
 https://github.com/bazel-contrib/bazel-lib/releases/download/v3.7.2/copy_to_directory-linux_amd64 62915fbc1a432eced2676458526d53915898068f4ae503f2e740049603922337
+https://github.com/bazel-contrib/bazel-lib/releases/download/v3.7.2/copy_to_directory-windows_amd64.exe a32c637d15393cd264dc323de87017524895a8084acb96fca2a23e9c693284a4
 https://github.com/bazel-contrib/bazel-lib/releases/download/v3.7.2/spawn_binary-linux_amd64 fff56331defc1c191a62063c812cbc600fb42ca5824eda4fd41e601a804d36b4
+https://github.com/bazel-contrib/bazel-lib/releases/download/v3.7.2/spawn_binary-windows_amd64.exe 4a9bd9f061c180ca7c37ddaedf8cfbd997bbf42a8bfd416aa7f7bca8ceedd9a7
 https://github.com/bazel-contrib/bazel_features/releases/download/v1.55.0/bazel_features-v1.55.0.tar.gz 2ed1fdce7e51ba2149dfab73eab6e402217c8e27d17e1d4a48d4d86bdd9eaef6
 https://github.com/bazel-contrib/jq.bzl/releases/download/v0.4.0/jq.bzl-v0.4.0.tar.gz 21617eb71fb775a748ef5639131ab943ef39946bd2a4ce96ea60b03f985db0c5
 https://github.com/bazel-contrib/rules_cuda/releases/download/v0.4.0/rules_cuda-v0.4.0.tar.gz 5e8a32ae93e32724f4159a90ab0da33431181dbf08c02c94db088110f68088ac
@@ -557,9 +560,12 @@ https://github.com/bminor/glibc/archive/92d25389c255b0da9b56bc05694f0702cd22921a
 https://github.com/cerisier/glibc-headers/releases/download/2.28-20250512/x86_64-linux-gnu.2.28.tar.zst 8015f4a710987439dfdcde7539b62cc5db52d2cd9456af5e2e297494f13c56f3
 https://github.com/cerisier/kernel-headers/releases/download/4.19.325-20250511/4.19.325-x86.tar.zst 55b232aa55b9f4aedbed6a743db0a2b7f4e92bb07b3ffeeb614e9dda30d34851
 https://github.com/fmeum/with_cfg.bzl/releases/download/v0.12.0/with_cfg.bzl-v0.12.0.tar.gz 23c39c6dfca14dbd1607025c736c8bf4843f31958c0a87fbdb2c7d206585fea4
+https://github.com/hermeticbuild/bsdtar-prebuilt/releases/download/v3.8.1-3/tar_darwin_arm64 f78ae63e48f58be8e88bb1e44ab165503b8bdc7374cebdeb7fa9327629c88907
 https://github.com/hermeticbuild/bsdtar-prebuilt/releases/download/v3.8.1-3/tar_linux_amd64 ae24dbc3ecf6ad628c2fdd205a52347fd4446589e750469766669e25cb80e22b
+https://github.com/hermeticbuild/bsdtar-prebuilt/releases/download/v3.8.1-3/tar_windows_x86_64.exe 550fc86489a24c0774d3cafbe326c1da01f374521154e9f0b9b77332b48e8b46
 https://github.com/hermeticbuild/hermetic-launcher/releases/download/v0.0.17/hermetic_launcher-v0.0.17.tar.gz 770951bf4bd5eb407571d3a21bbf002f1c6598e362fb233d03fdbb989df8ff61
 https://github.com/hermeticbuild/hermetic-llvm/releases/download/llvm-23.1.2-2/llvm-toolchain-minimal-23.1.2-linux-amd64-musl.tar.zst 2808ea0503af3656373fc141ddc7d082b53c7f858efd5245aed0241734257348
+https://github.com/hermeticbuild/hermetic-llvm/releases/download/llvm-23.1.2-2/llvm-toolchain-minimal-23.1.2-windows-amd64.tar.zst bf497374c118ffd93dadf96f9c0859b3cdee21c58ff54b71e4209c85434208ed
 https://github.com/hermeticbuild/hermetic-llvm/releases/download/prebuilts-extras-20260429/toolchain-extra-prebuilts-20260429-linux-amd64-musl.tar.zst 418a27a0ab8ecf46e2e00bd4381efc0bcb54c28312261c4f36114842e5ecb20e
 https://github.com/hermeticbuild/hermetic-llvm/releases/download/v0.8.26/hermetic-llvm-v0.8.26.tar.gz b00dbcf7fdfa111ee9ea763b76b775e627696c27bc552cf63e74e0ea8e2ddfb7
 https://github.com/hermeticbuild/llvm-redist/releases/download/llvmorg-23.1.2-r1/llvm-project-23.1.2.src.tar.zst 271da53a2feb0cb221a9276a14268a3b76ad802c7fc8fb1098291a43b06e4c56
@@ -567,10 +573,12 @@ https://github.com/hermeticbuild/rules_zig/releases/download/v0.17.0/rules_zig-0
 https://github.com/jmillikin/rules_m4/releases/download/v0.3.1/rules_m4-v0.3.1.tar.xz 1d9b9977f67c3e33265dce554446c7d3f0f3cc2c10d7ced2e67a6931cf0a6f4e
 https://github.com/jvolkman/toml.bzl/releases/download/v0.5.0/toml.bzl-v0.5.0.tar.gz b5bfdd5c5488ad37d60db188d2d17bc093f719b88b20886ce9fb092bff6b0e67
 https://github.com/miinso/rules_fortran/archive/f0cac73ebdcbda7bc01b38b8a4ee33869416c220.tar.gz ca07c12300ade0a7e5fff92eb95cc27e4618af993841b92a9784d239c34c7557
+https://github.com/mingw-w64/mingw-w64/archive/refs/tags/v14.0.0.tar.gz d71cc644cd5a37c337f2719f3e0c79d89e8d8d5fb9e2952a62d3fa23623dc137
 https://github.com/obazl/rules_ocaml/archive/24fa272c7b59ad902c5c82e71aae397b63f05467.tar.gz a23ad90cff101aa9d0cea279462dad72dddf597fc23be7748fbb1bb63143705c
 https://github.com/periareon/rules_julia/releases/download/0.8.0/rules_julia-0.8.0.tar.gz 298424f537350d37142f1f056375a3c3cd65a3058ee4b7dcd555ed1c87df8684
 https://github.com/periareon/rules_powershell/releases/download/0.3.1/rules_powershell-0.3.1.tar.gz 8ef875aa1dad8dc0f8f568547d2283f3d4b686b8e50374d6cdda4c5688fe6b7f
-https://github.com/protocolbuffers/protobuf/releases/download/v36.2/protobuf-36.2.bazel.tar.gz 9ce44c3890ee93f8f403db2198ebd711fcf8beae3d13f18a36f5bc1458748f40
+https://github.com/protocolbuffers/protobuf/releases/download/v37.0-rc3/protobuf-37.0-rc3.bazel.tar.gz e55e3380c67ae237c806e9ce9490d0b98ac3ea7d43283a9c1c1051d6647e2662
 https://github.com/scottpledger/yaml.bzl/releases/download/v0.1.2/yaml.bzl-v0.1.2.tar.gz 8262749910722af6c943b30ae16ba48f12abd8c00eeab525783892ca531dd8ab
 https://github.com/tweag/rules_haskell/archive/826018312ea91c80ff66fde1e1e39f76c42c07b8.tar.gz 86d126db53fa06ee935d94ee109420d3a68733377091f7914f62abe36c1972a1
+https://github.com/uutils/coreutils/releases/download/0.9.0/coreutils-0.9.0-x86_64-pc-windows-gnu.zip 3f84876d20b86e2b13ce4cca7d5fe220bc7773b92a3df844e70c2c9b590357d6
 https://github.com/uutils/coreutils/releases/download/0.9.0/coreutils-0.9.0-x86_64-unknown-linux-musl.tar.gz 7fffbe9c835054f1143a5f2a68ef478efb427417163e0410c26c901da15647e5

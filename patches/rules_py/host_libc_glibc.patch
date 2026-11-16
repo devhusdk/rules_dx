@@ -1,6 +1,10 @@
 --- a/uv/private/host/repository.bzl
 +++ b/uv/private/host/repository.bzl
-@@ -28,33 +28,7 @@
+@@ -25,35 +25,9 @@
+     if os == "osx":
+-        res = rctx.execute(["sw_vers", "-productVersion"])
++        res = rctx.execute(["/usr/bin/sw_vers", "-productVersion"])
+         ver = res.stdout.strip().split(".")
          return "libsystem", "{}.{}".format(ver[0], ver[1])
  
      elif os == "linux":

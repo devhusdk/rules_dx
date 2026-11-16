@@ -55,14 +55,101 @@ probe = rule(
 )
 "#;
 
-/// Starts a consumer whose only dependency is `mid`, a module that depends on rules_dx.
+const OWN_CC_CONFIG: &str = r#"load("@rules_cc//cc:cc_toolchain_config_lib.bzl", "tool_path")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+
+def _impl(ctx):
+    return cc_common.create_cc_toolchain_config_info(
+        ctx = ctx,
+        toolchain_identifier = "own_cc",
+        host_system_name = "local",
+        target_system_name = "local",
+        target_cpu = "own",
+        target_libc = "own",
+        compiler = "own",
+        abi_version = "own",
+        abi_libc_version = "own",
+        tool_paths = [tool_path(name = name, path = ctx.attr.tool) for name in ["gcc", "ld", "ar", "cpp", "gcov", "nm", "objdump", "strip"]],
+    )
+
+own_cc_config = rule(implementation = _impl, attrs = {"tool": attr.string(mandatory = True)})
+"#;
+
+/// The compiler of `own_cc`: writes `own_cc` to every `-o` output and an empty `-MF` file, also inside `@` parameter files.
+#[cfg(not(windows))]
+const OWN_CC_TOOL: (&str, &str) = (
+    "cc.sh",
+    "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n    @*) params=\"${1#@}\"; shift; set -- $(cat \"$params\") \"$@\"; continue ;;\n    -o) printf 'own_cc\\n' > \"$2\"; shift ;;\n    -MF) : > \"$2\"; shift ;;\n  esac\n  shift\ndone\n",
+);
+#[cfg(windows)]
+const OWN_CC_TOOL: (&str, &str) = (
+    "cc.bat",
+    "@echo off\r\n:loop\r\nif \"%~1\"==\"\" exit /b 0\r\nset \"arg=%~1\"\r\nif \"%arg:~0,1%\"==\"@\" call :params \"%arg:~1%\"\r\nif \"%~1\"==\"-o\" echo own_cc> \"%~2\"\r\nif \"%~1\"==\"-MF\" type nul> \"%~2\"\r\nshift\r\ngoto loop\r\n:params\r\nset next=\r\nfor /f \"usebackq delims=\" %%L in (\"%~1\") do (\r\n  if defined next (echo own_cc> \"%%~L\"& set next=)\r\n  if \"%%~L\"==\"-o\" set next=1\r\n)\r\nexit /b 0\r\n",
+);
+
+/// Writes `own_cc`, the module that registers the consumer's own C++ toolchain.
+fn write_own_cc(case: &Case) {
+    let (tool, script) = OWN_CC_TOOL;
+    case.write(
+        "own_cc/MODULE.bazel",
+        "module(name = \"own_cc\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.28\")\nregister_toolchains(\"//:toolchain\")\n",
+    );
+    case.write("own_cc/config.bzl", OWN_CC_CONFIG);
+    case.write(format!("own_cc/{tool}"), script);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let path = case.root().join("own_cc").join(tool);
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+            .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    }
+    case.write(
+        "own_cc/BUILD.bazel",
+        &format!(
+            r#"load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
+load(":config.bzl", "own_cc_config")
+
+own_cc_config(
+    name = "config",
+    tool = "{tool}",
+)
+
+filegroup(
+    name = "tools",
+    srcs = ["{tool}"],
+)
+
+cc_toolchain(
+    name = "cc",
+    all_files = ":tools",
+    ar_files = ":tools",
+    as_files = ":tools",
+    compiler_files = ":tools",
+    dwp_files = ":tools",
+    linker_files = ":tools",
+    objcopy_files = ":tools",
+    strip_files = ":tools",
+    toolchain_config = ":config",
+)
+
+toolchain(
+    name = "toolchain",
+    toolchain = ":cc",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+"#
+        ),
+    );
+}
+
+/// Starts a consumer whose only dependency is `mid`, which depends on rules_dx and then on `own_cc`.
 fn indirect_consumer(name: &str) -> Case {
     let case = nested::harness_consumer(name);
     let module = dx_testing::read_text(&case.root().join("MODULE.bazel"));
     assert!(module.contains(DEP), "{module}");
     let module = module.replace(
         DEP,
-        "bazel_dep(name = \"mid\", version = \"0.0.0\")\nlocal_path_override(module_name = \"mid\", path = \"mid\")\n",
+        "bazel_dep(name = \"mid\", version = \"0.0.0\")\nlocal_path_override(module_name = \"mid\", path = \"mid\")\nlocal_path_override(module_name = \"own_cc\", path = \"own_cc\")\n",
     );
     case.write(
         "MODULE.bazel",
@@ -78,18 +165,32 @@ fn indirect_consumer(name: &str) -> Case {
     }
     case.write(
         "mid/MODULE.bazel",
-        &format!("module(name = \"mid\", version = \"0.0.0\")\n{DEP}"),
+        &format!(
+            "module(name = \"mid\", version = \"0.0.0\")\n{DEP}bazel_dep(name = \"own_cc\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.28\")\n"
+        ),
     );
     case.write("mid/BUILD.bazel", "");
+    case.write(
+        "mid/cc.bzl",
+        "load(\"@rules_cc//cc:cc_binary.bzl\", _cc_binary = \"cc_binary\")\n\ncc_binary = _cc_binary\n",
+    );
+    write_own_cc(&case);
     case.write(".bazelrc", "");
     case.write("probe.bzl", PROBE);
+    case.write("main.c", "int main(void) { return 0; }\n");
     case.write(
         "BUILD.bazel",
-        "load(\":probe.bzl\", \"probe\")\n\nprobe(name = \"probe\")\n",
+        "load(\"@mid//:cc.bzl\", \"cc_binary\")\nload(\":probe.bzl\", \"probe\")\n\nprobe(name = \"probe\")\n\ncc_binary(\n    name = \"main\",\n    srcs = [\"main.c\"],\n)\n",
     );
     case.use_lock("indirect");
     case
 }
+
+/// Turns off the host C++ toolchains of `rules_cc` and `apple_support`.
+const NO_DETECT: [&str; 2] = [
+    "--repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1",
+    "--repo_env=BAZEL_NO_APPLE_CPP_TOOLCHAIN=1",
+];
 
 /// The `Selected` lines of the C++ toolchain resolution of `//:probe`.
 fn selected_cc(case: &Case, flags: &[&str]) -> Vec<String> {
@@ -98,8 +199,8 @@ fn selected_cc(case: &Case, flags: &[&str]) -> Vec<String> {
         "--color=no",
         "--curses=no",
         "--toolchain_resolution_debug=@bazel_tools//tools/cpp:toolchain_type",
-        "--repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1",
     ];
+    args.extend_from_slice(&NO_DETECT);
     args.extend_from_slice(flags);
     args.push("//:probe");
     let run = case.bazel(&args);
@@ -112,15 +213,41 @@ fn selected_cc(case: &Case, flags: &[&str]) -> Vec<String> {
 }
 
 #[test]
-fn an_indirect_consumer_resolves_no_gated_rules_dx_toolchain() {
+fn an_indirect_consumer_builds_with_its_own_cc_toolchain_unless_rules_dx_toolchains_are_on() {
     let case = indirect_consumer("indirect");
     let selected = selected_cc(&case, &[]);
-    assert!(selected.is_empty(), "{selected:?}");
-    let enabled = selected_cc(&case, &["--@@rules_dx+//config:toolchains=true"]);
     assert!(
-        !enabled.is_empty() && enabled.iter().all(|line| line.contains("@@llvm+//toolchain:")),
+        !selected.is_empty() && selected.iter().all(|line| line.contains("@@own_cc+//:cc")),
+        "{selected:?}"
+    );
+    let enabled = selected_cc(&case, &["--@@rules_dx+//config:toolchains=true"]);
+    let rules_dx_cc = if cfg!(target_os = "macos") {
+        "@@apple_support+//toolchain:"
+    } else {
+        "@@llvm+//toolchain:"
+    };
+    assert!(
+        !enabled.is_empty() && enabled.iter().all(|line| line.contains(rules_dx_cc)),
         "{enabled:?}"
     );
+    let mut build = vec!["build", "--color=no", "--curses=no"];
+    build.extend_from_slice(&NO_DETECT);
+    build.push("//:main");
+    let run = case.bazel(&build);
+    assert!(run.status.success(), "{}", run.combined());
+    let mut cquery = vec!["cquery", "--color=no", "--curses=no", "--output=files"];
+    cquery.extend_from_slice(&NO_DETECT);
+    cquery.push("//:main");
+    let files = case.bazel(&cquery);
+    assert!(files.status.success(), "{}", files.combined());
+    let binary = files
+        .stdout
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or_else(|| panic!("no output file: {}", files.combined()));
+    let text = dx_testing::read_text(&case.root().join(binary));
+    assert_eq!(text.trim(), "own_cc", "{binary}");
 }
 
 #[test]
@@ -208,13 +335,24 @@ fn a_download_outside_the_cache_sets_fails_with_its_url() {
 fn nested_commands_see_no_host_path_and_a_home_under_the_test_tmpdir() {
     let tmpdir = std::path::PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
     let case = nested::case("environment");
-    std::fs::write(case.join("MODULE.bazel"), "module(name = \"environment\")\n")
-        .unwrap_or_else(|error| panic!("write MODULE.bazel: {error}"));
+    std::fs::write(
+        case.join("MODULE.bazel"),
+        "module(name = \"environment\")\n",
+    )
+    .unwrap_or_else(|error| panic!("write MODULE.bazel: {error}"));
     let run = case.bazel(&["info", "output_base"]);
     assert!(run.status.success(), "{}", run.combined());
     let output_base = std::path::PathBuf::from(run.stdout.trim());
-    assert!(output_base.starts_with(&tmpdir), "{}", output_base.display());
-    assert!(case.root().starts_with(&tmpdir), "{}", case.root().display());
+    assert!(
+        output_base.starts_with(&tmpdir),
+        "{}",
+        output_base.display()
+    );
+    assert!(
+        case.root().starts_with(&tmpdir),
+        "{}",
+        case.root().display()
+    );
     let environ = std::fs::read(format!("/proc/{}/environ", case.servers()[0])).expect("environ");
     let environ = String::from_utf8_lossy(&environ);
     let vars: Vec<&str> = environ.split('\0').collect();

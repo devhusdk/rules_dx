@@ -1,6 +1,7 @@
 package gotype
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -121,7 +122,11 @@ func TestUnownedFileDiagnosticsAreDropped(t *testing.T) {
 func TestRunWritesReportAndRejectsBadConfig(t *testing.T) {
 	dir := t.TempDir()
 	src := write(t, dir, "a.go", "package p\n\nvar a int = \"x\"\n")
-	cfg := write(t, dir, "cfg.json", `{"ImportPath":"example.com/p","GoFiles":["`+src+`"],"GOOS":"linux","GOARCH":"amd64"}`)
+	files, err := json.Marshal([]string{src})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := write(t, dir, "cfg.json", `{"ImportPath":"example.com/p","GoFiles":`+string(files)+`,"GOOS":"linux","GOARCH":"amd64"}`)
 	out := filepath.Join(dir, "out.json")
 	if err := run(cfg, out); err != nil {
 		t.Fatal(err)

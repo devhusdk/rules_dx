@@ -1,5 +1,6 @@
 """Analysis tests that cgo rejects C++ toolchains it cannot use."""
 
+load("@bazel_skylib//lib:dicts.bzl", "dicts")
 load("//core:failure_test.bzl", "failure_test_rule")
 
 _WINDOWS = "x86_64-pc-windows-msvc"
@@ -21,18 +22,20 @@ _CASES = {
 
 _DEFAULT_MESSAGE = "Go cgo on Windows needs the MinGW (GNU) ABI"
 
+_PROBE = {str(Label("//go/tests/fixtures/cgo:unsupported_probe")): True}
+
 def _make(case):
-    return failure_test_rule({
+    return failure_test_rule(dicts.add(_PROBE, {
         "//command_line_option:extra_toolchains": [str(Label(_CASES[case][0]))],
-    })
+    }))
 
 _clang_cl_test = _make("clang_cl")
 _clang_msvc_test = _make("clang_msvc")
 _msvc_cl_test = _make("msvc_cl")
 
-_default_windows_test = failure_test_rule({
+_default_windows_test = failure_test_rule(dicts.add(_PROBE, {
     "//command_line_option:platforms": [str(Label("//go/tests/fixtures/cgo:windows_x86_64"))],
-})
+}))
 
 _RULES = {
     "clang_cl": _clang_cl_test,

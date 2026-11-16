@@ -451,11 +451,11 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
                 if rel == std::path::Path::new("MANIFEST") {
                     continue;
                 }
-                lines.push(format!(
-                    "{} {}",
-                    rel.to_string_lossy(),
-                    real.to_string_lossy()
-                ));
+                let key: Vec<_> = rel
+                    .components()
+                    .map(|part| part.as_os_str().to_string_lossy())
+                    .collect();
+                lines.push(format!("{} {}", key.join("/"), real.to_string_lossy()));
             }
         }
     }

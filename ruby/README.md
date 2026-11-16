@@ -14,12 +14,14 @@ Declare your own bundle in `MODULE.bazel`:
 ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
 ruby.bundle_fetch(
     name = "gems",
-    gem_checksums = {...},
     gemfile = "//:Gemfile",
     gemfile_lock = "//:Gemfile.lock",
 )
 use_repo(ruby, "gems")
 ```
+
+Each gem's sha256 comes from the `CHECKSUMS` section of `Gemfile.lock`, which
+`bundle lock --add-checksums` writes. A gem without one fails the fetch.
 
 Depend on the bundle as `@gems`. To run RSpec, set `main` to its bin and pass
 the spec path in `args`:

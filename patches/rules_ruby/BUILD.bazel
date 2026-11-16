@@ -5,6 +5,7 @@ exports_files([
     "reproducible.patch",
     "rubyinstaller_archive.patch",
     "toolchains_gate.patch",
+    "lock_checksums.patch",
     "toolchains_hub.patch",
 ])
 

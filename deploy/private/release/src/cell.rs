@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use dx_deploy_tools::import_allowed;
@@ -72,6 +73,7 @@ pub struct Cell {
 
 impl Cell {
     /// Returns the archive file name `<name>.<format>`.
+    #[must_use]
     pub fn archive_name(&self) -> String {
         format!("{}.{}", self.name, self.format)
     }
@@ -85,6 +87,10 @@ struct Matrix {
 }
 
 /// Parses and validates one release-matrix/v1 document.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_matrix(text: &str) -> Result<Vec<Cell>, String> {
     let matrix: Matrix =
         serde_json::from_str(text).map_err(|error| format!("release matrix: {error}"))?;
@@ -211,6 +217,7 @@ pub struct CellRecord {
 
 impl CellRecord {
     /// Renders the record as pretty ASCII JSON.
+    #[must_use]
     pub fn render(&self) -> String {
         crate::render_pretty(&serde_json::to_value(self).unwrap_or_default())
     }
@@ -229,7 +236,7 @@ pub trait Runner {
     fn run(&self, program: &Path, args: &[&str], cwd: &Path) -> RunOutput;
 }
 
-/// The consumer template and the rules_dx checkout the staged workspace depends on.
+/// The consumer template and the `rules_dx` checkout the staged workspace depends on.
 #[derive(Debug, Clone)]
 pub struct Consumer {
     pub template: PathBuf,
@@ -356,7 +363,7 @@ fn starlark_string(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-/// The one place that says where the consumer gets rules_dx from.
+/// The one place that says where the consumer gets `rules_dx` from.
 fn rules_dx_override(checkout: &Path) -> String {
     format!(
         "local_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
@@ -371,7 +378,7 @@ fn string_arg<'a>(call: &'a str, key: &str) -> Option<&'a str> {
     rest.split_once('"').map(|(value, _)| value)
 }
 
-/// The modules of the non-dev `bazel_dep` calls of the rules_dx root MODULE.bazel.
+/// The modules of the non-dev `bazel_dep` calls of the `rules_dx` root MODULE.bazel.
 fn shipped_deps(root_module: &str) -> Vec<&str> {
     root_module
         .lines()
@@ -380,8 +387,9 @@ fn shipped_deps(root_module: &str) -> Vec<&str> {
         .collect()
 }
 
-/// The top-level `archive_override` and `single_version_override` calls of the rules_dx root
+/// The top-level `archive_override` and `single_version_override` calls of the `rules_dx` root
 /// MODULE.bazel whose module is a non-dev `bazel_dep` of it.
+#[must_use]
 pub fn root_overrides(root_module: &str) -> Vec<String> {
     let shipped = shipped_deps(root_module);
     let mut blocks = Vec::new();
@@ -407,6 +415,10 @@ pub fn root_overrides(root_module: &str) -> Vec<String> {
 }
 
 /// The `(package, file)` of each `//patches/...` label in `overrides`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn override_patches(overrides: &[String]) -> Result<Vec<(String, String)>, String> {
     let mut patches = Vec::new();
     for block in overrides {
@@ -426,7 +438,11 @@ pub fn override_patches(overrides: &[String]) -> Result<Vec<(String, String)>, S
     Ok(patches)
 }
 
-/// Builds the consumer MODULE.bazel from the `dx init` snippet and the rules_dx checkout.
+/// Builds the consumer MODULE.bazel from the `dx init` snippet and the `rules_dx` checkout.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn consumer_module(
     init_module: &str,
     root_module: &str,
@@ -465,6 +481,10 @@ pub fn consumer_module(
 /// Builds the consumer workspace the way a user adopts dx and returns its dir.
 ///
 /// The template supplies sources only; `exe init` writes the toolchain wiring.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn stage_consumer(
     consumer: &Consumer,
     exe: &Path,
@@ -661,10 +681,10 @@ fn installed_checks(
             Err(images) => Err(format!("want one image, found {}", images.len())),
         });
     if let Ok(image) = &image {
-        binary.format = image.format.name().to_owned();
-        binary.machine = image.machine.clone();
+        image.format.name().clone_into(&mut binary.format);
+        binary.machine.clone_from(&image.machine);
         binary.abi = image.abi.name();
-        binary.needed = image.needed.clone();
+        binary.needed.clone_from(&image.needed);
     }
     verdicts.note(
         "binary",
@@ -782,7 +802,7 @@ fn differing_members(inputs: &QualifyInputs) -> String {
         match second.iter().find(|(other, _, _)| other == name) {
             None => names.push(format!("{name} (missing from rebuild)")),
             Some((_, other_mode, other)) if other != sha256 || other_mode != mode => {
-                names.push(name.clone())
+                names.push(name.clone());
             }
             Some(_) => {}
         }
@@ -825,7 +845,7 @@ pub fn qualify(inputs: &QualifyInputs, runner: &dyn Runner) -> CellRecord {
             .as_ref()
             .map(|bytes| dx_digest::sha256_hex(bytes))
             .unwrap_or_default(),
-        bytes: bytes.as_ref().map(|bytes| bytes.len() as u64).unwrap_or(0),
+        bytes: bytes.as_ref().map_or(0, |bytes| bytes.len() as u64),
     };
     verdicts.note(
         "format",
@@ -885,24 +905,21 @@ pub fn qualify(inputs: &QualifyInputs, runner: &dyn Runner) -> CellRecord {
         .map_err(|error| format!("cannot extract: {error}"));
     verdicts.note("extract", listing.as_ref().map(drop).map_err(String::clone));
     let mut binary = BinaryFacts::default();
-    let members = match &listing {
-        Ok(listing) => {
-            installed_checks(inputs, listing, runner, &mut verdicts, &mut binary);
-            listing
-                .iter()
-                .map(|(name, mode, sha256)| Member {
-                    name: name.clone(),
-                    mode: *mode,
-                    sha256: sha256.clone(),
-                })
-                .collect()
+    let members = if let Ok(listing) = &listing {
+        installed_checks(inputs, listing, runner, &mut verdicts, &mut binary);
+        listing
+            .iter()
+            .map(|(name, mode, sha256)| Member {
+                name: name.clone(),
+                mode: *mode,
+                sha256: sha256.clone(),
+            })
+            .collect()
+    } else {
+        for name in &CHECKS[4..] {
+            verdicts.note(name, Err("blocked: extract failed".to_owned()));
         }
-        Err(_) => {
-            for name in &CHECKS[4..] {
-                verdicts.note(name, Err("blocked: extract failed".to_owned()));
-            }
-            Vec::new()
-        }
+        Vec::new()
     };
     let result = if verdicts.0.iter().all(|check| check.verdict == Verdict::Ok) {
         Verdict::Ok
@@ -1016,6 +1033,7 @@ pub struct CellOutcome {
 }
 
 impl CellOutcome {
+    #[must_use]
     pub fn qualified(&self) -> bool {
         self.reasons.is_empty()
     }
@@ -1036,6 +1054,7 @@ impl Verification {
 
 /// Checks every `*.json` record in `records` against the matrix, the archives and the release identity,
 /// and reports each cell on its own instead of stopping at the first rejection.
+#[must_use]
 pub fn verify_each(
     matrix: &[Cell],
     records: &Path,
@@ -1104,6 +1123,10 @@ pub fn verify_each(
 }
 
 /// Checks every record like `verify_each` and fails on the first problem found anywhere.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn verify(
     matrix: &[Cell],
     records: &Path,
@@ -1173,6 +1196,10 @@ pub const QUALIFY_USAGE: &str = "qualify --matrix <release_matrix.json> --cell <
 pub const VERIFY_USAGE: &str = "verify --matrix <release_matrix.json> --records <dir> --archives <dir> --sha <commit> --version <version> --workflow-ref <ref>";
 
 /// Parses `qualify` flags into inputs for the host runner and the record path.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_qualify_args(
     args: &[String],
     runner_os: &str,
@@ -1248,6 +1275,10 @@ pub struct VerifyArgs {
 }
 
 /// Parses `verify` flags and reads the matrix.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_verify_args(args: &[String]) -> Result<VerifyArgs, String> {
     let flags = parse_flags(
         args,
@@ -1274,6 +1305,10 @@ pub fn parse_verify_args(args: &[String]) -> Result<VerifyArgs, String> {
 }
 
 /// Runs `qualify` from flags, writes the record and returns it.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn qualify_main(args: &[String], runner: &dyn Runner) -> Result<CellRecord, String> {
     let (inputs, out) = parse_qualify_args(args, std::env::consts::OS, std::env::consts::ARCH)?;
     let record = qualify(&inputs, runner);
@@ -1283,36 +1318,44 @@ pub fn qualify_main(args: &[String], runner: &dyn Runner) -> Result<CellRecord, 
 }
 
 /// Renders one block per cell in matrix order, then the problems no cell owns.
+#[must_use]
 pub fn render_verification(verification: &Verification) -> String {
     let mut text = String::new();
     for outcome in &verification.cells {
-        match (&outcome.record, outcome.qualified()) {
-            (Some(record), true) => text.push_str(&format!(
-                "{} qualified {} sha256 {} sha {} version {} job {} run {}\n",
-                record.cell,
-                record.archive.name,
-                record.archive.sha256,
-                record.sha,
-                record.version,
-                record.job,
-                record.run_id
-            )),
-            _ => {
-                text.push_str(&format!("{} rejected\n", outcome.cell));
-                for reason in &outcome.reasons {
-                    text.push_str(&format!("  {reason}\n"));
-                }
+        if let (Some(record), true) = (&outcome.record, outcome.qualified()) {
+            {
+                writeln!(
+                    text,
+                    "{} qualified {} sha256 {} sha {} version {} job {} run {}",
+                    record.cell,
+                    record.archive.name,
+                    record.archive.sha256,
+                    record.sha,
+                    record.version,
+                    record.job,
+                    record.run_id
+                )
+                .ok();
+            }
+        } else {
+            writeln!(text, "{} rejected", outcome.cell).ok();
+            for reason in &outcome.reasons {
+                writeln!(text, "  {reason}").ok();
             }
         }
     }
     for problem in &verification.stray {
-        text.push_str(&format!("stray: {problem}\n"));
+        writeln!(text, "stray: {problem}").ok();
     }
     text
 }
 
 /// Runs `verify` from flags and returns whether every cell qualified, with the per-cell text.
 /// `Err` is only for bad flags or a bad matrix.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn verify_main(args: &[String]) -> Result<(bool, String), String> {
     let parsed = parse_verify_args(args)?;
     let verification = verify_each(
@@ -1327,6 +1370,10 @@ pub fn verify_main(args: &[String]) -> Result<(bool, String), String> {
 pub const VERSION_USAGE: &str = "version --exe <path>";
 
 /// Takes the version from the first `dx <version>` line of `dx --version` output.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn printed_version(stdout: &str) -> Result<String, String> {
     stdout
         .lines()
@@ -1337,6 +1384,10 @@ pub fn printed_version(stdout: &str) -> Result<String, String> {
 }
 
 /// Runs `version` from flags: asks the executable for its version and returns it.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn version_main(args: &[String], runner: &dyn Runner) -> Result<String, String> {
     let flags = parse_flags(args, &["exe"], &[])?;
     let stdout = ran(

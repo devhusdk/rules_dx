@@ -24,7 +24,7 @@ fn qualify_outcome(record: &CellRecord) -> (i32, String) {
 }
 
 // LCOV_EXCL_START - reason: process shim with the real command runner, issue: 1386, policy: docs/cli/commands/build-test-coverage.md
-const CELL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1800);
+const CELL_TIMEOUT: std::time::Duration = std::time::Duration::from_mins(30);
 
 struct CommandRunner;
 

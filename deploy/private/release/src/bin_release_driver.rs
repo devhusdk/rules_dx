@@ -113,7 +113,7 @@ fn ledger_with(
 }
 
 fn resolve_tag(argv: &[String]) -> &str {
-    argv.get(1).map(String::as_str).unwrap_or(DRY_RUN_TAG)
+    argv.get(1).map_or(DRY_RUN_TAG, String::as_str)
 }
 
 fn resolve_commit(argv: &[String]) -> Option<&str> {
@@ -124,8 +124,8 @@ fn approve_of(value: Option<String>) -> String {
     value.unwrap_or_else(|| "0".to_owned())
 }
 
-fn dry_of(value: Option<String>) -> bool {
-    value.as_deref().unwrap_or("1") != "0"
+fn dry_of(value: Option<&str>) -> bool {
+    value.unwrap_or("1") != "0"
 }
 
 fn workspace_dir_of(value: Option<OsString>) -> Option<PathBuf> {
@@ -176,7 +176,7 @@ fn run(argv: &[String]) -> i32 {
     let tag = resolve_tag(argv).to_owned();
     let commit = resolve_commit(argv).map(str::to_owned);
     let approve = approve_of(std::env::var("RELEASE_APPROVE").ok());
-    let dry = dry_of(std::env::var("RELEASE_DRY_RUN").ok());
+    let dry = dry_of(std::env::var("RELEASE_DRY_RUN").ok().as_deref());
     let dir = workspace_dir_of(std::env::var_os("BUILD_WORKSPACE_DIRECTORY"));
     if dry {
         return run_with(&tag, commit.as_deref(), &approve, dry, || {
@@ -261,8 +261,8 @@ mod tests {
     #[test]
     fn dry_run_defaults_to_dry() {
         assert!(dry_of(None));
-        assert!(dry_of(Some("1".to_owned())));
-        assert!(!dry_of(Some("0".to_owned())));
+        assert!(dry_of(Some("1")));
+        assert!(!dry_of(Some("0")));
     }
 
     fn git_unread() -> Result<GitState, String> {
@@ -433,8 +433,8 @@ mod tests {
     fn assets_are_the_args_after_the_commit() {
         let argv: Vec<String> = ["d", "v1", SHA, "/o/a", "/o/b"].map(String::from).to_vec();
         assert_eq!(resolve_assets(&argv), ["/o/a", "/o/b"]);
-        assert!(resolve_assets(&argv[..3]).is_empty());
-        assert!(resolve_assets(&argv[..1]).is_empty());
+        assert_eq!(resolve_assets(&argv[..3]), [] as [String; 0]);
+        assert_eq!(resolve_assets(&argv[..1]), [] as [String; 0]);
     }
 
     #[cfg(unix)]

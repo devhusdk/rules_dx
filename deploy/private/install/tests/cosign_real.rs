@@ -39,8 +39,8 @@ fn trusting_cosign(scratch: &Path) -> PathBuf {
 fn verify(identity: &str, issuer: &str, subject: &Path) -> Output {
     let scratch = dx_test_scratch::scratch("cosign_verify");
     let scratch = scratch.path();
-    let wrapper = trusting_cosign(&scratch);
-    let dx_verify = dx_testing::env_file("DX_VERIFY_BIN");
+    let wrapper = trusting_cosign(scratch);
+    let dx_verify = env_file("DX_VERIFY_BIN");
     std::process::Command::new(dx_verify)
         .env("DX_VERIFY_COSIGN", wrapper)
         .arg("--binary")

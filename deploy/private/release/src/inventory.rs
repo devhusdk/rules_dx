@@ -2,6 +2,7 @@
 //! and writes the NOTICE manifest plus one text per crate.
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use dx_ecosystems::Ecosystem;
@@ -41,6 +42,10 @@ struct ShippedDoc {
 }
 
 /// Parses the aspect's shipped-inventory/v1 document, sorted by crate and version.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_shipped(text: &str) -> Result<Vec<ShippedCrate>, String> {
     let doc: ShippedDoc =
         serde_json::from_str(text).map_err(|error| format!("inventory: {error}"))?;
@@ -66,6 +71,10 @@ pub fn parse_shipped(text: &str) -> Result<Vec<ShippedCrate>, String> {
 }
 
 /// Parses the native runtimes of the shipped-inventory/v1 document.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_shipped_runtimes(text: &str) -> Result<Vec<ShippedRuntime>, String> {
     let doc: ShippedDoc =
         serde_json::from_str(text).map_err(|error| format!("inventory: {error}"))?;
@@ -73,6 +82,7 @@ pub fn parse_shipped_runtimes(text: &str) -> Result<Vec<ShippedRuntime>, String>
 }
 
 /// The manifest text path of one crate: `cargo/<crate>-<version>/LICENSE`.
+#[must_use]
 pub fn text_path(name: &str, version: &str) -> String {
     format!("{SET}/{name}-{version}/{TEXT_NAME}")
 }
@@ -100,7 +110,7 @@ fn crate_words(krate: &ShippedCrate, license: &str, texts: &[(String, String)]) 
         if index > 0 {
             out.push('\n');
         }
-        out.push_str(&format!("--- {name} ---\n"));
+        writeln!(out, "--- {name} ---").ok();
         out.push_str(words.trim_end_matches('\n'));
         out.push('\n');
     }
@@ -189,6 +199,10 @@ fn manifest_license(krate: &ShippedCrate) -> Result<String, String> {
 /// Fails when a crate is missing from the lockfile, when the lockfile has no
 /// license for it, or when its license needs reproduced words, it ships none
 /// and license.toml has no exception for it.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn join(
     crates: &[ShippedCrate],
     lock_text: &str,
@@ -257,6 +271,7 @@ pub fn join(
 }
 
 /// Renders the six-field NOTICE manifest for the joined crates.
+#[must_use]
 pub fn render_manifest(joined: &[JoinedCrate]) -> String {
     let entries: Vec<crate::NoticeEntry> = joined
         .iter()
@@ -277,6 +292,10 @@ pub fn render_manifest(joined: &[JoinedCrate]) -> String {
 
 /// Runs the join and writes the manifest plus `<texts>/cargo/<crate>-<version>/LICENSE`.
 /// With `runtimes_out`, also writes the native runtime records with file hashes.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn write_inventory(
     shipped: &Path,
     lock: &Path,
@@ -350,7 +369,7 @@ mod tests {
             {"crate":"alpha","version":"1.0.0","label":"@a//:alpha"}]}"#;
         let crates = parse_shipped(doc).expect("parses");
         assert_eq!(crates[0].name, "alpha");
-        assert!(crates[0].texts.is_empty());
+        assert_eq!(crates[0].texts, [] as [PathBuf; 0]);
         assert_eq!(crates[1].texts, vec![PathBuf::from("b/LICENSE")]);
 
         let wrong = r#"{"schema":"shipped-inventory/v0","crates":[]}"#;
@@ -418,7 +437,7 @@ mod tests {
     #[test]
     fn same_basename_in_two_crates_stays_per_crate() {
         let dir = tempfile::tempdir().expect("tempdir");
-        let crates = vec![
+        let crates = [
             shipped(
                 "alpha",
                 "1.0.0",

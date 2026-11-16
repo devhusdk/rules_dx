@@ -66,7 +66,7 @@ fn built_dx(case: &Case) -> std::path::PathBuf {
     std::path::PathBuf::from(info.stdout.trim()).join(files.stdout.trim())
 }
 
-/// The `PATH` of the nested commands: a directory holding only the host `ldd`, which the rules_py
+/// The `PATH` of the nested commands: a directory holding only the host `ldd`, which the `rules_py`
 /// host platform repository runs on Linux.
 pub(crate) fn ldd_path() -> String {
     let dir = scratch_dir("quickstart-ldd");

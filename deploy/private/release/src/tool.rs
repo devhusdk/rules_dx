@@ -348,6 +348,7 @@ fn execute(invocation: &Invocation) -> std::io::Result<()> {
 
 /// Runs `release_tool <kind> <args...>` and returns the process exit code.
 /// `argv[0]` is the program name, as in `std::env::args()`.
+#[must_use]
 pub fn release_tool_run(argv: &[String]) -> i32 {
     let invocation = match parse(argv) {
         Ok(invocation) => invocation,

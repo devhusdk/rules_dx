@@ -1160,13 +1160,13 @@ fn notice_text_suffix_match_is_component_wise() {
     let found = |want: &str| -> Vec<String> {
         notice_text_matches(want, &inputs)
             .iter()
-            .map(|(path, _)| path.display().to_string())
+            .map(|(path, ())| path.display().to_string())
             .collect()
     };
     assert_eq!(found("a/LICENSE"), vec!["x/a/LICENSE"]);
     assert_eq!(found("x/a/LICENSE"), vec!["x/a/LICENSE"]);
     assert_eq!(found("LICENSE"), vec!["x/a/LICENSE", "x/ba/LICENSE"]);
-    assert!(found("ICENSE").is_empty());
+    assert_eq!(found("ICENSE"), [] as [String; 0]);
     assert_eq!(found("NOTLICENSE"), vec!["y/NOTLICENSE"]);
     assert_eq!(
         found("abs/COPYING"),
@@ -1183,7 +1183,7 @@ fn notice_text_suffix_match_is_component_wise() {
     rev.reverse();
     let rev_found: Vec<String> = notice_text_matches("LICENSE", &rev)
         .iter()
-        .map(|(path, _)| path.display().to_string())
+        .map(|(path, ())| path.display().to_string())
         .collect();
     assert_eq!(rev_found, found("LICENSE"));
 }
@@ -1475,7 +1475,8 @@ fn notice_verify_rejects_unbound_bundles() {
     );
     let words = scratch.path().join("demo-lib-a.txt");
     std::fs::write(&words, bound_words).expect("words");
-    let err = notice_verify_files(&notice, &manifest, &[words.clone()]).expect_err("no header");
+    let err = notice_verify_files(&notice, &manifest, std::slice::from_ref(&words))
+        .expect_err("no header");
     assert!(
         err.to_string().contains("missing entry header"),
         "got {err}"
@@ -1496,7 +1497,7 @@ fn notice_verify_rejects_unbound_bundles() {
 fn write_fake_cosign(dir: &Path, body: &str) -> std::path::PathBuf {
     std::fs::create_dir_all(dir).expect("bin dir");
     let script = dir.join("cosign");
-    dx_testing::executable_script(&script, &body);
+    dx_testing::executable_script(&script, body);
     script
 }
 

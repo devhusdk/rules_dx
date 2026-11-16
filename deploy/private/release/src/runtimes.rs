@@ -1,6 +1,7 @@
 //! Native runtimes in the shipped inventory: records with packaged-byte hashes
 //! and the NOTICE section they add.
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -48,6 +49,10 @@ struct Doc {
 }
 
 /// Hashes each runtime's files and reads its notice. Runtimes that cannot ship are errors.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn build(runtimes: &[ShippedRuntime]) -> Result<Vec<RuntimeRecord>, String> {
     let mut records = Vec::with_capacity(runtimes.len());
     for runtime in runtimes {
@@ -102,6 +107,7 @@ pub fn build(runtimes: &[ShippedRuntime]) -> Result<Vec<RuntimeRecord>, String> 
     Ok(records)
 }
 
+#[must_use]
 pub fn render_records(records: &[RuntimeRecord]) -> String {
     let doc = Doc {
         schema: SCHEMA.to_owned(),
@@ -112,6 +118,9 @@ pub fn render_records(records: &[RuntimeRecord]) -> String {
     text
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_records(text: &str) -> Result<Vec<RuntimeRecord>, String> {
     let doc: Doc = serde_json::from_str(text).map_err(|error| format!("runtimes: {error}"))?;
     if doc.schema != SCHEMA {
@@ -124,8 +133,9 @@ pub fn parse_records(text: &str) -> Result<Vec<RuntimeRecord>, String> {
 }
 
 /// The NOTICE section for the records: nothing when empty, else the marker,
-/// then each runtime by name. app_local runtimes carry their notice;
-/// os_supplied ones get one line.
+/// then each runtime by name. `app_local` runtimes carry their notice;
+/// `os_supplied` ones get one line.
+#[must_use]
 pub fn render_section(records: &[RuntimeRecord]) -> String {
     if records.is_empty() {
         return String::new();
@@ -136,23 +146,30 @@ pub fn render_section(records: &[RuntimeRecord]) -> String {
     for record in sorted {
         match (&record.notice, record.redistribution.as_str()) {
             (Some(notice), "app_local") => {
-                out.push_str(&format!(
+                write!(
+                    out,
                     "=== {} {} (app_local) [runtime] ===\n{}\n",
                     record.name,
                     record.version,
                     notice.trim_end_matches('\n')
-                ));
+                )
+                .ok();
             }
-            _ => out.push_str(&format!(
-                "{} {} ({})\n",
-                record.name, record.version, record.redistribution
-            )),
+            _ => {
+                writeln!(
+                    out,
+                    "{} {} ({})",
+                    record.name, record.version, record.redistribution
+                )
+                .ok();
+            }
         }
     }
     out
 }
 
 /// The NOTICE text without its runtime section.
+#[must_use]
 pub fn strip_section(notice: &str) -> &str {
     let mut offset = 0;
     for line in notice.split_inclusive('\n') {
@@ -165,10 +182,17 @@ pub fn strip_section(notice: &str) -> &str {
 }
 
 /// Reads the sidecar file of runtime records.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn read_records(path: &Path) -> std::io::Result<Vec<RuntimeRecord>> {
     parse_records(&std::fs::read_to_string(path)?).map_err(std::io::Error::other)
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,7 +220,7 @@ mod tests {
     fn hashes_are_the_hashes_of_the_shipped_bytes() {
         let dir = tempfile::tempdir().expect("dir");
         let shipped = runtime(dir.path(), "vc", "app_local", true);
-        let records = build(&[shipped.clone()]).expect("builds");
+        let records = build(std::slice::from_ref(&shipped)).expect("builds");
         let bytes = std::fs::read(&shipped.files[0]).expect("read");
         assert_eq!(records[0].files[0].name, "vc.so");
         assert_eq!(records[0].files[0].sha256, dx_digest::sha256_hex(&bytes));

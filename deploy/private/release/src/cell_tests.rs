@@ -8,7 +8,7 @@ fn put(image: &mut Vec<u8>, at: usize, bytes: &[u8]) {
     image[at..at + bytes.len()].copy_from_slice(bytes);
 }
 
-/// Builds one minimal 64-bit little-endian ELF executable with DT_NEEDED entries.
+/// Builds one minimal 64-bit little-endian ELF executable with `DT_NEEDED` entries.
 fn elf(machine: u16, needed: &[&str]) -> Vec<u8> {
     let mut image = vec![0u8; 64];
     put(&mut image, 0, &[0x7f, b'E', b'L', b'F', 2, 1, 1, 0]);
@@ -77,7 +77,7 @@ fn elf(machine: u16, needed: &[&str]) -> Vec<u8> {
     image
 }
 
-/// Builds one thin 64-bit Mach-O executable header with only LC_BUILD_VERSION.
+/// Builds one thin 64-bit Mach-O executable header with only `LC_BUILD_VERSION`.
 fn macho(cputype: u32) -> Vec<u8> {
     let mut image = Vec::new();
     for word in [
@@ -104,14 +104,14 @@ fn macho(cputype: u32) -> Vec<u8> {
 fn fat(slices: &[Vec<u8>]) -> Vec<u8> {
     let mut image = Vec::new();
     image.extend_from_slice(&0xcafe_babeu32.to_be_bytes());
-    image.extend_from_slice(&(slices.len() as u32).to_be_bytes());
+    image.extend_from_slice(&(u32::try_from(slices.len()).expect("slices")).to_be_bytes());
     for (index, slice) in slices.iter().enumerate() {
         let cputype = u32::from_le_bytes([slice[4], slice[5], slice[6], slice[7]]);
         for word in [
             cputype,
             0,
-            4096 * (index as u32 + 1),
-            slice.len() as u32,
+            4096 * (u32::try_from(index).expect("index") + 1),
+            u32::try_from(slice.len()).expect("len"),
             12,
         ] {
             image.extend_from_slice(&word.to_be_bytes());
@@ -136,7 +136,7 @@ fn pe_head(machine: u16) -> Vec<u8> {
 const EM_X86_64: u16 = 62;
 const EM_AARCH64: u16 = 183;
 
-/// Flips the ELF e_machine, PE Machine or thin Mach-O cputype between x86_64 and aarch64.
+/// Flips the ELF `e_machine`, PE Machine or thin Mach-O cputype between `x86_64` and aarch64.
 fn patch_machine(bytes: &[u8]) -> Vec<u8> {
     let mut out = bytes.to_vec();
     let to_arm = dx_binfmt::machine(bytes).expect("machine") == "x86_64";
@@ -211,10 +211,10 @@ impl Runner for FakeRunner {
                 stderr: format!("{} broke\n", args[0]),
             };
         }
-        if args[0] == "init" {
-            if let Some(snippet) = self.snippet {
-                std::fs::write(cwd.join("MODULE.bazel"), snippet).expect("module");
-            }
+        if args[0] == "init"
+            && let Some(snippet) = self.snippet
+        {
+            std::fs::write(cwd.join("MODULE.bazel"), snippet).expect("module");
         }
         let stdout = if args[0] == "--version" {
             self.version.clone()
@@ -531,7 +531,7 @@ fn qualify_rejects_fat_and_unreadable_binaries() {
 #[test]
 fn qualify_rejects_a_missing_runtime_member() {
     let fixture = synthetic("zip", |members| {
-        members.retain(|member| member.0 != "libextra.so.1")
+        members.retain(|member| member.0 != "libextra.so.1");
     });
     let record = qualify(&fixture.inputs, &FakeRunner::new());
     assert_failed(
@@ -644,7 +644,7 @@ fn qualify_blocks_every_later_check_when_extraction_fails() {
         assert_failed(&record, name, "blocked: extract failed");
     }
     assert_eq!(check_names(&record), CHECKS);
-    assert!(record.members.is_empty());
+    assert_eq!(record.members, [] as [Member; 0]);
     std::fs::remove_file(&fixture.inputs.archive).expect("rm");
     let record = qualify(
         &QualifyInputs {
@@ -720,7 +720,7 @@ pub(crate) fn matrix_json(cells: &[Cell]) -> String {
 fn parse_matrix_reads_cells_and_rejects_bad_ones() {
     let cell = synthetic_cell("tar.gz");
     assert_eq!(
-        parse_matrix(&matrix_json(&[cell.clone()])),
+        parse_matrix(&matrix_json(std::slice::from_ref(&cell))),
         Ok(vec![cell.clone()])
     );
     let error = |cells: Vec<Cell>| parse_matrix(&matrix_json(&cells)).expect_err("bad");
@@ -888,7 +888,7 @@ fn verify_rejects_a_swapped_or_missing_archive() {
     std::fs::remove_file(&archive).expect("rm");
     assert_error(&release, "cannot read");
     release.edit(TAR, |value| {
-        value["archive"]["name"] = "other.tar.gz".into()
+        value["archive"]["name"] = "other.tar.gz".into();
     });
     assert!(
         release
@@ -926,7 +926,7 @@ fn verify_rejects_missing_duplicate_unknown_and_malformed_records() {
     std::fs::remove_file(records.join("zz-copy.json")).expect("rm");
     std::fs::rename(records.join(TAR), records.join("unknown.json")).expect("mv");
     release.edit("unknown.json", |value| {
-        value["cell"] = "dx-plan9-x86_64".into()
+        value["cell"] = "dx-plan9-x86_64".into();
     });
     let errors = release.errors();
     assert!(
@@ -938,7 +938,7 @@ fn verify_rejects_missing_duplicate_unknown_and_malformed_records() {
         "{errors}"
     );
     release.edit("unknown.json", |value| {
-        value["schema"] = "release-cell/v0".into()
+        value["schema"] = "release-cell/v0".into();
     });
     assert_error(&release, "want \"release-cell/v1\"");
     release.edit("unknown.json", |value| value["extra"] = 1.into());
@@ -981,7 +981,11 @@ fn qualify_main_and_verify_main_run_from_flags() {
     let release = release();
     let fixture = synthetic("tar.gz", |_| {});
     let matrix = release.dir.path().join("matrix.json");
-    std::fs::write(&matrix, matrix_json(&[fixture.inputs.cell.clone()])).expect("matrix");
+    std::fs::write(
+        &matrix,
+        matrix_json(std::slice::from_ref(&fixture.inputs.cell)),
+    )
+    .expect("matrix");
     let out = release.dir.path().join("record.json");
     let path = |path: &Path| path.to_string_lossy().into_owned();
     let mut args = strings(&["--matrix", &path(&matrix), "--cell", "dx-linux-x86_64"]);
@@ -1258,7 +1262,7 @@ fn root_overrides_reads_one_line_and_block_calls() {
             "single_version_override(module_name = \"y\")\n",
         ]
     );
-    assert!(root_overrides("").is_empty());
+    assert_eq!(root_overrides(""), [] as [String; 0]);
 }
 
 #[test]

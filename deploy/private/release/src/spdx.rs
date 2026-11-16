@@ -1,4 +1,4 @@
-//! Binds a release SPDX document to the artifact it describes; the model lives in dx_sbom.
+//! Binds a release SPDX document to the artifact it describes; the model lives in `dx_sbom`.
 
 pub use dx_sbom::{
     DOCUMENT_ID, Document, NOASSERTION, SHA256, SPDX_VERSION, SpdxChecksum, SpdxDocument,

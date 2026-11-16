@@ -1,0 +1,23 @@
+diff --git a/crosstool/cc_toolchain_config.bzl b/crosstool/cc_toolchain_config.bzl
+--- a/crosstool/cc_toolchain_config.bzl
++++ b/crosstool/cc_toolchain_config.bzl
+@@ -781,7 +781,7 @@
+                     ACTION_NAMES.objc_compile,
+                     ACTION_NAMES.objcpp_compile,
+                 ],
+-                env_entries = [env_entry(key = "GCOV_GCNO_FILE", value = "%{gcov_gcno_file}")],
++                env_entries = [env_entry(key = "GCOV_GCNO_FILE", value = "%{gcov_gcno_file}", expand_if_available = "gcov_gcno_file")],
+             ),
+         ],
+         flag_sets = [
+diff --git a/toolchain/coverage/BUILD b/toolchain/coverage/BUILD
+--- a/toolchain/coverage/BUILD
++++ b/toolchain/coverage/BUILD
+@@ -59,6 +59,7 @@
+     env = {"GCOV_GCNO_FILE": "{gcov_gcno_file}"},
+     format = {"gcov_gcno_file": "@rules_cc//cc/toolchains/variables:gcov_gcno_file"},
+     requires_any_of = _COVERAGE_COMPILE_FEATURES,
++    requires_not_none = "@rules_cc//cc/toolchains/variables:gcov_gcno_file",
+ )
+ 
+ cc_args(
